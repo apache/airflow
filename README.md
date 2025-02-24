@@ -196,11 +196,11 @@ For information on installing provider packages, check
 Apache Airflow is an [Apache Software Foundation](https://www.apache.org) (ASF) project,
 and our official source code releases:
 
-- Follow the [ASF Release Policy](https://www.apache.org/legal/release-policy.html)
-- Can be downloaded from [the ASF Distribution Directory](https://downloads.apache.org/airflow)
-- Are cryptographically signed by the release manager
+- Follow the [ASF Release Policy](https://www.apache.org/legal/release-policy.html).
+- Can be downloaded from [the ASF Distribution Directory](https://downloads.apache.org/airflow).
+- Are cryptographically signed by the release manager.
 - Are officially voted on by the PMC members during the
-  [Release Approval Process](https://www.apache.org/legal/release-policy.html#release-approval)
+  [Release Approval Process](https://www.apache.org/legal/release-policy.html#release-approval).
 
 Following the ASF rules, the source packages released must be sufficient for a user to build and test the
 release provided they have access to the appropriate platform and tools.
@@ -214,14 +214,14 @@ who do not want to build the software themselves.
 
 Those are - in the order of most common ways people install Airflow:
 
-- [PyPI releases](https://pypi.org/project/apache-airflow/) to install Airflow using standard `pip` tool
-- [Docker Images](https://hub.docker.com/r/apache/airflow) to install airflow via
+- [PyPI releases](https://pypi.org/project/apache-airflow/) to install Airflow using standard `pip` tool.
+- [Docker Images](https://hub.docker.com/r/apache/airflow) to install airflow via.
   `docker` tool, use them in Kubernetes, Helm Charts, `docker-compose`, `docker swarm`, etc. You can
   read more about using, customizing, and extending the images in the
   [Latest docs](https://airflow.apache.org/docs/docker-stack/index.html), and
   learn details on the internals in the [images](https://airflow.apache.org/docs/docker-stack/index.html) document.
 - [Tags in GitHub](https://github.com/apache/airflow/tags) to retrieve the git project sources that
-  were used to generate official source packages via git
+  were used to generate official source packages via git.
 
 All those artifacts are not official releases, but they are prepared using officially released sources.
 Some of those artifacts are "development" or "pre-release" ones, and they are clearly marked as such
@@ -429,7 +429,7 @@ Official Docker (container) images for Apache Airflow are described in [images](
 
 ## Voting Policy
 
-* Commits need a +1 vote from a committer who is not the author
+* Commits need a +1 vote from a committer who is not the author.
 * When we do AIP voting, both PMC member's and committer's `+1s` are considered a binding vote.
 
 ## Who uses Apache Airflow?
