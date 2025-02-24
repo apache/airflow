@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2025-02-24T14:05:56.820490
+# This constraints file was automatically generated on 2025-02-24T19:58:34.823254
 # via "eager-upgrade" mechanism of PIP. For the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version of both
 # 'apache-airflow' package and all available community provider packages.
@@ -51,7 +51,7 @@ adlfs==2024.12.0
 aiobotocore==2.20.0
 aiofiles==23.2.1
 aiohappyeyeballs==2.4.6
-aiohttp==3.11.12
+aiohttp==3.11.13
 aioitertools==0.12.0
 aiomysql==0.2.0
 aioresponses==0.7.8
@@ -80,7 +80,7 @@ apache-beam==2.59.0
 apispec==6.8.1
 apprise==1.9.2
 argcomplete==3.5.3
-asana==5.0.15
+asana==5.0.16
 asgiref==3.8.1
 asn1crypto==1.5.1
 astroid==3.3.8
@@ -221,7 +221,7 @@ google-cloud-bigquery-datatransfer==3.19.0
 google-cloud-bigquery==3.29.0
 google-cloud-bigtable==2.28.1
 google-cloud-build==3.31.0
-google-cloud-compute==1.25.0
+google-cloud-compute==1.26.0
 google-cloud-container==2.56.0
 google-cloud-core==2.4.2
 google-cloud-datacatalog==3.25.1
@@ -229,9 +229,9 @@ google-cloud-dataflow-client==0.8.16
 google-cloud-dataform==0.5.16
 google-cloud-dataplex==2.7.1
 google-cloud-dataproc-metastore==1.18.1
-google-cloud-dataproc==5.17.1
-google-cloud-dlp==3.27.0
-google-cloud-kms==3.3.1
+google-cloud-dataproc==5.18.0
+google-cloud-dlp==3.28.0
+google-cloud-kms==3.4.0
 google-cloud-language==2.17.0
 google-cloud-logging==3.11.4
 google-cloud-managedkafka==0.1.7
@@ -409,7 +409,7 @@ orderly-set==5.3.0
 orjson==3.10.15
 oss2==2.19.1
 packaging==24.2
-pandas-gbq==0.27.0
+pandas-gbq==0.28.0
 pandas-stubs==2.2.3.241126
 pandas==2.1.4
 papermill==2.6.0
@@ -483,7 +483,7 @@ pytest-timeouts==1.2.1
 pytest-unordered==0.6.1
 pytest-xdist==3.6.1
 pytest==8.3.4
-python-arango==8.1.4
+python-arango==8.1.5
 python-daemon==3.1.2
 python-dateutil==2.9.0.post0
 python-dotenv==1.0.1
