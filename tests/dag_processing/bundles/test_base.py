@@ -34,8 +34,8 @@ from airflow.dag_processing.bundles.base import (
     BaseDagBundle,
     BundleUsageTrackingManager,
     BundleVersionLock,
+    get_bundle_storage_root_path,
 )
-from airflow.dag_processing.bundles.local import LocalDagBundle
 from airflow.utils import timezone as tz
 
 from tests_common.test_utils.config import conf_vars
@@ -52,13 +52,21 @@ def bundle_temp_dir(tmp_path):
         yield tmp_path
 
 
-def test_default_dag_storage_path():
-    with conf_vars({("dag_processor", "dag_bundle_storage_path"): ""}):
-        bundle = LocalDagBundle(name="test", path="/hello")
-        assert bundle._dag_bundle_root_storage_path == Path(tempfile.gettempdir(), "airflow", "dag_bundles")
+@pytest.mark.parametrize(
+    "val, expected",
+    [
+        ("/blah", Path("/blah")),
+        ("", Path(tempfile.gettempdir(), "airflow", "dag_bundles")),
+    ],
+)
+def test_default_dag_storage_path(val, expected):
+    with conf_vars({("dag_processor", "dag_bundle_storage_path"): val}):
+        assert get_bundle_storage_root_path() == expected
 
 
 class BasicBundle(BaseDagBundle):
+    bundle_type = "test"
+
     def refresh(self):
         pass
 
@@ -71,14 +79,13 @@ class BasicBundle(BaseDagBundle):
 
 def test_dag_bundle_root_storage_path():
     with conf_vars({("dag_processor", "dag_bundle_storage_path"): None}):
-        bundle = BasicBundle(name="test")
-        assert bundle._dag_bundle_root_storage_path == Path(tempfile.gettempdir(), "airflow", "dag_bundles")
+        assert get_bundle_storage_root_path() == Path(tempfile.gettempdir(), "airflow", "dag_bundles")
 
 
 def test_lock_acquisition():
     """Test that the lock context manager sets _locked and locks a lock file."""
     bundle = BasicBundle(name="locktest")
-    lock_dir = bundle._dag_bundle_root_storage_path / "_locks"
+    lock_dir = get_bundle_storage_root_path() / "_locks"
     lock_file = lock_dir / f"{bundle.name}.lock"
 
     assert not bundle._locked
@@ -112,7 +119,7 @@ def test_lock_acquisition():
 def test_lock_exception_handling():
     """Test that exceptions within the lock context manager still release the lock."""
     bundle = BasicBundle(name="locktest")
-    lock_dir = bundle._dag_bundle_root_storage_path / "_locks"
+    lock_dir = get_bundle_storage_root_path() / "_locks"
     lock_file = lock_dir / f"{bundle.name}.lock"
 
     try:
