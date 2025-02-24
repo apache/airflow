@@ -1092,7 +1092,7 @@ class TestDeleteDagAssetQueuedEvent(TestQueuedEventEndpoint):
         assert response.status_code == 204
         adrq = session.query(AssetDagRunQueue).all()
         assert len(adrq) == 0
-        _check_last_log(session, dag_id=dag_id, event="delete_dag_asset_queued_events", logical_date=None)
+        _check_last_log(session, dag_id=dag_id, event="delete_dag_asset_queued_event", logical_date=None)
 
     def test_should_respond_404(self, test_client):
         dag_id = "not_exists"
