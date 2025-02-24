@@ -203,7 +203,7 @@ class FakeBundle(BaseDagBundle):
     @property
     def path(self) -> Path:
         assert self.version
-        return self.versions_path / self.version
+        return self.versions_dir / self.version
 
     def get_current_version(self) -> str | None: ...
     def refresh(self) -> None: ...
@@ -255,7 +255,7 @@ class TestBundleUsageTrackingManager:
                         print(version)
             lock_files = list(bundle_tracking_dir.iterdir())
             assert len(lock_files) == 5
-            bundle_folders = list(b.versions_path.iterdir())
+            bundle_folders = list(b.versions_dir.iterdir())
             assert len(bundle_folders) == 5
             num += 1
             with time_machine.travel(h0 + timedelta(hours=when_hours), tick=False):
@@ -265,5 +265,5 @@ class TestBundleUsageTrackingManager:
                 )
                 lock_files = list(bundle_tracking_dir.iterdir())
                 assert len(lock_files) == expected_remaining
-                bundle_folders = list(b.versions_path.iterdir())
+                bundle_folders = list(b.versions_dir.iterdir())
                 assert len(bundle_folders) == expected_remaining

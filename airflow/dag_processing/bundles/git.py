@@ -147,11 +147,11 @@ class GitDagBundle(BaseDagBundle, LoggingMixin):
         super().__init__(**kwargs)
         self.tracking_ref = tracking_ref
         self.subdir = subdir
-        self.bare_repo_path = self.base_folder / "bare"
+        self.bare_repo_path = self.base_dir / "bare"
         if self.version:
-            self.repo_path = self.versions_path / self.version
+            self.repo_path = self.versions_dir / self.version
         else:
-            self.repo_path = self.base_folder / "tracking_repo"
+            self.repo_path = self.base_dir / "tracking_repo"
         self.git_conn_id = git_conn_id
         self.repo_url = repo_url
 
@@ -165,7 +165,7 @@ class GitDagBundle(BaseDagBundle, LoggingMixin):
                 version=self.version,
                 bare_repo_path=self.bare_repo_path,
                 repo_path=self.repo_path,
-                versions_path=self.versions_path,
+                versions_path=self.versions_dir,
                 git_conn_id=self.git_conn_id,
                 repo_url=self.repo_url,
                 **kwargs,

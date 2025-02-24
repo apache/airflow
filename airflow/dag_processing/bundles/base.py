@@ -111,7 +111,7 @@ class BundleUsageTrackingManager:
             return None
 
     @staticmethod
-    def _remove_last_n(val: list[TrackedBundleVersionInfo]) -> list[TrackedBundleVersionInfo]:
+    def _filter_for_min_versions(val: list[TrackedBundleVersionInfo]) -> list[TrackedBundleVersionInfo]:
         min_versions_to_keep = conf.getint(
             section="dag_processor",
             key="stale_bundle_cleanup_min_versions",
@@ -120,7 +120,7 @@ class BundleUsageTrackingManager:
         return sorted(val, key=attrgetter("dt"), reverse=True)[min_versions_to_keep:]
 
     @staticmethod
-    def _remove_recent(val: list[TrackedBundleVersionInfo]) -> list[TrackedBundleVersionInfo]:
+    def _filter_for_recency(val: list[TrackedBundleVersionInfo]) -> list[TrackedBundleVersionInfo]:
         age_threshold = conf.getint(
             section="dag_processor",
             key="stale_bundle_cleanup_age_threshold",
@@ -188,8 +188,8 @@ class BundleUsageTrackingManager:
 
     def _find_candidates(self, found):
         """Remove the recently used bundles."""
-        candidates = self._remove_last_n(found)
-        candidates = self._remove_recent(candidates)
+        candidates = self._filter_for_min_versions(found)
+        candidates = self._filter_for_recency(candidates)
         if log.isEnabledFor(level=logging.DEBUG):
             self._debug_candidates(candidates, found)
         return candidates
@@ -262,7 +262,7 @@ class BaseDagBundle(ABC):
     supports_versioning: bool = False
 
     bundle_type: str
-    """This is used in generating some the paths used for local storage."""
+    """This is used in generating some of the paths used for local storage."""
 
     _locked: bool = False
 
@@ -278,10 +278,10 @@ class BaseDagBundle(ABC):
         self.refresh_interval = refresh_interval
         self.is_initialized: bool = False
 
-        self.base_folder = get_bundle_base_folder(bundle_name=self.name, bundle_type=self.bundle_type)
+        self.base_dir = get_bundle_base_folder(bundle_name=self.name, bundle_type=self.bundle_type)
         """Base directory for all bundle files"""
 
-        self.versions_path = get_bundle_versions_base_folder(
+        self.versions_dir = get_bundle_versions_base_folder(
             bundle_type=self.bundle_type, bundle_name=self.name
         )
         """Where bundle versions are stored."""
