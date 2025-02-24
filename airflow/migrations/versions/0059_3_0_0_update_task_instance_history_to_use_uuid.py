@@ -41,21 +41,20 @@ airflow_version = "3.0.0"
 
 def upgrade():
     """Apply Use TI.id in TaskInstanceHistory."""
-    with op.batch_alter_table("task_instance_history", schema=None, recreate="always") as batch_op:
+    with op.batch_alter_table("task_instance_history", schema=None) as batch_op:
         batch_op.add_column(
-            sa.Column("new_id", sa.String(length=36).with_variant(postgresql.UUID(), "postgresql")),
-            insert_before="id",
+            sa.Column("new_id", sa.String(length=36).with_variant(postgresql.UUID(), "postgresql"))
         )
     # get all the TaskInstance equivalent of TaskInstanceHistory and populate the new column
     op.execute(
         """
-        UPDATE task_instance_history
-        SET new_id = ti.id
-        FROM task_instance ti
-        WHERE task_instance_history.dag_id = ti.dag_id
-            AND task_instance_history.task_id = ti.task_id
-            AND task_instance_history.run_id = ti.run_id
-            AND task_instance_history.map_index = ti.map_index
+        UPDATE task_instance_history tih
+            JOIN task_instance ti
+            ON tih.dag_id = ti.dag_id
+            AND tih.task_id = ti.task_id
+            AND tih.run_id = ti.run_id
+            AND tih.map_index = ti.map_index
+            SET tih.new_id = ti.id;
     """
     )
     with op.batch_alter_table("task_instance_history", schema=None) as batch_op:
@@ -80,10 +79,8 @@ def upgrade():
 
 def downgrade():
     """Unapply Use TI.id in TaskInstanceHistory."""
-    with op.batch_alter_table("task_instance_history", schema=None, recreate="always") as batch_op:
-        batch_op.add_column(
-            sa.Column("new_id", sa.INTEGER, autoincrement=True, nullable=True), insert_before="id"
-        )
+    with op.batch_alter_table("task_instance_history", schema=None) as batch_op:
+        batch_op.add_column(sa.Column("new_id", sa.INTEGER, autoincrement=True, nullable=True))
     if op.get_bind().dialect.name == "postgresql":
         op.execute(
             """
@@ -92,13 +89,22 @@ def downgrade():
             ALTER TABLE task_instance_history DROP COLUMN row_num;
         """
         )
-    else:
+    elif op.get_bind().dialect.name == "mysql":
         op.execute(
             """
-            UPDATE task_instance_history
-            SET new_id = (SELECT COUNT(*) FROM task_instance_history t2 WHERE t2.id <= task_instance_history.id);
+            UPDATE task_instance_history tih
+            JOIN (
+                SELECT id, ROW_NUMBER() OVER (ORDER BY id) AS row_num
+                FROM task_instance_history
+            ) AS temp ON tih.id = temp.id
+            SET tih.new_id = temp.row_num;
             """
         )
+    else:
+        op.execute("""
+            UPDATE task_instance_history
+            SET new_id = (SELECT COUNT(*) FROM task_instance_history t2 WHERE t2.id <= task_instance_history.id);
+        """)
 
     with op.batch_alter_table("task_instance_history", schema=None) as batch_op:
         batch_op.drop_constraint("task_instance_history_ti_fkey", type_="foreignkey")
