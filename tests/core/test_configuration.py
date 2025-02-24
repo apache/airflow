@@ -938,11 +938,47 @@ class TestDeprecatedConf:
             with pytest.warns(DeprecationWarning), conf_vars({("celery", "celeryd_concurrency"): "99"}):
                 assert conf.getint("celery", "worker_concurrency") == 99
 
-            # should get None when set lookup_from_deprecated_options keyword to False
-            assert (
-                conf.get("celery", "worker_concurrency", fallback=None, lookup_from_deprecated_options=False)
-                is None
-            )
+    @pytest.mark.parametrize(
+        "deprecated_options_dict, kargs, new_section_expected, old_section_expected",
+        [
+            pytest.param(
+                {("old_section", "old_key"): ("new_section", "new_key", "2.0.0")},
+                {"fallback": None},
+                None,
+                "value",
+                id="deprecated_in_different_section_lookup_enabled",
+            ),
+            pytest.param(
+                {("old_section", "old_key"): ("new_section", "new_key", "2.0.0")},
+                {"fallback": None, "lookup_from_deprecated": False},
+                None,
+                None,
+                id="deprecated_in_different_section_lookup_disabled",
+            ),
+            pytest.param(
+                {("new_section", "old_key"): ("new_section", "new_key", "2.0.0")},
+                {"fallback": None},
+                "value",
+                None,
+                id="deprecated_in_same_section_lookup_enabled",
+            ),
+            pytest.param(
+                {("new_section", "old_key"): ("new_section", "new_key", "2.0.0")},
+                {"fallback": None, "lookup_from_deprecated": False},
+                None,
+                None,
+                id="deprecated_in_same_section_lookup_disabled",
+            ),
+        ],
+    )
+    def test_deprecated_options_with_lookup_from_deprecated(
+        self, deprecated_options_dict, kargs, new_section_expected, old_section_expected
+    ):
+        with conf_vars({("new_section", "new_key"): "value"}):
+            with set_deprecated_options(deprecated_options=deprecated_options_dict):
+                assert conf.get("new_section", "old_key", **kargs) == new_section_expected
+
+                assert conf.get("old_section", "old_key", **kargs) == old_section_expected
 
     @conf_vars(
         {
