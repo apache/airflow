@@ -72,6 +72,14 @@ def create_task_execution_api_app() -> FastAPI:
             if schema_name not in openapi_schema["components"]["schemas"]:
                 openapi_schema["components"]["schemas"][schema_name] = schema
 
+        # The `JsonValue` component is missing any info. causes issues when generating models
+        openapi_schema["components"]["schemas"]["JsonValue"] = {
+            "title": "Any valid JSON value",
+            "anyOf": [
+                {"type": t} for t in ("string", "number", "integer", "object", "array", "boolean", "null")
+            ],
+        }
+
         app.openapi_schema = openapi_schema
         return app.openapi_schema
 
