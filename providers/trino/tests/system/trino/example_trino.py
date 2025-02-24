@@ -54,7 +54,7 @@ with models.DAG(
         task_id="trino_insert",
         sql=f" INSERT INTO {SCHEMA}.{TABLE} VALUES (1, 'San Francisco') ",
         handler=list,
-        requires_result_fetch=True
+        requires_result_fetch=True,
     )
     trino_multiple_queries = SQLExecuteQueryOperator(
         task_id="trino_multiple_queries",
@@ -62,10 +62,10 @@ with models.DAG(
             f" CREATE TABLE IF NOT EXISTS {SCHEMA}.{TABLE1}(cityid bigint,cityname varchar) ",
             f" INSERT INTO {SCHEMA}.{TABLE1} VALUES (2, 'San Jose') ",
             f" CREATE TABLE IF NOT EXISTS {SCHEMA}.{TABLE2}(cityid bigint,cityname varchar) ",
-            f" INSERT INTO {SCHEMA}.{TABLE2} VALUES (3, 'San Diego') "
+            f" INSERT INTO {SCHEMA}.{TABLE2} VALUES (3, 'San Diego') ",
         ],
         handler=list,
-        requires_result_fetch=True
+        requires_result_fetch=True,
     )
     trino_templated_query = SQLExecuteQueryOperator(
         task_id="trino_templated_query",
