@@ -260,9 +260,11 @@ class CloudRunExecuteJobOperator(GoogleCloudBaseOperator):
         If set as a sequence, the identities from the list must grant
         Service Account Token Creator IAM role to the directly preceding identity, with first
         account from the list granting this role to the originating account (templated).
-    :param expose_logging_url: Optional. If set to True, the GCP logging URL containing the container
-        logs will be included in the Airflow logs. This URL is a direct link to the GCP
-        Console Logging, default value is False.
+    :param expose_logging_url: Optional. If set to True, the GCP logging URL with the Cloud Run Job execution
+        logs will be included in the Airflow logs. This URL is a clickable direct link to the GCP
+        Console, allowing users to easily access detailed execution logs. This can be particularly useful
+        for troubleshooting and monitoring job executions. The default value is False, meaning the logging
+        URL will not be included unless explicitly enabled.
     :param deferrable: Run the operator in deferrable mode.
     """
 
