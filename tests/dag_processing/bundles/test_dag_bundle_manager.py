@@ -86,6 +86,8 @@ def test_parse_bundle_config(value, expected):
 
 
 class BasicBundle(BaseDagBundle):
+    bundle_type = "test"
+
     def refresh(self):
         pass
 
