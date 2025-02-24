@@ -742,8 +742,8 @@ class TestLocalTaskJob:
         Test that ensures that when a task is killed with sigkill or sigterm
         on_failure_callback does not get executed by LocalTaskJob.
 
-        Callbacks should not be executed by LocalTaskJob.  If the task killed via sigkill,
-        it will be reaped as zombie, then the callback is executed
+        Callbacks should not be executed by LocalTaskJob.  If the task is killed via sigkill,
+        the scheduler will detect a task instance heartbeat timeout, then the callback is executed
         """
         callback_file = tmp_path.joinpath("callback.txt")
         # callback_file will be created by the task: bash_sleep
@@ -826,7 +826,7 @@ class TestLocalTaskJob:
         elif signal_type == signal.SIGKILL:
             assert (
                 ti.state == State.RUNNING
-            )  # task exits with running state, will be reaped as zombie by scheduler
+            )  # task exits with running state, scheduler will detect task a task instance heartbeat timeout
             with open(callback_file) as f:
                 lines = f.readlines()
             assert len(lines) == 0

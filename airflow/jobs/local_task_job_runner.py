@@ -165,11 +165,11 @@ class LocalTaskJobRunner(BaseJobRunner, LoggingMixin):
         return_code = None
         try:
             self.task_runner.start()
-            local_task_job_heartbeat_sec = conf.getint("scheduler", "local_task_job_heartbeat_sec")
-            if local_task_job_heartbeat_sec < 1:
-                heartbeat_time_limit = conf.getint("scheduler", "scheduler_zombie_task_threshold")
+            task_instance_heartbeat_sec = conf.getint("scheduler", "task_instance_heartbeat_sec")
+            if task_instance_heartbeat_sec < 1:
+                heartbeat_time_limit = conf.getint("scheduler", "task_instance_heartbeat_timeout_threshold")
             else:
-                heartbeat_time_limit = local_task_job_heartbeat_sec
+                heartbeat_time_limit = task_instance_heartbeat_sec
 
             # LocalTaskJob should not run callbacks, which are handled by TaskInstance._run_raw_task
             # 1, LocalTaskJob does not parse DAG, thus cannot run callbacks
@@ -177,7 +177,7 @@ class LocalTaskJobRunner(BaseJobRunner, LoggingMixin):
             # When run_as_user is specified, the process owner of the LocalTaskJob must be sudoable.
             # It is not secure to run callbacks with sudoable users.
 
-            # If _run_raw_task receives SIGKILL, scheduler will mark it as zombie and invoke callbacks
+            # If _run_raw_task receives SIGKILL, scheduler will detect a task heartbeat timeout and invoke callbacks
             # If LocalTaskJob receives SIGTERM, LocalTaskJob passes SIGTERM to _run_raw_task
             # If the state of task_instance is changed, LocalTaskJob sends SIGTERM to _run_raw_task
             while not self.terminating:
@@ -210,7 +210,7 @@ class LocalTaskJobRunner(BaseJobRunner, LoggingMixin):
                         )
                     except Exception as e:
                         # Failing the heartbeat should never kill the localtaskjob
-                        # If it repeatedly can't heartbeat, it will be marked as a zombie anyhow
+                        # If it repeatedly can't heartbeat, the scheduler will detect a task instance heartbeat timeout anyhow
                         self.log.warning("Heartbeat failed with Exception: %s", e)
 
                     # If it's been too long since we've heartbeat, then it's possible that

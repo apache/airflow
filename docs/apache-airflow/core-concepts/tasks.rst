@@ -165,10 +165,10 @@ If you want to control your task's state from within custom Task/Operator code, 
 
 These can be useful if your code has extra knowledge about its environment and wants to fail/skip faster - e.g., skipping when it knows there's no data available, or fast-failing when it detects its API key is invalid (as that will not be fixed by a retry).
 
-.. _concepts:zombies:
+.. _concepts:task-instance-heartbeat-timeout:
 
 Task Instance Heartbeat Timeout
-----------------------
+-------------------------------
 
 No system runs perfectly, and task instances are expected to die once in a while.
 
@@ -191,9 +191,9 @@ If you'd like to reproduce task instance heartbeat timeouts for development/test
 
 .. code-block:: bash
 
-    export AIRFLOW__SCHEDULER__LOCAL_TASK_JOB_HEARTBEAT_SEC=600
-    export AIRFLOW__SCHEDULER__SCHEDULER_ZOMBIE_TASK_THRESHOLD=2
-    export AIRFLOW__SCHEDULER__ZOMBIE_DETECTION_INTERVAL=5
+    export AIRFLOW__SCHEDULER__TASK_INSTANCE_HEARTBEAT_SEC=600
+    export AIRFLOW__SCHEDULER__TASK_INSTANCE_HEARTBEAT_TIMEOUT_THRESHOLD=2
+    export AIRFLOW__SCHEDULER__TASK_INSTANCE_HEARTBEAT_TIMEOUT_DETECTION_INTERVAL=5
 
 
 2. Have a DAG with a task that takes about 10 minutes to complete(i.e. a long-running task). For example, you could use the below DAG:
@@ -216,7 +216,7 @@ If you'd like to reproduce task instance heartbeat timeouts for development/test
     sleep_dag()
 
 
-Run the above DAG and wait for a while. The ``TaskInstance`` will be marked failed after <scheduler_zombie_task_threshold> seconds.
+Run the above DAG and wait for a while. The ``TaskInstance`` will be marked failed after <task_instance_heartbeat_timeout_threshold> seconds.
 
 
 

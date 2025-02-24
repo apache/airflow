@@ -157,7 +157,7 @@ Name                                                                   Descripti
 ``ti_failures``                                                        Overall task instances failures. Metric with dag_id and task_id tagging.
 ``ti_successes``                                                       Overall task instances successes. Metric with dag_id and task_id tagging.
 ``previously_succeeded``                                               Number of previously succeeded task instances. Metric with dag_id and task_id tagging.
-``zombies_killed``                                                     Zombie tasks killed. Metric with dag_id and task_id tagging.
+``task_instances_with_heartbeat_timeout_killed``                       Task instances with heartbeat timeout killed. Metric with dag_id and task_id tagging.
 ``scheduler_heartbeat``                                                Scheduler heartbeats
 ``dag_processor_heartbeat``                                            Standalone DAG processor heartbeats
 ``dag_processing.processes``                                           Relative number of currently running DAG parsing processes (ie this delta

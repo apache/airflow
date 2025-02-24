@@ -213,7 +213,7 @@ class TestCLIGetNumReadyWorkersRunning:
         with mock.patch("psutil.Process", return_value=self.process):
             assert self.monitor._get_num_ready_workers_running() == 0
 
-    def test_ready_prefix_on_cmdline_zombie(self):
+    def test_ready_prefix_on_cmdline_task_instance_heartbeat_timeout(self):
         self.child.cmdline.return_value = []
         self.process.children.return_value = [self.child]
 

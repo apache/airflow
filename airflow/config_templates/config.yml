@@ -2217,11 +2217,11 @@ scheduler:
       type: integer
       example: ~
       default: "5"
-    local_task_job_heartbeat_sec:
+    task_instance_heartbeat_sec:
       description: |
         The frequency (in seconds) at which the LocalTaskJob should send heartbeat signals to the
         scheduler to notify it's still alive. If this value is set to 0, the heartbeat interval will default
-        to the value of ``[scheduler] scheduler_zombie_task_threshold``.
+        to the value of ``[scheduler] task_instance_heartbeat_timeout_threshold``.
       version_added: 2.7.0
       type: integer
       example: ~
@@ -2307,7 +2307,7 @@ scheduler:
       type: string
       example: ~
       default: "{AIRFLOW_HOME}/logs/scheduler"
-    task_instance_heartbeat_threshold:
+    task_instance_heartbeat_timeout_threshold:
       description: |
         Local task jobs periodically heartbeat to the DB. If the job has
         not heartbeat in this many seconds, the scheduler will mark the
@@ -2316,7 +2316,7 @@ scheduler:
       type: integer
       example: ~
       default: "300"
-    task_instance_heartbeat_detection_interval:
+    task_instance_heartbeat_timeout_detection_interval:
       description: |
         How often (in seconds) should the scheduler check for task instances whose heartbeats have timed out.
       version_added: 2.3.0
