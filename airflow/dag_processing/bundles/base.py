@@ -57,11 +57,12 @@ STALE_BUNDLE_CHECK_INTERVAL: int = conf.getint(
 )
 """How frequently (in seconds) a worker should check for stale bundles."""
 
-BUNDLE_STORAGE_PATH_ROOT: Path
-if configured_location := conf.get("dag_processor", "dag_bundle_storage_path", fallback=None):
-    BUNDLE_STORAGE_PATH_ROOT = Path(configured_location)
-else:
-    BUNDLE_STORAGE_PATH_ROOT = Path(tempfile.gettempdir(), "airflow", "dag_bundles")
+
+def get_bundle_storage_root_path():
+    if configured_location := conf.get("dag_processor", "dag_bundle_storage_path", fallback=None):
+        return Path(configured_location)
+    else:
+        return Path(tempfile.gettempdir(), "airflow", "dag_bundles")
 
 
 def get_bundle_tracking_dir(bundle_name: str) -> Path:
@@ -74,7 +75,7 @@ def get_bundle_tracking_file(bundle_name: str, version: str) -> Path:
 
 
 def get_bundle_base_folder(bundle_type: str, bundle_name: str) -> Path:
-    return BUNDLE_STORAGE_PATH_ROOT / bundle_type / bundle_name
+    return get_bundle_storage_root_path() / bundle_type / bundle_name
 
 
 def get_bundle_versions_base_folder(bundle_type: str, bundle_name: str) -> Path:
@@ -341,7 +342,7 @@ class BaseDagBundle(ABC):
             yield
             return
 
-        lock_dir_path = BUNDLE_STORAGE_PATH_ROOT / "_locks"
+        lock_dir_path = get_bundle_storage_root_path() / "_locks"
         lock_dir_path.mkdir(parents=True, exist_ok=True)
         lock_file_path = lock_dir_path / f"{self.name}.lock"
         with open(lock_file_path, "w") as lock_file:
