@@ -53,9 +53,9 @@ class MwaaDagRunSensor(AwsBaseSensor[MwaaHook]):
 
     aws_hook_class = MwaaHook
     template_fields: Sequence[str] = aws_template_fields(
-        "ext_env_name",
-        "ext_dag_id",
-        "ext_dag_run_id",
+        "external_env_name",
+        "external_dag_id",
+        "external_dag_run_id",
         "success_states",
         "failure_states",
     )
@@ -78,20 +78,20 @@ class MwaaDagRunSensor(AwsBaseSensor[MwaaHook]):
         if len(self.success_states & self.failure_states):
             raise AirflowException("allowed_states and failed_states must not have any values in common")
 
-        self.ext_env_name = external_env_name
-        self.ext_dag_id = external_dag_id
-        self.ext_dag_run_id = external_dag_run_id
+        self.external_env_name = external_env_name
+        self.external_dag_id = external_dag_id
+        self.external_dag_run_id = external_dag_run_id
 
     def poke(self, context: Context) -> bool:
         self.log.info(
             "Poking for DAG run %s of DAG %s in MWAA environment %s",
-            self.ext_dag_run_id,
-            self.ext_dag_id,
-            self.ext_env_name,
+            self.external_dag_run_id,
+            self.external_dag_id,
+            self.external_env_name,
         )
         response = self.hook.invoke_rest_api(
-            env_name=self.ext_env_name,
-            path=f"/dags/{self.ext_dag_id}/dagRuns/{self.ext_dag_run_id}",
+            env_name=self.external_env_name,
+            path=f"/dags/{self.external_dag_id}/dagRuns/{self.external_dag_run_id}",
             method="GET",
         )
 
@@ -107,7 +107,7 @@ class MwaaDagRunSensor(AwsBaseSensor[MwaaHook]):
 
         if state in self.failure_states:
             raise AirflowException(
-                f"The DAG run {self.ext_dag_run_id} of DAG {self.ext_dag_id} in MWAA environment {self.ext_env_name} "
+                f"The DAG run {self.external_dag_run_id} of DAG {self.external_dag_id} in MWAA environment {self.external_env_name} "
                 f"failed with state {state}."
             )
         return False

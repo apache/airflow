@@ -46,9 +46,9 @@ class TestMwaaDagRunSuccessSensor:
         sensor = MwaaDagRunSensor(
             **SENSOR_KWARGS, success_states=success_states, failure_states=failure_states
         )
-        assert sensor.ext_env_name == SENSOR_KWARGS["external_env_name"]
-        assert sensor.ext_dag_id == SENSOR_KWARGS["external_dag_id"]
-        assert sensor.ext_dag_run_id == SENSOR_KWARGS["external_dag_run_id"]
+        assert sensor.external_env_name == SENSOR_KWARGS["external_env_name"]
+        assert sensor.external_dag_id == SENSOR_KWARGS["external_dag_id"]
+        assert sensor.external_dag_run_id == SENSOR_KWARGS["external_dag_run_id"]
         assert set(sensor.success_states) == success_states
         assert set(sensor.failure_states) == failure_states
 
