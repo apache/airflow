@@ -40,16 +40,19 @@ def mock_invoke_rest_api():
 
 
 class TestMwaaDagRunSuccessSensor:
-    def test_init(self):
-        s_states = {"state1", "state2"}
-        f_states = {"state3", "state4"}
-        sensor = MwaaDagRunSensor(**SENSOR_KWARGS, success_states=s_states, failure_states=f_states)
+    def test_init_success(self):
+        success_states = {"state1", "state2"}
+        failure_states = {"state3", "state4"}
+        sensor = MwaaDagRunSensor(
+            **SENSOR_KWARGS, success_states=success_states, failure_states=failure_states
+        )
         assert sensor.ext_env_name == SENSOR_KWARGS["external_env_name"]
         assert sensor.ext_dag_id == SENSOR_KWARGS["external_dag_id"]
         assert sensor.ext_dag_run_id == SENSOR_KWARGS["external_dag_run_id"]
-        assert set(sensor.success_states) == set(s_states)
-        assert set(sensor.failure_states) == set(f_states)
+        assert set(sensor.success_states) == success_states
+        assert set(sensor.failure_states) == failure_states
 
+    def test_init_failure(self):
         with pytest.raises(AirflowException):
             MwaaDagRunSensor(
                 **SENSOR_KWARGS, success_states={"state1", "state2"}, failure_states={"state2", "state3"}
