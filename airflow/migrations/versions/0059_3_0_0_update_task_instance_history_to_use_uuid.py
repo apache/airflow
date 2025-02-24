@@ -17,7 +17,7 @@
 # under the License.
 
 """
-Use TI.id in TaskInstanceHistory.
+Update TaskInstanceHistory to use uuid.
 
 Revision ID: aa495c49bebf
 Revises: 6a9e7a527a88
@@ -101,6 +101,7 @@ def downgrade():
         )
 
     with op.batch_alter_table("task_instance_history", schema=None) as batch_op:
+        batch_op.drop_constraint("task_instance_history_ti_fkey", type_="foreignkey")
         batch_op.drop_column("id")  # also drops the associated foreignkey
         batch_op.alter_column("new_id", new_column_name="id", nullable=False, existing_type=sa.INTEGER)
         batch_op.create_primary_key("task_instance_history_pkey", ["id"])
