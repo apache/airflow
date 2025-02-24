@@ -311,7 +311,7 @@ class BaseXCom(TaskInstanceDependencies, LoggingMixin):
     def get_many(
         *,
         run_id: str,
-        key: Annotated[str, StringConstraints(min_length=1)] | None = None,
+        key: str | None = None,
         task_ids: str | Iterable[str] | None = None,
         dag_ids: str | Iterable[str] | None = None,
         map_indexes: int | Iterable[int] | None = None,
@@ -342,6 +342,9 @@ class BaseXCom(TaskInstanceDependencies, LoggingMixin):
         :param limit: Limiting returning XComs
         """
         from airflow.models.dagrun import DagRun
+
+        if key is not None and len(key) < 1:
+            raise ValueError(f"XCom key must be a non-empty string. Received: {key!r}")
 
         if not run_id:
             raise ValueError(f"run_id must be passed. Passed run_id={run_id}")
