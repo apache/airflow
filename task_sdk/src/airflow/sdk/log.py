@@ -195,12 +195,12 @@ def _logging_processors_plain():
         # Note: this is likely an "expensive" step, but lets massage the dict order for nice
         # viewing of the raw JSON logs.
         # Maybe we don't need this once the UI renders the JSON instead of displaying the raw text
-        # msg = {
-        #     "timestamp": msg.pop("timestamp"),
-        #     "level": msg.pop("level"),
-        #     "event": msg.pop("event"),
-        #     **msg,
-        # }
+        msg = {
+            "timestamp": msg.pop("timestamp"),
+            "level": msg.pop("level"),
+            "event": msg.pop("event"),
+            **msg,
+        }
         return msgspec.json.encode(msg, enc_hook=default)
 
     json = structlog.processors.JSONRenderer(serializer=json_dumps)
