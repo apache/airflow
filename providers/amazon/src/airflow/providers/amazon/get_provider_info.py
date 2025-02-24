@@ -1376,7 +1376,7 @@ def get_provider_info():
         "devel-dependencies": [
             "aiobotocore>=2.13.0",
             "aws_xray_sdk>=2.12.0",
-            "moto[cloudformation,glue]>=5.0.0",
+            "moto[cloudformation,glue]>=5.0.0,!=5.1.0",
             "mypy-boto3-appflow>=1.35.39",
             "mypy-boto3-rds>=1.34.90",
             "mypy-boto3-redshift-data>=1.34.0",
