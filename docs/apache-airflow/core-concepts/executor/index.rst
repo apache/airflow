@@ -115,9 +115,6 @@ Airflow tasks are executed ad hoc inside containers/pods. Each task is isolated 
 Using Multiple Executors Concurrently
 -------------------------------------
 
-.. warning::
-    Multiple executor configuration is an alpha/experimental feature at the moment and may be subject to change without warning.
-
 Starting with version 2.10.0, Airflow can now operate with a multi-executor configuration. Each executor has its own set of pros and cons, often they are trade-offs between latency, isolation and compute efficiency among other properties (see :ref:`here <executor-types-comparison>` for comparisons of executors). Running multiple executors allows you to make better use of the strengths of all the available executors and avoid their weaknesses. In other words, you can use a specific executor for a specific set of tasks where its particular merits and benefits make the most sense for that use case.
 
 Configuration
@@ -208,15 +205,23 @@ When using a single executor, Airflow metrics will behave as they were <2.9. But
 
 Logging works the same as the single executor use case.
 
-Statically-coded Hybrid Executors
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Statically-coded Hybrid Executors (Deprecated)
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 There are currently two "statically coded" executors, these executors are hybrids of two different executors: the :doc:`LocalKubernetesExecutor <apache-airflow-providers-cncf-kubernetes:local_kubernetes_executor>` and the :doc:`CeleryKubernetesExecutor <apache-airflow-providers-celery:celery_kubernetes_executor>`. Their implementation is not native or intrinsic to core Airflow. These hybrid executors instead make use of the ``queue`` field on Task Instances to indicate and persist which sub-executor to run on. This is a misuse of the ``queue`` field and makes it impossible to use it for its intended purpose when using these hybrid executors.
 
 Executors such as these also require hand crafting new "concrete" classes to create each permutation of possible combinations of executors. This is untenable as more executors are created and leads to more maintenance overhead. Bespoke coding effort should not be required to use any combination of executors.
 
-Therefore using these types of executors is no longer recommended.
+Therefore these types of executors are deprecated and using them is no longer recommended.
 
+Migrating from Statically-Coded Hybrid Executors to Multi-Executor Configuration
+""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+
+Here are some steps to migrate from statically-coded hybrid executors to the new multi-executor configuration:
+
+1. **Update Airflow**: Ensure you are using Airflow 2.10.0 or later.
+2. **Update executor configuration**: Update the ``[core] executor`` configuration to replace the use of the statically-coded hybrid executor with the new multi-executor configuration (i.e. a list of the executors you'd like to use). For example, replace ``LocalKubernetesExecutor`` with ``LocalExecutor,KubernetesExecutor``.
+3. **Update Dags**: Update your dags to use the new multi-executor configuration. This involves replacing the use of the ``queue`` field on your tasks with the ``executor`` field to specify which executor you'd like to use.
 
 Writing Your Own Executor
 -------------------------

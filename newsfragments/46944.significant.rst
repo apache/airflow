@@ -1,0 +1,3 @@
+Statically-coded executors are now deprecated; use Multiple Executor Configuration
+
+The Statically-coded executors ``LocalKubernetesExecutor`` and ``CeleryKubernetesExecutor`` are now deprecated in favor of Multiple Executor Configuration, which is now marked as stable. They will be removed in Airflow 3.0
