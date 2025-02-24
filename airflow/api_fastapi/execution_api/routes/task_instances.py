@@ -362,17 +362,22 @@ def ti_skip_downstream(
     ti_id_str = str(task_instance_id)
     now = timezone.utcnow()
     tasks = ti_patch_payload.tasks
+
+    dag_id, run_id = session.execute(
+        select(TI.dag_id, TI.run_id).where(TI.id == ti_id_str)
+    ).fetchone()
+
     if isinstance(tasks[0], tuple):
         query = (
             update(TI)
-            .where(TI.id == ti_id_str, tuple_(TI.task_id, TI.map_index).in_(tasks))
+            .where(TI.dag_id == dag_id, TI.run_id == run_id, tuple_(TI.task_id, TI.map_index).in_(tasks))
             .values(state=State.SKIPPED, start_date=now, end_date=now)
             .execution_options(synchronize_session=False)
         )
     else:
         query = (
             update(TI)
-            .where(TI.id == ti_id_str, TI.task_id.in_(tasks))
+            .where(TI.dag_id == dag_id, TI.run_id == run_id, TI.task_id.in_(tasks))
             .values(state=State.SKIPPED, start_date=now, end_date=now)
             .execution_options(synchronize_session=False)
         )

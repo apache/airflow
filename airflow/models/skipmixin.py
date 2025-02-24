@@ -64,6 +64,9 @@ class SkipMixin(LoggingMixin):
         SkipDownstreamTaskInstances
             If the task instances are not in the same dag run.
         """
+        #  The following could be applied only for non-mapped tasks,
+        #  as future mapped tasks have not been expanded yet. Such tasks
+        #  have to be handled by NotPreviouslySkippedDep.
         if tasks and map_index == -1:
             raise DownstreamTasksSkipped(tasks=tasks)
 
@@ -96,9 +99,6 @@ class SkipMixin(LoggingMixin):
                 value={XCOM_SKIPMIXIN_SKIPPED: task_ids_list},
             )
 
-        #  The following could be applied only for non-mapped tasks,
-        #  as future mapped tasks have not been expanded yet. Such tasks
-        #  have to be handled by NotPreviouslySkippedDep.
         self._set_state_to_skipped(task_ids_list, ti.map_index)
 
     def skip_all_except(

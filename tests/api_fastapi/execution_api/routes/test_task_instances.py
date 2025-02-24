@@ -727,11 +727,10 @@ class TestTISkipDownstream:
     def teardown_method(self):
         clear_db_runs()
 
-    @pytest.mark.need_serialized_dag
     def test_ti_skip_downstream(
         self, client, session, create_task_instance, dag_maker
     ):
-        with dag_maker("skip_downstream_dag", session=session, serialized=True):
+        with dag_maker("skip_downstream_dag", session=session):
             t0 = EmptyOperator(task_id="t0")
             t1 = EmptyOperator(task_id="t1")
             t0 >> t1
@@ -747,18 +746,11 @@ class TestTISkipDownstream:
             f"/execution/task-instances/{t0.id}/skip-downstream",
             json={"tasks": ["t1"]},
         )
-
-        decision = dr.task_instance_scheduling_decisions(session=session)
-        for ti in sorted(decision.schedulable_tis, key=operator.attrgetter("task_id")):
-            # TODO: TaskSDK #45549
-            ti.task = dag_maker.dag.get_task(ti.task_id)
-            ti.run(session=session)
-
         t1 = dr.get_task_instance("t1")
 
         assert response.status_code == 204
         assert decision.schedulable_tis[0].state == State.SUCCESS
-        assert t1.state == State.SKIPPED # <- Still doesn't work
+        assert t1.state == State.SKIPPED
 
 
 
