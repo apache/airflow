@@ -37,6 +37,7 @@ from airflow.providers.edge.worker_api.routes._v2_compat import (
     parse_command,
     status,
 )
+from airflow.stats import Stats
 from airflow.utils import timezone
 from airflow.utils.sqlalchemy import with_row_locks
 from airflow.utils.state import TaskInstanceState
@@ -85,6 +86,10 @@ def fetch(
     job.edge_worker = worker_name
     job.last_update = timezone.utcnow()
     session.commit()
+    # Edge worker does not backport emitted Airflow metrics, so export some metrics manually
+    tags = {"dag_id": job.dag_id, "task_id": job.task_id, "queue": job.queue}
+    Stats.incr(f"edge_worker.ti.start.{job.queue}.{job.task.dag_id}.{job.task.task_id}", tags=tags)
+    Stats.incr("edge_worker.ti.start", tags=tags)
     return EdgeJobFetched(
         dag_id=job.dag_id,
         task_id=job.task_id,
