@@ -16,41 +16,38 @@
 # under the License.
 from __future__ import annotations
 
-from datetime import timedelta
-from typing import cast
-
 from starlette import status
 
-from airflow.api_fastapi.app import get_auth_manager
 from airflow.api_fastapi.common.router import AirflowRouter
 from airflow.api_fastapi.core_api.openapi.exceptions import create_openapi_http_exception_doc
 from airflow.configuration import conf
-from airflow.providers.fab.auth_manager.fab_auth_manager import FabAuthManager
-from airflow.providers.fab.auth_manager.models.login import CLIAPITokenResponse
+from airflow.providers.fab.auth_manager.api_fastapi.datamodels.login import LoginResponse
+from airflow.providers.fab.auth_manager.api_fastapi.services.login import FABAuthManagerLogin
 
 login_router = AirflowRouter(tags=["FabAuthManager"])
 
 
 @login_router.post(
-    "/token/cli",
-    response_model=CLIAPITokenResponse,
+    "/token",
+    response_model=LoginResponse,
     status_code=status.HTTP_201_CREATED,
     responses=create_openapi_http_exception_doc([status.HTTP_400_BAD_REQUEST, status.HTTP_401_UNAUTHORIZED]),
 )
-def create_token_cli() -> CLIAPITokenResponse:
+def create_token() -> LoginResponse:
     """Generate a new CLI API token."""
-    auth_manager = cast(FabAuthManager, get_auth_manager())
-
-    # There is no user base expiration in FAB, so we can't use this.
-    # We can only set this globally but this would impact global expiration time for all tokens.
-    auth_manager.appbuilder.app.config["JWT_ACCESS_TOKEN_EXPIRES"] = timedelta(
-        seconds=conf.getint("api", "auth_jwt_cli_expiration_time")
+    return FABAuthManagerLogin.create_token(
+        expiration_time_in_sec=conf.getint("api", "auth_jwt_expiration_time")
     )
 
-    # Get token for implementing custom expiration time for JWT token
-    # token = auth_manager.get_jwt_token(user=auth_manager.get_user())
 
-    # Refresh the token with the new expiration time
-    return CLIAPITokenResponse(
-        jwt_cli_token=auth_manager.security_manager.refresh_jwt_token(user=auth_manager.get_user())
+@login_router.post(
+    "/token/cli",
+    response_model=LoginResponse,
+    status_code=status.HTTP_201_CREATED,
+    responses=create_openapi_http_exception_doc([status.HTTP_400_BAD_REQUEST, status.HTTP_401_UNAUTHORIZED]),
+)
+def create_token_cli() -> LoginResponse:
+    """Generate a new CLI API token."""
+    return FABAuthManagerLogin.create_token(
+        expiration_time_in_sec=conf.getint("api", "auth_jwt_cli_expiration_time")
     )
