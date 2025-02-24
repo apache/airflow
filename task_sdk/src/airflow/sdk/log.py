@@ -242,19 +242,21 @@ def configure_logging(
         structlog.stdlib.ProcessorFormatter.remove_processors_meta,
         drop_positional_args,
     ]
+    append_to_pre_chain = []
     if enable_pretty_log:
         formatter = "colored"
-        logger_factory, pre_chain_add, processors, timestamper, console_renderer = _configure_logging_pretty(
-            output=output,
-        )
+        logger_factory = _get_logger_factory_pretty(output=output)
+        processors, timestamper, console_renderer = _logging_processors_pretty()
         color_format_processors.append(console_renderer)
     else:
         formatter = "plain"
         color_format_processors.append(_json_processor)
         plain_format_processors.append(_json_processor)  # why do we conditionally add json processor here?
-        logger_factory, output, pre_chain_add, processors, timestamper = _configure_logging_plain(
-            output=output,
-        )
+        logger_factory, output = _get_logger_factory_plain(output=output)
+        processors, timestamper, exc_group_processor, dict_tracebacks = _logging_processors_plain()
+        if exc_group_processor:
+            append_to_pre_chain.append(exc_group_processor)
+        append_to_pre_chain.append(dict_tracebacks)
 
     pre_chain: list[structlog.typing.Processor] = [
         # Add the log level and a timestamp to the event_dict if the log entry
@@ -264,7 +266,7 @@ def configure_logging(
         timestamper,
         structlog.contextvars.merge_contextvars,
         redact_jwt,
-        *pre_chain_add,
+        *append_to_pre_chain,
     ]
 
     structlog.configure(
@@ -327,8 +329,7 @@ def configure_logging(
     )
 
 
-def _configure_logging_plain(*, output):
-    processors, timestamper, exc_group_processor, dict_tracebacks = _logging_processors_plain()
+def _get_logger_factory_plain(*, output):
     if output is not None and "b" not in output.mode:
         if not hasattr(output, "buffer"):
             raise ValueError(
@@ -341,22 +342,16 @@ def _configure_logging_plain(*, output):
         # runtime. mypy doesn't grok that though
         assert isinstance(output, BinaryIO)
     logger_factory = structlog.BytesLoggerFactory(output)
-    pre_chain_add = []
-    if exc_group_processor:
-        pre_chain_add.append(exc_group_processor)
-    pre_chain_add.append(dict_tracebacks)
-    return logger_factory, output, pre_chain_add, processors, timestamper
+    return logger_factory, output
 
 
-def _configure_logging_pretty(*, output):
+def _get_logger_factory_pretty(*, output):
     if output is not None and not isinstance(output, TextIO):
         wrapper = io.TextIOWrapper(output, line_buffering=True)
         logger_factory = structlog.WriteLoggerFactory(wrapper)
     else:
         logger_factory = structlog.WriteLoggerFactory(output)
-    processors, timestamper, console_renderer = _logging_processors_pretty()
-    pre_chain_add = []
-    return logger_factory, pre_chain_add, processors, timestamper, console_renderer
+    return logger_factory
 
 
 def reset_logging():
