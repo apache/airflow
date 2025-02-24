@@ -346,17 +346,11 @@ Here is an example how you can use this operator:
 
 Updating a pipeline
 ^^^^^^^^^^^^^^^^^^^
-After being created, streaming pipeline can not be updated, because once a streaming job is running, its configuration
-is immutable. To apply any changes, you must modify the pipeline's definition (e.g., update your code or template)
-and then submit a new job. Essentially, you're creating a new instance of the pipeline with the desired updates.
+Once a streaming pipeline has been created and is running, its configuration cannot be changed because it is immutable. To make any modifications, you need to update the pipeline's definition (e.g., update your code or template), and then submit a new job.Essentially, you'll be creating a new instance of the pipeline with the desired updates.
 
-For batch pipelines, if the job is running and you want to update its configuration, you must cancel it because
-Dataflow jobs are immutable once they've started. Even though batch pipelines are designed to process finite data and
-eventually finish on their own, you cannot update a running job. If you decide to change any parameters or the
-pipeline logic while it's in progress, you need to cancel the current run and then launch a new job with the updated
-configuration.
-If the batch pipeline has already finished normally, then there's no running job to update—the new configuration
-would only apply to the next job submission.
+For batch pipelines, if a job is currently running and you want to update its configuration, you must cancel the job. This is because once a Dataflow job has started, it becomes immutable. Although batch pipelines are designed to process a finite amount of data and will eventually be completed on their own, you cannot update a job that is in progress. If you need to change any parameters or the pipeline logic while the job is running, you will have to cancel the current run and then launch a new job with the updated configuration.
+
+If the batch pipeline has already been completed successfully, then there is no running job to update; the new configuration will only be applied to the next job submission.
 
 .. _howto/operator:DataflowJobStatusSensor:
 .. _howto/operator:DataflowJobMetricsSensor:
