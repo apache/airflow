@@ -43,7 +43,7 @@
     "devel-deps": [
       "aiobotocore>=2.13.0",
       "aws_xray_sdk>=2.12.0",
-      "moto[cloudformation,glue]>=5.0.0",
+      "moto[cloudformation,glue]>=5.0.0,!=5.1.0",
       "mypy-boto3-appflow>=1.35.39",
       "mypy-boto3-rds>=1.34.90",
       "mypy-boto3-redshift-data>=1.34.0",
@@ -666,7 +666,7 @@
       "google-cloud-monitoring>=2.18.0",
       "google-cloud-orchestration-airflow>=1.10.0",
       "google-cloud-os-login>=2.9.1",
-      "google-cloud-pubsub>=2.19.0",
+      "google-cloud-pubsub>=2.21.3",
       "google-cloud-redis>=2.12.0",
       "google-cloud-run>=0.10.0",
       "google-cloud-secret-manager>=2.16.0",
@@ -1085,7 +1085,7 @@
   "pinecone": {
     "deps": [
       "apache-airflow>=2.9.0",
-      "pinecone-client>=3.1.0"
+      "pinecone>=3.1.0"
     ],
     "devel-deps": [],
     "plugins": [],

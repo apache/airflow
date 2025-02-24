@@ -91,7 +91,7 @@ class TriggerDAGRunPostBody(StrictBaseModel):
     data_interval_start: AwareDatetime | None = None
     data_interval_end: AwareDatetime | None = None
     logical_date: AwareDatetime | None
-    run_after: datetime = Field(default_factory=timezone.utcnow)
+    run_after: datetime | None = Field(default_factory=timezone.utcnow)
 
     conf: dict = Field(default_factory=dict)
     note: str | None = None
@@ -106,7 +106,7 @@ class TriggerDAGRunPostBody(StrictBaseModel):
 
     def validate_context(self, dag: DAG) -> dict:
         coerced_logical_date = timezone.coerce_datetime(self.logical_date)
-        run_after = self.run_after
+        run_after = self.run_after or timezone.utcnow()
         data_interval = None
         if coerced_logical_date:
             if self.data_interval_start and self.data_interval_end:
@@ -116,14 +116,14 @@ class TriggerDAGRunPostBody(StrictBaseModel):
                 )
             else:
                 data_interval = dag.timetable.infer_manual_data_interval(
-                    run_after=coerced_logical_date or timezone.coerce_datetime(self.run_after)
+                    run_after=coerced_logical_date or timezone.coerce_datetime(run_after)
                 )
                 run_after = data_interval.end
 
         run_id = self.dag_run_id or DagRun.generate_run_id(
             run_type=DagRunType.SCHEDULED,
             logical_date=coerced_logical_date,
-            run_after=self.run_after,
+            run_after=run_after,
         )
         return {
             "run_id": run_id,
