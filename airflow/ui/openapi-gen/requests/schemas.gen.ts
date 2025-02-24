@@ -6054,8 +6054,15 @@ export const $TriggerDAGRunPostBody = {
       title: "Logical Date",
     },
     run_after: {
-      type: "string",
-      format: "date-time",
+      anyOf: [
+        {
+          type: "string",
+          format: "date-time",
+        },
+        {
+          type: "null",
+        },
+      ],
       title: "Run After",
     },
     conf: {

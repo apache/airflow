@@ -1461,7 +1461,7 @@ export type TriggerDAGRunPostBody = {
   data_interval_start?: string | null;
   data_interval_end?: string | null;
   logical_date: string | null;
-  run_after?: string;
+  run_after?: string | null;
   conf?: {
     [key: string]: unknown;
   };

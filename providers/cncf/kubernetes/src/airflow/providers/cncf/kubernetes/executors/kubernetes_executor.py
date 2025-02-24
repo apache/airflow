@@ -284,15 +284,18 @@ class KubernetesExecutor(BaseExecutor):
         self.queued_tasks[ti.key] = workload
 
     def _process_workloads(self, workloads: list[workloads.All]) -> None:
+        from airflow.executors.workloads import ExecuteTask
+
         # Airflow V3 version
         for w in workloads:
+            if not isinstance(w, ExecuteTask):
+                raise RuntimeError(f"{type(self)} cannot handle workloads of type {type(w)}")
+
             # TODO: AIP-72 handle populating tokens once https://github.com/apache/airflow/issues/45107 is handled.
             command = [w]
-            key = w.ti.key  # type: ignore[union-attr]
-            queue = w.ti.queue  # type: ignore[union-attr]
-
-            # TODO: will be handled by https://github.com/apache/airflow/issues/46892
-            executor_config = {}  # type: ignore[var-annotated]
+            key = w.ti.key
+            queue = w.ti.queue
+            executor_config = w.ti.executor_config or {}
 
             del self.queued_tasks[key]
             self.execute_async(key=key, command=command, queue=queue, executor_config=executor_config)  # type: ignore[arg-type]

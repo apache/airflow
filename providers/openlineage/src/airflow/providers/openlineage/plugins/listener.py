@@ -104,7 +104,7 @@ class OpenLineageListener:
                 assert task
             dagrun = context["dag_run"]
             dag = context["dag"]
-            start_date = context["start_date"]
+            start_date = task_instance.start_date
             self._on_task_instance_running(task_instance, dag, dagrun, task, start_date)
     else:
 

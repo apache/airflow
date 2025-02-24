@@ -39,6 +39,7 @@ from airflow.api_fastapi.core_api.datamodels.connections import (
 )
 from airflow.api_fastapi.core_api.openapi.exceptions import create_openapi_http_exception_doc
 from airflow.api_fastapi.core_api.services.public.connections import BulkConnectionService
+from airflow.api_fastapi.logging.decorators import action_logging
 from airflow.configuration import conf
 from airflow.models import Connection
 from airflow.secrets.environment_variables import CONN_ENV_PREFIX
@@ -52,6 +53,7 @@ connections_router = AirflowRouter(tags=["Connection"], prefix="/connections")
     "/{connection_id}",
     status_code=status.HTTP_204_NO_CONTENT,
     responses=create_openapi_http_exception_doc([status.HTTP_404_NOT_FOUND]),
+    dependencies=[Depends(action_logging())],
 )
 def delete_connection(
     connection_id: str,
@@ -129,6 +131,7 @@ def get_connections(
     responses=create_openapi_http_exception_doc(
         [status.HTTP_409_CONFLICT]
     ),  # handled by global exception handler
+    dependencies=[Depends(action_logging())],
 )
 def post_connection(
     post_body: ConnectionBody,
@@ -140,7 +143,7 @@ def post_connection(
     return connection
 
 
-@connections_router.patch("")
+@connections_router.patch("", dependencies=[Depends(action_logging())])
 def bulk_connections(
     request: BulkBody[ConnectionBody],
     session: SessionDep,
@@ -157,6 +160,7 @@ def bulk_connections(
             status.HTTP_404_NOT_FOUND,
         ]
     ),
+    dependencies=[Depends(action_logging())],
 )
 def patch_connection(
     connection_id: str,
@@ -233,6 +237,7 @@ def test_connection(
 @connections_router.post(
     "/defaults",
     status_code=status.HTTP_204_NO_CONTENT,
+    dependencies=[Depends(action_logging())],
 )
 def create_default_connections(
     session: SessionDep,
