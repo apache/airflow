@@ -192,7 +192,7 @@ class GitDagBundle(BaseDagBundle, LoggingMixin):
 
             self._clone_repo_if_required()
             self.repo.git.checkout(self.tracking_ref)
-            log.debug("bundle initialize", version=self.version)
+            self._log_debug("bundle initialize", version=self.version)
             if self.version:
                 if not self._has_version(self.repo, self.version):
                     self.repo.remotes.origin.fetch()
