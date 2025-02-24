@@ -909,7 +909,9 @@ class AirflowConfigParser(ConfigParser):
         deprecated_key: str | None = None
 
         if lookup_from_deprecated_options:
-            option_description = self.configuration_description.get(section, {}).get(key, {})
+            option_description = (
+                self.configuration_description.get(section, {}).get("options", {}).get(key, {})
+            )
             if option_description.get("deprecated"):
                 deprecation_reason = option_description.get("deprecation_reason", "")
                 warnings.warn(
