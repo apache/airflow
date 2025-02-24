@@ -20,15 +20,13 @@
 Web Stack
 =========
 
-Sometimes you will want to deploy the backend and the frontend behind a
-variable url path prefix. To do so you can configure the url :ref:`config:fastapi__base_url`
-for instance set it to ``http://localhost:29091/d12345``. Be sure to reload the
-fastapi server for the config update to take effect. All the APIs routes will
-now be available through that additional ``d12345`` prefix.
+Sometimes you want to deploy the backend and frontend behind a
+variable url path prefix. To do so, you can configure the url :ref:`config:fastapi__base_url`
+for instance, set it to ``http://localhost:29091/d12345``. All the APIs routes will
+now be available through that additional ``d12345`` prefix. Without rebuilding
+the frontend, XHR requests and static file queries should be directed to the prefixed url
+and served successfully.
 
-Without rebuilding the frontend, XHR requests and static file queries should be
-directed to the prefixed url and served successfully.
-
-You will also need to update the execution api server url
-:ref:`config:executor__execution_api_server_url` for executors to be able to reach the api
+You will also need to update the execution API server url
+:ref:`config:core__execution_api_server_url` for tasks to be able to reach the API
 with the new prefix.
