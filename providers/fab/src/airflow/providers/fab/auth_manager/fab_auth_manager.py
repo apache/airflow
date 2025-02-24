@@ -52,6 +52,7 @@ from airflow.cli.cli_config import (
 from airflow.configuration import conf
 from airflow.exceptions import AirflowConfigException, AirflowException
 from airflow.models import DagModel
+from airflow.providers.fab.auth_manager.api_fastapi.routes.login import login_router
 from airflow.providers.fab.auth_manager.cli_commands.definition import (
     DB_COMMANDS,
     ROLES_COMMANDS,
@@ -196,6 +197,10 @@ class FabAuthManager(BaseAuthManager[User]):
                 "manager."
             ),
         )
+
+        # Add the login router to the FastAPI app
+        app.include_router(login_router)
+
         app.mount("/", WSGIMiddleware(flask_app))
 
         return app
