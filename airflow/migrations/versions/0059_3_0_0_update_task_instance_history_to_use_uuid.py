@@ -45,18 +45,30 @@ def upgrade():
         batch_op.add_column(
             sa.Column("new_id", sa.String(length=36).with_variant(postgresql.UUID(), "postgresql"))
         )
-    # get all the TaskInstance equivalent of TaskInstanceHistory and populate the new column
-    op.execute(
+    if op.get_bind().dialect.name == "mysql":
+        op.execute(
+            """
+            UPDATE task_instance_history tih
+                JOIN task_instance ti
+                ON tih.dag_id = ti.dag_id
+                AND tih.task_id = ti.task_id
+                AND tih.run_id = ti.run_id
+                AND tih.map_index = ti.map_index
+                SET tih.new_id = ti.id;
         """
-        UPDATE task_instance_history tih
-            JOIN task_instance ti
-            ON tih.dag_id = ti.dag_id
-            AND tih.task_id = ti.task_id
-            AND tih.run_id = ti.run_id
-            AND tih.map_index = ti.map_index
-            SET tih.new_id = ti.id;
-    """
-    )
+        )
+    else:
+        op.execute(
+            """
+            UPDATE task_instance_history
+            SET new_id = ti.id
+            FROM task_instance ti
+            WHERE task_instance_history.dag_id = ti.dag_id
+                AND task_instance_history.task_id = ti.task_id
+                AND task_instance_history.run_id = ti.run_id
+                AND task_instance_history.map_index = ti.map_index
+        """
+        )
     with op.batch_alter_table("task_instance_history", schema=None) as batch_op:
         batch_op.drop_column("id")
         batch_op.alter_column(
@@ -67,6 +79,7 @@ def upgrade():
         )
         batch_op.create_primary_key("task_instance_history_pkey", ["id"])
         batch_op.drop_constraint("task_instance_history_ti_fkey", type_="foreignkey")
+    with op.batch_alter_table("task_instance_history", schema=None) as batch_op:
         batch_op.create_foreign_key(
             "task_instance_history_ti_fkey",
             "task_instance",
