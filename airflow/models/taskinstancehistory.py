@@ -32,6 +32,7 @@ from sqlalchemy import (
     select,
     text,
 )
+from sqlalchemy.dialects import postgresql
 from sqlalchemy.ext.mutable import MutableDict
 from sqlalchemy.orm import relationship
 from sqlalchemy_utils import UUIDType
@@ -58,7 +59,11 @@ class TaskInstanceHistory(Base):
     """
 
     __tablename__ = "task_instance_history"
-    id = Column(Integer(), primary_key=True, autoincrement=True)
+    id = Column(
+        String(36).with_variant(postgresql.UUID(as_uuid=False), "postgresql"),
+        primary_key=True,
+        nullable=False,
+    )
     task_id = Column(StringID(), nullable=False)
     dag_id = Column(StringID(), nullable=False)
     run_id = Column(StringID(), nullable=False)
@@ -109,8 +114,6 @@ class TaskInstanceHistory(Base):
     ):
         super().__init__()
         for column in self.__table__.columns:
-            if column.name == "id":
-                continue
             setattr(self, column.name, getattr(ti, column.name))
 
         if state:
@@ -118,12 +121,9 @@ class TaskInstanceHistory(Base):
 
     __table_args__ = (
         ForeignKeyConstraint(
-            [dag_id, task_id, run_id, map_index],
+            (id,),
             [
-                "task_instance.dag_id",
-                "task_instance.task_id",
-                "task_instance.run_id",
-                "task_instance.map_index",
+                "task_instance.id",
             ],
             name="task_instance_history_ti_fkey",
             ondelete="CASCADE",
