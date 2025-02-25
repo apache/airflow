@@ -17,6 +17,14 @@
 
 from __future__ import annotations
 
+from airflow.exceptions import AirflowException, AirflowOptionalProviderFeatureException, TaskInstanceNotFound
+from airflow.providers.databricks.version_compat import AIRFLOW_V_3_0_PLUS
+
+if AIRFLOW_V_3_0_PLUS:
+    raise AirflowOptionalProviderFeatureException(
+        "``airflow/providers/databricks/plugins/databricks_workflow.py`` is only compatible with Airflow 2.X."
+    )
+
 import logging
 import os
 from typing import TYPE_CHECKING, Any, cast
@@ -26,7 +34,6 @@ from flask import current_app, flash, redirect, request, url_for
 from flask_appbuilder import BaseView
 from flask_appbuilder.api import expose
 
-from airflow.exceptions import AirflowException, TaskInstanceNotFound
 from airflow.models import BaseOperator, BaseOperatorLink
 from airflow.models.dag import DAG, clear_task_instances
 from airflow.models.dagrun import DagRun

@@ -20,6 +20,15 @@ from __future__ import annotations
 from unittest.mock import MagicMock, Mock, patch
 
 import pytest
+
+from airflow.providers.databricks.version_compat import AIRFLOW_V_3_0_PLUS
+
+if AIRFLOW_V_3_0_PLUS:
+    pytest.skip(
+        "``airflow/providers/databricks/plugins/databricks_workflow.py`` is only compatible with Airflow 2.X.",
+        allow_module_level=True,
+    )
+
 from flask import url_for
 
 from airflow.exceptions import AirflowException
