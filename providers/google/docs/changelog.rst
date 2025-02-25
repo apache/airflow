@@ -27,12 +27,15 @@
 Changelog
 ---------
 
-13.0.0
+
+14.0.0
 ......
 
 .. note::
-  This release of provider is only available for Airflow 2.9+ as explained in the
-  `Apache Airflow providers support policy <https://github.com/apache/airflow/blob/main/PROVIDERS.rst#minimum-supported-version-of-airflow-for-community-managed-providers>`_.
+  This version has no code changes. It's released due to yank of previous version due to packaging issues.
+
+13.0.0
+......
 
 Breaking changes
 ~~~~~~~~~~~~~~~~
@@ -57,6 +60,77 @@ Breaking changes
     * Removed ``GenerativeModelHook.get_generative_model_part()``. Please use ``GenerativeModelHook.generative_model_generate_content()`` instead
     * Removed ``GenerativeModelHook.prompt_language_model()``. Please use ``GenerativeModelHook.text_generation_model_predict()`` instead
     * Removed ``GenerativeModelHook.generate_text_embeddings()``. Please use ``GenerativeModelHook.text_generation_model_predict()`` instead
+
+
+* ``Remove deprecated functionality from google provider (#46235)``
+
+Features
+~~~~~~~~
+
+* ``Create operators for working with Clusters for GCP Apache Kafka (#45795)``
+* ``Deprecate old bigquery operators and introduce CreateTableOperator (#46673)``
+* ``Add operators for Entry resource (#46647)``
+* ``Add deferrable mode to the PubSubPullOperator (#45835)``
+* ``Add deferrable mode to google cloud storage transfer sensor and operators (#45754)``
+* ``Add operators for AspectType resource (#46240)``
+* ``feat: Add OpenLineage support for BigQueryDataTransferServiceStartTransferRunsOperator (#45801)``
+* ``feat: Add OpenLineage support for CloudSQLExecuteQueryOperator (#45182)``
+* ``Add new operators for Entry Type (#45799)``
+* ``Add Dataplex Catalog Entry Group operators (#45751)``
+* ``feat: Add Hook Level Lineage support for BigQueryHook (#45706)``
+* ``feat: Add OpenLineage support for MsSqlHook and MSSQLToGCSOperator (#45637)``
+* ``Adding holiday_region parameter  to create_auto_ml_forecasting_training_job in AutoMl hook (#45465)``
+* ``feat: automatically inject OL transport info into spark jobs (#45326)``
+* ``feat: Add OpenLineage support for transfer operators between GCS and SFTP (#45485)``
+* ``Implement AlloyDB create/update/delete user and backups operators (#45378)``
+* ``feat: Add OpenLineage support for some SQL to GCS operators (#45242)``
+* ``feat: Add OpenLineage support for some BQ operators (#45422)``
+* ``feat: Add OpenLineage support for non-query jobs in BigQueryInsertJobOperator (#44996)``
+* ``feat: automatically inject OL info into spark job in DataprocInstantiateInlineWorkflowTemplateOperator (#44697)``
+* ``feat: Add CLL to OpenLineage in BigQueryInsertJobOperator (#44872)``
+* ``feat: automatically inject OL info into spark job in DataprocCreateBatchOperator (#44612)``
+* ``Implement AlloyDB create/update/delete instance operators (#45241)``
+* ``Add BigQuery job link (#45020) (#45222)``
+* ``Introduce gcp translation(V3) glossaries providers (#45085)``
+* ``Add dependencies section to gcp cloud build instance response (#46947)``
+* ``Create operators for working with Topics for GCP Apache Kafka (#46865)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``fix return job_id when async finish before deffed in BigQueryInsertJobOperator (#46753)``
+* ``fix: Dataproc operators fail to import without OpenLineage (#46561)``
+* ``Add backward compatibility for old Airflow version for CloudComposerDAGRunSensor (#46011)``
+* ``Improve google credentials error message (#45553)``
+* ``Add case of aarch64 environments in CloudSqlProxyRunner (#45488)``
+* ``fix GCSToGCSOperator bug when copy single object with replace to False (#45181)``
+
+Misc
+~~~~
+
+* ``Rework the TriggererJobRunner to run triggers in a process without DB access (#46677)``
+* ``AIP-72: Improving Operator Links Interface to Prevent User Code Execution in Webserver (#46613)``
+* ``Remove Airflow 3 Deprecation Warning in Google Provider, Move to Private Warning (#46599)``
+* ``Add evaluation extra to google-cloud-aiplatform (#46270)``
+* ``Limit 'google-cloud-aiplatform' to fix issues in CI (#46242)``
+* ``Improve grammar in cloud_composer.rst (#45708)``
+* ``AIP-72: Support better type-hinting for Context dict in SDK  (#45583)``
+* ``Deprecate page_size parameter for Google Ads API v17 and later versions (#45239)``
+* ``Remove obsolete pandas specfication for pre-python 3.9 (#45399)``
+* ``Deprecation policy for apache-airflow-providers-google package (#44985)``
+* ``Add lower bound for alloydb (#45180)``
+* ``Deprecate gcp AutoML module (#44875)``
+* ``Refactor deferrable mode for BeamRunPythonPipelineOperator and BeamRunJavaPipelineOperator (#46678)``
+* ``Bump cloud build to 3.31.0 (#46953)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Remove tests from example_dags folder (#46819)``
+   * ``Speedup test collection for 'tests/www' (#46812)``
+   * ``Move provider_tests to unit folder in provider tests (#46800)``
+   * ``Removed the unused provider's distribution (#46608)``
+   * ``Move Google provider to new provider structure (#46344)``
+   * ``Reducing dedent to fix doc building issues in CI (#46350)``
 
 12.0.0
 ......

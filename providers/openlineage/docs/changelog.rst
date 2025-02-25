@@ -26,6 +26,54 @@
 Changelog
 ---------
 
+2.1.0
+.....
+
+Features
+~~~~~~~~
+
+* ``change listener API, add basic support for task instance listeners in TaskSDK, make OpenLineage provider support Airflow 3's listener interface (#45294)``
+* ``feat: Add ProcessingEngineRunFacet to all OL events (#46283)``
+* ``feat: automatically inject OL transport info into spark jobs (#45326)``
+* ``feat: Add OpenLineage support for some SQL to GCS operators (#45242)``
+* ``feat: automatically inject OL info into spark job in DataprocCreateBatchOperator (#44612)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Update OpenLineage emmiter to cope with nullable logical_date (#46722)``
+* ``fix: OL sql parsing add try-except for sqlalchemy engine (#46366)``
+* ``OpenLineage: Include 'AirflowDagRunFacet' in complete/failed events (#45615)``
+
+Misc
+~~~~
+
+* ``Adding uuid6 as a dependency for openlineage (#46653)``
+* ``Remove AirflowContextDeprecationWarning as all context should be clean for Airflow 3 (#46601)``
+* ``Remove Airflow 3 Deprecation Warning dependency in OTel Provoder (#46600)``
+* ``AIP-72: Move Secrets Masker to task SDK (#46375)``
+* ``Add run_after column to DagRun model (#45732)``
+* ``Remove old lineage stuff (#45260)``
+* ``Start porting mapped task to SDK (#45627)``
+* ``chore: Update docstring for DatabaseInfo in OpenLineage provider (#45638)``
+* ``Remove classes from 'typing_compat' that can be imported directly (#45589)``
+* ``udpated 404 hyperlink to gcstogcsoperator (#45311)``
+* ``pass error for on_task_instance_failed in task sdk (#46941)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Remove remnants of old provider's structure (#46829)``
+   * ``Move provider_tests to unit folder in provider tests (#46800)``
+   * ``Removed the unused provider's distribution (#46608)``
+   * ``tests: Add more information to check in OL system test (#46379)``
+   * ``Move Google provider to new provider structure (#46344)``
+   * ``Moving EmptyOperator to standard provider (#46231)``
+   * ``Fix example import tests after move of providers to new structure (#46217)``
+   * ``Fixing OPENLINEAGE system tests import failure after new structure changes (#46204)``
+   * ``Move OPENLINEAGE provider to new structure provider (#46068)``
+   * ``update outdated hyperlinks referencing provider package files (#45332)``
+   * ``Prepare docs for Feb 1st wave of providers (#46893)``
+
 2.0.0
 .....
 
