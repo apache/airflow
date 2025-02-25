@@ -216,6 +216,20 @@ class EdgeExecutor(BaseExecutor):
             )
             job.state = ti.state if ti else TaskInstanceState.REMOVED
 
+            # Edge worker does not backport emitted Airflow metrics, so export some metrics
+            # Export metrics as failed as these jobs will be deleted in the future
+            tags = {
+                "dag_id": job.dag_id,
+                "task_id": job.task_id,
+                "queue": job.queue,
+                "state": str(TaskInstanceState.FAILED),
+            }
+            Stats.incr(
+                f"edge_worker.ti.finish.{job.queue}.{TaskInstanceState.FAILED}.{job.dag_id}.{job.task_id}",
+                tags=tags,
+            )
+            Stats.incr("edge_worker.ti.finish", tags=tags)
+
         return bool(lifeless_jobs)
 
     def _purge_jobs(self, session: Session) -> bool:
@@ -284,18 +298,6 @@ class EdgeExecutor(BaseExecutor):
                 if job.key in self.last_reported_state:
                     del self.last_reported_state[job.key]
                 purged_marker = True
-                # Edge worker does not backport emitted Airflow metrics, so export some metrics manually
-                tags = {
-                    "dag_id": job.dag_id,
-                    "task_id": job.task_id,
-                    "queue": job.queue,
-                    "state": str(job.state),
-                }
-                Stats.incr(
-                    f"edge_worker.ti.finish.{job.queue}.{job.state}.{job.dag_id}.{job.task_id}",
-                    tags=tags,
-                )
-                Stats.incr("edge_worker.ti.finish", tags=tags)
                 session.delete(job)
                 session.execute(
                     delete(EdgeLogsModel).where(

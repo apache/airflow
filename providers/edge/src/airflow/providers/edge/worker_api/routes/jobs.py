@@ -86,7 +86,7 @@ def fetch(
     job.edge_worker = worker_name
     job.last_update = timezone.utcnow()
     session.commit()
-    # Edge worker does not backport emitted Airflow metrics, so export some metrics manually
+    # Edge worker does not backport emitted Airflow metrics, so export some metrics
     tags = {"dag_id": job.dag_id, "task_id": job.task_id, "queue": job.queue}
     Stats.incr(f"edge_worker.ti.start.{job.queue}.{job.dag_id}.{job.task_id}", tags=tags)
     Stats.incr("edge_worker.ti.start", tags=tags)
@@ -133,3 +133,31 @@ def state(
         .values(state=state, last_update=timezone.utcnow())
     )
     session.execute(query)
+
+    if state == TaskInstanceState.SUCCESS or state == TaskInstanceState.FAILED:
+        # need to execute the query to catch the queue from the job
+        query = (
+            select(EdgeJobModel)
+            .where(
+                EdgeJobModel.dag_id == dag_id,
+                EdgeJobModel.task_id == task_id,
+                EdgeJobModel.run_id == run_id,
+                EdgeJobModel.map_index == map_index,
+                EdgeJobModel.try_number == try_number,
+            )
+            .first()
+        )
+        job = session.scalar(query)
+        if job:
+            # Edge worker does not backport emitted Airflow metrics, so export some metrics
+            tags = {
+                "dag_id": job.dag_id,
+                "task_id": job.task_id,
+                "queue": job.queue,
+                "state": str(job.state),
+            }
+            Stats.incr(
+                f"edge_worker.ti.finish.{job.queue}.{job.state}.{job.dag_id}.{job.task_id}",
+                tags=tags,
+            )
+            Stats.incr("edge_worker.ti.finish", tags=tags)
