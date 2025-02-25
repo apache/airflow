@@ -19,10 +19,9 @@ from __future__ import annotations
 
 from datetime import datetime
 
-from pydantic import Field, field_validator
+from pydantic import Field
 
 from airflow.api_fastapi.core_api.base import BaseModel, StrictBaseModel
-from airflow.sdk.execution_time.secrets_masker import redact
 
 
 class DagRunAssetReference(StrictBaseModel):
@@ -53,11 +52,6 @@ class AssetEventResponse(BaseModel):
     source_map_index: int = -1
     created_dagruns: list[DagRunAssetReference]
     timestamp: datetime
-
-    @field_validator("extra", mode="after")
-    @classmethod
-    def redact_extra(cls, v: dict):
-        return redact(v)
 
 
 class AssetEventCollectionResponse(BaseModel):
