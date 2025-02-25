@@ -26,8 +26,8 @@ from airflow.models.xcom import BaseXCom
 from airflow.utils.log.logging_mixin import LoggingMixin
 
 if TYPE_CHECKING:
+    from airflow.models.baseoperator import BaseOperator
     from airflow.models.taskinstancekey import TaskInstanceKey
-    from airflow.sdk.definitions.baseoperator import BaseOperator
 
 
 @attrs.define()
@@ -62,8 +62,7 @@ class XComOperatorLink(LoggingMixin):
                 self.xcom_key,
             )
             return ""
-        # Stripping is a temporary workaround till https://github.com/apache/airflow/issues/46513 is handled.
-        return value.strip('"')
+        return value
 
 
 @attrs.define()

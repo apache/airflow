@@ -31,6 +31,7 @@ import { MarkTaskInstanceAsButton } from "src/components/MarkAs";
 import { SearchBar } from "src/components/SearchBar";
 import { StateBadge } from "src/components/StateBadge";
 import Time from "src/components/Time";
+import { TruncatedText } from "src/components/TruncatedText";
 import { Select } from "src/components/ui";
 import { SearchParamsKeys, type SearchParamsKeysType } from "src/constants/searchParams";
 import { taskInstanceStateOptions as stateOptions } from "src/constants/stateOptions";
@@ -49,11 +50,6 @@ const taskInstanceColumns = (
     : [
         {
           accessorKey: "dag_id",
-          cell: ({ row: { original } }: TaskInstanceRow) => (
-            <Link asChild color="fg.info" fontWeight="bold">
-              <RouterLink to={`/dags/${original.dag_id}`}>{original.dag_id}</RouterLink>
-            </Link>
-          ),
           enableSorting: false,
           header: "Dag ID",
         },
@@ -63,13 +59,17 @@ const taskInstanceColumns = (
     : [
         {
           accessorKey: "run_after",
-          cell: ({ row: { original } }: TaskInstanceRow) => (
-            <Link asChild color="fg.info" fontWeight="bold">
-              <RouterLink to={`/dags/${original.dag_id}/runs/${original.dag_run_id}`}>
-                <Time datetime={original.run_after} />
-              </RouterLink>
-            </Link>
-          ),
+          // If we don't show the taskId column, make the dag run a link to the task instance
+          cell: ({ row: { original } }: TaskInstanceRow) =>
+            Boolean(taskId) ? (
+              <Link asChild color="fg.info" fontWeight="bold">
+                <RouterLink to={getTaskInstanceLink(original)}>
+                  <Time datetime={original.run_after} />
+                </RouterLink>
+              </Link>
+            ) : (
+              <Time datetime={original.run_after} />
+            ),
           header: "Dag Run",
         },
       ]),
@@ -80,7 +80,9 @@ const taskInstanceColumns = (
           accessorKey: "task_display_name",
           cell: ({ row: { original } }: TaskInstanceRow) => (
             <Link asChild color="fg.info" fontWeight="bold">
-              <RouterLink to={getTaskInstanceLink(original)}>{original.task_display_name}</RouterLink>
+              <RouterLink to={getTaskInstanceLink(original)}>
+                <TruncatedText text={original.task_display_name} />
+              </RouterLink>
             </Link>
           ),
           enableSorting: false,
@@ -107,10 +109,9 @@ const taskInstanceColumns = (
     header: "End Date",
   },
   {
-    accessorFn: (row: TaskInstanceResponse) => row.rendered_map_index ?? row.map_index,
+    accessorKey: "rendered_map_index",
     header: "Map Index",
   },
-
   {
     accessorKey: "try_number",
     enableSorting: false,

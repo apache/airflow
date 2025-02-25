@@ -182,7 +182,7 @@ class TaskInstanceOperations:
         return PrevSuccessfulDagRunResponse.model_validate_json(resp.read())
 
     def runtime_checks(self, id: uuid.UUID, msg: RuntimeCheckOnTask) -> OKResponse:
-        body = TIRuntimeCheckPayload(**msg.model_dump(exclude_unset=True))
+        body = TIRuntimeCheckPayload(**msg.model_dump(exclude_unset=True, exclude={"type"}))
         try:
             self.client.post(f"task-instances/{id}/runtime-checks", content=body.model_dump_json())
             return OKResponse(ok=True)
@@ -384,8 +384,8 @@ class Client(httpx.Client):
         if dry_run:
             # If dry run is requested, install a no op handler so that simple tasks can "heartbeat" using a
             # real client, but just don't make any HTTP requests
-            kwargs["transport"] = httpx.MockTransport(noop_handler)
-            kwargs["base_url"] = "dry-run://server"
+            kwargs.setdefault("transport", httpx.MockTransport(noop_handler))
+            kwargs.setdefault("base_url", "dry-run://server")
         else:
             kwargs["base_url"] = base_url
         pyver = f"{'.'.join(map(str, sys.version_info[:3]))}"

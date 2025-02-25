@@ -35,3 +35,4 @@ This section contains information about deploying DAGs into production and the a
     pools
     cluster-policies
     priority-weight
+    web-stack

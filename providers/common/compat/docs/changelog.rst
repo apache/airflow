@@ -25,6 +25,37 @@
 Changelog
 ---------
 
+1.5.0
+.....
+
+.. note::
+  This version has no code changes. It's released due to yank of previous version due to packaging issues.
+
+1.4.0
+.....
+
+Features
+~~~~~~~~
+
+* ``feat: automatically inject OL transport info into spark jobs (#45326)``
+* ``feat: Add OpenLineage support for some SQL to GCS operators (#45242)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``fix: OpenLineage sql parsing add try-except for sqlalchemy engine (#46366)``
+
+Misc
+~~~~
+
+* ``Remove old lineage stuff (#45260)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Move provider_tests to unit folder in provider tests (#46800)``
+   * ``Removed the unused provider's distribution (#46608)``
+   * ``moving common-compat provider (#46063)``
+
 1.3.0
 .....
 
