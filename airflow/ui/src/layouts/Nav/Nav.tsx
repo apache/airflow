@@ -17,7 +17,7 @@
  * under the License.
  */
 import { Box, Flex, VStack, Link } from "@chakra-ui/react";
-import { FiCornerUpLeft, FiDatabase, FiHome } from "react-icons/fi";
+import { FiDatabase, FiHome } from "react-icons/fi";
 
 import { useVersionServiceGetVersion } from "openapi/queries";
 import { AirflowPin } from "src/assets/AirflowPin";
@@ -56,11 +56,6 @@ export const Nav = () => {
         <AdminButton />
       </Flex>
       <Flex flexDir="column">
-        <NavButton
-          icon={<FiCornerUpLeft size="1.75rem" />}
-          title="Legacy UI"
-          to={import.meta.env.VITE_LEGACY_API_URL || "http://localhost:28080/home"}
-        />
         <DocsButton />
         <UserSettingsButton />
         <Link
