@@ -59,15 +59,12 @@ class Connection:
     def get_hook(self): ...
 
     @classmethod
-    def get(cls, conn_id: str, default_conn: Any = None) -> Any:
-        from airflow.sdk.exceptions import AirflowRuntimeError, ErrorType
+    def get(cls, conn_id: str) -> Any:
         from airflow.sdk.execution_time.context import _get_connection
 
         try:
             return _get_connection(conn_id)
-        except AirflowRuntimeError as e:
-            if e.error.error == ErrorType.CONNECTION_NOT_FOUND:
-                return default_conn
+        except Exception:
             raise
 
     @property
