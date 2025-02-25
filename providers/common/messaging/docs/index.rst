@@ -32,10 +32,24 @@
 .. toctree::
     :hidden:
     :maxdepth: 1
+    :caption: Guides
+
+    :doc:`Event-driven scheduling in Airflow <apache-airflow:authoring-and-scheduling/event-scheduling>`
+    Triggers <triggers>
+
+.. toctree::
+    :hidden:
+    :maxdepth: 1
     :caption: References
 
     Python API <_api/airflow/providers/common/compat/index>
 
+.. toctree::
+    :hidden:
+    :maxdepth: 1
+    :caption: System tests
+
+    System Tests <_api/tests/system/common/messaging/index>
 
 .. toctree::
     :hidden:
