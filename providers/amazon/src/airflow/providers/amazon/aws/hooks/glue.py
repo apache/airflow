@@ -237,7 +237,7 @@ class GlueJobHook(AwsBaseHook):
         log_client = self.logs_hook.get_conn()
         paginator = log_client.get_paginator("filter_log_events")
         job_run = self.conn.get_job_run(JobName=job_name, RunId=run_id)["JobRun"]
-        # StartTime needs to be an int and is Epoch time in  milliseconds
+        # StartTime needs to be an int and is Epoch time in milliseconds
         start_time = int(job_run["StartedOn"].timestamp() * 1000)
 
         def display_logs_from(log_group: str, continuation_token: str | None) -> str | None:
