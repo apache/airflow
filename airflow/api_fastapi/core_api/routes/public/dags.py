@@ -57,6 +57,11 @@ from airflow.api_fastapi.core_api.datamodels.dags import (
     DAGResponse,
 )
 from airflow.api_fastapi.core_api.openapi.exceptions import create_openapi_http_exception_doc
+from airflow.api_fastapi.core_api.security import (
+    EditableDagsFilterDep,
+    ReadableDagsFilterDep,
+    requires_access_dag,
+)
 from airflow.exceptions import AirflowException, DagNotFound
 from airflow.models import DAG, DagModel
 from airflow.models.dagrun import DagRun
@@ -64,7 +69,7 @@ from airflow.models.dagrun import DagRun
 dags_router = AirflowRouter(tags=["DAG"], prefix="/dags")
 
 
-@dags_router.get("")
+@dags_router.get("", dependencies=[Depends(requires_access_dag(method="GET"))])
 def get_dags(
     limit: QueryLimit,
     offset: QueryOffset,
@@ -104,6 +109,7 @@ def get_dags(
             ).dynamic_depends()
         ),
     ],
+    readable_dags_filter: ReadableDagsFilterDep,
     session: SessionDep,
 ) -> DAGCollectionResponse:
     """Get all DAGs."""
@@ -131,6 +137,7 @@ def get_dags(
             tags,
             owners,
             last_dag_run_state,
+            readable_dags_filter,
         ],
         order_by=order_by,
         offset=offset,
@@ -155,6 +162,7 @@ def get_dags(
             status.HTTP_422_UNPROCESSABLE_ENTITY,
         ]
     ),
+    dependencies=[Depends(requires_access_dag(method="GET"))],
 )
 def get_dag(dag_id: str, session: SessionDep, request: Request) -> DAGResponse:
     """Get basic information about a DAG."""
@@ -181,6 +189,7 @@ def get_dag(dag_id: str, session: SessionDep, request: Request) -> DAGResponse:
             status.HTTP_404_NOT_FOUND,
         ]
     ),
+    dependencies=[Depends(requires_access_dag(method="GET"))],
 )
 def get_dag_details(dag_id: str, session: SessionDep, request: Request) -> DAGDetailsResponse:
     """Get details of DAG."""
@@ -207,6 +216,7 @@ def get_dag_details(dag_id: str, session: SessionDep, request: Request) -> DAGDe
             status.HTTP_404_NOT_FOUND,
         ]
     ),
+    dependencies=[Depends(requires_access_dag(method="PUT"))],
 )
 def patch_dag(
     dag_id: str,
@@ -249,6 +259,7 @@ def patch_dag(
             status.HTTP_404_NOT_FOUND,
         ]
     ),
+    dependencies=[Depends(requires_access_dag(method="PUT"))],
 )
 def patch_dags(
     patch_body: DAGPatchBody,
@@ -260,6 +271,7 @@ def patch_dags(
     only_active: QueryOnlyActiveFilter,
     paused: QueryPausedFilter,
     last_dag_run_state: QueryLastDagRunStateFilter,
+    editable_dags_filter: EditableDagsFilterDep,
     session: SessionDep,
     update_mask: list[str] | None = Query(None),
 ) -> DAGCollectionResponse:
@@ -280,7 +292,7 @@ def patch_dags(
 
     dags_select, total_entries = paginated_select(
         statement=generate_dag_with_latest_run_query(),
-        filters=[only_active, paused, dag_id_pattern, tags, owners, last_dag_run_state],
+        filters=[only_active, paused, dag_id_pattern, tags, owners, last_dag_run_state, editable_dags_filter],
         order_by=None,
         offset=offset,
         limit=limit,
@@ -310,6 +322,7 @@ def patch_dags(
             status.HTTP_422_UNPROCESSABLE_ENTITY,
         ]
     ),
+    dependencies=[Depends(requires_access_dag(method="DELETE"))],
 )
 def delete_dag(
     dag_id: str,
