@@ -20,6 +20,8 @@
 from __future__ import annotations
 
 import logging
+import sys
+import warnings
 from typing import TYPE_CHECKING, Any, Protocol
 
 from airflow.utils.log.logging_mixin import LoggingMixin
@@ -59,6 +61,25 @@ class BaseHook(LoggingMixin):
         :param conn_id: connection id
         :return: connection
         """
+        # TODO: This is not the best way of having compat, but it's "better than erroring" for now. This still
+        # means SQLA etc is loaded, but we can't avoid that unless/until we add import shims as a big
+        # back-compat layer
+
+        # If this is set it means are in some kind of execution context (Task, Dag Parse or Triggerer perhaps)
+        # and should use the Task SDK API server path
+        if hasattr(sys.modules.get("airflow.sdk.execution_time.task_runner"), "SUPERVISOR_COMMS"):
+            warnings.warn(
+                "Using BaseHook.get_connection from `airflow.models` is deprecated. Please use `from airflow.sdk import"
+                "Connection` and use `Connection.get` instead",
+                DeprecationWarning,
+                stacklevel=1,
+            )
+            from airflow.sdk import Connection as TaskSDKConnection
+
+            return TaskSDKConnection.get(
+                conn_id=conn_id,
+            )
+
         from airflow.models.connection import Connection
 
         conn = Connection.get_connection_from_secrets(conn_id)

@@ -20,6 +20,7 @@ from __future__ import annotations
 import json
 import logging
 from json import JSONDecodeError
+from typing import Any
 
 import attrs
 
@@ -56,6 +57,18 @@ class Connection:
     def get_uri(self): ...
 
     def get_hook(self): ...
+
+    @classmethod
+    def get(cls, conn_id: str, default_conn: Any = None) -> Any:
+        from airflow.sdk.exceptions import AirflowRuntimeError, ErrorType
+        from airflow.sdk.execution_time.context import _get_connection
+
+        try:
+            return _get_connection(conn_id)
+        except AirflowRuntimeError as e:
+            if e.error.error == ErrorType.CONNECTION_NOT_FOUND:
+                return default_conn
+            raise
 
     @property
     def extra_dejson(self) -> dict:
