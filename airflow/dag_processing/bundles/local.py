@@ -30,7 +30,6 @@ class LocalDagBundle(BaseDagBundle):
     :param path: Local path where the DAGs are stored
     """
 
-    bundle_type = "local"
     supports_versioning = False
 
     def __init__(self, *, path: str | None = None, **kwargs) -> None:

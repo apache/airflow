@@ -68,16 +68,16 @@ def get_bundle_tracking_file(bundle_name: str, version: str) -> Path:
     return Path(tracking_dir, version)
 
 
-def get_bundle_base_folder(bundle_type: str, bundle_name: str) -> Path:
-    return get_bundle_storage_root_path() / bundle_type / bundle_name
+def get_bundle_base_folder(bundle_name: str) -> Path:
+    return get_bundle_storage_root_path() / bundle_name
 
 
-def get_bundle_versions_base_folder(bundle_type: str, bundle_name: str) -> Path:
-    return get_bundle_base_folder(bundle_type=bundle_type, bundle_name=bundle_name) / "versions"
+def get_bundle_versions_base_folder(bundle_name: str) -> Path:
+    return get_bundle_base_folder(bundle_name=bundle_name) / "versions"
 
 
-def get_bundle_version_path(bundle_type: str, bundle_name: str, version: str) -> Path:
-    base_folder = get_bundle_versions_base_folder(bundle_type=bundle_type, bundle_name=bundle_name)
+def get_bundle_version_path(bundle_name: str, version: str) -> Path:
+    base_folder = get_bundle_versions_base_folder(bundle_name=bundle_name)
     return base_folder / version
 
 
@@ -152,9 +152,8 @@ class BundleUsageTrackingManager:
         return found
 
     @staticmethod
-    def _remove_stale_bundle(bundle_type: str, bundle_name: str, info: TrackedBundleVersionInfo) -> None:
+    def _remove_stale_bundle(bundle_name: str, info: TrackedBundleVersionInfo) -> None:
         bundle_version_path = get_bundle_version_path(
-            bundle_type=bundle_type,
             bundle_name=bundle_name,
             version=info.version,
         )
@@ -205,14 +204,14 @@ class BundleUsageTrackingManager:
                 recently_used,
             )
 
-    def _remove_stale_bundle_versions_for_bundle(self, bundle_name: str, bundle_type: str):
+    def _remove_stale_bundle_versions_for_bundle(self, bundle_name: str):
         log.info("checking bundle for stale versions. bundle_name=%s", bundle_name)
         found = self._find_all_tracking_files(bundle_name=bundle_name)
         if not found:
             return
         candidates = self._find_candidates(found)
         for info in candidates:
-            self._remove_stale_bundle(bundle_type=bundle_type, bundle_name=bundle_name, info=info)
+            self._remove_stale_bundle(bundle_name=bundle_name, info=info)
 
     def remove_stale_bundle_versions(self):
         """
@@ -228,9 +227,7 @@ class BundleUsageTrackingManager:
         for bundle in bundles:
             if not bundle.supports_versioning:
                 continue
-            self._remove_stale_bundle_versions_for_bundle(
-                bundle_name=bundle.name, bundle_type=bundle.bundle_type
-            )
+            self._remove_stale_bundle_versions_for_bundle(bundle_name=bundle.name)
 
 
 class BaseDagBundle(ABC):
@@ -256,9 +253,6 @@ class BaseDagBundle(ABC):
 
     supports_versioning: bool = False
 
-    bundle_type: str
-    """This is used to ensure consistent local storage location for local bundle versions."""
-
     _locked: bool = False
 
     def __init__(
@@ -273,13 +267,11 @@ class BaseDagBundle(ABC):
         self.refresh_interval = refresh_interval
         self.is_initialized: bool = False
 
-        self.base_dir = get_bundle_base_folder(bundle_name=self.name, bundle_type=self.bundle_type)
-        """Base directory for all bundle files"""
+        self.base_dir = get_bundle_base_folder(bundle_name=self.name)
+        """Base directory for all bundle files for this bundle."""
 
-        self.versions_dir = get_bundle_versions_base_folder(
-            bundle_type=self.bundle_type, bundle_name=self.name
-        )
-        """Where bundle versions are stored."""
+        self.versions_dir = get_bundle_versions_base_folder(bundle_name=self.name)
+        """Where bundle versions are stored locally for this bundle."""
 
     def initialize(self) -> None:
         """
