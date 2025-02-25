@@ -106,7 +106,7 @@ const taskInstanceColumns = (
     header: "End Date",
   },
   {
-    accessorFn: (row: TaskInstanceResponse) => row.rendered_map_index ?? row.map_index,
+    accessorKey: "rendered_map_index",
     header: "Map Index",
   },
 
