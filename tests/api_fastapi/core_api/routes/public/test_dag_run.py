@@ -37,6 +37,7 @@ from airflow.utils.session import provide_session
 from airflow.utils.state import DagRunState, State
 from airflow.utils.types import DagRunTriggeredByType, DagRunType
 
+from tests_common.test_utils.api_fastapi import _check_last_log
 from tests_common.test_utils.db import (
     clear_db_dags,
     clear_db_logs,
@@ -44,7 +45,6 @@ from tests_common.test_utils.db import (
     clear_db_serialized_dags,
 )
 from tests_common.test_utils.format_datetime import from_datetime_to_zulu, from_datetime_to_zulu_without_ms
-from tests_common.test_utils.www import _check_last_log
 
 if TYPE_CHECKING:
     from airflow.models.dag_version import DagVersion
