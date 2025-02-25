@@ -30,6 +30,7 @@ from jwt import (
 )
 
 from airflow.configuration import conf
+from airflow.providers.edge.version_compat import AIRFLOW_V_3_0_PLUS
 from airflow.providers.edge.worker_api.datamodels import JsonRpcRequestBase  # noqa: TCH001
 from airflow.providers.edge.worker_api.routes._v2_compat import (
     Header,
@@ -37,19 +38,45 @@ from airflow.providers.edge.worker_api.routes._v2_compat import (
     Request,
     status,
 )
-from airflow.security.tokens import JWTValidator
 
 log = logging.getLogger(__name__)
 
 
-@cache
-def jwt_validator() -> JWTValidator:
-    clock_grace = conf.getint("core", "internal_api_clock_grace", fallback=30)
-    return JWTValidator(
-        secret_key=conf.get("core", "internal_api_secret_key"),
-        leeway=clock_grace,
-        audience="api",
-    )
+if AIRFLOW_V_3_0_PLUS:
+    from airflow.security.tokens import JWTValidator
+
+    @cache
+    def jwt_validator() -> JWTValidator:
+        clock_grace = conf.getint("core", "internal_api_clock_grace", fallback=30)
+        return JWTValidator(
+            secret_key=conf.get("core", "internal_api_secret_key"),
+            leeway=clock_grace,
+            audience="api",
+        )
+
+    def jwt_validate(authorization: str) -> dict:
+        return jwt_validator().validated_claims(authorization)
+
+    JWT_METHOD_FIELD = "sub"
+
+else:
+    # Airflow 2.10 compatibility
+    from airflow.utils.jwt_signer import JWTSigner  # type: ignore
+
+    @cache
+    def jwt_signer() -> JWTSigner:
+        clock_grace = conf.getint("core", "internal_api_clock_grace", fallback=30)
+        return JWTSigner(
+            secret_key=conf.get("core", "internal_api_secret_key"),
+            expiration_time_in_seconds=clock_grace,
+            leeway_in_seconds=clock_grace,
+            audience="api",
+        )
+
+    def jwt_validate(authorization: str) -> dict:
+        return jwt_signer().verify_token(authorization)
+
+    JWT_METHOD_FIELD = "method"
 
 
 def _forbidden_response(message: str):
@@ -65,8 +92,8 @@ def _forbidden_response(message: str):
 def jwt_token_authorization(method: str, authorization: str):
     """Check if the JWT token is correct."""
     try:
-        payload = jwt_validator().validated_claims(authorization)
-        signed_method = payload.get("method")
+        payload = jwt_validate(authorization)
+        signed_method = payload.get(JWT_METHOD_FIELD)
         if not signed_method or signed_method != method:
             _forbidden_response(
                 "Invalid method in token authorization. "
