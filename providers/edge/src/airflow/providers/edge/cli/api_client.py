@@ -31,7 +31,7 @@ from tenacity import before_log, wait_random_exponential
 
 from airflow.configuration import conf
 from airflow.providers.edge.models.edge_worker import EdgeWorkerVersionException
-from airflow.providers.edge.worker_api.auth import jwt_signer
+from airflow.providers.edge.version_compat import AIRFLOW_V_3_0_PLUS
 from airflow.providers.edge.worker_api.datamodels import (
     EdgeJobFetched,
     PushLogsBody,
@@ -74,12 +74,34 @@ _default_wait = wait_random_exponential(min=API_RETRY_WAIT_MIN, max=API_RETRY_WA
     before_sleep=before_log(logger, logging.WARNING),
 )
 def _make_generic_request(method: str, rest_path: str, data: str | None = None) -> Any:
-    signer = jwt_signer()
+    if AIRFLOW_V_3_0_PLUS:
+        from functools import cache
+
+        from airflow.security.tokens import JWTGenerator
+
+        @cache
+        def jwt_generator() -> JWTGenerator:
+            clock_grace = conf.getint("core", "internal_api_clock_grace", fallback=30)
+            return JWTGenerator(
+                secret_key=conf.get("core", "internal_api_secret_key"),
+                valid_for=clock_grace,
+                audience="api",
+            )
+
+        generator = jwt_generator()
+        authorization = generator.generate(rest_path)
+    else:
+        # Airflow 2.10 compatibility
+        from airflow.providers.edge.worker_api.auth import jwt_signer
+
+        signer = jwt_signer()
+        authorization = signer.generate_signed_token({"method": rest_path})
+
     api_url = conf.get("edge", "api_url")
     headers = {
         "Content-Type": "application/json",
         "Accept": "application/json",
-        "Authorization": signer.generate_signed_token({"method": rest_path}),
+        "Authorization": authorization,
     }
     api_endpoint = urljoin(api_url, rest_path)
     response = requests.request(method, url=api_endpoint, data=data, headers=headers)
