@@ -313,6 +313,12 @@ class InletEventsAccessors(Mapping[Union[int, Asset, AssetAlias, AssetRef], Any]
 
     def __getitem__(self, key: int | Asset | AssetAlias | AssetRef):
         from airflow.sdk.definitions.asset import Asset
+        from airflow.sdk.execution_time.comms import (
+            ErrorResponse,
+            GetAssetEventByAsset,
+            GetAssetEventByAssetAlias,
+        )
+        from airflow.sdk.execution_time.task_runner import SUPERVISOR_COMMS
 
         if isinstance(key, int):  # Support index access; it's easier for trivial cases.
             obj = self._inlets[key]
@@ -320,17 +326,6 @@ class InletEventsAccessors(Mapping[Union[int, Asset, AssetAlias, AssetRef], Any]
                 raise IndexError(key)
         else:
             obj = key
-
-        return self._get_asset_events_from_db(obj)
-
-    # TODO: This is temporary to avoid code duplication between here & airflow/models/taskinstance.py
-    def _get_asset_events_from_db(self, obj: Asset | AssetAlias | AssetRef) -> list[AssetEvent]:
-        from airflow.sdk.execution_time.comms import (
-            ErrorResponse,
-            GetAssetEventByAsset,
-            GetAssetEventByAssetAlias,
-        )
-        from airflow.sdk.execution_time.task_runner import SUPERVISOR_COMMS
 
         if isinstance(obj, Asset):
             asset = self._assets[AssetUniqueKey.from_asset(obj)]
