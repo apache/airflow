@@ -28,6 +28,7 @@ from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarni
 from airflow.providers.microsoft.azure.operators.msgraph import MSGraphAsyncOperator, execute_callable
 from airflow.triggers.base import TriggerEvent
 from airflow.utils import timezone
+from airflow.utils.context import Context
 from unit.microsoft.azure.base import Base
 from unit.microsoft.azure.test_utils import mock_json_response, mock_response
 
@@ -301,17 +302,19 @@ class TestMSGraphAsyncOperator(Base):
                 execute_callable(
                     lambda context, response: response,
                     "response",
-                    {"execution_date": timezone.utcnow()},
+                    Context({"execution_date": timezone.utcnow()}),
                     "result_processor signature has changed, result parameter should be defined before context!",
                 )
                 == "response"
             )
-        assert (
-            execute_callable(
-                lambda response, **context: response,
-                "response",
-                {"execution_date": timezone.utcnow()},
-                "result_processor signature has changed, result parameter should be defined before context!",
+
+        with pytest.warns(None):
+            assert (
+                execute_callable(
+                    lambda response, **context: response,
+                    "response",
+                    Context({"execution_date": timezone.utcnow()}),
+                    "result_processor signature has changed, result parameter should be defined before context!",
+                )
+                == "response"
             )
-            == "response"
-        )

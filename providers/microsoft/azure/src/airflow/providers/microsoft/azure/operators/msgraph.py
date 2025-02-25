@@ -60,7 +60,7 @@ def execute_callable(
     message: str,
 ) -> Any:
     try:
-        return func(value, **context)  # type: ignore
+        return func(value, **dict(context.items()))  # type: ignore
     except TypeError:
         warnings.warn(
             message,
