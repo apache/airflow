@@ -16,10 +16,28 @@
  * specific language governing permissions and limitations
  * under the License.
  */
+import { type MutableRefObject, useEffect, useState } from "react";
 
-export { capitalize } from "./capitalize";
-export { pluralize } from "./pluralize";
-export { getDuration } from "./datetime_utils";
-export { getMetaKey } from "./getMetaKey";
-export { useContainerWidth } from "./useContainerWidth";
-export * from "./query";
+export const useContainerWidth = (ref: MutableRefObject<HTMLDivElement | null | undefined>) => {
+  const [width, setWidth] = useState(0);
+
+  useEffect(() => {
+    if (!ref.current) {
+      return undefined;
+    }
+
+    const resizeObserver = new ResizeObserver((entries) => {
+      for (const entry of entries) {
+        setWidth(entry.contentRect.width);
+      }
+    });
+
+    resizeObserver.observe(ref.current);
+
+    return () => {
+      resizeObserver.disconnect();
+    };
+  }, [ref]);
+
+  return width;
+};
