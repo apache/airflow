@@ -77,6 +77,7 @@ if TYPE_CHECKING:
     import jinja2
     from structlog.typing import FilteringBoundLogger as Logger
 
+    from airflow.models.taskinstancekey import TaskInstanceKey
     from airflow.sdk.definitions._internal.abstractoperator import AbstractOperator
     from airflow.sdk.definitions.context import Context
 
@@ -346,6 +347,14 @@ class RuntimeTaskInstance(TaskInstance):
     ) -> int | range | None:
         # TODO: Implement this method
         return None
+
+    @property
+    def key(self) -> TaskInstanceKey:
+        from airflow.models.taskinstancekey import TaskInstanceKey
+
+        return TaskInstanceKey(
+            dag_id=self.dag_id, task_id=self.task_id, run_id=self.run_id, try_number=self.try_number
+        )
 
 
 def _xcom_push(ti: RuntimeTaskInstance, key: str, value: Any, mapped_length: int | None = None) -> None:
@@ -769,7 +778,7 @@ def finalize(
 ):
     # Pushing xcom for each operator extra links defined on the operator only.
     for oe in ti.task.operator_extra_links:
-        link, xcom_key = oe.get_link(operator=ti.task, ti_key=ti.id), oe.xcom_key  # type: ignore[arg-type]
+        link, xcom_key = oe.get_link(operator=ti.task, ti_key=ti.key), oe.xcom_key  # type: ignore[arg-type]
         log.debug("Setting xcom for operator extra link", link=link, xcom_key=xcom_key)
         _xcom_push(ti, key=xcom_key, value=link)
 
