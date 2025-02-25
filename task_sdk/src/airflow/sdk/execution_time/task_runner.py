@@ -89,6 +89,8 @@ class TaskRunnerMarker:
 #  `airflow/sdk/execution_time/task_instance.py`
 #   or `airflow/sdk/execution_time/runtime_ti.py`
 class RuntimeTaskInstance(TaskInstance):
+    """Task instance used at runtime (exposed in execution context)."""
+
     model_config = ConfigDict(arbitrary_types_allowed=True)
 
     task: BaseOperator

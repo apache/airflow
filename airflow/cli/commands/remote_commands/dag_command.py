@@ -125,7 +125,7 @@ def set_is_paused(is_paused: bool, args) -> None:
 
         query = query.where(DagModel.is_paused != is_paused)
 
-        matched_dags = session.scalars(query).all()
+        matched_dags: list[DagModel] = session.scalars(query).all()
 
     if not matched_dags:
         print(f"No {'un' if is_paused else ''}paused DAGs were found")
@@ -145,7 +145,7 @@ def set_is_paused(is_paused: bool, args) -> None:
             dag_model.set_is_paused(is_paused=is_paused)
 
         AirflowConsole().print_as(
-            data=[{"dag_id": dag.dag_id, "is_paused": not dag.get_is_paused()} for dag in matched_dags],
+            data=[{"dag_id": dag.dag_id, "is_paused": not dag.is_paused} for dag in matched_dags],
             output=args.output,
         )
     else:
@@ -224,8 +224,8 @@ def _get_dagbag_dag_details(dag: DAG) -> dict:
     return {
         "dag_id": dag.dag_id,
         "dag_display_name": dag.dag_display_name,
-        "is_paused": dag.get_is_paused(),
-        "is_active": dag.get_is_active(),
+        "is_paused": None,
+        "is_active": None,
         "last_parsed_time": None,
         "last_expired": None,
         "default_view": dag.default_view,
@@ -295,7 +295,7 @@ def dag_next_execution(args) -> None:
             select(DagModel).where(DagModel.dag_id == dag.dag_id)
         ).one()
 
-    if last_parsed_dag.get_is_paused():
+    if last_parsed_dag.is_paused:
         print("[INFO] Please be reminded this DAG is PAUSED now.", file=sys.stderr)
 
     def print_execution_interval(interval: DataInterval | None):

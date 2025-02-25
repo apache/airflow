@@ -17,7 +17,7 @@
 # under the License.
 from __future__ import annotations
 
-from unittest.mock import Mock
+from unittest.mock import ANY, Mock, call, patch
 
 import pytest
 
@@ -28,22 +28,20 @@ pytestmark = pytest.mark.db_test
 
 
 class TestDagUnpausedDep:
-    def test_concurrency_reached(self):
+    @patch.object(DagUnpausedDep, "_get_is_paused", return_value=True)
+    def test_concurrency_reached(self, mock_get_is_paused):
         """
         Test paused DAG should fail dependency
         """
-        dag = Mock(**{"get_is_paused.return_value": True})
-        task = Mock(dag=dag)
-        ti = TaskInstance(task=task)
-
+        ti = TaskInstance(task=Mock(dag_id="mock_dag_id"))
         assert not DagUnpausedDep().is_met(ti=ti)
+        assert mock_get_is_paused.mock_calls == [call(dag_id="mock_dag_id", session=ANY)]
 
-    def test_all_conditions_met(self):
+    @patch.object(DagUnpausedDep, "_get_is_paused", return_value=False)
+    def test_all_conditions_met(self, mock_get_is_paused):
         """
         Test all conditions met should pass dep
         """
-        dag = Mock(**{"get_is_paused.return_value": False})
-        task = Mock(dag=dag)
-        ti = TaskInstance(task=task)
-
+        ti = TaskInstance(task=Mock(dag_id="mock_dag_id"))
         assert DagUnpausedDep().is_met(ti=ti)
+        assert mock_get_is_paused.mock_calls == [call(dag_id="mock_dag_id", session=ANY)]

@@ -623,12 +623,13 @@ class TestDagFileProcessorManager:
         )
 
     def test_refresh_dags_dir_doesnt_delete_zipped_dags(
-        self, tmp_path, testing_dag_bundle, configure_testing_dag_bundle, test_zip_path
+        self, tmp_path, testing_dag_bundle, configure_testing_dag_bundle, test_zip_path, session
     ):
         """Test DagFileProcessorManager._refresh_dag_dir method"""
         dagbag = DagBag(dag_folder=tmp_path, include_examples=False)
         dagbag.process_file(test_zip_path)
         dag = dagbag.get_dag("test_zip_dag")
+        assert dag
         DAG.bulk_write_to_db("testing", None, [dag])
         SerializedDagModel.write_dag(dag, bundle_name="testing")
 
@@ -641,7 +642,7 @@ class TestDagFileProcessorManager:
         # assert code not deleted
         assert DagCode.has_dag(dag.dag_id)
         # assert dag still active
-        assert dag.get_is_active()
+        assert session.scalar(select(DagModel.is_active).where(DagModel.dag_id == dag.dag_id)) is True
 
     @pytest.mark.usefixtures("testing_dag_bundle")
     def test_refresh_dags_dir_deactivates_deleted_zipped_dags(
@@ -676,7 +677,7 @@ class TestDagFileProcessorManager:
             dag = session.scalar(select(DagModel).where(DagModel.dag_id == dag_id))
             assert dag.is_active is False
 
-    def test_deactivate_deleted_dags(self, dag_maker):
+    def test_deactivate_deleted_dags(self, dag_maker, session):
         with dag_maker("test_dag1") as dag1:
             dag1.relative_fileloc = "test_dag1.py"
         with dag_maker("test_dag2") as dag2:
@@ -695,11 +696,10 @@ class TestDagFileProcessorManager:
         manager = DagFileProcessorManager(max_runs=1)
         manager.deactivate_deleted_dags("dag_maker", active_files)
 
-        dagbag = DagBag(read_dags_from_db=True)
         # The DAG from test_dag1.py is still active
-        assert dagbag.get_dag("test_dag1").get_is_active() is True
+        assert session.scalar(select(DagModel.is_active).where(DagModel.dag_id == "test_dag1")) is True
         # and the DAG from test_dag2.py is deactivated
-        assert dagbag.get_dag("test_dag2").get_is_active() is False
+        assert session.scalar(select(DagModel.is_active).where(DagModel.dag_id == "test_dag2")) is False
 
     @conf_vars({("core", "load_examples"): "False"})
     def test_fetch_callbacks_from_database(self, configure_testing_dag_bundle):

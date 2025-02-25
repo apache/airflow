@@ -749,16 +749,6 @@ class DAG(TaskSDKDag, LoggingMixin):
         return total_tasks >= self.max_active_tasks
 
     @provide_session
-    def get_is_active(self, session=NEW_SESSION) -> None:
-        """Return a boolean indicating whether this DAG is active."""
-        return session.scalar(select(DagModel.is_active).where(DagModel.dag_id == self.dag_id))
-
-    @provide_session
-    def get_is_paused(self, session=NEW_SESSION) -> None:
-        """Return a boolean indicating whether this DAG is paused."""
-        return session.scalar(select(DagModel.is_paused).where(DagModel.dag_id == self.dag_id))
-
-    @provide_session
     def get_bundle_name(self, session=NEW_SESSION) -> str | None:
         """Return the bundle name this DAG is in."""
         return session.scalar(select(DagModel.bundle_name).where(DagModel.dag_id == self.dag_id))
@@ -2218,14 +2208,6 @@ class DagModel(Base):
         return get_last_dagrun(
             self.dag_id, session=session, include_externally_triggered=include_externally_triggered
         )
-
-    def get_is_paused(self, *, session: Session | None = None) -> bool:
-        """Provide interface compatibility to 'DAG'."""
-        return self.is_paused
-
-    def get_is_active(self, *, session: Session | None = None) -> bool:
-        """Provide interface compatibility to 'DAG'."""
-        return self.is_active
 
     @staticmethod
     @provide_session
