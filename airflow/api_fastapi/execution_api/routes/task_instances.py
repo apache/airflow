@@ -17,6 +17,7 @@
 
 from __future__ import annotations
 
+import json
 import logging
 from typing import Annotated
 from uuid import UUID
@@ -78,6 +79,9 @@ def ti_run(
     # We only use UUID above for validation purposes
     ti_id_str = str(task_instance_id)
 
+    from sqlalchemy.sql import column
+    from sqlalchemy.types import JSON
+
     old = (
         select(
             TI.state,
@@ -88,14 +92,28 @@ def ti_run(
             TI.next_method,
             TI.try_number,
             TI.max_tries,
+            TI.next_method,
+            # This selects the raw JSON value, by-passing the deserialization -- we want that to happen on the
+            # client
+            column("next_kwargs", JSON),
         )
+        .select_from(TI)
         .where(TI.id == ti_id_str)
         .with_for_update()
     )
     try:
-        (previous_state, dag_id, run_id, task_id, map_index, next_method, try_number, max_tries) = (
-            session.execute(old).one()
-        )
+        (
+            previous_state,
+            dag_id,
+            run_id,
+            task_id,
+            map_index,
+            next_method,
+            try_number,
+            max_tries,
+            next_method,
+            next_kwargs,
+        ) = session.execute(old).one()
     except NoResultFound:
         log.error("Task Instance %s not found", ti_id_str)
         raise HTTPException(
@@ -195,7 +213,7 @@ def ti_run(
             or 0
         )
 
-        return TIRunContext(
+        context = TIRunContext(
             dag_run=dr,
             task_reschedule_count=task_reschedule_count,
             max_tries=max_tries,
@@ -203,6 +221,13 @@ def ti_run(
             variables=[],
             connections=[],
         )
+
+        # Only set if they are non-null
+        if next_method:
+            context.next_method = next_method
+            context.next_kwargs = next_kwargs
+
+        return context
     except SQLAlchemyError as e:
         log.error("Error marking Task Instance state as running: %s", e)
         raise HTTPException(
@@ -290,10 +315,17 @@ def ti_update_state(
         if ti_patch_payload.trigger_timeout is not None:
             timeout = timezone.utcnow() + ti_patch_payload.trigger_timeout
 
+        trigger_kwargs = ti_patch_payload.trigger_kwargs
+        if not isinstance(trigger_kwargs, str):
+            # If it's passed as a string, assume the client encrypted it, otherwise assume it doesn't need to
+            # be. Just JSON serialize it
+            trigger_kwargs = json.dumps(trigger_kwargs)
+
         trigger_row = Trigger(
             classpath=ti_patch_payload.classpath,
-            kwargs=ti_patch_payload.trigger_kwargs,
+            kwargs={},
         )
+        trigger_row.encrypted_kwargs = trigger_kwargs
         session.add(trigger_row)
         session.flush()
 
@@ -301,11 +333,20 @@ def ti_update_state(
         # either get it from the serialised DAG or get it from the API
 
         query = update(TI).where(TI.id == ti_id_str)
+
+        # This is slightly inefficient as we deserialize it to then right again serialize it in the sqla
+        # TypeAdapter.
+        next_kwargs = None
+        if ti_patch_payload.next_kwargs:
+            from airflow.serialization.serialized_objects import BaseSerialization
+
+            next_kwargs = BaseSerialization.deserialize(ti_patch_payload.next_kwargs)
+
         query = query.values(
             state=State.DEFERRED,
             trigger_id=trigger_row.id,
             next_method=ti_patch_payload.next_method,
-            next_kwargs=ti_patch_payload.trigger_kwargs,
+            next_kwargs=next_kwargs,
             trigger_timeout=timeout,
         )
         updated_state = State.DEFERRED
