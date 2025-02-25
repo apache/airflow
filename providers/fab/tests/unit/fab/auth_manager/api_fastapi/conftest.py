@@ -28,5 +28,5 @@ def fab_auth_manager():
 
 
 @pytest.fixture(scope="module")
-def test_client(auth_manager):
-    return TestClient(auth_manager.get_fastapi_app())
+def test_client(fab_auth_manager):
+    return TestClient(fab_auth_manager.get_fastapi_app())

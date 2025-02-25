@@ -19,24 +19,12 @@ from __future__ import annotations
 
 from unittest.mock import patch
 
-import pytest
-
 from airflow.providers.fab.auth_manager.api_fastapi.datamodels.login import LoginResponse
-
-TEST_USER_1 = "test1"
-TEST_USER_2 = "test2"
 
 
 class TestLogin:
-    @pytest.mark.parametrize(
-        "test_user",
-        [
-            TEST_USER_1,
-            TEST_USER_2,
-        ],
-    )
     @patch("airflow.providers.fab.auth_manager.api_fastapi.routes.login.FABAuthManagerLogin")
-    def test_create_token(self, mock_fab_auth_manager_login, test_client, auth_manager, test_user):
+    def test_create_token(self, mock_fab_auth_manager_login, test_client):
         mock_fab_auth_manager_login.create_token.return_value = LoginResponse(jwt_token="DUMMY_TOKEN")
 
         response = test_client.post(
@@ -45,15 +33,8 @@ class TestLogin:
         assert response.status_code == 201
         assert response.json()["jwt_token"]
 
-    @pytest.mark.parametrize(
-        "test_user",
-        [
-            TEST_USER_1,
-            TEST_USER_2,
-        ],
-    )
     @patch("airflow.providers.fab.auth_manager.api_fastapi.routes.login.FABAuthManagerLogin")
-    def test_create_token_cli(self, mock_fab_auth_manager_login, test_client, auth_manager, test_user):
+    def test_create_token_cli(self, mock_fab_auth_manager_login, test_client):
         mock_fab_auth_manager_login.create_token.return_value = LoginResponse(jwt_token="DUMMY_TOKEN")
 
         response = test_client.post(

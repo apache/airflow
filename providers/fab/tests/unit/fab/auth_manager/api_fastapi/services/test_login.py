@@ -25,11 +25,6 @@ from airflow.providers.fab.auth_manager.api_fastapi.services.login import FABAut
 if TYPE_CHECKING:
     from airflow.providers.fab.auth_manager.api_fastapi.datamodels.login import LoginResponse
 
-TEST_USER_1 = "test1"
-TEST_ROLE_1 = "viewer"
-TEST_USER_2 = "test2"
-TEST_ROLE_2 = "admin"
-
 
 class TestLogin:
     def setup_method(
