@@ -37,7 +37,7 @@ if TYPE_CHECKING:
     from airflow.utils.context import Context
     from azure.synapse.spark.models import SparkBatchJobOptions
 
-from airflow.providers.microsoft.version_compat import AIRFLOW_V_3_0_PLUS
+from airflow.providers.microsoft.azure.version_compat import AIRFLOW_V_3_0_PLUS
 
 if AIRFLOW_V_3_0_PLUS:
     from airflow.sdk.definitions.baseoperatorlink import BaseOperatorLink
