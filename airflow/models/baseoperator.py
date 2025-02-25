@@ -93,9 +93,9 @@ if TYPE_CHECKING:
     from sqlalchemy.orm import Session
 
     from airflow.models.abstractoperator import TaskStateChangeCallback
-    from airflow.models.baseoperatorlink import BaseOperatorLink
     from airflow.models.dag import DAG as SchedulerDAG
     from airflow.models.operator import Operator
+    from airflow.sdk.definitions.baseoperatorlink import BaseOperatorLink
     from airflow.sdk.definitions.node import DAGNode
     from airflow.ti_deps.deps.base_ti_dep import BaseTIDep
     from airflow.triggers.base import BaseTrigger, StartTriggerArgs
