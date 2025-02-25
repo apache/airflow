@@ -19,7 +19,6 @@ from __future__ import annotations
 
 import asyncio
 import time
-from datetime import datetime, timedelta
 from functools import cached_property
 from typing import Any
 
@@ -237,6 +236,10 @@ class GlueJobHook(AwsBaseHook):
         """
         log_client = self.logs_hook.get_conn()
         paginator = log_client.get_paginator("filter_log_events")
+        # StartTime needs to be an int and is Epoch time in  milliseconds
+        start_time = int(
+            self.conn.get_job_run(JobName=job_name, RunId=run_id)["JobRun"]["StartedOn"].timestamp() * 1000
+        )
 
         def display_logs_from(log_group: str, continuation_token: str | None) -> str | None:
             """Mutualize iteration over the 2 different log streams glue jobs write to."""
@@ -246,9 +249,7 @@ class GlueJobHook(AwsBaseHook):
                 for response in paginator.paginate(
                     logGroupName=log_group,
                     logStreamNames=[run_id],
-                    startTime=int(
-                        (datetime.now() - timedelta(hours=24)).timestamp() * 1000
-                    ),  # 24 hours ago in milliseconds
+                    startTime=start_time,
                     PaginationConfig={"StartingToken": continuation_token},
                 ):
                     fetched_logs.extend([event["message"] for event in response["events"]])
