@@ -1914,6 +1914,7 @@ class LazyDeserializedDAG(pydantic.BaseModel):
         "max_active_runs",
         "max_consecutive_failed_dag_runs",
         "owner_links",
+        "relative_fileloc",
         "access_control",
         "default_view",
     }
