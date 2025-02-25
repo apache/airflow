@@ -17,28 +17,13 @@
 # under the License.
 from __future__ import annotations
 
-import re
 from collections.abc import AsyncIterator
 from functools import cached_property
 from typing import Any
 
 from airflow.exceptions import AirflowException
-from airflow.providers.amazon.aws.triggers.sqs import SqsSensorTrigger
+from airflow.providers.common.messaging.providers import MESSAGE_QUEUE_PROVIDERS
 from airflow.triggers.base import BaseEventTrigger, TriggerEvent
-
-
-def is_sqs_queue(queue: str) -> bool:
-    return bool(re.match(r"^https://sqs\.[^.]+\.amazonaws\.com/[0-9]+/.+", queue))
-
-
-# This list defines the supported providers. Each item in the list is a tuple containing:
-#   1. A function (Callable) that checks if a given queue (string) matches a specific provider's pattern.
-#   2. The corresponding trigger to use when the function returns True.
-#
-# The function that checks whether a queue matches a provider's pattern must be as specific as possible to
-# avoid collision. Functions in this list should NOT overlap with each other in their matching criteria.
-# To add support for a new provider in `MessageQueueTrigger`, add a new entry to this list.
-MESSAGE_QUEUE_PROVIDERS = [(is_sqs_queue, SqsSensorTrigger)]
 
 
 class MessageQueueTrigger(BaseEventTrigger):
@@ -59,18 +44,18 @@ class MessageQueueTrigger(BaseEventTrigger):
 
     @cached_property
     def trigger(self) -> BaseEventTrigger:
-        triggers = [trigger[1] for trigger in MESSAGE_QUEUE_PROVIDERS if trigger[0](self.queue)]
-        if len(triggers) == 0:
+        providers = [provider for provider in MESSAGE_QUEUE_PROVIDERS if provider.queue_matches(self.queue)]
+        if len(providers) == 0:
             raise ValueError(f"The queue '{self.queue}' is not recognized by ``MessageQueueTrigger``.")
-        if len(triggers) > 1:
+        if len(providers) > 1:
             self.log.error(
-                "The queue '%s' is recognized by more than one trigger. "
-                "At least two functions in ``MESSAGE_QUEUE_PROVIDERS`` are colliding with each "
+                "The queue '%s' is recognized by more than one provider. "
+                "At least two providers in ``MESSAGE_QUEUE_PROVIDERS`` are colliding with each "
                 "other.",
                 self.queue,
             )
-            raise AirflowException(f"The queue '{self.queue}' is recognized by more than one trigger.")
-        return triggers[1](**self.kwargs)
+            raise AirflowException(f"The queue '{self.queue}' is recognized by more than one provider.")
+        return providers[0].trigger_class()(**providers[0].trigger_kwargs(self.queue, **self.kwargs), **self.kwargs)
 
     def serialize(self) -> tuple[str, dict[str, Any]]:
         return self.trigger.serialize()
