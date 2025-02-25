@@ -18,6 +18,7 @@
 from __future__ import annotations
 
 import copy
+import datetime
 import functools
 import itertools
 import logging
@@ -26,7 +27,6 @@ import sys
 import weakref
 from collections import abc
 from collections.abc import Collection, Iterable, MutableSet
-from datetime import datetime, timedelta
 from inspect import signature
 from re import Pattern
 from typing import (
@@ -90,7 +90,7 @@ __all__ = [
 
 
 DagStateChangeCallback = Callable[[Context], None]
-ScheduleInterval = Union[None, str, timedelta, relativedelta]
+ScheduleInterval = Union[None, str, datetime.timedelta, relativedelta]
 
 ScheduleArg = Union[ScheduleInterval, Timetable, BaseAsset, Collection[BaseAsset]]
 
@@ -123,7 +123,7 @@ def _create_timetable(interval: ScheduleInterval, timezone: Timezone | FixedTime
         return OnceTimetable()
     if interval == "@continuous":
         return ContinuousTimetable()
-    if isinstance(interval, (timedelta, relativedelta)):
+    if isinstance(interval, (datetime.timedelta, relativedelta)):
         return DeltaDataIntervalTimetable(interval)
     if isinstance(interval, str):
         if airflow_conf.getboolean("scheduler", "create_cron_data_intervals"):
@@ -213,7 +213,7 @@ def _default_start_date(instance: DAG):
     from airflow.utils import timezone
 
     if date := instance.default_args.get("start_date"):
-        if not isinstance(date, datetime):
+        if not isinstance(date, datetime.datetime):
             date = timezone.parse(date)
             instance.default_args["start_date"] = date
         return date
@@ -376,11 +376,11 @@ class DAG:
     default_args: dict[str, Any] = attrs.field(
         factory=dict, validator=attrs.validators.instance_of(dict), converter=dict_copy
     )
-    start_date: datetime | None = attrs.field(
+    start_date: datetime.datetime | None = attrs.field(
         default=attrs.Factory(_default_start_date, takes_self=True),
     )
 
-    end_date: datetime | None = None
+    end_date: datetime.datetime | None = None
     timezone: FixedTimezone | Timezone = attrs.field(init=False)
     schedule: ScheduleArg = attrs.field(default=None, on_setattr=attrs.setters.frozen)
     timetable: Timetable = attrs.field(init=False)
@@ -396,9 +396,9 @@ class DAG:
     max_consecutive_failed_dag_runs: int = attrs.field(
         default=-1, validator=attrs.validators.instance_of(int)
     )
-    dagrun_timeout: timedelta | None = attrs.field(
+    dagrun_timeout: datetime.timedelta | None = attrs.field(
         default=None,
-        validator=attrs.validators.optional(attrs.validators.instance_of(timedelta)),
+        validator=attrs.validators.optional(attrs.validators.instance_of(datetime.timedelta)),
     )
     # sla_miss_callback: None | SLAMissCallback | list[SLAMissCallback] = None
     catchup: bool = attrs.field(default=True, converter=bool)
@@ -440,6 +440,11 @@ class DAG:
 
     has_on_success_callback: bool = attrs.field(init=False)
     has_on_failure_callback: bool = attrs.field(init=False)
+
+    last_loaded: datetime.datetime = attrs.field(
+        init=False,
+        factory=lambda: datetime.datetime.now(datetime.timezone.utc),
+    )
 
     def __attrs_post_init__(self):
         from airflow.utils import timezone
@@ -520,7 +525,7 @@ class DAG:
         start_date = instance.start_date or instance.default_args.get("start_date")
 
         if start_date:
-            if not isinstance(start_date, datetime):
+            if not isinstance(start_date, datetime.datetime):
                 start_date = timezone.parse(start_date)
             tzinfo = start_date.tzinfo or settings.TIMEZONE
             tz = pendulum.instance(start_date, tz=tzinfo).timezone
@@ -1037,8 +1042,8 @@ if TYPE_CHECKING:
         *,
         description: str | None = None,
         schedule: ScheduleArg = None,
-        start_date: datetime | None = None,
-        end_date: datetime | None = None,
+        start_date: datetime.datetime | None = None,
+        end_date: datetime.datetime | None = None,
         template_searchpath: str | Iterable[str] | None = None,
         template_undefined: type[jinja2.StrictUndefined] = jinja2.StrictUndefined,
         user_defined_macros: dict | None = None,
@@ -1047,7 +1052,7 @@ if TYPE_CHECKING:
         max_active_tasks: int = ...,
         max_active_runs: int = ...,
         max_consecutive_failed_dag_runs: int = ...,
-        dagrun_timeout: timedelta | None = None,
+        dagrun_timeout: datetime.timedelta | None = None,
         # sla_miss_callback: Any = None,
         catchup: bool = ...,
         on_success_callback: None | DagStateChangeCallback | list[DagStateChangeCallback] = None,

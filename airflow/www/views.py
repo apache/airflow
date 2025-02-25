@@ -2226,7 +2226,7 @@ class Airflow(AirflowBaseView):
                     form=form,
                 )
 
-        if dag.get_is_paused():
+        if session.scalar(select(DagModel.is_paused).where(DagModel.dag_id == dag.dag_id)):
             if unpause or not ui_fields_defined:
                 flash(f"Unpaused DAG {dag_id}.")
                 dag_model = models.DagModel.get_dagmodel(dag_id)

@@ -118,7 +118,7 @@ if TYPE_CHECKING:
     from airflow.models.abstractoperator import TaskStateChangeCallback
     from airflow.models.dagbag import DagBag
     from airflow.models.operator import Operator
-    from airflow.serialization.serialized_objects import MaybeSerializedDAG
+    from airflow.serialization.serialized_objects import LazyDeserializedDAG
     from airflow.typing_compat import Literal
 
 log = logging.getLogger(__name__)
@@ -425,7 +425,6 @@ class DAG(TaskSDKDag, LoggingMixin):
     """
 
     partial: bool = False
-    last_loaded: datetime | None = attrs.field(factory=timezone.utcnow)
 
     default_view: str = airflow_conf.get_mandatory_value("webserver", "dag_default_view").lower()
     orientation: str = airflow_conf.get_mandatory_value("webserver", "dag_orientation")
@@ -745,16 +744,6 @@ class DAG(TaskSDKDag, LoggingMixin):
             )
         )
         return total_tasks >= self.max_active_tasks
-
-    @provide_session
-    def get_is_active(self, session=NEW_SESSION) -> None:
-        """Return a boolean indicating whether this DAG is active."""
-        return session.scalar(select(DagModel.is_active).where(DagModel.dag_id == self.dag_id))
-
-    @provide_session
-    def get_is_paused(self, session=NEW_SESSION) -> None:
-        """Return a boolean indicating whether this DAG is paused."""
-        return session.scalar(select(DagModel.is_paused).where(DagModel.dag_id == self.dag_id))
 
     @provide_session
     def get_bundle_name(self, session=NEW_SESSION) -> str | None:
@@ -1852,7 +1841,7 @@ class DAG(TaskSDKDag, LoggingMixin):
         cls,
         bundle_name: str,
         bundle_version: str | None,
-        dags: Collection[MaybeSerializedDAG],
+        dags: Collection[DAG | LazyDeserializedDAG],
         session: Session = NEW_SESSION,
     ):
         """
@@ -1865,10 +1854,18 @@ class DAG(TaskSDKDag, LoggingMixin):
             return
 
         from airflow.dag_processing.collection import AssetModelOperation, DagModelOperation
+        from airflow.serialization.serialized_objects import LazyDeserializedDAG, SerializedDAG
 
         log.info("Sync %s DAGs", len(dags))
+        serdags = [
+            dag
+            if isinstance(dag, LazyDeserializedDAG)
+            else LazyDeserializedDAG(data=SerializedDAG.to_dict(dag))
+            for dag in dags
+        ]
+
         dag_op = DagModelOperation(
-            bundle_name=bundle_name, bundle_version=bundle_version, dags={d.dag_id: d for d in dags}
+            bundle_name=bundle_name, bundle_version=bundle_version, dags={d.dag_id: d for d in serdags}
         )  # type: ignore[misc]
 
         orm_dags = dag_op.add_dags(session=session)
@@ -2206,14 +2203,6 @@ class DagModel(Base):
         return get_last_dagrun(
             self.dag_id, session=session, include_manually_triggered=include_manually_triggered
         )
-
-    def get_is_paused(self, *, session: Session | None = None) -> bool:
-        """Provide interface compatibility to 'DAG'."""
-        return self.is_paused
-
-    def get_is_active(self, *, session: Session | None = None) -> bool:
-        """Provide interface compatibility to 'DAG'."""
-        return self.is_active
 
     @staticmethod
     @provide_session

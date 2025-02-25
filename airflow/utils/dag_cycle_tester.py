@@ -24,7 +24,7 @@ from typing import TYPE_CHECKING
 from airflow.exceptions import AirflowDagCycleException
 
 if TYPE_CHECKING:
-    from airflow.models.dag import DAG
+    from airflow.sdk.definitions.dag import DAG
 
 CYCLE_NEW = 0
 CYCLE_IN_PROGRESS = 1

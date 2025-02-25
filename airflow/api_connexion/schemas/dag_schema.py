@@ -102,8 +102,6 @@ class DAGDetailSchema(DAGSchema):
     default_view = fields.String(dump_only=True)
     params = fields.Method("get_params", dump_only=True)
     tags = fields.Method("get_tags", dump_only=True)  # type: ignore
-    is_paused = fields.Method("get_is_paused", dump_only=True)
-    is_active = fields.Method("get_is_active", dump_only=True)
     is_paused_upon_creation = fields.Boolean(dump_only=True)
     end_date = fields.DateTime(dump_only=True)
     template_searchpath = fields.String(dump_only=True)
@@ -124,16 +122,6 @@ class DAGDetailSchema(DAGSchema):
         if not getattr(obj, "owner", None):
             return []
         return obj.owner.split(",")
-
-    @staticmethod
-    def get_is_paused(obj: DAG):
-        """Check entry in DAG table to see if this DAG is paused."""
-        return obj.get_is_paused()
-
-    @staticmethod
-    def get_is_active(obj: DAG):
-        """Check entry in DAG table to see if this DAG is active."""
-        return obj.get_is_active()
 
     @staticmethod
     def get_params(obj: DAG):

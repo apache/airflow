@@ -1066,7 +1066,7 @@ class TestDag:
         session = settings.Session()
         dag.sync_to_db(session=session)
         SerializedDagModel.write_dag(dag, bundle_name="testing")
-        assert not dag.get_is_paused()
+        assert session.scalar(select(DagModel.is_paused).where(DagModel.dag_id == dag_id)) is False
 
         # dag should be paused after 2 failed dag_runs
         add_failed_dag_run(
@@ -1075,7 +1075,7 @@ class TestDag:
             TEST_DATE,
         )
         add_failed_dag_run(dag, "2", TEST_DATE + timedelta(days=1))
-        assert dag.get_is_paused()
+        assert session.scalar(select(DagModel.is_paused).where(DagModel.dag_id == dag_id)) is True
         dag.clear()
         self._clean_up(dag_id)
 
