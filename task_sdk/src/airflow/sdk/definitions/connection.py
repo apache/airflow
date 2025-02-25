@@ -62,10 +62,7 @@ class Connection:
     def get(cls, conn_id: str) -> Any:
         from airflow.sdk.execution_time.context import _get_connection
 
-        try:
-            return _get_connection(conn_id)
-        except Exception:
-            raise
+        return _get_connection(conn_id)
 
     @property
     def extra_dejson(self) -> dict:
