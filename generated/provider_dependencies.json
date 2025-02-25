@@ -221,7 +221,9 @@
     ],
     "devel-deps": [],
     "plugins": [],
-    "cross-providers-deps": [],
+    "cross-providers-deps": [
+      "google"
+    ],
     "excluded-python-versions": [],
     "state": "ready"
   },
