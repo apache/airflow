@@ -27,6 +27,7 @@ if TYPE_CHECKING:
     from airflow.models.operator import Operator
     from airflow.sdk.definitions.baseoperator import BaseOperator
     from airflow.sdk.definitions.dag import DAG
+    from airflow.sdk.execution_time.context import InletEventsAccessors
     from airflow.sdk.types import (
         DagRunProtocol,
         OutletEventAccessorsProtocol,
@@ -48,8 +49,7 @@ class Context(TypedDict, total=False):
     expanded_ti_count: int | None
     exception: None | str | BaseException
     inlets: list
-    # inlet_events: InletEventsAccessors
-    inlet_events: Any
+    inlet_events: InletEventsAccessors
     logical_date: datetime
     macros: Any
     map_index_template: str | None
