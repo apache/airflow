@@ -139,7 +139,6 @@ class RuntimeTaskInstance(TaskInstance):
             # TODO: Ensure that ti.log_url and such are available to use in context
             #   especially after removal of `conf` from Context.
             "ti": self,
-            "start_date": self.start_date,
             "outlet_events": OutletEventAccessors(),
             # "inlet_events": InletEventsAccessors(task.inlets, session=session),
             "macros": MacrosAccessor(),
@@ -160,7 +159,7 @@ class RuntimeTaskInstance(TaskInstance):
                 # TODO: Assess if we need to pass these through timezone.coerce_datetime
                 "dag_run": dag_run,  # type: ignore[typeddict-item]  # Removable after #46522
                 "task_instance_key_str": f"{self.task.dag_id}__{self.task.task_id}__{dag_run.run_id}",
-                "task_reschedule_count": self._ti_context_from_server.task_reschedule_count,
+                "task_reschedule_count": self._ti_context_from_server.task_reschedule_count or 0,
                 "prev_start_date_success": lazy_object_proxy.Proxy(
                     lambda: get_previous_dagrun_success(self.id).start_date
                 ),

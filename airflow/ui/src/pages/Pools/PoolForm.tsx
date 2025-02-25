@@ -96,7 +96,7 @@ const PoolForm = ({ error, initialPool, isPending, manageMutate, setError }: Poo
         render={({ field }) => (
           <Field.Root mb={4} mt={4}>
             <Field.Label fontSize="md">Description</Field.Label>
-            <Textarea {...field} size="sm" />
+            <Textarea {...field} disabled={initialPool.name === "default_pool"} size="sm" />
           </Field.Root>
         )}
       />

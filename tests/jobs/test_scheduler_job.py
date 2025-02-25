@@ -3479,7 +3479,7 @@ class TestSchedulerJob:
         scheduler_job = Job()
         self.job_runner = SchedulerJobRunner(job=scheduler_job)
 
-        dr1 = dag_maker.create_dagrun(external_trigger=True)
+        dr1 = dag_maker.create_dagrun(run_type=DagRunType.MANUAL)
         ti = dr1.get_task_instances(session=session)[0]
         ti.state = adoptable_state
         ti.queued_by_job_id = old_job.id
@@ -3503,7 +3503,7 @@ class TestSchedulerJob:
         self.job_runner = SchedulerJobRunner(job=scheduler_job)
         session = settings.Session()
 
-        dr1 = dag_maker.create_dagrun(external_trigger=True)
+        dr1 = dag_maker.create_dagrun(run_type=DagRunType.MANUAL)
         ti = dr1.get_task_instances(session=session)[0]
         ti.state = State.QUEUED
         ti.queued_by_job_id = old_job.id
@@ -4132,7 +4132,6 @@ class TestSchedulerJob:
             logical_date=timezone.utcnow(),
             run_type=DagRunType.MANUAL,
             session=session,
-            external_trigger=True,
             data_interval=data_interval,
             run_after=DEFAULT_LOGICAL_DATE,
             triggered_by=DagRunTriggeredByType.TEST,
@@ -4175,7 +4174,6 @@ class TestSchedulerJob:
             logical_date=dag_model.next_dagrun,
             start_date=timezone.utcnow(),
             state=State.RUNNING,
-            external_trigger=False,
             session=session,
             creating_job_id=2,
         )

@@ -39,8 +39,9 @@ from airflow.utils.session import provide_session
 from airflow.utils.state import DagRunState
 from airflow.utils.types import DagRunType
 
+from tests_common.test_utils.api_fastapi import _check_last_log
 from tests_common.test_utils.asserts import assert_queries_count
-from tests_common.test_utils.db import clear_db_assets, clear_db_runs
+from tests_common.test_utils.db import clear_db_assets, clear_db_logs, clear_db_runs
 from tests_common.test_utils.format_datetime import from_datetime_to_zulu_without_ms
 
 DEFAULT_DATE = datetime(2020, 6, 11, 18, 0, 0, tzinfo=timezone.utc)
@@ -154,7 +155,6 @@ def _create_dag_run(session, num: int = 2):
             logical_date=DEFAULT_DATE + timedelta(days=i - 1),
             start_date=DEFAULT_DATE,
             data_interval=(DEFAULT_DATE, DEFAULT_DATE),
-            external_trigger=True,
             state=DagRunState.SUCCESS,
         )
         for i in range(1, 1 + num)
@@ -188,10 +188,7 @@ class TestAssets:
     def setup(self) -> None:
         clear_db_assets()
         clear_db_runs()
-
-    def teardown_method(self) -> None:
-        clear_db_assets()
-        clear_db_runs()
+        clear_db_logs()
 
     @provide_session
     def create_assets(self, session, num: int = 2) -> list[AssetModel]:
@@ -894,6 +891,7 @@ class TestDeleteDagDatasetQueuedEvents(TestQueuedEventEndpoint):
         assert response.status_code == 204
         adrqs = session.query(AssetDagRunQueue).all()
         assert len(adrqs) == 0
+        _check_last_log(session, dag_id=dag_id, event="delete_dag_asset_queued_events", logical_date=None)
 
     def test_should_respond_404_invalid_dag(self, test_client):
         dag_id = "not_exists"
@@ -941,6 +939,7 @@ class TestPostAssetEvents(TestAssets):
             "created_dagruns": [],
             "timestamp": from_datetime_to_zulu_without_ms(DEFAULT_DATE),
         }
+        _check_last_log(session, dag_id=None, event="create_asset_event", logical_date=None)
 
     def test_invalid_attr_not_allowed(self, test_client, session):
         self.create_assets(session)
@@ -992,12 +991,14 @@ class TestPostAssetMaterialize(TestAssets):
         with dag_maker(self.DAG_ASSET_NO, schedule=None, session=session):
             EmptyOperator(task_id="task")
 
+    @pytest.mark.usefixtures("configure_git_connection_for_dag_bundle")
     def test_should_respond_200(self, test_client):
         response = test_client.post("/public/assets/1/materialize")
         assert response.status_code == 200
         assert response.json() == {
             "dag_run_id": mock.ANY,
             "dag_id": self.DAG_ASSET1_ID,
+            "dag_versions": mock.ANY,
             "logical_date": None,
             "queued_at": mock.ANY,
             "run_after": mock.ANY,
@@ -1008,7 +1009,6 @@ class TestPostAssetMaterialize(TestAssets):
             "last_scheduling_decision": None,
             "run_type": "manual",
             "state": "queued",
-            "external_trigger": True,
             "triggered_by": "rest_api",
             "conf": {},
             "note": None,
@@ -1066,6 +1066,7 @@ class TestDeleteAssetQueuedEvents(TestQueuedEventEndpoint):
         response = test_client.delete(f"/public/assets/{asset_id}/queuedEvents")
         assert response.status_code == 204
         assert session.get(AssetDagRunQueue, (asset_id, dag_id)) is None
+        _check_last_log(session, dag_id=None, event="delete_asset_queued_events", logical_date=None)
 
     def test_should_respond_404(self, test_client):
         response = test_client.delete("/public/assets/1/queuedEvents")
@@ -1091,6 +1092,7 @@ class TestDeleteDagAssetQueuedEvent(TestQueuedEventEndpoint):
         assert response.status_code == 204
         adrq = session.query(AssetDagRunQueue).all()
         assert len(adrq) == 0
+        _check_last_log(session, dag_id=dag_id, event="delete_dag_asset_queued_event", logical_date=None)
 
     def test_should_respond_404(self, test_client):
         dag_id = "not_exists"

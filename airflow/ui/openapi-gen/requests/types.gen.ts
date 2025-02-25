@@ -626,12 +626,12 @@ export type DAGRunResponse = {
   last_scheduling_decision: string | null;
   run_type: DagRunType;
   state: DagRunState;
-  external_trigger: boolean;
   triggered_by: DagRunTriggeredByType;
   conf: {
     [key: string]: unknown;
   };
   note: string | null;
+  dag_versions: Array<DagVersionResponse>;
 };
 
 /**
@@ -1461,7 +1461,7 @@ export type TriggerDAGRunPostBody = {
   data_interval_start?: string | null;
   data_interval_end?: string | null;
   logical_date: string | null;
-  run_after?: string;
+  run_after?: string | null;
   conf?: {
     [key: string]: unknown;
   };

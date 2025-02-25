@@ -354,7 +354,6 @@ class DagRunInfo(InfoJsonEncodable):
         "dag_id",
         "data_interval_start",
         "data_interval_end",
-        "external_trigger",
         "run_id",
         "run_type",
         "start_date",

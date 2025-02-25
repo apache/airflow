@@ -2324,10 +2324,6 @@ export const $DAGRunResponse = {
     state: {
       $ref: "#/components/schemas/DagRunState",
     },
-    external_trigger: {
-      type: "boolean",
-      title: "External Trigger",
-    },
     triggered_by: {
       $ref: "#/components/schemas/DagRunTriggeredByType",
     },
@@ -2346,6 +2342,13 @@ export const $DAGRunResponse = {
       ],
       title: "Note",
     },
+    dag_versions: {
+      items: {
+        $ref: "#/components/schemas/DagVersionResponse",
+      },
+      type: "array",
+      title: "Dag Versions",
+    },
   },
   type: "object",
   required: [
@@ -2361,10 +2364,10 @@ export const $DAGRunResponse = {
     "last_scheduling_decision",
     "run_type",
     "state",
-    "external_trigger",
     "triggered_by",
     "conf",
     "note",
+    "dag_versions",
   ],
   title: "DAGRunResponse",
   description: "DAG Run serializer for responses.",
@@ -6054,8 +6057,15 @@ export const $TriggerDAGRunPostBody = {
       title: "Logical Date",
     },
     run_after: {
-      type: "string",
-      format: "date-time",
+      anyOf: [
+        {
+          type: "string",
+          format: "date-time",
+        },
+        {
+          type: "null",
+        },
+      ],
       title: "Run After",
     },
     conf: {
