@@ -47,7 +47,7 @@ from airflow.providers.databricks.plugins.databricks_workflow import (
     get_launch_task_id,
     get_task_instance,
 )
-from airflow.providers.fab.www.app import create_app
+from airflow.www.app import create_app
 
 from tests_common import RUNNING_TESTS_AGAINST_AIRFLOW_PACKAGES
 
@@ -115,7 +115,7 @@ def test_get_launch_task_key():
 
 @pytest.fixture(scope="session")
 def app():
-    app = create_app(enable_plugins=True)
+    app = create_app(testing=True)
     app.config["SERVER_NAME"] = "localhost"
 
     with app.app_context():
