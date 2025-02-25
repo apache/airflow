@@ -30,6 +30,7 @@ from airflow.providers.google.common.hooks.base_google import (
     GoogleBaseAsyncHook,
     GoogleBaseHook,
 )
+from airflow.providers.google.common.hooks.operation_helpers import OperationHelper
 from google.api_core.client_options import ClientOptions
 from google.api_core.gapic_v1.method import DEFAULT, _MethodDefault
 from google.cloud.dataplex_v1 import (
@@ -78,7 +79,7 @@ class AirflowDataQualityScanResultTimeoutException(AirflowException):
     """Raised when no result found after specified amount of seconds."""
 
 
-class DataplexHook(GoogleBaseHook):
+class DataplexHook(GoogleBaseHook, OperationHelper):
     """
     Hook for Google Dataplex.
 
