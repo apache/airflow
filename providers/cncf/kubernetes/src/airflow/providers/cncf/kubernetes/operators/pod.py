@@ -672,18 +672,7 @@ class KubernetesPodOperator(BaseOperator):
             )
         finally:
             pod_to_clean = self.pod or self.pod_request_obj
-            self.cleanup(
-                pod=pod_to_clean,
-                remote_pod=self.remote_pod,
-            )
-            for callback in self.callbacks:
-                callback.on_pod_cleanup(
-                    pod=pod_to_clean,
-                    client=self.client,
-                    mode=ExecutionMode.SYNC,
-                    context=context,
-                    operator=self,
-                )
+            self.post_complete_action(pod=pod_to_clean, remote_pod=self.remote_pod, context=context)
 
         if self.do_xcom_push:
             return result
@@ -890,15 +879,6 @@ class KubernetesPodOperator(BaseOperator):
             raise
         finally:
             self._clean(event, context)
-            if self.pod and event["status"] in ("error", "failed", "timeout", "success"):
-                for callback in self.callbacks:
-                    callback.on_pod_cleanup(
-                        pod=self.pod or self.pod_request_obj,
-                        client=self.client,
-                        mode=ExecutionMode.SYNC,
-                        context=context,
-                        operator=self,
-                    )
 
     def _clean(self, event: dict[str, Any], context: Context) -> None:
         if event["status"] == "running":
