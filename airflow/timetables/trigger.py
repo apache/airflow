@@ -135,20 +135,6 @@ class DeltaTriggerTimetable(DeltaMixin, _TriggerTimetable):
 
     :param delta: How much time to wait between each run.
     :param interval: The data interval of each run. Default is 0.
-
-    *run_immediately* controls, if no *start_time* is given to the DAG, when
-    the first run of the DAG should be scheduled. It has no effect if there
-    already exist runs for this DAG.
-
-    * If *True*, always run immediately the most recent possible DAG run.
-    * If *False*, wait to run until the next scheduled time in the future.
-    * If passed a ``timedelta``, will run the most recent possible DAG run
-      if that run's ``data_interval_end`` is within timedelta of now.
-    * If *None*, the timedelta is calculated as 10% of the time between the
-      most recent past scheduled time and the next scheduled time. E.g. if
-      running every hour, this would run the previous time if less than 6
-      minutes had past since the previous run time, otherwise it would wait
-      until the next hour.
     """
 
     def __init__(
