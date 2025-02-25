@@ -49,9 +49,7 @@ STALE_BUNDLE_TRACKING_FOLDER = Path(
     "_tracking",
 )
 
-STALE_BUNDLE_CHECK_INTERVAL: int = conf.getint(
-    "dag_processor", "stale_bundle_cleanup_interval", fallback=10 * 60
-)
+STALE_BUNDLE_CHECK_INTERVAL: int = conf.getint("dag_processor", "stale_bundle_cleanup_interval")
 """How frequently (in seconds) a worker should check for stale bundles."""
 
 
@@ -115,7 +113,6 @@ class BundleUsageTrackingManager:
         min_versions_to_keep = conf.getint(
             section="dag_processor",
             key="stale_bundle_cleanup_min_versions",
-            fallback=10,
         )
         return sorted(val, key=attrgetter("dt"), reverse=True)[min_versions_to_keep:]
 
@@ -124,7 +121,6 @@ class BundleUsageTrackingManager:
         age_threshold = conf.getint(
             section="dag_processor",
             key="stale_bundle_cleanup_age_threshold",
-            fallback=60 * 60 * 24,
         )
         ret = []
         now = pendulum.now(tz=pendulum.UTC)
