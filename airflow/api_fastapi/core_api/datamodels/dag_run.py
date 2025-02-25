@@ -19,14 +19,20 @@ from __future__ import annotations
 
 from datetime import datetime
 from enum import Enum
+from typing import TYPE_CHECKING
 
-from pydantic import AwareDatetime, Field, NonNegativeInt, computed_field, model_validator
+from pydantic import AwareDatetime, Field, NonNegativeInt, model_validator
 
 from airflow.api_fastapi.core_api.base import BaseModel, StrictBaseModel
+from airflow.api_fastapi.core_api.datamodels.dag_versions import DagVersionResponse
 from airflow.models import DagRun
+from airflow.timetables.base import DataInterval
 from airflow.utils import timezone
 from airflow.utils.state import DagRunState
 from airflow.utils.types import DagRunTriggeredByType, DagRunType
+
+if TYPE_CHECKING:
+    from airflow.models import DAG
 
 
 class DAGRunPatchStates(str, Enum):
@@ -62,13 +68,14 @@ class DAGRunResponse(BaseModel):
     end_date: datetime | None
     data_interval_start: datetime | None
     data_interval_end: datetime | None
+    run_after: datetime
     last_scheduling_decision: datetime | None
     run_type: DagRunType
     state: DagRunState
-    external_trigger: bool
     triggered_by: DagRunTriggeredByType
     conf: dict
     note: str | None
+    dag_versions: list[DagVersionResponse]
 
 
 class DAGRunCollectionResponse(BaseModel):
@@ -84,6 +91,8 @@ class TriggerDAGRunPostBody(StrictBaseModel):
     dag_run_id: str | None = None
     data_interval_start: AwareDatetime | None = None
     data_interval_end: AwareDatetime | None = None
+    logical_date: AwareDatetime | None
+    run_after: datetime | None = Field(default_factory=timezone.utcnow)
 
     conf: dict = Field(default_factory=dict)
     note: str | None = None
@@ -96,17 +105,43 @@ class TriggerDAGRunPostBody(StrictBaseModel):
             )
         return values
 
+    def validate_context(self, dag: DAG) -> dict:
+        coerced_logical_date = timezone.coerce_datetime(self.logical_date)
+        run_after = self.run_after or timezone.utcnow()
+        data_interval = None
+        if coerced_logical_date:
+            if self.data_interval_start and self.data_interval_end:
+                data_interval = DataInterval(
+                    start=timezone.coerce_datetime(self.data_interval_start),
+                    end=timezone.coerce_datetime(self.data_interval_end),
+                )
+            else:
+                data_interval = dag.timetable.infer_manual_data_interval(
+                    run_after=coerced_logical_date or timezone.coerce_datetime(run_after)
+                )
+                run_after = data_interval.end
+
+        run_id = self.dag_run_id or DagRun.generate_run_id(
+            run_type=DagRunType.SCHEDULED,
+            logical_date=coerced_logical_date,
+            run_after=run_after,
+        )
+        return {
+            "run_id": run_id,
+            "logical_date": coerced_logical_date,
+            "data_interval": data_interval,
+            "run_after": run_after,
+            "conf": self.conf,
+            "note": self.note,
+        }
+
     @model_validator(mode="after")
     def validate_dag_run_id(self):
         if not self.dag_run_id:
-            self.dag_run_id = DagRun.generate_run_id(DagRunType.MANUAL, self.logical_date)
+            self.dag_run_id = DagRun.generate_run_id(
+                run_type=DagRunType.MANUAL, logical_date=self.logical_date, run_after=self.run_after
+            )
         return self
-
-    # Mypy issue https://github.com/python/mypy/issues/1362
-    @computed_field  # type: ignore[misc]
-    @property
-    def logical_date(self) -> datetime:
-        return timezone.utcnow()
 
 
 class DAGRunsBatchBody(StrictBaseModel):
@@ -117,6 +152,8 @@ class DAGRunsBatchBody(StrictBaseModel):
     page_limit: NonNegativeInt = 100
     dag_ids: list[str] | None = None
     states: list[DagRunState | None] | None = None
+    run_after_gte: AwareDatetime | None = None
+    run_after_lte: AwareDatetime | None = None
     logical_date_gte: AwareDatetime | None = None
     logical_date_lte: AwareDatetime | None = None
     start_date_gte: AwareDatetime | None = None

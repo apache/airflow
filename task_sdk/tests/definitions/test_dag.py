@@ -25,7 +25,7 @@ import pytest
 from airflow.exceptions import DuplicateTaskIdFound
 from airflow.sdk.definitions.baseoperator import BaseOperator
 from airflow.sdk.definitions.dag import DAG, dag as dag_decorator
-from airflow.sdk.definitions.param import Param, ParamsDict
+from airflow.sdk.definitions.param import DagParam, Param, ParamsDict
 
 DEFAULT_DATE = datetime(2016, 1, 1, tzinfo=timezone.utc)
 
@@ -350,6 +350,13 @@ def test__tags_mutable():
     assert test_dag.tags == expected_tags
 
 
+def test_create_dag_while_active_context():
+    """Test that we can safely create a DAG whilst a DAG is activated via ``with dag1:``."""
+    with DAG(dag_id="simple_dag"):
+        DAG(dag_id="dag2")
+        # No asserts needed, it just needs to not fail
+
+
 class TestDagDecorator:
     DEFAULT_ARGS = {
         "owner": "test",
@@ -418,8 +425,55 @@ class TestDagDecorator:
         with pytest.raises(TypeError):
             noop_pipeline()
 
-    def test_create_dag_while_active_context(self):
-        """Test that we can safely create a DAG whilst a DAG is activated via ``with dag1:``."""
-        with DAG(dag_id="simple_dag"):
-            DAG(dag_id="dag2")
-            # No asserts needed, it just needs to not fail
+    def test_documentation_template_rendered(self):
+        """Test that @dag uses function docs as doc_md for DAG object"""
+
+        @dag_decorator(schedule=None, default_args=self.DEFAULT_ARGS)
+        def noop_pipeline():
+            """
+            {% if True %}
+               Regular DAG documentation
+            {% endif %}
+            """
+
+        dag = noop_pipeline()
+        assert dag.dag_id == "noop_pipeline"
+        assert "Regular DAG documentation" in dag.doc_md
+
+    def test_resolve_documentation_template_file_not_rendered(self, tmp_path):
+        """Test that @dag uses function docs as doc_md for DAG object"""
+
+        raw_content = """
+        {% if True %}
+            External Markdown DAG documentation
+        {% endif %}
+        """
+
+        path = tmp_path / "testfile.md"
+        path.write_text(raw_content)
+
+        @dag_decorator("test-dag", schedule=None, start_date=DEFAULT_DATE, doc_md=str(path))
+        def markdown_docs(): ...
+
+        dag = markdown_docs()
+        assert dag.dag_id == "test-dag"
+        assert dag.doc_md == raw_content
+
+    def test_dag_param_resolves(self):
+        """Test that dag param is correctly resolved by operator"""
+        from airflow.decorators import task
+
+        @dag_decorator(schedule=None, default_args=self.DEFAULT_ARGS)
+        def xcom_pass_to_op(value=self.VALUE):
+            @task
+            def return_num(num):
+                return num
+
+            xcom_arg = return_num(value)
+            self.operator = xcom_arg.operator
+
+        xcom_pass_to_op()
+
+        assert isinstance(self.operator.op_args[0], DagParam)
+        self.operator.render_template_fields({})
+        assert self.operator.op_args[0] == 42

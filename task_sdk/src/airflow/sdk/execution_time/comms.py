@@ -75,6 +75,7 @@ class StartupDetails(BaseModel):
     dag_rel_path: str
     bundle_info: BundleInfo
     requests_fd: int
+    start_date: datetime
     """
     The channel for the task to send requests over.
 
@@ -119,6 +120,11 @@ class XComResult(XComResponse):
         return cls(**xcom_response.model_dump())
 
 
+class XComCountResponse(BaseModel):
+    len: int
+    type: Literal["XComLengthResponse"] = "XComLengthResponse"
+
+
 class ConnectionResult(ConnectionResponse):
     type: Literal["ConnectionResult"] = "ConnectionResult"
 
@@ -133,7 +139,9 @@ class ConnectionResult(ConnectionResponse):
         # Exclude defaults to avoid sending unnecessary data
         # Pass the type as ConnectionResult explicitly so we can then call model_dump_json with exclude_unset=True
         # to avoid sending unset fields (which are defaults in our case).
-        return cls(**connection_response.model_dump(exclude_defaults=True), type="ConnectionResult")
+        return cls(
+            **connection_response.model_dump(exclude_defaults=True, by_alias=True), type="ConnectionResult"
+        )
 
 
 class VariableResult(VariableResponse):
@@ -184,6 +192,7 @@ ToTask = Annotated[
         StartupDetails,
         VariableResult,
         XComResult,
+        XComCountResponse,
         OKResponse,
     ],
     Field(discriminator="type"),
@@ -238,6 +247,16 @@ class GetXCom(BaseModel):
     task_id: str
     map_index: int | None = None
     type: Literal["GetXCom"] = "GetXCom"
+
+
+class GetXComCount(BaseModel):
+    """Get the number of (mapped) XCom values available."""
+
+    key: str
+    dag_id: str
+    run_id: str
+    task_id: str
+    type: Literal["GetNumberXComs"] = "GetNumberXComs"
 
 
 class SetXCom(BaseModel):
@@ -324,6 +343,7 @@ ToSupervisor = Annotated[
         GetPrevSuccessfulDagRun,
         GetVariable,
         GetXCom,
+        GetXComCount,
         PutVariable,
         RescheduleTask,
         SetRenderedFields,

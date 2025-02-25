@@ -26,6 +26,29 @@
 
 Changelog
 
+9.0.2
+.....
+
+.. note::
+  This version has no code changes. It's released due to yank of previous version due to packaging issues.
+
+9.0.1
+.....
+
+Misc
+~~~~
+
+* ``AIP-72: Support better type-hinting for Context dict in SDK  (#45583)``
+* ``Remove obsolete pandas specfication for pre-python 3.9 (#45399)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Avoid imports from "providers" (#46801)``
+   * ``Move provider_tests to unit folder in provider tests (#46800)``
+   * ``Removed the unused provider's distribution (#46608)``
+   * ``Fix doc issues found with recent moves (#46372)``
+   * ``Move Apache Hive to new provider structure (#46312)``
+
 9.0.0
 .....
 

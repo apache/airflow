@@ -19,6 +19,7 @@ from __future__ import annotations
 import logging
 import os
 from concurrent.futures import ProcessPoolExecutor
+from datetime import datetime
 from typing import TYPE_CHECKING
 
 import psutil
@@ -32,6 +33,7 @@ from airflow.providers.openlineage.extractors import ExtractorManager
 from airflow.providers.openlineage.plugins.adapter import OpenLineageAdapter, RunState
 from airflow.providers.openlineage.utils.utils import (
     AIRFLOW_V_2_10_PLUS,
+    AIRFLOW_V_3_0_PLUS,
     get_airflow_dag_run_facet,
     get_airflow_debug_facet,
     get_airflow_job_facet,
@@ -41,7 +43,6 @@ from airflow.providers.openlineage.utils.utils import (
     get_user_provided_run_facets,
     is_operator_disabled,
     is_selective_lineage_enabled,
-    is_ti_rescheduled_already,
     print_warning,
 )
 from airflow.settings import configure_orm
@@ -52,9 +53,9 @@ from airflow.utils.timeout import timeout
 from openlineage.client.serde import Serde
 
 if TYPE_CHECKING:
-    from sqlalchemy.orm import Session
-
     from airflow.models import TaskInstance
+    from airflow.sdk.execution_time.task_runner import RuntimeTaskInstance
+    from airflow.settings import Session
 
 _openlineage_listener: OpenLineageListener | None = None
 
@@ -87,28 +88,58 @@ class OpenLineageListener:
         self.extractor_manager = ExtractorManager()
         self.adapter = OpenLineageAdapter()
 
-    @hookimpl
-    def on_task_instance_running(
-        self,
-        previous_state: TaskInstanceState,
-        task_instance: TaskInstance,
-        session: Session,  # This will always be QUEUED
-    ) -> None:
-        if not getattr(task_instance, "task", None) is not None:
-            self.log.warning(
-                "No task set for TI object task_id: %s - dag_id: %s - run_id %s",
-                task_instance.task_id,
-                task_instance.dag_id,
-                task_instance.run_id,
-            )
-            return
+    if AIRFLOW_V_3_0_PLUS:
 
-        self.log.debug("OpenLineage listener got notification about task instance start")
-        dagrun = task_instance.dag_run
-        task = task_instance.task
-        if TYPE_CHECKING:
-            assert task
-        dag = task.dag
+        @hookimpl
+        def on_task_instance_running(
+            self,
+            previous_state: TaskInstanceState,
+            task_instance: RuntimeTaskInstance,
+        ):
+            self.log.debug("OpenLineage listener got notification about task instance start")
+            context = task_instance.get_template_context()
+
+            task = context["task"]
+            if TYPE_CHECKING:
+                assert task
+            dagrun = context["dag_run"]
+            dag = context["dag"]
+            start_date = task_instance.start_date
+            self._on_task_instance_running(task_instance, dag, dagrun, task, start_date)
+    else:
+
+        @hookimpl
+        def on_task_instance_running(
+            self,
+            previous_state: TaskInstanceState,
+            task_instance: TaskInstance,
+            session: Session,  # type: ignore[valid-type]
+        ) -> None:
+            from airflow.providers.openlineage.utils.utils import is_ti_rescheduled_already
+
+            if not getattr(task_instance, "task", None) is not None:
+                self.log.warning(
+                    "No task set for TI object task_id: %s - dag_id: %s - run_id %s",
+                    task_instance.task_id,
+                    task_instance.dag_id,
+                    task_instance.run_id,
+                )
+                return
+
+            self.log.debug("OpenLineage listener got notification about task instance start")
+            task = task_instance.task
+            if TYPE_CHECKING:
+                assert task
+            start_date = task_instance.start_date if task_instance.start_date else timezone.utcnow()
+
+            if is_ti_rescheduled_already(task_instance):
+                self.log.debug("Skipping this instance of rescheduled task - START event was emitted already")
+                return
+            self._on_task_instance_running(task_instance, task.dag, task_instance.dag_run, task, start_date)
+
+    def _on_task_instance_running(
+        self, task_instance: RuntimeTaskInstance | TaskInstance, dag, dagrun, task, start_date: datetime
+    ):
         if is_operator_disabled(task):
             self.log.debug(
                 "Skipping OpenLineage event emission for operator `%s` "
@@ -127,35 +158,41 @@ class OpenLineageListener:
             return
 
         # Needs to be calculated outside of inner method so that it gets cached for usage in fork processes
+        data_interval_start = dagrun.data_interval_start
+        if isinstance(data_interval_start, datetime):
+            data_interval_start = data_interval_start.isoformat()
+        data_interval_end = dagrun.data_interval_end
+        if isinstance(data_interval_end, datetime):
+            data_interval_end = data_interval_end.isoformat()
+
+        clear_number = 0
+        if hasattr(dagrun, "clear_number"):
+            clear_number = dagrun.clear_number
+
         debug_facet = get_airflow_debug_facet()
 
         @print_warning(self.log)
         def on_running():
-            # that's a workaround to detect task running from deferred state
-            # we return here because Airflow 2.3 needs task from deferred state
-            if task_instance.next_method is not None:
-                return
-
-            if is_ti_rescheduled_already(task_instance):
+            context = task_instance.get_template_context()
+            if hasattr(context, "task_reschedule_count") and context["task_reschedule_count"] > 0:
                 self.log.debug("Skipping this instance of rescheduled task - START event was emitted already")
                 return
 
+            date = dagrun.logical_date
+            if AIRFLOW_V_3_0_PLUS and date is None:
+                date = dagrun.run_after
+
             parent_run_id = self.adapter.build_dag_run_id(
                 dag_id=dag.dag_id,
-                logical_date=dagrun.logical_date,
-                clear_number=dagrun.clear_number,
+                logical_date=date,
+                clear_number=clear_number,
             )
-
-            if hasattr(task_instance, "logical_date"):
-                logical_date = task_instance.logical_date
-            else:
-                logical_date = task_instance.execution_date
 
             task_uuid = self.adapter.build_task_instance_run_id(
                 dag_id=dag.dag_id,
                 task_id=task.task_id,
                 try_number=task_instance.try_number,
-                logical_date=logical_date,
+                logical_date=date,
                 map_index=task_instance.map_index,
             )
             event_type = RunState.RUNNING.value.lower()
@@ -164,11 +201,6 @@ class OpenLineageListener:
             with Stats.timer(f"ol.extract.{event_type}.{operator_name}"):
                 task_metadata = self.extractor_manager.extract_metadata(dagrun, task)
 
-            start_date = task_instance.start_date if task_instance.start_date else timezone.utcnow()
-            data_interval_start = (
-                dagrun.data_interval_start.isoformat() if dagrun.data_interval_start else None
-            )
-            data_interval_end = dagrun.data_interval_end.isoformat() if dagrun.data_interval_end else None
             redacted_event = self.adapter.start_task(
                 run_id=task_uuid,
                 job_name=get_job_name(task),
@@ -195,17 +227,39 @@ class OpenLineageListener:
 
         self._execute(on_running, "on_running", use_fork=True)
 
-    @hookimpl
-    def on_task_instance_success(
-        self, previous_state: TaskInstanceState, task_instance: TaskInstance, session: Session
-    ) -> None:
-        self.log.debug("OpenLineage listener got notification about task instance success")
+    if AIRFLOW_V_3_0_PLUS:
 
-        dagrun = task_instance.dag_run
-        task = task_instance.task
-        if TYPE_CHECKING:
-            assert task
-        dag = task.dag
+        @hookimpl
+        def on_task_instance_success(
+            self, previous_state: TaskInstanceState, task_instance: RuntimeTaskInstance
+        ) -> None:
+            self.log.debug("OpenLineage listener got notification about task instance success")
+
+            context = task_instance.get_template_context()
+            task = context["task"]
+            if TYPE_CHECKING:
+                assert task
+            dagrun = context["dag_run"]
+            dag = context["dag"]
+            self._on_task_instance_success(task_instance, dag, dagrun, task)
+
+    else:
+
+        @hookimpl
+        def on_task_instance_success(
+            self,
+            previous_state: TaskInstanceState,
+            task_instance: TaskInstance,
+            session: Session,  # type: ignore[valid-type]
+        ) -> None:
+            self.log.debug("OpenLineage listener got notification about task instance success")
+            task = task_instance.task
+            if TYPE_CHECKING:
+                assert task
+            self._on_task_instance_success(task_instance, task.dag, task_instance.dag_run, task)
+
+    def _on_task_instance_success(self, task_instance: RuntimeTaskInstance, dag, dagrun, task):
+        end_date = timezone.utcnow()
 
         if is_operator_disabled(task):
             self.log.debug(
@@ -226,21 +280,21 @@ class OpenLineageListener:
 
         @print_warning(self.log)
         def on_success():
+            date = dagrun.logical_date
+            if AIRFLOW_V_3_0_PLUS and date is None:
+                date = dagrun.run_after
+
             parent_run_id = self.adapter.build_dag_run_id(
                 dag_id=dag.dag_id,
-                logical_date=dagrun.logical_date,
+                logical_date=date,
                 clear_number=dagrun.clear_number,
             )
 
-            if hasattr(task_instance, "logical_date"):
-                logical_date = task_instance.logical_date
-            else:
-                logical_date = task_instance.execution_date
             task_uuid = self.adapter.build_task_instance_run_id(
                 dag_id=dag.dag_id,
                 task_id=task.task_id,
                 try_number=_get_try_number_success(task_instance),
-                logical_date=logical_date,
+                logical_date=date,
                 map_index=task_instance.map_index,
             )
             event_type = RunState.COMPLETE.value.lower()
@@ -250,8 +304,6 @@ class OpenLineageListener:
                 task_metadata = self.extractor_manager.extract_metadata(
                     dagrun, task, complete=True, task_instance=task_instance
                 )
-
-            end_date = task_instance.end_date if task_instance.end_date else timezone.utcnow()
 
             redacted_event = self.adapter.complete_task(
                 run_id=task_uuid,
@@ -273,7 +325,7 @@ class OpenLineageListener:
 
         self._execute(on_success, "on_success", use_fork=True)
 
-    if AIRFLOW_V_2_10_PLUS:
+    if AIRFLOW_V_3_0_PLUS:
 
         @hookimpl
         def on_task_instance_failed(
@@ -281,36 +333,54 @@ class OpenLineageListener:
             previous_state: TaskInstanceState,
             task_instance: TaskInstance,
             error: None | str | BaseException,
-            session: Session,
         ) -> None:
-            self._on_task_instance_failed(
-                previous_state=previous_state, task_instance=task_instance, error=error, session=session
-            )
+            self.log.debug("OpenLineage listener got notification about task instance failure")
+            context = task_instance.get_template_context()
+            task = context["task"]
+            if TYPE_CHECKING:
+                assert task
+            dagrun = context["dag_run"]
+            dag = context["dag"]
+            self._on_task_instance_failed(task_instance, dag, dagrun, task, error)
 
+    elif AIRFLOW_V_2_10_PLUS:
+
+        @hookimpl
+        def on_task_instance_failed(
+            self,
+            previous_state: TaskInstanceState,
+            task_instance: TaskInstance,
+            error: None | str | BaseException,
+            session: Session,  # type: ignore[valid-type]
+        ) -> None:
+            self.log.debug("OpenLineage listener got notification about task instance failure")
+            task = task_instance.task
+            if TYPE_CHECKING:
+                assert task
+            self._on_task_instance_failed(task_instance, task.dag, task_instance.dag_run, task, error)
     else:
 
         @hookimpl
         def on_task_instance_failed(
-            self, previous_state: TaskInstanceState, task_instance: TaskInstance, session: Session
+            self,
+            previous_state: TaskInstanceState,
+            task_instance: TaskInstance,
+            session: Session,  # type: ignore[valid-type]
         ) -> None:
-            self._on_task_instance_failed(
-                previous_state=previous_state, task_instance=task_instance, error=None, session=session
-            )
+            task = task_instance.task
+            if TYPE_CHECKING:
+                assert task
+            self._on_task_instance_failed(task_instance, task.dag, task_instance.dag_run, task)
 
     def _on_task_instance_failed(
         self,
-        previous_state: TaskInstanceState,
-        task_instance: TaskInstance,
-        session: Session,
+        task_instance: TaskInstance | RuntimeTaskInstance,
+        dag,
+        dagrun,
+        task,
         error: None | str | BaseException = None,
     ) -> None:
-        self.log.debug("OpenLineage listener got notification about task instance failure")
-
-        dagrun = task_instance.dag_run
-        task = task_instance.task
-        if TYPE_CHECKING:
-            assert task
-        dag = task.dag
+        end_date = timezone.utcnow()
 
         if is_operator_disabled(task):
             self.log.debug(
@@ -331,22 +401,21 @@ class OpenLineageListener:
 
         @print_warning(self.log)
         def on_failure():
+            date = dagrun.logical_date
+            if AIRFLOW_V_3_0_PLUS and date is None:
+                date = dagrun.run_after
+
             parent_run_id = self.adapter.build_dag_run_id(
                 dag_id=dag.dag_id,
-                logical_date=dagrun.logical_date,
+                logical_date=date,
                 clear_number=dagrun.clear_number,
             )
-
-            if hasattr(task_instance, "logical_date"):
-                logical_date = task_instance.logical_date
-            else:
-                logical_date = task_instance.execution_date
 
             task_uuid = self.adapter.build_task_instance_run_id(
                 dag_id=dag.dag_id,
                 task_id=task.task_id,
                 try_number=task_instance.try_number,
-                logical_date=logical_date,
+                logical_date=date,
                 map_index=task_instance.map_index,
             )
             event_type = RunState.FAIL.value.lower()
@@ -356,8 +425,6 @@ class OpenLineageListener:
                 task_metadata = self.extractor_manager.extract_metadata(
                     dagrun, task, complete=True, task_instance=task_instance
                 )
-
-            end_date = task_instance.end_date if task_instance.end_date else timezone.utcnow()
 
             redacted_event = self.adapter.fail_task(
                 run_id=task_uuid,
@@ -462,10 +529,14 @@ class OpenLineageListener:
 
             run_facets = {**get_airflow_dag_run_facet(dag_run)}
 
+            date = dag_run.logical_date
+            if AIRFLOW_V_3_0_PLUS and date is None:
+                date = dag_run.run_after
+
             self.submit_callable(
                 self.adapter.dag_started,
                 dag_id=dag_run.dag_id,
-                logical_date=dag_run.logical_date,
+                logical_date=date,
                 start_date=dag_run.start_date,
                 nominal_start_time=data_interval_start,
                 nominal_end_time=data_interval_end,
@@ -501,12 +572,16 @@ class OpenLineageListener:
             else:
                 task_ids = dag_run.dag.task_ids if dag_run.dag and dag_run.dag.partial else None
 
+            date = dag_run.logical_date
+            if AIRFLOW_V_3_0_PLUS and date is None:
+                date = dag_run.run_after
+
             self.submit_callable(
                 self.adapter.dag_success,
                 dag_id=dag_run.dag_id,
                 run_id=dag_run.run_id,
                 end_date=dag_run.end_date,
-                logical_date=dag_run.logical_date,
+                logical_date=date,
                 clear_number=dag_run.clear_number,
                 task_ids=task_ids,
                 dag_run_state=dag_run.get_state(),
@@ -535,12 +610,17 @@ class OpenLineageListener:
                 task_ids = DagRun._get_partial_task_ids(dag_run.dag)
             else:
                 task_ids = dag_run.dag.task_ids if dag_run.dag and dag_run.dag.partial else None
+
+            date = dag_run.logical_date
+            if AIRFLOW_V_3_0_PLUS and date is None:
+                date = dag_run.run_after
+
             self.submit_callable(
                 self.adapter.dag_failed,
                 dag_id=dag_run.dag_id,
                 run_id=dag_run.run_id,
                 end_date=dag_run.end_date,
-                logical_date=dag_run.logical_date,
+                logical_date=date,
                 clear_number=dag_run.clear_number,
                 dag_run_state=dag_run.get_state(),
                 task_ids=task_ids,

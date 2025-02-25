@@ -196,6 +196,14 @@ class BaseK8STest:
             print(f"The expected state is wrong {state} != {expected_final_state} (expected)!")
         assert state == expected_final_state
 
+    @staticmethod
+    def ensure_deployment_health(deployment_name: str, namespace: str = "airflow"):
+        """Watch the deployment until it is healthy."""
+        deployment_rollout_status = check_output(
+            ["kubectl", "rollout", "status", "deployment", deployment_name, "-n", namespace, "--watch"]
+        ).decode()
+        assert "successfully rolled out" in deployment_rollout_status
+
     def ensure_dag_expected_state(self, host, logical_date, dag_id, expected_final_state, timeout):
         tries = 0
         state = ""
@@ -256,8 +264,10 @@ class BaseK8STest:
         assert result.status_code == 200, f"Could not enable DAG: {result_json}"
         post_string = f"http://{host}/api/v1/dags/{dag_id}/dagRuns"
         print(f"Calling [start_dag]#2 {post_string}")
+
+        logical_date = datetime.now(timezone.utc).isoformat()
         # Trigger a new dagrun
-        result = self.session.post(post_string, json={})
+        result = self.session.post(post_string, json={"logical_date": logical_date})
         try:
             result_json = result.json()
         except ValueError:
@@ -284,7 +294,8 @@ class BaseK8STest:
         for dag_run in dag_runs:
             if dag_run["dag_id"] == dag_id:
                 logical_date = dag_run["logical_date"]
+                run_after = dag_run["run_after"]
                 dag_run_id = dag_run["dag_run_id"]
                 break
-        assert logical_date is not None, f"No logical_date can be found for the dag with {dag_id}"
+        assert run_after is not None, f"No run_after can be found for the dag with {dag_id}"
         return dag_run_id, logical_date

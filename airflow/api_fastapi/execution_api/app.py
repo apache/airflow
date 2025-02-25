@@ -18,9 +18,15 @@
 from __future__ import annotations
 
 from contextlib import asynccontextmanager
+from functools import cached_property
+from typing import TYPE_CHECKING
 
+import attrs
 from fastapi import FastAPI
 from fastapi.openapi.utils import get_openapi
+
+if TYPE_CHECKING:
+    import httpx
 
 
 @asynccontextmanager
@@ -30,7 +36,7 @@ async def lifespan(app: FastAPI):
     yield
 
 
-def create_task_execution_api_app(app: FastAPI) -> FastAPI:
+def create_task_execution_api_app() -> FastAPI:
     """Create FastAPI app for task execution API."""
     from airflow.api_fastapi.execution_api.routes import execution_api_router
 
@@ -66,6 +72,14 @@ def create_task_execution_api_app(app: FastAPI) -> FastAPI:
             if schema_name not in openapi_schema["components"]["schemas"]:
                 openapi_schema["components"]["schemas"][schema_name] = schema
 
+        # The `JsonValue` component is missing any info. causes issues when generating models
+        openapi_schema["components"]["schemas"]["JsonValue"] = {
+            "title": "Any valid JSON value",
+            "anyOf": [
+                {"type": t} for t in ("string", "number", "integer", "object", "array", "boolean", "null")
+            ],
+        }
+
         app.openapi_schema = openapi_schema
         return app.openapi_schema
 
@@ -77,8 +91,48 @@ def create_task_execution_api_app(app: FastAPI) -> FastAPI:
 
 def get_extra_schemas() -> dict[str, dict]:
     """Get all the extra schemas that are not part of the main FastAPI app."""
-    from airflow.api_fastapi.execution_api.datamodels import taskinstance
+    from airflow.api_fastapi.execution_api.datamodels.taskinstance import TaskInstance
+    from airflow.executors.workloads import BundleInfo
+    from airflow.utils.state import TerminalTIState
 
     return {
-        "TaskInstance": taskinstance.TaskInstance.model_json_schema(),
+        "TaskInstance": TaskInstance.model_json_schema(),
+        "BundleInfo": BundleInfo.model_json_schema(),
+        # Include the combined state enum too. In the datamodels we separate out SUCCESS from the other states
+        # as that has different payload requirements
+        "TerminalTIState": {"type": "string", "enum": list(TerminalTIState)},
     }
+
+
+@attrs.define()
+class InProcessExecuctionAPI:
+    """
+    A helper class to make it possible to run the ExecutionAPI "in-process".
+
+    The sync version of this makes use of a2wsgi which runs the async loop in a separate thread. This is
+    needed so that we can use the sync httpx client
+    """
+
+    _app: FastAPI | None = None
+
+    @cached_property
+    def app(self):
+        if not self._app:
+            from airflow.api_fastapi.execution_api.app import create_task_execution_api_app
+
+            self._app = create_task_execution_api_app()
+
+        return self._app
+
+    @cached_property
+    def transport(self) -> httpx.WSGITransport:
+        import httpx
+        from a2wsgi import ASGIMiddleware
+
+        return httpx.WSGITransport(app=ASGIMiddleware(self.app))  # type: ignore[arg-type]
+
+    @cached_property
+    def atransport(self) -> httpx.ASGITransport:
+        import httpx
+
+        return httpx.ASGITransport(app=self.app)

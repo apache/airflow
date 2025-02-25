@@ -42,6 +42,7 @@ from airflow.sdk.exceptions import AirflowRuntimeError, ErrorType
 if TYPE_CHECKING:
     from uuid import UUID
 
+    from airflow.sdk.definitions.baseoperator import BaseOperator
     from airflow.sdk.definitions.connection import Connection
     from airflow.sdk.definitions.context import Context
     from airflow.sdk.definitions.variable import Variable
@@ -315,3 +316,21 @@ def set_current_context(context: Context) -> Generator[Context, None, None]:
                 expected=context,
                 got=expected_state,
             )
+
+
+def context_update_for_unmapped(context: Context, task: BaseOperator) -> None:
+    """
+    Update context after task unmapping.
+
+    Since ``get_template_context()`` is called before unmapping, the context
+    contains information about the mapped task. We need to do some in-place
+    updates to ensure the template context reflects the unmapped task instead.
+
+    :meta private:
+    """
+    from airflow.sdk.definitions.param import process_params
+
+    context["task"] = context["ti"].task = task
+    context["params"] = process_params(
+        context["dag"], task, context["dag_run"].conf, suppress_exception=False
+    )

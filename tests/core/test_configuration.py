@@ -1732,11 +1732,49 @@ class TestWriteDefaultAirflowConfigurationIfNeeded:
         "sensitive_config_values",
         new_callable=lambda: [("mysection1", "mykey1"), ("mysection2", "mykey2")],
     )
-    @patch("airflow.utils.log.secrets_masker.mask_secret")
-    def test_mask_conf_values(self, mock_mask_secret, mock_sensitive_config_values):
-        conf.mask_secrets()
+    def test_mask_conf_values(self, mock_sensitive_config_values):
+        from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS
 
-        mock_mask_secret.assert_any_call("supersecret1")
-        mock_mask_secret.assert_any_call("supersecret2")
+        target = (
+            "airflow.sdk.execution_time.secrets_masker.mask_secret"
+            if AIRFLOW_V_3_0_PLUS
+            else "airflow.utils.log.secrets_masker.mask_secret"
+        )
 
-        assert mock_mask_secret.call_count == 2
+        with patch(target) as mock_mask_secret:
+            conf.mask_secrets()
+
+            mock_mask_secret.assert_any_call("supersecret1")
+            mock_mask_secret.assert_any_call("supersecret2")
+
+            assert mock_mask_secret.call_count == 2
+
+
+@conf_vars({("core", "unit_test_mode"): "False"})
+def test_write_default_config_contains_generated_secrets(tmp_path, monkeypatch):
+    import airflow.configuration
+
+    cfgpath = tmp_path / "airflow-gneerated.cfg"
+    # Patch these globals so it gets reverted by monkeypath after this test is over.
+    monkeypatch.setattr(airflow.configuration, "FERNET_KEY", "")
+    monkeypatch.setattr(airflow.configuration, "JWT_SECRET_KEY", "")
+    monkeypatch.setattr(airflow.configuration, "AIRFLOW_CONFIG", str(cfgpath))
+
+    # Create a new global conf object so our changes don't persist
+    localconf: AirflowConfigParser = airflow.configuration.initialize_config()
+    monkeypatch.setattr(airflow.configuration, "conf", localconf)
+
+    airflow.configuration.write_default_airflow_configuration_if_needed()
+
+    assert cfgpath.is_file()
+
+    lines = cfgpath.read_text().splitlines()
+
+    assert airflow.configuration.FERNET_KEY
+    assert airflow.configuration.JWT_SECRET_KEY
+
+    fernet_line = next(line for line in lines if line.startswith("fernet_key = "))
+    jwt_secret_line = next(line for line in lines if line.startswith("auth_jwt_secret = "))
+
+    assert fernet_line == f"fernet_key = {airflow.configuration.FERNET_KEY}"
+    assert jwt_secret_line == f"auth_jwt_secret = {airflow.configuration.JWT_SECRET_KEY}"

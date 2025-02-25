@@ -33,10 +33,19 @@ import structlog
 from pydantic import BaseModel, ConfigDict, Field, JsonValue, TypeAdapter
 
 from airflow.dag_processing.bundles.manager import DagBundlesManager
-from airflow.sdk.api.datamodels._generated import AssetProfile, TaskInstance, TerminalTIState, TIRunContext
+from airflow.listeners.listener import get_listener_manager
+from airflow.sdk.api.datamodels._generated import (
+    AssetProfile,
+    IntermediateTIState,
+    TaskInstance,
+    TerminalTIState,
+    TIRunContext,
+)
 from airflow.sdk.definitions._internal.dag_parsing_context import _airflow_parsing_context_manager
+from airflow.sdk.definitions._internal.types import NOTSET, ArgNotSet
 from airflow.sdk.definitions.asset import Asset, AssetAlias, AssetNameRef, AssetUriRef
 from airflow.sdk.definitions.baseoperator import BaseOperator
+from airflow.sdk.definitions.mappedoperator import MappedOperator
 from airflow.sdk.definitions.param import process_params
 from airflow.sdk.execution_time.comms import (
     DeferTask,
@@ -62,12 +71,18 @@ from airflow.sdk.execution_time.context import (
     set_current_context,
 )
 from airflow.utils.net import get_hostname
+from airflow.utils.state import TaskInstanceState
 
 if TYPE_CHECKING:
     import jinja2
     from structlog.typing import FilteringBoundLogger as Logger
 
+    from airflow.sdk.definitions._internal.abstractoperator import AbstractOperator
     from airflow.sdk.definitions.context import Context
+
+
+class TaskRunnerMarker:
+    """Marker for listener hooks, to properly detect from which component they are called."""
 
 
 # TODO: Move this entire class into a separate file:
@@ -82,6 +97,20 @@ class RuntimeTaskInstance(TaskInstance):
 
     max_tries: int = 0
     """The maximum number of retries for the task."""
+
+    start_date: datetime
+    """Start date of the task instance."""
+
+    def __rich_repr__(self):
+        yield "id", self.id
+        yield "task_id", self.task_id
+        yield "dag_id", self.dag_id
+        yield "run_id", self.run_id
+        yield "max_tries", self.max_tries
+        yield "task", type(self.task)
+        yield "start_date", self.start_date
+
+    __rich_repr__.angular = True  # type: ignore[attr-defined]
 
     def get_template_context(self) -> Context:
         # TODO: Move this to `airflow.sdk.execution_time.context`
@@ -123,34 +152,14 @@ class RuntimeTaskInstance(TaskInstance):
             },
             "conn": ConnectionAccessor(),
         }
-        if self._ti_context_from_server:
-            dag_run = self._ti_context_from_server.dag_run
-
-            logical_date = dag_run.logical_date
-            ds = logical_date.strftime("%Y-%m-%d")
-            ds_nodash = ds.replace("-", "")
-            ts = logical_date.isoformat()
-            ts_nodash = logical_date.strftime("%Y%m%dT%H%M%S")
-            ts_nodash_with_tz = ts.replace("-", "").replace(":", "")
+        if from_server := self._ti_context_from_server:
+            dag_run = from_server.dag_run
 
             context_from_server: Context = {
                 # TODO: Assess if we need to pass these through timezone.coerce_datetime
-                "dag_run": dag_run,
-                "data_interval_end": dag_run.data_interval_end,
-                "data_interval_start": dag_run.data_interval_start,
-                "logical_date": logical_date,
-                "ds": ds,
-                "ds_nodash": ds_nodash,
-                "task_instance_key_str": f"{self.task.dag_id}__{self.task.task_id}__{ds_nodash}",
-                "ts": ts,
-                "ts_nodash": ts_nodash,
-                "ts_nodash_with_tz": ts_nodash_with_tz,
-                "prev_data_interval_start_success": lazy_object_proxy.Proxy(
-                    lambda: get_previous_dagrun_success(self.id).data_interval_start
-                ),
-                "prev_data_interval_end_success": lazy_object_proxy.Proxy(
-                    lambda: get_previous_dagrun_success(self.id).data_interval_end
-                ),
+                "dag_run": dag_run,  # type: ignore[typeddict-item]  # Removable after #46522
+                "task_instance_key_str": f"{self.task.dag_id}__{self.task.task_id}__{dag_run.run_id}",
+                "task_reschedule_count": self._ti_context_from_server.task_reschedule_count or 0,
                 "prev_start_date_success": lazy_object_proxy.Proxy(
                     lambda: get_previous_dagrun_success(self.id).start_date
                 ),
@@ -159,6 +168,40 @@ class RuntimeTaskInstance(TaskInstance):
                 ),
             }
             context.update(context_from_server)
+
+            if logical_date := dag_run.logical_date:
+                ds = logical_date.strftime("%Y-%m-%d")
+                ds_nodash = ds.replace("-", "")
+                ts = logical_date.isoformat()
+                ts_nodash = logical_date.strftime("%Y%m%dT%H%M%S")
+                ts_nodash_with_tz = ts.replace("-", "").replace(":", "")
+                # logical_date and data_interval either coexist or be None together
+                context.update(
+                    {
+                        # keys that depend on logical_date
+                        "logical_date": logical_date,
+                        "ds": ds,
+                        "ds_nodash": ds_nodash,
+                        "task_instance_key_str": f"{self.task.dag_id}__{self.task.task_id}__{ds_nodash}",
+                        "ts": ts,
+                        "ts_nodash": ts_nodash,
+                        "ts_nodash_with_tz": ts_nodash_with_tz,
+                        # keys that depend on data_interval
+                        "data_interval_end": dag_run.data_interval_end,
+                        "data_interval_start": dag_run.data_interval_start,
+                        "prev_data_interval_start_success": lazy_object_proxy.Proxy(
+                            lambda: get_previous_dagrun_success(self.id).data_interval_start
+                        ),
+                        "prev_data_interval_end_success": lazy_object_proxy.Proxy(
+                            lambda: get_previous_dagrun_success(self.id).data_interval_end
+                        ),
+                    }
+                )
+
+            if from_server.upstream_map_indexes is not None:
+                # We stash this in here for later use, but we purposefully don't want to document it's
+                # existence. Should this be a private attribute on RuntimeTI instead perhaps?
+                setattr(self, "_upstream_map_indexes", from_server.upstream_map_indexes)
 
         return context
 
@@ -190,10 +233,7 @@ class RuntimeTaskInstance(TaskInstance):
         # unmapped BaseOperator created by this function! This is because the
         # MappedOperator is useless for template rendering, and we need to be
         # able to access the unmapped task instead.
-        original_task.render_template_fields(context, jinja_env)
-        # TODO: Add support for rendering templates in the MappedOperator
-        # if isinstance(self.task, MappedOperator):
-        #     self.task = context["ti"].task
+        self.task.render_template_fields(context, jinja_env)
 
         return original_task
 
@@ -204,7 +244,7 @@ class RuntimeTaskInstance(TaskInstance):
         key: str = "return_value",  # TODO: Make this a constant (``XCOM_RETURN_KEY``)
         include_prior_dates: bool = False,  # TODO: Add support for this
         *,
-        map_indexes: int | Iterable[int] | None = None,
+        map_indexes: int | Iterable[int] | None | ArgNotSet = NOTSET,
         default: Any = None,
         run_id: str | None = None,
     ) -> Any:
@@ -251,7 +291,7 @@ class RuntimeTaskInstance(TaskInstance):
             task_ids = self.task_id
         elif isinstance(task_ids, str):
             task_ids = [task_ids]
-        if map_indexes is None:
+        if isinstance(map_indexes, ArgNotSet):
             map_indexes = self.map_index
         elif isinstance(map_indexes, Iterable):
             # TODO: Handle multiple map_indexes or remove support
@@ -277,12 +317,14 @@ class RuntimeTaskInstance(TaskInstance):
                 raise TypeError(f"Expected XComResult, received: {type(msg)} {msg}")
 
             if msg.value is not None:
-                from airflow.models.xcom import XCom
+                from airflow.serialization.serde import deserialize
 
                 # TODO: Move XCom serialization & deserialization to Task SDK
                 #   https://github.com/apache/airflow/issues/45231
-                xcom = XCom.deserialize_value(msg)  # type: ignore[arg-type]
-                xcoms.append(xcom)
+
+                # The execution API server deals in json compliant types now.
+                # serde's deserialize can handle deserializing primitive, collections, and complex objects too
+                xcoms.append(deserialize(msg.value))  # type: ignore[type-var]
             else:
                 xcoms.append(default)
 
@@ -309,11 +351,15 @@ class RuntimeTaskInstance(TaskInstance):
 def _xcom_push(ti: RuntimeTaskInstance, key: str, value: Any, mapped_length: int | None = None) -> None:
     # Private function, as we don't want to expose the ability to manually set `mapped_length` to SDK
     # consumers
-    from airflow.models.xcom import XCom
+    from airflow.serialization.serde import serialize
 
     # TODO: Move XCom serialization & deserialization to Task SDK
     #   https://github.com/apache/airflow/issues/45231
-    value = XCom.serialize_value(value)
+
+    # The execution API server now deals in json compliant objects.
+    # It is responsibility of the client to handle any non native object serialization.
+    # serialize does just that.
+    value = serialize(value)
 
     log = structlog.get_logger(logger_name="task")
     SUPERVISOR_COMMS.send_request(
@@ -359,14 +405,17 @@ def parse(what: StartupDetails) -> RuntimeTaskInstance:
 
     # TODO: Handle task not found
     task = dag.task_dict[what.ti.task_id]
-    if not isinstance(task, BaseOperator):
-        raise TypeError(f"task is of the wrong type, got {type(task)}, wanted {BaseOperator}")
+    if not isinstance(task, (BaseOperator, MappedOperator)):
+        raise TypeError(
+            f"task is of the wrong type, got {type(task)}, wanted {BaseOperator} or {MappedOperator}"
+        )
 
     return RuntimeTaskInstance.model_construct(
         **what.ti.model_dump(exclude_unset=True),
         task=task,
         _ti_context_from_server=what.ti_context,
         max_tries=what.ti_context.max_tries,
+        start_date=what.start_date,
     )
 
 
@@ -434,6 +483,8 @@ SUPERVISOR_COMMS: CommsDecoder[ToTask, ToSupervisor]
 def startup() -> tuple[RuntimeTaskInstance, Logger]:
     msg = SUPERVISOR_COMMS.get_message()
 
+    get_listener_manager().hook.on_starting(component=TaskRunnerMarker())
+
     if isinstance(msg, StartupDetails):
         from setproctitle import setproctitle
 
@@ -444,24 +495,12 @@ def startup() -> tuple[RuntimeTaskInstance, Logger]:
             ti = parse(msg)
         log.debug("DAG file parsed", file=msg.dag_rel_path)
     else:
-        raise RuntimeError(f"Unhandled  startup message {type(msg)} {msg}")
+        raise RuntimeError(f"Unhandled startup message {type(msg)} {msg}")
 
-    # TODO: Render fields here
-    # 1. Implementing the part where we pull in the logic to render fields and add that here
-    # for all operators, we should do setattr(task, templated_field, rendered_templated_field)
-    # task.templated_fields should give all the templated_fields and each of those fields should
-    # give the rendered values. task.templated_fields should already be in a JSONable format and
-    # we should not have to handle that here.
-
-    # 2. Once rendered, we call the `set_rtif` API to store the rtif in the metadata DB
-
-    # so that we do not call the API unnecessarily
-    if rendered_fields := _get_rendered_fields(ti.task):
-        SUPERVISOR_COMMS.send_request(log=log, msg=SetRenderedFields(rendered_fields=rendered_fields))
     return ti, log
 
 
-def _get_rendered_fields(task: BaseOperator) -> dict[str, JsonValue]:
+def _serialize_rendered_fields(task: AbstractOperator) -> dict[str, JsonValue]:
     # TODO: Port one of the following to Task SDK
     #   airflow.serialization.helpers.serialize_template_field or
     #   airflow.models.renderedtifields.get_serialized_template_fields
@@ -500,7 +539,39 @@ def _process_outlets(context: Context, outlets: list[AssetProfile]):
     return task_outlets, outlet_events
 
 
-def run(ti: RuntimeTaskInstance, log: Logger):
+def _prepare(ti: RuntimeTaskInstance, log: Logger, context: Context) -> ToSupervisor | None:
+    ti.hostname = get_hostname()
+    ti.task = ti.task.prepare_for_execution()
+    if ti.task.inlets or ti.task.outlets:
+        inlets = [asset.asprofile() for asset in ti.task.inlets if isinstance(asset, Asset)]
+        outlets = [asset.asprofile() for asset in ti.task.outlets if isinstance(asset, Asset)]
+        SUPERVISOR_COMMS.send_request(msg=RuntimeCheckOnTask(inlets=inlets, outlets=outlets), log=log)  # type: ignore
+        ok_response = SUPERVISOR_COMMS.get_message()  # type: ignore
+        if not isinstance(ok_response, OKResponse) or not ok_response.ok:
+            log.info("Runtime checks failed for task, marking task as failed..")
+            return TaskState(
+                state=TerminalTIState.FAILED,
+                end_date=datetime.now(tz=timezone.utc),
+            )
+
+    jinja_env = ti.task.dag.get_template_env()
+    ti.render_templates(context=context, jinja_env=jinja_env)
+
+    if rendered_fields := _serialize_rendered_fields(ti.task):
+        # so that we do not call the API unnecessarily
+        SUPERVISOR_COMMS.send_request(log=log, msg=SetRenderedFields(rendered_fields=rendered_fields))
+
+    # TODO: Call pre execute etc.
+    get_listener_manager().hook.on_task_instance_running(
+        previous_state=TaskInstanceState.QUEUED, task_instance=ti
+    )
+    # No error, carry on and execute the task
+    return None
+
+
+def run(
+    ti: RuntimeTaskInstance, log: Logger
+) -> tuple[IntermediateTIState | TerminalTIState, ToSupervisor | None, BaseException | None]:
     """Run the task in this process."""
     from airflow.exceptions import (
         AirflowException,
@@ -518,33 +589,21 @@ def run(ti: RuntimeTaskInstance, log: Logger):
         assert isinstance(ti.task, BaseOperator)
 
     msg: ToSupervisor | None = None
+    state: IntermediateTIState | TerminalTIState
+    error: BaseException | None = None
     try:
-        # TODO: pre execute etc.
-        # TODO: Get a real context object
-        ti.hostname = get_hostname()
-        ti.task = ti.task.prepare_for_execution()
-        if ti.task.inlets or ti.task.outlets:
-            inlets = [asset.asprofile() for asset in ti.task.inlets if isinstance(asset, Asset)]
-            outlets = [asset.asprofile() for asset in ti.task.outlets if isinstance(asset, Asset)]
-            SUPERVISOR_COMMS.send_request(msg=RuntimeCheckOnTask(inlets=inlets, outlets=outlets), log=log)  # type: ignore
-            ok_response = SUPERVISOR_COMMS.get_message()  # type: ignore
-            if not isinstance(ok_response, OKResponse) or not ok_response.ok:
-                log.info("Runtime checks failed for task, marking task as failed..")
-                msg = TaskState(
-                    state=TerminalTIState.FAILED,
-                    end_date=datetime.now(tz=timezone.utc),
-                )
-                return
         context = ti.get_template_context()
         with set_current_context(context):
-            jinja_env = ti.task.dag.get_template_env()
-            ti.task = ti.render_templates(context=context, jinja_env=jinja_env)
-            # TODO: Get things from _execute_task_with_callbacks
-            #   - Pre Execute
-            #   etc
-            result = _execute_task(context, ti.task)
+            # This is the earliest that we can render templates -- as if it excepts for any reason we need to
+            # catch it and handle it like a normal task failure
+            if early_exit := _prepare(ti, log, context):
+                msg = early_exit
+                state = TerminalTIState.FAILED
+                return state, msg, error
 
-        _push_xcom_if_needed(result, ti)
+            result = _execute_task(context, ti)
+
+        _push_xcom_if_needed(result, ti, log)
 
         task_outlets, outlet_events = _process_outlets(context, ti.task.outlets)
         msg = SucceedTask(
@@ -552,6 +611,7 @@ def run(ti: RuntimeTaskInstance, log: Logger):
             task_outlets=task_outlets,
             outlet_events=outlet_events,
         )
+        state = TerminalTIState.SUCCESS
     except TaskDeferred as defer:
         # TODO: Should we use structlog.bind_contextvars here for dag_id, task_id & run_id?
         log.info("Pausing task as DEFERRED. ", dag_id=ti.dag_id, task_id=ti.task_id, run_id=ti.run_id)
@@ -564,6 +624,7 @@ def run(ti: RuntimeTaskInstance, log: Logger):
             next_method=next_method,
             trigger_timeout=defer_timeout,
         )
+        state = IntermediateTIState.DEFERRED
     except AirflowSkipException as e:
         if e.args:
             log.info("Skipping task.", reason=e.args[0])
@@ -571,12 +632,14 @@ def run(ti: RuntimeTaskInstance, log: Logger):
             state=TerminalTIState.SKIPPED,
             end_date=datetime.now(tz=timezone.utc),
         )
+        state = TerminalTIState.SKIPPED
     except AirflowRescheduleException as reschedule:
         log.info("Rescheduling task, marking task as UP_FOR_RESCHEDULE")
         msg = RescheduleTask(
             reschedule_date=reschedule.reschedule_date, end_date=datetime.now(tz=timezone.utc)
         )
-    except (AirflowFailException, AirflowSensorTimeout):
+        state = IntermediateTIState.UP_FOR_RESCHEDULE
+    except (AirflowFailException, AirflowSensorTimeout) as e:
         # If AirflowFailException is raised, task should not retry.
         # If a sensor in reschedule mode reaches timeout, task should not retry.
         log.exception("Task failed with exception")
@@ -586,16 +649,18 @@ def run(ti: RuntimeTaskInstance, log: Logger):
             state=TerminalTIState.FAIL_WITHOUT_RETRY,
             end_date=datetime.now(tz=timezone.utc),
         )
-        # TODO: Run task failure callbacks here
-    except (AirflowTaskTimeout, AirflowException):
+        state = TerminalTIState.FAIL_WITHOUT_RETRY
+        error = e
+    except (AirflowTaskTimeout, AirflowException) as e:
         # We should allow retries if the task has defined it.
         log.exception("Task failed with exception")
         msg = TaskState(
             state=TerminalTIState.FAILED,
             end_date=datetime.now(tz=timezone.utc),
         )
-        # TODO: Run task failure callbacks here
-    except AirflowTaskTerminated:
+        state = TerminalTIState.FAILED
+        error = e
+    except AirflowTaskTerminated as e:
         # External state updates are already handled with `ti_heartbeat` and will be
         # updated already be another UI API. So, these exceptions should ideally never be thrown.
         # If these are thrown, we should mark the TI state as failed.
@@ -604,28 +669,34 @@ def run(ti: RuntimeTaskInstance, log: Logger):
             state=TerminalTIState.FAIL_WITHOUT_RETRY,
             end_date=datetime.now(tz=timezone.utc),
         )
-        # TODO: Run task failure callbacks here
-    except SystemExit:
+        state = TerminalTIState.FAIL_WITHOUT_RETRY
+        error = e
+    except SystemExit as e:
         # SystemExit needs to be retried if they are eligible.
         log.exception("Task failed with exception")
         msg = TaskState(
             state=TerminalTIState.FAILED,
             end_date=datetime.now(tz=timezone.utc),
         )
-        # TODO: Run task failure callbacks here
-    except BaseException:
+        state = TerminalTIState.FAILED
+        error = e
+    except BaseException as e:
         log.exception("Task failed with exception")
-        # TODO: Run task failure callbacks here
         msg = TaskState(state=TerminalTIState.FAILED, end_date=datetime.now(tz=timezone.utc))
+        state = TerminalTIState.FAILED
+        error = e
     finally:
         if msg:
             SUPERVISOR_COMMS.send_request(msg=msg, log=log)
+    # Return the message to make unit tests easier too
+    return state, msg, error
 
 
-def _execute_task(context: Context, task: BaseOperator):
+def _execute_task(context: Context, ti: RuntimeTaskInstance):
     """Execute Task (optionally with a Timeout) and push Xcom results."""
     from airflow.exceptions import AirflowTaskTimeout
 
+    task = ti.task
     if task.execution_timeout:
         # TODO: handle timeout in case of deferral
         from airflow.utils.timeout import timeout
@@ -646,7 +717,7 @@ def _execute_task(context: Context, task: BaseOperator):
     return result
 
 
-def _push_xcom_if_needed(result: Any, ti: RuntimeTaskInstance):
+def _push_xcom_if_needed(result: Any, ti: RuntimeTaskInstance, log: Logger):
     """Push XCom values when task has ``do_xcom_push`` set to ``True`` and the task returns a result."""
     if ti.task.do_xcom_push:
         xcom_value = result
@@ -672,6 +743,8 @@ def _push_xcom_if_needed(result: Any, ti: RuntimeTaskInstance):
             raise UnmappableXComTypePushed(xcom_value)
         mapped_length = len(xcom_value)
 
+    log.info("Pushing xcom", ti=ti)
+
     # If the task has multiple outputs, push each output as a separate XCom.
     if ti.task.multiple_outputs:
         if not isinstance(xcom_value, Mapping):
@@ -691,18 +764,38 @@ def _push_xcom_if_needed(result: Any, ti: RuntimeTaskInstance):
     _xcom_push(ti, "return_value", result, mapped_length=mapped_length)
 
 
-def finalize(log: Logger): ...
+def finalize(
+    ti: RuntimeTaskInstance, state: TerminalTIState, log: Logger, error: BaseException | None = None
+):
+    # Pushing xcom for each operator extra links defined on the operator only.
+    for oe in ti.task.operator_extra_links:
+        link, xcom_key = oe.get_link(operator=ti.task, ti_key=ti.id), oe.xcom_key  # type: ignore[arg-type]
+        log.debug("Setting xcom for operator extra link", link=link, xcom_key=xcom_key)
+        _xcom_push(ti, key=xcom_key, value=link)
+
+    log.debug("Running finalizers", ti=ti)
+    if state in [TerminalTIState.SUCCESS]:
+        get_listener_manager().hook.on_task_instance_success(
+            previous_state=TaskInstanceState.RUNNING, task_instance=ti
+        )
+        # TODO: Run task success callbacks here
+    if state in [TerminalTIState.FAILED, TerminalTIState.FAIL_WITHOUT_RETRY]:
+        get_listener_manager().hook.on_task_instance_failed(
+            previous_state=TaskInstanceState.RUNNING, task_instance=ti, error=error
+        )
+        # TODO: Run task failure callbacks here
+
+    get_listener_manager().hook.before_stopping(component=TaskRunnerMarker())
 
 
 def main():
     # TODO: add an exception here, it causes an oof of a stack trace!
-
     global SUPERVISOR_COMMS
     SUPERVISOR_COMMS = CommsDecoder[ToTask, ToSupervisor](input=sys.stdin)
     try:
         ti, log = startup()
-        run(ti, log)
-        finalize(log)
+        state, msg, error = run(ti, log)
+        finalize(ti, state, log, error)
     except KeyboardInterrupt:
         log = structlog.get_logger(logger_name="task")
         log.exception("Ctrl-c hit")

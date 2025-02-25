@@ -18,9 +18,19 @@ from __future__ import annotations
 
 import ast
 import json
+from collections.abc import Generator
+from contextlib import contextmanager
+from typing import TYPE_CHECKING, Any, NamedTuple
 from unittest import mock
 
+import flask
+import pytest
+
 from airflow.models import Log
+from airflow.sdk.execution_time.secrets_masker import DEFAULT_SENSITIVE_FIELDS as sensitive_fields
+
+if TYPE_CHECKING:
+    import jinja2
 
 
 def client_with_login(app, expected_response_code=302, **kwargs):
@@ -67,7 +77,25 @@ def check_content_not_in_response(text, resp, resp_code=200):
         assert text not in resp_html
 
 
-def _check_last_log(session, dag_id, event, logical_date, expected_extra=None):
+def _masked_value_check(data, sensitive_fields):
+    """
+    Recursively check if sensitive fields are properly masked.
+
+    :param data: JSON object (dict, list, or value)
+    :param sensitive_fields: Set of sensitive field names
+    """
+    if isinstance(data, dict):
+        for key, value in data.items():
+            if key in sensitive_fields:
+                assert value == "***", f"Expected masked value for {key}, but got {value}"
+            else:
+                _masked_value_check(value, sensitive_fields)
+    elif isinstance(data, list):
+        for item in data:
+            _masked_value_check(item, sensitive_fields)
+
+
+def _check_last_log(session, dag_id, event, logical_date, expected_extra=None, check_masked=False):
     logs = (
         session.query(
             Log.dag_id,
@@ -90,6 +118,10 @@ def _check_last_log(session, dag_id, event, logical_date, expected_extra=None):
     assert logs[0].extra
     if expected_extra:
         assert json.loads(logs[0].extra) == expected_extra
+    if check_masked:
+        extra_json = json.loads(logs[0].extra)
+        _masked_value_check(extra_json, sensitive_fields)
+
     session.query(Log).delete()
 
 
@@ -126,7 +158,12 @@ def _check_last_log_masked_connection(session, dag_id, event, logical_date):
     }
 
 
-def _check_last_log_masked_variable(session, dag_id, event, logical_date):
+def _check_last_log_masked_variable(
+    session,
+    dag_id,
+    event,
+    logical_date,
+):
     logs = (
         session.query(
             Log.dag_id,
@@ -148,3 +185,79 @@ def _check_last_log_masked_variable(session, dag_id, event, logical_date):
     assert len(logs) >= 1
     extra_dict = ast.literal_eval(logs[0].extra)
     assert extra_dict == {"key": "x_secret", "val": "***"}
+
+
+class _TemplateWithContext(NamedTuple):
+    template: jinja2.environment.Template
+    context: dict[str, Any]
+
+    @property
+    def name(self):
+        return self.template.name
+
+    @property
+    def local_context(self):
+        """Returns context without global arguments."""
+        result = self.context.copy()
+        keys_to_delete = [
+            # flask.templating._default_template_ctx_processor
+            "g",
+            "request",
+            "session",
+            # flask_wtf.csrf.CSRFProtect.init_app
+            "csrf_token",
+            # flask_login.utils._user_context_processor
+            "current_user",
+            # flask_appbuilder.baseviews.BaseView.render_template
+            "appbuilder",
+            "base_template",
+            # airflow.www.app.py.create_app (inner method - jinja_globals)
+            "server_timezone",
+            "default_ui_timezone",
+            "hostname",
+            "navbar_color",
+            "navbar_text_color",
+            "navbar_hover_color",
+            "navbar_text_hover_color",
+            "navbar_logo_text_color",
+            "log_fetch_delay_sec",
+            "log_auto_tailing_offset",
+            "log_animation_speed",
+            "state_color_mapping",
+            "airflow_version",
+            "git_version",
+            "k8s_or_k8scelery_executor",
+            # airflow.www.static_config.configure_manifest_files
+            "url_for_asset",
+            # airflow.www.views.AirflowBaseView.render_template
+            "scheduler_job",
+            # airflow.www.views.AirflowBaseView.extra_args
+            "macros",
+            "auth_manager",
+            "triggerer_job",
+        ]
+        for key in keys_to_delete:
+            if key in result:
+                del result[key]
+
+        return result
+
+
+@pytest.fixture(scope="module")
+def capture_templates(app):
+    @contextmanager
+    def manager() -> Generator[list[_TemplateWithContext], None, None]:
+        recorded = []
+
+        def record(sender, template, context, **extra):
+            recorded.append(_TemplateWithContext(template, context))
+
+        flask.template_rendered.connect(record, app)  # type: ignore
+        try:
+            yield recorded
+        finally:
+            flask.template_rendered.disconnect(record, app)  # type: ignore
+
+        assert recorded, "Failed to catch the templates"
+
+    return manager

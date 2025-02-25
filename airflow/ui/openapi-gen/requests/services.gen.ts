@@ -15,6 +15,8 @@ import type {
   GetAssetEventsResponse,
   CreateAssetEventData,
   CreateAssetEventResponse,
+  MaterializeAssetData,
+  MaterializeAssetResponse,
   GetAssetQueuedEventsData,
   GetAssetQueuedEventsResponse,
   DeleteAssetQueuedEventsData,
@@ -36,6 +38,8 @@ import type {
   GetConfigValueResponse,
   RecentDagRunsData,
   RecentDagRunsResponse,
+  GetDependenciesData,
+  GetDependenciesResponse,
   HistoricalMetricsData,
   HistoricalMetricsResponse,
   StructureDataData,
@@ -175,6 +179,8 @@ import type {
   GetProvidersResponse,
   GetXcomEntryData,
   GetXcomEntryResponse,
+  UpdateXcomEntryData,
+  UpdateXcomEntryResponse,
   GetXcomEntriesData,
   GetXcomEntriesResponse,
   CreateXcomEntryData,
@@ -197,8 +203,12 @@ import type {
   BulkVariablesResponse,
   ReparseDagFileData,
   ReparseDagFileResponse,
+  GetDagVersionsData,
+  GetDagVersionsResponse,
   GetHealthResponse,
   GetVersionResponse,
+  LoginData,
+  LoginResponse,
 } from "./types.gen";
 
 export class AssetService {
@@ -370,6 +380,31 @@ export class AssetService {
         401: "Unauthorized",
         403: "Forbidden",
         404: "Not Found",
+        422: "Validation Error",
+      },
+    });
+  }
+
+  /**
+   * Materialize Asset
+   * Materialize an asset by triggering a DAG run that produces it.
+   * @param data The data for the request.
+   * @param data.assetId
+   * @returns DAGRunResponse Successful Response
+   * @throws ApiError
+   */
+  public static materializeAsset(data: MaterializeAssetData): CancelablePromise<MaterializeAssetResponse> {
+    return __request(OpenAPI, {
+      method: "POST",
+      url: "/public/assets/{asset_id}/materialize",
+      path: {
+        asset_id: data.assetId,
+      },
+      errors: {
+        401: "Unauthorized",
+        403: "Forbidden",
+        404: "Not Found",
+        409: "Conflict",
         422: "Validation Error",
       },
     });
@@ -706,6 +741,30 @@ export class DagsService {
   }
 }
 
+export class DependenciesService {
+  /**
+   * Get Dependencies
+   * Dependencies graph.
+   * @param data The data for the request.
+   * @param data.nodeId
+   * @returns BaseGraphResponse Successful Response
+   * @throws ApiError
+   */
+  public static getDependencies(data: GetDependenciesData = {}): CancelablePromise<GetDependenciesResponse> {
+    return __request(OpenAPI, {
+      method: "GET",
+      url: "/ui/dependencies",
+      query: {
+        node_id: data.nodeId,
+      },
+      errors: {
+        404: "Not Found",
+        422: "Validation Error",
+      },
+    });
+  }
+}
+
 export class DashboardService {
   /**
    * Historical Metrics
@@ -976,14 +1035,16 @@ export class GridService {
    * @param data.dagId
    * @param data.includeUpstream
    * @param data.includeDownstream
-   * @param data.logicalDateGte
-   * @param data.logicalDateLte
    * @param data.root
    * @param data.offset
    * @param data.runType
    * @param data.state
    * @param data.limit
    * @param data.orderBy
+   * @param data.runAfterGte
+   * @param data.runAfterLte
+   * @param data.logicalDateGte
+   * @param data.logicalDateLte
    * @returns GridResponse Successful Response
    * @throws ApiError
    */
@@ -997,14 +1058,16 @@ export class GridService {
       query: {
         include_upstream: data.includeUpstream,
         include_downstream: data.includeDownstream,
-        logical_date_gte: data.logicalDateGte,
-        logical_date_lte: data.logicalDateLte,
         root: data.root,
         offset: data.offset,
         run_type: data.runType,
         state: data.state,
         limit: data.limit,
         order_by: data.orderBy,
+        run_after_gte: data.runAfterGte,
+        run_after_lte: data.runAfterLte,
+        logical_date_gte: data.logicalDateGte,
+        logical_date_lte: data.logicalDateLte,
       },
       errors: {
         400: "Bad Request",
@@ -1365,6 +1428,8 @@ export class DagRunService {
    * @param data.dagId
    * @param data.limit
    * @param data.offset
+   * @param data.runAfterGte
+   * @param data.runAfterLte
    * @param data.logicalDateGte
    * @param data.logicalDateLte
    * @param data.startDateGte
@@ -1388,6 +1453,8 @@ export class DagRunService {
       query: {
         limit: data.limit,
         offset: data.offset,
+        run_after_gte: data.runAfterGte,
+        run_after_lte: data.runAfterLte,
         logical_date_gte: data.logicalDateGte,
         logical_date_lte: data.logicalDateLte,
         start_date_gte: data.startDateGte,
@@ -2041,6 +2108,8 @@ export class TaskInstanceService {
    * @param data.dagId
    * @param data.dagRunId
    * @param data.taskId
+   * @param data.runAfterGte
+   * @param data.runAfterLte
    * @param data.logicalDateGte
    * @param data.logicalDateLte
    * @param data.startDateGte
@@ -2074,6 +2143,8 @@ export class TaskInstanceService {
         task_id: data.taskId,
       },
       query: {
+        run_after_gte: data.runAfterGte,
+        run_after_lte: data.runAfterLte,
         logical_date_gte: data.logicalDateGte,
         logical_date_lte: data.logicalDateLte,
         start_date_gte: data.startDateGte,
@@ -2316,6 +2387,8 @@ export class TaskInstanceService {
    * @param data.dagId
    * @param data.dagRunId
    * @param data.taskId
+   * @param data.runAfterGte
+   * @param data.runAfterLte
    * @param data.logicalDateGte
    * @param data.logicalDateLte
    * @param data.startDateGte
@@ -2348,6 +2421,8 @@ export class TaskInstanceService {
       },
       query: {
         task_id: data.taskId,
+        run_after_gte: data.runAfterGte,
+        run_after_lte: data.runAfterLte,
         logical_date_gte: data.logicalDateGte,
         logical_date_lte: data.logicalDateLte,
         start_date_gte: data.startDateGte,
@@ -2982,6 +3057,40 @@ export class XcomService {
   }
 
   /**
+   * Update Xcom Entry
+   * Update an existing XCom entry.
+   * @param data The data for the request.
+   * @param data.dagId
+   * @param data.taskId
+   * @param data.dagRunId
+   * @param data.xcomKey
+   * @param data.requestBody
+   * @returns XComResponseNative Successful Response
+   * @throws ApiError
+   */
+  public static updateXcomEntry(data: UpdateXcomEntryData): CancelablePromise<UpdateXcomEntryResponse> {
+    return __request(OpenAPI, {
+      method: "PATCH",
+      url: "/public/dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances/{task_id}/xcomEntries/{xcom_key}",
+      path: {
+        dag_id: data.dagId,
+        task_id: data.taskId,
+        dag_run_id: data.dagRunId,
+        xcom_key: data.xcomKey,
+      },
+      body: data.requestBody,
+      mediaType: "application/json",
+      errors: {
+        400: "Bad Request",
+        401: "Unauthorized",
+        403: "Forbidden",
+        404: "Not Found",
+        422: "Validation Error",
+      },
+    });
+  }
+
+  /**
    * Get Xcom Entries
    * Get all XCom entries.
    *
@@ -3295,6 +3404,48 @@ export class DagParsingService {
   }
 }
 
+export class DagVersionService {
+  /**
+   * Get Dag Versions
+   * Get all DAG Versions.
+   *
+   * This endpoint allows specifying `~` as the dag_id to retrieve DAG Versions for all DAGs.
+   * @param data The data for the request.
+   * @param data.dagId
+   * @param data.limit
+   * @param data.offset
+   * @param data.versionNumber
+   * @param data.bundleName
+   * @param data.bundleVersion
+   * @param data.orderBy
+   * @returns DAGVersionCollectionResponse Successful Response
+   * @throws ApiError
+   */
+  public static getDagVersions(data: GetDagVersionsData): CancelablePromise<GetDagVersionsResponse> {
+    return __request(OpenAPI, {
+      method: "GET",
+      url: "/public/dags/{dag_id}/dagVersions",
+      path: {
+        dag_id: data.dagId,
+      },
+      query: {
+        limit: data.limit,
+        offset: data.offset,
+        version_number: data.versionNumber,
+        bundle_name: data.bundleName,
+        bundle_version: data.bundleVersion,
+        order_by: data.orderBy,
+      },
+      errors: {
+        401: "Unauthorized",
+        403: "Forbidden",
+        404: "Not Found",
+        422: "Validation Error",
+      },
+    });
+  }
+}
+
 export class MonitorService {
   /**
    * Get Health
@@ -3320,6 +3471,30 @@ export class VersionService {
     return __request(OpenAPI, {
       method: "GET",
       url: "/public/version",
+    });
+  }
+}
+
+export class LoginService {
+  /**
+   * Login
+   * Redirect to the login URL depending on the AuthManager configured.
+   * @param data The data for the request.
+   * @param data.next
+   * @returns unknown Successful Response
+   * @throws ApiError
+   */
+  public static login(data: LoginData = {}): CancelablePromise<LoginResponse> {
+    return __request(OpenAPI, {
+      method: "GET",
+      url: "/public/login",
+      query: {
+        next: data.next,
+      },
+      errors: {
+        307: "Temporary Redirect",
+        422: "Validation Error",
+      },
     });
   }
 }

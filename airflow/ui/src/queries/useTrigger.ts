@@ -20,31 +20,28 @@ import { useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 
 import {
-  useDagRunServiceGetDagRunsKey,
+  UseDagRunServiceGetDagRunsKeyFn,
   useDagRunServiceTriggerDagRun,
   useDagServiceGetDagsKey,
   useDagsServiceRecentDagRunsKey,
-  useTaskInstanceServiceGetTaskInstancesKey,
+  UseTaskInstanceServiceGetTaskInstancesKeyFn,
 } from "openapi/queries";
 import type { DagRunTriggerParams } from "src/components/TriggerDag/TriggerDAGForm";
 import { toaster } from "src/components/ui";
-import { doQueryKeysMatch, type PartialQueryKey } from "src/utils";
 
 export const useTrigger = ({ dagId, onSuccessConfirm }: { dagId: string; onSuccessConfirm: () => void }) => {
   const queryClient = useQueryClient();
   const [error, setError] = useState<unknown>(undefined);
 
-  const [dateValidationError, setDateValidationError] = useState<unknown>(undefined);
-
   const onSuccess = async () => {
-    const queryKeys: Array<PartialQueryKey> = [
-      { baseKey: useDagServiceGetDagsKey },
-      { baseKey: useDagsServiceRecentDagRunsKey },
-      { baseKey: useDagRunServiceGetDagRunsKey, options: { dagIds: [dagId] } },
-      { baseKey: useTaskInstanceServiceGetTaskInstancesKey, options: { dagId, dagRunId: "~" } },
+    const queryKeys = [
+      [useDagServiceGetDagsKey],
+      [useDagsServiceRecentDagRunsKey],
+      UseDagRunServiceGetDagRunsKeyFn({ dagId }, [{ dagId }]),
+      UseTaskInstanceServiceGetTaskInstancesKeyFn({ dagId, dagRunId: "~" }, [{ dagId, dagRunId: "~" }]),
     ];
 
-    await queryClient.invalidateQueries({ predicate: (query) => doQueryKeysMatch(query, queryKeys) });
+    await Promise.all(queryKeys.map((key) => queryClient.invalidateQueries({ queryKey: key })));
 
     toaster.create({
       description: "DAG run has been successfully triggered.",
@@ -66,38 +63,10 @@ export const useTrigger = ({ dagId, onSuccessConfirm }: { dagId: string; onSucce
   const triggerDagRun = (dagRunRequestBody: DagRunTriggerParams) => {
     const parsedConfig = JSON.parse(dagRunRequestBody.conf) as Record<string, unknown>;
 
-    const DataIntervalStart = dagRunRequestBody.dataIntervalStart
-      ? new Date(dagRunRequestBody.dataIntervalStart)
-      : undefined;
-    const DataIntervalEnd = dagRunRequestBody.dataIntervalEnd
-      ? new Date(dagRunRequestBody.dataIntervalEnd)
-      : undefined;
+    const logicalDate = dagRunRequestBody.logicalDate ? new Date(dagRunRequestBody.logicalDate) : undefined;
 
-    if (Boolean(DataIntervalStart) !== Boolean(DataIntervalEnd)) {
-      setDateValidationError({
-        body: {
-          detail:
-            "Either both Data Interval Start Date and End Date must be provided, or both must be empty.",
-        },
-      });
-
-      return;
-    }
-
-    if (DataIntervalStart && DataIntervalEnd) {
-      if (DataIntervalStart > DataIntervalEnd) {
-        setDateValidationError({
-          body: {
-            detail: "Data Interval Start Date must be less than or equal to Data Interval End Date.",
-          },
-        });
-
-        return;
-      }
-    }
-
-    const formattedDataIntervalStart = DataIntervalStart?.toISOString() ?? undefined;
-    const formattedDataIntervalEnd = DataIntervalEnd?.toISOString() ?? undefined;
+    // eslint-disable-next-line unicorn/no-null
+    const formattedLogicalDate = logicalDate?.toISOString() ?? null;
 
     const checkDagRunId = dagRunRequestBody.dagRunId === "" ? undefined : dagRunRequestBody.dagRunId;
     const checkNote = dagRunRequestBody.note === "" ? undefined : dagRunRequestBody.note;
@@ -107,12 +76,11 @@ export const useTrigger = ({ dagId, onSuccessConfirm }: { dagId: string; onSucce
       requestBody: {
         conf: parsedConfig,
         dag_run_id: checkDagRunId,
-        data_interval_end: formattedDataIntervalEnd,
-        data_interval_start: formattedDataIntervalStart,
+        logical_date: formattedLogicalDate,
         note: checkNote,
       },
     });
   };
 
-  return { dateValidationError, error, isPending, triggerDagRun };
+  return { error, isPending, triggerDagRun };
 };

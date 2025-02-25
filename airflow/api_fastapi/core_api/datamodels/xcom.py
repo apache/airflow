@@ -29,7 +29,7 @@ class XComResponse(BaseModel):
 
     key: str
     timestamp: datetime
-    logical_date: datetime
+    logical_date: datetime | None
     map_index: int
     task_id: str
     dag_id: str
@@ -63,5 +63,12 @@ class XComCreateBody(StrictBaseModel):
     """Payload serializer for creating an XCom entry."""
 
     key: str
+    value: Any
+    map_index: int = -1
+
+
+class XComUpdateBody(StrictBaseModel):
+    """Payload serializer for updating an XCom entry."""
+
     value: Any
     map_index: int = -1

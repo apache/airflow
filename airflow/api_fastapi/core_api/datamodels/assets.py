@@ -22,7 +22,7 @@ from datetime import datetime
 from pydantic import Field, field_validator
 
 from airflow.api_fastapi.core_api.base import BaseModel, StrictBaseModel
-from airflow.utils.log.secrets_masker import redact
+from airflow.sdk.execution_time.secrets_masker import redact
 
 
 class DagScheduleAssetReference(StrictBaseModel):
@@ -89,12 +89,12 @@ class DagRunAssetReference(StrictBaseModel):
 
     run_id: str
     dag_id: str
-    execution_date: datetime = Field(alias="logical_date")
+    logical_date: datetime | None
     start_date: datetime
     end_date: datetime | None
     state: str
-    data_interval_start: datetime
-    data_interval_end: datetime
+    data_interval_start: datetime | None
+    data_interval_end: datetime | None
 
 
 class AssetEventResponse(BaseModel):

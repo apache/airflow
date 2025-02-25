@@ -15,7 +15,7 @@
 # specific language governing permissions and limitations
 # under the License.
 [build-system]
-requires = ["flit_core >=3.2,<4"]
+requires = ["flit_core >=3.11,<4"]
 build-backend = "flit_core.buildapi"
 
 [project]
@@ -53,8 +53,8 @@ dependencies = [
     # is taken from the front-end not from the backend, so in order to make sure that the
     # packages are reproducible, we should pin both backend in "build-system" and frontend in
     # "dependencies" of the environment that is used to build the packages
-    "flit==3.10.1",
-    "flit-core==3.10.1",
+    "flit==3.11.0",
+    "flit-core==3.11.0",
     "google-api-python-client>=2.142.0",
     "google-auth-httplib2>=0.2.0",
     "google-auth-oauthlib>=1.2.0",
@@ -72,6 +72,7 @@ dependencies = [
     "pytest>=8.2,<9",
     "pyyaml>=6.0.1",
     "requests>=2.31.0",
+    "restructuredtext-lint>=1.4.0",
     "rich-click>=1.7.1",
     "rich>=13.6.0",
     "semver>=3.0.2",

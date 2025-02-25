@@ -21,6 +21,7 @@ import os
 import signal
 import sys
 from datetime import datetime
+from subprocess import CalledProcessError, CompletedProcess
 from time import sleep
 
 import click
@@ -81,6 +82,7 @@ from airflow_breeze.utils.console import Output, get_console
 from airflow_breeze.utils.custom_param_types import BetterChoice, NotVerifiedBetterChoice
 from airflow_breeze.utils.docker_command_utils import (
     fix_ownership_using_docker,
+    notify_on_unhealthy_backend_container,
     perform_environment_checks,
     remove_docker_networks,
 )
@@ -99,8 +101,12 @@ from airflow_breeze.utils.run_tests import (
 from airflow_breeze.utils.run_utils import run_command
 from airflow_breeze.utils.selective_checks import ALL_CI_SELECTIVE_TEST_TYPES
 
+GRACE_CONTAINER_STOP_TIMEOUT = 10  # Timeout in seconds to wait for containers to get killed
+
 LOW_MEMORY_CONDITION = 8 * 1024 * 1024 * 1024
 DEFAULT_TOTAL_TEST_TIMEOUT = 6500  # 6500 seconds = 1h 48 minutes
+
+logs_already_dumped = False
 
 
 @click.group(cls=BreezeGroup, name="testing", help="Tools that developers can use to run tests")
@@ -148,7 +154,7 @@ def docker_compose_tests(
     sys.exit(return_code)
 
 
-TEST_PROGRESS_REGEXP = r"tests/.*|providers/.*/tests/.*|providers/tests/.*|task_sdk/tests/.*|.*=====.*"
+TEST_PROGRESS_REGEXP = r"tests/.*|providers/.*/tests/.*|task_sdk/tests/.*|.*=====.*"
 PERCENT_TEST_PROGRESS_REGEXP = r"^tests/.*\[[ \d%]*\].*|^\..*\[[ \d%]*\].*"
 
 
@@ -166,8 +172,7 @@ def _run_test(
             "[error]Only 'Providers' test type can specify actual tests with \\[\\][/]"
         )
         sys.exit(1)
-    project_name = file_name_from_test_type(shell_params.test_type)
-    compose_project_name = f"airflow-test-{project_name}"
+    compose_project_name, project_name = _get_project_names(shell_params)
     env = shell_params.env_variables_for_docker_commands
     down_cmd = [
         "docker",
@@ -224,31 +229,13 @@ def _run_test(
             output_outside_the_group=output_outside_the_group,
             env=env,
         )
-        if os.environ.get("CI") == "true" and result.returncode != 0:
-            ps_result = run_command(
-                ["docker", "ps", "--all", "--format", "{{.Names}}"],
-                check=True,
-                capture_output=True,
-                text=True,
+        if result.returncode != 0:
+            notify_on_unhealthy_backend_container(
+                project_name=project_name, backend=shell_params.backend, output=output
             )
-            container_ids = ps_result.stdout.splitlines()
-            get_console(output=output).print("[info]Wait 10 seconds for logs to find their way to stderr.\n")
-            sleep(10)
-            get_console(output=output).print(
-                f"[info]Error {result.returncode}. Dumping containers: {container_ids} for {project_name}.\n"
-            )
-            date_str = datetime.now().strftime("%Y_%d_%m_%H_%M_%S")
-            for container_id in container_ids:
-                if compose_project_name not in container_id:
-                    continue
-                dump_path = FILES_DIR / f"container_logs_{container_id}_{date_str}.log"
-                get_console(output=output).print(f"[info]Dumping container {container_id} to {dump_path}\n")
-                with open(dump_path, "w") as outfile:
-                    run_command(
-                        ["docker", "logs", "--details", "--timestamps", container_id],
-                        check=False,
-                        stdout=outfile,
-                    )
+        if os.environ.get("CI") == "true" and result.returncode != 0 and not logs_already_dumped:
+            get_console(output=output).print(f"[error]Test failed with {result.returncode}. Dumping logs[/]")
+            _dump_container_logs(output=output, shell_params=shell_params)
     finally:
         if not skip_docker_compose_down:
             run_command(
@@ -269,6 +256,41 @@ def _run_test(
             )
             remove_docker_networks(networks=[f"{compose_project_name}_default"])
     return result.returncode, f"Test: {shell_params.test_type}"
+
+
+def _get_project_names(shell_params: ShellParams) -> tuple[str, str]:
+    """Return compose project name and project name."""
+    project_name = file_name_from_test_type(shell_params.test_type)
+    compose_project_name = f"airflow-test-{project_name}"
+    return compose_project_name, project_name
+
+
+def _dump_container_logs(output: Output | None, shell_params: ShellParams):
+    global logs_already_dumped
+    ps_result = run_command(
+        ["docker", "ps", "--all", "--format", "{{.Names}}"],
+        check=True,
+        capture_output=True,
+        text=True,
+    )
+    container_ids = ps_result.stdout.splitlines()
+    get_console(output=output).print("[info]Wait 10 seconds for logs to find their way to stderr.\n")
+    sleep(10)
+    compose_project_name, project_name = _get_project_names(shell_params)
+    get_console(output=output).print(f"[info]Dumping containers: {container_ids} for {project_name}.\n")
+    date_str = datetime.now().strftime("%Y_%d_%m_%H_%M_%S")
+    for container_id in container_ids:
+        if compose_project_name not in container_id:
+            continue
+        dump_path = FILES_DIR / f"container_logs_{container_id}_{date_str}.log"
+        get_console(output=output).print(f"[info]Dumping container {container_id} to {dump_path}\n")
+        with open(dump_path, "w") as outfile:
+            run_command(
+                ["docker", "logs", "--details", "--timestamps", container_id],
+                check=False,
+                stdout=outfile,
+            )
+    logs_already_dumped = True
 
 
 def _run_tests_in_pool(
@@ -1093,20 +1115,54 @@ def python_api_client_tests(
 
 
 @contextlib.contextmanager
-def run_with_timeout(timeout: int):
+def run_with_timeout(timeout: int, shell_params: ShellParams):
     def timeout_handler(signum, frame):
-        get_console().print("[error]Timeout reached. Killing the container(s)[/]")
-        list_of_containers = run_command(
+        get_console().print("[warning]Timeout reached. Killing the container(s)[/]:")
+        _print_all_containers()
+        if os.environ.get("CI") == "true":
+            get_console().print("[warning]Dumping container logs first[/]:")
+            _dump_container_logs(output=None, shell_params=shell_params)
+        list_of_containers = _get_running_containers().stdout.splitlines()
+        get_console().print("[warning]Attempting to send TERM signal to all remaining containers:")
+        get_console().print(list_of_containers)
+        _send_signal_to_containers(list_of_containers, "SIGTERM")
+        get_console().print(f"[warning]Waiting {GRACE_CONTAINER_STOP_TIMEOUT} seconds for containers to stop")
+        sleep(GRACE_CONTAINER_STOP_TIMEOUT)
+        containers_left = _get_running_containers().stdout.splitlines()
+        if containers_left:
+            get_console().print("[warning]Some containers are still running. Killing them with SIGKILL:")
+            get_console().print(containers_left)
+            _send_signal_to_containers(list_of_containers, "SIGKILL")
+            get_console().print(
+                f"[warning]Waiting {GRACE_CONTAINER_STOP_TIMEOUT} seconds for containers to stop"
+            )
+            sleep(GRACE_CONTAINER_STOP_TIMEOUT)
+            containers_left = _get_running_containers().stdout.splitlines()
+            if containers_left:
+                get_console().print("[error]Some containers are still running. Exiting anyway.")
+                get_console().print(containers_left)
+                sys.exit(1)
+
+    def _send_signal_to_containers(list_of_containers: list[str], signal: str):
+        run_command(
+            ["docker", "kill", "--signal", signal, *list_of_containers],
+            check=True,
+            capture_output=False,
+            text=True,
+        )
+
+    def _get_running_containers() -> CompletedProcess | CalledProcessError:
+        return run_command(
             ["docker", "ps", "-q"],
             check=True,
             capture_output=True,
             text=True,
         )
+
+    def _print_all_containers():
         run_command(
-            ["docker", "kill", "--signal", "SIGQUIT"] + list_of_containers.stdout.splitlines(),
+            ["docker", "ps"],
             check=True,
-            capture_output=False,
-            text=True,
         )
 
     signal.signal(signal.SIGALRM, timeout_handler)
@@ -1217,12 +1273,6 @@ def _run_test_command(
     perform_environment_checks()
     if skip_providers:
         ignored_path_list = [
-            # TODO(potiuk): remove the old ways once we migrate all providers to the new structure
-            *[
-                f"--ignore=providers/tests/{provider_id.replace('.','/')}"
-                for provider_id in skip_providers.split(" ")
-            ],
-            # New structure
             *[
                 f"--ignore=providers/{provider_id.replace('.','/')}/tests"
                 for provider_id in skip_providers.split(" ")
@@ -1236,7 +1286,7 @@ def _run_test_command(
                 f"Your test type = {test_type}\n"
             )
             sys.exit(1)
-        with run_with_timeout(total_test_timeout):
+        with run_with_timeout(total_test_timeout, shell_params=shell_params):
             run_tests_in_parallel(
                 shell_params=shell_params,
                 extra_pytest_args=extra_pytest_args,

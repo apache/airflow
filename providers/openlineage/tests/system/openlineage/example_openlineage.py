@@ -16,13 +16,12 @@
 # under the License.
 from __future__ import annotations
 
-import os
 from datetime import datetime
-
-from providers.openlineage.tests.system.openlineage.operator import OpenLineageTestOperator
+from pathlib import Path
 
 from airflow import DAG
 from airflow.providers.standard.operators.python import PythonOperator
+from system.openlineage.operator import OpenLineageTestOperator
 
 
 def do_nothing():
@@ -43,7 +42,7 @@ with DAG(
 
     check_events = OpenLineageTestOperator(
         task_id="check_events",
-        file_path=f"{os.getenv('AIRFLOW_HOME')}/dags/providers/tests/system/openlineage/example_openlineage.json",
+        file_path=str(Path(__file__).parent / "example_openlineage.json"),
     )
 
     nothing_task >> check_events

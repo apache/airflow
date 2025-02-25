@@ -528,6 +528,13 @@ core:
       type: integer
       example: ~
       default: "4096"
+    execution_api_server_url:
+      description: |
+        The url of the execution api server.
+      version_added: 3.0.0
+      type: string
+      example: ~
+      default: "http://localhost:9091/execution/"
 database:
   description: ~
   options:
@@ -886,10 +893,10 @@ logging:
     secret_mask_adapter:
       description: |
         An import path to a function to add adaptations of each secret added with
-        ``airflow.utils.log.secrets_masker.mask_secret`` to be masked in log messages. The given function
-        is expected to require a single parameter: the secret to be adapted. It may return a
-        single adaptation of the secret or an iterable of adaptations to each be masked as secrets.
-        The original secret will be masked as well as any adaptations returned.
+        ``airflow.sdk.execution_time.secrets_masker.mask_secret`` to be masked in log messages.
+        The given function is expected to require a single parameter: the secret to be adapted.
+        It may return a single adaptation of the secret or an iterable of adaptations to each be
+        masked as secrets. The original secret will be masked as well as any adaptations returned.
       version_added: 2.6.0
       type: string
       default: ""
@@ -912,28 +919,6 @@ logging:
       default: "dag_id={{ ti.dag_id }}/run_id={{ ti.run_id }}/task_id={{ ti.task_id }}/\
                {%% if ti.map_index >= 0 %%}map_index={{ ti.map_index }}/{%% endif %%}\
                attempt={{ try_number|default(ti.try_number) }}.log"
-    log_processor_filename_template:
-      description: |
-        Formatting for how airflow generates file names for log
-      version_added: 2.0.0
-      type: string
-      example: ~
-      is_template: true
-      default: "{{ filename }}.log"
-    dag_processor_manager_log_location:
-      description: |
-        Full path of dag_processor_manager logfile.
-      version_added: 2.0.0
-      type: string
-      example: ~
-      default: "{AIRFLOW_HOME}/logs/dag_processor_manager/dag_processor_manager.log"
-    dag_processor_manager_log_stdout:
-      description: |
-        Whether DAG processor manager will write logs to stdout
-      version_added: 2.9.0
-      type: boolean
-      example: ~
-      default: "False"
     task_log_reader:
       description: |
         Name of handler to read task instance logs.
@@ -1427,6 +1412,16 @@ api:
       type: integer
       example: ~
       default: "86400"
+    auth_jwt_cli_expiration_time:
+      description: |
+        Number in seconds until the JWT token used for authentication expires for CLI commands.
+        When the token expires, all CLI calls using this token will fail on authentication.
+        Make sure that time on ALL the machines that you run airflow components on is synchronized
+        (for example using ntpd) otherwise you might get "forbidden" errors.
+      version_added: 3.0.0
+      type: integer
+      example: ~
+      default: "3600"
 lineage:
   description: ~
   options:
@@ -1595,9 +1590,9 @@ webserver:
       default: "120"
     worker_refresh_batch_size:
       description: |
-        Number of workers to refresh at a time. When set to 0, worker refresh is
-        disabled. When nonzero, airflow periodically refreshes webserver workers by
-        bringing up new ones and killing old ones.
+        Number of workers to refresh at a time through Gunicorn's built-in worker management.
+        When set to 0, worker refresh is disabled. When nonzero, airflow periodically refreshes
+        webserver workers by bringing up new ones and killing old ones.
       version_added: ~
       type: string
       example: ~
@@ -1876,15 +1871,6 @@ webserver:
       type: string
       example: ~
       default: "False"
-    cookie_samesite:
-      description: |
-        Set samesite policy on session cookies.
-        As `recommended <https://flask.palletsprojects.com/en/1.1.x/config/#SESSION_COOKIE_SAMESITE>`_
-        by Flask, the default is set to ``Lax`` and not a empty string.
-      version_added: 1.10.3
-      type: string
-      example: ~
-      default: "Lax"
     default_wrap:
       description: |
         Default setting for wrap toggle on DAG code and TI log views.
@@ -2420,14 +2406,6 @@ scheduler:
       type: boolean
       example: ~
       default: "True"
-    allow_trigger_in_future:
-      description: |
-        Allow externally triggered DagRuns for Execution Dates in the future
-        Only has effect if schedule is set to None in DAG
-      version_added: 1.10.8
-      type: boolean
-      example: ~
-      default: "False"
     trigger_timeout_check_interval:
       description: |
         How often to check for expired trigger requests that have not run yet.
@@ -2476,7 +2454,26 @@ scheduler:
       type: boolean
       example: ~
       default: "True"
-      see_also: ":ref:`Differences between the two cron timetables`"
+      see_also: ':ref:`Differences between "trigger" and "data interval" timetables`'
+    create_delta_data_intervals:
+      description: |
+        Whether to create DAG runs that span an interval or one single point in time when a timedelta or
+        relativedelta is provided to ``schedule`` argument of a DAG.
+
+        * ``True``: **DeltaDataIntervalTimetable** is used, which is suitable for DAGs with well-defined data
+          interval. You get contiguous intervals from the end of the previous interval up to the scheduled
+          datetime.
+        * ``False``: **DeltaTriggerTimetable** is used, which is suitable for DAGs that simply want to say
+          e.g. "run this every day" and do not care about the data interval.
+
+        Notably, for **DeltaTriggerTimetable**, the logical date is the same as the time the DAG Run will
+        try to schedule, while for **DeltaDataIntervalTimetable**, the logical date is the beginning of
+        the data interval, but the DAG Run will try to schedule at the end of the data interval.
+      version_added: 2.11.0
+      type: boolean
+      example: ~
+      default: "True"
+      see_also: ':ref:`Differences between "trigger" and "data interval" timetables`'
     enable_tracemalloc:
       description: |
         Whether to enable memory allocation tracing in the scheduler. If enabled, Airflow will start
@@ -2698,3 +2695,25 @@ dag_processor:
       type: integer
       example: ~
       default: "30"
+    bundle_refresh_check_interval:
+      description: |
+        How often the DAG processor should check if any DAG bundles are ready for a refresh, either by hitting
+        the bundles refresh_interval or because another DAG processor has seen a newer version of the bundle.
+        A low value means we check more frequently, and have a smaller window of time where DAG processors are
+        out of sync with each other, parsing different versions of the same bundle.
+      version_added: ~
+      type: integer
+      example: ~
+      default: "5"
+fastapi:
+  description: Configuration for the Fastapi webserver.
+  options:
+    base_url:
+      description: |
+        The base url of the Fastapi endpoint. Airflow cannot guess what domain or CNAME you are using.
+        If the Airflow console (the front-end) and the Fastapi apis are on a different domain, this config
+        should contain the Fastapi apis endpoint.
+      version_added: ~
+      type: string
+      example: ~
+      default: "http://localhost:9091"

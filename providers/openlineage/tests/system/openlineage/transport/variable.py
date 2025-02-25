@@ -18,9 +18,10 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
-from airflow.models.variable import Variable
 from openlineage.client.serde import Serde
 from openlineage.client.transport import Transport, get_default_factory
+
+from airflow.models.variable import Variable
 
 if TYPE_CHECKING:
     from openlineage.client.client import Event

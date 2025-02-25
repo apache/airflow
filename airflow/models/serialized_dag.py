@@ -67,7 +67,7 @@ class SerializedDagModel(Base):
     * ``[core] min_serialized_dag_update_interval = 30`` (s):
       serialized DAGs are updated in DB when a file gets processed by scheduler,
       to reduce DB write rate, there is a minimal interval of updating serialized DAGs.
-    * ``[scheduler] dag_dir_list_interval = 300`` (s):
+    * ``[dag_processor] refresh_interval = 300`` (s):
       interval of deleting serialized DAGs in DB when the files are deleted, suggest
       to use a smaller interval such as 60
     * ``[core] compress_serialized_dags``:
@@ -84,6 +84,7 @@ class SerializedDagModel(Base):
     _data = Column("data", sqlalchemy_jsonfield.JSONField(json=json), nullable=True)
     _data_compressed = Column("data_compressed", LargeBinary, nullable=True)
     created_at = Column(UtcDateTime, nullable=False, default=timezone.utcnow)
+    last_updated = Column(UtcDateTime, nullable=False, default=timezone.utcnow, onupdate=timezone.utcnow)
     dag_hash = Column(String(32), nullable=False)
 
     dag_runs = relationship(
@@ -177,6 +178,8 @@ class SerializedDagModel(Base):
         changed, it updates the record, ignores otherwise.
 
         :param dag: a DAG to be written into database
+        :param bundle_name: bundle name of the DAG
+        :param bundle_version: bundle version of the DAG
         :param min_update_interval: minimal interval in seconds to update serialized DAG
         :param session: ORM Session
 
@@ -203,6 +206,28 @@ class SerializedDagModel(Base):
         if serialized_dag_hash is not None and serialized_dag_hash == new_serialized_dag.dag_hash:
             log.debug("Serialized DAG (%s) is unchanged. Skipping writing to DB", dag.dag_id)
             return False
+        dag_version = DagVersion.get_latest_version(dag.dag_id, session=session)
+        if dag_version and not dag_version.task_instances:
+            # This is for dynamic DAGs that the hashes changes often. We should update
+            # the serialized dag, the dag_version and the dag_code instead of a new version
+            # if the dag_version is not associated with any task instances
+            latest_ser_dag = cls.get(dag.dag_id, session=session)
+            if TYPE_CHECKING:
+                assert latest_ser_dag is not None
+            # Update the serialized DAG with the new_serialized_dag
+            latest_ser_dag._data = new_serialized_dag._data
+            latest_ser_dag._data_compressed = new_serialized_dag._data_compressed
+            latest_ser_dag.dag_hash = new_serialized_dag.dag_hash
+            session.merge(latest_ser_dag)
+            # The dag_version and dag_code may not have changed, still we should
+            # do the below actions:
+            # Update the latest dag version
+            dag_version.bundle_name = bundle_name
+            dag_version.bundle_version = bundle_version
+            session.merge(dag_version)
+            # Update the latest DagCode
+            DagCode.update_source_code(dag_id=dag.dag_id, fileloc=dag.fileloc, session=session)
+            return True
 
         dagv = DagVersion.write_dag(
             dag_id=dag.dag_id,
@@ -291,7 +316,7 @@ class SerializedDagModel(Base):
     @property
     def data(self) -> dict | None:
         # use __data_cache to avoid decompress and loads
-        if not hasattr(self, "__data_cache") or self.__data_cache is None:
+        if not hasattr(self, "_SerializedDagModel__data_cache") or self.__data_cache is None:
             if self._data_compressed:
                 self.__data_cache = json.loads(zlib.decompress(self._data_compressed))
             else:

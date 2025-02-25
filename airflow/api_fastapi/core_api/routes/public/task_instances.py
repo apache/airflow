@@ -61,7 +61,6 @@ from airflow.api_fastapi.core_api.datamodels.task_instances import (
 )
 from airflow.api_fastapi.core_api.openapi.exceptions import create_openapi_http_exception_doc
 from airflow.exceptions import TaskNotFound
-from airflow.jobs.scheduler_job_runner import DR
 from airflow.models import Base, DagRun
 from airflow.models.dag import DAG
 from airflow.models.taskinstance import TaskInstance as TI, clear_task_instances
@@ -114,6 +113,7 @@ def get_mapped_task_instances(
     dag_run_id: str,
     task_id: str,
     request: Request,
+    run_after_range: Annotated[RangeFilter, Depends(datetime_range_filter_factory("run_after", TI))],
     logical_date_range: Annotated[RangeFilter, Depends(datetime_range_filter_factory("logical_date", TI))],
     start_date_range: Annotated[RangeFilter, Depends(datetime_range_filter_factory("start_date", TI))],
     end_date_range: Annotated[RangeFilter, Depends(datetime_range_filter_factory("end_date", TI))],
@@ -139,12 +139,14 @@ def get_mapped_task_instances(
                     "map_index",
                     "try_number",
                     "logical_date",
+                    "run_after",
                     "data_interval_start",
                     "data_interval_end",
                     "rendered_map_index",
                 ],
                 TI,
                 to_replace={
+                    "run_after": DagRun.run_after,
                     "logical_date": DagRun.logical_date,
                     "data_interval_start": DagRun.data_interval_start,
                     "data_interval_end": DagRun.data_interval_end,
@@ -180,6 +182,7 @@ def get_mapped_task_instances(
     task_instance_select, total_entries = paginated_select(
         statement=query,
         filters=[
+            run_after_range,
             logical_date_range,
             start_date_range,
             end_date_range,
@@ -272,11 +275,15 @@ def get_task_instance_tries(
     """Get list of task instances history."""
 
     def _query(orm_object: Base) -> Select:
-        query = select(orm_object).where(
-            orm_object.dag_id == dag_id,
-            orm_object.run_id == dag_run_id,
-            orm_object.task_id == task_id,
-            orm_object.map_index == map_index,
+        query = (
+            select(orm_object)
+            .where(
+                orm_object.dag_id == dag_id,
+                orm_object.run_id == dag_run_id,
+                orm_object.task_id == task_id,
+                orm_object.map_index == map_index,
+            )
+            .options(joinedload(orm_object.dag_version))
         )
         return query
 
@@ -291,7 +298,6 @@ def get_task_instance_tries(
             status.HTTP_404_NOT_FOUND,
             f"The Task Instance with dag_id: `{dag_id}`, run_id: `{dag_run_id}`, task_id: `{task_id}` and map_index: `{map_index}` was not found",
         )
-
     return TaskInstanceHistoryCollectionResponse(
         task_instances=cast(list[TaskInstanceHistoryResponse], task_instances),
         total_entries=len(task_instances),
@@ -357,7 +363,8 @@ def get_task_instances(
     dag_run_id: str,
     request: Request,
     task_id: Annotated[FilterParam[str | None], Depends(filter_param_factory(TI.task_id, str | None))],
-    logical_date: Annotated[RangeFilter, Depends(datetime_range_filter_factory("logical_date", TI))],
+    run_after_range: Annotated[RangeFilter, Depends(datetime_range_filter_factory("run_after", TI))],
+    logical_date_range: Annotated[RangeFilter, Depends(datetime_range_filter_factory("logical_date", TI))],
     start_date_range: Annotated[RangeFilter, Depends(datetime_range_filter_factory("start_date", TI))],
     end_date_range: Annotated[RangeFilter, Depends(datetime_range_filter_factory("end_date", TI))],
     update_at_range: Annotated[RangeFilter, Depends(datetime_range_filter_factory("updated_at", TI))],
@@ -383,6 +390,7 @@ def get_task_instances(
                     "map_index",
                     "try_number",
                     "logical_date",
+                    "run_after",
                     "data_interval_start",
                     "data_interval_end",
                     "rendered_map_index",
@@ -390,6 +398,7 @@ def get_task_instances(
                 TI,
                 to_replace={
                     "logical_date": DagRun.logical_date,
+                    "run_after": DagRun.run_after,
                     "data_interval_start": DagRun.data_interval_start,
                     "data_interval_end": DagRun.data_interval_end,
                 },
@@ -424,7 +433,8 @@ def get_task_instances(
     task_instance_select, total_entries = paginated_select(
         statement=query,
         filters=[
-            logical_date,
+            run_after_range,
+            logical_date_range,
             start_date_range,
             end_date_range,
             update_at_range,
@@ -464,6 +474,10 @@ def get_task_instances_batch(
     dag_ids = FilterParam(TI.dag_id, body.dag_ids, FilterOptionEnum.IN)
     dag_run_ids = FilterParam(TI.run_id, body.dag_run_ids, FilterOptionEnum.IN)
     task_ids = FilterParam(TI.task_id, body.task_ids, FilterOptionEnum.IN)
+    run_after = RangeFilter(
+        Range(lower_bound=body.run_after_gte, upper_bound=body.run_after_lte),
+        attribute=TI.run_after,
+    )
     logical_date = RangeFilter(
         Range(lower_bound=body.logical_date_gte, upper_bound=body.logical_date_lte),
         attribute=TI.logical_date,
@@ -500,6 +514,7 @@ def get_task_instances_batch(
             dag_ids,
             dag_run_ids,
             task_ids,
+            run_after,
             logical_date,
             start_date,
             end_date,
@@ -609,12 +624,20 @@ def post_clear_task_instances(
     upstream = body.include_upstream
 
     if dag_run_id is not None:
-        dag_run: DR | None = session.scalar(select(DR).where(DR.dag_id == dag_id, DR.run_id == dag_run_id))
+        dag_run: DagRun | None = session.scalar(
+            select(DagRun).where(DagRun.dag_id == dag_id, DagRun.run_id == dag_run_id)
+        )
         if dag_run is None:
             error_message = f"Dag Run id {dag_run_id} not found in dag {dag_id}"
             raise HTTPException(status.HTTP_404_NOT_FOUND, error_message)
-        body.start_date = dag_run.logical_date
-        body.end_date = dag_run.logical_date
+
+        if past or future:
+            raise HTTPException(
+                status.HTTP_400_BAD_REQUEST,
+                "Cannot use include_past or include_future when dag_run_id is provided because logical_date is not applicable.",
+            )
+        body.start_date = dag_run.logical_date if dag_run.logical_date is not None else None
+        body.end_date = dag_run.logical_date if dag_run.logical_date is not None else None
 
     if past:
         body.start_date = None
@@ -637,6 +660,7 @@ def post_clear_task_instances(
 
     task_instances = dag.clear(
         dry_run=True,
+        run_id=None if past or future else dag_run_id,
         task_ids=task_ids,
         dag_bag=request.app.state.dag_bag,
         session=session,
@@ -659,13 +683,7 @@ def post_clear_task_instances(
         )
 
     return TaskInstanceCollectionResponse(
-        task_instances=[
-            TaskInstanceResponse.model_validate(
-                ti,
-                from_attributes=True,
-            )
-            for ti in task_instances
-        ],
+        task_instances=task_instances,
         total_entries=len(task_instances),
     )
 
@@ -775,7 +793,6 @@ def patch_task_instance_dry_run(
         task_instances=[
             TaskInstanceResponse.model_validate(
                 ti,
-                from_attributes=True,
             )
             for ti in tis
         ],
@@ -840,4 +857,4 @@ def patch_task_instance(
                     ti.task_instance_note.user_id = None
                 session.commit()
 
-    return TaskInstanceResponse.model_validate(ti, from_attributes=True)
+    return TaskInstanceResponse.model_validate(ti)

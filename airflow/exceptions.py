@@ -270,7 +270,6 @@ class DagRunAlreadyExists(AirflowBadRequest):
             state=self.dag_run.state,
             dag_id=self.dag_run.dag_id,
             run_id=self.dag_run.run_id,
-            external_trigger=self.dag_run.external_trigger,
             run_type=self.dag_run.run_type,
         )
         dag_run.id = self.dag_run.id
@@ -478,6 +477,13 @@ except ImportError:
 
 class RemovedInAirflow3Warning(DeprecationWarning):
     """Issued for usage of deprecated features that will be removed in Airflow3."""
+
+    deprecated_since: str | None = None
+    "Indicates the airflow version that started raising this deprecation warning"
+
+
+class RemovedInAirflow4Warning(DeprecationWarning):
+    """Issued for usage of deprecated features that will be removed in Airflow4."""
 
     deprecated_since: str | None = None
     "Indicates the airflow version that started raising this deprecation warning"

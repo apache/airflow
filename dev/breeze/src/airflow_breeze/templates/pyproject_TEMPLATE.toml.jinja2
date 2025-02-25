@@ -39,7 +39,7 @@
 # IF YOU WANT TO MODIFY THIS FILE EXCEPT DEPENDENCIES, YOU SHOULD MODIFY THE TEMPLATE
 # `pyproject_TEMPLATE.toml.jinja2` IN the `dev/breeze/src/airflow_breeze/templates` DIRECTORY
 [build-system]
-requires = ["flit_core==3.10.1"]
+requires = ["flit_core==3.11.0"]
 build-backend = "flit_core.buildapi"
 
 [project]
@@ -68,7 +68,7 @@ classifiers = [
     {% endfor %}
     "Topic :: System :: Monitoring",
 ]
-requires-python = "~=3.9"
+requires-python = "{{ REQUIRES_PYTHON }}"
 
 # The dependencies should be modified in place in the generated file
 # Any change in the dependencies is preserved when the file is regenerated

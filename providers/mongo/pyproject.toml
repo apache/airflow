@@ -20,12 +20,12 @@
 # IF YOU WANT TO MODIFY THIS FILE EXCEPT DEPENDENCIES, YOU SHOULD MODIFY THE TEMPLATE
 # `pyproject_TEMPLATE.toml.jinja2` IN the `dev/breeze/src/airflow_breeze/templates` DIRECTORY
 [build-system]
-requires = ["flit_core==3.10.1"]
+requires = ["flit_core==3.11.0"]
 build-backend = "flit_core.buildapi"
 
 [project]
 name = "apache-airflow-providers-mongo"
-version = "5.0.0"
+version = "5.0.1"
 description = "Provider package apache-airflow-providers-mongo for Apache Airflow"
 readme = "README.rst"
 authors = [
@@ -60,7 +60,7 @@ dependencies = [
     # pymongo 4.11 had incompatible change leading to
     # TypeError: BulkOperationBuilder.add_replace() got an unexpected keyword argument 'sort'
     # See https://github.com/apache/airflow/issues/46215
-    "pymongo>=4.0.0,!=4.11",
+    "pymongo>=4.0.0,!=4.11,!=4.11.1",
 ]
 
 # The dependency groups should be modified in place in the generated file
@@ -71,8 +71,8 @@ dev = [
 ]
 
 [project.urls]
-"Documentation" = "https://airflow.apache.org/docs/apache-airflow-providers-mongo/5.0.0"
-"Changelog" = "https://airflow.apache.org/docs/apache-airflow-providers-mongo/5.0.0/changelog.html"
+"Documentation" = "https://airflow.apache.org/docs/apache-airflow-providers-mongo/5.0.1"
+"Changelog" = "https://airflow.apache.org/docs/apache-airflow-providers-mongo/5.0.1/changelog.html"
 "Bug Tracker" = "https://github.com/apache/airflow/issues"
 "Source Code" = "https://github.com/apache/airflow"
 "Slack Chat" = "https://s.apache.org/airflow-slack"

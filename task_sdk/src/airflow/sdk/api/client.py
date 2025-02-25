@@ -39,6 +39,7 @@ from airflow.sdk.api.datamodels._generated import (
     ConnectionResponse,
     DagRunType,
     PrevSuccessfulDagRunResponse,
+    TerminalStateNonSuccess,
     TerminalTIState,
     TIDeferredStatePayload,
     TIEnterRunningPayload,
@@ -132,10 +133,12 @@ class TaskInstanceOperations:
         resp = self.client.patch(f"task-instances/{id}/run", content=body.model_dump_json())
         return TIRunContext.model_validate_json(resp.read())
 
-    def finish(self, id: uuid.UUID, state: TerminalTIState, when: datetime):
+    def finish(self, id: uuid.UUID, state: TerminalStateNonSuccess, when: datetime):
         """Tell the API server that this TI has reached a terminal state."""
+        if state == TerminalTIState.SUCCESS:
+            raise ValueError("Logic error. SUCCESS state should call the `succeed` function instead")
         # TODO: handle the naming better. finish sounds wrong as "even" deferred is essentially finishing.
-        body = TITerminalStatePayload(end_date=when, state=TerminalTIState(state))
+        body = TITerminalStatePayload(end_date=when, state=TerminalStateNonSuccess(state))
         self.client.patch(f"task-instances/{id}/state", content=body.model_dump_json())
 
     def succeed(self, id: uuid.UUID, when: datetime, task_outlets, outlet_events):
@@ -149,14 +152,14 @@ class TaskInstanceOperations:
 
     def defer(self, id: uuid.UUID, msg):
         """Tell the API server that this TI has been deferred."""
-        body = TIDeferredStatePayload(**msg.model_dump(exclude_unset=True))
+        body = TIDeferredStatePayload(**msg.model_dump(exclude_unset=True, exclude={"type"}))
 
         # Create a deferred state payload from msg
         self.client.patch(f"task-instances/{id}/state", content=body.model_dump_json())
 
     def reschedule(self, id: uuid.UUID, msg: RescheduleTask):
         """Tell the API server that this TI has been reschduled."""
-        body = TIRescheduleStatePayload(**msg.model_dump(exclude_unset=True))
+        body = TIRescheduleStatePayload(**msg.model_dump(exclude_unset=True, exclude={"type"}))
 
         # Create a reschedule state payload from msg
         self.client.patch(f"task-instances/{id}/state", content=body.model_dump_json())
@@ -179,7 +182,7 @@ class TaskInstanceOperations:
         return PrevSuccessfulDagRunResponse.model_validate_json(resp.read())
 
     def runtime_checks(self, id: uuid.UUID, msg: RuntimeCheckOnTask) -> OKResponse:
-        body = TIRuntimeCheckPayload(**msg.model_dump(exclude_unset=True))
+        body = TIRuntimeCheckPayload(**msg.model_dump(exclude_unset=True, exclude={"type"}))
         try:
             self.client.post(f"task-instances/{id}/runtime-checks", content=body.model_dump_json())
             return OKResponse(ok=True)
@@ -253,6 +256,17 @@ class XComOperations:
     def __init__(self, client: Client):
         self.client = client
 
+    def head(self, dag_id: str, run_id: str, task_id: str, key: str) -> int:
+        """Get the number of mapped XCom values."""
+        resp = self.client.head(f"xcoms/{dag_id}/{run_id}/{task_id}/{key}")
+
+        # content_range: str | None
+        if not (content_range := resp.headers["Content-Range"]) or not content_range.startswith(
+            "map_indexes "
+        ):
+            raise RuntimeError(f"Unable to parse Content-Range header from HEAD {resp.request.url}")
+        return int(content_range[len("map_indexes ") :])
+
     def get(
         self, dag_id: str, run_id: str, task_id: str, key: str, map_index: int | None = None
     ) -> XComResponse:
@@ -260,7 +274,7 @@ class XComOperations:
         # TODO: check if we need to use map_index as params in the uri
         # ref: https://github.com/apache/airflow/blob/v2-10-stable/airflow/api_connexion/openapi/v1.yaml#L1785C1-L1785C81
         params = {}
-        if map_index is not None:
+        if map_index is not None and map_index >= 0:
             params.update({"map_index": map_index})
         try:
             resp = self.client.get(f"xcoms/{dag_id}/{run_id}/{task_id}/{key}", params=params)
@@ -290,7 +304,7 @@ class XComOperations:
         # TODO: check if we need to use map_index as params in the uri
         # ref: https://github.com/apache/airflow/blob/v2-10-stable/airflow/api_connexion/openapi/v1.yaml#L1785C1-L1785C81
         params = {}
-        if map_index:
+        if map_index is not None and map_index >= 0:
             params = {"map_index": map_index}
         self.client.post(f"xcoms/{dag_id}/{run_id}/{task_id}/{key}", params=params, json=value)
         # Any error from the server will anyway be propagated down to the supervisor,
@@ -344,6 +358,7 @@ def noop_handler(request: httpx.Request) -> httpx.Response:
                     "logical_date": "2021-01-01T00:00:00Z",
                     "start_date": "2021-01-01T00:00:00Z",
                     "run_type": DagRunType.MANUAL,
+                    "run_after": "2021-01-01T00:00:00Z",
                 },
                 "max_tries": 0,
             },
@@ -369,8 +384,8 @@ class Client(httpx.Client):
         if dry_run:
             # If dry run is requested, install a no op handler so that simple tasks can "heartbeat" using a
             # real client, but just don't make any HTTP requests
-            kwargs["transport"] = httpx.MockTransport(noop_handler)
-            kwargs["base_url"] = "dry-run://server"
+            kwargs.setdefault("transport", httpx.MockTransport(noop_handler))
+            kwargs.setdefault("base_url", "dry-run://server")
         else:
             kwargs["base_url"] = base_url
         pyver = f"{'.'.join(map(str, sys.version_info[:3]))}"
@@ -427,7 +442,7 @@ class Client(httpx.Client):
     @lru_cache()  # type: ignore[misc]
     @property
     def assets(self) -> AssetOperations:
-        """Operations related to XComs."""
+        """Operations related to Assets."""
         return AssetOperations(self)
 
 

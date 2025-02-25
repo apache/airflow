@@ -70,6 +70,7 @@ from airflow.sdk.execution_time.comms import (
     GetPrevSuccessfulDagRun,
     GetVariable,
     GetXCom,
+    GetXComCount,
     PrevSuccessfulDagRunResult,
     PutVariable,
     RescheduleTask,
@@ -81,6 +82,7 @@ from airflow.sdk.execution_time.comms import (
     TaskState,
     ToSupervisor,
     VariableResult,
+    XComCountResponse,
     XComResult,
 )
 
@@ -302,7 +304,7 @@ class WatchedSubprocess:
     stdin: BinaryIO
     """The handle connected to stdin of the child process"""
 
-    decoder: TypeAdapter
+    decoder: ClassVar[TypeAdapter]
     """The decoder to use for incoming messages from the child process."""
 
     _process: psutil.Process
@@ -582,7 +584,7 @@ class ActivitySubprocess(WatchedSubprocess):
     TASK_OVERTIME_THRESHOLD: ClassVar[float] = 20.0
     _task_end_time_monotonic: float | None = attrs.field(default=None, init=False)
 
-    decoder: TypeAdapter[ToSupervisor] = TypeAdapter(ToSupervisor)
+    decoder: ClassVar[TypeAdapter[ToSupervisor]] = TypeAdapter(ToSupervisor)
 
     @classmethod
     def start(  # type: ignore[override]
@@ -604,11 +606,12 @@ class ActivitySubprocess(WatchedSubprocess):
 
     def _on_child_started(self, ti: TaskInstance, dag_rel_path: str | os.PathLike[str], bundle_info):
         """Send startup message to the subprocess."""
+        start_date = datetime.now(tz=timezone.utc)
         try:
             # We've forked, but the task won't start doing anything until we send it the StartupDetails
             # message. But before we do that, we need to tell the server it's started (so it has the chance to
             # tell us "no, stop!" for any reason)
-            ti_context = self.client.task_instances.start(ti.id, self.pid, datetime.now(tz=timezone.utc))
+            ti_context = self.client.task_instances.start(ti.id, self.pid, start_date)
             self._last_successful_heartbeat = time.monotonic()
         except Exception:
             # On any error kill that subprocess!
@@ -621,6 +624,7 @@ class ActivitySubprocess(WatchedSubprocess):
             bundle_info=bundle_info,
             requests_fd=self._requests_fd,
             ti_context=ti_context,
+            start_date=start_date,
         )
 
         # Send the message to tell the process what it needs to execute
@@ -694,7 +698,6 @@ class ActivitySubprocess(WatchedSubprocess):
         # If the task has reached a terminal state, we can start monitoring the overtime
         if not self._terminal_state:
             return
-
         if (
             self._task_end_time_monotonic
             and (time.monotonic() - self._task_end_time_monotonic) > self.TASK_OVERTIME_THRESHOLD
@@ -773,6 +776,7 @@ class ActivitySubprocess(WatchedSubprocess):
             resp = runtime_check_resp.model_dump_json().encode()
         elif isinstance(msg, SucceedTask):
             self._terminal_state = msg.state
+            self._task_end_time_monotonic = time.monotonic()
             self.client.task_instances.succeed(
                 id=self.id,
                 when=msg.end_date,
@@ -783,7 +787,7 @@ class ActivitySubprocess(WatchedSubprocess):
             conn = self.client.connections.get(msg.conn_id)
             if isinstance(conn, ConnectionResponse):
                 conn_result = ConnectionResult.from_conn_response(conn)
-                resp = conn_result.model_dump_json(exclude_unset=True).encode()
+                resp = conn_result.model_dump_json(exclude_unset=True, by_alias=True).encode()
             else:
                 resp = conn.model_dump_json().encode()
         elif isinstance(msg, GetVariable):
@@ -797,6 +801,9 @@ class ActivitySubprocess(WatchedSubprocess):
             xcom = self.client.xcoms.get(msg.dag_id, msg.run_id, msg.task_id, msg.key, msg.map_index)
             xcom_result = XComResult.from_xcom_response(xcom)
             resp = xcom_result.model_dump_json().encode()
+        elif isinstance(msg, GetXComCount):
+            len = self.client.xcoms.head(msg.dag_id, msg.run_id, msg.task_id, msg.key)
+            resp = XComCountResponse(len=len).model_dump_json().encode()
         elif isinstance(msg, DeferTask):
             self._terminal_state = IntermediateTIState.DEFERRED
             self.client.task_instances.defer(self.id, msg)
@@ -930,6 +937,7 @@ def supervise(
     Run a single task execution to completion.
 
     :param ti: The task instance to run.
+    :param dr: Current DagRun of the task instance.
     :param dag_path: The file path to the DAG.
     :param token: Authentication token for the API client.
     :param server: Base URL of the API server.

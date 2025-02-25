@@ -20,6 +20,7 @@ from __future__ import annotations
 import fnmatch
 import json
 import os
+import re
 import subprocess
 import sys
 from collections.abc import Iterable
@@ -32,6 +33,7 @@ from rich.syntax import Syntax
 
 from airflow_breeze.global_constants import (
     ALLOWED_PYTHON_MAJOR_MINOR_VERSIONS,
+    DEFAULT_PYTHON_MAJOR_MINOR_VERSION,
     PROVIDER_DEPENDENCIES,
     PROVIDER_RUNTIME_DATA_SCHEMA_PATH,
     REGULAR_DOC_PACKAGES,
@@ -43,16 +45,11 @@ from airflow_breeze.utils.path_utils import (
     AIRFLOW_PROVIDERS_DIR,
     BREEZE_SOURCES_DIR,
     DOCS_ROOT,
-    GENERATED_PROVIDER_PACKAGES_DIR,
-    OLD_AIRFLOW_PROVIDERS_NS_PACKAGE,
-    OLD_AIRFLOW_PROVIDERS_SRC_DIR,
+    PREVIOUS_AIRFLOW_PROVIDERS_NS_PACKAGE,
     PROVIDER_DEPENDENCIES_JSON_FILE_PATH,
 )
 from airflow_breeze.utils.publish_docs_helpers import (
-    # TODO(potiuk) - rename when all providers are new-style
-    NEW_PROVIDER_DATA_SCHEMA_PATH,
-    # TODO(potiuk) - remove when all providers are new-style
-    OLD_PROVIDER_DATA_SCHEMA_PATH,
+    PROVIDER_DATA_SCHEMA_PATH,
 )
 from airflow_breeze.utils.run_utils import run_command
 from airflow_breeze.utils.version_utils import remove_local_version_suffix
@@ -81,16 +78,15 @@ class PluginInfo(NamedTuple):
 class ProviderPackageDetails(NamedTuple):
     provider_id: str
     provider_yaml_path: Path
-    is_new_structure: bool
     source_date_epoch: int
     full_package_name: str
     pypi_package_name: str
     original_source_provider_package_path: Path
-    old_source_provider_package_path: Path
     root_provider_path: Path
     base_provider_package_path: Path
     documentation_provider_package_path: Path
-    old_documentation_provider_package_path: Path
+    previous_documentation_provider_package_path: Path
+    previous_source_provider_package_path: Path
     changelog_path: Path
     provider_description: str
     dependencies: list[str]
@@ -134,17 +130,9 @@ class PipRequirements(NamedTuple):
         return cls(package=package, version_required=version_required.strip())
 
 
-# TODO(potiuk) - remove when all providers are new-style
 @clearable_cache
-def old_provider_yaml_schema() -> dict[str, Any]:
-    with open(OLD_PROVIDER_DATA_SCHEMA_PATH) as schema_file:
-        return json.load(schema_file)
-
-
-# TODO(potiuk) - rename when all providers are new-style
-@clearable_cache
-def new_provider_yaml_schema() -> dict[str, Any]:
-    with open(NEW_PROVIDER_DATA_SCHEMA_PATH) as schema_file:
+def provider_yaml_schema() -> dict[str, Any]:
+    with open(PROVIDER_DATA_SCHEMA_PATH) as schema_file:
         return json.load(schema_file)
 
 
@@ -152,44 +140,23 @@ PROVIDER_METADATA: dict[str, dict[str, Any]] = {}
 
 
 def refresh_provider_metadata_from_yaml_file(provider_yaml_path: Path):
-    # TODO(potiuk) - this should be removed once we have all providers in the new structure
-    is_old_provider_structure = provider_yaml_path.is_relative_to(OLD_AIRFLOW_PROVIDERS_SRC_DIR)
     import yaml
 
-    if is_old_provider_structure:
-        schema = old_provider_yaml_schema()
-    else:
-        schema = new_provider_yaml_schema()
     with open(provider_yaml_path) as yaml_file:
         provider_yaml_content = yaml.safe_load(yaml_file)
-    try:
-        import jsonschema
-
-        try:
-            if provider_yaml_path.is_relative_to(OLD_AIRFLOW_PROVIDERS_SRC_DIR):
-                jsonschema.validate(provider_yaml_content, schema=schema)
-        except jsonschema.ValidationError as ex:
-            msg = f"Unable to parse: {provider_yaml_path}. Original error {type(ex).__name__}: {ex}"
-            raise RuntimeError(msg)
-    except ImportError:
-        # we only validate the schema if jsonschema is available. This is needed for autocomplete
-        # to not fail with import error if jsonschema is not installed
-        pass
     provider_id = get_short_package_name(provider_yaml_content["package-name"])
     PROVIDER_METADATA[provider_id] = provider_yaml_content
-    # TODO(potiuk) - remove if when all providers are new-style
-    if not is_old_provider_structure:
-        toml_content = load_pyproject_toml(provider_yaml_path.parent / "pyproject.toml")
-        dependencies = toml_content["project"].get("dependencies")
-        if dependencies:
-            PROVIDER_METADATA[provider_id]["dependencies"] = dependencies
-        optional_dependencies = toml_content["project"].get("optional-dependencies")
-        if optional_dependencies:
-            PROVIDER_METADATA[provider_id]["optional-dependencies"] = optional_dependencies
-        dependency_groups = toml_content.get("dependency-groups")
-        if dependency_groups and dependency_groups.get("dev"):
-            devel_dependencies = dependency_groups.get("dev")
-            PROVIDER_METADATA[provider_id]["devel-dependencies"] = devel_dependencies
+    toml_content = load_pyproject_toml(provider_yaml_path.parent / "pyproject.toml")
+    dependencies = toml_content["project"].get("dependencies")
+    if dependencies:
+        PROVIDER_METADATA[provider_id]["dependencies"] = dependencies
+    optional_dependencies = toml_content["project"].get("optional-dependencies")
+    if optional_dependencies:
+        PROVIDER_METADATA[provider_id]["optional-dependencies"] = optional_dependencies
+    dependency_groups = toml_content.get("dependency-groups")
+    if dependency_groups and dependency_groups.get("dev"):
+        devel_dependencies = dependency_groups.get("dev")
+        PROVIDER_METADATA[provider_id]["devel-dependencies"] = devel_dependencies
 
 
 def clear_cache_for_provider_metadata(provider_yaml_path: Path):
@@ -449,28 +416,25 @@ def find_matching_long_package_names(
     )
 
 
-# We should not remove those old/original package paths as they are used to get changes
-# When documentation is generated
+# !!!! We should not remove those old/original package paths as they are used to get changes
+# When documentation is generated using git_log
 def get_original_source_package_path(provider_id: str) -> Path:
     return AIRFLOW_ORIGINAL_PROVIDERS_DIR.joinpath(*provider_id.split("."))
 
 
-def get_old_source_providers_package_path(provider_id: str) -> Path:
-    return OLD_AIRFLOW_PROVIDERS_NS_PACKAGE.joinpath(*provider_id.split("."))
+def get_previous_source_providers_package_path(provider_id: str) -> Path:
+    return PREVIOUS_AIRFLOW_PROVIDERS_NS_PACKAGE.joinpath(*provider_id.split("."))
 
 
-# TODO(potiuk) - this should be removed once we have all providers in the new structure
-def get_old_documentation_package_path(provider_id: str) -> Path:
+def get_previous_documentation_package_path(provider_id: str) -> Path:
     return DOCS_ROOT / f"apache-airflow-providers-{provider_id.replace('.', '-')}"
 
 
-def get_new_documentation_package_path(provider_id: str) -> Path:
+# End of do not remove those package paths.
+
+
+def get_documentation_package_path(provider_id: str) -> Path:
     return AIRFLOW_PROVIDERS_DIR.joinpath(*provider_id.split(".")) / "docs"
-
-
-# TODO(potiuk) - this should be removed once we have all providers in the new structure
-def get_target_root_for_copied_provider_sources(provider_id: str) -> Path:
-    return GENERATED_PROVIDER_PACKAGES_DIR.joinpath(*provider_id.split("."))
 
 
 def get_pip_package_name(provider_id: str) -> str:
@@ -522,111 +486,8 @@ def apply_version_suffix(install_clause: str, version_suffix: str) -> str:
     return install_clause
 
 
-# TODO(potiuk): remove this function once we have all providers in the new structure
-def get_install_requirements_for_old_providers(provider_id: str, version_suffix: str) -> str:
-    """
-    Returns install requirements for the package.
-
-    :param provider_id: id of the provider package
-    :param version_suffix: optional version suffix for packages
-
-    :return: install requirements of the package
-    """
-    if provider_id in get_removed_provider_ids():
-        dependencies = get_provider_requirements(provider_id)
-    else:
-        dependencies = PROVIDER_DEPENDENCIES.get(provider_id)["deps"]
-    install_requires = [
-        apply_version_suffix(clause, version_suffix).replace('"', '\\"') for clause in dependencies
-    ]
-    return "\n".join(f'    "{ir}",' for ir in install_requires)
-
-
-# TODO(potiuk): remove this function once we have all providers in the new structure
-def get_package_extras_for_old_providers(provider_id: str, version_suffix: str) -> str:
-    """
-    Finds extras for the package specified.
-
-    :param provider_id: id of the package
-    """
-
-    if provider_id == "providers":
-        return ""
-    if provider_id in get_removed_provider_ids():
-        return ""
-
-    from packaging.requirements import Requirement
-
-    deps_list = list(
-        map(
-            lambda x: Requirement(x).name,
-            PROVIDER_DEPENDENCIES.get(provider_id)["deps"],
-        )
-    )
-    deps = list(filter(lambda x: x.startswith("apache-airflow-providers"), deps_list))
-    extras_dict: dict[str, list[str]] = {
-        module: [get_pip_package_name(module)]
-        for module in PROVIDER_DEPENDENCIES.get(provider_id)["cross-providers-deps"]
-    }
-
-    to_pop_extras = []
-    # remove the keys from extras_dict if the provider is already a required dependency
-    for k, v in extras_dict.items():
-        if v and v[0] in deps:
-            to_pop_extras.append(k)
-
-    for k in to_pop_extras:
-        get_console().print(f"[warning]Removing {k} from extras as it is already a required dependency")
-        del extras_dict[k]
-
-    provider_yaml_dict = get_provider_packages_metadata().get(provider_id)
-    additional_extras = provider_yaml_dict.get("additional-extras") if provider_yaml_dict else None
-    if additional_extras:
-        for entry in additional_extras:
-            name = entry["name"]
-            dependencies = entry["dependencies"]
-            if name in extras_dict:
-                # remove non-versioned dependencies if versioned ones are coming
-                existing_dependencies = set(extras_dict[name])
-                for new_dependency in dependencies:
-                    for dependency in existing_dependencies:
-                        # remove extra if exists as non-versioned one
-                        if new_dependency.startswith(dependency):
-                            extras_dict[name].remove(dependency)
-                            break
-                    extras_dict[name].append(new_dependency)
-            else:
-                extras_dict[name] = dependencies
-    for extra, dependencies in extras_dict.items():
-        extras_dict[extra] = [apply_version_suffix(clause, version_suffix) for clause in dependencies]
-
-    extras_requirements_list = []
-    for extra_name in sorted(extras_dict.keys()):
-        dependencies_list = extras_dict[extra_name]
-        if not dependencies_list:
-            continue
-        extras_requirements_list.append(f'"{extra_name}" = [')
-        for dependency in dependencies_list:
-            escaped_dependency = dependency.replace('"', '\\"')
-            extras_requirements_list.append(f'     "{escaped_dependency}",')
-        extras_requirements_list.append("]")
-    return "\n".join(extras_requirements_list)
-
-
-# TODO(potiuk) - this should be simplified once we have all providers in the new structure
-def get_provider_yaml(provider_id: str) -> tuple[Path, bool]:
-    new_structure_provider_path = AIRFLOW_PROVIDERS_DIR / provider_id.replace(".", "/") / "provider.yaml"
-    if new_structure_provider_path.exists():
-        return new_structure_provider_path, True
-    else:
-        return (
-            OLD_AIRFLOW_PROVIDERS_SRC_DIR
-            / "airflow"
-            / "providers"
-            / provider_id.replace(".", "/")
-            / "provider.yaml",
-            False,
-        )
+def get_provider_yaml(provider_id: str) -> Path:
+    return AIRFLOW_PROVIDERS_DIR / provider_id.replace(".", "/") / "provider.yaml"
 
 
 def load_pyproject_toml(pyproject_toml_file_path: Path) -> dict[str, Any]:
@@ -659,35 +520,27 @@ def get_provider_details(provider_id: str) -> ProviderPackageDetails:
                     class_name=class_name,
                 )
             )
-    provider_yaml_path, is_new_structure = get_provider_yaml(provider_id)
-    if is_new_structure:
-        pyproject_toml = load_pyproject_toml(provider_yaml_path.parent / "pyproject.toml")
-        dependencies = pyproject_toml["project"]["dependencies"]
-        changelog_path = provider_yaml_path.parent / "docs" / "changelog.rst"
-        documentation_provider_package_path = get_new_documentation_package_path(provider_id)
-        root_provider_path = provider_yaml_path.parent
-        base_provider_package_path = (provider_yaml_path.parent / "src" / "airflow" / "providers").joinpath(
-            *provider_id.split(".")
-        )
-    else:
-        dependencies = provider_info["dependencies"]
-        changelog_path = get_old_source_providers_package_path(provider_id) / "CHANGELOG.rst"
-        documentation_provider_package_path = get_old_documentation_package_path(provider_id)
-        root_provider_path = get_old_source_providers_package_path(provider_id)
-        base_provider_package_path = get_old_source_providers_package_path(provider_id)
+    provider_yaml_path = get_provider_yaml(provider_id)
+    pyproject_toml = load_pyproject_toml(provider_yaml_path.parent / "pyproject.toml")
+    dependencies = pyproject_toml["project"]["dependencies"]
+    changelog_path = provider_yaml_path.parent / "docs" / "changelog.rst"
+    documentation_provider_package_path = get_documentation_package_path(provider_id)
+    root_provider_path = provider_yaml_path.parent
+    base_provider_package_path = (provider_yaml_path.parent / "src" / "airflow" / "providers").joinpath(
+        *provider_id.split(".")
+    )
     return ProviderPackageDetails(
         provider_id=provider_id,
         provider_yaml_path=provider_yaml_path,
-        is_new_structure=is_new_structure,
         source_date_epoch=provider_info["source-date-epoch"],
         full_package_name=f"airflow.providers.{provider_id}",
         pypi_package_name=f"apache-airflow-providers-{provider_id.replace('.', '-')}",
         root_provider_path=root_provider_path,
         base_provider_package_path=base_provider_package_path,
-        old_source_provider_package_path=get_old_source_providers_package_path(provider_id),
         original_source_provider_package_path=get_original_source_package_path(provider_id),
+        previous_documentation_provider_package_path=get_previous_documentation_package_path(provider_id),
+        previous_source_provider_package_path=get_previous_source_providers_package_path(provider_id),
         documentation_provider_package_path=documentation_provider_package_path,
-        old_documentation_provider_package_path=get_old_documentation_package_path(provider_id),
         changelog_path=changelog_path,
         provider_description=provider_info["description"],
         dependencies=dependencies,
@@ -788,6 +641,12 @@ def get_provider_jinja_context(
         p for p in ALLOWED_PYTHON_MAJOR_MINOR_VERSIONS if p not in provider_details.excluded_python_versions
     ]
     cross_providers_dependencies = get_cross_provider_dependent_packages(provider_package_id=provider_id)
+
+    # Most providers require the same python versions, but some may have exclusions
+    requires_python_version: str = f"~={DEFAULT_PYTHON_MAJOR_MINOR_VERSION}"
+    for excluded_python_version in provider_details.excluded_python_versions:
+        requires_python_version += f",!={excluded_python_version}"
+
     context: dict[str, Any] = {
         "PROVIDER_ID": provider_details.provider_id,
         "PACKAGE_PIP_NAME": get_pip_package_name(provider_details.provider_id),
@@ -798,16 +657,6 @@ def get_provider_jinja_context(
         "VERSION_SUFFIX": format_version_suffix(version_suffix),
         "PIP_REQUIREMENTS": get_provider_requirements(provider_details.provider_id),
         "PROVIDER_DESCRIPTION": provider_details.provider_description,
-        # TODO(potiuk) - remove when all providers are new-style
-        "INSTALL_REQUIREMENTS": get_install_requirements_for_old_providers(
-            provider_id=provider_details.provider_id, version_suffix=version_suffix
-        ),
-        # TODO(potiuk) - remove when all providers are new-style
-        "EXTRAS_REQUIREMENTS": get_package_extras_for_old_providers(
-            provider_id=provider_details.provider_id, version_suffix=version_suffix
-        ),
-        # TODO(potiuk) - remove when all providers are new-style
-        "DEPENDENCY_GROUPS": {},
         "CHANGELOG_RELATIVE_PATH": os.path.relpath(
             provider_details.root_provider_path,
             provider_details.documentation_provider_package_path,
@@ -825,6 +674,7 @@ def get_provider_jinja_context(
         "PIP_REQUIREMENTS_TABLE_RST": convert_pip_requirements_to_table(
             get_provider_requirements(provider_id), markdown=False
         ),
+        "REQUIRES_PYTHON": requires_python_version,
     }
     return context
 
@@ -961,3 +811,90 @@ def get_latest_provider_tag(provider_id: str, suffix: str) -> str:
     provider_details = get_provider_details(provider_id)
     current_version = provider_details.versions[0]
     return get_version_tag(current_version, provider_id, suffix)
+
+
+def regenerate_pyproject_toml(
+    context: dict[str, Any], provider_details: ProviderPackageDetails, version_suffix: str | None
+):
+    get_pyproject_toml_path = provider_details.root_provider_path / "pyproject.toml"
+    # we want to preserve comments in dependencies - both required and additional,
+    # so we should not really parse the toml file but extract dependencies "as is" in text form and pass
+    # them to context. While this is not "generic toml" perfect, for provider pyproject.toml files it is
+    # good enough, because we fully control the pyproject.toml content for providers as they are generated
+    # from our templates (Except the dependencies section that is manually updated)
+    pyproject_toml_content = get_pyproject_toml_path.read_text()
+    required_dependencies: list[str] = []
+    optional_dependencies: list[str] = []
+    dependency_groups: list[str] = []
+    in_required_dependencies = False
+    in_optional_dependencies = False
+    in_dependency_groups = False
+    for line in pyproject_toml_content.splitlines():
+        if line == "dependencies = [":
+            in_required_dependencies = True
+            continue
+        if in_required_dependencies and line == "]":
+            in_required_dependencies = False
+            continue
+        if line == "[dependency-groups]":
+            in_dependency_groups = True
+            continue
+        if in_dependency_groups and line == "":
+            in_dependency_groups = False
+            continue
+        if in_dependency_groups and line.startswith("["):
+            in_dependency_groups = False
+        if line == "[project.optional-dependencies]":
+            in_optional_dependencies = True
+            continue
+        if in_optional_dependencies and line == "":
+            in_optional_dependencies = False
+            continue
+        if in_optional_dependencies and line.startswith("["):
+            in_optional_dependencies = False
+        if in_required_dependencies:
+            required_dependencies.append(line)
+        if in_optional_dependencies:
+            optional_dependencies.append(line)
+        if in_dependency_groups:
+            dependency_groups.append(line)
+    matcher = re.compile(r"(^.*\")(apache-airflow.*>=[\d.]*)(\".*)$")
+    # For additional providers we want to load the dependencies and see if cross-provider-dependencies are
+    # present and if not, add them to the optional dependencies
+    if version_suffix:
+        new_dependencies = []
+        for dependency in required_dependencies:
+            match = matcher.match(dependency)
+            if match:
+                specifier_with_version_suffix = apply_version_suffix(match.group(2), version_suffix)
+                new_dependencies.append(match.group(1) + specifier_with_version_suffix + match.group(3))
+            else:
+                new_dependencies.append(dependency)
+        required_dependencies = new_dependencies
+    context["INSTALL_REQUIREMENTS"] = "\n".join(required_dependencies)
+
+    # Add cross-provider dependencies to the optional dependencies if they are missing
+    for module in PROVIDER_DEPENDENCIES.get(provider_details.provider_id)["cross-providers-deps"]:
+        if f'"{module}" = [' not in optional_dependencies and get_pip_package_name(module) not in "\n".join(
+            required_dependencies
+        ):
+            optional_dependencies.append(f'"{module}" = [')
+            optional_dependencies.append(f'    "{get_pip_package_name(module)}"')
+            optional_dependencies.append("]")
+    context["EXTRAS_REQUIREMENTS"] = "\n".join(optional_dependencies)
+    context["DEPENDENCY_GROUPS"] = "\n".join(dependency_groups)
+
+    get_pyproject_toml_content = render_template(
+        template_name="pyproject",
+        context=context,
+        extension=".toml",
+        autoescape=False,
+        lstrip_blocks=True,
+        trim_blocks=True,
+        keep_trailing_newline=True,
+    )
+
+    get_pyproject_toml_path.write_text(get_pyproject_toml_content)
+    get_console().print(
+        f"[info]Generated {get_pyproject_toml_path} for the {provider_details.provider_id} provider\n"
+    )

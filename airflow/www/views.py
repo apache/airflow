@@ -114,6 +114,7 @@ from airflow.models.taskinstance import TaskInstance, TaskInstanceNote
 from airflow.plugins_manager import PLUGINS_ATTRIBUTES_TO_DUMP
 from airflow.providers_manager import ProvidersManager
 from airflow.sdk.definitions.asset import Asset, AssetAlias
+from airflow.sdk.execution_time import secrets_masker
 from airflow.security import permissions
 from airflow.ti_deps.dep_context import DepContext
 from airflow.ti_deps.dependencies_deps import SCHEDULER_QUEUED_DEPS
@@ -127,7 +128,6 @@ from airflow.utils.dag_edges import dag_edges
 from airflow.utils.db import get_query_count
 from airflow.utils.docs import get_doc_url_for_provider, get_docs_url
 from airflow.utils.helpers import exactly_one
-from airflow.utils.log import secrets_masker
 from airflow.utils.log.log_reader import TaskLogReader
 from airflow.utils.net import get_hostname
 from airflow.utils.session import NEW_SESSION, create_session, provide_session
@@ -2032,7 +2032,8 @@ class Airflow(AirflowBaseView):
         origin = get_safe_url(request.values.get("origin"))
         unpause = request.values.get("unpause")
         request_conf = request.values.get("conf")
-        request_logical_date = request.values.get("logical_date", default=timezone.utcnow().isoformat())
+        request_logical_date = request.values.get("logical_date")
+        request_run_after = request.values.get("run_after", default=timezone.utcnow().isoformat())
         is_dag_run_conf_overrides_params = conf.getboolean("core", "dag_run_conf_overrides_params")
         dag = get_airflow_app().dag_bag.get_dag(dag_id)
         dag_orm: DagModel = session.scalar(select(DagModel).where(DagModel.dag_id == dag_id).limit(1))
@@ -2148,10 +2149,23 @@ class Airflow(AirflowBaseView):
             )
 
         try:
-            logical_date = timezone.parse(request_logical_date, strict=True)
+            logical_date = timezone.parse(request_logical_date, strict=True) if request_logical_date else None
         except ParserError:
             flash("Invalid logical date", "error")
             form = DateTimeForm(data={"logical_date": timezone.utcnow().isoformat()})
+            return self.render_template(
+                "airflow/trigger.html",
+                form_fields=form_fields,
+                **render_params,
+                conf=request_conf or {},
+                form=form,
+            )
+
+        try:
+            run_after = timezone.parse(request_run_after, strict=True)
+        except ParserError:
+            flash("Invalid run_after", "error")
+            form = DateTimeForm(data={"run_after": timezone.utcnow().isoformat()})
             return self.render_template(
                 "airflow/trigger.html",
                 form_fields=form_fields,
@@ -2224,12 +2238,17 @@ class Airflow(AirflowBaseView):
                     "warning",
                 )
 
-        data_interval = dag.timetable.infer_manual_data_interval(run_after=logical_date)
+        if logical_date:
+            data_interval = dag.timetable.infer_manual_data_interval(run_after=logical_date or run_after)
+            run_after = data_interval.end
+        else:
+            data_interval = None
+
         if not run_id:
-            run_id = dag.timetable.generate_run_id(
-                logical_date=logical_date,
-                data_interval=data_interval,
+            run_id = DagRun.generate_run_id(
                 run_type=DagRunType.MANUAL,
+                logical_date=logical_date,
+                run_after=run_after,
             )
 
         try:
@@ -2237,11 +2256,10 @@ class Airflow(AirflowBaseView):
                 run_id=run_id,
                 logical_date=logical_date,
                 data_interval=data_interval,
-                run_after=data_interval.end,
+                run_after=run_after,
                 conf=run_conf,
                 run_type=DagRunType.MANUAL,
                 triggered_by=DagRunTriggeredByType.UI,
-                external_trigger=True,
                 dag_version=DagVersion.get_latest_version(dag.dag_id),
                 state=DagRunState.QUEUED,
                 session=session,
@@ -4785,7 +4803,6 @@ class DagRunModelView(AirflowModelView):
         "start_date",
         "end_date",
         "note",
-        "external_trigger",
         "conf",
         "duration",
     ]
@@ -4798,7 +4815,6 @@ class DagRunModelView(AirflowModelView):
         "start_date",
         "end_date",
         "note",
-        "external_trigger",
     ]
     label_columns = {
         "logical_date": "Logical Date",
@@ -4824,7 +4840,6 @@ class DagRunModelView(AirflowModelView):
         "start_date",
         "end_date",
         # "note", # todo: maybe figure out how to re-enable this
-        "external_trigger",
         "conf",
     ]
 

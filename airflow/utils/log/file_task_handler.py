@@ -33,16 +33,13 @@ import pendulum
 from airflow.configuration import conf
 from airflow.exceptions import AirflowException
 from airflow.executors.executor_loader import ExecutorLoader
-from airflow.sdk.definitions.context import Context
-from airflow.utils.helpers import parse_template_string, render_template_to_string
+from airflow.utils.helpers import parse_template_string, render_template
 from airflow.utils.log.logging_mixin import SetContextPropagate
 from airflow.utils.log.non_caching_file_handler import NonCachingRotatingFileHandler
 from airflow.utils.session import NEW_SESSION, provide_session
 from airflow.utils.state import State, TaskInstanceState
 
 if TYPE_CHECKING:
-    from pendulum import DateTime
-
     from airflow.executors.base_executor import BaseExecutor
     from airflow.models.taskinstance import TaskInstance
     from airflow.models.taskinstancekey import TaskInstanceKey
@@ -269,30 +266,17 @@ class FileTaskHandler(logging.Handler):
         """Return the worker log filename."""
         ti = _ensure_ti(ti, session)
         dag_run = ti.get_dagrun(session=session)
+
+        date = dag_run.logical_date or dag_run.run_after
+        date = date.isoformat()
+
         template = dag_run.get_log_template(session=session).filename
         str_tpl, jinja_tpl = parse_template_string(template)
-        filename = None
         if jinja_tpl:
-            if getattr(ti, "task", None) is not None:
-                context = ti.get_template_context(session=session)
-            else:
-                context = Context(ti=ti, ts=dag_run.logical_date.isoformat())
-            context["try_number"] = try_number
-            filename = render_template_to_string(jinja_tpl, context)
-        if filename:
-            return filename
-        if str_tpl:
-            if ti.task is not None and ti.task.dag is not None:
-                dag = ti.task.dag
-                # TODO: TaskSDK: why do we need this on the DAG! Where is this render fn called from. Revisit
-                data_interval = dag.get_run_data_interval(dag_run)  # type: ignore[attr-defined]
-            else:
-                from airflow.timetables.base import DataInterval
+            return render_template(jinja_tpl, {"ti": ti, "ts": date, "try_number": try_number}, native=False)
 
-                if TYPE_CHECKING:
-                    assert isinstance(dag_run.data_interval_start, DateTime)
-                    assert isinstance(dag_run.data_interval_end, DateTime)
-                data_interval = DataInterval(dag_run.data_interval_start, dag_run.data_interval_end)
+        if str_tpl:
+            data_interval = (dag_run.data_interval_start, dag_run.data_interval_end)
             if data_interval[0]:
                 data_interval_start = data_interval[0].isoformat()
             else:
@@ -307,7 +291,7 @@ class FileTaskHandler(logging.Handler):
                 run_id=ti.run_id,
                 data_interval_start=data_interval_start,
                 data_interval_end=data_interval_end,
-                logical_date=ti.get_dagrun().logical_date.isoformat(),
+                logical_date=date,
                 try_number=try_number,
             )
         else:

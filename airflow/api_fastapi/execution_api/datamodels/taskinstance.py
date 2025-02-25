@@ -14,11 +14,11 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-
 from __future__ import annotations
 
 import uuid
 from datetime import timedelta
+from enum import Enum
 from typing import Annotated, Any, Literal, Union
 
 from pydantic import (
@@ -60,15 +60,20 @@ class TIEnterRunningPayload(StrictBaseModel):
     """When the task started executing"""
 
 
+# Create an enum to give a nice name in the generated datamodels
+class TerminalStateNonSuccess(str, Enum):
+    """TaskInstance states that can be reported without extra information."""
+
+    FAILED = TerminalTIState.FAILED
+    SKIPPED = TerminalTIState.SKIPPED
+    REMOVED = TerminalTIState.REMOVED
+    FAIL_WITHOUT_RETRY = TerminalTIState.FAIL_WITHOUT_RETRY
+
+
 class TITerminalStatePayload(StrictBaseModel):
     """Schema for updating TaskInstance to a terminal state except SUCCESS state."""
 
-    state: Literal[
-        TerminalTIState.FAILED,
-        TerminalTIState.SKIPPED,
-        TerminalTIState.REMOVED,
-        TerminalTIState.FAIL_WITHOUT_RETRY,
-    ]
+    state: TerminalStateNonSuccess
 
     end_date: UtcDateTime
     """When the task completed executing"""
@@ -216,15 +221,15 @@ class DagRun(StrictBaseModel):
     dag_id: str
     run_id: str
 
-    logical_date: UtcDateTime
+    logical_date: UtcDateTime | None
     data_interval_start: UtcDateTime | None
     data_interval_end: UtcDateTime | None
     run_after: UtcDateTime
     start_date: UtcDateTime
     end_date: UtcDateTime | None
+    clear_number: int = 0
     run_type: DagRunType
     conf: Annotated[dict[str, Any], Field(default_factory=dict)]
-    external_trigger: bool = False
 
 
 class TIRunContext(BaseModel):
@@ -232,6 +237,9 @@ class TIRunContext(BaseModel):
 
     dag_run: DagRun
     """DAG run information for the task instance."""
+
+    task_reschedule_count: Annotated[int, Field(default=0)]
+    """How many times the task has been rescheduled."""
 
     max_tries: int
     """Maximum number of tries for the task instance (from DB)."""
@@ -241,6 +249,8 @@ class TIRunContext(BaseModel):
 
     connections: Annotated[list[ConnectionResponse], Field(default_factory=list)]
     """Connections that can be accessed by the task instance."""
+
+    upstream_map_indexes: dict[str, int] | None = None
 
 
 class PrevSuccessfulDagRunResponse(BaseModel):
@@ -252,7 +262,7 @@ class PrevSuccessfulDagRunResponse(BaseModel):
     end_date: UtcDateTime | None = None
 
 
-class TIRuntimeCheckPayload(BaseModel):
+class TIRuntimeCheckPayload(StrictBaseModel):
     """Payload for performing Runtime checks on the TaskInstance model as requested by the SDK."""
 
     inlets: list[AssetProfile] | None = None

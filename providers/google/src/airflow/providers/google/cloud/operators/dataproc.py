@@ -49,11 +49,6 @@ from airflow.providers.google.cloud.links.dataproc import (
     DataprocWorkflowLink,
     DataprocWorkflowTemplateLink,
 )
-from airflow.providers.google.cloud.openlineage.utils import (
-    inject_openlineage_properties_into_dataproc_batch,
-    inject_openlineage_properties_into_dataproc_job,
-    inject_openlineage_properties_into_dataproc_workflow_template,
-)
 from airflow.providers.google.cloud.operators.cloud_base import GoogleCloudBaseOperator
 from airflow.providers.google.cloud.triggers.dataproc import (
     DataprocBatchTrigger,
@@ -1858,12 +1853,7 @@ class DataprocInstantiateInlineWorkflowTemplateOperator(GoogleCloudBaseOperator)
         project_id = self.project_id or hook.project_id
         if self.openlineage_inject_parent_job_info or self.openlineage_inject_transport_info:
             self.log.info("Automatic injection of OpenLineage information into Spark properties is enabled.")
-            self.template = inject_openlineage_properties_into_dataproc_workflow_template(
-                template=self.template,
-                context=context,
-                inject_parent_job_info=self.openlineage_inject_parent_job_info,
-                inject_transport_info=self.openlineage_inject_transport_info,
-            )
+            self._inject_openlineage_properties_into_dataproc_workflow_template(context)
 
         operation = hook.instantiate_inline_workflow_template(
             template=self.template,
@@ -1919,6 +1909,25 @@ class DataprocInstantiateInlineWorkflowTemplateOperator(GoogleCloudBaseOperator)
         if self.cancel_on_kill and self.operation_name:
             hook = DataprocHook(gcp_conn_id=self.gcp_conn_id, impersonation_chain=self.impersonation_chain)
             hook.get_operations_client(region=self.region).cancel_operation(name=self.operation_name)
+
+    def _inject_openlineage_properties_into_dataproc_workflow_template(self, context: Context) -> None:
+        try:
+            from airflow.providers.google.cloud.openlineage.utils import (
+                inject_openlineage_properties_into_dataproc_workflow_template,
+            )
+
+            self.template = inject_openlineage_properties_into_dataproc_workflow_template(
+                template=self.template,
+                context=context,
+                inject_parent_job_info=self.openlineage_inject_parent_job_info,
+                inject_transport_info=self.openlineage_inject_transport_info,
+            )
+        except Exception as e:
+            self.log.warning(
+                "An error occurred while trying to inject OpenLineage information. "
+                "Dataproc template has not been modified by OpenLineage.",
+                exc_info=e,
+            )
 
 
 class DataprocSubmitJobOperator(GoogleCloudBaseOperator):
@@ -2017,12 +2026,8 @@ class DataprocSubmitJobOperator(GoogleCloudBaseOperator):
         self.hook = DataprocHook(gcp_conn_id=self.gcp_conn_id, impersonation_chain=self.impersonation_chain)
         if self.openlineage_inject_parent_job_info or self.openlineage_inject_transport_info:
             self.log.info("Automatic injection of OpenLineage information into Spark properties is enabled.")
-            self.job = inject_openlineage_properties_into_dataproc_job(
-                job=self.job,
-                context=context,
-                inject_parent_job_info=self.openlineage_inject_parent_job_info,
-                inject_transport_info=self.openlineage_inject_transport_info,
-            )
+            self._inject_openlineage_properties_into_dataproc_job(context)
+
         job_object = self.hook.submit_job(
             project_id=self.project_id,
             region=self.region,
@@ -2095,6 +2100,25 @@ class DataprocSubmitJobOperator(GoogleCloudBaseOperator):
     def on_kill(self):
         if self.job_id and self.cancel_on_kill:
             self.hook.cancel_job(job_id=self.job_id, project_id=self.project_id, region=self.region)
+
+    def _inject_openlineage_properties_into_dataproc_job(self, context: Context) -> None:
+        try:
+            from airflow.providers.google.cloud.openlineage.utils import (
+                inject_openlineage_properties_into_dataproc_job,
+            )
+
+            self.job = inject_openlineage_properties_into_dataproc_job(
+                job=self.job,
+                context=context,
+                inject_parent_job_info=self.openlineage_inject_parent_job_info,
+                inject_transport_info=self.openlineage_inject_transport_info,
+            )
+        except Exception as e:
+            self.log.warning(
+                "An error occurred while trying to inject OpenLineage information. "
+                "Dataproc job has not been modified by OpenLineage.",
+                exc_info=e,
+            )
 
 
 class DataprocUpdateClusterOperator(GoogleCloudBaseOperator):
@@ -2502,12 +2526,7 @@ class DataprocCreateBatchOperator(GoogleCloudBaseOperator):
 
         if self.openlineage_inject_parent_job_info or self.openlineage_inject_transport_info:
             self.log.info("Automatic injection of OpenLineage information into Spark properties is enabled.")
-            self.batch = inject_openlineage_properties_into_dataproc_batch(
-                batch=self.batch,
-                context=context,
-                inject_parent_job_info=self.openlineage_inject_parent_job_info,
-                inject_transport_info=self.openlineage_inject_transport_info,
-            )
+            self._inject_openlineage_properties_into_dataproc_batch(context)
 
         try:
             self.operation = self.hook.create_batch(
@@ -2669,6 +2688,25 @@ class DataprocCreateBatchOperator(GoogleCloudBaseOperator):
             metadata=self.metadata,
         )
         return batch, batch_id
+
+    def _inject_openlineage_properties_into_dataproc_batch(self, context: Context) -> None:
+        try:
+            from airflow.providers.google.cloud.openlineage.utils import (
+                inject_openlineage_properties_into_dataproc_batch,
+            )
+
+            self.batch = inject_openlineage_properties_into_dataproc_batch(
+                batch=self.batch,
+                context=context,
+                inject_parent_job_info=self.openlineage_inject_parent_job_info,
+                inject_transport_info=self.openlineage_inject_transport_info,
+            )
+        except Exception as e:
+            self.log.warning(
+                "An error occurred while trying to inject OpenLineage information. "
+                "Dataproc batch has not been modified by OpenLineage.",
+                exc_info=e,
+            )
 
 
 class DataprocDeleteBatchOperator(GoogleCloudBaseOperator):

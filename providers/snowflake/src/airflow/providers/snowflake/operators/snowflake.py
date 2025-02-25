@@ -43,7 +43,7 @@ if TYPE_CHECKING:
 
 class SnowflakeCheckOperator(SQLCheckOperator):
     """
-    Performs a check against Snowflake.
+    Perform a check against Snowflake.
 
     The ``SnowflakeCheckOperator`` expects a sql query that will return a single row. Each
     value on that first row is evaluated using python ``bool`` casting. If any of the values
@@ -294,8 +294,9 @@ class SnowflakeIntervalCheckOperator(SQLIntervalCheckOperator):
 
 class SnowflakeSqlApiOperator(SQLExecuteQueryOperator):
     """
-    Implemented Snowflake SQL API Operator to support multiple SQL statements sequentially,
-    which is the behavior of the SQLExecuteQueryOperator, the Snowflake SQL API allows submitting
+    Implemented Snowflake SQL API Operator to support multiple SQL statements sequentially.
+
+    This is the behavior of the SQLExecuteQueryOperator, the Snowflake SQL API allows submitting
     multiple SQL statements in a single request. It make post request to submit SQL
     statements for execution, poll to check the status of the execution of a statement. Fetch query results
     concurrently.
@@ -357,6 +358,11 @@ class SnowflakeSqlApiOperator(SQLExecuteQueryOperator):
 
     LIFETIME = timedelta(minutes=59)  # The tokens will have a 59 minutes lifetime
     RENEWAL_DELTA = timedelta(minutes=54)  # Tokens will be renewed after 54 minutes
+
+    template_fields: Sequence[str] = tuple(
+        set(SQLExecuteQueryOperator.template_fields) | {"snowflake_conn_id"}
+    )
+    conn_id_field = "snowflake_conn_id"
 
     def __init__(
         self,

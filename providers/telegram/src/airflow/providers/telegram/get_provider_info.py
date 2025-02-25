@@ -27,8 +27,9 @@ def get_provider_info():
         "name": "Telegram",
         "description": "`Telegram <https://telegram.org/>`__\n",
         "state": "ready",
-        "source-date-epoch": 1734537315,
+        "source-date-epoch": 1739964570,
         "versions": [
+            "4.7.1",
             "4.7.0",
             "4.6.0",
             "4.5.2",

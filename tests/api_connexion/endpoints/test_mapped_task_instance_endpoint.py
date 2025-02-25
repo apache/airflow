@@ -228,7 +228,7 @@ class TestGetMappedTaskInstance(TestMappedTaskInstanceEndpoint):
             "queued_when": None,
             "scheduled_when": None,
             "rendered_fields": {},
-            "rendered_map_index": None,
+            "rendered_map_index": "0",
             "start_date": "2020-01-01T00:00:00+00:00",
             "state": "success",
             "task_id": "task_2",

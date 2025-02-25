@@ -27,11 +27,11 @@ import jinja2
 import jinja2.nativetypes
 import jinja2.sandbox
 
-from airflow.io.path import ObjectStoragePath
 from airflow.sdk.definitions._internal.mixins import ResolveMixin
 from airflow.utils.helpers import render_template_as_native, render_template_to_string
 
 if TYPE_CHECKING:
+    from airflow.io.path import ObjectStoragePath
     from airflow.models.operator import Operator
     from airflow.sdk.definitions.context import Context
     from airflow.sdk.definitions.dag import DAG
@@ -50,7 +50,7 @@ class LiteralValue(ResolveMixin):
     def iter_references(self) -> Iterable[tuple[Operator, str]]:
         return ()
 
-    def resolve(self, context: Context, *, include_xcom: bool = True) -> Any:
+    def resolve(self, context: Context) -> Any:
         return self.value
 
 
@@ -154,6 +154,13 @@ class Templater:
             *RecursionError* on circular dependencies)
         :return: Templated content
         """
+        try:
+            # Delay this to runtime, it invokes provider manager otherwise
+            from airflow.io.path import ObjectStoragePath
+        except ImportError:
+            # A placeholder class so isinstance checks work
+            class ObjectStoragePath: ...  # type: ignore[no-redef]
+
         # "content" is a bad name, but we're stuck to it being public API.
         value = content
         del content
@@ -179,7 +186,7 @@ class Templater:
             return self._render_object_storage_path(value, context, jinja_env)
 
         if resolve := getattr(value, "resolve", None):
-            return resolve(context, include_xcom=True)
+            return resolve(context)
 
         # Fast path for common built-in collections.
         if value.__class__ is tuple:
@@ -203,7 +210,7 @@ class Templater:
         serialized_path = value.serialize()
         path_version = value.__version__
         serialized_path["path"] = self._render(jinja_env.from_string(serialized_path["path"]), context)
-        return ObjectStoragePath.deserialize(data=serialized_path, version=path_version)
+        return value.deserialize(data=serialized_path, version=path_version)
 
     def _render_nested_template_fields(
         self,

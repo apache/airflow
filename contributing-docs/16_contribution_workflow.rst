@@ -198,6 +198,7 @@ Step 4: Prepare PR
 
      In general newsfragments must be one line.  For newsfragment type ``significant``,
      you should follow the template in ``newsfragments/template.significant.rst`` to include summary, body, change type and migrations rules needed.
+     One thing to note here is that a ``significant`` newsfragment always doesn't have to be a breaking change, i.e. it can not have a change type and migration rules.
      This can also be done by the following command.
 
      .. code-block:: bash

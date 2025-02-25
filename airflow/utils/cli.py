@@ -34,10 +34,11 @@ from typing import TYPE_CHECKING, Callable, TypeVar, cast
 import re2
 
 from airflow import settings
+from airflow.dag_processing.bundles.manager import DagBundlesManager
 from airflow.exceptions import AirflowException
+from airflow.sdk.execution_time.secrets_masker import should_hide_value_for_key
 from airflow.utils import cli_action_loggers, timezone
 from airflow.utils.log.non_caching_file_handler import NonCachingFileHandler
-from airflow.utils.log.secrets_masker import should_hide_value_for_key
 from airflow.utils.platform import getuser, is_terminal_support_colors
 
 T = TypeVar("T", bound=Callable)
@@ -157,6 +158,40 @@ def _build_metrics(func_name, namespace):
                     if command.startswith(f"{sensitive_field}="):
                         full_command[idx] = f'{sensitive_field}={"*" * 8}'
 
+    # handle conn-json and conn-uri separately as it requires different handling
+    if "--conn-json" in full_command:
+        import json
+
+        json_index = full_command.index("--conn-json") + 1
+        conn_json = json.loads(full_command[json_index])
+        for k in conn_json:
+            if k and should_hide_value_for_key(k):
+                conn_json[k] = "*" * 8
+        full_command[json_index] = json.dumps(conn_json)
+
+    if "--conn-uri" in full_command:
+        from urllib.parse import urlparse, urlunparse
+
+        uri_index = full_command.index("--conn-uri") + 1
+        conn_uri = full_command[uri_index]
+        parsed_uri = urlparse(conn_uri)
+        if parsed_uri.password:
+            password = "*" * 8
+            netloc = f"{parsed_uri.username}:{password}@{parsed_uri.hostname}"
+            if parsed_uri.port:
+                netloc += f":{parsed_uri.port}"
+
+        full_command[uri_index] = urlunparse(
+            (
+                parsed_uri.scheme,
+                netloc,
+                parsed_uri.path,
+                parsed_uri.params,
+                parsed_uri.query,
+                parsed_uri.fragment,
+            )
+        )
+
     metrics = {
         "sub_command": func_name,
         "start_datetime": timezone.utcnow(),
@@ -189,6 +224,7 @@ def process_subdir(subdir: str | None):
 
 def get_dag_by_file_location(dag_id: str):
     """Return DAG of a given dag_id by looking up file location."""
+    # TODO: AIP-66 - investigate more, can we use serdag?
     from airflow.models import DagBag, DagModel
 
     # Benefit is that logging from other dags in dagbag will not appear
@@ -366,3 +402,12 @@ def suppress_logs_and_warning(f: T) -> T:
                     logging.disable(logging.NOTSET)
 
     return cast(T, _wrapper)
+
+
+def validate_dag_bundle_arg(bundle_names: list[str]) -> None:
+    """Make sure only known bundles are passed as arguments."""
+    known_bundles = {b.name for b in DagBundlesManager().get_all_dag_bundles()}
+
+    unknown_bundles: set[str] = set(bundle_names) - known_bundles
+    if unknown_bundles:
+        raise SystemExit(f"Bundles not found: {', '.join(unknown_bundles)}")

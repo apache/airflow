@@ -33,25 +33,45 @@ console = Console(width=400, color_system="standard")
 class TestCliFastAPI(_CommonCLIGunicornTestClass):
     main_process_regexp = r"airflow fastapi-api"
 
-    def test_cli_fastapi_api_debug(self, app):
-        with (
-            mock.patch("subprocess.Popen") as Popen,
-        ):
-            port = "9092"
-            hostname = "somehost"
-            args = self.parser.parse_args(["fastapi-api", "--port", port, "--hostname", hostname, "--debug"])
-            fastapi_api_command.fastapi_api(args)
-
-            Popen.assert_called_with(
+    @pytest.mark.parametrize(
+        "args, expected_command",
+        [
+            (
+                ["fastapi-api", "--port", "9092", "--hostname", "somehost", "--debug"],
                 [
                     "fastapi",
                     "dev",
                     "airflow/api_fastapi/main.py",
                     "--port",
-                    port,
+                    "9092",
                     "--host",
-                    hostname,
+                    "somehost",
                 ],
+            ),
+            (
+                ["fastapi-api", "--port", "9092", "--hostname", "somehost", "--debug", "--proxy-headers"],
+                [
+                    "fastapi",
+                    "dev",
+                    "airflow/api_fastapi/main.py",
+                    "--port",
+                    "9092",
+                    "--host",
+                    "somehost",
+                    "--proxy-headers",
+                ],
+            ),
+        ],
+    )
+    def test_cli_fastapi_api_debug(self, app, args, expected_command):
+        with (
+            mock.patch("subprocess.Popen") as Popen,
+        ):
+            args = self.parser.parse_args(args)
+            fastapi_api_command.fastapi_api(args)
+
+            Popen.assert_called_with(
+                expected_command,
                 close_fds=True,
             )
 
@@ -132,6 +152,7 @@ class TestCliFastAPI(_CommonCLIGunicornTestClass):
                 ssl_keyfile=str(key_path),
                 ssl_certfile=str(cert_path),
                 access_log="-",
+                proxy_headers=False,
             )
 
     @pytest.mark.parametrize(
