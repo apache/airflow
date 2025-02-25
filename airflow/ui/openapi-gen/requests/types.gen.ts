@@ -540,6 +540,10 @@ export type DAGDetailsResponse = {
    * Return max_active_tasks as concurrency.
    */
   readonly concurrency: number;
+  /**
+   * Return the latest DagVersion.
+   */
+  readonly latest_dag_version: DagVersionResponse | null;
 };
 
 /**
@@ -626,12 +630,12 @@ export type DAGRunResponse = {
   last_scheduling_decision: string | null;
   run_type: DagRunType;
   state: DagRunState;
-  external_trigger: boolean;
   triggered_by: DagRunTriggeredByType;
   conf: {
     [key: string]: unknown;
   };
   note: string | null;
+  dag_versions: Array<DagVersionResponse>;
 };
 
 /**
@@ -1461,7 +1465,7 @@ export type TriggerDAGRunPostBody = {
   data_interval_start?: string | null;
   data_interval_end?: string | null;
   logical_date: string | null;
-  run_after?: string;
+  run_after?: string | null;
   conf?: {
     [key: string]: unknown;
   };
@@ -1738,6 +1742,10 @@ export type RecentDagRunsData = {
 };
 
 export type RecentDagRunsResponse = DAGWithLatestDagRunsCollectionResponse;
+
+export type GetDependenciesData = {
+  nodeId?: string | null;
+};
 
 export type GetDependenciesResponse = BaseGraphResponse;
 
@@ -2968,11 +2976,20 @@ export type $OpenApiTs = {
   };
   "/ui/dependencies": {
     get: {
+      req: GetDependenciesData;
       res: {
         /**
          * Successful Response
          */
         200: BaseGraphResponse;
+        /**
+         * Not Found
+         */
+        404: HTTPExceptionResponse;
+        /**
+         * Validation Error
+         */
+        422: HTTPValidationError;
       };
     };
   };

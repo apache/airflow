@@ -134,6 +134,11 @@ def patch_pool(
     update_mask: list[str] | None = Query(None),
 ) -> PoolResponse:
     """Update a Pool."""
+    if patch_body.name and patch_body.name != pool_name:
+        raise HTTPException(
+            status.HTTP_400_BAD_REQUEST,
+            "Invalid body, pool name from request body doesn't match uri parameter",
+        )
     # Only slots and include_deferred can be modified in 'default_pool'
     if pool_name == Pool.DEFAULT_POOL_NAME:
         if update_mask and all(mask.strip() in {"slots", "include_deferred"} for mask in update_mask):
@@ -143,7 +148,6 @@ def patch_pool(
                 status.HTTP_400_BAD_REQUEST,
                 "Only slots and included_deferred can be modified on Default Pool",
             )
-
     pool = session.scalar(select(Pool).where(Pool.pool == pool_name).limit(1))
     if not pool:
         raise HTTPException(

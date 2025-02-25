@@ -227,10 +227,9 @@ class DagRun(StrictBaseModel):
     run_after: UtcDateTime
     start_date: UtcDateTime
     end_date: UtcDateTime | None
-    clear_number: int
+    clear_number: int = 0
     run_type: DagRunType
     conf: Annotated[dict[str, Any], Field(default_factory=dict)]
-    external_trigger: bool = False
 
 
 class TIRunContext(BaseModel):
@@ -268,4 +267,3 @@ class TIRuntimeCheckPayload(StrictBaseModel):
 
     inlets: list[AssetProfile] | None = None
     outlets: list[AssetProfile] | None = None
-    type: str | None = None

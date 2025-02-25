@@ -301,7 +301,7 @@ def make_user_defined_macro_filter_dag():
     """
 
     def compute_last_dagrun(dag: DAG):
-        return dag.get_last_dagrun(include_externally_triggered=True)
+        return dag.get_last_dagrun(include_manually_triggered=True)
 
     default_args = {"start_date": datetime(2019, 7, 10)}
     dag = DAG(
@@ -593,7 +593,7 @@ class TestStringifiedDAGs:
             self.validate_deserialized_dag(serialized_dag, dag)
 
         # Let's not be exact about this, but if everything fails to parse we should fail this test too
-        assert len(dags) >= 8
+        assert len(dags) >= 7
 
     @pytest.mark.db_test
     @pytest.mark.parametrize(

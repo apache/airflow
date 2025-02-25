@@ -41,9 +41,7 @@ export const Header = ({
 
   const stats = [
     { label: "Operator", value: taskInstance.operator },
-    ...(taskInstance.map_index > -1
-      ? [{ label: "Map Index", value: taskInstance.rendered_map_index ?? taskInstance.map_index }]
-      : []),
+    ...(taskInstance.map_index > -1 ? [{ label: "Map Index", value: taskInstance.rendered_map_index }] : []),
     ...(taskInstance.try_number > 1 ? [{ label: "Try Number", value: taskInstance.try_number }] : []),
     { label: "Start", value: <Time datetime={taskInstance.start_date} /> },
     { label: "End", value: <Time datetime={taskInstance.end_date} /> },

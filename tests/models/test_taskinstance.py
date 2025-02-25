@@ -3627,7 +3627,6 @@ class TestTaskInstance:
             op = PythonOperator(task_id="hive_in_python_op", python_callable=self._env_var_check_callback)
         dr = dag_maker.create_dagrun(
             run_type=DagRunType.MANUAL,
-            external_trigger=False,
         )
         ti = dr.get_task_instance(op.task_id)
         ti.state = State.RUNNING
@@ -3825,7 +3824,7 @@ class TestTaskInstance:
 
     def test_refresh_from_db(self, create_task_instance):
         run_date = timezone.utcnow()
-        hybrid_props = ["task_display_name"]
+        hybrid_props = ["rendered_map_index", "task_display_name"]
         expected_values = {
             "task_id": "test_refresh_from_db_task",
             "dag_id": "test_refresh_from_db_dag",

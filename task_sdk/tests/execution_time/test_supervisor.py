@@ -931,6 +931,15 @@ class TestHandleRequest:
                 id="get_connection",
             ),
             pytest.param(
+                GetConnection(conn_id="test_conn"),
+                b'{"conn_id":"test_conn","conn_type":"mysql","schema":"mysql","type":"ConnectionResult"}\n',
+                "connections.get",
+                ("test_conn",),
+                {},
+                ConnectionResult(conn_id="test_conn", conn_type="mysql", schema="mysql"),  # type: ignore[call-arg]
+                id="get_connection_with_alias",
+            ),
+            pytest.param(
                 GetVariable(key="test_key"),
                 b'{"key":"test_key","value":"test_value","type":"VariableResult"}\n',
                 "variables.get",

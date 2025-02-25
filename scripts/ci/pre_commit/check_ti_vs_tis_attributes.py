@@ -45,6 +45,7 @@ def compare_attributes(path1, path2):
     diff = diff - {
         "run_after",
         "_logger_name",
+        "_rendered_map_index",
         "_task_display_property_value",
         "task_instance_note",
         "dag_run",

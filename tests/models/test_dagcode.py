@@ -19,6 +19,7 @@ from __future__ import annotations
 
 from unittest.mock import patch
 
+import pendulum
 import pytest
 from sqlalchemy.exc import IntegrityError
 
@@ -33,6 +34,8 @@ from airflow.models.serialized_dag import SerializedDagModel as SDM
 # To move it to a shared module.
 from airflow.utils.file import open_maybe_zipped
 from airflow.utils.session import create_session
+from airflow.utils.state import DagRunState
+from airflow.utils.types import DagRunTriggeredByType, DagRunType
 
 from tests_common.test_utils.db import clear_db_dag_code, clear_db_dags
 
@@ -139,7 +142,13 @@ class TestDagCode:
         """Test new DagCode is created in DB when ser dag is changed"""
         example_dag = make_example_dags(example_dags_module).get("example_bash_operator")
         SDM.write_dag(example_dag, bundle_name="testing")
-
+        example_dag.create_dagrun(
+            run_id="test1",
+            run_after=pendulum.datetime(2025, 1, 1, tz="UTC"),
+            state=DagRunState.QUEUED,
+            triggered_by=DagRunTriggeredByType.TEST,
+            run_type=DagRunType.MANUAL,
+        )
         result = (
             session.query(DagCode)
             .filter(DagCode.fileloc == example_dag.fileloc)
