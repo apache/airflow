@@ -1034,7 +1034,7 @@ class TestGetAssetQueuedEvents(TestQueuedEventEndpoint):
         asset_id = 1
         self._create_asset_dag_run_queues(dag_id, asset_id, session)
 
-        response = test_client.get(f"/public/assets/{asset_id}/queuedEvents/")
+        response = test_client.get(f"/public/assets/{asset_id}/queuedEvents")
         assert response.status_code == 200
         assert response.json() == {
             "queued_events": [
@@ -1099,7 +1099,7 @@ class TestDeleteDagAssetQueuedEvent(TestQueuedEventEndpoint):
         asset_id = 1
 
         response = test_client.delete(
-            f"/public/dags/{dag_id}/assets/{asset_id}/queuedEvents/",
+            f"/public/dags/{dag_id}/assets/{asset_id}/queuedEvents",
         )
 
         assert response.status_code == 404
