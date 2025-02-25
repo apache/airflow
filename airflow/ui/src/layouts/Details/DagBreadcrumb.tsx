@@ -16,7 +16,7 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { HStack } from "@chakra-ui/react";
+import { HStack, Stat } from "@chakra-ui/react";
 import type { ReactNode } from "react";
 import { LiaSlashSolid } from "react-icons/lia";
 import { Link as RouterLink, useParams, useSearchParams } from "react-router-dom";
@@ -27,7 +27,6 @@ import {
   useTaskInstanceServiceGetMappedTaskInstance,
   useTaskServiceGetTask,
 } from "openapi/queries";
-import { Stat } from "src/components/Stat";
 import { StateBadge } from "src/components/StateBadge";
 import Time from "src/components/Time";
 import { TogglePause } from "src/components/TogglePause";
@@ -97,7 +96,7 @@ export const DagBreadcrumb = () => {
           runId
         ) : (
           <HStack>
-            <StateBadge state={dagRun.state} />
+            <StateBadge fontSize="xs" state={dagRun.state} />
             <Time datetime={dagRun.run_after} />
           </HStack>
         ),
@@ -122,24 +121,23 @@ export const DagBreadcrumb = () => {
 
   return (
     <Breadcrumb.Root mb={1} separator={<LiaSlashSolid />}>
-      {links.map((link, index) => {
-        if (index === links.length - 1) {
-          return (
-            // eslint-disable-next-line react/no-array-index-key
-            <Stat gap={0} key={`${link.title}-${index}`} label={link.title ?? ""}>
+      {links.map((link, index) => (
+        // eslint-disable-next-line react/no-array-index-key
+        <Stat.Root gap={0} key={`${link.title}-${index}`}>
+          <Stat.Label fontSize="xs" fontWeight="bold">
+            {link.title}
+          </Stat.Label>
+          <Stat.ValueText fontSize="sm" fontWeight="normal">
+            {index === links.length - 1 ? (
               <Breadcrumb.CurrentLink>{link.label}</Breadcrumb.CurrentLink>
-            </Stat>
-          );
-        }
-
-        return (
-          <Stat key={link.value} label={link.title ?? ""}>
-            <Breadcrumb.Link asChild color="fg.info">
-              <RouterLink to={link.value ?? ""}>{link.label}</RouterLink>
-            </Breadcrumb.Link>
-          </Stat>
-        );
-      })}
+            ) : (
+              <Breadcrumb.Link asChild color="fg.info">
+                <RouterLink to={link.value ?? ""}>{link.label}</RouterLink>
+              </Breadcrumb.Link>
+            )}
+          </Stat.ValueText>
+        </Stat.Root>
+      ))}
     </Breadcrumb.Root>
   );
 };

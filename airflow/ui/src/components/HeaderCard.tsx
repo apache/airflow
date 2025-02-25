@@ -18,10 +18,8 @@
  */
 import { Box, Flex, GridItem, Heading, HStack, SimpleGrid, Spinner } from "@chakra-ui/react";
 import { type ReactNode, useRef } from "react";
-import { FiMessageSquare } from "react-icons/fi";
 
 import type { TaskInstanceState } from "openapi/requests/types.gen";
-import DisplayMarkdownButton from "src/components/DisplayMarkdownButton";
 import { Stat } from "src/components/Stat";
 import { StateBadge } from "src/components/StateBadge";
 import { useContainerWidth } from "src/utils";
@@ -44,14 +42,13 @@ type Props = {
   readonly actions?: ReactNode;
   readonly icon: ReactNode;
   readonly isRefreshing?: boolean;
-  readonly note?: string | null;
   readonly state?: TaskInstanceState | null;
   readonly stats: Array<{ label: string; value: ReactNode | string }>;
   readonly subTitle?: ReactNode | string;
   readonly title: ReactNode | string;
 };
 
-export const HeaderCard = ({ actions, icon, isRefreshing, note, state, stats, subTitle, title }: Props) => {
+export const HeaderCard = ({ actions, icon, isRefreshing, state, stats, subTitle, title }: Props) => {
   const containerRef = useRef<HTMLDivElement>();
   const containerWidth = useContainerWidth(containerRef);
 
@@ -65,17 +62,7 @@ export const HeaderCard = ({ actions, icon, isRefreshing, note, state, stats, su
           {state === undefined ? undefined : <StateBadge state={state}>{state}</StateBadge>}
           {isRefreshing ? <Spinner /> : <div />}
         </Flex>
-        <HStack gap={1}>
-          {note === null || note === undefined || note.length === 0 ? undefined : (
-            <DisplayMarkdownButton
-              header="Task Instance Note"
-              icon={<FiMessageSquare color="black" />}
-              mdContent={note}
-              text="Note"
-            />
-          )}
-          {actions}
-        </HStack>
+        <HStack gap={1}>{actions}</HStack>
       </Flex>
       <SimpleGrid
         autoFlow="row dense"

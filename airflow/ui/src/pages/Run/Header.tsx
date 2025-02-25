@@ -17,10 +17,11 @@
  * under the License.
  */
 import { HStack, Text } from "@chakra-ui/react";
-import { FiBarChart } from "react-icons/fi";
+import { FiBarChart, FiMessageSquare } from "react-icons/fi";
 
 import type { DAGRunResponse } from "openapi/requests/types.gen";
 import { ClearRunButton } from "src/components/Clear";
+import DisplayMarkdownButton from "src/components/DisplayMarkdownButton";
 import { HeaderCard } from "src/components/HeaderCard";
 import { MarkRunAsButton } from "src/components/MarkAs";
 import { RunTypeIcon } from "src/components/RunTypeIcon";
@@ -37,13 +38,20 @@ export const Header = ({
   <HeaderCard
     actions={
       <>
+        {dagRun.note === null || dagRun.note.length === 0 ? undefined : (
+          <DisplayMarkdownButton
+            header="Dag Run Note"
+            icon={<FiMessageSquare color="black" />}
+            mdContent={dagRun.note}
+            text="Note"
+          />
+        )}
         <ClearRunButton dagRun={dagRun} />
         <MarkRunAsButton dagRun={dagRun} />
       </>
     }
     icon={<FiBarChart />}
     isRefreshing={isRefreshing}
-    note={dagRun.note}
     state={dagRun.state}
     stats={[
       ...(dagRun.logical_date === null

@@ -16,14 +16,26 @@
  * specific language governing permissions and limitations
  * under the License.
  */
+import { FiBookOpen } from "react-icons/fi";
+
 import type { TaskResponse } from "openapi/requests/types.gen";
 import { TaskIcon } from "src/assets/TaskIcon";
+import DisplayMarkdownButton from "src/components/DisplayMarkdownButton";
 import { HeaderCard } from "src/components/HeaderCard";
 
 export const Header = ({ task }: { readonly task: TaskResponse }) => (
   <HeaderCard
+    actions={
+      task.doc_md === null ? undefined : (
+        <DisplayMarkdownButton
+          header="Task Documentation"
+          icon={<FiBookOpen />}
+          mdContent={task.doc_md}
+          text="Task Docs"
+        />
+      )
+    }
     icon={<TaskIcon />}
-    note={task.doc_md}
     stats={[
       { label: "Operator", value: task.operator_name },
       { label: "Trigger Rule", value: task.trigger_rule },

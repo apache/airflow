@@ -18,10 +18,12 @@
  */
 import { Box } from "@chakra-ui/react";
 import { useRef } from "react";
+import { FiMessageSquare } from "react-icons/fi";
 import { MdOutlineTask } from "react-icons/md";
 
 import type { TaskInstanceResponse } from "openapi/requests/types.gen";
 import { ClearTaskInstanceButton } from "src/components/Clear";
+import DisplayMarkdownButton from "src/components/DisplayMarkdownButton";
 import { HeaderCard } from "src/components/HeaderCard";
 import { MarkTaskInstanceAsButton } from "src/components/MarkAs";
 import Time from "src/components/Time";
@@ -56,13 +58,20 @@ export const Header = ({
       <HeaderCard
         actions={
           <>
+            {taskInstance.note === null || taskInstance.note.length === 0 ? undefined : (
+              <DisplayMarkdownButton
+                header="Task Instance Note"
+                icon={<FiMessageSquare color="black" />}
+                mdContent={taskInstance.note}
+                text="Note"
+              />
+            )}
             <ClearTaskInstanceButton taskInstance={taskInstance} withText={containerWidth > 700} />
             <MarkTaskInstanceAsButton taskInstance={taskInstance} withText={containerWidth > 700} />
           </>
         }
         icon={<MdOutlineTask />}
         isRefreshing={isRefreshing}
-        note={taskInstance.note}
         state={taskInstance.state}
         stats={stats}
         subTitle={<Time datetime={taskInstance.start_date} />}

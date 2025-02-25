@@ -72,7 +72,9 @@ export const Grid = () => {
   const runs: Array<RunWithDuration> = useMemo(
     () =>
       (gridData?.dag_runs ?? []).map((run) => {
-        const duration = dayjs.duration(dayjs(run.end_date).diff(run.start_date)).asSeconds();
+        const duration = dayjs
+          .duration(dayjs(run.end_date ?? undefined).diff(run.start_date ?? undefined))
+          .asSeconds();
 
         return {
           ...run,

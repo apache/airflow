@@ -17,12 +17,13 @@
  * under the License.
  */
 import { Text } from "@chakra-ui/react";
-import { FiCalendar } from "react-icons/fi";
+import { FiBookOpen, FiCalendar } from "react-icons/fi";
 import { useParams } from "react-router-dom";
 
 import type { DAGDetailsResponse, DAGWithLatestDagRunsResponse } from "openapi/requests/types.gen";
 import { DagIcon } from "src/assets/DagIcon";
 import DagRunInfo from "src/components/DagRunInfo";
+import DisplayMarkdownButton from "src/components/DisplayMarkdownButton";
 import { HeaderCard } from "src/components/HeaderCard";
 import MenuButton from "src/components/Menu/MenuButton";
 import ParseDag from "src/components/ParseDag";
@@ -92,6 +93,14 @@ export const Header = ({
       actions={
         dag === undefined ? undefined : (
           <>
+            {dag.doc_md === null ? undefined : (
+              <DisplayMarkdownButton
+                header="Dag Documentation"
+                icon={<FiBookOpen />}
+                mdContent={dag.doc_md}
+                text="Dag Docs"
+              />
+            )}
             <ParseDag dagId={dag.dag_id} fileToken={dag.file_token} />
             <MenuButton dag={dag} />
           </>
@@ -99,7 +108,6 @@ export const Header = ({
       }
       icon={<DagIcon />}
       isRefreshing={isRefreshing}
-      note={dag?.doc_md}
       stats={stats}
       subTitle={
         dag !== undefined && (
