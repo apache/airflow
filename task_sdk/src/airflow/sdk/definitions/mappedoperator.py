@@ -69,6 +69,7 @@ if TYPE_CHECKING:
         OperatorExpandArgument,
         OperatorExpandKwargsArgument,
     )
+    from airflow.models.iterableoperator import IterableOperator
     from airflow.models.xcom_arg import XComArg
     from airflow.sdk.definitions.baseoperator import BaseOperator
     from airflow.sdk.definitions.dag import DAG
@@ -282,7 +283,10 @@ class OperatorPartial:
         # We don't want to time out the whole stream operator, we only time out the individual tasks
         kwargs["timeout"] = kwargs.pop("execution_timeout", None)
         kwargs["max_active_tis_per_dag"] = self.kwargs.get("max_active_tis_per_dag")
-
+        self.kwargs.pop("task_group", None)
+        self.kwargs["task_id"] = kwargs["task_id"] = kwargs["task_id"].rsplit(".", 1)[-1]
+        self.kwargs["do_xcom_push"] = self.kwargs.get("do_xcom_push", True)
+        self._expand_called = True
         return IterableOperator(
             **kwargs,
             operator_class=self.operator_class,
