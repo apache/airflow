@@ -139,7 +139,6 @@ def test_cli_assets_materialize(parser: ArgumentParser) -> None:
         "conf": {},
         "dag_id": "asset1_producer",
         "end_date": None,
-        "external_trigger": "True",
         "last_scheduling_decision": None,
         "note": None,
         "run_type": "manual",

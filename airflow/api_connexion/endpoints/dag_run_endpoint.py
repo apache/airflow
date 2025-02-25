@@ -185,7 +185,6 @@ def _fetch_dag_runs(
         "start_date",
         "end_date",
         "updated_at",
-        "external_trigger",
         "conf",
     ]
     query = apply_sorting(query, order_by, to_replace, allowed_sort_attrs)
@@ -365,7 +364,6 @@ def post_dag_run(*, dag_id: str, session: Session = NEW_SESSION) -> APIResponse:
                 conf=post_body.get("conf"),
                 run_type=DagRunType.MANUAL,
                 triggered_by=DagRunTriggeredByType.REST_API,
-                external_trigger=True,
                 dag_version=DagVersion.get_latest_version(dag.dag_id),
                 state=DagRunState.QUEUED,
                 session=session,
