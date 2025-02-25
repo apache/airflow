@@ -1868,6 +1868,18 @@ export const $DAGDetailsResponse = {
       description: "Return max_active_tasks as concurrency.",
       readOnly: true,
     },
+    latest_dag_version: {
+      anyOf: [
+        {
+          $ref: "#/components/schemas/DagVersionResponse",
+        },
+        {
+          type: "null",
+        },
+      ],
+      description: "Return the latest DagVersion.",
+      readOnly: true,
+    },
   },
   type: "object",
   required: [
@@ -1907,6 +1919,7 @@ export const $DAGDetailsResponse = {
     "last_parsed",
     "file_token",
     "concurrency",
+    "latest_dag_version",
   ],
   title: "DAGDetailsResponse",
   description: "Specific serializer for DAG Details responses.",
