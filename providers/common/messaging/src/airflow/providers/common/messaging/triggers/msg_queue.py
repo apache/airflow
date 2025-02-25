@@ -36,6 +36,10 @@ class MessageQueueTrigger(BaseEventTrigger):
     This makes it easy to switch providers without modifying the trigger.
 
     :param queue: The queue identifier
+
+    .. seealso::
+        For more information on how to use this trigger, take a look at the guide:
+        :ref:`howto/trigger:MessageQueueTrigger`
     """
 
     def __init__(self, *, queue: str, **kwargs: Any) -> None:
