@@ -211,7 +211,7 @@ class TestPostConnection(TestConnectionEndpoint):
         assert response.status_code == 201
         connection = session.query(Connection).all()
         assert len(connection) == 1
-        check_last_log(session, dag_id=None, event="post_connection", logical_date=None)
+        _check_last_log(session, dag_id=None, event="post_connection", logical_date=None)
 
     @pytest.mark.parametrize(
         "body",
@@ -311,7 +311,7 @@ class TestPostConnection(TestConnectionEndpoint):
         response = test_client.post("/public/connections", json=body)
         assert response.status_code == 201
         assert response.json() == expected_response
-        check_last_log(session, dag_id=None, event="post_connection", logical_date=None, check_masked=True)
+        _check_last_log(session, dag_id=None, event="post_connection", logical_date=None, check_masked=True)
 
 
 class TestPatchConnection(TestConnectionEndpoint):
@@ -342,7 +342,7 @@ class TestPatchConnection(TestConnectionEndpoint):
 
         response = test_client.patch(f"/public/connections/{TEST_CONN_ID}", json=body)
         assert response.status_code == 200
-        check_last_log(session, dag_id=None, event="patch_connection", logical_date=None)
+        _check_last_log(session, dag_id=None, event="patch_connection", logical_date=None)
 
     @pytest.mark.parametrize(
         "body, updated_connection, update_mask",
@@ -943,4 +943,4 @@ class TestBulkConnections(TestConnectionEndpoint):
         response_data = response.json()
         for connection_id, value in expected_results.items():
             assert response_data[connection_id] == value
-        check_last_log(session, dag_id=None, event="bulk_connections", logical_date=None)
+        _check_last_log(session, dag_id=None, event="bulk_connections", logical_date=None)

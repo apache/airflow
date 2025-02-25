@@ -16,6 +16,8 @@
 # under the License.
 from __future__ import annotations
 
+import ast
+import json
 from collections.abc import Generator
 from contextlib import contextmanager
 from typing import TYPE_CHECKING, Any, NamedTuple
