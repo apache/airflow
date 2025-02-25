@@ -16,10 +16,18 @@
  * specific language governing permissions and limitations
  * under the License.
  */
+import { Text, type TextProps } from "@chakra-ui/react";
 
-export { capitalize } from "./capitalize";
-export { pluralize } from "./pluralize";
-export { getDuration } from "./datetime_utils";
-export { getMetaKey } from "./getMetaKey";
-export { useContainerWidth } from "./useContainerWidth";
-export * from "./query";
+type Props = {
+  readonly text: string;
+} & TextProps;
+
+export const TruncatedText = ({ text, ...rest }: Props) => {
+  const truncatedText = text.length <= 25 ? text : `…${text.slice(-22)}`;
+
+  return (
+    <Text title={text} {...rest}>
+      {truncatedText}
+    </Text>
+  );
+};
