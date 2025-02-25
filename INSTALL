@@ -146,7 +146,7 @@ Installing ``hatch``
 
 More information about hatch can be found in https://hatch.pypa.io/
 
-We recommend to install ``hatch`` using ```uv tool`` command which will make hatch available as a CLI
+We recommend to install ``hatch`` using ``uv tool`` command which will make hatch available as a CLI
 command globally:
 
     uv tool install hatch
@@ -301,6 +301,9 @@ with hatch, but if you want to do it manually, you can do it after installing no
 
     yarn install --frozen-lockfile
     yarn run build
+    
+Copy the dist folder generated as part of build to static directory
+    cp -r airflow/airflow/ui/dist airflow/airflow/www/static/
 
 Currently, we are running yarn coming with note 18.6.0, but you should check the version in
 our `.pre-commit-config.yaml` file (node version).
