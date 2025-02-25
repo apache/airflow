@@ -83,13 +83,12 @@ def create_app(apps: str = "all") -> FastAPI:
         init_error_handlers(task_exec_api_app)
         app.mount("/execution", task_exec_api_app)
 
-    # Core needs to go last as it has a catch-all route
     if "core" in apps_list or "all" in apps_list:
         init_dag_bag(app)
-        init_views(app)
         init_plugins(app)
         init_auth_manager(app)
         init_flask_plugins(app)
+        init_views(app)  # Core views need to be the last routes added - it has a catch all route
         init_error_handlers(app)
         init_middlewares(app)
 
