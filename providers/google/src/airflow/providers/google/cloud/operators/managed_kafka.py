@@ -23,6 +23,10 @@ from collections.abc import Sequence
 from functools import cached_property
 from typing import TYPE_CHECKING
 
+from google.api_core.exceptions import AlreadyExists, NotFound
+from google.api_core.gapic_v1.method import DEFAULT, _MethodDefault
+from google.cloud.managedkafka_v1 import types
+
 from airflow.exceptions import AirflowException
 from airflow.providers.google.cloud.hooks.managed_kafka import ManagedKafkaHook
 from airflow.providers.google.cloud.links.managed_kafka import (
@@ -31,14 +35,12 @@ from airflow.providers.google.cloud.links.managed_kafka import (
     ApacheKafkaTopicLink,
 )
 from airflow.providers.google.cloud.operators.cloud_base import GoogleCloudBaseOperator
-from google.api_core.exceptions import AlreadyExists, NotFound
-from google.api_core.gapic_v1.method import DEFAULT, _MethodDefault
-from google.cloud.managedkafka_v1 import types
 
 if TYPE_CHECKING:
-    from airflow.utils.context import Context
     from google.api_core.retry import Retry
     from google.protobuf.field_mask_pb2 import FieldMask
+
+    from airflow.utils.context import Context
 
 
 class ManagedKafkaBaseOperator(GoogleCloudBaseOperator):

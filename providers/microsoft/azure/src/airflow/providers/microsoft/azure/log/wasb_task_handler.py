@@ -23,10 +23,11 @@ from functools import cached_property
 from pathlib import Path
 from typing import TYPE_CHECKING
 
+from azure.core.exceptions import HttpResponseError
+
 from airflow.configuration import conf
 from airflow.utils.log.file_task_handler import FileTaskHandler
 from airflow.utils.log.logging_mixin import LoggingMixin
-from azure.core.exceptions import HttpResponseError
 
 if TYPE_CHECKING:
     import logging
