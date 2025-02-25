@@ -63,8 +63,6 @@ def test_default_dag_storage_path(val, expected):
 
 
 class BasicBundle(BaseDagBundle):
-    bundle_type = "test"
-
     def refresh(self):
         pass
 
@@ -198,8 +196,6 @@ class TestBundleVersionLock:
 
 
 class FakeBundle(BaseDagBundle):
-    bundle_type = "fake"
-
     @property
     def path(self) -> Path:
         assert self.version
@@ -259,10 +255,7 @@ class TestBundleUsageTrackingManager:
             assert len(bundle_folders) == 5
             num += 1
             with time_machine.travel(h0 + timedelta(hours=when_hours), tick=False):
-                bundle_type = b.bundle_type
-                BundleUsageTrackingManager()._remove_stale_bundle_versions_for_bundle(
-                    bundle_name=bundle_name, bundle_type=bundle_type
-                )
+                BundleUsageTrackingManager()._remove_stale_bundle_versions_for_bundle(bundle_name=bundle_name)
                 lock_files = list(bundle_tracking_dir.iterdir())
                 assert len(lock_files) == expected_remaining
                 bundle_folders = list(b.versions_dir.iterdir())

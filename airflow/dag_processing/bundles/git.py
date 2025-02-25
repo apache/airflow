@@ -133,7 +133,6 @@ class GitDagBundle(BaseDagBundle, LoggingMixin):
     """
 
     supports_versioning = True
-    bundle_type = "git"
 
     def __init__(
         self,
@@ -161,7 +160,6 @@ class GitDagBundle(BaseDagBundle, LoggingMixin):
             # ugly; replace when structlog implemented
             context = dict(
                 bundle_name=self.name,
-                bundle_type=self.bundle_type,
                 version=self.version,
                 bare_repo_path=self.bare_repo_path,
                 repo_path=self.repo_path,
