@@ -35,14 +35,10 @@ code" serves several purposes:
 
 DAGs
 -----------------------------------------
-In Airflow, workflows are defined as *DAGs*. Airflow's DAG was inspired by the mathematical concept directed acyclic graph. However, Airflow's DAG object features a lot more than
-the directed acyclic graph data structure; it's a model that encapsulates everything needed to execute a workflow:
 
-* **Schedule**: When the workflow should run.
-* **Task Dependencies**: The order and conditions under which tasks execute.
-* **Completion Behavior**: Actions to take when the entire workflow completes.
-* **Error Handling**: Actions to take when a task fails.
-* **Additional Parameters**: And many other operational details.
+.. include:: ../exts/includes/dag-definition.rst
+    :start-after: .. dag-definition-start
+    :end-before: .. dag-definition-end
 
 Take a look at the following snippet of code:
 
@@ -88,6 +84,10 @@ seen running over time:
 
 Each column represents one DAG run. These are two of the most used views in Airflow, but there are several
 other views which allow you to deep dive into the state of your workflows.
+
+.. include:: ../exts/includes/dag-definition.rst
+    :start-after: .. dag-etymology-start
+    :end-before: .. dag-etymology-end
 
 
 Why Airflow®?
