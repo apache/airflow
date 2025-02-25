@@ -123,7 +123,7 @@ class TIDeferredStatePayload(StrictBaseModel):
     classpath: str
     trigger_kwargs: Annotated[dict[str, Any] | str, Field(default_factory=dict)]
     """
-    Kwargs to pass to the trigger constructor, either a plain dict or an ecnrypted string.
+    Kwargs to pass to the trigger constructor, either a plain dict or an encrypted string.
 
     Both forms will be passed along to the trigger, the server will not handle either.
     """

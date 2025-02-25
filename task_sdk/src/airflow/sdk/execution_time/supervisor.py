@@ -963,7 +963,7 @@ def supervise(
     logger: FilteringBoundLogger | None = None
     if log_path:
         # If we are told to write logs to a file, redirect the task logger to it. Make sure we append to the
-        # file though, otherwise when we resume we would loose the logs from the start->deferral segment if it
+        # file though, otherwise when we resume we would lose the logs from the start->deferral segment if it
         # lands on the same node as before.
         from airflow.sdk.log import init_log_file, logging_processors
 
