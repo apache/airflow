@@ -23,12 +23,12 @@
 
  .. THE REMAINDER OF THE FILE IS AUTOMATICALLY GENERATED. IT WILL BE OVERWRITTEN!
 
-Package apache-airflow-providers-gremlin
+Package apache-airflow-providers-apache-gremlin
 ------------------------------------------------------
 
 `Gremlin <https://tinkerpop.apache.org/gremlin.html>`__
 provides hooks to interact with Graph DB using the Gremlin API.
 
 
-This is detailed commit list of changes for versions provider package: ``gremlin``.
+This is detailed commit list of changes for versions provider package: ``apache.gremlin``.
 For high-level changelog, see :doc:`package information including changelog <index>`.

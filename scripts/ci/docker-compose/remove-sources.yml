@@ -38,6 +38,7 @@ services:
       - ../../../empty:/opt/airflow/providers/apache/drill/src
       - ../../../empty:/opt/airflow/providers/apache/druid/src
       - ../../../empty:/opt/airflow/providers/apache/flink/src
+      - ../../../empty:/opt/airflow/providers/apache/gremlin/src
       - ../../../empty:/opt/airflow/providers/apache/hdfs/src
       - ../../../empty:/opt/airflow/providers/apache/hive/src
       - ../../../empty:/opt/airflow/providers/apache/iceberg/src
@@ -73,7 +74,6 @@ services:
       - ../../../empty:/opt/airflow/providers/ftp/src
       - ../../../empty:/opt/airflow/providers/github/src
       - ../../../empty:/opt/airflow/providers/google/src
-      - ../../../empty:/opt/airflow/providers/gremlin/src
       - ../../../empty:/opt/airflow/providers/grpc/src
       - ../../../empty:/opt/airflow/providers/hashicorp/src
       - ../../../empty:/opt/airflow/providers/http/src

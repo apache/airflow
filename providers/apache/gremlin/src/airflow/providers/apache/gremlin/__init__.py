@@ -35,5 +35,5 @@ if packaging.version.parse(packaging.version.parse(airflow_version).base_version
     "2.10.3"
 ):
     raise RuntimeError(
-        f"The package `apache-airflow-providers-gremlin:{__version__}` needs Apache Airflow 2.10.3+"
+        f"The package `apache-airflow-providers-apache-gremlin:{__version__}` needs Apache Airflow 2.10.3+"
     )

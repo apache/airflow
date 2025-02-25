@@ -19,7 +19,7 @@ from __future__ import annotations
 from typing import TYPE_CHECKING, Any
 
 from airflow.models import BaseOperator
-from airflow.providers.gremlin.hooks.gremlin import GremlinHook
+from airflow.providers.apache.gremlin.hooks.gremlin import GremlinHook
 
 if TYPE_CHECKING:
     try:

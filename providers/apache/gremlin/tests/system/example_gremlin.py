@@ -25,7 +25,7 @@ import os
 from datetime import datetime
 
 from airflow import DAG
-from airflow.providers.gremlin.operators.gremlin import GremlinOperator
+from airflow.providers.apache.gremlin.operators.gremlin import GremlinOperator
 
 ENV_ID = os.environ.get("SYSTEM_TESTS_ENV_ID")
 DAG_ID = "example_gremlin"

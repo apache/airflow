@@ -47,6 +47,7 @@ services:
       - ../../../providers/apache/drill/tests:/opt/airflow/providers/apache/drill/tests
       - ../../../providers/apache/druid/tests:/opt/airflow/providers/apache/druid/tests
       - ../../../providers/apache/flink/tests:/opt/airflow/providers/apache/flink/tests
+      - ../../../providers/apache/gremlin/tests:/opt/airflow/providers/apache/gremlin/tests
       - ../../../providers/apache/hdfs/tests:/opt/airflow/providers/apache/hdfs/tests
       - ../../../providers/apache/hive/tests:/opt/airflow/providers/apache/hive/tests
       - ../../../providers/apache/iceberg/tests:/opt/airflow/providers/apache/iceberg/tests
@@ -82,7 +83,6 @@ services:
       - ../../../providers/ftp/tests:/opt/airflow/providers/ftp/tests
       - ../../../providers/github/tests:/opt/airflow/providers/github/tests
       - ../../../providers/google/tests:/opt/airflow/providers/google/tests
-      - ../../../providers/gremlin/tests:/opt/airflow/providers/gremlin/tests
       - ../../../providers/grpc/tests:/opt/airflow/providers/grpc/tests
       - ../../../providers/hashicorp/tests:/opt/airflow/providers/hashicorp/tests
       - ../../../providers/http/tests:/opt/airflow/providers/http/tests

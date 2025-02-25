@@ -20,13 +20,13 @@
 # IF YOU WANT TO MODIFY THIS FILE EXCEPT DEPENDENCIES, YOU SHOULD MODIFY THE TEMPLATE
 # `pyproject_TEMPLATE.toml.jinja2` IN the `dev/breeze/src/airflow_breeze/templates` DIRECTORY
 [build-system]
-requires = ["flit_core==3.10.1"]
+requires = ["flit_core==3.11.0"]
 build-backend = "flit_core.buildapi"
 
 [project]
-name = "apache-airflow-providers-gremlin"
+name = "apache-airflow-providers-apache-gremlin"
 version = "0.0.1"
-description = "Provider package apache-airflow-providers-gremlin for Apache Airflow"
+description = "Provider package apache-airflow-providers-apache-gremlin for Apache Airflow"
 readme = "README.rst"
 authors = [
     {name="Apache Software Foundation", email="dev@airflow.apache.org"},
@@ -34,7 +34,7 @@ authors = [
 maintainers = [
     {name="Apache Software Foundation", email="dev@airflow.apache.org"},
 ]
-keywords = [ "airflow-provider", "gremlin", "airflow", "integration" ]
+keywords = [ "airflow-provider", "apache.gremlin", "airflow", "integration" ]
 classifiers = [
     "Development Status :: 5 - Production/Stable",
     "Environment :: Console",
@@ -61,8 +61,8 @@ dependencies = [
 ]
 
 [project.urls]
-"Documentation" = "https://airflow.apache.org/docs/apache-airflow-providers-gremlin/0.0.1"
-"Changelog" = "https://airflow.apache.org/docs/apache-airflow-providers-gremlin/0.0.1/changelog.html"
+"Documentation" = "https://airflow.apache.org/docs/apache-airflow-providers-apache-gremlin/0.0.1"
+"Changelog" = "https://airflow.apache.org/docs/apache-airflow-providers-apache-gremlin/0.0.1/changelog.html"
 "Bug Tracker" = "https://github.com/apache/airflow/issues"
 "Source Code" = "https://github.com/apache/airflow"
 "Slack Chat" = "https://s.apache.org/airflow-slack"
@@ -70,10 +70,10 @@ dependencies = [
 "YouTube" = "https://www.youtube.com/channel/UCSXwxpWZQ7XZ1WL3wqevChA/"
 
 [project.entry-points."apache_airflow_provider"]
-provider_info = "airflow.providers.gremlin.get_provider_info:get_provider_info"
+provider_info = "airflow.providers.apache.gremlin.get_provider_info:get_provider_info"
 
 [tool.flit.module]
-name = "airflow.providers.gremlin"
+name = "airflow.providers.apache.gremlin"
 
 [tool.pytest.ini_options]
 ignore = "tests/system/"

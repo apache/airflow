@@ -31,6 +31,7 @@ body:
         - apache-drill
         - apache-druid
         - apache-flink
+        - apache-gremlin
         - apache-hdfs
         - apache-hive
         - apache-iceberg
@@ -66,7 +67,6 @@ body:
         - ftp
         - github
         - google
-        - gremlin
         - grpc
         - hashicorp
         - http

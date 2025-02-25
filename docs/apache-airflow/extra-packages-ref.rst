@@ -137,6 +137,8 @@ custom bash/python providers).
 +---------------------+-----------------------------------------------------+------------------------------------------------+
 | apache-flink        | ``pip install 'apache-airflow[apache-flink]'``      | Flink related operators & hooks                |
 +---------------------+-----------------------------------------------------+------------------------------------------------+
+| apache-gremlin      | ``pip install 'apache-airflow[apache-gremlin]'``    | Gremlin hooks and operators                    |
++---------------------+-----------------------------------------------------+------------------------------------------------+
 | apache-hdfs         | ``pip install 'apache-airflow[apache-hdfs]'``       | HDFS hooks and operators                       |
 +---------------------+-----------------------------------------------------+------------------------------------------------+
 | apache-hive         | ``pip install 'apache-airflow[apache-hive]'``       | All Hive related operators                     |
@@ -326,8 +328,6 @@ pre-installed when Airflow is installed.
 | ftp                 | ``pip install 'apache-airflow[ftp]'``               | FTP hooks and operators              |      *       |
 +---------------------+-----------------------------------------------------+--------------------------------------+--------------+
 | grpc                | ``pip install 'apache-airflow[grpc]'``              | Grpc hooks and operators             |              |
-+---------------------+-----------------------------------------------------+--------------------------------------+--------------+
-| gremlin             | ``pip install 'apache-airflow[gremlin]'``           | Gremlin hooks and operators          |              |
 +---------------------+-----------------------------------------------------+--------------------------------------+--------------+
 | http                | ``pip install 'apache-airflow[http]'``              | HTTP hooks, operators and sensors    |      *       |
 +---------------------+-----------------------------------------------------+--------------------------------------+--------------+

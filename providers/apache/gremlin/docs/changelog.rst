@@ -15,7 +15,7 @@
     specific language governing permissions and limitations
     under the License.
 
-``apache-airflow-providers-gremlin``
+``apache-airflow-providers-apache-gremlin``
 
 
 0.0.1
@@ -23,4 +23,4 @@
 
 .. Below changes are excluded from the changelog. Move them to
    appropriate section above if needed. Do not delete the lines(!):
-.. include:: ../../airflow/providers/gremlin/CHANGELOG.rst
+.. include:: ../../airflow/providers/apache/gremlin/CHANGELOG.rst

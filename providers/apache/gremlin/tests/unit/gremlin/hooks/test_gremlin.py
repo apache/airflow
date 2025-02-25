@@ -21,12 +21,12 @@ from unittest import mock
 import pytest
 
 from airflow.models import Connection
-from airflow.providers.gremlin.hooks.gremlin import GremlinHook
+from airflow.providers.apache.gremlin.hooks.gremlin import GremlinHook
 
 
 class TestGremlinHook:
     @pytest.mark.parametrize(
-        "conn_extra, host, port, expected_uri",
+        "host, port, expected_uri",
         [
             ("host", None, "wss://host:443/"),
             ("myhost", 1234, "wss://myhost:1234/"),
@@ -44,7 +44,7 @@ class TestGremlinHook:
 
             assert uri == expected_uri
 
-    @mock.patch("airflow.providers.gremlin.hooks.gremlin.Client")
+    @mock.patch("airflow.providers.apache.gremlin.hooks.gremlin.Client")
     def test_get_conn(self, mock_client):
         """
         Test that get_conn() retrieves the connection and creates a client correctly.
@@ -79,7 +79,7 @@ class TestGremlinHook:
             (Exception("Test error"), Exception, None),
         ],
     )
-    @mock.patch("airflow.providers.gremlin.hooks.gremlin.Client")
+    @mock.patch("airflow.providers.apache.gremlin.hooks.gremlin.Client")
     def test_run(self, mock_client, side_effect, expected_exception, expected_result):
         """
         Test that run() returns the expected result or propagates an exception.

@@ -143,6 +143,18 @@
     "excluded-python-versions": [],
     "state": "ready"
   },
+  "apache.gremlin": {
+    "deps": [
+      "apache-airflow>=2.10.3",
+      "gremlinpython>=3.4.8",
+      "nest-asyncio>=1.5.6"
+    ],
+    "devel-deps": [],
+    "plugins": [],
+    "cross-providers-deps": [],
+    "excluded-python-versions": [],
+    "state": "ready"
+  },
   "apache.hdfs": {
     "deps": [
       "apache-airflow>=2.9.0",
@@ -716,18 +728,6 @@
       "ssh",
       "trino"
     ],
-    "excluded-python-versions": [],
-    "state": "ready"
-  },
-  "gremlin": {
-    "deps": [
-      "apache-airflow>=2.10.3",
-      "gremlinpython>=3.4.8",
-      "nest-asyncio>=1.5.6"
-    ],
-    "devel-deps": [],
-    "plugins": [],
-    "cross-providers-deps": [],
     "excluded-python-versions": [],
     "state": "ready"
   },

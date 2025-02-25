@@ -42,6 +42,9 @@ labelPRBasedOnFilePath:
   provider:apache-flink:
     - providers/apache/flink/**
 
+  provider:apache-gremlin:
+    - providers/apache/gremlin/**
+
   provider:apache-hdfs:
     - providers/apache/hdfs/**
 
@@ -149,9 +152,6 @@ labelPRBasedOnFilePath:
 
   provider:google:
     - providers/google/**
-
-  provider:gremlin:
-    - providers/gremlin/**
 
   provider:grpc:
     - providers/grpc/**

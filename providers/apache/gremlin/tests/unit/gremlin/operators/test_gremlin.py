@@ -20,7 +20,7 @@ from __future__ import annotations
 from unittest import mock
 
 from airflow.models import Connection
-from airflow.providers.gremlin.operators.gremlin import GremlinOperator
+from airflow.providers.apache.gremlin.operators.gremlin import GremlinOperator
 from airflow.utils import timezone
 
 DEFAULT_DATE = timezone.datetime(2015, 1, 1)
@@ -28,7 +28,7 @@ TEST_DAG_ID = "unit_test_dag"
 
 
 class TestGremlinOperator:
-    @mock.patch("airflow.providers.gremlin.operators.gremlin.GremlinHook")
+    @mock.patch("airflow.providers.apache.gremlin.operators.gremlin.GremlinHook")
     def test_gremlin_operator(self, mock_hook):
         """
         Test that the GremlinOperator instantiates the hook with the proper connection id

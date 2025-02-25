@@ -23,29 +23,35 @@
 
 def get_provider_info():
     return {
-        "package-name": "apache-airflow-providers-gremlin",
-        "name": "Gremlin",
-        "description": "`Gremlin <https://tinkerpop.apache.org/gremlin.html>`__\nprovides hooks to interact with Graph DB using the Gremlin API.\n",
+        "package-name": "apache-airflow-providers-apache-gremlin",
+        "name": "Apache Gremlin",
+        "description": "`Apache Gremlin <https://tinkerpop.apache.org/gremlin.html>`__\nprovides hooks to interact with Graph DB using the Gremlin API.\n",
         "state": "ready",
         "source-date-epoch": 1686592800,
         "versions": ["0.0.1"],
         "integrations": [
             {
-                "integration-name": "Gremlin",
+                "integration-name": "Apache Gremlin",
                 "external-doc-url": "https://tinkerpop.apache.org/gremlin.html",
-                "how-to-guide": ["/docs/apache-airflow-providers-gremlin/operators/gremlin.rst"],
+                "how-to-guide": ["/docs/apache-airflow-providers-apache-gremlin/operators/gremlin.rst"],
                 "tags": ["software"],
             }
         ],
         "operators": [
-            {"integration-name": "Gremlin", "python-modules": ["airflow.providers.gremlin.operators.gremlin"]}
+            {
+                "integration-name": "Apache Gremlin",
+                "python-modules": ["airflow.providers.apache.gremlin.operators.gremlin"],
+            }
         ],
         "hooks": [
-            {"integration-name": "Gremlin", "python-modules": ["airflow.providers.gremlin.hooks.gremlin"]}
+            {
+                "integration-name": "Apache Gremlin",
+                "python-modules": ["airflow.providers.apache.gremlin.hooks.gremlin"],
+            }
         ],
         "connection-types": [
             {
-                "hook-class-name": "airflow.providers.gremlin.hooks.gremlin.GremlinHook",
+                "hook-class-name": "airflow.providers.apache.gremlin.hooks.gremlin.GremlinHook",
                 "connection-type": "gremlin",
             }
         ],

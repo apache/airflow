@@ -16,8 +16,8 @@
     specific language governing permissions and limitations
     under the License.
 
-``apache-airflow-providers-gremlin``
-====================================
+``apache-airflow-providers-apache-gremlin``
+===========================================
 
 .. toctree::
     :hidden:
@@ -33,14 +33,14 @@
     :maxdepth: 1
     :caption: References
 
-    Python API <_api/airflow/providers/gremlin/index>
+    Python API <_api/airflow/providers/apache/gremlin/index>
 
 .. toctree::
     :hidden:
     :maxdepth: 1
     :caption: Resources
 
-    Example DAGs <https://github.com/apache/airflow/tree/providers-gremlin/|version|/providers/gremlin/tests/system/gremlin>
+    Example DAGs <https://github.com/apache/airflow/tree/providers-gremlin/|version|/providers/apache/gremlin/tests/system/gremlin>
     Installing from sources <installing-providers-from-sources>
 
 .. THE REMAINDER OF THE FILE IS AUTOMATICALLY GENERATED. IT WILL BE OVERWRITTEN AT RELEASE TIME!
@@ -54,7 +54,7 @@
     Detailed list of commits <commits>
 
 
-apache-airflow-providers-gremlin package
+apache-airflow-providers-apache-gremlin package
 ------------------------------------------------------
 
 `Gremlin <https://tinkerpop.apache.org/gremlin.html>`__
@@ -66,14 +66,14 @@ Release: 0.0.1
 Provider package
 ----------------
 
-This package is for the ``gremlin`` provider.
-All classes for this package are included in the ``airflow.providers.gremlin`` python package.
+This package is for the ``apache.gremlin`` provider.
+All classes for this package are included in the ``airflow.providers.apache.gremlin`` python package.
 
 Installation
 ------------
 
 You can install this package on top of an existing Airflow 2 installation via
-``pip install apache-airflow-providers-gremlin``.
+``pip install apache-airflow-providers-apache-gremlin``.
 For the minimum Airflow version supported, see ``Requirements`` below.
 
 Requirements

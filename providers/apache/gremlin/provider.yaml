@@ -15,10 +15,10 @@
 # specific language governing permissions and limitations
 # under the License.
 ---
-package-name: apache-airflow-providers-gremlin
-name: Gremlin
+package-name: apache-airflow-providers-apache-gremlin
+name: Apache Gremlin
 description: |
-    `Gremlin <https://tinkerpop.apache.org/gremlin.html>`__
+    `Apache Gremlin <https://tinkerpop.apache.org/gremlin.html>`__
     provides hooks to interact with Graph DB using the Gremlin API.
 state: ready
 source-date-epoch: 1686592800
@@ -26,19 +26,19 @@ source-date-epoch: 1686592800
 versions:
   - 0.0.1
 integrations:
-  - integration-name: Gremlin
+  - integration-name: Apache Gremlin
     external-doc-url: https://tinkerpop.apache.org/gremlin.html
     how-to-guide:
-      - /docs/apache-airflow-providers-gremlin/operators/gremlin.rst
+      - /docs/apache-airflow-providers-apache-gremlin/operators/gremlin.rst
     tags: [software]
 operators:
-  - integration-name: Gremlin
+  - integration-name: Apache Gremlin
     python-modules:
-      - airflow.providers.gremlin.operators.gremlin
+      - airflow.providers.apache.gremlin.operators.gremlin
 hooks:
-  - integration-name: Gremlin
+  - integration-name: Apache Gremlin
     python-modules:
-      - airflow.providers.gremlin.hooks.gremlin
+      - airflow.providers.apache.gremlin.hooks.gremlin
 connection-types:
-  - hook-class-name: airflow.providers.gremlin.hooks.gremlin.GremlinHook
+  - hook-class-name: airflow.providers.apache.gremlin.hooks.gremlin.GremlinHook
     connection-type: gremlin
