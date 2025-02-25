@@ -427,7 +427,6 @@ class DAG(TaskSDKDag, LoggingMixin):
     """
 
     partial: bool = False
-    last_loaded: datetime | None = attrs.field(factory=timezone.utcnow)
 
     default_view: str = airflow_conf.get_mandatory_value("webserver", "dag_default_view").lower()
     orientation: str = airflow_conf.get_mandatory_value("webserver", "dag_orientation")
