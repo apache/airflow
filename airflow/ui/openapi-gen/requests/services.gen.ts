@@ -1661,6 +1661,7 @@ export class DagService {
    * Get Dags
    * Get all DAGs.
    * @param data The data for the request.
+   * @param data.dagId
    * @param data.limit
    * @param data.offset
    * @param data.tags
@@ -1685,6 +1686,7 @@ export class DagService {
       method: "GET",
       url: "/public/dags",
       query: {
+        dag_id: data.dagId,
         limit: data.limit,
         offset: data.offset,
         tags: data.tags,
@@ -1716,6 +1718,7 @@ export class DagService {
    * @param data The data for the request.
    * @param data.requestBody
    * @param data.updateMask
+   * @param data.dagId
    * @param data.limit
    * @param data.offset
    * @param data.tags
@@ -1734,6 +1737,7 @@ export class DagService {
       url: "/public/dags",
       query: {
         update_mask: data.updateMask,
+        dag_id: data.dagId,
         limit: data.limit,
         offset: data.offset,
         tags: data.tags,

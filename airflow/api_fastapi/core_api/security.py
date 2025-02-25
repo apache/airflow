@@ -76,7 +76,9 @@ async def get_user_with_exception_handling(request: Request) -> BaseUser | None:
     return get_user(token_str)
 
 
-def requires_access_dag(method: ResourceMethod, access_entity: DagAccessEntity | None = None) -> Callable:
+def requires_access_dag(
+    method: ResourceMethod, access_entity: DagAccessEntity | None = None
+) -> Callable[[str | None, BaseUser | None], None]:
     def inner(
         user: Annotated[BaseUser, Depends(get_user)],
         dag_id: str | None = None,
