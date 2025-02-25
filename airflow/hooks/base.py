@@ -70,9 +70,7 @@ class BaseHook(LoggingMixin):
             # TODO: AIP 72: Add deprecation here once we move this module to task sdk.
             from airflow.sdk import Connection as TaskSDKConnection
 
-            return TaskSDKConnection.get(
-                conn_id=conn_id,
-            )
+            return TaskSDKConnection.get(conn_id=conn_id)
 
         from airflow.models.connection import Connection
 
