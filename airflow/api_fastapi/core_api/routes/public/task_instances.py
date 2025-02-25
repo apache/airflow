@@ -61,7 +61,6 @@ from airflow.api_fastapi.core_api.datamodels.task_instances import (
 )
 from airflow.api_fastapi.core_api.openapi.exceptions import create_openapi_http_exception_doc
 from airflow.exceptions import TaskNotFound
-from airflow.jobs.scheduler_job_runner import DR
 from airflow.models import Base, DagRun
 from airflow.models.dag import DAG
 from airflow.models.taskinstance import TaskInstance as TI, clear_task_instances
@@ -625,12 +624,20 @@ def post_clear_task_instances(
     upstream = body.include_upstream
 
     if dag_run_id is not None:
-        dag_run: DR | None = session.scalar(select(DR).where(DR.dag_id == dag_id, DR.run_id == dag_run_id))
+        dag_run: DagRun | None = session.scalar(
+            select(DagRun).where(DagRun.dag_id == dag_id, DagRun.run_id == dag_run_id)
+        )
         if dag_run is None:
             error_message = f"Dag Run id {dag_run_id} not found in dag {dag_id}"
             raise HTTPException(status.HTTP_404_NOT_FOUND, error_message)
-        body.start_date = dag_run.logical_date
-        body.end_date = dag_run.logical_date
+
+        if past or future:
+            raise HTTPException(
+                status.HTTP_400_BAD_REQUEST,
+                "Cannot use include_past or include_future when dag_run_id is provided because logical_date is not applicable.",
+            )
+        body.start_date = dag_run.logical_date if dag_run.logical_date is not None else None
+        body.end_date = dag_run.logical_date if dag_run.logical_date is not None else None
 
     if past:
         body.start_date = None
@@ -653,6 +660,7 @@ def post_clear_task_instances(
 
     task_instances = dag.clear(
         dry_run=True,
+        run_id=None if past or future else dag_run_id,
         task_ids=task_ids,
         dag_bag=request.app.state.dag_bag,
         session=session,

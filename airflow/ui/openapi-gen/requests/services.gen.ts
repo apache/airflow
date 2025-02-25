@@ -38,6 +38,8 @@ import type {
   GetConfigValueResponse,
   RecentDagRunsData,
   RecentDagRunsResponse,
+  GetDependenciesData,
+  GetDependenciesResponse,
   HistoricalMetricsData,
   HistoricalMetricsResponse,
   StructureDataData,
@@ -733,6 +735,30 @@ export class DagsService {
         last_dag_run_state: data.lastDagRunState,
       },
       errors: {
+        422: "Validation Error",
+      },
+    });
+  }
+}
+
+export class DependenciesService {
+  /**
+   * Get Dependencies
+   * Dependencies graph.
+   * @param data The data for the request.
+   * @param data.nodeId
+   * @returns BaseGraphResponse Successful Response
+   * @throws ApiError
+   */
+  public static getDependencies(data: GetDependenciesData = {}): CancelablePromise<GetDependenciesResponse> {
+    return __request(OpenAPI, {
+      method: "GET",
+      url: "/ui/dependencies",
+      query: {
+        node_id: data.nodeId,
+      },
+      errors: {
+        404: "Not Found",
         422: "Validation Error",
       },
     });

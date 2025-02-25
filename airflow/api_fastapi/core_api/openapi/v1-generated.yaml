@@ -174,6 +174,41 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/HTTPValidationError'
+  /ui/dependencies:
+    get:
+      tags:
+      - Dependencies
+      summary: Get Dependencies
+      description: Dependencies graph.
+      operationId: get_dependencies
+      parameters:
+      - name: node_id
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Node Id
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BaseGraphResponse'
+        '404':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Not Found
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
   /ui/dashboard/historical_metrics_data:
     get:
       tags:
@@ -7269,6 +7304,38 @@ components:
       - updated_at
       title: BackfillResponse
       description: Base serializer for Backfill.
+    BaseEdgeResponse:
+      properties:
+        source_id:
+          type: string
+          title: Source Id
+        target_id:
+          type: string
+          title: Target Id
+      type: object
+      required:
+      - source_id
+      - target_id
+      title: BaseEdgeResponse
+      description: Base Edge serializer for responses.
+    BaseGraphResponse:
+      properties:
+        edges:
+          items:
+            $ref: '#/components/schemas/BaseEdgeResponse'
+          type: array
+          title: Edges
+        nodes:
+          items:
+            $ref: '#/components/schemas/BaseNodeResponse'
+          type: array
+          title: Nodes
+      type: object
+      required:
+      - edges
+      - nodes
+      title: BaseGraphResponse
+      description: Base Graph serializer for responses.
     BaseInfoResponse:
       properties:
         status:
@@ -7281,6 +7348,33 @@ components:
       - status
       title: BaseInfoResponse
       description: Base info serializer for responses.
+    BaseNodeResponse:
+      properties:
+        id:
+          type: string
+          title: Id
+        label:
+          type: string
+          title: Label
+        type:
+          type: string
+          enum:
+          - join
+          - task
+          - asset-condition
+          - asset
+          - asset-alias
+          - dag
+          - sensor
+          - trigger
+          title: Type
+      type: object
+      required:
+      - id
+      - label
+      - type
+      title: BaseNodeResponse
+      description: Base Node serializer for responses.
     BulkAction:
       type: string
       enum:
@@ -8868,8 +8962,10 @@ components:
           type: string
           title: Dag Id
         logical_date:
-          type: string
-          format: date-time
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
           title: Logical Date
         start_date:
           type: string
@@ -8885,12 +8981,16 @@ components:
           type: string
           title: State
         data_interval_start:
-          type: string
-          format: date-time
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
           title: Data Interval Start
         data_interval_end:
-          type: string
-          format: date-time
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
           title: Data Interval End
       additionalProperties: false
       type: object
@@ -9105,6 +9205,12 @@ components:
       description: Backfill serializer for responses in dry-run mode.
     EdgeResponse:
       properties:
+        source_id:
+          type: string
+          title: Source Id
+        target_id:
+          type: string
+          title: Target Id
         is_setup_teardown:
           anyOf:
           - type: boolean
@@ -9115,12 +9221,6 @@ components:
           - type: string
           - type: 'null'
           title: Label
-        source_id:
-          type: string
-          title: Source Id
-        target_id:
-          type: string
-          title: Target Id
         is_source_asset:
           anyOf:
           - type: boolean
@@ -9578,6 +9678,24 @@ components:
       description: Job serializer for responses.
     NodeResponse:
       properties:
+        id:
+          type: string
+          title: Id
+        label:
+          type: string
+          title: Label
+        type:
+          type: string
+          enum:
+          - join
+          - task
+          - asset-condition
+          - asset
+          - asset-alias
+          - dag
+          - sensor
+          - trigger
+          title: Type
         children:
           anyOf:
           - items:
@@ -9585,17 +9703,11 @@ components:
             type: array
           - type: 'null'
           title: Children
-        id:
-          type: string
-          title: Id
         is_mapped:
           anyOf:
           - type: boolean
           - type: 'null'
           title: Is Mapped
-        label:
-          type: string
-          title: Label
         tooltip:
           anyOf:
           - type: string
@@ -9609,18 +9721,6 @@ components:
             - teardown
           - type: 'null'
           title: Setup Teardown Type
-        type:
-          type: string
-          enum:
-          - join
-          - task
-          - asset-condition
-          - asset
-          - asset-alias
-          - dag
-          - sensor
-          - trigger
-          title: Type
         operator:
           anyOf:
           - type: string
@@ -10842,8 +10942,10 @@ components:
           - type: 'null'
           title: Logical Date
         run_after:
-          type: string
-          format: date-time
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
           title: Run After
         conf:
           type: object

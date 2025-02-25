@@ -16,6 +16,7 @@ import {
   DagWarningService,
   DagsService,
   DashboardService,
+  DependenciesService,
   EventLogService,
   ExtraLinksService,
   GridService,
@@ -332,6 +333,22 @@ export const UseDagsServiceRecentDagRunsKeyFn = (
     },
   ]),
 ];
+export type DependenciesServiceGetDependenciesDefaultResponse = Awaited<
+  ReturnType<typeof DependenciesService.getDependencies>
+>;
+export type DependenciesServiceGetDependenciesQueryResult<
+  TData = DependenciesServiceGetDependenciesDefaultResponse,
+  TError = unknown,
+> = UseQueryResult<TData, TError>;
+export const useDependenciesServiceGetDependenciesKey = "DependenciesServiceGetDependencies";
+export const UseDependenciesServiceGetDependenciesKeyFn = (
+  {
+    nodeId,
+  }: {
+    nodeId?: string;
+  } = {},
+  queryKey?: Array<unknown>,
+) => [useDependenciesServiceGetDependenciesKey, ...(queryKey ?? [{ nodeId }])];
 export type DashboardServiceHistoricalMetricsDefaultResponse = Awaited<
   ReturnType<typeof DashboardService.historicalMetrics>
 >;

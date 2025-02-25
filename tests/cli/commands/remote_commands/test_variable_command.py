@@ -17,6 +17,7 @@
 # under the License.
 from __future__ import annotations
 
+import json
 import os
 from contextlib import redirect_stdout
 from io import StringIO
@@ -190,3 +191,46 @@ class TestCliVariables:
         variable_command.variables_export(self.parser.parse_args(["variables", "export", os.fspath(path2)]))
 
         assert path1.read_text() == path2.read_text()
+
+    def test_variables_import_and_export_with_description(self, tmp_path):
+        """Test variables_import with file-description parameted"""
+        variables_types_file = tmp_path / "variables_types.json"
+        variable_command.variables_set(
+            self.parser.parse_args(["variables", "set", "foo", "bar", "--description", "Foo var description"])
+        )
+        variable_command.variables_set(
+            self.parser.parse_args(["variables", "set", "foo1", "bar1", "--description", "12"])
+        )
+        variable_command.variables_set(self.parser.parse_args(["variables", "set", "foo2", "bar2"]))
+        variable_command.variables_export(
+            self.parser.parse_args(["variables", "export", os.fspath(variables_types_file)])
+        )
+
+        with open(variables_types_file) as f:
+            exported_vars = json.load(f)
+            assert exported_vars == {
+                "foo": {
+                    "description": "Foo var description",
+                    "value": "bar",
+                },
+                "foo1": {
+                    "description": "12",
+                    "value": "bar1",
+                },
+                "foo2": "bar2",
+            }
+
+        variable_command.variables_import(
+            self.parser.parse_args(["variables", "import", os.fspath(variables_types_file)])
+        )
+
+        assert Variable.get("foo") == "bar"
+        assert Variable.get("foo1") == "bar1"
+        assert Variable.get("foo2") == "bar2"
+
+        with create_session() as session:
+            assert (
+                session.scalar(select(Variable.description).where(Variable.key == "foo"))
+                == "Foo var description"
+            )
+            assert session.scalar(select(Variable.description).where(Variable.key == "foo1")) == "12"

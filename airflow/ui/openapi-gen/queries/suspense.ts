@@ -15,6 +15,7 @@ import {
   DagWarningService,
   DagsService,
   DashboardService,
+  DependenciesService,
   EventLogService,
   ExtraLinksService,
   GridService,
@@ -526,6 +527,32 @@ export const useDagsServiceRecentDagRunsSuspense = <
         tags,
         tagsMatchMode,
       }) as TData,
+    ...options,
+  });
+/**
+ * Get Dependencies
+ * Dependencies graph.
+ * @param data The data for the request.
+ * @param data.nodeId
+ * @returns BaseGraphResponse Successful Response
+ * @throws ApiError
+ */
+export const useDependenciesServiceGetDependenciesSuspense = <
+  TData = Common.DependenciesServiceGetDependenciesDefaultResponse,
+  TError = unknown,
+  TQueryKey extends Array<unknown> = unknown[],
+>(
+  {
+    nodeId,
+  }: {
+    nodeId?: string;
+  } = {},
+  queryKey?: TQueryKey,
+  options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">,
+) =>
+  useSuspenseQuery<TData, TError>({
+    queryKey: Common.UseDependenciesServiceGetDependenciesKeyFn({ nodeId }, queryKey),
+    queryFn: () => DependenciesService.getDependencies({ nodeId }) as TData,
     ...options,
   });
 /**

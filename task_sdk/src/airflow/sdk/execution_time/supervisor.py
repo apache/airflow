@@ -304,7 +304,7 @@ class WatchedSubprocess:
     stdin: BinaryIO
     """The handle connected to stdin of the child process"""
 
-    decoder: TypeAdapter
+    decoder: ClassVar[TypeAdapter]
     """The decoder to use for incoming messages from the child process."""
 
     _process: psutil.Process
@@ -584,7 +584,7 @@ class ActivitySubprocess(WatchedSubprocess):
     TASK_OVERTIME_THRESHOLD: ClassVar[float] = 20.0
     _task_end_time_monotonic: float | None = attrs.field(default=None, init=False)
 
-    decoder: TypeAdapter[ToSupervisor] = TypeAdapter(ToSupervisor)
+    decoder: ClassVar[TypeAdapter[ToSupervisor]] = TypeAdapter(ToSupervisor)
 
     @classmethod
     def start(  # type: ignore[override]
@@ -787,7 +787,7 @@ class ActivitySubprocess(WatchedSubprocess):
             conn = self.client.connections.get(msg.conn_id)
             if isinstance(conn, ConnectionResponse):
                 conn_result = ConnectionResult.from_conn_response(conn)
-                resp = conn_result.model_dump_json(exclude_unset=True).encode()
+                resp = conn_result.model_dump_json(exclude_unset=True, by_alias=True).encode()
             else:
                 resp = conn.model_dump_json().encode()
         elif isinstance(msg, GetVariable):

@@ -88,7 +88,7 @@ def create_app(apps: str = "all") -> FastAPI:
         init_middlewares(app)
 
     if "execution" in apps_list or "all" in apps_list:
-        task_exec_api_app = create_task_execution_api_app(app)
+        task_exec_api_app = create_task_execution_api_app()
         init_error_handlers(task_exec_api_app)
         app.mount("/execution", task_exec_api_app)
 
