@@ -635,7 +635,6 @@ class KubernetesPodOperator(BaseOperator):
 
     def execute(self, context: Context):
         """Based on the deferrable parameter runs the pod asynchronously or synchronously."""
-        self.log.info("Hello World!")
         self.name = self._set_name(self.name)
         if not self.deferrable:
             return self.execute_sync(context)
@@ -920,12 +919,12 @@ class KubernetesPodOperator(BaseOperator):
 
                 xcom_sidecar_output = self.extract_xcom(pod=self.pod) if self.do_xcom_push else None
 
-                if event["status"] == "success":
-                    return xcom_sidecar_output
-                else:
+                if event["status"] != "success":
                     self.log.error("Trigger emitted an %s event, failing the task: %s", event["status"], event["message"])
                     message = event.get("stack_trace", event["message"])
                     raise AirflowException(message)
+
+                return xcom_sidecar_output
 
             if event["status"] == "running":
                 if self.get_logs:
@@ -945,14 +944,15 @@ class KubernetesPodOperator(BaseOperator):
             raise
         finally:
             self._clean(event, context)
-            for callback in self.callbacks:
-                callback.on_pod_cleanup(
-                    pod=self.pod or self.pod_request_obj,
-                    client=self.client,
-                    mode=ExecutionMode.SYNC,
-                    context=context,
-                    operator=self,
-                )
+            if self.pod and event["status"] in ("error", "failed", "timeout", "success"):
+                for callback in self.callbacks:
+                    callback.on_pod_cleanup(
+                        pod=self.pod or self.pod_request_obj,
+                        client=self.client,
+                        mode=ExecutionMode.SYNC,
+                        context=context,
+                        operator=self,
+                    )
 
     def _clean(self, event: dict[str, Any], context: Context) -> None:
         if event["status"] == "running":
