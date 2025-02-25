@@ -32,7 +32,7 @@ class MwaaHook(AwsBaseHook):
 
     Provide thin wrapper around :external+boto3:py:class:`boto3.client("mwaa") <MWAA.Client>`
 
-    If your IAM policy doesn't have airflow:InvokeRestApi permission or if you reach throttling capacity, the
+    If your IAM policy doesn't have `airflow:InvokeRestApi` permission or if you reach throttling capacity, the
     hook will use a session token to make the requests. Learn more here:
     https://docs.aws.amazon.com/mwaa/latest/userguide/access-mwaa-apache-airflow-rest-api.html#granting-access-MWAA-Enhanced-REST-API
 
