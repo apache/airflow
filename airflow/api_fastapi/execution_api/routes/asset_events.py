@@ -19,7 +19,7 @@ from __future__ import annotations
 
 from typing import Annotated
 
-from fastapi import Query, status
+from fastapi import HTTPException, Query, status
 from sqlalchemy import and_, select
 
 from airflow.api_fastapi.common.db.common import SessionDep
@@ -73,8 +73,8 @@ def _get_asset_events_through_sql_clauses(
 
 @router.get("/by-asset")
 def get_asset_event_by_asset_name_uri(
-    name: Annotated[str, Query(description="The name of the Asset")],
-    uri: Annotated[str, Query(description="The URI of the Asset")],
+    name: Annotated[str | None, Query(description="The name of the Asset")],
+    uri: Annotated[str | None, Query(description="The URI of the Asset")],
     session: SessionDep,
 ) -> AssetEventsResponse:
     if name and uri:
@@ -84,7 +84,13 @@ def get_asset_event_by_asset_name_uri(
     elif name:
         where_clause = and_(AssetModel.name == name, AssetModel.active.has())
     else:
-        raise ValueError()
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail={
+                "reason": "Missing parameter",
+                "message": "name and uri cannot both be None",
+            },
+        )
 
     return _get_asset_events_through_sql_clauses(
         join_clause=AssetEvent.asset,
