@@ -257,7 +257,7 @@ class BaseDagBundle(ABC):
     supports_versioning: bool = False
 
     bundle_type: str
-    """This is used in generating some of the paths used for local storage."""
+    """This is used to ensure consistent local storage location for local bundle versions."""
 
     _locked: bool = False
 
