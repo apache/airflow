@@ -5,9 +5,18 @@ Replace the ``external_trigger`` check with ``DagRunType``, and update any logic
 
   * [ ] Dag changes
   * [ ] Config changes
-  * [ ] API changes
-  * [ ] CLI changes
+  * [x] API changes
+  * [x] CLI changes
   * [ ] Behaviour changes
   * [ ] Plugin changes
   * [ ] Dependency changes
   * [x] Code interface changes
+
+* Migration rules needed
+
+  * ruff
+
+    * AIR302
+
+      * [ ] argument ``external_trigger`` in ``airflow...DAG.create_dagrun``
+      * [ ] context key ``dag_run.external_trigger``
