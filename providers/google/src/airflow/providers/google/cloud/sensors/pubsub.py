@@ -23,13 +23,14 @@ from collections.abc import Sequence
 from datetime import timedelta
 from typing import TYPE_CHECKING, Any, Callable
 
+from google.cloud import pubsub_v1
+from google.cloud.pubsub_v1.types import ReceivedMessage
+
 from airflow.configuration import conf
 from airflow.exceptions import AirflowException
 from airflow.providers.google.cloud.hooks.pubsub import PubSubHook
 from airflow.providers.google.cloud.triggers.pubsub import PubsubPullTrigger
 from airflow.sensors.base import BaseSensorOperator
-from google.cloud import pubsub_v1
-from google.cloud.pubsub_v1.types import ReceivedMessage
 
 if TYPE_CHECKING:
     from airflow.utils.context import Context

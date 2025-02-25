@@ -23,6 +23,7 @@ from datetime import datetime
 from typing import TYPE_CHECKING
 
 import psutil
+from openlineage.client.serde import Serde
 from setproctitle import getproctitle, setproctitle
 
 from airflow import settings
@@ -50,7 +51,6 @@ from airflow.stats import Stats
 from airflow.utils import timezone
 from airflow.utils.state import TaskInstanceState
 from airflow.utils.timeout import timeout
-from openlineage.client.serde import Serde
 
 if TYPE_CHECKING:
     from airflow.models import TaskInstance
