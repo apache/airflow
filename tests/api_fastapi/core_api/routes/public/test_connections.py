@@ -102,7 +102,7 @@ class TestDeleteConnection(TestConnectionEndpoint):
         assert response.status_code == 204
         connection = session.query(Connection).all()
         assert len(connection) == 0
-        check_last_log(session, dag_id=None, event="delete_connection", logical_date=None)
+        _check_last_log(session, dag_id=None, event="delete_connection", logical_date=None)
 
     def test_delete_should_respond_404(self, test_client):
         response = test_client.delete(f"/public/connections/{TEST_CONN_ID}")
@@ -583,7 +583,7 @@ class TestPatchConnection(TestConnectionEndpoint):
         response = test_client.patch(f"/public/connections/{TEST_CONN_ID}", json=body)
         assert response.status_code == 200
         assert response.json() == expected_response
-        check_last_log(session, dag_id=None, event="patch_connection", logical_date=None, check_masked=True)
+        _check_last_log(session, dag_id=None, event="patch_connection", logical_date=None, check_masked=True)
 
 
 class TestConnection(TestConnectionEndpoint):
@@ -636,7 +636,7 @@ class TestCreateDefaultConnections(TestConnectionEndpoint):
         response = test_client.post("/public/connections/defaults")
         assert response.status_code == 204
         assert response.content == b""
-        check_last_log(session, dag_id=None, event="create_default_connections", logical_date=None)
+        _check_last_log(session, dag_id=None, event="create_default_connections", logical_date=None)
 
     @mock.patch("airflow.api_fastapi.core_api.routes.public.connections.db_create_default_connections")
     def test_should_call_db_create_default_connections(self, mock_db_create_default_connections, test_client):

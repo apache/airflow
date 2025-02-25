@@ -63,7 +63,7 @@ class TestDagParsingEndpoint:
         assert response.status_code == 409
         parsing_requests = session.scalars(select(DagPriorityParsingRequest)).all()
         assert parsing_requests[0].fileloc == test_dag.fileloc
-        check_last_log(session, dag_id=None, event="reparse_dag_file", logical_date=None)
+        _check_last_log(session, dag_id=None, event="reparse_dag_file", logical_date=None)
 
     def test_bad_file_request(self, url_safe_serializer, session, test_client):
         url = f"/public/parseDagFile/{url_safe_serializer.dumps('/some/random/file.py')}"
