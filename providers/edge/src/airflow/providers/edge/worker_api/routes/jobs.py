@@ -136,16 +136,12 @@ def state(
 
     if state == TaskInstanceState.SUCCESS or state == TaskInstanceState.FAILED:
         # need to execute the query to catch the queue from the job
-        query = (
-            select(EdgeJobModel)
-            .where(
-                EdgeJobModel.dag_id == dag_id,
-                EdgeJobModel.task_id == task_id,
-                EdgeJobModel.run_id == run_id,
-                EdgeJobModel.map_index == map_index,
-                EdgeJobModel.try_number == try_number,
-            )
-            .first()
+        query = select(EdgeJobModel).where(
+            EdgeJobModel.dag_id == dag_id,
+            EdgeJobModel.task_id == task_id,
+            EdgeJobModel.run_id == run_id,
+            EdgeJobModel.map_index == map_index,
+            EdgeJobModel.try_number == try_number,
         )
         job = session.scalar(query)
         if job:
