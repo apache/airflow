@@ -32,6 +32,7 @@ from sqlalchemy import (
     select,
     text,
 )
+from sqlalchemy.dialects import postgresql
 from sqlalchemy.ext.mutable import MutableDict
 from sqlalchemy.orm import relationship
 from sqlalchemy_utils import UUIDType
@@ -60,7 +61,12 @@ class TaskInstanceHistory(Base):
     """
 
     __tablename__ = "task_instance_history"
-    id = Column(Integer(), primary_key=True, autoincrement=True)
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    task_instance_id = Column(
+        String(36).with_variant(postgresql.UUID(as_uuid=False), "postgresql"),
+        nullable=False,
+    )
+    try_id = Column(UUIDType(binary=False), nullable=False, unique=True)
     task_id = Column(StringID(), nullable=False)
     dag_id = Column(StringID(), nullable=False)
     run_id = Column(StringID(), nullable=False)
@@ -112,6 +118,9 @@ class TaskInstanceHistory(Base):
         super().__init__()
         for column in self.__table__.columns:
             if column.name == "id":
+                continue
+            if column.name == "task_instance_id":
+                setattr(self, column.name, ti.id)
                 continue
             setattr(self, column.name, getattr(ti, column.name))
 
