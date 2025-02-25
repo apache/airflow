@@ -21,7 +21,6 @@ from __future__ import annotations
 
 import logging
 import sys
-import warnings
 from typing import TYPE_CHECKING, Any, Protocol
 
 from airflow.utils.log.logging_mixin import LoggingMixin
@@ -68,12 +67,7 @@ class BaseHook(LoggingMixin):
         # If this is set it means are in some kind of execution context (Task, Dag Parse or Triggerer perhaps)
         # and should use the Task SDK API server path
         if hasattr(sys.modules.get("airflow.sdk.execution_time.task_runner"), "SUPERVISOR_COMMS"):
-            warnings.warn(
-                "Using BaseHook.get_connection from `airflow.models` is deprecated. Please use `from airflow.sdk import"
-                "Connection` and use `Connection.get` instead",
-                DeprecationWarning,
-                stacklevel=1,
-            )
+            # TODO: AIP 72: Add deprecation here once we move this module to task sdk.
             from airflow.sdk import Connection as TaskSDKConnection
 
             return TaskSDKConnection.get(

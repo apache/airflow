@@ -133,9 +133,6 @@ class TestDagFileProcessor:
     def test_top_level_variable_access(
         self, spy_agency: SpyAgency, tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch
     ):
-        # Create the dag in a fn, and use inspect.getsource to write it to a file so that
-        # a) the test dag is directly viewable here in the tests
-        # b) that it shows to IDEs/mypy etc.
         def dag_in_a_fn():
             from airflow.sdk import DAG, Variable
 
@@ -161,9 +158,6 @@ class TestDagFileProcessor:
         assert result.serialized_dags[0].dag_id == "test_abc"
 
     def test_top_level_connection_access(self, tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch):
-        # Create the dag in a fn, and use inspect.getsource to write it to a file so that
-        # a) the test dag is directly viewable here in the tests
-        # b) that it shows to IDEs/mypy etc.
         def dag_in_a_fn():
             from airflow.hooks.base import BaseHook
             from airflow.sdk import DAG
@@ -191,6 +185,9 @@ class TestDagFileProcessor:
 
 
 def write_dag_in_a_fn_to_file(fn: Callable[[], None], folder: pathlib.Path) -> pathlib.Path:
+    # Create the dag in a fn, and use inspect.getsource to write it to a file so that
+    # a) the test dag is directly viewable here in the tests
+    # b) that it shows to IDEs/mypy etc.
     assert folder.is_dir()
     name = fn.__name__
     path = folder.joinpath(name + ".py")
