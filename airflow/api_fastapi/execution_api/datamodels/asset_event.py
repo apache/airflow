@@ -19,9 +19,8 @@ from __future__ import annotations
 
 from datetime import datetime
 
-from pydantic import Field
-
 from airflow.api_fastapi.core_api.base import BaseModel, StrictBaseModel
+from airflow.api_fastapi.execution_api.datamodels.asset import AssetResponse
 
 
 class DagRunAssetReference(StrictBaseModel):
@@ -41,20 +40,19 @@ class AssetEventResponse(BaseModel):
     """Asset event schema with fields that are needed for Runtime."""
 
     id: int
-    asset_id: int
-    uri: str | None = Field(alias="uri", default=None)
-    name: str | None = Field(alias="name", default=None)
-    group: str | None = Field(alias="group", default=None)
+    timestamp: datetime
     extra: dict | None = None
+
+    asset: AssetResponse
+    created_dagruns: list[DagRunAssetReference]
+
     source_task_id: str | None = None
     source_dag_id: str | None = None
     source_run_id: str | None = None
     source_map_index: int = -1
-    created_dagruns: list[DagRunAssetReference]
-    timestamp: datetime
 
 
-class AssetEventCollectionResponse(BaseModel):
+class AssetEventsResponse(BaseModel):
     """Collection of AssetEventResponse."""
 
     asset_events: list[AssetEventResponse]

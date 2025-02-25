@@ -1151,8 +1151,34 @@ class TestHandleRequest:
                 id="get_asset_by_uri",
             ),
             pytest.param(
+                GetAssetEventByAsset(uri="s3://bucket/obj", name="test"),
+                (
+                    b'{"asset_events":'
+                    b'[{"id":1,"timestamp":"2024-10-31T12:00:00Z","asset":{"name":"asset","uri":"s3://bucket/obj","group":"asset"},'
+                    b'"created_dagruns":[]}],"type":"AssetEventsResult"}\n'
+                ),
+                "asset_events.get",
+                [],
+                {"uri": "s3://bucket/obj", "name": "test"},
+                AssetEventsResult(
+                    asset_events=[
+                        AssetEventResponse(
+                            id=1,
+                            asset=AssetResponse(name="asset", uri="s3://bucket/obj", group="asset"),
+                            created_dagruns=[],
+                            timestamp=timezone.parse("2024-10-31T12:00:00Z"),
+                        )
+                    ]
+                ),
+                id="get_asset_events_by_uri_and_name",
+            ),
+            pytest.param(
                 GetAssetEventByAsset(uri="s3://bucket/obj", name=None),
-                b'{"asset_events":[{"id":1,"asset_id":1,"created_dagruns":[],"timestamp":"2024-10-31T12:00:00Z"}],"type":"AssetEventsResult"}\n',
+                (
+                    b'{"asset_events":'
+                    b'[{"id":1,"timestamp":"2024-10-31T12:00:00Z","asset":{"name":"asset","uri":"s3://bucket/obj","group":"asset"},'
+                    b'"created_dagruns":[]}],"type":"AssetEventsResult"}\n'
+                ),
                 "asset_events.get",
                 [],
                 {"uri": "s3://bucket/obj", "name": None},
@@ -1160,7 +1186,7 @@ class TestHandleRequest:
                     asset_events=[
                         AssetEventResponse(
                             id=1,
-                            asset_id=1,
+                            asset=AssetResponse(name="asset", uri="s3://bucket/obj", group="asset"),
                             created_dagruns=[],
                             timestamp=timezone.parse("2024-10-31T12:00:00Z"),
                         )
@@ -1170,7 +1196,11 @@ class TestHandleRequest:
             ),
             pytest.param(
                 GetAssetEventByAsset(uri=None, name="test"),
-                b'{"asset_events":[{"id":1,"asset_id":1,"created_dagruns":[],"timestamp":"2024-10-31T12:00:00Z"}],"type":"AssetEventsResult"}\n',
+                (
+                    b'{"asset_events":'
+                    b'[{"id":1,"timestamp":"2024-10-31T12:00:00Z","asset":{"name":"asset","uri":"s3://bucket/obj","group":"asset"},'
+                    b'"created_dagruns":[]}],"type":"AssetEventsResult"}\n'
+                ),
                 "asset_events.get",
                 [],
                 {"uri": None, "name": "test"},
@@ -1178,7 +1208,7 @@ class TestHandleRequest:
                     asset_events=[
                         AssetEventResponse(
                             id=1,
-                            asset_id=1,
+                            asset=AssetResponse(name="asset", uri="s3://bucket/obj", group="asset"),
                             created_dagruns=[],
                             timestamp=timezone.parse("2024-10-31T12:00:00Z"),
                         )
@@ -1187,26 +1217,12 @@ class TestHandleRequest:
                 id="get_asset_events_by_name",
             ),
             pytest.param(
-                GetAssetEventByAsset(uri="s3://bucket/obj", name="test"),
-                b'{"asset_events":[{"id":1,"asset_id":1,"created_dagruns":[],"timestamp":"2024-10-31T12:00:00Z"}],"type":"AssetEventsResult"}\n',
-                "asset_events.get",
-                [],
-                {"uri": "s3://bucket/obj", "name": "test"},
-                AssetEventsResult(
-                    asset_events=[
-                        AssetEventResponse(
-                            id=1,
-                            asset_id=1,
-                            created_dagruns=[],
-                            timestamp=timezone.parse("2024-10-31T12:00:00Z"),
-                        )
-                    ]
-                ),
-                id="get_asset_events_by_uri_and_name",
-            ),
-            pytest.param(
                 GetAssetEventByAssetAlias(alias_name="test_alias"),
-                b'{"asset_events":[{"id":1,"asset_id":1,"created_dagruns":[],"timestamp":"2024-10-31T12:00:00Z"}],"type":"AssetEventsResult"}\n',
+                (
+                    b'{"asset_events":'
+                    b'[{"id":1,"timestamp":"2024-10-31T12:00:00Z","asset":{"name":"asset","uri":"s3://bucket/obj","group":"asset"},'
+                    b'"created_dagruns":[]}],"type":"AssetEventsResult"}\n'
+                ),
                 "asset_events.get",
                 [],
                 {"alias_name": "test_alias"},
@@ -1214,7 +1230,7 @@ class TestHandleRequest:
                     asset_events=[
                         AssetEventResponse(
                             id=1,
-                            asset_id=1,
+                            asset=AssetResponse(name="asset", uri="s3://bucket/obj", group="asset"),
                             created_dagruns=[],
                             timestamp=timezone.parse("2024-10-31T12:00:00Z"),
                         )
