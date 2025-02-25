@@ -20,29 +20,26 @@ import json
 import locale
 from base64 import b64encode
 from os.path import dirname
-from typing import TYPE_CHECKING, Any
+from typing import Any
 
 import pytest
-
 from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning
 from airflow.providers.microsoft.azure.operators.msgraph import MSGraphAsyncOperator, execute_callable
 from airflow.triggers.base import TriggerEvent
 from airflow.utils import timezone
-from airflow.utils.context import Context
-from unit.microsoft.azure.base import Base
-from unit.microsoft.azure.test_utils import mock_json_response, mock_response
 
 from tests_common.test_utils.file_loading import load_file_from_resources, load_json_from_resources
 from tests_common.test_utils.mock_context import mock_context
 from tests_common.test_utils.operators.run_deferrable import execute_operator
 from tests_common.test_utils.version_compat import AIRFLOW_V_2_10_PLUS
+from unit.microsoft.azure.base import Base
+from unit.microsoft.azure.test_utils import mock_json_response, mock_response
 
-if TYPE_CHECKING:
-    try:
-        from airflow.sdk.definitions.context import Context
-    except ImportError:
-        # TODO: Remove once provider drops support for Airflow 2
-        from airflow.utils.context import Context
+try:
+    from airflow.sdk.definitions.context import Context
+except ImportError:
+    # TODO: Remove once provider drops support for Airflow 2
+    from airflow.utils.context import Context
 
 
 class TestMSGraphAsyncOperator(Base):
@@ -308,7 +305,7 @@ class TestMSGraphAsyncOperator(Base):
                 == "response"
             )
 
-        with pytest.warns(None):
+        with pytest.warns(None) as warnings:
             assert (
                 execute_callable(
                     lambda response, **context: response,
@@ -318,3 +315,4 @@ class TestMSGraphAsyncOperator(Base):
                 )
                 == "response"
             )
+            assert len(warnings) == 0
