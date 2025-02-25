@@ -17,6 +17,7 @@
 
 from __future__ import annotations
 
+from airflow.api_fastapi.common.types import UtcDateTime
 from airflow.api_fastapi.core_api.base import BaseModel, StrictBaseModel
 
 
@@ -53,3 +54,13 @@ class AssetProfile(StrictBaseModel):
     name: str | None = None
     uri: str | None = None
     type: str
+
+
+class AssetEvent(BaseModel):
+    """Asset event schema with fields that are needed for Runtime."""
+
+    asset: AssetResponse
+    source_aliases: list[AssetAliasResponse]
+    # source_task_instance: TaskInstance | None  # TODO: Resolve cyclic import.
+    extra: dict
+    timetstamp: UtcDateTime
