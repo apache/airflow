@@ -142,8 +142,8 @@ class TestGetAssetEventByAssetAlias:
     @pytest.mark.usefixtures("test_asset_alias")
     def test_get_by_asset(self, client):
         response = client.get(
-            "/execution/asset-events/by-asset",
-            params={"name": "test_get_asset_by_name", "uri": "s3://bucket/key"},
+            "/execution/asset-events/by-asset-alias",
+            params={"name": "test_alias"},
         )
         assert response.status_code == 200
         assert response.json() == {
@@ -164,12 +164,8 @@ class TestGetAssetEventByAssetAlias:
                     "created_dagruns": [],
                     "timestamp": "2021-01-01T00:00:00Z",
                 },
-            "/execution/asset-events/by-asset-alias",
-            params={"name": "test_alias"},
-                    "asset_id": 1,
-                    "uri": "s3://bucket/key",
-                    "name": "test_get_asset_by_name",
-                    "group": "asset",
+                {
+                    "id": 2,
                     "extra": {"foo": "bar"},
                     "asset": {
                         "extra": {"foo": "bar"},
