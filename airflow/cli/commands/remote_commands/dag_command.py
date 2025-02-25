@@ -515,14 +515,16 @@ def dag_report(args) -> None:
     else:
         bundles_to_reserialize = {b.name for b in all_bundles}
 
+    all_dagbag_stats = []
     for bundle in all_bundles:
         if bundle.name not in bundles_to_reserialize:
             continue
         bundle.initialize()
         dagbag = DagBag(bundle.path, include_examples=False)
+        all_dagbag_stats.extend(dagbag.dagbag_stats)
 
     AirflowConsole().print_as(
-        data=dagbag.dagbag_stats,
+        data=all_dagbag_stats,
         output=args.output,
         mapper=lambda x: {
             "file": x.file,

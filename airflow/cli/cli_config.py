@@ -991,7 +991,7 @@ DAGS_COMMANDS = (
             "num-executions option is given"
         ),
         func=lazy_load_command("airflow.cli.commands.remote_commands.dag_command.dag_next_execution"),
-        args=(ARG_DAG_ID, ARG_SUBDIR, ARG_NUM_EXECUTIONS, ARG_VERBOSE),
+        args=(ARG_DAG_ID, ARG_BUNDLE_NAME, ARG_NUM_EXECUTIONS, ARG_VERBOSE),
     ),
     ActionCommand(
         name="pause",
