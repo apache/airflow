@@ -42,14 +42,10 @@ if TYPE_CHECKING:
 
 log = logging.getLogger(__name__)
 
-STALE_BUNDLE_TRACKING_FOLDER = Path(
-    tempfile.gettempdir(),
-    "airflow",
-    "dag_bundles",
-    "_tracking",
+STALE_BUNDLE_CHECK_INTERVAL: int = conf.getint(
+    section="dag_processor",
+    key="stale_bundle_cleanup_interval",
 )
-
-STALE_BUNDLE_CHECK_INTERVAL: int = conf.getint("dag_processor", "stale_bundle_cleanup_interval")
 """How frequently (in seconds) a worker should check for stale bundles."""
 
 
@@ -58,6 +54,9 @@ def get_bundle_storage_root_path():
         return Path(configured_location)
     else:
         return Path(tempfile.gettempdir(), "airflow", "dag_bundles")
+
+
+STALE_BUNDLE_TRACKING_FOLDER = get_bundle_storage_root_path() / "_tracking"
 
 
 def get_bundle_tracking_dir(bundle_name: str) -> Path:
