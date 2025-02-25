@@ -14,20 +14,21 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
 
----
-package-name: apache-airflow-providers-common-messaging
-name: Common Messaging
-description: |
-  ``Common Messaging Provider``
+import pytest
 
-state: ready
-source-date-epoch: 1740508070
-# note that those versions are maintained by release manager - do not update them manually
-versions:
-  - 1.0.0
+from airflow.providers.amazon.aws.triggers.sqs import SqsSensorTrigger
+from airflow.providers.common.messaging.triggers.msg_queue import MessageQueueTrigger
 
-triggers:
-  - integration-name: Message queue
-    python-modules:
-      - airflow.providers.common.messaging.triggers.msg_queue
+
+class TestMessageQueueTrigger:
+    @pytest.mark.parametrize(
+        ("queue", "expected_trigger_class"),
+        [
+            ("https://sqs.us-east-1.amazonaws.com/0123456789/Test", SqsSensorTrigger),
+        ],
+    )
+    def test_provider_integrations(self, queue, expected_trigger_class):
+        trigger = MessageQueueTrigger(queue=queue)
+        assert isinstance(trigger.trigger, expected_trigger_class)

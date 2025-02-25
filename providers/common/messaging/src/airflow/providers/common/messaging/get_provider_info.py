@@ -29,6 +29,12 @@ def get_provider_info():
         "state": "ready",
         "source-date-epoch": 1740508070,
         "versions": ["1.0.0"],
+        "triggers": [
+            {
+                "integration-name": "Message queue",
+                "python-modules": ["airflow.providers.common.messaging.triggers.msg_queue"],
+            }
+        ],
         "dependencies": ["apache-airflow>=3.0.0.dev0"],
         "optional-dependencies": {"amazon": ["apache-airflow-providers-amazon"]},
     }

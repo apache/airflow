@@ -55,7 +55,9 @@ class MessageQueueTrigger(BaseEventTrigger):
                 self.queue,
             )
             raise AirflowException(f"The queue '{self.queue}' is recognized by more than one provider.")
-        return providers[0].trigger_class()(**providers[0].trigger_kwargs(self.queue, **self.kwargs), **self.kwargs)
+        return providers[0].trigger_class()(
+            **providers[0].trigger_kwargs(self.queue, **self.kwargs), **self.kwargs
+        )
 
     def serialize(self) -> tuple[str, dict[str, Any]]:
         return self.trigger.serialize()
