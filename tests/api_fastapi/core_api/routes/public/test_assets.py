@@ -991,12 +991,14 @@ class TestPostAssetMaterialize(TestAssets):
         with dag_maker(self.DAG_ASSET_NO, schedule=None, session=session):
             EmptyOperator(task_id="task")
 
+    @pytest.mark.usefixtures("configure_git_connection_for_dag_bundle")
     def test_should_respond_200(self, test_client):
         response = test_client.post("/public/assets/1/materialize")
         assert response.status_code == 200
         assert response.json() == {
             "dag_run_id": mock.ANY,
             "dag_id": self.DAG_ASSET1_ID,
+            "dag_versions": mock.ANY,
             "logical_date": None,
             "queued_at": mock.ANY,
             "run_after": mock.ANY,

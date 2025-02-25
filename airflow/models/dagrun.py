@@ -310,7 +310,11 @@ class DagRun(Base, LoggingMixin):
     @property
     def dag_versions(self) -> list[DagVersion]:
         """Return the DAG versions associated with the TIs of this DagRun."""
-        dag_versions = list(dict.fromkeys(list(self._tih_dag_versions) + list(self._ti_dag_versions)))
+        dag_versions = [
+            dv
+            for dv in dict.fromkeys(list(self._tih_dag_versions) + list(self._ti_dag_versions))
+            if dv is not None
+        ]
         sorted_ = sorted(dag_versions, key=lambda dv: dv.id)
         return sorted_
 

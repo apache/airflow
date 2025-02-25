@@ -631,6 +631,7 @@ export type DAGRunResponse = {
     [key: string]: unknown;
   };
   note: string | null;
+  dag_versions: Array<DagVersionResponse>;
 };
 
 /**
