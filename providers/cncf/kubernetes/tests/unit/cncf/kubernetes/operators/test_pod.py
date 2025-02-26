@@ -2540,9 +2540,8 @@ class TestKubernetesPodOperatorAsync:
                 },
             )
 
-
-    @patch(f"{HOOK_CLASS}.get_pod")
-    def test_execute_async_callbacks(self, get_pod):
+    @patch(HOOK_CLASS)
+    def test_execute_async_callbacks(self, mocked_hook):
         from airflow.providers.cncf.kubernetes.callbacks import ExecutionMode
         from unit.cncf.kubernetes.test_callbacks import (
             MockKubernetesPodOperatorCallback,
@@ -2554,6 +2553,7 @@ class TestKubernetesPodOperatorAsync:
         remote_pod_mock = MagicMock()
         remote_pod_mock.status.phase = "Succeeded"
         self.await_pod_mock.return_value = remote_pod_mock
+        mocked_hook.return_value.get_pod.return_value = remote_pod_mock
 
         k = KubernetesPodOperator(
             namespace="default",
@@ -2584,7 +2584,7 @@ class TestKubernetesPodOperatorAsync:
         assert mock_callbacks.on_operator_resuming.call_args.kwargs == {
             "client": k.client,
             "mode": ExecutionMode.SYNC,
-            "pod": get_pod.return_value,
+            "pod": remote_pod_mock,
             "operator": k,
             "context": context,
             "event": callback_event,
@@ -2605,7 +2605,7 @@ class TestKubernetesPodOperatorAsync:
         assert mock_callbacks.on_pod_completion.call_args.kwargs == {
             "client": k.client,
             "mode": ExecutionMode.SYNC,
-            "pod": get_pod.return_value,
+            "pod": remote_pod_mock,
             "operator": k,
             "context": context,
         }
@@ -2615,7 +2615,7 @@ class TestKubernetesPodOperatorAsync:
         assert mock_callbacks.on_pod_teardown.call_args.kwargs == {
             "client": k.client,
             "mode": ExecutionMode.SYNC,
-            "pod": get_pod.return_value,
+            "pod": remote_pod_mock,
             "operator": k,
             "context": context,
         }
