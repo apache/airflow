@@ -234,6 +234,15 @@ class TriggerLoggingFactory:
         self.bound_logger = logger
         return logger
 
+    def upload_to_remote(self):
+        from airflow.sdk.log import upload_to_remote
+
+        if not hasattr(self, "bound_logger"):
+            # Never actually called, nothing to do
+            return
+
+        upload_to_remote(self.bound_logger)
+
 
 @attrs.define(kw_only=True)
 class TriggerRunnerSupervisor(WatchedSubprocess):
@@ -299,7 +308,8 @@ class TriggerRunnerSupervisor(WatchedSubprocess):
                 self.cancelling_triggers.discard(id)
                 # Remove logger from the cache, and since structlog doesn't have an explicit close method, we
                 # only need to remove the last reference to it to close the open FH
-                self.logger_cache.pop(id, None)
+                if factory := self.logger_cache.pop(id, None):
+                    factory.upload_to_remote()
             return
 
         raise ValueError(f"Unknown message type {type(msg)}")
@@ -460,10 +470,8 @@ class TriggerRunnerSupervisor(WatchedSubprocess):
             self.cancelling_triggers.update(cancel_trigger_ids)
             self._send(messages.CancelTriggers(ids=cancel_trigger_ids))
 
-    def _register_pipe_readers(
-        self, logger: FilteringBoundLogger, stdout: socket, stderr: socket, requests: socket, logs: socket
-    ):
-        super()._register_pipe_readers(logger, stdout, stderr, requests, logs)
+    def _register_pipe_readers(self, stdout: socket, stderr: socket, requests: socket, logs: socket):
+        super()._register_pipe_readers(stdout, stderr, requests, logs)
 
         # We want to handle logging differently here, so un-register the one our parent class created
         self.selector.unregister(logs)
@@ -488,7 +496,9 @@ class TriggerRunnerSupervisor(WatchedSubprocess):
 
         def get_logger(trigger_id: int) -> WrappedLogger:
             # TODO: Is a separate dict worth it, or should we make `self.running_triggers` a dict?
-            return self.logger_cache[trigger_id](processors)
+            if factory := self.logger_cache.get(trigger_id):
+                return factory(processors)
+            return fallback_log
 
         # We need to look at the json, pull out the
         while True:
