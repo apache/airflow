@@ -35,6 +35,7 @@ from airflow_breeze.global_constants import (
     ALLOWED_POSTGRES_VERSIONS,
     ALLOWED_PYTHON_MAJOR_MINOR_VERSIONS,
     APACHE_AIRFLOW_GITHUB_REPOSITORY,
+    API_SERVER_HOST_PORT,
     CELERY_BROKER_URLS_MAP,
     CELERY_EXECUTOR,
     DEFAULT_CELERY_BROKER,
@@ -42,7 +43,6 @@ from airflow_breeze.global_constants import (
     DOCKER_DEFAULT_PLATFORM,
     DRILL_HOST_PORT,
     EDGE_EXECUTOR,
-    FASTAPI_API_HOST_PORT,
     FLOWER_HOST_PORT,
     KEYCLOAK_INTEGRATION,
     MOUNT_ALL,
@@ -507,7 +507,7 @@ class ShellParams:
         _set_var(_env, "AIRFLOW_VERSION", self.airflow_version)
         _set_var(_env, "AIRFLOW__CELERY__BROKER_URL", self.airflow_celery_broker_url)
         _set_var(_env, "AIRFLOW__CORE__EXECUTOR", self.executor)
-        _set_var(_env, "AIRFLOW__FASTAPI__BASE_URL", f"http://localhost:{FASTAPI_API_HOST_PORT}")
+        _set_var(_env, "AIRFLOW__API__BASE_URL", f"http://localhost:{API_SERVER_HOST_PORT}")
         if self.executor == EDGE_EXECUTOR:
             _set_var(
                 _env, "AIRFLOW__CORE__EXECUTOR", "airflow.providers.edge.executors.edge_executor.EdgeExecutor"
@@ -618,7 +618,7 @@ class ShellParams:
         _set_var(_env, "VERBOSE_COMMANDS", self.verbose_commands)
         _set_var(_env, "VERSION_SUFFIX_FOR_PYPI", self.version_suffix_for_pypi)
         _set_var(_env, "WEBSERVER_HOST_PORT", None, WEBSERVER_HOST_PORT)
-        _set_var(_env, "FASTAPI_API_HOST_PORT", None, FASTAPI_API_HOST_PORT)
+        _set_var(_env, "API_SERVER_HOST_PORT", None, API_SERVER_HOST_PORT)
         _set_var(_env, "_AIRFLOW_RUN_DB_TESTS_ONLY", self.run_db_tests_only)
         _set_var(_env, "_AIRFLOW_SKIP_DB_TESTS", self.skip_db_tests)
         self._generate_env_for_docker_compose_file_if_needed(_env)

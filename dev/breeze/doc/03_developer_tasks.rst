@@ -156,7 +156,7 @@ You can change the used host port numbers by setting appropriate environment var
 
 * ``SSH_PORT``
 * ``WEBSERVER_HOST_PORT``
-* ``FASTAPI_API_HOST_PORT``
+* ``API_SERVER_HOST_PORT``
 * ``POSTGRES_HOST_PORT``
 * ``MYSQL_HOST_PORT``
 * ``MSSQL_HOST_PORT``
