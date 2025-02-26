@@ -31,7 +31,5 @@ with DAG(
     schedule=[asset],
     catchup=False,
 ):
-    task = EmptyOperator(task_id="task")
-
-    chain(task)
+    EmptyOperator(task_id="task")
 # [END howto_trigger_message_queue]
