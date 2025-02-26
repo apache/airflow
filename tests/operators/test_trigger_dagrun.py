@@ -105,7 +105,7 @@ class TestDagRunOperator:
         )
 
         if AIRFLOW_V_3_0_PLUS:
-            base_url = conf.get_mandatory_value("fastapi", "base_url").lower()
+            base_url = conf.get_mandatory_value("api", "base_url").lower()
             expected_url = f"{base_url}/dags/{triggered_dag_run.dag_id}/runs/{triggered_dag_run.run_id}"
 
             link = triggering_task.operator_extra_links[0].get_link(

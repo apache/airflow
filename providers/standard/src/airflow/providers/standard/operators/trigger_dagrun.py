@@ -86,7 +86,7 @@ class TriggerDagRunLink(BaseOperatorLink):
         triggered_dag_run_id = XCom.get_value(ti_key=ti_key, key=XCOM_RUN_ID)
 
         if AIRFLOW_V_3_0_PLUS:
-            base_url = conf.get_mandatory_value("fastapi", "base_url").lower()
+            base_url = conf.get_mandatory_value("api", "base_url").lower()
             return f"{base_url}/dags/{trigger_dag_id}/runs/{triggered_dag_run_id}"
         else:
             query = {"dag_id": trigger_dag_id, "dag_run_id": triggered_dag_run_id}
