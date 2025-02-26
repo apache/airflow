@@ -34,6 +34,8 @@ from typing import TYPE_CHECKING
 
 import re2
 from dateutil import parser
+from kubernetes.client import V1EmptyDirVolumeSource, V1Volume, V1VolumeMount, models as k8s
+from kubernetes.client.api_client import ApiClient
 
 from airflow.exceptions import (
     AirflowConfigException,
@@ -47,8 +49,6 @@ from airflow.providers.cncf.kubernetes.kubernetes_helper_functions import (
 from airflow.utils import yaml
 from airflow.utils.hashlib_wrapper import md5
 from airflow.version import version as airflow_version
-from kubernetes.client import V1EmptyDirVolumeSource, V1Volume, V1VolumeMount, models as k8s
-from kubernetes.client.api_client import ApiClient
 
 if TYPE_CHECKING:
     import datetime

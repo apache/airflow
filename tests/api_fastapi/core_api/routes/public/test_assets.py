@@ -155,7 +155,6 @@ def _create_dag_run(session, num: int = 2):
             logical_date=DEFAULT_DATE + timedelta(days=i - 1),
             start_date=DEFAULT_DATE,
             data_interval=(DEFAULT_DATE, DEFAULT_DATE),
-            external_trigger=True,
             state=DagRunState.SUCCESS,
         )
         for i in range(1, 1 + num)
@@ -992,12 +991,14 @@ class TestPostAssetMaterialize(TestAssets):
         with dag_maker(self.DAG_ASSET_NO, schedule=None, session=session):
             EmptyOperator(task_id="task")
 
+    @pytest.mark.usefixtures("configure_git_connection_for_dag_bundle")
     def test_should_respond_200(self, test_client):
         response = test_client.post("/public/assets/1/materialize")
         assert response.status_code == 200
         assert response.json() == {
             "dag_run_id": mock.ANY,
             "dag_id": self.DAG_ASSET1_ID,
+            "dag_versions": mock.ANY,
             "logical_date": None,
             "queued_at": mock.ANY,
             "run_after": mock.ANY,
@@ -1008,7 +1009,6 @@ class TestPostAssetMaterialize(TestAssets):
             "last_scheduling_decision": None,
             "run_type": "manual",
             "state": "queued",
-            "external_trigger": True,
             "triggered_by": "rest_api",
             "conf": {},
             "note": None,
@@ -1034,7 +1034,7 @@ class TestGetAssetQueuedEvents(TestQueuedEventEndpoint):
         asset_id = 1
         self._create_asset_dag_run_queues(dag_id, asset_id, session)
 
-        response = test_client.get(f"/public/assets/{asset_id}/queuedEvents/")
+        response = test_client.get(f"/public/assets/{asset_id}/queuedEvents")
         assert response.status_code == 200
         assert response.json() == {
             "queued_events": [
@@ -1099,7 +1099,7 @@ class TestDeleteDagAssetQueuedEvent(TestQueuedEventEndpoint):
         asset_id = 1
 
         response = test_client.delete(
-            f"/public/dags/{dag_id}/assets/{asset_id}/queuedEvents/",
+            f"/public/dags/{dag_id}/assets/{asset_id}/queuedEvents",
         )
 
         assert response.status_code == 404

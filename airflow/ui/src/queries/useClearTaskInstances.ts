@@ -21,6 +21,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import {
   UseDagRunServiceGetDagRunKeyFn,
   useDagRunServiceGetDagRunsKey,
+  UseGridServiceGridDataKeyFn,
   UseTaskInstanceServiceGetMappedTaskInstanceKeyFn,
   useTaskInstanceServicePostClearTaskInstances,
 } from "openapi/queries";
@@ -81,6 +82,7 @@ export const useClearTaskInstances = ({
       [useDagRunServiceGetDagRunsKey],
       [useClearTaskInstancesDryRunKey, dagId],
       [usePatchTaskInstanceDryRunKey, dagId, dagRunId],
+      UseGridServiceGridDataKeyFn({ dagId }, [{ dagId }]),
     ];
 
     await Promise.all(queryKeys.map((key) => queryClient.invalidateQueries({ queryKey: key })));

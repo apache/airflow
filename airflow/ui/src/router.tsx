@@ -168,8 +168,7 @@ export const routerConfig = [
   },
 ];
 
-const locationPath = globalThis.window.location.pathname;
-const indexOf = locationPath.indexOf("webapp/");
-const basename = locationPath.slice(0, indexOf + 7);
+const baseUrl = document.querySelector("base")?.href ?? "http://localhost:9091/";
+const basename = new URL(baseUrl).pathname;
 
 export const router = createBrowserRouter(routerConfig, { basename });

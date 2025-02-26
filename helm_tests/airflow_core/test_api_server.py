@@ -533,7 +533,7 @@ class TestAPIServerDeployment:
         assert jmespath.search("spec.template.spec.containers[0].args", docs[0]) == [
             "bash",
             "-c",
-            "exec airflow fastapi-api",
+            "exec airflow api-server",
         ]
 
     @pytest.mark.parametrize("command", [None, ["custom", "command"]])

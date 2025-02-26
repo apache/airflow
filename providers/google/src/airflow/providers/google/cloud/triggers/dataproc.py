@@ -25,6 +25,9 @@ import time
 from collections.abc import AsyncIterator, Sequence
 from typing import TYPE_CHECKING, Any
 
+from google.api_core.exceptions import NotFound
+from google.cloud.dataproc_v1 import Batch, Cluster, ClusterStatus, JobStatus
+
 from airflow.exceptions import AirflowException
 from airflow.models.taskinstance import TaskInstance
 from airflow.providers.google.cloud.hooks.dataproc import DataprocAsyncHook, DataprocHook
@@ -33,8 +36,6 @@ from airflow.providers.google.common.hooks.base_google import PROVIDE_PROJECT_ID
 from airflow.triggers.base import BaseTrigger, TriggerEvent
 from airflow.utils.session import provide_session
 from airflow.utils.state import TaskInstanceState
-from google.api_core.exceptions import NotFound
-from google.cloud.dataproc_v1 import Batch, Cluster, ClusterStatus, JobStatus
 
 if TYPE_CHECKING:
     from sqlalchemy.orm.session import Session

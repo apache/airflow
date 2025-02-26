@@ -90,6 +90,7 @@ export const TaskNames = ({ nodes }: Props) => {
               fontWeight="normal"
               isMapped={Boolean(node.is_mapped)}
               label={node.label}
+              mb={1}
               paddingLeft={node.depth * 3 + 2}
               setupTeardownType={node.setup_teardown_type}
             />

@@ -1448,6 +1448,15 @@ repos:
         entry: ./scripts/ci/pre_commit/update_fastapi_api_spec.py
         pass_filenames: false
         files: ^airflow/api_fastapi/.*\.py$
+        exclude: ^airflow/api_fastapi/execution_api/.*
+        additional_dependencies: ['rich>=12.4.4']
+      - id: generate-tasksdk-datamodels
+        name: Generate Datamodels for TaskSDK client
+        language: python
+        entry: uv run --active --group codegen --project apache-airflow-task-sdk --directory task_sdk -s dev/generate_models.py
+        pass_filenames: false
+        files: ^airflow/api_fastapi/execution_api/.*\.py$
+        require_serial: true
         additional_dependencies: ['rich>=12.4.4']
       - id: update-er-diagram
         name: Update ER diagram

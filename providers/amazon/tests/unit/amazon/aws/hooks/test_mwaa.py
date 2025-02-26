@@ -52,7 +52,6 @@ class TestMwaaHook:
                     "data_interval_end": "2025-02-08T00:33:09.457198+00:00",
                     "data_interval_start": "2025-02-08T00:33:09.457198+00:00",
                     "execution_date": "2025-02-08T00:33:09.457198+00:00",
-                    "external_trigger": True,
                     "logical_date": "2025-02-08T00:33:09.457198+00:00",
                     "run_type": "manual",
                     "state": "queued",

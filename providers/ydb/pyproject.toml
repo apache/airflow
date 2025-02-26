@@ -57,7 +57,13 @@ requires-python = "~=3.9"
 dependencies = [
     "apache-airflow>=2.9.0",
     "apache-airflow-providers-common-sql>=1.20.0",
-    "ydb>=3.18.8",
+    # Ydb 3.19.0 depends on grpcio >= 1.68.1 but latest apache-beam depends on grpcio < 1.66.0
+    # also while Ydb requires, it, it does not state it in their requirements, so we cannot add
+    # grpcio < 1.66 because it will not limit Ydb in any way
+    # Since using latest apache.beam is more important than latest ydb, we are limiting it until
+    # the issue https://github.com/apache/beam/issues/34081 or
+    # https://github.com/ydb-platform/ydb/issues/15087  are fixed
+    "ydb>=3.18.8, !=3.19.0",
     "ydb-dbapi>=0.1.0",
 ]
 

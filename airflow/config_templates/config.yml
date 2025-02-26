@@ -1313,6 +1313,15 @@ debug:
 api:
   description: ~
   options:
+    base_url:
+      description: |
+        The base url of the API server. Airflow cannot guess what domain or CNAME you are using.
+        If the Airflow console (the front-end) and the API server are on a different domain, this config
+        should contain the API server endpoint.
+      version_added: ~
+      type: string
+      example: ~
+      default: "http://localhost:9091"
     auth_backends:
       description: |
         Comma separated list of auth backends to authenticate users of the API. See
@@ -2453,8 +2462,27 @@ scheduler:
       version_added: 2.9.0
       type: boolean
       example: ~
-      default: "True"
-      see_also: ":ref:`Differences between the two cron timetables`"
+      default: "False"
+      see_also: ':ref:`Differences between "trigger" and "data interval" timetables`'
+    create_delta_data_intervals:
+      description: |
+        Whether to create DAG runs that span an interval or one single point in time when a timedelta or
+        relativedelta is provided to ``schedule`` argument of a DAG.
+
+        * ``True``: **DeltaDataIntervalTimetable** is used, which is suitable for DAGs with well-defined data
+          interval. You get contiguous intervals from the end of the previous interval up to the scheduled
+          datetime.
+        * ``False``: **DeltaTriggerTimetable** is used, which is suitable for DAGs that simply want to say
+          e.g. "run this every day" and do not care about the data interval.
+
+        Notably, for **DeltaTriggerTimetable**, the logical date is the same as the time the DAG Run will
+        try to schedule, while for **DeltaDataIntervalTimetable**, the logical date is the beginning of
+        the data interval, but the DAG Run will try to schedule at the end of the data interval.
+      version_added: 2.11.0
+      type: boolean
+      example: ~
+      default: "False"
+      see_also: ':ref:`Differences between "trigger" and "data interval" timetables`'
     enable_tracemalloc:
       description: |
         Whether to enable memory allocation tracing in the scheduler. If enabled, Airflow will start
@@ -2686,15 +2714,3 @@ dag_processor:
       type: integer
       example: ~
       default: "5"
-fastapi:
-  description: Configuration for the Fastapi webserver.
-  options:
-    base_url:
-      description: |
-        The base url of the Fastapi endpoint. Airflow cannot guess what domain or CNAME you are using.
-        If the Airflow console (the front-end) and the Fastapi apis are on a different domain, this config
-        should contain the Fastapi apis endpoint.
-      version_added: ~
-      type: string
-      example: ~
-      default: "http://localhost:9091"

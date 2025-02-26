@@ -16,13 +16,13 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Flex } from "@chakra-ui/react";
+import { Badge, Flex } from "@chakra-ui/react";
 import type { MouseEvent } from "react";
 import React from "react";
+import { Link } from "react-router-dom";
 
 import type { TaskInstanceState } from "openapi/requests/types.gen";
-
-import { GridButton } from "./GridButton";
+import { StateIcon } from "src/components/StateIcon";
 
 type Props = {
   readonly dagId: string;
@@ -50,30 +50,48 @@ const onMouseLeave = (event: MouseEvent<HTMLDivElement>) => {
   });
 };
 
-const Instance = ({ dagId, isGroup, label, runId, search, state, taskId }: Props) => (
+const Instance = ({ dagId, runId, search, state, taskId }: Props) => (
   <Flex
     alignItems="flex-end"
+    height="20px"
     id={taskId.replaceAll(".", "-")}
     justifyContent="center"
     key={taskId}
     onMouseEnter={onMouseEnter}
     onMouseLeave={onMouseLeave}
-    px="5px"
-    py="5px"
+    px="2px"
+    py={0}
     transition="background-color 0.2s"
-    width="14px"
     zIndex={1}
   >
-    <GridButton
-      dagId={dagId}
-      isGroup={isGroup}
-      label={label}
-      p="2px"
-      runId={runId}
-      searchParams={search}
-      state={state}
-      taskId={taskId}
-    />
+    <Link
+      replace
+      to={{
+        pathname: `/dags/${dagId}/runs/${runId}/tasks/${taskId}`,
+        search,
+      }}
+    >
+      <Badge
+        borderRadius={4}
+        colorPalette={state === null ? "none" : state}
+        height="14px"
+        minH={0}
+        opacity={state === "success" ? 0.6 : 1}
+        p={0}
+        variant="solid"
+        width="14px"
+      >
+        {state === undefined ? undefined : (
+          <StateIcon
+            size={10}
+            state={state}
+            style={{
+              marginLeft: "2px",
+            }}
+          />
+        )}
+      </Badge>
+    </Link>
   </Flex>
 );
 

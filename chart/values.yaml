@@ -1261,7 +1261,7 @@ _apiServer:
   # Command to use when running the Airflow API server (templated).
   command: ~
   # Args to use when running the Airflow API server (templated).
-  args: ["bash", "-c", "exec airflow fastapi-api"]
+  args: ["bash", "-c", "exec airflow api-server"]
   env: []
   serviceAccount:
     # default value is true

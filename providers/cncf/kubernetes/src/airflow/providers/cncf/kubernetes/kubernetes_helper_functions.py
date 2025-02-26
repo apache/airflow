@@ -23,11 +23,11 @@ from functools import cache
 from typing import TYPE_CHECKING
 
 import pendulum
+from kubernetes.client.rest import ApiException
 from slugify import slugify
 
 from airflow.configuration import conf
 from airflow.providers.cncf.kubernetes.backcompat import get_logical_date_key
-from kubernetes.client.rest import ApiException
 
 if TYPE_CHECKING:
     from airflow.models.taskinstancekey import TaskInstanceKey

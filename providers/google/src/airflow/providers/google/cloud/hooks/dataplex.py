@@ -23,13 +23,6 @@ from collections.abc import MutableSequence, Sequence
 from copy import deepcopy
 from typing import TYPE_CHECKING, Any
 
-from airflow.exceptions import AirflowException
-from airflow.providers.google.common.consts import CLIENT_INFO
-from airflow.providers.google.common.hooks.base_google import (
-    PROVIDE_PROJECT_ID,
-    GoogleBaseAsyncHook,
-    GoogleBaseHook,
-)
 from google.api_core.client_options import ClientOptions
 from google.api_core.gapic_v1.method import DEFAULT, _MethodDefault
 from google.cloud.dataplex_v1 import (
@@ -53,9 +46,15 @@ from google.cloud.dataplex_v1.types import (
 )
 from google.protobuf.field_mask_pb2 import FieldMask
 
-if TYPE_CHECKING:
-    from googleapiclient.discovery import Resource
+from airflow.exceptions import AirflowException
+from airflow.providers.google.common.consts import CLIENT_INFO
+from airflow.providers.google.common.hooks.base_google import (
+    PROVIDE_PROJECT_ID,
+    GoogleBaseAsyncHook,
+    GoogleBaseHook,
+)
 
+if TYPE_CHECKING:
     from google.api_core.operation import Operation
     from google.api_core.retry import Retry
     from google.api_core.retry_async import AsyncRetry
@@ -66,6 +65,7 @@ if TYPE_CHECKING:
         ListEntryTypesPager,
         SearchEntriesPager,
     )
+    from googleapiclient.discovery import Resource
 
 PATH_DATA_SCAN = "projects/{project_id}/locations/{region}/dataScans/{data_scan_id}"
 

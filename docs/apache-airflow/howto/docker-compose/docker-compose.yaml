@@ -136,7 +136,7 @@ services:
 
   airflow-apiserver:
     <<: *airflow-common
-    command: fastapi-api
+    command: api-server
     ports:
       - "9091:9091"
     healthcheck:

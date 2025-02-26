@@ -623,7 +623,6 @@ class TestCliTasks:
             data_interval=data_interval,
             run_after=default_date2,
             run_type=DagRunType.MANUAL,
-            external_trigger=True,
             dag_version=None,
             triggered_by=DagRunTriggeredByType.CLI,
         )

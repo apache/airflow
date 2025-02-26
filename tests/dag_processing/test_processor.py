@@ -133,9 +133,6 @@ class TestDagFileProcessor:
     def test_top_level_variable_access(
         self, spy_agency: SpyAgency, tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch
     ):
-        # Create the dag in a fn, and use inspect.getsource to write it to a file so that
-        # a) the test dag is directly viewable here in the tests
-        # b) that it shows to IDEs/mypy etc.
         def dag_in_a_fn():
             from airflow.sdk import DAG, Variable
 
@@ -160,8 +157,37 @@ class TestDagFileProcessor:
         assert result.import_errors == {}
         assert result.serialized_dags[0].dag_id == "test_abc"
 
+    def test_top_level_connection_access(self, tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch):
+        def dag_in_a_fn():
+            from airflow.hooks.base import BaseHook
+            from airflow.sdk import DAG
+
+            with DAG(f"test_{BaseHook.get_connection(conn_id='my_conn').conn_id}"):
+                ...
+
+        path = write_dag_in_a_fn_to_file(dag_in_a_fn, tmp_path)
+
+        monkeypatch.setenv("AIRFLOW_CONN_MY_CONN", '{"conn_type": "aws"}')
+        proc = DagFileProcessorProcess.start(
+            id=1,
+            path=path,
+            bundle_path=tmp_path,
+            callbacks=[],
+        )
+
+        while not proc.is_ready:
+            proc._service_subprocess(0.1)
+
+        result = proc.parsing_result
+        assert result is not None
+        assert result.import_errors == {}
+        assert result.serialized_dags[0].dag_id == "test_my_conn"
+
 
 def write_dag_in_a_fn_to_file(fn: Callable[[], None], folder: pathlib.Path) -> pathlib.Path:
+    # Create the dag in a fn, and use inspect.getsource to write it to a file so that
+    # a) the test dag is directly viewable here in the tests
+    # b) that it shows to IDEs/mypy etc.
     assert folder.is_dir()
     name = fn.__name__
     path = folder.joinpath(name + ".py")

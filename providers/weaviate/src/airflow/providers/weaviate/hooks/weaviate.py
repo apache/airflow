@@ -24,23 +24,21 @@ from functools import cached_property
 from typing import TYPE_CHECKING, Any, cast
 
 import requests
-from tenacity import Retrying, retry, retry_if_exception, retry_if_exception_type, stop_after_attempt
-
 import weaviate
 import weaviate.exceptions
-from airflow.hooks.base import BaseHook
+from tenacity import Retrying, retry, retry_if_exception, retry_if_exception_type, stop_after_attempt
 from weaviate import WeaviateClient
 from weaviate.auth import Auth
 from weaviate.classes.query import Filter
 from weaviate.exceptions import ObjectAlreadyExistsException
 from weaviate.util import generate_uuid5
 
+from airflow.hooks.base import BaseHook
+
 if TYPE_CHECKING:
     from typing import Callable, Literal
 
     import pandas as pd
-
-    from airflow.models.connection import Connection
     from weaviate.auth import AuthCredentials
     from weaviate.collections import Collection
     from weaviate.collections.classes.config import CollectionConfig, CollectionConfigSimple
@@ -52,6 +50,8 @@ if TYPE_CHECKING:
     )
     from weaviate.collections.classes.types import Properties
     from weaviate.types import UUID
+
+    from airflow.models.connection import Connection
 
     ExitingSchemaOptions = Literal["replace", "fail", "ignore"]
 

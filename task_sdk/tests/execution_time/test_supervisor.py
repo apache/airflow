@@ -347,10 +347,18 @@ class TestWatchedSubprocess:
         mock_client.task_instances.heartbeat.assert_called_once_with(ti.id, pid=mocker.ANY)
         mock_client.task_instances.defer.assert_called_once_with(
             ti.id,
+            # Since the message as serialized in the client upon sending, we expect it to be already encoded
             DeferTask(
                 classpath="airflow.providers.standard.triggers.temporal.DateTimeTrigger",
-                trigger_kwargs={"moment": "2024-11-07T12:34:59Z", "end_from_trigger": False},
                 next_method="execute_complete",
+                trigger_kwargs={
+                    "__type": "dict",
+                    "__var": {
+                        "moment": {"__type": "datetime", "__var": 1730982899.0},
+                        "end_from_trigger": False,
+                    },
+                },
+                next_kwargs={"__type": "dict", "__var": {}},
             ),
         )
 

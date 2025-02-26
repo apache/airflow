@@ -50,7 +50,6 @@ def get_provider_info():
                     "airflow.providers.standard.operators.bash",
                     "airflow.providers.standard.operators.python",
                     "airflow.providers.standard.operators.empty",
-                    "airflow.providers.standard.operators.generic_transfer",
                     "airflow.providers.standard.operators.trigger_dagrun",
                     "airflow.providers.standard.operators.latest_only",
                 ],
@@ -105,5 +104,5 @@ def get_provider_info():
                 },
             }
         },
-        "dependencies": ["apache-airflow>=2.9.0", "apache-airflow-providers-common-sql>=1.20.0"],
+        "dependencies": ["apache-airflow>=2.9.0"],
     }

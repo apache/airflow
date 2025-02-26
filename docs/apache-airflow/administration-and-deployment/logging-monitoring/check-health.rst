@@ -109,7 +109,7 @@ CLI Check for Scheduler
 
 Scheduler creates an entry in the table :class:`airflow.jobs.job.Job` with information about the host and
 timestamp (heartbeat) at startup, and then updates it regularly. You can use this to check if the scheduler is
-working correctly. To do this, you can use the ``airflow jobs checks`` command. On failure, the command will exit
+working correctly. To do this, you can use the ``airflow jobs check`` command. On failure, the command will exit
 with a non-zero error code.
 
 To check if the local scheduler is still working properly, run:

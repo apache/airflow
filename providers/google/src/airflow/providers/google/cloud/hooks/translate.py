@@ -25,9 +25,6 @@ from typing import (
     cast,
 )
 
-from airflow.exceptions import AirflowException
-from airflow.providers.google.common.consts import CLIENT_INFO
-from airflow.providers.google.common.hooks.base_google import PROVIDE_PROJECT_ID, GoogleBaseHook
 from google.api_core.exceptions import GoogleAPICallError
 from google.api_core.gapic_v1.method import DEFAULT, _MethodDefault
 from google.api_core.retry import Retry
@@ -35,9 +32,11 @@ from google.cloud.translate_v2 import Client
 from google.cloud.translate_v3 import TranslationServiceClient
 from google.cloud.translate_v3.types.translation_service import GlossaryInputConfig
 
-if TYPE_CHECKING:
-    from proto import Message
+from airflow.exceptions import AirflowException
+from airflow.providers.google.common.consts import CLIENT_INFO
+from airflow.providers.google.common.hooks.base_google import PROVIDE_PROJECT_ID, GoogleBaseHook
 
+if TYPE_CHECKING:
     from google.api_core.operation import Operation
     from google.cloud.translate_v3.services.translation_service import pagers
     from google.cloud.translate_v3.types import (
@@ -54,6 +53,7 @@ if TYPE_CHECKING:
         automl_translation,
     )
     from google.cloud.translate_v3.types.translation_service import Glossary
+    from proto import Message
 
 
 class WaitOperationNotDoneYetError(Exception):

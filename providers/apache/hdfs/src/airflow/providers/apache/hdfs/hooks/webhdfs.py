@@ -24,11 +24,11 @@ import socket
 from typing import Any
 
 import requests
+from hdfs import HdfsError, InsecureClient
 
 from airflow.configuration import conf
 from airflow.exceptions import AirflowException
 from airflow.hooks.base import BaseHook
-from hdfs import HdfsError, InsecureClient
 
 log = logging.getLogger(__name__)
 

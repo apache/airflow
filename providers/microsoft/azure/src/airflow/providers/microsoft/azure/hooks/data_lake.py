@@ -20,14 +20,6 @@ from __future__ import annotations
 from functools import cached_property
 from typing import Any, Union
 
-from airflow.exceptions import AirflowException
-from airflow.hooks.base import BaseHook
-from airflow.providers.microsoft.azure.utils import (
-    AzureIdentityCredentialAdapter,
-    add_managed_identity_connection_widgets,
-    get_field,
-    get_sync_default_azure_credential,
-)
 from azure.core.exceptions import ResourceExistsError, ResourceNotFoundError
 from azure.datalake.store import core, lib, multithread
 from azure.identity import ClientSecretCredential, DefaultAzureCredential
@@ -38,6 +30,15 @@ from azure.storage.filedatalake import (
     DirectoryProperties,
     FileSystemClient,
     FileSystemProperties,
+)
+
+from airflow.exceptions import AirflowException
+from airflow.hooks.base import BaseHook
+from airflow.providers.microsoft.azure.utils import (
+    AzureIdentityCredentialAdapter,
+    add_managed_identity_connection_widgets,
+    get_field,
+    get_sync_default_azure_credential,
 )
 
 Credentials = Union[ClientSecretCredential, AzureIdentityCredentialAdapter, DefaultAzureCredential]

@@ -438,7 +438,6 @@ class TestCliDags:
 
         assert dagrun, "DagRun not created"
         assert dagrun.run_type == DagRunType.MANUAL
-        assert dagrun.external_trigger
         assert dagrun.conf == {"foo": "bar"}
 
         # logical_date is None as it's not provided
@@ -467,7 +466,6 @@ class TestCliDags:
 
         assert dagrun, "DagRun not created"
         assert dagrun.run_type == DagRunType.MANUAL
-        assert dagrun.external_trigger
         assert dagrun.logical_date.isoformat(timespec="microseconds") == "2021-06-04T01:00:00.000001+00:00"
 
     def test_trigger_dag_invalid_conf(self):

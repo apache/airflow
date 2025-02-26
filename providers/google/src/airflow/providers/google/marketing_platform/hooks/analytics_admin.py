@@ -30,14 +30,15 @@ from __future__ import annotations
 from collections.abc import Sequence
 from typing import TYPE_CHECKING
 
-from airflow.providers.google.common.consts import CLIENT_INFO
-from airflow.providers.google.common.hooks.base_google import GoogleBaseHook
 from google.analytics.admin_v1beta import (
     AnalyticsAdminServiceClient,
     DataStream,
     Property,
 )
 from google.api_core.gapic_v1.method import DEFAULT, _MethodDefault
+
+from airflow.providers.google.common.consts import CLIENT_INFO
+from airflow.providers.google.common.hooks.base_google import GoogleBaseHook
 
 if TYPE_CHECKING:
     from google.analytics.admin_v1beta.services.analytics_admin_service.pagers import (

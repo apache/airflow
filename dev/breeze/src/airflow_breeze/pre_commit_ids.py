@@ -109,6 +109,7 @@ PRE_COMMIT_LIST = [
     "generate-airflow-diagrams",
     "generate-openapi-spec",
     "generate-pypi-readme",
+    "generate-tasksdk-datamodels",
     "generate-volumes-for-sources",
     "identity",
     "insert-license",

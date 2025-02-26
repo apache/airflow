@@ -21,6 +21,7 @@ from __future__ import annotations
 
 import logging
 import zlib
+from collections.abc import Iterable
 from datetime import timedelta
 from typing import TYPE_CHECKING, Any
 
@@ -151,7 +152,10 @@ class SerializedDagModel(Base):
             return {k: cls._sort_serialized_dag_dict(v) for k, v in sorted(serialized_dag.items())}
         elif isinstance(serialized_dag, list):
             if all(isinstance(i, dict) for i in serialized_dag):
-                if all("task_id" in i.get("__var", {}) for i in serialized_dag):
+                if all(
+                    isinstance(i.get("__var", {}), Iterable) and "task_id" in i.get("__var", {})
+                    for i in serialized_dag
+                ):
                     return sorted(
                         [cls._sort_serialized_dag_dict(i) for i in serialized_dag],
                         key=lambda x: x["__var"]["task_id"],

@@ -38,7 +38,7 @@ import { flattenNodes, type RunWithDuration } from "./utils";
 dayjs.extend(dayjsDuration);
 
 const OFFSET_CHANGE = 10;
-const limit = 25;
+const limit = 14;
 
 export const Grid = () => {
   const { openGroupIds } = useOpenGroups();
@@ -72,7 +72,9 @@ export const Grid = () => {
   const runs: Array<RunWithDuration> = useMemo(
     () =>
       (gridData?.dag_runs ?? []).map((run) => {
-        const duration = dayjs.duration(dayjs(run.end_date).diff(run.start_date)).asSeconds();
+        const duration = dayjs
+          .duration(dayjs(run.end_date ?? undefined).diff(run.start_date ?? undefined))
+          .asSeconds();
 
         return {
           ...run,

@@ -28,13 +28,6 @@ from __future__ import annotations
 from collections.abc import Sequence
 from typing import TYPE_CHECKING, Any, Callable
 
-from airflow.exceptions import AirflowException
-from airflow.providers.google.cloud.hooks.pubsub import PubSubHook
-from airflow.providers.google.cloud.links.pubsub import PubSubSubscriptionLink, PubSubTopicLink
-from airflow.providers.google.cloud.operators.cloud_base import GoogleCloudBaseOperator
-from airflow.providers.google.cloud.triggers.pubsub import PubsubPullTrigger
-from airflow.providers.google.common.consts import GOOGLE_DEFAULT_DEFERRABLE_METHOD_NAME
-from airflow.providers.google.common.hooks.base_google import PROVIDE_PROJECT_ID
 from google.api_core.gapic_v1.method import DEFAULT, _MethodDefault
 from google.cloud.pubsub_v1.types import (
     DeadLetterPolicy,
@@ -47,9 +40,18 @@ from google.cloud.pubsub_v1.types import (
     SchemaSettings,
 )
 
+from airflow.exceptions import AirflowException
+from airflow.providers.google.cloud.hooks.pubsub import PubSubHook
+from airflow.providers.google.cloud.links.pubsub import PubSubSubscriptionLink, PubSubTopicLink
+from airflow.providers.google.cloud.operators.cloud_base import GoogleCloudBaseOperator
+from airflow.providers.google.cloud.triggers.pubsub import PubsubPullTrigger
+from airflow.providers.google.common.consts import GOOGLE_DEFAULT_DEFERRABLE_METHOD_NAME
+from airflow.providers.google.common.hooks.base_google import PROVIDE_PROJECT_ID
+
 if TYPE_CHECKING:
-    from airflow.utils.context import Context
     from google.api_core.retry import Retry
+
+    from airflow.utils.context import Context
 
 
 class PubSubCreateTopicOperator(GoogleCloudBaseOperator):
