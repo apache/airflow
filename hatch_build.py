@@ -427,7 +427,7 @@ DEPENDENCIES = [
     # See https://sqlalche.me/e/b8d9 for details of deprecated features
     # you can set environment variable SQLALCHEMY_WARN_20=1 to show all deprecation warnings.
     # The issue tracking it is https://github.com/apache/airflow/issues/28723
-    "sqlalchemy>=1.4.36,<2.0",
+    "sqlalchemy>=1.4.49,<2.0",
     "sqlalchemy-jsonfield>=1.0",
     "sqlalchemy-utils>=0.41.2",
     "tabulate>=0.7.5",
