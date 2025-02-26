@@ -42,8 +42,8 @@ log = logging.getLogger(__name__)
 
 @cli_utils.action_cli
 @providers_configuration_loaded
-def fastapi_api(args):
-    """Start Airflow FastAPI API."""
+def api_server(args):
+    """Start Airflow API server."""
     print(settings.HEADER)
 
     apps = args.apps
@@ -54,7 +54,7 @@ def fastapi_api(args):
     proxy_headers = args.proxy_headers
 
     if args.debug:
-        print(f"Starting the FastAPI API server on port {args.port} and host {args.hostname} debug.")
+        print(f"Starting the API server on port {args.port} and host {args.hostname} debug.")
         log.warning("Running in dev mode, ignoring uvicorn args")
 
         run_args = [
@@ -83,7 +83,7 @@ def fastapi_api(args):
     else:
         if args.daemon:
             daemonize()
-            log.info("Daemonized the FastAPI API server process PID: %s", os.getpid())
+            log.info("Daemonized the API server process PID: %s", os.getpid())
 
         log.info(
             textwrap.dedent(
@@ -99,7 +99,7 @@ def fastapi_api(args):
             )
         )
         ssl_cert, ssl_key = _get_ssl_cert_and_key_filepaths(args)
-        setproctitle(f"airflow fastapi_api -- host:{args.hostname} port:{args.port}")
+        setproctitle(f"airflow api_server -- host:{args.hostname} port:{args.port}")
         uvicorn.run(
             "airflow.api_fastapi.main:app",
             host=args.hostname,

@@ -79,7 +79,7 @@ def init_views(app: FastAPI) -> None:
     def webapp(request: Request, rest_of_path: str):
         return templates.TemplateResponse(
             "/index.html",
-            {"request": request, "backend_server_base_url": conf.get("fastapi", "base_url")},
+            {"request": request, "backend_server_base_url": conf.get("api", "base_url")},
             media_type="text/html",
         )
 
