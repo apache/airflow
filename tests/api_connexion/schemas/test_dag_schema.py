@@ -37,6 +37,7 @@ UTC_JSON_REPR = "UTC" if pendulum.__version__.startswith("3") else "Timezone('UT
 def test_serialize_test_dag_schema(url_safe_serializer):
     dag_model = DagModel(
         dag_id="test_dag_id",
+        bundle_name="testing",
         is_paused=True,
         is_active=True,
         fileloc="/root/airflow/dags/my_dag.py",
@@ -49,6 +50,8 @@ def test_serialize_test_dag_schema(url_safe_serializer):
 
     assert serialized_dag == {
         "dag_id": "test_dag_id",
+        "bundle_name": "testing",
+        "bundle_version": None,
         "dag_display_name": "test_dag_id",
         "description": "The description",
         "fileloc": "/root/airflow/dags/my_dag.py",
@@ -83,6 +86,8 @@ def test_serialize_test_dag_collection_schema(url_safe_serializer):
         "dags": [
             {
                 "dag_id": "test_dag_id_a",
+                "bundle_name": None,
+                "bundle_version": None,
                 "dag_display_name": "test_dag_id_a",
                 "description": None,
                 "fileloc": "/tmp/a.py",
@@ -108,6 +113,8 @@ def test_serialize_test_dag_collection_schema(url_safe_serializer):
             },
             {
                 "dag_id": "test_dag_id_b",
+                "bundle_name": None,
+                "bundle_version": None,
                 "dag_display_name": "test_dag_id_b",
                 "description": None,
                 "fileloc": "/tmp/a.py",

@@ -172,6 +172,7 @@ ARG_BUNDLE_NAME = Arg(
         "--bundle-name",
     ),
     help=("The name of the DAG bundle to use; may be provided more than once"),
+    type=str,
     default=None,
     action="append",
 )
@@ -936,7 +937,7 @@ ARG_DAG_LIST_COLUMNS = Arg(
     ("--columns",),
     type=string_list_type,
     help="List of columns to render. (default: ['dag_id', 'fileloc', 'owner', 'is_paused'])",
-    default=("dag_id", "fileloc", "owners", "is_paused"),
+    default=("dag_id", "fileloc", "owners", "is_paused", "bundle_name", "bundle_version"),
 )
 
 ARG_ASSET_LIST_COLUMNS = Arg(
@@ -1034,7 +1035,7 @@ DAGS_COMMANDS = (
         name="list",
         help="List all the DAGs",
         func=lazy_load_command("airflow.cli.commands.remote_commands.dag_command.dag_list_dags"),
-        args=(ARG_SUBDIR, ARG_OUTPUT, ARG_VERBOSE, ARG_DAG_LIST_COLUMNS),
+        args=(ARG_OUTPUT, ARG_VERBOSE, ARG_DAG_LIST_COLUMNS, ARG_BUNDLE_NAME),
     ),
     ActionCommand(
         name="list-import-errors",
