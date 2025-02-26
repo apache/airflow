@@ -374,7 +374,7 @@ labelPRBasedOnFilePath:
     - airflow/plugins_manager.py
     - tests/cli/commands/local_commands/test_plugins_command.py
     - tests/plugins/**/*
-    - docs/apache-airflow/authoring-and-scheduling/plugins.rst
+    - docs/apache-airflow/administration-and-deployment/plugins.rst
 
   area:Scheduler:
     - airflow/jobs/scheduler_job_runner.py
