@@ -29,14 +29,14 @@ if AIRFLOW_V_3_0_PLUS:
         allow_module_level=True,
     )
 
-from airflow.providers.fab.www.app import create_app
-
 from tests_common.test_utils.config import conf_vars
 from tests_common.test_utils.db import clear_db_pools
 
 
 @pytest.fixture(scope="module")
 def google_openid_app():
+    from airflow.providers.fab.www.app import create_app
+
     def factory():
         with conf_vars(
             {
