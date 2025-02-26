@@ -48,6 +48,7 @@ classifiers = [
     "Programming Language :: Python :: 3.10",
     "Programming Language :: Python :: 3.11",
     "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
     "Topic :: System :: Monitoring",
 ]
 requires-python = "~=3.9"
@@ -72,6 +73,9 @@ dependencies = [
     "asgiref>=2.3.0",
     "PyAthena>=3.0.10",
     "jmespath>=0.7.0",
+    # TODO(potiuk): consider turning python3-saml into an optional dependency because it brings
+    # xmlsec which had to build C-bindings and has no Python 3.13 binaries and requires xmlsec1 to
+    # be build
     "python3-saml>=1.16.0",
 ]
 
@@ -79,11 +83,7 @@ dependencies = [
 # Any change in the dependencies is preserved when the file is regenerated
 [project.optional-dependencies]
 "pandas" = [
-    # In pandas 2.2 minimal version of the sqlalchemy is 2.0
-    # https://pandas.pydata.org/docs/whatsnew/v2.2.0.html#increased-minimum-versions-for-dependencies
-    # However Airflow not fully supports it yet: https://github.com/apache/airflow/issues/28723
-    # In addition FAB also limit sqlalchemy to < 2.0
-    "pandas>=2.1.2,<2.2",
+    "pandas>=2.1.2",
 ]
 # There is conflict between boto3 and aiobotocore dependency botocore.
 # TODO: We can remove it once boto3 and aiobotocore both have compatible botocore version or
