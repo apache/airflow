@@ -194,6 +194,15 @@ class TestBundleVersionLock:
         lth1.stop = True
         t1.join()
 
+    def test_that_no_version_is_noop(self):
+        with BundleVersionLock(
+            bundle_name="Yer face",
+            bundle_version=None,
+        ) as b:
+            log.info("this is fine")
+        assert b.lock_file_path is None
+        assert b.lock_file is None
+
 
 class FakeBundle(BaseDagBundle):
     @property

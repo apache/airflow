@@ -363,13 +363,15 @@ class BundleVersionLock:
 
     def __init__(self, bundle_name, bundle_version, **kwargs):
         super().__init__(**kwargs)
+        self.lock_file = None
         self.bundle_name = bundle_name
         self.version = bundle_version
-        self.lock_file_path = get_bundle_tracking_file(
-            bundle_name=self.bundle_name,
-            version=self.version,
-        )
-        self.lock_file = None
+        self.lock_file_path: Path | None = None
+        if self.version:
+            self.lock_file_path = get_bundle_tracking_file(
+                bundle_name=self.bundle_name,
+                version=self.version,
+            )
 
     def _log_exc(self, msg):
         log.exception(
@@ -382,6 +384,8 @@ class BundleVersionLock:
 
     def _update_version_file(self):
         """Create a version file containing last-used timestamp."""
+        if TYPE_CHECKING:
+            assert self.lock_file_path
         self.lock_file_path.parent.mkdir(parents=True, exist_ok=True)
 
         with tempfile.TemporaryDirectory() as td:
@@ -396,6 +400,8 @@ class BundleVersionLock:
         if self.lock_file:
             return
         self._update_version_file()
+        if TYPE_CHECKING:
+            assert self.lock_file_path
         self.lock_file = open(self.lock_file_path)
         flock(self.lock_file, LOCK_SH)
 
