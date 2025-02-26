@@ -56,7 +56,7 @@ PIP package                              Version required
 ``apache-airflow``                       ``>=2.9.0``
 ``apache-airflow-providers-common-sql``  ``>=1.20.0``
 ``pandas``                               ``>=2.1.2,<2.2``
-``trino``                                ``>=0.318.0``
+``trino``                                ``>=0.319.0``
 =======================================  ==================
 
 Cross provider package dependencies
