@@ -206,6 +206,7 @@ spec:
               path: /public/version
               port: {{ .Values.ports._apiServer }}
               scheme: {{ .Values._apiServer.startupProbe.scheme | default "http" }}
+            initialDelaySeconds: {{ .Values._apiServer.startupProbe.initialDelaySeconds }}
             timeoutSeconds: {{ .Values._apiServer.startupProbe.timeoutSeconds }}
             failureThreshold: {{ .Values._apiServer.startupProbe.failureThreshold }}
             periodSeconds: {{ .Values._apiServer.startupProbe.periodSeconds }}

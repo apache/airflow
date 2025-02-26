@@ -897,6 +897,7 @@ scheduler:
   # Wait for at most 1 minute (6*10s) for the scheduler container to startup.
   # livenessProbe kicks in after the first successful startupProbe
   startupProbe:
+    initialDelaySeconds: 0
     failureThreshold: 6
     periodSeconds: 10
     timeoutSeconds: 20
@@ -1345,6 +1346,7 @@ _apiServer:
     scheme: HTTP
 
   startupProbe:
+    initialDelaySeconds: 0
     timeoutSeconds: 20
     failureThreshold: 6
     periodSeconds: 10
@@ -1381,6 +1383,7 @@ webserver:
   # Wait for at most 1 minute (6*10s) for the webserver container to startup.
   # livenessProbe kicks in after the first successful startupProbe
   startupProbe:
+    initialDelaySeconds: 0
     timeoutSeconds: 20
     failureThreshold: 6
     periodSeconds: 10
@@ -1976,6 +1979,7 @@ flower:
   # Wait for at most 1 minute (6*10s) for the flower container to startup.
   # livenessProbe kicks in after the first successful startupProbe
   startupProbe:
+    initialDelaySeconds: 0
     timeoutSeconds: 20
     failureThreshold: 6
     periodSeconds: 10
