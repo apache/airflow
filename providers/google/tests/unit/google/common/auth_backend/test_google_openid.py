@@ -24,9 +24,12 @@ from google.auth.exceptions import GoogleAuthError
 from airflow.providers.google.version_compat import AIRFLOW_V_3_0_PLUS
 
 if AIRFLOW_V_3_0_PLUS:
-    from airflow.providers.fab.www.app import create_app
-else:
-    from airflow.www.app import create_app
+    pytest.skip(
+        "``providers/google/tests/unit/google/common/auth_backend/test_google_openid.py`` is only compatible with Airflow 2.X.",
+        allow_module_level=True,
+    )
+
+from airflow.providers.fab.www.app import create_app
 
 from tests_common.test_utils.config import conf_vars
 from tests_common.test_utils.db import clear_db_pools
