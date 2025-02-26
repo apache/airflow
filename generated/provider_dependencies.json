@@ -1284,7 +1284,6 @@
   },
   "standard": {
     "deps": [
-      "apache-airflow-providers-common-sql>=1.20.0",
       "apache-airflow>=2.9.0"
     ],
     "devel-deps": [],
