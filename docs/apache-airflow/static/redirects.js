@@ -19,7 +19,8 @@
 
 document.addEventListener("DOMContentLoaded", function () {
     const redirects = {
-        "zombie-undead-tasks": "zombie-tasks",
+        "zombie-undead-tasks": "task-instance-heartbeat-timeout",
+        "zombie-tasks": "task-instance-heartbeat-timeout",
     };
     const fragment = window.location.hash.substring(1);
     if (redirects[fragment]) {

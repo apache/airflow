@@ -39,7 +39,7 @@ class BaseCallbackRequest(BaseModel):
     bundle_name: str
     bundle_version: str | None
     msg: str | None = None
-    """Additional Message that can be used for logging to determine failure/zombie"""
+    """Additional Message that can be used for logging to determine failure/task heartbeat timeout"""
 
     @classmethod
     def from_json(cls, data: str | bytes | bytearray) -> Self:
@@ -54,7 +54,7 @@ class TaskCallbackRequest(BaseCallbackRequest):
     Task callback status information.
 
     A Class with information about the success/failure TI callback to be executed. Currently, only failure
-    callbacks (when tasks are externally killed) and Zombies are run via DagFileProcessorProcess.
+    callbacks when tasks are externally killed or experience heartbeat timeouts are run via DagFileProcessorProcess.
     """
 
     ti: ti_datamodel.TaskInstance
