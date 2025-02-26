@@ -28,7 +28,7 @@ type Props = {
   readonly setDagView: (x: "graph" | "grid") => void;
 };
 
-export const Header = ({ dagId, dagView, setDagView }: Props) => (
+export const PanelButtons = ({ dagId, dagView, setDagView }: Props) => (
   <HStack justifyContent="space-between" py={2}>
     <ButtonGroup attached left={0} size="sm" top={0} variant="outline" zIndex={1}>
       <IconButton

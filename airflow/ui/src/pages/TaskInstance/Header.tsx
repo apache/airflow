@@ -47,7 +47,7 @@ export const Header = ({
     { label: "End", value: <Time datetime={taskInstance.end_date} /> },
     { label: "Duration", value: `${getDuration(taskInstance.start_date, taskInstance.end_date)}s` },
     {
-      label: "DAG Version at time of run",
+      label: "DAG Version",
       value:
         taskInstance.dag_version?.version_number === undefined
           ? ""
