@@ -121,9 +121,5 @@ class TestMwaaHook:
             self.hook.invoke_rest_api(ENV_NAME, PATH, METHOD)
 
         assert caught_error.value == error
-        expected_log = {
-            k: v
-            for k, v in self.example_responses["failure"].items()
-            if k != "ResponseMetadata" and k != "Error"
-        }
+        expected_log = {k: v for k, v in self.example_responses["failure"].items() if k != "ResponseMetadata"}
         mock_log.assert_called_once_with(expected_log)
