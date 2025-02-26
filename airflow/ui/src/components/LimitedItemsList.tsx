@@ -17,36 +17,33 @@
  * under the License.
  */
 import { Flex, Text, VStack } from "@chakra-ui/react";
+import type { ReactNode } from "react";
 
-import type { DagVersionResponse } from "openapi/requests/types.gen";
 import { Tooltip } from "src/components/ui";
 
-const MAX_VERSIONS = 3;
-
 type Props = {
-  readonly versions: Array<DagVersionResponse>;
+  readonly icon?: ReactNode;
+  readonly items: Array<string>;
+  readonly maxItems?: number;
+  readonly wrap?: boolean;
 };
 
-export const DagVersions = ({ versions }: Props) =>
-  versions.length ? (
-    <Flex alignItems="flex-start" textWrap="nowrap">
-      <Text fontSize="sm">
-        {versions
-          .slice(0, MAX_VERSIONS)
-          .map(({ version_number: versionNumber }) => `v${versionNumber}`)
-          .join(", ")}
-      </Text>
-      {versions.length > MAX_VERSIONS && (
+export const LimitedItemsList = ({ icon, items, maxItems = 3, wrap = false }: Props) =>
+  items.length ? (
+    <Flex alignItems="center" textWrap={wrap ? "normal" : "nowrap"}>
+      {icon}
+      <Text fontSize="sm">{items.slice(0, maxItems).join(", ")}</Text>
+      {items.length > maxItems && (
         <Tooltip
           content={
             <VStack gap={1} p={1}>
-              {versions.slice(MAX_VERSIONS).map(({ version_number: versionNumber }) => (
-                <Text key={versionNumber}>v{versionNumber}</Text>
+              {items.slice(maxItems).map((item) => (
+                <Text key={item}>{item}</Text>
               ))}
             </VStack>
           }
         >
-          <Text as="span">, +{versions.length - MAX_VERSIONS} more</Text>
+          <Text as="span">, +{items.length - maxItems} more</Text>
         </Tooltip>
       )}
     </Flex>
