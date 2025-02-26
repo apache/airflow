@@ -18,6 +18,7 @@ from __future__ import annotations
 
 import json
 import locale
+import warnings
 from base64 import b64encode
 from os.path import dirname
 from typing import Any
@@ -306,7 +307,8 @@ class TestMSGraphAsyncOperator(Base):
                 == "response"
             )
 
-        with pytest.warns(None) as warnings:  # type: ignore
+        with warnings.catch_warnings(record=True) as recorded_warnings:
+            warnings.simplefilter("error")  # Treat warnings as errors
             assert (
                 execute_callable(
                     lambda response, **context: response,
@@ -316,4 +318,4 @@ class TestMSGraphAsyncOperator(Base):
                 )
                 == "response"
             )
-            assert len(warnings) == 0
+            assert len(recorded_warnings) == 0
