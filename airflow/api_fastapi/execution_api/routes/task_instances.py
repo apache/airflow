@@ -130,7 +130,7 @@ def ti_run(
         ti_run_payload.unixname,
         ti_run_payload.pid,
     ):
-        log.info("Duplicate start request received for from %s ", ti_run_payload.hostname)
+        log.info("Duplicate start request received from %s ", ti_run_payload.hostname)
     elif previous_state != TaskInstanceState.QUEUED:
         log.warning(
             "Can not start Task Instance ('%s') in invalid state: %s",
