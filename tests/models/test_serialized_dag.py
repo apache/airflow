@@ -357,3 +357,16 @@ class TestSerializedDagModel:
 
         assert session.query(DagVersion).count() == 2
         assert session.query(SDM).count() == 2
+
+    @pytest.mark.parametrize("dag_id", ["latest_only", "datetime_mapped"])
+    def test_example_dag_sorting_serialised_dag(self, dag_id, session):
+        """
+        This test asserts if different dag ids -- simple or complex, can be sorted
+        """
+
+        example_dags = self._write_example_dags()
+        dag1 = example_dags[dag_id]
+        # flip the tags, the sorting function should sort it alphabetically
+        dag1.tags = sorted(dag1.tags, reverse=True)
+        sorted_dag = SDM._sort_serialized_dag_dict(dag1)
+        assert sorted_dag == dag1
