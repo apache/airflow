@@ -8074,6 +8074,16 @@ components:
         is_active:
           type: boolean
           title: Is Active
+        bundle_name:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Bundle Name
+        bundle_version:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Bundle Version
         last_parsed_time:
           anyOf:
           - type: string
@@ -8244,6 +8254,7 @@ components:
       - dag_display_name
       - is_paused
       - is_active
+      - bundle_name
       - last_parsed_time
       - last_expired
       - default_view
@@ -8304,6 +8315,16 @@ components:
         is_active:
           type: boolean
           title: Is Active
+        bundle_name:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Bundle Name
+        bundle_version:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Bundle Version
         last_parsed_time:
           anyOf:
           - type: string
@@ -8401,6 +8422,7 @@ components:
       - dag_display_name
       - is_paused
       - is_active
+      - bundle_name
       - last_parsed_time
       - last_expired
       - default_view
@@ -8820,6 +8842,16 @@ components:
         is_active:
           type: boolean
           title: Is Active
+        bundle_name:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Bundle Name
+        bundle_version:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Bundle Version
         last_parsed_time:
           anyOf:
           - type: string
@@ -8922,6 +8954,7 @@ components:
       - dag_display_name
       - is_paused
       - is_active
+      - bundle_name
       - last_parsed_time
       - last_expired
       - default_view

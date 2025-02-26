@@ -498,6 +498,8 @@ export type DAGDetailsResponse = {
   dag_display_name: string;
   is_paused: boolean;
   is_active: boolean;
+  bundle_name: string | null;
+  bundle_version?: string | null;
   last_parsed_time: string | null;
   last_expired: string | null;
   default_view: string | null;
@@ -561,6 +563,8 @@ export type DAGResponse = {
   dag_display_name: string;
   is_paused: boolean;
   is_active: boolean;
+  bundle_name: string | null;
+  bundle_version?: string | null;
   last_parsed_time: string | null;
   last_expired: string | null;
   default_view: string | null;
@@ -736,6 +740,8 @@ export type DAGWithLatestDagRunsResponse = {
   dag_display_name: string;
   is_paused: boolean;
   is_active: boolean;
+  bundle_name: string | null;
+  bundle_version?: string | null;
   last_parsed_time: string | null;
   last_expired: string | null;
   default_view: string | null;

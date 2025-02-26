@@ -415,6 +415,7 @@ class TestGetDag(TestDagEndpoint):
             ({}, DAG2_ID, 200, DAG2_ID),
         ],
     )
+    @pytest.mark.usefixtures("configure_git_connection_for_dag_bundle")
     def test_get_dag(self, test_client, query_params, dag_id, expected_status_code, dag_display_name):
         response = test_client.get(f"/public/dags/{dag_id}", params=query_params)
         assert response.status_code == expected_status_code
@@ -430,6 +431,8 @@ class TestGetDag(TestDagEndpoint):
             "dag_display_name": dag_display_name,
             "description": None,
             "fileloc": __file__,
+            "bundle_name": "dag_maker",
+            "bundle_version": None,
             "file_token": file_token,
             "is_paused": False,
             "is_active": True,

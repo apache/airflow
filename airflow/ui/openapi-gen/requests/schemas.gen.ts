@@ -1570,6 +1570,28 @@ export const $DAGDetailsResponse = {
       type: "boolean",
       title: "Is Active",
     },
+    bundle_name: {
+      anyOf: [
+        {
+          type: "string",
+        },
+        {
+          type: "null",
+        },
+      ],
+      title: "Bundle Name",
+    },
+    bundle_version: {
+      anyOf: [
+        {
+          type: "string",
+        },
+        {
+          type: "null",
+        },
+      ],
+      title: "Bundle Version",
+    },
     last_parsed_time: {
       anyOf: [
         {
@@ -1887,6 +1909,7 @@ export const $DAGDetailsResponse = {
     "dag_display_name",
     "is_paused",
     "is_active",
+    "bundle_name",
     "last_parsed_time",
     "last_expired",
     "default_view",
@@ -1956,6 +1979,28 @@ export const $DAGResponse = {
     is_active: {
       type: "boolean",
       title: "Is Active",
+    },
+    bundle_name: {
+      anyOf: [
+        {
+          type: "string",
+        },
+        {
+          type: "null",
+        },
+      ],
+      title: "Bundle Name",
+    },
+    bundle_version: {
+      anyOf: [
+        {
+          type: "string",
+        },
+        {
+          type: "null",
+        },
+      ],
+      title: "Bundle Version",
     },
     last_parsed_time: {
       anyOf: [
@@ -2131,6 +2176,7 @@ export const $DAGResponse = {
     "dag_display_name",
     "is_paused",
     "is_active",
+    "bundle_name",
     "last_parsed_time",
     "last_expired",
     "default_view",
@@ -2757,6 +2803,28 @@ export const $DAGWithLatestDagRunsResponse = {
       type: "boolean",
       title: "Is Active",
     },
+    bundle_name: {
+      anyOf: [
+        {
+          type: "string",
+        },
+        {
+          type: "null",
+        },
+      ],
+      title: "Bundle Name",
+    },
+    bundle_version: {
+      anyOf: [
+        {
+          type: "string",
+        },
+        {
+          type: "null",
+        },
+      ],
+      title: "Bundle Version",
+    },
     last_parsed_time: {
       anyOf: [
         {
@@ -2938,6 +3006,7 @@ export const $DAGWithLatestDagRunsResponse = {
     "dag_display_name",
     "is_paused",
     "is_active",
+    "bundle_name",
     "last_parsed_time",
     "last_expired",
     "default_view",

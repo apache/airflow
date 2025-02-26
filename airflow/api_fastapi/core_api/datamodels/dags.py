@@ -24,12 +24,7 @@ from typing import Any
 
 from itsdangerous import URLSafeSerializer
 from pendulum.tz.timezone import FixedTimezone, Timezone
-from pydantic import (
-    AliasGenerator,
-    ConfigDict,
-    computed_field,
-    field_validator,
-)
+from pydantic import AliasGenerator, ConfigDict, Field, computed_field, field_validator
 
 from airflow.api_fastapi.core_api.base import BaseModel, StrictBaseModel
 from airflow.api_fastapi.core_api.datamodels.dag_tags import DagTagResponse
@@ -59,6 +54,8 @@ class DAGResponse(BaseModel):
     dag_display_name: str
     is_paused: bool
     is_active: bool
+    bundle_name: str | None
+    latest_bundle_version: str | None = Field(alias="bundle_version")
     last_parsed_time: datetime | None
     last_expired: datetime | None
     default_view: str | None
