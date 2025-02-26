@@ -23,7 +23,7 @@ from google.auth.exceptions import GoogleAuthError
 
 from airflow.providers.google.version_compat import AIRFLOW_V_3_0_PLUS
 
-if AIRFLOW_V_3_0_PLUS:
+if not AIRFLOW_V_3_0_PLUS:
     pytest.skip(
         "``providers/google/tests/unit/google/common/auth_backend/test_google_openid.py`` is only compatible with Airflow 2.X.",
         allow_module_level=True,
@@ -35,8 +35,6 @@ from tests_common.test_utils.db import clear_db_pools
 
 @pytest.fixture(scope="module")
 def google_openid_app():
-    from airflow.providers.fab.www.app import create_app
-
     def factory():
         with conf_vars(
             {
@@ -47,6 +45,8 @@ def google_openid_app():
                 ): "airflow.providers.fab.auth_manager.fab_auth_manager.FabAuthManager",
             }
         ):
+            from airflow.providers.fab.www.app import create_app
+
             _app = create_app(enable_plugins=False)
             _app.config["AUTH_ROLE_PUBLIC"] = None
             return _app
