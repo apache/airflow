@@ -81,7 +81,10 @@ def get_provider_info():
         "operators": [
             {
                 "integration-name": "Common SQL",
-                "python-modules": ["airflow.providers.common.sql.operators.sql"],
+                "python-modules": [
+                    "airflow.providers.common.sql.operators.sql",
+                    "airflow.providers.common.sql.operators.generic_transfer",
+                ],
             }
         ],
         "dialects": [
@@ -97,6 +100,12 @@ def get_provider_info():
                     "airflow.providers.common.sql.hooks.handlers",
                     "airflow.providers.common.sql.hooks.sql",
                 ],
+            }
+        ],
+        "triggers": [
+            {
+                "integration-name": "Common SQL",
+                "python-modules": ["airflow.providers.common.sql.triggers.sql"],
             }
         ],
         "sensors": [
