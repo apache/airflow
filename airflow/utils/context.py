@@ -33,9 +33,6 @@ from sqlalchemy import select
 from airflow.models.asset import (
     AssetModel,
 )
-from airflow.sdk.definitions.asset import (
-    Asset,
-)
 from airflow.sdk.definitions.context import Context
 from airflow.sdk.execution_time.context import (
     ConnectionAccessor as ConnectionAccessorSDK,
@@ -46,6 +43,7 @@ from airflow.utils.session import create_session
 from airflow.utils.types import NOTSET
 
 if TYPE_CHECKING:
+    from airflow.sdk.definitions.asset import Asset
     from airflow.sdk.types import OutletEventAccessorsProtocol
 
 # NOTE: Please keep this in sync with the following:

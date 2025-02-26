@@ -29,7 +29,6 @@ from airflow.sdk.definitions.asset import (
     AssetAlias,
     AssetAliasEvent,
     AssetAliasUniqueKey,
-    AssetEvent,
     AssetUniqueKey,
 )
 from airflow.sdk.definitions.connection import Connection
@@ -396,22 +395,16 @@ class TestInletEventAccessor:
     def test__get_item__(self, key, sample_inlet_evnets_accessor, mock_supervisor_comms):
         # This test only verifies a valid key can be used to access inlet events,
         # but not access asset events are fetched. That is verified in test_asset_events in execution_api
-        asset = Asset(name="test", uri="test", group="asset")
-        event = AssetEvent(id=1, asset=asset, created_dagruns=[], timestamp=datetime.now())
-        mock_supervisor_comms.get_message.side_effect = [
-            AssetEventsResult(
-                asset_events=[
-                    AssetEventResponse(
-                        id=event.id,
-                        created_dagruns=event.created_dagruns,
-                        timestamp=event.timestamp,
-                        asset=AssetResponse(name="test", uri="test", group="asset"),
-                    )
-                ]
-            )
-        ] * 4
+        asset_event_resp = AssetEventResponse(
+            id=1,
+            created_dagruns=[],
+            timestamp=datetime.now(),
+            asset=AssetResponse(name="test", uri="test", group="asset"),
+        )
+        events_result = AssetEventsResult(asset_events=[asset_event_resp])
+        mock_supervisor_comms.get_message.side_effect = [events_result] * 4
 
-        assert sample_inlet_evnets_accessor[key] == [event]
+        assert sample_inlet_evnets_accessor[key] == [asset_event_resp]
 
     @pytest.mark.usefixtures("mock_supervisor_comms")
     def test__get_item__out_of_index(self, sample_inlet_evnets_accessor):

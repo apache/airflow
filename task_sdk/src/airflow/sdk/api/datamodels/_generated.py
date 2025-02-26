@@ -71,6 +71,24 @@ class ConnectionResponse(BaseModel):
     extra: Annotated[str | None, Field(title="Extra")] = None
 
 
+class DagRunAssetReference(BaseModel):
+    """
+    DagRun serializer for asset responses.
+    """
+
+    model_config = ConfigDict(
+        extra="forbid",
+    )
+    run_id: Annotated[str, Field(title="Run Id")]
+    dag_id: Annotated[str, Field(title="Dag Id")]
+    logical_date: Annotated[datetime | None, Field(title="Logical Date")] = None
+    start_date: Annotated[datetime, Field(title="Start Date")]
+    end_date: Annotated[datetime | None, Field(title="End Date")] = None
+    state: Annotated[str, Field(title="State")]
+    data_interval_start: Annotated[datetime | None, Field(title="Data Interval Start")] = None
+    data_interval_end: Annotated[datetime | None, Field(title="Data Interval End")] = None
+
+
 class DagRunType(str, Enum):
     """
     Class with DagRun types.
@@ -281,76 +299,6 @@ class TerminalTIState(str, Enum):
     FAIL_WITHOUT_RETRY = "fail_without_retry"
 
 
-class DagRun(BaseModel):
-    """
-    Schema for DagRun model with minimal required fields needed for Runtime.
-    """
-
-    model_config = ConfigDict(
-        extra="forbid",
-    )
-    dag_id: Annotated[str, Field(title="Dag Id")]
-    run_id: Annotated[str, Field(title="Run Id")]
-    logical_date: Annotated[datetime | None, Field(title="Logical Date")]
-    data_interval_start: Annotated[datetime | None, Field(title="Data Interval Start")] = None
-    data_interval_end: Annotated[datetime | None, Field(title="Data Interval End")] = None
-    run_after: Annotated[datetime, Field(title="Run After")]
-    start_date: Annotated[datetime, Field(title="Start Date")]
-    end_date: Annotated[datetime | None, Field(title="End Date")] = None
-    clear_number: Annotated[int | None, Field(title="Clear Number")] = 0
-    run_type: DagRunType
-    conf: Annotated[dict[str, Any] | None, Field(title="Conf")] = None
-
-
-class HTTPValidationError(BaseModel):
-    detail: Annotated[list[ValidationError] | None, Field(title="Detail")] = None
-
-
-class TIRunContext(BaseModel):
-    """
-    Response schema for TaskInstance run context.
-    """
-
-    dag_run: DagRun
-    task_reschedule_count: Annotated[int, Field(title="Task Reschedule Count")] = 0
-    max_tries: Annotated[int, Field(title="Max Tries")]
-    variables: Annotated[list[VariableResponse] | None, Field(title="Variables")] = None
-    connections: Annotated[list[ConnectionResponse] | None, Field(title="Connections")] = None
-    upstream_map_indexes: Annotated[dict[str, int] | None, Field(title="Upstream Map Indexes")] = None
-    next_method: Annotated[str | None, Field(title="Next Method")] = None
-    next_kwargs: Annotated[dict[str, Any] | str | None, Field(title="Next Kwargs")] = None
-
-
-class TITerminalStatePayload(BaseModel):
-    """
-    Schema for updating TaskInstance to a terminal state except SUCCESS state.
-    """
-
-    model_config = ConfigDict(
-        extra="forbid",
-    )
-    state: TerminalStateNonSuccess
-    end_date: Annotated[datetime, Field(title="End Date")]
-
-
-class DagRunAssetReference(BaseModel):
-    """
-    DagRun serializer for asset responses.
-    """
-
-    model_config = ConfigDict(
-        extra="forbid",
-    )
-    run_id: Annotated[str, Field(title="Run Id")]
-    dag_id: Annotated[str, Field(title="Dag Id")]
-    logical_date: Annotated[datetime | None, Field(title="Logical Date")] = None
-    start_date: Annotated[datetime, Field(title="Start Date")]
-    end_date: Annotated[datetime | None, Field(title="End Date")] = None
-    state: Annotated[str, Field(title="State")]
-    data_interval_start: Annotated[datetime | None, Field(title="Data Interval Start")] = None
-    data_interval_end: Annotated[datetime | None, Field(title="Data Interval End")] = None
-
-
 class AssetEventResponse(BaseModel):
     """
     Asset event schema with fields that are needed for Runtime.
@@ -373,3 +321,55 @@ class AssetEventsResponse(BaseModel):
     """
 
     asset_events: Annotated[list[AssetEventResponse], Field(title="Asset Events")]
+
+
+class DagRun(BaseModel):
+    """
+    Schema for DagRun model with minimal required fields needed for Runtime.
+    """
+
+    model_config = ConfigDict(
+        extra="forbid",
+    )
+    dag_id: Annotated[str, Field(title="Dag Id")]
+    run_id: Annotated[str, Field(title="Run Id")]
+    logical_date: Annotated[datetime | None, Field(title="Logical Date")] = None
+    data_interval_start: Annotated[datetime | None, Field(title="Data Interval Start")] = None
+    data_interval_end: Annotated[datetime | None, Field(title="Data Interval End")] = None
+    run_after: Annotated[datetime, Field(title="Run After")]
+    start_date: Annotated[datetime, Field(title="Start Date")]
+    end_date: Annotated[datetime | None, Field(title="End Date")] = None
+    clear_number: Annotated[int | None, Field(title="Clear Number")] = 0
+    run_type: DagRunType
+    conf: Annotated[dict[str, Any] | None, Field(title="Conf")] = None
+
+
+class HTTPValidationError(BaseModel):
+    detail: Annotated[list[ValidationError] | None, Field(title="Detail")] = None
+
+
+class TIRunContext(BaseModel):
+    """
+    Response schema for TaskInstance run context.
+    """
+
+    dag_run: DagRun
+    task_reschedule_count: Annotated[int | None, Field(title="Task Reschedule Count")] = 0
+    max_tries: Annotated[int, Field(title="Max Tries")]
+    variables: Annotated[list[VariableResponse] | None, Field(title="Variables")] = None
+    connections: Annotated[list[ConnectionResponse] | None, Field(title="Connections")] = None
+    upstream_map_indexes: Annotated[dict[str, int] | None, Field(title="Upstream Map Indexes")] = None
+    next_method: Annotated[str | None, Field(title="Next Method")] = None
+    next_kwargs: Annotated[dict[str, Any] | str | None, Field(title="Next Kwargs")] = None
+
+
+class TITerminalStatePayload(BaseModel):
+    """
+    Schema for updating TaskInstance to a terminal state except SUCCESS state.
+    """
+
+    model_config = ConfigDict(
+        extra="forbid",
+    )
+    state: TerminalStateNonSuccess
+    end_date: Annotated[datetime, Field(title="End Date")]
