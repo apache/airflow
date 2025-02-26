@@ -962,16 +962,18 @@ def supervise(
     # TODO: Use logging providers to handle the chunked upload for us etc.
     logger: FilteringBoundLogger | None = None
     if log_path:
-        # If we are told to write logs to a file, redirect the task logger to it.
+        # If we are told to write logs to a file, redirect the task logger to it. Make sure we append to the
+        # file though, otherwise when we resume we would lose the logs from the start->deferral segment if it
+        # lands on the same node as before.
         from airflow.sdk.log import init_log_file, logging_processors
 
         log_file = init_log_file(log_path)
 
         pretty_logs = False
         if pretty_logs:
-            underlying_logger: WrappedLogger = structlog.WriteLogger(log_file.open("w", buffering=1))
+            underlying_logger: WrappedLogger = structlog.WriteLogger(log_file.open("a", buffering=1))
         else:
-            underlying_logger = structlog.BytesLogger(log_file.open("wb"))
+            underlying_logger = structlog.BytesLogger(log_file.open("ab"))
         processors = logging_processors(enable_pretty_log=pretty_logs)[0]
         logger = structlog.wrap_logger(underlying_logger, processors=processors, logger_name="task").bind()
 

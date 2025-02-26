@@ -77,7 +77,6 @@ class TestTIRunState:
             session=session,
             start_date=instant,
         )
-
         session.commit()
 
         response = client.patch(
@@ -118,6 +117,49 @@ class TestTIRunState:
         assert ti.hostname == "random-hostname"
         assert ti.unixname == "random-unixname"
         assert ti.pid == 100
+
+    def test_next_kwargs_still_encoded(self, client, session, create_task_instance, time_machine):
+        instant_str = "2024-09-30T12:00:00Z"
+        instant = timezone.parse(instant_str)
+        time_machine.move_to(instant, tick=False)
+
+        ti = create_task_instance(
+            task_id="test_ti_run_state_to_running",
+            state=State.QUEUED,
+            session=session,
+            start_date=instant,
+        )
+
+        ti.next_method = "execute_complete"
+        # ti.next_kwargs under the hood applies the serde encoding for us
+        ti.next_kwargs = {"moment": instant}
+
+        session.commit()
+
+        response = client.patch(
+            f"/execution/task-instances/{ti.id}/run",
+            json={
+                "state": "running",
+                "hostname": "random-hostname",
+                "unixname": "random-unixname",
+                "pid": 100,
+                "start_date": instant_str,
+            },
+        )
+
+        assert response.status_code == 200
+        assert response.json() == {
+            "dag_run": mock.ANY,
+            "task_reschedule_count": 0,
+            "max_tries": 0,
+            "variables": [],
+            "connections": [],
+            "next_method": "execute_complete",
+            "next_kwargs": {
+                "__type": "dict",
+                "__var": {"moment": {"__type": "datetime", "__var": 1727697600.0}},
+            },
+        }
 
     @pytest.mark.parametrize("initial_ti_state", [s for s in TaskInstanceState if s != State.QUEUED])
     def test_ti_run_state_conflict_if_not_queued(
@@ -209,9 +251,9 @@ class TestTIRunState:
         payload = {
             "state": "deferred",
             "trigger_kwargs": {"key": "value", "moment": "2024-12-18T00:00:00Z"},
+            "trigger_timeout": "P1D",  # 1 day
             "classpath": "my-classpath",
             "next_method": "execute_callback",
-            "trigger_timeout": "P1D",  # 1 day
         }
 
         response = client.patch(f"/execution/task-instances/{ti.id}/state", json=payload)
@@ -452,10 +494,18 @@ class TestTIUpdateState:
 
         payload = {
             "state": "deferred",
-            "trigger_kwargs": {"key": "value", "moment": "2024-12-18T00:00:00Z"},
+            # Raw payload is already "encoded", but not encrypted
+            "trigger_kwargs": {
+                "__type": "dict",
+                "__var": {"key": "value", "moment": {"__type": "datetime", "__var": 1734480001.0}},
+            },
+            "trigger_timeout": "P1D",  # 1 day
             "classpath": "my-classpath",
             "next_method": "execute_callback",
-            "trigger_timeout": "P1D",  # 1 day
+            "next_kwargs": {
+                "__type": "dict",
+                "__var": {"foo": {"__type": "datetime", "__var": 1734480000.0}, "bar": "abc"},
+            },
         }
 
         response = client.patch(f"/execution/task-instances/{ti.id}/state", json=payload)
@@ -471,8 +521,8 @@ class TestTIUpdateState:
         assert tis[0].state == TaskInstanceState.DEFERRED
         assert tis[0].next_method == "execute_callback"
         assert tis[0].next_kwargs == {
-            "key": "value",
-            "moment": datetime(2024, 12, 18, 00, 00, 00, tzinfo=timezone.utc),
+            "bar": "abc",
+            "foo": datetime(2024, 12, 18, 00, 00, 00, tzinfo=timezone.utc),
         }
         assert tis[0].trigger_timeout == timezone.make_aware(datetime(2024, 11, 23), timezone=timezone.utc)
 
@@ -482,7 +532,7 @@ class TestTIUpdateState:
         assert t[0].classpath == "my-classpath"
         assert t[0].kwargs == {
             "key": "value",
-            "moment": datetime(2024, 12, 18, 00, 00, 00, tzinfo=timezone.utc),
+            "moment": datetime(2024, 12, 18, 00, 00, 1, tzinfo=timezone.utc),
         }
 
     def test_ti_update_state_to_reschedule(self, client, session, create_task_instance, time_machine):

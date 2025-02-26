@@ -25,6 +25,14 @@ import time
 from collections.abc import Sequence
 from typing import TYPE_CHECKING, Any
 
+from google.api_core.exceptions import NotFound
+from google.api_core.gapic_v1.method import DEFAULT, _MethodDefault
+from google.auth.transport import requests as google_requests
+
+# not sure why but mypy complains on missing `container_v1` but it is clearly there and is importable
+from google.cloud import exceptions  # type: ignore[attr-defined]
+from google.cloud.container_v1 import ClusterManagerAsyncClient, ClusterManagerClient
+from google.cloud.container_v1.types import Cluster, Operation
 from kubernetes import client
 from kubernetes_asyncio import client as async_client
 from kubernetes_asyncio.config.kube_config import FileOrData
@@ -39,14 +47,6 @@ from airflow.providers.google.common.hooks.base_google import (
     GoogleBaseAsyncHook,
     GoogleBaseHook,
 )
-from google.api_core.exceptions import NotFound
-from google.api_core.gapic_v1.method import DEFAULT, _MethodDefault
-from google.auth.transport import requests as google_requests
-
-# not sure why but mypy complains on missing `container_v1` but it is clearly there and is importable
-from google.cloud import exceptions  # type: ignore[attr-defined]
-from google.cloud.container_v1 import ClusterManagerAsyncClient, ClusterManagerClient
-from google.cloud.container_v1.types import Cluster, Operation
 
 if TYPE_CHECKING:
     import google.auth.credentials

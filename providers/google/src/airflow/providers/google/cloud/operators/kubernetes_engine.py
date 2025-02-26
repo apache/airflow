@@ -24,6 +24,7 @@ from collections.abc import Sequence
 from functools import cached_property
 from typing import TYPE_CHECKING, Any
 
+from google.api_core.exceptions import AlreadyExists
 from kubernetes.client import V1JobList, models as k8s
 from packaging.version import parse as parse_version
 
@@ -60,7 +61,6 @@ from airflow.providers.google.common.deprecated import deprecated
 from airflow.providers.google.common.hooks.base_google import PROVIDE_PROJECT_ID
 from airflow.providers_manager import ProvidersManager
 from airflow.utils.timezone import utcnow
-from google.api_core.exceptions import AlreadyExists
 
 try:
     from airflow.providers.cncf.kubernetes.operators.job import KubernetesDeleteJobOperator
@@ -73,11 +73,11 @@ except ImportError:
     )
 
 if TYPE_CHECKING:
+    from google.cloud.container_v1.types import Cluster
     from kubernetes.client.models import V1Job
     from pendulum import DateTime
 
     from airflow.utils.context import Context
-    from google.cloud.container_v1.types import Cluster
 
 KUBE_CONFIG_ENV_VAR = "KUBECONFIG"
 
