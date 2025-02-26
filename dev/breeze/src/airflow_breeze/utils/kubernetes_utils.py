@@ -556,17 +556,17 @@ def _attempt_to_connect(port_number: int, output: Output | None, wait_seconds: i
     for attempt in itertools.count(1):
         get_console(output=output).print(f"[info]Connecting to localhost:{port_number}. Num try: {attempt}")
         try:
-            response = requests.head(f"http://localhost:{port_number}/public/monitor/health")
+            response = requests.get(f"http://localhost:{port_number}/public/monitor/health")
         except ConnectionError:
             get_console(output=output).print(
-                f"The webserver is not yet ready at http://localhost:{port_number}/public/monitor/health "
+                f"The api server is not yet ready at http://localhost:{port_number}/public/monitor/health "
             )
         except Exception as e:
             get_console(output=output).print(f"[info]Error when connecting to localhost:{port_number} : {e}")
         else:
             if response.status_code == 200:
                 get_console(output=output).print(
-                    "[success]Established connection to webserver at "
+                    "[success]Established connection to api server at "
                     f"http://localhost:{port_number}/public/monitor/health and it is healthy."
                 )
                 return True
@@ -600,7 +600,7 @@ def print_cluster_urls(
         )
     else:
         get_console(output=output).print(
-            f"\n[warning]Airflow webserver is not available at port {api_server_port}. "
+            f"\n[warning]Airflow API server is not available at port {api_server_port}. "
             f"Run `breeze k8s deploy-airflow --python {python} --kubernetes-version {kubernetes_version}` "
             "to (re)deploy airflow\n"
         )
