@@ -831,24 +831,24 @@ class TestScheduler:
         assert jmespath.search("spec.volumeClaimTemplates[0].metadata.annotations", docs[0]) == {"foo": "bar"}
 
     @pytest.mark.parametrize(
-        "executor",
+        "executor, label",
         [
-            "LocalExecutor",
-            "LocalKubernetesExecutor",
-            "CeleryExecutor",
-            "KubernetesExecutor",
-            "CeleryKubernetesExecutor",
-            "CeleryExecutor,KubernetesExecutor",
+            ("LocalExecutor", "LocalExecutor"),
+            ("LocalKubernetesExecutor", "LocalKubernetesExecutor"),
+            ("CeleryExecutor", "CeleryExecutor"),
+            ("KubernetesExecutor", "KubernetesExecutor"),
+            ("CeleryKubernetesExecutor", "CeleryKubernetesExecutor"),
+            ("CeleryExecutor,KubernetesExecutor", "CeleryExecutor"),
         ],
     )
-    def test_scheduler_deployment_has_executor_label(self, executor):
+    def test_scheduler_deployment_has_default_executor_label(self, executor, label):
         docs = render_chart(
             values={"executor": executor},
             show_only=["templates/scheduler/scheduler-deployment.yaml"],
         )
 
         assert len(docs) == 1
-        assert executor == docs[0]["metadata"]["labels"].get("executor")
+        assert label == docs[0]["metadata"]["labels"].get("executor")
 
     def test_should_add_component_specific_annotations(self):
         docs = render_chart(
