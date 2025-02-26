@@ -16,7 +16,6 @@
 # under the License.
 from __future__ import annotations
 
-from airflow.models.baseoperator import chain
 from airflow.models.dag import DAG
 from airflow.providers.common.messaging.triggers.msg_queue import MessageQueueTrigger
 from airflow.providers.standard.operators.empty import EmptyOperator
