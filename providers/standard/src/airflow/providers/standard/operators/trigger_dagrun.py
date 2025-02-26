@@ -87,7 +87,7 @@ class TriggerDagRunLink(BaseOperatorLink):
 
         if AIRFLOW_V_3_0_PLUS:
             base_url = conf.get_mandatory_value("fastapi", "base_url").lower()
-            return f"{base_url}/webapp/dags/{trigger_dag_id}/runs/{triggered_dag_run_id}"
+            return f"{base_url}/dags/{trigger_dag_id}/runs/{triggered_dag_run_id}"
         else:
             query = {"dag_id": trigger_dag_id, "dag_run_id": triggered_dag_run_id}
             return build_airflow_url_with_query(query)
