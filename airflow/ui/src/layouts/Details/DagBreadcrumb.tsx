@@ -24,7 +24,6 @@ import { Link as RouterLink, useParams } from "react-router-dom";
 import {
   useDagRunServiceGetDagRun,
   useDagServiceGetDagDetails,
-  useTaskInstanceServiceGetMappedTaskInstance,
   useTaskServiceGetTask,
 } from "openapi/queries";
 import { StateBadge } from "src/components/StateBadge";
@@ -51,19 +50,6 @@ export const DagBreadcrumb = () => {
   );
 
   const { data: task } = useTaskServiceGetTask({ dagId, taskId }, undefined, { enabled: Boolean(taskId) });
-
-  const { data: taskInstance } = useTaskInstanceServiceGetMappedTaskInstance(
-    {
-      dagId,
-      dagRunId: runId ?? "",
-      mapIndex: parseInt(mapIndex, 10),
-      taskId: taskId ?? "",
-    },
-    undefined,
-    {
-      enabled: Boolean(runId) && Boolean(taskId),
-    },
-  );
 
   const links: Array<{ label: ReactNode | string; title?: string; value?: string }> = [
     { label: "Dags", value: "/dags" },
@@ -103,7 +89,18 @@ export const DagBreadcrumb = () => {
 
   // Add task breadcrumb
   if (runId !== undefined && taskId !== undefined) {
-    links.push({ label: taskInstance?.task_display_name ?? taskId, title: "Task" });
+    if (task?.is_mapped) {
+      links.push({
+        label: `${task.task_display_name ?? taskId} [ ]`,
+        title: "Task",
+        value: `/dags/${dagId}/runs/${runId}/tasks/${taskId}/mapped`,
+      });
+    } else {
+      links.push({
+        label: task?.task_display_name ?? taskId,
+        title: "Task",
+      });
+    }
   }
 
   if (runId === undefined && taskId !== undefined) {
