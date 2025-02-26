@@ -23,9 +23,6 @@ from collections.abc import Sequence
 from copy import deepcopy
 from typing import TYPE_CHECKING, Any
 
-from airflow.providers.google.cloud.hooks.vision import CloudVisionHook
-from airflow.providers.google.cloud.operators.cloud_base import GoogleCloudBaseOperator
-from airflow.providers.google.common.hooks.base_google import PROVIDE_PROJECT_ID
 from google.api_core.exceptions import AlreadyExists
 from google.api_core.gapic_v1.method import DEFAULT, _MethodDefault
 from google.cloud.vision_v1 import (
@@ -36,10 +33,15 @@ from google.cloud.vision_v1 import (
     ReferenceImage,
 )
 
+from airflow.providers.google.cloud.hooks.vision import CloudVisionHook
+from airflow.providers.google.cloud.operators.cloud_base import GoogleCloudBaseOperator
+from airflow.providers.google.common.hooks.base_google import PROVIDE_PROJECT_ID
+
 if TYPE_CHECKING:
-    from airflow.utils.context import Context
     from google.api_core.retry import Retry
     from google.protobuf.field_mask_pb2 import FieldMask
+
+    from airflow.utils.context import Context
 
 
 MetaData = Sequence[tuple[str, str]]

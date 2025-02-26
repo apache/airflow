@@ -25,20 +25,22 @@ from functools import cached_property
 from typing import TYPE_CHECKING
 from urllib.parse import urlencode
 
-from airflow.exceptions import AirflowProviderDeprecationWarning
-from airflow.providers.google.cloud.utils.credentials_provider import get_credentials_and_project_id
-from airflow.providers.google.common.consts import CLIENT_INFO
-from airflow.providers.google.version_compat import AIRFLOW_V_3_0_PLUS
-from airflow.utils.types import NOTSET, ArgNotSet
 from google.cloud import logging as gcp_logging
 from google.cloud.logging import Resource
 from google.cloud.logging.handlers.transports import BackgroundThreadTransport, Transport
 from google.cloud.logging_v2.services.logging_service_v2 import LoggingServiceV2Client
 from google.cloud.logging_v2.types import ListLogEntriesRequest, ListLogEntriesResponse
 
+from airflow.exceptions import AirflowProviderDeprecationWarning
+from airflow.providers.google.cloud.utils.credentials_provider import get_credentials_and_project_id
+from airflow.providers.google.common.consts import CLIENT_INFO
+from airflow.providers.google.version_compat import AIRFLOW_V_3_0_PLUS
+from airflow.utils.types import NOTSET, ArgNotSet
+
 if TYPE_CHECKING:
-    from airflow.models import TaskInstance
     from google.auth.credentials import Credentials
+
+    from airflow.models import TaskInstance
 
 
 if not AIRFLOW_V_3_0_PLUS:
