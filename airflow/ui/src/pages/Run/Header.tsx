@@ -74,6 +74,10 @@ export const Header = ({
       { label: "Start", value: <Time datetime={dagRun.start_date} /> },
       { label: "End", value: <Time datetime={dagRun.end_date} /> },
       { label: "Duration", value: `${getDuration(dagRun.start_date, dagRun.end_date)}s` },
+      {
+        label: "Dag Versions at time of run",
+        value: dagRun.dag_versions.map((dagVersion) => `v${dagVersion.version_number}`).join(", "),
+      },
     ]}
     title={<Time datetime={dagRun.run_after} />}
   />

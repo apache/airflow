@@ -86,6 +86,13 @@ export const Header = ({
       label: "Tags",
       value: <DagTags tags={dag?.tags ?? []} />,
     },
+    {
+      label: "Latest DAG Version",
+      value:
+        dag?.latest_dag_version?.version_number === undefined
+          ? ""
+          : `v${dag.latest_dag_version.version_number}`,
+    },
   ];
 
   return (
