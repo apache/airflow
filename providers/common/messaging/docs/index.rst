@@ -40,6 +40,13 @@
 .. toctree::
     :hidden:
     :maxdepth: 1
+    :caption: References
+
+    Python API <_api/airflow/providers/common/messaging/index>
+
+.. toctree::
+    :hidden:
+    :maxdepth: 1
     :caption: System tests
 
     System Tests <_api/tests/system/common/messaging/index>
@@ -111,7 +118,7 @@ You can install such cross-provider dependencies when installing from PyPI. For 
 ==============================================================================================================  ===============
 Dependent package                                                                                               Extra
 ==============================================================================================================  ===============
-`apache-airflow-providers-amazon <https://airflow.apache.org/docs/apache-airflow-providers-amazon>`_  ``amazon``
+`apache-airflow-providers-amazon <https://airflow.apache.org/docs/apache-airflow-providers-amazon>`_            ``amazon``
 ==============================================================================================================  ===============
 
 Downloading official packages
