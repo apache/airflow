@@ -24,6 +24,8 @@ from datetime import datetime as dt
 from functools import cached_property
 
 import tenacity
+from kubernetes.client import CoreV1Api, CustomObjectsApi, models as k8s
+from kubernetes.client.rest import ApiException
 
 from airflow.exceptions import AirflowException
 from airflow.providers.cncf.kubernetes.resource_convert.configmap import (
@@ -37,8 +39,6 @@ from airflow.providers.cncf.kubernetes.resource_convert.secret import (
 )
 from airflow.providers.cncf.kubernetes.utils.pod_manager import PodManager
 from airflow.utils.log.logging_mixin import LoggingMixin
-from kubernetes.client import CoreV1Api, CustomObjectsApi, models as k8s
-from kubernetes.client.rest import ApiException
 
 
 def should_retry_start_spark_job(exception: BaseException) -> bool:

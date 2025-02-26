@@ -19,9 +19,8 @@ from __future__ import annotations
 from enum import Enum
 from typing import TYPE_CHECKING, Union
 
-import kubernetes_asyncio.client as async_k8s
-
 import kubernetes.client as k8s
+import kubernetes_asyncio.client as async_k8s
 
 if TYPE_CHECKING:
     from airflow.providers.cncf.kubernetes.operators.pod import KubernetesPodOperator

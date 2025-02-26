@@ -697,48 +697,48 @@ ARG_ACCESS_LOGFORMAT = Arg(
     help="The access log format for gunicorn logs",
 )
 
-# fastapi-api
-ARG_FASTAPI_API_PORT = Arg(
+# api-server
+ARG_API_SERVER_PORT = Arg(
     ("-p", "--port"),
     default=9091,
     type=int,
-    help="The port on which to run the server",
+    help="The port on which to run the API server",
 )
-ARG_FASTAPI_API_WORKERS = Arg(
+ARG_API_SERVER_WORKERS = Arg(
     ("-w", "--workers"),
     default=4,
     type=int,
-    help="Number of workers to run the FastAPI API-on",
+    help="Number of workers to run on the API server",
 )
-ARG_FASTAPI_API_WORKER_TIMEOUT = Arg(
+ARG_API_SERVER_WORKER_TIMEOUT = Arg(
     ("-t", "--worker-timeout"),
     default=120,
     type=int,
-    help="The timeout for waiting on FastAPI API workers",
+    help="The timeout for waiting on API server workers",
 )
-ARG_FASTAPI_API_HOSTNAME = Arg(
+ARG_API_SERVER_HOSTNAME = Arg(
     ("-H", "--hostname"),
     default="0.0.0.0",  # nosec
-    help="Set the hostname on which to run the web server",
+    help="Set the hostname on which to run the API server",
 )
-ARG_FASTAPI_API_ACCESS_LOGFILE = Arg(
+ARG_API_SERVER_ACCESS_LOGFILE = Arg(
     ("-A", "--access-logfile"),
     help="The logfile to store the access log. Use '-' to print to stdout",
 )
-ARG_FASTAPI_API_ERROR_LOGFILE = Arg(
+ARG_API_SERVER_ERROR_LOGFILE = Arg(
     ("-E", "--error-logfile"),
     help="The logfile to store the error log. Use '-' to print to stderr",
 )
-ARG_FASTAPI_API_ACCESS_LOGFORMAT = Arg(
+ARG_API_SERVER_ACCESS_LOGFORMAT = Arg(
     ("-L", "--access-logformat"),
     help="The access log format for gunicorn logs",
 )
-ARG_FASTAPI_API_APPS = Arg(
+ARG_API_SERVER_APPS = Arg(
     ("--apps",),
     help="Applications to run (comma-separated). Default is all. Options: core, execution, all",
     default="all",
 )
-ARG_FASTAPI_API_ALLOW_PROXY_FORWARDING = Arg(
+ARG_API_SERVER_ALLOW_PROXY_FORWARDING = Arg(
     flags=("--proxy-headers",),
     help="Enable X-Forwarded-Proto, X-Forwarded-For, X-Forwarded-Port to populate remote address info.",
     action="store_true",
@@ -1881,27 +1881,27 @@ core_commands: list[CLICommand] = [
         ),
     ),
     ActionCommand(
-        name="fastapi-api",
-        help="Start an Airflow FastAPI API instance",
-        func=lazy_load_command("airflow.cli.commands.local_commands.fastapi_api_command.fastapi_api"),
+        name="api-server",
+        help="Start an Airflow API server instance",
+        func=lazy_load_command("airflow.cli.commands.local_commands.api_server_command.api_server"),
         args=(
-            ARG_FASTAPI_API_PORT,
-            ARG_FASTAPI_API_WORKERS,
-            ARG_FASTAPI_API_WORKER_TIMEOUT,
-            ARG_FASTAPI_API_HOSTNAME,
+            ARG_API_SERVER_PORT,
+            ARG_API_SERVER_WORKERS,
+            ARG_API_SERVER_WORKER_TIMEOUT,
+            ARG_API_SERVER_HOSTNAME,
             ARG_PID,
             ARG_DAEMON,
             ARG_STDOUT,
             ARG_STDERR,
-            ARG_FASTAPI_API_ACCESS_LOGFILE,
-            ARG_FASTAPI_API_ERROR_LOGFILE,
-            ARG_FASTAPI_API_ACCESS_LOGFORMAT,
-            ARG_FASTAPI_API_APPS,
+            ARG_API_SERVER_ACCESS_LOGFILE,
+            ARG_API_SERVER_ERROR_LOGFILE,
+            ARG_API_SERVER_ACCESS_LOGFORMAT,
+            ARG_API_SERVER_APPS,
             ARG_LOG_FILE,
             ARG_SSL_CERT,
             ARG_SSL_KEY,
             ARG_DEBUG,
-            ARG_FASTAPI_API_ALLOW_PROXY_FORWARDING,
+            ARG_API_SERVER_ALLOW_PROXY_FORWARDING,
         ),
     ),
     ActionCommand(
