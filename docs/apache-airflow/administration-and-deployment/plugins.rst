@@ -30,12 +30,6 @@ get integrated to Airflow's main collections and become available for use.
 To troubleshoot issues with plugins, you can use the ``airflow plugins`` command.
 This command dumps information about loaded plugins.
 
-.. versionchanged:: 2.0
-    Importing operators, sensors, hooks added in plugins via
-   ``airflow.{operators,sensors,hooks}.<plugin_name>`` is no longer supported, and these extensions should
-   just be imported as regular python modules. For more information, see: :doc:`../administration-and-deployment/modules_management` and
-   :doc:`/howto/custom-operator`
-
 What for?
 ---------
 
