@@ -353,11 +353,7 @@ class InletEventsAccessors(Mapping[Union[int, Asset, AssetAlias, AssetRef], Any]
         if TYPE_CHECKING:
             assert isinstance(msg, AssetEventsResult)
 
-        asset_events = []
-        for event_msg in msg.model_dump()["asset_events"]:
-            event_msg["asset"] = Asset(**event_msg["asset"])
-            asset_events.append(AssetEvent(**event_msg))
-        return asset_events
+        return msg.asset_events
 
 
 @cache  # Prevent multiple API access.
