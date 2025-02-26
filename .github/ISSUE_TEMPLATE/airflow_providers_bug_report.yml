@@ -51,6 +51,7 @@ body:
         - cohere
         - common-compat
         - common-io
+        - common-messaging
         - common-sql
         - databricks
         - datadog
