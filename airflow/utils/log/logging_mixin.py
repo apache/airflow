@@ -19,16 +19,13 @@ from __future__ import annotations
 
 import abc
 import enum
-import logging
 import sys
 from io import TextIOBase, UnsupportedOperation
 from logging import Handler, StreamHandler
-from typing import IO, TYPE_CHECKING, Any, Optional, TypeVar, cast
+from typing import IO, Any, Optional, TypeVar, cast
 
 import re2
-
-if TYPE_CHECKING:
-    from logging import Logger
+import structlog
 
 # 7-bit C1 ANSI escape sequences
 ANSI_ESCAPE = re2.compile(r"\x1B[@-_][0-?]*[ -/]*[@-~]")
@@ -68,7 +65,7 @@ _T = TypeVar("_T")
 class LoggingMixin:
     """Convenience super-class to have a logger configured with the class name."""
 
-    _log: logging.Logger | None = None
+    _log: structlog.BoundLogger | None = None
 
     # Parent logger used by this class. It should match one of the loggers defined in the
     # `logging_config_class`. By default, this attribute is used to create the final name of the logger, and
@@ -78,7 +75,7 @@ class LoggingMixin:
     _logger_name: Optional[str] = None  # noqa: UP007
 
     def __init__(self, context=None):
-        self._set_context(context)
+        self._set_context(context)  # todo: Airflow 3.0 remove after task_run nuked
         super().__init__()
 
     @staticmethod
@@ -105,27 +102,28 @@ class LoggingMixin:
         return logger_name
 
     @classmethod
-    def _get_log(cls, obj: Any, clazz: type[_T]) -> Logger:
+    def _get_log(cls, obj: Any, clazz: type[_T]) -> structlog.BoundLogger:
         if obj._log is None:
             logger_name: str = cls._create_logger_name(
                 logged_class=clazz,
                 log_config_logger_name=obj._log_config_logger_name,
                 class_logger_name=obj._logger_name,
             )
-            obj._log = logging.getLogger(logger_name)
+            obj._log = structlog.get_logger(logger_name)
         return obj._log
 
     @classmethod
-    def logger(cls) -> Logger:
+    def logger(cls) -> structlog.BoundLogger:
         """Return a logger."""
         return LoggingMixin._get_log(cls, cls)
 
     @property
-    def log(self) -> Logger:
+    def log(self) -> structlog.BoundLogger:
         """Return a logger."""
         return LoggingMixin._get_log(self, self.__class__)
 
     def _set_context(self, context):
+        # todo: Airflow 3.0 this method should be chopped when `task_run` is removed
         if context is not None:
             set_context(self.log, context)
 
@@ -284,6 +282,7 @@ def set_context(logger, value):
     """
     Walk the tree of loggers and try to set the context for each handler.
 
+    todo: Airflow 3.0 remove after task_run nuked
     :param logger: logger
     :param value: value to set
     """
