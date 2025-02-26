@@ -47,6 +47,7 @@ def _file(_: str | None, storage_options: Properties) -> LocalFileSystem:
 # builtin supported filesystems
 _BUILTIN_SCHEME_TO_FS: dict[str, Callable[[str | None, Properties], AbstractFileSystem]] = {
     "file": _file,
+    "local": _file,
 }
 
 
