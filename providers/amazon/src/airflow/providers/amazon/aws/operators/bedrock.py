@@ -669,6 +669,7 @@ class BedrockIngestDataOperator(AwsBaseOperator[BedrockAgentHook]):
                 knowledgeBaseId=self.knowledge_base_id,
                 dataSourceId=self.data_source_id,
                 ingestionJobId=ingestion_job_id,
+                WaiterConfig={"Delay": self.waiter_delay, "MaxAttempts": self.waiter_max_attempts},
             )
 
         return ingestion_job_id
