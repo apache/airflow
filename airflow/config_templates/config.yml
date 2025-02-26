@@ -2722,7 +2722,7 @@ dag_processor:
       description: |
         Minimum number of local bundle versions to retain on disk.
         Local bundle versions older than `stale_bundle_cleanup_age_threshold` will
-        only be deleted we have more than `stale_bundle_cleanup_age_threshold` versions
+        only be deleted we have more than `stale_bundle_cleanup_min_versions` versions
         accumulated on the worker.
       version_added: ~
       type: integer
