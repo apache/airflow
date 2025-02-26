@@ -3793,8 +3793,9 @@ class TestDataprocCreateBatchOperator:
     @mock.patch(DATAPROC_PATH.format("DataprocHook"))
     def test_create_batch_asdict_labels_updated(self, mock_hook, to_dict_mock):
         expected_labels = {
-            "airflow-dag": "test_dag",
-            "airflow-task": "test-task",
+            "airflow-dag-id": "test_dag",
+            "airflow-dag-display-name": "test_dag",
+            "airflow-task-id": "test-task",
         }
 
         expected_batch = {
@@ -3815,8 +3816,9 @@ class TestDataprocCreateBatchOperator:
     @mock.patch(DATAPROC_PATH.format("DataprocHook"))
     def test_create_batch_asdict_labels_uppercase_transformed(self, mock_hook, to_dict_mock):
         expected_labels = {
-            "airflow-dag": "test_dag",
-            "airflow-task": "test-task",
+            "airflow-dag-id": "test_dag",
+            "airflow-dag-display-name": "test_dag",
+            "airflow-task-id": "test-task",
         }
 
         expected_batch = {
@@ -3865,8 +3867,9 @@ class TestDataprocCreateBatchOperator:
         dag = DAG(dag_id="test_dag")
 
         expected_labels = {
-            "airflow-dag": "test_dag",
-            "airflow-task": "test-task",
+            "airflow-dag-id": "test_dag",
+            "airflow-dag-display-name": "test_dag",
+            "airflow-task-id": "test-task",
         }
 
         expected_batch = deepcopy(batch)
