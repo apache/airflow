@@ -540,6 +540,10 @@ export type DAGDetailsResponse = {
    * Return max_active_tasks as concurrency.
    */
   readonly concurrency: number;
+  /**
+   * Return the latest DagVersion.
+   */
+  readonly latest_dag_version: DagVersionResponse | null;
 };
 
 /**
@@ -626,12 +630,12 @@ export type DAGRunResponse = {
   last_scheduling_decision: string | null;
   run_type: DagRunType;
   state: DagRunState;
-  external_trigger: boolean;
   triggered_by: DagRunTriggeredByType;
   conf: {
     [key: string]: unknown;
   };
   note: string | null;
+  dag_versions: Array<DagVersionResponse>;
 };
 
 /**

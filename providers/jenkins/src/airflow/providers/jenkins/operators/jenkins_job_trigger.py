@@ -26,13 +26,13 @@ from functools import cached_property
 from typing import Any, Union
 from urllib.error import HTTPError, URLError
 
+import jenkins
+from jenkins import Jenkins, JenkinsException
 from requests import Request
 
-import jenkins
 from airflow.exceptions import AirflowException
 from airflow.models import BaseOperator
 from airflow.providers.jenkins.hooks.jenkins import JenkinsHook
-from jenkins import Jenkins, JenkinsException
 
 JenkinsRequest = Mapping[str, Any]
 ParamType = Union[str, dict, list, None]

@@ -16,21 +16,22 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { LiaSlashSolid } from "react-icons/lia";
-import { useParams, Link as RouterLink } from "react-router-dom";
+import { ReactFlowProvider } from "@xyflow/react";
+import { FiCode } from "react-icons/fi";
+import { MdDetails, MdOutlineEventNote, MdOutlineTask } from "react-icons/md";
+import { useParams } from "react-router-dom";
 
 import { useDagRunServiceGetDagRun, useDagServiceGetDagDetails } from "openapi/queries";
-import { Breadcrumb } from "src/components/ui";
 import { DetailsLayout } from "src/layouts/Details/DetailsLayout";
 import { isStatePending, useAutoRefresh } from "src/utils";
 
 import { Header } from "./Header";
 
 const tabs = [
-  { label: "Task Instances", value: "" },
-  { label: "Events", value: "events" },
-  { label: "Code", value: "code" },
-  { label: "Details", value: "details" },
+  { icon: <MdOutlineTask />, label: "Task Instances", value: "" },
+  { icon: <MdOutlineEventNote />, label: "Events", value: "events" },
+  { icon: <FiCode />, label: "Code", value: "code" },
+  { icon: <MdDetails />, label: "Details", value: "details" },
 ];
 
 export const Run = () => {
@@ -62,22 +63,15 @@ export const Run = () => {
   );
 
   return (
-    <DetailsLayout dag={dag} error={error ?? dagError} isLoading={isLoading || isLoadinDag} tabs={tabs}>
-      <Breadcrumb.Root mb={3} separator={<LiaSlashSolid />}>
-        <Breadcrumb.Link asChild color="fg.info">
-          <RouterLink to="/dags">Dags</RouterLink>
-        </Breadcrumb.Link>
-        <Breadcrumb.Link asChild color="fg.info">
-          <RouterLink to={`/dags/${dagId}`}>{dag?.dag_display_name ?? dagId}</RouterLink>
-        </Breadcrumb.Link>
-        <Breadcrumb.CurrentLink>{runId}</Breadcrumb.CurrentLink>
-      </Breadcrumb.Root>
-      {dagRun === undefined ? undefined : (
-        <Header
-          dagRun={dagRun}
-          isRefreshing={Boolean(isStatePending(dagRun.state) && Boolean(refetchInterval))}
-        />
-      )}
-    </DetailsLayout>
+    <ReactFlowProvider>
+      <DetailsLayout dag={dag} error={error ?? dagError} isLoading={isLoading || isLoadinDag} tabs={tabs}>
+        {dagRun === undefined ? undefined : (
+          <Header
+            dagRun={dagRun}
+            isRefreshing={Boolean(isStatePending(dagRun.state) && Boolean(refetchInterval))}
+          />
+        )}
+      </DetailsLayout>
+    </ReactFlowProvider>
   );
 };

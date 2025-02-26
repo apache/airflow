@@ -24,6 +24,10 @@ from collections.abc import Sequence
 from functools import cached_property
 from typing import TYPE_CHECKING, Any
 
+from google.api_core.exceptions import NotFound
+from google.api_core.gapic_v1.method import DEFAULT, _MethodDefault
+from google.cloud.aiplatform_v1.types import BatchPredictionJob
+
 from airflow.configuration import conf
 from airflow.exceptions import AirflowException
 from airflow.providers.google.cloud.hooks.vertex_ai.batch_prediction_job import BatchPredictionJobHook
@@ -33,14 +37,12 @@ from airflow.providers.google.cloud.links.vertex_ai import (
 )
 from airflow.providers.google.cloud.operators.cloud_base import GoogleCloudBaseOperator
 from airflow.providers.google.cloud.triggers.vertex_ai import CreateBatchPredictionJobTrigger
-from google.api_core.exceptions import NotFound
-from google.api_core.gapic_v1.method import DEFAULT, _MethodDefault
-from google.cloud.aiplatform_v1.types import BatchPredictionJob
 
 if TYPE_CHECKING:
-    from airflow.utils.context import Context
     from google.api_core.retry import Retry
     from google.cloud.aiplatform import BatchPredictionJob as BatchPredictionJobObject, Model, explain
+
+    from airflow.utils.context import Context
 
 
 class CreateBatchPredictionJobOperator(GoogleCloudBaseOperator):

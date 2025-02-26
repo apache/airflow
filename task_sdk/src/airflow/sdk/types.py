@@ -47,9 +47,6 @@ class DagRunProtocol(Protocol):
     run_type: Any
     run_after: datetime
     conf: dict[str, Any] | None
-    # This shouldn't be "| None", but there's a bug in the datamodel generator, and None evaluates to Falsey
-    # too, so this is "okay"
-    external_trigger: bool | None = False
 
 
 class RuntimeTaskInstanceProtocol(Protocol):

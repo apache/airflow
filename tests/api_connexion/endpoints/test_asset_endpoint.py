@@ -534,7 +534,6 @@ class TestGetAssetEvents(TestAssetEndpoint):
             run_type=DagRunType.ASSET_TRIGGERED,
             logical_date=timezone.parse(self.default_time),
             start_date=timezone.parse(self.default_time),
-            external_trigger=True,
             state="success",
         )
         dagrun.end_date = timezone.parse(self.default_time)
