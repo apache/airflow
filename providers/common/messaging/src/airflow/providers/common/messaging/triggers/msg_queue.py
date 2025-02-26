@@ -67,4 +67,5 @@ class MessageQueueTrigger(BaseEventTrigger):
         return self.trigger.serialize()
 
     async def run(self) -> AsyncIterator[TriggerEvent]:
-        return self.trigger.run()
+        async for event in self.trigger.run():
+            yield event
