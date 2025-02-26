@@ -80,14 +80,13 @@ from airflow_breeze.commands.common_package_installation_options import (
     option_providers_skip_constraints,
     option_use_packages_from_dist,
 )
-from airflow_breeze.commands.main_command import main
+from airflow_breeze.commands.main_command import cleanup, main
 from airflow_breeze.commands.testing_commands import (
     option_force_lowest_dependencies,
 )
 from airflow_breeze.global_constants import (
     ALLOWED_CELERY_BROKERS,
     ALLOWED_CELERY_EXECUTORS,
-    ALLOWED_DOCKER_COMPOSE_PROJECTS,
     ALLOWED_EXECUTORS,
     ALLOWED_TTY,
     CELERY_INTEGRATION,
@@ -103,7 +102,7 @@ from airflow_breeze.params.shell_params import ShellParams
 from airflow_breeze.pre_commit_ids import PRE_COMMIT_LIST
 from airflow_breeze.utils.coertions import one_or_none_set
 from airflow_breeze.utils.console import get_console
-from airflow_breeze.utils.custom_param_types import BetterChoice, NotVerifiedBetterChoice
+from airflow_breeze.utils.custom_param_types import BetterChoice
 from airflow_breeze.utils.docker_command_utils import (
     bring_compose_project_down,
     check_docker_resources,
@@ -1154,24 +1153,15 @@ def autogenerate(
 
 
 @main.command(name="doctor", help="Troubleshoot breeze")
-@click.option(
-    "--project-name",
-    help="Name of the docker-compose project to bring down. "
-    "The `docker-compose` is for legacy breeze project name and you can use "
-    "`breeze down --project-name docker-compose` to stop all containers belonging to it.",
-    show_default=True,
-    type=NotVerifiedBetterChoice(ALLOWED_DOCKER_COMPOSE_PROJECTS),
-    default=ALLOWED_DOCKER_COMPOSE_PROJECTS[0],
-    envvar="PROJECT_NAME",
-)
-def troubleshoot(project_name: str):
+@click.pass_context
+def doctor(ctx):
     shell_params = ShellParams()
     check_docker_resources(shell_params.airflow_image_name)
     shell_params.print_badge_info()
 
     perform_environment_checks()
 
-    shell_params = ShellParams(backend="all", include_mypy_volume=True, project_name=project_name)
+    shell_params = ShellParams(backend="all", include_mypy_volume=True)
     bring_compose_project_down(preserve_volumes=False, shell_params=shell_params)
 
     get_console().print("\n[info]Cleaning mypy cache...\n")
@@ -1184,3 +1174,7 @@ def troubleshoot(project_name: str):
     dirpath = Path(".build")
     if dirpath.exists() and dirpath.is_dir():
         shutil.rmtree(dirpath)
+
+    get_console().print("\n[info]Executing breeze cleanup...\n")
+
+    ctx.forward(cleanup)
