@@ -34,7 +34,6 @@
     :maxdepth: 1
     :caption: Guides
 
-    :doc:`Event-driven scheduling in Airflow <apache-airflow:authoring-and-scheduling/event-scheduling>`
     Triggers <triggers>
     Supported providers <providers>
 
