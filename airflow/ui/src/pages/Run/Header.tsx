@@ -28,6 +28,8 @@ import { RunTypeIcon } from "src/components/RunTypeIcon";
 import Time from "src/components/Time";
 import { getDuration } from "src/utils";
 
+import { DagVersions } from "./DagVersions";
+
 export const Header = ({
   dagRun,
   isRefreshing,
@@ -76,7 +78,7 @@ export const Header = ({
       { label: "Duration", value: `${getDuration(dagRun.start_date, dagRun.end_date)}s` },
       {
         label: "Dag Version(s)",
-        value: dagRun.dag_versions.map((dagVersion) => `v${dagVersion.version_number}`).join(", "),
+        value: <DagVersions versions={dagRun.dag_versions} />,
       },
     ]}
     title={<Time datetime={dagRun.run_after} />}
