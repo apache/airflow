@@ -30,7 +30,7 @@ from contextlib import contextmanager
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any
 
-from sqlalchemy import and_, column, false, func, inspect, select, table, text
+from sqlalchemy import and_, column, func, inspect, select, table, text
 from sqlalchemy.exc import OperationalError, ProgrammingError
 from sqlalchemy.ext.compiler import compiles
 from sqlalchemy.orm import aliased
@@ -43,6 +43,7 @@ from airflow.utils import timezone
 from airflow.utils.db import reflect_tables
 from airflow.utils.helpers import ask_yesno
 from airflow.utils.session import NEW_SESSION, provide_session
+from airflow.utils.types import DagRunType
 
 if TYPE_CHECKING:
     from pendulum import DateTime
@@ -107,9 +108,9 @@ config_list: list[_TableConfig] = [
     _TableConfig(
         table_name="dag_run",
         recency_column_name="start_date",
-        extra_columns=["dag_id", "external_trigger"],
+        extra_columns=["dag_id", "run_type"],
         keep_last=True,
-        keep_last_filters=[column("external_trigger") == false()],
+        keep_last_filters=[column("run_type") != DagRunType.MANUAL],
         keep_last_group_by=["dag_id"],
     ),
     _TableConfig(table_name="asset_event", recency_column_name="timestamp"),

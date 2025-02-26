@@ -23,16 +23,16 @@ import logging
 from functools import wraps
 from typing import Callable, TypeVar, cast
 
-from flask import Response, current_app, request as flask_request  # type: ignore
-
 import google
 import google.auth.transport.requests
 import google.oauth2.id_token
-from airflow.configuration import conf
-from airflow.providers.google.common.utils.id_token_credentials import get_default_id_token_credentials
+from flask import Response, current_app, request as flask_request  # type: ignore
 from google.auth import exceptions
 from google.auth.transport.requests import AuthorizedSession
 from google.oauth2 import service_account
+
+from airflow.configuration import conf
+from airflow.providers.google.common.utils.id_token_credentials import get_default_id_token_credentials
 
 log = logging.getLogger(__name__)
 

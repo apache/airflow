@@ -26,11 +26,10 @@ from airflow.providers.google.cloud.links.dataform import (
 )
 
 if TYPE_CHECKING:
-    from airflow.utils.context import Context
     from google.api_core.retry import Retry
 
-from airflow.providers.google.cloud.hooks.dataform import DataformHook
-from airflow.providers.google.cloud.operators.cloud_base import GoogleCloudBaseOperator
+    from airflow.utils.context import Context
+
 from google.api_core.gapic_v1.method import DEFAULT, _MethodDefault
 from google.cloud.dataform_v1beta1.types import (
     CompilationResult,
@@ -42,6 +41,9 @@ from google.cloud.dataform_v1beta1.types import (
     Workspace,
     WriteFileResponse,
 )
+
+from airflow.providers.google.cloud.hooks.dataform import DataformHook
+from airflow.providers.google.cloud.operators.cloud_base import GoogleCloudBaseOperator
 
 
 class DataformCreateCompilationResultOperator(GoogleCloudBaseOperator):

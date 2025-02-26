@@ -19,10 +19,11 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, Any, Callable
 
+from github import GithubException
+
 from airflow.exceptions import AirflowException
 from airflow.providers.github.hooks.github import GithubHook
 from airflow.sensors.base import BaseSensorOperator
-from github import GithubException
 
 if TYPE_CHECKING:
     try:

@@ -121,7 +121,6 @@ class TestDagRun:
             run_after=data_interval.end,
             start_date=now,
             state=state,
-            external_trigger=False,
             dag_version=dag_version or DagVersion.get_latest_version(dag.dag_id, session=session),
             triggered_by=DagRunTriggeredByType.TEST,
         )
@@ -177,7 +176,6 @@ class TestDagRun:
             logical_date=now,
             start_date=now,
             state=DagRunState.RUNNING,
-            external_trigger=True,
         )
         session.add(dag_run)
 
@@ -185,24 +183,23 @@ class TestDagRun:
         dag_run = DagRun(
             dag_id=dag_id2,
             run_id=dag_id2,
-            run_type=DagRunType.MANUAL,
+            run_type=DagRunType.SCHEDULED,
             logical_date=now,
             start_date=now,
             state=DagRunState.RUNNING,
-            external_trigger=False,
         )
         session.add(dag_run)
 
         session.commit()
 
-        assert len(DagRun.find(dag_id=dag_id1, external_trigger=True)) == 1
+        assert len(DagRun.find(dag_id=dag_id1, run_type=DagRunType.MANUAL)) == 1
         assert len(DagRun.find(run_id=dag_id1)) == 1
         assert len(DagRun.find(run_id=[dag_id1, dag_id2])) == 2
         assert len(DagRun.find(logical_date=[now, now])) == 2
         assert len(DagRun.find(logical_date=now)) == 2
-        assert len(DagRun.find(dag_id=dag_id1, external_trigger=False)) == 0
-        assert len(DagRun.find(dag_id=dag_id2, external_trigger=True)) == 0
-        assert len(DagRun.find(dag_id=dag_id2, external_trigger=False)) == 1
+        assert len(DagRun.find(dag_id=dag_id1, run_type=DagRunType.SCHEDULED)) == 0
+        assert len(DagRun.find(dag_id=dag_id2, run_type=DagRunType.MANUAL)) == 0
+        assert len(DagRun.find(dag_id=dag_id2)) == 1
 
     def test_dagrun_find_duplicate(self, session):
         now = timezone.utcnow()
@@ -215,7 +212,6 @@ class TestDagRun:
             logical_date=now,
             start_date=now,
             state=DagRunState.RUNNING,
-            external_trigger=True,
         )
         session.add(dag_run)
 
@@ -671,7 +667,6 @@ class TestDagRun:
             logical_date=now,
             start_date=now,
             state=DagRunState.RUNNING,
-            external_trigger=False,
         )
         session.add(dag_run)
         session.commit()

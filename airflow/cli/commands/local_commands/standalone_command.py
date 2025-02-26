@@ -89,10 +89,10 @@ class StandaloneCommand:
             command=["webserver"],
             env=env,
         )
-        self.subcommands["fastapi-api"] = SubCommand(
+        self.subcommands["api-server"] = SubCommand(
             self,
-            name="fastapi-api",
-            command=["fastapi-api"],
+            name="api-server",
+            command=["api-server"],
             env=env,
         )
         self.subcommands["triggerer"] = SubCommand(
@@ -151,7 +151,7 @@ class StandaloneCommand:
         You can pass multiple lines to output if you wish; it will be split for you.
         """
         color: dict[str, Color] = {
-            "fastapi-api": "magenta",
+            "api-server": "magenta",
             "webserver": "green",
             "scheduler": "blue",
             "dag-processor": "yellow",

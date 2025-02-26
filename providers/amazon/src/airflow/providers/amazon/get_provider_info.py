@@ -605,6 +605,10 @@ def get_provider_info():
                 "python-modules": ["airflow.providers.amazon.aws.sensors.kinesis_analytics"],
             },
             {
+                "integration-name": "Amazon Managed Workflows for Apache Airflow (MWAA)",
+                "python-modules": ["airflow.providers.amazon.aws.sensors.mwaa"],
+            },
+            {
                 "integration-name": "Amazon OpenSearch Serverless",
                 "python-modules": ["airflow.providers.amazon.aws.sensors.opensearch_serverless"],
             },
