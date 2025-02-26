@@ -1267,6 +1267,7 @@ class AirflowConfigParser(ConfigParser):
 
         :param section: section to get option from
         :param option: option to get
+        :param lookup_from_deprecated: If True, check if the option is defined in deprecated sections
         :return:
         """
         try:
