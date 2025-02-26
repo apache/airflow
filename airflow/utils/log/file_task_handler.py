@@ -53,7 +53,7 @@ logger = logging.getLogger(__name__)
 class StructuredLogMessage(BaseModel):
     """An individual log message."""
 
-    timestamp: datetime | None
+    timestamp: datetime | None = None
     event: str
 
     # We don't need to cache string when parsing in to this, as almost every line will have a different
@@ -136,7 +136,7 @@ def _parse_log_lines(lines: Iterable[str]) -> Iterable[tuple[datetime | None, in
                 with suppress(Exception):
                     # If we can't parse the timestamp, don't attach one to the row
                     next_timestamp = _parse_timestamp(line)
-                log = StructuredLogMessage.model_construct(event=line, timestamp=next_timestamp)
+                log = StructuredLogMessage(event=line, timestamp=next_timestamp)
             if log.timestamp:
                 log.timestamp = coerce_datetime(log.timestamp)
                 timestamp = log.timestamp
@@ -414,10 +414,8 @@ class FileTaskHandler(logging.Handler):
         # Log message source details are grouped: they are not relevant for most users and can
         # distract them from finding the root cause of their errors
         header = [
-            StructuredLogMessage.model_construct(
-                event="::group::Log message source details", sources=source_list
-            ),
-            StructuredLogMessage.model_construct(event="::endgroup::"),
+            StructuredLogMessage(event="::group::Log message source details", sources=source_list),  # type: ignore[call-arg]
+            StructuredLogMessage(event="::endgroup::"),
         ]
         end_of_log = ti.try_number != try_number or ti.state not in (
             TaskInstanceState.RUNNING,
@@ -480,7 +478,7 @@ class FileTaskHandler(logging.Handler):
             try_number = task_instance.try_number
         if try_number is None or try_number < 1:
             logs = [
-                StructuredLogMessage.model_construct(
+                StructuredLogMessage(  # type: ignore[call-arg]
                     level="error", event=f"Error fetching the logs. Try number {try_number} is invalid."
                 )
             ]

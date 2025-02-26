@@ -481,7 +481,13 @@ class TestFileTaskLogHandler:
             logs, metadata = fth._read(ti=ti, try_number=1)
         if served_logs_checked:
             fth._read_from_logs_server.assert_called_once()
-            assert events(logs) == ["this", "log", "content"]
+            assert events(logs) == [
+                "::group::Log message source details",
+                "::endgroup::",
+                "this",
+                "log",
+                "content",
+            ]
             assert metadata == {"end_of_log": True, "log_pos": 3}
         else:
             fth._read_from_logs_server.assert_not_called()

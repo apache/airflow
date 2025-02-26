@@ -156,11 +156,11 @@ class TestLogView:
         stream = task_log_reader.read_log_stream(ti=ti, try_number=1, metadata={})
 
         assert list(stream) == [
-            "{"
+            '{"timestamp":null,'
             '"event":"::group::Log message source details",'
             f'"sources":["{self.log_dir}/dag_log_reader/task_log_reader/2017-09-01T00.00.00+00.00/1.log"]'
             "}\n",
-            '{"event":"::endgroup::"}\n',
+            '{"timestamp":null,"event":"::endgroup::"}\n',
             '{"timestamp":null,"event":"try_number=1."}\n',
         ]
 
@@ -170,11 +170,11 @@ class TestLogView:
         stream = task_log_reader.read_log_stream(ti=self.ti, try_number=None, metadata={})
 
         assert list(stream) == [
-            "{"
+            '{"timestamp":null,'
             '"event":"::group::Log message source details",'
             f'"sources":["{self.log_dir}/dag_log_reader/task_log_reader/2017-09-01T00.00.00+00.00/3.log"]'
             "}\n",
-            '{"event":"::endgroup::"}\n',
+            '{"timestamp":null,"event":"::endgroup::"}\n',
             '{"timestamp":null,"event":"try_number=3."}\n',
         ]
 

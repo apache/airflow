@@ -380,16 +380,15 @@ class ElasticsearchTaskHandler(FileTaskHandler, ExternalLoggingMixin, LoggingMix
                 from airflow.utils.log.file_task_handler import StructuredLogMessage
 
                 header = [
-                    StructuredLogMessage.model_construct(
+                    StructuredLogMessage(
                         event="::group::Log message source details",
                         sources=[host for host in logs_by_host.keys()],
-                    ),
-                    StructuredLogMessage.model_construct(event="::endgroup::"),
+                    ),  # type: ignore[call-arg]
+                    StructuredLogMessage(event="::endgroup::"),
                 ]  # type: ignore[misc]
 
                 message = header + [
-                    StructuredLogMessage.model_construct(event=concat_logs(hits))
-                    for hits in logs_by_host.values()
+                    StructuredLogMessage(event=concat_logs(hits)) for hits in logs_by_host.values()
                 ]  # type: ignore[misc]
             else:
                 message = [

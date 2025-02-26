@@ -409,16 +409,15 @@ class OpensearchTaskHandler(FileTaskHandler, ExternalLoggingMixin, LoggingMixin)
                 from airflow.utils.log.file_task_handler import StructuredLogMessage
 
                 header = [
-                    StructuredLogMessage.model_construct(
+                    StructuredLogMessage(
                         event="::group::Log message source details",
                         sources=[host for host in logs_by_host.keys()],
-                    ),
-                    StructuredLogMessage.model_construct(event="::endgroup::"),
+                    ),  # type: ignore[call-arg]
+                    StructuredLogMessage(event="::endgroup::"),
                 ]
 
                 message = header + [
-                    StructuredLogMessage.model_construct(event=concat_logs(hits))
-                    for hits in logs_by_host.values()
+                    StructuredLogMessage(event=concat_logs(hits)) for hits in logs_by_host.values()
                 ]
             else:
                 message = [(host, concat_logs(hits)) for host, hits in logs_by_host.items()]  # type: ignore[misc]
