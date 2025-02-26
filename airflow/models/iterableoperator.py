@@ -22,7 +22,7 @@ import logging
 import os
 from abc import abstractmethod
 from asyncio import AbstractEventLoop, Future, Semaphore, ensure_future, gather
-from collections.abc import Generator, Iterable, Sequence
+from collections.abc import Generator, Iterable, Iterator, Sequence
 from contextlib import contextmanager, suppress
 from datetime import timedelta
 from math import ceil
@@ -45,9 +45,11 @@ from airflow.models.expandinput import (
     is_mappable,
 )
 from airflow.models.taskinstance import TaskInstance
+from airflow.models.xcom import XCom
 from airflow.sdk.definitions._internal.abstractoperator import Operator
 from airflow.sdk.definitions.context import Context
 from airflow.sdk.definitions.xcom_arg import XComArg, _MapResult
+from airflow.serialization import serde
 from airflow.triggers.base import run_trigger
 from airflow.utils import timezone
 from airflow.utils.context import context_get_outlet_events
@@ -60,6 +62,8 @@ from airflow.utils.xcom import XCOM_RETURN_KEY
 if TYPE_CHECKING:
     import jinja2
     from sqlalchemy.orm import Session
+
+serde._extra_allowed = serde._extra_allowed.union({"infrabel.operators.iterableoperator.XComIterable"})
 
 
 @contextmanager
@@ -78,6 +82,58 @@ def event_loop() -> Generator[AbstractEventLoop, None, None]:
         if new_event_loop and loop is not None:
             with suppress(AttributeError):
                 loop.close()
+
+
+class XComIterable(Iterator, Sequence):
+    """An iterable that lazily fetches XCom values one by one instead of loading all at once."""
+
+    def __init__(self, task_id: str, dag_id: str, run_id: str, length: int):
+        self.task_id = task_id
+        self.dag_id = dag_id
+        self.run_id = run_id
+        self.length = length
+        self.index = 0
+
+    def __iter__(self) -> Iterator:
+        self.index = 0
+        return self
+
+    def __next__(self):
+        if self.index >= self.length:
+            raise StopIteration
+
+        value = self[self.index]
+        self.index += 1
+        return value
+
+    def __len__(self):
+        return self.length
+
+    def __getitem__(self, index: int):
+        """Allows direct indexing, making this work like a sequence."""
+        if not (0 <= index < self.length):
+            raise IndexError
+
+        return XCom.get_one(
+            key=XCOM_RETURN_KEY,
+            dag_id=self.dag_id,
+            task_id=f"{self.task_id}_{index}",
+            run_id=self.run_id,
+        )
+
+    def serialize(self):
+        """Ensure the object is JSON serializable."""
+        return {
+            "task_id": self.task_id,
+            "dag_id": self.dag_id,
+            "run_id": self.run_id,
+            "length": self.length,
+        }
+
+    @classmethod
+    def deserialize(cls, data: dict, version: int):
+        """Ensure the object is JSON deserializable."""
+        return XComIterable(**data)
 
 
 class TaskExecutor(LoggingMixin):
@@ -398,10 +454,12 @@ class IterableOperator(BaseOperator):
             if exception:
                 raise exception
             if self.do_xcom_push:
-                return [
-                    self.xcom_pull(context=context, task_ids=f"{self.task_id}_{index}", dag_id=self.dag_id)
-                    for index in range(len(self._mapped_kwargs))
-                ]
+                return XComIterable(
+                    task_id=self.task_id,
+                    dag_id=self.dag_id,
+                    run_id=context["run_id"],
+                    length=len(self._mapped_kwargs),
+                )
             return None
 
         # Calculate delay before the next retry
