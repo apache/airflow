@@ -2474,10 +2474,7 @@ class TestKubernetesPodOperatorAsync:
             "name": TEST_NAME,
             "namespace": TEST_NAMESPACE,
         }
-        k.trigger_reentry(
-            context=context,
-            event=callback_event
-        )
+        k.trigger_reentry(context=context, event=callback_event)
 
         # check on_operator_resuming callback
         mock_callbacks.on_operator_resuming.assert_called_once()
@@ -2519,8 +2516,6 @@ class TestKubernetesPodOperatorAsync:
             "operator": k,
             "context": context,
         }
-
-
 
 
 @pytest.mark.parametrize("do_xcom_push", [True, False])
