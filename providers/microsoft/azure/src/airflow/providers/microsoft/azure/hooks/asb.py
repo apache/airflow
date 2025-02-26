@@ -19,12 +19,6 @@ from __future__ import annotations
 from typing import TYPE_CHECKING, Any, Callable
 from uuid import uuid4
 
-from airflow.hooks.base import BaseHook
-from airflow.providers.microsoft.azure.utils import (
-    add_managed_identity_connection_widgets,
-    get_field,
-    get_sync_default_azure_credential,
-)
 from azure.core.exceptions import ResourceNotFoundError
 from azure.servicebus import (
     ServiceBusClient,
@@ -42,11 +36,19 @@ from azure.servicebus.management import (
     SubscriptionProperties,
 )
 
+from airflow.hooks.base import BaseHook
+from airflow.providers.microsoft.azure.utils import (
+    add_managed_identity_connection_widgets,
+    get_field,
+    get_sync_default_azure_credential,
+)
+
 if TYPE_CHECKING:
     import datetime
 
-    from airflow.utils.context import Context
     from azure.identity import DefaultAzureCredential
+
+    from airflow.utils.context import Context
 
     MessageCallback = Callable[[ServiceBusMessage, Context], None]
 

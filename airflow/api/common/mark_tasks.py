@@ -145,7 +145,7 @@ def get_run_ids(dag: DAG, run_id: str, future: bool, past: bool, session: SASess
     if current_dagrun.logical_date is None:
         return [run_id]
 
-    last_dagrun = dag.get_last_dagrun(include_externally_triggered=True, session=session)
+    last_dagrun = dag.get_last_dagrun(include_manually_triggered=True, session=session)
     first_dagrun = session.scalar(
         select(DagRun)
         .where(DagRun.dag_id == dag.dag_id, DagRun.logical_date.is_not(None))

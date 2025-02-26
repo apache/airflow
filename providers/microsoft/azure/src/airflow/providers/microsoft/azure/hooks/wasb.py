@@ -32,15 +32,6 @@ from functools import cached_property
 from typing import TYPE_CHECKING, Any, Union
 
 from asgiref.sync import sync_to_async
-
-from airflow.exceptions import AirflowException
-from airflow.hooks.base import BaseHook
-from airflow.providers.microsoft.azure.utils import (
-    add_managed_identity_connection_widgets,
-    get_async_default_azure_credential,
-    get_sync_default_azure_credential,
-    parse_blob_account_url,
-)
 from azure.core.exceptions import HttpResponseError, ResourceExistsError, ResourceNotFoundError
 from azure.identity import ClientSecretCredential
 from azure.identity.aio import (
@@ -52,6 +43,15 @@ from azure.storage.blob.aio import (
     BlobClient as AsyncBlobClient,
     BlobServiceClient as AsyncBlobServiceClient,
     ContainerClient as AsyncContainerClient,
+)
+
+from airflow.exceptions import AirflowException
+from airflow.hooks.base import BaseHook
+from airflow.providers.microsoft.azure.utils import (
+    add_managed_identity_connection_widgets,
+    get_async_default_azure_credential,
+    get_sync_default_azure_credential,
+    parse_blob_account_url,
 )
 
 if TYPE_CHECKING:

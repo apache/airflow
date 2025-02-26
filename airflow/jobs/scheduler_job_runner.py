@@ -1459,8 +1459,8 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
             dag_run.start_date = timezone.utcnow()
             if (
                 dag.timetable.periodic
+                and dag_run.run_type != DagRunType.MANUAL
                 and dag_run.triggered_by != DagRunTriggeredByType.ASSET
-                and not dag_run.external_trigger
                 and dag_run.clear_number < 1
             ):
                 # TODO: Logically, this should be DagRunInfo.run_after, but the
@@ -1469,7 +1469,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                 # a field on DagRun for this instead of relying on the run
                 # always happening immediately after the data interval.
                 # We only publish these metrics for scheduled dag runs and only
-                # when ``external_trigger`` is *False* and ``clear_number`` is 0.
+                # when ``run_type`` is *MANUAL* and ``clear_number`` is 0.
                 expected_start_date = dag.get_run_data_interval(dag_run).end
                 schedule_delay = dag_run.start_date - expected_start_date
                 # Publish metrics twice with backward compatible name, and then with tags

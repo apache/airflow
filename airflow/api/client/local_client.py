@@ -54,7 +54,6 @@ class Client:
                 "data_interval_start": dag_run.data_interval_start,
                 "data_interval_end": dag_run.data_interval_end,
                 "end_date": dag_run.end_date,
-                "external_trigger": dag_run.external_trigger,
                 "last_scheduling_decision": dag_run.last_scheduling_decision,
                 "logical_date": dag_run.logical_date,
                 "run_type": dag_run.run_type,

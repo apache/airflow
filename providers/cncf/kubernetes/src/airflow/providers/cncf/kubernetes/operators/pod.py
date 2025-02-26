@@ -32,10 +32,13 @@ from enum import Enum
 from functools import cached_property
 from typing import TYPE_CHECKING, Any, Callable, Literal
 
+import kubernetes
 import tenacity
+from kubernetes.client import CoreV1Api, V1Pod, models as k8s
+from kubernetes.client.exceptions import ApiException
+from kubernetes.stream import stream
 from urllib3.exceptions import HTTPError
 
-import kubernetes
 from airflow.configuration import conf
 from airflow.exceptions import (
     AirflowException,
@@ -81,9 +84,6 @@ from airflow.settings import pod_mutation_hook
 from airflow.utils import yaml
 from airflow.utils.helpers import prune_dict, validate_key
 from airflow.version import version as airflow_version
-from kubernetes.client import CoreV1Api, V1Pod, models as k8s
-from kubernetes.client.exceptions import ApiException
-from kubernetes.stream import stream
 
 if TYPE_CHECKING:
     import jinja2

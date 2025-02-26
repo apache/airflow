@@ -4853,7 +4853,7 @@
                     "default": [
                         "bash",
                         "-c",
-                        "exec airflow fastapi-api"
+                        "exec airflow api-server"
                     ]
                 },
                 "strategy": {

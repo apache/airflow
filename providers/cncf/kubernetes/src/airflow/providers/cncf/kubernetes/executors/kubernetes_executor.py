@@ -37,11 +37,11 @@ from queue import Empty, Queue
 from typing import TYPE_CHECKING, Any
 
 from deprecated import deprecated
+from kubernetes.dynamic import DynamicClient
 from sqlalchemy import select
 
 from airflow.providers.cncf.kubernetes.pod_generator import PodGenerator
 from airflow.providers.cncf.kubernetes.version_compat import AIRFLOW_V_3_0_PLUS
-from kubernetes.dynamic import DynamicClient
 
 try:
     from airflow.cli.cli_config import ARG_LOGICAL_DATE
@@ -78,6 +78,8 @@ from airflow.utils.state import TaskInstanceState
 if TYPE_CHECKING:
     import argparse
 
+    from kubernetes import client
+    from kubernetes.client import models as k8s
     from sqlalchemy.orm import Session
 
     from airflow.executors import workloads
@@ -91,8 +93,6 @@ if TYPE_CHECKING:
     from airflow.providers.cncf.kubernetes.executors.kubernetes_executor_utils import (
         AirflowKubernetesScheduler,
     )
-    from kubernetes import client
-    from kubernetes.client import models as k8s
 
 # CLI Args
 ARG_NAMESPACE = Arg(

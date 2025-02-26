@@ -20,6 +20,7 @@ from __future__ import annotations
 import json
 import logging
 from json import JSONDecodeError
+from typing import Any
 
 import attrs
 
@@ -56,6 +57,12 @@ class Connection:
     def get_uri(self): ...
 
     def get_hook(self): ...
+
+    @classmethod
+    def get(cls, conn_id: str) -> Any:
+        from airflow.sdk.execution_time.context import _get_connection
+
+        return _get_connection(conn_id)
 
     @property
     def extra_dejson(self) -> dict:

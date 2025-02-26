@@ -22,9 +22,9 @@ from __future__ import annotations
 import time
 from collections.abc import Sequence
 
+import google.api_core.path_template
 from googleapiclient.discovery import build
 
-import google.api_core.path_template
 from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning
 from airflow.providers.google.common.deprecated import deprecated
 from airflow.providers.google.common.hooks.base_google import GoogleBaseHook

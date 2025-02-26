@@ -35,13 +35,14 @@ from airflow.providers.google.common.hooks.base_google import PROVIDE_PROJECT_ID
 if TYPE_CHECKING:
     from airflow.utils.context import Context
 
+from google.api_core.exceptions import Conflict
+from google.cloud.exceptions import GoogleCloudError
+
 from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning
 from airflow.providers.google.cloud.hooks.gcs import GCSHook
 from airflow.providers.google.cloud.operators.cloud_base import GoogleCloudBaseOperator
 from airflow.providers.google.common.links.storage import FileDetailsLink, StorageLink
 from airflow.utils import timezone
-from google.api_core.exceptions import Conflict
-from google.cloud.exceptions import GoogleCloudError
 
 
 class GCSCreateBucketOperator(GoogleCloudBaseOperator):

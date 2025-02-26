@@ -23,6 +23,12 @@ from collections.abc import Sequence
 from functools import cached_property
 from typing import TYPE_CHECKING, Any
 
+from google.api_core.exceptions import NotFound
+from google.api_core.gapic_v1.method import DEFAULT, _MethodDefault
+from google.cloud.aiplatform.models import Model
+from google.cloud.aiplatform_v1.types.dataset import Dataset
+from google.cloud.aiplatform_v1.types.training_pipeline import TrainingPipeline
+
 from airflow.configuration import conf
 from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning
 from airflow.providers.google.cloud.hooks.vertex_ai.custom_job import CustomJobHook
@@ -38,20 +44,16 @@ from airflow.providers.google.cloud.triggers.vertex_ai import (
     CustomTrainingJobTrigger,
 )
 from airflow.providers.google.common.deprecated import deprecated
-from google.api_core.exceptions import NotFound
-from google.api_core.gapic_v1.method import DEFAULT, _MethodDefault
-from google.cloud.aiplatform.models import Model
-from google.cloud.aiplatform_v1.types.dataset import Dataset
-from google.cloud.aiplatform_v1.types.training_pipeline import TrainingPipeline
 
 if TYPE_CHECKING:
-    from airflow.utils.context import Context
     from google.api_core.retry import Retry
     from google.cloud.aiplatform import (
         CustomContainerTrainingJob,
         CustomPythonPackageTrainingJob,
         CustomTrainingJob,
     )
+
+    from airflow.utils.context import Context
 
 
 class CustomTrainingJobBaseOperator(GoogleCloudBaseOperator):

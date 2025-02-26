@@ -31,10 +31,12 @@ from operator import attrgetter
 from typing import TYPE_CHECKING, Any, Callable, Literal
 from urllib.parse import quote, urlparse
 
-import pendulum
-
 # Using `from elasticsearch import *` would break elasticsearch mocking used in unit test.
 import elasticsearch
+import pendulum
+from elasticsearch import helpers
+from elasticsearch.exceptions import NotFoundError
+
 from airflow.configuration import conf
 from airflow.exceptions import AirflowException
 from airflow.models.dagrun import DagRun
@@ -46,8 +48,6 @@ from airflow.utils.log.file_task_handler import FileTaskHandler
 from airflow.utils.log.logging_mixin import ExternalLoggingMixin, LoggingMixin
 from airflow.utils.module_loading import import_string
 from airflow.utils.session import create_session
-from elasticsearch import helpers
-from elasticsearch.exceptions import NotFoundError
 
 if TYPE_CHECKING:
     from datetime import datetime

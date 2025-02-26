@@ -23,6 +23,10 @@ from __future__ import annotations
 from collections.abc import Sequence
 from typing import TYPE_CHECKING
 
+from google.api_core.exceptions import NotFound
+from google.api_core.gapic_v1.method import DEFAULT, _MethodDefault
+from google.cloud.aiplatform_v1.types import DeployedModel, Endpoint, endpoint_service
+
 from airflow.providers.google.cloud.hooks.vertex_ai.endpoint_service import EndpointServiceHook
 from airflow.providers.google.cloud.links.vertex_ai import (
     VertexAIEndpointLink,
@@ -30,14 +34,12 @@ from airflow.providers.google.cloud.links.vertex_ai import (
     VertexAIModelLink,
 )
 from airflow.providers.google.cloud.operators.cloud_base import GoogleCloudBaseOperator
-from google.api_core.exceptions import NotFound
-from google.api_core.gapic_v1.method import DEFAULT, _MethodDefault
-from google.cloud.aiplatform_v1.types import DeployedModel, Endpoint, endpoint_service
 
 if TYPE_CHECKING:
-    from airflow.utils.context import Context
     from google.api_core.retry import Retry
     from google.protobuf.field_mask_pb2 import FieldMask
+
+    from airflow.utils.context import Context
 
 
 class CreateEndpointOperator(GoogleCloudBaseOperator):

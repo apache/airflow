@@ -22,14 +22,14 @@ from __future__ import annotations
 from collections.abc import Sequence
 from typing import TYPE_CHECKING, Callable, NamedTuple
 
+from google.api_core.exceptions import AlreadyExists, GoogleAPICallError
+from google.cloud.spanner_v1.client import Client
 from sqlalchemy import create_engine
 
 from airflow.exceptions import AirflowException
 from airflow.providers.common.sql.hooks.sql import DbApiHook
 from airflow.providers.google.common.consts import CLIENT_INFO
 from airflow.providers.google.common.hooks.base_google import GoogleBaseHook, get_field
-from google.api_core.exceptions import AlreadyExists, GoogleAPICallError
-from google.cloud.spanner_v1.client import Client
 
 if TYPE_CHECKING:
     from google.cloud.spanner_v1.database import Database

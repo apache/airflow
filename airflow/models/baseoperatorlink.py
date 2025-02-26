@@ -62,8 +62,7 @@ class XComOperatorLink(LoggingMixin):
                 self.xcom_key,
             )
             return ""
-        # Stripping is a temporary workaround till https://github.com/apache/airflow/issues/46513 is handled.
-        return value.strip('"')
+        return value
 
 
 @attrs.define()

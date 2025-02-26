@@ -25,6 +25,7 @@ from typing import TYPE_CHECKING
 
 import tenacity
 import yaml
+from kubernetes.utils import create_from_yaml
 
 from airflow.exceptions import AirflowException
 from airflow.models import BaseOperator
@@ -32,7 +33,6 @@ from airflow.providers.cncf.kubernetes.hooks.kubernetes import KubernetesHook
 from airflow.providers.cncf.kubernetes.kubernetes_helper_functions import should_retry_creation
 from airflow.providers.cncf.kubernetes.utils.delete_from import delete_from_yaml
 from airflow.providers.cncf.kubernetes.utils.k8s_resource_iterator import k8s_resource_iterator
-from kubernetes.utils import create_from_yaml
 
 if TYPE_CHECKING:
     from kubernetes.client import ApiClient, CustomObjectsApi

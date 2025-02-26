@@ -21,6 +21,7 @@ from __future__ import annotations
 from collections.abc import Generator
 from typing import Any, Callable
 
+import grpc
 from google import auth as google_auth
 from google.auth import jwt as google_auth_jwt  # type: ignore[attr-defined]
 from google.auth.transport import (
@@ -28,7 +29,6 @@ from google.auth.transport import (
     requests as google_auth_transport_requests,
 )
 
-import grpc
 from airflow.exceptions import AirflowConfigException
 from airflow.hooks.base import BaseHook
 

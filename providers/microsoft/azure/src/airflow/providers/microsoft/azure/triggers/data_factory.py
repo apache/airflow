@@ -21,12 +21,13 @@ import time
 from collections.abc import AsyncIterator
 from typing import Any
 
+from azure.core.exceptions import ServiceRequestError
+
 from airflow.providers.microsoft.azure.hooks.data_factory import (
     AzureDataFactoryAsyncHook,
     AzureDataFactoryPipelineRunStatus,
 )
 from airflow.triggers.base import BaseTrigger, TriggerEvent
-from azure.core.exceptions import ServiceRequestError
 
 
 class ADFPipelineRunStatusSensorTrigger(BaseTrigger):

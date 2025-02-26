@@ -23,12 +23,13 @@ import time
 from collections.abc import Sequence
 from typing import TYPE_CHECKING
 
+from google.api_core.exceptions import ServerError
+from google.cloud.dataproc_v1.types import Batch, JobStatus
+
 from airflow.exceptions import AirflowException
 from airflow.providers.google.cloud.hooks.dataproc import DataprocHook
 from airflow.providers.google.common.hooks.base_google import PROVIDE_PROJECT_ID
 from airflow.sensors.base import BaseSensorOperator
-from google.api_core.exceptions import ServerError
-from google.cloud.dataproc_v1.types import Batch, JobStatus
 
 if TYPE_CHECKING:
     from airflow.utils.context import Context

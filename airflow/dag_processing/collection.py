@@ -17,7 +17,7 @@
 # under the License.
 
 """
-Utility code that write DAGs in bulk into the database.
+Utility code that writes DAGs in bulk into the database.
 
 This should generally only be called by internal methods such as
 ``DagBag._sync_to_db``, ``DAG.bulk_write_to_db``.

@@ -92,3 +92,14 @@ def test_all_apps(mock_create_task_exec_api, mock_init_plugins, mock_init_views,
 
     # Assert that execution-related functions were also called
     mock_create_task_exec_api.assert_called_once_with()
+
+
+def test_catch_all_route_last(client):
+    """
+    Ensure the catch all route that returns the initial html is the last route in the fastapi app.
+
+    If it's not, it results in any routes/apps added afterwards to not be reachable, as the catch all
+    route responds instead.
+    """
+    test_app = client(apps="all").app
+    assert test_app.routes[-1].path == "/{rest_of_path:path}"

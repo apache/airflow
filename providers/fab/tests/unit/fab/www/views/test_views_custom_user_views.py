@@ -173,7 +173,7 @@ class TestSecurity:
             password="has_access",
         )
 
-        client.post(f"/users/delete/{user_to_delete.id}", follow_redirects=True)
+        client.post(f"/users/delete/{user_to_delete.id}", follow_redirects=False)
         assert bool(self.security_manager.get_user_by_id(user_to_delete.id)) is False
 
 

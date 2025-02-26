@@ -35,4 +35,5 @@ then
         )
     done
 fi
+set -x
 mypy "${ADDITIONAL_MYPY_OPTIONS[@]}" "${@}"

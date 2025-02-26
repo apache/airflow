@@ -181,9 +181,28 @@ def test_validate_failure(timetable: Timetable, error_message: str) -> None:
     assert str(ctx.value) == error_message
 
 
-def test_cron_interval_timezone_from_string():
-    timetable = CronDataIntervalTimetable("@hourly", "UTC")
-    assert timetable.serialize()["timezone"] == "UTC"
+def test_cron_interval_serialize():
+    data = HOURLY_CRON_TIMETABLE.serialize()
+    assert data == {"expression": "0 * * * *", "timezone": "UTC"}
+    tt = CronDataIntervalTimetable.deserialize(data)
+    assert isinstance(tt, CronDataIntervalTimetable)
+    assert tt._expression == HOURLY_CRON_TIMETABLE._expression
+    assert tt._timezone == HOURLY_CRON_TIMETABLE._timezone
+
+
+@pytest.mark.parametrize(
+    "timetable, expected_data",
+    [
+        (HOURLY_RELATIVEDELTA_TIMETABLE, {"delta": {"hours": 1}}),
+        (HOURLY_TIMEDELTA_TIMETABLE, {"delta": 3600.0}),
+    ],
+)
+def test_delta_interval_serialize(timetable, expected_data):
+    data = timetable.serialize()
+    assert data == expected_data
+    tt = DeltaDataIntervalTimetable.deserialize(data)
+    assert isinstance(tt, DeltaDataIntervalTimetable)
+    assert tt._delta == timetable._delta
 
 
 @pytest.mark.parametrize(

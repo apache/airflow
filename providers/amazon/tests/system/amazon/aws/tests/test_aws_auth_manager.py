@@ -194,4 +194,4 @@ class TestAwsAuthManager:
         response = client_admin_permissions.post("/auth/login_callback", follow_redirects=False)
         assert response.status_code == 303
         assert "location" in response.headers
-        assert "webapp?token=" in response.headers["location"]
+        assert "/?token=" in response.headers["location"]
