@@ -14,18 +14,3 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
----
-apiVersion: v1
-kind: Service
-metadata:
-  name: airflow-webserver-node-port
-spec:
-  type: NodePort
-  selector:
-    component: api-server
-    release: airflow
-    tier: airflow
-  ports:
-    - port: 9091
-      targetPort: 9091
-      nodePort: 30007
