@@ -83,6 +83,7 @@ DEVELOPER_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] = {
                 "--load-example-dags",
                 "--load-default-connections",
                 "--standalone-dag-processor",
+                "--start-api-server-with-examples",
             ],
         },
         {
