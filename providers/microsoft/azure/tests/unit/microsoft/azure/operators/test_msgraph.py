@@ -117,9 +117,9 @@ class TestMSGraphAsyncOperator(Base):
                 conn_id="msgraph_api",
                 url="users",
                 result_processor=lambda result, **context: result.get("value"),
-                pagination_function=lambda operator, response, context: MSGraphAsyncOperator.paginate(operator,
-                                                                                                      response,
-                                                                                                      **context),
+                pagination_function=lambda operator, response, context: MSGraphAsyncOperator.paginate(
+                    operator, response, **context
+                ),
             )
 
             with pytest.warns(
