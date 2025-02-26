@@ -562,7 +562,7 @@ class AssetModelOperation(NamedTuple):
         )
         return coll
 
-    def add_assets(self, *, session: Session) -> dict[tuple[str, str], AssetModel]:
+    def sync_assets(self, *, session: Session) -> dict[tuple[str, str], AssetModel]:
         # Optimization: skip all database calls if no assets were collected.
         if not self.assets:
             return {}
@@ -572,6 +572,10 @@ class AssetModelOperation(NamedTuple):
                 select(AssetModel).where(tuple_(AssetModel.name, AssetModel.uri).in_(self.assets))
             )
         }
+        for key, model in orm_assets.items():
+            asset = self.assets[key]
+            model.group = asset.group
+            model.extra = asset.extra
         orm_assets.update(
             ((model.name, model.uri), model)
             for model in asset_manager.create_assets(
@@ -581,7 +585,7 @@ class AssetModelOperation(NamedTuple):
         )
         return orm_assets
 
-    def add_asset_aliases(self, *, session: Session) -> dict[str, AssetAliasModel]:
+    def sync_asset_aliases(self, *, session: Session) -> dict[str, AssetAliasModel]:
         # Optimization: skip all database calls if no asset aliases were collected.
         if not self.asset_aliases:
             return {}
@@ -591,6 +595,8 @@ class AssetModelOperation(NamedTuple):
                 select(AssetAliasModel).where(AssetAliasModel.name.in_(self.asset_aliases))
             )
         }
+        for name, model in orm_aliases.items():
+            model.group = self.asset_aliases[name].group
         orm_aliases.update(
             (model.name, model)
             for model in asset_manager.create_asset_aliases(
