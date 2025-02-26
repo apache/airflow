@@ -36,6 +36,8 @@ from sqlalchemy_utils.types.enriched_datetime.pendulum_datetime import pendulum
 
 from airflow.configuration import conf
 from airflow.dag_processing.bundles.manager import DagBundlesManager
+from airflow.exceptions import AirflowTaskTimeout
+from airflow.utils.timeout import timeout
 
 if TYPE_CHECKING:
     from pendulum import DateTime
@@ -413,10 +415,14 @@ class BundleVersionLock:
     def __enter__(self):
         # wrapping in try except here is just extra cautious since this is in task execution path
         try:
-            self.acquire()
-        except Exception:
-            self._log_exc("error when attempting to acquire lock")
-        return self
+            with timeout(15):
+                try:
+                    self.acquire()
+                except Exception:
+                    self._log_exc("error when attempting to acquire lock")
+                return self
+        except AirflowTaskTimeout as e:
+            raise RuntimeError(f"Could not obtain lock on lock file {self.lock_file_path}") from e
 
     def __exit__(self, exc_type, exc_val, exc_tb):
         # wrapping in try except here is just extra cautious since this is in task execution path
