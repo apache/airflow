@@ -885,24 +885,22 @@ class KubernetesPodOperator(BaseOperator):
                 if self.get_logs:
                     self._write_logs(self.pod, follow=follow, since_time=last_log_time)
 
-                if self.callbacks:
-                    pod = self.find_pod(self.pod.metadata.namespace, context=context)
-                    for callback in self.callbacks:
-                        callback.on_pod_completion(
-                            pod=pod,
-                            client=self.client,
-                            mode=ExecutionMode.SYNC,
-                            context=context,
-                            operator=self,
-                        )
-                    for callback in self.callbacks:
-                        callback.on_pod_teardown(
-                            pod=pod,
-                            client=self.client,
-                            mode=ExecutionMode.SYNC,
-                            context=context,
-                            operator=self,
-                        )
+                for callback in self.callbacks:
+                    callback.on_pod_completion(
+                        pod=self.pod,
+                        client=self.client,
+                        mode=ExecutionMode.SYNC,
+                        context=context,
+                        operator=self,
+                    )
+                for callback in self.callbacks:
+                    callback.on_pod_teardown(
+                        pod=self.pod,
+                        client=self.client,
+                        mode=ExecutionMode.SYNC,
+                        context=context,
+                        operator=self,
+                    )
 
                 xcom_sidecar_output = self.extract_xcom(pod=self.pod) if self.do_xcom_push else None
 
