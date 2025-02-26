@@ -49,6 +49,26 @@ const columns: Array<ColumnDef<BackfillResponse>> = [
     header: "Max Active Runs",
   },
   {
+    accessorKey: "created_at",
+    cell: ({ row }) => (
+      <Text>
+        <Time datetime={row.original.created_at} />
+      </Text>
+    ),
+    enableSorting: false,
+    header: "Created at",
+  },
+  {
+    accessorKey: "completed_at",
+    cell: ({ row }) => (
+      <Text>
+        <Time datetime={row.original.completed_at} />
+      </Text>
+    ),
+    enableSorting: false,
+    header: "Completed at",
+  },
+  {
     accessorKey: "date_from",
     cell: ({ row }) => (
       <Text>
@@ -85,10 +105,7 @@ const columns: Array<ColumnDef<BackfillResponse>> = [
 export const Backfills = () => {
   const { setTableURLState, tableURLState } = useTableURLState();
 
-  const { pagination, sorting } = tableURLState;
-
-  const [sort] = sorting;
-  const orderBy = sort ? `${sort.desc ? "-" : ""}${sort.id}` : "-id";
+  const { pagination } = tableURLState;
 
   const { dagId = "" } = useParams();
 
@@ -96,7 +113,6 @@ export const Backfills = () => {
     dagId,
     limit: pagination.pageSize,
     offset: pagination.pageIndex * pagination.pageSize,
-    orderBy,
   });
 
   return (
