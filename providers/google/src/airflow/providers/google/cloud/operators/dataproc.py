@@ -2721,15 +2721,21 @@ class DataprocCreateBatchOperator(GoogleCloudBaseOperator):
             return
 
         labels_limit = 32
-        automatic_labels = {"airflow-dag": dag_id, "airflow-task": task_id}
+        new_labels = {"airflow-dag-id": dag_id, "airflow-task-id": task_id}
+
+        if self._dag:
+            dag_display_name = re.sub(r"[.\s]", "_", self._dag.dag_display_name.lower())
+            if labels_regex.match(dag_id):
+                new_labels["airflow-dag-display-name"] = dag_display_name
+
         if isinstance(self.batch, Batch):
-            if len(self.batch.labels) + 2 <= labels_limit:
-                self.batch.labels.update(automatic_labels)
+            if len(self.batch.labels) + len(new_labels) <= labels_limit:
+                self.batch.labels.update(new_labels)
         elif "labels" not in self.batch:
-            self.batch["labels"] = automatic_labels
+            self.batch["labels"] = new_labels
         elif isinstance(self.batch.get("labels"), dict):
-            if len(self.batch["labels"]) + 2 <= labels_limit:
-                self.batch["labels"].update(automatic_labels)
+            if len(self.batch["labels"]) + len(new_labels) <= labels_limit:
+                self.batch["labels"].update(new_labels)
 
 
 class DataprocDeleteBatchOperator(GoogleCloudBaseOperator):
