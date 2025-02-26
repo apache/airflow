@@ -172,7 +172,7 @@ TEST_TYPE_CORE_MAP_TO_PYTEST_ARGS: dict[str, list[str]] = {
     "WWW": [
         "tests/www",
     ],
-    "OpenAPI": ["clients/python"],
+    "OpenAPI": ["clients/python/test"],
 }
 
 ALL_PROVIDER_TEST_FOLDERS: list[str] = sorted(
@@ -204,7 +204,7 @@ TEST_GROUP_TO_TEST_FOLDERS: dict[GroupOfTests, list[str]] = {
     GroupOfTests.HELM: ["helm_tests"],
     GroupOfTests.INTEGRATION_CORE: ["tests/integration"],
     GroupOfTests.INTEGRATION_PROVIDERS: ALL_PROVIDER_INTEGRATION_TEST_FOLDERS,
-    GroupOfTests.PYTHON_API_CLIENT: ["clients/python"],
+    GroupOfTests.PYTHON_API_CLIENT: ["clients/python/test"],
 }
 
 
