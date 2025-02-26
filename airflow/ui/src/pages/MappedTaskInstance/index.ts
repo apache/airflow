@@ -16,7 +16,5 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import type { TaskInstanceResponse } from "openapi/requests/types.gen";
 
-export const getTaskInstanceLink = (ti: TaskInstanceResponse) =>
-  `/dags/${ti.dag_id}/runs/${ti.dag_run_id}/tasks/${ti.task_id}${ti.map_index >= 0 ? `/mapped/${ti.map_index}` : ""}`;
+export { MappedTaskInstance } from "./MappedTaskInstance";

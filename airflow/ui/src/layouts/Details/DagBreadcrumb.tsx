@@ -19,7 +19,7 @@
 import { HStack, Stat } from "@chakra-ui/react";
 import type { ReactNode } from "react";
 import { LiaSlashSolid } from "react-icons/lia";
-import { Link as RouterLink, useParams, useSearchParams } from "react-router-dom";
+import { Link as RouterLink, useParams } from "react-router-dom";
 
 import {
   useDagRunServiceGetDagRun,
@@ -33,11 +33,7 @@ import { TogglePause } from "src/components/TogglePause";
 import { Breadcrumb } from "src/components/ui";
 
 export const DagBreadcrumb = () => {
-  const { dagId = "", runId, taskId } = useParams();
-
-  const [searchParams] = useSearchParams();
-  const mapIndexParam = searchParams.get("map_index");
-  const mapIndex = parseInt(mapIndexParam ?? "-1", 10);
+  const { dagId = "", mapIndex = "-1", runId, taskId } = useParams();
 
   const { data: dag } = useDagServiceGetDagDetails({
     dagId,
@@ -60,7 +56,7 @@ export const DagBreadcrumb = () => {
     {
       dagId,
       dagRunId: runId ?? "",
-      mapIndex,
+      mapIndex: parseInt(mapIndex, 10),
       taskId: taskId ?? "",
     },
     undefined,
@@ -115,8 +111,8 @@ export const DagBreadcrumb = () => {
     links.push({ label: task?.task_display_name ?? taskId, title: "Task" });
   }
 
-  if (mapIndexParam !== null) {
-    links.push({ label: mapIndexParam, title: "Map Index" });
+  if (mapIndex !== "-1") {
+    links.push({ label: mapIndex, title: "Map Index" });
   }
 
   return (
