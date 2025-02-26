@@ -33,7 +33,11 @@ from common_precommit_utils import (
 initialize_breeze_precommit(__name__, __file__)
 
 files_to_test = pre_process_files(sys.argv[1:])
-if files_to_test == ["--namespace-packages"] or files_to_test == []:
+if (
+    files_to_test == ["--namespace-packages"]
+    or files_to_test == ["--no-namespace-packages"]
+    or files_to_test == []
+):
     print("No files to tests. Quitting")
     sys.exit(0)
 

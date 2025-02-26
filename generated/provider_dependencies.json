@@ -104,7 +104,7 @@
     "deps": [
       "apache-airflow-providers-common-sql>=1.20.0",
       "apache-airflow>=2.9.0",
-      "sqlalchemy-drill>=1.1.0,!=1.1.6"
+      "sqlalchemy-drill>=1.1.0,<=1.1.5"
     ],
     "devel-deps": [],
     "plugins": [],
@@ -1284,7 +1284,6 @@
   },
   "standard": {
     "deps": [
-      "apache-airflow-providers-common-sql>=1.20.0",
       "apache-airflow>=2.9.0"
     ],
     "devel-deps": [],
@@ -1337,7 +1336,7 @@
       "apache-airflow-providers-common-sql>=1.20.0",
       "apache-airflow>=2.9.0",
       "pandas>=2.1.2,<2.2",
-      "trino>=0.318.0"
+      "trino>=0.319.0"
     ],
     "devel-deps": [],
     "plugins": [],
@@ -1393,7 +1392,7 @@
       "apache-airflow-providers-common-sql>=1.20.0",
       "apache-airflow>=2.9.0",
       "ydb-dbapi>=0.1.0",
-      "ydb>=3.18.8"
+      "ydb>=3.18.8, !=3.19.0"
     ],
     "devel-deps": [],
     "plugins": [],
