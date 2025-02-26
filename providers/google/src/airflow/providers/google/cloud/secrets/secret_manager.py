@@ -21,6 +21,8 @@ from __future__ import annotations
 import logging
 from collections.abc import Sequence
 
+from google.auth.exceptions import DefaultCredentialsError
+
 from airflow.exceptions import AirflowException
 from airflow.providers.google.cloud._internal_client.secret_manager_client import _SecretManagerClient
 from airflow.providers.google.cloud.utils.credentials_provider import (
@@ -30,7 +32,6 @@ from airflow.providers.google.cloud.utils.credentials_provider import (
 from airflow.providers.google.common.hooks.base_google import PROVIDE_PROJECT_ID
 from airflow.secrets import BaseSecretsBackend
 from airflow.utils.log.logging_mixin import LoggingMixin
-from google.auth.exceptions import DefaultCredentialsError
 
 log = logging.getLogger(__name__)
 

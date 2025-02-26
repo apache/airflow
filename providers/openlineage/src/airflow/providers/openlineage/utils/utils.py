@@ -26,6 +26,7 @@ from importlib import metadata
 from typing import TYPE_CHECKING, Any, Callable
 
 import attrs
+from openlineage.client.utils import RedactMixin
 
 from airflow import __version__ as AIRFLOW_VERSION
 
@@ -54,7 +55,6 @@ from airflow.sensors.base import BaseSensorOperator
 from airflow.serialization.serialized_objects import SerializedBaseOperator
 from airflow.utils.module_loading import import_string
 from airflow.utils.session import NEW_SESSION, provide_session
-from openlineage.client.utils import RedactMixin
 
 try:
     from airflow.sdk import BaseOperator as SdkBaseOperator
@@ -62,6 +62,9 @@ except ImportError:
     SdkBaseOperator = BaseOperator  # type: ignore[misc]
 
 if TYPE_CHECKING:
+    from openlineage.client.event_v2 import Dataset as OpenLineageDataset
+    from openlineage.client.facet_v2 import RunFacet, processing_engine_run
+
     from airflow.models import TaskInstance
     from airflow.providers.common.compat.assets import Asset
     from airflow.sdk import DAG, MappedOperator
@@ -72,8 +75,6 @@ if TYPE_CHECKING:
         should_hide_value_for_key,
     )
     from airflow.utils.state import DagRunState, TaskInstanceState
-    from openlineage.client.event_v2 import Dataset as OpenLineageDataset
-    from openlineage.client.facet_v2 import RunFacet, processing_engine_run
 else:
     try:
         from airflow.sdk import DAG, MappedOperator

@@ -22,8 +22,8 @@ from functools import cached_property
 from typing import TYPE_CHECKING, ClassVar
 
 import attr
-
 import papermill as pm
+
 from airflow.models import BaseOperator
 from airflow.providers.common.compat.lineage.entities import File
 from airflow.providers.papermill.hooks.kernel import REMOTE_KERNEL_ENGINE, KernelHook
