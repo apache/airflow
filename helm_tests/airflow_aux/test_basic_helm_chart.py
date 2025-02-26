@@ -24,6 +24,7 @@ from unittest import mock
 
 import jmespath
 import pytest
+from packaging.version import parse as parse_version
 
 from tests.charts.helm_template_generator import render_chart
 
@@ -107,7 +108,6 @@ class TestBaseChartTest:
             ("ServiceAccount", "test-basic-scheduler"),
             ("ServiceAccount", "test-basic-statsd"),
             ("ServiceAccount", "test-basic-triggerer"),
-            ("ServiceAccount", "test-basic-webserver"),
             ("ServiceAccount", "test-basic-worker"),
             ("Secret", "test-basic-metadata"),
             ("Secret", "test-basic-broker-url"),
@@ -125,12 +125,10 @@ class TestBaseChartTest:
             ("Service", "test-basic-postgresql"),
             ("Service", "test-basic-redis"),
             ("Service", "test-basic-statsd"),
-            ("Service", "test-basic-webserver"),
             ("Service", "test-basic-worker"),
             ("Deployment", "test-basic-scheduler"),
             ("Deployment", "test-basic-statsd"),
             (self.default_trigger_obj(version), "test-basic-triggerer"),
-            ("Deployment", "test-basic-webserver"),
             ("StatefulSet", "test-basic-postgresql"),
             ("StatefulSet", "test-basic-redis"),
             ("StatefulSet", "test-basic-worker"),
@@ -139,7 +137,7 @@ class TestBaseChartTest:
         }
         if version == "2.3.2":
             expected.add(("Secret", "test-basic-result-backend"))
-        if version == "3.0.0":
+        if version != "default" and parse_version(version) >= parse_version("3.0.0"):
             expected.update(
                 (
                     ("Deployment", "test-basic-api-server"),
@@ -150,7 +148,15 @@ class TestBaseChartTest:
                     ("Service", "test-basic-triggerer"),
                 )
             )
-        elif version == "default":
+        else:
+            expected.update(
+                (
+                    ("Deployment", "test-basic-webserver"),
+                    ("Service", "test-basic-webserver"),
+                    ("ServiceAccount", "test-basic-webserver"),
+                )
+            )
+        if version == "default":
             expected.add(("Service", "test-basic-triggerer"))
         assert list_of_kind_names_tuples == expected
         assert len(k8s_objects) == len(expected)
