@@ -16,3 +16,12 @@
     under the License.
 
  .. THIS FILE IS UPDATED AUTOMATICALLY_AT_RELEASE_TIME
+
+Package apache-airflow-providers-common-messaging
+------------------------------------------------------
+
+``Common Messaging Provider``
+
+
+This is detailed commit list of changes for versions provider package: ``common.messaging``.
+For high-level changelog, see :doc:`package information including changelog <index>`.
