@@ -21,8 +21,12 @@ import { render, screen, waitFor } from "@testing-library/react";
 import { setupServer, type SetupServerApi } from "msw/node";
 import { afterEach, describe, it, expect, beforeAll, afterAll } from "vitest";
 
+import type { DAGDetailsResponse } from "openapi/requests/types.gen";
 import { handlers } from "src/mocks/handlers";
-import { AppWrapper } from "src/utils/AppWrapper";
+import { MOCK_DAG } from "src/mocks/handlers/dag";
+import { BaseWrapper } from "src/utils/Wrapper";
+
+import { Header } from "./Header";
 
 let server: SetupServerApi;
 
@@ -35,13 +39,28 @@ afterEach(() => server.resetHandlers());
 afterAll(() => server.close());
 
 describe("Dag Documentation Modal", () => {
-  it("Display documentation button only when docs_md is present", async () => {
-    render(<AppWrapper initialEntries={["/dags/tutorial_taskflow_api"]} />);
+  it("Display documentation button when doc_md is present", async () => {
+    render(
+      <BaseWrapper>
+        <Header dag={MOCK_DAG as unknown as DAGDetailsResponse} />
+      </BaseWrapper>,
+    );
 
     await waitFor(() => expect(screen.getByTestId("markdown-button")).toBeInTheDocument());
     await waitFor(() => screen.getByTestId("markdown-button").click());
     await waitFor(() =>
       expect(screen.getByText(/taskflow api tutorial documentation/iu)).toBeInTheDocument(),
     );
+  });
+
+  it("Do not display documentation button only doc_md is not present", () => {
+    render(
+      <BaseWrapper>
+        {/* eslint-disable-next-line unicorn/no-null */}
+        <Header dag={{ ...MOCK_DAG, doc_md: null } as unknown as DAGDetailsResponse} />
+      </BaseWrapper>,
+    );
+
+    expect(screen.queryByTestId("markdown-button")).toBeNull();
   });
 });
