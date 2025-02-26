@@ -223,6 +223,14 @@ elif PACKAGE_NAME.startswith("apache-airflow-providers-"):
     empty_subpackages = ["apache", "atlassian", "common", "cncf", "dbt", "microsoft"]
     exclude_patterns = [
         "operators/_partials",
+        "_api/airflow/index.rst",
+        "_api/airflow/providers/index.rst",
+        "_api/airflow/providers/apache/index.rst",
+        "_api/airflow/providers/atlassian/index.rst",
+        "_api/airflow/providers/cncf/index.rst",
+        "_api/airflow/providers/common/index.rst",
+        "_api/airflow/providers/dbt/index.rst",
+        "_api/airflow/providers/microsoft/index.rst",
         *[f"_api/tests/system/{subpackage}/index.rst" for subpackage in empty_subpackages],
     ]
 else:

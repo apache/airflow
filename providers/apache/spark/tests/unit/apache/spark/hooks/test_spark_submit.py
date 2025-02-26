@@ -94,6 +94,14 @@ class TestSparkSubmitHook:
             )
         )
         db.merge_conn(
+            Connection(
+                conn_id="spark_k8s_client",
+                conn_type="spark",
+                host="k8s://https://k8s-master",
+                extra='{"deploy-mode": "client", "namespace": "mynamespace"}',
+            )
+        )
+        db.merge_conn(
             Connection(conn_id="spark_default_mesos", conn_type="spark", host="mesos://host", port=5050)
         )
 
@@ -803,6 +811,22 @@ class TestSparkSubmitHook:
 
         # Then
         assert hook._spark_exit_code == 999
+
+    def test_process_spark_client_mode_submit_log_k8s(self):
+        # Given
+        hook = SparkSubmitHook(conn_id="spark_k8s_client")
+        log_lines = [
+            "INFO - The executor with id 2 exited with exit code 137(SIGKILL, possible container OOM).",
+            "...",
+            "Pi is roughly 3.141640",
+            "SparkContext: Successfully stopped SparkContext",
+        ]
+
+        # When
+        hook._process_spark_submit_log(log_lines)
+
+        # Then
+        assert hook._spark_exit_code == 0
 
     def test_process_spark_submit_log_standalone_cluster(self):
         # Given

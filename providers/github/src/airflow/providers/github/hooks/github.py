@@ -21,9 +21,10 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
+from github import Github as GithubClient
+
 from airflow.exceptions import AirflowException
 from airflow.hooks.base import BaseHook
-from github import Github as GithubClient
 
 
 class GithubHook(BaseHook):

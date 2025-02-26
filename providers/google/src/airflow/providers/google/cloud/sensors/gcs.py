@@ -25,6 +25,8 @@ from collections.abc import Sequence
 from datetime import datetime, timedelta
 from typing import TYPE_CHECKING, Any, Callable
 
+from google.cloud.storage.retry import DEFAULT_RETRY
+
 from airflow.configuration import conf
 from airflow.exceptions import AirflowException
 from airflow.providers.google.cloud.hooks.gcs import GCSHook
@@ -35,11 +37,11 @@ from airflow.providers.google.cloud.triggers.gcs import (
     GCSUploadSessionTrigger,
 )
 from airflow.sensors.base import BaseSensorOperator, poke_mode_only
-from google.cloud.storage.retry import DEFAULT_RETRY
 
 if TYPE_CHECKING:
-    from airflow.utils.context import Context
     from google.api_core.retry import Retry
+
+    from airflow.utils.context import Context
 
 
 class GCSObjectExistenceSensor(BaseSensorOperator):
