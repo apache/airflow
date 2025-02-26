@@ -23,7 +23,15 @@ from typing import TYPE_CHECKING, Any
 from airflow.exceptions import AirflowException
 from airflow.providers.amazon.aws.hooks.sqs import SqsHook
 from airflow.providers.amazon.aws.utils.sqs import process_response
-from airflow.triggers.base import BaseEventTrigger, TriggerEvent
+from airflow.providers.amazon.version_compat import AIRFLOW_V_3_0_PLUS
+
+if AIRFLOW_V_3_0_PLUS:
+    from airflow.triggers.base import BaseEventTrigger, TriggerEvent
+else:
+    from airflow.triggers.base import (  # type: ignore
+        BaseTrigger as BaseEventTrigger,
+        TriggerEvent,
+    )
 
 if TYPE_CHECKING:
     from airflow.providers.amazon.aws.hooks.base_aws import BaseAwsConnection
