@@ -92,7 +92,7 @@ export const DetailsLayout = ({ children, error, isLoading, tabs }: Props) => {
               {children}
               <ErrorAlert error={error} />
               <ProgressBar size="xs" visibility={isLoading ? "visible" : "hidden"} />
-              <NavTabs keepSearch tabs={tabs} />
+              <NavTabs tabs={tabs} />
               <Box h="100%" overflow="auto" px={2}>
                 <Outlet />
               </Box>

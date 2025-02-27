@@ -142,6 +142,10 @@ class WorkerStateBody(WorkerQueuesBase):
             ],
         ),
     ]
+    maintenance_comments: Annotated[
+        str | None,
+        Field(description="Comments about the maintenance state of the worker."),
+    ] = None
 
 
 class WorkerQueueUpdateBody(BaseModel):
@@ -174,3 +178,7 @@ class WorkerSetStateReturn(BaseModel):
             description="List of queues the worker is pulling jobs from. If not provided, worker pulls from all queues."
         ),
     ]
+    maintenance_comments: Annotated[
+        str | None,
+        Field(description="Comments about the maintenance state of the worker."),
+    ] = None
