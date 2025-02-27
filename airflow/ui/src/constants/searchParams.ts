@@ -25,6 +25,7 @@ export enum SearchParamsKeys {
   PAUSED = "paused",
   SORT = "sort",
   TAGS = "tags",
+  TRY_NUMBER = "try_number",
   VERSION_NUMBER = "version_number",
 }
 

@@ -18,7 +18,6 @@
  */
 import { Badge } from "@chakra-ui/react";
 import dayjs from "dayjs";
-import { useSearchParams } from "react-router-dom";
 
 import { useTaskInstanceServiceGetLog } from "openapi/queries";
 import type {
@@ -27,12 +26,12 @@ import type {
   TaskInstancesLogResponse,
 } from "openapi/requests/types.gen";
 import Time from "src/components/Time";
-import { SearchParamsKeys } from "src/constants/searchParams";
 import { isStatePending, useAutoRefresh } from "src/utils";
 import { type LogLevel, logLevelColorMapping } from "src/utils/logs";
 
 type Props = {
   dagId: string;
+  logLevels?: Array<LogLevel>;
   taskInstance?: TaskInstanceResponse;
   tryNumber?: number;
 };
@@ -120,10 +119,8 @@ const parseLogs = ({ data, logLevels }: ParseLogsProps) => {
   };
 };
 
-export const useLogs = ({ dagId, taskInstance, tryNumber = 1 }: Props) => {
+export const useLogs = ({ dagId, logLevels, taskInstance, tryNumber = 1 }: Props) => {
   const refetchInterval = useAutoRefresh({ dagId });
-  const [searchParams] = useSearchParams();
-  const logLevels = searchParams.getAll(SearchParamsKeys.LOG_LEVEL);
 
   const { data, ...rest } = useTaskInstanceServiceGetLog(
     {
@@ -146,7 +143,7 @@ export const useLogs = ({ dagId, taskInstance, tryNumber = 1 }: Props) => {
 
   const parsedData = parseLogs({
     data: data?.content ?? [],
-    logLevels: logLevels as Array<LogLevel>,
+    logLevels,
   });
 
   return { data: parsedData, ...rest };
