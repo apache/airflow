@@ -16,7 +16,7 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Flex, HStack } from "@chakra-ui/react";
+import { Flex, Heading, HStack } from "@chakra-ui/react";
 import type { NodeProps, Node as NodeType } from "@xyflow/react";
 import { FiDatabase } from "react-icons/fi";
 
@@ -40,7 +40,9 @@ export const AssetNode = ({
       width={`${width}px`}
     >
       <HStack>
-        <FiDatabase />
+        <Heading ml={-2} size="sm">
+          <FiDatabase />
+        </Heading>
         {label}
       </HStack>
     </Flex>
