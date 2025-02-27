@@ -26,7 +26,7 @@ Package ``apache-airflow-providers-apache-gremlin``
 Release: ``0.0.1``
 
 
-`Apache Gremlin <https://tinkerpop.apache.org/gremlin.html>`__
+`Gremlin <https://tinkerpop.apache.org/gremlin.html>`__
 provides hooks to interact with Graph DB using the Gremlin API.
 
 

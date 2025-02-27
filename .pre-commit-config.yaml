@@ -991,6 +991,7 @@ repos:
         exclude: >
           (?x)
           ^scripts/ci/docker-compose/grafana/.|
+          ^scripts/ci/docker-compose/gremlin/.|
           ^scripts/ci/docker-compose/.+-config\.ya?ml
         require_serial: true
         additional_dependencies: ['jsonschema>=3.2.0,<5.0', 'PyYAML==6.0.2', 'requests==2.32.3']
