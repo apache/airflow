@@ -47,12 +47,10 @@ def upgrade():
     with op.batch_alter_table("task_instance", schema=None) as batch_op:
         batch_op.add_column(sa.Column("try_id", UUIDType(binary=False), nullable=True))
 
-    # Get all rows with NULL try_id
     stmt = sa.text("SELECT id FROM task_instance WHERE try_id IS NULL")
     conn = op.get_bind()
     null_rows = conn.execute(stmt).fetchall()
 
-    # Prepare the update statement
     stmt = sa.text("""
         UPDATE task_instance
         SET try_id = :uuid
@@ -62,7 +60,6 @@ def upgrade():
     # Update each row with a unique UUID
     for row in null_rows:
         uuid_value = uuid7()
-        # The row.id is already a UUID
         conn.execute(stmt.bindparams(uuid=uuid_value, row_id=row.id))
     op.alter_column("task_instance", "try_id", nullable=False)
     op.create_unique_constraint(batch_op.f("task_instance_try_id_uq"), "task_instance", ["try_id"])
@@ -75,12 +72,11 @@ def upgrade():
             )
         )
         batch_op.add_column(sa.Column("try_id", UUIDType(binary=False), nullable=True))
-    # Get all rows with NULL try_id
+    # Update try_id column
     stmt = sa.text("SELECT id FROM task_instance_history WHERE try_id IS NULL")
     conn = op.get_bind()
     null_rows = conn.execute(stmt).fetchall()
 
-    # Prepare the update statement
     stmt = sa.text("""
         UPDATE task_instance_history
         SET try_id = :uuid
@@ -90,7 +86,6 @@ def upgrade():
     # Update each row with a unique UUID
     for row in null_rows:
         uuid_value = uuid7()
-        # The row.id is already a UUID
         conn.execute(stmt.bindparams(uuid=uuid_value, row_id=row.id))
 
     op.execute("""
@@ -119,7 +114,6 @@ def downgrade():
     dialect_name = op.get_bind().dialect.name
     with op.batch_alter_table("task_instance_history", schema=None) as batch_op:
         batch_op.drop_constraint(batch_op.f("task_instance_history_pkey"), type_="primary")
-        batch_op.drop_column("id")
         batch_op.add_column(sa.Column("new_id", sa.INTEGER, autoincrement=True, nullable=True))
     if dialect_name == "postgresql":
         op.execute(
@@ -146,6 +140,7 @@ def downgrade():
             SET new_id = (SELECT COUNT(*) FROM task_instance_history t2 WHERE t2.id <= task_instance_history.id);
         """)
     with op.batch_alter_table("task_instance_history", schema=None) as batch_op:
+        batch_op.drop_column("id")
         batch_op.alter_column(
             "new_id", new_column_name="id", nullable=False, existing_type=sa.INTEGER, autoincrement=True
         )
