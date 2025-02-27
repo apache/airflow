@@ -1179,6 +1179,7 @@ export const useDagWarningServiceListDagWarningsSuspense = <
  * Get Dags
  * Get all DAGs.
  * @param data The data for the request.
+ * @param data.dagId
  * @param data.limit
  * @param data.offset
  * @param data.tags
@@ -1205,6 +1206,7 @@ export const useDagServiceGetDagsSuspense = <
 >(
   {
     dagDisplayNamePattern,
+    dagId,
     dagIdPattern,
     dagRunEndDateGte,
     dagRunEndDateLte,
@@ -1222,6 +1224,7 @@ export const useDagServiceGetDagsSuspense = <
     tagsMatchMode,
   }: {
     dagDisplayNamePattern?: string;
+    dagId?: string;
     dagIdPattern?: string;
     dagRunEndDateGte?: string;
     dagRunEndDateLte?: string;
@@ -1245,6 +1248,7 @@ export const useDagServiceGetDagsSuspense = <
     queryKey: Common.UseDagServiceGetDagsKeyFn(
       {
         dagDisplayNamePattern,
+        dagId,
         dagIdPattern,
         dagRunEndDateGte,
         dagRunEndDateLte,
@@ -1266,6 +1270,7 @@ export const useDagServiceGetDagsSuspense = <
     queryFn: () =>
       DagService.getDags({
         dagDisplayNamePattern,
+        dagId,
         dagIdPattern,
         dagRunEndDateGte,
         dagRunEndDateLte,

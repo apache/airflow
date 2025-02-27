@@ -57,6 +57,7 @@ from airflow.api_fastapi.core_api.datamodels.dags import (
     DAGResponse,
 )
 from airflow.api_fastapi.core_api.openapi.exceptions import create_openapi_http_exception_doc
+from airflow.api_fastapi.core_api.security import requires_access_dag
 from airflow.exceptions import AirflowException, DagNotFound
 from airflow.models import DAG, DagModel
 from airflow.models.dagrun import DagRun
@@ -64,7 +65,7 @@ from airflow.models.dagrun import DagRun
 dags_router = AirflowRouter(tags=["DAG"], prefix="/dags")
 
 
-@dags_router.get("")
+@dags_router.get("", dependencies=[Depends(requires_access_dag(method="GET"))])
 def get_dags(
     limit: QueryLimit,
     offset: QueryOffset,
@@ -155,6 +156,7 @@ def get_dags(
             status.HTTP_422_UNPROCESSABLE_ENTITY,
         ]
     ),
+    dependencies=[Depends(requires_access_dag(method="GET"))],
 )
 def get_dag(dag_id: str, session: SessionDep, request: Request) -> DAGResponse:
     """Get basic information about a DAG."""
@@ -181,6 +183,7 @@ def get_dag(dag_id: str, session: SessionDep, request: Request) -> DAGResponse:
             status.HTTP_404_NOT_FOUND,
         ]
     ),
+    dependencies=[Depends(requires_access_dag(method="GET"))],
 )
 def get_dag_details(dag_id: str, session: SessionDep, request: Request) -> DAGDetailsResponse:
     """Get details of DAG."""
@@ -207,6 +210,7 @@ def get_dag_details(dag_id: str, session: SessionDep, request: Request) -> DAGDe
             status.HTTP_404_NOT_FOUND,
         ]
     ),
+    dependencies=[Depends(requires_access_dag(method="PATCH"))],
 )
 def patch_dag(
     dag_id: str,
@@ -249,6 +253,7 @@ def patch_dag(
             status.HTTP_404_NOT_FOUND,
         ]
     ),
+    dependencies=[Depends(requires_access_dag(method="PATCH"))],
 )
 def patch_dags(
     patch_body: DAGPatchBody,
@@ -310,6 +315,7 @@ def patch_dags(
             status.HTTP_422_UNPROCESSABLE_ENTITY,
         ]
     ),
+    dependencies=[Depends(requires_access_dag(method="DELETE"))],
 )
 def delete_dag(
     dag_id: str,

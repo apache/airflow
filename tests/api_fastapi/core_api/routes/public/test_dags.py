@@ -234,12 +234,15 @@ class TestGetDags(TestDagEndpoint):
     )
     def test_get_dags(self, test_client, query_params, expected_total_entries, expected_ids):
         response = test_client.get("/public/dags", params=query_params)
-
         assert response.status_code == 200
         body = response.json()
 
         assert body["total_entries"] == expected_total_entries
         assert [dag["dag_id"] for dag in body["dags"]] == expected_ids
+
+    def test_get_dags_should_response_401(self, unauthenticated_test_client):
+        response = unauthenticated_test_client.get("/public/dags")
+        assert response.status_code == 401
 
 
 class TestPatchDag(TestDagEndpoint):
@@ -265,6 +268,10 @@ class TestPatchDag(TestDagEndpoint):
         if expected_status_code == 200:
             body = response.json()
             assert body["is_paused"] == expected_is_paused
+
+    def test_patch_dag_should_response_401(self, unauthenticated_test_client):
+        response = unauthenticated_test_client.patch(f"/public/dags/{DAG1_ID}", json={"is_paused": True})
+        assert response.status_code == 401
 
 
 class TestPatchDags(TestDagEndpoint):
@@ -322,6 +329,10 @@ class TestPatchDags(TestDagEndpoint):
             assert [dag["dag_id"] for dag in body["dags"]] == expected_ids
             paused_dag_ids = [dag["dag_id"] for dag in body["dags"] if dag["is_paused"]]
             assert paused_dag_ids == expected_paused_ids
+
+    def test_patch_dags_should_response_401(self, unauthenticated_test_client):
+        response = unauthenticated_test_client.patch("/public/dags", json={"is_paused": True})
+        assert response.status_code == 401
 
 
 class TestDagDetails(TestDagEndpoint):
@@ -404,6 +415,10 @@ class TestDagDetails(TestDagEndpoint):
         }
         assert res_json == expected
 
+    def test_dag_details_should_response_401(self, unauthenticated_test_client):
+        response = unauthenticated_test_client.get(f"/public/dags/{DAG1_ID}/details")
+        assert response.status_code == 401
+
 
 class TestGetDag(TestDagEndpoint):
     """Unit tests for Get DAG."""
@@ -451,6 +466,10 @@ class TestGetDag(TestDagEndpoint):
             "has_import_errors": False,
         }
         assert res_json == expected
+
+    def test_get_dag_should_response_401(self, unauthenticated_test_client):
+        response = unauthenticated_test_client.get(f"/public/dags/{DAG1_ID}")
+        assert response.status_code == 401
 
 
 class TestDeleteDAG(TestDagEndpoint):
@@ -510,3 +529,7 @@ class TestDeleteDAG(TestDagEndpoint):
 
         details_response = test_client.get(f"{API_PREFIX}/{dag_id}/details")
         assert details_response.status_code == status_code_details
+
+    def test_delete_dag_should_response_401(self, unauthenticated_test_client):
+        response = unauthenticated_test_client.delete(f"{API_PREFIX}/{DAG1_ID}")
+        assert response.status_code == 401

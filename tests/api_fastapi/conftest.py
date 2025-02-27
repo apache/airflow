@@ -23,6 +23,8 @@ import pytest
 from fastapi.testclient import TestClient
 
 from airflow.api_fastapi.app import create_app
+from airflow.auth.managers.simple.simple_auth_manager import SimpleAuthManager
+from airflow.auth.managers.simple.user import SimpleAuthManagerUser
 from airflow.models import Connection
 from airflow.models.dag_version import DagVersion
 from airflow.models.serialized_dag import SerializedDagModel
@@ -34,6 +36,23 @@ from tests_common.test_utils.db import clear_db_connections, parse_and_sync_to_d
 
 @pytest.fixture
 def test_client():
+    with conf_vars(
+        {
+            (
+                "core",
+                "auth_manager",
+            ): "airflow.auth.managers.simple.simple_auth_manager.SimpleAuthManager",
+        }
+    ):
+        auth_manager = SimpleAuthManager()
+        token = auth_manager._get_token_signer().generate_signed_token(
+            auth_manager.serialize_user(SimpleAuthManagerUser(username="test", role="admin"))
+        )
+        yield TestClient(create_app(), headers={"Authorization": f"Bearer {token}"})
+
+
+@pytest.fixture
+def unauthenticated_test_client():
     return TestClient(create_app())
 
 
