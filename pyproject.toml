@@ -541,6 +541,7 @@ filterwarnings = [
 # because it invokes import airflow before we set up test environment which breaks the tests.
 # Instead of that, we use a separate parameter and dynamically add it into `filterwarnings` marker.
 forbidden_warnings = [
+    "airflow.exceptions.RemovedInAirflow4Warning",
     "airflow.exceptions.RemovedInAirflow3Warning",
     "airflow.exceptions.AirflowProviderDeprecationWarning",
 ]
