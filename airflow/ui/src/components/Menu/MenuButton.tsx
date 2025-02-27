@@ -19,6 +19,7 @@
 import { MdMoreHoriz } from "react-icons/md";
 
 import type { DAGResponse, DAGWithLatestDagRunsResponse } from "openapi/requests/types.gen";
+import ParseDag from "src/components/ParseDag";
 import { Menu } from "src/components/ui";
 
 import ActionButton from "../ui/ActionButton";
@@ -34,6 +35,9 @@ const MenuButton: React.FC<Props> = ({ dag }) => (
       <ActionButton actionName="" icon={<MdMoreHoriz />} text="" />
     </Menu.Trigger>
     <Menu.Content>
+      <Menu.Item value="Run Backfill">
+        <ParseDag dagId={dag.dag_id} fileToken={dag.file_token} />
+      </Menu.Item>
       <Menu.Item asChild value="Run Backfill">
         <RunBackfillButton dag={dag} />
       </Menu.Item>
