@@ -93,7 +93,7 @@ def configure_git_connection_for_dag_bundle(session):
 
 
 @pytest.fixture
-def make_dag_with_multiple_versions(dag_maker, configure_git_connection_for_dag_bundle):
+def make_dag_with_multiple_versions(dag_maker, configure_git_connection_for_dag_bundle, session):
     """
     Create DAG with multiple versions
 
@@ -103,7 +103,6 @@ def make_dag_with_multiple_versions(dag_maker, configure_git_connection_for_dag_
     """
 
     dag_id = "dag_with_multiple_versions"
-
     for version_number in range(1, 4):
         with dag_maker(dag_id) as dag:
             for task_number in range(version_number):
@@ -117,6 +116,7 @@ def make_dag_with_multiple_versions(dag_maker, configure_git_connection_for_dag_
             logical_date=datetime.datetime(2020, 1, version_number, tzinfo=datetime.timezone.utc),
             dag_version=DagVersion.get_version(dag_id=dag_id, version_number=version_number),
         )
+        session.commit()
 
 
 @pytest.fixture(scope="module")
