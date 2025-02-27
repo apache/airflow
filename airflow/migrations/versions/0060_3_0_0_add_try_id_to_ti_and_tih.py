@@ -75,7 +75,11 @@ def upgrade():
     # Update try_id column
     stmt = sa.text("SELECT id FROM task_instance_history WHERE try_id IS NULL")
     conn = op.get_bind()
-    null_rows = conn.execute(stmt).fetchall()
+    null_rows = conn.execute(stmt)
+    if null_rows:
+        null_rows = null_rows.fetchall()
+    else:
+        null_rows = []
 
     stmt = sa.text("""
         UPDATE task_instance_history
@@ -96,17 +100,17 @@ def upgrade():
         AND task_instance_history.run_id = task_instance.run_id
         AND task_instance_history.map_index = task_instance.map_index
         """)
-    op.drop_constraint("task_instance_history_pkey", "task_instance_history", type_="primary")
-    op.drop_column("task_instance_history", "id")
-    op.alter_column("task_instance_history", "task_instance_id", new_column_name="id", nullable=False)
+    with op.batch_alter_table("task_instance_history") as batch_op:
+        batch_op.drop_constraint("task_instance_history_pkey", type_="primary")
+        batch_op.drop_column("id")
+        batch_op.alter_column("task_instance_id", new_column_name="id", nullable=False)
 
-    op.create_primary_key(
-        "task_instance_history_pkey",
-        "task_instance_history",
-        [
-            "try_id",
-        ],
-    )
+        batch_op.create_primary_key(
+            "task_instance_history_pkey",
+            [
+                "try_id",
+            ],
+        )
 
 
 def downgrade():
@@ -141,11 +145,9 @@ def downgrade():
         """)
     with op.batch_alter_table("task_instance_history", schema=None) as batch_op:
         batch_op.drop_column("id")
-        batch_op.alter_column(
-            "new_id", new_column_name="id", nullable=False, existing_type=sa.INTEGER, autoincrement=True
-        )
+        batch_op.alter_column("new_id", new_column_name="id", nullable=False, existing_type=sa.INTEGER)
         batch_op.drop_column("try_id")
-    op.create_primary_key("task_instance_history_pkey", "task_instance_history", ["id"])
+        batch_op.create_primary_key("task_instance_history_pkey", ["id"])
 
     with op.batch_alter_table("task_instance", schema=None) as batch_op:
         batch_op.drop_constraint(batch_op.f("task_instance_try_id_uq"), type_="unique")
