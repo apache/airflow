@@ -23,6 +23,7 @@ import { UseConfigServiceGetConfigsKeyFn } from "openapi/queries";
 import { ConfigService } from "openapi/requests/services.gen";
 import { BaseLayout } from "src/layouts/BaseLayout";
 import { DagsLayout } from "src/layouts/DagsLayout";
+import { Asset } from "src/pages/Asset";
 import { AssetsList } from "src/pages/AssetsList";
 import { Dag } from "src/pages/Dag";
 import { Code } from "src/pages/Dag/Code";
@@ -90,6 +91,10 @@ export const routerConfig = [
       {
         element: <AssetsList />,
         path: "assets",
+      },
+      {
+        element: <Asset />,
+        path: "assets/:assetId",
       },
       {
         element: <Events />,
