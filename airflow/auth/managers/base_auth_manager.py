@@ -61,7 +61,7 @@ if TYPE_CHECKING:
 
 # This cannot be in the TYPE_CHECKING block since some providers import it globally.
 # TODO: Move this inside once all providers drop Airflow 2.x support.
-ResourceMethod = Literal["GET", "POST", "PUT", "DELETE", "MENU"]
+ResourceMethod = Literal["GET", "POST", "PUT", "PATCH", "DELETE", "MENU"]
 
 log = logging.getLogger(__name__)
 T = TypeVar("T", bound=BaseUser)
