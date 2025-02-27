@@ -19,7 +19,7 @@
 Amazon SageMaker Unified Studio
 ===============================
 
-`Amazon SageMaker Unified Studio <https://docs.aws.amazon.com/sagemaker-unified-studio>`__ is a unified development experience that
+`Amazon SageMaker Unified Studio <https://aws.amazon.com/sagemaker/unified-studio/>`__ is a unified development experience that
 brings together AWS data, analytics, artificial intelligence (AI), and machine learning (ML) services.
 It provides a place to build, deploy, execute, and monitor end-to-end workflows from a single interface.
 This helps drive collaboration across teams and facilitate agile development.
@@ -31,8 +31,7 @@ Prerequisite Tasks
 
 To use these operators, you must do a few things:
 
-  * Create a SageMaker Unified Studio domain.
-  * Within your domain, create a project with the "Data analytics and AI-ML model development" project profile.
+  * Create a SageMaker Unified Studio domain and project, following the instruction in `AWS documentation <https://docs.aws.amazon.com/sagemaker-unified-studio/latest/userguide/getting-started.html>`__.
   * Within your project:
     * Navigate to the "Compute > Workflow environments" tab, and click "Create" to create a new MWAA environment.
     * Create a Notebook, Querybook, or Visual ETL job and save it to your project.
