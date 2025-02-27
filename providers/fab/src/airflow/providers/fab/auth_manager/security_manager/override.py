@@ -65,9 +65,7 @@ from flask_appbuilder.views import expose
 from flask_babel import lazy_gettext
 from flask_jwt_extended import (
     JWTManager,
-    create_access_token,
     current_user as current_user_jwt,
-    get_jwt_identity,
 )
 from flask_login import LoginManager
 from itsdangerous import want_bytes
@@ -542,10 +540,6 @@ class FabAirflowSecurityManagerOverride(AirflowSecurityManagerV2):
         jwt_manager = JWTManager()
         jwt_manager.init_app(self.appbuilder.app)
         jwt_manager.user_lookup_loader(self.load_user_jwt)
-
-    def refresh_jwt_token(self) -> str:
-        """Refresh the JWT token."""
-        return create_access_token(identity=get_jwt_identity())
 
     def reset_password(self, userid: int, password: str) -> bool:
         """

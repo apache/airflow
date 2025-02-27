@@ -21,7 +21,7 @@ from starlette import status
 from airflow.api_fastapi.common.router import AirflowRouter
 from airflow.api_fastapi.core_api.openapi.exceptions import create_openapi_http_exception_doc
 from airflow.configuration import conf
-from airflow.providers.fab.auth_manager.api_fastapi.datamodels.login import LoginResponse
+from airflow.providers.fab.auth_manager.api_fastapi.datamodels.login import LoginBody, LoginResponse
 from airflow.providers.fab.auth_manager.api_fastapi.services.login import FABAuthManagerLogin
 
 login_router = AirflowRouter(tags=["FabAuthManager"])
@@ -33,10 +33,10 @@ login_router = AirflowRouter(tags=["FabAuthManager"])
     status_code=status.HTTP_201_CREATED,
     responses=create_openapi_http_exception_doc([status.HTTP_400_BAD_REQUEST, status.HTTP_401_UNAUTHORIZED]),
 )
-def create_token() -> LoginResponse:
+def create_token(body: LoginBody) -> LoginResponse:
     """Generate a new CLI API token."""
     return FABAuthManagerLogin.create_token(
-        expiration_time_in_sec=conf.getint("api", "auth_jwt_expiration_time")
+        body=body, expiration_time_in_sec=conf.getint("api", "auth_jwt_expiration_time")
     )
 
 
@@ -46,8 +46,8 @@ def create_token() -> LoginResponse:
     status_code=status.HTTP_201_CREATED,
     responses=create_openapi_http_exception_doc([status.HTTP_400_BAD_REQUEST, status.HTTP_401_UNAUTHORIZED]),
 )
-def create_token_cli() -> LoginResponse:
+def create_token_cli(body: LoginBody) -> LoginResponse:
     """Generate a new CLI API token."""
     return FABAuthManagerLogin.create_token(
-        expiration_time_in_sec=conf.getint("api", "auth_jwt_cli_expiration_time")
+        body=body, expiration_time_in_sec=conf.getint("api", "auth_jwt_cli_expiration_time")
     )

@@ -19,16 +19,19 @@ from __future__ import annotations
 
 from unittest.mock import patch
 
-from airflow.providers.fab.auth_manager.api_fastapi.datamodels.login import LoginResponse
+from airflow.providers.fab.auth_manager.api_fastapi.datamodels.login import LoginBody, LoginResponse
 
 
 class TestLogin:
+    dummy_login_body = LoginBody(username="dummy", password="dummy")
+
     @patch("airflow.providers.fab.auth_manager.api_fastapi.routes.login.FABAuthManagerLogin")
     def test_create_token(self, mock_fab_auth_manager_login, test_client):
         mock_fab_auth_manager_login.create_token.return_value = LoginResponse(jwt_token="DUMMY_TOKEN")
 
         response = test_client.post(
             "/token",
+            json=self.dummy_login_body.model_dump(),
         )
         assert response.status_code == 201
         assert response.json()["jwt_token"]
@@ -39,6 +42,7 @@ class TestLogin:
 
         response = test_client.post(
             "/token/cli",
+            json=self.dummy_login_body.model_dump(),
         )
         assert response.status_code == 201
         assert response.json()["jwt_token"]

@@ -23,3 +23,10 @@ class LoginResponse(BaseModel):
     """API Token serializer for responses."""
 
     jwt_token: str
+
+
+class LoginBody(BaseModel):
+    """API Token serializer for requests."""
+
+    username: str
+    password: str
