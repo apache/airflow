@@ -259,7 +259,7 @@ class RdsHook(AwsGenericHook["RDSClient"]):
             return self.get_db_instance_state(db_instance_id)
 
         target_state = target_state.lower()
-        if target_state in ("available", "deleted", "stopped"):
+        if target_state in ("available", "deleted"):
             waiter = self.conn.get_waiter(f"db_instance_{target_state}")  # type: ignore
             wait(
                 waiter=waiter,
@@ -310,7 +310,7 @@ class RdsHook(AwsGenericHook["RDSClient"]):
             return self.get_db_cluster_state(db_cluster_id)
 
         target_state = target_state.lower()
-        if target_state in ("available", "deleted", "stopped"):
+        if target_state in ("available", "deleted"):
             waiter = self.conn.get_waiter(f"db_cluster_{target_state}")  # type: ignore
             waiter.wait(
                 DBClusterIdentifier=db_cluster_id,
