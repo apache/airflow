@@ -27,7 +27,7 @@ from airflow.providers.amazon.aws.operators.sagemaker_unified_studio import (
     SageMakerNotebookOperator,
 )
 
-from tests.system.amazon.aws.utils import ENV_ID_KEY, SystemTestContextBuilder
+from system.amazon.aws.utils import ENV_ID_KEY, SystemTestContextBuilder
 from tests_common.test_utils.version_compat import AIRFLOW_V_2_10_PLUS
 
 """
@@ -73,27 +73,27 @@ def get_mwaa_environment_params(
 ):
     AIRFLOW_PREFIX = "AIRFLOW__WORKFLOWS__"
 
-    params = {}
-    params[f"{AIRFLOW_PREFIX}DATAZONE_DOMAIN_ID"] = domain_id
-    params[f"{AIRFLOW_PREFIX}DATAZONE_PROJECT_ID"] = project_id
-    params[f"{AIRFLOW_PREFIX}DATAZONE_ENVIRONMENT_ID"] = environment_id
-    params[f"{AIRFLOW_PREFIX}DATAZONE_SCOPE_NAME"] = "dev"
-    params[f"{AIRFLOW_PREFIX}DATAZONE_STAGE"] = "prod"
-    params[f"{AIRFLOW_PREFIX}DATAZONE_ENDPOINT"] = f"https://datazone.{region_name}.api.aws"
-    params[f"{AIRFLOW_PREFIX}PROJECT_S3_PATH"] = s3_path
-    params[f"{AIRFLOW_PREFIX}DATAZONE_DOMAIN_REGION"] = region_name
-    return params
+    parameters = {}
+    parameters[f"{AIRFLOW_PREFIX}DATAZONE_DOMAIN_ID"] = domain_id
+    parameters[f"{AIRFLOW_PREFIX}DATAZONE_PROJECT_ID"] = project_id
+    parameters[f"{AIRFLOW_PREFIX}DATAZONE_ENVIRONMENT_ID"] = environment_id
+    parameters[f"{AIRFLOW_PREFIX}DATAZONE_SCOPE_NAME"] = "dev"
+    parameters[f"{AIRFLOW_PREFIX}DATAZONE_STAGE"] = "prod"
+    parameters[f"{AIRFLOW_PREFIX}DATAZONE_ENDPOINT"] = f"https://datazone.{region_name}.api.aws"
+    parameters[f"{AIRFLOW_PREFIX}PROJECT_S3_PATH"] = s3_path
+    parameters[f"{AIRFLOW_PREFIX}DATAZONE_DOMAIN_REGION"] = region_name
+    return parameters
 
 
 @task
-def mock_mwaa_environment(params: dict):
+def mock_mwaa_environment(parameters: dict):
     """
     Sets several environment variables in the container to emulate an MWAA environment provisioned
     within SageMaker Unified Studio. When running in the ECSExecutor, this is a no-op.
     """
     import os
 
-    for key, value in params.items():
+    for key, value in parameters.items():
         os.environ[key] = value
 
 
@@ -127,14 +127,14 @@ with DAG(
     notebook_path = "test_notebook.ipynb"  # This should be the path to your .ipynb, .sqlnb, or .vetl file in your project.
 
     run_notebook = SageMakerNotebookOperator(
-        task_id="run_notebook",
+        task_id="run-notebook",
         input_config={"input_path": notebook_path, "input_params": {}},
         output_config={"output_formats": ["NOTEBOOK"]},  # optional
         compute={
-            "InstanceType": "ml.m5.large",
-            "VolumeSizeInGB": 30,
+            "instance_type": "ml.m5.large",
+            "volume_size_in_gb": 30,
         },  # optional
-        termination_condition={"MaxRuntimeInSeconds": 600},  # optional
+        termination_condition={"max_runtime_in_seconds": 600},  # optional
         tags={},  # optional
         wait_for_completion=True,  # optional
         waiter_delay=5,  # optional

@@ -55,7 +55,7 @@ class SageMakerNotebookHook(BaseHook):
         Example: {'output_formats': ['NOTEBOOK']}
     :param compute: compute configuration to use for the notebook execution. This is a required attribute
         if the execution is on a remote compute.
-        Example: { "InstanceType": "ml.m5.large", "VolumeSizeInGB": 30, "VolumeKmsKeyId": "", "ImageUri": "string", "ContainerEntrypoint": [ "string" ]}
+        Example: { "instance_type": "ml.m5.large", "volume_size_in_gb": 30, "volume_kms_key_id": "", "image_uri": "string", "container_entrypoint": [ "string" ]}
     :param termination_condition: conditions to match to terminate the remote execution.
         Example: { "MaxRuntimeInSeconds": 3600 }
     :param tags: tags to be associated with the remote execution runs.
@@ -69,7 +69,7 @@ class SageMakerNotebookHook(BaseHook):
         execution_name: str,
         input_config: dict = {},
         output_config: dict = {"output_formats": ["NOTEBOOK"]},
-        compute: dict = {},
+        compute: dict = None,
         termination_condition: dict = {},
         tags: dict = {},
         waiter_delay: int = 10,
@@ -123,7 +123,12 @@ class SageMakerNotebookHook(BaseHook):
         }
         if self.compute:
             start_execution_params["compute"] = self.compute
+        else:
+            start_execution_params["compute"] = {
+                "instance_type": "ml.m4.xlarge"
+            }
 
+        print(start_execution_params)
         return self._sagemaker_studio.execution_client.start_execution(**start_execution_params)
 
     def wait_for_execution_completion(self, execution_id, context):
