@@ -339,7 +339,12 @@ class PlainXComArg(XComArg):
         if self.operator.is_mapped:
             return LazyXComSequence[Any](xcom_arg=self, ti=ti)
 
-        result = ti.xcom_pull(task_ids=task_id, key=self.key, default=NOTSET, map_indexes=None)
+        result = ti.xcom_pull(
+            task_ids=task_id,
+            key=self.key,
+            default=NOTSET,
+            map_indexes=None,
+        )
         if not isinstance(result, ArgNotSet):
             return result
         if self.key == XCOM_RETURN_KEY:
@@ -578,8 +583,6 @@ def get_task_map_length(
 
 @get_task_map_length.register
 def _(xcom_arg: PlainXComArg, resolved_val: Sized, upstream_map_indexes: dict[str, int]):
-    print("The xcom args is", xcom_arg, resolved_val, upstream_map_indexes, upstream_map_indexes)
-
     task_id = xcom_arg.operator.task_id
 
     if xcom_arg.operator.is_mapped:
