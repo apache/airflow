@@ -373,17 +373,6 @@ repos:
         types: [file, text]
         exclude: ^clients/gen/go\.sh$|^\.gitmodules$|.*/dist/.*
         additional_dependencies: ['rich>=12.4.4']
-      - id: lint-openapi
-        name: Lint OpenAPI using spectral
-        language: docker_image
-        entry: stoplight/spectral lint -r ./scripts/ci/spectral_rules/connexion.yml
-        files: ^airflow/api_connexion/openapi/
-      - id: lint-openapi
-        name: Lint OpenAPI using openapi-spec-validator
-        entry: openapi-spec-validator --schema 3.0.0
-        language: python
-        additional_dependencies: ['openapi-spec-validator>=0.7.1', 'openapi-schema-validator>=0.6.2']
-        files: ^airflow/api_connexion/openapi/
       - id: lint-dockerfile
         name: Lint Dockerfile
         language: python
@@ -421,13 +410,6 @@ repos:
         require_serial: true
         exclude: ^providers/.*/src/airflow/providers/
         entry: ./scripts/ci/pre_commit/check_cncf_k8s_used_for_k8s_executor_only.py
-        additional_dependencies: ['rich>=12.4.4']
-      - id: check-airflow-provider-compatibility
-        name: Check compatibility of Providers with Airflow
-        entry: ./scripts/ci/pre_commit/check_provider_airflow_compatibility.py
-        language: python
-        pass_filenames: true
-        files: ^providers/.*/src/airflow/providers/.*\.py$
         additional_dependencies: ['rich>=12.4.4']
       - id: check-google-re2-as-dependency
         name: Check google-re2 declared as dep
@@ -812,14 +794,6 @@ repos:
         entry: ./scripts/ci/pre_commit/sort_spelling_wordlist.py
         language: python
         files: ^\.pre-commit-config\.yaml$|^docs/spelling_wordlist\.txt$
-        require_serial: true
-        pass_filenames: false
-      - id: update-openapi-spec-tags-to-be-sorted
-        name: Sort alphabetically openapi spec tags
-        entry: ./scripts/ci/pre_commit/sort_tags_in_openapi_spec.py
-        types: [yaml]
-        language: python
-        files: ^\.pre-commit-config\.yaml$|^airflow/api_connexion/openapi/v1\.yaml$
         require_serial: true
         pass_filenames: false
       - id: lint-helm-chart

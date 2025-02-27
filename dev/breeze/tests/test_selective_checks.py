@@ -149,7 +149,7 @@ def assert_outputs_are_printed(expected_outputs: dict[str, str], stderr: str):
             pytest.param(
                 ("airflow/api/file.py",),
                 {
-                    "selected-providers-list-as-string": "amazon common.compat fab",
+                    "selected-providers-list-as-string": "amazon common.compat databricks fab",
                     "all-python-versions": "['3.9']",
                     "all-python-versions-list-as-string": "3.9",
                     "python-versions": "['3.9']",
@@ -164,7 +164,7 @@ def assert_outputs_are_printed(expected_outputs: dict[str, str], stderr: str):
                     "mypy-docs,mypy-providers,mypy-task-sdk,ts-compile-format-lint-ui",
                     "upgrade-to-newer-dependencies": "false",
                     "core-test-types-list-as-string": "API Always",
-                    "providers-test-types-list-as-string": "Providers[amazon] Providers[common.compat,fab]",
+                    "providers-test-types-list-as-string": "Providers[amazon] Providers[common.compat,databricks,fab]",
                     "individual-providers-test-types-list-as-string": "Providers[amazon] Providers[common.compat] Providers[fab]",
                     "testable-core-integrations": "['celery', 'kerberos']",
                     "testable-providers-integrations": "['cassandra', 'drill', 'kafka', 'mongo', 'pinot', 'qdrant', 'redis', 'trino', 'ydb']",
@@ -314,7 +314,7 @@ def assert_outputs_are_printed(expected_outputs: dict[str, str], stderr: str):
                     "providers/postgres/tests/unit/postgres/file.py",
                 ),
                 {
-                    "selected-providers-list-as-string": "amazon common.compat common.sql fab google openlineage "
+                    "selected-providers-list-as-string": "amazon common.compat common.sql databricks fab google openlineage "
                     "pgvector postgres",
                     "all-python-versions": "['3.9']",
                     "all-python-versions-list-as-string": "3.9",
@@ -331,7 +331,7 @@ def assert_outputs_are_printed(expected_outputs: dict[str, str], stderr: str):
                     "upgrade-to-newer-dependencies": "false",
                     "core-test-types-list-as-string": "API Always",
                     "providers-test-types-list-as-string": "Providers[amazon] "
-                    "Providers[common.compat,common.sql,fab,openlineage,pgvector,postgres] Providers[google]",
+                    "Providers[common.compat,common.sql,databricks,fab,openlineage,pgvector,postgres] Providers[google]",
                     "individual-providers-test-types-list-as-string": "Providers[amazon] Providers[common.compat] Providers[common.sql] "
                     "Providers[fab] Providers[google] Providers[openlineage] Providers[pgvector] "
                     "Providers[postgres]",
