@@ -748,6 +748,7 @@ class SelectiveChecks:
             or self.run_kubernetes_tests
             or self.needs_helm_tests
             or self.pyproject_toml_changed
+            or self.any_provider_yaml_or_pyproject_toml_changed
         )
 
     @cached_property
@@ -974,6 +975,17 @@ class SelectiveChecks:
     @cached_property
     def hatch_build_changed(self) -> bool:
         return "hatch_build.py" in self._files
+
+    @cached_property
+    def any_provider_yaml_or_pyproject_toml_changed(self) -> bool:
+        if not self._commit_ref:
+            get_console().print("[warning]Cannot determine changes as commit is missing[/]")
+            return False
+        for file in self._files:
+            path_file = Path(file)
+            if path_file.name == "provider.yaml" or path_file.name == "pyproject.toml":
+                return True
+        return False
 
     @cached_property
     def pyproject_toml_changed(self) -> bool:
