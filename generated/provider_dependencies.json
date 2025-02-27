@@ -451,8 +451,7 @@
       }
     ],
     "cross-providers-deps": [
-      "common.sql",
-      "fab"
+      "common.sql"
     ],
     "excluded-python-versions": [],
     "state": "ready"
