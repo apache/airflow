@@ -338,12 +338,23 @@ class PlainXComArg(XComArg):
 
         if self.operator.is_mapped:
             return LazyXComSequence[Any](xcom_arg=self, ti=ti)
-
-        result = ti.xcom_pull(
-            task_ids=task_id,
-            key=self.key,
-            default=NOTSET,
-        )
+        tg = ti.task.get_closest_mapped_task_group()
+        result = None
+        if tg is None:
+            # regular task
+            result = ti.xcom_pull(
+                task_ids=task_id,
+                key=self.key,
+                default=NOTSET,
+                map_indexes=None,
+            )
+        else:
+            # task from a task group
+            result = ti.xcom_pull(
+                task_ids=task_id,
+                key=self.key,
+                default=NOTSET,
+            )
         if not isinstance(result, ArgNotSet):
             return result
         if self.key == XCOM_RETURN_KEY:
