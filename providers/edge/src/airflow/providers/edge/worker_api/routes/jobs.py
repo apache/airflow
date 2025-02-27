@@ -141,10 +141,10 @@ def state(
             "dag_id": job.dag_id,
             "task_id": job.task_id,
             "queue": job.queue,
-            "state": str(job.state),
+            "state": str(state),
         }
         Stats.incr(
-            f"edge_worker.ti.finish.{job.queue}.{job.state}.{job.dag_id}.{job.task_id}",
+            f"edge_worker.ti.finish.{job.queue}.{state}.{job.dag_id}.{job.task_id}",
             tags=tags,
         )
         Stats.incr("edge_worker.ti.finish", tags=tags)
