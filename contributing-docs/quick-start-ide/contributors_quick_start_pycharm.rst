@@ -75,6 +75,32 @@ Setup your project
              alt="Invalidate caches and restart Pycharm">
       </div>
 
+5. An alternative way to add source roots is to configure the airflow.iml file under .idea directory. and update the
+   module.xml file:
+
+   Create a file ``.idea/airflow.iml`` from the following file content: `pycharm-airflow.iml.txt
+   <../idea-xml-references/pycharm-module.xml.txt>`_.
+   make sure to replace ``{replace with your virtual environment name}`` with your virtual environment name.
+
+   Then update the ``.idea/modules.xml`` file with the following content: `pycharm-modules.xml.txt
+   <../idea-xml-references/pycharm-modules.xml.txt>`_.
+
+   Then Repair the IDE by clicking on the "Repair IDE" button and restart the IDE.
+
+   .. raw:: html
+
+      <div align="center" style="padding-bottom:10px">
+        <img src="images/pycharm-airflow.iml.png"
+             alt="airflow.iml">
+      </div>
+
+   .. raw:: html
+
+        <div align="center" style="padding-bottom:10px">
+          <img src="images/pycharm-modules.xml.png"
+              alt="modules.xml">
+        </div>
+
 Setting up debugging
 ####################
 
