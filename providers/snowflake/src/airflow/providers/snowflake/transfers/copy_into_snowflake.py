@@ -175,7 +175,7 @@ class CopyFromExternalStageToSnowflakeOperator(BaseOperator):
 
         >>> results = [{"file": "azure://my_account.blob.core.windows.net/azure_container/dir3/file.csv"}]
         >>> method(results)
-        ([('wasbs://azure_container@my_account', 'dir3')], [])
+        ([('wasbs://azure_container@my_account', 'dir3/file.csv')], [])
 
         >>> results = [{"file": "azure://my_account.blob.core.windows.net/azure_container"}]
         >>> method(results)
@@ -183,18 +183,15 @@ class CopyFromExternalStageToSnowflakeOperator(BaseOperator):
 
         >>> results = [{"file": "s3://bucket"}, {"file": "gcs://bucket/"}, {"file": "s3://bucket/a.csv"}]
         >>> method(results)
-        ([('gcs://bucket', '/'), ('s3://bucket', '/')], [])
+        ([('gcs://bucket', '/'), ('s3://bucket', '/'), ('s3://bucket', 'a.csv')], [])
 
         >>> results = [{"file": "s3://bucket/dir/file.csv"}, {"file": "gcs://bucket/dir/dir2/a.txt"}]
         >>> method(results)
-        ([('gcs://bucket', 'dir/dir2'), ('s3://bucket', 'dir')], [])
+        ([('gcs://bucket', 'dir/dir2/a.txt'), ('s3://bucket', 'dir/file.csv')], [])
 
-        >>> results = [
-        ...     {"file": "s3://bucket/dir/file.csv"},
-        ...     {"file": "azure://my_account.something_new.windows.net/azure_container"},
-        ... ]
+        >>> results = [{"file": "s3://bucket/dir/file.csv"},{"file": "azure://my_account.something_new.windows.net/azure_container"}]
         >>> method(results)
-        ([('s3://bucket', 'dir')], ['azure://my_account.something_new.windows.net/azure_container'])
+        ([('s3://bucket', 'dir/file.csv')], ['azure://my_account.something_new.windows.net/azure_container'])
         """
         import re
         from pathlib import Path
@@ -217,7 +214,6 @@ class CopyFromExternalStageToSnowflakeOperator(BaseOperator):
                 namespace = f"{uri.scheme}://{uri.netloc}"
                 name = uri.path.lstrip("/")
 
-            name = Path(name).parent.as_posix()
             if name in ("", "."):
                 name = "/"
 
@@ -243,9 +239,6 @@ class CopyFromExternalStageToSnowflakeOperator(BaseOperator):
             return OperatorLineage()
 
         query_results = self._result or []
-        # If no files were uploaded we get [{"status": "0 files were uploaded..."}]
-        if len(query_results) == 1 and query_results[0].get("status"):
-            query_results = []
         unique_dataset_paths, extraction_error_files = self._extract_openlineage_unique_dataset_paths(
             query_results
         )

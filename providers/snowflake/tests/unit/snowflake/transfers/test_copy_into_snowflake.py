@@ -98,11 +98,11 @@ class TestCopyFromExternalStageToSnowflake:
         mock_hook().query_ids = ["query_id_123"]
 
         expected_inputs = [
-            Dataset(namespace="gcs://gcs_bucket_name", name="dir2"),
+            Dataset(namespace="gcs://gcs_bucket_name", name="dir2/file.csv"),
             Dataset(namespace="gcs://gcs_bucket_name_2", name="/"),
-            Dataset(namespace="s3://aws_bucket_name", name="dir1"),
+            Dataset(namespace="s3://aws_bucket_name", name="dir1/file.csv"),
             Dataset(namespace="s3://aws_bucket_name_2", name="/"),
-            Dataset(namespace="wasbs://azure_container@my_account", name="dir3"),
+            Dataset(namespace="wasbs://azure_container@my_account", name="dir3/file.csv"),
             Dataset(namespace="wasbs://azure_container_2@my_account", name="/"),
         ]
         expected_outputs = [
@@ -182,8 +182,8 @@ class TestCopyFromExternalStageToSnowflake:
         mock_hook().query_ids = ["query_id_123"]
 
         expected_inputs = [
-            Dataset(namespace="gs://gcp_bucket_name", name="dir2"),
-            Dataset(namespace="s3://aws_bucket_name", name="dir1"),
+            Dataset(namespace="gs://gcp_bucket_name", name="dir2/file.csv"),
+            Dataset(namespace="s3://aws_bucket_name", name="dir1/file.csv"),
         ]
         expected_outputs = [
             Dataset(namespace="snowflake_scheme://authority", name="actual_database.actual_schema.table")
@@ -229,3 +229,101 @@ class TestCopyFromExternalStageToSnowflake:
             run_facets=expected_run_facets,
             job_facets={"sql": SQLJobFacet(query=expected_sql)},
         )
+
+    @mock.patch("airflow.providers.snowflake.transfers.copy_into_snowflake.SnowflakeHook")
+    def test_get_openlineage_facets_on_complete_with_multiple_files_in_same_directory(self, mock_hook):
+        # Test that files in the same directory are tracked individually
+        mock_hook().run.return_value = [
+            {"file": "s3://bucket/same_dir/file1.csv"},
+            {"file": "s3://bucket/same_dir/file2.csv"},
+            {"file": "s3://bucket/same_dir/file3.csv"},
+            {"file": "gcs://bucket/another_dir/file1.csv"},
+            {"file": "gcs://bucket/another_dir/file2.csv"},
+        ]
+        mock_hook().get_openlineage_database_info.return_value = DatabaseInfo(
+            scheme="snowflake_scheme", authority="authority", database="actual_database"
+        )
+        mock_hook().get_openlineage_default_schema.return_value = "actual_schema"
+        mock_hook().query_ids = ["query_id_123"]
+
+        expected_inputs = [
+            Dataset(namespace="gcs://bucket", name="another_dir/file1.csv"),
+            Dataset(namespace="gcs://bucket", name="another_dir/file2.csv"),
+            Dataset(namespace="s3://bucket", name="same_dir/file1.csv"),
+            Dataset(namespace="s3://bucket", name="same_dir/file2.csv"),
+            Dataset(namespace="s3://bucket", name="same_dir/file3.csv"),
+        ]
+        expected_outputs = [
+            Dataset(namespace="snowflake_scheme://authority", name="actual_database.actual_schema.table")
+        ]
+        expected_sql = """COPY INTO schema.table\n FROM @stage/\n FILE_FORMAT=CSV"""
+
+        op = CopyFromExternalStageToSnowflakeOperator(
+            task_id="test",
+            table="table",
+            stage="stage",
+            database="",
+            schema="schema",
+            file_format="CSV",
+        )
+        op.execute(None)
+        result = op.get_openlineage_facets_on_complete(None)
+        assert result == OperatorLineage(
+            inputs=expected_inputs,
+            outputs=expected_outputs,
+            run_facets={
+                "externalQuery": ExternalQueryRunFacet(
+                    externalQueryId="query_id_123", source="snowflake_scheme://authority"
+                )
+            },
+            job_facets={"sql": SQLJobFacet(query=expected_sql)},
+        )
+
+    @mock.patch("airflow.providers.snowflake.transfers.copy_into_snowflake.SnowflakeHook")
+    def test_extract_openlineage_unique_dataset_paths_directly(self, mock_hook):
+        # Direct test of the _extract_openlineage_unique_dataset_paths method
+        test_cases = [
+            # Multiple files in same directory
+            (
+                [
+                    {"file": "s3://bucket/dir/file1.csv"},
+                    {"file": "s3://bucket/dir/file2.csv"},
+                ],
+                [
+                    ("s3://bucket", "dir/file1.csv"),
+                    ("s3://bucket", "dir/file2.csv"),
+                ],
+                [],
+            ),
+            # Azure files in same container
+            (
+                [
+                    {"file": "azure://account.blob.core.windows.net/container/dir/file1.csv"},
+                    {"file": "azure://account.blob.core.windows.net/container/dir/file2.csv"},
+                ],
+                [
+                    ("wasbs://container@account", "dir/file1.csv"),
+                    ("wasbs://container@account", "dir/file2.csv"),
+                ],
+                [],
+            ),
+            # Mixed cloud providers
+            (
+                [
+                    {"file": "s3://bucket/file.csv"},
+                    {"file": "gcs://bucket/file.csv"},
+                    {"file": "azure://account.blob.core.windows.net/container/file.csv"},
+                ],
+                [
+                    ("gcs://bucket", "file.csv"),
+                    ("s3://bucket", "file.csv"),
+                    ("wasbs://container@account", "file.csv"),
+                ],
+                [],
+            ),
+        ]
+        
+        for input_rows, expected_paths, expected_errors in test_cases:
+            paths, errors = CopyFromExternalStageToSnowflakeOperator._extract_openlineage_unique_dataset_paths(input_rows)
+            assert paths == expected_paths
+            assert errors == expected_errors
