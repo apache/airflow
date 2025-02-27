@@ -28,6 +28,29 @@ Changelog
 ---------
 
 
+10.4.0
+......
+
+Features
+~~~~~~~~
+
+* ``AIP-72: Port over executor_config for K8sExecutor when using task sdk (#46926)``
+
+Misc
+~~~~
+
+* ``Add legacy namespace packages to airflow.providers (#47064)``
+
+Doc-only
+~~~~
+
+* ``Update templated fields in KPO doc-string + wording (#46970)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Remove extra whitespace in provider readme template (#46975)``
+   * ``Upgrade flit to 3.11.0 (#46938)``
+
 10.3.0
 ......
 

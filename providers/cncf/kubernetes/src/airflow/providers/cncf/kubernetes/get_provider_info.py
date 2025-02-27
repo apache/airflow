@@ -27,8 +27,9 @@ def get_provider_info():
         "name": "Kubernetes",
         "description": "`Kubernetes <https://kubernetes.io/>`__\n",
         "state": "ready",
-        "source-date-epoch": 1739959070,
+        "source-date-epoch": 1740681326,
         "versions": [
+            "10.4.0",
             "10.3.0",
             "10.1.0",
             "10.0.1",
