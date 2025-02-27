@@ -21,7 +21,8 @@ import inspect
 import json
 import logging
 from collections.abc import Iterable
-from typing import TYPE_CHECKING, Any, cast
+from typing import TYPE_CHECKING, Any, cast, Annotated
+from pydantic import StringConstraints
 
 from sqlalchemy import (
     JSON,
@@ -153,6 +154,9 @@ class BaseXCom(TaskInstanceDependencies, LoggingMixin):
             created for this function.
         """
         from airflow.models.dagrun import DagRun
+
+        if not key:
+            raise ValueError(f"XCom key must be a non-empty string. Received: {key!r}")
 
         if not run_id:
             raise ValueError(f"run_id must be passed. Passed run_id={run_id}")
@@ -338,6 +342,9 @@ class BaseXCom(TaskInstanceDependencies, LoggingMixin):
         :param limit: Limiting returning XComs
         """
         from airflow.models.dagrun import DagRun
+
+        if key is not None and len(key) < 1:
+            raise ValueError(f"XCom key must be a non-empty string. Received: {key!r}")
 
         if not run_id:
             raise ValueError(f"run_id must be passed. Passed run_id={run_id}")
