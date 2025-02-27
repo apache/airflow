@@ -16,20 +16,26 @@
  * specific language governing permissions and limitations
  * under the License.
  */
+import { ReactFlowProvider } from "@xyflow/react";
+import { FiBarChart, FiCode, FiRotateCcw } from "react-icons/fi";
+import { LuChartColumn } from "react-icons/lu";
+import { MdOutlineEventNote } from "react-icons/md";
 import { useParams } from "react-router-dom";
 
 import { useDagServiceGetDagDetails, useDagsServiceRecentDagRuns } from "openapi/queries";
+import { TaskIcon } from "src/assets/TaskIcon";
 import { DetailsLayout } from "src/layouts/Details/DetailsLayout";
 import { isStatePending, useAutoRefresh } from "src/utils";
 
 import { Header } from "./Header";
 
 const tabs = [
-  { label: "Overview", value: "" },
-  { label: "Runs", value: "runs" },
-  { label: "Tasks", value: "tasks" },
-  { label: "Events", value: "events" },
-  { label: "Code", value: "code" },
+  { icon: <LuChartColumn />, label: "Overview", value: "" },
+  { icon: <FiBarChart />, label: "Runs", value: "runs" },
+  { icon: <TaskIcon />, label: "Tasks", value: "tasks" },
+  { icon: <FiRotateCcw />, label: "Backfills", value: "backfills" },
+  { icon: <MdOutlineEventNote />, label: "Events", value: "events" },
+  { icon: <FiCode />, label: "Code", value: "code" },
 ];
 
 export const Dag = () => {
@@ -63,14 +69,16 @@ export const Dag = () => {
   const dagWithRuns = runsData?.dags.find((recentDag) => recentDag.dag_id === dagId);
 
   return (
-    <DetailsLayout dag={dag} error={error ?? runsError} isLoading={isLoading || isLoadingRuns} tabs={tabs}>
-      <Header
-        dag={dag}
-        dagWithRuns={dagWithRuns}
-        isRefreshing={Boolean(
-          dagWithRuns?.latest_dag_runs.some((dr) => isStatePending(dr.state)) && Boolean(refetchInterval),
-        )}
-      />
-    </DetailsLayout>
+    <ReactFlowProvider>
+      <DetailsLayout dag={dag} error={error ?? runsError} isLoading={isLoading || isLoadingRuns} tabs={tabs}>
+        <Header
+          dag={dag}
+          dagWithRuns={dagWithRuns}
+          isRefreshing={Boolean(
+            dagWithRuns?.latest_dag_runs.some((dr) => isStatePending(dr.state)) && Boolean(refetchInterval),
+          )}
+        />
+      </DetailsLayout>
+    </ReactFlowProvider>
   );
 };

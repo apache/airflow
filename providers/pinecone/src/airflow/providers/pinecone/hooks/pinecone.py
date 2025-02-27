@@ -24,14 +24,16 @@ import os
 from functools import cached_property
 from typing import TYPE_CHECKING, Any
 
-from airflow.hooks.base import BaseHook
 from pinecone import Pinecone, PodSpec, ServerlessSpec
 
+from airflow.hooks.base import BaseHook
+
 if TYPE_CHECKING:
-    from airflow.models.connection import Connection
     from pinecone import Vector
     from pinecone.core.client.model.sparse_values import SparseValues
     from pinecone.core.client.models import DescribeIndexStatsResponse, QueryResponse, UpsertResponse
+
+    from airflow.models.connection import Connection
 
 
 class PineconeHook(BaseHook):

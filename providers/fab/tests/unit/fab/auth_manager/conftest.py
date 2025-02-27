@@ -23,11 +23,11 @@ from pathlib import Path
 
 import pytest
 
-from airflow.www import app
+from airflow.providers.fab.www import app
+from unit.decorators import dont_initialize_flask_app_submodules
 
 from tests_common.test_utils.config import conf_vars
 from tests_common.test_utils.db import parse_and_sync_to_db
-from tests_common.test_utils.decorators import dont_initialize_flask_app_submodules
 
 
 @pytest.fixture(scope="session")
@@ -56,7 +56,7 @@ def minimal_app_for_auth_api():
                 ): "airflow.providers.fab.auth_manager.fab_auth_manager.FabAuthManager",
             }
         ):
-            _app = app.create_app(testing=True, config={"WTF_CSRF_ENABLED": False})  # type:ignore
+            _app = app.create_app(enable_plugins=False)
             _app.config["AUTH_ROLE_PUBLIC"] = None
             return _app
 

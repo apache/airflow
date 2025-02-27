@@ -540,6 +540,10 @@ export type DAGDetailsResponse = {
    * Return max_active_tasks as concurrency.
    */
   readonly concurrency: number;
+  /**
+   * Return the latest DagVersion.
+   */
+  readonly latest_dag_version: DagVersionResponse | null;
 };
 
 /**
@@ -626,12 +630,12 @@ export type DAGRunResponse = {
   last_scheduling_decision: string | null;
   run_type: DagRunType;
   state: DagRunState;
-  external_trigger: boolean;
   triggered_by: DagRunTriggeredByType;
   conf: {
     [key: string]: unknown;
   };
   note: string | null;
+  dag_versions: Array<DagVersionResponse>;
 };
 
 /**
@@ -1213,6 +1217,15 @@ export type StructureDataResponse = {
 export type arrange = "BT" | "LR" | "RL" | "TB";
 
 /**
+ * An individual log message.
+ */
+export type StructuredLogMessage = {
+  timestamp?: string;
+  event: string;
+  [key: string]: unknown | string;
+};
+
+/**
  * Task collection serializer for responses.
  */
 export type TaskCollectionResponse = {
@@ -1389,7 +1402,7 @@ export type TaskInstancesBatchBody = {
  * Log serializer for responses.
  */
 export type TaskInstancesLogResponse = {
-  content: string;
+  content: Array<StructuredLogMessage> | Array<string>;
   continuation_token: string | null;
 };
 
@@ -1461,7 +1474,7 @@ export type TriggerDAGRunPostBody = {
   data_interval_start?: string | null;
   data_interval_end?: string | null;
   logical_date: string | null;
-  run_after?: string;
+  run_after?: string | null;
   conf?: {
     [key: string]: unknown;
   };

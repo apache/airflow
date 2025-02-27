@@ -29,12 +29,10 @@ import { TaskLogContent } from "./TaskLogContent";
 import { TaskLogHeader } from "./TaskLogHeader";
 
 export const Logs = () => {
-  const { dagId = "", runId = "", taskId = "" } = useParams();
+  const { dagId = "", mapIndex = "-1", runId = "", taskId = "" } = useParams();
   const [searchParams, setSearchParams] = useSearchParams();
 
-  const mapIndexParam = searchParams.get("map_index");
   const tryNumberParam = searchParams.get("try_number");
-  const mapIndex = parseInt(mapIndexParam ?? "-1", 10);
 
   const {
     data: taskInstance,
@@ -43,7 +41,7 @@ export const Logs = () => {
   } = useTaskInstanceServiceGetMappedTaskInstance({
     dagId,
     dagRunId: runId,
-    mapIndex,
+    mapIndex: parseInt(mapIndex, 10),
     taskId,
   });
 

@@ -62,9 +62,19 @@ class TestS3TaskHandler:
         self.dag = DAG("dag_for_testing_s3_task_handler", schedule=None, start_date=date)
         task = EmptyOperator(task_id="task_for_testing_s3_log_handler", dag=self.dag)
         if AIRFLOW_V_3_0_PLUS:
-            dag_run = DagRun(dag_id=self.dag.dag_id, logical_date=date, run_id="test", run_type="manual")
+            dag_run = DagRun(
+                dag_id=self.dag.dag_id,
+                logical_date=date,
+                run_id="test",
+                run_type="manual",
+            )
         else:
-            dag_run = DagRun(dag_id=self.dag.dag_id, execution_date=date, run_id="test", run_type="manual")
+            dag_run = DagRun(
+                dag_id=self.dag.dag_id,
+                execution_date=date,
+                run_id="test",
+                run_type="manual",
+            )
         session.add(dag_run)
         session.commit()
         session.refresh(dag_run)
@@ -131,22 +141,36 @@ class TestS3TaskHandler:
         ti = copy.copy(self.ti)
         ti.state = TaskInstanceState.SUCCESS
         log, metadata = self.s3_task_handler.read(ti)
-        actual = log[0][0][-1]
-        assert "*** Found logs in s3:\n***   * s3://bucket/remote/log/location/1.log\n" in actual
-        assert actual.endswith("Log line")
-        assert metadata == [{"end_of_log": True, "log_pos": 8}]
+
+        expected_s3_uri = f"s3://bucket/{self.remote_log_key}"
+
+        if AIRFLOW_V_3_0_PLUS:
+            assert log[0].event == "::group::Log message source details"
+            assert expected_s3_uri in log[0].sources
+            assert log[1].event == "::endgroup::"
+            assert log[2].event == "Log line"
+            assert metadata == {"end_of_log": True, "log_pos": 1}
+        else:
+            actual = log[0][0][-1]
+            assert f"*** Found logs in s3:\n***   * {expected_s3_uri}\n" in actual
+            assert actual.endswith("Log line")
+            assert metadata == [{"end_of_log": True, "log_pos": 8}]
 
     def test_read_when_s3_log_missing(self):
         ti = copy.copy(self.ti)
         ti.state = TaskInstanceState.SUCCESS
         self.s3_task_handler._read_from_logs_server = mock.Mock(return_value=([], []))
         log, metadata = self.s3_task_handler.read(ti)
-        assert len(log) == 1
-        assert len(log) == len(metadata)
-        actual = log[0][0][-1]
-        expected = "*** No logs found on s3 for ti=<TaskInstance: dag_for_testing_s3_task_handler.task_for_testing_s3_log_handler test [success]>\n"
-        assert expected in actual
-        assert metadata[0] == {"end_of_log": True, "log_pos": 0}
+        if AIRFLOW_V_3_0_PLUS:
+            assert len(log) == 2
+            assert metadata == {"end_of_log": True, "log_pos": 0}
+        else:
+            assert len(log) == 1
+            assert len(log) == len(metadata)
+            actual = log[0][0][-1]
+            expected = "*** No logs found on s3 for ti=<TaskInstance: dag_for_testing_s3_task_handler.task_for_testing_s3_log_handler test [success]>\n"
+            assert expected in actual
+            assert metadata[0] == {"end_of_log": True, "log_pos": 0}
 
     def test_s3_read_when_log_missing(self):
         handler = self.s3_task_handler

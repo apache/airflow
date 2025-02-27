@@ -50,7 +50,7 @@ const columns: Array<ColumnDef<ProviderResponse>> = [
   {
     accessorKey: "description",
     cell: ({ row: { original } }) => {
-      const urlRegex = /http(s)?:\/\/[\w.-]+(\.?:[\w.-]+)*([#/?][\w!#$%&'()*+,./:;=?@[\]~-]*)?/gu;
+      const urlRegex = /https?:\/\/[\w.-]+(?:\.?:[\w.-]+)*(?:[#/?][\w!#$%&'()*+,./:;=?@[\]~-]*)?/gu;
       const urls = original.description.match(urlRegex);
       const cleanText = original.description.replaceAll(/\n(?:and)?/gu, " ").split(" ");
 

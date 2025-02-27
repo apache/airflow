@@ -141,6 +141,14 @@ def _patch_hook_get_connection(hook: AwsGenericHook) -> None:
     hook.get_connection = lambda _: None  # type: ignore[assignment,return-value]
 
 
+def _create_kms_key() -> str:
+    import boto3
+
+    conn = boto3.client("kms", region_name="us-east-1")
+    metadata = conn.create_key(Policy="my policy")["KeyMetadata"]
+    return metadata["Arn"]
+
+
 class TestBaseRdsOperator:
     dag = None
     op = None
@@ -295,6 +303,7 @@ class TestRdsCopyDbSnapshotOperator:
 
     @mock_aws
     def test_copy_db_instance_snapshot(self):
+        kms_key_arn = _create_kms_key()
         _create_db_instance(self.hook)
         _create_db_instance_snapshot(self.hook)
 
@@ -305,6 +314,7 @@ class TestRdsCopyDbSnapshotOperator:
             target_db_snapshot_identifier=DB_INSTANCE_SNAPSHOT_COPY,
             aws_conn_id=AWS_CONN,
             dag=self.dag,
+            kms_key_id=kms_key_arn,
         )
         _patch_hook_get_connection(instance_snapshot_operator.hook)
         instance_snapshot_operator.execute(None)
@@ -317,6 +327,7 @@ class TestRdsCopyDbSnapshotOperator:
     @mock_aws
     @patch.object(RdsHook, "wait_for_db_snapshot_state")
     def test_copy_db_instance_snapshot_no_wait(self, mock_await_status):
+        kms_key_arn = _create_kms_key()
         _create_db_instance(self.hook)
         _create_db_instance_snapshot(self.hook)
 
@@ -328,6 +339,7 @@ class TestRdsCopyDbSnapshotOperator:
             aws_conn_id=AWS_CONN,
             dag=self.dag,
             wait_for_completion=False,
+            kms_key_id=kms_key_arn,
         )
         _patch_hook_get_connection(instance_snapshot_operator.hook)
         instance_snapshot_operator.execute(None)
@@ -340,6 +352,7 @@ class TestRdsCopyDbSnapshotOperator:
 
     @mock_aws
     def test_copy_db_cluster_snapshot(self):
+        kms_key_arn = _create_kms_key()
         _create_db_cluster(self.hook)
         _create_db_cluster_snapshot(self.hook)
 
@@ -350,6 +363,7 @@ class TestRdsCopyDbSnapshotOperator:
             target_db_snapshot_identifier=DB_CLUSTER_SNAPSHOT_COPY,
             aws_conn_id=AWS_CONN,
             dag=self.dag,
+            kms_key_id=kms_key_arn,
         )
         _patch_hook_get_connection(cluster_snapshot_operator.hook)
         cluster_snapshot_operator.execute(None)
@@ -364,6 +378,7 @@ class TestRdsCopyDbSnapshotOperator:
     @mock_aws
     @patch.object(RdsHook, "wait_for_db_snapshot_state")
     def test_copy_db_cluster_snapshot_no_wait(self, mock_await_status):
+        kms_key_arn = _create_kms_key()
         _create_db_cluster(self.hook)
         _create_db_cluster_snapshot(self.hook)
 
@@ -374,6 +389,7 @@ class TestRdsCopyDbSnapshotOperator:
             target_db_snapshot_identifier=DB_CLUSTER_SNAPSHOT_COPY,
             aws_conn_id=AWS_CONN,
             dag=self.dag,
+            kms_key_id=kms_key_arn,
         )
         _patch_hook_get_connection(cluster_snapshot_operator.hook)
         cluster_snapshot_operator.execute(None)

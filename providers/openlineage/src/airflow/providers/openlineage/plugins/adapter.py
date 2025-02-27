@@ -21,16 +21,6 @@ from contextlib import ExitStack
 from typing import TYPE_CHECKING
 
 import yaml
-
-from airflow.providers.openlineage import __version__ as OPENLINEAGE_PROVIDER_VERSION, conf
-from airflow.providers.openlineage.utils.utils import (
-    OpenLineageRedactor,
-    get_airflow_debug_facet,
-    get_airflow_state_run_facet,
-    get_processing_engine_facet,
-)
-from airflow.stats import Stats
-from airflow.utils.log.logging_mixin import LoggingMixin
 from openlineage.client import OpenLineageClient, set_producer
 from openlineage.client.event_v2 import Job, Run, RunEvent, RunState
 from openlineage.client.facet_v2 import (
@@ -45,6 +35,16 @@ from openlineage.client.facet_v2 import (
     source_code_location_job,
 )
 from openlineage.client.uuid import generate_static_uuid
+
+from airflow.providers.openlineage import __version__ as OPENLINEAGE_PROVIDER_VERSION, conf
+from airflow.providers.openlineage.utils.utils import (
+    OpenLineageRedactor,
+    get_airflow_debug_facet,
+    get_airflow_state_run_facet,
+    get_processing_engine_facet,
+)
+from airflow.stats import Stats
+from airflow.utils.log.logging_mixin import LoggingMixin
 
 if TYPE_CHECKING:
     from datetime import datetime

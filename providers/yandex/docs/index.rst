@@ -81,7 +81,7 @@ This package is for Yandex, including:
     - `Yandex.Cloud <https://cloud.yandex.com/>`__
 
 
-Release: 4.0.0
+Release: 4.0.1
 
 Provider package
 ----------------
