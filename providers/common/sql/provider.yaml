@@ -65,6 +65,10 @@ versions:
   - 1.1.0
   - 1.0.0
 
+dependencies:
+  # The methodtools dependency is necessary since the introduction of dialects: https://github.com/apache/airflow/pull/41327/files
+  - methodtools>=0.4.7
+
 integrations:
   - integration-name: Common SQL
     external-doc-url: https://en.wikipedia.org/wiki/SQL
