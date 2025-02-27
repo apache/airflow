@@ -327,3 +327,55 @@ class TestCopyFromExternalStageToSnowflake:
             paths, errors = CopyFromExternalStageToSnowflakeOperator._extract_openlineage_unique_dataset_paths(input_rows)
             assert paths == expected_paths
             assert errors == expected_errors
+
+    @mock.patch("airflow.providers.snowflake.transfers.copy_into_snowflake.SnowflakeHook")
+    def test_get_openlineage_facets_on_complete_with_actual_snowflake_output(self, mock_hook):
+        # Test with actual output format from Snowflake
+        mock_hook().run.return_value = [
+            {
+                'file': 's3://bucket-name/path/to/file.csv', 
+                'status': 'LOADED', 
+                'rows_parsed': 2, 
+                'rows_loaded': 2, 
+                'error_limit': 2,
+                'errors_seen': 0, 
+                'first_error': None, 
+                'first_error_line': None, 
+                'first_error_character': None, 
+                'first_error_column_name': None
+            }
+        ]
+        mock_hook().get_openlineage_database_info.return_value = DatabaseInfo(
+            scheme="snowflake_scheme", authority="authority", database="actual_database"
+        )
+        mock_hook().get_openlineage_default_schema.return_value = "actual_schema"
+        mock_hook().query_ids = ["query_id_123"]
+
+        expected_inputs = [
+            Dataset(namespace="s3://bucket-name", name="path/to/file.csv"),
+        ]
+        expected_outputs = [
+            Dataset(namespace="snowflake_scheme://authority", name="actual_database.actual_schema.table")
+        ]
+        expected_sql = """COPY INTO schema.table\n FROM @stage/\n FILE_FORMAT=CSV"""
+
+        op = CopyFromExternalStageToSnowflakeOperator(
+            task_id="test",
+            table="table",
+            stage="stage",
+            database="",
+            schema="schema",
+            file_format="CSV",
+        )
+        op.execute(None)
+        result = op.get_openlineage_facets_on_complete(None)
+        assert result == OperatorLineage(
+            inputs=expected_inputs,
+            outputs=expected_outputs,
+            run_facets={
+                "externalQuery": ExternalQueryRunFacet(
+                    externalQueryId="query_id_123", source="snowflake_scheme://authority"
+                )
+            },
+            job_facets={"sql": SQLJobFacet(query=expected_sql)},
+        )
