@@ -263,6 +263,10 @@ class TestGetAssets(TestAssets):
             "total_entries": 2,
         }
 
+    def test_should_respond_401(self, unauthenticated_test_client):
+        response = unauthenticated_test_client.get("/public/assets")
+        assert response.status_code == 401
+
     def test_order_by_raises_400_for_invalid_attr(self, test_client, session):
         response = test_client.get("/public/assets?order_by=fake")
 

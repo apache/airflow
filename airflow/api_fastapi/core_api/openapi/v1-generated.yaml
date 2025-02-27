@@ -528,7 +528,17 @@ paths:
       summary: Get Assets
       description: Get assets.
       operationId: get_assets
+      security:
+      - OAuth2PasswordBearer: []
       parameters:
+      - name: uri
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Uri
       - name: limit
         in: query
         required: false
@@ -11286,3 +11296,10 @@ components:
       - value
       title: XComUpdateBody
       description: Payload serializer for updating an XCom entry.
+  securitySchemes:
+    OAuth2PasswordBearer:
+      type: oauth2
+      flows:
+        password:
+          scopes: {}
+          tokenUrl: token

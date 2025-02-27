@@ -59,6 +59,7 @@ export const prefetchUseAssetServiceNextRunAssets = (
  * Get Assets
  * Get assets.
  * @param data The data for the request.
+ * @param data.uri
  * @param data.limit
  * @param data.offset
  * @param data.namePattern
@@ -76,6 +77,7 @@ export const prefetchUseAssetServiceGetAssets = (
     namePattern,
     offset,
     orderBy,
+    uri,
     uriPattern,
   }: {
     dagIds?: string[];
@@ -83,6 +85,7 @@ export const prefetchUseAssetServiceGetAssets = (
     namePattern?: string;
     offset?: number;
     orderBy?: string;
+    uri?: string;
     uriPattern?: string;
   } = {},
 ) =>
@@ -93,9 +96,10 @@ export const prefetchUseAssetServiceGetAssets = (
       namePattern,
       offset,
       orderBy,
+      uri,
       uriPattern,
     }),
-    queryFn: () => AssetService.getAssets({ dagIds, limit, namePattern, offset, orderBy, uriPattern }),
+    queryFn: () => AssetService.getAssets({ dagIds, limit, namePattern, offset, orderBy, uri, uriPattern }),
   });
 /**
  * Get Asset Aliases

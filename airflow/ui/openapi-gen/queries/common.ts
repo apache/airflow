@@ -63,6 +63,7 @@ export const UseAssetServiceGetAssetsKeyFn = (
     namePattern,
     offset,
     orderBy,
+    uri,
     uriPattern,
   }: {
     dagIds?: string[];
@@ -70,12 +71,13 @@ export const UseAssetServiceGetAssetsKeyFn = (
     namePattern?: string;
     offset?: number;
     orderBy?: string;
+    uri?: string;
     uriPattern?: string;
   } = {},
   queryKey?: Array<unknown>,
 ) => [
   useAssetServiceGetAssetsKey,
-  ...(queryKey ?? [{ dagIds, limit, namePattern, offset, orderBy, uriPattern }]),
+  ...(queryKey ?? [{ dagIds, limit, namePattern, offset, orderBy, uri, uriPattern }]),
 ];
 export type AssetServiceGetAssetAliasesDefaultResponse = Awaited<
   ReturnType<typeof AssetService.getAssetAliases>

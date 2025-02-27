@@ -65,6 +65,7 @@ export const useAssetServiceNextRunAssetsSuspense = <
  * Get Assets
  * Get assets.
  * @param data The data for the request.
+ * @param data.uri
  * @param data.limit
  * @param data.offset
  * @param data.namePattern
@@ -85,6 +86,7 @@ export const useAssetServiceGetAssetsSuspense = <
     namePattern,
     offset,
     orderBy,
+    uri,
     uriPattern,
   }: {
     dagIds?: string[];
@@ -92,6 +94,7 @@ export const useAssetServiceGetAssetsSuspense = <
     namePattern?: string;
     offset?: number;
     orderBy?: string;
+    uri?: string;
     uriPattern?: string;
   } = {},
   queryKey?: TQueryKey,
@@ -99,11 +102,11 @@ export const useAssetServiceGetAssetsSuspense = <
 ) =>
   useSuspenseQuery<TData, TError>({
     queryKey: Common.UseAssetServiceGetAssetsKeyFn(
-      { dagIds, limit, namePattern, offset, orderBy, uriPattern },
+      { dagIds, limit, namePattern, offset, orderBy, uri, uriPattern },
       queryKey,
     ),
     queryFn: () =>
-      AssetService.getAssets({ dagIds, limit, namePattern, offset, orderBy, uriPattern }) as TData,
+      AssetService.getAssets({ dagIds, limit, namePattern, offset, orderBy, uri, uriPattern }) as TData,
     ...options,
   });
 /**

@@ -1612,6 +1612,7 @@ export type GetAssetsData = {
   namePattern?: string | null;
   offset?: number;
   orderBy?: string;
+  uri?: string | null;
   uriPattern?: string | null;
 };
 

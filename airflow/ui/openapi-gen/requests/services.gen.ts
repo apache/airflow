@@ -236,6 +236,7 @@ export class AssetService {
    * Get Assets
    * Get assets.
    * @param data The data for the request.
+   * @param data.uri
    * @param data.limit
    * @param data.offset
    * @param data.namePattern
@@ -250,6 +251,7 @@ export class AssetService {
       method: "GET",
       url: "/public/assets",
       query: {
+        uri: data.uri,
         limit: data.limit,
         offset: data.offset,
         name_pattern: data.namePattern,
