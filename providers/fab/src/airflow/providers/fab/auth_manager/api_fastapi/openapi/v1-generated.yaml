@@ -10,16 +10,22 @@ paths:
     post:
       tags:
       - FabAuthManager
-      summary: Create Token Cli
+      summary: Create Token
       description: Generate a new CLI API token.
-      operationId: create_token_cli
+      operationId: create_token
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LoginBody'
+        required: true
       responses:
         '201':
           description: Successful Response
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/TokenResponse'
+                $ref: '#/components/schemas/LoginResponse'
         '400':
           description: Bad Request
           content:
@@ -32,6 +38,12 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/HTTPExceptionResponse'
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
   /token/cli:
     post:
       tags:
@@ -39,13 +51,19 @@ paths:
       summary: Create Token Cli
       description: Generate a new CLI API token.
       operationId: create_token_cli
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LoginBody'
+        required: true
       responses:
         '201':
           description: Successful Response
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/TokenResponse'
+                $ref: '#/components/schemas/LoginResponse'
         '400':
           description: Bad Request
           content:
@@ -58,6 +76,12 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/HTTPExceptionResponse'
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
 components:
   schemas:
     HTTPExceptionResponse:
@@ -72,13 +96,57 @@ components:
       - detail
       title: HTTPExceptionResponse
       description: HTTPException Model used for error response.
-    TokenResponse:
+    HTTPValidationError:
       properties:
-        jwt_cli_token:
+        detail:
+          items:
+            $ref: '#/components/schemas/ValidationError'
+          type: array
+          title: Detail
+      type: object
+      title: HTTPValidationError
+    LoginBody:
+      properties:
+        username:
           type: string
-          title: Jwt Cli Token
+          title: Username
+        password:
+          type: string
+          title: Password
       type: object
       required:
-      - jwt_cli_token
-      title: TokenResponse
+      - username
+      - password
+      title: LoginBody
+      description: API Token serializer for requests.
+    LoginResponse:
+      properties:
+        jwt_token:
+          type: string
+          title: Jwt Token
+      type: object
+      required:
+      - jwt_token
+      title: LoginResponse
       description: API Token serializer for responses.
+    ValidationError:
+      properties:
+        loc:
+          items:
+            anyOf:
+            - type: string
+            - type: integer
+          type: array
+          title: Location
+        msg:
+          type: string
+          title: Message
+        type:
+          type: string
+          title: Error Type
+      type: object
+      required:
+      - loc
+      - msg
+      - type
+      title: ValidationError
