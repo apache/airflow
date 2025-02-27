@@ -26,7 +26,9 @@ They offer an abstraction layer to simplify usage and make it easier to switch b
 Supported queue providers
 ~~~~~~~~~~~~~~~~~~~~~~~~~
 
-* Amazon SQS
+* Amazon SQS: :class:`~airflow.providers.common.messaging.providers.sqs.SqsMessageQueueProvider`
+
+You can the full list of supported providers `here <_api/airflow/providers/common/messaging/providers/index>`_.
 
 Add support for a provider
 ~~~~~~~~~~~~~~~~~~~~~~~~~~
