@@ -10453,7 +10453,6 @@ components:
         rendered_fields:
           type: object
           title: Rendered Fields
-          default: {}
         trigger:
           anyOf:
           - $ref: '#/components/schemas/TriggerResponse'
