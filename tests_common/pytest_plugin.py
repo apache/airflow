@@ -1664,16 +1664,6 @@ def clean_executor_loader():
     ExecutorLoader.init_executors()
 
 
-@pytest.fixture(scope="session")
-def app():
-    from tests_common.test_utils.config import conf_vars
-
-    with conf_vars({("fab", "auth_rate_limited"): "False"}):
-        from airflow.www import app
-
-        yield app.create_app(testing=True)
-
-
 @pytest.fixture
 def secret_key() -> str:
     """Return secret key configured."""

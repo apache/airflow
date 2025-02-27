@@ -23,6 +23,7 @@ import type { DAGRunResponse } from "openapi/requests/types.gen";
 import { ClearRunButton } from "src/components/Clear";
 import DisplayMarkdownButton from "src/components/DisplayMarkdownButton";
 import { HeaderCard } from "src/components/HeaderCard";
+import { LimitedItemsList } from "src/components/LimitedItemsList";
 import { MarkRunAsButton } from "src/components/MarkAs";
 import { RunTypeIcon } from "src/components/RunTypeIcon";
 import Time from "src/components/Time";
@@ -74,6 +75,14 @@ export const Header = ({
       { label: "Start", value: <Time datetime={dagRun.start_date} /> },
       { label: "End", value: <Time datetime={dagRun.end_date} /> },
       { label: "Duration", value: `${getDuration(dagRun.start_date, dagRun.end_date)}s` },
+      {
+        label: "Dag Version(s)",
+        value: (
+          <LimitedItemsList
+            items={dagRun.dag_versions.map(({ version_number: versionNumber }) => `v${versionNumber}`)}
+          />
+        ),
+      },
     ]}
     title={<Time datetime={dagRun.run_after} />}
   />
