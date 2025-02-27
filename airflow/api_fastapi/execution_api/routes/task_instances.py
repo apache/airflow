@@ -186,7 +186,7 @@ def ti_run(
         if not dr:
             raise ValueError(f"DagRun with dag_id={ti.dag_id} and run_id={ti.run_id} not found.")
 
-        # Clear XCom data for the task instance since start we are certain it is executing
+        # Clear XCom data for the task instance since we are certain it is executing
         # However, do not clear it for deferral
         if not ti.next_method:
             map_index = None if ti.map_index < 0 else ti.map_index
