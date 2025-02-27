@@ -23,6 +23,7 @@ import shutil
 import sys
 import threading
 from collections.abc import Iterable
+from pathlib import Path
 from signal import SIGTERM
 from time import sleep
 
@@ -79,7 +80,7 @@ from airflow_breeze.commands.common_package_installation_options import (
     option_providers_skip_constraints,
     option_use_packages_from_dist,
 )
-from airflow_breeze.commands.main_command import main
+from airflow_breeze.commands.main_command import cleanup, main
 from airflow_breeze.commands.testing_commands import (
     option_force_lowest_dependencies,
 )
@@ -998,14 +999,11 @@ def compile_ui_assets(dev: bool, force_clean: bool):
     help="Additionally cleanup MyPy cache.",
     is_flag=True,
 )
-@option_project_name
 @option_verbose
 @option_dry_run
-def down(preserve_volumes: bool, cleanup_mypy_cache: bool, project_name: str):
+def down(preserve_volumes: bool, cleanup_mypy_cache: bool):
     perform_environment_checks()
-    shell_params = ShellParams(
-        backend="all", include_mypy_volume=cleanup_mypy_cache, project_name=project_name
-    )
+    shell_params = ShellParams(backend="all", include_mypy_volume=cleanup_mypy_cache)
     bring_compose_project_down(preserve_volumes=preserve_volumes, shell_params=shell_params)
     if cleanup_mypy_cache:
         command_to_execute = ["docker", "volume", "rm", "--force", "mypy-cache-volume"]
@@ -1116,3 +1114,33 @@ def autogenerate(
     cmd = f"/opt/airflow/scripts/in_container/run_generate_migration.sh '{message}'"
     execute_command_in_shell(shell_params, project_name="db", command=cmd)
     fix_ownership_using_docker()
+
+
+@main.command(name="doctor", help="Troubleshoot breeze")
+@click.pass_context
+def doctor(ctx):
+    shell_params = ShellParams()
+    check_docker_resources(shell_params.airflow_image_name)
+    shell_params.print_badge_info()
+
+    perform_environment_checks()
+    fix_ownership_using_docker()
+    cleanup_python_generated_files()
+
+    shell_params = ShellParams(backend="all", include_mypy_volume=True)
+    bring_compose_project_down(preserve_volumes=False, shell_params=shell_params)
+
+    get_console().print("\n[info]Cleaning mypy cache...\n")
+    command_to_execute = ["docker", "volume", "rm", "--force", "mypy-cache-volume"]
+    run_command(command_to_execute)
+
+    # TODO: Git fetch the origin and git rebase the current branch with main branch.
+
+    get_console().print("\n[info]Deleting .build cache dir...\n")
+    dirpath = Path(".build")
+    if dirpath.exists() and dirpath.is_dir():
+        shutil.rmtree(dirpath)
+
+    get_console().print("\n[info]Executing breeze cleanup...\n")
+
+    ctx.forward(cleanup)
