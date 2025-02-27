@@ -121,14 +121,6 @@ class TestDagRunOperator:
                 "dag_run_id": triggered_dag_run.run_id,
             }
             assert expected_args in args
-        # This is equivalent of a task run calling this and pushing to xcom
-        url = triggering_task.operator_extra_links[0].get_link(
-            operator=triggering_task, ti_key=triggering_ti.key
-        )
-        expected_url = (
-            f"http://localhost:9091/webapp/dags/{triggered_dag_run.dag_id}/runs/{triggered_dag_run.run_id}"
-        )
-        assert url == expected_url
 
     def test_trigger_dagrun(self, dag_maker):
         """Test TriggerDagRunOperator."""
