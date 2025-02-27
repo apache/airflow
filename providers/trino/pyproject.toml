@@ -62,7 +62,7 @@ dependencies = [
     # However Airflow not fully supports it yet: https://github.com/apache/airflow/issues/28723
     # In addition FAB also limit sqlalchemy to < 2.0
     "pandas>=2.1.2,<2.2",
-    "trino>=0.318.0",
+    "trino>=0.319.0",
 ]
 
 # The optional dependencies should be modified in place in the generated file

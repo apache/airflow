@@ -63,7 +63,7 @@ class TestCliFastAPI(_CommonCLIGunicornTestClass):
             ),
         ],
     )
-    def test_cli_fastapi_api_debug(self, app, args, expected_command):
+    def test_cli_fastapi_api_debug(self, args, expected_command):
         with (
             mock.patch("subprocess.Popen") as Popen,
         ):
@@ -75,7 +75,7 @@ class TestCliFastAPI(_CommonCLIGunicornTestClass):
                 close_fds=True,
             )
 
-    def test_cli_fastapi_api_env_var_set_unset(self, app):
+    def test_cli_fastapi_api_env_var_set_unset(self):
         """
         Test that AIRFLOW_API_APPS is set and unset in the environment when
         calling the airflow api-server command

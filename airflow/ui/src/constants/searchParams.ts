@@ -24,6 +24,7 @@ export enum SearchParamsKeys {
   PAUSED = "paused",
   SORT = "sort",
   TAGS = "tags",
+  VERSION_NUMBER = "version_number",
 }
 
 export type SearchParamsKeysType = Record<keyof typeof SearchParamsKeys, string>;
