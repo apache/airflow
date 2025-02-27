@@ -78,4 +78,5 @@ class TestLogin:
                 body=LoginBody(username=json_body["username"], password=json_body["password"]),
                 expiration_time_in_sec=1,
             )
+        assert ex.value.status_code == 400
         assert "Username and password must be provided" in ex.value.detail

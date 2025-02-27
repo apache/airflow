@@ -16,27 +16,41 @@
 # under the License.
 from __future__ import annotations
 
-from datetime import timedelta
-from typing import cast
+from typing import TYPE_CHECKING, cast
+
+from starlette import status
+from starlette.exceptions import HTTPException
 
 from airflow.api_fastapi.app import get_auth_manager
-from airflow.providers.fab.auth_manager.api_fastapi.datamodels.login import LoginResponse
+from airflow.providers.fab.auth_manager.api_fastapi.datamodels.login import LoginBody, LoginResponse
 from airflow.providers.fab.auth_manager.fab_auth_manager import FabAuthManager
+
+if TYPE_CHECKING:
+    from airflow.providers.fab.auth_manager.models import User
 
 
 class FABAuthManagerLogin:
     """Login Service for FABAuthManager."""
 
     @classmethod
-    def create_token(cls, expiration_time_in_sec: int) -> LoginResponse:
-        """Create a new token with the given expiration time."""
+    def create_token(cls, body: LoginBody, expiration_time_in_sec: int = 0) -> LoginResponse:
+        """Create a new token."""
+        if not body.username or not body.password:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST, detail="Username and password must be provided"
+            )
+
         auth_manager = cast(FabAuthManager, get_auth_manager())
+        security_manager = auth_manager.security_manager
+        user: User = security_manager.find_user(username=body.username)
+        if not user:
+            raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid username")
 
-        # There is no user base expiration in FAB, so we can't use this.
-        # We can only set this globally but this would impact global expiration time for all tokens.
-        auth_manager.appbuilder.app.config["JWT_ACCESS_TOKEN_EXPIRES"] = timedelta(
-            seconds=expiration_time_in_sec
-        )
-
-        # Refresh the token with the new expiration time
-        return LoginResponse(jwt_token=auth_manager.security_manager.refresh_jwt_token())
+        if user.password == body.password:
+            return LoginResponse(
+                jwt_token=auth_manager.get_jwt_token(
+                    user=user, expiration_time_in_seconds=expiration_time_in_sec
+                )
+            )
+        else:
+            raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid password")
