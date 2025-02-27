@@ -29,7 +29,7 @@ AIRFLOW_CONN_GREMLIN_DEFAULT = "ws://localhost:8182/gremlin"
 class TestGremlinHook:
     def setup_method(self):
         os.environ["AIRFLOW_CONN_GREMLIN_DEFAULT"] = AIRFLOW_CONN_GREMLIN_DEFAULT
-        self.hook = GremlinHook()
+        self.hook = GremlinHook("gremlin_default")
         add_query = "g.addV('person').property('id', 'person1').property('name', 'Alice')"
         self.hook.run(add_query).all().result()
 
@@ -39,5 +39,4 @@ class TestGremlinHook:
 
     def test_run(self):
         result = self.hook.run("g.V().hasLabel('person').valueMap(true)").all().result()
-        print(result)
-        assert result == [{"id": ["person1"], "label": "person", "name": ["Alice"]}]
+        assert result.replace("'", '"') == [{"id": ["person1"], "label": "person", "name": ["Alice"]}]

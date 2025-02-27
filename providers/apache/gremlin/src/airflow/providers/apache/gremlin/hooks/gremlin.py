@@ -79,7 +79,7 @@ class GremlinHook(BaseHook):
         :return: URI string.
         """
         # For Graph DB using Gremlin, the secure WebSocket scheme is typically "wss"
-        scheme = "wss"
+        scheme = "wss" if conn.conn_type == "https" else "ws"
         host = conn.host
         port = conn.port if conn.port is not None else self.default_port
         return f"{scheme}://{host}:{port}/"
