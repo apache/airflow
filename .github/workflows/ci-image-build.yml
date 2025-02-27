@@ -104,7 +104,7 @@ jobs:
       fail-fast: true
       matrix:
         python-version: ${{ fromJSON(inputs.python-versions) || fromJSON('[""]') }}
-    timeout-minutes: 110
+    timeout-minutes: 20
     name: "Build CI ${{ inputs.platform }} image ${{ matrix.python-version }}"
     # NOTE!!!!! This has to be put in one line for runs-on to recognize the "fromJSON" properly !!!!
     # adding space before (with >) apparently turns the `runs-on` processed line into a string "Array"
