@@ -272,6 +272,7 @@ export class AssetService {
    * Get Asset Aliases
    * Get asset aliases.
    * @param data The data for the request.
+   * @param data.uri
    * @param data.limit
    * @param data.offset
    * @param data.namePattern
@@ -284,6 +285,7 @@ export class AssetService {
       method: "GET",
       url: "/public/assets/aliases",
       query: {
+        uri: data.uri,
         limit: data.limit,
         offset: data.offset,
         name_pattern: data.namePattern,
@@ -303,6 +305,7 @@ export class AssetService {
    * Get an asset alias.
    * @param data The data for the request.
    * @param data.assetAliasId
+   * @param data.uri
    * @returns unknown Successful Response
    * @throws ApiError
    */
@@ -312,6 +315,9 @@ export class AssetService {
       url: "/public/assets/aliases/{asset_alias_id}",
       path: {
         asset_alias_id: data.assetAliasId,
+      },
+      query: {
+        uri: data.uri,
       },
       errors: {
         401: "Unauthorized",
@@ -326,6 +332,7 @@ export class AssetService {
    * Get Asset Events
    * Get asset events.
    * @param data The data for the request.
+   * @param data.uri
    * @param data.limit
    * @param data.offset
    * @param data.orderBy
@@ -344,6 +351,7 @@ export class AssetService {
       method: "GET",
       url: "/public/assets/events",
       query: {
+        uri: data.uri,
         limit: data.limit,
         offset: data.offset,
         order_by: data.orderBy,
@@ -369,6 +377,7 @@ export class AssetService {
    * Create asset events.
    * @param data The data for the request.
    * @param data.requestBody
+   * @param data.uri
    * @returns AssetEventResponse Successful Response
    * @throws ApiError
    */
@@ -376,6 +385,9 @@ export class AssetService {
     return __request(OpenAPI, {
       method: "POST",
       url: "/public/assets/events",
+      query: {
+        uri: data.uri,
+      },
       body: data.requestBody,
       mediaType: "application/json",
       errors: {
@@ -392,6 +404,7 @@ export class AssetService {
    * Materialize an asset by triggering a DAG run that produces it.
    * @param data The data for the request.
    * @param data.assetId
+   * @param data.uri
    * @returns DAGRunResponse Successful Response
    * @throws ApiError
    */
@@ -401,6 +414,9 @@ export class AssetService {
       url: "/public/assets/{asset_id}/materialize",
       path: {
         asset_id: data.assetId,
+      },
+      query: {
+        uri: data.uri,
       },
       errors: {
         401: "Unauthorized",
@@ -418,6 +434,7 @@ export class AssetService {
    * @param data The data for the request.
    * @param data.assetId
    * @param data.before
+   * @param data.uri
    * @returns QueuedEventCollectionResponse Successful Response
    * @throws ApiError
    */
@@ -432,6 +449,7 @@ export class AssetService {
       },
       query: {
         before: data.before,
+        uri: data.uri,
       },
       errors: {
         401: "Unauthorized",
@@ -448,6 +466,7 @@ export class AssetService {
    * @param data The data for the request.
    * @param data.assetId
    * @param data.before
+   * @param data.uri
    * @returns void Successful Response
    * @throws ApiError
    */
@@ -462,6 +481,7 @@ export class AssetService {
       },
       query: {
         before: data.before,
+        uri: data.uri,
       },
       errors: {
         401: "Unauthorized",
@@ -477,6 +497,7 @@ export class AssetService {
    * Get an asset.
    * @param data The data for the request.
    * @param data.assetId
+   * @param data.uri
    * @returns AssetResponse Successful Response
    * @throws ApiError
    */
@@ -486,6 +507,9 @@ export class AssetService {
       url: "/public/assets/{asset_id}",
       path: {
         asset_id: data.assetId,
+      },
+      query: {
+        uri: data.uri,
       },
       errors: {
         401: "Unauthorized",
@@ -502,6 +526,7 @@ export class AssetService {
    * @param data The data for the request.
    * @param data.dagId
    * @param data.before
+   * @param data.uri
    * @returns QueuedEventCollectionResponse Successful Response
    * @throws ApiError
    */
@@ -516,6 +541,7 @@ export class AssetService {
       },
       query: {
         before: data.before,
+        uri: data.uri,
       },
       errors: {
         401: "Unauthorized",
@@ -531,6 +557,7 @@ export class AssetService {
    * @param data The data for the request.
    * @param data.dagId
    * @param data.before
+   * @param data.uri
    * @returns void Successful Response
    * @throws ApiError
    */
@@ -545,6 +572,7 @@ export class AssetService {
       },
       query: {
         before: data.before,
+        uri: data.uri,
       },
       errors: {
         400: "Bad Request",
@@ -563,6 +591,7 @@ export class AssetService {
    * @param data.dagId
    * @param data.assetId
    * @param data.before
+   * @param data.uri
    * @returns QueuedEventResponse Successful Response
    * @throws ApiError
    */
@@ -578,6 +607,7 @@ export class AssetService {
       },
       query: {
         before: data.before,
+        uri: data.uri,
       },
       errors: {
         401: "Unauthorized",
@@ -595,6 +625,7 @@ export class AssetService {
    * @param data.dagId
    * @param data.assetId
    * @param data.before
+   * @param data.uri
    * @returns void Successful Response
    * @throws ApiError
    */
@@ -610,6 +641,7 @@ export class AssetService {
       },
       query: {
         before: data.before,
+        uri: data.uri,
       },
       errors: {
         400: "Bad Request",

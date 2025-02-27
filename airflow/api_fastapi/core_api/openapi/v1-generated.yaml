@@ -624,7 +624,17 @@ paths:
       summary: Get Asset Aliases
       description: Get asset aliases.
       operationId: get_asset_aliases
+      security:
+      - OAuth2PasswordBearer: []
       parameters:
+      - name: uri
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Uri
       - name: limit
         in: query
         required: false
@@ -694,6 +704,8 @@ paths:
       summary: Get Asset Alias
       description: Get an asset alias.
       operationId: get_asset_alias
+      security:
+      - OAuth2PasswordBearer: []
       parameters:
       - name: asset_alias_id
         in: path
@@ -701,6 +713,14 @@ paths:
         schema:
           type: integer
           title: Asset Alias Id
+      - name: uri
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Uri
       responses:
         '200':
           description: Successful Response
@@ -738,7 +758,17 @@ paths:
       summary: Get Asset Events
       description: Get asset events.
       operationId: get_asset_events
+      security:
+      - OAuth2PasswordBearer: []
       parameters:
+      - name: uri
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Uri
       - name: limit
         in: query
         required: false
@@ -857,6 +887,17 @@ paths:
       summary: Create Asset Event
       description: Create asset events.
       operationId: create_asset_event
+      security:
+      - OAuth2PasswordBearer: []
+      parameters:
+      - name: uri
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Uri
       requestBody:
         required: true
         content:
@@ -901,6 +942,8 @@ paths:
       summary: Materialize Asset
       description: Materialize an asset by triggering a DAG run that produces it.
       operationId: materialize_asset
+      security:
+      - OAuth2PasswordBearer: []
       parameters:
       - name: asset_id
         in: path
@@ -908,6 +951,14 @@ paths:
         schema:
           type: integer
           title: Asset Id
+      - name: uri
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Uri
       responses:
         '200':
           description: Successful Response
@@ -952,6 +1003,8 @@ paths:
       summary: Get Asset Queued Events
       description: Get queued asset events for an asset.
       operationId: get_asset_queued_events
+      security:
+      - OAuth2PasswordBearer: []
       parameters:
       - name: asset_id
         in: path
@@ -967,6 +1020,14 @@ paths:
           - type: string
           - type: 'null'
           title: Before
+      - name: uri
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Uri
       responses:
         '200':
           description: Successful Response
@@ -1004,6 +1065,8 @@ paths:
       summary: Delete Asset Queued Events
       description: Delete queued asset events for an asset.
       operationId: delete_asset_queued_events
+      security:
+      - OAuth2PasswordBearer: []
       parameters:
       - name: asset_id
         in: path
@@ -1019,6 +1082,14 @@ paths:
           - type: string
           - type: 'null'
           title: Before
+      - name: uri
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Uri
       responses:
         '204':
           description: Successful Response
@@ -1053,6 +1124,8 @@ paths:
       summary: Get Asset
       description: Get an asset.
       operationId: get_asset
+      security:
+      - OAuth2PasswordBearer: []
       parameters:
       - name: asset_id
         in: path
@@ -1060,6 +1133,14 @@ paths:
         schema:
           type: integer
           title: Asset Id
+      - name: uri
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Uri
       responses:
         '200':
           description: Successful Response
@@ -1098,12 +1179,16 @@ paths:
       summary: Get Dag Asset Queued Events
       description: Get queued asset events for a DAG.
       operationId: get_dag_asset_queued_events
+      security:
+      - OAuth2PasswordBearer: []
       parameters:
       - name: dag_id
         in: path
         required: true
         schema:
-          type: string
+          anyOf:
+          - type: string
+          - type: 'null'
           title: Dag Id
       - name: before
         in: query
@@ -1113,6 +1198,14 @@ paths:
           - type: string
           - type: 'null'
           title: Before
+      - name: uri
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Uri
       responses:
         '200':
           description: Successful Response
@@ -1149,6 +1242,8 @@ paths:
       - Asset
       summary: Delete Dag Asset Queued Events
       operationId: delete_dag_asset_queued_events
+      security:
+      - OAuth2PasswordBearer: []
       parameters:
       - name: dag_id
         in: path
@@ -1164,6 +1259,14 @@ paths:
           - type: string
           - type: 'null'
           title: Before
+      - name: uri
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Uri
       responses:
         '204':
           description: Successful Response
@@ -1204,12 +1307,16 @@ paths:
       summary: Get Dag Asset Queued Event
       description: Get a queued asset event for a DAG.
       operationId: get_dag_asset_queued_event
+      security:
+      - OAuth2PasswordBearer: []
       parameters:
       - name: dag_id
         in: path
         required: true
         schema:
-          type: string
+          anyOf:
+          - type: string
+          - type: 'null'
           title: Dag Id
       - name: asset_id
         in: path
@@ -1225,6 +1332,14 @@ paths:
           - type: string
           - type: 'null'
           title: Before
+      - name: uri
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Uri
       responses:
         '200':
           description: Successful Response
@@ -1262,6 +1377,8 @@ paths:
       summary: Delete Dag Asset Queued Event
       description: Delete a queued asset event for a DAG.
       operationId: delete_dag_asset_queued_event
+      security:
+      - OAuth2PasswordBearer: []
       parameters:
       - name: dag_id
         in: path
@@ -1283,6 +1400,14 @@ paths:
           - type: string
           - type: 'null'
           title: Before
+      - name: uri
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Uri
       responses:
         '204':
           description: Successful Response
