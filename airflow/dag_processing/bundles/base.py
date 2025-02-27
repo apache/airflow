@@ -26,7 +26,7 @@ from abc import ABC, abstractmethod
 from contextlib import contextmanager
 from dataclasses import dataclass, field
 from datetime import timedelta
-from fcntl import LOCK_SH, flock
+from fcntl import LOCK_SH, LOCK_UN, flock
 from operator import attrgetter
 from pathlib import Path
 from typing import TYPE_CHECKING
@@ -36,7 +36,6 @@ from sqlalchemy_utils.types.enriched_datetime.pendulum_datetime import pendulum
 
 from airflow.configuration import conf
 from airflow.dag_processing.bundles.manager import DagBundlesManager
-from airflow.exceptions import AirflowTaskTimeout
 from airflow.utils.timeout import timeout
 
 if TYPE_CHECKING:
@@ -342,14 +341,17 @@ class BaseDagBundle(ABC):
         lock_dir_path = get_bundle_storage_root_path() / "_locks"
         lock_dir_path.mkdir(parents=True, exist_ok=True)
         lock_file_path = lock_dir_path / f"{self.name}.lock"
+
         with open(lock_file_path, "w") as lock_file:
             # Exclusive lock - blocks until it is available
-            fcntl.flock(lock_file, fcntl.LOCK_EX)
+            with timeout(15):
+                fcntl.flock(lock_file, fcntl.LOCK_EX)
             try:
                 self._locked = True
                 yield
             finally:
-                fcntl.flock(lock_file, fcntl.LOCK_UN)
+                with timeout(15):
+                    fcntl.flock(lock_file, LOCK_UN)
                 self._locked = False
 
     def __repr__(self):
@@ -409,20 +411,18 @@ class BundleVersionLock:
 
     def release(self):
         if self.lock_file:
+            flock(self.lock_file, LOCK_UN)
             self.lock_file.close()
             self.lock_file = None
 
     def __enter__(self):
         # wrapping in try except here is just extra cautious since this is in task execution path
-        try:
-            with timeout(15):
-                try:
-                    self.acquire()
-                except Exception:
-                    self._log_exc("error when attempting to acquire lock")
-                return self
-        except AirflowTaskTimeout as e:
-            raise RuntimeError(f"Could not obtain lock on lock file {self.lock_file_path}") from e
+        with timeout(15):
+            try:
+                self.acquire()
+            except Exception:
+                self._log_exc("error when attempting to acquire lock")
+            return self
 
     def __exit__(self, exc_type, exc_val, exc_tb):
         # wrapping in try except here is just extra cautious since this is in task execution path
