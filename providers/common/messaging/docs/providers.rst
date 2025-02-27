@@ -28,8 +28,6 @@ Supported queue providers
 
 * Amazon SQS: :class:`~airflow.providers.common.messaging.providers.sqs.SqsMessageQueueProvider`
 
-You can the full list of supported providers `here <_api/airflow/providers/common/messaging/providers/index>`_.
-
 Add support for a provider
 ~~~~~~~~~~~~~~~~~~~~~~~~~~
 
