@@ -22,7 +22,8 @@ from typing import Any, Callable, overload
 
 from vertica_python import connect
 
-from airflow.providers.common.sql.hooks.sql import DbApiHook, fetch_all_handler
+from airflow.providers.common.sql.hooks.handlers import fetch_all_handler
+from airflow.providers.common.sql.hooks.sql import DbApiHook
 
 
 def vertica_fetch_all_handler(cursor) -> list[tuple] | None:
