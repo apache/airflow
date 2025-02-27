@@ -48,10 +48,14 @@ export const DagNode = ({
         <HStack alignItems="center" gap={1}>
           <DagIcon />
           <Link asChild color="fg.info" mb={2}>
-            <RouterLink to={`/dags/${dag?.dag_id}`}>{dag?.dag_display_name}</RouterLink>
+            <RouterLink to={`/dags/${dag?.dag_id}`}>{dag?.dag_display_name ?? label}</RouterLink>
           </Link>
         </HStack>
-        {dag === undefined ? undefined : <TogglePause dagId={dag.dag_id} isPaused={dag.is_paused} />}
+        <TogglePause
+          dagId={dag?.dag_id ?? label}
+          disabled={!Boolean(dag)}
+          isPaused={dag?.is_paused ?? false}
+        />
       </Flex>
     </NodeWrapper>
   );
