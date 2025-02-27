@@ -24,14 +24,15 @@ from pathlib import Path
 from typing import TYPE_CHECKING, Any, TypeVar
 
 import trino
+from trino.exceptions import DatabaseError
+from trino.transaction import IsolationLevel
+
 from airflow.configuration import conf
 from airflow.exceptions import AirflowException
 from airflow.providers.common.sql.hooks.sql import DbApiHook
 from airflow.providers.trino.version_compat import AIRFLOW_V_3_0_PLUS
 from airflow.utils.helpers import exactly_one
 from airflow.utils.operator_helpers import AIRFLOW_VAR_NAME_FORMAT_MAPPING, DEFAULT_FORMAT_PREFIX
-from trino.exceptions import DatabaseError
-from trino.transaction import IsolationLevel
 
 if TYPE_CHECKING:
     from airflow.models import Connection
@@ -91,6 +92,40 @@ class TrinoHook(DbApiHook):
     strip_semicolon = True
     query_id = ""
     _test_connection_sql = "select 1"
+
+    @classmethod
+    def get_ui_field_behaviour(cls) -> dict[str, Any]:
+        """Return custom field behaviour."""
+        return {
+            "hidden_fields": [],
+            "relabeling": {},
+            "placeholders": {
+                "extra": json.dumps(
+                    {
+                        "auth": "authentication type",
+                        "impersonate_as_owner": "allow impersonate as owner",
+                        "jwt__token": "JWT token",
+                        "jwt__file": "JWT file path",
+                        "certs__client_cert_path": "Client certificate path",
+                        "certs__client_key_path": "Client key path",
+                        "kerberos__config": "Kerberos config",
+                        "kerberos__service_name": "Kerberos service name",
+                        "kerberos__mutual_authentication": "Kerberos mutual authentication",
+                        "kerberos__force_preemptive": "Kerberos force preemptive",
+                        "kerberos__hostname_override": "Kerberos hostname override",
+                        "kerberos__sanitize_mutual_error_response": "Kerberos sanitize mutual error response",
+                        "kerberos__principal": "Kerberos principal",
+                        "kerberos__delegate": "Kerberos delegate",
+                        "kerberos__ca_bundle": "Kerberos CA bundle",
+                        "session_properties": "session properties",
+                        "client_tags": "Trino client tags. Example ['sales','cluster1']",
+                        "timezone": "Trino timezone",
+                    },
+                    indent=1,
+                ),
+                "login": "Effective user for connection",
+            },
+        }
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)

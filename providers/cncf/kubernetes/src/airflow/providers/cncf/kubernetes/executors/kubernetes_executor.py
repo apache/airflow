@@ -37,11 +37,11 @@ from queue import Empty, Queue
 from typing import TYPE_CHECKING, Any
 
 from deprecated import deprecated
+from kubernetes.dynamic import DynamicClient
 from sqlalchemy import select
 
 from airflow.providers.cncf.kubernetes.pod_generator import PodGenerator
 from airflow.providers.cncf.kubernetes.version_compat import AIRFLOW_V_3_0_PLUS
-from kubernetes.dynamic import DynamicClient
 
 try:
     from airflow.cli.cli_config import ARG_LOGICAL_DATE
@@ -78,6 +78,8 @@ from airflow.utils.state import TaskInstanceState
 if TYPE_CHECKING:
     import argparse
 
+    from kubernetes import client
+    from kubernetes.client import models as k8s
     from sqlalchemy.orm import Session
 
     from airflow.executors import workloads
@@ -91,8 +93,6 @@ if TYPE_CHECKING:
     from airflow.providers.cncf.kubernetes.executors.kubernetes_executor_utils import (
         AirflowKubernetesScheduler,
     )
-    from kubernetes import client
-    from kubernetes.client import models as k8s
 
 # CLI Args
 ARG_NAMESPACE = Arg(
@@ -284,15 +284,18 @@ class KubernetesExecutor(BaseExecutor):
         self.queued_tasks[ti.key] = workload
 
     def _process_workloads(self, workloads: list[workloads.All]) -> None:
+        from airflow.executors.workloads import ExecuteTask
+
         # Airflow V3 version
         for w in workloads:
+            if not isinstance(w, ExecuteTask):
+                raise RuntimeError(f"{type(self)} cannot handle workloads of type {type(w)}")
+
             # TODO: AIP-72 handle populating tokens once https://github.com/apache/airflow/issues/45107 is handled.
             command = [w]
-            key = w.ti.key  # type: ignore[union-attr]
-            queue = w.ti.queue  # type: ignore[union-attr]
-
-            # TODO: will be handled by https://github.com/apache/airflow/issues/46892
-            executor_config = {}  # type: ignore[var-annotated]
+            key = w.ti.key
+            queue = w.ti.queue
+            executor_config = w.ti.executor_config or {}
 
             del self.queued_tasks[key]
             self.execute_async(key=key, command=command, queue=queue, executor_config=executor_config)  # type: ignore[arg-type]

@@ -22,12 +22,13 @@ from __future__ import annotations
 from functools import cached_property
 from typing import Any
 
-from airflow.hooks.base import BaseHook
 from asana.api.projects_api import ProjectsApi
 from asana.api.tasks_api import TasksApi
 from asana.api_client import ApiClient
 from asana.configuration import Configuration
 from asana.rest import ApiException
+
+from airflow.hooks.base import BaseHook
 
 
 class AsanaHook(BaseHook):

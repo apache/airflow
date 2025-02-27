@@ -23,6 +23,7 @@ from collections.abc import AsyncIterator, Sequence
 from functools import cached_property
 from typing import TYPE_CHECKING, Any
 
+from google.cloud.container_v1.types import Operation
 from packaging.version import parse as parse_version
 
 from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning
@@ -36,7 +37,6 @@ from airflow.providers.google.cloud.hooks.kubernetes_engine import (
 )
 from airflow.providers_manager import ProvidersManager
 from airflow.triggers.base import BaseTrigger, TriggerEvent
-from google.cloud.container_v1.types import Operation
 
 if TYPE_CHECKING:
     from datetime import datetime

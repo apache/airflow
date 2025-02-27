@@ -18,8 +18,9 @@
 
 from __future__ import annotations
 
-from airflow.exceptions import AirflowException
 from kubernetes.client import ApiClient, models as k8s
+
+from airflow.exceptions import AirflowException
 
 
 def _convert_kube_model_object(obj, new_class):

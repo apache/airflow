@@ -23,6 +23,7 @@ from datetime import datetime
 from typing import TYPE_CHECKING
 
 import psutil
+from openlineage.client.serde import Serde
 from setproctitle import getproctitle, setproctitle
 
 from airflow import settings
@@ -50,7 +51,6 @@ from airflow.stats import Stats
 from airflow.utils import timezone
 from airflow.utils.state import TaskInstanceState
 from airflow.utils.timeout import timeout
-from openlineage.client.serde import Serde
 
 if TYPE_CHECKING:
     from airflow.models import TaskInstance
@@ -104,7 +104,7 @@ class OpenLineageListener:
                 assert task
             dagrun = context["dag_run"]
             dag = context["dag"]
-            start_date = context["start_date"]
+            start_date = task_instance.start_date
             self._on_task_instance_running(task_instance, dag, dagrun, task, start_date)
     else:
 

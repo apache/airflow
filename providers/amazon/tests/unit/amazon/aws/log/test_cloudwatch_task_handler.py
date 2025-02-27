@@ -30,7 +30,9 @@ from watchtower import CloudWatchLogHandler
 
 from airflow.models import DAG, DagRun, TaskInstance
 from airflow.providers.amazon.aws.hooks.logs import AwsLogsHook
-from airflow.providers.amazon.aws.log.cloudwatch_task_handler import CloudwatchTaskHandler
+from airflow.providers.amazon.aws.log.cloudwatch_task_handler import (
+    CloudwatchTaskHandler,
+)
 from airflow.providers.amazon.aws.utils import datetime_to_epoch_utc_ms
 from airflow.providers.standard.operators.empty import EmptyOperator
 from airflow.utils.state import State
@@ -74,9 +76,19 @@ class TestCloudwatchTaskHandler:
         self.dag = DAG(dag_id=dag_id, schedule=None, start_date=date)
         task = EmptyOperator(task_id=task_id, dag=self.dag)
         if AIRFLOW_V_3_0_PLUS:
-            dag_run = DagRun(dag_id=self.dag.dag_id, logical_date=date, run_id="test", run_type="scheduled")
+            dag_run = DagRun(
+                dag_id=self.dag.dag_id,
+                logical_date=date,
+                run_id="test",
+                run_type="scheduled",
+            )
         else:
-            dag_run = DagRun(dag_id=self.dag.dag_id, execution_date=date, run_id="test", run_type="scheduled")
+            dag_run = DagRun(
+                dag_id=self.dag.dag_id,
+                execution_date=date,
+                run_id="test",
+                run_type="scheduled",
+            )
         session.add(dag_run)
         session.commit()
         session.refresh(dag_run)
@@ -124,8 +136,8 @@ class TestCloudwatchTaskHandler:
         ]
         assert [handler._event_to_str(event) for event in events] == (
             [
-                f"[{get_time_str(current_time-2000)}] First",
-                f"[{get_time_str(current_time-1000)}] Second",
+                f"[{get_time_str(current_time - 2000)}] First",
+                f"[{get_time_str(current_time - 1000)}] Second",
                 f"[{get_time_str(current_time)}] Third",
             ]
         )
@@ -150,21 +162,37 @@ class TestCloudwatchTaskHandler:
         msg_template = "*** Reading remote log from Cloudwatch log_group: {} log_stream: {}.\n{}\n"
         events = "\n".join(
             [
-                f"[{get_time_str(current_time-2000)}] First",
-                f"[{get_time_str(current_time-1000)}] Second",
+                f"[{get_time_str(current_time - 2000)}] First",
+                f"[{get_time_str(current_time - 1000)}] Second",
                 f"[{get_time_str(current_time)}] Third",
             ]
         )
-        assert self.cloudwatch_task_handler.read(self.ti) == (
-            [[("", msg_template.format(self.remote_log_group, self.remote_log_stream, events))]],
-            [{"end_of_log": True}],
-        )
+        if AIRFLOW_V_3_0_PLUS:
+            assert self.cloudwatch_task_handler.read(self.ti) == (
+                msg_template.format(self.remote_log_group, self.remote_log_stream, events),
+                {"end_of_log": True},
+            )
+        else:
+            assert self.cloudwatch_task_handler.read(self.ti) == (
+                [
+                    [
+                        (
+                            "",
+                            msg_template.format(self.remote_log_group, self.remote_log_stream, events),
+                        )
+                    ]
+                ],
+                [{"end_of_log": True}],
+            )
 
     @pytest.mark.parametrize(
         "end_date, expected_end_time",
         [
             (None, None),
-            (datetime(2020, 1, 2), datetime_to_epoch_utc_ms(datetime(2020, 1, 2) + timedelta(seconds=30))),
+            (
+                datetime(2020, 1, 2),
+                datetime_to_epoch_utc_ms(datetime(2020, 1, 2) + timedelta(seconds=30)),
+            ),
         ],
     )
     @mock.patch.object(AwsLogsHook, "get_log_events")
@@ -191,7 +219,9 @@ class TestCloudwatchTaskHandler:
                 id="json-serialize",
             ),
             pytest.param(
-                None, '{"datetime": "2023-01-01T00:00:00+00:00", "customObject": null}', id="not-set"
+                None,
+                '{"datetime": "2023-01-01T00:00:00+00:00", "customObject": null}',
+                id="not-set",
             ),
         ],
     )
@@ -219,7 +249,10 @@ class TestCloudwatchTaskHandler:
                     "customObject": ToSerialize(),
                 },
             )
-            with mock.patch("watchtower.threading.Thread"), mock.patch("watchtower.queue.Queue") as mq:
+            with (
+                mock.patch("watchtower.threading.Thread"),
+                mock.patch("watchtower.queue.Queue") as mq,
+            ):
                 mock_queue = Mock()
                 mq.return_value = mock_queue
                 handler.handle(message)
