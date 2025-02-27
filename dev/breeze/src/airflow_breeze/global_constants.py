@@ -65,6 +65,7 @@ TESTABLE_CORE_INTEGRATIONS = [
 TESTABLE_PROVIDERS_INTEGRATIONS = [
     "cassandra",
     "drill",
+    "gremlin",
     "kafka",
     "mongo",
     "mssql",
