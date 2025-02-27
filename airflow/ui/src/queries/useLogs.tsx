@@ -58,7 +58,7 @@ const renderStructuredLog = (
   if (
     logLevels !== undefined &&
     Boolean(logLevels.length) &&
-    ((typeof level === "string" && !logLevels.includes(level.toLowerCase())) || !Boolean(level))
+    ((typeof level === "string" && !logLevels.includes(level)) || !Boolean(level))
   ) {
     return "";
   }
@@ -69,7 +69,7 @@ const renderStructuredLog = (
 
   if (typeof level === "string") {
     elements.push(
-      <Badge colorPalette={logLevelColorMapping[level.toUpperCase() as LogLevel]} key={1} size="sm">
+      <Badge colorPalette={logLevelColorMapping[level as LogLevel]} key={1} size="sm">
         {level.toUpperCase()}
       </Badge>,
       " - ",

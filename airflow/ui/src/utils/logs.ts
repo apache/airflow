@@ -4,11 +4,11 @@
 import { createListCollection } from "@chakra-ui/react";
 
 export enum LogLevel {
-  DEBUG = "DEBUG",
-  INFO = "INFO",
-  WARNING = "WARNING",
-  ERROR = "ERROR",
-  CRITICAL = "CRITICAL",
+  DEBUG = "debug",
+  INFO = "info",
+  WARNING = "warning",
+  ERROR = "error",
+  CRITICAL = "critical",
 }
 
 export const logLevelColorMapping = {
@@ -25,10 +25,10 @@ export const logLevelOptions = createListCollection<{
 }>({
   items: [
     { label: "All Levels", value: "all" },
-    { label: LogLevel.DEBUG, value: "debug" },
-    { label: LogLevel.INFO, value: "info" },
-    { label: LogLevel.WARNING, value: "warning" },
-    { label: LogLevel.ERROR, value: "error" },
-    { label: LogLevel.CRITICAL, value: "critical" },
+    { label: LogLevel.DEBUG.toUpperCase(), value: LogLevel.DEBUG },
+    { label: LogLevel.INFO.toUpperCase(), value: LogLevel.INFO },
+    { label: LogLevel.WARNING.toUpperCase(), value: LogLevel.WARNING },
+    { label: LogLevel.ERROR.toUpperCase(), value: LogLevel.WARNING },
+    { label: LogLevel.CRITICAL.toUpperCase(), value: LogLevel.CRITICAL },
   ],
 });

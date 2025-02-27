@@ -90,7 +90,7 @@ export const TaskLogHeader = ({
               hasLogLevels ? (
                 <HStack gap="10px">
                   {logLevels.map((level) => (
-                    <Badge colorPalette={logLevelColorMapping[level.toUpperCase() as LogLevel]} key={level}>
+                    <Badge colorPalette={logLevelColorMapping[level as LogLevel]} key={level}>
                       {level.toUpperCase()}
                     </Badge>
                   ))}
@@ -107,9 +107,7 @@ export const TaskLogHeader = ({
               {option.value === "all" ? (
                 option.label
               ) : (
-                <Badge colorPalette={logLevelColorMapping[option.value.toUpperCase() as LogLevel]}>
-                  {option.label}
-                </Badge>
+                <Badge colorPalette={logLevelColorMapping[option.value as LogLevel]}>{option.label}</Badge>
               )}
             </Select.Item>
           ))}
