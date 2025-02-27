@@ -2145,8 +2145,11 @@ paths:
                 properties:
                   continuation_token:
                     type: string
+                    nullable: true
                   content:
-                    type: string
+                    type: array
+                    items:
+                      type: string
             text/plain:
               schema:
                 type: string

@@ -44,8 +44,19 @@ from airflow.utils.session import create_session
 
 if TYPE_CHECKING:
     from airflow.models.taskinstance import TaskInstance, TaskInstanceKey
+
+
+if AIRFLOW_V_3_0_PLUS:
+    from typing import Union
+
+    from airflow.utils.log.file_task_handler import StructuredLogMessage
+
+    OsLogMsgType = Union[list[StructuredLogMessage], str]
+else:
+    OsLogMsgType = list[tuple[str, str]]  # type: ignore[misc]
+
+
 USE_PER_RUN_LOG_ID = hasattr(DagRun, "get_log_template")
-OsLogMsgType = list[tuple[str, str]]
 LOG_LINE_DEFAULTS = {"exc_text": "", "stack_info": ""}
 
 
@@ -375,7 +386,7 @@ class OpensearchTaskHandler(FileTaskHandler, ExternalLoggingMixin, LoggingMixin)
                     "If your task started recently, please wait a moment and reload this page. "
                     "Otherwise, the logs for this task instance may have been removed."
                 )
-                return [("", missing_log_message)], metadata
+                return [("", missing_log_message)], metadata  # type: ignore[list-item]
             if (
                 # Assume end of log after not receiving new log for N min,
                 cur_ts.diff(last_log_ts).in_minutes() >= 5
@@ -394,7 +405,22 @@ class OpensearchTaskHandler(FileTaskHandler, ExternalLoggingMixin, LoggingMixin)
             return "\n".join(self._format_msg(hits[i]) for i in range(log_range))
 
         if logs_by_host:
-            message = [(host, concat_logs(hits)) for host, hits in logs_by_host.items()]
+            if AIRFLOW_V_3_0_PLUS:
+                from airflow.utils.log.file_task_handler import StructuredLogMessage
+
+                header = [
+                    StructuredLogMessage(
+                        event="::group::Log message source details",
+                        sources=[host for host in logs_by_host.keys()],
+                    ),  # type: ignore[call-arg]
+                    StructuredLogMessage(event="::endgroup::"),
+                ]
+
+                message = header + [
+                    StructuredLogMessage(event=concat_logs(hits)) for hits in logs_by_host.values()
+                ]
+            else:
+                message = [(host, concat_logs(hits)) for host, hits in logs_by_host.items()]  # type: ignore[misc]
         else:
             message = []
         return message, metadata

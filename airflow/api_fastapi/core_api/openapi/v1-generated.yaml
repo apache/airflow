@@ -10106,6 +10106,21 @@ components:
       - arrange
       title: StructureDataResponse
       description: Structure Data serializer for responses.
+    StructuredLogMessage:
+      properties:
+        timestamp:
+          type: string
+          format: date-time
+          title: Timestamp
+        event:
+          type: string
+          title: Event
+      additionalProperties: true
+      type: object
+      required:
+      - event
+      title: StructuredLogMessage
+      description: An individual log message.
     TaskCollectionResponse:
       properties:
         tasks:
@@ -10697,7 +10712,13 @@ components:
     TaskInstancesLogResponse:
       properties:
         content:
-          type: string
+          anyOf:
+          - items:
+              $ref: '#/components/schemas/StructuredLogMessage'
+            type: array
+          - items:
+              type: string
+            type: array
           title: Content
         continuation_token:
           anyOf:
