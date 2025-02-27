@@ -319,7 +319,15 @@ class MSGraphAsyncOperator(BaseOperator):
 
     def trigger_next_link(self, response, method_name: str, context: Context) -> None:
         if isinstance(response, dict):
-            url, query_parameters = self.pagination_function(self, response, **dict(context.items()))  # type: ignore
+            try:
+                url, query_parameters = self.pagination_function(self, response, **dict(context.items()))  # type: ignore
+            except TypeError:
+                warnings.warn(
+                    "pagination_function signature has changed, context parameter should be a kwargs argument!",
+                    AirflowProviderDeprecationWarning,
+                    stacklevel=2,
+                )
+                url, query_parameters = self.pagination_function(self, response, context)  # type: ignore
 
             self.log.debug("url: %s", url)
             self.log.debug("query_parameters: %s", query_parameters)
