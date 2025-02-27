@@ -81,16 +81,11 @@ class TestCliDags:
         clear_db_runs()
         clear_db_dags()
 
-    def setup_method(self, method):
-        print("running setup methods")
-        clear_db_runs()  # clean-up all dag run before start each test
+    def setup_method(self):
+        clear_db_runs()
+        clear_db_import_errors()
 
-        if method.__name__ == "test_cli_list_dags_prints_import_errors":
-            clear_db_import_errors()
-
-    def teardown_method(self, method):
-        # Clean-up all import errors after the test
-        if method.__name__ == "test_cli_list_dags_prints_import_errors":
+    def teardown_method(self):
             clear_db_import_errors()
 
     def test_show_dag_dependencies_print(self):
