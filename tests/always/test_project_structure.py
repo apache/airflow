@@ -58,6 +58,7 @@ class TestProjectStructure:
         # We should make sure that one goes to 0
         # TODO(potiuk) - check if that test actually tests something
         OVERLOOKED_TESTS = [
+            "providers/amazon/tests/unit/amazon/aws/auth_manager/security_manager/test_aws_security_manager_override.py",
             "providers/amazon/tests/unit/amazon/aws/executors/batch/test_batch_executor_config.py",
             "providers/amazon/tests/unit/amazon/aws/executors/batch/test_boto_schema.py",
             "providers/amazon/tests/unit/amazon/aws/executors/batch/test_utils.py",
@@ -103,6 +104,7 @@ class TestProjectStructure:
             "providers/common/compat/tests/unit/common/compat/standard/test_utils.py",
             "providers/common/compat/tests/unit/common/compat/test_version_compat.py",
             "providers/common/io/tests/unit/common/io/test_version_compat.py",
+            "providers/databricks/tests/unit/databricks/test_version_compat.py",
             "providers/edge/tests/unit/edge/models/test_edge_job.py",
             "providers/edge/tests/unit/edge/models/test_edge_logs.py",
             "providers/edge/tests/unit/edge/models/test_edge_worker.py",

@@ -120,7 +120,6 @@ from airflow_breeze.utils.run_utils import (
     assert_pre_commit_installed,
     run_command,
     run_compile_ui_assets,
-    run_compile_www_assets,
 )
 from airflow_breeze.utils.shared_options import get_dry_run, get_verbose, set_forced_answer
 
@@ -234,11 +233,11 @@ option_install_airflow_python_client = click.option(
     envvar="INSTALL_AIRFLOW_PYTHON_CLIENT",
 )
 
-option_start_webserver_with_examples = click.option(
-    "--start-webserver-with-examples",
+option_start_api_server_with_examples = click.option(
+    "--start-api-server-with-examples",
     is_flag=True,
-    help="Start minimal airflow webserver with examples (for testing purposes) when entering breeze.",
-    envvar="START_WEBSERVER_WITH_EXAMPLES",
+    help="Start minimal airflow api-server with examples (for testing purposes) when entering breeze.",
+    envvar="START_API_SERVER_WITH_EXAMPLES",
 )
 
 option_load_example_dags = click.option(
@@ -277,7 +276,7 @@ option_load_default_connections = click.option(
     envvar="VERBOSE_COMMANDS",
 )
 @option_install_airflow_python_client
-@option_start_webserver_with_examples
+@option_start_api_server_with_examples
 @option_airflow_constraints_location
 @option_airflow_constraints_mode_ci
 @option_airflow_constraints_reference
@@ -383,7 +382,7 @@ def shell(
     skip_db_tests: bool,
     skip_image_upgrade_check: bool,
     standalone_dag_processor: bool,
-    start_webserver_with_examples: bool,
+    start_api_server_with_examples: bool,
     tty: str,
     upgrade_boto: bool,
     use_airflow_version: str | None,
@@ -453,7 +452,7 @@ def shell(
         skip_image_upgrade_check=skip_image_upgrade_check,
         skip_environment_initialization=skip_environment_initialization,
         standalone_dag_processor=standalone_dag_processor,
-        start_webserver_with_examples=start_webserver_with_examples,
+        start_api_server_with_examples=start_api_server_with_examples,
         tty=tty,
         upgrade_boto=upgrade_boto,
         use_airflow_version=use_airflow_version,
@@ -486,7 +485,7 @@ option_executor_start_airflow = click.option(
 )
 @click.option(
     "--dev-mode",
-    help="Starts webserver in dev mode (assets are always recompiled in this case when starting) "
+    help="Starts api-server in dev mode (assets are always recompiled in this case when starting) "
     "(mutually exclusive with --skip-assets-compilation).",
     is_flag=True,
 )
@@ -584,7 +583,6 @@ def start_airflow(
         skip_assets_compilation = True
     if use_airflow_version is None and not skip_assets_compilation:
         # Now with the /ui project, lets only do a static build of /www and focus on the /ui
-        run_compile_www_assets(dev=False, run_in_background=False, force_clean=False)
         run_compile_ui_assets(dev=dev_mode, run_in_background=True, force_clean=False)
     airflow_constraints_reference = _determine_constraint_branch_used(
         airflow_constraints_reference, use_airflow_version
@@ -765,10 +763,7 @@ def build_docs(
     fix_ownership_using_docker()
     if result.returncode == 0:
         get_console().print(
-            "[info]To view the built documentation, you have two options:\n\n"
-            "1. Start the webserver in breeze and access the built docs at "
-            "http://localhost:28080/docs/\n"
-            "2. Alternatively, you can run ./docs/start_doc_server.sh for a lighter resource option and view "
+            "Run ./docs/start_doc_server.sh for a lighter resource option and view "
             "the built docs at http://localhost:8000"
         )
     sys.exit(result.returncode)
@@ -960,34 +955,6 @@ def static_checks(
                 "`pre-commit install`. This will make pre-commit run as you commit changes[/]\n"
             )
     sys.exit(static_checks_result.returncode)
-
-
-@main.command(
-    name="compile-www-assets",
-    help="Compiles www assets.",
-)
-@click.option(
-    "--dev",
-    help="Run development version of assets compilation - it will not quit and automatically "
-    "recompile assets on-the-fly when they are changed.",
-    is_flag=True,
-)
-@click.option(
-    "--force-clean",
-    help="Force cleanup of compile assets before building them.",
-    is_flag=True,
-)
-@option_verbose
-@option_dry_run
-def compile_www_assets(dev: bool, force_clean: bool):
-    perform_environment_checks()
-    assert_pre_commit_installed()
-    compile_www_assets_result = run_compile_www_assets(
-        dev=dev, run_in_background=False, force_clean=force_clean
-    )
-    if compile_www_assets_result.returncode != 0:
-        get_console().print("[warn]New assets were generated[/]")
-    sys.exit(0)
 
 
 @main.command(

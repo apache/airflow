@@ -87,14 +87,7 @@ class TestDagRunOperator:
         # pathlib.Path(self._tmpfile).unlink()
 
     def assert_extra_link(self, triggered_dag_run, triggering_task, session):
-        """
-        Asserts whether the correct extra links url will be created.
-
-        Specifically it tests whether the correct dag id and run id are passed to
-        the method which constructs the final url.
-        Note: We can't run that method to generate the url itself because the Flask app context
-        isn't available within the test logic, so it is mocked here.
-        """
+        """Asserts whether the correct extra links url will be created."""
         triggering_ti = (
             session.query(TaskInstance)
             .filter_by(
@@ -128,6 +121,14 @@ class TestDagRunOperator:
                 "dag_run_id": triggered_dag_run.run_id,
             }
             assert expected_args in args
+        # This is equivalent of a task run calling this and pushing to xcom
+        url = triggering_task.operator_extra_links[0].get_link(
+            operator=triggering_task, ti_key=triggering_ti.key
+        )
+        expected_url = (
+            f"http://localhost:9091/webapp/dags/{triggered_dag_run.dag_id}/runs/{triggered_dag_run.run_id}"
+        )
+        assert url == expected_url
 
     def test_trigger_dagrun(self, dag_maker):
         """Test TriggerDagRunOperator."""

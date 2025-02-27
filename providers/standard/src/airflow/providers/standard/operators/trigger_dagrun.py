@@ -42,13 +42,14 @@ from airflow.models.xcom import XCom
 from airflow.providers.standard.triggers.external_task import DagStateTrigger
 from airflow.providers.standard.version_compat import AIRFLOW_V_3_0_PLUS
 from airflow.utils import timezone
-from airflow.utils.helpers import build_airflow_url_with_query
 from airflow.utils.session import provide_session
 from airflow.utils.state import DagRunState
 from airflow.utils.types import DagRunTriggeredByType, DagRunType
 
 XCOM_LOGICAL_DATE_ISO = "trigger_logical_date_iso"
 XCOM_RUN_ID = "trigger_run_id"
+
+
 if TYPE_CHECKING:
     from sqlalchemy.orm.session import Session
 
@@ -86,9 +87,12 @@ class TriggerDagRunLink(BaseOperatorLink):
         triggered_dag_run_id = XCom.get_value(ti_key=ti_key, key=XCOM_RUN_ID)
 
         if AIRFLOW_V_3_0_PLUS:
-            base_url = conf.get_mandatory_value("api", "base_url").lower()
-            return f"{base_url}/dags/{trigger_dag_id}/runs/{triggered_dag_run_id}"
+            from airflow.utils.helpers import build_airflow_dagrun_url
+
+            return build_airflow_dagrun_url(dag_id=trigger_dag_id, run_id=triggered_dag_run_id)
         else:
+            from airflow.utils.helpers import build_airflow_url_with_query  # type:ignore[attr-defined]
+
             query = {"dag_id": trigger_dag_id, "dag_run_id": triggered_dag_run_id}
             return build_airflow_url_with_query(query)
 
