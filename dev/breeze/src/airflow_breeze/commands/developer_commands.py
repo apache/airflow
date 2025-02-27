@@ -1125,6 +1125,8 @@ def doctor(ctx):
 
     perform_environment_checks()
     fix_ownership_using_docker()
+
+    get_console().print("\n[info]Cleaning .pyc and __pycache__...\n")
     cleanup_python_generated_files()
 
     shell_params = ShellParams(backend="all", include_mypy_volume=True)
