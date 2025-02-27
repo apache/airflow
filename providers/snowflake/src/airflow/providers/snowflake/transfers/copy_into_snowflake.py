@@ -189,12 +189,14 @@ class CopyFromExternalStageToSnowflakeOperator(BaseOperator):
         >>> method(results)
         ([('gcs://bucket', 'dir/dir2/a.txt'), ('s3://bucket', 'dir/file.csv')], [])
 
-        >>> results = [{"file": "s3://bucket/dir/file.csv"},{"file": "azure://my_account.something_new.windows.net/azure_container"}]
+        >>> results = [
+        ...     {"file": "s3://bucket/dir/file.csv"},
+        ...     {"file": "azure://my_account.something_new.windows.net/azure_container"},
+        ... ]
         >>> method(results)
         ([('s3://bucket', 'dir/file.csv')], ['azure://my_account.something_new.windows.net/azure_container'])
         """
         import re
-        from pathlib import Path
         from urllib.parse import urlparse
 
         azure_regex = r"azure:\/\/(\w+)?\.blob.core.windows.net\/(\w+)\/?(.*)?"

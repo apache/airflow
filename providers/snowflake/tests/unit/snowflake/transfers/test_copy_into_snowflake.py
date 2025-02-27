@@ -322,9 +322,11 @@ class TestCopyFromExternalStageToSnowflake:
                 [],
             ),
         ]
-        
+
         for input_rows, expected_paths, expected_errors in test_cases:
-            paths, errors = CopyFromExternalStageToSnowflakeOperator._extract_openlineage_unique_dataset_paths(input_rows)
+            paths, errors = (
+                CopyFromExternalStageToSnowflakeOperator._extract_openlineage_unique_dataset_paths(input_rows)
+            )
             assert paths == expected_paths
             assert errors == expected_errors
 
@@ -333,16 +335,16 @@ class TestCopyFromExternalStageToSnowflake:
         # Test with actual output format from Snowflake
         mock_hook().run.return_value = [
             {
-                'file': 's3://bucket-name/path/to/file.csv', 
-                'status': 'LOADED', 
-                'rows_parsed': 2, 
-                'rows_loaded': 2, 
-                'error_limit': 2,
-                'errors_seen': 0, 
-                'first_error': None, 
-                'first_error_line': None, 
-                'first_error_character': None, 
-                'first_error_column_name': None
+                "file": "s3://bucket-name/path/to/file.csv",
+                "status": "LOADED",
+                "rows_parsed": 2,
+                "rows_loaded": 2,
+                "error_limit": 2,
+                "errors_seen": 0,
+                "first_error": None,
+                "first_error_line": None,
+                "first_error_character": None,
+                "first_error_column_name": None,
             }
         ]
         mock_hook().get_openlineage_database_info.return_value = DatabaseInfo(
