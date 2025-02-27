@@ -17,29 +17,19 @@
  * under the License.
  */
 import { ReactFlowProvider } from "@xyflow/react";
-import { FiCode } from "react-icons/fi";
-import { MdDetails, MdOutlineEventNote, MdReorder, MdSyncAlt } from "react-icons/md";
-import { PiBracketsCurlyBold } from "react-icons/pi";
+import { MdOutlineTask } from "react-icons/md";
 import { useParams } from "react-router-dom";
 
-import { useDagServiceGetDagDetails, useTaskInstanceServiceGetMappedTaskInstance } from "openapi/queries";
+import { useDagServiceGetDagDetails, useGridServiceGridData } from "openapi/queries";
 import { DetailsLayout } from "src/layouts/Details/DetailsLayout";
 import { isStatePending, useAutoRefresh } from "src/utils";
 
 import { Header } from "./Header";
 
-const tabs = [
-  { icon: <MdReorder />, label: "Logs", value: "" },
-  { icon: <PiBracketsCurlyBold />, label: "Rendered Templates", value: "rendered_templates" },
-  { icon: <MdSyncAlt />, label: "XCom", value: "xcom" },
-  { icon: <MdOutlineEventNote />, label: "Events", value: "events" },
-  { icon: <FiCode />, label: "Code", value: "code" },
-  { icon: <MdDetails />, label: "Details", value: "details" },
-];
+const tabs = [{ icon: <MdOutlineTask />, label: "Task Instances", value: "" }];
 
-export const TaskInstance = () => {
-  const { dagId = "", mapIndex = "-1", runId = "", taskId = "" } = useParams();
-
+export const MappedTaskInstance = () => {
+  const { dagId = "", runId = "", taskId = "" } = useParams();
   const refetchInterval = useAutoRefresh({ dagId });
 
   const {
@@ -50,22 +40,20 @@ export const TaskInstance = () => {
     dagId,
   });
 
-  const {
-    data: taskInstance,
-    error,
-    isLoading,
-  } = useTaskInstanceServiceGetMappedTaskInstance(
+  const { data, error, isLoading } = useGridServiceGridData(
     {
       dagId,
-      dagRunId: runId,
-      mapIndex: parseInt(mapIndex, 10),
-      taskId,
     },
     undefined,
     {
-      refetchInterval: (query) => (isStatePending(query.state.data?.state) ? refetchInterval : false),
+      refetchInterval: (query) =>
+        query.state.data?.dag_runs.some((dr) => isStatePending(dr.state)) ? refetchInterval : false,
     },
   );
+
+  const taskInstance = data?.dag_runs
+    .find((dr) => dr.dag_run_id === runId)
+    ?.task_instances.find((ti) => ti.task_id === taskId);
 
   return (
     <ReactFlowProvider>
