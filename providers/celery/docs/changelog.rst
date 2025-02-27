@@ -27,6 +27,30 @@
 Changelog
 ---------
 
+3.11.0
+......
+
+Features
+~~~~~~~~
+
+* ``Render structured logs in the new UI rather than showing raw JSON (#46827)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``bugfix: cannot import name 'workloads' for Airflow v2 (#47152)``
+
+Misc
+~~~~
+
+* ``Add legacy namespace packages to airflow.providers (#47064)``
+* ``Move execution_api_server_url config to the core section (#46969)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Remove extra whitespace in provider readme template (#46975)``
+   * ``Upgrade flit to 3.11.0 (#46938)``
+
 3.10.2
 ......
 
