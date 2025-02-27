@@ -22,13 +22,11 @@ from flask import Flask
 
 if TYPE_CHECKING:
     from airflow.models.dagbag import DagBag
-    from airflow.www.extensions.init_appbuilder import AirflowAppBuilder
 
 
 class AirflowApp(Flask):
     """Airflow Flask Application."""
 
-    appbuilder: AirflowAppBuilder
     dag_bag: DagBag
     api_auth: list[Any]
 

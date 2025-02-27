@@ -316,6 +316,8 @@ class WatchedSubprocess:
 
     selector: selectors.BaseSelector = attrs.field(factory=selectors.DefaultSelector)
 
+    log: FilteringBoundLogger
+
     @classmethod
     def start(
         cls,
@@ -363,17 +365,17 @@ class WatchedSubprocess:
         # other end of the pair open
         cls._close_unused_sockets(child_stdin, child_stdout, child_stderr, child_comms, child_logs)
 
+        logger = logger or cast("FilteringBoundLogger", structlog.get_logger(logger_name="task").bind())
         proc = cls(
             pid=pid,
             stdin=feed_stdin,
             process=psutil.Process(pid),
             requests_fd=requests_fd,
+            log=logger,
             **constructor_kwargs,
         )
 
-        logger = logger or cast("FilteringBoundLogger", structlog.get_logger(logger_name="task").bind())
         proc._register_pipe_readers(
-            logger=logger,
             stdout=read_stdout,
             stderr=read_stderr,
             requests=read_msgs,
@@ -382,26 +384,24 @@ class WatchedSubprocess:
 
         return proc
 
-    def _register_pipe_readers(
-        self, logger: FilteringBoundLogger, stdout: socket, stderr: socket, requests: socket, logs: socket
-    ):
+    def _register_pipe_readers(self, stdout: socket, stderr: socket, requests: socket, logs: socket):
         """Register handlers for subprocess communication channels."""
         # self.selector is a way of registering a handler/callback to be called when the given IO channel has
         # activity to read on (https://www.man7.org/linux/man-pages/man2/select.2.html etc, but better
         # alternatives are used automatically) -- this is a way of having "event-based" code, but without
         # needing full async, to read and process output from each socket as it is received.
 
-        self.selector.register(stdout, selectors.EVENT_READ, self._create_socket_handler(logger, "stdout"))
+        self.selector.register(stdout, selectors.EVENT_READ, self._create_socket_handler(self.log, "stdout"))
         self.selector.register(
             stderr,
             selectors.EVENT_READ,
-            self._create_socket_handler(logger, "stderr", log_level=logging.ERROR),
+            self._create_socket_handler(self.log, "stderr", log_level=logging.ERROR),
         )
         self.selector.register(
             logs,
             selectors.EVENT_READ,
             make_buffered_socket_reader(
-                process_log_messages_from_subprocess(logger), on_close=self._on_socket_closed
+                process_log_messages_from_subprocess(self.log), on_close=self._on_socket_closed
             ),
         )
         self.selector.register(
@@ -658,7 +658,23 @@ class ActivitySubprocess(WatchedSubprocess):
             self.client.task_instances.finish(
                 id=self.id, state=self.final_state, when=datetime.now(tz=timezone.utc)
             )
+
+        # Now at the last possible moment, when all logs and comms with the subprocess has finished, lets
+        # upload the remote logs
+        self._upload_logs()
+
         return self._exit_code
+
+    def _upload_logs(self):
+        """
+        Upload all log files found to the remote storage.
+
+        We upload logs from here after the task has finished to give us the best possible chance of logs being
+        uploaded in case the task task.
+        """
+        from airflow.sdk.log import upload_to_remote
+
+        upload_to_remote(self.log)
 
     def _monitor_subprocess(self):
         """

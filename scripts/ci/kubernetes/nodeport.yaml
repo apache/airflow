@@ -22,10 +22,10 @@ metadata:
 spec:
   type: NodePort
   selector:
-    component: webserver
+    component: api-server
     release: airflow
     tier: airflow
   ports:
-    - port: 8080
-      targetPort: 8080
+    - port: 9091
+      targetPort: 9091
       nodePort: 30007

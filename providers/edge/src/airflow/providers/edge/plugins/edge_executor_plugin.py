@@ -36,14 +36,15 @@ from airflow.utils.session import NEW_SESSION, provide_session
 from airflow.utils.yaml import safe_load
 from airflow.www import utils as wwwutils
 from airflow.www.auth import has_access_view
-from airflow.www.constants import SWAGGER_BUNDLE, SWAGGER_ENABLED
-from airflow.www.extensions.init_views import _CustomErrorRequestBodyValidator, _LazyResolver
 
 if TYPE_CHECKING:
     from sqlalchemy.orm import Session
 
 
 def _get_airflow_2_api_endpoint() -> Blueprint:
+    from airflow.www.constants import SWAGGER_BUNDLE, SWAGGER_ENABLED
+    from airflow.www.extensions.init_views import _CustomErrorRequestBodyValidator, _LazyResolver
+
     folder = Path(__file__).parents[1].resolve()  # this is airflow/providers/edge/
     with folder.joinpath("openapi", "edge_worker_api_v1.yaml").open() as f:
         specification = safe_load(f)
@@ -53,8 +54,8 @@ def _get_airflow_2_api_endpoint() -> Blueprint:
         specification=specification,
         resolver=_LazyResolver(),
         base_path="/edge_worker/v1",
-        options={"swagger_ui": SWAGGER_ENABLED, "swagger_path": SWAGGER_BUNDLE.__fspath__()},
         strict_validation=True,
+        options={"swagger_ui": SWAGGER_ENABLED, "swagger_path": SWAGGER_BUNDLE.__fspath__()},
         validate_responses=True,
         validator_map={"body": _CustomErrorRequestBodyValidator},
     ).blueprint

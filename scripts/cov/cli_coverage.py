@@ -44,7 +44,6 @@ files_not_fully_covered = [
     "airflow/cli/commands/local_commands/standalone_command.py",
     "airflow/cli/commands/remote_commands/task_command.py",
     "airflow/cli/commands/remote_commands/variable_command.py",
-    "airflow/cli/commands/local_commands/webserver_command.py",
     "airflow/cli/simple_table.py",
 ]
 

@@ -55,7 +55,7 @@ PIP package                              Version required
 =======================================  ===================
 ``apache-airflow``                       ``>=2.9.0``
 ``apache-airflow-providers-common-sql``  ``>=1.20.0``
-``sqlalchemy-drill``                     ``>=1.1.0,!=1.1.6``
+``sqlalchemy-drill``                     ``>=1.1.0,<=1.1.5``
 =======================================  ===================
 
 Cross provider package dependencies

@@ -229,7 +229,6 @@ class SelectiveCoreTestType(SelectiveTestType):
     SERIALIZATION = "Serialization"
     OTHER = "Other"
     OPERATORS = "Operators"
-    WWW = "WWW"
 
 
 class SelectiveProvidersTestType(SelectiveTestType):
@@ -334,7 +333,6 @@ POSTGRES_HOST_PORT = "25433"
 RABBITMQ_HOST_PORT = "25672"
 REDIS_HOST_PORT = "26379"
 SSH_PORT = "12322"
-WEBSERVER_HOST_PORT = "28080"
 VITE_DEV_PORT = "5173"
 API_SERVER_HOST_PORT = "29091"
 

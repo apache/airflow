@@ -112,7 +112,6 @@ When you run Airflow Breeze, the following ports are automatically forwarded:
 .. code-block::
 
     * 12322 -> forwarded to Airflow ssh server -> airflow:22
-    * 28080 -> forwarded to Airflow webserver -> airflow:8080
     * 29091 -> forwarded to Airflow FastAPI API -> airflow:9091
     * 25555 -> forwarded to Flower dashboard -> airflow:5555
     * 25433 -> forwarded to Postgres database -> postgres:5432
@@ -125,15 +124,13 @@ You can connect to these ports/databases using:
 .. code-block::
 
     * ssh connection for remote debugging: ssh -p 12322 airflow@127.0.0.1 pw: airflow
-    * Webserver: http://127.0.0.1:28080
     * FastAPI API:    http://127.0.0.1:29091
     * Flower:    http://127.0.0.1:25555
     * Postgres:  jdbc:postgresql://127.0.0.1:25433/airflow?user=postgres&password=airflow
     * Mysql:     jdbc:mysql://127.0.0.1:23306/airflow?user=root
     * Redis:     redis://127.0.0.1:26379/0
 
-If you do not use ``start-airflow`` command, you can start the webserver manually with
-the ``airflow webserver`` command if you want to run it. You can use ``tmux`` to multiply terminals.
+If you do not use ``start-airflow`` command. You can use ``tmux`` to multiply terminals.
 You may need to create a user prior to running the webserver in order to log in.
 This can be done with the following command:
 
@@ -155,7 +152,6 @@ database client:
 You can change the used host port numbers by setting appropriate environment variables:
 
 * ``SSH_PORT``
-* ``WEBSERVER_HOST_PORT``
 * ``API_SERVER_HOST_PORT``
 * ``POSTGRES_HOST_PORT``
 * ``MYSQL_HOST_PORT``
@@ -417,17 +413,6 @@ These are all available flags of ``exec`` command:
   :width: 100%
   :alt: Breeze exec
 
-
-Compiling www assets
---------------------
-
-Airflow webserver needs to prepare www assets - compiled with node and yarn. The ``compile-www-assets``
-command takes care about it. This is needed when you want to run webserver inside of the breeze.
-
-.. image:: ./images/output_compile-www-assets.svg
-  :target: https://raw.githubusercontent.com/apache/airflow/main/dev/breeze/images/output_compile-www-assets.svg
-  :width: 100%
-  :alt: Breeze compile-www-assets
 
 Compiling ui assets
 --------------------
