@@ -958,10 +958,10 @@ def _get_template_context(
         if dag_run not in session:
             dag_run = session.merge(dag_run, load=False)
         asset_events = dag_run.consumed_asset_events
-        triggering_events: dict[str, list[AssetEvent]] = defaultdict(list)
+        triggering_events: dict[Asset, list[AssetEvent]] = defaultdict(list)
         for event in asset_events:
             if event.asset:
-                triggering_events[event.asset.uri].append(event)
+                triggering_events[event.asset].append(event)
 
         return triggering_events
 

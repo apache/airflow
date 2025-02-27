@@ -72,7 +72,7 @@ class Context(TypedDict, total=False):
     templates_dict: dict[str, Any] | None
     test_mode: bool
     ti: RuntimeTaskInstanceProtocol
-    # triggering_asset_events: Mapping[str, Collection[AssetEvent | AssetEventPydantic]]
+    # triggering_asset_events: Mapping[Asset, Collection[AssetEvent | AssetEventPydantic]]
     triggering_asset_events: Any
     try_number: int | None
     ts: str
