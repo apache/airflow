@@ -30,8 +30,8 @@ Changelog
 0.19.0pre0
 ..........
 
-Fix
-~~~
+Misc
+~~~~
 
 * ``Edge worker can be set to maintenance via CLI and also return to normal operation.``
 
