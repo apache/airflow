@@ -24,14 +24,14 @@ from marshmallow import Schema, fields
 class LogsSchema(Schema):
     """Schema for logs."""
 
-    content = fields.Str(dump_only=True)
-    continuation_token = fields.Str(dump_only=True)
+    content = fields.List(fields.Str(dump_only=True))
+    continuation_token = fields.Str(dump_only=True, allow_none=True)
 
 
 class LogResponseObject(NamedTuple):
     """Log Response Object."""
 
-    content: str
+    content: list[str]
     continuation_token: str | None
 
 

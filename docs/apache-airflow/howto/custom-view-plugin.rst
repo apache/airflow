@@ -43,7 +43,7 @@ Custom view Registration
 ------------------------
 
 A custom view with object reference to flask_appbuilder and Blueprint from flask
-and be registered as a part of a :doc:`plugin </authoring-and-scheduling/plugins>`.
+and be registered as a part of a :doc:`plugin </administration-and-deployment/plugins>`.
 
 The following is a skeleton for us to implement a new custom view:
 

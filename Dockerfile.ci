@@ -1016,8 +1016,8 @@ function check_airflow_python_client_installation() {
     python "${IN_CONTAINER_DIR}/install_airflow_python_client.py"
 }
 
-function start_webserver_with_examples(){
-    if [[ ${START_WEBSERVER_WITH_EXAMPLES=} != "true" ]]; then
+function start_api_server_with_examples(){
+    if [[ ${START_API_SERVER_WITH_EXAMPLES=} != "true" ]]; then
         return
     fi
     export AIRFLOW__CORE__LOAD_EXAMPLES=True
@@ -1038,22 +1038,22 @@ function start_webserver_with_examples(){
     airflow users create -u admin -p admin -f Thor -l Administrator -r Admin -e admin@email.domain
     echo "Admin user created"
     echo
-    echo "${COLOR_BLUE}Starting airflow webserver${COLOR_RESET}"
+    echo "${COLOR_BLUE}Starting airflow api server${COLOR_RESET}"
     echo
-    airflow webserver --port 8080 --daemon
+    airflow api-server --port 9091 --daemon
     echo
-    echo "${COLOR_BLUE}Waiting for webserver to start${COLOR_RESET}"
+    echo "${COLOR_BLUE}Waiting for api-server to start${COLOR_RESET}"
     echo
-    check_service_connection "Airflow webserver" "run_nc localhost 8080" 100
+    check_service_connection "Airflow api-server" "run_nc localhost 9091" 100
     EXIT_CODE=$?
     if [[ ${EXIT_CODE} != 0 ]]; then
         echo
-        echo "${COLOR_RED}Webserver did not start properly${COLOR_RESET}"
+        echo "${COLOR_RED}Api server did not start properly${COLOR_RESET}"
         echo
         exit ${EXIT_CODE}
     fi
     echo
-    echo "${COLOR_BLUE}Airflow webserver started${COLOR_RESET}"
+    echo "${COLOR_BLUE}Airflow api-server started${COLOR_RESET}"
 }
 
 handle_mount_sources
@@ -1064,7 +1064,7 @@ check_downgrade_sqlalchemy
 check_downgrade_pendulum
 check_force_lowest_dependencies
 check_airflow_python_client_installation
-start_webserver_with_examples
+start_api_server_with_examples
 check_run_tests "${@}"
 
 exec /bin/bash "${@}"
@@ -1115,8 +1115,8 @@ ARG DEV_APT_COMMAND=""
 ARG ADDITIONAL_DEV_APT_COMMAND=""
 ARG ADDITIONAL_DEV_ENV_VARS=""
 ARG ADDITIONAL_DEV_APT_DEPS="bash-completion dumb-init git graphviz krb5-user \
-less libenchant-2-2 libgcc-11-dev libgeos-dev libpq-dev net-tools netcat-openbsd \
-openssh-server postgresql-client software-properties-common rsync tmux unzip vim xxd"
+    less libenchant-2-2 libgcc-11-dev libgeos-dev libpq-dev net-tools netcat-openbsd \
+    openssh-server postgresql-client software-properties-common rsync tmux unzip vim xxd"
 
 ARG ADDITIONAL_DEV_APT_ENV=""
 
@@ -1153,7 +1153,7 @@ RUN bash /scripts/docker/install_mysql.sh prod \
     && bash /scripts/docker/install_postgres.sh dev \
     # The user is added to allow ssh debugging (you can connect with airflow/airflow over ssh)
     && adduser --gecos "First Last,RoomNumber,WorkPhone,HomePhone" --disabled-password \
-              --quiet "airflow" --home "/home/airflow" \
+    --quiet "airflow" --home "/home/airflow" \
     && echo -e "airflow\nairflow" | passwd airflow 2>&1 \
     && echo "airflow ALL=(ALL) NOPASSWD: ALL" > /etc/sudoers.d/airflow \
     && chmod 0440 /etc/sudoers.d/airflow
@@ -1309,7 +1309,7 @@ ENV ADDITIONAL_PYTHON_DEPS=${ADDITIONAL_PYTHON_DEPS}
 RUN --mount=type=cache,id=ci-$TARGETARCH-$DEPENDENCY_CACHE_EPOCH,target=/root/.cache/ \
     bash /scripts/docker/install_packaging_tools.sh; \
     if [[ -n "${ADDITIONAL_PYTHON_DEPS}" ]]; then \
-        bash /scripts/docker/install_additional_dependencies.sh; \
+    bash /scripts/docker/install_additional_dependencies.sh; \
     fi
 
 COPY --from=scripts entrypoint_ci.sh /entrypoint
@@ -1319,7 +1319,7 @@ RUN chmod a+x /entrypoint /entrypoint-exec
 
 # Install autocomplete for airflow and kubectl
 RUN if command -v airflow; then \
-        register-python-argcomplete airflow >> ~/.bashrc ; \
+    register-python-argcomplete airflow >> ~/.bashrc ; \
     fi; \
     echo "source /etc/bash_completion" >> ~/.bashrc
 
@@ -1346,27 +1346,27 @@ RUN ln -sf /usr/bin/dumb-init /usr/local/bin/dumb-init
 EXPOSE 8080
 
 LABEL org.apache.airflow.distro="debian" \
-  org.apache.airflow.module="airflow" \
-  org.apache.airflow.component="airflow" \
-  org.apache.airflow.image="airflow-ci" \
-  org.apache.airflow.version="${AIRFLOW_VERSION}" \
-  org.apache.airflow.uid="0" \
-  org.apache.airflow.gid="0" \
-  org.apache.airflow.build-id="${BUILD_ID}" \
-  org.apache.airflow.commit-sha="${COMMIT_SHA}" \
-  org.opencontainers.image.source="${AIRFLOW_IMAGE_REPOSITORY}" \
-  org.opencontainers.image.created="${AIRFLOW_IMAGE_DATE_CREATED}" \
-  org.opencontainers.image.authors="dev@airflow.apache.org" \
-  org.opencontainers.image.url="https://airflow.apache.org" \
-  org.opencontainers.image.documentation="https://airflow.apache.org/docs/docker-stack/index.html" \
-  org.opencontainers.image.source="https://github.com/apache/airflow" \
-  org.opencontainers.image.version="${AIRFLOW_VERSION}" \
-  org.opencontainers.image.revision="${COMMIT_SHA}" \
-  org.opencontainers.image.vendor="Apache Software Foundation" \
-  org.opencontainers.image.licenses="Apache-2.0" \
-  org.opencontainers.image.ref.name="airflow-ci-image" \
-  org.opencontainers.image.title="Continuous Integration Airflow Image" \
-  org.opencontainers.image.description="Installed Apache Airflow with Continuous Integration dependencies"
+    org.apache.airflow.module="airflow" \
+    org.apache.airflow.component="airflow" \
+    org.apache.airflow.image="airflow-ci" \
+    org.apache.airflow.version="${AIRFLOW_VERSION}" \
+    org.apache.airflow.uid="0" \
+    org.apache.airflow.gid="0" \
+    org.apache.airflow.build-id="${BUILD_ID}" \
+    org.apache.airflow.commit-sha="${COMMIT_SHA}" \
+    org.opencontainers.image.source="${AIRFLOW_IMAGE_REPOSITORY}" \
+    org.opencontainers.image.created="${AIRFLOW_IMAGE_DATE_CREATED}" \
+    org.opencontainers.image.authors="dev@airflow.apache.org" \
+    org.opencontainers.image.url="https://airflow.apache.org" \
+    org.opencontainers.image.documentation="https://airflow.apache.org/docs/docker-stack/index.html" \
+    org.opencontainers.image.source="https://github.com/apache/airflow" \
+    org.opencontainers.image.version="${AIRFLOW_VERSION}" \
+    org.opencontainers.image.revision="${COMMIT_SHA}" \
+    org.opencontainers.image.vendor="Apache Software Foundation" \
+    org.opencontainers.image.licenses="Apache-2.0" \
+    org.opencontainers.image.ref.name="airflow-ci-image" \
+    org.opencontainers.image.title="Continuous Integration Airflow Image" \
+    org.opencontainers.image.description="Installed Apache Airflow with Continuous Integration dependencies"
 
 ENTRYPOINT ["/usr/bin/dumb-init", "--", "/entrypoint"]
 CMD []
