@@ -236,6 +236,8 @@ class BranchPythonOperator(PythonOperator, BranchMixIn):
     the DAG run's state to be inferred.
     """
 
+    inherits_from_skippable_mixin = True
+
     def execute(self, context: Context) -> Any:
         return self.do_branch(context, super().execute(context))
 
@@ -265,6 +267,8 @@ class ShortCircuitOperator(PythonOperator, SkipMixin):
         be skipped. This is the default behavior. If set to False, the direct, downstream task(s) will be
         skipped but the ``trigger_rule`` defined for all other downstream tasks will be respected.
     """
+
+    inherits_from_skippable_mixin = True
 
     def __init__(self, *, ignore_downstream_trigger_rules: bool = True, **kwargs) -> None:
         super().__init__(**kwargs)
@@ -302,18 +306,17 @@ class ShortCircuitOperator(PythonOperator, SkipMixin):
         self.log.info("Skipping downstream tasks")
         if AIRFLOW_V_3_0_PLUS:
             self.skip(
-                dag_id=dag_run.dag_id,
-                run_id=dag_run.run_id,
+                ti=context["ti"],
                 tasks=to_skip,
-                map_index=context["ti"].map_index,
             )
         else:
-            self.skip(
-                dag_run=dag_run,
-                tasks=to_skip,
-                execution_date=cast("DateTime", dag_run.logical_date),  # type: ignore[call-arg, union-attr]
-                map_index=context["ti"].map_index,
-            )
+            if to_skip:
+                self.skip(
+                    dag_run=context["dag_run"],
+                    tasks=to_skip,
+                    execution_date=cast("DateTime", dag_run.logical_date),  # type: ignore[call-arg, union-attr]
+                    map_index=context["ti"].map_index,
+                )
 
         self.log.info("Done.")
         # returns the result of the super execute method as it is instead of returning None
@@ -867,6 +870,8 @@ class BranchPythonVirtualenvOperator(PythonVirtualenvOperator, BranchMixIn):
         For more information on how to use this operator, take a look at the guide:
         :ref:`howto/operator:BranchPythonVirtualenvOperator`
     """
+
+    inherits_from_skippable_mixin = True
 
     def execute(self, context: Context) -> Any:
         return self.do_branch(context, super().execute(context))
