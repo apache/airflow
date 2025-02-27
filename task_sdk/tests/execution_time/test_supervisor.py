@@ -347,10 +347,18 @@ class TestWatchedSubprocess:
         mock_client.task_instances.heartbeat.assert_called_once_with(ti.id, pid=mocker.ANY)
         mock_client.task_instances.defer.assert_called_once_with(
             ti.id,
+            # Since the message as serialized in the client upon sending, we expect it to be already encoded
             DeferTask(
                 classpath="airflow.providers.standard.triggers.temporal.DateTimeTrigger",
-                trigger_kwargs={"moment": "2024-11-07T12:34:59Z", "end_from_trigger": False},
                 next_method="execute_complete",
+                trigger_kwargs={
+                    "__type": "dict",
+                    "__var": {
+                        "moment": {"__type": "datetime", "__var": 1730982899.0},
+                        "end_from_trigger": False,
+                    },
+                },
+                next_kwargs={"__type": "dict", "__var": {}},
             ),
         )
 
@@ -497,6 +505,7 @@ class TestWatchedSubprocess:
         mock_kill = mocker.patch("airflow.sdk.execution_time.supervisor.WatchedSubprocess.kill")
 
         proc = ActivitySubprocess(
+            log=mocker.MagicMock(),
             id=TI_ID,
             pid=mock_process.pid,
             stdin=mocker.MagicMock(),
@@ -586,6 +595,7 @@ class TestWatchedSubprocess:
         monkeypatch.setattr(ActivitySubprocess, "TASK_OVERTIME_THRESHOLD", overtime_threshold)
 
         mock_watched_subprocess = ActivitySubprocess(
+            log=mocker.MagicMock(),
             id=TI_ID,
             pid=12345,
             stdin=mocker.Mock(),
@@ -727,6 +737,7 @@ class TestWatchedSubprocessKill:
     @pytest.fixture
     def watched_subprocess(self, mocker, mock_process):
         proc = ActivitySubprocess(
+            log=mocker.MagicMock(),
             id=TI_ID,
             pid=12345,
             stdin=mocker.Mock(),
@@ -910,6 +921,7 @@ class TestHandleRequest:
     def watched_subprocess(self, mocker):
         """Fixture to provide a WatchedSubprocess instance."""
         return ActivitySubprocess(
+            log=mocker.MagicMock(),
             id=TI_ID,
             pid=12345,
             stdin=BytesIO(),

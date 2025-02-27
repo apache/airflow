@@ -339,7 +339,7 @@ you might organize your versioning approach, control which versions of the share
 and deploy the code to all your instances and containers in controlled way - all by system admins/DevOps
 rather than by the DAG writers. It is usually suitable when you have a separate team that manages this
 shared code, but if you know your python ways you can also distribute your code this way in smaller
-deployments. You can also install your :doc:`../authoring-and-scheduling/plugins` and :doc:`apache-airflow-providers:index` as python
+deployments. You can also install your :doc:`../administration-and-deployment/plugins` and :doc:`apache-airflow-providers:index` as python
 packages, so learning how to build your package is handy.
 
 Here is how to create your package:

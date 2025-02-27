@@ -109,11 +109,16 @@ exclude_also = [
 
 [dependency-groups]
 codegen = [
-    "datamodel-code-generator[http]>=0.26.5",
+    "datamodel-code-generator[http]>=0.28.1",
+    "apache-airflow",
+    "rich",
+    "ruff",
 ]
 
-[tool.black]
-# This is needed for datamodel-codegen to treat this as the "project" file
+[tool.uv.sources]
+# These names must match the names as defined in the pyproject.toml of the workspace items,
+# *not* the workspace folder paths
+apache-airflow = {workspace = true}
 
 # To use:
 #
@@ -134,6 +139,7 @@ use-schema-description=true  # Desc becomes class doc comment
 use-standard-collections=true # list[] not List[]
 use-subclass-enum=true # enum, not union of Literals
 use-union-operator=true # 3.9+annotations, not `Union[]`
+custom-formatters = ['dev.datamodel_code_formatter',]
 
 url = 'http://0.0.0.0:9091/execution/openapi.json'
 output = 'src/airflow/sdk/api/datamodels/_generated.py'

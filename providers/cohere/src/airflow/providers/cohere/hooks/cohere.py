@@ -23,9 +23,10 @@ from functools import cached_property
 from typing import TYPE_CHECKING, Any
 
 import cohere
+from cohere.types import UserChatMessageV2
+
 from airflow.exceptions import AirflowProviderDeprecationWarning
 from airflow.hooks.base import BaseHook
-from cohere.types import UserChatMessageV2
 
 if TYPE_CHECKING:
     from cohere.core.request_options import RequestOptions

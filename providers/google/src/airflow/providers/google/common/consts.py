@@ -16,8 +16,9 @@
 # under the License.
 from __future__ import annotations
 
-from airflow import version
 from google.api_core.gapic_v1.client_info import ClientInfo
+
+from airflow import version
 
 GOOGLE_DEFAULT_DEFERRABLE_METHOD_NAME = "execute_complete"
 
