@@ -2228,7 +2228,7 @@ class TestStringifiedDAGs:
 
         class TestOperator(BaseOperator):
             template_fields = (
-                "email",  # templateable
+                "owner",  # templateable
                 "execution_timeout",  # not templateable
             )
 
@@ -2240,18 +2240,18 @@ class TestStringifiedDAGs:
         with dag:
             task = TestOperator(
                 task_id="test_task",
-                email="{{ ','.join(test_email_list) }}",
+                owner="{{ ','.join(test_owner_list) }}",
                 execution_timeout=timedelta(seconds=10),
             )
-            task.render_template_fields(context={"test_email_list": ["foo@test.com", "bar@test.com"]})
-            assert task.email == "foo@test.com,bar@test.com"
+            task.render_template_fields(context={"test_owner_list": ["foo1", "bar2"]})
+            assert task.owner == "foo1,bar2"
 
         with pytest.raises(
             AirflowException,
             match=re.escape(
                 dedent(
                     """Failed to serialize DAG 'test_dag': Cannot template BaseOperator field:
-                        'execution_timeout' op.__class__.__name__='TestOperator' op.template_fields=('email', 'execution_timeout')"""
+                        'execution_timeout' op.__class__.__name__='TestOperator' op.template_fields=('owner', 'execution_timeout')"""
                 )
             ),
         ):
