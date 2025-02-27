@@ -32,6 +32,8 @@ from alembic import op
 from sqlalchemy.dialects import postgresql
 from sqlalchemy_utils import UUIDType
 
+from airflow.models.taskinstance import uuid7
+
 # revision identifiers, used by Alembic.
 revision = "7645189f3479"
 down_revision = "e00344393f31"
@@ -44,26 +46,111 @@ def upgrade():
     """Apply Add try_id to TI and TIH."""
     with op.batch_alter_table("task_instance", schema=None) as batch_op:
         batch_op.add_column(sa.Column("try_id", UUIDType(binary=False), nullable=True))
-        batch_op.create_unique_constraint(batch_op.f("task_instance_try_id_uq"), ["try_id"])
+
+    # Get all rows with NULL try_id
+    stmt = sa.text("SELECT id FROM task_instance WHERE try_id IS NULL")
+    conn = op.get_bind()
+    null_rows = conn.execute(stmt).fetchall()
+
+    # Prepare the update statement
+    stmt = sa.text("""
+        UPDATE task_instance
+        SET try_id = :uuid
+        WHERE id = :row_id AND try_id IS NULL
+    """)
+
+    # Update each row with a unique UUID
+    for row in null_rows:
+        uuid_value = uuid7()
+        # The row.id is already a UUID
+        conn.execute(stmt.bindparams(uuid=uuid_value, row_id=row.id))
+    op.alter_column("task_instance", "try_id", nullable=False)
+    op.create_unique_constraint(batch_op.f("task_instance_try_id_uq"), "task_instance", ["try_id"])
 
     with op.batch_alter_table("task_instance_history", schema=None) as batch_op:
         batch_op.add_column(
             sa.Column(
                 "task_instance_id",
                 sa.String(length=36).with_variant(postgresql.UUID(), "postgresql"),
-                nullable=False,
             )
         )
-        batch_op.add_column(sa.Column("try_id", UUIDType(binary=False), nullable=False))
-        batch_op.create_unique_constraint(batch_op.f("task_instance_history_try_id_uq"), ["try_id"])
+        batch_op.add_column(sa.Column("try_id", UUIDType(binary=False), nullable=True))
+    # Get all rows with NULL try_id
+    stmt = sa.text("SELECT id FROM task_instance_history WHERE try_id IS NULL")
+    conn = op.get_bind()
+    null_rows = conn.execute(stmt).fetchall()
+
+    # Prepare the update statement
+    stmt = sa.text("""
+        UPDATE task_instance_history
+        SET try_id = :uuid
+        WHERE id = :row_id AND try_id IS NULL
+    """)
+
+    # Update each row with a unique UUID
+    for row in null_rows:
+        uuid_value = uuid7()
+        # The row.id is already a UUID
+        conn.execute(stmt.bindparams(uuid=uuid_value, row_id=row.id))
+
+    op.execute("""
+        UPDATE task_instance_history SET task_instance_id = task_instance.id
+        FROM task_instance
+        WHERE task_instance_history.task_id = task_instance.task_id
+        AND task_instance_history.dag_id = task_instance.dag_id
+        AND task_instance_history.run_id = task_instance.run_id
+        AND task_instance_history.map_index = task_instance.map_index
+        """)
+    op.drop_constraint("task_instance_history_pkey", "task_instance_history", type_="primary")
+    op.drop_column("task_instance_history", "id")
+    op.alter_column("task_instance_history", "task_instance_id", new_column_name="id", nullable=False)
+
+    op.create_primary_key(
+        "task_instance_history_pkey",
+        "task_instance_history",
+        [
+            "try_id",
+        ],
+    )
 
 
 def downgrade():
     """Unapply Add try_id to TI and TIH."""
+    dialect_name = op.get_bind().dialect.name
     with op.batch_alter_table("task_instance_history", schema=None) as batch_op:
-        batch_op.drop_constraint(batch_op.f("task_instance_history_try_id_uq"), type_="unique")
+        batch_op.drop_constraint(batch_op.f("task_instance_history_pkey"), type_="primary")
+        batch_op.drop_column("id")
+        batch_op.add_column(sa.Column("new_id", sa.INTEGER, autoincrement=True, nullable=True))
+    if dialect_name == "postgresql":
+        op.execute(
+            """
+            ALTER TABLE task_instance_history ADD COLUMN row_num SERIAL;
+            UPDATE task_instance_history SET new_id = row_num;
+            ALTER TABLE task_instance_history DROP COLUMN row_num;
+        """
+        )
+    elif dialect_name == "mysql":
+        op.execute(
+            """
+            UPDATE task_instance_history tih
+            JOIN (
+                SELECT id, ROW_NUMBER() OVER (ORDER BY id) AS row_num
+                FROM task_instance_history
+            ) AS temp ON tih.id = temp.id
+            SET tih.new_id = temp.row_num;
+            """
+        )
+    else:
+        op.execute("""
+            UPDATE task_instance_history
+            SET new_id = (SELECT COUNT(*) FROM task_instance_history t2 WHERE t2.id <= task_instance_history.id);
+        """)
+    with op.batch_alter_table("task_instance_history", schema=None) as batch_op:
+        batch_op.alter_column(
+            "new_id", new_column_name="id", nullable=False, existing_type=sa.INTEGER, autoincrement=True
+        )
         batch_op.drop_column("try_id")
-        batch_op.drop_column("task_instance_id")
+    op.create_primary_key("task_instance_history_pkey", "task_instance_history", ["id"])
 
     with op.batch_alter_table("task_instance", schema=None) as batch_op:
         batch_op.drop_constraint(batch_op.f("task_instance_try_id_uq"), type_="unique")
