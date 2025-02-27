@@ -163,14 +163,6 @@ def register(
     if not worker:
         worker = EdgeWorkerModel(worker_name=worker_name, state=body.state, queues=body.queues)
     worker.state = redefine_state(worker.state, body.state)
-    if body.maintenance_comments:
-        if (
-            worker.maintenance_comment
-            and len(body.maintenance_comments) + len(worker.maintenance_comment) < 1020
-        ):
-            worker.maintenance_comment = f"{worker.maintenance_comment}\n\n{body.maintenance_comments}"
-        else:
-            worker.maintenance_comment = body.maintenance_comments
     worker.maintenance_comment = redefine_maintenance_comments(
         worker.maintenance_comment, body.maintenance_comments
     )
