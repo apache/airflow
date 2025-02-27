@@ -47,7 +47,7 @@ export const logLevelOptions = createListCollection<{
     { label: LogLevel.DEBUG.toUpperCase(), value: LogLevel.DEBUG },
     { label: LogLevel.INFO.toUpperCase(), value: LogLevel.INFO },
     { label: LogLevel.WARNING.toUpperCase(), value: LogLevel.WARNING },
-    { label: LogLevel.ERROR.toUpperCase(), value: LogLevel.WARNING },
+    { label: LogLevel.ERROR.toUpperCase(), value: LogLevel.ERROR },
     { label: LogLevel.CRITICAL.toUpperCase(), value: LogLevel.CRITICAL },
   ],
 });

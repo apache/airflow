@@ -16,7 +16,7 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Badge, HStack, IconButton, type SelectValueChangeDetails } from "@chakra-ui/react";
+import { Badge, Box, HStack, IconButton, type SelectValueChangeDetails } from "@chakra-ui/react";
 import { useCallback } from "react";
 import { MdOutlineOpenInFull } from "react-icons/md";
 import { useSearchParams } from "react-router-dom";
@@ -69,7 +69,7 @@ export const TaskLogHeader = ({
   );
 
   return (
-    <HStack justifyContent="space-between" mb={2}>
+    <Box>
       {taskInstance === undefined || tryNumber === undefined || taskInstance.try_number <= 1 ? undefined : (
         <TaskTrySelect
           onSelectTryNumber={onSelectTryNumber}
@@ -77,52 +77,54 @@ export const TaskLogHeader = ({
           taskInstance={taskInstance}
         />
       )}
-      <Select.Root
-        collection={logLevelOptions}
-        maxW="250px"
-        multiple
-        onValueChange={handleStateChange}
-        value={hasLogLevels ? logLevels : ["all"]}
-      >
-        <Select.Trigger {...(hasLogLevels ? { clearable: true } : {})} isActive={Boolean(logLevels)}>
-          <Select.ValueText>
-            {() =>
-              hasLogLevels ? (
-                <HStack gap="10px">
-                  {logLevels.map((level) => (
-                    <Badge colorPalette={logLevelColorMapping[level as LogLevel]} key={level}>
-                      {level.toUpperCase()}
-                    </Badge>
-                  ))}
-                </HStack>
-              ) : (
-                "All Log Levels"
-              )
-            }
-          </Select.ValueText>
-        </Select.Trigger>
-        <Select.Content>
-          {logLevelOptions.items.map((option) => (
-            <Select.Item item={option} key={option.label}>
-              {option.value === "all" ? (
-                option.label
-              ) : (
-                <Badge colorPalette={logLevelColorMapping[option.value as LogLevel]}>{option.label}</Badge>
-              )}
-            </Select.Item>
-          ))}
-        </Select.Content>
-      </Select.Root>
-      <HStack>
-        <Button aria-label={wrap ? "Unwrap" : "Wrap"} bg="bg.panel" onClick={toggleWrap} variant="outline">
-          {wrap ? "Unwrap" : "Wrap"}
-        </Button>
-        {!isFullscreen && (
-          <IconButton aria-label="Full screen" bg="bg.panel" onClick={toggleFullscreen} variant="outline">
-            <MdOutlineOpenInFull />
-          </IconButton>
-        )}
+      <HStack justifyContent="space-between" mb={2}>
+        <Select.Root
+          collection={logLevelOptions}
+          maxW="250px"
+          multiple
+          onValueChange={handleStateChange}
+          value={hasLogLevels ? logLevels : ["all"]}
+        >
+          <Select.Trigger {...(hasLogLevels ? { clearable: true } : {})} isActive={Boolean(logLevels)}>
+            <Select.ValueText>
+              {() =>
+                hasLogLevels ? (
+                  <HStack gap="10px">
+                    {logLevels.map((level) => (
+                      <Badge colorPalette={logLevelColorMapping[level as LogLevel]} key={level}>
+                        {level.toUpperCase()}
+                      </Badge>
+                    ))}
+                  </HStack>
+                ) : (
+                  "All Log Levels"
+                )
+              }
+            </Select.ValueText>
+          </Select.Trigger>
+          <Select.Content>
+            {logLevelOptions.items.map((option) => (
+              <Select.Item item={option} key={option.label}>
+                {option.value === "all" ? (
+                  option.label
+                ) : (
+                  <Badge colorPalette={logLevelColorMapping[option.value as LogLevel]}>{option.label}</Badge>
+                )}
+              </Select.Item>
+            ))}
+          </Select.Content>
+        </Select.Root>
+        <HStack>
+          <Button aria-label={wrap ? "Unwrap" : "Wrap"} bg="bg.panel" onClick={toggleWrap} variant="outline">
+            {wrap ? "Unwrap" : "Wrap"}
+          </Button>
+          {!isFullscreen && (
+            <IconButton aria-label="Full screen" bg="bg.panel" onClick={toggleFullscreen} variant="outline">
+              <MdOutlineOpenInFull />
+            </IconButton>
+          )}
+        </HStack>
       </HStack>
-    </HStack>
+    </Box>
   );
 };
