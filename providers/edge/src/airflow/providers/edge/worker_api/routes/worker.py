@@ -136,6 +136,20 @@ def redefine_state(worker_state: EdgeWorkerState, body_state: EdgeWorkerState) -
     return body_state
 
 
+def redefine_maintenance_comments(
+    worker_maintenance_comment: str | None, body_maintenance_comments: str | None
+) -> str | None:
+    """Add new maintenance comments or overwrite the old ones if it is too long."""
+    if body_maintenance_comments:
+        if (
+            worker_maintenance_comment
+            and len(body_maintenance_comments) + len(worker_maintenance_comment) < 1020
+        ):
+            return f"{worker_maintenance_comment}\n\n{body_maintenance_comments}"
+        return body_maintenance_comments
+    return worker_maintenance_comment
+
+
 @worker_router.post("/{worker_name}", dependencies=[Depends(jwt_token_authorization_rest)])
 def register(
     worker_name: Annotated[str, _worker_name_doc],
@@ -157,6 +171,9 @@ def register(
             worker.maintenance_comment = f"{worker.maintenance_comment}\n\n{body.maintenance_comments}"
         else:
             worker.maintenance_comment = body.maintenance_comments
+    worker.maintenance_comment = redefine_maintenance_comments(
+        worker.maintenance_comment, body.maintenance_comments
+    )
     worker.queues = body.queues
     worker.sysinfo = json.dumps(body.sysinfo)
     worker.last_update = timezone.utcnow()
@@ -174,14 +191,9 @@ def set_state(
     query = select(EdgeWorkerModel).where(EdgeWorkerModel.worker_name == worker_name)
     worker: EdgeWorkerModel = session.scalar(query)
     worker.state = redefine_state(worker.state, body.state)
-    if body.maintenance_comments:
-        if (
-            worker.maintenance_comment
-            and len(body.maintenance_comments) + len(worker.maintenance_comment) < 1020
-        ):
-            worker.maintenance_comment = f"{worker.maintenance_comment}\n\n{body.maintenance_comments}"
-        else:
-            worker.maintenance_comment = body.maintenance_comments
+    worker.maintenance_comment = redefine_maintenance_comments(
+        worker.maintenance_comment, body.maintenance_comments
+    )
     worker.jobs_active = body.jobs_active
     worker.sysinfo = json.dumps(body.sysinfo)
     worker.last_update = timezone.utcnow()

@@ -572,14 +572,23 @@ def maintenance(args):
     if args.wait:
         if args.maintenance == "on" and status.state != EdgeWorkerState.MAINTENANCE_MODE:
             logger.info("Waiting for worker to be drained...")
-            while status.state != EdgeWorkerState.MAINTENANCE_MODE:
+            while True:
                 sleep(4.5)
                 worker_process.send_signal(SIG_STATUS)
                 sleep(0.5)
                 status = WorkerStatus.from_json(status_path.read_text())
+                if status.state == EdgeWorkerState.MAINTENANCE_MODE:
+                    logger.info("Worker was drained successfully!")
+                    break
+                if status.state not in [
+                    EdgeWorkerState.MAINTENANCE_REQUEST,
+                    EdgeWorkerState.MAINTENANCE_PENDING,
+                ]:
+                    logger.info("Worker maintenance was exited by someone else!")
+                    break
         if args.maintenance == "off" and status.state == EdgeWorkerState.MAINTENANCE_MODE:
             logger.info("Waiting for worker to exit maintenance...")
-            while status.state == EdgeWorkerState.MAINTENANCE_MODE:
+            while status.state in [EdgeWorkerState.MAINTENANCE_MODE, EdgeWorkerState.MAINTENANCE_EXIT]:
                 sleep(4.5)
                 worker_process.send_signal(SIG_STATUS)
                 sleep(0.5)
