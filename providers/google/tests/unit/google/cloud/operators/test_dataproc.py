@@ -433,7 +433,7 @@ OPENLINEAGE_HTTP_TRANSPORT_EXAMPLE_SPARK_PROPERTIES = {
 OPENLINEAGE_PARENT_JOB_EXAMPLE_SPARK_PROPERTIES = {
     "spark.openlineage.parentJobName": "dag_id.task_id",
     "spark.openlineage.parentJobNamespace": "default",
-    "spark.openlineage.parentRunId": "01931885-2800-7be7-aa8d-aaa15c337267",
+    "spark.openlineage.parentRunId": "01931a3c-9c00-7737-912c-e5f837576373",
 }
 
 
@@ -1552,7 +1552,7 @@ class TestDataprocSubmitJobOperator(DataprocJobTestBase):
                     "spark.openlineage.transport.type": "console",
                     "spark.openlineage.parentJobName": "dag_id.task_id",
                     "spark.openlineage.parentJobNamespace": "default",
-                    "spark.openlineage.parentRunId": "01931885-2800-7be7-aa8d-aaa15c337267",
+                    "spark.openlineage.parentRunId": "01931a3c-9c00-7737-912c-e5f837576373",
                 },
             },
         }
@@ -1707,7 +1707,7 @@ class TestDataprocSubmitJobOperator(DataprocJobTestBase):
         kafka_config = KafkaConfig(
             topic="my_topic",
             config={
-                "bootstrap.servers": "localhost:9092,another.host:9092",
+                "bootstrap.servers": "test-kafka-xfgup:10009,another.host-ge7h0:100010",
                 "acks": "all",
                 "retries": "3",
             },
@@ -2686,7 +2686,7 @@ class TestDataprocWorkflowTemplateInstantiateInlineOperator:
                             "spark.sql.shuffle.partitions": "1",
                             "spark.openlineage.parentJobName": "dag_id.task_id",
                             "spark.openlineage.parentJobNamespace": "default",
-                            "spark.openlineage.parentRunId": "01931885-2800-7be7-aa8d-aaa15c337267",
+                            "spark.openlineage.parentRunId": "01931a3c-9c00-7737-912c-e5f837576373",
                         },
                     },
                 },

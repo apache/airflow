@@ -58,7 +58,7 @@ EXAMPLE_HTTP_TRANSPORT_CONFIG = {
 EXAMPLE_PARENT_JOB_SPARK_PROPERTIES = {
     "spark.openlineage.parentJobName": "dag_id.task_id",
     "spark.openlineage.parentJobNamespace": "default",
-    "spark.openlineage.parentRunId": "01931885-2800-7be7-aa8d-aaa15c337267",
+    "spark.openlineage.parentRunId": "01931a3c-9c00-7737-912c-e5f837576373",
 }
 EXAMPLE_TRANSPORT_SPARK_PROPERTIES = {
     "spark.openlineage.transport.type": "http",
@@ -92,7 +92,7 @@ def test_get_transport_information_as_spark_properties_unsupported_transport_typ
     kafka_config = KafkaConfig(
         topic="my_topic",
         config={
-            "bootstrap.servers": "localhost:9092,another.host:9092",
+            "bootstrap.servers": "test-kafka-hm0fo:10011,another.host-uuj0l:10012",
             "acks": "all",
             "retries": "3",
         },

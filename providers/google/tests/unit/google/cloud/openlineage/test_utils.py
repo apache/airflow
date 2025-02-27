@@ -140,7 +140,7 @@ OPENLINEAGE_HTTP_TRANSPORT_EXAMPLE_SPARK_PROPERTIES = {
 OPENLINEAGE_PARENT_JOB_EXAMPLE_SPARK_PROPERTIES = {
     "spark.openlineage.parentJobName": "dag_id.task_id",
     "spark.openlineage.parentJobNamespace": "default",
-    "spark.openlineage.parentRunId": "01931885-2800-7be7-aa8d-aaa15c337267",
+    "spark.openlineage.parentRunId": "01931a3c-9c00-7737-912c-e5f837576373",
 }
 
 
@@ -1029,7 +1029,7 @@ def test_inject_openlineage_properties_into_dataproc_workflow_template_parent_in
                         "spark.sql.shuffle.partitions": "1",
                         "spark.openlineage.parentJobName": "dag_id.task_id",
                         "spark.openlineage.parentJobNamespace": "default",
-                        "spark.openlineage.parentRunId": "01931885-2800-7be7-aa8d-aaa15c337267",
+                        "spark.openlineage.parentRunId": "01931a3c-9c00-7737-912c-e5f837576373",
                     },
                 },
             },
