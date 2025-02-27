@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2025-02-27T02:32:57.774256
+# This constraints file was automatically generated on 2025-02-27T14:07:04.238372
 # via "eager-upgrade" mechanism of PIP. For the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version of both
 # 'apache-airflow' package and all available community provider packages.
@@ -473,7 +473,7 @@ pymssql==2.3.2
 pyodbc==5.2.0
 pyparsing==3.2.1
 pypsrp==0.8.1
-pyspark==3.5.4
+pyspark==3.5.5
 pyspnego==0.11.2
 pytest-asyncio==0.25.0
 pytest-cov==6.0.0
@@ -653,7 +653,7 @@ yamllint==1.35.1
 yandex-query-client==0.1.4
 yandexcloud==0.328.0
 yarl==1.18.3
-ydb-dbapi==0.1.8
+ydb-dbapi==0.1.9
 ydb==3.18.17
 zeep==4.3.1
 zenpy==2.0.56
