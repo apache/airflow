@@ -79,11 +79,11 @@ Setup your project
    module.xml file:
 
    Create a file ``.idea/airflow.iml`` from the following file content: `pycharm-airflow.iml.txt
-   <../idea-xml-references/pycharm-module.xml.txt>`_.
+   <../quick-start-ide/idea-xml-references/pycharm-airflow.iml.txt>`_.
    make sure to replace ``{replace with your virtual environment name}`` with your virtual environment name.
 
    Then update the ``.idea/modules.xml`` file with the following content: `pycharm-modules.xml.txt
-   <../idea-xml-references/pycharm-modules.xml.txt>`_.
+   <../quick-start-ide/idea-xml-references/pycharm-modules.xml.txt>`_.
 
    Then Repair the IDE by clicking on the "Repair IDE" button and restart the IDE.
 
