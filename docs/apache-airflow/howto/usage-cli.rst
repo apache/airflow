@@ -30,7 +30,7 @@ Set Up Bash/Zsh Completion
 --------------------------
 
 When using bash (or ``zsh``) as your shell, ``airflow`` can use
-`argcomplete <https://argcomplete.readthedocs.io/>`_ for auto-completion.
+`argcomplete <https://kislyuk.github.io/argcomplete>`_ for auto-completion.
 
 For `global activation <https://github.com/kislyuk/argcomplete#activating-global-completion>`_ of all argcomplete enabled python applications run:
 
