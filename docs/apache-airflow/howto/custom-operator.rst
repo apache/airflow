@@ -269,6 +269,8 @@ Currently available lexers:
 
 If you use a non-existing lexer then the value of the template field will be rendered as a pretty-printed object.
 
+.. _custom_operator/limitations:
+
 Limitations
 ^^^^^^^^^^^
 To prevent misuse, the following limitations must be observed when defining and assigning templated fields in the
