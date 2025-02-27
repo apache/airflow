@@ -596,12 +596,14 @@ export const UseDagRunServiceGetUpstreamAssetEventsKeyFn = (
   {
     dagId,
     dagRunId,
+    uri,
   }: {
     dagId: string;
     dagRunId: string;
+    uri?: string;
   },
   queryKey?: Array<unknown>,
-) => [useDagRunServiceGetUpstreamAssetEventsKey, ...(queryKey ?? [{ dagId, dagRunId }])];
+) => [useDagRunServiceGetUpstreamAssetEventsKey, ...(queryKey ?? [{ dagId, dagRunId, uri }])];
 export type DagRunServiceGetDagRunsDefaultResponse = Awaited<ReturnType<typeof DagRunService.getDagRuns>>;
 export type DagRunServiceGetDagRunsQueryResult<
   TData = DagRunServiceGetDagRunsDefaultResponse,

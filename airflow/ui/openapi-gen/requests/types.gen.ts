@@ -1936,6 +1936,7 @@ export type PatchDagRunResponse = DAGRunResponse;
 export type GetUpstreamAssetEventsData = {
   dagId: string;
   dagRunId: string;
+  uri?: string | null;
 };
 
 export type GetUpstreamAssetEventsResponse = AssetEventCollectionResponse;

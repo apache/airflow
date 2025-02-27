@@ -973,6 +973,7 @@ export const useDagRunServiceGetDagRun = <
  * @param data The data for the request.
  * @param data.dagId
  * @param data.dagRunId
+ * @param data.uri
  * @returns AssetEventCollectionResponse Successful Response
  * @throws ApiError
  */
@@ -984,16 +985,18 @@ export const useDagRunServiceGetUpstreamAssetEvents = <
   {
     dagId,
     dagRunId,
+    uri,
   }: {
     dagId: string;
     dagRunId: string;
+    uri?: string;
   },
   queryKey?: TQueryKey,
   options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">,
 ) =>
   useQuery<TData, TError>({
-    queryKey: Common.UseDagRunServiceGetUpstreamAssetEventsKeyFn({ dagId, dagRunId }, queryKey),
-    queryFn: () => DagRunService.getUpstreamAssetEvents({ dagId, dagRunId }) as TData,
+    queryKey: Common.UseDagRunServiceGetUpstreamAssetEventsKeyFn({ dagId, dagRunId, uri }, queryKey),
+    queryFn: () => DagRunService.getUpstreamAssetEvents({ dagId, dagRunId, uri }) as TData,
     ...options,
   });
 /**

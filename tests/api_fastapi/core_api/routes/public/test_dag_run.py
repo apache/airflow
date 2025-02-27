@@ -1073,6 +1073,12 @@ class TestGetDagRunAssetTriggerEvents:
         }
         assert response.json() == expected_response
 
+    def test_should_respond_401(self, unauthenticated_test_client):
+        response = unauthenticated_test_client.get(
+            "/public/dags/TEST_DAG_ID/dagRuns/TEST_DAG_RUN_ID/upstreamAssetEvents",
+        )
+        assert response.status_code == 401
+
     def test_should_respond_404(self, test_client):
         response = test_client.get(
             "public/dags/invalid-id/dagRuns/invalid-run-id/upstreamAssetEvents",
@@ -1163,7 +1169,6 @@ class TestTriggerDagRun:
         session.add(import_errors_dag)
         session.commit()
 
-    @time_machine.travel(timezone.utcnow(), tick=False)
     @pytest.mark.parametrize(
         "dag_run_id, note, data_interval_start, data_interval_end",
         [
@@ -1181,59 +1186,61 @@ class TestTriggerDagRun:
     def test_should_respond_200(
         self, test_client, dag_run_id, note, data_interval_start, data_interval_end, session
     ):
-        fixed_now = timezone.utcnow().isoformat()
+        with time_machine.travel(timezone.utcnow(), tick=False):
+            fixed_now = timezone.utcnow().isoformat()
 
-        request_json = {"note": note, "logical_date": fixed_now}
-        if dag_run_id is not None:
-            request_json["dag_run_id"] = dag_run_id
-        if data_interval_start is not None:
-            request_json["data_interval_start"] = data_interval_start
-        if data_interval_end is not None:
-            request_json["data_interval_end"] = data_interval_end
-        request_json["logical_date"] = fixed_now
+            request_json = {"note": note, "logical_date": fixed_now}
+            if dag_run_id is not None:
+                request_json["dag_run_id"] = dag_run_id
+            if data_interval_start is not None:
+                request_json["data_interval_start"] = data_interval_start
+            if data_interval_end is not None:
+                request_json["data_interval_end"] = data_interval_end
+            request_json["logical_date"] = fixed_now
+            response = test_client.post(
+                f"/public/dags/{DAG1_ID}/dagRuns",
+                json=request_json,
+            )
+            assert response.status_code == 200
 
-        response = test_client.post(
-            f"/public/dags/{DAG1_ID}/dagRuns",
-            json=request_json,
-        )
-        assert response.status_code == 200
+            if dag_run_id is None:
+                expected_dag_run_id = f"manual__{fixed_now}"
+            else:
+                expected_dag_run_id = dag_run_id
 
-        if dag_run_id is None:
-            expected_dag_run_id = f"manual__{fixed_now}"
-        else:
-            expected_dag_run_id = dag_run_id
+            expected_data_interval_start = fixed_now.replace("+00:00", "Z")
+            expected_data_interval_end = fixed_now.replace("+00:00", "Z")
+            if data_interval_start is not None and data_interval_end is not None:
+                expected_data_interval_start = data_interval_start.replace("+00:00", "Z")
+                expected_data_interval_end = data_interval_end.replace("+00:00", "Z")
+            expected_logical_date = fixed_now.replace("+00:00", "Z")
 
-        expected_data_interval_start = fixed_now.replace("+00:00", "Z")
-        expected_data_interval_end = fixed_now.replace("+00:00", "Z")
-        if data_interval_start is not None and data_interval_end is not None:
-            expected_data_interval_start = data_interval_start.replace("+00:00", "Z")
-            expected_data_interval_end = data_interval_end.replace("+00:00", "Z")
-        expected_logical_date = fixed_now.replace("+00:00", "Z")
+            run = (
+                session.query(DagRun)
+                .where(DagRun.dag_id == DAG1_ID, DagRun.run_id == expected_dag_run_id)
+                .one()
+            )
+            expected_response_json = {
+                "conf": {},
+                "dag_id": DAG1_ID,
+                "dag_run_id": expected_dag_run_id,
+                "dag_versions": get_dag_versions_dict(run.dag_versions),
+                "end_date": None,
+                "logical_date": expected_logical_date,
+                "run_after": fixed_now.replace("+00:00", "Z"),
+                "start_date": None,
+                "state": "queued",
+                "data_interval_end": expected_data_interval_end,
+                "data_interval_start": expected_data_interval_start,
+                "queued_at": fixed_now.replace("+00:00", "Z"),
+                "last_scheduling_decision": None,
+                "run_type": "manual",
+                "note": note,
+                "triggered_by": "rest_api",
+            }
 
-        run = (
-            session.query(DagRun).where(DagRun.dag_id == DAG1_ID, DagRun.run_id == expected_dag_run_id).one()
-        )
-        expected_response_json = {
-            "conf": {},
-            "dag_id": DAG1_ID,
-            "dag_run_id": expected_dag_run_id,
-            "dag_versions": get_dag_versions_dict(run.dag_versions),
-            "end_date": None,
-            "logical_date": expected_logical_date,
-            "run_after": fixed_now.replace("+00:00", "Z"),
-            "start_date": None,
-            "state": "queued",
-            "data_interval_end": expected_data_interval_end,
-            "data_interval_start": expected_data_interval_start,
-            "queued_at": fixed_now.replace("+00:00", "Z"),
-            "last_scheduling_decision": None,
-            "run_type": "manual",
-            "note": note,
-            "triggered_by": "rest_api",
-        }
-
-        assert response.json() == expected_response_json
-        _check_last_log(session, dag_id=DAG1_ID, event="trigger_dag_run", logical_date=None)
+            assert response.json() == expected_response_json
+            _check_last_log(session, dag_id=DAG1_ID, event="trigger_dag_run", logical_date=None)
 
     @pytest.mark.parametrize(
         "post_body, expected_detail",
@@ -1353,21 +1360,21 @@ class TestTriggerDagRun:
             == "DAG with dag_id: 'import_errors' has import errors and cannot be triggered"
         )
 
-    @time_machine.travel(timezone.utcnow(), tick=False)
     @pytest.mark.usefixtures("configure_git_connection_for_dag_bundle")
     def test_should_response_409_for_duplicate_logical_date(self, test_client):
-        RUN_ID_1 = "random_1"
-        RUN_ID_2 = "random_2"
-        now = timezone.utcnow().isoformat().replace("+00:00", "Z")
-        note = "duplicate logical date test"
-        response_1 = test_client.post(
-            f"/public/dags/{DAG1_ID}/dagRuns",
-            json={"dag_run_id": RUN_ID_1, "note": note, "logical_date": now},
-        )
-        response_2 = test_client.post(
-            f"/public/dags/{DAG1_ID}/dagRuns",
-            json={"dag_run_id": RUN_ID_2, "note": note, "logical_date": now},
-        )
+        with time_machine.travel(timezone.utcnow(), tick=False):
+            RUN_ID_1 = "random_1"
+            RUN_ID_2 = "random_2"
+            now = timezone.utcnow().isoformat().replace("+00:00", "Z")
+            note = "duplicate logical date test"
+            response_1 = test_client.post(
+                f"/public/dags/{DAG1_ID}/dagRuns",
+                json={"dag_run_id": RUN_ID_1, "note": note, "logical_date": now},
+            )
+            response_2 = test_client.post(
+                f"/public/dags/{DAG1_ID}/dagRuns",
+                json={"dag_run_id": RUN_ID_2, "note": note, "logical_date": now},
+            )
 
         assert response_1.status_code == 200
         assert response_1.json() == {

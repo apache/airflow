@@ -803,6 +803,7 @@ export const prefetchUseDagRunServiceGetDagRun = (
  * @param data The data for the request.
  * @param data.dagId
  * @param data.dagRunId
+ * @param data.uri
  * @returns AssetEventCollectionResponse Successful Response
  * @throws ApiError
  */
@@ -811,14 +812,16 @@ export const prefetchUseDagRunServiceGetUpstreamAssetEvents = (
   {
     dagId,
     dagRunId,
+    uri,
   }: {
     dagId: string;
     dagRunId: string;
+    uri?: string;
   },
 ) =>
   queryClient.prefetchQuery({
-    queryKey: Common.UseDagRunServiceGetUpstreamAssetEventsKeyFn({ dagId, dagRunId }),
-    queryFn: () => DagRunService.getUpstreamAssetEvents({ dagId, dagRunId }),
+    queryKey: Common.UseDagRunServiceGetUpstreamAssetEventsKeyFn({ dagId, dagRunId, uri }),
+    queryFn: () => DagRunService.getUpstreamAssetEvents({ dagId, dagRunId, uri }),
   });
 /**
  * Get Dag Runs

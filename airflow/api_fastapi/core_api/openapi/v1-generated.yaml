@@ -2334,6 +2334,8 @@ paths:
       description: If dag run is asset-triggered, return the asset events that triggered
         it.
       operationId: get_upstream_asset_events
+      security:
+      - OAuth2PasswordBearer: []
       parameters:
       - name: dag_id
         in: path
@@ -2347,6 +2349,14 @@ paths:
         schema:
           type: string
           title: Dag Run Id
+      - name: uri
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Uri
       responses:
         '200':
           description: Successful Response

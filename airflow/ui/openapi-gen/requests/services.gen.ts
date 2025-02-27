@@ -1403,6 +1403,7 @@ export class DagRunService {
    * @param data The data for the request.
    * @param data.dagId
    * @param data.dagRunId
+   * @param data.uri
    * @returns AssetEventCollectionResponse Successful Response
    * @throws ApiError
    */
@@ -1415,6 +1416,9 @@ export class DagRunService {
       path: {
         dag_id: data.dagId,
         dag_run_id: data.dagRunId,
+      },
+      query: {
+        uri: data.uri,
       },
       errors: {
         401: "Unauthorized",
