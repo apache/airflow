@@ -385,7 +385,7 @@ class AzureContainerInstancesOperator(BaseOperator):
                 if state == "Unhealthy":
                     self.log.error("Azure provision unhealthy")
                     return 1
-                
+
                 if state == "Failed":
                     self.log.error("Azure provision failure")
                     return 1
