@@ -27,7 +27,10 @@ import pytest
 from airflow import DAG
 from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning
 from airflow.models import Connection, DagRun, TaskInstance as TI, XCom
-from airflow.providers.common.sql.hooks.sql import fetch_all_handler
+from airflow.providers.common.sql.hooks.sql import (
+    default_output_processor_with_column_names,
+    fetch_all_handler,
+)
 from airflow.providers.common.sql.operators.sql import (
     BaseSQLOperator,
     BranchSQLOperator,
@@ -62,6 +65,19 @@ class MockHook:
 
 def _get_mock_db_hook():
     return MockHook()
+
+
+def test_default_output_processor_with_column_names():
+    results_input = [[(1, "Alice"), (2, "Bob")], [(101, 1), (102, 2)]]
+    descriptions_input = [
+        (("CustomerId", int, None, None, None, None, 0), ("Name", str, None, None, None, None, 0)),
+        (("OrderId", int, None, None, None, None, 0), ("CustomerId", int, None, None, None, None, 0)),
+    ]
+    expected_output = [
+        ([(1, "Alice"), (2, "Bob")], ["CustomerId", "Name"]),
+        ([(101, 1), (102, 2)], ["OrderId", "CustomerId"]),
+    ]
+    assert default_output_processor_with_column_names(results_input, descriptions_input) == expected_output
 
 
 class TestBaseSQLOperator:
