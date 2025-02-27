@@ -16,9 +16,10 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-/* eslint-disable perfectionist/sort-enums */
-/* eslint-disable perfectionist/sort-objects */
 
+/* eslint-disable perfectionist/sort-enums */
+
+/* eslint-disable perfectionist/sort-objects */
 import { createListCollection } from "@chakra-ui/react";
 
 export enum LogLevel {
