@@ -1657,7 +1657,7 @@ class TaskInstance(Base, LoggingMixin):
     end_date = Column(UtcDateTime)
     duration = Column(Float)
     state = Column(String(20))
-    try_id = Column(UUIDType(binary=False), default=uuid7, unique=True)
+    try_id = Column(UUIDType(binary=False), default=uuid7, unique=True, nullable=False)
     try_number = Column(Integer, default=0)
     max_tries = Column(Integer, server_default=text("-1"))
     hostname = Column(String(1000))
