@@ -999,14 +999,11 @@ def compile_ui_assets(dev: bool, force_clean: bool):
     help="Additionally cleanup MyPy cache.",
     is_flag=True,
 )
-@option_project_name
 @option_verbose
 @option_dry_run
-def down(preserve_volumes: bool, cleanup_mypy_cache: bool, project_name: str):
+def down(preserve_volumes: bool, cleanup_mypy_cache: bool):
     perform_environment_checks()
-    shell_params = ShellParams(
-        backend="all", include_mypy_volume=cleanup_mypy_cache, project_name=project_name
-    )
+    shell_params = ShellParams(backend="all", include_mypy_volume=cleanup_mypy_cache)
     bring_compose_project_down(preserve_volumes=preserve_volumes, shell_params=shell_params)
     if cleanup_mypy_cache:
         command_to_execute = ["docker", "volume", "rm", "--force", "mypy-cache-volume"]
@@ -1127,6 +1124,8 @@ def doctor(ctx):
     shell_params.print_badge_info()
 
     perform_environment_checks()
+    fix_ownership_using_docker()
+    cleanup_python_generated_files()
 
     shell_params = ShellParams(backend="all", include_mypy_volume=True)
     bring_compose_project_down(preserve_volumes=False, shell_params=shell_params)
