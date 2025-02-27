@@ -14,25 +14,23 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+#
+# NOTE! THIS FILE IS COPIED MANUALLY IN OTHER PROVIDERS DELIBERATELY TO AVOID ADDING UNNECESSARY
+# DEPENDENCIES BETWEEN PROVIDERS. IF YOU WANT TO ADD CONDITIONAL CODE IN YOUR PROVIDER THAT DEPENDS
+# ON AIRFLOW VERSION, PLEASE COPY THIS FILE TO THE ROOT PACKAGE OF YOUR PROVIDER AND IMPORT
+# THOSE CONSTANTS FROM IT RATHER THAN IMPORTING THEM FROM ANOTHER PROVIDER OR TEST CODE
+#
 from __future__ import annotations
 
-from typing import NamedTuple
 
-from marshmallow import Schema, fields
+def get_base_airflow_version_tuple() -> tuple[int, int, int]:
+    from packaging.version import Version
 
+    from airflow import __version__
 
-class LogsSchema(Schema):
-    """Schema for logs."""
-
-    content = fields.List(fields.Str(dump_only=True))
-    continuation_token = fields.Str(dump_only=True, allow_none=True)
+    airflow_version = Version(__version__)
+    return airflow_version.major, airflow_version.minor, airflow_version.micro
 
 
-class LogResponseObject(NamedTuple):
-    """Log Response Object."""
-
-    content: list[str]
-    continuation_token: str | None
-
-
-logs_schema = LogsSchema()
+AIRFLOW_V_2_10_PLUS = get_base_airflow_version_tuple() >= (2, 10, 0)
+AIRFLOW_V_3_0_PLUS = get_base_airflow_version_tuple() >= (3, 0, 0)

@@ -183,9 +183,11 @@ class TestProjectStructure:
             "providers/google/tests/unit/google/test_version_compat.py",
             "providers/http/tests/unit/http/test_exceptions.py",
             "providers/microsoft/azure/tests/unit/microsoft/azure/operators/test_adls.py",
+            "providers/microsoft/azure/tests/unit/microsoft/azure/test_version_compat.py",
             "providers/openlineage/tests/unit/openlineage/test_version_compat.py",
             "providers/opensearch/tests/unit/opensearch/test_version_compat.py",
             "providers/presto/tests/unit/presto/test_version_compat.py",
+            "providers/redis/tests/unit/redis/test_version_compat.py",
             "providers/snowflake/tests/unit/snowflake/triggers/test_snowflake_trigger.py",
             "providers/standard/tests/unit/standard/operators/test_empty.py",
             "providers/standard/tests/unit/standard/operators/test_latest_only.py",
@@ -558,8 +560,7 @@ class TestGoogleProviderProjectStructure(ExampleCoverageTest, AssetsCoverageTest
         "GoogleCampaignManagerReportSensor",
         "airflow.providers.google.marketing_platform.sensors.display_video."
         "GoogleDisplayVideo360GetSDFDownloadOperationSensor",
-        "airflow.providers.google.marketing_platform.sensors.display_video."
-        "GoogleDisplayVideo360ReportSensor",
+        "airflow.providers.google.marketing_platform.sensors.display_video.GoogleDisplayVideo360ReportSensor",
     }
 
     @pytest.mark.xfail(reason="We did not reach full coverage yet")

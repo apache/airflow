@@ -4645,6 +4645,25 @@ export const $StructureDataResponse = {
   description: "Structure Data serializer for responses.",
 } as const;
 
+export const $StructuredLogMessage = {
+  properties: {
+    timestamp: {
+      type: "string",
+      format: "date-time",
+      title: "Timestamp",
+    },
+    event: {
+      type: "string",
+      title: "Event",
+    },
+  },
+  additionalProperties: true,
+  type: "object",
+  required: ["event"],
+  title: "StructuredLogMessage",
+  description: "An individual log message.",
+} as const;
+
 export const $TaskCollectionResponse = {
   properties: {
     tasks: {
@@ -5628,7 +5647,20 @@ export const $TaskInstancesBatchBody = {
 export const $TaskInstancesLogResponse = {
   properties: {
     content: {
-      type: "string",
+      anyOf: [
+        {
+          items: {
+            $ref: "#/components/schemas/StructuredLogMessage",
+          },
+          type: "array",
+        },
+        {
+          items: {
+            type: "string",
+          },
+          type: "array",
+        },
+      ],
       title: "Content",
     },
     continuation_token: {
