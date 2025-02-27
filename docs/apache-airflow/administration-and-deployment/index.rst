@@ -36,3 +36,4 @@ This section contains information about deploying DAGs into production and the a
     cluster-policies
     priority-weight
     web-stack
+    plugins

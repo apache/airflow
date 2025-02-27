@@ -189,14 +189,14 @@ option_use_standard_naming = click.option(
 )
 option_wait_time_in_seconds = click.option(
     "--wait-time-in-seconds",
-    help="Wait for Airflow webserver for specified number of seconds.",
+    help="Wait for Airflow api-server for specified number of seconds.",
     type=click.IntRange(0),
     default=120,
     envvar="WAIT_TIME_IN_SECONDS",
 )
 option_wait_time_in_seconds_0_default = click.option(
     "--wait-time-in-seconds",
-    help="Wait for Airflow webserver for specified number of seconds.",
+    help="Wait for Airflow api-server for specified number of seconds.",
     type=click.IntRange(0),
     default=0,
     envvar="WAIT_TIME_IN_SECONDS",

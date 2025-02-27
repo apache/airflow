@@ -67,20 +67,10 @@ repos:
       - id: insert-license
         name: Add license for CSS/JS/JSX/PUML/TS/TSX
         files: \.(css|jsx?|puml|tsx?)$
-        exclude: ^\.github/.*$|^airflow/www/static/js/types/api-generated.ts$|ui/openapi-gen/|.*/dist/.*
+        exclude: ^\.github/.*$|ui/openapi-gen/|.*/dist/.*
         args:
           - --comment-style
           - "/*!| *| */"
-          - --license-filepath
-          - scripts/ci/license-templates/LICENSE.txt
-          - --fuzzy-match-generates-todo
-      - id: insert-license
-        name: Add license for all JINJA template files
-        files: ^airflow/www/templates/.*\.html$
-        exclude: ^\.github/.*$
-        args:
-          - --comment-style
-          - "{#||#}"
           - --license-filepath
           - scripts/ci/license-templates/LICENSE.txt
           - --fuzzy-match-generates-todo
@@ -312,7 +302,7 @@ repos:
         exclude: material-icons\.css$|^images/.*$|^RELEASE_NOTES\.txt$|^.*package-lock\.json$|^.*/kinglear\.txt$|^.*pnpm-lock\.yaml$|.*/dist/.*
         args:
           - --ignore-words=docs/spelling_wordlist.txt
-          - --skip=providers/.*/src/airflow/providers/*/*.rst,providers/*/docs/changelog.rst,airflow/www/*.log,docs/*/commits.rst,providers/*/docs/commits.rst,providers/*/*/docs/commits.rst,docs/apache-airflow/tutorial/pipeline_example.csv,*.min.js,*.lock,INTHEWILD.md
+          - --skip=providers/.*/src/airflow/providers/*/*.rst,providers/*/docs/changelog.rst,docs/*/commits.rst,providers/*/docs/commits.rst,providers/*/*/docs/commits.rst,docs/apache-airflow/tutorial/pipeline_example.csv,*.min.js,*.lock,INTHEWILD.md
           - --exclude-file=.codespellignorelines
   - repo: https://github.com/woodruffw/zizmor-pre-commit
     rev: v1.0.0
@@ -616,7 +606,6 @@ repos:
           ^airflow/api_connexion/openapi/v1.yaml$|
           ^airflow/ui/openapi-gen/|
           ^airflow/cli/commands/local_commands/fastapi_api_command.py$|
-          ^airflow/cli/commands/local_commands/webserver_command.py$|
           ^airflow/config_templates/|
           ^airflow/models/baseoperator.py$|
           ^airflow/operators/__init__.py$|
@@ -649,9 +638,6 @@ repos:
           ^airflow/ui/pnpm-lock.yaml$|
           ^airflow/utils/db.py$|
           ^airflow/utils/trigger_rule.py$|
-          ^airflow/www/static/css/bootstrap-theme.css$|
-          ^airflow/www/static/js/types/api-generated.ts$|
-          ^airflow/www/templates/appbuilder/flash.html$|
           ^chart/values.schema.json$|
           ^dev/|
           ^docs/README.rst$|
@@ -858,13 +844,6 @@ repos:
         entry: koalaman/shellcheck:v0.8.0 -x -a
         files: \.(bash|sh)$|^hooks/build$|^hooks/push$
         exclude: ^dev/breeze/autocomplete/.*$
-      - id: lint-css
-        name: stylelint
-        entry: "stylelint"
-        language: node
-        files: ^airflow/www/.*\.(css|sass|scss)$
-        # Keep dependency versions in sync w/ airflow/www/package.json
-        additional_dependencies: ['stylelint@13.3.1', 'stylelint-config-standard@20.0.0', 'stylelint-config-prettier@9.0.5']
       - id: compile-ui-assets
         name: Compile ui assets (manual)
         language: node
@@ -872,15 +851,6 @@ repos:
         types_or: [javascript, ts, tsx]
         files: ^airflow/ui/|^airflow/auth/managers/simple/ui/
         entry: ./scripts/ci/pre_commit/compile_ui_assets.py
-        pass_filenames: false
-        additional_dependencies: ['pnpm@9.7.1']
-      - id: compile-ui-assets-dev
-        name: Compile ui assets in dev mode (manual)
-        language: node
-        stages: ['manual']
-        types_or: [javascript, ts, tsx]
-        files: ^airflow/ui/|^airflow/auth/managers/simple/ui/
-        entry: ./scripts/ci/pre_commit/compile_ui_assets_dev.py
         pass_filenames: false
         additional_dependencies: ['pnpm@9.7.1']
       - id: compile-fab-assets
@@ -891,24 +861,15 @@ repos:
         entry: ./scripts/ci/pre_commit/compile_fab_assets.py
         pass_filenames: false
         additional_dependencies: [ 'yarn@1.22.21' ]
-      - id: compile-www-assets
-        name: Compile www assets (manual)
+      - id: compile-ui-assets-dev
+        name: Compile ui assets in dev mode (manual)
         language: node
         stages: ['manual']
-        'types_or': [javascript, ts, tsx]
-        files: ^airflow/www/
-        entry: ./scripts/ci/pre_commit/compile_www_assets.py
+        types_or: [javascript, ts, tsx]
+        files: ^airflow/ui/|^airflow/auth/managers/simple/ui/
+        entry: ./scripts/ci/pre_commit/compile_ui_assets_dev.py
         pass_filenames: false
-        additional_dependencies: ['yarn@1.22.21']
-      - id: compile-www-assets-dev
-        name: Compile www assets in dev mode (manual)
-        language: node
-        stages: ['manual']
-        'types_or': [javascript, ts, tsx]
-        files: ^airflow/www/
-        entry: ./scripts/ci/pre_commit/compile_www_assets_dev.py
-        pass_filenames: false
-        additional_dependencies: ['yarn@1.22.21']
+        additional_dependencies: ['pnpm@9.7.1']
       - id: check-providers-subpackages-init-file-exist
         name: Provider subpackage init files are there
         pass_filenames: false
@@ -1194,15 +1155,6 @@ repos:
         additional_dependencies: ['rich>=12.4.4']
         pass_filenames: false
         files: ^tests/.*\.py$
-      - id: ts-compile-format-lint-www
-        name: Compile / format / lint WWW
-        description: TS types generation / ESLint / Prettier against UI files
-        language: node
-        'types_or': [javascript, ts, tsx, yaml, css, json]
-        files: ^airflow/www/static/(js|css)/|^airflow/api_connexion/openapi/v1\.yaml$
-        entry: ./scripts/ci/pre_commit/lint_www.py
-        additional_dependencies: ['yarn@1.22.21', "openapi-typescript@>=6.7.4"]
-        pass_filenames: false
       - id: ts-compile-format-lint-ui
         name: Compile / format / lint UI
         description: TS types generation / ESLint / Prettier new UI files

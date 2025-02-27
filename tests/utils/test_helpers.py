@@ -28,7 +28,7 @@ from airflow.jobs.base_job_runner import BaseJobRunner
 from airflow.utils import helpers, timezone
 from airflow.utils.helpers import (
     at_most_one,
-    build_airflow_url_with_query,
+    build_airflow_dagrun_url,
     exactly_one,
     merge_dicts,
     prune_dict,
@@ -38,7 +38,6 @@ from airflow.utils.helpers import (
 )
 from airflow.utils.types import NOTSET
 
-from tests_common.test_utils.config import conf_vars
 from tests_common.test_utils.db import clear_db_dags, clear_db_runs
 
 if TYPE_CHECKING:
@@ -162,23 +161,9 @@ class TestHelpers:
         merged = merge_dicts(dict1, dict2)
         assert merged == {"a": 1, "r": {"b": 0, "c": 3}}
 
-    @pytest.mark.db_test
-    @conf_vars(
-        {
-            ("webserver", "dag_default_view"): "graph",
-        }
-    )
-    def test_build_airflow_url_with_query(self):
-        """
-        Test query generated with dag_id and params
-        """
-        query = {"dag_id": "test_dag", "param": "key/to.encode"}
-        expected_url = "/dags/test_dag/graph?param=key%2Fto.encode"
-
-        from airflow.www.app import cached_app
-
-        with cached_app(testing=True).test_request_context():
-            assert build_airflow_url_with_query(query) == expected_url
+    def test_build_airflow_dagrun_url(self):
+        expected_url = "http://localhost:9091/webapp/dags/somedag/runs/abc123"
+        assert build_airflow_dagrun_url(dag_id="somedag", run_id="abc123") == expected_url
 
     @pytest.mark.parametrize(
         "key_id, message, exception",

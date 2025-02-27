@@ -19,6 +19,5 @@ services:
   airflow:
     ports:
       - "${SSH_PORT}:22"
-      - "${WEBSERVER_HOST_PORT}:8080"
       - "${API_SERVER_HOST_PORT}:9091"
       - "${FLOWER_HOST_PORT}:5555"

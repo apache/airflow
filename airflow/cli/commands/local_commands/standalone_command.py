@@ -83,12 +83,6 @@ class StandaloneCommand:
             command=["dag-processor"],
             env=env,
         )
-        self.subcommands["webserver"] = SubCommand(
-            self,
-            name="webserver",
-            command=["webserver"],
-            env=env,
-        )
         self.subcommands["api-server"] = SubCommand(
             self,
             name="api-server",
@@ -102,7 +96,6 @@ class StandaloneCommand:
             env=env,
         )
 
-        self.web_server_port = conf.getint("webserver", "WEB_SERVER_PORT", fallback=8080)
         # Run subcommand threads
         for command in self.subcommands.values():
             command.start()
@@ -152,7 +145,6 @@ class StandaloneCommand:
         """
         color: dict[str, Color] = {
             "api-server": "magenta",
-            "webserver": "green",
             "scheduler": "blue",
             "dag-processor": "yellow",
             "triggerer": "cyan",

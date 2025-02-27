@@ -33,6 +33,7 @@ import { DagsList } from "src/pages/DagsList";
 import { Dashboard } from "src/pages/Dashboard";
 import { ErrorPage } from "src/pages/Error";
 import { Events } from "src/pages/Events";
+import { MappedTaskInstance } from "src/pages/MappedTaskInstance";
 import { Plugins } from "src/pages/Plugins";
 import { Pools } from "src/pages/Pools";
 import { Providers } from "src/pages/Providers";
@@ -48,6 +49,16 @@ import { Variables } from "src/pages/Variables";
 import { XCom } from "src/pages/XCom";
 
 import { queryClient } from "./queryClient";
+
+const taskInstanceRoutes = [
+  { element: <Logs />, index: true },
+  { element: <Events />, path: "events" },
+  { element: <XCom />, path: "xcom" },
+  { element: <Code />, path: "code" },
+  { element: <Details />, path: "details" },
+  { element: <RenderedTemplates />, path: "rendered_templates" },
+  { element: <TaskInstances />, path: "task_instances" },
+];
 
 export const routerConfig = [
   {
@@ -126,16 +137,19 @@ export const routerConfig = [
         path: "dags/:dagId/runs/:runId",
       },
       {
-        children: [
-          { element: <Logs />, index: true },
-          { element: <Events />, path: "events" },
-          { element: <XCom />, path: "xcom" },
-          { element: <Code />, path: "code" },
-          { element: <Details />, path: "details" },
-          { element: <RenderedTemplates />, path: "rendered_templates" },
-        ],
+        children: taskInstanceRoutes,
         element: <TaskInstance />,
         path: "dags/:dagId/runs/:runId/tasks/:taskId",
+      },
+      {
+        children: [{ element: <TaskInstances />, index: true }],
+        element: <MappedTaskInstance />,
+        path: "dags/:dagId/runs/:runId/tasks/:taskId/mapped",
+      },
+      {
+        children: taskInstanceRoutes,
+        element: <TaskInstance />,
+        path: "dags/:dagId/runs/:runId/tasks/:taskId/mapped/:mapIndex",
       },
       {
         children: [
