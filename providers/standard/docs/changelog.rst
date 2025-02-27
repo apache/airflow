@@ -35,6 +35,31 @@
 Changelog
 ---------
 
+1.0.0
+.....
+
+Breaking changes
+~~~~~~~~~~~~~~~~
+
+* ``Add deferred pagination mode to GenericTransfer (#44809)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Runtime context shouldn't have start_date as a key (#46961)``
+
+Misc
+~~~~
+
+* ``Remove old UI and webserver (#46942)``
+* ``Add legacy namespace packages to airflow.providers (#47064)``
+* ``Replace 'external_trigger' check with DagRunType (#45961)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Remove extra whitespace in provider readme template (#46975)``
+   * ``Upgrade flit to 3.11.0 (#46938)``
+
 0.1.0
 .....
 

@@ -34,14 +34,32 @@ For high-level changelog, see :doc:`package information including changelog <ind
 
 
 
+1.0.0
+.....
+
+Latest change: 2025-02-26
+
+==================================================================================================  ===========  ================================================================
+Commit                                                                                              Committed    Subject
+==================================================================================================  ===========  ================================================================
+`51415547d6 <https://github.com/apache/airflow/commit/51415547d681942ec389f143125e8f9f163d690c>`__  2025-02-26   ``Remove old UI and webserver (#46942)``
+`310f5cdfde <https://github.com/apache/airflow/commit/310f5cdfde87b9d2c7327fbe03f0dcfe854405a9>`__  2025-02-26   ``Add deferred pagination mode to GenericTransfer (#44809)``
+`c6c4f95ed9 <https://github.com/apache/airflow/commit/c6c4f95ed9e3220133815b9126c135e805637022>`__  2025-02-25   ``Add legacy namespace packages to airflow.providers (#47064)``
+`811fa2b016 <https://github.com/apache/airflow/commit/811fa2b016ca613061e5d4d32fee005e53c1bf1d>`__  2025-02-25   ``Replace 'external_trigger' check with DagRunType (#45961)``
+`518287ce7f <https://github.com/apache/airflow/commit/518287ce7fbb7bb70df499239523b1b2e9ac7656>`__  2025-02-24   ``Runtime context shouldn't have start_date as a key (#46961)``
+`dbf8bb4092 <https://github.com/apache/airflow/commit/dbf8bb409223687c7d2ad10649a92d02c24bb3b4>`__  2025-02-24   ``Remove extra whitespace in provider readme template (#46975)``
+`b28c336e8b <https://github.com/apache/airflow/commit/b28c336e8b7aa1d69c0f9520b182b1b661377337>`__  2025-02-21   ``Upgrade flit to 3.11.0 (#46938)``
+==================================================================================================  ===========  ================================================================
+
 0.1.0
 .....
 
-Latest change: 2025-02-18
+Latest change: 2025-02-21
 
 ==================================================================================================  ===========  ============================================================================================================================================================
 Commit                                                                                              Committed    Subject
 ==================================================================================================  ===========  ============================================================================================================================================================
+`5d87bddf0a <https://github.com/apache/airflow/commit/5d87bddf0aa5f485f3684c909fb95f461e5a2ab6>`__  2025-02-21   ``Prepare docs for Feb 1st wave of providers (#46893)``
 `fdbd68f02e <https://github.com/apache/airflow/commit/fdbd68f02e86dcfec20178d3309b7398cb43ce32>`__  2025-02-18   ``TriggerDagRunOperator by defaults set logical date as null (#46633)``
 `4d5846f58f <https://github.com/apache/airflow/commit/4d5846f58fe0de9b43358c0be75dd72e968dacc4>`__  2025-02-16   ``Move provider_tests to unit folder in provider tests (#46800)``
 `e027457a24 <https://github.com/apache/airflow/commit/e027457a24d0c6235bfed9c2a8399f75342e82f1>`__  2025-02-15   ``Removed the unused provider's distribution (#46608)``
