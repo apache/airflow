@@ -16,22 +16,23 @@
 # under the License.
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Any, cast
+import os
 
-from flask import Flask
-
-if TYPE_CHECKING:
-    from airflow.models.dagbag import DagBag
+from airflow.models import DagBag
+from airflow.settings import DAGS_FOLDER
 
 
-class AirflowApp(Flask):
-    """Airflow Flask Application."""
+def get_dag_bag() -> DagBag:
+    """Instantiate the appropriate DagBag based on the ``SKIP_DAGS_PARSING`` environment variable."""
+    if os.environ.get("SKIP_DAGS_PARSING") == "True":
+        return DagBag(os.devnull, include_examples=False)
+    return DagBag(DAGS_FOLDER, read_dags_from_db=True)
 
-    dag_bag: DagBag
-    api_auth: list[Any]
 
+def init_dagbag(app):
+    """
+    Create global DagBag for webserver and API.
 
-def get_airflow_app() -> AirflowApp:
-    from flask import current_app
-
-    return cast(AirflowApp, current_app)
+    To access it use ``flask.current_app.dag_bag``.
+    """
+    app.dag_bag = get_dag_bag()
