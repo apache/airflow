@@ -165,7 +165,7 @@ def assert_outputs_are_printed(expected_outputs: dict[str, str], stderr: str):
                     "upgrade-to-newer-dependencies": "false",
                     "core-test-types-list-as-string": "API Always",
                     "providers-test-types-list-as-string": "Providers[amazon] Providers[common.compat,databricks,fab]",
-                    "individual-providers-test-types-list-as-string": "Providers[amazon] Providers[common.compat] Providers[fab]",
+                    "individual-providers-test-types-list-as-string": "Providers[amazon] Providers[common.compat] Providers[databricks] Providers[fab]",
                     "testable-core-integrations": "['celery', 'kerberos']",
                     "testable-providers-integrations": "['cassandra', 'drill', 'kafka', 'mongo', 'pinot', 'qdrant', 'redis', 'trino', 'ydb']",
                     "needs-mypy": "true",
@@ -333,7 +333,7 @@ def assert_outputs_are_printed(expected_outputs: dict[str, str], stderr: str):
                     "providers-test-types-list-as-string": "Providers[amazon] "
                     "Providers[common.compat,common.sql,databricks,fab,openlineage,pgvector,postgres] Providers[google]",
                     "individual-providers-test-types-list-as-string": "Providers[amazon] Providers[common.compat] Providers[common.sql] "
-                    "Providers[fab] Providers[google] Providers[openlineage] Providers[pgvector] "
+                    "Providers[databricks] Providers[fab] Providers[google] Providers[openlineage] Providers[pgvector] "
                     "Providers[postgres]",
                     "needs-mypy": "true",
                     "mypy-checks": "['mypy-airflow', 'mypy-providers']",
