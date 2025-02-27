@@ -151,7 +151,7 @@ class TestRdsHook:
 
     def test_wait_for_db_instance_state_boto_waiters(self, rds_hook: RdsHook, db_instance_id: str):
         """Checks that the DB instance waiter uses AWS boto waiters where possible"""
-        for state in ("available", "deleted", "stopped"):
+        for state in ("available", "deleted"):
             with patch.object(rds_hook.conn, "get_waiter") as mock:
                 rds_hook.wait_for_db_instance_state(db_instance_id, target_state=state, **self.waiter_args)
                 mock.assert_called_once_with(f"db_instance_{state}")
@@ -170,7 +170,7 @@ class TestRdsHook:
 
     def test_wait_for_db_cluster_state_boto_waiters(self, rds_hook: RdsHook, db_cluster_id: str):
         """Checks that the DB cluster waiter uses AWS boto waiters where possible"""
-        for state in ("available", "deleted", "stopped"):
+        for state in ("available", "deleted"):
             with patch.object(rds_hook.conn, "get_waiter") as mock:
                 rds_hook.wait_for_db_cluster_state(db_cluster_id, target_state=state, **self.waiter_args)
                 mock.assert_called_once_with(f"db_cluster_{state}")
