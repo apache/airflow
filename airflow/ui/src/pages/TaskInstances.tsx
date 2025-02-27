@@ -1,3 +1,5 @@
+/* eslint-disable max-lines */
+
 /*!
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
@@ -31,6 +33,7 @@ import { MarkTaskInstanceAsButton } from "src/components/MarkAs";
 import { SearchBar } from "src/components/SearchBar";
 import { StateBadge } from "src/components/StateBadge";
 import Time from "src/components/Time";
+import { TruncatedText } from "src/components/TruncatedText";
 import { Select } from "src/components/ui";
 import { SearchParamsKeys, type SearchParamsKeysType } from "src/constants/searchParams";
 import { taskInstanceStateOptions as stateOptions } from "src/constants/stateOptions";
@@ -79,7 +82,9 @@ const taskInstanceColumns = (
           accessorKey: "task_display_name",
           cell: ({ row: { original } }: TaskInstanceRow) => (
             <Link asChild color="fg.info" fontWeight="bold">
-              <RouterLink to={getTaskInstanceLink(original)}>{original.task_display_name}</RouterLink>
+              <RouterLink to={getTaskInstanceLink(original)}>
+                <TruncatedText text={original.task_display_name} />
+              </RouterLink>
             </Link>
           ),
           enableSorting: false,
@@ -97,7 +102,16 @@ const taskInstanceColumns = (
   },
   {
     accessorKey: "start_date",
-    cell: ({ row: { original } }) => <Time datetime={original.start_date} />,
+    cell: ({ row: { original } }) =>
+      Boolean(taskId) && Boolean(runId) ? (
+        <Link asChild color="fg.info" fontWeight="bold">
+          <RouterLink to={getTaskInstanceLink(original)}>
+            <Time datetime={original.start_date} />
+          </RouterLink>
+        </Link>
+      ) : (
+        <Time datetime={original.start_date} />
+      ),
     header: "Start Date",
   },
   {
@@ -106,10 +120,9 @@ const taskInstanceColumns = (
     header: "End Date",
   },
   {
-    accessorFn: (row: TaskInstanceResponse) => row.rendered_map_index ?? row.map_index,
+    accessorKey: "rendered_map_index",
     header: "Map Index",
   },
-
   {
     accessorKey: "try_number",
     enableSorting: false,

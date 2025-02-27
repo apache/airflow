@@ -19,8 +19,9 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
-from airflow.sensors.base import BaseSensorOperator
 from celery.app import control
+
+from airflow.sensors.base import BaseSensorOperator
 
 if TYPE_CHECKING:
     try:

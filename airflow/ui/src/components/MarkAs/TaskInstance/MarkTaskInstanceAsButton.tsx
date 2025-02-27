@@ -72,7 +72,9 @@ const MarkTaskInstanceAsButton = ({ taskInstance, withText = true }: Props) => {
         </Menu.Content>
       </Menu.Root>
 
-      <MarkTaskInstanceAsDialog onClose={onClose} open={open} state={state} taskInstance={taskInstance} />
+      {open ? (
+        <MarkTaskInstanceAsDialog onClose={onClose} open={open} state={state} taskInstance={taskInstance} />
+      ) : undefined}
     </Box>
   );
 };

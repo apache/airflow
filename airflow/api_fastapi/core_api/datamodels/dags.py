@@ -33,7 +33,9 @@ from pydantic import (
 
 from airflow.api_fastapi.core_api.base import BaseModel, StrictBaseModel
 from airflow.api_fastapi.core_api.datamodels.dag_tags import DagTagResponse
+from airflow.api_fastapi.core_api.datamodels.dag_versions import DagVersionResponse
 from airflow.configuration import conf
+from airflow.models.dag_version import DagVersion
 
 DAG_ALIAS_MAPPING: dict[str, str] = {
     # The keys are the names in the response, the values are the original names in the model
@@ -169,3 +171,13 @@ class DAGDetailsResponse(DAGResponse):
     def concurrency(self) -> int:
         """Return max_active_tasks as concurrency."""
         return self.max_active_tasks
+
+    # Mypy issue https://github.com/python/mypy/issues/1362
+    @computed_field  # type: ignore[misc]
+    @property
+    def latest_dag_version(self) -> DagVersionResponse | None:
+        """Return the latest DagVersion."""
+        latest_dag_version = DagVersion.get_latest_version(self.dag_id)
+        if latest_dag_version is None:
+            return latest_dag_version
+        return DagVersionResponse.model_validate(latest_dag_version)

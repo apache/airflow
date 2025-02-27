@@ -30,7 +30,7 @@ requires = [
     "pluggy==1.5.0",
     "smmap==5.0.2",
     "tomli==2.2.1; python_version < '3.11'",
-    "trove-classifiers==2025.1.15.22",
+    "trove-classifiers==2025.2.18.16",
 ]
 build-backend = "hatchling.build"
 
@@ -176,10 +176,9 @@ include = [
     "/airflow/git_version"
 ]
 exclude = [
-    "/airflow/www/node_modules/"
+    "/airflow/ui/node_modules/"
 ]
 artifacts = [
-    "/airflow/www/static/dist/",
     "/airflow/ui/dist/",
     "/airflow/git_version",
     "/generated/",
@@ -190,7 +189,6 @@ include = [
     "/airflow",
 ]
 artifacts = [
-    "/airflow/www/static/dist/",
     "/airflow/ui/dist/",
     "/airflow/git_version"
 ]
@@ -330,6 +328,16 @@ testing = ["dev", "providers.tests", "task_sdk.tests", "tests_common", "tests"]
 # __path__ = __import__("pkgutil").extend_path(__path__, __name__)  # type: ignore
 "providers/*/tests/*/__init__.py" = ["I002"]
 "providers/*/*/tests/*/*/__init__.py" = ["I002"]
+"providers/*/src/airflow/__init__.py" = ["I002"]
+"providers/*/src/airflow/providers/*/__init__.py" = ["I002"]
+"providers/*/src/airflow/providers/__init__.py" = ["I002"]
+"providers/*/*/src/airflow/providers/__init__.py" = ["I002"]
+"providers/apache/*/src/airflow/providers/apache/__init__.py" = ["I002"]
+"providers/atlassian/*/src/airflow/providers/atlassian/__init__.py" = ["I002"]
+"providers/common/*/src/airflow/providers/common/__init__.py" = ["I002"]
+"providers/cncf/*/src/airflow/providers/cncf/__init__.py" = ["I002"]
+"providers/dbt/*/src/airflow/providers/dbt/__init__.py" = ["I002"]
+"providers/microsoft/*/src/airflow/providers/microsoft/__init__.py" = ["I002"]
 
 # The test_python.py is needed because adding __future__.annotations breaks runtime checks that are
 # needed for the test to work
@@ -560,7 +568,6 @@ omit = [
     "airflow/contrib/**",
     "airflow/example_dags/**",
     "airflow/migrations/**",
-    "airflow/www/node_modules/**",
     "providers/google/src/airflow/providers/**/example_dags/**",
     "providers/google/src/airflow/providers/google/ads/_vendor/**",
 ]
@@ -593,17 +600,10 @@ show_error_codes = true
 disable_error_code = [
     "annotation-unchecked",
 ]
-# Since there are no __init__.py files in
-# providers/<provided>src/apache/airflow/providers we need to tell MyPy where the "base"
-# is, otherwise when it sees
-# TODO(potiuk): check if those providers/*/src are still needed
 explicit_package_bases = true
 mypy_path = [
   "$MYPY_CONFIG_FILE_DIR",
   "$MYPY_CONFIG_FILE_DIR/task_sdk/src",
-  "$MYPY_CONFIG_FILE_DIR/providers/airbyte/src",
-  "$MYPY_CONFIG_FILE_DIR/providers/celery/src",
-  "$MYPY_CONFIG_FILE_DIR/providers/edge/src",
 ]
 
 [[tool.mypy.overrides]]

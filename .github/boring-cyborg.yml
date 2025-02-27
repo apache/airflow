@@ -300,9 +300,10 @@ labelPRBasedOnFilePath:
   area:API:
     - airflow/api/**/*
     - airflow/api_connexion/**/*
+    - airflow/api_fastapi/**/*
     - clients/**/*
     - docs/apache-airflow/stable-rest-api-ref.rst
-    - tests/api_connexion/**/*
+    - tests/api_fastapi/**/*
 
   area:dev-tools:
     - scripts/**/*
@@ -319,10 +320,6 @@ labelPRBasedOnFilePath:
     - .pre-commit-config.yaml
     - .rat-excludes
     - .readthedocs.yml
-    - airflow/www/.eslintignore
-    - airflow/www/.eslintrc
-    - airflow/www/.stylelintignore
-    - airflow/www/.stylelintrc
 
   kind:documentation:
     - docs/**/*
@@ -331,22 +328,7 @@ labelPRBasedOnFilePath:
     - chart/**/*
     - docs/helm-chart/**
 
-  area:Webserver:
-    - airflow/cli/commands/local_commands/webserver_command.py
-    - airflow/www/**/*
-    - tests/cli/commands/local_commands/test_webserver_command.py
-    - tests/www/**/*
-
   area:UI:
-    - airflow/www/static/**/*
-    - airflow/www/templates/**/*
-    - airflow/www/.eslintignore
-    - airflow/www/.eslintrc
-    - airflow/www/.stylelintignore
-    - airflow/www/.stylelintrc
-    - airflow/www/package.json
-    - airflow/www/webpack.config.js
-    - airflow/www/yarn.lock
     - docs/apache-airflow/ui.rst
     - airflow/ui/**/*
 
@@ -372,7 +354,7 @@ labelPRBasedOnFilePath:
     - airflow/plugins_manager.py
     - tests/cli/commands/local_commands/test_plugins_command.py
     - tests/plugins/**/*
-    - docs/apache-airflow/authoring-and-scheduling/plugins.rst
+    - docs/apache-airflow/administration-and-deployment/plugins.rst
 
   area:Scheduler:
     - airflow/jobs/scheduler_job_runner.py

@@ -23,6 +23,7 @@ from datetime import datetime
 from typing import TYPE_CHECKING
 
 import psutil
+from openlineage.client.serde import Serde
 from setproctitle import getproctitle, setproctitle
 
 from airflow import settings
@@ -50,7 +51,6 @@ from airflow.stats import Stats
 from airflow.utils import timezone
 from airflow.utils.state import TaskInstanceState
 from airflow.utils.timeout import timeout
-from openlineage.client.serde import Serde
 
 if TYPE_CHECKING:
     from airflow.models import TaskInstance
@@ -104,7 +104,7 @@ class OpenLineageListener:
                 assert task
             dagrun = context["dag_run"]
             dag = context["dag"]
-            start_date = context["start_date"]
+            start_date = task_instance.start_date
             self._on_task_instance_running(task_instance, dag, dagrun, task, start_date)
     else:
 
@@ -178,9 +178,13 @@ class OpenLineageListener:
                 self.log.debug("Skipping this instance of rescheduled task - START event was emitted already")
                 return
 
+            date = dagrun.logical_date
+            if AIRFLOW_V_3_0_PLUS and date is None:
+                date = dagrun.run_after
+
             parent_run_id = self.adapter.build_dag_run_id(
                 dag_id=dag.dag_id,
-                logical_date=dagrun.logical_date,
+                logical_date=date,
                 clear_number=clear_number,
             )
 
@@ -188,7 +192,7 @@ class OpenLineageListener:
                 dag_id=dag.dag_id,
                 task_id=task.task_id,
                 try_number=task_instance.try_number,
-                logical_date=dagrun.logical_date,
+                logical_date=date,
                 map_index=task_instance.map_index,
             )
             event_type = RunState.RUNNING.value.lower()
@@ -276,9 +280,13 @@ class OpenLineageListener:
 
         @print_warning(self.log)
         def on_success():
+            date = dagrun.logical_date
+            if AIRFLOW_V_3_0_PLUS and date is None:
+                date = dagrun.run_after
+
             parent_run_id = self.adapter.build_dag_run_id(
                 dag_id=dag.dag_id,
-                logical_date=dagrun.logical_date,
+                logical_date=date,
                 clear_number=dagrun.clear_number,
             )
 
@@ -286,7 +294,7 @@ class OpenLineageListener:
                 dag_id=dag.dag_id,
                 task_id=task.task_id,
                 try_number=_get_try_number_success(task_instance),
-                logical_date=dagrun.logical_date,
+                logical_date=date,
                 map_index=task_instance.map_index,
             )
             event_type = RunState.COMPLETE.value.lower()
@@ -393,9 +401,13 @@ class OpenLineageListener:
 
         @print_warning(self.log)
         def on_failure():
+            date = dagrun.logical_date
+            if AIRFLOW_V_3_0_PLUS and date is None:
+                date = dagrun.run_after
+
             parent_run_id = self.adapter.build_dag_run_id(
                 dag_id=dag.dag_id,
-                logical_date=dagrun.logical_date,
+                logical_date=date,
                 clear_number=dagrun.clear_number,
             )
 
@@ -403,7 +415,7 @@ class OpenLineageListener:
                 dag_id=dag.dag_id,
                 task_id=task.task_id,
                 try_number=task_instance.try_number,
-                logical_date=dagrun.logical_date,
+                logical_date=date,
                 map_index=task_instance.map_index,
             )
             event_type = RunState.FAIL.value.lower()

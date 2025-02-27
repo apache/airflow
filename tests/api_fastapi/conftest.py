@@ -49,15 +49,7 @@ def client():
 
 
 @pytest.fixture
-def make_dag_with_multiple_versions(dag_maker, session):
-    """
-    Create DAG with multiple versions
-
-    Version 1 will have 1 task, version 2 will have 2 tasks, and version 3 will have 3 tasks.
-
-    Configure the associated dag_bundles.
-    """
-
+def configure_git_connection_for_dag_bundle(session):
     # Git connection is required for the bundles to have a url.
     connection = Connection(
         conn_id="git_default",
@@ -68,7 +60,6 @@ def make_dag_with_multiple_versions(dag_maker, session):
         login="",
     )
     session.add(connection)
-
     with conf_vars(
         {
             (
@@ -77,24 +68,36 @@ def make_dag_with_multiple_versions(dag_maker, session):
             ): '[{ "name": "dag_maker", "classpath": "airflow.dag_processing.bundles.git.GitDagBundle", "kwargs": {"subdir": "dags", "tracking_ref": "main", "refresh_interval": 0}}, { "name": "another_bundle_name", "classpath": "airflow.dag_processing.bundles.git.GitDagBundle", "kwargs": {"subdir": "dags", "tracking_ref": "main", "refresh_interval": 0}}]'
         }
     ):
-        dag_id = "dag_with_multiple_versions"
-
-        for version_number in range(1, 4):
-            with dag_maker(dag_id) as dag:
-                for task_number in range(version_number):
-                    EmptyOperator(task_id=f"task{task_number + 1}")
-            dag.sync_to_db()
-            SerializedDagModel.write_dag(
-                dag, bundle_name="dag_maker", bundle_version=f"some_commit_hash{version_number}"
-            )
-            dag_maker.create_dagrun(
-                run_id=f"run{version_number}",
-                logical_date=datetime.datetime(2020, 1, version_number, tzinfo=datetime.timezone.utc),
-                dag_version=DagVersion.get_version(dag_id=dag_id, version_number=version_number),
-            )
         yield
 
-        clear_db_connections(False)
+    clear_db_connections(False)
+
+
+@pytest.fixture
+def make_dag_with_multiple_versions(dag_maker, configure_git_connection_for_dag_bundle):
+    """
+    Create DAG with multiple versions
+
+    Version 1 will have 1 task, version 2 will have 2 tasks, and version 3 will have 3 tasks.
+
+    Configure the associated dag_bundles.
+    """
+
+    dag_id = "dag_with_multiple_versions"
+
+    for version_number in range(1, 4):
+        with dag_maker(dag_id) as dag:
+            for task_number in range(version_number):
+                EmptyOperator(task_id=f"task{task_number + 1}")
+        dag.sync_to_db()
+        SerializedDagModel.write_dag(
+            dag, bundle_name="dag_maker", bundle_version=f"some_commit_hash{version_number}"
+        )
+        dag_maker.create_dagrun(
+            run_id=f"run{version_number}",
+            logical_date=datetime.datetime(2020, 1, version_number, tzinfo=datetime.timezone.utc),
+            dag_version=DagVersion.get_version(dag_id=dag_id, version_number=version_number),
+        )
 
 
 @pytest.fixture(scope="module")

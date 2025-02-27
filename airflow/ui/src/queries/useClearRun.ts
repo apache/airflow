@@ -23,6 +23,7 @@ import {
   UseDagRunServiceGetDagRunKeyFn,
   useDagRunServiceGetDagRunsKey,
   UseDagServiceGetDagDetailsKeyFn,
+  UseGridServiceGridDataKeyFn,
   useTaskInstanceServiceGetTaskInstancesKey,
 } from "openapi/queries";
 import { toaster } from "src/components/ui";
@@ -55,6 +56,7 @@ export const useClearDagRun = ({
       UseDagRunServiceGetDagRunKeyFn({ dagId, dagRunId }),
       [useDagRunServiceGetDagRunsKey],
       [useClearDagRunDryRunKey, dagId],
+      UseGridServiceGridDataKeyFn({ dagId }, [{ dagId }]),
     ];
 
     await Promise.all(queryKeys.map((key) => queryClient.invalidateQueries({ queryKey: key })));

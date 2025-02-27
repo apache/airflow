@@ -27,8 +27,9 @@ def get_provider_info():
         "name": "Amazon",
         "description": "Amazon integration (including `Amazon Web Services (AWS) <https://aws.amazon.com/>`__).\n",
         "state": "ready",
-        "source-date-epoch": 1734527035,
+        "source-date-epoch": 1739958314,
         "versions": [
+            "9.4.0",
             "9.2.0",
             "9.1.0",
             "9.0.0",
@@ -602,6 +603,10 @@ def get_provider_info():
             {
                 "integration-name": "Amazon Managed Service for Apache Flink",
                 "python-modules": ["airflow.providers.amazon.aws.sensors.kinesis_analytics"],
+            },
+            {
+                "integration-name": "Amazon Managed Workflows for Apache Airflow (MWAA)",
+                "python-modules": ["airflow.providers.amazon.aws.sensors.mwaa"],
             },
             {
                 "integration-name": "Amazon OpenSearch Serverless",
@@ -1358,6 +1363,7 @@ def get_provider_info():
             "python3-saml": ["python3-saml>=1.16.0"],
             "apache.hive": ["apache-airflow-providers-apache-hive"],
             "exasol": ["apache-airflow-providers-exasol"],
+            "fab": ["apache-airflow-providers-fab"],
             "ftp": ["apache-airflow-providers-ftp"],
             "google": ["apache-airflow-providers-google"],
             "imap": ["apache-airflow-providers-imap"],
