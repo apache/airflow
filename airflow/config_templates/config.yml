@@ -2462,7 +2462,7 @@ scheduler:
       version_added: 2.9.0
       type: boolean
       example: ~
-      default: "True"
+      default: "False"
       see_also: ':ref:`Differences between "trigger" and "data interval" timetables`'
     create_delta_data_intervals:
       description: |
@@ -2481,7 +2481,7 @@ scheduler:
       version_added: 2.11.0
       type: boolean
       example: ~
-      default: "True"
+      default: "False"
       see_also: ':ref:`Differences between "trigger" and "data interval" timetables`'
     enable_tracemalloc:
       description: |

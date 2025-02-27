@@ -30,11 +30,11 @@ from starlette.responses import HTMLResponse
 from starlette.staticfiles import StaticFiles
 from starlette.templating import Jinja2Templates
 
+from airflow.api_fastapi.core_api.init_dagbag import get_dag_bag
 from airflow.api_fastapi.core_api.middleware import FlaskExceptionsMiddleware
 from airflow.configuration import conf
 from airflow.exceptions import AirflowException
 from airflow.settings import AIRFLOW_PATH
-from airflow.www.extensions.init_dagbag import get_dag_bag
 
 log = logging.getLogger(__name__)
 
