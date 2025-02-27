@@ -1040,13 +1040,13 @@ DAGS_COMMANDS = (
         name="list-import-errors",
         help="List all the DAGs that have import errors",
         func=lazy_load_command("airflow.cli.commands.remote_commands.dag_command.dag_list_import_errors"),
-        args=(ARG_SUBDIR, ARG_OUTPUT, ARG_VERBOSE),
+        args=(ARG_BUNDLE_NAME, ARG_OUTPUT, ARG_VERBOSE),
     ),
     ActionCommand(
         name="report",
         help="Show DagBag loading report",
         func=lazy_load_command("airflow.cli.commands.remote_commands.dag_command.dag_report"),
-        args=(ARG_SUBDIR, ARG_OUTPUT, ARG_VERBOSE),
+        args=(ARG_BUNDLE_NAME, ARG_OUTPUT, ARG_VERBOSE),
     ),
     ActionCommand(
         name="list-runs",
@@ -1079,7 +1079,7 @@ DAGS_COMMANDS = (
         name="state",
         help="Get the status of a dag run",
         func=lazy_load_command("airflow.cli.commands.remote_commands.dag_command.dag_state"),
-        args=(ARG_DAG_ID, ARG_LOGICAL_DATE_OR_RUN_ID, ARG_SUBDIR, ARG_VERBOSE),
+        args=(ARG_DAG_ID, ARG_LOGICAL_DATE_OR_RUN_ID, ARG_VERBOSE),
     ),
     ActionCommand(
         name="next-execution",
@@ -1089,7 +1089,7 @@ DAGS_COMMANDS = (
             "num-executions option is given"
         ),
         func=lazy_load_command("airflow.cli.commands.remote_commands.dag_command.dag_next_execution"),
-        args=(ARG_DAG_ID, ARG_SUBDIR, ARG_NUM_EXECUTIONS, ARG_VERBOSE),
+        args=(ARG_DAG_ID, ARG_BUNDLE_NAME, ARG_NUM_EXECUTIONS, ARG_VERBOSE),
     ),
     ActionCommand(
         name="pause",
