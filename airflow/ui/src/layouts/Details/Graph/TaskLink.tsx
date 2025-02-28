@@ -39,7 +39,7 @@ export const TaskLink = ({ id, isGroup, isMapped, ...rest }: Props) => {
       <RouterLink
         to={{
           // Do not include runId if there is no selected run, clicking a second time will deselect a task id
-          pathname: `/dags/${dagId}/${runId === undefined ? "" : `runs/${runId}/`}${taskId === id ? "" : `tasks/${id}`}${isMapped ? "/mapped" : ""}`,
+          pathname: `/dags/${dagId}/${runId === undefined ? "" : `runs/${runId}/`}${taskId === id ? "" : `tasks/${id}`}${isMapped && taskId !== id && runId !== undefined ? "/mapped" : ""}`,
           search: searchParams.toString(),
         }}
       >
