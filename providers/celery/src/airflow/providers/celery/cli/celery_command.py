@@ -123,10 +123,17 @@ def _serve_logs(skip_serve_logs: bool = False):
 @contextmanager
 def _run_stale_bundle_cleanup():
     """Start stale bundle cleanup sub-process."""
-    if not AIRFLOW_V_3_0_PLUS:
-        yield
-        return
-    from airflow.dag_processing.bundles.base import STALE_BUNDLE_CHECK_INTERVAL, BundleUsageTrackingManager
+    check_interval = conf.getint(
+        section="dag_processor",
+        key="stale_bundle_cleanup_interval",
+    )
+    if check_interval <= 0 or not AIRFLOW_V_3_0_PLUS:
+        # do not start bundle cleanup process
+        try:
+            yield
+        finally:
+            return
+    from airflow.dag_processing.bundles.base import BundleUsageTrackingManager
 
     log.info("starting stale bundle cleanup process")
     sub_proc = None
@@ -134,7 +141,7 @@ def _run_stale_bundle_cleanup():
     def bundle_cleanup_main():
         mgr = BundleUsageTrackingManager()
         while True:
-            time.sleep(STALE_BUNDLE_CHECK_INTERVAL)
+            time.sleep(check_interval)
             mgr.remove_stale_bundle_versions()
 
     try:

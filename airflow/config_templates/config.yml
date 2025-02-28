@@ -2704,7 +2704,7 @@ dag_processor:
         This setting represents the delta in seconds between checks for these stale bundles.
         Bundles which are older than `stale_bundle_cleanup_age_threshold` may be removed. But
         we always keep `stale_bundle_cleanup_min_versions` versions locally.
-        Set to negative to disable.
+        Set to 0 or negative to disable.
       version_added: ~
       type: integer
       example: ~

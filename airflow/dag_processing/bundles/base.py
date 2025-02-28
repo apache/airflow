@@ -36,18 +36,11 @@ from sqlalchemy_utils.types.enriched_datetime.pendulum_datetime import pendulum
 
 from airflow.configuration import conf
 from airflow.dag_processing.bundles.manager import DagBundlesManager
-from airflow.utils.timeout import timeout
 
 if TYPE_CHECKING:
     from pendulum import DateTime
 
 log = logging.getLogger(__name__)
-
-STALE_BUNDLE_CHECK_INTERVAL: int = conf.getint(
-    section="dag_processor",
-    key="stale_bundle_cleanup_interval",
-)
-"""How frequently (in seconds) a worker should check for stale bundles."""
 
 
 def get_bundle_storage_root_path():
@@ -344,14 +337,12 @@ class BaseDagBundle(ABC):
 
         with open(lock_file_path, "w") as lock_file:
             # Exclusive lock - blocks until it is available
-            with timeout(15):
-                fcntl.flock(lock_file, fcntl.LOCK_EX)
+            fcntl.flock(lock_file, fcntl.LOCK_EX)
             try:
                 self._locked = True
                 yield
             finally:
-                with timeout(15):
-                    fcntl.flock(lock_file, LOCK_UN)
+                fcntl.flock(lock_file, LOCK_UN)
                 self._locked = False
 
     def __repr__(self):
@@ -417,12 +408,11 @@ class BundleVersionLock:
 
     def __enter__(self):
         # wrapping in try except here is just extra cautious since this is in task execution path
-        with timeout(15):
-            try:
-                self.acquire()
-            except Exception:
-                self._log_exc("error when attempting to acquire lock")
-            return self
+        try:
+            self.acquire()
+        except Exception:
+            self._log_exc("error when attempting to acquire lock")
+        return self
 
     def __exit__(self, exc_type, exc_val, exc_tb):
         # wrapping in try except here is just extra cautious since this is in task execution path

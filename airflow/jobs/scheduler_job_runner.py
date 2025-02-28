@@ -41,7 +41,7 @@ from sqlalchemy.sql import expression
 from airflow import settings
 from airflow.callbacks.callback_requests import DagCallbackRequest, TaskCallbackRequest
 from airflow.configuration import conf
-from airflow.dag_processing.bundles.base import STALE_BUNDLE_CHECK_INTERVAL, BundleUsageTrackingManager
+from airflow.dag_processing.bundles.base import BundleUsageTrackingManager
 from airflow.exceptions import RemovedInAirflow3Warning
 from airflow.executors import workloads
 from airflow.executors.base_executor import BaseExecutor
@@ -1031,10 +1031,15 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
 
         if any(x.is_local for x in self.job.executors):
             bundle_cleanup_mgr = BundleUsageTrackingManager()
-            timers.call_regular_interval(
-                delay=STALE_BUNDLE_CHECK_INTERVAL,
-                action=bundle_cleanup_mgr.remove_stale_bundle_versions,
+            check_interval = conf.getint(
+                section="dag_processor",
+                key="stale_bundle_cleanup_interval",
             )
+            if check_interval > 0:
+                timers.call_regular_interval(
+                    delay=check_interval,
+                    action=bundle_cleanup_mgr.remove_stale_bundle_versions,
+                )
 
         for loop_count in itertools.count(start=1):
             with (
