@@ -276,7 +276,17 @@ repos:
         name: Check YAML files with yamllint
         entry: yamllint -c yamllint-config.yml --strict
         types: [yaml]
-        exclude: ^.*airflow\.template\.yaml$|^.*init_git_sync\.template\.yaml$|^chart/(?:templates|files)/.*\.yaml$|openapi/.*\.yaml$|^\.pre-commit-config\.yaml$|^.*/reproducible_build.yaml$|^.*pnpm-lock\.yaml$
+        exclude: >
+          (?x)
+          ^.*airflow\.template\.yaml$|
+          ^.*init_git_sync\.template\.yaml$|
+          ^chart/(?:templates|files)/.*\.yaml$|
+          ^airflow/api_fastapi/core_api/openapi/v1-generated\.yaml$|
+          ^.*openapi.*\.yaml$|
+          ^airflow/api_fastapi/core_api/openapi/v1-generated\.yaml$|
+          ^\.pre-commit-config\.yaml$|
+          ^.*/reproducible_build.yaml$|
+          ^.*pnpm-lock\.yaml$
   - repo: https://github.com/ikamensh/flynt
     rev: '1.0.1'
     hooks:
