@@ -240,7 +240,7 @@ class SQLExecuteQueryOperator(BaseSQLOperator):
     :param parameters: (optional) the parameters to render the SQL query with.
     :param handler: (optional) the function that will be applied to the cursor (default: fetch_all_handler).
     :param output_processor: (optional) the function that will be applied to the result
-        (default: default_output_processor).
+        (default: default_output_processor, alternative: default_output_processor_with_column_names).
     :param split_statements: (optional) if split single SQL string into statements. By default, defers
         to the default value in the ``run`` method of the configured hook.
     :param conn_id: the connection ID used to connect to the database
