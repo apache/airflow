@@ -277,7 +277,6 @@ class RuntimeTaskInstance(TaskInstance):
         :param run_id: If provided, only pulls XComs from a DagRun w/a matching run_id.
             If *None* (default), the run_id of the calling task is used.
 
-
         When pulling one single task (``task_id`` is *None* or a str) without
         specifying ``map_indexes``, the return value is a single XCom entry
         (map_indexes is set to map_index of the calling task instance).
