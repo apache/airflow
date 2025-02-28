@@ -58,7 +58,7 @@ EXAMPLE_HTTP_TRANSPORT_CONFIG = {
 EXAMPLE_PARENT_JOB_SPARK_PROPERTIES = {
     "spark.openlineage.parentJobName": "dag_id.task_id",
     "spark.openlineage.parentJobNamespace": "default",
-    "spark.openlineage.parentRunId": "01931a3c-9c00-7737-912c-e5f837576373",
+    "spark.openlineage.parentRunId": "01931885-2800-7be7-aa8d-aaa15c337267",
 }
 EXAMPLE_TRANSPORT_SPARK_PROPERTIES = {
     "spark.openlineage.transport.type": "http",
