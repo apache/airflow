@@ -30,7 +30,7 @@ from importlib import reload
 from io import StringIO
 from pathlib import Path
 from unittest import mock
-from unittest.mock import MagicMock, patch
+from unittest.mock import MagicMock, PropertyMock, patch
 
 import pytest
 
@@ -43,6 +43,7 @@ from airflow.executors.executor_utils import ExecutorName
 from airflow.executors.local_executor import LocalExecutor
 from airflow.providers.amazon.aws.executors.ecs.ecs_executor import AwsEcsExecutor
 from airflow.providers.celery.executors.celery_executor import CeleryExecutor
+from airflow.providers_manager import ProvidersManager
 
 from tests_common.test_utils.config import conf_vars
 
@@ -166,6 +167,46 @@ class TestCli:
         with pytest.raises(CliConflictError, match="test_command"):
             # force re-evaluation of cli commands (done in top level code)
             reload(cli_parser)
+
+    def test_provider_level_cli_commands(self):
+        """Test that providers level CLI commands are loaded."""
+        mock_kubernetes_cli_command = ActionCommand(
+            name="kubernetes_command",
+            help="test command for kubernetes provider",
+            func=lambda: None,
+            args=[],
+        )
+        with patch(
+            "airflow.providers.cncf.kubernetes.cli.definition.KUBERNETES_GROUP_COMMANDS",
+            [mock_kubernetes_cli_command],
+        ):
+            with patch.object(
+                ProvidersManager, "providers", new_callable=PropertyMock
+            ) as mock_provider_manager_providers:
+                mock_provider_manager_providers.return_value = {
+                    "apache-airflow-providers-cncf-kubernetes": MagicMock()
+                }
+                reload(cli_parser)
+                commands = [command.name for command in cli_parser.airflow_commands]
+                assert mock_kubernetes_cli_command.name in commands
+
+    def test_provider_level_cli_commands_with_error(self):
+        """Test that providers level CLI commands are loaded."""
+        with patch("airflow.cli.cli_definition_loader.import_string") as mock_import_string:
+            mock_import_string.side_effect = ImportError
+            with patch.object(
+                ProvidersManager, "providers", new_callable=PropertyMock
+            ) as mock_provider_manager_providers:
+                mock_provider_manager_providers.return_value = {
+                    "apache-airflow-providers-cncf-kubernetes": MagicMock()
+                }
+                with contextlib.redirect_stdout(StringIO()) as stdout:
+                    reload(cli_parser)
+                    stdout = stdout.getvalue()
+                assert (
+                    "Failed to load CLI commands from provider: apache-airflow-providers-cncf-kubernetes"
+                    in stdout
+                )
 
     @patch.object(CeleryExecutor, "get_cli_commands")
     @patch.object(AwsEcsExecutor, "get_cli_commands")

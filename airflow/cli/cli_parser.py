@@ -44,8 +44,9 @@ from airflow.cli.cli_config import (
     GroupCommand,
     core_commands,
 )
+from airflow.cli.cli_definition_loader import CliDefinitionLoader
 from airflow.cli.utils import CliConflictError
-from airflow.exceptions import AirflowException
+from airflow.exceptions import AirflowException, AirflowLoadCliDefinitionsException
 from airflow.executors.executor_loader import ExecutorLoader
 from airflow.utils.helpers import partition
 
@@ -59,6 +60,12 @@ airflow_commands = core_commands.copy()  # make a copy to prevent bad interactio
 
 log = logging.getLogger(__name__)
 
+# add provider level CLI commands
+try:
+    airflow_commands.extend(CliDefinitionLoader.get_cli_commands())
+except AirflowLoadCliDefinitionsException as e:
+    for error in e.args[0]:
+        log.error(error)
 
 for executor_name in ExecutorLoader.get_executor_names():
     try:
