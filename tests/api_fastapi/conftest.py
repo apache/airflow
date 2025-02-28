@@ -57,6 +57,23 @@ def unauthenticated_test_client():
 
 
 @pytest.fixture
+def unauthorized_test_client():
+    with conf_vars(
+        {
+            (
+                "core",
+                "auth_manager",
+            ): "airflow.auth.managers.simple.simple_auth_manager.SimpleAuthManager",
+        }
+    ):
+        auth_manager = SimpleAuthManager()
+        token = auth_manager._get_token_signer().generate_signed_token(
+            auth_manager.serialize_user(SimpleAuthManagerUser(username="dummy", role=None))
+        )
+        yield TestClient(create_app(), headers={"Authorization": f"Bearer {token}"})
+
+
+@pytest.fixture
 def client():
     """This fixture is more flexible than test_client, as it allows to specify which apps to include."""
 
