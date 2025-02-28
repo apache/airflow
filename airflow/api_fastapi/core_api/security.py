@@ -88,7 +88,7 @@ def requires_access_connection(method: ResourceMethod) -> Callable:
         user: Annotated[BaseUser | None, Depends(get_user)] = None,
     ) -> None:
         def callback():
-            return get_auth_manager().is_authorized_dag(
+            return get_auth_manager().is_authorized_connection(
                 method=method, details=ConnectionDetails(conn_id=connection_id), user=user
             )
 
