@@ -885,7 +885,7 @@ graphviz_output_format = "svg"
 # See: https://sphinxcontrib-redoc.readthedocs.io/en/stable/
 if PACKAGE_NAME == "apache-airflow":
     OPENAPI_FILE = os.path.join(
-        os.path.dirname(__file__), "..", "airflow", "api_connexion", "openapi", "v1.yaml"
+        os.path.dirname(__file__), "..", "airflow", "api_fastapi", "core_api", "openapi", "v1-generated.yaml"
     )
     redoc = [
         {
