@@ -16,7 +16,7 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { HStack, IconButton, ButtonGroup } from "@chakra-ui/react";
+import { HStack, IconButton, ButtonGroup, type StackProps, Box } from "@chakra-ui/react";
 import { FiGrid } from "react-icons/fi";
 import { MdOutlineAccountTree } from "react-icons/md";
 
@@ -26,11 +26,11 @@ type Props = {
   readonly dagId: string;
   readonly dagView: string;
   readonly setDagView: (x: "graph" | "grid") => void;
-};
+} & StackProps;
 
-export const PanelButtons = ({ dagId, dagView, setDagView }: Props) => (
-  <HStack justifyContent="space-between" py={2}>
-    <ButtonGroup attached left={0} size="sm" top={0} variant="outline" zIndex={1}>
+export const PanelButtons = ({ dagId, dagView, setDagView, ...rest }: Props) => (
+  <HStack justifyContent="space-between" position="absolute" top={0} width="100%" zIndex={1} {...rest}>
+    <ButtonGroup attached size="sm" variant="outline">
       <IconButton
         aria-label="Show Grid"
         colorPalette="blue"
@@ -50,6 +50,8 @@ export const PanelButtons = ({ dagId, dagView, setDagView }: Props) => (
         <MdOutlineAccountTree />
       </IconButton>
     </ButtonGroup>
-    <DagVersionSelect dagId={dagId} disabled={dagView !== "graph"} />
+    <Box bg="bg" mr={2}>
+      <DagVersionSelect dagId={dagId} disabled={dagView !== "graph"} />
+    </Box>
   </HStack>
 );
