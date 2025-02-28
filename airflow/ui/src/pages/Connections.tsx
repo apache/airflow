@@ -19,33 +19,38 @@
 import { Box, Heading } from "@chakra-ui/react";
 import type { ColumnDef } from "@tanstack/react-table";
 
-import { usePluginServiceGetPlugins } from "openapi/queries";
+import { useConnectionServiceGetConnections } from "openapi/queries";
 import type { PluginResponse } from "openapi/requests/types.gen";
 import { DataTable } from "src/components/DataTable";
 import { ErrorAlert } from "src/components/ErrorAlert";
 
 const columns: Array<ColumnDef<PluginResponse>> = [
   {
-    accessorKey: "name",
+    accessorKey: "connection_id",
     enableSorting: false,
-    header: "Name",
+    header: "Connection Id",
   },
   {
-    accessorKey: "source",
+    accessorKey: "conn_type",
     enableSorting: false,
-    header: "Source",
+    header: "Connection Type",
+  },
+  {
+    accessorKey: "description",
+    enableSorting: false,
+    header: "Description",
   },
 ];
 
 export const Connections = () => {
-  const { data, error } = usePluginServiceGetPlugins();
+  const { data, error } = useConnectionServiceGetConnections();
 
   return (
     <Box p={2}>
-      <Heading>Plugins</Heading>
+      <Heading>Connections</Heading>
       <DataTable
         columns={columns}
-        data={data?.plugins ?? []}
+        data={data?.connections ?? []}
         errorMessage={<ErrorAlert error={error} />}
         total={data?.total_entries}
       />
