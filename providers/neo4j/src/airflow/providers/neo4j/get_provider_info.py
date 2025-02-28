@@ -27,7 +27,7 @@ def get_provider_info():
         "name": "Neo4j",
         "description": "`Neo4j <https://neo4j.com/>`__\n",
         "state": "ready",
-        "source-date-epoch": 1739963909,
+        "source-date-epoch": 1740734159,
         "versions": [
             "3.8.1",
             "3.8.0",

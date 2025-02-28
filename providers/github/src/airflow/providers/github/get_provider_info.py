@@ -27,7 +27,7 @@ def get_provider_info():
         "name": "Github",
         "description": "`GitHub <https://www.github.com/>`__\n",
         "state": "ready",
-        "source-date-epoch": 1739963244,
+        "source-date-epoch": 1740734131,
         "versions": [
             "2.8.2",
             "2.8.0",
