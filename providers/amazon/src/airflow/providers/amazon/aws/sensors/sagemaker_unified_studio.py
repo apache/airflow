@@ -56,7 +56,8 @@ class SageMakerNotebookSensor(BaseSensorOperator):
         status = self.hook().get_execution_status(execution_id=self.execution_id)
 
         if status in self.success_state:
-            self.log.info(f"Exiting Execution {self.execution_id} State: {status}")
+            log_info_message = f"Exiting Execution {self.execution_id} State: {status}"
+            self.log.info(log_info_message)
             return True
         elif status in self.in_progress_states:
             return False
@@ -67,7 +68,6 @@ class SageMakerNotebookSensor(BaseSensorOperator):
 
     def execute(self, context: Context):
         # This will invoke poke method in the base sensor
-        self.log.info(
-            f"Polling Sagemaker Workflows Artifact execution: {self.execution_name} and execution id: {self.execution_id}"
-        )
+        log_info_message = f"Polling Sagemaker Workflows Artifact execution: {self.execution_name} and execution id: {self.execution_id}"
+        self.log.info(log_info_message)
         super().execute(context=context)

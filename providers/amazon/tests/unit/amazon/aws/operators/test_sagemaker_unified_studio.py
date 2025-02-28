@@ -16,8 +16,9 @@
 # under the License.
 from __future__ import annotations
 
-from unittest import TestCase
 from unittest.mock import patch
+
+import pytest
 
 from airflow.exceptions import AirflowException
 from airflow.providers.amazon.aws.operators.sagemaker_unified_studio import (
@@ -28,7 +29,7 @@ from airflow.providers.amazon.aws.triggers.sagemaker_unified_studio import (
 )
 
 
-class TestSageMakerNotebookOperator(TestCase):
+class TestSageMakerNotebookOperator:
     def test_init(self):
         operator = SageMakerNotebookOperator(
             task_id="test_id",
@@ -81,10 +82,9 @@ class TestSageMakerNotebookOperator(TestCase):
             output_config={"output_uri": "test_output_uri", "output_format": "ipynb"},
         )
 
-        with self.assertRaises(AirflowException) as cm:
+        with pytest.raises(AirflowException, match="input_config is required"):
             operator.execute({})
 
-        self.assertEqual(str(cm.exception), "input_config is required")
         mock_notebook_hook.assert_not_called()
 
     @patch("airflow.providers.amazon.aws.operators.sagemaker_unified_studio.SageMakerNotebookHook")
@@ -95,10 +95,9 @@ class TestSageMakerNotebookOperator(TestCase):
             output_config={"output_uri": "test_output_uri", "output_format": "ipynb"},
         )
 
-        with self.assertRaises(AirflowException) as cm:
+        with pytest.raises(AirflowException, match="input_path is a required field in the input_config"):
             operator.execute({})
 
-        self.assertEqual(str(cm.exception), "input_path is a required field in the input_config")
         mock_notebook_hook.assert_not_called()
 
     @patch("airflow.providers.amazon.aws.operators.sagemaker_unified_studio.SageMakerNotebookHook")
