@@ -22,7 +22,9 @@ import traceback
 from collections.abc import AsyncIterator
 from enum import Enum
 from functools import cached_property
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, cast
+
+import tenacity
 
 from airflow.providers.cncf.kubernetes.hooks.kubernetes import AsyncKubernetesHook
 from airflow.providers.cncf.kubernetes.utils.pod_manager import (
@@ -200,7 +202,7 @@ class KubernetesPodTrigger(BaseTrigger):
     async def _wait_for_pod_start(self) -> ContainerState:
         """Loops until pod phase leaves ``PENDING`` If timeout is reached, throws error."""
         while True:
-            pod = await self.hook.get_pod(self.pod_name, self.pod_namespace)
+            pod = await self._get_pod()
             if not pod.status.phase == "Pending":
                 return self.define_container_state(pod)
 
@@ -223,7 +225,7 @@ class KubernetesPodTrigger(BaseTrigger):
         if self.logging_interval is not None:
             time_get_more_logs = time_begin + datetime.timedelta(seconds=self.logging_interval)
         while True:
-            pod = await self.hook.get_pod(self.pod_name, self.pod_namespace)
+            pod = await self._get_pod()
             container_state = self.define_container_state(pod)
             if container_state == ContainerState.TERMINATED:
                 return TriggerEvent(
@@ -256,6 +258,21 @@ class KubernetesPodTrigger(BaseTrigger):
                 )
             self.log.debug("Sleeping for %s seconds.", self.poll_interval)
             await asyncio.sleep(self.poll_interval)
+
+    @tenacity.retry(stop=tenacity.stop_after_attempt(3), wait=tenacity.wait_exponential(), reraise=True)
+    async def _get_pod(self) -> V1Pod:
+        """
+        Get the pod from Kubernetes.
+
+        Separate method for retrying. Retry logic here should mimic the retry logic in
+        PodManager.read_pod method.
+        """
+        pod = await self.hook.get_pod(name=self.pod_name, namespace=self.pod_namespace)
+        # Due to AsyncKubernetesHook overriding get_pod, we need to cast the return
+        # value to kubernetes_asyncio.V1Pod, because it's perceived as different type
+        if TYPE_CHECKING:
+            pod = cast(V1Pod, pod)
+        return pod
 
     @cached_property
     def hook(self) -> AsyncKubernetesHook:
