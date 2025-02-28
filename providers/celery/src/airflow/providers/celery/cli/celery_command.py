@@ -126,8 +126,9 @@ def _run_stale_bundle_cleanup():
     check_interval = conf.getint(
         section="dag_processor",
         key="stale_bundle_cleanup_interval",
+        fallback=None,
     )
-    if check_interval <= 0 or not AIRFLOW_V_3_0_PLUS:
+    if not check_interval or check_interval <= 0 or not AIRFLOW_V_3_0_PLUS:
         # do not start bundle cleanup process
         try:
             yield
