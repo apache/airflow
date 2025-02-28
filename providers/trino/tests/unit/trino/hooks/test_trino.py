@@ -373,7 +373,7 @@ class TestTrinoHook:
         parameters = ("hello", "world")
         handler = list
         self.db_hook.run(sql, autocommit, parameters, list)
-        mock_run.assert_called_once_with(sql, autocommit, parameters, handler)
+        mock_run.assert_called_once_with(sql, autocommit, parameters, handler, split_statements=True)
 
     def test_connection_success(self):
         status, msg = self.db_hook.test_connection()
