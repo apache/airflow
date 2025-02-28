@@ -2782,12 +2782,8 @@ dags:
     #   metadata:
     #     name: git-credentials
     #   data:
-    #     # For git-sync v3
     #     GIT_SYNC_USERNAME: <base64_encoded_git_username>
     #     GIT_SYNC_PASSWORD: <base64_encoded_git_password>
-    #     # For git-sync v4
-    #     GITSYNC_USERNAME: <base64_encoded_git_username>
-    #     GITSYNC_PASSWORD: <base64_encoded_git_password>
     # and specify the name of the secret below
     #
     # credentialsSecret: git-credentials
