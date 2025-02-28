@@ -1079,6 +1079,12 @@ class TestGetDagRunAssetTriggerEvents:
         )
         assert response.status_code == 401
 
+    def test_should_respond_403(self, unauthorized_test_client):
+        response = unauthorized_test_client.get(
+            "/public/dags/TEST_DAG_ID/dagRuns/TEST_DAG_RUN_ID/upstreamAssetEvents"
+        )
+        assert response.status_code == 403
+
     def test_should_respond_404(self, test_client):
         response = test_client.get(
             "public/dags/invalid-id/dagRuns/invalid-run-id/upstreamAssetEvents",

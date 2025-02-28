@@ -4353,6 +4353,7 @@ export const useVariableServiceBulkVariables = <
  * @param data.assetId
  * @param data.before
  * @param data.uri
+ * @param data.dagId
  * @returns void Successful Response
  * @throws ApiError
  */
@@ -4368,6 +4369,7 @@ export const useAssetServiceDeleteAssetQueuedEvents = <
       {
         assetId: number;
         before?: string;
+        dagId?: string;
         uri?: string;
       },
       TContext
@@ -4381,12 +4383,13 @@ export const useAssetServiceDeleteAssetQueuedEvents = <
     {
       assetId: number;
       before?: string;
+      dagId?: string;
       uri?: string;
     },
     TContext
   >({
-    mutationFn: ({ assetId, before, uri }) =>
-      AssetService.deleteAssetQueuedEvents({ assetId, before, uri }) as unknown as Promise<TData>,
+    mutationFn: ({ assetId, before, dagId, uri }) =>
+      AssetService.deleteAssetQueuedEvents({ assetId, before, dagId, uri }) as unknown as Promise<TData>,
     ...options,
   });
 /**

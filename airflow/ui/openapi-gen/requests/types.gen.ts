@@ -1685,6 +1685,7 @@ export type GetAssetQueuedEventsResponse = QueuedEventCollectionResponse;
 export type DeleteAssetQueuedEventsData = {
   assetId: number;
   before?: string | null;
+  dagId?: string | null;
   uri?: string | null;
 };
 
@@ -1707,7 +1708,7 @@ export type GetDagAssetQueuedEventsResponse = QueuedEventCollectionResponse;
 
 export type DeleteDagAssetQueuedEventsData = {
   before?: string | null;
-  dagId: string;
+  dagId: string | null;
   uri?: string | null;
 };
 

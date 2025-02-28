@@ -1090,6 +1090,14 @@ paths:
           - type: string
           - type: 'null'
           title: Uri
+      - name: dag_id
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Dag Id
       responses:
         '204':
           description: Successful Response
@@ -1249,7 +1257,9 @@ paths:
         in: path
         required: true
         schema:
-          type: string
+          anyOf:
+          - type: string
+          - type: 'null'
           title: Dag Id
       - name: before
         in: query
