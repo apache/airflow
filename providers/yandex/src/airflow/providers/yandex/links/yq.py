@@ -30,7 +30,7 @@ if TYPE_CHECKING:
         # TODO: Remove once provider drops support for Airflow 2
         from airflow.utils.context import Context
 
-from airflow.providers.yandex.version_compat import AIRFLOW_V_3_0_PLUS
+from airflow.providers.common.compat.version_compat import AIRFLOW_V_3_0_PLUS
 
 if AIRFLOW_V_3_0_PLUS:
     from airflow.sdk.definitions.baseoperatorlink import BaseOperatorLink
