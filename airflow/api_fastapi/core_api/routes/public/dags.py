@@ -210,7 +210,7 @@ def get_dag_details(dag_id: str, session: SessionDep, request: Request) -> DAGDe
             status.HTTP_404_NOT_FOUND,
         ]
     ),
-    dependencies=[Depends(requires_access_dag(method="PATCH"))],
+    dependencies=[Depends(requires_access_dag(method="PUT"))],
 )
 def patch_dag(
     dag_id: str,
@@ -253,7 +253,7 @@ def patch_dag(
             status.HTTP_404_NOT_FOUND,
         ]
     ),
-    dependencies=[Depends(requires_access_dag(method="PATCH"))],
+    dependencies=[Depends(requires_access_dag(method="PUT"))],
 )
 def patch_dags(
     patch_body: DAGPatchBody,
