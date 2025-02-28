@@ -86,7 +86,7 @@ class TestCliDags:
         clear_db_import_errors()
 
     def teardown_method(self):
-            clear_db_import_errors()
+        clear_db_import_errors()
 
     def test_show_dag_dependencies_print(self):
         with contextlib.redirect_stdout(StringIO()) as temp_stdout:
