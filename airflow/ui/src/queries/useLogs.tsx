@@ -45,20 +45,35 @@ const renderStructuredLog = (logMessage: string | StructuredLogMessage, index: n
   const elements = [];
 
   if (Boolean(timestamp)) {
-    elements.push("[", <time dateTime={timestamp}>{timestamp}</time>, "] ");
+    elements.push(
+      "[",
+      <time dateTime={timestamp} key={0}>
+        {timestamp}
+      </time>,
+      "] ",
+    );
   }
 
   if (typeof level === "string") {
-    elements.push(<span className={`log-level ${level}`}>{level.toUpperCase()}</span>, " - ");
+    elements.push(
+      <span className={`log-level ${level}`} key={1}>
+        {level.toUpperCase()}
+      </span>,
+      " - ",
+    );
   }
 
-  elements.push(<span className="event">{event}</span>);
+  elements.push(
+    <span className="event" key={2}>
+      {event}
+    </span>,
+  );
 
   for (const key in structured) {
     if (Object.hasOwn(structured, key)) {
       elements.push(
         " ",
-        <span className={`log-key ${key}`}>
+        <span className={`log-key ${key}`} key={`prop_${key}`}>
           {key}={JSON.stringify(structured[key])}
         </span>,
       );

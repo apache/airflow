@@ -111,7 +111,12 @@ def get_provider_info():
         "sensors": [
             {"integration-name": "Common SQL", "python-modules": ["airflow.providers.common.sql.sensors.sql"]}
         ],
-        "dependencies": ["apache-airflow>=2.9.0", "sqlparse>=0.5.1", "more-itertools>=9.0.0"],
+        "dependencies": [
+            "apache-airflow>=2.9.0",
+            "sqlparse>=0.5.1",
+            "more-itertools>=9.0.0",
+            "methodtools>=0.4.7",
+        ],
         "optional-dependencies": {
             "pandas": ["pandas>=2.1.2,<2.2"],
             "openlineage": ["apache-airflow-providers-openlineage"],

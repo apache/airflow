@@ -172,6 +172,7 @@ ARG_BUNDLE_NAME = Arg(
         "--bundle-name",
     ),
     help=("The name of the DAG bundle to use; may be provided more than once"),
+    type=str,
     default=None,
     action="append",
 )
@@ -638,75 +639,16 @@ ARG_DB_SKIP_INIT = Arg(
     default=False,
 )
 
-# webserver
-ARG_PORT = Arg(
-    ("-p", "--port"),
-    default=conf.get("webserver", "WEB_SERVER_PORT"),
-    type=int,
-    help="The port on which to run the server",
-)
-ARG_SSL_CERT = Arg(
-    ("--ssl-cert",),
-    default=conf.get("webserver", "WEB_SERVER_SSL_CERT"),
-    help="Path to the SSL certificate for the webserver",
-)
-ARG_SSL_KEY = Arg(
-    ("--ssl-key",),
-    default=conf.get("webserver", "WEB_SERVER_SSL_KEY"),
-    help="Path to the key to use with the SSL certificate",
-)
-ARG_WORKERS = Arg(
-    ("-w", "--workers"),
-    default=conf.get("webserver", "WORKERS"),
-    type=int,
-    help="Number of workers to run the webserver on",
-)
-ARG_WORKERCLASS = Arg(
-    ("-k", "--workerclass"),
-    default=conf.get("webserver", "WORKER_CLASS"),
-    choices=["sync", "eventlet", "gevent", "tornado"],
-    help="The worker class to use for Gunicorn",
-)
-ARG_WORKER_TIMEOUT = Arg(
-    ("-t", "--worker-timeout"),
-    default=conf.get("webserver", "WEB_SERVER_WORKER_TIMEOUT"),
-    type=int,
-    help="The timeout for waiting on webserver workers",
-)
-ARG_HOSTNAME = Arg(
-    ("-H", "--hostname"),
-    default=conf.get("webserver", "WEB_SERVER_HOST"),
-    help="Set the hostname on which to run the web server",
-)
-ARG_DEBUG = Arg(
-    ("-d", "--debug"), help="Use the server that ships with Flask in debug mode", action="store_true"
-)
-ARG_ACCESS_LOGFILE = Arg(
-    ("-A", "--access-logfile"),
-    default=conf.get("webserver", "ACCESS_LOGFILE"),
-    help="The logfile to store the webserver access log. Use '-' to print to stdout",
-)
-ARG_ERROR_LOGFILE = Arg(
-    ("-E", "--error-logfile"),
-    default=conf.get("webserver", "ERROR_LOGFILE"),
-    help="The logfile to store the webserver error log. Use '-' to print to stderr",
-)
-ARG_ACCESS_LOGFORMAT = Arg(
-    ("-L", "--access-logformat"),
-    default=conf.get("webserver", "ACCESS_LOGFORMAT"),
-    help="The access log format for gunicorn logs",
-)
-
 # api-server
 ARG_API_SERVER_PORT = Arg(
     ("-p", "--port"),
-    default=9091,
+    default=conf.get("api", "port"),
     type=int,
     help="The port on which to run the API server",
 )
 ARG_API_SERVER_WORKERS = Arg(
     ("-w", "--workers"),
-    default=4,
+    default=conf.get("api", "workers"),
     type=int,
     help="Number of workers to run on the API server",
 )
@@ -717,21 +659,14 @@ ARG_API_SERVER_WORKER_TIMEOUT = Arg(
     help="The timeout for waiting on API server workers",
 )
 ARG_API_SERVER_HOSTNAME = Arg(
-    ("-H", "--hostname"),
-    default="0.0.0.0",  # nosec
-    help="Set the hostname on which to run the API server",
+    ("-H", "--host"),
+    default=conf.get("api", "host"),
+    help="Set the host on which to run the API server",
 )
 ARG_API_SERVER_ACCESS_LOGFILE = Arg(
     ("-A", "--access-logfile"),
+    default=conf.get("api", "access_logfile"),
     help="The logfile to store the access log. Use '-' to print to stdout",
-)
-ARG_API_SERVER_ERROR_LOGFILE = Arg(
-    ("-E", "--error-logfile"),
-    help="The logfile to store the error log. Use '-' to print to stderr",
-)
-ARG_API_SERVER_ACCESS_LOGFORMAT = Arg(
-    ("-L", "--access-logformat"),
-    help="The access log format for gunicorn logs",
 )
 ARG_API_SERVER_APPS = Arg(
     ("--apps",),
@@ -743,7 +678,17 @@ ARG_API_SERVER_ALLOW_PROXY_FORWARDING = Arg(
     help="Enable X-Forwarded-Proto, X-Forwarded-For, X-Forwarded-Port to populate remote address info.",
     action="store_true",
 )
-
+ARG_SSL_CERT = Arg(
+    ("--ssl-cert",),
+    default=conf.get("api", "ssl_cert"),
+    help="Path to the SSL certificate for the webserver",
+)
+ARG_SSL_KEY = Arg(
+    ("--ssl-key",),
+    default=conf.get("api", "ssl_key"),
+    help="Path to the key to use with the SSL certificate",
+)
+ARG_DEV = Arg(("-d", "--dev"), help="Start FastAPI in development mode", action="store_true")
 
 # scheduler
 ARG_NUM_RUNS = Arg(
@@ -936,7 +881,7 @@ ARG_DAG_LIST_COLUMNS = Arg(
     ("--columns",),
     type=string_list_type,
     help="List of columns to render. (default: ['dag_id', 'fileloc', 'owner', 'is_paused'])",
-    default=("dag_id", "fileloc", "owners", "is_paused"),
+    default=("dag_id", "fileloc", "owners", "is_paused", "bundle_name", "bundle_version"),
 )
 
 ARG_ASSET_LIST_COLUMNS = Arg(
@@ -1034,7 +979,7 @@ DAGS_COMMANDS = (
         name="list",
         help="List all the DAGs",
         func=lazy_load_command("airflow.cli.commands.remote_commands.dag_command.dag_list_dags"),
-        args=(ARG_SUBDIR, ARG_OUTPUT, ARG_VERBOSE, ARG_DAG_LIST_COLUMNS),
+        args=(ARG_OUTPUT, ARG_VERBOSE, ARG_DAG_LIST_COLUMNS, ARG_BUNDLE_NAME),
     ),
     ActionCommand(
         name="list-import-errors",
@@ -1871,13 +1816,11 @@ core_commands: list[CLICommand] = [
             ARG_STDOUT,
             ARG_STDERR,
             ARG_API_SERVER_ACCESS_LOGFILE,
-            ARG_API_SERVER_ERROR_LOGFILE,
-            ARG_API_SERVER_ACCESS_LOGFORMAT,
             ARG_API_SERVER_APPS,
             ARG_LOG_FILE,
             ARG_SSL_CERT,
             ARG_SSL_KEY,
-            ARG_DEBUG,
+            ARG_DEV,
             ARG_API_SERVER_ALLOW_PROXY_FORWARDING,
         ),
     ),
