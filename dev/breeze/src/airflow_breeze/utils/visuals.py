@@ -27,6 +27,7 @@ from airflow_breeze.global_constants import (
     POSTGRES_HOST_PORT,
     REDIS_HOST_PORT,
     SSH_PORT,
+    WEBSERVER_HOST_PORT,
 )
 from airflow_breeze.utils.path_utils import AIRFLOW_SOURCES_ROOT
 
@@ -86,6 +87,7 @@ CHEATSHEET = f"""
           * {POSTGRES_HOST_PORT} -> forwarded to Postgres database -> postgres:5432
           * {MYSQL_HOST_PORT} -> forwarded to MySQL database  -> mysql:3306
           * {REDIS_HOST_PORT} -> forwarded to Redis broker -> redis:6379
+          * {WEBSERVER_HOST_PORT} -> forwarded to Airflow 2 (only Airflow 2) web server API -> airflow:8080
 
         Direct links to those services that you can use from the host:
 
@@ -95,6 +97,7 @@ CHEATSHEET = f"""
           * Postgres:  jdbc:postgresql://127.0.0.1:{POSTGRES_HOST_PORT}/airflow?user=postgres&password=airflow
           * Mysql:     jdbc:mysql://127.0.0.1:{MYSQL_HOST_PORT}/airflow?user=root
           * Redis:     redis://127.0.0.1:{REDIS_HOST_PORT}/0
+          * Airflow 2 web server:    http://127.0.0.1:{WEBSERVER_HOST_PORT}
 
     [info]* How can I add my stuff in Breeze:[/]
 
@@ -118,18 +121,18 @@ CHEATSHEET = f"""
           `{AIRFLOW_SOURCES_ROOT}/files` folder
           and they will be visible in `/files/` folder inside the container.
 
-        [info]* Other options[/]
+    [info]* Other options[/]
 
-        Check out `--help` for `breeze` command. It will show you other options, such as running
-        integration or starting complete Airflow using `start-airflow` command as well as ways
-        of cleaning up the installation.
+    Check out `--help` for `breeze` command. It will show you other options, such as running
+    integration or starting complete Airflow using `start-airflow` command as well as ways
+    of cleaning up the installation.
 
-        Make sure to run `setup-autocomplete` to get the commands and options auto-completable
-        in your shell.
+    Make sure to run `setup-autocomplete` to get the commands and options auto-completable
+    in your shell.
 
-        You can disable this cheatsheet by running:
+    You can disable this cheatsheet by running:
 
-            breeze setup config --no-cheatsheet
+        breeze setup config --no-cheatsheet
 
 """
 CHEATSHEET_STYLE = "white"

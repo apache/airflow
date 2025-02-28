@@ -738,12 +738,12 @@ ASSET_COMPILATION_WAIT_MULTIPLIER=${ASSET_COMPILATION_WAIT_MULTIPLIER:=1}
 . "${IN_CONTAINER_DIR}/check_connectivity.sh"
 
 function wait_for_asset_compilation() {
-    if [[ -f "${AIRFLOW_SOURCES}/.build/www/.asset_compile.lock" ]]; then
+    if [[ -f "${AIRFLOW_SOURCES}/.build/ui/.asset_compile.lock" ]]; then
         echo
         echo "${COLOR_YELLOW}Waiting for asset compilation to complete in the background.${COLOR_RESET}"
         echo
         local counter=0
-        while [[ -f "${AIRFLOW_SOURCES}/.build/www/.asset_compile.lock" ]]; do
+        while [[ -f "${AIRFLOW_SOURCES}/.build/ui/.asset_compile.lock" ]]; do
             if (( counter % 5 == 2 )); then
                 echo "${COLOR_BLUE}Still waiting .....${COLOR_RESET}"
             fi
@@ -755,7 +755,7 @@ function wait_for_asset_compilation() {
                 echo """
 If it does not complete soon, you might want to stop it and remove file lock:
    * press Ctrl-C
-   * run 'rm ${AIRFLOW_SOURCES}/.build/www/.asset_compile.lock'
+   * run 'rm ${AIRFLOW_SOURCES}/.build/ui/.asset_compile.lock'
 """
             fi
             if [[ ${counter} == 60*$ASSET_COMPILATION_WAIT_MULTIPLIER ]]; then
@@ -767,12 +767,12 @@ If it does not complete soon, you might want to stop it and remove file lock:
             fi
         done
     fi
-    if [ -f "${AIRFLOW_SOURCES}/.build/www/asset_compile.out" ]; then
+    if [ -f "${AIRFLOW_SOURCES}/.build/ui/asset_compile.out" ]; then
         echo
         echo "${COLOR_RED}The asset compilation failed. Exiting.${COLOR_RESET}"
         echo
-        cat "${AIRFLOW_SOURCES}/.build/www/asset_compile.out"
-        rm "${AIRFLOW_SOURCES}/.build/www/asset_compile.out"
+        cat "${AIRFLOW_SOURCES}/.build/ui/asset_compile.out"
+        rm "${AIRFLOW_SOURCES}/.build/ui/asset_compile.out"
         echo
         exit 1
     fi
@@ -1283,8 +1283,11 @@ COPY . ${AIRFLOW_SOURCES}/
 # Those are additional constraints that are needed for some extras but we do not want to
 # force them on the main Airflow package. Currently we need no extra limits as PIP 23.1+ has much better
 # dependency resolution and we do not need to limit the versions of the dependencies
+# The `confluent-kafka==2.8.1` currently breaks installation of kafka provider from PyPI
+# So we need to add limit here to get our constraints generation for PyPI packages work
+# This can be removed when https://github.com/confluentinc/confluent-kafka-python/issues/1927 is solved
 #
-ARG EAGER_UPGRADE_ADDITIONAL_REQUIREMENTS=""
+ARG EAGER_UPGRADE_ADDITIONAL_REQUIREMENTS="confluent-kafka!=2.8.1"
 ARG UPGRADE_INVALIDATION_STRING=""
 ARG VERSION_SUFFIX_FOR_PYPI=""
 
