@@ -4061,12 +4061,16 @@ paths:
       summary: Delete Pool
       description: Delete a pool entry.
       operationId: delete_pool
+      security:
+      - OAuth2PasswordBearer: []
       parameters:
       - name: pool_name
         in: path
         required: true
         schema:
-          type: string
+          anyOf:
+          - type: string
+          - type: 'null'
           title: Pool Name
       responses:
         '204':
@@ -4107,12 +4111,16 @@ paths:
       summary: Get Pool
       description: Get a pool.
       operationId: get_pool
+      security:
+      - OAuth2PasswordBearer: []
       parameters:
       - name: pool_name
         in: path
         required: true
         schema:
-          type: string
+          anyOf:
+          - type: string
+          - type: 'null'
           title: Pool Name
       responses:
         '200':
@@ -4151,12 +4159,16 @@ paths:
       summary: Patch Pool
       description: Update a Pool.
       operationId: patch_pool
+      security:
+      - OAuth2PasswordBearer: []
       parameters:
       - name: pool_name
         in: path
         required: true
         schema:
-          type: string
+          anyOf:
+          - type: string
+          - type: 'null'
           title: Pool Name
       - name: update_mask
         in: query
@@ -4218,7 +4230,17 @@ paths:
       summary: Get Pools
       description: Get all pools entries.
       operationId: get_pools
+      security:
+      - OAuth2PasswordBearer: []
       parameters:
+      - name: pool_name
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Pool Name
       - name: limit
         in: query
         required: false
@@ -4287,6 +4309,17 @@ paths:
       summary: Post Pool
       description: Create a Pool.
       operationId: post_pool
+      security:
+      - OAuth2PasswordBearer: []
+      parameters:
+      - name: pool_name
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Pool Name
       requestBody:
         required: true
         content:
@@ -4330,6 +4363,17 @@ paths:
       summary: Bulk Pools
       description: Bulk create, update, and delete pools.
       operationId: bulk_pools
+      security:
+      - OAuth2PasswordBearer: []
+      parameters:
+      - name: pool_name
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Pool Name
       requestBody:
         required: true
         content:
@@ -11307,3 +11351,10 @@ components:
       - value
       title: XComUpdateBody
       description: Payload serializer for updating an XCom entry.
+  securitySchemes:
+    OAuth2PasswordBearer:
+      type: oauth2
+      flows:
+        password:
+          scopes: {}
+          tokenUrl: token

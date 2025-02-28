@@ -2471,6 +2471,7 @@ export const usePoolServiceGetPool = <
  * Get Pools
  * Get all pools entries.
  * @param data The data for the request.
+ * @param data.poolName
  * @param data.limit
  * @param data.offset
  * @param data.orderBy
@@ -2487,19 +2488,24 @@ export const usePoolServiceGetPools = <
     limit,
     offset,
     orderBy,
+    poolName,
     poolNamePattern,
   }: {
     limit?: number;
     offset?: number;
     orderBy?: string;
+    poolName?: string;
     poolNamePattern?: string;
   } = {},
   queryKey?: TQueryKey,
   options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">,
 ) =>
   useQuery<TData, TError>({
-    queryKey: Common.UsePoolServiceGetPoolsKeyFn({ limit, offset, orderBy, poolNamePattern }, queryKey),
-    queryFn: () => PoolService.getPools({ limit, offset, orderBy, poolNamePattern }) as TData,
+    queryKey: Common.UsePoolServiceGetPoolsKeyFn(
+      { limit, offset, orderBy, poolName, poolNamePattern },
+      queryKey,
+    ),
+    queryFn: () => PoolService.getPools({ limit, offset, orderBy, poolName, poolNamePattern }) as TData,
     ...options,
   });
 /**
@@ -3334,6 +3340,7 @@ export const useTaskInstanceServicePostClearTaskInstances = <
  * Create a Pool.
  * @param data The data for the request.
  * @param data.requestBody
+ * @param data.poolName
  * @returns PoolResponse Successful Response
  * @throws ApiError
  */
@@ -3347,6 +3354,7 @@ export const usePoolServicePostPool = <
       TData,
       TError,
       {
+        poolName?: string;
         requestBody: PoolBody;
       },
       TContext
@@ -3358,11 +3366,13 @@ export const usePoolServicePostPool = <
     TData,
     TError,
     {
+      poolName?: string;
       requestBody: PoolBody;
     },
     TContext
   >({
-    mutationFn: ({ requestBody }) => PoolService.postPool({ requestBody }) as unknown as Promise<TData>,
+    mutationFn: ({ poolName, requestBody }) =>
+      PoolService.postPool({ poolName, requestBody }) as unknown as Promise<TData>,
     ...options,
   });
 /**
@@ -4141,6 +4151,7 @@ export const usePoolServicePatchPool = <
  * Bulk create, update, and delete pools.
  * @param data The data for the request.
  * @param data.requestBody
+ * @param data.poolName
  * @returns BulkResponse Successful Response
  * @throws ApiError
  */
@@ -4154,6 +4165,7 @@ export const usePoolServiceBulkPools = <
       TData,
       TError,
       {
+        poolName?: string;
         requestBody: BulkBody_PoolBody_;
       },
       TContext
@@ -4165,11 +4177,13 @@ export const usePoolServiceBulkPools = <
     TData,
     TError,
     {
+      poolName?: string;
       requestBody: BulkBody_PoolBody_;
     },
     TContext
   >({
-    mutationFn: ({ requestBody }) => PoolService.bulkPools({ requestBody }) as unknown as Promise<TData>,
+    mutationFn: ({ poolName, requestBody }) =>
+      PoolService.bulkPools({ poolName, requestBody }) as unknown as Promise<TData>,
     ...options,
   });
 /**
