@@ -101,6 +101,7 @@ from airflow_breeze.params.doc_build_params import DocBuildParams
 from airflow_breeze.params.shell_params import ShellParams
 from airflow_breeze.pre_commit_ids import PRE_COMMIT_LIST
 from airflow_breeze.utils.coertions import one_or_none_set
+from airflow_breeze.utils.confirm import Answer, user_confirm
 from airflow_breeze.utils.console import get_console
 from airflow_breeze.utils.custom_param_types import BetterChoice
 from airflow_breeze.utils.docker_command_utils import (
@@ -1117,6 +1118,7 @@ def autogenerate(
 
 
 @main.command(name="doctor", help="Troubleshoot breeze")
+@option_answer
 @click.pass_context
 def doctor(ctx):
     shell_params = ShellParams()
@@ -1126,23 +1128,28 @@ def doctor(ctx):
     perform_environment_checks()
     fix_ownership_using_docker()
 
-    get_console().print("\n[info]Cleaning .pyc and __pycache__...\n")
-    cleanup_python_generated_files()
+    given_answer = user_confirm("Are you sure with the removal of temporary Python files and Python cache?")
+    if given_answer == Answer.YES:
+        get_console().print("\n[info]Cleaning .pyc and __pycache__...\n")
+        cleanup_python_generated_files()
 
     shell_params = ShellParams(backend="all", include_mypy_volume=True)
     bring_compose_project_down(preserve_volumes=False, shell_params=shell_params)
 
-    get_console().print("\n[info]Cleaning mypy cache...\n")
-    command_to_execute = ["docker", "volume", "rm", "--force", "mypy-cache-volume"]
-    run_command(command_to_execute)
+    given_answer = user_confirm("Are you sure with the removal of mypy cache and build cache dir?")
+    if given_answer == Answer.YES:
+        get_console().print("\n[info]Cleaning mypy cache...\n")
+        command_to_execute = ["docker", "volume", "rm", "--force", "mypy-cache-volume"]
+        run_command(command_to_execute)
 
-    # TODO: Git fetch the origin and git rebase the current branch with main branch.
+        get_console().print("\n[info]Deleting .build cache dir...\n")
+        dirpath = Path(".build")
+        if dirpath.exists() and dirpath.is_dir():
+            shutil.rmtree(dirpath)
 
-    get_console().print("\n[info]Deleting .build cache dir...\n")
-    dirpath = Path(".build")
-    if dirpath.exists() and dirpath.is_dir():
-        shutil.rmtree(dirpath)
-
-    get_console().print("\n[info]Executing breeze cleanup...\n")
-
-    ctx.forward(cleanup)
+    given_answer = user_confirm(
+        "Proceed with breeze cleanup to remove all docker volumes, images and networks?"
+    )
+    if given_answer == Answer.YES:
+        get_console().print("\n[info]Executing breeze cleanup...\n")
+        ctx.forward(cleanup)

@@ -1,4 +1,4 @@
-<svg class="rich-terminal" viewBox="0 0 1482 245.2" xmlns="http://www.w3.org/2000/svg">
+<svg class="rich-terminal" viewBox="0 0 1482 269.6" xmlns="http://www.w3.org/2000/svg">
     <!-- Generated with Rich https://www.textualize.io -->
     <style>
 
@@ -38,11 +38,12 @@
 .breeze-doctor-r4 { fill: #68a0b3;font-weight: bold }
 .breeze-doctor-r5 { fill: #868887 }
 .breeze-doctor-r6 { fill: #98a84b;font-weight: bold }
+.breeze-doctor-r7 { fill: #8d7b39 }
     </style>
 
     <defs>
     <clipPath id="breeze-doctor-clip-terminal">
-      <rect x="0" y="0" width="1463.0" height="194.2" />
+      <rect x="0" y="0" width="1463.0" height="218.6" />
     </clipPath>
     <clipPath id="breeze-doctor-line-0">
     <rect x="0" y="1.5" width="1464" height="24.65"/>
@@ -65,9 +66,12 @@
 <clipPath id="breeze-doctor-line-6">
     <rect x="0" y="147.9" width="1464" height="24.65"/>
             </clipPath>
+<clipPath id="breeze-doctor-line-7">
+    <rect x="0" y="172.3" width="1464" height="24.65"/>
+            </clipPath>
     </defs>
 
-    <rect fill="#292929" stroke="rgba(255,255,255,0.35)" stroke-width="1" x="1" y="1" width="1480" height="243.2" rx="8"/><text class="breeze-doctor-title" fill="#c5c8c6" text-anchor="middle" x="740" y="27">Command:&#160;doctor</text>
+    <rect fill="#292929" stroke="rgba(255,255,255,0.35)" stroke-width="1" x="1" y="1" width="1480" height="267.6" rx="8"/><text class="breeze-doctor-title" fill="#c5c8c6" text-anchor="middle" x="740" y="27">Command:&#160;doctor</text>
             <g transform="translate(26,22)">
             <circle cx="0" cy="0" r="7" fill="#ff5f57"/>
             <circle cx="22" cy="0" r="7" fill="#febc2e"/>
@@ -83,8 +87,9 @@
 </text><text class="breeze-doctor-r1" x="12.2" y="93.2" textLength="231.8" clip-path="url(#breeze-doctor-line-3)">Troubleshoot&#160;breeze</text><text class="breeze-doctor-r1" x="1464" y="93.2" textLength="12.2" clip-path="url(#breeze-doctor-line-3)">
 </text><text class="breeze-doctor-r1" x="1464" y="117.6" textLength="12.2" clip-path="url(#breeze-doctor-line-4)">
 </text><text class="breeze-doctor-r5" x="0" y="142" textLength="24.4" clip-path="url(#breeze-doctor-line-5)">╭─</text><text class="breeze-doctor-r5" x="24.4" y="142" textLength="195.2" clip-path="url(#breeze-doctor-line-5)">&#160;Common&#160;options&#160;</text><text class="breeze-doctor-r5" x="219.6" y="142" textLength="1220" clip-path="url(#breeze-doctor-line-5)">────────────────────────────────────────────────────────────────────────────────────────────────────</text><text class="breeze-doctor-r5" x="1439.6" y="142" textLength="24.4" clip-path="url(#breeze-doctor-line-5)">─╮</text><text class="breeze-doctor-r1" x="1464" y="142" textLength="12.2" clip-path="url(#breeze-doctor-line-5)">
-</text><text class="breeze-doctor-r5" x="0" y="166.4" textLength="12.2" clip-path="url(#breeze-doctor-line-6)">│</text><text class="breeze-doctor-r4" x="24.4" y="166.4" textLength="73.2" clip-path="url(#breeze-doctor-line-6)">--help</text><text class="breeze-doctor-r6" x="122" y="166.4" textLength="24.4" clip-path="url(#breeze-doctor-line-6)">-h</text><text class="breeze-doctor-r1" x="170.8" y="166.4" textLength="329.4" clip-path="url(#breeze-doctor-line-6)">Show&#160;this&#160;message&#160;and&#160;exit.</text><text class="breeze-doctor-r5" x="1451.8" y="166.4" textLength="12.2" clip-path="url(#breeze-doctor-line-6)">│</text><text class="breeze-doctor-r1" x="1464" y="166.4" textLength="12.2" clip-path="url(#breeze-doctor-line-6)">
-</text><text class="breeze-doctor-r5" x="0" y="190.8" textLength="1464" clip-path="url(#breeze-doctor-line-7)">╰──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╯</text><text class="breeze-doctor-r1" x="1464" y="190.8" textLength="12.2" clip-path="url(#breeze-doctor-line-7)">
+</text><text class="breeze-doctor-r5" x="0" y="166.4" textLength="12.2" clip-path="url(#breeze-doctor-line-6)">│</text><text class="breeze-doctor-r4" x="24.4" y="166.4" textLength="97.6" clip-path="url(#breeze-doctor-line-6)">--answer</text><text class="breeze-doctor-r6" x="146.4" y="166.4" textLength="24.4" clip-path="url(#breeze-doctor-line-6)">-a</text><text class="breeze-doctor-r1" x="195.2" y="166.4" textLength="317.2" clip-path="url(#breeze-doctor-line-6)">Force&#160;answer&#160;to&#160;questions.</text><text class="breeze-doctor-r7" x="524.6" y="166.4" textLength="353.8" clip-path="url(#breeze-doctor-line-6)">(y&#160;|&#160;n&#160;|&#160;q&#160;|&#160;yes&#160;|&#160;no&#160;|&#160;quit)</text><text class="breeze-doctor-r5" x="1451.8" y="166.4" textLength="12.2" clip-path="url(#breeze-doctor-line-6)">│</text><text class="breeze-doctor-r1" x="1464" y="166.4" textLength="12.2" clip-path="url(#breeze-doctor-line-6)">
+</text><text class="breeze-doctor-r5" x="0" y="190.8" textLength="12.2" clip-path="url(#breeze-doctor-line-7)">│</text><text class="breeze-doctor-r4" x="24.4" y="190.8" textLength="73.2" clip-path="url(#breeze-doctor-line-7)">--help</text><text class="breeze-doctor-r6" x="146.4" y="190.8" textLength="24.4" clip-path="url(#breeze-doctor-line-7)">-h</text><text class="breeze-doctor-r1" x="195.2" y="190.8" textLength="329.4" clip-path="url(#breeze-doctor-line-7)">Show&#160;this&#160;message&#160;and&#160;exit.</text><text class="breeze-doctor-r5" x="1451.8" y="190.8" textLength="12.2" clip-path="url(#breeze-doctor-line-7)">│</text><text class="breeze-doctor-r1" x="1464" y="190.8" textLength="12.2" clip-path="url(#breeze-doctor-line-7)">
+</text><text class="breeze-doctor-r5" x="0" y="215.2" textLength="1464" clip-path="url(#breeze-doctor-line-8)">╰──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╯</text><text class="breeze-doctor-r1" x="1464" y="215.2" textLength="12.2" clip-path="url(#breeze-doctor-line-8)">
 </text>
     </g>
     </g>
