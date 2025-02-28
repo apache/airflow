@@ -147,7 +147,7 @@ def downgrade():
     dialect_name = op.get_bind().dialect.name
     with op.batch_alter_table("task_instance_history", schema=None) as batch_op:
         batch_op.drop_constraint(batch_op.f("task_instance_history_pkey"), type_="primary")
-        batch_op.add_column(sa.Column("new_id", sa.INTEGER, autoincrement=True, nullable=True))
+        batch_op.add_column(sa.Column("new_id", sa.INTEGER, nullable=True))
     if dialect_name == "postgresql":
         op.execute(
             """
