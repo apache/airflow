@@ -2016,6 +2016,60 @@ def test_helm_tests_trigger_ci_build(files: tuple[str, ...], expected_outputs: d
 
 
 @pytest.mark.parametrize(
+    "files, expected_outputs,",
+    [
+        pytest.param(
+            ("providers/amazon/provider.yaml",),
+            {
+                "ci-image-build": "true",
+                "prod-image-build": "false",
+                "needs-helm-tests": "false",
+            },
+            id="Amazon provider.yaml",
+        ),
+        pytest.param(
+            ("providers/amazon/pyproject.toml",),
+            {
+                "ci-image-build": "true",
+                "prod-image-build": "false",
+                "needs-helm-tests": "false",
+            },
+            id="Amazon pyproject.toml",
+        ),
+        pytest.param(
+            ("providers/cncf/kubernetes/provider.yaml",),
+            {
+                "ci-image-build": "true",
+                "prod-image-build": "true",
+                "needs-helm-tests": "false",
+            },
+            id="CNCF Kubernetes provider.yaml",
+        ),
+        pytest.param(
+            ("providers/cncf/kubernetes/pyproject.toml",),
+            {
+                "ci-image-build": "true",
+                "prod-image-build": "true",
+                "needs-helm-tests": "false",
+            },
+            id="CNCF Kubernetes pyproject.toml",
+        ),
+    ],
+)
+def test_provider_yaml_or_pyproject_toml_changes_trigger_ci_build(
+    files: tuple[str, ...], expected_outputs: dict[str, str]
+):
+    stderr = SelectiveChecks(
+        files=files,
+        commit_ref=NEUTRAL_COMMIT,
+        github_event=GithubEvents.PULL_REQUEST,
+        pr_labels=(),
+        default_branch="main",
+    )
+    assert_outputs_are_printed(expected_outputs, str(stderr))
+
+
+@pytest.mark.parametrize(
     (
         "github_event, github_actor, github_repository, pr_labels, "
         "github_context_dict, runs_on_as_json_default, runs_on_as_docs_build, is_self_hosted_runner, "
