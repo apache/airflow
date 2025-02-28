@@ -482,7 +482,11 @@ def delete_dag_asset_queued_events(
             status.HTTP_404_NOT_FOUND,
         ]
     ),
-    dependencies=[Depends(requires_access_asset(method="DELETE")), Depends(action_logging())],
+    dependencies=[
+        Depends(requires_access_asset(method="DELETE")),
+        Depends(requires_access_dag(method="GET")),
+        Depends(action_logging()),
+    ],
 )
 def delete_dag_asset_queued_event(
     dag_id: str,
