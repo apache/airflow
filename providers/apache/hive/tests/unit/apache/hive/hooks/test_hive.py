@@ -411,8 +411,19 @@ class TestHiveMetastoreHook:
     )
     @mock.patch("airflow.providers.apache.hive.hooks.hive.socket")
     def test_error_metastore_client(self, socket_mock, _find_valid_host_mock):
-        socket_mock.socket.return_value.connect_ex.return_value = 0
-        self.hook.get_metastore_client()
+        # Create a mock connection with explicit port so there is no mock casting errors
+        mock_conn = mock.MagicMock()
+        mock_conn.port = 10000
+
+        # Configure extra_dejson.get to return False for use_http_proxy, otherwise attempts whole SSL context creation
+        mock_extra = mock.MagicMock()
+        mock_extra.get.side_effect = lambda key, default=None: False if key == "use_http_proxy" else default
+        mock_conn.extra_dejson = mock_extra
+
+        # Original test logic with direct patch of conn property
+        with mock.patch.object(self.hook, "conn", mock_conn):
+            socket_mock.socket.return_value.connect_ex.return_value = 0
+            self.hook.get_metastore_client()
 
     @mock.patch("airflow.providers.apache.hive.hooks.hive.socket")
     def test_ha_hosts(self, socket_mock):
@@ -434,8 +445,21 @@ class TestHiveMetastoreHook:
                 "airflow.providers.apache.hive.hooks.hive.HiveMetastoreHook.get_connection"
             ) as get_connection,
         ):
-            find_valid_host.return_value = mock.MagicMock(return_value="")
-            get_connection.return_value = mock.MagicMock(return_value="")
+            find_valid_host.return_value = "localhost"
+
+            # Create a connection mock with properly configured extra_dejson
+            mock_conn = mock.MagicMock()
+            mock_conn.port = 10000  # Real integer
+
+            # The key fix: make extra_dejson.get() return False for use_http_proxy
+            mock_extra = mock.MagicMock()
+            mock_extra.get.side_effect = (
+                lambda key, default=None: False if key == "use_http_proxy" else default
+            )
+            mock_conn.extra_dejson = mock_extra
+
+            get_connection.return_value = mock_conn
+
             metastore_hook = HiveMetastoreHook()
 
         assert isinstance(metastore_hook.get_conn(), HMSClient)
@@ -643,6 +667,8 @@ class TestHiveServer2Hook:
             mock_connect.assert_called_once_with(
                 host="localhost",
                 port=10000,
+                scheme=None,
+                ssl_context=None,
                 auth="LDAP",
                 kerberos_service_name=None,
                 username="conn_id",
@@ -878,6 +904,61 @@ class TestHiveServer2Hook:
         assert "test_task_id" in output
         assert f"test_{date_key}" in output
         assert "test_dag_run_id" in output
+
+    @mock.patch("ssl.create_default_context")
+    @mock.patch("pyhive.hive.connect")
+    def test_ssl_context_creation(self, mock_connect, mock_create_context):
+        """Test SSL context behavior in HiveServer2Hook.
+
+        This test verifies:
+        1. SSL context is created and passed when scheme=https
+        2. Default parameters appear in mock calls due to PyHive's function signature
+        """
+        # CASE 1: Test with HTTPS scheme - SSL context should be created
+        ssl_context = mock.MagicMock()
+        mock_create_context.return_value = ssl_context
+        mock_connect.reset_mock()
+
+        conn_id = "https_conn"
+        with mock.patch.dict(
+            "os.environ",
+            {
+                f"{CONN_ENV_PREFIX}{conn_id.upper()}": "jdbc+hive2://user:pass@localhost:10000/default?scheme=https"
+            },
+        ):
+            HiveServer2Hook(hiveserver2_conn_id=conn_id).get_conn()
+
+        # Verify SSL context was created and passed with scheme=https
+        mock_create_context.assert_called_once()
+        assert mock_connect.call_count == 1
+        assert mock_connect.call_args.kwargs["scheme"] == "https"
+        assert mock_connect.call_args.kwargs["ssl_context"] == ssl_context
+
+        # CASE 2: Test with regular connection - scheme and ssl_context will be None
+        mock_connect.reset_mock()
+        mock_create_context.reset_mock()
+
+        regular_conn_id = "regular_conn"
+        with mock.patch.dict(
+            "os.environ",
+            {
+                f"{CONN_ENV_PREFIX}{regular_conn_id.upper()}": "jdbc+hive2://user:pass@localhost:10000/default?auth_mechanism=LDAP"
+            },
+        ):
+            HiveServer2Hook(hiveserver2_conn_id=regular_conn_id).get_conn()
+
+        # Verify SSL context was NOT created for non-HTTPS connection
+        mock_create_context.assert_not_called()
+
+        # But default parameters still appear in the mock call
+        assert mock_connect.call_count == 1
+        assert "scheme" in mock_connect.call_args.kwargs
+        assert mock_connect.call_args.kwargs["scheme"] is None
+        assert "ssl_context" in mock_connect.call_args.kwargs
+        assert mock_connect.call_args.kwargs["ssl_context"] is None
+
+        # This demonstrates why test_get_conn_with_password is failing:
+        # Default parameters appear in mock calls even when not explicitly passed
 
 
 @pytest.mark.db_test

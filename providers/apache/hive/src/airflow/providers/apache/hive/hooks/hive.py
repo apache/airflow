@@ -567,29 +567,76 @@ class HiveMetastoreHook(BaseHook):
             auth_mechanism = conn.extra_dejson.get("auth_mechanism", "GSSAPI")
             kerberos_service_name = conn.extra_dejson.get("kerberos_service_name", "hive")
 
-        conn_socket = TSocket.TSocket(host, conn.port)
+        # Check if HTTP proxy mode is requested
+        use_http_proxy = conn.extra_dejson.get("use_http_proxy", False)
+        if use_http_proxy:
+            from thrift.transport import THttpClient
 
-        if conf.get("core", "security") == "kerberos" and auth_mechanism == "GSSAPI":
-            try:
-                import saslwrapper as sasl
-            except ImportError:
-                import sasl
+            # HTTP or HTTPS
+            use_ssl = conn.extra_dejson.get("use_ssl", False)
+            scheme = "https" if use_ssl else "http"
 
-            def sasl_factory() -> sasl.Client:
-                sasl_client = sasl.Client()
-                sasl_client.setAttr("host", host)
-                sasl_client.setAttr("service", kerberos_service_name)
-                sasl_client.init()
-                return sasl_client
+            # Allow customized endpoint for custom proxy routing
+            endpoint_path = conn.extra_dejson.get("endpoint_path", "/")
+            uri = f"{scheme}://{host}:{conn.port}{endpoint_path}"
 
-            from thrift_sasl import TSaslClientTransport
+            ssl_context = None
+            if use_ssl:
+                import ssl
 
-            transport = TSaslClientTransport(sasl_factory, "GSSAPI", conn_socket)
+                # Configure SSL context
+                validate_ssl = conn.extra_dejson.get("validate_ssl", False)
+                ca_cert = conn.extra_dejson.get("ca_cert", None)
+                client_cert = conn.extra_dejson.get("client_cert", None)
+                client_key = conn.extra_dejson.get("client_key", None)
+
+                ssl_context = ssl.create_default_context()
+
+                # Set verification mode
+                if validate_ssl:
+                    ssl_context.verify_mode = ssl.CERT_REQUIRED
+                    if ca_cert:
+                        try:
+                            ssl_context.load_verify_locations(cafile=ca_cert)
+                        except FileNotFoundError:
+                            self.log.warning(
+                                "CA certificate file %s not found. SSL verification may not work properly.",
+                                ca_cert,
+                            )
+
+                # If provided, load client cert and key for mTLS
+                if client_cert and client_key:
+                    try:
+                        ssl_context.load_cert_chain(certfile=client_cert, keyfile=client_key)
+                    except FileNotFoundError:
+                        self.log.warning("Client certificate or key not found. mTLS will not work properly.")
+
+            # Use HTTP client for proxy connection
+            transport = THttpClient.THttpClient(uri, ssl_context=ssl_context)
         else:
-            transport = TTransport.TBufferedTransport(conn_socket)
+            # Standard connection as we had before
+            conn_socket = TSocket.TSocket(host, conn.port)
+
+            if conf.get("core", "security") == "kerberos" and auth_mechanism == "GSSAPI":
+                try:
+                    import saslwrapper as sasl
+                except ImportError:
+                    import sasl
+
+                def sasl_factory() -> sasl.Client:
+                    sasl_client = sasl.Client()
+                    sasl_client.setAttr("host", host)
+                    sasl_client.setAttr("service", kerberos_service_name)
+                    sasl_client.init()
+                    return sasl_client
+
+                from thrift_sasl import TSaslClientTransport
+
+                transport = TSaslClientTransport(sasl_factory, "GSSAPI", conn_socket)
+            else:
+                transport = TTransport.TBufferedTransport(conn_socket)
 
         protocol = TBinaryProtocol.TBinaryProtocol(transport)
-
         return hmsclient.HMSClient(iprot=protocol)
 
     def _find_valid_host(self) -> Any:
@@ -877,11 +924,46 @@ class HiveServer2Hook(DbApiHook):
         if auth_mechanism in ("LDAP", "CUSTOM"):
             password = db.password
 
+        scheme = db.extra_dejson.get("scheme", None)
+        ssl_context = None
+
+        # If HTTPS, create ssl_context to pass in, built for proxy settings
+        if scheme == "https":
+            import ssl
+
+            ssl_context = ssl.create_default_context()
+
+            # Make SSL context to pass in
+            check_hostname = db.extra_dejson.get("check_hostname", "false").lower() == "true"
+            ssl_context.check_hostname = check_hostname
+
+            # ssl_verify
+            ssl_verify = db.extra_dejson.get("ssl_verify", "none").lower()
+            if ssl_verify == "required":
+                ssl_context.verify_mode = ssl.CERT_REQUIRED
+            elif ssl_verify == "optional":
+                ssl_context.verify_mode = ssl.CERT_OPTIONAL
+            else:
+                ssl_context.verify_mode = ssl.CERT_NONE
+
+            # CA cert if provided
+            ca_cert_path = db.extra_dejson.get("ca_cert_path")
+            if ca_cert_path:
+                ssl_context.load_verify_locations(cafile=ca_cert_path)
+
+            # mTLS if provided
+            client_cert = db.extra_dejson.get("client_cert")
+            client_key = db.extra_dejson.get("client_key")
+            if client_cert and client_key:
+                ssl_context.load_cert_chain(certfile=client_cert, keyfile=client_key)
+
         from pyhive.hive import connect
 
         return connect(
             host=db.host,
             port=db.port,
+            scheme=scheme,
+            ssl_context=ssl_context,
             auth=auth_mechanism,
             kerberos_service_name=kerberos_service_name,
             username=db.login or username,
