@@ -257,18 +257,14 @@ class KubernetesPodTrigger(BaseTrigger):
             self.log.debug("Sleeping for %s seconds.", self.poll_interval)
             await asyncio.sleep(self.poll_interval)
 
-    def _get_async_hook(self) -> AsyncKubernetesHook:
-        # TODO: Remove this method when the min version of kubernetes provider is 7.12.0 in Google provider.
+    @cached_property
+    def hook(self) -> AsyncKubernetesHook:
         return AsyncKubernetesHook(
             conn_id=self.kubernetes_conn_id,
             in_cluster=self.in_cluster,
             config_dict=self.config_dict,
             cluster_context=self.cluster_context,
         )
-
-    @cached_property
-    def hook(self) -> AsyncKubernetesHook:
-        return self._get_async_hook()
 
     def define_container_state(self, pod: V1Pod) -> ContainerState:
         pod_containers = pod.status.container_statuses
