@@ -22,16 +22,15 @@ import "@xyflow/react/dist/style.css";
 import { useParams, useSearchParams } from "react-router-dom";
 
 import { useGridServiceGridData, useStructureServiceStructureData } from "openapi/queries";
+import Edge from "src/components/Graph/Edge";
+import { JoinNode } from "src/components/Graph/JoinNode";
+import { TaskNode } from "src/components/Graph/TaskNode";
+import type { CustomNodeProps } from "src/components/Graph/reactflowUtils";
+import { useGraphLayout } from "src/components/Graph/useGraphLayout";
 import { SearchParamsKeys } from "src/constants/searchParams";
 import { useColorMode } from "src/context/colorMode";
 import { useOpenGroups } from "src/context/openGroups";
 import { isStatePending, useAutoRefresh } from "src/utils";
-
-import Edge from "./Edge";
-import { JoinNode } from "./JoinNode";
-import { TaskNode } from "./TaskNode";
-import type { CustomNodeProps } from "./reactflowUtils";
-import { useGraphLayout } from "./useGraphLayout";
 
 const VERSION_NUMBER_PARAM = SearchParamsKeys.VERSION_NUMBER;
 
