@@ -55,12 +55,12 @@ ASSET_COMPILATION_WAIT_MULTIPLIER=${ASSET_COMPILATION_WAIT_MULTIPLIER:=1}
 
 # Make sure that asset compilation is completed before we proceed
 function wait_for_asset_compilation() {
-    if [[ -f "${AIRFLOW_SOURCES}/.build/www/.asset_compile.lock" ]]; then
+    if [[ -f "${AIRFLOW_SOURCES}/.build/ui/.asset_compile.lock" ]]; then
         echo
         echo "${COLOR_YELLOW}Waiting for asset compilation to complete in the background.${COLOR_RESET}"
         echo
         local counter=0
-        while [[ -f "${AIRFLOW_SOURCES}/.build/www/.asset_compile.lock" ]]; do
+        while [[ -f "${AIRFLOW_SOURCES}/.build/ui/.asset_compile.lock" ]]; do
             if (( counter % 5 == 2 )); then
                 echo "${COLOR_BLUE}Still waiting .....${COLOR_RESET}"
             fi
@@ -72,7 +72,7 @@ function wait_for_asset_compilation() {
                 echo """
 If it does not complete soon, you might want to stop it and remove file lock:
    * press Ctrl-C
-   * run 'rm ${AIRFLOW_SOURCES}/.build/www/.asset_compile.lock'
+   * run 'rm ${AIRFLOW_SOURCES}/.build/ui/.asset_compile.lock'
 """
             fi
             if [[ ${counter} == 60*$ASSET_COMPILATION_WAIT_MULTIPLIER ]]; then
@@ -84,12 +84,12 @@ If it does not complete soon, you might want to stop it and remove file lock:
             fi
         done
     fi
-    if [ -f "${AIRFLOW_SOURCES}/.build/www/asset_compile.out" ]; then
+    if [ -f "${AIRFLOW_SOURCES}/.build/ui/asset_compile.out" ]; then
         echo
         echo "${COLOR_RED}The asset compilation failed. Exiting.${COLOR_RESET}"
         echo
-        cat "${AIRFLOW_SOURCES}/.build/www/asset_compile.out"
-        rm "${AIRFLOW_SOURCES}/.build/www/asset_compile.out"
+        cat "${AIRFLOW_SOURCES}/.build/ui/asset_compile.out"
+        rm "${AIRFLOW_SOURCES}/.build/ui/asset_compile.out"
         echo
         exit 1
     fi
