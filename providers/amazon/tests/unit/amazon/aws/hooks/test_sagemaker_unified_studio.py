@@ -28,6 +28,8 @@ from airflow.providers.amazon.aws.hooks.sagemaker_unified_studio import (
 )
 from airflow.utils.session import create_session
 
+pytestmark = pytest.mark.db_test
+
 
 class TestSageMakerNotebookHook:
     @pytest.fixture(autouse=True)

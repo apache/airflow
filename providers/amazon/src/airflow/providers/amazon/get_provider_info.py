@@ -1097,6 +1097,7 @@ def get_provider_info():
             "airflow.providers.amazon.aws.links.glue.GlueJobRunDetailsLink",
             "airflow.providers.amazon.aws.links.logs.CloudWatchEventsLink",
             "airflow.providers.amazon.aws.links.sagemaker.SageMakerTransformJobLink",
+            "airflow.providers.amazon.aws.links.sagemaker_unified_studio.SageMakerUnifiedStudioLink",
             "airflow.providers.amazon.aws.links.step_function.StateMachineDetailsLink",
             "airflow.providers.amazon.aws.links.step_function.StateMachineExecutionsDetailsLink",
             "airflow.providers.amazon.aws.links.comprehend.ComprehendPiiEntitiesDetectionLink",
