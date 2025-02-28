@@ -118,18 +118,18 @@ CHEATSHEET = f"""
           `{AIRFLOW_SOURCES_ROOT}/files` folder
           and they will be visible in `/files/` folder inside the container.
 
-        [info]* Other options[/]
+    [info]* Other options[/]
 
-        Check out `--help` for `breeze` command. It will show you other options, such as running
-        integration or starting complete Airflow using `start-airflow` command as well as ways
-        of cleaning up the installation.
+    Check out `--help` for `breeze` command. It will show you other options, such as running
+    integration or starting complete Airflow using `start-airflow` command as well as ways
+    of cleaning up the installation.
 
-        Make sure to run `setup-autocomplete` to get the commands and options auto-completable
-        in your shell.
+    Make sure to run `setup-autocomplete` to get the commands and options auto-completable
+    in your shell.
 
-        You can disable this cheatsheet by running:
+    You can disable this cheatsheet by running:
 
-            breeze setup config --no-cheatsheet
+        breeze setup config --no-cheatsheet
 
 """
 CHEATSHEET_STYLE = "white"
