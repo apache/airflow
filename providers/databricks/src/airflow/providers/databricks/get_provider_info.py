@@ -27,7 +27,7 @@ def get_provider_info():
         "name": "Databricks",
         "description": "`Databricks <https://databricks.com/>`__\n",
         "state": "ready",
-        "source-date-epoch": 1739959376,
+        "source-date-epoch": 1740734113,
         "versions": [
             "7.2.0",
             "7.0.0",
