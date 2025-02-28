@@ -99,9 +99,23 @@ How to manage provider's dependencies
 -------------------------------------
 
 If you want to add dependencies to the provider, you should add them to the corresponding ``pyproject.toml``
-file.
+file. For regular local virtualenv development you also need to run ``uv sync --extra PROVIDER`` after you
+do it or run ``pip install -e ./providers/PROVIDER`` to install the provider in development mode in your venv
+and IDE. If you are using breeze you should also run the below command to regenerate all files that
+needs to be updated after you change dependencies:
 
-Providers are not packaged together with the core when you build "apache-airflow" package.
+.. code:: bash
+
+    breeze static-checks --type update-providers-dependencies --all-files
+
+If you have ``pre-commit`` installed, this will be done automatically for you when you commit the changes and
+you should do it before you make a PR with such changed dependency changes
+
+Also, you should rebuild the image ``breeze ci-image build`` or answer ``y`` when you are asked to rebuild the
+image for the new dependencies to be used in the Breeze CI environment.
+
+Provider's cross-dependencies
+-----------------------------
 
 Some of the packages have cross-dependencies with other providers packages. This typically happens for
 transfer operators where operators use hooks from the other providers in case they are transferring
@@ -113,13 +127,6 @@ you need functionality from the other provider package you can install it adding
 ``apache-airflow-providers-PROVIDER`` for example:
 ``pip install apache-airflow-providers-google[amazon]`` in case you want to use GCP
 transfer operators from Amazon ECS.
-
-If you add a new dependency between different providers packages, it will be detected automatically during
-and pre-commit will generate new entry in ``generated/provider_dependencies.json`` and update
-``pyproject.toml`` in the new providers so that the package extra dependencies are properly handled when
-package might be installed when breeze is restarted or by your IDE or by running ``uv sync --extra PROVIDER``
-or when you run ``pip install -e "./providers"`` or ``pip install -e "./providers/<PROVIDER>"`` for the new
-provider structure.
 
 How to reuse code between tests in different providers
 ------------------------------------------------------
