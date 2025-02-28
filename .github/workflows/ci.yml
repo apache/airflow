@@ -194,7 +194,7 @@ jobs:
       push-image: "false"
       upload-image-artifact: "true"
       upload-mount-cache-artifact: ${{ needs.build-info.outputs.canary-run }}
-      python-versions: '["3.9"]'
+      python-versions: ${{ needs.build-info.outputs.python-versions }}
       branch: ${{ needs.build-info.outputs.default-branch }}
       use-uv: ${{ needs.build-info.outputs.use-uv }}
       upgrade-to-newer-dependencies: ${{ needs.build-info.outputs.upgrade-to-newer-dependencies }}
@@ -214,7 +214,7 @@ jobs:
     with:
       runs-on-as-json-public: ${{ needs.build-info.outputs.runs-on-as-json-public }}
       testable-core-integrations: ${{ needs.build-info.outputs.testable-core-integrations }}
-      testable-providers-integrations: ${{ needs.build-info.outputs.testable-providers-integrations }}
+      testable-providers-integrations: '["gremlin"]'
       run-system-tests: ${{ needs.build-info.outputs.run-tests }}
       default-python-version: ${{ needs.build-info.outputs.default-python-version }}
       default-postgres-version: ${{ needs.build-info.outputs.default-postgres-version }}
