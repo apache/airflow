@@ -36,6 +36,7 @@ import { ErrorPage } from "src/pages/Error";
 import { Events } from "src/pages/Events";
 import { MappedTaskInstance } from "src/pages/MappedTaskInstance";
 import { Plugins } from "src/pages/Plugins";
+import { Connections } from "src/pages/Connections";
 import { Pools } from "src/pages/Pools";
 import { Providers } from "src/pages/Providers";
 import { Run } from "src/pages/Run";
@@ -115,6 +116,10 @@ export const routerConfig = [
       {
         element: <Plugins />,
         path: "plugins",
+      },
+      {
+        element: <Connections />,
+        path: "connections",
       },
       {
         children: [
