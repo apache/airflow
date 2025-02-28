@@ -27,7 +27,7 @@ def get_provider_info():
         "name": "Apprise",
         "description": "`Apprise <https://github.com/caronc/apprise>`__\n",
         "state": "ready",
-        "source-date-epoch": 1734528675,
+        "source-date-epoch": 1740734096,
         "versions": [
             "2.0.0",
             "1.4.1",
