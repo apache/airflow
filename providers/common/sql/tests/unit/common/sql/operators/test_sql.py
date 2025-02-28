@@ -38,7 +38,7 @@ from airflow.providers.common.sql.operators.sql import (
     SQLTableCheckOperator,
     SQLThresholdCheckOperator,
     SQLValueCheckOperator,
-    default_output_processor_with_column_names
+    default_output_processor_with_column_names,
 )
 from airflow.providers.postgres.hooks.postgres import PostgresHook
 from airflow.providers.standard.operators.empty import EmptyOperator
