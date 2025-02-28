@@ -50,7 +50,6 @@ from airflow.models.taskinstance import SimpleTaskInstance, TaskInstance
 from airflow.models.taskinstancekey import TaskInstanceKey
 from airflow.models.xcom_arg import SchedulerXComArg, deserialize_xcom_arg
 from airflow.providers_manager import ProvidersManager
-from airflow.sdk import BaseOperatorLink, XComOperatorLink
 from airflow.sdk.definitions.asset import (
     Asset,
     AssetAlias,
@@ -64,6 +63,7 @@ from airflow.sdk.definitions.asset import (
     BaseAsset,
 )
 from airflow.sdk.definitions.baseoperator import BaseOperator as TaskSDKBaseOperator
+from airflow.sdk.definitions.baseoperatorlink import XComOperatorLink
 from airflow.sdk.definitions.mappedoperator import MappedOperator
 from airflow.sdk.definitions.param import Param, ParamsDict
 from airflow.sdk.definitions.taskgroup import MappedTaskGroup, TaskGroup
@@ -98,6 +98,7 @@ if TYPE_CHECKING:
 
     from airflow.models import DagRun
     from airflow.models.expandinput import ExpandInput
+    from airflow.sdk import BaseOperatorLink
     from airflow.sdk.definitions._internal.node import DAGNode
     from airflow.sdk.types import Operator
     from airflow.serialization.json_schema import Validator
