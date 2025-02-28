@@ -194,7 +194,7 @@ jobs:
       push-image: "false"
       upload-image-artifact: "true"
       upload-mount-cache-artifact: ${{ needs.build-info.outputs.canary-run }}
-      python-versions: ${{ needs.build-info.outputs.python-versions }}
+      python-versions: '["3.9"]'
       branch: ${{ needs.build-info.outputs.default-branch }}
       use-uv: ${{ needs.build-info.outputs.use-uv }}
       upgrade-to-newer-dependencies: ${{ needs.build-info.outputs.upgrade-to-newer-dependencies }}
