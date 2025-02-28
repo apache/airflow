@@ -26,19 +26,33 @@ class TestPodReader:
     """Tests RBAC Pod Reader."""
 
     @pytest.mark.parametrize(
-        "triggerer, webserver, expected",
+        "triggerer, webserver, api_server, expected",
         [
-            (True, True, ["release-name-airflow-webserver", "release-name-airflow-triggerer"]),
-            (True, False, ["release-name-airflow-triggerer"]),
-            (False, True, ["release-name-airflow-webserver"]),
-            (False, False, []),
+            (
+                True,
+                True,
+                True,
+                [
+                    "release-name-airflow-webserver",
+                    "release-name-airflow-triggerer",
+                    "release-name-airflow-api-server",
+                ],
+            ),
+            (True, True, False, ["release-name-airflow-webserver", "release-name-airflow-triggerer"]),
+            (True, False, True, ["release-name-airflow-triggerer", "release-name-airflow-api-server"]),
+            (True, False, False, ["release-name-airflow-triggerer"]),
+            (False, True, True, ["release-name-airflow-webserver", "release-name-airflow-api-server"]),
+            (False, True, False, ["release-name-airflow-webserver"]),
+            (False, False, True, ["release-name-airflow-api-server"]),
+            (False, False, False, []),
         ],
     )
-    def test_pod_log_reader_rolebinding(self, triggerer, webserver, expected):
+    def test_pod_log_reader_rolebinding(self, triggerer, webserver, api_server, expected):
         docs = render_chart(
             values={
                 "triggerer": {"enabled": triggerer},
                 "webserver": {"allowPodLogReading": webserver},
+                "apiServer": {"allowPodLogReading": api_server},
             },
             show_only=["templates/rbac/pod-log-reader-rolebinding.yaml"],
         )
