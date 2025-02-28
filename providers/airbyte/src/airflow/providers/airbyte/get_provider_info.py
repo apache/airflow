@@ -27,7 +27,7 @@ def get_provider_info():
         "name": "Airbyte",
         "description": "`Airbyte <https://airbyte.com/>`__\n",
         "state": "ready",
-        "source-date-epoch": 1737371678,
+        "source-date-epoch": 1740734068,
         "versions": [
             "5.0.0",
             "4.0.0",

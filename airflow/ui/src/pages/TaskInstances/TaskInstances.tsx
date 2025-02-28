@@ -1,5 +1,3 @@
-/* eslint-disable max-lines */
-
 /*!
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
@@ -18,29 +16,34 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Flex, Link, HStack, type SelectValueChangeDetails } from "@chakra-ui/react";
+import { Flex, Link } from "@chakra-ui/react";
 import type { ColumnDef } from "@tanstack/react-table";
-import { useCallback, useState } from "react";
+import { useState } from "react";
 import { Link as RouterLink, useParams, useSearchParams } from "react-router-dom";
 
 import { useTaskInstanceServiceGetTaskInstances } from "openapi/queries";
-import type { TaskInstanceResponse, TaskInstanceState } from "openapi/requests/types.gen";
+import type { TaskInstanceResponse } from "openapi/requests/types.gen";
 import { ClearTaskInstanceButton } from "src/components/Clear";
 import { DataTable } from "src/components/DataTable";
 import { useTableURLState } from "src/components/DataTable/useTableUrlState";
 import { ErrorAlert } from "src/components/ErrorAlert";
 import { MarkTaskInstanceAsButton } from "src/components/MarkAs";
-import { SearchBar } from "src/components/SearchBar";
 import { StateBadge } from "src/components/StateBadge";
 import Time from "src/components/Time";
 import { TruncatedText } from "src/components/TruncatedText";
-import { Select } from "src/components/ui";
 import { SearchParamsKeys, type SearchParamsKeysType } from "src/constants/searchParams";
-import { taskInstanceStateOptions as stateOptions } from "src/constants/stateOptions";
-import { capitalize, getDuration, useAutoRefresh, isStatePending } from "src/utils";
+import { getDuration, useAutoRefresh, isStatePending } from "src/utils";
 import { getTaskInstanceLink } from "src/utils/links";
 
+import { TaskInstancesFilter } from "./TaskInstancesFilter";
+
 type TaskInstanceRow = { row: { original: TaskInstanceResponse } };
+const {
+  END_DATE: END_DATE_PARAM,
+  NAME_PATTERN: NAME_PATTERN_PARAM,
+  START_DATE: START_DATE_PARAM,
+  STATE: STATE_PARAM,
+}: SearchParamsKeysType = SearchParamsKeys;
 
 const taskInstanceColumns = (
   dagId?: string,
@@ -154,55 +157,22 @@ const taskInstanceColumns = (
   },
 ];
 
-const STATE_PARAM = "state";
-
 export const TaskInstances = () => {
   const { dagId, runId, taskId } = useParams();
-  const [searchParams, setSearchParams] = useSearchParams();
+  const [searchParams] = useSearchParams();
   const { setTableURLState, tableURLState } = useTableURLState();
   const { pagination, sorting } = tableURLState;
   const [sort] = sorting;
   const orderBy = sort ? `${sort.desc ? "-" : ""}${sort.id}` : "-start_date";
+
   const filteredState = searchParams.getAll(STATE_PARAM);
+  const startDate = searchParams.get(START_DATE_PARAM);
+  const endDate = searchParams.get(END_DATE_PARAM);
   const hasFilteredState = filteredState.length > 0;
-  const { NAME_PATTERN: NAME_PATTERN_PARAM }: SearchParamsKeysType = SearchParamsKeys;
 
   const [taskDisplayNamePattern, setTaskDisplayNamePattern] = useState(
     searchParams.get(NAME_PATTERN_PARAM) ?? undefined,
   );
-
-  const handleStateChange = useCallback(
-    ({ value }: SelectValueChangeDetails<string>) => {
-      const [val, ...rest] = value;
-
-      if ((val === undefined || val === "all") && rest.length === 0) {
-        searchParams.delete(STATE_PARAM);
-      } else {
-        searchParams.delete(STATE_PARAM);
-        value.filter((state) => state !== "all").map((state) => searchParams.append(STATE_PARAM, state));
-      }
-      setTableURLState({
-        pagination: { ...pagination, pageIndex: 0 },
-        sorting,
-      });
-      setSearchParams(searchParams);
-    },
-    [pagination, searchParams, setSearchParams, setTableURLState, sorting],
-  );
-
-  const handleSearchChange = (value: string) => {
-    if (value) {
-      searchParams.set(NAME_PATTERN_PARAM, value);
-    } else {
-      searchParams.delete(NAME_PATTERN_PARAM);
-    }
-    setTableURLState({
-      pagination: { ...pagination, pageIndex: 0 },
-      sorting,
-    });
-    setTaskDisplayNamePattern(value);
-    setSearchParams(searchParams);
-  };
 
   const refetchInterval = useAutoRefresh({});
 
@@ -210,9 +180,11 @@ export const TaskInstances = () => {
     {
       dagId: dagId ?? "~",
       dagRunId: runId ?? "~",
+      endDateLte: endDate ?? undefined,
       limit: pagination.pageSize,
       offset: pagination.pageIndex * pagination.pageSize,
       orderBy,
+      startDateGte: startDate ?? undefined,
       state: hasFilteredState ? filteredState : undefined,
       taskDisplayNamePattern: Boolean(taskDisplayNamePattern) ? taskDisplayNamePattern : undefined,
       taskId: taskId ?? undefined,
@@ -227,55 +199,10 @@ export const TaskInstances = () => {
 
   return (
     <>
-      <HStack>
-        <Select.Root
-          collection={stateOptions}
-          maxW="250px"
-          multiple
-          onValueChange={handleStateChange}
-          value={hasFilteredState ? filteredState : ["all"]}
-        >
-          <Select.Trigger
-            {...(hasFilteredState ? { clearable: true } : {})}
-            colorPalette="blue"
-            isActive={Boolean(filteredState)}
-          >
-            <Select.ValueText>
-              {() =>
-                hasFilteredState ? (
-                  <HStack gap="10px">
-                    {filteredState.map((state) => (
-                      <StateBadge key={state} state={state as TaskInstanceState}>
-                        {state === "none" ? "No Status" : capitalize(state)}
-                      </StateBadge>
-                    ))}
-                  </HStack>
-                ) : (
-                  "All States"
-                )
-              }
-            </Select.ValueText>
-          </Select.Trigger>
-          <Select.Content>
-            {stateOptions.items.map((option) => (
-              <Select.Item item={option} key={option.label}>
-                {option.value === "all" ? (
-                  option.label
-                ) : (
-                  <StateBadge state={option.value as TaskInstanceState}>{option.label}</StateBadge>
-                )}
-              </Select.Item>
-            ))}
-          </Select.Content>
-        </Select.Root>
-        <SearchBar
-          buttonProps={{ disabled: true }}
-          defaultValue={taskDisplayNamePattern ?? ""}
-          hideAdvanced
-          onChange={handleSearchChange}
-          placeHolder="Search Tasks"
-        />
-      </HStack>
+      <TaskInstancesFilter
+        setTaskDisplayNamePattern={setTaskDisplayNamePattern}
+        taskDisplayNamePattern={taskDisplayNamePattern}
+      />
       <DataTable
         columns={taskInstanceColumns(dagId, runId, taskId)}
         data={data?.task_instances ?? []}

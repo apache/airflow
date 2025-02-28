@@ -27,7 +27,7 @@ def get_provider_info():
         "name": "Apache Druid",
         "description": "`Apache Druid <https://druid.apache.org/>`__.\n",
         "state": "ready",
-        "source-date-epoch": 1734527841,
+        "source-date-epoch": 1740734079,
         "versions": [
             "4.0.0",
             "3.12.1",

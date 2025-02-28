@@ -27,7 +27,7 @@ def get_provider_info():
         "name": "Exasol",
         "description": "`Exasol <https://www.exasol.com/>`__\n",
         "state": "ready",
-        "source-date-epoch": 1739959643,
+        "source-date-epoch": 1740734125,
         "versions": [
             "4.7.2",
             "4.7.0",

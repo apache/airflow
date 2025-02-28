@@ -27,7 +27,7 @@ def get_provider_info():
         "name": "Apache Spark",
         "description": "`Apache Spark <https://spark.apache.org/>`__\n",
         "state": "ready",
-        "source-date-epoch": 1734528589,
+        "source-date-epoch": 1740734095,
         "versions": [
             "5.0.0",
             "4.11.3",

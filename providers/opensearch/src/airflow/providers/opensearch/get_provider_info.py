@@ -27,7 +27,7 @@ def get_provider_info():
         "name": "OpenSearch",
         "description": "`OpenSearch <https://opensearch.org/>`__\n",
         "state": "ready",
-        "source-date-epoch": 1739964036,
+        "source-date-epoch": 1740734165,
         "versions": [
             "1.6.1",
             "1.6.0",
