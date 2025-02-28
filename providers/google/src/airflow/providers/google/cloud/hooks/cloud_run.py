@@ -21,9 +21,6 @@ import itertools
 from collections.abc import Iterable, Sequence
 from typing import TYPE_CHECKING, Any
 
-from airflow.exceptions import AirflowException
-from airflow.providers.google.common.consts import CLIENT_INFO
-from airflow.providers.google.common.hooks.base_google import PROVIDE_PROJECT_ID, GoogleBaseHook
 from google.cloud.run_v2 import (
     CreateJobRequest,
     CreateServiceRequest,
@@ -42,6 +39,10 @@ from google.cloud.run_v2 import (
     UpdateJobRequest,
 )
 from google.longrunning import operations_pb2  # type: ignore[attr-defined]
+
+from airflow.exceptions import AirflowException
+from airflow.providers.google.common.consts import CLIENT_INFO
+from airflow.providers.google.common.hooks.base_google import PROVIDE_PROJECT_ID, GoogleBaseHook
 
 if TYPE_CHECKING:
     from google.api_core import operation

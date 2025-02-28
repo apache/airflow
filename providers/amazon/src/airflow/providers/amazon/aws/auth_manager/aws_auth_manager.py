@@ -83,8 +83,8 @@ class AwsAuthManager(BaseAuthManager[AwsAuthManagerUser]):
         return AwsAuthManagerAmazonVerifiedPermissionsFacade()
 
     @cached_property
-    def fastapi_endpoint(self) -> str:
-        return conf.get("fastapi", "base_url")
+    def apiserver_endpoint(self) -> str:
+        return conf.get("api", "base_url")
 
     def get_user(self) -> AwsAuthManagerUser | None:
         return session["aws_user"] if self.is_logged_in() else None
@@ -377,7 +377,7 @@ class AwsAuthManager(BaseAuthManager[AwsAuthManagerUser]):
         return accessible_items
 
     def get_url_login(self, **kwargs) -> str:
-        return f"{self.fastapi_endpoint}/auth/login"
+        return f"{self.apiserver_endpoint}/auth/login"
 
     def get_url_logout(self) -> str:
         raise NotImplementedError()

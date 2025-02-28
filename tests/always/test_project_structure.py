@@ -58,6 +58,7 @@ class TestProjectStructure:
         # We should make sure that one goes to 0
         # TODO(potiuk) - check if that test actually tests something
         OVERLOOKED_TESTS = [
+            "providers/amazon/tests/unit/amazon/aws/auth_manager/security_manager/test_aws_security_manager_override.py",
             "providers/amazon/tests/unit/amazon/aws/executors/batch/test_batch_executor_config.py",
             "providers/amazon/tests/unit/amazon/aws/executors/batch/test_boto_schema.py",
             "providers/amazon/tests/unit/amazon/aws/executors/batch/test_utils.py",
@@ -107,6 +108,7 @@ class TestProjectStructure:
             "providers/common/compat/tests/unit/common/compat/standard/test_utils.py",
             "providers/common/compat/tests/unit/common/compat/test_version_compat.py",
             "providers/common/io/tests/unit/common/io/test_version_compat.py",
+            "providers/databricks/tests/unit/databricks/test_version_compat.py",
             "providers/edge/tests/unit/edge/models/test_edge_job.py",
             "providers/edge/tests/unit/edge/models/test_edge_logs.py",
             "providers/edge/tests/unit/edge/models/test_edge_worker.py",
@@ -185,9 +187,11 @@ class TestProjectStructure:
             "providers/google/tests/unit/google/test_version_compat.py",
             "providers/http/tests/unit/http/test_exceptions.py",
             "providers/microsoft/azure/tests/unit/microsoft/azure/operators/test_adls.py",
+            "providers/microsoft/azure/tests/unit/microsoft/azure/test_version_compat.py",
             "providers/openlineage/tests/unit/openlineage/test_version_compat.py",
             "providers/opensearch/tests/unit/opensearch/test_version_compat.py",
             "providers/presto/tests/unit/presto/test_version_compat.py",
+            "providers/redis/tests/unit/redis/test_version_compat.py",
             "providers/snowflake/tests/unit/snowflake/triggers/test_snowflake_trigger.py",
             "providers/standard/tests/unit/standard/operators/test_empty.py",
             "providers/standard/tests/unit/standard/operators/test_latest_only.py",
@@ -560,8 +564,7 @@ class TestGoogleProviderProjectStructure(ExampleCoverageTest, AssetsCoverageTest
         "GoogleCampaignManagerReportSensor",
         "airflow.providers.google.marketing_platform.sensors.display_video."
         "GoogleDisplayVideo360GetSDFDownloadOperationSensor",
-        "airflow.providers.google.marketing_platform.sensors.display_video."
-        "GoogleDisplayVideo360ReportSensor",
+        "airflow.providers.google.marketing_platform.sensors.display_video.GoogleDisplayVideo360ReportSensor",
     }
 
     @pytest.mark.xfail(reason="We did not reach full coverage yet")

@@ -47,7 +47,7 @@ export const GridButton = ({
       background={`${state}.solid`}
       borderRadius={2}
       height="10px"
-      minW="10px"
+      minW="14px"
       pb="2px"
       px="2px"
       title={`${label}\n${state}`}
@@ -60,7 +60,7 @@ export const GridButton = ({
       replace
       to={{
         pathname: `/dags/${dagId}/runs/${runId}/${taskId === undefined ? "" : `tasks/${taskId}`}`,
-        search: searchParams,
+        search: searchParams.toString(),
       }}
     >
       <Flex
@@ -70,7 +70,7 @@ export const GridButton = ({
         pb="2px"
         px="2px"
         title={`${label}\n${state}`}
-        width="10px"
+        width="14px"
         {...rest}
       >
         {children}

@@ -605,6 +605,10 @@ def get_provider_info():
                 "python-modules": ["airflow.providers.amazon.aws.sensors.kinesis_analytics"],
             },
             {
+                "integration-name": "Amazon Managed Workflows for Apache Airflow (MWAA)",
+                "python-modules": ["airflow.providers.amazon.aws.sensors.mwaa"],
+            },
+            {
                 "integration-name": "Amazon OpenSearch Serverless",
                 "python-modules": ["airflow.providers.amazon.aws.sensors.opensearch_serverless"],
             },
@@ -1359,6 +1363,7 @@ def get_provider_info():
             "python3-saml": ["python3-saml>=1.16.0"],
             "apache.hive": ["apache-airflow-providers-apache-hive"],
             "exasol": ["apache-airflow-providers-exasol"],
+            "fab": ["apache-airflow-providers-fab"],
             "ftp": ["apache-airflow-providers-ftp"],
             "google": ["apache-airflow-providers-google"],
             "imap": ["apache-airflow-providers-imap"],
@@ -1371,7 +1376,7 @@ def get_provider_info():
         "devel-dependencies": [
             "aiobotocore>=2.13.0",
             "aws_xray_sdk>=2.12.0",
-            "moto[cloudformation,glue]>=5.0.0,!=5.1.0",
+            "moto[cloudformation,glue]>=5.0.0",
             "mypy-boto3-appflow>=1.35.39",
             "mypy-boto3-rds>=1.34.90",
             "mypy-boto3-redshift-data>=1.34.0",

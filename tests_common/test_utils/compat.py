@@ -36,15 +36,15 @@ except ImportError:
     from airflow.models.errors import ImportError as ParseImportError  # type: ignore[no-redef,attr-defined]
 
 try:
-    from airflow.sdk.definitions.baseoperatorlink import BaseOperatorLink
+    from airflow.sdk import BaseOperatorLink
 except ImportError:
     # Compatibility for Airflow 2.7.*
     from airflow.models.baseoperator import BaseOperatorLink
 
 try:
+    from airflow.providers.common.sql.operators.generic_transfer import GenericTransfer
     from airflow.providers.standard.operators.bash import BashOperator
     from airflow.providers.standard.operators.empty import EmptyOperator
-    from airflow.providers.standard.operators.generic_transfer import GenericTransfer
     from airflow.providers.standard.operators.python import PythonOperator
     from airflow.providers.standard.sensors.bash import BashSensor
     from airflow.providers.standard.sensors.date_time import DateTimeSensor

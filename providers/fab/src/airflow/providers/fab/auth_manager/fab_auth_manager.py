@@ -158,8 +158,8 @@ class FabAuthManager(BaseAuthManager[User]):
             self._sync_appbuilder_roles()
 
     @cached_property
-    def fastapi_endpoint(self) -> str:
-        return conf.get("fastapi", "base_url")
+    def apiserver_endpoint(self) -> str:
+        return conf.get("api", "base_url")
 
     @staticmethod
     def get_cli_commands() -> list[CLICommand]:
@@ -455,7 +455,7 @@ class FabAuthManager(BaseAuthManager[User]):
             else:
                 return url_for(f"{self.security_manager.auth_view.endpoint}.login")
         else:
-            return f"{self.fastapi_endpoint}/auth/login"
+            return f"{self.apiserver_endpoint}/auth/login"
 
     def get_url_logout(self):
         """Return the logout page url."""

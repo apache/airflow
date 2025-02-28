@@ -19,12 +19,12 @@ from __future__ import annotations
 import typing
 
 from jupyter_client import AsyncKernelManager
-from traitlets import Unicode
-
-from airflow.hooks.base import BaseHook
 from papermill.clientwrap import PapermillNotebookClient
 from papermill.engines import NBClientEngine
 from papermill.utils import merge_kwargs, remove_args
+from traitlets import Unicode
+
+from airflow.hooks.base import BaseHook
 
 JUPYTER_KERNEL_SHELL_PORT = 60316
 JUPYTER_KERNEL_IOPUB_PORT = 60317

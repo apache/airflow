@@ -19,6 +19,7 @@
 
 from __future__ import annotations
 
+import functools
 import os
 import sys
 from collections.abc import Iterable, Mapping
@@ -139,7 +140,6 @@ class RuntimeTaskInstance(TaskInstance):
             # TODO: Ensure that ti.log_url and such are available to use in context
             #   especially after removal of `conf` from Context.
             "ti": self,
-            "start_date": self.start_date,
             "outlet_events": OutletEventAccessors(),
             # "inlet_events": InletEventsAccessors(task.inlets, session=session),
             "macros": MacrosAccessor(),
@@ -160,7 +160,7 @@ class RuntimeTaskInstance(TaskInstance):
                 # TODO: Assess if we need to pass these through timezone.coerce_datetime
                 "dag_run": dag_run,  # type: ignore[typeddict-item]  # Removable after #46522
                 "task_instance_key_str": f"{self.task.dag_id}__{self.task.task_id}__{dag_run.run_id}",
-                "task_reschedule_count": self._ti_context_from_server.task_reschedule_count,
+                "task_reschedule_count": self._ti_context_from_server.task_reschedule_count or 0,
                 "prev_start_date_success": lazy_object_proxy.Proxy(
                     lambda: get_previous_dagrun_success(self.id).start_date
                 ),
@@ -617,13 +617,13 @@ def run(
         # TODO: Should we use structlog.bind_contextvars here for dag_id, task_id & run_id?
         log.info("Pausing task as DEFERRED. ", dag_id=ti.dag_id, task_id=ti.task_id, run_id=ti.run_id)
         classpath, trigger_kwargs = defer.trigger.serialize()
-        next_method = defer.method_name
-        defer_timeout = defer.timeout
+
         msg = DeferTask(
             classpath=classpath,
             trigger_kwargs=trigger_kwargs,
-            next_method=next_method,
-            trigger_timeout=defer_timeout,
+            trigger_timeout=defer.timeout,
+            next_method=defer.method_name,
+            next_kwargs=defer.kwargs or {},
         )
         state = IntermediateTIState.DEFERRED
     except AirflowSkipException as e:
@@ -698,6 +698,15 @@ def _execute_task(context: Context, ti: RuntimeTaskInstance):
     from airflow.exceptions import AirflowTaskTimeout
 
     task = ti.task
+    execute = task.execute  # type: ignore[attr-defined]
+
+    if ti._ti_context_from_server and (next_method := ti._ti_context_from_server.next_method):
+        from airflow.serialization.serialized_objects import BaseSerialization
+
+        kwargs = BaseSerialization.deserialize(ti._ti_context_from_server.next_kwargs or {})
+
+        execute = functools.partial(task.resume_execution, next_method=next_method, next_kwargs=kwargs)
+
     if task.execution_timeout:
         # TODO: handle timeout in case of deferral
         from airflow.utils.timeout import timeout
@@ -709,12 +718,12 @@ def _execute_task(context: Context, ti: RuntimeTaskInstance):
                 raise AirflowTaskTimeout()
             # Run task in timeout wrapper
             with timeout(timeout_seconds):
-                result = task.execute(context)  # type: ignore[attr-defined]
+                result = execute(context=context)
         except AirflowTaskTimeout:
             # TODO: handle on kill callback here
             raise
     else:
-        result = task.execute(context)  # type: ignore[attr-defined]
+        result = execute(context=context)
     return result
 
 
@@ -770,7 +779,7 @@ def finalize(
 ):
     # Pushing xcom for each operator extra links defined on the operator only.
     for oe in ti.task.operator_extra_links:
-        link, xcom_key = oe.get_link(operator=ti.task, ti_key=ti.id), oe.xcom_key  # type: ignore[arg-type]
+        link, xcom_key = oe.get_link(operator=ti.task, ti_key=ti), oe.xcom_key  # type: ignore[arg-type]
         log.debug("Setting xcom for operator extra link", link=link, xcom_key=xcom_key)
         _xcom_push(ti, key=xcom_key, value=link)
 

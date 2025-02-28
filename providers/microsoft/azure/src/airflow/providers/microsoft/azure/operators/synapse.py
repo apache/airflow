@@ -33,9 +33,10 @@ from airflow.providers.microsoft.azure.hooks.synapse import (
 )
 
 if TYPE_CHECKING:
+    from azure.synapse.spark.models import SparkBatchJobOptions
+
     from airflow.models.taskinstancekey import TaskInstanceKey
     from airflow.utils.context import Context
-    from azure.synapse.spark.models import SparkBatchJobOptions
 
 from airflow.providers.microsoft.azure.version_compat import AIRFLOW_V_3_0_PLUS
 

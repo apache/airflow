@@ -20,6 +20,14 @@ from collections.abc import AsyncIterator, Sequence
 from functools import cached_property
 from typing import TYPE_CHECKING, Any
 
+from google.cloud.aiplatform_v1 import (
+    BatchPredictionJob,
+    HyperparameterTuningJob,
+    JobState,
+    PipelineState,
+    types,
+)
+
 from airflow.exceptions import AirflowException
 from airflow.providers.google.cloud.hooks.vertex_ai.batch_prediction_job import BatchPredictionJobAsyncHook
 from airflow.providers.google.cloud.hooks.vertex_ai.custom_job import CustomJobAsyncHook
@@ -28,13 +36,6 @@ from airflow.providers.google.cloud.hooks.vertex_ai.hyperparameter_tuning_job im
 )
 from airflow.providers.google.cloud.hooks.vertex_ai.pipeline_job import PipelineJobAsyncHook
 from airflow.triggers.base import BaseTrigger, TriggerEvent
-from google.cloud.aiplatform_v1 import (
-    BatchPredictionJob,
-    HyperparameterTuningJob,
-    JobState,
-    PipelineState,
-    types,
-)
 
 if TYPE_CHECKING:
     from proto import Message

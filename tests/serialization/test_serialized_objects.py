@@ -132,7 +132,6 @@ DAG_RUN = DagRun(
     run_type=DagRunType.MANUAL,
     logical_date=timezone.utcnow(),
     start_date=timezone.utcnow(),
-    external_trigger=True,
     state=DagRunState.SUCCESS,
 )
 DAG_RUN.id = 1

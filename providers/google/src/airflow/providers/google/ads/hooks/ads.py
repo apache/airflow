@@ -24,12 +24,13 @@ from functools import cached_property
 from tempfile import NamedTemporaryFile
 from typing import IO, TYPE_CHECKING, Any, Literal
 
-from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning
-from airflow.hooks.base import BaseHook
-from airflow.providers.google.common.hooks.base_google import get_field
 from google.ads.googleads.client import GoogleAdsClient
 from google.ads.googleads.errors import GoogleAdsException
 from google.auth.exceptions import GoogleAuthError
+
+from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning
+from airflow.hooks.base import BaseHook
+from airflow.providers.google.common.hooks.base_google import get_field
 
 if TYPE_CHECKING:
     from google.ads.googleads.v18.services.services.customer_service import CustomerServiceClient
