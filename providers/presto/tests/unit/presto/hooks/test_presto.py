@@ -294,3 +294,12 @@ class TestPrestoHook:
     def test_serialize_cell(self):
         assert self.db_hook._serialize_cell("foo", None) == "foo"
         assert self.db_hook._serialize_cell(1, None) == 1
+
+    @patch("airflow.providers.presto.hooks.presto.PrestoHook.run")
+    def test_run(self, mock_run):
+        sql = "SELECT 1"
+        autocommit = False
+        parameters = ("hello", "world")
+        handler = list
+        self.db_hook.run(sql, autocommit, parameters, list)
+        mock_run.assert_called_once_with(sql, autocommit, parameters, handler, split_statements=True)
