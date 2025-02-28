@@ -25,7 +25,6 @@ import { Dialog } from "src/components/ui";
 import { SearchParamsKeys } from "src/constants/searchParams";
 import { useConfig } from "src/queries/useConfig";
 import { useLogs } from "src/queries/useLogs";
-import type { LogLevel } from "src/utils/logs";
 
 import { TaskLogContent } from "./TaskLogContent";
 import { TaskLogHeader } from "./TaskLogHeader";
@@ -35,7 +34,7 @@ export const Logs = () => {
   const [searchParams, setSearchParams] = useSearchParams();
 
   const tryNumberParam = searchParams.get(SearchParamsKeys.TRY_NUMBER);
-  const logLevels = searchParams.getAll(SearchParamsKeys.LOG_LEVEL);
+  const logLevelFilters = searchParams.getAll(SearchParamsKeys.LOG_LEVEL);
 
   const {
     data: taskInstance,
@@ -77,7 +76,7 @@ export const Logs = () => {
     isLoading: isLoadingLogs,
   } = useLogs({
     dagId,
-    logLevels: logLevels as Array<LogLevel>,
+    logLevelFilters,
     taskInstance,
     tryNumber: tryNumber === 0 ? 1 : tryNumber,
   });

@@ -27,24 +27,24 @@ import type {
 } from "openapi/requests/types.gen";
 import Time from "src/components/Time";
 import { isStatePending, useAutoRefresh } from "src/utils";
-import { type LogLevel, logLevelColorMapping } from "src/utils/logs";
+import { LogLevel, logLevelColorMapping } from "src/utils/logs";
 
 type Props = {
   dagId: string;
-  logLevels?: Array<LogLevel>;
+  logLevelFilters?: Array<string>;
   taskInstance?: TaskInstanceResponse;
   tryNumber?: number;
 };
 
 type ParseLogsProps = {
   data: TaskInstancesLogResponse["content"];
-  logLevels?: Array<LogLevel>;
+  logLevelFilters?: Array<string>;
 };
 
 const renderStructuredLog = (
   logMessage: string | StructuredLogMessage,
   index: number,
-  logLevels?: Array<string>,
+  logLevelFilters?: Array<string>,
 ) => {
   if (typeof logMessage === "string") {
     return <p key={index}>{logMessage}</p>;
@@ -55,9 +55,9 @@ const renderStructuredLog = (
   const elements = [];
 
   if (
-    logLevels !== undefined &&
-    Boolean(logLevels.length) &&
-    ((typeof level === "string" && !logLevels.includes(level)) || !Boolean(level))
+    logLevelFilters !== undefined &&
+    Boolean(logLevelFilters.length) &&
+    ((typeof level === "string" && !logLevelFilters.includes(level)) || !Boolean(level))
   ) {
     return "";
   }
@@ -68,7 +68,11 @@ const renderStructuredLog = (
 
   if (typeof level === "string") {
     elements.push(
-      <Badge colorPalette={logLevelColorMapping[level as LogLevel]} key={1} size="sm">
+      <Badge
+        colorPalette={level.toUpperCase() in LogLevel ? logLevelColorMapping[level as LogLevel] : undefined}
+        key={1}
+        size="sm"
+      >
         {level.toUpperCase()}
       </Badge>,
       " - ",
@@ -96,12 +100,12 @@ const renderStructuredLog = (
 };
 
 // TODO: add support for log groups, colors, formats, filters
-const parseLogs = ({ data, logLevels }: ParseLogsProps) => {
+const parseLogs = ({ data, logLevelFilters }: ParseLogsProps) => {
   let warning;
   let parsedLines;
 
   try {
-    parsedLines = data.map((datum, index) => renderStructuredLog(datum, index, logLevels));
+    parsedLines = data.map((datum, index) => renderStructuredLog(datum, index, logLevelFilters));
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : "An error occurred.";
 
@@ -119,7 +123,7 @@ const parseLogs = ({ data, logLevels }: ParseLogsProps) => {
   };
 };
 
-export const useLogs = ({ dagId, logLevels, taskInstance, tryNumber = 1 }: Props) => {
+export const useLogs = ({ dagId, logLevelFilters, taskInstance, tryNumber = 1 }: Props) => {
   const refetchInterval = useAutoRefresh({ dagId });
 
   const { data, ...rest } = useTaskInstanceServiceGetLog(
@@ -143,7 +147,7 @@ export const useLogs = ({ dagId, logLevels, taskInstance, tryNumber = 1 }: Props
 
   const parsedData = parseLogs({
     data: data?.content ?? [],
-    logLevels,
+    logLevelFilters,
   });
 
   return { data: parsedData, ...rest };
