@@ -62,8 +62,7 @@ class XComOperatorLink(LoggingMixin):
                 self.xcom_key,
             )
             return ""
-        # Stripping is a temporary workaround till https://github.com/apache/airflow/issues/46513 is handled.
-        return value.strip('"')
+        return value
 
 
 @attrs.define()
@@ -98,9 +97,6 @@ class BaseOperatorLink(metaclass=ABCMeta):
     def get_link(self, operator: BaseOperator, *, ti_key: TaskInstanceKey) -> str:
         """
         Link to external system.
-
-        Note: The old signature of this function was ``(self, operator, dttm: datetime)``. That is still
-        supported at runtime but is deprecated.
 
         :param operator: The Airflow operator object this link is associated to.
         :param ti_key: TaskInstance ID to return link for.

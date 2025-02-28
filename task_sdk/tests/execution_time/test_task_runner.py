@@ -24,6 +24,7 @@ import uuid
 from datetime import datetime, timedelta
 from pathlib import Path
 from socket import socketpair
+from typing import TYPE_CHECKING
 from unittest import mock
 from unittest.mock import patch
 
@@ -85,6 +86,9 @@ from airflow.utils import timezone
 from airflow.utils.state import TaskInstanceState
 
 from tests_common.test_utils.mock_operators import AirflowLink
+
+if TYPE_CHECKING:
+    from kgb import SpyAgency
 
 FAKE_BUNDLE = BundleInfo(name="anything", version="any")
 
@@ -183,15 +187,13 @@ def test_parse(test_dags_dir: Path, make_ti_context):
 
 def test_run_deferred_basic(time_machine, create_runtime_ti, mock_supervisor_comms):
     """Test that a task can transition to a deferred state."""
-    import datetime
-
     from airflow.providers.standard.sensors.date_time import DateTimeSensorAsync
 
     # Use the time machine to set the current time
     instant = timezone.datetime(2024, 11, 22)
     task = DateTimeSensorAsync(
         task_id="async",
-        target_time=str(instant + datetime.timedelta(seconds=3)),
+        target_time=str(instant + timedelta(seconds=3)),
         poke_interval=60,
         timeout=600,
     )
@@ -201,20 +203,49 @@ def test_run_deferred_basic(time_machine, create_runtime_ti, mock_supervisor_com
     expected_defer_task = DeferTask(
         state="deferred",
         classpath="airflow.providers.standard.triggers.temporal.DateTimeTrigger",
+        # Since we are in the task process here, we expect this to have not been encoded by serde yet
         trigger_kwargs={
             "end_from_trigger": False,
             "moment": instant + timedelta(seconds=3),
         },
-        next_method="execute_complete",
         trigger_timeout=None,
+        next_method="execute_complete",
+        next_kwargs={},
     )
 
     # Run the task
     ti = create_runtime_ti(dag_id="basic_deferred_run", task=task)
-    run(ti, log=mock.MagicMock())
+    state, msg, err = run(ti, log=mock.MagicMock())
 
     # send_request will only be called when the TaskDeferred exception is raised
     mock_supervisor_comms.send_request.assert_any_call(msg=expected_defer_task, log=mock.ANY)
+
+
+def test_resume_from_deferred(time_machine, create_runtime_ti, mock_supervisor_comms, spy_agency: SpyAgency):
+    from airflow.providers.standard.sensors.date_time import DateTimeSensorAsync
+
+    instant_str = "2024-09-30T12:00:00Z"
+    instant = timezone.parse(instant_str)
+    task = DateTimeSensorAsync(
+        task_id="async",
+        target_time=instant + timedelta(seconds=3),
+        poke_interval=60,
+        timeout=600,
+    )
+
+    ti = create_runtime_ti(dag_id="basic_deferred_run", task=task)
+    ti._ti_context_from_server.next_method = "execute_complete"
+    ti._ti_context_from_server.next_kwargs = {
+        "__type": "dict",
+        "__var": {"event": {"__type": "datetime", "__var": 1727697600.0}},
+    }
+
+    spy = spy_agency.spy_on(task.execute_complete)
+    state, msg, err = run(ti, log=mock.MagicMock())
+    assert err is None
+    assert state == TaskInstanceState.SUCCESS
+
+    spy_agency.assert_spy_called_with(spy, mock.ANY, event=instant)
 
 
 def test_run_basic_skipped(time_machine, create_runtime_ti, mock_supervisor_comms):
@@ -823,7 +854,6 @@ class TestRuntimeTaskInstance:
             "outlet_events": OutletEventAccessors(),
             "outlets": task.outlets,
             "run_id": "test_run",
-            "start_date": start_date,
             "task": task,
             "task_instance": runtime_ti,
             "ti": runtime_ti,
@@ -869,7 +899,6 @@ class TestRuntimeTaskInstance:
             "prev_end_date_success": timezone.datetime(2024, 12, 1, 1, 0, 0),
             "prev_start_date_success": timezone.datetime(2024, 12, 1, 0, 0, 0),
             "run_id": "test_run",
-            "start_date": timezone.datetime(2024, 12, 1, 1, 0),
             "task": task,
             "task_instance": runtime_ti,
             "ti": runtime_ti,
@@ -1147,7 +1176,7 @@ class TestRuntimeTaskInstance:
                 "a_simple_list": ["one", "two", "three", "actually one value is made per line"],
             },
         )
-        _, msg = run(runtime_ti, log=mock.MagicMock())
+        _, msg, _ = run(runtime_ti, log=mock.MagicMock())
         assert isinstance(msg, SucceedTask)
 
     def test_task_run_with_operator_extra_links(self, create_runtime_ti, mock_supervisor_comms, time_machine):
@@ -1502,6 +1531,7 @@ class TestTaskRunnerCallsListeners:
         def __init__(self):
             self.state = []
             self.component = None
+            self.error = None
 
         @hookimpl
         def on_starting(self, component):
@@ -1516,8 +1546,9 @@ class TestTaskRunnerCallsListeners:
             self.state.append(TaskInstanceState.SUCCESS)
 
         @hookimpl
-        def on_task_instance_failed(self, previous_state, task_instance):
+        def on_task_instance_failed(self, previous_state, task_instance, error):
             self.state.append(TaskInstanceState.FAILED)
+            self.error = error
 
         @hookimpl
         def before_stopping(self, component):
@@ -1566,7 +1597,7 @@ class TestTaskRunnerCallsListeners:
         assert isinstance(listener.component, TaskRunnerMarker)
         del listener.component
 
-        state, _ = run(runtime_ti, log)
+        state, _, _ = run(runtime_ti, log)
         finalize(runtime_ti, state, log)
         assert isinstance(listener.component, TaskRunnerMarker)
 
@@ -1595,7 +1626,7 @@ class TestTaskRunnerCallsListeners:
         )
         log = mock.MagicMock()
 
-        state, _ = run(runtime_ti, log)
+        state, _, _ = run(runtime_ti, log)
         finalize(runtime_ti, state, log)
 
         assert listener.state == [TaskInstanceState.RUNNING, TaskInstanceState.SUCCESS]
@@ -1633,7 +1664,8 @@ class TestTaskRunnerCallsListeners:
         )
         log = mock.MagicMock()
 
-        state, _ = run(runtime_ti, log)
-        finalize(runtime_ti, state, log)
+        state, _, error = run(runtime_ti, log)
+        finalize(runtime_ti, state, log, error)
 
         assert listener.state == [TaskInstanceState.RUNNING, TaskInstanceState.FAILED]
+        assert listener.error == error

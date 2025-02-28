@@ -18,9 +18,20 @@
 from __future__ import annotations
 
 from contextlib import asynccontextmanager
+from functools import cached_property
+from typing import TYPE_CHECKING
 
-from fastapi import FastAPI
+import attrs
+from fastapi import FastAPI, Request
 from fastapi.openapi.utils import get_openapi
+from fastapi.responses import JSONResponse
+
+if TYPE_CHECKING:
+    import httpx
+
+import structlog
+
+logger = structlog.get_logger(logger_name=__name__)
 
 
 @asynccontextmanager
@@ -30,7 +41,7 @@ async def lifespan(app: FastAPI):
     yield
 
 
-def create_task_execution_api_app(app: FastAPI) -> FastAPI:
+def create_task_execution_api_app() -> FastAPI:
     """Create FastAPI app for task execution API."""
     from airflow.api_fastapi.execution_api.routes import execution_api_router
 
@@ -66,12 +77,30 @@ def create_task_execution_api_app(app: FastAPI) -> FastAPI:
             if schema_name not in openapi_schema["components"]["schemas"]:
                 openapi_schema["components"]["schemas"][schema_name] = schema
 
+        # The `JsonValue` component is missing any info. causes issues when generating models
+        openapi_schema["components"]["schemas"]["JsonValue"] = {
+            "title": "Any valid JSON value",
+            "anyOf": [
+                {"type": t} for t in ("string", "number", "integer", "object", "array", "boolean", "null")
+            ],
+        }
+
         app.openapi_schema = openapi_schema
         return app.openapi_schema
 
     app.openapi = custom_openapi  # type: ignore[method-assign]
 
     app.include_router(execution_api_router)
+
+    # As we are mounted as a sub app, we don't get any logs for unhandled exceptions without this!
+    @app.exception_handler(Exception)
+    def handle_exceptions(request: Request, exc: Exception):
+        logger.exception("Handle died with an error", exc_info=(type(exc), exc, exc.__traceback__))
+        content = {"message": "Internal server error"}
+        if "correlation-id" in request.headers:
+            content["correlation-id"] = request.headers["correlation-id"]
+        return JSONResponse(status_code=500, content=content)
+
     return app
 
 
@@ -88,3 +117,37 @@ def get_extra_schemas() -> dict[str, dict]:
         # as that has different payload requirements
         "TerminalTIState": {"type": "string", "enum": list(TerminalTIState)},
     }
+
+
+@attrs.define()
+class InProcessExecuctionAPI:
+    """
+    A helper class to make it possible to run the ExecutionAPI "in-process".
+
+    The sync version of this makes use of a2wsgi which runs the async loop in a separate thread. This is
+    needed so that we can use the sync httpx client
+    """
+
+    _app: FastAPI | None = None
+
+    @cached_property
+    def app(self):
+        if not self._app:
+            from airflow.api_fastapi.execution_api.app import create_task_execution_api_app
+
+            self._app = create_task_execution_api_app()
+
+        return self._app
+
+    @cached_property
+    def transport(self) -> httpx.WSGITransport:
+        import httpx
+        from a2wsgi import ASGIMiddleware
+
+        return httpx.WSGITransport(app=ASGIMiddleware(self.app))  # type: ignore[arg-type]
+
+    @cached_property
+    def atransport(self) -> httpx.ASGITransport:
+        import httpx
+
+        return httpx.ASGITransport(app=self.app)

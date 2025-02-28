@@ -27,6 +27,7 @@ from typing import TYPE_CHECKING, Any
 from urllib.parse import quote, urljoin, urlparse
 
 import httpx
+from azure.identity import CertificateCredential, ClientSecretCredential
 from httpx import AsyncHTTPTransport, Timeout
 from kiota_abstractions.api_error import APIError
 from kiota_abstractions.method import Method
@@ -50,9 +51,9 @@ from airflow.exceptions import (
     AirflowNotFoundException,
 )
 from airflow.hooks.base import BaseHook
-from azure.identity import CertificateCredential, ClientSecretCredential
 
 if TYPE_CHECKING:
+    from azure.identity._internal.client_credential_base import ClientCredentialBase
     from kiota_abstractions.request_adapter import RequestAdapter
     from kiota_abstractions.request_information import QueryParams
     from kiota_abstractions.response_handler import NativeResponseType
@@ -60,7 +61,6 @@ if TYPE_CHECKING:
     from kiota_http.httpx_request_adapter import ResponseType
 
     from airflow.models import Connection
-    from azure.identity._internal.client_credential_base import ClientCredentialBase
 
 
 class DefaultResponseHandler(ResponseHandler):
@@ -213,7 +213,7 @@ class KiotaRequestAdapterHook(BaseHook):
     @staticmethod
     def format_no_proxy_url(url: str) -> str:
         if "://" not in url:
-            url = f"all://{url}"
+            return f"all://{url}"
         return url
 
     @classmethod

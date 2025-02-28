@@ -341,10 +341,14 @@ export type DependenciesServiceGetDependenciesQueryResult<
   TError = unknown,
 > = UseQueryResult<TData, TError>;
 export const useDependenciesServiceGetDependenciesKey = "DependenciesServiceGetDependencies";
-export const UseDependenciesServiceGetDependenciesKeyFn = (queryKey?: Array<unknown>) => [
-  useDependenciesServiceGetDependenciesKey,
-  ...(queryKey ?? []),
-];
+export const UseDependenciesServiceGetDependenciesKeyFn = (
+  {
+    nodeId,
+  }: {
+    nodeId?: string;
+  } = {},
+  queryKey?: Array<unknown>,
+) => [useDependenciesServiceGetDependenciesKey, ...(queryKey ?? [{ nodeId }])];
 export type DashboardServiceHistoricalMetricsDefaultResponse = Awaited<
   ReturnType<typeof DashboardService.historicalMetrics>
 >;

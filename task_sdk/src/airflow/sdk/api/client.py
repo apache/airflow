@@ -182,7 +182,7 @@ class TaskInstanceOperations:
         return PrevSuccessfulDagRunResponse.model_validate_json(resp.read())
 
     def runtime_checks(self, id: uuid.UUID, msg: RuntimeCheckOnTask) -> OKResponse:
-        body = TIRuntimeCheckPayload(**msg.model_dump(exclude_unset=True))
+        body = TIRuntimeCheckPayload(**msg.model_dump(exclude_unset=True, exclude={"type"}))
         try:
             self.client.post(f"task-instances/{id}/runtime-checks", content=body.model_dump_json())
             return OKResponse(ok=True)
@@ -298,7 +298,14 @@ class XComOperations:
         return XComResponse.model_validate_json(resp.read())
 
     def set(
-        self, dag_id: str, run_id: str, task_id: str, key: str, value, map_index: int | None = None
+        self,
+        dag_id: str,
+        run_id: str,
+        task_id: str,
+        key: str,
+        value,
+        map_index: int | None = None,
+        mapped_length: int | None = None,
     ) -> dict[str, bool]:
         """Set a XCom value via the API server."""
         # TODO: check if we need to use map_index as params in the uri
@@ -306,6 +313,8 @@ class XComOperations:
         params = {}
         if map_index is not None and map_index >= 0:
             params = {"map_index": map_index}
+        if mapped_length is not None and mapped_length >= 0:
+            params["mapped_length"] = mapped_length
         self.client.post(f"xcoms/{dag_id}/{run_id}/{task_id}/{key}", params=params, json=value)
         # Any error from the server will anyway be propagated down to the supervisor,
         # so we choose to send a generic response to the supervisor over the server response to
@@ -384,8 +393,8 @@ class Client(httpx.Client):
         if dry_run:
             # If dry run is requested, install a no op handler so that simple tasks can "heartbeat" using a
             # real client, but just don't make any HTTP requests
-            kwargs["transport"] = httpx.MockTransport(noop_handler)
-            kwargs["base_url"] = "dry-run://server"
+            kwargs.setdefault("transport", httpx.MockTransport(noop_handler))
+            kwargs.setdefault("base_url", "dry-run://server")
         else:
             kwargs["base_url"] = base_url
         pyver = f"{'.'.join(map(str, sys.version_info[:3]))}"

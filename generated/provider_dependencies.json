@@ -59,6 +59,7 @@
       "common.compat",
       "common.sql",
       "exasol",
+      "fab",
       "ftp",
       "google",
       "http",
@@ -104,7 +105,7 @@
     "deps": [
       "apache-airflow-providers-common-sql>=1.20.0",
       "apache-airflow>=2.9.0",
-      "sqlalchemy-drill>=1.1.0"
+      "sqlalchemy-drill>=1.1.0,!=1.1.6,!=1.1.7"
     ],
     "devel-deps": [],
     "plugins": [],
@@ -217,7 +218,7 @@
     "deps": [
       "apache-airflow>=2.9.0",
       "asgiref>=2.3.0",
-      "confluent-kafka>=2.3.0"
+      "confluent-kafka>=2.3.0,!=2.8.1"
     ],
     "devel-deps": [],
     "plugins": [],
@@ -239,7 +240,7 @@
   "apache.livy": {
     "deps": [
       "aiohttp>=3.9.2",
-      "apache-airflow-providers-http",
+      "apache-airflow-providers-http>=5.1.0",
       "apache-airflow>=2.9.0",
       "asgiref>=2.3.0"
     ],
@@ -418,6 +419,7 @@
   "common.sql": {
     "deps": [
       "apache-airflow>=2.9.0",
+      "methodtools>=0.4.7",
       "more-itertools>=9.0.0",
       "sqlparse>=0.5.1"
     ],
@@ -648,7 +650,7 @@
       "google-cloud-bigquery-datatransfer>=3.13.0",
       "google-cloud-bigquery>=3.4.0,!=3.21.*,!=3.22.0,!=3.23.*",
       "google-cloud-bigtable>=2.17.0",
-      "google-cloud-build>=3.22.0",
+      "google-cloud-build>=3.31.0",
       "google-cloud-compute>=1.10.0",
       "google-cloud-container>=2.17.4",
       "google-cloud-datacatalog>=3.23.0",
@@ -666,7 +668,7 @@
       "google-cloud-monitoring>=2.18.0",
       "google-cloud-orchestration-airflow>=1.10.0",
       "google-cloud-os-login>=2.9.1",
-      "google-cloud-pubsub>=2.19.0",
+      "google-cloud-pubsub>=2.21.3",
       "google-cloud-redis>=2.12.0",
       "google-cloud-run>=0.10.0",
       "google-cloud-secret-manager>=2.16.0",
@@ -1073,7 +1075,7 @@
   "pinecone": {
     "deps": [
       "apache-airflow>=2.9.0",
-      "pinecone-client>=3.1.0"
+      "pinecone>=3.1.0"
     ],
     "devel-deps": [],
     "plugins": [],
@@ -1284,7 +1286,6 @@
   },
   "standard": {
     "deps": [
-      "apache-airflow-providers-common-sql>=1.20.0",
       "apache-airflow>=2.9.0"
     ],
     "devel-deps": [],
@@ -1337,7 +1338,7 @@
       "apache-airflow-providers-common-sql>=1.20.0",
       "apache-airflow>=2.9.0",
       "pandas>=2.1.2,<2.2",
-      "trino>=0.318.0"
+      "trino>=0.319.0"
     ],
     "devel-deps": [],
     "plugins": [],
@@ -1380,7 +1381,7 @@
     "deps": [
       "apache-airflow>=2.9.0",
       "yandex-query-client>=0.1.4",
-      "yandexcloud>=0.308.0"
+      "yandexcloud>=0.308.0,!=0.329.0,!=0.330.0,!=0.331.0,!=0.332.0,!=0.333.0"
     ],
     "devel-deps": [],
     "plugins": [],

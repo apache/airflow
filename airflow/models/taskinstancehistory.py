@@ -47,6 +47,8 @@ from airflow.utils.sqlalchemy import (
 from airflow.utils.state import State, TaskInstanceState
 
 if TYPE_CHECKING:
+    from sqlalchemy.orm.session import Session
+
     from airflow.models.taskinstance import TaskInstance
 
 
@@ -92,7 +94,7 @@ class TaskInstanceHistory(Base):
     next_method = Column(String(1000))
     next_kwargs = Column(MutableDict.as_mutable(ExtendedJSON))
 
-    task_display_name = Column("task_display_name", String(2000), nullable=True)
+    task_display_name = Column(String(2000), nullable=True)
     dag_version_id = Column(UUIDType(binary=False))
 
     dag_version = relationship(
@@ -141,7 +143,7 @@ class TaskInstanceHistory(Base):
 
     @staticmethod
     @provide_session
-    def record_ti(ti: TaskInstance, session: NEW_SESSION = None) -> None:
+    def record_ti(ti: TaskInstance, session: Session = NEW_SESSION) -> None:
         """Record a TaskInstance to TaskInstanceHistory."""
         exists_q = session.scalar(
             select(func.count(TaskInstanceHistory.task_id)).where(

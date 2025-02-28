@@ -27,7 +27,8 @@ import pytest
 import time_machine
 from requests import HTTPError, Response
 
-from airflow.providers.edge.cli.edge_command import _EdgeWorkerCli, _Job, _write_pid_to_pidfile
+from airflow.providers.edge.cli.dataclasses import Job
+from airflow.providers.edge.cli.edge_command import _EdgeWorkerCli, _write_pid_to_pidfile
 from airflow.providers.edge.models.edge_worker import EdgeWorkerState, EdgeWorkerVersionException
 from airflow.providers.edge.worker_api.datamodels import EdgeJobFetched, WorkerSetStateReturn
 from airflow.utils import timezone
@@ -114,12 +115,12 @@ class _MockPopen(Popen):
 
 class TestEdgeWorkerCli:
     @pytest.fixture
-    def mock_joblist(self, tmp_path: Path) -> list[_Job]:
+    def mock_joblist(self, tmp_path: Path) -> list[Job]:
         logfile = tmp_path / "file.log"
         logfile.touch()
 
         return [
-            _Job(
+            Job(
                 edge_job=EdgeJobFetched(
                     dag_id="test",
                     task_id="test1",
@@ -136,7 +137,7 @@ class TestEdgeWorkerCli:
         ]
 
     @pytest.fixture
-    def worker_with_job(self, tmp_path: Path, mock_joblist: list[_Job]) -> _EdgeWorkerCli:
+    def worker_with_job(self, tmp_path: Path, mock_joblist: list[Job]) -> _EdgeWorkerCli:
         test_worker = _EdgeWorkerCli(str(tmp_path / "mock.pid"), "mock", None, 8, 5, 5)
         _EdgeWorkerCli.jobs = mock_joblist
         return test_worker
@@ -306,13 +307,15 @@ class TestEdgeWorkerCli:
     @pytest.mark.parametrize(
         "drain, maintenance_mode, jobs, expected_state",
         [
-            pytest.param(False, False, True, EdgeWorkerState.RUNNING, id="running_jobs"),
-            pytest.param(True, False, True, EdgeWorkerState.TERMINATING, id="shutting_down"),
             pytest.param(False, False, False, EdgeWorkerState.IDLE, id="idle"),
+            pytest.param(False, False, True, EdgeWorkerState.RUNNING, id="running_jobs"),
+            pytest.param(False, True, False, EdgeWorkerState.MAINTENANCE_MODE, id="maintenance_no_job"),
             pytest.param(
                 False, True, True, EdgeWorkerState.MAINTENANCE_PENDING, id="maintenance_running_jobs"
             ),
-            pytest.param(False, True, False, EdgeWorkerState.MAINTENANCE_MODE, id="maintenance_no_job"),
+            pytest.param(True, False, False, EdgeWorkerState.OFFLINE, id="shut_down"),
+            pytest.param(True, False, True, EdgeWorkerState.TERMINATING, id="terminating"),
+            pytest.param(True, True, False, EdgeWorkerState.OFFLINE_MAINTENANCE, id="offline_maintenance"),
             pytest.param(True, True, True, EdgeWorkerState.TERMINATING, id="maintenance_shut_down"),
         ],
     )

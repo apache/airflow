@@ -82,7 +82,7 @@ def _run_worker(
             return
 
         if not isinstance(workload, workloads.ExecuteTask):
-            raise ValueError(f"LocalExecutor does not now how to handle {type(workload)}")
+            raise ValueError(f"LocalExecutor does not know how to handle {type(workload)}")
 
         # Decrement this as soon as we pick up a message off the queue
         with unread_messages:
@@ -121,7 +121,7 @@ def _execute_work(log: logging.Logger, workload: workloads.ExecuteTask) -> None:
         dag_rel_path=workload.dag_rel_path,
         bundle_info=workload.bundle_info,
         token=workload.token,
-        server=conf.get("workers", "execution_api_server_url", fallback="http://localhost:9091/execution/"),
+        server=conf.get("core", "execution_api_server_url"),
         log_path=workload.log_path,
     )
 

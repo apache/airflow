@@ -25,18 +25,13 @@ from flask.sessions import SecureCookieSessionInterface
 from flask_appbuilder import SQLA
 
 from airflow import settings
+from airflow.providers.fab.www import app as application
 from airflow.security import permissions
-from airflow.www import app as application
 from unit.fab.auth_manager.api_endpoints.api_connexion_utils import (
     create_user,
     delete_role,
 )
-
-from tests_common.test_utils.www import (
-    check_content_in_response,
-    check_content_not_in_response,
-    client_with_login,
-)
+from unit.fab.utils import check_content_in_response, client_with_login
 
 pytestmark = pytest.mark.db_test
 
@@ -75,7 +70,7 @@ class TestSecurity:
         # an exception because app context teardown is removed and if even single request is run via app
         # it cannot be re-intialized again by passing it as constructor to SQLA
         # This makes the tests slightly slower (but they work with Flask 2.1 and 2.2
-        self.app = application.create_app(testing=True)
+        self.app = application.create_app(enable_plugins=False)
         self.appbuilder = self.app.appbuilder
         self.app.config["WTF_CSRF_ENABLED"] = False
         self.security_manager = self.appbuilder.sm
@@ -89,7 +84,7 @@ class TestSecurity:
             delete_role(self.app, role_name)
 
     @pytest.mark.parametrize("url, _, expected_text", PERMISSIONS_TESTS_PARAMS)
-    def test_user_model_view_with_access(self, url, expected_text, _):
+    def test_user_model_view_without_access(self, url, expected_text, _):
         user_without_access = create_user(
             self.app,
             username="no_access",
@@ -103,11 +98,12 @@ class TestSecurity:
             username="no_access",
             password="no_access",
         )
-        response = client.get(url.replace("{user.id}", str(user_without_access.id)), follow_redirects=True)
-        check_content_not_in_response(expected_text, response)
+        response = client.get(url.replace("{user.id}", str(user_without_access.id)), follow_redirects=False)
+        assert response.status_code == 302
+        assert response.location.startswith("/login/")
 
     @pytest.mark.parametrize("url, permission, expected_text", PERMISSIONS_TESTS_PARAMS)
-    def test_user_model_view_without_access(self, url, permission, expected_text):
+    def test_user_model_view_with_access(self, url, permission, expected_text):
         user_with_access = create_user(
             self.app,
             username="has_access",
@@ -145,9 +141,9 @@ class TestSecurity:
             password="no_access",
         )
 
-        response = client.post(f"/users/delete/{user_to_delete.id}", follow_redirects=True)
-
-        check_content_not_in_response("Deleted Row", response)
+        response = client.post(f"/users/delete/{user_to_delete.id}", follow_redirects=False)
+        assert response.status_code == 302
+        assert response.location.startswith("/login/")
         assert bool(self.security_manager.get_user_by_id(user_to_delete.id)) is True
 
     def test_user_model_view_with_delete_access(self):
@@ -173,13 +169,8 @@ class TestSecurity:
             password="has_access",
         )
 
-        response = client.post(f"/users/delete/{user_to_delete.id}", follow_redirects=True)
-        check_content_in_response("Deleted Row", response)
-        check_content_not_in_response(user_to_delete.username, response)
+        client.post(f"/users/delete/{user_to_delete.id}", follow_redirects=False)
         assert bool(self.security_manager.get_user_by_id(user_to_delete.id)) is False
-
-
-# type: ignore[attr-defined]
 
 
 class TestResetUserSessions:
@@ -192,7 +183,7 @@ class TestResetUserSessions:
         # an exception because app context teardown is removed and if even single request is run via app
         # it cannot be re-intialized again by passing it as constructor to SQLA
         # This makes the tests slightly slower (but they work with Flask 2.1 and 2.2
-        self.app = application.create_app(testing=True)
+        self.app = application.create_app(enable_plugins=False)
         self.appbuilder = self.app.appbuilder
         self.app.config["WTF_CSRF_ENABLED"] = False
         self.security_manager = self.appbuilder.sm

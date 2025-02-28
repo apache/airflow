@@ -19,6 +19,7 @@
 
 from __future__ import annotations
 
+import functools
 import os
 import sys
 from collections.abc import Iterable, Mapping
@@ -139,7 +140,6 @@ class RuntimeTaskInstance(TaskInstance):
             # TODO: Ensure that ti.log_url and such are available to use in context
             #   especially after removal of `conf` from Context.
             "ti": self,
-            "start_date": self.start_date,
             "outlet_events": OutletEventAccessors(),
             # "inlet_events": InletEventsAccessors(task.inlets, session=session),
             "macros": MacrosAccessor(),
@@ -160,7 +160,7 @@ class RuntimeTaskInstance(TaskInstance):
                 # TODO: Assess if we need to pass these through timezone.coerce_datetime
                 "dag_run": dag_run,  # type: ignore[typeddict-item]  # Removable after #46522
                 "task_instance_key_str": f"{self.task.dag_id}__{self.task.task_id}__{dag_run.run_id}",
-                "task_reschedule_count": self._ti_context_from_server.task_reschedule_count,
+                "task_reschedule_count": self._ti_context_from_server.task_reschedule_count or 0,
                 "prev_start_date_success": lazy_object_proxy.Proxy(
                     lambda: get_previous_dagrun_success(self.id).start_date
                 ),
@@ -572,7 +572,7 @@ def _prepare(ti: RuntimeTaskInstance, log: Logger, context: Context) -> ToSuperv
 
 def run(
     ti: RuntimeTaskInstance, log: Logger
-) -> tuple[IntermediateTIState | TerminalTIState, ToSupervisor | None]:
+) -> tuple[IntermediateTIState | TerminalTIState, ToSupervisor | None, BaseException | None]:
     """Run the task in this process."""
     from airflow.exceptions import (
         AirflowException,
@@ -591,6 +591,7 @@ def run(
 
     msg: ToSupervisor | None = None
     state: IntermediateTIState | TerminalTIState
+    error: BaseException | None = None
     try:
         context = ti.get_template_context()
         with set_current_context(context):
@@ -599,7 +600,7 @@ def run(
             if early_exit := _prepare(ti, log, context):
                 msg = early_exit
                 state = TerminalTIState.FAILED
-                return state, msg
+                return state, msg, error
 
             result = _execute_task(context, ti)
 
@@ -616,13 +617,13 @@ def run(
         # TODO: Should we use structlog.bind_contextvars here for dag_id, task_id & run_id?
         log.info("Pausing task as DEFERRED. ", dag_id=ti.dag_id, task_id=ti.task_id, run_id=ti.run_id)
         classpath, trigger_kwargs = defer.trigger.serialize()
-        next_method = defer.method_name
-        defer_timeout = defer.timeout
+
         msg = DeferTask(
             classpath=classpath,
             trigger_kwargs=trigger_kwargs,
-            next_method=next_method,
-            trigger_timeout=defer_timeout,
+            trigger_timeout=defer.timeout,
+            next_method=defer.method_name,
+            next_kwargs=defer.kwargs or {},
         )
         state = IntermediateTIState.DEFERRED
     except AirflowSkipException as e:
@@ -639,7 +640,7 @@ def run(
             reschedule_date=reschedule.reschedule_date, end_date=datetime.now(tz=timezone.utc)
         )
         state = IntermediateTIState.UP_FOR_RESCHEDULE
-    except (AirflowFailException, AirflowSensorTimeout):
+    except (AirflowFailException, AirflowSensorTimeout) as e:
         # If AirflowFailException is raised, task should not retry.
         # If a sensor in reschedule mode reaches timeout, task should not retry.
         log.exception("Task failed with exception")
@@ -650,7 +651,8 @@ def run(
             end_date=datetime.now(tz=timezone.utc),
         )
         state = TerminalTIState.FAIL_WITHOUT_RETRY
-    except (AirflowTaskTimeout, AirflowException):
+        error = e
+    except (AirflowTaskTimeout, AirflowException) as e:
         # We should allow retries if the task has defined it.
         log.exception("Task failed with exception")
         msg = TaskState(
@@ -658,7 +660,8 @@ def run(
             end_date=datetime.now(tz=timezone.utc),
         )
         state = TerminalTIState.FAILED
-    except AirflowTaskTerminated:
+        error = e
+    except AirflowTaskTerminated as e:
         # External state updates are already handled with `ti_heartbeat` and will be
         # updated already be another UI API. So, these exceptions should ideally never be thrown.
         # If these are thrown, we should mark the TI state as failed.
@@ -668,7 +671,8 @@ def run(
             end_date=datetime.now(tz=timezone.utc),
         )
         state = TerminalTIState.FAIL_WITHOUT_RETRY
-    except SystemExit:
+        error = e
+    except SystemExit as e:
         # SystemExit needs to be retried if they are eligible.
         log.exception("Task failed with exception")
         msg = TaskState(
@@ -676,15 +680,17 @@ def run(
             end_date=datetime.now(tz=timezone.utc),
         )
         state = TerminalTIState.FAILED
-    except BaseException:
+        error = e
+    except BaseException as e:
         log.exception("Task failed with exception")
         msg = TaskState(state=TerminalTIState.FAILED, end_date=datetime.now(tz=timezone.utc))
         state = TerminalTIState.FAILED
+        error = e
     finally:
         if msg:
             SUPERVISOR_COMMS.send_request(msg=msg, log=log)
     # Return the message to make unit tests easier too
-    return state, msg
+    return state, msg, error
 
 
 def _execute_task(context: Context, ti: RuntimeTaskInstance):
@@ -692,6 +698,15 @@ def _execute_task(context: Context, ti: RuntimeTaskInstance):
     from airflow.exceptions import AirflowTaskTimeout
 
     task = ti.task
+    execute = task.execute  # type: ignore[attr-defined]
+
+    if ti._ti_context_from_server and (next_method := ti._ti_context_from_server.next_method):
+        from airflow.serialization.serialized_objects import BaseSerialization
+
+        kwargs = BaseSerialization.deserialize(ti._ti_context_from_server.next_kwargs or {})
+
+        execute = functools.partial(task.resume_execution, next_method=next_method, next_kwargs=kwargs)
+
     if task.execution_timeout:
         # TODO: handle timeout in case of deferral
         from airflow.utils.timeout import timeout
@@ -703,12 +718,12 @@ def _execute_task(context: Context, ti: RuntimeTaskInstance):
                 raise AirflowTaskTimeout()
             # Run task in timeout wrapper
             with timeout(timeout_seconds):
-                result = task.execute(context)  # type: ignore[attr-defined]
+                result = execute(context=context)
         except AirflowTaskTimeout:
             # TODO: handle on kill callback here
             raise
     else:
-        result = task.execute(context)  # type: ignore[attr-defined]
+        result = execute(context=context)
     return result
 
 
@@ -759,10 +774,12 @@ def _push_xcom_if_needed(result: Any, ti: RuntimeTaskInstance, log: Logger):
     _xcom_push(ti, "return_value", result, mapped_length=mapped_length)
 
 
-def finalize(ti: RuntimeTaskInstance, state: TerminalTIState, log: Logger):
+def finalize(
+    ti: RuntimeTaskInstance, state: TerminalTIState, log: Logger, error: BaseException | None = None
+):
     # Pushing xcom for each operator extra links defined on the operator only.
     for oe in ti.task.operator_extra_links:
-        link, xcom_key = oe.get_link(operator=ti.task, ti_key=ti.id), oe.xcom_key  # type: ignore[arg-type]
+        link, xcom_key = oe.get_link(operator=ti.task, ti_key=ti), oe.xcom_key  # type: ignore[arg-type]
         log.debug("Setting xcom for operator extra link", link=link, xcom_key=xcom_key)
         _xcom_push(ti, key=xcom_key, value=link)
 
@@ -774,7 +791,7 @@ def finalize(ti: RuntimeTaskInstance, state: TerminalTIState, log: Logger):
         # TODO: Run task success callbacks here
     if state in [TerminalTIState.FAILED, TerminalTIState.FAIL_WITHOUT_RETRY]:
         get_listener_manager().hook.on_task_instance_failed(
-            previous_state=TaskInstanceState.RUNNING, task_instance=ti
+            previous_state=TaskInstanceState.RUNNING, task_instance=ti, error=error
         )
         # TODO: Run task failure callbacks here
 
@@ -783,13 +800,12 @@ def finalize(ti: RuntimeTaskInstance, state: TerminalTIState, log: Logger):
 
 def main():
     # TODO: add an exception here, it causes an oof of a stack trace!
-
     global SUPERVISOR_COMMS
     SUPERVISOR_COMMS = CommsDecoder[ToTask, ToSupervisor](input=sys.stdin)
     try:
         ti, log = startup()
-        state, msg = run(ti, log)
-        finalize(ti, state, log)
+        state, msg, error = run(ti, log)
+        finalize(ti, state, log, error)
     except KeyboardInterrupt:
         log = structlog.get_logger(logger_name="task")
         log.exception("Ctrl-c hit")

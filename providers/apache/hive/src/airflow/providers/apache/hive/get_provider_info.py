@@ -27,8 +27,9 @@ def get_provider_info():
         "name": "Apache Hive",
         "description": "`Apache Hive <https://hive.apache.org/>`__\n",
         "state": "ready",
-        "source-date-epoch": 1734528011,
+        "source-date-epoch": 1740734084,
         "versions": [
+            "9.0.2",
             "9.0.0",
             "8.2.1",
             "8.2.0",
