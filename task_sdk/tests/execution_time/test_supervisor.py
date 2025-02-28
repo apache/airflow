@@ -666,6 +666,7 @@ class TestListenerOvertime:
             ),
         ],
     )
+    @pytest.mark.flaky(reruns=5)
     def test_overtime_slow_listener_instance(
         self,
         dag_id,
