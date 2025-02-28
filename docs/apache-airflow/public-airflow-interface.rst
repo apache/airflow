@@ -275,7 +275,7 @@ they can be defined by the Operators, but plugins allow you to override the link
   :glob:
   :maxdepth: 1
 
-  _api/airflow/models/baseoperatorlink/index
+  _api/airflow/sdk/definitions/baseoperatorlink/index
 
 You can read more about the Extra Links in :doc:`/howto/define-extra-link`.
 
