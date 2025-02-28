@@ -48,7 +48,7 @@ class KafkaBaseHook(BaseHook):
             "hidden_fields": ["schema", "login", "password", "port", "host"],
             "relabeling": {"extra": "Config Dict"},
             "placeholders": {
-                "extra": '{"bootstrap.servers": "kafka-15v1k:10004", "group.id": "my-group"}',
+                "extra": '{"bootstrap.servers": "localhost:9092", "group.id": "my-group"}',
             },
         }
 

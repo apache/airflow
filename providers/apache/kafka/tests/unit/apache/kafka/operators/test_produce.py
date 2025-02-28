@@ -58,7 +58,7 @@ class TestProduceToTopic:
                     {
                         "socket.timeout.ms": 10,
                         "message.timeout.ms": 10,
-                        "bootstrap.servers": "kafka-ns0yv:10005",
+                        "bootstrap.servers": "localhost:9092",
                         "group.id": "test_group",
                     }
                 ),
