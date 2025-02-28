@@ -214,7 +214,7 @@ jobs:
     with:
       runs-on-as-json-public: ${{ needs.build-info.outputs.runs-on-as-json-public }}
       testable-core-integrations: ${{ needs.build-info.outputs.testable-core-integrations }}
-      testable-providers-integrations: '["gremlin"]'
+      testable-providers-integrations: ${{ needs.build-info.outputs.testable-providers-integrations }}
       run-system-tests: ${{ needs.build-info.outputs.run-tests }}
       default-python-version: ${{ needs.build-info.outputs.default-python-version }}
       default-postgres-version: ${{ needs.build-info.outputs.default-postgres-version }}
