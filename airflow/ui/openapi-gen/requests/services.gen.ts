@@ -76,6 +76,7 @@ import type {
   BulkConnectionsResponse,
   TestConnectionData,
   TestConnectionResponse,
+  CreateDefaultConnectionsData,
   CreateDefaultConnectionsResponse,
   GetDagRunData,
   GetDagRunResponse,
@@ -1163,6 +1164,7 @@ export class ConnectionService {
    * Get Connections
    * Get all connection entries.
    * @param data The data for the request.
+   * @param data.connectionId
    * @param data.limit
    * @param data.offset
    * @param data.orderBy
@@ -1174,6 +1176,7 @@ export class ConnectionService {
       method: "GET",
       url: "/public/connections",
       query: {
+        connection_id: data.connectionId,
         limit: data.limit,
         offset: data.offset,
         order_by: data.orderBy,
@@ -1192,6 +1195,7 @@ export class ConnectionService {
    * Create connection entry.
    * @param data The data for the request.
    * @param data.requestBody
+   * @param data.connectionId
    * @returns ConnectionResponse Successful Response
    * @throws ApiError
    */
@@ -1199,6 +1203,9 @@ export class ConnectionService {
     return __request(OpenAPI, {
       method: "POST",
       url: "/public/connections",
+      query: {
+        connection_id: data.connectionId,
+      },
       body: data.requestBody,
       mediaType: "application/json",
       errors: {
@@ -1215,6 +1222,7 @@ export class ConnectionService {
    * Bulk create, update, and delete connections.
    * @param data The data for the request.
    * @param data.requestBody
+   * @param data.connectionId
    * @returns BulkResponse Successful Response
    * @throws ApiError
    */
@@ -1222,6 +1230,9 @@ export class ConnectionService {
     return __request(OpenAPI, {
       method: "PATCH",
       url: "/public/connections",
+      query: {
+        connection_id: data.connectionId,
+      },
       body: data.requestBody,
       mediaType: "application/json",
       errors: {
@@ -1241,6 +1252,7 @@ export class ConnectionService {
    * It also deletes the conn id env connection after the test.
    * @param data The data for the request.
    * @param data.requestBody
+   * @param data.connectionId
    * @returns ConnectionTestResponse Successful Response
    * @throws ApiError
    */
@@ -1248,6 +1260,9 @@ export class ConnectionService {
     return __request(OpenAPI, {
       method: "POST",
       url: "/public/connections/test",
+      query: {
+        connection_id: data.connectionId,
+      },
       body: data.requestBody,
       mediaType: "application/json",
       errors: {
@@ -1261,16 +1276,24 @@ export class ConnectionService {
   /**
    * Create Default Connections
    * Create default connections.
+   * @param data The data for the request.
+   * @param data.connectionId
    * @returns void Successful Response
    * @throws ApiError
    */
-  public static createDefaultConnections(): CancelablePromise<CreateDefaultConnectionsResponse> {
+  public static createDefaultConnections(
+    data: CreateDefaultConnectionsData = {},
+  ): CancelablePromise<CreateDefaultConnectionsResponse> {
     return __request(OpenAPI, {
       method: "POST",
       url: "/public/connections/defaults",
+      query: {
+        connection_id: data.connectionId,
+      },
       errors: {
         401: "Unauthorized",
         403: "Forbidden",
+        422: "Validation Error",
       },
     });
   }

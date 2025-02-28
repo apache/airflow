@@ -1662,12 +1662,16 @@ paths:
       summary: Delete Connection
       description: Delete a connection entry.
       operationId: delete_connection
+      security:
+      - OAuth2PasswordBearer: []
       parameters:
       - name: connection_id
         in: path
         required: true
         schema:
-          type: string
+          anyOf:
+          - type: string
+          - type: 'null'
           title: Connection Id
       responses:
         '204':
@@ -1702,12 +1706,16 @@ paths:
       summary: Get Connection
       description: Get a connection entry.
       operationId: get_connection
+      security:
+      - OAuth2PasswordBearer: []
       parameters:
       - name: connection_id
         in: path
         required: true
         schema:
-          type: string
+          anyOf:
+          - type: string
+          - type: 'null'
           title: Connection Id
       responses:
         '200':
@@ -1746,12 +1754,16 @@ paths:
       summary: Patch Connection
       description: Update a connection entry.
       operationId: patch_connection
+      security:
+      - OAuth2PasswordBearer: []
       parameters:
       - name: connection_id
         in: path
         required: true
         schema:
-          type: string
+          anyOf:
+          - type: string
+          - type: 'null'
           title: Connection Id
       - name: update_mask
         in: query
@@ -1813,7 +1825,17 @@ paths:
       summary: Get Connections
       description: Get all connection entries.
       operationId: get_connections
+      security:
+      - OAuth2PasswordBearer: []
       parameters:
+      - name: connection_id
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Connection Id
       - name: limit
         in: query
         required: false
@@ -1874,6 +1896,17 @@ paths:
       summary: Post Connection
       description: Create connection entry.
       operationId: post_connection
+      security:
+      - OAuth2PasswordBearer: []
+      parameters:
+      - name: connection_id
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Connection Id
       requestBody:
         required: true
         content:
@@ -1917,6 +1950,17 @@ paths:
       summary: Bulk Connections
       description: Bulk create, update, and delete connections.
       operationId: bulk_connections
+      security:
+      - OAuth2PasswordBearer: []
+      parameters:
+      - name: connection_id
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Connection Id
       requestBody:
         required: true
         content:
@@ -1964,12 +2008,23 @@ paths:
 
         It also deletes the conn id env connection after the test.'
       operationId: test_connection
+      security:
+      - OAuth2PasswordBearer: []
+      parameters:
+      - name: connection_id
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Connection Id
       requestBody:
+        required: true
         content:
           application/json:
             schema:
               $ref: '#/components/schemas/ConnectionBody'
-        required: true
       responses:
         '200':
           description: Successful Response
@@ -1978,17 +2033,17 @@ paths:
               schema:
                 $ref: '#/components/schemas/ConnectionTestResponse'
         '401':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
           description: Unauthorized
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/HTTPExceptionResponse'
         '403':
-          description: Forbidden
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Forbidden
         '422':
           description: Validation Error
           content:
@@ -2002,21 +2057,38 @@ paths:
       summary: Create Default Connections
       description: Create default connections.
       operationId: create_default_connections
+      security:
+      - OAuth2PasswordBearer: []
+      parameters:
+      - name: connection_id
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Connection Id
       responses:
         '204':
           description: Successful Response
         '401':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
           description: Unauthorized
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/HTTPExceptionResponse'
         '403':
-          description: Forbidden
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Forbidden
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
   /public/dags/{dag_id}/dagRuns/{dag_run_id}:
     get:
       tags:
@@ -11307,3 +11379,10 @@ components:
       - value
       title: XComUpdateBody
       description: Payload serializer for updating an XCom entry.
+  securitySchemes:
+    OAuth2PasswordBearer:
+      type: oauth2
+      flows:
+        password:
+          scopes: {}
+          tokenUrl: token

@@ -1850,19 +1850,19 @@ export type GridDataData = {
 export type GridDataResponse = GridResponse;
 
 export type DeleteConnectionData = {
-  connectionId: string;
+  connectionId: string | null;
 };
 
 export type DeleteConnectionResponse = void;
 
 export type GetConnectionData = {
-  connectionId: string;
+  connectionId: string | null;
 };
 
 export type GetConnectionResponse = ConnectionResponse;
 
 export type PatchConnectionData = {
-  connectionId: string;
+  connectionId: string | null;
   requestBody: ConnectionBody;
   updateMask?: Array<string> | null;
 };
@@ -1870,6 +1870,7 @@ export type PatchConnectionData = {
 export type PatchConnectionResponse = ConnectionResponse;
 
 export type GetConnectionsData = {
+  connectionId?: string | null;
   limit?: number;
   offset?: number;
   orderBy?: string;
@@ -1878,22 +1879,29 @@ export type GetConnectionsData = {
 export type GetConnectionsResponse = ConnectionCollectionResponse;
 
 export type PostConnectionData = {
+  connectionId?: string | null;
   requestBody: ConnectionBody;
 };
 
 export type PostConnectionResponse = ConnectionResponse;
 
 export type BulkConnectionsData = {
+  connectionId?: string | null;
   requestBody: BulkBody_ConnectionBody_;
 };
 
 export type BulkConnectionsResponse = BulkResponse;
 
 export type TestConnectionData = {
+  connectionId?: string | null;
   requestBody: ConnectionBody;
 };
 
 export type TestConnectionResponse = ConnectionTestResponse;
+
+export type CreateDefaultConnectionsData = {
+  connectionId?: string | null;
+};
 
 export type CreateDefaultConnectionsResponse = void;
 
@@ -3464,6 +3472,7 @@ export type $OpenApiTs = {
   };
   "/public/connections/defaults": {
     post: {
+      req: CreateDefaultConnectionsData;
       res: {
         /**
          * Successful Response
@@ -3477,6 +3486,10 @@ export type $OpenApiTs = {
          * Forbidden
          */
         403: HTTPExceptionResponse;
+        /**
+         * Validation Error
+         */
+        422: HTTPValidationError;
       };
     };
   };
