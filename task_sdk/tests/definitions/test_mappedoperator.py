@@ -570,10 +570,16 @@ def test_operator_mapped_task_group_receives_value(create_runtime_ti, mock_super
             return t2
 
         # The group is mapped by 3.
-        t2 = tg.expand(va=[["a", "b"], [4], ["z"]])
+        tg1 = tg.expand(
+            va=[
+                ["a", "b"],
+                [4],
+                ["z"],
+            ]
+        )
 
         # Aggregates results from task group.
-        t.override(task_id="t3")(t2)
+        t.override(task_id="t3")(tg1)
 
     def xcom_get():
         # TODO: Tidy this after #45927 is reopened and fixed properly

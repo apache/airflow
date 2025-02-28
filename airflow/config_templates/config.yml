@@ -1322,6 +1322,57 @@ api:
       type: string
       example: ~
       default: "http://localhost:9091"
+    host:
+      description: |
+        The ip specified when starting the api server
+      version_added: ~
+      type: string
+      example: ~
+      default: "0.0.0.0"
+    port:
+      description: |
+        The port on which to run the api server
+      version_added: ~
+      type: string
+      example: ~
+      default: "9091"
+    workers:
+      description: |
+        Number of workers to run on the API server
+      version_added: ~
+      type: string
+      example: ~
+      default: "4"
+    worker_timeout:
+      description: |
+        Number of seconds the API server waits before timing out on a worker
+      version_added: ~
+      type: string
+      example: ~
+      default: "120"
+    access_logfile:
+      description: |
+        Log files for the api server. '-' means log to stderr.
+      version_added: ~
+      type: string
+      example: ~
+      default: "-"
+    ssl_cert:
+      description: |
+        Paths to the SSL certificate and key for the api server. When both are
+        provided SSL will be enabled. This does not change the api server port.
+      version_added: ~
+      type: string
+      example: ~
+      default: ""
+    ssl_key:
+      description: |
+        Paths to the SSL certificate and key for the api server. When both are
+        provided SSL will be enabled. This does not change the api server port.
+      version_added: ~
+      type: string
+      example: ~
+      default: ""
     auth_backends:
       description: |
         Comma separated list of auth backends to authenticate users of the API. See
@@ -1534,36 +1585,6 @@ webserver:
       example: "America/New_York"
       # Default is left as UTC for now so the date's don't "suddenly" change on upgrade
       default: "UTC"
-    web_server_host:
-      description: |
-        The ip specified when starting the web server
-      version_added: ~
-      type: string
-      example: ~
-      default: "0.0.0.0"
-    web_server_port:
-      description: |
-        The port on which to run the web server
-      version_added: ~
-      type: string
-      example: ~
-      default: "8080"
-    web_server_ssl_cert:
-      description: |
-        Paths to the SSL certificate and key for the web server. When both are
-        provided SSL will be enabled. This does not change the web server port.
-      version_added: ~
-      type: string
-      example: ~
-      default: ""
-    web_server_ssl_key:
-      description: |
-        Paths to the SSL certificate and key for the web server. When both are
-        provided SSL will be enabled. This does not change the web server port.
-      version_added: ~
-      type: string
-      example: ~
-      default: ""
     session_backend:
       description: |
         The type of backend used to store web session data, can be ``database`` or ``securecookie``. For the
@@ -1586,13 +1607,6 @@ webserver:
     web_server_master_timeout:
       description: |
         Number of seconds the webserver waits before killing gunicorn master that doesn't respond
-      version_added: ~
-      type: string
-      example: ~
-      default: "120"
-    web_server_worker_timeout:
-      description: |
-        Number of seconds the gunicorn webserver waits before timing out on a worker
       version_added: ~
       type: string
       example: ~
@@ -1636,13 +1650,6 @@ webserver:
       sensitive: true
       example: ~
       default: "{SECRET_KEY}"
-    workers:
-      description: |
-        Number of workers to run the Gunicorn web server
-      version_added: ~
-      type: string
-      example: ~
-      default: "4"
     worker_class:
       description: |
         The worker class gunicorn should use. Choices include
@@ -1666,30 +1673,6 @@ webserver:
       type: string
       example: ~
       default: "sync"
-    access_logfile:
-      description: |
-        Log files for the gunicorn webserver. '-' means log to stderr.
-      version_added: ~
-      type: string
-      example: ~
-      default: "-"
-    error_logfile:
-      description: |
-        Log files for the gunicorn webserver. '-' means log to stderr.
-      version_added: ~
-      type: string
-      example: ~
-      default: "-"
-    access_logformat:
-      description: |
-        Access log format for gunicorn webserver.
-        default format is ``%%(h)s %%(l)s %%(u)s %%(t)s "%%(r)s" %%(s)s %%(b)s "%%(f)s" "%%(a)s"``
-        See `Gunicorn Settings: 'access_log_format' Reference
-        <https://docs.gunicorn.org/en/stable/settings.html#access-log-format>`__ for more details
-      version_added: 2.0.0
-      type: string
-      example: ~
-      default: ""
     expose_config:
       description: |
         Expose the configuration file in the web server. Set to ``non-sensitive-only`` to show all values

@@ -203,8 +203,7 @@ class StandaloneCommand:
         For now, it's simply time-based.
         """
         return (
-            self.port_open(self.web_server_port)
-            and self.job_running(SchedulerJobRunner)
+            self.job_running(SchedulerJobRunner)
             and self.job_running(DagProcessorJobRunner)
             and self.job_running(TriggererJobRunner)
         )

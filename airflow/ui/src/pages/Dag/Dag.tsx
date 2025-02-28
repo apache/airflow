@@ -17,7 +17,7 @@
  * under the License.
  */
 import { ReactFlowProvider } from "@xyflow/react";
-import { FiBarChart, FiCode } from "react-icons/fi";
+import { FiBarChart, FiCode, FiRotateCcw } from "react-icons/fi";
 import { LuChartColumn } from "react-icons/lu";
 import { MdOutlineEventNote } from "react-icons/md";
 import { useParams } from "react-router-dom";
@@ -33,6 +33,7 @@ const tabs = [
   { icon: <LuChartColumn />, label: "Overview", value: "" },
   { icon: <FiBarChart />, label: "Runs", value: "runs" },
   { icon: <TaskIcon />, label: "Tasks", value: "tasks" },
+  { icon: <FiRotateCcw />, label: "Backfills", value: "backfills" },
   { icon: <MdOutlineEventNote />, label: "Events", value: "events" },
   { icon: <FiCode />, label: "Code", value: "code" },
 ];
