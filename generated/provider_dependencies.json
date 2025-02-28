@@ -105,7 +105,7 @@
     "deps": [
       "apache-airflow-providers-common-sql>=1.20.0",
       "apache-airflow>=2.9.0",
-      "sqlalchemy-drill>=1.1.0,<=1.1.5"
+      "sqlalchemy-drill>=1.1.0,!=1.1.6,!=1.1.7"
     ],
     "devel-deps": [],
     "plugins": [],
@@ -419,6 +419,7 @@
   "common.sql": {
     "deps": [
       "apache-airflow>=2.9.0",
+      "methodtools>=0.4.7",
       "more-itertools>=9.0.0",
       "sqlparse>=0.5.1"
     ],
