@@ -26,8 +26,8 @@ from airflow.models.dag import DAG
 from airflow.providers.amazon.aws.operators.sagemaker_unified_studio import (
     SageMakerNotebookOperator,
 )
-
 from system.amazon.aws.utils import ENV_ID_KEY, SystemTestContextBuilder
+
 from tests_common.test_utils.version_compat import AIRFLOW_V_2_10_PLUS
 
 """
@@ -38,7 +38,7 @@ Prerequisites: The account which runs this test must manually have the following
 4. A notebook (test_notebook.ipynb) placed in the project's s3 path
 
 This test will emulate a DAG run in the shared MWAA environment inside a SageMaker Unified Studio Project.
-The setup tasks will set up the project and configure the test runnner to emulate an MWAA instance.
+The setup tasks will set up the project and configure the test runner to emulate an MWAA instance.
 Then, the SageMakerNotebookOperator will run a test notebook. This should spin up a SageMaker training job, run the notebook, and exit successfully.
 """
 

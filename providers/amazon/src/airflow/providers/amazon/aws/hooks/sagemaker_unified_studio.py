@@ -67,11 +67,11 @@ class SageMakerNotebookHook(BaseHook):
     def __init__(
         self,
         execution_name: str,
-        input_config: dict = {},
-        output_config: dict = {"output_formats": ["NOTEBOOK"]},
-        compute: dict = None,
-        termination_condition: dict = {},
-        tags: dict = {},
+        input_config: dict | None = None,
+        output_config: dict | None = None,
+        compute: dict | None = None,
+        termination_condition: dict | None = None,
+        tags: dict | None = None,
         waiter_delay: int = 10,
         waiter_max_attempts: int = 1440,
         *args,
@@ -80,11 +80,11 @@ class SageMakerNotebookHook(BaseHook):
         super().__init__(*args, **kwargs)
         self._sagemaker_studio = SageMakerStudioAPI(self._get_sagemaker_studio_config())
         self.execution_name = execution_name
-        self.input_config = input_config
-        self.output_config = output_config
+        self.input_config = input_config or {}
+        self.output_config = output_config or {"output_formats": ["NOTEBOOK"]}
         self.compute = compute
-        self.termination_condition = termination_condition
-        self.tags = tags
+        self.termination_condition = termination_condition or {}
+        self.tags = tags or {}
         self.waiter_delay = waiter_delay
         self.waiter_max_attempts = waiter_max_attempts
 
@@ -124,9 +124,7 @@ class SageMakerNotebookHook(BaseHook):
         if self.compute:
             start_execution_params["compute"] = self.compute
         else:
-            start_execution_params["compute"] = {
-                "instance_type": "ml.m4.xlarge"
-            }
+            start_execution_params["compute"] = {"instance_type": "ml.m4.xlarge"}
 
         print(start_execution_params)
         return self._sagemaker_studio.execution_client.start_execution(**start_execution_params)
@@ -175,16 +173,16 @@ class SageMakerNotebookHook(BaseHook):
         in_progress_states = ["IN_PROGRESS", "STOPPING"]
 
         if status in in_progress_states:
-            self.log.info(
-                f"Execution {execution_id} is still in progress with state:{status}, will check for a terminal status again in {self.waiter_delay}"
-            )
+            info_message = f"Execution {execution_id} is still in progress with state:{status}, will check for a terminal status again in {self.waiter_delay}"
+            self.log.info(info_message)
             return None
         execution_message = f"Exiting Execution {execution_id} State: {status}"
         if status in finished_states:
             self.log.info(execution_message)
             return {"Status": status, "ExecutionId": execution_id}
         else:
-            self.log.error(f"{execution_message} Message: {error_message}")
+            log_error_message = f"Execution {execution_id} failed with error: {error_message}"
+            self.log.error(log_error_message)
             if error_message == "":
                 error_message = execution_message
             raise AirflowException(error_message)

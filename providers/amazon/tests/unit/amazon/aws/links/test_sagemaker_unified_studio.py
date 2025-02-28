@@ -16,35 +16,17 @@
 # under the License.
 from __future__ import annotations
 
-import os
-
-from airflow.providers.amazon.aws.utils.sagemaker_unified_studio import is_local_runner, workflows_env_key
-
-
-def test_is_local_runner_false():
-    assert not is_local_runner()
+from airflow.providers.amazon.aws.links.sagemaker_unified_studio import SageMakerUnifiedStudioLink
+from unit.amazon.aws.links.test_base_aws import BaseAwsLinksTestCase
 
 
-def test_is_local_runner_true():
-    os.environ[workflows_env_key] = "Local"
-    assert is_local_runner()
+class TestSageMakerUnifiedStudioLink(BaseAwsLinksTestCase):
+    link_class = SageMakerUnifiedStudioLink
 
-
-def test_is_local_runner_false_with_env_var():
-    os.environ[workflows_env_key] = "False"
-    assert not is_local_runner()
-
-
-def test_is_local_runner_false_with_env_var_empty():
-    os.environ[workflows_env_key] = ""
-    assert not is_local_runner()
-
-
-def test_is_local_runner_false_with_env_var_invalid():
-    os.environ[workflows_env_key] = "random string"
-    assert not is_local_runner()
-
-
-def test_is_local_runner_false_with_string_int():
-    os.environ[workflows_env_key] = "1"
-    assert not is_local_runner()
+    def test_extra_link(self):
+        self.assert_extra_link_url(
+            expected_url=("https://console.aws.amazon.com/datazone/home?region=us-east-1"),
+            region_name="us-east-1",
+            aws_partition="aws",
+            job_name="test_job_name",
+        )

@@ -90,10 +90,10 @@ class SageMakerNotebookOperator(BaseOperator):
         self,
         task_id: str,
         input_config: dict,
-        output_config: dict = {"output_formats": ["NOTEBOOK"]},
-        compute: dict = {},
-        termination_condition: dict = {},
-        tags: dict = {},
+        output_config: dict | None = None,
+        compute: dict | None = None,
+        termination_condition: dict | None = None,
+        tags: dict | None = None,
         wait_for_completion: bool = True,
         waiter_delay: int = 10,
         waiter_max_attempts: int = 1440,
@@ -103,10 +103,10 @@ class SageMakerNotebookOperator(BaseOperator):
         super().__init__(task_id=task_id, **kwargs)
         self.execution_name = task_id
         self.input_config = input_config
-        self.output_config = output_config
-        self.compute = compute
-        self.termination_condition = termination_condition
-        self.tags = tags
+        self.output_config = output_config or {"output_formats": ["NOTEBOOK"]}
+        self.compute = compute or {}
+        self.termination_condition = termination_condition or {}
+        self.tags = tags or {}
         self.wait_for_completion = wait_for_completion
         self.waiter_delay = waiter_delay
         self.waiter_max_attempts = waiter_max_attempts
@@ -149,6 +149,7 @@ class SageMakerNotebookOperator(BaseOperator):
         elif self.wait_for_completion:
             response = self.notebook_execution_hook.wait_for_execution_completion(execution_id, context)
             status = response["Status"]
-            self.log.info(
+            log_info_message = (
                 f"Notebook Execution: {self.execution_name} Status: {status}. Run Id: {execution_id}"
             )
+            self.log.info(log_info_message)

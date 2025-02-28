@@ -14,6 +14,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
 
 from unittest import TestCase
 from unittest.mock import MagicMock, call, patch
@@ -107,9 +108,7 @@ class TestSageMakerNotebookHook(TestCase):
         self.hook._sagemaker_studio = MagicMock()
         self.hook._sagemaker_studio.execution_client = MagicMock(spec=ExecutionClient)
 
-        self.hook._sagemaker_studio.execution_client.start_execution.return_value = {
-            "executionId": "123456"
-        }
+        self.hook._sagemaker_studio.execution_client.start_execution.return_value = {"executionId": "123456"}
         result = self.hook.start_notebook_execution()
         self.assertEqual(result, {"executionId": "123456"})
         self.hook._sagemaker_studio.execution_client.start_execution.assert_called_once()
@@ -119,9 +118,7 @@ class TestSageMakerNotebookHook(TestCase):
         execution_id = "123456"
         self.hook._sagemaker_studio = MagicMock()
         self.hook._sagemaker_studio.execution_client = MagicMock(spec=ExecutionClient)
-        self.hook._sagemaker_studio.execution_client.get_execution.return_value = {
-            "status": "COMPLETED"
-        }
+        self.hook._sagemaker_studio.execution_client.get_execution.return_value = {"status": "COMPLETED"}
 
         result = self.hook.wait_for_execution_completion(execution_id, {})
         self.assertEqual(result, {"Status": "COMPLETED", "ExecutionId": execution_id})
@@ -170,9 +167,7 @@ class TestSageMakerNotebookHook(TestCase):
         error_message = ""
         with self.assertRaises(AirflowException) as cm:
             self.hook._handle_state(execution_id, status, error_message)
-        self.assertEqual(
-            str(cm.exception), f"Exiting Execution {execution_id} State: {status}"
-        )
+        self.assertEqual(str(cm.exception), f"Exiting Execution {execution_id} State: {status}")
 
     def test_handle_unexpected_state(self):
         execution_id = "123456"
@@ -189,9 +184,7 @@ class TestSageMakerNotebookHook(TestCase):
         with create_session():
             self.hook._set_xcom_files(self.files, self.context)
         expected_call = call(self.files, self.context)
-        mock_set_xcom_files.assert_called_once_with(
-            *expected_call.args, **expected_call.kwargs
-        )
+        mock_set_xcom_files.assert_called_once_with(*expected_call.args, **expected_call.kwargs)
 
     def test_set_xcom_files_negative_missing_context(self):
         with self.assertRaises(AirflowException) as cm:
@@ -205,9 +198,7 @@ class TestSageMakerNotebookHook(TestCase):
         with create_session():
             self.hook._set_xcom_s3_path(self.s3Path, self.context)
         expected_call = call(self.s3Path, self.context)
-        mock_set_xcom_s3_path.assert_called_once_with(
-            *expected_call.args, **expected_call.kwargs
-        )
+        mock_set_xcom_s3_path.assert_called_once_with(*expected_call.args, **expected_call.kwargs)
 
     def test_set_xcom_s3_path_negative_missing_context(self):
         with self.assertRaises(AirflowException) as cm:

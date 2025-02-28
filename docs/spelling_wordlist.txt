@@ -1375,12 +1375,12 @@ quantile
 Quantiles
 quantiles
 Quantopian
-Querybooks
-querybook
 Qubole
 qubole
 QuboleCheckHook
 Quboles
+querybook
+Querybooks
 queryParameters
 querystring
 queueing
@@ -1895,9 +1895,9 @@ views
 virtualenv
 virtualenvs
 vm
+VolumeKmsKeyId
 VolumeMount
 volumeMounts
-VolumeKmsKeyId
 VolumeSizeInGB
 vpc
 WaiterModel
