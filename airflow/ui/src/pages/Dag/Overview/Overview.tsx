@@ -16,7 +16,7 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Box, HStack, Skeleton, SimpleGrid, Flex, Heading } from "@chakra-ui/react";
+import { Box, HStack, Skeleton, SimpleGrid } from "@chakra-ui/react";
 import dayjs from "dayjs";
 import { useState } from "react";
 import { useParams } from "react-router-dom";
@@ -27,7 +27,7 @@ import TimeRangeSelector from "src/components/TimeRangeSelector";
 import { TrendCountButton } from "src/components/TrendCountButton";
 import { isStatePending, useAutoRefresh } from "src/utils";
 
-import { FailedTaskLog } from "./FailedTaskLog";
+import { FailedLogs } from "./FailedLogs";
 
 const defaultHour = "168";
 
@@ -67,8 +67,6 @@ export const Overview = () => {
         query.state.data?.dag_runs.some((run) => isStatePending(run.state)) ? refetchInterval : false,
     },
   );
-
-  const taskLogs = failedTasks?.task_instances.slice(0, 5);
 
   return (
     <Box m={4}>
@@ -122,14 +120,7 @@ export const Overview = () => {
           )}
         </Box>
       </SimpleGrid>
-      {taskLogs && taskLogs.length > 0 ? (
-        <Flex flexDirection="column" gap={3}>
-          <Heading size="md">Recent Failed Task Logs</Heading>
-          {taskLogs.map((taskInstance) => (
-            <FailedTaskLog key={taskInstance.id} taskInstance={taskInstance} />
-          ))}
-        </Flex>
-      ) : undefined}
+      <FailedLogs failedTasks={failedTasks} />
     </Box>
   );
 };

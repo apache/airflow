@@ -24,13 +24,16 @@ import { ClearTaskInstanceButton } from "src/components/Clear";
 import { StateBadge } from "src/components/StateBadge";
 import Time from "src/components/Time";
 import { TaskLogContent } from "src/pages/TaskInstance/Logs/TaskLogContent";
-import { useConfig } from "src/queries/useConfig";
 import { useLogs } from "src/queries/useLogs";
 import { getTaskInstanceLink } from "src/utils/links";
 
-export const FailedTaskLog = ({ taskInstance }: { readonly taskInstance: TaskInstanceResponse }) => {
-  const defaultWrap = Boolean(useConfig("default_wrap"));
-
+export const TaskLogPreview = ({
+  taskInstance,
+  wrap,
+}: {
+  readonly taskInstance: TaskInstanceResponse;
+  readonly wrap: boolean;
+}) => {
   const { data, error, isLoading } = useLogs({
     dagId: taskInstance.dag_id,
     logLevelFilters: ["warning", "error", "critical"],
@@ -39,8 +42,8 @@ export const FailedTaskLog = ({ taskInstance }: { readonly taskInstance: TaskIns
   });
 
   return (
-    <Box borderRadius={4} borderStyle="solid" borderWidth={1} key={taskInstance.id} p={2} width="100%">
-      <Flex justifyContent="space-between">
+    <Box borderRadius={4} borderStyle="solid" borderWidth={1} key={taskInstance.id} width="100%">
+      <Flex alignItems="center" justifyContent="space-between" px={2}>
         <Box>
           <StateBadge mr={1} state={taskInstance.state} />
           {taskInstance.task_display_name}
@@ -53,13 +56,13 @@ export const FailedTaskLog = ({ taskInstance }: { readonly taskInstance: TaskIns
           </Link>
         </Flex>
       </Flex>
-      <Box maxHeight="200px" overflow="auto">
+      <Box maxHeight="100px" overflow="auto">
         <TaskLogContent
           error={error}
           isLoading={isLoading}
           logError={error}
           parsedLogs={data.parsedLogs}
-          wrap={defaultWrap}
+          wrap={wrap}
         />
       </Box>
     </Box>
