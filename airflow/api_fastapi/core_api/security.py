@@ -88,7 +88,7 @@ def requires_access_pool(method: ResourceMethod) -> Callable:
         user: Annotated[BaseUser | None, Depends(get_user)] = None,
     ) -> None:
         def callback():
-            return get_auth_manager().is_authorized_dag(
+            return get_auth_manager().is_authorized_pool(
                 method=method, details=PoolDetails(name=pool_name), user=user
             )
 
