@@ -27,7 +27,7 @@ def get_provider_info():
         "name": "Influxdb",
         "description": "`InfluxDB <https://www.influxdata.com/>`__\n",
         "state": "ready",
-        "source-date-epoch": 1739963602,
+        "source-date-epoch": 1740734143,
         "versions": [
             "2.8.2",
             "2.8.0",

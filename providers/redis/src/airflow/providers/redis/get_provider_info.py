@@ -27,7 +27,7 @@ def get_provider_info():
         "name": "Redis",
         "description": "`Redis <https://redis.io/>`__\n",
         "state": "ready",
-        "source-date-epoch": 1739964200,
+        "source-date-epoch": 1740734181,
         "versions": [
             "4.0.1",
             "4.0.0",
