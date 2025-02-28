@@ -75,8 +75,8 @@ Setup your project
              alt="Invalidate caches and restart Pycharm">
       </div>
 
-5. An alternative way to add source roots is to configure the airflow.iml file under .idea directory. and update the
-   module.xml file:
+5. An alternative way to add source roots is to configure the ``airflow.iml`` file under ``.idea`` directory and update the
+   ``module.xml`` file:
 
    Create a file ``.idea/airflow.iml`` from the following file content: `pycharm-airflow.iml.txt
    <../quick-start-ide/idea-xml-references/pycharm-airflow.iml.txt>`_.
