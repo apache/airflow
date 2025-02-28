@@ -123,4 +123,5 @@ def get_provider_info():
             "yandexcloud>=0.308.0,!=0.329.0,!=0.330.0,!=0.331.0,!=0.332.0,!=0.333.0",
             "yandex-query-client>=0.1.4",
         ],
+        "optional-dependencies": {"common.compat": ["apache-airflow-providers-common-compat"]},
     }

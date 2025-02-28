@@ -64,6 +64,13 @@ dependencies = [
     "yandex-query-client>=0.1.4",
 ]
 
+# The optional dependencies should be modified in place in the generated file
+# Any change in the dependencies is preserved when the file is regenerated
+[project.optional-dependencies]
+"common.compat" = [
+    "apache-airflow-providers-common-compat"
+]
+
 [project.urls]
 "Documentation" = "https://airflow.apache.org/docs/apache-airflow-providers-yandex/4.0.1"
 "Changelog" = "https://airflow.apache.org/docs/apache-airflow-providers-yandex/4.0.1/changelog.html"

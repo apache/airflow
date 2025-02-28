@@ -68,6 +68,9 @@ dependencies = [
 "openlineage" = [
     "apache-airflow-providers-openlineage>=1.7.0",
 ]
+"common.compat" = [
+    "apache-airflow-providers-common-compat"
+]
 
 [project.urls]
 "Documentation" = "https://airflow.apache.org/docs/apache-airflow-providers-dbt-cloud/4.2.0"
