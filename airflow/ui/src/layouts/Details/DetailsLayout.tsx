@@ -59,7 +59,7 @@ export const DetailsLayout = ({ children, error, isLoading, tabs }: Props) => {
 
   return (
     <OpenGroupsProvider dagId={dagId}>
-      <HStack justifyContent="space-between" mb={2}>
+      <HStack justifyContent="space-between">
         <DagBreadcrumb />
         <Flex gap={1}>
           <SearchDagsButton />
