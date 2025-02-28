@@ -27,7 +27,7 @@ def get_provider_info():
         "name": "Salesforce",
         "description": "`Salesforce <https://www.salesforce.com/>`__\n",
         "state": "ready",
-        "source-date-epoch": 1739964219,
+        "source-date-epoch": 1740734183,
         "versions": [
             "5.10.0",
             "5.9.0",

@@ -27,7 +27,7 @@ def get_provider_info():
         "name": "Sendgrid",
         "description": "`Sendgrid <https://sendgrid.com/>`__\n",
         "state": "ready",
-        "source-date-epoch": 1734536500,
+        "source-date-epoch": 1740734187,
         "versions": [
             "4.0.0",
             "3.6.0",

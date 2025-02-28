@@ -27,7 +27,7 @@ def get_provider_info():
         "name": "gRPC",
         "description": "`gRPC <https://grpc.io/>`__\n",
         "state": "ready",
-        "source-date-epoch": 1739963555,
+        "source-date-epoch": 1740734136,
         "versions": [
             "3.7.2",
             "3.7.0",
