@@ -120,7 +120,7 @@ permissions:
   contents: read
 jobs:
   tests:
-    timeout-minutes: 120
+    timeout-minutes: 25
     name: "\
       ${{ inputs.test-scope }}-${{ matrix.test-group }}:\
       ${{ inputs.test-name }}${{ inputs.test-name-separator }}${{ matrix.backend-version }}:\
