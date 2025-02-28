@@ -45,6 +45,7 @@ from airflow.listeners.listener import get_listener_manager
 from airflow.providers.standard.operators.python import PythonOperator
 from airflow.sdk import DAG, BaseOperator, Connection, dag as dag_decorator, get_current_context
 from airflow.sdk.api.datamodels._generated import AssetProfile, TaskInstance, TerminalTIState
+from airflow.sdk.definitions._internal.types import NOTSET
 from airflow.sdk.definitions.asset import Asset, AssetAlias
 from airflow.sdk.definitions.param import DagParam
 from airflow.sdk.definitions.variable import Variable
@@ -1079,13 +1080,12 @@ class TestRuntimeTaskInstance:
     @pytest.mark.parametrize(
         "map_indexes",
         [
-            pytest.param(-1, id="no_map_index"),
+            pytest.param(-1, id="not_mapped_index"),
             pytest.param(1, id="single_map_index"),
-            pytest.param(42, id="not_set_with_index"),
             pytest.param([0, 1], id="multiple_map_indexes"),
-            pytest.param((0, 1), id="any_iterable"),
-            pytest.param(None, id="map_indexes_none"),
-            pytest.param(-9999, id="not_set_no_index"),
+            pytest.param((0, 1), id="any_iterable_multi_indexes"),
+            pytest.param(None, id="index_none"),
+            pytest.param(NOTSET, id="index_not_set"),
         ],
     )
     @pytest.mark.parametrize(
@@ -1093,7 +1093,7 @@ class TestRuntimeTaskInstance:
         [
             pytest.param("push_task", id="single_task"),
             pytest.param(["push_task1", "push_task2"], id="multiple_tasks"),
-            pytest.param(("push_task1", "push_task2"), id="any_iterable"),
+            pytest.param(("push_task1", "push_task2"), id="any_iterable_multi_tasks"),
             pytest.param(None, id="task_ids_none"),
         ],
     )
@@ -1110,11 +1110,7 @@ class TestRuntimeTaskInstance:
         based on various task_ids and map_indexes configurations.
         """
 
-        # Not set case, without and with mapped task index, we don't provide the map_indexes
-        if map_indexes == -9999 or map_indexes == 42:
-            map_indexes_kwarg = {}
-        else:
-            map_indexes_kwarg = {"map_indexes": map_indexes}
+        map_indexes_kwarg = {} if map_indexes is NOTSET else {"map_indexes": map_indexes}
 
         class CustomOperator(BaseOperator):
             def execute(self, context):
@@ -1123,9 +1119,8 @@ class TestRuntimeTaskInstance:
 
         task = CustomOperator(task_id="pull_task")
 
-        # We need to create a runtime task instance with the specific map_index set if
-        # we are testing the map_index passing from pulling task without map_indexes set
-        extra_for_ti = {"map_index": 42} if map_indexes == 42 else {}
+        # In case of the specific map_index or None we should check it is passed to TI
+        extra_for_ti = {"map_index": map_indexes} if map_indexes in (1, None) else {}
         runtime_ti = create_runtime_ti(task=task, **extra_for_ti)
 
         mock_supervisor_comms.get_message.return_value = XComResult(key="key", value='"value"')
@@ -1143,7 +1138,7 @@ class TestRuntimeTaskInstance:
                 task_id_in_call = "pull_task"
 
             for map_index_in_call in map_indexes:
-                if map_index_in_call == -9999:
+                if map_index_in_call is NOTSET:
                     map_index_in_call = -1
 
                 mock_supervisor_comms.send_request.assert_any_call(
