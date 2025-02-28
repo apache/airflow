@@ -18,7 +18,7 @@
  */
 import { HStack, type SelectValueChangeDetails } from "@chakra-ui/react";
 import { useCallback } from "react";
-import { useSearchParams } from "react-router-dom";
+import { useSearchParams, useParams } from "react-router-dom";
 
 import type { TaskInstanceState } from "openapi/requests/types.gen";
 import { useTableURLState } from "src/components/DataTable/useTableUrlState";
@@ -38,6 +38,7 @@ export const TaskInstancesFilter = ({
   readonly setTaskDisplayNamePattern: React.Dispatch<React.SetStateAction<string | undefined>>;
   readonly taskDisplayNamePattern: string | undefined;
 }) => {
+  const { runId } = useParams();
   const [searchParams, setSearchParams] = useSearchParams();
   const { setTableURLState, tableURLState } = useTableURLState();
   const { pagination, sorting } = tableURLState;
@@ -124,6 +125,7 @@ export const TaskInstancesFilter = ({
         buttonProps={{ disabled: true }}
         defaultValue={taskDisplayNamePattern ?? ""}
         hideAdvanced
+        hotkeyDisabled={Boolean(runId)}
         onChange={handleSearchChange}
         placeHolder="Search Tasks"
       />
