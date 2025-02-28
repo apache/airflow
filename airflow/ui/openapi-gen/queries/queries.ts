@@ -2725,6 +2725,7 @@ export const useVariableServiceGetVariable = <
  * Get Variables
  * Get all Variables entries.
  * @param data The data for the request.
+ * @param data.variableKey
  * @param data.limit
  * @param data.offset
  * @param data.orderBy
@@ -2741,11 +2742,13 @@ export const useVariableServiceGetVariables = <
     limit,
     offset,
     orderBy,
+    variableKey,
     variableKeyPattern,
   }: {
     limit?: number;
     offset?: number;
     orderBy?: string;
+    variableKey?: string;
     variableKeyPattern?: string;
   } = {},
   queryKey?: TQueryKey,
@@ -2753,10 +2756,11 @@ export const useVariableServiceGetVariables = <
 ) =>
   useQuery<TData, TError>({
     queryKey: Common.UseVariableServiceGetVariablesKeyFn(
-      { limit, offset, orderBy, variableKeyPattern },
+      { limit, offset, orderBy, variableKey, variableKeyPattern },
       queryKey,
     ),
-    queryFn: () => VariableService.getVariables({ limit, offset, orderBy, variableKeyPattern }) as TData,
+    queryFn: () =>
+      VariableService.getVariables({ limit, offset, orderBy, variableKey, variableKeyPattern }) as TData,
     ...options,
   });
 /**
@@ -3416,6 +3420,7 @@ export const useXcomServiceCreateXcomEntry = <
  * Create a variable.
  * @param data The data for the request.
  * @param data.requestBody
+ * @param data.variableKey
  * @returns VariableResponse Successful Response
  * @throws ApiError
  */
@@ -3430,6 +3435,7 @@ export const useVariableServicePostVariable = <
       TError,
       {
         requestBody: VariableBody;
+        variableKey?: string;
       },
       TContext
     >,
@@ -3441,11 +3447,12 @@ export const useVariableServicePostVariable = <
     TError,
     {
       requestBody: VariableBody;
+      variableKey?: string;
     },
     TContext
   >({
-    mutationFn: ({ requestBody }) =>
-      VariableService.postVariable({ requestBody }) as unknown as Promise<TData>,
+    mutationFn: ({ requestBody, variableKey }) =>
+      VariableService.postVariable({ requestBody, variableKey }) as unknown as Promise<TData>,
     ...options,
   });
 /**
@@ -4275,6 +4282,7 @@ export const useVariableServicePatchVariable = <
  * Bulk create, update, and delete variables.
  * @param data The data for the request.
  * @param data.requestBody
+ * @param data.variableKey
  * @returns BulkResponse Successful Response
  * @throws ApiError
  */
@@ -4289,6 +4297,7 @@ export const useVariableServiceBulkVariables = <
       TError,
       {
         requestBody: BulkBody_VariableBody_;
+        variableKey?: string;
       },
       TContext
     >,
@@ -4300,11 +4309,12 @@ export const useVariableServiceBulkVariables = <
     TError,
     {
       requestBody: BulkBody_VariableBody_;
+      variableKey?: string;
     },
     TContext
   >({
-    mutationFn: ({ requestBody }) =>
-      VariableService.bulkVariables({ requestBody }) as unknown as Promise<TData>,
+    mutationFn: ({ requestBody, variableKey }) =>
+      VariableService.bulkVariables({ requestBody, variableKey }) as unknown as Promise<TData>,
     ...options,
   });
 /**

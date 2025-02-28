@@ -3307,6 +3307,7 @@ export class VariableService {
    * Get Variables
    * Get all Variables entries.
    * @param data The data for the request.
+   * @param data.variableKey
    * @param data.limit
    * @param data.offset
    * @param data.orderBy
@@ -3319,6 +3320,7 @@ export class VariableService {
       method: "GET",
       url: "/public/variables",
       query: {
+        variable_key: data.variableKey,
         limit: data.limit,
         offset: data.offset,
         order_by: data.orderBy,
@@ -3337,6 +3339,7 @@ export class VariableService {
    * Create a variable.
    * @param data The data for the request.
    * @param data.requestBody
+   * @param data.variableKey
    * @returns VariableResponse Successful Response
    * @throws ApiError
    */
@@ -3344,6 +3347,9 @@ export class VariableService {
     return __request(OpenAPI, {
       method: "POST",
       url: "/public/variables",
+      query: {
+        variable_key: data.variableKey,
+      },
       body: data.requestBody,
       mediaType: "application/json",
       errors: {
@@ -3360,6 +3366,7 @@ export class VariableService {
    * Bulk create, update, and delete variables.
    * @param data The data for the request.
    * @param data.requestBody
+   * @param data.variableKey
    * @returns BulkResponse Successful Response
    * @throws ApiError
    */
@@ -3367,6 +3374,9 @@ export class VariableService {
     return __request(OpenAPI, {
       method: "PATCH",
       url: "/public/variables",
+      query: {
+        variable_key: data.variableKey,
+      },
       body: data.requestBody,
       mediaType: "application/json",
       errors: {

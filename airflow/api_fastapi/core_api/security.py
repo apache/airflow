@@ -25,7 +25,7 @@ from jwt import InvalidTokenError
 
 from airflow.api_fastapi.app import get_auth_manager
 from airflow.auth.managers.models.base_user import BaseUser
-from airflow.auth.managers.models.resource_details import DagAccessEntity, DagDetails
+from airflow.auth.managers.models.resource_details import DagAccessEntity, DagDetails, VariableDetails
 from airflow.configuration import conf
 from airflow.utils.jwt_signer import JWTSigner, get_signing_key
 
@@ -73,6 +73,23 @@ def requires_access_dag(method: ResourceMethod, access_entity: DagAccessEntity |
         def callback():
             return get_auth_manager().is_authorized_dag(
                 method=method, access_entity=access_entity, details=DagDetails(id=dag_id), user=user
+            )
+
+        _requires_access(
+            is_authorized_callback=callback,
+        )
+
+    return inner
+
+
+def requires_access_variable(method: ResourceMethod) -> Callable[[str | None, BaseUser | None], None]:
+    def inner(
+        variable_key: str | None = None,
+        user: Annotated[BaseUser | None, Depends(get_user)] = None,
+    ) -> None:
+        def callback():
+            return get_auth_manager().is_authorized_variable(
+                method=method, details=VariableDetails(key=variable_key), user=user
             )
 
         _requires_access(

@@ -2702,6 +2702,7 @@ export const useVariableServiceGetVariableSuspense = <
  * Get Variables
  * Get all Variables entries.
  * @param data The data for the request.
+ * @param data.variableKey
  * @param data.limit
  * @param data.offset
  * @param data.orderBy
@@ -2718,11 +2719,13 @@ export const useVariableServiceGetVariablesSuspense = <
     limit,
     offset,
     orderBy,
+    variableKey,
     variableKeyPattern,
   }: {
     limit?: number;
     offset?: number;
     orderBy?: string;
+    variableKey?: string;
     variableKeyPattern?: string;
   } = {},
   queryKey?: TQueryKey,
@@ -2730,10 +2733,11 @@ export const useVariableServiceGetVariablesSuspense = <
 ) =>
   useSuspenseQuery<TData, TError>({
     queryKey: Common.UseVariableServiceGetVariablesKeyFn(
-      { limit, offset, orderBy, variableKeyPattern },
+      { limit, offset, orderBy, variableKey, variableKeyPattern },
       queryKey,
     ),
-    queryFn: () => VariableService.getVariables({ limit, offset, orderBy, variableKeyPattern }) as TData,
+    queryFn: () =>
+      VariableService.getVariables({ limit, offset, orderBy, variableKey, variableKeyPattern }) as TData,
     ...options,
   });
 /**
