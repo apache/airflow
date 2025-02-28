@@ -335,7 +335,7 @@ html_short_title = ""
 #  configuration directory) that is the favicon of the docs. Modern browsers
 #  use this as the icon for tabs, windows and bookmarks. It should be a
 #  Windows-style icon file (.ico), which is 16x16 or 32x32 pixels large.
-html_favicon = "../airflow/www/static/pin_32.png"
+html_favicon = "../airflow/ui/public/pin_32.png"
 
 # Add any paths that contain custom static files (such as style sheets) here,
 # relative to this directory. They are copied after the builtin static files,

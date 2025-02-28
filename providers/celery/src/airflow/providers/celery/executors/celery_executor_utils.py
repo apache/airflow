@@ -258,10 +258,11 @@ def send_task_to_executor(
     task_tuple: TaskInstanceInCelery,
 ) -> tuple[TaskInstanceKey, CommandType, AsyncResult | ExceptionWithTraceback]:
     """Send task to executor."""
-    from airflow.executors import workloads
-
     key, args, queue, task_to_run = task_tuple
-    if isinstance(args, workloads.BaseWorkload):
+
+    if AIRFLOW_V_3_0_PLUS:
+        if TYPE_CHECKING:
+            assert isinstance(args, workloads.BaseWorkload)
         args = (args.model_dump_json(),)
     try:
         with timeout(seconds=OPERATION_TIMEOUT):

@@ -1363,6 +1363,7 @@ def get_provider_info():
             "python3-saml": ["python3-saml>=1.16.0"],
             "apache.hive": ["apache-airflow-providers-apache-hive"],
             "exasol": ["apache-airflow-providers-exasol"],
+            "fab": ["apache-airflow-providers-fab"],
             "ftp": ["apache-airflow-providers-ftp"],
             "google": ["apache-airflow-providers-google"],
             "imap": ["apache-airflow-providers-imap"],

@@ -30,7 +30,7 @@ Set Up Bash/Zsh Completion
 --------------------------
 
 When using bash (or ``zsh``) as your shell, ``airflow`` can use
-`argcomplete <https://argcomplete.readthedocs.io/>`_ for auto-completion.
+`argcomplete <https://kislyuk.github.io/argcomplete>`_ for auto-completion.
 
 For `global activation <https://github.com/kislyuk/argcomplete#activating-global-completion>`_ of all argcomplete enabled python applications run:
 
@@ -216,6 +216,8 @@ You can optionally provide a list of tables to perform deletes on. If no list of
 You can use the ``--dry-run`` option to print the row counts in the primary tables to be cleaned.
 
 By default, ``db clean`` will archive purged rows in tables of the form ``_airflow_deleted__<table>__<timestamp>``.  If you don't want the data preserved in this way, you may supply argument ``--skip-archive``.
+
+When you encounter an error without using ``--skip-archive``,  ``_airflow_deleted__<table>__<timestamp>`` would still exist in the DB. You can use  ``db drop-archived`` command to manually drop these tables.
 
 Export the purged records from the archive tables
 -------------------------------------------------

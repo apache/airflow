@@ -32,6 +32,7 @@ from airflow.utils.timezone import datetime
 
 from tests_common.test_utils.config import conf_vars
 from tests_common.test_utils.db import clear_db_dags, clear_db_runs
+from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS
 
 pytestmark = pytest.mark.db_test
 
@@ -112,13 +113,29 @@ class TestWasbTaskHandler:
         assert self.wasb_task_handler.wasb_read(self.remote_log_location) == "Log line"
         ti = copy.copy(ti)
         ti.state = TaskInstanceState.SUCCESS
-        assert self.wasb_task_handler.read(ti)[0][0][0][0] == "localhost"
-        assert (
-            "*** Found remote logs:\n***   * https://wasb-container.blob.core.windows.net/abc/hello.log\n"
-            in self.wasb_task_handler.read(ti)[0][0][0][1]
-        )
-        assert "Log line" in self.wasb_task_handler.read(ti)[0][0][0][1]
-        assert self.wasb_task_handler.read(ti)[1][0] == {"end_of_log": True, "log_pos": 8}
+
+        logs, metadata = self.wasb_task_handler.read(ti)
+
+        if AIRFLOW_V_3_0_PLUS:
+            assert logs[0].event == "::group::Log message source details"
+            assert logs[0].sources == ["https://wasb-container.blob.core.windows.net/abc/hello.log"]
+            assert logs[1].event == "::endgroup::"
+            assert logs[2].event == "Log line"
+            assert metadata == {
+                "end_of_log": True,
+                "log_pos": 1,
+            }
+        else:
+            assert logs[0][0][0] == "localhost"
+            assert (
+                "*** Found remote logs:\n***   * https://wasb-container.blob.core.windows.net/abc/hello.log\n"
+                in logs[0][0][1]
+            )
+            assert "Log line" in logs[0][0][1]
+            assert metadata[0] == {
+                "end_of_log": True,
+                "log_pos": 8,
+            }
 
     @mock.patch(
         "airflow.providers.microsoft.azure.hooks.wasb.WasbHook",
@@ -152,7 +169,10 @@ class TestWasbTaskHandler:
         mock_wasb_read.return_value = "old log"
         self.wasb_task_handler.wasb_write("text", self.remote_log_location)
         mock_hook.return_value.load_string.assert_called_once_with(
-            "old log\ntext", self.container_name, self.remote_log_location, overwrite=True
+            "old log\ntext",
+            self.container_name,
+            self.remote_log_location,
+            overwrite=True,
         )
 
     @mock.patch("airflow.providers.microsoft.azure.hooks.wasb.WasbHook")

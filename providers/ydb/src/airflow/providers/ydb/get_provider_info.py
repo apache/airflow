@@ -46,7 +46,7 @@ def get_provider_info():
         "dependencies": [
             "apache-airflow>=2.9.0",
             "apache-airflow-providers-common-sql>=1.20.0",
-            "ydb>=3.18.8, !=3.19.0",
+            "ydb>=3.18.8",
             "ydb-dbapi>=0.1.0",
         ],
     }

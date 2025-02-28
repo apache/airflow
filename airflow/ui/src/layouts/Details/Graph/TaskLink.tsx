@@ -25,13 +25,13 @@ type Props = {
   readonly id: string;
 } & TaskNameProps;
 
-export const TaskLink = ({ id, isGroup, ...rest }: Props) => {
+export const TaskLink = ({ id, isGroup, isMapped, ...rest }: Props) => {
   const { dagId = "", runId, taskId } = useParams();
   const [searchParams] = useSearchParams();
 
   // We don't have a task group details page to link to
   if (isGroup) {
-    return <TaskName isGroup={true} {...rest} />;
+    return <TaskName isGroup={true} isMapped={isMapped} {...rest} />;
   }
 
   return (
@@ -39,11 +39,11 @@ export const TaskLink = ({ id, isGroup, ...rest }: Props) => {
       <RouterLink
         to={{
           // Do not include runId if there is no selected run, clicking a second time will deselect a task id
-          pathname: `/dags/${dagId}/${runId === undefined ? "" : `runs/${runId}/`}${taskId === id ? "" : `tasks/${id}`}`,
+          pathname: `/dags/${dagId}/${runId === undefined ? "" : `runs/${runId}/`}${taskId === id ? "" : `tasks/${id}`}${isMapped ? "/mapped" : ""}`,
           search: searchParams.toString(),
         }}
       >
-        <TaskName {...rest} />
+        <TaskName isMapped={isMapped} {...rest} />
       </RouterLink>
     </Link>
   );

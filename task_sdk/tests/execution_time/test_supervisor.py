@@ -505,6 +505,7 @@ class TestWatchedSubprocess:
         mock_kill = mocker.patch("airflow.sdk.execution_time.supervisor.WatchedSubprocess.kill")
 
         proc = ActivitySubprocess(
+            log=mocker.MagicMock(),
             id=TI_ID,
             pid=mock_process.pid,
             stdin=mocker.MagicMock(),
@@ -594,6 +595,7 @@ class TestWatchedSubprocess:
         monkeypatch.setattr(ActivitySubprocess, "TASK_OVERTIME_THRESHOLD", overtime_threshold)
 
         mock_watched_subprocess = ActivitySubprocess(
+            log=mocker.MagicMock(),
             id=TI_ID,
             pid=12345,
             stdin=mocker.Mock(),
@@ -735,6 +737,7 @@ class TestWatchedSubprocessKill:
     @pytest.fixture
     def watched_subprocess(self, mocker, mock_process):
         proc = ActivitySubprocess(
+            log=mocker.MagicMock(),
             id=TI_ID,
             pid=12345,
             stdin=mocker.Mock(),
@@ -918,6 +921,7 @@ class TestHandleRequest:
     def watched_subprocess(self, mocker):
         """Fixture to provide a WatchedSubprocess instance."""
         return ActivitySubprocess(
+            log=mocker.MagicMock(),
             id=TI_ID,
             pid=12345,
             stdin=BytesIO(),
@@ -1038,6 +1042,7 @@ class TestHandleRequest:
                     "test_key",
                     '{"key": "test_key", "value": {"key2": "value2"}}',
                     None,
+                    None,
                 ),
                 {},
                 {"ok": True},
@@ -1061,10 +1066,36 @@ class TestHandleRequest:
                     "test_key",
                     '{"key": "test_key", "value": {"key2": "value2"}}',
                     2,
+                    None,
                 ),
                 {},
                 {"ok": True},
                 id="set_xcom_with_map_index",
+            ),
+            pytest.param(
+                SetXCom(
+                    dag_id="test_dag",
+                    run_id="test_run",
+                    task_id="test_task",
+                    key="test_key",
+                    value='{"key": "test_key", "value": {"key2": "value2"}}',
+                    map_index=2,
+                    mapped_length=3,
+                ),
+                b"",
+                "xcoms.set",
+                (
+                    "test_dag",
+                    "test_run",
+                    "test_task",
+                    "test_key",
+                    '{"key": "test_key", "value": {"key2": "value2"}}',
+                    2,
+                    3,
+                ),
+                {},
+                {"ok": True},
+                id="set_xcom_with_map_index_and_mapped_length",
             ),
             # we aren't adding all states under TerminalTIState here, because this test's scope is only to check
             # if it can handle TaskState message

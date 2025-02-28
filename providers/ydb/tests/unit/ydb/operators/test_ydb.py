@@ -24,7 +24,7 @@ import ydb
 
 from airflow.models import Connection
 from airflow.models.dag import DAG
-from airflow.providers.common.sql.hooks.sql import fetch_all_handler, fetch_one_handler
+from airflow.providers.common.sql.hooks.handlers import fetch_all_handler, fetch_one_handler
 from airflow.providers.ydb.operators.ydb import YDBExecuteQueryOperator
 
 

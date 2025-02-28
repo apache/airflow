@@ -105,7 +105,8 @@ core-concepts/auth-manager.rst core-concepts/auth-manager/index.rst
 listeners.rst administration-and-deployment/listeners.rst
 kubernetes.rst administration-and-deployment/kubernetes.rst
 executor/kubernetes.rst core-concepts/executor/kubernetes.rst
-plugins.rst authoring-and-scheduling/plugins.rst
+plugins.rst administration-and-deployment/plugins.rst
+authoring-and-scheduling/plugins.rst administration-and-deployment/plugins.rst
 modules_management.rst administration-and-deployment/modules_management.rst
 dag-serialization.rst administration-and-deployment/dag-serialization.rst
 timezone.rst authoring-and-scheduling/timezone.rst

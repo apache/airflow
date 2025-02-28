@@ -46,7 +46,6 @@ const EditableMarkdown = ({ field, placeholder }: EditableMarkdownProps) => (
     <Editable.Textarea
       minHeight="150px"
       onChange={(event: ChangeEvent<HTMLTextAreaElement>) => field.onChange(event.target.value)}
-      value={field.value}
     />
   </Editable.Root>
 );

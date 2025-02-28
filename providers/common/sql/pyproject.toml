@@ -58,6 +58,9 @@ dependencies = [
     "apache-airflow>=2.9.0",
     "sqlparse>=0.5.1",
     "more-itertools>=9.0.0",
+    # The methodtools dependency is necessary since the introduction of dialects:
+    # https://github.com/apache/airflow/pull/41327/files
+    "methodtools>=0.4.7"
 ]
 
 # The optional dependencies should be modified in place in the generated file

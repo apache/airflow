@@ -23,7 +23,7 @@ from unittest.mock import MagicMock
 import pytest
 from snowflake.connector import DictCursor
 
-from airflow.providers.common.sql.hooks.sql import fetch_all_handler
+from airflow.providers.common.sql.hooks.handlers import fetch_all_handler
 from airflow.providers.snowflake.hooks.snowflake import SnowflakeHook
 
 TASK_ID = "sql-operator"

@@ -593,8 +593,6 @@ class CustomBuild(BuilderInterface[BuilderConfig, PluginManager]):
     def clean(self, directory: str, versions: Iterable[str]) -> None:
         work_dir = Path(self.root)
         commands = [
-            ["rm -rf airflow/www/static/dist"],
-            ["rm -rf airflow/www/node_modules"],
             ["rm -rf airflow/ui/dist"],
             ["rm -rf airflow/ui/node_modules"],
         ]
@@ -609,7 +607,6 @@ class CustomBuild(BuilderInterface[BuilderConfig, PluginManager]):
         self.write_git_version()
         work_dir = Path(self.root)
         commands = [
-            ["pre-commit run --hook-stage manual compile-www-assets --all-files"],
             ["pre-commit run --hook-stage manual compile-ui-assets --all-files"],
         ]
         for cmd in commands:

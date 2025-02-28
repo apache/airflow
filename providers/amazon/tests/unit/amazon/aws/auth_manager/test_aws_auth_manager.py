@@ -20,7 +20,6 @@ from typing import TYPE_CHECKING
 from unittest.mock import ANY, Mock, patch
 
 import pytest
-from flask import session
 from flask_appbuilder.menu import MenuItem
 
 from airflow.providers.amazon.version_compat import AIRFLOW_V_3_0_PLUS
@@ -101,38 +100,12 @@ class TestAwsAuthManager:
     def test_avp_facade(self, auth_manager):
         assert hasattr(auth_manager, "avp_facade")
 
-    @pytest.mark.db_test
-    @patch.object(AwsAuthManager, "is_logged_in")
-    def test_get_user(self, mock_is_logged_in, auth_manager, app, test_user):
-        mock_is_logged_in.return_value = True
-
-        with app.test_request_context():
-            session["aws_user"] = test_user
-            result = auth_manager.get_user()
-
-        assert result == test_user
-
     @patch.object(AwsAuthManager, "is_logged_in")
     def test_get_user_return_none_when_not_logged_in(self, mock_is_logged_in, auth_manager):
         mock_is_logged_in.return_value = False
         result = auth_manager.get_user()
 
         assert result is None
-
-    @pytest.mark.db_test
-    def test_is_logged_in(self, auth_manager, app, test_user):
-        with app.test_request_context():
-            session["aws_user"] = test_user
-            result = auth_manager.is_logged_in()
-
-        assert result
-
-    @pytest.mark.db_test
-    def test_is_logged_in_return_false_when_no_user_in_session(self, auth_manager, app, test_user):
-        with app.test_request_context():
-            result = auth_manager.is_logged_in()
-
-        assert result is False
 
     @pytest.mark.parametrize(
         "details, user, expected_user, expected_entity_id",

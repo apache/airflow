@@ -60,7 +60,6 @@ from airflow_breeze.global_constants import (
     TESTABLE_CORE_INTEGRATIONS,
     TESTABLE_PROVIDERS_INTEGRATIONS,
     USE_AIRFLOW_MOUNT_SOURCES,
-    WEBSERVER_HOST_PORT,
     GithubEvents,
     GroupOfTests,
     get_airflow_version,
@@ -204,7 +203,7 @@ class ShellParams:
     standalone_dag_processor: bool = False
     start_airflow: bool = False
     test_type: str | None = None
-    start_webserver_with_examples: bool = False
+    start_api_server_with_examples: bool = False
     test_group: GroupOfTests | None = None
     tty: str = "auto"
     upgrade_boto: bool = False
@@ -603,8 +602,8 @@ class ShellParams:
         _set_var(_env, "SUSPENDED_PROVIDERS_FOLDERS", self.suspended_providers_folders)
         _set_var(
             _env,
-            "START_WEBSERVER_WITH_EXAMPLES",
-            self.start_webserver_with_examples,
+            "START_API_SERVER_WITH_EXAMPLES",
+            self.start_api_server_with_examples,
         )
         _set_var(_env, "SYSTEM_TESTS_ENV_ID", None, "")
         _set_var(_env, "TEST_TYPE", self.test_type, "")
@@ -617,7 +616,6 @@ class ShellParams:
         _set_var(_env, "VERBOSE", get_verbose())
         _set_var(_env, "VERBOSE_COMMANDS", self.verbose_commands)
         _set_var(_env, "VERSION_SUFFIX_FOR_PYPI", self.version_suffix_for_pypi)
-        _set_var(_env, "WEBSERVER_HOST_PORT", None, WEBSERVER_HOST_PORT)
         _set_var(_env, "API_SERVER_HOST_PORT", None, API_SERVER_HOST_PORT)
         _set_var(_env, "_AIRFLOW_RUN_DB_TESTS_ONLY", self.run_db_tests_only)
         _set_var(_env, "_AIRFLOW_SKIP_DB_TESTS", self.skip_db_tests)

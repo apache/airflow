@@ -27,11 +27,7 @@ import { UseDagVersionServiceGetDagVersionsKeyFn } from "openapi/queries";
 import { DagVersionService } from "openapi/requests/services.gen";
 import type { DAGVersionCollectionResponse, DagVersionResponse } from "openapi/requests/types.gen";
 import { SearchParamsKeys } from "src/constants/searchParams";
-
-type Option = {
-  label: string;
-  value: string;
-};
+import type { Option } from "src/utils/option";
 
 const DagVersionSelect = ({
   dagId,

@@ -1423,6 +1423,25 @@ def get_test_dag():
         dagbag = DagBag(dag_folder=dag_file, include_examples=False)
 
         dag = dagbag.get_dag(dag_id)
+
+        if dagbag.import_errors:
+            session = settings.Session()
+            from airflow.models.errors import ParseImportError
+            from airflow.utils import timezone
+
+            # Add the new import errors
+            for _filename, stacktrace in dagbag.import_errors.items():
+                session.add(
+                    ParseImportError(
+                        filename=str(dag_file),
+                        bundle_name="testing",
+                        timestamp=timezone.utcnow(),
+                        stacktrace=stacktrace,
+                    )
+                )
+
+            return
+
         if AIRFLOW_V_3_0_PLUS:
             session = settings.Session()
             from airflow.models.dagbundle import DagBundleModel
@@ -1662,16 +1681,6 @@ def clean_executor_loader():
     yield  # Test runs here
     clean_executor_loader_module()
     ExecutorLoader.init_executors()
-
-
-@pytest.fixture(scope="session")
-def app():
-    from tests_common.test_utils.config import conf_vars
-
-    with conf_vars({("fab", "auth_rate_limited"): "False"}):
-        from airflow.www import app
-
-        yield app.create_app(testing=True)
 
 
 @pytest.fixture

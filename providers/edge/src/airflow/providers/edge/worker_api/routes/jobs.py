@@ -37,6 +37,7 @@ from airflow.providers.edge.worker_api.routes._v2_compat import (
     parse_command,
     status,
 )
+from airflow.stats import Stats
 from airflow.utils import timezone
 from airflow.utils.sqlalchemy import with_row_locks
 from airflow.utils.state import TaskInstanceState
@@ -85,6 +86,10 @@ def fetch(
     job.edge_worker = worker_name
     job.last_update = timezone.utcnow()
     session.commit()
+    # Edge worker does not backport emitted Airflow metrics, so export some metrics
+    tags = {"dag_id": job.dag_id, "task_id": job.task_id, "queue": job.queue}
+    Stats.incr(f"edge_worker.ti.start.{job.queue}.{job.dag_id}.{job.task_id}", tags=tags)
+    Stats.incr("edge_worker.ti.start", tags=tags)
     return EdgeJobFetched(
         dag_id=job.dag_id,
         task_id=job.task_id,
@@ -116,6 +121,33 @@ def state(
     session: SessionDep,
 ) -> None:
     """Update the state of a job running on the edge worker."""
+    # execute query to catch the queue and check if state toggles to success or failed
+    # otherwise possible that Executor resets orphaned jobs and stats are exported 2 times
+    if state in [TaskInstanceState.SUCCESS, state == TaskInstanceState.FAILED]:
+        query = select(EdgeJobModel).where(
+            EdgeJobModel.dag_id == dag_id,
+            EdgeJobModel.task_id == task_id,
+            EdgeJobModel.run_id == run_id,
+            EdgeJobModel.map_index == map_index,
+            EdgeJobModel.try_number == try_number,
+            EdgeJobModel.state == TaskInstanceState.RUNNING,
+        )
+        job = session.scalar(query)
+
+        if job:
+            # Edge worker does not backport emitted Airflow metrics, so export some metrics
+            tags = {
+                "dag_id": job.dag_id,
+                "task_id": job.task_id,
+                "queue": job.queue,
+                "state": str(state),
+            }
+            Stats.incr(
+                f"edge_worker.ti.finish.{job.queue}.{state}.{job.dag_id}.{job.task_id}",
+                tags=tags,
+            )
+            Stats.incr("edge_worker.ti.finish", tags=tags)
+
     query = (
         update(EdgeJobModel)
         .where(

@@ -106,6 +106,9 @@ dependencies = [
 "exasol" = [
     "apache-airflow-providers-exasol"
 ]
+"fab" = [
+    "apache-airflow-providers-fab"
+]
 "ftp" = [
     "apache-airflow-providers-ftp"
 ]

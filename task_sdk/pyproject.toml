@@ -109,7 +109,7 @@ exclude_also = [
 
 [dependency-groups]
 codegen = [
-    "datamodel-code-generator[http]>=0.28.1",
+    "datamodel-code-generator[http]==0.28.2",
     "apache-airflow",
     "rich",
     "ruff",

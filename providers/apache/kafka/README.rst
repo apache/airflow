@@ -50,13 +50,13 @@ The package supports the following python versions: 3.9,3.10,3.11,3.12
 Requirements
 ------------
 
-===================  ==================
+===================  ===================
 PIP package          Version required
-===================  ==================
+===================  ===================
 ``apache-airflow``   ``>=2.9.0``
 ``asgiref``          ``>=2.3.0``
-``confluent-kafka``  ``>=2.3.0``
-===================  ==================
+``confluent-kafka``  ``>=2.3.0,!=2.8.1``
+===================  ===================
 
 The changelog for the provider package can be found in the
 `changelog <https://airflow.apache.org/docs/apache-airflow-providers-apache-kafka/1.7.0/changelog.html>`_.

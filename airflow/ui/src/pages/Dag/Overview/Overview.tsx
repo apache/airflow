@@ -25,6 +25,7 @@ import { useDagRunServiceGetDagRuns, useTaskInstanceServiceGetTaskInstances } fr
 import { DurationChart } from "src/components/DurationChart";
 import TimeRangeSelector from "src/components/TimeRangeSelector";
 import { TrendCountButton } from "src/components/TrendCountButton";
+import { isStatePending, useAutoRefresh } from "src/utils";
 
 const defaultHour = "168";
 
@@ -34,6 +35,8 @@ export const Overview = () => {
   const now = dayjs();
   const [startDate, setStartDate] = useState(now.subtract(Number(defaultHour), "hour").toISOString());
   const [endDate, setEndDate] = useState(now.toISOString());
+
+  const refetchInterval = useAutoRefresh({});
 
   const { data: failedTasks, isLoading } = useTaskInstanceServiceGetTaskInstances({
     dagId: dagId ?? "",
@@ -50,11 +53,18 @@ export const Overview = () => {
     state: ["failed"],
   });
 
-  const { data: runs, isLoading: isLoadingRuns } = useDagRunServiceGetDagRuns({
-    dagId: dagId ?? "",
-    limit: 14,
-    orderBy: "-run_after",
-  });
+  const { data: runs, isLoading: isLoadingRuns } = useDagRunServiceGetDagRuns(
+    {
+      dagId: dagId ?? "",
+      limit: 14,
+      orderBy: "-run_after",
+    },
+    undefined,
+    {
+      refetchInterval: (query) =>
+        query.state.data?.dag_runs.some((run) => isStatePending(run.state)) ? refetchInterval : false,
+    },
+  );
 
   return (
     <Box m={4}>
@@ -67,7 +77,7 @@ export const Overview = () => {
           startDate={startDate}
         />
       </Box>
-      <HStack>
+      <HStack flexWrap="wrap">
         <TrendCountButton
           colorPalette="failed"
           count={failedTasks?.total_entries ?? 0}
@@ -100,7 +110,7 @@ export const Overview = () => {
         />
       </HStack>
       <SimpleGrid columns={3} gap={5} my={5}>
-        <Box borderRadius={4} borderStyle="solid" borderWidth={1} p={2}>
+        <Box borderRadius={4} borderStyle="solid" borderWidth={1} p={2} width="350px">
           {isLoadingRuns ? (
             <Skeleton height="200px" w="full" />
           ) : (

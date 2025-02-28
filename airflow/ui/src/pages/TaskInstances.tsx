@@ -1,3 +1,5 @@
+/* eslint-disable max-lines */
+
 /*!
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
@@ -100,7 +102,16 @@ const taskInstanceColumns = (
   },
   {
     accessorKey: "start_date",
-    cell: ({ row: { original } }) => <Time datetime={original.start_date} />,
+    cell: ({ row: { original } }) =>
+      Boolean(taskId) && Boolean(runId) ? (
+        <Link asChild color="fg.info" fontWeight="bold">
+          <RouterLink to={getTaskInstanceLink(original)}>
+            <Time datetime={original.start_date} />
+          </RouterLink>
+        </Link>
+      ) : (
+        <Time datetime={original.start_date} />
+      ),
     header: "Start Date",
   },
   {

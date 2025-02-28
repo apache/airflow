@@ -176,10 +176,9 @@ include = [
     "/airflow/git_version"
 ]
 exclude = [
-    "/airflow/www/node_modules/"
+    "/airflow/ui/node_modules/"
 ]
 artifacts = [
-    "/airflow/www/static/dist/",
     "/airflow/ui/dist/",
     "/airflow/git_version",
     "/generated/",
@@ -190,7 +189,6 @@ include = [
     "/airflow",
 ]
 artifacts = [
-    "/airflow/www/static/dist/",
     "/airflow/ui/dist/",
     "/airflow/git_version"
 ]
@@ -570,7 +568,6 @@ omit = [
     "airflow/contrib/**",
     "airflow/example_dags/**",
     "airflow/migrations/**",
-    "airflow/www/node_modules/**",
     "providers/google/src/airflow/providers/**/example_dags/**",
     "providers/google/src/airflow/providers/google/ads/_vendor/**",
 ]
