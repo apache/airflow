@@ -389,6 +389,7 @@ class TestFlowerCommand:
 
 
 @patch("airflow.providers.celery.cli.celery_command.Process")
+@pytest.mark.skipif(not AIRFLOW_V_3_0_PLUS, reason="Doesn't apply to pre-3.0")
 def test_stale_bundle_cleanup(mock_process):
     mock_process.__bool__.return_value = True
     with _run_stale_bundle_cleanup():
