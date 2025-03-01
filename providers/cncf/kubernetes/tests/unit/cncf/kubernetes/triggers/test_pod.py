@@ -18,6 +18,7 @@
 from __future__ import annotations
 
 import asyncio
+import contextlib
 import datetime
 import logging
 from asyncio import Future
@@ -424,9 +425,10 @@ class TestKubernetesPodTrigger:
         side_effects = [Exception("Test exception") for _ in range(exc_count)] + [MagicMock()]
 
         mock_hook.get_pod.side_effect = mock.AsyncMock(side_effect=side_effects)
-        if exc_count > 2:
-            with pytest.raises(Exception, match="Test exception"):
-                await trigger._get_pod()
-        else:
+        # We expect the exception to be raised only if the number of retries is exceeded
+        context = (
+            pytest.raises(Exception, match="Test exception") if exc_count > 2 else contextlib.nullcontext()
+        )
+        with context:
             await trigger._get_pod()
         assert mock_hook.get_pod.call_count == call_count
