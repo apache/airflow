@@ -3030,6 +3030,8 @@ paths:
       summary: List Dag Warnings
       description: Get a list of DAG warnings.
       operationId: list_dag_warnings
+      security:
+      - OAuth2PasswordBearer: []
       parameters:
       - name: dag_id
         in: query
