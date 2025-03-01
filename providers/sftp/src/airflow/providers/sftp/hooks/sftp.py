@@ -148,6 +148,10 @@ class SFTPHook(SSHHook):
                 self._ssh_conn.close()
                 self._ssh_conn = None
 
+    def get_conn_count(self) -> int:
+        """Get the number of open connections."""
+        return self._conn_count
+
     def describe_directory(self, path: str) -> dict[str, dict[str, str | int | None]]:
         """
         Get file information in a directory on the remote system.
