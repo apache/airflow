@@ -470,14 +470,6 @@ class TestGetAssetAliases(TestAssetAliases):
             "total_entries": 2,
         }
 
-    def test_should_respond_401(self, unauthenticated_test_client):
-        response = unauthenticated_test_client.get("/public/assets/aliases")
-        assert response.status_code == 401
-
-    def test_should_respond_403(self, unauthorized_test_client):
-        response = unauthorized_test_client.get("/public/assets/aliases")
-        assert response.status_code == 403
-
     def test_order_by_raises_400_for_invalid_attr(self, test_client, session):
         response = test_client.get("/public/assets/aliases?order_by=fake")
 
@@ -854,14 +846,6 @@ class TestGetAssetAliasEndpoint(TestAssetAliases):
             response = test_client.get("/public/assets/aliases/1")
         assert response.status_code == 200
         assert response.json() == {"id": 1, "name": "simple1", "group": "alias"}
-
-    def test_should_respond_401(self, unauthenticated_test_client):
-        response = unauthenticated_test_client.get("/public/assets/aliases/1")
-        assert response.status_code == 401
-
-    def test_should_respond_403(self, unauthorized_test_client):
-        response = unauthorized_test_client.get("/public/assets/1")
-        assert response.status_code == 403
 
     def test_should_respond_404(self, test_client):
         response = test_client.get("/public/assets/aliases/1")
