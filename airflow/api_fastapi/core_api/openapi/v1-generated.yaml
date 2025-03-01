@@ -2023,12 +2023,16 @@ paths:
       - DagRun
       summary: Get Dag Run
       operationId: get_dag_run
+      security:
+      - OAuth2PasswordBearer: []
       parameters:
       - name: dag_id
         in: path
         required: true
         schema:
-          type: string
+          anyOf:
+          - type: string
+          - type: 'null'
           title: Dag Id
       - name: dag_run_id
         in: path
@@ -2073,12 +2077,16 @@ paths:
       summary: Delete Dag Run
       description: Delete a DAG Run entry.
       operationId: delete_dag_run
+      security:
+      - OAuth2PasswordBearer: []
       parameters:
       - name: dag_id
         in: path
         required: true
         schema:
-          type: string
+          anyOf:
+          - type: string
+          - type: 'null'
           title: Dag Id
       - name: dag_run_id
         in: path
@@ -2125,12 +2133,16 @@ paths:
       summary: Patch Dag Run
       description: Modify a DAG Run.
       operationId: patch_dag_run
+      security:
+      - OAuth2PasswordBearer: []
       parameters:
       - name: dag_id
         in: path
         required: true
         schema:
-          type: string
+          anyOf:
+          - type: string
+          - type: 'null'
           title: Dag Id
       - name: dag_run_id
         in: path
@@ -2199,12 +2211,16 @@ paths:
       description: If dag run is asset-triggered, return the asset events that triggered
         it.
       operationId: get_upstream_asset_events
+      security:
+      - OAuth2PasswordBearer: []
       parameters:
       - name: dag_id
         in: path
         required: true
         schema:
-          type: string
+          anyOf:
+          - type: string
+          - type: 'null'
           title: Dag Id
       - name: dag_run_id
         in: path
@@ -2249,12 +2265,16 @@ paths:
       - DagRun
       summary: Clear Dag Run
       operationId: clear_dag_run
+      security:
+      - OAuth2PasswordBearer: []
       parameters:
       - name: dag_id
         in: path
         required: true
         schema:
-          type: string
+          anyOf:
+          - type: string
+          - type: 'null'
           title: Dag Id
       - name: dag_run_id
         in: path
@@ -2313,12 +2333,16 @@ paths:
         This endpoint allows specifying `~` as the dag_id to retrieve Dag Runs for
         all DAGs.'
       operationId: get_dag_runs
+      security:
+      - OAuth2PasswordBearer: []
       parameters:
       - name: dag_id
         in: path
         required: true
         schema:
-          type: string
+          anyOf:
+          - type: string
+          - type: 'null'
           title: Dag Id
       - name: limit
         in: query
@@ -2478,11 +2502,16 @@ paths:
       summary: Trigger Dag Run
       description: Trigger a DAG.
       operationId: trigger_dag_run
+      security:
+      - OAuth2PasswordBearer: []
       parameters:
       - name: dag_id
         in: path
         required: true
         schema:
+          anyOf:
+          - type: string
+          - type: 'null'
           title: Dag Id
       requestBody:
         required: true
@@ -2540,13 +2569,16 @@ paths:
       summary: Get List Dag Runs Batch
       description: Get a list of DAG Runs.
       operationId: get_list_dag_runs_batch
+      security:
+      - OAuth2PasswordBearer: []
       parameters:
       - name: dag_id
         in: path
         required: true
         schema:
-          const: '~'
-          type: string
+          anyOf:
+          - type: string
+          - type: 'null'
           title: Dag Id
       requestBody:
         required: true
@@ -11306,3 +11338,10 @@ components:
       - value
       title: XComUpdateBody
       description: Payload serializer for updating an XCom entry.
+  securitySchemes:
+    OAuth2PasswordBearer:
+      type: oauth2
+      flows:
+        password:
+          scopes: {}
+          tokenUrl: token
