@@ -16,18 +16,16 @@
 # under the License.
 from __future__ import annotations
 
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
-from airflow.api.common.airflow_health import get_airflow_health
-from airflow.api_connexion.schemas.health_schema import health_schema
-from airflow.utils.api_migration import mark_fastapi_migration_done
+from flask import Flask
 
 if TYPE_CHECKING:
-    from airflow.api_connexion.types import APIResponse
+    from airflow.models.dagbag import DagBag
 
 
-@mark_fastapi_migration_done
-def get_health() -> APIResponse:
-    """Return the health of the airflow scheduler, metadatabase and triggerer."""
-    airflow_health_status = get_airflow_health()
-    return health_schema.dump(airflow_health_status)
+class AirflowApp(Flask):
+    """Airflow Flask Application."""
+
+    dag_bag: DagBag
+    api_auth: list[Any]
