@@ -33,6 +33,7 @@ from unittest.mock import MagicMock, patch
 import httpx
 import psutil
 import pytest
+import tenacity
 from pytest_unordered import unordered
 from uuid6 import uuid7
 
@@ -74,6 +75,7 @@ from task_sdk.tests.execution_time.test_task_runner import FAKE_BUNDLE
 if TYPE_CHECKING:
     import kgb
 
+log = logging.getLogger(__name__)
 TI_ID = uuid7()
 
 
@@ -666,7 +668,12 @@ class TestListenerOvertime:
             ),
         ],
     )
-    @pytest.mark.flaky(reruns=5)
+    @tenacity.retry(
+        stop=tenacity.stop_after_attempt(5),
+        retry=tenacity.retry_if_exception_type(AssertionError),
+        before=tenacity.before_log(log, logging.WARNING),
+        after=tenacity.after_log(log, logging.WARNING),
+    )
     def test_overtime_slow_listener_instance(
         self,
         dag_id,
@@ -680,8 +687,6 @@ class TestListenerOvertime:
     ):
         """Test handling of overtime under various conditions."""
         monkeypatch.setattr(ActivitySubprocess, "TASK_OVERTIME_THRESHOLD", overtime_threshold)
-
-        """Test running a simple DAG in a subprocess and capturing the output."""
 
         get_listener_manager().add_listener(listener)
         dagfile_path = test_dags_dir
