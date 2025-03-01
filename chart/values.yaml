@@ -1262,6 +1262,7 @@ apiServer:
   command: ~
   # Args to use when running the Airflow API server (templated).
   args: ["bash", "-c", "exec airflow api-server"]
+  allowPodLogReading: true
   env: []
   serviceAccount:
     # default value is true

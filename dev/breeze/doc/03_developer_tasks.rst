@@ -152,6 +152,7 @@ database client:
 You can change the used host port numbers by setting appropriate environment variables:
 
 * ``SSH_PORT``
+* ``WEBSERVER_HOST_PORT`` - for Airflow 2 web UI when --use-airflow-version is used
 * ``API_SERVER_HOST_PORT``
 * ``POSTGRES_HOST_PORT``
 * ``MYSQL_HOST_PORT``
@@ -451,13 +452,13 @@ These are all available flags of ``cleanup`` command:
   :width: 100%
   :alt: Breeze cleanup
 
-Database volumes in Breeze
---------------------------
+Database and config volumes in Breeze
+-------------------------------------
 
-Breeze keeps data for all it's integration in named docker volumes. Each backend and integration
-keeps data in their own volume. Those volumes are persisted until ``breeze down`` command.
-You can also preserve the volumes by adding flag ``--preserve-volumes`` when you run the command.
-Then, next time when you start Breeze, it will have the data pre-populated.
+Breeze keeps data for all it's integration, database, configuration in named docker volumes.
+Those volumes are persisted until ``breeze down`` command. You can also preserve the volumes by adding
+flag ``--preserve-volumes`` when you run the command. Then, next time when you start Breeze,
+it will have the data pre-populated.
 
 These are all available flags of ``down`` command:
 

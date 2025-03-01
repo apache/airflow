@@ -25,8 +25,8 @@ from connexion.decorators.validation import RequestBodyValidator
 from connexion.exceptions import BadRequestProblem, ProblemException
 from flask import request
 
-from airflow.api_connexion.exceptions import common_error_handler
 from airflow.api_fastapi.app import get_auth_manager
+from airflow.providers.fab.www.api_connexion.exceptions import common_error_handler
 
 if TYPE_CHECKING:
     from flask import Flask
