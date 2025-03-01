@@ -27,6 +27,49 @@
 Changelog
 ---------
 
+12.2.0
+......
+
+.. note::
+  This version has no code changes. It's released due to yank of previous version due to packaging issues.
+
+12.1.0
+......
+
+Features
+~~~~~~~~
+
+* ``Added support for certificate authentication with MSGraphAsyncOperator (#45935)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``fix: 'KiotaRequestAdapterHook' make sure proxy config parameter is parsed correctly, even if it is a string or json (#46145)``
+* ``fix: retry of PowerBIDatasetRefreshOperator when dataset refresh wasn't directly available (#45513)``
+* ``fix: compat issue HTTPX proxy configuration in KiotaRequestAdapterHook and fixed retry in MSGraphSensor (#45746)``
+* ``fix: assignment of proxies parameter in KiotaRequestAdapterHook (#45741)``
+* ``fix: Updated instantiated of httpx AsyncClient as the proxies parameter is deprecated and mounts parameter should be used instead (#45464)``
+* ``fix: return type for azure hook 'run_query' (#45470)``
+
+Misc
+~~~~
+
+* ``Refactor result_processor and event_handler signatures in MSGraphAsyncOperator (#46637)``
+* ``AIP-72: Improving Operator Links Interface to Prevent User Code Execution in Webserver (#46613)``
+* ``AIP-83 amendment: Add logic for generating run_id when logical date is None. (#46616)``
+* ``Add dynamic task mapping into TaskSDK runtime (#46032)``
+* ``Move update subscription from 'AzureServiceBusTopicCreateOperator' to 'AdminClientHook' (#45367)``
+* ``Move create topic from 'AzureServiceBusTopicCreateOperator' to 'AdminClientHook' (#45297)``
+* ``Refactor Azure Service Bus: move create_subscription to hook (#45125)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Avoid imports from "providers" (#46801)``
+   * ``Move provider_tests to unit folder in provider tests (#46800)``
+   * ``Removed the unused provider's distribution (#46608)``
+   * ``Migrate Amazon provider package (#46590)``
+   * ``Provider moving/microsoft azure (#46254)``
+
 12.0.0
 ......
 

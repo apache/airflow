@@ -158,8 +158,8 @@ class FabAuthManager(BaseAuthManager[User]):
             self._sync_appbuilder_roles()
 
     @cached_property
-    def fastapi_endpoint(self) -> str:
-        return conf.get("fastapi", "base_url")
+    def apiserver_endpoint(self) -> str:
+        return conf.get("api", "base_url")
 
     @staticmethod
     def get_cli_commands() -> list[CLICommand]:
@@ -185,20 +185,14 @@ class FabAuthManager(BaseAuthManager[User]):
         return commands
 
     def get_fastapi_app(self) -> FastAPI | None:
-        flask_blueprint = self.get_api_endpoints()
-
-        if not flask_blueprint:
-            return None
-
         flask_app = create_app(enable_plugins=False)
-        flask_app.register_blueprint(flask_blueprint)
 
         app = FastAPI(
             title="FAB auth manager API",
             description=(
                 "This is FAB auth manager API. This API is only available if the auth manager used in "
                 "the Airflow environment is FAB auth manager. "
-                "This API provides endpoints to manager users and permissions managed by the FAB auth "
+                "This API provides endpoints to manage users and permissions managed by the FAB auth "
                 "manager."
             ),
         )
@@ -461,7 +455,7 @@ class FabAuthManager(BaseAuthManager[User]):
             else:
                 return url_for(f"{self.security_manager.auth_view.endpoint}.login")
         else:
-            return f"{self.fastapi_endpoint}/auth/login"
+            return f"{self.apiserver_endpoint}/auth/login"
 
     def get_url_logout(self):
         """Return the logout page url."""

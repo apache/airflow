@@ -23,11 +23,11 @@ from collections.abc import Sequence
 from functools import cached_property
 from typing import TYPE_CHECKING, Any
 
+from google.oauth2.credentials import Credentials
 from googleapiclient.discovery import build
 
 from airflow.exceptions import AirflowException
 from airflow.providers.google.common.hooks.base_google import GoogleBaseHook
-from google.oauth2.credentials import Credentials
 
 if TYPE_CHECKING:
     from googleapiclient.discovery import Resource

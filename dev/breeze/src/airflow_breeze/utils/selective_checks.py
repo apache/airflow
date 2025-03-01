@@ -66,10 +66,7 @@ from airflow_breeze.utils.packages import get_available_packages
 from airflow_breeze.utils.path_utils import (
     AIRFLOW_PROVIDERS_DIR,
     AIRFLOW_SOURCES_ROOT,
-    DOCS_DIR,
-    OLD_AIRFLOW_PROVIDERS_NS_PACKAGE,
-    OLD_SYSTEM_TESTS_PROVIDERS_ROOT,
-    OLD_TESTS_PROVIDERS_ROOT,
+    AIRFLOW_TEST_COMMON_DIR,
 )
 from airflow_breeze.utils.provider_dependencies import DEPENDENCIES, get_related_providers
 from airflow_breeze.utils.run_utils import run_command
@@ -90,7 +87,7 @@ UPGRADE_TO_NEWER_DEPENDENCIES_LABEL = "upgrade to newer dependencies"
 USE_PUBLIC_RUNNERS_LABEL = "use public runners"
 USE_SELF_HOSTED_RUNNERS_LABEL = "use self-hosted runners"
 
-ALL_CI_SELECTIVE_TEST_TYPES = "API Always CLI Core Operators Other Serialization WWW"
+ALL_CI_SELECTIVE_TEST_TYPES = "API Always CLI Core Operators Other Serialization"
 
 ALL_PROVIDERS_SELECTIVE_TEST_TYPES = (
     "Providers[-amazon,google,standard] Providers[amazon] Providers[google] Providers[standard]"
@@ -109,7 +106,6 @@ class FileGroupForCi(Enum):
     DEPENDENCY_FILES = "dependency_files"
     DOC_FILES = "doc_files"
     UI_FILES = "ui_files"
-    LEGACY_WWW_FILES = "legacy_www_files"
     SYSTEM_TEST_FILES = "system_tests"
     KUBERNETES_FILES = "kubernetes_files"
     TASK_SDK_FILES = "task_sdk_files"
@@ -189,8 +185,8 @@ CI_FILE_GROUP_MATCHES = HashableDict(
             r"^\.github/SECURITY\.rst$",
             r"^airflow/.*\.py$",
             r"^chart",
-            r"^providers/src/",
             r"^providers/.*/src/",
+            r"^providers/.*/docs/",
             r"^task_sdk/src/",
             r"^tests/system",
             r"^CHANGELOG\.txt",
@@ -200,18 +196,9 @@ CI_FILE_GROUP_MATCHES = HashableDict(
             r"^chart/values\.json",
         ],
         FileGroupForCi.UI_FILES: [r"^airflow/ui/", r"^airflow/auth/managers/simple/ui/"],
-        FileGroupForCi.LEGACY_WWW_FILES: [
-            r"^airflow/www/.*\.ts[x]?$",
-            r"^airflow/www/.*\.js[x]?$",
-            r"^airflow/www/[^/]+\.json$",
-            r"^airflow/www/.*\.lock$",
-        ],
         FileGroupForCi.KUBERNETES_FILES: [
             r"^chart",
             r"^kubernetes_tests",
-            r"^providers/src/airflow/providers/cncf/kubernetes/",
-            r"^providers/tests/cncf/kubernetes/",
-            r"^providers/tests/system/cncf/kubernetes/",
             r"^providers/cncf/kubernetes/",
         ],
         FileGroupForCi.ALL_PYTHON_FILES: [
@@ -273,11 +260,9 @@ CI_FILE_GROUP_EXCLUDES = HashableDict(
         FileGroupForCi.ALL_AIRFLOW_PYTHON_FILES: [
             r"^.*/.*_vendor/.*",
             r"^airflow/migrations/.*",
-            r"^providers/src/airflow/providers/.*",
             r"^providers/.*/src/airflow/providers/.*",
             r"^dev/.*",
             r"^docs/.*",
-            r"^providers/tests/.*",
             r"^providers/.*/tests/.*",
             r"^tests/dags/test_imports.py",
             r"^task_sdk/src/airflow/sdk/.*\.py$",
@@ -287,7 +272,6 @@ CI_FILE_GROUP_EXCLUDES = HashableDict(
 )
 
 PYTHON_OPERATOR_FILES = [
-    r"^providers/src/providers/standard/operators/python.py",
     r"^providers/tests/standard/operators/test_python.py",
 ]
 
@@ -310,8 +294,6 @@ TEST_TYPE_MATCHES = HashableDict(
             r"^tests/operators/",
         ],
         SelectiveProvidersTestType.PROVIDERS: [
-            r"^providers/src/airflow/providers/",
-            r"^providers/tests/",
             r"^providers/.*/src/airflow/providers/",
             r"^providers/.*/tests/",
         ],
@@ -323,7 +305,6 @@ TEST_TYPE_MATCHES = HashableDict(
             r"^airflow/serialization/",
             r"^tests/serialization/",
         ],
-        SelectiveCoreTestType.WWW: [r"^airflow/www", r"^tests/www"],
     }
 )
 
@@ -332,48 +313,27 @@ TEST_TYPE_EXCLUDES = HashableDict({})
 
 def find_provider_affected(changed_file: str, include_docs: bool) -> str | None:
     file_path = AIRFLOW_SOURCES_ROOT / changed_file
-    # Check providers in SRC/SYSTEM_TESTS/TESTS/(optionally) DOCS
-    # TODO(potiuk) - this should be removed once we have all providers in the new structure (OLD + docs)
-    for provider_root in (
-        OLD_SYSTEM_TESTS_PROVIDERS_ROOT,
-        OLD_TESTS_PROVIDERS_ROOT,
-        OLD_AIRFLOW_PROVIDERS_NS_PACKAGE,
-        AIRFLOW_PROVIDERS_DIR,
-    ):
-        if file_path.is_relative_to(provider_root):
-            provider_base_path = provider_root
-            break
-    else:
-        if include_docs and file_path.is_relative_to(DOCS_DIR):
-            relative_path = file_path.relative_to(DOCS_DIR)
-            if relative_path.parts[0].startswith("apache-airflow-providers-"):
-                return relative_path.parts[0].replace("apache-airflow-providers-", "").replace("-", ".")
-        # This is neither providers nor provider docs files - not a provider change
-        return None
-
     if not include_docs:
         for parent_dir_path in file_path.parents:
             if parent_dir_path.name == "docs" and (parent_dir_path.parent / "provider.yaml").exists():
                 # Skip Docs changes if include_docs is not set
                 return None
-
     # Find if the path under src/system tests/tests belongs to provider or is a common code across
     # multiple providers
     for parent_dir_path in file_path.parents:
-        if parent_dir_path == provider_base_path:
+        if parent_dir_path == AIRFLOW_PROVIDERS_DIR:
             # We have not found any provider specific path up to the root of the provider base folder
             break
-        relative_path = parent_dir_path.relative_to(provider_base_path)
-        # check if this path belongs to a specific provider
-        # TODO(potiuk) - this should be removed once we have all providers in the new structure
-        if (OLD_AIRFLOW_PROVIDERS_NS_PACKAGE / relative_path / "provider.yaml").exists():
-            return str(parent_dir_path.relative_to(provider_base_path)).replace(os.sep, ".")
-        if (parent_dir_path / "provider.yaml").exists():
-            # new providers structure
-            return str(relative_path).replace(os.sep, ".")
-
-    # If we got here it means that some "common" files were modified. so we need to test all Providers
-    return "Providers"
+        if parent_dir_path.is_relative_to(AIRFLOW_PROVIDERS_DIR):
+            relative_path = parent_dir_path.relative_to(AIRFLOW_PROVIDERS_DIR)
+            # check if this path belongs to a specific provider
+            if (parent_dir_path / "provider.yaml").exists():
+                # new providers structure
+                return str(relative_path).replace(os.sep, ".")
+    if file_path.is_relative_to(AIRFLOW_TEST_COMMON_DIR):
+        # if tests_common changes, we want to run tests for all providers, as they might start failing
+        return "Providers"
+    return None
 
 
 def _match_files_with_regexps(files: tuple[str, ...], matched_files, matching_regexps):
@@ -740,10 +700,6 @@ class SelectiveChecks:
         return self._should_be_run(FileGroupForCi.UI_FILES)
 
     @cached_property
-    def run_www_tests(self) -> bool:
-        return self._should_be_run(FileGroupForCi.LEGACY_WWW_FILES)
-
-    @cached_property
     def run_amazon_tests(self) -> bool:
         if self.providers_test_types_list_as_string is None:
             return False
@@ -792,6 +748,7 @@ class SelectiveChecks:
             or self.run_kubernetes_tests
             or self.needs_helm_tests
             or self.pyproject_toml_changed
+            or self.any_provider_yaml_or_pyproject_toml_changed
         )
 
     @cached_property
@@ -1020,6 +977,17 @@ class SelectiveChecks:
         return "hatch_build.py" in self._files
 
     @cached_property
+    def any_provider_yaml_or_pyproject_toml_changed(self) -> bool:
+        if not self._commit_ref:
+            get_console().print("[warning]Cannot determine changes as commit is missing[/]")
+            return False
+        for file in self._files:
+            path_file = Path(file)
+            if path_file.name == "provider.yaml" or path_file.name == "pyproject.toml":
+                return True
+        return False
+
+    @cached_property
     def pyproject_toml_changed(self) -> bool:
         if not self._commit_ref:
             get_console().print("[warning]Cannot determine pyproject.toml changes as commit is missing[/]")
@@ -1173,10 +1141,6 @@ class SelectiveChecks:
             # when full tests are needed, we do not want to skip any checks and we should
             # run all the pre-commits just to be sure everything is ok when some structural changes occurred
             return ",".join(sorted(pre_commits_to_skip))
-        if not self._matching_files(
-            FileGroupForCi.LEGACY_WWW_FILES, CI_FILE_GROUP_MATCHES, CI_FILE_GROUP_EXCLUDES
-        ):
-            pre_commits_to_skip.add("ts-compile-format-lint-www")
         if not (
             self._matching_files(FileGroupForCi.UI_FILES, CI_FILE_GROUP_MATCHES, CI_FILE_GROUP_EXCLUDES)
             or self._matching_files(
@@ -1549,17 +1513,6 @@ class SelectiveChecks:
             get_console().print(
                 f"[error]Please ask maintainer to assign "
                 f"the '{LEGACY_API_LABEL}' label to the PR in order to continue"
-            )
-            sys.exit(1)
-        elif (
-            self._matching_files(
-                FileGroupForCi.LEGACY_WWW_FILES, CI_FILE_GROUP_MATCHES, CI_FILE_GROUP_EXCLUDES
-            )
-            and LEGACY_UI_LABEL not in self._pr_labels
-        ):
-            get_console().print(
-                f"[error]Please ask maintainer to assign "
-                f"the '{LEGACY_UI_LABEL}' label to the PR in order to continue"
             )
             sys.exit(1)
         else:

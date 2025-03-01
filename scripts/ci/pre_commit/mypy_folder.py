@@ -25,7 +25,7 @@ sys.path.insert(0, str(Path(__file__).parent.resolve()))
 
 from common_precommit_utils import (
     console,
-    get_all_new_provider_ids,
+    get_all_provider_ids,
     initialize_breeze_precommit,
     run_command_via_breeze_shell,
 )
@@ -35,13 +35,11 @@ initialize_breeze_precommit(__name__, __file__)
 
 ALLOWED_FOLDERS = [
     "airflow",
-    "providers/src/airflow/providers",
-    *[f"providers/{provider_id.replace('.', '/')}/src" for provider_id in get_all_new_provider_ids()],
+    *[f"providers/{provider_id.replace('.', '/')}/src" for provider_id in get_all_provider_ids()],
     "dev",
     "docs",
     "task_sdk/src/airflow/sdk",
-    # TODO(potiuk): rename it to "all_providers" when we move all providers to new structure
-    "all_new_providers",
+    "all_providers",
 ]
 
 if len(sys.argv) < 2:
@@ -62,14 +60,11 @@ arguments = mypy_folders.copy()
 namespace_packages = False
 
 for mypy_folder in mypy_folders:
-    if mypy_folder == "all_new_providers":
-        arguments.remove("all_new_providers")
-        for provider_id in get_all_new_provider_ids():
+    if mypy_folder == "all_providers":
+        arguments.remove("all_providers")
+        for provider_id in get_all_provider_ids():
             arguments.append(f"providers/{provider_id.replace('.', '/')}/src")
             arguments.append(f"providers/{provider_id.replace('.', '/')}/tests")
-        namespace_packages = True
-    if mypy_folder == "providers/src/airflow/providers":
-        arguments.append("providers/tests")
         namespace_packages = True
     elif mypy_folder.startswith("providers/"):
         arguments.append(f"{Path(mypy_folder).parent.as_posix()}/tests")

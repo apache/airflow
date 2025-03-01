@@ -32,7 +32,7 @@ Use the
 :class:`~airflow.providers.google.cloud.transfers.salesforce_to_gcs.SalesforceToGcsOperator`
 to execute a Salesforce query to fetch data and load it to GCS.
 
-.. exampleinclude:: /../../providers/google/src/airflow/providers/google/cloud/example_dags/example_salesforce_to_gcs.py
+.. exampleinclude:: /../../providers/google/tests/system/google/cloud/gcs/example_salesforce_to_gcs.py
     :language: python
     :start-after: [START howto_operator_salesforce_to_gcs]
     :end-before: [END howto_operator_salesforce_to_gcs]

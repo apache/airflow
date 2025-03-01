@@ -89,6 +89,9 @@ def upgrade():
         sa.Column("version_number", sa.Integer(), nullable=False),
         sa.Column("dag_id", StringID(), nullable=False),
         sa.Column("created_at", UtcDateTime(), nullable=False, default=timezone.utcnow),
+        sa.Column(
+            "last_updated", UtcDateTime(), nullable=False, default=timezone.utcnow, onupdate=timezone.utcnow
+        ),
         sa.ForeignKeyConstraint(
             ("dag_id",), ["dag.dag_id"], name=op.f("dag_version_dag_id_fkey"), ondelete="CASCADE"
         ),
@@ -115,6 +118,8 @@ def upgrade():
         batch_op.add_column(sa.Column("source_code_hash", sa.String(length=32), nullable=False))
         batch_op.drop_column("fileloc_hash")
         batch_op.add_column(sa.Column("dag_id", sa.String(length=250), nullable=False))
+        batch_op.add_column(sa.Column("created_at", UtcDateTime(), nullable=False, default=timezone.utcnow))
+        batch_op.alter_column("last_updated", nullable=False, onupdate=timezone.utcnow)
 
     with op.batch_alter_table(
         "serialized_dag",
@@ -137,7 +142,6 @@ def upgrade():
             ondelete="CASCADE",
         )
         batch_op.create_unique_constraint("serialized_dag_dag_version_id_uq", ["dag_version_id"])
-        batch_op.drop_column("last_updated")
         batch_op.add_column(sa.Column("created_at", UtcDateTime(), nullable=False, default=timezone.utcnow))
 
     with op.batch_alter_table("task_instance", schema=None) as batch_op:
@@ -154,14 +158,6 @@ def upgrade():
         batch_op.add_column(sa.Column("dag_version_id", UUIDType(binary=False)))
 
     with op.batch_alter_table("dag_run", schema=None) as batch_op:
-        batch_op.add_column(sa.Column("dag_version_id", UUIDType(binary=False)))
-        batch_op.create_foreign_key(
-            batch_op.f("dag_run_dag_version_id_fkey"),
-            "dag_version",
-            ["dag_version_id"],
-            ["id"],
-            ondelete="CASCADE",
-        )
         batch_op.drop_column("dag_hash")
 
 
@@ -185,6 +181,7 @@ def downgrade():
         batch_op.create_primary_key("dag_code_pkey", ["fileloc_hash"])
         batch_op.drop_column("source_code_hash")
         batch_op.drop_column("dag_id")
+        batch_op.drop_column("created_at")
 
     with op.batch_alter_table("serialized_dag", schema=None, naming_convention=naming_convention) as batch_op:
         batch_op.drop_column("id")
@@ -195,11 +192,8 @@ def downgrade():
         batch_op.drop_constraint(batch_op.f("serialized_dag_dag_version_id_fkey"), type_="foreignkey")
         batch_op.drop_column("dag_version_id")
         batch_op.drop_column("created_at")
-        batch_op.add_column(sa.Column("last_updated", UtcDateTime(), nullable=False))
 
     with op.batch_alter_table("dag_run", schema=None) as batch_op:
         batch_op.add_column(sa.Column("dag_hash", sa.String(length=32), autoincrement=False, nullable=True))
-        batch_op.drop_constraint(batch_op.f("dag_run_dag_version_id_fkey"), type_="foreignkey")
-        batch_op.drop_column("dag_version_id")
 
     op.drop_table("dag_version")

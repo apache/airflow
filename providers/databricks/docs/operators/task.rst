@@ -44,10 +44,3 @@ Running a SQL query in Databricks using DatabricksTaskOperator
     :language: python
     :start-after: [START howto_operator_databricks_task_sql]
     :end-before: [END howto_operator_databricks_task_sql]
-
-Running a python file in Databricks in using DatabricksTaskOperator
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-.. exampleinclude:: /../../providers/databricks/tests/system/databricks/example_databricks.py
-    :language: python
-    :start-after: [START howto_operator_databricks_task_python]
-    :end-before: [END howto_operator_databricks_task_python]

@@ -63,11 +63,11 @@ class DAGRunSchema(SQLAlchemySchema):
 
     run_id = auto_field(data_key="dag_run_id")
     dag_id = auto_field(dump_only=True)
-    logical_date = auto_field(data_key="logical_date", validate=validate_istimezone)
+    logical_date = auto_field(data_key="logical_date", allow_none=True, validate=validate_istimezone)
+    run_after = auto_field(data_key="run_after", validate=validate_istimezone)
     start_date = auto_field(dump_only=True)
     end_date = auto_field(dump_only=True)
     state = DagStateField(dump_only=True)
-    external_trigger = auto_field(dump_default=True, dump_only=True)
     conf = ConfObject()
     data_interval_start = auto_field(validate=validate_istimezone)
     data_interval_end = auto_field(validate=validate_istimezone)
@@ -78,17 +78,23 @@ class DAGRunSchema(SQLAlchemySchema):
 
     @pre_load
     def autogenerate(self, data, **kwargs):
-        """Auto generate run_id and logical_date if they are not provided."""
-        logical_date = data.get("logical_date", _MISSING)
+        """Auto generate run_id and run_after if they are not provided."""
+        run_after = data.get("run_after", _MISSING)
 
-        # Auto-generate logical_date if missing
-        if logical_date is _MISSING:
-            data["logical_date"] = str(timezone.utcnow())
+        # Auto-generate run_after if missing
+        if run_after is _MISSING:
+            data["run_after"] = str(timezone.utcnow())
 
         if "dag_run_id" not in data:
             try:
+                if logical_date_str := data.get("logical_date"):
+                    logical_date = timezone.parse(logical_date_str)
+                else:
+                    logical_date = None
                 data["dag_run_id"] = DagRun.generate_run_id(
-                    DagRunType.MANUAL, timezone.parse(data["logical_date"])
+                    run_type=DagRunType.MANUAL,
+                    logical_date=logical_date,
+                    run_after=timezone.parse(data["run_after"]),
                 )
             except (ParserError, TypeError) as err:
                 raise BadRequest("Incorrect datetime argument", detail=str(err))

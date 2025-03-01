@@ -16,18 +16,19 @@
 # under the License.
 from __future__ import annotations
 
+import json
 import logging
 import os
 import platform
 import signal
 import sys
-from dataclasses import dataclass
+from dataclasses import asdict
 from datetime import datetime
 from http import HTTPStatus
 from multiprocessing import Process
 from pathlib import Path
 from subprocess import Popen
-from time import sleep
+from time import sleep, time
 from typing import TYPE_CHECKING
 
 import psutil
@@ -46,6 +47,7 @@ from airflow.providers.edge.cli.api_client import (
     worker_register,
     worker_set_state,
 )
+from airflow.providers.edge.cli.dataclasses import Job, MaintenanceMarker, WorkerStatus
 from airflow.providers.edge.models.edge_worker import EdgeWorkerState, EdgeWorkerVersionException
 from airflow.providers.edge.version_compat import AIRFLOW_V_3_0_PLUS
 from airflow.utils import cli as cli_utils, timezone
@@ -100,8 +102,34 @@ def _hostname() -> str:
         return os.uname()[1]
 
 
+def _status_signal() -> signal.Signals:
+    if IS_WINDOWS:
+        return signal.SIGBREAK  # type: ignore[attr-defined]
+    else:
+        return signal.SIGUSR2
+
+
+SIG_STATUS = _status_signal()
+
+
 def _pid_file_path(pid_file: str | None) -> str:
     return cli_utils.setup_locations(process=EDGE_WORKER_PROCESS_NAME, pid=pid_file)[0]
+
+
+def _get_pid(pid_file: str | None) -> int:
+    pid = read_pid_from_pidfile(_pid_file_path(pid_file))
+    if not pid:
+        logger.warning("Could not find PID of worker.")
+        sys.exit(1)
+    return pid
+
+
+def _status_file_path(pid_file: str | None) -> str:
+    return cli_utils.setup_locations(process=EDGE_WORKER_PROCESS_NAME, pid=pid_file)[1]
+
+
+def _maintenance_marker_file_path(pid_file: str | None) -> str:
+    return cli_utils.setup_locations(process=EDGE_WORKER_PROCESS_NAME, pid=pid_file)[1][:-4] + ".in"
 
 
 def _write_pid_to_pidfile(pid_file_path: str):
@@ -122,42 +150,16 @@ def _write_pid_to_pidfile(pid_file_path: str):
                 )
             else:
                 # case 2: previous instance crashed without cleaning up its PID file
-                logger.info("PID file is orphaned. Cleaning up.")
+                logger.warning("PID file is orphaned. Cleaning up.")
                 remove_existing_pidfile(pid_file_path)
     logger.debug("PID file written to %s.", pid_file_path)
     write_pid_to_pidfile(pid_file_path)
 
 
-@dataclass
-class _Job:
-    """Holds all information for a task/job to be executed as bundle."""
-
-    edge_job: EdgeJobFetched
-    process: Popen | Process
-    logfile: Path
-    logsize: int
-    """Last size of log file, point of last chunk push."""
-
-    @property
-    def is_running(self) -> bool:
-        """Check if the job is still running."""
-        if isinstance(self.process, Popen):
-            self.process.poll()
-            return self.process.returncode is None
-        return self.process.exitcode is None
-
-    @property
-    def is_success(self) -> bool:
-        """Check if the job was successful."""
-        if isinstance(self.process, Popen):
-            return self.process.returncode == 0
-        return self.process.exitcode == 0
-
-
 class _EdgeWorkerCli:
     """Runner instance which executes the Edge Worker."""
 
-    jobs: list[_Job] = []
+    jobs: list[Job] = []
     """List of jobs that the worker is running currently."""
     last_hb: datetime | None = None
     """Timestamp of last heart beat sent to server."""
@@ -165,6 +167,11 @@ class _EdgeWorkerCli:
     """Flag if job processing should be completed and no new jobs fetched for a graceful stop/shutdown."""
     maintenance_mode: bool = False
     """Flag if job processing should be completed and no new jobs fetched for maintenance mode. """
+    maintenance_comments: str | None = None
+    """Comments for maintenance mode."""
+
+    edge_instance: _EdgeWorkerCli | None = None
+    """Singleton instance of the worker."""
 
     def __init__(
         self,
@@ -183,14 +190,43 @@ class _EdgeWorkerCli:
         self.concurrency = concurrency
         self.free_concurrency = concurrency
 
+        _EdgeWorkerCli.edge_instance = self
+
     @staticmethod
-    def signal_handler(sig, frame):
-        logger.info("Request to shut down Edge Worker received, waiting for jobs to complete.")
-        _EdgeWorkerCli.drain = True
+    def signal_handler(sig: signal.Signals, frame):
+        if sig == SIG_STATUS:
+            marker_path = Path(_maintenance_marker_file_path(None))
+            if marker_path.exists():
+                request = MaintenanceMarker.from_json(marker_path.read_text())
+                logger.info("Requested to set maintenance mode to %s", request.maintenance)
+                _EdgeWorkerCli.maintenance_mode = request.maintenance == "on"
+                if _EdgeWorkerCli.maintenance_mode and request.comments:
+                    logger.info("Comments: %s", request.comments)
+                    _EdgeWorkerCli.maintenance_comments = request.comments
+                marker_path.unlink()
+                # send heartbeat immediately to update state
+                if _EdgeWorkerCli.edge_instance:
+                    _EdgeWorkerCli.edge_instance.heartbeat(_EdgeWorkerCli.maintenance_comments)
+            else:
+                logger.info("Request to get status of Edge Worker received.")
+            status_path = Path(_status_file_path(None))
+            status_path.write_text(
+                WorkerStatus(
+                    job_count=len(_EdgeWorkerCli.jobs),
+                    jobs=[job.edge_job.key for job in _EdgeWorkerCli.jobs],
+                    state=_EdgeWorkerCli._get_state(),
+                    maintenance=_EdgeWorkerCli.maintenance_mode,
+                    maintenance_comments=_EdgeWorkerCli.maintenance_comments,
+                    drain=_EdgeWorkerCli.drain,
+                ).json
+            )
+        else:
+            logger.info("Request to shut down Edge Worker received, waiting for jobs to complete.")
+            _EdgeWorkerCli.drain = True
 
     def shutdown_handler(self, sig, frame):
         logger.info("SIGTERM received. Terminating all jobs and quit")
-        for job in self.jobs:
+        for job in _EdgeWorkerCli.jobs:
             os.killpg(job.process.pid, signal.SIGTERM)
         _EdgeWorkerCli.drain = True
 
@@ -202,6 +238,25 @@ class _EdgeWorkerCli:
             "concurrency": self.concurrency,
             "free_concurrency": self.free_concurrency,
         }
+
+    @staticmethod
+    def _get_state() -> EdgeWorkerState:
+        """State of the Edge Worker."""
+        if _EdgeWorkerCli.jobs:
+            if _EdgeWorkerCli.drain:
+                return EdgeWorkerState.TERMINATING
+            if _EdgeWorkerCli.maintenance_mode:
+                return EdgeWorkerState.MAINTENANCE_PENDING
+            return EdgeWorkerState.RUNNING
+
+        if _EdgeWorkerCli.drain:
+            if _EdgeWorkerCli.maintenance_mode:
+                return EdgeWorkerState.OFFLINE_MAINTENANCE
+            return EdgeWorkerState.OFFLINE
+
+        if _EdgeWorkerCli.maintenance_mode:
+            return EdgeWorkerState.MAINTENANCE_MODE
+        return EdgeWorkerState.IDLE
 
     def _launch_job_af3(self, edge_job: EdgeJobFetched) -> tuple[Process, Path]:
         if TYPE_CHECKING:
@@ -228,9 +283,7 @@ class _EdgeWorkerCli:
                     dag_rel_path=workload.dag_rel_path,
                     bundle_info=workload.bundle_info,
                     token=workload.token,
-                    server=conf.get(
-                        "workers", "execution_api_server_url", fallback="http://localhost:9091/execution/"
-                    ),
+                    server=conf.get("core", "execution_api_server_url"),
                     log_path=workload.log_path,
                 )
                 return 0
@@ -269,7 +322,7 @@ class _EdgeWorkerCli:
         else:
             # Airflow 2.10
             process, logfile = self._launch_job_af2_10(edge_job)
-        self.jobs.append(_Job(edge_job, process, logfile, 0))
+        _EdgeWorkerCli.jobs.append(Job(edge_job, process, logfile, 0))
 
     def start(self):
         """Start the execution in a loop until terminated."""
@@ -286,11 +339,12 @@ class _EdgeWorkerCli:
             raise SystemExit(str(e))
         _write_pid_to_pidfile(self.pid_file_path)
         signal.signal(signal.SIGINT, _EdgeWorkerCli.signal_handler)
+        signal.signal(SIG_STATUS, _EdgeWorkerCli.signal_handler)
         signal.signal(signal.SIGTERM, self.shutdown_handler)
         try:
             self.worker_state_changed = self.heartbeat()
             self.last_hb = datetime.now()
-            while not _EdgeWorkerCli.drain or self.jobs:
+            while not _EdgeWorkerCli.drain or _EdgeWorkerCli.jobs:
                 self.loop()
 
             logger.info("Quitting worker, signal being offline.")
@@ -312,7 +366,7 @@ class _EdgeWorkerCli:
     def loop(self):
         """Run a loop of scheduling and monitoring tasks."""
         new_job = False
-        previous_jobs = self.jobs
+        previous_jobs = _EdgeWorkerCli.jobs
         if not any((_EdgeWorkerCli.drain, _EdgeWorkerCli.maintenance_mode)) and self.free_concurrency > 0:
             new_job = self.fetch_job()
         self.check_running_jobs()
@@ -321,7 +375,7 @@ class _EdgeWorkerCli:
             _EdgeWorkerCli.drain
             or datetime.now().timestamp() - self.last_hb.timestamp() > self.hb_interval
             or self.worker_state_changed  # send heartbeat immediately if the state is different in db
-            or bool(previous_jobs) != bool(self.jobs)  # when number of jobs changes from/to 0
+            or bool(previous_jobs) != bool(_EdgeWorkerCli.jobs)  # when number of jobs changes from/to 0
         ):
             self.worker_state_changed = self.heartbeat()
             self.last_hb = datetime.now()
@@ -339,16 +393,19 @@ class _EdgeWorkerCli:
             jobs_set_state(edge_job.key, TaskInstanceState.RUNNING)
             return True
 
-        logger.info("No new job to process%s", f", {len(self.jobs)} still running" if self.jobs else "")
+        logger.info(
+            "No new job to process%s",
+            f", {len(_EdgeWorkerCli.jobs)} still running" if _EdgeWorkerCli.jobs else "",
+        )
         return False
 
     def check_running_jobs(self) -> None:
         """Check which of the running tasks/jobs are completed and report back."""
         used_concurrency = 0
-        for i in range(len(self.jobs) - 1, -1, -1):
-            job = self.jobs[i]
+        for i in range(len(_EdgeWorkerCli.jobs) - 1, -1, -1):
+            job = _EdgeWorkerCli.jobs[i]
             if not job.is_running:
-                self.jobs.remove(job)
+                _EdgeWorkerCli.jobs.remove(job)
                 if job.is_success:
                     logger.info("Job completed: %s", job.edge_job)
                     jobs_set_state(job.edge_job.key, TaskInstanceState.SUCCESS)
@@ -381,24 +438,20 @@ class _EdgeWorkerCli:
 
         self.free_concurrency = self.concurrency - used_concurrency
 
-    def heartbeat(self) -> bool:
+    def heartbeat(self, new_maintenance_comments: str | None = None) -> bool:
         """Report liveness state of worker to central site with stats."""
-        if _EdgeWorkerCli.drain:
-            state = EdgeWorkerState.TERMINATING
-        elif self.jobs:
-            if _EdgeWorkerCli.maintenance_mode:
-                state = EdgeWorkerState.MAINTENANCE_PENDING
-            else:
-                state = EdgeWorkerState.RUNNING
-        else:
-            if _EdgeWorkerCli.maintenance_mode:
-                state = EdgeWorkerState.MAINTENANCE_MODE
-            else:
-                state = EdgeWorkerState.IDLE
+        state = _EdgeWorkerCli._get_state()
         sysinfo = self._get_sysinfo()
         worker_state_changed: bool = False
         try:
-            worker_info = worker_set_state(self.hostname, state, len(self.jobs), self.queues, sysinfo)
+            worker_info = worker_set_state(
+                self.hostname,
+                state,
+                len(_EdgeWorkerCli.jobs),
+                self.queues,
+                sysinfo,
+                new_maintenance_comments,
+            )
             self.queues = worker_info.queues
             if worker_info.state == EdgeWorkerState.MAINTENANCE_REQUEST:
                 logger.info("Maintenance mode requested!")
@@ -409,6 +462,11 @@ class _EdgeWorkerCli:
             ):
                 logger.info("Exit Maintenance mode requested!")
                 _EdgeWorkerCli.maintenance_mode = False
+            if _EdgeWorkerCli.maintenance_mode:
+                _EdgeWorkerCli.maintenance_comments = worker_info.maintenance_comments
+            else:
+                _EdgeWorkerCli.maintenance_comments = None
+
             worker_state_changed = worker_info.state != state
         except EdgeWorkerVersionException:
             logger.info("Version mismatch of Edge worker and Core. Shutting down worker.")
@@ -444,16 +502,116 @@ def worker(args):
 
 @cli_utils.action_cli(check_db=False)
 @providers_configuration_loaded
+def status(args):
+    """Check for Airflow Edge Worker status."""
+    pid = _get_pid(args.pid)
+
+    # Send Signal as notification to drop status JSON
+    logger.debug("Sending SIGUSR2 to worker pid %i.", pid)
+    status_min_date = time() - 1
+    status_path = Path(_status_file_path(args.pid))
+    worker_process = psutil.Process(pid)
+    worker_process.send_signal(SIG_STATUS)
+    while psutil.pid_exists(pid) and (
+        not status_path.exists() or status_path.stat().st_mtime < status_min_date
+    ):
+        sleep(0.1)
+    if not psutil.pid_exists(pid):
+        logger.warning("PID of worker dis-appeared while checking for status.")
+        sys.exit(2)
+    if not status_path.exists() or status_path.stat().st_mtime < status_min_date:
+        logger.warning("Could not read status of worker.")
+        sys.exit(3)
+    status = WorkerStatus.from_json(status_path.read_text())
+    print(json.dumps(asdict(status), indent=4))
+
+
+@cli_utils.action_cli(check_db=False)
+@providers_configuration_loaded
+def maintenance(args):
+    """Set or Unset maintenance mode of worker."""
+    if args.maintenance == "on" and not args.comments:
+        logger.error("Comments are required when setting maintenance mode.")
+        sys.exit(4)
+
+    pid = _get_pid(args.pid)
+
+    # Write marker JSON file
+    from getpass import getuser
+
+    marker_path = Path(_maintenance_marker_file_path(args.pid))
+    logger.debug("Writing maintenance marker file to %s.", marker_path)
+    marker_path.write_text(
+        MaintenanceMarker(
+            maintenance=args.maintenance,
+            comments=f'[{datetime.now().strftime("%Y-%m-%d %H:%M")}] - {getuser()} put '
+            f'node into maintenance mode via cli\nComment: {args.comments}'
+            if args.maintenance == "on"
+            else None,
+        ).json
+    )
+
+    # Send Signal as notification to fetch maintenance marker
+    logger.debug("Sending SIGUSR2 to worker pid %i.", pid)
+    status_min_date = time() - 1
+    status_path = Path(_status_file_path(args.pid))
+    worker_process = psutil.Process(pid)
+    worker_process.send_signal(SIG_STATUS)
+    while psutil.pid_exists(pid) and (
+        not status_path.exists() or status_path.stat().st_mtime < status_min_date
+    ):
+        sleep(0.1)
+    if not psutil.pid_exists(pid):
+        logger.warning("PID of worker dis-appeared while checking for status.")
+        sys.exit(2)
+    if not status_path.exists() or status_path.stat().st_mtime < status_min_date:
+        logger.warning("Could not read status of worker.")
+        sys.exit(3)
+    status = WorkerStatus.from_json(status_path.read_text())
+
+    if args.wait:
+        if args.maintenance == "on" and status.state != EdgeWorkerState.MAINTENANCE_MODE:
+            logger.info("Waiting for worker to be drained...")
+            while True:
+                sleep(4.5)
+                worker_process.send_signal(SIG_STATUS)
+                sleep(0.5)
+                status = WorkerStatus.from_json(status_path.read_text())
+                if status.state == EdgeWorkerState.MAINTENANCE_MODE:
+                    logger.info("Worker was drained successfully!")
+                    break
+                if status.state not in [
+                    EdgeWorkerState.MAINTENANCE_REQUEST,
+                    EdgeWorkerState.MAINTENANCE_PENDING,
+                ]:
+                    logger.info("Worker maintenance was exited by someone else!")
+                    break
+        if args.maintenance == "off" and status.state == EdgeWorkerState.MAINTENANCE_MODE:
+            logger.info("Waiting for worker to exit maintenance...")
+            while status.state in [EdgeWorkerState.MAINTENANCE_MODE, EdgeWorkerState.MAINTENANCE_EXIT]:
+                sleep(4.5)
+                worker_process.send_signal(SIG_STATUS)
+                sleep(0.5)
+                status = WorkerStatus.from_json(status_path.read_text())
+
+    print(json.dumps(asdict(status), indent=4))
+
+
+@cli_utils.action_cli(check_db=False)
+@providers_configuration_loaded
 def stop(args):
     """Stop a running Airflow Edge Worker."""
-    pid = read_pid_from_pidfile(_pid_file_path(args.pid))
+    pid = _get_pid(args.pid)
     # Send SIGINT
-    if pid:
-        logger.warning("Sending SIGINT to worker pid %i.", pid)
-        worker_process = psutil.Process(pid)
-        worker_process.send_signal(signal.SIGINT)
-    else:
-        logger.warning("Could not find PID of worker.")
+    logger.info("Sending SIGINT to worker pid %i.", pid)
+    worker_process = psutil.Process(pid)
+    worker_process.send_signal(signal.SIGINT)
+
+    if args.wait:
+        logger.info("Waiting for worker to stop...")
+        while psutil.pid_exists(pid):
+            sleep(0.1)
+        logger.info("Worker has been shut down.")
 
 
 ARG_CONCURRENCY = Arg(
@@ -470,6 +628,23 @@ ARG_EDGE_HOSTNAME = Arg(
     ("-H", "--edge-hostname"),
     help="Set the hostname of worker if you have multiple workers on a single machine",
 )
+ARG_MAINTENANCE = Arg(("maintenance",), help="Desired maintenance state", choices=("on", "off"))
+ARG_MAINTENANCE_COMMENT = Arg(
+    ("-c", "--comments"),
+    help="Maintenance comments to report reason. Required if maintenance is turned on.",
+)
+ARG_WAIT_MAINT = Arg(
+    ("-w", "--wait"),
+    default=False,
+    help="Wait until edge worker has reached desired state.",
+    action="store_true",
+)
+ARG_WAIT_STOP = Arg(
+    ("-w", "--wait"),
+    default=False,
+    help="Wait until edge worker is shut down.",
+    action="store_true",
+)
 EDGE_COMMANDS: list[ActionCommand] = [
     ActionCommand(
         name=worker.__name__,
@@ -484,10 +659,32 @@ EDGE_COMMANDS: list[ActionCommand] = [
         ),
     ),
     ActionCommand(
+        name=status.__name__,
+        help=status.__doc__,
+        func=status,
+        args=(
+            ARG_PID,
+            ARG_VERBOSE,
+        ),
+    ),
+    ActionCommand(
+        name=maintenance.__name__,
+        help=maintenance.__doc__,
+        func=maintenance,
+        args=(
+            ARG_MAINTENANCE,
+            ARG_MAINTENANCE_COMMENT,
+            ARG_WAIT_MAINT,
+            ARG_PID,
+            ARG_VERBOSE,
+        ),
+    ),
+    ActionCommand(
         name=stop.__name__,
         help=stop.__doc__,
         func=stop,
         args=(
+            ARG_WAIT_STOP,
             ARG_PID,
             ARG_VERBOSE,
         ),

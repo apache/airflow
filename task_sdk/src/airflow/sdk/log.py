@@ -31,7 +31,7 @@ import msgspec
 import structlog
 
 if TYPE_CHECKING:
-    from structlog.typing import EventDict, ExcInfo, Processor
+    from structlog.typing import EventDict, ExcInfo, FilteringBoundLogger, Processor
 
 
 __all__ = [
@@ -250,6 +250,8 @@ def configure_logging(
         structlog.stdlib.add_log_level,
         structlog.stdlib.add_logger_name,
         timestamper,
+        structlog.contextvars.merge_contextvars,
+        redact_jwt,
     ]
 
     # Don't cache the loggers during tests, it make it hard to capture them
@@ -454,3 +456,44 @@ def init_log_file(local_relative_path: str) -> Path:
         log.warning("OSError while changing ownership of the log file. %s", e)
 
     return full_path
+
+
+def upload_to_remote(logger: FilteringBoundLogger):
+    # We haven't yet switched the Remote log handlers over, they are still wired up in providers as
+    # logging.Handlers (but we should re-write most of them to just be the upload and read instead of full
+    # variants.) In the mean time, lets just create the right handler directly
+    from airflow.configuration import conf
+    from airflow.utils.log.file_task_handler import FileTaskHandler
+    from airflow.utils.log.log_reader import TaskLogReader
+
+    raw_logger = getattr(logger, "_logger")
+
+    if not raw_logger or not hasattr(raw_logger, "_file"):
+        logger.warning("Unable to find log file, logger was of unexpected type", type=type(logger))
+        return
+
+    fh = raw_logger._file
+    fname = fh.name
+
+    if fh.fileno() == 1 or not isinstance(fname, str):
+        # Logging to stdout, or something odd about this logger, don't try to upload!
+        return
+    base_log_folder = conf.get("logging", "base_log_folder")
+    relative_path = Path(fname).relative_to(base_log_folder)
+
+    handler = TaskLogReader().log_handler
+    if not isinstance(handler, FileTaskHandler):
+        logger.warning(
+            "Airflow core logging is not using a FileTaskHandler, can't upload logs to remote",
+            handler=type(handler),
+        )
+        return
+
+    # This is a _monstrosity_, and super fragile, but we don't want to do the base FileTaskHandler
+    # set_context() which opens a real FH again. (And worse, in some cases it _truncates_ the file too). This
+    # is just for the first Airflow 3 betas, but we will re-write a better remote log interface that isn't
+    # tied to being a logging Handler.
+    handler.log_relative_path = relative_path.as_posix()  # type: ignore[attr-defined]
+    handler.upload_on_close = True  # type: ignore[attr-defined]
+
+    handler.close()

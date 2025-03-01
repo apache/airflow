@@ -29,18 +29,17 @@ from __future__ import annotations
 import os
 from datetime import datetime
 
-from providers.google.tests.system.google import DEFAULT_GCP_SYSTEM_TEST_PROJECT_ID
-
 from airflow.models.dag import DAG
 from airflow.providers.google.cloud.hooks.dataflow import DataflowJobStatus
 from airflow.providers.google.cloud.operators.bigquery import (
     BigQueryCreateEmptyDatasetOperator,
-    BigQueryCreateEmptyTableOperator,
+    BigQueryCreateTableOperator,
     BigQueryDeleteDatasetOperator,
     BigQueryInsertJobOperator,
 )
 from airflow.providers.google.cloud.operators.dataflow import DataflowStartYamlJobOperator
 from airflow.utils.trigger_rule import TriggerRule
+from system.google import DEFAULT_GCP_SYSTEM_TEST_PROJECT_ID
 
 PROJECT_ID = os.environ.get("SYSTEM_TESTS_GCP_PROJECT") or DEFAULT_GCP_SYSTEM_TEST_PROJECT_ID
 ENV_ID = os.environ.get("SYSTEM_TESTS_ENV_ID", "default")
@@ -53,6 +52,11 @@ BQ_OUTPUT_TABLE = f"output_{DAG_ID}".replace("-", "_")
 DATAFLOW_YAML_PIPELINE_FILE_URL = (
     "gs://airflow-system-tests-resources/dataflow/yaml/example_beam_yaml_bq.yaml"
 )
+SCHEMA = [
+    {"name": "emp_name", "type": "STRING", "mode": "REQUIRED"},
+    {"name": "salary", "type": "INTEGER", "mode": "NULLABLE"},
+    {"name": "country", "type": "STRING", "mode": "NULLABLE"},
+]
 
 BQ_VARIABLES = {
     "project": PROJECT_ID,
@@ -94,15 +98,13 @@ with DAG(
         location=REGION,
     )
 
-    create_bq_input_table = BigQueryCreateEmptyTableOperator(
+    create_bq_input_table = BigQueryCreateTableOperator(
         task_id="create_bq_input_table",
         dataset_id=BQ_DATASET,
         table_id=BQ_INPUT_TABLE,
-        schema_fields=[
-            {"name": "emp_name", "type": "STRING", "mode": "REQUIRED"},
-            {"name": "salary", "type": "INTEGER", "mode": "NULLABLE"},
-            {"name": "country", "type": "STRING", "mode": "NULLABLE"},
-        ],
+        table_resource={
+            "schema": {"fields": SCHEMA},
+        },
     )
 
     insert_data_into_bq_table = BigQueryInsertJobOperator(

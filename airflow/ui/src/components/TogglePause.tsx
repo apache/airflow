@@ -23,6 +23,7 @@ import { useCallback } from "react";
 import {
   UseDagRunServiceGetDagRunsKeyFn,
   UseDagServiceGetDagDetailsKeyFn,
+  UseDagServiceGetDagKeyFn,
   useDagServiceGetDagsKey,
   useDagServicePatchDag,
   useDagsServiceRecentDagRunsKey,
@@ -48,6 +49,7 @@ export const TogglePause = ({ dagDisplayName, dagId, isPaused, skipConfirm }: Pr
     const queryKeys = [
       [useDagServiceGetDagsKey],
       [useDagsServiceRecentDagRunsKey],
+      UseDagServiceGetDagKeyFn({ dagId }, [{ dagId }]),
       UseDagServiceGetDagDetailsKeyFn({ dagId }, [{ dagId }]),
       UseDagRunServiceGetDagRunsKeyFn({ dagId }, [{ dagId }]),
       UseTaskInstanceServiceGetTaskInstancesKeyFn({ dagId, dagRunId: "~" }, [{ dagId, dagRunId: "~" }]),

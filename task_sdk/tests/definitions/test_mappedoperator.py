@@ -17,7 +17,6 @@
 # under the License.
 from __future__ import annotations
 
-import json
 from datetime import datetime, timedelta
 from typing import TYPE_CHECKING, Callable
 from unittest import mock
@@ -239,7 +238,7 @@ def test_mapped_render_template_fields_validating_operator(
         )
         mapped = callable(mapped, task1.output)
 
-    mock_supervisor_comms.get_message.return_value = XComResult(key="return_value", value='["{{ ds }}"]')
+    mock_supervisor_comms.get_message.return_value = XComResult(key="return_value", value=["{{ ds }}"])
 
     mapped_ti = create_runtime_ti(task=mapped, map_index=0, upstream_map_indexes={task1.task_id: 1})
 
@@ -288,7 +287,7 @@ def test_expand_kwargs_render_template_fields_validating_operator(
         mapped = MockOperator.partial(task_id="a", arg2="{{ ti.task_id }}").expand_kwargs(task1.output)
 
     mock_supervisor_comms.get_message.return_value = XComResult(
-        key="return_value", value=json.dumps([{"arg1": "{{ ds }}"}, {"arg1": 2}])
+        key="return_value", value=[{"arg1": "{{ ds }}"}, {"arg1": 2}]
     )
 
     ti = create_runtime_ti(task=mapped, map_index=map_index, upstream_map_indexes={})
@@ -421,7 +420,7 @@ def test_map_cross_product(run_ti: RunTI, mock_supervisor_comms):
         if not isinstance(last_request, GetXCom):
             return mock.DEFAULT
         task = dag.get_task(last_request.task_id)
-        value = json.dumps(task.python_callable())
+        value = task.python_callable()
         return XComResult(key="return_value", value=value)
 
     mock_supervisor_comms.get_message.side_effect = xcom_get
@@ -461,7 +460,7 @@ def test_map_product_same(run_ti: RunTI, mock_supervisor_comms):
         if not isinstance(last_request, GetXCom):
             return mock.DEFAULT
         task = dag.get_task(last_request.task_id)
-        value = json.dumps(task.python_callable())
+        value = task.python_callable()
         return XComResult(key="return_value", value=value)
 
     mock_supervisor_comms.get_message.side_effect = xcom_get
@@ -571,10 +570,16 @@ def test_operator_mapped_task_group_receives_value(create_runtime_ti, mock_super
             return t2
 
         # The group is mapped by 3.
-        t2 = tg.expand(va=[["a", "b"], [4], ["z"]])
+        tg1 = tg.expand(
+            va=[
+                ["a", "b"],
+                [4],
+                ["z"],
+            ]
+        )
 
         # Aggregates results from task group.
-        t.override(task_id="t3")(t2)
+        t.override(task_id="t3")(tg1)
 
     def xcom_get():
         # TODO: Tidy this after #45927 is reopened and fixed properly
@@ -584,11 +589,11 @@ def test_operator_mapped_task_group_receives_value(create_runtime_ti, mock_super
         key = (last_request.task_id, last_request.map_index)
         if key in expected_values:
             value = expected_values[key]
-            return XComResult(key="return_value", value=json.dumps(value))
+            return XComResult(key="return_value", value=value)
         elif last_request.map_index is None:
             # Get all mapped XComValues for this ti
             value = [v for k, v in expected_values.items() if k[0] == last_request.task_id]
-            return XComResult(key="return_value", value=json.dumps(value))
+            return XComResult(key="return_value", value=value)
         return mock.DEFAULT
 
     mock_supervisor_comms.get_message.side_effect = xcom_get

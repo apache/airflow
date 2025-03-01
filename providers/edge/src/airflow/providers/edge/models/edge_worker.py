@@ -134,7 +134,7 @@ class EdgeWorkerModel(Base, LoggingMixin):
         self.queues = queues
 
     def update_state(self, state: str) -> None:
-        """Updates state field."""
+        """Update state field."""
         self.state = state
 
 
@@ -190,7 +190,7 @@ def reset_metrics(worker_name: str) -> None:
 def request_maintenance(
     worker_name: str, maintenance_comment: str | None, session: Session = NEW_SESSION
 ) -> None:
-    """Writes maintenance request to the db"""
+    """Write maintenance request to the db."""
     query = select(EdgeWorkerModel).where(EdgeWorkerModel.worker_name == worker_name)
     worker: EdgeWorkerModel = session.scalar(query)
     worker.state = EdgeWorkerState.MAINTENANCE_REQUEST
@@ -199,7 +199,7 @@ def request_maintenance(
 
 @provide_session
 def exit_maintenance(worker_name: str, session: Session = NEW_SESSION) -> None:
-    """Writes maintenance exit to the db"""
+    """Write maintenance exit to the db."""
     query = select(EdgeWorkerModel).where(EdgeWorkerModel.worker_name == worker_name)
     worker: EdgeWorkerModel = session.scalar(query)
     worker.state = EdgeWorkerState.MAINTENANCE_EXIT
@@ -208,7 +208,7 @@ def exit_maintenance(worker_name: str, session: Session = NEW_SESSION) -> None:
 
 @provide_session
 def remove_worker(worker_name: str, session: Session = NEW_SESSION) -> None:
-    """Remove a worker that is offline or just gone from DB"""
+    """Remove a worker that is offline or just gone from DB."""
     session.execute(delete(EdgeWorkerModel).where(EdgeWorkerModel.worker_name == worker_name))
 
 
@@ -216,7 +216,7 @@ def remove_worker(worker_name: str, session: Session = NEW_SESSION) -> None:
 def change_maintenance_comment(
     worker_name: str, maintenance_comment: str | None, session: Session = NEW_SESSION
 ) -> None:
-    """Writes maintenance comment in the db."""
+    """Write maintenance comment in the db."""
     query = select(EdgeWorkerModel).where(EdgeWorkerModel.worker_name == worker_name)
     worker: EdgeWorkerModel = session.scalar(query)
     worker.maintenance_comment = maintenance_comment

@@ -27,13 +27,9 @@ import { useNavigate } from "react-router-dom";
 import { UseDagServiceGetDagsKeyFn } from "openapi/queries";
 import { DagService } from "openapi/requests/services.gen";
 import type { DAGCollectionResponse, DAGResponse } from "openapi/requests/types.gen";
+import type { Option } from "src/utils/option";
 
 import { DropdownIndicator } from "./SearchDagsDropdownIndicator";
-
-export type Option = {
-  label: string;
-  value: string;
-};
 
 export const SearchDags = ({
   setIsOpen,
@@ -89,6 +85,7 @@ export const SearchDags = ({
         menuIsOpen
         onChange={onSelect}
         placeholder="Search Dags"
+        // eslint-disable-next-line unicorn/no-null
         value={null} // null is required https://github.com/JedWatson/react-select/issues/3066
       />
     </Field.Root>

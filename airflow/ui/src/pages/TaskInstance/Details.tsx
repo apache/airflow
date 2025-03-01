@@ -33,17 +33,15 @@ import { ExtraLinks } from "./ExtraLinks";
 import { TriggererInfo } from "./TriggererInfo";
 
 export const Details = () => {
-  const { dagId = "", runId = "", taskId = "" } = useParams();
+  const { dagId = "", mapIndex = "-1", runId = "", taskId = "" } = useParams();
   const [searchParams, setSearchParams] = useSearchParams();
 
-  const mapIndexParam = searchParams.get("map_index");
   const tryNumberParam = searchParams.get("try_number");
-  const mapIndex = parseInt(mapIndexParam ?? "-1", 10);
 
   const { data: taskInstance } = useTaskInstanceServiceGetMappedTaskInstance({
     dagId,
     dagRunId: runId,
-    mapIndex,
+    mapIndex: parseInt(mapIndex, 10),
     taskId,
   });
 
@@ -64,7 +62,7 @@ export const Details = () => {
     {
       dagId,
       dagRunId: runId,
-      mapIndex,
+      mapIndex: parseInt(mapIndex, 10),
       taskId,
       taskTryNumber: tryNumber ?? 1,
     },
@@ -136,7 +134,11 @@ export const Details = () => {
           <Table.Row>
             <Table.Cell>Duration</Table.Cell>
             <Table.Cell>
-              {getDuration(tryInstance?.start_date ?? null, tryInstance?.end_date ?? null)}s
+              {
+                // eslint-disable-next-line unicorn/no-null
+                getDuration(tryInstance?.start_date ?? null, tryInstance?.end_date ?? null)
+              }
+              s
             </Table.Cell>
           </Table.Row>
           <Table.Row>

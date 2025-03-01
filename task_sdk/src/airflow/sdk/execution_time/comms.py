@@ -44,11 +44,11 @@ Execution API server is because:
 from __future__ import annotations
 
 from datetime import datetime
-from typing import Annotated, Literal, Union
+from typing import Annotated, Any, Literal, Union
 from uuid import UUID
 
 from fastapi import Body
-from pydantic import BaseModel, ConfigDict, Field, JsonValue
+from pydantic import BaseModel, ConfigDict, Field, JsonValue, field_serializer
 
 from airflow.sdk.api.datamodels._generated import (
     AssetResponse,
@@ -75,6 +75,7 @@ class StartupDetails(BaseModel):
     dag_rel_path: str
     bundle_info: BundleInfo
     requests_fd: int
+    start_date: datetime
     """
     The channel for the task to send requests over.
 
@@ -138,7 +139,9 @@ class ConnectionResult(ConnectionResponse):
         # Exclude defaults to avoid sending unnecessary data
         # Pass the type as ConnectionResult explicitly so we can then call model_dump_json with exclude_unset=True
         # to avoid sending unset fields (which are defaults in our case).
-        return cls(**connection_response.model_dump(exclude_defaults=True), type="ConnectionResult")
+        return cls(
+            **connection_response.model_dump(exclude_defaults=True, by_alias=True), type="ConnectionResult"
+        )
 
 
 class VariableResult(VariableResponse):
@@ -225,6 +228,19 @@ class DeferTask(TIDeferredStatePayload):
     """Update a task instance state to deferred."""
 
     type: Literal["DeferTask"] = "DeferTask"
+
+    @field_serializer("trigger_kwargs", "next_kwargs", check_fields=True)
+    def _serde_kwarg_fields(self, val: str | dict[str, Any] | None, _info):
+        from airflow.serialization.serialized_objects import BaseSerialization
+
+        if not isinstance(val, dict):
+            # None, or an encrypted string
+            return val
+
+        if val.keys() == {"__type", "__var"}:
+            # Already encoded.
+            return val
+        return BaseSerialization.serialize(val or {})
 
 
 class RescheduleTask(TIRescheduleStatePayload):

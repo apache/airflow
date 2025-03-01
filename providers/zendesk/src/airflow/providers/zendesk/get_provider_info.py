@@ -27,7 +27,7 @@ def get_provider_info():
         "name": "Zendesk",
         "description": "`Zendesk <https://www.zendesk.com/>`__\n",
         "state": "ready",
-        "source-date-epoch": 1734537547,
+        "source-date-epoch": 1740734215,
         "versions": [
             "4.9.0",
             "4.8.0",

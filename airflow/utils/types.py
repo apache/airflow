@@ -22,8 +22,6 @@ from typing import TYPE_CHECKING, TypedDict
 import airflow.sdk.definitions._internal.types
 
 if TYPE_CHECKING:
-    from datetime import datetime
-
     from airflow.typing_compat import TypeAlias
 
 ArgNotSet: TypeAlias = airflow.sdk.definitions._internal.types.ArgNotSet
@@ -42,8 +40,13 @@ class DagRunType(str, enum.Enum):
     def __str__(self) -> str:
         return self.value
 
-    def generate_run_id(self, logical_date: datetime) -> str:
-        return f"{self}__{logical_date.isoformat()}"
+    def generate_run_id(self, *, suffix: str) -> str:
+        """
+        Generate a string for DagRun based on suffix string.
+
+        :param suffix: Generate run_id from suffix.
+        """
+        return f"{self}__{suffix}"
 
     @staticmethod
     def from_run_id(run_id: str) -> DagRunType:

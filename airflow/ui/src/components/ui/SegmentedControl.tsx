@@ -19,11 +19,7 @@
 import { Button, Group } from "@chakra-ui/react";
 import { useEffect, useState } from "react";
 
-type Option = {
-  readonly disabled?: boolean;
-  readonly label: string;
-  readonly value: string;
-};
+import type { Option } from "src/utils/option";
 
 type SegmentedControlProps = {
   readonly defaultValues?: Array<string>;

@@ -78,7 +78,7 @@ apache-airflow-providers-common-sql package
 `Common SQL Provider <https://en.wikipedia.org/wiki/SQL>`__
 
 
-Release: 1.21.0
+Release: 1.23.0
 
 Provider package
 ----------------
@@ -104,6 +104,7 @@ PIP package         Version required
 ``apache-airflow``  ``>=2.9.0``
 ``sqlparse``        ``>=0.5.1``
 ``more-itertools``  ``>=9.0.0``
+``methodtools``     ``>=0.4.7``
 ==================  ==================
 
 Cross provider package dependencies
@@ -131,5 +132,5 @@ Downloading official packages
 You can download officially released packages and verify their checksums and signatures from the
 `Official Apache Download site <https://downloads.apache.org/airflow/providers/>`_
 
-* `The apache-airflow-providers-common-sql 1.21.0 sdist package <https://downloads.apache.org/airflow/providers/apache_airflow_providers_common_sql-1.21.0.tar.gz>`_ (`asc <https://downloads.apache.org/airflow/providers/apache_airflow_providers_common_sql-1.21.0.tar.gz.asc>`__, `sha512 <https://downloads.apache.org/airflow/providers/apache_airflow_providers_common_sql-1.21.0.tar.gz.sha512>`__)
-* `The apache-airflow-providers-common-sql 1.21.0 wheel package <https://downloads.apache.org/airflow/providers/apache_airflow_providers_common_sql-1.21.0-py3-none-any.whl>`_ (`asc <https://downloads.apache.org/airflow/providers/apache_airflow_providers_common_sql-1.21.0-py3-none-any.whl.asc>`__, `sha512 <https://downloads.apache.org/airflow/providers/apache_airflow_providers_common_sql-1.21.0-py3-none-any.whl.sha512>`__)
+* `The apache-airflow-providers-common-sql 1.23.0 sdist package <https://downloads.apache.org/airflow/providers/apache_airflow_providers_common_sql-1.23.0.tar.gz>`_ (`asc <https://downloads.apache.org/airflow/providers/apache_airflow_providers_common_sql-1.23.0.tar.gz.asc>`__, `sha512 <https://downloads.apache.org/airflow/providers/apache_airflow_providers_common_sql-1.23.0.tar.gz.sha512>`__)
+* `The apache-airflow-providers-common-sql 1.23.0 wheel package <https://downloads.apache.org/airflow/providers/apache_airflow_providers_common_sql-1.23.0-py3-none-any.whl>`_ (`asc <https://downloads.apache.org/airflow/providers/apache_airflow_providers_common_sql-1.23.0-py3-none-any.whl.asc>`__, `sha512 <https://downloads.apache.org/airflow/providers/apache_airflow_providers_common_sql-1.23.0-py3-none-any.whl.sha512>`__)

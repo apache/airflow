@@ -115,7 +115,7 @@ class TestExternalTaskSensor:
         self.dagbag = DagBag(dag_folder=DEV_NULL, include_examples=True)
         self.args = {"owner": "airflow", "start_date": DEFAULT_DATE}
         self.dag = DAG(TEST_DAG_ID, schedule=None, default_args=self.args)
-        self.dag_run_id = DagRunType.MANUAL.generate_run_id(DEFAULT_DATE)
+        self.dag_run_id = DagRunType.MANUAL.generate_run_id(suffix=DEFAULT_DATE.isoformat())
 
     def add_time_sensor(self, task_id=TEST_TASK_ID):
         op = TimeSensor(task_id=task_id, target_time=time(0), dag=self.dag)
@@ -1068,7 +1068,6 @@ def test_external_task_sensor_extra_link(
     expected_external_dag_id,
     expected_external_task_id,
     create_task_instance_of_operator,
-    app,
 ):
     ti = create_task_instance_of_operator(
         ExternalTaskSensor,
@@ -1084,11 +1083,9 @@ def test_external_task_sensor_extra_link(
     assert ti.task.external_task_id == expected_external_task_id
     assert ti.task.external_task_ids == [expected_external_task_id]
 
-    app.config["SERVER_NAME"] = ""
-    with app.app_context():
-        url = ti.task.get_extra_links(ti, "External DAG")
+    url = ti.task.operator_extra_links[0].get_link(operator=ti.task, ti_key=ti.key)
 
-    assert f"/dags/{expected_external_dag_id}/grid" in url
+    assert f"/dags/{expected_external_dag_id}/runs" in url
 
 
 class TestExternalTaskMarker:
@@ -1239,7 +1236,7 @@ def run_tasks(
         runs[dag.dag_id] = dagrun = dag.create_dagrun(
             run_id=dag.timetable.generate_run_id(
                 run_type=DagRunType.MANUAL,
-                logical_date=logical_date,
+                run_after=logical_date,
                 data_interval=data_interval,
             ),
             logical_date=logical_date,

@@ -41,7 +41,7 @@ from airflow.models.taskinstance import SimpleTaskInstance, TaskInstance
 from airflow.models.xcom_arg import XComArg
 from airflow.providers.standard.operators.empty import EmptyOperator
 from airflow.providers.standard.operators.python import PythonOperator
-from airflow.providers.standard.triggers.file import FileTrigger
+from airflow.providers.standard.triggers.file import FileDeleteTrigger
 from airflow.sdk.definitions.asset import Asset, AssetAlias, AssetAliasEvent, AssetUniqueKey, AssetWatcher
 from airflow.sdk.definitions.param import Param
 from airflow.sdk.execution_time.context import OutletEventAccessor, OutletEventAccessors
@@ -132,7 +132,6 @@ DAG_RUN = DagRun(
     run_type=DagRunType.MANUAL,
     logical_date=timezone.utcnow(),
     start_date=timezone.utcnow(),
-    external_trigger=True,
     state=DagRunState.SUCCESS,
 )
 DAG_RUN.id = 1
@@ -259,7 +258,7 @@ class MockLazySelectSequence(LazySelectSequence):
             Asset(
                 uri="test://asset1",
                 name="test",
-                watchers=[AssetWatcher(name="test", trigger=FileTrigger(filepath="/tmp"))],
+                watchers=[AssetWatcher(name="test", trigger=FileDeleteTrigger(filepath="/tmp"))],
             ),
             DAT.ASSET,
             equals,

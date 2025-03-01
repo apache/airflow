@@ -52,7 +52,7 @@ export const columns: Array<ColumnDef<TaskInstanceResponse>> = [
     header: () => "State",
   },
   {
-    accessorFn: (row) => row.rendered_map_index ?? row.map_index,
+    accessorKey: "rendered_map_index",
     enableSorting: false,
     header: "Map Index",
   },

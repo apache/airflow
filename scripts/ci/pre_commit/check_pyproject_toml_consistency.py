@@ -26,7 +26,7 @@ import sys
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).parent.resolve()))  # make sure common_precommit_utils is imported
-from common_precommit_utils import console, get_all_new_provider_ids
+from common_precommit_utils import console, get_all_provider_ids
 
 AIRFLOW_ROOT_PATH = Path(__file__).parents[3].resolve()
 PYPROJECT_TOML_FILE = AIRFLOW_ROOT_PATH / "pyproject.toml"
@@ -40,9 +40,8 @@ if __name__ == "__main__":
 
     error = False
     toml_dict = tomllib.loads(PYPROJECT_TOML_FILE.read_text())
-    # TODO(potiuk): renamme when all providers are switched to new style
-    all_new_providers = get_all_new_provider_ids()
-    for provider_id in all_new_providers:
+    all_providers = get_all_provider_ids()
+    for provider_id in all_providers:
         expected_provider_package = f"apache-airflow-providers-{provider_id.replace('.', '-')}"
         expected_member = "providers/" + provider_id.replace(".", "/")
         dev_dependency_group = toml_dict["dependency-groups"]["dev"]

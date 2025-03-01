@@ -67,7 +67,7 @@ apache-airflow-providers-edge package
 Handle edge workers on remote sites via HTTP(s) connection and orchestrates work over distributed sites
 
 
-Release: 0.10.1pre0
+Release: 0.20.0pre0
 
 Provider package
 ----------------
@@ -87,10 +87,10 @@ Requirements
 
 The minimum Apache Airflow version supported by this provider package is ``2.10.0``.
 
-==================  ==================
+==================  ===================
 PIP package         Version required
-==================  ==================
+==================  ===================
 ``apache-airflow``  ``>=2.10.0``
 ``pydantic``        ``>=2.10.2``
-``retryhttp``       ``>=1.2.0``
-==================  ==================
+``retryhttp``       ``>=1.2.0,!=1.3.0``
+==================  ===================

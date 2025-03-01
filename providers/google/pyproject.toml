@@ -20,12 +20,12 @@
 # IF YOU WANT TO MODIFY THIS FILE EXCEPT DEPENDENCIES, YOU SHOULD MODIFY THE TEMPLATE
 # `pyproject_TEMPLATE.toml.jinja2` IN the `dev/breeze/src/airflow_breeze/templates` DIRECTORY
 [build-system]
-requires = ["flit_core==3.10.1"]
+requires = ["flit_core==3.11.0"]
 build-backend = "flit_core.buildapi"
 
 [project]
 name = "apache-airflow-providers-google"
-version = "12.0.0"
+version = "14.0.0"
 description = "Provider package apache-airflow-providers-google for Apache Airflow"
 readme = "README.rst"
 authors = [
@@ -52,8 +52,10 @@ classifiers = [
 ]
 requires-python = "~=3.9"
 
-# The dependencies should be modified in place in the generated file
+# The dependencies should be modified in place in the generated file.
 # Any change in the dependencies is preserved when the file is regenerated
+# Make sure to run ``breeze static-checks --type update-providers-dependencies --all-files``
+# After you modify the dependencies, and rebuild your Breeze CI image with ``breeze ci-image build``
 dependencies = [
     "apache-airflow>=2.9.0",
     "apache-airflow-providers-common-compat>=1.4.0",
@@ -80,7 +82,7 @@ dependencies = [
     "google-cloud-bigquery>=3.4.0,!=3.21.*,!=3.22.0,!=3.23.*",
     "google-cloud-bigquery-datatransfer>=3.13.0",
     "google-cloud-bigtable>=2.17.0",
-    "google-cloud-build>=3.22.0",
+    "google-cloud-build>=3.31.0",
     "google-cloud-compute>=1.10.0",
     "google-cloud-container>=2.17.4",
     "google-cloud-datacatalog>=3.23.0",
@@ -93,11 +95,12 @@ dependencies = [
     "google-cloud-kms>=2.15.0",
     "google-cloud-language>=2.9.0",
     "google-cloud-logging>=3.5.0",
+    "google-cloud-managedkafka>=0.1.6",
     "google-cloud-memcache>=1.7.0",
     "google-cloud-monitoring>=2.18.0",
     "google-cloud-orchestration-airflow>=1.10.0",
     "google-cloud-os-login>=2.9.1",
-    "google-cloud-pubsub>=2.19.0",
+    "google-cloud-pubsub>=2.21.3",
     "google-cloud-redis>=2.12.0",
     "google-cloud-secret-manager>=2.16.0",
     # Google Cloud spanner 3.49.0 is excluded due to a bug in the library (missing grpc_interceptor)
@@ -143,7 +146,8 @@ dependencies = [
 # Any change in the dependencies is preserved when the file is regenerated
 [project.optional-dependencies]
 "apache.beam" = [
-    "apache-beam[gcp]",
+    'apache-beam[gcp]>=2.53.0; python_version < "3.12"',
+    'apache-beam[gcp]>=2.57.0; python_version >= "3.12"',
 ]
 "cncf.kubernetes" = [
     "apache-airflow-providers-cncf-kubernetes>=10.1.0",
@@ -195,8 +199,8 @@ dependencies = [
 ]
 
 [project.urls]
-"Documentation" = "https://airflow.apache.org/docs/apache-airflow-providers-google/12.0.0"
-"Changelog" = "https://airflow.apache.org/docs/apache-airflow-providers-google/12.0.0/changelog.html"
+"Documentation" = "https://airflow.apache.org/docs/apache-airflow-providers-google/14.0.0"
+"Changelog" = "https://airflow.apache.org/docs/apache-airflow-providers-google/14.0.0/changelog.html"
 "Bug Tracker" = "https://github.com/apache/airflow/issues"
 "Source Code" = "https://github.com/apache/airflow"
 "Slack Chat" = "https://s.apache.org/airflow-slack"

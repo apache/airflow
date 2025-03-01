@@ -83,8 +83,8 @@ class AwsAuthManager(BaseAuthManager[AwsAuthManagerUser]):
         return AwsAuthManagerAmazonVerifiedPermissionsFacade()
 
     @cached_property
-    def fastapi_endpoint(self) -> str:
-        return conf.get("fastapi", "base_url")
+    def apiserver_endpoint(self) -> str:
+        return conf.get("api", "base_url")
 
     def get_user(self) -> AwsAuthManagerUser | None:
         return session["aws_user"] if self.is_logged_in() else None
@@ -377,7 +377,7 @@ class AwsAuthManager(BaseAuthManager[AwsAuthManagerUser]):
         return accessible_items
 
     def get_url_login(self, **kwargs) -> str:
-        return f"{self.fastapi_endpoint}/auth/login"
+        return f"{self.apiserver_endpoint}/auth/login"
 
     def get_url_logout(self) -> str:
         raise NotImplementedError()
@@ -420,7 +420,7 @@ class AwsAuthManager(BaseAuthManager[AwsAuthManagerUser]):
         if not self.avp_facade.is_policy_store_schema_up_to_date():
             self.log.warning(
                 "The Amazon Verified Permissions policy store schema is different from the latest version "
-                "(https://github.com/apache/airflow/blob/main/providers/src/airflow/providers/amazon/aws/auth_manager/avp/schema.json). "
+                "(https://github.com/apache/airflow/blob/main/providers/amazon/aws/src/airflow/providers/amazon/aws/auth_manager/avp/schema.json). "
                 "Please update it to its latest version. "
                 "See doc: https://airflow.apache.org/docs/apache-airflow-providers-amazon/stable/auth-manager/setup/amazon-verified-permissions.html#update-the-policy-store-schema."
             )

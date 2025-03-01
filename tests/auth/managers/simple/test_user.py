@@ -16,22 +16,13 @@
 # under the License.
 from __future__ import annotations
 
-import pytest
-
-from airflow.auth.managers.simple.user import SimpleAuthManagerUser
-
-
-@pytest.fixture
-def user():
-    return SimpleAuthManagerUser(username="test", role="admin")
-
 
 class TestSimpleAuthManagerUser:
-    def test_get_id(self, user):
-        assert user.get_id() == "test"
+    def test_get_id(self, test_admin):
+        assert test_admin.get_id() == "test"
 
-    def test_get_name(self, user):
-        assert user.get_name() == "test"
+    def test_get_name(self, test_admin):
+        assert test_admin.get_name() == "test"
 
-    def test_get_role(self, user):
-        assert user.get_role() == "admin"
+    def test_get_role(self, test_admin):
+        assert test_admin.get_role() == "admin"

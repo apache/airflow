@@ -21,14 +21,14 @@ from __future__ import annotations
 from functools import cached_property
 from typing import Any
 
-import yandexcloud
-
 import yandex.cloud.lockbox.v1.payload_pb2 as payload_pb
 import yandex.cloud.lockbox.v1.payload_service_pb2 as payload_service_pb
 import yandex.cloud.lockbox.v1.payload_service_pb2_grpc as payload_service_pb_grpc
 import yandex.cloud.lockbox.v1.secret_pb2 as secret_pb
 import yandex.cloud.lockbox.v1.secret_service_pb2 as secret_service_pb
 import yandex.cloud.lockbox.v1.secret_service_pb2_grpc as secret_service_pb_grpc
+import yandexcloud
+
 from airflow.models import Connection
 from airflow.providers.yandex.utils.credentials import get_credentials
 from airflow.providers.yandex.utils.defaults import default_conn_name

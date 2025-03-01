@@ -22,7 +22,7 @@ description: |
   `Apache Pig <https://pig.apache.org/>`__
 
 state: ready
-source-date-epoch: 1734528476
+source-date-epoch: 1740734091
 # note that those versions are maintained by release manager - do not update them manually
 versions:
   - 4.6.0

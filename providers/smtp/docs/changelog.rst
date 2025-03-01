@@ -33,6 +33,7 @@ Changelog
 
 Breaking changes
 ~~~~~~~~~~~~~~~~
+
 .. warning::
   The argument ``from_email`` is now an optional kwarg in ``SmtpNotifier``, and the argument ``to`` became the first
   positional argument.
@@ -48,6 +49,23 @@ Breaking changes
   * the connection extra field ``html_content_template`` instead of the configuration
     ``smtp.templated_html_content_path`` in ``SmtpNotifier``.
 
+* ``Replace Airflow email config by connection extras in SMTP provider (#46219)``
+
+Features
+~~~~~~~~
+
+* ``feat(smtp): support html_content and subject templates from SMTP connection (#46212)``
+
+Misc
+~~~~
+
+* ``AIP-72: Support better type-hinting for Context dict in SDK  (#45583)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Move provider_tests to unit folder in provider tests (#46800)``
+   * ``Removed the unused provider's distribution (#46608)``
+   * ``Move smtp provider to the new structure (#46556)``
 
 1.9.0
 .....

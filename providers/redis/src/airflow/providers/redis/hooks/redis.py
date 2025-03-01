@@ -21,8 +21,9 @@ from __future__ import annotations
 
 from typing import Any
 
-from airflow.hooks.base import BaseHook
 from redis import Redis
+
+from airflow.hooks.base import BaseHook
 
 DEFAULT_SSL_CERT_REQS = "required"
 ALLOWED_SSL_CERT_REQS = [DEFAULT_SSL_CERT_REQS, "optional", "none"]

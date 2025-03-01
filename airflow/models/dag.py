@@ -180,7 +180,7 @@ def _get_model_data_interval(
     return DataInterval(start, end)
 
 
-def get_last_dagrun(dag_id, session, include_externally_triggered=False):
+def get_last_dagrun(dag_id, session, include_manually_triggered=False):
     """
     Return the last dag run for a dag, None if there was none.
 
@@ -189,8 +189,8 @@ def get_last_dagrun(dag_id, session, include_externally_triggered=False):
     """
     DR = DagRun
     query = select(DR).where(DR.dag_id == dag_id, DR.logical_date.is_not(None))
-    if not include_externally_triggered:
-        query = query.where(DR.external_trigger == expression.false())
+    if not include_manually_triggered:
+        query = query.where(DR.run_type != DagRunType.MANUAL)
     query = query.order_by(DR.logical_date.desc())
     return session.scalar(query.limit(1))
 
@@ -252,7 +252,6 @@ def _create_orm_dagrun(
     data_interval: DataInterval | None,
     run_after: datetime,
     start_date: datetime | None,
-    external_trigger: bool,
     conf: Any,
     state: DagRunState | None,
     run_type: DagRunType,
@@ -268,11 +267,9 @@ def _create_orm_dagrun(
         logical_date=logical_date,
         start_date=start_date,
         run_after=run_after,
-        external_trigger=external_trigger,
         conf=conf,
         state=state,
         run_type=run_type,
-        dag_version=dag_version,
         creating_job_id=creating_job_id,
         data_interval=data_interval,
         triggered_by=triggered_by,
@@ -287,7 +284,9 @@ def _create_orm_dagrun(
     run.dag = dag
     # create the associated task instances
     # state is None at the moment of creation
-    run.verify_integrity(session=session)
+    if not dag_version:
+        dag_version = DagVersion.get_latest_version(dag.dag_id, session=session)
+    run.verify_integrity(session=session, dag_version_id=dag_version.id if dag_version else None)
     return run
 
 
@@ -304,8 +303,7 @@ def _convert_max_consecutive_failed_dag_runs(val: int) -> int:
         val = airflow_conf.getint("core", "max_consecutive_failed_dag_runs_per_dag")
     if val < 0:
         raise ValueError(
-            f"Invalid max_consecutive_failed_dag_runs: {val}."
-            f"Requires max_consecutive_failed_dag_runs >= 0"
+            f"Invalid max_consecutive_failed_dag_runs: {val}. Requires max_consecutive_failed_dag_runs >= 0"
         )
     return val
 
@@ -710,16 +708,16 @@ class DAG(TaskSDKDag, LoggingMixin):
                 break
 
     @provide_session
-    def get_last_dagrun(self, session=NEW_SESSION, include_externally_triggered=False):
+    def get_last_dagrun(self, session=NEW_SESSION, include_manually_triggered=False):
         return get_last_dagrun(
-            self.dag_id, session=session, include_externally_triggered=include_externally_triggered
+            self.dag_id, session=session, include_manually_triggered=include_manually_triggered
         )
 
     @provide_session
-    def has_dag_runs(self, session=NEW_SESSION, include_externally_triggered=True) -> bool:
+    def has_dag_runs(self, session=NEW_SESSION, include_manually_triggered=True) -> bool:
         return (
             get_last_dagrun(
-                self.dag_id, session=session, include_externally_triggered=include_externally_triggered
+                self.dag_id, session=session, include_manually_triggered=include_manually_triggered
             )
             is not None
         )
@@ -1054,10 +1052,7 @@ class DAG(TaskSDKDag, LoggingMixin):
             tis = tis.where(DagRun.logical_date >= start_date)
         if task_ids is not None:
             tis = tis.where(TaskInstance.ti_selector_condition(task_ids))
-
-        # This allows allow_trigger_in_future config to take affect, rather than mandating exec_date <= UTC
-        if end_date or not self.allow_future_exec_dates:
-            end_date = end_date or timezone.utcnow()
+        if end_date:
             tis = tis.where(DagRun.logical_date <= end_date)
 
         if state:
@@ -1602,6 +1597,7 @@ class DAG(TaskSDKDag, LoggingMixin):
     @provide_session
     def test(
         self,
+        run_after: datetime | None = None,
         logical_date: datetime | None = None,
         run_conf: dict[str, Any] | None = None,
         conn_file_path: str | None = None,
@@ -1613,6 +1609,7 @@ class DAG(TaskSDKDag, LoggingMixin):
         """
         Execute one single DagRun for a given DAG and logical date.
 
+        :param run_after: the datetime before which to Dag cannot run.
         :param logical_date: logical date for the DAG run
         :param run_conf: configuration to pass to newly created dagrun
         :param conn_file_path: file path to a connection file in either yaml or json
@@ -1652,7 +1649,6 @@ class DAG(TaskSDKDag, LoggingMixin):
             exit_stack.callback(lambda: secrets_backend_list.pop(0))
 
         with exit_stack:
-            logical_date = logical_date or timezone.utcnow()
             self.validate()
             self.log.debug("Clearing existing task instances for logical date %s", logical_date)
             self.clear(
@@ -1663,16 +1659,23 @@ class DAG(TaskSDKDag, LoggingMixin):
             )
             self.log.debug("Getting dagrun for dag %s", self.dag_id)
             logical_date = timezone.coerce_datetime(logical_date)
-            data_interval = self.timetable.infer_manual_data_interval(run_after=logical_date)
+            run_after = timezone.coerce_datetime(run_after) or timezone.coerce_datetime(timezone.utcnow())
+            data_interval = (
+                self.timetable.infer_manual_data_interval(run_after=logical_date) if logical_date else None
+            )
             scheduler_dag = SerializedDAG.deserialize_dag(SerializedDAG.serialize_dag(self))
 
             dr: DagRun = _get_or_create_dagrun(
                 dag=scheduler_dag,
-                start_date=logical_date,
+                start_date=logical_date or run_after,
                 logical_date=logical_date,
                 data_interval=data_interval,
-                run_after=data_interval.end,
-                run_id=DagRun.generate_run_id(DagRunType.MANUAL, logical_date),
+                run_after=run_after,
+                run_id=DagRun.generate_run_id(
+                    run_type=DagRunType.MANUAL,
+                    logical_date=logical_date,
+                    run_after=run_after,
+                ),
                 session=session,
                 conf=run_conf,
                 triggered_by=DagRunTriggeredByType.TEST,
@@ -1756,13 +1759,12 @@ class DAG(TaskSDKDag, LoggingMixin):
         self,
         *,
         run_id: str,
-        logical_date: datetime | None,
-        data_interval: tuple[datetime, datetime],
+        logical_date: datetime | None = None,
+        data_interval: tuple[datetime, datetime] | None = None,
         run_after: datetime,
         conf: dict | None = None,
         run_type: DagRunType,
         triggered_by: DagRunTriggeredByType,
-        external_trigger: bool = False,
         dag_version: DagVersion | None = None,
         state: DagRunState,
         start_date: datetime | None = None,
@@ -1782,6 +1784,9 @@ class DAG(TaskSDKDag, LoggingMixin):
         :meta private:
         """
         logical_date = timezone.coerce_datetime(logical_date)
+        # For manual runs where logical_date is None, ensure no data_interval is set.
+        if logical_date is None and data_interval is not None:
+            raise ValueError("data_interval must be None when logical_date is None")
 
         if data_interval and not isinstance(data_interval, DataInterval):
             data_interval = DataInterval(*map(timezone.coerce_datetime, data_interval))
@@ -1824,7 +1829,6 @@ class DAG(TaskSDKDag, LoggingMixin):
         if conf:
             copied_params.update(conf)
         copied_params.validate()
-
         return _create_orm_dagrun(
             dag=self,
             run_id=run_id,
@@ -1832,7 +1836,6 @@ class DAG(TaskSDKDag, LoggingMixin):
             data_interval=data_interval,
             run_after=timezone.coerce_datetime(run_after),
             start_date=timezone.coerce_datetime(start_date),
-            external_trigger=external_trigger,
             conf=conf,
             state=state,
             run_type=run_type,
@@ -1873,8 +1876,8 @@ class DAG(TaskSDKDag, LoggingMixin):
 
         asset_op = AssetModelOperation.collect(dag_op.dags)
 
-        orm_assets = asset_op.add_assets(session=session)
-        orm_asset_aliases = asset_op.add_asset_aliases(session=session)
+        orm_assets = asset_op.sync_assets(session=session)
+        orm_asset_aliases = asset_op.sync_asset_aliases(session=session)
         session.flush()  # This populates id so we can create fks in later calls.
 
         orm_dags = dag_op.find_orm_dags(session=session)  # Refetch so relationship is up to date.
@@ -2199,9 +2202,9 @@ class DagModel(Base):
         return session.scalar(select(cls).where(cls.dag_id == dag_id))
 
     @provide_session
-    def get_last_dagrun(self, session=NEW_SESSION, include_externally_triggered=False):
+    def get_last_dagrun(self, session=NEW_SESSION, include_manually_triggered=False):
         return get_last_dagrun(
-            self.dag_id, session=session, include_externally_triggered=include_externally_triggered
+            self.dag_id, session=session, include_manually_triggered=include_manually_triggered
         )
 
     def get_is_paused(self, *, session: Session | None = None) -> bool:
@@ -2272,7 +2275,7 @@ class DagModel(Base):
         :meta private:
         """
         return case(
-            (self._dag_display_property_value.isnot(None), self._dag_display_property_value),
+            (self._dag_display_property_value.is_not(None), self._dag_display_property_value),
             else_=self.dag_id,
         )
 
@@ -2310,7 +2313,7 @@ class DagModel(Base):
                 dm.is_active = False
 
     @classmethod
-    def dags_needing_dagruns(cls, session: Session) -> tuple[Query, dict[str, tuple[datetime, datetime]]]:
+    def dags_needing_dagruns(cls, session: Session) -> tuple[Query, dict[str, datetime]]:
         """
         Return (and lock) a list of Dag objects that are due to create a new DagRun.
 
@@ -2331,28 +2334,32 @@ class DagModel(Base):
                 return None
 
         # this loads all the ADRQ records.... may need to limit num dags
-        by_dag: dict[str, list[AssetDagRunQueue]] = defaultdict(list)
+        adrq_by_dag: dict[str, list[AssetDagRunQueue]] = defaultdict(list)
         for r in session.scalars(select(AssetDagRunQueue)):
-            by_dag[r.target_dag_id].append(r)
-        dag_statuses: dict[str, dict[AssetUniqueKey, bool]] = {}
-        for dag_id, records in by_dag.items():
-            dag_statuses[dag_id] = {AssetUniqueKey.from_asset(x.asset): True for x in records}
-        ser_dags = SerializedDagModel.get_latest_serialized_dags(dag_ids=list(dag_statuses), session=session)
+            adrq_by_dag[r.target_dag_id].append(r)
 
+        dag_statuses: dict[str, dict[AssetUniqueKey, bool]] = {
+            dag_id: {AssetUniqueKey.from_asset(adrq.asset): True for adrq in adrqs}
+            for dag_id, adrqs in adrq_by_dag.items()
+        }
+        ser_dags = SerializedDagModel.get_latest_serialized_dags(dag_ids=list(dag_statuses), session=session)
         for ser_dag in ser_dags:
             dag_id = ser_dag.dag_id
             statuses = dag_statuses[dag_id]
             if not dag_ready(dag_id, cond=ser_dag.dag.timetable.asset_condition, statuses=statuses):
-                del by_dag[dag_id]
+                del adrq_by_dag[dag_id]
                 del dag_statuses[dag_id]
         del dag_statuses
-        asset_triggered_dag_info = {}
-        for dag_id, records in by_dag.items():
-            times = sorted(x.created_at for x in records)
-            asset_triggered_dag_info[dag_id] = (times[0], times[-1])
-        del by_dag
-        asset_triggered_dag_ids = set(asset_triggered_dag_info.keys())
+
+        # triggered dates for asset triggered dags
+        triggered_date_by_dag: dict[str, datetime] = {
+            dag_id: max(adrq.created_at for adrq in adrqs) for dag_id, adrqs in adrq_by_dag.items()
+        }
+        del adrq_by_dag
+
+        asset_triggered_dag_ids = set(triggered_date_by_dag.keys())
         if asset_triggered_dag_ids:
+            # exclude as max active runs has been reached
             exclusion_list = set(
                 session.scalars(
                     select(DagModel.dag_id)
@@ -2365,8 +2372,8 @@ class DagModel(Base):
             )
             if exclusion_list:
                 asset_triggered_dag_ids -= exclusion_list
-                asset_triggered_dag_info = {
-                    k: v for k, v in asset_triggered_dag_info.items() if k not in exclusion_list
+                triggered_date_by_dag = {
+                    k: v for k, v in triggered_date_by_dag.items() if k not in exclusion_list
                 }
 
         # We limit so that _one_ scheduler doesn't try to do all the creation of dag runs
@@ -2387,7 +2394,7 @@ class DagModel(Base):
 
         return (
             session.scalars(with_row_locks(query, of=cls, session=session, skip_locked=True)),
-            asset_triggered_dag_info,
+            triggered_date_by_dag,
         )
 
     def calculate_dagrun_date_fields(
@@ -2485,8 +2492,8 @@ def _get_or_create_dagrun(
     *,
     dag: DAG,
     run_id: str,
-    logical_date: datetime,
-    data_interval: tuple[datetime, datetime],
+    logical_date: datetime | None,
+    data_interval: tuple[datetime, datetime] | None,
     run_after: datetime,
     conf: dict | None,
     triggered_by: DagRunTriggeredByType,

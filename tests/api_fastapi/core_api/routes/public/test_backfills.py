@@ -17,12 +17,12 @@
 from __future__ import annotations
 
 import os
-from datetime import datetime
+from datetime import datetime, timedelta
 from unittest import mock
 
 import pendulum
 import pytest
-from sqlalchemy import select
+from sqlalchemy import and_, func, select
 
 from airflow.models import DagBag, DagModel, DagRun
 from airflow.models.backfill import Backfill, BackfillDagRun, ReprocessBehavior, _create_backfill
@@ -36,9 +36,11 @@ from airflow.utils.state import DagRunState
 from tests_common.test_utils.db import (
     clear_db_backfills,
     clear_db_dags,
+    clear_db_logs,
     clear_db_runs,
     clear_db_serialized_dags,
 )
+from tests_common.test_utils.logs import check_last_log
 
 pytestmark = [pytest.mark.db_test, pytest.mark.need_serialized_dag]
 
@@ -54,12 +56,11 @@ def _clean_db():
     clear_db_runs()
     clear_db_dags()
     clear_db_serialized_dags()
+    clear_db_logs()
 
 
 @pytest.fixture(autouse=True)
 def clean_db():
-    _clean_db()
-    yield
     _clean_db()
 
 
@@ -213,6 +214,7 @@ class TestCreateBackfill(TestBackfillEndpoint):
             "to_date": to_date_iso,
             "updated_at": mock.ANY,
         }
+        check_last_log(session, dag_id="TEST_DAG_1", event="create_backfill", logical_date=None)
 
     def test_dag_not_exist(self, session, test_client):
         session.query(DagModel).all()
@@ -310,6 +312,206 @@ class TestCreateBackfill(TestBackfillEndpoint):
                     response.json().get("detail")
                     == "DAG has tasks for which depends_on_past=True. You must set reprocess behavior to reprocess completed or reprocess failed."
                 )
+
+    @pytest.mark.parametrize(
+        "run_backwards",
+        [
+            (False),
+            (True),
+        ],
+    )
+    def test_create_backfill_future_dates(self, session, dag_maker, test_client, run_backwards):
+        with dag_maker(session=session, dag_id="TEST_DAG_1", schedule="0 * * * *") as dag:
+            EmptyOperator(task_id="mytask")
+        session.query(DagModel).all()
+        session.commit()
+        from_date = timezone.utcnow() + timedelta(days=1)
+        to_date = timezone.utcnow() + timedelta(days=1)
+        max_active_runs = 5
+        data = {
+            "dag_id": dag.dag_id,
+            "from_date": f"{to_iso(from_date)}",
+            "to_date": f"{to_iso(to_date)}",
+            "max_active_runs": max_active_runs,
+            "run_backwards": run_backwards,
+            "dag_run_conf": {"param1": "val1", "param2": True},
+        }
+
+        response = test_client.post(
+            url="/public/backfills",
+            json=data,
+        )
+        assert response.status_code == 422
+        assert response.json().get("detail") == "Backfill cannot be executed for future dates."
+
+    @pytest.mark.parametrize(
+        "run_backwards",
+        [
+            (False),
+            (True),
+        ],
+    )
+    def test_create_backfill_past_future_dates(self, session, dag_maker, test_client, run_backwards):
+        with dag_maker(session=session, dag_id="TEST_DAG_1", schedule="@daily") as dag:
+            EmptyOperator(task_id="mytask")
+        session.query(DagModel).all()
+        session.commit()
+        from_date = timezone.utcnow() - timedelta(days=2)
+        to_date = timezone.utcnow() + timedelta(days=1)
+        max_active_runs = 1
+        data = {
+            "dag_id": dag.dag_id,
+            "from_date": f"{to_iso(from_date)}",
+            "to_date": f"{to_iso(to_date)}",
+            "max_active_runs": max_active_runs,
+            "run_backwards": run_backwards,
+            "dag_run_conf": {"param1": "val1", "param2": True},
+        }
+
+        response = test_client.post(
+            url="/public/backfills",
+            json=data,
+        )
+        assert response.status_code == 200
+        backfill_dag_run_count = select(func.count()).where(
+            and_(BackfillDagRun.backfill_id == response.json()["id"], BackfillDagRun.logical_date == to_date)
+        )
+        count = session.execute(backfill_dag_run_count).scalar()
+        assert count == 0
+
+    # todo: AIP-83 amendment must fix
+    @pytest.mark.parametrize(
+        "reprocess_behavior, expected_dates",
+        [
+            (
+                "none",
+                [
+                    "2024-01-01T00:00:00+00:00",
+                    "2024-01-04T00:00:00+00:00",
+                    "2024-01-05T00:00:00+00:00",
+                ],
+            ),
+            (
+                "failed",
+                [
+                    "2024-01-01T00:00:00+00:00",
+                    "2024-01-03T00:00:00+00:00",
+                    "2024-01-04T00:00:00+00:00",
+                    "2024-01-05T00:00:00+00:00",
+                ],
+            ),
+            (
+                "completed",
+                [
+                    "2024-01-01T00:00:00+00:00",
+                    "2024-01-02T00:00:00+00:00",
+                    "2024-01-03T00:00:00+00:00",
+                    "2024-01-04T00:00:00+00:00",
+                    "2024-01-05T00:00:00+00:00",
+                ],
+            ),
+        ],
+    )
+    def test_create_backfill_with_existing_runs(
+        self,
+        session,
+        dag_maker,
+        test_client,
+        reprocess_behavior,
+        expected_dates,
+    ):
+        """
+        Verify behavior when there's existing runs in the range
+
+        If the there is a run in the range, depending on the reprocess behavior,
+        it should clear the existing dag run and update it to be associated with the backfill.
+        """
+        with dag_maker(
+            session=session,
+            dag_id="TEST_DAG_2",
+            schedule="0 0 * * *",
+            start_date=pendulum.parse("2024-01-01"),
+        ) as dag:
+            EmptyOperator(task_id="mytask")
+
+        session.commit()
+
+        existing_dagruns = [
+            {"logical_date": pendulum.parse("2024-01-02"), "state": DagRunState.SUCCESS},  # Completed dag run
+            {"logical_date": pendulum.parse("2024-01-03"), "state": DagRunState.FAILED},  # Failed dag run
+        ]
+        for dagrun in existing_dagruns:
+            session.add(
+                DagRun(
+                    dag_id=dag.dag_id,
+                    run_id=f"manual__{dagrun['logical_date'].isoformat()}",
+                    logical_date=dagrun["logical_date"],
+                    state=dagrun["state"],
+                    run_type="scheduled",
+                )
+            )
+        session.commit()
+
+        from_date = pendulum.parse("2024-01-01")
+        from_date_iso = to_iso(from_date)
+        to_date = pendulum.parse("2024-01-05")
+        to_date_iso = to_iso(to_date)
+
+        data = {
+            "dag_id": dag.dag_id,
+            "from_date": from_date_iso,
+            "to_date": to_date_iso,
+            "max_active_runs": 5,
+            "run_backwards": False,
+            "dag_run_conf": {"param1": "val1", "param2": True},
+            "reprocess_behavior": reprocess_behavior,
+        }
+
+        response = test_client.post(
+            url="/public/backfills",
+            json=data,
+        )
+
+        assert response.status_code == 200
+        response_json = response.json()
+        assert response_json["from_date"] == "2024-01-01T00:00:00Z"
+        assert response_json["to_date"] == "2024-01-05T00:00:00Z"
+        backfill_id = response_json["id"]
+
+        result = session.scalars(select(DagRun).where(DagRun.dag_id == dag.dag_id))
+        dag_runs = sorted(((x.logical_date.isoformat(), x.backfill_id) for x in result), key=lambda x: x[0])
+
+        all_dates = [
+            "2024-01-01T00:00:00+00:00",
+            "2024-01-02T00:00:00+00:00",
+            "2024-01-03T00:00:00+00:00",
+            "2024-01-04T00:00:00+00:00",
+            "2024-01-05T00:00:00+00:00",
+        ]
+
+        # verify which runs are associated with the backfill now
+        expected = []
+        for date in all_dates:
+            if date in expected_dates:
+                expected.append((date, backfill_id))
+            else:
+                expected.append((date, None))
+        assert dag_runs == expected
+
+        # verify which logical dates have a non-create exception
+        result = session.scalars(select(BackfillDagRun).where(BackfillDagRun.backfill_id == backfill_id))
+        actual = sorted((x.logical_date.isoformat(), x.exception_reason) for x in result)
+        expected = []
+        for date in all_dates:
+            if date in expected_dates:
+                expected.append((date, None))
+            else:
+                expected.append((date, "already exists"))
+        assert actual == expected
+
+        # verify all dag runs associated with the backfill have backfill run type
+        actual = list(session.scalars(select(DagRun.run_type).where(DagRun.backfill_id == backfill_id)))
+        assert actual == ["backfill"] * len(expected_dates)
 
 
 class TestCreateBackfillDryRun(TestBackfillEndpoint):
@@ -478,6 +680,7 @@ class TestCancelBackfill(TestBackfillEndpoint):
         # get conflict when canceling already-canceled backfill
         response = test_client.put(f"/public/backfills/{backfill.id}/cancel")
         assert response.status_code == 409
+        check_last_log(session, dag_id=None, event="cancel_backfill", logical_date=None)
 
     def test_cancel_backfill_end_states(self, dag_maker, session, test_client):
         """

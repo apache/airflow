@@ -69,15 +69,6 @@ class TestKubernetesExecutor(BaseK8STest):
             timeout=300,
         )
 
-        self.monitor_task(
-            host=self.host,
-            dag_run_id=dag_run_id,
-            dag_id=dag_id,
-            task_id="other_namespace_task",
-            expected_final_state="success",
-            timeout=300,
-        )
-
         self.ensure_dag_expected_state(
             host=self.host,
             logical_date=logical_date,

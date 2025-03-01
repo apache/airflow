@@ -72,7 +72,7 @@ export const TaskNode = ({
             height={`${height}px`}
             justifyContent="space-between"
             px={3}
-            py={isSelected ? 1 : 2}
+            py={isSelected ? 0 : 1}
             width={`${width}px`}
           >
             <Box>

@@ -21,6 +21,7 @@ import logging
 import signal
 
 from airflow import settings
+from airflow.cli.simple_table import AirflowConsole
 from airflow.models.backfill import ReprocessBehavior, _create_backfill, _do_dry_run
 from airflow.utils import cli as cli_utils
 from airflow.utils.cli import sigint_handler
@@ -34,6 +35,7 @@ def create_backfill(args) -> None:
     """Create backfill job or dry run for a DAG or list of DAGs using regex."""
     logging.basicConfig(level=settings.LOGGING_LEVEL, format=settings.SIMPLE_LOG_FORMAT)
     signal.signal(signal.SIGTERM, sigint_handler)
+    console = AirflowConsole()
 
     if args.reprocess_behavior is not None:
         reprocess_behavior = ReprocessBehavior(args.reprocess_behavior)
@@ -41,8 +43,8 @@ def create_backfill(args) -> None:
         reprocess_behavior = None
 
     if args.dry_run:
-        print("Performing dry run of backfill.")
-        print("Printing params:")
+        console.print("Performing dry run of backfill.")
+        console.print("Printing params:")
         params = dict(
             dag_id=args.dag_id,
             from_date=args.from_date,
@@ -53,19 +55,19 @@ def create_backfill(args) -> None:
             reprocess_behavior=reprocess_behavior,
         )
         for k, v in params.items():
-            print(f"    - {k} = {v}")
+            console.print(f"    - {k} = {v}")
         with create_session() as session:
             logical_dates = _do_dry_run(
                 dag_id=args.dag_id,
                 from_date=args.from_date,
                 to_date=args.to_date,
-                reverse=args.reverse,
+                reverse=args.run_backwards,
                 reprocess_behavior=args.reprocess_behavior,
                 session=session,
             )
-        print("Logical dates to be attempted:")
+        console.print("Logical dates to be attempted:")
         for d in logical_dates:
-            print(f"    - {d}")
+            console.print(f"    - {d}")
         return
 
     _create_backfill(

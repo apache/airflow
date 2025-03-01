@@ -19,36 +19,14 @@ from __future__ import annotations
 import json
 
 import pytest
-from flask import Flask
 
 from airflow.auth.managers.models.resource_details import AccessView
-from airflow.auth.managers.simple.simple_auth_manager import SimpleAuthManager
 from airflow.auth.managers.simple.user import SimpleAuthManagerUser
-from airflow.www.extensions.init_appbuilder import init_appbuilder
 
 from tests_common.test_utils.config import conf_vars
 
 
-@pytest.fixture
-def auth_manager():
-    return SimpleAuthManager(None)
-
-
-@pytest.fixture
-def auth_manager_with_appbuilder():
-    flask_app = Flask(__name__)
-    auth_manager = SimpleAuthManager()
-    auth_manager.appbuilder = init_appbuilder(flask_app)
-    return auth_manager
-
-
-@pytest.fixture
-def test_user():
-    return SimpleAuthManagerUser(username="test", role="test")
-
-
 class TestSimpleAuthManager:
-    @pytest.mark.db_test
     def test_get_users(self, auth_manager):
         with conf_vars(
             {
@@ -58,7 +36,6 @@ class TestSimpleAuthManager:
             users = auth_manager.get_users()
             assert users == [{"role": "viewer", "username": "test1"}, {"role": "viewer", "username": "test2"}]
 
-    @pytest.mark.db_test
     def test_init_with_default_user(self, auth_manager):
         auth_manager.init()
         with open(auth_manager.get_generated_password_file()) as file:
@@ -67,7 +44,6 @@ class TestSimpleAuthManager:
 
             assert len(user_passwords_from_file) == 1
 
-    @pytest.mark.db_test
     def test_init_with_users(self, auth_manager):
         with conf_vars(
             {
@@ -95,7 +71,6 @@ class TestSimpleAuthManager:
         result = auth_manager.serialize_user(user)
         assert result == {"username": "test", "role": "admin"}
 
-    @pytest.mark.db_test
     @pytest.mark.parametrize(
         "api",
         [
@@ -117,16 +92,12 @@ class TestSimpleAuthManager:
             ("VIEWER", "DELETE", False),
         ],
     )
-    def test_is_authorized_methods(self, auth_manager, app, api, role, method, result):
-        with app.test_request_context():
-            assert (
-                getattr(auth_manager, api)(
-                    method=method, user=SimpleAuthManagerUser(username="test", role=role)
-                )
-                is result
-            )
+    def test_is_authorized_methods(self, auth_manager, api, role, method, result):
+        assert (
+            getattr(auth_manager, api)(method=method, user=SimpleAuthManagerUser(username="test", role=role))
+            is result
+        )
 
-    @pytest.mark.db_test
     @pytest.mark.parametrize(
         "api, kwargs",
         [
@@ -149,14 +120,12 @@ class TestSimpleAuthManager:
             ("OP", True),
         ],
     )
-    def test_is_authorized_view_methods(self, auth_manager, app, api, kwargs, role, result):
-        with app.test_request_context():
-            assert (
-                getattr(auth_manager, api)(**kwargs, user=SimpleAuthManagerUser(username="test", role=role))
-                is result
-            )
+    def test_is_authorized_view_methods(self, auth_manager, api, kwargs, role, result):
+        assert (
+            getattr(auth_manager, api)(**kwargs, user=SimpleAuthManagerUser(username="test", role=role))
+            is result
+        )
 
-    @pytest.mark.db_test
     @pytest.mark.parametrize(
         "api",
         [
@@ -176,16 +145,12 @@ class TestSimpleAuthManager:
             ("VIEWER", "PUT", False),
         ],
     )
-    def test_is_authorized_methods_op_role_required(self, auth_manager, app, api, role, method, result):
-        with app.test_request_context():
-            assert (
-                getattr(auth_manager, api)(
-                    method=method, user=SimpleAuthManagerUser(username="test", role=role)
-                )
-                is result
-            )
+    def test_is_authorized_methods_op_role_required(self, auth_manager, api, role, method, result):
+        assert (
+            getattr(auth_manager, api)(method=method, user=SimpleAuthManagerUser(username="test", role=role))
+            is result
+        )
 
-    @pytest.mark.db_test
     @pytest.mark.parametrize(
         "api",
         ["is_authorized_dag"],
@@ -200,16 +165,12 @@ class TestSimpleAuthManager:
             ("VIEWER", "PUT", False),
         ],
     )
-    def test_is_authorized_methods_user_role_required(self, auth_manager, app, api, role, method, result):
-        with app.test_request_context():
-            assert (
-                getattr(auth_manager, api)(
-                    method=method, user=SimpleAuthManagerUser(username="test", role=role)
-                )
-                is result
-            )
+    def test_is_authorized_methods_user_role_required(self, auth_manager, api, role, method, result):
+        assert (
+            getattr(auth_manager, api)(method=method, user=SimpleAuthManagerUser(username="test", role=role))
+            is result
+        )
 
-    @pytest.mark.db_test
     @pytest.mark.parametrize(
         "api",
         ["is_authorized_dag", "is_authorized_asset", "is_authorized_pool"],
@@ -225,12 +186,9 @@ class TestSimpleAuthManager:
         ],
     )
     def test_is_authorized_methods_viewer_role_required_for_get(
-        self, auth_manager, app, api, role, method, result
+        self, auth_manager, api, role, method, result
     ):
-        with app.test_request_context():
-            assert (
-                getattr(auth_manager, api)(
-                    method=method, user=SimpleAuthManagerUser(username="test", role=role)
-                )
-                is result
-            )
+        assert (
+            getattr(auth_manager, api)(method=method, user=SimpleAuthManagerUser(username="test", role=role))
+            is result
+        )

@@ -40,7 +40,7 @@ DAG_ID = "example_bash_operator"
 DAG_RUN_ID = "test_dag_run_id"
 
 
-def api_request(method: str, path: str, base_url: str = "http://localhost:8080/api/v1", **kwargs) -> dict:
+def api_request(method: str, path: str, base_url: str = "http://localhost:9091/public", **kwargs) -> dict:
     response = requests.request(
         method=method,
         url=f"{base_url}/{path}",
@@ -101,7 +101,11 @@ def test_trigger_dag_and_wait_for_result(default_docker_image, tmp_path_factory,
         compose.execute(service="airflow-scheduler", command=["airflow", "scheduler", "-n", "50"])
 
         api_request("PATCH", path=f"dags/{DAG_ID}", json={"is_paused": False})
-        api_request("POST", path=f"dags/{DAG_ID}/dagRuns", json={"dag_run_id": DAG_RUN_ID})
+        api_request(
+            "POST",
+            path=f"dags/{DAG_ID}/dagRuns",
+            json={"dag_run_id": DAG_RUN_ID, "logical_date": "2020-06-11T18:00:00+00:00"},
+        )
 
         wait_for_terminal_dag_state(dag_id=DAG_ID, dag_run_id=DAG_RUN_ID)
         dag_state = api_request("GET", f"dags/{DAG_ID}/dagRuns/{DAG_RUN_ID}").get("state")

@@ -18,8 +18,9 @@ from __future__ import annotations
 
 import os
 import uuid
+from datetime import datetime
 from pathlib import Path
-from typing import TYPE_CHECKING, Literal, Union
+from typing import TYPE_CHECKING, Annotated, Literal, Union
 
 from pydantic import BaseModel, Field
 
@@ -60,6 +61,7 @@ class TaskInstance(BaseModel):
     pool_slots: int
     queue: str
     priority_weight: int
+    executor_config: dict | None = None
 
     # TODO: Task-SDK: Can we replace TastInstanceKey with just the uuid across the codebase?
     @property
@@ -101,9 +103,43 @@ class ExecuteTask(BaseWorkload):
             name=ti.dag_model.bundle_name,
             version=ti.dag_run.bundle_version,
         )
-        path = dag_rel_path or Path(ti.dag_run.dag_model.relative_fileloc)
         fname = log_filename_template_renderer()(ti=ti)
-        return cls(ti=ser_ti, dag_rel_path=path, token="", log_path=fname, bundle_info=bundle_info)
+        return cls(
+            ti=ser_ti,
+            dag_rel_path=dag_rel_path or Path(ti.dag_model.relative_fileloc),
+            token="",
+            log_path=fname,
+            bundle_info=bundle_info,
+        )
 
 
-All = Union[ExecuteTask]
+class RunTrigger(BaseModel):
+    """Execute an async "trigger" process that yields events."""
+
+    id: int
+
+    ti: TaskInstance | None
+    """
+    The task instance associated with this trigger.
+
+    Could be none for asset-based triggers.
+    """
+
+    classpath: str
+    """
+    Dot-separated name of the module+fn to import and run this workload.
+
+    Consumers of this Workload must perform their own validation of this input.
+    """
+
+    encrypted_kwargs: str
+
+    timeout_after: datetime | None = None
+
+    kind: Literal["RunTrigger"] = Field(init=False, default="RunTrigger")
+
+
+All = Annotated[
+    Union[ExecuteTask, RunTrigger],
+    Field(discriminator="kind"),
+]

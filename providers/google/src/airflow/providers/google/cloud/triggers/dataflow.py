@@ -22,8 +22,6 @@ from collections.abc import Sequence
 from functools import cached_property
 from typing import TYPE_CHECKING, Any
 
-from airflow.providers.google.cloud.hooks.dataflow import AsyncDataflowHook, DataflowJobStatus
-from airflow.triggers.base import BaseTrigger, TriggerEvent
 from google.cloud.dataflow_v1beta3 import JobState
 from google.cloud.dataflow_v1beta3.types import (
     AutoscalingEvent,
@@ -33,6 +31,9 @@ from google.cloud.dataflow_v1beta3.types import (
     JobType,
     MetricUpdate,
 )
+
+from airflow.providers.google.cloud.hooks.dataflow import AsyncDataflowHook, DataflowJobStatus
+from airflow.triggers.base import BaseTrigger, TriggerEvent
 
 if TYPE_CHECKING:
     from google.cloud.dataflow_v1beta3.services.messages_v1_beta3.pagers import ListJobMessagesAsyncPager

@@ -1,6 +1,6 @@
-.. Moving EmptyOperator from Airflow core to the ``standard`` provider.
+Moving EmptyOperator from Airflow core to the ``standard`` provider.
 
-.. EmptyOperator has been moved from Airflow core (``airflow.operators directory``) to the ``standard`` provider.
+EmptyOperator has been moved from Airflow core (``airflow.operators directory``) to the ``standard`` provider.
 For new and existing DAGs, users must import ``EmptyOperator`` from ``airflow.providers.standard.operators.empty``.
 
 * Types of change
@@ -13,8 +13,6 @@ For new and existing DAGs, users must import ``EmptyOperator`` from ``airflow.pr
   * [ ] Plugin changes
   * [ ] Dependency changes
   * [ ] Code interface changes
-
-.. List the migration rules needed for this change (see https://github.com/apache/airflow/issues/41641)
 
 * Migration rules needed
 

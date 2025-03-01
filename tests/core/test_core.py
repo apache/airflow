@@ -106,7 +106,6 @@ class TestCore:
             task2 = EmptyOperator(task_id="task2")
         dr = dag_maker.create_dagrun(
             run_type=DagRunType.SCHEDULED,
-            external_trigger=True,
         )
         task1.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE)
         task2.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE)

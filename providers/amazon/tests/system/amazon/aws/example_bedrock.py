@@ -21,7 +21,6 @@ from datetime import datetime
 from os import environ
 
 import boto3
-from providers.amazon.tests.system.amazon.aws.utils import SystemTestContextBuilder
 
 from airflow.decorators import task, task_group
 from airflow.models.baseoperator import chain
@@ -44,6 +43,7 @@ from airflow.providers.amazon.aws.sensors.bedrock import (
 from airflow.providers.standard.operators.empty import EmptyOperator
 from airflow.utils.edgemodifier import Label
 from airflow.utils.trigger_rule import TriggerRule
+from system.amazon.aws.utils import SystemTestContextBuilder
 
 # Externally fetched variables:
 ROLE_ARN_KEY = "ROLE_ARN"

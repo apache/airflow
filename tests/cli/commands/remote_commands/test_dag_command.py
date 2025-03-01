@@ -50,7 +50,12 @@ from airflow.utils.types import DagRunType
 
 from tests.models import TEST_DAGS_FOLDER
 from tests_common.test_utils.config import conf_vars
-from tests_common.test_utils.db import clear_db_dags, clear_db_runs, parse_and_sync_to_db
+from tests_common.test_utils.db import (
+    clear_db_dags,
+    clear_db_import_errors,
+    clear_db_runs,
+    parse_and_sync_to_db,
+)
 
 DEFAULT_DATE = timezone.make_aware(datetime(2015, 1, 1), timezone=timezone.utc)
 if pendulum.__version__.startswith("3"):
@@ -77,7 +82,11 @@ class TestCliDags:
         clear_db_dags()
 
     def setup_method(self):
-        clear_db_runs()  # clean-up all dag run before start each test
+        clear_db_runs()
+        clear_db_import_errors()
+
+    def teardown_method(self):
+        clear_db_import_errors()
 
     def test_show_dag_dependencies_print(self):
         with contextlib.redirect_stdout(StringIO()) as temp_stdout:
@@ -274,12 +283,17 @@ class TestCliDags:
         assert "Ignoring the following invalid columns: ['invalid_col']" in out
 
     @conf_vars({("core", "load_examples"): "false"})
-    def test_cli_list_dags_prints_import_errors(self):
-        dag_path = os.path.join(TEST_DAGS_FOLDER, "test_invalid_cron.py")
-        args = self.parser.parse_args(["dags", "list", "--output", "yaml", "--subdir", dag_path])
-        with contextlib.redirect_stderr(StringIO()) as temp_stderr:
-            dag_command.dag_list_dags(args)
-            out = temp_stderr.getvalue()
+    def test_cli_list_dags_prints_import_errors(self, configure_testing_dag_bundle, get_test_dag):
+        path_to_parse = TEST_DAGS_FOLDER / "test_invalid_cron.py"
+        get_test_dag("test_invalid_cron")
+
+        args = self.parser.parse_args(["dags", "list", "--output", "yaml", "--bundle-name", "testing"])
+
+        with configure_testing_dag_bundle(path_to_parse):
+            with contextlib.redirect_stderr(StringIO()) as temp_stderr:
+                dag_command.dag_list_dags(args)
+                out = temp_stderr.getvalue()
+
         assert "Failed to load all files." in out
 
     @conf_vars({("core", "load_examples"): "true"})
@@ -305,7 +319,9 @@ class TestCliDags:
     @conf_vars({("core", "load_examples"): "false"})
     def test_cli_list_import_errors(self):
         dag_path = os.path.join(TEST_DAGS_FOLDER, "test_invalid_cron.py")
-        args = self.parser.parse_args(["dags", "list", "--output", "yaml", "--subdir", dag_path])
+        args = self.parser.parse_args(
+            ["dags", "list-import-errors", "--output", "yaml", "--subdir", dag_path]
+        )
         with contextlib.redirect_stdout(StringIO()) as temp_stdout:
             with pytest.raises(SystemExit) as err_ctx:
                 dag_command.dag_list_import_errors(args)
@@ -429,7 +445,6 @@ class TestCliDags:
                     "trigger",
                     "example_bash_operator",
                     "--run-id=test_trigger_dag",
-                    "--exec-date=2021-06-04T09:00:00+08:00",
                     '--conf={"foo": "bar"}',
                 ],
             ),
@@ -439,16 +454,14 @@ class TestCliDags:
 
         assert dagrun, "DagRun not created"
         assert dagrun.run_type == DagRunType.MANUAL
-        assert dagrun.external_trigger
         assert dagrun.conf == {"foo": "bar"}
 
-        # Coerced to UTC.
-        assert dagrun.logical_date.isoformat(timespec="seconds") == "2021-06-04T01:00:00+00:00"
+        # logical_date is None as it's not provided
+        assert dagrun.logical_date is None
 
-        # example_bash_operator runs every day at midnight, so the data interval
-        # should be aligned to the previous day.
-        assert dagrun.data_interval_start.isoformat(timespec="seconds") == "2021-06-03T00:00:00+00:00"
-        assert dagrun.data_interval_end.isoformat(timespec="seconds") == "2021-06-04T00:00:00+00:00"
+        # data_interval is None as logical_date is None
+        assert dagrun.data_interval_start is None
+        assert dagrun.data_interval_end is None
 
     def test_trigger_dag_with_microseconds(self):
         dag_command.dag_trigger(
@@ -469,7 +482,6 @@ class TestCliDags:
 
         assert dagrun, "DagRun not created"
         assert dagrun.run_type == DagRunType.MANUAL
-        assert dagrun.external_trigger
         assert dagrun.logical_date.isoformat(timespec="microseconds") == "2021-06-04T01:00:00.000001+00:00"
 
     def test_trigger_dag_invalid_conf(self):

@@ -27,7 +27,13 @@ import { Tooltip } from "src/components/ui";
 
 export const AssetEvent = ({ event }: { readonly event: AssetEventResponse }) => {
   const hasDagRuns = event.created_dagruns.length > 0;
-  const source = event.extra?.from_rest_api === true ? "API" : "";
+  let source = "";
+
+  if (event.extra?.from_rest_api === true) {
+    source = "API";
+  } else if (event.extra?.from_trigger === true) {
+    source = "Trigger";
+  }
 
   return (
     <Box fontSize={13} mt={1} w="full">
@@ -52,7 +58,7 @@ export const AssetEvent = ({ event }: { readonly event: AssetEventResponse }) =>
         <MdOutlineAccountTree /> <Text> Source: </Text>
         {source === "" ? (
           <Link
-            to={`/dags/${event.source_dag_id}/runs/${event.source_run_id}/tasks/${event.source_task_id}?map_index=${event.source_map_index}`}
+            to={`/dags/${event.source_dag_id}/runs/${event.source_run_id}/tasks/${event.source_task_id}${event.source_map_index > -1 ? `/mapped/${event.source_map_index}` : ""}`}
           >
             <Text color="fg.info"> {event.source_dag_id} </Text>
           </Link>

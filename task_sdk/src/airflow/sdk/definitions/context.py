@@ -61,9 +61,11 @@ class Context(TypedDict, total=False):
     prev_end_date_success: datetime | None
     reason: str | None
     run_id: str
+    start_date: datetime
     # TODO: Remove Operator from below once we have MappedOperator to the Task SDK
     #   and once we can remove context related code from the Scheduler/models.TaskInstance
     task: BaseOperator | Operator
+    task_reschedule_count: int
     task_instance: RuntimeTaskInstanceProtocol
     task_instance_key_str: str
     # `templates_dict` is only set in PythonOperator

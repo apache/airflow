@@ -16,12 +16,30 @@
 # under the License.
 from __future__ import annotations
 
+import logging
+import os
+from base64 import b64encode
 from datetime import timedelta
 from typing import Any
 
 import jwt
 
 from airflow.utils import timezone
+
+
+def get_signing_key(section: str, key: str) -> str:
+    from airflow.configuration import conf
+
+    secret_key = conf.get(section, key, fallback="")
+
+    if secret_key == "":
+        logging.getLogger(__name__).warning(
+            "`%s/%s` was empty, using a generated one for now. Please set this in your config", section, key
+        )
+        secret_key = b64encode(os.urandom(16)).decode("utf-8")
+        # Set it back so any other callers get the same value for the duration of this process
+        conf.set(section, key, secret_key)
+    return secret_key
 
 
 class JWTSigner:

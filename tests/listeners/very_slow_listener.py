@@ -22,5 +22,5 @@ from airflow.listeners import hookimpl
 
 
 @hookimpl
-def on_task_instance_success(previous_state, task_instance, session):
+def on_task_instance_success(previous_state, task_instance):
     time.sleep(10)

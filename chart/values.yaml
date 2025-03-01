@@ -297,7 +297,7 @@ airflowConfigAnnotations: {}
 
 # `airflow_local_settings` file as a string (templated).
 airflowLocalSettings: |-
-  {{- if semverCompare ">=2.2.0" .Values.airflowVersion }}
+  {{- if semverCompare ">=2.2.0 <3.0.0" .Values.airflowVersion }}
   {{- if not (or .Values.webserverSecretKey .Values.webserverSecretKeySecretName) }}
   from airflow.www.utils import UIAlert
 
@@ -777,6 +777,9 @@ workers:
   extraVolumes: []
   extraVolumeMounts: []
 
+  # Expose additional ports. These can be used for additional metric collection.
+  extraPorts: []
+
   # Select certain nodes for airflow worker pods.
   nodeSelector: {}
   runtimeClassName: ~
@@ -821,6 +824,8 @@ workers:
     args: ["bash", "/clean-logs"]
     # Number of days to retain logs
     retentionDays: 15
+    # frequency to attempt to groom logs, in minutes
+    frequencyMinutes: 15
     resources: {}
     #  limits:
     #   cpu: 100m
@@ -1023,6 +1028,8 @@ scheduler:
     args: ["bash", "/clean-logs"]
     # Number of days to retain logs
     retentionDays: 15
+    # frequency to attempt to groom logs, in minutes
+    frequencyMinutes: 15
     resources: {}
     #  limits:
     #   cpu: 100m
@@ -1246,7 +1253,7 @@ migrateDatabaseJob:
   applyCustomEnv: true
   env: []
 
-_apiServer:
+apiServer:
 
   # Labels specific to workers objects and pods
   labels: {}
@@ -1254,7 +1261,8 @@ _apiServer:
   # Command to use when running the Airflow API server (templated).
   command: ~
   # Args to use when running the Airflow API server (templated).
-  args: ["bash", "-c", "exec airflow fastapi-api"]
+  args: ["bash", "-c", "exec airflow api-server"]
+  allowPodLogReading: true
   env: []
   serviceAccount:
     # default value is true
@@ -1274,7 +1282,7 @@ _apiServer:
     annotations: {}
     ports:
       - name: api-server
-        port: "{{ .Values.ports._apiServer }}"
+        port: "{{ .Values.ports.apiServer }}"
 
     loadBalancerIP: ~
     ## Limit load balancer source ips to list of CIDRs
@@ -1313,7 +1321,7 @@ _apiServer:
       from: []
       # Ports for webserver NetworkPolicy ingress (if `from` is set)
       ports:
-        - port: "{{ .Values.ports._apiServer }}"
+        - port: "{{ .Values.ports.apiServer }}"
 
   resources: {}
   #   limits:
@@ -1736,6 +1744,8 @@ triggerer:
     args: ["bash", "/clean-logs"]
     # Number of days to retain logs
     retentionDays: 15
+    # frequency to attempt to groom logs, in minutes
+    frequencyMinutes: 15
     resources: {}
     #  limits:
     #   cpu: 100m
@@ -1922,6 +1932,8 @@ dagProcessor:
     args: ["bash", "/clean-logs"]
     # Number of days to retain logs
     retentionDays: 15
+    # frequency to attempt to groom logs, in minutes
+    frequencyMinutes: 15
     resources: {}
     #  limits:
     #   cpu: 100m
@@ -2529,7 +2541,7 @@ ports:
   statsdScrape: 9102
   pgbouncer: 6543
   pgbouncerScrape: 9127
-  _apiServer: 9091
+  apiServer: 9091
 
 # Define any ResourceQuotas for namespace
 quotas: {}

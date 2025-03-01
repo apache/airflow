@@ -21,10 +21,11 @@ from collections.abc import Sequence
 from functools import cached_property
 from typing import TYPE_CHECKING
 
+from kubernetes import client
+
 from airflow.exceptions import AirflowException
 from airflow.providers.cncf.kubernetes.hooks.kubernetes import KubernetesHook
 from airflow.sensors.base import BaseSensorOperator
-from kubernetes import client
 
 if TYPE_CHECKING:
     from airflow.utils.context import Context

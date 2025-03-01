@@ -219,11 +219,11 @@ are conflicting with the new specification, you might want to build the image wi
     breeze ci-image build --upgrade-to-newer-dependencies
 
 
-Node (yarn) dependencies
+Node (pnpm) dependencies
 ........................
 
-If you need to change "node" dependencies in ``airflow/www``, you need to compile them in the
-host with ``breeze compile-www-assets`` command. No need to rebuild the image.
+If you need to change "node" dependencies in ``airflow/ui``, you need to compile them in the
+host with ``breeze compile-ui-assets`` command. No need to rebuild the image.
 
 
 Recording command output

@@ -20,8 +20,7 @@ import pytest
 
 from airflow.listeners.listener import get_listener_manager
 from airflow.providers.openlineage.plugins.listener import OpenLineageListener
-
-from providers.tests.system.openlineage.transport.variable import VariableTransport
+from system.openlineage.transport.variable import VariableTransport
 
 
 @pytest.fixture(autouse=True)

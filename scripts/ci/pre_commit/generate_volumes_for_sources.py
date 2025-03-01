@@ -21,7 +21,7 @@ import sys
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).parent.resolve()))  # make sure common_precommit_utils is imported
-from common_precommit_utils import AIRFLOW_SOURCES_ROOT_PATH, get_all_new_provider_ids, insert_documentation
+from common_precommit_utils import AIRFLOW_SOURCES_ROOT_PATH, get_all_provider_ids, insert_documentation
 
 START_MARKER = "      # START automatically generated volumes by generate-volumes-for-sources pre-commit"
 END_MARKER = "      # END automatically generated volumes by generate-volumes-for-sources pre-commit"
@@ -29,7 +29,7 @@ END_MARKER = "      # END automatically generated volumes by generate-volumes-fo
 REMOVE_SOURCES_YAML = AIRFLOW_SOURCES_ROOT_PATH / "scripts" / "ci" / "docker-compose" / "remove-sources.yml"
 TESTS_SOURCES_YAML = AIRFLOW_SOURCES_ROOT_PATH / "scripts" / "ci" / "docker-compose" / "tests-sources.yml"
 
-providers_paths = sorted([provider.replace(".", "/") for provider in get_all_new_provider_ids()])
+providers_paths = sorted([provider.replace(".", "/") for provider in get_all_provider_ids()])
 
 
 if __name__ == "__main__":

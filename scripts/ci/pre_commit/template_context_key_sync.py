@@ -33,7 +33,18 @@ CONTEXT_HINT = ROOT_DIR.joinpath("task_sdk", "src", "airflow", "sdk", "definitio
 TEMPLATES_REF_RST = ROOT_DIR.joinpath("docs", "apache-airflow", "templates-ref.rst")
 
 # These are only conditionally set
-IGNORE = {"ds", "ds_nodash", "ts", "ts_nodash", "ts_nodash_with_tz", "logical_date"}
+IGNORE = {
+    "ds",
+    "ds_nodash",
+    "ts",
+    "ts_nodash",
+    "ts_nodash_with_tz",
+    "logical_date",
+    "data_interval_end",
+    "data_interval_start",
+    "prev_data_interval_start_success",
+    "prev_data_interval_end_success",
+}
 
 
 def _iter_template_context_keys_from_original_return() -> typing.Iterator[str]:
@@ -151,6 +162,9 @@ def _compare_keys(retn_keys: set[str], decl_keys: set[str], hint_keys: set[str],
     # Only present in callbacks. Not listed in templates-ref (that doc is for task execution).
     retn_keys.update(("exception", "reason", "try_number"))
     docs_keys.update(("exception", "reason", "try_number"))
+
+    # Airflow 3 added:
+    retn_keys.update(("start_date", "task_reschedule_count"))
 
     check_candidates = [
         ("get_template_context()", retn_keys),

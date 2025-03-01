@@ -17,14 +17,14 @@
 from __future__ import annotations
 
 import pendulum
+from weaviate.classes.config import DataType, Property
+from weaviate.collections.classes.config import Configure
 
 from airflow.decorators import dag, task, teardown
 from airflow.providers.weaviate.operators.weaviate import (
     WeaviateDocumentIngestOperator,
     WeaviateIngestOperator,
 )
-from weaviate.classes.config import DataType, Property
-from weaviate.collections.classes.config import Configure
 
 COLLECTION_NAME = "QuestionWithoutVectorizerUsingOperator"
 

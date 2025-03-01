@@ -18,6 +18,7 @@
  */
 import { Box, Heading, Flex, HStack, VStack, StackSeparator, Skeleton } from "@chakra-ui/react";
 import { createListCollection } from "@chakra-ui/react/collection";
+import { FiDatabase } from "react-icons/fi";
 
 import { useAssetServiceGetAssetEvents } from "openapi/queries";
 import { StateBadge } from "src/components/StateBadge";
@@ -52,6 +53,7 @@ export const AssetEvents = ({ assetSortBy, endDate, setAssetSortBy, startDate }:
       <Flex justify="space-between" mr={1} mt={0} pl={3} pt={1}>
         <HStack>
           <StateBadge colorPalette="blue" fontSize="md" variant="solid">
+            <FiDatabase />
             {data?.total_entries ?? " "}
           </StateBadge>
           <Heading marginEnd="auto" size="md">

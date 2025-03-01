@@ -43,7 +43,7 @@ __deprecated_classes = {
         "BranchDateTimeOperator": "airflow.providers.standard.operators.datetime.BranchDateTimeOperator",
     },
     "generic_transfer": {
-        "GenericTransfer": "airflow.providers.standard.operators.generic_transfer.GenericTransfer",
+        "GenericTransfer": "airflow.providers.common.sql.operators.generic_transfer.GenericTransfer",
     },
     "weekday": {
         "BranchDayOfWeekOperator": "airflow.providers.standard.operators.weekday.BranchDayOfWeekOperator",

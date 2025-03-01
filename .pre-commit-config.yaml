@@ -67,20 +67,10 @@ repos:
       - id: insert-license
         name: Add license for CSS/JS/JSX/PUML/TS/TSX
         files: \.(css|jsx?|puml|tsx?)$
-        exclude: ^\.github/.*$|^airflow/www/static/js/types/api-generated.ts$|ui/openapi-gen/
+        exclude: ^\.github/.*$|ui/openapi-gen/|.*/dist/.*
         args:
           - --comment-style
           - "/*!| *| */"
-          - --license-filepath
-          - scripts/ci/license-templates/LICENSE.txt
-          - --fuzzy-match-generates-todo
-      - id: insert-license
-        name: Add license for all JINJA template files
-        files: ^airflow/www/templates/.*\.html$
-        exclude: ^\.github/.*$
-        args:
-          - --comment-style
-          - "{#||#}"
           - --license-filepath
           - scripts/ci/license-templates/LICENSE.txt
           - --fuzzy-match-generates-todo
@@ -249,7 +239,7 @@ repos:
         exclude: ^providers/ssh/docs/connections/ssh.rst$
       - id: end-of-file-fixer
         name: Make sure that there is an empty line at the end
-        exclude: ^docs/apache-airflow/img/.*\.dot|^docs/apache-airflow/img/.*\.sha256
+        exclude: ^docs/apache-airflow/img/.*\.dot|^docs/apache-airflow/img/.*\.sha256|.*/dist/.*|LICENSES-ui.txt
       - id: mixed-line-ending
         name: Detect if mixed line ending is used (\r vs. \r\n)
       - id: check-executables-have-shebangs
@@ -309,10 +299,10 @@ repos:
           The word(s) should be in lowercase." && exec codespell "$@"' --
         language: python
         types: [text]
-        exclude: material-icons\.css$|^images/.*$|^RELEASE_NOTES\.txt$|^.*package-lock\.json$|^.*/kinglear\.txt$|^.*pnpm-lock\.yaml$
+        exclude: material-icons\.css$|^images/.*$|^RELEASE_NOTES\.txt$|^.*package-lock\.json$|^.*/kinglear\.txt$|^.*pnpm-lock\.yaml$|.*/dist/.*
         args:
           - --ignore-words=docs/spelling_wordlist.txt
-          - --skip=providers/.*/src/airflow/providers/*/*.rst,providers/*/docs/changelog.rst,airflow/www/*.log,docs/*/commits.rst,providers/*/docs/commits.rst,providers/*/*/docs/commits.rst,docs/apache-airflow/tutorial/pipeline_example.csv,*.min.js,*.lock,INTHEWILD.md
+          - --skip=providers/.*/src/airflow/providers/*/*.rst,providers/*/docs/changelog.rst,docs/*/commits.rst,providers/*/docs/commits.rst,providers/*/*/docs/commits.rst,docs/apache-airflow/tutorial/pipeline_example.csv,*.min.js,*.lock,INTHEWILD.md
           - --exclude-file=.codespellignorelines
   - repo: https://github.com/woodruffw/zizmor-pre-commit
     rev: v1.0.0
@@ -381,7 +371,7 @@ repos:
         entry: ./scripts/ci/pre_commit/replace_bad_characters.py
         language: python
         types: [file, text]
-        exclude: ^clients/gen/go\.sh$|^\.gitmodules$
+        exclude: ^clients/gen/go\.sh$|^\.gitmodules$|.*/dist/.*
         additional_dependencies: ['rich>=12.4.4']
       - id: lint-openapi
         name: Lint OpenAPI using spectral
@@ -556,9 +546,6 @@ repos:
         language: pygrep
         entry: >
           (?i)
-          .*https://github.*[0-9]/providers/.*/tests/system/|
-          .*https://github.*/main/providers/.*/tests/system/|
-          .*https://github.*/master/providers/.*/tests/system/|
           .*https://github.*/main/providers/.*/src/airflow/providers/.*/example_dags/|
           .*https://github.*/master/providers/.*/src/airflow/providers/.*/example_dags/
         pass_filenames: true
@@ -619,7 +606,6 @@ repos:
           ^airflow/api_connexion/openapi/v1.yaml$|
           ^airflow/ui/openapi-gen/|
           ^airflow/cli/commands/local_commands/fastapi_api_command.py$|
-          ^airflow/cli/commands/local_commands/webserver_command.py$|
           ^airflow/config_templates/|
           ^airflow/models/baseoperator.py$|
           ^airflow/operators/__init__.py$|
@@ -652,9 +638,6 @@ repos:
           ^airflow/ui/pnpm-lock.yaml$|
           ^airflow/utils/db.py$|
           ^airflow/utils/trigger_rule.py$|
-          ^airflow/www/static/css/bootstrap-theme.css$|
-          ^airflow/www/static/js/types/api-generated.ts$|
-          ^airflow/www/templates/appbuilder/flash.html$|
           ^chart/values.schema.json$|
           ^dev/|
           ^docs/README.rst$|
@@ -674,7 +657,6 @@ repos:
           ^scripts/ci/docker-compose/integration-keycloak.yml$|
           ^scripts/ci/docker-compose/keycloak/keycloak-entrypoint.sh$|
           ^tests/|
-          ^providers/tests/|
           ^providers/.*/tests/|
           ^.pre-commit-config\.yaml$|
           ^.*CHANGELOG\.(rst|txt)$|
@@ -684,7 +666,8 @@ repos:
           ^contributing-docs/03_contributors_quick_start.rst$|
           ^.*\.(png|gif|jp[e]?g|tgz|lock)$|
           git|
-          ^newsfragments/43349\.significant\.rst$
+          ^newsfragments/43349\.significant\.rst$|
+          .*/dist/.*
       - id: check-base-operator-partial-arguments
         name: Check BaseOperator and partial() arguments
         language: python
@@ -793,7 +776,7 @@ repos:
         entry: ./scripts/ci/pre_commit/check_license.py
         language: python
         files: ^.*LICENSE.*$|^.*LICENCE.*$
-        exclude: ^providers/.*/src/.*/LICENSE$
+        exclude: ^providers/.*/src/.*/LICENSE$|.*/dist/.*
         pass_filenames: false
       - id: check-aiobotocore-optional
         name: Check if aiobotocore is an optional dependency only
@@ -861,13 +844,6 @@ repos:
         entry: koalaman/shellcheck:v0.8.0 -x -a
         files: \.(bash|sh)$|^hooks/build$|^hooks/push$
         exclude: ^dev/breeze/autocomplete/.*$
-      - id: lint-css
-        name: stylelint
-        entry: "stylelint"
-        language: node
-        files: ^airflow/www/.*\.(css|sass|scss)$
-        # Keep dependency versions in sync w/ airflow/www/package.json
-        additional_dependencies: ['stylelint@13.3.1', 'stylelint-config-standard@20.0.0', 'stylelint-config-prettier@9.0.5']
       - id: compile-ui-assets
         name: Compile ui assets (manual)
         language: node
@@ -877,6 +853,14 @@ repos:
         entry: ./scripts/ci/pre_commit/compile_ui_assets.py
         pass_filenames: false
         additional_dependencies: ['pnpm@9.7.1']
+      - id: compile-fab-assets
+        name: Compile FAB provider assets
+        language: node
+        'types_or': [ javascript, ts, tsx ]
+        files: ^providers/fab/.*/www/
+        entry: ./scripts/ci/pre_commit/compile_fab_assets.py
+        pass_filenames: false
+        additional_dependencies: [ 'yarn@1.22.21' ]
       - id: compile-ui-assets-dev
         name: Compile ui assets in dev mode (manual)
         language: node
@@ -886,24 +870,6 @@ repos:
         entry: ./scripts/ci/pre_commit/compile_ui_assets_dev.py
         pass_filenames: false
         additional_dependencies: ['pnpm@9.7.1']
-      - id: compile-www-assets
-        name: Compile www assets (manual)
-        language: node
-        stages: ['manual']
-        'types_or': [javascript, ts, tsx]
-        files: ^airflow/www/
-        entry: ./scripts/ci/pre_commit/compile_www_assets.py
-        pass_filenames: false
-        additional_dependencies: ['yarn@1.22.21']
-      - id: compile-www-assets-dev
-        name: Compile www assets in dev mode (manual)
-        language: node
-        stages: ['manual']
-        'types_or': [javascript, ts, tsx]
-        files: ^airflow/www/
-        entry: ./scripts/ci/pre_commit/compile_www_assets_dev.py
-        pass_filenames: false
-        additional_dependencies: ['yarn@1.22.21']
       - id: check-providers-subpackages-init-file-exist
         name: Provider subpackage init files are there
         pass_filenames: false
@@ -911,6 +877,7 @@ repos:
         entry: ./scripts/ci/pre_commit/check_providers_subpackages_all_have_init.py
         language: python
         require_serial: true
+        additional_dependencies: ['rich>=12.4.4']
       - id: check-pre-commit-information-consistent
         name: Validate hook IDs & names and sync with docs
         entry: ./scripts/ci/pre_commit/check_pre_commit_hooks.py
@@ -974,7 +941,6 @@ repos:
         entry: ./scripts/ci/pre_commit/check_system_tests.py
         language: python
         files: ^(providers/)?tests/system/.*/example_[^/]*\.py$
-        exclude: ^providers/google/tests/system/google/cloud/bigquery/example_bigquery_queries\.py$
         pass_filenames: true
         additional_dependencies: ['rich>=12.4.4']
       - id: generate-pypi-readme
@@ -1189,15 +1155,6 @@ repos:
         additional_dependencies: ['rich>=12.4.4']
         pass_filenames: false
         files: ^tests/.*\.py$
-      - id: ts-compile-format-lint-www
-        name: Compile / format / lint WWW
-        description: TS types generation / ESLint / Prettier against UI files
-        language: node
-        'types_or': [javascript, ts, tsx, yaml, css, json]
-        files: ^airflow/www/static/(js|css)/|^airflow/api_connexion/openapi/v1\.yaml$
-        entry: ./scripts/ci/pre_commit/lint_www.py
-        additional_dependencies: ['yarn@1.22.21', "openapi-typescript@>=6.7.4"]
-        pass_filenames: false
       - id: ts-compile-format-lint-ui
         name: Compile / format / lint UI
         description: TS types generation / ESLint / Prettier new UI files
@@ -1377,7 +1334,7 @@ repos:
         stages: ['manual']
         name: Run mypy for providers (manual)
         language: python
-        entry: ./scripts/ci/pre_commit/mypy_folder.py providers/src/airflow/providers all_new_providers
+        entry: ./scripts/ci/pre_commit/mypy_folder.py all_providers
         pass_filenames: false
         files: ^.*\.py$
         require_serial: true
@@ -1443,6 +1400,15 @@ repos:
         entry: ./scripts/ci/pre_commit/update_fastapi_api_spec.py
         pass_filenames: false
         files: ^airflow/api_fastapi/.*\.py$
+        exclude: ^airflow/api_fastapi/execution_api/.*
+        additional_dependencies: ['rich>=12.4.4']
+      - id: generate-tasksdk-datamodels
+        name: Generate Datamodels for TaskSDK client
+        language: python
+        entry: uv run --active --group codegen --project apache-airflow-task-sdk --directory task_sdk -s dev/generate_models.py
+        pass_filenames: false
+        files: ^airflow/api_fastapi/execution_api/.*\.py$
+        require_serial: true
         additional_dependencies: ['rich>=12.4.4']
       - id: update-er-diagram
         name: Update ER diagram
@@ -1451,4 +1417,12 @@ repos:
         pass_filenames: false
         files: ^airflow/migrations/versions/.*\.py$|^docs/apache-airflow/migrations-ref\.rst$
         additional_dependencies: ['rich>=12.4.4']
+      - id: check-default-configuration
+        name: Check the default configuration
+        entry: ./scripts/ci/pre_commit/check_default_configuration.py
+        language: python
+        additional_dependencies: ['rich>=12.4.4']
+        require_serial: true
+        pass_filenames: false
+        files: ^airflow/config_templates/config.yml
         ## ONLY ADD PRE-COMMITS HERE THAT REQUIRE CI IMAGE

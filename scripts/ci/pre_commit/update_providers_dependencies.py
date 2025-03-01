@@ -35,7 +35,6 @@ AIRFLOW_PROVIDERS_IMPORT_PREFIX = "airflow.providers."
 AIRFLOW_SOURCES_ROOT = Path(__file__).parents[3].resolve()
 
 AIRFLOW_PROVIDERS_DIR = AIRFLOW_SOURCES_ROOT / "providers"
-AIRFLOW_PROVIDERS_SRC_DIR = AIRFLOW_PROVIDERS_DIR / "src" / "airflow" / "providers"
 AIRFLOW_TESTS_PROVIDERS_DIR = AIRFLOW_PROVIDERS_DIR / "tests"
 AIRFLOW_SYSTEM_TESTS_PROVIDERS_DIR = AIRFLOW_TESTS_PROVIDERS_DIR / "tests" / "system"
 
@@ -46,8 +45,7 @@ PYPROJECT_TOML_FILE_PATH = AIRFLOW_SOURCES_ROOT / "pyproject.toml"
 MY_FILE = Path(__file__).resolve()
 MY_MD5SUM_FILE = MY_FILE.parent / MY_FILE.name.replace(".py", ".py.md5sum")
 
-# TODO(potiuk) - remove this when we move all providers to the new structure
-NEW_STRUCTURE_PROVIDERS: set[str] = set()
+PROVIDERS: set[str] = set()
 
 PYPROJECT_TOML_CONTENT: dict[str, dict[str, Any]] = {}
 
@@ -112,33 +110,27 @@ def find_all_providers_and_provider_files():
         for filename in filenames:
             if filename == "provider.yaml":
                 provider_yaml_file = Path(root, filename)
-                if provider_yaml_file.is_relative_to(AIRFLOW_PROVIDERS_SRC_DIR):
-                    # TODO(potiuk) - remove this when we move all providers to the new structure
-                    provider_name = str(
-                        provider_yaml_file.parent.relative_to(AIRFLOW_PROVIDERS_SRC_DIR)
-                    ).replace(os.sep, ".")
+                provider_name = str(provider_yaml_file.parent.relative_to(AIRFLOW_PROVIDERS_DIR)).replace(
+                    os.sep, "."
+                )
+                PROVIDERS.add(provider_name)
+                PYPROJECT_TOML_CONTENT[provider_name] = load_pyproject_toml(
+                    provider_yaml_file.parent / "pyproject.toml"
+                )
+                # only descend to "src" directory in the new structure
+                # this avoids descending into .venv or "build" directories in case
+                # someone works on providers in a separate virtualenv
+                if "src" in dirs:
+                    dirs[:] = ["src"]
                 else:
-                    provider_name = str(provider_yaml_file.parent.relative_to(AIRFLOW_PROVIDERS_DIR)).replace(
-                        os.sep, "."
+                    raise ValueError(
+                        f"The provider {provider_name} does not have 'src' folder"
+                        f" in {provider_yaml_file.parent}"
                     )
-                    NEW_STRUCTURE_PROVIDERS.add(provider_name)
-                    PYPROJECT_TOML_CONTENT[provider_name] = load_pyproject_toml(
-                        provider_yaml_file.parent / "pyproject.toml"
-                    )
-                    # only descend to "src" directory in the new structure
-                    # this avoids descending into .venv or "build" directories in case
-                    # someone works on providers in a separate virtualenv
-                    if "src" in dirs:
-                        dirs[:] = ["src"]
-                    else:
-                        raise ValueError(
-                            f"The provider {provider_name} does not have 'src' folder"
-                            f" in {provider_yaml_file.parent}"
-                        )
                 provider_info = yaml.safe_load(provider_yaml_file.read_text())
                 if provider_info["state"] == "suspended":
                     suspended_paths.append(
-                        provider_yaml_file.parent.relative_to(AIRFLOW_PROVIDERS_SRC_DIR).as_posix()
+                        provider_yaml_file.parent.relative_to(AIRFLOW_PROVIDERS_DIR).as_posix()
                     )
                 ALL_PROVIDERS[provider_name] = provider_info
             path = Path(root, filename)
@@ -234,7 +226,7 @@ if __name__ == "__main__":
     for provider in sorted(ALL_PROVIDERS.keys()):
         provider_yaml_content = ALL_PROVIDERS[provider]
         console.print(f"Reading dependencies for provider: {provider}")
-        if provider in NEW_STRUCTURE_PROVIDERS:
+        if provider in PROVIDERS:
             ALL_DEPENDENCIES[provider]["deps"].extend(
                 PYPROJECT_TOML_CONTENT[provider]["project"]["dependencies"]
             )

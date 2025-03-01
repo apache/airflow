@@ -18,8 +18,9 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
-from airflow.providers.common.sql.hooks.sql import DbApiHook
 from impala.dbapi import connect
+
+from airflow.providers.common.sql.hooks.sql import DbApiHook
 
 if TYPE_CHECKING:
     from impala.interface import Connection

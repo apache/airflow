@@ -16,16 +16,16 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Box, Flex, Heading, HStack, SimpleGrid, Spinner, Text } from "@chakra-ui/react";
+import { HStack, Text } from "@chakra-ui/react";
 import { FiBarChart, FiMessageSquare } from "react-icons/fi";
 
 import type { DAGRunResponse } from "openapi/requests/types.gen";
 import { ClearRunButton } from "src/components/Clear";
 import DisplayMarkdownButton from "src/components/DisplayMarkdownButton";
+import { HeaderCard } from "src/components/HeaderCard";
+import { LimitedItemsList } from "src/components/LimitedItemsList";
 import { MarkRunAsButton } from "src/components/MarkAs";
 import { RunTypeIcon } from "src/components/RunTypeIcon";
-import { Stat } from "src/components/Stat";
-import { StateBadge } from "src/components/StateBadge";
 import Time from "src/components/Time";
 import { getDuration } from "src/utils";
 
@@ -36,44 +36,54 @@ export const Header = ({
   readonly dagRun: DAGRunResponse;
   readonly isRefreshing?: boolean;
 }) => (
-  <Box borderColor="border" borderRadius={8} borderWidth={1} p={2}>
-    <Flex alignItems="center" justifyContent="space-between" mb={2}>
-      <HStack alignItems="center" gap={2}>
-        <FiBarChart size="1.75rem" />
-        <Heading size="lg">
-          <strong>Run: </strong>
-          {dagRun.dag_run_id}
-        </Heading>
-        <StateBadge state={dagRun.state}>{dagRun.state}</StateBadge>
-        {isRefreshing ? <Spinner /> : <div />}
-      </HStack>
-      <HStack>
+  <HeaderCard
+    actions={
+      <>
         {dagRun.note === null || dagRun.note.length === 0 ? undefined : (
           <DisplayMarkdownButton
             header="Dag Run Note"
-            icon={<FiMessageSquare color="black" />}
+            icon={<FiMessageSquare />}
             mdContent={dagRun.note}
             text="Note"
           />
         )}
         <ClearRunButton dagRun={dagRun} />
         <MarkRunAsButton dagRun={dagRun} />
-      </HStack>
-    </Flex>
-    <SimpleGrid columns={4} gap={4}>
-      <Stat label="Run Type">
-        <HStack>
-          <RunTypeIcon runType={dagRun.run_type} />
-          <Text>{dagRun.run_type}</Text>
-        </HStack>
-      </Stat>
-      <Stat label="Start">
-        <Time datetime={dagRun.start_date} />
-      </Stat>
-      <Stat label="End">
-        <Time datetime={dagRun.end_date} />
-      </Stat>
-      <Stat label="Duration">{getDuration(dagRun.start_date, dagRun.end_date)}s</Stat>
-    </SimpleGrid>
-  </Box>
+      </>
+    }
+    icon={<FiBarChart />}
+    isRefreshing={isRefreshing}
+    state={dagRun.state}
+    stats={[
+      ...(dagRun.logical_date === null
+        ? []
+        : [
+            {
+              label: "Logical Date",
+              value: <Time datetime={dagRun.logical_date} />,
+            },
+          ]),
+      {
+        label: "Run Type",
+        value: (
+          <HStack>
+            <RunTypeIcon runType={dagRun.run_type} />
+            <Text>{dagRun.run_type}</Text>
+          </HStack>
+        ),
+      },
+      { label: "Start", value: <Time datetime={dagRun.start_date} /> },
+      { label: "End", value: <Time datetime={dagRun.end_date} /> },
+      { label: "Duration", value: `${getDuration(dagRun.start_date, dagRun.end_date)}s` },
+      {
+        label: "Dag Version(s)",
+        value: (
+          <LimitedItemsList
+            items={dagRun.dag_versions.map(({ version_number: versionNumber }) => `v${versionNumber}`)}
+          />
+        ),
+      },
+    ]}
+    title={<Time datetime={dagRun.run_after} />}
+  />
 );

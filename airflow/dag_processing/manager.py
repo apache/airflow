@@ -133,7 +133,7 @@ def _resolve_path(instance: Any, attribute: attrs.Attribute, val: str | os.PathL
     return val
 
 
-@attrs.define
+@attrs.define(kw_only=True)
 class DagFileProcessorManager(LoggingMixin):
     """
     Manage processes responsible for parsing DAGs.
@@ -201,6 +201,12 @@ class DagFileProcessorManager(LoggingMixin):
     base_log_dir: str = attrs.field(factory=_config_get_factory("scheduler", "CHILD_PROCESS_LOG_DIRECTORY"))
     _latest_log_symlink_date: datetime = attrs.field(factory=datetime.today, init=False)
 
+    bundle_refresh_check_interval: int = attrs.field(
+        factory=_config_int_factory("dag_processor", "bundle_refresh_check_interval")
+    )
+    _bundles_last_refreshed: float = attrs.field(default=0, init=False)
+    """Last time we checked if any bundles are ready to be refreshed"""
+
     def register_exit_signals(self):
         """Register signals that stop child processes."""
         signal.signal(signal.SIGINT, self._exit_gracefully)
@@ -228,9 +234,6 @@ class DagFileProcessorManager(LoggingMixin):
 
         self.log.info("Processing files using up to %s processes at a time ", self._parallelism)
         self.log.info("Process each file at most once every %s seconds", self._file_process_interval)
-        # TODO: AIP-66 move to report by bundle self.log.info(
-        #     "Checking for new files in %s every %s seconds", self._dag_directory, self.dag_dir_list_interval
-        # )
 
         DagBundlesManager().sync_bundles_to_db()
 
@@ -238,6 +241,11 @@ class DagFileProcessorManager(LoggingMixin):
         if self.bundle_names_to_parse:
             dag_bundles = [b for b in dag_bundles if b.name in self.bundle_names_to_parse]
         self._dag_bundles = dag_bundles
+
+        for bundle in self._dag_bundles:
+            self.log.info(
+                "Checking for new files in bundle %s every %s seconds", bundle.name, bundle.refresh_interval
+            )
 
         self._symlink_latest_log_directory()
 
@@ -445,7 +453,18 @@ class DagFileProcessorManager(LoggingMixin):
         """Refresh DAG bundles, if required."""
         now = timezone.utcnow()
 
-        self.log.info("Refreshing DAG bundles")
+        # we don't need to check if it's time to refresh every loop - that is way too often
+        next_check = self._bundles_last_refreshed + self.bundle_refresh_check_interval
+        now_seconds = time.monotonic()
+        if now_seconds < next_check:
+            self.log.debug(
+                "Not time to check if DAG Bundles need refreshed yet - skipping. "
+                "Next check in %.2f seconds",
+                next_check - now_seconds,
+            )
+            return
+
+        self._bundles_last_refreshed = now_seconds
 
         for bundle in self._dag_bundles:
             # TODO: AIP-66 handle errors in the case of incomplete cloning? And test this.
@@ -479,8 +498,10 @@ class DagFileProcessorManager(LoggingMixin):
                     and current_version_matches_db
                     and previously_seen
                 ):
-                    self.log.info("Not time to refresh %s", bundle.name)
+                    self.log.info("Not time to refresh bundle %s", bundle.name)
                     continue
+
+                self.log.info("Refreshing bundle %s", bundle.name)
 
                 try:
                     bundle.refresh()

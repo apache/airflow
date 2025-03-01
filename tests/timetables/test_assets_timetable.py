@@ -208,7 +208,11 @@ def test_generate_run_id(asset_timetable: AssetOrTimeSchedule) -> None:
     :param asset_timetable: The AssetOrTimeSchedule instance to test.
     """
     run_id = asset_timetable.generate_run_id(
-        run_type=DagRunType.MANUAL, extra_args="test", logical_date=DateTime.now(), data_interval=None
+        run_type=DagRunType.MANUAL,
+        extra_args="test",
+        logical_date=DateTime.now(),
+        run_after=DateTime.now(),
+        data_interval=None,
     )
     assert isinstance(run_id, str)
 
@@ -238,24 +242,6 @@ def asset_events(mocker) -> list[AssetEvent]:
     mocker.patch.object(event_later, "source_dag_run", new=mock_dag_run_later)
 
     return [event_earlier, event_later]
-
-
-def test_data_interval_for_events(
-    asset_timetable: AssetOrTimeSchedule, asset_events: list[AssetEvent]
-) -> None:
-    """
-    Tests the data_interval_for_events method of AssetOrTimeSchedule.
-
-    :param asset_timetable: The AssetOrTimeSchedule instance to test.
-    :param asset_events: A list of mock AssetEvent instances.
-    """
-    data_interval = asset_timetable.data_interval_for_events(logical_date=DateTime.now(), events=asset_events)
-    assert data_interval.start == min(
-        event.timestamp for event in asset_events
-    ), "Data interval start does not match"
-    assert data_interval.end == max(
-        event.timestamp for event in asset_events
-    ), "Data interval end does not match"
 
 
 def test_run_ordering_inheritance(asset_timetable: AssetOrTimeSchedule) -> None:

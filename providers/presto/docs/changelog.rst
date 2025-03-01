@@ -27,6 +27,24 @@
 Changelog
 ---------
 
+5.8.1
+.....
+
+Misc
+~~~~
+
+* ``AIP-72: Support better type-hinting for Context dict in SDK  (#45583)``
+* ``Remove obsolete pandas specfication for pre-python 3.9 (#45399)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Move provider_tests to unit folder in provider tests (#46800)``
+   * ``Removed the unused provider's distribution (#46608)``
+   * ``Fix doc issues found with recent moves (#46372)``
+   * ``Revert "Improve example docs around SQLExecuteQueryOperator in Postgres/Oracle/Presto/Vertica/ODBC (#46352)" (#46368)``
+   * ``Improve example docs around SQLExecuteQueryOperator in Postgres/Oracle/Presto/Vertica/ODBC (#46352)``
+   * ``Move Presto provider to new structure (#46115)``
+
 5.8.0
 .....
 

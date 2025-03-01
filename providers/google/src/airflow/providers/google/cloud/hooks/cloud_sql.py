@@ -64,10 +64,10 @@ from airflow.providers.google.common.hooks.base_google import (
 from airflow.utils.log.logging_mixin import LoggingMixin
 
 if TYPE_CHECKING:
+    from google.cloud.secretmanager_v1 import AccessSecretVersionResponse
     from requests import Session
 
     from airflow.providers.common.sql.hooks.sql import DbApiHook
-    from google.cloud.secretmanager_v1 import AccessSecretVersionResponse
 
 UNIX_PATH_MAX = 108
 

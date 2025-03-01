@@ -26,6 +26,8 @@ services:
       YDB_USE_IN_MEMORY_PDISKS: true
       GRPC_PORT: 2136
     restart: "on-failure"
+    ports:
+      - "8765:8765"
 
   airflow:
     environment:

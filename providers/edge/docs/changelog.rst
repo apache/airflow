@@ -27,6 +27,70 @@
 Changelog
 ---------
 
+0.20.0pre0
+..........
+
+Misc
+~~~~
+
+* ``Edge worker exports not ti.start and ti.finished metrics.``
+
+
+0.19.0pre0
+..........
+
+Misc
+~~~~
+
+* ``Edge worker can be set to maintenance via CLI and also return to normal operation.``
+
+
+
+0.18.1pre0
+..........
+
+Fix
+~~~
+
+* ``Edge worker will not jump to maintenance request from offline maintenance during shut down.``
+
+
+0.18.0pre0
+..........
+
+Misc
+~~~~
+
+* ``CLI allows to retrieve status of worker.``
+
+
+0.17.0pre0
+..........
+
+Misc
+~~~~
+
+* ``CLI allows to wait until edge worker is completed when stopping.``
+
+
+0.16.0pre0
+..........
+
+Misc
+~~~~
+
+* ``User who entered the maintenance mode is moved to the start of the comment.``
+
+
+0.15.0pre0
+..........
+
+Misc
+~~~~
+
+* ``User and time information added to maintenance comment.``
+
+
 0.14.1pre0
 ..........
 

@@ -25,13 +25,11 @@ import os
 from datetime import datetime, timedelta
 from pathlib import Path
 
-from providers.openlineage.tests.system.openlineage.operator import OpenLineageTestOperator
-
 from airflow.models.dag import DAG
 from airflow.providers.google.cloud.operators.bigquery import (
     BigQueryCheckOperator,
     BigQueryCreateEmptyDatasetOperator,
-    BigQueryCreateEmptyTableOperator,
+    BigQueryCreateTableOperator,
     BigQueryDeleteDatasetOperator,
     BigQueryGetDataOperator,
     BigQueryInsertJobOperator,
@@ -40,6 +38,7 @@ from airflow.providers.google.cloud.operators.bigquery import (
 )
 from airflow.providers.standard.operators.bash import BashOperator
 from airflow.utils.trigger_rule import TriggerRule
+from system.openlineage.operator import OpenLineageTestOperator
 
 ENV_ID = os.environ.get("SYSTEM_TESTS_ENV_ID", "default")
 PROJECT_ID = os.environ.get("SYSTEM_TESTS_GCP_PROJECT", "default")
@@ -116,12 +115,13 @@ with DAG(
         location=LOCATION,
     )
 
-    create_table_1 = BigQueryCreateEmptyTableOperator(
+    create_table_1 = BigQueryCreateTableOperator(
         task_id="create_table_1",
         dataset_id=DATASET_NAME,
         table_id=TABLE_NAME_1,
-        schema_fields=SCHEMA,
-        location=LOCATION,
+        table_resource={
+            "schema": {"fields": SCHEMA},
+        },
     )
 
     delete_dataset = BigQueryDeleteDatasetOperator(

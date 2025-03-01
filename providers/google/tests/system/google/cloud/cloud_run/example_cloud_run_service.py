@@ -24,13 +24,14 @@ from __future__ import annotations
 import os
 from datetime import datetime
 
+from google.cloud.run_v2 import Service
+from google.cloud.run_v2.types import k8s_min
+
 from airflow.models.dag import DAG
 from airflow.providers.google.cloud.operators.cloud_run import (
     CloudRunCreateServiceOperator,
     CloudRunDeleteServiceOperator,
 )
-from google.cloud.run_v2 import Service
-from google.cloud.run_v2.types import k8s_min
 
 PROJECT_ID = os.environ.get("SYSTEM_TESTS_GCP_PROJECT", "default")
 ENV_ID = os.environ.get("SYSTEM_TESTS_ENV_ID", "default")

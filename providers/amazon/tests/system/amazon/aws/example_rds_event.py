@@ -20,7 +20,6 @@ from __future__ import annotations
 from datetime import datetime
 
 import boto3
-from providers.amazon.tests.system.amazon.aws.utils import ENV_ID_KEY, SystemTestContextBuilder
 
 from airflow.decorators import task
 from airflow.models.baseoperator import chain
@@ -32,6 +31,7 @@ from airflow.providers.amazon.aws.operators.rds import (
     RdsDeleteEventSubscriptionOperator,
 )
 from airflow.utils.trigger_rule import TriggerRule
+from system.amazon.aws.utils import ENV_ID_KEY, SystemTestContextBuilder
 
 DAG_ID = "example_rds_event"
 

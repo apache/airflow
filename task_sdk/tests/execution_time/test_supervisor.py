@@ -26,6 +26,7 @@ import signal
 import sys
 from io import BytesIO
 from operator import attrgetter
+from pathlib import Path
 from time import sleep
 from typing import TYPE_CHECKING
 from unittest.mock import MagicMock, patch
@@ -33,10 +34,13 @@ from unittest.mock import MagicMock, patch
 import httpx
 import psutil
 import pytest
+import tenacity
 from pytest_unordered import unordered
 from uuid6 import uuid7
 
 from airflow.executors.workloads import BundleInfo
+from airflow.listeners import hookimpl
+from airflow.listeners.listener import get_listener_manager
 from airflow.sdk.api import client as sdk_client
 from airflow.sdk.api.client import ServerResponseError
 from airflow.sdk.api.datamodels._generated import AssetProfile, TaskInstance, TerminalTIState
@@ -72,6 +76,7 @@ from task_sdk.tests.execution_time.test_task_runner import FAKE_BUNDLE
 if TYPE_CHECKING:
     import kgb
 
+log = logging.getLogger(__name__)
 TI_ID = uuid7()
 
 
@@ -219,13 +224,7 @@ class TestWatchedSubprocess:
         proc = ActivitySubprocess.start(
             dag_rel_path=os.devnull,
             bundle_info=FAKE_BUNDLE,
-            what=TaskInstance(
-                id=uuid7(),
-                task_id="b",
-                dag_id="c",
-                run_id="d",
-                try_number=1,
-            ),
+            what=TaskInstance(id=uuid7(), task_id="b", dag_id="c", run_id="d", try_number=1),
             client=MagicMock(spec=sdk_client.Client),
             target=subprocess_main,
         )
@@ -258,13 +257,7 @@ class TestWatchedSubprocess:
         proc = ActivitySubprocess.start(
             dag_rel_path=os.devnull,
             bundle_info=FAKE_BUNDLE,
-            what=TaskInstance(
-                id=ti_id,
-                task_id="b",
-                dag_id="c",
-                run_id="d",
-                try_number=1,
-            ),
+            what=TaskInstance(id=ti_id, task_id="b", dag_id="c", run_id="d", try_number=1),
             client=sdk_client.Client(base_url="", dry_run=True, token=""),
             target=subprocess_main,
         )
@@ -324,9 +317,14 @@ class TestWatchedSubprocess:
         This includes ensuring the task starts and executes successfully, and that the task is deferred (via
         the API client) with the expected parameters.
         """
+        instant = tz.datetime(2024, 11, 7, 12, 34, 56, 0)
 
         ti = TaskInstance(
-            id=uuid7(), task_id="async", dag_id="super_basic_deferred_run", run_id="d", try_number=1
+            id=uuid7(),
+            task_id="async",
+            dag_id="super_basic_deferred_run",
+            run_id="d",
+            try_number=1,
         )
 
         # Create a mock client to assert calls to the client
@@ -334,7 +332,6 @@ class TestWatchedSubprocess:
         mock_client = mocker.Mock(spec=sdk_client.Client)
         mock_client.task_instances.start.return_value = make_ti_context()
 
-        instant = tz.datetime(2024, 11, 7, 12, 34, 56, 0)
         time_machine.move_to(instant, tick=False)
 
         bundle_info = BundleInfo(name="my-bundle", version=None)
@@ -353,10 +350,18 @@ class TestWatchedSubprocess:
         mock_client.task_instances.heartbeat.assert_called_once_with(ti.id, pid=mocker.ANY)
         mock_client.task_instances.defer.assert_called_once_with(
             ti.id,
+            # Since the message as serialized in the client upon sending, we expect it to be already encoded
             DeferTask(
                 classpath="airflow.providers.standard.triggers.temporal.DateTimeTrigger",
-                trigger_kwargs={"moment": "2024-11-07T12:34:59Z", "end_from_trigger": False},
                 next_method="execute_complete",
+                trigger_kwargs={
+                    "__type": "dict",
+                    "__var": {
+                        "moment": {"__type": "datetime", "__var": 1730982899.0},
+                        "end_from_trigger": False,
+                    },
+                },
+                next_kwargs={"__type": "dict", "__var": {}},
             ),
         )
 
@@ -503,6 +508,7 @@ class TestWatchedSubprocess:
         mock_kill = mocker.patch("airflow.sdk.execution_time.supervisor.WatchedSubprocess.kill")
 
         proc = ActivitySubprocess(
+            log=mocker.MagicMock(),
             id=TI_ID,
             pid=mock_process.pid,
             stdin=mocker.MagicMock(),
@@ -592,6 +598,7 @@ class TestWatchedSubprocess:
         monkeypatch.setattr(ActivitySubprocess, "TASK_OVERTIME_THRESHOLD", overtime_threshold)
 
         mock_watched_subprocess = ActivitySubprocess(
+            log=mocker.MagicMock(),
             id=TI_ID,
             pid=12345,
             stdin=mocker.Mock(),
@@ -620,6 +627,112 @@ class TestWatchedSubprocess:
             mock_logger.warning.assert_not_called()
 
 
+class TestListenerOvertime:
+    @pytest.fixture(autouse=True)
+    def clean_listener_manager(self):
+        get_listener_manager().clear()
+        yield
+        get_listener_manager().clear()
+
+    class TimeoutListener:
+        def __init__(self, timeout):
+            self.timeout = timeout
+
+        @hookimpl
+        def on_task_instance_success(self):
+            from time import sleep
+
+            sleep(self.timeout)
+
+        @hookimpl
+        def on_task_instance_failed(self):
+            from time import sleep
+
+            sleep(self.timeout)
+
+    @pytest.mark.parametrize(
+        ["dag_id", "task_id", "overtime_threshold", "expected_timeout", "listener"],
+        [
+            pytest.param(
+                "super_basic_run",
+                "hello",
+                2.0,
+                True,
+                TimeoutListener(5.0),
+            ),
+            pytest.param(
+                "super_basic_run",
+                "hello",
+                5.0,
+                False,
+                TimeoutListener(2.0),
+            ),
+        ],
+    )
+    @tenacity.retry(
+        stop=tenacity.stop_after_attempt(5),
+        retry=tenacity.retry_if_exception_type(AssertionError),
+        before=tenacity.before_log(log, logging.INFO),
+    )
+    def test_overtime_slow_listener_instance(
+        self,
+        dag_id,
+        task_id,
+        overtime_threshold,
+        expected_timeout,
+        listener,
+        monkeypatch,
+        test_dags_dir,
+        captured_logs,
+    ):
+        """Test handling of overtime under various conditions."""
+        monkeypatch.setattr(ActivitySubprocess, "TASK_OVERTIME_THRESHOLD", overtime_threshold)
+
+        """Test running a simple DAG in a subprocess and capturing the output."""
+        get_listener_manager().add_listener(listener)
+        ti = TaskInstance(
+            id=uuid7(),
+            task_id=task_id,
+            dag_id=dag_id,
+            run_id="fd",
+            try_number=1,
+        )
+        bundle_info = BundleInfo(name="my-bundle", version=None)
+        with patch.dict(os.environ, local_dag_bundle_cfg(test_dags_dir, bundle_info.name)):
+            exit_code = supervise(
+                ti=ti,
+                dag_rel_path=Path("super_basic_run.py"),
+                token="",
+                server="",
+                dry_run=True,
+                bundle_info=bundle_info,
+            )
+            assert captured_logs
+            print(json.dumps(captured_logs, indent=4, default=str))
+            assert exit_code == 0
+
+        if expected_timeout:
+            assert any(
+                [
+                    event["event"] == "Workload success overtime reached; terminating process"
+                    for event in captured_logs
+                ]
+            )
+            assert any(
+                [
+                    event["event"] == "Process exited" and event["signal"] == "SIGTERM"
+                    for event in captured_logs
+                ]
+            )
+        else:
+            assert all(
+                [
+                    event["event"] != "Workload success overtime reached; terminating process"
+                    for event in captured_logs
+                ]
+            )
+
+
 class TestWatchedSubprocessKill:
     @pytest.fixture
     def mock_process(self, mocker):
@@ -630,6 +743,7 @@ class TestWatchedSubprocessKill:
     @pytest.fixture
     def watched_subprocess(self, mocker, mock_process):
         proc = ActivitySubprocess(
+            log=mocker.MagicMock(),
             id=TI_ID,
             pid=12345,
             stdin=mocker.Mock(),
@@ -813,6 +927,7 @@ class TestHandleRequest:
     def watched_subprocess(self, mocker):
         """Fixture to provide a WatchedSubprocess instance."""
         return ActivitySubprocess(
+            log=mocker.MagicMock(),
             id=TI_ID,
             pid=12345,
             stdin=BytesIO(),
@@ -832,6 +947,15 @@ class TestHandleRequest:
                 {},
                 ConnectionResult(conn_id="test_conn", conn_type="mysql"),
                 id="get_connection",
+            ),
+            pytest.param(
+                GetConnection(conn_id="test_conn"),
+                b'{"conn_id":"test_conn","conn_type":"mysql","schema":"mysql","type":"ConnectionResult"}\n',
+                "connections.get",
+                ("test_conn",),
+                {},
+                ConnectionResult(conn_id="test_conn", conn_type="mysql", schema="mysql"),  # type: ignore[call-arg]
+                id="get_connection_with_alias",
             ),
             pytest.param(
                 GetVariable(key="test_key"),
@@ -924,6 +1048,7 @@ class TestHandleRequest:
                     "test_key",
                     '{"key": "test_key", "value": {"key2": "value2"}}',
                     None,
+                    None,
                 ),
                 {},
                 {"ok": True},
@@ -947,10 +1072,36 @@ class TestHandleRequest:
                     "test_key",
                     '{"key": "test_key", "value": {"key2": "value2"}}',
                     2,
+                    None,
                 ),
                 {},
                 {"ok": True},
                 id="set_xcom_with_map_index",
+            ),
+            pytest.param(
+                SetXCom(
+                    dag_id="test_dag",
+                    run_id="test_run",
+                    task_id="test_task",
+                    key="test_key",
+                    value='{"key": "test_key", "value": {"key2": "value2"}}',
+                    map_index=2,
+                    mapped_length=3,
+                ),
+                b"",
+                "xcoms.set",
+                (
+                    "test_dag",
+                    "test_run",
+                    "test_task",
+                    "test_key",
+                    '{"key": "test_key", "value": {"key2": "value2"}}',
+                    2,
+                    3,
+                ),
+                {},
+                {"ok": True},
+                id="set_xcom_with_map_index_and_mapped_length",
             ),
             # we aren't adding all states under TerminalTIState here, because this test's scope is only to check
             # if it can handle TaskState message

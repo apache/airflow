@@ -25,6 +25,6 @@ If these config options are still present, they will have no effect any longer.
 
   * ``airflow config lint``
 
-    * Remove ``[logging] dag_processor_manager_log_location``
-    * Remove ``[logging] dag_processor_manager_log_stdout``
-    * Remove ``[logging] log_processor_filename_template``
+    * [ ] ``[logging] dag_processor_manager_log_location``
+    * [ ] ``[logging] dag_processor_manager_log_stdout``
+    * [ ] ``[logging] log_processor_filename_template``

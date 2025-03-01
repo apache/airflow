@@ -150,69 +150,51 @@ class TestPatchPool(TestPoolsEndpoint):
             (
                 Pool.DEFAULT_POOL_NAME,
                 {"update_mask": ["description"]},
-                {},
+                {"pool": Pool.DEFAULT_POOL_NAME},
                 400,
                 {"detail": "Only slots and included_deferred can be modified on Default Pool"},
             ),
             (
                 "unknown_pool",
                 {},
-                {},
+                {"pool": "unknown_pool"},
                 404,
                 {"detail": "The Pool with name: `unknown_pool` was not found"},
+            ),
+            # Pool name can't be updated
+            (
+                POOL1_NAME,
+                {},
+                {"pool": "pool1_updated"},
+                400,
+                {"detail": "Invalid body, pool name from request body doesn't match uri parameter"},
             ),
             (
                 POOL1_NAME,
                 {},
-                {},
+                {"pool": POOL1_NAME},
                 422,
                 {
                     "detail": [
                         {
-                            "input": {},
-                            "loc": ["pool"],
-                            "msg": "Field required",
-                            "type": "missing",
-                        },
-                        {
-                            "input": {},
+                            "input": {"pool": POOL1_NAME},
                             "loc": ["slots"],
                             "msg": "Field required",
                             "type": "missing",
                         },
                         {
-                            "input": {},
+                            "input": {"pool": POOL1_NAME},
                             "loc": ["description"],
                             "msg": "Field required",
                             "type": "missing",
                         },
                         {
-                            "input": {},
+                            "input": {"pool": POOL1_NAME},
                             "loc": ["include_deferred"],
                             "msg": "Field required",
                             "type": "missing",
                         },
                     ],
-                },
-            ),
-            # Success
-            # Partial body
-            (
-                POOL1_NAME,
-                {"update_mask": ["name"]},
-                {"slots": 150, "name": "pool_1_updated"},
-                200,
-                {
-                    "deferred_slots": 0,
-                    "description": None,
-                    "include_deferred": True,
-                    "name": "pool_1_updated",
-                    "occupied_slots": 0,
-                    "open_slots": 3,
-                    "queued_slots": 0,
-                    "running_slots": 0,
-                    "scheduled_slots": 0,
-                    "slots": 3,
                 },
             ),
             # Partial body on default_pool
@@ -238,7 +220,7 @@ class TestPatchPool(TestPoolsEndpoint):
             (
                 Pool.DEFAULT_POOL_NAME,
                 {"update_mask": ["slots", "include_deferred"]},
-                {"slots": 150, "include_deferred": True},
+                {"pool": Pool.DEFAULT_POOL_NAME, "slots": 150, "include_deferred": True},
                 200,
                 {
                     "deferred_slots": 0,
@@ -260,7 +242,7 @@ class TestPatchPool(TestPoolsEndpoint):
                 {
                     "slots": 8,
                     "description": "Description Updated",
-                    "name": "pool_1_updated",
+                    "name": POOL1_NAME,
                     "include_deferred": False,
                 },
                 200,
@@ -268,7 +250,7 @@ class TestPatchPool(TestPoolsEndpoint):
                     "deferred_slots": 0,
                     "description": "Description Updated",
                     "include_deferred": False,
-                    "name": "pool_1_updated",
+                    "name": POOL1_NAME,
                     "occupied_slots": 0,
                     "open_slots": 8,
                     "queued_slots": 0,

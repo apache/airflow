@@ -28,7 +28,7 @@ from airflow.utils import timezone
 def super_basic_deferred_run():
     DateTimeSensorAsync(
         task_id="async",
-        target_time=str(timezone.utcnow() + datetime.timedelta(seconds=3)),
+        target_time=timezone.utcnow() + datetime.timedelta(seconds=3),
         poke_interval=60,
         timeout=600,
     )

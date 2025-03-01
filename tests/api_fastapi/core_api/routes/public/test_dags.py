@@ -17,6 +17,7 @@
 from __future__ import annotations
 
 from datetime import datetime, timedelta, timezone
+from unittest import mock
 
 import pendulum
 import pytest
@@ -333,6 +334,7 @@ class TestDagDetails(TestDagEndpoint):
             ({}, DAG2_ID, 200, DAG2_ID, "2021-06-15T00:00:00Z"),
         ],
     )
+    @pytest.mark.usefixtures("configure_git_connection_for_dag_bundle")
     def test_dag_details(
         self, test_client, query_params, dag_id, expected_status_code, dag_display_name, start_date
     ):
@@ -364,16 +366,25 @@ class TestDagDetails(TestDagEndpoint):
             "is_active": True,
             "is_paused": False,
             "is_paused_upon_creation": None,
+            "latest_dag_version": {
+                "bundle_name": "dag_maker",
+                "bundle_url": None,
+                "bundle_version": None,
+                "created_at": mock.ANY,
+                "dag_id": "test_dag2",
+                "id": mock.ANY,
+                "version_number": 1,
+            },
             "last_expired": None,
             "last_parsed": last_parsed,
             "last_parsed_time": last_parsed_time,
             "max_active_runs": 16,
             "max_active_tasks": 16,
             "max_consecutive_failed_dag_runs": 0,
-            "next_dagrun": None,
-            "next_dagrun_create_after": None,
             "next_dagrun_data_interval_end": None,
             "next_dagrun_data_interval_start": None,
+            "next_dagrun_logical_date": None,
+            "next_dagrun_run_after": None,
             "owners": ["airflow"],
             "params": {
                 "foo": {
@@ -425,13 +436,13 @@ class TestGetDag(TestDagEndpoint):
             "owners": ["airflow"],
             "timetable_summary": None,
             "tags": [],
-            "next_dagrun": None,
             "has_task_concurrency_limits": True,
             "next_dagrun_data_interval_start": None,
             "next_dagrun_data_interval_end": None,
+            "next_dagrun_logical_date": None,
+            "next_dagrun_run_after": None,
             "max_active_runs": 16,
             "max_consecutive_failed_dag_runs": 0,
-            "next_dagrun_create_after": None,
             "last_expired": None,
             "max_active_tasks": 16,
             "default_view": "grid",
@@ -474,6 +485,7 @@ class TestDeleteDAG(TestDagEndpoint):
             (DAG5_ID, DAG5_DISPLAY_NAME, 409, 200, True, True),
         ],
     )
+    @pytest.mark.usefixtures("configure_git_connection_for_dag_bundle")
     def test_delete_dag(
         self,
         dag_maker,

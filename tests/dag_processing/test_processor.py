@@ -17,10 +17,12 @@
 # under the License.
 from __future__ import annotations
 
+import inspect
 import pathlib
 import sys
+import textwrap
 from socket import socketpair
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Callable
 from unittest.mock import patch
 
 import pytest
@@ -32,6 +34,7 @@ from airflow.configuration import conf
 from airflow.dag_processing.processor import (
     DagFileParseRequest,
     DagFileParsingResult,
+    DagFileProcessorProcess,
     _parse_file,
 )
 from airflow.models import DagBag, TaskInstance
@@ -51,16 +54,9 @@ if TYPE_CHECKING:
 pytestmark = pytest.mark.db_test
 
 DEFAULT_DATE = timezone.datetime(2016, 1, 1)
-PY311 = sys.version_info >= (3, 11)
-
-# Include the words "airflow" and "dag" in the file contents,
-# tricking airflow into thinking these
-# files contain a DAG (otherwise Airflow will skip them)
-PARSEABLE_DAG_FILE_CONTENTS = '"airflow DAG"'
 
 # Filename to be used for dags that are created in an ad-hoc manner and can be removed/
 # created at runtime
-TEMP_DAG_FILENAME = "temp_dag.py"
 TEST_DAG_FOLDER = pathlib.Path(__file__).parents[1].resolve() / "dags"
 
 
@@ -133,44 +129,71 @@ class TestDagFileProcessor:
         assert resp.import_errors is not None
         assert "a.py" in resp.import_errors
 
+    # @pytest.mark.execution_timeout(10)
+    def test_top_level_variable_access(
+        self, spy_agency: SpyAgency, tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch
+    ):
+        def dag_in_a_fn():
+            from airflow.sdk import DAG, Variable
 
-#     @conf_vars({("logging", "dag_processor_log_target"): "stdout"})
-#     @mock.patch("airflow.dag_processing.processor.settings.dispose_orm", MagicMock)
-#     @mock.patch("airflow.dag_processing.processor.redirect_stdout")
-#     def test_dag_parser_output_when_logging_to_stdout(self, mock_redirect_stdout_for_file):
-#         processor = DagFileProcessorProcess(
-#             file_path="abc.txt",
-#             dag_directory=[],
-#             callback_requests=[],
-#         )
-#         processor._run_file_processor(
-#             result_channel=MagicMock(),
-#             parent_channel=MagicMock(),
-#             file_path="fake_file_path",
-#             thread_name="fake_thread_name",
-#             callback_requests=[],
-#             dag_directory=[],
-#         )
-#         mock_redirect_stdout_for_file.assert_not_called()
-#
-#     @conf_vars({("logging", "dag_processor_log_target"): "file"})
-#     @mock.patch("airflow.dag_processing.processor.settings.dispose_orm", MagicMock)
-#     @mock.patch("airflow.dag_processing.processor.redirect_stdout")
-#     def test_dag_parser_output_when_logging_to_file(self, mock_redirect_stdout_for_file):
-#         processor = DagFileProcessorProcess(
-#             file_path="abc.txt",
-#             dag_directory=[],
-#             callback_requests=[],
-#         )
-#         processor._run_file_processor(
-#             result_channel=MagicMock(),
-#             parent_channel=MagicMock(),
-#             file_path="fake_file_path",
-#             thread_name="fake_thread_name",
-#             callback_requests=[],
-#             dag_directory=[],
-#         )
-#         mock_redirect_stdout_for_file.assert_called_once()
+            with DAG(f"test_{Variable.get('myvar')}"):
+                ...
+
+        path = write_dag_in_a_fn_to_file(dag_in_a_fn, tmp_path)
+
+        monkeypatch.setenv("AIRFLOW_VAR_MYVAR", "abc")
+        proc = DagFileProcessorProcess.start(
+            id=1,
+            path=path,
+            bundle_path=tmp_path,
+            callbacks=[],
+        )
+
+        while not proc.is_ready:
+            proc._service_subprocess(0.1)
+
+        result = proc.parsing_result
+        assert result is not None
+        assert result.import_errors == {}
+        assert result.serialized_dags[0].dag_id == "test_abc"
+
+    def test_top_level_connection_access(self, tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch):
+        def dag_in_a_fn():
+            from airflow.hooks.base import BaseHook
+            from airflow.sdk import DAG
+
+            with DAG(f"test_{BaseHook.get_connection(conn_id='my_conn').conn_id}"):
+                ...
+
+        path = write_dag_in_a_fn_to_file(dag_in_a_fn, tmp_path)
+
+        monkeypatch.setenv("AIRFLOW_CONN_MY_CONN", '{"conn_type": "aws"}')
+        proc = DagFileProcessorProcess.start(
+            id=1,
+            path=path,
+            bundle_path=tmp_path,
+            callbacks=[],
+        )
+
+        while not proc.is_ready:
+            proc._service_subprocess(0.1)
+
+        result = proc.parsing_result
+        assert result is not None
+        assert result.import_errors == {}
+        assert result.serialized_dags[0].dag_id == "test_my_conn"
+
+
+def write_dag_in_a_fn_to_file(fn: Callable[[], None], folder: pathlib.Path) -> pathlib.Path:
+    # Create the dag in a fn, and use inspect.getsource to write it to a file so that
+    # a) the test dag is directly viewable here in the tests
+    # b) that it shows to IDEs/mypy etc.
+    assert folder.is_dir()
+    name = fn.__name__
+    path = folder.joinpath(name + ".py")
+    path.write_text(textwrap.dedent(inspect.getsource(fn)) + f"\n\n{name}()")
+
+    return path
 
 
 @pytest.fixture

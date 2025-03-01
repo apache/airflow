@@ -33,6 +33,13 @@ code" serves several purposes:
 - **Extensible**: The Airflow® framework contains operators to connect with numerous technologies. All Airflow components are extensible to easily adjust to your environment.
 - **Flexible**: Workflow parameterization is built-in leveraging the `Jinja <https://jinja.palletsprojects.com>`_ templating engine.
 
+DAGs
+-----------------------------------------
+
+.. include:: ../exts/includes/dag-definition.rst
+    :start-after: .. dag-definition-start
+    :end-before: .. dag-definition-end
+
 Take a look at the following snippet of code:
 
 .. code-block:: python
@@ -77,6 +84,10 @@ seen running over time:
 
 Each column represents one DAG run. These are two of the most used views in Airflow, but there are several
 other views which allow you to deep dive into the state of your workflows.
+
+.. include:: ../exts/includes/dag-definition.rst
+    :start-after: .. dag-etymology-start
+    :end-before: .. dag-etymology-end
 
 
 Why Airflow®?

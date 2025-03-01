@@ -33,6 +33,10 @@ from collections.abc import Mapping, MutableMapping
 from concurrent.futures import ProcessPoolExecutor
 from typing import TYPE_CHECKING, Any, Optional, Union
 
+from celery import Celery, Task, states as celery_states
+from celery.backends.base import BaseKeyValueStoreBackend
+from celery.backends.database import DatabaseBackend, Task as TaskDb, retry, session_cleanup
+from celery.signals import import_modules as celery_import_modules
 from setproctitle import setproctitle
 from sqlalchemy import select
 
@@ -46,10 +50,6 @@ from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.net import get_hostname
 from airflow.utils.providers_configuration_loader import providers_configuration_loaded
 from airflow.utils.timeout import timeout
-from celery import Celery, Task, states as celery_states
-from celery.backends.base import BaseKeyValueStoreBackend
-from celery.backends.database import DatabaseBackend, Task as TaskDb, retry, session_cleanup
-from celery.signals import import_modules as celery_import_modules
 
 try:
     from airflow.sdk.definitions._internal.dag_parsing_context import _airflow_parsing_context_manager
@@ -59,11 +59,12 @@ except ImportError:
 log = logging.getLogger(__name__)
 
 if TYPE_CHECKING:
+    from celery.result import AsyncResult
+
     from airflow.executors import workloads
     from airflow.executors.base_executor import CommandType, EventBufferValueType
     from airflow.models.taskinstance import TaskInstanceKey
     from airflow.typing_compat import TypeAlias
-    from celery.result import AsyncResult
 
     # We can't use `if AIRFLOW_V_3_0_PLUS` conditions in type checks, so unfortunately we just have to define
     # the type as the union of both kinds
@@ -146,13 +147,13 @@ def execute_workload(input: str) -> None:
     from airflow.executors import workloads
     from airflow.sdk.execution_time.supervisor import supervise
 
-    decoder = TypeAdapter(workloads.All)
+    decoder = TypeAdapter[workloads.All](workloads.All)
     workload = decoder.validate_json(input)
 
     celery_task_id = app.current_task.request.id
 
     if not isinstance(workload, workloads.ExecuteTask):
-        raise ValueError(f"CeleryExecutor does not now how to handle {type(workload)}")
+        raise ValueError(f"CeleryExecutor does not know how to handle {type(workload)}")
 
     log.info("[%s] Executing workload in Celery: %s", celery_task_id, workload)
 
@@ -162,7 +163,7 @@ def execute_workload(input: str) -> None:
         dag_rel_path=workload.dag_rel_path,
         bundle_info=workload.bundle_info,
         token=workload.token,
-        server=conf.get("workers", "execution_api_server_url", fallback="http://localhost:9091/execution/"),
+        server=conf.get("core", "execution_api_server_url"),
         log_path=workload.log_path,
     )
 
@@ -257,10 +258,11 @@ def send_task_to_executor(
     task_tuple: TaskInstanceInCelery,
 ) -> tuple[TaskInstanceKey, CommandType, AsyncResult | ExceptionWithTraceback]:
     """Send task to executor."""
-    from airflow.executors import workloads
-
     key, args, queue, task_to_run = task_tuple
-    if isinstance(args, workloads.BaseWorkload):
+
+    if AIRFLOW_V_3_0_PLUS:
+        if TYPE_CHECKING:
+            assert isinstance(args, workloads.BaseWorkload)
         args = (args.model_dump_json(),)
     try:
         with timeout(seconds=OPERATION_TIMEOUT):
@@ -269,7 +271,9 @@ def send_task_to_executor(
         exception_traceback = f"Celery Task ID: {key}\n{traceback.format_exc()}"
         result = ExceptionWithTraceback(e, exception_traceback)
 
-    return key, args, result
+    # The type is right for the version, but the type cannot be defined correctly for Airflow 2 and 3
+    # concurrently;
+    return key, args, result  # type: ignore[return-value]
 
 
 def fetch_celery_task_state(async_result: AsyncResult) -> tuple[str, str | ExceptionWithTraceback, Any]:

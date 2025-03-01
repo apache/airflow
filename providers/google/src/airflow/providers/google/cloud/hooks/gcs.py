@@ -35,6 +35,12 @@ from typing import IO, TYPE_CHECKING, Any, Callable, TypeVar, cast, overload
 from urllib.parse import urlsplit
 
 from gcloud.aio.storage import Storage
+from google.api_core.exceptions import GoogleAPICallError, NotFound
+
+# not sure why but mypy complains on missing `storage` but it is clearly there and is importable
+from google.cloud import storage  # type: ignore[attr-defined]
+from google.cloud.exceptions import GoogleCloudError
+from google.cloud.storage.retry import DEFAULT_RETRY
 from requests import Session
 
 from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning
@@ -49,18 +55,11 @@ from airflow.providers.google.common.hooks.base_google import (
 from airflow.typing_compat import ParamSpec
 from airflow.utils import timezone
 from airflow.version import version
-from google.api_core.exceptions import GoogleAPICallError, NotFound
-
-# not sure why but mypy complains on missing `storage` but it is clearly there and is importable
-from google.cloud import storage  # type: ignore[attr-defined]
-from google.cloud.exceptions import GoogleCloudError
-from google.cloud.storage.retry import DEFAULT_RETRY
 
 if TYPE_CHECKING:
     from datetime import datetime
 
     from aiohttp import ClientSession
-
     from google.api_core.retry import Retry
     from google.cloud.storage.blob import Blob
 
@@ -598,7 +597,13 @@ class GCSHook(GoogleBaseHook):
             context=self, scheme="gs", asset_kwargs={"bucket": bucket.name, "key": blob.name}
         )
 
-    def exists(self, bucket_name: str, object_name: str, retry: Retry = DEFAULT_RETRY) -> bool:
+    def exists(
+        self,
+        bucket_name: str,
+        object_name: str,
+        retry: Retry = DEFAULT_RETRY,
+        user_project: str | None = None,
+    ) -> bool:
         """
         Check for the existence of a file in Google Cloud Storage.
 
@@ -606,9 +611,11 @@ class GCSHook(GoogleBaseHook):
         :param object_name: The name of the blob_name to check in the Google cloud
             storage bucket.
         :param retry: (Optional) How to retry the RPC
+        :param user_project: The identifier of the Google Cloud project to bill for the request.
+            Required for Requester Pays buckets.
         """
         client = self.get_conn()
-        bucket = client.bucket(bucket_name)
+        bucket = client.bucket(bucket_name, user_project=user_project)
         blob = bucket.blob(blob_name=object_name)
         return blob.exists(retry=retry)
 
@@ -625,7 +632,7 @@ class GCSHook(GoogleBaseHook):
 
     def is_updated_after(self, bucket_name: str, object_name: str, ts: datetime) -> bool:
         """
-        Check if an blob_name is updated in Google Cloud Storage.
+        Check if a blob_name is updated in Google Cloud Storage.
 
         :param bucket_name: The Google Cloud Storage bucket where the object is.
         :param object_name: The name of the object to check in the Google cloud
@@ -645,7 +652,7 @@ class GCSHook(GoogleBaseHook):
         self, bucket_name: str, object_name: str, min_ts: datetime, max_ts: datetime
     ) -> bool:
         """
-        Check if an blob_name is updated in Google Cloud Storage.
+        Check if a blob_name is updated in Google Cloud Storage.
 
         :param bucket_name: The Google Cloud Storage bucket where the object is.
         :param object_name: The name of the object to check in the Google cloud
@@ -666,7 +673,7 @@ class GCSHook(GoogleBaseHook):
 
     def is_updated_before(self, bucket_name: str, object_name: str, ts: datetime) -> bool:
         """
-        Check if an blob_name is updated before given time in Google Cloud Storage.
+        Check if a blob_name is updated before given time in Google Cloud Storage.
 
         :param bucket_name: The Google Cloud Storage bucket where the object is.
         :param object_name: The name of the object to check in the Google cloud

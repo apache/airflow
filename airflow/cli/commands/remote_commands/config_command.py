@@ -292,6 +292,42 @@ CONFIGS_CHANGES = [
         config=ConfigParameter("webserver", "force_log_out_after"),
         renamed_to=ConfigParameter("webserver", "session_lifetime_minutes"),
     ),
+    ConfigChange(
+        config=ConfigParameter("webserver", "web_server_host"),
+        renamed_to=ConfigParameter("api", "host"),
+    ),
+    ConfigChange(
+        config=ConfigParameter("webserver", "web_server_port"),
+        renamed_to=ConfigParameter("api", "port"),
+    ),
+    ConfigChange(
+        config=ConfigParameter("webserver", "workers"),
+        renamed_to=ConfigParameter("api", "workers"),
+    ),
+    ConfigChange(
+        config=ConfigParameter("webserver", "web_server_worker_timeout"),
+        renamed_to=ConfigParameter("api", "worker_timeout"),
+    ),
+    ConfigChange(
+        config=ConfigParameter("webserver", "web_server_ssl_cert"),
+        renamed_to=ConfigParameter("api", "ssl_cert"),
+    ),
+    ConfigChange(
+        config=ConfigParameter("webserver", "web_server_ssl_key"),
+        renamed_to=ConfigParameter("api", "ssl_key"),
+    ),
+    ConfigChange(
+        config=ConfigParameter("webserver", "access_logfile"),
+        renamed_to=ConfigParameter("api", "access_logfile"),
+    ),
+    ConfigChange(
+        config=ConfigParameter("webserver", "error_logfile"),
+        was_deprecated=False,
+    ),
+    ConfigChange(
+        config=ConfigParameter("webserver", "access_logformat"),
+        was_deprecated=False,
+    ),
     # policy
     ConfigChange(
         config=ConfigParameter("policy", "airflow_local_settings"),
@@ -300,6 +336,9 @@ CONFIGS_CHANGES = [
     # scheduler
     ConfigChange(
         config=ConfigParameter("scheduler", "dependency_detector"),
+    ),
+    ConfigChange(
+        config=ConfigParameter("scheduler", "allow_trigger_in_future"),
     ),
     ConfigChange(
         config=ConfigParameter("scheduler", "processor_poll_interval"),
@@ -482,7 +521,9 @@ def lint_config(args) -> None:
         if configuration.config.section in ignore_sections or configuration.config.option in ignore_options:
             continue
 
-        if conf.has_option(configuration.config.section, configuration.config.option):
+        if conf.has_option(
+            configuration.config.section, configuration.config.option, lookup_from_deprecated_options=False
+        ):
             lint_issues.append(configuration.message)
 
     if lint_issues:

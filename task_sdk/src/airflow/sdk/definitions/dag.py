@@ -115,7 +115,7 @@ def _create_timetable(interval: ScheduleInterval, timezone: Timezone | FixedTime
     """Create a Timetable instance from a plain ``schedule`` value."""
     from airflow.configuration import conf as airflow_conf
     from airflow.timetables.interval import CronDataIntervalTimetable, DeltaDataIntervalTimetable
-    from airflow.timetables.trigger import CronTriggerTimetable
+    from airflow.timetables.trigger import CronTriggerTimetable, DeltaTriggerTimetable
 
     if interval is None:
         return NullTimetable()
@@ -124,12 +124,13 @@ def _create_timetable(interval: ScheduleInterval, timezone: Timezone | FixedTime
     if interval == "@continuous":
         return ContinuousTimetable()
     if isinstance(interval, (timedelta, relativedelta)):
-        return DeltaDataIntervalTimetable(interval)
+        if airflow_conf.getboolean("scheduler", "create_cron_data_intervals"):
+            return DeltaDataIntervalTimetable(interval)
+        return DeltaTriggerTimetable(interval)
     if isinstance(interval, str):
         if airflow_conf.getboolean("scheduler", "create_cron_data_intervals"):
             return CronDataIntervalTimetable(interval, timezone)
-        else:
-            return CronTriggerTimetable(interval, timezone=timezone)
+        return CronTriggerTimetable(interval, timezone=timezone)
     raise ValueError(f"{interval!r} is not a valid schedule.")
 
 
@@ -650,10 +651,6 @@ class DAG:
         :return: Comma separated list of owners in DAG tasks
         """
         return ", ".join({t.owner for t in self.tasks})
-
-    @property
-    def allow_future_exec_dates(self) -> bool:
-        return settings.ALLOW_FUTURE_LOGICAL_DATES and not self.timetable.can_be_scheduled
 
     def resolve_template_files(self):
         for t in self.tasks:

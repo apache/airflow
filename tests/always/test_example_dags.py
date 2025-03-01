@@ -91,6 +91,7 @@ def get_suspended_providers_folders() -> list[str]:
             suspended_providers.append(
                 provider_path.parent.relative_to(AIRFLOW_SOURCES_ROOT)
                 .as_posix()
+                # TODO(potiuk): check
                 .replace("providers/src/airflow/providers/", "")
             )
     return suspended_providers
@@ -109,6 +110,7 @@ def get_python_excluded_providers_folders() -> list[str]:
             excluded_providers.append(
                 provider_path.parent.relative_to(AIRFLOW_SOURCES_ROOT)
                 .as_posix()
+                # TODO(potiuk): check
                 .replace("providers/src/airflow/providers/", "")
             )
     return excluded_providers

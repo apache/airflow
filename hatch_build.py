@@ -244,7 +244,6 @@ DEVEL_EXTRAS: dict[str, list[str]] = {
         "yamllint>=1.33.0",
     ],
     "devel-tests": [
-        "aiofiles>=23.2.0",
         "aioresponses>=0.7.6",
         "beautifulsoup4>=4.7.1",
         # Coverage 7.4.0 added experimental support for Python 3.12 PEP669 which we use in Airflow
@@ -343,6 +342,7 @@ BUNDLE_EXTRAS: dict[str, list[str]] = {
 }
 
 DEPENDENCIES = [
+    "a2wsgi>=1.10.8",
     # Alembic is important to handle our migrations in predictable and performant way. It is developed
     # together with SQLAlchemy. Our experience with Alembic is that it very stable in minor version
     # The 1.13.0 of alembic marked some migration code as SQLAlchemy 2+ only so we limit it to 1.13.1
@@ -370,7 +370,8 @@ DEPENDENCIES = [
     # Required for python 3.9 to work with new annotations styles. Check package
     # description on PyPI for more details: https://pypi.org/project/eval-type-backport/
     'eval-type-backport>=0.2.0;python_version<"3.10"',
-    "fastapi[standard]>=0.112.2",
+    # temporarily pinning fastapi after the recent release started breaking tests
+    "fastapi[standard]>=0.112.2,!=0.115.10",
     "flask-caching>=2.0.0",
     # Flask-Session 0.6 add new arguments into the SqlAlchemySessionInterface constructor as well as
     # all parameters now are mandatory which make AirflowDatabaseSessionInterface incompatible with this version.
@@ -421,13 +422,13 @@ DEPENDENCIES = [
     "requests-toolbelt>=0.4.0",
     "rfc3339-validator>=0.1.4",
     "rich-argparse>=1.0.0",
-    "rich>=12.4.4",
+    "rich>=13.1.0",
     "setproctitle>=1.3.3",
     # We use some deprecated features of sqlalchemy 2.0 and we should replace them before we can upgrade
     # See https://sqlalche.me/e/b8d9 for details of deprecated features
     # you can set environment variable SQLALCHEMY_WARN_20=1 to show all deprecation warnings.
     # The issue tracking it is https://github.com/apache/airflow/issues/28723
-    "sqlalchemy>=1.4.36,<2.0",
+    "sqlalchemy>=1.4.49,<2.0",
     "sqlalchemy-jsonfield>=1.0",
     "sqlalchemy-utils>=0.41.2",
     "tabulate>=0.7.5",
@@ -593,8 +594,6 @@ class CustomBuild(BuilderInterface[BuilderConfig, PluginManager]):
     def clean(self, directory: str, versions: Iterable[str]) -> None:
         work_dir = Path(self.root)
         commands = [
-            ["rm -rf airflow/www/static/dist"],
-            ["rm -rf airflow/www/node_modules"],
             ["rm -rf airflow/ui/dist"],
             ["rm -rf airflow/ui/node_modules"],
         ]
@@ -609,7 +608,6 @@ class CustomBuild(BuilderInterface[BuilderConfig, PluginManager]):
         self.write_git_version()
         work_dir = Path(self.root)
         commands = [
-            ["pre-commit run --hook-stage manual compile-www-assets --all-files"],
             ["pre-commit run --hook-stage manual compile-ui-assets --all-files"],
         ]
         for cmd in commands:

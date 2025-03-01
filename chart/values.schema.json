@@ -2069,11 +2069,19 @@
                 },
                 "extraInitContainers": {
                     "description": "Add additional init containers into workers (templated).",
+                    "type": "array",
+                    "default": [],
                     "items": {
                         "$ref": "#/definitions/io.k8s.api.core.v1.Container"
-                    },
+                    }
+                },
+                "extraPorts": {
+                    "description": "Expose additional ports on the worker container.",
                     "type": "array",
-                    "default": []
+                    "default": [],
+                    "items": {
+                        "$ref": "#/definitions/io.k8s.api.core.v1.ContainerPort"
+                    }
                 },
                 "extraVolumes": {
                     "description": "Mount additional volumes into workers.",
@@ -4676,8 +4684,8 @@
                 }
             }
         },
-        "_apiServer": {
-            "description": "Airflow API server settings. Experimental / for dev purpose only.",
+        "apiServer": {
+            "description": "Airflow API server settings. Airflow 3+ only.",
             "type": "object",
             "x-docsSection": "API Server",
             "additionalProperties": false,
@@ -4845,7 +4853,7 @@
                     "default": [
                         "bash",
                         "-c",
-                        "exec airflow fastapi-api"
+                        "exec airflow api-server"
                     ]
                 },
                 "strategy": {
@@ -4949,7 +4957,7 @@
                                     },
                                     "default": [
                                         {
-                                            "port": "{{ .Values.ports._apiServer }}"
+                                            "port": "{{ .Values.ports.apiServer }}"
                                         }
                                     ],
                                     "examples": [
@@ -5176,7 +5184,7 @@
                             "default": [
                                 {
                                     "name": "api-server",
-                                    "port": "{{ .Values.ports._apiServer }}"
+                                    "port": "{{ .Values.ports.apiServer }}"
                                 }
                             ],
                             "examples": [
@@ -5359,7 +5367,7 @@
             }
         },
         "webserver": {
-            "description": "Airflow webserver settings.",
+            "description": "Airflow webserver settings. Airflow 2 only.",
             "type": "object",
             "x-docsSection": "Webserver",
             "additionalProperties": false,
@@ -8175,7 +8183,7 @@
                     "type": "integer",
                     "default": 8080
                 },
-                "_apiServer": {
+                "apiServer": {
                     "description": "API server port.",
                     "type": "integer",
                     "default": 9091
@@ -12194,6 +12202,11 @@
                 },
                 "retentionDays": {
                     "description": "Number of days to retain the logs when running the Airflow log groomer sidecar.",
+                    "type": "integer",
+                    "default": 15
+                },
+                "frequencyMinutes": {
+                    "description": "Number of minutes between attempts to groom the Airflow logs in log groomer sidecar.",
                     "type": "integer",
                     "default": 15
                 },

@@ -20,9 +20,10 @@ import asyncio
 from collections.abc import AsyncIterator, Sequence
 from typing import Any
 
+from google.cloud.batch_v1 import Job, JobStatus
+
 from airflow.providers.google.cloud.hooks.cloud_batch import CloudBatchAsyncHook
 from airflow.triggers.base import BaseTrigger, TriggerEvent
-from google.cloud.batch_v1 import Job, JobStatus
 
 DEFAULT_BATCH_LOCATION = "us-central1"
 

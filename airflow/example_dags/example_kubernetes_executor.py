@@ -149,18 +149,6 @@ if k8s:
             print_stuff()
 
         third_task = non_root_task()
-
-        executor_config_other_ns = {
-            "pod_override": k8s.V1Pod(
-                metadata=k8s.V1ObjectMeta(namespace="test-namespace", labels={"release": "stable"})
-            )
-        }
-
-        @task(executor_config=executor_config_other_ns)
-        def other_namespace_task():
-            print_stuff()
-
-        other_ns_task = other_namespace_task()
         worker_container_repository = conf.get("kubernetes_executor", "worker_container_repository")
         worker_container_tag = conf.get("kubernetes_executor", "worker_container_tag")
 
@@ -231,9 +219,4 @@ if k8s:
 
         four_task = task_with_resource_limits()
 
-        (
-            start_task()
-            >> [volume_task, other_ns_task, sidecar_task]
-            >> third_task
-            >> [base_image_task, four_task]
-        )
+        (start_task() >> [volume_task, sidecar_task] >> third_task >> [base_image_task, four_task])

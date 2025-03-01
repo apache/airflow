@@ -27,7 +27,7 @@ def get_provider_info():
         "name": "Apache Iceberg",
         "description": "`Iceberg <https://iceberg.apache.org/>`__\n",
         "state": "ready",
-        "source-date-epoch": 1734528119,
+        "source-date-epoch": 1740734085,
         "versions": ["1.2.0", "1.1.0", "1.0.0"],
         "integrations": [
             {

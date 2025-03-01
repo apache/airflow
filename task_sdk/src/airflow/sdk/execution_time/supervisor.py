@@ -304,7 +304,7 @@ class WatchedSubprocess:
     stdin: BinaryIO
     """The handle connected to stdin of the child process"""
 
-    decoder: TypeAdapter
+    decoder: ClassVar[TypeAdapter]
     """The decoder to use for incoming messages from the child process."""
 
     _process: psutil.Process
@@ -315,6 +315,8 @@ class WatchedSubprocess:
     _exit_code: int | None = attrs.field(default=None, init=False)
 
     selector: selectors.BaseSelector = attrs.field(factory=selectors.DefaultSelector)
+
+    log: FilteringBoundLogger
 
     @classmethod
     def start(
@@ -363,17 +365,17 @@ class WatchedSubprocess:
         # other end of the pair open
         cls._close_unused_sockets(child_stdin, child_stdout, child_stderr, child_comms, child_logs)
 
+        logger = logger or cast("FilteringBoundLogger", structlog.get_logger(logger_name="task").bind())
         proc = cls(
             pid=pid,
             stdin=feed_stdin,
             process=psutil.Process(pid),
             requests_fd=requests_fd,
+            log=logger,
             **constructor_kwargs,
         )
 
-        logger = logger or cast("FilteringBoundLogger", structlog.get_logger(logger_name="task").bind())
         proc._register_pipe_readers(
-            logger=logger,
             stdout=read_stdout,
             stderr=read_stderr,
             requests=read_msgs,
@@ -382,26 +384,24 @@ class WatchedSubprocess:
 
         return proc
 
-    def _register_pipe_readers(
-        self, logger: FilteringBoundLogger, stdout: socket, stderr: socket, requests: socket, logs: socket
-    ):
+    def _register_pipe_readers(self, stdout: socket, stderr: socket, requests: socket, logs: socket):
         """Register handlers for subprocess communication channels."""
         # self.selector is a way of registering a handler/callback to be called when the given IO channel has
         # activity to read on (https://www.man7.org/linux/man-pages/man2/select.2.html etc, but better
         # alternatives are used automatically) -- this is a way of having "event-based" code, but without
         # needing full async, to read and process output from each socket as it is received.
 
-        self.selector.register(stdout, selectors.EVENT_READ, self._create_socket_handler(logger, "stdout"))
+        self.selector.register(stdout, selectors.EVENT_READ, self._create_socket_handler(self.log, "stdout"))
         self.selector.register(
             stderr,
             selectors.EVENT_READ,
-            self._create_socket_handler(logger, "stderr", log_level=logging.ERROR),
+            self._create_socket_handler(self.log, "stderr", log_level=logging.ERROR),
         )
         self.selector.register(
             logs,
             selectors.EVENT_READ,
             make_buffered_socket_reader(
-                process_log_messages_from_subprocess(logger), on_close=self._on_socket_closed
+                process_log_messages_from_subprocess(self.log), on_close=self._on_socket_closed
             ),
         )
         self.selector.register(
@@ -584,7 +584,7 @@ class ActivitySubprocess(WatchedSubprocess):
     TASK_OVERTIME_THRESHOLD: ClassVar[float] = 20.0
     _task_end_time_monotonic: float | None = attrs.field(default=None, init=False)
 
-    decoder: TypeAdapter[ToSupervisor] = TypeAdapter(ToSupervisor)
+    decoder: ClassVar[TypeAdapter[ToSupervisor]] = TypeAdapter(ToSupervisor)
 
     @classmethod
     def start(  # type: ignore[override]
@@ -606,11 +606,12 @@ class ActivitySubprocess(WatchedSubprocess):
 
     def _on_child_started(self, ti: TaskInstance, dag_rel_path: str | os.PathLike[str], bundle_info):
         """Send startup message to the subprocess."""
+        start_date = datetime.now(tz=timezone.utc)
         try:
             # We've forked, but the task won't start doing anything until we send it the StartupDetails
             # message. But before we do that, we need to tell the server it's started (so it has the chance to
             # tell us "no, stop!" for any reason)
-            ti_context = self.client.task_instances.start(ti.id, self.pid, datetime.now(tz=timezone.utc))
+            ti_context = self.client.task_instances.start(ti.id, self.pid, start_date)
             self._last_successful_heartbeat = time.monotonic()
         except Exception:
             # On any error kill that subprocess!
@@ -623,6 +624,7 @@ class ActivitySubprocess(WatchedSubprocess):
             bundle_info=bundle_info,
             requests_fd=self._requests_fd,
             ti_context=ti_context,
+            start_date=start_date,
         )
 
         # Send the message to tell the process what it needs to execute
@@ -656,7 +658,23 @@ class ActivitySubprocess(WatchedSubprocess):
             self.client.task_instances.finish(
                 id=self.id, state=self.final_state, when=datetime.now(tz=timezone.utc)
             )
+
+        # Now at the last possible moment, when all logs and comms with the subprocess has finished, lets
+        # upload the remote logs
+        self._upload_logs()
+
         return self._exit_code
+
+    def _upload_logs(self):
+        """
+        Upload all log files found to the remote storage.
+
+        We upload logs from here after the task has finished to give us the best possible chance of logs being
+        uploaded in case the task task.
+        """
+        from airflow.sdk.log import upload_to_remote
+
+        upload_to_remote(self.log)
 
     def _monitor_subprocess(self):
         """
@@ -696,7 +714,6 @@ class ActivitySubprocess(WatchedSubprocess):
         # If the task has reached a terminal state, we can start monitoring the overtime
         if not self._terminal_state:
             return
-
         if (
             self._task_end_time_monotonic
             and (time.monotonic() - self._task_end_time_monotonic) > self.TASK_OVERTIME_THRESHOLD
@@ -775,6 +792,7 @@ class ActivitySubprocess(WatchedSubprocess):
             resp = runtime_check_resp.model_dump_json().encode()
         elif isinstance(msg, SucceedTask):
             self._terminal_state = msg.state
+            self._task_end_time_monotonic = time.monotonic()
             self.client.task_instances.succeed(
                 id=self.id,
                 when=msg.end_date,
@@ -785,7 +803,7 @@ class ActivitySubprocess(WatchedSubprocess):
             conn = self.client.connections.get(msg.conn_id)
             if isinstance(conn, ConnectionResponse):
                 conn_result = ConnectionResult.from_conn_response(conn)
-                resp = conn_result.model_dump_json(exclude_unset=True).encode()
+                resp = conn_result.model_dump_json(exclude_unset=True, by_alias=True).encode()
             else:
                 resp = conn.model_dump_json().encode()
         elif isinstance(msg, GetVariable):
@@ -809,7 +827,9 @@ class ActivitySubprocess(WatchedSubprocess):
             self._terminal_state = IntermediateTIState.UP_FOR_RESCHEDULE
             self.client.task_instances.reschedule(self.id, msg)
         elif isinstance(msg, SetXCom):
-            self.client.xcoms.set(msg.dag_id, msg.run_id, msg.task_id, msg.key, msg.value, msg.map_index)
+            self.client.xcoms.set(
+                msg.dag_id, msg.run_id, msg.task_id, msg.key, msg.value, msg.map_index, msg.mapped_length
+            )
         elif isinstance(msg, PutVariable):
             self.client.variables.set(msg.key, msg.value, msg.description)
         elif isinstance(msg, SetRenderedFields):
@@ -935,6 +955,7 @@ def supervise(
     Run a single task execution to completion.
 
     :param ti: The task instance to run.
+    :param dr: Current DagRun of the task instance.
     :param dag_path: The file path to the DAG.
     :param token: Authentication token for the API client.
     :param server: Base URL of the API server.
@@ -959,16 +980,18 @@ def supervise(
     # TODO: Use logging providers to handle the chunked upload for us etc.
     logger: FilteringBoundLogger | None = None
     if log_path:
-        # If we are told to write logs to a file, redirect the task logger to it.
+        # If we are told to write logs to a file, redirect the task logger to it. Make sure we append to the
+        # file though, otherwise when we resume we would lose the logs from the start->deferral segment if it
+        # lands on the same node as before.
         from airflow.sdk.log import init_log_file, logging_processors
 
         log_file = init_log_file(log_path)
 
         pretty_logs = False
         if pretty_logs:
-            underlying_logger: WrappedLogger = structlog.WriteLogger(log_file.open("w", buffering=1))
+            underlying_logger: WrappedLogger = structlog.WriteLogger(log_file.open("a", buffering=1))
         else:
-            underlying_logger = structlog.BytesLogger(log_file.open("wb"))
+            underlying_logger = structlog.BytesLogger(log_file.open("ab"))
         processors = logging_processors(enable_pretty_log=pretty_logs)[0]
         logger = structlog.wrap_logger(underlying_logger, processors=processors, logger_name="task").bind()
 

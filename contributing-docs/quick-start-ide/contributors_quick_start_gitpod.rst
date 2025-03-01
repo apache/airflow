@@ -33,7 +33,7 @@ Connect your project to Gitpod
             alt="Forking Apache Airflow project">
      </div>
 
-2. Goto your github account's fork of airflow click on ``Code`` and copy the clone link.
+2. Goto your github account's fork of airflow, click on ``Code``, and copy the clone link.
 
    .. raw:: html
 
@@ -93,6 +93,9 @@ Before running the webserver, you need to initialize the database:
          --email admin@example.com \
          --firstname foo \
          --lastname bar
+
+.. note::
+    ``airflow users`` command is only available when `FAB auth manager <https://airflow.apache.org/docs/apache-airflow-providers-fab/stable/auth-manager/index.html>`_ is enabled.
 
 Starting Airflow
 --------------

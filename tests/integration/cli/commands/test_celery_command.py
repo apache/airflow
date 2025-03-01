@@ -23,8 +23,8 @@ from unittest import mock
 import pytest
 
 from airflow.cli import cli_parser
-from airflow.cli.commands.local_commands import celery_command
 from airflow.executors import executor_loader
+from airflow.providers.celery.cli import celery_command
 
 from tests_common.test_utils.config import conf_vars
 
@@ -44,7 +44,7 @@ class TestWorkerServeLogs:
     @conf_vars({("core", "executor"): "CeleryExecutor"})
     def test_serve_logs_on_worker_start(self):
         with (
-            mock.patch("airflow.cli.commands.local_commands.celery_command.Process") as mock_process,
+            mock.patch("airflow.providers.celery.cli.celery_command.Process") as mock_process,
             mock.patch("airflow.providers.celery.executors.celery_executor.app"),
         ):
             args = self.parser.parse_args(["celery", "worker", "--concurrency", "1"])
@@ -55,14 +55,25 @@ class TestWorkerServeLogs:
                 mock_process.assert_called()
 
     @conf_vars({("core", "executor"): "CeleryExecutor"})
-    def test_skip_serve_logs_on_worker_start(self):
+    @pytest.mark.parametrize(
+        "skip, expected",
+        [
+            (True, ["bundle_cleanup_main"]),
+            (False, ["serve_logs", "bundle_cleanup_main"]),
+        ],
+    )
+    def test_skip_serve_logs_on_worker_start(self, skip, expected):
         with (
-            mock.patch("airflow.cli.commands.local_commands.celery_command.Process") as mock_popen,
+            mock.patch("airflow.providers.celery.cli.celery_command.Process") as mock_popen,
             mock.patch("airflow.providers.celery.executors.celery_executor.app"),
         ):
-            args = self.parser.parse_args(["celery", "worker", "--concurrency", "1", "--skip-serve-logs"])
+            args = ["celery", "worker", "--concurrency", "1"]
+            if skip:
+                args.append("--skip-serve-logs")
+            args = self.parser.parse_args(args)
 
             with mock.patch("celery.platforms.check_privileges") as mock_privil:
                 mock_privil.return_value = 0
                 celery_command.worker(args)
-                mock_popen.assert_not_called()
+                targets = [x.kwargs["target"].__name__ for x in mock_popen.call_args_list]
+                assert targets == expected

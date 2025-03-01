@@ -19,6 +19,7 @@ from __future__ import annotations
 import logging
 from contextlib import AsyncExitStack, asynccontextmanager
 from typing import TYPE_CHECKING
+from urllib.parse import urlsplit
 
 from fastapi import FastAPI
 from starlette.routing import Mount
@@ -60,27 +61,36 @@ async def lifespan(app: FastAPI):
 def create_app(apps: str = "all") -> FastAPI:
     apps_list = apps.split(",") if apps else ["all"]
 
+    fastapi_base_url = conf.get("api", "base_url")
+    if fastapi_base_url.endswith("/"):
+        raise AirflowConfigException("`[api] base_url` config option cannot have a trailing slash.")
+
+    root_path = urlsplit(fastapi_base_url).path
+    if not root_path or root_path == "/":
+        root_path = ""
+
     app = FastAPI(
         title="Airflow API",
         description="Airflow API. All endpoints located under ``/public`` can be used safely, are stable and backward compatible. "
         "Endpoints located under ``/ui`` are dedicated to the UI and are subject to breaking change "
         "depending on the need of the frontend. Users should not rely on those but use the public ones instead.",
         lifespan=lifespan,
+        root_path=root_path,
     )
+
+    if "execution" in apps_list or "all" in apps_list:
+        task_exec_api_app = create_task_execution_api_app()
+        init_error_handlers(task_exec_api_app)
+        app.mount("/execution", task_exec_api_app)
 
     if "core" in apps_list or "all" in apps_list:
         init_dag_bag(app)
-        init_views(app)
         init_plugins(app)
         init_auth_manager(app)
         init_flask_plugins(app)
+        init_views(app)  # Core views need to be the last routes added - it has a catch all route
         init_error_handlers(app)
         init_middlewares(app)
-
-    if "execution" in apps_list or "all" in apps_list:
-        task_exec_api_app = create_task_execution_api_app(app)
-        init_error_handlers(task_exec_api_app)
-        app.mount("/execution", task_exec_api_app)
 
     init_config(app)
 
@@ -133,6 +143,7 @@ def init_auth_manager(app: FastAPI | None = None) -> BaseAuthManager:
 
     if app and (auth_manager_fastapi_app := am.get_fastapi_app()):
         app.mount("/auth", auth_manager_fastapi_app)
+        app.state.auth_manager = am
 
     return am
 

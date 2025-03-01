@@ -1,0 +1,25 @@
+Legacy signature for operator link is removed.
+
+``BaseOperatorLink.get_link`` used to accept execution date as an argument. This
+has been changed to accept ``ti_key`` to identify a task instance instead. The
+old signature, supported at runtime for compatibility, has been removed.
+
+* Types of change
+
+  * [x] Dag changes
+  * [ ] Config changes
+  * [ ] API changes
+  * [ ] CLI changes
+  * [ ] Behaviour changes
+  * [ ] Plugin changes
+  * [ ] Dependency changes
+  * [x] Code interface changes
+
+* Migration rules needed
+
+  * ruff
+
+    * AIR302
+
+      * [ ] Signature of ``airflow.models.baseoperatorlink.BaseOperatorLink.get_link`` changed
+      .. detailed in https://github.com/apache/airflow/pull/46415#issuecomment-2636186625

@@ -39,6 +39,8 @@ from airflow.serialization.serialized_objects import SerializedDAG
 from airflow.settings import json
 from airflow.utils.hashlib_wrapper import md5
 from airflow.utils.session import create_session
+from airflow.utils.state import DagRunState
+from airflow.utils.types import DagRunTriggeredByType, DagRunType
 
 from tests_common.test_utils import db
 from tests_common.test_utils.asserts import assert_queries_count
@@ -74,6 +76,7 @@ class TestSerializedDagModel:
     )
     def setup_test_cases(self, request, monkeypatch):
         db.clear_db_dags()
+        db.clear_db_runs()
         db.clear_db_serialized_dags()
         with mock.patch("airflow.models.serialized_dag.COMPRESS_SERIALIZED_DAGS", request.param):
             yield
@@ -106,9 +109,11 @@ class TestSerializedDagModel:
             PythonOperator(task_id="task1", python_callable=my_callable)
         dag.sync_to_db()
         SDM.write_dag(dag, bundle_name="dag_maker")
+        dag_maker.create_dagrun(run_id="test1")
         with dag_maker("dag1") as dag:
             PythonOperator(task_id="task1", python_callable=lambda x: None)
         SDM.write_dag(dag, bundle_name="dag_maker")
+        dag_maker.create_dagrun(run_id="test2", logical_date=pendulum.datetime(2025, 1, 1))
         assert len(session.query(DagVersion).all()) == 2
 
         with dag_maker("dag2") as dag:
@@ -120,6 +125,7 @@ class TestSerializedDagModel:
             my_callable()
         dag.sync_to_db()
         SDM.write_dag(dag, bundle_name="dag_maker")
+        dag_maker.create_dagrun(run_id="test3", logical_date=pendulum.datetime(2025, 1, 2))
         with dag_maker("dag2") as dag:
 
             @task_decorator
@@ -137,6 +143,13 @@ class TestSerializedDagModel:
         example_bash_op_dag = example_dags.get("example_bash_operator")
         dag_updated = SDM.write_dag(dag=example_bash_op_dag, bundle_name="testing")
         assert dag_updated is True
+        example_bash_op_dag.create_dagrun(
+            run_id="test1",
+            run_after=pendulum.datetime(2025, 1, 1, tz="UTC"),
+            state=DagRunState.QUEUED,
+            triggered_by=DagRunTriggeredByType.TEST,
+            run_type=DagRunType.MANUAL,
+        )
 
         s_dag = SDM.get(example_bash_op_dag.dag_id)
 
@@ -178,6 +191,13 @@ class TestSerializedDagModel:
         assert len(example_dags) == len(serialized_dags)
 
         dag = example_dags.get("example_bash_operator")
+        dag.create_dagrun(
+            run_id="test1",
+            run_after=pendulum.datetime(2025, 1, 1, tz="UTC"),
+            state=DagRunState.QUEUED,
+            triggered_by=DagRunTriggeredByType.TEST,
+            run_type=DagRunType.MANUAL,
+        )
         dag.doc_md = "new doc string"
         SDM.write_dag(dag, bundle_name="testing")
         serialized_dags2 = SDM.read_all_dags()
@@ -277,16 +297,19 @@ class TestSerializedDagModel:
             EmptyOperator(task_id="task1")
         dag.sync_to_db()
         SDM.write_dag(dag, bundle_name="testing")
+        dag_maker.create_dagrun()
         with dag_maker("dag1") as dag:
             EmptyOperator(task_id="task1")
             EmptyOperator(task_id="task2")
         dag.sync_to_db()
         SDM.write_dag(dag, bundle_name="testing")
+        dag_maker.create_dagrun(run_id="test2", logical_date=pendulum.datetime(2025, 1, 1))
         # second dag
         with dag_maker("dag2") as dag:
             EmptyOperator(task_id="task1")
         dag.sync_to_db()
         SDM.write_dag(dag, bundle_name="testing")
+        dag_maker.create_dagrun(run_id="test3", logical_date=pendulum.datetime(2025, 1, 2))
         with dag_maker("dag2") as dag:
             EmptyOperator(task_id="task1")
             EmptyOperator(task_id="task2")
@@ -298,3 +321,53 @@ class TestSerializedDagModel:
 
         latest_versions = SDM.get_latest_serialized_dags(dag_ids=["dag1", "dag2"], session=session)
         assert len(latest_versions) == 2
+
+    def test_new_dag_versions_are_not_created_if_no_dagruns(self, dag_maker, session):
+        with dag_maker("dag1") as dag:
+            PythonOperator(task_id="task1", python_callable=lambda: None)
+        dag.sync_to_db()
+        SDM.write_dag(dag, bundle_name="testing")
+        assert session.query(SDM).count() == 1
+        sdm1 = SDM.get(dag.dag_id, session=session)
+        dag_hash = sdm1.dag_hash
+        created_at = sdm1.created_at
+        last_updated = sdm1.last_updated
+        # new task
+        PythonOperator(task_id="task2", python_callable=lambda: None, dag=dag)
+        SDM.write_dag(dag, bundle_name="testing")
+        sdm2 = SDM.get(dag.dag_id, session=session)
+
+        assert sdm2.dag_hash != dag_hash  # first recorded serdag
+        assert sdm2.created_at == created_at
+        assert sdm2.last_updated != last_updated
+        assert session.query(DagVersion).count() == 1
+        assert session.query(SDM).count() == 1
+
+    def test_new_dag_versions_are_created_if_there_is_a_dagrun(self, dag_maker, session):
+        with dag_maker("dag1") as dag:
+            PythonOperator(task_id="task1", python_callable=lambda: None)
+        dag.sync_to_db()
+        SDM.write_dag(dag, bundle_name="testing")
+        dag_maker.create_dagrun(run_id="test3", logical_date=pendulum.datetime(2025, 1, 2))
+        assert session.query(SDM).count() == 1
+        assert session.query(DagVersion).count() == 1
+        # new task
+        PythonOperator(task_id="task2", python_callable=lambda: None, dag=dag)
+        SDM.write_dag(dag, bundle_name="testing")
+
+        assert session.query(DagVersion).count() == 2
+        assert session.query(SDM).count() == 2
+
+    def test_example_dag_sorting_serialised_dag(self, session):
+        """
+        This test asserts if different dag ids -- simple or complex, can be sorted
+        """
+
+        example_dags = self._write_example_dags()
+
+        for _, dag in example_dags.items():
+            # flip the tags, the sorting function should sort it alphabetically
+            if dag.tags:
+                dag.tags = sorted(dag.tags, reverse=True)
+            sorted_dag = SDM._sort_serialized_dag_dict(dag)
+            assert sorted_dag == dag

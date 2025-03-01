@@ -31,7 +31,6 @@ import pytest
 from airflow.listeners.listener import get_listener_manager
 from airflow.plugins_manager import AirflowPlugin
 from airflow.utils.module_loading import qualname
-from airflow.www import app as application
 
 from tests_common.test_utils.config import conf_vars
 from tests_common.test_utils.mock_plugins import mock_plugin_manager
@@ -71,95 +70,6 @@ def mock_metadata_distribution(mocker):
             yield m
 
     return wrapper
-
-
-@pytest.mark.db_test
-class TestPluginsRBAC:
-    @pytest.fixture(autouse=True)
-    def _set_attrs(self, app):
-        self.app = app
-        self.appbuilder = app.appbuilder
-
-    def test_flaskappbuilder_views(self):
-        from tests.plugins.test_plugin import v_appbuilder_package
-
-        appbuilder_class_name = str(v_appbuilder_package["view"].__class__.__name__)
-        plugin_views = [
-            view for view in self.appbuilder.baseviews if view.blueprint.name == appbuilder_class_name
-        ]
-
-        assert len(plugin_views) == 1
-
-        # view should have a menu item matching category of v_appbuilder_package
-        links = [
-            menu_item
-            for menu_item in self.appbuilder.menu.menu
-            if menu_item.name == v_appbuilder_package["category"]
-        ]
-
-        assert len(links) == 1
-
-        # menu link should also have a link matching the name of the package.
-        link = links[0]
-        assert link.name == v_appbuilder_package["category"]
-        assert link.childs[0].name == v_appbuilder_package["name"]
-        assert link.childs[0].label == v_appbuilder_package["label"]
-
-    def test_flaskappbuilder_menu_links(self):
-        from tests.plugins.test_plugin import appbuilder_mitem, appbuilder_mitem_toplevel
-
-        # menu item (category) should exist matching appbuilder_mitem.category
-        categories = [
-            menu_item
-            for menu_item in self.appbuilder.menu.menu
-            if menu_item.name == appbuilder_mitem["category"]
-        ]
-        assert len(categories) == 1
-
-        # menu link should be a child in the category
-        category = categories[0]
-        assert category.name == appbuilder_mitem["category"]
-        assert category.childs[0].name == appbuilder_mitem["name"]
-        assert category.childs[0].href == appbuilder_mitem["href"]
-
-        # a top level link isn't nested in a category
-        top_levels = [
-            menu_item
-            for menu_item in self.appbuilder.menu.menu
-            if menu_item.name == appbuilder_mitem_toplevel["name"]
-        ]
-        assert len(top_levels) == 1
-        link = top_levels[0]
-        assert link.href == appbuilder_mitem_toplevel["href"]
-        assert link.label == appbuilder_mitem_toplevel["label"]
-
-    def test_app_blueprints(self):
-        from tests.plugins.test_plugin import bp
-
-        # Blueprint should be present in the app
-        assert "test_plugin" in self.app.blueprints
-        assert self.app.blueprints["test_plugin"].name == bp.name
-
-    def test_app_static_folder(self):
-        # Blueprint static folder should be properly set
-        assert Path(self.app.static_folder).resolve() == AIRFLOW_SOURCES_ROOT / "airflow" / "www" / "static"
-
-
-@pytest.mark.db_test
-def test_flaskappbuilder_nomenu_views():
-    from tests.plugins.test_plugin import v_nomenu_appbuilder_package
-
-    class AirflowNoMenuViewsPlugin(AirflowPlugin):
-        appbuilder_views = [v_nomenu_appbuilder_package]
-
-    appbuilder_class_name = str(v_nomenu_appbuilder_package["view"].__class__.__name__)
-
-    with mock_plugin_manager(plugins=[AirflowNoMenuViewsPlugin()]):
-        appbuilder = application.create_app(testing=True).appbuilder
-
-        plugin_views = [view for view in appbuilder.baseviews if view.blueprint.name == appbuilder_class_name]
-
-        assert len(plugin_views) == 1
 
 
 class TestPluginsManager:
@@ -358,19 +268,22 @@ class TestPluginsManager:
     def test_registering_plugin_listeners(self):
         from airflow import plugins_manager
 
-        with mock.patch("airflow.plugins_manager.plugins", []):
-            plugins_manager.load_plugins_from_plugin_directory()
-            plugins_manager.integrate_listener_plugins(get_listener_manager())
+        try:
+            with mock.patch("airflow.plugins_manager.plugins", []):
+                plugins_manager.load_plugins_from_plugin_directory()
+                plugins_manager.integrate_listener_plugins(get_listener_manager())
 
-            assert get_listener_manager().has_listeners
-            listeners = get_listener_manager().pm.get_plugins()
-            listener_names = [el.__name__ if inspect.ismodule(el) else qualname(el) for el in listeners]
-            # sort names as order of listeners is not guaranteed
-            assert sorted(listener_names) == [
-                "airflow.example_dags.plugins.event_listener",
-                "tests.listeners.class_listener.ClassBasedListener",
-                "tests.listeners.empty_listener",
-            ]
+                assert get_listener_manager().has_listeners
+                listeners = get_listener_manager().pm.get_plugins()
+                listener_names = [el.__name__ if inspect.ismodule(el) else qualname(el) for el in listeners]
+                # sort names as order of listeners is not guaranteed
+                assert sorted(listener_names) == [
+                    "airflow.example_dags.plugins.event_listener",
+                    "tests.listeners.class_listener.ClassBasedListener",
+                    "tests.listeners.empty_listener",
+                ]
+        finally:
+            get_listener_manager().clear()
 
     def test_should_import_plugin_from_providers(self):
         from airflow import plugins_manager

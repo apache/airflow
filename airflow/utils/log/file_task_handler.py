@@ -19,35 +19,47 @@
 
 from __future__ import annotations
 
+import itertools
 import logging
 import os
 from collections.abc import Iterable
 from contextlib import suppress
+from datetime import datetime
 from enum import Enum
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, Callable
 from urllib.parse import urljoin
 
 import pendulum
+from pydantic import BaseModel, ConfigDict, ValidationError
 
 from airflow.configuration import conf
 from airflow.exceptions import AirflowException
 from airflow.executors.executor_loader import ExecutorLoader
-from airflow.sdk.definitions.context import Context
-from airflow.utils.helpers import parse_template_string, render_template_to_string
+from airflow.utils.helpers import parse_template_string, render_template
 from airflow.utils.log.logging_mixin import SetContextPropagate
 from airflow.utils.log.non_caching_file_handler import NonCachingRotatingFileHandler
 from airflow.utils.session import NEW_SESSION, provide_session
 from airflow.utils.state import State, TaskInstanceState
 
 if TYPE_CHECKING:
-    from pendulum import DateTime
-
     from airflow.executors.base_executor import BaseExecutor
     from airflow.models.taskinstance import TaskInstance
     from airflow.models.taskinstancekey import TaskInstanceKey
 
 logger = logging.getLogger(__name__)
+
+
+class StructuredLogMessage(BaseModel):
+    """An individual log message."""
+
+    timestamp: datetime | None = None
+    event: str
+
+    # We don't need to cache string when parsing in to this, as almost every line will have a different
+    # values; `extra=allow` means we'll create extra properties as needed. Only timestamp and event are
+    # required, everything else is up to what ever is producing the logs
+    model_config = ConfigDict(cache_strings=False, extra="allow")
 
 
 class LogType(str, Enum):
@@ -110,30 +122,36 @@ if not _parse_timestamp:
         return pendulum.parse(timestamp_str.strip("[]"))
 
 
-def _parse_timestamps_in_log_file(lines: Iterable[str]):
+def _parse_log_lines(lines: Iterable[str]) -> Iterable[tuple[datetime | None, int, StructuredLogMessage]]:
+    from airflow.utils.timezone import coerce_datetime
+
     timestamp = None
     next_timestamp = None
     for idx, line in enumerate(lines):
         if line:
-            with suppress(Exception):
-                # next_timestamp unchanged if line can't be parsed
-                next_timestamp = _parse_timestamp(line)
-            if next_timestamp:
-                timestamp = next_timestamp
-            yield timestamp, idx, line
+            try:
+                # Try to parse it as json first
+                log = StructuredLogMessage.model_validate_json(line)
+            except ValidationError:
+                with suppress(Exception):
+                    # If we can't parse the timestamp, don't attach one to the row
+                    next_timestamp = _parse_timestamp(line)
+                log = StructuredLogMessage(event=line, timestamp=next_timestamp)
+            if log.timestamp:
+                log.timestamp = coerce_datetime(log.timestamp)
+                timestamp = log.timestamp
+            yield timestamp, idx, log
 
 
-def _interleave_logs(*logs):
-    records = []
-    for log in logs:
-        records.extend(_parse_timestamps_in_log_file(log.splitlines()))
+def _interleave_logs(*logs: str) -> Iterable[StructuredLogMessage]:
+    min_date = pendulum.datetime(2000, 1, 1)
+
+    records = itertools.chain.from_iterable(_parse_log_lines(log.splitlines()) for log in logs)
     last = None
-    for timestamp, _, line in sorted(
-        records, key=lambda x: (x[0], x[1]) if x[0] else (pendulum.datetime(2000, 1, 1), x[1])
-    ):
-        if line != last or not timestamp:  # dedupe
-            yield line
-        last = line
+    for timestamp, _, msg in sorted(records, key=lambda x: (x[0] or min_date, x[1])):
+        if msg != last or not timestamp:  # dedupe
+            yield msg
+        last = msg
 
 
 def _ensure_ti(ti: TaskInstanceKey | TaskInstance, session) -> TaskInstance:
@@ -269,30 +287,17 @@ class FileTaskHandler(logging.Handler):
         """Return the worker log filename."""
         ti = _ensure_ti(ti, session)
         dag_run = ti.get_dagrun(session=session)
+
+        date = dag_run.logical_date or dag_run.run_after
+        date = date.isoformat()
+
         template = dag_run.get_log_template(session=session).filename
         str_tpl, jinja_tpl = parse_template_string(template)
-        filename = None
         if jinja_tpl:
-            if getattr(ti, "task", None) is not None:
-                context = ti.get_template_context(session=session)
-            else:
-                context = Context(ti=ti, ts=dag_run.logical_date.isoformat())
-            context["try_number"] = try_number
-            filename = render_template_to_string(jinja_tpl, context)
-        if filename:
-            return filename
-        if str_tpl:
-            if ti.task is not None and ti.task.dag is not None:
-                dag = ti.task.dag
-                # TODO: TaskSDK: why do we need this on the DAG! Where is this render fn called from. Revisit
-                data_interval = dag.get_run_data_interval(dag_run)  # type: ignore[attr-defined]
-            else:
-                from airflow.timetables.base import DataInterval
+            return render_template(jinja_tpl, {"ti": ti, "ts": date, "try_number": try_number}, native=False)
 
-                if TYPE_CHECKING:
-                    assert isinstance(dag_run.data_interval_start, DateTime)
-                    assert isinstance(dag_run.data_interval_end, DateTime)
-                data_interval = DataInterval(dag_run.data_interval_start, dag_run.data_interval_end)
+        if str_tpl:
+            data_interval = (dag_run.data_interval_start, dag_run.data_interval_end)
             if data_interval[0]:
                 data_interval_start = data_interval[0].isoformat()
             else:
@@ -307,14 +312,11 @@ class FileTaskHandler(logging.Handler):
                 run_id=ti.run_id,
                 data_interval_start=data_interval_start,
                 data_interval_end=data_interval_end,
-                logical_date=ti.get_dagrun().logical_date.isoformat(),
+                logical_date=date,
                 try_number=try_number,
             )
         else:
             raise RuntimeError(f"Unable to render log filename for {ti}. This should never happen")
-
-    def _read_grouped_logs(self):
-        return False
 
     def _get_executor_get_task_log(
         self, ti: TaskInstance
@@ -367,40 +369,40 @@ class FileTaskHandler(logging.Handler):
         # initializing the handler. Thus explicitly getting log location
         # is needed to get correct log path.
         worker_log_rel_path = self._render_filename(ti, try_number)
-        messages_list: list[str] = []
+        source_list: list[str] = []
         remote_logs: list[str] = []
         local_logs: list[str] = []
-        executor_messages: list[str] = []
+        sources: list[str] = []
         executor_logs: list[str] = []
         served_logs: list[str] = []
         with suppress(NotImplementedError):
-            remote_messages, remote_logs = self._read_remote_logs(ti, try_number, metadata)
-            messages_list.extend(remote_messages)
+            sources, remote_logs = self._read_remote_logs(ti, try_number, metadata)
+            source_list.extend(sources)
         has_k8s_exec_pod = False
         if ti.state == TaskInstanceState.RUNNING:
             executor_get_task_log = self._get_executor_get_task_log(ti)
             response = executor_get_task_log(ti, try_number)
             if response:
-                executor_messages, executor_logs = response
-            if executor_messages:
-                messages_list.extend(executor_messages)
+                sources, executor_logs = response
+            if sources:
+                source_list.extend(sources)
                 has_k8s_exec_pod = True
         if not (remote_logs and ti.state not in State.unfinished):
             # when finished, if we have remote logs, no need to check local
             worker_log_full_path = Path(self.local_base, worker_log_rel_path)
-            local_messages, local_logs = self._read_from_local(worker_log_full_path)
-            messages_list.extend(local_messages)
+            sources, local_logs = self._read_from_local(worker_log_full_path)
+            source_list.extend(sources)
         if ti.state in (TaskInstanceState.RUNNING, TaskInstanceState.DEFERRED) and not has_k8s_exec_pod:
-            served_messages, served_logs = self._read_from_logs_server(ti, worker_log_rel_path)
-            messages_list.extend(served_messages)
+            sources, served_logs = self._read_from_logs_server(ti, worker_log_rel_path)
+            source_list.extend(sources)
         elif ti.state not in State.unfinished and not (local_logs or remote_logs):
             # ordinarily we don't check served logs, with the assumption that users set up
             # remote logging or shared drive for logs for persistence, but that's not always true
             # so even if task is done, if no local logs or remote logs are found, we'll check the worker
-            served_messages, served_logs = self._read_from_logs_server(ti, worker_log_rel_path)
-            messages_list.extend(served_messages)
+            sources, served_logs = self._read_from_logs_server(ti, worker_log_rel_path)
+            source_list.extend(sources)
 
-        logs = "\n".join(
+        logs = list(
             _interleave_logs(
                 *local_logs,
                 *remote_logs,
@@ -411,18 +413,20 @@ class FileTaskHandler(logging.Handler):
         log_pos = len(logs)
         # Log message source details are grouped: they are not relevant for most users and can
         # distract them from finding the root cause of their errors
-        messages = " INFO - ::group::Log message source details\n"
-        messages += "".join([f"*** {x}\n" for x in messages_list])
-        messages += " INFO - ::endgroup::\n"
+        header = [
+            StructuredLogMessage(event="::group::Log message source details", sources=source_list),  # type: ignore[call-arg]
+            StructuredLogMessage(event="::endgroup::"),
+        ]
         end_of_log = ti.try_number != try_number or ti.state not in (
             TaskInstanceState.RUNNING,
             TaskInstanceState.DEFERRED,
         )
         if metadata and "log_pos" in metadata:
-            previous_chars = metadata["log_pos"]
-            logs = logs[previous_chars:]  # Cut off previously passed log test as new tail
-        out_message = logs if "log_pos" in (metadata or {}) else messages + logs
-        return out_message, {"end_of_log": end_of_log, "log_pos": log_pos}
+            previous_line = metadata["log_pos"]
+            logs = logs[previous_line:]  # Cut off previously passed log test as new tail
+        else:
+            logs = header + logs
+        return logs, {"end_of_log": end_of_log, "log_pos": log_pos}
 
     @staticmethod
     def _get_pod_namespace(ti: TaskInstance):
@@ -455,43 +459,32 @@ class FileTaskHandler(logging.Handler):
             log_relative_path,
         )
 
-    def read(self, task_instance, try_number=None, metadata=None):
+    def read(
+        self,
+        task_instance: TaskInstance,
+        try_number: int | None = None,
+        metadata: dict[str, Any] | None = None,
+    ) -> tuple[list[StructuredLogMessage] | str, dict[str, Any]]:
         """
         Read logs of given task instance from local machine.
 
         :param task_instance: task instance object
         :param try_number: task instance try_number to read logs from. If None
-                           it returns all logs separated by try_number
+                            it returns the log of task_instance.try_number
         :param metadata: log metadata, can be used for steaming log reading and auto-tailing.
         :return: a list of listed tuples which order log string by host
         """
-        # Task instance increments its try number when it starts to run.
-        # So the log for a particular task try will only show up when
-        # try number gets incremented in DB, i.e logs produced the time
-        # after cli run and before try_number + 1 in DB will not be displayed.
         if try_number is None:
-            next_try = task_instance.try_number + 1
-            try_numbers = list(range(1, next_try))
-        elif try_number < 1:
+            try_number = task_instance.try_number
+        if try_number is None or try_number < 1:
             logs = [
-                [("default_host", f"Error fetching the logs. Try number {try_number} is invalid.")],
+                StructuredLogMessage(  # type: ignore[call-arg]
+                    level="error", event=f"Error fetching the logs. Try number {try_number} is invalid."
+                )
             ]
-            return logs, [{"end_of_log": True}]
-        else:
-            try_numbers = [try_number]
+            return logs, {"end_of_log": True}
 
-        logs = [""] * len(try_numbers)
-        metadata_array = [{}] * len(try_numbers)
-
-        # subclasses implement _read and may not have log_type, which was added recently
-        for i, try_number_element in enumerate(try_numbers):
-            log, out_metadata = self._read(task_instance, try_number_element, metadata)
-            # es_task_handler return logs grouped by host. wrap other handler returning log string
-            # with default/ empty host so that UI can render the response in the same way
-            logs[i] = log if self._read_grouped_logs() else [(task_instance.hostname, log)]
-            metadata_array[i] = out_metadata
-
-        return logs, metadata_array
+        return self._read(task_instance, try_number, metadata)
 
     @staticmethod
     def _prepare_log_folder(directory: Path, new_folder_permissions: int):
@@ -558,23 +551,20 @@ class FileTaskHandler(logging.Handler):
 
     @staticmethod
     def _read_from_local(worker_log_path: Path) -> tuple[list[str], list[str]]:
-        messages = []
         paths = sorted(worker_log_path.parent.glob(worker_log_path.name + "*"))
-        if paths:
-            messages.append("Found local files:")
-            messages.extend(f"  * {x}" for x in paths)
+        sources = [os.fspath(x) for x in paths]
         logs = [file.read_text() for file in paths]
-        return messages, logs
+        return sources, logs
 
     def _read_from_logs_server(self, ti, worker_log_rel_path) -> tuple[list[str], list[str]]:
-        messages = []
+        sources = []
         logs = []
         try:
             log_type = LogType.TRIGGER if ti.triggerer_job else LogType.WORKER
             url, rel_path = self._get_log_retrieval_url(ti, worker_log_rel_path, log_type=log_type)
             response = _fetch_logs_from_service(url, rel_path)
             if response.status_code == 403:
-                messages.append(
+                sources.append(
                     "!!!! Please make sure that all your Airflow components (e.g. "
                     "schedulers, webservers, workers and triggerer) have "
                     "the same 'secret_key' configured in 'webserver' section and "
@@ -582,20 +572,21 @@ class FileTaskHandler(logging.Handler):
                     "See more at https://airflow.apache.org/docs/apache-airflow/"
                     "stable/configurations-ref.html#secret-key"
                 )
-            # Check if the resource was properly fetched
-            response.raise_for_status()
-            if response.text:
-                messages.append(f"Found logs served from host {url}")
-                logs.append(response.text)
+            else:
+                # Check if the resource was properly fetched
+                response.raise_for_status()
+                if response.text:
+                    sources.append(url)
+                    logs.append(response.text)
         except Exception as e:
             from requests.exceptions import InvalidSchema
 
             if isinstance(e, InvalidSchema) and ti.task.inherits_from_empty_operator is True:
-                messages.append(self.inherits_from_empty_operator_log_message)
+                sources.append(self.inherits_from_empty_operator_log_message)
             else:
-                messages.append(f"Could not read served logs: {e}")
+                sources.append(f"Could not read served logs: {e}")
                 logger.exception("Could not read served logs")
-        return messages, logs
+        return sources, logs
 
     def _read_remote_logs(self, ti, try_number, metadata=None) -> tuple[list[str], list[str]]:
         """

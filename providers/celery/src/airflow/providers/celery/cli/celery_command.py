@@ -21,24 +21,28 @@ from __future__ import annotations
 
 import logging
 import sys
-from contextlib import contextmanager
+import time
+from contextlib import contextmanager, suppress
 from multiprocessing import Process
 
 import psutil
 import sqlalchemy.exc
+from celery import maybe_patch_concurrency  # type: ignore[attr-defined]
+from celery.app.defaults import DEFAULT_TASK_LOG_FMT
+from celery.signals import after_setup_logger
 from lockfile.pidlockfile import read_pid_from_pidfile, remove_existing_pidfile
 
 from airflow import settings
 from airflow.configuration import conf
+from airflow.exceptions import AirflowConfigException
 from airflow.providers.celery.version_compat import AIRFLOW_V_3_0_PLUS
 from airflow.utils import cli as cli_utils
 from airflow.utils.cli import setup_locations
 from airflow.utils.serve_logs import serve_logs
-from celery import maybe_patch_concurrency  # type: ignore[attr-defined]
-from celery.app.defaults import DEFAULT_TASK_LOG_FMT
-from celery.signals import after_setup_logger
 
 WORKER_PROCESS_NAME = "worker"
+
+log = logging.getLogger(__name__)
 
 
 def _run_command_with_daemon_option(*args, **kwargs):
@@ -111,6 +115,41 @@ def _serve_logs(skip_serve_logs: bool = False):
         sub_proc = Process(target=serve_logs)
         sub_proc.start()
     try:
+        yield
+    finally:
+        if sub_proc:
+            sub_proc.terminate()
+
+
+@contextmanager
+def _run_stale_bundle_cleanup():
+    """Start stale bundle cleanup sub-process."""
+    check_interval = None
+    with suppress(AirflowConfigException):  # remove when min airflow version >= 3.0
+        check_interval = conf.getint(
+            section="dag_processor",
+            key="stale_bundle_cleanup_interval",
+        )
+    if not check_interval or check_interval <= 0 or not AIRFLOW_V_3_0_PLUS:
+        # do not start bundle cleanup process
+        try:
+            yield
+        finally:
+            return
+    from airflow.dag_processing.bundles.base import BundleUsageTrackingManager
+
+    log.info("starting stale bundle cleanup process")
+    sub_proc = None
+
+    def bundle_cleanup_main():
+        mgr = BundleUsageTrackingManager()
+        while True:
+            time.sleep(check_interval)
+            mgr.remove_stale_bundle_versions()
+
+    try:
+        sub_proc = Process(target=bundle_cleanup_main)
+        sub_proc.start()
         yield
     finally:
         if sub_proc:
@@ -231,7 +270,7 @@ def worker(args):
     )
 
     def run_celery_worker():
-        with _serve_logs(skip_serve_logs):
+        with _serve_logs(skip_serve_logs), _run_stale_bundle_cleanup():
             celery_app.worker_main(options)
 
     if args.umask:

@@ -27,6 +27,33 @@
 Changelog
 ---------
 
+5.2.0
+.....
+
+.. note::
+  This version has no code changes. It's released due to yank of previous version due to packaging issues.
+
+5.1.0
+.....
+
+Features
+~~~~~~~~
+
+* ``Deferrable support for HttpOperator (#45228)``
+* ``Allow check_response to be defined in extra_options of HTTP connection (#45451)``
+
+Misc
+~~~~
+
+* ``AIP-72: Support better type-hinting for Context dict in SDK  (#45583)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Move provider_tests to unit folder in provider tests (#46800)``
+   * ``Removed the unused provider's distribution (#46608)``
+   * ``Fix doc issues found with recent moves (#46372)``
+   * ``Fix few issues with constraints generation broken by moving providers (#46139)``
+
 5.0.0
 .....
 

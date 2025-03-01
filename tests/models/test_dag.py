@@ -156,7 +156,7 @@ def _create_dagrun(
         data_interval = DataInterval(*map(timezone.coerce_datetime, data_interval))
     run_id = dag.timetable.generate_run_id(
         run_type=run_type,
-        logical_date=logical_date,  # type: ignore
+        run_after=logical_date or data_interval.end,  # type: ignore
         data_interval=data_interval,
     )
     return dag.create_dagrun(
@@ -1136,7 +1136,7 @@ class TestDag:
             dag_run.logical_date == TEST_DATE
         ), f"dag_run.logical_date did not match expectation: {dag_run.logical_date}"
         assert dag_run.state == State.RUNNING
-        assert not dag_run.external_trigger
+        assert dag_run.run_type != DagRunType.MANUAL
         dag.clear()
         self._clean_up(dag_id)
 
@@ -2377,7 +2377,7 @@ class TestDagModel:
         assert sdm.dag._processor_dags_folder == settings.DAGS_FOLDER
 
     @pytest.mark.need_serialized_dag
-    def test_dags_needing_dagruns_asset_triggered_dag_info_queued_times(self, session, dag_maker):
+    def test_dags_needing_dagruns_triggered_date_by_dag_queued_times(self, session, dag_maker):
         asset1 = Asset(uri="test://asset1", group="test-group")
         asset2 = Asset(uri="test://asset2", name="test_asset_2", group="test-group")
 
@@ -2417,11 +2417,10 @@ class TestDagModel:
         )
         session.flush()
 
-        query, asset_triggered_dag_info = DagModel.dags_needing_dagruns(session)
-        assert len(asset_triggered_dag_info) == 1
-        assert dag.dag_id in asset_triggered_dag_info
-        first_queued_time, last_queued_time = asset_triggered_dag_info[dag.dag_id]
-        assert first_queued_time == DEFAULT_DATE
+        query, triggered_date_by_dag = DagModel.dags_needing_dagruns(session)
+        assert len(triggered_date_by_dag) == 1
+        assert dag.dag_id in triggered_date_by_dag
+        last_queued_time = triggered_date_by_dag[dag.dag_id]
         assert last_queued_time == DEFAULT_DATE + timedelta(hours=1)
 
     def test_asset_expression(self, testing_dag_bundle, session: Session) -> None:
@@ -2489,7 +2488,7 @@ class TestQueries:
         dag = DAG("test_dagrun_query_count", schedule=None, start_date=DEFAULT_DATE)
         for i in range(tasks_count):
             EmptyOperator(task_id=f"dummy_task_{i}", owner="test", dag=dag)
-        with assert_queries_count(4):
+        with assert_queries_count(5):
             dag.create_dagrun(
                 run_id="test_dagrun_query_count",
                 run_type=DagRunType.MANUAL,
@@ -2974,7 +2973,7 @@ def test_get_asset_triggered_next_run_info_with_unresolved_asset_alias(dag_maker
 )
 def test_create_dagrun_disallow_manual_to_use_automated_run_id(run_id_type: DagRunType) -> None:
     dag = DAG(dag_id="test", start_date=DEFAULT_DATE, schedule="@daily")
-    run_id = run_id_type.generate_run_id(DEFAULT_DATE)
+    run_id = DagRun.generate_run_id(run_type=run_id_type, run_after=DEFAULT_DATE, logical_date=DEFAULT_DATE)
 
     with pytest.raises(ValueError) as ctx:
         dag.create_dagrun(

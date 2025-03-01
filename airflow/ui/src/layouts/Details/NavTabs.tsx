@@ -16,71 +16,48 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Button, Center, Flex } from "@chakra-ui/react";
-import { FaChartGantt } from "react-icons/fa6";
-import { FiGrid } from "react-icons/fi";
-import { NavLink, Link as RouterLink, useSearchParams } from "react-router-dom";
+import { Center, Flex } from "@chakra-ui/react";
+import { useRef, type ReactNode } from "react";
+import { NavLink } from "react-router-dom";
 
-import { DagIcon } from "src/assets/DagIcon";
+import { useContainerWidth } from "src/utils";
 
 type Props = {
-  readonly tabs: Array<{ label: string; value: string }>;
+  readonly tabs: Array<{ icon?: ReactNode; label: string; value: string }>;
 };
 
 export const NavTabs = ({ tabs }: Props) => {
-  const [searchParams] = useSearchParams();
+  const containerRef = useRef<HTMLDivElement>(null);
+  const containerWidth = useContainerWidth(containerRef);
 
   return (
-    <Flex alignItems="center" borderBottomWidth={1} justifyContent="space-between">
-      <Flex>
-        {tabs.map(({ label, value }) => (
-          <NavLink
-            end
-            key={value}
-            to={{
-              pathname: value,
-              // Preserve search params when navigating
-              search: searchParams.toString(),
-            }}
-          >
-            {({ isActive }) => (
-              <Center
-                borderBottomColor="border.info"
-                borderBottomWidth={isActive ? 3 : 0}
-                color={isActive ? "fg" : "fg.muted"}
-                fontWeight="bold"
-                height="40px"
-                mb="-2px" // Show the border on top of its parent's border
-                pb={isActive ? 0 : "3px"}
-                px={4}
-                transition="all 0.2s ease"
-              >
-                {label}
-              </Center>
-            )}
-          </NavLink>
-        ))}
-      </Flex>
-      <Flex alignSelf="flex-end">
-        <Button asChild colorPalette="blue" variant="ghost">
-          <RouterLink to={{ search: `${searchParams.toString()}&modal=gantt` }}>
-            <FaChartGantt height={5} width={5} />
-            Gantt
-          </RouterLink>
-        </Button>
-        <Button asChild colorPalette="blue" variant="ghost">
-          <RouterLink to={{ search: `${searchParams.toString()}&modal=grid` }}>
-            <FiGrid height={5} width={5} />
-            Grid
-          </RouterLink>
-        </Button>
-        <Button asChild colorPalette="blue" variant="ghost">
-          <RouterLink to={{ search: `${searchParams.toString()}&modal=graph` }}>
-            <DagIcon height={5} width={5} />
-            Graph
-          </RouterLink>
-        </Button>
-      </Flex>
+    <Flex alignItems="center" borderBottomWidth={1} mb={2} ref={containerRef}>
+      {tabs.map(({ icon, label, value }) => (
+        <NavLink
+          end
+          key={value}
+          title={label}
+          to={{
+            pathname: value,
+          }}
+        >
+          {({ isActive }) => (
+            <Center
+              borderBottomColor="border.info"
+              borderBottomWidth={isActive ? 3 : 0}
+              color={isActive ? "fg" : "fg.muted"}
+              fontWeight="bold"
+              height="40px"
+              mb="-2px" // Show the border on top of its parent's border
+              pb={isActive ? 0 : "3px"}
+              px={4}
+              transition="all 0.2s ease"
+            >
+              {containerWidth > 600 || !Boolean(icon) ? label : icon}
+            </Center>
+          )}
+        </NavLink>
+      ))}
     </Flex>
   );
 };

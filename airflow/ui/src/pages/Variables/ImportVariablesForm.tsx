@@ -21,6 +21,7 @@ import { useState } from "react";
 import { FiUploadCloud } from "react-icons/fi";
 import { LuFileUp } from "react-icons/lu";
 
+import type { BulkBody_VariableBody_ } from "openapi/requests/types.gen";
 import { ErrorAlert } from "src/components/ErrorAlert";
 import { Button, CloseButton, InputGroup } from "src/components/ui";
 import { FileUpload } from "src/components/ui/FileUpload";
@@ -100,11 +101,11 @@ const ImportVariablesForm = ({ onClose }: ImportVariablesFormProps) => {
   const onSubmit = () => {
     setError(undefined);
     if (fileContent) {
-      const formattedPayload = {
+      const formattedPayload: BulkBody_VariableBody_ = {
         actions: [
           {
             action: "create" as const,
-            action_if_exists: actionIfExists,
+            action_on_existence: actionIfExists,
             entities: Object.entries(fileContent).map(([key, value]) => ({
               key,
               value,

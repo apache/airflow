@@ -27,15 +27,12 @@ from datetime import datetime
 from pathlib import Path
 from typing import cast
 
-from providers.google.tests.system.google import DEFAULT_GCP_SYSTEM_TEST_PROJECT_ID
-from providers.openlineage.tests.system.openlineage.operator import OpenLineageTestOperator
-
 from airflow.models.baseoperator import chain
 from airflow.models.dag import DAG
 from airflow.models.xcom_arg import XComArg
 from airflow.providers.google.cloud.operators.bigquery import (
     BigQueryCreateEmptyDatasetOperator,
-    BigQueryCreateEmptyTableOperator,
+    BigQueryCreateTableOperator,
     BigQueryDeleteDatasetOperator,
 )
 from airflow.providers.google.cloud.operators.bigquery_dts import (
@@ -47,13 +44,14 @@ from airflow.providers.google.cloud.operators.gcs import GCSCreateBucketOperator
 from airflow.providers.google.cloud.sensors.bigquery_dts import BigQueryDataTransferServiceTransferRunSensor
 from airflow.providers.google.cloud.transfers.local_to_gcs import LocalFilesystemToGCSOperator
 from airflow.utils.trigger_rule import TriggerRule
+from system.google import DEFAULT_GCP_SYSTEM_TEST_PROJECT_ID
+from system.openlineage.operator import OpenLineageTestOperator
 
 ENV_ID = os.environ.get("SYSTEM_TESTS_ENV_ID", "default")
 PROJECT_ID = os.environ.get("SYSTEM_TESTS_GCP_PROJECT") or DEFAULT_GCP_SYSTEM_TEST_PROJECT_ID
 
-DAG_ID = "gcp_bigquery_dts"
-
-BUCKET_NAME = f"bucket-{DAG_ID}-{ENV_ID}"
+DAG_ID = "bigquery_dts"
+BUCKET_NAME = f"bucket_{DAG_ID}_{ENV_ID}".replace("-", "_")
 
 FILE_NAME = "us-states.csv"
 CURRENT_FOLDER = Path(__file__).parent
@@ -103,14 +101,18 @@ with DAG(
     )
     create_dataset = BigQueryCreateEmptyDatasetOperator(task_id="create_dataset", dataset_id=DATASET_NAME)
 
-    create_table = BigQueryCreateEmptyTableOperator(
+    create_table = BigQueryCreateTableOperator(
         task_id="create_table",
         dataset_id=DATASET_NAME,
         table_id=DTS_BQ_TABLE,
-        schema_fields=[
-            {"name": "name", "type": "STRING", "mode": "REQUIRED"},
-            {"name": "post_abbr", "type": "STRING", "mode": "NULLABLE"},
-        ],
+        table_resource={
+            "schema": {
+                "fields": [
+                    {"name": "name", "type": "STRING", "mode": "REQUIRED"},
+                    {"name": "post_abbr", "type": "STRING", "mode": "NULLABLE"},
+                ]
+            },
+        },
     )
 
     # [START howto_bigquery_create_data_transfer]
