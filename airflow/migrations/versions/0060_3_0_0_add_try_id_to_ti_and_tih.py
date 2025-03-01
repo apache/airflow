@@ -129,7 +129,6 @@ def upgrade():
         batch_op.drop_column("id")
         batch_op.alter_column(
             "task_instance_id",
-            new_column_name="id",
             nullable=False,
             existing_type=sa.String(length=36).with_variant(postgresql.UUID(), "postgresql"),
         )
@@ -147,12 +146,12 @@ def downgrade():
     dialect_name = op.get_bind().dialect.name
     with op.batch_alter_table("task_instance_history", schema=None) as batch_op:
         batch_op.drop_constraint(batch_op.f("task_instance_history_pkey"), type_="primary")
-        batch_op.add_column(sa.Column("new_id", sa.INTEGER, nullable=True))
+        batch_op.add_column(sa.Column("id", sa.INTEGER, nullable=True))
     if dialect_name == "postgresql":
         op.execute(
             """
             ALTER TABLE task_instance_history ADD COLUMN row_num SERIAL;
-            UPDATE task_instance_history SET new_id = row_num;
+            UPDATE task_instance_history SET id = row_num;
             ALTER TABLE task_instance_history DROP COLUMN row_num;
         """
         )
@@ -164,17 +163,16 @@ def downgrade():
                 SELECT id, ROW_NUMBER() OVER (ORDER BY id) AS row_num
                 FROM task_instance_history
             ) AS temp ON tih.id = temp.id
-            SET tih.new_id = temp.row_num;
+            SET tih.id = temp.row_num;
             """
         )
     else:
         op.execute("""
             UPDATE task_instance_history
-            SET new_id = (SELECT COUNT(*) FROM task_instance_history t2 WHERE t2.id <= task_instance_history.id);
+            SET id = (SELECT COUNT(*) FROM task_instance_history t2 WHERE t2.id <= task_instance_history.id);
         """)
     with op.batch_alter_table("task_instance_history", schema=None) as batch_op:
-        batch_op.drop_column("id")
-        batch_op.alter_column("new_id", new_column_name="id", nullable=False, existing_type=sa.INTEGER)
+        batch_op.alter_column("id", nullable=False, existing_type=sa.INTEGER)
         batch_op.drop_column("try_id")
         batch_op.create_primary_key("task_instance_history_pkey", ["id"])
 
