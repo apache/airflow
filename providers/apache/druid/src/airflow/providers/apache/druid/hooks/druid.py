@@ -118,6 +118,13 @@ class DruidHook(BaseHook):
 
         return self.verify_ssl
 
+    def get_status_url(self, ingestion_type):
+
+        if ingestion_type == IngestionType.MSQ:
+            return f"{self.conn.schema}://{self.conn.host}:{self.conn.port}/druid/indexer/v1/task"
+        else:
+            return self.get_conn_url(ingestion_type)
+
     def submit_indexing_job(
         self, json_index_spec: dict[str, Any] | str, ingestion_type: IngestionType = IngestionType.BATCH
     ) -> None:
@@ -141,7 +148,7 @@ class DruidHook(BaseHook):
             druid_task_id = req_json["task"]
         else:
             druid_task_id = req_json["taskId"]
-        druid_task_status_url = f"{self.get_conn_url()}/{druid_task_id}/status"
+        druid_task_status_url = self.get_status_url(ingestion_type) + f"/{druid_task_id}/status"
         self.log.info("Druid indexing task-id: %s", druid_task_id)
 
         running = True
