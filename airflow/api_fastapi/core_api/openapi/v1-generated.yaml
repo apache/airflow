@@ -2686,12 +2686,16 @@ paths:
       summary: Get Dag Source
       description: Get source code using file token.
       operationId: get_dag_source
+      security:
+      - OAuth2PasswordBearer: []
       parameters:
       - name: dag_id
         in: path
         required: true
         schema:
-          type: string
+          anyOf:
+          - type: string
+          - type: 'null'
           title: Dag Id
       - name: version_number
         in: query
