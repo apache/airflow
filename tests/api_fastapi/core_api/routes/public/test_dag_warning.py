@@ -78,6 +78,14 @@ class TestGetDagWarnings:
         assert len(response_json["dag_warnings"]) == len(expected_messages)
         assert [dag_warning["message"] for dag_warning in response_json["dag_warnings"]] == expected_messages
 
+    def test_should_respond_401(self, unauthenticated_test_client):
+        response = unauthenticated_test_client.get("/public/dagWarnings", params={})
+        assert response.status_code == 401
+
+    def test_should_respond_403(self, unauthorized_test_client):
+        response = unauthorized_test_client.get("/public/dagWarnings", params={})
+        assert response.status_code == 403
+
     def test_get_dag_warnings_bad_request(self, test_client):
         response = test_client.get("/public/dagWarnings", params={"warning_type": "invalid"})
         response_json = response.json()

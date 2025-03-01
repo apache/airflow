@@ -2926,6 +2926,8 @@ paths:
       summary: List Dag Warnings
       description: Get a list of DAG warnings.
       operationId: list_dag_warnings
+      security:
+      - OAuth2PasswordBearer: []
       parameters:
       - name: dag_id
         in: query
@@ -11306,3 +11308,10 @@ components:
       - value
       title: XComUpdateBody
       description: Payload serializer for updating an XCom entry.
+  securitySchemes:
+    OAuth2PasswordBearer:
+      type: oauth2
+      flows:
+        password:
+          scopes: {}
+          tokenUrl: token
