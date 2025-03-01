@@ -87,6 +87,8 @@ class SFTPHook(SSHHook):
         *args,
         **kwargs,
     ) -> None:
+        self.conn: SFTPClient | None = None
+
         # TODO: remove support for ssh_hook when it is removed from SFTPOperator
         if kwargs.get("ssh_hook") is not None:
             warnings.warn(
@@ -110,8 +112,20 @@ class SFTPHook(SSHHook):
 
         super().__init__(*args, **kwargs)
 
+    def get_conn(self) -> SFTPClient:  # type: ignore[override]
+        """Open an SFTP connection to the remote host."""
+        if self.conn is None:
+            self.conn = super().get_conn().open_sftp()
+        return self.conn
+
+    def close_conn(self) -> None:
+        """Close the SFTP connection."""
+        if self.conn is not None:
+            self.conn.close()
+            self.conn = None
+
     @contextmanager
-    def get_conn(self) -> Generator[SFTPClient, None, None]:
+    def get_managed_conn(self) -> Generator[SFTPClient, None, None]:
         """Context manager that closes the connection after use."""
         with closing(super().get_conn()) as conn:
             with closing(conn.open_sftp()) as sftp:
@@ -126,7 +140,7 @@ class SFTPHook(SSHHook):
 
         :param path: full path to the remote directory
         """
-        with self.get_conn() as conn:  # type: SFTPClient
+        with self.get_managed_conn() as conn:  # type: SFTPClient
             flist = sorted(conn.listdir_attr(path), key=lambda x: x.filename)
             files = {}
             for f in flist:
@@ -144,7 +158,7 @@ class SFTPHook(SSHHook):
 
         :param path: full path to the remote directory to list
         """
-        with self.get_conn() as conn:
+        with self.get_managed_conn() as conn:
             return sorted(conn.listdir(path))
 
     def list_directory_with_attr(self, path: str) -> list[SFTPAttributes]:
@@ -153,7 +167,7 @@ class SFTPHook(SSHHook):
 
         :param path: full path to the remote directory to list
         """
-        with self.get_conn() as conn:
+        with self.get_managed_conn() as conn:
             return [file for file in conn.listdir_attr(path)]
 
     def mkdir(self, path: str, mode: int = 0o777) -> None:
@@ -166,7 +180,7 @@ class SFTPHook(SSHHook):
         :param path: full path to the remote directory to create
         :param mode: int permissions of octal mode for directory
         """
-        with self.get_conn() as conn:
+        with self.get_managed_conn() as conn:
             conn.mkdir(path, mode=mode)
 
     def isdir(self, path: str) -> bool:
@@ -175,7 +189,7 @@ class SFTPHook(SSHHook):
 
         :param path: full path to the remote directory to check
         """
-        with self.get_conn() as conn:
+        with self.get_managed_conn() as conn:
             try:
                 return stat.S_ISDIR(conn.stat(path).st_mode)  # type: ignore
             except OSError:
@@ -187,7 +201,7 @@ class SFTPHook(SSHHook):
 
         :param path: full path to the remote file to check
         """
-        with self.get_conn() as conn:
+        with self.get_managed_conn() as conn:
             try:
                 return stat.S_ISREG(conn.stat(path).st_mode)  # type: ignore
             except OSError:
@@ -216,7 +230,7 @@ class SFTPHook(SSHHook):
                 self.create_directory(dirname, mode)
             if basename:
                 self.log.info("Creating %s", path)
-                with self.get_conn() as conn:
+                with self.get_managed_conn() as conn:
                     conn.mkdir(path, mode=mode)
 
     def delete_directory(self, path: str, include_files: bool = False) -> None:
@@ -232,7 +246,7 @@ class SFTPHook(SSHHook):
             files, dirs, _ = self.get_tree_map(path)
             dirs = dirs[::-1]  # reverse the order for deleting deepest directories first
 
-        with self.get_conn() as conn:
+        with self.get_managed_conn() as conn:
             for file_path in files:
                 conn.remove(file_path)
             for dir_path in dirs:
@@ -250,7 +264,7 @@ class SFTPHook(SSHHook):
         :param local_full_path: full path to the local file or a file-like buffer
         :param prefetch: controls whether prefetch is performed (default: True)
         """
-        with self.get_conn() as conn:
+        with self.get_managed_conn() as conn:
             if isinstance(local_full_path, BytesIO):
                 conn.getfo(remote_full_path, local_full_path, prefetch=prefetch)
             else:
@@ -266,7 +280,7 @@ class SFTPHook(SSHHook):
         :param remote_full_path: full path to the remote file
         :param local_full_path: full path to the local file or a file-like buffer
         """
-        with self.get_conn() as conn:
+        with self.get_managed_conn() as conn:
             if isinstance(local_full_path, BytesIO):
                 conn.putfo(local_full_path, remote_full_path, confirm=confirm)
             else:
@@ -278,7 +292,7 @@ class SFTPHook(SSHHook):
 
         :param path: full path to the remote file
         """
-        with self.get_conn() as conn:
+        with self.get_managed_conn() as conn:
             conn.remove(path)
 
     def retrieve_directory(self, remote_full_path: str, local_full_path: str, prefetch: bool = True) -> None:
@@ -332,7 +346,7 @@ class SFTPHook(SSHHook):
 
         :param path: full path to the remote file
         """
-        with self.get_conn() as conn:
+        with self.get_managed_conn() as conn:
             ftp_mdtm = conn.stat(path).st_mtime
             return datetime.datetime.fromtimestamp(ftp_mdtm).strftime("%Y%m%d%H%M%S")  # type: ignore
 
@@ -342,7 +356,7 @@ class SFTPHook(SSHHook):
 
         :param path: full path to the remote file or directory
         """
-        with self.get_conn() as conn:
+        with self.get_managed_conn() as conn:
             try:
                 conn.stat(path)
             except OSError:
@@ -441,7 +455,7 @@ class SFTPHook(SSHHook):
     def test_connection(self) -> tuple[bool, str]:
         """Test the SFTP connection by calling path with directory."""
         try:
-            with self.get_conn() as conn:
+            with self.get_managed_conn() as conn:
                 conn.normalize(".")
                 return True, "Connection successfully tested"
         except Exception as e:

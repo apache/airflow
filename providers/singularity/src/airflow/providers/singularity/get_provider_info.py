@@ -27,7 +27,7 @@ def get_provider_info():
         "name": "Singularity",
         "description": "`Singularity <https://sylabs.io/guides/latest/user-guide/>`__\n",
         "state": "ready",
-        "source-date-epoch": 1734536576,
+        "source-date-epoch": 1740734191,
         "versions": [
             "3.7.0",
             "3.6.0",
