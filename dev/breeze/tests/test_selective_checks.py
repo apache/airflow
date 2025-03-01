@@ -718,7 +718,7 @@ def assert_outputs_are_printed(expected_outputs: dict[str, str], stderr: str):
             ("providers/amazon/src/airflow/providers/amazon/__init__.py",),
             {
                 "selected-providers-list-as-string": "amazon apache.hive cncf.kubernetes "
-                "common.compat common.sql exasol fab ftp google http imap microsoft.azure "
+                "common.compat common.messaging common.sql exasol fab ftp google http imap microsoft.azure "
                 "mongo mysql openlineage postgres salesforce ssh teradata",
                 "all-python-versions": "['3.9']",
                 "all-python-versions-list-as-string": "3.9",
@@ -735,7 +735,7 @@ def assert_outputs_are_printed(expected_outputs: dict[str, str], stderr: str):
                 "upgrade-to-newer-dependencies": "false",
                 "run-amazon-tests": "true",
                 "core-test-types-list-as-string": "Always",
-                "providers-test-types-list-as-string": "Providers[amazon] Providers[apache.hive,cncf.kubernetes,common.compat,common.sql,exasol,fab,ftp,http,imap,microsoft.azure,mongo,mysql,openlineage,postgres,salesforce,ssh,teradata] Providers[google]",
+                "providers-test-types-list-as-string": "Providers[amazon] Providers[apache.hive,cncf.kubernetes,common.compat,common.messaging,common.sql,exasol,fab,ftp,http,imap,microsoft.azure,mongo,mysql,openlineage,postgres,salesforce,ssh,teradata] Providers[google]",
                 "needs-mypy": "true",
                 "mypy-checks": "['mypy-providers']",
             },
@@ -770,7 +770,7 @@ def assert_outputs_are_printed(expected_outputs: dict[str, str], stderr: str):
             ("providers/amazon/src/airflow/providers/amazon/file.py",),
             {
                 "selected-providers-list-as-string": "amazon apache.hive cncf.kubernetes "
-                "common.compat common.sql exasol fab ftp google http imap microsoft.azure "
+                "common.compat common.messaging common.sql exasol fab ftp google http imap microsoft.azure "
                 "mongo mysql openlineage postgres salesforce ssh teradata",
                 "all-python-versions": "['3.9']",
                 "all-python-versions-list-as-string": "3.9",
@@ -787,7 +787,7 @@ def assert_outputs_are_printed(expected_outputs: dict[str, str], stderr: str):
                 "run-kubernetes-tests": "false",
                 "upgrade-to-newer-dependencies": "false",
                 "core-test-types-list-as-string": "Always",
-                "providers-test-types-list-as-string": "Providers[amazon] Providers[apache.hive,cncf.kubernetes,common.compat,common.sql,exasol,fab,ftp,http,imap,microsoft.azure,mongo,mysql,openlineage,postgres,salesforce,ssh,teradata] Providers[google]",
+                "providers-test-types-list-as-string": "Providers[amazon] Providers[apache.hive,cncf.kubernetes,common.compat,common.messaging,common.sql,exasol,fab,ftp,http,imap,microsoft.azure,mongo,mysql,openlineage,postgres,salesforce,ssh,teradata] Providers[google]",
                 "needs-mypy": "true",
                 "mypy-checks": "['mypy-providers']",
             },

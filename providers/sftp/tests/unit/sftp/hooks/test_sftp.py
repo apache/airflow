@@ -114,8 +114,14 @@ class TestSFTPHook:
         assert self.hook.conn is None
 
     def test_get_managed_conn(self):
-        with self.hook.get_managed_conn() as conn:
-            assert isinstance(conn, paramiko.SFTPClient)
+        with self.hook.get_managed_conn() as conn1:
+            assert isinstance(conn1, paramiko.SFTPClient)
+            with self.hook.get_managed_conn() as conn2:
+                assert conn1 == conn2
+                assert self.hook.get_conn_count() == 2
+            assert self.hook.get_conn_count() == 1
+        assert self.hook.get_conn_count() == 0
+        assert self.hook.conn is None
 
     @patch("airflow.providers.ssh.hooks.ssh.SSHHook.get_conn")
     def test_get_close_conn(self, mock_get_conn):
