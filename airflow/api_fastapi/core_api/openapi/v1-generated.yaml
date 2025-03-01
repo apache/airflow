@@ -4563,12 +4563,16 @@ paths:
       summary: Get Xcom Entry
       description: Get an XCom entry.
       operationId: get_xcom_entry
+      security:
+      - OAuth2PasswordBearer: []
       parameters:
       - name: dag_id
         in: path
         required: true
         schema:
-          type: string
+          anyOf:
+          - type: string
+          - type: 'null'
           title: Dag Id
       - name: task_id
         in: path
@@ -4656,12 +4660,16 @@ paths:
       summary: Update Xcom Entry
       description: Update an existing XCom entry.
       operationId: update_xcom_entry
+      security:
+      - OAuth2PasswordBearer: []
       parameters:
       - name: dag_id
         in: path
         required: true
         schema:
-          type: string
+          anyOf:
+          - type: string
+          - type: 'null'
           title: Dag Id
       - name: task_id
         in: path
@@ -4735,12 +4743,16 @@ paths:
         This endpoint allows specifying `~` as the dag_id, dag_run_id, task_id to
         retrieve XCom entries for all DAGs.'
       operationId: get_xcom_entries
+      security:
+      - OAuth2PasswordBearer: []
       parameters:
       - name: dag_id
         in: path
         required: true
         schema:
-          type: string
+          anyOf:
+          - type: string
+          - type: 'null'
           title: Dag Id
       - name: dag_run_id
         in: path
@@ -4830,12 +4842,16 @@ paths:
       summary: Create Xcom Entry
       description: Create an XCom entry.
       operationId: create_xcom_entry
+      security:
+      - OAuth2PasswordBearer: []
       parameters:
       - name: dag_id
         in: path
         required: true
         schema:
-          type: string
+          anyOf:
+          - type: string
+          - type: 'null'
           title: Dag Id
       - name: task_id
         in: path
