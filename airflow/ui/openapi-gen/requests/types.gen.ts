@@ -2492,6 +2492,7 @@ export type BulkVariablesData = {
 export type BulkVariablesResponse = BulkResponse;
 
 export type ReparseDagFileData = {
+  dagId?: string | null;
   fileToken: string;
 };
 
