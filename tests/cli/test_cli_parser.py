@@ -190,8 +190,9 @@ class TestCli:
                 commands = [command.name for command in cli_parser.airflow_commands]
                 assert mock_kubernetes_cli_command.name in commands
 
-    def test_provider_level_cli_commands_with_error(self):
+    def test_provider_level_cli_commands_with_error(self, caplog):
         """Test that providers level CLI commands are loaded."""
+        caplog.set_level("ERROR")
         with patch("airflow.cli.cli_definition_loader.import_string") as mock_import_string:
             mock_import_string.side_effect = ImportError
             with patch.object(
@@ -200,12 +201,10 @@ class TestCli:
                 mock_provider_manager_providers.return_value = {
                     "apache-airflow-providers-cncf-kubernetes": MagicMock()
                 }
-                with contextlib.redirect_stdout(StringIO()) as stdout:
-                    reload(cli_parser)
-                    stdout = stdout.getvalue()
+                reload(cli_parser)
                 assert (
                     "Failed to load CLI commands from provider: apache-airflow-providers-cncf-kubernetes"
-                    in stdout
+                    in caplog.messages[0]
                 )
 
     @patch.object(CeleryExecutor, "get_cli_commands")
@@ -389,7 +388,9 @@ class TestCli:
             "kubernetes",
         ],
     )
-    def test_executor_specific_commands_not_accessible(self, command):
+    @patch.object(ProvidersManager, "providers", new_callable=PropertyMock)
+    def test_executor_specific_commands_not_accessible(self, mock_provider_manager_providers, command):
+        mock_provider_manager_providers.return_value = {}
         with (
             conf_vars({("core", "executor"): "SequentialExecutor"}),
             contextlib.redirect_stderr(StringIO()) as stderr,
