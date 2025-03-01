@@ -27,5 +27,8 @@ services:
       - _generated_docker_compose.env
     volumes:
       - /dev/urandom:/dev/random   # Required to get non-blocking entropy source
+      - root-airflow-volume:/root/airflow/
     cap_add:
       - SYS_PTRACE
+volumes:
+  root-airflow-volume:
