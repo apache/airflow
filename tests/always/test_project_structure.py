@@ -84,6 +84,7 @@ class TestProjectStructure:
             "providers/celery/tests/unit/celery/executors/test_default_celery.py",
             "providers/celery/tests/unit/celery/test_version_compat.py",
             "providers/cloudant/tests/unit/cloudant/test_cloudant_fake.py",
+            "providers/cncf/kubernetes/tests/unit/cncf/kubernetes/cli/test_definitions.py",
             "providers/cncf/kubernetes/tests/unit/cncf/kubernetes/executors/test_kubernetes_executor_types.py",
             "providers/cncf/kubernetes/tests/unit/cncf/kubernetes/executors/test_kubernetes_executor_utils.py",
             "providers/cncf/kubernetes/tests/unit/cncf/kubernetes/operators/test_kubernetes_pod.py",
