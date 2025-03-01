@@ -97,6 +97,7 @@ def upgrade():
     for row in null_rows:
         uuid_value = uuid7()
         conn.execute(stmt.bindparams(uuid=uuid_value, row_id=row.id))
+    # Update task_instance_id
     if dialect_name == "postgresql":
         op.execute("""
             UPDATE task_instance_history SET task_instance_id = task_instance.id
@@ -147,6 +148,7 @@ def downgrade():
     with op.batch_alter_table("task_instance_history", schema=None) as batch_op:
         batch_op.drop_constraint(batch_op.f("task_instance_history_pkey"), type_="primary")
         batch_op.add_column(sa.Column("id", sa.INTEGER, nullable=True))
+        batch_op.drop_column("task_instance_id")
     if dialect_name == "postgresql":
         op.execute(
             """
