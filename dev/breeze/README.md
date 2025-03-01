@@ -82,6 +82,9 @@ default by Breeze. Here's how to install breeze with `uv`
 1. Install `uv` - see [uv documentation](https://docs.astral.sh/uv/getting-started/installation/)
 
 > [!IMPORTANT]
+> `uv`'s version should be at least 0.6.3, otherwise some breeze commands might malfunction.
+
+> [!IMPORTANT]
 > All the commands below should be executed while you are in `dev/breeze` directory of the Airflow repository.
 
 2. Create a new virtual environment for Breeze development:
