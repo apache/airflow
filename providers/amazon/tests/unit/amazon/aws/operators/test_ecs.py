@@ -24,7 +24,7 @@ from unittest.mock import MagicMock, PropertyMock
 import boto3
 import pytest
 
-from airflow.exceptions import AirflowException, TaskDeferred
+from airflow.exceptions import AirflowException, AirflowFailException, AirflowSkipException, TaskDeferred
 from airflow.providers.amazon.aws.exceptions import EcsOperatorError, EcsTaskFailToStart
 from airflow.providers.amazon.aws.hooks.ecs import EcsClusterStates, EcsHook
 from airflow.providers.amazon.aws.operators.ecs import (
@@ -580,6 +580,26 @@ class TestEcsRunTaskOperator(EcsBaseTestCase):
         }
         self.ecs._check_success_task()
         client_mock.describe_tasks.assert_called_once_with(cluster="c", tasks=["arn"])
+
+    @mock.patch.object(EcsBaseOperator, "client")
+    def test_check_success_task_skip_exception(self, client_mock):
+        self.ecs.arn = "arn"
+        self.ecs.skip_on_exit_codes = [137]
+        client_mock.describe_tasks.return_value = {
+            "tasks": [{"containers": [{"name": "container-name", "lastStatus": "STOPPED", "exitCode": 137}]}]
+        }
+        with pytest.raises(AirflowSkipException):
+            self.ecs._check_success_task()
+
+    @mock.patch.object(EcsBaseOperator, "client")
+    def test_check_success_task_fail_exception(self, client_mock):
+        self.ecs.arn = "arn"
+        self.ecs.skip_on_exit_codes = [137]
+        client_mock.describe_tasks.return_value = {
+            "tasks": [{"containers": [{"name": "container-name", "lastStatus": "STOPPED", "exitCode": 137}]}]
+        }
+        with pytest.raises(AirflowFailException):
+            self.ecs._check_success_task()
 
     @pytest.mark.parametrize(
         "launch_type, tags",

@@ -24,7 +24,7 @@ from functools import cached_property
 from typing import TYPE_CHECKING, Any
 
 from airflow.configuration import conf
-from airflow.exceptions import AirflowException
+from airflow.exceptions import AirflowException, AirflowFailException, AirflowSkipException
 from airflow.providers.amazon.aws.exceptions import EcsOperatorError, EcsTaskFailToStart
 from airflow.providers.amazon.aws.hooks.base_aws import AwsBaseHook
 from airflow.providers.amazon.aws.hooks.ecs import EcsClusterStates, EcsHook, should_retry_eni
@@ -393,6 +393,9 @@ class EcsRunTaskOperator(EcsBaseOperator):
     :param deferrable: If True, the operator will wait asynchronously for the job to complete.
         This implies waiting for completion. This mode requires aiobotocore module to be installed.
         (default: False)
+    :param skip_on_exit_codes: List of exit codes which will make the task to be marked as skipped with AirflowSkipException.
+    :param fail_on_exit_codes: List of exit codes which will make the task to be immediately marked as failed with AirflowFailException.
+
     :param do_xcom_push: If True, the operator will push the ECS task ARN to XCom with key 'ecs_task_arn'.
         Additionally, if logs are fetched, the last log message will be pushed to XCom with the key 'return_value'. (default: False)
     """
@@ -458,6 +461,8 @@ class EcsRunTaskOperator(EcsBaseOperator):
         # Set the default waiter duration to 70 days (attempts*delay)
         # Airflow execution_timeout handles task timeout
         deferrable: bool = conf.getboolean("operators", "default_deferrable", fallback=False),
+        skip_on_exit_codes: list[int] | None = None,
+        fail_on_exit_codes: list[int] | None = None,
         **kwargs,
     ):
         super().__init__(**kwargs)
@@ -496,6 +501,9 @@ class EcsRunTaskOperator(EcsBaseOperator):
         self.waiter_delay = waiter_delay
         self.waiter_max_attempts = waiter_max_attempts
         self.deferrable = deferrable
+
+        self.skip_on_exit_codes = skip_on_exit_codes or []
+        self.fail_on_exit_codes = fail_on_exit_codes or []
 
         if self._aws_logs_enabled() and not self.wait_for_completion:
             self.log.warning(
@@ -720,24 +728,34 @@ class EcsRunTaskOperator(EcsBaseOperator):
                 )
             containers = task["containers"]
             for container in containers:
-                if container.get("lastStatus") == "STOPPED" and container.get("exitCode", 1) != 0:
-                    if self.task_log_fetcher:
-                        last_logs = "\n".join(
-                            self.task_log_fetcher.get_last_log_messages(self.number_logs_exception)
-                        )
-                        raise AirflowException(
-                            f"This task is not in success state - last {self.number_logs_exception} "
-                            f"logs from Cloudwatch:\n{last_logs}"
-                        )
-                    else:
-                        raise AirflowException(f"This task is not in success state {task}")
-                elif container.get("lastStatus") == "PENDING":
+                if container.get("lastStatus") == "PENDING":
                     raise AirflowException(f"This task is still pending {task}")
-                elif "error" in container.get("reason", "").lower():
+
+                if "error" in container.get("reason", "").lower():
                     raise AirflowException(
                         f"This containers encounter an error during launching: "
                         f"{container.get('reason', '').lower()}"
                     )
+
+                exit_code = container.get("exitCode", 1)
+                if container.get("lastStatus") == "STOPPED" and exit_code != 0:
+                    if exit_code in self.fail_on_exit_codes:
+                        exception_cls = AirflowFailException
+                    elif exit_code in self.skip_on_exit_codes:
+                        exception_cls = AirflowSkipException
+                    else:
+                        exception_cls = AirflowException
+
+                    if self.task_log_fetcher:
+                        last_logs = "\n".join(
+                            self.task_log_fetcher.get_last_log_messages(self.number_logs_exception)
+                        )
+                        raise exception_cls(
+                            f"This task is not in success state - last {self.number_logs_exception} "
+                            f"logs from Cloudwatch:\n{last_logs}"
+                        )
+
+                    raise exception_cls(f"This task is not in success state {task}")
 
     def on_kill(self) -> None:
         if not self.client or not self.arn:
