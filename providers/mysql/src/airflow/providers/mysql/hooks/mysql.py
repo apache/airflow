@@ -240,8 +240,14 @@ class MySqlHook(DbApiHook):
 
     def bulk_load(self, table: str, tmp_file: str) -> None:
         """Load a tab-delimited file into a database table."""
+        import re
+
         conn = self.get_conn()
         cur = conn.cursor()
+
+        if not re.fullmatch(r"^[a-zA-Z0-9_.]+$", table):
+            raise ValueError(f"Invalid table name: {table}")
+
         cur.execute(
             f"LOAD DATA LOCAL INFILE %s INTO TABLE {table}",
             (tmp_file,),
