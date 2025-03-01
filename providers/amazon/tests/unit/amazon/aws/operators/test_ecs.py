@@ -594,7 +594,7 @@ class TestEcsRunTaskOperator(EcsBaseTestCase):
     @mock.patch.object(EcsBaseOperator, "client")
     def test_check_success_task_fail_exception(self, client_mock):
         self.ecs.arn = "arn"
-        self.ecs.skip_on_exit_codes = [137]
+        self.ecs.fail_on_exit_codes = [137]
         client_mock.describe_tasks.return_value = {
             "tasks": [{"containers": [{"name": "container-name", "lastStatus": "STOPPED", "exitCode": 137}]}]
         }

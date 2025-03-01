@@ -21,10 +21,11 @@ import re
 from collections.abc import Sequence
 from datetime import timedelta
 from functools import cached_property
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, Type
 
 from airflow.configuration import conf
 from airflow.exceptions import AirflowException, AirflowFailException, AirflowSkipException
+from airflow.lineage import T
 from airflow.providers.amazon.aws.exceptions import EcsOperatorError, EcsTaskFailToStart
 from airflow.providers.amazon.aws.hooks.base_aws import AwsBaseHook
 from airflow.providers.amazon.aws.hooks.ecs import EcsClusterStates, EcsHook, should_retry_eni
@@ -739,6 +740,8 @@ class EcsRunTaskOperator(EcsBaseOperator):
 
                 exit_code = container.get("exitCode", 1)
                 if container.get("lastStatus") == "STOPPED" and exit_code != 0:
+                    exception_cls: Type[AirflowException]
+
                     if exit_code in self.fail_on_exit_codes:
                         exception_cls = AirflowFailException
                     elif exit_code in self.skip_on_exit_codes:
