@@ -164,7 +164,6 @@ CI_FILE_GROUP_MATCHES = HashableDict(
             r"^airflow/api_connexion/",
         ],
         FileGroupForCi.API_CODEGEN_FILES: [
-            r"^airflow/api_connexion/openapi/v1\.yaml",
             r"^airflow/api_fastapi/core_api/openapi/v1-generated\.yaml",
             r"^clients/gen",
         ],

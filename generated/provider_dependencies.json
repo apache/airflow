@@ -416,6 +416,18 @@
     "excluded-python-versions": [],
     "state": "ready"
   },
+  "common.messaging": {
+    "deps": [
+      "apache-airflow>=3.0.0.dev0"
+    ],
+    "devel-deps": [],
+    "plugins": [],
+    "cross-providers-deps": [
+      "amazon"
+    ],
+    "excluded-python-versions": [],
+    "state": "ready"
+  },
   "common.sql": {
     "deps": [
       "apache-airflow>=2.9.0",

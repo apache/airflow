@@ -299,7 +299,6 @@ labelPRBasedOnFilePath:
 
   area:API:
     - airflow/api/**/*
-    - airflow/api_connexion/**/*
     - airflow/api_fastapi/**/*
     - clients/**/*
     - docs/apache-airflow/stable-rest-api-ref.rst
