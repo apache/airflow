@@ -26,6 +26,7 @@ import signal
 import sys
 from io import BytesIO
 from operator import attrgetter
+from pathlib import Path
 from time import sleep
 from typing import TYPE_CHECKING
 from unittest.mock import MagicMock, patch
@@ -671,8 +672,7 @@ class TestListenerOvertime:
     @tenacity.retry(
         stop=tenacity.stop_after_attempt(5),
         retry=tenacity.retry_if_exception_type(AssertionError),
-        before=tenacity.before_log(log, logging.WARNING),
-        after=tenacity.after_log(log, logging.WARNING),
+        before=tenacity.before_log(log, logging.INFO),
     )
     def test_overtime_slow_listener_instance(
         self,
@@ -688,8 +688,8 @@ class TestListenerOvertime:
         """Test handling of overtime under various conditions."""
         monkeypatch.setattr(ActivitySubprocess, "TASK_OVERTIME_THRESHOLD", overtime_threshold)
 
+        """Test running a simple DAG in a subprocess and capturing the output."""
         get_listener_manager().add_listener(listener)
-        dagfile_path = test_dags_dir
         ti = TaskInstance(
             id=uuid7(),
             task_id=task_id,
@@ -701,7 +701,7 @@ class TestListenerOvertime:
         with patch.dict(os.environ, local_dag_bundle_cfg(test_dags_dir, bundle_info.name)):
             exit_code = supervise(
                 ti=ti,
-                dag_rel_path=dagfile_path,
+                dag_rel_path=Path("super_basic_run.py"),
                 token="",
                 server="",
                 dry_run=True,
