@@ -103,8 +103,9 @@ class DruidHook(BaseHook):
         return f"{conn_type}://{host}:{port}/{endpoint}"
 
     def get_status_url(self, ingestion_type):
-        if ingestion_type == IngestionType.MSQ:
-            return f"{self.get_connection_type}://{self.conn.host}:{self.conn.port}/druid/indexer/v1/task"
+        if ingestion_type == IngestionType.MSQ and self.get_connection_type in {"http", "https"}:
+            status_link_suffix = self.conn.extra_dejson.get("status_endpoint", "druid/indexer/v1/task")
+            return f"{self.get_connection_type}://{self.conn.host}:{self.conn.port}/{status_link_suffix}"
         else:
             return self.get_conn_url(ingestion_type)
 
