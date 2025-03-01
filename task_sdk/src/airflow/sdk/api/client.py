@@ -418,7 +418,27 @@ class Client(httpx.Client):
     )
     def request(self, *args, **kwargs):
         """Implement a convenience for httpx.Client.request with a retry layer."""
-        return super().request(*args, **kwargs)
+        method = args[0]
+        url = args[1]
+        try:
+            return super().request(*args, **kwargs)
+        except httpx.HTTPStatusError as e:
+            log.warning(
+                "Retrying request due to HTTP error",
+                extra={
+                    "method": method,
+                    "url": url,
+                    "status_code": e.response.status_code,
+                    "reason": e.response.text[:100],
+                },
+            )
+            raise
+        except httpx.RequestError as e:
+            log.warning(
+                "Retrying request due to network error",
+                extra={"method": method, "url": url, "error": str(e)},
+            )
+            raise
 
     # We "group" or "namespace" operations by what they operate on, rather than a flat namespace with all
     # methods on one object prefixed with the object type (`.task_instances.update` rather than
