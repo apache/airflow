@@ -58,26 +58,26 @@ export type AssetServiceGetAssetsQueryResult<
 export const useAssetServiceGetAssetsKey = "AssetServiceGetAssets";
 export const UseAssetServiceGetAssetsKeyFn = (
   {
+    assetId,
     dagIds,
     limit,
     namePattern,
     offset,
     orderBy,
-    uri,
     uriPattern,
   }: {
+    assetId?: string;
     dagIds?: string[];
     limit?: number;
     namePattern?: string;
     offset?: number;
     orderBy?: string;
-    uri?: string;
     uriPattern?: string;
   } = {},
   queryKey?: Array<unknown>,
 ) => [
   useAssetServiceGetAssetsKey,
-  ...(queryKey ?? [{ dagIds, limit, namePattern, offset, orderBy, uri, uriPattern }]),
+  ...(queryKey ?? [{ assetId, dagIds, limit, namePattern, offset, orderBy, uriPattern }]),
 ];
 export type AssetServiceGetAssetAliasesDefaultResponse = Awaited<
   ReturnType<typeof AssetService.getAssetAliases>
@@ -93,16 +93,14 @@ export const UseAssetServiceGetAssetAliasesKeyFn = (
     namePattern,
     offset,
     orderBy,
-    uri,
   }: {
     limit?: number;
     namePattern?: string;
     offset?: number;
     orderBy?: string;
-    uri?: string;
   } = {},
   queryKey?: Array<unknown>,
-) => [useAssetServiceGetAssetAliasesKey, ...(queryKey ?? [{ limit, namePattern, offset, orderBy, uri }])];
+) => [useAssetServiceGetAssetAliasesKey, ...(queryKey ?? [{ limit, namePattern, offset, orderBy }])];
 export type AssetServiceGetAssetAliasDefaultResponse = Awaited<ReturnType<typeof AssetService.getAssetAlias>>;
 export type AssetServiceGetAssetAliasQueryResult<
   TData = AssetServiceGetAssetAliasDefaultResponse,
@@ -112,13 +110,11 @@ export const useAssetServiceGetAssetAliasKey = "AssetServiceGetAssetAlias";
 export const UseAssetServiceGetAssetAliasKeyFn = (
   {
     assetAliasId,
-    uri,
   }: {
     assetAliasId: number;
-    uri?: string;
   },
   queryKey?: Array<unknown>,
-) => [useAssetServiceGetAssetAliasKey, ...(queryKey ?? [{ assetAliasId, uri }])];
+) => [useAssetServiceGetAssetAliasKey, ...(queryKey ?? [{ assetAliasId }])];
 export type AssetServiceGetAssetEventsDefaultResponse = Awaited<
   ReturnType<typeof AssetService.getAssetEvents>
 >;
@@ -139,7 +135,6 @@ export const UseAssetServiceGetAssetEventsKeyFn = (
     sourceTaskId,
     timestampGte,
     timestampLte,
-    uri,
   }: {
     assetId?: number;
     limit?: number;
@@ -151,7 +146,6 @@ export const UseAssetServiceGetAssetEventsKeyFn = (
     sourceTaskId?: string;
     timestampGte?: string;
     timestampLte?: string;
-    uri?: string;
   } = {},
   queryKey?: Array<unknown>,
 ) => [
@@ -168,7 +162,6 @@ export const UseAssetServiceGetAssetEventsKeyFn = (
       sourceTaskId,
       timestampGte,
       timestampLte,
-      uri,
     },
   ]),
 ];
@@ -184,14 +177,12 @@ export const UseAssetServiceGetAssetQueuedEventsKeyFn = (
   {
     assetId,
     before,
-    uri,
   }: {
-    assetId: number;
+    assetId: string;
     before?: string;
-    uri?: string;
   },
   queryKey?: Array<unknown>,
-) => [useAssetServiceGetAssetQueuedEventsKey, ...(queryKey ?? [{ assetId, before, uri }])];
+) => [useAssetServiceGetAssetQueuedEventsKey, ...(queryKey ?? [{ assetId, before }])];
 export type AssetServiceGetAssetDefaultResponse = Awaited<ReturnType<typeof AssetService.getAsset>>;
 export type AssetServiceGetAssetQueryResult<
   TData = AssetServiceGetAssetDefaultResponse,
@@ -201,13 +192,11 @@ export const useAssetServiceGetAssetKey = "AssetServiceGetAsset";
 export const UseAssetServiceGetAssetKeyFn = (
   {
     assetId,
-    uri,
   }: {
-    assetId: number;
-    uri?: string;
+    assetId: string;
   },
   queryKey?: Array<unknown>,
-) => [useAssetServiceGetAssetKey, ...(queryKey ?? [{ assetId, uri }])];
+) => [useAssetServiceGetAssetKey, ...(queryKey ?? [{ assetId }])];
 export type AssetServiceGetDagAssetQueuedEventsDefaultResponse = Awaited<
   ReturnType<typeof AssetService.getDagAssetQueuedEvents>
 >;
@@ -218,16 +207,16 @@ export type AssetServiceGetDagAssetQueuedEventsQueryResult<
 export const useAssetServiceGetDagAssetQueuedEventsKey = "AssetServiceGetDagAssetQueuedEvents";
 export const UseAssetServiceGetDagAssetQueuedEventsKeyFn = (
   {
+    assetId,
     before,
     dagId,
-    uri,
   }: {
+    assetId?: string;
     before?: string;
     dagId: string;
-    uri?: string;
   },
   queryKey?: Array<unknown>,
-) => [useAssetServiceGetDagAssetQueuedEventsKey, ...(queryKey ?? [{ before, dagId, uri }])];
+) => [useAssetServiceGetDagAssetQueuedEventsKey, ...(queryKey ?? [{ assetId, before, dagId }])];
 export type AssetServiceGetDagAssetQueuedEventDefaultResponse = Awaited<
   ReturnType<typeof AssetService.getDagAssetQueuedEvent>
 >;
@@ -241,15 +230,13 @@ export const UseAssetServiceGetDagAssetQueuedEventKeyFn = (
     assetId,
     before,
     dagId,
-    uri,
   }: {
-    assetId: number;
+    assetId: string;
     before?: string;
     dagId: string;
-    uri?: string;
   },
   queryKey?: Array<unknown>,
-) => [useAssetServiceGetDagAssetQueuedEventKey, ...(queryKey ?? [{ assetId, before, dagId, uri }])];
+) => [useAssetServiceGetDagAssetQueuedEventKey, ...(queryKey ?? [{ assetId, before, dagId }])];
 export type ConfigServiceGetConfigsDefaultResponse = Awaited<ReturnType<typeof ConfigService.getConfigs>>;
 export type ConfigServiceGetConfigsQueryResult<
   TData = ConfigServiceGetConfigsDefaultResponse,
@@ -594,16 +581,16 @@ export type DagRunServiceGetUpstreamAssetEventsQueryResult<
 export const useDagRunServiceGetUpstreamAssetEventsKey = "DagRunServiceGetUpstreamAssetEvents";
 export const UseDagRunServiceGetUpstreamAssetEventsKeyFn = (
   {
+    assetId,
     dagId,
     dagRunId,
-    uri,
   }: {
+    assetId?: string;
     dagId: string;
     dagRunId: string;
-    uri?: string;
   },
   queryKey?: Array<unknown>,
-) => [useDagRunServiceGetUpstreamAssetEventsKey, ...(queryKey ?? [{ dagId, dagRunId, uri }])];
+) => [useDagRunServiceGetUpstreamAssetEventsKey, ...(queryKey ?? [{ assetId, dagId, dagRunId }])];
 export type DagRunServiceGetDagRunsDefaultResponse = Awaited<ReturnType<typeof DagRunService.getDagRuns>>;
 export type DagRunServiceGetDagRunsQueryResult<
   TData = DagRunServiceGetDagRunsDefaultResponse,

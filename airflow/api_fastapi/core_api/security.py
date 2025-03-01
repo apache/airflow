@@ -84,12 +84,12 @@ def requires_access_dag(method: ResourceMethod, access_entity: DagAccessEntity |
 
 def requires_access_asset(method: ResourceMethod) -> Callable:
     def inner(
-        uri: str | None = None,
+        asset_id: str | None = None,
         user: Annotated[BaseUser | None, Depends(get_user)] = None,
     ) -> None:
         def callback():
             return get_auth_manager().is_authorized_asset(
-                method=method, details=AssetDetails(uri=uri), user=user
+                method=method, details=AssetDetails(id=asset_id), user=user
             )
 
         _requires_access(

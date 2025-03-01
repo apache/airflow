@@ -531,14 +531,14 @@ paths:
       security:
       - OAuth2PasswordBearer: []
       parameters:
-      - name: uri
+      - name: asset_id
         in: query
         required: false
         schema:
           anyOf:
           - type: string
           - type: 'null'
-          title: Uri
+          title: Asset Id
       - name: limit
         in: query
         required: false
@@ -624,17 +624,7 @@ paths:
       summary: Get Asset Aliases
       description: Get asset aliases.
       operationId: get_asset_aliases
-      security:
-      - OAuth2PasswordBearer: []
       parameters:
-      - name: uri
-        in: query
-        required: false
-        schema:
-          anyOf:
-          - type: string
-          - type: 'null'
-          title: Uri
       - name: limit
         in: query
         required: false
@@ -704,8 +694,6 @@ paths:
       summary: Get Asset Alias
       description: Get an asset alias.
       operationId: get_asset_alias
-      security:
-      - OAuth2PasswordBearer: []
       parameters:
       - name: asset_alias_id
         in: path
@@ -713,14 +701,6 @@ paths:
         schema:
           type: integer
           title: Asset Alias Id
-      - name: uri
-        in: query
-        required: false
-        schema:
-          anyOf:
-          - type: string
-          - type: 'null'
-          title: Uri
       responses:
         '200':
           description: Successful Response
@@ -761,14 +741,14 @@ paths:
       security:
       - OAuth2PasswordBearer: []
       parameters:
-      - name: uri
+      - name: asset_id
         in: query
         required: false
         schema:
           anyOf:
-          - type: string
+          - type: integer
           - type: 'null'
-          title: Uri
+          title: Asset Id
       - name: limit
         in: query
         required: false
@@ -792,14 +772,6 @@ paths:
           type: string
           default: timestamp
           title: Order By
-      - name: asset_id
-        in: query
-        required: false
-        schema:
-          anyOf:
-          - type: integer
-          - type: 'null'
-          title: Asset Id
       - name: source_dag_id
         in: query
         required: false
@@ -890,14 +862,14 @@ paths:
       security:
       - OAuth2PasswordBearer: []
       parameters:
-      - name: uri
+      - name: asset_id
         in: query
         required: false
         schema:
           anyOf:
           - type: string
           - type: 'null'
-          title: Uri
+          title: Asset Id
       requestBody:
         required: true
         content:
@@ -949,16 +921,10 @@ paths:
         in: path
         required: true
         schema:
-          type: integer
-          title: Asset Id
-      - name: uri
-        in: query
-        required: false
-        schema:
           anyOf:
           - type: string
           - type: 'null'
-          title: Uri
+          title: Asset Id
       responses:
         '200':
           description: Successful Response
@@ -1010,7 +976,9 @@ paths:
         in: path
         required: true
         schema:
-          type: integer
+          anyOf:
+          - type: string
+          - type: 'null'
           title: Asset Id
       - name: before
         in: query
@@ -1020,14 +988,6 @@ paths:
           - type: string
           - type: 'null'
           title: Before
-      - name: uri
-        in: query
-        required: false
-        schema:
-          anyOf:
-          - type: string
-          - type: 'null'
-          title: Uri
       responses:
         '200':
           description: Successful Response
@@ -1072,7 +1032,9 @@ paths:
         in: path
         required: true
         schema:
-          type: integer
+          anyOf:
+          - type: string
+          - type: 'null'
           title: Asset Id
       - name: before
         in: query
@@ -1082,14 +1044,6 @@ paths:
           - type: string
           - type: 'null'
           title: Before
-      - name: uri
-        in: query
-        required: false
-        schema:
-          anyOf:
-          - type: string
-          - type: 'null'
-          title: Uri
       - name: dag_id
         in: query
         required: false
@@ -1139,16 +1093,10 @@ paths:
         in: path
         required: true
         schema:
-          type: integer
-          title: Asset Id
-      - name: uri
-        in: query
-        required: false
-        schema:
           anyOf:
           - type: string
           - type: 'null'
-          title: Uri
+          title: Asset Id
       responses:
         '200':
           description: Successful Response
@@ -1206,14 +1154,14 @@ paths:
           - type: string
           - type: 'null'
           title: Before
-      - name: uri
+      - name: asset_id
         in: query
         required: false
         schema:
           anyOf:
           - type: string
           - type: 'null'
-          title: Uri
+          title: Asset Id
       responses:
         '200':
           description: Successful Response
@@ -1269,14 +1217,14 @@ paths:
           - type: string
           - type: 'null'
           title: Before
-      - name: uri
+      - name: asset_id
         in: query
         required: false
         schema:
           anyOf:
           - type: string
           - type: 'null'
-          title: Uri
+          title: Asset Id
       responses:
         '204':
           description: Successful Response
@@ -1332,7 +1280,9 @@ paths:
         in: path
         required: true
         schema:
-          type: integer
+          anyOf:
+          - type: string
+          - type: 'null'
           title: Asset Id
       - name: before
         in: query
@@ -1342,14 +1292,6 @@ paths:
           - type: string
           - type: 'null'
           title: Before
-      - name: uri
-        in: query
-        required: false
-        schema:
-          anyOf:
-          - type: string
-          - type: 'null'
-          title: Uri
       responses:
         '200':
           description: Successful Response
@@ -1402,7 +1344,9 @@ paths:
         in: path
         required: true
         schema:
-          type: integer
+          anyOf:
+          - type: string
+          - type: 'null'
           title: Asset Id
       - name: before
         in: query
@@ -1412,14 +1356,6 @@ paths:
           - type: string
           - type: 'null'
           title: Before
-      - name: uri
-        in: query
-        required: false
-        schema:
-          anyOf:
-          - type: string
-          - type: 'null'
-          title: Uri
       responses:
         '204':
           description: Successful Response
@@ -2361,14 +2297,14 @@ paths:
         schema:
           type: string
           title: Dag Run Id
-      - name: uri
+      - name: asset_id
         in: query
         required: false
         schema:
           anyOf:
           - type: string
           - type: 'null'
-          title: Uri
+          title: Asset Id
       responses:
         '200':
           description: Successful Response
