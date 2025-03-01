@@ -1115,6 +1115,7 @@ export const useDagSourceServiceGetDagSource = <
  * Get Dag Stats
  * Get Dag statistics.
  * @param data The data for the request.
+ * @param data.dagId
  * @param data.dagIds
  * @returns DagStatsCollectionResponse Successful Response
  * @throws ApiError
@@ -1125,16 +1126,18 @@ export const useDagStatsServiceGetDagStats = <
   TQueryKey extends Array<unknown> = unknown[],
 >(
   {
+    dagId,
     dagIds,
   }: {
+    dagId?: string;
     dagIds?: string[];
   } = {},
   queryKey?: TQueryKey,
   options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">,
 ) =>
   useQuery<TData, TError>({
-    queryKey: Common.UseDagStatsServiceGetDagStatsKeyFn({ dagIds }, queryKey),
-    queryFn: () => DagStatsService.getDagStats({ dagIds }) as TData,
+    queryKey: Common.UseDagStatsServiceGetDagStatsKeyFn({ dagId, dagIds }, queryKey),
+    queryFn: () => DagStatsService.getDagStats({ dagId, dagIds }) as TData,
     ...options,
   });
 /**

@@ -1979,6 +1979,7 @@ export type GetDagSourceData = {
 export type GetDagSourceResponse = DAGSourceResponse;
 
 export type GetDagStatsData = {
+  dagId?: string | null;
   dagIds?: Array<string>;
 };
 

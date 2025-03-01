@@ -923,6 +923,7 @@ export const prefetchUseDagSourceServiceGetDagSource = (
  * Get Dag Stats
  * Get Dag statistics.
  * @param data The data for the request.
+ * @param data.dagId
  * @param data.dagIds
  * @returns DagStatsCollectionResponse Successful Response
  * @throws ApiError
@@ -930,14 +931,16 @@ export const prefetchUseDagSourceServiceGetDagSource = (
 export const prefetchUseDagStatsServiceGetDagStats = (
   queryClient: QueryClient,
   {
+    dagId,
     dagIds,
   }: {
+    dagId?: string;
     dagIds?: string[];
   } = {},
 ) =>
   queryClient.prefetchQuery({
-    queryKey: Common.UseDagStatsServiceGetDagStatsKeyFn({ dagIds }),
-    queryFn: () => DagStatsService.getDagStats({ dagIds }),
+    queryKey: Common.UseDagStatsServiceGetDagStatsKeyFn({ dagId, dagIds }),
+    queryFn: () => DagStatsService.getDagStats({ dagId, dagIds }),
   });
 /**
  * Get Dag Reports
