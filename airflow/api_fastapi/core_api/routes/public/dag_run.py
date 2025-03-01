@@ -59,7 +59,9 @@ from airflow.api_fastapi.core_api.datamodels.task_instances import (
     TaskInstanceResponse,
 )
 from airflow.api_fastapi.core_api.openapi.exceptions import create_openapi_http_exception_doc
+from airflow.api_fastapi.core_api.security import requires_access_dag
 from airflow.api_fastapi.logging.decorators import action_logging
+from airflow.auth.managers.models.resource_details import DagAccessEntity
 from airflow.exceptions import ParamValidationError
 from airflow.listeners.listener import get_listener_manager
 from airflow.models import DAG, DagModel, DagRun
@@ -77,6 +79,7 @@ dag_run_router = AirflowRouter(tags=["DagRun"], prefix="/dags/{dag_id}/dagRuns")
             status.HTTP_404_NOT_FOUND,
         ]
     ),
+    dependencies=[Depends(requires_access_dag(method="GET", access_entity=DagAccessEntity.RUN))],
 )
 def get_dag_run(dag_id: str, dag_run_id: str, session: SessionDep) -> DAGRunResponse:
     dag_run = session.scalar(select(DagRun).filter_by(dag_id=dag_id, run_id=dag_run_id))
@@ -98,7 +101,10 @@ def get_dag_run(dag_id: str, dag_run_id: str, session: SessionDep) -> DAGRunResp
             status.HTTP_404_NOT_FOUND,
         ],
     ),
-    dependencies=[Depends(action_logging())],
+    dependencies=[
+        Depends(requires_access_dag(method="DELETE", access_entity=DagAccessEntity.RUN)),
+        Depends(action_logging()),
+    ],
 )
 def delete_dag_run(dag_id: str, dag_run_id: str, session: SessionDep):
     """Delete a DAG Run entry."""
@@ -120,7 +126,10 @@ def delete_dag_run(dag_id: str, dag_run_id: str, session: SessionDep):
             status.HTTP_404_NOT_FOUND,
         ],
     ),
-    dependencies=[Depends(action_logging())],
+    dependencies=[
+        Depends(requires_access_dag(method="PUT", access_entity=DagAccessEntity.RUN)),
+        Depends(action_logging()),
+    ],
 )
 def patch_dag_run(
     dag_id: str,
@@ -189,6 +198,7 @@ def patch_dag_run(
             status.HTTP_404_NOT_FOUND,
         ]
     ),
+    dependencies=[Depends(requires_access_dag(method="GET", access_entity=DagAccessEntity.RUN))],
 )
 def get_upstream_asset_events(
     dag_id: str, dag_run_id: str, session: SessionDep
@@ -215,7 +225,10 @@ def get_upstream_asset_events(
 @dag_run_router.post(
     "/{dag_run_id}/clear",
     responses=create_openapi_http_exception_doc([status.HTTP_404_NOT_FOUND]),
-    dependencies=[Depends(action_logging())],
+    dependencies=[
+        Depends(requires_access_dag(method="POST", access_entity=DagAccessEntity.RUN)),
+        Depends(action_logging()),
+    ],
 )
 def clear_dag_run(
     dag_id: str,
@@ -261,7 +274,11 @@ def clear_dag_run(
         return dag_run_cleared
 
 
-@dag_run_router.get("", responses=create_openapi_http_exception_doc([status.HTTP_404_NOT_FOUND]))
+@dag_run_router.get(
+    "",
+    responses=create_openapi_http_exception_doc([status.HTTP_404_NOT_FOUND]),
+    dependencies=[Depends(requires_access_dag(method="GET", access_entity=DagAccessEntity.RUN))],
+)
 def get_dag_runs(
     dag_id: str,
     limit: QueryLimit,
@@ -335,7 +352,10 @@ def get_dag_runs(
             status.HTTP_409_CONFLICT,
         ]
     ),
-    dependencies=[Depends(action_logging())],
+    dependencies=[
+        Depends(requires_access_dag(method="POST", access_entity=DagAccessEntity.RUN)),
+        Depends(action_logging()),
+    ],
 )
 def trigger_dag_run(
     dag_id,
@@ -381,7 +401,11 @@ def trigger_dag_run(
         raise HTTPException(status.HTTP_400_BAD_REQUEST, str(e))
 
 
-@dag_run_router.post("/list", responses=create_openapi_http_exception_doc([status.HTTP_404_NOT_FOUND]))
+@dag_run_router.post(
+    "/list",
+    responses=create_openapi_http_exception_doc([status.HTTP_404_NOT_FOUND]),
+    dependencies=[Depends(requires_access_dag(method="POST", access_entity=DagAccessEntity.RUN))],
+)
 def get_list_dag_runs_batch(
     dag_id: Literal["~"], body: DAGRunsBatchBody, session: SessionDep
 ) -> DAGRunCollectionResponse:
