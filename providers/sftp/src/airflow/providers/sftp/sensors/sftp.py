@@ -129,7 +129,6 @@ class SFTPSensor(BaseSensorOperator):
             else:
                 files_found.append(actual_file_to_check)
 
-        self.hook.close_conn()
         if not len(files_found):
             return False
 
