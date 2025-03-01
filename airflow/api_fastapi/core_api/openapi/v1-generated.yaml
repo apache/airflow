@@ -4899,12 +4899,16 @@ paths:
       summary: Get Task Instance
       description: Get task instance.
       operationId: get_task_instance
+      security:
+      - OAuth2PasswordBearer: []
       parameters:
       - name: dag_id
         in: path
         required: true
         schema:
-          type: string
+          anyOf:
+          - type: string
+          - type: 'null'
           title: Dag Id
       - name: dag_run_id
         in: path
@@ -4955,12 +4959,16 @@ paths:
       summary: Patch Task Instance
       description: Update a task instance.
       operationId: patch_task_instance
+      security:
+      - OAuth2PasswordBearer: []
       parameters:
       - name: dag_id
         in: path
         required: true
         schema:
-          type: string
+          anyOf:
+          - type: string
+          - type: 'null'
           title: Dag Id
       - name: dag_run_id
         in: path
@@ -5047,12 +5055,16 @@ paths:
       summary: Get Mapped Task Instances
       description: Get list of mapped task instances.
       operationId: get_mapped_task_instances
+      security:
+      - OAuth2PasswordBearer: []
       parameters:
       - name: dag_id
         in: path
         required: true
         schema:
-          type: string
+          anyOf:
+          - type: string
+          - type: 'null'
           title: Dag Id
       - name: dag_run_id
         in: path
@@ -5273,12 +5285,16 @@ paths:
       summary: Get Task Instance Dependencies
       description: Get dependencies blocking task from getting scheduled.
       operationId: get_task_instance_dependencies
+      security:
+      - OAuth2PasswordBearer: []
       parameters:
       - name: dag_id
         in: path
         required: true
         schema:
-          type: string
+          anyOf:
+          - type: string
+          - type: 'null'
           title: Dag Id
       - name: dag_run_id
         in: path
@@ -5336,12 +5352,16 @@ paths:
       summary: Get Task Instance Dependencies
       description: Get dependencies blocking task from getting scheduled.
       operationId: get_task_instance_dependencies
+      security:
+      - OAuth2PasswordBearer: []
       parameters:
       - name: dag_id
         in: path
         required: true
         schema:
-          type: string
+          anyOf:
+          - type: string
+          - type: 'null'
           title: Dag Id
       - name: dag_run_id
         in: path
@@ -5400,12 +5420,16 @@ paths:
       summary: Get Task Instance Tries
       description: Get list of task instances history.
       operationId: get_task_instance_tries
+      security:
+      - OAuth2PasswordBearer: []
       parameters:
       - name: dag_id
         in: path
         required: true
         schema:
-          type: string
+          anyOf:
+          - type: string
+          - type: 'null'
           title: Dag Id
       - name: dag_run_id
         in: path
@@ -5463,12 +5487,16 @@ paths:
       - Task Instance
       summary: Get Mapped Task Instance Tries
       operationId: get_mapped_task_instance_tries
+      security:
+      - OAuth2PasswordBearer: []
       parameters:
       - name: dag_id
         in: path
         required: true
         schema:
-          type: string
+          anyOf:
+          - type: string
+          - type: 'null'
           title: Dag Id
       - name: dag_run_id
         in: path
@@ -5526,12 +5554,16 @@ paths:
       summary: Get Mapped Task Instance
       description: Get task instance.
       operationId: get_mapped_task_instance
+      security:
+      - OAuth2PasswordBearer: []
       parameters:
       - name: dag_id
         in: path
         required: true
         schema:
-          type: string
+          anyOf:
+          - type: string
+          - type: 'null'
           title: Dag Id
       - name: dag_run_id
         in: path
@@ -5588,12 +5620,16 @@ paths:
       summary: Patch Task Instance
       description: Update a task instance.
       operationId: patch_task_instance
+      security:
+      - OAuth2PasswordBearer: []
       parameters:
       - name: dag_id
         in: path
         required: true
         schema:
-          type: string
+          anyOf:
+          - type: string
+          - type: 'null'
           title: Dag Id
       - name: dag_run_id
         in: path
@@ -5685,12 +5721,16 @@ paths:
 
         and DAG runs.'
       operationId: get_task_instances
+      security:
+      - OAuth2PasswordBearer: []
       parameters:
       - name: dag_id
         in: path
         required: true
         schema:
-          type: string
+          anyOf:
+          - type: string
+          - type: 'null'
           title: Dag Id
       - name: dag_run_id
         in: path
@@ -5921,13 +5961,16 @@ paths:
       summary: Get Task Instances Batch
       description: Get list of task instances.
       operationId: get_task_instances_batch
+      security:
+      - OAuth2PasswordBearer: []
       parameters:
       - name: dag_id
         in: path
         required: true
         schema:
-          const: '~'
-          type: string
+          anyOf:
+          - type: string
+          - type: 'null'
           title: Dag Id
       - name: dag_run_id
         in: path
@@ -5980,12 +6023,16 @@ paths:
       summary: Get Task Instance Try Details
       description: Get task instance details by try number.
       operationId: get_task_instance_try_details
+      security:
+      - OAuth2PasswordBearer: []
       parameters:
       - name: dag_id
         in: path
         required: true
         schema:
-          type: string
+          anyOf:
+          - type: string
+          - type: 'null'
           title: Dag Id
       - name: dag_run_id
         in: path
@@ -6049,12 +6096,16 @@ paths:
       - Task Instance
       summary: Get Mapped Task Instance Try Details
       operationId: get_mapped_task_instance_try_details
+      security:
+      - OAuth2PasswordBearer: []
       parameters:
       - name: dag_id
         in: path
         required: true
         schema:
-          type: string
+          anyOf:
+          - type: string
+          - type: 'null'
           title: Dag Id
       - name: dag_run_id
         in: path
@@ -6118,12 +6169,16 @@ paths:
       summary: Post Clear Task Instances
       description: Clear task instances.
       operationId: post_clear_task_instances
+      security:
+      - OAuth2PasswordBearer: []
       parameters:
       - name: dag_id
         in: path
         required: true
         schema:
-          type: string
+          anyOf:
+          - type: string
+          - type: 'null'
           title: Dag Id
       requestBody:
         required: true
@@ -6169,12 +6224,16 @@ paths:
       summary: Patch Task Instance Dry Run
       description: Update a task instance dry_run mode.
       operationId: patch_task_instance_dry_run
+      security:
+      - OAuth2PasswordBearer: []
       parameters:
       - name: dag_id
         in: path
         required: true
         schema:
-          type: string
+          anyOf:
+          - type: string
+          - type: 'null'
           title: Dag Id
       - name: dag_run_id
         in: path
@@ -6254,12 +6313,16 @@ paths:
       summary: Patch Task Instance Dry Run
       description: Update a task instance dry_run mode.
       operationId: patch_task_instance_dry_run
+      security:
+      - OAuth2PasswordBearer: []
       parameters:
       - name: dag_id
         in: path
         required: true
         schema:
-          type: string
+          anyOf:
+          - type: string
+          - type: 'null'
           title: Dag Id
       - name: dag_run_id
         in: path

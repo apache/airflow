@@ -3300,7 +3300,7 @@ export const useTaskInstanceServiceGetTaskInstancesBatch = <
       TData,
       TError,
       {
-        dagId: "~";
+        dagId: string;
         dagRunId: "~";
         requestBody: TaskInstancesBatchBody;
       },
@@ -3313,7 +3313,7 @@ export const useTaskInstanceServiceGetTaskInstancesBatch = <
     TData,
     TError,
     {
-      dagId: "~";
+      dagId: string;
       dagRunId: "~";
       requestBody: TaskInstancesBatchBody;
     },
