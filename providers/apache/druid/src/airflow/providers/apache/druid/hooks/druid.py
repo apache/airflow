@@ -83,19 +83,30 @@ class DruidHook(BaseHook):
     def conn(self) -> Connection:
         return self.get_connection(self.druid_ingest_conn_id)
 
-    def get_conn_url(self, ingestion_type: IngestionType = IngestionType.BATCH) -> str:
-        """Get Druid connection url."""
-        host = self.conn.host
-        port = self.conn.port
+    @property
+    def get_connection_type(self) -> str:
         if self.conn.schema:
             conn_type = self.conn.schema
         else:
             conn_type = self.conn.conn_type or "http"
+        return conn_type
+
+    def get_conn_url(self, ingestion_type: IngestionType = IngestionType.BATCH) -> str:
+        """Get Druid connection url."""
+        host = self.conn.host
+        port = self.conn.port
+        conn_type = self.get_connection_type
         if ingestion_type == IngestionType.BATCH:
             endpoint = self.conn.extra_dejson.get("endpoint", "")
         else:
             endpoint = self.conn.extra_dejson.get("msq_endpoint", "")
         return f"{conn_type}://{host}:{port}/{endpoint}"
+
+    def get_status_url(self, ingestion_type):
+        if ingestion_type == IngestionType.MSQ:
+            return f"{self.get_connection_type}://{self.conn.host}:{self.conn.port}/druid/indexer/v1/task"
+        else:
+            return self.get_conn_url(ingestion_type)
 
     def get_auth(self) -> requests.auth.HTTPBasicAuth | None:
         """
@@ -117,12 +128,6 @@ class DruidHook(BaseHook):
             return ca_bundle_path
 
         return self.verify_ssl
-
-    def get_status_url(self, ingestion_type):
-        if ingestion_type == IngestionType.MSQ:
-            return f"{self.conn.schema}://{self.conn.host}:{self.conn.port}/druid/indexer/v1/task"
-        else:
-            return self.get_conn_url(ingestion_type)
 
     def submit_indexing_job(
         self, json_index_spec: dict[str, Any] | str, ingestion_type: IngestionType = IngestionType.BATCH
