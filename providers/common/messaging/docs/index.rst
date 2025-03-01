@@ -73,7 +73,7 @@
 apache-airflow-providers-common-messaging package
 ------------------------------------------------------
 
-``Common Messaging Provider - provide common messaging interface across providers.``
+``Common Messaging Provider``
 
 
 Release: 1.0.0
@@ -94,12 +94,12 @@ For the minimum Airflow version supported, see ``Requirements`` below.
 Requirements
 ------------
 
-The minimum Apache Airflow version supported by this provider package is ``3.0.0``.
+The minimum Apache Airflow version supported by this provider package is ``3.0.0.dev0``.
 
 ==================  ==================
 PIP package         Version required
 ==================  ==================
-``apache-airflow``  ``>=3.0.0``
+``apache-airflow``  ``>=3.0.0.dev0``
 ==================  ==================
 
 Cross provider package dependencies
@@ -112,14 +112,14 @@ You can install such cross-provider dependencies when installing from PyPI. For 
 
 .. code-block:: bash
 
-    pip install apache-airflow-providers-common-compat[amazon]
+    pip install apache-airflow-providers-common-messaging[amazon]
 
 
-==============================================================================================================  ===============
-Dependent package                                                                                               Extra
-==============================================================================================================  ===============
-`apache-airflow-providers-amazon <https://airflow.apache.org/docs/apache-airflow-providers-amazon>`_            ``amazon``
-==============================================================================================================  ===============
+====================================================================================================  ==========
+Dependent package                                                                                     Extra
+====================================================================================================  ==========
+`apache-airflow-providers-amazon <https://airflow.apache.org/docs/apache-airflow-providers-amazon>`_  ``amazon``
+====================================================================================================  ==========
 
 Downloading official packages
 -----------------------------
