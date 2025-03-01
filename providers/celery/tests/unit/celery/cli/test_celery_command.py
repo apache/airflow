@@ -21,6 +21,7 @@ import importlib
 import os
 from argparse import Namespace
 from unittest import mock
+from unittest.mock import patch
 
 import pytest
 import sqlalchemy
@@ -30,6 +31,7 @@ from airflow.cli import cli_parser
 from airflow.configuration import conf
 from airflow.executors import executor_loader
 from airflow.providers.celery.cli import celery_command
+from airflow.providers.celery.cli.celery_command import _run_stale_bundle_cleanup
 
 from tests_common.test_utils.config import conf_vars
 from tests_common.test_utils.version_compat import AIRFLOW_V_2_10_PLUS, AIRFLOW_V_3_0_PLUS
@@ -37,6 +39,7 @@ from tests_common.test_utils.version_compat import AIRFLOW_V_2_10_PLUS, AIRFLOW_
 pytestmark = pytest.mark.db_test
 
 
+@conf_vars({("dag_processor", "stale_bundle_cleanup_interval"): 0})
 class TestWorkerPrecheck:
     @mock.patch("airflow.settings.validate_session")
     def test_error(self, mock_validate_session):
@@ -68,6 +71,7 @@ class TestWorkerPrecheck:
 
 
 @pytest.mark.backend("mysql", "postgres")
+@conf_vars({("dag_processor", "stale_bundle_cleanup_interval"): 0})
 class TestCeleryStopCommand:
     @classmethod
     def setup_class(cls):
@@ -149,6 +153,7 @@ class TestCeleryStopCommand:
 
 
 @pytest.mark.backend("mysql", "postgres")
+@conf_vars({("dag_processor", "stale_bundle_cleanup_interval"): 0})
 class TestWorkerStart:
     @classmethod
     def setup_class(cls):
@@ -209,6 +214,7 @@ class TestWorkerStart:
 
 
 @pytest.mark.backend("mysql", "postgres")
+@conf_vars({("dag_processor", "stale_bundle_cleanup_interval"): 0})
 class TestWorkerFailure:
     @classmethod
     def setup_class(cls):
@@ -228,6 +234,7 @@ class TestWorkerFailure:
 
 
 @pytest.mark.backend("mysql", "postgres")
+@conf_vars({("dag_processor", "stale_bundle_cleanup_interval"): 0})
 class TestFlowerCommand:
     @classmethod
     def setup_class(cls):
@@ -379,3 +386,15 @@ class TestFlowerCommand:
         self, mock_celery_app, mock_daemon, mock_setup_locations, mock_pid_file
     ):
         self._test_run_command_daemon(mock_celery_app, mock_daemon, mock_setup_locations, mock_pid_file)
+
+
+@patch("airflow.providers.celery.cli.celery_command.Process")
+@pytest.mark.skipif(not AIRFLOW_V_3_0_PLUS, reason="Doesn't apply to pre-3.0")
+def test_stale_bundle_cleanup(mock_process):
+    mock_process.__bool__.return_value = True
+    with _run_stale_bundle_cleanup():
+        ...
+    calls = mock_process.call_args_list
+    assert len(calls) == 1
+    actual = [x.kwargs["target"] for x in calls]
+    assert actual[0].__name__ == "bundle_cleanup_main"

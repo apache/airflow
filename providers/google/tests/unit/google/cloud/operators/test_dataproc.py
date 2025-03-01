@@ -1707,7 +1707,7 @@ class TestDataprocSubmitJobOperator(DataprocJobTestBase):
         kafka_config = KafkaConfig(
             topic="my_topic",
             config={
-                "bootstrap.servers": "localhost:9092,another.host:9092",
+                "bootstrap.servers": "test-kafka-xfgup:10009,another.host-ge7h0:100010",
                 "acks": "all",
                 "retries": "3",
             },

@@ -18,8 +18,10 @@ from __future__ import annotations
 
 import json
 import logging
+from unittest.mock import MagicMock, patch
 
 import pytest
+from confluent_kafka.admin import AdminClient
 
 from airflow.models import Connection
 from airflow.providers.apache.kafka.hooks.produce import KafkaProducerHook
@@ -56,5 +58,8 @@ class TestProducerHook:
         )
         self.hook = KafkaProducerHook(kafka_config_id="kafka_d")
 
-    def test_get_producer(self):
+    @patch("airflow.providers.apache.kafka.hooks.base.AdminClient")
+    def test_get_producer(self, mock_client):
+        mock_client_spec = MagicMock(spec=AdminClient)
+        mock_client.return_value = mock_client_spec
         assert self.hook.get_producer() == self.hook.get_conn

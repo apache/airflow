@@ -27,7 +27,7 @@ def get_provider_info():
         "name": "Papermill",
         "description": "`Papermill <https://github.com/nteract/papermill>`__\n",
         "state": "ready",
-        "source-date-epoch": 1739964102,
+        "source-date-epoch": 1740734172,
         "versions": [
             "3.9.1",
             "3.9.0",

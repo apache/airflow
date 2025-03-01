@@ -27,7 +27,7 @@ def get_provider_info():
         "name": "SSH",
         "description": "`Secure Shell (SSH) <https://tools.ietf.org/html/rfc4251>`__\n",
         "state": "ready",
-        "source-date-epoch": 1734536796,
+        "source-date-epoch": 1740734200,
         "versions": [
             "4.0.0",
             "3.14.0",

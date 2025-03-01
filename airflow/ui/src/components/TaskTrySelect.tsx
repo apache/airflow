@@ -78,7 +78,7 @@ export const TaskTrySelect = ({ onSelectTryNumber, selectedTryNumber, taskInstan
   });
 
   return (
-    <VStack alignItems="flex-start" gap={1} my={3}>
+    <VStack alignItems="flex-start" gap={1} mb={3}>
       <Heading size="md">Task Tries</Heading>
       {showDropdown ? (
         <Select.Root

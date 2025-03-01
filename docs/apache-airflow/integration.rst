@@ -27,7 +27,7 @@ Airflow has a mechanism that allows you to expand its functionality and integrat
 * :doc:`Logging </administration-and-deployment/logging-monitoring/logging-tasks>`
 * :doc:`Metrics (statsd) </administration-and-deployment/logging-monitoring/metrics>`
 * :doc:`Operators and hooks </operators-and-hooks-ref>`
-* :doc:`Plugins </authoring-and-scheduling/plugins>`
+* :doc:`Plugins </administration-and-deployment/plugins>`
 * :doc:`Listeners </administration-and-deployment/listeners>`
 * :doc:`Secrets backends </security/secrets/secrets-backend/index>`
 * :doc:`Tracking systems </administration-and-deployment/logging-monitoring/tracking-user-activity>`

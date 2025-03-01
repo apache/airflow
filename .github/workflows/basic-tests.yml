@@ -151,44 +151,6 @@ jobs:
           retention-days: '2'
         if: steps.restore-eslint-cache-simple-am-ui.outputs.stash-hit != 'true'
 
-  tests-www:
-    timeout-minutes: 10
-    name: React WWW tests
-    runs-on: ${{ fromJSON(inputs.runs-on-as-json-public) }}
-    if: inputs.run-www-tests == 'true'
-    steps:
-      - name: "Cleanup repo"
-        shell: bash
-        run: docker run -v "${GITHUB_WORKSPACE}:/workspace" -u 0:0 bash -c "rm -rf /workspace/*"
-      - name: "Checkout ${{ github.ref }} ( ${{ github.sha }} )"
-        uses: actions/checkout@v4
-        with:
-          persist-credentials: false
-      - name: "Cleanup docker"
-        run: ./scripts/ci/cleanup_docker.sh
-      - name: "Setup node"
-        uses: actions/setup-node@v4
-        with:
-          node-version: 21
-      - name: "Restore eslint cache (www)"
-        uses: apache/infrastructure-actions/stash/restore@1c35b5ccf8fba5d4c3fdf25a045ca91aa0cbc468
-        with:
-          path: airflow/www/node_modules/
-          key: cache-www-node-modules-v1-${{ runner.os }}-${{ hashFiles('airflow/www/**/yarn.lock') }}
-        id: restore-eslint-cache
-      - run: yarn --cwd airflow/www/ install --frozen-lockfile --non-interactive
-      - run: yarn --cwd airflow/www/ run test
-        env:
-          FORCE_COLOR: 2
-      - name: "Save eslint cache (www)"
-        uses: apache/infrastructure-actions/stash/save@1c35b5ccf8fba5d4c3fdf25a045ca91aa0cbc468
-        with:
-          path: airflow/www/node_modules/
-          key: cache-www-node-modules-v1-${{ runner.os }}-${{ hashFiles('airflow/www/**/yarn.lock') }}
-          if-no-files-found: 'error'
-          retention-days: '2'
-        if: steps.restore-eslint-cache.outputs.stash-hit != 'true'
-
   install-pre-commit:
     timeout-minutes: 5
     name: "Install pre-commit for cache"

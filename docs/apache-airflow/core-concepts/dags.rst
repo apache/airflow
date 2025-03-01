@@ -20,7 +20,9 @@
 DAGs
 ====
 
-A *DAG* (Directed Acyclic Graph) is the core concept of Airflow, collecting :doc:`tasks` together, organized with dependencies and relationships to say how they should run.
+.. include:: ../../exts/includes/dag-definition.rst
+    :start-after: .. dag-definition-start
+    :end-before: .. dag-definition-end
 
 Here's a basic example DAG:
 
@@ -30,6 +32,9 @@ It defines four Tasks - A, B, C, and D - and dictates the order in which they ha
 
 The DAG itself doesn't care about *what* is happening inside the tasks; it is merely concerned with *how* to execute them - the order to run them in, how many times to retry them, if they have timeouts, and so on.
 
+.. include:: ../../exts/includes/dag-definition.rst
+    :start-after: .. dag-etymology-start
+    :end-before: .. dag-etymology-end
 
 Declaring a DAG
 ---------------

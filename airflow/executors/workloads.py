@@ -103,9 +103,14 @@ class ExecuteTask(BaseWorkload):
             name=ti.dag_model.bundle_name,
             version=ti.dag_run.bundle_version,
         )
-        path = dag_rel_path or Path(ti.dag_run.dag_model.relative_fileloc)
         fname = log_filename_template_renderer()(ti=ti)
-        return cls(ti=ser_ti, dag_rel_path=path, token="", log_path=fname, bundle_info=bundle_info)
+        return cls(
+            ti=ser_ti,
+            dag_rel_path=dag_rel_path or Path(ti.dag_model.relative_fileloc),
+            token="",
+            log_path=fname,
+            bundle_info=bundle_info,
+        )
 
 
 class RunTrigger(BaseModel):

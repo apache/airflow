@@ -27,7 +27,7 @@ def get_provider_info():
         "name": "OpenLineage Airflow",
         "description": "`OpenLineage <https://openlineage.io/>`__\n",
         "state": "ready",
-        "source-date-epoch": 1739964022,
+        "source-date-epoch": 1740734164,
         "versions": [
             "2.1.0",
             "2.0.0",

@@ -1068,7 +1068,6 @@ def test_external_task_sensor_extra_link(
     expected_external_dag_id,
     expected_external_task_id,
     create_task_instance_of_operator,
-    app,
 ):
     ti = create_task_instance_of_operator(
         ExternalTaskSensor,
@@ -1084,11 +1083,9 @@ def test_external_task_sensor_extra_link(
     assert ti.task.external_task_id == expected_external_task_id
     assert ti.task.external_task_ids == [expected_external_task_id]
 
-    app.config["SERVER_NAME"] = ""
-    with app.app_context():
-        url = ti.task.operator_extra_links[0].get_link(operator=ti.task, ti_key=ti.key)
+    url = ti.task.operator_extra_links[0].get_link(operator=ti.task, ti_key=ti.key)
 
-    assert f"/dags/{expected_external_dag_id}/grid" in url
+    assert f"/dags/{expected_external_dag_id}/runs" in url
 
 
 class TestExternalTaskMarker:

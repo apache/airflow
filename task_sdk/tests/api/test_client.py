@@ -596,6 +596,33 @@ class TestXCOMOperations:
         )
         assert result == {"ok": True}
 
+    def test_xcom_set_with_mapped_length(self):
+        # Simulate a successful response from the server when setting an xcom with mapped_length
+        def handle_request(request: httpx.Request) -> httpx.Response:
+            if (
+                request.url.path == "/xcoms/dag_id/run_id/task_id/key"
+                and request.url.params.get("map_index") == "2"
+                and request.url.params.get("mapped_length") == "3"
+            ):
+                assert json.loads(request.read()) == "value1"
+                return httpx.Response(
+                    status_code=201,
+                    json={"message": "XCom successfully set"},
+                )
+            return httpx.Response(status_code=400, json={"detail": "Bad Request"})
+
+        client = make_client(transport=httpx.MockTransport(handle_request))
+        result = client.xcoms.set(
+            dag_id="dag_id",
+            run_id="run_id",
+            task_id="task_id",
+            key="key",
+            value="value1",
+            map_index=2,
+            mapped_length=3,
+        )
+        assert result == {"ok": True}
+
 
 class TestConnectionOperations:
     """

@@ -2856,7 +2856,9 @@ class TaskInstance(Base, LoggingMixin):
             self.log.error("Received SIGTERM. Terminating subprocesses.")
             self.log.error("Stacktrace: \n%s", "".join(traceback.format_stack()))
             self.task.on_kill()
-            raise AirflowTaskTerminated("Task received SIGTERM signal")
+            raise AirflowTaskTerminated(
+                f"Task received SIGTERM signal {self.task_id=} {self.dag_id=} {self.run_id=} {self.map_index=}"
+            )
 
         signal.signal(signal.SIGTERM, signal_handler)
 

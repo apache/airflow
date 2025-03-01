@@ -27,7 +27,7 @@ def get_provider_info():
         "name": "Microsoft SQL Server (MSSQL)",
         "description": "`Microsoft SQL Server (MSSQL) <https://www.microsoft.com/sql-server/>`__\n",
         "state": "ready",
-        "source-date-epoch": 1739963800,
+        "source-date-epoch": 1740734150,
         "versions": [
             "4.2.0",
             "4.0.0",

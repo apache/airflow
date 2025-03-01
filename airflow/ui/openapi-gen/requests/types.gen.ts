@@ -1217,6 +1217,15 @@ export type StructureDataResponse = {
 export type arrange = "BT" | "LR" | "RL" | "TB";
 
 /**
+ * An individual log message.
+ */
+export type StructuredLogMessage = {
+  timestamp?: string;
+  event: string;
+  [key: string]: unknown | string;
+};
+
+/**
  * Task collection serializer for responses.
  */
 export type TaskCollectionResponse = {
@@ -1393,7 +1402,7 @@ export type TaskInstancesBatchBody = {
  * Log serializer for responses.
  */
 export type TaskInstancesLogResponse = {
-  content: string;
+  content: Array<StructuredLogMessage> | Array<string>;
   continuation_token: string | null;
 };
 

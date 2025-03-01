@@ -20,7 +20,7 @@ import { chakraComponents } from "chakra-react-select";
 import type { DropdownIndicatorProps } from "chakra-react-select";
 import { FiSearch } from "react-icons/fi";
 
-import type { Option } from "./SearchDags";
+import type { Option } from "src/utils/option";
 
 export const DropdownIndicator: React.FC<DropdownIndicatorProps<Option, false>> = (props) => (
   <chakraComponents.DropdownIndicator {...props}>

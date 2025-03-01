@@ -26,6 +26,7 @@ from typing import TYPE_CHECKING
 
 from airflow.configuration import conf
 from airflow.providers.amazon.aws.hooks.s3 import S3Hook
+from airflow.providers.amazon.version_compat import AIRFLOW_V_3_0_PLUS
 from airflow.utils.log.file_task_handler import FileTaskHandler
 from airflow.utils.log.logging_mixin import LoggingMixin
 
@@ -58,7 +59,8 @@ class S3TaskHandler(FileTaskHandler, LoggingMixin):
     def hook(self):
         """Returns S3Hook."""
         return S3Hook(
-            aws_conn_id=conf.get("logging", "REMOTE_LOG_CONN_ID"), transfer_config_args={"use_threads": False}
+            aws_conn_id=conf.get("logging", "REMOTE_LOG_CONN_ID"),
+            transfer_config_args={"use_threads": False},
         )
 
     def set_context(self, ti: TaskInstance, *, identifier: str | None = None) -> None:
@@ -116,12 +118,16 @@ class S3TaskHandler(FileTaskHandler, LoggingMixin):
         keys = self.hook.list_keys(bucket_name=bucket, prefix=prefix)
         if keys:
             keys = sorted(f"s3://{bucket}/{key}" for key in keys)
-            messages.append("Found logs in s3:")
-            messages.extend(f"  * {key}" for key in keys)
+            if AIRFLOW_V_3_0_PLUS:
+                messages = keys
+            else:
+                messages.append("Found logs in s3:")
+                messages.extend(f"  * {key}" for key in keys)
             for key in keys:
                 logs.append(self.s3_read(key, return_error=True))
         else:
-            messages.append(f"No logs found on s3 for ti={ti}")
+            if not AIRFLOW_V_3_0_PLUS:
+                messages.append(f"No logs found on s3 for ti={ti}")
         return messages, logs
 
     def s3_log_exists(self, remote_log_location: str) -> bool:
@@ -152,7 +158,13 @@ class S3TaskHandler(FileTaskHandler, LoggingMixin):
                 return msg
         return ""
 
-    def s3_write(self, log: str, remote_log_location: str, append: bool = True, max_retry: int = 1) -> bool:
+    def s3_write(
+        self,
+        log: str,
+        remote_log_location: str,
+        append: bool = True,
+        max_retry: int = 1,
+    ) -> bool:
         """
         Write the log to the remote_log_location; return `True` or fails silently and return `False`.
 
@@ -185,7 +197,10 @@ class S3TaskHandler(FileTaskHandler, LoggingMixin):
                 break
             except Exception:
                 if try_num < max_retry:
-                    self.log.warning("Failed attempt to write logs to %s, will retry", remote_log_location)
+                    self.log.warning(
+                        "Failed attempt to write logs to %s, will retry",
+                        remote_log_location,
+                    )
                 else:
                     self.log.exception("Could not write logs to %s", remote_log_location)
                     return False

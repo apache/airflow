@@ -48,6 +48,7 @@ COMMAND_MAP = {
     "create_user": "users create",
     "delete_user": "users delete",
     "dags backfill": "backfill create",
+    "webserver": "api-server",
 }
 
 

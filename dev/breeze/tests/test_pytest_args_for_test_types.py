@@ -81,7 +81,7 @@ def _find_all_integration_folders() -> list[str]:
         (
             GroupOfTests.CORE,
             "API",
-            ["tests/api", "tests/api_connexion", "tests/api_fastapi"],
+            ["tests/api", "tests/api_fastapi"],
         ),
         (
             GroupOfTests.CORE,
@@ -220,7 +220,7 @@ def test_pytest_args_for_missing_provider():
         (
             GroupOfTests.CORE,
             "API",
-            ["tests/api", "tests/api_connexion", "tests/api_fastapi"],
+            ["tests/api", "tests/api_fastapi"],
         ),
         (
             GroupOfTests.CORE,
@@ -234,7 +234,6 @@ def test_pytest_args_for_missing_provider():
             "API CLI",
             [
                 "tests/api",
-                "tests/api_connexion",
                 "tests/api_fastapi",
                 "tests/cli",
             ],

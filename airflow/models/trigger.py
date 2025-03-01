@@ -246,7 +246,10 @@ class Trigger(Base):
             handle_event_submit(event, task_instance=task_instance, session=session)
 
         # Send an event to assets
-        trigger = session.scalars(select(cls).where(cls.id == trigger_id)).one()
+        trigger = session.scalars(select(cls).where(cls.id == trigger_id)).one_or_none()
+        if trigger is None:
+            # Already deleted for some reason
+            return
         for asset in trigger.assets:
             AssetManager.register_asset_change(
                 asset=asset.to_public(), session=session, extra={"from_trigger": True}

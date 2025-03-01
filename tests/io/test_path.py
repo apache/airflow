@@ -135,11 +135,18 @@ class TestFs:
 
         o.unlink()
 
-    def test_ls(self):
+    @pytest.mark.parametrize(
+        "scheme",
+        [
+            pytest.param("local", id="local_scheme"),
+            pytest.param("file", id="file_scheme"),
+        ],
+    )
+    def test_ls(self, scheme):
         dirname = str(uuid.uuid4())
         filename = str(uuid.uuid4())
 
-        d = ObjectStoragePath(f"file:///tmp/{dirname}")
+        d = ObjectStoragePath(f"{scheme}:///tmp/{dirname}")
         d.mkdir(parents=True)
         o = d / filename
         o.touch()

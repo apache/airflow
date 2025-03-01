@@ -52,12 +52,17 @@ classifiers = [
 ]
 requires-python = "~=3.9"
 
-# The dependencies should be modified in place in the generated file
+# The dependencies should be modified in place in the generated file.
 # Any change in the dependencies is preserved when the file is regenerated
+# Make sure to run ``breeze static-checks --type update-providers-dependencies --all-files``
+# After you modify the dependencies, and rebuild your Breeze CI image with ``breeze ci-image build``
 dependencies = [
     "apache-airflow>=2.9.0",
     "sqlparse>=0.5.1",
     "more-itertools>=9.0.0",
+    # The methodtools dependency is necessary since the introduction of dialects:
+    # https://github.com/apache/airflow/pull/41327/files
+    "methodtools>=0.4.7"
 ]
 
 # The optional dependencies should be modified in place in the generated file

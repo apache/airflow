@@ -27,7 +27,7 @@ def get_provider_info():
         "name": "Alibaba",
         "description": "Alibaba Cloud integration (including `Alibaba Cloud <https://www.alibabacloud.com/>`__).\n",
         "state": "ready",
-        "source-date-epoch": 1734526745,
+        "source-date-epoch": 1740734069,
         "versions": [
             "3.0.0",
             "2.9.1",

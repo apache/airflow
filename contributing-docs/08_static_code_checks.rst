@@ -264,10 +264,6 @@ require Breeze Docker image to be built locally.
 +-----------------------------------------------------------+--------------------------------------------------------+---------+
 | compile-ui-assets-dev                                     | Compile ui assets in dev mode (manual)                 |         |
 +-----------------------------------------------------------+--------------------------------------------------------+---------+
-| compile-www-assets                                        | Compile www assets (manual)                            |         |
-+-----------------------------------------------------------+--------------------------------------------------------+---------+
-| compile-www-assets-dev                                    | Compile www assets in dev mode (manual)                |         |
-+-----------------------------------------------------------+--------------------------------------------------------+---------+
 | create-missing-init-py-files-tests                        | Create missing init.py files in tests                  |         |
 +-----------------------------------------------------------+--------------------------------------------------------+---------+
 | debug-statements                                          | Detect accidentally committed debug statements         |         |
@@ -297,7 +293,6 @@ require Breeze Docker image to be built locally.
 | insert-license                                            | * Add license for all SQL files                        |         |
 |                                                           | * Add license for all RST files                        |         |
 |                                                           | * Add license for CSS/JS/JSX/PUML/TS/TSX               |         |
-|                                                           | * Add license for all JINJA template files             |         |
 |                                                           | * Add license for all Shell files                      |         |
 |                                                           | * Add license for all toml files                       |         |
 |                                                           | * Add license for all Python files                     |         |
@@ -310,8 +305,6 @@ require Breeze Docker image to be built locally.
 | kubeconform                                               | Kubeconform check on our helm chart                    |         |
 +-----------------------------------------------------------+--------------------------------------------------------+---------+
 | lint-chart-schema                                         | Lint chart/values.schema.json file                     |         |
-+-----------------------------------------------------------+--------------------------------------------------------+---------+
-| lint-css                                                  | stylelint                                              |         |
 +-----------------------------------------------------------+--------------------------------------------------------+---------+
 | lint-dockerfile                                           | Lint Dockerfile                                        |         |
 +-----------------------------------------------------------+--------------------------------------------------------+---------+
@@ -365,8 +358,6 @@ require Breeze Docker image to be built locally.
 | trailing-whitespace                                       | Remove trailing whitespace at end of line              |         |
 +-----------------------------------------------------------+--------------------------------------------------------+---------+
 | ts-compile-format-lint-ui                                 | Compile / format / lint UI                             |         |
-+-----------------------------------------------------------+--------------------------------------------------------+---------+
-| ts-compile-format-lint-www                                | Compile / format / lint WWW                            |         |
 +-----------------------------------------------------------+--------------------------------------------------------+---------+
 | update-black-version                                      | Update black versions everywhere (manual)              |         |
 +-----------------------------------------------------------+--------------------------------------------------------+---------+

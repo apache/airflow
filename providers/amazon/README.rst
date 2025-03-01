@@ -90,6 +90,7 @@ Dependent package                                                               
 `apache-airflow-providers-common-compat <https://airflow.apache.org/docs/apache-airflow-providers-common-compat>`_      ``common.compat``
 `apache-airflow-providers-common-sql <https://airflow.apache.org/docs/apache-airflow-providers-common-sql>`_            ``common.sql``
 `apache-airflow-providers-exasol <https://airflow.apache.org/docs/apache-airflow-providers-exasol>`_                    ``exasol``
+`apache-airflow-providers-fab <https://airflow.apache.org/docs/apache-airflow-providers-fab>`_                          ``fab``
 `apache-airflow-providers-ftp <https://airflow.apache.org/docs/apache-airflow-providers-ftp>`_                          ``ftp``
 `apache-airflow-providers-google <https://airflow.apache.org/docs/apache-airflow-providers-google>`_                    ``google``
 `apache-airflow-providers-http <https://airflow.apache.org/docs/apache-airflow-providers-http>`_                        ``http``

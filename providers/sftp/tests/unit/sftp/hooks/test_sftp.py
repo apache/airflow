@@ -103,7 +103,18 @@ class TestSFTPHook:
         self.update_connection(self.old_login)
 
     def test_get_conn(self):
-        with self.hook.get_conn() as conn:
+        output = self.hook.get_conn()
+        assert isinstance(output, paramiko.SFTPClient)
+        assert self.hook.conn is not None
+
+    def test_close_conn(self):
+        self.hook.conn = self.hook.get_conn()
+        assert self.hook.conn is not None
+        self.hook.close_conn()
+        assert self.hook.conn is None
+
+    def test_get_managed_conn(self):
+        with self.hook.get_managed_conn() as conn:
             assert isinstance(conn, paramiko.SFTPClient)
 
     @patch("airflow.providers.ssh.hooks.ssh.SSHHook.get_conn")
@@ -113,7 +124,7 @@ class TestSFTPHook:
         mock_ssh_client.open_sftp.return_value = mock_sftp_client
         mock_get_conn.return_value = mock_ssh_client
 
-        with SFTPHook().get_conn() as conn:
+        with SFTPHook().get_managed_conn() as conn:
             assert conn == mock_sftp_client
 
         mock_sftp_client.close.assert_called_once()
@@ -140,7 +151,7 @@ class TestSFTPHook:
         assert new_dir_name in output
         # test the directory has default permissions to 777 - umask
         umask = 0o022
-        with self.hook.get_conn() as conn:
+        with self.hook.get_managed_conn() as conn:
             output = conn.lstat(os.path.join(self.temp_dir, TMP_DIR_FOR_TESTS, new_dir_name))
             assert output.st_mode & 0o777 == 0o777 - umask
 
@@ -151,7 +162,7 @@ class TestSFTPHook:
         assert new_dir_name in output
         # test the directory has default permissions to 777
         umask = 0o022
-        with self.hook.get_conn() as conn:
+        with self.hook.get_managed_conn() as conn:
             output = conn.lstat(os.path.join(self.temp_dir, TMP_DIR_FOR_TESTS, new_dir_name))
             assert output.st_mode & 0o777 == 0o777 - umask
         # test directory already exists for code coverage, should not raise an exception
@@ -531,7 +542,7 @@ class TestSFTPHook:
             host_proxy_cmd=host_proxy_cmd,
         )
 
-        with hook.get_conn():
+        with hook.get_managed_conn():
             mock_proxy_command.assert_called_once_with(host_proxy_cmd)
             mock_ssh_client.return_value.connect.assert_called_once_with(
                 hostname="example.com",

@@ -1876,8 +1876,8 @@ class DAG(TaskSDKDag, LoggingMixin):
 
         asset_op = AssetModelOperation.collect(dag_op.dags)
 
-        orm_assets = asset_op.add_assets(session=session)
-        orm_asset_aliases = asset_op.add_asset_aliases(session=session)
+        orm_assets = asset_op.sync_assets(session=session)
+        orm_asset_aliases = asset_op.sync_asset_aliases(session=session)
         session.flush()  # This populates id so we can create fks in later calls.
 
         orm_dags = dag_op.find_orm_dags(session=session)  # Refetch so relationship is up to date.

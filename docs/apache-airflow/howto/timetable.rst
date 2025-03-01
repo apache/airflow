@@ -48,7 +48,7 @@ Timetable Registration
 ----------------------
 
 A timetable must be a subclass of :class:`~airflow.timetables.base.Timetable`,
-and be registered as a part of a :doc:`plugin </authoring-and-scheduling/plugins>`.
+and be registered as a part of a :doc:`plugin </administration-and-deployment/plugins>`.
 The following is a skeleton for us to implement a new timetable:
 
 .. code-block:: python

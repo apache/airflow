@@ -27,7 +27,7 @@ def get_provider_info():
         "name": "Segment",
         "description": "`Segment <https://segment.com/>`__\n",
         "state": "ready",
-        "source-date-epoch": 1739964240,
+        "source-date-epoch": 1740734186,
         "versions": [
             "3.7.1",
             "3.7.0",

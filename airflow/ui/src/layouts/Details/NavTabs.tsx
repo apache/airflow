@@ -18,18 +18,15 @@
  */
 import { Center, Flex } from "@chakra-ui/react";
 import { useRef, type ReactNode } from "react";
-import { NavLink, useSearchParams } from "react-router-dom";
+import { NavLink } from "react-router-dom";
 
 import { useContainerWidth } from "src/utils";
 
 type Props = {
-  readonly keepSearch?: boolean;
   readonly tabs: Array<{ icon?: ReactNode; label: string; value: string }>;
 };
 
-export const NavTabs = ({ keepSearch, tabs }: Props) => {
-  const [searchParams] = useSearchParams();
-
+export const NavTabs = ({ tabs }: Props) => {
   const containerRef = useRef<HTMLDivElement>(null);
   const containerWidth = useContainerWidth(containerRef);
 
@@ -42,8 +39,6 @@ export const NavTabs = ({ keepSearch, tabs }: Props) => {
           title={label}
           to={{
             pathname: value,
-            // Preserve search params when navigating
-            search: keepSearch ? searchParams.toString() : undefined,
           }}
         >
           {({ isActive }) => (

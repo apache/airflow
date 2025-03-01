@@ -41,6 +41,7 @@ class TestSFTPSensor:
         context = {"ds": "1970-01-01"}
         output = sftp_sensor.poke(context)
         sftp_hook_mock.return_value.get_mod_time.assert_called_once_with("/path/to/file/1970-01-01.txt")
+        sftp_hook_mock.return_value.close_conn.assert_not_called()
         assert output
 
     @patch("airflow.providers.sftp.sensors.sftp.SFTPHook")
@@ -50,6 +51,7 @@ class TestSFTPSensor:
         context = {"ds": "1970-01-01"}
         output = sftp_sensor.poke(context)
         sftp_hook_mock.return_value.get_mod_time.assert_called_once_with("/path/to/file/1970-01-01.txt")
+        sftp_hook_mock.return_value.close_conn.assert_not_called()
         assert not output
 
     @patch("airflow.providers.sftp.sensors.sftp.SFTPHook")
@@ -77,6 +79,7 @@ class TestSFTPSensor:
         context = {"ds": "1970-01-00"}
         output = sftp_sensor.poke(context)
         sftp_hook_mock.return_value.get_mod_time.assert_called_once_with("/path/to/file/1970-01-01.txt")
+        sftp_hook_mock.return_value.close_conn.assert_not_called()
         assert output
 
     @patch("airflow.providers.sftp.sensors.sftp.SFTPHook")
@@ -91,6 +94,7 @@ class TestSFTPSensor:
         context = {"ds": "1970-01-00"}
         output = sftp_sensor.poke(context)
         sftp_hook_mock.return_value.get_mod_time.assert_called_once_with("/path/to/file/1970-01-01.txt")
+        sftp_hook_mock.return_value.close_conn.assert_not_called()
         assert not output
 
     @pytest.mark.parametrize(
@@ -116,6 +120,7 @@ class TestSFTPSensor:
         context = {"ds": "1970-01-00"}
         output = sftp_sensor.poke(context)
         sftp_hook_mock.return_value.get_mod_time.assert_called_once_with("/path/to/file/1970-01-01.txt")
+        sftp_hook_mock.return_value.close_conn.assert_not_called()
         assert not output
 
     @patch("airflow.providers.sftp.sensors.sftp.SFTPHook")
@@ -126,6 +131,7 @@ class TestSFTPSensor:
         context = {"ds": "1970-01-01"}
         output = sftp_sensor.poke(context)
         sftp_hook_mock.return_value.get_mod_time.assert_called_once_with("/path/to/file/text_file.txt")
+        sftp_hook_mock.return_value.close_conn.assert_not_called()
         assert output
 
     @patch("airflow.providers.sftp.sensors.sftp.SFTPHook")
@@ -135,6 +141,7 @@ class TestSFTPSensor:
         sftp_sensor = SFTPSensor(task_id="unit_test", path="/path/to/file/", file_pattern="*.txt")
         context = {"ds": "1970-01-01"}
         output = sftp_sensor.poke(context)
+        sftp_hook_mock.return_value.close_conn.assert_not_called()
         assert not output
 
     @patch("airflow.providers.sftp.sensors.sftp.SFTPHook")
@@ -149,6 +156,7 @@ class TestSFTPSensor:
         output = sftp_sensor.poke(context)
         get_mod_time = sftp_hook_mock.return_value.get_mod_time
         expected_calls = [call("/path/to/file/text_file.txt"), call("/path/to/file/another_text_file.txt")]
+        sftp_hook_mock.return_value.close_conn.assert_not_called()
         assert get_mod_time.mock_calls == expected_calls
         assert output
 
@@ -176,6 +184,7 @@ class TestSFTPSensor:
         sftp_hook_mock.return_value.get_mod_time.assert_has_calls(
             [mock.call("/path/to/file/text_file1.txt"), mock.call("/path/to/file/text_file2.txt")]
         )
+        sftp_hook_mock.return_value.close_conn.assert_not_called()
         assert output
 
     @patch("airflow.providers.sftp.sensors.sftp.SFTPHook")
@@ -206,6 +215,7 @@ class TestSFTPSensor:
                 mock.call("/path/to/file/text_file3.txt"),
             ]
         )
+        sftp_hook_mock.return_value.close_conn.assert_not_called()
         assert not output
 
     @pytest.mark.parametrize(
@@ -231,6 +241,7 @@ class TestSFTPSensor:
         output = sftp_sensor.poke(context)
 
         sftp_hook_mock.return_value.get_mod_time.assert_called_once_with("/path/to/file/1970-01-01.txt")
+        sftp_hook_mock.return_value.close_conn.assert_not_called()
         sample_callable.assert_called_once_with(*op_args, **op_kwargs)
         assert isinstance(output, PokeReturnValue)
         assert output.is_done
@@ -267,6 +278,7 @@ class TestSFTPSensor:
         output = sftp_sensor.poke(context)
 
         sample_callable.assert_called_once_with(*op_args, **op_kwargs)
+        sftp_hook_mock.return_value.close_conn.assert_not_called()
         assert isinstance(output, PokeReturnValue)
         assert output.is_done
         assert output.xcom_value == {
