@@ -1117,8 +1117,10 @@ def autogenerate(
     fix_ownership_using_docker()
 
 
-@main.command(name="doctor", help="Troubleshoot breeze")
+@main.command(name="doctor", help="Auto-healing of breeze")
 @option_answer
+@option_verbose
+@option_dry_run
 @click.pass_context
 def doctor(ctx):
     shell_params = ShellParams()
@@ -1129,8 +1131,7 @@ def doctor(ctx):
     fix_ownership_using_docker()
 
     given_answer = user_confirm("Are you sure with the removal of temporary Python files and Python cache?")
-    if given_answer == Answer.YES:
-        get_console().print("\n[info]Cleaning .pyc and __pycache__...\n")
+    if not get_dry_run() and given_answer == Answer.YES:
         cleanup_python_generated_files()
 
     shell_params = ShellParams(backend="all", include_mypy_volume=True)
@@ -1144,7 +1145,7 @@ def doctor(ctx):
 
         get_console().print("\n[info]Deleting .build cache dir...\n")
         dirpath = Path(".build")
-        if dirpath.exists() and dirpath.is_dir():
+        if not get_dry_run() and dirpath.exists() and dirpath.is_dir():
             shutil.rmtree(dirpath)
 
     given_answer = user_confirm(
@@ -1153,3 +1154,5 @@ def doctor(ctx):
     if given_answer == Answer.YES:
         get_console().print("\n[info]Executing breeze cleanup...\n")
         ctx.forward(cleanup)
+    elif given_answer == Answer.QUIT:
+        sys.exit(0)

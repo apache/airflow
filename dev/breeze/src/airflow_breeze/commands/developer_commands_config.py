@@ -28,6 +28,7 @@ DEVELOPER_COMMANDS: dict[str, str | list[str]] = {
         "compile-ui-assets",
         "cleanup",
         "generate-migration-file",
+        "doctor",
     ],
 }
 DEVELOPER_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] = {
@@ -363,7 +364,7 @@ DEVELOPER_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] = {
     ],
     "breeze doctor": [
         {
-            "name": "Debug breeze",
+            "name": "Auto-healing of breeze",
             "options": [
                 "--answer",
             ],
