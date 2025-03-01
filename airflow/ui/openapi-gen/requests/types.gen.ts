@@ -2097,7 +2097,7 @@ export type GetEventLogsData = {
 export type GetEventLogsResponse = EventLogCollectionResponse;
 
 export type GetExtraLinksData = {
-  dagId: string;
+  dagId: string | null;
   dagRunId: string;
   mapIndex?: number;
   taskId: string;

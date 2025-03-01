@@ -259,6 +259,20 @@ class TestGetExtraLinks:
             "Google Custom": "http://google.com/custom_base_link?search=TEST_LINK_VALUE_1"
         }
 
+    def test_should_respond_401_unauthenticated(self, unauthenticated_test_client):
+        response = unauthenticated_test_client.get(
+            f"/public/dags/{self.dag_id}/dagRuns/{self.dag_run_id}/taskInstances/{self.task_single_link}/links",
+        )
+
+        assert response.status_code == 401
+
+    def test_should_respond_403_unauthorized(self, unauthorized_test_client):
+        response = unauthorized_test_client.get(
+            f"/public/dags/{self.dag_id}/dagRuns/{self.dag_run_id}/taskInstances/{self.task_single_link}/links",
+        )
+
+        assert response.status_code == 403
+
     def test_should_respond_404_invalid_map_index(self, test_client):
         response = test_client.get(
             f"/public/dags/{self.dag_id}/dagRuns/{self.dag_run_id}/taskInstances/{self.task_mapped}/links",
