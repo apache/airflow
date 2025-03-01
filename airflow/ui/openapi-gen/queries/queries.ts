@@ -133,6 +133,7 @@ export const useAssetServiceGetAssets = <
  * Get Asset Aliases
  * Get asset aliases.
  * @param data The data for the request.
+ * @param data.assetAliasId
  * @param data.limit
  * @param data.offset
  * @param data.namePattern
@@ -146,11 +147,13 @@ export const useAssetServiceGetAssetAliases = <
   TQueryKey extends Array<unknown> = unknown[],
 >(
   {
+    assetAliasId,
     limit,
     namePattern,
     offset,
     orderBy,
   }: {
+    assetAliasId?: string;
     limit?: number;
     namePattern?: string;
     offset?: number;
@@ -160,8 +163,12 @@ export const useAssetServiceGetAssetAliases = <
   options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">,
 ) =>
   useQuery<TData, TError>({
-    queryKey: Common.UseAssetServiceGetAssetAliasesKeyFn({ limit, namePattern, offset, orderBy }, queryKey),
-    queryFn: () => AssetService.getAssetAliases({ limit, namePattern, offset, orderBy }) as TData,
+    queryKey: Common.UseAssetServiceGetAssetAliasesKeyFn(
+      { assetAliasId, limit, namePattern, offset, orderBy },
+      queryKey,
+    ),
+    queryFn: () =>
+      AssetService.getAssetAliases({ assetAliasId, limit, namePattern, offset, orderBy }) as TData,
     ...options,
   });
 /**
@@ -180,7 +187,7 @@ export const useAssetServiceGetAssetAlias = <
   {
     assetAliasId,
   }: {
-    assetAliasId: number;
+    assetAliasId: string;
   },
   queryKey?: TQueryKey,
   options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">,

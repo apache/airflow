@@ -614,7 +614,17 @@ paths:
       summary: Get Asset Aliases
       description: Get asset aliases.
       operationId: get_asset_aliases
+      security:
+      - OAuth2PasswordBearer: []
       parameters:
+      - name: asset_alias_id
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Asset Alias Id
       - name: limit
         in: query
         required: false
@@ -684,12 +694,16 @@ paths:
       summary: Get Asset Alias
       description: Get an asset alias.
       operationId: get_asset_alias
+      security:
+      - OAuth2PasswordBearer: []
       parameters:
       - name: asset_alias_id
         in: path
         required: true
         schema:
-          type: integer
+          anyOf:
+          - type: string
+          - type: 'null'
           title: Asset Alias Id
       responses:
         '200':
@@ -11306,3 +11320,10 @@ components:
       - value
       title: XComUpdateBody
       description: Payload serializer for updating an XCom entry.
+  securitySchemes:
+    OAuth2PasswordBearer:
+      type: oauth2
+      flows:
+        password:
+          scopes: {}
+          tokenUrl: token

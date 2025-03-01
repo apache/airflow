@@ -87,18 +87,23 @@ export type AssetServiceGetAssetAliasesQueryResult<
 export const useAssetServiceGetAssetAliasesKey = "AssetServiceGetAssetAliases";
 export const UseAssetServiceGetAssetAliasesKeyFn = (
   {
+    assetAliasId,
     limit,
     namePattern,
     offset,
     orderBy,
   }: {
+    assetAliasId?: string;
     limit?: number;
     namePattern?: string;
     offset?: number;
     orderBy?: string;
   } = {},
   queryKey?: Array<unknown>,
-) => [useAssetServiceGetAssetAliasesKey, ...(queryKey ?? [{ limit, namePattern, offset, orderBy }])];
+) => [
+  useAssetServiceGetAssetAliasesKey,
+  ...(queryKey ?? [{ assetAliasId, limit, namePattern, offset, orderBy }]),
+];
 export type AssetServiceGetAssetAliasDefaultResponse = Awaited<ReturnType<typeof AssetService.getAssetAlias>>;
 export type AssetServiceGetAssetAliasQueryResult<
   TData = AssetServiceGetAssetAliasDefaultResponse,
@@ -109,7 +114,7 @@ export const UseAssetServiceGetAssetAliasKeyFn = (
   {
     assetAliasId,
   }: {
-    assetAliasId: number;
+    assetAliasId: string;
   },
   queryKey?: Array<unknown>,
 ) => [useAssetServiceGetAssetAliasKey, ...(queryKey ?? [{ assetAliasId }])];

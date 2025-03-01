@@ -50,6 +50,13 @@ class AssetDetails:
 
 
 @dataclass
+class AssetAliasDetails:
+    """Represents the details of an asset alias."""
+
+    id: str | None = None
+
+
+@dataclass
 class PoolDetails:
     """Represents the details of a pool."""
 

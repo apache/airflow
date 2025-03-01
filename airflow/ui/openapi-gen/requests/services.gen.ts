@@ -270,6 +270,7 @@ export class AssetService {
    * Get Asset Aliases
    * Get asset aliases.
    * @param data The data for the request.
+   * @param data.assetAliasId
    * @param data.limit
    * @param data.offset
    * @param data.namePattern
@@ -282,6 +283,7 @@ export class AssetService {
       method: "GET",
       url: "/public/assets/aliases",
       query: {
+        asset_alias_id: data.assetAliasId,
         limit: data.limit,
         offset: data.offset,
         name_pattern: data.namePattern,
