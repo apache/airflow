@@ -77,6 +77,18 @@ class TestGetDAGSource:
             json.loads(response.content.decode())
         assert response.headers["Content-Type"].startswith("text/plain")
 
+    def test_should_respond_401(self, unauthenticated_test_client):
+        response = unauthenticated_test_client.get(
+            f"{API_PREFIX}/{TEST_DAG_ID}", headers={"Accept": "text/plain"}
+        )
+        assert response.status_code == 401
+
+    def test_should_respond_403(self, unauthorized_test_client):
+        response = unauthorized_test_client.get(
+            f"{API_PREFIX}/{TEST_DAG_ID}", headers={"Accept": "text/plain"}
+        )
+        assert response.status_code == 403
+
     @pytest.mark.parametrize(
         "headers", [{"Accept": "application/json"}, {"Accept": "application/json; charset=utf-8"}, {}]
     )
