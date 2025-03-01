@@ -990,6 +990,7 @@ class TestPostAssetMaterialize(TestAssets):
             EmptyOperator(task_id="task", outlets=assets[2])
         with dag_maker(self.DAG_ASSET_NO, schedule=None, session=session):
             EmptyOperator(task_id="task")
+        session.commit()
 
     @pytest.mark.usefixtures("configure_git_connection_for_dag_bundle")
     def test_should_respond_200(self, test_client):
