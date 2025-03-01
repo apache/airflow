@@ -60,6 +60,7 @@ def _find_all_integration_folders() -> list[str]:
             [
                 "providers/apache/cassandra/tests/integration",
                 "providers/apache/drill/tests/integration",
+                "providers/apache/gremlin/tests/integration",
                 "providers/apache/hive/tests/integration",
                 "providers/apache/kafka/tests/integration",
                 "providers/apache/pinot/tests/integration",
