@@ -46,9 +46,13 @@ export const Header = ({
     { label: "Start", value: <Time datetime={taskInstance.start_date} /> },
     { label: "End", value: <Time datetime={taskInstance.end_date} /> },
     { label: "Duration", value: `${getDuration(taskInstance.start_date, taskInstance.end_date)}s` },
-    ...(taskInstance.dag_version?.version_number === undefined
-      ? []
-      : [{ label: "Dag Version", value: `v${taskInstance.dag_version.version_number}` }]),
+    {
+      label: "DAG Version",
+      value:
+        taskInstance.dag_version?.version_number === undefined
+          ? ""
+          : `v${taskInstance.dag_version.version_number}`,
+    },
   ];
 
   return (
@@ -59,7 +63,7 @@ export const Header = ({
             {taskInstance.note === null || taskInstance.note.length === 0 ? undefined : (
               <DisplayMarkdownButton
                 header="Task Instance Note"
-                icon={<FiMessageSquare color="black" />}
+                icon={<FiMessageSquare />}
                 mdContent={taskInstance.note}
                 text="Note"
               />

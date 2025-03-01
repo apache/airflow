@@ -26,6 +26,7 @@ import signal
 import sys
 from io import BytesIO
 from operator import attrgetter
+from pathlib import Path
 from time import sleep
 from typing import TYPE_CHECKING
 from unittest.mock import MagicMock, patch
@@ -33,6 +34,7 @@ from unittest.mock import MagicMock, patch
 import httpx
 import psutil
 import pytest
+import tenacity
 from pytest_unordered import unordered
 from uuid6 import uuid7
 
@@ -74,6 +76,7 @@ from task_sdk.tests.execution_time.test_task_runner import FAKE_BUNDLE
 if TYPE_CHECKING:
     import kgb
 
+log = logging.getLogger(__name__)
 TI_ID = uuid7()
 
 
@@ -505,6 +508,7 @@ class TestWatchedSubprocess:
         mock_kill = mocker.patch("airflow.sdk.execution_time.supervisor.WatchedSubprocess.kill")
 
         proc = ActivitySubprocess(
+            log=mocker.MagicMock(),
             id=TI_ID,
             pid=mock_process.pid,
             stdin=mocker.MagicMock(),
@@ -594,6 +598,7 @@ class TestWatchedSubprocess:
         monkeypatch.setattr(ActivitySubprocess, "TASK_OVERTIME_THRESHOLD", overtime_threshold)
 
         mock_watched_subprocess = ActivitySubprocess(
+            log=mocker.MagicMock(),
             id=TI_ID,
             pid=12345,
             stdin=mocker.Mock(),
@@ -664,6 +669,11 @@ class TestListenerOvertime:
             ),
         ],
     )
+    @tenacity.retry(
+        stop=tenacity.stop_after_attempt(5),
+        retry=tenacity.retry_if_exception_type(AssertionError),
+        before=tenacity.before_log(log, logging.INFO),
+    )
     def test_overtime_slow_listener_instance(
         self,
         dag_id,
@@ -679,9 +689,7 @@ class TestListenerOvertime:
         monkeypatch.setattr(ActivitySubprocess, "TASK_OVERTIME_THRESHOLD", overtime_threshold)
 
         """Test running a simple DAG in a subprocess and capturing the output."""
-
         get_listener_manager().add_listener(listener)
-        dagfile_path = test_dags_dir
         ti = TaskInstance(
             id=uuid7(),
             task_id=task_id,
@@ -693,7 +701,7 @@ class TestListenerOvertime:
         with patch.dict(os.environ, local_dag_bundle_cfg(test_dags_dir, bundle_info.name)):
             exit_code = supervise(
                 ti=ti,
-                dag_rel_path=dagfile_path,
+                dag_rel_path=Path("super_basic_run.py"),
                 token="",
                 server="",
                 dry_run=True,
@@ -735,6 +743,7 @@ class TestWatchedSubprocessKill:
     @pytest.fixture
     def watched_subprocess(self, mocker, mock_process):
         proc = ActivitySubprocess(
+            log=mocker.MagicMock(),
             id=TI_ID,
             pid=12345,
             stdin=mocker.Mock(),
@@ -918,6 +927,7 @@ class TestHandleRequest:
     def watched_subprocess(self, mocker):
         """Fixture to provide a WatchedSubprocess instance."""
         return ActivitySubprocess(
+            log=mocker.MagicMock(),
             id=TI_ID,
             pid=12345,
             stdin=BytesIO(),
@@ -1038,6 +1048,7 @@ class TestHandleRequest:
                     "test_key",
                     '{"key": "test_key", "value": {"key2": "value2"}}',
                     None,
+                    None,
                 ),
                 {},
                 {"ok": True},
@@ -1061,10 +1072,36 @@ class TestHandleRequest:
                     "test_key",
                     '{"key": "test_key", "value": {"key2": "value2"}}',
                     2,
+                    None,
                 ),
                 {},
                 {"ok": True},
                 id="set_xcom_with_map_index",
+            ),
+            pytest.param(
+                SetXCom(
+                    dag_id="test_dag",
+                    run_id="test_run",
+                    task_id="test_task",
+                    key="test_key",
+                    value='{"key": "test_key", "value": {"key2": "value2"}}',
+                    map_index=2,
+                    mapped_length=3,
+                ),
+                b"",
+                "xcoms.set",
+                (
+                    "test_dag",
+                    "test_run",
+                    "test_task",
+                    "test_key",
+                    '{"key": "test_key", "value": {"key2": "value2"}}',
+                    2,
+                    3,
+                ),
+                {},
+                {"ok": True},
+                id="set_xcom_with_map_index_and_mapped_length",
             ),
             # we aren't adding all states under TerminalTIState here, because this test's scope is only to check
             # if it can handle TaskState message

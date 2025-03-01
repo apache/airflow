@@ -87,7 +87,7 @@ UPGRADE_TO_NEWER_DEPENDENCIES_LABEL = "upgrade to newer dependencies"
 USE_PUBLIC_RUNNERS_LABEL = "use public runners"
 USE_SELF_HOSTED_RUNNERS_LABEL = "use self-hosted runners"
 
-ALL_CI_SELECTIVE_TEST_TYPES = "API Always CLI Core Operators Other Serialization WWW"
+ALL_CI_SELECTIVE_TEST_TYPES = "API Always CLI Core Operators Other Serialization"
 
 ALL_PROVIDERS_SELECTIVE_TEST_TYPES = (
     "Providers[-amazon,google,standard] Providers[amazon] Providers[google] Providers[standard]"
@@ -106,7 +106,6 @@ class FileGroupForCi(Enum):
     DEPENDENCY_FILES = "dependency_files"
     DOC_FILES = "doc_files"
     UI_FILES = "ui_files"
-    LEGACY_WWW_FILES = "legacy_www_files"
     SYSTEM_TEST_FILES = "system_tests"
     KUBERNETES_FILES = "kubernetes_files"
     TASK_SDK_FILES = "task_sdk_files"
@@ -165,7 +164,6 @@ CI_FILE_GROUP_MATCHES = HashableDict(
             r"^airflow/api_connexion/",
         ],
         FileGroupForCi.API_CODEGEN_FILES: [
-            r"^airflow/api_connexion/openapi/v1\.yaml",
             r"^airflow/api_fastapi/core_api/openapi/v1-generated\.yaml",
             r"^clients/gen",
         ],
@@ -197,12 +195,6 @@ CI_FILE_GROUP_MATCHES = HashableDict(
             r"^chart/values\.json",
         ],
         FileGroupForCi.UI_FILES: [r"^airflow/ui/", r"^airflow/auth/managers/simple/ui/"],
-        FileGroupForCi.LEGACY_WWW_FILES: [
-            r"^airflow/www/.*\.ts[x]?$",
-            r"^airflow/www/.*\.js[x]?$",
-            r"^airflow/www/[^/]+\.json$",
-            r"^airflow/www/.*\.lock$",
-        ],
         FileGroupForCi.KUBERNETES_FILES: [
             r"^chart",
             r"^kubernetes_tests",
@@ -312,7 +304,6 @@ TEST_TYPE_MATCHES = HashableDict(
             r"^airflow/serialization/",
             r"^tests/serialization/",
         ],
-        SelectiveCoreTestType.WWW: [r"^airflow/www", r"^tests/www"],
     }
 )
 
@@ -708,10 +699,6 @@ class SelectiveChecks:
         return self._should_be_run(FileGroupForCi.UI_FILES)
 
     @cached_property
-    def run_www_tests(self) -> bool:
-        return self._should_be_run(FileGroupForCi.LEGACY_WWW_FILES)
-
-    @cached_property
     def run_amazon_tests(self) -> bool:
         if self.providers_test_types_list_as_string is None:
             return False
@@ -760,6 +747,7 @@ class SelectiveChecks:
             or self.run_kubernetes_tests
             or self.needs_helm_tests
             or self.pyproject_toml_changed
+            or self.any_provider_yaml_or_pyproject_toml_changed
         )
 
     @cached_property
@@ -988,6 +976,17 @@ class SelectiveChecks:
         return "hatch_build.py" in self._files
 
     @cached_property
+    def any_provider_yaml_or_pyproject_toml_changed(self) -> bool:
+        if not self._commit_ref:
+            get_console().print("[warning]Cannot determine changes as commit is missing[/]")
+            return False
+        for file in self._files:
+            path_file = Path(file)
+            if path_file.name == "provider.yaml" or path_file.name == "pyproject.toml":
+                return True
+        return False
+
+    @cached_property
     def pyproject_toml_changed(self) -> bool:
         if not self._commit_ref:
             get_console().print("[warning]Cannot determine pyproject.toml changes as commit is missing[/]")
@@ -1141,10 +1140,6 @@ class SelectiveChecks:
             # when full tests are needed, we do not want to skip any checks and we should
             # run all the pre-commits just to be sure everything is ok when some structural changes occurred
             return ",".join(sorted(pre_commits_to_skip))
-        if not self._matching_files(
-            FileGroupForCi.LEGACY_WWW_FILES, CI_FILE_GROUP_MATCHES, CI_FILE_GROUP_EXCLUDES
-        ):
-            pre_commits_to_skip.add("ts-compile-format-lint-www")
         if not (
             self._matching_files(FileGroupForCi.UI_FILES, CI_FILE_GROUP_MATCHES, CI_FILE_GROUP_EXCLUDES)
             or self._matching_files(
@@ -1517,17 +1512,6 @@ class SelectiveChecks:
             get_console().print(
                 f"[error]Please ask maintainer to assign "
                 f"the '{LEGACY_API_LABEL}' label to the PR in order to continue"
-            )
-            sys.exit(1)
-        elif (
-            self._matching_files(
-                FileGroupForCi.LEGACY_WWW_FILES, CI_FILE_GROUP_MATCHES, CI_FILE_GROUP_EXCLUDES
-            )
-            and LEGACY_UI_LABEL not in self._pr_labels
-        ):
-            get_console().print(
-                f"[error]Please ask maintainer to assign "
-                f"the '{LEGACY_UI_LABEL}' label to the PR in order to continue"
             )
             sys.exit(1)
         else:

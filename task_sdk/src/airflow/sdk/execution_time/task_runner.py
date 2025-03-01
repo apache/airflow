@@ -33,6 +33,7 @@ import lazy_object_proxy
 import structlog
 from pydantic import BaseModel, ConfigDict, Field, JsonValue, TypeAdapter
 
+from airflow.dag_processing.bundles.base import BaseDagBundle, BundleVersionLock
 from airflow.dag_processing.bundles.manager import DagBundlesManager
 from airflow.listeners.listener import get_listener_manager
 from airflow.sdk.api.datamodels._generated import (
@@ -93,6 +94,7 @@ class RuntimeTaskInstance(TaskInstance):
     model_config = ConfigDict(arbitrary_types_allowed=True)
 
     task: BaseOperator
+    bundle_instance: BaseDagBundle
     _ti_context_from_server: Annotated[TIRunContext | None, Field(repr=False)] = None
     """The Task Instance context from the API server, if any."""
 
@@ -414,6 +416,7 @@ def parse(what: StartupDetails) -> RuntimeTaskInstance:
     return RuntimeTaskInstance.model_construct(
         **what.ti.model_dump(exclude_unset=True),
         task=task,
+        bundle_instance=bundle_instance,
         _ti_context_from_server=what.ti_context,
         max_tries=what.ti_context.max_tries,
         start_date=what.start_date,
@@ -779,7 +782,7 @@ def finalize(
 ):
     # Pushing xcom for each operator extra links defined on the operator only.
     for oe in ti.task.operator_extra_links:
-        link, xcom_key = oe.get_link(operator=ti.task, ti_key=ti.id), oe.xcom_key  # type: ignore[arg-type]
+        link, xcom_key = oe.get_link(operator=ti.task, ti_key=ti), oe.xcom_key  # type: ignore[arg-type]
         log.debug("Setting xcom for operator extra link", link=link, xcom_key=xcom_key)
         _xcom_push(ti, key=xcom_key, value=link)
 
@@ -802,10 +805,15 @@ def main():
     # TODO: add an exception here, it causes an oof of a stack trace!
     global SUPERVISOR_COMMS
     SUPERVISOR_COMMS = CommsDecoder[ToTask, ToSupervisor](input=sys.stdin)
+
     try:
         ti, log = startup()
-        state, msg, error = run(ti, log)
-        finalize(ti, state, log, error)
+        with BundleVersionLock(
+            bundle_name=ti.bundle_instance.name,
+            bundle_version=ti.bundle_instance.version,
+        ):
+            state, msg, error = run(ti, log)
+            finalize(ti, state, log, error)
     except KeyboardInterrupt:
         log = structlog.get_logger(logger_name="task")
         log.exception("Ctrl-c hit")

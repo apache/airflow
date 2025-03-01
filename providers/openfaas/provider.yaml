@@ -22,7 +22,7 @@ description: |
     `OpenFaaS <https://www.openfaas.com/>`__
 
 state: ready
-source-date-epoch: 1734535860
+source-date-epoch: 1740734163
 # note that those versions are maintained by release manager - do not update them manually
 versions:
   - 3.7.0

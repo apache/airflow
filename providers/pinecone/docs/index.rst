@@ -91,9 +91,9 @@ Requirements
 
 The minimum Apache Airflow version supported by this provider package is ``2.9.0``.
 
-===================  ==================
-PIP package          Version required
-===================  ==================
-``apache-airflow``   ``>=2.9.0``
-``pinecone-client``  ``>=3.1.0``
-===================  ==================
+==================  ==================
+PIP package         Version required
+==================  ==================
+``apache-airflow``  ``>=2.9.0``
+``pinecone``        ``>=3.1.0``
+==================  ==================

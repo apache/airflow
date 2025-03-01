@@ -120,6 +120,33 @@ class TestXComsSetEndpoint:
         task_map = session.query(TaskMap).filter_by(task_id=ti.task_id, dag_id=ti.dag_id).one_or_none()
         assert task_map is None, "Should not be mapped"
 
+    def test_xcom_set_mapped(self, client, create_task_instance, session):
+        ti = create_task_instance()
+        session.commit()
+
+        response = client.post(
+            f"/execution/xcoms/{ti.dag_id}/{ti.run_id}/{ti.task_id}/xcom_1",
+            params={"map_index": -1, "mapped_length": 3},
+            json="value1",
+        )
+
+        assert response.status_code == 201
+        assert response.json() == {"message": "XCom successfully set"}
+
+        xcom = (
+            session.query(XCom)
+            .filter_by(task_id=ti.task_id, dag_id=ti.dag_id, key="xcom_1", map_index=-1)
+            .first()
+        )
+        assert xcom.value == "value1"
+        task_map = session.query(TaskMap).filter_by(task_id=ti.task_id, dag_id=ti.dag_id).one_or_none()
+        assert task_map is not None, "Should be mapped"
+        assert task_map.dag_id == "dag"
+        assert task_map.run_id == "test"
+        assert task_map.task_id == "op1"
+        assert task_map.map_index == -1
+        assert task_map.length == 3
+
     @pytest.mark.parametrize(
         ("length", "err_context"),
         [

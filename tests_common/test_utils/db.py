@@ -85,7 +85,6 @@ def initial_db_init():
 
     from airflow.configuration import conf
     from airflow.utils import db
-    from airflow.www.extensions.init_appbuilder import init_appbuilder
 
     from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS
 
@@ -93,18 +92,18 @@ def initial_db_init():
     if AIRFLOW_V_3_0_PLUS:
         db.downgrade(to_revision="5f2621c13b39")
         db.upgradedb(to_revision="head")
-    _bootstrap_dagbag()
-    # minimal app to add roles
-    flask_app = Flask(__name__)
-    flask_app.config["SQLALCHEMY_DATABASE_URI"] = conf.get("database", "SQL_ALCHEMY_CONN")
-    init_appbuilder(flask_app)
-
-    if AIRFLOW_V_3_0_PLUS:
-        from airflow.api_fastapi.app import get_auth_manager
     else:
+        from airflow.www.extensions.init_appbuilder import init_appbuilder
         from airflow.www.extensions.init_auth_manager import get_auth_manager
 
-    get_auth_manager().init()
+        # minimal app to add roles
+        flask_app = Flask(__name__)
+        flask_app.config["SQLALCHEMY_DATABASE_URI"] = conf.get("database", "SQL_ALCHEMY_CONN")
+        init_appbuilder(flask_app)
+
+        get_auth_manager().init()
+
+    _bootstrap_dagbag()
 
 
 def parse_and_sync_to_db(folder: Path | str, include_examples: bool = False):

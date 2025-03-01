@@ -58,7 +58,7 @@ export const AssetEvent = ({ event }: { readonly event: AssetEventResponse }) =>
         <MdOutlineAccountTree /> <Text> Source: </Text>
         {source === "" ? (
           <Link
-            to={`/dags/${event.source_dag_id}/runs/${event.source_run_id}/tasks/${event.source_task_id}?map_index=${event.source_map_index}`}
+            to={`/dags/${event.source_dag_id}/runs/${event.source_run_id}/tasks/${event.source_task_id}${event.source_map_index > -1 ? `/mapped/${event.source_map_index}` : ""}`}
           >
             <Text color="fg.info"> {event.source_dag_id} </Text>
           </Link>

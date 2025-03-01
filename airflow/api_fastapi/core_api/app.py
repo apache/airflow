@@ -30,11 +30,11 @@ from starlette.responses import HTMLResponse
 from starlette.staticfiles import StaticFiles
 from starlette.templating import Jinja2Templates
 
+from airflow.api_fastapi.core_api.init_dagbag import get_dag_bag
 from airflow.api_fastapi.core_api.middleware import FlaskExceptionsMiddleware
 from airflow.configuration import conf
 from airflow.exceptions import AirflowException
 from airflow.settings import AIRFLOW_PATH
-from airflow.www.extensions.init_dagbag import get_dag_bag
 
 log = logging.getLogger(__name__)
 
@@ -79,7 +79,7 @@ def init_views(app: FastAPI) -> None:
     def webapp(request: Request, rest_of_path: str):
         return templates.TemplateResponse(
             "/index.html",
-            {"request": request, "backend_server_base_url": conf.get("fastapi", "base_url")},
+            {"request": request, "backend_server_base_url": conf.get("api", "base_url")},
             media_type="text/html",
         )
 

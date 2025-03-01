@@ -52,8 +52,10 @@ classifiers = [
 ]
 requires-python = "~=3.9"
 
-# The dependencies should be modified in place in the generated file
+# The dependencies should be modified in place in the generated file.
 # Any change in the dependencies is preserved when the file is regenerated
+# Make sure to run ``breeze static-checks --type update-providers-dependencies --all-files``
+# After you modify the dependencies, and rebuild your Breeze CI image with ``breeze ci-image build``
 dependencies = [
     "apache-airflow>=2.9.0",
     "apache-airflow-providers-common-sql>=1.20.0",
@@ -62,7 +64,7 @@ dependencies = [
     # However Airflow not fully supports it yet: https://github.com/apache/airflow/issues/28723
     # In addition FAB also limit sqlalchemy to < 2.0
     "pandas>=2.1.2,<2.2",
-    "trino>=0.318.0",
+    "trino>=0.319.0",
 ]
 
 # The optional dependencies should be modified in place in the generated file
