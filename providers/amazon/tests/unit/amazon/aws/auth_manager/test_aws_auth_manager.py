@@ -221,7 +221,7 @@ class TestAwsAuthManager:
         "details, user, expected_user, expected_entity_id",
         [
             (None, mock, ANY, None),
-            (AssetDetails(uri="uri"), mock, mock, "uri"),
+            (AssetDetails(id="1"), mock, mock, "1"),
         ],
     )
     @patch.object(AwsAuthManager, "avp_facade")

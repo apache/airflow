@@ -46,7 +46,7 @@ class DagDetails:
 class AssetDetails:
     """Represents the details of an asset."""
 
-    uri: str | None = None
+    id: str | None = None
 
 
 @dataclass

@@ -59,6 +59,7 @@ export const prefetchUseAssetServiceNextRunAssets = (
  * Get Assets
  * Get assets.
  * @param data The data for the request.
+ * @param data.assetId
  * @param data.limit
  * @param data.offset
  * @param data.namePattern
@@ -71,6 +72,7 @@ export const prefetchUseAssetServiceNextRunAssets = (
 export const prefetchUseAssetServiceGetAssets = (
   queryClient: QueryClient,
   {
+    assetId,
     dagIds,
     limit,
     namePattern,
@@ -78,6 +80,7 @@ export const prefetchUseAssetServiceGetAssets = (
     orderBy,
     uriPattern,
   }: {
+    assetId?: string;
     dagIds?: string[];
     limit?: number;
     namePattern?: string;
@@ -88,6 +91,7 @@ export const prefetchUseAssetServiceGetAssets = (
 ) =>
   queryClient.prefetchQuery({
     queryKey: Common.UseAssetServiceGetAssetsKeyFn({
+      assetId,
       dagIds,
       limit,
       namePattern,
@@ -95,7 +99,8 @@ export const prefetchUseAssetServiceGetAssets = (
       orderBy,
       uriPattern,
     }),
-    queryFn: () => AssetService.getAssets({ dagIds, limit, namePattern, offset, orderBy, uriPattern }),
+    queryFn: () =>
+      AssetService.getAssets({ assetId, dagIds, limit, namePattern, offset, orderBy, uriPattern }),
   });
 /**
  * Get Asset Aliases
@@ -150,10 +155,10 @@ export const prefetchUseAssetServiceGetAssetAlias = (
  * Get Asset Events
  * Get asset events.
  * @param data The data for the request.
+ * @param data.assetId
  * @param data.limit
  * @param data.offset
  * @param data.orderBy
- * @param data.assetId
  * @param data.sourceDagId
  * @param data.sourceTaskId
  * @param data.sourceRunId
@@ -231,7 +236,7 @@ export const prefetchUseAssetServiceGetAssetQueuedEvents = (
     assetId,
     before,
   }: {
-    assetId: number;
+    assetId: string;
     before?: string;
   },
 ) =>
@@ -252,7 +257,7 @@ export const prefetchUseAssetServiceGetAsset = (
   {
     assetId,
   }: {
-    assetId: number;
+    assetId: string;
   },
 ) =>
   queryClient.prefetchQuery({
@@ -265,22 +270,25 @@ export const prefetchUseAssetServiceGetAsset = (
  * @param data The data for the request.
  * @param data.dagId
  * @param data.before
+ * @param data.assetId
  * @returns QueuedEventCollectionResponse Successful Response
  * @throws ApiError
  */
 export const prefetchUseAssetServiceGetDagAssetQueuedEvents = (
   queryClient: QueryClient,
   {
+    assetId,
     before,
     dagId,
   }: {
+    assetId?: string;
     before?: string;
     dagId: string;
   },
 ) =>
   queryClient.prefetchQuery({
-    queryKey: Common.UseAssetServiceGetDagAssetQueuedEventsKeyFn({ before, dagId }),
-    queryFn: () => AssetService.getDagAssetQueuedEvents({ before, dagId }),
+    queryKey: Common.UseAssetServiceGetDagAssetQueuedEventsKeyFn({ assetId, before, dagId }),
+    queryFn: () => AssetService.getDagAssetQueuedEvents({ assetId, before, dagId }),
   });
 /**
  * Get Dag Asset Queued Event
@@ -299,7 +307,7 @@ export const prefetchUseAssetServiceGetDagAssetQueuedEvent = (
     before,
     dagId,
   }: {
-    assetId: number;
+    assetId: string;
     before?: string;
     dagId: string;
   },
@@ -776,22 +784,25 @@ export const prefetchUseDagRunServiceGetDagRun = (
  * @param data The data for the request.
  * @param data.dagId
  * @param data.dagRunId
+ * @param data.assetId
  * @returns AssetEventCollectionResponse Successful Response
  * @throws ApiError
  */
 export const prefetchUseDagRunServiceGetUpstreamAssetEvents = (
   queryClient: QueryClient,
   {
+    assetId,
     dagId,
     dagRunId,
   }: {
+    assetId?: string;
     dagId: string;
     dagRunId: string;
   },
 ) =>
   queryClient.prefetchQuery({
-    queryKey: Common.UseDagRunServiceGetUpstreamAssetEventsKeyFn({ dagId, dagRunId }),
-    queryFn: () => DagRunService.getUpstreamAssetEvents({ dagId, dagRunId }),
+    queryKey: Common.UseDagRunServiceGetUpstreamAssetEventsKeyFn({ assetId, dagId, dagRunId }),
+    queryFn: () => DagRunService.getUpstreamAssetEvents({ assetId, dagId, dagRunId }),
   });
 /**
  * Get Dag Runs

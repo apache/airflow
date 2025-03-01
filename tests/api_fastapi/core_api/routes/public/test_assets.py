@@ -263,6 +263,14 @@ class TestGetAssets(TestAssets):
             "total_entries": 2,
         }
 
+    def test_should_respond_401(self, unauthenticated_test_client):
+        response = unauthenticated_test_client.get("/public/assets")
+        assert response.status_code == 401
+
+    def test_should_respond_403(self, unauthorized_test_client):
+        response = unauthorized_test_client.get("/public/assets")
+        assert response.status_code == 403
+
     def test_order_by_raises_400_for_invalid_attr(self, test_client, session):
         response = test_client.get("/public/assets?order_by=fake")
 
@@ -594,6 +602,14 @@ class TestGetAssetEvents(TestAssets):
             "total_entries": 2,
         }
 
+    def test_should_respond_401(self, unauthenticated_test_client):
+        response = unauthenticated_test_client.get("/public/assets/events")
+        assert response.status_code == 401
+
+    def test_should_respond_403(self, unauthorized_test_client):
+        response = unauthorized_test_client.get("/public/assets/events")
+        assert response.status_code == 403
+
     @pytest.mark.parametrize(
         "params, total_entries",
         [
@@ -787,6 +803,14 @@ class TestGetAssetEndpoint(TestAssets):
             "aliases": [],
         }
 
+    def test_should_respond_401(self, unauthenticated_test_client):
+        response = unauthenticated_test_client.get("/public/assets/1")
+        assert response.status_code == 401
+
+    def test_should_respond_403(self, unauthorized_test_client):
+        response = unauthorized_test_client.get("/public/assets/1")
+        assert response.status_code == 403
+
     def test_should_respond_404(self, test_client):
         response = test_client.get("/public/assets/1")
         assert response.status_code == 404
@@ -862,6 +886,14 @@ class TestGetDagAssetQueuedEvents(TestQueuedEventEndpoint):
             "total_entries": 1,
         }
 
+    def test_should_respond_401(self, unauthenticated_test_client):
+        response = unauthenticated_test_client.get("/public/dags/random/assets/queuedEvents")
+        assert response.status_code == 401
+
+    def test_should_respond_403(self, unauthorized_test_client):
+        response = unauthorized_test_client.get("/public/dags/random/assets/queuedEvents")
+        assert response.status_code == 403
+
     def test_should_respond_404(self, test_client):
         dag_id = "not_exists"
 
@@ -892,6 +924,14 @@ class TestDeleteDagDatasetQueuedEvents(TestQueuedEventEndpoint):
         adrqs = session.query(AssetDagRunQueue).all()
         assert len(adrqs) == 0
         check_last_log(session, dag_id=dag_id, event="delete_dag_asset_queued_events", logical_date=None)
+
+    def test_should_respond_401(self, unauthenticated_test_client):
+        response = unauthenticated_test_client.delete("/public/dags/random/assets/queuedEvents")
+        assert response.status_code == 401
+
+    def test_should_respond_403(self, unauthorized_test_client):
+        response = unauthorized_test_client.get("/public/dags/random/assets/queuedEvents")
+        assert response.status_code == 403
 
     def test_should_respond_404_invalid_dag(self, test_client):
         dag_id = "not_exists"
@@ -940,6 +980,18 @@ class TestPostAssetEvents(TestAssets):
             "timestamp": from_datetime_to_zulu_without_ms(DEFAULT_DATE),
         }
         check_last_log(session, dag_id=None, event="create_asset_event", logical_date=None)
+
+    def test_should_respond_401(self, unauthenticated_test_client):
+        response = unauthenticated_test_client.post(
+            "/public/assets/events", json={"asset_uri": "s3://bucket/key/1"}
+        )
+        assert response.status_code == 401
+
+    def test_should_respond_403(self, unauthorized_test_client):
+        response = unauthorized_test_client.post(
+            "/public/assets/events", json={"asset_uri": "s3://bucket/key/1"}
+        )
+        assert response.status_code == 403
 
     def test_invalid_attr_not_allowed(self, test_client, session):
         self.create_assets(session)
@@ -990,6 +1042,7 @@ class TestPostAssetMaterialize(TestAssets):
             EmptyOperator(task_id="task", outlets=assets[2])
         with dag_maker(self.DAG_ASSET_NO, schedule=None, session=session):
             EmptyOperator(task_id="task")
+        session.commit()
 
     @pytest.mark.usefixtures("configure_git_connection_for_dag_bundle")
     def test_should_respond_200(self, test_client):
@@ -1013,6 +1066,14 @@ class TestPostAssetMaterialize(TestAssets):
             "conf": {},
             "note": None,
         }
+
+    def test_should_respond_401(self, unauthenticated_test_client):
+        response = unauthenticated_test_client.post("/public/assets/2/materialize")
+        assert response.status_code == 401
+
+    def test_should_respond_403(self, unauthorized_test_client):
+        response = unauthorized_test_client.post("/public/assets/2/materialize")
+        assert response.status_code == 403
 
     def test_should_respond_409_on_multiple_dags(self, test_client):
         response = test_client.post("/public/assets/2/materialize")
@@ -1047,6 +1108,14 @@ class TestGetAssetQueuedEvents(TestQueuedEventEndpoint):
             "total_entries": 1,
         }
 
+    def test_should_respond_401(self, unauthenticated_test_client):
+        response = unauthenticated_test_client.get("/public/assets/1/queuedEvents")
+        assert response.status_code == 401
+
+    def test_should_respond_403(self, unauthorized_test_client):
+        response = unauthorized_test_client.get("/public/assets/1/queuedEvents")
+        assert response.status_code == 403
+
     def test_should_respond_404(self, test_client):
         response = test_client.get("/public/assets/1/queuedEvents")
         assert response.status_code == 404
@@ -1067,6 +1136,14 @@ class TestDeleteAssetQueuedEvents(TestQueuedEventEndpoint):
         assert response.status_code == 204
         assert session.get(AssetDagRunQueue, (asset_id, dag_id)) is None
         check_last_log(session, dag_id=None, event="delete_asset_queued_events", logical_date=None)
+
+    def test_should_respond_401(self, unauthenticated_test_client):
+        response = unauthenticated_test_client.delete("/public/assets/1/queuedEvents")
+        assert response.status_code == 401
+
+    def test_should_respond_403(self, unauthorized_test_client):
+        response = unauthorized_test_client.delete("/public/assets/1/queuedEvents")
+        assert response.status_code == 403
 
     def test_should_respond_404(self, test_client):
         response = test_client.delete("/public/assets/1/queuedEvents")
@@ -1093,6 +1170,14 @@ class TestDeleteDagAssetQueuedEvent(TestQueuedEventEndpoint):
         adrq = session.query(AssetDagRunQueue).all()
         assert len(adrq) == 0
         check_last_log(session, dag_id=dag_id, event="delete_dag_asset_queued_event", logical_date=None)
+
+    def test_should_respond_401(self, unauthenticated_test_client):
+        response = unauthenticated_test_client.delete("/public/dags/random/assets/random/queuedEvents")
+        assert response.status_code == 401
+
+    def test_should_respond_403(self, unauthorized_test_client):
+        response = unauthorized_test_client.delete("/public/dags/random/assets/random/queuedEvents")
+        assert response.status_code == 403
 
     def test_should_respond_404(self, test_client):
         dag_id = "not_exists"

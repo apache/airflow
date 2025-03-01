@@ -58,6 +58,7 @@ export type AssetServiceGetAssetsQueryResult<
 export const useAssetServiceGetAssetsKey = "AssetServiceGetAssets";
 export const UseAssetServiceGetAssetsKeyFn = (
   {
+    assetId,
     dagIds,
     limit,
     namePattern,
@@ -65,6 +66,7 @@ export const UseAssetServiceGetAssetsKeyFn = (
     orderBy,
     uriPattern,
   }: {
+    assetId?: string;
     dagIds?: string[];
     limit?: number;
     namePattern?: string;
@@ -75,7 +77,7 @@ export const UseAssetServiceGetAssetsKeyFn = (
   queryKey?: Array<unknown>,
 ) => [
   useAssetServiceGetAssetsKey,
-  ...(queryKey ?? [{ dagIds, limit, namePattern, offset, orderBy, uriPattern }]),
+  ...(queryKey ?? [{ assetId, dagIds, limit, namePattern, offset, orderBy, uriPattern }]),
 ];
 export type AssetServiceGetAssetAliasesDefaultResponse = Awaited<
   ReturnType<typeof AssetService.getAssetAliases>
@@ -176,7 +178,7 @@ export const UseAssetServiceGetAssetQueuedEventsKeyFn = (
     assetId,
     before,
   }: {
-    assetId: number;
+    assetId: string;
     before?: string;
   },
   queryKey?: Array<unknown>,
@@ -191,7 +193,7 @@ export const UseAssetServiceGetAssetKeyFn = (
   {
     assetId,
   }: {
-    assetId: number;
+    assetId: string;
   },
   queryKey?: Array<unknown>,
 ) => [useAssetServiceGetAssetKey, ...(queryKey ?? [{ assetId }])];
@@ -205,14 +207,16 @@ export type AssetServiceGetDagAssetQueuedEventsQueryResult<
 export const useAssetServiceGetDagAssetQueuedEventsKey = "AssetServiceGetDagAssetQueuedEvents";
 export const UseAssetServiceGetDagAssetQueuedEventsKeyFn = (
   {
+    assetId,
     before,
     dagId,
   }: {
+    assetId?: string;
     before?: string;
     dagId: string;
   },
   queryKey?: Array<unknown>,
-) => [useAssetServiceGetDagAssetQueuedEventsKey, ...(queryKey ?? [{ before, dagId }])];
+) => [useAssetServiceGetDagAssetQueuedEventsKey, ...(queryKey ?? [{ assetId, before, dagId }])];
 export type AssetServiceGetDagAssetQueuedEventDefaultResponse = Awaited<
   ReturnType<typeof AssetService.getDagAssetQueuedEvent>
 >;
@@ -227,7 +231,7 @@ export const UseAssetServiceGetDagAssetQueuedEventKeyFn = (
     before,
     dagId,
   }: {
-    assetId: number;
+    assetId: string;
     before?: string;
     dagId: string;
   },
@@ -577,14 +581,16 @@ export type DagRunServiceGetUpstreamAssetEventsQueryResult<
 export const useDagRunServiceGetUpstreamAssetEventsKey = "DagRunServiceGetUpstreamAssetEvents";
 export const UseDagRunServiceGetUpstreamAssetEventsKeyFn = (
   {
+    assetId,
     dagId,
     dagRunId,
   }: {
+    assetId?: string;
     dagId: string;
     dagRunId: string;
   },
   queryKey?: Array<unknown>,
-) => [useDagRunServiceGetUpstreamAssetEventsKey, ...(queryKey ?? [{ dagId, dagRunId }])];
+) => [useDagRunServiceGetUpstreamAssetEventsKey, ...(queryKey ?? [{ assetId, dagId, dagRunId }])];
 export type DagRunServiceGetDagRunsDefaultResponse = Awaited<ReturnType<typeof DagRunService.getDagRuns>>;
 export type DagRunServiceGetDagRunsQueryResult<
   TData = DagRunServiceGetDagRunsDefaultResponse,

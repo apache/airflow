@@ -236,6 +236,7 @@ export class AssetService {
    * Get Assets
    * Get assets.
    * @param data The data for the request.
+   * @param data.assetId
    * @param data.limit
    * @param data.offset
    * @param data.namePattern
@@ -250,6 +251,7 @@ export class AssetService {
       method: "GET",
       url: "/public/assets",
       query: {
+        asset_id: data.assetId,
         limit: data.limit,
         offset: data.offset,
         name_pattern: data.namePattern,
@@ -324,10 +326,10 @@ export class AssetService {
    * Get Asset Events
    * Get asset events.
    * @param data The data for the request.
+   * @param data.assetId
    * @param data.limit
    * @param data.offset
    * @param data.orderBy
-   * @param data.assetId
    * @param data.sourceDagId
    * @param data.sourceTaskId
    * @param data.sourceRunId
@@ -342,10 +344,10 @@ export class AssetService {
       method: "GET",
       url: "/public/assets/events",
       query: {
+        asset_id: data.assetId,
         limit: data.limit,
         offset: data.offset,
         order_by: data.orderBy,
-        asset_id: data.assetId,
         source_dag_id: data.sourceDagId,
         source_task_id: data.sourceTaskId,
         source_run_id: data.sourceRunId,
@@ -367,6 +369,7 @@ export class AssetService {
    * Create asset events.
    * @param data The data for the request.
    * @param data.requestBody
+   * @param data.assetId
    * @returns AssetEventResponse Successful Response
    * @throws ApiError
    */
@@ -374,6 +377,9 @@ export class AssetService {
     return __request(OpenAPI, {
       method: "POST",
       url: "/public/assets/events",
+      query: {
+        asset_id: data.assetId,
+      },
       body: data.requestBody,
       mediaType: "application/json",
       errors: {
@@ -446,6 +452,7 @@ export class AssetService {
    * @param data The data for the request.
    * @param data.assetId
    * @param data.before
+   * @param data.dagId
    * @returns void Successful Response
    * @throws ApiError
    */
@@ -460,6 +467,7 @@ export class AssetService {
       },
       query: {
         before: data.before,
+        dag_id: data.dagId,
       },
       errors: {
         401: "Unauthorized",
@@ -500,6 +508,7 @@ export class AssetService {
    * @param data The data for the request.
    * @param data.dagId
    * @param data.before
+   * @param data.assetId
    * @returns QueuedEventCollectionResponse Successful Response
    * @throws ApiError
    */
@@ -514,6 +523,7 @@ export class AssetService {
       },
       query: {
         before: data.before,
+        asset_id: data.assetId,
       },
       errors: {
         401: "Unauthorized",
@@ -529,6 +539,7 @@ export class AssetService {
    * @param data The data for the request.
    * @param data.dagId
    * @param data.before
+   * @param data.assetId
    * @returns void Successful Response
    * @throws ApiError
    */
@@ -543,6 +554,7 @@ export class AssetService {
       },
       query: {
         before: data.before,
+        asset_id: data.assetId,
       },
       errors: {
         400: "Bad Request",
@@ -1369,6 +1381,7 @@ export class DagRunService {
    * @param data The data for the request.
    * @param data.dagId
    * @param data.dagRunId
+   * @param data.assetId
    * @returns AssetEventCollectionResponse Successful Response
    * @throws ApiError
    */
@@ -1381,6 +1394,9 @@ export class DagRunService {
       path: {
         dag_id: data.dagId,
         dag_run_id: data.dagRunId,
+      },
+      query: {
+        asset_id: data.assetId,
       },
       errors: {
         401: "Unauthorized",
