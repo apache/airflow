@@ -25,7 +25,7 @@ from unittest.mock import MagicMock
 import pytest
 
 from airflow import DAG
-from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning, DownstreamTasksSkipped
+from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning
 from airflow.models import Connection, DagRun, TaskInstance as TI, XCom
 from airflow.providers.common.sql.hooks.handlers import fetch_all_handler
 from airflow.providers.common.sql.operators.sql import (
@@ -1177,6 +1177,8 @@ class TestSqlBranch:
         mock_get_records.return_value = 1
 
         if AIRFLOW_V_3_0_PLUS:
+            from airflow.exceptions import DownstreamTasksSkipped
+
             with pytest.raises(DownstreamTasksSkipped) as exc_info:
                 branch_op.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE)
 
@@ -1223,6 +1225,8 @@ class TestSqlBranch:
         mock_get_records.return_value = true_value
 
         if AIRFLOW_V_3_0_PLUS:
+            from airflow.exceptions import DownstreamTasksSkipped
+
             with pytest.raises(DownstreamTasksSkipped) as exc_info:
                 branch_op.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE)
 
@@ -1269,6 +1273,8 @@ class TestSqlBranch:
 
         mock_get_records.return_value = false_value
         if AIRFLOW_V_3_0_PLUS:
+            from airflow.exceptions import DownstreamTasksSkipped
+
             with pytest.raises(DownstreamTasksSkipped) as exc_info:
                 branch_op.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE)
             assert exc_info.value.tasks == [("branch_1", -1)]
@@ -1324,6 +1330,8 @@ class TestSqlBranch:
         mock_get_records.return_value = [["1"]]
 
         if AIRFLOW_V_3_0_PLUS:
+            from airflow.exceptions import DownstreamTasksSkipped
+
             with pytest.raises(DownstreamTasksSkipped) as exc_info:
                 branch_op.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE)
             assert exc_info.value.tasks == [("branch_3", -1)]
@@ -1440,6 +1448,8 @@ class TestSqlBranch:
         mock_get_records.return_value = [false_value]
 
         if AIRFLOW_V_3_0_PLUS:
+            from airflow.exceptions import DownstreamTasksSkipped
+
             with pytest.raises(DownstreamTasksSkipped) as exc_info:
                 branch_op.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE)
             assert exc_info.value.tasks == [("branch_1", -1)]
