@@ -2766,7 +2766,17 @@ paths:
       summary: Get Dag Stats
       description: Get Dag statistics.
       operationId: get_dag_stats
+      security:
+      - OAuth2PasswordBearer: []
       parameters:
+      - name: dag_id
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Dag Id
       - name: dag_ids
         in: query
         required: false
