@@ -251,8 +251,14 @@ class MySqlHook(DbApiHook):
 
     def bulk_dump(self, table: str, tmp_file: str) -> None:
         """Dump a database table into a tab-delimited file."""
+        import re
+
         conn = self.get_conn()
         cur = conn.cursor()
+
+        if not re.fullmatch(r"^[a-zA-Z0-9_.]+$", table):
+            raise ValueError(f"Invalid table name: {table}")
+
         cur.execute(
             f"SELECT * INTO OUTFILE %s FROM {table}",
             (tmp_file,),
