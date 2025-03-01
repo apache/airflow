@@ -2397,7 +2397,7 @@ export type GetProvidersData = {
 export type GetProvidersResponse = ProviderCollectionResponse;
 
 export type GetXcomEntryData = {
-  dagId: string;
+  dagId: string | null;
   dagRunId: string;
   deserialize?: boolean;
   mapIndex?: number;
@@ -2409,7 +2409,7 @@ export type GetXcomEntryData = {
 export type GetXcomEntryResponse = XComResponseNative | XComResponseString;
 
 export type UpdateXcomEntryData = {
-  dagId: string;
+  dagId: string | null;
   dagRunId: string;
   requestBody: XComUpdateBody;
   taskId: string;
@@ -2419,7 +2419,7 @@ export type UpdateXcomEntryData = {
 export type UpdateXcomEntryResponse = XComResponseNative;
 
 export type GetXcomEntriesData = {
-  dagId: string;
+  dagId: string | null;
   dagRunId: string;
   limit?: number;
   mapIndex?: number | null;
@@ -2431,7 +2431,7 @@ export type GetXcomEntriesData = {
 export type GetXcomEntriesResponse = XComCollectionResponse;
 
 export type CreateXcomEntryData = {
-  dagId: string;
+  dagId: string | null;
   dagRunId: string;
   requestBody: XComCreateBody;
   taskId: string;
