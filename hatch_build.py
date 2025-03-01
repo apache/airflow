@@ -371,7 +371,7 @@ DEPENDENCIES = [
     # description on PyPI for more details: https://pypi.org/project/eval-type-backport/
     'eval-type-backport>=0.2.0;python_version<"3.10"',
     # temporarily pinning fastapi after the recent release started breaking tests
-    "fastapi[standard]>=0.112.2,<0.115.10",
+    "fastapi[standard]>=0.112.2,!=0.115.10",
     "flask-caching>=2.0.0",
     # Flask-Session 0.6 add new arguments into the SqlAlchemySessionInterface constructor as well as
     # all parameters now are mandatory which make AirflowDatabaseSessionInterface incompatible with this version.
