@@ -44,7 +44,8 @@ def test_client():
             ): "airflow.auth.managers.simple.simple_auth_manager.SimpleAuthManager",
         }
     ):
-        auth_manager = SimpleAuthManager()
+        app = create_app()
+        auth_manager = app.state.auth_manager
         # set time_very_before to 2014-01-01 00:00:00 and time_very_after to tomorrow
         # to make the JWT token always valid for all test cases with time_machine
         time_very_before = datetime.datetime(2014, 1, 1, 0, 0, 0)
@@ -57,7 +58,7 @@ def test_client():
                 **auth_manager.serialize_user(SimpleAuthManagerUser(username="test", role="admin")),
             }
         )
-        yield TestClient(create_app(), headers={"Authorization": f"Bearer {token}"})
+        yield TestClient(app, headers={"Authorization": f"Bearer {token}"})
 
 
 @pytest.fixture
