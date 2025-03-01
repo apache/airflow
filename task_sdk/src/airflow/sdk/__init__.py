@@ -67,6 +67,7 @@ __lazy_imports: dict[str, str] = {
     "AssetAny": ".definitions.asset",
     "AssetWatcher": ".definitions.asset",
     "BaseOperator": ".definitions.baseoperator",
+    "BaseOperatorLink": ".definitions.baseoperatorlink",
     "Connection": ".definitions.connection",
     "Context": ".definitions.context",
     "DAG": ".definitions.dag",

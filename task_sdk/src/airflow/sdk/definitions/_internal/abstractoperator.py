@@ -41,7 +41,7 @@ from airflow.utils.weight_rule import WeightRule
 if TYPE_CHECKING:
     import jinja2
 
-    from airflow.models.baseoperatorlink import BaseOperatorLink
+    from airflow.sdk import BaseOperatorLink
     from airflow.sdk.definitions.baseoperator import BaseOperator
     from airflow.sdk.definitions.context import Context
     from airflow.sdk.definitions.dag import DAG
