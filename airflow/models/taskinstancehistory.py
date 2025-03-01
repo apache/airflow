@@ -61,6 +61,7 @@ class TaskInstanceHistory(Base):
     """
 
     __tablename__ = "task_instance_history"
+    id = Column(Integer(), autoincrement=True)
     try_id = Column(UUIDType(binary=False), nullable=False, primary_key=True)
     task_instance_id = Column(
         String(36).with_variant(postgresql.UUID(as_uuid=False), "postgresql"),
