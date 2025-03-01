@@ -8232,6 +8232,12 @@ components:
           title: Concurrency
           description: Return max_active_tasks as concurrency.
           readOnly: true
+        latest_dag_version:
+          anyOf:
+          - $ref: '#/components/schemas/DagVersionResponse'
+          - type: 'null'
+          description: Return the latest DagVersion.
+          readOnly: true
       type: object
       required:
       - dag_id
@@ -8270,6 +8276,7 @@ components:
       - last_parsed
       - file_token
       - concurrency
+      - latest_dag_version
       title: DAGDetailsResponse
       description: Specific serializer for DAG Details responses.
     DAGPatchBody:
@@ -8527,9 +8534,6 @@ components:
           $ref: '#/components/schemas/DagRunType'
         state:
           $ref: '#/components/schemas/DagRunState'
-        external_trigger:
-          type: boolean
-          title: External Trigger
         triggered_by:
           $ref: '#/components/schemas/DagRunTriggeredByType'
         conf:
@@ -8540,6 +8544,11 @@ components:
           - type: string
           - type: 'null'
           title: Note
+        dag_versions:
+          items:
+            $ref: '#/components/schemas/DagVersionResponse'
+          type: array
+          title: Dag Versions
       type: object
       required:
       - dag_run_id
@@ -8554,10 +8563,10 @@ components:
       - last_scheduling_decision
       - run_type
       - state
-      - external_trigger
       - triggered_by
       - conf
       - note
+      - dag_versions
       title: DAGRunResponse
       description: DAG Run serializer for responses.
     DAGRunStates:
@@ -10097,6 +10106,21 @@ components:
       - arrange
       title: StructureDataResponse
       description: Structure Data serializer for responses.
+    StructuredLogMessage:
+      properties:
+        timestamp:
+          type: string
+          format: date-time
+          title: Timestamp
+        event:
+          type: string
+          title: Event
+      additionalProperties: true
+      type: object
+      required:
+      - event
+      title: StructuredLogMessage
+      description: An individual log message.
     TaskCollectionResponse:
       properties:
         tasks:
@@ -10429,7 +10453,6 @@ components:
         rendered_fields:
           type: object
           title: Rendered Fields
-          default: {}
         trigger:
           anyOf:
           - $ref: '#/components/schemas/TriggerResponse'
@@ -10688,7 +10711,13 @@ components:
     TaskInstancesLogResponse:
       properties:
         content:
-          type: string
+          anyOf:
+          - items:
+              $ref: '#/components/schemas/StructuredLogMessage'
+            type: array
+          - items:
+              type: string
+            type: array
           title: Content
         continuation_token:
           anyOf:
@@ -10942,8 +10971,10 @@ components:
           - type: 'null'
           title: Logical Date
         run_after:
-          type: string
-          format: date-time
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
           title: Run After
         conf:
           type: object

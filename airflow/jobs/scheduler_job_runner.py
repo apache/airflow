@@ -41,6 +41,7 @@ from sqlalchemy.sql import expression
 from airflow import settings
 from airflow.callbacks.callback_requests import DagCallbackRequest, TaskCallbackRequest
 from airflow.configuration import conf
+from airflow.dag_processing.bundles.base import BundleUsageTrackingManager
 from airflow.exceptions import RemovedInAirflow3Warning
 from airflow.executors import workloads
 from airflow.executors.base_executor import BaseExecutor
@@ -1028,6 +1029,18 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
             self._cleanup_stale_dags,
         )
 
+        if any(x.is_local for x in self.job.executors):
+            bundle_cleanup_mgr = BundleUsageTrackingManager()
+            check_interval = conf.getint(
+                section="dag_processor",
+                key="stale_bundle_cleanup_interval",
+            )
+            if check_interval > 0:
+                timers.call_regular_interval(
+                    delay=check_interval,
+                    action=bundle_cleanup_mgr.remove_stale_bundle_versions,
+                )
+
         for loop_count in itertools.count(start=1):
             with (
                 Trace.start_span(span_name="scheduler_job_loop", component="SchedulerJobRunner") as span,
@@ -1459,8 +1472,8 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
             dag_run.start_date = timezone.utcnow()
             if (
                 dag.timetable.periodic
+                and dag_run.run_type != DagRunType.MANUAL
                 and dag_run.triggered_by != DagRunTriggeredByType.ASSET
-                and not dag_run.external_trigger
                 and dag_run.clear_number < 1
             ):
                 # TODO: Logically, this should be DagRunInfo.run_after, but the
@@ -1469,7 +1482,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                 # a field on DagRun for this instead of relying on the run
                 # always happening immediately after the data interval.
                 # We only publish these metrics for scheduled dag runs and only
-                # when ``external_trigger`` is *False* and ``clear_number`` is 0.
+                # when ``run_type`` is *MANUAL* and ``clear_number`` is 0.
                 expected_start_date = dag.get_run_data_interval(dag_run).end
                 schedule_delay = dag_run.start_date - expected_start_date
                 # Publish metrics twice with backward compatible name, and then with tags

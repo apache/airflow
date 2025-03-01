@@ -798,7 +798,6 @@ def _set_ti_attrs(target, source, include_dag_run=False):
         target.dag_run.state = source.dag_run.state
         target.dag_run.run_id = source.dag_run.run_id
         target.dag_run.creating_job_id = source.dag_run.creating_job_id
-        target.dag_run.external_trigger = source.dag_run.external_trigger
         target.dag_run.run_type = source.dag_run.run_type
         target.dag_run.conf = source.dag_run.conf
         target.dag_run.data_interval_start = source.dag_run.data_interval_start
@@ -2857,7 +2856,9 @@ class TaskInstance(Base, LoggingMixin):
             self.log.error("Received SIGTERM. Terminating subprocesses.")
             self.log.error("Stacktrace: \n%s", "".join(traceback.format_stack()))
             self.task.on_kill()
-            raise AirflowTaskTerminated("Task received SIGTERM signal")
+            raise AirflowTaskTerminated(
+                f"Task received SIGTERM signal {self.task_id=} {self.dag_id=} {self.run_id=} {self.map_index=}"
+            )
 
         signal.signal(signal.SIGTERM, signal_handler)
 

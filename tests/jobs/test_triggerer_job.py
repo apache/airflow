@@ -149,6 +149,7 @@ def supervisor_builder(mocker, session):
 
         process = mocker.Mock(spec=psutil.Process, pid=10 * job.id + 1)
         proc = TriggerRunnerSupervisor(
+            log=mocker.Mock(),
             id=job.id,
             job=job,
             pid=process.pid,

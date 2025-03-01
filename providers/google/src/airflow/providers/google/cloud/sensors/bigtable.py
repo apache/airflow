@@ -23,13 +23,14 @@ from collections.abc import Sequence
 from typing import TYPE_CHECKING
 
 import google.api_core.exceptions
+from google.cloud.bigtable import enums
+from google.cloud.bigtable.table import ClusterState
+
 from airflow.providers.google.cloud.hooks.bigtable import BigtableHook
 from airflow.providers.google.cloud.links.bigtable import BigtableTablesLink
 from airflow.providers.google.cloud.operators.bigtable import BigtableValidationMixin
 from airflow.providers.google.common.hooks.base_google import PROVIDE_PROJECT_ID
 from airflow.sensors.base import BaseSensorOperator
-from google.cloud.bigtable import enums
-from google.cloud.bigtable.table import ClusterState
 
 if TYPE_CHECKING:
     from airflow.utils.context import Context

@@ -206,11 +206,11 @@ class TestGCSHook:
         exists_method.return_value = True
 
         # When
-        response = self.gcs_hook.exists(bucket_name=test_bucket, object_name=test_object)
+        response = self.gcs_hook.exists(bucket_name=test_bucket, object_name=test_object, user_project=None)
 
         # Then
         assert response
-        bucket_mock.assert_called_once_with(test_bucket)
+        bucket_mock.assert_called_once_with(test_bucket, user_project=None)
         blob_object.assert_called_once_with(blob_name=test_object)
         exists_method.assert_called_once_with(retry=DEFAULT_RETRY)
 
@@ -226,7 +226,7 @@ class TestGCSHook:
         exists_method.return_value = False
 
         # When
-        response = self.gcs_hook.exists(bucket_name=test_bucket, object_name=test_object)
+        response = self.gcs_hook.exists(bucket_name=test_bucket, object_name=test_object, user_project=None)
 
         # Then
         assert not response

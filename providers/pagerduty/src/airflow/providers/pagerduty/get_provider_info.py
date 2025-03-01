@@ -27,7 +27,7 @@ def get_provider_info():
         "name": "Pagerduty",
         "description": "`Pagerduty <https://www.pagerduty.com/>`__\n",
         "state": "ready",
-        "source-date-epoch": 1739964081,
+        "source-date-epoch": 1740734171,
         "versions": [
             "4.0.1",
             "4.0.0",
