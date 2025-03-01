@@ -1971,7 +1971,7 @@ export type GetListDagRunsBatchResponse = DAGRunCollectionResponse;
 
 export type GetDagSourceData = {
   accept?: "application/json" | "text/plain" | "*/*";
-  dagId: string;
+  dagId: string | null;
   versionNumber?: number | null;
 };
 
