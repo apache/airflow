@@ -20,11 +20,11 @@ import { Box, Heading } from "@chakra-ui/react";
 import type { ColumnDef } from "@tanstack/react-table";
 
 import { useConnectionServiceGetConnections } from "openapi/queries";
-import type { PluginResponse } from "openapi/requests/types.gen";
+import type { ConnectionResponse } from "openapi/requests/types.gen";
 import { DataTable } from "src/components/DataTable";
 import { ErrorAlert } from "src/components/ErrorAlert";
 
-const columns: Array<ColumnDef<PluginResponse>> = [
+const columns: Array<ColumnDef<ConnectionResponse>> = [
   {
     accessorKey: "connection_id",
     enableSorting: false,
