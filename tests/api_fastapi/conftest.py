@@ -119,7 +119,7 @@ def configure_git_connection_for_dag_bundle(session):
 
 
 @pytest.fixture
-def make_dag_with_multiple_versions(dag_maker, configure_git_connection_for_dag_bundle, session):
+def make_dag_with_multiple_versions(dag_maker, configure_git_connection_for_dag_bundle):
     """
     Create DAG with multiple versions
 
