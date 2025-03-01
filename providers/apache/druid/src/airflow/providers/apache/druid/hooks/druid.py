@@ -119,7 +119,6 @@ class DruidHook(BaseHook):
         return self.verify_ssl
 
     def get_status_url(self, ingestion_type):
-
         if ingestion_type == IngestionType.MSQ:
             return f"{self.conn.schema}://{self.conn.host}:{self.conn.port}/druid/indexer/v1/task"
         else:
