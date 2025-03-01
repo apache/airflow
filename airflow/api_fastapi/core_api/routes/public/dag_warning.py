@@ -22,6 +22,7 @@ from typing import Annotated
 from fastapi import Depends
 from sqlalchemy import select
 
+from airflow.api_fastapi.auth.managers.models.resource_details import DagAccessEntity
 from airflow.api_fastapi.common.db.common import (
     SessionDep,
     paginated_select,
@@ -37,6 +38,7 @@ from airflow.api_fastapi.common.router import AirflowRouter
 from airflow.api_fastapi.core_api.datamodels.dag_warning import (
     DAGWarningCollectionResponse,
 )
+from airflow.api_fastapi.core_api.security import requires_access_dag
 from airflow.models.dagwarning import DagWarning, DagWarningType
 
 dag_warning_router = AirflowRouter(tags=["DagWarning"])
@@ -44,6 +46,7 @@ dag_warning_router = AirflowRouter(tags=["DagWarning"])
 
 @dag_warning_router.get(
     "/dagWarnings",
+    dependencies=[Depends(requires_access_dag(method="GET", access_entity=DagAccessEntity.WARNING))],
 )
 def list_dag_warnings(
     dag_id: Annotated[FilterParam[str | None], Depends(filter_param_factory(DagWarning.dag_id, str | None))],
