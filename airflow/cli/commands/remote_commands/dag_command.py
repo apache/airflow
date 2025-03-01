@@ -631,7 +631,7 @@ def dag_test(args, dag: DAG | None = None, session: Session = NEW_SESSION) -> No
     )
 
     with _airflow_parsing_context_manager(dag_id=args.dag_id):
-        dag = dag or get_dag(subdir=args.subdir, dag_id=args.dag_id)
+        dag = dag or get_dag(subdir=None, dag_id=args.dag_id, from_db=True)
     dr: DagRun = dag.test(
         logical_date=logical_date,
         run_conf=run_conf,
