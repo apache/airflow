@@ -26,33 +26,24 @@ class TestPodReader:
     """Tests RBAC Pod Reader."""
 
     @pytest.mark.parametrize(
-        "triggerer, webserver, api_server, expected",
+        "triggerer, webserver, airflow_version, expected",
         [
-            (
-                True,
-                True,
-                True,
-                [
-                    "release-name-airflow-webserver",
-                    "release-name-airflow-triggerer",
-                    "release-name-airflow-api-server",
-                ],
-            ),
-            (True, True, False, ["release-name-airflow-webserver", "release-name-airflow-triggerer"]),
-            (True, False, True, ["release-name-airflow-triggerer", "release-name-airflow-api-server"]),
-            (True, False, False, ["release-name-airflow-triggerer"]),
-            (False, True, True, ["release-name-airflow-webserver", "release-name-airflow-api-server"]),
-            (False, True, False, ["release-name-airflow-webserver"]),
-            (False, False, True, ["release-name-airflow-api-server"]),
-            (False, False, False, []),
+            (True, True, "2.9.0", ["release-name-airflow-webserver", "release-name-airflow-triggerer"]),
+            (True, False, "2.9.0", ["release-name-airflow-triggerer"]),
+            (False, True, "2.9.0", ["release-name-airflow-webserver"]),
+            (False, False, "2.9.0", []),
+            (True, True, "3.0.0", ["release-name-airflow-api-server", "release-name-airflow-triggerer"]),
+            (True, False, "3.0.0", ["release-name-airflow-api-server", "release-name-airflow-triggerer"]),
+            (False, True, "3.0.0", ["release-name-airflow-api-server"]),
         ],
     )
-    def test_pod_log_reader_rolebinding(self, triggerer, webserver, api_server, expected):
+    def test_pod_log_reader_rolebinding(self, triggerer, webserver, airflow_version, expected):
         docs = render_chart(
             values={
                 "triggerer": {"enabled": triggerer},
                 "webserver": {"allowPodLogReading": webserver},
-                "apiServer": {"allowPodLogReading": api_server},
+                "apiServer": {"allowPodLogReading": airflow_version >= "3.0.0"},
+                "airflowVersion": airflow_version,
             },
             show_only=["templates/rbac/pod-log-reader-rolebinding.yaml"],
         )
