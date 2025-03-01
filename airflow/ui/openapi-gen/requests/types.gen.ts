@@ -2107,7 +2107,7 @@ export type GetExtraLinksData = {
 export type GetExtraLinksResponse = ExtraLinksResponse;
 
 export type GetTaskInstanceData = {
-  dagId: string;
+  dagId: string | null;
   dagRunId: string;
   taskId: string;
 };
@@ -2115,7 +2115,7 @@ export type GetTaskInstanceData = {
 export type GetTaskInstanceResponse = TaskInstanceResponse;
 
 export type PatchTaskInstanceData = {
-  dagId: string;
+  dagId: string | null;
   dagRunId: string;
   mapIndex?: number;
   requestBody: PatchTaskInstanceBody;
@@ -2126,7 +2126,7 @@ export type PatchTaskInstanceData = {
 export type PatchTaskInstanceResponse = TaskInstanceResponse;
 
 export type GetMappedTaskInstancesData = {
-  dagId: string;
+  dagId: string | null;
   dagRunId: string;
   durationGte?: number | null;
   durationLte?: number | null;
@@ -2154,7 +2154,7 @@ export type GetMappedTaskInstancesData = {
 export type GetMappedTaskInstancesResponse = TaskInstanceCollectionResponse;
 
 export type GetTaskInstanceDependenciesData = {
-  dagId: string;
+  dagId: string | null;
   dagRunId: string;
   mapIndex: number;
   taskId: string;
@@ -2163,7 +2163,7 @@ export type GetTaskInstanceDependenciesData = {
 export type GetTaskInstanceDependenciesResponse = TaskDependencyCollectionResponse;
 
 export type GetTaskInstanceDependencies1Data = {
-  dagId: string;
+  dagId: string | null;
   dagRunId: string;
   mapIndex?: number;
   taskId: string;
@@ -2172,7 +2172,7 @@ export type GetTaskInstanceDependencies1Data = {
 export type GetTaskInstanceDependencies1Response = TaskDependencyCollectionResponse;
 
 export type GetTaskInstanceTriesData = {
-  dagId: string;
+  dagId: string | null;
   dagRunId: string;
   mapIndex?: number;
   taskId: string;
@@ -2181,7 +2181,7 @@ export type GetTaskInstanceTriesData = {
 export type GetTaskInstanceTriesResponse = TaskInstanceHistoryCollectionResponse;
 
 export type GetMappedTaskInstanceTriesData = {
-  dagId: string;
+  dagId: string | null;
   dagRunId: string;
   mapIndex: number;
   taskId: string;
@@ -2190,7 +2190,7 @@ export type GetMappedTaskInstanceTriesData = {
 export type GetMappedTaskInstanceTriesResponse = TaskInstanceHistoryCollectionResponse;
 
 export type GetMappedTaskInstanceData = {
-  dagId: string;
+  dagId: string | null;
   dagRunId: string;
   mapIndex: number;
   taskId: string;
@@ -2199,7 +2199,7 @@ export type GetMappedTaskInstanceData = {
 export type GetMappedTaskInstanceResponse = TaskInstanceResponse;
 
 export type PatchTaskInstance1Data = {
-  dagId: string;
+  dagId: string | null;
   dagRunId: string;
   mapIndex: number;
   requestBody: PatchTaskInstanceBody;
@@ -2210,7 +2210,7 @@ export type PatchTaskInstance1Data = {
 export type PatchTaskInstance1Response = TaskInstanceResponse;
 
 export type GetTaskInstancesData = {
-  dagId: string;
+  dagId: string | null;
   dagRunId: string;
   durationGte?: number | null;
   durationLte?: number | null;
@@ -2239,7 +2239,7 @@ export type GetTaskInstancesData = {
 export type GetTaskInstancesResponse = TaskInstanceCollectionResponse;
 
 export type GetTaskInstancesBatchData = {
-  dagId: "~";
+  dagId: string | null;
   dagRunId: "~";
   requestBody: TaskInstancesBatchBody;
 };
@@ -2247,7 +2247,7 @@ export type GetTaskInstancesBatchData = {
 export type GetTaskInstancesBatchResponse = TaskInstanceCollectionResponse;
 
 export type GetTaskInstanceTryDetailsData = {
-  dagId: string;
+  dagId: string | null;
   dagRunId: string;
   mapIndex?: number;
   taskId: string;
@@ -2257,7 +2257,7 @@ export type GetTaskInstanceTryDetailsData = {
 export type GetTaskInstanceTryDetailsResponse = TaskInstanceHistoryResponse;
 
 export type GetMappedTaskInstanceTryDetailsData = {
-  dagId: string;
+  dagId: string | null;
   dagRunId: string;
   mapIndex: number;
   taskId: string;
@@ -2267,14 +2267,14 @@ export type GetMappedTaskInstanceTryDetailsData = {
 export type GetMappedTaskInstanceTryDetailsResponse = TaskInstanceHistoryResponse;
 
 export type PostClearTaskInstancesData = {
-  dagId: string;
+  dagId: string | null;
   requestBody: ClearTaskInstancesBody;
 };
 
 export type PostClearTaskInstancesResponse = TaskInstanceCollectionResponse;
 
 export type PatchTaskInstanceDryRunData = {
-  dagId: string;
+  dagId: string | null;
   dagRunId: string;
   mapIndex: number;
   requestBody: PatchTaskInstanceBody;
@@ -2285,7 +2285,7 @@ export type PatchTaskInstanceDryRunData = {
 export type PatchTaskInstanceDryRunResponse = TaskInstanceCollectionResponse;
 
 export type PatchTaskInstanceDryRun1Data = {
-  dagId: string;
+  dagId: string | null;
   dagRunId: string;
   mapIndex?: number;
   requestBody: PatchTaskInstanceBody;
