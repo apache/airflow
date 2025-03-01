@@ -2072,6 +2072,7 @@ export type GetDagTagsData = {
 export type GetDagTagsResponse = DAGTagCollectionResponse;
 
 export type GetEventLogData = {
+  dagId?: string | null;
   eventLogId: number;
 };
 
