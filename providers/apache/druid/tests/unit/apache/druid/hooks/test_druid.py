@@ -316,15 +316,15 @@ class TestDruidHook:
         hook = DruidHook(timeout=1, max_ingestion_time=5)
         assert hook.get_conn_url(IngestionType.MSQ) == "https://test_host:1/sql_ingest"
 
-    @patch("airflow.providers.apache.druid.hooks.druid.DruidHook.get_status_url")
-    def test_get_status_url(self, mock_get_status_url):
-        get_status_url = MagicMock()
-        get_status_url.host = "test_host"
-        get_status_url.conn_type = "http"
-        get_status_url.schema = "https"
-        get_status_url.port = "1"
-        get_status_url.extra_dejson = {"endpoint": "ingest", "msq_endpoint": "sql_ingest"}
-        mock_get_status_url.return_value = get_status_url
+    @patch("airflow.providers.apache.druid.hooks.druid.DruidHook.get_connection")
+    def test_get_status_url(self, mock_get_connection):
+        get_conn_value = MagicMock()
+        get_conn_value.host = "test_host"
+        get_conn_value.conn_type = "http"
+        get_conn_value.schema = "https"
+        get_conn_value.port = "1"
+        get_conn_value.extra_dejson = {"endpoint": "ingest", "msq_endpoint": "sql_ingest"}
+        mock_get_connection.return_value = get_conn_value
         hook = DruidHook(timeout=1, max_ingestion_time=5)
         assert hook.get_status_url(IngestionType.MSQ) == "https://test_host:1/druid/indexer/v1/task"
 
