@@ -3219,7 +3219,7 @@ export const useDagRunServiceTriggerDagRun = <
       TData,
       TError,
       {
-        dagId: unknown;
+        dagId: string;
         requestBody: TriggerDAGRunPostBody;
       },
       TContext
@@ -3231,7 +3231,7 @@ export const useDagRunServiceTriggerDagRun = <
     TData,
     TError,
     {
-      dagId: unknown;
+      dagId: string;
       requestBody: TriggerDAGRunPostBody;
     },
     TContext
@@ -3259,7 +3259,7 @@ export const useDagRunServiceGetListDagRunsBatch = <
       TData,
       TError,
       {
-        dagId: "~";
+        dagId: string;
         requestBody: DAGRunsBatchBody;
       },
       TContext
@@ -3271,7 +3271,7 @@ export const useDagRunServiceGetListDagRunsBatch = <
     TData,
     TError,
     {
-      dagId: "~";
+      dagId: string;
       requestBody: DAGRunsBatchBody;
     },
     TContext
