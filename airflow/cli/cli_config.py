@@ -1067,7 +1067,6 @@ DAGS_COMMANDS = (
         func=lazy_load_command("airflow.cli.commands.remote_commands.dag_command.dag_trigger"),
         args=(
             ARG_DAG_ID,
-            ARG_SUBDIR,
             ARG_RUN_ID,
             ARG_CONF,
             ARG_EXEC_DATE,
@@ -1133,7 +1132,6 @@ DAGS_COMMANDS = (
         ),
         func=lazy_load_command("airflow.cli.commands.remote_commands.dag_command.dag_dependencies_show"),
         args=(
-            ARG_SUBDIR,
             ARG_SAVE,
             ARG_IMGCAT,
             ARG_VERBOSE,
