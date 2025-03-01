@@ -1898,21 +1898,21 @@ export type TestConnectionResponse = ConnectionTestResponse;
 export type CreateDefaultConnectionsResponse = void;
 
 export type GetDagRunData = {
-  dagId: string;
+  dagId: string | null;
   dagRunId: string;
 };
 
 export type GetDagRunResponse = DAGRunResponse;
 
 export type DeleteDagRunData = {
-  dagId: string;
+  dagId: string | null;
   dagRunId: string;
 };
 
 export type DeleteDagRunResponse = void;
 
 export type PatchDagRunData = {
-  dagId: string;
+  dagId: string | null;
   dagRunId: string;
   requestBody: DAGRunPatchBody;
   updateMask?: Array<string> | null;
@@ -1921,14 +1921,14 @@ export type PatchDagRunData = {
 export type PatchDagRunResponse = DAGRunResponse;
 
 export type GetUpstreamAssetEventsData = {
-  dagId: string;
+  dagId: string | null;
   dagRunId: string;
 };
 
 export type GetUpstreamAssetEventsResponse = AssetEventCollectionResponse;
 
 export type ClearDagRunData = {
-  dagId: string;
+  dagId: string | null;
   dagRunId: string;
   requestBody: DAGRunClearBody;
 };
@@ -1936,7 +1936,7 @@ export type ClearDagRunData = {
 export type ClearDagRunResponse = TaskInstanceCollectionResponse | DAGRunResponse;
 
 export type GetDagRunsData = {
-  dagId: string;
+  dagId: string | null;
   endDateGte?: string | null;
   endDateLte?: string | null;
   limit?: number;
@@ -1956,14 +1956,14 @@ export type GetDagRunsData = {
 export type GetDagRunsResponse = DAGRunCollectionResponse;
 
 export type TriggerDagRunData = {
-  dagId: unknown;
+  dagId: string | null;
   requestBody: TriggerDAGRunPostBody;
 };
 
 export type TriggerDagRunResponse = DAGRunResponse;
 
 export type GetListDagRunsBatchData = {
-  dagId: "~";
+  dagId: string | null;
   requestBody: DAGRunsBatchBody;
 };
 
