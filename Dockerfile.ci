@@ -121,6 +121,8 @@ function install_debian_dev_dependencies() {
     echo
     # shellcheck disable=SC2086
     apt-get install -y --no-install-recommends ${DEV_APT_DEPS} ${ADDITIONAL_DEV_APT_DEPS}
+    # we have to install latest cargo to support let..else statement from pendulum
+    curl https://sh.rustup.rs -sSf | sh -s -- -y
 }
 
 function install_debian_runtime_dependencies() {
@@ -1258,8 +1260,8 @@ ENV AIRFLOW_PIP_VERSION=${AIRFLOW_PIP_VERSION} \
     UV_LINK_MODE=copy \
     AIRFLOW_PRE_COMMIT_VERSION=${AIRFLOW_PRE_COMMIT_VERSION}
 
-# The PATH is needed for PIPX to find the tools installed
-ENV PATH="/root/.local/bin:${PATH}"
+# The PATH is needed for PIPX to find the tools installed and cargo to build the wheels
+ENV PATH="/root/.local/bin:/root/.cargo/bin:${PATH}"
 
 # Useful for creating a cache id based on the underlying architecture, preventing the use of cached python packages from
 # an incorrect architecture.

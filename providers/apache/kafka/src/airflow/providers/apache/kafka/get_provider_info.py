@@ -43,6 +43,7 @@ def get_provider_info():
             "1.1.0",
             "1.0.0",
         ],
+        "excluded-python-versions": ["3.13"],
         "integrations": [
             {
                 "integration-name": "Apache Kafka",
@@ -89,5 +90,9 @@ def get_provider_info():
                 "connection-type": "kafka",
             }
         ],
-        "dependencies": ["apache-airflow>=2.9.0", "asgiref>=2.3.0", "confluent-kafka>=2.3.0"],
+        "dependencies": [
+            "apache-airflow>=2.9.0",
+            "asgiref>=2.3.0",
+            "confluent-kafka>=2.3.0; python_version <= '3.13'",
+        ],
     }

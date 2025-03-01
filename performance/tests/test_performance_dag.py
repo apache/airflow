@@ -24,7 +24,7 @@ import json
 import os
 
 import pytest
-import re2 as re
+import re
 from airflow.configuration import conf
 from airflow.models import DagBag
 from airflow.utils.trigger_rule import TriggerRule
