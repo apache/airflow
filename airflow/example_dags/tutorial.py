@@ -45,9 +45,6 @@ with DAG(
     # You can override them on a per-task basis during operator initialization
     default_args={
         "depends_on_past": False,
-        "email": ["airflow@example.com"],
-        "email_on_failure": False,
-        "email_on_retry": False,
         "retries": 1,
         "retry_delay": timedelta(minutes=5),
         # 'queue': 'bash_queue',
