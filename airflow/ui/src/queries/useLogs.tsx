@@ -18,6 +18,7 @@
  */
 import { Badge, Text } from "@chakra-ui/react";
 import dayjs from "dayjs";
+import innerText from "react-innertext";
 
 import { useTaskInstanceServiceGetLog } from "openapi/queries";
 import type {
@@ -41,13 +42,21 @@ type ParseLogsProps = {
   logLevelFilters?: Array<string>;
 };
 
+let startGroup = false;
+let groupLines: Array<JSX.Element | ""> = [];
+let groupName = "";
+
 const renderStructuredLog = (
   logMessage: string | StructuredLogMessage,
   index: number,
   logLevelFilters?: Array<string>,
 ) => {
   if (typeof logMessage === "string") {
-    return <p key={index}>{logMessage}</p>;
+    return (
+      <Text key={index} py={1}>
+        {logMessage}
+      </Text>
+    );
   }
 
   const { event, level = undefined, timestamp, ...structured } = logMessage;
@@ -96,7 +105,11 @@ const renderStructuredLog = (
     }
   }
 
-  return <p key={index}>{elements}</p>;
+  return (
+    <Text key={index} py={1}>
+      {elements}
+    </Text>
+  );
 };
 
 // TODO: add support for log groups, colors, formats, filters
@@ -116,29 +129,26 @@ const parseLogs = ({ data, logLevelFilters }: ParseLogsProps) => {
     return { data, warning };
   }
 
-  let startGroup = false;
-  let groupLines: Array<string> = [];
-  let groupName = "";
-
   // TODO: Add support for nested groups
   /* eslint-disable react/no-array-index-key */
-  const parsedLines = lines.map((line, index) => {
-    if (line.includes("::group::") && !startGroup) {
+  parsedLines = parsedLines.map((line) => {
+    const text = innerText(line);
+
+    if (text.includes("::group::") && !startGroup) {
       startGroup = true;
-      groupName = line.split("::group::")[1] as string;
-    } else if (line.includes("::endgroup::")) {
+      groupName = text.split("::group::")[1] as string;
+    } else if (text.includes("::endgroup::")) {
       startGroup = false;
-      groupLines.push(line);
       const group = (
-        <details key={groupName}>
+        <details key={groupName} style={{ width: "100%" }}>
           <summary data-testid={`summary-${groupName}`}>
             <Text as="span" color="fg.info" cursor="pointer">
               {groupName}
             </Text>
           </summary>
-          {groupLines.map((text, groupIndex) => (
-            <Text key={groupIndex} py={1}>
-              {text}
+          {groupLines.map((groupLine, groupIndex) => (
+            <Text backgroundColor="bg.emphasized" key={groupIndex}>
+              {groupLine}
             </Text>
           ))}
         </details>
@@ -154,7 +164,7 @@ const parseLogs = ({ data, logLevelFilters }: ParseLogsProps) => {
 
       return undefined;
     } else {
-      return <Text key={index}>{line}</Text>;
+      return line;
     }
   });
 
