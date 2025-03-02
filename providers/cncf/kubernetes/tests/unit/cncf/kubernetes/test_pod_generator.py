@@ -693,13 +693,20 @@ class TestPodGenerator:
         assert sanitized_res == self.deserialize_result
         assert len(caplog.records) == 0
 
+    def test_deserialize_no_defined_model_file(self, caplog, tmp_path):
+        result = PodGenerator.deserialize_model_file()
+        sanitized_res = self.k8s_client.sanitize_for_serialization(result)
+        assert sanitized_res == {}
+        assert len(caplog.records) == 1
+        assert "Model file is not defined, using default model file." in caplog.text
+
     def test_deserialize_non_existent_model_file(self, caplog, tmp_path):
         template_file = (tmp_path / "non_existent.yaml").absolute().as_posix()
         result = PodGenerator.deserialize_model_file(template_file)
         sanitized_res = self.k8s_client.sanitize_for_serialization(result)
         assert sanitized_res == {}
         assert len(caplog.records) == 1
-        assert "non_existent.yaml does not exist" in caplog.text
+        assert "Model file non_existent.yaml does not exist, using default model file." in caplog.text
 
     @pytest.mark.parametrize(
         "input",
