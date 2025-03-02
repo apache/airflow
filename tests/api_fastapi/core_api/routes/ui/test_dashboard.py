@@ -17,6 +17,7 @@
 # under the License.
 from __future__ import annotations
 
+import datetime
 from datetime import timedelta
 
 import pendulum
@@ -24,6 +25,7 @@ import pytest
 
 from airflow.models import DagBag
 from airflow.providers.standard.operators.empty import EmptyOperator
+from airflow.utils import timezone
 from airflow.utils.state import DagRunState, TaskInstanceState
 from airflow.utils.types import DagRunType
 
@@ -104,7 +106,10 @@ class TestHistoricalMetricsDataEndpoint:
         "params, expected",
         [
             (
-                {"start_date": "2023-01-01T00:00", "end_date": "2023-08-02T00:00"},
+                {
+                    "start_date": datetime.datetime(day=1, month=1, year=2023, tzinfo=timezone.utc),
+                    "end_date": datetime.datetime(day=2, month=8, year=2023, tzinfo=timezone.utc),
+                },
                 {
                     "dag_run_states": {"failed": 1, "queued": 0, "running": 1, "success": 1},
                     "dag_run_types": {"backfill": 0, "asset_triggered": 1, "manual": 0, "scheduled": 2},
@@ -126,7 +131,10 @@ class TestHistoricalMetricsDataEndpoint:
                 },
             ),
             (
-                {"start_date": "2023-02-02T00:00", "end_date": "2023-06-02T00:00"},
+                {
+                    "start_date": datetime.datetime(day=2, month=2, year=2023, tzinfo=timezone.utc),
+                    "end_date": datetime.datetime(day=2, month=6, year=2023, tzinfo=timezone.utc),
+                },
                 {
                     "dag_run_states": {"failed": 1, "queued": 0, "running": 0, "success": 0},
                     "dag_run_types": {"backfill": 0, "asset_triggered": 1, "manual": 0, "scheduled": 0},
@@ -148,7 +156,7 @@ class TestHistoricalMetricsDataEndpoint:
                 },
             ),
             (
-                {"start_date": "2023-02-02T00:00"},
+                {"start_date": datetime.datetime(day=2, month=2, year=2023, tzinfo=timezone.utc)},
                 {
                     "dag_run_states": {"failed": 1, "queued": 0, "running": 1, "success": 0},
                     "dag_run_types": {"backfill": 0, "asset_triggered": 1, "manual": 0, "scheduled": 1},
