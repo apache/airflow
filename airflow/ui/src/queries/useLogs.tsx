@@ -130,7 +130,7 @@ const parseLogs = ({ data, logLevelFilters }: ParseLogsProps) => {
   }
 
   // TODO: Add support for nested groups
-  /* eslint-disable react/no-array-index-key */
+
   parsedLines = parsedLines.map((line) => {
     const text = innerText(line);
 
@@ -146,11 +146,7 @@ const parseLogs = ({ data, logLevelFilters }: ParseLogsProps) => {
               {groupName}
             </Text>
           </summary>
-          {groupLines.map((groupLine, groupIndex) => (
-            <Text backgroundColor="bg.emphasized" key={groupIndex}>
-              {groupLine}
-            </Text>
-          ))}
+          {groupLines}
         </details>
       );
 

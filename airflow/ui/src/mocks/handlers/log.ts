@@ -62,14 +62,133 @@ export const handlers: Array<HttpHandler> = [
       trigger: null,
       triggerer_job: null,
       try_number: 1,
-      unixname: "karthikeyan",
+      unixname: "testname",
     }),
   ),
   http.get("/public/dags/log_grouping/dagRuns/manual__2025-02-18T12:19/taskInstances/generate/logs/1", () =>
     HttpResponse.json({
-      content:
-        "[2025-02-18T17:49:56.462+0530] {logging_mixin.py:212} INFO - ::group::group name\\n[2025-02-18T17:49:56.462+0530] {logging_mixin.py:212} INFO - ::group::inner group name 0\\n[2025-02-18T17:49:56.462+0530] {logging_mixin.py:212} INFO - c3dacfc301094ebbaf02172dd4808e82\\n[2025-02-18T17:49:56.463+0530] {logging_mixin.py:212} INFO - a6d1fa3bd57c4d14a3767afa8a0a448c\\n[2025-02-18T17:49:56.463+0530] {logging_mixin.py:212} INFO - ::endgroup::\\n[2025-02-18T17:49:56.463+0530] {logging_mixin.py:212} INFO - ::group::inner group name 1\\n[2025-02-18T17:49:56.463+0530] {logging_mixin.py:212} INFO - 8cd74c3beba14447a3f7cfb929b18df5\\n[2025-02-18T17:49:56.463+0530] {logging_mixin.py:212} INFO - f5ff1c82aad048c2b9c64a349b274305\\n[2025-02-18T17:49:56.463+0530] {logging_mixin.py:212} INFO - ::endgroup::",
-      continuation_token: "eyJlbmRfb2ZfbG9nIjp0cnVlLCJsb2dfcG9zIjozODM3fQ.8qgLbxyEzr1Z4ruegn2QGTUFJRA",
+      content: [
+        {
+          event: "::group::Log message source details",
+          sources: [
+            "/home/airflow/logs/dag_id=tutorial_dag/run_id=manual__2025-02-28T05:18:54.249762+00:00/task_id=load/attempt=1.log",
+          ],
+        },
+        { event: "::endgroup::" },
+        {
+          event:
+            "[2025-02-28T10:49:09.535+0530] {local_task_job_runner.py:120} INFO - ::group::Pre task execution logs",
+          timestamp: "2025-02-28T10:49:09.535000+05:30",
+        },
+        {
+          event:
+            "[2025-02-28T10:49:09.674+0530] {taskinstance.py:2348} INFO - Dependencies all met for dep_context=non-requeueable deps ti=<TaskInstance: tutorial_dag.load manual__2025-02-28T05:18:54.249762+00:00 [queued]>",
+          timestamp: "2025-02-28T10:49:09.674000+05:30",
+        },
+        {
+          event:
+            "[2025-02-28T10:49:09.678+0530] {taskinstance.py:2348} INFO - Dependencies all met for dep_context=requeueable deps ti=<TaskInstance: tutorial_dag.load manual__2025-02-28T05:18:54.249762+00:00 [queued]>",
+          timestamp: "2025-02-28T10:49:09.678000+05:30",
+        },
+        {
+          event: "[2025-02-28T10:49:09.679+0530] {taskinstance.py:2589} INFO - Starting attempt 1 of 3",
+          timestamp: "2025-02-28T10:49:09.679000+05:30",
+        },
+        {
+          event:
+            "[2025-02-28T10:49:09.697+0530] {taskinstance.py:2612} INFO - Executing <Task(PythonOperator): load> on 2025-02-25 06:42:00+00:00",
+          timestamp: "2025-02-28T10:49:09.697000+05:30",
+        },
+        {
+          event:
+            "[2025-02-28T10:49:09.704+0530] {standard_task_runner.py:131} INFO - Started process 24882 to run task",
+          timestamp: "2025-02-28T10:49:09.704000+05:30",
+        },
+        {
+          event:
+            "[2025-02-28T10:49:09.706+0530] {standard_task_runner.py:147} INFO - Running: ['airflow', 'tasks', 'run', 'tutorial_dag', 'load', 'manual__2025-02-28T05:18:54.249762+00:00', '--raw', '--subdir', '/home/airflow/airflow/example_dags/tutorial_dag.py', '--cfg-path', '/tmp/tmpglv7rpjo']",
+          timestamp: "2025-02-28T10:49:09.706000+05:30",
+        },
+        {
+          event: "[2025-02-28T10:49:09.707+0530] {standard_task_runner.py:148} INFO - Subtask load",
+          timestamp: "2025-02-28T10:49:09.707000+05:30",
+        },
+        {
+          event:
+            "[2025-02-28T10:49:09.740+0530] {task_command.py:442} INFO - Running <TaskInstance: tutorial_dag.load manual__2025-02-28T05:18:54.249762+00:00 [running]> on host laptop",
+          timestamp: "2025-02-28T10:49:09.740000+05:30",
+        },
+        {
+          event:
+            "[2025-02-28T10:49:09.841+0530] {taskinstance.py:2897} INFO - Exporting env vars: AIRFLOW_CTX_DAG_OWNER='airflow' AIRFLOW_CTX_DAG_ID='tutorial_dag' AIRFLOW_CTX_TASK_ID='load' AIRFLOW_CTX_LOGICAL_DATE='2025-02-25T06:42:00+00:00' AIRFLOW_CTX_TRY_NUMBER='1' AIRFLOW_CTX_DAG_RUN_ID='manual__2025-02-28T05:18:54.249762+00:00'",
+          timestamp: "2025-02-28T10:49:09.841000+05:30",
+        },
+        {
+          event:
+            "[2025-02-28T10:49:09.842+0530] {logging_mixin.py:212} INFO - Task instance is in running state",
+          timestamp: "2025-02-28T10:49:09.842000+05:30",
+        },
+        {
+          event:
+            "[2025-02-28T10:49:09.842+0530] {logging_mixin.py:212} INFO -  Previous state of the Task instance: queued",
+          timestamp: "2025-02-28T10:49:09.842000+05:30",
+        },
+        {
+          event: "[2025-02-28T10:49:09.848+0530] {logging_mixin.py:212} INFO - Current task name:load",
+          timestamp: "2025-02-28T10:49:09.848000+05:30",
+        },
+        {
+          event: "[2025-02-28T10:49:09.848+0530] {logging_mixin.py:212} INFO - Dag name:tutorial_dag",
+          timestamp: "2025-02-28T10:49:09.848000+05:30",
+        },
+        {
+          event: "[2025-02-28T10:49:09.848+0530] {taskinstance.py:689} INFO - ::endgroup::",
+          timestamp: "2025-02-28T10:49:09.848000+05:30",
+        },
+        {
+          event: "[2025-02-28T10:49:09.852+0530] {logging_mixin.py:212} INFO - {'total_order_value': 1236.7}",
+          timestamp: "2025-02-28T10:49:09.852000+05:30",
+        },
+        {
+          event: "[2025-02-28T10:49:09.852+0530] {python.py:198} INFO - Done. Returned value was: None",
+          timestamp: "2025-02-28T10:49:09.852000+05:30",
+        },
+        {
+          event:
+            "[2025-02-28T10:49:09.856+0530] {taskinstance.py:335} INFO - ::group::Post task execution logs",
+          timestamp: "2025-02-28T10:49:09.856000+05:30",
+        },
+        {
+          event:
+            "[2025-02-28T10:49:09.856+0530] {taskinstance.py:347} INFO - Marking task as SUCCESS. dag_id=tutorial_dag, task_id=load, run_id=manual__2025-02-28T05:18:54.249762+00:00, logical_date=20250225T064200, start_date=20250228T051909, end_date=20250228T051909",
+          timestamp: "2025-02-28T10:49:09.856000+05:30",
+        },
+        {
+          event:
+            "[2025-02-28T10:49:09.871+0530] {logging_mixin.py:212} INFO - Task instance in success state",
+          timestamp: "2025-02-28T10:49:09.871000+05:30",
+        },
+        {
+          event:
+            "[2025-02-28T10:49:09.872+0530] {logging_mixin.py:212} INFO -  Previous state of the Task instance: running",
+          timestamp: "2025-02-28T10:49:09.872000+05:30",
+        },
+        {
+          event:
+            "[2025-02-28T10:49:09.875+0530] {logging_mixin.py:212} INFO - Task operator:<Task(PythonOperator): load>",
+          timestamp: "2025-02-28T10:49:09.875000+05:30",
+        },
+        {
+          event:
+            "[2025-02-28T10:49:09.920+0530] {local_task_job_runner.py:262} INFO - Task exited with return code 0",
+          timestamp: "2025-02-28T10:49:09.920000+05:30",
+        },
+        {
+          event: "[2025-02-28T10:49:09.920+0530] {local_task_job_runner.py:241} INFO - ::endgroup::",
+          timestamp: "2025-02-28T10:49:09.920000+05:30",
+        },
+      ],
+      continuation_token: null,
     }),
   ),
 ];
