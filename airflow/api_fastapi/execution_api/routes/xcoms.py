@@ -21,7 +21,7 @@ import logging
 from typing import Annotated
 
 from fastapi import Body, Depends, HTTPException, Query, Response, status
-from pydantic import JsonValue
+from pydantic import JsonValue, StringConstraints
 from sqlalchemy.sql.selectable import Select
 
 from airflow.api_fastapi.common.db.common import SessionDep
@@ -119,7 +119,7 @@ def get_xcom(
     dag_id: str,
     run_id: str,
     task_id: str,
-    key: str,
+    key: Annotated[str, StringConstraints(min_length=1)],
     xcom_query: Annotated[Select, Depends(xcom_query)],
     map_index: Annotated[int, Query()] = -1,
 ) -> XComResponse:
@@ -158,7 +158,7 @@ def set_xcom(
     dag_id: str,
     run_id: str,
     task_id: str,
-    key: str,
+    key: Annotated[str, StringConstraints(min_length=1)],
     value: Annotated[
         JsonValue,
         Body(
