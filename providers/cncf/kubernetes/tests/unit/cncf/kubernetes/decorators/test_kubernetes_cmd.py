@@ -17,6 +17,7 @@
 from __future__ import annotations
 
 import contextlib
+import warnings
 from unittest import mock
 
 import pytest
@@ -40,6 +41,7 @@ def test_basic_kubernetes_cmd(
     mock_create_pod: mock.Mock,
     mock_hook: mock.Mock,
 ) -> None:
+    expected = ["echo", "Hello world!"]
     with dag_maker(session=session) as dag:
 
         @task.kubernetes_cmd(
@@ -51,7 +53,7 @@ def test_basic_kubernetes_cmd(
             args_only=args_only,
         )
         def hello():
-            return ["echo", "Hello world!"]
+            return expected
 
         hello()
 
@@ -70,11 +72,13 @@ def test_basic_kubernetes_cmd(
 
     containers = mock_create_pod.call_args.kwargs["pod"].spec.containers
     assert len(containers) == 1
-    expected_command = ["echo", "Hello world!"]
+
+    expected_command = expected
     expected_args = []
     if args_only:
         expected_args = expected_command
         expected_command = []
+
     assert containers[0].command == expected_command
     assert containers[0].args == expected_args
 
@@ -187,3 +191,120 @@ def test_kubernetes_cmd_with_input_output(
     # Second container is xcom image
     assert containers[1].image == XCOM_IMAGE
     assert containers[1].volume_mounts[0].mount_path == "/airflow/xcom"
+
+
+@pytest.mark.parametrize(
+    "cmds",
+    [None, ["ignored_cmd"], "ignored_cmd"],
+)
+@pytest.mark.parametrize(
+    "arguments",
+    [None, ["ignored_arg"], "ignored_arg"],
+)
+@pytest.mark.parametrize(
+    "args_only",
+    [True, False],
+)
+def test_ignored_decorator_parameters(
+    dag_maker,
+    session,
+    cmds: list[str],
+    arguments: list[str],
+    args_only: bool,
+    mock_create_pod: mock.Mock,
+    mock_hook: mock.Mock,
+) -> None:
+    """Verify setting `cmds` or `arguments` for a @task.kubernetes_cmd function is ignored."""
+
+    expected = ["func", "return"]
+    with dag_maker(session=session) as dag:
+
+        @task.kubernetes_cmd(
+            image="python:3.10-slim-buster",
+            in_cluster=False,
+            cluster_context="default",
+            config_file="/tmp/fake_file",
+            namespace="default",
+            cmds=cmds,
+            arguments=arguments,
+            args_only=args_only,
+        )
+        def hello():
+            return expected
+
+        hello_task = hello()
+
+        assert hello_task.operator.cmds == []
+        assert hello_task.operator.arguments == []
+
+    with warnings.catch_warnings():
+        warnings.simplefilter("error", category=UserWarning)
+        dr = dag_maker.create_dagrun()
+        (ti,) = dr.task_instances
+        session.add(ti)
+        session.commit()
+        dag.get_task("hello").execute(context=ti.get_template_context(session=session))
+
+    containers = mock_create_pod.call_args.kwargs["pod"].spec.containers
+    assert len(containers) == 1
+
+    expected_command = expected
+    expected_args = []
+    if args_only:
+        expected_args = expected_command
+        expected_command = []
+    assert containers[0].command == expected_command
+    assert containers[0].args == expected_args
+
+
+@pytest.mark.parametrize(
+    argnames=["command", "expected_command", "expected_return_val"],
+    argvalues=[
+        pytest.param(
+            ["echo", "hello", "world"],
+            ["echo", "hello", "world"],
+            ["echo", "hello", "world"],
+            id="not_templated",
+        ),
+        pytest.param(["echo", "{{ ti.task_id }}"], ["echo", "hello"], ["echo", "hello"], id="templated"),
+    ],
+)
+def test_rendering_kubernetes_cmd(
+    dag_maker,
+    session,
+    command,
+    expected_command,
+    expected_return_val,
+    mock_create_pod: mock.Mock,
+    mock_hook: mock.Mock,
+) -> None:
+    with dag_maker(session=session) as dag:
+
+        @task.kubernetes_cmd(
+            image="python:3.10-slim-buster",
+            in_cluster=False,
+            cluster_context="default",
+            config_file="/tmp/fake_file",
+            namespace="default",
+        )
+        def hello():
+            return command
+
+        hello()
+
+    dr = dag_maker.create_dagrun()
+    (ti,) = dr.task_instances
+    session.add(ti)
+    session.commit()
+    retr = dag.get_task("hello").execute(context=ti.get_template_context(session=session))
+    mock_hook.assert_called_once_with(
+        conn_id="kubernetes_default",
+        in_cluster=False,
+        cluster_context="default",
+        config_file="/tmp/fake_file",
+    )
+    containers = mock_create_pod.call_args.kwargs["pod"].spec.containers
+    assert len(containers) == 1
+
+    assert containers[0].command == expected_command
+    assert retr == expected_return_val
