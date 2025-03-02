@@ -36,6 +36,11 @@ from airflow.api_fastapi.core_api.datamodels.import_error import (
     ImportErrorResponse,
 )
 from airflow.api_fastapi.core_api.openapi.exceptions import create_openapi_http_exception_doc
+from airflow.api_fastapi.core_api.security import (
+    AccessView,
+    requires_access_dag,
+    requires_access_view,
+)
 from airflow.models.errors import ParseImportError
 
 import_error_router = AirflowRouter(tags=["Import Error"], prefix="/importErrors")
@@ -44,6 +49,10 @@ import_error_router = AirflowRouter(tags=["Import Error"], prefix="/importErrors
 @import_error_router.get(
     "/{import_error_id}",
     responses=create_openapi_http_exception_doc([status.HTTP_404_NOT_FOUND]),
+    dependencies=[
+        Depends(requires_access_view(AccessView.IMPORT_ERRORS)),
+        Depends(requires_access_dag("GET")),
+    ],
 )
 def get_import_error(
     import_error_id: int,
@@ -62,6 +71,10 @@ def get_import_error(
 
 @import_error_router.get(
     "",
+    dependencies=[
+        Depends(requires_access_view(AccessView.IMPORT_ERRORS)),
+        Depends(requires_access_dag("GET")),
+    ],
 )
 def get_import_errors(
     limit: QueryLimit,
