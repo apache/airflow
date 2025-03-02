@@ -84,7 +84,7 @@ with (
                 True,
                 type="boolean",
                 title="Please confirm",
-                description="A On/Off selection with a proper description.",
+                description="An On/Off selection with a proper description.",
                 section="Typed parameters with Param object",
             ),
             # Dates and Times are also supported
