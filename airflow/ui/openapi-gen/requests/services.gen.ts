@@ -1575,6 +1575,7 @@ export class DagStatsService {
    * Get Dag Stats
    * Get Dag statistics.
    * @param data The data for the request.
+   * @param data.dagId
    * @param data.dagIds
    * @returns DagStatsCollectionResponse Successful Response
    * @throws ApiError
@@ -1584,6 +1585,7 @@ export class DagStatsService {
       method: "GET",
       url: "/public/dagStats",
       query: {
+        dag_id: data.dagId,
         dag_ids: data.dagIds,
       },
       errors: {
