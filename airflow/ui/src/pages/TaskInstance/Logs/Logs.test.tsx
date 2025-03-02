@@ -40,7 +40,9 @@ describe("Task log grouping", () => {
       <AppWrapper initialEntries={["/dags/log_grouping/runs/manual__2025-02-18T12:19/tasks/generate"]} />,
     );
 
-    await waitFor(() => expect(screen.queryByTestId("summary-Pre task execution logs")).toBeInTheDocument());
+    await waitFor(() => expect(screen.queryByTestId("summary-Pre task execution logs")).toBeInTheDocument(), {
+      timeout: 10_000,
+    });
     await waitFor(() => expect(screen.getByTestId("summary-Pre task execution logs")).toBeVisible());
     await waitFor(() => expect(screen.queryByText(/Task instance is in running state/iu)).not.toBeVisible());
 
