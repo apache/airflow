@@ -330,7 +330,7 @@ class SFTPHook(SSHHook):
         if Path(local_full_path).exists():
             raise AirflowException(f"{local_full_path} already exists")
         Path(local_full_path).mkdir(parents=True)
-        with self.get_conn():
+        with self.get_managed_conn():
             files, dirs, _ = self.get_tree_map(remote_full_path)
             for dir_path in dirs:
                 new_local_path = os.path.join(local_full_path, os.path.relpath(dir_path, remote_full_path))
@@ -351,7 +351,7 @@ class SFTPHook(SSHHook):
         """
         if self.path_exists(remote_full_path):
             raise AirflowException(f"{remote_full_path} already exists")
-        with self.get_conn():
+        with self.get_managed_conn():
             self.create_directory(remote_full_path)
             for root, dirs, files in os.walk(local_full_path):
                 for dir_name in dirs:
