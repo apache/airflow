@@ -2091,10 +2091,11 @@ class TestKubernetesPodOperatorAsync:
         ti_mock.xcom_push.assert_any_call(key="pod_namespace", value=TEST_NAMESPACE)
         assert isinstance(exc.value.trigger, KubernetesPodTrigger)
 
+    @patch(KUB_OP_PATH.format("log"))
     @patch(KUB_OP_PATH.format("cleanup"))
     @patch(HOOK_CLASS)
-    def test_async_create_pod_should_throw_exception(self, mocked_hook, mocked_cleanup):
-        """Tests that an AirflowException is raised in case of error event"""
+    def test_async_create_pod_should_throw_exception(self, mocked_hook, mocked_cleanup, mocked_log):
+        """Tests that an AirflowException is raised in case of error event and event is logged"""
 
         mocked_hook.return_value.get_pod.return_value = MagicMock()
         k = KubernetesPodOperator(
@@ -2111,16 +2112,20 @@ class TestKubernetesPodOperatorAsync:
             deferrable=True,
         )
 
+        error_message = "Some error"
         with pytest.raises(AirflowException):
             k.trigger_reentry(
                 context=None,
                 event={
                     "status": "error",
-                    "message": "Some error",
+                    "message": error_message,
                     "name": TEST_NAME,
                     "namespace": TEST_NAMESPACE,
                 },
             )
+
+        log_message = "Trigger emitted an error event, failing the task: %s"
+        mocked_log.error.assert_called_once_with(log_message, error_message)
 
     @pytest.mark.parametrize(
         "kwargs, actual_exit_code, expected_exc, pod_status, event_status",
