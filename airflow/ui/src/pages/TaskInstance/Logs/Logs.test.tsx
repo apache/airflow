@@ -40,12 +40,11 @@ describe("Task log grouping", () => {
       <AppWrapper initialEntries={["/dags/log_grouping/runs/manual__2025-02-18T12:19/tasks/generate"]} />,
     );
 
-    await waitFor(() => expect(screen.getByTestId("summary-group name")).toBeVisible());
+    await waitFor(() => expect(screen.queryByTestId("summary-Pre task execution logs")).toBeInTheDocument());
+    await waitFor(() => expect(screen.getByTestId("summary-Pre task execution logs")).toBeVisible());
+    await waitFor(() => expect(screen.queryByText(/Task instance is in running state/iu)).not.toBeVisible());
 
-    await waitFor(() => expect(screen.queryByText(/inner group name 0/iu)).not.toBeVisible());
-    await waitFor(() => expect(screen.queryByTestId("summary-inner group name 0")).not.toBeInTheDocument());
-
-    await waitFor(() => screen.getByTestId("summary-group name").click());
-    await waitFor(() => expect(screen.queryByText(/inner group name 0/iu)).toBeVisible());
+    await waitFor(() => screen.getByTestId("summary-Pre task execution logs").click());
+    await waitFor(() => expect(screen.queryByText(/Task instance is in running state/iu)).toBeVisible());
   });
 });
