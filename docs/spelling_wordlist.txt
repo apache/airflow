@@ -1854,6 +1854,7 @@ urls
 useHCatalog
 useLegacySQL
 useQueryCache
+userguide
 userId
 userpass
 usr
