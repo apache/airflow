@@ -2917,6 +2917,7 @@ export class PoolService {
    * Get Pools
    * Get all pools entries.
    * @param data The data for the request.
+   * @param data.poolName
    * @param data.limit
    * @param data.offset
    * @param data.orderBy
@@ -2929,6 +2930,7 @@ export class PoolService {
       method: "GET",
       url: "/public/pools",
       query: {
+        pool_name: data.poolName,
         limit: data.limit,
         offset: data.offset,
         order_by: data.orderBy,
@@ -2948,6 +2950,7 @@ export class PoolService {
    * Create a Pool.
    * @param data The data for the request.
    * @param data.requestBody
+   * @param data.poolName
    * @returns PoolResponse Successful Response
    * @throws ApiError
    */
@@ -2955,6 +2958,9 @@ export class PoolService {
     return __request(OpenAPI, {
       method: "POST",
       url: "/public/pools",
+      query: {
+        pool_name: data.poolName,
+      },
       body: data.requestBody,
       mediaType: "application/json",
       errors: {
@@ -2971,6 +2977,7 @@ export class PoolService {
    * Bulk create, update, and delete pools.
    * @param data The data for the request.
    * @param data.requestBody
+   * @param data.poolName
    * @returns BulkResponse Successful Response
    * @throws ApiError
    */
@@ -2978,6 +2985,9 @@ export class PoolService {
     return __request(OpenAPI, {
       method: "PATCH",
       url: "/public/pools",
+      query: {
+        pool_name: data.poolName,
+      },
       body: data.requestBody,
       mediaType: "application/json",
       errors: {

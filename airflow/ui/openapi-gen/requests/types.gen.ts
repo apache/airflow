@@ -2346,19 +2346,19 @@ export type GetPluginsData = {
 export type GetPluginsResponse = PluginCollectionResponse;
 
 export type DeletePoolData = {
-  poolName: string;
+  poolName: string | null;
 };
 
 export type DeletePoolResponse = void;
 
 export type GetPoolData = {
-  poolName: string;
+  poolName: string | null;
 };
 
 export type GetPoolResponse = PoolResponse;
 
 export type PatchPoolData = {
-  poolName: string;
+  poolName: string | null;
   requestBody: PoolPatchBody;
   updateMask?: Array<string> | null;
 };
@@ -2369,18 +2369,21 @@ export type GetPoolsData = {
   limit?: number;
   offset?: number;
   orderBy?: string;
+  poolName?: string | null;
   poolNamePattern?: string | null;
 };
 
 export type GetPoolsResponse = PoolCollectionResponse;
 
 export type PostPoolData = {
+  poolName?: string | null;
   requestBody: PoolBody;
 };
 
 export type PostPoolResponse = PoolResponse;
 
 export type BulkPoolsData = {
+  poolName?: string | null;
   requestBody: BulkBody_PoolBody_;
 };
 

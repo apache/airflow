@@ -2102,6 +2102,7 @@ export const prefetchUsePoolServiceGetPool = (
  * Get Pools
  * Get all pools entries.
  * @param data The data for the request.
+ * @param data.poolName
  * @param data.limit
  * @param data.offset
  * @param data.orderBy
@@ -2115,17 +2116,19 @@ export const prefetchUsePoolServiceGetPools = (
     limit,
     offset,
     orderBy,
+    poolName,
     poolNamePattern,
   }: {
     limit?: number;
     offset?: number;
     orderBy?: string;
+    poolName?: string;
     poolNamePattern?: string;
   } = {},
 ) =>
   queryClient.prefetchQuery({
-    queryKey: Common.UsePoolServiceGetPoolsKeyFn({ limit, offset, orderBy, poolNamePattern }),
-    queryFn: () => PoolService.getPools({ limit, offset, orderBy, poolNamePattern }),
+    queryKey: Common.UsePoolServiceGetPoolsKeyFn({ limit, offset, orderBy, poolName, poolNamePattern }),
+    queryFn: () => PoolService.getPools({ limit, offset, orderBy, poolName, poolNamePattern }),
   });
 /**
  * Get Providers
