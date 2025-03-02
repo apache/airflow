@@ -29,6 +29,7 @@ if TYPE_CHECKING:
     from airflow.providers.fab.auth_manager.api_fastapi.datamodels.login import LoginResponse
 
 
+@pytest.mark.db_test
 @patch("airflow.providers.fab.auth_manager.api_fastapi.services.login.get_auth_manager")
 class TestLogin:
     def setup_method(
