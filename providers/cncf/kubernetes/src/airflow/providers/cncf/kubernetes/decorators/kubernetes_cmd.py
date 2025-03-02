@@ -16,57 +16,56 @@
 # under the License.
 from __future__ import annotations
 
-import logging
+import warnings
 from collections.abc import Sequence
 from typing import TYPE_CHECKING, Callable
 
 from airflow.decorators.base import DecoratedOperator, TaskDecorator, task_decorator_factory
 from airflow.providers.cncf.kubernetes.operators.pod import KubernetesPodOperator
+from airflow.utils.context import context_merge
+from airflow.utils.operator_helpers import determine_kwargs
 
 if TYPE_CHECKING:
     from airflow.utils.context import Context
 
 
-logger = logging.getLogger(__name__)
-
-
 class _KubernetesCmdDecoratedOperator(DecoratedOperator, KubernetesPodOperator):
     custom_operator_name = "@task.kubernetes_cmd"
 
-    # `cmds` and `arguments` are used internally by the operator
-    template_fields: Sequence[str] = tuple(
-        {"op_args", "op_kwargs", *KubernetesPodOperator.template_fields} - {"cmds", "arguments"}
-    )
+    template_fields: Sequence[str] = tuple({"op_args", "op_kwargs", *KubernetesPodOperator.template_fields})
 
-    # Since we won't mutate the arguments, we should just do the shallow copy
-    # there are some cases we can't deepcopy the objects (e.g protobuf).
-    shallow_copy_attrs: Sequence[str] = ("python_callable",)
-
-    def __init__(self, namespace: str | None = None, args_only: bool = False, **kwargs) -> None:
+    def __init__(self, args_only: bool = False, **kwargs) -> None:
         self.args_only = args_only
+
+        cmds = kwargs.pop("cmds", None)
+        arguments = kwargs.pop("arguments", None)
+
+        if cmds is not None or arguments is not None:
+            warnings.warn(
+                f"The `cmds` and `arguments` are unused in {self.custom_operator_name} decorator. "
+                "You should return a list of commands or image entrypoint arguments with "
+                "args_only=True from the python_callable.",
+                UserWarning,
+                stacklevel=3,
+            )
 
         # If the name was not provided, we generate operator name from the python_callable
         # we also instruct operator to add a random suffix to avoid collisions by default
         op_name = kwargs.pop("name", f"k8s-airflow-pod-{kwargs['python_callable'].__name__}")
         random_name_suffix = kwargs.pop("random_name_suffix", True)
-        if kwargs.pop("cmds", None) is not None:
-            logger.warning(
-                "The 'cmds' and 'arguments' are unused in @task.kubernetes_cmd decorator. "
-                "You should return a list of commands or default cmd arguments with "
-                "args_only=True from the python_callable."
-            )
 
         super().__init__(
-            namespace=namespace,
             name=op_name,
             random_name_suffix=random_name_suffix,
-            cmds=["placeholder-command"],
-            arguments=["placeholder-argument"],
+            cmds=None,
+            arguments=None,
             **kwargs,
         )
 
-    def _generate_cmds(self) -> list[str]:
-        generated_cmds = self.python_callable(*self.op_args, **self.op_kwargs)
+    def _generate_cmds(self, context: Context) -> list[str]:
+        context_merge(context, self.op_kwargs)
+        kwargs = determine_kwargs(self.python_callable, self.op_args, context)
+        generated_cmds = self.python_callable(*self.op_args, **kwargs)
         func_name = self.python_callable.__name__
         if not isinstance(generated_cmds, list):
             raise TypeError(
@@ -80,18 +79,18 @@ class _KubernetesCmdDecoratedOperator(DecoratedOperator, KubernetesPodOperator):
         return generated_cmds
 
     def execute(self, context: Context):
+        generated = self._generate_cmds(context)
         if self.args_only:
             self.cmds = []
-            self.arguments = self._generate_cmds()
+            self.arguments = generated
         else:
-            self.cmds = self._generate_cmds()
+            self.cmds = generated
             self.arguments = []
         return super().execute(context)
 
 
 def kubernetes_task_cmd(
     python_callable: Callable | None = None,
-    multiple_outputs: bool | None = None,
     **kwargs,
 ) -> TaskDecorator:
     """
@@ -104,13 +103,9 @@ def kubernetes_task_cmd(
     will via ``kwargs``. Can be reused in a single DAG.
 
     :param python_callable: Function to decorate
-    :param multiple_outputs: if set, function return value will be
-        unrolled to multiple XCom values. Dict will unroll to xcom values with
-        keys as XCom keys. Defaults to False.
     """
     return task_decorator_factory(
         python_callable=python_callable,
-        multiple_outputs=multiple_outputs,
         decorated_operator_class=_KubernetesCmdDecoratedOperator,
         **kwargs,
     )
