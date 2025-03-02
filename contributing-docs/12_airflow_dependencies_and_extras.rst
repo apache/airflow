@@ -191,33 +191,6 @@ ydb, zendesk
 
   .. END PROVIDER EXTRAS HERE
 
-
-Devel extras
-.............
-
-The ``devel`` extras are not available in the released packages. They are only available when you install
-Airflow from sources in ``editable`` installation - i.e. one that you are usually using to contribute to
-Airflow. They provide tools such as ``pytest`` and ``mypy`` for general purpose development and testing.
-
-  .. START DEVEL EXTRAS HERE
-
-devel, devel-all-dbs, devel-ci, devel-debuggers, devel-devscripts, devel-duckdb, devel-hadoop,
-devel-mypy, devel-sentry, devel-static-checks, devel-tests
-
-  .. END DEVEL EXTRAS HERE
-
-Bundle extras
-.............
-
-Those extras are bundles dynamically generated from other extras.
-
-  .. START BUNDLE EXTRAS HERE
-
-all, all-core, all-dbs, devel-all, devel-ci
-
-  .. END BUNDLE EXTRAS HERE
-
-
 Doc extras
 ...........
 
@@ -233,18 +206,6 @@ provider packages respectively). The ``doc`` package is enough to build regular 
 doc, doc-gen
 
   .. END DOC EXTRAS HERE
-
-Deprecated extras
-.................
-
-The ``deprecated`` extras are deprecated extras from Airflow 1 that will be removed in future versions.
-
-  .. START DEPRECATED EXTRAS HERE
-
-atlas, aws, azure, cassandra, crypto, druid, gcp, gcp-api, hdfs, hive, kubernetes, mssql, pinot, s3,
-spark, webhdfs, winrm
-
-  .. END DEPRECATED EXTRAS HERE
 
 -----
 

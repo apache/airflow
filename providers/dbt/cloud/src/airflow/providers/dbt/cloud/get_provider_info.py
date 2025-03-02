@@ -27,7 +27,7 @@ def get_provider_info():
         "name": "dbt Cloud",
         "description": "`dbt Cloud <https://www.getdbt.com/product/dbt-cloud/>`__\n",
         "state": "ready",
-        "source-date-epoch": 1740734116,
+        "source-date-epoch": 1741121861,
         "versions": [
             "4.2.0",
             "4.0.0",
@@ -99,4 +99,5 @@ def get_provider_info():
             "aiohttp>=3.9.2",
         ],
         "optional-dependencies": {"openlineage": ["apache-airflow-providers-openlineage>=1.7.0"]},
+        "devel-dependencies": [],
     }

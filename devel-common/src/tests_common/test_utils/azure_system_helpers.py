@@ -23,7 +23,6 @@ import string
 from contextlib import contextmanager
 
 import pytest
-
 from airflow.exceptions import AirflowException
 from airflow.models import Connection
 from airflow.providers.microsoft.azure.hooks.fileshare import AzureFileShareHook
