@@ -53,7 +53,7 @@ command as in the example below.
 
 
 Token based authentication
-'''''''''''''''''''''''
+''''''''''''''''''''''''''
 The token based authentication is the default setting for the API.
 To be able to use the API, you need to create a token first and use this token in the requests to access the API.
 
@@ -71,7 +71,7 @@ Example of creating a token:
       -d '{
       "username": "username",
       "password": "password"
-    }'
+      }'
 
 This process will return a token that you can use in the requests to access the API.
 
