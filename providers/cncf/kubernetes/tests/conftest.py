@@ -17,4 +17,3 @@
 from __future__ import annotations
 
 pytest_plugins = "tests_common.pytest_plugin"
-from tests_common.pytest_plugin
