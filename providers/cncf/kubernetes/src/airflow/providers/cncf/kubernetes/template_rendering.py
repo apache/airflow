@@ -94,4 +94,6 @@ def refresh_rendered_fields(task_instance: TaskInstance, session=NEW_SESSION) ->
 
     rtif = RenderedTaskInstanceFields(task_instance)
     RenderedTaskInstanceFields.write(rtif, session=session)
-    RenderedTaskInstanceFields.delete_old_records(task_instance.task_id, task_instance.dag_id, session=session)
+    RenderedTaskInstanceFields.delete_old_records(
+        task_instance.task_id, task_instance.dag_id, session=session
+    )
