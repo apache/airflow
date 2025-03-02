@@ -302,11 +302,13 @@ class TestMySqlHook:
 
     def test_bulk_load(self):
         self.db_hook.bulk_load("table", "/tmp/file")
-        self.cur.execute.assert_called_once_with("LOAD DATA LOCAL INFILE %s INTO TABLE table", ("/tmp/file",))
+        self.cur.execute.assert_called_once_with(
+            "LOAD DATA LOCAL INFILE %s INTO TABLE `table`", ("/tmp/file",)
+        )
 
     def test_bulk_dump(self):
         self.db_hook.bulk_dump("table", "/tmp/file")
-        self.cur.execute.assert_called_once_with("SELECT * INTO OUTFILE %s FROM table", ("/tmp/file",))
+        self.cur.execute.assert_called_once_with("SELECT * INTO OUTFILE %s FROM `table`", ("/tmp/file",))
 
     def test_serialize_cell(self):
         assert self.db_hook._serialize_cell("foo", None) == "foo"
@@ -322,7 +324,7 @@ class TestMySqlHook:
             IGNORE 1 LINES""",
         )
         self.cur.execute.assert_called_once_with(
-            f"LOAD DATA LOCAL INFILE %s %s INTO TABLE {table} %s",
+            f"LOAD DATA LOCAL INFILE %s %s INTO TABLE `{table}` %s",
             (
                 "/tmp/file",
                 "IGNORE",
@@ -459,7 +461,7 @@ class TestMySql:
             with closing(hook.get_conn()) as conn, closing(conn.cursor()) as cursor:
                 cursor.execute(
                     f"""
-                    CREATE TABLE IF NOT EXISTS {table} (
+                    CREATE TABLE IF NOT EXISTS `{table}`(
                         dummy VARCHAR(50)
                     )
                 """
@@ -500,5 +502,5 @@ class TestMySql:
             hook.bulk_dump(table, tmp_file)
 
             assert mock_execute.call_count == 1
-            query = f"SELECT * INTO OUTFILE %s FROM {table}"
+            query = f"SELECT * INTO OUTFILE %s FROM `{table}`"
             assert_equal_ignore_multiple_spaces(mock_execute.call_args.args[0], query)
