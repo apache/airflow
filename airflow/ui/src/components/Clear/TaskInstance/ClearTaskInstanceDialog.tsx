@@ -105,8 +105,8 @@ const ClearTaskInstanceDialog = ({ onClose, open, taskInstance }: Props) => {
               multiple
               onChange={setSelectedOptions}
               options={[
-                { label: "Past", value: "past" },
-                { label: "Future", value: "future" },
+                { disabled: taskInstance.logical_date === null, label: "Past", value: "past" },
+                { disabled: taskInstance.logical_date === null, label: "Future", value: "future" },
                 { label: "Upstream", value: "upstream" },
                 { label: "Downstream", value: "downstream" },
                 { label: "Only Failed", value: "onlyFailed" },

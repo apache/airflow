@@ -41,7 +41,6 @@ if TYPE_CHECKING:
         ConfigurationDetails,
         DagAccessEntity,
     )
-    from airflow.www.extensions.init_appbuilder import AirflowAppBuilder
 
 
 class BaseAuthManagerUserTest(BaseUser):
@@ -56,8 +55,6 @@ class BaseAuthManagerUserTest(BaseUser):
 
 
 class EmptyAuthManager(BaseAuthManager[BaseAuthManagerUserTest]):
-    appbuilder: AirflowAppBuilder | None = None
-
     def get_user(self) -> BaseAuthManagerUserTest:
         raise NotImplementedError()
 

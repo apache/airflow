@@ -17,13 +17,17 @@
 from __future__ import annotations
 
 from airflow.exceptions import AirflowOptionalProviderFeatureException
+from airflow.providers.amazon.version_compat import AIRFLOW_V_3_0_PLUS
 
-try:
+if AIRFLOW_V_3_0_PLUS:
+    try:
+        from airflow.providers.fab.www.security_manager import AirflowSecurityManagerV2
+    except ImportError:
+        raise AirflowOptionalProviderFeatureException(
+            "Failed to import AirflowSecurityManagerV2 from the FAB provider. The AWS auth manager requires the FAB provider."
+        )
+else:
     from airflow.www.security_manager import AirflowSecurityManagerV2
-except ImportError:
-    raise AirflowOptionalProviderFeatureException(
-        "Failed to import AirflowSecurityManagerV2. This feature is only available in Airflow versions >= 2.8.0"
-    )
 
 
 class AwsSecurityManagerOverride(AirflowSecurityManagerV2):

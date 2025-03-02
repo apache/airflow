@@ -297,7 +297,7 @@ airflowConfigAnnotations: {}
 
 # `airflow_local_settings` file as a string (templated).
 airflowLocalSettings: |-
-  {{- if semverCompare ">=2.2.0" .Values.airflowVersion }}
+  {{- if semverCompare ">=2.2.0 <3.0.0" .Values.airflowVersion }}
   {{- if not (or .Values.webserverSecretKey .Values.webserverSecretKeySecretName) }}
   from airflow.www.utils import UIAlert
 
@@ -1263,6 +1263,7 @@ apiServer:
   command: ~
   # Args to use when running the Airflow API server (templated).
   args: ["bash", "-c", "exec airflow api-server"]
+  allowPodLogReading: true
   env: []
   serviceAccount:
     # default value is true
