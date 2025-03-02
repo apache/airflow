@@ -693,8 +693,8 @@ class TestPodGenerator:
         assert sanitized_res == self.deserialize_result
         assert len(caplog.records) == 0
 
-    def test_deserialize_no_defined_model_file(self, caplog, tmp_path):
-        result = PodGenerator.deserialize_model_file()
+    def test_deserialize_no_defined_model_file(self, caplog):
+        result = PodGenerator.deserialize_model_file(None)
         sanitized_res = self.k8s_client.sanitize_for_serialization(result)
         assert sanitized_res == {}
         assert len(caplog.records) == 1
@@ -706,7 +706,7 @@ class TestPodGenerator:
         sanitized_res = self.k8s_client.sanitize_for_serialization(result)
         assert sanitized_res == {}
         assert len(caplog.records) == 1
-        assert "Model file non_existent.yaml does not exist, using default model file." in caplog.text
+        assert f"Model file {template_file} does not exist, using default model file." in caplog.text
 
     @pytest.mark.parametrize(
         "input",
