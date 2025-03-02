@@ -27,12 +27,12 @@ import { ErrorAlert } from "src/components/ErrorAlert";
 const columns: Array<ColumnDef<ConnectionResponse>> = [
   {
     accessorKey: "connection_id",
-    enableSorting: false,
+    enableSorting: true,
     header: "Connection Id",
   },
   {
     accessorKey: "conn_type",
-    enableSorting: false,
+    enableSorting: true,
     header: "Connection Type",
   },
   {
