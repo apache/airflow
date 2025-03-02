@@ -37,9 +37,7 @@ def create_token(
     body: LoginBody,
 ) -> LoginResponse:
     """Authenticate the user."""
-    return SimpleAuthManagerLogin.create_token(
-        body=body, expiration_time_in_sec=conf.getint("api", "auth_jwt_expiration_time")
-    )
+    return SimpleAuthManagerLogin.create_token(body=body)
 
 
 @login_router.post(

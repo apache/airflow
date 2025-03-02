@@ -23,13 +23,16 @@ from airflow.api_fastapi.app import get_auth_manager
 from airflow.auth.managers.simple.datamodels.login import LoginBody, LoginResponse
 from airflow.auth.managers.simple.simple_auth_manager import SimpleAuthManager
 from airflow.auth.managers.simple.user import SimpleAuthManagerUser
+from airflow.configuration import conf
 
 
 class SimpleAuthManagerLogin:
     """Service for login."""
 
     @classmethod
-    def create_token(cls, body: LoginBody, expiration_time_in_sec: int) -> LoginResponse:
+    def create_token(
+        cls, body: LoginBody, expiration_time_in_sec: int = conf.getint("api", "auth_jwt_expiration_time")
+    ) -> LoginResponse:
         """
         Authenticate user with given configuration.
 
