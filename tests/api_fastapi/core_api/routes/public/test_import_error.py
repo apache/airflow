@@ -129,6 +129,16 @@ class TestGetImportError(TestImportErrorEndpoint):
         }
         assert response.json() == expected_json
 
+    def test_should_raises_401_unauthenticated(self, unauthenticated_test_client, setup):
+        import_error_id = setup[FILENAME1].id
+        response = unauthenticated_test_client.get(f"/public/importErrors/{import_error_id}")
+        assert response.status_code == 401
+
+    def test_should_raises_403_unauthorized(self, unauthorized_test_client, setup):
+        import_error_id = setup[FILENAME1].id
+        response = unauthorized_test_client.get(f"/public/importErrors/{import_error_id}")
+        assert response.status_code == 403
+
 
 class TestGetImportErrors(TestImportErrorEndpoint):
     @pytest.mark.parametrize(
@@ -225,3 +235,11 @@ class TestGetImportErrors(TestImportErrorEndpoint):
         assert [
             import_error["filename"] for import_error in response_json["import_errors"]
         ] == expected_filenames
+
+    def test_should_raises_401_unauthenticated(self, unauthenticated_test_client):
+        response = unauthenticated_test_client.get("/public/importErrors")
+        assert response.status_code == 401
+
+    def test_should_raises_403_unauthorized(self, unauthorized_test_client):
+        response = unauthorized_test_client.get("/public/importErrors")
+        assert response.status_code == 403
