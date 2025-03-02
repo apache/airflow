@@ -149,6 +149,7 @@ class ExecutorSafeguard:
         @wraps(func)
         def wrapper(self, *args, **kwargs):
             from airflow.decorators.base import DecoratedOperator
+            from airflow.models.iterableoperator import IterableOperator
 
             sentinel_key = f"{self.__class__.__name__}__sentinel"
             sentinel = kwargs.pop(sentinel_key, None)
@@ -160,7 +161,12 @@ class ExecutorSafeguard:
             else:
                 sentinel = cls._sentinel.callers.pop(f"{func.__qualname__.split('.')[0]}__sentinel", None)
 
-            if not cls.test_mode and not sentinel == _sentinel and not isinstance(self, DecoratedOperator):
+            if (
+                not cls.test_mode
+                and not sentinel == _sentinel
+                and not isinstance(self, DecoratedOperator)
+                and not isinstance(self, IterableOperator)
+            ):
                 message = f"{self.__class__.__name__}.{func.__name__} cannot be called outside TaskInstance!"
                 if not self.allow_nested_operators:
                     raise AirflowException(message)
@@ -1103,9 +1109,9 @@ def chain_linear(*elements: DependencyMixin | Sequence[DependencyMixin]):
 
     E.g.: suppose you want precedence like so::
 
-            â•­â”€op2â”€â•® â•­â”€op4â”€â•®
-        op1â”€â”¤     â”œâ”€â”œâ”€op5â”€â”¤â”€op7
-            â•°-op3â”€â•¯ â•°-op6â”€â•¯
+            â•­â"€op2â"€â•® â•­â"€op4â"€â•®
+        op1â"€â"¤     â"œâ"€â"œâ"€op5â"€â"¤â"€op7
+            â•°-op3â"€â•¯ â•°-op6â"€â•¯
 
     Then you can accomplish like so::
 
