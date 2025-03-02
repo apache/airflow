@@ -263,6 +263,9 @@ jobs:
     name: "CI image checks"
     needs: [build-info, build-ci-images]
     uses: ./.github/workflows/ci-image-checks.yml
+    permissions:
+      id-token: write
+      contents: read
     with:
       runs-on-as-json-default: ${{ needs.build-info.outputs.runs-on-as-json-default }}
       runs-on-as-json-docs-build: ${{ needs.build-info.outputs.runs-on-as-json-docs-build }}
