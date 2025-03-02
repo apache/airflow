@@ -21,12 +21,13 @@ import contextlib
 import pytest
 
 from airflow.decorators import task
+from airflow.exceptions import AirflowSkipException
 from unit.cncf.kubernetes.decorators.test_kubernetes_commons import DAG_ID, TestKubernetesDecoratorsBase
 
 XCOM_IMAGE = "XCOM_IMAGE"
 
 
-class TestKubernetesDecorator(TestKubernetesDecoratorsBase):
+class TestKubernetesCmdDecorator(TestKubernetesDecoratorsBase):
     @pytest.mark.parametrize(
         "args_only",
         [True, False],
@@ -254,7 +255,6 @@ class TestKubernetesDecorator(TestKubernetesDecoratorsBase):
                 namespace="default",
             )
             def hello(add_to_command: str):
-                print("ADDING TO COMMAND", add_to_command)
                 return command + [add_to_command]
 
             hello_task = hello(op_arg)
@@ -272,3 +272,54 @@ class TestKubernetesDecorator(TestKubernetesDecoratorsBase):
 
         assert containers[0].command == expected_command
         assert containers[0].args == []
+
+    def test_rendering_kubernetes_cmd_decorator_params(self):
+        """Test that templating works in decorator parameters"""
+        with self.dag:
+
+            @task.kubernetes_cmd(
+                image="python:{{ dag.dag_id }}",
+                in_cluster=False,
+                cluster_context="default",
+                config_file="/tmp/fake_file",
+                namespace="default",
+                kubernetes_conn_id="kubernetes_{{ dag.dag_id }}",
+            )
+            def hello():
+                return ["echo", "Hello world!"]
+
+            hello_task = hello()
+
+        self.execute_task(hello_task)
+
+        self.mock_hook.assert_called_once_with(
+            conn_id="kubernetes_" + DAG_ID,
+            in_cluster=False,
+            cluster_context="default",
+            config_file="/tmp/fake_file",
+        )
+        containers = self.mock_create_pod.call_args.kwargs["pod"].spec.containers
+        assert len(containers) == 1
+
+        assert containers[0].image == f"python:{DAG_ID}"
+
+    def test_airflow_skip(self):
+        """Test that the operator is skipped if the task is skipped"""
+        with self.dag:
+
+            @task.kubernetes_cmd(
+                image="python:3.10-slim-buster",
+                in_cluster=False,
+                cluster_context="default",
+                config_file="/tmp/fake_file",
+                namespace="default",
+            )
+            def hello():
+                raise AirflowSkipException("This task should be skipped")
+
+            hello_task = hello()
+
+        with pytest.raises(AirflowSkipException):
+            self.execute_task(hello_task)
+        self.mock_hook.assert_not_called()
+        self.mock_create_pod.assert_not_called()
