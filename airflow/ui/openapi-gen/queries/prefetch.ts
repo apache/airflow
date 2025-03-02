@@ -1935,25 +1935,29 @@ export const prefetchUseTaskInstanceServiceGetLog = (
  * Get an import error.
  * @param data The data for the request.
  * @param data.importErrorId
+ * @param data.dagId
  * @returns ImportErrorResponse Successful Response
  * @throws ApiError
  */
 export const prefetchUseImportErrorServiceGetImportError = (
   queryClient: QueryClient,
   {
+    dagId,
     importErrorId,
   }: {
+    dagId?: string;
     importErrorId: number;
   },
 ) =>
   queryClient.prefetchQuery({
-    queryKey: Common.UseImportErrorServiceGetImportErrorKeyFn({ importErrorId }),
-    queryFn: () => ImportErrorService.getImportError({ importErrorId }),
+    queryKey: Common.UseImportErrorServiceGetImportErrorKeyFn({ dagId, importErrorId }),
+    queryFn: () => ImportErrorService.getImportError({ dagId, importErrorId }),
   });
 /**
  * Get Import Errors
  * Get all import errors.
  * @param data The data for the request.
+ * @param data.dagId
  * @param data.limit
  * @param data.offset
  * @param data.orderBy
@@ -1963,18 +1967,20 @@ export const prefetchUseImportErrorServiceGetImportError = (
 export const prefetchUseImportErrorServiceGetImportErrors = (
   queryClient: QueryClient,
   {
+    dagId,
     limit,
     offset,
     orderBy,
   }: {
+    dagId?: string;
     limit?: number;
     offset?: number;
     orderBy?: string;
   } = {},
 ) =>
   queryClient.prefetchQuery({
-    queryKey: Common.UseImportErrorServiceGetImportErrorsKeyFn({ limit, offset, orderBy }),
-    queryFn: () => ImportErrorService.getImportErrors({ limit, offset, orderBy }),
+    queryKey: Common.UseImportErrorServiceGetImportErrorsKeyFn({ dagId, limit, offset, orderBy }),
+    queryFn: () => ImportErrorService.getImportErrors({ dagId, limit, offset, orderBy }),
   });
 /**
  * Get Jobs

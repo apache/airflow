@@ -2271,6 +2271,7 @@ export const useTaskInstanceServiceGetLog = <
  * Get an import error.
  * @param data The data for the request.
  * @param data.importErrorId
+ * @param data.dagId
  * @returns ImportErrorResponse Successful Response
  * @throws ApiError
  */
@@ -2280,22 +2281,25 @@ export const useImportErrorServiceGetImportError = <
   TQueryKey extends Array<unknown> = unknown[],
 >(
   {
+    dagId,
     importErrorId,
   }: {
+    dagId?: string;
     importErrorId: number;
   },
   queryKey?: TQueryKey,
   options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">,
 ) =>
   useQuery<TData, TError>({
-    queryKey: Common.UseImportErrorServiceGetImportErrorKeyFn({ importErrorId }, queryKey),
-    queryFn: () => ImportErrorService.getImportError({ importErrorId }) as TData,
+    queryKey: Common.UseImportErrorServiceGetImportErrorKeyFn({ dagId, importErrorId }, queryKey),
+    queryFn: () => ImportErrorService.getImportError({ dagId, importErrorId }) as TData,
     ...options,
   });
 /**
  * Get Import Errors
  * Get all import errors.
  * @param data The data for the request.
+ * @param data.dagId
  * @param data.limit
  * @param data.offset
  * @param data.orderBy
@@ -2308,10 +2312,12 @@ export const useImportErrorServiceGetImportErrors = <
   TQueryKey extends Array<unknown> = unknown[],
 >(
   {
+    dagId,
     limit,
     offset,
     orderBy,
   }: {
+    dagId?: string;
     limit?: number;
     offset?: number;
     orderBy?: string;
@@ -2320,8 +2326,8 @@ export const useImportErrorServiceGetImportErrors = <
   options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">,
 ) =>
   useQuery<TData, TError>({
-    queryKey: Common.UseImportErrorServiceGetImportErrorsKeyFn({ limit, offset, orderBy }, queryKey),
-    queryFn: () => ImportErrorService.getImportErrors({ limit, offset, orderBy }) as TData,
+    queryKey: Common.UseImportErrorServiceGetImportErrorsKeyFn({ dagId, limit, offset, orderBy }, queryKey),
+    queryFn: () => ImportErrorService.getImportErrors({ dagId, limit, offset, orderBy }) as TData,
     ...options,
   });
 /**
