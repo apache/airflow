@@ -129,7 +129,7 @@ GCSListObjectsOperator
 
 Use the
 :class:`~airflow.providers.google.cloud.operators.gcs.GCSListObjectsOperator`
-to list objects in a Google Cloud Storage bucket. Optionally specify a prefix to list only objects whose 
+to list objects in a Google Cloud Storage bucket. Optionally specify a prefix to list only objects whose
 names begin with that prefix, and a delimiter to emulate directory-like organization.
 
 .. exampleinclude:: /../../providers/google/tests/system/google/cloud/gcs/example_gcs_copy_delete.py
