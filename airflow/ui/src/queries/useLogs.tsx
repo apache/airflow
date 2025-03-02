@@ -43,10 +43,6 @@ type ParseLogsProps = {
   logLevelFilters?: Array<string>;
 };
 
-let startGroup = false;
-let groupLines: Array<JSX.Element | ""> = [];
-let groupName = "";
-
 const renderStructuredLog = (
   logMessage: string | StructuredLogMessage,
   index: number,
@@ -118,6 +114,9 @@ const renderStructuredLog = (
 const parseLogs = ({ data, logLevelFilters }: ParseLogsProps) => {
   let warning;
   let parsedLines;
+  let startGroup = false;
+  let groupLines: Array<JSX.Element | ""> = [];
+  let groupName = "";
 
   try {
     parsedLines = data.map((datum, index) => renderStructuredLog(datum, index, logLevelFilters));
