@@ -53,10 +53,11 @@ with DAG(
     def execute_in_k8s_pod_args_only(foo_result: str, bar_result: str) -> list[str]:
         return ["-c", f"echo -e 'With args only:\\t{foo_result}\\t{bar_result}'"]
 
-    # Templating can be used in the returned command
-    @task.kubernetes_cmd(image="bash:5.2", name="full_cmd", in_cluster=False)
+    # Templating can be used in the returned command and all other templated fields in
+    # the decorator parameters.
+    @task.kubernetes_cmd(image="bash:5.2", name="my-pod-{{ ti.task_id }}", in_cluster=False)
     def apply_templating(message: str) -> list[str]:
-        full_message = "Templated task_id: {{ task.task_id }}, dag_id: " + message
+        full_message = "Templated task_id: {{ ti.task_id }}, dag_id: " + message
         return ["echo", full_message]
 
     foo_result = foo()
