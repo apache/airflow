@@ -17,8 +17,8 @@
 from __future__ import annotations
 
 import warnings
-from collections.abc import Collection, Mapping, Sequence
-from typing import TYPE_CHECKING, Any, Callable
+from collections.abc import Sequence
+from typing import TYPE_CHECKING, Callable
 
 from airflow.decorators.base import DecoratedOperator, TaskDecorator, task_decorator_factory
 from airflow.providers.cncf.kubernetes.operators.pod import KubernetesPodOperator
@@ -37,17 +37,9 @@ if TYPE_CHECKING:
 class _KubernetesCmdDecoratedOperator(DecoratedOperator, KubernetesPodOperator):
     custom_operator_name = "@task.kubernetes_cmd"
 
-    template_fields: Sequence[str] = (*DecoratedOperator.template_fields, *KubernetesPodOperator.template_fields)
+    template_fields: Sequence[str] = KubernetesPodOperator.template_fields
 
-    def __init__(
-        self,
-        *,
-        python_callable: Callable,
-        op_args: Collection[Any] | None = None,
-        op_kwargs: Mapping[str, Any] | None = None,
-        args_only: bool = False,
-        **kwargs
-    ) -> None:
+    def __init__(self, *, python_callable: Callable, args_only: bool = False, **kwargs) -> None:
         self.args_only = args_only
 
         cmds = kwargs.pop("cmds", None)
