@@ -40,6 +40,7 @@ from airflow.api_fastapi.core_api.datamodels.event_logs import (
     EventLogResponse,
 )
 from airflow.api_fastapi.core_api.openapi.exceptions import create_openapi_http_exception_doc
+from airflow.api_fastapi.core_api.security import DagAccessEntity, requires_access_dag
 from airflow.models import Log
 
 event_logs_router = AirflowRouter(tags=["Event Log"], prefix="/eventLogs")
@@ -48,6 +49,7 @@ event_logs_router = AirflowRouter(tags=["Event Log"], prefix="/eventLogs")
 @event_logs_router.get(
     "/{event_log_id}",
     responses=create_openapi_http_exception_doc([status.HTTP_404_NOT_FOUND]),
+    dependencies=[Depends(requires_access_dag("GET", DagAccessEntity.AUDIT_LOG))],
 )
 def get_event_log(
     event_log_id: int,
@@ -61,6 +63,7 @@ def get_event_log(
 
 @event_logs_router.get(
     "",
+    dependencies=[Depends(requires_access_dag("GET", DagAccessEntity.AUDIT_LOG))],
 )
 def get_event_logs(
     limit: QueryLimit,
