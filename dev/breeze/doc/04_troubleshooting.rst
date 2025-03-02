@@ -28,11 +28,11 @@ If you are having problems with the Breeze environment, try the steps below. Aft
 can check whether your problem is fixed.
 
 1. Run ``breeze doctor`` to troubleshoot some of the common issues:
-   - Unavailability of Docker resources (will warn you if sufficient resources are not available)
-   - Perform environment checks and Docker ownership issues on Linux OS
-   - Clean up temp Python files
-   - Execute ``breeze down``
-   - Cleanup build cache and execute ``breeze cleanup``. Breeze will ask you to confirm each step.
+   * Unavailability of Docker resources (will warn you if sufficient resources are not available)
+   * Perform environment checks and Docker ownership issues on Linux OS
+   * Clean up temp Python files
+   * Execute ``breeze down``
+   * Cleanup build cache and execute ``breeze cleanup``. Breeze will ask you to confirm each step.
    This should fix a majority of your issues. If you still have face issues, try the next steps.
 2. Git fetch the origin and git rebase the current branch with main branch.
 3. Restart your Docker Engine and try again.
