@@ -22,6 +22,7 @@ from starlette import status
 from starlette.exceptions import HTTPException
 
 from airflow.api_fastapi.app import get_auth_manager
+from airflow.configuration import conf
 from airflow.providers.fab.auth_manager.api_fastapi.datamodels.login import LoginBody, LoginResponse
 from airflow.providers.fab.auth_manager.fab_auth_manager import FabAuthManager
 
@@ -33,7 +34,9 @@ class FABAuthManagerLogin:
     """Login Service for FABAuthManager."""
 
     @classmethod
-    def create_token(cls, body: LoginBody, expiration_time_in_sec: int = 0) -> LoginResponse:
+    def create_token(
+        cls, body: LoginBody, expiration_time_in_sec: int = conf.getint("api", "auth_jwt_expiration_time")
+    ) -> LoginResponse:
         """Create a new token."""
         if not body.username or not body.password:
             raise HTTPException(
@@ -41,12 +44,11 @@ class FABAuthManagerLogin:
             )
 
         auth_manager = cast(FabAuthManager, get_auth_manager())
-        security_manager = auth_manager.security_manager
-        user: User = security_manager.find_user(username=body.username)
+        user: User = auth_manager.security_manager.find_user(username=body.username)
         if not user:
             raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid username")
 
-        if user.password == body.password:
+        if auth_manager.security_manager.check_password(username=body.username, password=body.password):
             return LoginResponse(
                 jwt_token=auth_manager.get_jwt_token(
                     user=user, expiration_time_in_seconds=expiration_time_in_sec

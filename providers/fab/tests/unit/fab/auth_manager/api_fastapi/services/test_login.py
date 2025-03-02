@@ -28,16 +28,8 @@ from airflow.providers.fab.auth_manager.api_fastapi.services.login import FABAut
 if TYPE_CHECKING:
     from airflow.providers.fab.auth_manager.api_fastapi.datamodels.login import LoginResponse
 
-"""
-        dummy_security_manager = MagicMock()
-        dummy_user = MagicMock()
-        mock_fab_auth_manager_login.return_value.security_manager = dummy_security_manager
-        dummy_security_manager.find_user.return_value = dummy_user
-        dummy_user.password = "dummy"
 
-"""
-
-
+@patch("airflow.providers.fab.auth_manager.api_fastapi.services.login.get_auth_manager")
 class TestLogin:
     def setup_method(
         self,
@@ -53,13 +45,12 @@ class TestLogin:
         self.dummy_login_body.password = "dummy"
         self.dummy_token = "DUMMY_TOKEN"
 
-    @patch("airflow.providers.fab.auth_manager.api_fastapi.services.login.get_auth_manager")
     def test_create_token(self, get_auth_manager):
         get_auth_manager.return_value = self.dummy_auth_manager
         self.dummy_auth_manager.security_manager = self.dummy_security_manager
         self.dummy_security_manager.find_user.return_value = self.dummy_user
-        print(f"User in test: {self.dummy_user}")
         self.dummy_auth_manager.get_jwt_token.return_value = self.dummy_token
+        self.dummy_security_manager.auth_user_db.return_value = self.dummy_user
 
         login_response: LoginResponse = FABAuthManagerLogin.create_token(
             body=self.dummy_login_body,
@@ -67,11 +58,11 @@ class TestLogin:
         )
         assert login_response.jwt_token == self.dummy_token
 
-    @patch("airflow.providers.fab.auth_manager.api_fastapi.services.login.get_auth_manager")
     def test_create_token_invalid_username(self, get_auth_manager):
         get_auth_manager.return_value = self.dummy_auth_manager
         self.dummy_auth_manager.security_manager = self.dummy_security_manager
         self.dummy_security_manager.find_user.return_value = None
+        self.dummy_security_manager.auth_user_db.return_value = None
 
         with pytest.raises(HTTPException) as ex:
             FABAuthManagerLogin.create_token(
@@ -81,12 +72,12 @@ class TestLogin:
         assert ex.value.status_code == 401
         assert ex.value.detail == "Invalid username"
 
-    @patch("airflow.providers.fab.auth_manager.api_fastapi.services.login.get_auth_manager")
     def test_create_token_invalid_password(self, get_auth_manager):
         get_auth_manager.return_value = self.dummy_auth_manager
         self.dummy_auth_manager.security_manager = self.dummy_security_manager
         self.dummy_security_manager.find_user.return_value = self.dummy_user
         self.dummy_user.password = "invalid_password"
+        self.dummy_security_manager.auth_user_db.return_value = None
 
         with pytest.raises(HTTPException) as ex:
             FABAuthManagerLogin.create_token(
@@ -96,7 +87,6 @@ class TestLogin:
         assert ex.value.status_code == 401
         assert ex.value.detail == "Invalid password"
 
-    @patch("airflow.providers.fab.auth_manager.api_fastapi.services.login.get_auth_manager")
     def test_create_token_empty_user_password(self, get_auth_manager):
         get_auth_manager.return_value = self.dummy_auth_manager
         self.dummy_auth_manager.security_manager = self.dummy_security_manager

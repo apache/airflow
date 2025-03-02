@@ -11,7 +11,7 @@ paths:
       tags:
       - FabAuthManager
       summary: Create Token
-      description: Generate a new CLI API token.
+      description: Generate a new API token.
       operationId: create_token
       requestBody:
         content:

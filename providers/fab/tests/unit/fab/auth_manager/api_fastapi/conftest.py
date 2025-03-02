@@ -24,7 +24,7 @@ from airflow.providers.fab.auth_manager.fab_auth_manager import FabAuthManager
 
 @pytest.fixture(scope="module")
 def fab_auth_manager():
-    return FabAuthManager()
+    return FabAuthManager(None)
 
 
 @pytest.fixture(scope="module")

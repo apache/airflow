@@ -34,10 +34,8 @@ login_router = AirflowRouter(tags=["FabAuthManager"])
     responses=create_openapi_http_exception_doc([status.HTTP_400_BAD_REQUEST, status.HTTP_401_UNAUTHORIZED]),
 )
 def create_token(body: LoginBody) -> LoginResponse:
-    """Generate a new CLI API token."""
-    return FABAuthManagerLogin.create_token(
-        body=body, expiration_time_in_sec=conf.getint("api", "auth_jwt_expiration_time")
-    )
+    """Generate a new API token."""
+    return FABAuthManagerLogin.create_token(body=body)
 
 
 @login_router.post(
