@@ -388,7 +388,7 @@ The Params UI Tutorial is rendered in 4 sections with the most common examples. 
 
 .. image:: ../img/trigger-dag-tutorial-form-1.png
 
- The second section shows how to use the ``Param`` class to define more attributes.
+The second section shows how to use the ``Param`` class to define more attributes.
 
 .. image:: ../img/trigger-dag-tutorial-form-2.png
 
