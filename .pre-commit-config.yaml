@@ -227,6 +227,14 @@ repos:
         files: ^airflow-core/src/airflow/models/taskinstance\.py$|^airflow-core/src/airflow/models/taskinstancehistory\.py$
         pass_filenames: false
         require_serial: true
+      - id: prevent-usage-of-session.query
+        name: Prevent usage of session.query
+        entry: ./scripts/ci/pre_commit/usage_session_query.py
+        language: python
+        additional_dependencies: ['rich>=12.4.4']
+        files: ^airflow.*\.py$|^task_sdk.*\.py
+        exclude: ^tests/.*\.py$|^task_sdk/tests/.*\.py$
+        pass_filenames: true
       - id: check-deferrable-default
         name: Check and fix default value of default_deferrable
         language: python
