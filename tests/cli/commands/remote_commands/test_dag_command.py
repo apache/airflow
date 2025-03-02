@@ -200,16 +200,14 @@ class TestCliDags:
 
         for dag_id in expected_output:
             # Test num-executions = 1 (default)
-            args = self.parser.parse_args(["dags", "next-execution", dag_id, "-S", str(tmp_path)])
+            args = self.parser.parse_args(["dags", "next-execution", dag_id])
             with contextlib.redirect_stdout(StringIO()) as temp_stdout:
                 dag_command.dag_next_execution(args)
                 out = temp_stdout.getvalue()
             assert expected_output[dag_id][0] in out
 
             # Test num-executions = 2
-            args = self.parser.parse_args(
-                ["dags", "next-execution", dag_id, "--num-executions", "2", "-S", str(tmp_path)]
-            )
+            args = self.parser.parse_args(["dags", "next-execution", dag_id, "--num-executions", "2"])
             with contextlib.redirect_stdout(StringIO()) as temp_stdout:
                 dag_command.dag_next_execution(args)
                 out = temp_stdout.getvalue()

@@ -1121,7 +1121,6 @@ DAGS_COMMANDS = (
             ARG_DAG_ID,
             ARG_LOGICAL_DATE_OPTIONAL,
             ARG_CONF,
-            ARG_SUBDIR,
             ARG_SHOW_DAGRUN,
             ARG_IMGCAT_DAGRUN,
             ARG_SAVE_DAGRUN,
