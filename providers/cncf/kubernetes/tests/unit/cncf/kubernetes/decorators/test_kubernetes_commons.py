@@ -22,11 +22,13 @@ from unittest import mock
 import pytest
 
 from airflow.decorators import setup, task, teardown
+from airflow.utils import timezone
 
-pytestmark = pytest.mark.db_test
-
+from tests_common.test_utils.db import clear_db_dags, clear_db_runs, clear_rendered_ti_fields
 
 TASK_FUNCTION_NAME_ID = "task_function_name"
+DEFAULT_DATE = timezone.datetime(2023, 1, 1)
+DAG_ID = "k8s_deco_test_dag"
 
 
 def _kubernetes_func():
@@ -65,161 +67,208 @@ def _prepare_task(
     return task_function_name
 
 
-@pytest.mark.parametrize(
-    "task_decorator,decorator_name",
-    [
-        (task.kubernetes, "kubernetes"),
-        (task.kubernetes_cmd, "kubernetes_cmd"),
-    ],
-    ids=["kubernetes", "kubernetes_cmd"],
-)
-def test_decorators_with_marked_as_setup(
-    task_decorator,
-    decorator_name,
-    dag_maker,
-    session,
-    mock_create_pod: mock.Mock,
-    mock_hook: mock.Mock,
-) -> None:
-    with dag_maker(session=session) as dag:
-        task_function_name = setup(_prepare_task(task_decorator, decorator_name))
-        task_function_name()
-
-    assert len(dag.task_group.children) == 1
-    setup_task = dag.task_group.children[TASK_FUNCTION_NAME_ID]
-    assert setup_task.is_setup
+KPO_MODULE = "airflow.providers.cncf.kubernetes.operators.pod"
+POD_MANAGER_CLASS = "airflow.providers.cncf.kubernetes.utils.pod_manager.PodManager"
+HOOK_CLASS = "airflow.providers.cncf.kubernetes.operators.pod.KubernetesHook"
 
 
-@pytest.mark.parametrize(
-    "task_decorator,decorator_name",
-    [
-        (task.kubernetes, "kubernetes"),
-        (task.kubernetes_cmd, "kubernetes_cmd"),
-    ],
-    ids=["kubernetes", "kubernetes_cmd"],
-)
-def test_decorators_with_marked_as_teardown(
-    task_decorator,
-    decorator_name,
-    dag_maker,
-    session,
-    mock_create_pod: mock.Mock,
-    mock_hook: mock.Mock,
-) -> None:
-    with dag_maker(session=session) as dag:
-        task_function_name = teardown(_prepare_task(task_decorator, decorator_name))
-        task_function_name()
+@pytest.mark.db_test
+class TestKubernetesDecoratorsBase:
+    @pytest.fixture(autouse=True)
+    def setup(self, dag_maker):
+        self.dag_maker = dag_maker
 
-    assert len(dag.task_group.children) == 1
-    teardown_task = dag.task_group.children[TASK_FUNCTION_NAME_ID]
-    assert teardown_task.is_teardown
+        with dag_maker(dag_id=DAG_ID) as dag:
+            ...
 
+        self.dag = dag
 
-@pytest.mark.parametrize(
-    "name",
-    ["no_name_in_args", None, "test_task_name"],
-    ids=["no_name_in_args", "name_set_to_None", "with_name"],
-)
-@pytest.mark.parametrize(
-    "random_name_suffix",
-    [True, False],
-    ids=["rand_suffix", "no_rand_suffix"],
-)
-@pytest.mark.parametrize(
-    "task_decorator,decorator_name",
-    [
-        (task.kubernetes, "kubernetes"),
-        (task.kubernetes_cmd, "kubernetes_cmd"),
-    ],
-    ids=["kubernetes", "kubernetes_cmd"],
-)
-def test_pod_naming(
-    task_decorator,
-    decorator_name,
-    dag_maker,
-    session,
-    mock_create_pod: mock.Mock,
-    name: str | None,
-    random_name_suffix: bool,
-) -> None:
-    """
-    Idea behind this test is to check naming conventions are respected in various
-    decorator arguments combinations scenarios.
+        self.mock_create_pod = mock.patch(f"{POD_MANAGER_CLASS}.create_pod").start()
+        self.mock_await_pod_start = mock.patch(f"{POD_MANAGER_CLASS}.await_pod_start").start()
+        self.mock_await_xcom_sidecar_container_start = mock.patch(
+            f"{POD_MANAGER_CLASS}.await_xcom_sidecar_container_start"
+        ).start()
 
-    @task.kubernetes[_cmd] differs from KubernetesPodOperator in a way that it distinguishes
-    between no name argument was provided and name was set to None.
-    In the first case, the operator name is generated from the python_callable name,
-    in the second case default KubernetesPodOperator behavior is preserved.
-    """
-    extra_kwargs = {"name": name}
-    if name == "no_name_in_args":
-        extra_kwargs.pop("name")
+        self.mock_extract_xcom = mock.patch(f"{POD_MANAGER_CLASS}.extract_xcom").start()
+        self.mock_extract_xcom.return_value = '{"key1": "value1", "key2": "value2"}'
 
-    decorator_kwargs = {
-        "random_name_suffix": random_name_suffix,
-        "namespace": "default",
-        **extra_kwargs,
-    }
+        self.mock_await_pod_completion = mock.patch(f"{POD_MANAGER_CLASS}.await_pod_completion").start()
+        self.mock_await_pod_completion.return_value = mock.MagicMock(**{"status.phase": "Succeeded"})
+        self.mock_hook = mock.patch(HOOK_CLASS).start()
 
-    with dag_maker(session=session) as dag:
-        task_function_name = _prepare_task(
-            task_decorator,
-            decorator_name,
-            **decorator_kwargs,
+        # Without this patch each time pod manager would try to extract logs from the pod
+        # and log an error about it's inability to get containers for the log
+        # {pod_manager.py:572} ERROR - Could not retrieve containers for the pod: ...
+        self.mock_fetch_logs = mock.patch(f"{POD_MANAGER_CLASS}.fetch_requested_container_logs").start()
+        self.mock_fetch_logs.return_value = "logs"
+
+    def teardown_method(self):
+        clear_db_runs()
+        clear_db_dags()
+        clear_rendered_ti_fields()
+
+    def execute_task(self, task):
+        session = self.dag_maker.session
+        dag_run = self.dag_maker.create_dagrun(
+            run_id=f"k8s_decorator_test_{DEFAULT_DATE.date()}", session=session
         )
+        ti = dag_run.get_task_instance(task.operator.task_id, session=session)
+        return_val = task.operator.execute(context=ti.get_template_context(session=session))
 
-        task_function_name()
+        return ti, return_val
 
-    dr = dag_maker.create_dagrun()
-    (ti,) = dr.task_instances
-    session.add(ti)
-    session.commit()
 
-    task_id = TASK_FUNCTION_NAME_ID
-    op = dag.get_task(task_id)
-    if name is not None:
-        assert isinstance(op.name, str)
+def parametrize_kubernetes_decorators_commons(cls):
+    for name, method in cls.__dict__.items():
+        if not name.startswith("test_") or not callable(method):
+            continue
+        new_method = pytest.mark.parametrize(
+            "task_decorator,decorator_name",
+            [
+                (task.kubernetes, "kubernetes"),
+                (task.kubernetes_cmd, "kubernetes_cmd"),
+            ],
+            ids=["kubernetes", "kubernetes_cmd"],
+        )(method)
+        setattr(cls, name, new_method)
 
-    # If name was explicitly set to None, we expect the operator name to be None
-    if name is None:
-        assert op.name is None
-    # If name was not provided in decorator, it would be generated:
-    # f"k8s-airflow-pod-{python_callable.__name__}"
-    elif name == "no_name_in_args":
-        assert op.name == f"k8s-airflow-pod-{task_id}"
-    # Otherwise, we expect the name to be exactly the same as provided
-    else:
-        assert op.name == name
+    return cls
 
-    op.execute(context=ti.get_template_context(session=session))
-    pod_meta = mock_create_pod.call_args.kwargs["pod"].metadata
-    assert isinstance(pod_meta.name, str)
 
-    # After execution pod names should not contain underscores
-    task_id_normalized = task_id.replace("_", "-")
+@parametrize_kubernetes_decorators_commons
+class TestKubernetesDecoratorsCommons(TestKubernetesDecoratorsBase):
+    def test_k8s_decorator_init(self, task_decorator, decorator_name):
+        """Test the initialization of the @task.kubernetes[_cmd] decorated task."""
 
-    def check_op_name(name_arg: str | None) -> str:
-        if name_arg is None:
+        with self.dag:
+
+            @task_decorator(
+                image="python:3.10-slim-buster",
+                in_cluster=False,
+                cluster_context="default",
+            )
+            def k8s_task_function() -> list[str]:
+                return ["return", "value"]
+
+            k8s_task = k8s_task_function()
+
+        assert k8s_task.operator.task_id == "k8s_task_function"
+        assert k8s_task.operator.image == "python:3.10-slim-buster"
+
+        expected_cmds = ["placeholder-command"] if decorator_name == "kubernetes" else []
+        assert k8s_task.operator.cmds == expected_cmds
+        assert k8s_task.operator.random_name_suffix is True
+
+    def test_decorators_with_marked_as_setup(self, task_decorator, decorator_name):
+        """Test the @task.kubernetes[_cmd] decorated task works with setup decorator."""
+        with self.dag:
+            task_function_name = setup(_prepare_task(task_decorator, decorator_name))
+            task_function_name()
+
+        assert len(self.dag.task_group.children) == 1
+        setup_task = self.dag.task_group.children[TASK_FUNCTION_NAME_ID]
+        assert setup_task.is_setup
+
+    def test_decorators_with_marked_as_teardown(self, task_decorator, decorator_name):
+        """Test the @task.kubernetes[_cmd] decorated task works with teardown decorator."""
+        with self.dag:
+            task_function_name = teardown(_prepare_task(task_decorator, decorator_name))
+            task_function_name()
+
+        assert len(self.dag.task_group.children) == 1
+        teardown_task = self.dag.task_group.children[TASK_FUNCTION_NAME_ID]
+        assert teardown_task.is_teardown
+
+    @pytest.mark.parametrize(
+        "name",
+        ["no_name_in_args", None, "test_task_name"],
+        ids=["no_name_in_args", "name_set_to_None", "with_name"],
+    )
+    @pytest.mark.parametrize(
+        "random_name_suffix",
+        [True, False],
+        ids=["rand_suffix", "no_rand_suffix"],
+    )
+    def test_pod_naming(
+        self,
+        task_decorator,
+        decorator_name,
+        name: str | None,
+        random_name_suffix: bool,
+    ) -> None:
+        """
+        Idea behind this test is to check naming conventions are respected in various
+        decorator arguments combinations scenarios.
+
+        @task.kubernetes[_cmd] differs from KubernetesPodOperator in a way that it distinguishes
+        between no name argument was provided and name was set to None.
+        In the first case, the operator name is generated from the python_callable name,
+        in the second case default KubernetesPodOperator behavior is preserved.
+        """
+        extra_kwargs = {"name": name}
+        if name == "no_name_in_args":
+            extra_kwargs.pop("name")
+
+        decorator_kwargs = {
+            "random_name_suffix": random_name_suffix,
+            "namespace": "default",
+            **extra_kwargs,
+        }
+
+        with self.dag:
+            task_function_name = _prepare_task(
+                task_decorator,
+                decorator_name,
+                **decorator_kwargs,
+            )
+
+            k8s_task = task_function_name()
+
+        task_id = TASK_FUNCTION_NAME_ID
+        op = self.dag.get_task(task_id)
+        if name is not None:
+            assert isinstance(op.name, str)
+
+        # If name was explicitly set to None, we expect the operator name to be None
+        if name is None:
             assert op.name is None
-            return task_id_normalized
-
-        assert isinstance(op.name, str)
-        if name_arg == "no_name_in_args":
-            generated_name = f"k8s-airflow-pod-{task_id_normalized}"
-            assert op.name == generated_name
-            return generated_name
-
-        normalized_name = name_arg.replace("_", "-")
-        assert op.name == normalized_name
-
-        return normalized_name
-
-    def check_pod_name(name_base: str):
-        if random_name_suffix:
-            assert pod_meta.name.startswith(f"{name_base}")
-            assert pod_meta.name != name_base
+        # If name was not provided in decorator, it would be generated:
+        # f"k8s-airflow-pod-{python_callable.__name__}"
+        elif name == "no_name_in_args":
+            assert op.name == f"k8s-airflow-pod-{task_id}"
+        # Otherwise, we expect the name to be exactly the same as provided
         else:
-            assert pod_meta.name == name_base
+            assert op.name == name
 
-    pod_name = check_op_name(name)
-    check_pod_name(pod_name)
+        self.execute_task(k8s_task)
+        pod_meta = self.mock_create_pod.call_args.kwargs["pod"].metadata
+        assert isinstance(pod_meta.name, str)
+
+        # After execution pod names should not contain underscores
+        task_id_normalized = task_id.replace("_", "-")
+
+        def check_op_name(name_arg: str | None) -> str:
+            if name_arg is None:
+                assert op.name is None
+                return task_id_normalized
+
+            assert isinstance(op.name, str)
+            if name_arg == "no_name_in_args":
+                generated_name = f"k8s-airflow-pod-{task_id_normalized}"
+                assert op.name == generated_name
+                return generated_name
+
+            normalized_name = name_arg.replace("_", "-")
+            assert op.name == normalized_name
+
+            return normalized_name
+
+        def check_pod_name(name_base: str):
+            if random_name_suffix:
+                assert pod_meta.name.startswith(f"{name_base}")
+                assert pod_meta.name != name_base
+            else:
+                assert pod_meta.name == name_base
+
+        pod_name = check_op_name(name)
+        check_pod_name(pod_name)
