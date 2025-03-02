@@ -17,24 +17,37 @@
 from __future__ import annotations
 
 import warnings
-from collections.abc import Sequence
-from typing import TYPE_CHECKING, Callable
+from collections.abc import Collection, Mapping, Sequence
+from typing import TYPE_CHECKING, Any, Callable
 
 from airflow.decorators.base import DecoratedOperator, TaskDecorator, task_decorator_factory
 from airflow.providers.cncf.kubernetes.operators.pod import KubernetesPodOperator
+from airflow.providers.cncf.kubernetes.template_rendering import refresh_rendered_fields
 from airflow.utils.context import context_merge
 from airflow.utils.operator_helpers import determine_kwargs
 
 if TYPE_CHECKING:
-    from airflow.utils.context import Context
+    try:
+        from airflow.sdk.definitions.context import Context
+    except ImportError:
+        # TODO: Remove once provider drops support for Airflow 2
+        from airflow.utils.context import Context
 
 
 class _KubernetesCmdDecoratedOperator(DecoratedOperator, KubernetesPodOperator):
     custom_operator_name = "@task.kubernetes_cmd"
 
-    template_fields: Sequence[str] = tuple({"op_args", "op_kwargs", *KubernetesPodOperator.template_fields})
+    template_fields: Sequence[str] = (*DecoratedOperator.template_fields, *KubernetesPodOperator.template_fields)
 
-    def __init__(self, args_only: bool = False, **kwargs) -> None:
+    def __init__(
+        self,
+        *,
+        python_callable: Callable,
+        op_args: Collection[Any] | None = None,
+        op_kwargs: Mapping[str, Any] | None = None,
+        args_only: bool = False,
+        **kwargs
+    ) -> None:
         self.args_only = args_only
 
         cmds = kwargs.pop("cmds", None)
@@ -51,16 +64,28 @@ class _KubernetesCmdDecoratedOperator(DecoratedOperator, KubernetesPodOperator):
 
         # If the name was not provided, we generate operator name from the python_callable
         # we also instruct operator to add a random suffix to avoid collisions by default
-        op_name = kwargs.pop("name", f"k8s-airflow-pod-{kwargs['python_callable'].__name__}")
+        op_name = kwargs.pop("name", f"k8s-airflow-pod-{python_callable.__name__}")
         random_name_suffix = kwargs.pop("random_name_suffix", True)
 
         super().__init__(
+            python_callable=python_callable,
             name=op_name,
             random_name_suffix=random_name_suffix,
             cmds=None,
             arguments=None,
             **kwargs,
         )
+
+    def execute(self, context: Context):
+        generated = self._generate_cmds(context)
+        if self.args_only:
+            self.cmds = []
+            self.arguments = generated
+        else:
+            self.cmds = generated
+            self.arguments = []
+        refresh_rendered_fields(context["task_instance"])
+        return super().execute(context)
 
     def _generate_cmds(self, context: Context) -> list[str]:
         context_merge(context, self.op_kwargs)
@@ -77,16 +102,6 @@ class _KubernetesCmdDecoratedOperator(DecoratedOperator, KubernetesPodOperator):
             raise ValueError(f"The {func_name} returned an empty list of commands")
 
         return generated_cmds
-
-    def execute(self, context: Context):
-        generated = self._generate_cmds(context)
-        if self.args_only:
-            self.cmds = []
-            self.arguments = generated
-        else:
-            self.cmds = generated
-            self.arguments = []
-        return super().execute(context)
 
 
 def kubernetes_task_cmd(
