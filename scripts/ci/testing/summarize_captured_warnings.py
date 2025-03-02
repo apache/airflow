@@ -48,7 +48,6 @@ IMPORTANT_WARNING_SIGN = {
     "pydantic.warnings.PydanticDeprecatedSince20": "!!",
     "celery.exceptions.CPendingDeprecationWarning": "!!",
     "pytest.PytestWarning": "!!",
-    "airflow.exceptions.RemovedInAirflow3Warning": "!",
     "airflow.exceptions.AirflowProviderDeprecationWarning": "!",
 }
 # Always print messages for these warning categories
