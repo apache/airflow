@@ -1389,12 +1389,14 @@ export type ImportErrorServiceGetImportErrorQueryResult<
 export const useImportErrorServiceGetImportErrorKey = "ImportErrorServiceGetImportError";
 export const UseImportErrorServiceGetImportErrorKeyFn = (
   {
+    dagId,
     importErrorId,
   }: {
+    dagId?: string;
     importErrorId: number;
   },
   queryKey?: Array<unknown>,
-) => [useImportErrorServiceGetImportErrorKey, ...(queryKey ?? [{ importErrorId }])];
+) => [useImportErrorServiceGetImportErrorKey, ...(queryKey ?? [{ dagId, importErrorId }])];
 export type ImportErrorServiceGetImportErrorsDefaultResponse = Awaited<
   ReturnType<typeof ImportErrorService.getImportErrors>
 >;
@@ -1405,16 +1407,18 @@ export type ImportErrorServiceGetImportErrorsQueryResult<
 export const useImportErrorServiceGetImportErrorsKey = "ImportErrorServiceGetImportErrors";
 export const UseImportErrorServiceGetImportErrorsKeyFn = (
   {
+    dagId,
     limit,
     offset,
     orderBy,
   }: {
+    dagId?: string;
     limit?: number;
     offset?: number;
     orderBy?: string;
   } = {},
   queryKey?: Array<unknown>,
-) => [useImportErrorServiceGetImportErrorsKey, ...(queryKey ?? [{ limit, offset, orderBy }])];
+) => [useImportErrorServiceGetImportErrorsKey, ...(queryKey ?? [{ dagId, limit, offset, orderBy }])];
 export type JobServiceGetJobsDefaultResponse = Awaited<ReturnType<typeof JobService.getJobs>>;
 export type JobServiceGetJobsQueryResult<
   TData = JobServiceGetJobsDefaultResponse,
