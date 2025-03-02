@@ -47,11 +47,11 @@ spec:
     containerPolicies:
     - containerName: "worker"
       {{- with .Values.worker.vpa.resourcePolicy }}
-      {{- toYaml . | nindent 9 }}
+      {{- toYaml . | nindent 6 }}
       {{- end }}
     {{- range $containerName, $value := .Values.worker.vpa.extra_containers }}
     - containerName: {{ $containerName}}
-        {{- toYaml $value | nindent 9 }}
+        {{- toYaml $value | nindent 6 }}
     {{- end }}
       # minAllowed:
       #   cpu: "250m"

@@ -1464,7 +1464,7 @@ webserver:
     behavior: {}
   # Allow VPA
   vpa:
-    enabled: false
+    enabled: true
     # Update mode
     updateMode: "Initial"
 
