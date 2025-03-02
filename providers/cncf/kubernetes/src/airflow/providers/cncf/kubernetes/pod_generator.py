@@ -502,9 +502,12 @@ class PodGenerator:
         if os.path.exists(path):
             with open(path) as stream:
                 pod = yaml.safe_load(stream)
+        elif path is None:
+            pod = None
+            log.warning("Model file is not defined, using default model file.")
         else:
             pod = None
-            log.warning("Model file %s does not exist", path)
+            log.warning("Model file %s does not exist, using default model file.", path)
 
         return PodGenerator.deserialize_model_dict(pod)
 
