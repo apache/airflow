@@ -728,19 +728,9 @@ class EcsRunTaskOperator(EcsBaseOperator):
                 )
             containers = task["containers"]
             for container in containers:
-                if container.get("lastStatus") == "PENDING":
-                    raise AirflowException(f"This task is still pending {task}")
-
-                if "error" in container.get("reason", "").lower():
-                    raise AirflowException(
-                        f"This containers encounter an error during launching: "
-                        f"{container.get('reason', '').lower()}"
-                    )
-
                 exit_code = container.get("exitCode", 1)
                 if container.get("lastStatus") == "STOPPED" and exit_code != 0:
                     exception_cls: type[AirflowException]
-
                     if exit_code in self.fail_on_exit_codes:
                         exception_cls = AirflowFailException
                     elif exit_code in self.skip_on_exit_codes:
@@ -758,6 +748,15 @@ class EcsRunTaskOperator(EcsBaseOperator):
                         )
 
                     raise exception_cls(f"This task is not in success state {task}")
+
+                if container.get("lastStatus") == "PENDING":
+                    raise AirflowException(f"This task is still pending {task}")
+
+                if "error" in container.get("reason", "").lower():
+                    raise AirflowException(
+                        f"This containers encounter an error during launching: "
+                        f"{container.get('reason', '').lower()}"
+                    )
 
     def on_kill(self) -> None:
         if not self.client or not self.arn:
