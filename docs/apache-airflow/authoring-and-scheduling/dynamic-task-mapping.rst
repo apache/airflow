@@ -316,7 +316,7 @@ Also it's possible to mix ``expand_kwargs`` with most of the operators arguments
     )
 
 
-Similar to ``expand``, you can also map against a XCom that returns a list of dicts, or a list of XComs each returning a dict. Re-using the S3 example above, you can use a mapped task to perform "branching" and copy files to different buckets:
+Similar to ``expand``, you can also map against a XCom that returns a list of dicts, or a list of XComs each returning a dict. Reusing the S3 example above, you can use a mapped task to perform "branching" and copy files to different buckets:
 
 .. code-block:: python
 

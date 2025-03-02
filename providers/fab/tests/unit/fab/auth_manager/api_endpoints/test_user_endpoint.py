@@ -26,12 +26,12 @@ from airflow.providers.fab.www.security import permissions
 from airflow.utils import timezone
 from airflow.utils.session import create_session
 from unit.fab.auth_manager.api_endpoints.api_connexion_utils import (
+    assert_401,
     create_user,
     delete_role,
     delete_user,
 )
 
-from tests_common.test_utils.api_connexion_utils import assert_401
 from tests_common.test_utils.compat import ignore_provider_compatibility_error
 from tests_common.test_utils.config import conf_vars
 

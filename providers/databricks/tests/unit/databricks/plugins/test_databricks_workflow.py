@@ -170,7 +170,7 @@ def test_workflow_job_run_link(app):
                 "airflow.providers.databricks.plugins.databricks_workflow.get_xcom_result"
             ) as mock_get_xcom_result:
                 with patch(
-                    "airflow.providers.databricks.plugins.databricks_workflow.airflow_app.dag_bag.get_dag"
+                    "airflow.providers.databricks.plugins.databricks_workflow.DagBag.get_dag"
                 ) as mock_get_dag:
                     mock_connection = Mock()
                     mock_connection.extra_dejson = {"host": "mockhost"}
@@ -211,7 +211,7 @@ def test_workflow_job_repair_single_failed_link(app):
                 "airflow.providers.databricks.plugins.databricks_workflow.get_xcom_result"
             ) as mock_get_xcom_result:
                 with patch(
-                    "airflow.providers.databricks.plugins.databricks_workflow.airflow_app.dag_bag.get_dag"
+                    "airflow.providers.databricks.plugins.databricks_workflow.DagBag.get_dag"
                 ) as mock_get_dag:
                     mock_get_task_instance.return_value = Mock(key=ti_key)
                     mock_get_xcom_result.return_value = Mock(conn_id="conn_id", run_id=1)

@@ -554,7 +554,7 @@ Using Breeze
 
   .. code-block:: bash
 
-    root@0c6e4ff0ab3d:/opt/airflow# airflow fast-api
+    root@0c6e4ff0ab3d:/opt/airflow# airflow api-server
 
   5. Press Ctrl + B and %
 
@@ -562,30 +562,25 @@ Using Breeze
 
     root@0c6e4ff0ab3d:/opt/airflow# airflow dag-processor
 
-  6. Press Ctrl + B and %
-
-  .. code-block:: bash
-
-    root@0c6e4ff0ab3d:/opt/airflow# airflow webserver
-
-  7. Press Ctrl + B and up arrow followed by Ctrl + B and %
+  6. Press Ctrl + B and up arrow followed by Ctrl + B and %
 
   .. code-block:: bash
 
     root@0c6e4ff0ab3d:/opt/airflow# airflow triggerer
 
-  8. Press Ctrl + B followed by (Optional step for better tile arrangement)
+  7. Press Ctrl + B followed by (Optional step for better tile arrangement)
+
   .. code-block:: bash
 
     :select-layout tiled
 
 
-2. Now you can access airflow web interface on your local machine at |http://127.0.0.1:28080| with user name ``admin``
+2. Now you can access airflow web interface on your local machine at |http://localhost:29091| with user name ``admin``
    and password ``admin``
 
-   .. |http://127.0.0.1:28080| raw:: html
+   .. |http://localhost:29091| raw:: html
 
-      <a href="http://127.0.0.1:28080" target="_blank">http://127.0.0.1:28080</a>
+      <a href="http://localhost:29091" target="_blank">http://localhost:29091</a>
 
    .. raw:: html
 

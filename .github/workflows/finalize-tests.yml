@@ -139,7 +139,6 @@ jobs:
     permissions:
       contents: read
       packages: write
-    secrets: inherit
     with:
       runs-on-as-json-public: ${{ inputs.runs-on-as-json-public }}
       runs-on-as-json-self-hosted: ${{ inputs.runs-on-as-json-self-hosted }}
@@ -163,7 +162,6 @@ jobs:
   #    permissions:
   #      contents: read
   #      packages: write
-  #    secrets: inherit
   #    with:
   #      runs-on-as-json-public: ${{ inputs.runs-on-as-json-public }}
   #      runs-on-as-json-self-hosted: ${{ inputs.runs-on-as-json-self-hosted }}

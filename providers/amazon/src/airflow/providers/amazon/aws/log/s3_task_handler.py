@@ -75,7 +75,7 @@ class S3TaskHandler(FileTaskHandler, LoggingMixin):
         is_trigger_log_context = getattr(ti, "is_trigger_log_context", False)
         self.upload_on_close = is_trigger_log_context or not getattr(ti, "raw", None)
         # Clear the file first so that duplicate data is not uploaded
-        # when re-using the same path (e.g. with rescheduled sensors)
+        # when reusing the same path (e.g. with rescheduled sensors)
         if self.upload_on_close:
             with open(self.handler.baseFilename, "w"):
                 pass

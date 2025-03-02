@@ -34,7 +34,7 @@ const MenuButton: React.FC<Props> = ({ dag }) => (
       <ActionButton actionName="" icon={<MdMoreHoriz />} text="" />
     </Menu.Trigger>
     <Menu.Content>
-      <Menu.Item value="Run Backfill">
+      <Menu.Item asChild value="Run Backfill">
         <RunBackfillButton dag={dag} />
       </Menu.Item>
     </Menu.Content>

@@ -2228,8 +2228,8 @@ class TestStringifiedDAGs:
 
         class TestOperator(BaseOperator):
             template_fields = (
-                "email",  # templateable
                 "execution_timeout",  # not templateable
+                "run_as_user",  # templateable
             )
 
             def execute(self, context: Context):
@@ -2240,18 +2240,18 @@ class TestStringifiedDAGs:
         with dag:
             task = TestOperator(
                 task_id="test_task",
-                email="{{ ','.join(test_email_list) }}",
+                run_as_user="{{ test_run_as_user }}",
                 execution_timeout=timedelta(seconds=10),
             )
-            task.render_template_fields(context={"test_email_list": ["foo@test.com", "bar@test.com"]})
-            assert task.email == "foo@test.com,bar@test.com"
+            task.render_template_fields(context={"test_run_as_user": "foo"})
+            assert task.run_as_user == "foo"
 
         with pytest.raises(
             AirflowException,
             match=re.escape(
                 dedent(
                     """Failed to serialize DAG 'test_dag': Cannot template BaseOperator field:
-                        'execution_timeout' op.__class__.__name__='TestOperator' op.template_fields=('email', 'execution_timeout')"""
+                        'execution_timeout' op.__class__.__name__='TestOperator' op.template_fields=('execution_timeout', 'run_as_user')"""
                 )
             ),
         ):

@@ -34,6 +34,7 @@ from typing import TYPE_CHECKING, Any, ClassVar, Final, NoReturn, TypeVar, cast
 
 import attrs
 
+from airflow.exceptions import RemovedInAirflow4Warning
 from airflow.sdk.definitions._internal.abstractoperator import (
     DEFAULT_IGNORE_FIRST_DEPENDS_ON_PAST,
     DEFAULT_OWNER,
@@ -532,11 +533,11 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
         (e.g. user/person/team/role name) to clarify ownership is recommended.
     :param email: the 'to' email address(es) used in email alerts. This can be a
         single email or multiple ones. Multiple addresses can be specified as a
-        comma or semicolon separated string or by passing a list of strings.
+        comma or semicolon separated string or by passing a list of strings. (deprecated)
     :param email_on_retry: Indicates whether email alerts should be sent when a
-        task is retried
+        task is retried (deprecated)
     :param email_on_failure: Indicates whether email alerts should be sent when
-        a task failed
+        a task failed (deprecated)
     :param retries: the number of retries that should be performed before
         failing the task
     :param retry_delay: delay between retries, can be set as ``timedelta`` or
@@ -955,6 +956,25 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
         self.email = email
         self.email_on_retry = email_on_retry
         self.email_on_failure = email_on_failure
+
+        if email is not None:
+            warnings.warn(
+                "email is deprecated please migrate to SmtpNotifier`.",
+                RemovedInAirflow4Warning,
+                stacklevel=2,
+            )
+        if email and email_on_retry is not None:
+            warnings.warn(
+                "email_on_retry is deprecated please migrate to SmtpNotifier`.",
+                RemovedInAirflow4Warning,
+                stacklevel=2,
+            )
+        if email and email_on_failure is not None:
+            warnings.warn(
+                "email_on_failure is deprecated please migrate to SmtpNotifier`.",
+                RemovedInAirflow4Warning,
+                stacklevel=2,
+            )
 
         if execution_timeout is not None and not isinstance(execution_timeout, timedelta):
             raise ValueError(

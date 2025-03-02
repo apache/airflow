@@ -304,6 +304,8 @@ jobs:
   publish-docs:
     timeout-minutes: 150
     name: "Publish documentation"
+    permissions:
+      id-token: write
     needs: build-docs
     runs-on: ${{ fromJSON(inputs.runs-on-as-json-docs-build) }}
     env:

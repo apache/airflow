@@ -1247,7 +1247,7 @@ COPY --from=scripts common.sh install_packaging_tools.sh install_additional_depe
 # Also use `force pip` label on your PR to swap all places we use `uv` to `pip`
 ARG AIRFLOW_PIP_VERSION=25.0.1
 # ARG AIRFLOW_PIP_VERSION="git+https://github.com/pypa/pip.git@main"
-ARG AIRFLOW_UV_VERSION=0.6.0
+ARG AIRFLOW_UV_VERSION=0.6.3
 # TODO(potiuk): automate with upgrade check (possibly)
 ARG AIRFLOW_PRE_COMMIT_VERSION="4.1.0"
 ARG AIRFLOW_PRE_COMMIT_UV_VERSION="4.1.4"
@@ -1283,11 +1283,8 @@ COPY . ${AIRFLOW_SOURCES}/
 # Those are additional constraints that are needed for some extras but we do not want to
 # force them on the main Airflow package. Currently we need no extra limits as PIP 23.1+ has much better
 # dependency resolution and we do not need to limit the versions of the dependencies
-# The `confluent-kafka==2.8.1` currently breaks installation of kafka provider from PyPI
-# So we need to add limit here to get our constraints generation for PyPI packages work
-# This can be removed when https://github.com/confluentinc/confluent-kafka-python/issues/1927 is solved
 #
-ARG EAGER_UPGRADE_ADDITIONAL_REQUIREMENTS="confluent-kafka!=2.8.1"
+ARG EAGER_UPGRADE_ADDITIONAL_REQUIREMENTS=""
 ARG UPGRADE_INVALIDATION_STRING=""
 ARG VERSION_SUFFIX_FOR_PYPI=""
 
