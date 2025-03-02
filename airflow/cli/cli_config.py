@@ -985,13 +985,13 @@ DAGS_COMMANDS = (
         name="list-import-errors",
         help="List all the DAGs that have import errors",
         func=lazy_load_command("airflow.cli.commands.remote_commands.dag_command.dag_list_import_errors"),
-        args=(ARG_SUBDIR, ARG_OUTPUT, ARG_VERBOSE),
+        args=(ARG_BUNDLE_NAME, ARG_OUTPUT, ARG_VERBOSE),
     ),
     ActionCommand(
         name="report",
         help="Show DagBag loading report",
         func=lazy_load_command("airflow.cli.commands.remote_commands.dag_command.dag_report"),
-        args=(ARG_SUBDIR, ARG_OUTPUT, ARG_VERBOSE),
+        args=(ARG_BUNDLE_NAME, ARG_OUTPUT, ARG_VERBOSE),
     ),
     ActionCommand(
         name="list-runs",
@@ -1024,7 +1024,7 @@ DAGS_COMMANDS = (
         name="state",
         help="Get the status of a dag run",
         func=lazy_load_command("airflow.cli.commands.remote_commands.dag_command.dag_state"),
-        args=(ARG_DAG_ID, ARG_LOGICAL_DATE_OR_RUN_ID, ARG_SUBDIR, ARG_VERBOSE),
+        args=(ARG_DAG_ID, ARG_LOGICAL_DATE_OR_RUN_ID, ARG_VERBOSE),
     ),
     ActionCommand(
         name="next-execution",
@@ -1034,7 +1034,7 @@ DAGS_COMMANDS = (
             "num-executions option is given"
         ),
         func=lazy_load_command("airflow.cli.commands.remote_commands.dag_command.dag_next_execution"),
-        args=(ARG_DAG_ID, ARG_SUBDIR, ARG_NUM_EXECUTIONS, ARG_VERBOSE),
+        args=(ARG_DAG_ID, ARG_BUNDLE_NAME, ARG_NUM_EXECUTIONS, ARG_VERBOSE),
     ),
     ActionCommand(
         name="pause",
@@ -1067,7 +1067,6 @@ DAGS_COMMANDS = (
         func=lazy_load_command("airflow.cli.commands.remote_commands.dag_command.dag_trigger"),
         args=(
             ARG_DAG_ID,
-            ARG_SUBDIR,
             ARG_RUN_ID,
             ARG_CONF,
             ARG_EXEC_DATE,
@@ -1105,7 +1104,7 @@ DAGS_COMMANDS = (
         func=lazy_load_command("airflow.cli.commands.remote_commands.dag_command.dag_show"),
         args=(
             ARG_DAG_ID,
-            ARG_SUBDIR,
+            ARG_BUNDLE_NAME,
             ARG_SAVE,
             ARG_IMGCAT,
             ARG_VERBOSE,
@@ -1133,7 +1132,6 @@ DAGS_COMMANDS = (
         ),
         func=lazy_load_command("airflow.cli.commands.remote_commands.dag_command.dag_dependencies_show"),
         args=(
-            ARG_SUBDIR,
             ARG_SAVE,
             ARG_IMGCAT,
             ARG_VERBOSE,
@@ -1166,7 +1164,6 @@ DAGS_COMMANDS = (
             ARG_DAG_ID,
             ARG_LOGICAL_DATE_OPTIONAL,
             ARG_CONF,
-            ARG_SUBDIR,
             ARG_SHOW_DAGRUN,
             ARG_IMGCAT_DAGRUN,
             ARG_SAVE_DAGRUN,
