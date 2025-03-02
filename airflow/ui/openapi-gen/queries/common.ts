@@ -541,16 +541,18 @@ export type ConnectionServiceGetConnectionsQueryResult<
 export const useConnectionServiceGetConnectionsKey = "ConnectionServiceGetConnections";
 export const UseConnectionServiceGetConnectionsKeyFn = (
   {
+    connectionId,
     limit,
     offset,
     orderBy,
   }: {
+    connectionId?: string;
     limit?: number;
     offset?: number;
     orderBy?: string;
   } = {},
   queryKey?: Array<unknown>,
-) => [useConnectionServiceGetConnectionsKey, ...(queryKey ?? [{ limit, offset, orderBy }])];
+) => [useConnectionServiceGetConnectionsKey, ...(queryKey ?? [{ connectionId, limit, offset, orderBy }])];
 export type DagRunServiceGetDagRunDefaultResponse = Awaited<ReturnType<typeof DagRunService.getDagRun>>;
 export type DagRunServiceGetDagRunQueryResult<
   TData = DagRunServiceGetDagRunDefaultResponse,

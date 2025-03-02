@@ -726,6 +726,7 @@ export const prefetchUseConnectionServiceGetConnection = (
  * Get Connections
  * Get all connection entries.
  * @param data The data for the request.
+ * @param data.connectionId
  * @param data.limit
  * @param data.offset
  * @param data.orderBy
@@ -735,18 +736,20 @@ export const prefetchUseConnectionServiceGetConnection = (
 export const prefetchUseConnectionServiceGetConnections = (
   queryClient: QueryClient,
   {
+    connectionId,
     limit,
     offset,
     orderBy,
   }: {
+    connectionId?: string;
     limit?: number;
     offset?: number;
     orderBy?: string;
   } = {},
 ) =>
   queryClient.prefetchQuery({
-    queryKey: Common.UseConnectionServiceGetConnectionsKeyFn({ limit, offset, orderBy }),
-    queryFn: () => ConnectionService.getConnections({ limit, offset, orderBy }),
+    queryKey: Common.UseConnectionServiceGetConnectionsKeyFn({ connectionId, limit, offset, orderBy }),
+    queryFn: () => ConnectionService.getConnections({ connectionId, limit, offset, orderBy }),
   });
 /**
  * Get Dag Run
