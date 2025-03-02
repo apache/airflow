@@ -114,9 +114,11 @@ class BaseAuthManager(Generic[T], LoggingMixin):
             log.error("JWT token is not valid")
             raise e
 
-    def get_jwt_token(self, user: T) -> str:
+    def get_jwt_token(self, user: T, expiration_time_in_seconds: int = 0) -> str:
         """Return the JWT token from a user object."""
-        return self._get_token_signer().generate_signed_token(self.serialize_user(user))
+        return self._get_token_signer(
+            expiration_time_in_seconds=expiration_time_in_seconds
+        ).generate_signed_token(self.serialize_user(user))
 
     def get_user_id(self) -> str | None:
         """Return the user ID associated to the user in session."""
@@ -457,14 +459,17 @@ class BaseAuthManager(Generic[T], LoggingMixin):
         """Register views specific to the auth manager."""
 
     @staticmethod
-    def _get_token_signer():
+    def _get_token_signer(expiration_time_in_seconds: int = 0) -> JWTSigner:
         """
         Return the signer used to sign JWT token.
 
         :meta private:
         """
+        if expiration_time_in_seconds == 0:
+            expiration_time_in_seconds = conf.getint("api", "auth_jwt_expiration_time")
+
         return JWTSigner(
             secret_key=get_signing_key("api", "auth_jwt_secret"),
-            expiration_time_in_seconds=conf.getint("api", "auth_jwt_expiration_time"),
+            expiration_time_in_seconds=expiration_time_in_seconds,
             audience="front-apis",
         )

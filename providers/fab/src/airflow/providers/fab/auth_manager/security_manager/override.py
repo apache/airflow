@@ -63,7 +63,10 @@ from flask_appbuilder.security.views import (
 )
 from flask_appbuilder.views import expose
 from flask_babel import lazy_gettext
-from flask_jwt_extended import JWTManager, current_user as current_user_jwt
+from flask_jwt_extended import (
+    JWTManager,
+    current_user as current_user_jwt,
+)
 from flask_login import LoginManager
 from itsdangerous import want_bytes
 from markupsafe import Markup
