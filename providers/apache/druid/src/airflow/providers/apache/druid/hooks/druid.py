@@ -104,6 +104,9 @@ class DruidHook(BaseHook):
         return f"{conn_type}://{host}:{port}/{endpoint}"
 
     def get_status_url(self, ingestion_type):
+        """
+        Return Druid status url.
+        """
         if ingestion_type == IngestionType.MSQ:
             if self.get_connection_type == "druid":
                 conn_type = self.conn.extra_dejson.get("schema", "http")
