@@ -1770,6 +1770,48 @@
                         }
                     }
                 },
+                "vpa": {
+                    "description": "VPA configuration.",
+                    "type": "object",
+                    "additionalProperties": false,
+                    "properties": {
+                        "enabled": {
+                            "description": "Allow VPA autoscaling",
+                            "type": "boolean",
+                            "default": false
+                        },
+                        "updateMode": {
+                            "description": "Specifies whether recommended updates are applied when a Pod is started and whether recommended updates are applied during the life of a Pod. Possible values are Off, Initial, Recreate, and Auto.",
+                            "type": "string",
+                            "default": "Initial"
+                        },
+                        "resourcePolicy": {
+                            "description": "Maximum number of webservers created by HPA.",
+                            "type": "object",
+                            "default": {}
+                        },
+                        "extraContainers": {
+                            "type": "object",
+                            "examples": [
+                                {
+                                    "containerName":
+                                                    {
+                                                        "limits": {
+                                                            "cpu": "100m",
+                                                            "memory": "128Mi"
+                                                        },
+                                                        "requests": {
+                                                            "cpu": "100m",
+                                                            "memory": "128Mi"
+                                                        }
+                                                    }
+                             }
+                            ],
+                            "default": {}
+
+                        }
+                    }
+                },
                 "persistence": {
                     "description": "Persistence configuration.",
                     "type": "object",
@@ -2780,6 +2822,48 @@
                     "default": {},
                     "additionalProperties": {
                         "type": "string"
+                    }
+                },
+                "vpa": {
+                    "description": "VPA configuration.",
+                    "type": "object",
+                    "additionalProperties": false,
+                    "properties": {
+                        "enabled": {
+                            "description": "Allow VPA autoscaling",
+                            "type": "boolean",
+                            "default": false
+                        },
+                        "updateMode": {
+                            "description": "Specifies whether recommended updates are applied when a Pod is started and whether recommended updates are applied during the life of a Pod. Possible values are Off, Initial, Recreate, and Auto.",
+                            "type": "string",
+                            "default": "Initial"
+                        },
+                        "resourcePolicy": {
+                            "description": "Maximum number of webservers created by HPA.",
+                            "type": "object",
+                            "default": {}
+                        },
+                        "extraContainers": {
+                            "type": "object",
+                            "examples": [
+                                {
+                                    "containerName":
+                                                    {
+                                                        "limits": {
+                                                            "cpu": "100m",
+                                                            "memory": "128Mi"
+                                                        },
+                                                        "requests": {
+                                                            "cpu": "100m",
+                                                            "memory": "128Mi"
+                                                        }
+                                                    }
+                             }
+                            ],
+                            "default": {}
+
+                        }
                     }
                 },
                 "logGroomerSidecar": {
@@ -5600,6 +5684,48 @@
                             "type": "object",
                             "default": {},
                             "$ref": "#/definitions/io.k8s.api.autoscaling.v2.HorizontalPodAutoscalerBehavior"
+                        }
+                    }
+                },
+                "vpa": {
+                    "description": "VPA configuration.",
+                    "type": "object",
+                    "additionalProperties": false,
+                    "properties": {
+                        "enabled": {
+                            "description": "Allow VPA autoscaling",
+                            "type": "boolean",
+                            "default": false
+                        },
+                        "updateMode": {
+                            "description": "Specifies whether recommended updates are applied when a Pod is started and whether recommended updates are applied during the life of a Pod. Possible values are Off, Initial, Recreate, and Auto.",
+                            "type": "string",
+                            "default": "Initial"
+                        },
+                        "resourcePolicy": {
+                            "description": "Maximum number of webservers created by HPA.",
+                            "type": "object",
+                            "default": {}
+                        },
+                        "extraContainers": {
+                            "type": "object",
+                            "examples": [
+                                {
+                                    "containerName":
+                                                    {
+                                                        "limits": {
+                                                            "cpu": "100m",
+                                                            "memory": "128Mi"
+                                                        },
+                                                        "requests": {
+                                                            "cpu": "100m",
+                                                            "memory": "128Mi"
+                                                        }
+                                                    }
+                             }
+                            ],
+                            "default": {}
+
                         }
                     }
                 },

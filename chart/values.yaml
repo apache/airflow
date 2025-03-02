@@ -687,6 +687,27 @@ workers:
 
     # Scaling behavior of the target in both Up and Down directions
     behavior: {}
+  vpa:
+    enabled: false
+    # Update mode
+    updateMode: "Initial"
+
+    resourcePolicy:
+      minAllowed:
+        cpu: "250m"
+        memory: "100Mi"
+      maxAllowed:
+        cpu: "500m"
+        memory: "2Gi"
+    # Specifications for which to use to calculate the desired replica count
+    extraContainers: {}
+      # container_name:
+      #   minAllowed:
+      #     cpu: "250m"
+      #     memory: "100Mi"
+      #   maxAllowed:
+      #     cpu: "500m"
+      #     memory: "600Mi"
 
   persistence:
     # Enable persistent volumes
@@ -1019,6 +1040,23 @@ scheduler:
   # Labels specific to scheduler objects and pods
   labels: {}
 
+  vpa:
+    enabled: false
+    # Update mode
+    updateMode: "Initial"
+
+    resourcePolicy: {}
+    # Specifications for which to use to calculate the desired replica count
+    extraContainers:
+      container_name:
+        minAllowed:
+          cpu: "250m"
+          memory: "100Mi"
+        maxAllowed:
+          cpu: "500m"
+          memory: "600Mi"
+
+
   logGroomerSidecar:
     # Whether to deploy the Airflow scheduler log groomer sidecar.
     enabled: true
@@ -1053,6 +1091,9 @@ scheduler:
       container: {}
 
   env: []
+
+
+
 
 # Airflow create user job settings
 createUserJob:
@@ -1421,6 +1462,30 @@ webserver:
 
     # Scaling behavior of the target in both Up and Down directions
     behavior: {}
+  # Allow VPA
+  vpa:
+    enabled: false
+    # Update mode
+    updateMode: "Initial"
+
+    resourcePolicy:
+      minAllowed:
+        cpu: "250m"
+        memory: "100Mi"
+      maxAllowed:
+        cpu: "500m"
+        memory: "2Gi"
+
+    # Specifications for which to use to calculate the desired replica count
+    extraContainers: {}
+      # container_name:
+      #   minAllowed:
+      #     cpu: "250m"
+      #     memory: "100Mi"
+      #   maxAllowed:
+      #     cpu: "500m"
+      #     memory: "600Mi"
+
 
 
   # Create ServiceAccount

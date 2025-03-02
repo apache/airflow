@@ -1,0 +1,64 @@
+{{/*
+ Licensed to the Apache Software Foundation (ASF) under one
+ or more contributor license agreements.  See the NOTICE file
+ distributed with this work for additional information
+ regarding copyright ownership.  The ASF licenses this file
+ to you under the Apache License, Version 2.0 (the
+ "License"); you may not use this file except in compliance
+ with the License.  You may obtain a copy of the License at
+
+   http://www.apache.org/licenses/LICENSE-2.0
+
+ Unless required by applicable law or agreed to in writing,
+ software distributed under the License is distributed on an
+ "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ KIND, either express or implied.  See the License for the
+ specific language governing permissions and limitations
+ under the License.
+*/}}
+
+################################
+## Airflow Worker VPA
+#################################
+{{- if semverCompare "<3.0.0" .Values.airflowVersion }}
+{{- if and (and (not .Values.workers.keda.enabled) .Values.workers.vpa.enabled) (or (contains "CeleryExecutor" .Values.executor) (contains "CeleryKubernetesExecutor" .Values.executor)) }}
+apiVersion: autoscaling.k8s.io/v1beta2
+kind: VerticalPodAutoscaler
+metadata:
+  name: {{ include "airflow.fullname" . }}-worker
+  labels:
+    tier: airflow
+    component: worker-horizontalpodautoscaler
+    release: {{ .Release.Name }}
+    chart: "{{ .Chart.Name }}-{{ .Chart.Version }}"
+    heritage: {{ .Release.Service }}
+    deploymentName: {{ .Release.Name }}-worker
+    {{- if or (.Values.labels) (.Values.worker.labels) }}
+      {{- mustMerge .Values.worker.labels .Values.labels | toYaml | nindent 4 }}
+    {{- end }}
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: {{ ternary "StatefulSet" "Deployment" .Values.workers.persistence.enabled }}
+    name: {{ include "airflow.fullname" . }}-worker
+  updatePolicy:
+    updateMode: {{ .Values.worker.vpa.updateMode }}
+  resourcePolicy:
+    containerPolicies:
+    - containerName: "worker"
+      {{- with .Values.worker.vpa.resourcePolicy }}
+      {{- toYaml . | nindent 9 }}
+      {{- end }}
+    {{- range $containerName, $value := .Values.worker.vpa.extra_containers }}
+    - containerName: {{ $containerName}}
+        {{- toYaml $value | nindent 9 }}
+    {{- end }}
+      # minAllowed:
+      #   cpu: "250m"
+      #   memory: "100Mi"
+      # maxAllowed:
+      #   cpu: "500m"
+      #   memory: "600Mi"
+
+{{- end }}
+{{- end }}
