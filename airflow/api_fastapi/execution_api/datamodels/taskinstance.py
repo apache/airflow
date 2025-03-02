@@ -157,6 +157,12 @@ class TIRescheduleStatePayload(StrictBaseModel):
     end_date: UtcDateTime
 
 
+class TISkippedDownstreamTasksStatePayload(StrictBaseModel):
+    """Schema for updating downstream tasks TaskInstance to a skipped state."""
+
+    tasks: Annotated[list[str] | list[tuple[str, int]], Field(default_factory=list)]
+
+
 def ti_state_discriminator(v: dict[str, str] | StrictBaseModel) -> str:
     """
     Determine the discriminator key for TaskInstance state transitions.
