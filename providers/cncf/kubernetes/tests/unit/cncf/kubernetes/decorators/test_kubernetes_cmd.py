@@ -244,7 +244,7 @@ class TestKubernetesCmdDecorator(TestKubernetesDecoratorsBase):
         op_arg: str,
         expected_command: list[str],
     ):
-        """Test that templating works in function arguments"""
+        """Test that templating works in function return value"""
         with self.dag:
 
             @task.kubernetes_cmd(
@@ -271,6 +271,66 @@ class TestKubernetesCmdDecorator(TestKubernetesDecoratorsBase):
         assert len(containers) == 1
 
         assert containers[0].command == expected_command
+        assert containers[0].args == []
+
+    def test_basic_context_works(self):
+        """Test that decorator works with context as kwargs unpcacked in function arguments"""
+        with self.dag:
+
+            @task.kubernetes_cmd(
+                image="python:3.10-slim-buster",
+                in_cluster=False,
+                cluster_context="default",
+                config_file="/tmp/fake_file",
+                namespace="default",
+            )
+            def hello(**context):
+                return ["echo", context["ti"].task_id, context["dag_run"].dag_id]
+
+            hello_task = hello()
+
+        self.execute_task(hello_task)
+
+        self.mock_hook.assert_called_once_with(
+            conn_id="kubernetes_default",
+            in_cluster=False,
+            cluster_context="default",
+            config_file="/tmp/fake_file",
+        )
+        containers = self.mock_create_pod.call_args.kwargs["pod"].spec.containers
+        assert len(containers) == 1
+
+        assert containers[0].command == ["echo", "hello", DAG_ID]
+        assert containers[0].args == []
+
+    def test_named_context_variables(self):
+        """Test that decorator works with specific context variable as kwargs in function arguments"""
+        with self.dag:
+
+            @task.kubernetes_cmd(
+                image="python:3.10-slim-buster",
+                in_cluster=False,
+                cluster_context="default",
+                config_file="/tmp/fake_file",
+                namespace="default",
+            )
+            def hello(ti=None, dag_run=None):
+                return ["echo", ti.task_id, dag_run.dag_id]
+
+            hello_task = hello()
+
+        self.execute_task(hello_task)
+
+        self.mock_hook.assert_called_once_with(
+            conn_id="kubernetes_default",
+            in_cluster=False,
+            cluster_context="default",
+            config_file="/tmp/fake_file",
+        )
+        containers = self.mock_create_pod.call_args.kwargs["pod"].spec.containers
+        assert len(containers) == 1
+
+        assert containers[0].command == ["echo", "hello", DAG_ID]
         assert containers[0].args == []
 
     def test_rendering_kubernetes_cmd_decorator_params(self):
