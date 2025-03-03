@@ -465,7 +465,7 @@ class S3CreateObjectOperator(AwsBaseOperator[S3Hook]):
         from airflow.providers.common.compat.openlineage.facet import Dataset
         from airflow.providers.openlineage.extractors import OperatorLineage
 
-        bucket, key = self.get_s3_bucket_key(self.s3_bucket, self.s3_key, "dest_bucket", "dest_key")
+        bucket, key = self.hook.get_s3_bucket_key(self.s3_bucket, self.s3_key, "dest_bucket", "dest_key")
 
         output_dataset = Dataset(
             namespace=f"s3://{bucket}",
