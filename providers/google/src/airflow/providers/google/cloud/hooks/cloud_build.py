@@ -31,6 +31,7 @@ from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarni
 from airflow.providers.google.common.consts import CLIENT_INFO
 from airflow.providers.google.common.deprecated import deprecated
 from airflow.providers.google.common.hooks.base_google import PROVIDE_PROJECT_ID, GoogleBaseHook
+from airflow.providers.google.common.hooks.operation_helpers import OperationHelper
 
 if TYPE_CHECKING:
     from google.api_core.operation import Operation
@@ -42,7 +43,7 @@ if TYPE_CHECKING:
 TIME_TO_SLEEP_IN_SECONDS = 5
 
 
-class CloudBuildHook(GoogleBaseHook):
+class CloudBuildHook(GoogleBaseHook, OperationHelper):
     """
     Hook for the Google Cloud Build Service.
 
@@ -79,14 +80,6 @@ class CloudBuildHook(GoogleBaseHook):
             return operation.metadata.build.id
         except Exception:
             raise AirflowException("Could not retrieve Build ID from Operation.")
-
-    def wait_for_operation(self, operation: Operation, timeout: float | None = None):
-        """Wait for long-lasting operation to complete."""
-        try:
-            return operation.result(timeout=timeout)
-        except Exception:
-            error = operation.exception(timeout=timeout)
-            raise AirflowException(error)
 
     def get_conn(self, location: str = "global") -> CloudBuildClient:
         """
