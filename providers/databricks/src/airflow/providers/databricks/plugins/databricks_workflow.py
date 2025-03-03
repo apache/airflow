@@ -33,8 +33,8 @@ from airflow.models.dagrun import DagRun
 from airflow.models.taskinstance import TaskInstance, TaskInstanceKey
 from airflow.models.xcom import XCom
 from airflow.plugins_manager import AirflowPlugin
-from airflow.providers.common.compat.version_compat import AIRFLOW_V_3_0_PLUS
 from airflow.providers.databricks.hooks.databricks import DatabricksHook
+from airflow.providers.databricks.version_compat import AIRFLOW_V_3_0_PLUS
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.session import NEW_SESSION, provide_session
 from airflow.utils.state import TaskInstanceState

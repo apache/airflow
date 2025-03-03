@@ -30,7 +30,6 @@ from typing import TYPE_CHECKING, Any
 from airflow.configuration import conf
 from airflow.exceptions import AirflowException
 from airflow.models import BaseOperator, XCom
-from airflow.providers.common.compat.version_compat import AIRFLOW_V_3_0_PLUS
 from airflow.providers.databricks.hooks.databricks import DatabricksHook, RunLifeCycleState, RunState
 from airflow.providers.databricks.operators.databricks_workflow import (
     DatabricksWorkflowTaskGroup,
@@ -42,6 +41,7 @@ from airflow.providers.databricks.plugins.databricks_workflow import (
 )
 from airflow.providers.databricks.triggers.databricks import DatabricksExecutionTrigger
 from airflow.providers.databricks.utils.databricks import normalise_json_content, validate_trigger_event
+from airflow.providers.databricks.version_compat import AIRFLOW_V_3_0_PLUS
 
 if TYPE_CHECKING:
     from airflow.models.taskinstancekey import TaskInstanceKey
