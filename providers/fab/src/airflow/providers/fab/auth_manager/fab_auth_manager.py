@@ -185,6 +185,9 @@ class FabAuthManager(BaseAuthManager[User]):
         return commands
 
     def get_fastapi_app(self) -> FastAPI | None:
+        """Get the FastAPI app."""
+        from airflow.providers.fab.auth_manager.api_fastapi.routes.login import login_router
+
         flask_app = create_app(enable_plugins=False)
 
         app = FastAPI(
@@ -196,6 +199,10 @@ class FabAuthManager(BaseAuthManager[User]):
                 "manager."
             ),
         )
+
+        # Add the login router to the FastAPI app
+        app.include_router(login_router)
+
         app.mount("/", WSGIMiddleware(flask_app))
 
         return app
