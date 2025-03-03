@@ -16,15 +16,15 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Heading, VStack } from "@chakra-ui/react";
-import type { PropsWithChildren } from "react";
+import { Heading, type StackProps, VStack } from "@chakra-ui/react";
+import type { ReactNode } from "react";
 
 type Props = {
-  readonly label: string;
-} & PropsWithChildren;
+  readonly label: ReactNode | string;
+} & StackProps;
 
-export const Stat = ({ children, label }: Props) => (
-  <VStack align="flex-start" gap={1}>
+export const Stat = ({ children, label, ...rest }: Props) => (
+  <VStack align="flex-start" gap={1} {...rest}>
     <Heading color="fg.muted" fontSize="xs">
       {label}
     </Heading>

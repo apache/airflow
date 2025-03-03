@@ -28,7 +28,6 @@ from pydantic import (
     Tag,
     TypeAdapter,
     WithJsonSchema,
-    field_validator,
 )
 
 from airflow.api_fastapi.common.types import UtcDateTime
@@ -122,15 +121,22 @@ class TIDeferredStatePayload(StrictBaseModel):
         ),
     ]
     classpath: str
-    trigger_kwargs: Annotated[dict[str, Any], Field(default_factory=dict)]
-    next_method: str
-    trigger_timeout: timedelta | None = None
+    trigger_kwargs: Annotated[dict[str, Any] | str, Field(default_factory=dict)]
+    """
+    Kwargs to pass to the trigger constructor, either a plain dict or an encrypted string.
 
-    @field_validator("trigger_kwargs")
-    def validate_moment(cls, v):
-        if "moment" in v:
-            v["moment"] = AwareDatetimeAdapter.validate_strings(v["moment"])
-        return v
+    Both forms will be passed along to the trigger, the server will not handle either.
+    """
+
+    trigger_timeout: timedelta | None = None
+    next_method: str
+    """The name of the method on the operator to call in the worker after the trigger has fired."""
+    next_kwargs: Annotated[dict[str, Any] | str, Field(default_factory=dict)]
+    """
+    Kwargs to pass to the above method, either a plain dict or an encrypted string.
+
+    Both forms will be passed along to the TaskSDK upon resume, the server will not handle either.
+    """
 
 
 class TIRescheduleStatePayload(StrictBaseModel):
@@ -227,10 +233,9 @@ class DagRun(StrictBaseModel):
     run_after: UtcDateTime
     start_date: UtcDateTime
     end_date: UtcDateTime | None
-    clear_number: int
+    clear_number: int = 0
     run_type: DagRunType
     conf: Annotated[dict[str, Any], Field(default_factory=dict)]
-    external_trigger: bool = False
 
 
 class TIRunContext(BaseModel):
@@ -253,6 +258,15 @@ class TIRunContext(BaseModel):
 
     upstream_map_indexes: dict[str, int] | None = None
 
+    next_method: str | None = None
+    """Method to call. Set when task resumes from a trigger."""
+    next_kwargs: dict[str, Any] | str | None = None
+    """
+    Args to pass to ``next_method``.
+
+    Can either be a "decorated" dict, or a string encrypted with the shared Fernet key.
+    """
+
 
 class PrevSuccessfulDagRunResponse(BaseModel):
     """Schema for response with previous successful DagRun information for Task Template Context."""
@@ -268,4 +282,3 @@ class TIRuntimeCheckPayload(StrictBaseModel):
 
     inlets: list[AssetProfile] | None = None
     outlets: list[AssetProfile] | None = None
-    type: str | None = None

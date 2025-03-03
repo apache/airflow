@@ -22,11 +22,12 @@ import json
 from collections.abc import Sequence
 from functools import cached_property
 
+from kubernetes.utils import FailToCreateError
+
 from airflow.exceptions import AirflowException
 from airflow.models import BaseOperator
 from airflow.providers.cncf.kubernetes.hooks.kubernetes import KubernetesHook
 from airflow.providers.cncf.kubernetes.operators.job import KubernetesJobOperator
-from kubernetes.utils import FailToCreateError
 
 
 class KubernetesInstallKueueOperator(BaseOperator):

@@ -394,8 +394,6 @@ class _BasePythonVirtualenvOperator(PythonOperator, metaclass=ABCMeta):
         "prev_execution_date",
         "prev_execution_date_success",
     }
-    if AIRFLOW_V_3_0_PLUS:
-        PENDULUM_SERIALIZABLE_CONTEXT_KEYS.add("start_date")
 
     AIRFLOW_SERIALIZABLE_CONTEXT_KEYS = {
         "macros",

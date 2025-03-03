@@ -22,10 +22,10 @@ from typing import TYPE_CHECKING, Any, Union
 from dateutil.relativedelta import relativedelta
 from pendulum import DateTime
 
-from airflow.exceptions import AirflowTimetableInvalid
 from airflow.timetables._cron import CronMixin
+from airflow.timetables._delta import DeltaMixin
 from airflow.timetables.base import DagRunInfo, DataInterval, Timetable
-from airflow.utils.timezone import coerce_datetime, convert_to_utc, utcnow
+from airflow.utils.timezone import coerce_datetime, utcnow
 
 if TYPE_CHECKING:
     from airflow.timetables.base import TimeRestriction
@@ -173,7 +173,7 @@ class CronDataIntervalTimetable(CronMixin, _DataIntervalTimetable):
         return DataInterval(start=self._get_prev(end), end=end)
 
 
-class DeltaDataIntervalTimetable(_DataIntervalTimetable):
+class DeltaDataIntervalTimetable(DeltaMixin, _DataIntervalTimetable):
     """
     Timetable that schedules data intervals with a time delta.
 
@@ -181,9 +181,6 @@ class DeltaDataIntervalTimetable(_DataIntervalTimetable):
     either a ``datetime.timedelta`` or ``dateutil.relativedelta.relativedelta``
     instance.
     """
-
-    def __init__(self, delta: Delta) -> None:
-        self._delta = delta
 
     @classmethod
     def deserialize(cls, data: dict[str, Any]) -> Timetable:
@@ -204,10 +201,6 @@ class DeltaDataIntervalTimetable(_DataIntervalTimetable):
             return NotImplemented
         return self._delta == other._delta
 
-    @property
-    def summary(self) -> str:
-        return str(self._delta)
-
     def serialize(self) -> dict[str, Any]:
         from airflow.serialization.serialized_objects import encode_relativedelta
 
@@ -217,23 +210,6 @@ class DeltaDataIntervalTimetable(_DataIntervalTimetable):
         else:
             delta = encode_relativedelta(self._delta)
         return {"delta": delta}
-
-    def validate(self) -> None:
-        now = datetime.datetime.now()
-        if (now + self._delta) <= now:
-            raise AirflowTimetableInvalid(f"schedule interval must be positive, not {self._delta!r}")
-
-    def _get_next(self, current: DateTime) -> DateTime:
-        return convert_to_utc(current + self._delta)
-
-    def _get_prev(self, current: DateTime) -> DateTime:
-        return convert_to_utc(current - self._delta)
-
-    def _align_to_next(self, current: DateTime) -> DateTime:
-        return current
-
-    def _align_to_prev(self, current: DateTime) -> DateTime:
-        return current
 
     @staticmethod
     def _relativedelta_in_seconds(delta: relativedelta) -> int:

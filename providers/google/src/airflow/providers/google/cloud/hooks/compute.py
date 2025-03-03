@@ -23,13 +23,13 @@ import time
 from collections.abc import Sequence
 from typing import TYPE_CHECKING, Any
 
+from google.cloud.compute_v1.services.instance_group_managers import InstanceGroupManagersClient
+from google.cloud.compute_v1.services.instance_templates import InstanceTemplatesClient
+from google.cloud.compute_v1.services.instances import InstancesClient
 from googleapiclient.discovery import build
 
 from airflow.exceptions import AirflowException
 from airflow.providers.google.common.hooks.base_google import PROVIDE_PROJECT_ID, GoogleBaseHook
-from google.cloud.compute_v1.services.instance_group_managers import InstanceGroupManagersClient
-from google.cloud.compute_v1.services.instance_templates import InstanceTemplatesClient
-from google.cloud.compute_v1.services.instances import InstancesClient
 
 if TYPE_CHECKING:
     from google.api_core.retry import Retry
