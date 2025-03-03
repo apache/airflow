@@ -381,3 +381,132 @@ class TestCopyFromExternalStageToSnowflake:
             },
             job_facets={"sql": SQLJobFacet(query=expected_sql)},
         )
+
+    @mock.patch("airflow.providers.snowflake.transfers.copy_into_snowflake.SnowflakeHook")
+    def test_get_openlineage_facets_on_complete_with_mixed_valid_and_invalid_uris(self, mock_hook):
+        # Test with a mix of valid and invalid URIs from different cloud providers
+        mock_hook().run.return_value = [
+            # Valid URIs
+            {"file": "s3://valid-bucket/path/to/file.csv"},
+            {"file": "gs://valid-bucket/path/to/file.csv"},
+            {"file": "azure://account.blob.core.windows.net/container/path/to/file.csv"},
+            # Invalid URIs
+            {"file": "s3:/invalid-s3-uri"},  # Missing slash
+            {"file": "gcs:invalid-gcs-uri"},  # Missing slashes
+            {"file": "azure://account.invalid-domain.net/container/file.csv"},  # Invalid Azure domain
+        ]
+        mock_hook().get_openlineage_database_info.return_value = DatabaseInfo(
+            scheme="snowflake_scheme", authority="authority", database="actual_database"
+        )
+        mock_hook().get_openlineage_default_schema.return_value = "actual_schema"
+        mock_hook().query_ids = ["query_id_123"]
+
+        expected_inputs = [
+            Dataset(namespace="wasbs://container@account", name="path/to/file.csv"),
+            Dataset(namespace="gs://valid-bucket", name="path/to/file.csv"),
+            Dataset(namespace="s3://valid-bucket", name="path/to/file.csv"),
+        ]
+        expected_outputs = [
+            Dataset(namespace="snowflake_scheme://authority", name="actual_database.actual_schema.table")
+        ]
+        expected_sql = """COPY INTO schema.table\n FROM @stage/\n FILE_FORMAT=CSV"""
+
+        expected_errors = [
+            Error(
+                errorMessage="Unable to extract Dataset namespace and name.",
+                stackTrace=None,
+                task="azure://account.invalid-domain.net/container/file.csv",
+                taskNumber=None,
+            ),
+            Error(
+                errorMessage="Unable to extract Dataset namespace and name.",
+                stackTrace=None,
+                task="gcs:invalid-gcs-uri",
+                taskNumber=None,
+            ),
+            Error(
+                errorMessage="Unable to extract Dataset namespace and name.",
+                stackTrace=None,
+                task="s3:/invalid-s3-uri",
+                taskNumber=None,
+            ),
+        ]
+
+        op = CopyFromExternalStageToSnowflakeOperator(
+            task_id="test",
+            table="table",
+            stage="stage",
+            database="",
+            schema="schema",
+            file_format="CSV",
+        )
+        op.execute(None)
+        result = op.get_openlineage_facets_on_complete(None)
+
+        # Check inputs and outputs
+        assert set((d.namespace, d.name) for d in result.inputs) == set((d.namespace, d.name) for d in expected_inputs)
+        assert result.outputs == expected_outputs
+
+        # Check error facets
+        assert "extractionError" in result.run_facets
+        error_facet = result.run_facets["extractionError"]
+        assert error_facet.totalTasks == 6
+        assert error_facet.failedTasks == 3
+
+        # Check that all expected errors are present (order might vary)
+        actual_error_messages = [error.task for error in error_facet.errors]
+        expected_error_messages = [error.task for error in expected_errors]
+        assert set(actual_error_messages) == set(expected_error_messages)
+
+        # Check other facets
+        assert "externalQuery" in result.run_facets
+        assert result.job_facets["sql"].query == expected_sql
+
+    @mock.patch("airflow.providers.snowflake.transfers.copy_into_snowflake.SnowflakeHook")
+    def test_get_openlineage_facets_on_complete_with_empty_directory(self, mock_hook):
+        # Test with a response indicating no files were processed (empty directory)
+        mock_hook().run.return_value = [
+            {
+                "status": "Copy executed with 0 files processed",
+                "file": None,
+                "rows_parsed": 0,
+                "rows_loaded": 0,
+                "error_limit": 0,
+                "errors_seen": 0,
+                "first_error": None,
+                "first_error_line": None,
+                "first_error_character": None,
+                "first_error_column_name": None,
+            }
+        ]
+        mock_hook().get_openlineage_database_info.return_value = DatabaseInfo(
+            scheme="snowflake_scheme", authority="authority", database="actual_database"
+        )
+        mock_hook().get_openlineage_default_schema.return_value = "actual_schema"
+        mock_hook().query_ids = ["query_id_123"]
+
+        expected_outputs = [
+            Dataset(namespace="snowflake_scheme://authority", name="actual_database.actual_schema.table")
+        ]
+        expected_sql = """COPY INTO schema.table\n FROM @stage/\n FILE_FORMAT=CSV"""
+
+        op = CopyFromExternalStageToSnowflakeOperator(
+            task_id="test",
+            table="table",
+            stage="stage",
+            database="",
+            schema="schema",
+            file_format="CSV",
+        )
+        op.execute(None)
+        result = op.get_openlineage_facets_on_complete(None)
+        assert result == OperatorLineage(
+            inputs=[],  # No inputs since no files were processed
+            outputs=expected_outputs,
+            run_facets={
+                "externalQuery": ExternalQueryRunFacet(
+                    externalQueryId="query_id_123", source="snowflake_scheme://authority"
+                )
+            },
+            job_facets={"sql": SQLJobFacet(query=expected_sql)},
+        )
