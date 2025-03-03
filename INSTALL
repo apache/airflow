@@ -142,7 +142,7 @@ node and pnpm and running (in `airflow/ui` directory):
     pnpm install -frozen-lockfile --config.confirmModulesPurge=false
     pnpm run build
 
-if you want to manually run the build check for node and pnpm version in `.pre-commit-config.yaml` file,
+If you want to manually run the build check for node and pnpm version in `.pre-commit-config.yaml` file,
 but there are semi-automatic ways to build the assets.
 
 In case you use `breeze` or have `pre-commit` installed (see `contributing-docs` quick-start), you can
