@@ -134,7 +134,6 @@ def make_dag_with_multiple_versions(dag_maker, configure_git_connection_for_dag_
         with dag_maker(dag_id) as dag:
             for task_number in range(version_number):
                 EmptyOperator(task_id=f"task{task_number + 1}")
-        dag.sync_to_db()
         SerializedDagModel.write_dag(
             dag, bundle_name="dag_maker", bundle_version=f"some_commit_hash{version_number}"
         )
@@ -143,6 +142,7 @@ def make_dag_with_multiple_versions(dag_maker, configure_git_connection_for_dag_
             logical_date=datetime.datetime(2020, 1, version_number, tzinfo=datetime.timezone.utc),
             dag_version=DagVersion.get_version(dag_id=dag_id, version_number=version_number),
         )
+        dag.sync_to_db()
 
 
 @pytest.fixture(scope="module")
