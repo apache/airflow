@@ -25,7 +25,12 @@ from jwt import InvalidTokenError
 
 from airflow.api_fastapi.app import get_auth_manager
 from airflow.auth.managers.models.base_user import BaseUser
-from airflow.auth.managers.models.resource_details import DagAccessEntity, DagDetails, PoolDetails
+from airflow.auth.managers.models.resource_details import (
+    ConnectionDetails,
+    DagAccessEntity,
+    DagDetails,
+    PoolDetails,
+)
 from airflow.configuration import conf
 from airflow.utils.jwt_signer import JWTSigner, get_signing_key
 
@@ -92,6 +97,25 @@ def requires_access_pool(method: ResourceMethod) -> Callable:
         def callback():
             return get_auth_manager().is_authorized_pool(
                 method=method, details=PoolDetails(name=pool_name), user=user
+            )
+
+        _requires_access(
+            is_authorized_callback=callback,
+        )
+
+    return inner
+
+
+def requires_access_connection(method: ResourceMethod) -> Callable:
+    def inner(
+        request: Request,
+        user: Annotated[BaseUser | None, Depends(get_user)] = None,
+    ) -> None:
+        connection_id = request.path_params.get("connection_id")
+
+        def callback():
+            return get_auth_manager().is_authorized_pool(
+                method=method, details=ConnectionDetails(conn_id=connection_id), user=user
             )
 
         _requires_access(
