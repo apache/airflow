@@ -21,7 +21,7 @@ from unittest.mock import MagicMock, Mock, patch
 
 import pytest
 
-from airflow.providers.databricks.version_compat import AIRFLOW_V_3_0_PLUS
+from airflow.providers.common.compat.version_compat import AIRFLOW_V_3_0_PLUS
 
 if AIRFLOW_V_3_0_PLUS:
     pytest.skip(
