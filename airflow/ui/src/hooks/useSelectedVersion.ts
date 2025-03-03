@@ -31,9 +31,7 @@ const useSelectedVersion = (): string | undefined => {
 
   const selectedVersionUrl = searchParams.get(SearchParamsKeys.VERSION_NUMBER);
 
-  const { dagId = "", mapIndexParam = "-1", runId = "", taskId = "" } = useParams();
-
-  const mapIndex = parseInt(mapIndexParam, 10);
+  const { dagId = "", mapIndex = "-1", runId = "", taskId = "" } = useParams();
 
   const { data: dagData } = useDagServiceGetDagDetails(
     {
@@ -65,12 +63,12 @@ const useSelectedVersion = (): string | undefined => {
     {
       dagId,
       dagRunId: runId,
-      mapIndex,
+      mapIndex: parseInt(mapIndex, 10),
       taskId,
     },
     undefined,
     // Do not enable on a task instance summary. Mapped task but no mapIndex defined.
-    { enabled: taskData !== undefined && !Boolean(mapIndex === -1 && taskData.is_mapped) },
+    { enabled: taskData !== undefined && !Boolean(mapIndex === "-1" && taskData.is_mapped) },
   );
 
   const selectedVersionNumber =
