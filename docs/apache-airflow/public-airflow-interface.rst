@@ -264,6 +264,9 @@ can be implemented to respond to DAG/Task lifecycle events.
 
 You can read more about Listeners in :doc:`administration-and-deployment/listeners`.
 
+..
+  TODO AIP-72: This class has been moved to task sdk but we cannot add a doc reference for it yet because task sdk doesn't have rendered docs yet.
+
 Extra Links
 -----------
 
