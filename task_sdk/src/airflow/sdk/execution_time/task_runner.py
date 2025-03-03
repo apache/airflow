@@ -66,6 +66,7 @@ from airflow.sdk.execution_time.comms import (
 )
 from airflow.sdk.execution_time.context import (
     ConnectionAccessor,
+    InletEventsAccessors,
     MacrosAccessor,
     OutletEventAccessors,
     VariableAccessor,
@@ -143,7 +144,7 @@ class RuntimeTaskInstance(TaskInstance):
             #   especially after removal of `conf` from Context.
             "ti": self,
             "outlet_events": OutletEventAccessors(),
-            # "inlet_events": InletEventsAccessors(task.inlets, session=session),
+            "inlet_events": InletEventsAccessors(self.task.inlets),
             "macros": MacrosAccessor(),
             "params": validated_params,
             # TODO: Make this go through Public API longer term.

@@ -71,6 +71,24 @@ class ConnectionResponse(BaseModel):
     extra: Annotated[str | None, Field(title="Extra")] = None
 
 
+class DagRunAssetReference(BaseModel):
+    """
+    DagRun serializer for asset responses.
+    """
+
+    model_config = ConfigDict(
+        extra="forbid",
+    )
+    run_id: Annotated[str, Field(title="Run Id")]
+    dag_id: Annotated[str, Field(title="Dag Id")]
+    logical_date: Annotated[datetime | None, Field(title="Logical Date")] = None
+    start_date: Annotated[datetime, Field(title="Start Date")]
+    end_date: Annotated[datetime | None, Field(title="End Date")] = None
+    state: Annotated[str, Field(title="State")]
+    data_interval_start: Annotated[datetime | None, Field(title="Data Interval Start")] = None
+    data_interval_end: Annotated[datetime | None, Field(title="Data Interval End")] = None
+
+
 class DagRunType(str, Enum):
     """
     Class with DagRun types.
@@ -279,6 +297,30 @@ class TerminalTIState(str, Enum):
     SKIPPED = "skipped"
     REMOVED = "removed"
     FAIL_WITHOUT_RETRY = "fail_without_retry"
+
+
+class AssetEventResponse(BaseModel):
+    """
+    Asset event schema with fields that are needed for Runtime.
+    """
+
+    id: Annotated[int, Field(title="Id")]
+    timestamp: Annotated[datetime, Field(title="Timestamp")]
+    extra: Annotated[dict[str, Any] | None, Field(title="Extra")] = None
+    asset: AssetResponse
+    created_dagruns: Annotated[list[DagRunAssetReference], Field(title="Created Dagruns")]
+    source_task_id: Annotated[str | None, Field(title="Source Task Id")] = None
+    source_dag_id: Annotated[str | None, Field(title="Source Dag Id")] = None
+    source_run_id: Annotated[str | None, Field(title="Source Run Id")] = None
+    source_map_index: Annotated[int | None, Field(title="Source Map Index")] = -1
+
+
+class AssetEventsResponse(BaseModel):
+    """
+    Collection of AssetEventResponse.
+    """
+
+    asset_events: Annotated[list[AssetEventResponse], Field(title="Asset Events")]
 
 
 class DagRun(BaseModel):
