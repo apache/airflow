@@ -2921,9 +2921,7 @@ paths:
         in: path
         required: true
         schema:
-          anyOf:
-          - type: string
-          - type: 'null'
+          type: string
           title: Section
       - name: option
         in: path

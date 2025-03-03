@@ -1731,7 +1731,7 @@ export type GetConfigResponse = Config;
 export type GetConfigValueData = {
   accept?: "application/json" | "text/plain" | "*/*";
   option: string;
-  section: string | null;
+  section: string;
 };
 
 export type GetConfigValueResponse = Config;

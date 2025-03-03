@@ -124,11 +124,13 @@ def requires_access_connection(method: ResourceMethod) -> Callable[[Request, Bas
     return inner
 
 
-def requires_access_configuration(method: ResourceMethod) -> Callable[[str | None, BaseUser | None], None]:
+def requires_access_configuration(method: ResourceMethod) -> Callable[[Request, BaseUser | None], None]:
     def inner(
-        section: str | None = None,
+        request: Request,
         user: Annotated[BaseUser | None, Depends(get_user)] = None,
     ) -> None:
+        section: str | None = request.query_params.get("section") or request.path_params.get("section")
+
         def callback():
             return get_auth_manager().is_authorized_configuration(
                 method=method,
