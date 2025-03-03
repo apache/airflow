@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2025-03-03T14:21:43.993846
+# This constraints file was automatically generated on 2025-03-03T20:15:47.751496
 # via "eager-upgrade" mechanism of PIP. For the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version for 'apache-airflow' but installs
 # the providers from PIP-released packages at the moment of the constraint generation.
@@ -329,7 +329,7 @@ google-cloud-aiplatform==1.82.0
 google-cloud-alloydb==0.4.3
 google-cloud-appengine-logging==1.6.0
 google-cloud-audit-log==0.3.0
-google-cloud-automl==2.16.1
+google-cloud-automl==2.16.2
 google-cloud-batch==0.17.34
 google-cloud-bigquery-datatransfer==3.19.0
 google-cloud-bigquery==3.30.0
@@ -340,7 +340,7 @@ google-cloud-container==2.56.0
 google-cloud-core==2.4.2
 google-cloud-datacatalog==3.25.1
 google-cloud-dataflow-client==0.8.16
-google-cloud-dataform==0.5.16
+google-cloud-dataform==0.6.0
 google-cloud-dataplex==2.7.1
 google-cloud-dataproc-metastore==1.18.1
 google-cloud-dataproc==5.18.0
@@ -371,11 +371,11 @@ google-cloud-workflows==1.17.0
 google-crc32c==1.6.0
 google-re2==1.1.20240702
 google-resumable-media==2.7.2
-googleapis-common-protos==1.68.0
+googleapis-common-protos==1.69.0
 graphql-core==3.2.6
 graphviz==0.20.3
 greenlet==3.1.1
-grpc-google-iam-v1==0.14.0
+grpc-google-iam-v1==0.14.1
 grpc-interceptor==0.15.4
 grpcio-gcp==0.2.2
 grpcio-health-checking==1.62.3
@@ -517,7 +517,7 @@ opentelemetry-proto==1.27.0
 opentelemetry-sdk==1.27.0
 opentelemetry-semantic-conventions==0.48b0
 opsgenie-sdk==2.1.5
-oracledb==2.5.1
+oracledb==3.0.0
 ordered-set==4.1.0
 orderly-set==5.3.0
 orjson==3.10.15
