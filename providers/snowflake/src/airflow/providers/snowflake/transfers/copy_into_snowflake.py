@@ -271,7 +271,7 @@ class CopyFromExternalStageToSnowflakeOperator(BaseOperator):
         query_results = self._result or []
 
         # This typically happens when no files were processed (empty directory)
-        if len(query_results) == 1 and ('file' not in query_results[0] or query_results[0]['file'] is None):
+        if len(query_results) == 1 and ("file" not in query_results[0] or query_results[0]["file"] is None):
             query_results = []
 
         unique_dataset_paths, extraction_error_files = self._extract_openlineage_unique_dataset_paths(

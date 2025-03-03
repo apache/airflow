@@ -444,7 +444,9 @@ class TestCopyFromExternalStageToSnowflake:
         result = op.get_openlineage_facets_on_complete(None)
 
         # Check inputs and outputs
-        assert set((d.namespace, d.name) for d in result.inputs) == set((d.namespace, d.name) for d in expected_inputs)
+        assert set((d.namespace, d.name) for d in result.inputs) == set(
+            (d.namespace, d.name) for d in expected_inputs
+        )
         assert result.outputs == expected_outputs
 
         # Check error facets
