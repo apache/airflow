@@ -25,7 +25,7 @@ build-backend = "flit_core.buildapi"
 
 [project]
 name = "apache-airflow-providers-edge"
-version = "0.19.0pre0"
+version = "0.20.0pre0"
 description = "Provider package apache-airflow-providers-edge for Apache Airflow"
 readme = "README.rst"
 authors = [
@@ -52,8 +52,10 @@ classifiers = [
 ]
 requires-python = "~=3.9"
 
-# The dependencies should be modified in place in the generated file
+# The dependencies should be modified in place in the generated file.
 # Any change in the dependencies is preserved when the file is regenerated
+# Make sure to run ``breeze static-checks --type update-providers-dependencies --all-files``
+# After you modify the dependencies, and rebuild your Breeze CI image with ``breeze ci-image build``
 dependencies = [
     "apache-airflow>=2.10.0",
     "pydantic>=2.10.2",
@@ -61,8 +63,8 @@ dependencies = [
 ]
 
 [project.urls]
-"Documentation" = "https://airflow.apache.org/docs/apache-airflow-providers-edge/0.19.0pre0"
-"Changelog" = "https://airflow.apache.org/docs/apache-airflow-providers-edge/0.19.0pre0/changelog.html"
+"Documentation" = "https://airflow.apache.org/docs/apache-airflow-providers-edge/0.20.0pre0"
+"Changelog" = "https://airflow.apache.org/docs/apache-airflow-providers-edge/0.20.0pre0/changelog.html"
 "Bug Tracker" = "https://github.com/apache/airflow/issues"
 "Source Code" = "https://github.com/apache/airflow"
 "Slack Chat" = "https://s.apache.org/airflow-slack"

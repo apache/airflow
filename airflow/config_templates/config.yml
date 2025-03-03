@@ -2697,3 +2697,34 @@ dag_processor:
       type: integer
       example: ~
       default: "5"
+    stale_bundle_cleanup_interval:
+      description: |
+        On shared workers, bundle copies accumulate in local storage as tasks run
+        and version of the bundle changes.
+        This setting represents the delta in seconds between checks for these stale bundles.
+        Bundles which are older than `stale_bundle_cleanup_age_threshold` may be removed. But
+        we always keep `stale_bundle_cleanup_min_versions` versions locally.
+        Set to 0 or negative to disable.
+      version_added: ~
+      type: integer
+      example: ~
+      default: "1800"
+    stale_bundle_cleanup_age_threshold:
+      description: |
+        Bundle versions used more recently than this threshold will not be removed.
+        Recency of use is determined by when the task began running on the worker,
+        that age is compared with this setting, given as time delta in seconds.
+      version_added: ~
+      type: integer
+      example: ~
+      default: "21600"
+    stale_bundle_cleanup_min_versions:
+      description: |
+        Minimum number of local bundle versions to retain on disk.
+        Local bundle versions older than `stale_bundle_cleanup_age_threshold` will
+        only be deleted we have more than `stale_bundle_cleanup_min_versions` versions
+        accumulated on the worker.
+      version_added: ~
+      type: integer
+      example: ~
+      default: "10"

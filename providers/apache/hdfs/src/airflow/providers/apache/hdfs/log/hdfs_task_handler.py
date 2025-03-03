@@ -57,7 +57,7 @@ class HdfsTaskHandler(FileTaskHandler, LoggingMixin):
         is_trigger_log_context = getattr(ti, "is_trigger_log_context", False)
         self.upload_on_close = is_trigger_log_context or not ti.raw
         # Clear the file first so that duplicate data is not uploaded
-        # when re-using the same path (e.g. with rescheduled sensors)
+        # when reusing the same path (e.g. with rescheduled sensors)
         if self.upload_on_close:
             with open(self.handler.baseFilename, "w"):
                 pass

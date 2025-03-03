@@ -63,7 +63,7 @@ export const Header = ({
             {taskInstance.note === null || taskInstance.note.length === 0 ? undefined : (
               <DisplayMarkdownButton
                 header="Task Instance Note"
-                icon={<FiMessageSquare color="black" />}
+                icon={<FiMessageSquare />}
                 mdContent={taskInstance.note}
                 text="Note"
               />

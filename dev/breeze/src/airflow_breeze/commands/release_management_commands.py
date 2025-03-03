@@ -235,7 +235,7 @@ class VersionedFile(NamedTuple):
 
 
 AIRFLOW_PIP_VERSION = "25.0.1"
-AIRFLOW_UV_VERSION = "0.6.0"
+AIRFLOW_UV_VERSION = "0.6.3"
 AIRFLOW_USE_UV = False
 # TODO: automate these as well
 WHEEL_VERSION = "0.44.0"
@@ -2954,7 +2954,7 @@ PYTHON_CLIENT_TMP_DIR = PYTHON_CLIENT_DIR_PATH / "tmp"
 REPRODUCIBLE_BUILD_YAML = AIRFLOW_SOURCES_ROOT / "airflow" / "reproducible_build.yaml"
 
 VERSION_FILE = PYTHON_CLIENT_DIR_PATH / "version.txt"
-SOURCE_API_YAML_PATH = AIRFLOW_SOURCES_ROOT / "airflow" / "api_connexion" / "openapi" / "v1.yaml"
+SOURCE_API_YAML_PATH = AIRFLOW_SOURCES_ROOT / "clients" / "python" / "openapi_v1.yaml"
 TARGET_API_YAML_PATH = PYTHON_CLIENT_DIR_PATH / "v1.yaml"
 OPENAPI_GENERATOR_CLI_VER = "5.4.0"
 

@@ -43,11 +43,18 @@ from airflow.listeners import hookimpl
 from airflow.listeners.listener import get_listener_manager
 from airflow.providers.standard.operators.python import PythonOperator
 from airflow.sdk import DAG, BaseOperator, Connection, dag as dag_decorator, get_current_context
-from airflow.sdk.api.datamodels._generated import AssetProfile, TaskInstance, TerminalTIState
+from airflow.sdk.api.datamodels._generated import (
+    AssetEventResponse,
+    AssetProfile,
+    AssetResponse,
+    TaskInstance,
+    TerminalTIState,
+)
 from airflow.sdk.definitions.asset import Asset, AssetAlias
 from airflow.sdk.definitions.param import DagParam
 from airflow.sdk.definitions.variable import Variable
 from airflow.sdk.execution_time.comms import (
+    AssetEventsResult,
     BundleInfo,
     ConnectionResult,
     DeferTask,
@@ -67,6 +74,7 @@ from airflow.sdk.execution_time.comms import (
 )
 from airflow.sdk.execution_time.context import (
     ConnectionAccessor,
+    InletEventsAccessors,
     MacrosAccessor,
     OutletEventAccessors,
     VariableAccessor,
@@ -730,6 +738,50 @@ def test_run_with_asset_outlets(
     mock_supervisor_comms.send_request.assert_any_call(msg=expected_msg, log=mock.ANY)
 
 
+def test_run_with_asset_inlets(create_runtime_ti, mock_supervisor_comms):
+    """Test running a basic task that contains asset inlets."""
+    asset_event_resp = AssetEventResponse(
+        id=1,
+        created_dagruns=[],
+        timestamp=datetime.now(),
+        asset=AssetResponse(name="test", uri="test", group="asset"),
+    )
+    events_result = AssetEventsResult(asset_events=[asset_event_resp])
+    mock_supervisor_comms.get_message.return_value = events_result
+
+    from airflow.providers.standard.operators.bash import BashOperator
+
+    task = BashOperator(
+        inlets=[Asset(name="test", uri="test://uri"), AssetAlias(name="alias-name")],
+        task_id="asset-outlet-task",
+        bash_command="echo 0",
+    )
+
+    ti = create_runtime_ti(task=task, dag_id="dag_with_asset_outlet_task")
+    run(ti, log=mock.MagicMock())
+    inlet_events = ti.get_template_context()["inlet_events"]
+
+    # access the asset events of Asset(name="test", uri="test://uri")
+    assert inlet_events[0] == [asset_event_resp]
+    assert inlet_events[-2] == [asset_event_resp]
+    assert inlet_events[Asset(name="test", uri="test://uri")] == [asset_event_resp]
+
+    # access the asset events of AssetAlias(name="alias-name")
+    assert inlet_events[1] == [asset_event_resp]
+    assert inlet_events[-1] == [asset_event_resp]
+    assert inlet_events[AssetAlias(name="alias-name")] == [asset_event_resp]
+
+    # access with invalid index
+    with pytest.raises(IndexError):
+        inlet_events[2]
+
+    with pytest.raises(IndexError):
+        inlet_events[-3]
+
+    with pytest.raises(KeyError):
+        inlet_events[Asset(name="no such asset in inlets")]
+
+
 @pytest.mark.parametrize(
     ["ok", "last_expected_msg"],
     [
@@ -849,6 +901,7 @@ class TestRuntimeTaskInstance:
             "conn": ConnectionAccessor(),
             "dag": runtime_ti.task.dag,
             "inlets": task.inlets,
+            "inlet_events": InletEventsAccessors(inlets=[]),
             "macros": MacrosAccessor(),
             "map_index_template": task.map_index_template,
             "outlet_events": OutletEventAccessors(),
@@ -890,6 +943,7 @@ class TestRuntimeTaskInstance:
             "conn": ConnectionAccessor(),
             "dag": runtime_ti.task.dag,
             "inlets": task.inlets,
+            "inlet_events": InletEventsAccessors(inlets=[]),
             "macros": MacrosAccessor(),
             "map_index_template": task.map_index_template,
             "outlet_events": OutletEventAccessors(),

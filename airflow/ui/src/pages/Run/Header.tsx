@@ -42,7 +42,7 @@ export const Header = ({
         {dagRun.note === null || dagRun.note.length === 0 ? undefined : (
           <DisplayMarkdownButton
             header="Dag Run Note"
-            icon={<FiMessageSquare color="black" />}
+            icon={<FiMessageSquare />}
             mdContent={dagRun.note}
             text="Note"
           />

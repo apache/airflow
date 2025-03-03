@@ -19,12 +19,12 @@
 import { useToken } from "@chakra-ui/react";
 import { ReactFlow, Controls, Background, MiniMap, type Node as ReactFlowNode } from "@xyflow/react";
 import "@xyflow/react/dist/style.css";
-import { useParams, useSearchParams } from "react-router-dom";
+import { useParams } from "react-router-dom";
 
 import { useGridServiceGridData, useStructureServiceStructureData } from "openapi/queries";
-import { SearchParamsKeys } from "src/constants/searchParams";
 import { useColorMode } from "src/context/colorMode";
 import { useOpenGroups } from "src/context/openGroups";
+import useSelectedVersion from "src/hooks/useSelectedVersion";
 import { isStatePending, useAutoRefresh } from "src/utils";
 
 import Edge from "./Edge";
@@ -32,8 +32,6 @@ import { JoinNode } from "./JoinNode";
 import { TaskNode } from "./TaskNode";
 import type { CustomNodeProps } from "./reactflowUtils";
 import { useGraphLayout } from "./useGraphLayout";
-
-const VERSION_NUMBER_PARAM = SearchParamsKeys.VERSION_NUMBER;
 
 const nodeColor = (
   { data: { depth, height, isOpen, taskInstance, width }, type }: ReactFlowNode<CustomNodeProps>,
@@ -67,8 +65,7 @@ export const Graph = () => {
   const { colorMode = "light" } = useColorMode();
   const { dagId = "", runId, taskId } = useParams();
 
-  const [searchParams] = useSearchParams();
-  const selectedVersion = searchParams.get(VERSION_NUMBER_PARAM);
+  const selectedVersion = useSelectedVersion();
 
   // corresponds to the "bg", "bg.emphasized", "border.inverted" semantic tokens
   const [oddLight, oddDark, evenLight, evenDark, selectedDarkColor, selectedLightColor] = useToken("colors", [
@@ -86,7 +83,7 @@ export const Graph = () => {
 
   const { data: graphData = { arrange: "LR", edges: [], nodes: [] } } = useStructureServiceStructureData({
     dagId,
-    versionNumber: selectedVersion === null ? undefined : parseInt(selectedVersion, 10),
+    versionNumber: selectedVersion === undefined ? undefined : parseInt(selectedVersion, 10),
   });
 
   const { data } = useGraphLayout({
