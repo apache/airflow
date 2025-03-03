@@ -79,7 +79,8 @@ class DruidHook(BaseHook):
         if self.timeout < 1:
             raise ValueError("Druid timeout should be equal or greater than 1")
 
-        self.default_status_url_suffix = "druid/indexer/v1/task"
+        self.status_endpoint = "druid/indexer/v1/task"
+
     @cached_property
     def conn(self) -> Connection:
         return self.get_connection(self.druid_ingest_conn_id)
@@ -104,17 +105,15 @@ class DruidHook(BaseHook):
         return f"{conn_type}://{host}:{port}/{endpoint}"
 
     def get_status_url(self, ingestion_type):
-        """
-        Return Druid status url.
-        """
+        """Return Druid status url."""
         if ingestion_type == IngestionType.MSQ:
             if self.get_connection_type == "druid":
                 conn_type = self.conn.extra_dejson.get("schema", "http")
             else:
                 conn_type = self.get_connection_type
 
-            status_url_suffix = self.conn.extra_dejson.get("status_endpoint", self.default_status_url_suffix)
-            return f"{conn_type}://{self.conn.host}:{self.conn.port}/{status_url_suffix}"
+            status_endpoint = self.conn.extra_dejson.get("status_endpoint", self.status_endpoint)
+            return f"{conn_type}://{self.conn.host}:{self.conn.port}/{status_endpoint}"
         else:
             return self.get_conn_url(ingestion_type)
 
