@@ -261,12 +261,7 @@ class KubernetesPodTrigger(BaseTrigger):
 
     @tenacity.retry(stop=tenacity.stop_after_attempt(3), wait=tenacity.wait_exponential(), reraise=True)
     async def _get_pod(self) -> V1Pod:
-        """
-        Get the pod from Kubernetes.
-
-        Separate method for retrying. Retry logic here should mimic the retry logic in
-        PodManager.read_pod method.
-        """
+        """Get the pod from Kubernetes with retries."""
         pod = await self.hook.get_pod(name=self.pod_name, namespace=self.pod_namespace)
         # Due to AsyncKubernetesHook overriding get_pod, we need to cast the return
         # value to kubernetes_asyncio.V1Pod, because it's perceived as different type
