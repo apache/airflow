@@ -31,10 +31,6 @@ export const TOKEN_QUERY_PARAM_NAME = "token";
 
 export const BaseLayout = ({ children }: PropsWithChildren) => {
   const instanceName = useConfig("instance_name");
-  // const instanceNameHasMarkup =
-  //   webserverConfig?.options.find(
-  //     ({ key }) => key === "instance_name_has_markup",
-  //   )?.value === "True";
 
   if (typeof instanceName === "string") {
     document.title = instanceName;
