@@ -152,7 +152,7 @@ if TYPE_CHECKING:
     from sqlalchemy.engine import Connection as SAConnection, Engine
     from sqlalchemy.orm.session import Session
     from sqlalchemy.sql import Update
-    from sqlalchemy.sql.elements import BooleanClauseList
+    from sqlalchemy.sql.elements import BinaryExpression, BooleanClauseList
     from sqlalchemy.sql.expression import ColumnOperators
 
     from airflow.models.abstractoperator import TaskStateChangeCallback
@@ -2762,18 +2762,17 @@ class TaskInstance(Base, LoggingMixin):
             elif obj.asset_type == AssetUriRef.__name__:
                 asset_uri_refs.add(obj.uri)  # type: ignore
             elif obj.asset_type == AssetAlias.__name__:
-                outlet_events = list(
-                    map(
-                        lambda event: {**event, "dest_asset_key": AssetUniqueKey(**event["dest_asset_key"])},
-                        outlet_events,
-                    )
-                )
+                outlet_events = [
+                    {**event, "dest_asset_key": AssetUniqueKey(**event["dest_asset_key"])}
+                    for event in outlet_events
+                ]
                 for asset_alias_event in outlet_events:
                     asset_alias_name = asset_alias_event["source_alias_name"]
                     asset_unique_key = asset_alias_event["dest_asset_key"]
                     frozen_extra = frozenset(asset_alias_event["extra"].items())
                     asset_alias_names[(asset_unique_key, frozen_extra)].add(asset_alias_name)
 
+        # Handle asset aliases
         asset_unique_keys = {key for key, _ in asset_alias_names}
         existing_aliased_assets: set[AssetUniqueKey] = {
             AssetUniqueKey.from_asset(asset_obj)
@@ -2816,25 +2815,28 @@ class TaskInstance(Base, LoggingMixin):
                 source_alias_names=alias_names,
             )
 
+        def _register_asset_changes_for_asset_ref(
+            *, asset_ref_clause: BinaryExpression, ref_type: Literal["uri", "name"]
+        ) -> None:
+            asset_stmt = select(AssetModel).where(asset_ref_clause, AssetModel.active.has())
+            for asset_model in session.scalars(asset_stmt):
+                ti.log.info(
+                    "Creating event for asset %s reference %r", ref_type, getattr(asset_model, ref_type)
+                )
+                asset_manager.register_asset_change(
+                    task_instance=ti,
+                    asset=asset_model,
+                    extra=outlet_events[asset_model].extra,
+                    session=session,
+                )
+
         # Handle events derived from references.
-        asset_stmt = select(AssetModel).where(AssetModel.name.in_(asset_name_refs), AssetModel.active.has())
-        for asset_model in session.scalars(asset_stmt):
-            ti.log.info("Creating event through asset name reference %r", asset_model.name)
-            asset_manager.register_asset_change(
-                task_instance=ti,
-                asset=asset_model,
-                extra=outlet_events[asset_model].extra,
-                session=session,
-            )
-        asset_stmt = select(AssetModel).where(AssetModel.uri.in_(asset_uri_refs), AssetModel.active.has())
-        for asset_model in session.scalars(asset_stmt):
-            ti.log.info("Creating event for through asset URI reference %r", asset_model.uri)
-            asset_manager.register_asset_change(
-                task_instance=ti,
-                asset=asset_model,
-                extra=outlet_events[asset_model].extra,
-                session=session,
-            )
+        _register_asset_changes_for_asset_ref(
+            asset_ref_clause=AssetModel.name.in_(asset_name_refs), ref_type="name"
+        )
+        _register_asset_changes_for_asset_ref(
+            asset_ref_clause=AssetModel.uri.in_(asset_uri_refs), ref_type="uri"
+        )
 
     def _execute_task_with_callbacks(self, context: Context, test_mode: bool = False, *, session: Session):
         """Prepare Task for Execution."""
