@@ -118,7 +118,7 @@ def create_default_connections(args, cli_api_client=NEW_CLI_API_CLIENT):
 
 
 def _response_to_connection(response: ConnectionResponse) -> Connection:
-    # TODO: Return is_encrypted from API to properly convert to Connection, otherwise it will be None
+    # TODO: Return `Connection.is_encrypted` column from API, include into response
     return Connection(
         conn_id=response.connection_id,
         conn_type=response.conn_type,
