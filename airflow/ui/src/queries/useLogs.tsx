@@ -16,6 +16,7 @@
  * specific language governing permissions and limitations
  * under the License.
  */
+import { Badge } from "@chakra-ui/react";
 import dayjs from "dayjs";
 
 import { useTaskInstanceServiceGetLog } from "openapi/queries";
@@ -24,41 +25,56 @@ import type {
   TaskInstanceResponse,
   TaskInstancesLogResponse,
 } from "openapi/requests/types.gen";
+import Time from "src/components/Time";
 import { isStatePending, useAutoRefresh } from "src/utils";
+import { LogLevel, logLevelColorMapping } from "src/utils/logs";
 
 type Props = {
   dagId: string;
+  logLevelFilters?: Array<string>;
   taskInstance?: TaskInstanceResponse;
   tryNumber?: number;
 };
 
 type ParseLogsProps = {
   data: TaskInstancesLogResponse["content"];
+  logLevelFilters?: Array<string>;
 };
 
-const renderStructuredLog = (logMessage: string | StructuredLogMessage, index: number) => {
+const renderStructuredLog = (
+  logMessage: string | StructuredLogMessage,
+  index: number,
+  logLevelFilters?: Array<string>,
+) => {
   if (typeof logMessage === "string") {
     return <p key={index}>{logMessage}</p>;
   }
 
   const { event, level = undefined, timestamp, ...structured } = logMessage;
+
   const elements = [];
 
+  if (
+    logLevelFilters !== undefined &&
+    Boolean(logLevelFilters.length) &&
+    ((typeof level === "string" && !logLevelFilters.includes(level)) || !Boolean(level))
+  ) {
+    return "";
+  }
+
   if (Boolean(timestamp)) {
-    elements.push(
-      "[",
-      <time dateTime={timestamp} key={0}>
-        {timestamp}
-      </time>,
-      "] ",
-    );
+    elements.push("[", <Time datetime={timestamp} key={0} />, "] ");
   }
 
   if (typeof level === "string") {
     elements.push(
-      <span className={`log-level ${level}`} key={1}>
+      <Badge
+        colorPalette={level.toUpperCase() in LogLevel ? logLevelColorMapping[level as LogLevel] : undefined}
+        key={1}
+        size="sm"
+      >
         {level.toUpperCase()}
-      </span>,
+      </Badge>,
       " - ",
     );
   }
@@ -84,12 +100,12 @@ const renderStructuredLog = (logMessage: string | StructuredLogMessage, index: n
 };
 
 // TODO: add support for log groups, colors, formats, filters
-const parseLogs = ({ data }: ParseLogsProps) => {
+const parseLogs = ({ data, logLevelFilters }: ParseLogsProps) => {
   let warning;
   let parsedLines;
 
   try {
-    parsedLines = data.map((datum, index) => renderStructuredLog(datum, index));
+    parsedLines = data.map((datum, index) => renderStructuredLog(datum, index, logLevelFilters));
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : "An error occurred.";
 
@@ -107,7 +123,7 @@ const parseLogs = ({ data }: ParseLogsProps) => {
   };
 };
 
-export const useLogs = ({ dagId, taskInstance, tryNumber = 1 }: Props) => {
+export const useLogs = ({ dagId, logLevelFilters, taskInstance, tryNumber = 1 }: Props) => {
   const refetchInterval = useAutoRefresh({ dagId });
 
   const { data, ...rest } = useTaskInstanceServiceGetLog(
@@ -131,6 +147,7 @@ export const useLogs = ({ dagId, taskInstance, tryNumber = 1 }: Props) => {
 
   const parsedData = parseLogs({
     data: data?.content ?? [],
+    logLevelFilters,
   });
 
   return { data: parsedData, ...rest };

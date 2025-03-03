@@ -22,13 +22,14 @@ from unittest import mock
 
 import pytest
 import uuid6
-from sqlalchemy import select, update
+from sqlalchemy import func, select, update
 from sqlalchemy.exc import SQLAlchemyError
 
 from airflow.exceptions import AirflowInactiveAssetInInletOrOutletException
 from airflow.models import RenderedTaskInstanceFields, TaskReschedule, Trigger
 from airflow.models.asset import AssetActive, AssetAliasModel, AssetEvent, AssetModel
 from airflow.models.taskinstance import TaskInstance
+from airflow.models.taskinstancehistory import TaskInstanceHistory
 from airflow.sdk.definitions.asset import AssetUniqueKey
 from airflow.utils import timezone
 from airflow.utils.state import State, TaskInstanceState, TerminalTIState
@@ -651,6 +652,13 @@ class TestTIUpdateState:
         assert ti.state == expected_state
         assert ti.next_method is None
         assert ti.next_kwargs is None
+
+        tih_count = (
+            session.query(func.count(TaskInstanceHistory.id))
+            .where(TaskInstanceHistory.task_id == ti.task_id)
+            .scalar()
+        )
+        assert tih_count == (1 if retries else 0)
 
     def test_ti_update_state_when_ti_is_restarting(self, client, session, create_task_instance):
         ti = create_task_instance(

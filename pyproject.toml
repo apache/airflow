@@ -132,13 +132,14 @@ dynamic = ["version", "optional-dependencies", "dependencies"]
 # airbyte, alibaba, amazon, apache.beam, apache.cassandra, apache.drill, apache.druid, apache.flink,
 # apache.hdfs, apache.hive, apache.iceberg, apache.impala, apache.kafka, apache.kylin, apache.livy,
 # apache.pig, apache.pinot, apache.spark, apprise, arangodb, asana, atlassian.jira, celery, cloudant,
-# cncf.kubernetes, cohere, common.compat, common.io, common.sql, databricks, datadog, dbt.cloud,
-# dingding, discord, docker, edge, elasticsearch, exasol, fab, facebook, ftp, github, google, grpc,
-# hashicorp, http, imap, influxdb, jdbc, jenkins, microsoft.azure, microsoft.mssql, microsoft.psrp,
-# microsoft.winrm, mongo, mysql, neo4j, odbc, openai, openfaas, openlineage, opensearch, opsgenie,
-# oracle, pagerduty, papermill, pgvector, pinecone, postgres, presto, qdrant, redis, salesforce,
-# samba, segment, sendgrid, sftp, singularity, slack, smtp, snowflake, sqlite, ssh, standard, tableau,
-# telegram, teradata, trino, vertica, weaviate, yandex, ydb, zendesk
+# cncf.kubernetes, cohere, common.compat, common.io, common.messaging, common.sql, databricks,
+# datadog, dbt.cloud, dingding, discord, docker, edge, elasticsearch, exasol, fab, facebook, ftp,
+# github, google, grpc, hashicorp, http, imap, influxdb, jdbc, jenkins, microsoft.azure,
+# microsoft.mssql, microsoft.psrp, microsoft.winrm, mongo, mysql, neo4j, odbc, openai, openfaas,
+# openlineage, opensearch, opsgenie, oracle, pagerduty, papermill, pgvector, pinecone, postgres,
+# presto, qdrant, redis, salesforce, samba, segment, sendgrid, sftp, singularity, slack, smtp,
+# snowflake, sqlite, ssh, standard, tableau, telegram, teradata, trino, vertica, weaviate, yandex,
+# ydb, zendesk
 #
 # END PROVIDER EXTRAS HERE
 
@@ -540,6 +541,7 @@ filterwarnings = [
 # We cannot add warnings from the airflow package into `filterwarnings`,
 # because it invokes import airflow before we set up test environment which breaks the tests.
 # Instead of that, we use a separate parameter and dynamically add it into `filterwarnings` marker.
+# Add airflow.exceptions.RemovedInAirflow4Warning when min provider version for providers is 3.0
 forbidden_warnings = [
     "airflow.exceptions.RemovedInAirflow3Warning",
     "airflow.exceptions.AirflowProviderDeprecationWarning",
@@ -668,6 +670,7 @@ dev = [
   "apache-airflow-providers-cohere",
   "apache-airflow-providers-common-compat",
   "apache-airflow-providers-common-io",
+  "apache-airflow-providers-common-messaging",
   "apache-airflow-providers-common-sql",
   "apache-airflow-providers-docker",
   "apache-airflow-providers-databricks",
@@ -736,6 +739,9 @@ dev = [
   "apache-airflow-task-sdk",
 ]
 
+[tool.uv]
+required-version = ">=0.6.3"
+
 [tool.uv.sources]
 # These names must match the names as defined in the pyproject.toml of the workspace items,
 # *not* the workspace folder paths
@@ -768,6 +774,7 @@ apache-airflow-providers-cncf-kubernetes = { workspace = true }
 apache-airflow-providers-cohere = { workspace = true }
 apache-airflow-providers-common-compat = { workspace = true }
 apache-airflow-providers-common-io = { workspace = true }
+apache-airflow-providers-common-messaging = { workspace = true }
 apache-airflow-providers-common-sql = { workspace = true }
 apache-airflow-providers-databricks = { workspace = true }
 apache-airflow-providers-datadog = { workspace = true }
@@ -865,6 +872,7 @@ members = [
     "providers/cohere",
     "providers/common/compat",
     "providers/common/io",
+    "providers/common/messaging",
     "providers/common/sql",
     "providers/databricks",
     "providers/datadog",

@@ -299,7 +299,6 @@ labelPRBasedOnFilePath:
 
   area:API:
     - airflow/api/**/*
-    - airflow/api_connexion/**/*
     - airflow/api_fastapi/**/*
     - clients/**/*
     - docs/apache-airflow/stable-rest-api-ref.rst
@@ -419,6 +418,9 @@ labelPRBasedOnFilePath:
 
   area:db-migrations:
     - airflow/migrations/versions/*
+
+  area:providers:
+    - providers/**/*
 
 # Various Flags to control behaviour of the "Labeler"
 labelerFlags:

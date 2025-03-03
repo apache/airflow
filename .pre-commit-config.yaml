@@ -18,7 +18,7 @@
 default_stages: [pre-commit, pre-push]
 default_language_version:
   python: python3
-  node: 22.2.0
+  node: 22.14.0
 minimum_pre_commit_version: '3.2.0'
 exclude: ^.*/.*_vendor/
 repos:
@@ -276,7 +276,17 @@ repos:
         name: Check YAML files with yamllint
         entry: yamllint -c yamllint-config.yml --strict
         types: [yaml]
-        exclude: ^.*airflow\.template\.yaml$|^.*init_git_sync\.template\.yaml$|^chart/(?:templates|files)/.*\.yaml$|openapi/.*\.yaml$|^\.pre-commit-config\.yaml$|^.*/reproducible_build.yaml$|^.*pnpm-lock\.yaml$
+        exclude: >
+          (?x)
+          ^.*airflow\.template\.yaml$|
+          ^.*init_git_sync\.template\.yaml$|
+          ^chart/(?:templates|files)/.*\.yaml$|
+          ^airflow/api_fastapi/core_api/openapi/v1-generated\.yaml$|
+          ^.*openapi.*\.yaml$|
+          ^airflow/api_fastapi/core_api/openapi/v1-generated\.yaml$|
+          ^\.pre-commit-config\.yaml$|
+          ^.*/reproducible_build.yaml$|
+          ^.*pnpm-lock\.yaml$
   - repo: https://github.com/ikamensh/flynt
     rev: '1.0.1'
     hooks:
@@ -289,7 +299,7 @@ repos:
          - --line-length
          - '99999'
   - repo: https://github.com/codespell-project/codespell
-    rev: v2.3.0
+    rev: v2.4.1
     hooks:
       - id: codespell
         name: Run codespell
@@ -305,7 +315,7 @@ repos:
           - --skip=providers/.*/src/airflow/providers/*/*.rst,providers/*/docs/changelog.rst,docs/*/commits.rst,providers/*/docs/commits.rst,providers/*/*/docs/commits.rst,docs/apache-airflow/tutorial/pipeline_example.csv,*.min.js,*.lock,INTHEWILD.md
           - --exclude-file=.codespellignorelines
   - repo: https://github.com/woodruffw/zizmor-pre-commit
-    rev: v1.0.0
+    rev: v1.4.1
     hooks:
       - id: zizmor
         name: Run zizmor to check for github workflow syntax errors
@@ -373,17 +383,6 @@ repos:
         types: [file, text]
         exclude: ^clients/gen/go\.sh$|^\.gitmodules$|.*/dist/.*
         additional_dependencies: ['rich>=12.4.4']
-      - id: lint-openapi
-        name: Lint OpenAPI using spectral
-        language: docker_image
-        entry: stoplight/spectral lint -r ./scripts/ci/spectral_rules/connexion.yml
-        files: ^airflow/api_connexion/openapi/
-      - id: lint-openapi
-        name: Lint OpenAPI using openapi-spec-validator
-        entry: openapi-spec-validator --schema 3.0.0
-        language: python
-        additional_dependencies: ['openapi-spec-validator>=0.7.1', 'openapi-schema-validator>=0.6.2']
-        files: ^airflow/api_connexion/openapi/
       - id: lint-dockerfile
         name: Lint Dockerfile
         language: python
@@ -421,13 +420,6 @@ repos:
         require_serial: true
         exclude: ^providers/.*/src/airflow/providers/
         entry: ./scripts/ci/pre_commit/check_cncf_k8s_used_for_k8s_executor_only.py
-        additional_dependencies: ['rich>=12.4.4']
-      - id: check-airflow-provider-compatibility
-        name: Check compatibility of Providers with Airflow
-        entry: ./scripts/ci/pre_commit/check_provider_airflow_compatibility.py
-        language: python
-        pass_filenames: true
-        files: ^providers/.*/src/airflow/providers/.*\.py$
         additional_dependencies: ['rich>=12.4.4']
       - id: check-google-re2-as-dependency
         name: Check google-re2 declared as dep
@@ -603,7 +595,7 @@ repos:
         pass_filenames: true
         exclude: >
           (?x)
-          ^airflow/api_connexion/openapi/v1.yaml$|
+          ^clients/python/openapi_v1.yaml$|
           ^airflow/ui/openapi-gen/|
           ^airflow/cli/commands/local_commands/fastapi_api_command.py$|
           ^airflow/config_templates/|
@@ -812,14 +804,6 @@ repos:
         entry: ./scripts/ci/pre_commit/sort_spelling_wordlist.py
         language: python
         files: ^\.pre-commit-config\.yaml$|^docs/spelling_wordlist\.txt$
-        require_serial: true
-        pass_filenames: false
-      - id: update-openapi-spec-tags-to-be-sorted
-        name: Sort alphabetically openapi spec tags
-        entry: ./scripts/ci/pre_commit/sort_tags_in_openapi_spec.py
-        types: [yaml]
-        language: python
-        files: ^\.pre-commit-config\.yaml$|^airflow/api_connexion/openapi/v1\.yaml$
         require_serial: true
         pass_filenames: false
       - id: lint-helm-chart
