@@ -28,4 +28,4 @@ Property ``allow_future_exec_dates`` on the DAG class has also been removed.
 
   * ``airflow config lint``
 
-    * [ ] ``scheduler.allow_trigger_in_future``
+    * [x] ``scheduler.allow_trigger_in_future``
