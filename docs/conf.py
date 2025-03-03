@@ -213,7 +213,7 @@ if PACKAGE_NAME == "apache-airflow":
         # Included in the cluster-policies doc
         "_api/airflow/policies/index.rst",
         "README.rst",
-        "TODO",
+        "_api/airflow/models/baseoperatorlink/index.rst",
     ]
 elif PACKAGE_NAME.startswith("apache-airflow-providers-"):
     extensions.extend(
