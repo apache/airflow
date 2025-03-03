@@ -1621,7 +1621,7 @@ def test_expected_output_push(
                 "providers/google/tests/unit/google/file.py",
             ),
             {
-                "selected-providers-list-as-string": "amazon apache.beam apache.cassandra "
+                "selected-providers-list-as-string": "amazon apache.beam apache.cassandra apache.kafka "
                 "cncf.kubernetes common.compat common.sql "
                 "facebook google hashicorp microsoft.azure microsoft.mssql mysql "
                 "openlineage oracle postgres presto salesforce samba sftp ssh trino",
@@ -1635,14 +1635,14 @@ def test_expected_output_push(
                 "test-groups": "['core', 'providers']",
                 "docs-build": "true",
                 "docs-list-as-string": "apache-airflow helm-chart amazon apache.beam apache.cassandra "
-                "cncf.kubernetes common.compat common.sql facebook google hashicorp microsoft.azure "
+                "apache.kafka cncf.kubernetes common.compat common.sql facebook google hashicorp microsoft.azure "
                 "microsoft.mssql mysql openlineage oracle postgres "
                 "presto salesforce samba sftp ssh trino",
                 "skip-pre-commits": "identity,mypy-airflow,mypy-dev,mypy-docs,mypy-providers,mypy-task-sdk,ts-compile-format-lint-ui",
                 "run-kubernetes-tests": "true",
                 "upgrade-to-newer-dependencies": "false",
                 "core-test-types-list-as-string": "Always CLI",
-                "providers-test-types-list-as-string": "Providers[amazon] Providers[apache.beam,apache.cassandra,cncf.kubernetes,common.compat,common.sql,facebook,"
+                "providers-test-types-list-as-string": "Providers[amazon] Providers[apache.beam,apache.cassandra,apache.kafka,cncf.kubernetes,common.compat,common.sql,facebook,"
                 "hashicorp,microsoft.azure,microsoft.mssql,mysql,openlineage,oracle,postgres,presto,"
                 "salesforce,samba,sftp,ssh,trino] Providers[google]",
                 "needs-mypy": "true",
@@ -1890,7 +1890,7 @@ def test_upgrade_to_newer_dependencies(
         pytest.param(
             ("providers/google/docs/some_file.rst",),
             {
-                "docs-list-as-string": "amazon apache.beam apache.cassandra "
+                "docs-list-as-string": "amazon apache.beam apache.cassandra apache.kafka "
                 "cncf.kubernetes common.compat common.sql facebook google hashicorp "
                 "microsoft.azure microsoft.mssql mysql openlineage oracle "
                 "postgres presto salesforce samba sftp ssh trino",
