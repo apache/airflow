@@ -21,11 +21,16 @@ from typing import TYPE_CHECKING, Annotated, Callable
 
 from fastapi import Depends, HTTPException, Request, status
 from fastapi.security import OAuth2PasswordBearer
-from jwt import InvalidTokenError
+from jwt import ExpiredSignatureError, InvalidTokenError
 
 from airflow.api_fastapi.app import get_auth_manager
 from airflow.auth.managers.models.base_user import BaseUser
-from airflow.auth.managers.models.resource_details import DagAccessEntity, DagDetails
+from airflow.auth.managers.models.resource_details import (
+    ConnectionDetails,
+    DagAccessEntity,
+    DagDetails,
+    PoolDetails,
+)
 from airflow.configuration import conf
 from airflow.utils.jwt_signer import JWTSigner, get_signing_key
 
@@ -47,6 +52,8 @@ def get_signer() -> JWTSigner:
 def get_user(token_str: Annotated[str, Depends(oauth2_scheme)]) -> BaseUser:
     try:
         return get_auth_manager().get_user_from_token(token_str)
+    except ExpiredSignatureError:
+        raise HTTPException(status.HTTP_401_UNAUTHORIZED, "Token Expired")
     except InvalidTokenError:
         raise HTTPException(status.HTTP_403_FORBIDDEN, "Forbidden")
 
@@ -54,15 +61,10 @@ def get_user(token_str: Annotated[str, Depends(oauth2_scheme)]) -> BaseUser:
 async def get_user_with_exception_handling(request: Request) -> BaseUser | None:
     # Currently the UI does not support JWT authentication, this method defines a fallback if no token is provided by the UI.
     # We can remove this method when issue https://github.com/apache/airflow/issues/44884 is done.
-    try:
-        token_str = await oauth2_scheme(request)
-        if not token_str:  # Handle None or empty token
-            return None
-        return get_user(token_str)
-    except HTTPException as e:
-        if e.status_code == status.HTTP_401_UNAUTHORIZED:
-            return None
-        raise e
+    token_str = await oauth2_scheme(request)
+    if not token_str:  # Handle None or empty token
+        return None
+    return get_user(token_str)
 
 
 def requires_access_dag(method: ResourceMethod, access_entity: DagAccessEntity | None = None) -> Callable:
@@ -73,6 +75,44 @@ def requires_access_dag(method: ResourceMethod, access_entity: DagAccessEntity |
         def callback():
             return get_auth_manager().is_authorized_dag(
                 method=method, access_entity=access_entity, details=DagDetails(id=dag_id), user=user
+            )
+
+        _requires_access(
+            is_authorized_callback=callback,
+        )
+
+    return inner
+
+
+def requires_access_pool(method: ResourceMethod) -> Callable:
+    def inner(
+        request: Request,
+        user: Annotated[BaseUser | None, Depends(get_user)] = None,
+    ) -> None:
+        pool_name = request.path_params.get("pool_name")
+
+        def callback():
+            return get_auth_manager().is_authorized_pool(
+                method=method, details=PoolDetails(name=pool_name), user=user
+            )
+
+        _requires_access(
+            is_authorized_callback=callback,
+        )
+
+    return inner
+
+
+def requires_access_connection(method: ResourceMethod) -> Callable:
+    def inner(
+        request: Request,
+        user: Annotated[BaseUser | None, Depends(get_user)] = None,
+    ) -> None:
+        connection_id = request.path_params.get("connection_id")
+
+        def callback():
+            return get_auth_manager().is_authorized_pool(
+                method=method, details=ConnectionDetails(conn_id=connection_id), user=user
             )
 
         _requires_access(

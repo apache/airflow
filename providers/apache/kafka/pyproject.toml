@@ -59,10 +59,7 @@ requires-python = "~=3.9"
 dependencies = [
     "apache-airflow>=2.9.0",
     "asgiref>=2.3.0",
-    # Confluent kafka 2.8.1 has been released without binary wheels on 28 Feb 2025
-    # It's likely this will be fixed, but until it is, we need to exclude it
-    # See https://github.com/confluentinc/confluent-kafka-python/issues/1927
-    "confluent-kafka>=2.3.0,!=2.8.1",
+    "confluent-kafka>=2.3.0",
 ]
 
 [project.urls]

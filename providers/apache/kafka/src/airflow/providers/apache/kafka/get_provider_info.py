@@ -89,5 +89,5 @@ def get_provider_info():
                 "connection-type": "kafka",
             }
         ],
-        "dependencies": ["apache-airflow>=2.9.0", "asgiref>=2.3.0", "confluent-kafka>=2.3.0,!=2.8.1"],
+        "dependencies": ["apache-airflow>=2.9.0", "asgiref>=2.3.0", "confluent-kafka>=2.3.0"],
     }

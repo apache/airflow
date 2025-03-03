@@ -69,7 +69,7 @@ def run_command(
     **kwargs,
 ) -> RunCommandResult:
     """
-    Runs command passed as list of strings with some extra functionality over POpen (kwargs from PoPen can
+    Runs command passed as list of strings with some extra functionality over Popen (kwargs from Popen can
     be used in this command even if not explicitly specified).
 
     It prints diagnostics when requested, also allows to "dry_run" the commands rather than actually
