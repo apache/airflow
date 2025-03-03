@@ -34,6 +34,8 @@ As part of this change the following breaking changes have occurred:
     - ``batch_is_authorized_pool``
     - ``batch_is_authorized_variable``
 
+- The module ``airflow.www.auth`` has been moved to ``airflow.providers.fab.www.auth``
+
 * Types of change
 
   * [ ] Dag changes
