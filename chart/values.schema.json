@@ -8356,7 +8356,7 @@
                     }
                 },
                 "resources": {
-                    "description": "Resources for or cleanup pods",
+                    "description": "Resources for cleanup pods",
                     "type": "object",
                     "$ref": "#/definitions/io.k8s.api.core.v1.ResourceRequirements",
                     "default": {},
