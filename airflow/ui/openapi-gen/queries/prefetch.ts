@@ -992,7 +992,6 @@ export const prefetchUseDagWarningServiceListDagWarnings = (
  * Get Dags
  * Get all DAGs.
  * @param data The data for the request.
- * @param data.dagId
  * @param data.limit
  * @param data.offset
  * @param data.tags
@@ -1016,7 +1015,6 @@ export const prefetchUseDagServiceGetDags = (
   queryClient: QueryClient,
   {
     dagDisplayNamePattern,
-    dagId,
     dagIdPattern,
     dagRunEndDateGte,
     dagRunEndDateLte,
@@ -1034,7 +1032,6 @@ export const prefetchUseDagServiceGetDags = (
     tagsMatchMode,
   }: {
     dagDisplayNamePattern?: string;
-    dagId?: string;
     dagIdPattern?: string;
     dagRunEndDateGte?: string;
     dagRunEndDateLte?: string;
@@ -1055,7 +1052,6 @@ export const prefetchUseDagServiceGetDags = (
   queryClient.prefetchQuery({
     queryKey: Common.UseDagServiceGetDagsKeyFn({
       dagDisplayNamePattern,
-      dagId,
       dagIdPattern,
       dagRunEndDateGte,
       dagRunEndDateLte,
@@ -1075,7 +1071,6 @@ export const prefetchUseDagServiceGetDags = (
     queryFn: () =>
       DagService.getDags({
         dagDisplayNamePattern,
-        dagId,
         dagIdPattern,
         dagRunEndDateGte,
         dagRunEndDateLte,

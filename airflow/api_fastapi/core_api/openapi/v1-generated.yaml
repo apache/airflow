@@ -3017,14 +3017,6 @@ paths:
       security:
       - OAuth2PasswordBearer: []
       parameters:
-      - name: dag_id
-        in: query
-        required: false
-        schema:
-          anyOf:
-          - type: string
-          - type: 'null'
-          title: Dag Id
       - name: limit
         in: query
         required: false
@@ -3202,14 +3194,6 @@ paths:
               type: string
           - type: 'null'
           title: Update Mask
-      - name: dag_id
-        in: query
-        required: false
-        schema:
-          anyOf:
-          - type: string
-          - type: 'null'
-          title: Dag Id
       - name: limit
         in: query
         required: false
@@ -3341,9 +3325,7 @@ paths:
         in: path
         required: true
         schema:
-          anyOf:
-          - type: string
-          - type: 'null'
+          type: string
           title: Dag Id
       responses:
         '200':
@@ -3395,9 +3377,7 @@ paths:
         in: path
         required: true
         schema:
-          anyOf:
-          - type: string
-          - type: 'null'
+          type: string
           title: Dag Id
       - name: update_mask
         in: query
@@ -3465,9 +3445,7 @@ paths:
         in: path
         required: true
         schema:
-          anyOf:
-          - type: string
-          - type: 'null'
+          type: string
           title: Dag Id
       responses:
         '200':
@@ -3519,9 +3497,7 @@ paths:
         in: path
         required: true
         schema:
-          anyOf:
-          - type: string
-          - type: 'null'
+          type: string
           title: Dag Id
       responses:
         '200':

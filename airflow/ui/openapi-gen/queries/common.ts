@@ -736,7 +736,6 @@ export const useDagServiceGetDagsKey = "DagServiceGetDags";
 export const UseDagServiceGetDagsKeyFn = (
   {
     dagDisplayNamePattern,
-    dagId,
     dagIdPattern,
     dagRunEndDateGte,
     dagRunEndDateLte,
@@ -754,7 +753,6 @@ export const UseDagServiceGetDagsKeyFn = (
     tagsMatchMode,
   }: {
     dagDisplayNamePattern?: string;
-    dagId?: string;
     dagIdPattern?: string;
     dagRunEndDateGte?: string;
     dagRunEndDateLte?: string;
@@ -777,7 +775,6 @@ export const UseDagServiceGetDagsKeyFn = (
   ...(queryKey ?? [
     {
       dagDisplayNamePattern,
-      dagId,
       dagIdPattern,
       dagRunEndDateGte,
       dagRunEndDateLte,

@@ -1202,7 +1202,6 @@ export const useDagWarningServiceListDagWarnings = <
  * Get Dags
  * Get all DAGs.
  * @param data The data for the request.
- * @param data.dagId
  * @param data.limit
  * @param data.offset
  * @param data.tags
@@ -1229,7 +1228,6 @@ export const useDagServiceGetDags = <
 >(
   {
     dagDisplayNamePattern,
-    dagId,
     dagIdPattern,
     dagRunEndDateGte,
     dagRunEndDateLte,
@@ -1247,7 +1245,6 @@ export const useDagServiceGetDags = <
     tagsMatchMode,
   }: {
     dagDisplayNamePattern?: string;
-    dagId?: string;
     dagIdPattern?: string;
     dagRunEndDateGte?: string;
     dagRunEndDateLte?: string;
@@ -1271,7 +1268,6 @@ export const useDagServiceGetDags = <
     queryKey: Common.UseDagServiceGetDagsKeyFn(
       {
         dagDisplayNamePattern,
-        dagId,
         dagIdPattern,
         dagRunEndDateGte,
         dagRunEndDateLte,
@@ -1293,7 +1289,6 @@ export const useDagServiceGetDags = <
     queryFn: () =>
       DagService.getDags({
         dagDisplayNamePattern,
-        dagId,
         dagIdPattern,
         dagRunEndDateGte,
         dagRunEndDateLte,
@@ -3734,7 +3729,6 @@ export const useDagRunServicePatchDagRun = <
  * @param data The data for the request.
  * @param data.requestBody
  * @param data.updateMask
- * @param data.dagId
  * @param data.limit
  * @param data.offset
  * @param data.tags
@@ -3757,7 +3751,6 @@ export const useDagServicePatchDags = <
       TData,
       TError,
       {
-        dagId?: string;
         dagIdPattern?: string;
         lastDagRunState?: DagRunState;
         limit?: number;
@@ -3779,7 +3772,6 @@ export const useDagServicePatchDags = <
     TData,
     TError,
     {
-      dagId?: string;
       dagIdPattern?: string;
       lastDagRunState?: DagRunState;
       limit?: number;
@@ -3795,7 +3787,6 @@ export const useDagServicePatchDags = <
     TContext
   >({
     mutationFn: ({
-      dagId,
       dagIdPattern,
       lastDagRunState,
       limit,
@@ -3809,7 +3800,6 @@ export const useDagServicePatchDags = <
       updateMask,
     }) =>
       DagService.patchDags({
-        dagId,
         dagIdPattern,
         lastDagRunState,
         limit,

@@ -78,11 +78,13 @@ async def get_user_with_exception_handling(request: Request) -> BaseUser | None:
 
 def requires_access_dag(
     method: ResourceMethod, access_entity: DagAccessEntity | None = None
-) -> Callable[[str | None, BaseUser | None], None]:
+) -> Callable[[Request, BaseUser | None], None]:
     def inner(
-        user: Annotated[BaseUser, Depends(get_user)],
-        dag_id: str | None = None,
+        request: Request,
+        user: Annotated[BaseUser | None, Depends(get_user)] = None,
     ) -> None:
+        dag_id: str | None = request.path_params.get("dag_id")
+
         _requires_access(
             is_authorized_callback=lambda: get_auth_manager().is_authorized_dag(
                 method=method, access_entity=access_entity, details=DagDetails(id=dag_id), user=user
