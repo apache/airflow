@@ -47,19 +47,19 @@ command as in the example below.
 
 .. versionchanged:: 3.0.0
 
-    In Airflow <3.0.0, the default setting is using token based authentication.
+    In Airflow, the default setting is using token based authentication.
     This approach is independent from which ``auth_backend`` is used.
-    The default setting is using API to create a token (JWT) first and use this token in the requests to access the API.
+    The default setting is using Airflow public API to create a token (JWT) first and use this token in the requests to access the API.
 
 
-Token based authentication
-''''''''''''''''''''''''''
-The token based authentication is the default setting for the API.
-To be able to use the API, you need to create a token first and use this token in the requests to access the API.
+JWT Token based authentication
+''''''''''''''''''''''''''''''
+The JWT token based authentication is the default setting for the API.
+To be able to use the Airflow Public API, you need to create a token first and use this token in the requests to access the API.
 
 Endpoints are populated under ``/auth`` path. These endpoints are mounted to the Airflow API.
 You should use your username and password, as seen in the example below.
-The token is valid for seconds in ``auth_jwt_expiration_time`` which can be set from ``airflow.cfg``.
+The token is valid for seconds defined in ``auth_jwt_expiration_time`` which can be set from ``airflow.cfg``.
 
 Example of creating a token:
 .. code-block:: bash
