@@ -157,7 +157,7 @@ or
 Both commands will install node and pmpm under the hook, if needed, to a dedicated pre-commit
 node environment and then build the assets.
 
-Finally, you can also clean and recompile assets with `custom` build target when running the Hatch build
+Finally, you can also clean and recompile assets with `custom` build target when running the Hatch build:
 
     hatch build -t custom -t wheel -t sdist
 
