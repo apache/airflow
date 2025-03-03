@@ -2740,6 +2740,8 @@ class TaskInstance(Base, LoggingMixin):
         outlet_events: list[Any],
         session: Session = NEW_SESSION,
     ) -> None:
+        from airflow.sdk.definitions.asset.decorators import AssetDefinition
+
         # One task only triggers one asset event for each asset with the same extra.
         # This tuple[asset uri, extra] to sets alias names mapping is used to find whether
         # there're assets with same uri but different extra that we need to emit more than one asset events.
@@ -2750,7 +2752,7 @@ class TaskInstance(Base, LoggingMixin):
         for obj in task_outlets:
             ti.log.debug("outlet obj %s", obj)
             # Lineage can have other types of objects besides assets
-            if obj.asset_type == Asset.__name__:
+            if obj.asset_type == Asset.__name__ or obj.asset_type == AssetDefinition.__name__:
                 asset_manager.register_asset_change(
                     task_instance=ti,
                     asset=Asset(name=obj.name, uri=obj.uri),  # type: ignore
