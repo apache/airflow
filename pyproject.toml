@@ -610,7 +610,6 @@ module=[
 ]
 ignore_errors = true
 
-# TODO check
 [[tool.mypy.overrides]]
 module="airflow.cli.api.datamodels.*"
 ignore_errors = true
