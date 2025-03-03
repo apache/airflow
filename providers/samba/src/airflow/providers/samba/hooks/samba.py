@@ -18,6 +18,7 @@
 from __future__ import annotations
 
 import posixpath
+import ntpath
 from functools import wraps
 from shutil import copyfileobj
 from typing import TYPE_CHECKING, Any
@@ -85,6 +86,8 @@ class SambaHook(BaseHook):
         self._connection_cache.clear()
 
     def _join_path(self, path):
+        if smbclient._os.is_remote_path(path):
+            return ntpath.join(f"\\\\{self._host}", self._share, path.lstrip("\\"))
         return f"//{posixpath.join(self._host, self._share, path.lstrip('/'))}"
 
     @wraps(smbclient.link)
