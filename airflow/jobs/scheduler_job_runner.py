@@ -265,10 +265,6 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
             executor.debug_dump()
             self.log.info("-" * 80)
 
-            self.log.info("Debug dump for the executor %s", executor)
-            executor.trace
-            self.log.info("-" * 80)
-
         id2name = {th.ident: th.name for th in threading.enumerate()}
         for threadId, stack in sys._current_frames().items():
             self.log.info("Stack Trace for Scheduler Job Runner on thread: %s", id2name[threadId])
