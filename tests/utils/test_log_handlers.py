@@ -199,8 +199,6 @@ class TestFileTaskLogHandler:
     @pytest.mark.parametrize(
         "executor_name",
         [
-            (executor_constants.LOCAL_KUBERNETES_EXECUTOR),
-            (executor_constants.CELERY_KUBERNETES_EXECUTOR),
             (executor_constants.KUBERNETES_EXECUTOR),
             (None),
         ],
@@ -209,8 +207,6 @@ class TestFileTaskLogHandler:
         {
             ("core", "EXECUTOR"): ",".join(
                 [
-                    executor_constants.LOCAL_KUBERNETES_EXECUTOR,
-                    executor_constants.CELERY_KUBERNETES_EXECUTOR,
                     executor_constants.KUBERNETES_EXECUTOR,
                 ]
             ),
