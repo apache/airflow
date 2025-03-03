@@ -40,7 +40,7 @@ DAG_ID = "example_bash_operator"
 DAG_RUN_ID = "test_dag_run_id"
 
 
-def api_request(method: str, path: str, base_url: str = "http://localhost:9091/public", **kwargs) -> dict:
+def api_request(method: str, path: str, base_url: str = "http://localhost:8080/public", **kwargs) -> dict:
     response = requests.request(
         method=method,
         url=f"{base_url}/{path}",
