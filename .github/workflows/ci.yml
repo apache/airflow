@@ -289,6 +289,9 @@ jobs:
       default-postgres-version: ${{ needs.build-info.outputs.default-postgres-version }}
       run-coverage: ${{ needs.build-info.outputs.run-coverage }}
       use-uv: ${{ needs.build-info.outputs.use-uv }}
+    secrets:
+      DOCS_AWS_ACCESS_KEY_ID: ${{ secrets.DOCS_AWS_ACCESS_KEY_ID }}
+      DOCS_AWS_SECRET_ACCESS_KEY: ${{ secrets.DOCS_AWS_SECRET_ACCESS_KEY }}
 
   providers:
     name: "Provider packages tests"

@@ -29,20 +29,20 @@ if you follow the guide.
 
 There are three ways you can run the Airflow dev env:
 
-1. With a Docker Containers and Docker Compose (on your local machine). This environment is managed
-   with `Breeze <../dev/breeze/doc/README.rst>`_ tool written in Python that makes the environment
-   management, yeah you guessed it - a breeze
+1. With Docker Containers and Docker Compose (on your local machine). This environment is managed
+   with the `Breeze <../dev/breeze/doc/README.rst>`_ tool written in Python that makes environment
+   management, yeah you guessed it - a breeze.
 2. With a local virtual environment (on your local machine)
 3. With a remote, managed environment (via remote development environment)
 
 Before deciding which method to choose, there are a couple of factors to consider:
 
 * Running Airflow in a container is the most reliable way: it provides a more consistent environment
-  and allows integration tests with a number of integrations (cassandra, mongo, mysql, etc.).
+  and allows integration tests with a number of integrations (Cassandra, MongoDB, MySQL, etc.).
   However, it also requires **4GB RAM, 40GB disk space and at least 2 cores**.
-* If you are working on a basic feature, installing Airflow on a local environment might be sufficient.
-  For a comprehensive venv tutorial - visit `Local virtualenv <07_local_virtualenv.rst>`_
-* You need to have usually a paid account to access managed, remote virtual environment.
+* If you are working on a basic feature, installing Airflow in a local environment might be sufficient.
+  For a comprehensive venv tutorial, visit `Local virtualenv <07_local_virtualenv.rst>`_
+* You need to have a (usually paid) account to access managed, remote virtual environments.
 
 Local machine development
 #########################
@@ -77,7 +77,7 @@ Docker Community Edition
     "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.gpg] https://download.docker.com/linux/ubuntu \
     $(lsb_release -cs) stable" | sudo tee /etc/apt/sources.list.d/docker.list > /dev/null
 
-1. Install Docker Engine, containerd
+2. Install Docker Engine, containerd
 
 .. code-block:: bash
 
@@ -165,7 +165,7 @@ Setting up virtual-env
 1. While you can use any virtualenv manager, we recommend using `Hatch <https://hatch.pypa.io/latest/>`__
    as your build and integration frontend, and we already use ``hatchling`` build backend for Airflow.
    You can read more about Hatch and it's use in Airflow in `Local virtualenv <07_local_virtualenv.rst>`_.
-   See [PEP-517](https://peps.python.org/pep-0517/#terminology-and-goals) for explanation of what the
+   See `PEP-517 <https://peps.python.org/pep-0517/#terminology-and-goals>`_ for explanation of what the
    frontend and backend meaning is
 
 2. After creating the environment, you need to install a few more required packages for Airflow. The below command adds
@@ -485,9 +485,9 @@ Using Breeze
 ------------
 
 1. Starting the Breeze environment using ``breeze start-airflow`` starts the Breeze environment with last configuration run(
-   In this case python version and backend are picked up from last execution ``breeze --python 3.9 --backend postgres``)
+   In this case Python version and backend are picked up from last execution ``breeze --python 3.9 --backend postgres``)
    It also automatically starts the webserver, triggerer, dag processor, FastAPI api and scheduler. It drops you in tmux with triggerer to the right, and
-   scheduler, FastAPI api, dag processor and webserver from left to right at the bottom. Use ``[Ctrl + B] and Arrow keys`` to navigate.
+   Scheduler, FastAPI API, DAG processor and webserver from left to right at the bottom. Use ``[Ctrl + B] and Arrow keys`` to navigate.
 
 .. code-block:: bash
 
