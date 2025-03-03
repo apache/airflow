@@ -531,14 +531,6 @@ paths:
       security:
       - OAuth2PasswordBearer: []
       parameters:
-      - name: asset_id
-        in: query
-        required: false
-        schema:
-          anyOf:
-          - type: string
-          - type: 'null'
-          title: Asset Id
       - name: limit
         in: query
         required: false
@@ -741,14 +733,6 @@ paths:
       security:
       - OAuth2PasswordBearer: []
       parameters:
-      - name: asset_id
-        in: query
-        required: false
-        schema:
-          anyOf:
-          - type: integer
-          - type: 'null'
-          title: Asset Id
       - name: limit
         in: query
         required: false
@@ -772,6 +756,14 @@ paths:
           type: string
           default: timestamp
           title: Order By
+      - name: asset_id
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: integer
+          - type: 'null'
+          title: Asset Id
       - name: source_dag_id
         in: query
         required: false
@@ -861,15 +853,6 @@ paths:
       operationId: create_asset_event
       security:
       - OAuth2PasswordBearer: []
-      parameters:
-      - name: asset_id
-        in: query
-        required: false
-        schema:
-          anyOf:
-          - type: string
-          - type: 'null'
-          title: Asset Id
       requestBody:
         required: true
         content:
@@ -921,9 +904,7 @@ paths:
         in: path
         required: true
         schema:
-          anyOf:
-          - type: string
-          - type: 'null'
+          type: integer
           title: Asset Id
       responses:
         '200':
@@ -976,9 +957,7 @@ paths:
         in: path
         required: true
         schema:
-          anyOf:
-          - type: string
-          - type: 'null'
+          type: integer
           title: Asset Id
       - name: before
         in: query
@@ -1032,9 +1011,7 @@ paths:
         in: path
         required: true
         schema:
-          anyOf:
-          - type: string
-          - type: 'null'
+          type: integer
           title: Asset Id
       - name: before
         in: query
@@ -1093,9 +1070,7 @@ paths:
         in: path
         required: true
         schema:
-          anyOf:
-          - type: string
-          - type: 'null'
+          type: integer
           title: Asset Id
       responses:
         '200':
@@ -1154,14 +1129,6 @@ paths:
           - type: string
           - type: 'null'
           title: Before
-      - name: asset_id
-        in: query
-        required: false
-        schema:
-          anyOf:
-          - type: string
-          - type: 'null'
-          title: Asset Id
       responses:
         '200':
           description: Successful Response
@@ -1217,14 +1184,6 @@ paths:
           - type: string
           - type: 'null'
           title: Before
-      - name: asset_id
-        in: query
-        required: false
-        schema:
-          anyOf:
-          - type: string
-          - type: 'null'
-          title: Asset Id
       responses:
         '204':
           description: Successful Response
@@ -1280,9 +1239,7 @@ paths:
         in: path
         required: true
         schema:
-          anyOf:
-          - type: string
-          - type: 'null'
+          type: integer
           title: Asset Id
       - name: before
         in: query
@@ -1344,9 +1301,7 @@ paths:
         in: path
         required: true
         schema:
-          anyOf:
-          - type: string
-          - type: 'null'
+          type: integer
           title: Asset Id
       - name: before
         in: query
@@ -2297,14 +2252,6 @@ paths:
         schema:
           type: string
           title: Dag Run Id
-      - name: asset_id
-        in: query
-        required: false
-        schema:
-          anyOf:
-          - type: string
-          - type: 'null'
-          title: Asset Id
       responses:
         '200':
           description: Successful Response
@@ -4154,6 +4101,8 @@ paths:
       summary: Delete Pool
       description: Delete a pool entry.
       operationId: delete_pool
+      security:
+      - OAuth2PasswordBearer: []
       parameters:
       - name: pool_name
         in: path
@@ -4200,6 +4149,8 @@ paths:
       summary: Get Pool
       description: Get a pool.
       operationId: get_pool
+      security:
+      - OAuth2PasswordBearer: []
       parameters:
       - name: pool_name
         in: path
@@ -4244,6 +4195,8 @@ paths:
       summary: Patch Pool
       description: Update a Pool.
       operationId: patch_pool
+      security:
+      - OAuth2PasswordBearer: []
       parameters:
       - name: pool_name
         in: path
@@ -4311,6 +4264,8 @@ paths:
       summary: Get Pools
       description: Get all pools entries.
       operationId: get_pools
+      security:
+      - OAuth2PasswordBearer: []
       parameters:
       - name: limit
         in: query
@@ -4380,6 +4335,8 @@ paths:
       summary: Post Pool
       description: Create a Pool.
       operationId: post_pool
+      security:
+      - OAuth2PasswordBearer: []
       requestBody:
         required: true
         content:
@@ -4423,6 +4380,8 @@ paths:
       summary: Bulk Pools
       description: Bulk create, update, and delete pools.
       operationId: bulk_pools
+      security:
+      - OAuth2PasswordBearer: []
       requestBody:
         required: true
         content:

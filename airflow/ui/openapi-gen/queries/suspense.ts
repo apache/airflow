@@ -65,7 +65,6 @@ export const useAssetServiceNextRunAssetsSuspense = <
  * Get Assets
  * Get assets.
  * @param data The data for the request.
- * @param data.assetId
  * @param data.limit
  * @param data.offset
  * @param data.namePattern
@@ -81,7 +80,6 @@ export const useAssetServiceGetAssetsSuspense = <
   TQueryKey extends Array<unknown> = unknown[],
 >(
   {
-    assetId,
     dagIds,
     limit,
     namePattern,
@@ -89,7 +87,6 @@ export const useAssetServiceGetAssetsSuspense = <
     orderBy,
     uriPattern,
   }: {
-    assetId?: string;
     dagIds?: string[];
     limit?: number;
     namePattern?: string;
@@ -102,11 +99,11 @@ export const useAssetServiceGetAssetsSuspense = <
 ) =>
   useSuspenseQuery<TData, TError>({
     queryKey: Common.UseAssetServiceGetAssetsKeyFn(
-      { assetId, dagIds, limit, namePattern, offset, orderBy, uriPattern },
+      { dagIds, limit, namePattern, offset, orderBy, uriPattern },
       queryKey,
     ),
     queryFn: () =>
-      AssetService.getAssets({ assetId, dagIds, limit, namePattern, offset, orderBy, uriPattern }) as TData,
+      AssetService.getAssets({ dagIds, limit, namePattern, offset, orderBy, uriPattern }) as TData,
     ...options,
   });
 /**
@@ -174,10 +171,10 @@ export const useAssetServiceGetAssetAliasSuspense = <
  * Get Asset Events
  * Get asset events.
  * @param data The data for the request.
- * @param data.assetId
  * @param data.limit
  * @param data.offset
  * @param data.orderBy
+ * @param data.assetId
  * @param data.sourceDagId
  * @param data.sourceTaskId
  * @param data.sourceRunId
@@ -267,7 +264,7 @@ export const useAssetServiceGetAssetQueuedEventsSuspense = <
     assetId,
     before,
   }: {
-    assetId: string;
+    assetId: number;
     before?: string;
   },
   queryKey?: TQueryKey,
@@ -294,7 +291,7 @@ export const useAssetServiceGetAssetSuspense = <
   {
     assetId,
   }: {
-    assetId: string;
+    assetId: number;
   },
   queryKey?: TQueryKey,
   options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">,
@@ -310,7 +307,6 @@ export const useAssetServiceGetAssetSuspense = <
  * @param data The data for the request.
  * @param data.dagId
  * @param data.before
- * @param data.assetId
  * @returns QueuedEventCollectionResponse Successful Response
  * @throws ApiError
  */
@@ -320,11 +316,9 @@ export const useAssetServiceGetDagAssetQueuedEventsSuspense = <
   TQueryKey extends Array<unknown> = unknown[],
 >(
   {
-    assetId,
     before,
     dagId,
   }: {
-    assetId?: string;
     before?: string;
     dagId: string;
   },
@@ -332,8 +326,8 @@ export const useAssetServiceGetDagAssetQueuedEventsSuspense = <
   options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">,
 ) =>
   useSuspenseQuery<TData, TError>({
-    queryKey: Common.UseAssetServiceGetDagAssetQueuedEventsKeyFn({ assetId, before, dagId }, queryKey),
-    queryFn: () => AssetService.getDagAssetQueuedEvents({ assetId, before, dagId }) as TData,
+    queryKey: Common.UseAssetServiceGetDagAssetQueuedEventsKeyFn({ before, dagId }, queryKey),
+    queryFn: () => AssetService.getDagAssetQueuedEvents({ before, dagId }) as TData,
     ...options,
   });
 /**
@@ -356,7 +350,7 @@ export const useAssetServiceGetDagAssetQueuedEventSuspense = <
     before,
     dagId,
   }: {
-    assetId: string;
+    assetId: number;
     before?: string;
     dagId: string;
   },
@@ -927,7 +921,6 @@ export const useDagRunServiceGetDagRunSuspense = <
  * @param data The data for the request.
  * @param data.dagId
  * @param data.dagRunId
- * @param data.assetId
  * @returns AssetEventCollectionResponse Successful Response
  * @throws ApiError
  */
@@ -937,11 +930,9 @@ export const useDagRunServiceGetUpstreamAssetEventsSuspense = <
   TQueryKey extends Array<unknown> = unknown[],
 >(
   {
-    assetId,
     dagId,
     dagRunId,
   }: {
-    assetId?: string;
     dagId: string;
     dagRunId: string;
   },
@@ -949,8 +940,8 @@ export const useDagRunServiceGetUpstreamAssetEventsSuspense = <
   options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">,
 ) =>
   useSuspenseQuery<TData, TError>({
-    queryKey: Common.UseDagRunServiceGetUpstreamAssetEventsKeyFn({ assetId, dagId, dagRunId }, queryKey),
-    queryFn: () => DagRunService.getUpstreamAssetEvents({ assetId, dagId, dagRunId }) as TData,
+    queryKey: Common.UseDagRunServiceGetUpstreamAssetEventsKeyFn({ dagId, dagRunId }, queryKey),
+    queryFn: () => DagRunService.getUpstreamAssetEvents({ dagId, dagRunId }) as TData,
     ...options,
   });
 /**

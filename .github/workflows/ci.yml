@@ -202,7 +202,6 @@ jobs:
       # This write is only given here for `push` events from "apache/airflow" repo. It is not given for PRs
       # from forks. This is to prevent malicious PRs from creating images in the "apache/airflow" repo.
       packages: write
-    secrets: inherit
     with:
       runs-on-as-json-public: ${{ needs.build-info.outputs.runs-on-as-json-public }}
       runs-on-as-json-self-hosted: ${{ needs.build-info.outputs.runs-on-as-json-self-hosted }}
@@ -264,7 +263,9 @@ jobs:
     name: "CI image checks"
     needs: [build-info, build-ci-images]
     uses: ./.github/workflows/ci-image-checks.yml
-    secrets: inherit
+    permissions:
+      id-token: write
+      contents: read
     with:
       runs-on-as-json-default: ${{ needs.build-info.outputs.runs-on-as-json-default }}
       runs-on-as-json-docs-build: ${{ needs.build-info.outputs.runs-on-as-json-docs-build }}
@@ -288,6 +289,9 @@ jobs:
       default-postgres-version: ${{ needs.build-info.outputs.default-postgres-version }}
       run-coverage: ${{ needs.build-info.outputs.run-coverage }}
       use-uv: ${{ needs.build-info.outputs.use-uv }}
+    secrets:
+      DOCS_AWS_ACCESS_KEY_ID: ${{ secrets.DOCS_AWS_ACCESS_KEY_ID }}
+      DOCS_AWS_SECRET_ACCESS_KEY: ${{ secrets.DOCS_AWS_SECRET_ACCESS_KEY }}
 
   providers:
     name: "Provider packages tests"
@@ -296,7 +300,6 @@ jobs:
     permissions:
       contents: read
       packages: read
-    secrets: inherit
     if: >
       needs.build-info.outputs.skip-providers-tests != 'true' &&
       needs.build-info.outputs.latest-versions-only != 'true'
@@ -320,7 +323,6 @@ jobs:
     permissions:
       contents: read
       packages: read
-    secrets: inherit
     with:
       runs-on-as-json-default: ${{ needs.build-info.outputs.runs-on-as-json-default }}
       runs-on-as-json-public: ${{ needs.build-info.outputs.runs-on-as-json-public }}
@@ -339,7 +341,6 @@ jobs:
     permissions:
       contents: read
       packages: read
-    secrets: inherit
     with:
       runs-on-as-json-default: ${{ needs.build-info.outputs.runs-on-as-json-default }}
       backend: "postgres"
@@ -366,7 +367,6 @@ jobs:
     permissions:
       contents: read
       packages: read
-    secrets: inherit
     with:
       runs-on-as-json-default: ${{ needs.build-info.outputs.runs-on-as-json-default }}
       backend: "mysql"
@@ -393,7 +393,6 @@ jobs:
     permissions:
       contents: read
       packages: read
-    secrets: inherit
     with:
       runs-on-as-json-default: ${{ needs.build-info.outputs.runs-on-as-json-default }}
       backend: "sqlite"
@@ -422,7 +421,6 @@ jobs:
     permissions:
       contents: read
       packages: read
-    secrets: inherit
     with:
       runs-on-as-json-default: ${{ needs.build-info.outputs.runs-on-as-json-default }}
       backend: "sqlite"
@@ -450,7 +448,6 @@ jobs:
     permissions:
       contents: read
       packages: read
-    secrets: inherit
     if: >
       needs.build-info.outputs.run-tests == 'true' &&
       (needs.build-info.outputs.canary-run == 'true' ||
@@ -480,7 +477,6 @@ jobs:
     permissions:
       contents: read
       packages: read
-    secrets: inherit
     with:
       runs-on-as-json-public: ${{ needs.build-info.outputs.runs-on-as-json-public }}
       testable-core-integrations: ${{ needs.build-info.outputs.testable-core-integrations }}
@@ -502,7 +498,6 @@ jobs:
     permissions:
       contents: read
       packages: read
-    secrets: inherit
     if: >
       needs.build-info.outputs.run-tests == 'true'
     with:
@@ -534,7 +529,6 @@ jobs:
       # This write is only given here for `push` events from "apache/airflow" repo. It is not given for PRs
       # from forks. This is to prevent malicious PRs from creating images in the "apache/airflow" repo.
       packages: write
-    secrets: inherit
     with:
       runs-on-as-json-public: ${{ needs.build-info.outputs.runs-on-as-json-public }}
       build-type: "Regular"
@@ -578,7 +572,6 @@ jobs:
     permissions:
       contents: read
       packages: read
-    secrets: inherit
     with:
       platform: "linux/amd64"
       runs-on-as-json-default: ${{ needs.build-info.outputs.runs-on-as-json-default }}
@@ -598,7 +591,6 @@ jobs:
     permissions:
       contents: read
       packages: read
-    secrets: inherit
     with:
       runs-on-as-json-default: ${{ needs.build-info.outputs.runs-on-as-json-default }}
       default-python-version: ${{ needs.build-info.outputs.default-python-version }}
@@ -616,7 +608,6 @@ jobs:
     permissions:
       contents: write
       packages: write
-    secrets: inherit
     needs:
       - build-info
       - generate-constraints

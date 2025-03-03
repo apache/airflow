@@ -58,7 +58,7 @@ requires-python = "~=3.9"
 # After you modify the dependencies, and rebuild your Breeze CI image with ``breeze ci-image build``
 dependencies = [
     "apache-airflow>=2.9.0",
-    "apache-airflow-providers-common-sql>=1.20.0",
+    "apache-airflow-providers-common-sql>=1.23.0",
     "pymssql>=2.3.0",
     # The methodtools dependency can be removed with min airflow version >=2.9.1
     # as it was added in https://github.com/apache/airflow/pull/37757

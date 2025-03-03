@@ -1616,7 +1616,6 @@ export type NextRunAssetsResponse = {
 };
 
 export type GetAssetsData = {
-  assetId?: string | null;
   dagIds?: Array<string>;
   limit?: number;
   namePattern?: string | null;
@@ -1658,27 +1657,26 @@ export type GetAssetEventsData = {
 export type GetAssetEventsResponse = AssetEventCollectionResponse;
 
 export type CreateAssetEventData = {
-  assetId?: string | null;
   requestBody: CreateAssetEventsBody;
 };
 
 export type CreateAssetEventResponse = AssetEventResponse;
 
 export type MaterializeAssetData = {
-  assetId: string | null;
+  assetId: number;
 };
 
 export type MaterializeAssetResponse = DAGRunResponse;
 
 export type GetAssetQueuedEventsData = {
-  assetId: string | null;
+  assetId: number;
   before?: string | null;
 };
 
 export type GetAssetQueuedEventsResponse = QueuedEventCollectionResponse;
 
 export type DeleteAssetQueuedEventsData = {
-  assetId: string | null;
+  assetId: number;
   before?: string | null;
   dagId?: string | null;
 };
@@ -1686,13 +1684,12 @@ export type DeleteAssetQueuedEventsData = {
 export type DeleteAssetQueuedEventsResponse = void;
 
 export type GetAssetData = {
-  assetId: string | null;
+  assetId: number;
 };
 
 export type GetAssetResponse = AssetResponse;
 
 export type GetDagAssetQueuedEventsData = {
-  assetId?: string | null;
   before?: string | null;
   dagId: string | null;
 };
@@ -1700,7 +1697,6 @@ export type GetDagAssetQueuedEventsData = {
 export type GetDagAssetQueuedEventsResponse = QueuedEventCollectionResponse;
 
 export type DeleteDagAssetQueuedEventsData = {
-  assetId?: string | null;
   before?: string | null;
   dagId: string | null;
 };
@@ -1708,7 +1704,7 @@ export type DeleteDagAssetQueuedEventsData = {
 export type DeleteDagAssetQueuedEventsResponse = void;
 
 export type GetDagAssetQueuedEventData = {
-  assetId: string | null;
+  assetId: number;
   before?: string | null;
   dagId: string | null;
 };
@@ -1716,7 +1712,7 @@ export type GetDagAssetQueuedEventData = {
 export type GetDagAssetQueuedEventResponse = QueuedEventResponse;
 
 export type DeleteDagAssetQueuedEventData = {
-  assetId: string | null;
+  assetId: number;
   before?: string | null;
   dagId: string | null;
 };
@@ -1926,7 +1922,6 @@ export type PatchDagRunData = {
 export type PatchDagRunResponse = DAGRunResponse;
 
 export type GetUpstreamAssetEventsData = {
-  assetId?: string | null;
   dagId: string;
   dagRunId: string;
 };

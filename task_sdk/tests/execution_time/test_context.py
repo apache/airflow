@@ -17,11 +17,13 @@
 
 from __future__ import annotations
 
+from datetime import datetime
 from unittest.mock import MagicMock, patch
 
 import pytest
 
 from airflow.sdk import get_current_context
+from airflow.sdk.api.datamodels._generated import AssetEventResponse, AssetResponse
 from airflow.sdk.definitions.asset import (
     Asset,
     AssetAlias,
@@ -32,9 +34,16 @@ from airflow.sdk.definitions.asset import (
 from airflow.sdk.definitions.connection import Connection
 from airflow.sdk.definitions.variable import Variable
 from airflow.sdk.exceptions import ErrorType
-from airflow.sdk.execution_time.comms import AssetResult, ConnectionResult, ErrorResponse, VariableResult
+from airflow.sdk.execution_time.comms import (
+    AssetEventsResult,
+    AssetResult,
+    ConnectionResult,
+    ErrorResponse,
+    VariableResult,
+)
 from airflow.sdk.execution_time.context import (
     ConnectionAccessor,
+    InletEventsAccessors,
     OutletEventAccessor,
     OutletEventAccessors,
     VariableAccessor,
@@ -354,3 +363,50 @@ class TestOutletEventAccessors:
         assert len(outlet_event_accessors) == 1
         assert outlet_event_accessor.key == internal_key
         assert outlet_event_accessor.extra == {}
+
+
+TEST_INLETS = [
+    Asset(name="test_uri", uri="test://test"),
+    AssetAlias(name="name"),
+    Asset.ref(name="test_uri"),
+    Asset.ref(uri="test://test/"),
+]
+
+
+class TestInletEventAccessor:
+    @pytest.fixture
+    def sample_inlet_evnets_accessor(self, mock_supervisor_comms):
+        mock_supervisor_comms.get_message.side_effect = [
+            AssetResult(name="test_uri", uri="test://test", group="asset"),
+            AssetResult(name="test_uri", uri="test://test", group="asset"),
+        ]
+        return InletEventsAccessors(inlets=TEST_INLETS)
+
+    @pytest.mark.usefixtures("mock_supervisor_comms")
+    def test__iter__(self, sample_inlet_evnets_accessor):
+        for actual, expected in zip(sample_inlet_evnets_accessor, TEST_INLETS):
+            assert actual == expected
+
+    @pytest.mark.usefixtures("mock_supervisor_comms")
+    def test__len__(self, sample_inlet_evnets_accessor):
+        assert len(sample_inlet_evnets_accessor) == 4
+
+    @pytest.mark.parametrize("key", TEST_INLETS + [0, 1, 2, 3])
+    def test__get_item__(self, key, sample_inlet_evnets_accessor, mock_supervisor_comms):
+        # This test only verifies a valid key can be used to access inlet events,
+        # but not access asset events are fetched. That is verified in test_asset_events in execution_api
+        asset_event_resp = AssetEventResponse(
+            id=1,
+            created_dagruns=[],
+            timestamp=datetime.now(),
+            asset=AssetResponse(name="test", uri="test", group="asset"),
+        )
+        events_result = AssetEventsResult(asset_events=[asset_event_resp])
+        mock_supervisor_comms.get_message.side_effect = [events_result] * 4
+
+        assert sample_inlet_evnets_accessor[key] == [asset_event_resp]
+
+    @pytest.mark.usefixtures("mock_supervisor_comms")
+    def test__get_item__out_of_index(self, sample_inlet_evnets_accessor):
+        with pytest.raises(IndexError):
+            sample_inlet_evnets_accessor[5]
