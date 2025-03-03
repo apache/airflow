@@ -16,7 +16,6 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Box } from "@chakra-ui/react";
 import { AiOutlineFileSync } from "react-icons/ai";
 
 import { Button } from "src/components/ui";
@@ -31,19 +30,17 @@ const ParseDag = ({ dagId, fileToken }: Props) => {
   const { isPending, mutate } = useDagParsing({ dagId });
 
   return (
-    <Box>
-      <Button
-        aria-label="Reparse Dag"
-        border="none"
-        height={5}
-        loading={isPending}
-        onClick={() => mutate({ fileToken })}
-        variant="ghost"
-      >
-        <AiOutlineFileSync height={5} width={5} />
-        Reparse Dag
-      </Button>
-    </Box>
+    <Button
+      aria-label="Reparse Dag"
+      border="none"
+      height={5}
+      loading={isPending}
+      onClick={() => mutate({ fileToken })}
+      variant="ghost"
+    >
+      <AiOutlineFileSync height={5} width={5} />
+      Reparse Dag
+    </Button>
   );
 };
 

@@ -19,10 +19,10 @@
 import { MdMoreHoriz } from "react-icons/md";
 
 import type { DAGResponse, DAGWithLatestDagRunsResponse } from "openapi/requests/types.gen";
-import ParseDag from "src/components/ParseDag";
 import { Menu } from "src/components/ui";
 
 import ActionButton from "../ui/ActionButton";
+import ParseDag from "./ParseDag";
 import RunBackfillButton from "./RunBackfillButton";
 
 type Props = {
