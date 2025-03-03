@@ -87,7 +87,7 @@ def requires_access_pool(method: ResourceMethod) -> Callable:
         request: Request,
         user: Annotated[BaseUser | None, Depends(get_user)] = None,
     ) -> None:
-        pool_name = request.path_params.get("pool_name", "None")
+        pool_name = request.path_params.get("pool_name")
 
         def callback():
             return get_auth_manager().is_authorized_pool(
