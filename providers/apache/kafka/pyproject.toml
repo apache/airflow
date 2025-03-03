@@ -52,15 +52,14 @@ classifiers = [
 ]
 requires-python = "~=3.9"
 
-# The dependencies should be modified in place in the generated file
+# The dependencies should be modified in place in the generated file.
 # Any change in the dependencies is preserved when the file is regenerated
+# Make sure to run ``breeze static-checks --type update-providers-dependencies --all-files``
+# After you modify the dependencies, and rebuild your Breeze CI image with ``breeze ci-image build``
 dependencies = [
     "apache-airflow>=2.9.0",
     "asgiref>=2.3.0",
-    # Confluent kafka 2.8.1 has been released without binary wheels on 28 Feb 2025
-    # It's likely this will be fixed, but until it is, we need to exclude it
-    # See https://github.com/confluentinc/confluent-kafka-python/issues/1927
-    "confluent-kafka>=2.3.0,!=2.8.1",
+    "confluent-kafka>=2.3.0",
 ]
 
 [project.urls]

@@ -218,7 +218,7 @@
     "deps": [
       "apache-airflow>=2.9.0",
       "asgiref>=2.3.0",
-      "confluent-kafka>=2.3.0,!=2.8.1"
+      "confluent-kafka>=2.3.0"
     ],
     "devel-deps": [],
     "plugins": [],
@@ -416,6 +416,18 @@
     "excluded-python-versions": [],
     "state": "ready"
   },
+  "common.messaging": {
+    "deps": [
+      "apache-airflow>=3.0.0.dev0"
+    ],
+    "devel-deps": [],
+    "plugins": [],
+    "cross-providers-deps": [
+      "amazon"
+    ],
+    "excluded-python-versions": [],
+    "state": "ready"
+  },
   "common.sql": {
     "deps": [
       "apache-airflow>=2.9.0",
@@ -452,6 +464,7 @@
       }
     ],
     "cross-providers-deps": [
+      "common.compat",
       "common.sql"
     ],
     "excluded-python-versions": [],
@@ -854,7 +867,7 @@
   },
   "microsoft.mssql": {
     "deps": [
-      "apache-airflow-providers-common-sql>=1.20.0",
+      "apache-airflow-providers-common-sql>=1.23.0",
       "apache-airflow>=2.9.0",
       "methodtools>=0.4.7",
       "pymssql>=2.3.0"

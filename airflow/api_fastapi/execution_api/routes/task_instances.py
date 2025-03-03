@@ -295,6 +295,10 @@ def ti_update_state(
             updated_state = TaskInstanceState.FAILED
         elif ti_patch_payload.state == TaskInstanceState.FAILED:
             if _is_eligible_to_retry(previous_state, try_number, max_tries):
+                from airflow.models.taskinstancehistory import TaskInstanceHistory
+
+                ti = session.get(TI, ti_id_str)
+                TaskInstanceHistory.record_ti(ti, session=session)
                 updated_state = TaskInstanceState.UP_FOR_RETRY
             else:
                 updated_state = TaskInstanceState.FAILED
