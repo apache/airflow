@@ -71,6 +71,7 @@ const renderStructuredLog = (
       <Badge
         colorPalette={level.toUpperCase() in LogLevel ? logLevelColorMapping[level as LogLevel] : undefined}
         key={1}
+        minH={3}
         size="sm"
       >
         {level.toUpperCase()}

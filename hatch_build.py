@@ -251,7 +251,7 @@ DEVEL_EXTRAS: dict[str, list[str]] = {
         "deepdiff>=8.1.1",
         "jmespath>=0.7.0",
         "kgb>=7.0.0",
-        # We need to adjust all our tests to work with "proper" handiing of the async loops in pytest-asyncio
+        # We need to adjust all our tests to work with "proper" handling of the async loops in pytest-asyncio
         # Implemented in Pytest-asyncio 0.25.1 and 0.25.2. See: https://github.com/apache/airflow/issues/45355
         "pytest-asyncio>=0.23.6,<0.25.1",
         "pytest-cov>=4.1.0",
@@ -370,7 +370,8 @@ DEPENDENCIES = [
     # Required for python 3.9 to work with new annotations styles. Check package
     # description on PyPI for more details: https://pypi.org/project/eval-type-backport/
     'eval-type-backport>=0.2.0;python_version<"3.10"',
-    # temporarily pinning fastapi after the recent release started breaking tests
+    # 0.115.10 fastapi was a bad release that broke our API's and static checks.
+    # Related fastapi issue here: https://github.com/fastapi/fastapi/discussions/13431
     "fastapi[standard]>=0.112.2,!=0.115.10",
     "flask-caching>=2.0.0",
     # Flask-Session 0.6 add new arguments into the SqlAlchemySessionInterface constructor as well as

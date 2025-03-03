@@ -18,7 +18,7 @@
  */
 import { Box, Button, Heading, HStack } from "@chakra-ui/react";
 import { useState } from "react";
-import { useParams, useSearchParams } from "react-router-dom";
+import { useParams } from "react-router-dom";
 import { createElement, PrismLight as SyntaxHighlighter } from "react-syntax-highlighter";
 import python from "react-syntax-highlighter/dist/esm/languages/prism/python";
 import { oneLight, oneDark } from "react-syntax-highlighter/dist/esm/styles/prism";
@@ -28,18 +28,16 @@ import DagVersionSelect from "src/components/DagVersionSelect";
 import { ErrorAlert } from "src/components/ErrorAlert";
 import Time from "src/components/Time";
 import { ProgressBar } from "src/components/ui";
-import { SearchParamsKeys } from "src/constants/searchParams";
 import { useColorMode } from "src/context/colorMode";
+import useSelectedVersion from "src/hooks/useSelectedVersion";
 import { useConfig } from "src/queries/useConfig";
 
 SyntaxHighlighter.registerLanguage("python", python);
 
-const VERSION_NUMBER_PARAM = SearchParamsKeys.VERSION_NUMBER;
-
 export const Code = () => {
   const { dagId } = useParams();
-  const [searchParams] = useSearchParams();
-  const selectedVersion = searchParams.get(VERSION_NUMBER_PARAM);
+
+  const selectedVersion = useSelectedVersion();
 
   const {
     data: dag,
@@ -55,7 +53,7 @@ export const Code = () => {
     isLoading: isCodeLoading,
   } = useDagSourceServiceGetDagSource({
     dagId: dagId ?? "",
-    versionNumber: selectedVersion === null ? undefined : parseInt(selectedVersion, 10),
+    versionNumber: selectedVersion === undefined ? undefined : parseInt(selectedVersion, 10),
   });
 
   const defaultWrap = Boolean(useConfig("default_wrap"));
@@ -81,7 +79,7 @@ export const Code = () => {
           </Heading>
         )}
         <HStack>
-          <DagVersionSelect dagId={dagId} />
+          <DagVersionSelect />
           <Button aria-label={wrap ? "Unwrap" : "Wrap"} bg="bg.panel" onClick={toggleWrap} variant="outline">
             {wrap ? "Unwrap" : "Wrap"}
           </Button>
