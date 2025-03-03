@@ -2308,12 +2308,14 @@ export type GetLogData = {
 export type GetLogResponse = TaskInstancesLogResponse;
 
 export type GetImportErrorData = {
+  dagId?: string | null;
   importErrorId: number;
 };
 
 export type GetImportErrorResponse = ImportErrorResponse;
 
 export type GetImportErrorsData = {
+  dagId?: string | null;
   limit?: number;
   offset?: number;
   orderBy?: string;

@@ -2710,6 +2710,7 @@ export class ImportErrorService {
    * Get an import error.
    * @param data The data for the request.
    * @param data.importErrorId
+   * @param data.dagId
    * @returns ImportErrorResponse Successful Response
    * @throws ApiError
    */
@@ -2719,6 +2720,9 @@ export class ImportErrorService {
       url: "/public/importErrors/{import_error_id}",
       path: {
         import_error_id: data.importErrorId,
+      },
+      query: {
+        dag_id: data.dagId,
       },
       errors: {
         401: "Unauthorized",
@@ -2733,6 +2737,7 @@ export class ImportErrorService {
    * Get Import Errors
    * Get all import errors.
    * @param data The data for the request.
+   * @param data.dagId
    * @param data.limit
    * @param data.offset
    * @param data.orderBy
@@ -2744,6 +2749,7 @@ export class ImportErrorService {
       method: "GET",
       url: "/public/importErrors",
       query: {
+        dag_id: data.dagId,
         limit: data.limit,
         offset: data.offset,
         order_by: data.orderBy,

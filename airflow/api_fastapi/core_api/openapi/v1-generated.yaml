@@ -3774,6 +3774,8 @@ paths:
       summary: Get Import Error
       description: Get an import error.
       operationId: get_import_error
+      security:
+      - OAuth2PasswordBearer: []
       parameters:
       - name: import_error_id
         in: path
@@ -3781,6 +3783,14 @@ paths:
         schema:
           type: integer
           title: Import Error Id
+      - name: dag_id
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Dag Id
       responses:
         '200':
           description: Successful Response
@@ -3819,7 +3829,17 @@ paths:
       summary: Get Import Errors
       description: Get all import errors.
       operationId: get_import_errors
+      security:
+      - OAuth2PasswordBearer: []
       parameters:
+      - name: dag_id
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Dag Id
       - name: limit
         in: query
         required: false
@@ -11306,3 +11326,10 @@ components:
       - value
       title: XComUpdateBody
       description: Payload serializer for updating an XCom entry.
+  securitySchemes:
+    OAuth2PasswordBearer:
+      type: oauth2
+      flows:
+        password:
+          scopes: {}
+          tokenUrl: token
