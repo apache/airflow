@@ -1468,13 +1468,7 @@ webserver:
     # Update mode
     updateMode: "Initial"
 
-    resourcePolicy:
-      minAllowed:
-        cpu: "250m"
-        memory: "100Mi"
-      maxAllowed:
-        cpu: "500m"
-        memory: "2Gi"
+    resourcePolicy: {}
 
     # Specifications for which to use to calculate the desired replica count
     extraContainers: {}

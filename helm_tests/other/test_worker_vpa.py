@@ -22,26 +22,26 @@ import pytest
 from tests.charts.helm_template_generator import render_chart
 
 
-class TestWebserverVPA:
+class TestWorkerVpa:
     """Tests VPA."""
 
     def test_VPA_disabled_by_default(self):
         """Disabled by default."""
         docs = render_chart(
             values={},
-            show_only=["templates/webserver/webserver-vpa.yaml"],
+            show_only=["templates/worker/worker-vpa.yaml"],
         )
         assert docs == []
 
     def test_should_add_component_specific_labels(self):
         docs = render_chart(
             values={
-                "webserver": {
+                "worker": {
                     "vpa": {"enabled": True},
                     "labels": {"test_label": "test_label_value"},
                 },
             },
-            show_only=["templates/webserver/webserver-vpa.yaml"],
+            show_only=["templates/worker/worker-vpa.yaml"],
         )
 
         assert "test_label" in jmespath.search("metadata.labels", docs[0])
@@ -58,14 +58,14 @@ class TestWebserverVPA:
         """Verify update policy."""
         docs = render_chart(
             values={
-                "webserver": {
+                "worker": {
                     "vpa": {
                         "enabled": True,
                         **({"updateMode": update_mode}),
                     }
                 },
             },
-            show_only=["templates/webserver/webserver-vpa.yaml"],
+            show_only=["templates/worker/worker-vpa.yaml"],
         )
         assert jmespath.search("spec.updatePolicy.updateMode", docs[0]) == update_mode
 
@@ -87,7 +87,7 @@ class TestWebserverVPA:
                     }
                 ],
                 {
-                        "containerName": "webserver",
+                        "containerName": "worker",
                         "minAllowed": {
                             "cpu": "250m",
                             "memory": "128Mi",
@@ -103,11 +103,11 @@ class TestWebserverVPA:
     def test_should_use_vpa_resource_policy(self, resource_policy, expected_resource_policy):
         docs = render_chart(
             values={
-                "webserver": {
+                "worker": {
                     "vpa": {"enabled": True, **({"resourcePolicy": resource_policy})},
                 },
             },
-            show_only=["templates/webserver/webserver-vpa.yaml"],
+            show_only=["templates/worker/worker-vpa.yaml"],
         )
         assert expected_resource_policy == jmespath.search("spec.resourcePolicy.containerPolicies[0]", docs[0])
 
@@ -153,10 +153,10 @@ class TestWebserverVPA:
     def test_should_use_vpa_extra_containers(self, extra_containers, expected_extra_containers):
         docs = render_chart(
             values={
-                "webserver": {
+                "worker": {
                     "vpa": {"enabled": True, **({"extraContainers": extra_containers})},
                 },
             },
-            show_only=["templates/webserver/webserver-vpa.yaml"],
+            show_only=["templates/worker/worker-vpa.yaml"],
         )
         assert expected_extra_containers == jmespath.search("spec.resourcePolicy.containerPolicies[1]", docs[0])
