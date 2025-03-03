@@ -464,7 +464,8 @@
       }
     ],
     "cross-providers-deps": [
-      "common.sql"
+      "common.sql",
+      "fab"
     ],
     "excluded-python-versions": [],
     "state": "ready"
@@ -549,7 +550,9 @@
         "plugin-class": "airflow.providers.edge.plugins.edge_executor_plugin.EdgeExecutorPlugin"
       }
     ],
-    "cross-providers-deps": [],
+    "cross-providers-deps": [
+      "fab"
+    ],
     "excluded-python-versions": [],
     "state": "not-ready"
   },
