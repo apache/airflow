@@ -193,7 +193,7 @@ we will be adding the remote as "apache" so you can refer to it easily
    you have a very intuitive and helpful merge tool. For more information, see
    `Resolve conflicts <https://www.jetbrains.com/help/idea/resolving-conflicts.html>`_.
 
-9. After you've solved your conflict run,
+9. After you've solved your conflict run
 
    ``git rebase --continue``
 
