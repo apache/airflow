@@ -699,7 +699,10 @@ class TestPodGenerator:
         sanitized_res = self.k8s_client.sanitize_for_serialization(result)
         assert sanitized_res == {}
         assert len(caplog.records) == 1
-        assert f"Model file {template_file} does not exist or is not defined, using default model file." in caplog.text
+        assert (
+            f"Model file {template_file} does not exist or is not defined, using default model file."
+            in caplog.text
+        )
 
     @pytest.mark.parametrize(
         "input",
