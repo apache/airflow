@@ -947,7 +947,7 @@ def _get_template_context(
     def get_prev_end_date_success() -> pendulum.DateTime | None:
         return timezone.coerce_datetime(_get_previous_dagrun_success().end_date)
 
-    def get_triggering_events() -> dict[str, list[AssetEvent]]:
+    def get_triggering_events() -> dict[Asset, list[AssetEvent]]:
         if TYPE_CHECKING:
             assert session is not None
 
