@@ -131,18 +131,17 @@ def requires_access_connection(method: ResourceMethod) -> Callable:
     return inner
 
 
-def requires_access_variable(method: ResourceMethod) -> Callable[[str | None, BaseUser | None], None]:
+def requires_access_variable(method: ResourceMethod) -> Callable[[Request, BaseUser | None], None]:
     def inner(
-        variable_key: str | None = None,
+        request: Request,
         user: Annotated[BaseUser | None, Depends(get_user)] = None,
     ) -> None:
-        def callback():
-            return get_auth_manager().is_authorized_variable(
-                method=method, details=VariableDetails(key=variable_key), user=user
-            )
+        variable_key: str | None = request.path_params.get("variable_key")
 
         _requires_access(
-            is_authorized_callback=callback,
+            is_authorized_callback=lambda: get_auth_manager().is_authorized_variable(
+                method=method, details=VariableDetails(key=variable_key), user=user
+            ),
         )
 
     return inner

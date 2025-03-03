@@ -1656,20 +1656,15 @@ export const UseVariableServiceGetVariablesKeyFn = (
     limit,
     offset,
     orderBy,
-    variableKey,
     variableKeyPattern,
   }: {
     limit?: number;
     offset?: number;
     orderBy?: string;
-    variableKey?: string;
     variableKeyPattern?: string;
   } = {},
   queryKey?: Array<unknown>,
-) => [
-  useVariableServiceGetVariablesKey,
-  ...(queryKey ?? [{ limit, offset, orderBy, variableKey, variableKeyPattern }]),
-];
+) => [useVariableServiceGetVariablesKey, ...(queryKey ?? [{ limit, offset, orderBy, variableKeyPattern }])];
 export type DagVersionServiceGetDagVersionsDefaultResponse = Awaited<
   ReturnType<typeof DagVersionService.getDagVersions>
 >;

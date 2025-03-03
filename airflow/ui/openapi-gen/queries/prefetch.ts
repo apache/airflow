@@ -2315,7 +2315,6 @@ export const prefetchUseVariableServiceGetVariable = (
  * Get Variables
  * Get all Variables entries.
  * @param data The data for the request.
- * @param data.variableKey
  * @param data.limit
  * @param data.offset
  * @param data.orderBy
@@ -2329,25 +2328,17 @@ export const prefetchUseVariableServiceGetVariables = (
     limit,
     offset,
     orderBy,
-    variableKey,
     variableKeyPattern,
   }: {
     limit?: number;
     offset?: number;
     orderBy?: string;
-    variableKey?: string;
     variableKeyPattern?: string;
   } = {},
 ) =>
   queryClient.prefetchQuery({
-    queryKey: Common.UseVariableServiceGetVariablesKeyFn({
-      limit,
-      offset,
-      orderBy,
-      variableKey,
-      variableKeyPattern,
-    }),
-    queryFn: () => VariableService.getVariables({ limit, offset, orderBy, variableKey, variableKeyPattern }),
+    queryKey: Common.UseVariableServiceGetVariablesKeyFn({ limit, offset, orderBy, variableKeyPattern }),
+    queryFn: () => VariableService.getVariables({ limit, offset, orderBy, variableKeyPattern }),
   });
 /**
  * Get Dag Versions

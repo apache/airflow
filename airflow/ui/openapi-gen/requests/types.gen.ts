@@ -2451,13 +2451,13 @@ export type GetTaskData = {
 export type GetTaskResponse = TaskResponse;
 
 export type DeleteVariableData = {
-  variableKey: string | null;
+  variableKey: string;
 };
 
 export type DeleteVariableResponse = void;
 
 export type GetVariableData = {
-  variableKey: string | null;
+  variableKey: string;
 };
 
 export type GetVariableResponse = VariableResponse;
@@ -2465,7 +2465,7 @@ export type GetVariableResponse = VariableResponse;
 export type PatchVariableData = {
   requestBody: VariableBody;
   updateMask?: Array<string> | null;
-  variableKey: string | null;
+  variableKey: string;
 };
 
 export type PatchVariableResponse = VariableResponse;
@@ -2474,7 +2474,6 @@ export type GetVariablesData = {
   limit?: number;
   offset?: number;
   orderBy?: string;
-  variableKey?: string | null;
   variableKeyPattern?: string | null;
 };
 
@@ -2482,14 +2481,12 @@ export type GetVariablesResponse = VariableCollectionResponse;
 
 export type PostVariableData = {
   requestBody: VariableBody;
-  variableKey?: string | null;
 };
 
 export type PostVariableResponse = VariableResponse;
 
 export type BulkVariablesData = {
   requestBody: BulkBody_VariableBody_;
-  variableKey?: string | null;
 };
 
 export type BulkVariablesResponse = BulkResponse;

@@ -6343,9 +6343,7 @@ paths:
         in: path
         required: true
         schema:
-          anyOf:
-          - type: string
-          - type: 'null'
+          type: string
           title: Variable Key
       responses:
         '204':
@@ -6387,9 +6385,7 @@ paths:
         in: path
         required: true
         schema:
-          anyOf:
-          - type: string
-          - type: 'null'
+          type: string
           title: Variable Key
       responses:
         '200':
@@ -6435,9 +6431,7 @@ paths:
         in: path
         required: true
         schema:
-          anyOf:
-          - type: string
-          - type: 'null'
+          type: string
           title: Variable Key
       - name: update_mask
         in: query
@@ -6502,14 +6496,6 @@ paths:
       security:
       - OAuth2PasswordBearer: []
       parameters:
-      - name: variable_key
-        in: query
-        required: false
-        schema:
-          anyOf:
-          - type: string
-          - type: 'null'
-          title: Variable Key
       - name: limit
         in: query
         required: false
@@ -6574,15 +6560,6 @@ paths:
       operationId: post_variable
       security:
       - OAuth2PasswordBearer: []
-      parameters:
-      - name: variable_key
-        in: query
-        required: false
-        schema:
-          anyOf:
-          - type: string
-          - type: 'null'
-          title: Variable Key
       requestBody:
         required: true
         content:
@@ -6628,15 +6605,6 @@ paths:
       operationId: bulk_variables
       security:
       - OAuth2PasswordBearer: []
-      parameters:
-      - name: variable_key
-        in: query
-        required: false
-        schema:
-          anyOf:
-          - type: string
-          - type: 'null'
-          title: Variable Key
       requestBody:
         required: true
         content:
