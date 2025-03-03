@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2025-02-28T08:05:39.612157
+# This constraints file was automatically generated on 2025-03-03T02:40:21.773690
 # via "eager-upgrade" mechanism of PIP. For the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version of both
 # 'apache-airflow' package and all available community provider packages.
@@ -48,7 +48,7 @@ Werkzeug==2.2.3
 a2wsgi==1.10.8
 adal==1.2.7
 adlfs==2024.12.0
-aiobotocore==2.20.0
+aiobotocore==2.21.0
 aiofiles==23.2.1
 aiohappyeyeballs==2.4.6
 aiohttp==3.11.13
@@ -110,7 +110,7 @@ azure-mgmt-datalake-nspkg==3.0.1
 azure-mgmt-datalake-store==0.5.0
 azure-mgmt-nspkg==3.0.2
 azure-mgmt-resource==23.3.0
-azure-mgmt-storage==22.1.0
+azure-mgmt-storage==22.1.1
 azure-nspkg==3.0.2
 azure-servicebus==7.14.0
 azure-storage-blob==12.24.1
@@ -127,8 +127,8 @@ billiard==4.2.1
 bitarray==2.9.3
 black==25.1.0
 blinker==1.9.0
-boto3==1.36.23
-botocore==1.36.23
+boto3==1.37.1
+botocore==1.37.1
 cachelib==0.13.0
 cachetools==5.5.2
 cassandra-driver==3.29.2
@@ -136,7 +136,7 @@ cattrs==24.1.2
 celery==5.4.0
 certifi==2025.1.31
 cffi==1.17.1
-cfn-lint==1.26.1
+cfn-lint==1.27.0
 cgroupspy==0.2.3
 chardet==5.2.0
 charset-normalizer==3.4.1
@@ -148,11 +148,11 @@ click-repl==0.3.0
 click==8.1.8
 clickclick==20.10.2
 cloudpickle==2.2.1
-cohere==5.13.12
+cohere==5.14.0
 colorama==0.4.6
 colorlog==6.9.0
 comm==0.2.2
-confluent-kafka==2.8.0
+confluent-kafka==2.8.2
 connexion==2.14.2
 coverage==7.6.12
 crcmod==1.7
@@ -168,7 +168,7 @@ debugpy==1.8.12
 decorator==5.2.1
 deepdiff==8.2.0
 defusedxml==0.7.1
-deltalake==0.25.2
+deltalake==0.25.4
 diagrams==0.24.1
 dill==0.3.1.1
 distro==1.9.0
@@ -191,7 +191,7 @@ execnet==2.1.1
 executing==2.2.0
 facebook_business==22.0.2
 fastapi-cli==0.0.7
-fastapi==0.115.9
+fastapi==0.115.11
 fastavro==1.10.0
 fasteners==0.19
 fastjsonschema==2.21.1
@@ -303,7 +303,7 @@ influxdb-client==1.48.0
 iniconfig==2.0.0
 ipdb==0.13.13
 ipykernel==6.29.5
-ipython==8.32.0
+ipython==8.33.0
 isodate==0.7.2
 itsdangerous==2.2.0
 jaraco.classes==3.4.0
@@ -361,7 +361,7 @@ mmh3==5.1.0
 mongomock==4.3.0
 monotonic==1.6
 more-itertools==10.6.0
-moto==5.1.0
+moto==5.1.1
 mpmath==1.3.0
 msal-extensions==1.2.0
 msal==1.31.1
@@ -388,7 +388,7 @@ nh3==0.2.21
 numpy==1.26.4
 oauthlib==3.2.2
 objsize==0.7.1
-openai==1.65.1
+openai==1.65.2
 openapi-schema-validator==0.6.3
 openapi-spec-validator==0.7.1
 openlineage-integration-common==1.29.0
@@ -485,8 +485,8 @@ pytest-rerunfailures==15.0
 pytest-timeouts==1.2.1
 pytest-unordered==0.6.1
 pytest-xdist==3.6.1
-pytest==8.3.4
-python-arango==8.1.5
+pytest==8.3.5
+python-arango==8.1.6
 python-daemon==3.1.2
 python-dateutil==2.9.0.post0
 python-dotenv==1.0.1
@@ -496,7 +496,7 @@ python-ldap==3.4.4
 python-multipart==0.0.20
 python-nvd3==0.16.0
 python-slugify==8.0.4
-python-telegram-bot==21.10
+python-telegram-bot==21.11.1
 python3-saml==1.16.0
 pytz==2025.1
 pywinrm==0.5.0
@@ -572,12 +572,12 @@ sphinxcontrib-spelling==8.0.1
 spython==0.3.14
 sqlalchemy-bigquery==1.12.1
 sqlalchemy-spanner==1.9.0
-sqlalchemy_drill==1.1.5
+sqlalchemy_drill==1.1.8
 sqlparse==0.5.3
 sshtunnel==0.4.0
 stack-data==0.6.3
 starkbank-ecdsa==2.2.0
-starlette==0.45.3
+starlette==0.46.0
 statsd==4.0.1
 std-uritemplate==2.0.3
 strictyaml==1.7.3
@@ -620,8 +620,8 @@ types-python-dateutil==2.9.0.20241206
 types-python-slugify==8.0.2.20240310
 types-pytz==2025.1.0.20250204
 types-redis==4.6.0.20241004
-types-requests==2.32.0.20241016
-types-setuptools==75.8.0.20250225
+types-requests==2.32.0.20250301
+types-setuptools==75.8.2.20250301
 types-tabulate==0.9.0.20241207
 types-toml==0.10.8.20240310
 typing-inspect==0.9.0
@@ -633,7 +633,7 @@ universal_pathlib==0.2.6
 uritemplate==4.1.1
 urllib3==2.3.0
 uuid6==2024.7.10
-uv==0.6.0
+uv==0.6.3
 uvicorn==0.34.0
 uvloop==0.21.0
 validators==0.34.0
