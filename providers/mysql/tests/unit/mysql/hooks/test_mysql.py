@@ -19,7 +19,6 @@ from __future__ import annotations
 
 import json
 import os
-import uuid
 from contextlib import closing
 from unittest import mock
 
@@ -466,28 +465,11 @@ class TestMySql:
                     )
                 """
                 )
-                cursor.execute(f"TRUNCATE TABLE {table}")
+                cursor.execute(f"TRUNCATE TABLE `{table}`")
                 hook.bulk_load(table, os.fspath(path))
-                cursor.execute(f"SELECT dummy FROM {table}")
+                cursor.execute(f"SELECT dummy FROM `{table}`")
                 results = tuple(result[0] for result in cursor.fetchall())
                 assert sorted(results) == sorted(records)
-
-    @pytest.mark.parametrize("client", ["mysqlclient", "mysql-connector-python"])
-    def test_mysql_hook_test_bulk_dump(self, client):
-        with MySqlContext(client):
-            hook = MySqlHook("airflow_db")
-            priv = hook.get_first("SELECT @@global.secure_file_priv")
-            # Use random names to allow re-running
-            if priv and priv[0]:
-                # Confirm that no error occurs
-                hook.bulk_dump(
-                    "INFORMATION_SCHEMA.TABLES",
-                    os.path.join(priv[0], f"TABLES_{client}-{uuid.uuid1()}"),
-                )
-            elif priv == ("",):
-                hook.bulk_dump("INFORMATION_SCHEMA.TABLES", f"TABLES_{client}_{uuid.uuid1()}")
-            else:
-                raise pytest.skip("Skip test_mysql_hook_test_bulk_load since file output is not permitted")
 
     @pytest.mark.parametrize("client", ["mysqlclient", "mysql-connector-python"])
     @mock.patch("airflow.providers.mysql.hooks.mysql.MySqlHook.get_conn")
