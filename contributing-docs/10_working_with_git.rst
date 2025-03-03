@@ -34,7 +34,7 @@ cherry-pick selected commits from the main branch.
 
 *For Contributors*:
 All bug fixes after ``2.10.0`` release will target Airflow 3. We will make the best effort to make them available in ``2.10.x``,
-but if somebody wants to guarantee that a fix is included in ``2.10.x``, they need to raise the PR explicitly to the ``v2-10-test branch`` too.
+but if somebody wants to guarantee that a fix is included in ``2.10.x``, they need to raise the PR explicitly to the ``v2-10-test`` branch too.
 
 *For Committers*:
 When merging bugfix PRs to the ``main`` branch, the committers should also try to cherry-pick it to ``v2-10-test`` branch.
