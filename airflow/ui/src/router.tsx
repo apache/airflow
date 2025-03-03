@@ -24,6 +24,7 @@ import { ConfigService } from "openapi/requests/services.gen";
 import { BaseLayout } from "src/layouts/BaseLayout";
 import { DagsLayout } from "src/layouts/DagsLayout";
 import { AssetsList } from "src/pages/AssetsList";
+import { Connections } from "src/pages/Connections";
 import { Dag } from "src/pages/Dag";
 import { Backfills } from "src/pages/Dag/Backfills";
 import { Code } from "src/pages/Dag/Code";
@@ -115,6 +116,10 @@ export const routerConfig = [
       {
         element: <Plugins />,
         path: "plugins",
+      },
+      {
+        element: <Connections />,
+        path: "connections",
       },
       {
         children: [

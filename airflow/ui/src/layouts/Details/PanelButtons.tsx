@@ -23,12 +23,11 @@ import { MdOutlineAccountTree } from "react-icons/md";
 import DagVersionSelect from "src/components/DagVersionSelect";
 
 type Props = {
-  readonly dagId: string;
   readonly dagView: string;
   readonly setDagView: (x: "graph" | "grid") => void;
 } & StackProps;
 
-export const PanelButtons = ({ dagId, dagView, setDagView, ...rest }: Props) => (
+export const PanelButtons = ({ dagView, setDagView, ...rest }: Props) => (
   <HStack justifyContent="space-between" position="absolute" top={0} width="100%" zIndex={1} {...rest}>
     <ButtonGroup attached size="sm" variant="outline">
       <IconButton
@@ -51,7 +50,7 @@ export const PanelButtons = ({ dagId, dagView, setDagView, ...rest }: Props) => 
       </IconButton>
     </ButtonGroup>
     <Box bg="bg" mr={2}>
-      <DagVersionSelect dagId={dagId} disabled={dagView !== "graph"} />
+      <DagVersionSelect disabled={dagView !== "graph"} />
     </Box>
   </HStack>
 );

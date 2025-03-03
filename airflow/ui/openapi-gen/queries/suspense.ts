@@ -859,7 +859,6 @@ export const useConnectionServiceGetConnectionSuspense = <
  * Get Connections
  * Get all connection entries.
  * @param data The data for the request.
- * @param data.connectionId
  * @param data.limit
  * @param data.offset
  * @param data.orderBy
@@ -872,12 +871,10 @@ export const useConnectionServiceGetConnectionsSuspense = <
   TQueryKey extends Array<unknown> = unknown[],
 >(
   {
-    connectionId,
     limit,
     offset,
     orderBy,
   }: {
-    connectionId?: string;
     limit?: number;
     offset?: number;
     orderBy?: string;
@@ -886,11 +883,8 @@ export const useConnectionServiceGetConnectionsSuspense = <
   options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">,
 ) =>
   useSuspenseQuery<TData, TError>({
-    queryKey: Common.UseConnectionServiceGetConnectionsKeyFn(
-      { connectionId, limit, offset, orderBy },
-      queryKey,
-    ),
-    queryFn: () => ConnectionService.getConnections({ connectionId, limit, offset, orderBy }) as TData,
+    queryKey: Common.UseConnectionServiceGetConnectionsKeyFn({ limit, offset, orderBy }, queryKey),
+    queryFn: () => ConnectionService.getConnections({ limit, offset, orderBy }) as TData,
     ...options,
   });
 /**

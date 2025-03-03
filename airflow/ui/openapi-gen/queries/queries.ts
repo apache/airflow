@@ -882,7 +882,6 @@ export const useConnectionServiceGetConnection = <
  * Get Connections
  * Get all connection entries.
  * @param data The data for the request.
- * @param data.connectionId
  * @param data.limit
  * @param data.offset
  * @param data.orderBy
@@ -895,12 +894,10 @@ export const useConnectionServiceGetConnections = <
   TQueryKey extends Array<unknown> = unknown[],
 >(
   {
-    connectionId,
     limit,
     offset,
     orderBy,
   }: {
-    connectionId?: string;
     limit?: number;
     offset?: number;
     orderBy?: string;
@@ -909,11 +906,8 @@ export const useConnectionServiceGetConnections = <
   options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">,
 ) =>
   useQuery<TData, TError>({
-    queryKey: Common.UseConnectionServiceGetConnectionsKeyFn(
-      { connectionId, limit, offset, orderBy },
-      queryKey,
-    ),
-    queryFn: () => ConnectionService.getConnections({ connectionId, limit, offset, orderBy }) as TData,
+    queryKey: Common.UseConnectionServiceGetConnectionsKeyFn({ limit, offset, orderBy }, queryKey),
+    queryFn: () => ConnectionService.getConnections({ limit, offset, orderBy }) as TData,
     ...options,
   });
 /**
@@ -3036,7 +3030,6 @@ export const useBackfillServiceCreateBackfillDryRun = <
  * Create connection entry.
  * @param data The data for the request.
  * @param data.requestBody
- * @param data.connectionId
  * @returns ConnectionResponse Successful Response
  * @throws ApiError
  */
@@ -3050,7 +3043,6 @@ export const useConnectionServicePostConnection = <
       TData,
       TError,
       {
-        connectionId?: string;
         requestBody: ConnectionBody;
       },
       TContext
@@ -3062,13 +3054,12 @@ export const useConnectionServicePostConnection = <
     TData,
     TError,
     {
-      connectionId?: string;
       requestBody: ConnectionBody;
     },
     TContext
   >({
-    mutationFn: ({ connectionId, requestBody }) =>
-      ConnectionService.postConnection({ connectionId, requestBody }) as unknown as Promise<TData>,
+    mutationFn: ({ requestBody }) =>
+      ConnectionService.postConnection({ requestBody }) as unknown as Promise<TData>,
     ...options,
   });
 /**
@@ -3080,7 +3071,6 @@ export const useConnectionServicePostConnection = <
  * It also deletes the conn id env connection after the test.
  * @param data The data for the request.
  * @param data.requestBody
- * @param data.connectionId
  * @returns ConnectionTestResponse Successful Response
  * @throws ApiError
  */
@@ -3094,7 +3084,6 @@ export const useConnectionServiceTestConnection = <
       TData,
       TError,
       {
-        connectionId?: string;
         requestBody: ConnectionBody;
       },
       TContext
@@ -3106,20 +3095,17 @@ export const useConnectionServiceTestConnection = <
     TData,
     TError,
     {
-      connectionId?: string;
       requestBody: ConnectionBody;
     },
     TContext
   >({
-    mutationFn: ({ connectionId, requestBody }) =>
-      ConnectionService.testConnection({ connectionId, requestBody }) as unknown as Promise<TData>,
+    mutationFn: ({ requestBody }) =>
+      ConnectionService.testConnection({ requestBody }) as unknown as Promise<TData>,
     ...options,
   });
 /**
  * Create Default Connections
  * Create default connections.
- * @param data The data for the request.
- * @param data.connectionId
  * @returns void Successful Response
  * @throws ApiError
  */
@@ -3128,28 +3114,10 @@ export const useConnectionServiceCreateDefaultConnections = <
   TError = unknown,
   TContext = unknown,
 >(
-  options?: Omit<
-    UseMutationOptions<
-      TData,
-      TError,
-      {
-        connectionId?: string;
-      },
-      TContext
-    >,
-    "mutationFn"
-  >,
+  options?: Omit<UseMutationOptions<TData, TError, void, TContext>, "mutationFn">,
 ) =>
-  useMutation<
-    TData,
-    TError,
-    {
-      connectionId?: string;
-    },
-    TContext
-  >({
-    mutationFn: ({ connectionId }) =>
-      ConnectionService.createDefaultConnections({ connectionId }) as unknown as Promise<TData>,
+  useMutation<TData, TError, void, TContext>({
+    mutationFn: () => ConnectionService.createDefaultConnections() as unknown as Promise<TData>,
     ...options,
   });
 /**
@@ -3677,7 +3645,6 @@ export const useConnectionServicePatchConnection = <
  * Bulk create, update, and delete connections.
  * @param data The data for the request.
  * @param data.requestBody
- * @param data.connectionId
  * @returns BulkResponse Successful Response
  * @throws ApiError
  */
@@ -3691,7 +3658,6 @@ export const useConnectionServiceBulkConnections = <
       TData,
       TError,
       {
-        connectionId?: string;
         requestBody: BulkBody_ConnectionBody_;
       },
       TContext
@@ -3703,13 +3669,12 @@ export const useConnectionServiceBulkConnections = <
     TData,
     TError,
     {
-      connectionId?: string;
       requestBody: BulkBody_ConnectionBody_;
     },
     TContext
   >({
-    mutationFn: ({ connectionId, requestBody }) =>
-      ConnectionService.bulkConnections({ connectionId, requestBody }) as unknown as Promise<TData>,
+    mutationFn: ({ requestBody }) =>
+      ConnectionService.bulkConnections({ requestBody }) as unknown as Promise<TData>,
     ...options,
   });
 /**
