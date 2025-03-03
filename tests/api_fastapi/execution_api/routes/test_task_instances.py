@@ -654,7 +654,7 @@ class TestTIUpdateState:
         assert ti.next_kwargs is None
 
         tih_count = (
-            session.query(func.count(TaskInstanceHistory.id))
+            session.query(func.count(TaskInstanceHistory.try_id))
             .where(TaskInstanceHistory.task_id == ti.task_id)
             .scalar()
         )
