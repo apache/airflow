@@ -84,9 +84,11 @@ def requires_access_dag(method: ResourceMethod, access_entity: DagAccessEntity |
 
 def requires_access_pool(method: ResourceMethod) -> Callable:
     def inner(
-        pool_name: str | None = None,
+        request: Request,
         user: Annotated[BaseUser | None, Depends(get_user)] = None,
     ) -> None:
+        pool_name = request.path_params.get("pool_name", "None")
+
         def callback():
             return get_auth_manager().is_authorized_pool(
                 method=method, details=PoolDetails(name=pool_name), user=user

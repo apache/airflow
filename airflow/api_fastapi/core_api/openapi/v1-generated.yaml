@@ -4068,9 +4068,7 @@ paths:
         in: path
         required: true
         schema:
-          anyOf:
-          - type: string
-          - type: 'null'
+          type: string
           title: Pool Name
       responses:
         '204':
@@ -4118,9 +4116,7 @@ paths:
         in: path
         required: true
         schema:
-          anyOf:
-          - type: string
-          - type: 'null'
+          type: string
           title: Pool Name
       responses:
         '200':
@@ -4166,9 +4162,7 @@ paths:
         in: path
         required: true
         schema:
-          anyOf:
-          - type: string
-          - type: 'null'
+          type: string
           title: Pool Name
       - name: update_mask
         in: query
@@ -4233,14 +4227,6 @@ paths:
       security:
       - OAuth2PasswordBearer: []
       parameters:
-      - name: pool_name
-        in: query
-        required: false
-        schema:
-          anyOf:
-          - type: string
-          - type: 'null'
-          title: Pool Name
       - name: limit
         in: query
         required: false
@@ -4311,15 +4297,6 @@ paths:
       operationId: post_pool
       security:
       - OAuth2PasswordBearer: []
-      parameters:
-      - name: pool_name
-        in: query
-        required: false
-        schema:
-          anyOf:
-          - type: string
-          - type: 'null'
-          title: Pool Name
       requestBody:
         required: true
         content:
@@ -4365,15 +4342,6 @@ paths:
       operationId: bulk_pools
       security:
       - OAuth2PasswordBearer: []
-      parameters:
-      - name: pool_name
-        in: query
-        required: false
-        schema:
-          anyOf:
-          - type: string
-          - type: 'null'
-          title: Pool Name
       requestBody:
         required: true
         content:

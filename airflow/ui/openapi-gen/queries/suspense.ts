@@ -2448,7 +2448,6 @@ export const usePoolServiceGetPoolSuspense = <
  * Get Pools
  * Get all pools entries.
  * @param data The data for the request.
- * @param data.poolName
  * @param data.limit
  * @param data.offset
  * @param data.orderBy
@@ -2465,24 +2464,19 @@ export const usePoolServiceGetPoolsSuspense = <
     limit,
     offset,
     orderBy,
-    poolName,
     poolNamePattern,
   }: {
     limit?: number;
     offset?: number;
     orderBy?: string;
-    poolName?: string;
     poolNamePattern?: string;
   } = {},
   queryKey?: TQueryKey,
   options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">,
 ) =>
   useSuspenseQuery<TData, TError>({
-    queryKey: Common.UsePoolServiceGetPoolsKeyFn(
-      { limit, offset, orderBy, poolName, poolNamePattern },
-      queryKey,
-    ),
-    queryFn: () => PoolService.getPools({ limit, offset, orderBy, poolName, poolNamePattern }) as TData,
+    queryKey: Common.UsePoolServiceGetPoolsKeyFn({ limit, offset, orderBy, poolNamePattern }, queryKey),
+    queryFn: () => PoolService.getPools({ limit, offset, orderBy, poolNamePattern }) as TData,
     ...options,
   });
 /**

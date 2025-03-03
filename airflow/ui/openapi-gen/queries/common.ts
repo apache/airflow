@@ -1510,17 +1510,15 @@ export const UsePoolServiceGetPoolsKeyFn = (
     limit,
     offset,
     orderBy,
-    poolName,
     poolNamePattern,
   }: {
     limit?: number;
     offset?: number;
     orderBy?: string;
-    poolName?: string;
     poolNamePattern?: string;
   } = {},
   queryKey?: Array<unknown>,
-) => [usePoolServiceGetPoolsKey, ...(queryKey ?? [{ limit, offset, orderBy, poolName, poolNamePattern }])];
+) => [usePoolServiceGetPoolsKey, ...(queryKey ?? [{ limit, offset, orderBy, poolNamePattern }])];
 export type ProviderServiceGetProvidersDefaultResponse = Awaited<
   ReturnType<typeof ProviderService.getProviders>
 >;
