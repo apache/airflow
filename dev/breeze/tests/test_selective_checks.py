@@ -153,7 +153,7 @@ def assert_outputs_are_printed(expected_outputs: dict[str, str], stderr: str):
             pytest.param(
                 ("airflow/api/file.py",),
                 {
-                    "selected-providers-list-as-string": "amazon common.compat fab",
+                    "selected-providers-list-as-string": "amazon common.compat databricks edge fab",
                     "all-python-versions": "['3.9']",
                     "all-python-versions-list-as-string": "3.9",
                     "python-versions": "['3.9']",
@@ -168,8 +168,8 @@ def assert_outputs_are_printed(expected_outputs: dict[str, str], stderr: str):
                     "mypy-docs,mypy-providers,mypy-task-sdk,ts-compile-format-lint-ui",
                     "upgrade-to-newer-dependencies": "false",
                     "core-test-types-list-as-string": "API Always",
-                    "providers-test-types-list-as-string": "Providers[amazon] Providers[common.compat,fab]",
-                    "individual-providers-test-types-list-as-string": "Providers[amazon] Providers[common.compat] Providers[fab]",
+                    "providers-test-types-list-as-string": "Providers[amazon] Providers[common.compat,databricks,edge,fab]",
+                    "individual-providers-test-types-list-as-string": "Providers[amazon] Providers[common.compat] Providers[databricks] Providers[edge] Providers[fab]",
                     "testable-core-integrations": "['celery', 'kerberos']",
                     "testable-providers-integrations": "['cassandra', 'drill', 'kafka', 'mongo', 'pinot', 'qdrant', 'redis', 'trino', 'ydb']",
                     "needs-mypy": "true",
@@ -318,7 +318,7 @@ def assert_outputs_are_printed(expected_outputs: dict[str, str], stderr: str):
                     "providers/postgres/tests/unit/postgres/file.py",
                 ),
                 {
-                    "selected-providers-list-as-string": "amazon common.compat common.sql fab google openlineage "
+                    "selected-providers-list-as-string": "amazon common.compat common.sql databricks edge fab google openlineage "
                     "pgvector postgres",
                     "all-python-versions": "['3.9']",
                     "all-python-versions-list-as-string": "3.9",
@@ -335,9 +335,9 @@ def assert_outputs_are_printed(expected_outputs: dict[str, str], stderr: str):
                     "upgrade-to-newer-dependencies": "false",
                     "core-test-types-list-as-string": "API Always",
                     "providers-test-types-list-as-string": "Providers[amazon] "
-                    "Providers[common.compat,common.sql,fab,openlineage,pgvector,postgres] Providers[google]",
+                    "Providers[common.compat,common.sql,databricks,edge,fab,openlineage,pgvector,postgres] Providers[google]",
                     "individual-providers-test-types-list-as-string": "Providers[amazon] Providers[common.compat] Providers[common.sql] "
-                    "Providers[fab] Providers[google] Providers[openlineage] Providers[pgvector] "
+                    "Providers[databricks] Providers[edge] Providers[fab] Providers[google] Providers[openlineage] Providers[pgvector] "
                     "Providers[postgres]",
                     "needs-mypy": "true",
                     "mypy-checks": "['mypy-airflow', 'mypy-providers']",
@@ -1621,7 +1621,7 @@ def test_expected_output_push(
                 "providers/google/tests/unit/google/file.py",
             ),
             {
-                "selected-providers-list-as-string": "amazon apache.beam apache.cassandra "
+                "selected-providers-list-as-string": "amazon apache.beam apache.cassandra apache.kafka "
                 "cncf.kubernetes common.compat common.sql "
                 "facebook google hashicorp microsoft.azure microsoft.mssql mysql "
                 "openlineage oracle postgres presto salesforce samba sftp ssh trino",
@@ -1635,14 +1635,14 @@ def test_expected_output_push(
                 "test-groups": "['core', 'providers']",
                 "docs-build": "true",
                 "docs-list-as-string": "apache-airflow helm-chart amazon apache.beam apache.cassandra "
-                "cncf.kubernetes common.compat common.sql facebook google hashicorp microsoft.azure "
+                "apache.kafka cncf.kubernetes common.compat common.sql facebook google hashicorp microsoft.azure "
                 "microsoft.mssql mysql openlineage oracle postgres "
                 "presto salesforce samba sftp ssh trino",
                 "skip-pre-commits": "identity,mypy-airflow,mypy-dev,mypy-docs,mypy-providers,mypy-task-sdk,ts-compile-format-lint-ui",
                 "run-kubernetes-tests": "true",
                 "upgrade-to-newer-dependencies": "false",
                 "core-test-types-list-as-string": "Always CLI",
-                "providers-test-types-list-as-string": "Providers[amazon] Providers[apache.beam,apache.cassandra,cncf.kubernetes,common.compat,common.sql,facebook,"
+                "providers-test-types-list-as-string": "Providers[amazon] Providers[apache.beam,apache.cassandra,apache.kafka,cncf.kubernetes,common.compat,common.sql,facebook,"
                 "hashicorp,microsoft.azure,microsoft.mssql,mysql,openlineage,oracle,postgres,presto,"
                 "salesforce,samba,sftp,ssh,trino] Providers[google]",
                 "needs-mypy": "true",
@@ -1890,7 +1890,7 @@ def test_upgrade_to_newer_dependencies(
         pytest.param(
             ("providers/google/docs/some_file.rst",),
             {
-                "docs-list-as-string": "amazon apache.beam apache.cassandra "
+                "docs-list-as-string": "amazon apache.beam apache.cassandra apache.kafka "
                 "cncf.kubernetes common.compat common.sql facebook google hashicorp "
                 "microsoft.azure microsoft.mssql mysql openlineage oracle "
                 "postgres presto salesforce samba sftp ssh trino",

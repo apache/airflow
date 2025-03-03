@@ -1700,6 +1700,8 @@ paths:
       summary: Delete Connection
       description: Delete a connection entry.
       operationId: delete_connection
+      security:
+      - OAuth2PasswordBearer: []
       parameters:
       - name: connection_id
         in: path
@@ -1740,6 +1742,8 @@ paths:
       summary: Get Connection
       description: Get a connection entry.
       operationId: get_connection
+      security:
+      - OAuth2PasswordBearer: []
       parameters:
       - name: connection_id
         in: path
@@ -1784,6 +1788,8 @@ paths:
       summary: Patch Connection
       description: Update a connection entry.
       operationId: patch_connection
+      security:
+      - OAuth2PasswordBearer: []
       parameters:
       - name: connection_id
         in: path
@@ -1851,6 +1857,8 @@ paths:
       summary: Get Connections
       description: Get all connection entries.
       operationId: get_connections
+      security:
+      - OAuth2PasswordBearer: []
       parameters:
       - name: limit
         in: query
@@ -1912,6 +1920,8 @@ paths:
       summary: Post Connection
       description: Create connection entry.
       operationId: post_connection
+      security:
+      - OAuth2PasswordBearer: []
       requestBody:
         required: true
         content:
@@ -1955,6 +1965,8 @@ paths:
       summary: Bulk Connections
       description: Bulk create, update, and delete connections.
       operationId: bulk_connections
+      security:
+      - OAuth2PasswordBearer: []
       requestBody:
         required: true
         content:
@@ -2033,6 +2045,8 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/HTTPValidationError'
+      security:
+      - OAuth2PasswordBearer: []
   /public/connections/defaults:
     post:
       tags:
@@ -2055,6 +2069,8 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/HTTPExceptionResponse'
+      security:
+      - OAuth2PasswordBearer: []
   /public/dags/{dag_id}/dagRuns/{dag_run_id}:
     get:
       tags:

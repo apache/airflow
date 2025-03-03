@@ -155,7 +155,7 @@ def _has_access(*, is_authorized: bool, func: Callable, args, kwargs):
     else:
         access_denied = get_access_denied_message()
         flash(access_denied, "danger")
-    return redirect(url_for("Airflow.index"))
+    return redirect(url_for("FabIndexView.index"))
 
 
 def has_access_configuration(method: ResourceMethod) -> Callable[[T], T]:
