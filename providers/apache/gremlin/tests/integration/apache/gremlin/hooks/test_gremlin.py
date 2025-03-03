@@ -22,21 +22,24 @@ import pytest
 
 from airflow.providers.apache.gremlin.hooks.gremlin import GremlinHook
 
-AIRFLOW_CONN_GREMLIN_DEFAULT = "ws://localhost:8182/gremlin"
+AIRFLOW_CONN_GREMLIN_DEFAULT = "ws://mylogin:mysecret@gremlin-server:8182/gremlin"
 
 
 @pytest.mark.integration("gremlin")
 class TestGremlinHook:
     def setup_method(self):
         os.environ["AIRFLOW_CONN_GREMLIN_DEFAULT"] = AIRFLOW_CONN_GREMLIN_DEFAULT
-        self.hook = GremlinHook("gremlin_default")
+        self.hook = GremlinHook()
         add_query = "g.addV('person').property('id', 'person1').property('name', 'Alice')"
-        self.hook.run(add_query).all().result()
+        self.hook.run(add_query)
 
     def teardown_method(self):
-        self.hook.run("g.V().drop().iterate()").all().result()
-        self.hook.close()
+        self.hook.run("g.V().drop().iterate()")
+
+    def test_another_query(self):
+        result = self.hook.run("g.V().hasLabel('person').count()")
+        assert isinstance(result, list)
 
     def test_run(self):
-        result = self.hook.run("g.V().hasLabel('person').valueMap(true)").all().result()
-        assert result.replace("'", '"') == [{"id": ["person1"], "label": "person", "name": ["Alice"]}]
+        result = self.hook.run("g.V().hasLabel('person').valueMap(true)")
+        assert result == [{"id": ["person1"], "label": "person", "name": ["Alice"]}]

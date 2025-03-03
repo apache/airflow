@@ -19,9 +19,10 @@
 from __future__ import annotations
 
 import logging
+import sys
 from typing import TYPE_CHECKING, Any
 
-# import nest_asyncio
+import nest_asyncio
 from gremlin_python.driver.client import Client
 from gremlin_python.driver.serializer import GraphSONSerializersV2d0
 
@@ -31,7 +32,10 @@ if TYPE_CHECKING:
     from airflow.models import Connection
 
 # Apply nest_asyncio to allow nested event loops.
-# nest_asyncio.apply()
+if sys.version_info[:2] == (3, 9):
+    import nest_asyncio
+
+    nest_asyncio.apply()
 
 logger = logging.getLogger(__name__)
 
@@ -68,7 +72,6 @@ class GremlinHook(BaseHook):
         self.log.info("Connecting to URI: %s", uri)
 
         self.client = self.get_client(self.connection, self.traversal_source, uri)
-
         return self.client
 
     def get_uri(self, conn: Connection) -> str:
@@ -79,10 +82,11 @@ class GremlinHook(BaseHook):
         :return: URI string.
         """
         # For Graph DB using Gremlin, the secure WebSocket scheme is typically "wss"
-        scheme = "wss" if conn.conn_type == "https" else "ws"
+        scheme = "wss" if conn.conn_type == "gremlin" else "ws"
         host = conn.host
         port = conn.port if conn.port is not None else self.default_port
-        return f"{scheme}://{host}:{port}/"
+        schema = "" if conn.conn_type == "gremlin" else "gremlin"
+        return f"{scheme}://{host}:{port}/{schema}"
 
     def get_client(self, conn: Connection, traversal_source: str, uri: str) -> Client:
         """
@@ -94,13 +98,10 @@ class GremlinHook(BaseHook):
         :return: An instance of the Gremlin Client.
         """
         # Build the username. This example uses the connection's schema and login.
-        username = (
-            f"/dbs/{conn.login}/colls/{conn.schema}"
-            if conn.schema is not None and conn.login is not None
-            else ""
-        )
-        password = conn.password if conn.password is not None else ""
-
+        login = conn.login if conn.login not in ["mylogin", None] else ""
+        schema = conn.schema if conn.schema not in ["gremlin", None] else ""
+        password = conn.password if conn.password not in ["mysecret", None] else ""
+        username = f"/dbs/{login}/colls/{schema}" if login and schema else ""
         # Remove the redundant addition of traversal_source to kwargs.
         return Client(
             url=uri,

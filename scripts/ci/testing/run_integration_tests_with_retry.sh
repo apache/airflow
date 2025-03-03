@@ -31,8 +31,12 @@ INTEGRATION=${2}
 breeze down
 set +e
 breeze testing "${TEST_GROUP}-integration-tests" --integration "${INTEGRATION}"
-# RESULT=$?
+RESULT=$?
 set -e
+echo
+echo "${COLOR_RED}The ${TEST_GROUP} integration tests failed for the second time! Giving up${COLOR_RESET}"
+echo
+exit ${RESULT}
 # if [[ ${RESULT} != "0" ]]; then
 #     echo
 #     echo "${COLOR_YELLOW}The ${TEST_GROUP} Integration Tests failed. Retrying once${COLOR_RESET}"

@@ -18,20 +18,15 @@
 services:
   graph:
     container_name: gremlin-server
-    image: tinkerpop/gremlin-server:3.7
+    image: tinkerpop/gremlin-server:3.4.2
     labels:
       breeze.description: "Integration required for gremlin hook."
     volumes:
-      - ./gremlin/gremlin-server:/opt/gremlin-server/conf
-      - graph-data:/data
+      - ./gremlin-server:/opt/gremlin-server/conf
+      - graph-data:/opt/gremlin-server/data
     ports:
-      - "8182:8182"
+      - "${GREMLIN_HOST_PORT}:8182"
     stdin_open: true
-  console:
-    image: tinkerpop/gremlin-console:3.4.2
-    command: "-i conf/remote.groovy"
-    volumes:
-      - ./gremlin/gremlin-console:/opt/gremlin-console/conf
   airflow:
     depends_on:
       - graph

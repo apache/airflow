@@ -237,6 +237,15 @@ def create_default_connections(session: Session = NEW_SESSION):
     )
     merge_conn(
         Connection(
+            conn_id="gremlin_default",
+            conn_type="gremlin",
+            host="gremlin-server",
+            port=8182,
+        ),
+        session,
+    )
+    merge_conn(
+        Connection(
             conn_id="druid_broker_default",
             conn_type="druid",
             host="druid-broker",

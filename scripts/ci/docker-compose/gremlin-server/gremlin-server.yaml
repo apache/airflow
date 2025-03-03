@@ -17,7 +17,6 @@
 ---
 host: 172.18.0.3
 port: 8182
-scriptEvaluationTimeout: 30000
 channelizer: org.apache.tinkerpop.gremlin.server.channel.WebSocketChannelizer
 graphs: {
   graph: conf/graph.properties}

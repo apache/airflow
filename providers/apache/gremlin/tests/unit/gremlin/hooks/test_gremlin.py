@@ -28,9 +28,9 @@ class TestGremlinHook:
     @pytest.mark.parametrize(
         "host, port, expected_uri",
         [
-            ("host", None, "wss://host:443/"),
-            ("myhost", 1234, "wss://myhost:1234/"),
-            ("localhost", 8888, "wss://localhost:8888/"),
+            ("host", None, "ws://host:443/gremlin"),
+            ("myhost", 1234, "ws://myhost:1234/gremlin"),
+            ("localhost", 8888, "ws://localhost:8888/gremlin"),
         ],
     )
     def test_get_uri(self, host, port, expected_uri):
@@ -51,18 +51,19 @@ class TestGremlinHook:
         """
         hook = GremlinHook()
         conn = Connection(
+            conn_type="gremlin",
             conn_id="gremlin_default",
             host="host",
             port=1234,
             schema="mydb",
-            login="mylogin",
+            login="login",
             password="mypassword",
         )
         hook.get_connection = lambda conn_id: conn
 
         hook.get_conn()
         expected_uri = "wss://host:1234/"
-        expected_username = "/dbs/mylogin/colls/mydb"
+        expected_username = "/dbs/login/colls/mydb"
 
         mock_client.assert_called_once()
 
