@@ -36,6 +36,7 @@ type EdgeLabel = {
 };
 
 type FormattedNode = {
+  assetCondition?: NodeResponse["asset_condition_type"];
   childCount?: number;
   edges?: Array<FormattedEdge>;
   isGroup: boolean;
@@ -198,6 +199,7 @@ const generateElkGraph = ({
     }
 
     return {
+      assetCondition: node.asset_condition_type,
       childCount,
       height,
       id: node.id,

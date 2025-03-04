@@ -19,14 +19,17 @@
 import { useToken } from "@chakra-ui/react";
 import { ReactFlow, Controls, Background, MiniMap, type Node as ReactFlowNode } from "@xyflow/react";
 import "@xyflow/react/dist/style.css";
-import { useParams } from "react-router-dom";
+import { useParams, useSearchParams } from "react-router-dom";
 
 import { useGridServiceGridData, useStructureServiceStructureData } from "openapi/queries";
+import { AssetConditionNode } from "src/components/Graph/AssetConditionNode";
+import { AssetNode } from "src/components/Graph/AssetNode";
 import Edge from "src/components/Graph/Edge";
 import { JoinNode } from "src/components/Graph/JoinNode";
 import { TaskNode } from "src/components/Graph/TaskNode";
 import type { CustomNodeProps } from "src/components/Graph/reactflowUtils";
 import { useGraphLayout } from "src/components/Graph/useGraphLayout";
+import { SearchParamsKeys } from "src/constants/searchParams";
 import { useColorMode } from "src/context/colorMode";
 import { useOpenGroups } from "src/context/openGroups";
 import useSelectedVersion from "src/hooks/useSelectedVersion";
@@ -55,6 +58,8 @@ const nodeColor = (
 };
 
 const nodeTypes = {
+  asset: AssetNode,
+  "asset-condition": AssetConditionNode,
   join: JoinNode,
   task: TaskNode,
 };
@@ -77,12 +82,16 @@ export const Graph = () => {
   ]);
 
   const { openGroupIds } = useOpenGroups();
+  const [searchParams] = useSearchParams();
+  const refetchInterval = useAutoRefresh({ dagId });
+  const dependencies = searchParams.get(SearchParamsKeys.DEPENDENCIES);
 
   const selectedColor = colorMode === "dark" ? selectedDarkColor : selectedLightColor;
   const versionNumber = selectedVersion === undefined ? undefined : parseInt(selectedVersion, 10);
 
   const { data: graphData = { arrange: "LR", edges: [], nodes: [] } } = useStructureServiceStructureData({
     dagId,
+    externalDependencies: dependencies === "external",
     versionNumber,
   });
 
@@ -92,8 +101,6 @@ export const Graph = () => {
     openGroupIds,
     versionNumber,
   });
-
-  const refetchInterval = useAutoRefresh({ dagId });
 
   const { data: gridData } = useGridServiceGridData(
     {
@@ -109,6 +116,14 @@ export const Graph = () => {
         query.state.data?.dag_runs.some((dr) => isStatePending(dr.state)) && refetchInterval,
     },
   );
+
+  // const { data: dagDependencies } = useDependenciesServiceGetDependencies(
+  //   { nodeId: `dag:${dagId}` },
+  //   undefined,
+  //   { enabled: dependencies === "all" },
+  // );
+
+  // console.log(dagDependencies);
 
   const dagRun = gridData?.dag_runs.find((dr) => dr.dag_run_id === runId);
 
@@ -129,11 +144,19 @@ export const Graph = () => {
           };
         });
 
+  const edges = (data?.edges ?? []).map((edge) => ({
+    ...edge,
+    data: {
+      ...edge.data,
+      rest: { ...edge.data?.rest, isSelected: taskId === edge.source || taskId === edge.target },
+    },
+  }));
+
   return (
     <ReactFlow
       colorMode={colorMode}
       defaultEdgeOptions={{ zIndex: 1 }}
-      edges={data?.edges ?? []}
+      edges={edges}
       edgeTypes={edgeTypes}
       // Fit view to selected task or the whole graph on render
       fitView

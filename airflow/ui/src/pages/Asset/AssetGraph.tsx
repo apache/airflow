@@ -59,11 +59,22 @@ export const AssetGraph = ({ asset }: { readonly asset?: AssetResponse }) => {
 
   const selectedColor = colorMode === "dark" ? selectedDarkColor : selectedLightColor;
 
+  const edges = (graphData?.edges ?? []).map((edge) => ({
+    ...edge,
+    data: {
+      ...edge.data,
+      rest: {
+        ...edge.data?.rest,
+        isSelected: `asset:${asset?.name}` === edge.source || `asset:${asset?.name}` === edge.target,
+      },
+    },
+  }));
+
   return (
     <ReactFlow
       colorMode={colorMode}
       defaultEdgeOptions={{ zIndex: 1 }}
-      edges={graphData?.edges ?? []}
+      edges={edges}
       edgeTypes={edgeTypes}
       // Fit view to selected task or the whole graph on render
       fitView
