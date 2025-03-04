@@ -44,7 +44,7 @@ check_gremlin_container() {
             echo "Detailed inspection:"
             docker inspect "$GREMLIN_CONTAINER"
             echo "Formatted details (Name - IP - Ports):"
-            docker inspect "$GREMLIN_CONTAINER" -f '{{.Name}} - {{.NetworkSettings.IPAddress}} - {{range $p, $conf := .NetworkSettings.Ports}}{{$p}} -> {{range $conf}}{{.HostIp}}:{{.HostPort}}{{end}}{{end}}'
+            docker inspect "$GREMLIN_CONTAINER" -f '{{.Name}} - {{(index .NetworkSettings.Networks "airflow-test-all_default").IPAddress}} - {{range $p, $conf := .NetworkSettings.Ports}}{{$p}} -> {{range $conf}}{{.HostIp}}:{{.HostPort}} {{end}}{{end}}'
             break
         fi
         echo "Attempt $attempt/$max_attempts: No Gremlin container yet, waiting $sleep_interval seconds..."

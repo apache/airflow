@@ -20,7 +20,7 @@ services:
     container_name: gremlin
     image: tinkerpop/gremlin-server:3.4.2
     labels:
-      breeze.description: "Integration required for gremlin hook."
+      breeze.description: "Integration required for gremlin operator and hook."
     volumes:
       - ./gremlin:/opt/gremlin-server/conf
       - graph-data:/opt/gremlin-server/data
