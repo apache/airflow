@@ -31,6 +31,10 @@ MANAGED_KAFKA_CLUSTER_LIST_LINK = MANAGED_KAFKA_BASE_LINK + "/clusters?project={
 MANAGED_KAFKA_TOPIC_LINK = (
     MANAGED_KAFKA_BASE_LINK + "/{location}/clusters/{cluster_id}/topics/{topic_id}?project={project_id}"
 )
+MANAGED_KAFKA_CONSUMER_GROUP_LINK = (
+    MANAGED_KAFKA_BASE_LINK
+    + "/{location}/clusters/{cluster_id}/consumer_groups/{consumer_group_id}?project={project_id}"
+)
 
 
 class ApacheKafkaClusterLink(BaseGoogleLink):
@@ -99,6 +103,32 @@ class ApacheKafkaTopicLink(BaseGoogleLink):
                 "location": task_instance.location,
                 "cluster_id": cluster_id,
                 "topic_id": topic_id,
+                "project_id": task_instance.project_id,
+            },
+        )
+
+
+class ApacheKafkaConsumerGroupLink(BaseGoogleLink):
+    """Helper class for constructing Apache Kafka Consumer Group link."""
+
+    name = "Apache Kafka Consumer Group"
+    key = "consumer_group_conf"
+    format_str = MANAGED_KAFKA_CONSUMER_GROUP_LINK
+
+    @staticmethod
+    def persist(
+        context: Context,
+        task_instance,
+        cluster_id: str,
+        consumer_group_id: str,
+    ):
+        task_instance.xcom_push(
+            context=context,
+            key=ApacheKafkaConsumerGroupLink.key,
+            value={
+                "location": task_instance.location,
+                "cluster_id": cluster_id,
+                "consumer_group_id": consumer_group_id,
                 "project_id": task_instance.project_id,
             },
         )
