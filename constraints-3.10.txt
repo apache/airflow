@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2025-03-04T14:21:21.413724
+# This constraints file was automatically generated on 2025-03-04T20:12:16.101754
 # via "eager-upgrade" mechanism of PIP. For the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version for 'apache-airflow' but installs
 # the providers from PIP-released packages at the moment of the constraint generation.
@@ -69,7 +69,7 @@ Werkzeug==2.2.3
 a2wsgi==1.10.8
 adal==1.2.7
 adlfs==2024.12.0
-aiobotocore==2.21.0
+aiobotocore==2.21.1
 aiofiles==23.2.1
 aiohappyeyeballs==2.4.8
 aiohttp==3.11.13
@@ -578,7 +578,7 @@ pydruid==0.6.9
 pyenchant==3.2.2
 pyexasol==0.27.0
 pygraphviz==1.14
-pyiceberg==0.8.1
+pyiceberg==0.9.0
 pykerberos==1.2.4
 pymongo==4.11.2
 pymssql==2.3.2
