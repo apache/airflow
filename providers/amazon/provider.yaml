@@ -22,7 +22,7 @@ description: |
   Amazon integration (including `Amazon Web Services (AWS) <https://aws.amazon.com/>`__).
 
 state: ready
-source-date-epoch: 1739958314
+source-date-epoch: 1740734072
 # note that those versions are maintained by release manager - do not update them manually
 versions:
   - 9.4.0
@@ -485,6 +485,9 @@ sensors:
   - integration-name: Amazon Managed Service for Apache Flink
     python-modules:
       - airflow.providers.amazon.aws.sensors.kinesis_analytics
+  - integration-name: Amazon Managed Workflows for Apache Airflow (MWAA)
+    python-modules:
+      - airflow.providers.amazon.aws.sensors.mwaa
   - integration-name: Amazon OpenSearch Serverless
     python-modules:
       - airflow.providers.amazon.aws.sensors.opensearch_serverless

@@ -47,6 +47,7 @@ export const TaskInstances = ({ nodes, runId, taskInstances }: Props) => {
       <GridTI
         dagId={dagId}
         isGroup={node.isGroup}
+        isMapped={node.is_mapped}
         key={node.id}
         label={node.label}
         runId={runId}

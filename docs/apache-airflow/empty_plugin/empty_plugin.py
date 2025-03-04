@@ -24,7 +24,7 @@ from flask_appbuilder import BaseView, expose
 
 from airflow.auth.managers.models.resource_details import AccessView
 from airflow.plugins_manager import AirflowPlugin
-from airflow.www.auth import has_access_view
+from airflow.providers.fab.www.auth import has_access_view
 
 
 class EmptyPluginView(BaseView):

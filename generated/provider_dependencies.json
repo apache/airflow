@@ -59,6 +59,7 @@
       "common.compat",
       "common.sql",
       "exasol",
+      "fab",
       "ftp",
       "google",
       "http",
@@ -104,7 +105,7 @@
     "deps": [
       "apache-airflow-providers-common-sql>=1.20.0",
       "apache-airflow>=2.9.0",
-      "sqlalchemy-drill>=1.1.0"
+      "sqlalchemy-drill>=1.1.0,!=1.1.6,!=1.1.7"
     ],
     "devel-deps": [],
     "plugins": [],
@@ -221,7 +222,9 @@
     ],
     "devel-deps": [],
     "plugins": [],
-    "cross-providers-deps": [],
+    "cross-providers-deps": [
+      "google"
+    ],
     "excluded-python-versions": [],
     "state": "ready"
   },
@@ -415,9 +418,22 @@
     "excluded-python-versions": [],
     "state": "ready"
   },
+  "common.messaging": {
+    "deps": [
+      "apache-airflow>=3.0.0.dev0"
+    ],
+    "devel-deps": [],
+    "plugins": [],
+    "cross-providers-deps": [
+      "amazon"
+    ],
+    "excluded-python-versions": [],
+    "state": "ready"
+  },
   "common.sql": {
     "deps": [
       "apache-airflow>=2.9.0",
+      "methodtools>=0.4.7",
       "more-itertools>=9.0.0",
       "sqlparse>=0.5.1"
     ],
@@ -450,7 +466,8 @@
       }
     ],
     "cross-providers-deps": [
-      "common.sql"
+      "common.sql",
+      "fab"
     ],
     "excluded-python-versions": [],
     "state": "ready"
@@ -535,7 +552,9 @@
         "plugin-class": "airflow.providers.edge.plugins.edge_executor_plugin.EdgeExecutorPlugin"
       }
     ],
-    "cross-providers-deps": [],
+    "cross-providers-deps": [
+      "fab"
+    ],
     "excluded-python-versions": [],
     "state": "not-ready"
   },
@@ -666,7 +685,7 @@
       "google-cloud-monitoring>=2.18.0",
       "google-cloud-orchestration-airflow>=1.10.0",
       "google-cloud-os-login>=2.9.1",
-      "google-cloud-pubsub>=2.19.0",
+      "google-cloud-pubsub>=2.21.3",
       "google-cloud-redis>=2.12.0",
       "google-cloud-run>=0.10.0",
       "google-cloud-secret-manager>=2.16.0",
@@ -851,7 +870,7 @@
   },
   "microsoft.mssql": {
     "deps": [
-      "apache-airflow-providers-common-sql>=1.20.0",
+      "apache-airflow-providers-common-sql>=1.23.0",
       "apache-airflow>=2.9.0",
       "methodtools>=0.4.7",
       "pymssql>=2.3.0"
@@ -1284,7 +1303,6 @@
   },
   "standard": {
     "deps": [
-      "apache-airflow-providers-common-sql>=1.20.0",
       "apache-airflow>=2.9.0"
     ],
     "devel-deps": [],
@@ -1337,7 +1355,7 @@
       "apache-airflow-providers-common-sql>=1.20.0",
       "apache-airflow>=2.9.0",
       "pandas>=2.1.2,<2.2",
-      "trino>=0.318.0"
+      "trino>=0.319.0"
     ],
     "devel-deps": [],
     "plugins": [],

@@ -29,6 +29,9 @@ from io import BytesIO, StringIO
 from tempfile import TemporaryDirectory
 from typing import TYPE_CHECKING
 
+from docker.constants import DEFAULT_TIMEOUT_SECONDS
+from docker.errors import APIError
+from docker.types import LogConfig, Mount, Ulimit
 from dotenv import dotenv_values
 from typing_extensions import Literal
 
@@ -38,9 +41,6 @@ from airflow.providers.docker.exceptions import (
     DockerContainerFailedSkipException,
 )
 from airflow.providers.docker.hooks.docker import DockerHook
-from docker.constants import DEFAULT_TIMEOUT_SECONDS
-from docker.errors import APIError
-from docker.types import LogConfig, Mount, Ulimit
 
 if TYPE_CHECKING:
     from logging import Logger

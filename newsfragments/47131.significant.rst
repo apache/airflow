@@ -1,0 +1,12 @@
+The Airflow UI is now started with the ``airflow api-server`` command. The ``airflow webserver`` command has been removed.
+
+* Types of change
+
+  * [ ] Dag changes
+  * [ ] Config changes
+  * [ ] API changes
+  * [x] CLI changes
+  * [ ] Behaviour changes
+  * [ ] Plugin changes
+  * [ ] Dependency changes
+  * [ ] Code interface changes

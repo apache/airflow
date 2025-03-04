@@ -251,7 +251,7 @@ DEVEL_EXTRAS: dict[str, list[str]] = {
         "deepdiff>=8.1.1",
         "jmespath>=0.7.0",
         "kgb>=7.0.0",
-        # We need to adjust all our tests to work with "proper" handiing of the async loops in pytest-asyncio
+        # We need to adjust all our tests to work with "proper" handling of the async loops in pytest-asyncio
         # Implemented in Pytest-asyncio 0.25.1 and 0.25.2. See: https://github.com/apache/airflow/issues/45355
         "pytest-asyncio>=0.23.6,<0.25.1",
         "pytest-cov>=4.1.0",
@@ -370,7 +370,9 @@ DEPENDENCIES = [
     # Required for python 3.9 to work with new annotations styles. Check package
     # description on PyPI for more details: https://pypi.org/project/eval-type-backport/
     'eval-type-backport>=0.2.0;python_version<"3.10"',
-    "fastapi[standard]>=0.112.2",
+    # 0.115.10 fastapi was a bad release that broke our API's and static checks.
+    # Related fastapi issue here: https://github.com/fastapi/fastapi/discussions/13431
+    "fastapi[standard]>=0.112.2,!=0.115.10",
     "flask-caching>=2.0.0",
     # Flask-Session 0.6 add new arguments into the SqlAlchemySessionInterface constructor as well as
     # all parameters now are mandatory which make AirflowDatabaseSessionInterface incompatible with this version.
@@ -427,7 +429,7 @@ DEPENDENCIES = [
     # See https://sqlalche.me/e/b8d9 for details of deprecated features
     # you can set environment variable SQLALCHEMY_WARN_20=1 to show all deprecation warnings.
     # The issue tracking it is https://github.com/apache/airflow/issues/28723
-    "sqlalchemy>=1.4.36,<2.0",
+    "sqlalchemy>=1.4.49,<2.0",
     "sqlalchemy-jsonfield>=1.0",
     "sqlalchemy-utils>=0.41.2",
     "tabulate>=0.7.5",
@@ -593,8 +595,6 @@ class CustomBuild(BuilderInterface[BuilderConfig, PluginManager]):
     def clean(self, directory: str, versions: Iterable[str]) -> None:
         work_dir = Path(self.root)
         commands = [
-            ["rm -rf airflow/www/static/dist"],
-            ["rm -rf airflow/www/node_modules"],
             ["rm -rf airflow/ui/dist"],
             ["rm -rf airflow/ui/node_modules"],
         ]
@@ -609,7 +609,6 @@ class CustomBuild(BuilderInterface[BuilderConfig, PluginManager]):
         self.write_git_version()
         work_dir = Path(self.root)
         commands = [
-            ["pre-commit run --hook-stage manual compile-www-assets --all-files"],
             ["pre-commit run --hook-stage manual compile-ui-assets --all-files"],
         ]
         for cmd in commands:

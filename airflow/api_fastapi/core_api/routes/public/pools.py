@@ -40,6 +40,7 @@ from airflow.api_fastapi.core_api.datamodels.pools import (
     PoolResponse,
 )
 from airflow.api_fastapi.core_api.openapi.exceptions import create_openapi_http_exception_doc
+from airflow.api_fastapi.core_api.security import requires_access_pool
 from airflow.api_fastapi.core_api.services.public.pools import BulkPoolService
 from airflow.models.pool import Pool
 
@@ -55,6 +56,7 @@ pools_router = AirflowRouter(tags=["Pool"], prefix="/pools")
             status.HTTP_404_NOT_FOUND,
         ]
     ),
+    dependencies=[Depends(requires_access_pool(method="DELETE"))],
 )
 def delete_pool(
     pool_name: str,
@@ -73,6 +75,7 @@ def delete_pool(
 @pools_router.get(
     "/{pool_name}",
     responses=create_openapi_http_exception_doc([status.HTTP_404_NOT_FOUND]),
+    dependencies=[Depends(requires_access_pool(method="GET"))],
 )
 def get_pool(
     pool_name: str,
@@ -89,6 +92,7 @@ def get_pool(
 @pools_router.get(
     "",
     responses=create_openapi_http_exception_doc([status.HTTP_404_NOT_FOUND]),
+    dependencies=[Depends(requires_access_pool(method="GET"))],
 )
 def get_pools(
     limit: QueryLimit,
@@ -126,6 +130,7 @@ def get_pools(
             status.HTTP_404_NOT_FOUND,
         ]
     ),
+    dependencies=[Depends(requires_access_pool(method="PUT"))],
 )
 def patch_pool(
     pool_name: str,
@@ -134,6 +139,11 @@ def patch_pool(
     update_mask: list[str] | None = Query(None),
 ) -> PoolResponse:
     """Update a Pool."""
+    if patch_body.name and patch_body.name != pool_name:
+        raise HTTPException(
+            status.HTTP_400_BAD_REQUEST,
+            "Invalid body, pool name from request body doesn't match uri parameter",
+        )
     # Only slots and include_deferred can be modified in 'default_pool'
     if pool_name == Pool.DEFAULT_POOL_NAME:
         if update_mask and all(mask.strip() in {"slots", "include_deferred"} for mask in update_mask):
@@ -143,7 +153,6 @@ def patch_pool(
                 status.HTTP_400_BAD_REQUEST,
                 "Only slots and included_deferred can be modified on Default Pool",
             )
-
     pool = session.scalar(select(Pool).where(Pool.pool == pool_name).limit(1))
     if not pool:
         raise HTTPException(
@@ -173,6 +182,7 @@ def patch_pool(
     responses=create_openapi_http_exception_doc(
         [status.HTTP_409_CONFLICT]
     ),  # handled by global exception handler
+    dependencies=[Depends(requires_access_pool(method="POST"))],
 )
 def post_pool(
     body: PoolBody,
@@ -184,7 +194,10 @@ def post_pool(
     return pool
 
 
-@pools_router.patch("")
+@pools_router.patch(
+    "",
+    dependencies=[Depends(requires_access_pool(method="PUT"))],
+)
 def bulk_pools(
     request: BulkBody[PoolBody],
     session: SessionDep,

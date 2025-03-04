@@ -29,7 +29,7 @@ from pathlib import Path
 
 from airflow.decorators import task
 from airflow.models.dag import DAG
-from airflow.sdk import Param, ParamsDict
+from airflow.sdk import Param
 
 with (
     DAG(
@@ -253,7 +253,7 @@ with (
     # [START section_3]
     @task(task_display_name="Show used parameters")
     def show_params(**kwargs) -> None:
-        params: ParamsDict = kwargs["params"]
+        params = kwargs["params"]
         print(f"This DAG was triggered with the following parameters:\n\n{json.dumps(params, indent=4)}\n")
 
     show_params()

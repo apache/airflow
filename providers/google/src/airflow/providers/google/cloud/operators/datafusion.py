@@ -22,6 +22,7 @@ import time
 from collections.abc import Sequence
 from typing import TYPE_CHECKING, Any
 
+from google.api_core.retry import exponential_sleep_generator
 from googleapiclient.errors import HttpError
 
 from airflow.configuration import conf
@@ -38,7 +39,6 @@ from airflow.providers.google.cloud.utils.datafusion import DataFusionPipelineTy
 from airflow.providers.google.cloud.utils.helpers import resource_path_to_dict
 from airflow.providers.google.common.deprecated import deprecated
 from airflow.providers.google.common.hooks.base_google import PROVIDE_PROJECT_ID
-from google.api_core.retry import exponential_sleep_generator
 
 if TYPE_CHECKING:
     from airflow.utils.context import Context

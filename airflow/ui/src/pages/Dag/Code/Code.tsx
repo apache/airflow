@@ -16,43 +16,28 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Box, Button, Heading, HStack, Field } from "@chakra-ui/react";
-import { useQueryClient } from "@tanstack/react-query";
-import type { OptionsOrGroups, GroupBase, SingleValue } from "chakra-react-select";
-import { AsyncSelect } from "chakra-react-select";
-import { useState, useCallback } from "react";
-import { useParams, useSearchParams } from "react-router-dom";
+import { Box, Button, Heading, HStack } from "@chakra-ui/react";
+import { useState } from "react";
+import { useParams } from "react-router-dom";
 import { createElement, PrismLight as SyntaxHighlighter } from "react-syntax-highlighter";
 import python from "react-syntax-highlighter/dist/esm/languages/prism/python";
 import { oneLight, oneDark } from "react-syntax-highlighter/dist/esm/styles/prism";
 
-import {
-  useDagServiceGetDagDetails,
-  useDagSourceServiceGetDagSource,
-  UseDagVersionServiceGetDagVersionsKeyFn,
-} from "openapi/queries";
-import { DagVersionService } from "openapi/requests/services.gen";
-import type { DAGVersionCollectionResponse, DagVersionResponse } from "openapi/requests/types.gen";
+import { useDagServiceGetDagDetails, useDagSourceServiceGetDagSource } from "openapi/queries";
+import DagVersionSelect from "src/components/DagVersionSelect";
 import { ErrorAlert } from "src/components/ErrorAlert";
 import Time from "src/components/Time";
 import { ProgressBar } from "src/components/ui";
 import { useColorMode } from "src/context/colorMode";
+import useSelectedVersion from "src/hooks/useSelectedVersion";
 import { useConfig } from "src/queries/useConfig";
 
 SyntaxHighlighter.registerLanguage("python", python);
 
-const VERSION_PARAM = "version";
-
-type Option = {
-  label: string;
-  value: string;
-};
-
 export const Code = () => {
   const { dagId } = useParams();
-  const [searchParams, setSearchParams] = useSearchParams();
-  const selectedVersion = searchParams.get(VERSION_PARAM);
-  const queryClient = useQueryClient();
+
+  const selectedVersion = useSelectedVersion();
 
   const {
     data: dag,
@@ -68,7 +53,7 @@ export const Code = () => {
     isLoading: isCodeLoading,
   } = useDagSourceServiceGetDagSource({
     dagId: dagId ?? "",
-    versionNumber: selectedVersion === null ? undefined : parseInt(selectedVersion, 10),
+    versionNumber: selectedVersion === undefined ? undefined : parseInt(selectedVersion, 10),
   });
 
   const defaultWrap = Boolean(useConfig("default_wrap"));
@@ -85,42 +70,6 @@ export const Code = () => {
     style['code[class*="language-"]'].whiteSpace = wrap ? "pre-wrap" : "pre";
   }
 
-  const loadVersions = (
-    _: string,
-    callback: (options: OptionsOrGroups<Option, GroupBase<Option>>) => void,
-  ): Promise<OptionsOrGroups<Option, GroupBase<Option>>> =>
-    queryClient.fetchQuery({
-      queryFn: () =>
-        DagVersionService.getDagVersions({
-          dagId: dagId ?? "",
-        }).then((data: DAGVersionCollectionResponse) => {
-          const options = data.dag_versions.map((version: DagVersionResponse) => {
-            const versionNumber = version.version_number.toString();
-
-            return {
-              label: versionNumber,
-              value: versionNumber,
-            };
-          });
-
-          callback(options);
-
-          return options;
-        }),
-      queryKey: UseDagVersionServiceGetDagVersionsKeyFn({ dagId: dagId ?? "" }),
-      staleTime: 0,
-    });
-
-  const handleStateChange = useCallback(
-    (version: SingleValue<Option>) => {
-      if (version) {
-        searchParams.set(VERSION_PARAM, version.value);
-        setSearchParams(searchParams);
-      }
-    },
-    [searchParams, setSearchParams],
-  );
-
   return (
     <Box>
       <HStack justifyContent="space-between" mt={2}>
@@ -130,20 +79,7 @@ export const Code = () => {
           </Heading>
         )}
         <HStack>
-          <Field.Root>
-            <AsyncSelect
-              defaultOptions
-              filterOption={undefined}
-              isSearchable={false}
-              loadOptions={loadVersions}
-              onChange={handleStateChange}
-              placeholder="Dag Version"
-              // null is required https://github.com/JedWatson/react-select/issues/3066
-              // eslint-disable-next-line unicorn/no-null
-              value={selectedVersion === null ? null : { label: selectedVersion, value: selectedVersion }}
-            />
-          </Field.Root>
-
+          <DagVersionSelect />
           <Button aria-label={wrap ? "Unwrap" : "Wrap"} bg="bg.panel" onClick={toggleWrap} variant="outline">
             {wrap ? "Unwrap" : "Wrap"}
           </Button>

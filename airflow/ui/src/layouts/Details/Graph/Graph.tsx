@@ -16,7 +16,7 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Flex, useToken } from "@chakra-ui/react";
+import { useToken } from "@chakra-ui/react";
 import { ReactFlow, Controls, Background, MiniMap, type Node as ReactFlowNode } from "@xyflow/react";
 import "@xyflow/react/dist/style.css";
 import { useParams } from "react-router-dom";
@@ -24,6 +24,7 @@ import { useParams } from "react-router-dom";
 import { useGridServiceGridData, useStructureServiceStructureData } from "openapi/queries";
 import { useColorMode } from "src/context/colorMode";
 import { useOpenGroups } from "src/context/openGroups";
+import useSelectedVersion from "src/hooks/useSelectedVersion";
 import { isStatePending, useAutoRefresh } from "src/utils";
 
 import Edge from "./Edge";
@@ -64,6 +65,8 @@ export const Graph = () => {
   const { colorMode = "light" } = useColorMode();
   const { dagId = "", runId, taskId } = useParams();
 
+  const selectedVersion = useSelectedVersion();
+
   // corresponds to the "bg", "bg.emphasized", "border.inverted" semantic tokens
   const [oddLight, oddDark, evenLight, evenDark, selectedDarkColor, selectedLightColor] = useToken("colors", [
     "white",
@@ -80,6 +83,7 @@ export const Graph = () => {
 
   const { data: graphData = { arrange: "LR", edges: [], nodes: [] } } = useStructureServiceStructureData({
     dagId,
+    versionNumber: selectedVersion === undefined ? undefined : parseInt(selectedVersion, 10),
   });
 
   const { data } = useGraphLayout({
@@ -125,39 +129,37 @@ export const Graph = () => {
         });
 
   return (
-    <Flex flex={1}>
-      <ReactFlow
-        colorMode={colorMode}
-        defaultEdgeOptions={{ zIndex: 1 }}
-        edges={data?.edges ?? []}
-        edgeTypes={edgeTypes}
-        // Fit view to selected task or the whole graph on render
-        fitView
-        maxZoom={1}
-        minZoom={0.25}
-        nodes={nodes}
-        nodesDraggable={false}
-        nodeTypes={nodeTypes}
-        onlyRenderVisibleElements
-      >
-        <Background />
-        <Controls showInteractive={false} />
-        <MiniMap
-          nodeColor={(node: ReactFlowNode<CustomNodeProps>) =>
-            nodeColor(
-              node,
-              colorMode === "dark" ? evenDark : evenLight,
-              colorMode === "dark" ? oddDark : oddLight,
-            )
-          }
-          nodeStrokeColor={(node: ReactFlowNode<CustomNodeProps>) =>
-            node.data.isSelected && selectedColor !== undefined ? selectedColor : ""
-          }
-          nodeStrokeWidth={15}
-          pannable
-          zoomable
-        />
-      </ReactFlow>
-    </Flex>
+    <ReactFlow
+      colorMode={colorMode}
+      defaultEdgeOptions={{ zIndex: 1 }}
+      edges={data?.edges ?? []}
+      edgeTypes={edgeTypes}
+      // Fit view to selected task or the whole graph on render
+      fitView
+      maxZoom={1}
+      minZoom={0.25}
+      nodes={nodes}
+      nodesDraggable={false}
+      nodeTypes={nodeTypes}
+      onlyRenderVisibleElements
+    >
+      <Background />
+      <Controls showInteractive={false} />
+      <MiniMap
+        nodeColor={(node: ReactFlowNode<CustomNodeProps>) =>
+          nodeColor(
+            node,
+            colorMode === "dark" ? evenDark : evenLight,
+            colorMode === "dark" ? oddDark : oddLight,
+          )
+        }
+        nodeStrokeColor={(node: ReactFlowNode<CustomNodeProps>) =>
+          node.data.isSelected && selectedColor !== undefined ? selectedColor : ""
+        }
+        nodeStrokeWidth={15}
+        pannable
+        zoomable
+      />
+    </ReactFlow>
   );
 };

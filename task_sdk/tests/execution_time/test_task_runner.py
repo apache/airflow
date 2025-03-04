@@ -24,6 +24,7 @@ import uuid
 from datetime import datetime, timedelta
 from pathlib import Path
 from socket import socketpair
+from typing import TYPE_CHECKING
 from unittest import mock
 from unittest.mock import patch
 
@@ -42,11 +43,18 @@ from airflow.listeners import hookimpl
 from airflow.listeners.listener import get_listener_manager
 from airflow.providers.standard.operators.python import PythonOperator
 from airflow.sdk import DAG, BaseOperator, Connection, dag as dag_decorator, get_current_context
-from airflow.sdk.api.datamodels._generated import AssetProfile, TaskInstance, TerminalTIState
+from airflow.sdk.api.datamodels._generated import (
+    AssetEventResponse,
+    AssetProfile,
+    AssetResponse,
+    TaskInstance,
+    TerminalTIState,
+)
 from airflow.sdk.definitions.asset import Asset, AssetAlias
 from airflow.sdk.definitions.param import DagParam
 from airflow.sdk.definitions.variable import Variable
 from airflow.sdk.execution_time.comms import (
+    AssetEventsResult,
     BundleInfo,
     ConnectionResult,
     DeferTask,
@@ -66,6 +74,7 @@ from airflow.sdk.execution_time.comms import (
 )
 from airflow.sdk.execution_time.context import (
     ConnectionAccessor,
+    InletEventsAccessors,
     MacrosAccessor,
     OutletEventAccessors,
     VariableAccessor,
@@ -85,6 +94,9 @@ from airflow.utils import timezone
 from airflow.utils.state import TaskInstanceState
 
 from tests_common.test_utils.mock_operators import AirflowLink
+
+if TYPE_CHECKING:
+    from kgb import SpyAgency
 
 FAKE_BUNDLE = BundleInfo(name="anything", version="any")
 
@@ -183,15 +195,13 @@ def test_parse(test_dags_dir: Path, make_ti_context):
 
 def test_run_deferred_basic(time_machine, create_runtime_ti, mock_supervisor_comms):
     """Test that a task can transition to a deferred state."""
-    import datetime
-
     from airflow.providers.standard.sensors.date_time import DateTimeSensorAsync
 
     # Use the time machine to set the current time
     instant = timezone.datetime(2024, 11, 22)
     task = DateTimeSensorAsync(
         task_id="async",
-        target_time=str(instant + datetime.timedelta(seconds=3)),
+        target_time=str(instant + timedelta(seconds=3)),
         poke_interval=60,
         timeout=600,
     )
@@ -201,20 +211,49 @@ def test_run_deferred_basic(time_machine, create_runtime_ti, mock_supervisor_com
     expected_defer_task = DeferTask(
         state="deferred",
         classpath="airflow.providers.standard.triggers.temporal.DateTimeTrigger",
+        # Since we are in the task process here, we expect this to have not been encoded by serde yet
         trigger_kwargs={
             "end_from_trigger": False,
             "moment": instant + timedelta(seconds=3),
         },
-        next_method="execute_complete",
         trigger_timeout=None,
+        next_method="execute_complete",
+        next_kwargs={},
     )
 
     # Run the task
     ti = create_runtime_ti(dag_id="basic_deferred_run", task=task)
-    run(ti, log=mock.MagicMock())
+    state, msg, err = run(ti, log=mock.MagicMock())
 
     # send_request will only be called when the TaskDeferred exception is raised
     mock_supervisor_comms.send_request.assert_any_call(msg=expected_defer_task, log=mock.ANY)
+
+
+def test_resume_from_deferred(time_machine, create_runtime_ti, mock_supervisor_comms, spy_agency: SpyAgency):
+    from airflow.providers.standard.sensors.date_time import DateTimeSensorAsync
+
+    instant_str = "2024-09-30T12:00:00Z"
+    instant = timezone.parse(instant_str)
+    task = DateTimeSensorAsync(
+        task_id="async",
+        target_time=instant + timedelta(seconds=3),
+        poke_interval=60,
+        timeout=600,
+    )
+
+    ti = create_runtime_ti(dag_id="basic_deferred_run", task=task)
+    ti._ti_context_from_server.next_method = "execute_complete"
+    ti._ti_context_from_server.next_kwargs = {
+        "__type": "dict",
+        "__var": {"event": {"__type": "datetime", "__var": 1727697600.0}},
+    }
+
+    spy = spy_agency.spy_on(task.execute_complete)
+    state, msg, err = run(ti, log=mock.MagicMock())
+    assert err is None
+    assert state == TaskInstanceState.SUCCESS
+
+    spy_agency.assert_spy_called_with(spy, mock.ANY, event=instant)
 
 
 def test_run_basic_skipped(time_machine, create_runtime_ti, mock_supervisor_comms):
@@ -699,6 +738,50 @@ def test_run_with_asset_outlets(
     mock_supervisor_comms.send_request.assert_any_call(msg=expected_msg, log=mock.ANY)
 
 
+def test_run_with_asset_inlets(create_runtime_ti, mock_supervisor_comms):
+    """Test running a basic task that contains asset inlets."""
+    asset_event_resp = AssetEventResponse(
+        id=1,
+        created_dagruns=[],
+        timestamp=datetime.now(),
+        asset=AssetResponse(name="test", uri="test", group="asset"),
+    )
+    events_result = AssetEventsResult(asset_events=[asset_event_resp])
+    mock_supervisor_comms.get_message.return_value = events_result
+
+    from airflow.providers.standard.operators.bash import BashOperator
+
+    task = BashOperator(
+        inlets=[Asset(name="test", uri="test://uri"), AssetAlias(name="alias-name")],
+        task_id="asset-outlet-task",
+        bash_command="echo 0",
+    )
+
+    ti = create_runtime_ti(task=task, dag_id="dag_with_asset_outlet_task")
+    run(ti, log=mock.MagicMock())
+    inlet_events = ti.get_template_context()["inlet_events"]
+
+    # access the asset events of Asset(name="test", uri="test://uri")
+    assert inlet_events[0] == [asset_event_resp]
+    assert inlet_events[-2] == [asset_event_resp]
+    assert inlet_events[Asset(name="test", uri="test://uri")] == [asset_event_resp]
+
+    # access the asset events of AssetAlias(name="alias-name")
+    assert inlet_events[1] == [asset_event_resp]
+    assert inlet_events[-1] == [asset_event_resp]
+    assert inlet_events[AssetAlias(name="alias-name")] == [asset_event_resp]
+
+    # access with invalid index
+    with pytest.raises(IndexError):
+        inlet_events[2]
+
+    with pytest.raises(IndexError):
+        inlet_events[-3]
+
+    with pytest.raises(KeyError):
+        inlet_events[Asset(name="no such asset in inlets")]
+
+
 @pytest.mark.parametrize(
     ["ok", "last_expected_msg"],
     [
@@ -818,12 +901,12 @@ class TestRuntimeTaskInstance:
             "conn": ConnectionAccessor(),
             "dag": runtime_ti.task.dag,
             "inlets": task.inlets,
+            "inlet_events": InletEventsAccessors(inlets=[]),
             "macros": MacrosAccessor(),
             "map_index_template": task.map_index_template,
             "outlet_events": OutletEventAccessors(),
             "outlets": task.outlets,
             "run_id": "test_run",
-            "start_date": start_date,
             "task": task,
             "task_instance": runtime_ti,
             "ti": runtime_ti,
@@ -860,6 +943,7 @@ class TestRuntimeTaskInstance:
             "conn": ConnectionAccessor(),
             "dag": runtime_ti.task.dag,
             "inlets": task.inlets,
+            "inlet_events": InletEventsAccessors(inlets=[]),
             "macros": MacrosAccessor(),
             "map_index_template": task.map_index_template,
             "outlet_events": OutletEventAccessors(),
@@ -869,7 +953,6 @@ class TestRuntimeTaskInstance:
             "prev_end_date_success": timezone.datetime(2024, 12, 1, 1, 0, 0),
             "prev_start_date_success": timezone.datetime(2024, 12, 1, 0, 0, 0),
             "run_id": "test_run",
-            "start_date": timezone.datetime(2024, 12, 1, 1, 0),
             "task": task,
             "task_instance": runtime_ti,
             "ti": runtime_ti,
