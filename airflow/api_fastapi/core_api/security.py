@@ -30,6 +30,7 @@ from airflow.auth.managers.models.resource_details import (
     DagAccessEntity,
     DagDetails,
     PoolDetails,
+    VariableDetails,
 )
 from airflow.configuration import conf
 from airflow.utils.jwt_signer import JWTSigner, get_signing_key
@@ -125,6 +126,22 @@ def requires_access_connection(method: ResourceMethod) -> Callable:
 
         _requires_access(
             is_authorized_callback=callback,
+        )
+
+    return inner
+
+
+def requires_access_variable(method: ResourceMethod) -> Callable[[Request, BaseUser | None], None]:
+    def inner(
+        request: Request,
+        user: Annotated[BaseUser | None, Depends(get_user)] = None,
+    ) -> None:
+        variable_key: str | None = request.path_params.get("variable_key")
+
+        _requires_access(
+            is_authorized_callback=lambda: get_auth_manager().is_authorized_variable(
+                method=method, details=VariableDetails(key=variable_key), user=user
+            ),
         )
 
     return inner
