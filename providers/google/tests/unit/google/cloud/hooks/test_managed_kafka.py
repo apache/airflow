@@ -66,6 +66,8 @@ TEST_UPDATED_TOPIC: dict = {
     "replication_factor": 1912,
 }
 
+TEST_CONSUMER_GROUP_ID: str = "test-consumer-group-id"
+
 BASE_STRING = "airflow.providers.google.common.hooks.base_google.{}"
 MANAGED_KAFKA_STRING = "airflow.providers.google.cloud.hooks.managed_kafka.{}"
 
@@ -301,6 +303,98 @@ class TestManagedKafkaWithDefaultProjectIdHook:
             TEST_PROJECT_ID, TEST_LOCATION, TEST_CLUSTER_ID
         )
 
+    @mock.patch(MANAGED_KAFKA_STRING.format("ManagedKafkaHook.get_managed_kafka_client"))
+    def test_delete_consumer_group(self, mock_client) -> None:
+        self.hook.delete_consumer_group(
+            project_id=TEST_PROJECT_ID,
+            location=TEST_LOCATION,
+            cluster_id=TEST_CLUSTER_ID,
+            consumer_group_id=TEST_CONSUMER_GROUP_ID,
+        )
+        mock_client.assert_called_once()
+        mock_client.return_value.delete_consumer_group.assert_called_once_with(
+            request=dict(name=mock_client.return_value.consumer_group_path.return_value),
+            metadata=(),
+            retry=DEFAULT,
+            timeout=None,
+        )
+        mock_client.return_value.consumer_group_path.assert_called_once_with(
+            TEST_PROJECT_ID, TEST_LOCATION, TEST_CLUSTER_ID, TEST_CONSUMER_GROUP_ID
+        )
+
+    @mock.patch(MANAGED_KAFKA_STRING.format("ManagedKafkaHook.get_managed_kafka_client"))
+    def test_get_consumer_group(self, mock_client) -> None:
+        self.hook.get_consumer_group(
+            project_id=TEST_PROJECT_ID,
+            location=TEST_LOCATION,
+            cluster_id=TEST_CLUSTER_ID,
+            consumer_group_id=TEST_CONSUMER_GROUP_ID,
+        )
+        mock_client.assert_called_once()
+        mock_client.return_value.get_consumer_group.assert_called_once_with(
+            request=dict(
+                name=mock_client.return_value.consumer_group_path.return_value,
+            ),
+            metadata=(),
+            retry=DEFAULT,
+            timeout=None,
+        )
+        mock_client.return_value.consumer_group_path.assert_called_once_with(
+            TEST_PROJECT_ID,
+            TEST_LOCATION,
+            TEST_CLUSTER_ID,
+            TEST_CONSUMER_GROUP_ID,
+        )
+
+    @mock.patch(MANAGED_KAFKA_STRING.format("ManagedKafkaHook.get_managed_kafka_client"))
+    def test_update_consumer_group(self, mock_client) -> None:
+        self.hook.update_consumer_group(
+            project_id=TEST_PROJECT_ID,
+            location=TEST_LOCATION,
+            cluster_id=TEST_CLUSTER_ID,
+            consumer_group_id=TEST_CONSUMER_GROUP_ID,
+            consumer_group={},
+            update_mask={},
+        )
+        mock_client.assert_called_once()
+        mock_client.return_value.update_consumer_group.assert_called_once_with(
+            request=dict(
+                update_mask={},
+                consumer_group={
+                    "name": mock_client.return_value.consumer_group_path.return_value,
+                    **{},
+                },
+            ),
+            metadata=(),
+            retry=DEFAULT,
+            timeout=None,
+        )
+        mock_client.return_value.consumer_group_path.assert_called_once_with(
+            TEST_PROJECT_ID, TEST_LOCATION, TEST_CLUSTER_ID, TEST_CONSUMER_GROUP_ID
+        )
+
+    @mock.patch(MANAGED_KAFKA_STRING.format("ManagedKafkaHook.get_managed_kafka_client"))
+    def test_list_consumer_groups(self, mock_client) -> None:
+        self.hook.list_consumer_groups(
+            project_id=TEST_PROJECT_ID,
+            location=TEST_LOCATION,
+            cluster_id=TEST_CLUSTER_ID,
+        )
+        mock_client.assert_called_once()
+        mock_client.return_value.list_consumer_groups.assert_called_once_with(
+            request=dict(
+                parent=mock_client.return_value.cluster_path.return_value,
+                page_size=None,
+                page_token=None,
+            ),
+            metadata=(),
+            retry=DEFAULT,
+            timeout=None,
+        )
+        mock_client.return_value.cluster_path.assert_called_once_with(
+            TEST_PROJECT_ID, TEST_LOCATION, TEST_CLUSTER_ID
+        )
+
 
 class TestManagedKafkaWithoutDefaultProjectIdHook:
     def setup_method(self):
@@ -523,6 +617,101 @@ class TestManagedKafkaWithoutDefaultProjectIdHook:
         )
         mock_client.assert_called_once()
         mock_client.return_value.list_topics.assert_called_once_with(
+            request=dict(
+                parent=mock_client.return_value.cluster_path.return_value,
+                page_size=None,
+                page_token=None,
+            ),
+            metadata=(),
+            retry=DEFAULT,
+            timeout=None,
+        )
+        mock_client.return_value.cluster_path.assert_called_once_with(
+            TEST_PROJECT_ID, TEST_LOCATION, TEST_CLUSTER_ID
+        )
+
+    @mock.patch(MANAGED_KAFKA_STRING.format("ManagedKafkaHook.get_managed_kafka_client"))
+    def test_delete_consumer_group(self, mock_client) -> None:
+        self.hook.delete_consumer_group(
+            project_id=TEST_PROJECT_ID,
+            location=TEST_LOCATION,
+            cluster_id=TEST_CLUSTER_ID,
+            consumer_group_id=TEST_CONSUMER_GROUP_ID,
+        )
+        mock_client.assert_called_once()
+        mock_client.return_value.delete_consumer_group.assert_called_once_with(
+            request=dict(name=mock_client.return_value.consumer_group_path.return_value),
+            metadata=(),
+            retry=DEFAULT,
+            timeout=None,
+        )
+        mock_client.return_value.consumer_group_path.assert_called_once_with(
+            TEST_PROJECT_ID,
+            TEST_LOCATION,
+            TEST_CLUSTER_ID,
+            TEST_CONSUMER_GROUP_ID,
+        )
+
+    @mock.patch(MANAGED_KAFKA_STRING.format("ManagedKafkaHook.get_managed_kafka_client"))
+    def test_get_consumer_group(self, mock_client) -> None:
+        self.hook.get_consumer_group(
+            project_id=TEST_PROJECT_ID,
+            location=TEST_LOCATION,
+            cluster_id=TEST_CLUSTER_ID,
+            consumer_group_id=TEST_CONSUMER_GROUP_ID,
+        )
+        mock_client.assert_called_once()
+        mock_client.return_value.get_consumer_group.assert_called_once_with(
+            request=dict(
+                name=mock_client.return_value.consumer_group_path.return_value,
+            ),
+            metadata=(),
+            retry=DEFAULT,
+            timeout=None,
+        )
+        mock_client.return_value.consumer_group_path.assert_called_once_with(
+            TEST_PROJECT_ID,
+            TEST_LOCATION,
+            TEST_CLUSTER_ID,
+            TEST_CONSUMER_GROUP_ID,
+        )
+
+    @mock.patch(MANAGED_KAFKA_STRING.format("ManagedKafkaHook.get_managed_kafka_client"))
+    def test_update_consumer_group(self, mock_client) -> None:
+        self.hook.update_consumer_group(
+            project_id=TEST_PROJECT_ID,
+            location=TEST_LOCATION,
+            cluster_id=TEST_CLUSTER_ID,
+            consumer_group_id=TEST_CONSUMER_GROUP_ID,
+            consumer_group={},
+            update_mask={},
+        )
+        mock_client.assert_called_once()
+        mock_client.return_value.update_consumer_group.assert_called_once_with(
+            request=dict(
+                update_mask={},
+                consumer_group={
+                    "name": mock_client.return_value.consumer_group_path.return_value,
+                    **{},
+                },
+            ),
+            metadata=(),
+            retry=DEFAULT,
+            timeout=None,
+        )
+        mock_client.return_value.consumer_group_path.assert_called_once_with(
+            TEST_PROJECT_ID, TEST_LOCATION, TEST_CLUSTER_ID, TEST_CONSUMER_GROUP_ID
+        )
+
+    @mock.patch(MANAGED_KAFKA_STRING.format("ManagedKafkaHook.get_managed_kafka_client"))
+    def test_list_consumer_groups(self, mock_client) -> None:
+        self.hook.list_consumer_groups(
+            project_id=TEST_PROJECT_ID,
+            location=TEST_LOCATION,
+            cluster_id=TEST_CLUSTER_ID,
+        )
+        mock_client.assert_called_once()
+        mock_client.return_value.list_consumer_groups.assert_called_once_with(
             request=dict(
                 parent=mock_client.return_value.cluster_path.return_value,
                 page_size=None,

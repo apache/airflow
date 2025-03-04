@@ -90,4 +90,5 @@ def get_provider_info():
             }
         ],
         "dependencies": ["apache-airflow>=2.9.0", "asgiref>=2.3.0", "confluent-kafka>=2.3.0"],
+        "optional-dependencies": {"google": ["apache-airflow-providers-google"]},
     }

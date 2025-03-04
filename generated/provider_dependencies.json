@@ -222,7 +222,9 @@
     ],
     "devel-deps": [],
     "plugins": [],
-    "cross-providers-deps": [],
+    "cross-providers-deps": [
+      "google"
+    ],
     "excluded-python-versions": [],
     "state": "ready"
   },
@@ -464,7 +466,8 @@
       }
     ],
     "cross-providers-deps": [
-      "common.sql"
+      "common.sql",
+      "fab"
     ],
     "excluded-python-versions": [],
     "state": "ready"
@@ -549,7 +552,9 @@
         "plugin-class": "airflow.providers.edge.plugins.edge_executor_plugin.EdgeExecutorPlugin"
       }
     ],
-    "cross-providers-deps": [],
+    "cross-providers-deps": [
+      "fab"
+    ],
     "excluded-python-versions": [],
     "state": "not-ready"
   },
@@ -1393,7 +1398,7 @@
     "deps": [
       "apache-airflow>=2.9.0",
       "yandex-query-client>=0.1.4",
-      "yandexcloud>=0.308.0,!=0.329.0,!=0.330.0,!=0.331.0,!=0.332.0,!=0.333.0"
+      "yandexcloud>=0.308.0"
     ],
     "devel-deps": [],
     "plugins": [],

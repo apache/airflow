@@ -32,10 +32,14 @@ from airflow.exceptions import AirflowConfigException
 from airflow.models.taskinstance import TaskInstanceState
 from airflow.plugins_manager import AirflowPlugin
 from airflow.providers.edge.version_compat import AIRFLOW_V_3_0_PLUS
+
+if AIRFLOW_V_3_0_PLUS:
+    from airflow.providers.fab.www.auth import has_access_view
+else:
+    from airflow.www.auth import has_access_view  # type: ignore
 from airflow.utils.session import NEW_SESSION, provide_session
 from airflow.utils.yaml import safe_load
 from airflow.www import utils as wwwutils
-from airflow.www.auth import has_access_view
 
 if TYPE_CHECKING:
     from sqlalchemy.orm import Session

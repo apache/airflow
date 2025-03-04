@@ -118,6 +118,7 @@ class TestProjectStructure:
             "providers/edge/tests/unit/edge/worker_api/test_auth.py",
             "providers/edge/tests/unit/edge/worker_api/test_datamodels.py",
             "providers/elasticsearch/tests/unit/elasticsearch/test_version_compat.py",
+            "providers/fab/tests/unit/fab/auth_manager/api_fastapi/datamodels/test_login.py",
             "providers/fab/tests/unit/fab/migrations/test_env.py",
             "providers/fab/tests/unit/fab/www/api_connexion/test_exceptions.py",
             "providers/fab/tests/unit/fab/www/api_connexion/test_parameters.py",

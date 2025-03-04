@@ -125,7 +125,7 @@ repos:
           - --fuzzy-match-generates-todo
       - id: insert-license
         name: Add license for all YAML files except Helm templates
-        exclude: ^\.github/.*$|^chart/templates/.*|.*/reproducible_build.yaml$|^airflow/api_fastapi/core_api/openapi/v1-generated.yaml$|^airflow/auth/managers/simple/openapi/v1-generated.yaml$|^.*/pnpm-lock.yaml$
+        exclude: ^\.github/.*$|^chart/templates/.*|.*/reproducible_build.yaml$|^airflow/api_fastapi/core_api/openapi/v1-generated.yaml$|^airflow/auth/managers/simple/openapi/v1-generated.yaml$|^providers/fab/src/airflow/providers/fab/auth_manager/api_fastapi/openapi/v1-generated.yaml$|^.*/pnpm-lock.yaml$
         types: [yaml]
         files: \.ya?ml$
         args:
@@ -1383,7 +1383,7 @@ repos:
         language: python
         entry: ./scripts/ci/pre_commit/update_fastapi_api_spec.py
         pass_filenames: false
-        files: ^airflow/api_fastapi/.*\.py$
+        files: ^airflow/api_fastapi/.*\.py$|^airflow/auth/managers/simple/.*\.py$|^providers/fab/src/airflow/providers/fab/auth_manager/api_fastapi/.*\.py$
         exclude: ^airflow/api_fastapi/execution_api/.*
         additional_dependencies: ['rich>=12.4.4']
       - id: generate-tasksdk-datamodels

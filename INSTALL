@@ -133,6 +133,38 @@ You can also synchronize all extras:
 
     uv sync --all-extras
 
+Compiling front-end assets
+--------------------------
+
+In order to see UI in Airflow, you need to compile front-end assets. You can do it after installing
+node and pnpm and running (in `airflow/ui` directory):
+
+    pnpm install -frozen-lockfile --config.confirmModulesPurge=false
+    pnpm run build
+
+If you want to manually run the build check for node and pnpm version in `.pre-commit-config.yaml` file,
+but there are semi-automatic ways to build the assets.
+
+In case you use `breeze` or have `pre-commit` installed (see `contributing-docs` quick-start), you can
+build the assets with the following commands:
+
+    pre-commit run --hook-stage manual compile-ui-assets --all-files
+
+or
+
+    breeze compile-ui-assets
+
+Both commands will install node and pmpm under the hook, if needed, to a dedicated pre-commit
+node environment and then build the assets.
+
+Finally, you can also clean and recompile assets with `custom` build target when running the Hatch build:
+
+    hatch build -t custom -t wheel -t sdist
+
+This will also update `git_version` file in the Airflow package that should contain the git commit hash of the
+build. This is used to display the commit hash in the UI.
+
+
 Building airflow packages with Hatch
 ====================================
 
@@ -292,36 +324,3 @@ atlas, aws, azure, cassandra, crypto, druid, gcp, gcp-api, hdfs, hive, kubernete
 spark, webhdfs, winrm
 
 # END DEPRECATED EXTRAS HERE
-
-Compiling front-end assets
---------------------------
-
-Sometimes, you can see that front-end assets are missing, and the website looks broken. This is because
-you need to compile front-end assets. This is done automatically when you create a virtualenv
-with hatch, but if you want to do it manually, you can do it after installing node and yarn and running:
-
-    yarn install --frozen-lockfile
-    yarn run build
-
-Currently, we are running yarn coming with note 18.6.0, but you should check the version in
-our `.pre-commit-config.yaml` file (node version).
-
-Installing yarn is described in https://classic.yarnpkg.com/en/docs/install
-
-Also - in case you use `breeze` or have `pre-commit` installed, you can build the assets with the following:
-
-    pre-commit run --hook-stage manual compile-www-assets --all-files
-
-or
-
-    breeze compile-www-assets
-
-Both commands will install node and yarn, if needed, to a dedicated pre-commit node environment and
-then build the assets.
-
-Finally, you can also clean and recompile assets with `custom` build target when running the Hatch build
-
-    hatch build -t custom -t wheel -t sdist
-
-This will also update `git_version` file in the Airflow package that should contain the git commit hash of the
-build. This is used to display the commit hash in the UI.

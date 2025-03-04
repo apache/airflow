@@ -30,7 +30,14 @@ const ParseDag = ({ dagId, fileToken }: Props) => {
   const { isPending, mutate } = useDagParsing({ dagId });
 
   return (
-    <Button loading={isPending} onClick={() => mutate({ fileToken })} variant="outline">
+    <Button
+      aria-label="Reparse Dag"
+      border="none"
+      height={5}
+      loading={isPending}
+      onClick={() => mutate({ fileToken })}
+      variant="ghost"
+    >
       <AiOutlineFileSync height={5} width={5} />
       Reparse Dag
     </Button>

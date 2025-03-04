@@ -52,13 +52,13 @@ The package supports the following python versions: 3.9,3.10,3.11,3.12
 Requirements
 ------------
 
-=======================  ===============================================================
+=======================  ==================
 PIP package              Version required
-=======================  ===============================================================
+=======================  ==================
 ``apache-airflow``       ``>=2.9.0``
-``yandexcloud``          ``>=0.308.0,!=0.329.0,!=0.330.0,!=0.331.0,!=0.332.0,!=0.333.0``
+``yandexcloud``          ``>=0.308.0``
 ``yandex-query-client``  ``>=0.1.4``
-=======================  ===============================================================
+=======================  ==================
 
 The changelog for the provider package can be found in the
 `changelog <https://airflow.apache.org/docs/apache-airflow-providers-yandex/4.0.1/changelog.html>`_.

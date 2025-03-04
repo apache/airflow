@@ -27,6 +27,8 @@ import TimeRangeSelector from "src/components/TimeRangeSelector";
 import { TrendCountButton } from "src/components/TrendCountButton";
 import { isStatePending, useAutoRefresh } from "src/utils";
 
+import { FailedLogs } from "./FailedLogs";
+
 const defaultHour = "168";
 
 export const Overview = () => {
@@ -118,6 +120,7 @@ export const Overview = () => {
           )}
         </Box>
       </SimpleGrid>
+      <FailedLogs failedTasks={failedTasks} />
     </Box>
   );
 };

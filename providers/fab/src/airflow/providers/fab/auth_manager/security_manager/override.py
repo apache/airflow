@@ -2104,6 +2104,20 @@ class FabAirflowSecurityManagerOverride(AirflowSecurityManagerV2):
                 log.error(e)
                 return None
 
+    def check_password(self, username, password) -> bool:
+        """
+        Check if the password is correct for the username.
+
+        :param username: the username
+        :param password: the password
+        """
+        user = self.find_user(username=username)
+        if user is None:
+            user = self.find_user(email=username)
+        if user is None:
+            return False
+        return check_password_hash(user.password, password)
+
     def auth_user_db(self, username, password):
         """
         Authenticate user, auth db style.

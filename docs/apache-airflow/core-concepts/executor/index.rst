@@ -115,9 +115,6 @@ Airflow tasks are executed ad hoc inside containers/pods. Each task is isolated 
 Using Multiple Executors Concurrently
 -------------------------------------
 
-.. warning::
-    Multiple executor configuration is an alpha/experimental feature at the moment and may be subject to change without warning.
-
 Starting with version 2.10.0, Airflow can now operate with a multi-executor configuration. Each executor has its own set of pros and cons, often they are trade-offs between latency, isolation and compute efficiency among other properties (see :ref:`here <executor-types-comparison>` for comparisons of executors). Running multiple executors allows you to make better use of the strengths of all the available executors and avoid their weaknesses. In other words, you can use a specific executor for a specific set of tasks where its particular merits and benefits make the most sense for that use case.
 
 Configuration

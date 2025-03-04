@@ -189,6 +189,7 @@ def get_provider_info():
         "optional-dependencies": {
             "sdk": ["databricks-sdk==0.10.0"],
             "azure-identity": ["azure-identity>=1.3.1"],
+            "fab": ["apache-airflow-providers-fab"],
         },
         "devel-dependencies": ["deltalake>=0.12.0"],
     }

@@ -20,7 +20,7 @@ from unittest.mock import Mock, patch
 
 import pytest
 from fastapi import HTTPException
-from jwt import InvalidTokenError
+from jwt import ExpiredSignatureError, InvalidTokenError
 
 from airflow.api_fastapi.app import create_app
 from airflow.api_fastapi.core_api.security import get_user, requires_access_dag
@@ -58,7 +58,7 @@ class TestFastApiSecurity:
         assert result == user
 
     @patch("airflow.api_fastapi.core_api.security.get_auth_manager")
-    def test_get_user_unsuccessful(self, mock_get_auth_manager):
+    def test_get_user_wrong_token(self, mock_get_auth_manager):
         token_str = "test-token"
 
         auth_manager = Mock()
@@ -66,6 +66,19 @@ class TestFastApiSecurity:
         mock_get_auth_manager.return_value = auth_manager
 
         with pytest.raises(HTTPException, match="Forbidden"):
+            get_user(token_str)
+
+        auth_manager.get_user_from_token.assert_called_once_with(token_str)
+
+    @patch("airflow.api_fastapi.core_api.security.get_auth_manager")
+    def test_get_user_expired_token(self, mock_get_auth_manager):
+        token_str = "test-token"
+
+        auth_manager = Mock()
+        auth_manager.get_user_from_token.side_effect = ExpiredSignatureError()
+        mock_get_auth_manager.return_value = auth_manager
+
+        with pytest.raises(HTTPException, match="Token Expired"):
             get_user(token_str)
 
         auth_manager.get_user_from_token.assert_called_once_with(token_str)
