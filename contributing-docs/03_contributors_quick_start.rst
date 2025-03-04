@@ -505,7 +505,7 @@ Using Breeze
 
         Ports are forwarded to the running docker containers for webserver and database
           * 12322 -> forwarded to Airflow ssh server -> airflow:22
-          * 29091 -> forwarded to Airflow api server API -> airflow:9091
+          * 28080 -> forwarded to Airflow api server API -> airflow:8080
           * 25555 -> forwarded to Flower dashboard -> airflow:5555
           * 25433 -> forwarded to Postgres database -> postgres:5432
           * 23306 -> forwarded to MySQL database  -> mysql:3306
@@ -514,7 +514,7 @@ Using Breeze
         Direct links to those services that you can use from the host:
 
           * ssh connection for remote debugging: ssh -p 12322 airflow@127.0.0.1 (password: airflow)
-          * API server:    http://127.0.0.1:29091
+          * API server:    http://127.0.0.1:28080
           * Flower:    http://127.0.0.1:25555
           * Postgres:  jdbc:postgresql://127.0.0.1:25433/airflow?user=postgres&password=airflow
           * Mysql:     jdbc:mysql://127.0.0.1:23306/airflow?user=root
@@ -575,12 +575,12 @@ Using Breeze
     :select-layout tiled
 
 
-2. Now you can access airflow web interface on your local machine at |http://localhost:29091| with user name ``admin``
+2. Now you can access airflow web interface on your local machine at |http://localhost:28080| with user name ``admin``
    and password ``admin``
 
-   .. |http://localhost:29091| raw:: html
+   .. |http://localhost:28080| raw:: html
 
-      <a href="http://localhost:29091" target="_blank">http://localhost:29091</a>
+      <a href="http://localhost:28080" target="_blank">http://localhost:28080</a>
 
    .. raw:: html
 

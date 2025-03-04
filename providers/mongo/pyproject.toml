@@ -59,10 +59,10 @@ requires-python = "~=3.9"
 dependencies = [
     "apache-airflow>=2.9.0",
     "dnspython>=1.13.0",
-    # pymongo 4.11 had incompatible change leading to
-    # TypeError: BulkOperationBuilder.add_replace() got an unexpected keyword argument 'sort'
-    # See https://github.com/apache/airflow/issues/46215
-    "pymongo>=4.0.0,!=4.11,!=4.11.1",
+    # mongomock does not work with pymongo 4.11.
+    # See https://github.com/apache/airflow/issues/46215 and this one can be removed after
+    # https://github.com/mongomock/mongomock/issues/912 is closed by mongomock.
+    "pymongo>=4.0.0,<4.11.0",
 ]
 
 # The dependency groups should be modified in place in the generated file

@@ -141,5 +141,5 @@ use-subclass-enum=true # enum, not union of Literals
 use-union-operator=true # 3.9+annotations, not `Union[]`
 custom-formatters = ['dev.datamodel_code_formatter',]
 
-url = 'http://0.0.0.0:9091/execution/openapi.json'
+url = 'http://0.0.0.0:8080/execution/openapi.json'
 output = 'src/airflow/sdk/api/datamodels/_generated.py'

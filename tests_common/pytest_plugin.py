@@ -848,7 +848,10 @@ def dag_maker(request) -> Generator[DagMaker, None, None]:
                 dag.sync_to_db(session=self.session)
 
             if dag.access_control:
-                from airflow.www.security_appless import ApplessAirflowSecurityManager
+                if AIRFLOW_V_3_0_PLUS:
+                    from airflow.providers.fab.www.security_appless import ApplessAirflowSecurityManager
+                else:
+                    from airflow.www.security_appless import ApplessAirflowSecurityManager
 
                 security_manager = ApplessAirflowSecurityManager(session=self.session)
                 security_manager.sync_perm_for_dag(dag.dag_id, dag.access_control)
