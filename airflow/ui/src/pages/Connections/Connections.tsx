@@ -37,17 +37,26 @@ const columns: Array<ColumnDef<ConnectionResponse>> = [
   },
   {
     accessorKey: "description",
-    enableSorting: false,
+    enableSorting: true,
     header: "Description",
+  },
+  {
+    accessorKey: "host",
+    enableSorting: true,
+    header: "Host",
+  },
+  {
+    accessorKey: "port",
+    enableSorting: true,
+    header: "Port",
   },
 ];
 
 export const Connections = () => {
-  const { data, error } = useConnectionServiceGetConnections();
+  const { data, error, isFetching, isLoading } = useConnectionServiceGetConnections();
 
   return (
     <Box p={2}>
-      <Heading>Connections</Heading>
       <DataTable
         columns={columns}
         data={data?.connections ?? []}
