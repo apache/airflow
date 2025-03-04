@@ -113,7 +113,7 @@ def test_trigger_dag_and_wait_for_result(default_docker_image, tmp_path_factory,
         assert dag_state == "success"
     except Exception:
         print("HTTP: GET health")
-        pprint(api_request("GET", "health"))
+        pprint(api_request("GET", "monitor/health"))
         print(f"HTTP: GET dags/{DAG_ID}/dagRuns")
         pprint(api_request("GET", f"dags/{DAG_ID}/dagRuns"))
         print(f"HTTP: GET dags/{DAG_ID}/dagRuns/{DAG_RUN_ID}/taskInstances")

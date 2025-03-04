@@ -14,41 +14,38 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-
 from __future__ import annotations
 
-from fastapi import status
+from starlette import status
 
 from airflow.api_fastapi.common.router import AirflowRouter
 from airflow.api_fastapi.core_api.openapi.exceptions import create_openapi_http_exception_doc
-from airflow.auth.managers.simple.datamodels.login import LoginBody, LoginResponse
-from airflow.auth.managers.simple.services.login import SimpleAuthManagerLogin
 from airflow.configuration import conf
+from airflow.providers.fab.auth_manager.api_fastapi.datamodels.login import LoginBody, LoginResponse
+from airflow.providers.fab.auth_manager.api_fastapi.services.login import FABAuthManagerLogin
 
-login_router = AirflowRouter(tags=["SimpleAuthManagerLogin"])
+login_router = AirflowRouter(tags=["FabAuthManager"])
 
 
 @login_router.post(
     "/token",
+    response_model=LoginResponse,
     status_code=status.HTTP_201_CREATED,
     responses=create_openapi_http_exception_doc([status.HTTP_400_BAD_REQUEST, status.HTTP_401_UNAUTHORIZED]),
 )
-def create_token(
-    body: LoginBody,
-) -> LoginResponse:
-    """Authenticate the user."""
-    return SimpleAuthManagerLogin.create_token(body=body)
+def create_token(body: LoginBody) -> LoginResponse:
+    """Generate a new API token."""
+    return FABAuthManagerLogin.create_token(body=body)
 
 
 @login_router.post(
     "/token/cli",
+    response_model=LoginResponse,
     status_code=status.HTTP_201_CREATED,
     responses=create_openapi_http_exception_doc([status.HTTP_400_BAD_REQUEST, status.HTTP_401_UNAUTHORIZED]),
 )
-def create_token_cli(
-    body: LoginBody,
-) -> LoginResponse:
-    """Authenticate the user for the CLI."""
-    return SimpleAuthManagerLogin.create_token(
+def create_token_cli(body: LoginBody) -> LoginResponse:
+    """Generate a new CLI API token."""
+    return FABAuthManagerLogin.create_token(
         body=body, expiration_time_in_sec=conf.getint("api", "auth_jwt_cli_expiration_time")
     )
