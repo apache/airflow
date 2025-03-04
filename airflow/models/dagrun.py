@@ -859,6 +859,8 @@ class DagRun(Base, LoggingMixin):
         :param session: SQLAlchemy ORM Session
         """
         dag_run = session.get(DagRun, dag_run_id)
+        if not dag_run.logical_date:
+            return None
         return session.scalar(
             select(DagRun)
             .where(
