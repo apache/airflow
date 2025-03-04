@@ -661,6 +661,7 @@ class TestTIUpdateState:
         if retries:
             tih = tih.one()
             assert tih.try_id
+            assert tih.try_id != ti.try_id
 
     def test_ti_update_state_when_ti_is_restarting(self, client, session, create_task_instance):
         ti = create_task_instance(
