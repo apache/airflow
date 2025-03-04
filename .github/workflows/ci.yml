@@ -180,45 +180,99 @@ jobs:
   build-ci-images:
     name: Build CI images
     needs: [build-info]
-    uses: ./.github/workflows/ci-image-build.yml
+    runs-on: ${{ fromJSON(needs.build-info.outputs.runs-on-as-json-public) }}
     permissions:
       contents: read
-      # This write is only given here for `push` events from "apache/airflow" repo. It is not given for PRs
-      # from forks. This is to prevent malicious PRs from creating images in the "apache/airflow" repo.
       packages: write
-    with:
-      runs-on-as-json-public: ${{ needs.build-info.outputs.runs-on-as-json-public }}
-      runs-on-as-json-self-hosted: ${{ needs.build-info.outputs.runs-on-as-json-self-hosted }}
-      platform: "linux/amd64"
-      push-image: "false"
-      upload-image-artifact: "true"
-      upload-mount-cache-artifact: ${{ needs.build-info.outputs.canary-run }}
-      python-versions: '["3.9"]'
-      branch: ${{ needs.build-info.outputs.default-branch }}
-      use-uv: ${{ needs.build-info.outputs.use-uv }}
-      upgrade-to-newer-dependencies: ${{ needs.build-info.outputs.upgrade-to-newer-dependencies }}
-      constraints-branch: ${{ needs.build-info.outputs.default-constraints-branch }}
-      docker-cache: ${{ needs.build-info.outputs.docker-cache }}
-      disable-airflow-repo-cache: ${{ needs.build-info.outputs.disable-airflow-repo-cache }}
     if: needs.build-info.outputs.ci-image-build == 'true'
+    steps:
+      - name: "Checkout ${{ github.ref }} ( ${{ github.sha }} )"
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: "Check if CI image exists"
+        id: check-image
+        run: |
+          IMAGE_NAME="ghcr.io/${{ github.repository }}/ci-image:python-3.9"  # Hardcoded 3.9
+          if docker pull "$IMAGE_NAME" 2>/dev/null; then
+            echo "Image exists, skipping build"
+            echo "image_exists=true" >> $GITHUB_OUTPUT
+          else
+            echo "Image does not exist, will build"
+            echo "image_exists=false" >> $GITHUB_OUTPUT
+          fi
+      - name: "Build and Push CI Image"
+        if: steps.check-image.outputs.image_exists == 'false'
+        uses: ./.github/workflows/ci-image-build.yml
+        with:
+          runs-on-as-json-public: ${{ needs.build-info.outputs.runs-on-as-json-public }}
+          runs-on-as-json-self-hosted: ${{ needs.build-info.outputs.runs-on-as-json-self-hosted }}
+          platform: "linux/amd64"
+          push-image: "true"
+          upload-image-artifact: "false"
+          python-versions: '["3.9"]'
+          branch: ${{ needs.build-info.outputs.default-branch }}
+          use-uv: ${{ needs.build-info.outputs.use-uv }}
+          upgrade-to-newer-dependencies: ${{ needs.build-info.outputs.upgrade-to-newer-dependencies }}
+          constraints-branch: ${{ needs.build-info.outputs.default-constraints-branch }}
+          docker-cache: ${{ needs.build-info.outputs.docker-cache }}
+          disable-airflow-repo-cache: ${{ needs.build-info.outputs.disable-airflow-repo-cache }}
 
   tests-integration-system:
     name: Integration and System Tests
     needs: [build-info, build-ci-images]
-    uses: ./.github/workflows/integration-system-tests.yml
-    permissions:
-      contents: read
-      packages: read
-    with:
-      runs-on-as-json-public: ${{ needs.build-info.outputs.runs-on-as-json-public }}
-      testable-core-integrations: ${{ needs.build-info.outputs.testable-core-integrations }}
-      testable-providers-integrations: '["gremlin"]'
-      run-system-tests: ${{ needs.build-info.outputs.run-tests }}
-      default-python-version: ${{ needs.build-info.outputs.default-python-version }}
-      default-postgres-version: ${{ needs.build-info.outputs.default-postgres-version }}
-      default-mysql-version: ${{ needs.build-info.outputs.default-mysql-version }}
-      skip-providers-tests: ${{ needs.build-info.outputs.skip-providers-tests }}
-      run-coverage: ${{ needs.build-info.outputs.run-coverage }}
-      debug-resources: ${{ needs.build-info.outputs.debug-resources }}
-      use-uv: ${{ needs.build-info.outputs.use-uv }}
+    runs-on: ${{ fromJSON(needs.build-info.outputs.runs-on-as-json-public) }}
+    timeout-minutes: 130
     if: needs.build-info.outputs.run-tests == 'true'
+    env:
+      BACKEND: "postgres"
+      BACKEND_VERSION: ${{ needs.build-info.outputs.default-postgres-version }}
+      PYTHON_MAJOR_MINOR_VERSION: "3.9"  # Hardcoded 3.9
+      JOB_ID: "integration-providers-gremlin"
+      SKIP_PROVIDERS_TESTS: "${{ needs.build-info.outputs.skip-providers-tests }}"
+      ENABLE_COVERAGE: "${{ needs.build-info.outputs.run-coverage }}"
+      DEBUG_RESOURCES: "${{ needs.build-info.outputs.debug-resources }}"
+      GITHUB_REPOSITORY: ${{ github.repository }}
+      GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      GITHUB_USERNAME: ${{ github.actor }}
+      VERBOSE: "true"
+    steps:
+      - name: "Cleanup repo"
+        shell: bash
+        run: docker run -v "${GITHUB_WORKSPACE}:/workspace" -u 0:0 bash -c "rm -rf /workspace/*"
+      - name: "Checkout ${{ github.ref }} ( ${{ github.sha }} )"
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: "Pull CI Image"
+        run: |
+          IMAGE_NAME="ghcr.io/${{ github.repository }}/ci-image:python-3.9"  # Hardcoded 3.9
+          docker pull "$IMAGE_NAME"
+          docker image ls -a
+      - name: "Prepare Breeze"
+        uses: ./.github/actions/breeze
+        with:
+          use-uv: ${{ needs.build-info.outputs.use-uv }}
+      - name: "Check Gremlin Files"
+        run: ls -la /home/runner/work/airflow/airflow/scripts/ci/docker-compose/gremlin/
+      - name: "Integration: providers gremlin"
+        env:
+          INTEGRATION: "gremlin"
+        run: ./scripts/ci/testing/run_integration_tests_with_retry.sh providers "${INTEGRATION}"
+      - name: "Check Gremlin Logs"
+        run: |
+          GREMLIN_CONTAINER=$(docker ps -aq --filter "name=gremlin" | head -n 1)
+          if [[ -n "$GREMLIN_CONTAINER" ]]; then
+            docker logs "$GREMLIN_CONTAINER"
+          else
+            echo "No Gremlin container found"
+          fi
+        if: always()
+      - name: "Post Tests success"
+        uses: ./.github/actions/post_tests_success
+        with:
+          codecov-token: ${{ secrets.CODECOV_TOKEN }}
+          python-version: "3.9"  # Hardcoded 3.9
+      - name: "Post Tests failure"
+        uses: ./.github/actions/post_tests_failure
+        if: failure()
