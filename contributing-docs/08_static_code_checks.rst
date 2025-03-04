@@ -124,8 +124,6 @@ require Breeze Docker image to be built locally.
 +-----------------------------------------------------------+--------------------------------------------------------+---------+
 | check-airflow-k8s-not-used                                | Check airflow.kubernetes imports are not used          |         |
 +-----------------------------------------------------------+--------------------------------------------------------+---------+
-| check-airflow-provider-compatibility                      | Check compatibility of Providers with Airflow          |         |
-+-----------------------------------------------------------+--------------------------------------------------------+---------+
 | check-airflow-providers-bug-report-template               | Sort airflow-bug-report provider list                  |         |
 +-----------------------------------------------------------+--------------------------------------------------------+---------+
 | check-apache-license-rat                                  | Check if licenses are OK for Apache                    |         |
@@ -319,9 +317,6 @@ require Breeze Docker image to be built locally.
 +-----------------------------------------------------------+--------------------------------------------------------+---------+
 | lint-markdown                                             | Run markdownlint                                       |         |
 +-----------------------------------------------------------+--------------------------------------------------------+---------+
-| lint-openapi                                              | * Lint OpenAPI using spectral                          |         |
-|                                                           | * Lint OpenAPI using openapi-spec-validator            |         |
-+-----------------------------------------------------------+--------------------------------------------------------+---------+
 | mixed-line-ending                                         | Detect if mixed line ending is used (\r vs. \r\n)      |         |
 +-----------------------------------------------------------+--------------------------------------------------------+---------+
 | mypy-airflow                                              | * Run mypy for airflow                                 | *       |
@@ -382,8 +377,6 @@ require Breeze Docker image to be built locally.
 | update-local-yml-file                                     | Update mounts in the local yml file                    |         |
 +-----------------------------------------------------------+--------------------------------------------------------+---------+
 | update-migration-references                               | Update migration ref doc                               | *       |
-+-----------------------------------------------------------+--------------------------------------------------------+---------+
-| update-openapi-spec-tags-to-be-sorted                     | Sort alphabetically openapi spec tags                  |         |
 +-----------------------------------------------------------+--------------------------------------------------------+---------+
 | update-providers-build-files                              | Update providers build files                           |         |
 +-----------------------------------------------------------+--------------------------------------------------------+---------+

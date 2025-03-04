@@ -54,7 +54,7 @@ Requirements
 PIP package                              Version required
 =======================================  ==================
 ``apache-airflow``                       ``>=2.9.0``
-``apache-airflow-providers-common-sql``  ``>=1.20.0``
+``apache-airflow-providers-common-sql``  ``>=1.23.0``
 ``pymssql``                              ``>=2.3.0``
 ``methodtools``                          ``>=0.4.7``
 =======================================  ==================

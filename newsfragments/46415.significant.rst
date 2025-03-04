@@ -22,4 +22,5 @@ old signature, supported at runtime for compatibility, has been removed.
     * AIR302
 
       * [ ] Signature of ``airflow.models.baseoperatorlink.BaseOperatorLink.get_link`` changed
+
       .. detailed in https://github.com/apache/airflow/pull/46415#issuecomment-2636186625

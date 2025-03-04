@@ -18,7 +18,7 @@
  */
 import { Box, HStack, Skeleton, SimpleGrid } from "@chakra-ui/react";
 import dayjs from "dayjs";
-import { useState } from "react";
+import { lazy, useState, Suspense } from "react";
 import { useParams } from "react-router-dom";
 
 import { useDagRunServiceGetDagRuns, useTaskInstanceServiceGetTaskInstances } from "openapi/queries";
@@ -27,7 +27,9 @@ import TimeRangeSelector from "src/components/TimeRangeSelector";
 import { TrendCountButton } from "src/components/TrendCountButton";
 import { isStatePending, useAutoRefresh } from "src/utils";
 
-const defaultHour = "168";
+const FailedLogs = lazy(() => import("./FailedLogs"));
+
+const defaultHour = "24";
 
 export const Overview = () => {
   const { dagId } = useParams();
@@ -118,6 +120,9 @@ export const Overview = () => {
           )}
         </Box>
       </SimpleGrid>
+      <Suspense fallback={<Skeleton height="100px" width="full" />}>
+        <FailedLogs failedTasks={failedTasks} />
+      </Suspense>
     </Box>
   );
 };
