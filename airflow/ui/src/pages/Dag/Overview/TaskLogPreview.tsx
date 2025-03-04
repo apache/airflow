@@ -34,12 +34,18 @@ export const TaskLogPreview = ({
   readonly taskInstance: TaskInstanceResponse;
   readonly wrap: boolean;
 }) => {
-  const { data, error, isLoading } = useLogs({
-    dagId: taskInstance.dag_id,
-    logLevelFilters: ["warning", "error", "critical"],
-    taskInstance,
-    tryNumber: taskInstance.try_number,
-  });
+  const { data, error, isLoading } = useLogs(
+    {
+      dagId: taskInstance.dag_id,
+      logLevelFilters: ["error", "critical"],
+      taskInstance,
+      tryNumber: taskInstance.try_number,
+    },
+    {
+      refetchInterval: false,
+      retry: false,
+    },
+  );
 
   return (
     <Box borderRadius={4} borderStyle="solid" borderWidth={1} key={taskInstance.id} width="100%">
