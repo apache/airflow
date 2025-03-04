@@ -30,7 +30,6 @@ import inspect
 import json
 import logging
 import os
-import warnings
 from copy import deepcopy
 from functools import cached_property, wraps
 from pathlib import Path
@@ -755,13 +754,6 @@ class AwsGenericHook(BaseHook, Generic[BaseAwsConnection]):
         This property is deprecated. Accessing it in an async context will cause the event loop to block.
         Use the async method `get_async_conn` instead.
         """
-        warnings.warn(
-            "The property `async_conn` is deprecated. Accessing it in an async context will cause the event loop to block. "
-            "Use the async method `get_async_conn` instead.",
-            DeprecationWarning,
-            stacklevel=2,
-        )
-
         return self._get_async_conn()
 
     async def get_async_conn(self):
