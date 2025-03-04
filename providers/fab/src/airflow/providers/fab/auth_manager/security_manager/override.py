@@ -113,6 +113,7 @@ from airflow.providers.fab.www.session import (
     AirflowDatabaseSessionInterface,
     AirflowDatabaseSessionInterface as FabAirflowDatabaseSessionInterface,
 )
+from airflow.providers.fab.www.utils import get_fab_auth_manager
 
 if TYPE_CHECKING:
     from airflow.providers.fab.www.security.permissions import RESOURCE_ASSET
@@ -2461,7 +2462,7 @@ class FabAirflowSecurityManagerOverride(AirflowSecurityManagerV2):
         return user
 
     def get_user_menu_access(self, menu_names: list[str] | None = None) -> set[str]:
-        if get_auth_manager().is_logged_in():
+        if get_fab_auth_manager().is_logged_in():
             return self._get_user_permission_resources(g.user, "menu_access", resource_names=menu_names)
         elif current_user_jwt:
             return self._get_user_permission_resources(
