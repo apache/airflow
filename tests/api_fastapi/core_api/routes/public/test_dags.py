@@ -240,6 +240,17 @@ class TestGetDags(TestDagEndpoint):
         assert body["total_entries"] == expected_total_entries
         assert [dag["dag_id"] for dag in body["dags"]] == expected_ids
 
+    @mock.patch("airflow.auth.managers.base_auth_manager.BaseAuthManager.get_permitted_dag_ids")
+    def test_get_dags_should_call_permitted_dag_ids(self, mock_get_permitted_dag_ids, test_client):
+        mock_get_permitted_dag_ids.return_value = {DAG1_ID, DAG2_ID}
+        response = test_client.get("/public/dags")
+        mock_get_permitted_dag_ids.assert_called_once_with(user=mock.ANY, methods=["GET"])
+        assert response.status_code == 200
+        body = response.json()
+
+        assert body["total_entries"] == 2
+        assert [dag["dag_id"] for dag in body["dags"]] == [DAG1_ID, DAG2_ID]
+
     def test_get_dags_should_response_401(self, unauthenticated_test_client):
         response = unauthenticated_test_client.get("/public/dags")
         assert response.status_code == 401
@@ -337,6 +348,18 @@ class TestPatchDags(TestDagEndpoint):
             assert [dag["dag_id"] for dag in body["dags"]] == expected_ids
             paused_dag_ids = [dag["dag_id"] for dag in body["dags"] if dag["is_paused"]]
             assert paused_dag_ids == expected_paused_ids
+
+    @mock.patch("airflow.auth.managers.base_auth_manager.BaseAuthManager.get_permitted_dag_ids")
+    def test_patch_dags_should_call_permitted_dag_ids(self, mock_get_permitted_dag_ids, test_client):
+        mock_get_permitted_dag_ids.return_value = {DAG1_ID, DAG2_ID}
+        response = test_client.patch(
+            "/public/dags", json={"is_paused": False}, params={"only_active": False, "dag_id_pattern": "~"}
+        )
+        mock_get_permitted_dag_ids.assert_called_once_with(user=mock.ANY, methods=["PUT"])
+        assert response.status_code == 200
+        body = response.json()
+
+        assert [dag["dag_id"] for dag in body["dags"]] == [DAG1_ID, DAG2_ID]
 
     def test_patch_dags_should_response_401(self, unauthenticated_test_client):
         response = unauthenticated_test_client.patch("/public/dags", json={"is_paused": True})

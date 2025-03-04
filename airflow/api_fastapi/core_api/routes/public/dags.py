@@ -57,7 +57,11 @@ from airflow.api_fastapi.core_api.datamodels.dags import (
     DAGResponse,
 )
 from airflow.api_fastapi.core_api.openapi.exceptions import create_openapi_http_exception_doc
-from airflow.api_fastapi.core_api.security import requires_access_dag
+from airflow.api_fastapi.core_api.security import (
+    EditableDagsFilterDep,
+    ReadableDagsFilterDep,
+    requires_access_dag,
+)
 from airflow.exceptions import AirflowException, DagNotFound
 from airflow.models import DAG, DagModel
 from airflow.models.dagrun import DagRun
@@ -105,6 +109,7 @@ def get_dags(
             ).dynamic_depends()
         ),
     ],
+    readable_dag_filter: ReadableDagsFilterDep,
     session: SessionDep,
 ) -> DAGCollectionResponse:
     """Get all DAGs."""
@@ -132,6 +137,7 @@ def get_dags(
             tags,
             owners,
             last_dag_run_state,
+            readable_dag_filter,
         ],
         order_by=order_by,
         offset=offset,
@@ -265,6 +271,7 @@ def patch_dags(
     only_active: QueryOnlyActiveFilter,
     paused: QueryPausedFilter,
     last_dag_run_state: QueryLastDagRunStateFilter,
+    editable_dag_filter: EditableDagsFilterDep,
     session: SessionDep,
     update_mask: list[str] | None = Query(None),
 ) -> DAGCollectionResponse:
@@ -285,7 +292,7 @@ def patch_dags(
 
     dags_select, total_entries = paginated_select(
         statement=generate_dag_with_latest_run_query(),
-        filters=[only_active, paused, dag_id_pattern, tags, owners, last_dag_run_state],
+        filters=[only_active, paused, dag_id_pattern, tags, owners, last_dag_run_state, editable_dag_filter],
         order_by=None,
         offset=offset,
         limit=limit,
