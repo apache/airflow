@@ -134,7 +134,7 @@ def grid_data(
     if root:
         task_node_map_exclude = get_task_group_map(
             dag=dag.partial_subset(
-                task_ids_or_regex=root,
+                task_ids=root,
                 include_upstream=include_upstream,
                 include_downstream=include_downstream,
             )

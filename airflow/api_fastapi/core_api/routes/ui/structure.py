@@ -70,7 +70,7 @@ def structure_data(
 
     if root:
         dag = dag.partial_subset(
-            task_ids_or_regex=root, include_upstream=include_upstream, include_downstream=include_downstream
+            task_ids=root, include_upstream=include_upstream, include_downstream=include_downstream
         )
 
     nodes = [task_group_to_dict(child) for child in dag.task_group.topological_sort()]

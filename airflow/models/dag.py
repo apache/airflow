@@ -1134,7 +1134,7 @@ class DAG(TaskSDKDag, LoggingMixin):
                     if not external_dag:
                         raise AirflowException(f"Could not find dag {tii.dag_id}")
                     downstream = external_dag.partial_subset(
-                        task_ids_or_regex=[tii.task_id],
+                        task_ids=[tii.task_id],
                         include_upstream=False,
                         include_downstream=True,
                     )
@@ -1248,7 +1248,7 @@ class DAG(TaskSDKDag, LoggingMixin):
         # Flush the session so that the tasks marked success are reflected in the db.
         session.flush()
         subdag = self.partial_subset(
-            task_ids_or_regex={task_id},
+            task_ids={task_id},
             include_downstream=True,
             include_upstream=False,
         )
@@ -1360,7 +1360,7 @@ class DAG(TaskSDKDag, LoggingMixin):
             # Flush the session so that the tasks marked success are reflected in the db.
             session.flush()
             task_subset = self.partial_subset(
-                task_ids_or_regex=task_ids,
+                task_ids=task_ids,
                 include_downstream=True,
                 include_upstream=False,
             )
