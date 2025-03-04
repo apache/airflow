@@ -30,45 +30,40 @@ INTEGRATION=${2}
 
 breeze down
 
-# Check for Gremlin container before starting tests
-echo "${COLOR_YELLOW}Checking for Gremlin container...${COLOR_RESET}"
-echo "Listing all containers:"
-docker ps -a
-echo "Filtering for Gremlin containers:"
-docker ps -a --filter "name=gremlin"
-# If a Gremlin container exists, inspect it
-GREMLIN_CONTAINER=$(docker ps -aq --filter "name=gremlin" | head -n 1)
-if [[ -n "$GREMLIN_CONTAINER" ]]; then
-    echo "Gremlin container found: $GREMLIN_CONTAINER"
-    echo "Detailed inspection:"
-    docker inspect "$GREMLIN_CONTAINER"
-    echo "Formatted details (Name - IP - Ports):"
-    docker inspect "$GREMLIN_CONTAINER" -f '{{.Name}} - {{.NetworkSettings.IPAddress}} - {{range $p, $conf := .NetworkSettings.Ports}}{{$p}} -> {{range $conf}}{{.HostIp}}:{{.HostPort}}{{end}}{{end}}'
-else
-    echo "${COLOR_RED}No Gremlin container found yet.${COLOR_RESET}"
-    echo "Breeze testing will start the environment next—check logs after."
-fi
+# Function to check Gremlin container in parallel
+check_gremlin_container() {
+    echo "${COLOR_YELLOW}Starting Gremlin container check in background...${COLOR_RESET}"
+    local max_attempts=30  # Adjust based on how long breeze takes to start Gremlin
+    local sleep_interval=2
+    local attempt=1
+
+    while [[ $attempt -le $max_attempts ]]; do
+        GREMLIN_CONTAINER=$(docker ps -q --filter "name=gremlin")
+        if [[ -n "$GREMLIN_CONTAINER" ]]; then
+            echo "${COLOR_YELLOW}Gremlin container found: $GREMLIN_CONTAINER${COLOR_RESET}"
+            echo "Detailed inspection:"
+            docker inspect "$GREMLIN_CONTAINER"
+            echo "Formatted details (Name - IP - Ports):"
+            docker inspect "$GREMLIN_CONTAINER" -f '{{.Name}} - {{.NetworkSettings.IPAddress}} - {{range $p, $conf := .NetworkSettings.Ports}}{{$p}} -> {{range $conf}}{{.HostIp}}:{{.HostPort}}{{end}}{{end}}'
+            break
+        fi
+        echo "Attempt $attempt/$max_attempts: No Gremlin container yet, waiting $sleep_interval seconds..."
+        sleep $sleep_interval
+        ((attempt++))
+    done
+    if [[ -z "$GREMLIN_CONTAINER" ]]; then
+        echo "${COLOR_RED}No Gremlin container found after $max_attempts attempts!${COLOR_RESET}"
+    fi
+}
+
+# Run the container check in the background
+check_gremlin_container &
 
 set +e
 breeze testing "${TEST_GROUP}-integration-tests" --integration "${INTEGRATION}"
 RESULT=$?
 set -e
-if [[ ${RESULT} != "0" ]]; then
-    echo
-    echo "${COLOR_YELLOW}The ${TEST_GROUP} Integration Tests failed. Retrying once${COLOR_RESET}"
-    echo
-    echo "This could be due to a flaky test, re-running once to re-check it After restarting docker."
-    echo
-    sudo service docker restart
-    breeze down
-    set +e
-    breeze testing "${TEST_GROUP}-integration-tests" --integration "${INTEGRATION}"
-    RESULT=$?
-    set -e
-    if [[ ${RESULT} != "0" ]]; then
-        echo
-        echo "${COLOR_RED}The ${TEST_GROUP} integration tests failed for the second time! Giving up${COLOR_RESET}"
-        echo
-        exit ${RESULT}
-    fi
-fi
+echo
+echo "${COLOR_YELLOW}The ${TEST_GROUP} Integration Tests failed. Retrying once${COLOR_RESET}"
+echo
+exit ${RESULT}
