@@ -1662,6 +1662,8 @@ paths:
       summary: Delete Connection
       description: Delete a connection entry.
       operationId: delete_connection
+      security:
+      - OAuth2PasswordBearer: []
       parameters:
       - name: connection_id
         in: path
@@ -1702,6 +1704,8 @@ paths:
       summary: Get Connection
       description: Get a connection entry.
       operationId: get_connection
+      security:
+      - OAuth2PasswordBearer: []
       parameters:
       - name: connection_id
         in: path
@@ -1746,6 +1750,8 @@ paths:
       summary: Patch Connection
       description: Update a connection entry.
       operationId: patch_connection
+      security:
+      - OAuth2PasswordBearer: []
       parameters:
       - name: connection_id
         in: path
@@ -1813,6 +1819,8 @@ paths:
       summary: Get Connections
       description: Get all connection entries.
       operationId: get_connections
+      security:
+      - OAuth2PasswordBearer: []
       parameters:
       - name: limit
         in: query
@@ -1874,6 +1882,8 @@ paths:
       summary: Post Connection
       description: Create connection entry.
       operationId: post_connection
+      security:
+      - OAuth2PasswordBearer: []
       requestBody:
         required: true
         content:
@@ -1917,6 +1927,8 @@ paths:
       summary: Bulk Connections
       description: Bulk create, update, and delete connections.
       operationId: bulk_connections
+      security:
+      - OAuth2PasswordBearer: []
       requestBody:
         required: true
         content:
@@ -1995,6 +2007,8 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/HTTPValidationError'
+      security:
+      - OAuth2PasswordBearer: []
   /public/connections/defaults:
     post:
       tags:
@@ -2017,6 +2031,8 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/HTTPExceptionResponse'
+      security:
+      - OAuth2PasswordBearer: []
   /public/dags/{dag_id}/dagRuns/{dag_run_id}:
     get:
       tags:
@@ -4061,6 +4077,8 @@ paths:
       summary: Delete Pool
       description: Delete a pool entry.
       operationId: delete_pool
+      security:
+      - OAuth2PasswordBearer: []
       parameters:
       - name: pool_name
         in: path
@@ -4107,6 +4125,8 @@ paths:
       summary: Get Pool
       description: Get a pool.
       operationId: get_pool
+      security:
+      - OAuth2PasswordBearer: []
       parameters:
       - name: pool_name
         in: path
@@ -4151,6 +4171,8 @@ paths:
       summary: Patch Pool
       description: Update a Pool.
       operationId: patch_pool
+      security:
+      - OAuth2PasswordBearer: []
       parameters:
       - name: pool_name
         in: path
@@ -4218,6 +4240,8 @@ paths:
       summary: Get Pools
       description: Get all pools entries.
       operationId: get_pools
+      security:
+      - OAuth2PasswordBearer: []
       parameters:
       - name: limit
         in: query
@@ -4287,6 +4311,8 @@ paths:
       summary: Post Pool
       description: Create a Pool.
       operationId: post_pool
+      security:
+      - OAuth2PasswordBearer: []
       requestBody:
         required: true
         content:
@@ -4330,6 +4356,8 @@ paths:
       summary: Bulk Pools
       description: Bulk create, update, and delete pools.
       operationId: bulk_pools
+      security:
+      - OAuth2PasswordBearer: []
       requestBody:
         required: true
         content:
@@ -10106,6 +10134,21 @@ components:
       - arrange
       title: StructureDataResponse
       description: Structure Data serializer for responses.
+    StructuredLogMessage:
+      properties:
+        timestamp:
+          type: string
+          format: date-time
+          title: Timestamp
+        event:
+          type: string
+          title: Event
+      additionalProperties: true
+      type: object
+      required:
+      - event
+      title: StructuredLogMessage
+      description: An individual log message.
     TaskCollectionResponse:
       properties:
         tasks:
@@ -10438,7 +10481,6 @@ components:
         rendered_fields:
           type: object
           title: Rendered Fields
-          default: {}
         trigger:
           anyOf:
           - $ref: '#/components/schemas/TriggerResponse'
@@ -10697,7 +10739,13 @@ components:
     TaskInstancesLogResponse:
       properties:
         content:
-          type: string
+          anyOf:
+          - items:
+              $ref: '#/components/schemas/StructuredLogMessage'
+            type: array
+          - items:
+              type: string
+            type: array
           title: Content
         continuation_token:
           anyOf:
@@ -11286,3 +11334,10 @@ components:
       - value
       title: XComUpdateBody
       description: Payload serializer for updating an XCom entry.
+  securitySchemes:
+    OAuth2PasswordBearer:
+      type: oauth2
+      flows:
+        password:
+          scopes: {}
+          tokenUrl: token

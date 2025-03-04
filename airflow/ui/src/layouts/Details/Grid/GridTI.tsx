@@ -27,6 +27,7 @@ import { StateIcon } from "src/components/StateIcon";
 type Props = {
   readonly dagId: string;
   readonly isGroup?: boolean;
+  readonly isMapped?: boolean | null;
   readonly label: string;
   readonly runId: string;
   readonly search: string;
@@ -50,9 +51,9 @@ const onMouseLeave = (event: MouseEvent<HTMLDivElement>) => {
   });
 };
 
-const Instance = ({ dagId, runId, search, state, taskId }: Props) => (
+const Instance = ({ dagId, isGroup, isMapped, runId, search, state, taskId }: Props) => (
   <Flex
-    alignItems="flex-end"
+    alignItems="center"
     height="20px"
     id={taskId.replaceAll(".", "-")}
     justifyContent="center"
@@ -64,13 +65,7 @@ const Instance = ({ dagId, runId, search, state, taskId }: Props) => (
     transition="background-color 0.2s"
     zIndex={1}
   >
-    <Link
-      replace
-      to={{
-        pathname: `/dags/${dagId}/runs/${runId}/tasks/${taskId}`,
-        search,
-      }}
-    >
+    {isGroup ? (
       <Badge
         borderRadius={4}
         colorPalette={state === null ? "none" : state}
@@ -91,7 +86,36 @@ const Instance = ({ dagId, runId, search, state, taskId }: Props) => (
           />
         )}
       </Badge>
-    </Link>
+    ) : (
+      <Link
+        replace
+        to={{
+          pathname: `/dags/${dagId}/runs/${runId}/tasks/${taskId}${isMapped ? "/mapped" : ""}`,
+          search,
+        }}
+      >
+        <Badge
+          borderRadius={4}
+          colorPalette={state === null ? "none" : state}
+          height="14px"
+          minH={0}
+          opacity={state === "success" ? 0.6 : 1}
+          p={0}
+          variant="solid"
+          width="14px"
+        >
+          {state === undefined ? undefined : (
+            <StateIcon
+              size={10}
+              state={state}
+              style={{
+                marginLeft: "2px",
+              }}
+            />
+          )}
+        </Badge>
+      </Link>
+    )}
   </Flex>
 );
 

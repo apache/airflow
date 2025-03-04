@@ -108,6 +108,13 @@ on:  # yamllint disable-line rule:truthy
         description: "Whether to use uv to build the image (true/false)"
         required: true
         type: string
+    secrets:
+      DOCS_AWS_ACCESS_KEY_ID:
+        required: true
+      DOCS_AWS_SECRET_ACCESS_KEY:
+        required: true
+
+
 permissions:
   contents: read
 jobs:
@@ -304,6 +311,9 @@ jobs:
   publish-docs:
     timeout-minutes: 150
     name: "Publish documentation"
+    permissions:
+      id-token: write
+      contents: read
     needs: build-docs
     runs-on: ${{ fromJSON(inputs.runs-on-as-json-docs-build) }}
     env:

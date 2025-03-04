@@ -27,7 +27,7 @@ def get_provider_info():
         "name": "Presto",
         "description": "`Presto <https://prestodb.io/>`__\n",
         "state": "ready",
-        "source-date-epoch": 1739964169,
+        "source-date-epoch": 1740734178,
         "versions": [
             "5.8.1",
             "5.8.0",

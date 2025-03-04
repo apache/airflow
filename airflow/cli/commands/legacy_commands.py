@@ -19,35 +19,8 @@ from __future__ import annotations
 from argparse import ArgumentError
 
 COMMAND_MAP = {
-    "worker": "celery worker",
-    "flower": "celery flower",
-    "trigger_dag": "dags trigger",
-    "delete_dag": "dags delete",
-    "show_dag": "dags show",
-    "list_dag": "dags list",
-    "dag_status": "dags status",
-    "list_dag_runs": "dags list-runs",
-    "pause": "dags pause",
-    "unpause": "dags unpause",
-    "test": "tasks test",
-    "clear": "tasks clear",
-    "list_tasks": "tasks list",
-    "task_failed_deps": "tasks failed-deps",
-    "task_state": "tasks state",
-    "run": "tasks run",
-    "render": "tasks render",
-    "initdb": "db migrate",
-    "db init": "db migrate",
-    "resetdb": "db reset",
-    "upgradedb": "db migrate",
-    "db upgrade": "db migrate",
-    "checkdb": "db check",
-    "shell": "db shell",
-    "pool": "pools",
-    "list_users": "users list",
-    "create_user": "users create",
-    "delete_user": "users delete",
     "dags backfill": "backfill create",
+    "webserver": "api-server",
 }
 
 

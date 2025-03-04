@@ -564,7 +564,7 @@ def cli():
 @option_tag
 @option_header_separator
 def operators_and_hooks(tag: Iterable[str], header_separator: str):
-    """Renders Operators ahd Hooks content"""
+    """Renders Operators and Hooks content"""
     print(_render_operator_content(tags=set(tag) if tag else None, header_separator=header_separator))
 
 

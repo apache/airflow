@@ -31,9 +31,12 @@ from google.cloud import storage  # type: ignore[attr-defined]
 from airflow.configuration import conf
 from airflow.exceptions import AirflowNotFoundException
 from airflow.providers.google.cloud.hooks.gcs import GCSHook, _parse_gcs_url
-from airflow.providers.google.cloud.utils.credentials_provider import get_credentials_and_project_id
+from airflow.providers.google.cloud.utils.credentials_provider import (
+    get_credentials_and_project_id,
+)
 from airflow.providers.google.common.consts import CLIENT_INFO
 from airflow.providers.google.common.hooks.base_google import PROVIDE_PROJECT_ID
+from airflow.providers.google.version_compat import AIRFLOW_V_3_0_PLUS
 from airflow.utils.log.file_task_handler import FileTaskHandler
 from airflow.utils.log.logging_mixin import LoggingMixin
 
@@ -188,9 +191,13 @@ class GCSTaskHandler(FileTaskHandler, LoggingMixin):
 
         if blobs:
             uris = [f"gs://{bucket}/{b.name}" for b in blobs]
-            messages.extend(["Found remote logs:", *[f"  * {x}" for x in sorted(uris)]])
+            if AIRFLOW_V_3_0_PLUS:
+                messages = uris
+            else:
+                messages.extend(["Found remote logs:", *[f"  * {x}" for x in sorted(uris)]])
         else:
-            messages.append(f"No logs found in GCS; ti=%s {ti}")
+            if not AIRFLOW_V_3_0_PLUS:
+                messages.append(f"No logs found in GCS; ti=%s {ti}")
         try:
             for key in sorted(uris):
                 blob = storage.Blob.from_string(key, self.client)
@@ -198,7 +205,8 @@ class GCSTaskHandler(FileTaskHandler, LoggingMixin):
                 if remote_log:
                     logs.append(remote_log)
         except Exception as e:
-            messages.append(f"Unable to read remote log {e}")
+            if not AIRFLOW_V_3_0_PLUS:
+                messages.append(f"Unable to read remote log {e}")
         return messages, logs
 
     def gcs_write(self, log, remote_log_location) -> bool:

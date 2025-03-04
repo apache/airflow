@@ -311,7 +311,7 @@ class EmrContainerSensor(BaseSensorOperator):
         )
 
         if state in self.FAILURE_STATES:
-            raise AirflowException("EMR Containers sensor failed")
+            raise AirflowException(f"EMR Containers sensor failed due to state: {state}")
 
         if state in self.INTERMEDIATE_STATES:
             return False

@@ -27,7 +27,7 @@ def get_provider_info():
         "name": "Trino",
         "description": "`Trino <https://trino.io/>`__\n",
         "state": "ready",
-        "source-date-epoch": 1739964592,
+        "source-date-epoch": 1740734207,
         "versions": [
             "6.0.1",
             "6.0.0",

@@ -48,13 +48,12 @@ def api_server(args):
 
     apps = args.apps
     access_logfile = args.access_logfile or "-"
-    access_logformat = args.access_logformat
     num_workers = args.workers
     worker_timeout = args.worker_timeout
     proxy_headers = args.proxy_headers
 
-    if args.debug:
-        print(f"Starting the API server on port {args.port} and host {args.hostname} debug.")
+    if args.dev:
+        print(f"Starting the API server on port {args.port} and host {args.host} in development mode.")
         log.warning("Running in dev mode, ignoring uvicorn args")
 
         run_args = [
@@ -64,13 +63,13 @@ def api_server(args):
             "--port",
             str(args.port),
             "--host",
-            str(args.hostname),
+            str(args.host),
         ]
 
         if args.proxy_headers:
             run_args.append("--proxy-headers")
 
-        # There is no way to pass the apps to airflow/api_fastapi/main.py in the debug mode
+        # There is no way to pass the apps to airflow/api_fastapi/main.py in the development mode
         # because fastapi dev command does not accept any additional arguments
         # so environment variable is being used to pass it
         os.environ["AIRFLOW_API_APPS"] = apps
@@ -91,18 +90,17 @@ def api_server(args):
                 Running the uvicorn with:
                 Apps: {apps}
                 Workers: {num_workers}
-                Host: {args.hostname}:{args.port}
+                Host: {args.host}:{args.port}
                 Timeout: {worker_timeout}
                 Logfiles: {access_logfile}
-                Access Logformat: {access_logformat}
                 ================================================================="""
             )
         )
         ssl_cert, ssl_key = _get_ssl_cert_and_key_filepaths(args)
-        setproctitle(f"airflow api_server -- host:{args.hostname} port:{args.port}")
+        setproctitle(f"airflow api_server -- host:{args.host} port:{args.port}")
         uvicorn.run(
             "airflow.api_fastapi.main:app",
-            host=args.hostname,
+            host=args.host,
             port=args.port,
             workers=num_workers,
             timeout_keep_alive=worker_timeout,

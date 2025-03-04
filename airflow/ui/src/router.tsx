@@ -24,7 +24,9 @@ import { ConfigService } from "openapi/requests/services.gen";
 import { BaseLayout } from "src/layouts/BaseLayout";
 import { DagsLayout } from "src/layouts/DagsLayout";
 import { AssetsList } from "src/pages/AssetsList";
+import { Connections } from "src/pages/Connections";
 import { Dag } from "src/pages/Dag";
+import { Backfills } from "src/pages/Dag/Backfills";
 import { Code } from "src/pages/Dag/Code";
 import { Overview } from "src/pages/Dag/Overview";
 import { Tasks } from "src/pages/Dag/Tasks";
@@ -33,6 +35,7 @@ import { DagsList } from "src/pages/DagsList";
 import { Dashboard } from "src/pages/Dashboard";
 import { ErrorPage } from "src/pages/Error";
 import { Events } from "src/pages/Events";
+import { MappedTaskInstance } from "src/pages/MappedTaskInstance";
 import { Plugins } from "src/pages/Plugins";
 import { Pools } from "src/pages/Pools";
 import { Providers } from "src/pages/Providers";
@@ -48,6 +51,16 @@ import { Variables } from "src/pages/Variables";
 import { XCom } from "src/pages/XCom";
 
 import { queryClient } from "./queryClient";
+
+const taskInstanceRoutes = [
+  { element: <Logs />, index: true },
+  { element: <Events />, path: "events" },
+  { element: <XCom />, path: "xcom" },
+  { element: <Code />, path: "code" },
+  { element: <Details />, path: "details" },
+  { element: <RenderedTemplates />, path: "rendered_templates" },
+  { element: <TaskInstances />, path: "task_instances" },
+];
 
 export const routerConfig = [
   {
@@ -105,10 +118,15 @@ export const routerConfig = [
         path: "plugins",
       },
       {
+        element: <Connections />,
+        path: "connections",
+      },
+      {
         children: [
           { element: <Overview />, index: true },
           { element: <DagRuns />, path: "runs" },
           { element: <Tasks />, path: "tasks" },
+          { element: <Backfills />, path: "backfills" },
           { element: <Events />, path: "events" },
           { element: <Code />, path: "code" },
         ],
@@ -126,16 +144,19 @@ export const routerConfig = [
         path: "dags/:dagId/runs/:runId",
       },
       {
-        children: [
-          { element: <Logs />, index: true },
-          { element: <Events />, path: "events" },
-          { element: <XCom />, path: "xcom" },
-          { element: <Code />, path: "code" },
-          { element: <Details />, path: "details" },
-          { element: <RenderedTemplates />, path: "rendered_templates" },
-        ],
+        children: taskInstanceRoutes,
         element: <TaskInstance />,
         path: "dags/:dagId/runs/:runId/tasks/:taskId",
+      },
+      {
+        children: [{ element: <TaskInstances />, index: true }],
+        element: <MappedTaskInstance />,
+        path: "dags/:dagId/runs/:runId/tasks/:taskId/mapped",
+      },
+      {
+        children: taskInstanceRoutes,
+        element: <TaskInstance />,
+        path: "dags/:dagId/runs/:runId/tasks/:taskId/mapped/:mapIndex",
       },
       {
         children: [
