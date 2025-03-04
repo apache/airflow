@@ -17,6 +17,7 @@
  * under the License.
  */
 import { Badge } from "@chakra-ui/react";
+import type { UseQueryOptions } from "@tanstack/react-query";
 import dayjs from "dayjs";
 
 import { useTaskInstanceServiceGetLog } from "openapi/queries";
@@ -124,7 +125,10 @@ const parseLogs = ({ data, logLevelFilters }: ParseLogsProps) => {
   };
 };
 
-export const useLogs = ({ dagId, logLevelFilters, taskInstance, tryNumber = 1 }: Props) => {
+export const useLogs = (
+  { dagId, logLevelFilters, taskInstance, tryNumber = 1 }: Props,
+  options?: Omit<UseQueryOptions<TaskInstancesLogResponse>, "queryFn" | "queryKey">,
+) => {
   const refetchInterval = useAutoRefresh({ dagId });
 
   const { data, ...rest } = useTaskInstanceServiceGetLog(
@@ -143,6 +147,7 @@ export const useLogs = ({ dagId, logLevelFilters, taskInstance, tryNumber = 1 }:
         dayjs(query.state.dataUpdatedAt).isBefore(taskInstance?.end_date)
           ? refetchInterval
           : false,
+      ...options,
     },
   );
 
