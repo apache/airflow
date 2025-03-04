@@ -275,7 +275,7 @@ class RedshiftDataHook(AwsGenericHook["RedshiftDataAPIServiceClient"]):
 
         :param statement_id: the UUID of the statement
         """
-        async with self.async_conn as client:
+        async with await self.get_async_conn() as client:
             desc = await client.describe_statement(Id=statement_id)
             return desc["Status"] in RUNNING_STATES
 
@@ -288,6 +288,6 @@ class RedshiftDataHook(AwsGenericHook["RedshiftDataAPIServiceClient"]):
 
         :param statement_id: the UUID of the statement
         """
-        async with self.async_conn as client:
+        async with await self.get_async_conn() as client:
             resp = await client.describe_statement(Id=statement_id)
             return self.parse_statement_response(resp)

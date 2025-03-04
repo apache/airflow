@@ -211,7 +211,7 @@ class GlueJobHook(AwsBaseHook):
 
         The async version of get_job_state.
         """
-        async with self.async_conn as client:
+        async with await self.get_async_conn() as client:
             job_run = await client.get_job_run(JobName=job_name, RunId=run_id)
         return job_run["JobRun"]["JobRunState"]
 

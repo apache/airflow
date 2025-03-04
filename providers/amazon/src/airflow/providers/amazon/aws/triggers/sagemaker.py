@@ -108,7 +108,7 @@ class SageMakerTrigger(BaseTrigger):
 
     async def run(self):
         self.log.info("job name is %s and job type is %s", self.job_name, self.job_type)
-        async with self.hook.async_conn as client:
+        async with await self.hook.get_async_conn() as client:
             waiter = self.hook.get_waiter(
                 self._get_job_type_waiter(self.job_type), deferrable=True, client=client
             )
@@ -166,7 +166,7 @@ class SageMakerPipelineTrigger(BaseTrigger):
 
     async def run(self) -> AsyncIterator[TriggerEvent]:
         hook = SageMakerHook(aws_conn_id=self.aws_conn_id)
-        async with hook.async_conn as conn:
+        async with await hook.get_async_conn() as conn:
             waiter = hook.get_waiter(self._waiter_name[self.waiter_type], deferrable=True, client=conn)
             for _ in range(self.waiter_max_attempts):
                 try:
