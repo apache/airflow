@@ -32,13 +32,13 @@ breeze down
 
 # Function to check Gremlin container in parallel
 check_gremlin_container() {
-    echo "${COLOR_YELLOW}Starting Gremlin container check in background...${COLOR_RESET}"
-    local max_attempts=30  # Adjust based on how long breeze takes to start Gremlin
+    echo "${COLOR_YELLOW}Starting Gremlin container check...${COLOR_RESET}"
+    local max_attempts=30
     local sleep_interval=2
     local attempt=1
 
     while [[ $attempt -le $max_attempts ]]; do
-        GREMLIN_CONTAINER=$(docker ps -q --filter "name=gremlin")
+        GREMLIN_CONTAINER=$(docker ps -q --filter "name=gremlin" --filter "status=running")
         if [[ -n "$GREMLIN_CONTAINER" ]]; then
             echo "${COLOR_YELLOW}Gremlin container found: $GREMLIN_CONTAINER${COLOR_RESET}"
             echo "Detailed inspection:"
@@ -47,12 +47,12 @@ check_gremlin_container() {
             docker inspect "$GREMLIN_CONTAINER" -f '{{.Name}} - {{(index .NetworkSettings.Networks "airflow-test-all_default").IPAddress}} - {{range $p, $conf := .NetworkSettings.Ports}}{{$p}} -> {{range $conf}}{{.HostIp}}:{{.HostPort}} {{end}}{{end}}'
             break
         fi
-        echo "Attempt $attempt/$max_attempts: No Gremlin container yet, waiting $sleep_interval seconds..."
+        echo "Attempt $attempt/$max_attempts: No running Gremlin container yet..."
         sleep $sleep_interval
         ((attempt++))
     done
     if [[ -z "$GREMLIN_CONTAINER" ]]; then
-        echo "${COLOR_RED}No Gremlin container found after $max_attempts attempts!${COLOR_RESET}"
+        echo "${COLOR_RED}No running Gremlin container after $max_attempts attempts!${COLOR_RESET}"
     fi
 }
 
