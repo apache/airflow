@@ -61,7 +61,15 @@ def get_user(token_str: Annotated[str, Depends(oauth2_scheme)]) -> BaseUser:
 async def get_user_with_exception_handling(request: Request) -> BaseUser | None:
     # Currently the UI does not support JWT authentication, this method defines a fallback if no token is provided by the UI.
     # We can remove this method when issue https://github.com/apache/airflow/issues/44884 is done.
-    token_str = await oauth2_scheme(request)
+    token_str = None
+
+    # TODO remove try-except when authentication integrated everywhere, safeguard for non integrated clients and endpoints
+    try:
+        token_str = await oauth2_scheme(request)
+    except HTTPException as e:
+        if e.status_code == status.HTTP_401_UNAUTHORIZED:
+            return None
+
     if not token_str:  # Handle None or empty token
         return None
     return get_user(token_str)
