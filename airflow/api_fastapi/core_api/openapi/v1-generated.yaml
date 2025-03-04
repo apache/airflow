@@ -6336,6 +6336,8 @@ paths:
       summary: Delete Variable
       description: Delete a variable entry.
       operationId: delete_variable
+      security:
+      - OAuth2PasswordBearer: []
       parameters:
       - name: variable_key
         in: path
@@ -6376,6 +6378,8 @@ paths:
       summary: Get Variable
       description: Get a variable entry.
       operationId: get_variable
+      security:
+      - OAuth2PasswordBearer: []
       parameters:
       - name: variable_key
         in: path
@@ -6420,6 +6424,8 @@ paths:
       summary: Patch Variable
       description: Update a variable by key.
       operationId: patch_variable
+      security:
+      - OAuth2PasswordBearer: []
       parameters:
       - name: variable_key
         in: path
@@ -6487,6 +6493,8 @@ paths:
       summary: Get Variables
       description: Get all Variables entries.
       operationId: get_variables
+      security:
+      - OAuth2PasswordBearer: []
       parameters:
       - name: limit
         in: query
@@ -6550,6 +6558,8 @@ paths:
       summary: Post Variable
       description: Create a variable.
       operationId: post_variable
+      security:
+      - OAuth2PasswordBearer: []
       requestBody:
         required: true
         content:
@@ -6593,6 +6603,8 @@ paths:
       summary: Bulk Variables
       description: Bulk create, update, and delete variables.
       operationId: bulk_variables
+      security:
+      - OAuth2PasswordBearer: []
       requestBody:
         required: true
         content:
