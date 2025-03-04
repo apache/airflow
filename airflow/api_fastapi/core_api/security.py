@@ -131,15 +131,12 @@ def requires_access_configuration(method: ResourceMethod) -> Callable[[Request, 
     ) -> None:
         section: str | None = request.query_params.get("section") or request.path_params.get("section")
 
-        def callback():
-            return get_auth_manager().is_authorized_configuration(
+        _requires_access(
+            is_authorized_callback=lambda: get_auth_manager().is_authorized_configuration(
                 method=method,
                 details=ConfigurationDetails(section=section),
                 user=user,
             )
-
-        _requires_access(
-            is_authorized_callback=callback,
         )
 
     return inner
