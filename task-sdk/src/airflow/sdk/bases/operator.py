@@ -77,9 +77,7 @@ if TYPE_CHECKING:
 
     import jinja2
 
-    from airflow.sdk.definitions.context import Context
-    from airflow.sdk.definitions.dag import DAG
-    from airflow.sdk.definitions.taskgroup import TaskGroup
+    from airflow.sdk import DAG, Context, TaskGroup
     from airflow.sdk.definitions.xcom_arg import XComArg
     from airflow.serialization.enums import DagAttributeTypes
     from airflow.task.priority_strategy import PriorityWeightStrategy
