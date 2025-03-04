@@ -59,11 +59,14 @@ check_gremlin_container() {
 # Run the container check in the background
 check_gremlin_container &
 
+# Run breeze testing (foreground)
 set +e
 breeze testing "${TEST_GROUP}-integration-tests" --integration "${INTEGRATION}"
 RESULT=$?
 set -e
-echo
-echo "${COLOR_YELLOW}The ${TEST_GROUP} Integration Tests failed. Retrying once${COLOR_RESET}"
-echo
+
+# Wait for background job to finish
+wait
+
+# Exit with the test result
 exit ${RESULT}

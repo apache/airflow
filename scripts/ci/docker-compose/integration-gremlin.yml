@@ -16,7 +16,7 @@
 # under the License.
 ---
 services:
-  graph:
+  gremlin:
     container_name: gremlin
     image: tinkerpop/gremlin-server:3.4.2
     labels:
@@ -24,12 +24,13 @@ services:
     volumes:
       - ./gremlin:/opt/gremlin-server/conf
       - graph-data:/opt/gremlin-server/data
+    restart: "on-failure"
     ports:
       - "${GREMLIN_HOST_PORT}:8182"
     stdin_open: true
   airflow:
     depends_on:
-      - graph
+      - gremlin
     environment:
       - INTEGRATION_GREMLIN=true
 volumes:
