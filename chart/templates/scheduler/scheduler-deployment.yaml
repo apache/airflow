@@ -165,6 +165,8 @@ spec:
             {{- end }}
             - name: tmp-logs
               mountPath: {{ template "airflow_logs" . }}
+            - name: tmp
+              mountPath: /tmp
           args: {{- include "wait-for-migrations-command" . | indent 10 }}
           envFrom: {{- include "custom_airflow_environment_from" . | default "\n  []" | indent 10 }}
           env:
