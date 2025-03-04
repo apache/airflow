@@ -12,7 +12,17 @@ As part of this change the following breaking changes have occurred:
 
   - The property ``security_manager`` has been removed from the interface
 
-  - The method ``filter_permitted_menu_items`` is now abstract and must be implemented
+  - All these methods have been removed from the interface:
+
+    - ``filter_permitted_menu_items``
+    - ``get_user_name``
+    - ``get_user_display_name``
+    - ``get_user``
+    - ``get_user_id``
+    - ``is_logged_in``
+    - ``get_url_logout``
+    - ``get_api_endpoints``
+    - ``register_views``
 
   - All the following method signatures changed to make the parameter ``user`` required (it was optional)
 

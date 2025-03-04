@@ -79,16 +79,18 @@ export const Graph = () => {
   const { openGroupIds } = useOpenGroups();
 
   const selectedColor = colorMode === "dark" ? selectedDarkColor : selectedLightColor;
+  const versionNumber = selectedVersion === undefined ? undefined : parseInt(selectedVersion, 10);
 
   const { data: graphData = { arrange: "LR", edges: [], nodes: [] } } = useStructureServiceStructureData({
     dagId,
-    versionNumber: selectedVersion === undefined ? undefined : parseInt(selectedVersion, 10),
+    versionNumber,
   });
 
   const { data } = useGraphLayout({
     ...graphData,
     dagId,
     openGroupIds,
+    versionNumber,
   });
 
   const refetchInterval = useAutoRefresh({ dagId });
