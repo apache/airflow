@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2025-03-03T20:05:20.025621
+# This constraints file was automatically generated on 2025-03-04T14:10:45.820958
 # via "eager-upgrade" mechanism of PIP. For the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version of both
 # 'apache-airflow' package and all available community provider packages.
@@ -50,7 +50,7 @@ adal==1.2.7
 adlfs==2024.12.0
 aiobotocore==2.21.0
 aiofiles==23.2.1
-aiohappyeyeballs==2.4.6
+aiohappyeyeballs==2.4.8
 aiohttp==3.11.13
 aioitertools==0.12.0
 aiomysql==0.2.0
@@ -180,7 +180,7 @@ docutils==0.21.2
 duckdb==1.2.0
 durationpy==0.9
 elastic-transport==8.17.0
-elasticsearch==8.17.1
+elasticsearch==8.17.2
 email_validator==2.2.0
 entrypoints==0.4
 eralchemy2==1.4.1
@@ -406,7 +406,7 @@ opentelemetry-proto==1.27.0
 opentelemetry-sdk==1.27.0
 opentelemetry-semantic-conventions==0.48b0
 opsgenie-sdk==2.1.5
-oracledb==2.5.1
+oracledb==3.0.0
 ordered-set==4.1.0
 orderly-set==5.3.0
 orjson==3.10.15
@@ -450,7 +450,7 @@ pure-sasl==0.6.2
 pure_eval==0.2.3
 py-partiql-parser==0.6.1
 py4j==0.10.9.7
-pyOpenSSL==24.3.0
+pyOpenSSL==25.0.0
 pyarrow-hotfix==0.6
 pyarrow==16.1.0
 pyasn1==0.6.1
@@ -547,7 +547,7 @@ smbprotocol==1.15.0
 smmap==5.0.2
 sniffio==1.3.1
 snowballstemmer==2.2.0
-snowflake-connector-python==3.13.2
+snowflake-connector-python==3.14.0
 snowflake-snowpark-python==1.28.0
 snowflake-sqlalchemy==1.7.3
 sortedcontainers==2.4.0
@@ -604,7 +604,7 @@ traitlets==5.14.3
 trino==0.333.0
 twine==6.1.0
 typer==0.15.2
-types-Deprecated==1.2.15.20241117
+types-Deprecated==1.2.15.20250304
 types-Markdown==3.7.0.20241204
 types-PyMySQL==1.1.0.20241103
 types-PyYAML==6.0.12.20241230
