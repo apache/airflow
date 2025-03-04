@@ -29,6 +29,26 @@ TEST_GROUP=${1}
 INTEGRATION=${2}
 
 breeze down
+
+# Check for Gremlin container before starting tests
+echo "${COLOR_YELLOW}Checking for Gremlin container...${COLOR_RESET}"
+echo "Listing all containers:"
+docker ps -a
+echo "Filtering for Gremlin containers:"
+docker ps -a --filter "name=gremlin"
+# If a Gremlin container exists, inspect it
+GREMLIN_CONTAINER=$(docker ps -aq --filter "name=gremlin" | head -n 1)
+if [[ -n "$GREMLIN_CONTAINER" ]]; then
+    echo "Gremlin container found: $GREMLIN_CONTAINER"
+    echo "Detailed inspection:"
+    docker inspect "$GREMLIN_CONTAINER"
+    echo "Formatted details (Name - IP - Ports):"
+    docker inspect "$GREMLIN_CONTAINER" -f '{{.Name}} - {{.NetworkSettings.IPAddress}} - {{range $p, $conf := .NetworkSettings.Ports}}{{$p}} -> {{range $conf}}{{.HostIp}}:{{.HostPort}}{{end}}{{end}}'
+else
+    echo "${COLOR_RED}No Gremlin container found yet.${COLOR_RESET}"
+    echo "Breeze testing will start the environment next—check logs after."
+fi
+
 set +e
 breeze testing "${TEST_GROUP}-integration-tests" --integration "${INTEGRATION}"
 RESULT=$?
