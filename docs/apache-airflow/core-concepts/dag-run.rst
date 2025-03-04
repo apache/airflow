@@ -87,7 +87,7 @@ Catchup
 -------
 
 An Airflow DAG defined with a ``start_date``, possibly an ``end_date``, and a non-asset schedule, defines a series of intervals which the scheduler turns into individual DAG runs and executes.
-By default, DAG runs that have not been run since the last data interval are not created by sche scheduler upon activation of a DAG ( Airflow config ``scheduler.catchup_by_default=False``). The scheduler creates a DAG run only for the latest interval.
+By default, DAG runs that have not been run since the last data interval are not created by the scheduler upon activation of a DAG ( Airflow config ``scheduler.catchup_by_default=False``). The scheduler creates a DAG run only for the latest interval.
 
 If you set ``catchup=True`` in the DAG, the scheduler will kick off a DAG Run for any data interval that has not been run since the last data interval (or has been cleared). This concept is called Catchup.
 
