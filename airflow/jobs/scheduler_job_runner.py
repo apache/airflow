@@ -178,8 +178,8 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
         self.num_times_parse_dags = num_times_parse_dags
         self._scheduler_idle_sleep_time = scheduler_idle_sleep_time
         # How many seconds do we wait for tasks to heartbeat before timeout.
-        self._task_instance_heartbeat_timeout_threshold_secs = conf.getint(
-            "scheduler", "task_instance_heartbeat_timeout_threshold"
+        self._task_instance_heartbeat_timeout_secs = conf.getint(
+            "scheduler", "task_instance_heartbeat_timeout"
         )
         self._dag_stale_not_seen_duration = conf.getint("scheduler", "dag_stale_not_seen_duration")
         self._task_queued_timeout = conf.getfloat("scheduler", "task_queued_timeout")
@@ -1994,9 +1994,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
 
     def _find_task_instances_without_heartbeats(self, *, session: Session) -> list[TI]:
         self.log.debug("Finding 'running' jobs without a recent heartbeat")
-        limit_dttm = timezone.utcnow() - timedelta(
-            seconds=self._task_instance_heartbeat_timeout_threshold_secs
-        )
+        limit_dttm = timezone.utcnow() - timedelta(seconds=self._task_instance_heartbeat_timeout_secs)
         task_instances_without_heartbeats = session.scalars(
             select(TI)
             .with_hint(TI, "USE INDEX (ti_state)", dialect_name="mysql")
@@ -2034,7 +2032,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                     event="heartbeat timeout",
                     task_instance=ti.key,
                     extra=(
-                        f"Task did not emit heartbeat within time limit ({self._task_instance_heartbeat_timeout_threshold_secs} "
+                        f"Task did not emit heartbeat within time limit ({self._task_instance_heartbeat_timeout_secs} "
                         "seconds) and will be terminated. "
                         "See https://airflow.apache.org/docs/apache-airflow/"
                         "stable/core-concepts/tasks.html#task-instance-heartbeat-timeout"

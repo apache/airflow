@@ -192,7 +192,7 @@ If you'd like to reproduce task instance heartbeat timeouts for development/test
 .. code-block:: bash
 
     export AIRFLOW__SCHEDULER__TASK_INSTANCE_HEARTBEAT_SEC=600
-    export AIRFLOW__SCHEDULER__TASK_INSTANCE_HEARTBEAT_TIMEOUT_THRESHOLD=2
+    export AIRFLOW__SCHEDULER__TASK_INSTANCE_HEARTBEAT_TIMEOUT=2
     export AIRFLOW__SCHEDULER__TASK_INSTANCE_HEARTBEAT_TIMEOUT_DETECTION_INTERVAL=5
 
 
@@ -216,7 +216,7 @@ If you'd like to reproduce task instance heartbeat timeouts for development/test
     sleep_dag()
 
 
-Run the above DAG and wait for a while. The ``TaskInstance`` will be marked failed after <task_instance_heartbeat_timeout_threshold> seconds.
+Run the above DAG and wait for a while. The ``TaskInstance`` will be marked failed after <task_instance_heartbeat_timeout> seconds.
 
 
 

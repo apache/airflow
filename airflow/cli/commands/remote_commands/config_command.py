@@ -425,7 +425,7 @@ CONFIGS_CHANGES = [
     ),
     ConfigChange(
         config=ConfigParameter("scheduler", "scheduler_zombie_task_threshold"),
-        renamed_to=ConfigParameter("scheduler", "task_instance_heartbeat_timeout_threshold"),
+        renamed_to=ConfigParameter("scheduler", "task_instance_heartbeat_timeout"),
     ),
     ConfigChange(
         config=ConfigParameter("scheduler", "zombie_detection_interval"),

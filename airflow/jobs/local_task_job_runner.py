@@ -167,7 +167,7 @@ class LocalTaskJobRunner(BaseJobRunner, LoggingMixin):
             self.task_runner.start()
             task_instance_heartbeat_sec = conf.getint("scheduler", "task_instance_heartbeat_sec")
             if task_instance_heartbeat_sec < 1:
-                heartbeat_time_limit = conf.getint("scheduler", "task_instance_heartbeat_timeout_threshold")
+                heartbeat_time_limit = conf.getint("scheduler", "task_instance_heartbeat_timeout")
             else:
                 heartbeat_time_limit = task_instance_heartbeat_sec
 

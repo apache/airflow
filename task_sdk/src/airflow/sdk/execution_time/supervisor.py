@@ -102,7 +102,7 @@ log: FilteringBoundLogger = structlog.get_logger(logger_name="supervisor")
 
 # TODO: Pull this from config
 #  (previously `[scheduler] task_instance_heartbeat_sec` with the following as fallback if it is 0:
-#  `[scheduler] task_instance_heartbeat_timeout_threshold`)
+#  `[scheduler] task_instance_heartbeat_timeout`)
 HEARTBEAT_THRESHOLD: int = 30
 # Don't heartbeat more often than this
 MIN_HEARTBEAT_INTERVAL: int = 5

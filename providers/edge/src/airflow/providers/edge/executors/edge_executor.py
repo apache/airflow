@@ -195,7 +195,7 @@ class EdgeExecutor(BaseExecutor):
 
     def _update_orphaned_jobs(self, session: Session) -> bool:
         """Update status ob jobs when workers die and don't update anymore."""
-        heartbeat_interval: int = conf.getint("scheduler", "task_instance_heartbeat_timeout_threshold")
+        heartbeat_interval: int = conf.getint("scheduler", "task_instance_heartbeat_timeout")
         lifeless_jobs: list[EdgeJobModel] = (
             session.query(EdgeJobModel)
             .with_for_update(skip_locked=True)
