@@ -20,6 +20,7 @@ import { Box } from "@chakra-ui/react";
 import { useDisclosure } from "@chakra-ui/react";
 
 import type { DAGResponse, DAGWithLatestDagRunsResponse } from "openapi/requests/types.gen";
+import { BackfillIcon } from "src/components/BackfillIcon.tsx";
 
 import { Button } from "../ui";
 import RunBackfillModal from "./RunBackfillModal";
@@ -27,23 +28,6 @@ import RunBackfillModal from "./RunBackfillModal";
 type Props = {
   readonly dag: DAGResponse | DAGWithLatestDagRunsResponse;
 };
-
-const BackfillIcon = () => (
-  <svg
-    fill="none"
-    height="100"
-    stroke="black"
-    strokeWidth="5"
-    viewBox="0 0 100 100"
-    width="100"
-    xmlns="http://www.w3.org/2000/svg"
-  >
-    {/* Grid structure */}
-    <rect fill="white" height="80" strokeDasharray="20 10" width="20" x="10" y="10" />
-    <rect fill="black" height="80" width="20" x="40" y="10" />
-    <rect fill="black" height="80" width="20" x="70" y="10" />
-  </svg>
-);
 
 const RunBackfillButton: React.FC<Props> = ({ dag }) => {
   const { onClose, onOpen, open } = useDisclosure();
