@@ -58,11 +58,7 @@ requires-python = "~=3.9"
 # After you modify the dependencies, and rebuild your Breeze CI image with ``breeze ci-image build``
 dependencies = [
     "apache-airflow>=2.9.0",
-    # Yandex cloud from 0.329.0 to 0.333.0 wrongly stated their expectations for grpcio - they
-    # had grpcio >= 1.64.0 but they required at least 1.68.1. We exclude them from resolution directly
-    # So that it does not mistakenly cause failures when other providers expect grpcio <1.66 (as it happens
-    # in case of apache.beam currently).
-    "yandexcloud>=0.308.0,!=0.329.0,!=0.330.0,!=0.331.0,!=0.332.0,!=0.333.0",
+    "yandexcloud>=0.308.0",
     "yandex-query-client>=0.1.4",
 ]
 
