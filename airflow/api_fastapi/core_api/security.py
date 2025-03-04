@@ -16,14 +16,16 @@
 # under the License.
 from __future__ import annotations
 
+from collections.abc import Container
 from functools import cache
-from typing import TYPE_CHECKING, Annotated, Callable
+from typing import TYPE_CHECKING, Annotated, Any, Callable
 
 from fastapi import Depends, HTTPException, Request, status
 from fastapi.security import OAuth2PasswordBearer
 from jwt import ExpiredSignatureError, InvalidTokenError
 
 from airflow.api_fastapi.app import get_auth_manager
+from airflow.api_fastapi.common.parameters import BaseParam
 from airflow.auth.managers.models.base_user import BaseUser
 from airflow.auth.managers.models.resource_details import (
     ConnectionDetails,
@@ -33,10 +35,13 @@ from airflow.auth.managers.models.resource_details import (
     VariableDetails,
 )
 from airflow.configuration import conf
+from airflow.typing_compat import Self
 from airflow.utils.jwt_signer import JWTSigner, get_signing_key
 
 if TYPE_CHECKING:
-    from airflow.auth.managers.base_auth_manager import ResourceMethod
+    from sqlalchemy.sql import Select
+
+    from airflow.auth.managers.base_auth_manager import BaseAuthManager, ResourceMethod
 
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="token")
 
@@ -57,6 +62,9 @@ def get_user(token_str: Annotated[str, Depends(oauth2_scheme)]) -> BaseUser:
         raise HTTPException(status.HTTP_401_UNAUTHORIZED, "Token Expired")
     except InvalidTokenError:
         raise HTTPException(status.HTTP_403_FORBIDDEN, "Forbidden")
+
+
+GetUserDep = Annotated[BaseUser, Depends(get_user)]
 
 
 async def get_user_with_exception_handling(request: Request) -> BaseUser | None:
@@ -92,6 +100,45 @@ def requires_access_dag(
         )
 
     return inner
+
+
+class PermittedDagFilter(BaseParam[set[str]]):
+    """A parameter that filters the permitted dags for the user."""
+
+    @classmethod
+    def depends(cls, *args: Any, **kwargs: Any) -> Self:
+        raise NotImplementedError("Use permitted_dag_filter_factory instead , depends is not implemented.")
+
+    def to_orm(self, select: Select) -> Select:
+        from airflow.models.dag import DagModel
+
+        # import here to avoid overhead of importing for other `requires_access_*` functions
+        return select.where(DagModel.dag_id.in_(self.value))
+
+
+def permitted_dag_filter_factory(
+    methods: Container[ResourceMethod],
+) -> Callable[[Request, BaseUser], PermittedDagFilter]:
+    """
+    Create a callable for Depends in FastAPI that returns a filter of the permitted dags for the user.
+
+    :param methods: The methods for which the dags are permitted.
+    :return: The callable that can be used as Depends in FastAPI.
+    """
+
+    def depends_permitted_dags_filter(
+        request: Request,
+        user: Annotated[BaseUser, Depends(get_user)],
+    ) -> PermittedDagFilter:
+        auth_manager: BaseAuthManager = request.app.state.auth_manager
+        permitted_dags: set[str] = auth_manager.get_permitted_dag_ids(user=user, methods=methods)
+        return PermittedDagFilter(permitted_dags)
+
+    return depends_permitted_dags_filter
+
+
+EditableDagsFilterDep = Annotated[PermittedDagFilter, Depends(permitted_dag_filter_factory(["PUT"]))]
+ReadableDagsFilterDep = Annotated[PermittedDagFilter, Depends(permitted_dag_filter_factory(["GET"]))]
 
 
 def requires_access_pool(method: ResourceMethod) -> Callable[[Request, BaseUser], None]:
