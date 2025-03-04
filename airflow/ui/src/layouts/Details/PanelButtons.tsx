@@ -27,11 +27,11 @@ import {
 } from "@chakra-ui/react";
 import { FiGrid } from "react-icons/fi";
 import { MdOutlineAccountTree } from "react-icons/md";
-import { useSearchParams } from "react-router-dom";
+import { useParams } from "react-router-dom";
+import { useLocalStorage } from "usehooks-ts";
 
 import DagVersionSelect from "src/components/DagVersionSelect";
 import { Select } from "src/components/ui";
-import { SearchParamsKeys } from "src/constants/searchParams";
 
 type Props = {
   readonly dagView: string;
@@ -40,24 +40,29 @@ type Props = {
 
 const options = createListCollection({
   items: [
-    { label: "Only tasks", value: "" },
-    { label: "External conditions", value: "external" },
+    { label: "Only tasks", value: "tasks" },
+    { label: "External conditions", value: "immediate" },
     { label: "All Dag Dependencies", value: "all" },
   ],
 });
 
-export const PanelButtons = ({ dagView, setDagView, ...rest }: Props) => {
-  const [searchParams, setSearchParams] = useSearchParams();
+const deps = ["all", "immediate", "tasks"];
 
-  const dependencies = [searchParams.get(SearchParamsKeys.DEPENDENCIES) ?? ""];
+type Dependency = (typeof deps)[number];
+
+export const PanelButtons = ({ dagView, setDagView, ...rest }: Props) => {
+  const { dagId = "" } = useParams();
+  const [dependencies, setDependencies, removeDependencies] = useLocalStorage<Dependency>(
+    `dependencies-${dagId}`,
+    "tasks",
+  );
 
   const handleDepsChange = (event: SelectValueChangeDetails<{ label: string; value: Array<string> }>) => {
-    if (event.value[0] === undefined || event.value[0] === "") {
-      searchParams.delete(SearchParamsKeys.DEPENDENCIES);
+    if (event.value[0] === undefined || event.value[0] === "tasks" || !deps.includes(event.value[0])) {
+      removeDependencies();
     } else {
-      searchParams.set(SearchParamsKeys.DEPENDENCIES, event.value[0]);
+      setDependencies(event.value[0]);
     }
-    setSearchParams(searchParams);
   };
 
   return (
@@ -98,7 +103,7 @@ export const PanelButtons = ({ dagView, setDagView, ...rest }: Props) => {
             collection={options}
             data-testid="filter-duration"
             onValueChange={handleDepsChange}
-            value={dependencies}
+            value={[dependencies]}
             width="210px"
           >
             <Select.Trigger>
