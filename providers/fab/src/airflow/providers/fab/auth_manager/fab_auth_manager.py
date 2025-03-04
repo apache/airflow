@@ -306,7 +306,7 @@ class FabAuthManager(BaseAuthManager[User]):
                 if no specific DAG is targeted, just check the sub entity.
 
         :param method: The method to authorize.
-        :param user: The user.
+        :param user: The user performing the action.
         :param access_entity: The dag access entity.
         :param details: The dag details.
         """
@@ -493,7 +493,7 @@ class FabAuthManager(BaseAuthManager[User]):
 
         :param method: the method to perform
         :param resource_type: the type of resource the user attempts to perform the action on
-        :param user: the user to perform the action on
+        :param user: the user to performing the action
 
         :meta private:
         """
@@ -513,7 +513,7 @@ class FabAuthManager(BaseAuthManager[User]):
 
         :param method: the method to perform
         :param details: details about the DAG
-        :param user: the user to perform the action on
+        :param user: the user to performing the action
 
         :meta private:
         """
@@ -539,7 +539,7 @@ class FabAuthManager(BaseAuthManager[User]):
 
         :param method: the method to perform
         :param details: details about the DAG
-        :param user: the user to perform the action on
+        :param user: the user to performing the action
 
         :meta private:
         """

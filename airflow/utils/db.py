@@ -735,7 +735,7 @@ def _get_flask_db(sql_database_uri):
     from flask import Flask
     from flask_sqlalchemy import SQLAlchemy
 
-    from airflow.www.session import AirflowDatabaseSessionInterface
+    from airflow.providers.fab.www.session import AirflowDatabaseSessionInterface
 
     flask_app = Flask(__name__)
     flask_app.config["SQLALCHEMY_DATABASE_URI"] = sql_database_uri
