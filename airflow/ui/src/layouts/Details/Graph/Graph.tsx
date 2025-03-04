@@ -21,9 +21,14 @@ import { ReactFlow, Controls, Background, MiniMap, type Node as ReactFlowNode } 
 import "@xyflow/react/dist/style.css";
 import { useParams, useSearchParams } from "react-router-dom";
 
-import { useGridServiceGridData, useStructureServiceStructureData } from "openapi/queries";
+import {
+  useDependenciesServiceGetDependencies,
+  useGridServiceGridData,
+  useStructureServiceStructureData,
+} from "openapi/queries";
 import { AssetConditionNode } from "src/components/Graph/AssetConditionNode";
 import { AssetNode } from "src/components/Graph/AssetNode";
+import { DagNode } from "src/components/Graph/DagNode";
 import Edge from "src/components/Graph/Edge";
 import { JoinNode } from "src/components/Graph/JoinNode";
 import { TaskNode } from "src/components/Graph/TaskNode";
@@ -60,6 +65,7 @@ const nodeColor = (
 const nodeTypes = {
   asset: AssetNode,
   "asset-condition": AssetConditionNode,
+  dag: DagNode,
   join: JoinNode,
   task: TaskNode,
 };
@@ -95,10 +101,25 @@ export const Graph = () => {
     versionNumber,
   });
 
+  const { data: dagDependencies = { edges: [], nodes: [] } } = useDependenciesServiceGetDependencies(
+    { nodeId: `dag:${dagId}` },
+    undefined,
+    { enabled: dependencies === "all" },
+  );
+
+  const dagDepEdges = dependencies === "all" ? dagDependencies.edges : [];
+  const dagDepNodes = dependencies === "all" ? dagDependencies.nodes : [];
+
   const { data } = useGraphLayout({
-    ...graphData,
+    arrange: "LR",
     dagId,
-    openGroupIds,
+    edges: [...graphData.edges, ...dagDepEdges],
+    nodes: dagDepNodes.length
+      ? dagDepNodes.map((node) =>
+          node.id === `dag:${dagId}` ? { ...node, children: graphData.nodes } : node,
+        )
+      : graphData.nodes,
+    openGroupIds: [...openGroupIds, ...(dependencies === "all" ? [`dag:${dagId}`] : [])],
     versionNumber,
   });
 
@@ -116,14 +137,6 @@ export const Graph = () => {
         query.state.data?.dag_runs.some((dr) => isStatePending(dr.state)) && refetchInterval,
     },
   );
-
-  // const { data: dagDependencies } = useDependenciesServiceGetDependencies(
-  //   { nodeId: `dag:${dagId}` },
-  //   undefined,
-  //   { enabled: dependencies === "all" },
-  // );
-
-  // console.log(dagDependencies);
 
   const dagRun = gridData?.dag_runs.find((dr) => dr.dag_run_id === runId);
 

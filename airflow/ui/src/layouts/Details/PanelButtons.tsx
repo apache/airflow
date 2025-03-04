@@ -42,7 +42,7 @@ const options = createListCollection({
   items: [
     { label: "Only tasks", value: "" },
     { label: "External conditions", value: "external" },
-    // { label: "All Dag Dependencies", value: "all" },
+    { label: "All Dag Dependencies", value: "all" },
   ],
 });
 
@@ -99,7 +99,7 @@ export const PanelButtons = ({ dagView, setDagView, ...rest }: Props) => {
             data-testid="filter-duration"
             onValueChange={handleDepsChange}
             value={dependencies}
-            width="200px"
+            width="210px"
           >
             <Select.Trigger>
               <Select.ValueText placeholder="Dependencies" />

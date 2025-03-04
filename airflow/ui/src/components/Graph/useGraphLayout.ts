@@ -275,5 +275,5 @@ export const useGraphLayout = ({
 
       return { edges: formattedEdges, nodes: flattenedData.nodes };
     },
-    queryKey: ["graphLayout", nodes.length, openGroupIds, arrange, dagId, versionNumber, edges.length],
+    queryKey: ["graphLayout", nodes, openGroupIds, arrange, dagId, versionNumber, edges],
   });
