@@ -16,53 +16,94 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Box, Heading } from "@chakra-ui/react";
+import { Box } from "@chakra-ui/react";
 import type { ColumnDef } from "@tanstack/react-table";
+import { useState } from "react";
+import { useSearchParams } from "react-router-dom";
 
 import { useConnectionServiceGetConnections } from "openapi/queries";
 import type { ConnectionResponse } from "openapi/requests/types.gen";
 import { DataTable } from "src/components/DataTable";
+import { useTableURLState } from "src/components/DataTable/useTableUrlState";
 import { ErrorAlert } from "src/components/ErrorAlert";
+import { SearchBar } from "src/components/SearchBar";
+import { SearchParamsKeys, type SearchParamsKeysType } from "src/constants/searchParams";
 
 const columns: Array<ColumnDef<ConnectionResponse>> = [
   {
     accessorKey: "connection_id",
-    enableSorting: true,
     header: "Connection Id",
   },
   {
     accessorKey: "conn_type",
-    enableSorting: true,
     header: "Connection Type",
   },
   {
     accessorKey: "description",
-    enableSorting: true,
     header: "Description",
   },
   {
     accessorKey: "host",
-    enableSorting: true,
     header: "Host",
   },
   {
     accessorKey: "port",
-    enableSorting: true,
     header: "Port",
   },
 ];
 
 export const Connections = () => {
-  const { data, error, isFetching, isLoading } = useConnectionServiceGetConnections();
+  const { setTableURLState, tableURLState } = useTableURLState();
+  const [searchParams, setSearchParams] = useSearchParams();
+  const { NAME_PATTERN: NAME_PATTERN_PARAM }: SearchParamsKeysType = SearchParamsKeys;
+  const [connectionIdPattern, setConnectionIdPattern] = useState(
+    searchParams.get(NAME_PATTERN_PARAM) ?? undefined,
+  );
+  const { pagination, sorting } = tableURLState;
+  const [sort] = sorting;
+  const orderBy = sort ? `${sort.desc ? "-" : ""}${sort.id}` : "-connection_id";
+  const { data, error, isFetching, isLoading } = useConnectionServiceGetConnections({
+    limit: pagination.pageSize,
+    offset: pagination.pageIndex * pagination.pageSize,
+    orderBy,
+  });
+  // TO BE ADDED: connectionIdPattern: connectionIdPattern ?? undefined,
+
+  const handleSearchChange = (value: string) => {
+    if (value) {
+      searchParams.set(NAME_PATTERN_PARAM, value);
+    } else {
+      searchParams.delete(NAME_PATTERN_PARAM);
+    }
+    setTableURLState({
+      pagination: { ...pagination, pageIndex: 0 },
+      sorting,
+    });
+    setSearchParams(searchParams);
+    setConnectionIdPattern(value);
+  };
 
   return (
-    <Box p={2}>
-      <DataTable
-        columns={columns}
-        data={data?.connections ?? []}
-        errorMessage={<ErrorAlert error={error} />}
-        total={data?.total_entries}
+    <>
+      <SearchBar
+        buttonProps={{ disabled: true }}
+        defaultValue={connectionIdPattern ?? ""}
+        onChange={handleSearchChange}
+        placeHolder="Search Connections"
       />
-    </Box>
+      <Box>
+        <DataTable
+          columns={columns}
+          data={data?.connections ?? []}
+          errorMessage={<ErrorAlert error={error} />}
+          initialState={tableURLState}
+          isFetching={isFetching}
+          isLoading={isLoading}
+          modelName="Connection"
+          onStateChange={setTableURLState}
+          total={data?.total_entries}
+        />
+      </Box>
+    </>
   );
 };
