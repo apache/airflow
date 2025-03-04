@@ -98,7 +98,8 @@ def test_trigger_dag_and_wait_for_result(default_docker_image, tmp_path_factory,
     compose.down(remove_orphans=True, volumes=True, quiet=True)
     try:
         compose.up(detach=True, wait=True, color=not os.environ.get("NO_COLOR"))
-        compose.execute(service="airflow-scheduler", command=["airflow", "scheduler", "-n", "50"])
+        # Before we proceed, let's make sure our DAG has been parsed
+        compose.execute(service="airflow-dag-processor", command=["airflow", "dags", "reserialize"])
 
         api_request("PATCH", path=f"dags/{DAG_ID}", json={"is_paused": False})
         api_request(
