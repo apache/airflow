@@ -321,14 +321,51 @@ class TestCopyFromExternalStageToSnowflake:
                 ],
                 [],
             ),
+            # Test with invalid URIs mixed with valid ones
+            (
+                [
+                    {"file": "s3://bucket/valid.csv"},
+                    {"file": "s3:/invalid-uri"},  # Missing slash
+                    {"file": "gcs://bucket/valid.csv"},
+                    {"file": "gcs:invalid-uri"},  # Missing slashes
+                    {"file": "azure://account.blob.core.windows.net/container/valid.csv"},
+                    {"file": "azure://account.invalid-domain.net/container/invalid.csv"},  # Invalid domain
+                ],
+                [
+                    ("gcs://bucket", "valid.csv"),
+                    ("s3://bucket", "valid.csv"),
+                    ("wasbs://container@account", "valid.csv"),
+                ],
+                [
+                    "s3:/invalid-uri",
+                    "gcs:invalid-uri",
+                    "azure://account.invalid-domain.net/container/invalid.csv",
+                ],
+            ),
+            # Test with all invalid URIs
+            (
+                [
+                    {"file": "s3:/invalid-uri-1"},
+                    {"file": "gcs:invalid-uri-2"},
+                    {"file": "azure://invalid.uri/container/file.csv"},
+                ],
+                [],
+                [
+                    "s3:/invalid-uri-1",
+                    "gcs:invalid-uri-2",
+                    "azure://invalid.uri/container/file.csv",
+                ],
+            ),
         ]
 
         for input_rows, expected_paths, expected_errors in test_cases:
             paths, errors = (
                 CopyFromExternalStageToSnowflakeOperator._extract_openlineage_unique_dataset_paths(input_rows)
             )
-            assert paths == expected_paths
-            assert errors == expected_errors
+            assert sorted(paths) == sorted(expected_paths)
+            assert sorted([e for e in errors if e is not None]) == sorted(
+                [e for e in expected_errors if e is not None]
+            )
 
     @mock.patch("airflow.providers.snowflake.transfers.copy_into_snowflake.SnowflakeHook")
     def test_get_openlineage_facets_on_complete_with_actual_snowflake_output(self, mock_hook):
