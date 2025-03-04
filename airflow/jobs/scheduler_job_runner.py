@@ -41,6 +41,7 @@ from sqlalchemy.sql import expression
 from airflow import settings
 from airflow.callbacks.callback_requests import DagCallbackRequest, TaskCallbackRequest
 from airflow.configuration import conf
+from airflow.dag_processing.bundles.base import BundleUsageTrackingManager
 from airflow.exceptions import RemovedInAirflow3Warning
 from airflow.executors import workloads
 from airflow.executors.base_executor import BaseExecutor
@@ -1023,10 +1024,17 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
             self._update_asset_orphanage,
         )
 
-        timers.call_regular_interval(
-            conf.getfloat("scheduler", "parsing_cleanup_interval"),
-            self._cleanup_stale_dags,
-        )
+        if any(x.is_local for x in self.job.executors):
+            bundle_cleanup_mgr = BundleUsageTrackingManager()
+            check_interval = conf.getint(
+                section="dag_processor",
+                key="stale_bundle_cleanup_interval",
+            )
+            if check_interval > 0:
+                timers.call_regular_interval(
+                    delay=check_interval,
+                    action=bundle_cleanup_mgr.remove_stale_bundle_versions,
+                )
 
         for loop_count in itertools.count(start=1):
             with (
@@ -2048,29 +2056,6 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
             zombie_message_details["External Executor Id"] = ti.external_executor_id
 
         return zombie_message_details
-
-    @provide_session
-    def _cleanup_stale_dags(self, session: Session = NEW_SESSION) -> None:
-        """
-        Find all dags that were not updated by Dag Processor recently and mark them as inactive.
-
-        In case one of DagProcessors is stopped (in case there are multiple of them
-        for different dag folders), its dags are never marked as inactive.
-        TODO: AIP-66 Does it make sense to mark them as inactive just because the processor isn't running?
-        """
-        self.log.debug("Checking dags not parsed within last %s seconds.", self._dag_stale_not_seen_duration)
-        limit_lpt = timezone.utcnow() - timedelta(seconds=self._dag_stale_not_seen_duration)
-        stale_dags = session.scalars(
-            select(DagModel).where(DagModel.is_active, DagModel.last_parsed_time < limit_lpt)
-        ).all()
-        if not stale_dags:
-            self.log.debug("Not stale dags found.")
-            return
-
-        self.log.info("Found (%d) stales dags not parsed after %s.", len(stale_dags), limit_lpt)
-        for dag in stale_dags:
-            dag.is_active = False
-        session.flush()
 
     @provide_session
     def _update_asset_orphanage(self, session: Session = NEW_SESSION) -> None:

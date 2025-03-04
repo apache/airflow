@@ -27,7 +27,7 @@ def get_provider_info():
         "name": "Teradata",
         "description": "`Teradata <https://www.teradata.com/>`__\n",
         "state": "ready",
-        "source-date-epoch": 1739964578,
+        "source-date-epoch": 1740734206,
         "versions": [
             "3.0.1",
             "3.0.0",

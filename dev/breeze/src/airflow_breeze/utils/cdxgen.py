@@ -69,7 +69,7 @@ def start_cdxgen_server(application_root_path: Path, run_in_parallel: bool, para
         fork_cdxgen_server(application_root_path)
     else:
         for i in range(parallelism):
-            fork_cdxgen_server(application_root_path, port=9091 + i)
+            fork_cdxgen_server(application_root_path, port=8080 + i)
     time.sleep(1)
     get_console().print("[info]Waiting for cdxgen server to start")
     time.sleep(3)
@@ -115,7 +115,7 @@ def fork_cdxgen_server(application_root_path, port=9090):
 def get_port_mapping(x):
     # if we do not sleep here, then we could skip mapping for some process if it is handle
     time.sleep(1)
-    return multiprocessing.current_process().name, 9091 + x
+    return multiprocessing.current_process().name, 8080 + x
 
 
 def get_cdxgen_port_mapping(parallelism: int, pool: Pool) -> dict[str, int]:

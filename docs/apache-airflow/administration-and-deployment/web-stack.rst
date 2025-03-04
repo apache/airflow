@@ -22,7 +22,7 @@ Web Stack
 
 Sometimes you want to deploy the backend and frontend behind a
 variable url path prefix. To do so, you can configure the url :ref:`config:api__base_url`
-for instance, set it to ``http://localhost:29091/d12345``. All the APIs routes will
+for instance, set it to ``http://localhost:28080/d12345``. All the APIs routes will
 now be available through that additional ``d12345`` prefix. Without rebuilding
 the frontend, XHR requests and static file queries should be directed to the prefixed url
 and served successfully.

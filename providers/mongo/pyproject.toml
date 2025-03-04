@@ -52,15 +52,17 @@ classifiers = [
 ]
 requires-python = "~=3.9"
 
-# The dependencies should be modified in place in the generated file
+# The dependencies should be modified in place in the generated file.
 # Any change in the dependencies is preserved when the file is regenerated
+# Make sure to run ``breeze static-checks --type update-providers-dependencies --all-files``
+# After you modify the dependencies, and rebuild your Breeze CI image with ``breeze ci-image build``
 dependencies = [
     "apache-airflow>=2.9.0",
     "dnspython>=1.13.0",
     # pymongo 4.11 had incompatible change leading to
     # TypeError: BulkOperationBuilder.add_replace() got an unexpected keyword argument 'sort'
     # See https://github.com/apache/airflow/issues/46215
-    "pymongo>=4.0.0,!=4.11,!=4.11.1",
+    "pymongo>=4.0.0,<4.11",
 ]
 
 # The dependency groups should be modified in place in the generated file

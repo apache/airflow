@@ -105,7 +105,7 @@
     "deps": [
       "apache-airflow-providers-common-sql>=1.20.0",
       "apache-airflow>=2.9.0",
-      "sqlalchemy-drill>=1.1.0,<=1.1.5"
+      "sqlalchemy-drill>=1.1.0,!=1.1.6,!=1.1.7"
     ],
     "devel-deps": [],
     "plugins": [],
@@ -222,7 +222,9 @@
     ],
     "devel-deps": [],
     "plugins": [],
-    "cross-providers-deps": [],
+    "cross-providers-deps": [
+      "google"
+    ],
     "excluded-python-versions": [],
     "state": "ready"
   },
@@ -416,9 +418,22 @@
     "excluded-python-versions": [],
     "state": "ready"
   },
+  "common.messaging": {
+    "deps": [
+      "apache-airflow>=3.0.0.dev0"
+    ],
+    "devel-deps": [],
+    "plugins": [],
+    "cross-providers-deps": [
+      "amazon"
+    ],
+    "excluded-python-versions": [],
+    "state": "ready"
+  },
   "common.sql": {
     "deps": [
       "apache-airflow>=2.9.0",
+      "methodtools>=0.4.7",
       "more-itertools>=9.0.0",
       "sqlparse>=0.5.1"
     ],
@@ -451,7 +466,8 @@
       }
     ],
     "cross-providers-deps": [
-      "common.sql"
+      "common.sql",
+      "fab"
     ],
     "excluded-python-versions": [],
     "state": "ready"
@@ -536,7 +552,9 @@
         "plugin-class": "airflow.providers.edge.plugins.edge_executor_plugin.EdgeExecutorPlugin"
       }
     ],
-    "cross-providers-deps": [],
+    "cross-providers-deps": [
+      "fab"
+    ],
     "excluded-python-versions": [],
     "state": "not-ready"
   },
@@ -852,7 +870,7 @@
   },
   "microsoft.mssql": {
     "deps": [
-      "apache-airflow-providers-common-sql>=1.20.0",
+      "apache-airflow-providers-common-sql>=1.23.0",
       "apache-airflow>=2.9.0",
       "methodtools>=0.4.7",
       "pymssql>=2.3.0"
@@ -892,7 +910,7 @@
     "deps": [
       "apache-airflow>=2.9.0",
       "dnspython>=1.13.0",
-      "pymongo>=4.0.0,!=4.11,!=4.11.1"
+      "pymongo>=4.0.0,<4.11"
     ],
     "devel-deps": [
       "mongomock>=4.0.0"
@@ -1380,7 +1398,7 @@
     "deps": [
       "apache-airflow>=2.9.0",
       "yandex-query-client>=0.1.4",
-      "yandexcloud>=0.308.0,!=0.329.0,!=0.330.0,!=0.331.0,!=0.332.0,!=0.333.0"
+      "yandexcloud>=0.308.0"
     ],
     "devel-deps": [],
     "plugins": [],

@@ -23,7 +23,6 @@
 
 # API
 /airflow/api/ @ephraimbuddy @pierrejeambrun
-/airflow/api_connexion/ @ephraimbuddy @pierrejeambrun
 /airflow/api_fastapi/ @ephraimbuddy @pierrejeambrun
 
 # UI

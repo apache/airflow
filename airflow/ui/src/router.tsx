@@ -24,6 +24,7 @@ import { ConfigService } from "openapi/requests/services.gen";
 import { BaseLayout } from "src/layouts/BaseLayout";
 import { DagsLayout } from "src/layouts/DagsLayout";
 import { AssetsList } from "src/pages/AssetsList";
+import { Connections } from "src/pages/Connections";
 import { Dag } from "src/pages/Dag";
 import { Backfills } from "src/pages/Dag/Backfills";
 import { Code } from "src/pages/Dag/Code";
@@ -117,6 +118,10 @@ export const routerConfig = [
         path: "plugins",
       },
       {
+        element: <Connections />,
+        path: "connections",
+      },
+      {
         children: [
           { element: <Overview />, index: true },
           { element: <DagRuns />, path: "runs" },
@@ -184,7 +189,7 @@ export const routerConfig = [
   },
 ];
 
-const baseUrl = document.querySelector("base")?.href ?? "http://localhost:9091/";
+const baseUrl = document.querySelector("base")?.href ?? "http://localhost:8080/";
 const basename = new URL(baseUrl).pathname;
 
 export const router = createBrowserRouter(routerConfig, { basename });

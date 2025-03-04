@@ -17,8 +17,10 @@
 from __future__ import annotations
 
 import json
+from unittest.mock import MagicMock, patch
 
 import pytest
+from confluent_kafka.admin import AdminClient
 
 from airflow.models import Connection
 
@@ -54,5 +56,8 @@ class TestConsumerHook:
         )
         self.hook = KafkaConsumerHook(["test_1"], kafka_config_id="kafka_d")
 
-    def test_get_consumer(self):
+    @patch("airflow.providers.apache.kafka.hooks.base.AdminClient")
+    def test_get_consumer(self, mock_client):
+        mock_client_spec = MagicMock(spec=AdminClient)
+        mock_client.return_value = mock_client_spec
         assert self.hook.get_consumer() == self.hook.get_conn
