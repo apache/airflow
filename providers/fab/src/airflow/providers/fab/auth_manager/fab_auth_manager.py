@@ -185,6 +185,9 @@ class FabAuthManager(BaseAuthManager[User]):
         return commands
 
     def get_fastapi_app(self) -> FastAPI | None:
+        """Get the FastAPI app."""
+        from airflow.providers.fab.auth_manager.api_fastapi.routes.login import login_router
+
         flask_app = create_app(enable_plugins=False)
 
         app = FastAPI(
@@ -196,6 +199,10 @@ class FabAuthManager(BaseAuthManager[User]):
                 "manager."
             ),
         )
+
+        # Add the login router to the FastAPI app
+        app.include_router(login_router)
+
         app.mount("/", WSGIMiddleware(flask_app))
 
         return app
@@ -299,7 +306,7 @@ class FabAuthManager(BaseAuthManager[User]):
                 if no specific DAG is targeted, just check the sub entity.
 
         :param method: The method to authorize.
-        :param user: The user.
+        :param user: The user performing the action.
         :param access_entity: The dag access entity.
         :param details: The dag details.
         """
@@ -486,7 +493,7 @@ class FabAuthManager(BaseAuthManager[User]):
 
         :param method: the method to perform
         :param resource_type: the type of resource the user attempts to perform the action on
-        :param user: the user to perform the action on
+        :param user: the user to performing the action
 
         :meta private:
         """
@@ -506,7 +513,7 @@ class FabAuthManager(BaseAuthManager[User]):
 
         :param method: the method to perform
         :param details: details about the DAG
-        :param user: the user to perform the action on
+        :param user: the user to performing the action
 
         :meta private:
         """
@@ -532,7 +539,7 @@ class FabAuthManager(BaseAuthManager[User]):
 
         :param method: the method to perform
         :param details: details about the DAG
-        :param user: the user to perform the action on
+        :param user: the user to performing the action
 
         :meta private:
         """
