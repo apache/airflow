@@ -31,9 +31,9 @@ class MwaaHook(AwsBaseHook):
     Provide thin wrapper around :external+boto3:py:class:`boto3.client("mwaa") <MWAA.Client>`
 
     If your IAM policy doesn't have `airflow:InvokeRestApi` permission, the hook will use a fallback method
-    that uses the AWS credential to create a web login token for the Airflow Web UI and then directly make
-    requests to the Airflow API. This fallback method can be set as the default (and only) method used by
-    setting `only_use_web_login` to True.  Learn more here:
+    that uses the AWS credential to generate a local web login token for the Airflow Web UI and then directly
+    make requests to the Airflow API. This fallback method can be set as the default (and only) method used by
+    setting `only_generate_local_token` to True.  Learn more here:
     https://docs.aws.amazon.com/mwaa/latest/userguide/access-mwaa-apache-airflow-rest-api.html#granting-access-MWAA-Enhanced-REST-API
 
     Additional arguments (such as ``aws_conn_id``) may be specified and
@@ -54,7 +54,7 @@ class MwaaHook(AwsBaseHook):
         method: str,
         body: dict | None = None,
         query_params: dict | None = None,
-        only_use_web_login: bool = False,
+        only_generate_local_token: bool = False,
     ) -> dict:
         """
         Invoke the REST API on the Airflow webserver with the specified inputs.
@@ -67,8 +67,8 @@ class MwaaHook(AwsBaseHook):
         :param method: HTTP method used for making Airflow REST API calls: 'GET'|'PUT'|'POST'|'PATCH'|'DELETE'
         :param body: Request body for the Apache Airflow REST API call
         :param query_params: Query parameters to be included in the Apache Airflow REST API call
-        :param only_use_web_login: If True, only the web login method is used without trying boto's
-            invoke_rest_api first
+        :param only_generate_local_token: If True, only the local web login token method is used without
+            trying boto's invoke_rest_api first
         """
         # Filter out keys with None values because Airflow REST API doesn't accept requests otherwise
         body = {k: v for k, v in body.items() if v is not None} if body else {}
@@ -81,8 +81,8 @@ class MwaaHook(AwsBaseHook):
             "QueryParameters": query_params,
         }
 
-        if only_use_web_login:
-            return self._invoke_rest_api_using_web_login(**api_kwargs)
+        if only_generate_local_token:
+            return self._invoke_rest_api_using_local_session_token(**api_kwargs)
 
         try:
             response = self.conn.invoke_rest_api(**api_kwargs)
@@ -92,34 +92,41 @@ class MwaaHook(AwsBaseHook):
             return response
 
         except ClientError as e:
-            if e.response["Error"]["Code"] == "AccessDeniedException":
+            if (
+                e.response["Error"]["Code"] == "AccessDeniedException"
+                and "Airflow role" in e.response["Error"]["Message"]
+            ):
                 self.log.info(
-                    "Access Denied, possibly due to missing airflow:InvokeRestApi in IAM policy. "
-                    "Trying again using web login..."
+                    "Access Denied due to missing airflow:InvokeRestApi in IAM policy. Trying again by generating local token..."
                 )
-                return self._invoke_rest_api_using_web_login(**api_kwargs)
+                return self._invoke_rest_api_using_local_session_token(**api_kwargs)
             else:
                 to_log = e.response
                 # ResponseMetadata is removed because it contains data that is either very unlikely to be
                 # useful in XComs and logs, or redundant given the data already included in the response
                 to_log.pop("ResponseMetadata", None)
                 self.log.error(to_log)
-                raise e
+                raise
 
-    def _invoke_rest_api_using_web_login(
+    def _invoke_rest_api_using_local_session_token(
         self,
         **api_kwargs,
     ) -> dict:
-        session, hostname = self._get_session_conn(api_kwargs["Name"])
+        try:
+            session, hostname = self._get_session_conn(api_kwargs["Name"])
 
-        response = session.request(
-            method=api_kwargs["Method"],
-            url=f"https://{hostname}/api/v1{api_kwargs['Path']}",
-            params=api_kwargs["QueryParameters"],
-            json=api_kwargs["Body"],
-            timeout=10,
-        )
-        response.raise_for_status()
+            response = session.request(
+                method=api_kwargs["Method"],
+                url=f"https://{hostname}/api/v1{api_kwargs['Path']}",
+                params=api_kwargs["QueryParameters"],
+                json=api_kwargs["Body"],
+                timeout=10,
+            )
+            response.raise_for_status()
+
+        except requests.HTTPError as e:
+            self.log.error(e.response.json())
+            raise
 
         return {
             "RestApiStatusCode": response.status_code,
