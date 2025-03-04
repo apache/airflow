@@ -21,11 +21,17 @@ from unittest.mock import Mock, patch
 
 import pytest
 
-import airflow.www.auth as auth
+import airflow.providers.fab.www.auth as auth
 from airflow.auth.managers.models.resource_details import DagAccessEntity
 from airflow.models import Connection, Pool, Variable
+from airflow.providers.fab.www import app as application
 
 mock_call = Mock()
+
+
+@pytest.fixture
+def app():
+    return application.create_app(enable_plugins=False)
 
 
 @pytest.mark.parametrize(
@@ -44,9 +50,10 @@ class TestHasAccessNoDetails:
         mock_call()
         return True
 
-    @patch("airflow.www.auth.get_auth_manager")
+    @patch("airflow.providers.fab.www.auth.get_auth_manager")
+    @patch("airflow.providers.fab.www.auth.get_fab_auth_manager")
     def test_has_access_no_details_when_authorized(
-        self, mock_get_auth_manager, decorator_name, is_authorized_method_name
+        self, _, mock_get_auth_manager, decorator_name, is_authorized_method_name
     ):
         auth_manager = Mock()
         is_authorized_method = Mock()
@@ -59,10 +66,11 @@ class TestHasAccessNoDetails:
         mock_call.assert_called_once()
         assert result is True
 
-    @patch("airflow.www.auth.get_auth_manager")
-    @patch("airflow.www.auth.render_template")
+    @patch("airflow.providers.fab.www.auth.get_auth_manager")
+    @patch("airflow.providers.fab.www.auth.get_fab_auth_manager")
+    @patch("airflow.providers.fab.www.auth.render_template")
     def test_has_access_no_details_when_no_permission(
-        self, mock_render_template, mock_get_auth_manager, decorator_name, is_authorized_method_name
+        self, mock_render_template, _, mock_get_auth_manager, decorator_name, is_authorized_method_name
     ):
         auth_manager = Mock()
         is_authorized_method = Mock()
@@ -78,7 +86,7 @@ class TestHasAccessNoDetails:
         mock_render_template.assert_called_once()
 
     @pytest.mark.db_test
-    @patch("airflow.www.auth.get_auth_manager")
+    @patch("airflow.providers.fab.www.auth.get_auth_manager")
     def test_has_access_no_details_when_not_logged_in(
         self, mock_get_auth_manager, app, decorator_name, is_authorized_method_name
     ):
@@ -132,7 +140,7 @@ class TestHasAccessWithDetails:
         mock_call()
         return True
 
-    @patch("airflow.www.auth.get_auth_manager")
+    @patch("airflow.providers.fab.www.auth.get_auth_manager")
     def test_has_access_with_details_when_authorized(
         self, mock_get_auth_manager, decorator_name, is_authorized_method_name, items, request
     ):
@@ -149,7 +157,7 @@ class TestHasAccessWithDetails:
         assert result is True
 
     @pytest.mark.db_test
-    @patch("airflow.www.auth.get_auth_manager")
+    @patch("airflow.providers.fab.www.auth.get_auth_manager")
     def test_has_access_with_details_when_unauthorized(
         self, mock_get_auth_manager, app, decorator_name, is_authorized_method_name, items, request
     ):
@@ -184,7 +192,7 @@ class TestHasAccessDagEntities:
         mock_call()
         return True
 
-    @patch("airflow.www.auth.get_auth_manager")
+    @patch("airflow.providers.fab.www.auth.get_auth_manager")
     def test_has_access_dag_entities_when_authorized(self, mock_get_auth_manager, dag_access_entity):
         auth_manager = Mock()
         auth_manager.batch_is_authorized_dag.return_value = True
@@ -197,8 +205,11 @@ class TestHasAccessDagEntities:
         assert result is True
 
     @pytest.mark.db_test
-    @patch("airflow.www.auth.get_auth_manager")
-    def test_has_access_dag_entities_when_unauthorized(self, mock_get_auth_manager, app, dag_access_entity):
+    @patch("airflow.providers.fab.www.auth.get_auth_manager")
+    @patch("airflow.providers.fab.www.auth.get_fab_auth_manager")
+    def test_has_access_dag_entities_when_unauthorized(
+        self, _, mock_get_auth_manager, app, dag_access_entity
+    ):
         auth_manager = Mock()
         auth_manager.batch_is_authorized_dag.return_value = False
         mock_get_auth_manager.return_value = auth_manager
@@ -208,10 +219,10 @@ class TestHasAccessDagEntities:
             result = auth.has_access_dag_entities("GET", dag_access_entity)(self.method_test)(None, items)
 
         mock_call.assert_not_called()
-        assert result.headers["Location"] == "/home"
+        assert result.headers["Location"] == "/"
 
     @pytest.mark.db_test
-    @patch("airflow.www.auth.get_auth_manager")
+    @patch("airflow.providers.fab.www.auth.get_auth_manager")
     def test_has_access_dag_entities_when_logged_out(self, mock_get_auth_manager, app, dag_access_entity):
         auth_manager = Mock()
         auth_manager.batch_is_authorized_dag.return_value = False

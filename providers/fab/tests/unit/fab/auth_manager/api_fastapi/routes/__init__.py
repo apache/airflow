@@ -1,4 +1,3 @@
-#
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
 # distributed with this work for additional information
@@ -15,20 +14,3 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-from __future__ import annotations
-
-from markupsafe import Markup
-
-from airflow.utils.state import State
-
-
-def state_token(state):
-    """Return a formatted string with HTML for a given State."""
-    color = State.color(state)
-    fg_color = State.color_fg(state)
-    return Markup(
-        """
-        <span class="label" style="color:{fg_color}; background-color:{color};"
-            title="Current State: {state}">{state}</span>
-        """
-    ).format(color=color, state=state, fg_color=fg_color)

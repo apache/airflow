@@ -60,7 +60,6 @@
       "common.compat",
       "common.sql",
       "exasol",
-      "fab",
       "ftp",
       "google",
       "http",
@@ -223,7 +222,9 @@
     ],
     "devel-deps": [],
     "plugins": [],
-    "cross-providers-deps": [],
+    "cross-providers-deps": [
+      "google"
+    ],
     "excluded-python-versions": [],
     "state": "ready"
   },
@@ -465,7 +466,8 @@
       }
     ],
     "cross-providers-deps": [
-      "common.sql"
+      "common.sql",
+      "fab"
     ],
     "excluded-python-versions": [],
     "state": "ready"
@@ -550,7 +552,9 @@
         "plugin-class": "airflow.providers.edge.plugins.edge_executor_plugin.EdgeExecutorPlugin"
       }
     ],
-    "cross-providers-deps": [],
+    "cross-providers-deps": [
+      "fab"
+    ],
     "excluded-python-versions": [],
     "state": "not-ready"
   },
@@ -906,7 +910,7 @@
     "deps": [
       "apache-airflow>=2.9.0",
       "dnspython>=1.13.0",
-      "pymongo>=4.0.0,!=4.11,!=4.11.1"
+      "pymongo>=4.0.0,<4.11.0"
     ],
     "devel-deps": [
       "mongomock>=4.0.0"
