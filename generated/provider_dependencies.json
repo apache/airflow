@@ -293,6 +293,18 @@
     "excluded-python-versions": [],
     "state": "ready"
   },
+  "apache.tinkerpop": {
+    "deps": [
+      "apache-airflow>=2.10.3",
+      "gremlinpython>=3.4.8",
+      "nest-asyncio>=1.5.6"
+    ],
+    "devel-deps": [],
+    "plugins": [],
+    "cross-providers-deps": [],
+    "excluded-python-versions": [],
+    "state": "ready"
+  },
   "apprise": {
     "deps": [
       "apache-airflow>=2.9.0",
