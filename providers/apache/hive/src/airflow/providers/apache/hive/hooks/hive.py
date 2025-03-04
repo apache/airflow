@@ -926,6 +926,7 @@ class HiveServer2Hook(DbApiHook):
 
         scheme = db.extra_dejson.get("scheme", None)
         ssl_context = None
+        ssl_cert_value = None
 
         # If HTTPS, create ssl_context to pass in, built for proxy settings
         if scheme == "https":
@@ -937,11 +938,17 @@ class HiveServer2Hook(DbApiHook):
             check_hostname = db.extra_dejson.get("check_hostname", "false").lower() == "true"
             ssl_context.check_hostname = check_hostname
 
-            # ssl_verify
-            ssl_verify = db.extra_dejson.get("ssl_verify", "none").lower()
-            if ssl_verify == "required":
+            # Get ssl_cert parameter and set verification mode
+            ssl_cert = db.extra_dejson.get("ssl_cert", "none")
+
+            # Convert to lowercase if it's a string
+            if isinstance(ssl_cert, str):
+                ssl_cert = ssl_cert.lower()
+
+            ssl_cert_value = ssl_cert
+            if ssl_cert == "required":
                 ssl_context.verify_mode = ssl.CERT_REQUIRED
-            elif ssl_verify == "optional":
+            elif ssl_cert == "optional":
                 ssl_context.verify_mode = ssl.CERT_OPTIONAL
             else:
                 ssl_context.verify_mode = ssl.CERT_NONE
@@ -964,6 +971,7 @@ class HiveServer2Hook(DbApiHook):
             port=db.port,
             scheme=scheme,
             ssl_context=ssl_context,
+            ssl_cert=ssl_cert_value,
             auth=auth_mechanism,
             kerberos_service_name=kerberos_service_name,
             username=db.login or username,
