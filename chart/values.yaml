@@ -2541,7 +2541,7 @@ ports:
   statsdScrape: 9102
   pgbouncer: 6543
   pgbouncerScrape: 9127
-  apiServer: 9091
+  apiServer: 8080
 
 # Define any ResourceQuotas for namespace
 quotas: {}

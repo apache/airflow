@@ -595,7 +595,7 @@ class TestAPIServerService:
             "release": "release-name",
         }
         assert jmespath.search("spec.type", docs[0]) == "ClusterIP"
-        assert {"name": "api-server", "port": 9091} in jmespath.search("spec.ports", docs[0])
+        assert {"name": "api-server", "port": 8080} in jmespath.search("spec.ports", docs[0])
 
     def test_overrides(self):
         docs = render_chart(
@@ -631,7 +631,7 @@ class TestAPIServerService:
                         "port": "{{ .Values.ports.apiServer }}",
                     }
                 ],
-                [{"name": "release-name", "protocol": "UDP", "port": 9091}],
+                [{"name": "release-name", "protocol": "UDP", "port": 8080}],
             ),
             ([{"name": "only_sidecar", "port": "{{ int 9000 }}"}], [{"name": "only_sidecar", "port": 9000}]),
             (
@@ -640,7 +640,7 @@ class TestAPIServerService:
                     {"name": "sidecar", "port": 80, "targetPort": "sidecar"},
                 ],
                 [
-                    {"name": "api-server", "port": 9091},
+                    {"name": "api-server", "port": 8080},
                     {"name": "sidecar", "port": 80, "targetPort": "sidecar"},
                 ],
             ),
@@ -714,7 +714,7 @@ class TestAPIServerNetworkPolicy:
         assert jmespath.search("spec.ingress[0].from", docs[0]) == [
             {"namespaceSelector": {"matchLabels": {"release": "myrelease"}}}
         ]
-        assert jmespath.search("spec.ingress[0].ports", docs[0]) == [{"port": 9091}]
+        assert jmespath.search("spec.ingress[0].ports", docs[0]) == [{"port": 8080}]
 
     @pytest.mark.parametrize(
         "ports, expected_ports",
@@ -726,7 +726,7 @@ class TestAPIServerNetworkPolicy:
                     {"port": 80},
                 ],
                 [
-                    {"port": 9091},
+                    {"port": 8080},
                     {"port": 80},
                 ],
             ),
