@@ -939,7 +939,7 @@ class TestDeprecatedConf:
                 assert conf.getint("celery", "worker_concurrency") == 99
 
     @pytest.mark.parametrize(
-        "deprecated_options_dict, kargs, new_section_expected, old_section_expected",
+        "deprecated_options_dict, kwargs, new_section_expected_value, old_section_expected_value",
         [
             pytest.param(
                 {("old_section", "old_key"): ("new_section", "new_key", "2.0.0")},
@@ -972,13 +972,13 @@ class TestDeprecatedConf:
         ],
     )
     def test_deprecated_options_with_lookup_from_deprecated(
-        self, deprecated_options_dict, kargs, new_section_expected, old_section_expected
+        self, deprecated_options_dict, kwargs, new_section_expected_value, old_section_expected_value
     ):
         with conf_vars({("new_section", "new_key"): "value"}):
             with set_deprecated_options(deprecated_options=deprecated_options_dict):
-                assert conf.get("new_section", "old_key", **kargs) == new_section_expected
+                assert conf.get("new_section", "old_key", **kwargs) == new_section_expected_value
 
-                assert conf.get("old_section", "old_key", **kargs) == old_section_expected
+                assert conf.get("old_section", "old_key", **kwargs) == old_section_expected_value
 
     @conf_vars(
         {
