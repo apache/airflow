@@ -22,18 +22,17 @@ from __future__ import annotations
 from typing import TYPE_CHECKING, ClassVar
 
 from airflow.models import XCom
-
-if TYPE_CHECKING:
-    from airflow.models import BaseOperator
-    from airflow.models.taskinstancekey import TaskInstanceKey
-    from airflow.utils.context import Context
-
 from airflow.providers.google.version_compat import AIRFLOW_V_3_0_PLUS
 
 if AIRFLOW_V_3_0_PLUS:
     from airflow.sdk.definitions.baseoperatorlink import BaseOperatorLink
 else:
     from airflow.models.baseoperatorlink import BaseOperatorLink  # type: ignore[no-redef]
+
+if TYPE_CHECKING:
+    from airflow.models import BaseOperator
+    from airflow.models.taskinstancekey import TaskInstanceKey
+    from airflow.utils.context import Context
 
 BASE_LINK = "https://console.cloud.google.com/data-fusion"
 DATAFUSION_INSTANCE_LINK = BASE_LINK + "/locations/{region}/instances/{instance_name}?project={project_id}"

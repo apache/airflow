@@ -695,7 +695,7 @@ repos:
         language: pygrep
         name: Check BaseOperatorLink core imports
         description: Make sure BaseOperatorLink is imported from airflow.sdk in core
-        entry: ".*from airflow\\.sdk\\..* import.* BaseOperatorLink\\b"
+        entry: "[ ]*from airflow\\.sdk import.* BaseOperatorLink\\b"
         files: \.py$
         pass_filenames: true
         echo: True
@@ -709,12 +709,9 @@ repos:
           ^dev/provider_packages/.*$
       - id: check-base-operator-usage
         language: pygrep
-        name: Check BaseOperator[Link] other imports
-        description: Make sure BaseOperator is imported from airflow.models and BaseOperatorLink is imported from airflow.models or airflow.sdk.* outside of core
-        entry: >
-          (from airflow\\.models\\.baseoperator import.* BaseOperator\\b|
-           from airflow\\.models import.* BaseOperatorLink\\b|
-           from airflow\\.sdk\\..* import.* BaseOperatorLink\\b)
+        name: Check BaseOperator other imports
+        description: Make sure BaseOperator is imported from airflow.models outside of core
+        entry: "from airflow\\.models\\.baseoperator import.* BaseOperator"
         pass_filenames: true
         files: >
           (?x)
