@@ -17,12 +17,12 @@
 ---
 services:
   graph:
-    container_name: gremlin-server
+    container_name: gremlin
     image: tinkerpop/gremlin-server:3.4.2
     labels:
       breeze.description: "Integration required for gremlin hook."
     volumes:
-      - ./gremlin-server:/opt/gremlin-server/conf
+      - ./gremlin:/opt/gremlin-server/conf
       - graph-data:/opt/gremlin-server/data
     ports:
       - "${GREMLIN_HOST_PORT}:8182"

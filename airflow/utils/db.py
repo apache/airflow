@@ -239,7 +239,7 @@ def create_default_connections(session: Session = NEW_SESSION):
         Connection(
             conn_id="gremlin_default",
             conn_type="gremlin",
-            host="gremlin-server",
+            host="gremlin",
             port=8182,
         ),
         session,

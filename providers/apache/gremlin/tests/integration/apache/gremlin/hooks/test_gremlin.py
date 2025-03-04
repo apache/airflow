@@ -22,7 +22,7 @@ import pytest
 
 from airflow.providers.apache.gremlin.hooks.gremlin import GremlinHook
 
-AIRFLOW_CONN_GREMLIN_DEFAULT = "ws://mylogin:mysecret@gremlin-server:8182/gremlin"
+AIRFLOW_CONN_GREMLIN_DEFAULT = "ws://mylogin:mysecret@gremlin:8182/gremlin"
 
 
 @pytest.mark.integration("gremlin")
