@@ -403,7 +403,9 @@ class DAG:
         validator=attrs.validators.optional(attrs.validators.instance_of(timedelta)),
     )
     # sla_miss_callback: None | SLAMissCallback | list[SLAMissCallback] = None
-    catchup: bool = attrs.field(default=airflow_conf.getboolean("scheduler", "catchup_by_default"), converter=bool)
+    catchup: bool = attrs.field(
+        default=airflow_conf.getboolean("scheduler", "catchup_by_default"), converter=bool
+    )
     on_success_callback: None | DagStateChangeCallback | list[DagStateChangeCallback] = None
     on_failure_callback: None | DagStateChangeCallback | list[DagStateChangeCallback] = None
     doc_md: str | None = attrs.field(default=None, converter=_convert_doc_md)
