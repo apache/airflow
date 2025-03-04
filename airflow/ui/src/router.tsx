@@ -189,7 +189,7 @@ export const routerConfig = [
   },
 ];
 
-const baseUrl = document.querySelector("base")?.href ?? "http://localhost:9091/";
+const baseUrl = document.querySelector("base")?.href ?? "http://localhost:8080/";
 const basename = new URL(baseUrl).pathname;
 
 export const router = createBrowserRouter(routerConfig, { basename });

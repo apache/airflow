@@ -365,11 +365,11 @@ function start_api_server_with_examples(){
     echo
     echo "${COLOR_BLUE}Starting airflow api server${COLOR_RESET}"
     echo
-    airflow api-server --port 9091 --daemon
+    airflow api-server --port 8080 --daemon
     echo
     echo "${COLOR_BLUE}Waiting for api-server to start${COLOR_RESET}"
     echo
-    check_service_connection "Airflow api-server" "run_nc localhost 9091" 100
+    check_service_connection "Airflow api-server" "run_nc localhost 8080" 100
     EXIT_CODE=$?
     if [[ ${EXIT_CODE} != 0 ]]; then
         echo

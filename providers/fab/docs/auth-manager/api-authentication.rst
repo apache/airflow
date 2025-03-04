@@ -45,6 +45,36 @@ command as in the example below.
     $ airflow config get-value api auth_backends
     airflow.providers.fab.auth_manager.api.auth.backend.basic_auth
 
+.. versionchanged:: 3.0.0
+
+    In Airflow, the default setting is using token based authentication.
+    This approach is independent from which ``auth_backend`` is used.
+    The default setting is using Airflow public API to create a token (JWT) first and use this token in the requests to access the API.
+
+
+JWT Token based authentication
+''''''''''''''''''''''''''''''
+The JWT token based authentication is the default setting for the API.
+To be able to use the Airflow Public API, you need to create a token first and use this token in the requests to access the API.
+
+Endpoints are populated under ``/auth`` path. These endpoints are mounted to the Airflow API.
+You should use your username and password, as seen in the example below.
+The token is valid for seconds defined in ``auth_jwt_expiration_time`` which can be set from ``airflow.cfg``.
+
+Example of creating a token:
+.. code-block:: bash
+
+    curl -X 'POST' \
+      'http://localhost:32784/auth/token' \
+      -H 'accept: application/json' \
+      -H 'Content-Type: application/json' \
+      -d '{
+      "username": "username",
+      "password": "password"
+      }'
+
+This process will return a token that you can use in the requests to access the API.
+
 Kerberos authentication
 '''''''''''''''''''''''
 
