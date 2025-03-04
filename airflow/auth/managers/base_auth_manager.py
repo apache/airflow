@@ -164,7 +164,7 @@ class BaseAuthManager(Generic[T], LoggingMixin):
         Return whether the user is authorized to perform a given action on configuration.
 
         :param method: the method to perform
-        :param user: the user to perform the action on
+        :param user: the user to performing the action
         :param details: optional details about the configuration
         """
 
@@ -180,7 +180,7 @@ class BaseAuthManager(Generic[T], LoggingMixin):
         Return whether the user is authorized to perform a given action on a connection.
 
         :param method: the method to perform
-        :param user: the user to perform the action on
+        :param user: the user to performing the action
         :param details: optional details about the connection
         """
 
@@ -197,7 +197,7 @@ class BaseAuthManager(Generic[T], LoggingMixin):
         Return whether the user is authorized to perform a given action on a DAG.
 
         :param method: the method to perform
-        :param user: the user to perform the action on
+        :param user: the user to performing the action
         :param access_entity: the kind of DAG information the authorization request is about.
             If not provided, the authorization request is about the DAG itself
         :param details: optional details about the DAG
@@ -215,7 +215,7 @@ class BaseAuthManager(Generic[T], LoggingMixin):
         Return whether the user is authorized to perform a given action on an asset.
 
         :param method: the method to perform
-        :param user: the user to perform the action on
+        :param user: the user to performing the action
         :param details: optional details about the asset
         """
 
@@ -231,7 +231,7 @@ class BaseAuthManager(Generic[T], LoggingMixin):
         Return whether the user is authorized to perform a given action on a pool.
 
         :param method: the method to perform
-        :param user: the user to perform the action on
+        :param user: the user to performing the action
         :param details: optional details about the pool
         """
 
@@ -247,7 +247,7 @@ class BaseAuthManager(Generic[T], LoggingMixin):
         Return whether the user is authorized to perform a given action on a variable.
 
         :param method: the method to perform
-        :param user: the user to perform the action on
+        :param user: the user to performing the action
         :param details: optional details about the variable
         """
 
@@ -262,7 +262,7 @@ class BaseAuthManager(Generic[T], LoggingMixin):
         Return whether the user is authorized to access a read-only state of the installation.
 
         :param access_view: the specific read-only view/state the authorization request is about.
-        :param user: the user to perform the action on
+        :param user: the user to performing the action
         """
 
     @abstractmethod
@@ -279,7 +279,7 @@ class BaseAuthManager(Generic[T], LoggingMixin):
             In that case, the action can be anything (e.g. can_do).
             See https://github.com/apache/airflow/issues/39144
         :param resource_name: the name of the resource
-        :param user: the user to perform the action on
+        :param user: the user to performing the action
         """
 
     @abstractmethod
@@ -304,7 +304,7 @@ class BaseAuthManager(Generic[T], LoggingMixin):
         manager implementation to provide a more efficient implementation.
 
         :param requests: a list of requests containing the parameters for ``is_authorized_connection``
-        :param user: the user to perform the action on
+        :param user: the user to performing the action
         """
         return all(
             self.is_authorized_connection(method=request["method"], details=request.get("details"), user=user)
@@ -325,7 +325,7 @@ class BaseAuthManager(Generic[T], LoggingMixin):
         implementation to provide a more efficient implementation.
 
         :param requests: a list of requests containing the parameters for ``is_authorized_dag``
-        :param user: the user to perform the action on
+        :param user: the user to performing the action
         """
         return all(
             self.is_authorized_dag(
@@ -351,7 +351,7 @@ class BaseAuthManager(Generic[T], LoggingMixin):
         manager implementation to provide a more efficient implementation.
 
         :param requests: a list of requests containing the parameters for ``is_authorized_pool``
-        :param user: the user to perform the action on
+        :param user: the user to performing the action
         """
         return all(
             self.is_authorized_pool(method=request["method"], details=request.get("details"), user=user)
@@ -372,7 +372,7 @@ class BaseAuthManager(Generic[T], LoggingMixin):
         manager implementation to provide a more efficient implementation.
 
         :param requests: a list of requests containing the parameters for ``is_authorized_variable``
-        :param user: the user to perform the action on
+        :param user: the user to performing the action
         """
         return all(
             self.is_authorized_variable(method=request["method"], details=request.get("details"), user=user)
