@@ -217,20 +217,10 @@ class CopyFromExternalStageToSnowflakeOperator(BaseOperator):
 
                 # Check for valid URI structure
                 if not uri.scheme or not uri.netloc:
-                    # Handle invalid URIs
-                    if uri.scheme == "azure" and "azure://" in row["file"]:
-                        # Try to process Azure URI
-                        match = re.fullmatch(azure_regex, row["file"])
-                        if not match:
-                            extraction_error_files.append(row["file"])
-                            continue
-                        account_name, container_name, name = match.groups()
-                        namespace = f"wasbs://{container_name}@{account_name}"
-                    else:
-                        # Add to error list if URI is invalid
-                        extraction_error_files.append(row["file"])
-                        continue
-                elif uri.scheme == "azure":
+                    extraction_error_files.append(row["file"])
+                    continue
+
+                if uri.scheme == "azure":
                     match = re.fullmatch(azure_regex, row["file"])
                     if not match:
                         extraction_error_files.append(row["file"])
@@ -246,7 +236,6 @@ class CopyFromExternalStageToSnowflakeOperator(BaseOperator):
 
                 unique_dataset_paths.add((namespace, name))
             except Exception:
-                # Catch any parsing errors and add to error list
                 extraction_error_files.append(row["file"])
 
         return sorted(unique_dataset_paths), sorted(extraction_error_files)
