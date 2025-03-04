@@ -18,7 +18,7 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 from unittest import mock
-from unittest.mock import MagicMock
+from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 
@@ -38,7 +38,7 @@ class TestImplem(AwsBaseWaiterTrigger):
         super().__init__(**kwargs)
 
     def hook(self) -> AwsGenericHook:
-        return MagicMock()
+        return AsyncMock()
 
 
 class TestAwsBaseWaiterTrigger:
