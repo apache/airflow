@@ -27,7 +27,6 @@ import packaging.version
 from connexion import FlaskApi
 from fastapi import FastAPI
 from flask import Blueprint, g, url_for
-from flask_appbuilder.menu import MenuItem
 from packaging.version import Version
 from sqlalchemy import select
 from sqlalchemy.orm import Session, joinedload
@@ -64,7 +63,6 @@ from airflow.providers.fab.www.constants import SWAGGER_BUNDLE, SWAGGER_ENABLED
 from airflow.providers.fab.www.extensions.init_views import _CustomErrorRequestBodyValidator, _LazyResolver
 from airflow.providers.fab.www.security import permissions
 from airflow.providers.fab.www.security.permissions import (
-    ACTION_CAN_ACCESS_MENU,
     RESOURCE_AUDIT_LOG,
     RESOURCE_CLUSTER_ACTIVITY,
     RESOURCE_CONFIG,
@@ -214,20 +212,12 @@ class FabAuthManager(BaseAuthManager[User]):
         return FlaskApi(
             specification=specification,
             resolver=_LazyResolver(),
-            # TODO: change to "/fab/v1" when legacy UI is gone
-            base_path="/auth/fab/v1",
+            base_path="/fab/v1",
             options={"swagger_ui": SWAGGER_ENABLED, "swagger_path": SWAGGER_BUNDLE.__fspath__()},
             strict_validation=True,
             validate_responses=True,
             validator_map={"body": _CustomErrorRequestBodyValidator},
         ).blueprint
-
-    def get_user_display_name(self) -> str:
-        """Return the user's display name associated to the user in session."""
-        user = self.get_user()
-        first_name = user.first_name.strip() if isinstance(user.first_name, str) else ""
-        last_name = user.last_name.strip() if isinstance(user.last_name, str) else ""
-        return f"{first_name} {last_name}".strip()
 
     def get_user(self) -> User:
         """
@@ -406,32 +396,6 @@ class FabAuthManager(BaseAuthManager[User]):
                         resources.add(resource)
         return set(session.scalars(select(DagModel.dag_id).where(DagModel.dag_id.in_(resources))))
 
-    def filter_permitted_menu_items(self, menu_items: list[MenuItem]) -> list[MenuItem]:
-        """
-        Filter menu items based on user permissions.
-
-        :param menu_items: list of all menu items
-        """
-        items = filter(
-            lambda item: self.security_manager.has_access(ACTION_CAN_ACCESS_MENU, item.name), menu_items
-        )
-        accessible_items = []
-        for menu_item in items:
-            menu_item_copy = MenuItem(
-                **{
-                    **menu_item.__dict__,
-                    "childs": [],
-                }
-            )
-            if menu_item.childs:
-                accessible_children = []
-                for child in menu_item.childs:
-                    if self.security_manager.has_access(ACTION_CAN_ACCESS_MENU, child.name):
-                        accessible_children.append(child)
-                menu_item_copy.childs = accessible_children
-            accessible_items.append(menu_item_copy)
-        return accessible_items
-
     @cached_property
     def security_manager(self) -> FabAirflowSecurityManagerOverride:
         """Return the security manager specific to FAB."""
@@ -469,14 +433,6 @@ class FabAuthManager(BaseAuthManager[User]):
         if not self.security_manager.auth_view:
             raise AirflowException("`auth_view` not defined in the security manager.")
         return url_for(f"{self.security_manager.auth_view.endpoint}.logout")
-
-    def get_url_user_profile(self) -> str | None:
-        """Return the url to a page displaying info about the current user."""
-        if not self.security_manager.user_view or (
-            self.appbuilder and self.appbuilder.get_app.config.get("AUTH_ROLE_PUBLIC", None)
-        ):
-            return None
-        return url_for(f"{self.security_manager.user_view.endpoint}.userinfo")
 
     def register_views(self) -> None:
         self.security_manager.register_views()
