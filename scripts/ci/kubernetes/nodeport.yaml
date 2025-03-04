@@ -26,6 +26,6 @@ spec:
     release: airflow
     tier: airflow
   ports:
-    - port: 9091
-      targetPort: 9091
+    - port: 8080
+      targetPort: 8080
       nodePort: 30007

@@ -534,7 +534,7 @@ core:
       version_added: 3.0.0
       type: string
       example: ~
-      default: "http://localhost:9091/execution/"
+      default: "http://localhost:8080/execution/"
 database:
   description: ~
   options:
@@ -1321,7 +1321,7 @@ api:
       version_added: ~
       type: string
       example: ~
-      default: "http://localhost:9091"
+      default: "http://localhost:8080"
     host:
       description: |
         The ip specified when starting the api server
@@ -1335,7 +1335,7 @@ api:
       version_added: ~
       type: string
       example: ~
-      default: "9091"
+      default: "8080"
     workers:
       description: |
         Number of workers to run on the API server

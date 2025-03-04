@@ -62,6 +62,13 @@ dependencies = [
     "confluent-kafka>=2.3.0",
 ]
 
+# The optional dependencies should be modified in place in the generated file
+# Any change in the dependencies is preserved when the file is regenerated
+[project.optional-dependencies]
+"google" = [
+    "apache-airflow-providers-google"
+]
+
 [project.urls]
 "Documentation" = "https://airflow.apache.org/docs/apache-airflow-providers-apache-kafka/1.7.0"
 "Changelog" = "https://airflow.apache.org/docs/apache-airflow-providers-apache-kafka/1.7.0/changelog.html"

@@ -59,7 +59,7 @@ export const DetailsLayout = ({ children, error, isLoading, tabs }: Props) => {
 
   return (
     <OpenGroupsProvider dagId={dagId}>
-      <HStack justifyContent="space-between" mb={2}>
+      <HStack justifyContent="space-between">
         <DagBreadcrumb />
         <Flex gap={1}>
           <SearchDagsButton />
@@ -71,7 +71,7 @@ export const DetailsLayout = ({ children, error, isLoading, tabs }: Props) => {
         <PanelGroup autoSaveId={dagId} direction="horizontal">
           <Panel defaultSize={20} minSize={6}>
             <Box height="100%" position="relative" pr={2}>
-              <PanelButtons dagId={dagId} dagView={dagView} setDagView={setDagView} />
+              <PanelButtons dagView={dagView} setDagView={setDagView} />
               {dagView === "graph" ? <Graph /> : <Grid />}
             </Box>
           </Panel>
