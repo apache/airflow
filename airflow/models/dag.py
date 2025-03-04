@@ -430,8 +430,6 @@ class DAG(TaskSDKDag, LoggingMixin):
     default_view: str = airflow_conf.get_mandatory_value("webserver", "dag_default_view").lower()
     orientation: str = airflow_conf.get_mandatory_value("webserver", "dag_orientation")
 
-    catchup: bool = airflow_conf.getboolean("scheduler", "catchup_by_default")
-
     # this will only be set at serialization time
     # it's only use is for determining the relative fileloc based only on the serialize dag
     _processor_dags_folder: str | None = attrs.field(init=False, default=None)
