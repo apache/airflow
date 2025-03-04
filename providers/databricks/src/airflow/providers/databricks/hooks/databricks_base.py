@@ -606,7 +606,11 @@ class BaseDatabricksHook(BaseHook):
             if self.databricks_conn.login == "" or self.databricks_conn.password == "":
                 raise AirflowException("Service Principal credentials aren't provided")
             self.log.debug("Using Service Principal Token.")
-            return await self._a_get_sp_token(OIDC_TOKEN_SERVICE_URL.format(self.databricks_conn.host))
+
+            schema = "https"
+            url = f"{schema}://{self.databricks_conn.host}"
+
+            return await self._a_get_sp_token(OIDC_TOKEN_SERVICE_URL.format(url))
         elif raise_error:
             raise AirflowException("Token authentication isn't configured")
 
