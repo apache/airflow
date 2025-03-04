@@ -54,11 +54,11 @@ export const PanelButtons = ({ dagView, setDagView, ...rest }: Props) => {
   const { dagId = "" } = useParams();
   const [dependencies, setDependencies, removeDependencies] = useLocalStorage<Dependency>(
     `dependencies-${dagId}`,
-    "tasks",
+    "immediate",
   );
 
   const handleDepsChange = (event: SelectValueChangeDetails<{ label: string; value: Array<string> }>) => {
-    if (event.value[0] === undefined || event.value[0] === "tasks" || !deps.includes(event.value[0])) {
+    if (event.value[0] === undefined || event.value[0] === "immediate" || !deps.includes(event.value[0])) {
       removeDependencies();
     } else {
       setDependencies(event.value[0]);
