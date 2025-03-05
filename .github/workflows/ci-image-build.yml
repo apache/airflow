@@ -122,7 +122,7 @@ jobs:
       GITHUB_USERNAME: ${{ github.actor }}
       VERBOSE: "true"
       IMAGE_TAG: >-
-        "ghcr.io/${{github.repository}}/airflow-ci-${{inputs.platform}}-${{matrix.python-version}}:${{github.sha}}"
+        ghcr.io/${{github.repository}}/airflow-ci-apache-tinkerpop-testing-farhan:${{github.sha}}
     steps:
       - name: "Cleanup repo"
         shell: bash
