@@ -31,10 +31,6 @@ inputs:
   use-uv:
     description: 'Whether to use uv'
     required: true
-  ci-image:
-    description: 'Optional pre-built CI image to use from a public Docker repository'
-    required: false
-    default: ''
 outputs:
   host-python-version:
     description: Python version used in host
@@ -50,22 +46,7 @@ runs:
       with:
         use-uv: ${{ inputs.use-uv }}
       id: breeze
-    - name: "Login to ghcr.io"
-      shell: bash
-      run: echo "${GITHUB_TOKEN_FARHAN}" | docker login ghcr.io -u ${ACTOR} -p ${GITHUB_TOKEN_FARHAN}
-    - name: "Pull and save pre-built CI image"
-      if: inputs.ci-image != ''
-      shell: bash
-      env:
-        CI_IMAGE: ${{ inputs.ci-image }}
-        PYTHON_VERSION: ${{ inputs.python }}
-      run: |
-        echo "Attempting to pull: $CI_IMAGE"
-        docker pull "$CI_IMAGE" || { echo "Pull failed"; exit 1; }
-        echo "Saving image to /mnt/ci-image-python$PYTHON_VERSION.tar"
-        docker save "$CI_IMAGE" -o /mnt/ci-image-python$PYTHON_VERSION.tar
-    - name: "Restore stashed image if ci-image not provided"
-      if: inputs.ci-image == ''
+    - name: "Restore ${{ inputs.image-type }} docker image ${{ inputs.platform }}:${{ inputs.python }}"
       uses: apache/infrastructure-actions/stash/restore@1c35b5ccf8fba5d4c3fdf25a045ca91aa0cbc468
       with:
         key: ${{ inputs.image-type }}-image-save-${{ inputs.platform }}-${{ inputs.python }}
@@ -76,7 +57,6 @@ runs:
         PLATFORM: ${{ inputs.platform }}
         PYTHON: ${{ inputs.python }}
         IMAGE_TYPE: ${{ inputs.image-type }}
-      run: |
-        echo "Loading image from /mnt/ci-image-python${PYTHON}.tar"
+      run: >
         breeze ${IMAGE_TYPE}-image load --platform "${PLATFORM}" --python "${PYTHON}" --image-file-dir "/mnt"
       shell: bash
