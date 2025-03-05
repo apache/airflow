@@ -32,6 +32,7 @@ from sqlalchemy import (
     Table,
     select,
     text,
+    tuple_,
 )
 from sqlalchemy.orm import relationship
 
@@ -94,6 +95,18 @@ def resolve_ref_to_asset(
     if uri is not None:
         stmt = stmt.where(AssetModel.uri == uri)
     return session.scalar(stmt)
+
+
+def retrieve_asset_ids(
+    *,
+    assets: list[Asset],
+    session: Session,
+) -> list[int]:
+    return session.scalars(
+        select(AssetModel.id).where(
+            tuple_(AssetModel.name, AssetModel.uri).in_((asset.name, asset.uri) for asset in assets)
+        )
+    ).all()
 
 
 alias_association_table = Table(

@@ -442,11 +442,16 @@ class Asset(os.PathLike, BaseAsset):
 
         :meta private:
         """
+        from airflow.models.asset import retrieve_asset_ids
+        from airflow.utils.session import create_session
+
+        with create_session() as session:
+            asset_id = str(retrieve_asset_ids(assets=[self], session=session)[0])
         yield DagDependency(
             source=source or "asset",
             target=target or "asset",
             dependency_type="asset",
-            dependency_id=self.name,
+            dependency_id=asset_id,
         )
 
     def asprofile(self) -> AssetProfile:
