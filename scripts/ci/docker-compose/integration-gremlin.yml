@@ -29,7 +29,6 @@ services:
     ports:
       - "8182:8182"
     entrypoint: /opt/gremlin-server/gremlin-entrypoint.sh  # Use custom entrypoint
-    restart: "on-failure"  # Retain restart policy
   airflow:
     depends_on:
       - gremlin
