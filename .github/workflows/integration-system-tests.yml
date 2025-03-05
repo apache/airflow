@@ -93,9 +93,6 @@ jobs:
       GITHUB_USERNAME: ${{ github.actor }}
       VERBOSE: "true"
     steps:
-      - name: "Cleanup repo"
-        shell: bash
-        run: docker run -v "${GITHUB_WORKSPACE}:/workspace" -u 0:0 bash -c "rm -rf /workspace/*"
       - name: "Checkout ${{ github.ref }} ( ${{ github.sha }} )"
         uses: actions/checkout@v4
         with:
