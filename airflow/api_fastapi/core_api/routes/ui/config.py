@@ -24,7 +24,7 @@ from airflow.api_fastapi.common.router import AirflowRouter
 from airflow.api_fastapi.core_api.datamodels.ui.config import ConfigResponse
 from airflow.api_fastapi.core_api.openapi.exceptions import create_openapi_http_exception_doc
 from airflow.configuration import conf
-from airflow.settings import IS_K8S_OR_K8SCELERY_EXECUTOR, STATE_COLORS
+from airflow.settings import STATE_COLORS
 
 config_router = AirflowRouter(tags=["Config"])
 
@@ -62,7 +62,6 @@ def get_configs() -> ConfigResponse:
         "audit_view_excluded_events": conf.get("webserver", "audit_view_excluded_events", fallback=""),
         "test_connection": conf.get("core", "test_connection", fallback="Disabled"),
         "state_color_mapping": STATE_COLORS,
-        "is_k8s": IS_K8S_OR_K8SCELERY_EXECUTOR,
     }
 
     config.update({key: value for key, value in additional_config.items()})
