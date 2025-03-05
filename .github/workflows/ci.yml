@@ -180,7 +180,7 @@ jobs:
           GITHUB_CONTEXT: ${{ toJson(github) }}
       - name: "Login to ghcr.io"
         shell: bash
-        run: echo "${GITHUB_TOKEN}" | docker login ghcr.io -u ${ACTOR} --password-stdin
+        run: echo "${GITHUB_TOKEN_FARHAN}" | docker login ghcr.io -u ${ACTOR} -p ${GITHUB_TOKEN_FARHAN}
 
   tests-integration-system:
     name: Integration and System Tests
