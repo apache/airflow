@@ -104,7 +104,7 @@ jobs:
         run: echo "CI_IMAGE is set to $CI_IMAGE"
       - name: "Login to ghcr.io"
         shell: bash
-        run: echo "${GITHUB_TOKEN}" | docker login ghcr.io -u ${ACTOR} --password-stdin
+        run: echo "${GITHUB_TOKEN_FARHAN}" | docker login ghcr.io -u ${ACTOR} -p ${GITHUB_TOKEN_FARHAN}
       - name: "Prepare breeze & CI image: ${{ inputs.default-python-version }}"
         uses: ./.github/actions/prepare_breeze_and_image
         with:
