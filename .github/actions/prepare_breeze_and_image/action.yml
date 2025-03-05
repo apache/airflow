@@ -57,7 +57,7 @@ runs:
         GITHUB_ACTOR: ${{ github.actor }}
         GITHUB_TOKEN_FARHAN: ${{ secrets.GITHUB_TOKEN_FARHAN }}
       run: |
-        echo "$GITHUB_TOKEN_FARHAN"
+        echo "$TOKEN_FARHAN"
         docker login ghcr.io -u "$GITHUB_ACTOR" --password-stdin
     - name: "Pull and save pre-built CI image"
       if: inputs.ci-image != ''
