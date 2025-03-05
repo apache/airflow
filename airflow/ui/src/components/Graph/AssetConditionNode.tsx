@@ -16,21 +16,28 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-export enum SearchParamsKeys {
-  DEPENDENCIES = "dependencies",
-  END_DATE = "end_date",
-  LAST_DAG_RUN_STATE = "last_dag_run_state",
-  LIMIT = "limit",
-  LOG_LEVEL = "log_level",
-  NAME_PATTERN = "name_pattern",
-  OFFSET = "offset",
-  PAUSED = "paused",
-  SORT = "sort",
-  START_DATE = "start_date",
-  STATE = "state",
-  TAGS = "tags",
-  TRY_NUMBER = "try_number",
-  VERSION_NUMBER = "version_number",
-}
+import { Box } from "@chakra-ui/react";
+import type { NodeProps, Node as NodeType } from "@xyflow/react";
+import { TbLogicAnd, TbLogicOr } from "react-icons/tb";
 
-export type SearchParamsKeysType = Record<keyof typeof SearchParamsKeys, string>;
+import { NodeWrapper } from "./NodeWrapper";
+import type { CustomNodeProps } from "./reactflowUtils";
+
+export const AssetConditionNode = ({ data }: NodeProps<NodeType<CustomNodeProps, "asset-condition">>) => (
+  <NodeWrapper>
+    <Box
+      bg="bg"
+      borderRadius={4}
+      borderWidth={1}
+      height={`${data.height}px`}
+      title={data.assetCondition === "and-gate" ? "All" : "Any"}
+      width={`${data.width}px`}
+    >
+      {data.assetCondition === "or-gate" ? (
+        <TbLogicOr size={`${data.height}px`} />
+      ) : (
+        <TbLogicAnd size={`${data.height}px`} />
+      )}
+    </Box>
+  </NodeWrapper>
+);

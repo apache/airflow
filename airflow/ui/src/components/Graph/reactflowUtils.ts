@@ -24,6 +24,7 @@ import type { GridTaskInstanceSummary, NodeResponse } from "openapi/requests/typ
 import type { LayoutNode } from "./useGraphLayout";
 
 export type CustomNodeProps = {
+  assetCondition?: NodeResponse["asset_condition_type"];
   childCount?: number;
   depth?: number;
   height?: number;
@@ -131,7 +132,7 @@ type Edge = {
 } & ElkExtendedEdge;
 
 export type EdgeData = {
-  rest: { isSetupTeardown?: boolean } & ElkExtendedEdge;
+  rest: { isSelected?: boolean; isSetupTeardown?: boolean } & ElkExtendedEdge;
 };
 
 export const formatFlowEdges = ({ edges }: { edges: Array<Edge> }): Array<FlowEdgeType<EdgeData>> =>
