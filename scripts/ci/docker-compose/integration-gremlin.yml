@@ -17,6 +17,7 @@
 ---
 services:
   gremlin:
+    hostname: gremlin
     container_name: gremlin
     image: tinkerpop/gremlin-server:3.4.2
     labels:

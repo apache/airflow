@@ -53,6 +53,7 @@ check_gremlin_container() {
     done
     if [[ -z "$GREMLIN_CONTAINER" ]]; then
         echo "${COLOR_RED}No running Gremlin container after $max_attempts attempts!${COLOR_RESET}"
+        docker logs gremlin
     fi
 }
 
