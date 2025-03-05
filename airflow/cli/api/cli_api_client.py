@@ -36,7 +36,7 @@ def get_client():
     cli_api_client = None
     try:
         credentials = Credentials().load()
-        limits = httpx.Limits(max_keepalive_connections=1, max_connections=10)
+        limits = httpx.Limits(max_keepalive_connections=1, max_connections=1)
         cli_api_client = Client(
             base_url=credentials.api_url,
             limits=limits,

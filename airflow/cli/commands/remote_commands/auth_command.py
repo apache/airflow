@@ -34,7 +34,8 @@ def login(args) -> None:
         # Exit
         rich.print("[red]No token found.")
         rich.print(
-            "[green]Please pass: [blue]--api-token or set APACHE_AIRFLOW_CLI_TOKEN environment variable to login."
+            "[green]Please pass:[/green] [blue]--api-token[/blue] or set "
+            "[blue]APACHE_AIRFLOW_CLI_TOKEN[/blue] environment variable to login."
         )
         sys.exit(1)
     Credentials(

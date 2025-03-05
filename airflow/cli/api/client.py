@@ -43,7 +43,6 @@ from airflow.cli.api.operations import (
     VariablesOperations,
     VersionOperations,
 )
-from airflow.utils.types import DagRunType
 from airflow.version import version
 
 if TYPE_CHECKING:
@@ -80,27 +79,6 @@ def raise_on_4xx_5xx(response: httpx.Response):
     return get_json_error(response) or response.raise_for_status()
 
 
-def noop_handler(request: httpx.Request) -> httpx.Response:
-    path = request.url.path
-    log.debug("Dry-run request", method=request.method, path=path)
-    # TODO change for test
-    if path.startswith("/task-instances/") and path.endswith("/run"):
-        # Return a fake context
-        return httpx.Response(
-            200,
-            json={
-                "dag_run": {
-                    "dag_id": "test_dag",
-                    "run_id": "test_run",
-                    "logical_date": "2021-01-01T00:00:00Z",
-                    "start_date": "2021-01-01T00:00:00Z",
-                    "run_type": DagRunType.MANUAL,
-                },
-            },
-        )
-    return httpx.Response(200, json={"text": "Hello, world!"})
-
-
 # Credentials for the API
 class Credentials:
     """Credentials for the API."""
@@ -117,37 +95,30 @@ class Credentials:
     ):
         self.api_url = api_url
         self.api_token = api_token
-        self.set_environment(api_environment)
-
-    @lru_cache()
-    def get_input_cli_config_file(self) -> str:
-        """Generate path and always generate that path but let's not world readable."""
-        self.set_environment()
-        return f"{self.api_environment}.json"
-
-    def set_environment(self, api_environment: str = "production"):
-        """Read the environment from the environment variable."""
         self.api_environment = os.getenv("APACHE_AIRFLOW_CLI_ENVIRONMENT") or api_environment
+
+    @property
+    def input_cli_config_file(self) -> str:
+        """Generate path and always generate that path but let's not world readable."""
+        return f"{self.api_environment}.json"
 
     def save(self):
         """Save the credentials to keyring and URL to disk as a file."""
         default_config_dir = user_config_path("airflow", "Apache Software Foundation")
         if not os.path.exists(default_config_dir):
             os.makedirs(default_config_dir)
-        with open(os.path.join(default_config_dir, self.get_input_cli_config_file()), "w") as f:
+        with open(os.path.join(default_config_dir, self.input_cli_config_file), "w") as f:
             json.dump({"api_url": self.api_url}, f)
         keyring.set_password("airflow-cli", f"api_token-{self.api_environment}", self.api_token)
 
     def load(self) -> Credentials:
         """Load the credentials from keyring and URL from disk file."""
         default_config_dir = user_config_path("airflow", "Apache Software Foundation")
-        self.set_environment()
         if os.path.exists(default_config_dir):
-            with open(os.path.join(default_config_dir, self.get_input_cli_config_file())) as f:
+            with open(os.path.join(default_config_dir, self.input_cli_config_file)) as f:
                 credentials = json.load(f)
                 self.api_url = credentials["api_url"]
                 self.api_token = keyring.get_password("airflow-cli", f"api_token-{self.api_environment}")
-                print(f"token: {self.api_token}")
             return self
         else:
             rich.print("[red]No credentials found.")
@@ -164,7 +135,6 @@ class Client(httpx.Client):
         if dry_run:
             # If dry run is requested, install a no op handler so that simple tasks can "heartbeat" using a
             # real client, but just don't make any HTTP requests
-            kwargs["transport"] = httpx.MockTransport(noop_handler)
             kwargs["base_url"] = "dry-run://server"
         else:
             kwargs["base_url"] = f"{base_url}/public"
