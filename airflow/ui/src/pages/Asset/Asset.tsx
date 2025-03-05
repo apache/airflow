@@ -41,7 +41,6 @@ export const Asset = () => {
   );
 
   const links = [
-    { label: "Assets", value: "/assets" },
     {
       label: asset?.name,
       title: "Asset",
@@ -51,7 +50,7 @@ export const Asset = () => {
 
   return (
     <ReactFlowProvider>
-      <HStack justifyContent="space-between">
+      <HStack justifyContent="space-between" mb={2}>
         <BreadcrumbStats links={links} />
       </HStack>
       <ProgressBar size="xs" visibility={Boolean(isLoading) ? "visible" : "hidden"} />
