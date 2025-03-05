@@ -979,11 +979,7 @@ class TestStringifiedDAGs:
 
         assert "params" in serialized_dag["dag"]
 
-        if val and any([True for k, v in val.items() if isinstance(v, set)]):
-            deserialized_dag = SerializedDAG.from_dict(serialized_dag)
-
-        else:
-            deserialized_dag = SerializedDAG.from_dict(serialized_dag)
+        deserialized_dag = SerializedDAG.from_dict(serialized_dag)
         deserialized_simple_task = deserialized_dag.task_dict["simple_task"]
         assert expected_val == deserialized_dag.params.dump()
         assert expected_val == deserialized_simple_task.params.dump()

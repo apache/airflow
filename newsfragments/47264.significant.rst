@@ -14,13 +14,3 @@ Removed leftover deprecations prior to 3.0.0.
   * [ ] Plugin changes
   * [ ] Dependency changes
   * [x] Code interface changes
-
-
-dict[str, dict[str, Collection[str]]]
-None
-
-!=
-
-dict[str, dict[str, Collection[str]]]
-dict[str, Collection[str]]
-None
