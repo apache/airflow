@@ -83,7 +83,7 @@ class SimpleAuthManager(BaseAuthManager[SimpleAuthManagerUser]):
 
     @staticmethod
     def get_generated_password_file() -> str:
-        if configured_file := conf.get("core", "simple_auth_manager_passwords_file"):
+        if configured_file := conf.get("core", "simple_auth_manager_passwords_file", fallback=None):
             return configured_file
 
         return os.path.join(AIRFLOW_HOME, "simple_auth_manager_passwords.json.generated")
