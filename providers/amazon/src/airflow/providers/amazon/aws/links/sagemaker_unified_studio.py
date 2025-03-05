@@ -1,4 +1,3 @@
-#
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
 # distributed with this work for additional information
@@ -15,3 +14,14 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
+
+from airflow.providers.amazon.aws.links.base_aws import BASE_AWS_CONSOLE_LINK, BaseAwsLink
+
+
+class SageMakerUnifiedStudioLink(BaseAwsLink):
+    """Helper class for constructing Amazon SageMaker Unified Studio Links."""
+
+    name = "Amazon SageMaker Unified Studio"
+    key = "sagemaker_unified_studio"
+    format_str = BASE_AWS_CONSOLE_LINK + "/datazone/home?region={region_name}"

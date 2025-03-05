@@ -27,10 +27,24 @@ from flask_babel import lazy_gettext
 from sqlalchemy import types
 from sqlalchemy.ext.associationproxy import AssociationProxy
 
+from airflow.api_fastapi.app import get_auth_manager
 from airflow.utils import timezone
 
 if TYPE_CHECKING:
     from sqlalchemy.orm.session import Session
+
+    from airflow.providers.fab.auth_manager.fab_auth_manager import FabAuthManager
+
+
+def get_fab_auth_manager() -> FabAuthManager:
+    from airflow.providers.fab.auth_manager.fab_auth_manager import FabAuthManager
+
+    auth_manager = get_auth_manager()
+    if not isinstance(auth_manager, FabAuthManager):
+        raise RuntimeError(
+            "This functionality is only available with if FabAuthManager is configured as auth manager in the environment."
+        )
+    return auth_manager
 
 
 class UtcAwareFilterMixin:

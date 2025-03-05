@@ -1,4 +1,3 @@
-#
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
 # distributed with this work for additional information
@@ -17,18 +16,35 @@
 # under the License.
 from __future__ import annotations
 
-from markupsafe import Markup
+import os
 
-from airflow.utils.state import State
+from airflow.providers.amazon.aws.utils.sagemaker_unified_studio import is_local_runner, workflows_env_key
 
 
-def state_token(state):
-    """Return a formatted string with HTML for a given State."""
-    color = State.color(state)
-    fg_color = State.color_fg(state)
-    return Markup(
-        """
-        <span class="label" style="color:{fg_color}; background-color:{color};"
-            title="Current State: {state}">{state}</span>
-        """
-    ).format(color=color, state=state, fg_color=fg_color)
+def test_is_local_runner_false():
+    assert not is_local_runner()
+
+
+def test_is_local_runner_true():
+    os.environ[workflows_env_key] = "Local"
+    assert is_local_runner()
+
+
+def test_is_local_runner_false_with_env_var():
+    os.environ[workflows_env_key] = "False"
+    assert not is_local_runner()
+
+
+def test_is_local_runner_false_with_env_var_empty():
+    os.environ[workflows_env_key] = ""
+    assert not is_local_runner()
+
+
+def test_is_local_runner_false_with_env_var_invalid():
+    os.environ[workflows_env_key] = "random string"
+    assert not is_local_runner()
+
+
+def test_is_local_runner_false_with_string_int():
+    os.environ[workflows_env_key] = "1"
+    assert not is_local_runner()
