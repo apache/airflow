@@ -121,6 +121,8 @@ jobs:
       GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       GITHUB_USERNAME: ${{ github.actor }}
       VERBOSE: "true"
+      IMAGE_TAG: >-
+        "ghcr.io/${{github.repository}}/airflow-ci-${{inputs.platform}}-${{matrix.python-version}}:${{github.sha}}"
     steps:
       - name: "Cleanup repo"
         shell: bash
@@ -164,28 +166,34 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           ACTOR: ${{ github.actor }}
         run: echo "${GITHUB_TOKEN}" | docker login ghcr.io -u ${ACTOR} --password-stdin
-      - name: >
-          Build ${{ inputs.push-image == 'true' && ' & push ' || '' }}
-          ${{ inputs.platform }}:${{ env.PYTHON_MAJOR_MINOR_VERSION }} image
+      - name: "Check if image exists"
+        id: check_image
+        run: |
+          if docker pull "${IMAGE_TAG}" 2>/dev/null; then
+            echo "image_exists=true"
+          else
+            echo "image_exists=false"
+          fi >> $GITHUB_OUTPUT
+      - name: "Build CI image ${{ inputs.platform }}:${{ env.PYTHON_MAJOR_MINOR_VERSION }}"
+        if: steps.check_image.outputs.image_exists != 'true'
         run: >
-          breeze ci-image build --platform "${PLATFORM}"
+          breeze ci-image build --platform "${PLATFORM}" --tag "${IMAGE_TAG}"
         env:
           DOCKER_CACHE: ${{ inputs.docker-cache }}
           DISABLE_AIRFLOW_REPO_CACHE: ${{ inputs.disable-airflow-repo-cache }}
           INSTALL_MYSQL_CLIENT_TYPE: ${{ inputs.install-mysql-client-type }}
           UPGRADE_TO_NEWER_DEPENDENCIES: ${{ inputs.upgrade-to-newer-dependencies }}
-          # You can override CONSTRAINTS_GITHUB_REPOSITORY by setting secret in your repo but by default the
-          # Airflow one is going to be used
           CONSTRAINTS_GITHUB_REPOSITORY: >-
             ${{ secrets.CONSTRAINTS_GITHUB_REPOSITORY != '' &&
             secrets.CONSTRAINTS_GITHUB_REPOSITORY || 'apache/airflow' }}
-          # In builds from forks, this token is read-only. For scheduled/direct push it is WRITE one
           GITHUB_REPOSITORY: ${{ github.repository }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           GITHUB_USERNAME: ${{ github.actor }}
-          PUSH: ${{ inputs.push-image }}
           VERBOSE: "true"
           PLATFORM: ${{ inputs.platform }}
+      - name: "Push CI image ${{ inputs.platform }}:${{ env.PYTHON_MAJOR_MINOR_VERSION }}"
+        if: inputs.push-image == 'true' && steps.check_image.outputs.image_exists != 'true'
+        run: docker push "${IMAGE_TAG}"
       - name: "Export CI docker image ${{ env.PYTHON_MAJOR_MINOR_VERSION }}"
         env:
           PLATFORM: ${{ inputs.platform }}
