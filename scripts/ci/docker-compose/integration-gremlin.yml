@@ -32,5 +32,8 @@ services:
       - gremlin
     environment:
       - INTEGRATION_GREMLIN=true
+    stdin_open: true
+    command: |
+      sh -c "chmod -R a+rw /opt/gremlin-server/conf && exec /docker-entrypoint.sh conf/gremlin-server.yaml"
 volumes:
   graph-data:
