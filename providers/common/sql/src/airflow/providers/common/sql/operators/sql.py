@@ -123,7 +123,7 @@ def default_output_processor(results: list[Any], descriptions: list[Sequence[Seq
 
 def default_output_processor_with_column_names(
     results: list[Any], descriptions: list[Sequence[Sequence] | None]
-) -> list[tuple[Any, list[str]]]:
+) -> list[tuple[Any, list[str] | None]]:
     """
     Return both the data and column names of one or more queries executed with the SQLExecuteQueryOperator.
 
@@ -134,11 +134,13 @@ def default_output_processor_with_column_names(
         descriptions (list[Sequence[Sequence] | None]): The column descriptions of the executed queries (description attribute of the corresponding cursor).
 
     Returns:
-        list[tuple[Any, list[str]]]: A list with an item for each SQL statement that was executed.
+        list[tuple[Any, list[str] | None]]: A list with an item for each SQL statement that was executed.
         Each list item is a tuple of 1. the data and 2. the corresponding column names resulting from the SQL statement in question.
     """
     column_names = [
-        [single_col_desc[0] for single_col_desc in query_col_desc] if query_col_desc is not None else None
+        [str(single_col_desc[0]) for single_col_desc in query_col_desc]
+        if query_col_desc is not None
+        else None
         for query_col_desc in descriptions
     ]
     output = list(zip(results, column_names))
