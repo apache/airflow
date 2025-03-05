@@ -72,6 +72,13 @@ def get_provider_info():
                         "example": None,
                         "default": "True",
                     },
+                    "auth_backends": {
+                        "description": "Comma separated list of auth backends to authenticate users of the API.\n",
+                        "version_added": "2.3.0",
+                        "type": "string",
+                        "example": None,
+                        "default": "airflow.providers.fab.auth_manager.api.auth.backend.session",
+                    },
                 },
             }
         },

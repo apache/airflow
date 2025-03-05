@@ -59,7 +59,7 @@ class TestBasicAuth(BaseTestAuth):
 
         try:
             with conf_vars(
-                {("api", "auth_backends"): "airflow.providers.fab.auth_manager.api.auth.backend.basic_auth"}
+                {("fab", "auth_backends"): "airflow.providers.fab.auth_manager.api.auth.backend.basic_auth"}
             ):
                 init_api_auth(minimal_app_for_auth_api)
                 yield
