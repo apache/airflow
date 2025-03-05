@@ -63,9 +63,7 @@ class S3CreateBucketOperator(AwsBaseOperator[S3Hook]):
         https://botocore.amazonaws.com/v1/documentation/api/latest/reference/config.html
     """
 
-    template_fields: Sequence[str] = aws_template_fields(
-        "bucket_name",
-    )
+    template_fields: Sequence[str] = aws_template_fields("bucket_name")
     aws_hook_class = S3Hook
 
     def __init__(
@@ -107,9 +105,7 @@ class S3DeleteBucketOperator(AwsBaseOperator[S3Hook]):
         https://botocore.amazonaws.com/v1/documentation/api/latest/reference/config.html
     """
 
-    template_fields: Sequence[str] = aws_template_fields(
-        "bucket_name",
-    )
+    template_fields: Sequence[str] = aws_template_fields("bucket_name")
     aws_hook_class = S3Hook
 
     def __init__(
@@ -151,9 +147,7 @@ class S3GetBucketTaggingOperator(AwsBaseOperator[S3Hook]):
         https://botocore.amazonaws.com/v1/documentation/api/latest/reference/config.html
     """
 
-    template_fields: Sequence[str] = aws_template_fields(
-        "bucket_name",
-    )
+    template_fields: Sequence[str] = aws_template_fields("bucket_name")
     aws_hook_class = S3Hook
 
     def __init__(self, bucket_name: str, aws_conn_id: str | None = "aws_default", **kwargs) -> None:
@@ -195,9 +189,7 @@ class S3PutBucketTaggingOperator(AwsBaseOperator[S3Hook]):
         https://botocore.amazonaws.com/v1/documentation/api/latest/reference/config.html
     """
 
-    template_fields: Sequence[str] = aws_template_fields(
-        "bucket_name",
-    )
+    template_fields: Sequence[str] = aws_template_fields("bucket_name")
     template_fields_renderers = {"tag_set": "json"}
     aws_hook_class = S3Hook
 
@@ -247,9 +239,7 @@ class S3DeleteBucketTaggingOperator(AwsBaseOperator[S3Hook]):
         https://botocore.amazonaws.com/v1/documentation/api/latest/reference/config.html
     """
 
-    template_fields: Sequence[str] = aws_template_fields(
-        "bucket_name",
-    )
+    template_fields: Sequence[str] = aws_template_fields("bucket_name")
     aws_hook_class = S3Hook
 
     def __init__(
