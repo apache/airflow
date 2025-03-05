@@ -50,6 +50,15 @@ runs:
       with:
         use-uv: ${{ inputs.use-uv }}
       id: breeze
+    - name: "Login to GitHub Container Registry"
+      if: inputs.ci-image != ''
+      shell: bash
+      env:
+        GITHUB_ACTOR: ${{ github.actor }}
+        GITHUB_TOKEN_FARHAN: ${{ secrets.GITHUB_TOKEN_FARHAN }}
+      run: |
+        echo "$GITHUB_TOKEN_FARHAN"
+        docker login ghcr.io -u "$GITHUB_ACTOR" --password-stdin
     - name: "Pull and save pre-built CI image"
       if: inputs.ci-image != ''
       shell: bash
@@ -57,8 +66,8 @@ runs:
         CI_IMAGE: ${{ inputs.ci-image }}
         PYTHON_VERSION: ${{ inputs.python }}
       run: |
-        echo "Pulling image: $CI_IMAGE"
-        docker pull "$CI_IMAGE"
+        echo "Attempting to pull: $CI_IMAGE"
+        docker pull "$CI_IMAGE" || { echo "Pull failed"; exit 1; }
         echo "Saving image to /mnt/ci-image-python$PYTHON_VERSION.tar"
         docker save "$CI_IMAGE" -o /mnt/ci-image-python$PYTHON_VERSION.tar
     - name: "Restore stashed image if ci-image not provided"
@@ -73,6 +82,7 @@ runs:
         PLATFORM: ${{ inputs.platform }}
         PYTHON: ${{ inputs.python }}
         IMAGE_TYPE: ${{ inputs.image-type }}
-      run: >
+      run: |
+        echo "Loading image from /mnt/ci-image-python${PYTHON}.tar"
         breeze ${IMAGE_TYPE}-image load --platform "${PLATFORM}" --python "${PYTHON}" --image-file-dir "/mnt"
       shell: bash
