@@ -16,8 +16,8 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { HStack, Text } from "@chakra-ui/react";
-import { useCallback, useState } from "react";
+import { HStack, Text, Box } from "@chakra-ui/react";
+import { useCallback, useState, useRef } from "react";
 import { FiBarChart, FiMessageSquare } from "react-icons/fi";
 
 import type { DAGRunResponse } from "openapi/requests/types.gen";
@@ -29,7 +29,7 @@ import { MarkRunAsButton } from "src/components/MarkAs";
 import { RunTypeIcon } from "src/components/RunTypeIcon";
 import Time from "src/components/Time";
 import { usePatchDagRun } from "src/queries/usePatchDagRun";
-import { getDuration } from "src/utils";
+import { getDuration, useContainerWidth } from "src/utils";
 
 export const Header = ({
   dagRun,
@@ -57,59 +57,64 @@ export const Header = ({
       });
     }
   }, [dagId, dagRun.note, dagRunId, mutate, note]);
+  const containerRef = useRef<HTMLDivElement>();
+  const containerWidth = useContainerWidth(containerRef);
 
   return (
-    <HeaderCard
-      actions={
-        <>
-          <EditableMarkdownButton
-            header="Dag Run Note"
-            icon={<FiMessageSquare />}
-            isPending={isPending}
-            mdContent={note}
-            onConfirm={onConfirm}
-            placeholder="Add a note..."
-            setMdContent={setNote}
-            text={Boolean(dagRun.note) ? "Note" : "Add a note"}
-          />
-          <ClearRunButton dagRun={dagRun} />
-          <MarkRunAsButton dagRun={dagRun} />
-        </>
-      }
-      icon={<FiBarChart />}
-      isRefreshing={isRefreshing}
-      state={dagRun.state}
-      stats={[
-        ...(dagRun.logical_date === null
-          ? []
-          : [
-              {
-                label: "Logical Date",
-                value: <Time datetime={dagRun.logical_date} />,
-              },
-            ]),
-        {
-          label: "Run Type",
-          value: (
-            <HStack>
-              <RunTypeIcon runType={dagRun.run_type} />
-              <Text>{dagRun.run_type}</Text>
-            </HStack>
-          ),
-        },
-        { label: "Start", value: <Time datetime={dagRun.start_date} /> },
-        { label: "End", value: <Time datetime={dagRun.end_date} /> },
-        { label: "Duration", value: `${getDuration(dagRun.start_date, dagRun.end_date)}s` },
-        {
-          label: "Dag Version(s)",
-          value: (
-            <LimitedItemsList
-              items={dagRun.dag_versions.map(({ version_number: versionNumber }) => `v${versionNumber}`)}
+    <Box ref={containerRef}>
+      <HeaderCard
+        actions={
+          <>
+            <EditableMarkdownButton
+              header="Dag Run Note"
+              icon={<FiMessageSquare />}
+              isPending={isPending}
+              mdContent={note}
+              onConfirm={onConfirm}
+              placeholder="Add a note..."
+              setMdContent={setNote}
+              text={Boolean(dagRun.note) ? "Note" : "Add a note"}
+              withText={containerWidth > 700}
             />
-          ),
-        },
-      ]}
-      title={<Time datetime={dagRun.run_after} />}
-    />
+            <ClearRunButton dagRun={dagRun} withText={containerWidth > 700} />
+            <MarkRunAsButton dagRun={dagRun} withText={containerWidth > 700} />
+          </>
+        }
+        icon={<FiBarChart />}
+        isRefreshing={isRefreshing}
+        state={dagRun.state}
+        stats={[
+          ...(dagRun.logical_date === null
+            ? []
+            : [
+                {
+                  label: "Logical Date",
+                  value: <Time datetime={dagRun.logical_date} />,
+                },
+              ]),
+          {
+            label: "Run Type",
+            value: (
+              <HStack>
+                <RunTypeIcon runType={dagRun.run_type} />
+                <Text>{dagRun.run_type}</Text>
+              </HStack>
+            ),
+          },
+          { label: "Start", value: <Time datetime={dagRun.start_date} /> },
+          { label: "End", value: <Time datetime={dagRun.end_date} /> },
+          { label: "Duration", value: `${getDuration(dagRun.start_date, dagRun.end_date)}s` },
+          {
+            label: "Dag Version(s)",
+            value: (
+              <LimitedItemsList
+                items={dagRun.dag_versions.map(({ version_number: versionNumber }) => `v${versionNumber}`)}
+              />
+            ),
+          },
+        ]}
+        title={<Time datetime={dagRun.run_after} />}
+      />
+    </Box>
   );
 };
