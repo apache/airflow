@@ -102,6 +102,14 @@ core:
       type: string
       example: ~
       default: "False"
+    simple_auth_manager_passwords_file:
+      description: |
+        The json file where the simple auth manager stores passwords for the configured users.
+        By default this is ``AIRFLOW_HOME/simple_auth_manager_passwords.json.generated``.
+      version_added: 3.0.0
+      type: string
+      example: "/path/to/passwords.json"
+      default: ~
     parallelism:
       description: |
         This defines the maximum number of task instances that can run concurrently per scheduler in
