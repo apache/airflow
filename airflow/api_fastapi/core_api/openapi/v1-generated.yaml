@@ -1845,6 +1845,14 @@ paths:
           type: string
           default: id
           title: Order By
+      - name: connection_id_pattern
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Connection Id Pattern
       responses:
         '200':
           description: Successful Response

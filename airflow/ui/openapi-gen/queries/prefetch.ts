@@ -729,24 +729,27 @@ export const prefetchUseConnectionServiceGetConnection = (
  * @param data.limit
  * @param data.offset
  * @param data.orderBy
+ * @param data.connectionIdPattern
  * @returns ConnectionCollectionResponse Successful Response
  * @throws ApiError
  */
 export const prefetchUseConnectionServiceGetConnections = (
   queryClient: QueryClient,
   {
+    connectionIdPattern,
     limit,
     offset,
     orderBy,
   }: {
+    connectionIdPattern?: string;
     limit?: number;
     offset?: number;
     orderBy?: string;
   } = {},
 ) =>
   queryClient.prefetchQuery({
-    queryKey: Common.UseConnectionServiceGetConnectionsKeyFn({ limit, offset, orderBy }),
-    queryFn: () => ConnectionService.getConnections({ limit, offset, orderBy }),
+    queryKey: Common.UseConnectionServiceGetConnectionsKeyFn({ connectionIdPattern, limit, offset, orderBy }),
+    queryFn: () => ConnectionService.getConnections({ connectionIdPattern, limit, offset, orderBy }),
   });
 /**
  * Get Dag Run

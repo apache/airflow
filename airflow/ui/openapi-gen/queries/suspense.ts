@@ -862,6 +862,7 @@ export const useConnectionServiceGetConnectionSuspense = <
  * @param data.limit
  * @param data.offset
  * @param data.orderBy
+ * @param data.connectionIdPattern
  * @returns ConnectionCollectionResponse Successful Response
  * @throws ApiError
  */
@@ -871,10 +872,12 @@ export const useConnectionServiceGetConnectionsSuspense = <
   TQueryKey extends Array<unknown> = unknown[],
 >(
   {
+    connectionIdPattern,
     limit,
     offset,
     orderBy,
   }: {
+    connectionIdPattern?: string;
     limit?: number;
     offset?: number;
     orderBy?: string;
@@ -883,8 +886,11 @@ export const useConnectionServiceGetConnectionsSuspense = <
   options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">,
 ) =>
   useSuspenseQuery<TData, TError>({
-    queryKey: Common.UseConnectionServiceGetConnectionsKeyFn({ limit, offset, orderBy }, queryKey),
-    queryFn: () => ConnectionService.getConnections({ limit, offset, orderBy }) as TData,
+    queryKey: Common.UseConnectionServiceGetConnectionsKeyFn(
+      { connectionIdPattern, limit, offset, orderBy },
+      queryKey,
+    ),
+    queryFn: () => ConnectionService.getConnections({ connectionIdPattern, limit, offset, orderBy }) as TData,
     ...options,
   });
 /**

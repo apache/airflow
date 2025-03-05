@@ -1168,6 +1168,7 @@ export class ConnectionService {
    * @param data.limit
    * @param data.offset
    * @param data.orderBy
+   * @param data.connectionIdPattern
    * @returns ConnectionCollectionResponse Successful Response
    * @throws ApiError
    */
@@ -1179,6 +1180,7 @@ export class ConnectionService {
         limit: data.limit,
         offset: data.offset,
         order_by: data.orderBy,
+        connection_id_pattern: data.connectionIdPattern,
       },
       errors: {
         401: "Unauthorized",
