@@ -769,9 +769,7 @@ class DAG:
         if isinstance(task_ids, str):
             matched_tasks = [t for t in self.tasks if str(task_ids) in t.task_id]
         else:
-            matched_tasks = [
-                t for t in self.tasks if any(task_id for task_id in task_ids if str(task_id) in t.task_id)
-            ]
+            matched_tasks = [t for t in self.tasks if t.task_id in task_ids]
 
         also_include_ids: set[str] = set()
         for t in matched_tasks:
