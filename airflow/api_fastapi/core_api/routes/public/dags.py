@@ -109,7 +109,7 @@ def get_dags(
             ).dynamic_depends()
         ),
     ],
-    readable_dag_filter: ReadableDagsFilterDep,
+    readable_dags_filter: ReadableDagsFilterDep,
     session: SessionDep,
 ) -> DAGCollectionResponse:
     """Get all DAGs."""
@@ -137,7 +137,7 @@ def get_dags(
             tags,
             owners,
             last_dag_run_state,
-            readable_dag_filter,
+            readable_dags_filter,
         ],
         order_by=order_by,
         offset=offset,
@@ -271,7 +271,7 @@ def patch_dags(
     only_active: QueryOnlyActiveFilter,
     paused: QueryPausedFilter,
     last_dag_run_state: QueryLastDagRunStateFilter,
-    editable_dag_filter: EditableDagsFilterDep,
+    editable_dags_filter: EditableDagsFilterDep,
     session: SessionDep,
     update_mask: list[str] | None = Query(None),
 ) -> DAGCollectionResponse:
@@ -292,7 +292,7 @@ def patch_dags(
 
     dags_select, total_entries = paginated_select(
         statement=generate_dag_with_latest_run_query(),
-        filters=[only_active, paused, dag_id_pattern, tags, owners, last_dag_run_state, editable_dag_filter],
+        filters=[only_active, paused, dag_id_pattern, tags, owners, last_dag_run_state, editable_dags_filter],
         order_by=None,
         offset=offset,
         limit=limit,

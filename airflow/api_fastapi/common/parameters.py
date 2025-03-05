@@ -40,7 +40,7 @@ from pydantic import AfterValidator, BaseModel, NonNegativeInt
 from sqlalchemy import Column, and_, case, or_
 from sqlalchemy.inspection import inspect
 
-from airflow.api_fastapi.core_api.base import OrmFilterClause
+from airflow.api_fastapi.core_api.base import OrmClause
 from airflow.models import Base
 from airflow.models.asset import (
     AssetAliasModel,
@@ -65,7 +65,7 @@ if TYPE_CHECKING:
 T = TypeVar("T")
 
 
-class BaseParam(OrmFilterClause[T], ABC):
+class BaseParam(OrmClause[T], ABC):
     """Base class for path or query parameters with ORM transformation."""
 
     def __init__(self, value: T | None = None, skip_none: bool = True) -> None:

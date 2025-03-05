@@ -49,7 +49,7 @@ class StrictBaseModel(BaseModel):
     model_config = ConfigDict(from_attributes=True, populate_by_name=True, extra="forbid")
 
 
-class OrmFilterClause(Generic[T], ABC):
+class OrmClause(Generic[T], ABC):
     """
     Base class for filtering clauses with paginated_select.
 

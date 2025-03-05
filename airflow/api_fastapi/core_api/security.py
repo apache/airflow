@@ -25,7 +25,7 @@ from fastapi.security import OAuth2PasswordBearer
 from jwt import ExpiredSignatureError, InvalidTokenError
 
 from airflow.api_fastapi.app import get_auth_manager
-from airflow.api_fastapi.core_api.base import OrmFilterClause
+from airflow.api_fastapi.core_api.base import OrmClause
 from airflow.auth.managers.models.base_user import BaseUser
 from airflow.auth.managers.models.resource_details import (
     ConnectionDetails,
@@ -102,7 +102,7 @@ def requires_access_dag(
     return inner
 
 
-class PermittedDagFilter(OrmFilterClause[set[str]]):
+class PermittedDagFilter(OrmClause[set[str]]):
     """A parameter that filters the permitted dags for the user."""
 
     def to_orm(self, select: Select) -> Select:
