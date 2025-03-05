@@ -48,6 +48,7 @@ from airflow.models.asset import (
     DagScheduleAssetReference,
     TaskOutletAssetReference,
 )
+from airflow.models.connection import Connection
 from airflow.models.dag import DagModel, DagTag
 from airflow.models.dag_version import DagVersion
 from airflow.models.dagrun import DagRun
@@ -701,4 +702,9 @@ state_priority: list[None | TaskInstanceState] = [
     TaskInstanceState.SUCCESS,
     TaskInstanceState.SKIPPED,
     TaskInstanceState.REMOVED,
+]
+
+# Connections
+QueryConnectionIdPatternSearch = Annotated[
+    _SearchParam, Depends(search_param_factory(Connection.conn_id, "connection_id_pattern"))
 ]

@@ -1870,6 +1870,7 @@ export type PatchConnectionData = {
 export type PatchConnectionResponse = ConnectionResponse;
 
 export type GetConnectionsData = {
+  connectionIdPattern?: string | null;
   limit?: number;
   offset?: number;
   orderBy?: string;
