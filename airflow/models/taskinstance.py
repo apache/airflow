@@ -3619,12 +3619,12 @@ class TaskInstance(Base, LoggingMixin):
         from airflow.models.renderedtifields import RenderedTaskInstanceFields
 
         tables: list[type[TaskInstanceDependencies]] = [
-            TaskInstanceNote,
             TaskReschedule,
             XCom,
             RenderedTaskInstanceFields,
             TaskMap,
         ]
+        tables_by_id: list[type[Base]] = [TaskInstanceNote]
         for table in tables:
             session.execute(
                 delete(table).where(
@@ -3634,6 +3634,8 @@ class TaskInstance(Base, LoggingMixin):
                     table.map_index == self.map_index,
                 )
             )
+        for table in tables_by_id:
+            session.execute(delete(table).where(table.id == self.id))
 
     @classmethod
     def duration_expression_update(
