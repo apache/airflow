@@ -49,6 +49,7 @@ class GremlinHook(BaseHook):
     :param gremlin_conn_id: Reference to the connection ID configured in Airflow.
     """
 
+    conn_name_attr = "gremlin__conn_id"
     default_conn_name = "gremlin_default"
     conn_type = "gremlin"
     hook_name = "Gremlin"
