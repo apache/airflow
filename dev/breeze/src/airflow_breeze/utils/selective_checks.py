@@ -100,7 +100,7 @@ class FileGroupForCi(Enum):
     PYTHON_PRODUCTION_FILES = "python_scans"
     JAVASCRIPT_PRODUCTION_FILES = "javascript_scans"
     ALWAYS_TESTS_FILES = "always_test_files"
-    API_TEST_FILES = "api_test_files"
+    API_FILES = "api_files"
     API_CODEGEN_FILES = "api_codegen_files"
     LEGACY_API_FILES = "legacy_api_files"
     HELM_FILES = "helm_files"
@@ -161,9 +161,11 @@ CI_FILE_GROUP_MATCHES = HashableDict(
             r"^airflow/ui/.*\.yaml$",
             r"^airflow/auth/managers/simple/ui/.*\.yaml$",
         ],
-        FileGroupForCi.API_TEST_FILES: [
+        FileGroupForCi.API_FILES: [
             r"^airflow/api/",
-            r"^airflow/api_connexion/",
+            r"^airflow/api_fastapi/",
+            r"^tests/api/",
+            r"^tests/api_fastapi/",
         ],
         FileGroupForCi.API_CODEGEN_FILES: [
             r"^airflow/api_fastapi/core_api/openapi/v1-generated\.yaml",
@@ -497,6 +499,13 @@ class SelectiveChecks:
             get_console().print("[warning]Running full set of tests because env files changed[/]")
             return True
         if self._matching_files(
+            FileGroupForCi.API_FILES,
+            CI_FILE_GROUP_MATCHES,
+            CI_FILE_GROUP_EXCLUDES,
+        ):
+            get_console().print("[warning]Running full set of tests because api files changed[/]")
+            return True
+        if self._matching_files(
             FileGroupForCi.TESTS_UTILS_FILES,
             CI_FILE_GROUP_MATCHES,
             CI_FILE_GROUP_EXCLUDES,
@@ -692,7 +701,7 @@ class SelectiveChecks:
 
     @cached_property
     def needs_api_tests(self) -> bool:
-        return self._should_be_run(FileGroupForCi.API_TEST_FILES)
+        return self._should_be_run(FileGroupForCi.API_FILES)
 
     @cached_property
     def needs_ol_tests(self) -> bool:
