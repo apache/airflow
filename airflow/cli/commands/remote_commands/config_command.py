@@ -472,6 +472,51 @@ CONFIGS_CHANGES = [
     ),
 ]
 
+# List of default values which has changed from Airflow 2 to Airflow 3.
+DEFAULT_VALUE_CHANGES = [
+    {
+        "section": "webserver",
+        "option": "dag_default_view",
+        "old_default": "tree",
+        "new_default": "grid",
+        "message": (
+            "The default value for 'dag_default_view' in [webserver] changed from 'tree' to 'grid' in Airflow 3.0. "
+            "Please update your configuration accordingly."
+        ),
+    },
+    {
+        "section": "logging",
+        "option": "log_filename_template",
+        "old_default": "{{ ti.dag_id }}/{{ ti.task_id }}/{{ ts }}/{{ try_number }}.log",
+        # The actual replacement value will be updated after defaults are loaded from config.yml
+        "new_default": "XX-set-after-default-config-loaded-XX",
+        "message": (
+            "The default value for 'log_filename_template' from Airflow 2 may break task logs in the new UI. "
+            "Please update to the new default value."
+        ),
+    },
+    {
+        "section": "api",
+        "option": "auth_backends",
+        "old_default": "airflow.api.auth.backend.deny_all",
+        "new_default": "airflow.api.auth.backend.session",
+        "message": (
+            "The default value for 'auth_backends' in [api] changed in Airflow 3.0. "
+            "Please update your configuration to use the new default."
+        ),
+    },
+    {
+        "section": "elasticsearch",
+        "option": "log_id_template",
+        "old_default": "{dag_id}-{task_id}-{logical_date}-{try_number}",
+        "new_default": "{dag_id}-{task_id}-{run_id}-{map_index}-{try_number}",
+        "message": (
+            "The default value for 'log_id_template' in [elasticsearch] has changed in Airflow 3.0. "
+            "Please update your configuration accordingly."
+        ),
+    },
+]
+
 
 @providers_configuration_loaded
 def lint_config(args) -> None:
@@ -501,6 +546,14 @@ def lint_config(args) -> None:
             Enables detailed output, including the list of ignored sections and options.
             Example: --verbose
 
+        --upgrade-defaults: flag (optional)
+            Automatically upgrade problematic default values from Airflow 2 to the new recommended values.
+            Example: --upgrade-defaults
+
+        --skip-default-checks: flag (optional)
+            Skip checking for default values from Airflow 2 that may be problematic in Airflow 3.
+            Example: --skip-default-checks
+
     Examples:
         1. Lint all sections and options:
             airflow config lint
@@ -519,6 +572,12 @@ def lint_config(args) -> None:
 
         6. Enable verbose output:
             airflow config lint --verbose
+
+        7. Automatically upgrade problematic default values:
+            airflow config lint --upgrade-defaults
+
+        8. Skip checking default values:
+            airflow config lint --skip-default-checks
 
     :param args: The CLI arguments for linting configurations.
     """
@@ -545,6 +604,35 @@ def lint_config(args) -> None:
             configuration.config.section, configuration.config.option, lookup_from_deprecated=False
         ):
             lint_issues.append(configuration.message)
+
+    if not getattr(args, "skip_default_checks", False):
+        for default_change in DEFAULT_VALUE_CHANGES:
+            section = default_change["section"]
+            option = default_change["option"]
+            old_default = default_change["old_default"]
+            new_default = default_change["new_default"]
+            message = default_change["message"]
+
+            if section_to_check_if_provided and section not in section_to_check_if_provided:
+                continue
+            if option_to_check_if_provided and option not in option_to_check_if_provided:
+                continue
+            if section in ignore_sections or option in ignore_options:
+                continue
+
+            if conf.has_option(section, option):
+                current_value = conf.get(section, option)
+                if current_value == old_default:
+                    if getattr(args, "upgrade_defaults", False):
+                        conf.set(section, option, new_default)
+                        console.print(
+                            f"[blue]Automatically upgraded {section}.{option} from default value "
+                            f"'{old_default}' to '{new_default}'.[/blue]"
+                        )
+                    else:
+                        lint_issues.append(
+                            f"[yellow]{message} Current value: '{current_value}'. Consider updating to '{new_default}'.[/yellow]"
+                        )
 
     if lint_issues:
         console.print("[red]Found issues in your airflow.cfg:[/red]")

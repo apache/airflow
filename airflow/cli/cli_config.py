@@ -791,6 +791,16 @@ ARG_OPTIONAL_SECTION = Arg(
     ("--section",),
     help="The section name",
 )
+ARG_LINT_CONFIG_UPGRADE_DEFAULTS = Arg(
+    ("--upgrade-defaults",),
+    help="Automatically upgrade problematic default values from Airflow 2 to the new recommended values.",
+    action="store_true",
+)
+ARG_LINT_CONFIG_SKIP_DEFAULT_CHECKS = Arg(
+    ("--skip-default-checks",),
+    help="Skip checking for default values from Airflow 2 that may be problematic in Airflow 3.",
+    action="store_true",
+)
 
 # jobs check
 ARG_JOB_TYPE_FILTER = Arg(
@@ -1641,6 +1651,8 @@ CONFIG_COMMANDS = (
             ARG_LINT_CONFIG_IGNORE_SECTION,
             ARG_LINT_CONFIG_IGNORE_OPTION,
             ARG_VERBOSE,
+            ARG_LINT_CONFIG_UPGRADE_DEFAULTS,
+            ARG_LINT_CONFIG_SKIP_DEFAULT_CHECKS,
         ),
     ),
 )
