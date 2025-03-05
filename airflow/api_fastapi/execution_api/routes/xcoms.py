@@ -30,7 +30,7 @@ from airflow.api_fastapi.execution_api import deps
 from airflow.api_fastapi.execution_api.datamodels.token import TIToken
 from airflow.api_fastapi.execution_api.datamodels.xcom import XComResponse
 from airflow.models.taskmap import TaskMap
-from airflow.models.xcom import BaseXCom
+from airflow.models.xcom import BaseXCom, XComModel
 from airflow.utils.db import get_query_count
 
 # TODO: Add dependency on JWT token
@@ -62,7 +62,7 @@ async def xcom_query(
             },
         )
 
-    query = BaseXCom.get_many(
+    query = XComModel.get_many(
         run_id=run_id,
         key=key,
         task_ids=task_id,
@@ -224,6 +224,16 @@ def set_xcom(
     # (the mapped task would fail in a moment as it can't be expanded anyway.)
 
     # We use `BaseXCom.set` to set XComs directly to the database, bypassing the XCom Backend.
+    from airflow.models.dagrun import DagRun
+
+    if not run_id:
+        raise ValueError(f"run_id must be passed. Passed run_id={run_id}")
+
+    dag_run_id = session.query(DagRun.id).filter_by(dag_id=dag_id, run_id=run_id).scalar()
+    if dag_run_id is None:
+        raise ValueError(f"DAG run not found on DAG {dag_id!r} with ID {run_id!r}")
+
+
     try:
         BaseXCom.set(
             key=key,

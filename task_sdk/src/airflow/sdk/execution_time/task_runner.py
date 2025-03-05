@@ -315,7 +315,7 @@ class RuntimeTaskInstance(TaskInstance):
                     dag_id=dag_id,
                     map_index=map_indexes,
                 )
-                xcoms.append(value)
+                xcoms.append(XCom.deserialize_value(value))
                 continue
             SUPERVISOR_COMMS.send_request(
                 log=log,

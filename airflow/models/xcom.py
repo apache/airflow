@@ -48,6 +48,7 @@ from airflow.utils.json import XComDecoder, XComEncoder
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.session import NEW_SESSION, provide_session
 from airflow.utils.sqlalchemy import UtcDateTime
+from airflow.sdk.execution_time.xcom import BaseXCom as TaskSDKBaseXCom
 
 # XCom constants below are needed for providers backward compatibility,
 # which should import the constants directly after apache-airflow>=2.6.0
@@ -66,8 +67,8 @@ if TYPE_CHECKING:
     from airflow.models.taskinstancekey import TaskInstanceKey
 
 
-class BaseXCom(TaskInstanceDependencies, LoggingMixin):
-    """Base class for XCom objects."""
+class XComModel(TaskInstanceDependencies):
+    """XCom model class."""
 
     __tablename__ = "xcom"
 
@@ -111,7 +112,6 @@ class BaseXCom(TaskInstanceDependencies, LoggingMixin):
         passive_deletes="all",
     )
     logical_date = association_proxy("dag_run", "logical_date")
-
     @reconstructor
     def init_on_load(self):
         """
@@ -120,6 +120,83 @@ class BaseXCom(TaskInstanceDependencies, LoggingMixin):
         i.e automatically deserialize Xcom value when loading from DB.
         """
         self.value = self.orm_deserialize_value()
+
+    @staticmethod
+    @provide_session
+    def get_many(
+        *,
+        run_id: str,
+        key: str | None = None,
+        task_ids: str | Iterable[str] | None = None,
+        dag_ids: str | Iterable[str] | None = None,
+        map_indexes: int | Iterable[int] | None = None,
+        include_prior_dates: bool = False,
+        limit: int | None = None,
+        session: Session = NEW_SESSION,
+    ) -> Query:
+        """
+        Composes a query to get one or more XCom entries.
+
+        This function returns an SQLAlchemy query of full XCom objects. If you
+        just want one stored value, use :meth:`get_one` instead.
+
+        :param run_id: DAG run ID for the task.
+        :param key: A key for the XComs. If provided, only XComs with matching
+            keys will be returned. Pass *None* (default) to remove the filter.
+        :param task_ids: Only XComs from task with matching IDs will be pulled.
+            Pass *None* (default) to remove the filter.
+        :param dag_ids: Only pulls XComs from specified DAGs. Pass *None*
+            (default) to remove the filter.
+        :param map_indexes: Only XComs from matching map indexes will be pulled.
+            Pass *None* (default) to remove the filter.
+        :param include_prior_dates: If *False* (default), only XComs from the
+            specified DAG run are returned. If *True*, all matching XComs are
+            returned regardless of the run it belongs to.
+        :param session: Database session. If not given, a new session will be
+            created for this function.
+        :param limit: Limiting returning XComs
+        """
+        from airflow.models.dagrun import DagRun
+
+        if not run_id:
+            raise ValueError(f"run_id must be passed. Passed run_id={run_id}")
+
+        query = session.query(BaseXCom).join(BaseXCom.dag_run)
+
+        if key:
+            query = query.filter(BaseXCom.key == key)
+
+        if is_container(task_ids):
+            query = query.filter(BaseXCom.task_id.in_(task_ids))
+        elif task_ids is not None:
+            query = query.filter(BaseXCom.task_id == task_ids)
+
+        if is_container(dag_ids):
+            query = query.filter(BaseXCom.dag_id.in_(dag_ids))
+        elif dag_ids is not None:
+            query = query.filter(BaseXCom.dag_id == dag_ids)
+
+        if isinstance(map_indexes, range) and map_indexes.step == 1:
+            query = query.filter(
+                BaseXCom.map_index >= map_indexes.start, BaseXCom.map_index < map_indexes.stop
+            )
+        elif is_container(map_indexes):
+            query = query.filter(BaseXCom.map_index.in_(map_indexes))
+        elif map_indexes is not None:
+            query = query.filter(BaseXCom.map_index == map_indexes)
+
+        if include_prior_dates:
+            dr = session.query(DagRun.logical_date).filter(DagRun.run_id == run_id).subquery()
+            query = query.filter(BaseXCom.logical_date <= dr.c.logical_date)
+        else:
+            query = query.filter(BaseXCom.run_id == run_id)
+
+        query = query.order_by(DagRun.logical_date.desc(), BaseXCom.timestamp.desc())
+        if limit:
+            return query.limit(limit)
+        return query
+
+class BaseXCom(XComModel, LoggingMixin, TaskSDKBaseXCom):
 
     def __repr__(self):
         if self.map_index < 0:
@@ -160,27 +237,6 @@ class BaseXCom(TaskInstanceDependencies, LoggingMixin):
         dag_run_id = session.query(DagRun.id).filter_by(dag_id=dag_id, run_id=run_id).scalar()
         if dag_run_id is None:
             raise ValueError(f"DAG run not found on DAG {dag_id!r} with ID {run_id!r}")
-
-        # Seamlessly resolve LazySelectSequence to a list. This intends to work
-        # as a "lazy list" to avoid pulling a ton of XComs unnecessarily, but if
-        # it's pushed into XCom, the user should be aware of the performance
-        # implications, and this avoids leaking the implementation detail.
-        if isinstance(value, LazySelectSequence):
-            warning_message = (
-                "Coercing mapped lazy proxy %s from task %s (DAG %s, run %s) "
-                "to list, which may degrade performance. Review resource "
-                "requirements for this operation, and call list() to suppress "
-                "this message. See Dynamic Task Mapping documentation for "
-                "more information about lazy proxy objects."
-            )
-            log.warning(
-                warning_message,
-                "return value" if key == XCOM_RETURN_KEY else f"value {key}",
-                task_id,
-                dag_id,
-                run_id,
-            )
-            value = list(value)
 
         value = cls.serialize_value(
             value=value,
@@ -437,49 +493,6 @@ class BaseXCom(TaskInstanceDependencies, LoggingMixin):
 
         session.commit()
 
-    @staticmethod
-    def serialize_value(
-        value: Any,
-        *,
-        key: str | None = None,
-        task_id: str | None = None,
-        dag_id: str | None = None,
-        run_id: str | None = None,
-        map_index: int | None = None,
-    ) -> str:
-        """Serialize XCom value to JSON str."""
-        try:
-            return json.dumps(value, cls=XComEncoder)
-        except (ValueError, TypeError):
-            raise ValueError("XCom value must be JSON serializable")
-
-    @staticmethod
-    def _deserialize_value(result: XCom, orm: bool) -> Any:
-        object_hook = None
-        if orm:
-            object_hook = XComDecoder.orm_object_hook
-
-        if result.value is None:
-            return None
-
-        return json.loads(result.value, cls=XComDecoder, object_hook=object_hook)
-
-    @staticmethod
-    def deserialize_value(result: XCom) -> Any:
-        """Deserialize XCom value from str or pickle object."""
-        return BaseXCom._deserialize_value(result, False)
-
-    def orm_deserialize_value(self) -> Any:
-        """
-        Deserialize method which is used to reconstruct ORM XCom object.
-
-        This method should be overridden in custom XCom backends to avoid
-        unnecessary request or other resource consuming operations when
-        creating XCom orm model. This is used when viewing XCom listing
-        in the webserver, for example.
-        """
-        return BaseXCom._deserialize_value(self, True)
-
 
 class LazyXComSelectSequence(LazySelectSequence[Any]):
     """
@@ -517,13 +530,15 @@ def resolve_xcom_backend() -> type[BaseXCom]:
     Confirm that custom XCom class extends the BaseXCom.
     Compare the function signature of the custom XCom serialize_value to the base XCom serialize_value.
     """
+    from airflow.sdk.execution_time.xcom import BaseXCom as BaseXComSDK
     clazz = conf.getimport("core", "xcom_backend", fallback=f"airflow.models.xcom.{BaseXCom.__name__}")
     if not clazz:
         return BaseXCom
     if not issubclass(clazz, BaseXCom):
-        raise TypeError(
-            f"Your custom XCom class `{clazz.__name__}` is not a subclass of `{BaseXCom.__name__}`."
-        )
+        if not issubclass(clazz, BaseXComSDK):
+            raise TypeError(
+                f"Your custom XCom class `{clazz.__name__}` is not a subclass of `{BaseXCom.__name__}`."
+            )
     return clazz
 
 
@@ -531,3 +546,4 @@ if TYPE_CHECKING:
     XCom = BaseXCom  # Hack to avoid Mypy "Variable 'XCom' is not valid as a type".
 else:
     XCom = resolve_xcom_backend()
+    print("Loaded custom XCom.", XCom.__name__)
