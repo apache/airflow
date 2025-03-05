@@ -14,25 +14,37 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-"""Session authentication backend."""
-
 from __future__ import annotations
 
-import warnings
-from typing import Any
+import os
 
-import airflow.providers.fab.auth_manager.api.auth.backend.session as fab_session
-from airflow.exceptions import RemovedInAirflow3Warning
-
-CLIENT_AUTH: tuple[str, str] | Any | None = None
+from airflow.providers.amazon.aws.utils.sagemaker_unified_studio import is_local_runner, workflows_env_key
 
 
-warnings.warn(
-    "This module is deprecated. Please use `airflow.providers.fab.auth_manager.api.auth.backend.session` instead.",
-    RemovedInAirflow3Warning,
-    stacklevel=2,
-)
+def test_is_local_runner_false():
+    assert not is_local_runner()
 
 
-init_app = fab_session.init_app
-requires_authentication = fab_session.requires_authentication
+def test_is_local_runner_true():
+    os.environ[workflows_env_key] = "Local"
+    assert is_local_runner()
+
+
+def test_is_local_runner_false_with_env_var():
+    os.environ[workflows_env_key] = "False"
+    assert not is_local_runner()
+
+
+def test_is_local_runner_false_with_env_var_empty():
+    os.environ[workflows_env_key] = ""
+    assert not is_local_runner()
+
+
+def test_is_local_runner_false_with_env_var_invalid():
+    os.environ[workflows_env_key] = "random string"
+    assert not is_local_runner()
+
+
+def test_is_local_runner_false_with_string_int():
+    os.environ[workflows_env_key] = "1"
+    assert not is_local_runner()

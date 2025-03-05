@@ -20,8 +20,17 @@ import { useToken } from "@chakra-ui/react";
 import { ReactFlow, Controls, Background, MiniMap, type Node as ReactFlowNode } from "@xyflow/react";
 import "@xyflow/react/dist/style.css";
 import { useParams } from "react-router-dom";
+import { useLocalStorage } from "usehooks-ts";
 
-import { useGridServiceGridData, useStructureServiceStructureData } from "openapi/queries";
+import {
+  useDependenciesServiceGetDependencies,
+  useGridServiceGridData,
+  useStructureServiceStructureData,
+} from "openapi/queries";
+import { AliasNode } from "src/components/Graph/AliasNode";
+import { AssetConditionNode } from "src/components/Graph/AssetConditionNode";
+import { AssetNode } from "src/components/Graph/AssetNode";
+import { DagNode } from "src/components/Graph/DagNode";
 import Edge from "src/components/Graph/Edge";
 import { JoinNode } from "src/components/Graph/JoinNode";
 import { TaskNode } from "src/components/Graph/TaskNode";
@@ -55,6 +64,10 @@ const nodeColor = (
 };
 
 const nodeTypes = {
+  asset: AssetNode,
+  "asset-alias": AliasNode,
+  "asset-condition": AssetConditionNode,
+  dag: DagNode,
   join: JoinNode,
   task: TaskNode,
 };
@@ -77,23 +90,40 @@ export const Graph = () => {
   ]);
 
   const { openGroupIds } = useOpenGroups();
+  const refetchInterval = useAutoRefresh({ dagId });
+
+  const [dependencies] = useLocalStorage<"all" | "immediate" | "tasks">(`dependencies-${dagId}`, "immediate");
 
   const selectedColor = colorMode === "dark" ? selectedDarkColor : selectedLightColor;
   const versionNumber = selectedVersion === undefined ? undefined : parseInt(selectedVersion, 10);
 
   const { data: graphData = { arrange: "LR", edges: [], nodes: [] } } = useStructureServiceStructureData({
     dagId,
+    externalDependencies: dependencies === "immediate",
     versionNumber,
   });
+
+  const { data: dagDependencies = { edges: [], nodes: [] } } = useDependenciesServiceGetDependencies(
+    { nodeId: `dag:${dagId}` },
+    undefined,
+    { enabled: dependencies === "all" },
+  );
+
+  const dagDepEdges = dependencies === "all" ? dagDependencies.edges : [];
+  const dagDepNodes = dependencies === "all" ? dagDependencies.nodes : [];
 
   const { data } = useGraphLayout({
-    ...graphData,
+    arrange: "LR",
     dagId,
-    openGroupIds,
+    edges: [...graphData.edges, ...dagDepEdges],
+    nodes: dagDepNodes.length
+      ? dagDepNodes.map((node) =>
+          node.id === `dag:${dagId}` ? { ...node, children: graphData.nodes } : node,
+        )
+      : graphData.nodes,
+    openGroupIds: [...openGroupIds, ...(dependencies === "all" ? [`dag:${dagId}`] : [])],
     versionNumber,
   });
-
-  const refetchInterval = useAutoRefresh({ dagId });
 
   const { data: gridData } = useGridServiceGridData(
     {
@@ -129,11 +159,26 @@ export const Graph = () => {
           };
         });
 
+  const edges = (data?.edges ?? []).map((edge) => ({
+    ...edge,
+    data: {
+      ...edge.data,
+      rest: {
+        ...edge.data?.rest,
+        isSelected:
+          taskId === edge.source ||
+          taskId === edge.target ||
+          edge.source === `dag:${dagId}` ||
+          edge.target === `dag:${dagId}`,
+      },
+    },
+  }));
+
   return (
     <ReactFlow
       colorMode={colorMode}
       defaultEdgeOptions={{ zIndex: 1 }}
-      edges={data?.edges ?? []}
+      edges={edges}
       edgeTypes={edgeTypes}
       // Fit view to selected task or the whole graph on render
       fitView
