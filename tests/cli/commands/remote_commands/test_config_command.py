@@ -324,16 +324,14 @@ class TestConfigLint:
     def test_lint_detects_multiple_issues(self):
         with mock.patch(
             "airflow.configuration.conf.has_option",
-            side_effect=lambda section, option, lookup_from_deprecated: option
+            side_effect=lambda section, option, **kwargs: option
             in ["check_slas", "strict_dataset_uri_validation"],
         ):
             with contextlib.redirect_stdout(StringIO()) as temp_stdout:
                 config_command.lint_config(cli_parser.get_parser().parse_args(["config", "lint"]))
-
             output = temp_stdout.getvalue()
 
         normalized_output = re.sub(r"\s+", " ", output.strip())
-
         assert (
             "Removed deprecated `check_slas` configuration parameter from `core` section."
             in normalized_output
@@ -447,3 +445,43 @@ class TestConfigLint:
 
         assert expected_message in normalized_output
         assert config_change.suggestion in normalized_output
+
+    def test_lint_detects_default_value_change_upgrade(self):
+        with (
+            mock.patch("airflow.configuration.conf.has_option", return_value=True),
+            mock.patch(
+                "airflow.configuration.conf.get",
+                return_value="{{ ti.dag_id }}/{{ ti.task_id }}/{{ ts }}/{{ try_number }}.log",
+            ),
+            mock.patch("airflow.configuration.conf.set") as set_patch,
+            mock.patch("airflow.configuration.conf.write") as _write_patch,
+            mock.patch("airflow.cli.commands.remote_commands.config_command.CONFIGS_CHANGES", []),
+        ):
+            args = cli_parser.get_parser().parse_args(["config", "lint", "--upgrade-defaults"])
+            with contextlib.redirect_stdout(StringIO()) as temp_stdout:
+                config_command.lint_config(args)
+            output = temp_stdout.getvalue()
+        assert "Automatically upgraded logging.log_filename_template" in output
+        set_patch.assert_called_with(
+            "logging", "log_filename_template", "XX-set-after-default-config-loaded-XX"
+        )
+
+    def test_lint_detects_default_value_change_warning(self):
+        with (
+            mock.patch("airflow.configuration.conf.has_option", return_value=True),
+            mock.patch(
+                "airflow.configuration.conf.get",
+                return_value="{{ ti.dag_id }}/{{ ti.task_id }}/{{ ts }}/{{ try_number }}.log",
+            ),
+            mock.patch("airflow.configuration.conf.set") as set_patch,
+            mock.patch("airflow.cli.commands.remote_commands.config_command.CONFIGS_CHANGES", []),
+        ):
+            args = cli_parser.get_parser().parse_args(["config", "lint"])
+            with contextlib.redirect_stdout(StringIO()) as temp_stdout:
+                config_command.lint_config(args)
+            output = temp_stdout.getvalue()
+        assert (
+            "The default value for 'log_filename_template' from Airflow 2 may break task logs in the new UI."
+            in output
+        )
+        set_patch.assert_not_called()
