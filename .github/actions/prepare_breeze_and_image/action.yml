@@ -54,8 +54,9 @@ runs:
       if: inputs.ci-image != ''
       shell: bash
       env:
-        GITHUB_TOKEN: ${{ secrets.TOKEN_FARHAN }}
         ACTOR: ${{ github.actor }}
+      secrets:
+        GITHUB_TOKEN: ${{ secrets.TOKEN_FARHAN }}
       run: echo "${GITHUB_TOKEN}" | docker login ghcr.io -u ${ACTOR} --password-stdin
     - name: "Pull and save pre-built CI image"
       if: inputs.ci-image != ''
