@@ -623,7 +623,7 @@ key3 = value3
                 "api": {
                     "auth_backends": (
                         re.compile(r"^airflow\.api\.auth\.backend\.deny_all$|^$"),
-                        "airflow.api.auth.backend.session",
+                        "airflow.providers.fab.auth_manager.api.auth.backend.session",
                         "3.0",
                     ),
                 },
