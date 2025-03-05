@@ -200,3 +200,30 @@ jobs:
       - name: "Post Tests failure"
         uses: ./.github/actions/post_tests_failure
         if: failure()
+      - name: "Pull and save pre-built CI image"
+        if: inputs.ci-image != ''
+        shell: bash
+        env:
+          CI_IMAGE: "ahmadtfarhan/airflow/main/ci/python3.9:latest"
+          PYTHON_VERSION: "3.9"
+        run: |
+          echo "Attempting to pull: $CI_IMAGE"
+          docker pull "$CI_IMAGE" || { echo "Pull failed"; exit 1; }
+          echo "Saving image to /mnt/ci-image-python$PYTHON_VERSION.tar"
+          docker save "$CI_IMAGE" -o /mnt/ci-image-python$PYTHON_VERSION.tar
+      - name: "Restore stashed image if ci-image not provided"
+        if: inputs.ci-image == ''
+        uses: apache/infrastructure-actions/stash/restore@1c35b5ccf8fba5d4c3fdf25a045ca91aa0cbc468
+        with:
+          key: ci-image-save-${{ inputs.platform }}-${{ inputs.python }}
+          path: "/mnt/"
+          only-current-branch: 'true'
+      - name: "Load ${{ inputs.image-type }} image linux/amd64:3.9"
+        env:
+          PLATFORM: linux/amd64
+          PYTHON: "3.9"
+          IMAGE_TYPE: ci
+        run: |
+          echo "Loading image from /mnt/ci-image-python${PYTHON}.tar"
+          breeze ${IMAGE_TYPE}-image load --platform "${PLATFORM}" --python "${PYTHON}" --image-file-dir "/mnt"
+        shell: bash
