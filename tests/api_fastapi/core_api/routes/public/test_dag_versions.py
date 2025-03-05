@@ -111,11 +111,11 @@ class TestGetDagVersion(TestDagVersionEndpoint):
         assert response.json() == expected_response
 
     def test_get_dag_version_404(self, test_client):
-        response = test_client.get(
-            "/public/dags/dag_with_multiple_versions/dagVersions/MISSING_VERSION_NUMBER"
-        )
+        response = test_client.get("/public/dags/dag_with_multiple_versions/dagVersions/99")
         assert response.status_code == 404
-        assert response.json() == {}
+        assert response.json() == {
+            "detail": "The DagVersion with dag_id: `dag_with_multiple_versions` and version_number: `99` was not found",
+        }
 
 
 class TestGetDagVersions(TestDagVersionEndpoint):
