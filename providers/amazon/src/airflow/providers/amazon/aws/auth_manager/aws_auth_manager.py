@@ -23,7 +23,6 @@ from functools import cached_property
 from typing import TYPE_CHECKING, Any, cast
 
 from fastapi import FastAPI
-from flask import session
 
 from airflow.auth.managers.base_auth_manager import BaseAuthManager
 from airflow.auth.managers.models.resource_details import (
@@ -49,8 +48,6 @@ from airflow.providers.amazon.aws.auth_manager.user import AwsAuthManagerUser
 from airflow.providers.amazon.version_compat import AIRFLOW_V_3_0_PLUS
 
 if TYPE_CHECKING:
-    from flask_appbuilder.menu import MenuItem
-
     from airflow.auth.managers.base_auth_manager import ResourceMethod
     from airflow.auth.managers.models.batch_apis import (
         IsAuthorizedConnectionRequest,
@@ -85,12 +82,6 @@ class AwsAuthManager(BaseAuthManager[AwsAuthManagerUser]):
     @cached_property
     def apiserver_endpoint(self) -> str:
         return conf.get("api", "base_url")
-
-    def get_user(self) -> AwsAuthManagerUser | None:
-        return session["aws_user"] if self.is_logged_in() else None
-
-    def is_logged_in(self) -> bool:
-        return "aws_user" in session
 
     def deserialize_user(self, token: dict[str, Any]) -> AwsAuthManagerUser:
         return AwsAuthManagerUser(**token)
@@ -331,56 +322,8 @@ class AwsAuthManager(BaseAuthManager[AwsAuthManagerUser]):
             )
         }
 
-    def filter_permitted_menu_items(self, menu_items: list[MenuItem]) -> list[MenuItem]:
-        """
-        Filter menu items based on user permissions.
-
-        :param menu_items: list of all menu items
-        """
-        user = self.get_user()
-        if not user:
-            return []
-
-        requests: dict[str, IsAuthorizedRequest] = {}
-        for menu_item in menu_items:
-            if menu_item.childs:
-                for child in menu_item.childs:
-                    requests[child.name] = self._get_menu_item_request(child.name)
-            else:
-                requests[menu_item.name] = self._get_menu_item_request(menu_item.name)
-
-        batch_is_authorized_results = self.avp_facade.get_batch_is_authorized_results(
-            requests=list(requests.values()), user=user
-        )
-
-        def _has_access_to_menu_item(request: IsAuthorizedRequest):
-            result = self.avp_facade.get_batch_is_authorized_single_result(
-                batch_is_authorized_results=batch_is_authorized_results, request=request, user=user
-            )
-            return result["decision"] == "ALLOW"
-
-        accessible_items = []
-        for menu_item in menu_items:
-            if menu_item.childs:
-                accessible_children = []
-                for child in menu_item.childs:
-                    if _has_access_to_menu_item(requests[child.name]):
-                        accessible_children.append(child)
-                menu_item.childs = accessible_children
-
-                # Display the menu if the user has access to at least one sub item
-                if len(accessible_children) > 0:
-                    accessible_items.append(menu_item)
-            elif _has_access_to_menu_item(requests[menu_item.name]):
-                accessible_items.append(menu_item)
-
-        return accessible_items
-
     def get_url_login(self, **kwargs) -> str:
         return f"{self.apiserver_endpoint}/auth/login"
-
-    def get_url_logout(self) -> str:
-        raise NotImplementedError()
 
     @staticmethod
     def get_cli_commands() -> list[CLICommand]:
@@ -407,14 +350,6 @@ class AwsAuthManager(BaseAuthManager[AwsAuthManagerUser]):
         app.include_router(login_router)
 
         return app
-
-    @staticmethod
-    def _get_menu_item_request(resource_name: str) -> IsAuthorizedRequest:
-        return {
-            "method": "MENU",
-            "entity_type": AvpEntities.MENU,
-            "entity_id": resource_name,
-        }
 
     def _check_avp_schema_version(self):
         if not self.avp_facade.is_policy_store_schema_up_to_date():

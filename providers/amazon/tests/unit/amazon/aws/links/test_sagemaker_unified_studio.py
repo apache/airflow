@@ -1,4 +1,3 @@
-#
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
 # distributed with this work for additional information
@@ -15,3 +14,19 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
+
+from airflow.providers.amazon.aws.links.sagemaker_unified_studio import SageMakerUnifiedStudioLink
+from unit.amazon.aws.links.test_base_aws import BaseAwsLinksTestCase
+
+
+class TestSageMakerUnifiedStudioLink(BaseAwsLinksTestCase):
+    link_class = SageMakerUnifiedStudioLink
+
+    def test_extra_link(self):
+        self.assert_extra_link_url(
+            expected_url=("https://console.aws.amazon.com/datazone/home?region=us-east-1"),
+            region_name="us-east-1",
+            aws_partition="aws",
+            job_name="test_job_name",
+        )

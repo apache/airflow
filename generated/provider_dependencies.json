@@ -38,6 +38,7 @@
       "jsonpath_ng>=1.5.3",
       "python3-saml>=1.16.0",
       "redshift_connector>=2.0.918",
+      "sagemaker-studio>=1.0.9",
       "watchtower>=3.0.0,!=3.3.0,<4"
     ],
     "devel-deps": [
@@ -59,7 +60,6 @@
       "common.compat",
       "common.sql",
       "exasol",
-      "fab",
       "ftp",
       "google",
       "http",
@@ -910,7 +910,7 @@
     "deps": [
       "apache-airflow>=2.9.0",
       "dnspython>=1.13.0",
-      "pymongo>=4.0.0,!=4.11,!=4.11.1"
+      "pymongo>=4.0.0,<4.11.0"
     ],
     "devel-deps": [
       "mongomock>=4.0.0"
