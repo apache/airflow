@@ -227,7 +227,7 @@ CI_FILE_GROUP_MATCHES = HashableDict(
             r"^task_sdk/src/",
             r"^task_sdk/tests/",
             r"^tests",
-            r"^tests_common",
+            r"^devel-common",
             r"^kubernetes_tests",
         ],
         FileGroupForCi.SYSTEM_TEST_FILES: [
@@ -241,7 +241,7 @@ CI_FILE_GROUP_MATCHES = HashableDict(
         ],
         FileGroupForCi.TESTS_UTILS_FILES: [
             r"^tests/utils/",
-            r"^tests_common/.*\.py$",
+            r"^devel-common/.*\.py$",
         ],
         FileGroupForCi.TASK_SDK_FILES: [
             r"^task_sdk/src/airflow/sdk/.*\.py$",
@@ -338,7 +338,7 @@ def find_provider_affected(changed_file: str, include_docs: bool) -> str | None:
                 # new providers structure
                 return str(relative_path).replace(os.sep, ".")
     if file_path.is_relative_to(AIRFLOW_TEST_COMMON_DIR):
-        # if tests_common changes, we want to run tests for all providers, as they might start failing
+        # if devel-common changes, we want to run tests for all providers, as they might start failing
         return "Providers"
     return None
 

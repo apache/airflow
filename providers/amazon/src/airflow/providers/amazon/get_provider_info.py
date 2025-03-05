@@ -27,7 +27,7 @@ def get_provider_info():
         "name": "Amazon",
         "description": "Amazon integration (including `Amazon Web Services (AWS) <https://aws.amazon.com/>`__).\n",
         "state": "ready",
-        "source-date-epoch": 1740734072,
+        "source-date-epoch": 1741121812,
         "versions": [
             "9.4.0",
             "9.2.0",
@@ -1399,6 +1399,7 @@ def get_provider_info():
             "openlineage": ["apache-airflow-providers-openlineage"],
             "salesforce": ["apache-airflow-providers-salesforce"],
             "ssh": ["apache-airflow-providers-ssh"],
+            "standard": ["apache-airflow-providers-standard"],
         },
         "devel-dependencies": [
             "aiobotocore>=2.13.0",
@@ -1411,5 +1412,6 @@ def get_provider_info():
             "s3fs>=2023.10.0",
             "openapi-schema-validator>=0.6.2",
             "openapi-spec-validator>=0.7.1",
+            "opensearch-py>=2.2.0",
         ],
     }

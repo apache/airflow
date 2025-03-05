@@ -736,7 +736,7 @@ repos:
         name: Verify usage of Airflow deprecation classes in core
         entry: category=DeprecationWarning|category=PendingDeprecationWarning
         files: \.py$
-        exclude: ^airflow/configuration\.py$|^providers/.*/src/airflow/providers/|^scripts/in_container/verify_providers\.py$|^(providers/.*/)?tests/.*$|^tests_common/
+        exclude: ^airflow/configuration\.py$|^providers/.*/src/airflow/providers/|^scripts/in_container/verify_providers\.py$|^(providers/.*/)?tests/.*$|^devel-common/
         pass_filenames: true
       - id: check-provide-create-sessions-imports
         language: pygrep
@@ -1189,7 +1189,7 @@ repos:
           ^scripts/.*\.py$ |
           ^docker_tests/.*$ |
           ^helm_tests/.*$ |
-          ^tests_common/.*$ |
+          ^devel-common/.*$ |
           ^docs/.*\.py$ |
           ^hatch_build.py$
       - id: check-provider-docs-valid

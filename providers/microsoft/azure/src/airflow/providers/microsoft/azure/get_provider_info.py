@@ -27,7 +27,7 @@ def get_provider_info():
         "name": "Microsoft Azure",
         "description": "`Microsoft Azure <https://azure.microsoft.com/>`__\n",
         "state": "ready",
-        "source-date-epoch": 1740734148,
+        "source-date-epoch": 1741121895,
         "versions": [
             "12.2.0",
             "12.0.0",
