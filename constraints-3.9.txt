@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2025-03-05T15:33:35.569618
+# This constraints file was automatically generated on 2025-03-05T20:14:58.974069
 # via "eager-upgrade" mechanism of PIP. For the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version for 'apache-airflow' but installs
 # the providers from PIP-released packages at the moment of the constraint generation.
@@ -47,7 +47,7 @@ Flask-WTF==1.2.2
 Flask==2.2.5
 GitPython==3.1.44
 JayDeBeApi==1.2.3
-Jinja2==3.1.5
+Jinja2==3.1.6
 Mako==1.3.9
 Markdown==3.7
 MarkupSafe==3.0.2
@@ -246,7 +246,7 @@ cattrs==24.1.2
 celery==5.4.0
 certifi==2025.1.31
 cffi==1.17.1
-cfn-lint==1.27.0
+cfn-lint==1.28.0
 cgroupspy==0.2.3
 chardet==5.2.0
 charset-normalizer==3.4.1
@@ -287,7 +287,7 @@ docker==7.1.0
 docopt==0.6.2
 docstring_parser==0.16
 docutils==0.21.2
-duckdb==1.2.0
+duckdb==1.2.1
 durationpy==0.9
 elastic-transport==8.17.0
 elasticsearch==8.17.2
@@ -321,11 +321,11 @@ gitdb==4.0.12
 google-ads==25.2.0
 google-analytics-admin==0.23.4
 google-api-core==2.24.1
-google-api-python-client==2.162.0
+google-api-python-client==2.163.0
 google-auth-httplib2==0.2.0
 google-auth-oauthlib==1.2.1
 google-auth==2.38.0
-google-cloud-aiplatform==1.82.0
+google-cloud-aiplatform==1.83.0
 google-cloud-alloydb==0.4.3
 google-cloud-appengine-logging==1.6.0
 google-cloud-audit-log==0.3.0
@@ -758,7 +758,7 @@ watchtower==3.4.0
 wcwidth==0.2.13
 weaviate-client==4.9.6
 websocket-client==1.8.0
-websockets==15.0
+websockets==15.0.1
 wirerope==1.0.0
 wrapt==1.17.2
 xmlsec==1.3.14
