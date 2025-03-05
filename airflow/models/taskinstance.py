@@ -3804,7 +3804,7 @@ class SimpleTaskInstance:
         )
 
 
-class TaskInstanceNote(TaskInstanceDependencies):
+class TaskInstanceNote(Base):
     """For storage of arbitrary notes concerning the task instance."""
 
     __tablename__ = "task_instance_note"

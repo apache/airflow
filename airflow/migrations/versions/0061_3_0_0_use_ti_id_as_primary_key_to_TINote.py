@@ -97,9 +97,9 @@ def downgrade():
     """Unapply Use TI.id as primary key to TaskInstanceNote."""
     dialect_name = op.get_bind().dialect.name
     with op.batch_alter_table("task_instance_note", schema=None) as batch_op:
-        batch_op.add_column(sa.Column("dag_id", sa.String(length=250), nullable=True))
-        batch_op.add_column(sa.Column("task_id", sa.String(length=250), nullable=True))
-        batch_op.add_column(sa.Column("run_id", sa.String(length=250), nullable=True))
+        batch_op.add_column(sa.Column("dag_id", StringID(), nullable=True))
+        batch_op.add_column(sa.Column("task_id", StringID(), nullable=True))
+        batch_op.add_column(sa.Column("run_id", StringID(), nullable=True))
         batch_op.add_column(sa.Column("map_index", sa.Integer(), nullable=True, server_default=sa.text("-1")))
 
     if dialect_name == "postgresql":
