@@ -169,15 +169,17 @@ jobs:
       - name: "Check if image exists"
         id: check_image
         run: |
-          if docker pull "${IMAGE_TAG}" 2>/dev/null; then
+          if docker pull "${IMAGE_TAG}"; then
+            DEFAULT_IMAGE="apache/airflow:ci-${PYTHON_MAJOR_MINOR_VERSION}"
+            docker tag "${IMAGE_TAG}" "${DEFAULT_IMAGE}"
             echo "image_exists=true"
           else
             echo "image_exists=false"
           fi >> $GITHUB_OUTPUT
       - name: "Build CI image ${{ inputs.platform }}:${{ env.PYTHON_MAJOR_MINOR_VERSION }}"
         if: steps.check_image.outputs.image_exists != 'true'
-        run: >
-          breeze ci-image build --platform "${PLATFORM}" --tag "${IMAGE_TAG}"
+        run: |
+          breeze ci-image build --platform "${PLATFORM}"
         env:
           DOCKER_CACHE: ${{ inputs.docker-cache }}
           DISABLE_AIRFLOW_REPO_CACHE: ${{ inputs.disable-airflow-repo-cache }}
@@ -191,14 +193,21 @@ jobs:
           GITHUB_USERNAME: ${{ github.actor }}
           VERBOSE: "true"
           PLATFORM: ${{ inputs.platform }}
-      - name: "Push CI image ${{ inputs.platform }}:${{ env.PYTHON_MAJOR_MINOR_VERSION }}"
+      - name: "Retag CI image to ${{ env.IMAGE_TAG }}"
+        if: steps.check_image.outputs.image_exists != 'true'
+        run: |
+          DEFAULT_IMAGE="apache/airflow:ci-${PYTHON_MAJOR_MINOR_VERSION}"
+          docker tag "${DEFAULT_IMAGE}" "${IMAGE_TAG}"
+      - name: "Push CI image ${{ env.IMAGE_TAG }}"
         if: inputs.push-image == 'true' && steps.check_image.outputs.image_exists != 'true'
-        run: docker push "${IMAGE_TAG}"
+        run: |
+          docker push "${IMAGE_TAG}"
       - name: "Export CI docker image ${{ env.PYTHON_MAJOR_MINOR_VERSION }}"
+        if: inputs.upload-image-artifact == 'true'
         env:
           PLATFORM: ${{ inputs.platform }}
-        run: breeze ci-image save --platform "${PLATFORM}" --image-file-dir "/mnt"
-        if: inputs.upload-image-artifact == 'true'
+        run: |
+          breeze ci-image save --platform "${PLATFORM}" --image-file-dir "/mnt"
       - name: "Stash CI docker image ${{ env.PYTHON_MAJOR_MINOR_VERSION }}"
         uses: apache/infrastructure-actions/stash/save@1c35b5ccf8fba5d4c3fdf25a045ca91aa0cbc468
         with:
