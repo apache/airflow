@@ -25,7 +25,6 @@ services:
     volumes:
       - ./gremlin:/opt/gremlin-server/conf
       - graph-data:/opt/gremlin-server/data
-    restart: "on-failure"
     ports:
       - "8182:8182"
   airflow:
