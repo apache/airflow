@@ -1,0 +1,20 @@
+Removed auth backends. Auth backends are no longer used in Airflow 3. Please refer to documentation on how to use Airflow 3 public API.
+
+Moved the configuration ``[api] auth_backends`` to ``[fab] auth_backends``.
+
+* Types of change
+
+  * [ ] Dag changes
+  * [x] Config changes
+  * [ ] API changes
+  * [ ] CLI changes
+  * [ ] Behaviour changes
+  * [ ] Plugin changes
+  * [ ] Dependency changes
+  * [x] Code interface changes
+
+* Migration rules needed
+
+  * ``airflow config lint``
+
+    * [x] ``api.auth_backends`` → ``fab.auth_backends``
