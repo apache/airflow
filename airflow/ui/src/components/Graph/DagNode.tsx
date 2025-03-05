@@ -45,17 +45,17 @@ export const DagNode = ({
         py={isSelected ? 0 : 1}
         width={`${width}px`}
       >
-        <HStack alignItems="center" gap={1}>
+        <HStack alignItems="center" justifyContent="space-between">
           <DagIcon />
-          <Link asChild color="fg.info" mb={2}>
-            <RouterLink to={`/dags/${dag?.dag_id ?? label}`}>{dag?.dag_display_name ?? label}</RouterLink>
-          </Link>
+          <TogglePause
+            dagId={dag?.dag_id ?? label}
+            disabled={!Boolean(dag)}
+            isPaused={dag?.is_paused ?? false}
+          />
         </HStack>
-        <TogglePause
-          dagId={dag?.dag_id ?? label}
-          disabled={!Boolean(dag)}
-          isPaused={dag?.is_paused ?? false}
-        />
+        <Link asChild color="fg.info" mb={2}>
+          <RouterLink to={`/dags/${dag?.dag_id ?? label}`}>{dag?.dag_display_name ?? label}</RouterLink>
+        </Link>
       </Flex>
     </NodeWrapper>
   );
