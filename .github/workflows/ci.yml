@@ -177,32 +177,9 @@ jobs:
           PR_LABELS: ${{ steps.source-run-info.outputs.pr-labels }}
           GITHUB_CONTEXT: ${{ toJson(github) }}
 
-  build-ci-images:
-    name: Build CI images
-    needs: [build-info]
-    uses: ./.github/workflows/ci-image-build.yml
-    permissions:
-      contents: read
-      packages: write
-    with:
-      runs-on-as-json-public: ${{ needs.build-info.outputs.runs-on-as-json-public }}
-      runs-on-as-json-self-hosted: ${{ needs.build-info.outputs.runs-on-as-json-self-hosted }}
-      platform: "linux/amd64"
-      push-image: "${{ github.event_name == 'push' }}"  # Push only for push events
-      upload-image-artifact: "true"
-      upload-mount-cache-artifact: ${{ needs.build-info.outputs.canary-run }}
-      python-versions: '["3.9"]'
-      branch: ${{ needs.build-info.outputs.default-branch }}
-      use-uv: ${{ needs.build-info.outputs.use-uv }}
-      upgrade-to-newer-dependencies: ${{ needs.build-info.outputs.upgrade-to-newer-dependencies }}
-      constraints-branch: ${{ needs.build-info.outputs.default-constraints-branch }}
-      docker-cache: ${{ needs.build-info.outputs.docker-cache }}
-      disable-airflow-repo-cache: ${{ needs.build-info.outputs.disable-airflow-repo-cache }}
-    if: needs.build-info.outputs.ci-image-build == 'true'
-
   tests-integration-system:
     name: Integration and System Tests
-    needs: [build-info, build-ci-images]
+    needs: [build-info]
     uses: ./.github/workflows/integration-system-tests.yml
     permissions:
       contents: read
@@ -219,4 +196,5 @@ jobs:
       run-coverage: ${{ needs.build-info.outputs.run-coverage }}
       debug-resources: ${{ needs.build-info.outputs.debug-resources }}
       use-uv: ${{ needs.build-info.outputs.use-uv }}
+      ci-image: "ahmadtfarhan/airflow/main/ci/python3.9:latest"
     if: needs.build-info.outputs.run-tests == 'true'

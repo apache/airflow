@@ -64,6 +64,10 @@ on:  # yamllint disable-line rule:truthy
         description: "Whether to use uv"
         required: true
         type: string
+      ci-image:
+        description: "The pre-built CI image to use from the public Docker repository"
+        required: true
+        type: string
 permissions:
   contents: read
 jobs:
@@ -102,6 +106,7 @@ jobs:
           platform: "linux/amd64"
           python: ${{ inputs.default-python-version }}
           use-uv: ${{ inputs.use-uv }}
+          ci-image: ${{ inputs.ci-image }}
       - name: "Integration: providers ${{ matrix.integration }}"
         env:
           INTEGRATION: "${{ matrix.integration }}"
