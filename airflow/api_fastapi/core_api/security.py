@@ -146,13 +146,10 @@ def requires_access_asset(method: ResourceMethod) -> Callable:
     ) -> None:
         asset_id = request.path_params.get("asset_id")
 
-        def callback():
-            return get_auth_manager().is_authorized_asset(
-                method=method, details=AssetDetails(id=asset_id), user=user
-            )
-
         _requires_access(
-            is_authorized_callback=callback,
+            is_authorized_callback=lambda: get_auth_manager().is_authorized_asset(
+                method=method, details=AssetDetails(id=asset_id), user=user
+            ),
         )
 
     return inner
