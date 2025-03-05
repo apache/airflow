@@ -27,6 +27,7 @@ import {
   useGridServiceGridData,
   useStructureServiceStructureData,
 } from "openapi/queries";
+import { AliasNode } from "src/components/Graph/AliasNode";
 import { AssetConditionNode } from "src/components/Graph/AssetConditionNode";
 import { AssetNode } from "src/components/Graph/AssetNode";
 import { DagNode } from "src/components/Graph/DagNode";
@@ -64,6 +65,7 @@ const nodeColor = (
 
 const nodeTypes = {
   asset: AssetNode,
+  "asset-alias": AliasNode,
   "asset-condition": AssetConditionNode,
   dag: DagNode,
   join: JoinNode,

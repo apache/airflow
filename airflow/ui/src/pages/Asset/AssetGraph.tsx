@@ -22,6 +22,7 @@ import "@xyflow/react/dist/style.css";
 
 import { useDependenciesServiceGetDependencies } from "openapi/queries";
 import type { AssetResponse } from "openapi/requests/types.gen";
+import { AliasNode } from "src/components/Graph/AliasNode";
 import { AssetNode } from "src/components/Graph/AssetNode";
 import { DagNode } from "src/components/Graph/DagNode";
 import Edge from "src/components/Graph/Edge";
@@ -31,6 +32,7 @@ import { useColorMode } from "src/context/colorMode";
 
 const nodeTypes = {
   asset: AssetNode,
+  "asset-alias": AliasNode,
   dag: DagNode,
 };
 const edgeTypes = { custom: Edge };
