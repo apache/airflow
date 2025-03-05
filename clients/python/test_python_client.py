@@ -42,6 +42,9 @@ except ImportError:
 from airflow_client.client.api import config_api, dag_api, dag_run_api
 from airflow_client.client.model.dag_run import DAGRun
 
+from airflow.auth.managers.simple.simple_auth_manager import SimpleAuthManager
+from airflow.auth.managers.simple.user import SimpleAuthManagerUser
+
 # The client must use the authentication and authorization parameters
 # in accordance with the API server security policy.
 # Examples for each auth method are provided below, use the example that
@@ -57,8 +60,17 @@ from airflow_client.client.model.dag_run import DAGRun
 # privileges in Airflow
 
 # Configure HTTP basic authorization: Basic
+auth_manager = SimpleAuthManager()
 configuration = airflow_client.client.Configuration(
-    host="http://localhost:8080/public", username="admin", password="admin"
+    host="http://localhost:8080/public",
+    api_key={
+        "Authorization": "Bearer "
+        + auth_manager._get_token_signer().generate_signed_token(
+            {
+                **auth_manager.serialize_user(SimpleAuthManagerUser(username="test", role="admin")),
+            }
+        )
+    },
 )
 
 # Make sure in the [core] section, the  `load_examples` config is set to True in your airflow.cfg
