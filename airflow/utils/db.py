@@ -352,18 +352,18 @@ def create_default_connections(session: Session = NEW_SESSION):
     )
     merge_conn(
         Connection(
-            conn_id="gremlin_default",
-            conn_type="gremlin",
-            host="gremlin",
-            port=8182,
+            conn_id="google_cloud_default",
+            conn_type="google_cloud_platform",
+            schema="default",
         ),
         session,
     )
     merge_conn(
         Connection(
-            conn_id="google_cloud_default",
-            conn_type="google_cloud_platform",
-            schema="default",
+            conn_id="gremlin_default",
+            conn_type="gremlin",
+            host="gremlin",
+            port=8182,
         ),
         session,
     )

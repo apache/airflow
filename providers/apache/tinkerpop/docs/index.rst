@@ -17,7 +17,7 @@
     under the License.
 
 ``apache-airflow-providers-apache-tinkerpop``
-===========================================
+=============================================
 
 .. toctree::
     :hidden:
@@ -31,6 +31,13 @@
 .. toctree::
     :hidden:
     :maxdepth: 1
+    :caption: Guides
+
+    Operators <operators>
+
+.. toctree::
+    :hidden:
+    :maxdepth: 1
     :caption: References
 
     Python API <_api/airflow/providers/apache/tinkerpop/index>
@@ -40,7 +47,8 @@
     :maxdepth: 1
     :caption: Resources
 
-    Example DAGs <https://github.com/apache/airflow/tree/providers-gremlin/|version|/providers/apache/tinkerpop/tests/system/gremlin>
+    Example DAGs <https://github.com/apache/airflow/tree/providers-apache-tinkerpop/|version|/providers/apache/tinkerpop/tests/system/gremlin>
+    PyPI Repository <https://pypi.org/project/apache-airflow-providers-apache-tinkerpop/>
     Installing from sources <installing-providers-from-sources>
 
 .. THE REMAINDER OF THE FILE IS AUTOMATICALLY GENERATED. IT WILL BE OVERWRITTEN AT RELEASE TIME!
