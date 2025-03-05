@@ -196,5 +196,5 @@ jobs:
       run-coverage: ${{ needs.build-info.outputs.run-coverage }}
       debug-resources: ${{ needs.build-info.outputs.debug-resources }}
       use-uv: ${{ needs.build-info.outputs.use-uv }}
-      ci-image: "ahmadtfarhan/airflow/main/ci/python3.9:latest@sha256:6e77e9919b52d1b872909b7206019273c4b8253c7ba2911c54293930acaaee45"
+      ci-image: "ahmadtfarhan/airflow/main/ci/python3.9:latest"
     if: needs.build-info.outputs.run-tests == 'true'
