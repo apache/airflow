@@ -24,6 +24,8 @@ from typing import Any
 
 import attrs
 
+from airflow.exceptions import AirflowException
+
 log = logging.getLogger(__name__)
 
 
@@ -56,7 +58,28 @@ class Connection:
 
     def get_uri(self): ...
 
-    def get_hook(self): ...
+    def get_hook(self, *, hook_params=None):
+        """Return hook based on conn_type."""
+        from airflow.providers_manager import ProvidersManager
+        from airflow.utils.module_loading import import_string
+
+        hook = ProvidersManager().hooks.get(self.conn_type, None)
+
+        if hook is None:
+            raise AirflowException(f'Unknown hook type "{self.conn_type}"')
+        try:
+            hook_class = import_string(hook.hook_class_name)
+        except ImportError:
+            log.error(
+                "Could not import %s when discovering %s %s",
+                hook.hook_class_name,
+                hook.hook_name,
+                hook.package_name,
+            )
+            raise
+        if hook_params is None:
+            hook_params = {}
+        return hook_class(**{hook.connection_id_attribute_name: self.conn_id}, **hook_params)
 
     @classmethod
     def get(cls, conn_id: str) -> Any:
