@@ -369,24 +369,6 @@ def test_send_tasks_to_celery_hang(register_signals):
         assert results == [(None, None, 1) for _ in task_tuples_to_send]
 
 
-@pytest.mark.execution_timeout(200)
-@pytest.mark.quarantined
-def test_send_tasks_to_celery_with_executor_config(register_signals):
-    """
-    Test that celery_executor does not hang after many runs.
-    """
-    executor = celery_executor.CeleryExecutor()
-
-    task = MockTask()
-    task_tuples_to_send = [(None, None, None, task) for _ in range(26)]
-
-    for _ in range(250):
-        # This loop can hang on Linux if celery_executor does something wrong with
-        # multiprocessing.
-        results = executor._send_tasks_to_celery(task_tuples_to_send)
-        assert results == [(None, None, 1) for _ in task_tuples_to_send]
-
-
 @conf_vars({("celery", "result_backend"): "rediss://test_user:test_password@localhost:6379/0"})
 def test_celery_executor_with_no_recommended_result_backend(caplog):
     import importlib
