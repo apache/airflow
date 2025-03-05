@@ -28,14 +28,14 @@ import { NodeWrapper } from "./NodeWrapper";
 import type { CustomNodeProps } from "./reactflowUtils";
 
 export const DagNode = ({
-  data: { height, isSelected, label, width },
+  data: { height, isOpen, isSelected, label, width },
 }: NodeProps<NodeType<CustomNodeProps, "dag">>) => {
   const { data: dag } = useDagServiceGetDag({ dagId: label });
 
   return (
     <NodeWrapper>
       <Flex
-        bg="bg"
+        bg={isOpen ? "bg.muted" : "bg"}
         borderRadius={5}
         borderWidth={isSelected ? 6 : 2}
         cursor="default"
@@ -48,7 +48,7 @@ export const DagNode = ({
         <HStack alignItems="center" gap={1}>
           <DagIcon />
           <Link asChild color="fg.info" mb={2}>
-            <RouterLink to={`/dags/${dag?.dag_id}`}>{dag?.dag_display_name ?? label}</RouterLink>
+            <RouterLink to={`/dags/${dag?.dag_id ?? label}`}>{dag?.dag_display_name ?? label}</RouterLink>
           </Link>
         </HStack>
         <TogglePause

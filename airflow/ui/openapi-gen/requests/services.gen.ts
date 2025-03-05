@@ -203,6 +203,8 @@ import type {
   BulkVariablesResponse,
   ReparseDagFileData,
   ReparseDagFileResponse,
+  GetDagVersionData,
+  GetDagVersionResponse,
   GetDagVersionsData,
   GetDagVersionsResponse,
   GetHealthResponse,
@@ -1898,6 +1900,7 @@ export class EventLogService {
    * Get Event Log
    * @param data The data for the request.
    * @param data.eventLogId
+   * @param data.dagId
    * @returns EventLogResponse Successful Response
    * @throws ApiError
    */
@@ -1907,6 +1910,9 @@ export class EventLogService {
       url: "/public/eventLogs/{event_log_id}",
       path: {
         event_log_id: data.eventLogId,
+      },
+      query: {
+        dag_id: data.dagId,
       },
       errors: {
         401: "Unauthorized",
@@ -1921,10 +1927,10 @@ export class EventLogService {
    * Get Event Logs
    * Get all Event Logs.
    * @param data The data for the request.
+   * @param data.dagId
    * @param data.limit
    * @param data.offset
    * @param data.orderBy
-   * @param data.dagId
    * @param data.taskId
    * @param data.runId
    * @param data.mapIndex
@@ -1943,10 +1949,10 @@ export class EventLogService {
       method: "GET",
       url: "/public/eventLogs",
       query: {
+        dag_id: data.dagId,
         limit: data.limit,
         offset: data.offset,
         order_by: data.orderBy,
-        dag_id: data.dagId,
         task_id: data.taskId,
         run_id: data.runId,
         map_index: data.mapIndex,
@@ -3405,6 +3411,32 @@ export class DagParsingService {
 }
 
 export class DagVersionService {
+  /**
+   * Get Dag Version
+   * Get one Dag Version.
+   * @param data The data for the request.
+   * @param data.dagId
+   * @param data.versionNumber
+   * @returns DagVersionResponse Successful Response
+   * @throws ApiError
+   */
+  public static getDagVersion(data: GetDagVersionData): CancelablePromise<GetDagVersionResponse> {
+    return __request(OpenAPI, {
+      method: "GET",
+      url: "/public/dags/{dag_id}/dagVersions/{version_number}",
+      path: {
+        dag_id: data.dagId,
+        version_number: data.versionNumber,
+      },
+      errors: {
+        401: "Unauthorized",
+        403: "Forbidden",
+        404: "Not Found",
+        422: "Validation Error",
+      },
+    });
+  }
+
   /**
    * Get Dag Versions
    * Get all DAG Versions.
