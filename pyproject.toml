@@ -30,7 +30,7 @@ requires = [
     "pluggy==1.5.0",
     "smmap==5.0.2",
     "tomli==2.2.1; python_version < '3.11'",
-    "trove-classifiers==2025.2.18.16",
+    "trove-classifiers==2025.3.3.18",
 ]
 build-backend = "hatchling.build"
 
@@ -543,7 +543,6 @@ filterwarnings = [
 # Instead of that, we use a separate parameter and dynamically add it into `filterwarnings` marker.
 # Add airflow.exceptions.RemovedInAirflow4Warning when min provider version for providers is 3.0
 forbidden_warnings = [
-    "airflow.exceptions.RemovedInAirflow3Warning",
     "airflow.exceptions.AirflowProviderDeprecationWarning",
 ]
 python_files = [

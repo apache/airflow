@@ -22,15 +22,15 @@ import { useState } from "react";
 import { PiBooks } from "react-icons/pi";
 
 import { useDashboardServiceHistoricalMetrics } from "openapi/queries";
+import { AssetEvents } from "src/components/Assets/AssetEvents";
 import { ErrorAlert } from "src/components/ErrorAlert";
 import TimeRangeSelector from "src/components/TimeRangeSelector";
 
-import { AssetEvents } from "./AssetEvents";
 import { DagRunMetrics } from "./DagRunMetrics";
 import { MetricSectionSkeleton } from "./MetricSectionSkeleton";
 import { TaskInstanceMetrics } from "./TaskInstanceMetrics";
 
-const defaultHour = "168";
+const defaultHour = "24";
 
 export const HistoricalMetrics = () => {
   const now = dayjs();
@@ -90,9 +90,9 @@ export const HistoricalMetrics = () => {
           </GridItem>
           <GridItem colSpan={{ base: 3 }}>
             <AssetEvents
-              assetSortBy={assetSortBy}
               endDate={endDate}
-              setAssetSortBy={setAssetSortBy}
+              orderBy={assetSortBy}
+              setOrderBy={setAssetSortBy}
               startDate={startDate}
             />
           </GridItem>

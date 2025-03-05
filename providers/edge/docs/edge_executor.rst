@@ -134,7 +134,6 @@ before use. The following features have been initially tested and are working:
     optimized for scalability. This will need to be considered in future releases. A dedicated performance
     assessment is to be completed ensuring that in a hybrid setup other executors are not impacted before
     version 1.0.0 is to be released.
-  - Stuck tasks in queue are not explicitly handled as ``cleanup_stuck_queued_tasks()`` is not implemented.
 
 
 Architecture

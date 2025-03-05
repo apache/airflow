@@ -34,7 +34,7 @@ type Props = {
 };
 
 export const HeaderCard = ({ actions, icon, isRefreshing, state, stats, subTitle, title }: Props) => (
-  <Box borderColor="border" borderRadius={8} borderWidth={1} m={2} p={2}>
+  <Box borderColor="border" borderRadius={8} borderWidth={1} ml={2} p={2}>
     <Flex alignItems="center" flexWrap="wrap" justifyContent="space-between" mb={2}>
       <Flex alignItems="center" flexWrap="wrap" gap={2}>
         <Heading size="xl">{icon}</Heading>
