@@ -118,7 +118,7 @@ function environment_initialization() {
 
     if [[ ${STANDALONE_DAG_PROCESSOR=} == "true" ]]; then
         echo
-        echo "${COLOR_BLUE}Running forcing scheduler/standalone_dag_processor to be True${COLOR_RESET}"
+        echo "${COLOR_BLUE}Forcing scheduler/standalone_dag_processor to True${COLOR_RESET}"
         echo
         export AIRFLOW__SCHEDULER__STANDALONE_DAG_PROCESSOR=True
     fi
@@ -346,7 +346,7 @@ function start_api_server_with_examples(){
         return
     fi
     export AIRFLOW__CORE__LOAD_EXAMPLES=True
-    export AIRFLOW__API__AUTH_BACKENDS=airflow.api.auth.backend.session,airflow.providers.fab.auth_manager.api.auth.backend.basic_auth
+    export AIRFLOW__API__AUTH_BACKENDS=airflow.providers.fab.auth_manager.api.auth.backend.session,airflow.providers.fab.auth_manager.api.auth.backend.basic_auth
     export AIRFLOW__WEBSERVER__EXPOSE_CONFIG=True
     echo
     echo "${COLOR_BLUE}Initializing database${COLOR_RESET}"
