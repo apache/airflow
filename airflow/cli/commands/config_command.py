@@ -819,8 +819,7 @@ def lint_config(args) -> None:
             continue
 
         if conf.has_option(
-            configuration.config.section,
-            configuration.config.option,
+            configuration.config.section, configuration.config.option, lookup_from_deprecated=False
         ):
             if configuration.message is not None:
                 lint_issues.append(configuration.message)
