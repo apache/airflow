@@ -87,9 +87,9 @@ def create_app(enable_plugins: bool):
         # FAB auth manager. One example is ``run_update_fastapi_api_spec``, it calls
         # ``FabAuthManager().get_fastapi_app()`` to generate the openapi documentation regardless of the
         # configured auth manager.
-        if enable_plugins or not isinstance(get_auth_manager(), FabAuthManager):
+        if enable_plugins:
             init_plugins(flask_app)
-        else:
+        elif isinstance(get_auth_manager(), FabAuthManager):
             init_api_auth_provider(flask_app)
             init_api_error_handlers(flask_app)
         init_jinja_globals(flask_app, enable_plugins=enable_plugins)
