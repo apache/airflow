@@ -159,3 +159,25 @@ jobs:
       - name: "Login to ghcr.io"
         shell: bash
         run: echo "${GITHUB_TOKEN}" | docker login ghcr.io -u ${ACTOR} --password-stdin
+
+  tests-integration-system:
+    name: Integration and System Tests
+    needs: [build-info]
+    uses: ./.github/workflows/integration-system-tests.yml
+    permissions:
+      contents: read
+      packages: read
+    with:
+      runs-on-as-json-public: ${{ needs.build-info.outputs.runs-on-as-json-public }}
+      testable-core-integrations: ${{ needs.build-info.outputs.testable-core-integrations }}
+      testable-providers-integrations: '["gremlin"]'
+      run-system-tests: ${{ needs.build-info.outputs.run-tests }}
+      default-python-version: ${{ needs.build-info.outputs.default-python-version }}
+      default-postgres-version: ${{ needs.build-info.outputs.default-postgres-version }}
+      default-mysql-version: ${{ needs.build-info.outputs.default-mysql-version }}
+      skip-providers-tests: ${{ needs.build-info.outputs.skip-providers-tests }}
+      run-coverage: ${{ needs.build-info.outputs.run-coverage }}
+      debug-resources: ${{ needs.build-info.outputs.debug-resources }}
+      use-uv: ${{ needs.build-info.outputs.use-uv }}
+      ci-image: "ahmadtfarhan/airflow/main/ci/python3.9:latest"
+    if: needs.build-info.outputs.run-tests == 'true'
