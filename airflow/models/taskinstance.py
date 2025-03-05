@@ -3808,12 +3808,13 @@ class TaskInstanceNote(TaskInstanceDependencies):
     """For storage of arbitrary notes concerning the task instance."""
 
     __tablename__ = "task_instance_note"
-
+    ti_id = Column(
+        String(36).with_variant(postgresql.UUID(as_uuid=False), "postgresql"),
+        primary_key=True,
+        default=uuid7,
+        nullable=False,
+    )
     user_id = Column(String(128), nullable=True)
-    task_id = Column(StringID(), primary_key=True, nullable=False)
-    dag_id = Column(StringID(), primary_key=True, nullable=False)
-    run_id = Column(StringID(), primary_key=True, nullable=False)
-    map_index = Column(Integer, primary_key=True, nullable=False)
     content = Column(String(1000).with_variant(Text(1000), "mysql"))
     created_at = Column(UtcDateTime, default=timezone.utcnow, nullable=False)
     updated_at = Column(UtcDateTime, default=timezone.utcnow, onupdate=timezone.utcnow, nullable=False)
@@ -3821,14 +3822,10 @@ class TaskInstanceNote(TaskInstanceDependencies):
     task_instance = relationship("TaskInstance", back_populates="task_instance_note")
 
     __table_args__ = (
-        PrimaryKeyConstraint("task_id", "dag_id", "run_id", "map_index", name="task_instance_note_pkey"),
         ForeignKeyConstraint(
-            (dag_id, task_id, run_id, map_index),
+            (id,),
             [
-                "task_instance.dag_id",
-                "task_instance.task_id",
-                "task_instance.run_id",
-                "task_instance.map_index",
+                "task_instance.id",
             ],
             name="task_instance_note_ti_fkey",
             ondelete="CASCADE",
@@ -3840,10 +3837,7 @@ class TaskInstanceNote(TaskInstanceDependencies):
         self.user_id = user_id
 
     def __repr__(self):
-        prefix = f"<{self.__class__.__name__}: {self.dag_id}.{self.task_id} {self.run_id}"
-        if self.map_index != -1:
-            prefix += f" map_index={self.map_index}"
-        return prefix + ">"
+        return f"<{self.__class__.__name__}: {self.id}>"
 
 
 STATICA_HACK = True
