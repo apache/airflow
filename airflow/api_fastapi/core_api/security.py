@@ -18,14 +18,14 @@ from __future__ import annotations
 
 from collections.abc import Container
 from functools import cache
-from typing import TYPE_CHECKING, Annotated, Any, Callable
+from typing import TYPE_CHECKING, Annotated, Callable
 
 from fastapi import Depends, HTTPException, Request, status
 from fastapi.security import OAuth2PasswordBearer
 from jwt import ExpiredSignatureError, InvalidTokenError
 
 from airflow.api_fastapi.app import get_auth_manager
-from airflow.api_fastapi.common.parameters import BaseParam
+from airflow.api_fastapi.core_api.base import OrmFilterClause
 from airflow.auth.managers.models.base_user import BaseUser
 from airflow.auth.managers.models.resource_details import (
     ConnectionDetails,
@@ -35,7 +35,7 @@ from airflow.auth.managers.models.resource_details import (
     VariableDetails,
 )
 from airflow.configuration import conf
-from airflow.typing_compat import Self
+from airflow.models.dag import DagModel
 from airflow.utils.jwt_signer import JWTSigner, get_signing_key
 
 if TYPE_CHECKING:
@@ -86,10 +86,10 @@ async def get_user_with_exception_handling(request: Request) -> BaseUser | None:
 
 def requires_access_dag(
     method: ResourceMethod, access_entity: DagAccessEntity | None = None
-) -> Callable[[Request, BaseUser | None], None]:
+) -> Callable[[Request, BaseUser], None]:
     def inner(
         request: Request,
-        user: Annotated[BaseUser | None, Depends(get_user)] = None,
+        user: GetUserDep,
     ) -> None:
         dag_id: str | None = request.path_params.get("dag_id")
 
@@ -102,17 +102,10 @@ def requires_access_dag(
     return inner
 
 
-class PermittedDagFilter(BaseParam[set[str]]):
+class PermittedDagFilter(OrmFilterClause[set[str]]):
     """A parameter that filters the permitted dags for the user."""
 
-    @classmethod
-    def depends(cls, *args: Any, **kwargs: Any) -> Self:
-        raise NotImplementedError("Use permitted_dag_filter_factory instead , depends is not implemented.")
-
     def to_orm(self, select: Select) -> Select:
-        from airflow.models.dag import DagModel
-
-        # import here to avoid overhead of importing for other `requires_access_*` functions
         return select.where(DagModel.dag_id.in_(self.value))
 
 
@@ -122,13 +115,13 @@ def permitted_dag_filter_factory(
     """
     Create a callable for Depends in FastAPI that returns a filter of the permitted dags for the user.
 
-    :param methods: The methods for which the dags are permitted.
+    :param methods: whether filter readable or writable.
     :return: The callable that can be used as Depends in FastAPI.
     """
 
     def depends_permitted_dags_filter(
         request: Request,
-        user: Annotated[BaseUser, Depends(get_user)],
+        user: GetUserDep,
     ) -> PermittedDagFilter:
         auth_manager: BaseAuthManager = request.app.state.auth_manager
         permitted_dags: set[str] = auth_manager.get_permitted_dag_ids(user=user, methods=methods)
@@ -144,7 +137,7 @@ ReadableDagsFilterDep = Annotated[PermittedDagFilter, Depends(permitted_dag_filt
 def requires_access_pool(method: ResourceMethod) -> Callable[[Request, BaseUser], None]:
     def inner(
         request: Request,
-        user: Annotated[BaseUser, Depends(get_user)],
+        user: GetUserDep,
     ) -> None:
         pool_name = request.path_params.get("pool_name")
 
@@ -160,7 +153,7 @@ def requires_access_pool(method: ResourceMethod) -> Callable[[Request, BaseUser]
 def requires_access_connection(method: ResourceMethod) -> Callable[[Request, BaseUser], None]:
     def inner(
         request: Request,
-        user: Annotated[BaseUser, Depends(get_user)],
+        user: GetUserDep,
     ) -> None:
         connection_id = request.path_params.get("connection_id")
 
