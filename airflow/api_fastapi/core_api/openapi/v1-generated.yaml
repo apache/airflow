@@ -3542,6 +3542,8 @@ paths:
       - Event Log
       summary: Get Event Log
       operationId: get_event_log
+      security:
+      - OAuth2PasswordBearer: []
       parameters:
       - name: event_log_id
         in: path
@@ -3587,6 +3589,8 @@ paths:
       summary: Get Event Logs
       description: Get all Event Logs.
       operationId: get_event_logs
+      security:
+      - OAuth2PasswordBearer: []
       parameters:
       - name: limit
         in: query
