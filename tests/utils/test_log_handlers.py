@@ -205,11 +205,7 @@ class TestFileTaskLogHandler:
     )
     @conf_vars(
         {
-            ("core", "EXECUTOR"): ",".join(
-                [
-                    executor_constants.KUBERNETES_EXECUTOR,
-                ]
-            ),
+            ("core", "EXECUTOR"): executor_constants.KUBERNETES_EXECUTOR,
         }
     )
     @patch(
