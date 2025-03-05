@@ -26,13 +26,12 @@ import sys
 import time
 from collections import Counter, defaultdict, deque
 from collections.abc import Collection, Iterable, Iterator
-from contextlib import ExitStack, suppress
+from contextlib import ExitStack
 from datetime import date, timedelta
 from functools import lru_cache, partial
 from itertools import groupby
 from typing import TYPE_CHECKING, Any, Callable
 
-from deprecated import deprecated
 from sqlalchemy import and_, delete, exists, func, select, text, tuple_, update
 from sqlalchemy.exc import OperationalError
 from sqlalchemy.orm import joinedload, lazyload, load_only, make_transient, selectinload
@@ -42,7 +41,6 @@ from airflow import settings
 from airflow.callbacks.callback_requests import DagCallbackRequest, TaskCallbackRequest
 from airflow.configuration import conf
 from airflow.dag_processing.bundles.base import BundleUsageTrackingManager
-from airflow.exceptions import RemovedInAirflow3Warning
 from airflow.executors import workloads
 from airflow.executors.base_executor import BaseExecutor
 from airflow.executors.executor_loader import ExecutorLoader
@@ -1727,12 +1725,6 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                     )
                     session.commit()
             except NotImplementedError:
-                # this block only gets entered if the executor has not implemented `revoke_task`.
-                # in which case, we try the fallback logic
-                # todo: remove the call to _stuck_in_queued_backcompat_logic in airflow 3.0.
-                #   after 3.0, `cleanup_stuck_queued_tasks` will be removed, so we should
-                #   just continue immediately.
-                self._stuck_in_queued_backcompat_logic(executor, stuck_tis)
                 continue
 
     def _get_tis_stuck_in_queued(self, session) -> Iterable[TaskInstance]:
@@ -1778,28 +1770,6 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                 )
             )
             ti.set_state(TaskInstanceState.FAILED, session=session)
-
-    @deprecated(
-        reason="This is backcompat layer for older executor interface. Should be removed in 3.0",
-        category=RemovedInAirflow3Warning,
-        action="ignore",
-    )
-    def _stuck_in_queued_backcompat_logic(self, executor, stuck_tis):
-        """
-        Try to invoke stuck in queued cleanup for older executor interface.
-
-        TODO: remove in airflow 3.0
-
-        Here we handle case where the executor pre-dates the interface change that
-        introduced `cleanup_tasks_stuck_in_queued` and deprecated `cleanup_stuck_queued_tasks`.
-
-        """
-        with suppress(NotImplementedError):
-            for ti_repr in executor.cleanup_stuck_queued_tasks(tis=stuck_tis):
-                self.log.warning(
-                    "Task instance %s stuck in queued. Will be set to failed.",
-                    ti_repr,
-                )
 
     def _reschedule_stuck_task(self, ti: TaskInstance, session: Session):
         session.execute(

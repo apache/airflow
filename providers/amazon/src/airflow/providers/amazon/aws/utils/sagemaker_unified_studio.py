@@ -14,3 +14,15 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+
+"""This module contains utils for the Amazon SageMaker Unified Studio Notebook plugin."""
+
+from __future__ import annotations
+
+import os
+
+workflows_env_key = "WORKFLOWS_ENV"
+
+
+def is_local_runner():
+    return os.getenv(workflows_env_key, "") == "Local"

@@ -306,7 +306,9 @@ class AirflowAppBuilder:
         self.indexview = self._check_and_init(self.indexview)
         self.add_view_no_menu(self.indexview)
         self.add_view_no_menu(UtilView())
-        get_auth_manager().register_views()
+        auth_manager = get_auth_manager()
+        if hasattr(auth_manager, "register_views"):
+            auth_manager.register_views()
 
     def _add_addon_views(self):
         """Register declared addons."""

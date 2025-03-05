@@ -28,14 +28,14 @@ import { NodeWrapper } from "./NodeWrapper";
 import type { CustomNodeProps } from "./reactflowUtils";
 
 export const DagNode = ({
-  data: { height, isSelected, label, width },
+  data: { height, isOpen, isSelected, label, width },
 }: NodeProps<NodeType<CustomNodeProps, "dag">>) => {
   const { data: dag } = useDagServiceGetDag({ dagId: label });
 
   return (
     <NodeWrapper>
       <Flex
-        bg="bg"
+        bg={isOpen ? "bg.muted" : "bg"}
         borderRadius={5}
         borderWidth={isSelected ? 6 : 2}
         cursor="default"

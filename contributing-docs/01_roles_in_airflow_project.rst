@@ -45,7 +45,7 @@ code is maintained.
 The term "committer" and "maintainer" is used interchangeably. The term "committer" is the official term used by the
 Apache Software Foundation, while "maintainer" is more commonly used in the Open Source community and is used
 in context of GitHub in a number of guidelines and documentation, so this document will mostly use "maintainer",
-when speaking about Github, Pull Request, Github Issues and Discussions. On the other hand, "committer" is more
+when speaking about GitHub, Pull Request, GitHub Issues and Discussions. On the other hand, "committer" is more
 often used in devlist discussions, official communications, Airflow website and every time when we formally
 refer to the role.
 

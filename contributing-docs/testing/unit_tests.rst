@@ -42,7 +42,6 @@ Handling warnings
 By default, in the new tests selected warnings are prohibited:
 
 * ``airflow.exceptions.AirflowProviderDeprecationWarning``
-* ``airflow.exceptions.RemovedInAirflow3Warning``
 
 That mean if one of this warning appear during test run and do not captured the test will failed.
 
