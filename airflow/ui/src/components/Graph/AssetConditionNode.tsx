@@ -16,9 +16,28 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { handlers as configHandlers } from "./config";
-import { handlers as dagHandlers } from "./dag";
-import { handlers as dagsHandlers } from "./dags";
-import { handlers as logHandlers } from "./log";
+import { Box } from "@chakra-ui/react";
+import type { NodeProps, Node as NodeType } from "@xyflow/react";
+import { TbLogicAnd, TbLogicOr } from "react-icons/tb";
 
-export const handlers = [...configHandlers, ...dagHandlers, ...dagsHandlers, ...logHandlers];
+import { NodeWrapper } from "./NodeWrapper";
+import type { CustomNodeProps } from "./reactflowUtils";
+
+export const AssetConditionNode = ({ data }: NodeProps<NodeType<CustomNodeProps, "asset-condition">>) => (
+  <NodeWrapper>
+    <Box
+      bg="bg"
+      borderRadius={4}
+      borderWidth={1}
+      height={`${data.height}px`}
+      title={data.assetCondition === "and-gate" ? "All" : "Any"}
+      width={`${data.width}px`}
+    >
+      {data.assetCondition === "or-gate" ? (
+        <TbLogicOr size={`${data.height}px`} />
+      ) : (
+        <TbLogicAnd size={`${data.height}px`} />
+      )}
+    </Box>
+  </NodeWrapper>
+);
