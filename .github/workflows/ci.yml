@@ -157,6 +157,5 @@ jobs:
           fetch-depth: 2
           persist-credentials: false
       - name: "Login to ghcr.io"
-        if: inputs.ci-image != ''
         shell: bash
         run: echo "${GITHUB_TOKEN}" | docker login ghcr.io -u ${ACTOR} --password-stdin
