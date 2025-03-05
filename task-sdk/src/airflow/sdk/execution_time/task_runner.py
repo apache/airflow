@@ -303,8 +303,6 @@ class RuntimeTaskInstance(TaskInstance):
 
         log = structlog.get_logger(logger_name="task")
 
-        print("task_ids", task_ids)
-
         xcoms = []
         for t in task_ids:
             SUPERVISOR_COMMS.send_request(
