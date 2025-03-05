@@ -51,7 +51,9 @@ export const AssetEvent = ({ event }: { readonly event: AssetEventResponse }) =>
           }
           showArrow
         >
-          <Text> {event.name ?? ""} </Text>
+          <Link to={`/assets/${event.asset_id}`}>
+            <Text color="fg.info"> {event.name ?? ""} </Text>
+          </Link>
         </Tooltip>
       </HStack>
       <HStack>
