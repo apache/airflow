@@ -39,6 +39,7 @@ from pendulum.tz.timezone import FixedTimezone, Timezone
 from airflow import macros
 from airflow.callbacks.callback_requests import DagCallbackRequest, TaskCallbackRequest
 from airflow.exceptions import AirflowException, SerializationError, TaskDeferred
+from airflow.models.asset import retrieve_asset_ids
 from airflow.models.baseoperator import BaseOperator
 from airflow.models.connection import Connection
 from airflow.models.dag import DAG, _get_model_data_interval
@@ -91,6 +92,7 @@ from airflow.utils.docs import get_docs_url
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.module_loading import import_string, qualname
 from airflow.utils.operator_resources import Resources
+from airflow.utils.session import create_session
 from airflow.utils.timezone import from_timestamp, parse_timezone
 from airflow.utils.types import NOTSET, ArgNotSet
 
@@ -1108,18 +1110,25 @@ class DependencyDetector:
                     dependency_id=task.task_id,
                 )
             )
+
+        assets = []
         for obj in task.outlets or []:
             if isinstance(obj, Asset):
-                deps.append(
-                    DagDependency(
-                        source=task.dag_id,
-                        target="asset",
-                        dependency_type="asset",
-                        dependency_id=obj.name,
-                    )
-                )
+                assets.append(obj)
             elif isinstance(obj, AssetAlias):
                 deps.extend(obj.iter_dag_dependencies(source=task.dag_id, target=""))
+
+        with create_session() as session:
+            deps.extend(
+                DagDependency(
+                    source=task.dag_id,
+                    target="asset",
+                    dependency_type="asset",
+                    dependency_id=str(asset_id),
+                )
+                for asset_id in retrieve_asset_ids(assets=assets, session=session)
+            )
+
         return deps
 
     @staticmethod
