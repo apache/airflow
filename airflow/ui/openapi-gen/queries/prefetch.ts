@@ -2341,6 +2341,29 @@ export const prefetchUseVariableServiceGetVariables = (
     queryFn: () => VariableService.getVariables({ limit, offset, orderBy, variableKeyPattern }),
   });
 /**
+ * Get Dag Version
+ * Get one Dag Version.
+ * @param data The data for the request.
+ * @param data.dagId
+ * @param data.versionNumber
+ * @returns DagVersionResponse Successful Response
+ * @throws ApiError
+ */
+export const prefetchUseDagVersionServiceGetDagVersion = (
+  queryClient: QueryClient,
+  {
+    dagId,
+    versionNumber,
+  }: {
+    dagId: string;
+    versionNumber: number;
+  },
+) =>
+  queryClient.prefetchQuery({
+    queryKey: Common.UseDagVersionServiceGetDagVersionKeyFn({ dagId, versionNumber }),
+    queryFn: () => DagVersionService.getDagVersion({ dagId, versionNumber }),
+  });
+/**
  * Get Dag Versions
  * Get all DAG Versions.
  *

@@ -203,6 +203,8 @@ import type {
   BulkVariablesResponse,
   ReparseDagFileData,
   ReparseDagFileResponse,
+  GetDagVersionData,
+  GetDagVersionResponse,
   GetDagVersionsData,
   GetDagVersionsResponse,
   GetHealthResponse,
@@ -3405,6 +3407,32 @@ export class DagParsingService {
 }
 
 export class DagVersionService {
+  /**
+   * Get Dag Version
+   * Get one Dag Version.
+   * @param data The data for the request.
+   * @param data.dagId
+   * @param data.versionNumber
+   * @returns DagVersionResponse Successful Response
+   * @throws ApiError
+   */
+  public static getDagVersion(data: GetDagVersionData): CancelablePromise<GetDagVersionResponse> {
+    return __request(OpenAPI, {
+      method: "GET",
+      url: "/public/dags/{dag_id}/dagVersions/{version_number}",
+      path: {
+        dag_id: data.dagId,
+        version_number: data.versionNumber,
+      },
+      errors: {
+        401: "Unauthorized",
+        403: "Forbidden",
+        404: "Not Found",
+        422: "Validation Error",
+      },
+    });
+  }
+
   /**
    * Get Dag Versions
    * Get all DAG Versions.

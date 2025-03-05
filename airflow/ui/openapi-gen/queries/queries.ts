@@ -2760,6 +2760,35 @@ export const useVariableServiceGetVariables = <
     ...options,
   });
 /**
+ * Get Dag Version
+ * Get one Dag Version.
+ * @param data The data for the request.
+ * @param data.dagId
+ * @param data.versionNumber
+ * @returns DagVersionResponse Successful Response
+ * @throws ApiError
+ */
+export const useDagVersionServiceGetDagVersion = <
+  TData = Common.DagVersionServiceGetDagVersionDefaultResponse,
+  TError = unknown,
+  TQueryKey extends Array<unknown> = unknown[],
+>(
+  {
+    dagId,
+    versionNumber,
+  }: {
+    dagId: string;
+    versionNumber: number;
+  },
+  queryKey?: TQueryKey,
+  options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">,
+) =>
+  useQuery<TData, TError>({
+    queryKey: Common.UseDagVersionServiceGetDagVersionKeyFn({ dagId, versionNumber }, queryKey),
+    queryFn: () => DagVersionService.getDagVersion({ dagId, versionNumber }) as TData,
+    ...options,
+  });
+/**
  * Get Dag Versions
  * Get all DAG Versions.
  *
