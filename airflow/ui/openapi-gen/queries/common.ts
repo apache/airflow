@@ -856,12 +856,14 @@ export type EventLogServiceGetEventLogQueryResult<
 export const useEventLogServiceGetEventLogKey = "EventLogServiceGetEventLog";
 export const UseEventLogServiceGetEventLogKeyFn = (
   {
+    dagId,
     eventLogId,
   }: {
+    dagId?: string;
     eventLogId: number;
   },
   queryKey?: Array<unknown>,
-) => [useEventLogServiceGetEventLogKey, ...(queryKey ?? [{ eventLogId }])];
+) => [useEventLogServiceGetEventLogKey, ...(queryKey ?? [{ dagId, eventLogId }])];
 export type EventLogServiceGetEventLogsDefaultResponse = Awaited<
   ReturnType<typeof EventLogService.getEventLogs>
 >;

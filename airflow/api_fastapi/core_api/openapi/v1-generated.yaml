@@ -3022,8 +3022,6 @@ paths:
       summary: Get Dags
       description: Get all DAGs.
       operationId: get_dags
-      security:
-      - OAuth2PasswordBearer: []
       parameters:
       - name: limit
         in: query
@@ -3189,8 +3187,6 @@ paths:
       summary: Patch Dags
       description: Patch multiple DAGs.
       operationId: patch_dags
-      security:
-      - OAuth2PasswordBearer: []
       parameters:
       - name: update_mask
         in: query
@@ -3326,8 +3322,6 @@ paths:
       summary: Get Dag
       description: Get basic information about a DAG.
       operationId: get_dag
-      security:
-      - OAuth2PasswordBearer: []
       parameters:
       - name: dag_id
         in: path
@@ -3378,8 +3372,6 @@ paths:
       summary: Patch Dag
       description: Patch the specific DAG.
       operationId: patch_dag
-      security:
-      - OAuth2PasswordBearer: []
       parameters:
       - name: dag_id
         in: path
@@ -3446,8 +3438,6 @@ paths:
       summary: Delete Dag
       description: Delete the specific DAG.
       operationId: delete_dag
-      security:
-      - OAuth2PasswordBearer: []
       parameters:
       - name: dag_id
         in: path
@@ -3498,8 +3488,6 @@ paths:
       summary: Get Dag Details
       description: Get details of DAG.
       operationId: get_dag_details
-      security:
-      - OAuth2PasswordBearer: []
       parameters:
       - name: dag_id
         in: path
@@ -3559,6 +3547,14 @@ paths:
         schema:
           type: integer
           title: Event Log Id
+      - name: dag_id
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Dag Id
       responses:
         '200':
           description: Successful Response
@@ -3600,6 +3596,14 @@ paths:
       security:
       - OAuth2PasswordBearer: []
       parameters:
+      - name: dag_id
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Dag Id
       - name: limit
         in: query
         required: false
@@ -3623,14 +3627,6 @@ paths:
           type: string
           default: id
           title: Order By
-      - name: dag_id
-        in: query
-        required: false
-        schema:
-          anyOf:
-          - type: string
-          - type: 'null'
-          title: Dag Id
       - name: task_id
         in: query
         required: false
