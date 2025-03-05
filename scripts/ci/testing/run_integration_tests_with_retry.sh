@@ -38,7 +38,7 @@ check_gremlin_container() {
     local attempt=1
 
     while [[ $attempt -le $max_attempts ]]; do
-        GREMLIN_CONTAINER=$(docker ps -q --filter "name=gremlin")
+        GREMLIN_CONTAINER=$(docker ps -q --filter "name=gremlin" --filter "status=running")
         if [[ -n "$GREMLIN_CONTAINER" ]]; then
             echo "${COLOR_YELLOW}Gremlin container found: $GREMLIN_CONTAINER${COLOR_RESET}"
             echo "Detailed inspection:"
