@@ -340,6 +340,10 @@ class SerializedDagModel(Base):
             raise ValueError("invalid or missing serialized DAG data")
         return SerializedDAG.from_dict(data)
 
+    @property
+    def asset_ids(self) -> list[str]:
+        return [sar.asset_id for sar in self.dag_model.schedule_asset_references]
+
     @classmethod
     @provide_session
     def has_dag(cls, dag_id: str, session: Session = NEW_SESSION) -> bool:
