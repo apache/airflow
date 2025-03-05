@@ -22,10 +22,10 @@ import { Panel, PanelGroup, PanelResizeHandle } from "react-resizable-panels";
 import { useParams } from "react-router-dom";
 
 import { useAssetServiceGetAsset } from "openapi/queries";
+import { AssetEvents } from "src/components/Assets/AssetEvents";
 import { BreadcrumbStats } from "src/components/BreadcrumbStats";
 import { ProgressBar } from "src/components/ui";
 
-import { AssetEvents } from "../AssetEvents";
 import { AssetGraph } from "./AssetGraph";
 import { Header } from "./Header";
 
@@ -41,7 +41,6 @@ export const Asset = () => {
   );
 
   const links = [
-    { label: "Assets", value: "/assets" },
     {
       label: asset?.name,
       title: "Asset",
@@ -51,7 +50,7 @@ export const Asset = () => {
 
   return (
     <ReactFlowProvider>
-      <HStack justifyContent="space-between">
+      <HStack justifyContent="space-between" mb={2}>
         <BreadcrumbStats links={links} />
       </HStack>
       <ProgressBar size="xs" visibility={Boolean(isLoading) ? "visible" : "hidden"} />
@@ -68,7 +67,7 @@ export const Asset = () => {
           <Panel defaultSize={50} minSize={20}>
             <Header asset={asset} />
             <Box h="100%" overflow="auto" px={2}>
-              <AssetEvents />
+              <AssetEvents assetId={asset?.id} />
             </Box>
           </Panel>
         </PanelGroup>
