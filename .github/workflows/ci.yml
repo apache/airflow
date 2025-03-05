@@ -181,25 +181,6 @@ jobs:
       - name: "Login to ghcr.io"
         shell: bash
         run: echo "${GITHUB_TOKEN_FARHAN}" | docker login ghcr.io -u ${ACTOR} -p ${GITHUB_TOKEN_FARHAN}
-      - name: "Prepare breeze & CI image: ${{ inputs.default-python-version }}"
-        uses: ./.github/actions/prepare_breeze_and_image
-        with:
-          platform: "linux/amd64"
-          python: "3.9"
-          use-uv: "true"
-          ci-image: "ahmadtfarhan/airflow/main/ci/python3.9:latest"
-      - name: "Integration: providers gremlin"
-        env:
-          INTEGRATION: "gremlin"
-        run: ./scripts/ci/testing/run_integration_tests_with_retry.sh providers "gremlin"
-      - name: "Post Tests success"
-        uses: ./.github/actions/post_tests_success
-        with:
-          codecov-token: ${{ secrets.CODECOV_TOKEN }}
-          python-version: "3.9"
-      - name: "Post Tests failure"
-        uses: ./.github/actions/post_tests_failure
-        if: failure()
       - name: "Pull and save pre-built CI image"
         if: inputs.ci-image != ''
         shell: bash
@@ -227,3 +208,15 @@ jobs:
           echo "Loading image from /mnt/ci-image-python${PYTHON}.tar"
           breeze ${IMAGE_TYPE}-image load --platform "${PLATFORM}" --python "${PYTHON}" --image-file-dir "/mnt"
         shell: bash
+      - name: "Integration: providers gremlin"
+        env:
+          INTEGRATION: "gremlin"
+        run: ./scripts/ci/testing/run_integration_tests_with_retry.sh providers "gremlin"
+      - name: "Post Tests success"
+        uses: ./.github/actions/post_tests_success
+        with:
+          codecov-token: ${{ secrets.CODECOV_TOKEN }}
+          python-version: "3.9"
+      - name: "Post Tests failure"
+        uses: ./.github/actions/post_tests_failure
+        if: failure()
