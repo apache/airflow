@@ -55,7 +55,7 @@ runs:
       shell: bash
       env:
         GITHUB_ACTOR: ${{ github.actor }}
-        GITHUB_TOKEN_FARHAN: ${{ secrets.GITHUB_TOKEN }}
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       run: |
         echo "$GITHUB_TOKEN_FARHAN"
         docker login ghcr.io -u "$GITHUB_ACTOR" --password-stdin
