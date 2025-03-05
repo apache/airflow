@@ -178,9 +178,6 @@ jobs:
         env:
           PR_LABELS: ${{ steps.source-run-info.outputs.pr-labels }}
           GITHUB_CONTEXT: ${{ toJson(github) }}
-      - name: "Login to ghcr.io"
-        shell: bash
-        run: echo "${GITHUB_TOKEN}" | docker login ghcr.io -u ${ACTOR} --password-stdin
 
   tests-integration-system:
     name: Integration and System Tests

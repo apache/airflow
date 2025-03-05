@@ -50,6 +50,11 @@ runs:
       with:
         use-uv: ${{ inputs.use-uv }}
       id: breeze
+    - name: "Login to ghcr.io"
+      shell: bash
+      run: |
+        docker logout ghcr.io
+        echo "${GITHUB_TOKEN}" | docker login ghcr.io -u ${ACTOR} --password-stdin
     - name: "Pull and save pre-built CI image"
       if: inputs.ci-image != ''
       shell: bash
