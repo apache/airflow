@@ -48,7 +48,7 @@ const DagVersionSelect = ({ disabled = false }: { readonly disabled?: boolean })
         DagVersionService.getDagVersions({
           dagId,
         }).then((data: DAGVersionCollectionResponse) => {
-          const options = data.dag_versions.map((version: DagVersionResponse) => {
+          const options = [...data.dag_versions].reverse().map((version: DagVersionResponse) => {
             const versionNumber = version.version_number.toString();
 
             return {

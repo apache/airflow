@@ -27,7 +27,6 @@ from sqlalchemy import select
 from airflow.auth.managers.models.base_user import BaseUser
 from airflow.auth.managers.models.resource_details import DagDetails
 from airflow.configuration import conf
-from airflow.exceptions import AirflowException
 from airflow.models import DagModel
 from airflow.typing_compat import Literal
 from airflow.utils.jwt_signer import JWTSigner, get_signing_key
@@ -38,8 +37,6 @@ if TYPE_CHECKING:
     from collections.abc import Container, Sequence
 
     from fastapi import FastAPI
-    from flask import Blueprint
-    from flask_appbuilder.menu import MenuItem
     from sqlalchemy.orm import Session
 
     from airflow.auth.managers.models.batch_apis import (
@@ -81,22 +78,6 @@ class BaseAuthManager(Generic[T], LoggingMixin):
         By default, do nothing.
         """
 
-    def get_user_name(self) -> str:
-        """Return the username associated to the user in session."""
-        user = self.get_user()
-        if not user:
-            self.log.error("Calling 'get_user_name()' but the user is not signed in.")
-            raise AirflowException("The user must be signed in.")
-        return user.get_name()
-
-    def get_user_display_name(self) -> str:
-        """Return the user's display name associated to the user in session."""
-        return self.get_user_name()
-
-    @abstractmethod
-    def get_user(self) -> T | None:
-        """Return the user associated to the user in session."""
-
     @abstractmethod
     def deserialize_user(self, token: dict[str, Any]) -> T:
         """Create a user object from dict."""
@@ -122,35 +103,9 @@ class BaseAuthManager(Generic[T], LoggingMixin):
             expiration_time_in_seconds=expiration_time_in_seconds
         ).generate_signed_token(self.serialize_user(user))
 
-    def get_user_id(self) -> str | None:
-        """Return the user ID associated to the user in session."""
-        user = self.get_user()
-        if not user:
-            self.log.error("Calling 'get_user_id()' but the user is not signed in.")
-            raise AirflowException("The user must be signed in.")
-        if user_id := user.get_id():
-            return str(user_id)
-        return None
-
-    @abstractmethod
-    def is_logged_in(self) -> bool:
-        """Return whether the user is logged in."""
-
     @abstractmethod
     def get_url_login(self, **kwargs) -> str:
         """Return the login page url."""
-
-    @abstractmethod
-    def get_url_logout(self) -> str:
-        """Return the logout page url."""
-
-    def get_url_user_profile(self) -> str | None:
-        """
-        Return the url to a page displaying info about the current user.
-
-        By default, return None.
-        """
-        return None
 
     @abstractmethod
     def is_authorized_configuration(
@@ -280,14 +235,6 @@ class BaseAuthManager(Generic[T], LoggingMixin):
             See https://github.com/apache/airflow/issues/39144
         :param resource_name: the name of the resource
         :param user: the user to performing the action
-        """
-
-    @abstractmethod
-    def filter_permitted_menu_items(self, menu_items: list[MenuItem]) -> list[MenuItem]:
-        """
-        Filter menu items based on user permissions.
-
-        :param menu_items: list of all menu items
         """
 
     def batch_is_authorized_connection(
@@ -444,11 +391,6 @@ class BaseAuthManager(Generic[T], LoggingMixin):
         """
         return []
 
-    def get_api_endpoints(self) -> None | Blueprint:
-        """Return API endpoint(s) definition for the auth manager."""
-        # TODO: Remove this method when legacy Airflow 2 UI is gone
-        return None
-
     def get_fastapi_app(self) -> FastAPI | None:
         """
         Specify a sub FastAPI application specific to the auth manager.
@@ -456,9 +398,6 @@ class BaseAuthManager(Generic[T], LoggingMixin):
         This sub application, if specified, is mounted in the main FastAPI application.
         """
         return None
-
-    def register_views(self) -> None:
-        """Register views specific to the auth manager."""
 
     @staticmethod
     def _get_token_signer(

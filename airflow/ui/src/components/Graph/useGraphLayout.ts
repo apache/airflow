@@ -231,9 +231,17 @@ const generateElkGraph = ({
 type LayoutProps = {
   dagId: DAGResponse["dag_id"];
   openGroupIds: Array<string>;
+  versionNumber?: number;
 } & StructureDataResponse;
 
-export const useGraphLayout = ({ arrange = "LR", dagId, edges, nodes, openGroupIds = [] }: LayoutProps) =>
+export const useGraphLayout = ({
+  arrange = "LR",
+  dagId,
+  edges,
+  nodes,
+  openGroupIds = [],
+  versionNumber,
+}: LayoutProps) =>
   useQuery({
     queryFn: async () => {
       const font = `bold 18px ${globalThis.getComputedStyle(document.body).fontFamily}`;
@@ -265,5 +273,5 @@ export const useGraphLayout = ({ arrange = "LR", dagId, edges, nodes, openGroupI
 
       return { edges: formattedEdges, nodes: flattenedData.nodes };
     },
-    queryKey: ["graphLayout", nodes.length, openGroupIds, arrange, dagId],
+    queryKey: ["graphLayout", nodes.length, openGroupIds, arrange, dagId, versionNumber, edges.length],
   });

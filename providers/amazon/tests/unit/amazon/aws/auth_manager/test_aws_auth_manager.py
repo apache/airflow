@@ -20,7 +20,6 @@ from typing import TYPE_CHECKING
 from unittest.mock import ANY, Mock, patch
 
 import pytest
-from flask_appbuilder.menu import MenuItem
 
 from airflow.providers.amazon.version_compat import AIRFLOW_V_3_0_PLUS
 
@@ -39,22 +38,14 @@ from airflow.auth.managers.models.resource_details import (
 from airflow.providers.amazon.aws.auth_manager.avp.entities import AvpEntities
 from airflow.providers.amazon.aws.auth_manager.aws_auth_manager import AwsAuthManager
 from airflow.providers.amazon.aws.auth_manager.user import AwsAuthManagerUser
-from airflow.security.permissions import (
-    RESOURCE_AUDIT_LOG,
-    RESOURCE_CLUSTER_ACTIVITY,
-    RESOURCE_CONNECTION,
-    RESOURCE_VARIABLE,
-)
 
 from tests_common.test_utils.config import conf_vars
 
 if TYPE_CHECKING:
     from airflow.auth.managers.base_auth_manager import ResourceMethod
     from airflow.auth.managers.models.resource_details import AssetDetails
-    from airflow.security.permissions import RESOURCE_ASSET
 else:
     from airflow.providers.common.compat.assets import AssetDetails
-    from airflow.providers.common.compat.security.permissions import RESOURCE_ASSET
 
 
 mock = Mock()
@@ -99,13 +90,6 @@ def test_user():
 class TestAwsAuthManager:
     def test_avp_facade(self, auth_manager):
         assert hasattr(auth_manager, "avp_facade")
-
-    @patch.object(AwsAuthManager, "is_logged_in")
-    def test_get_user_return_none_when_not_logged_in(self, mock_is_logged_in, auth_manager):
-        mock_is_logged_in.return_value = False
-        result = auth_manager.get_user()
-
-        assert result is None
 
     @pytest.mark.parametrize(
         "details, user, expected_user, expected_entity_id",
@@ -459,127 +443,6 @@ class TestAwsAuthManager:
             user=ANY,
         )
         assert result
-
-    @patch.object(AwsAuthManager, "get_user")
-    def test_filter_permitted_menu_items(self, mock_get_user, auth_manager, test_user):
-        batch_is_authorized_output = [
-            {
-                "request": {
-                    "principal": {"entityType": "Airflow::User", "entityId": "test_user_id"},
-                    "action": {"actionType": "Airflow::Action", "actionId": "Menu.MENU"},
-                    "resource": {"entityType": "Airflow::Menu", "entityId": "Connections"},
-                },
-                "decision": "DENY",
-            },
-            {
-                "request": {
-                    "principal": {"entityType": "Airflow::User", "entityId": "test_user_id"},
-                    "action": {"actionType": "Airflow::Action", "actionId": "Menu.MENU"},
-                    "resource": {"entityType": "Airflow::Menu", "entityId": "Variables"},
-                },
-                "decision": "ALLOW",
-            },
-            {
-                "request": {
-                    "principal": {"entityType": "Airflow::User", "entityId": "test_user_id"},
-                    "action": {"actionType": "Airflow::Action", "actionId": "Menu.MENU"},
-                    "resource": {"entityType": "Airflow::Menu", "entityId": RESOURCE_ASSET},
-                },
-                "decision": "DENY",
-            },
-            {
-                "request": {
-                    "principal": {"entityType": "Airflow::User", "entityId": "test_user_id"},
-                    "action": {"actionType": "Airflow::Action", "actionId": "Menu.MENU"},
-                    "resource": {"entityType": "Airflow::Menu", "entityId": "Cluster Activity"},
-                },
-                "decision": "DENY",
-            },
-            {
-                "request": {
-                    "principal": {"entityType": "Airflow::User", "entityId": "test_user_id"},
-                    "action": {"actionType": "Airflow::Action", "actionId": "Menu.MENU"},
-                    "resource": {"entityType": "Airflow::Menu", "entityId": "Audit Logs"},
-                },
-                "decision": "ALLOW",
-            },
-            {
-                "request": {
-                    "principal": {"entityType": "Airflow::User", "entityId": "test_user_id"},
-                    "action": {"actionType": "Airflow::Action", "actionId": "Menu.MENU"},
-                    "resource": {"entityType": "Airflow::Menu", "entityId": "CustomPage"},
-                },
-                "decision": "ALLOW",
-            },
-        ]
-        auth_manager.avp_facade.get_batch_is_authorized_results = Mock(
-            return_value=batch_is_authorized_output
-        )
-
-        mock_get_user.return_value = test_user
-
-        result = auth_manager.filter_permitted_menu_items(
-            [
-                MenuItem("Category1", childs=[MenuItem(RESOURCE_CONNECTION), MenuItem(RESOURCE_VARIABLE)]),
-                MenuItem("Category2", childs=[MenuItem(RESOURCE_ASSET)]),
-                MenuItem(RESOURCE_CLUSTER_ACTIVITY),
-                MenuItem(RESOURCE_AUDIT_LOG),
-                MenuItem("CustomPage"),
-            ]
-        )
-
-        """
-        return {
-            "method": "MENU",
-            "entity_type": AvpEntities.MENU,
-            "entity_id": resource_name,
-        }
-        """
-
-        auth_manager.avp_facade.get_batch_is_authorized_results.assert_called_once_with(
-            requests=[
-                {
-                    "method": "MENU",
-                    "entity_type": AvpEntities.MENU,
-                    "entity_id": "Connections",
-                },
-                {
-                    "method": "MENU",
-                    "entity_type": AvpEntities.MENU,
-                    "entity_id": "Variables",
-                },
-                {
-                    "method": "MENU",
-                    "entity_type": AvpEntities.MENU,
-                    "entity_id": RESOURCE_ASSET,
-                },
-                {"method": "MENU", "entity_type": AvpEntities.MENU, "entity_id": "Cluster Activity"},
-                {"method": "MENU", "entity_type": AvpEntities.MENU, "entity_id": "Audit Logs"},
-                {
-                    "method": "MENU",
-                    "entity_type": AvpEntities.MENU,
-                    "entity_id": "CustomPage",
-                },
-            ],
-            user=test_user,
-        )
-        assert len(result) == 3
-        assert result[0].name == "Category1"
-        assert len(result[0].childs) == 1
-        assert result[0].childs[0].name == RESOURCE_VARIABLE
-        assert result[1].name == RESOURCE_AUDIT_LOG
-        assert result[2].name == "CustomPage"
-
-    @patch.object(AwsAuthManager, "get_user")
-    def test_filter_permitted_menu_items_logged_out(self, mock_get_user, auth_manager):
-        mock_get_user.return_value = None
-        result = auth_manager.filter_permitted_menu_items(
-            [
-                MenuItem(RESOURCE_AUDIT_LOG),
-            ]
-        )
-
-        assert result == []
 
     @pytest.mark.parametrize(
         "methods, user",

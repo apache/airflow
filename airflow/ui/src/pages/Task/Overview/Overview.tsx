@@ -27,7 +27,7 @@ import TimeRangeSelector from "src/components/TimeRangeSelector";
 import { TrendCountButton } from "src/components/TrendCountButton";
 import { isStatePending, useAutoRefresh } from "src/utils";
 
-const defaultHour = "168";
+const defaultHour = "24";
 
 export const Overview = () => {
   const { dagId = "", taskId } = useParams();

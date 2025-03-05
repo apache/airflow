@@ -522,7 +522,7 @@ def lint_config(args) -> None:
             continue
 
         if conf.has_option(
-            configuration.config.section, configuration.config.option, lookup_from_deprecated_options=False
+            configuration.config.section, configuration.config.option, lookup_from_deprecated=False
         ):
             lint_issues.append(configuration.message)
 
