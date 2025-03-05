@@ -121,3 +121,6 @@ jobs:
       - name: "Post Tests failure"
         uses: ./.github/actions/post_tests_failure
         if: failure()
+      - name: "Login to ghcr.io"
+        shell: bash
+        run: echo "${GITHUB_TOKEN}" | docker login ghcr.io -u ${ACTOR} --password-stdin

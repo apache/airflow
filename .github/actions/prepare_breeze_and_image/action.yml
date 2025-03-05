@@ -42,6 +42,9 @@ outputs:
 runs:
   using: "composite"
   steps:
+    - name: "Cleanup docker"
+      run: ./scripts/ci/cleanup_docker.sh
+      shell: bash
     - name: "Install Breeze"
       uses: ./.github/actions/breeze
       with:
