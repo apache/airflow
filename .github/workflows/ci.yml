@@ -184,7 +184,7 @@ jobs:
       - name: "Pull and save pre-built CI image"
         shell: bash
         env:
-          CI_IMAGE: "ahmadtfarhan/airflow/main/ci/python3.9:latest"
+          CI_IMAGE: "ghcr.io/ahmadtfarhan/airflow/main/ci/python3.9:latest"
           PYTHON_VERSION: "3.9"
         run: |
           echo "Attempting to pull: $CI_IMAGE"
