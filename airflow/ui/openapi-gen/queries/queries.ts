@@ -1398,6 +1398,7 @@ export const useDagServiceGetDagTags = <
  * Get Event Log
  * @param data The data for the request.
  * @param data.eventLogId
+ * @param data.dagId
  * @returns EventLogResponse Successful Response
  * @throws ApiError
  */
@@ -1407,26 +1408,28 @@ export const useEventLogServiceGetEventLog = <
   TQueryKey extends Array<unknown> = unknown[],
 >(
   {
+    dagId,
     eventLogId,
   }: {
+    dagId?: string;
     eventLogId: number;
   },
   queryKey?: TQueryKey,
   options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">,
 ) =>
   useQuery<TData, TError>({
-    queryKey: Common.UseEventLogServiceGetEventLogKeyFn({ eventLogId }, queryKey),
-    queryFn: () => EventLogService.getEventLog({ eventLogId }) as TData,
+    queryKey: Common.UseEventLogServiceGetEventLogKeyFn({ dagId, eventLogId }, queryKey),
+    queryFn: () => EventLogService.getEventLog({ dagId, eventLogId }) as TData,
     ...options,
   });
 /**
  * Get Event Logs
  * Get all Event Logs.
  * @param data The data for the request.
+ * @param data.dagId
  * @param data.limit
  * @param data.offset
  * @param data.orderBy
- * @param data.dagId
  * @param data.taskId
  * @param data.runId
  * @param data.mapIndex
