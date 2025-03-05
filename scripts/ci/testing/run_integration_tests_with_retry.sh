@@ -29,46 +29,26 @@ TEST_GROUP=${1}
 INTEGRATION=${2}
 
 breeze down
-
-# Function to check Gremlin container in parallel
-check_gremlin_container() {
-    echo "${COLOR_YELLOW}Starting Gremlin container check...${COLOR_RESET}"
-    local max_attempts=30
-    local sleep_interval=2
-    local attempt=1
-
-    while [[ $attempt -le $max_attempts ]]; do
-        GREMLIN_CONTAINER=$(docker ps -q --filter "name=gremlin" --filter "status=running")
-        if [[ -n "$GREMLIN_CONTAINER" ]]; then
-            echo "${COLOR_YELLOW}Gremlin container found: $GREMLIN_CONTAINER${COLOR_RESET}"
-            echo "Detailed inspection:"
-            docker inspect "$GREMLIN_CONTAINER"
-            echo "Formatted details (Name - IP - Ports):"
-            docker inspect "$GREMLIN_CONTAINER" -f '{{.Name}} - {{(index .NetworkSettings.Networks "airflow-test-all_default").IPAddress}} - {{range $p, $conf := .NetworkSettings.Ports}}{{$p}} -> {{range $conf}}{{.HostIp}}:{{.HostPort}} {{end}}{{end}}'
-            break
-        fi
-        echo "Attempt $attempt/$max_attempts: No running Gremlin container yet..."
-        sleep $sleep_interval
-        ((attempt++))
-    done
-    if [[ -z "$GREMLIN_CONTAINER" ]]; then
-        echo "${COLOR_RED}No running Gremlin container after $max_attempts attempts!${COLOR_RESET}"
-        echo "Gremlin container logs:"
-        docker logs gremlin
-    fi
-}
-
-# Run the container check in the background
-check_gremlin_container &
-
-# Run breeze testing (foreground)
 set +e
 breeze testing "${TEST_GROUP}-integration-tests" --integration "${INTEGRATION}"
 RESULT=$?
 set -e
-
-# Wait for background job to finish
-wait
-
-# Exit with the test result
-exit ${RESULT}
+if [[ ${RESULT} != "0" ]]; then
+    echo
+    echo "${COLOR_YELLOW}The ${TEST_GROUP} Integration Tests failed. Retrying once${COLOR_RESET}"
+    echo
+    echo "This could be due to a flaky test, re-running once to re-check it After restarting docker."
+    echo
+    sudo service docker restart
+    breeze down
+    set +e
+    breeze testing "${TEST_GROUP}-integration-tests" --integration "${INTEGRATION}"
+    RESULT=$?
+    set -e
+    if [[ ${RESULT} != "0" ]]; then
+        echo
+        echo "${COLOR_RED}The ${TEST_GROUP} integration tests failed for the second time! Giving up${COLOR_RESET}"
+        echo
+        exit ${RESULT}
+    fi
+fi
