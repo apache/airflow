@@ -26,8 +26,7 @@ services:
       - graph-data:/opt/gremlin-server/data
     restart: "on-failure"
     ports:
-      - "${GREMLIN_HOST_PORT}:8182"
-    stdin_open: true
+      - "8182:8182"
   airflow:
     depends_on:
       - gremlin
