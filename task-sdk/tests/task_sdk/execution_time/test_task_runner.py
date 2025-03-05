@@ -21,6 +21,7 @@ import contextlib
 import json
 import os
 import uuid
+from collections.abc import Iterable
 from datetime import datetime, timedelta
 from pathlib import Path
 from socket import socketpair
@@ -93,6 +94,7 @@ from airflow.sdk.execution_time.task_runner import (
 )
 from airflow.utils import timezone
 from airflow.utils.state import TaskInstanceState
+from airflow.utils.types import NOTSET, ArgNotSet
 
 from tests_common.test_utils.mock_operators import AirflowLink
 
@@ -1134,6 +1136,8 @@ class TestRuntimeTaskInstance:
             "push_task",
             ["push_task1", "push_task2"],
             {"push_task1", "push_task2"},
+            None,
+            NOTSET,
         ],
     )
     def test_xcom_pull(self, create_runtime_ti, mock_supervisor_comms, spy_agency, task_ids):
@@ -1141,7 +1145,10 @@ class TestRuntimeTaskInstance:
 
         class CustomOperator(BaseOperator):
             def execute(self, context):
-                value = context["ti"].xcom_pull(task_ids=task_ids, key="key")
+                if isinstance(task_ids, ArgNotSet):
+                    value = context["ti"].xcom_pull(key="key")
+                else:
+                    value = context["ti"].xcom_pull(task_ids=task_ids, key="key")
                 print(f"Pulled XCom Value: {value}")
 
         task = CustomOperator(task_id="pull_task")
@@ -1152,10 +1159,12 @@ class TestRuntimeTaskInstance:
 
         run(runtime_ti, log=mock.MagicMock())
 
-        if isinstance(task_ids, str):
+        if not isinstance(task_ids, Iterable) or isinstance(task_ids, str):
             task_ids = [task_ids]
 
         for task_id in task_ids:
+            if task_id is None or isinstance(task_id, ArgNotSet):
+                task_id = runtime_ti.task_id
             mock_supervisor_comms.send_request.assert_any_call(
                 log=mock.ANY,
                 msg=GetXCom(

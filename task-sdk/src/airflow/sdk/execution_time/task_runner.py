@@ -292,7 +292,7 @@ class RuntimeTaskInstance(TaskInstance):
 
         if task_ids is None:
             # default to the current task if not provided
-            task_ids = self.task_id
+            task_ids = [self.task_id]
         elif isinstance(task_ids, str):
             task_ids = [task_ids]
         if isinstance(map_indexes, ArgNotSet):
@@ -302,6 +302,8 @@ class RuntimeTaskInstance(TaskInstance):
             raise NotImplementedError("Multiple map_indexes are not supported yet")
 
         log = structlog.get_logger(logger_name="task")
+
+        print("task_ids", task_ids)
 
         xcoms = []
         for t in task_ids:
