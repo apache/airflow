@@ -1667,6 +1667,24 @@ export const UseVariableServiceGetVariablesKeyFn = (
   } = {},
   queryKey?: Array<unknown>,
 ) => [useVariableServiceGetVariablesKey, ...(queryKey ?? [{ limit, offset, orderBy, variableKeyPattern }])];
+export type DagVersionServiceGetDagVersionDefaultResponse = Awaited<
+  ReturnType<typeof DagVersionService.getDagVersion>
+>;
+export type DagVersionServiceGetDagVersionQueryResult<
+  TData = DagVersionServiceGetDagVersionDefaultResponse,
+  TError = unknown,
+> = UseQueryResult<TData, TError>;
+export const useDagVersionServiceGetDagVersionKey = "DagVersionServiceGetDagVersion";
+export const UseDagVersionServiceGetDagVersionKeyFn = (
+  {
+    dagId,
+    versionNumber,
+  }: {
+    dagId: string;
+    versionNumber: number;
+  },
+  queryKey?: Array<unknown>,
+) => [useDagVersionServiceGetDagVersionKey, ...(queryKey ?? [{ dagId, versionNumber }])];
 export type DagVersionServiceGetDagVersionsDefaultResponse = Awaited<
   ReturnType<typeof DagVersionService.getDagVersions>
 >;

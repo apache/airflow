@@ -2498,6 +2498,13 @@ export type ReparseDagFileData = {
 
 export type ReparseDagFileResponse = null;
 
+export type GetDagVersionData = {
+  dagId: string;
+  versionNumber: number;
+};
+
+export type GetDagVersionResponse = DagVersionResponse;
+
 export type GetDagVersionsData = {
   bundleName?: string;
   bundleVersion?: string | null;
@@ -5195,6 +5202,33 @@ export type $OpenApiTs = {
          * Successful Response
          */
         201: null;
+        /**
+         * Unauthorized
+         */
+        401: HTTPExceptionResponse;
+        /**
+         * Forbidden
+         */
+        403: HTTPExceptionResponse;
+        /**
+         * Not Found
+         */
+        404: HTTPExceptionResponse;
+        /**
+         * Validation Error
+         */
+        422: HTTPValidationError;
+      };
+    };
+  };
+  "/public/dags/{dag_id}/dagVersions/{version_number}": {
+    get: {
+      req: GetDagVersionData;
+      res: {
+        /**
+         * Successful Response
+         */
+        200: DagVersionResponse;
         /**
          * Unauthorized
          */
