@@ -190,7 +190,7 @@ jobs:
           echo "Attempting to pull: $CI_IMAGE"
           docker pull "$CI_IMAGE" || { echo "Pull failed"; exit 1; }
           echo "Saving image to /mnt/ci-image-save-linux_amd64-3.9.tar"
-          docker save "$CI_IMAGE" -o /mnt/ci-image-python$PYTHON_VERSION.tar
+          docker save "$CI_IMAGE" -o /mnt/ci-image-save-linux_amd64-3.9.tar
       - name: "Restore stashed image if ci-image not provided"
         uses: apache/infrastructure-actions/stash/restore@1c35b5ccf8fba5d4c3fdf25a045ca91aa0cbc468
         with:
