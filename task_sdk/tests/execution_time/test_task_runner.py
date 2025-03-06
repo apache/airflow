@@ -1548,7 +1548,7 @@ class TestDagParamRuntime:
             log=mock.ANY,
         )
 
-    @pytest.mark.parametrize("value", [VALUE, 0])
+    @pytest.mark.parametrize("value", [VALUE, 0, (1, 2)])
     def test_set_params_for_dag(
         self, create_runtime_ti, mock_supervisor_comms, time_machine, make_ti_context, value
     ):
