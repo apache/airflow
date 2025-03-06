@@ -56,6 +56,7 @@ from airflow.exceptions import (
     SerializationError,
 )
 from airflow.hooks.base import BaseHook
+from airflow.models.asset import AssetModel
 from airflow.models.baseoperator import BaseOperator
 from airflow.models.connection import Connection
 from airflow.models.dag import DAG
@@ -265,6 +266,20 @@ CUSTOM_TIMETABLE_SERIALIZED = {
     "__type": "tests_common.test_utils.timetables.CustomSerializationTimetable",
     "__var": {"value": "foo"},
 }
+
+
+@pytest.fixture
+def testing_assets(session):
+    from tests_common.test_utils.db import clear_db_assets
+
+    assets = [Asset(name=f"asset{i}", uri=f"test://asset{i}/") for i in range(1, 5)]
+
+    session.add_all([AssetModel(id=i, name=f"asset{i}", uri=f"test://asset{i}/") for i in range(1, 5)])
+    session.commit()
+
+    yield assets
+
+    clear_db_assets()
 
 
 def make_simple_dag():
@@ -1673,20 +1688,14 @@ class TestStringifiedDAGs:
             ]
 
     @pytest.mark.db_test
-    def test_dag_deps_assets_with_duplicate_asset(self):
+    def test_dag_deps_assets_with_duplicate_asset(self, testing_assets):
         """
         Check that dag_dependencies node is populated correctly for a DAG with duplicate assets.
         """
         from airflow.providers.standard.sensors.external_task import ExternalTaskSensor
 
-        asset1 = Asset(name="asset1", uri="test://asset1")
-        asset2 = Asset(name="asset2", uri="test://asset2")
-        asset3 = Asset(name="asset3", uri="test://asset3")
-        asset4 = Asset(name="asset4", uri="test://asset4")
         logical_date = datetime(2020, 1, 1)
-        with DAG(
-            dag_id="test", start_date=logical_date, schedule=[asset1, asset1, asset1, asset1, asset1]
-        ) as dag:
+        with DAG(dag_id="test", start_date=logical_date, schedule=[testing_assets[0]] * 5) as dag:
             ExternalTaskSensor(
                 task_id="task1",
                 external_dag_id="external_dag_id",
@@ -1695,10 +1704,10 @@ class TestStringifiedDAGs:
             BashOperator(
                 task_id="asset_writer",
                 bash_command="echo hello",
-                outlets=[asset2, asset2, asset2, asset3],
+                outlets=[testing_assets[1]] * 3 + testing_assets[2:3],
             )
 
-            @dag.task(outlets=[asset4])
+            @dag.task(outlets=[testing_assets[3]])
             def other_asset_writer(x):
                 pass
 
@@ -1711,56 +1720,65 @@ class TestStringifiedDAGs:
                 {
                     "source": "test",
                     "target": "asset",
+                    "label": "asset4",
                     "dependency_type": "asset",
-                    "dependency_id": "asset4",
+                    "dependency_id": "4",
                 },
                 {
                     "source": "external_dag_id",
                     "target": "test",
+                    "label": "task1",
                     "dependency_type": "sensor",
                     "dependency_id": "task1",
                 },
                 {
                     "source": "test",
                     "target": "asset",
+                    "label": "asset3",
                     "dependency_type": "asset",
-                    "dependency_id": "asset3",
+                    "dependency_id": "3",
                 },
                 {
                     "source": "test",
                     "target": "asset",
+                    "label": "asset2",
                     "dependency_type": "asset",
-                    "dependency_id": "asset2",
+                    "dependency_id": "2",
                 },
                 {
                     "source": "asset",
                     "target": "test",
+                    "label": "asset1",
                     "dependency_type": "asset",
-                    "dependency_id": "asset1",
+                    "dependency_id": "1",
                 },
                 {
-                    "dependency_id": "asset1",
-                    "dependency_type": "asset",
                     "source": "asset",
                     "target": "test",
+                    "label": "asset1",
+                    "dependency_type": "asset",
+                    "dependency_id": "1",
                 },
                 {
-                    "dependency_id": "asset1",
-                    "dependency_type": "asset",
                     "source": "asset",
                     "target": "test",
+                    "label": "asset1",
+                    "dependency_type": "asset",
+                    "dependency_id": "1",
                 },
                 {
-                    "dependency_id": "asset1",
-                    "dependency_type": "asset",
                     "source": "asset",
                     "target": "test",
+                    "label": "asset1",
+                    "dependency_type": "asset",
+                    "dependency_id": "1",
                 },
                 {
-                    "dependency_id": "asset1",
-                    "dependency_type": "asset",
                     "source": "asset",
                     "target": "test",
+                    "label": "asset1",
+                    "dependency_type": "asset",
+                    "dependency_id": "1",
                 },
             ],
             key=lambda x: tuple(x.values()),
@@ -1768,26 +1786,22 @@ class TestStringifiedDAGs:
         assert actual == expected
 
     @pytest.mark.db_test
-    def test_dag_deps_assets(self):
+    def test_dag_deps_assets(self, testing_assets):
         """
         Check that dag_dependencies node is populated correctly for a DAG with assets.
         """
         from airflow.providers.standard.sensors.external_task import ExternalTaskSensor
 
-        asset1 = Asset(name="asset1", uri="test://asset1")
-        asset2 = Asset(name="asset2", uri="test://asset2")
-        asset3 = Asset(name="asset3", uri="test://asset3")
-        asset4 = Asset(name="asset4", uri="test://asset4")
         logical_date = datetime(2020, 1, 1)
-        with DAG(dag_id="test", start_date=logical_date, schedule=[asset1]) as dag:
+        with DAG(dag_id="test", start_date=logical_date, schedule=testing_assets[0:1]) as dag:
             ExternalTaskSensor(
                 task_id="task1",
                 external_dag_id="external_dag_id",
                 mode="reschedule",
             )
-            BashOperator(task_id="asset_writer", bash_command="echo hello", outlets=[asset2, asset3])
+            BashOperator(task_id="asset_writer", bash_command="echo hello", outlets=testing_assets[1:3])
 
-            @dag.task(outlets=[asset4])
+            @dag.task(outlets=testing_assets[3:])
             def other_asset_writer(x):
                 pass
 
@@ -1800,32 +1814,37 @@ class TestStringifiedDAGs:
                 {
                     "source": "test",
                     "target": "asset",
+                    "label": "asset4",
                     "dependency_type": "asset",
-                    "dependency_id": "asset4",
+                    "dependency_id": "4",
                 },
                 {
                     "source": "external_dag_id",
                     "target": "test",
+                    "label": "task1",
                     "dependency_type": "sensor",
                     "dependency_id": "task1",
                 },
                 {
                     "source": "test",
                     "target": "asset",
+                    "label": "asset3",
                     "dependency_type": "asset",
-                    "dependency_id": "asset3",
+                    "dependency_id": "3",
                 },
                 {
                     "source": "test",
                     "target": "asset",
+                    "label": "asset2",
                     "dependency_type": "asset",
-                    "dependency_id": "asset2",
+                    "dependency_id": "2",
                 },
                 {
                     "source": "asset",
                     "target": "test",
+                    "label": "asset1",
                     "dependency_type": "asset",
-                    "dependency_id": "asset1",
+                    "dependency_id": "1",
                 },
             ],
             key=lambda x: tuple(x.values()),
