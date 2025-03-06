@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2025-03-06T11:18:26.882765
+# This constraints file was automatically generated on 2025-03-06T08:22:47.760965
 # via "eager-upgrade" mechanism of PIP. For the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version for 'apache-airflow' but installs
 # the providers from PIP-released packages at the moment of the constraint generation.
@@ -238,8 +238,8 @@ billiard==4.2.1
 bitarray==2.9.3
 black==25.1.0
 blinker==1.9.0
-boto3==1.37.7
-botocore==1.37.7
+boto3==1.37.1
+botocore==1.37.1
 cachelib==0.13.0
 cachetools==5.5.2
 cassandra-driver==3.29.2
@@ -298,7 +298,7 @@ email_validator==2.2.0
 entrypoints==0.4
 eralchemy2==1.4.1
 et_xmlfile==2.0.0
-eventlet==0.39.1
+eventlet==0.39.0
 execnet==2.1.1
 executing==2.2.0
 facebook_business==22.0.2
@@ -646,7 +646,7 @@ rpds-py==0.23.1
 rsa==4.9
 ruff==0.8.1
 s3fs==2025.2.0
-s3transfer==0.11.4
+s3transfer==0.11.3
 sagemaker_studio==1.0.9
 scikit-learn==1.6.1
 scipy==1.15.2
