@@ -27,7 +27,7 @@ def get_provider_info():
         "name": "ArangoDB",
         "description": "`ArangoDB <https://www.arangodb.com/>`__\n",
         "state": "ready",
-        "source-date-epoch": 1740734097,
+        "source-date-epoch": 1741121840,
         "versions": [
             "2.7.2",
             "2.7.0",
@@ -74,4 +74,5 @@ def get_provider_info():
             }
         ],
         "dependencies": ["apache-airflow>=2.9.0", "python-arango>=7.3.2"],
+        "devel-dependencies": [],
     }

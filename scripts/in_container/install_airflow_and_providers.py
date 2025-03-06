@@ -299,6 +299,11 @@ def find_installation_spec(
             github_repository=github_repository,
             python_version=python_version,
         )
+    elif use_airflow_version in ["wheel", "sdist"] and not use_packages_from_dist:
+        console.print(
+            "[red]USE_AIRFLOW_VERSION cannot be 'wheel' or 'sdist' without --use-packages-from-dist"
+        )
+        sys.exit(1)
     else:
         console.print(f"\nInstalling airflow via apache-airflow=={use_airflow_version}")
         airflow_package_spec = f"apache-airflow{airflow_extras}=={use_airflow_version}"
@@ -534,8 +539,6 @@ def install_airflow_and_providers(
             "/usr/local/bin/uv",
             "pip",
             "install",
-            "--python",
-            "/usr/local/bin/python",
             installation_spec.airflow_package,
         ]
         install_airflow_cmd = base_install_airflow_cmd.copy()
@@ -584,8 +587,6 @@ def install_airflow_and_providers(
             "/usr/local/bin/uv",
             "pip",
             "install",
-            "--python",
-            "/usr/local/bin/python",
         ]
         if not install_airflow_with_constraints and installation_spec.airflow_package:
             base_install_providers_cmd.append(installation_spec.airflow_package)
@@ -622,7 +623,9 @@ def install_airflow_and_providers(
             run_command(base_install_providers_cmd, github_actions=github_actions, check=True)
     if mount_sources in ["tests", "remove"]:
         console.print("[bright_blue]Uninstall editable packages installed in CI image")
-        command = ["pip freeze | grep  '#' | sed s'/.*(//'| sed 's/==.*//' | xargs pip uninstall -y"]
+        command = [
+            "uv pip freeze | grep -v '@ file://' | grep '-e file' | sed s'/-e //' | xargs -r uv pip uninstall"
+        ]
         run_command(
             command,
             github_actions=github_actions,
@@ -636,12 +639,12 @@ def install_airflow_and_providers(
             or use_airflow_version in ["wheel", "sdist"]
         ):
             command = [
-                "pip freeze | grep apache-airflow-providers | grep -v '#' | "
-                "grep -v apache-airflow-providers-fab | xargs pip uninstall -y "
+                "uv pip freeze | grep apache-airflow-providers | grep -v '#' | "
+                "grep -v apache-airflow-providers-fab | xargs uv pip uninstall"
             ]
             console.print("[bright_blue]Removing installed providers except FAB")
         else:
-            command = ["pip freeze | grep apache-airflow-providers | grep -v '#' | xargs pip uninstall -y "]
+            command = ["uv pip freeze | grep apache-airflow-providers | grep -v '#' | xargs pip uninstall"]
             console.print("[bright_blue]Removing installed providers")
         run_command(
             command,

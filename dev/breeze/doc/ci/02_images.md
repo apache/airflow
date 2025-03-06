@@ -572,4 +572,4 @@ percent-encoded when you access them via UI (/ = %2F)
 
 ----
 
-Read next about [Github Variables](03_github_variables.md)
+Read next about [GitHub Variables](03_github_variables.md)

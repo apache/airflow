@@ -27,7 +27,7 @@ def get_provider_info():
         "name": "Dingding",
         "description": "`DingTalk <https://www.dingtalk.com/>`__\n",
         "state": "ready",
-        "source-date-epoch": 1740734118,
+        "source-date-epoch": 1741121862,
         "versions": [
             "3.7.2",
             "3.7.0",
@@ -74,4 +74,5 @@ def get_provider_info():
             }
         ],
         "dependencies": ["apache-airflow>=2.9.0", "apache-airflow-providers-http"],
+        "devel-dependencies": [],
     }

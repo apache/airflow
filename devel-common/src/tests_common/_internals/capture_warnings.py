@@ -37,7 +37,7 @@ if TYPE_CHECKING:
 
     WhenTypeDef = Literal["config", "collect", "runtest"]
 
-TESTS_DIR = Path(__file__).parents[1].resolve()
+TESTS_DIR = Path(__file__).parents[3].resolve()
 
 
 @functools.cache
