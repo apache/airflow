@@ -206,6 +206,7 @@ def create_test_assets():
     return [Asset(uri=f"test://asset{i}", name=f"hello{i}") for i in range(1, 3)]
 
 
+@mock.patch.object(Asset, "iter_dag_dependencies")
 def test_asset_trigger_setup_and_serialization(create_test_assets):
     assets = create_test_assets
 
