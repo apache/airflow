@@ -28,6 +28,32 @@ Changelog
 ---------
 
 
+10.4.0
+......
+
+Features
+~~~~~~~~
+
+* ``AIP-72: Port over executor_config for K8sExecutor when using task sdk (#46926)``
+
+Misc
+~~~~
+
+* ``Fix codespell issues detected by new codespell (#47259)``
+* ``Add legacy namespace packages to airflow.providers (#47064)``
+* ``Upgrade flit to 3.11.0 (#46938)``
+
+Doc-only
+~~~~
+
+* ``Update templated fields in KPO doc-string + wording (#46970)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Move tests_common package to devel-common project (#47281)``
+   * ``Improve documentation for updating provider dependencies (#47203)``
+   * ``Remove extra whitespace in provider readme template (#46975)``
+
 10.3.0
 ......
 
