@@ -514,7 +514,7 @@ def _serialize_rendered_fields(task: AbstractOperator) -> dict[str, JsonValue]:
     return {field: serialize_template_field(getattr(task, field), field) for field in task.template_fields}
 
 
-def _process_outlets(context: Context, outlets: list[AssetProfile]):
+def _process_outlets(context: Context, outlets: list[AssetProfile]) -> tuple[list[AssetProfile], list[Any]]:
     added_alias_to_task_outlet = False
     task_outlets: list[AssetProfile] = []
     outlet_events: list[Any] = []
