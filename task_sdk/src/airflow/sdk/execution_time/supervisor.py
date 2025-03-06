@@ -103,7 +103,7 @@ log: FilteringBoundLogger = structlog.get_logger(logger_name="supervisor")
 # TODO: Pull this from config
 #  (previously `[scheduler] task_instance_heartbeat_sec` with the following as fallback if it is 0:
 #  `[scheduler] task_instance_heartbeat_timeout`)
-HEARTBEAT_THRESHOLD: int = 30
+HEARTBEAT_TIMEOUT: int = 30
 # Don't heartbeat more often than this
 MIN_HEARTBEAT_INTERVAL: int = 5
 MAX_FAILED_HEARTBEATS: int = 3
@@ -696,8 +696,8 @@ class ActivitySubprocess(WatchedSubprocess):
             max_wait_time = max(
                 0,  # Make sure this value is never negative,
                 min(
-                    # Ensure we heartbeat _at most_ 75% through the task instance heartbeat timeout threshold time
-                    HEARTBEAT_THRESHOLD - last_heartbeat_ago * 0.75,
+                    # Ensure we heartbeat _at most_ 75% through the task instance heartbeat timeout time
+                    HEARTBEAT_TIMEOUT - last_heartbeat_ago * 0.75,
                     MIN_HEARTBEAT_INTERVAL,
                 ),
             )
