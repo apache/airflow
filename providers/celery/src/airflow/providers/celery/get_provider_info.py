@@ -266,13 +266,6 @@ def get_provider_info():
                         "example": None,
                         "default": "3",
                     },
-                    "worker_precheck": {
-                        "description": "Worker initialisation check to validate Metadata Database connection\n",
-                        "version_added": None,
-                        "type": "string",
-                        "example": None,
-                        "default": "False",
-                    },
                     "extra_celery_config": {
                         "description": 'Extra celery configs to include in the celery worker.\nAny of the celery config can be added to this config and it\nwill be applied while starting the celery worker. e.g. {"worker_max_tasks_per_child": 10}\nSee also:\nhttps://docs.celeryq.dev/en/stable/userguide/configuration.html#configuration-and-defaults\n',
                         "version_added": None,

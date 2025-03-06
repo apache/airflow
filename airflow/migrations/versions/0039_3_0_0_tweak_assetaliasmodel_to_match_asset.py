@@ -61,9 +61,9 @@ def upgrade():
         batch_op.alter_column("name", type_=_STRING_COLUMN_TYPE, nullable=False)
         batch_op.add_column(sa.Column("group", _STRING_COLUMN_TYPE))
     if op.get_bind().dialect.name == "mysql":
-        stmt = "UPDATE dataset SET `group` = 'asset'"
+        stmt = "UPDATE dataset_alias SET `group` = 'asset'"
     else:
-        stmt = "UPDATE dataset SET \"group\" = 'asset'"
+        stmt = "UPDATE dataset_alias SET \"group\" = 'asset'"
     op.execute(stmt)
     with op.batch_alter_table("dataset_alias", schema=None) as batch_op:
         batch_op.alter_column("group", type_=_STRING_COLUMN_TYPE, default="asset", nullable=False)
