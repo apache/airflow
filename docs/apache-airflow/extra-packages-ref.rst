@@ -243,7 +243,6 @@ These are extras that add dependencies needed for integration with external serv
 | zendesk             | ``pip install 'apache-airflow[zendesk]'``           | Zendesk hooks                                       |
 +---------------------+-----------------------------------------------------+-----------------------------------------------------+
 
-
 Locally installed software extras
 =================================
 
@@ -353,28 +352,6 @@ pre-installed when Airflow is installed.
 +---------------------+-----------------------------------------------------+--------------------------------------+--------------+
 | ssh                 | ``pip install 'apache-airflow[ssh]'``               | SSH hooks and operators              |              |
 +---------------------+-----------------------------------------------------+--------------------------------------+--------------+
-
-Production Bundle extras
--------------------------
-
-These are extras that install one or more extras as a bundle.
-
-+---------------------+-----------------------------------------------------+------------------------------------------------------------------------+
-| extra               | install command                                     | enables                                                                |
-+=====================+=====================================================+========================================================================+
-| all                 | ``pip install 'apache-airflow[all]'``               | All Airflow user facing features (no devel and doc requirements)       |
-+---------------------+-----------------------------------------------------+------------------------------------------------------------------------+
-| all-core            | ``pip install 'apache-airflow[all-core]'``          | All core airflow features that do not require installing providers     |
-+---------------------+-----------------------------------------------------+------------------------------------------------------------------------+
-| all-dbs             | ``pip install 'apache-airflow[all-dbs]'``           | All database integrations                                              |
-+---------------------+-----------------------------------------------------+------------------------------------------------------------------------+
-
-Development extras
-------------------
-
-The ``devel`` extras only make sense in editable mode. Users of Airflow should not be using them, unless they
-start contributing back and install airflow from sources. Those extras are only available in Airflow when
-it is installed in editable mode from sources (``pip install -e .[devel,EXTRAS]``).
 
 Doc extras
 ==========
