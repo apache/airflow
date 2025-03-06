@@ -1160,10 +1160,10 @@
 <polygon fill="none" stroke="black" points="1755,-3480 1755,-3508 2021,-3508 2021,-3480 1755,-3480"/>
 <text text-anchor="start" x="1802" y="-3491.2" font-family="Helvetica,sans-Serif" font-weight="bold" font-size="16.00">task_instance_note</text>
 <polygon fill="none" stroke="black" points="1755,-3455 1755,-3480 2021,-3480 2021,-3455 1755,-3455"/>
-<text text-anchor="start" x="1760" y="-3464.8" font-family="Helvetica,sans-Serif" text-decoration="underline" font-size="14.00">id</text>
-<text text-anchor="start" x="1773" y="-3464.8" font-family="Helvetica,sans-Serif" font-size="14.00"> </text>
-<text text-anchor="start" x="1778" y="-3464.8" font-family="Helvetica,sans-Serif" font-size="14.00"> [UUID]</text>
-<text text-anchor="start" x="1830" y="-3464.8" font-family="Helvetica,sans-Serif" font-size="14.00"> NOT NULL</text>
+<text text-anchor="start" x="1760" y="-3464.8" font-family="Helvetica,sans-Serif" text-decoration="underline" font-size="14.00">ti_id</text>
+<text text-anchor="start" x="1789" y="-3464.8" font-family="Helvetica,sans-Serif" font-size="14.00"> </text>
+<text text-anchor="start" x="1794" y="-3464.8" font-family="Helvetica,sans-Serif" font-size="14.00"> [UUID]</text>
+<text text-anchor="start" x="1846" y="-3464.8" font-family="Helvetica,sans-Serif" font-size="14.00"> NOT NULL</text>
 <polygon fill="none" stroke="black" points="1755,-3430 1755,-3455 2021,-3455 2021,-3430 1755,-3430"/>
 <text text-anchor="start" x="1760" y="-3439.8" font-family="Helvetica,sans-Serif" font-size="14.00">content</text>
 <text text-anchor="start" x="1813" y="-3439.8" font-family="Helvetica,sans-Serif" font-size="14.00"> </text>
