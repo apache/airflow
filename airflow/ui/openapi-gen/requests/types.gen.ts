@@ -1678,6 +1678,7 @@ export type GetAssetQueuedEventsResponse = QueuedEventCollectionResponse;
 export type DeleteAssetQueuedEventsData = {
   assetId: number;
   before?: string | null;
+  dagId?: string | null;
 };
 
 export type DeleteAssetQueuedEventsResponse = void;
@@ -1690,14 +1691,14 @@ export type GetAssetResponse = AssetResponse;
 
 export type GetDagAssetQueuedEventsData = {
   before?: string | null;
-  dagId: string;
+  dagId: string | null;
 };
 
 export type GetDagAssetQueuedEventsResponse = QueuedEventCollectionResponse;
 
 export type DeleteDagAssetQueuedEventsData = {
   before?: string | null;
-  dagId: string;
+  dagId: string | null;
 };
 
 export type DeleteDagAssetQueuedEventsResponse = void;
@@ -1705,7 +1706,7 @@ export type DeleteDagAssetQueuedEventsResponse = void;
 export type GetDagAssetQueuedEventData = {
   assetId: number;
   before?: string | null;
-  dagId: string;
+  dagId: string | null;
 };
 
 export type GetDagAssetQueuedEventResponse = QueuedEventResponse;
@@ -1713,7 +1714,7 @@ export type GetDagAssetQueuedEventResponse = QueuedEventResponse;
 export type DeleteDagAssetQueuedEventData = {
   assetId: number;
   before?: string | null;
-  dagId: string;
+  dagId: string | null;
 };
 
 export type DeleteDagAssetQueuedEventResponse = void;

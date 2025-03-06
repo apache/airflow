@@ -26,6 +26,7 @@ from jwt import ExpiredSignatureError, InvalidTokenError
 from airflow.api_fastapi.app import get_auth_manager
 from airflow.auth.managers.models.base_user import BaseUser
 from airflow.auth.managers.models.resource_details import (
+    AssetDetails,
     ConnectionDetails,
     DagAccessEntity,
     DagDetails,
@@ -132,6 +133,22 @@ def requires_access_variable(method: ResourceMethod) -> Callable[[Request, BaseU
         _requires_access(
             is_authorized_callback=lambda: get_auth_manager().is_authorized_variable(
                 method=method, details=VariableDetails(key=variable_key), user=user
+            ),
+        )
+
+    return inner
+
+
+def requires_access_asset(method: ResourceMethod) -> Callable:
+    def inner(
+        request: Request,
+        user: Annotated[BaseUser | None, Depends(get_user)] = None,
+    ) -> None:
+        asset_id = request.path_params.get("asset_id")
+
+        _requires_access(
+            is_authorized_callback=lambda: get_auth_manager().is_authorized_asset(
+                method=method, details=AssetDetails(id=asset_id), user=user
             ),
         )
 
