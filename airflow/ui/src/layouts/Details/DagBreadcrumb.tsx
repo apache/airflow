@@ -51,7 +51,6 @@ export const DagBreadcrumb = () => {
 
   const links: Array<{ label: ReactNode | string; labelExtra?: ReactNode; title?: string; value?: string }> =
     [
-      { label: "Dags", value: "/dags" },
       {
         label: dag?.dag_display_name ?? dagId,
         labelExtra: (

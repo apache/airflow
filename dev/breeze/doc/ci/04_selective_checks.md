@@ -163,7 +163,7 @@ providers.
 The selective check outputs available are described below. In case of `list-as-string` values,
 empty string means `everything`, where lack of the output means `nothing` and list elements are
 separated by spaces. This is to accommodate for the wau how outputs of this kind can be easily used by
-Github Actions to pass the list of parameters to a command to execute
+GitHub Actions to pass the list of parameters to a command to execute
 
 
 | Output                                         | Meaning of the output                                                                                  | Example value                           | List |

@@ -14,25 +14,30 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
 
-[build-system]
-requires = ["hatchling", "hatch-vcs"]
-build-backend = "hatchling.build"
+from typing import TYPE_CHECKING
 
-[project]
-name = "airflow-dev-tests-common"
-version = "0.1.0"
-description = ""
-classifiers = [
-    "Private :: Do Not Upload",
-]
+from airflow.models.taskmap import TaskMap
 
-[tool.hatch.publish.index]
-# Lets make doubly sure this never goes to PyPi
-disable = true
+if TYPE_CHECKING:
+    from airflow.sdk.definitions.mappedoperator import MappedOperator
+    from sqlalchemy.orm import Session
 
-[tool.hatch.build.targets.wheel]
-include = ["**/*.py"]
 
-[tool.hatch.build.targets.wheel.sources]
-"" = "tests_common"
+def expand_mapped_task(
+    mapped: MappedOperator, run_id: str, upstream_task_id: str, length: int, session: Session
+):
+    session.add(
+        TaskMap(
+            dag_id=mapped.dag_id,
+            task_id=upstream_task_id,
+            run_id=run_id,
+            map_index=-1,
+            length=length,
+            keys=None,
+        )
+    )
+    session.flush()
+
+    TaskMap.expand_mapped_task(mapped, run_id, session=session)
