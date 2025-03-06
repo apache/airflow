@@ -27,6 +27,7 @@ from sqlalchemy import func, select, update
 
 import airflow.example_dags as example_dags_module
 from airflow.decorators import task as task_decorator
+from airflow.models.asset import AssetModel
 from airflow.models.dag import DAG, DagModel
 from airflow.models.dag_version import DagVersion
 from airflow.models.dagbag import DagBag
@@ -233,12 +234,19 @@ class TestSerializedDagModel:
 
         assert before == after
 
-    def test_order_of_deps_is_consistent(self):
+    @pytest.mark.db_test
+    def test_order_of_deps_is_consistent(self, session):
         """
         Previously the 'dag_dependencies' node in serialized dag was converted to list from set.
         This caused the order, and thus the hash value, to be unreliable, which could produce
         excessive dag parsing.
         """
+
+        db.clear_db_assets()
+        session.add_all([AssetModel(id=i, uri=f"test://asset{i}/", name=f"{i}") for i in range(1, 6)])
+        session.add_all([AssetModel(id=i, uri=f"test://asset{i}/", name=f"{i}*") for i in (0, 6)])
+        session.commit()
+
         first_dag_hash = None
         for _ in range(10):
             with DAG(
@@ -257,7 +265,7 @@ class TestSerializedDagModel:
                     outlets=[Asset(uri="test://asset0", name="0*"), Asset(uri="test://asset6", name="6*")],
                     bash_command="sleep 5",
                 )
-            deps_order = [x["dependency_id"] for x in SerializedDAG.serialize_dag(dag6)["dag_dependencies"]]
+            deps_order = [x["label"] for x in SerializedDAG.serialize_dag(dag6)["dag_dependencies"]]
             # in below assert, 0 and 6 both come at end because "source" is different for them and source
             # is the first field in DagDependency class
             assert deps_order == ["1", "2", "3", "4", "5", "0*", "6*"]
@@ -272,6 +280,7 @@ class TestSerializedDagModel:
 
             # dag hash should not change without change in structure (we're in a loop)
             assert this_dag_hash == first_dag_hash
+        db.clear_db_assets()
 
     def test_example_dag_hashes_are_always_consistent(self, session):
         """
