@@ -3603,14 +3603,6 @@ paths:
         schema:
           type: integer
           title: Event Log Id
-      - name: dag_id
-        in: query
-        required: false
-        schema:
-          anyOf:
-          - type: string
-          - type: 'null'
-          title: Dag Id
       responses:
         '200':
           description: Successful Response
@@ -3652,14 +3644,6 @@ paths:
       security:
       - OAuth2PasswordBearer: []
       parameters:
-      - name: dag_id
-        in: query
-        required: false
-        schema:
-          anyOf:
-          - type: string
-          - type: 'null'
-          title: Dag Id
       - name: limit
         in: query
         required: false
@@ -3683,6 +3667,14 @@ paths:
           type: string
           default: id
           title: Order By
+      - name: dag_id
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Dag Id
       - name: task_id
         in: query
         required: false
