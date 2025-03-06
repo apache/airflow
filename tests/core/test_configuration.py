@@ -640,12 +640,13 @@ key3 = value3
                 )
 
     def test_command_from_env(self):
-        test_cmdenv_config = """[testcmdenv]
+        test_cmdenv_config = textwrap.dedent("""\
+            [testcmdenv]
             itsacommand=NOT OK
             notacommand=OK
-        """
+        """)
         test_cmdenv_conf = AirflowConfigParser()
-        test_cmdenv_conf.read_string(textwrap.dedent(test_cmdenv_config))
+        test_cmdenv_conf.read_string(test_cmdenv_config)
         test_cmdenv_conf.sensitive_config_values.add(("testcmdenv", "itsacommand"))
         with mock.patch.dict("os.environ"):
             # AIRFLOW__TESTCMDENV__ITSACOMMAND_CMD maps to ('testcmdenv', 'itsacommand') in
