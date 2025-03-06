@@ -525,11 +525,36 @@ class TestFilenameRendering:
             run_type=DagRunType.SCHEDULED,
             run_after=DEFAULT_DATE,
             logical_date=logical_date,
+            catchup=True,
         )
 
         expected_filename = (
             f"dag_for_testing_filename_rendering/task_for_testing_filename_rendering/"
             f"{DEFAULT_DATE.isoformat()}/42.log"
+        )
+        fth = FileTaskHandler("")
+        rendered_filename = fth._render_filename(filename_rendering_ti, 42)
+        assert expected_filename == rendered_filename
+
+    def test_python_formatting_catchup_false(self, create_log_template, create_task_instance, logical_date):
+        """Test the filename rendering with catchup=False (the new default behavior)"""
+        create_log_template("{dag_id}/{task_id}/{logical_date}/{try_number}.log")
+        filename_rendering_ti = create_task_instance(
+            dag_id="dag_for_testing_filename_rendering",
+            task_id="task_for_testing_filename_rendering",
+            run_type=DagRunType.SCHEDULED,
+            run_after=DEFAULT_DATE,
+            logical_date=logical_date,
+        )
+
+        # With catchup=False:
+        # - If logical_date is None, it will use current date as the logical date
+        # - If logical_date is explicitly provided, it will use that date regardless of catchup setting
+        expected_date = logical_date if logical_date is not None else filename_rendering_ti.logical_date
+
+        expected_filename = (
+            f"dag_for_testing_filename_rendering/task_for_testing_filename_rendering/"
+            f"{expected_date.isoformat()}/42.log"
         )
         fth = FileTaskHandler("")
         rendered_filename = fth._render_filename(filename_rendering_ti, 42)
@@ -543,11 +568,36 @@ class TestFilenameRendering:
             run_type=DagRunType.SCHEDULED,
             run_after=DEFAULT_DATE,
             logical_date=logical_date,
+            catchup=True,
         )
 
         expected_filename = (
             f"dag_for_testing_filename_rendering/task_for_testing_filename_rendering/"
             f"{DEFAULT_DATE.isoformat()}/42.log"
+        )
+        fth = FileTaskHandler("")
+        rendered_filename = fth._render_filename(filename_rendering_ti, 42)
+        assert expected_filename == rendered_filename
+
+    def test_jinja_rendering_catchup_false(self, create_log_template, create_task_instance, logical_date):
+        """Test the Jinja template rendering with catchup=False (the new default behavior)"""
+        create_log_template("{{ ti.dag_id }}/{{ ti.task_id }}/{{ ts }}/{{ try_number }}.log")
+        filename_rendering_ti = create_task_instance(
+            dag_id="dag_for_testing_filename_rendering",
+            task_id="task_for_testing_filename_rendering",
+            run_type=DagRunType.SCHEDULED,
+            run_after=DEFAULT_DATE,
+            logical_date=logical_date,
+        )
+
+        # With catchup=False:
+        # - If logical_date is None, it will use current date as the logical date
+        # - If logical_date is explicitly provided, it will use that date regardless of catchup setting
+        expected_date = logical_date if logical_date is not None else filename_rendering_ti.logical_date
+
+        expected_filename = (
+            f"dag_for_testing_filename_rendering/task_for_testing_filename_rendering/"
+            f"{expected_date.isoformat()}/42.log"
         )
         fth = FileTaskHandler("")
         rendered_filename = fth._render_filename(filename_rendering_ti, 42)
