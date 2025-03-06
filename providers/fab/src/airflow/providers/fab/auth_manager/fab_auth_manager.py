@@ -32,6 +32,7 @@ from sqlalchemy.orm import Session, joinedload
 from starlette.middleware.wsgi import WSGIMiddleware
 
 from airflow import __version__ as airflow_version
+from airflow.api_fastapi.app import AUTH_MANAGER_FASTAPI_APP_PREFIX
 from airflow.api_fastapi.auth.managers.base_auth_manager import BaseAuthManager
 from airflow.api_fastapi.auth.managers.models.resource_details import (
     AccessView,
@@ -42,6 +43,7 @@ from airflow.api_fastapi.auth.managers.models.resource_details import (
     PoolDetails,
     VariableDetails,
 )
+from airflow.api_fastapi.common.types import MenuItem
 from airflow.cli.cli_config import (
     DefaultHelpParser,
     GroupCommand,
@@ -409,7 +411,7 @@ class FabAuthManager(BaseAuthManager[User]):
 
     def get_url_login(self, **kwargs) -> str:
         """Return the login page url."""
-        return f"{self.apiserver_endpoint}/auth/login/"
+        return f"{self.apiserver_endpoint}{AUTH_MANAGER_FASTAPI_APP_PREFIX}/login/"
 
     def get_url_logout(self):
         """Return the logout page url."""
@@ -423,6 +425,35 @@ class FabAuthManager(BaseAuthManager[User]):
 
     def register_views(self) -> None:
         self.security_manager.register_views()
+
+    def get_menu_items(self) -> list[MenuItem]:
+        return [
+            MenuItem(
+                text="Users",
+                href=AUTH_MANAGER_FASTAPI_APP_PREFIX
+                + url_for(f"{self.security_manager.user_view.__class__.__name__}.list", _external=False),
+            ),
+            MenuItem(
+                text="Roles",
+                href=AUTH_MANAGER_FASTAPI_APP_PREFIX + url_for("CustomRoleModelView.list", _external=False),
+            ),
+            MenuItem(
+                text="Actions",
+                href=AUTH_MANAGER_FASTAPI_APP_PREFIX + url_for("ActionModelView.list", _external=False),
+            ),
+            MenuItem(
+                text="Resources",
+                href=AUTH_MANAGER_FASTAPI_APP_PREFIX + url_for("ResourceModelView.list", _external=False),
+            ),
+            MenuItem(
+                text="Permissions",
+                href=AUTH_MANAGER_FASTAPI_APP_PREFIX
+                + url_for(
+                    "PermissionPairModelView.list",
+                    _external=False,
+                ),
+            ),
+        ]
 
     def _is_authorized(
         self,

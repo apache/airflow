@@ -16,6 +16,7 @@
 # under the License.
 from __future__ import annotations
 
+from dataclasses import dataclass
 from datetime import timedelta
 from enum import Enum
 from typing import Annotated
@@ -72,3 +73,11 @@ class Mimetype(str, Enum):
     TEXT = "text/plain"
     JSON = "application/json"
     ANY = "*/*"
+
+
+@dataclass
+class MenuItem:
+    """Define a menu item."""
+
+    text: str
+    href: str
