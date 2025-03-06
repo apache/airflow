@@ -35,7 +35,9 @@ export const TaskLogContent = ({ error, isLoading, logError, parsedLogs, wrap }:
     <ErrorAlert error={error ?? logError} />
     <ProgressBar size="xs" visibility={isLoading ? "visible" : "hidden"} />
     <Code overflow="auto" py={3} textWrap={wrap ? "pre" : "nowrap"} width="100%">
-      <VStack alignItems="flex-start">{parsedLogs}</VStack>
+      <VStack alignItems="flex-start" gap={0}>
+        {parsedLogs}
+      </VStack>
     </Code>
   </Box>
 );
