@@ -17,7 +17,6 @@
 # specific language governing permissions and limitations
 # under the License.
 #!/bin/sh
-#!/bin/sh
 set -eu
 
 # Fix permissions on the config directory
