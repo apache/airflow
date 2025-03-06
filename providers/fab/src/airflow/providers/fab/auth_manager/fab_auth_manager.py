@@ -144,12 +144,6 @@ class FabAuthManager(BaseAuthManager[User]):
 
     appbuilder: AirflowAppBuilder | None = None
 
-    is_in_fab: bool = False
-    """
-    Whether the instance is run in FAB or Fastapi.
-    Can be deleted once the Airflow 2 legacy UI is removed.
-    """
-
     def init(self) -> None:
         """Run operations when Airflow is initializing."""
         if self.appbuilder:
@@ -420,15 +414,7 @@ class FabAuthManager(BaseAuthManager[User]):
 
     def get_url_login(self, **kwargs) -> str:
         """Return the login page url."""
-        if self.is_in_fab:
-            if not self.security_manager.auth_view:
-                raise AirflowException("`auth_view` not defined in the security manager.")
-            if next_url := kwargs.get("next_url"):
-                return url_for(f"{self.security_manager.auth_view.endpoint}.login", next=next_url)
-            else:
-                return url_for(f"{self.security_manager.auth_view.endpoint}.login")
-        else:
-            return f"{self.apiserver_endpoint}/auth/login"
+        return f"{self.apiserver_endpoint}/auth/login"
 
     def get_url_logout(self):
         """Return the logout page url."""
