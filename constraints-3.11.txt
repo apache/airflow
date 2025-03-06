@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2025-03-05T20:21:16.011750
+# This constraints file was automatically generated on 2025-03-06T02:47:09.350485
 # via "eager-upgrade" mechanism of PIP. For the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version for 'apache-airflow' but installs
 # the providers from PIP-released packages at the moment of the constraint generation.
@@ -72,7 +72,7 @@ adal==1.2.7
 adlfs==2024.12.0
 aiobotocore==2.21.1
 aiofiles==23.2.1
-aiohappyeyeballs==2.4.8
+aiohappyeyeballs==2.5.0
 aiohttp==3.11.13
 aioitertools==0.12.0
 aiomysql==0.2.0
@@ -188,10 +188,10 @@ apache-airflow-providers-weaviate==3.0.1
 apache-airflow-providers-yandex==4.0.1
 apache-airflow-providers-ydb==2.1.0
 apache-airflow-providers-zendesk==4.9.0
-apache-beam==2.63.0
+apache-beam==2.59.0
 apispec==6.8.1
 apprise==1.9.2
-argcomplete==3.5.3
+argcomplete==3.6.0
 asana==5.1.0
 asgiref==3.8.1
 asn1crypto==1.5.1
@@ -238,8 +238,8 @@ billiard==4.2.1
 bitarray==2.9.3
 black==25.1.0
 blinker==1.9.0
-boto3==1.37.1
-botocore==1.37.1
+boto3==1.37.7
+botocore==1.37.7
 cachelib==0.13.0
 cachetools==5.5.2
 cassandra-driver==3.29.2
@@ -274,10 +274,10 @@ curlify==2.2.1
 databricks-sql-connector==4.0.0
 dataclasses-json==0.6.7
 datadog==0.51.0
-db-dtypes==1.4.1
+db-dtypes==1.4.2
 debugpy==1.8.13
 decorator==5.2.1
-deepdiff==8.2.0
+deepdiff==8.3.0
 defusedxml==0.7.1
 deltalake==0.25.4
 diagrams==0.24.1
@@ -380,7 +380,7 @@ grpcio-gcp==0.2.2
 grpcio-health-checking==1.62.3
 grpcio-status==1.62.3
 grpcio-tools==1.62.3
-grpcio==1.65.5
+grpcio==1.70.0
 gssapi==1.9.0
 gunicorn==23.0.0
 h11==0.14.0
@@ -442,7 +442,7 @@ kerberos==1.3.1
 keyring==25.6.0
 kgb==7.2
 kombu==5.4.2
-krb5==0.7.0
+krb5==0.7.1
 kubernetes==31.0.0
 kubernetes_asyncio==30.3.1
 kylinpy==2.8.4
@@ -470,7 +470,6 @@ microsoft-kiota-serialization-json==1.0.0
 microsoft-kiota-serialization-text==1.0.0
 mmh3==5.1.0
 mongomock==4.3.0
-monotonic==1.6
 more-itertools==10.6.0
 moto==5.1.1
 mpmath==1.3.0
@@ -499,7 +498,7 @@ nh3==0.2.21
 numpy==1.26.4
 oauthlib==3.2.2
 objsize==0.7.1
-openai==1.65.3
+openai==1.65.4
 openapi-schema-validator==0.6.3
 openapi-spec-validator==0.7.1
 openlineage-integration-common==1.29.0
@@ -614,7 +613,7 @@ python3-saml==1.16.0
 pytz==2025.1
 pywinrm==0.5.0
 pyzmq==26.2.1
-qdrant-client==1.13.2
+qdrant-client==1.13.3
 reactivex==4.0.4
 readme_renderer==44.0
 redis==5.2.1
@@ -642,7 +641,7 @@ rpds-py==0.23.1
 rsa==4.9
 ruff==0.8.1
 s3fs==2025.2.0
-s3transfer==0.11.3
+s3transfer==0.11.4
 sagemaker_studio==1.0.9
 scikit-learn==1.6.1
 scipy==1.15.2
@@ -663,7 +662,7 @@ smmap==5.0.2
 sniffio==1.3.1
 snowballstemmer==2.2.0
 snowflake-connector-python==3.14.0
-snowflake-snowpark-python==1.28.0
+snowflake-snowpark-python==1.29.0
 snowflake-sqlalchemy==1.7.3
 sortedcontainers==2.4.0
 soupsieve==2.6
@@ -741,13 +740,13 @@ types-toml==0.10.8.20240310
 typing-inspect==0.9.0
 typing_extensions==4.12.2
 tzdata==2025.1
-tzlocal==5.3
+tzlocal==5.3.1
 uc-micro-py==1.0.3
 universal_pathlib==0.2.6
 uritemplate==4.1.1
 urllib3==2.3.0
 uuid6==2024.7.10
-uv==0.6.4
+uv==0.6.3
 uvicorn==0.34.0
 uvloop==0.21.0
 validators==0.34.0

@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2025-03-05T20:07:37.273865
+# This constraints file was automatically generated on 2025-03-06T02:39:32.875672
 # via "eager-upgrade" mechanism of PIP. For the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version of both
 # 'apache-airflow' package and all available community provider packages.
@@ -26,7 +26,7 @@ Flask-WTF==1.2.2
 Flask==2.2.5
 GitPython==3.1.44
 JayDeBeApi==1.2.3
-Jinja2==3.1.5
+Jinja2==3.1.6
 Mako==1.3.9
 Markdown==3.7
 MarkupSafe==3.0.2
@@ -50,7 +50,7 @@ adal==1.2.7
 adlfs==2024.12.0
 aiobotocore==2.21.1
 aiofiles==23.2.1
-aiohappyeyeballs==2.4.8
+aiohappyeyeballs==2.5.0
 aiohttp==3.11.13
 aioitertools==0.12.0
 aiomysql==0.2.0
@@ -72,14 +72,14 @@ alibabacloud_tea_xml==0.0.2
 aliyun-python-sdk-core==2.16.0
 aliyun-python-sdk-kms==2.16.5
 amqp==5.3.1
-analytics-python==1.4.post1
+analytics-python==1.2.9
 annotated-types==0.7.0
 ansicolors==1.1.8
 anyio==4.8.0
 apache-beam==2.63.0
 apispec==6.8.1
 apprise==1.9.2
-argcomplete==3.5.3
+argcomplete==3.6.0
 asana==5.1.0
 asgiref==3.8.1
 asn1crypto==1.5.1
@@ -119,7 +119,7 @@ azure-storage-file-share==12.20.1
 azure-synapse-artifacts==0.20.0
 azure-synapse-spark==0.7.0
 babel==2.17.0
-backoff==1.10.0
+backoff==2.2.1
 backports.tarfile==1.2.0
 bcrypt==4.3.0
 beautifulsoup4==4.13.3
@@ -163,10 +163,10 @@ curlify==2.2.1
 databricks-sql-connector==4.0.0
 dataclasses-json==0.6.7
 datadog==0.51.0
-db-dtypes==1.4.1
+db-dtypes==1.4.2
 debugpy==1.8.13
 decorator==5.2.1
-deepdiff==8.2.0
+deepdiff==8.3.0
 defusedxml==0.7.1
 deltalake==0.25.4
 diagrams==0.24.1
@@ -215,7 +215,7 @@ google-api-python-client==2.163.0
 google-auth-httplib2==0.2.0
 google-auth-oauthlib==1.2.1
 google-auth==2.38.0
-google-cloud-aiplatform==1.82.0
+google-cloud-aiplatform==1.83.0
 google-cloud-alloydb==0.4.3
 google-cloud-appengine-logging==1.6.0
 google-cloud-audit-log==0.3.0
@@ -359,7 +359,6 @@ microsoft-kiota-serialization-json==1.0.0
 microsoft-kiota-serialization-text==1.0.0
 mmh3==5.1.0
 mongomock==4.3.0
-monotonic==1.6
 more-itertools==10.6.0
 moto==5.1.1
 mpmath==1.3.0
@@ -388,7 +387,7 @@ nh3==0.2.21
 numpy==1.26.4
 oauthlib==3.2.2
 objsize==0.7.1
-openai==1.65.3
+openai==1.65.4
 openapi-schema-validator==0.6.3
 openapi-spec-validator==0.7.1
 openlineage-integration-common==1.29.0
@@ -501,7 +500,7 @@ python3-saml==1.16.0
 pytz==2025.1
 pywinrm==0.5.0
 pyzmq==26.2.1
-qdrant-client==1.13.2
+qdrant-client==1.13.3
 reactivex==4.0.4
 readme_renderer==44.0
 redis==5.2.1
@@ -549,7 +548,7 @@ smmap==5.0.2
 sniffio==1.3.1
 snowballstemmer==2.2.0
 snowflake-connector-python==3.14.0
-snowflake-snowpark-python==1.28.0
+snowflake-snowpark-python==1.29.0
 snowflake-sqlalchemy==1.7.3
 sortedcontainers==2.4.0
 soupsieve==2.6
@@ -630,7 +629,7 @@ types-urllib3==1.26.25.14
 typing-inspect==0.9.0
 typing_extensions==4.12.2
 tzdata==2025.1
-tzlocal==5.3
+tzlocal==5.3.1
 uc-micro-py==1.0.3
 universal_pathlib==0.2.6
 uritemplate==4.1.1
@@ -647,7 +646,7 @@ watchtower==3.4.0
 wcwidth==0.2.13
 weaviate-client==4.9.6
 websocket-client==1.8.0
-websockets==15.0
+websockets==15.0.1
 wirerope==1.0.0
 wrapt==1.17.2
 xmlsec==1.3.14
