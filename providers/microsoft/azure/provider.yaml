@@ -20,7 +20,7 @@ name: Microsoft Azure
 description: |
   `Microsoft Azure <https://azure.microsoft.com/>`__
 state: ready
-source-date-epoch: 1740734148
+source-date-epoch: 1741121895
 # note that those versions are maintained by release manager - do not update them manually
 versions:
   - 12.2.0

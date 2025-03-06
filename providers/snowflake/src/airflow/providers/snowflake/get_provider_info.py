@@ -27,7 +27,7 @@ def get_provider_info():
         "name": "Snowflake",
         "description": "`Snowflake <https://www.snowflake.com/>`__\n",
         "state": "ready",
-        "source-date-epoch": 1740734196,
+        "source-date-epoch": 1741121946,
         "versions": [
             "6.1.0",
             "6.0.0",
@@ -162,4 +162,5 @@ def get_provider_info():
             "snowflake-snowpark-python>=1.17.0;python_version<'3.12'",
         ],
         "optional-dependencies": {"openlineage": ["apache-airflow-providers-openlineage"]},
+        "devel-dependencies": [],
     }

@@ -21,9 +21,8 @@ import os
 from typing import TYPE_CHECKING, Callable
 
 import pytest
-from tabulate import tabulate
-
 from airflow.utils.state import DagRunState
+from tabulate import tabulate
 
 if TYPE_CHECKING:
     from airflow.models.dagrun import DagRun

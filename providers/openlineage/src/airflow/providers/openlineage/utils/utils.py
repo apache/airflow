@@ -365,6 +365,7 @@ class DagRunInfo(InfoJsonEncodable):
         "dag_id",
         "data_interval_start",
         "data_interval_end",
+        "external_trigger",  # Removed in Airflow 3, use run_type instead
         "run_id",
         "run_type",
         "start_date",

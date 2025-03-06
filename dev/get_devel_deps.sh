@@ -20,10 +20,10 @@
 
 # Run this script in Breeze to get the list of all devel dependencies
 VERSION=2.9.3
-uv pip freeze --python /usr/local/bin/python | grep -v "pip==" | grep -v "uv==" > freeze.txt
-uv pip uninstall -r freeze.txt --python /usr/local/bin/python
-uv pip install "apache-airflow[all]==${VERSION}" --constraint "https://raw.githubusercontent.com/apache/airflow/constraints-${VERSION}/constraints-${PYTHON_MAJOR_MINOR_VERSION}.txt" --python /usr/local/bin/python
-uv pip freeze --python /usr/local/bin/python >non-devel-freeze.txt
+uv pip freeze | grep -v "pip==" | grep -v "uv==" > freeze.txt
+uv pip uninstall -r freeze.txt
+uv pip install "apache-airflow[all]==${VERSION}" --constraint "https://raw.githubusercontent.com/apache/airflow/constraints-${VERSION}/constraints-${PYTHON_MAJOR_MINOR_VERSION}.txt"
+uv pip freeze >non-devel-freeze.txt
 sed "s/==.*//" < freeze.txt > all_deps.txt
 sed "s/==.*//" < non-devel-freeze.txt > all_non_devel_deps.txt
 grep -v -f all_non_devel_deps.txt all_deps.txt

@@ -98,9 +98,8 @@ class TestS3ToGoogleCloudStorageOperator:
         assert operator.poll_interval == POLL_INTERVAL
 
     @mock.patch("airflow.providers.google.cloud.transfers.s3_to_gcs.S3Hook")
-    @mock.patch("airflow.providers.amazon.aws.operators.s3.S3Hook")
     @mock.patch("airflow.providers.google.cloud.transfers.s3_to_gcs.GCSHook")
-    def test_execute(self, gcs_mock_hook, s3_one_mock_hook, s3_two_mock_hook):
+    def test_execute(self, gcs_mock_hook, s3_mock_hook):
         """Test the execute function when the run is successful."""
 
         operator = S3ToGCSOperator(
@@ -112,9 +111,9 @@ class TestS3ToGoogleCloudStorageOperator:
             dest_gcs=GCS_PATH_PREFIX,
             google_impersonation_chain=IMPERSONATION_CHAIN,
         )
+        operator.hook = mock.MagicMock()
 
-        s3_one_mock_hook.return_value.list_keys.return_value = MOCK_FILES
-        s3_two_mock_hook.return_value.list_keys.return_value = MOCK_FILES
+        operator.hook.list_keys.return_value = MOCK_FILES
 
         uploaded_files = operator.execute(context={})
         gcs_mock_hook.return_value.upload.assert_has_calls(
@@ -126,8 +125,8 @@ class TestS3ToGoogleCloudStorageOperator:
             any_order=True,
         )
 
-        s3_one_mock_hook.assert_called_once_with(aws_conn_id=AWS_CONN_ID, verify=None)
-        s3_two_mock_hook.assert_called_once_with(aws_conn_id=AWS_CONN_ID, verify=None)
+        operator.hook.list_keys.assert_called_once()
+        s3_mock_hook.assert_called_once_with(aws_conn_id=AWS_CONN_ID, verify=None)
         gcs_mock_hook.assert_called_once_with(
             gcp_conn_id=GCS_CONN_ID,
             impersonation_chain=IMPERSONATION_CHAIN,
@@ -137,9 +136,8 @@ class TestS3ToGoogleCloudStorageOperator:
         assert sorted(MOCK_FILES) == sorted(uploaded_files)
 
     @mock.patch("airflow.providers.google.cloud.transfers.s3_to_gcs.S3Hook")
-    @mock.patch("airflow.providers.amazon.aws.operators.s3.S3Hook")
     @mock.patch("airflow.providers.google.cloud.transfers.s3_to_gcs.GCSHook")
-    def test_execute_with_gzip(self, gcs_mock_hook, s3_one_mock_hook, s3_two_mock_hook):
+    def test_execute_with_gzip(self, gcs_mock_hook, s3_mock_hook):
         """Test the execute function when the run is successful."""
 
         operator = S3ToGCSOperator(
@@ -152,8 +150,9 @@ class TestS3ToGoogleCloudStorageOperator:
             gzip=True,
         )
 
-        s3_one_mock_hook.return_value.list_keys.return_value = MOCK_FILES
-        s3_two_mock_hook.return_value.list_keys.return_value = MOCK_FILES
+        operator.hook = mock.MagicMock()
+
+        operator.hook.list_keys.return_value = MOCK_FILES
 
         operator.execute(context={})
         gcs_mock_hook.assert_called_once_with(
@@ -226,13 +225,11 @@ class TestS3ToGoogleCloudStorageOperator:
 
     @pytest.mark.parametrize(*PARAMETRIZED_OBJECT_PATHS)
     @mock.patch("airflow.providers.google.cloud.transfers.s3_to_gcs.S3Hook")
-    @mock.patch("airflow.providers.amazon.aws.operators.s3.S3Hook")
     @mock.patch("airflow.providers.google.cloud.transfers.s3_to_gcs.GCSHook")
     def test_execute_apply_gcs_prefix(
         self,
         gcs_mock_hook,
-        s3_one_mock_hook,
-        s3_two_mock_hook,
+        s3_mock_hook,
         apply_gcs_prefix,
         s3_prefix,
         s3_object,
@@ -249,9 +246,8 @@ class TestS3ToGoogleCloudStorageOperator:
             google_impersonation_chain=IMPERSONATION_CHAIN,
             apply_gcs_prefix=apply_gcs_prefix,
         )
-
-        s3_one_mock_hook.return_value.list_keys.return_value = [s3_prefix + s3_object]
-        s3_two_mock_hook.return_value.list_keys.return_value = [s3_prefix + s3_object]
+        operator.hook = mock.MagicMock()
+        operator.hook.list_keys.return_value = [s3_prefix + s3_object]
 
         uploaded_files = operator.execute(context={})
         gcs_mock_hook.return_value.upload.assert_has_calls(
@@ -261,8 +257,8 @@ class TestS3ToGoogleCloudStorageOperator:
             any_order=True,
         )
 
-        s3_one_mock_hook.assert_called_once_with(aws_conn_id=AWS_CONN_ID, verify=None)
-        s3_two_mock_hook.assert_called_once_with(aws_conn_id=AWS_CONN_ID, verify=None)
+        operator.hook.list_keys.assert_called_once()
+        s3_mock_hook.assert_called_once_with(aws_conn_id=AWS_CONN_ID, verify=None)
         gcs_mock_hook.assert_called_once_with(
             gcp_conn_id=GCS_CONN_ID,
             impersonation_chain=IMPERSONATION_CHAIN,
@@ -306,14 +302,12 @@ class TestS3ToGoogleCloudStorageOperator:
 class TestS3ToGoogleCloudStorageOperatorDeferrable:
     @mock.patch("airflow.providers.google.cloud.transfers.s3_to_gcs.CloudDataTransferServiceHook")
     @mock.patch("airflow.providers.google.cloud.transfers.s3_to_gcs.S3Hook")
-    @mock.patch("airflow.providers.amazon.aws.operators.s3.S3Hook")
     @mock.patch("airflow.providers.google.cloud.transfers.s3_to_gcs.GCSHook")
-    def test_execute_deferrable(self, mock_gcs_hook, mock_s3_super_hook, mock_s3_hook, mock_transfer_hook):
+    def test_execute_deferrable(self, mock_gcs_hook, mock_s3_hook, mock_transfer_hook):
         mock_gcs_hook.return_value.project_id = PROJECT_ID
 
-        mock_list_keys = mock.MagicMock()
-        mock_list_keys.return_value = MOCK_FILES
-        mock_s3_super_hook.return_value.list_keys = mock_list_keys
+        mock_s3_super_hook = mock.MagicMock()
+        mock_s3_super_hook.list_keys.return_value = MOCK_FILES
         mock_s3_hook.conn_config = mock.MagicMock(
             aws_access_key_id=AWS_ACCESS_KEY_ID,
             aws_secret_access_key=AWS_SECRET_ACCESS_KEY,
@@ -335,11 +329,13 @@ class TestS3ToGoogleCloudStorageOperatorDeferrable:
             deferrable=True,
         )
 
+        operator.hook = mock_s3_super_hook
+
         with pytest.raises(TaskDeferred) as exception_info:
             operator.execute(None)
 
-        mock_s3_super_hook.assert_called_once_with(aws_conn_id=AWS_CONN_ID, verify=operator.verify)
-        mock_list_keys.assert_called_once_with(
+        mock_s3_hook.assert_called_once_with(aws_conn_id=AWS_CONN_ID, verify=operator.verify)
+        mock_s3_super_hook.list_keys.assert_called_once_with(
             bucket_name=S3_BUCKET, prefix=S3_PREFIX, delimiter=S3_DELIMITER, apply_wildcard=False
         )
         mock_create_transfer_job.assert_called_once()

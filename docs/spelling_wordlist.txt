@@ -468,6 +468,7 @@ DeidentifyTemplate
 del
 delim
 delitem
+deltalake
 dep
 DependencyMixin
 deploymentUrl
