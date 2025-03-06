@@ -304,7 +304,7 @@ def test_pytest_args_for_missing_provider():
             GroupOfTests.TASK_SDK,
             "All",
             [
-                "task_sdk/tests",
+                "task-sdk/tests",
             ],
         ),
         (
