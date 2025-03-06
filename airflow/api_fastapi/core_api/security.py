@@ -141,16 +141,15 @@ def requires_access_variable(method: ResourceMethod) -> Callable[[Request, BaseU
 
 def requires_access_asset_alias(method: ResourceMethod) -> Callable:
     def inner(
-        asset_alias_id: str | None = None,
+        request: Request,
         user: Annotated[BaseUser | None, Depends(get_user)] = None,
     ) -> None:
-        def callback():
-            return get_auth_manager().is_authorized_dag(
-                method=method, details=AssetAliasDetails(id=asset_alias_id), user=user
-            )
+        asset_alias_id: str | None = request.path_params.get("asset_alias_id")
 
         _requires_access(
-            is_authorized_callback=callback,
+            is_authorized_callback=lambda: get_auth_manager().is_authorized_asset_alias(
+                method=method, details=AssetAliasDetails(id=asset_alias_id), user=user
+            ),
         )
 
     return inner

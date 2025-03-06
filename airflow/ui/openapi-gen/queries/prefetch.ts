@@ -101,7 +101,6 @@ export const prefetchUseAssetServiceGetAssets = (
  * Get Asset Aliases
  * Get asset aliases.
  * @param data The data for the request.
- * @param data.assetAliasId
  * @param data.limit
  * @param data.offset
  * @param data.namePattern
@@ -112,13 +111,11 @@ export const prefetchUseAssetServiceGetAssets = (
 export const prefetchUseAssetServiceGetAssetAliases = (
   queryClient: QueryClient,
   {
-    assetAliasId,
     limit,
     namePattern,
     offset,
     orderBy,
   }: {
-    assetAliasId?: string;
     limit?: number;
     namePattern?: string;
     offset?: number;
@@ -126,14 +123,8 @@ export const prefetchUseAssetServiceGetAssetAliases = (
   } = {},
 ) =>
   queryClient.prefetchQuery({
-    queryKey: Common.UseAssetServiceGetAssetAliasesKeyFn({
-      assetAliasId,
-      limit,
-      namePattern,
-      offset,
-      orderBy,
-    }),
-    queryFn: () => AssetService.getAssetAliases({ assetAliasId, limit, namePattern, offset, orderBy }),
+    queryKey: Common.UseAssetServiceGetAssetAliasesKeyFn({ limit, namePattern, offset, orderBy }),
+    queryFn: () => AssetService.getAssetAliases({ limit, namePattern, offset, orderBy }),
   });
 /**
  * Get Asset Alias
@@ -148,7 +139,7 @@ export const prefetchUseAssetServiceGetAssetAlias = (
   {
     assetAliasId,
   }: {
-    assetAliasId: string;
+    assetAliasId: number;
   },
 ) =>
   queryClient.prefetchQuery({

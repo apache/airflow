@@ -1627,7 +1627,6 @@ export type GetAssetsData = {
 export type GetAssetsResponse = AssetCollectionResponse;
 
 export type GetAssetAliasesData = {
-  assetAliasId?: string | null;
   limit?: number;
   namePattern?: string | null;
   offset?: number;
@@ -1637,7 +1636,7 @@ export type GetAssetAliasesData = {
 export type GetAssetAliasesResponse = AssetAliasCollectionResponse;
 
 export type GetAssetAliasData = {
-  assetAliasId: string | null;
+  assetAliasId: number;
 };
 
 export type GetAssetAliasResponse = unknown;

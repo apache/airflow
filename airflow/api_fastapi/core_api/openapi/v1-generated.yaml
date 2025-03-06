@@ -617,14 +617,6 @@ paths:
       security:
       - OAuth2PasswordBearer: []
       parameters:
-      - name: asset_alias_id
-        in: query
-        required: false
-        schema:
-          anyOf:
-          - type: string
-          - type: 'null'
-          title: Asset Alias Id
       - name: limit
         in: query
         required: false
@@ -701,9 +693,7 @@ paths:
         in: path
         required: true
         schema:
-          anyOf:
-          - type: string
-          - type: 'null'
+          type: integer
           title: Asset Alias Id
       responses:
         '200':
