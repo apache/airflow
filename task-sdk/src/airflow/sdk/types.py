@@ -17,6 +17,7 @@
 
 from __future__ import annotations
 
+import uuid
 from collections.abc import Iterable
 from typing import TYPE_CHECKING, Any, Protocol, Union
 
@@ -54,6 +55,7 @@ class DagRunProtocol(Protocol):
 class RuntimeTaskInstanceProtocol(Protocol):
     """Minimal interface for a task instance available during the execution."""
 
+    id: uuid.UUID
     task: BaseOperator
     task_id: str
     dag_id: str
