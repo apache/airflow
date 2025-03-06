@@ -574,7 +574,8 @@ class BaseDatabricksHook(BaseHook):
             if self.databricks_conn.login == "" or self.databricks_conn.password == "":
                 raise AirflowException("Service Principal credentials aren't provided")
             self.log.debug("Using Service Principal Token.")
-            return self._get_sp_token(OIDC_TOKEN_SERVICE_URL.format(self.databricks_conn.host))
+            url = self._host_url()
+            return self._get_sp_token(OIDC_TOKEN_SERVICE_URL.format(url))
         elif raise_error:
             raise AirflowException("Token authentication isn't configured")
 
@@ -606,10 +607,7 @@ class BaseDatabricksHook(BaseHook):
             if self.databricks_conn.login == "" or self.databricks_conn.password == "":
                 raise AirflowException("Service Principal credentials aren't provided")
             self.log.debug("Using Service Principal Token.")
-
-            schema = "https"
-            url = f"{schema}://{self.databricks_conn.host}"
-
+            url = self._host_url()
             return await self._a_get_sp_token(OIDC_TOKEN_SERVICE_URL.format(url))
         elif raise_error:
             raise AirflowException("Token authentication isn't configured")
@@ -619,6 +617,11 @@ class BaseDatabricksHook(BaseHook):
     def _log_request_error(self, attempt_num: int, error: str) -> None:
         self.log.error("Attempt %s API Request to Databricks failed with reason: %s", attempt_num, error)
 
+    def _host_url(self):
+        port = f":{self.databricks_conn.port}" if self.databricks_conn.port else ""
+        schema = self.databricks_conn.schema or "https"
+        return f"{schema}://{self.host}{port}"
+        
     def _endpoint_url(self, endpoint):
         port = f":{self.databricks_conn.port}" if self.databricks_conn.port else ""
         schema = self.databricks_conn.schema or "https"
