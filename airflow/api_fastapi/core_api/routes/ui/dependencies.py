@@ -55,7 +55,7 @@ def get_dependencies(session: SessionDep, node_id: str | None = None) -> BaseGra
                 if dep.node_id not in nodes_dict:
                     nodes_dict[dep.node_id] = {
                         "id": dep.node_id,
-                        "label": dep.dependency_id,
+                        "label": dep.label,
                         "type": dep.dependency_type,
                     }
 
