@@ -36,8 +36,8 @@ import { type LogLevel, logLevelColorMapping, logLevelOptions } from "src/utils/
 
 type Props = {
   readonly isFullscreen?: boolean;
-  readonly loggerOptions?: Array<string>;
   readonly onSelectTryNumber: (tryNumber: number) => void;
+  readonly sourceOptions?: Array<string>;
   readonly taskInstance?: TaskInstanceResponse;
   readonly toggleFullscreen: () => void;
   readonly toggleWrap: () => void;
@@ -47,8 +47,8 @@ type Props = {
 
 export const TaskLogHeader = ({
   isFullscreen = false,
-  loggerOptions,
   onSelectTryNumber,
+  sourceOptions,
   taskInstance,
   toggleFullscreen,
   toggleWrap,
@@ -56,17 +56,17 @@ export const TaskLogHeader = ({
   wrap,
 }: Props) => {
   const [searchParams, setSearchParams] = useSearchParams();
-  const loggers = searchParams.getAll(SearchParamsKeys.LOGGER);
+  const sources = searchParams.getAll(SearchParamsKeys.SOURCE);
   const logLevels = searchParams.getAll(SearchParamsKeys.LOG_LEVEL);
   const hasLogLevels = logLevels.length > 0;
 
-  const loggerOptionList = createListCollection<{
+  const sourceOptionList = createListCollection<{
     label: string;
     value: string;
   }>({
     items: [
-      { label: "All Loggers", value: "all" },
-      ...(loggerOptions ?? []).map((logger) => ({ label: logger, value: logger })),
+      { label: "All Sources", value: "all" },
+      ...(sourceOptions ?? []).map((source) => ({ label: source, value: source })),
     ],
   });
 
@@ -87,17 +87,17 @@ export const TaskLogHeader = ({
     [searchParams, setSearchParams],
   );
 
-  const handleLoggerChange = useCallback(
+  const handleSourceChange = useCallback(
     ({ value }: SelectValueChangeDetails<string>) => {
       const [val, ...rest] = value;
 
       if ((val === undefined || val === "all") && rest.length === 0) {
-        searchParams.delete(SearchParamsKeys.LOGGER);
+        searchParams.delete(SearchParamsKeys.SOURCE);
       } else {
-        searchParams.delete(SearchParamsKeys.LOGGER);
+        searchParams.delete(SearchParamsKeys.SOURCE);
         value
           .filter((state) => state !== "all")
-          .map((state) => searchParams.append(SearchParamsKeys.LOGGER, state));
+          .map((state) => searchParams.append(SearchParamsKeys.SOURCE, state));
       }
       setSearchParams(searchParams);
     },
@@ -150,19 +150,19 @@ export const TaskLogHeader = ({
             ))}
           </Select.Content>
         </Select.Root>
-        {loggerOptions !== undefined && loggerOptions.length > 0 ? (
+        {sourceOptions !== undefined && sourceOptions.length > 0 ? (
           <Select.Root
-            collection={loggerOptionList}
+            collection={sourceOptionList}
             maxW="250px"
             multiple
-            onValueChange={handleLoggerChange}
-            value={loggers}
+            onValueChange={handleSourceChange}
+            value={sources}
           >
             <Select.Trigger clearable>
-              <Select.ValueText placeholder="All Loggers" />
+              <Select.ValueText placeholder="All Sources" />
             </Select.Trigger>
             <Select.Content>
-              {loggerOptionList.items.map((option) => (
+              {sourceOptionList.items.map((option) => (
                 <Select.Item item={option} key={option.label}>
                   {option.label}
                 </Select.Item>

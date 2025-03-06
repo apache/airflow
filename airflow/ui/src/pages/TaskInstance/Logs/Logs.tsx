@@ -35,7 +35,7 @@ export const Logs = () => {
 
   const tryNumberParam = searchParams.get(SearchParamsKeys.TRY_NUMBER);
   const logLevelFilters = searchParams.getAll(SearchParamsKeys.LOG_LEVEL);
-  const loggerFilters = searchParams.getAll(SearchParamsKeys.LOGGER);
+  const sourceFilters = searchParams.getAll(SearchParamsKeys.SOURCE);
 
   const {
     data: taskInstance,
@@ -77,8 +77,8 @@ export const Logs = () => {
     isLoading: isLoadingLogs,
   } = useLogs({
     dagId,
-    loggerFilters,
     logLevelFilters,
+    sourceFilters,
     taskInstance,
     tryNumber: tryNumber === 0 ? 1 : tryNumber,
   });
@@ -86,8 +86,8 @@ export const Logs = () => {
   return (
     <Box p={2}>
       <TaskLogHeader
-        loggerOptions={data.loggers}
         onSelectTryNumber={onSelectTryNumber}
+        sourceOptions={data.sources}
         taskInstance={taskInstance}
         toggleFullscreen={toggleFullscreen}
         toggleWrap={toggleWrap}
