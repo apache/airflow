@@ -31,7 +31,12 @@ import {
   UseGridServiceGridDataKeyFn,
   UseTaskInstanceServiceGetTaskInstancesKeyFn,
 } from "openapi/queries";
-import type { AssetEventResponse, AssetResponse, DAGRunResponse } from "openapi/requests/types.gen";
+import type {
+  AssetEventResponse,
+  AssetResponse,
+  DAGRunResponse,
+  EdgeResponse,
+} from "openapi/requests/types.gen";
 import { ErrorAlert } from "src/components/ErrorAlert";
 import { JsonEditor } from "src/components/JsonEditor";
 import { Dialog, toaster } from "src/components/ui";
@@ -53,9 +58,12 @@ export const CreateAssetEventModal = ({ asset, onClose, open }: Props) => {
     enabled: Boolean(asset) && Boolean(asset.name),
   });
 
-  const hasUpstreamDag = data?.edges.some(
+  const upstreamDags: Array<EdgeResponse> = (data?.edges ?? []).filter(
     (edge) => edge.target_id === `asset:${asset.name}` && edge.source_id.startsWith("dag:"),
   );
+  const hasUpstreamDag = upstreamDags.length === 1;
+  const [upstreamDag] = upstreamDags;
+  const upstreamDagId = hasUpstreamDag ? upstreamDag?.source_id.replace("dag:", "") : undefined;
 
   // TODO move validate + prettify into JsonEditor
   const validateAndPrettifyJson = (newValue: string) => {
@@ -117,7 +125,7 @@ export const CreateAssetEventModal = ({ asset, onClose, open }: Props) => {
   } = useAssetServiceCreateAssetEvent({ onSuccess });
   const {
     error: materializeError,
-    isPending: isMaterilizePending,
+    isPending: isMaterializePending,
     mutate: materializeAsset,
   } = useAssetServiceMaterializeAsset({
     onSuccess,
@@ -154,7 +162,7 @@ export const CreateAssetEventModal = ({ asset, onClose, open }: Props) => {
           >
             <HStack align="stretch">
               <RadioCardItem
-                description="Trigger the Dag upstream of this Asset"
+                description={`Trigger the Dag upstream of this asset${upstreamDagId === undefined ? "" : `: ${upstreamDagId}`}`}
                 disabled={!hasUpstreamDag}
                 label="Materialize"
                 value="materialize"
@@ -175,7 +183,7 @@ export const CreateAssetEventModal = ({ asset, onClose, open }: Props) => {
           <Button
             colorPalette="blue"
             disabled={Boolean(extraError)}
-            loading={isPending || isMaterilizePending}
+            loading={isPending || isMaterializePending}
             onClick={handleSubmit}
           >
             <FiPlay /> Create Event

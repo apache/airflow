@@ -18,11 +18,12 @@
  */
 import { json } from "@codemirror/lang-json";
 import { githubLight, githubDark } from "@uiw/codemirror-themes-all";
-import CodeMirror, { type ReactCodeMirrorProps } from "@uiw/react-codemirror";
+import CodeMirror, { type ReactCodeMirrorProps, type ReactCodeMirrorRef } from "@uiw/react-codemirror";
+import { forwardRef } from "react";
 
 import { useColorMode } from "src/context/colorMode";
 
-export const JsonEditor = (props: ReactCodeMirrorProps) => {
+export const JsonEditor = forwardRef<ReactCodeMirrorRef, ReactCodeMirrorProps>((props, ref) => {
   const { colorMode } = useColorMode();
 
   return (
@@ -35,6 +36,7 @@ export const JsonEditor = (props: ReactCodeMirrorProps) => {
       }}
       extensions={[json()]}
       height="200px"
+      ref={ref}
       style={{
         border: "1px solid var(--chakra-colors-border)",
         borderRadius: "8px",
@@ -46,4 +48,4 @@ export const JsonEditor = (props: ReactCodeMirrorProps) => {
       {...props}
     />
   );
-};
+});
