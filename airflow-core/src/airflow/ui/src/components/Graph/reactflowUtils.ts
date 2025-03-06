@@ -28,6 +28,7 @@ export type CustomNodeProps = {
   childCount?: number;
   depth?: number;
   height?: number;
+  id: string;
   isGroup?: boolean;
   isMapped?: boolean;
   isOpen?: boolean;
