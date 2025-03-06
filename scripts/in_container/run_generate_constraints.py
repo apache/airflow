@@ -423,6 +423,7 @@ def generate_constraints_pypi_providers(config_params: ConfigParams) -> None:
         run_command(
             cmd=[
                 *config_params.get_install_command,
+                "-e",
                 ".[all-core]",
                 "--reinstall",  # We need to pull the provider packages from PyPI - not use the local ones
                 *packages_to_install,
