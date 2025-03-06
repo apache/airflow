@@ -24,6 +24,7 @@ import os
 import selectors
 import signal
 import sys
+import time
 from io import BytesIO
 from operator import attrgetter
 from pathlib import Path
@@ -850,7 +851,9 @@ class TestWatchedSubprocessKill:
             client=MagicMock(spec=sdk_client.Client),
             target=subprocess_main,
         )
+
         # Ensure we get one normal run, to give the proc time to register it's custom sighandler
+        time.sleep(0.1)
         proc._service_subprocess(max_wait_time=1)
         proc.kill(signal_to_send=signal_to_send, escalation_delay=0.5, force=True)
 
