@@ -53,7 +53,11 @@ from airflow.api_fastapi.core_api.datamodels.assets import (
 )
 from airflow.api_fastapi.core_api.datamodels.dag_run import DAGRunResponse
 from airflow.api_fastapi.core_api.openapi.exceptions import create_openapi_http_exception_doc
-from airflow.api_fastapi.core_api.security import requires_access_asset_alias
+from airflow.api_fastapi.core_api.security import (
+    requires_access_asset,
+    requires_access_asset_alias,
+    requires_access_dag,
+)
 from airflow.api_fastapi.logging.decorators import action_logging
 from airflow.assets.manager import asset_manager
 from airflow.models.asset import (
@@ -92,6 +96,7 @@ def _generate_queued_event_where_clause(
 @assets_router.get(
     "/assets",
     responses=create_openapi_http_exception_doc([status.HTTP_404_NOT_FOUND]),
+    dependencies=[Depends(requires_access_asset(method="GET"))],
 )
 def get_assets(
     limit: QueryLimit,
@@ -176,6 +181,7 @@ def get_asset_alias(asset_alias_id: int, session: SessionDep):
 @assets_router.get(
     "/assets/events",
     responses=create_openapi_http_exception_doc([status.HTTP_404_NOT_FOUND]),
+    dependencies=[Depends(requires_access_asset(method="GET"))],
 )
 def get_asset_events(
     limit: QueryLimit,
@@ -235,7 +241,7 @@ def get_asset_events(
 @assets_router.post(
     "/assets/events",
     responses=create_openapi_http_exception_doc([status.HTTP_404_NOT_FOUND]),
-    dependencies=[Depends(action_logging())],
+    dependencies=[Depends(requires_access_asset(method="POST")), Depends(action_logging())],
 )
 def create_asset_event(
     body: CreateAssetEventsBody,
@@ -262,7 +268,7 @@ def create_asset_event(
 @assets_router.post(
     "/assets/{asset_id}/materialize",
     responses=create_openapi_http_exception_doc([status.HTTP_404_NOT_FOUND, status.HTTP_409_CONFLICT]),
-    dependencies=[Depends(action_logging())],
+    dependencies=[Depends(requires_access_asset(method="POST")), Depends(action_logging())],
 )
 def materialize_asset(
     asset_id: int,
@@ -309,6 +315,7 @@ def materialize_asset(
 @assets_router.get(
     "/assets/{asset_id}/queuedEvents",
     responses=create_openapi_http_exception_doc([status.HTTP_404_NOT_FOUND]),
+    dependencies=[Depends(requires_access_asset(method="GET"))],
 )
 def get_asset_queued_events(
     asset_id: int,
@@ -342,6 +349,7 @@ def get_asset_queued_events(
 @assets_router.get(
     "/assets/{asset_id}",
     responses=create_openapi_http_exception_doc([status.HTTP_404_NOT_FOUND]),
+    dependencies=[Depends(requires_access_asset(method="GET"))],
 )
 def get_asset(
     asset_id: int,
@@ -363,6 +371,7 @@ def get_asset(
 @assets_router.get(
     "/dags/{dag_id}/assets/queuedEvents",
     responses=create_openapi_http_exception_doc([status.HTTP_404_NOT_FOUND]),
+    dependencies=[Depends(requires_access_asset(method="GET")), Depends(requires_access_dag(method="GET"))],
 )
 def get_dag_asset_queued_events(
     dag_id: str,
@@ -392,6 +401,7 @@ def get_dag_asset_queued_events(
 @assets_router.get(
     "/dags/{dag_id}/assets/{asset_id}/queuedEvents",
     responses=create_openapi_http_exception_doc([status.HTTP_404_NOT_FOUND]),
+    dependencies=[Depends(requires_access_asset(method="GET")), Depends(requires_access_dag(method="GET"))],
 )
 def get_dag_asset_queued_event(
     dag_id: str,
@@ -416,7 +426,11 @@ def get_dag_asset_queued_event(
     "/assets/{asset_id}/queuedEvents",
     status_code=status.HTTP_204_NO_CONTENT,
     responses=create_openapi_http_exception_doc([status.HTTP_404_NOT_FOUND]),
-    dependencies=[Depends(action_logging())],
+    dependencies=[
+        Depends(requires_access_asset(method="DELETE")),
+        Depends(requires_access_dag(method="GET")),
+        Depends(action_logging()),
+    ],
 )
 def delete_asset_queued_events(
     asset_id: int,
@@ -443,7 +457,11 @@ def delete_asset_queued_events(
             status.HTTP_404_NOT_FOUND,
         ]
     ),
-    dependencies=[Depends(action_logging())],
+    dependencies=[
+        Depends(requires_access_asset(method="DELETE")),
+        Depends(requires_access_dag(method="GET")),
+        Depends(action_logging()),
+    ],
 )
 def delete_dag_asset_queued_events(
     dag_id: str,
@@ -468,7 +486,11 @@ def delete_dag_asset_queued_events(
             status.HTTP_404_NOT_FOUND,
         ]
     ),
-    dependencies=[Depends(action_logging())],
+    dependencies=[
+        Depends(requires_access_asset(method="DELETE")),
+        Depends(requires_access_dag(method="GET")),
+        Depends(action_logging()),
+    ],
 )
 def delete_dag_asset_queued_event(
     dag_id: str,
