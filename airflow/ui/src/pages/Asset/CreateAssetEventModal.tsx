@@ -25,9 +25,13 @@ import {
   useAssetServiceCreateAssetEvent,
   UseAssetServiceGetAssetEventsKeyFn,
   useAssetServiceMaterializeAsset,
+  UseDagRunServiceGetDagRunsKeyFn,
+  useDagsServiceRecentDagRunsKey,
   useDependenciesServiceGetDependencies,
+  UseGridServiceGridDataKeyFn,
+  UseTaskInstanceServiceGetTaskInstancesKeyFn,
 } from "openapi/queries";
-import type { AssetResponse } from "openapi/requests/types.gen";
+import type { AssetEventResponse, AssetResponse, DAGRunResponse } from "openapi/requests/types.gen";
 import { ErrorAlert } from "src/components/ErrorAlert";
 import { JsonEditor } from "src/components/JsonEditor";
 import { Dialog, toaster } from "src/components/ui";
@@ -53,6 +57,7 @@ export const CreateAssetEventModal = ({ asset, onClose, open }: Props) => {
     (edge) => edge.target_id === `asset:${asset.name}` && edge.source_id.startsWith("dag:"),
   );
 
+  // TODO move validate + prettify into JsonEditor
   const validateAndPrettifyJson = (newValue: string) => {
     try {
       const parsedJson = JSON.parse(newValue) as JSON;
@@ -67,28 +72,42 @@ export const CreateAssetEventModal = ({ asset, onClose, open }: Props) => {
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : "Unknown error occurred.";
 
-      // console.log(errorMessage);
       setExtraError(errorMessage);
     }
   };
 
-  const onSuccess = async () => {
+  const onSuccess = async (response: AssetEventResponse | DAGRunResponse) => {
     setExtra("{}");
     setExtraError(undefined);
     onClose();
 
-    const queryKeys = [UseAssetServiceGetAssetEventsKeyFn({ assetId: asset.id }, [{ assetId: asset.id }])];
+    let queryKeys = [UseAssetServiceGetAssetEventsKeyFn({ assetId: asset.id }, [{ assetId: asset.id }])];
+
+    if ("dag_run_id" in response) {
+      const dagId = response.dag_id;
+
+      queryKeys = [
+        ...queryKeys,
+        [useDagsServiceRecentDagRunsKey],
+        UseDagRunServiceGetDagRunsKeyFn({ dagId }, [{ dagId }]),
+        UseTaskInstanceServiceGetTaskInstancesKeyFn({ dagId, dagRunId: "~" }, [{ dagId, dagRunId: "~" }]),
+        UseGridServiceGridDataKeyFn({ dagId }, [{ dagId }]),
+      ];
+
+      toaster.create({
+        description: `Upstream Dag ${response.dag_id} was triggered successfully.`,
+        title: "Materializing Asset",
+        type: "success",
+      });
+    } else {
+      toaster.create({
+        description: "Manual asset event creation was successful.",
+        title: "Asset Event Created",
+        type: "success",
+      });
+    }
 
     await Promise.all(queryKeys.map((key) => queryClient.invalidateQueries({ queryKey: key })));
-
-    toaster.create({
-      description:
-        eventType === "materialize"
-          ? "Upstream Dag was successfully triggered"
-          : "Manual asset event creation was successful",
-      title: eventType === "materialize" ? "Materializing Asset" : "Asset Event Created",
-      type: "success",
-    });
   };
 
   const {
