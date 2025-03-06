@@ -34,6 +34,26 @@ For high-level changelog, see :doc:`package information including changelog <ind
 
 
 
+2.1.1
+.....
+
+Latest change: 2025-03-06
+
+==================================================================================================  ===========  =================================================================================
+Commit                                                                                              Committed    Subject
+==================================================================================================  ===========  =================================================================================
+`fca1c3020e <https://github.com/apache/airflow/commit/fca1c3020edb82798ff72014158072c3676ea306>`__  2025-03-06   ``revert removing 'external_trigger' from OpenLineage provider (#47383)``
+`e4002c3305 <https://github.com/apache/airflow/commit/e4002c3305a757f5926f96c996e701e8f998a042>`__  2025-03-05   ``Move tests_common package to devel-common project (#47281)``
+`57986c0f24 <https://github.com/apache/airflow/commit/57986c0f24769d92a092cf588c7f4890b23c4a08>`__  2025-03-02   ``fix: OpenLineage serialization of dataset timetables for Airflow 2.9 (#47150)``
+`10da1a02f3 <https://github.com/apache/airflow/commit/10da1a02f30713e1a29a34f881334b25f498f017>`__  2025-02-28   ``Implement stale dag bundle cleanup (#46503)``
+`1addb55154 <https://github.com/apache/airflow/commit/1addb55154fbef31bfa021537cfbd4395696381c>`__  2025-02-28   ``Improve documentation for updating provider dependencies (#47203)``
+`c6c4f95ed9 <https://github.com/apache/airflow/commit/c6c4f95ed9e3220133815b9126c135e805637022>`__  2025-02-25   ``Add legacy namespace packages to airflow.providers (#47064)``
+`811fa2b016 <https://github.com/apache/airflow/commit/811fa2b016ca613061e5d4d32fee005e53c1bf1d>`__  2025-02-25   ``Replace 'external_trigger' check with DagRunType (#45961)``
+`518287ce7f <https://github.com/apache/airflow/commit/518287ce7fbb7bb70df499239523b1b2e9ac7656>`__  2025-02-24   ``Runtime context shouldn't have start_date as a key (#46961)``
+`dbf8bb4092 <https://github.com/apache/airflow/commit/dbf8bb409223687c7d2ad10649a92d02c24bb3b4>`__  2025-02-24   ``Remove extra whitespace in provider readme template (#46975)``
+`b28c336e8b <https://github.com/apache/airflow/commit/b28c336e8b7aa1d69c0f9520b182b1b661377337>`__  2025-02-21   ``Upgrade flit to 3.11.0 (#46938)``
+==================================================================================================  ===========  =================================================================================
+
 2.1.0
 .....
 
@@ -42,6 +62,7 @@ Latest change: 2025-02-21
 ==================================================================================================  ===========  ============================================================================================================================================================
 Commit                                                                                              Committed    Subject
 ==================================================================================================  ===========  ============================================================================================================================================================
+`0653ffe78e <https://github.com/apache/airflow/commit/0653ffe78e4a0acaf70801a5ceef8dbabdac8b15>`__  2025-02-21   ``Prepare docs for Feb 1st wave of providers (fixed) (#46962)``
 `36ae4683d3 <https://github.com/apache/airflow/commit/36ae4683d38576d34246535388e474d9a2d8e453>`__  2025-02-21   ``pass error for on_task_instance_failed in task sdk (#46941)``
 `5d87bddf0a <https://github.com/apache/airflow/commit/5d87bddf0aa5f485f3684c909fb95f461e5a2ab6>`__  2025-02-21   ``Prepare docs for Feb 1st wave of providers (#46893)``
 `b4d27074f6 <https://github.com/apache/airflow/commit/b4d27074f601e938ec5e10d957aef1de7c659c2f>`__  2025-02-17   ``Remove remnants of old provider's structure (#46829)``
