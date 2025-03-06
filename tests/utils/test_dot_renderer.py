@@ -51,10 +51,18 @@ class TestDotRenderer:
 
     def test_should_render_dag_dependencies(self):
         dag_dep_1 = DagDependency(
-            source="dag_one", target="dag_two", dependency_type="Sensor", dependency_id="task_1"
+            source="dag_one",
+            target="dag_two",
+            label="task_1_display_name",
+            dependency_type="Sensor",
+            dependency_id="task_1",
         )
         dag_dep_2 = DagDependency(
-            source="dag_two", target="dag_three", dependency_type="Sensor", dependency_id="task_2"
+            source="dag_two",
+            target="dag_three",
+            label="task_2",
+            dependency_type="Sensor",
+            dependency_id="task_2",
         )
 
         dag_dependency_list = []
@@ -65,8 +73,8 @@ class TestDotRenderer:
         dag_dependency_dict["dag_one"] = dag_dependency_list
         dot = dot_renderer.render_dag_dependencies(dag_dependency_dict)
 
-        assert "dag_one -> task_1" in dot.source
-        assert "task_1 -> dag_two" in dot.source
+        assert "dag_one -> task_1_display_name" in dot.source
+        assert "task_1_display_name -> dag_two" in dot.source
         assert "dag_two -> task_2" in dot.source
         assert "task_2 -> dag_three" in dot.source
 
