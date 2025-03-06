@@ -949,7 +949,7 @@ def _get_template_context(
     def get_prev_end_date_success() -> pendulum.DateTime | None:
         return timezone.coerce_datetime(_get_previous_dagrun_success().end_date)
 
-    def get_triggering_events() -> dict[str, list[AssetEvent]]:
+    def get_triggering_events() -> dict[Asset, list[AssetEvent]]:
         if TYPE_CHECKING:
             assert session is not None
 
@@ -960,10 +960,10 @@ def _get_template_context(
         if dag_run not in session:
             dag_run = session.merge(dag_run, load=False)
         asset_events = dag_run.consumed_asset_events
-        triggering_events: dict[str, list[AssetEvent]] = defaultdict(list)
+        triggering_events: dict[Asset, list[AssetEvent]] = defaultdict(list)
         for event in asset_events:
             if event.asset:
-                triggering_events[event.asset.uri].append(event)
+                triggering_events[event.asset].append(event)
 
         return triggering_events
 
