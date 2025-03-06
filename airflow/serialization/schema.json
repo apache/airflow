@@ -206,7 +206,8 @@
           { "$ref": "#/definitions/task_group" }
         ]},
         "edge_info": { "$ref": "#/definitions/edge_info" },
-        "dag_dependencies": { "$ref": "#/definitions/dag_dependencies" }
+        "dag_dependencies": { "$ref": "#/definitions/dag_dependencies" },
+        "disable_bundle_versioning": {"type":  "boolean"}
       },
       "required": [
         "dag_id",
