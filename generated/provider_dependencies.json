@@ -995,10 +995,11 @@
       "apache-airflow>=2.9.0",
       "attrs>=22.2",
       "openlineage-integration-common>=1.24.2",
-      "openlineage-python>=1.24.2",
+      "openlineage-python>=1.24.2"
+    ],
+    "devel-deps": [
       "uuid6>=2024.7.10"
     ],
-    "devel-deps": [],
     "plugins": [
       {
         "name": "openlineage",
