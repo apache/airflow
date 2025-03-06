@@ -17,9 +17,7 @@
 
 from __future__ import annotations
 
-import copy
 import json
-import logging.config
 import sys
 from unittest import mock
 from unittest.mock import PropertyMock
@@ -30,10 +28,10 @@ from uuid6 import uuid7
 
 from airflow._shared.timezones import timezone
 from airflow.api_fastapi.common.dagbag import create_dag_bag, dag_bag_from_app
-from airflow.config_templates.airflow_local_settings import DEFAULT_LOGGING_CONFIG
 from airflow.models.dag import DAG
 from airflow.providers.standard.operators.empty import EmptyOperator
 from airflow.sdk import task
+from airflow.utils.log.log_reader import TaskLogReader
 from airflow.utils.types import DagRunType
 
 from tests_common.test_utils.dag import sync_dag_to_db
@@ -118,7 +116,7 @@ class TestTaskInstancesLog:
         test_client.app.dependency_overrides[dag_bag_from_app] = lambda: dagbag
 
     @pytest.fixture
-    def configure_loggers(self, tmp_path, create_log_template):
+    def configure_loggers(self, tmp_path, create_log_template, monkeypatch):
         self.log_dir = tmp_path
 
         # TASK_ID
@@ -151,15 +149,8 @@ class TestTaskInstancesLog:
             log = dir_path / "attempt=2.log"
             log.write_text("Log for testing 2.")
 
-        # Create a custom logging configuration
-        logging_config = copy.deepcopy(DEFAULT_LOGGING_CONFIG)
-        logging_config["handlers"]["task"]["base_log_folder"] = self.log_dir
-
-        logging.config.dictConfig(logging_config)
-
-        yield
-
-        logging.config.dictConfig(DEFAULT_LOGGING_CONFIG)
+        handler = TaskLogReader().log_handler
+        monkeypatch.setattr(handler, "local_base", self.log_dir)
 
     def teardown_method(self):
         clear_db_runs()

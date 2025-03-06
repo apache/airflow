@@ -103,19 +103,22 @@ class TestReapProcessGroup:
 class TestExecuteInSubProcess:
     def test_should_print_all_messages1(self, caplog):
         execute_in_subprocess(["bash", "-c", "echo CAT; echo KITTY;"])
-        msgs = [record.getMessage() for record in caplog.records]
-        assert msgs == ["Executing cmd: bash -c 'echo CAT; echo KITTY;'", "Output:", "CAT", "KITTY"]
+        assert caplog.messages == [
+            "Executing cmd: bash -c 'echo CAT; echo KITTY;'",
+            "Output:",
+            "CAT",
+            "KITTY",
+        ]
 
     def test_should_print_all_messages_from_cwd(self, caplog, tmp_path):
         execute_in_subprocess(["bash", "-c", "echo CAT; pwd; echo KITTY;"], cwd=str(tmp_path))
-        msgs = [record.getMessage() for record in caplog.records]
         assert [
             "Executing cmd: bash -c 'echo CAT; pwd; echo KITTY;'",
             "Output:",
             "CAT",
             str(tmp_path),
             "KITTY",
-        ] == msgs
+        ] == caplog.messages
 
     def test_using_env_works(self, caplog):
         execute_in_subprocess(["bash", "-c", 'echo "My value is ${VALUE}"'], env=dict(VALUE="1"))

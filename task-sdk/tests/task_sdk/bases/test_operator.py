@@ -949,10 +949,11 @@ class TestExecutorSafeguard:
                 "event": "ExtendedHelloWorldOperator.execute cannot be called outside of the Task Runner!",
                 "level": "warning",
                 "timestamp": mock.ANY,
+                "logger": "tests.task_sdk.bases.test_operator",
             },
         ]
 
-    def test_decorated_operators(self, captured_logs):
+    def test_decorated_operators(self, caplog):
         with DAG("d1") as dag:
 
             @dag.task(task_id="task_id", dag=dag)
@@ -963,15 +964,13 @@ class TestExecutorSafeguard:
             op = say_hello()
 
         op.operator.execute(context={})
-        assert captured_logs == [
-            {
-                "event": "HelloWorldOperator.execute cannot be called outside of the Task Runner!",
-                "level": "warning",
-                "timestamp": mock.ANY,
-            },
-        ]
+        assert {
+            "event": "HelloWorldOperator.execute cannot be called outside of the Task Runner!",
+            "log_level": "warning",
+        } in caplog
 
-    def test_python_op(self, captured_logs):
+    @pytest.mark.log_level(logging.WARNING)
+    def test_python_op(self, caplog):
         from airflow.providers.standard.operators.python import PythonOperator
 
         with DAG("d1"):
@@ -985,13 +984,10 @@ class TestExecutorSafeguard:
                 python_callable=say_hello,
             )
         op.execute(context={}, PythonOperator__sentinel=ExecutorSafeguard.sentinel_value)
-        assert captured_logs == [
-            {
-                "event": "HelloWorldOperator.execute cannot be called outside of the Task Runner!",
-                "level": "warning",
-                "timestamp": mock.ANY,
-            },
-        ]
+        assert {
+            "event": "HelloWorldOperator.execute cannot be called outside of the Task Runner!",
+            "log_level": "warning",
+        } in caplog
 
 
 def test_partial_default_args():

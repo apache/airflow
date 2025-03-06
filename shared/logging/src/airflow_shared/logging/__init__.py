@@ -14,20 +14,6 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-
 from __future__ import annotations
 
-import pytest
-
-
-@pytest.fixture(scope="module", autouse=True)
-def reset_to_default_logging():
-    """
-    Initialize ``BaseTaskRunner`` might have side effect to another tests.
-    This fixture reset back logging to default after execution of separate module  in this test package.
-    """
-    yield
-
-    from airflow.listeners.listener import get_listener_manager
-
-    get_listener_manager().clear()
+from .structlog import configure_logging as configure_logging
