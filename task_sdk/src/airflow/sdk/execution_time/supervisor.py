@@ -251,9 +251,10 @@ def block_orm_access():
 
         settings.configure_orm = configure_orm
         settings.Session = BlockedDBSession
-        conf.set("database", "sql_alchemy_conn", conn)
-        conf.set("database", "sql_alchemy_conn_cmd", "/bin/false")
-        conf.set("database", "sql_alchemy_conn_secret", "db-access-blocked")
+        if conf.has_section("database"):
+            conf.set("database", "sql_alchemy_conn", conn)
+            conf.set("database", "sql_alchemy_conn_cmd", "/bin/false")
+            conf.set("database", "sql_alchemy_conn_secret", "db-access-blocked")
 
         settings.SQL_ALCHEMY_CONN = conn
         settings.SQL_ALCHEMY_CONN_ASYNC = conn
