@@ -3838,12 +3838,10 @@ class TaskInstanceNote(Base):
         self.user_id = user_id
 
     def __repr__(self):
-        if self.task_instance:
-            prefix = f"<{self.__class__.__name__}: {self.task_instance.dag_id}.{self.task_instance.task_id} {self.task_instance.run_id}"
-            if self.task_instance.map_index != -1:
-                prefix += f" map_index={self.task_instance.map_index}"
-            return prefix + ">"
-        return f"<{self.__class__.__name__}: {self.ti_id}>"
+        prefix = f"<{self.__class__.__name__}: {self.task_instance.dag_id}.{self.task_instance.task_id} {self.task_instance.run_id}"
+        if self.task_instance.map_index != -1:
+            prefix += f" map_index={self.task_instance.map_index}"
+        return prefix + f" TI ID: {self.ti_id}>"
 
 
 STATICA_HACK = True
