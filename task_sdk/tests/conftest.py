@@ -28,6 +28,7 @@ pytest_plugins = "tests_common.pytest_plugin"
 
 # Task SDK does not need access to the Airflow database
 os.environ["_AIRFLOW_SKIP_DB_TESTS"] = "true"
+os.environ["_AIRFLOW__AS_LIBRARY"] = "true"
 
 if TYPE_CHECKING:
     from datetime import datetime
@@ -55,6 +56,10 @@ def pytest_configure(config: pytest.Config) -> None:
 
     # Always skip looking for tests in these folders!
     config.addinivalue_line("norecursedirs", "tests/test_dags")
+
+    import airflow.settings
+
+    airflow.settings.configure_policy_plugin_manager()
 
 
 @pytest.hookimpl(tryfirst=True)

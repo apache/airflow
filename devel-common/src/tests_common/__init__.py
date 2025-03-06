@@ -26,5 +26,5 @@ from pathlib import Path
 # for supported Airflow versions.
 RUNNING_TESTS_AGAINST_AIRFLOW_PACKAGES = (
     "USE_AIRFLOW_VERSION" in os.environ
-    or not (Path(__file__).parents[2] / "airflow" / "__init__.py").exists()
+    or not (Path(__file__).parents[3] / "airflow" / "__init__.py").exists()
 )
