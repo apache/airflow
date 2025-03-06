@@ -1666,6 +1666,7 @@ class TestStringifiedDAGs:
                 {
                     "source": "external_dag_id",
                     "target": "test_derived_dag_deps_sensor",
+                    "label": "task1",
                     "dependency_type": "sensor",
                     "dependency_id": "task1",
                 }
