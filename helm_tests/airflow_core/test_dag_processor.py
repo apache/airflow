@@ -772,9 +772,10 @@ class TestDagProcessor:
             assert expected_volume not in created_volumes
             assert expected_volume_mount not in created_volume_mounts
 
-    def test_validate_if_ssh_params_are_added_with_git_ssh_key(self):
+    def test_validate_if_ssh_params_are_added_with_git_ssh_key_ver_3(self):
         docs = render_chart(
             values={
+                "images": {"gitSync": {"tag": "v3.6.9"}},
                 "dagProcessor": {"enabled": True},
                 "dags": {
                     "gitSync": {
@@ -790,19 +791,37 @@ class TestDagProcessor:
         assert {"name": "GIT_SSH_KEY_FILE", "value": "/etc/git-secret/ssh"} in jmespath.search(
             "spec.template.spec.containers[1].env", docs[0]
         )
-        assert {"name": "GITSYNC_SSH_KEY_FILE", "value": "/etc/git-secret/ssh"} in jmespath.search(
-            "spec.template.spec.containers[1].env", docs[0]
-        )
         assert {"name": "GIT_SYNC_SSH", "value": "true"} in jmespath.search(
-            "spec.template.spec.containers[1].env", docs[0]
-        )
-        assert {"name": "GITSYNC_SSH", "value": "true"} in jmespath.search(
             "spec.template.spec.containers[1].env", docs[0]
         )
         assert {"name": "GIT_KNOWN_HOSTS", "value": "false"} in jmespath.search(
             "spec.template.spec.containers[1].env", docs[0]
         )
-        assert {"name": "GITSYNC_SSH_KNOWN_HOSTS", "value": "false"} in jmespath.search(
+        assert {
+            "name": "git-sync-ssh-key",
+            "secret": {"secretName": "release-name-ssh-secret", "defaultMode": 288},
+        } in jmespath.search("spec.template.spec.volumes", docs[0])
+
+    def test_validate_if_ssh_params_are_added_with_git_ssh_key_ver_4(self):
+        docs = render_chart(
+            values={
+                "images": {"gitSync": {"tag": "v4.3.0"}},
+                "dagProcessor": {"enabled": True},
+                "dags": {
+                    "gitSync": {
+                        "enabled": True,
+                        "sshKey": "my-ssh-key",
+                    },
+                    "persistence": {"enabled": False},
+                },
+            },
+            show_only=["templates/dag-processor/dag-processor-deployment.yaml"],
+        )
+
+        assert {"name": "GITSYNC_SSH_KEY_FILE", "value": "/etc/git-secret/ssh"} in jmespath.search(
+            "spec.template.spec.containers[1].env", docs[0]
+        )
+        assert {"name": "GITSYNC_KNOWN_HOSTS", "value": "false"} in jmespath.search(
             "spec.template.spec.containers[1].env", docs[0]
         )
         assert {

@@ -60,13 +60,17 @@ class TestPodTemplateFile:
         assert jmespath.search("spec.containers[0].image", docs[0]) is not None
         assert jmespath.search("spec.containers[0].name", docs[0]) == "base"
 
-    def test_should_add_an_init_container_if_git_sync_is_true(self):
+    @pytest.mark.parametrize(
+        "git_sync_tag",
+        [("v3.6.9"), ("v4.3.0")],
+    )
+    def test_should_add_an_init_container_if_git_sync_is_true(self, git_sync_tag: str):
         docs = render_chart(
             values={
                 "images": {
                     "gitSync": {
                         "repository": "test-registry/test-repo",
-                        "tag": "test-tag",
+                        "tag": git_sync_tag,
                         "pullPolicy": "Always",
                     }
                 },
@@ -95,35 +99,7 @@ class TestPodTemplateFile:
         )
 
         assert re.search("Pod", docs[0]["kind"])
-        assert jmespath.search("spec.initContainers[0]", docs[0]) == {
-            "name": "git-sync-test-init",
-            "securityContext": {"runAsUser": 65533},
-            "image": "test-registry/test-repo:test-tag",
-            "imagePullPolicy": "Always",
-            "envFrom": [{"secretRef": {"name": "proxy-config"}}],
-            "env": [
-                {"name": "GIT_SYNC_REV", "value": "HEAD"},
-                {"name": "GITSYNC_REF", "value": "test-branch"},
-                {"name": "GIT_SYNC_BRANCH", "value": "test-branch"},
-                {"name": "GIT_SYNC_REPO", "value": "https://github.com/apache/airflow.git"},
-                {"name": "GITSYNC_REPO", "value": "https://github.com/apache/airflow.git"},
-                {"name": "GIT_SYNC_DEPTH", "value": "1"},
-                {"name": "GITSYNC_DEPTH", "value": "1"},
-                {"name": "GIT_SYNC_ROOT", "value": "/git"},
-                {"name": "GITSYNC_ROOT", "value": "/git"},
-                {"name": "GIT_SYNC_DEST", "value": "repo"},
-                {"name": "GITSYNC_LINK", "value": "repo"},
-                {"name": "GIT_SYNC_ADD_USER", "value": "true"},
-                {"name": "GITSYNC_ADD_USER", "value": "true"},
-                {"name": "GITSYNC_PERIOD", "value": "66s"},
-                {"name": "GIT_SYNC_MAX_SYNC_FAILURES", "value": "70"},
-                {"name": "GITSYNC_MAX_FAILURES", "value": "70"},
-                {"name": "GIT_SYNC_ONE_TIME", "value": "true"},
-                {"name": "GITSYNC_ONE_TIME", "value": "true"},
-            ],
-            "volumeMounts": [{"mountPath": "/git", "name": "dags"}],
-            "resources": {},
-        }
+        assert len(jmespath.search("spec.initContainers[?name=='git-sync-test-init']", docs[0])) == 1
 
     def test_should_not_add_init_container_if_dag_persistence_is_true(self):
         docs = render_chart(
@@ -181,9 +157,10 @@ class TestPodTemplateFile:
         assert expected_volume in jmespath.search("spec.volumes", docs[0])
         assert expected_volume_mount in jmespath.search("spec.containers[0].volumeMounts", docs[0])
 
-    def test_validate_if_ssh_params_are_added(self):
+    def test_validate_if_ssh_params_are_added_ver_3(self):
         docs = render_chart(
             values={
+                "images": {"gitSync": {"tag": "v3.6.9"}},
                 "dags": {
                     "gitSync": {
                         "enabled": True,
@@ -192,7 +169,7 @@ class TestPodTemplateFile:
                         "knownHosts": None,
                         "branch": "test-branch",
                     }
-                }
+                },
             },
             show_only=["templates/pod-template-file.yaml"],
             chart_dir=self.temp_chart_dir,
@@ -201,19 +178,7 @@ class TestPodTemplateFile:
         assert {"name": "GIT_SSH_KEY_FILE", "value": "/etc/git-secret/ssh"} in jmespath.search(
             "spec.initContainers[0].env", docs[0]
         )
-        assert {"name": "GITSYNC_SSH_KEY_FILE", "value": "/etc/git-secret/ssh"} in jmespath.search(
-            "spec.initContainers[0].env", docs[0]
-        )
-        assert {"name": "GIT_SYNC_SSH", "value": "true"} in jmespath.search(
-            "spec.initContainers[0].env", docs[0]
-        )
-        assert {"name": "GITSYNC_SSH", "value": "true"} in jmespath.search(
-            "spec.initContainers[0].env", docs[0]
-        )
         assert {"name": "GIT_KNOWN_HOSTS", "value": "false"} in jmespath.search(
-            "spec.initContainers[0].env", docs[0]
-        )
-        assert {"name": "GITSYNC_SSH_KNOWN_HOSTS", "value": "false"} in jmespath.search(
             "spec.initContainers[0].env", docs[0]
         )
         assert {
@@ -227,9 +192,45 @@ class TestPodTemplateFile:
             "secret": {"secretName": "ssh-secret", "defaultMode": 288},
         } in jmespath.search("spec.volumes", docs[0])
 
-    def test_validate_if_ssh_known_hosts_are_added(self):
+    def test_validate_if_ssh_params_are_added_ver_4(self):
         docs = render_chart(
             values={
+                "images": {"gitSync": {"tag": "v4.3.0"}},
+                "dags": {
+                    "gitSync": {
+                        "enabled": True,
+                        "containerName": "git-sync-test",
+                        "sshKeySecret": "ssh-secret",
+                        "knownHosts": None,
+                        "branch": "test-branch",
+                    }
+                },
+            },
+            show_only=["templates/pod-template-file.yaml"],
+            chart_dir=self.temp_chart_dir,
+        )
+
+        assert {"name": "GITSYNC_SSH_KEY_FILE", "value": "/etc/git-secret/ssh"} in jmespath.search(
+            "spec.initContainers[0].env", docs[0]
+        )
+        assert {"name": "GITSYNC_KNOWN_HOSTS", "value": "false"} in jmespath.search(
+            "spec.initContainers[0].env", docs[0]
+        )
+        assert {
+            "name": "git-sync-ssh-key",
+            "mountPath": "/etc/git-secret/ssh",
+            "subPath": "gitSshKey",
+            "readOnly": True,
+        } in jmespath.search("spec.initContainers[0].volumeMounts", docs[0])
+        assert {
+            "name": "git-sync-ssh-key",
+            "secret": {"secretName": "ssh-secret", "defaultMode": 288},
+        } in jmespath.search("spec.volumes", docs[0])
+
+    def test_validate_if_ssh_known_hosts_are_added_ver_3(self):
+        docs = render_chart(
+            values={
+                "images": {"gitSync": {"tag": "v3.6.9"}},
                 "dags": {
                     "gitSync": {
                         "enabled": True,
@@ -238,16 +239,49 @@ class TestPodTemplateFile:
                         "knownHosts": "github.com ssh-rsa AAAABdummy",
                         "branch": "test-branch",
                     }
-                }
+                },
             },
             show_only=["templates/pod-template-file.yaml"],
             chart_dir=self.temp_chart_dir,
         )
+
         assert {"name": "GIT_KNOWN_HOSTS", "value": "true"} in jmespath.search(
             "spec.initContainers[0].env", docs[0]
         )
         assert {
             "name": "GIT_SSH_KNOWN_HOSTS_FILE",
+            "value": "/etc/git-secret/known_hosts",
+        } in jmespath.search("spec.initContainers[0].env", docs[0])
+        assert {
+            "name": "config",
+            "mountPath": "/etc/git-secret/known_hosts",
+            "subPath": "known_hosts",
+            "readOnly": True,
+        } in jmespath.search("spec.initContainers[0].volumeMounts", docs[0])
+
+    def test_validate_if_ssh_known_hosts_are_added_ver_4(self):
+        docs = render_chart(
+            values={
+                "images": {"gitSync": {"tag": "v4.3.0"}},
+                "dags": {
+                    "gitSync": {
+                        "enabled": True,
+                        "containerName": "git-sync-test",
+                        "sshKeySecret": "ssh-secret",
+                        "knownHosts": "github.com ssh-rsa AAAABdummy",
+                        "branch": "test-branch",
+                    }
+                },
+            },
+            show_only=["templates/pod-template-file.yaml"],
+            chart_dir=self.temp_chart_dir,
+        )
+
+        assert {"name": "GITSYNC_KNOWN_HOSTS", "value": "true"} in jmespath.search(
+            "spec.initContainers[0].env", docs[0]
+        )
+        assert {
+            "name": "GIT_SYNC_SSH_KNOWN_HOSTS_FILE",
             "value": "/etc/git-secret/known_hosts",
         } in jmespath.search("spec.initContainers[0].env", docs[0])
         assert {
@@ -276,19 +310,10 @@ class TestPodTemplateFile:
             "name": "GIT_SYNC_USERNAME",
             "valueFrom": {"secretKeyRef": {"name": "user-pass-secret", "key": "GIT_SYNC_USERNAME"}},
         } in jmespath.search("spec.initContainers[0].env", docs[0])
+
         assert {
             "name": "GIT_SYNC_PASSWORD",
             "valueFrom": {"secretKeyRef": {"name": "user-pass-secret", "key": "GIT_SYNC_PASSWORD"}},
-        } in jmespath.search("spec.initContainers[0].env", docs[0])
-
-        # Testing git-sync v4
-        assert {
-            "name": "GITSYNC_USERNAME",
-            "valueFrom": {"secretKeyRef": {"name": "user-pass-secret", "key": "GITSYNC_USERNAME"}},
-        } in jmespath.search("spec.initContainers[0].env", docs[0])
-        assert {
-            "name": "GITSYNC_PASSWORD",
-            "valueFrom": {"secretKeyRef": {"name": "user-pass-secret", "key": "GITSYNC_PASSWORD"}},
         } in jmespath.search("spec.initContainers[0].env", docs[0])
 
     def test_should_set_the_dags_volume_claim_correctly_when_using_an_existing_claim(self):

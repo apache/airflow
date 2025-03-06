@@ -17,6 +17,7 @@
 from __future__ import annotations
 
 import jmespath
+import pytest
 
 from tests.charts.helm_template_generator import render_chart
 
@@ -51,13 +52,46 @@ class TestGitSyncSchedulerTest:
             > 0
         )
 
-    def test_validate_the_git_sync_container_spec(self):
+    @pytest.mark.parametrize(
+        "git_sync_tag, target_envs",
+        [
+            (
+                "v3.6.9",
+                [
+                    {"name": "GIT_SYNC_REV", "value": "HEAD"},
+                    {"name": "GIT_SYNC_BRANCH", "value": "test-branch"},
+                    {"name": "GIT_SYNC_REPO", "value": "https://github.com/apache/airflow.git"},
+                    {"name": "GIT_SYNC_DEPTH", "value": "1"},
+                    {"name": "GIT_SYNC_ROOT", "value": "/git"},
+                    {"name": "GIT_SYNC_DEST", "value": "repo"},
+                    {"name": "GIT_SYNC_ADD_USER", "value": "true"},
+                    {"name": "GIT_SYNC_MAX_SYNC_FAILURES", "value": "70"},
+                ],
+            ),
+            (
+                "v4.3.0",
+                [
+                    {"name": "GITSYNC_REF", "value": "test-branch"},
+                    {"name": "GIT_SYNC_REV", "value": "HEAD"},
+                    {"name": "GIT_SYNC_BRANCH", "value": "test-branch"},
+                    {"name": "GITSYNC_REPO", "value": "https://github.com/apache/airflow.git"},
+                    {"name": "GITSYNC_DEPTH", "value": "1"},
+                    {"name": "GIT_SYNC_ROOT", "value": "/git"},
+                    {"name": "GITSYNC_LINK", "value": "repo"},
+                    {"name": "GITSYNC_ADD_USER", "value": "true"},
+                    {"name": "GITSYNC_PERIOD", "value": "66s"},
+                    {"name": "GITSYNC_MAX_FAILURES", "value": "70"},
+                ],
+            ),
+        ],
+    )
+    def test_validate_the_git_sync_container_spec(self, git_sync_tag: str, target_envs: list[dict]):
         docs = render_chart(
             values={
                 "images": {
                     "gitSync": {
                         "repository": "test-registry/test-repo",
-                        "tag": "test-tag",
+                        "tag": git_sync_tag,
                         "pullPolicy": "Always",
                     }
                 },
@@ -88,38 +122,58 @@ class TestGitSyncSchedulerTest:
         assert jmespath.search("spec.template.spec.containers[1]", docs[0]) == {
             "name": "git-sync-test",
             "securityContext": {"runAsUser": 65533},
-            "image": "test-registry/test-repo:test-tag",
+            "image": f"test-registry/test-repo:{git_sync_tag}",
             "imagePullPolicy": "Always",
             "envFrom": [{"secretRef": {"name": "proxy-config"}}],
-            "env": [
-                {"name": "GIT_SYNC_REV", "value": "HEAD"},
-                {"name": "GITSYNC_REF", "value": "test-branch"},
-                {"name": "GIT_SYNC_BRANCH", "value": "test-branch"},
-                {"name": "GIT_SYNC_REPO", "value": "https://github.com/apache/airflow.git"},
-                {"name": "GITSYNC_REPO", "value": "https://github.com/apache/airflow.git"},
-                {"name": "GIT_SYNC_DEPTH", "value": "1"},
-                {"name": "GITSYNC_DEPTH", "value": "1"},
-                {"name": "GIT_SYNC_ROOT", "value": "/git"},
-                {"name": "GITSYNC_ROOT", "value": "/git"},
-                {"name": "GIT_SYNC_DEST", "value": "repo"},
-                {"name": "GITSYNC_LINK", "value": "repo"},
-                {"name": "GIT_SYNC_ADD_USER", "value": "true"},
-                {"name": "GITSYNC_ADD_USER", "value": "true"},
-                {"name": "GITSYNC_PERIOD", "value": "66s"},
-                {"name": "GIT_SYNC_MAX_SYNC_FAILURES", "value": "70"},
-                {"name": "GITSYNC_MAX_FAILURES", "value": "70"},
-            ],
+            "env": target_envs,
             "volumeMounts": [{"mountPath": "/git", "name": "dags"}],
             "resources": {},
         }
 
-    def test_validate_the_git_sync_container_spec_if_wait_specified(self):
+    @pytest.mark.parametrize(
+        "git_sync_tag, target_envs",
+        [
+            (
+                "v3.6.9",
+                [
+                    {"name": "GIT_SYNC_REV", "value": "HEAD"},
+                    {"name": "GIT_SYNC_BRANCH", "value": "test-branch"},
+                    {"name": "GIT_SYNC_REPO", "value": "https://github.com/apache/airflow.git"},
+                    {"name": "GIT_SYNC_DEPTH", "value": "1"},
+                    {"name": "GIT_SYNC_ROOT", "value": "/git"},
+                    {"name": "GIT_SYNC_DEST", "value": "repo"},
+                    {"name": "GIT_SYNC_ADD_USER", "value": "true"},
+                    {"name": "GIT_SYNC_WAIT", "value": "66"},
+                    {"name": "GIT_SYNC_MAX_SYNC_FAILURES", "value": "70"},
+                ],
+            ),
+            (
+                "v4.3.0",
+                [
+                    {"name": "GITSYNC_REF", "value": "test-branch"},
+                    {"name": "GIT_SYNC_REV", "value": "HEAD"},
+                    {"name": "GIT_SYNC_BRANCH", "value": "test-branch"},
+                    {"name": "GITSYNC_REPO", "value": "https://github.com/apache/airflow.git"},
+                    {"name": "GITSYNC_DEPTH", "value": "1"},
+                    {"name": "GIT_SYNC_ROOT", "value": "/git"},
+                    {"name": "GITSYNC_LINK", "value": "repo"},
+                    {"name": "GITSYNC_ADD_USER", "value": "true"},
+                    {"name": "GIT_SYNC_WAIT", "value": "66"},
+                    {"name": "GITSYNC_PERIOD", "value": "66s"},
+                    {"name": "GITSYNC_MAX_FAILURES", "value": "70"},
+                ],
+            ),
+        ],
+    )
+    def test_validate_the_git_sync_container_spec_if_wait_specified(
+        self, git_sync_tag: str, target_envs: list[dict]
+    ):
         docs = render_chart(
             values={
                 "images": {
                     "gitSync": {
                         "repository": "test-registry/test-repo",
-                        "tag": "test-tag",
+                        "tag": git_sync_tag,
                         "pullPolicy": "Always",
                     }
                 },
@@ -150,35 +204,18 @@ class TestGitSyncSchedulerTest:
         assert jmespath.search("spec.template.spec.containers[1]", docs[0]) == {
             "name": "git-sync-test",
             "securityContext": {"runAsUser": 65533},
-            "image": "test-registry/test-repo:test-tag",
+            "image": f"test-registry/test-repo:{git_sync_tag}",
             "imagePullPolicy": "Always",
             "envFrom": [{"secretRef": {"name": "proxy-config"}}],
-            "env": [
-                {"name": "GIT_SYNC_REV", "value": "HEAD"},
-                {"name": "GITSYNC_REF", "value": "test-branch"},
-                {"name": "GIT_SYNC_BRANCH", "value": "test-branch"},
-                {"name": "GIT_SYNC_REPO", "value": "https://github.com/apache/airflow.git"},
-                {"name": "GITSYNC_REPO", "value": "https://github.com/apache/airflow.git"},
-                {"name": "GIT_SYNC_DEPTH", "value": "1"},
-                {"name": "GITSYNC_DEPTH", "value": "1"},
-                {"name": "GIT_SYNC_ROOT", "value": "/git"},
-                {"name": "GITSYNC_ROOT", "value": "/git"},
-                {"name": "GIT_SYNC_DEST", "value": "repo"},
-                {"name": "GITSYNC_LINK", "value": "repo"},
-                {"name": "GIT_SYNC_ADD_USER", "value": "true"},
-                {"name": "GITSYNC_ADD_USER", "value": "true"},
-                {"name": "GIT_SYNC_WAIT", "value": "66"},
-                {"name": "GITSYNC_PERIOD", "value": "66s"},
-                {"name": "GIT_SYNC_MAX_SYNC_FAILURES", "value": "70"},
-                {"name": "GITSYNC_MAX_FAILURES", "value": "70"},
-            ],
+            "env": target_envs,
             "volumeMounts": [{"mountPath": "/git", "name": "dags"}],
             "resources": {},
         }
 
-    def test_validate_if_ssh_params_are_added(self):
+    def test_validate_if_ssh_params_are_added_ver_3(self):
         docs = render_chart(
             values={
+                "images": {"gitSync": {"tag": "v3.6.9"}},
                 "dags": {
                     "gitSync": {
                         "enabled": True,
@@ -187,7 +224,7 @@ class TestGitSyncSchedulerTest:
                         "knownHosts": None,
                         "branch": "test-branch",
                     }
-                }
+                },
             },
             show_only=["templates/scheduler/scheduler-deployment.yaml"],
         )
@@ -195,19 +232,10 @@ class TestGitSyncSchedulerTest:
         assert {"name": "GIT_SSH_KEY_FILE", "value": "/etc/git-secret/ssh"} in jmespath.search(
             "spec.template.spec.containers[1].env", docs[0]
         )
-        assert {"name": "GITSYNC_SSH_KEY_FILE", "value": "/etc/git-secret/ssh"} in jmespath.search(
-            "spec.template.spec.containers[1].env", docs[0]
-        )
         assert {"name": "GIT_SYNC_SSH", "value": "true"} in jmespath.search(
             "spec.template.spec.containers[1].env", docs[0]
         )
-        assert {"name": "GITSYNC_SSH", "value": "true"} in jmespath.search(
-            "spec.template.spec.containers[1].env", docs[0]
-        )
         assert {"name": "GIT_KNOWN_HOSTS", "value": "false"} in jmespath.search(
-            "spec.template.spec.containers[1].env", docs[0]
-        )
-        assert {"name": "GITSYNC_SSH_KNOWN_HOSTS", "value": "false"} in jmespath.search(
             "spec.template.spec.containers[1].env", docs[0]
         )
         assert {
@@ -215,15 +243,44 @@ class TestGitSyncSchedulerTest:
             "secret": {"secretName": "ssh-secret", "defaultMode": 288},
         } in jmespath.search("spec.template.spec.volumes", docs[0])
 
-    def test_validate_if_ssh_params_are_added_with_git_ssh_key(self):
+    def test_validate_if_ssh_params_are_added_ver_4(self):
         docs = render_chart(
             values={
+                "images": {"gitSync": {"tag": "v4.3.0"}},
+                "dags": {
+                    "gitSync": {
+                        "enabled": True,
+                        "containerName": "git-sync-test",
+                        "sshKeySecret": "ssh-secret",
+                        "knownHosts": None,
+                        "branch": "test-branch",
+                    }
+                },
+            },
+            show_only=["templates/scheduler/scheduler-deployment.yaml"],
+        )
+
+        assert {"name": "GITSYNC_SSH_KEY_FILE", "value": "/etc/git-secret/ssh"} in jmespath.search(
+            "spec.template.spec.containers[1].env", docs[0]
+        )
+        assert {"name": "GITSYNC_KNOWN_HOSTS", "value": "false"} in jmespath.search(
+            "spec.template.spec.containers[1].env", docs[0]
+        )
+        assert {
+            "name": "git-sync-ssh-key",
+            "secret": {"secretName": "ssh-secret", "defaultMode": 288},
+        } in jmespath.search("spec.template.spec.volumes", docs[0])
+
+    def test_validate_if_ssh_params_are_added_with_git_ssh_key_ver_3(self):
+        docs = render_chart(
+            values={
+                "images": {"gitSync": {"tag": "v3.6.9"}},
                 "dags": {
                     "gitSync": {
                         "enabled": True,
                         "sshKey": "dummy-ssh-key",
                     }
-                }
+                },
             },
             show_only=["templates/scheduler/scheduler-deployment.yaml"],
         )
@@ -231,13 +288,29 @@ class TestGitSyncSchedulerTest:
         assert {"name": "GIT_SSH_KEY_FILE", "value": "/etc/git-secret/ssh"} in jmespath.search(
             "spec.template.spec.containers[1].env", docs[0]
         )
-        assert {"name": "GITSYNC_SSH_KEY_FILE", "value": "/etc/git-secret/ssh"} in jmespath.search(
-            "spec.template.spec.containers[1].env", docs[0]
-        )
         assert {"name": "GIT_SYNC_SSH", "value": "true"} in jmespath.search(
             "spec.template.spec.containers[1].env", docs[0]
         )
-        assert {"name": "GITSYNC_SSH", "value": "true"} in jmespath.search(
+        assert {
+            "name": "git-sync-ssh-key",
+            "secret": {"secretName": "release-name-ssh-secret", "defaultMode": 288},
+        } in jmespath.search("spec.template.spec.volumes", docs[0])
+
+    def test_validate_if_ssh_params_are_added_with_git_ssh_key_ver_4(self):
+        docs = render_chart(
+            values={
+                "images": {"gitSync": {"tag": "v4.3.0"}},
+                "dags": {
+                    "gitSync": {
+                        "enabled": True,
+                        "sshKey": "dummy-ssh-key",
+                    }
+                },
+            },
+            show_only=["templates/scheduler/scheduler-deployment.yaml"],
+        )
+
+        assert {"name": "GITSYNC_SSH_KEY_FILE", "value": "/etc/git-secret/ssh"} in jmespath.search(
             "spec.template.spec.containers[1].env", docs[0]
         )
         assert {
@@ -284,16 +357,6 @@ class TestGitSyncSchedulerTest:
         assert {
             "name": "GIT_SYNC_PASSWORD",
             "valueFrom": {"secretKeyRef": {"name": "user-pass-secret", "key": "GIT_SYNC_PASSWORD"}},
-        } in jmespath.search("spec.template.spec.containers[1].env", docs[0])
-
-        # Testing git-sync v4
-        assert {
-            "name": "GITSYNC_USERNAME",
-            "valueFrom": {"secretKeyRef": {"name": "user-pass-secret", "key": "GITSYNC_USERNAME"}},
-        } in jmespath.search("spec.template.spec.containers[1].env", docs[0])
-        assert {
-            "name": "GITSYNC_PASSWORD",
-            "valueFrom": {"secretKeyRef": {"name": "user-pass-secret", "key": "GITSYNC_PASSWORD"}},
         } in jmespath.search("spec.template.spec.containers[1].env", docs[0])
 
     def test_should_set_the_volume_claim_correctly_when_using_an_existing_claim(self):
