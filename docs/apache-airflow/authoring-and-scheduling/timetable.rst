@@ -329,7 +329,7 @@ By default, ``catchup`` is set to ``False``. This prevents running unnecessary D
 In these scenarios, the ``logical_date`` in the ``run_id`` are based on how how the timetable handles the data
 interval.
 
-You can change the default ``catchup`` behavior using the Airflow config scheduler.catchup_by_default.
+You can change the default ``catchup`` behavior using the Airflow config ``[scheduler] catchup_by_default``.
 
 See :ref:`dag-catchup` for more information about how DAG runs are triggered when using ``catchup``.
 
