@@ -25,7 +25,7 @@ from airflow.models import XCom
 from airflow.providers.google.version_compat import AIRFLOW_V_3_0_PLUS
 
 if AIRFLOW_V_3_0_PLUS:
-    from airflow.sdk.definitions.baseoperatorlink import BaseOperatorLink
+    from airflow.sdk import BaseOperatorLink
 else:
     from airflow.models.baseoperatorlink import BaseOperatorLink  # type: ignore[no-redef]
 

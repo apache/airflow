@@ -27,7 +27,7 @@ if TYPE_CHECKING:
     from airflow.models.taskinstancekey import TaskInstanceKey
 
 if AIRFLOW_V_3_0_PLUS:
-    from airflow.sdk.definitions.baseoperatorlink import BaseOperatorLink
+    from airflow.sdk import BaseOperatorLink
 else:
     from airflow.models.baseoperatorlink import BaseOperatorLink  # type: ignore[no-redef]
 
