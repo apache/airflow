@@ -51,7 +51,7 @@ class TestClearTasks:
         db.clear_db_runs()
 
     def test_clear_task_instances(self, dag_maker):
-        # Explicitly needs catchup as True as test is creating hitory runs
+        # Explicitly needs catchup as True as test is creating history runs
         with dag_maker(
             "test_clear_task_instances",
             start_date=DEFAULT_DATE,
@@ -156,7 +156,7 @@ class TestClearTasks:
         And that DR.last_scheduling_decision is handled OK.
         start_date is also set to None
         """
-        # Explicitly needs catchup as True as test is creating hitory runs
+        # Explicitly needs catchup as True as test is creating history runs
         with dag_maker(
             "test_clear_task_instances",
             start_date=DEFAULT_DATE,
@@ -198,7 +198,7 @@ class TestClearTasks:
         """Test that DagRun state, start_date and last_scheduling_decision
         are not changed after clearing TI in an unfinished DagRun.
         """
-        # Explicitly needs catchup as True as test is creating hitory runs
+        # Explicitly needs catchup as True as test is creating history runs
         with dag_maker(
             "test_clear_task_instances",
             start_date=DEFAULT_DATE,
@@ -248,7 +248,7 @@ class TestClearTasks:
         """Test that DagRun state, start_date and last_scheduling_decision
         are changed after clearing TI in a finished DagRun.
         """
-        # Explicitly needs catchup as True as test is creating hitory runs
+        # Explicitly needs catchup as True as test is creating history runs
         with dag_maker(
             "test_clear_task_instances",
             start_date=DEFAULT_DATE,
@@ -283,7 +283,7 @@ class TestClearTasks:
         assert dr.last_scheduling_decision is None
 
     def test_clear_task_instances_without_task(self, dag_maker):
-        # Explicitly needs catchup as True as test is creating hitory runs
+        # Explicitly needs catchup as True as test is creating history runs
         with dag_maker(
             "test_clear_task_instances_without_task",
             start_date=DEFAULT_DATE,
@@ -336,7 +336,7 @@ class TestClearTasks:
 
     def test_clear_task_instances_without_dag(self, dag_maker):
         # Don't write DAG to the database, so no DAG is found by clear_task_instances().
-        # Explicitly needs catchup as True as test is creating hitory runs
+        # Explicitly needs catchup as True as test is creating history runs
         with dag_maker(
             "test_clear_task_instances_without_dag",
             start_date=DEFAULT_DATE,
@@ -383,7 +383,7 @@ class TestClearTasks:
         assert ti1.max_tries == 2
 
     def test_clear_task_instances_without_dag_param(self, dag_maker, session):
-        # Explicitly needs catchup as True as test is creating hitory runs
+        # Explicitly needs catchup as True as test is creating history runs
         with dag_maker(
             "test_clear_task_instances_without_dag_param",
             start_date=DEFAULT_DATE,
@@ -432,7 +432,7 @@ class TestClearTasks:
         assert ti1.max_tries == 3
 
     def test_clear_task_instances_in_multiple_dags(self, dag_maker, session):
-        # Explicitly needs catchup as True as test is creating hitory runs
+        # Explicitly needs catchup as True as test is creating history runs
         with dag_maker(
             "test_clear_task_instances_in_multiple_dags0",
             start_date=DEFAULT_DATE,
@@ -447,7 +447,7 @@ class TestClearTasks:
             run_type=DagRunType.SCHEDULED,
         )
 
-        # Explicitly needs catchup as True as test is creating hitory runs
+        # Explicitly needs catchup as True as test is creating history runs
         with dag_maker(
             "test_clear_task_instances_in_multiple_dags1",
             start_date=DEFAULT_DATE,
@@ -494,7 +494,7 @@ class TestClearTasks:
     def test_clear_task_instances_with_task_reschedule(self, dag_maker):
         """Test that TaskReschedules are deleted correctly when TaskInstances are cleared"""
 
-        # Explicitly needs catchup as True as test is creating hitory runs
+        # Explicitly needs catchup as True as test is creating history runs
         with dag_maker(
             "test_clear_task_instances_with_task_reschedule",
             start_date=DEFAULT_DATE,
@@ -572,7 +572,7 @@ class TestClearTasks:
     def test_task_instance_history_record(self, state, state_recorded, dag_maker):
         """Test that task instance history record is created with approapriate state"""
 
-        # Explicitly needs catchup as True as test is creating hitory runs
+        # Explicitly needs catchup as True as test is creating history runs
         with dag_maker(
             "test_clear_task_instances",
             start_date=DEFAULT_DATE,
@@ -600,7 +600,7 @@ class TestClearTasks:
         assert [ti_history[0], ti_history[1]] == [str(state_recorded), str(state_recorded)]
 
     def test_dag_clear(self, dag_maker):
-        # Explicitly needs catchup as True as test is creating hitory runs
+        # Explicitly needs catchup as True as test is creating history runs
         with dag_maker(
             "test_dag_clear",
             start_date=DEFAULT_DATE,
@@ -733,7 +733,7 @@ class TestClearTasks:
                 assert ti.max_tries == 1
 
     def test_operator_clear(self, dag_maker, session):
-        # Explicitly needs catchup as True as test is creating hitory runs
+        # Explicitly needs catchup as True as test is creating history runs
         with dag_maker(
             "test_operator_clear",
             start_date=DEFAULT_DATE,
