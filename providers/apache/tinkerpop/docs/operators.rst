@@ -16,7 +16,7 @@
     under the License.
 
 
-Apache Tinkerpop Operators
+Apache TinkerPop Operators
 ==========================
 
 .. _howto/operator:`GremlinOperator`:

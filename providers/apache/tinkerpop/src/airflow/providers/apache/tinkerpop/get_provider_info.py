@@ -24,14 +24,14 @@
 def get_provider_info():
     return {
         "package-name": "apache-airflow-providers-apache-tinkerpop",
-        "name": "Apache Tinkerpop",
+        "name": "Apache TinkerPop",
         "description": "`Gremlin <https://tinkerpop.apache.org/gremlin.html>`__\nprovides hooks to interact with Graph DB using the Gremlin API.\n",
         "state": "ready",
         "source-date-epoch": 1686592800,
         "versions": ["0.0.1"],
         "integrations": [
             {
-                "integration-name": "Apache Tinkerpop",
+                "integration-name": "Apache TinkerPop",
                 "external-doc-url": "https://tinkerpop.apache.org/gremlin.html",
                 "how-to-guide": ["/docs/apache-airflow-providers-apache-tinkerpop/operators.rst"],
                 "tags": ["apache"],
@@ -39,13 +39,13 @@ def get_provider_info():
         ],
         "operators": [
             {
-                "integration-name": "Apache Tinkerpop",
+                "integration-name": "Apache TinkerPop",
                 "python-modules": ["airflow.providers.apache.tinkerpop.operators.gremlin"],
             }
         ],
         "hooks": [
             {
-                "integration-name": "Apache Tinkerpop",
+                "integration-name": "Apache TinkerPop",
                 "python-modules": ["airflow.providers.apache.tinkerpop.hooks.gremlin"],
             }
         ],
@@ -56,4 +56,5 @@ def get_provider_info():
             }
         ],
         "dependencies": ["apache-airflow>=2.10.3", "gremlinpython>=3.4.8", "nest-asyncio>=1.5.6"],
+        "devel-dependencies": [],
     }

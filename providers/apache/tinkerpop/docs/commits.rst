@@ -24,7 +24,7 @@
  .. THE REMAINDER OF THE FILE IS AUTOMATICALLY GENERATED. IT WILL BE OVERWRITTEN!
 
 Package apache-airflow-providers-apache-tinkerpop
-------------------------------------------------------
+-------------------------------------------------
 
 `Gremlin <https://tinkerpop.apache.org/gremlin.html>`__
 provides hooks to interact with Graph DB using the Gremlin API.
