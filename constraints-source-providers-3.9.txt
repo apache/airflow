@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2025-03-06T02:39:32.875672
+# This constraints file was automatically generated on 2025-03-06T08:14:58.588755
 # via "eager-upgrade" mechanism of PIP. For the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version of both
 # 'apache-airflow' package and all available community provider packages.
@@ -136,6 +136,7 @@ cattrs==24.1.2
 celery==5.4.0
 certifi==2025.1.31
 cffi==1.17.1
+cfgv==3.4.0
 cfn-lint==1.28.0
 cgroupspy==0.2.3
 chardet==5.2.0
@@ -169,8 +170,9 @@ decorator==5.2.1
 deepdiff==8.3.0
 defusedxml==0.7.1
 deltalake==0.25.4
-diagrams==0.24.1
+diagrams==0.24.3
 dill==0.3.1.1
+distlib==0.3.9
 distro==1.9.0
 dnspython==2.7.0
 docker==7.1.0
@@ -290,6 +292,7 @@ hvac==2.3.0
 hyperframe==6.1.0
 icdiff==2.0.7
 id==1.5.0
+identify==2.6.8
 idna==3.10
 ijson==3.3.0
 imagesize==1.4.1
@@ -331,7 +334,7 @@ kerberos==1.3.1
 keyring==25.6.0
 kgb==7.2
 kombu==5.4.2
-krb5==0.7.0
+krb5==0.7.1
 kubernetes==31.0.0
 kubernetes_asyncio==30.3.1
 kylinpy==2.8.4
@@ -384,6 +387,7 @@ neo4j==5.28.1
 nest-asyncio==1.6.0
 networkx==3.2.1
 nh3==0.2.21
+nodeenv==1.9.1
 numpy==1.26.4
 oauthlib==3.2.2
 objsize==0.7.1
@@ -435,6 +439,7 @@ ply==3.11
 plyvel==1.5.1
 portalocker==2.10.1
 pprintpp==0.4.0
+pre_commit==4.1.0
 presto-python-client==0.8.4
 prison==0.2.1
 prometheus_client==0.21.1
@@ -641,6 +646,7 @@ uvloop==0.21.0
 validators==0.34.0
 vertica-python==1.4.0
 vine==5.1.0
+virtualenv==20.29.2
 watchfiles==1.0.4
 watchtower==3.4.0
 wcwidth==0.2.13
