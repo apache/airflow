@@ -96,7 +96,7 @@ class BaseAuthManager(Generic[T], LoggingMixin):
             raise e
 
     def get_jwt_token(
-        self, user: T, expiration_time_in_seconds: int = conf.getint("api", "auth_jwt_expiration_time")
+        self, user: T, *, expiration_time_in_seconds: int = conf.getint("api", "auth_jwt_expiration_time")
     ) -> str:
         """Return the JWT token from a user object."""
         return self._get_token_signer(
@@ -221,7 +221,7 @@ class BaseAuthManager(Generic[T], LoggingMixin):
         """
 
     @abstractmethod
-    def is_authorized_custom_view(self, *, method: ResourceMethod | str, resource_name: str, user: T):
+    def is_authorized_custom_view(self, *, method: ResourceMethod | str, resource_name: str, user: T) -> bool:
         """
         Return whether the user is authorized to perform a given action on a custom view.
 
@@ -354,7 +354,7 @@ class BaseAuthManager(Generic[T], LoggingMixin):
         dag_ids: set[str],
         user: T,
         methods: Container[ResourceMethod] | None = None,
-    ):
+    ) -> set[str]:
         """
         Filter readable or writable DAGs for user.
 

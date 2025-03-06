@@ -195,7 +195,7 @@ class AwsAuthManager(BaseAuthManager[AwsAuthManagerUser]):
 
     def is_authorized_custom_view(
         self, *, method: ResourceMethod | str, resource_name: str, user: AwsAuthManagerUser
-    ):
+    ) -> bool:
         return self.avp_facade.is_authorized(
             method=method,
             entity_type=AvpEntities.CUSTOM,

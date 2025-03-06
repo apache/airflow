@@ -344,7 +344,9 @@ class FabAuthManager(BaseAuthManager[User]):
             method=method, resource_type=_MAP_ACCESS_VIEW_TO_FAB_RESOURCE_TYPE[access_view], user=user
         )
 
-    def is_authorized_custom_view(self, *, method: ResourceMethod | str, resource_name: str, user: User):
+    def is_authorized_custom_view(
+        self, *, method: ResourceMethod | str, resource_name: str, user: User
+    ) -> bool:
         fab_action_name = get_fab_action_from_method_map().get(method, method)
         return (fab_action_name, resource_name) in self._get_user_permissions(user)
 
