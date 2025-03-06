@@ -3844,7 +3844,7 @@ class TaskInstanceNote(Base):
             if self.task_instance.map_index != -1:
                 prefix += f" map_index={self.task_instance.map_index}"
             return prefix + ">"
-        return f"<{self.__class__.__name__}: {self.id}>"
+        return f"<{self.__class__.__name__}: {self.ti_id}>"
 
 
 STATICA_HACK = True
