@@ -27,7 +27,7 @@ def get_provider_info():
         "name": "OpenSearch",
         "description": "`OpenSearch <https://opensearch.org/>`__\n",
         "state": "ready",
-        "source-date-epoch": 1739964036,
+        "source-date-epoch": 1741121914,
         "versions": [
             "1.6.1",
             "1.6.0",
@@ -218,4 +218,5 @@ def get_provider_info():
             },
         },
         "dependencies": ["apache-airflow>=2.9.0", "opensearch-py>=2.2.0"],
+        "devel-dependencies": [],
     }

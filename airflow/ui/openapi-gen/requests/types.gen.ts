@@ -540,6 +540,10 @@ export type DAGDetailsResponse = {
    * Return max_active_tasks as concurrency.
    */
   readonly concurrency: number;
+  /**
+   * Return the latest DagVersion.
+   */
+  readonly latest_dag_version: DagVersionResponse | null;
 };
 
 /**
@@ -626,12 +630,12 @@ export type DAGRunResponse = {
   last_scheduling_decision: string | null;
   run_type: DagRunType;
   state: DagRunState;
-  external_trigger: boolean;
   triggered_by: DagRunTriggeredByType;
   conf: {
     [key: string]: unknown;
   };
   note: string | null;
+  dag_versions: Array<DagVersionResponse>;
 };
 
 /**
@@ -1213,6 +1217,15 @@ export type StructureDataResponse = {
 export type arrange = "BT" | "LR" | "RL" | "TB";
 
 /**
+ * An individual log message.
+ */
+export type StructuredLogMessage = {
+  timestamp?: string;
+  event: string;
+  [key: string]: unknown | string;
+};
+
+/**
  * Task collection serializer for responses.
  */
 export type TaskCollectionResponse = {
@@ -1389,7 +1402,7 @@ export type TaskInstancesBatchBody = {
  * Log serializer for responses.
  */
 export type TaskInstancesLogResponse = {
-  content: string;
+  content: Array<StructuredLogMessage> | Array<string>;
   continuation_token: string | null;
 };
 
@@ -1857,6 +1870,7 @@ export type PatchConnectionData = {
 export type PatchConnectionResponse = ConnectionResponse;
 
 export type GetConnectionsData = {
+  connectionIdPattern?: string | null;
   limit?: number;
   offset?: number;
   orderBy?: string;
@@ -2059,6 +2073,7 @@ export type GetDagTagsData = {
 export type GetDagTagsResponse = DAGTagCollectionResponse;
 
 export type GetEventLogData = {
+  dagId?: string | null;
   eventLogId: number;
 };
 
@@ -2483,6 +2498,13 @@ export type ReparseDagFileData = {
 };
 
 export type ReparseDagFileResponse = null;
+
+export type GetDagVersionData = {
+  dagId: string;
+  versionNumber: number;
+};
+
+export type GetDagVersionResponse = DagVersionResponse;
 
 export type GetDagVersionsData = {
   bundleName?: string;
@@ -5181,6 +5203,33 @@ export type $OpenApiTs = {
          * Successful Response
          */
         201: null;
+        /**
+         * Unauthorized
+         */
+        401: HTTPExceptionResponse;
+        /**
+         * Forbidden
+         */
+        403: HTTPExceptionResponse;
+        /**
+         * Not Found
+         */
+        404: HTTPExceptionResponse;
+        /**
+         * Validation Error
+         */
+        422: HTTPValidationError;
+      };
+    };
+  };
+  "/public/dags/{dag_id}/dagVersions/{version_number}": {
+    get: {
+      req: GetDagVersionData;
+      res: {
+        /**
+         * Successful Response
+         */
+        200: DagVersionResponse;
         /**
          * Unauthorized
          */

@@ -33,6 +33,7 @@ type Props = {
   readonly defaultValue: string;
   readonly groupProps?: InputGroupProps;
   readonly hideAdvanced?: boolean;
+  readonly hotkeyDisabled?: boolean;
   readonly onChange: (value: string) => void;
   readonly placeHolder: string;
 };
@@ -42,6 +43,7 @@ export const SearchBar = ({
   defaultValue,
   groupProps,
   hideAdvanced = false,
+  hotkeyDisabled = false,
   onChange,
   placeHolder,
 }: Props) => {
@@ -60,7 +62,7 @@ export const SearchBar = ({
     () => {
       searchRef.current?.focus();
     },
-    { preventDefault: true },
+    { enabled: !hotkeyDisabled, preventDefault: true },
   );
 
   return (
@@ -86,7 +88,7 @@ export const SearchBar = ({
               Advanced Search
             </Button>
           )}
-          <Kbd size="sm">{metaKey}+K</Kbd>
+          {!hotkeyDisabled && <Kbd size="sm">{metaKey}+K</Kbd>}
         </>
       }
       startElement={<FiSearch />}

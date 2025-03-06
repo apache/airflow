@@ -27,7 +27,7 @@ def get_provider_info():
         "name": "Hashicorp",
         "description": "Hashicorp including `Hashicorp Vault <https://www.vaultproject.io/>`__\n",
         "state": "ready",
-        "source-date-epoch": 1734534790,
+        "source-date-epoch": 1741121884,
         "versions": [
             "4.0.0",
             "3.8.0",
@@ -83,4 +83,5 @@ def get_provider_info():
         "secrets-backends": ["airflow.providers.hashicorp.secrets.vault.VaultBackend"],
         "dependencies": ["apache-airflow>=2.9.0", "hvac>=1.1.0"],
         "optional-dependencies": {"boto3": ["boto3>=1.33.0"], "google": ["apache-airflow-providers-google"]},
+        "devel-dependencies": [],
     }

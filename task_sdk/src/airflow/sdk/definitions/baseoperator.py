@@ -27,12 +27,14 @@ import warnings
 from collections.abc import Callable, Collection, Iterable, Sequence
 from dataclasses import dataclass, field
 from datetime import datetime, timedelta
+from enum import Enum
 from functools import total_ordering, wraps
 from types import FunctionType
-from typing import TYPE_CHECKING, Any, ClassVar, Final, TypeVar, cast
+from typing import TYPE_CHECKING, Any, ClassVar, Final, NoReturn, TypeVar, cast
 
 import attrs
 
+from airflow.exceptions import RemovedInAirflow4Warning
 from airflow.sdk.definitions._internal.abstractoperator import (
     DEFAULT_IGNORE_FIRST_DEPENDS_ON_PAST,
     DEFAULT_OWNER,
@@ -77,11 +79,38 @@ if TYPE_CHECKING:
     from airflow.sdk.definitions.taskgroup import TaskGroup
     from airflow.serialization.enums import DagAttributeTypes
     from airflow.task.priority_strategy import PriorityWeightStrategy
+    from airflow.triggers.base import BaseTrigger
     from airflow.typing_compat import Self
     from airflow.utils.operator_resources import Resources
 
+__all__ = [
+    "BaseOperator",
+]
+
 # TODO: Task-SDK
 AirflowException = RuntimeError
+
+
+class TriggerFailureReason(str, Enum):
+    """
+    Reasons for trigger failures.
+
+    Internal use only.
+
+    :meta private:
+    """
+
+    TRIGGER_TIMEOUT = "Trigger timeout"
+    TRIGGER_FAILURE = "Trigger failure"
+
+
+TRIGGER_FAIL_REPR = "__fail__"
+"""String value to represent trigger failure.
+
+Internal use only.
+
+:meta private:
+"""
 
 
 def _get_parent_defaults(dag: DAG | None, task_group: TaskGroup | None) -> tuple[dict, ParamsDict]:
@@ -504,11 +533,11 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
         (e.g. user/person/team/role name) to clarify ownership is recommended.
     :param email: the 'to' email address(es) used in email alerts. This can be a
         single email or multiple ones. Multiple addresses can be specified as a
-        comma or semicolon separated string or by passing a list of strings.
+        comma or semicolon separated string or by passing a list of strings. (deprecated)
     :param email_on_retry: Indicates whether email alerts should be sent when a
-        task is retried
+        task is retried (deprecated)
     :param email_on_failure: Indicates whether email alerts should be sent when
-        a task failed
+        a task failed (deprecated)
     :param retries: the number of retries that should be performed before
         failing the task
     :param retry_delay: delay between retries, can be set as ``timedelta`` or
@@ -927,6 +956,25 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
         self.email = email
         self.email_on_retry = email_on_retry
         self.email_on_failure = email_on_failure
+
+        if email is not None:
+            warnings.warn(
+                "email is deprecated please migrate to SmtpNotifier`.",
+                RemovedInAirflow4Warning,
+                stacklevel=2,
+            )
+        if email and email_on_retry is not None:
+            warnings.warn(
+                "email_on_retry is deprecated please migrate to SmtpNotifier`.",
+                RemovedInAirflow4Warning,
+                stacklevel=2,
+            )
+        if email and email_on_failure is not None:
+            warnings.warn(
+                "email_on_failure is deprecated please migrate to SmtpNotifier`.",
+                RemovedInAirflow4Warning,
+                stacklevel=2,
+            )
 
         if execution_timeout is not None and not isinstance(execution_timeout, timedelta):
             raise ValueError(
@@ -1434,3 +1482,46 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
         if not jinja_env:
             jinja_env = self.get_template_env()
         self._do_render_template_fields(self, self.template_fields, context, jinja_env, set())
+
+    def defer(
+        self,
+        *,
+        trigger: BaseTrigger,
+        method_name: str,
+        kwargs: dict[str, Any] | None = None,
+        timeout: timedelta | int | float | None = None,
+    ) -> NoReturn:
+        """
+        Mark this Operator "deferred", suspending its execution until the provided trigger fires an event.
+
+        This is achieved by raising a special exception (TaskDeferred)
+        which is caught in the main _execute_task wrapper. Triggers can send execution back to task or end
+        the task instance directly. If the trigger will end the task instance itself, ``method_name`` should
+        be None; otherwise, provide the name of the method that should be used when resuming execution in
+        the task.
+        """
+        from airflow.exceptions import TaskDeferred
+
+        raise TaskDeferred(trigger=trigger, method_name=method_name, kwargs=kwargs, timeout=timeout)
+
+    def resume_execution(self, next_method: str, next_kwargs: dict[str, Any] | None, context: Context):
+        """Entrypoint method called by the Task Runner (instead of execute) when this task is resumed."""
+        from airflow.exceptions import TaskDeferralError, TaskDeferralTimeout
+
+        if next_kwargs is None:
+            next_kwargs = {}
+        # __fail__ is a special signal value for next_method that indicates
+        # this task was scheduled specifically to fail.
+
+        if next_method == TRIGGER_FAIL_REPR:
+            next_kwargs = next_kwargs or {}
+            traceback = next_kwargs.get("traceback")
+            if traceback is not None:
+                self.log.error("Trigger failed:\n%s", "\n".join(traceback))
+            if (error := next_kwargs.get("error", "Unknown")) == TriggerFailureReason.TRIGGER_TIMEOUT:
+                raise TaskDeferralTimeout(error)
+            else:
+                raise TaskDeferralError(error)
+        # Grab the callable off the Operator/Task and add in any kwargs
+        execute_callable = getattr(self, next_method)
+        return execute_callable(context, **next_kwargs)

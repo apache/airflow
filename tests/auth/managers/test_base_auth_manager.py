@@ -29,11 +29,8 @@ from airflow.auth.managers.models.resource_details import (
     PoolDetails,
     VariableDetails,
 )
-from airflow.exceptions import AirflowException
 
 if TYPE_CHECKING:
-    from flask_appbuilder.menu import MenuItem
-
     from airflow.auth.managers.base_auth_manager import ResourceMethod
     from airflow.auth.managers.models.resource_details import (
         AccessView,
@@ -41,7 +38,6 @@ if TYPE_CHECKING:
         ConfigurationDetails,
         DagAccessEntity,
     )
-    from airflow.www.extensions.init_appbuilder import AirflowAppBuilder
 
 
 class BaseAuthManagerUserTest(BaseUser):
@@ -56,11 +52,6 @@ class BaseAuthManagerUserTest(BaseUser):
 
 
 class EmptyAuthManager(BaseAuthManager[BaseAuthManagerUserTest]):
-    appbuilder: AirflowAppBuilder | None = None
-
-    def get_user(self) -> BaseAuthManagerUserTest:
-        raise NotImplementedError()
-
     def deserialize_user(self, token: dict[str, Any]) -> BaseAuthManagerUserTest:
         raise NotImplementedError()
 
@@ -132,16 +123,7 @@ class EmptyAuthManager(BaseAuthManager[BaseAuthManagerUserTest]):
     ):
         raise NotImplementedError()
 
-    def is_logged_in(self) -> bool:
-        raise NotImplementedError()
-
     def get_url_login(self, **kwargs) -> str:
-        raise NotImplementedError()
-
-    def get_url_logout(self) -> str:
-        raise NotImplementedError()
-
-    def filter_permitted_menu_items(self, menu_items: list[MenuItem]) -> list[MenuItem]:
         raise NotImplementedError()
 
 
@@ -154,41 +136,8 @@ class TestBaseAuthManager:
     def test_get_cli_commands_return_empty_list(self, auth_manager):
         assert auth_manager.get_cli_commands() == []
 
-    def test_get_api_endpoints_return_none(self, auth_manager):
-        assert auth_manager.get_api_endpoints() is None
-
     def test_get_fastapi_app_return_none(self, auth_manager):
         assert auth_manager.get_fastapi_app() is None
-
-    def test_get_user_name(self, auth_manager):
-        user = Mock()
-        user.get_name.return_value = "test_username"
-        auth_manager.get_user = MagicMock(return_value=user)
-        result = auth_manager.get_user_name()
-        assert result == "test_username"
-
-    def test_get_user_name_when_not_logged_in(self, auth_manager):
-        auth_manager.get_user = MagicMock(return_value=None)
-        with pytest.raises(AirflowException):
-            auth_manager.get_user_name()
-
-    def test_get_user_display_name_return_user_name(self, auth_manager):
-        auth_manager.get_user_name = MagicMock(return_value="test_user")
-        assert auth_manager.get_user_display_name() == "test_user"
-
-    def test_get_user_id_return_user_id(self, auth_manager):
-        user = Mock()
-        user.get_id = MagicMock(return_value="test_user")
-        auth_manager.get_user = MagicMock(return_value=user)
-        assert auth_manager.get_user_id() == "test_user"
-
-    def test_get_user_id_raise_exception_when_no_user(self, auth_manager):
-        auth_manager.get_user = MagicMock(return_value=None)
-        with pytest.raises(AirflowException, match="The user must be signed in."):
-            auth_manager.get_user_id()
-
-    def test_get_url_user_profile_return_none(self, auth_manager):
-        assert auth_manager.get_url_user_profile() is None
 
     @patch("airflow.auth.managers.base_auth_manager.JWTSigner")
     @patch.object(EmptyAuthManager, "deserialize_user")

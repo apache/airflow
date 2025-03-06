@@ -4684,8 +4684,8 @@
                 }
             }
         },
-        "_apiServer": {
-            "description": "Airflow API server settings. Experimental / for dev purpose only.",
+        "apiServer": {
+            "description": "Airflow API server settings. Airflow 3+ only.",
             "type": "object",
             "x-docsSection": "API Server",
             "additionalProperties": false,
@@ -4853,7 +4853,7 @@
                     "default": [
                         "bash",
                         "-c",
-                        "exec airflow fastapi-api"
+                        "exec airflow api-server"
                     ]
                 },
                 "strategy": {
@@ -4957,12 +4957,12 @@
                                     },
                                     "default": [
                                         {
-                                            "port": "{{ .Values.ports._apiServer }}"
+                                            "port": "{{ .Values.ports.apiServer }}"
                                         }
                                     ],
                                     "examples": [
                                         {
-                                            "port": 9091
+                                            "port": 8080
                                         }
                                     ]
                                 }
@@ -5184,13 +5184,13 @@
                             "default": [
                                 {
                                     "name": "api-server",
-                                    "port": "{{ .Values.ports._apiServer }}"
+                                    "port": "{{ .Values.ports.apiServer }}"
                                 }
                             ],
                             "examples": [
                                 {
                                     "name": "api-server",
-                                    "port": 9091,
+                                    "port": 8080,
                                     "targetPort": "api-server"
                                 },
                                 {
@@ -5367,7 +5367,7 @@
             }
         },
         "webserver": {
-            "description": "Airflow webserver settings.",
+            "description": "Airflow webserver settings. Airflow 2 only.",
             "type": "object",
             "x-docsSection": "Webserver",
             "additionalProperties": false,
@@ -8183,10 +8183,10 @@
                     "type": "integer",
                     "default": 8080
                 },
-                "_apiServer": {
+                "apiServer": {
                     "description": "API server port.",
                     "type": "integer",
-                    "default": 9091
+                    "default": 8080
                 },
                 "workerLogs": {
                     "description": "Worker logs port.",
@@ -8356,7 +8356,7 @@
                     }
                 },
                 "resources": {
-                    "description": "Resources for or cleanup pods",
+                    "description": "Resources for cleanup pods",
                     "type": "object",
                     "$ref": "#/definitions/io.k8s.api.core.v1.ResourceRequirements",
                     "default": {},

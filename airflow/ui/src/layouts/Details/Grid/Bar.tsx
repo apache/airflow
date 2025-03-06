@@ -16,35 +16,30 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Flex, Box, VStack, Text } from "@chakra-ui/react";
+import { Flex, Box } from "@chakra-ui/react";
 import { useParams, useSearchParams } from "react-router-dom";
 
 import { RunTypeIcon } from "src/components/RunTypeIcon";
-import Time from "src/components/Time";
 
 import { GridButton } from "./GridButton";
-import { TaskInstances } from "./TaskInstances";
+import { TaskInstancesColumn } from "./TaskInstancesColumn";
 import type { GridTask, RunWithDuration } from "./utils";
 
 const BAR_HEIGHT = 100;
 
 type Props = {
-  readonly index: number;
-  readonly limit: number;
   readonly max: number;
   readonly nodes: Array<GridTask>;
   readonly run: RunWithDuration;
 };
 
-export const Bar = ({ index, limit, max, nodes, run }: Props) => {
+export const Bar = ({ max, nodes, run }: Props) => {
   const { dagId = "", runId } = useParams();
   const [searchParams] = useSearchParams();
 
   const isSelected = runId === run.dag_run_id;
 
   const search = searchParams.toString();
-
-  const shouldShowTick = index % 8 === 0 || index === limit - 1;
 
   return (
     <Box
@@ -59,11 +54,12 @@ export const Bar = ({ index, limit, max, nodes, run }: Props) => {
         justifyContent="center"
         pb="2px"
         px="5px"
-        width="14px"
+        width="18px"
         zIndex={1}
       >
         <GridButton
           alignItems="center"
+          color="white"
           dagId={dagId}
           flexDir="column"
           height={`${(run.duration / max) * BAR_HEIGHT}px`}
@@ -77,22 +73,8 @@ export const Bar = ({ index, limit, max, nodes, run }: Props) => {
         >
           {run.run_type !== "scheduled" && <RunTypeIcon runType={run.run_type} size="10px" />}
         </GridButton>
-        {shouldShowTick ? (
-          <VStack gap={0} left="8px" position="absolute" top={0} width={0} zIndex={-1}>
-            <Text
-              color="border.emphasized"
-              fontSize="xs"
-              mt="-35px !important"
-              transform="rotate(-40deg) translateX(28px)"
-              whiteSpace="nowrap"
-            >
-              <Time datetime={run.run_after} format="MMM DD, HH:mm" />
-            </Text>
-            <Box borderLeftWidth={1} height="100px" opacity={0.7} zIndex={0} />
-          </VStack>
-        ) : undefined}
       </Flex>
-      <TaskInstances nodes={nodes} runId={run.dag_run_id} taskInstances={run.task_instances} />
+      <TaskInstancesColumn nodes={nodes} runId={run.dag_run_id} taskInstances={run.task_instances} />
     </Box>
   );
 };

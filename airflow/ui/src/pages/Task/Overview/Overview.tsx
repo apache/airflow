@@ -25,8 +25,9 @@ import { useTaskInstanceServiceGetTaskInstances } from "openapi/queries";
 import { DurationChart } from "src/components/DurationChart";
 import TimeRangeSelector from "src/components/TimeRangeSelector";
 import { TrendCountButton } from "src/components/TrendCountButton";
+import { isStatePending, useAutoRefresh } from "src/utils";
 
-const defaultHour = "168";
+const defaultHour = "24";
 
 export const Overview = () => {
   const { dagId = "", taskId } = useParams();
@@ -34,6 +35,8 @@ export const Overview = () => {
   const now = dayjs();
   const [startDate, setStartDate] = useState(now.subtract(Number(defaultHour), "hour").toISOString());
   const [endDate, setEndDate] = useState(now.toISOString());
+
+  const refetchInterval = useAutoRefresh({});
 
   const { data: failedTaskInstances, isLoading: isFailedTaskInstancesLoading } =
     useTaskInstanceServiceGetTaskInstances({
@@ -46,13 +49,20 @@ export const Overview = () => {
       taskId,
     });
 
-  const { data: taskInstances, isLoading: isLoadingTaskInstances } = useTaskInstanceServiceGetTaskInstances({
-    dagId,
-    dagRunId: "~",
-    limit: 14,
-    orderBy: "-run_after",
-    taskId,
-  });
+  const { data: taskInstances, isLoading: isLoadingTaskInstances } = useTaskInstanceServiceGetTaskInstances(
+    {
+      dagId,
+      dagRunId: "~",
+      limit: 14,
+      orderBy: "-run_after",
+      taskId,
+    },
+    undefined,
+    {
+      refetchInterval: (query) =>
+        query.state.data?.task_instances.some((ti) => isStatePending(ti.state)) ? refetchInterval : false,
+    },
+  );
 
   return (
     <Box m={4}>
@@ -65,7 +75,7 @@ export const Overview = () => {
           startDate={startDate}
         />
       </Box>
-      <HStack>
+      <HStack flexWrap="wrap">
         <TrendCountButton
           colorPalette="failed"
           count={failedTaskInstances?.total_entries ?? 0}
@@ -83,7 +93,7 @@ export const Overview = () => {
         />
       </HStack>
       <SimpleGrid columns={3} gap={5} my={5}>
-        <Box borderRadius={4} borderStyle="solid" borderWidth={1} p={2}>
+        <Box borderRadius={4} borderStyle="solid" borderWidth={1} p={2} width="350px">
           {isLoadingTaskInstances ? (
             <Skeleton height="200px" w="full" />
           ) : (

@@ -27,7 +27,7 @@ def get_provider_info():
         "name": "Google",
         "description": "Google services including:\n\n  - `Google Ads <https://ads.google.com/>`__\n  - `Google Cloud (GCP) <https://cloud.google.com/>`__\n  - `Google Firebase <https://firebase.google.com/>`__\n  - `Google LevelDB <https://github.com/google/leveldb/>`__\n  - `Google Marketing Platform <https://marketingplatform.google.com/>`__\n  - `Google Workspace <https://workspace.google.com/>`__ (formerly Google Suite)\n",
         "state": "ready",
-        "source-date-epoch": 1739963477,
+        "source-date-epoch": 1741121879,
         "versions": [
             "14.0.0",
             "12.0.0",
@@ -1570,6 +1570,7 @@ def get_provider_info():
             "airflow.providers.google.cloud.links.managed_kafka.ApacheKafkaClusterLink",
             "airflow.providers.google.cloud.links.managed_kafka.ApacheKafkaClusterListLink",
             "airflow.providers.google.cloud.links.managed_kafka.ApacheKafkaTopicLink",
+            "airflow.providers.google.cloud.links.managed_kafka.ApacheKafkaConsumerGroupLink",
         ],
         "secrets-backends": [
             "airflow.providers.google.cloud.secrets.secret_manager.CloudSecretManagerBackend"
@@ -1671,4 +1672,5 @@ def get_provider_info():
             "ssh": ["apache-airflow-providers-ssh"],
             "trino": ["apache-airflow-providers-trino"],
         },
+        "devel-dependencies": [],
     }

@@ -26,7 +26,6 @@ from typing import TYPE_CHECKING, Any, Callable, NamedTuple, TypeVar, overload
 import re2
 from sqlalchemy import (
     JSON,
-    Boolean,
     Column,
     Enum,
     ForeignKey,
@@ -141,7 +140,6 @@ class DagRun(Base, LoggingMixin):
     _state = Column("state", String(50), default=DagRunState.QUEUED)
     run_id = Column(StringID(), nullable=False)
     creating_job_id = Column(Integer)
-    external_trigger = Column(Boolean, default=True)
     run_type = Column(String(50), nullable=False)
     triggered_by = Column(
         Enum(DagRunTriggeredByType, native_enum=False, length=50)
@@ -252,7 +250,6 @@ class DagRun(Base, LoggingMixin):
         logical_date: datetime | None = None,
         run_after: datetime | None = None,
         start_date: datetime | None = None,
-        external_trigger: bool | None = None,
         conf: Any | None = None,
         state: DagRunState | None = None,
         run_type: str | None = None,
@@ -277,7 +274,6 @@ class DagRun(Base, LoggingMixin):
         self.logical_date = logical_date
         self.run_after = run_after
         self.start_date = start_date
-        self.external_trigger = external_trigger
         self.conf = conf or {}
         if state is not None:
             self.state = state
@@ -295,7 +291,7 @@ class DagRun(Base, LoggingMixin):
     def __repr__(self):
         return (
             f"<DagRun {self.dag_id} @ {self.logical_date}: {self.run_id}, state:{self.state}, "
-            f"queued_at: {self.queued_at}. externally triggered: {self.external_trigger}>"
+            f"queued_at: {self.queued_at}. run_type: {self.run_type}>"
         )
 
     @validates("run_id")
@@ -314,7 +310,11 @@ class DagRun(Base, LoggingMixin):
     @property
     def dag_versions(self) -> list[DagVersion]:
         """Return the DAG versions associated with the TIs of this DagRun."""
-        dag_versions = list(dict.fromkeys(list(self._tih_dag_versions) + list(self._ti_dag_versions)))
+        dag_versions = [
+            dv
+            for dv in dict.fromkeys(list(self._tih_dag_versions) + list(self._ti_dag_versions))
+            if dv is not None
+        ]
         sorted_ = sorted(dag_versions, key=lambda dv: dv.id)
         return sorted_
 
@@ -592,7 +592,6 @@ class DagRun(Base, LoggingMixin):
         run_id: Iterable[str] | None = None,
         logical_date: datetime | Iterable[datetime] | None = None,
         state: DagRunState | None = None,
-        external_trigger: bool | None = None,
         no_backfills: bool = False,
         run_type: DagRunType | None = None,
         session: Session = NEW_SESSION,
@@ -607,7 +606,6 @@ class DagRun(Base, LoggingMixin):
         :param run_type: type of DagRun
         :param logical_date: the logical date
         :param state: the state of the dag run
-        :param external_trigger: whether this dag run is externally triggered
         :param no_backfills: return no backfills (True), return all (False).
             Defaults to False
         :param session: database session
@@ -635,8 +633,6 @@ class DagRun(Base, LoggingMixin):
             qry = qry.where(cls.logical_date <= logical_end_date)
         if state:
             qry = qry.where(cls.state == state)
-        if external_trigger is not None:
-            qry = qry.where(cls.external_trigger == external_trigger)
         if run_type:
             qry = qry.where(cls.run_type == run_type)
         if no_backfills:
@@ -863,6 +859,8 @@ class DagRun(Base, LoggingMixin):
         :param session: SQLAlchemy ORM Session
         """
         dag_run = session.get(DagRun, dag_run_id)
+        if not dag_run.logical_date:
+            return None
         return session.scalar(
             select(DagRun)
             .where(
@@ -1037,7 +1035,7 @@ class DagRun(Base, LoggingMixin):
             msg = (
                 "DagRun Finished: dag_id=%s, logical_date=%s, run_id=%s, "
                 "run_start_date=%s, run_end_date=%s, run_duration=%s, "
-                "state=%s, external_trigger=%s, run_type=%s, "
+                "state=%s, run_type=%s, "
                 "data_interval_start=%s, data_interval_end=%s,"
             )
             self.log.info(
@@ -1053,7 +1051,6 @@ class DagRun(Base, LoggingMixin):
                     else None
                 ),
                 self._state,
-                self.external_trigger,
                 self.run_type,
                 self.data_interval_start,
                 self.data_interval_end,
@@ -1087,7 +1084,6 @@ class DagRun(Base, LoggingMixin):
                 if self.start_date and self.end_date
                 else 0,
                 "state": str(self._state),
-                "external_trigger": self.external_trigger,
                 "run_type": str(self.run_type),
                 "data_interval_start": str(self.data_interval_start),
                 "data_interval_end": str(self.data_interval_end),
@@ -1291,11 +1287,11 @@ class DagRun(Base, LoggingMixin):
         rid of the outliers on the stats side through dashboards tooling.
 
         Note that the stat will only be emitted for scheduler-triggered DAG runs
-        (i.e. when ``external_trigger`` is *False* and ``clear_number`` is equal to 0).
+        (i.e. when ``run_type`` is *SCHEDULED* and ``clear_number`` is equal to 0).
         """
         if self.state == TaskInstanceState.RUNNING:
             return
-        if self.external_trigger:
+        if self.run_type != DagRunType.SCHEDULED:
             return
         if self.clear_number > 0:
             return

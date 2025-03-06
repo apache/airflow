@@ -26,7 +26,6 @@ from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
 from fastapi import FastAPI
-from flask import session
 from starlette.requests import Request
 from starlette.responses import HTMLResponse
 from starlette.staticfiles import StaticFiles
@@ -39,8 +38,6 @@ from airflow.configuration import AIRFLOW_HOME, conf
 from airflow.settings import AIRFLOW_PATH
 
 if TYPE_CHECKING:
-    from flask_appbuilder.menu import MenuItem
-
     from airflow.auth.managers.base_auth_manager import ResourceMethod
     from airflow.auth.managers.models.resource_details import (
         AccessView,
@@ -86,10 +83,10 @@ class SimpleAuthManager(BaseAuthManager[SimpleAuthManagerUser]):
 
     @staticmethod
     def get_generated_password_file() -> str:
-        return os.path.join(
-            os.getenv("AIRFLOW_AUTH_MANAGER_CREDENTIAL_DIRECTORY", AIRFLOW_HOME),
-            "simple_auth_manager_passwords.json.generated",
-        )
+        if configured_file := conf.get("core", "simple_auth_manager_passwords_file", fallback=None):
+            return configured_file
+
+        return os.path.join(AIRFLOW_HOME, "simple_auth_manager_passwords.json.generated")
 
     @staticmethod
     def get_users() -> list[dict[str, str]]:
@@ -127,26 +124,9 @@ class SimpleAuthManager(BaseAuthManager[SimpleAuthManagerUser]):
         with open(self.get_generated_password_file(), "w") as file:
             file.write(json.dumps(passwords))
 
-    def is_logged_in(self) -> bool:
-        # Remove this method when legacy UI is removed
-        return "user" in session or conf.getboolean("core", "simple_auth_manager_all_admins")
-
     def get_url_login(self, **kwargs) -> str:
         """Return the login page url."""
         return "/auth/webapp/login"
-
-    def get_url_logout(self) -> str:
-        # Remove this method when legacy UI is removed
-        raise NotImplementedError()
-
-    def get_user(self) -> SimpleAuthManagerUser | None:
-        # Remove this method when legacy UI is removed
-        if not self.is_logged_in():
-            return None
-        if conf.getboolean("core", "simple_auth_manager_all_admins"):
-            return SimpleAuthManagerUser(username="anonymous", role="admin")
-        else:
-            return session["user"]
 
     def deserialize_user(self, token: dict[str, Any]) -> SimpleAuthManagerUser:
         return SimpleAuthManagerUser(username=token["username"], role=token["role"])
@@ -231,9 +211,6 @@ class SimpleAuthManager(BaseAuthManager[SimpleAuthManagerUser]):
         self, *, method: ResourceMethod | str, resource_name: str, user: SimpleAuthManagerUser
     ):
         return self._is_authorized(method="GET", allow_role=SimpleAuthManagerRole.VIEWER, user=user)
-
-    def filter_permitted_menu_items(self, menu_items: list[MenuItem]) -> list[MenuItem]:
-        return menu_items
 
     def get_fastapi_app(self) -> FastAPI | None:
         """

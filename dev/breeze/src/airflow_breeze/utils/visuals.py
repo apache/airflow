@@ -21,13 +21,12 @@ Visuals displayed to the user when entering Breeze shell.
 from __future__ import annotations
 
 from airflow_breeze.global_constants import (
-    FASTAPI_API_HOST_PORT,
     FLOWER_HOST_PORT,
     MYSQL_HOST_PORT,
     POSTGRES_HOST_PORT,
     REDIS_HOST_PORT,
     SSH_PORT,
-    WEBSERVER_HOST_PORT,
+    WEB_HOST_PORT,
 )
 from airflow_breeze.utils.path_utils import AIRFLOW_SOURCES_ROOT
 
@@ -82,8 +81,7 @@ CHEATSHEET = f"""
 
         Ports are forwarded to the running docker containers for webserver and database
           * {SSH_PORT} -> forwarded to Airflow ssh server -> airflow:22
-          * {WEBSERVER_HOST_PORT} -> forwarded to Airflow webserver -> airflow:8080
-          * {FASTAPI_API_HOST_PORT} -> forwarded to Airflow FastAPI API -> airflow:9091
+          * {WEB_HOST_PORT} -> forwarded to Airflow api server (Airflow 3) or webserver (Airflow 2) -> airflow:8080
           * {FLOWER_HOST_PORT} -> forwarded to Flower dashboard -> airflow:5555
           * {POSTGRES_HOST_PORT} -> forwarded to Postgres database -> postgres:5432
           * {MYSQL_HOST_PORT} -> forwarded to MySQL database  -> mysql:3306
@@ -92,8 +90,7 @@ CHEATSHEET = f"""
         Direct links to those services that you can use from the host:
 
           * ssh connection for remote debugging: ssh -p {SSH_PORT} airflow@127.0.0.1 (password: airflow)
-          * Webserver: http://127.0.0.1:{WEBSERVER_HOST_PORT}
-          * FastAPI API:    http://127.0.0.1:{FASTAPI_API_HOST_PORT}
+          * API server or webserver:    http://127.0.0.1:{WEB_HOST_PORT}
           * Flower:    http://127.0.0.1:{FLOWER_HOST_PORT}
           * Postgres:  jdbc:postgresql://127.0.0.1:{POSTGRES_HOST_PORT}/airflow?user=postgres&password=airflow
           * Mysql:     jdbc:mysql://127.0.0.1:{MYSQL_HOST_PORT}/airflow?user=root
@@ -121,18 +118,18 @@ CHEATSHEET = f"""
           `{AIRFLOW_SOURCES_ROOT}/files` folder
           and they will be visible in `/files/` folder inside the container.
 
-        [info]* Other options[/]
+    [info]* Other options[/]
 
-        Check out `--help` for `breeze` command. It will show you other options, such as running
-        integration or starting complete Airflow using `start-airflow` command as well as ways
-        of cleaning up the installation.
+    Check out `--help` for `breeze` command. It will show you other options, such as running
+    integration or starting complete Airflow using `start-airflow` command as well as ways
+    of cleaning up the installation.
 
-        Make sure to run `setup-autocomplete` to get the commands and options auto-completable
-        in your shell.
+    Make sure to run `setup-autocomplete` to get the commands and options auto-completable
+    in your shell.
 
-        You can disable this cheatsheet by running:
+    You can disable this cheatsheet by running:
 
-            breeze setup config --no-cheatsheet
+        breeze setup config --no-cheatsheet
 
 """
 CHEATSHEET_STYLE = "white"

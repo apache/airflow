@@ -27,7 +27,7 @@ def get_provider_info():
         "name": "Oracle",
         "description": "`Oracle <https://www.oracle.com/en/database/>`__\n",
         "state": "ready",
-        "source-date-epoch": 1739964067,
+        "source-date-epoch": 1741121917,
         "versions": [
             "4.0.1",
             "4.0.0",
@@ -99,4 +99,5 @@ def get_provider_info():
             "oracledb>=2.0.0",
         ],
         "optional-dependencies": {"numpy": ["numpy>=1.26.0"]},
+        "devel-dependencies": [],
     }

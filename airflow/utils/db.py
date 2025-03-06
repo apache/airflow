@@ -94,7 +94,7 @@ _REVISION_HEADS_MAP: dict[str, str] = {
     "2.9.2": "686269002441",
     "2.10.0": "22ed7efa9da2",
     "2.10.3": "5f2621c13b39",
-    "3.0.0": "6a9e7a527a88",
+    "3.0.0": "7645189f3479",
 }
 
 
@@ -735,7 +735,7 @@ def _get_flask_db(sql_database_uri):
     from flask import Flask
     from flask_sqlalchemy import SQLAlchemy
 
-    from airflow.www.session import AirflowDatabaseSessionInterface
+    from airflow.providers.fab.www.session import AirflowDatabaseSessionInterface
 
     flask_app = Flask(__name__)
     flask_app.config["SQLALCHEMY_DATABASE_URI"] = sql_database_uri

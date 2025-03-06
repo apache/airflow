@@ -2110,57 +2110,6 @@ class TestSchedulerJob:
         # Second executor called for ti3
         mock_executors[1].try_adopt_task_instances.assert_called_once_with([ti3])
 
-    def test_handle_stuck_queued_tasks_backcompat(self, dag_maker, session, mock_executors):
-        """
-        Verify backward compatibility of the executor interface w.r.t. stuck queued.
-
-        Prior to #43520, scheduler called method `cleanup_stuck_queued_tasks`, which failed tis.
-
-        After #43520, scheduler calls `cleanup_tasks_stuck_in_queued`, which requeues tis.
-
-        At Airflow 3.0, we should remove backcompat support for this old function. But for now
-        we verify that we call it as a fallback.
-        """
-        # todo: remove in airflow 3.0
-        with dag_maker("test_fail_stuck_queued_tasks_multiple_executors"):
-            op1 = EmptyOperator(task_id="op1")
-            op2 = EmptyOperator(task_id="op2", executor="default_exec")
-            op3 = EmptyOperator(task_id="op3", executor="secondary_exec")
-
-        dr = dag_maker.create_dagrun()
-        ti1 = dr.get_task_instance(task_id=op1.task_id, session=session)
-        ti2 = dr.get_task_instance(task_id=op2.task_id, session=session)
-        ti3 = dr.get_task_instance(task_id=op3.task_id, session=session)
-        for ti in [ti1, ti2, ti3]:
-            ti.state = State.QUEUED
-            ti.queued_dttm = timezone.utcnow() - timedelta(minutes=15)
-        session.commit()
-        scheduler_job = Job()
-        job_runner = SchedulerJobRunner(job=scheduler_job, num_runs=0)
-        job_runner._task_queued_timeout = 300
-        mock_exec_1 = mock_executors[0]
-        mock_exec_2 = mock_executors[1]
-        mock_exec_1.revoke_task.side_effect = NotImplementedError
-        mock_exec_2.revoke_task.side_effect = NotImplementedError
-
-        with mock.patch("airflow.executors.executor_loader.ExecutorLoader.load_executor") as loader_mock:
-            # The executors are mocked, so cannot be loaded/imported. Mock load_executor and return the
-            # correct object for the given input executor name.
-            loader_mock.side_effect = lambda *x: {
-                ("default_exec",): mock_exec_1,
-                (None,): mock_exec_1,
-                ("secondary_exec",): mock_exec_2,
-            }[x]
-            job_runner._handle_tasks_stuck_in_queued()
-
-        # Default executor is called for ti1 (no explicit executor override uses default) and ti2 (where we
-        # explicitly marked that for execution by the default executor)
-        try:
-            mock_exec_1.cleanup_stuck_queued_tasks.assert_called_once_with(tis=[ti1, ti2])
-        except AssertionError:
-            mock_exec_1.cleanup_stuck_queued_tasks.assert_called_once_with(tis=[ti2, ti1])
-        mock_exec_2.cleanup_stuck_queued_tasks.assert_called_once_with(tis=[ti3])
-
     @conf_vars({("scheduler", "num_stuck_in_queued_retries"): "2"})
     def test_handle_stuck_queued_tasks_multiple_attempts(self, dag_maker, session, mock_executors):
         """Verify that tasks stuck in queued will be rescheduled up to N times."""
@@ -3479,7 +3428,7 @@ class TestSchedulerJob:
         scheduler_job = Job()
         self.job_runner = SchedulerJobRunner(job=scheduler_job)
 
-        dr1 = dag_maker.create_dagrun(external_trigger=True)
+        dr1 = dag_maker.create_dagrun(run_type=DagRunType.MANUAL)
         ti = dr1.get_task_instances(session=session)[0]
         ti.state = adoptable_state
         ti.queued_by_job_id = old_job.id
@@ -3503,7 +3452,7 @@ class TestSchedulerJob:
         self.job_runner = SchedulerJobRunner(job=scheduler_job)
         session = settings.Session()
 
-        dr1 = dag_maker.create_dagrun(external_trigger=True)
+        dr1 = dag_maker.create_dagrun(run_type=DagRunType.MANUAL)
         ti = dr1.get_task_instances(session=session)[0]
         ti.state = State.QUEUED
         ti.queued_by_job_id = old_job.id
@@ -4132,7 +4081,6 @@ class TestSchedulerJob:
             logical_date=timezone.utcnow(),
             run_type=DagRunType.MANUAL,
             session=session,
-            external_trigger=True,
             data_interval=data_interval,
             run_after=DEFAULT_LOGICAL_DATE,
             triggered_by=DagRunTriggeredByType.TEST,
@@ -4175,7 +4123,6 @@ class TestSchedulerJob:
             logical_date=dag_model.next_dagrun,
             start_date=timezone.utcnow(),
             state=State.RUNNING,
-            external_trigger=False,
             session=session,
             creating_job_id=2,
         )
@@ -5681,35 +5628,6 @@ class TestSchedulerJob:
         expected_failure_callback_requests[0].ti = None
         callback_requests[0].ti = None
         assert expected_failure_callback_requests[0] == callback_requests[0]
-
-    def test_cleanup_stale_dags(self, testing_dag_bundle):
-        dagbag = DagBag(TEST_DAG_FOLDER, read_dags_from_db=False)
-        with create_session() as session:
-            dag = dagbag.get_dag("test_example_bash_operator")
-            DAG.bulk_write_to_db("testing", None, [dag])
-            dm = DagModel.get_current("test_example_bash_operator")
-            # Make it "stale".
-            dm.last_parsed_time = timezone.utcnow() - timedelta(minutes=11)
-            session.merge(dm)
-
-            # This one should remain active.
-            dag = dagbag.get_dag("test_start_date_scheduling")
-            DAG.bulk_write_to_db("testing", None, [dag])
-
-            session.flush()
-
-            scheduler_job = Job(executor=MockExecutor())
-            self.job_runner = SchedulerJobRunner(job=scheduler_job)
-
-            active_dag_count = session.query(func.count(DagModel.dag_id)).filter(DagModel.is_active).scalar()
-            assert active_dag_count == 2
-
-            self.job_runner._cleanup_stale_dags(session)
-
-            session.flush()
-
-            active_dag_count = session.query(func.count(DagModel.dag_id)).filter(DagModel.is_active).scalar()
-            assert active_dag_count == 1
 
     @mock.patch.object(settings, "USE_JOB_SCHEDULE", False)
     def run_scheduler_until_dagrun_terminal(self):

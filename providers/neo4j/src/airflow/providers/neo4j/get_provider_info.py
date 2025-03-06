@@ -27,7 +27,7 @@ def get_provider_info():
         "name": "Neo4j",
         "description": "`Neo4j <https://neo4j.com/>`__\n",
         "state": "ready",
-        "source-date-epoch": 1739963909,
+        "source-date-epoch": 1741121906,
         "versions": [
             "3.8.1",
             "3.8.0",
@@ -70,4 +70,5 @@ def get_provider_info():
             {"hook-class-name": "airflow.providers.neo4j.hooks.neo4j.Neo4jHook", "connection-type": "neo4j"}
         ],
         "dependencies": ["apache-airflow>=2.9.0", "neo4j>=4.2.1"],
+        "devel-dependencies": [],
     }

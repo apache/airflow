@@ -27,7 +27,7 @@ def get_provider_info():
         "name": "Asana",
         "description": "`Asana <https://asana.com/>`__\n",
         "state": "ready",
-        "source-date-epoch": 1739958947,
+        "source-date-epoch": 1741121841,
         "versions": [
             "2.9.0",
             "2.7.0",
@@ -65,4 +65,5 @@ def get_provider_info():
             {"hook-class-name": "airflow.providers.asana.hooks.asana.AsanaHook", "connection-type": "asana"}
         ],
         "dependencies": ["apache-airflow>=2.9.0", "asana>=5.0.0"],
+        "devel-dependencies": [],
     }
