@@ -115,7 +115,7 @@ images:
     pullPolicy: IfNotPresent
   pgbouncer:
     repository: apache/airflow
-    tag: airflow-pgbouncer-2025.01.10-1.24.0
+    tag: airflow-pgbouncer-2025.03.05-1.23.1
     pullPolicy: IfNotPresent
   pgbouncerExporter:
     repository: apache/airflow
