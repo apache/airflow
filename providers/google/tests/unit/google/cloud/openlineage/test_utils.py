@@ -106,6 +106,7 @@ EXAMPLE_TEMPLATE = {
 EXAMPLE_CONTEXT = {
     "ti": MagicMock(
         dag_id="dag_id",
+        dag_run=MagicMock(run_after=dt.datetime(2024, 11, 11), logical_date=dt.datetime(2024, 11, 11)),
         task_id="task_id",
         try_number=1,
         map_index=1,
@@ -574,7 +575,8 @@ def test_replace_dataproc_job_properties_key_error():
 def test_inject_openlineage_properties_into_dataproc_job_provider_not_accessible(mock_is_accessible):
     mock_is_accessible.return_value = False
     job = {"sparkJob": {"properties": {"existingProperty": "value"}}}
-    result = inject_openlineage_properties_into_dataproc_job(job, None, True, True)
+
+    result = inject_openlineage_properties_into_dataproc_job(job, EXAMPLE_CONTEXT, True, True)
     assert result == job
 
 
@@ -586,7 +588,7 @@ def test_inject_openlineage_properties_into_dataproc_job_unsupported_job_type(
     mock_is_accessible.return_value = True
     mock_extract_job_type.return_value = None
     job = {"unsupportedJob": {"properties": {"existingProperty": "value"}}}
-    result = inject_openlineage_properties_into_dataproc_job(job, None, True, True)
+    result = inject_openlineage_properties_into_dataproc_job(job, EXAMPLE_CONTEXT, True, True)
     assert result == job
 
 
@@ -599,7 +601,9 @@ def test_inject_openlineage_properties_into_dataproc_job_no_injection(
     mock_extract_job_type.return_value = "sparkJob"
     inject_parent_job_info = False
     job = {"sparkJob": {"properties": {"existingProperty": "value"}}}
-    result = inject_openlineage_properties_into_dataproc_job(job, None, inject_parent_job_info, False)
+    result = inject_openlineage_properties_into_dataproc_job(
+        job, EXAMPLE_CONTEXT, inject_parent_job_info, False
+    )
     assert result == job
 
 
