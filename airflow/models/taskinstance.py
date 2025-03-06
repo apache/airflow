@@ -443,14 +443,13 @@ def clear_task_instances(
         If set to False, DagRuns state will not be changed.
     :param dag: DAG object
     """
-    # Keys: dag_id -> run_id -> map_indexes -> try_numbers -> task_id
-    task_id_by_key: dict[str, dict[str, dict[int, dict[int, set[str]]]]] = defaultdict(
-        lambda: defaultdict(lambda: defaultdict(lambda: defaultdict(set)))
-    )
+    # taskinstance uuids:
+    task_instance_ids: list[str] = []
     dag_bag = DagBag(read_dags_from_db=True)
     from airflow.models.taskinstancehistory import TaskInstanceHistory
 
     for ti in tis:
+        task_instance_ids.append(ti.id)
         TaskInstanceHistory.record_ti(ti, session)
         ti.try_id = uuid7()
         if ti.state == TaskInstanceState.RUNNING:
@@ -476,40 +475,10 @@ def clear_task_instances(
             ti.external_executor_id = None
             ti.clear_next_method_args()
             session.merge(ti)
-        task_id_by_key[ti.dag_id][ti.run_id][ti.map_index][ti.try_number].add(ti.task_id)
 
-    if task_id_by_key:
+    if task_instance_ids:
         # Clear all reschedules related to the ti to clear
-
-        # This is an optimization for the common case where all tis are for a small number
-        # of dag_id, run_id, try_number, and map_index. Use a nested dict of dag_id,
-        # run_id, try_number, map_index, and task_id to construct the where clause in a
-        # hierarchical manner. This speeds up the delete statement by more than 40x for
-        # large number of tis (50k+).
-        conditions = or_(
-            and_(
-                TR.dag_id == dag_id,
-                or_(
-                    and_(
-                        TR.run_id == run_id,
-                        or_(
-                            and_(
-                                TR.map_index == map_index,
-                                or_(
-                                    and_(TR.try_number == try_number, TR.task_id.in_(task_ids))
-                                    for try_number, task_ids in task_tries.items()
-                                ),
-                            )
-                            for map_index, task_tries in map_indexes.items()
-                        ),
-                    )
-                    for run_id, map_indexes in run_ids.items()
-                ),
-            )
-            for dag_id, run_ids in task_id_by_key.items()
-        )
-
-        delete_qry = TR.__table__.delete().where(conditions)
+        delete_qry = TR.__table__.delete().where(TR.ti_id.in_(task_instance_ids))
         session.execute(delete_qry)
 
     if dag_run_state is not False and tis:
@@ -1600,14 +1569,11 @@ def _handle_reschedule(
     # see https://github.com/apache/airflow/pull/21362 for more info
     session.add(
         TaskReschedule(
-            ti.task_id,
-            ti.dag_id,
-            ti.run_id,
+            ti.id,
             ti.try_number,
             actual_start_date,
             ti.end_date,
             reschedule_exception.reschedule_date,
-            ti.map_index,
         )
     )
     session.commit()
@@ -3630,12 +3596,11 @@ class TaskInstance(Base, LoggingMixin):
         from airflow.models.renderedtifields import RenderedTaskInstanceFields
 
         tables: list[type[TaskInstanceDependencies]] = [
-            TaskReschedule,
             XCom,
             RenderedTaskInstanceFields,
             TaskMap,
         ]
-        tables_by_id: list[type[Base]] = [TaskInstanceNote]
+        tables_by_id: list[type[Base]] = [TaskInstanceNote, TaskReschedule]
         for table in tables:
             session.execute(
                 delete(table).where(
