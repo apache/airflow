@@ -364,7 +364,8 @@ def _xcom_push(ti: RuntimeTaskInstance, key: str, value: Any, mapped_length: int
     # It is responsibility of the client to handle any non native object serialization.
     # serialize does just that.
     value = serialize(value)
-    value = value["__data__"] if isinstance(value, dict) and "__data__" in value else value
+    if isinstance(value, dict) and value.get("__classname__") == "builtins.tuple":
+        value = tuple(value["__data__"])
 
     log = structlog.get_logger(logger_name="task")
     SUPERVISOR_COMMS.send_request(

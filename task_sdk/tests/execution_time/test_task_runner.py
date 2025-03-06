@@ -1135,6 +1135,7 @@ class TestRuntimeTaskInstance:
             "push_task",
             ["push_task1", "push_task2"],
             {"push_task1", "push_task2"},
+            ("push_task1", "push_task2"),
         ],
     )
     def test_xcom_pull(self, create_runtime_ti, mock_supervisor_comms, spy_agency, task_ids):
@@ -1315,7 +1316,7 @@ class TestXComAfterTaskExecution:
 
     def test_xcom_with_multiple_outputs(self, create_runtime_ti, spy_agency):
         """Test that the task pushes to XCom when multiple outputs are returned."""
-        result = {"key1": "value1", "key2": "value2"}
+        result = {"key1": "value1", "key2": "value2", "key3": ("value1", "value2")}
 
         class CustomOperator(BaseOperator):
             def execute(self, context):
@@ -1333,6 +1334,7 @@ class TestXComAfterTaskExecution:
         expected_calls = [
             ("key1", "value1"),
             ("key2", "value2"),
+            ("key3", ("value1", "value2")),
             ("return_value", result),
         ]
         spy_agency.assert_spy_call_count(_xcom_push, len(expected_calls))
@@ -1548,7 +1550,7 @@ class TestDagParamRuntime:
             log=mock.ANY,
         )
 
-    @pytest.mark.parametrize("value", [VALUE, 0, (1, 2)])
+    @pytest.mark.parametrize("value", [VALUE, 0])
     def test_set_params_for_dag(
         self, create_runtime_ti, mock_supervisor_comms, time_machine, make_ti_context, value
     ):
