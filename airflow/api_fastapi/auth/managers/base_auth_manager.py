@@ -26,6 +26,7 @@ from sqlalchemy import select
 
 from airflow.api_fastapi.auth.managers.models.base_user import BaseUser
 from airflow.api_fastapi.auth.managers.models.resource_details import DagDetails
+from airflow.api_fastapi.common.types import MenuItem
 from airflow.configuration import conf
 from airflow.models import DagModel
 from airflow.typing_compat import Literal
@@ -410,6 +411,14 @@ class BaseAuthManager(Generic[T], LoggingMixin):
         This sub application, if specified, is mounted in the main FastAPI application.
         """
         return None
+
+    def get_menu_items(self, *, user: T) -> list[MenuItem]:
+        """
+        Provide additional links to be added to the menu.
+
+        :param user: the user
+        """
+        return []
 
     @staticmethod
     def _get_token_signer(
