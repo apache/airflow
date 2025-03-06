@@ -28,7 +28,7 @@ from airflow import DAG
 from airflow.providers.apache.tinkerpop.operators.gremlin import GremlinOperator
 
 ENV_ID = os.environ.get("SYSTEM_TESTS_ENV_ID")
-DAG_ID = "example_gremlin"
+DAG_ID = "example_gremlin_dag"
 
 
 with DAG(

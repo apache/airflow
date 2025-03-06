@@ -28,6 +28,37 @@ Executes Gremlin queries on a remote Gremlin Server.
 
 For parameter definition take a look at :class:`~airflow.providers.apache.tinkerpop.operators.gremlin.GremlinOperator`.
 
+Using the operator
+""""""""""""""""""
+
+Use the ``gremlin_conn_id`` argument to connect to your Gremlin instance where
+the connection metadata is structured as follows:
+
+.. list-table:: Gremlin Airflow Connection Metadata
+   :widths: 25 25
+   :header-rows: 1
+
+   * - Parameter
+     - Input
+   * - Host: string
+     - Gremlin hostname
+   * - Port: int
+     - Gremlin port
+   * - Username: string
+     - Gremlin user
+   * - Password: string
+     - Gremlin user password
+   * - Scheme: string
+     - Gremlin Scheme
+   * - Schema: string
+     - Gremlin Schema
+
+.. exampleinclude:: /../../providers/apache/tinkerpop/tests/system/apache/tinkerpop/example_gremlin_dag.py
+    :language: python
+    :dedent: 4
+    :start-after: [START run_query_gremlin_operator]
+    :end-before: [END run_query_gremlin_operator]
+
 
 Reference
 """""""""
