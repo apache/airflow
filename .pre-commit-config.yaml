@@ -1139,14 +1139,6 @@ repos:
         additional_dependencies: ['rich>=12.4.4']
         pass_filenames: false
         files: ^tests/.*\.py$
-      - id: generate-openapi-spec
-        name: Generate the FastAPI API spec
-        language: python
-        entry: ./scripts/ci/pre_commit/update_fastapi_api_spec.py
-        pass_filenames: false
-        files: ^airflow/api_fastapi/.*\.py$|^airflow/auth/managers/simple/.*\.py$|^providers/fab/src/airflow/providers/fab/auth_manager/api_fastapi/.*\.py$
-        exclude: ^airflow/api_fastapi/execution_api/.*
-        additional_dependencies: ['rich>=12.4.4']
       - id: ts-compile-format-lint-ui
         name: Compile / format / lint UI
         description: TS types generation / ESLint / Prettier new UI files
@@ -1364,6 +1356,23 @@ repos:
         files: ^.*\.py$
         require_serial: true
         additional_dependencies: ['rich>=12.4.4']
+      - id: generate-openapi-spec
+        name: Generate the FastAPI API spec
+        language: python
+        entry: ./scripts/ci/pre_commit/update_fastapi_api_spec.py
+        pass_filenames: false
+        files: ^airflow/api_fastapi/.*\.py$|^airflow/auth/managers/simple/.*\.py$|^providers/fab/src/airflow/providers/fab/auth_manager/api_fastapi/.*\.py$
+        exclude: ^airflow/api_fastapi/execution_api/.*
+        additional_dependencies: ['rich>=12.4.4']
+      - id: ts-compile-format-lint-ui
+        name: Compile / format / lint UI
+        description: TS types generation / ESLint / Prettier new UI files
+        language: node
+        types_or: [javascript, ts, tsx, yaml, css, json]
+        files: ^airflow/ui/|^airflow/api_fastapi/core_api/openapi/v1-generated\.yaml$|^airflow/auth/managers/simple/ui/|^airflow/auth/managers/simple/openapi/v1-generated\.yaml$
+        entry: ./scripts/ci/pre_commit/lint_ui.py
+        additional_dependencies: ['pnpm@9.7.1']
+        pass_filenames: false
       - id: check-provider-yaml-valid
         name: Validate provider.yaml files
         entry: ./scripts/ci/pre_commit/check_provider_yaml_files.py
