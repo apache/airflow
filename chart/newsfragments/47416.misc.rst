@@ -1,1 +1,2 @@
 The chart uses newer version of pgbouncer exporter - ``airflow-pgbouncer-exporter-2025.03.05-0.18.0``
+
