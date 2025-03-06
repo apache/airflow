@@ -256,7 +256,8 @@ class TestPrevDagrunDep:
     ],
 )
 @patch("airflow.models.dagrun.DagRun.get_previous_scheduled_dagrun")
-def test_dagrun_dep(mock_get_previous_scheduled_dagrun, kwargs):
+@patch("airflow.models.dagrun.DagRun.get_previous_dagrun")
+def test_dagrun_dep(mock_get_previous_dagrun, mock_get_previous_scheduled_dagrun, kwargs):
     depends_on_past = kwargs["depends_on_past"]
     wait_for_past_depends_before_skipping = kwargs["wait_for_past_depends_before_skipping"]
     wait_for_downstream = kwargs["wait_for_downstream"]
@@ -276,10 +277,13 @@ def test_dagrun_dep(mock_get_previous_scheduled_dagrun, kwargs):
     else:
         prev_dagrun = None
     mock_get_previous_scheduled_dagrun.return_value = prev_dagrun
+    mock_get_previous_dagrun.return_value = prev_dagrun
     dagrun = Mock(
         **{
             "get_previous_dagrun.return_value": prev_dagrun,
             "backfill_id": None,
+            "logical_date": datetime(2016, 1, 3),
+            "dag_id": "test_dag",
         },
     )
     ti = Mock(

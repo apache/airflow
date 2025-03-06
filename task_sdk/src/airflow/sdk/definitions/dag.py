@@ -311,7 +311,7 @@ class DAG:
     :param dagrun_timeout: Specify the duration a DagRun should be allowed to run before it times out or
         fails. Task instances that are running when a DagRun is timed out will be marked as skipped.
     :param sla_miss_callback: DEPRECATED - The SLA feature is removed in Airflow 3.0, to be replaced with a new implementation in 3.1
-    :param catchup: Perform scheduler catchup (or only run latest)? Defaults to True
+    :param catchup: Perform scheduler catchup (or only run latest)? Defaults to False
     :param on_failure_callback: A function or list of functions to be called when a DagRun of this dag fails.
         A context dictionary is passed as a single parameter to this function.
     :param on_success_callback: Much like the ``on_failure_callback`` except
@@ -352,6 +352,8 @@ class DAG:
         An exception will be thrown if any task in a fail stop dag has a non default trigger rule.
     :param dag_display_name: The display name of the DAG which appears on the UI.
     """
+
+    from airflow.configuration import conf as airflow_conf
 
     __serialized_fields: ClassVar[frozenset[str]]
 
@@ -402,7 +404,9 @@ class DAG:
         validator=attrs.validators.optional(attrs.validators.instance_of(timedelta)),
     )
     # sla_miss_callback: None | SLAMissCallback | list[SLAMissCallback] = None
-    catchup: bool = attrs.field(default=True, converter=bool)
+    catchup: bool = attrs.field(
+        default=airflow_conf.getboolean("scheduler", "catchup_by_default"), converter=bool
+    )
     on_success_callback: None | DagStateChangeCallback | list[DagStateChangeCallback] = None
     on_failure_callback: None | DagStateChangeCallback | list[DagStateChangeCallback] = None
     doc_md: str | None = attrs.field(default=None, converter=_convert_doc_md)

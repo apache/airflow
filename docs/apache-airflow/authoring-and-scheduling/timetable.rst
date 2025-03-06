@@ -322,12 +322,14 @@ For a data interval timetable, the value of ``data_interval_start`` and ``data_i
 *Catchup* behavior
 ^^^^^^^^^^^^^^^^^^
 
-You might want to use ``False`` for ``catchup`` for certain scenarios, to prevent running unnecessary DAGs:
+By default, ``catchup`` is set to ``False``. This prevents running unnecessary DAGs in the following scenarios:
 - If you create a new DAG with a start date in the past, and don't want to run DAGs for the past. If ``catchup`` is ``True``, Airflow runs all DAGs that would have run in that time interval.
-- If you pause an existing DAG, and then restart it at a later date, and don't want to  If ``catchup`` is ``True``,
+- If you pause an existing DAG, and then restart it at a later date, ``catchup`` being ``False`` means that Airflow does not run the DAGs that would have run during the paused period.
 
 In these scenarios, the ``logical_date`` in the ``run_id`` are based on how how the timetable handles the data
 interval.
+
+You can change the default ``catchup`` behavior using the Airflow config ``[scheduler] catchup_by_default``.
 
 See :ref:`dag-catchup` for more information about how DAG runs are triggered when using ``catchup``.
 
