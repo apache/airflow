@@ -88,15 +88,15 @@ class TestMwaaHook:
         expected_log = {k: v for k, v in example_responses["failure"].items() if k != "ResponseMetadata"}
         mock_error_log.assert_called_once_with(expected_log)
 
-    @pytest.mark.parametrize("only_generate_local_token", [pytest.param(True), pytest.param(False)])
+    @pytest.mark.parametrize("generate_local_token", [pytest.param(True), pytest.param(False)])
     @mock.patch("airflow.providers.amazon.aws.hooks.mwaa.requests.Session")
     def test_invoke_rest_api_local_token_parameter(
-        self, mock_create_session, only_generate_local_token, mock_conn
+        self, mock_create_session, generate_local_token, mock_conn
     ):
         self.hook.invoke_rest_api(
-            env_name=ENV_NAME, path=PATH, method=METHOD, only_generate_local_token=only_generate_local_token
+            env_name=ENV_NAME, path=PATH, method=METHOD, generate_local_token=generate_local_token
         )
-        if only_generate_local_token:
+        if generate_local_token:
             mock_conn.invoke_rest_api.assert_not_called()
             mock_conn.create_web_login_token.assert_called_once()
             mock_create_session.assert_called_once()
@@ -155,9 +155,7 @@ class TestMwaaHook:
         self.hook.log.error = mock_error_log
 
         with pytest.raises(requests.HTTPError) as caught_error:
-            self.hook.invoke_rest_api(
-                env_name=ENV_NAME, path=PATH, method=METHOD, only_generate_local_token=True
-            )
+            self.hook.invoke_rest_api(env_name=ENV_NAME, path=PATH, method=METHOD, generate_local_token=True)
 
         assert caught_error.value == error
         mock_error_log.assert_called_once_with(example_responses["failure"]["RestApiResponse"])
