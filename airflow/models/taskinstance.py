@@ -3635,7 +3635,7 @@ class TaskInstance(Base, LoggingMixin):
                 )
             )
         for table in tables_by_id:
-            session.execute(delete(table).where(table.id == self.id))
+            session.execute(delete(table).where(table.ti_id == self.id))
 
     @classmethod
     def duration_expression_update(
@@ -3825,7 +3825,7 @@ class TaskInstanceNote(Base):
 
     __table_args__ = (
         ForeignKeyConstraint(
-            (id,),
+            (ti_id,),
             [
                 "task_instance.id",
             ],
