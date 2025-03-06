@@ -738,24 +738,27 @@ export const prefetchUseConnectionServiceGetConnection = (
  * @param data.limit
  * @param data.offset
  * @param data.orderBy
+ * @param data.connectionIdPattern
  * @returns ConnectionCollectionResponse Successful Response
  * @throws ApiError
  */
 export const prefetchUseConnectionServiceGetConnections = (
   queryClient: QueryClient,
   {
+    connectionIdPattern,
     limit,
     offset,
     orderBy,
   }: {
+    connectionIdPattern?: string;
     limit?: number;
     offset?: number;
     orderBy?: string;
   } = {},
 ) =>
   queryClient.prefetchQuery({
-    queryKey: Common.UseConnectionServiceGetConnectionsKeyFn({ limit, offset, orderBy }),
-    queryFn: () => ConnectionService.getConnections({ limit, offset, orderBy }),
+    queryKey: Common.UseConnectionServiceGetConnectionsKeyFn({ connectionIdPattern, limit, offset, orderBy }),
+    queryFn: () => ConnectionService.getConnections({ connectionIdPattern, limit, offset, orderBy }),
   });
 /**
  * Get Dag Run
@@ -1170,29 +1173,32 @@ export const prefetchUseDagServiceGetDagTags = (
  * Get Event Log
  * @param data The data for the request.
  * @param data.eventLogId
+ * @param data.dagId
  * @returns EventLogResponse Successful Response
  * @throws ApiError
  */
 export const prefetchUseEventLogServiceGetEventLog = (
   queryClient: QueryClient,
   {
+    dagId,
     eventLogId,
   }: {
+    dagId?: string;
     eventLogId: number;
   },
 ) =>
   queryClient.prefetchQuery({
-    queryKey: Common.UseEventLogServiceGetEventLogKeyFn({ eventLogId }),
-    queryFn: () => EventLogService.getEventLog({ eventLogId }),
+    queryKey: Common.UseEventLogServiceGetEventLogKeyFn({ dagId, eventLogId }),
+    queryFn: () => EventLogService.getEventLog({ dagId, eventLogId }),
   });
 /**
  * Get Event Logs
  * Get all Event Logs.
  * @param data The data for the request.
+ * @param data.dagId
  * @param data.limit
  * @param data.offset
  * @param data.orderBy
- * @param data.dagId
  * @param data.taskId
  * @param data.runId
  * @param data.mapIndex
@@ -2348,6 +2354,29 @@ export const prefetchUseVariableServiceGetVariables = (
   queryClient.prefetchQuery({
     queryKey: Common.UseVariableServiceGetVariablesKeyFn({ limit, offset, orderBy, variableKeyPattern }),
     queryFn: () => VariableService.getVariables({ limit, offset, orderBy, variableKeyPattern }),
+  });
+/**
+ * Get Dag Version
+ * Get one Dag Version.
+ * @param data The data for the request.
+ * @param data.dagId
+ * @param data.versionNumber
+ * @returns DagVersionResponse Successful Response
+ * @throws ApiError
+ */
+export const prefetchUseDagVersionServiceGetDagVersion = (
+  queryClient: QueryClient,
+  {
+    dagId,
+    versionNumber,
+  }: {
+    dagId: string;
+    versionNumber: number;
+  },
+) =>
+  queryClient.prefetchQuery({
+    queryKey: Common.UseDagVersionServiceGetDagVersionKeyFn({ dagId, versionNumber }),
+    queryFn: () => DagVersionService.getDagVersion({ dagId, versionNumber }),
   });
 /**
  * Get Dag Versions

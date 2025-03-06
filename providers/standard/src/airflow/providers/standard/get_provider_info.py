@@ -27,7 +27,7 @@ def get_provider_info():
         "name": "Standard",
         "description": "Airflow Standard Provider\n",
         "state": "ready",
-        "source-date-epoch": 1740734201,
+        "source-date-epoch": 1741121952,
         "versions": ["0.1.0", "0.0.3", "0.0.2", "0.0.1"],
         "integrations": [
             {
@@ -105,4 +105,5 @@ def get_provider_info():
             }
         },
         "dependencies": ["apache-airflow>=2.9.0"],
+        "devel-dependencies": [],
     }

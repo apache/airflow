@@ -1676,6 +1676,8 @@ paths:
       summary: Delete Connection
       description: Delete a connection entry.
       operationId: delete_connection
+      security:
+      - OAuth2PasswordBearer: []
       parameters:
       - name: connection_id
         in: path
@@ -1716,6 +1718,8 @@ paths:
       summary: Get Connection
       description: Get a connection entry.
       operationId: get_connection
+      security:
+      - OAuth2PasswordBearer: []
       parameters:
       - name: connection_id
         in: path
@@ -1760,6 +1764,8 @@ paths:
       summary: Patch Connection
       description: Update a connection entry.
       operationId: patch_connection
+      security:
+      - OAuth2PasswordBearer: []
       parameters:
       - name: connection_id
         in: path
@@ -1827,6 +1833,8 @@ paths:
       summary: Get Connections
       description: Get all connection entries.
       operationId: get_connections
+      security:
+      - OAuth2PasswordBearer: []
       parameters:
       - name: limit
         in: query
@@ -1851,6 +1859,14 @@ paths:
           type: string
           default: id
           title: Order By
+      - name: connection_id_pattern
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Connection Id Pattern
       responses:
         '200':
           description: Successful Response
@@ -1888,6 +1904,8 @@ paths:
       summary: Post Connection
       description: Create connection entry.
       operationId: post_connection
+      security:
+      - OAuth2PasswordBearer: []
       requestBody:
         required: true
         content:
@@ -1931,6 +1949,8 @@ paths:
       summary: Bulk Connections
       description: Bulk create, update, and delete connections.
       operationId: bulk_connections
+      security:
+      - OAuth2PasswordBearer: []
       requestBody:
         required: true
         content:
@@ -2009,6 +2029,8 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/HTTPValidationError'
+      security:
+      - OAuth2PasswordBearer: []
   /public/connections/defaults:
     post:
       tags:
@@ -2031,6 +2053,8 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/HTTPExceptionResponse'
+      security:
+      - OAuth2PasswordBearer: []
   /public/dags/{dag_id}/dagRuns/{dag_run_id}:
     get:
       tags:
@@ -3528,6 +3552,8 @@ paths:
       - Event Log
       summary: Get Event Log
       operationId: get_event_log
+      security:
+      - OAuth2PasswordBearer: []
       parameters:
       - name: event_log_id
         in: path
@@ -3535,6 +3561,14 @@ paths:
         schema:
           type: integer
           title: Event Log Id
+      - name: dag_id
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Dag Id
       responses:
         '200':
           description: Successful Response
@@ -3573,7 +3607,17 @@ paths:
       summary: Get Event Logs
       description: Get all Event Logs.
       operationId: get_event_logs
+      security:
+      - OAuth2PasswordBearer: []
       parameters:
+      - name: dag_id
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Dag Id
       - name: limit
         in: query
         required: false
@@ -3597,14 +3641,6 @@ paths:
           type: string
           default: id
           title: Order By
-      - name: dag_id
-        in: query
-        required: false
-        schema:
-          anyOf:
-          - type: string
-          - type: 'null'
-          title: Dag Id
       - name: task_id
         in: query
         required: false
@@ -4075,6 +4111,8 @@ paths:
       summary: Delete Pool
       description: Delete a pool entry.
       operationId: delete_pool
+      security:
+      - OAuth2PasswordBearer: []
       parameters:
       - name: pool_name
         in: path
@@ -4121,6 +4159,8 @@ paths:
       summary: Get Pool
       description: Get a pool.
       operationId: get_pool
+      security:
+      - OAuth2PasswordBearer: []
       parameters:
       - name: pool_name
         in: path
@@ -4165,6 +4205,8 @@ paths:
       summary: Patch Pool
       description: Update a Pool.
       operationId: patch_pool
+      security:
+      - OAuth2PasswordBearer: []
       parameters:
       - name: pool_name
         in: path
@@ -4232,6 +4274,8 @@ paths:
       summary: Get Pools
       description: Get all pools entries.
       operationId: get_pools
+      security:
+      - OAuth2PasswordBearer: []
       parameters:
       - name: limit
         in: query
@@ -4301,6 +4345,8 @@ paths:
       summary: Post Pool
       description: Create a Pool.
       operationId: post_pool
+      security:
+      - OAuth2PasswordBearer: []
       requestBody:
         required: true
         content:
@@ -4344,6 +4390,8 @@ paths:
       summary: Bulk Pools
       description: Bulk create, update, and delete pools.
       operationId: bulk_pools
+      security:
+      - OAuth2PasswordBearer: []
       requestBody:
         required: true
         content:
@@ -6322,6 +6370,8 @@ paths:
       summary: Delete Variable
       description: Delete a variable entry.
       operationId: delete_variable
+      security:
+      - OAuth2PasswordBearer: []
       parameters:
       - name: variable_key
         in: path
@@ -6362,6 +6412,8 @@ paths:
       summary: Get Variable
       description: Get a variable entry.
       operationId: get_variable
+      security:
+      - OAuth2PasswordBearer: []
       parameters:
       - name: variable_key
         in: path
@@ -6406,6 +6458,8 @@ paths:
       summary: Patch Variable
       description: Update a variable by key.
       operationId: patch_variable
+      security:
+      - OAuth2PasswordBearer: []
       parameters:
       - name: variable_key
         in: path
@@ -6473,6 +6527,8 @@ paths:
       summary: Get Variables
       description: Get all Variables entries.
       operationId: get_variables
+      security:
+      - OAuth2PasswordBearer: []
       parameters:
       - name: limit
         in: query
@@ -6536,6 +6592,8 @@ paths:
       summary: Post Variable
       description: Create a variable.
       operationId: post_variable
+      security:
+      - OAuth2PasswordBearer: []
       requestBody:
         required: true
         content:
@@ -6579,6 +6637,8 @@ paths:
       summary: Bulk Variables
       description: Bulk create, update, and delete variables.
       operationId: bulk_variables
+      security:
+      - OAuth2PasswordBearer: []
       requestBody:
         required: true
         content:
@@ -6817,6 +6877,57 @@ paths:
               schema:
                 $ref: '#/components/schemas/HTTPExceptionResponse'
           description: Forbidden
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /public/dags/{dag_id}/dagVersions/{version_number}:
+    get:
+      tags:
+      - DagVersion
+      summary: Get Dag Version
+      description: Get one Dag Version.
+      operationId: get_dag_version
+      parameters:
+      - name: dag_id
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Dag Id
+      - name: version_number
+        in: path
+        required: true
+        schema:
+          type: integer
+          title: Version Number
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DagVersionResponse'
+        '401':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Unauthorized
+        '403':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Forbidden
+        '404':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Not Found
         '422':
           description: Validation Error
           content:

@@ -24,6 +24,7 @@ import os
 import selectors
 import signal
 import sys
+import time
 from io import BytesIO
 from operator import attrgetter
 from pathlib import Path
@@ -43,13 +44,22 @@ from airflow.listeners import hookimpl
 from airflow.listeners.listener import get_listener_manager
 from airflow.sdk.api import client as sdk_client
 from airflow.sdk.api.client import ServerResponseError
-from airflow.sdk.api.datamodels._generated import AssetProfile, TaskInstance, TerminalTIState
+from airflow.sdk.api.datamodels._generated import (
+    AssetEventResponse,
+    AssetProfile,
+    AssetResponse,
+    TaskInstance,
+    TerminalTIState,
+)
 from airflow.sdk.execution_time.comms import (
+    AssetEventsResult,
     AssetResult,
     ConnectionResult,
     DeferTask,
     GetAssetByName,
     GetAssetByUri,
+    GetAssetEventByAsset,
+    GetAssetEventByAssetAlias,
     GetConnection,
     GetPrevSuccessfulDagRun,
     GetVariable,
@@ -841,7 +851,9 @@ class TestWatchedSubprocessKill:
             client=MagicMock(spec=sdk_client.Client),
             target=subprocess_main,
         )
+
         # Ensure we get one normal run, to give the proc time to register it's custom sighandler
+        time.sleep(0.1)
         proc._service_subprocess(max_wait_time=1)
         proc.kill(signal_to_send=signal_to_send, escalation_delay=0.5, force=True)
 
@@ -1140,6 +1152,94 @@ class TestHandleRequest:
                 {"uri": "s3://bucket/obj"},
                 AssetResult(name="asset", uri="s3://bucket/obj", group="asset"),
                 id="get_asset_by_uri",
+            ),
+            pytest.param(
+                GetAssetEventByAsset(uri="s3://bucket/obj", name="test"),
+                (
+                    b'{"asset_events":'
+                    b'[{"id":1,"timestamp":"2024-10-31T12:00:00Z","asset":{"name":"asset","uri":"s3://bucket/obj","group":"asset"},'
+                    b'"created_dagruns":[]}],"type":"AssetEventsResult"}\n'
+                ),
+                "asset_events.get",
+                [],
+                {"uri": "s3://bucket/obj", "name": "test"},
+                AssetEventsResult(
+                    asset_events=[
+                        AssetEventResponse(
+                            id=1,
+                            asset=AssetResponse(name="asset", uri="s3://bucket/obj", group="asset"),
+                            created_dagruns=[],
+                            timestamp=timezone.parse("2024-10-31T12:00:00Z"),
+                        )
+                    ]
+                ),
+                id="get_asset_events_by_uri_and_name",
+            ),
+            pytest.param(
+                GetAssetEventByAsset(uri="s3://bucket/obj", name=None),
+                (
+                    b'{"asset_events":'
+                    b'[{"id":1,"timestamp":"2024-10-31T12:00:00Z","asset":{"name":"asset","uri":"s3://bucket/obj","group":"asset"},'
+                    b'"created_dagruns":[]}],"type":"AssetEventsResult"}\n'
+                ),
+                "asset_events.get",
+                [],
+                {"uri": "s3://bucket/obj", "name": None},
+                AssetEventsResult(
+                    asset_events=[
+                        AssetEventResponse(
+                            id=1,
+                            asset=AssetResponse(name="asset", uri="s3://bucket/obj", group="asset"),
+                            created_dagruns=[],
+                            timestamp=timezone.parse("2024-10-31T12:00:00Z"),
+                        )
+                    ]
+                ),
+                id="get_asset_events_by_uri",
+            ),
+            pytest.param(
+                GetAssetEventByAsset(uri=None, name="test"),
+                (
+                    b'{"asset_events":'
+                    b'[{"id":1,"timestamp":"2024-10-31T12:00:00Z","asset":{"name":"asset","uri":"s3://bucket/obj","group":"asset"},'
+                    b'"created_dagruns":[]}],"type":"AssetEventsResult"}\n'
+                ),
+                "asset_events.get",
+                [],
+                {"uri": None, "name": "test"},
+                AssetEventsResult(
+                    asset_events=[
+                        AssetEventResponse(
+                            id=1,
+                            asset=AssetResponse(name="asset", uri="s3://bucket/obj", group="asset"),
+                            created_dagruns=[],
+                            timestamp=timezone.parse("2024-10-31T12:00:00Z"),
+                        )
+                    ]
+                ),
+                id="get_asset_events_by_name",
+            ),
+            pytest.param(
+                GetAssetEventByAssetAlias(alias_name="test_alias"),
+                (
+                    b'{"asset_events":'
+                    b'[{"id":1,"timestamp":"2024-10-31T12:00:00Z","asset":{"name":"asset","uri":"s3://bucket/obj","group":"asset"},'
+                    b'"created_dagruns":[]}],"type":"AssetEventsResult"}\n'
+                ),
+                "asset_events.get",
+                [],
+                {"alias_name": "test_alias"},
+                AssetEventsResult(
+                    asset_events=[
+                        AssetEventResponse(
+                            id=1,
+                            asset=AssetResponse(name="asset", uri="s3://bucket/obj", group="asset"),
+                            created_dagruns=[],
+                            timestamp=timezone.parse("2024-10-31T12:00:00Z"),
+                        )
+                    ]
+                ),
+                id="get_asset_events_by_asset_alias",
             ),
             pytest.param(
                 SucceedTask(end_date=timezone.parse("2024-10-31T12:00:00Z")),
