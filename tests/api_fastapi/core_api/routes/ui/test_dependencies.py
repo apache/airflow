@@ -68,7 +68,7 @@ def expected_primary_component_response():
     return {
         "edges": [
             {
-                "source_id": "asset:asset1",
+                "source_id": "asset:1",
                 "target_id": "dag:downstream",
             },
             {
@@ -81,7 +81,7 @@ def expected_primary_component_response():
             },
             {
                 "source_id": "dag:upstream",
-                "target_id": "asset:asset1",
+                "target_id": "asset:1",
             },
             {
                 "source_id": "sensor:other_dag:downstream:external_task_sensor",
@@ -99,7 +99,7 @@ def expected_primary_component_response():
                 "type": "dag",
             },
             {
-                "id": "asset:asset1",
+                "id": "asset:1",
                 "label": "asset1",
                 "type": "asset",
             },
@@ -149,12 +149,12 @@ def expected_secondary_component_response():
     return {
         "edges": [
             {
-                "source_id": "asset:asset2",
+                "source_id": "asset:2",
                 "target_id": "dag:downstream_secondary",
             },
             {
                 "source_id": "dag:upstream_secondary",
-                "target_id": "asset:asset2",
+                "target_id": "asset:2",
             },
         ],
         "nodes": [
@@ -164,7 +164,7 @@ def expected_secondary_component_response():
                 "type": "dag",
             },
             {
-                "id": "asset:asset2",
+                "id": "asset:2",
                 "label": "asset2",
                 "type": "asset",
             },
@@ -215,14 +215,6 @@ class TestGetDependencies:
         ],
     )
     @pytest.mark.usefixtures("make_primary_connected_component", "make_secondary_connected_component")
-    def test_with_node_id_filter(self, test_client, node_id, expected_response_fixture, request):
-        expected_response = request.getfixturevalue(expected_response_fixture)
-        response = test_client.get("/ui/dependencies", params={"node_id": node_id})
-        assert response.status_code == 200
-
-        assert response.json() == expected_response
-
-    @pytest.mark.usefixtures("make_primary_connected_component", "make_secondary_connected_component")
     def test_with_node_id_filter_not_found(self, test_client):
         response = test_client.get("/ui/dependencies", params={"node_id": "missing_node_id"})
         assert response.status_code == 404
@@ -230,3 +222,29 @@ class TestGetDependencies:
         assert response.json() == {
             "detail": "Unique connected component not found, got [] for connected components of node missing_node_id, expected only 1 connected component.",
         }
+
+
+@pytest.mark.parametrize(
+    "node_id, expected_response_fixture",
+    [
+        # Primary Component
+        ("asset:1", "expected_primary_component_response"),
+        ("dag:downstream", "expected_primary_component_response"),
+        ("sensor:other_dag:downstream:external_task_sensor", "expected_primary_component_response"),
+        ("dag:external_trigger_dag_id", "expected_primary_component_response"),
+        (
+            "trigger:external_trigger_dag_id:downstream:trigger_dag_run_operator",
+            "expected_primary_component_response",
+        ),
+        ("dag:upstream", "expected_primary_component_response"),
+        # Secondary Component
+        ("asset:2", "expected_secondary_component_response"),
+        ("dag:downstream_secondary", "expected_secondary_component_response"),
+        ("dag:upstream_secondary", "expected_secondary_component_response"),
+    ],
+)
+@pytest.mark.usefixtures("make_primary_connected_component", "make_secondary_connected_component")
+def test_get_dependencies_with_node_id_filter(test_client, node_id, expected_response_fixture, request):
+    expected_response = request.getfixturevalue(expected_response_fixture)
+    response = test_client.get("/ui/dependencies", params={"node_id": node_id})
+    assert response.status_code == 200
