@@ -37,6 +37,7 @@ import psutil
 import pytest
 import tenacity
 from pytest_unordered import unordered
+from task_sdk import FAKE_BUNDLE, make_client
 from uuid6 import uuid7
 
 from airflow.executors.workloads import BundleInfo
@@ -79,9 +80,6 @@ from airflow.sdk.execution_time.comms import (
 from airflow.sdk.execution_time.supervisor import ActivitySubprocess, supervise
 from airflow.sdk.execution_time.task_runner import CommsDecoder
 from airflow.utils import timezone, timezone as tz
-
-from task_sdk.tests.api.test_client import make_client
-from task_sdk.tests.execution_time.test_task_runner import FAKE_BUNDLE
 
 if TYPE_CHECKING:
     import kgb

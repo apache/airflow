@@ -258,34 +258,23 @@ class TestBaseAuthManager:
         assert result == expected
 
     @pytest.mark.parametrize(
-        "access_all, access_per_dag, dag_ids, expected",
+        "access_per_dag, dag_ids, expected",
         [
-            # Access to all dags
-            (
-                True,
-                {},
-                ["dag1", "dag2"],
-                {"dag1", "dag2"},
-            ),
             # No access to any dag
             (
-                False,
                 {},
                 ["dag1", "dag2"],
                 set(),
             ),
             # Access to specific dags
             (
-                False,
                 {"dag1": True},
                 ["dag1", "dag2"],
                 {"dag1"},
             ),
         ],
     )
-    def test_get_permitted_dag_ids(
-        self, auth_manager, access_all: bool, access_per_dag: dict, dag_ids: list, expected: set
-    ):
+    def test_get_permitted_dag_ids(self, auth_manager, access_per_dag: dict, dag_ids: list, expected: set):
         def side_effect_func(
             *,
             method: ResourceMethod,
@@ -294,7 +283,7 @@ class TestBaseAuthManager:
             user: BaseAuthManagerUserTest | None = None,
         ):
             if not details:
-                return access_all
+                return False
             else:
                 return access_per_dag.get(details.id, False)
 

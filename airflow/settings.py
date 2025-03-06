@@ -500,7 +500,7 @@ def dispose_orm():
         NonScopedSession = None
         close_all_sessions()
 
-    if "engine" in _globals:
+    if "engine" in _globals and engine is not None:
         engine.dispose()
         engine = None
 

@@ -47,7 +47,7 @@ if TYPE_CHECKING:
     from airflow.sdk.types import OutletEventAccessorsProtocol
 
 # NOTE: Please keep this in sync with the following:
-# * Context in task_sdk/src/airflow/sdk/definitions/context.py
+# * Context in task-sdk/src/airflow/sdk/definitions/context.py
 # * Table in docs/apache-airflow/templates-ref.rst
 KNOWN_CONTEXT_KEYS: set[str] = {
     "conn",
