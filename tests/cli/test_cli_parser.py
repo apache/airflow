@@ -365,16 +365,12 @@ class TestCli:
         "executor,expected_args",
         [
             ("CeleryExecutor", ["celery"]),
-            ("CeleryKubernetesExecutor", ["celery", "kubernetes"]),
             ("KubernetesExecutor", ["kubernetes"]),
             ("LocalExecutor", []),
-            ("LocalKubernetesExecutor", ["kubernetes"]),
             ("SequentialExecutor", []),
             # custom executors are mapped to the regular ones in `conftest.py`
             ("custom_executor.CustomLocalExecutor", []),
-            ("custom_executor.CustomLocalKubernetesExecutor", ["kubernetes"]),
             ("custom_executor.CustomCeleryExecutor", ["celery"]),
-            ("custom_executor.CustomCeleryKubernetesExecutor", ["celery", "kubernetes"]),
             ("custom_executor.CustomKubernetesExecutor", ["kubernetes"]),
         ],
     )
