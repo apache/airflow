@@ -30,6 +30,7 @@ from airflow.auth.managers.models.resource_details import (
     DagAccessEntity,
     DagDetails,
     PoolDetails,
+    VariableDetails,
 )
 from airflow.configuration import conf
 from airflow.utils.jwt_signer import JWTSigner, get_signing_key
@@ -77,54 +78,61 @@ async def get_user_with_exception_handling(request: Request) -> BaseUser | None:
 
 def requires_access_dag(method: ResourceMethod, access_entity: DagAccessEntity | None = None) -> Callable:
     def inner(
+        user: Annotated[BaseUser, Depends(get_user)],
         dag_id: str | None = None,
-        user: Annotated[BaseUser | None, Depends(get_user)] = None,
     ) -> None:
-        def callback():
-            return get_auth_manager().is_authorized_dag(
+        _requires_access(
+            is_authorized_callback=lambda: get_auth_manager().is_authorized_dag(
                 method=method, access_entity=access_entity, details=DagDetails(id=dag_id), user=user
             )
-
-        _requires_access(
-            is_authorized_callback=callback,
         )
 
     return inner
 
 
-def requires_access_pool(method: ResourceMethod) -> Callable:
+def requires_access_pool(method: ResourceMethod) -> Callable[[Request, BaseUser], None]:
     def inner(
         request: Request,
-        user: Annotated[BaseUser | None, Depends(get_user)] = None,
+        user: Annotated[BaseUser, Depends(get_user)],
     ) -> None:
         pool_name = request.path_params.get("pool_name")
 
-        def callback():
-            return get_auth_manager().is_authorized_pool(
+        _requires_access(
+            is_authorized_callback=lambda: get_auth_manager().is_authorized_pool(
                 method=method, details=PoolDetails(name=pool_name), user=user
             )
-
-        _requires_access(
-            is_authorized_callback=callback,
         )
 
     return inner
 
 
-def requires_access_connection(method: ResourceMethod) -> Callable:
+def requires_access_connection(method: ResourceMethod) -> Callable[[Request, BaseUser], None]:
+    def inner(
+        request: Request,
+        user: Annotated[BaseUser, Depends(get_user)],
+    ) -> None:
+        connection_id = request.path_params.get("connection_id")
+
+        _requires_access(
+            is_authorized_callback=lambda: get_auth_manager().is_authorized_connection(
+                method=method, details=ConnectionDetails(conn_id=connection_id), user=user
+            )
+        )
+
+    return inner
+
+
+def requires_access_variable(method: ResourceMethod) -> Callable[[Request, BaseUser | None], None]:
     def inner(
         request: Request,
         user: Annotated[BaseUser | None, Depends(get_user)] = None,
     ) -> None:
-        connection_id = request.path_params.get("connection_id")
-
-        def callback():
-            return get_auth_manager().is_authorized_pool(
-                method=method, details=ConnectionDetails(conn_id=connection_id), user=user
-            )
+        variable_key: str | None = request.path_params.get("variable_key")
 
         _requires_access(
-            is_authorized_callback=callback,
+            is_authorized_callback=lambda: get_auth_manager().is_authorized_variable(
+                method=method, details=VariableDetails(key=variable_key), user=user
+            ),
         )
 
     return inner

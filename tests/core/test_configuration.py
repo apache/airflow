@@ -623,7 +623,7 @@ key3 = value3
                 "api": {
                     "auth_backends": (
                         re.compile(r"^airflow\.api\.auth\.backend\.deny_all$|^$"),
-                        "airflow.api.auth.backend.session",
+                        "airflow.providers.fab.auth_manager.api.auth.backend.session",
                         "3.0",
                     ),
                 },
@@ -640,10 +640,11 @@ key3 = value3
                 )
 
     def test_command_from_env(self):
-        test_cmdenv_config = """[testcmdenv]
-itsacommand = NOT OK
-notacommand = OK
-"""
+        test_cmdenv_config = textwrap.dedent("""\
+            [testcmdenv]
+            itsacommand=NOT OK
+            notacommand=OK
+        """)
         test_cmdenv_conf = AirflowConfigParser()
         test_cmdenv_conf.read_string(test_cmdenv_config)
         test_cmdenv_conf.sensitive_config_values.add(("testcmdenv", "itsacommand"))
@@ -937,6 +938,48 @@ class TestDeprecatedConf:
 
             with pytest.warns(DeprecationWarning), conf_vars({("celery", "celeryd_concurrency"): "99"}):
                 assert conf.getint("celery", "worker_concurrency") == 99
+
+    @pytest.mark.parametrize(
+        "deprecated_options_dict, kwargs, new_section_expected_value, old_section_expected_value",
+        [
+            pytest.param(
+                {("old_section", "old_key"): ("new_section", "new_key", "2.0.0")},
+                {"fallback": None},
+                None,
+                "value",
+                id="deprecated_in_different_section_lookup_enabled",
+            ),
+            pytest.param(
+                {("old_section", "old_key"): ("new_section", "new_key", "2.0.0")},
+                {"fallback": None, "lookup_from_deprecated": False},
+                None,
+                None,
+                id="deprecated_in_different_section_lookup_disabled",
+            ),
+            pytest.param(
+                {("new_section", "old_key"): ("new_section", "new_key", "2.0.0")},
+                {"fallback": None},
+                "value",
+                None,
+                id="deprecated_in_same_section_lookup_enabled",
+            ),
+            pytest.param(
+                {("new_section", "old_key"): ("new_section", "new_key", "2.0.0")},
+                {"fallback": None, "lookup_from_deprecated": False},
+                None,
+                None,
+                id="deprecated_in_same_section_lookup_disabled",
+            ),
+        ],
+    )
+    def test_deprecated_options_with_lookup_from_deprecated(
+        self, deprecated_options_dict, kwargs, new_section_expected_value, old_section_expected_value
+    ):
+        with conf_vars({("new_section", "new_key"): "value"}):
+            with set_deprecated_options(deprecated_options=deprecated_options_dict):
+                assert conf.get("new_section", "old_key", **kwargs) == new_section_expected_value
+
+                assert conf.get("old_section", "old_key", **kwargs) == old_section_expected_value
 
     @conf_vars(
         {
