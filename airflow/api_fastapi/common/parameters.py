@@ -164,6 +164,7 @@ def search_param_factory(
 
 class SortParam(BaseParam[str]):
     """Order result by the attribute."""
+    MAX_SORT_PARAMS = 2
 
     def __init__(
         self, allowed_attrs: list[str], model: Base, to_replace: dict[str, str | Column] | None = None
@@ -173,14 +174,31 @@ class SortParam(BaseParam[str]):
         self.model = model
         self.to_replace = to_replace
 
-    def to_orm(self, select: Select) -> Select:
-        if self.skip_none is False:
-            raise ValueError(f"Cannot set 'skip_none' to False on a {type(self)}")
+    def get_order_by_columns(self, order_by_list: list[str]) -> list:
+        """Generates order_by conditions based on the given sorting parameters."""
+        if len(order_by_list) > MAX_SORT_PARAMS:
+            raise HTTPException(
+                400, 
+                f"Ordering with more than two parameters is not allowed. Provided: {order_by_list}"
+            )
 
-        if self.value is None:
-            self.value = self.get_primary_key_string()
+        order_by_columns = []
 
-        lstriped_orderby = self.value.lstrip("-")
+        if len(order_by_list) >= 1:
+            order_by_columns.append(self.get_column_with_sort(order_by_list[0]))
+
+        if len(order_by_list) == 2:
+            order_by_columns.append(self.get_column_with_sort(order_by_list[1]))
+
+        primary_key_name = self.get_primary_key_string()
+        if not (order_by_list and primary_key_name in [item.lstrip("-") for item in order_by_list]):
+            order_by_columns.append(self.get_column_with_sort(primary_key_name))
+
+        return order_by_columns
+
+    def get_column_with_sort(self, order_by: str):
+        """Helper function to process each order_by field with sorting and null handling."""
+        lstriped_orderby = order_by.lstrip("-")
         column: Column | None = None
         if self.to_replace:
             replacement = self.to_replace.get(lstriped_orderby, lstriped_orderby)
@@ -201,16 +219,30 @@ class SortParam(BaseParam[str]):
         # MySQL does not support `nullslast`, and True/False ordering depends on the
         # database implementation.
         nullscheck = case((column.isnot(None), 0), else_=1)
+        
+        return (nullscheck, column.desc() if order_by.startswith("-") else column.asc())
+
+    def to_orm(self, select: Select) -> Select:
+        if self.skip_none is False:
+            raise ValueError(f"Cannot set 'skip_none' to False on a {type(self)}")
+
+        if self.value is None:
+            self.value = self.get_primary_key_string()
+
+        order_by_list = self.value.split(",") if self.value else []
+
+        order_by_columns = self.get_order_by_columns(order_by_list)
 
         # Reset default sorting
         select = select.order_by(None)
 
-        primary_key_column = self.get_primary_key_column()
-
-        if self.value[0] == "-":
-            return select.order_by(nullscheck, column.desc(), primary_key_column.desc())
+        if order_by_columns:
+            select = select.order_by(*[col for pair in order_by_columns for col in pair])
         else:
-            return select.order_by(nullscheck, column.asc(), primary_key_column.asc())
+            primary_key_column = self.get_primary_key_column()
+            select = select.order_by(primary_key_column.asc())
+
+        return select
 
     def get_primary_key_column(self) -> Column:
         """Get the primary key column of the model of SortParam object."""
