@@ -1884,6 +1884,7 @@ class TestStringifiedDAGs:
                 {
                     "source": "test_derived_dag_deps_trigger",
                     "target": "trigger_dag_id",
+                    "label": "task2",
                     "dependency_type": "trigger",
                     "dependency_id": "task2",
                 }
