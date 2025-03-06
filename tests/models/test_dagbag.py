@@ -859,6 +859,13 @@ with airflow.DAG(
         dagbag = DagBag(dag_folder=TEST_DAGS_FOLDER, include_examples=False)
         assert dagbag.dags
 
+    def test_dagbag_collect_dags_stats_have_filepath_without_dag_folder(self):
+        with conf_vars({("core", "DAGS_FOLDER"): "/different/path"}):
+            dagbag = DagBag(dag_folder=TEST_DAGS_FOLDER, include_examples=False)
+
+            assert dagbag.dagbag_stats
+            assert str(TEST_DAGS_FOLDER) not in dagbag.dagbag_stats[0].file
+
     def test_dabgag_captured_warnings(self):
         dag_file = os.path.join(TEST_DAGS_FOLDER, "test_dag_warnings.py")
         dagbag = DagBag(dag_folder=dag_file, include_examples=False, collect_dags=False)
