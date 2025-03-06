@@ -159,6 +159,9 @@ config:
       execution_timeout:
         description: |
           Maximum amount of time (in seconds) that OpenLineage can spend executing metadata extraction.
+          Note that other configurations, sometimes with higher priority, may also affect how much time
+          OpenLineage has for execution, such as core.task_success_overtime. For more details, see:
+          https://airflow.apache.org/docs/apache-airflow/stable/configurations-ref.html#task-success-overtime
         default: "10"
         example: ~
         type: integer
