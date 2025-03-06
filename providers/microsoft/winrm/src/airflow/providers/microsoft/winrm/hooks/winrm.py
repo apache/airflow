@@ -289,7 +289,7 @@ class WinRMHook(BaseHook):
 
     def test_connection(self):
         try:
-            (r_code, std_out, std_err) = self.run("pwd")
+            (r_code, std_out, std_err) = self.run('cd')
             if r_code != 0:
                 raise RuntimeError(std_err)
             return True, "Connection successful."
