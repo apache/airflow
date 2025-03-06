@@ -45,6 +45,13 @@
 .. toctree::
     :hidden:
     :maxdepth: 1
+    :caption: System tests
+
+    System Tests <_api/tests/system/apache/tinkerpop/index>
+
+.. toctree::
+    :hidden:
+    :maxdepth: 1
     :caption: Resources
 
     Example DAGs <https://github.com/apache/airflow/tree/providers-apache-tinkerpop/|version|/providers/apache/tinkerpop/tests/system/gremlin>
@@ -69,7 +76,7 @@ apache-airflow-providers-apache-tinkerpop package
 provides hooks to interact with Graph DB using the Gremlin API.
 
 
-Release: 0.0.1
+Release: 1.0.0
 
 Provider package
 ----------------

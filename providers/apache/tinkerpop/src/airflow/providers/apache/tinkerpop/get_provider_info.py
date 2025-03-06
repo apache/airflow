@@ -28,7 +28,7 @@ def get_provider_info():
         "description": "`Gremlin <https://tinkerpop.apache.org/gremlin.html>`__\nprovides hooks to interact with Graph DB using the Gremlin API.\n",
         "state": "ready",
         "source-date-epoch": 1686592800,
-        "versions": ["0.0.1"],
+        "versions": ["1.0.0"],
         "integrations": [
             {
                 "integration-name": "Apache TinkerPop",

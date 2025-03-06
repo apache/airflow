@@ -18,7 +18,7 @@
 ``apache-airflow-providers-apache-tinkerpop``
 
 
-0.0.1
+1.0.0
 .....
 
 Initial version of the provider.
