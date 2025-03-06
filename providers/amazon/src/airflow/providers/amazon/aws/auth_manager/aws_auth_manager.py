@@ -153,9 +153,9 @@ class AwsAuthManager(BaseAuthManager[AwsAuthManagerUser]):
     def is_authorized_asset(
         self, *, method: ResourceMethod, user: AwsAuthManagerUser, details: AssetDetails | None = None
     ) -> bool:
-        asset_uri = details.uri if details else None
+        asset_id = details.id if details else None
         return self.avp_facade.is_authorized(
-            method=method, entity_type=AvpEntities.ASSET, user=user, entity_id=asset_uri
+            method=method, entity_type=AvpEntities.ASSET, user=user, entity_id=asset_id
         )
 
     def is_authorized_pool(
