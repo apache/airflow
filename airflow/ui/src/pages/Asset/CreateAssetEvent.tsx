@@ -46,7 +46,7 @@ export const CreateAssetEvent = ({ asset, withText = true }: Props) => {
         withText={withText}
       />
 
-      {asset === undefined ? undefined : (
+      {asset === undefined || !open ? undefined : (
         <CreateAssetEventModal asset={asset} onClose={onClose} open={open} />
       )}
     </Box>
