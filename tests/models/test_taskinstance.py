@@ -3993,14 +3993,14 @@ class TestTaskInstance:
         for table in tables:
             assert session.query(table).count() == 1
 
-        ti_note = session.query(TaskInstanceNote).filter_by(id=ti.id).one()
+        ti_note = session.query(TaskInstanceNote).filter_by(ti_id=ti.id).one()
         assert ti_note.content == "sample note"
 
         ti.clear_db_references(session)
         for table in tables:
             assert session.query(table).count() == 0
 
-        assert session.query(TaskInstanceNote).filter_by(id=ti.id).one_or_none() is None
+        assert session.query(TaskInstanceNote).filter_by(ti_id=ti.id).one_or_none() is None
 
     def test_skipped_task_call_on_skipped_callback(self, dag_maker):
         def raise_skip_exception():
@@ -4968,14 +4968,14 @@ def test_taskinstance_with_note(create_task_instance, session):
     session.add(ti)
     session.commit()
 
-    ti_note: TaskInstanceNote = session.query(TaskInstanceNote).filter_by(id=ti.id).one()
+    ti_note: TaskInstanceNote = session.query(TaskInstanceNote).filter_by(ti_id=ti.id).one()
     assert ti_note.content == "ti with note"
 
     session.delete(ti)
     session.commit()
 
-    assert session.query(TaskInstance).filter_by(id=ti.id).one_or_none() is None
-    assert session.query(TaskInstanceNote).filter_by(id=ti.id).one_or_none() is None
+    assert session.query(TaskInstance).filter_by(ti_id=ti.id).one_or_none() is None
+    assert session.query(TaskInstanceNote).filter_by(ti_id=ti.id).one_or_none() is None
 
 
 def test__refresh_from_db_should_not_increment_try_number(dag_maker, session):
