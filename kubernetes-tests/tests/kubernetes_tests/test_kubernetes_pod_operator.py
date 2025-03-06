@@ -1473,8 +1473,7 @@ class TestKubernetesPodOperatorSystem:
         )
 
         # Test the _log_message method directly
-        logger = logging.getLogger("airflow.providers.cncf.kubernetes.utils.pod_manager.PodManager")
-        with mock.patch.object(logger, "info") as mock_info:
+        with mock.patch.object(k.pod_manager.log, "info") as mock_info:
             k.pod_manager._log_message(
                 message=marker,
                 container_name="base",

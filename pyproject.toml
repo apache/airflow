@@ -1264,8 +1264,9 @@ dev = [
     "apache-airflow-kubernetes-tests",
     "apache-airflow-task-sdk",
     "apache-airflow-ctl",
-    "apache-airflow-shared-timezones",
+    "apache-airflow-shared-logging",
     "apache-airflow-shared-secrets-masker",
+    "apache-airflow-shared-timezones",
 ]
 
 # To build docs:
@@ -1312,8 +1313,9 @@ apache-airflow-helm-tests = { workspace = true }
 apache-airflow-kubernetes-tests = { workspace = true }
 apache-airflow-providers = { workspace = true }
 apache-aurflow-docker-stack = { workspace = true }
-apache-airflow-shared-timezones = { workspace = true }
+apache-airflow-shared-logging = { workspace = true }
 apache-airflow-shared-secrets-masker = { workspace = true }
+apache-airflow-shared-timezones = { workspace = true }
 # Automatically generated provider workspace items (update_airflow_pyproject_toml.py)
 apache-airflow-providers-airbyte = { workspace = true }
 apache-airflow-providers-alibaba = { workspace = true }
@@ -1429,8 +1431,9 @@ members = [
     "task-sdk",
     "providers-summary-docs",
     "docker-stack-docs",
-    "shared/timezones",
+    "shared/logging",
     "shared/secrets_masker",
+    "shared/timezones",
     # Automatically generated provider workspace members (update_airflow_pyproject_toml.py)
     "providers/airbyte",
     "providers/alibaba",

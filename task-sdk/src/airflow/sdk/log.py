@@ -17,18 +17,15 @@
 # under the License.
 from __future__ import annotations
 
-import io
 import itertools
 import logging.config
-import os
 import re
 import sys
 import warnings
 from functools import cache
 from pathlib import Path
-from typing import TYPE_CHECKING, Any, BinaryIO, Generic, TextIO, TypeVar, cast
+from typing import TYPE_CHECKING, Any, BinaryIO, Generic, TextIO, TypeVar
 
-import msgspec
 import structlog
 
 # We have to import this here, as it is used in the type annotations at runtime even if it seems it is
@@ -41,7 +38,7 @@ if TYPE_CHECKING:
     from structlog.typing import EventDict, ExcInfo, FilteringBoundLogger, Processor
 
     from airflow.logging_config import RemoteLogIO
-    from airflow.sdk.types import RuntimeTaskInstanceProtocol as RuntimeTI
+    from airflow.sdk.types import Logger, RuntimeTaskInstanceProtocol as RuntimeTI
 
 
 __all__ = ["configure_logging", "reset_logging", "mask_secret"]
@@ -143,128 +140,32 @@ class StdBinaryStreamHandler(logging.StreamHandler):
 
 
 @cache
-def logging_processors(enable_pretty_log: bool, mask_secrets: bool = True, colored_console_log: bool = True):
-    if enable_pretty_log:
-        timestamper = structlog.processors.MaybeTimeStamper(fmt="%Y-%m-%d %H:%M:%S.%f")
-    else:
-        timestamper = structlog.processors.MaybeTimeStamper(fmt="iso")
+def logging_processors(
+    json_output: bool,
+    log_format: str = "",
+    colors: bool = True,
+    sending_to_supervisor: bool = False,
+) -> tuple[Processor, ...]:
+    from airflow.sdk._shared.logging.structlog import structlog_processors
 
-    processors: list[structlog.typing.Processor] = [
-        timestamper,
-        structlog.contextvars.merge_contextvars,
-        structlog.processors.add_log_level,
-        structlog.stdlib.PositionalArgumentsFormatter(),
-        logger_name,
-        redact_jwt,
-        structlog.processors.StackInfoRenderer(),
-    ]
+    extra_processors: tuple[Processor, ...] = ()
 
+    mask_secrets = not sending_to_supervisor
     if mask_secrets:
-        processors.append(mask_logs)
+        extra_processors += (mask_logs,)
 
-    # Imports to suppress showing code from these modules. We need the import to get the filepath for
-    # structlog to ignore.
-    import contextlib
-
-    import click
-    import httpcore
-    import httpx
-
-    suppress = (
-        click,
-        contextlib,
-        httpx,
-        httpcore,
-        httpx,
-    )
-
-    if enable_pretty_log:
-        if colored_console_log:
-            rich_exc_formatter = structlog.dev.RichTracebackFormatter(
-                # These values are picked somewhat arbitrarily to produce useful-but-compact tracebacks. If
-                # we ever need to change these then they should be configurable.
-                extra_lines=0,
-                max_frames=30,
-                indent_guides=False,
-                suppress=suppress,
-            )
-            my_styles = structlog.dev.ConsoleRenderer.get_default_level_styles()
-            my_styles["debug"] = structlog.dev.CYAN
-
-            console = structlog.dev.ConsoleRenderer(
-                exception_formatter=rich_exc_formatter, level_styles=my_styles
-            )
-        else:
-            # Create a console renderer without colors - use the same RichTracebackFormatter
-            # but rely on ConsoleRenderer(colors=False) to disable colors
-            rich_exc_formatter = structlog.dev.RichTracebackFormatter(
-                extra_lines=0,
-                max_frames=30,
-                indent_guides=False,
-                suppress=suppress,
-            )
-            console = structlog.dev.ConsoleRenderer(
-                colors=False,
-                exception_formatter=rich_exc_formatter,
-            )
-        processors.append(console)
-        return processors, {
-            "timestamper": timestamper,
-            "console": console,
-        }
-    dict_exc_formatter = structlog.tracebacks.ExceptionDictTransformer(
-        use_rich=False, show_locals=False, suppress=suppress
-    )
-
-    dict_tracebacks = structlog.processors.ExceptionRenderer(dict_exc_formatter)
-    if hasattr(__builtins__, "BaseExceptionGroup"):
-        exc_group_processor = exception_group_tracebacks(dict_exc_formatter)
-        processors.append(exc_group_processor)
-    else:
-        exc_group_processor = None
-
-    def json_dumps(msg, default):
-        # Note: this is likely an "expensive" step, but lets massage the dict order for nice
-        # viewing of the raw JSON logs.
-        # Maybe we don't need this once the UI renders the JSON instead of displaying the raw text
-        msg = {
-            "timestamp": msg.pop("timestamp"),
-            "level": msg.pop("level"),
-            "event": msg.pop("event"),
-            **msg,
-        }
-        return msgspec.json.encode(msg, enc_hook=default)
-
-    def json_processor(logger: Any, method_name: Any, event_dict: EventDict) -> str:
-        # Stdlib logging doesn't need the re-ordering, it's fine as it is
-        return msgspec.json.encode(event_dict).decode("utf-8")
-
-    json = structlog.processors.JSONRenderer(serializer=json_dumps)
-
-    processors.extend(
-        (
-            dict_tracebacks,
-            structlog.processors.UnicodeDecoder(),
-        ),
-    )
-
-    # Include the remote logging provider for tasks if there are any we need (such as upload to Cloudwatch)
     if (remote := load_remote_log_handler()) and (remote_processors := getattr(remote, "processors")):
-        processors.extend(remote_processors)
+        extra_processors += remote_processors
 
-    processors.append(json)
-
-    return processors, {
-        "timestamper": timestamper,
-        "exc_group_processor": exc_group_processor,
-        "dict_tracebacks": dict_tracebacks,
-        "json": json_processor,
-    }
+    procs, _, final_writer = structlog_processors(
+        json_output=json_output, log_format=log_format, colors=colors
+    )
+    return tuple(procs) + extra_processors + (final_writer,)
 
 
 @cache
 def configure_logging(
-    enable_pretty_log: bool = True,
+    json_output: bool = False,
     log_level: str = "DEFAULT",
     output: BinaryIO | TextIO | None = None,
     cache_logger_on_first_use: bool = True,
@@ -284,176 +185,41 @@ def configure_logging(
 
         colored_console_log = conf.getboolean("logging", "colored_console_log", fallback=True)
 
-    lvl = structlog.stdlib.NAME_TO_LEVEL[log_level.lower()]
+    from airflow.sdk._shared.logging.structlog import configure_logging
 
-    if enable_pretty_log:
-        formatter = "colored"
-    else:
-        formatter = "plain"
-    processors, named = logging_processors(
-        enable_pretty_log, mask_secrets=not sending_to_supervisor, colored_console_log=colored_console_log
-    )
-    timestamper = named["timestamper"]
+    mask_secrets = not sending_to_supervisor
+    extra_processors: tuple[Processor, ...] = ()
 
-    pre_chain: list[structlog.typing.Processor] = [
-        # Add the log level and a timestamp to the event_dict if the log entry
-        # is not from structlog.
-        structlog.stdlib.add_log_level,
-        structlog.stdlib.add_logger_name,
-        timestamper,
-        structlog.contextvars.merge_contextvars,
-        redact_jwt,
-    ]
-
-    # Don't cache the loggers during tests, it make it hard to capture them
-    if "PYTEST_CURRENT_TEST" in os.environ:
-        cache_logger_on_first_use = False
-
-    color_formatter: list[structlog.typing.Processor] = [
-        structlog.stdlib.ProcessorFormatter.remove_processors_meta,
-        drop_positional_args,
-    ]
-    std_lib_formatter: list[structlog.typing.Processor] = [
-        structlog.stdlib.ProcessorFormatter.remove_processors_meta,
-        drop_positional_args,
-    ]
+    if mask_secrets:
+        extra_processors += (mask_logs,)
 
     if (remote := load_remote_log_handler()) and (remote_processors := getattr(remote, "processors")):
-        # Ensure we add in any remote log processor before we add `console` or `json` formatter so these get
-        # called with the event_dict as a dict still
-        color_formatter.extend(remote_processors)
-        std_lib_formatter.extend(remote_processors)
+        extra_processors += remote_processors
 
-    wrapper_class = structlog.make_filtering_bound_logger(lvl)
-    if enable_pretty_log:
-        if output is not None and not isinstance(output, TextIO):
-            wrapper = io.TextIOWrapper(output, line_buffering=True)
-            logger_factory = structlog.WriteLoggerFactory(wrapper)
-        else:
-            logger_factory = structlog.WriteLoggerFactory(output)
-        structlog.configure(
-            processors=processors,
-            cache_logger_on_first_use=cache_logger_on_first_use,
-            wrapper_class=wrapper_class,
-            logger_factory=logger_factory,
-        )
-        color_formatter.append(named["console"])
-    else:
-        if output is not None and "b" not in output.mode:
-            if not hasattr(output, "buffer"):
-                raise ValueError(
-                    f"output needed to be a binary stream, but it didn't have a buffer attribute ({output=})"
-                )
-            output = cast("TextIO", output).buffer
-        if TYPE_CHECKING:
-            # Not all binary streams are isinstance of BinaryIO, so we check via looking at `mode` at
-            # runtime. mypy doesn't grok that though
-            assert isinstance(output, BinaryIO)
-        structlog.configure(
-            processors=processors,
-            cache_logger_on_first_use=cache_logger_on_first_use,
-            wrapper_class=wrapper_class,
-            logger_factory=structlog.BytesLoggerFactory(output),
-        )
-
-        if processor := named["exc_group_processor"]:
-            pre_chain.append(processor)
-        pre_chain.append(named["dict_tracebacks"])
-        color_formatter.append(named["json"])
-        std_lib_formatter.append(named["json"])
+    configure_logging(
+        json_output=json_output,
+        log_level=log_level,
+        output=output,
+        cache_logger_on_first_use=cache_logger_on_first_use,
+        colors=colored_console_log,
+        extra_processors=extra_processors,
+    )
 
     global _warnings_showwarning
 
     if _warnings_showwarning is None:
         _warnings_showwarning = warnings.showwarning
-
-        if sys.platform == "darwin":
-            # This warning is not "end-user actionable" so we silence it.
-            warnings.filterwarnings(
-                "ignore", r"This process \(pid=\d+\) is multi-threaded, use of fork\(\).*"
-            )
-        # Capture warnings and show them via structlog
+        # Capture warnings and show them via structlog -- i.e. in task logs
         warnings.showwarning = _showwarning
 
-    logging.config.dictConfig(
-        {
-            "version": 1,
-            "disable_existing_loggers": False,
-            "formatters": {
-                "plain": {
-                    "()": structlog.stdlib.ProcessorFormatter,
-                    "processors": std_lib_formatter,
-                    "foreign_pre_chain": pre_chain,
-                    "pass_foreign_args": True,
-                },
-                "colored": {
-                    "()": structlog.stdlib.ProcessorFormatter,
-                    "processors": color_formatter,
-                    "foreign_pre_chain": pre_chain,
-                    "pass_foreign_args": True,
-                },
-            },
-            "handlers": {
-                "default": {
-                    "level": log_level.upper(),
-                    "class": "logging.StreamHandler",
-                    "formatter": formatter,
-                },
-                "to_supervisor": {
-                    "level": log_level.upper(),
-                    "()": StdBinaryStreamHandler,
-                    "formatter": formatter,
-                    "stream": output,
-                },
-            },
-            "loggers": {
-                # Set Airflow logging to the level requested, but most everything else at "INFO"
-                "": {
-                    "handlers": ["to_supervisor" if sending_to_supervisor else "default"],
-                    "level": "INFO",
-                    "propagate": True,
-                },
-                "airflow": {"level": log_level.upper()},
-                # These ones are too chatty even at info
-                "httpx": {"level": "WARN"},
-                "sqlalchemy.engine": {"level": "WARN"},
-            },
-        }
+
+def logger_at_level(name: str, level: int) -> Logger:
+    """Create a new logger at the given level."""
+    from airflow.sdk._shared.logging.structlog import LEVEL_TO_FILTERING_LOGGER
+
+    return structlog.wrap_logger(
+        None, wrapper_class=LEVEL_TO_FILTERING_LOGGER[level], logger_factory_args=(name)
     )
-
-
-def reset_logging():
-    global _warnings_showwarning
-    warnings.showwarning = _warnings_showwarning
-    configure_logging.cache_clear()
-
-
-_warnings_showwarning: Any = None
-
-
-def _showwarning(
-    message: Warning | str,
-    category: type[Warning],
-    filename: str,
-    lineno: int,
-    file: TextIO | None = None,
-    line: str | None = None,
-) -> Any:
-    """
-    Redirects warnings to structlog so they appear in task logs etc.
-
-    Implementation of showwarnings which redirects to logging, which will first
-    check to see if the file parameter is None. If a file is specified, it will
-    delegate to the original warnings implementation of showwarning. Otherwise,
-    it will call warnings.formatwarning and will log the resulting string to a
-    warnings logger named "py.warnings" with level logging.WARNING.
-    """
-    if file is not None:
-        if _warnings_showwarning is not None:
-            _warnings_showwarning(message, category, filename, lineno, file, line)
-    else:
-        log = structlog.get_logger(logger_name="py.warnings")
-        log.warning(str(message), category=category.__name__, filename=filename, lineno=lineno)
 
 
 def _prepare_log_folder(directory: Path, mode: int):
@@ -594,3 +360,46 @@ def mask_secret(secret: JsonValue, name: str | None = None) -> None:
 
         if comms := getattr(task_runner, "SUPERVISOR_COMMS", None):
             comms.send(MaskSecret(value=secret, name=name))
+
+
+def reset_logging():
+    """
+    Convince for testing. Not for production use.
+
+    :meta private:
+    """
+    from airflow.sdk._shared.logging.structlog import structlog_processors
+
+    global _warnings_showwarning
+    warnings.showwarning = _warnings_showwarning
+    _warnings_showwarning = None
+    structlog_processors.cache_clear()
+    logging_processors.cache_clear()
+
+
+_warnings_showwarning: Any = None
+
+
+def _showwarning(
+    message: Warning | str,
+    category: type[Warning],
+    filename: str,
+    lineno: int,
+    file: TextIO | None = None,
+    line: str | None = None,
+) -> Any:
+    """
+    Redirects warnings to structlog so they appear in task logs etc.
+
+    Implementation of showwarnings which redirects to logging, which will first
+    check to see if the file parameter is None. If a file is specified, it will
+    delegate to the original warnings implementation of showwarning. Otherwise,
+    it will call warnings.formatwarning and will log the resulting string to a
+    warnings logger named "py.warnings" with level logging.WARNING.
+    """
+    if file is not None:
+        if _warnings_showwarning is not None:
+            _warnings_showwarning(message, category, filename, lineno, file, line)
+    else:
+        log = structlog.get_logger("py.warnings")
+        log.warning(str(message), category=category.__name__, filename=filename, lineno=lineno)

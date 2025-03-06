@@ -39,7 +39,7 @@ from airflow.providers.apache.beam.version_compat import BaseHook
 from airflow.providers.common.compat.standard.utils import prepare_virtualenv
 
 if TYPE_CHECKING:
-    import logging
+    from airflow.sdk.types import Logger
 
 _APACHE_BEAM_VERSION_SCRIPT = "import apache_beam; print(apache_beam.__version__)"
 
@@ -122,7 +122,7 @@ def beam_options_to_args(options: dict) -> list[str]:
 def process_fd(
     proc,
     fd,
-    log: logging.Logger,
+    log: Logger,
     process_line_callback: Callable[[str], None] | None = None,
     is_dataflow_job_id_exist_callback: Callable[[], bool] | None = None,
 ):
@@ -152,7 +152,7 @@ def process_fd(
 
 def run_beam_command(
     cmd: list[str],
-    log: logging.Logger,
+    log: Logger,
     process_line_callback: Callable[[str], None] | None = None,
     working_directory: str | None = None,
     is_dataflow_job_id_exist_callback: Callable[[], bool] | None = None,
@@ -614,7 +614,7 @@ class BeamAsyncHook(BeamHook):
     async def run_beam_command_async(
         self,
         cmd: list[str],
-        log: logging.Logger,
+        log: Logger,
         working_directory: str | None = None,
         process_line_callback: Callable[[str], None] | None = None,
     ) -> int:
