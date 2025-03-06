@@ -95,12 +95,11 @@ export const Graph = () => {
   const [dependencies] = useLocalStorage<"all" | "immediate" | "tasks">(`dependencies-${dagId}`, "immediate");
 
   const selectedColor = colorMode === "dark" ? selectedDarkColor : selectedLightColor;
-  const versionNumber = selectedVersion === undefined ? undefined : parseInt(selectedVersion, 10);
 
   const { data: graphData = { arrange: "LR", edges: [], nodes: [] } } = useStructureServiceStructureData({
     dagId,
     externalDependencies: dependencies === "immediate",
-    versionNumber,
+    versionNumber: selectedVersion,
   });
 
   const { data: dagDependencies = { edges: [], nodes: [] } } = useDependenciesServiceGetDependencies(
@@ -122,7 +121,7 @@ export const Graph = () => {
         )
       : graphData.nodes,
     openGroupIds: [...openGroupIds, ...(dependencies === "all" ? [`dag:${dagId}`] : [])],
-    versionNumber,
+    versionNumber: selectedVersion,
   });
 
   const { data: gridData } = useGridServiceGridData(
