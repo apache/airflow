@@ -29,6 +29,7 @@ class DagDependency:
 
     source: str
     target: str
+    label: str
     dependency_type: str
     dependency_id: str | None = None
 

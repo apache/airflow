@@ -97,13 +97,13 @@ def resolve_ref_to_asset(
     return session.scalar(stmt)
 
 
-def retrieve_asset_ids(
+def retreive_asset_models(
     *,
     assets: list[Asset],
     session: Session,
-) -> list[int]:
+) -> list[AssetModel]:
     return session.scalars(
-        select(AssetModel.id).where(
+        select(AssetModel).where(
             tuple_(AssetModel.name, AssetModel.uri).in_((asset.name, asset.uri) for asset in assets)
         )
     ).all()

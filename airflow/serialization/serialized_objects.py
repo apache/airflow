@@ -39,7 +39,7 @@ from pendulum.tz.timezone import FixedTimezone, Timezone
 from airflow import macros
 from airflow.callbacks.callback_requests import DagCallbackRequest, TaskCallbackRequest
 from airflow.exceptions import AirflowException, SerializationError, TaskDeferred
-from airflow.models.asset import retrieve_asset_ids
+from airflow.models.asset import retreive_asset_models
 from airflow.models.baseoperator import BaseOperator
 from airflow.models.connection import Connection
 from airflow.models.dag import DAG, _get_model_data_interval
@@ -1070,6 +1070,7 @@ class DependencyDetector:
                 DagDependency(
                     source=task.dag_id,
                     target=getattr(task, "trigger_dag_id"),
+                    label=task.task_display_name,
                     dependency_type="trigger",
                     dependency_id=task.task_id,
                 )
@@ -1083,6 +1084,7 @@ class DependencyDetector:
                 DagDependency(
                     source=task.dag_id,
                     target=task.partial_kwargs["trigger_dag_id"],
+                    label=task.task_display_name,
                     dependency_type="trigger",
                     dependency_id=task.task_id,
                 )
@@ -1092,6 +1094,7 @@ class DependencyDetector:
                 DagDependency(
                     source=getattr(task, "external_dag_id"),
                     target=task.dag_id,
+                    label=task.task_display_name,
                     dependency_type="sensor",
                     dependency_id=task.task_id,
                 )
@@ -1105,6 +1108,7 @@ class DependencyDetector:
                 DagDependency(
                     source=task.partial_kwargs["external_dag_id"],
                     target=task.dag_id,
+                    label=task.task_display_name,
                     dependency_type="sensor",
                     dependency_id=task.task_id,
                 )
@@ -1117,16 +1121,18 @@ class DependencyDetector:
             elif isinstance(obj, AssetAlias):
                 deps.extend(obj.iter_dag_dependencies(source=task.dag_id, target=""))
 
-        with create_session() as session:
-            deps.extend(
-                DagDependency(
-                    source=task.dag_id,
-                    target="asset",
-                    dependency_type="asset",
-                    dependency_id=str(asset_id),
+        if assets:
+            with create_session() as session:
+                deps.extend(
+                    DagDependency(
+                        source=task.dag_id,
+                        target="asset",
+                        label=asset_model.name,
+                        dependency_type="asset",
+                        dependency_id=str(asset_model.id),
+                    )
+                    for asset_model in retreive_asset_models(assets=assets, session=session)
                 )
-                for asset_id in retrieve_asset_ids(assets=assets, session=session)
-            )
 
         return deps
 
