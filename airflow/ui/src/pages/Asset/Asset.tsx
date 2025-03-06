@@ -24,9 +24,10 @@ import { useParams } from "react-router-dom";
 import { useAssetServiceGetAsset } from "openapi/queries";
 import { AssetEvents } from "src/components/Assets/AssetEvents";
 import { BreadcrumbStats } from "src/components/BreadcrumbStats";
-import { ProgressBar } from "src/components/ui";
+import { ProgressBar, Toaster } from "src/components/ui";
 
 import { AssetGraph } from "./AssetGraph";
+import { CreateAssetEvent } from "./CreateAssetEvent";
 import { Header } from "./Header";
 
 export const Asset = () => {
@@ -50,8 +51,10 @@ export const Asset = () => {
 
   return (
     <ReactFlowProvider>
+      <Toaster />
       <HStack justifyContent="space-between" mb={2}>
         <BreadcrumbStats links={links} />
+        <CreateAssetEvent asset={asset} />
       </HStack>
       <ProgressBar size="xs" visibility={Boolean(isLoading) ? "visible" : "hidden"} />
       <Box flex={1} minH={0}>
