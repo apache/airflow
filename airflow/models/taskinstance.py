@@ -3813,7 +3813,6 @@ class TaskInstanceNote(Base):
     ti_id = Column(
         String(36).with_variant(postgresql.UUID(as_uuid=False), "postgresql"),
         primary_key=True,
-        default=uuid7,
         nullable=False,
     )
     user_id = Column(String(128), nullable=True)
