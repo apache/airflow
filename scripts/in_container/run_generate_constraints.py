@@ -143,14 +143,14 @@ class ConfigParams:
     @cached_property
     def get_install_command(self) -> list[str]:
         if self.use_uv:
-            return ["uv", "pip", "install", "--system"]
+            return ["uv", "pip", "install"]
         else:
             return ["pip", "install"]
 
     @cached_property
     def get_uninstall_command(self) -> list[str]:
         if self.use_uv:
-            return ["uv", "pip", "uninstall", "--system"]
+            return ["uv", "pip", "uninstall"]
         else:
             return ["pip", "uninstall"]
 

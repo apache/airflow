@@ -33,9 +33,6 @@ import pytest
 import time_machine
 
 if TYPE_CHECKING:
-    from itsdangerous import URLSafeSerializer
-    from sqlalchemy.orm import Session
-
     from airflow.models.baseoperator import BaseOperator
     from airflow.models.dag import DAG, ScheduleArg
     from airflow.models.dagrun import DagRun, DagRunType
@@ -45,6 +42,8 @@ if TYPE_CHECKING:
     from airflow.typing_compat import Self
     from airflow.utils.state import DagRunState, TaskInstanceState
     from airflow.utils.trigger_rule import TriggerRule
+    from itsdangerous import URLSafeSerializer
+    from sqlalchemy.orm import Session
 
     from tests_common._internals.capture_warnings import CaptureWarningsPlugin  # noqa: F401
     from tests_common._internals.forbidden_warnings import ForbiddenWarningsPlugin  # noqa: F401
@@ -133,7 +132,7 @@ if run_db_tests_only:
 
 _airflow_sources = os.getenv("AIRFLOW_SOURCES", None)
 AIRFLOW_SOURCES_ROOT_DIR = (
-    Path(_airflow_sources) if _airflow_sources else Path(__file__).parents[1]
+    Path(_airflow_sources) if _airflow_sources else Path(__file__).parents[3]
 ).resolve()
 AIRFLOW_TESTS_DIR = AIRFLOW_SOURCES_ROOT_DIR / "tests"
 
@@ -819,10 +818,9 @@ def dag_maker(request) -> Generator[DagMaker, None, None]:
             return self.dagbag.bag_dag(dag)
 
         def _activate_assets(self):
-            from sqlalchemy import select
-
             from airflow.jobs.scheduler_job_runner import SchedulerJobRunner
             from airflow.models.asset import AssetModel, DagScheduleAssetReference, TaskOutletAssetReference
+            from sqlalchemy import select
 
             assets = self.session.scalars(
                 select(AssetModel).where(
@@ -1645,13 +1643,6 @@ def _mock_plugins(request: pytest.FixtureRequest):
 
 
 @pytest.fixture
-def providers_src_folder() -> Path:
-    import airflow.providers
-
-    return Path(airflow.providers.__path__[0]).parents[2]
-
-
-@pytest.fixture
 def hook_lineage_collector():
     from airflow.lineage import hook
 
@@ -1711,9 +1702,8 @@ def url_safe_serializer(secret_key) -> URLSafeSerializer:
 def create_db_api_hook(request):
     from unittest.mock import MagicMock
 
-    from sqlalchemy.engine import Inspector
-
     from airflow.providers.common.sql.hooks.sql import DbApiHook
+    from sqlalchemy.engine import Inspector
 
     columns, primary_keys, reserved_words, escape_column_names = request.param
 
@@ -1732,8 +1722,8 @@ def create_db_api_hook(request):
 @pytest.fixture(autouse=True, scope="session")
 def add_providers_test_folders_to_pythonpath():
     old_path = sys.path.copy()
-    all_provider_test_folders: list[Path] = list(Path(__file__).parents[1].glob("providers/*/tests"))
-    all_provider_test_folders.extend(list(Path(__file__).parents[1].glob("providers/*/*/tests")))
+    all_provider_test_folders: list[Path] = list(AIRFLOW_SOURCES_ROOT_DIR.glob("providers/*/tests"))
+    all_provider_test_folders.extend(list(AIRFLOW_SOURCES_ROOT_DIR.glob("providers/*/*/tests")))
     for provider_test_folder in all_provider_test_folders:
         sys.path.append(str(provider_test_folder))
     yield

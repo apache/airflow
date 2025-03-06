@@ -96,7 +96,7 @@ VOLUMES_FOR_SELECTED_MOUNTS = [
     ("pyproject.toml", "/opt/airflow/pyproject.toml"),
     ("scripts", "/opt/airflow/scripts"),
     ("scripts/docker/entrypoint_ci.sh", "/entrypoint"),
-    ("tests_common", "/opt/airflow/tests_common"),
+    ("devel-common", "/opt/airflow/devel-common"),
     ("tests", "/opt/airflow/tests"),
     ("helm_tests", "/opt/airflow/helm_tests"),
     ("kubernetes_tests", "/opt/airflow/kubernetes_tests"),

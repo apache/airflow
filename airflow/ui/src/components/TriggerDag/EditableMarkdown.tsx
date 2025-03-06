@@ -19,7 +19,7 @@
 import { Editable, Text, VStack } from "@chakra-ui/react";
 import type { ChangeEvent } from "react";
 
-import ReactMarkdown from "./ReactMarkdown";
+import ReactMarkdown from "src/components/ReactMarkdown";
 
 type EditableMarkdownProps = {
   readonly field: {

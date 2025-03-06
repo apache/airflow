@@ -507,6 +507,11 @@ class ShellParams:
         _set_var(_env, "AIRFLOW__CELERY__BROKER_URL", self.airflow_celery_broker_url)
         _set_var(_env, "AIRFLOW__CORE__EXECUTOR", self.executor)
         _set_var(_env, "AIRFLOW__API__BASE_URL", f"http://localhost:{WEB_HOST_PORT}")
+        _set_var(
+            _env,
+            "AIRFLOW__CORE__SIMPLE_AUTH_MANAGER_PASSWORDS_FILE",
+            "/files/simple_auth_manager_passwords.json.generated",
+        )
         if self.executor == EDGE_EXECUTOR:
             _set_var(
                 _env, "AIRFLOW__CORE__EXECUTOR", "airflow.providers.edge.executors.edge_executor.EdgeExecutor"

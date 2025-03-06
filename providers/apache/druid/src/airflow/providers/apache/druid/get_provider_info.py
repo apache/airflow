@@ -27,7 +27,7 @@ def get_provider_info():
         "name": "Apache Druid",
         "description": "`Apache Druid <https://druid.apache.org/>`__.\n",
         "state": "ready",
-        "source-date-epoch": 1740734079,
+        "source-date-epoch": 1741121820,
         "versions": [
             "4.0.0",
             "3.12.1",
@@ -104,4 +104,5 @@ def get_provider_info():
             "pydruid>=0.4.1",
         ],
         "optional-dependencies": {"apache.hive": ["apache-airflow-providers-apache-hive"]},
+        "devel-dependencies": [],
     }

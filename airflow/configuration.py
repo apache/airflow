@@ -378,7 +378,7 @@ class AirflowConfigParser(ConfigParser):
         "api": {
             "auth_backends": (
                 re2.compile(r"^airflow\.api\.auth\.backend\.deny_all$|^$"),
-                "airflow.api.auth.backend.session",
+                "airflow.providers.fab.auth_manager.api.auth.backend.session",
                 "3.0",
             ),
         },
@@ -686,10 +686,7 @@ class AirflowConfigParser(ConfigParser):
         This is required by the UI for ajax queries.
         """
         old_value = self.get("api", "auth_backends", fallback="")
-        if (
-            old_value.find("airflow.api.auth.backend.session") == -1
-            and old_value.find("airflow.providers.fab.auth_manager.api.auth.backend.session") == -1
-        ):
+        if "airflow.providers.fab.auth_manager.api.auth.backend.session" not in old_value:
             new_value = old_value + ",airflow.providers.fab.auth_manager.api.auth.backend.session"
             self._update_env_var(section="api", name="auth_backends", new_value=new_value)
             self.upgraded_values[("api", "auth_backends")] = old_value
@@ -700,7 +697,7 @@ class AirflowConfigParser(ConfigParser):
             os.environ.pop(old_env_var, None)
 
             warnings.warn(
-                "The auth_backends setting in [api] has had airflow.api.auth.backend.session added "
+                "The auth_backends setting in [api] missed airflow.providers.fab.auth_manager.api.auth.backend.session "
                 "in the running config, which is needed by the UI. Please update your config before "
                 "Apache Airflow 3.0.",
                 FutureWarning,

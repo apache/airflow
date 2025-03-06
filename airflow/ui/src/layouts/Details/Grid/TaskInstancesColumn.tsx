@@ -30,7 +30,7 @@ type Props = {
   taskInstances: Array<GridTaskInstanceSummary>;
 };
 
-export const TaskInstances = ({ nodes, runId, taskInstances }: Props) => {
+export const TaskInstancesColumn = ({ nodes, runId, taskInstances }: Props) => {
   const { dagId = "" } = useParams();
   const [searchParams] = useSearchParams();
 

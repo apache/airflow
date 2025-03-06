@@ -61,6 +61,24 @@ dependencies = [
     "zenpy>=2.0.40",
 ]
 
+[dependency-groups]
+dev = [
+    "apache-airflow",
+    "apache-airflow-task-sdk",
+    "apache-airflow-devel-common",
+    # Additional devel dependencies (do not remove this line and add extra development dependencies)
+]
+
+[tool.uv.sources]
+# These names must match the names as defined in the pyproject.toml of the workspace items,
+# *not* the workspace folder paths
+apache-airflow = {workspace = true}
+apache-airflow-devel-common = {workspace = true}
+apache-airflow-task-sdk = {workspace = true}
+apache-airflow-providers-common-sql = {workspace = true}
+apache-airflow-providers-fab = {workspace = true}
+apache-airflow-providers-standard = {workspace = true}
+
 [project.urls]
 "Documentation" = "https://airflow.apache.org/docs/apache-airflow-providers-zendesk/4.9.0"
 "Changelog" = "https://airflow.apache.org/docs/apache-airflow-providers-zendesk/4.9.0/changelog.html"
@@ -75,6 +93,3 @@ provider_info = "airflow.providers.zendesk.get_provider_info:get_provider_info"
 
 [tool.flit.module]
 name = "airflow.providers.zendesk"
-
-[tool.pytest.ini_options]
-ignore = "tests/system/"

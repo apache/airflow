@@ -136,10 +136,15 @@ const taskInstanceColumns = (
     enableSorting: false,
     header: "Operator",
   },
-
   {
     cell: ({ row: { original } }) => `${getDuration(original.start_date, original.end_date)}s`,
     header: "Duration",
+  },
+  {
+    accessorKey: "dag_version",
+    cell: ({ row: { original } }) => `v${original.dag_version?.version_number}`,
+    enableSorting: false,
+    header: "Dag Version",
   },
   {
     accessorKey: "actions",

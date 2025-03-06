@@ -53,7 +53,6 @@ from airflow.decorators.base import DecoratedOperator
 from airflow.exceptions import (
     AirflowException,
     ParamValidationError,
-    RemovedInAirflow3Warning,
     SerializationError,
 )
 from airflow.hooks.base import BaseHook
@@ -980,15 +979,7 @@ class TestStringifiedDAGs:
 
         assert "params" in serialized_dag["dag"]
 
-        if val and any([True for k, v in val.items() if isinstance(v, set)]):
-            with pytest.warns(
-                RemovedInAirflow3Warning,
-                match="The use of non-json-serializable params is deprecated and will be removed in a future release",
-            ):
-                deserialized_dag = SerializedDAG.from_dict(serialized_dag)
-
-        else:
-            deserialized_dag = SerializedDAG.from_dict(serialized_dag)
+        deserialized_dag = SerializedDAG.from_dict(serialized_dag)
         deserialized_simple_task = deserialized_dag.task_dict["simple_task"]
         assert expected_val == deserialized_dag.params.dump()
         assert expected_val == deserialized_simple_task.params.dump()

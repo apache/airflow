@@ -33,7 +33,7 @@ export const BreadcrumbStats = ({ links }: { readonly links: Links }) => (
         <Stat.Label fontSize="xs" fontWeight="bold">
           {link.title}
         </Stat.Label>
-        <Stat.ValueText fontSize="sm" fontWeight="normal">
+        <Stat.ValueText fontSize="sm" fontWeight="normal" lineHeight={1.5}>
           {index === links.length - 1 ? (
             <Breadcrumb.CurrentLink>
               <HStack>{link.label}</HStack>

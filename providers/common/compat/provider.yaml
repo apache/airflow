@@ -22,7 +22,7 @@ description: |
   ``Common Compatibility Provider - providing compatibility code for previous Airflow versions.``
 
 state: ready
-source-date-epoch: 1740734108
+source-date-epoch: 1741121851
 # note that those versions are maintained by release manager - do not update them manually
 versions:
   - 1.5.0

@@ -27,7 +27,7 @@ def get_provider_info():
         "name": "Trino",
         "description": "`Trino <https://trino.io/>`__\n",
         "state": "ready",
-        "source-date-epoch": 1740734207,
+        "source-date-epoch": 1741121959,
         "versions": [
             "6.0.1",
             "6.0.0",
@@ -107,4 +107,5 @@ def get_provider_info():
             "google": ["apache-airflow-providers-google"],
             "openlineage": ["apache-airflow-providers-openlineage"],
         },
+        "devel-dependencies": [],
     }

@@ -24,9 +24,8 @@ from __future__ import annotations
 
 
 def get_base_airflow_version_tuple() -> tuple[int, int, int]:
-    from packaging.version import Version
-
     from airflow import __version__
+    from packaging.version import Version
 
     airflow_version = Version(__version__)
     return airflow_version.major, airflow_version.minor, airflow_version.micro

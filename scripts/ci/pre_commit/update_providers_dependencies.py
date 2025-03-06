@@ -232,12 +232,11 @@ if __name__ == "__main__":
             )
             dependency_groups = PYPROJECT_TOML_CONTENT[provider].get("dependency-groups")
             if dependency_groups and dependency_groups.get("dev"):
-                ALL_DEPENDENCIES[provider]["devel-deps"].extend(dependency_groups["dev"])
+                ALL_DEPENDENCIES[provider]["devel-deps"].extend(
+                    [dep for dep in dependency_groups["dev"] if not dep.startswith("apache-airflow")]
+                )
         else:
             ALL_DEPENDENCIES[provider]["deps"].extend(provider_yaml_content["dependencies"])
-            ALL_DEPENDENCIES[provider]["devel-deps"].extend(
-                provider_yaml_content.get("devel-dependencies") or []
-            )
         ALL_DEPENDENCIES[provider]["plugins"].extend(provider_yaml_content.get("plugins") or [])
         STATES[provider] = provider_yaml_content["state"]
     if warnings:

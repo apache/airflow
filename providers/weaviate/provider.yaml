@@ -24,7 +24,7 @@ description: |
     `Weaviate <https://weaviate.io/developers/weaviate>`__
 
 state: ready
-source-date-epoch: 1740734210
+source-date-epoch: 1741121963
 
 # note that those versions are maintained by release manager - do not update them manually
 versions:

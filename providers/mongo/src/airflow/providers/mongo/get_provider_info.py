@@ -27,7 +27,7 @@ def get_provider_info():
         "name": "MongoDB",
         "description": "`MongoDB <https://www.mongodb.com/>`__\n",
         "state": "ready",
-        "source-date-epoch": 1740734155,
+        "source-date-epoch": 1741121903,
         "versions": [
             "5.0.1",
             "5.0.0",

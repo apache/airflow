@@ -28,10 +28,10 @@ import { useColorMode } from "src/context/colorMode";
 import { useDagParams } from "src/queries/useDagParams";
 import { useTrigger } from "src/queries/useTrigger";
 
-import EditableMarkdown from "../EditableMarkdown";
 import { ErrorAlert } from "../ErrorAlert";
 import { FlexibleForm, flexibleFormDefaultSection } from "../FlexibleForm";
 import { Accordion } from "../ui";
+import EditableMarkdown from "./EditableMarkdown";
 import { useParamStore } from "./useParamStore";
 
 type TriggerDAGFormProps = {

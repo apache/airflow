@@ -27,7 +27,7 @@ def get_provider_info():
         "name": "Apache Drill",
         "description": "`Apache Drill <https://drill.apache.org/>`__.\n",
         "state": "ready",
-        "source-date-epoch": 1740734077,
+        "source-date-epoch": 1741121818,
         "versions": [
             "3.0.0",
             "2.8.1",
@@ -83,4 +83,5 @@ def get_provider_info():
             "apache-airflow-providers-common-sql>=1.20.0",
             "sqlalchemy-drill>=1.1.0,!=1.1.6,!=1.1.7",
         ],
+        "devel-dependencies": [],
     }

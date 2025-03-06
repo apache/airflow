@@ -83,10 +83,10 @@ class SimpleAuthManager(BaseAuthManager[SimpleAuthManagerUser]):
 
     @staticmethod
     def get_generated_password_file() -> str:
-        return os.path.join(
-            os.getenv("AIRFLOW_AUTH_MANAGER_CREDENTIAL_DIRECTORY", AIRFLOW_HOME),
-            "simple_auth_manager_passwords.json.generated",
-        )
+        if configured_file := conf.get("core", "simple_auth_manager_passwords_file", fallback=None):
+            return configured_file
+
+        return os.path.join(AIRFLOW_HOME, "simple_auth_manager_passwords.json.generated")
 
     @staticmethod
     def get_users() -> list[dict[str, str]]:

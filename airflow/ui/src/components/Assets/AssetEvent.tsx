@@ -25,7 +25,13 @@ import type { AssetEventResponse } from "openapi/requests/types.gen";
 import Time from "src/components/Time";
 import { Tooltip } from "src/components/ui";
 
-export const AssetEvent = ({ event }: { readonly event: AssetEventResponse }) => {
+export const AssetEvent = ({
+  assetId,
+  event,
+}: {
+  readonly assetId?: number;
+  readonly event: AssetEventResponse;
+}) => {
   const hasDagRuns = event.created_dagruns.length > 0;
   let source = "";
 
@@ -40,20 +46,24 @@ export const AssetEvent = ({ event }: { readonly event: AssetEventResponse }) =>
       <Text fontWeight="bold">
         <Time datetime={event.timestamp} />
       </Text>
-      <HStack>
-        <FiDatabase />
-        <Tooltip
-          content={
-            <div>
-              <Text> group: {event.group ?? ""} </Text>
-              <Text> uri: {event.uri ?? ""} </Text>
-            </div>
-          }
-          showArrow
-        >
-          <Text> {event.name ?? ""} </Text>
-        </Tooltip>
-      </HStack>
+      {Boolean(assetId) ? undefined : (
+        <HStack>
+          <FiDatabase />
+          <Tooltip
+            content={
+              <div>
+                <Text> group: {event.group ?? ""} </Text>
+                <Text> uri: {event.uri ?? ""} </Text>
+              </div>
+            }
+            showArrow
+          >
+            <Link to={`/assets/${event.asset_id}`}>
+              <Text color="fg.info"> {event.name ?? ""} </Text>
+            </Link>
+          </Tooltip>
+        </HStack>
+      )}
       <HStack>
         <MdOutlineAccountTree /> <Text> Source: </Text>
         {source === "" ? (

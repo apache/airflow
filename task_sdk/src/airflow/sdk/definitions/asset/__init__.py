@@ -649,7 +649,7 @@ class _AssetBooleanCondition(BaseAsset):
 
 
 class AssetAny(_AssetBooleanCondition):
-    """Use to combine assets schedule references in an "and" relationship."""
+    """Use to combine assets schedule references in an "or" relationship."""
 
     agg_func = any
 
@@ -672,7 +672,7 @@ class AssetAny(_AssetBooleanCondition):
 
 
 class AssetAll(_AssetBooleanCondition):
-    """Use to combine assets schedule references in an "or" relationship."""
+    """Use to combine assets schedule references in an "and" relationship."""
 
     agg_func = all
 

@@ -66,12 +66,12 @@ by definitions should be easy to do, otherwise they are not getting done regular
 ## Decision
 
 The decision is to use the approach suggested by
-[Github Actions Security Hardening](https://docs.github.com/en/actions/security-guides/security-hardening-for-github-actions#using-third-party-actions)
+[GitHub Actions Security Hardening](https://docs.github.com/en/actions/security-guides/security-hardening-for-github-actions#using-third-party-actions)
 by simply pinning the potentially insecure GitHub Actions via full-length SHA of the commit
 
 The point 2) about submodules should take the following form
 
-2) For security reason for non-GitHub owned actions (which are heavily protected asset of Github Actions
+2) For security reason for non-GitHub owned actions (which are heavily protected asset of GitHub Actions
    and compromising them would mean compromising the whole GitHub Actions infrastructure) we use full-length
    SHA of the action to refer to the action code. We do it after careful review of the action code - with the
    comment explaining version of the action the SHA refers to. When we upgrade the action we update the SHA

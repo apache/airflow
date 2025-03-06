@@ -263,7 +263,7 @@ def send_task_to_executor(
     if AIRFLOW_V_3_0_PLUS:
         if TYPE_CHECKING:
             assert isinstance(args, workloads.BaseWorkload)
-        args = (args.model_dump_json(),)
+        args = (args.model_dump_json(exclude={"ti": {"executor_config"}}),)
     try:
         with timeout(seconds=OPERATION_TIMEOUT):
             result = task_to_run.apply_async(args=args, queue=queue)

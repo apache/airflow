@@ -27,7 +27,7 @@ def get_provider_info():
         "name": "Vertica",
         "description": "`Vertica <https://www.vertica.com/>`__\n",
         "state": "ready",
-        "source-date-epoch": 1740734209,
+        "source-date-epoch": 1741121961,
         "versions": [
             "4.0.0",
             "3.9.1",
@@ -80,4 +80,5 @@ def get_provider_info():
             "apache-airflow-providers-common-sql>=1.20.0",
             "vertica-python>=0.6.0",
         ],
+        "devel-dependencies": [],
     }

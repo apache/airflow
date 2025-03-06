@@ -24,7 +24,7 @@ check the user session:
 .. code-block:: ini
 
     [api]
-    auth_backends = airflow.api.auth.backend.session
+    auth_backends = airflow.providers.fab.auth_manager.api.auth.backend.session
 
 .. versionchanged:: 1.10.11
 

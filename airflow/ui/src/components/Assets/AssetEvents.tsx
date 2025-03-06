@@ -27,16 +27,18 @@ import { Select } from "src/components/ui";
 import { AssetEvent } from "./AssetEvent";
 
 type AssetEventProps = {
-  readonly assetSortBy: string;
-  readonly endDate: string;
-  readonly setAssetSortBy: React.Dispatch<React.SetStateAction<string>>;
-  readonly startDate: string;
+  readonly assetId?: number;
+  readonly endDate?: string;
+  readonly orderBy?: string;
+  readonly setOrderBy?: React.Dispatch<React.SetStateAction<string>>;
+  readonly startDate?: string;
 };
 
-export const AssetEvents = ({ assetSortBy, endDate, setAssetSortBy, startDate }: AssetEventProps) => {
+export const AssetEvents = ({ assetId, endDate, orderBy, setOrderBy, startDate }: AssetEventProps) => {
   const { data, isLoading } = useAssetServiceGetAssetEvents({
+    assetId,
     limit: 6,
-    orderBy: assetSortBy,
+    orderBy,
     timestampGte: startDate,
     timestampLte: endDate,
   });
@@ -60,26 +62,28 @@ export const AssetEvents = ({ assetSortBy, endDate, setAssetSortBy, startDate }:
             Asset Events
           </Heading>
         </HStack>
-        <Select.Root
-          borderWidth={0}
-          collection={assetSortOptions}
-          data-testid="asset-sort-duration"
-          defaultValue={["-timestamp"]}
-          onValueChange={(option) => setAssetSortBy(option.value[0] as string)}
-          width={130}
-        >
-          <Select.Trigger>
-            <Select.ValueText placeholder="Sort by" />
-          </Select.Trigger>
+        {setOrderBy === undefined ? undefined : (
+          <Select.Root
+            borderWidth={0}
+            collection={assetSortOptions}
+            data-testid="asset-sort-duration"
+            defaultValue={["-timestamp"]}
+            onValueChange={(option) => setOrderBy(option.value[0] as string)}
+            width={130}
+          >
+            <Select.Trigger>
+              <Select.ValueText placeholder="Sort by" />
+            </Select.Trigger>
 
-          <Select.Content>
-            {assetSortOptions.items.map((option) => (
-              <Select.Item item={option} key={option.value[0]}>
-                {option.label}
-              </Select.Item>
-            ))}
-          </Select.Content>
-        </Select.Root>
+            <Select.Content>
+              {assetSortOptions.items.map((option) => (
+                <Select.Item item={option} key={option.value[0]}>
+                  {option.label}
+                </Select.Item>
+              ))}
+            </Select.Content>
+          </Select.Root>
+        )}
       </Flex>
       {isLoading ? (
         <VStack px={3} separator={<StackSeparator />}>
@@ -89,7 +93,7 @@ export const AssetEvents = ({ assetSortBy, endDate, setAssetSortBy, startDate }:
         </VStack>
       ) : (
         <VStack px={3} separator={<StackSeparator />}>
-          {data?.asset_events.map((event) => <AssetEvent event={event} key={event.id} />)}
+          {data?.asset_events.map((event) => <AssetEvent assetId={assetId} event={event} key={event.id} />)}
         </VStack>
       )}
     </Box>

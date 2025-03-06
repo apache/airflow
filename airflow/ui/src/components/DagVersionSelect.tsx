@@ -76,7 +76,7 @@ const DagVersionSelect = ({ disabled = false }: { readonly disabled?: boolean })
   );
 
   return (
-    <Field.Root disabled={disabled} width="fit-content">
+    <Field.Root bg="bg" disabled={disabled} width="fit-content">
       <AsyncSelect
         defaultOptions
         filterOption={undefined}

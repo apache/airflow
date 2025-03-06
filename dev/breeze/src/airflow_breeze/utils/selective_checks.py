@@ -100,7 +100,7 @@ class FileGroupForCi(Enum):
     PYTHON_PRODUCTION_FILES = "python_scans"
     JAVASCRIPT_PRODUCTION_FILES = "javascript_scans"
     ALWAYS_TESTS_FILES = "always_test_files"
-    API_TEST_FILES = "api_test_files"
+    API_FILES = "api_files"
     API_CODEGEN_FILES = "api_codegen_files"
     LEGACY_API_FILES = "legacy_api_files"
     HELM_FILES = "helm_files"
@@ -161,9 +161,11 @@ CI_FILE_GROUP_MATCHES = HashableDict(
             r"^airflow/ui/.*\.yaml$",
             r"^airflow/auth/managers/simple/ui/.*\.yaml$",
         ],
-        FileGroupForCi.API_TEST_FILES: [
+        FileGroupForCi.API_FILES: [
             r"^airflow/api/",
-            r"^airflow/api_connexion/",
+            r"^airflow/api_fastapi/",
+            r"^tests/api/",
+            r"^tests/api_fastapi/",
         ],
         FileGroupForCi.API_CODEGEN_FILES: [
             r"^airflow/api_fastapi/core_api/openapi/v1-generated\.yaml",
@@ -227,7 +229,7 @@ CI_FILE_GROUP_MATCHES = HashableDict(
             r"^task_sdk/src/",
             r"^task_sdk/tests/",
             r"^tests",
-            r"^tests_common",
+            r"^devel-common",
             r"^kubernetes_tests",
         ],
         FileGroupForCi.SYSTEM_TEST_FILES: [
@@ -241,7 +243,7 @@ CI_FILE_GROUP_MATCHES = HashableDict(
         ],
         FileGroupForCi.TESTS_UTILS_FILES: [
             r"^tests/utils/",
-            r"^tests_common/.*\.py$",
+            r"^devel-common/.*\.py$",
         ],
         FileGroupForCi.TASK_SDK_FILES: [
             r"^task_sdk/src/airflow/sdk/.*\.py$",
@@ -338,7 +340,7 @@ def find_provider_affected(changed_file: str, include_docs: bool) -> str | None:
                 # new providers structure
                 return str(relative_path).replace(os.sep, ".")
     if file_path.is_relative_to(AIRFLOW_TEST_COMMON_DIR):
-        # if tests_common changes, we want to run tests for all providers, as they might start failing
+        # if devel-common changes, we want to run tests for all providers, as they might start failing
         return "Providers"
     return None
 
@@ -495,6 +497,13 @@ class SelectiveChecks:
             CI_FILE_GROUP_EXCLUDES,
         ):
             get_console().print("[warning]Running full set of tests because env files changed[/]")
+            return True
+        if self._matching_files(
+            FileGroupForCi.API_FILES,
+            CI_FILE_GROUP_MATCHES,
+            CI_FILE_GROUP_EXCLUDES,
+        ):
+            get_console().print("[warning]Running full set of tests because api files changed[/]")
             return True
         if self._matching_files(
             FileGroupForCi.TESTS_UTILS_FILES,
@@ -692,7 +701,7 @@ class SelectiveChecks:
 
     @cached_property
     def needs_api_tests(self) -> bool:
-        return self._should_be_run(FileGroupForCi.API_TEST_FILES)
+        return self._should_be_run(FileGroupForCi.API_FILES)
 
     @cached_property
     def needs_ol_tests(self) -> bool:

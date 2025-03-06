@@ -16,9 +16,10 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Badge } from "@chakra-ui/react";
+import { Badge, Text } from "@chakra-ui/react";
 import type { UseQueryOptions } from "@tanstack/react-query";
 import dayjs from "dayjs";
+import innerText from "react-innertext";
 
 import { useTaskInstanceServiceGetLog } from "openapi/queries";
 import type {
@@ -48,7 +49,11 @@ const renderStructuredLog = (
   logLevelFilters?: Array<string>,
 ) => {
   if (typeof logMessage === "string") {
-    return <p key={index}>{logMessage}</p>;
+    return (
+      <Text key={index} py={1}>
+        {logMessage}
+      </Text>
+    );
   }
 
   const { event, level = undefined, timestamp, ...structured } = logMessage;
@@ -98,13 +103,20 @@ const renderStructuredLog = (
     }
   }
 
-  return <p key={index}>{elements}</p>;
+  return (
+    <Text key={index} py={1}>
+      {elements}
+    </Text>
+  );
 };
 
 // TODO: add support for log groups, colors, formats, filters
 const parseLogs = ({ data, logLevelFilters }: ParseLogsProps) => {
   let warning;
   let parsedLines;
+  let startGroup = false;
+  let groupLines: Array<JSX.Element | ""> = [];
+  let groupName = "";
 
   try {
     parsedLines = data.map((datum, index) => renderStructuredLog(datum, index, logLevelFilters));
@@ -117,6 +129,41 @@ const parseLogs = ({ data, logLevelFilters }: ParseLogsProps) => {
 
     return { data, warning };
   }
+
+  // TODO: Add support for nested groups
+
+  parsedLines = parsedLines.map((line) => {
+    const text = innerText(line);
+
+    if (text.includes("::group::") && !startGroup) {
+      startGroup = true;
+      groupName = text.split("::group::")[1] as string;
+    } else if (text.includes("::endgroup::")) {
+      startGroup = false;
+      const group = (
+        <details key={groupName} style={{ width: "100%" }}>
+          <summary data-testid={`summary-${groupName}`}>
+            <Text as="span" color="fg.info" cursor="pointer">
+              {groupName}
+            </Text>
+          </summary>
+          {groupLines}
+        </details>
+      );
+
+      groupLines = [];
+
+      return group;
+    }
+
+    if (startGroup) {
+      groupLines.push(line);
+
+      return undefined;
+    } else {
+      return line;
+    }
+  });
 
   return {
     fileSources: [],

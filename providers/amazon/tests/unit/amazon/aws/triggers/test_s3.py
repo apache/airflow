@@ -46,6 +46,9 @@ class TestS3KeyTrigger:
             "poke_interval": 5.0,
             "should_check_fn": False,
             "use_regex": False,
+            "verify": None,
+            "region_name": None,
+            "botocore_config": None,
         }
 
     @pytest.mark.asyncio
@@ -106,6 +109,8 @@ class TestS3KeysUnchangedTrigger:
             "last_activity_time": None,
             "hook_params": {},
             "verify": None,
+            "region_name": None,
+            "botocore_config": None,
             "polling_period_seconds": 0,
         }
 
