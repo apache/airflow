@@ -206,6 +206,62 @@ def _get_last_chance_stderr() -> TextIO:
         return stream
 
 
+class BlockedDBSession:
+    """:meta private:"""  # noqa: D400
+
+    def __init__(self):
+        raise RuntimeError("Direct database access via the ORM is not allowed in Airflow 3.0")
+
+    def remove(*args, **kwargs):
+        pass
+
+    def get_bind(
+        self,
+        mapper=None,
+        clause=None,
+        bind=None,
+        _sa_skip_events=None,
+        _sa_skip_for_implicit_returning=False,
+    ):
+        pass
+
+
+def block_orm_access():
+    """
+    Disable direct DB access as best as possible from task code.
+
+    While we still don't have 100% code separation between TaskSDK and "core" Airflow, it is still possible to
+    import the models and use them. This does what it can to disable that if it is not blocked at the network
+    level
+    """
+    # A fake URL schema that might give users some clue what's going on. Hopefully
+    conn = "airflow-db-not-allowed:///"
+    if "airflow.settings" in sys.modules:
+        from airflow import settings
+        from airflow.configuration import conf
+
+        settings.dispose_orm()
+
+        for attr in ("engine", "async_engine", "Session", "AsyncSession", "NonScopedSession"):
+            if hasattr(settings, attr):
+                delattr(settings, attr)
+
+        def configure_orm(*args, **kwargs):
+            raise RuntimeError("Database access is disabled from DAGs and Triggers")
+
+        settings.configure_orm = configure_orm
+        settings.Session = BlockedDBSession
+        if conf.has_section("database"):
+            conf.set("database", "sql_alchemy_conn", conn)
+            conf.set("database", "sql_alchemy_conn_cmd", "/bin/false")
+            conf.set("database", "sql_alchemy_conn_secret", "db-access-blocked")
+
+        settings.SQL_ALCHEMY_CONN = conn
+        settings.SQL_ALCHEMY_CONN_ASYNC = conn
+
+    os.environ["AIRFLOW__DATABASE__SQL_ALCHEMY_CONN"] = conn
+
+
 def _fork_main(
     child_stdin: socket,
     child_stdout: socket,
@@ -261,6 +317,8 @@ def _fork_main(
                 base_exit(n)
 
     try:
+        block_orm_access()
+
         target()
         exit(0)
     except SystemExit as e:
