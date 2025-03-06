@@ -237,8 +237,8 @@ billiard==4.2.1
 bitarray==2.9.3
 black==25.1.0
 blinker==1.9.0
-boto3==1.37.7
-botocore==1.37.7
+boto3==1.37.1
+botocore==1.37.1
 cachelib==0.13.0
 cachetools==5.5.2
 cassandra-driver==3.29.2
