@@ -24,7 +24,7 @@ import { useConfig } from "src/queries/useConfig";
 
 import { TaskLogPreview } from "./TaskLogPreview";
 
-export const FailedLogs = ({
+const FailedLogs = ({
   failedTasks,
 }: {
   readonly failedTasks: TaskInstanceCollectionResponse | undefined;
@@ -61,3 +61,5 @@ export const FailedLogs = ({
     </Flex>
   );
 };
+
+export default FailedLogs;
