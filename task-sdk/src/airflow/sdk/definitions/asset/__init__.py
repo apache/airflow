@@ -442,14 +442,20 @@ class Asset(os.PathLike, BaseAsset):
 
         :meta private:
         """
-        from airflow.models.asset import retrieve_asset_ids
+        from airflow.models.asset import retreive_asset_models
         from airflow.utils.session import create_session
 
+        asset_id = None
         with create_session() as session:
-            asset_id = str(retrieve_asset_ids(assets=[self], session=session)[0])
+            asset_models = retreive_asset_models(assets=[self], session=session)
+            # handle the case that asset has not yet been added
+            if asset_models:
+                asset_id = str(asset_models[0].id)
+
         yield DagDependency(
             source=source or "asset",
             target=target or "asset",
+            label=self.name,
             dependency_type="asset",
             dependency_id=asset_id,
         )

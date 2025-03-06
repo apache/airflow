@@ -125,7 +125,7 @@ def structure_data(
                 nodes.append(
                     {
                         "id": dependency.node_id,
-                        "label": dependency.dependency_id,
+                        "label": dependency.label,
                         "type": dependency.dependency_type,
                     }
                 )
