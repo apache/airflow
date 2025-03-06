@@ -16,7 +16,14 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Badge, Box, HStack, IconButton, type SelectValueChangeDetails } from "@chakra-ui/react";
+import {
+  Badge,
+  Box,
+  createListCollection,
+  HStack,
+  IconButton,
+  type SelectValueChangeDetails,
+} from "@chakra-ui/react";
 import { useCallback } from "react";
 import { MdOutlineOpenInFull } from "react-icons/md";
 import { useSearchParams } from "react-router-dom";
@@ -29,6 +36,7 @@ import { type LogLevel, logLevelColorMapping, logLevelOptions } from "src/utils/
 
 type Props = {
   readonly isFullscreen?: boolean;
+  readonly loggerOptions?: Array<string>;
   readonly onSelectTryNumber: (tryNumber: number) => void;
   readonly taskInstance?: TaskInstanceResponse;
   readonly toggleFullscreen: () => void;
@@ -39,6 +47,7 @@ type Props = {
 
 export const TaskLogHeader = ({
   isFullscreen = false,
+  loggerOptions,
   onSelectTryNumber,
   taskInstance,
   toggleFullscreen,
@@ -47,11 +56,21 @@ export const TaskLogHeader = ({
   wrap,
 }: Props) => {
   const [searchParams, setSearchParams] = useSearchParams();
-
+  const loggers = searchParams.getAll(SearchParamsKeys.LOGGER);
   const logLevels = searchParams.getAll(SearchParamsKeys.LOG_LEVEL);
   const hasLogLevels = logLevels.length > 0;
 
-  const handleStateChange = useCallback(
+  const loggerOptionList = createListCollection<{
+    label: string;
+    value: string;
+  }>({
+    items: [
+      { label: "All Loggers", value: "all" },
+      ...(loggerOptions ?? []).map((logger) => ({ label: logger, value: logger })),
+    ],
+  });
+
+  const handleLevelChange = useCallback(
     ({ value }: SelectValueChangeDetails<string>) => {
       const [val, ...rest] = value;
 
@@ -62,6 +81,23 @@ export const TaskLogHeader = ({
         value
           .filter((state) => state !== "all")
           .map((state) => searchParams.append(SearchParamsKeys.LOG_LEVEL, state));
+      }
+      setSearchParams(searchParams);
+    },
+    [searchParams, setSearchParams],
+  );
+
+  const handleLoggerChange = useCallback(
+    ({ value }: SelectValueChangeDetails<string>) => {
+      const [val, ...rest] = value;
+
+      if ((val === undefined || val === "all") && rest.length === 0) {
+        searchParams.delete(SearchParamsKeys.LOGGER);
+      } else {
+        searchParams.delete(SearchParamsKeys.LOGGER);
+        value
+          .filter((state) => state !== "all")
+          .map((state) => searchParams.append(SearchParamsKeys.LOGGER, state));
       }
       setSearchParams(searchParams);
     },
@@ -82,7 +118,7 @@ export const TaskLogHeader = ({
           collection={logLevelOptions}
           maxW="250px"
           multiple
-          onValueChange={handleStateChange}
+          onValueChange={handleLevelChange}
           value={hasLogLevels ? logLevels : ["all"]}
         >
           <Select.Trigger {...(hasLogLevels ? { clearable: true } : {})} isActive={Boolean(logLevels)}>
@@ -114,6 +150,26 @@ export const TaskLogHeader = ({
             ))}
           </Select.Content>
         </Select.Root>
+        {loggerOptions !== undefined && loggerOptions.length > 0 ? (
+          <Select.Root
+            collection={loggerOptionList}
+            maxW="250px"
+            multiple
+            onValueChange={handleLoggerChange}
+            value={loggers}
+          >
+            <Select.Trigger clearable>
+              <Select.ValueText placeholder="All Loggers" />
+            </Select.Trigger>
+            <Select.Content>
+              {loggerOptionList.items.map((option) => (
+                <Select.Item item={option} key={option.label}>
+                  {option.label}
+                </Select.Item>
+              ))}
+            </Select.Content>
+          </Select.Root>
+        ) : undefined}
         <HStack>
           <Button aria-label={wrap ? "Unwrap" : "Wrap"} bg="bg.panel" onClick={toggleWrap} variant="outline">
             {wrap ? "Unwrap" : "Wrap"}

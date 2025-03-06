@@ -22,6 +22,7 @@ export enum SearchParamsKeys {
   LAST_DAG_RUN_STATE = "last_dag_run_state",
   LIMIT = "limit",
   LOG_LEVEL = "log_level",
+  LOGGER = "logger",
   NAME_PATTERN = "name_pattern",
   OFFSET = "offset",
   PAUSED = "paused",
