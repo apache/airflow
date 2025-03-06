@@ -90,8 +90,78 @@ else:
                     )
                     return properties
 
-                transport = get_openlineage_listener().adapter.get_or_create_openlineage_client().transport
-                if transport.kind != "http":
+                def _get_transport_information_as_spark_properties() -> dict:
+                    """Retrieve transport information as Spark properties."""
+
+                    def _get_transport_information(tp) -> dict:
+                        props = {
+                            "type": tp.kind,
+                            "url": tp.url,
+                            "endpoint": tp.endpoint,
+                            "timeoutInMillis": str(
+                                int(tp.timeout * 1000)
+                                # convert to milliseconds, as required by Spark integration
+                            ),
+                        }
+                        if hasattr(tp, "compression") and tp.compression:
+                            props["compression"] = str(tp.compression)
+
+                        if hasattr(tp.config.auth, "api_key") and tp.config.auth.get_bearer():
+                            props["auth.type"] = "api_key"
+                            props["auth.apiKey"] = tp.config.auth.get_bearer()
+
+                        if hasattr(tp.config, "custom_headers") and tp.config.custom_headers:
+                            for key, value in tp.config.custom_headers.items():
+                                props[f"headers.{key}"] = value
+                        return props
+
+                    def _format_transport(props: dict, transport: dict, name: str | None):
+                        for key, value in transport.items():
+                            if name:
+                                props[f"spark.openlineage.transport.transports.{name}.{key}"] = value
+                            else:
+                                props[f"spark.openlineage.transport.{key}"] = value
+                        return props
+
+                    transport = (
+                        get_openlineage_listener().adapter.get_or_create_openlineage_client().transport
+                    )
+
+                    if transport.kind == "composite":
+                        http_transports = {}
+                        for nested_transport in transport.transports:
+                            if nested_transport.kind == "http":
+                                http_transports[nested_transport.name] = _get_transport_information(
+                                    nested_transport
+                                )
+                            else:
+                                name = (
+                                    nested_transport.name if hasattr(nested_transport, "name") else "no-name"
+                                )
+                                log.info(
+                                    "OpenLineage transport type `%s` with name `%s` is not supported in composite transport.",
+                                    nested_transport.kind,
+                                    name,
+                                )
+                        if len(http_transports) == 0:
+                            log.warning(
+                                "OpenLineage transport type `composite` does not contain http transport. Skipping "
+                                "injection of OpenLineage transport information into Spark properties.",
+                            )
+                            return {}
+                        props = {
+                            "spark.openlineage.transport.type": "composite",
+                            "spark.openlineage.transport.continueOnFailure": str(
+                                transport.config.continue_on_failure
+                            ),
+                        }
+                        for name, http_transport in http_transports.items():
+                            props = _format_transport(props, http_transport, name)
+                        return props
+
+                    elif transport.kind == "http":
+                        return _format_transport({}, _get_transport_information(transport), None)
+
                     log.info(
                         "OpenLineage transport type `%s` does not support automatic "
                         "injection of OpenLineage transport information into Spark properties.",
@@ -99,29 +169,7 @@ else:
                     )
                     return {}
 
-                transport_properties = {
-                    "spark.openlineage.transport.type": "http",
-                    "spark.openlineage.transport.url": transport.url,
-                    "spark.openlineage.transport.endpoint": transport.endpoint,
-                    # Timeout is converted to milliseconds, as required by Spark integration,
-                    "spark.openlineage.transport.timeoutInMillis": str(int(transport.timeout * 1000)),
-                }
-                if transport.compression:
-                    transport_properties["spark.openlineage.transport.compression"] = str(
-                        transport.compression
-                    )
-
-                if hasattr(transport.config.auth, "api_key") and transport.config.auth.get_bearer():
-                    transport_properties["spark.openlineage.transport.auth.type"] = "api_key"
-                    transport_properties["spark.openlineage.transport.auth.apiKey"] = (
-                        transport.config.auth.get_bearer()
-                    )
-
-                if hasattr(transport.config, "custom_headers") and transport.config.custom_headers:
-                    for key, value in transport.config.custom_headers.items():
-                        transport_properties[f"spark.openlineage.transport.headers.{key}"] = value
-
-                return {**properties, **transport_properties}
+                return {**properties, **_get_transport_information_as_spark_properties()}
 
 
 __all__ = [
