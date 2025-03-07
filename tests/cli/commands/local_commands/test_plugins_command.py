@@ -26,8 +26,8 @@ import pytest
 from airflow.cli import cli_parser
 from airflow.cli.commands.local_commands import plugins_command
 from airflow.listeners.listener import get_listener_manager
-from airflow.models.baseoperatorlink import BaseOperatorLink
 from airflow.plugins_manager import AirflowPlugin
+from airflow.sdk import BaseOperatorLink
 
 from tests.plugins.test_plugin import AirflowTestPlugin as ComplexAirflowPlugin
 from tests_common.test_utils.mock_plugins import mock_plugin_manager

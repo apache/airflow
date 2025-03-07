@@ -24,6 +24,7 @@ import os
 import selectors
 import signal
 import sys
+import time
 from io import BytesIO
 from operator import attrgetter
 from pathlib import Path
@@ -36,6 +37,7 @@ import psutil
 import pytest
 import tenacity
 from pytest_unordered import unordered
+from task_sdk import FAKE_BUNDLE, make_client
 from uuid6 import uuid7
 
 from airflow.executors.workloads import BundleInfo
@@ -78,9 +80,6 @@ from airflow.sdk.execution_time.comms import (
 from airflow.sdk.execution_time.supervisor import ActivitySubprocess, supervise
 from airflow.sdk.execution_time.task_runner import CommsDecoder
 from airflow.utils import timezone, timezone as tz
-
-from task_sdk.tests.api.test_client import make_client
-from task_sdk.tests.execution_time.test_task_runner import FAKE_BUNDLE
 
 if TYPE_CHECKING:
     import kgb
@@ -850,7 +849,9 @@ class TestWatchedSubprocessKill:
             client=MagicMock(spec=sdk_client.Client),
             target=subprocess_main,
         )
+
         # Ensure we get one normal run, to give the proc time to register it's custom sighandler
+        time.sleep(0.1)
         proc._service_subprocess(max_wait_time=1)
         proc.kill(signal_to_send=signal_to_send, escalation_delay=0.5, force=True)
 

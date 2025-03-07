@@ -973,12 +973,12 @@ class FabAirflowSecurityManagerOverride(AirflowSecurityManagerV2):
     @staticmethod
     def get_readable_dag_ids(user=None) -> set[str]:
         """Get the DAG IDs readable by authenticated user."""
-        return get_auth_manager().get_permitted_dag_ids(methods=["GET"], user=user)
+        return get_auth_manager().get_permitted_dag_ids(user=user)
 
     @staticmethod
     def get_editable_dag_ids(user=None) -> set[str]:
         """Get the DAG IDs editable by authenticated user."""
-        return get_auth_manager().get_permitted_dag_ids(methods=["PUT"], user=user)
+        return get_auth_manager().get_permitted_dag_ids(method="PUT", user=user)
 
     def can_access_some_dags(self, action: str, dag_id: str | None = None) -> bool:
         """Check if user has read or write access to some dags."""

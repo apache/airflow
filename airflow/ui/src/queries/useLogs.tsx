@@ -16,7 +16,7 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Badge, Text } from "@chakra-ui/react";
+import { chakra, Code } from "@chakra-ui/react";
 import type { UseQueryOptions } from "@tanstack/react-query";
 import dayjs from "dayjs";
 import innerText from "react-innertext";
@@ -50,9 +50,9 @@ const renderStructuredLog = (
 ) => {
   if (typeof logMessage === "string") {
     return (
-      <Text key={index} py={1}>
+      <chakra.span key={index} lineHeight={1.5}>
         {logMessage}
-      </Text>
+      </chakra.span>
     );
   }
 
@@ -74,14 +74,15 @@ const renderStructuredLog = (
 
   if (typeof level === "string") {
     elements.push(
-      <Badge
+      <Code
         colorPalette={level.toUpperCase() in LogLevel ? logLevelColorMapping[level as LogLevel] : undefined}
         key={1}
-        minH={3}
-        size="sm"
+        lineHeight={1.5}
+        minH={0}
+        px={0}
       >
         {level.toUpperCase()}
-      </Badge>,
+      </Code>,
       " - ",
     );
   }
@@ -104,9 +105,9 @@ const renderStructuredLog = (
   }
 
   return (
-    <Text key={index} py={1}>
+    <chakra.span key={index} lineHeight={1.5}>
       {elements}
-    </Text>
+    </chakra.span>
   );
 };
 
@@ -143,9 +144,9 @@ const parseLogs = ({ data, logLevelFilters }: ParseLogsProps) => {
       const group = (
         <details key={groupName} style={{ width: "100%" }}>
           <summary data-testid={`summary-${groupName}`}>
-            <Text as="span" color="fg.info" cursor="pointer">
+            <chakra.span color="fg.info" cursor="pointer">
               {groupName}
-            </Text>
+            </chakra.span>
           </summary>
           {groupLines}
         </details>

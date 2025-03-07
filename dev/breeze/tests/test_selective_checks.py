@@ -492,7 +492,7 @@ def assert_outputs_are_printed(expected_outputs: dict[str, str], stderr: str):
         ),
         (
             pytest.param(
-                ("task_sdk/src/airflow/sdk/random.py",),
+                ("task-sdk/src/airflow/sdk/random.py",),
                 {
                     "all-python-versions": "['3.9']",
                     "all-python-versions-list-as-string": "3.9",
@@ -1688,7 +1688,7 @@ def test_expected_output_push(
             (
                 "airflow/assets/",
                 "airflow/models/assets/",
-                "task_sdk/src/airflow/sdk/definitions/asset/",
+                "task-sdk/src/airflow/sdk/definitions/asset/",
                 "airflow/datasets/",
             ),
             {
@@ -2455,7 +2455,7 @@ def test_provider_compatibility_checks(labels: tuple[str, ...], expected_outputs
             id="Airflow mypy checks on airflow files with model changes.",
         ),
         pytest.param(
-            ("task_sdk/src/airflow/sdk/a_file.py",),
+            ("task-sdk/src/airflow/sdk/a_file.py",),
             {
                 "needs-mypy": "true",
                 "mypy-checks": "['mypy-providers', 'mypy-task-sdk']",
@@ -2594,7 +2594,7 @@ def test_pr_labels(
             id="Caplog is in the git diff Providers",
         ),
         pytest.param(
-            ("task_sdk/tests/definitions/test_dag.py",),
+            ("task-sdk/tests/definitions/test_dag.py",),
             (),
             GithubEvents.PULL_REQUEST,
             id="Caplog is in the git diff TaskSDK",
@@ -2651,7 +2651,7 @@ def test_is_log_mocked_in_the_tests_fail(
             id="Caplog is in the git diff Providers",
         ),
         pytest.param(
-            ("task_sdk/tests/definitions/test_dag.py",),
+            ("task-sdk/tests/definitions/test_dag.py",),
             (),
             GithubEvents.PULL_REQUEST,
             id="Caplog is in the git diff TaskSDK",
@@ -2711,7 +2711,7 @@ def test_is_log_mocked_in_the_tests_fail_formatted(
             id="Caplog is in the git diff Providers",
         ),
         pytest.param(
-            ("task_sdk/tests/definitions/test_dag.py",),
+            ("task-sdk/tests/definitions/test_dag.py",),
             (),
             GithubEvents.PULL_REQUEST,
             id="Caplog is in the git diff TaskSDK",
@@ -2759,7 +2759,7 @@ def test_is_log_mocked_in_the_tests_not_fail(
             id="Caplog is in the git diff Providers",
         ),
         pytest.param(
-            ("task_sdk/tests/definitions/test_dag.py",),
+            ("task-sdk/tests/definitions/test_dag.py",),
             (LOG_WITHOUT_MOCK_IN_TESTS_EXCEPTION_LABEL,),
             GithubEvents.PULL_REQUEST,
             id="Caplog is in the git diff TaskSDK",

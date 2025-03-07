@@ -40,7 +40,6 @@ from airflow import macros
 from airflow.callbacks.callback_requests import DagCallbackRequest, TaskCallbackRequest
 from airflow.exceptions import AirflowException, SerializationError, TaskDeferred
 from airflow.models.baseoperator import BaseOperator
-from airflow.models.baseoperatorlink import BaseOperatorLink, XComOperatorLink
 from airflow.models.connection import Connection
 from airflow.models.dag import DAG, _get_model_data_interval
 from airflow.models.expandinput import (
@@ -64,6 +63,7 @@ from airflow.sdk.definitions.asset import (
     BaseAsset,
 )
 from airflow.sdk.definitions.baseoperator import BaseOperator as TaskSDKBaseOperator
+from airflow.sdk.definitions.baseoperatorlink import XComOperatorLink
 from airflow.sdk.definitions.mappedoperator import MappedOperator
 from airflow.sdk.definitions.param import Param, ParamsDict
 from airflow.sdk.definitions.taskgroup import MappedTaskGroup, TaskGroup
@@ -98,6 +98,7 @@ if TYPE_CHECKING:
 
     from airflow.models import DagRun
     from airflow.models.expandinput import ExpandInput
+    from airflow.sdk import BaseOperatorLink
     from airflow.sdk.definitions._internal.node import DAGNode
     from airflow.sdk.types import Operator
     from airflow.serialization.json_schema import Validator

@@ -1,4 +1,4 @@
 -e ./providers/standard
--e ./task_sdk
+-e ./task-sdk
 -e ./devel-common
 -e ./providers/cncf/kubernetes

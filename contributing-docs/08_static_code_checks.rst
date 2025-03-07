@@ -132,7 +132,7 @@ require Breeze Docker image to be built locally.
 +-----------------------------------------------------------+--------------------------------------------------------+---------+
 | check-base-operator-usage                                 | * Check BaseOperator core imports                      |         |
 |                                                           | * Check BaseOperatorLink core imports                  |         |
-|                                                           | * Check BaseOperator[Link] other imports               |         |
+|                                                           | * Check BaseOperator other imports                     |         |
 +-----------------------------------------------------------+--------------------------------------------------------+---------+
 | check-boring-cyborg-configuration                         | Checks for Boring Cyborg configuration consistency     |         |
 +-----------------------------------------------------------+--------------------------------------------------------+---------+
@@ -278,7 +278,7 @@ require Breeze Docker image to be built locally.
 +-----------------------------------------------------------+--------------------------------------------------------+---------+
 | generate-airflow-diagrams                                 | Generate airflow diagrams                              |         |
 +-----------------------------------------------------------+--------------------------------------------------------+---------+
-| generate-openapi-spec                                     | Generate the FastAPI API spec                          |         |
+| generate-openapi-spec                                     | Generate the FastAPI API spec                          | *       |
 +-----------------------------------------------------------+--------------------------------------------------------+---------+
 | generate-pypi-readme                                      | Generate PyPI README                                   |         |
 +-----------------------------------------------------------+--------------------------------------------------------+---------+
@@ -352,7 +352,8 @@ require Breeze Docker image to be built locally.
 +-----------------------------------------------------------+--------------------------------------------------------+---------+
 | trailing-whitespace                                       | Remove trailing whitespace at end of line              |         |
 +-----------------------------------------------------------+--------------------------------------------------------+---------+
-| ts-compile-format-lint-ui                                 | Compile / format / lint UI                             |         |
+| ts-compile-format-lint-ui                                 | * Compile / format / lint UI                           | *       |
+|                                                           | * Compile / format / lint UI                           |         |
 +-----------------------------------------------------------+--------------------------------------------------------+---------+
 | update-black-version                                      | Update black versions everywhere (manual)              |         |
 +-----------------------------------------------------------+--------------------------------------------------------+---------+

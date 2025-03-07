@@ -134,7 +134,6 @@ def make_dag_with_multiple_versions(dag_maker, configure_git_connection_for_dag_
     """
 
     dag_id = "dag_with_multiple_versions"
-
     for version_number in range(1, 4):
         with dag_maker(dag_id) as dag:
             for task_number in range(version_number):

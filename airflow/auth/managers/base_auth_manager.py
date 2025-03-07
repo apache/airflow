@@ -34,7 +34,7 @@ from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.session import NEW_SESSION, provide_session
 
 if TYPE_CHECKING:
-    from collections.abc import Container, Sequence
+    from collections.abc import Sequence
 
     from fastapi import FastAPI
     from sqlalchemy.orm import Session
@@ -96,7 +96,7 @@ class BaseAuthManager(Generic[T], LoggingMixin):
             raise e
 
     def get_jwt_token(
-        self, user: T, expiration_time_in_seconds: int = conf.getint("api", "auth_jwt_expiration_time")
+        self, user: T, *, expiration_time_in_seconds: int = conf.getint("api", "auth_jwt_expiration_time")
     ) -> str:
         """Return the JWT token from a user object."""
         return self._get_token_signer(
@@ -221,7 +221,7 @@ class BaseAuthManager(Generic[T], LoggingMixin):
         """
 
     @abstractmethod
-    def is_authorized_custom_view(self, *, method: ResourceMethod | str, resource_name: str, user: T):
+    def is_authorized_custom_view(self, *, method: ResourceMethod | str, resource_name: str, user: T) -> bool:
         """
         Return whether the user is authorized to perform a given action on a custom view.
 
@@ -331,7 +331,7 @@ class BaseAuthManager(Generic[T], LoggingMixin):
         self,
         *,
         user: T,
-        methods: Container[ResourceMethod] | None = None,
+        method: ResourceMethod = "GET",
         session: Session = NEW_SESSION,
     ) -> set[str]:
         """
@@ -342,45 +342,31 @@ class BaseAuthManager(Generic[T], LoggingMixin):
         implementation to provide a more efficient implementation.
 
         :param user: the user
-        :param methods: whether filter readable or writable
+        :param method: the method to filter on
         :param session: the session
         """
         dag_ids = {dag.dag_id for dag in session.execute(select(DagModel.dag_id))}
-        return self.filter_permitted_dag_ids(dag_ids=dag_ids, methods=methods, user=user)
+        return self.filter_permitted_dag_ids(dag_ids=dag_ids, method=method, user=user)
 
     def filter_permitted_dag_ids(
         self,
         *,
         dag_ids: set[str],
         user: T,
-        methods: Container[ResourceMethod] | None = None,
-    ):
+        method: ResourceMethod = "GET",
+    ) -> set[str]:
         """
         Filter readable or writable DAGs for user.
 
         :param dag_ids: the list of DAG ids
         :param user: the user
-        :param methods: whether filter readable or writable
+        :param method: the method to filter on
         """
-        if not methods:
-            methods = ["PUT", "GET"]
 
-        if ("GET" in methods and self.is_authorized_dag(method="GET", user=user)) or (
-            "PUT" in methods and self.is_authorized_dag(method="PUT", user=user)
-        ):
-            # If user is authorized to read/edit all DAGs, return all DAGs
-            return dag_ids
+        def _is_permitted_dag_id(method: ResourceMethod, dag_id: str):
+            return self.is_authorized_dag(method=method, details=DagDetails(id=dag_id), user=user)
 
-        def _is_permitted_dag_id(method: ResourceMethod, methods: Container[ResourceMethod], dag_id: str):
-            return method in methods and self.is_authorized_dag(
-                method=method, details=DagDetails(id=dag_id), user=user
-            )
-
-        return {
-            dag_id
-            for dag_id in dag_ids
-            if _is_permitted_dag_id("GET", methods, dag_id) or _is_permitted_dag_id("PUT", methods, dag_id)
-        }
+        return {dag_id for dag_id in dag_ids if _is_permitted_dag_id(method, dag_id)}
 
     @staticmethod
     def get_cli_commands() -> list[CLICommand]:

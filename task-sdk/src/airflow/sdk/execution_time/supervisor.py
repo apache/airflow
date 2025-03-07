@@ -31,7 +31,7 @@ from collections.abc import Generator
 from contextlib import suppress
 from datetime import datetime, timezone
 from http import HTTPStatus
-from socket import socket, socketpair
+from socket import SocketIO, socket, socketpair
 from typing import (
     TYPE_CHECKING,
     BinaryIO,
@@ -129,16 +129,10 @@ def mkpipe(remote_read: Literal[True]) -> tuple[socket, BinaryIO]: ...
 def mkpipe(
     remote_read: bool = False,
 ) -> tuple[socket, socket | BinaryIO]:
-    """
-    Create a pair of connected sockets.
-
-    The inheritable flag will be set correctly so that the end destined for the subprocess is kept open but
-    the end for this process is closed automatically by the OS.
-    """
+    """Create a pair of connected sockets."""
     rsock, wsock = socketpair()
     local, remote = (wsock, rsock) if remote_read else (rsock, wsock)
 
-    remote.set_inheritable(True)
     local.setblocking(False)
 
     io: BinaryIO | socket
@@ -206,6 +200,62 @@ def _get_last_chance_stderr() -> TextIO:
         return stream
 
 
+class BlockedDBSession:
+    """:meta private:"""  # noqa: D400
+
+    def __init__(self):
+        raise RuntimeError("Direct database access via the ORM is not allowed in Airflow 3.0")
+
+    def remove(*args, **kwargs):
+        pass
+
+    def get_bind(
+        self,
+        mapper=None,
+        clause=None,
+        bind=None,
+        _sa_skip_events=None,
+        _sa_skip_for_implicit_returning=False,
+    ):
+        pass
+
+
+def block_orm_access():
+    """
+    Disable direct DB access as best as possible from task code.
+
+    While we still don't have 100% code separation between TaskSDK and "core" Airflow, it is still possible to
+    import the models and use them. This does what it can to disable that if it is not blocked at the network
+    level
+    """
+    # A fake URL schema that might give users some clue what's going on. Hopefully
+    conn = "airflow-db-not-allowed:///"
+    if "airflow.settings" in sys.modules:
+        from airflow import settings
+        from airflow.configuration import conf
+
+        settings.dispose_orm()
+
+        for attr in ("engine", "async_engine", "Session", "AsyncSession", "NonScopedSession"):
+            if hasattr(settings, attr):
+                delattr(settings, attr)
+
+        def configure_orm(*args, **kwargs):
+            raise RuntimeError("Database access is disabled from DAGs and Triggers")
+
+        settings.configure_orm = configure_orm
+        settings.Session = BlockedDBSession
+        if conf.has_section("database"):
+            conf.set("database", "sql_alchemy_conn", conn)
+            conf.set("database", "sql_alchemy_conn_cmd", "/bin/false")
+            conf.set("database", "sql_alchemy_conn_secret", "db-access-blocked")
+
+        settings.SQL_ALCHEMY_CONN = conn
+        settings.SQL_ALCHEMY_CONN_ASYNC = conn
+
+    os.environ["AIRFLOW__DATABASE__SQL_ALCHEMY_CONN"] = conn
+
+
 def _fork_main(
     child_stdin: socket,
     child_stdout: socket,
@@ -261,6 +311,8 @@ def _fork_main(
                 base_exit(n)
 
     try:
+        block_orm_access()
+
         target()
         exit(0)
     except SystemExit as e:
@@ -341,7 +393,8 @@ class WatchedSubprocess:
 
         pid = os.fork()
         if pid == 0:
-            # Parent ends of the sockets are closed by the OS as they are set as non-inheritable
+            # Close and delete of the parent end of the sockets.
+            cls._close_unused_sockets(feed_stdin, read_stdout, read_stderr, read_msgs, read_logs)
 
             # Python GC should delete these for us, but lets make double sure that we don't keep anything
             # around in the forked processes, especially things that might involve open files or sockets!
@@ -443,6 +496,10 @@ class WatchedSubprocess:
     def _close_unused_sockets(*sockets):
         """Close unused ends of sockets after fork."""
         for sock in sockets:
+            if isinstance(sock, SocketIO):
+                # If we have the socket IO object, we need to close the underlying socket foricebly here too,
+                # else we get unclosed socket warnings, and likely leaking FDs too
+                sock._sock.close()
             sock.close()
 
     def kill(
@@ -559,6 +616,7 @@ class WatchedSubprocess:
             try:
                 self._exit_code = self._process.wait(timeout=0)
                 log.debug("Workload process exited", exit_code=self._exit_code)
+                self._close_unused_sockets(self.stdin)
             except psutil.TimeoutExpired:
                 if raise_on_timeout:
                     raise
