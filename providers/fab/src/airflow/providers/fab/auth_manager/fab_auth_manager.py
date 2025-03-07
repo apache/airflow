@@ -96,12 +96,12 @@ if TYPE_CHECKING:
     from airflow.cli.cli_config import (
         CLICommand,
     )
-    from airflow.providers.common.compat.assets import AssetDetails
+    from airflow.providers.common.compat.assets import AssetAliasDetails, AssetDetails
     from airflow.providers.fab.auth_manager.security_manager.override import FabAirflowSecurityManagerOverride
     from airflow.providers.fab.www.extensions.init_appbuilder import AirflowAppBuilder
-    from airflow.providers.fab.www.security.permissions import RESOURCE_ASSET
+    from airflow.providers.fab.www.security.permissions import RESOURCE_ASSET, RESOURCE_ASSET_ALIAS
 else:
-    from airflow.providers.common.compat.security.permissions import RESOURCE_ASSET
+    from airflow.providers.common.compat.security.permissions import RESOURCE_ASSET, RESOURCE_ASSET_ALIAS
 
 
 _MAP_DAG_ACCESS_ENTITY_TO_FAB_RESOURCE_TYPE: dict[DagAccessEntity, tuple[str, ...]] = {
@@ -320,6 +320,11 @@ class FabAuthManager(BaseAuthManager[User]):
         self, *, method: ResourceMethod, user: User, details: AssetDetails | None = None
     ) -> bool:
         return self._is_authorized(method=method, resource_type=RESOURCE_ASSET, user=user)
+
+    def is_authorized_asset_alias(
+        self, *, method: ResourceMethod, user: User, details: AssetAliasDetails | None = None
+    ) -> bool:
+        return self._is_authorized(method=method, resource_type=RESOURCE_ASSET_ALIAS, user=user)
 
     def is_authorized_pool(
         self, *, method: ResourceMethod, user: User, details: PoolDetails | None = None
