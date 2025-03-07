@@ -221,6 +221,9 @@ class SortParam(BaseParam[str]):
         select = select.order_by(None)
 
         if order_by_columns:
+            primary_key_column = self.get_primary_key_column()
+            primary_key_sort = primary_key_column.asc()
+            order_by_columns.append((case((primary_key_column.isnot(None), 0), else_=1), primary_key_sort))
             select = select.order_by(*[col for pair in order_by_columns for col in pair])
         else:
             primary_key_column = self.get_primary_key_column()
