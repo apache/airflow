@@ -61,7 +61,7 @@ class TestGetProviders:
         new_callable=mock.PropertyMock,
         return_value=MOCK_PROVIDERS,
     )
-    def test_get_dags(
+    def test_should_respond_200(
         self, mock_provider, test_client, query_params, expected_total_entries, expected_package_name
     ):
         response = test_client.get("/public/providers", params=query_params)
@@ -71,3 +71,11 @@ class TestGetProviders:
 
         assert body["total_entries"] == expected_total_entries
         assert [provider["package_name"] for provider in body["providers"]] == expected_package_name
+
+    def test_should_response_401(self, unauthenticated_test_client):
+        response = unauthenticated_test_client.get("/public/providers")
+        assert response.status_code == 401
+
+    def test_should_response_403(self, unauthorized_test_client):
+        response = unauthorized_test_client.get("/public/providers")
+        assert response.status_code == 403

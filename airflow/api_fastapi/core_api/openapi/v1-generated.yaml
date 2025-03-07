@@ -4096,6 +4096,8 @@ paths:
       - Plugin
       summary: Get Plugins
       operationId: get_plugins
+      security:
+      - OAuth2PasswordBearer: []
       parameters:
       - name: limit
         in: query
@@ -4464,6 +4466,8 @@ paths:
       summary: Get Providers
       description: Get providers.
       operationId: get_providers
+      security:
+      - OAuth2PasswordBearer: []
       parameters:
       - name: limit
         in: query
