@@ -62,7 +62,7 @@ if TYPE_CHECKING:
 log = logging.getLogger(__name__)
 
 
-# Note: To clean up api_connexion, we need to move the below 2 classes to this file until migrated to FastAPI
+# TODO: To clean up api_connexion, we need to move the below 2 classes to this file until migrated to FastAPI
 class DagTagSchema(SQLAlchemySchema):
     """Dag Tag schema."""
 

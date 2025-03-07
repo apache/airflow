@@ -29,7 +29,6 @@
 /airflow/ui/ @bbovenzi @pierrejeambrun @ryanahamilton @jscheffl
 
 # Security/Permissions
-/airflow/api_connexion/security.py @vincbeck
 /airflow/security/permissions.py @vincbeck
 /airflow/www/security.py @vincbeck
 

@@ -171,9 +171,6 @@ CI_FILE_GROUP_MATCHES = HashableDict(
             r"^airflow/api_fastapi/core_api/openapi/v1-generated\.yaml",
             r"^clients/gen",
         ],
-        FileGroupForCi.LEGACY_API_FILES: [
-            r"^airflow/api_connexion/",
-        ],
         FileGroupForCi.HELM_FILES: [
             r"^chart",
             r"^airflow/kubernetes",
@@ -288,10 +285,8 @@ TEST_TYPE_MATCHES = HashableDict(
     {
         SelectiveCoreTestType.API: [
             r"^airflow/api/",
-            r"^airflow/api_connexion/",
             r"^airflow/api_fastapi/",
             r"^tests/api/",
-            r"^tests/api_connexion/",
             r"^tests/api_fastapi/",
         ],
         SelectiveCoreTestType.CLI: [
