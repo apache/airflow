@@ -482,20 +482,12 @@ class AssetRef(BaseAsset, AttrsInstance):
 
     def iter_dag_dependencies(self, *, source: str = "", target: str = "") -> Iterator[DagDependency]:
         (dependency_id,) = attrs.astuple(self)
-        if asset := self._resolve_asset():
-            yield DagDependency(
-                source=f"asset-ref:{dependency_id}" if source else "asset",
-                target="asset" if source else f"asset-ref:{dependency_id}",
-                dependency_type="asset",
-                dependency_id=asset.name,
-            )
-        else:
-            yield DagDependency(
-                source=source or "asset-ref",
-                target=target or "asset-ref",
-                dependency_type="asset-ref",
-                dependency_id=dependency_id,
-            )
+        yield DagDependency(
+            source=source or "asset-ref",
+            target=target or "asset-ref",
+            dependency_type="asset-ref",
+            dependency_id=dependency_id,
+        )
 
 
 @attrs.define(hash=True)
@@ -554,30 +546,12 @@ class AssetAlias(BaseAsset):
 
         :meta private:
         """
-        if not (resolved_assets := self._resolve_assets()):
-            yield DagDependency(
-                source=source or "asset-alias",
-                target=target or "asset-alias",
-                dependency_type="asset-alias",
-                dependency_id=self.name,
-            )
-            return
-        for asset in resolved_assets:
-            asset_name = asset.name
-            # asset
-            yield DagDependency(
-                source=f"asset-alias:{self.name}" if source else "asset",
-                target="asset" if source else f"asset-alias:{self.name}",
-                dependency_type="asset",
-                dependency_id=asset_name,
-            )
-            # asset alias
-            yield DagDependency(
-                source=source or f"asset:{asset_name}",
-                target=target or f"asset:{asset_name}",
-                dependency_type="asset-alias",
-                dependency_id=self.name,
-            )
+        yield DagDependency(
+            source=source or "asset-alias",
+            target=target or "asset-alias",
+            dependency_type="asset-alias",
+            dependency_id=self.name,
+        )
 
 
 class AssetBooleanCondition(BaseAsset):
