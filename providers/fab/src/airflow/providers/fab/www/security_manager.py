@@ -41,6 +41,7 @@ from airflow.models import Connection, DagRun, Pool, TaskInstance, Variable
 from airflow.providers.fab.www.security.permissions import (
     RESOURCE_ADMIN_MENU,
     RESOURCE_ASSET,
+    RESOURCE_ASSET_ALIAS,
     RESOURCE_AUDIT_LOG,
     RESOURCE_BROWSE_MENU,
     RESOURCE_CLUSTER_ACTIVITY,
@@ -242,6 +243,10 @@ class AirflowSecurityManagerV2(LoggingMixin):
                 user=user,
             ),
             RESOURCE_ASSET: lambda action, resource_pk, user: auth_manager.is_authorized_asset(
+                method=methods[action],
+                user=user,
+            ),
+            RESOURCE_ASSET_ALIAS: lambda action, resource_pk, user: auth_manager.is_authorized_asset_alias(
                 method=methods[action],
                 user=user,
             ),
