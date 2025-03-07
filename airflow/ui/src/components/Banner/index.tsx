@@ -17,4 +17,4 @@
  * under the License.
  */
 
-export { default as Banner } from "./Banner";
+export { default as BackfillBanner } from "./BackfillBanner";

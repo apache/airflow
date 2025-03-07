@@ -68,7 +68,7 @@ export const DetailsLayout = ({ children, error, isLoading, tabs }: Props) => {
         </Flex>
       </HStack>
       <Toaster />
-      <BackfillBanner dag={dag} />
+      <BackfillBanner dagId={dagId} />
       <Box flex={1} minH={0}>
         <PanelGroup autoSaveId={dagId} direction="horizontal">
           <Panel defaultSize={20} minSize={6}>
