@@ -56,8 +56,8 @@ export const ErrorAlert = ({ error: err }: Props) => {
   return (
     <Alert status="error">
       <HStack align="start" flexDirection="column" gap={2} mt={-1}>
-        {error.message}
-        <span>{detailMessage}</span>
+        {error.status} {error.message}
+        {detailMessage === error.message ? undefined : <span>{detailMessage}</span>}
       </HStack>
     </Alert>
   );

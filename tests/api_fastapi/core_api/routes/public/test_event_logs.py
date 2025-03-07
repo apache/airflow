@@ -177,6 +177,16 @@ class TestGetEventLog(TestEventLogsEndpoint):
 
         assert response.json() == expected_json
 
+    def test_should_raises_401_unauthenticated(self, unauthenticated_test_client, setup):
+        event_log_id = setup[EVENT_NORMAL].id
+        response = unauthenticated_test_client.get(f"/public/eventLogs/{event_log_id}")
+        assert response.status_code == 401
+
+    def test_should_raises_403_forbidden(self, unauthorized_test_client, setup):
+        event_log_id = setup[EVENT_NORMAL].id
+        response = unauthorized_test_client.get(f"/public/eventLogs/{event_log_id}")
+        assert response.status_code == 403
+
 
 class TestGetEventLogs(TestEventLogsEndpoint):
     @pytest.mark.parametrize(
@@ -306,3 +316,11 @@ class TestGetEventLogs(TestEventLogsEndpoint):
         assert resp_json["total_entries"] == expected_total_entries
         for event_log, expected_event in zip(resp_json["event_logs"], expected_events):
             assert event_log["event"] == expected_event
+
+    def test_should_raises_401_unauthenticated(self, unauthenticated_test_client):
+        response = unauthenticated_test_client.get("/public/eventLogs")
+        assert response.status_code == 401
+
+    def test_should_raises_403_forbidden(self, unauthorized_test_client):
+        response = unauthorized_test_client.get("/public/eventLogs")
+        assert response.status_code == 403

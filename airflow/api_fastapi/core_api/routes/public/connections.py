@@ -25,7 +25,12 @@ from pydantic import ValidationError
 from sqlalchemy import select
 
 from airflow.api_fastapi.common.db.common import SessionDep, paginated_select
-from airflow.api_fastapi.common.parameters import QueryLimit, QueryOffset, SortParam
+from airflow.api_fastapi.common.parameters import (
+    QueryConnectionIdPatternSearch,
+    QueryLimit,
+    QueryOffset,
+    SortParam,
+)
 from airflow.api_fastapi.common.router import AirflowRouter
 from airflow.api_fastapi.core_api.datamodels.common import (
     BulkBody,
@@ -110,10 +115,12 @@ def get_connections(
         ),
     ],
     session: SessionDep,
+    connection_id_pattern: QueryConnectionIdPatternSearch,
 ) -> ConnectionCollectionResponse:
     """Get all connection entries."""
     connection_select, total_entries = paginated_select(
         statement=select(Connection),
+        filters=[connection_id_pattern],
         order_by=order_by,
         offset=offset,
         limit=limit,

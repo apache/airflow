@@ -63,11 +63,11 @@ export const Connections = () => {
   const [sort] = sorting;
   const orderBy = sort ? `${sort.desc ? "-" : ""}${sort.id}` : "-connection_id";
   const { data, error, isFetching, isLoading } = useConnectionServiceGetConnections({
+    connectionIdPattern: connectionIdPattern ?? undefined,
     limit: pagination.pageSize,
     offset: pagination.pageIndex * pagination.pageSize,
     orderBy,
   });
-  // TO BE ADDED: connectionIdPattern: connectionIdPattern ?? undefined,
 
   const handleSearchChange = (value: string) => {
     if (value) {

@@ -968,7 +968,7 @@ def _get_template_context(
         return triggering_events
 
     # NOTE: If you add to this dict, make sure to also update the following:
-    # * Context in task_sdk/src/airflow/sdk/definitions/context.py
+    # * Context in task-sdk/src/airflow/sdk/definitions/context.py
     # * KNOWN_CONTEXT_KEYS in airflow/utils/context.py
     # * Table in docs/apache-airflow/templates-ref.rst
 

@@ -42,7 +42,6 @@ Handling warnings
 By default, in the new tests selected warnings are prohibited:
 
 * ``airflow.exceptions.AirflowProviderDeprecationWarning``
-* ``airflow.exceptions.RemovedInAirflow3Warning``
 
 That mean if one of this warning appear during test run and do not captured the test will failed.
 
@@ -1095,12 +1094,12 @@ are not part of the public API. We deal with it in one of the following ways:
 1) If the whole provider is supposed to only work for later airflow version, we remove the whole provider
    by excluding it from compatibility test configuration (see below)
 
-2) Some compatibility shims are defined in ``tests_common.test_utils/compat.py`` - and they can be used to make the
-   tests compatible - for example importing ``ParseImportError`` after the exception has been renamed from
-   ``ImportError`` and it would fail in Airflow 2.9, but we have a fallback import in ``compat.py`` that
-   falls back to old import automatically, so all tests testing / expecting ``ParseImportError`` should import
-   it from the ``tests.tests_utils.compat`` module. There are few other compatibility shims defined there and
-   you can add more if needed in a similar way.
+2) Some compatibility shims are defined in ``devel-common/src/tests_common/test_utils/compat.py`` - and
+   they can be used to make the tests compatible - for example importing ``ParseImportError`` after the
+   exception has been renamed from ``ImportError`` and it would fail in Airflow 2.9, but we have a fallback
+   import in ``compat.py`` that falls back to old import automatically, so all tests testing / expecting
+   ``ParseImportError`` should import it from the ``tests_common.tests_utils.compat`` module. There are few
+   other compatibility shims defined there and you can add more if needed in a similar way.
 
 3) If only some tests are not compatible and use features that are available only in newer airflow version,
    we can mark those tests with appropriate ``AIRFLOW_V_2_X_PLUS`` boolean constant defined in ``version_compat.py``

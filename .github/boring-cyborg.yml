@@ -414,7 +414,7 @@ labelPRBasedOnFilePath:
     - tests/system/**/*
 
   area:task-sdk:
-    - task_sdk/**/*
+    - task-sdk/**/*
 
   area:db-migrations:
     - airflow/migrations/versions/*

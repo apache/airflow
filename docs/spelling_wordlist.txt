@@ -470,6 +470,7 @@ DeidentifyTemplate
 del
 delim
 delitem
+deltalake
 dep
 DependencyMixin
 deploymentUrl
@@ -1864,6 +1865,7 @@ urls
 useHCatalog
 useLegacySQL
 useQueryCache
+userguide
 userId
 userpass
 usr

@@ -22,7 +22,7 @@ import { useParams, useSearchParams } from "react-router-dom";
 import { RunTypeIcon } from "src/components/RunTypeIcon";
 
 import { GridButton } from "./GridButton";
-import { TaskInstances } from "./TaskInstances";
+import { TaskInstancesColumn } from "./TaskInstancesColumn";
 import type { GridTask, RunWithDuration } from "./utils";
 
 const BAR_HEIGHT = 100;
@@ -74,7 +74,7 @@ export const Bar = ({ max, nodes, run }: Props) => {
           {run.run_type !== "scheduled" && <RunTypeIcon runType={run.run_type} size="10px" />}
         </GridButton>
       </Flex>
-      <TaskInstances nodes={nodes} runId={run.dag_run_id} taskInstances={run.task_instances} />
+      <TaskInstancesColumn nodes={nodes} runId={run.dag_run_id} taskInstances={run.task_instances} />
     </Box>
   );
 };

@@ -16,9 +16,10 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Badge } from "@chakra-ui/react";
+import { chakra, Code } from "@chakra-ui/react";
 import type { UseQueryOptions } from "@tanstack/react-query";
 import dayjs from "dayjs";
+import innerText from "react-innertext";
 
 import { useTaskInstanceServiceGetLog } from "openapi/queries";
 import type {
@@ -48,7 +49,11 @@ const renderStructuredLog = (
   logLevelFilters?: Array<string>,
 ) => {
   if (typeof logMessage === "string") {
-    return <p key={index}>{logMessage}</p>;
+    return (
+      <chakra.span key={index} lineHeight={1.5}>
+        {logMessage}
+      </chakra.span>
+    );
   }
 
   const { event, level = undefined, timestamp, ...structured } = logMessage;
@@ -69,14 +74,15 @@ const renderStructuredLog = (
 
   if (typeof level === "string") {
     elements.push(
-      <Badge
+      <Code
         colorPalette={level.toUpperCase() in LogLevel ? logLevelColorMapping[level as LogLevel] : undefined}
         key={1}
-        minH={3}
-        size="sm"
+        lineHeight={1.5}
+        minH={0}
+        px={0}
       >
         {level.toUpperCase()}
-      </Badge>,
+      </Code>,
       " - ",
     );
   }
@@ -98,13 +104,20 @@ const renderStructuredLog = (
     }
   }
 
-  return <p key={index}>{elements}</p>;
+  return (
+    <chakra.span key={index} lineHeight={1.5}>
+      {elements}
+    </chakra.span>
+  );
 };
 
 // TODO: add support for log groups, colors, formats, filters
 const parseLogs = ({ data, logLevelFilters }: ParseLogsProps) => {
   let warning;
   let parsedLines;
+  let startGroup = false;
+  let groupLines: Array<JSX.Element | ""> = [];
+  let groupName = "";
 
   try {
     parsedLines = data.map((datum, index) => renderStructuredLog(datum, index, logLevelFilters));
@@ -117,6 +130,41 @@ const parseLogs = ({ data, logLevelFilters }: ParseLogsProps) => {
 
     return { data, warning };
   }
+
+  // TODO: Add support for nested groups
+
+  parsedLines = parsedLines.map((line) => {
+    const text = innerText(line);
+
+    if (text.includes("::group::") && !startGroup) {
+      startGroup = true;
+      groupName = text.split("::group::")[1] as string;
+    } else if (text.includes("::endgroup::")) {
+      startGroup = false;
+      const group = (
+        <details key={groupName} style={{ width: "100%" }}>
+          <summary data-testid={`summary-${groupName}`}>
+            <chakra.span color="fg.info" cursor="pointer">
+              {groupName}
+            </chakra.span>
+          </summary>
+          {groupLines}
+        </details>
+      );
+
+      groupLines = [];
+
+      return group;
+    }
+
+    if (startGroup) {
+      groupLines.push(line);
+
+      return undefined;
+    } else {
+      return line;
+    }
+  });
 
   return {
     fileSources: [],
