@@ -53,7 +53,7 @@ from airflow.utils.providers_configuration_loader import providers_configuration
 from airflow.utils.weight_rule import WeightRule
 
 if TYPE_CHECKING:
-    from airflow.auth.managers.base_auth_manager import BaseAuthManager
+    from airflow.api_fastapi.auth.managers.base_auth_manager import BaseAuthManager
     from airflow.secrets import BaseSecretsBackend
 
 log = logging.getLogger(__name__)

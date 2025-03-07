@@ -26,7 +26,7 @@ from airflow.providers.amazon.version_compat import AIRFLOW_V_3_0_PLUS
 if not AIRFLOW_V_3_0_PLUS:
     pytest.skip("AWS auth manager is only compatible with Airflow >= 3.0.0", allow_module_level=True)
 
-from airflow.auth.managers.models.resource_details import (
+from airflow.api_fastapi.auth.managers.models.resource_details import (
     AccessView,
     ConfigurationDetails,
     ConnectionDetails,
@@ -42,8 +42,8 @@ from airflow.providers.amazon.aws.auth_manager.user import AwsAuthManagerUser
 from tests_common.test_utils.config import conf_vars
 
 if TYPE_CHECKING:
-    from airflow.auth.managers.base_auth_manager import ResourceMethod
-    from airflow.auth.managers.models.resource_details import AssetDetails
+    from airflow.api_fastapi.auth.managers.base_auth_manager import ResourceMethod
+    from airflow.api_fastapi.auth.managers.models.resource_details import AssetDetails
 else:
     from airflow.providers.common.compat.assets import AssetDetails
 

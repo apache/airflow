@@ -34,7 +34,7 @@ import airflow_client.client
 import pytest
 
 from airflow.api_fastapi.app import create_app
-from airflow.auth.managers.simple.datamodels.login import LoginBody
+from airflow.api_fastapi.auth.managers.simple.datamodels.login import LoginBody
 from airflow.providers.fab.auth_manager.api_fastapi.services.login import FABAuthManagerLogin
 
 try:
@@ -56,7 +56,7 @@ from airflow_client.client.model.dag_run import DAGRun
 # appropriate AuthManager.
 # This is defined in the `[api]` section of your `airflow.cfg`:
 #
-# auth_manager = airflow.auth.managers.simple.simple_auth_manager.SimpleAuthManager
+# auth_manager = airflow.api_fastapi.auth.managers.simple.simple_auth_manager.SimpleAuthManager
 #
 # Make sure that your user/name are configured properly - using the user/password that has admin
 # privileges in Airflow

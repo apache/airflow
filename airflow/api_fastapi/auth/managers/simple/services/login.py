@@ -20,9 +20,9 @@ from __future__ import annotations
 from fastapi import HTTPException, status
 
 from airflow.api_fastapi.app import get_auth_manager
-from airflow.auth.managers.simple.datamodels.login import LoginBody, LoginResponse
-from airflow.auth.managers.simple.simple_auth_manager import SimpleAuthManager
-from airflow.auth.managers.simple.user import SimpleAuthManagerUser
+from airflow.api_fastapi.auth.managers.simple.datamodels.login import LoginBody, LoginResponse
+from airflow.api_fastapi.auth.managers.simple.simple_auth_manager import SimpleAuthManager
+from airflow.api_fastapi.auth.managers.simple.user import SimpleAuthManagerUser
 from airflow.configuration import conf
 
 

@@ -20,8 +20,8 @@ import json
 
 import pytest
 
-from airflow.auth.managers.models.resource_details import AccessView
-from airflow.auth.managers.simple.user import SimpleAuthManagerUser
+from airflow.api_fastapi.auth.managers.models.resource_details import AccessView
+from airflow.api_fastapi.auth.managers.simple.user import SimpleAuthManagerUser
 
 from tests_common.test_utils.config import conf_vars
 

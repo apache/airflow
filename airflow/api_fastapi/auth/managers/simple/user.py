@@ -1,4 +1,3 @@
-#
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
 # distributed with this work for additional information
@@ -15,31 +14,28 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-
 from __future__ import annotations
 
-import pytest
-from fastapi.testclient import TestClient
-
-from airflow.auth.managers.simple.simple_auth_manager import SimpleAuthManager
-from airflow.auth.managers.simple.user import SimpleAuthManagerUser
+from airflow.api_fastapi.auth.managers.models.base_user import BaseUser
 
 
-@pytest.fixture
-def auth_manager():
-    return SimpleAuthManager(None)
+class SimpleAuthManagerUser(BaseUser):
+    """
+    User model for users managed by the simple auth manager.
 
+    :param username: The username
+    :param role: The role associated to the user. If not provided, the user has no permission
+    """
 
-@pytest.fixture
-def test_user():
-    return SimpleAuthManagerUser(username="test", role="test")
+    def __init__(self, *, username: str, role: str | None) -> None:
+        self.username = username
+        self.role = role
 
+    def get_id(self) -> str:
+        return self.username
 
-@pytest.fixture
-def test_admin():
-    return SimpleAuthManagerUser(username="test", role="admin")
+    def get_name(self) -> str:
+        return self.username
 
-
-@pytest.fixture
-def test_client(auth_manager):
-    return TestClient(auth_manager.get_fastapi_app())
+    def get_role(self) -> str | None:
+        return self.role

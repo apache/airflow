@@ -21,9 +21,9 @@ from unittest.mock import MagicMock, Mock, patch
 
 import pytest
 
-from airflow.auth.managers.base_auth_manager import BaseAuthManager
-from airflow.auth.managers.models.base_user import BaseUser
-from airflow.auth.managers.models.resource_details import (
+from airflow.api_fastapi.auth.managers.base_auth_manager import BaseAuthManager
+from airflow.api_fastapi.auth.managers.models.base_user import BaseUser
+from airflow.api_fastapi.auth.managers.models.resource_details import (
     ConnectionDetails,
     DagDetails,
     PoolDetails,
@@ -31,8 +31,8 @@ from airflow.auth.managers.models.resource_details import (
 )
 
 if TYPE_CHECKING:
-    from airflow.auth.managers.base_auth_manager import ResourceMethod
-    from airflow.auth.managers.models.resource_details import (
+    from airflow.api_fastapi.auth.managers.base_auth_manager import ResourceMethod
+    from airflow.api_fastapi.auth.managers.models.resource_details import (
         AccessView,
         AssetDetails,
         ConfigurationDetails,
@@ -139,7 +139,7 @@ class TestBaseAuthManager:
     def test_get_fastapi_app_return_none(self, auth_manager):
         assert auth_manager.get_fastapi_app() is None
 
-    @patch("airflow.auth.managers.base_auth_manager.JWTSigner")
+    @patch("airflow.api_fastapi.auth.managers.base_auth_manager.JWTSigner")
     @patch.object(EmptyAuthManager, "deserialize_user")
     def test_get_user_from_token(self, mock_deserialize_user, mock_jwt_signer, auth_manager):
         token = "token"
@@ -156,7 +156,7 @@ class TestBaseAuthManager:
         signer.verify_token.assert_called_once_with(token)
         assert result == user
 
-    @patch("airflow.auth.managers.base_auth_manager.JWTSigner")
+    @patch("airflow.api_fastapi.auth.managers.base_auth_manager.JWTSigner")
     @patch.object(EmptyAuthManager, "serialize_user")
     def test_get_jwt_token(self, mock_serialize_user, mock_jwt_signer, auth_manager):
         token = "token"

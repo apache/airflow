@@ -32,14 +32,13 @@ from starlette.staticfiles import StaticFiles
 from starlette.templating import Jinja2Templates
 from termcolor import colored
 
-from airflow.auth.managers.base_auth_manager import BaseAuthManager
-from airflow.auth.managers.simple.user import SimpleAuthManagerUser
+from airflow.api_fastapi.auth.managers.base_auth_manager import BaseAuthManager
+from airflow.api_fastapi.auth.managers.simple.user import SimpleAuthManagerUser
 from airflow.configuration import AIRFLOW_HOME, conf
-from airflow.settings import AIRFLOW_PATH
 
 if TYPE_CHECKING:
-    from airflow.auth.managers.base_auth_manager import ResourceMethod
-    from airflow.auth.managers.models.resource_details import (
+    from airflow.api_fastapi.auth.managers.base_auth_manager import ResourceMethod
+    from airflow.api_fastapi.auth.managers.models.resource_details import (
         AccessView,
         AssetDetails,
         ConfigurationDetails,
@@ -218,13 +217,11 @@ class SimpleAuthManager(BaseAuthManager[SimpleAuthManagerUser]):
 
         This sub application, if specified, is mounted in the main FastAPI application.
         """
-        from airflow.auth.managers.simple.routes.login import login_router
+        from airflow.api_fastapi.auth.managers.simple.routes.login import login_router
 
         dev_mode = os.environ.get("DEV_MODE", False) == "true"
-        directory = Path(AIRFLOW_PATH) / (
-            "airflow/auth/managers/simple/ui/dev" if dev_mode else "airflow/auth/managers/simple/ui/dist"
-        )
-        Path(directory).mkdir(exist_ok=True)
+        directory = Path(__file__).parent.joinpath("ui", "dev" if dev_mode else "dist")
+        directory.mkdir(exist_ok=True)
 
         templates = Jinja2Templates(directory=directory)
 
