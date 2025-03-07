@@ -159,7 +159,7 @@ def test_convert_env_vars_with_list():
     assert result == env_vars
 
 
-# testcase of convert_env_vars_or_raise_error() function
+# testcase of convert_env_vars_from_list_of_dicts() function
 def test_convert_env_vars_from_list_of_dicts_normal_value():
     env_vars_list_of_dict = [{"name": "ENV1", "value": "value1"}, {"name": "ENV2", "value": "value2"}]
     result = convert_env_vars_from_list_of_dicts(env_vars_list_of_dict)
