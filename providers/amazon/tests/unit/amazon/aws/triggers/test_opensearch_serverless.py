@@ -31,6 +31,8 @@ from unit.amazon.aws.triggers.test_base import TestAwsBaseWaiterTrigger
 
 BASE_TRIGGER_CLASSPATH = "airflow.providers.amazon.aws.triggers.opensearch_serverless."
 
+pytest.importorskip("aiobotocore")
+
 
 class TestBaseBedrockTrigger(TestAwsBaseWaiterTrigger):
     EXPECTED_WAITER_NAME: str | None = None

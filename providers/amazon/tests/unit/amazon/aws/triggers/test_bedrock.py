@@ -33,6 +33,8 @@ from unit.amazon.aws.utils.test_waiter import assert_expected_waiter_type
 
 BASE_TRIGGER_CLASSPATH = "airflow.providers.amazon.aws.triggers.bedrock."
 
+pytest.importorskip("aiobotocore")
+
 
 class TestBaseBedrockTrigger:
     EXPECTED_WAITER_NAME: str | None = None
