@@ -621,7 +621,7 @@ class BaseDatabricksHook(BaseHook):
         port = f":{self.databricks_conn.port}" if self.databricks_conn.port else ""
         schema = self.databricks_conn.schema or "https"
         return f"{schema}://{self.host}{port}"
-        
+
     def _endpoint_url(self, endpoint):
         port = f":{self.databricks_conn.port}" if self.databricks_conn.port else ""
         schema = self.databricks_conn.schema or "https"
