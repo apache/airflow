@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2025-03-06T14:10:19.590751
+# This constraints file was automatically generated on 2025-03-07T02:40:53.603433
 # via "eager-upgrade" mechanism of PIP. For the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version of both
 # 'apache-airflow' package and all available community provider packages.
@@ -206,8 +206,8 @@ gcsfs==2025.2.0
 geomet==0.2.1.post1
 gevent==24.11.1
 gitdb==4.0.12
-google-ads==25.2.0
-google-analytics-admin==0.23.4
+google-ads==26.0.0
+google-analytics-admin==0.23.5
 google-api-core==2.24.1
 google-api-python-client==2.163.0
 google-auth-httplib2==0.2.0
@@ -216,7 +216,7 @@ google-auth==2.38.0
 google-cloud-aiplatform==1.83.0
 google-cloud-alloydb==0.4.3
 google-cloud-appengine-logging==1.6.0
-google-cloud-audit-log==0.3.0
+google-cloud-audit-log==0.3.1
 google-cloud-automl==2.16.2
 google-cloud-batch==0.17.34
 google-cloud-bigquery-datatransfer==3.19.0
@@ -259,7 +259,7 @@ google-cloud-workflows==1.17.0
 google-crc32c==1.6.0
 google-re2==1.1.20240702
 google-resumable-media==2.7.2
-googleapis-common-protos==1.69.0
+googleapis-common-protos==1.69.1
 graphql-core==3.2.6
 graphviz==0.20.3
 greenlet==3.1.1
@@ -373,7 +373,7 @@ multi_key_dict==2.0.3
 multidict==6.1.0
 mypy-boto3-appflow==1.37.0
 mypy-boto3-rds==1.37.6
-mypy-boto3-redshift-data==1.37.0
+mypy-boto3-redshift-data==1.37.8
 mypy-boto3-s3==1.37.0
 mypy-extensions==1.0.0
 mypy==1.9.0
@@ -642,7 +642,7 @@ uvloop==0.21.0
 validators==0.34.0
 vertica-python==1.4.0
 vine==5.1.0
-virtualenv==20.29.2
+virtualenv==20.29.3
 watchfiles==1.0.4
 watchtower==3.4.0
 wcwidth==0.2.13
