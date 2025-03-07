@@ -27,7 +27,7 @@ console = Console(color_system="standard", width=200)
 
 
 def check_session_query(mod: ast.Module) -> int:
-    errors = 0
+    errors = False
     for node in ast.walk(mod):
         if isinstance(node, ast.Call) and isinstance(node.func, ast.Attribute):
             if (
@@ -40,7 +40,7 @@ def check_session_query(mod: ast.Module) -> int:
                     f"\nSQLAlchemy 2.0 deprecates the `Query` object"
                     f"use the `select()` construct instead."
                 )
-                errors += 1
+                errors = True
     return errors
 
 
@@ -49,7 +49,7 @@ def main():
         file_path = Path(file)
         ast_module = ast.parse(file_path.read_text(encoding="utf-8"), file)
         errors = check_session_query(ast_module)
-        return 1 if errors > 0 else 0
+        return 1 if errors else 0
 
 
 if __name__ == "__main__":
