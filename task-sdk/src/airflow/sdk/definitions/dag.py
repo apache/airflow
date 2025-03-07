@@ -767,7 +767,7 @@ class DAG:
         dag = copy.deepcopy(self, memo)  # type: ignore
 
         if isinstance(task_ids, str):
-            matched_tasks = [t for t in self.tasks if str(task_ids) in t.task_id]
+            matched_tasks = [t for t in self.tasks if task_ids in t.task_id]
         else:
             matched_tasks = [t for t in self.tasks if t.task_id in task_ids]
 
