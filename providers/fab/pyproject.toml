@@ -67,7 +67,6 @@ dependencies = [
     # In particular, make sure any breaking changes, for example any new methods, are accounted for.
     "flask-appbuilder==4.5.3",
     "flask-login>=0.6.2",
-    "google-re2>=1.0",
     "jmespath>=0.7.0",
 ]
 
