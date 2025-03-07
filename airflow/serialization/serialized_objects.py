@@ -1120,7 +1120,6 @@ class DependencyDetector:
                         target="asset",
                         label=obj.name,
                         dependency_type="asset",
-                        # TODO:
                         dependency_id=None,
                     )
                 )
