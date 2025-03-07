@@ -108,6 +108,7 @@ class TestProjectStructure:
             "providers/common/messaging/tests/unit/common/messaging/providers/test_base_provider.py",
             "providers/common/messaging/tests/unit/common/messaging/providers/test_sqs.py",
             "providers/databricks/tests/unit/databricks/test_version_compat.py",
+            "providers/dbt/cloud/tests/unit/dbt/cloud/test_version_compat.py",
             "providers/edge/tests/unit/edge/models/test_edge_job.py",
             "providers/edge/tests/unit/edge/models/test_edge_logs.py",
             "providers/edge/tests/unit/edge/models/test_edge_worker.py",

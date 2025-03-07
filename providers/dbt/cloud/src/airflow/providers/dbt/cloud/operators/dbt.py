@@ -286,6 +286,10 @@ class DbtCloudRunJobOperator(BaseOperator):
 
         if isinstance(self.run_id, int) and self.wait_for_termination is True:
             return generate_openlineage_events_from_dbt_cloud_run(operator=self, task_instance=task_instance)
+        self.log.info(
+            "Extraction of OpenLineage events from DBT will be skipped: "
+            "`run_id` is not set OR `self.wait_for_termination` is False. "
+        )
         return OperatorLineage()
 
 
