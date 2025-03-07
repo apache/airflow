@@ -226,8 +226,6 @@ DEPENDENCIES = [
     "flask>=2.2.1,<2.3",
     "fsspec>=2023.10.0",
     "gitpython>=3.1.40",
-    'google-re2>=1.0;python_version<"3.12"',
-    'google-re2>=1.1;python_version>="3.12"',
     "gunicorn>=20.1.0",
     "httpx>=0.25.0",
     'importlib_metadata>=6.5;python_version<"3.12"',

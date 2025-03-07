@@ -63,7 +63,6 @@ dependencies = [
     # (https://docs.celeryq.dev/en/stable/contributing.html?highlight=semver#versions).
     "celery[redis]>=5.4.0,<6",
     "flower>=1.0.0",
-    "google-re2>=1.0",
 ]
 
 # The optional dependencies should be modified in place in the generated file

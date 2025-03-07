@@ -24,11 +24,11 @@ import errno
 import json
 import logging
 import operator
+import re
 import subprocess
 import sys
 from typing import TYPE_CHECKING
 
-import re2
 from sqlalchemy import func, select
 
 from airflow.api.client import get_current_api_client
@@ -529,7 +529,7 @@ def dag_test(args, dag: DAG | None = None, session: Session = NEW_SESSION) -> No
     use_executor = args.use_executor
 
     mark_success_pattern = (
-        re2.compile(args.mark_success_pattern) if args.mark_success_pattern is not None else None
+        re.compile(args.mark_success_pattern) if args.mark_success_pattern is not None else None
     )
 
     with _airflow_parsing_context_manager(dag_id=args.dag_id):
