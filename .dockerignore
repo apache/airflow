@@ -122,6 +122,10 @@ docs/**/_api/**
 **/.installed.cfg
 **/*.egg
 
+# But ensure UI dist files are included
+!airflow/ui/dist
+!providers/fab/src/airflow/providers/fab/www/dist
+
 # Exclude temporary vi files
 **/*~
 
