@@ -45,6 +45,7 @@ if TYPE_CHECKING:
         IsAuthorizedPoolRequest,
         IsAuthorizedVariableRequest,
     )
+    from airflow.auth.managers.models.menu import MenuItem
     from airflow.auth.managers.models.resource_details import (
         AccessView,
         AssetDetails,
@@ -384,6 +385,10 @@ class BaseAuthManager(Generic[T], LoggingMixin):
         This sub application, if specified, is mounted in the main FastAPI application.
         """
         return None
+
+    def get_menu_items(self) -> list[MenuItem]:
+        """Provide additional links to be added to the menu."""
+        return []
 
     @staticmethod
     def _get_token_signer(

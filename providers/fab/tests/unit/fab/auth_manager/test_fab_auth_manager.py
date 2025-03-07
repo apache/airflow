@@ -25,6 +25,7 @@ from unittest.mock import Mock
 import pytest
 from flask import Flask, g
 
+from airflow.api_fastapi.app import AUTH_MANAGER_FASTAPI_APP_PREFIX
 from airflow.exceptions import AirflowConfigException, AirflowException
 from airflow.providers.fab.www.extensions.init_appbuilder import init_appbuilder
 from airflow.providers.standard.operators.empty import EmptyOperator
@@ -93,6 +94,8 @@ def flask_app():
 
 @pytest.fixture
 def auth_manager_with_appbuilder(flask_app):
+    flask_app.config["AUTH_RATE_LIMITED"] = False
+    flask_app.config["SERVER_NAME"] = "localhost"
     appbuilder = init_appbuilder(flask_app, enable_plugins=False)
     auth_manager = FabAuthManager()
     auth_manager.appbuilder = appbuilder
@@ -556,7 +559,7 @@ class TestFabAuthManager:
 
     def test_get_url_login(self, auth_manager):
         result = auth_manager.get_url_login()
-        assert result == "http://localhost:8080/auth/login"
+        assert result == f"http://localhost:8080{AUTH_MANAGER_FASTAPI_APP_PREFIX}/login"
 
     @pytest.mark.db_test
     def test_get_url_logout_when_auth_view_not_defined(self, auth_manager_with_appbuilder):
@@ -570,3 +573,10 @@ class TestFabAuthManager:
         auth_manager_with_appbuilder.security_manager.auth_view.endpoint = "test_endpoint"
         auth_manager_with_appbuilder.get_url_logout()
         mock_url_for.assert_called_once_with("test_endpoint.logout")
+
+    def test_get_menu_items(self, auth_manager_with_appbuilder, flask_app):
+        with flask_app.app_context():
+            auth_manager_with_appbuilder.register_views()
+            result = auth_manager_with_appbuilder.get_menu_items()
+            assert len(result) == 5
+            assert all(item.href.startswith(AUTH_MANAGER_FASTAPI_APP_PREFIX) for item in result)
