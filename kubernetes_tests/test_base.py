@@ -25,6 +25,7 @@ import time
 from datetime import datetime, timezone
 from pathlib import Path
 from subprocess import check_call, check_output
+from urllib.parse import parse_qs, urlparse
 
 import pytest
 import requests
@@ -126,9 +127,62 @@ class BaseK8STest:
         if names:
             check_call(["kubectl", "delete", "pod", names[0]])
 
+    @staticmethod
+    def _get_jwt_token(session: requests.Session, username: str, password: str) -> str:
+        """Get the JWT token for the given username and password.
+
+        Note: API server is still using FAB Auth Manager.
+
+        Steps:
+        1. Get the login page to get the csrf token
+            - The csrf token is in the hidden input field with id "csrf_token"
+        2. Login with the username and password
+            - Must use the same session to keep the csrf token session
+        3. Extract the JWT token from the redirect url
+            - Expected to have a connection error
+            - The redirect url should have the JWT token as a query parameter
+
+        :param session: The session to use for the request
+        :param username: The username to use for the login
+        :param password: The password to use for the login
+        :return: The JWT token
+        """
+        # get csrf token from login page
+        get_login_form_response = session.get(f"http://{KUBERNETES_HOST_PORT}/auth/login")
+        # input id="csrf_token"
+        csrf_token = re.search(
+            r'<input id="csrf_token" name="csrf_token" type="hidden" value="(.+?)">',
+            get_login_form_response.text,
+        )
+        assert csrf_token, "Failed to get csrf token from login page"
+        csrf_token_str = csrf_token.group(1)
+        assert csrf_token_str, "Failed to get csrf token from login page"
+        try:
+            # login with form data
+            session.post(
+                f"http://{KUBERNETES_HOST_PORT}/auth/login",
+                data={"username": username, "password": password, "csrf_token": csrf_token_str},
+            )
+        except requests.exceptions.ConnectionError as e:
+            # expected to have a connection error
+            # currently, the login page redirects to http://localhost:8080/?token=... with status code 308
+            # but the KUBERNETES_HOST_PORT is *not* localhost:8080
+            # TODO: remove this try/except block when the redirect url is fixed
+            redirect_url = e.request.url if e.request else None
+            # ensure redirect_url is a string
+            redirect_url_str = str(redirect_url) if redirect_url is not None else ""
+            assert "/?token" in redirect_url_str, f"Login failed with redirect url {redirect_url_str}"
+            parsed_url = urlparse(redirect_url_str)
+            query_params = parse_qs(str(parsed_url.query))
+            jwt_token_list = query_params.get("token")
+            jwt_token = jwt_token_list[0] if jwt_token_list else None
+        assert jwt_token, f"Failed to get JWT token from redirect url {redirect_url_str}"
+        return jwt_token
+
     def _get_session_with_retries(self):
         session = requests.Session()
-        session.auth = ("admin", "admin")
+        jwt_token = self._get_jwt_token(session, "admin", "admin")
+        session.headers.update({"Authorization": f"Bearer {jwt_token}"})
         retries = Retry(
             total=3,
             backoff_factor=10,
