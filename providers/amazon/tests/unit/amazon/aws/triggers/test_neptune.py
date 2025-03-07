@@ -47,9 +47,9 @@ class TestNeptuneClusterAvailableTrigger:
 
     @pytest.mark.asyncio
     @mock.patch("airflow.providers.amazon.aws.hooks.neptune.NeptuneHook.get_waiter")
-    @mock.patch("airflow.providers.amazon.aws.hooks.neptune.NeptuneHook.async_conn")
+    @mock.patch("airflow.providers.amazon.aws.hooks.neptune.NeptuneHook.get_async_conn")
     async def test_run_success(self, mock_async_conn, mock_get_waiter):
-        mock_async_conn.__aenter__.return_value = "available"
+        mock_async_conn.return_value.__aenter__.return_value = "available"
         mock_get_waiter().wait = AsyncMock()
         trigger = NeptuneClusterAvailableTrigger(db_cluster_id=CLUSTER_ID)
         generator = trigger.run()
@@ -73,9 +73,9 @@ class TestNeptuneClusterStoppedTrigger:
 
     @pytest.mark.asyncio
     @mock.patch("airflow.providers.amazon.aws.hooks.neptune.NeptuneHook.get_waiter")
-    @mock.patch("airflow.providers.amazon.aws.hooks.neptune.NeptuneHook.async_conn")
+    @mock.patch("airflow.providers.amazon.aws.hooks.neptune.NeptuneHook.get_async_conn")
     async def test_run_success(self, mock_async_conn, mock_get_waiter):
-        mock_async_conn.__aenter__.return_value = "stopped"
+        mock_async_conn.return_value.__aenter__.return_value = "stopped"
         mock_get_waiter().wait = AsyncMock()
         trigger = NeptuneClusterStoppedTrigger(db_cluster_id=CLUSTER_ID)
         generator = trigger.run()
@@ -102,9 +102,9 @@ class TestNeptuneClusterInstancesAvailableTrigger:
 
     @pytest.mark.asyncio
     @mock.patch("airflow.providers.amazon.aws.hooks.neptune.NeptuneHook.get_waiter")
-    @mock.patch("airflow.providers.amazon.aws.hooks.neptune.NeptuneHook.async_conn")
+    @mock.patch("airflow.providers.amazon.aws.hooks.neptune.NeptuneHook.get_async_conn")
     async def test_run_success(self, mock_async_conn, mock_get_waiter):
-        mock_async_conn.__aenter__.return_value = "available"
+        mock_async_conn.return_value.__aenter__.return_value = "available"
         mock_get_waiter().wait = AsyncMock()
         trigger = NeptuneClusterInstancesAvailableTrigger(db_cluster_id=CLUSTER_ID)
         generator = trigger.run()
@@ -114,10 +114,10 @@ class TestNeptuneClusterInstancesAvailableTrigger:
         assert mock_get_waiter().wait.call_count == 1
 
     @pytest.mark.asyncio
-    @mock.patch("airflow.providers.amazon.aws.hooks.neptune.NeptuneHook.async_conn")
+    @mock.patch("airflow.providers.amazon.aws.hooks.neptune.NeptuneHook.get_async_conn")
     async def test_run_fail(self, mock_async_conn):
         a_mock = mock.MagicMock()
-        mock_async_conn.__aenter__.return_value = a_mock
+        mock_async_conn.return_value.__aenter__.return_value = a_mock
         wait_mock = AsyncMock()
         wait_mock.side_effect = WaiterError("name", "reason", {"test": [{"lastStatus": "my_status"}]})
         a_mock.get_waiter().wait = wait_mock
