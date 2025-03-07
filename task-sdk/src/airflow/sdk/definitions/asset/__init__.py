@@ -442,23 +442,25 @@ class Asset(os.PathLike, BaseAsset):
 
         :meta private:
         """
-        from airflow.models.asset import retreive_asset_models
+        from airflow.models.asset import resolve_assets_as_dag_dependencies
         from airflow.utils.session import create_session
 
-        asset_id = None
         with create_session() as session:
-            asset_models = retreive_asset_models(assets=[self], session=session)
-            # handle the case that asset has not yet been added
-            if asset_models:
-                asset_id = str(asset_models[0].id)
+            dag_dependencies = resolve_assets_as_dag_dependencies(
+                source=source or "asset", target=target or "asset", assets=[self], session=session
+            )
 
-        yield DagDependency(
-            source=source or "asset",
-            target=target or "asset",
-            label=self.name,
-            dependency_type="asset",
-            dependency_id=asset_id,
-        )
+        # handle the case that asset has not yet been added
+        if dag_dependencies:
+            yield dag_dependencies[0]
+        else:
+            yield DagDependency(
+                source=source or "asset",
+                target=target or "asset",
+                label=self.name,
+                dependency_type="asset",
+                dependency_id=None,
+            )
 
     def asprofile(self) -> AssetProfile:
         """

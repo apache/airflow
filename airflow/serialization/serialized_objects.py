@@ -39,7 +39,7 @@ from pendulum.tz.timezone import FixedTimezone, Timezone
 from airflow import macros
 from airflow.callbacks.callback_requests import DagCallbackRequest, TaskCallbackRequest
 from airflow.exceptions import AirflowException, SerializationError, TaskDeferred
-from airflow.models.asset import retreive_asset_models
+from airflow.models.asset import resolve_assets_as_dag_dependencies
 from airflow.models.baseoperator import BaseOperator
 from airflow.models.connection import Connection
 from airflow.models.dag import DAG, _get_model_data_interval
@@ -1125,14 +1125,9 @@ class DependencyDetector:
         if assets:
             with create_session() as session:
                 deps.extend(
-                    DagDependency(
-                        source=task.dag_id,
-                        target="asset",
-                        label=asset_model.name,
-                        dependency_type="asset",
-                        dependency_id=str(asset_model.id),
+                    resolve_assets_as_dag_dependencies(
+                        source=task.dag_id, target="asset", assets=assets, session=session
                     )
-                    for asset_model in retreive_asset_models(assets=assets, session=session)
                 )
 
         return deps
