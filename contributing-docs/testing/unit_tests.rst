@@ -117,7 +117,7 @@ via ``--integration`` flag in ``breeze`` environment - via ``breeze testing inte
 
 * ``Integration`` - tests that require external integration images running in docker-compose
 
-This is done for three reasons:
+This is done for two reasons:
 
 1. in order to selectively run only subset of the test types for some PRs
 2. in order to allow efficient parallel test execution of the tests on Self-Hosted runners
