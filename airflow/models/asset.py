@@ -38,6 +38,7 @@ from sqlalchemy.orm import relationship
 
 from airflow.models.base import Base, StringID
 from airflow.sdk.definitions.asset import Asset, AssetAlias
+from airflow.serialization.dag_dependency import DagDependency
 from airflow.settings import json
 from airflow.utils import timezone
 from airflow.utils.sqlalchemy import UtcDateTime
@@ -97,16 +98,28 @@ def resolve_ref_to_asset(
     return session.scalar(stmt)
 
 
-def retreive_asset_models(
+def resolve_assets_as_dag_dependencies(
     *,
     assets: list[Asset],
+    source: str,
+    target: str,
     session: Session,
-) -> list[AssetModel]:
-    return session.scalars(
-        select(AssetModel).where(
+) -> list[DagDependency]:
+    asset_id_names = session.scalars(
+        select(AssetModel.id, AssetAliasModel.name).where(
             tuple_(AssetModel.name, AssetModel.uri).in_((asset.name, asset.uri) for asset in assets)
         )
     ).all()
+    return [
+        DagDependency(
+            source=source,
+            target=target,
+            label=asset_name,
+            dependency_type="asset",
+            dependency_id=str(asset_id),
+        )
+        for (asset_id, asset_name) in asset_id_names
+    ]
 
 
 alias_association_table = Table(
