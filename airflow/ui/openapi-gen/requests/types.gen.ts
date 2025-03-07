@@ -1607,10 +1607,6 @@ export type XComUpdateBody = {
   map_index?: number;
 };
 
-export type NextRunAssetsData = {
-  dagId: string;
-};
-
 export type NextRunAssetsResponse = {
   [key: string]: unknown;
 };
@@ -1678,7 +1674,6 @@ export type GetAssetQueuedEventsResponse = QueuedEventCollectionResponse;
 export type DeleteAssetQueuedEventsData = {
   assetId: number;
   before?: string | null;
-  dagId?: string | null;
 };
 
 export type DeleteAssetQueuedEventsResponse = void;
@@ -1691,14 +1686,14 @@ export type GetAssetResponse = AssetResponse;
 
 export type GetDagAssetQueuedEventsData = {
   before?: string | null;
-  dagId: string | null;
+  dagId: string;
 };
 
 export type GetDagAssetQueuedEventsResponse = QueuedEventCollectionResponse;
 
 export type DeleteDagAssetQueuedEventsData = {
   before?: string | null;
-  dagId: string | null;
+  dagId: string;
 };
 
 export type DeleteDagAssetQueuedEventsResponse = void;
@@ -1706,7 +1701,7 @@ export type DeleteDagAssetQueuedEventsResponse = void;
 export type GetDagAssetQueuedEventData = {
   assetId: number;
   before?: string | null;
-  dagId: string | null;
+  dagId: string;
 };
 
 export type GetDagAssetQueuedEventResponse = QueuedEventResponse;
@@ -1714,7 +1709,7 @@ export type GetDagAssetQueuedEventResponse = QueuedEventResponse;
 export type DeleteDagAssetQueuedEventData = {
   assetId: number;
   before?: string | null;
-  dagId: string | null;
+  dagId: string;
 };
 
 export type DeleteDagAssetQueuedEventResponse = void;
@@ -2074,7 +2069,6 @@ export type GetDagTagsData = {
 export type GetDagTagsResponse = DAGTagCollectionResponse;
 
 export type GetEventLogData = {
-  dagId?: string | null;
   eventLogId: number;
 };
 
@@ -2100,7 +2094,7 @@ export type GetEventLogsData = {
 export type GetEventLogsResponse = EventLogCollectionResponse;
 
 export type GetExtraLinksData = {
-  dagId: string | null;
+  dagId: string;
   dagRunId: string;
   mapIndex?: number;
   taskId: string;
@@ -2532,7 +2526,6 @@ export type LoginResponse = unknown;
 export type $OpenApiTs = {
   "/ui/next_run_assets/{dag_id}": {
     get: {
-      req: NextRunAssetsData;
       res: {
         /**
          * Successful Response
@@ -2540,10 +2533,6 @@ export type $OpenApiTs = {
         200: {
           [key: string]: unknown;
         };
-        /**
-         * Validation Error
-         */
-        422: HTTPValidationError;
       };
     };
   };

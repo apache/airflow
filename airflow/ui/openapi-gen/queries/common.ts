@@ -42,14 +42,10 @@ export type AssetServiceNextRunAssetsQueryResult<
   TError = unknown,
 > = UseQueryResult<TData, TError>;
 export const useAssetServiceNextRunAssetsKey = "AssetServiceNextRunAssets";
-export const UseAssetServiceNextRunAssetsKeyFn = (
-  {
-    dagId,
-  }: {
-    dagId: string;
-  },
-  queryKey?: Array<unknown>,
-) => [useAssetServiceNextRunAssetsKey, ...(queryKey ?? [{ dagId }])];
+export const UseAssetServiceNextRunAssetsKeyFn = (queryKey?: Array<unknown>) => [
+  useAssetServiceNextRunAssetsKey,
+  ...(queryKey ?? []),
+];
 export type AssetServiceGetAssetsDefaultResponse = Awaited<ReturnType<typeof AssetService.getAssets>>;
 export type AssetServiceGetAssetsQueryResult<
   TData = AssetServiceGetAssetsDefaultResponse,
@@ -856,14 +852,12 @@ export type EventLogServiceGetEventLogQueryResult<
 export const useEventLogServiceGetEventLogKey = "EventLogServiceGetEventLog";
 export const UseEventLogServiceGetEventLogKeyFn = (
   {
-    dagId,
     eventLogId,
   }: {
-    dagId?: string;
     eventLogId: number;
   },
   queryKey?: Array<unknown>,
-) => [useEventLogServiceGetEventLogKey, ...(queryKey ?? [{ dagId, eventLogId }])];
+) => [useEventLogServiceGetEventLogKey, ...(queryKey ?? [{ eventLogId }])];
 export type EventLogServiceGetEventLogsDefaultResponse = Awaited<
   ReturnType<typeof EventLogService.getEventLogs>
 >;

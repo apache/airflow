@@ -34,10 +34,10 @@ assets_router = AirflowRouter(tags=["Asset"])
     dependencies=[Depends(requires_access_asset(method="GET")), Depends(requires_access_dag(method="GET"))],
 )
 def next_run_assets(
-    dag_id: str,
     request: Request,
     session: SessionDep,
 ) -> dict:
+    dag_id = request.path_params.get("dag_id")
     dag = request.app.state.dag_bag.get_dag(dag_id)
 
     if not dag:

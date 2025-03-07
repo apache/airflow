@@ -38,22 +38,13 @@ import * as Common from "./common";
 
 /**
  * Next Run Assets
- * @param data The data for the request.
- * @param data.dagId
  * @returns unknown Successful Response
  * @throws ApiError
  */
-export const prefetchUseAssetServiceNextRunAssets = (
-  queryClient: QueryClient,
-  {
-    dagId,
-  }: {
-    dagId: string;
-  },
-) =>
+export const prefetchUseAssetServiceNextRunAssets = (queryClient: QueryClient) =>
   queryClient.prefetchQuery({
-    queryKey: Common.UseAssetServiceNextRunAssetsKeyFn({ dagId }),
-    queryFn: () => AssetService.nextRunAssets({ dagId }),
+    queryKey: Common.UseAssetServiceNextRunAssetsKeyFn(),
+    queryFn: () => AssetService.nextRunAssets(),
   });
 /**
  * Get Assets
@@ -1164,32 +1155,29 @@ export const prefetchUseDagServiceGetDagTags = (
  * Get Event Log
  * @param data The data for the request.
  * @param data.eventLogId
- * @param data.dagId
  * @returns EventLogResponse Successful Response
  * @throws ApiError
  */
 export const prefetchUseEventLogServiceGetEventLog = (
   queryClient: QueryClient,
   {
-    dagId,
     eventLogId,
   }: {
-    dagId?: string;
     eventLogId: number;
   },
 ) =>
   queryClient.prefetchQuery({
-    queryKey: Common.UseEventLogServiceGetEventLogKeyFn({ dagId, eventLogId }),
-    queryFn: () => EventLogService.getEventLog({ dagId, eventLogId }),
+    queryKey: Common.UseEventLogServiceGetEventLogKeyFn({ eventLogId }),
+    queryFn: () => EventLogService.getEventLog({ eventLogId }),
   });
 /**
  * Get Event Logs
  * Get all Event Logs.
  * @param data The data for the request.
- * @param data.dagId
  * @param data.limit
  * @param data.offset
  * @param data.orderBy
+ * @param data.dagId
  * @param data.taskId
  * @param data.runId
  * @param data.mapIndex
