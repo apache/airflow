@@ -1227,6 +1227,20 @@ export const $ConfigResponse = {
       type: "object",
       title: "State Color Mapping",
     },
+    color_log_error_keywords: {
+      items: {
+        type: "string",
+      },
+      type: "array",
+      title: "Color Log Error Keywords",
+    },
+    color_log_warning_keywords: {
+      items: {
+        type: "string",
+      },
+      type: "array",
+      title: "Color Log Warning Keywords",
+    },
   },
   type: "object",
   required: [
@@ -1250,6 +1264,8 @@ export const $ConfigResponse = {
     "is_k8s",
     "test_connection",
     "state_color_mapping",
+    "color_log_error_keywords",
+    "color_log_warning_keywords",
   ],
   title: "ConfigResponse",
   description: "configuration serializer.",

@@ -416,6 +416,8 @@ export type ConfigResponse = {
   state_color_mapping: {
     [key: string]: unknown;
   };
+  color_log_error_keywords: Array<string>;
+  color_log_warning_keywords: Array<string>;
 };
 
 /**

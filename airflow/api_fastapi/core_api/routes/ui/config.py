@@ -61,6 +61,10 @@ def get_configs() -> ConfigResponse:
         "audit_view_included_events": conf.get("webserver", "audit_view_included_events", fallback=""),
         "audit_view_excluded_events": conf.get("webserver", "audit_view_excluded_events", fallback=""),
         "test_connection": conf.get("core", "test_connection", fallback="Disabled"),
+        "color_log_error_keywords": conf.get("logging", "color_log_error_keywords", fallback="").split(","),
+        "color_log_warning_keywords": conf.get("logging", "color_log_warning_keywords", fallback="").split(
+            ","
+        ),
         "state_color_mapping": STATE_COLORS,
         "is_k8s": IS_K8S_OR_K8SCELERY_EXECUTOR,
     }

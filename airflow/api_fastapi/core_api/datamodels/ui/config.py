@@ -42,3 +42,5 @@ class ConfigResponse(BaseModel):
     is_k8s: bool
     test_connection: str
     state_color_mapping: dict
+    color_log_error_keywords: list[str]
+    color_log_warning_keywords: list[str]
