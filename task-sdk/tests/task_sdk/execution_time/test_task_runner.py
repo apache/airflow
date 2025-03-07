@@ -1151,7 +1151,8 @@ class TestRuntimeTaskInstance:
                     value = context["ti"].xcom_pull(task_ids=task_ids, key="key")
                 print(f"Pulled XCom Value: {value}")
 
-        task = CustomOperator(task_id="pull_task")
+        test_task_id = "pull_task"
+        task = CustomOperator(task_id=test_task_id)
 
         runtime_ti = create_runtime_ti(task=task)
 
@@ -1163,8 +1164,9 @@ class TestRuntimeTaskInstance:
             task_ids = [task_ids]
 
         for task_id in task_ids:
+            # Without task_ids (or None) expected behavior is to pull with calling task_id
             if task_id is None or isinstance(task_id, ArgNotSet):
-                task_id = runtime_ti.task_id
+                task_id = test_task_id
             mock_supervisor_comms.send_request.assert_any_call(
                 log=mock.ANY,
                 msg=GetXCom(
