@@ -244,7 +244,7 @@ class TestGetDags(TestDagEndpoint):
     def test_get_dags_should_call_permitted_dag_ids(self, mock_get_permitted_dag_ids, test_client):
         mock_get_permitted_dag_ids.return_value = {DAG1_ID, DAG2_ID}
         response = test_client.get("/public/dags")
-        mock_get_permitted_dag_ids.assert_called_once_with(user=mock.ANY, methods=["GET"])
+        mock_get_permitted_dag_ids.assert_called_once_with(user=mock.ANY, method="GET")
         assert response.status_code == 200
         body = response.json()
 
@@ -355,7 +355,7 @@ class TestPatchDags(TestDagEndpoint):
         response = test_client.patch(
             "/public/dags", json={"is_paused": False}, params={"only_active": False, "dag_id_pattern": "~"}
         )
-        mock_get_permitted_dag_ids.assert_called_once_with(user=mock.ANY, methods=["PUT"])
+        mock_get_permitted_dag_ids.assert_called_once_with(user=mock.ANY, method="PUT")
         assert response.status_code == 200
         body = response.json()
 

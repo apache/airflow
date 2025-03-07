@@ -16,7 +16,6 @@
 # under the License.
 from __future__ import annotations
 
-from collections.abc import Container
 from functools import cache
 from typing import TYPE_CHECKING, Annotated, Callable
 
@@ -113,13 +112,11 @@ class PermittedDagFilter(OrmClause[set[str]]):
         return select.where(DagModel.dag_id.in_(self.value))
 
 
-def permitted_dag_filter_factory(
-    methods: Container[ResourceMethod],
-) -> Callable[[Request, BaseUser], PermittedDagFilter]:
+def permitted_dag_filter_factory(method: ResourceMethod) -> Callable[[Request, BaseUser], PermittedDagFilter]:
     """
     Create a callable for Depends in FastAPI that returns a filter of the permitted dags for the user.
 
-    :param methods: whether filter readable or writable.
+    :param method: whether filter readable or writable.
     :return: The callable that can be used as Depends in FastAPI.
     """
 
@@ -128,14 +125,14 @@ def permitted_dag_filter_factory(
         user: GetUserDep,
     ) -> PermittedDagFilter:
         auth_manager: BaseAuthManager = request.app.state.auth_manager
-        permitted_dags: set[str] = auth_manager.get_permitted_dag_ids(user=user, methods=methods)
+        permitted_dags: set[str] = auth_manager.get_permitted_dag_ids(user=user, method=method)
         return PermittedDagFilter(permitted_dags)
 
     return depends_permitted_dags_filter
 
 
-EditableDagsFilterDep = Annotated[PermittedDagFilter, Depends(permitted_dag_filter_factory(["PUT"]))]
-ReadableDagsFilterDep = Annotated[PermittedDagFilter, Depends(permitted_dag_filter_factory(["GET"]))]
+EditableDagsFilterDep = Annotated[PermittedDagFilter, Depends(permitted_dag_filter_factory("PUT"))]
+ReadableDagsFilterDep = Annotated[PermittedDagFilter, Depends(permitted_dag_filter_factory("GET"))]
 
 
 def requires_access_pool(method: ResourceMethod) -> Callable[[Request, BaseUser], None]:
