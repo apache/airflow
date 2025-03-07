@@ -190,7 +190,7 @@ CI_FILE_GROUP_MATCHES = HashableDict(
             r"^chart",
             r"^providers/.*/src/",
             r"^providers/.*/docs/",
-            r"^task_sdk/src/",
+            r"^task-sdk/src/",
             r"^tests/system",
             r"^CHANGELOG\.txt",
             r"^airflow/config_templates/config\.yml",
@@ -226,8 +226,8 @@ CI_FILE_GROUP_MATCHES = HashableDict(
             r"^providers/tests/",
             r"^providers/.*/src/",
             r"^providers/.*/tests/",
-            r"^task_sdk/src/",
-            r"^task_sdk/tests/",
+            r"^task-sdk/src/",
+            r"^task-sdk/tests/",
             r"^tests",
             r"^devel-common",
             r"^kubernetes_tests",
@@ -246,18 +246,18 @@ CI_FILE_GROUP_MATCHES = HashableDict(
             r"^devel-common/.*\.py$",
         ],
         FileGroupForCi.TASK_SDK_FILES: [
-            r"^task_sdk/src/airflow/sdk/.*\.py$",
-            r"^task_sdk/tests/.*\.py$",
+            r"^task-sdk/src/airflow/sdk/.*\.py$",
+            r"^task-sdk/tests/.*\.py$",
         ],
         FileGroupForCi.ASSET_FILES: [
             r"^airflow/assets/",
             r"^airflow/models/assets/",
-            r"^task_sdk/src/airflow/sdk/definitions/asset/",
+            r"^task-sdk/src/airflow/sdk/definitions/asset/",
             r"^airflow/datasets/",
         ],
         FileGroupForCi.UNIT_TEST_FILES: [
             r"^tests/",
-            r"^task_sdk/tests/",
+            r"^task-sdk/tests/",
             r"^providers/.*/tests/",
             r"^dev/breeze/tests/",
         ],
@@ -274,8 +274,8 @@ CI_FILE_GROUP_EXCLUDES = HashableDict(
             r"^docs/.*",
             r"^providers/.*/tests/.*",
             r"^tests/dags/test_imports.py",
-            r"^task_sdk/src/airflow/sdk/.*\.py$",
-            r"^task_sdk/tests/.*\.py$",
+            r"^task-sdk/src/airflow/sdk/.*\.py$",
+            r"^task-sdk/tests/.*\.py$",
         ]
     }
 )
@@ -307,8 +307,8 @@ TEST_TYPE_MATCHES = HashableDict(
             r"^providers/.*/tests/",
         ],
         SelectiveTaskSdkTestType.TASK_SDK: [
-            r"^task_sdk/src/",
-            r"^task_sdk/tests/",
+            r"^task-sdk/src/",
+            r"^task-sdk/tests/",
         ],
         SelectiveCoreTestType.SERIALIZATION: [
             r"^airflow/serialization/",

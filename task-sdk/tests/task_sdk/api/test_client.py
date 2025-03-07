@@ -23,34 +23,14 @@ from unittest import mock
 import httpx
 import pytest
 import uuid6
+from task_sdk import make_client, make_client_w_dry_run, make_client_w_responses
 
-from airflow.sdk.api.client import Client, RemoteValidationError, ServerResponseError
+from airflow.sdk.api.client import RemoteValidationError, ServerResponseError
 from airflow.sdk.api.datamodels._generated import ConnectionResponse, VariableResponse, XComResponse
 from airflow.sdk.exceptions import ErrorType
 from airflow.sdk.execution_time.comms import DeferTask, ErrorResponse, RescheduleTask
 from airflow.utils import timezone
 from airflow.utils.state import TerminalTIState
-
-
-def make_client(transport: httpx.MockTransport) -> Client:
-    """Get a client with a custom transport"""
-    return Client(base_url="test://server", token="", transport=transport)
-
-
-def make_client_w_dry_run() -> Client:
-    """Get a client with dry_run enabled"""
-    return Client(base_url=None, dry_run=True, token="")
-
-
-def make_client_w_responses(responses: list[httpx.Response]) -> Client:
-    """Helper fixture to create a mock client with custom responses."""
-
-    def handle_request(request: httpx.Request) -> httpx.Response:
-        return responses.pop(0)
-
-    return Client(
-        base_url=None, dry_run=True, token="", mounts={"'http://": httpx.MockTransport(handle_request)}
-    )
 
 
 class TestClient:

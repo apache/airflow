@@ -27,7 +27,8 @@ from flask import Flask, g
 
 from airflow.exceptions import AirflowConfigException, AirflowException
 from airflow.providers.fab.www.extensions.init_appbuilder import init_appbuilder
-from unit.fab.auth_manager.api_endpoints.api_connexion_utils import create_user
+from airflow.providers.standard.operators.empty import EmptyOperator
+from unit.fab.auth_manager.api_endpoints.api_connexion_utils import create_user, delete_user
 
 try:
     from airflow.auth.managers.models.resource_details import AccessView, DagAccessEntity, DagDetails
@@ -448,6 +449,83 @@ class TestFabAuthManager:
         user.perms = user_permissions
         result = auth_manager.is_authorized_custom_view(method=method, resource_name=resource_name, user=user)
         assert result == expected_result
+
+    @pytest.mark.parametrize(
+        "method, user_permissions, expected_results",
+        [
+            # Scenario 1
+            # With global read permissions on Dags
+            (
+                "GET",
+                [(ACTION_CAN_READ, RESOURCE_DAG)],
+                {"test_dag1", "test_dag2"},
+            ),
+            # Scenario 2
+            # With global edit permissions on Dags
+            (
+                "PUT",
+                [(ACTION_CAN_EDIT, RESOURCE_DAG)],
+                {"test_dag1", "test_dag2"},
+            ),
+            # Scenario 3
+            # With DAG-specific permissions
+            (
+                "GET",
+                [(ACTION_CAN_READ, "DAG:test_dag1")],
+                {"test_dag1"},
+            ),
+            # Scenario 4
+            # With no permissions
+            (
+                "GET",
+                [],
+                set(),
+            ),
+            # Scenario 5
+            # With read permissions but edit is requested
+            (
+                "PUT",
+                [(ACTION_CAN_READ, RESOURCE_DAG)],
+                set(),
+            ),
+            # Scenario 7
+            # With read permissions but edit is requested
+            (
+                "PUT",
+                [(ACTION_CAN_READ, "DAG:test_dag1")],
+                set(),
+            ),
+            # Scenario 8
+            # With DAG-specific permissions
+            (
+                "PUT",
+                [(ACTION_CAN_EDIT, "DAG:test_dag1"), (ACTION_CAN_EDIT, "DAG:test_dag2")],
+                {"test_dag1", "test_dag2"},
+            ),
+        ],
+    )
+    def test_get_permitted_dag_ids(
+        self, method, user_permissions, expected_results, auth_manager_with_appbuilder, dag_maker, flask_app
+    ):
+        with dag_maker("test_dag1"):
+            EmptyOperator(task_id="task1")
+        with dag_maker("test_dag2"):
+            EmptyOperator(task_id="task1")
+
+        auth_manager_with_appbuilder.security_manager.sync_perm_for_dag("test_dag1")
+        auth_manager_with_appbuilder.security_manager.sync_perm_for_dag("test_dag2")
+
+        user = create_user(
+            flask_app,
+            username="username",
+            role_name="test",
+            permissions=user_permissions,
+        )
+
+        results = auth_manager_with_appbuilder.get_permitted_dag_ids(user=user, method=method)
+        assert results == expected_results
+
+        delete_user(flask_app, "username")
 
     @pytest.mark.db_test
     def test_security_manager_return_fab_security_manager_override(self, auth_manager_with_appbuilder):

@@ -287,7 +287,7 @@ def all_task_sdk_test_packages() -> list[str]:
         return sorted(
             [
                 candidate.name
-                for candidate in (AIRFLOW_SOURCES_ROOT / "task_sdk" / "tests").iterdir()
+                for candidate in (AIRFLOW_SOURCES_ROOT / "task-sdk" / "tests").iterdir()
                 if candidate.is_dir() and candidate.name != "__pycache__"
             ]
         )

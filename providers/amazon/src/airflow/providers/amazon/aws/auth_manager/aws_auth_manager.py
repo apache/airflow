@@ -18,7 +18,7 @@ from __future__ import annotations
 
 import argparse
 from collections import defaultdict
-from collections.abc import Container, Sequence
+from collections.abc import Sequence
 from functools import cached_property
 from typing import TYPE_CHECKING, Any, cast
 
@@ -153,9 +153,9 @@ class AwsAuthManager(BaseAuthManager[AwsAuthManagerUser]):
     def is_authorized_asset(
         self, *, method: ResourceMethod, user: AwsAuthManagerUser, details: AssetDetails | None = None
     ) -> bool:
-        asset_uri = details.uri if details else None
+        asset_id = details.id if details else None
         return self.avp_facade.is_authorized(
-            method=method, entity_type=AvpEntities.ASSET, user=user, entity_id=asset_uri
+            method=method, entity_type=AvpEntities.ASSET, user=user, entity_id=asset_id
         )
 
     def is_authorized_pool(
@@ -195,7 +195,7 @@ class AwsAuthManager(BaseAuthManager[AwsAuthManagerUser]):
 
     def is_authorized_custom_view(
         self, *, method: ResourceMethod | str, resource_name: str, user: AwsAuthManagerUser
-    ):
+    ) -> bool:
         return self.avp_facade.is_authorized(
             method=method,
             entity_type=AvpEntities.CUSTOM,
@@ -283,23 +283,18 @@ class AwsAuthManager(BaseAuthManager[AwsAuthManagerUser]):
         *,
         dag_ids: set[str],
         user: AwsAuthManagerUser,
-        methods: Container[ResourceMethod] | None = None,
+        method: ResourceMethod = "GET",
     ):
-        if not methods:
-            methods = ["PUT", "GET"]
-
         requests: dict[str, dict[ResourceMethod, IsAuthorizedRequest]] = defaultdict(dict)
         requests_list: list[IsAuthorizedRequest] = []
         for dag_id in dag_ids:
-            for method in ["GET", "PUT"]:
-                if method in methods:
-                    request: IsAuthorizedRequest = {
-                        "method": cast("ResourceMethod", method),
-                        "entity_type": AvpEntities.DAG,
-                        "entity_id": dag_id,
-                    }
-                    requests[dag_id][cast("ResourceMethod", method)] = request
-                    requests_list.append(request)
+            request: IsAuthorizedRequest = {
+                "method": method,
+                "entity_type": AvpEntities.DAG,
+                "entity_id": dag_id,
+            }
+            requests[dag_id][method] = request
+            requests_list.append(request)
 
         batch_is_authorized_results = self.avp_facade.get_batch_is_authorized_results(
             requests=requests_list, user=user
@@ -311,16 +306,7 @@ class AwsAuthManager(BaseAuthManager[AwsAuthManagerUser]):
             )
             return result["decision"] == "ALLOW"
 
-        return {
-            dag_id
-            for dag_id in dag_ids
-            if (
-                "GET" in methods
-                and _has_access_to_dag(requests[dag_id]["GET"])
-                or "PUT" in methods
-                and _has_access_to_dag(requests[dag_id]["PUT"])
-            )
-        }
+        return {dag_id for dag_id in dag_ids if _has_access_to_dag(requests[dag_id][method])}
 
     def get_url_login(self, **kwargs) -> str:
         return f"{self.apiserver_endpoint}/auth/login"

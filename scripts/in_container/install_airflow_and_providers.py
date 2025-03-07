@@ -249,7 +249,7 @@ def find_installation_spec(
                 )
             if airflow_extras:
                 airflow_package_spec += airflow_extras
-        # We always install latest task_sdk - it's independent from Airflow
+        # We always install latest task-sdk - it's independent from Airflow
         airflow_task_sdk_spec = find_airflow_task_sdk_package(extension)
         if airflow_task_sdk_spec:
             airflow_task_sdk_constraints_location = get_airflow_constraints_location(
@@ -287,7 +287,7 @@ def find_installation_spec(
             github_repository=github_repository,
             python_version=python_version,
         )
-        console.print(f"\nInstalling airflow task_sdk from remote spec {use_airflow_version}\n")
+        console.print(f"\nInstalling airflow task-sdk from remote spec {use_airflow_version}\n")
         airflow_task_sdk_package = f"apache-airflow-task-sdk @ {use_airflow_version}"
         airflow_constraints_location = get_airflow_constraints_location(
             airflow_skip_constraints=airflow_skip_constraints,
@@ -318,7 +318,7 @@ def find_installation_spec(
             python_version=python_version,
         )
         console.print(
-            "\nDo not install airflow task_sdk. It should be installed automatically if needed "
+            "\nDo not install airflow task-sdk. It should be installed automatically if needed "
             "by providers."
         )
         airflow_task_sdk_package = None

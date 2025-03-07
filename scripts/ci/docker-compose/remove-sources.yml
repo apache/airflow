@@ -22,8 +22,8 @@ services:
     volumes:
       # Removes airflow sources from container
       - ../../../empty:/opt/airflow/airflow
-      # Removes task_sdk sources from container
-      - ../../../empty:/opt/airflow/task_sdk/src
+      # Removes task-sdk sources from container
+      - ../../../empty:/opt/airflow/task-sdk/src
       # Remove all provider sources from container
       # START automatically generated volumes by generate-volumes-for-sources pre-commit
       - ../../../empty:/opt/airflow/providers/airbyte/src

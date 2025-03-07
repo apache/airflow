@@ -205,7 +205,7 @@ class TestAwsAuthManager:
         "details, user, expected_user, expected_entity_id",
         [
             (None, mock, ANY, None),
-            (AssetDetails(uri="uri"), mock, mock, "uri"),
+            (AssetDetails(id="1"), mock, mock, "1"),
         ],
     )
     @patch.object(AwsAuthManager, "avp_facade")
@@ -445,26 +445,30 @@ class TestAwsAuthManager:
         assert result
 
     @pytest.mark.parametrize(
-        "methods, user",
+        "method, user, expected_result",
         [
-            (None, AwsAuthManagerUser(user_id="test_user_id", groups=[])),
-            (["PUT", "GET"], AwsAuthManagerUser(user_id="test_user_id", groups=[])),
+            ("GET", AwsAuthManagerUser(user_id="test_user_id1", groups=[]), {"dag_1"}),
+            ("PUT", AwsAuthManagerUser(user_id="test_user_id1", groups=[]), set()),
+            ("GET", AwsAuthManagerUser(user_id="test_user_id2", groups=[]), set()),
+            ("PUT", AwsAuthManagerUser(user_id="test_user_id2", groups=[]), {"dag_2"}),
         ],
     )
-    def test_filter_permitted_dag_ids(self, methods, user, auth_manager, test_user):
+    def test_filter_permitted_dag_ids(self, method, user, auth_manager, test_user, expected_result):
         dag_ids = {"dag_1", "dag_2"}
+        # test_user_id1 has GET permissions on dag_1
+        # test_user_id2 has PUT permissions on dag_2
         batch_is_authorized_output = [
             {
                 "request": {
-                    "principal": {"entityType": "Airflow::User", "entityId": "test_user_id"},
+                    "principal": {"entityType": "Airflow::User", "entityId": "test_user_id1"},
                     "action": {"actionType": "Airflow::Action", "actionId": "Dag.GET"},
                     "resource": {"entityType": "Airflow::Dag", "entityId": "dag_1"},
                 },
-                "decision": "DENY",
+                "decision": "ALLOW",
             },
             {
                 "request": {
-                    "principal": {"entityType": "Airflow::User", "entityId": "test_user_id"},
+                    "principal": {"entityType": "Airflow::User", "entityId": "test_user_id1"},
                     "action": {"actionType": "Airflow::Action", "actionId": "Dag.PUT"},
                     "resource": {"entityType": "Airflow::Dag", "entityId": "dag_1"},
                 },
@@ -472,7 +476,7 @@ class TestAwsAuthManager:
             },
             {
                 "request": {
-                    "principal": {"entityType": "Airflow::User", "entityId": "test_user_id"},
+                    "principal": {"entityType": "Airflow::User", "entityId": "test_user_id1"},
                     "action": {"actionType": "Airflow::Action", "actionId": "Dag.GET"},
                     "resource": {"entityType": "Airflow::Dag", "entityId": "dag_2"},
                 },
@@ -480,7 +484,39 @@ class TestAwsAuthManager:
             },
             {
                 "request": {
-                    "principal": {"entityType": "Airflow::User", "entityId": "test_user_id"},
+                    "principal": {"entityType": "Airflow::User", "entityId": "test_user_id1"},
+                    "action": {"actionType": "Airflow::Action", "actionId": "Dag.PUT"},
+                    "resource": {"entityType": "Airflow::Dag", "entityId": "dag_2"},
+                },
+                "decision": "DENY",
+            },
+            {
+                "request": {
+                    "principal": {"entityType": "Airflow::User", "entityId": "test_user_id2"},
+                    "action": {"actionType": "Airflow::Action", "actionId": "Dag.GET"},
+                    "resource": {"entityType": "Airflow::Dag", "entityId": "dag_1"},
+                },
+                "decision": "DENY",
+            },
+            {
+                "request": {
+                    "principal": {"entityType": "Airflow::User", "entityId": "test_user_id2"},
+                    "action": {"actionType": "Airflow::Action", "actionId": "Dag.PUT"},
+                    "resource": {"entityType": "Airflow::Dag", "entityId": "dag_1"},
+                },
+                "decision": "DENY",
+            },
+            {
+                "request": {
+                    "principal": {"entityType": "Airflow::User", "entityId": "test_user_id2"},
+                    "action": {"actionType": "Airflow::Action", "actionId": "Dag.GET"},
+                    "resource": {"entityType": "Airflow::Dag", "entityId": "dag_2"},
+                },
+                "decision": "DENY",
+            },
+            {
+                "request": {
+                    "principal": {"entityType": "Airflow::User", "entityId": "test_user_id2"},
                     "action": {"actionType": "Airflow::Action", "actionId": "Dag.PUT"},
                     "resource": {"entityType": "Airflow::Dag", "entityId": "dag_2"},
                 },
@@ -493,12 +529,12 @@ class TestAwsAuthManager:
 
         result = auth_manager.filter_permitted_dag_ids(
             dag_ids=dag_ids,
-            methods=methods,
+            method=method,
             user=user,
         )
 
         auth_manager.avp_facade.get_batch_is_authorized_results.assert_called()
-        assert result == {"dag_2"}
+        assert result == expected_result
 
     def test_get_url_login(self, auth_manager):
         result = auth_manager.get_url_login()

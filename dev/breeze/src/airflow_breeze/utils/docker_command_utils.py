@@ -92,7 +92,7 @@ VOLUMES_FOR_SELECTED_MOUNTS = [
     ("hooks", "/opt/airflow/hooks"),
     ("logs", "/root/airflow/logs"),
     ("providers", "/opt/airflow/providers"),
-    ("task_sdk", "/opt/airflow/task_sdk"),
+    ("task-sdk", "/opt/airflow/task-sdk"),
     ("pyproject.toml", "/opt/airflow/pyproject.toml"),
     ("scripts", "/opt/airflow/scripts"),
     ("scripts/docker/entrypoint_ci.sh", "/entrypoint"),

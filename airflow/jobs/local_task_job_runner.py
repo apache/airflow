@@ -329,10 +329,19 @@ class LocalTaskJobRunner(BaseJobRunner, LoggingMixin):
                     self.log.warning("DagRun timed out after %s.", execution_time)
 
             # If process still runs after being marked as success, let it run until configured overtime
-            if ti.state == TaskInstanceState.SUCCESS and self._overtime < conf.getint(
-                "core", "task_success_overtime"
-            ):
-                return
+            if ti.state == TaskInstanceState.SUCCESS:
+                task_success_overtime_limit = conf.getint("core", "task_success_overtime")
+                if self._overtime < task_success_overtime_limit:  # We are still within allowed overtime limit
+                    return
+                else:
+                    self.log.warning(
+                        "Task instance has exceeded the configured 'task_success_overtime' limit "
+                        "(%s seconds) for executing auxiliary processes (such as listeners) and will be "
+                        "terminated. It did not affect the task execution itself, but auxiliary processes"
+                        " (like listeners) may not perform their work in full. For more details, see: "
+                        "https://airflow.apache.org/docs/apache-airflow/stable/configurations-ref.html#task-success-overtime",
+                        task_success_overtime_limit,
+                    )
             # potential race condition, the _run_raw_task commits `success` or other state
             # but task_runner does not exit right away due to slow process shutdown or any other reasons
             # let's do a throttle here, if the above case is true, the handle_task_exit will handle it

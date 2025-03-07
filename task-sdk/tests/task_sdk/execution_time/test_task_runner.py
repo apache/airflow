@@ -29,6 +29,7 @@ from unittest import mock
 from unittest.mock import patch
 
 import pytest
+from task_sdk import FAKE_BUNDLE
 from uuid6 import uuid7
 
 from airflow.decorators import task as task_decorator
@@ -97,8 +98,6 @@ from tests_common.test_utils.mock_operators import AirflowLink
 
 if TYPE_CHECKING:
     from kgb import SpyAgency
-
-FAKE_BUNDLE = BundleInfo(name="anything", version="any")
 
 
 def get_inline_dag(dag_id: str, task: BaseOperator) -> DAG:

@@ -448,6 +448,7 @@ export class AssetService {
    * @param data The data for the request.
    * @param data.assetId
    * @param data.before
+   * @param data.dagId
    * @returns void Successful Response
    * @throws ApiError
    */
@@ -462,6 +463,7 @@ export class AssetService {
       },
       query: {
         before: data.before,
+        dag_id: data.dagId,
       },
       errors: {
         401: "Unauthorized",

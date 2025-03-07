@@ -27,9 +27,9 @@ import typing
 ROOT_DIR = pathlib.Path(__file__).resolve().parents[3]
 
 BASEOPERATOR_PY = ROOT_DIR.joinpath("airflow", "models", "baseoperator.py")
-SDK_BASEOPERATOR_PY = ROOT_DIR.joinpath("task_sdk", "src", "airflow", "sdk", "definitions", "baseoperator.py")
+SDK_BASEOPERATOR_PY = ROOT_DIR.joinpath("task-sdk", "src", "airflow", "sdk", "definitions", "baseoperator.py")
 SDK_MAPPEDOPERATOR_PY = ROOT_DIR.joinpath(
-    "task_sdk", "src", "airflow", "sdk", "definitions", "mappedoperator.py"
+    "task-sdk", "src", "airflow", "sdk", "definitions", "mappedoperator.py"
 )
 
 IGNORED = {

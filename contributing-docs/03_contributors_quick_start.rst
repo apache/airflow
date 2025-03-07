@@ -29,19 +29,20 @@ if you follow the guide.
 
 There are three ways you can run the Airflow dev env:
 
-1. With Docker Containers and Docker Compose (on your local machine). This environment is managed
+1. With a local virtual environment (on your local machine)
+2. With Docker Containers and Docker Compose (on your local machine). This environment is managed
    with the `Breeze <../dev/breeze/doc/README.rst>`_ tool written in Python that makes environment
    management, yeah you guessed it - a breeze.
-2. With a local virtual environment (on your local machine)
 3. With a remote, managed environment (via remote development environment)
 
 Before deciding which method to choose, there are a couple of factors to consider:
 
-* Running Airflow in a container is the most reliable way: it provides a more consistent environment
+* In most cases, installing Airflow in a local environment might be sufficient.
+  For a comprehensive local virtualenv tutorial, visit `Local virtualenv <07_local_virtualenv.rst>`_
+* Running Airflow in a container is the most reliable and repeatable way: it provides a more consistent
+  environment - with almost no dependencies (except docker) on your Host OS / machine
   and allows integration tests with a number of integrations (Cassandra, MongoDB, MySQL, etc.).
   However, it also requires **4GB RAM, 40GB disk space and at least 2 cores**.
-* If you are working on a basic feature, installing Airflow in a local environment might be sufficient.
-  For a comprehensive venv tutorial, visit `Local virtualenv <07_local_virtualenv.rst>`_
 * You need to have a (usually paid) account to access managed, remote virtual environments.
 
 Local machine development
@@ -49,11 +50,13 @@ Local machine development
 
 If you do not work in a remote development environment, you will need these prerequisites:
 
-1. Docker Community Edition (you can also use Colima, see instructions below)
-2. Docker Compose
-3. Hatch (you can also use pyenv, pyenv-virtualenv or virtualenvwrapper)
+1. UV is recommended for managing Python versions and virtual environments
+2. Docker Community Edition (you can also use Colima or others, see instructions below)
+3. Docker buildx
+3. Docker Compose
 
-The below setup describes `Ubuntu installation <https://docs.docker.com/engine/install/ubuntu/>`_. It might be slightly different on different machines.
+The below setup describes `Ubuntu installation <https://docs.docker.com/engine/install/ubuntu/>`_.
+It might be slightly different on different machines.
 
 Docker Community Edition
 ------------------------
@@ -162,11 +165,9 @@ Install manually:
 Setting up virtual-env
 ----------------------
 
-1. While you can use any virtualenv manager, we recommend using `Hatch <https://hatch.pypa.io/latest/>`__
-   as your build and integration frontend, and we already use ``hatchling`` build backend for Airflow.
-   You can read more about Hatch and it's use in Airflow in `Local virtualenv <07_local_virtualenv.rst>`_.
-   See `PEP-517 <https://peps.python.org/pep-0517/#terminology-and-goals>`_ for explanation of what the
-   frontend and backend meaning is
+1. While you can use any virtualenv manager, we recommend using `UV <https://github.com/astral-sh/uv>`__
+   as your build and integration frontend. You can read more about UV and it's use in
+   Airflow in `Local virtualenv <07_local_virtualenv.rst>`_.
 
 2. After creating the environment, you need to install a few more required packages for Airflow. The below command adds
    basic system-level dependencies on Debian/Ubuntu-like system. You will have to adapt it to install similar packages
@@ -178,7 +179,7 @@ Setting up virtual-env
 
 If you want to install all airflow providers, more system dependencies might be needed. For example on Debian/Ubuntu
 like system, this command will install all necessary dependencies that should be installed when you use
-``devel-all`` extra while installing airflow.
+``all`` extras while installing airflow.
 
 .. code-block:: bash
 
@@ -187,9 +188,6 @@ like system, this command will install all necessary dependencies that should be
   libkrb5-dev libldap2-dev libpq-dev libsasl2-2 libsasl2-dev libsasl2-modules \
   libssl-dev locales lsb-release openssh-client sasl2-bin \
   software-properties-common sqlite3 sudo unixodbc unixodbc-dev
-
-3. With Hatch you can enter the virtual environment with ``hatch shell`` command, check
-   `Local virtualenvs <./07_local_virtualenv.rst#using-hatch>`__ for more details
 
 Forking and cloning Project
 ---------------------------

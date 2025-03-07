@@ -30,10 +30,10 @@ services:
       - ../../../empty:/opt/airflow/airflow
       # But keep airflow/__init__.py to make hatchling happy when building empty package
       - ../../../airflow/__init__.py:/opt/airflow/airflow/__init__.py
-      # Remove task_sdk sources from container
-      - ../../../empty:/opt/airflow/task_sdk/src
-      # But keep task_sdk/a__init__.py to make hatchling happy when building empty package
-      - ../../../task_sdk/src/airflow/sdk/__init__.py:/opt/airflow/task_sdk/src/airflow/sdk/__init__.py
+      # Remove task-sdk sources from container
+      - ../../../empty:/opt/airflow/task-sdk/src
+      # But keep task-sdk/a__init__.py to make hatchling happy when building empty package
+      - ../../../task-sdk/src/airflow/sdk/__init__.py:/opt/airflow/task-sdk/src/airflow/sdk/__init__.py
       # And keep tests
       - ../../../tests/:/opt/airflow/tests:cached
       # Mount providers to make sure that we have the latest providers - both tests and sources
