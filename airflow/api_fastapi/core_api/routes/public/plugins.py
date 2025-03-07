@@ -19,15 +19,22 @@ from __future__ import annotations
 
 from typing import cast
 
+from fastapi import Depends
+
 from airflow.api_fastapi.common.parameters import QueryLimit, QueryOffset
 from airflow.api_fastapi.common.router import AirflowRouter
 from airflow.api_fastapi.core_api.datamodels.plugins import PluginCollectionResponse, PluginResponse
+from airflow.api_fastapi.core_api.security import requires_access_view
+from airflow.auth.managers.models.resource_details import AccessView
 from airflow.plugins_manager import get_plugin_info
 
 plugins_router = AirflowRouter(tags=["Plugin"], prefix="/plugins")
 
 
-@plugins_router.get("")
+@plugins_router.get(
+    "",
+    dependencies=[Depends(requires_access_view(AccessView.PLUGINS))],
+)
 def get_plugins(
     limit: QueryLimit,
     offset: QueryOffset,
