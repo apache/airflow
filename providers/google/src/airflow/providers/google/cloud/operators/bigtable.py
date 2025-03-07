@@ -23,6 +23,7 @@ from collections.abc import Iterable, Sequence
 from typing import TYPE_CHECKING
 
 import google.api_core.exceptions
+
 from airflow.exceptions import AirflowException
 from airflow.providers.google.cloud.hooks.bigtable import BigtableHook
 from airflow.providers.google.cloud.links.bigtable import (
@@ -36,9 +37,10 @@ from airflow.providers.google.common.hooks.base_google import PROVIDE_PROJECT_ID
 if TYPE_CHECKING:
     import enum
 
-    from airflow.utils.context import Context
     from google.cloud.bigtable import enums
     from google.cloud.bigtable.column_family import GarbageCollectionRule
+
+    from airflow.utils.context import Context
 
 
 class BigtableValidationMixin:

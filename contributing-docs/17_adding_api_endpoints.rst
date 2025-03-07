@@ -35,9 +35,9 @@ then adding it to the UI endpoints is more suitable.
 Step 1: Implement the Endpoint Logic
 ------------------------------------
 1. Considering the details above decide whether your endpoints should be part of the ``public`` or ``ui`` interface.
-1. Navigate to the appropriate routes directory in ``api_fastapi/core_api/routes``.
-2. Register a new route for your endpoint with the appropriate HTTP method, query params, permissions, body type, etc.
-3. Specify the appropriate Pydantic type in the return type annotation.
+2. Navigate to the appropriate routes directory in ``api_fastapi/core_api/routes``.
+3. Register a new route for your endpoint with the appropriate HTTP method, query params, permissions, body type, etc.
+4. Specify the appropriate Pydantic type in the return type annotation.
 
 Example:
 

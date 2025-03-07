@@ -19,8 +19,9 @@ from __future__ import annotations
 import json
 from typing import TYPE_CHECKING
 
-from airflow.providers.google.cloud.links.base import BaseGoogleLink
 from google.cloud.container_v1.types import Cluster
+
+from airflow.providers.google.cloud.links.base import BaseGoogleLink
 
 if TYPE_CHECKING:
     from airflow.utils.context import Context

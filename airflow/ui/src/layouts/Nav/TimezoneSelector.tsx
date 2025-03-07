@@ -24,14 +24,10 @@ import utc from "dayjs/plugin/utc";
 import React, { useMemo } from "react";
 
 import { useTimezone } from "src/context/timezone";
+import type { Option as TimezoneOption } from "src/utils/option";
 
 dayjs.extend(utc);
 dayjs.extend(timezone);
-
-type TimezoneOption = {
-  label: string;
-  value: string;
-};
 
 const TimezoneSelector: React.FC = () => {
   const { selectedTimezone, setSelectedTimezone } = useTimezone();

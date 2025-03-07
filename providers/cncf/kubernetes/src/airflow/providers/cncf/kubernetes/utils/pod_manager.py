@@ -31,6 +31,9 @@ from typing import TYPE_CHECKING, Protocol, cast
 
 import pendulum
 import tenacity
+from kubernetes import client, watch
+from kubernetes.client.rest import ApiException
+from kubernetes.stream import stream as kubernetes_stream
 from pendulum import DateTime
 from pendulum.parsing.exceptions import ParserError
 from typing_extensions import Literal
@@ -41,16 +44,12 @@ from airflow.providers.cncf.kubernetes.callbacks import ExecutionMode, Kubernete
 from airflow.providers.cncf.kubernetes.utils.xcom_sidecar import PodDefaults
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.timezone import utcnow
-from kubernetes import client, watch
-from kubernetes.client.rest import ApiException
-from kubernetes.stream import stream as kubernetes_stream
 
 if TYPE_CHECKING:
-    from urllib3.response import HTTPResponse
-
     from kubernetes.client.models.core_v1_event_list import CoreV1EventList
     from kubernetes.client.models.v1_container_status import V1ContainerStatus
     from kubernetes.client.models.v1_pod import V1Pod
+    from urllib3.response import HTTPResponse
 
 
 EMPTY_XCOM_RESULT = "__airflow_xcom_result_empty__"

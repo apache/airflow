@@ -33,13 +33,13 @@ We also have a ``v2-10-test`` branch that is used to test ``2.10.x`` series of A
 cherry-pick selected commits from the main branch.
 
 *For Contributors*:
-All bug fixes after 2.10.0 release will target Airflow 3. We will make the best effort to make them available in 2.10.x,
-but if somebody wants to guarantee that a fix is included in 2.10.x, they need to raise the PR explicitly to the v2-10-test branch too.
+All bug fixes after ``2.10.0`` release will target Airflow 3. We will make the best effort to make them available in ``2.10.x``,
+but if somebody wants to guarantee that a fix is included in ``2.10.x``, they need to raise the PR explicitly to the ``v2-10-test`` branch too.
 
 *For Committers*:
-When merging bugfix PRs to the ``main`` branch, the committers should also try to cherry-pick it to v2-10-test branch.
+When merging bugfix PRs to the ``main`` branch, the committers should also try to cherry-pick it to ``v2-10-test`` branch.
 If there are merge conflicts, the committer should add a comment on the original PR, informing the author and asking them
-to raise a separate PR against ``v2-10-test`` branch. If this doesn't happen, there is no guarantee that the PR will be part of 2.10.x
+to raise a separate PR against ``v2-10-test`` branch. If this doesn't happen, there is no guarantee that the PR will be part of ``2.10.x``
 Cherry-picking is done with the ``-x`` flag. In the future, this can happen automatically with the help of a bot and appropriate
 label on a PR.
 
@@ -197,7 +197,7 @@ we will be adding the remote as "apache" so you can refer to it easily
 
    ``git rebase --continue``
 
-   And go either to point 6. or 7, depending on whether you have more commits that cause conflicts in your PR (rebasing applies each
+   And go to either point 6 or 7, depending on whether you have more commits that cause conflicts in your PR (rebasing applies each
    commit from your PR one-by-one).
 
 

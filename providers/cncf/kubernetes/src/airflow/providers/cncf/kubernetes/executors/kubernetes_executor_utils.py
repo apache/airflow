@@ -23,6 +23,8 @@ import time
 from queue import Empty, Queue
 from typing import TYPE_CHECKING, Any
 
+from kubernetes import client, watch
+from kubernetes.client.rest import ApiException
 from urllib3.exceptions import ReadTimeoutError
 
 from airflow.exceptions import AirflowException
@@ -43,16 +45,15 @@ from airflow.providers.cncf.kubernetes.pod_generator import PodGenerator
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.singleton import Singleton
 from airflow.utils.state import TaskInstanceState
-from kubernetes import client, watch
-from kubernetes.client.rest import ApiException
 
 if TYPE_CHECKING:
+    from kubernetes.client import Configuration, models as k8s
+
     from airflow.providers.cncf.kubernetes.executors.kubernetes_executor_types import (
         KubernetesJobType,
         KubernetesResultsType,
         KubernetesWatchType,
     )
-    from kubernetes.client import Configuration, models as k8s
 
 
 class ResourceVersion(metaclass=Singleton):

@@ -129,7 +129,7 @@ There are several actions an issue triager might take:
 Labels
 ''''''
 
-Since Apache Airflow uses "GitHub Issues" and "Github Discussions" as the
+Since Apache Airflow uses "GitHub Issues" and "GitHub Discussions" as the
 issue tracking systems, the use of labels is extensive. Though issue
 labels tend to change over time based on components within the project,
 the majority of the ones listed below should stand the test of time.
@@ -256,7 +256,7 @@ once the issue is accepted (and assigned with relevant kind and area labels). Th
 ask for other members of the community for consultation or ask for further information from the issue author.
 Removing the ``needs-triage`` label means that the issue has been accepted and awaits implementation (no further triage action required),
 as long as the ``needs-triage`` label remains the triage team will keep an eye on the issue and check periodically
-if it needs to be accepted or closed/converted to Github Discussion.
+if it needs to be accepted or closed/converted to GitHub Discussion.
 ``needs-triage`` label may also be applied manually by committers if they think a further action from the triage team is required.
 
 **area Label**

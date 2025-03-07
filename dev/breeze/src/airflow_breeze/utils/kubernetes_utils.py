@@ -476,10 +476,8 @@ def get_k8s_env(python: str, kubernetes_version: str, executor: str | None = Non
     new_env["KINDCONFIG"] = str(
         get_kind_cluster_config_path(python=python, kubernetes_version=kubernetes_version)
     )
-    api_server_port, web_server_port = _get_kubernetes_port_numbers(
-        python=python, kubernetes_version=kubernetes_version
-    )
-    new_env["CLUSTER_FORWARDED_PORT"] = str(web_server_port)
+    _, api_server_port = _get_kubernetes_port_numbers(python=python, kubernetes_version=kubernetes_version)
+    new_env["CLUSTER_FORWARDED_PORT"] = str(api_server_port)
     kubectl_cluster_name = get_kubectl_cluster_name(python=python, kubernetes_version=kubernetes_version)
     if executor:
         new_env["PS1"] = f"({kubectl_cluster_name}:{executor})> "
@@ -524,16 +522,16 @@ def set_random_cluster_ports(python: str, kubernetes_version: str, output: Outpu
     The sockets should be closed just before creating the cluster.
     """
     forwarded_port_number = _get_free_port()
-    api_server_port = _get_free_port()
+    k8s_api_server_port = _get_free_port()
     get_console(output=output).print(
-        f"[info]Random ports: API: {api_server_port}, Web: {forwarded_port_number}"
+        f"[info]Random ports: K8S API: {k8s_api_server_port}, API Server: {forwarded_port_number}"
     )
     cluster_conf_path = get_kind_cluster_config_path(python=python, kubernetes_version=kubernetes_version)
     config = (
         (AIRFLOW_SOURCES_ROOT / "scripts" / "ci" / "kubernetes" / "kind-cluster-conf.yaml")
         .read_text()
         .replace("{{FORWARDED_PORT_NUMBER}}", str(forwarded_port_number))
-        .replace("{{API_SERVER_PORT}}", str(api_server_port))
+        .replace("{{API_SERVER_PORT}}", str(k8s_api_server_port))
     )
     cluster_conf_path.write_text(config)
     get_console(output=output).print(f"[info]Config created in {cluster_conf_path}:\n")
@@ -545,9 +543,9 @@ def _get_kubernetes_port_numbers(python: str, kubernetes_version: str) -> tuple[
     conf = _get_kind_cluster_config_content(python=python, kubernetes_version=kubernetes_version)
     if conf is None:
         return 0, 0
-    api_server_port = conf["networking"]["apiServerPort"]
-    web_server_port = conf["nodes"][1]["extraPortMappings"][0]["hostPort"]
-    return api_server_port, web_server_port
+    k8s_api_server_port = conf["networking"]["apiServerPort"]
+    api_server_port = conf["nodes"][1]["extraPortMappings"][0]["hostPort"]
+    return k8s_api_server_port, api_server_port
 
 
 def _attempt_to_connect(port_number: int, output: Output | None, wait_seconds: int = 0) -> bool:
@@ -558,18 +556,18 @@ def _attempt_to_connect(port_number: int, output: Output | None, wait_seconds: i
     for attempt in itertools.count(1):
         get_console(output=output).print(f"[info]Connecting to localhost:{port_number}. Num try: {attempt}")
         try:
-            response = requests.head(f"http://localhost:{port_number}/health")
+            response = requests.get(f"http://localhost:{port_number}/public/monitor/health")
         except ConnectionError:
             get_console(output=output).print(
-                f"The webserver is not yet ready at http://localhost:{port_number}/health "
+                f"The api server is not yet ready at http://localhost:{port_number}/public/monitor/health "
             )
         except Exception as e:
             get_console(output=output).print(f"[info]Error when connecting to localhost:{port_number} : {e}")
         else:
             if response.status_code == 200:
                 get_console(output=output).print(
-                    "[success]Established connection to webserver at "
-                    f"http://localhost:{port_number}/health and it is healthy."
+                    "[success]Established connection to api server at "
+                    f"http://localhost:{port_number}/public/monitor/health and it is healthy."
                 )
                 return True
             else:
@@ -590,19 +588,19 @@ def _attempt_to_connect(port_number: int, output: Output | None, wait_seconds: i
 def print_cluster_urls(
     python: str, kubernetes_version: str, output: Output | None, wait_time_in_seconds: int = 0
 ):
-    api_server_port, web_server_port = _get_kubernetes_port_numbers(
+    k8s_api_server_port, api_server_port = _get_kubernetes_port_numbers(
         python=python, kubernetes_version=kubernetes_version
     )
     get_console(output=output).print(
-        f"\n[info]KinD Cluster API server URL: [/]http://localhost:{api_server_port}"
+        f"\n[info]KinD Cluster API server URL: [/]http://localhost:{k8s_api_server_port}"
     )
-    if _attempt_to_connect(port_number=web_server_port, output=output, wait_seconds=wait_time_in_seconds):
+    if _attempt_to_connect(port_number=api_server_port, output=output, wait_seconds=wait_time_in_seconds):
         get_console(output=output).print(
-            f"[info]Airflow Web server URL: [/]http://localhost:{web_server_port} (admin/admin)\n"
+            f"[info]Airflow API server URL: [/]http://localhost:{api_server_port} (admin/admin)\n"
         )
     else:
         get_console(output=output).print(
-            f"\n[warning]Airflow webserver is not available at port {web_server_port}. "
+            f"\n[warning]Airflow API server is not available at port {api_server_port}. "
             f"Run `breeze k8s deploy-airflow --python {python} --kubernetes-version {kubernetes_version}` "
             "to (re)deploy airflow\n"
         )

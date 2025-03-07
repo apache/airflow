@@ -113,7 +113,6 @@ class TestBashOperator:
             logical_date=logical_date,
             start_date=utc_now,
             state=State.RUNNING,
-            external_trigger=False,
             data_interval=(logical_date, logical_date),
         )
 

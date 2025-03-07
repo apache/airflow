@@ -24,6 +24,7 @@ import {
   useDagRunServiceTriggerDagRun,
   useDagServiceGetDagsKey,
   useDagsServiceRecentDagRunsKey,
+  UseGridServiceGridDataKeyFn,
   UseTaskInstanceServiceGetTaskInstancesKeyFn,
 } from "openapi/queries";
 import type { DagRunTriggerParams } from "src/components/TriggerDag/TriggerDAGForm";
@@ -39,6 +40,7 @@ export const useTrigger = ({ dagId, onSuccessConfirm }: { dagId: string; onSucce
       [useDagsServiceRecentDagRunsKey],
       UseDagRunServiceGetDagRunsKeyFn({ dagId }, [{ dagId }]),
       UseTaskInstanceServiceGetTaskInstancesKeyFn({ dagId, dagRunId: "~" }, [{ dagId, dagRunId: "~" }]),
+      UseGridServiceGridDataKeyFn({ dagId }, [{ dagId }]),
     ];
 
     await Promise.all(queryKeys.map((key) => queryClient.invalidateQueries({ queryKey: key })));

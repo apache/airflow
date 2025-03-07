@@ -109,7 +109,12 @@ def worker_register(
 
 
 def worker_set_state(
-    hostname: str, state: EdgeWorkerState, jobs_active: int, queues: list[str] | None, sysinfo: dict
+    hostname: str,
+    state: EdgeWorkerState,
+    jobs_active: int,
+    queues: list[str] | None,
+    sysinfo: dict,
+    maintenance_comments: str | None = None,
 ) -> WorkerSetStateReturn:
     """Update the state of the worker in the central site and thereby implicitly heartbeat."""
     try:
@@ -117,7 +122,11 @@ def worker_set_state(
             "PATCH",
             f"worker/{quote(hostname)}",
             WorkerStateBody(
-                state=state, jobs_active=jobs_active, queues=queues, sysinfo=sysinfo
+                state=state,
+                jobs_active=jobs_active,
+                queues=queues,
+                sysinfo=sysinfo,
+                maintenance_comments=maintenance_comments,
             ).model_dump_json(exclude_unset=True),
         )
     except requests.HTTPError as e:

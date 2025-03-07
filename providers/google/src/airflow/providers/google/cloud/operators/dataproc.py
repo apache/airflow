@@ -30,6 +30,11 @@ from enum import Enum
 from functools import cached_property
 from typing import TYPE_CHECKING, Any
 
+from google.api_core.exceptions import AlreadyExists, NotFound
+from google.api_core.gapic_v1.method import DEFAULT, _MethodDefault
+from google.api_core.retry import Retry, exponential_sleep_generator
+from google.cloud.dataproc_v1 import Batch, Cluster, ClusterStatus, JobStatus
+
 from airflow.configuration import conf
 from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning
 from airflow.providers.google.cloud.hooks.dataproc import (
@@ -61,18 +66,15 @@ from airflow.providers.google.cloud.utils.dataproc import DataprocOperationType
 from airflow.providers.google.common.deprecated import deprecated
 from airflow.providers.google.common.hooks.base_google import PROVIDE_PROJECT_ID
 from airflow.utils import timezone
-from google.api_core.exceptions import AlreadyExists, NotFound
-from google.api_core.gapic_v1.method import DEFAULT, _MethodDefault
-from google.api_core.retry import Retry, exponential_sleep_generator
-from google.cloud.dataproc_v1 import Batch, Cluster, ClusterStatus, JobStatus
 
 if TYPE_CHECKING:
-    from airflow.utils.context import Context
     from google.api_core import operation
     from google.api_core.retry_async import AsyncRetry
     from google.protobuf.duration_pb2 import Duration
     from google.protobuf.field_mask_pb2 import FieldMask
     from google.type.interval_pb2 import Interval
+
+    from airflow.utils.context import Context
 
 
 class PreemptibilityType(Enum):

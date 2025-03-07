@@ -33,6 +33,26 @@ from typing import TYPE_CHECKING, Any, NoReturn, Union, cast
 
 from aiohttp import ClientSession as ClientSession
 from gcloud.aio.bigquery import Job, Table as Table_async
+from google.cloud.bigquery import (
+    DEFAULT_RETRY,
+    Client,
+    CopyJob,
+    ExtractJob,
+    LoadJob,
+    QueryJob,
+    SchemaField,
+    UnknownJob,
+)
+from google.cloud.bigquery.dataset import AccessEntry, Dataset, DatasetListItem, DatasetReference
+from google.cloud.bigquery.retry import DEFAULT_JOB_RETRY
+from google.cloud.bigquery.table import (
+    Row,
+    RowIterator,
+    Table,
+    TableListItem,
+    TableReference,
+)
+from google.cloud.exceptions import NotFound
 from googleapiclient.discovery import build
 from pandas_gbq import read_gbq
 from pandas_gbq.gbq import GbqConnector  # noqa: F401 used in ``airflow.contrib.hooks.bigquery``
@@ -55,30 +75,9 @@ from airflow.providers.google.common.hooks.base_google import (
 from airflow.utils.hashlib_wrapper import md5
 from airflow.utils.helpers import convert_camel_to_snake
 from airflow.utils.log.logging_mixin import LoggingMixin
-from google.cloud.bigquery import (
-    DEFAULT_RETRY,
-    Client,
-    CopyJob,
-    ExtractJob,
-    LoadJob,
-    QueryJob,
-    SchemaField,
-    UnknownJob,
-)
-from google.cloud.bigquery.dataset import AccessEntry, Dataset, DatasetListItem, DatasetReference
-from google.cloud.bigquery.retry import DEFAULT_JOB_RETRY
-from google.cloud.bigquery.table import (
-    Row,
-    RowIterator,
-    Table,
-    TableListItem,
-    TableReference,
-)
-from google.cloud.exceptions import NotFound
 
 if TYPE_CHECKING:
     import pandas as pd
-
     from google.api_core.page_iterator import HTTPIterator
     from google.api_core.retry import Retry
 
@@ -121,7 +120,7 @@ class BigQueryHook(GoogleBaseHook, DbApiHook):
         from wtforms import validators
         from wtforms.fields.simple import BooleanField, StringField
 
-        from airflow.www.validators import ValidJson
+        from airflow.providers.google.cloud.utils.validators import ValidJson
 
         connection_form_widgets = super().get_connection_form_widgets()
         connection_form_widgets["use_legacy_sql"] = BooleanField(lazy_gettext("Use Legacy SQL"), default=True)

@@ -92,7 +92,7 @@ def test_get_transport_information_as_spark_properties_unsupported_transport_typ
     kafka_config = KafkaConfig(
         topic="my_topic",
         config={
-            "bootstrap.servers": "localhost:9092,another.host:9092",
+            "bootstrap.servers": "test-kafka-hm0fo:10011,another.host-uuj0l:10012",
             "acks": "all",
             "retries": "3",
         },

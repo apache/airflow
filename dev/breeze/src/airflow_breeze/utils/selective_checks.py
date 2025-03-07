@@ -82,12 +82,13 @@ INCLUDE_SUCCESS_OUTPUTS_LABEL = "include success outputs"
 LATEST_VERSIONS_ONLY_LABEL = "latest versions only"
 LEGACY_UI_LABEL = "legacy ui"
 LEGACY_API_LABEL = "legacy api"
+LOG_WITHOUT_MOCK_IN_TESTS_EXCEPTION_LABEL = "log exception"
 NON_COMMITTER_BUILD_LABEL = "non committer build"
 UPGRADE_TO_NEWER_DEPENDENCIES_LABEL = "upgrade to newer dependencies"
 USE_PUBLIC_RUNNERS_LABEL = "use public runners"
 USE_SELF_HOSTED_RUNNERS_LABEL = "use self-hosted runners"
 
-ALL_CI_SELECTIVE_TEST_TYPES = "API Always CLI Core Operators Other Serialization WWW"
+ALL_CI_SELECTIVE_TEST_TYPES = "API Always CLI Core Operators Other Serialization"
 
 ALL_PROVIDERS_SELECTIVE_TEST_TYPES = (
     "Providers[-amazon,google,standard] Providers[amazon] Providers[google] Providers[standard]"
@@ -99,14 +100,13 @@ class FileGroupForCi(Enum):
     PYTHON_PRODUCTION_FILES = "python_scans"
     JAVASCRIPT_PRODUCTION_FILES = "javascript_scans"
     ALWAYS_TESTS_FILES = "always_test_files"
-    API_TEST_FILES = "api_test_files"
+    API_FILES = "api_files"
     API_CODEGEN_FILES = "api_codegen_files"
     LEGACY_API_FILES = "legacy_api_files"
     HELM_FILES = "helm_files"
     DEPENDENCY_FILES = "dependency_files"
     DOC_FILES = "doc_files"
     UI_FILES = "ui_files"
-    LEGACY_WWW_FILES = "legacy_www_files"
     SYSTEM_TEST_FILES = "system_tests"
     KUBERNETES_FILES = "kubernetes_files"
     TASK_SDK_FILES = "task_sdk_files"
@@ -119,6 +119,7 @@ class FileGroupForCi(Enum):
     ALL_DOCS_PYTHON_FILES = "all_docs_python_files"
     TESTS_UTILS_FILES = "test_utils_files"
     ASSET_FILES = "asset_files"
+    UNIT_TEST_FILES = "unit_test_files"
 
 
 class AllProvidersSentinel:
@@ -160,12 +161,13 @@ CI_FILE_GROUP_MATCHES = HashableDict(
             r"^airflow/ui/.*\.yaml$",
             r"^airflow/auth/managers/simple/ui/.*\.yaml$",
         ],
-        FileGroupForCi.API_TEST_FILES: [
+        FileGroupForCi.API_FILES: [
             r"^airflow/api/",
-            r"^airflow/api_connexion/",
+            r"^airflow/api_fastapi/",
+            r"^tests/api/",
+            r"^tests/api_fastapi/",
         ],
         FileGroupForCi.API_CODEGEN_FILES: [
-            r"^airflow/api_connexion/openapi/v1\.yaml",
             r"^airflow/api_fastapi/core_api/openapi/v1-generated\.yaml",
             r"^clients/gen",
         ],
@@ -188,7 +190,7 @@ CI_FILE_GROUP_MATCHES = HashableDict(
             r"^chart",
             r"^providers/.*/src/",
             r"^providers/.*/docs/",
-            r"^task_sdk/src/",
+            r"^task-sdk/src/",
             r"^tests/system",
             r"^CHANGELOG\.txt",
             r"^airflow/config_templates/config\.yml",
@@ -197,12 +199,6 @@ CI_FILE_GROUP_MATCHES = HashableDict(
             r"^chart/values\.json",
         ],
         FileGroupForCi.UI_FILES: [r"^airflow/ui/", r"^airflow/auth/managers/simple/ui/"],
-        FileGroupForCi.LEGACY_WWW_FILES: [
-            r"^airflow/www/.*\.ts[x]?$",
-            r"^airflow/www/.*\.js[x]?$",
-            r"^airflow/www/[^/]+\.json$",
-            r"^airflow/www/.*\.lock$",
-        ],
         FileGroupForCi.KUBERNETES_FILES: [
             r"^chart",
             r"^kubernetes_tests",
@@ -230,10 +226,10 @@ CI_FILE_GROUP_MATCHES = HashableDict(
             r"^providers/tests/",
             r"^providers/.*/src/",
             r"^providers/.*/tests/",
-            r"^task_sdk/src/",
-            r"^task_sdk/tests/",
+            r"^task-sdk/src/",
+            r"^task-sdk/tests/",
             r"^tests",
-            r"^tests_common",
+            r"^devel-common",
             r"^kubernetes_tests",
         ],
         FileGroupForCi.SYSTEM_TEST_FILES: [
@@ -247,17 +243,23 @@ CI_FILE_GROUP_MATCHES = HashableDict(
         ],
         FileGroupForCi.TESTS_UTILS_FILES: [
             r"^tests/utils/",
-            r"^tests_common/.*\.py$",
+            r"^devel-common/.*\.py$",
         ],
         FileGroupForCi.TASK_SDK_FILES: [
-            r"^task_sdk/src/airflow/sdk/.*\.py$",
-            r"^task_sdk/tests/.*\.py$",
+            r"^task-sdk/src/airflow/sdk/.*\.py$",
+            r"^task-sdk/tests/.*\.py$",
         ],
         FileGroupForCi.ASSET_FILES: [
             r"^airflow/assets/",
             r"^airflow/models/assets/",
-            r"^task_sdk/src/airflow/sdk/definitions/asset/",
+            r"^task-sdk/src/airflow/sdk/definitions/asset/",
             r"^airflow/datasets/",
+        ],
+        FileGroupForCi.UNIT_TEST_FILES: [
+            r"^tests/",
+            r"^task-sdk/tests/",
+            r"^providers/.*/tests/",
+            r"^dev/breeze/tests/",
         ],
     }
 )
@@ -272,8 +274,8 @@ CI_FILE_GROUP_EXCLUDES = HashableDict(
             r"^docs/.*",
             r"^providers/.*/tests/.*",
             r"^tests/dags/test_imports.py",
-            r"^task_sdk/src/airflow/sdk/.*\.py$",
-            r"^task_sdk/tests/.*\.py$",
+            r"^task-sdk/src/airflow/sdk/.*\.py$",
+            r"^task-sdk/tests/.*\.py$",
         ]
     }
 )
@@ -305,14 +307,13 @@ TEST_TYPE_MATCHES = HashableDict(
             r"^providers/.*/tests/",
         ],
         SelectiveTaskSdkTestType.TASK_SDK: [
-            r"^task_sdk/src/",
-            r"^task_sdk/tests/",
+            r"^task-sdk/src/",
+            r"^task-sdk/tests/",
         ],
         SelectiveCoreTestType.SERIALIZATION: [
             r"^airflow/serialization/",
             r"^tests/serialization/",
         ],
-        SelectiveCoreTestType.WWW: [r"^airflow/www", r"^tests/www"],
     }
 )
 
@@ -339,7 +340,7 @@ def find_provider_affected(changed_file: str, include_docs: bool) -> str | None:
                 # new providers structure
                 return str(relative_path).replace(os.sep, ".")
     if file_path.is_relative_to(AIRFLOW_TEST_COMMON_DIR):
-        # if tests_common changes, we want to run tests for all providers, as they might start failing
+        # if devel-common changes, we want to run tests for all providers, as they might start failing
         return "Providers"
     return None
 
@@ -496,6 +497,13 @@ class SelectiveChecks:
             CI_FILE_GROUP_EXCLUDES,
         ):
             get_console().print("[warning]Running full set of tests because env files changed[/]")
+            return True
+        if self._matching_files(
+            FileGroupForCi.API_FILES,
+            CI_FILE_GROUP_MATCHES,
+            CI_FILE_GROUP_EXCLUDES,
+        ):
+            get_console().print("[warning]Running full set of tests because api files changed[/]")
             return True
         if self._matching_files(
             FileGroupForCi.TESTS_UTILS_FILES,
@@ -693,7 +701,7 @@ class SelectiveChecks:
 
     @cached_property
     def needs_api_tests(self) -> bool:
-        return self._should_be_run(FileGroupForCi.API_TEST_FILES)
+        return self._should_be_run(FileGroupForCi.API_FILES)
 
     @cached_property
     def needs_ol_tests(self) -> bool:
@@ -706,10 +714,6 @@ class SelectiveChecks:
     @cached_property
     def run_ui_tests(self) -> bool:
         return self._should_be_run(FileGroupForCi.UI_FILES)
-
-    @cached_property
-    def run_www_tests(self) -> bool:
-        return self._should_be_run(FileGroupForCi.LEGACY_WWW_FILES)
 
     @cached_property
     def run_amazon_tests(self) -> bool:
@@ -760,6 +764,7 @@ class SelectiveChecks:
             or self.run_kubernetes_tests
             or self.needs_helm_tests
             or self.pyproject_toml_changed
+            or self.any_provider_yaml_or_pyproject_toml_changed
         )
 
     @cached_property
@@ -988,6 +993,17 @@ class SelectiveChecks:
         return "hatch_build.py" in self._files
 
     @cached_property
+    def any_provider_yaml_or_pyproject_toml_changed(self) -> bool:
+        if not self._commit_ref:
+            get_console().print("[warning]Cannot determine changes as commit is missing[/]")
+            return False
+        for file in self._files:
+            path_file = Path(file)
+            if path_file.name == "provider.yaml" or path_file.name == "pyproject.toml":
+                return True
+        return False
+
+    @cached_property
     def pyproject_toml_changed(self) -> bool:
         if not self._commit_ref:
             get_console().print("[warning]Cannot determine pyproject.toml changes as commit is missing[/]")
@@ -1141,10 +1157,6 @@ class SelectiveChecks:
             # when full tests are needed, we do not want to skip any checks and we should
             # run all the pre-commits just to be sure everything is ok when some structural changes occurred
             return ",".join(sorted(pre_commits_to_skip))
-        if not self._matching_files(
-            FileGroupForCi.LEGACY_WWW_FILES, CI_FILE_GROUP_MATCHES, CI_FILE_GROUP_EXCLUDES
-        ):
-            pre_commits_to_skip.add("ts-compile-format-lint-www")
         if not (
             self._matching_files(FileGroupForCi.UI_FILES, CI_FILE_GROUP_MATCHES, CI_FILE_GROUP_EXCLUDES)
             or self._matching_files(
@@ -1519,19 +1531,83 @@ class SelectiveChecks:
                 f"the '{LEGACY_API_LABEL}' label to the PR in order to continue"
             )
             sys.exit(1)
-        elif (
-            self._matching_files(
-                FileGroupForCi.LEGACY_WWW_FILES, CI_FILE_GROUP_MATCHES, CI_FILE_GROUP_EXCLUDES
-            )
-            and LEGACY_UI_LABEL not in self._pr_labels
-        ):
-            get_console().print(
-                f"[error]Please ask maintainer to assign "
-                f"the '{LEGACY_UI_LABEL}' label to the PR in order to continue"
-            )
-            sys.exit(1)
         else:
             return True
+
+    @classmethod
+    def _find_caplog_in_def(cls, added_lines):
+        """
+        Find caplog in def
+
+        :param added_lines: lines added in the file
+        :return: True if caplog is found in def else False
+        """
+        line_counter = 0
+        while line_counter < len(added_lines):
+            if all(keyword in added_lines[line_counter] for keyword in ["def", "caplog", "(", ")"]):
+                return True
+            if "def" in added_lines[line_counter] and ")" not in added_lines[line_counter]:
+                while ")" not in added_lines[line_counter]:
+                    if "caplog" in added_lines[line_counter]:
+                        return True
+                    line_counter += 1
+            line_counter += 1
+
+    def _caplog_exists_in_added_lines(self) -> bool:
+        """
+        Check if caplog is used in added lines
+
+        :return: True if caplog is used in added lines else False
+        """
+        lines = run_command(
+            ["git", "diff", f"{self._commit_ref}"],
+            capture_output=True,
+            text=True,
+            cwd=AIRFLOW_SOURCES_ROOT,
+            check=False,
+        )
+
+        if "caplog" not in lines.stdout or lines.stdout == "":
+            return False
+
+        added_caplog_lines = [
+            line.lstrip().lstrip("+ ") for line in lines.stdout.split("\n") if line.lstrip().startswith("+ ")
+        ]
+        return self._find_caplog_in_def(added_lines=added_caplog_lines)
+
+    @cached_property
+    def is_log_mocked_in_the_tests(self) -> bool:
+        """
+        Check if log is used without mock in the tests
+        """
+        if self._is_canary_run() or self._github_event not in (
+            GithubEvents.PULL_REQUEST,
+            GithubEvents.PULL_REQUEST_TARGET,
+        ):
+            return False
+        # Check if changed files are unit tests
+        if (
+            self._matching_files(
+                FileGroupForCi.UNIT_TEST_FILES, CI_FILE_GROUP_MATCHES, CI_FILE_GROUP_EXCLUDES
+            )
+            and LOG_WITHOUT_MOCK_IN_TESTS_EXCEPTION_LABEL not in self._pr_labels
+        ):
+            if self._caplog_exists_in_added_lines():
+                get_console().print(
+                    f"[error]Caplog is used in the test. "
+                    f"Please be sure you are mocking the log. "
+                    "For example, use `patch.object` to mock `log`."
+                    "Using `caplog` directly in your test files can cause side effects "
+                    "and not recommended. If you think, `caplog` is the only way to test "
+                    "the functionality or there is and exceptional case, "
+                    "please ask maintainer to include as an exception using "
+                    f"'{LOG_WITHOUT_MOCK_IN_TESTS_EXCEPTION_LABEL}' label. "
+                    "It is up to maintainer decision to allow this exception.",
+                )
+                sys.exit(1)
+            else:
+                return True
+        return True
 
     @cached_property
     def force_pip(self):

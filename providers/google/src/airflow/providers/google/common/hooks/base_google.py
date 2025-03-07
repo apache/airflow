@@ -31,18 +31,23 @@ from contextlib import ExitStack, contextmanager
 from subprocess import check_output
 from typing import TYPE_CHECKING, Any, Callable, TypeVar, cast
 
+import google.auth
+import google.oauth2.service_account
 import google_auth_httplib2
 import requests
 import tenacity
 from asgiref.sync import sync_to_async
 from gcloud.aio.auth.token import Token, TokenResponse
+from google.api_core.exceptions import Forbidden, ResourceExhausted, TooManyRequests
+from google.auth import _cloud_sdk, compute_engine  # type: ignore[attr-defined]
+from google.auth.environment_vars import CLOUD_SDK_CONFIG_DIR, CREDENTIALS
+from google.auth.exceptions import RefreshError
+from google.auth.transport import _http_client
 from googleapiclient import discovery
 from googleapiclient.errors import HttpError
 from googleapiclient.http import MediaIoBaseDownload, build_http, set_user_agent
 from requests import Session
 
-import google.auth
-import google.oauth2.service_account
 from airflow import version
 from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning
 from airflow.hooks.base import BaseHook
@@ -54,15 +59,9 @@ from airflow.providers.google.cloud.utils.credentials_provider import (
 from airflow.providers.google.common.consts import CLIENT_INFO
 from airflow.providers.google.common.deprecated import deprecated
 from airflow.utils.process_utils import patch_environ
-from google.api_core.exceptions import Forbidden, ResourceExhausted, TooManyRequests
-from google.auth import _cloud_sdk, compute_engine  # type: ignore[attr-defined]
-from google.auth.environment_vars import CLOUD_SDK_CONFIG_DIR, CREDENTIALS
-from google.auth.exceptions import RefreshError
-from google.auth.transport import _http_client
 
 if TYPE_CHECKING:
     from aiohttp import ClientSession
-
     from google.api_core.gapic_v1.client_info import ClientInfo
     from google.auth.credentials import Credentials
 

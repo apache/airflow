@@ -113,6 +113,7 @@ from airflow.providers.fab.www.session import (
     AirflowDatabaseSessionInterface,
     AirflowDatabaseSessionInterface as FabAirflowDatabaseSessionInterface,
 )
+from airflow.providers.fab.www.utils import get_fab_auth_manager
 
 if TYPE_CHECKING:
     from airflow.providers.fab.www.security.permissions import RESOURCE_ASSET
@@ -972,12 +973,12 @@ class FabAirflowSecurityManagerOverride(AirflowSecurityManagerV2):
     @staticmethod
     def get_readable_dag_ids(user=None) -> set[str]:
         """Get the DAG IDs readable by authenticated user."""
-        return get_auth_manager().get_permitted_dag_ids(methods=["GET"], user=user)
+        return get_auth_manager().get_permitted_dag_ids(user=user)
 
     @staticmethod
     def get_editable_dag_ids(user=None) -> set[str]:
         """Get the DAG IDs editable by authenticated user."""
-        return get_auth_manager().get_permitted_dag_ids(methods=["PUT"], user=user)
+        return get_auth_manager().get_permitted_dag_ids(method="PUT", user=user)
 
     def can_access_some_dags(self, action: str, dag_id: str | None = None) -> bool:
         """Check if user has read or write access to some dags."""
@@ -2104,6 +2105,20 @@ class FabAirflowSecurityManagerOverride(AirflowSecurityManagerV2):
                 log.error(e)
                 return None
 
+    def check_password(self, username, password) -> bool:
+        """
+        Check if the password is correct for the username.
+
+        :param username: the username
+        :param password: the password
+        """
+        user = self.find_user(username=username)
+        if user is None:
+            user = self.find_user(email=username)
+        if user is None:
+            return False
+        return check_password_hash(user.password, password)
+
     def auth_user_db(self, username, password):
         """
         Authenticate user, auth db style.
@@ -2447,7 +2462,7 @@ class FabAirflowSecurityManagerOverride(AirflowSecurityManagerV2):
         return user
 
     def get_user_menu_access(self, menu_names: list[str] | None = None) -> set[str]:
-        if get_auth_manager().is_logged_in():
+        if get_fab_auth_manager().is_logged_in():
             return self._get_user_permission_resources(g.user, "menu_access", resource_names=menu_names)
         elif current_user_jwt:
             return self._get_user_permission_resources(

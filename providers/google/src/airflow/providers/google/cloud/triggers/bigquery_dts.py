@@ -21,9 +21,10 @@ import asyncio
 from collections.abc import AsyncIterator, Sequence
 from typing import Any
 
+from google.cloud.bigquery_datatransfer_v1 import TransferRun, TransferState
+
 from airflow.providers.google.cloud.hooks.bigquery_dts import AsyncBiqQueryDataTransferServiceHook
 from airflow.triggers.base import BaseTrigger, TriggerEvent
-from google.cloud.bigquery_datatransfer_v1 import TransferRun, TransferState
 
 
 class BigQueryDataTransferRunTrigger(BaseTrigger):

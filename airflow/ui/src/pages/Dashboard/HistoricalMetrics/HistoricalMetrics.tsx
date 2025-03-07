@@ -22,15 +22,15 @@ import { useState } from "react";
 import { PiBooks } from "react-icons/pi";
 
 import { useDashboardServiceHistoricalMetrics } from "openapi/queries";
+import { AssetEvents } from "src/components/Assets/AssetEvents";
 import { ErrorAlert } from "src/components/ErrorAlert";
 import TimeRangeSelector from "src/components/TimeRangeSelector";
 
-import { AssetEvents } from "./AssetEvents";
 import { DagRunMetrics } from "./DagRunMetrics";
 import { MetricSectionSkeleton } from "./MetricSectionSkeleton";
 import { TaskInstanceMetrics } from "./TaskInstanceMetrics";
 
-const defaultHour = "168";
+const defaultHour = "24";
 
 export const HistoricalMetrics = () => {
   const now = dayjs();
@@ -73,16 +73,26 @@ export const HistoricalMetrics = () => {
             {isLoading ? <MetricSectionSkeleton /> : undefined}
             {!isLoading && data !== undefined && (
               <Box>
-                <DagRunMetrics dagRunStates={data.dag_run_states} total={dagRunTotal} />
-                <TaskInstanceMetrics taskInstanceStates={data.task_instance_states} total={taskRunTotal} />
+                <DagRunMetrics
+                  dagRunStates={data.dag_run_states}
+                  endDate={endDate}
+                  startDate={startDate}
+                  total={dagRunTotal}
+                />
+                <TaskInstanceMetrics
+                  endDate={endDate}
+                  startDate={startDate}
+                  taskInstanceStates={data.task_instance_states}
+                  total={taskRunTotal}
+                />
               </Box>
             )}
           </GridItem>
           <GridItem colSpan={{ base: 3 }}>
             <AssetEvents
-              assetSortBy={assetSortBy}
               endDate={endDate}
-              setAssetSortBy={setAssetSortBy}
+              orderBy={assetSortBy}
+              setOrderBy={setAssetSortBy}
               startDate={startDate}
             />
           </GridItem>

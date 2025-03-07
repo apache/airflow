@@ -1136,7 +1136,7 @@ class TestDag:
             dag_run.logical_date == TEST_DATE
         ), f"dag_run.logical_date did not match expectation: {dag_run.logical_date}"
         assert dag_run.state == State.RUNNING
-        assert not dag_run.external_trigger
+        assert dag_run.run_type != DagRunType.MANUAL
         dag.clear()
         self._clean_up(dag_id)
 

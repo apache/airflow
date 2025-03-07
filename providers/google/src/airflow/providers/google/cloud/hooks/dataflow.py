@@ -31,18 +31,6 @@ from collections.abc import Generator, Sequence
 from copy import deepcopy
 from typing import TYPE_CHECKING, Any, Callable, TypeVar, cast
 
-from googleapiclient.discovery import Resource, build
-
-from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning
-from airflow.providers.apache.beam.hooks.beam import BeamHook, BeamRunnerType, beam_options_to_args
-from airflow.providers.google.common.deprecated import deprecated
-from airflow.providers.google.common.hooks.base_google import (
-    PROVIDE_PROJECT_ID,
-    GoogleBaseAsyncHook,
-    GoogleBaseHook,
-)
-from airflow.utils.log.logging_mixin import LoggingMixin
-from airflow.utils.timeout import timeout
 from google.cloud.dataflow_v1beta3 import (
     GetJobRequest,
     Job,
@@ -59,6 +47,18 @@ from google.cloud.dataflow_v1beta3.types import (
     JobMetrics,
 )
 from google.cloud.dataflow_v1beta3.types.jobs import ListJobsRequest
+from googleapiclient.discovery import Resource, build
+
+from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning
+from airflow.providers.apache.beam.hooks.beam import BeamHook, BeamRunnerType, beam_options_to_args
+from airflow.providers.google.common.deprecated import deprecated
+from airflow.providers.google.common.hooks.base_google import (
+    PROVIDE_PROJECT_ID,
+    GoogleBaseAsyncHook,
+    GoogleBaseHook,
+)
+from airflow.utils.log.logging_mixin import LoggingMixin
+from airflow.utils.timeout import timeout
 
 if TYPE_CHECKING:
     from google.cloud.dataflow_v1beta3.services.jobs_v1_beta3.pagers import ListJobsAsyncPager

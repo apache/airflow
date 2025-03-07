@@ -16,18 +16,19 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Box, Flex, Heading, HStack, SimpleGrid, Spinner } from "@chakra-ui/react";
+import { Box } from "@chakra-ui/react";
+import { useCallback, useRef, useState } from "react";
 import { FiMessageSquare } from "react-icons/fi";
 import { MdOutlineTask } from "react-icons/md";
 
 import type { TaskInstanceResponse } from "openapi/requests/types.gen";
 import { ClearTaskInstanceButton } from "src/components/Clear";
-import DisplayMarkdownButton from "src/components/DisplayMarkdownButton";
+import EditableMarkdownButton from "src/components/EditableMarkdownButton";
+import { HeaderCard } from "src/components/HeaderCard";
 import { MarkTaskInstanceAsButton } from "src/components/MarkAs";
-import { Stat } from "src/components/Stat";
-import { StateBadge } from "src/components/StateBadge";
 import Time from "src/components/Time";
-import { getDuration } from "src/utils";
+import { usePatchTaskInstance } from "src/queries/usePatchTaskInstance";
+import { getDuration, useContainerWidth } from "src/utils";
 
 export const Header = ({
   isRefreshing,
@@ -35,47 +36,79 @@ export const Header = ({
 }: {
   readonly isRefreshing?: boolean;
   readonly taskInstance: TaskInstanceResponse;
-}) => (
-  <Box borderColor="border" borderRadius={8} borderWidth={1} p={2}>
-    <Flex alignItems="center" justifyContent="space-between" mb={2}>
-      <HStack alignItems="center" gap={2}>
-        <MdOutlineTask size="1.75rem" />
-        <Heading size="lg">
-          <strong>Task Instance: </strong>
-          {taskInstance.task_display_name} <Time datetime={taskInstance.start_date} />
-        </Heading>
-        <StateBadge state={taskInstance.state}>{taskInstance.state}</StateBadge>
-        {isRefreshing ? <Spinner /> : <div />}
-      </HStack>
-      <HStack>
-        {taskInstance.note === null || taskInstance.note.length === 0 ? undefined : (
-          <DisplayMarkdownButton
-            header="Task Instance Note"
-            icon={<FiMessageSquare color="black" />}
-            mdContent={taskInstance.note}
-            text="Note"
-          />
-        )}
-        <ClearTaskInstanceButton taskInstance={taskInstance} />
-        <MarkTaskInstanceAsButton taskInstance={taskInstance} />
-      </HStack>
-    </Flex>
-    <SimpleGrid columns={6} gap={4} my={2}>
-      <Stat label="Operator">{taskInstance.operator}</Stat>
-      {taskInstance.map_index > -1 ? (
-        <Stat label="Map Index">{taskInstance.rendered_map_index}</Stat>
-      ) : undefined}
-      {taskInstance.try_number > 1 ? <Stat label="Try Number">{taskInstance.try_number}</Stat> : undefined}
-      <Stat label="Start">
-        <Time datetime={taskInstance.start_date} />
-      </Stat>
-      <Stat label="End">
-        <Time datetime={taskInstance.end_date} />
-      </Stat>
-      <Stat label="Duration">{getDuration(taskInstance.start_date, taskInstance.end_date)}s</Stat>
-      {taskInstance.dag_version?.version_number !== undefined && (
-        <Stat label="Dag Version">{`v${taskInstance.dag_version.version_number}`}</Stat>
-      )}
-    </SimpleGrid>
-  </Box>
-);
+}) => {
+  const containerRef = useRef<HTMLDivElement>();
+  const containerWidth = useContainerWidth(containerRef);
+
+  const stats = [
+    { label: "Operator", value: taskInstance.operator },
+    ...(taskInstance.map_index > -1 ? [{ label: "Map Index", value: taskInstance.rendered_map_index }] : []),
+    ...(taskInstance.try_number > 1 ? [{ label: "Try Number", value: taskInstance.try_number }] : []),
+    { label: "Start", value: <Time datetime={taskInstance.start_date} /> },
+    { label: "End", value: <Time datetime={taskInstance.end_date} /> },
+    { label: "Duration", value: `${getDuration(taskInstance.start_date, taskInstance.end_date)}s` },
+    {
+      label: "DAG Version",
+      value:
+        taskInstance.dag_version?.version_number === undefined
+          ? ""
+          : `v${taskInstance.dag_version.version_number}`,
+    },
+  ];
+
+  const [note, setNote] = useState<string | null>(taskInstance.note);
+
+  const dagId = taskInstance.dag_id;
+  const dagRunId = taskInstance.dag_run_id;
+  const taskId = taskInstance.task_id;
+  const mapIndex = taskInstance.map_index;
+
+  const { isPending, mutate } = usePatchTaskInstance({
+    dagId,
+    dagRunId,
+    mapIndex,
+    taskId,
+  });
+
+  const onConfirm = useCallback(() => {
+    if (note !== taskInstance.note) {
+      mutate({
+        dagId,
+        dagRunId,
+        mapIndex,
+        requestBody: { note },
+        taskId,
+      });
+    }
+  }, [dagId, dagRunId, mapIndex, mutate, note, taskId, taskInstance.note]);
+
+  return (
+    <Box ref={containerRef}>
+      <HeaderCard
+        actions={
+          <>
+            <EditableMarkdownButton
+              header="Task Instance Note"
+              icon={<FiMessageSquare />}
+              isPending={isPending}
+              mdContent={note}
+              onConfirm={onConfirm}
+              placeholder="Add a note..."
+              setMdContent={setNote}
+              text={Boolean(taskInstance.note) ? "Note" : "Add a note"}
+              withText={containerWidth > 700}
+            />
+            <ClearTaskInstanceButton taskInstance={taskInstance} withText={containerWidth > 700} />
+            <MarkTaskInstanceAsButton taskInstance={taskInstance} withText={containerWidth > 700} />
+          </>
+        }
+        icon={<MdOutlineTask />}
+        isRefreshing={isRefreshing}
+        state={taskInstance.state}
+        stats={stats}
+        subTitle={<Time datetime={taskInstance.start_date} />}
+        title={`${taskInstance.task_display_name}${taskInstance.map_index > -1 ? ` [${taskInstance.rendered_map_index ?? taskInstance.map_index}]` : ""}`}
+      />
+    </Box>
+  );
+};

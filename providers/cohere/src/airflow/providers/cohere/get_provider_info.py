@@ -27,7 +27,7 @@ def get_provider_info():
         "name": "Cohere",
         "description": "`Cohere <https://docs.cohere.com/docs>`__\n",
         "state": "ready",
-        "source-date-epoch": 1739959109,
+        "source-date-epoch": 1741121850,
         "versions": [
             "1.4.2",
             "1.4.0",
@@ -61,4 +61,5 @@ def get_provider_info():
             }
         ],
         "dependencies": ["apache-airflow>=2.9.0", "cohere>=5.13.4"],
+        "devel-dependencies": [],
     }

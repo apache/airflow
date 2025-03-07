@@ -24,6 +24,7 @@ import {useCreateToken} from "src/queries/useCreateToken";
 import {LoginForm} from "src/login/LoginForm";
 import type {ApiError} from "openapi-gen/requests/core/ApiError";
 import type {LoginResponse, HTTPExceptionResponse, HTTPValidationError} from "openapi-gen/requests/types.gen";
+import { useSearchParams } from "react-router-dom";
 
 export type LoginBody = {
     username: string; password: string;
@@ -34,9 +35,12 @@ type ExpandedApiError = {
 } & ApiError;
 
 export const Login = () => {
+    const [searchParams, setSearchParams] = useSearchParams();
+
     const onSuccess = (data: LoginResponse) => {
-        // Redirect to index page with the token
-        globalThis.location.replace(`/webapp/?token=${data.jwt_token}`);
+        // Redirect to appropriate page with the token
+        const next = searchParams.get("next")
+        globalThis.location.replace(`${next ?? ""}?token=${data.jwt_token}`);
     }
     const {createToken, error: err, isPending, setError} = useCreateToken({onSuccess});
     const error = err as ExpandedApiError;

@@ -46,6 +46,78 @@ class TestDagVersionEndpoint:
         )
 
 
+class TestGetDagVersion(TestDagVersionEndpoint):
+    @pytest.mark.parametrize(
+        "dag_id, dag_version, expected_response",
+        [
+            [
+                "ANOTHER_DAG_ID",
+                1,
+                {
+                    "bundle_name": "another_bundle_name",
+                    "bundle_version": "some_commit_hash",
+                    "bundle_url": "fakeprotocol://test_host.github.com/tree/some_commit_hash",
+                    "created_at": mock.ANY,
+                    "dag_id": "ANOTHER_DAG_ID",
+                    "id": mock.ANY,
+                    "version_number": 1,
+                },
+            ],
+            [
+                "dag_with_multiple_versions",
+                1,
+                {
+                    "bundle_name": "dag_maker",
+                    "bundle_version": "some_commit_hash1",
+                    "bundle_url": "fakeprotocol://test_host.github.com/tree/some_commit_hash1",
+                    "created_at": mock.ANY,
+                    "dag_id": "dag_with_multiple_versions",
+                    "id": mock.ANY,
+                    "version_number": 1,
+                },
+            ],
+            [
+                "dag_with_multiple_versions",
+                2,
+                {
+                    "bundle_name": "dag_maker",
+                    "bundle_version": "some_commit_hash2",
+                    "bundle_url": "fakeprotocol://test_host.github.com/tree/some_commit_hash2",
+                    "created_at": mock.ANY,
+                    "dag_id": "dag_with_multiple_versions",
+                    "id": mock.ANY,
+                    "version_number": 2,
+                },
+            ],
+            [
+                "dag_with_multiple_versions",
+                3,
+                {
+                    "bundle_name": "dag_maker",
+                    "bundle_version": "some_commit_hash3",
+                    "bundle_url": "fakeprotocol://test_host.github.com/tree/some_commit_hash3",
+                    "created_at": mock.ANY,
+                    "dag_id": "dag_with_multiple_versions",
+                    "id": mock.ANY,
+                    "version_number": 3,
+                },
+            ],
+        ],
+    )
+    @pytest.mark.usefixtures("make_dag_with_multiple_versions")
+    def test_get_dag_version(self, test_client, dag_id, dag_version, expected_response):
+        response = test_client.get(f"/public/dags/{dag_id}/dagVersions/{dag_version}")
+        assert response.status_code == 200
+        assert response.json() == expected_response
+
+    def test_get_dag_version_404(self, test_client):
+        response = test_client.get("/public/dags/dag_with_multiple_versions/dagVersions/99")
+        assert response.status_code == 404
+        assert response.json() == {
+            "detail": "The DagVersion with dag_id: `dag_with_multiple_versions` and version_number: `99` was not found",
+        }
+
+
 class TestGetDagVersions(TestDagVersionEndpoint):
     @pytest.mark.parametrize(
         "dag_id, expected_response",

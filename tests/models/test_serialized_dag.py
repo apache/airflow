@@ -357,3 +357,17 @@ class TestSerializedDagModel:
 
         assert session.query(DagVersion).count() == 2
         assert session.query(SDM).count() == 2
+
+    def test_example_dag_sorting_serialised_dag(self, session):
+        """
+        This test asserts if different dag ids -- simple or complex, can be sorted
+        """
+
+        example_dags = self._write_example_dags()
+
+        for _, dag in example_dags.items():
+            # flip the tags, the sorting function should sort it alphabetically
+            if dag.tags:
+                dag.tags = sorted(dag.tags, reverse=True)
+            sorted_dag = SDM._sort_serialized_dag_dict(dag)
+            assert sorted_dag == dag

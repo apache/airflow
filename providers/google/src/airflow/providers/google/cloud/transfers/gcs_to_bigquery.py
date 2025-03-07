@@ -23,15 +23,6 @@ import json
 from collections.abc import Sequence
 from typing import TYPE_CHECKING, Any
 
-from airflow.configuration import conf
-from airflow.exceptions import AirflowException
-from airflow.models import BaseOperator
-from airflow.providers.google.cloud.hooks.bigquery import BigQueryHook, BigQueryJob
-from airflow.providers.google.cloud.hooks.gcs import GCSHook
-from airflow.providers.google.cloud.links.bigquery import BigQueryTableLink
-from airflow.providers.google.cloud.triggers.bigquery import BigQueryInsertJobTrigger
-from airflow.providers.google.common.hooks.base_google import PROVIDE_PROJECT_ID
-from airflow.utils.helpers import merge_dicts
 from google.api_core.exceptions import BadRequest, Conflict
 from google.cloud.bigquery import (
     DEFAULT_RETRY,
@@ -45,9 +36,20 @@ from google.cloud.bigquery import (
 )
 from google.cloud.bigquery.table import EncryptionConfiguration, Table, TableReference
 
+from airflow.configuration import conf
+from airflow.exceptions import AirflowException
+from airflow.models import BaseOperator
+from airflow.providers.google.cloud.hooks.bigquery import BigQueryHook, BigQueryJob
+from airflow.providers.google.cloud.hooks.gcs import GCSHook
+from airflow.providers.google.cloud.links.bigquery import BigQueryTableLink
+from airflow.providers.google.cloud.triggers.bigquery import BigQueryInsertJobTrigger
+from airflow.providers.google.common.hooks.base_google import PROVIDE_PROJECT_ID
+from airflow.utils.helpers import merge_dicts
+
 if TYPE_CHECKING:
-    from airflow.utils.context import Context
     from google.api_core.retry import Retry
+
+    from airflow.utils.context import Context
 
 ALLOWED_FORMATS = [
     "CSV",

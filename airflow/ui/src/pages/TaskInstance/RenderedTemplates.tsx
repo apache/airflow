@@ -17,22 +17,18 @@
  * under the License.
  */
 import { Box, HStack, Table, Code } from "@chakra-ui/react";
-import { useParams, useSearchParams } from "react-router-dom";
+import { useParams } from "react-router-dom";
 
 import { useTaskInstanceServiceGetMappedTaskInstance } from "openapi/queries";
 import { ClipboardRoot, ClipboardIconButton } from "src/components/ui";
 
 export const RenderedTemplates = () => {
-  const { dagId = "", runId = "", taskId = "" } = useParams();
-  const [searchParams] = useSearchParams();
-
-  const mapIndexParam = searchParams.get("map_index");
-  const mapIndex = parseInt(mapIndexParam ?? "-1", 10);
+  const { dagId = "", mapIndex = "-1", runId = "", taskId = "" } = useParams();
 
   const { data: taskInstance } = useTaskInstanceServiceGetMappedTaskInstance({
     dagId,
     dagRunId: runId,
-    mapIndex,
+    mapIndex: parseInt(mapIndex, 10),
     taskId,
   });
 

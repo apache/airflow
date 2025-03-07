@@ -27,9 +27,12 @@ from common_precommit_utils import AIRFLOW_PROVIDERS_ROOT_PATH, AIRFLOW_SOURCES_
 ACCEPTED_NON_INIT_DIRS = [
     "adr",
     "doc",
+    "3rd-party-licenses",
     "templates",
     "__pycache__",
     "static",
+    "dist",
+    "node_modules",
 ]
 
 PATH_EXTENSION_STRING = '__path__ = __import__("pkgutil").extend_path(__path__, __name__)  # type: ignore'
@@ -73,6 +76,21 @@ def _what_kind_of_test_init_py_needed(base_path: Path, folder: Path) -> tuple[bo
     return True, False
 
 
+def _determine_init_py_action(need_path_extension: bool, root_path: Path):
+    init_py_file = root_path.joinpath("__init__.py")
+    if not init_py_file.exists():
+        missing_init_dirs.append(root_path)
+        console.print(f"Missing __init__.py file {init_py_file}")
+        if need_path_extension:
+            missing_path_extension_dirs.append(root_path)
+            console.print(f"Missing path extension in: {init_py_file}")
+    elif need_path_extension:
+        text = init_py_file.read_text()
+        if PATH_EXTENSION_STRING not in text:
+            missing_path_extension_dirs.append(root_path)
+            console.print(f"Missing path extension in existing {init_py_file}")
+
+
 def check_dir_init_test_folders(folders: list[Path]) -> None:
     global fail_pre_commit
     folders = list(folders)
@@ -83,37 +101,33 @@ def check_dir_init_test_folders(folders: list[Path]) -> None:
         for root, dirs, _ in os.walk(tests_folder):
             # Edit it in place, so we don't recurse to folders we don't care about
             dirs[:] = [d for d in dirs if d not in ACCEPTED_NON_INIT_DIRS]
-            need_init_py, need_path_extension = _what_kind_of_test_init_py_needed(tests_folder, Path(root))
+            root_path = Path(root)
+            need_init_py, need_path_extension = _what_kind_of_test_init_py_needed(tests_folder, root_path)
             if need_init_py:
-                init_py_file = Path(root).joinpath("__init__.py")
-                if not init_py_file.exists():
-                    missing_init_dirs.append(Path(root))
-                    console.print(f"Missing __init__.py file {init_py_file}")
-                    if need_path_extension:
-                        missing_path_extension_dirs.append(Path(root))
-                        console.print(f"Missing path extension in: {init_py_file}")
-                elif need_path_extension:
-                    text = init_py_file.read_text()
-                    if PATH_EXTENSION_STRING not in text:
-                        missing_path_extension_dirs.append(Path(root))
-                        console.print(f"Missing path extension in existing {init_py_file}")
+                _determine_init_py_action(need_path_extension, root_path)
 
 
 def check_dir_init_src_folders(folders: list[Path]) -> None:
     global fail_pre_commit
     folders = list(folders)
     for root_distribution_path in folders:
-        distribution_relative_path = root_distribution_path.relative_to(AIRFLOW_PROVIDERS_ROOT_PATH)
         # We need init folders for all folders and for the common ones we need path extension
-        provider_source_folder = root_distribution_path / "src" / distribution_relative_path
-        print("Checking for __init__.py files in distribution for src: ", provider_source_folder)
-        for root, dirs, _ in os.walk(provider_source_folder):
+        providers_base_folder = root_distribution_path / "src" / "airflow"
+        print("Checking for __init__.py files in distribution for src: ", providers_base_folder)
+        for root, dirs, _ in os.walk(providers_base_folder):
+            print("Checking: ", root)
+            root_path = Path(root)
             # Edit it in place, so we don't recurse to folders we don't care about
             dirs[:] = [d for d in dirs if d not in ACCEPTED_NON_INIT_DIRS]
-            init_py_file = Path(root).joinpath("__init__.py")
-            if not init_py_file.exists():
-                missing_init_dirs.append(Path(root))
-                console.print(f"Missing __init__.py file {init_py_file}")
+            relative_root_path = root_path.relative_to(providers_base_folder)
+            need_path_extension = (
+                root_path == providers_base_folder
+                or len(relative_root_path.parts) == 2
+                and relative_root_path.parts[0] in KNOWN_SECOND_LEVEL_PATHS
+                and relative_root_path.parts[1] == "providers"
+            )
+            print("Needs path extension: ", need_path_extension)
+            _determine_init_py_action(need_path_extension, root_path)
 
 
 if __name__ == "__main__":

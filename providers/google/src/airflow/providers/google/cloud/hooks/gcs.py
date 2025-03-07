@@ -35,6 +35,12 @@ from typing import IO, TYPE_CHECKING, Any, Callable, TypeVar, cast, overload
 from urllib.parse import urlsplit
 
 from gcloud.aio.storage import Storage
+from google.api_core.exceptions import GoogleAPICallError, NotFound
+
+# not sure why but mypy complains on missing `storage` but it is clearly there and is importable
+from google.cloud import storage  # type: ignore[attr-defined]
+from google.cloud.exceptions import GoogleCloudError
+from google.cloud.storage.retry import DEFAULT_RETRY
 from requests import Session
 
 from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning
@@ -49,18 +55,11 @@ from airflow.providers.google.common.hooks.base_google import (
 from airflow.typing_compat import ParamSpec
 from airflow.utils import timezone
 from airflow.version import version
-from google.api_core.exceptions import GoogleAPICallError, NotFound
-
-# not sure why but mypy complains on missing `storage` but it is clearly there and is importable
-from google.cloud import storage  # type: ignore[attr-defined]
-from google.cloud.exceptions import GoogleCloudError
-from google.cloud.storage.retry import DEFAULT_RETRY
 
 if TYPE_CHECKING:
     from datetime import datetime
 
     from aiohttp import ClientSession
-
     from google.api_core.retry import Retry
     from google.cloud.storage.blob import Blob
 

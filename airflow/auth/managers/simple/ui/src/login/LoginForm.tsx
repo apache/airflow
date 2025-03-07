@@ -38,32 +38,30 @@ export const LoginForm = ({ onLogin, isPending }: LoginFormProps) => {
     });
 
     return <Stack spacing={4}>
-        <form>
-            <Controller
-                name="username"
-                control={control}
-                render={({field, fieldState}) => (
-                    <Field.Root invalid={Boolean(fieldState.error)} required>
-                        <Field.Label>Username</Field.Label>
-                        <Input {...field} />
-                    </Field.Root>)}
-                rules={{required: true}}
-            />
+        <Controller
+            name="username"
+            control={control}
+            render={({field, fieldState}) => (
+                <Field.Root invalid={Boolean(fieldState.error)} required>
+                    <Field.Label>Username</Field.Label>
+                    <Input {...field} />
+                </Field.Root>)}
+            rules={{required: true}}
+        />
 
-            <Controller
-                name="password"
-                control={control}
-                render={({field, fieldState}) => (
-                    <Field.Root invalid={Boolean(fieldState.error)} required>
-                        <Field.Label>Password</Field.Label>
-                        <Input {...field} type="password"/>
-                    </Field.Root>)}
-                rules={{required: true}}
-            />
+        <Controller
+            name="password"
+            control={control}
+            render={({field, fieldState}) => (
+                <Field.Root invalid={Boolean(fieldState.error)} required>
+                    <Field.Label>Password</Field.Label>
+                    <Input {...field} type="password"/>
+                </Field.Root>)}
+            rules={{required: true}}
+        />
 
-            <Button disabled={!isValid || isPending} colorPalette="blue" onClick={() => void handleSubmit(onLogin)()} type="submit">
-                Sign in
-            </Button>
-        </form>
+        <Button disabled={!isValid || isPending} colorPalette="blue" onClick={() => void handleSubmit(onLogin)()}>
+            Sign in
+        </Button>
     </Stack>
 }

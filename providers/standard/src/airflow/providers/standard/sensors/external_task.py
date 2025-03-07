@@ -31,9 +31,9 @@ from airflow.models.dagbag import DagBag
 from airflow.providers.standard.operators.empty import EmptyOperator
 from airflow.providers.standard.triggers.external_task import WorkflowTrigger
 from airflow.providers.standard.utils.sensor_helper import _get_count, _get_external_task_group_task_ids
+from airflow.providers.standard.version_compat import AIRFLOW_V_3_0_PLUS
 from airflow.sensors.base import BaseSensorOperator
 from airflow.utils.file import correct_maybe_zipped
-from airflow.utils.helpers import build_airflow_url_with_query
 from airflow.utils.session import NEW_SESSION, provide_session
 from airflow.utils.state import State, TaskInstanceState
 
@@ -70,8 +70,15 @@ class ExternalDagLink(BaseOperatorLink):
         else:
             external_dag_id = operator.external_dag_id
 
-        query = {"dag_id": external_dag_id, "run_id": ti_key.run_id}
-        return build_airflow_url_with_query(query)
+        if AIRFLOW_V_3_0_PLUS:
+            from airflow.utils.helpers import build_airflow_dagrun_url
+
+            return build_airflow_dagrun_url(dag_id=external_dag_id, run_id=ti_key.run_id)
+        else:
+            from airflow.utils.helpers import build_airflow_url_with_query  # type:ignore[attr-defined]
+
+            query = {"dag_id": external_dag_id, "run_id": ti_key.run_id}
+            return build_airflow_url_with_query(query)
 
 
 class ExternalTaskSensor(BaseSensorOperator):

@@ -22,16 +22,16 @@ from abc import ABC, abstractmethod
 from typing import Generic, TypeVar, Union
 
 from attrs import Factory, define
-
 from openlineage.client.event_v2 import Dataset as OLDataset
 
 with warnings.catch_warnings():
     warnings.simplefilter("ignore", DeprecationWarning)
     from openlineage.client.facet import BaseFacet as BaseFacet_V1
+from openlineage.client.facet_v2 import JobFacet, RunFacet
+
 from airflow.providers.openlineage.utils.utils import AIRFLOW_V_2_10_PLUS
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.state import TaskInstanceState
-from openlineage.client.facet_v2 import JobFacet, RunFacet
 
 # this is not to break static checks compatibility with v1 OpenLineage facet classes
 DatasetSubclass = TypeVar("DatasetSubclass", bound=OLDataset)

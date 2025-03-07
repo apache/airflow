@@ -27,7 +27,6 @@ from sqlalchemy import select
 from airflow.auth.managers.models.base_user import BaseUser
 from airflow.auth.managers.models.resource_details import DagDetails
 from airflow.configuration import conf
-from airflow.exceptions import AirflowException
 from airflow.models import DagModel
 from airflow.typing_compat import Literal
 from airflow.utils.jwt_signer import JWTSigner, get_signing_key
@@ -35,11 +34,9 @@ from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.session import NEW_SESSION, provide_session
 
 if TYPE_CHECKING:
-    from collections.abc import Container, Sequence
+    from collections.abc import Sequence
 
     from fastapi import FastAPI
-    from flask import Blueprint
-    from flask_appbuilder.menu import MenuItem
     from sqlalchemy.orm import Session
 
     from airflow.auth.managers.models.batch_apis import (
@@ -81,22 +78,6 @@ class BaseAuthManager(Generic[T], LoggingMixin):
         By default, do nothing.
         """
 
-    def get_user_name(self) -> str:
-        """Return the username associated to the user in session."""
-        user = self.get_user()
-        if not user:
-            self.log.error("Calling 'get_user_name()' but the user is not signed in.")
-            raise AirflowException("The user must be signed in.")
-        return user.get_name()
-
-    def get_user_display_name(self) -> str:
-        """Return the user's display name associated to the user in session."""
-        return self.get_user_name()
-
-    @abstractmethod
-    def get_user(self) -> T | None:
-        """Return the user associated to the user in session."""
-
     @abstractmethod
     def deserialize_user(self, token: dict[str, Any]) -> T:
         """Create a user object from dict."""
@@ -114,39 +95,17 @@ class BaseAuthManager(Generic[T], LoggingMixin):
             log.error("JWT token is not valid")
             raise e
 
-    def get_jwt_token(self, user: T) -> str:
+    def get_jwt_token(
+        self, user: T, *, expiration_time_in_seconds: int = conf.getint("api", "auth_jwt_expiration_time")
+    ) -> str:
         """Return the JWT token from a user object."""
-        return self._get_token_signer().generate_signed_token(self.serialize_user(user))
-
-    def get_user_id(self) -> str | None:
-        """Return the user ID associated to the user in session."""
-        user = self.get_user()
-        if not user:
-            self.log.error("Calling 'get_user_id()' but the user is not signed in.")
-            raise AirflowException("The user must be signed in.")
-        if user_id := user.get_id():
-            return str(user_id)
-        return None
-
-    @abstractmethod
-    def is_logged_in(self) -> bool:
-        """Return whether the user is logged in."""
+        return self._get_token_signer(
+            expiration_time_in_seconds=expiration_time_in_seconds
+        ).generate_signed_token(self.serialize_user(user))
 
     @abstractmethod
     def get_url_login(self, **kwargs) -> str:
         """Return the login page url."""
-
-    @abstractmethod
-    def get_url_logout(self) -> str:
-        """Return the logout page url."""
-
-    def get_url_user_profile(self) -> str | None:
-        """
-        Return the url to a page displaying info about the current user.
-
-        By default, return None.
-        """
-        return None
 
     @abstractmethod
     def is_authorized_configuration(
@@ -160,7 +119,7 @@ class BaseAuthManager(Generic[T], LoggingMixin):
         Return whether the user is authorized to perform a given action on configuration.
 
         :param method: the method to perform
-        :param user: the user to perform the action on
+        :param user: the user to performing the action
         :param details: optional details about the configuration
         """
 
@@ -176,7 +135,7 @@ class BaseAuthManager(Generic[T], LoggingMixin):
         Return whether the user is authorized to perform a given action on a connection.
 
         :param method: the method to perform
-        :param user: the user to perform the action on
+        :param user: the user to performing the action
         :param details: optional details about the connection
         """
 
@@ -193,7 +152,7 @@ class BaseAuthManager(Generic[T], LoggingMixin):
         Return whether the user is authorized to perform a given action on a DAG.
 
         :param method: the method to perform
-        :param user: the user to perform the action on
+        :param user: the user to performing the action
         :param access_entity: the kind of DAG information the authorization request is about.
             If not provided, the authorization request is about the DAG itself
         :param details: optional details about the DAG
@@ -211,7 +170,7 @@ class BaseAuthManager(Generic[T], LoggingMixin):
         Return whether the user is authorized to perform a given action on an asset.
 
         :param method: the method to perform
-        :param user: the user to perform the action on
+        :param user: the user to performing the action
         :param details: optional details about the asset
         """
 
@@ -227,7 +186,7 @@ class BaseAuthManager(Generic[T], LoggingMixin):
         Return whether the user is authorized to perform a given action on a pool.
 
         :param method: the method to perform
-        :param user: the user to perform the action on
+        :param user: the user to performing the action
         :param details: optional details about the pool
         """
 
@@ -243,7 +202,7 @@ class BaseAuthManager(Generic[T], LoggingMixin):
         Return whether the user is authorized to perform a given action on a variable.
 
         :param method: the method to perform
-        :param user: the user to perform the action on
+        :param user: the user to performing the action
         :param details: optional details about the variable
         """
 
@@ -258,11 +217,11 @@ class BaseAuthManager(Generic[T], LoggingMixin):
         Return whether the user is authorized to access a read-only state of the installation.
 
         :param access_view: the specific read-only view/state the authorization request is about.
-        :param user: the user to perform the action on
+        :param user: the user to performing the action
         """
 
     @abstractmethod
-    def is_authorized_custom_view(self, *, method: ResourceMethod | str, resource_name: str, user: T):
+    def is_authorized_custom_view(self, *, method: ResourceMethod | str, resource_name: str, user: T) -> bool:
         """
         Return whether the user is authorized to perform a given action on a custom view.
 
@@ -275,15 +234,7 @@ class BaseAuthManager(Generic[T], LoggingMixin):
             In that case, the action can be anything (e.g. can_do).
             See https://github.com/apache/airflow/issues/39144
         :param resource_name: the name of the resource
-        :param user: the user to perform the action on
-        """
-
-    @abstractmethod
-    def filter_permitted_menu_items(self, menu_items: list[MenuItem]) -> list[MenuItem]:
-        """
-        Filter menu items based on user permissions.
-
-        :param menu_items: list of all menu items
+        :param user: the user to performing the action
         """
 
     def batch_is_authorized_connection(
@@ -300,7 +251,7 @@ class BaseAuthManager(Generic[T], LoggingMixin):
         manager implementation to provide a more efficient implementation.
 
         :param requests: a list of requests containing the parameters for ``is_authorized_connection``
-        :param user: the user to perform the action on
+        :param user: the user to performing the action
         """
         return all(
             self.is_authorized_connection(method=request["method"], details=request.get("details"), user=user)
@@ -321,7 +272,7 @@ class BaseAuthManager(Generic[T], LoggingMixin):
         implementation to provide a more efficient implementation.
 
         :param requests: a list of requests containing the parameters for ``is_authorized_dag``
-        :param user: the user to perform the action on
+        :param user: the user to performing the action
         """
         return all(
             self.is_authorized_dag(
@@ -347,7 +298,7 @@ class BaseAuthManager(Generic[T], LoggingMixin):
         manager implementation to provide a more efficient implementation.
 
         :param requests: a list of requests containing the parameters for ``is_authorized_pool``
-        :param user: the user to perform the action on
+        :param user: the user to performing the action
         """
         return all(
             self.is_authorized_pool(method=request["method"], details=request.get("details"), user=user)
@@ -368,7 +319,7 @@ class BaseAuthManager(Generic[T], LoggingMixin):
         manager implementation to provide a more efficient implementation.
 
         :param requests: a list of requests containing the parameters for ``is_authorized_variable``
-        :param user: the user to perform the action on
+        :param user: the user to performing the action
         """
         return all(
             self.is_authorized_variable(method=request["method"], details=request.get("details"), user=user)
@@ -380,7 +331,7 @@ class BaseAuthManager(Generic[T], LoggingMixin):
         self,
         *,
         user: T,
-        methods: Container[ResourceMethod] | None = None,
+        method: ResourceMethod = "GET",
         session: Session = NEW_SESSION,
     ) -> set[str]:
         """
@@ -391,45 +342,31 @@ class BaseAuthManager(Generic[T], LoggingMixin):
         implementation to provide a more efficient implementation.
 
         :param user: the user
-        :param methods: whether filter readable or writable
+        :param method: the method to filter on
         :param session: the session
         """
         dag_ids = {dag.dag_id for dag in session.execute(select(DagModel.dag_id))}
-        return self.filter_permitted_dag_ids(dag_ids=dag_ids, methods=methods, user=user)
+        return self.filter_permitted_dag_ids(dag_ids=dag_ids, method=method, user=user)
 
     def filter_permitted_dag_ids(
         self,
         *,
         dag_ids: set[str],
         user: T,
-        methods: Container[ResourceMethod] | None = None,
-    ):
+        method: ResourceMethod = "GET",
+    ) -> set[str]:
         """
         Filter readable or writable DAGs for user.
 
         :param dag_ids: the list of DAG ids
         :param user: the user
-        :param methods: whether filter readable or writable
+        :param method: the method to filter on
         """
-        if not methods:
-            methods = ["PUT", "GET"]
 
-        if ("GET" in methods and self.is_authorized_dag(method="GET", user=user)) or (
-            "PUT" in methods and self.is_authorized_dag(method="PUT", user=user)
-        ):
-            # If user is authorized to read/edit all DAGs, return all DAGs
-            return dag_ids
+        def _is_permitted_dag_id(method: ResourceMethod, dag_id: str):
+            return self.is_authorized_dag(method=method, details=DagDetails(id=dag_id), user=user)
 
-        def _is_permitted_dag_id(method: ResourceMethod, methods: Container[ResourceMethod], dag_id: str):
-            return method in methods and self.is_authorized_dag(
-                method=method, details=DagDetails(id=dag_id), user=user
-            )
-
-        return {
-            dag_id
-            for dag_id in dag_ids
-            if _is_permitted_dag_id("GET", methods, dag_id) or _is_permitted_dag_id("PUT", methods, dag_id)
-        }
+        return {dag_id for dag_id in dag_ids if _is_permitted_dag_id(method, dag_id)}
 
     @staticmethod
     def get_cli_commands() -> list[CLICommand]:
@@ -440,11 +377,6 @@ class BaseAuthManager(Generic[T], LoggingMixin):
         """
         return []
 
-    def get_api_endpoints(self) -> None | Blueprint:
-        """Return API endpoint(s) definition for the auth manager."""
-        # TODO: Remove this method when legacy Airflow 2 UI is gone
-        return None
-
     def get_fastapi_app(self) -> FastAPI | None:
         """
         Specify a sub FastAPI application specific to the auth manager.
@@ -453,18 +385,19 @@ class BaseAuthManager(Generic[T], LoggingMixin):
         """
         return None
 
-    def register_views(self) -> None:
-        """Register views specific to the auth manager."""
-
     @staticmethod
-    def _get_token_signer():
+    def _get_token_signer(
+        expiration_time_in_seconds: int = conf.getint("api", "auth_jwt_expiration_time"),
+    ) -> JWTSigner:
         """
         Return the signer used to sign JWT token.
 
         :meta private:
+
+        :param expiration_time_in_seconds: expiration time in seconds of the token
         """
         return JWTSigner(
             secret_key=get_signing_key("api", "auth_jwt_secret"),
-            expiration_time_in_seconds=conf.getint("api", "auth_jwt_expiration_time"),
+            expiration_time_in_seconds=expiration_time_in_seconds,
             audience="front-apis",
         )

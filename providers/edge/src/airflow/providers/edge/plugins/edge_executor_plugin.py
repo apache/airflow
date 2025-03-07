@@ -24,6 +24,7 @@ from typing import TYPE_CHECKING, Any
 
 from flask import Blueprint, redirect, request, url_for
 from flask_appbuilder import BaseView, expose
+from markupsafe import Markup
 from sqlalchemy import select
 
 from airflow.auth.managers.models.resource_details import AccessView
@@ -32,18 +33,23 @@ from airflow.exceptions import AirflowConfigException
 from airflow.models.taskinstance import TaskInstanceState
 from airflow.plugins_manager import AirflowPlugin
 from airflow.providers.edge.version_compat import AIRFLOW_V_3_0_PLUS
+from airflow.utils.state import State
+
+if AIRFLOW_V_3_0_PLUS:
+    from airflow.providers.fab.www.auth import has_access_view
+else:
+    from airflow.www.auth import has_access_view  # type: ignore
 from airflow.utils.session import NEW_SESSION, provide_session
 from airflow.utils.yaml import safe_load
-from airflow.www import utils as wwwutils
-from airflow.www.auth import has_access_view
-from airflow.www.constants import SWAGGER_BUNDLE, SWAGGER_ENABLED
-from airflow.www.extensions.init_views import _CustomErrorRequestBodyValidator, _LazyResolver
 
 if TYPE_CHECKING:
     from sqlalchemy.orm import Session
 
 
 def _get_airflow_2_api_endpoint() -> Blueprint:
+    from airflow.www.constants import SWAGGER_BUNDLE, SWAGGER_ENABLED
+    from airflow.www.extensions.init_views import _CustomErrorRequestBodyValidator, _LazyResolver
+
     folder = Path(__file__).parents[1].resolve()  # this is airflow/providers/edge/
     with folder.joinpath("openapi", "edge_worker_api_v1.yaml").open() as f:
         specification = safe_load(f)
@@ -53,8 +59,8 @@ def _get_airflow_2_api_endpoint() -> Blueprint:
         specification=specification,
         resolver=_LazyResolver(),
         base_path="/edge_worker/v1",
-        options={"swagger_ui": SWAGGER_ENABLED, "swagger_path": SWAGGER_BUNDLE.__fspath__()},
         strict_validation=True,
+        options={"swagger_ui": SWAGGER_ENABLED, "swagger_path": SWAGGER_BUNDLE.__fspath__()},
         validate_responses=True,
         validator_map={"body": _CustomErrorRequestBodyValidator},
     ).blueprint
@@ -73,6 +79,18 @@ def _get_api_endpoint() -> dict[str, Any]:
         "url_prefix": "/edge_worker/v1",
         "name": "Airflow Edge Worker API",
     }
+
+
+def _state_token(state):
+    """Return a formatted string with HTML for a given State."""
+    color = State.color(state)
+    fg_color = State.color_fg(state)
+    return Markup(
+        """
+        <span class="label" style="color:{fg_color}; background-color:{color};"
+            title="Current State: {state}">{state}</span>
+        """
+    ).format(color=color, state=state, fg_color=fg_color)
 
 
 def modify_maintenance_comment_on_update(maintenance_comment: str | None, username: str) -> str:
@@ -116,7 +134,7 @@ class EdgeWorkerJobs(BaseView):
 
         jobs = session.scalars(select(EdgeJobModel).order_by(EdgeJobModel.queued_dttm)).all()
         html_states = {
-            str(state): wwwutils.state_token(str(state)) for state in TaskInstanceState.__members__.values()
+            str(state): _state_token(str(state)) for state in TaskInstanceState.__members__.values()
         }
         return self.render_template("edge_worker_jobs.html", jobs=jobs, html_states=html_states)
 

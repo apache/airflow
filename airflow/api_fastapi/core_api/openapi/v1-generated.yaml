@@ -528,6 +528,8 @@ paths:
       summary: Get Assets
       description: Get assets.
       operationId: get_assets
+      security:
+      - OAuth2PasswordBearer: []
       parameters:
       - name: limit
         in: query
@@ -728,6 +730,8 @@ paths:
       summary: Get Asset Events
       description: Get asset events.
       operationId: get_asset_events
+      security:
+      - OAuth2PasswordBearer: []
       parameters:
       - name: limit
         in: query
@@ -847,6 +851,8 @@ paths:
       summary: Create Asset Event
       description: Create asset events.
       operationId: create_asset_event
+      security:
+      - OAuth2PasswordBearer: []
       requestBody:
         required: true
         content:
@@ -891,6 +897,8 @@ paths:
       summary: Materialize Asset
       description: Materialize an asset by triggering a DAG run that produces it.
       operationId: materialize_asset
+      security:
+      - OAuth2PasswordBearer: []
       parameters:
       - name: asset_id
         in: path
@@ -942,6 +950,8 @@ paths:
       summary: Get Asset Queued Events
       description: Get queued asset events for an asset.
       operationId: get_asset_queued_events
+      security:
+      - OAuth2PasswordBearer: []
       parameters:
       - name: asset_id
         in: path
@@ -994,6 +1004,8 @@ paths:
       summary: Delete Asset Queued Events
       description: Delete queued asset events for an asset.
       operationId: delete_asset_queued_events
+      security:
+      - OAuth2PasswordBearer: []
       parameters:
       - name: asset_id
         in: path
@@ -1009,6 +1021,14 @@ paths:
           - type: string
           - type: 'null'
           title: Before
+      - name: dag_id
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Dag Id
       responses:
         '204':
           description: Successful Response
@@ -1043,6 +1063,8 @@ paths:
       summary: Get Asset
       description: Get an asset.
       operationId: get_asset
+      security:
+      - OAuth2PasswordBearer: []
       parameters:
       - name: asset_id
         in: path
@@ -1088,12 +1110,16 @@ paths:
       summary: Get Dag Asset Queued Events
       description: Get queued asset events for a DAG.
       operationId: get_dag_asset_queued_events
+      security:
+      - OAuth2PasswordBearer: []
       parameters:
       - name: dag_id
         in: path
         required: true
         schema:
-          type: string
+          anyOf:
+          - type: string
+          - type: 'null'
           title: Dag Id
       - name: before
         in: query
@@ -1139,12 +1165,16 @@ paths:
       - Asset
       summary: Delete Dag Asset Queued Events
       operationId: delete_dag_asset_queued_events
+      security:
+      - OAuth2PasswordBearer: []
       parameters:
       - name: dag_id
         in: path
         required: true
         schema:
-          type: string
+          anyOf:
+          - type: string
+          - type: 'null'
           title: Dag Id
       - name: before
         in: query
@@ -1194,12 +1224,16 @@ paths:
       summary: Get Dag Asset Queued Event
       description: Get a queued asset event for a DAG.
       operationId: get_dag_asset_queued_event
+      security:
+      - OAuth2PasswordBearer: []
       parameters:
       - name: dag_id
         in: path
         required: true
         schema:
-          type: string
+          anyOf:
+          - type: string
+          - type: 'null'
           title: Dag Id
       - name: asset_id
         in: path
@@ -1252,12 +1286,16 @@ paths:
       summary: Delete Dag Asset Queued Event
       description: Delete a queued asset event for a DAG.
       operationId: delete_dag_asset_queued_event
+      security:
+      - OAuth2PasswordBearer: []
       parameters:
       - name: dag_id
         in: path
         required: true
         schema:
-          type: string
+          anyOf:
+          - type: string
+          - type: 'null'
           title: Dag Id
       - name: asset_id
         in: path
@@ -1662,6 +1700,8 @@ paths:
       summary: Delete Connection
       description: Delete a connection entry.
       operationId: delete_connection
+      security:
+      - OAuth2PasswordBearer: []
       parameters:
       - name: connection_id
         in: path
@@ -1702,6 +1742,8 @@ paths:
       summary: Get Connection
       description: Get a connection entry.
       operationId: get_connection
+      security:
+      - OAuth2PasswordBearer: []
       parameters:
       - name: connection_id
         in: path
@@ -1746,6 +1788,8 @@ paths:
       summary: Patch Connection
       description: Update a connection entry.
       operationId: patch_connection
+      security:
+      - OAuth2PasswordBearer: []
       parameters:
       - name: connection_id
         in: path
@@ -1813,6 +1857,8 @@ paths:
       summary: Get Connections
       description: Get all connection entries.
       operationId: get_connections
+      security:
+      - OAuth2PasswordBearer: []
       parameters:
       - name: limit
         in: query
@@ -1837,6 +1883,14 @@ paths:
           type: string
           default: id
           title: Order By
+      - name: connection_id_pattern
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Connection Id Pattern
       responses:
         '200':
           description: Successful Response
@@ -1874,6 +1928,8 @@ paths:
       summary: Post Connection
       description: Create connection entry.
       operationId: post_connection
+      security:
+      - OAuth2PasswordBearer: []
       requestBody:
         required: true
         content:
@@ -1917,6 +1973,8 @@ paths:
       summary: Bulk Connections
       description: Bulk create, update, and delete connections.
       operationId: bulk_connections
+      security:
+      - OAuth2PasswordBearer: []
       requestBody:
         required: true
         content:
@@ -1995,6 +2053,8 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/HTTPValidationError'
+      security:
+      - OAuth2PasswordBearer: []
   /public/connections/defaults:
     post:
       tags:
@@ -2017,6 +2077,8 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/HTTPExceptionResponse'
+      security:
+      - OAuth2PasswordBearer: []
   /public/dags/{dag_id}/dagRuns/{dag_run_id}:
     get:
       tags:
@@ -2199,6 +2261,8 @@ paths:
       description: If dag run is asset-triggered, return the asset events that triggered
         it.
       operationId: get_upstream_asset_events
+      security:
+      - OAuth2PasswordBearer: []
       parameters:
       - name: dag_id
         in: path
@@ -3514,6 +3578,8 @@ paths:
       - Event Log
       summary: Get Event Log
       operationId: get_event_log
+      security:
+      - OAuth2PasswordBearer: []
       parameters:
       - name: event_log_id
         in: path
@@ -3521,6 +3587,14 @@ paths:
         schema:
           type: integer
           title: Event Log Id
+      - name: dag_id
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Dag Id
       responses:
         '200':
           description: Successful Response
@@ -3559,7 +3633,17 @@ paths:
       summary: Get Event Logs
       description: Get all Event Logs.
       operationId: get_event_logs
+      security:
+      - OAuth2PasswordBearer: []
       parameters:
+      - name: dag_id
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Dag Id
       - name: limit
         in: query
         required: false
@@ -3583,14 +3667,6 @@ paths:
           type: string
           default: id
           title: Order By
-      - name: dag_id
-        in: query
-        required: false
-        schema:
-          anyOf:
-          - type: string
-          - type: 'null'
-          title: Dag Id
       - name: task_id
         in: query
         required: false
@@ -4061,6 +4137,8 @@ paths:
       summary: Delete Pool
       description: Delete a pool entry.
       operationId: delete_pool
+      security:
+      - OAuth2PasswordBearer: []
       parameters:
       - name: pool_name
         in: path
@@ -4107,6 +4185,8 @@ paths:
       summary: Get Pool
       description: Get a pool.
       operationId: get_pool
+      security:
+      - OAuth2PasswordBearer: []
       parameters:
       - name: pool_name
         in: path
@@ -4151,6 +4231,8 @@ paths:
       summary: Patch Pool
       description: Update a Pool.
       operationId: patch_pool
+      security:
+      - OAuth2PasswordBearer: []
       parameters:
       - name: pool_name
         in: path
@@ -4218,6 +4300,8 @@ paths:
       summary: Get Pools
       description: Get all pools entries.
       operationId: get_pools
+      security:
+      - OAuth2PasswordBearer: []
       parameters:
       - name: limit
         in: query
@@ -4287,6 +4371,8 @@ paths:
       summary: Post Pool
       description: Create a Pool.
       operationId: post_pool
+      security:
+      - OAuth2PasswordBearer: []
       requestBody:
         required: true
         content:
@@ -4330,6 +4416,8 @@ paths:
       summary: Bulk Pools
       description: Bulk create, update, and delete pools.
       operationId: bulk_pools
+      security:
+      - OAuth2PasswordBearer: []
       requestBody:
         required: true
         content:
@@ -6308,6 +6396,8 @@ paths:
       summary: Delete Variable
       description: Delete a variable entry.
       operationId: delete_variable
+      security:
+      - OAuth2PasswordBearer: []
       parameters:
       - name: variable_key
         in: path
@@ -6348,6 +6438,8 @@ paths:
       summary: Get Variable
       description: Get a variable entry.
       operationId: get_variable
+      security:
+      - OAuth2PasswordBearer: []
       parameters:
       - name: variable_key
         in: path
@@ -6392,6 +6484,8 @@ paths:
       summary: Patch Variable
       description: Update a variable by key.
       operationId: patch_variable
+      security:
+      - OAuth2PasswordBearer: []
       parameters:
       - name: variable_key
         in: path
@@ -6459,6 +6553,8 @@ paths:
       summary: Get Variables
       description: Get all Variables entries.
       operationId: get_variables
+      security:
+      - OAuth2PasswordBearer: []
       parameters:
       - name: limit
         in: query
@@ -6522,6 +6618,8 @@ paths:
       summary: Post Variable
       description: Create a variable.
       operationId: post_variable
+      security:
+      - OAuth2PasswordBearer: []
       requestBody:
         required: true
         content:
@@ -6565,6 +6663,8 @@ paths:
       summary: Bulk Variables
       description: Bulk create, update, and delete variables.
       operationId: bulk_variables
+      security:
+      - OAuth2PasswordBearer: []
       requestBody:
         required: true
         content:
@@ -6803,6 +6903,57 @@ paths:
               schema:
                 $ref: '#/components/schemas/HTTPExceptionResponse'
           description: Forbidden
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /public/dags/{dag_id}/dagVersions/{version_number}:
+    get:
+      tags:
+      - DagVersion
+      summary: Get Dag Version
+      description: Get one Dag Version.
+      operationId: get_dag_version
+      parameters:
+      - name: dag_id
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Dag Id
+      - name: version_number
+        in: path
+        required: true
+        schema:
+          type: integer
+          title: Version Number
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DagVersionResponse'
+        '401':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Unauthorized
+        '403':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Forbidden
+        '404':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Not Found
         '422':
           description: Validation Error
           content:
@@ -8232,6 +8383,12 @@ components:
           title: Concurrency
           description: Return max_active_tasks as concurrency.
           readOnly: true
+        latest_dag_version:
+          anyOf:
+          - $ref: '#/components/schemas/DagVersionResponse'
+          - type: 'null'
+          description: Return the latest DagVersion.
+          readOnly: true
       type: object
       required:
       - dag_id
@@ -8270,6 +8427,7 @@ components:
       - last_parsed
       - file_token
       - concurrency
+      - latest_dag_version
       title: DAGDetailsResponse
       description: Specific serializer for DAG Details responses.
     DAGPatchBody:
@@ -8527,9 +8685,6 @@ components:
           $ref: '#/components/schemas/DagRunType'
         state:
           $ref: '#/components/schemas/DagRunState'
-        external_trigger:
-          type: boolean
-          title: External Trigger
         triggered_by:
           $ref: '#/components/schemas/DagRunTriggeredByType'
         conf:
@@ -8540,6 +8695,11 @@ components:
           - type: string
           - type: 'null'
           title: Note
+        dag_versions:
+          items:
+            $ref: '#/components/schemas/DagVersionResponse'
+          type: array
+          title: Dag Versions
       type: object
       required:
       - dag_run_id
@@ -8554,10 +8714,10 @@ components:
       - last_scheduling_decision
       - run_type
       - state
-      - external_trigger
       - triggered_by
       - conf
       - note
+      - dag_versions
       title: DAGRunResponse
       description: DAG Run serializer for responses.
     DAGRunStates:
@@ -10097,6 +10257,21 @@ components:
       - arrange
       title: StructureDataResponse
       description: Structure Data serializer for responses.
+    StructuredLogMessage:
+      properties:
+        timestamp:
+          type: string
+          format: date-time
+          title: Timestamp
+        event:
+          type: string
+          title: Event
+      additionalProperties: true
+      type: object
+      required:
+      - event
+      title: StructuredLogMessage
+      description: An individual log message.
     TaskCollectionResponse:
       properties:
         tasks:
@@ -10429,7 +10604,6 @@ components:
         rendered_fields:
           type: object
           title: Rendered Fields
-          default: {}
         trigger:
           anyOf:
           - $ref: '#/components/schemas/TriggerResponse'
@@ -10688,7 +10862,13 @@ components:
     TaskInstancesLogResponse:
       properties:
         content:
-          type: string
+          anyOf:
+          - items:
+              $ref: '#/components/schemas/StructuredLogMessage'
+            type: array
+          - items:
+              type: string
+            type: array
           title: Content
         continuation_token:
           anyOf:
@@ -11277,3 +11457,10 @@ components:
       - value
       title: XComUpdateBody
       description: Payload serializer for updating an XCom entry.
+  securitySchemes:
+    OAuth2PasswordBearer:
+      type: oauth2
+      flows:
+        password:
+          scopes: {}
+          tokenUrl: token

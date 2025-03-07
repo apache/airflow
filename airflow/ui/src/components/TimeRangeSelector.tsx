@@ -58,7 +58,7 @@ const TimeRangeSelector = ({
   };
 
   return (
-    <HStack>
+    <HStack flexWrap="wrap">
       <FiCalendar />
       <Select.Root
         collection={timeOptions}

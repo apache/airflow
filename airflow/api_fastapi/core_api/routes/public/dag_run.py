@@ -59,6 +59,7 @@ from airflow.api_fastapi.core_api.datamodels.task_instances import (
     TaskInstanceResponse,
 )
 from airflow.api_fastapi.core_api.openapi.exceptions import create_openapi_http_exception_doc
+from airflow.api_fastapi.core_api.security import requires_access_asset
 from airflow.api_fastapi.logging.decorators import action_logging
 from airflow.exceptions import ParamValidationError
 from airflow.listeners.listener import get_listener_manager
@@ -189,6 +190,7 @@ def patch_dag_run(
             status.HTTP_404_NOT_FOUND,
         ]
     ),
+    dependencies=[Depends(requires_access_asset(method="GET"))],
 )
 def get_upstream_asset_events(
     dag_id: str, dag_run_id: str, session: SessionDep
@@ -286,7 +288,6 @@ def get_dag_runs(
                     "start_date",
                     "end_date",
                     "updated_at",
-                    "external_trigger",
                     "conf",
                 ],
                 DagRun,
@@ -367,7 +368,6 @@ def trigger_dag_run(
             conf=params["conf"],
             run_type=DagRunType.MANUAL,
             triggered_by=DagRunTriggeredByType.REST_API,
-            external_trigger=True,
             dag_version=DagVersion.get_latest_version(dag.dag_id),
             state=DagRunState.QUEUED,
             session=session,
@@ -421,7 +421,6 @@ def get_list_dag_runs_batch(
             "start_date",
             "end_date",
             "updated_at",
-            "external_trigger",
             "conf",
         ],
         DagRun,
