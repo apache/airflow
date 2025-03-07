@@ -528,6 +528,8 @@ paths:
       summary: Get Assets
       description: Get assets.
       operationId: get_assets
+      security:
+      - OAuth2PasswordBearer: []
       parameters:
       - name: limit
         in: query
@@ -728,6 +730,8 @@ paths:
       summary: Get Asset Events
       description: Get asset events.
       operationId: get_asset_events
+      security:
+      - OAuth2PasswordBearer: []
       parameters:
       - name: limit
         in: query
@@ -847,6 +851,8 @@ paths:
       summary: Create Asset Event
       description: Create asset events.
       operationId: create_asset_event
+      security:
+      - OAuth2PasswordBearer: []
       requestBody:
         required: true
         content:
@@ -891,6 +897,8 @@ paths:
       summary: Materialize Asset
       description: Materialize an asset by triggering a DAG run that produces it.
       operationId: materialize_asset
+      security:
+      - OAuth2PasswordBearer: []
       parameters:
       - name: asset_id
         in: path
@@ -942,6 +950,8 @@ paths:
       summary: Get Asset Queued Events
       description: Get queued asset events for an asset.
       operationId: get_asset_queued_events
+      security:
+      - OAuth2PasswordBearer: []
       parameters:
       - name: asset_id
         in: path
@@ -994,6 +1004,8 @@ paths:
       summary: Delete Asset Queued Events
       description: Delete queued asset events for an asset.
       operationId: delete_asset_queued_events
+      security:
+      - OAuth2PasswordBearer: []
       parameters:
       - name: asset_id
         in: path
@@ -1009,6 +1021,14 @@ paths:
           - type: string
           - type: 'null'
           title: Before
+      - name: dag_id
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Dag Id
       responses:
         '204':
           description: Successful Response
@@ -1043,6 +1063,8 @@ paths:
       summary: Get Asset
       description: Get an asset.
       operationId: get_asset
+      security:
+      - OAuth2PasswordBearer: []
       parameters:
       - name: asset_id
         in: path
@@ -1088,12 +1110,16 @@ paths:
       summary: Get Dag Asset Queued Events
       description: Get queued asset events for a DAG.
       operationId: get_dag_asset_queued_events
+      security:
+      - OAuth2PasswordBearer: []
       parameters:
       - name: dag_id
         in: path
         required: true
         schema:
-          type: string
+          anyOf:
+          - type: string
+          - type: 'null'
           title: Dag Id
       - name: before
         in: query
@@ -1139,12 +1165,16 @@ paths:
       - Asset
       summary: Delete Dag Asset Queued Events
       operationId: delete_dag_asset_queued_events
+      security:
+      - OAuth2PasswordBearer: []
       parameters:
       - name: dag_id
         in: path
         required: true
         schema:
-          type: string
+          anyOf:
+          - type: string
+          - type: 'null'
           title: Dag Id
       - name: before
         in: query
@@ -1194,12 +1224,16 @@ paths:
       summary: Get Dag Asset Queued Event
       description: Get a queued asset event for a DAG.
       operationId: get_dag_asset_queued_event
+      security:
+      - OAuth2PasswordBearer: []
       parameters:
       - name: dag_id
         in: path
         required: true
         schema:
-          type: string
+          anyOf:
+          - type: string
+          - type: 'null'
           title: Dag Id
       - name: asset_id
         in: path
@@ -1252,12 +1286,16 @@ paths:
       summary: Delete Dag Asset Queued Event
       description: Delete a queued asset event for a DAG.
       operationId: delete_dag_asset_queued_event
+      security:
+      - OAuth2PasswordBearer: []
       parameters:
       - name: dag_id
         in: path
         required: true
         schema:
-          type: string
+          anyOf:
+          - type: string
+          - type: 'null'
           title: Dag Id
       - name: asset_id
         in: path
@@ -2223,6 +2261,8 @@ paths:
       description: If dag run is asset-triggered, return the asset events that triggered
         it.
       operationId: get_upstream_asset_events
+      security:
+      - OAuth2PasswordBearer: []
       parameters:
       - name: dag_id
         in: path
@@ -2792,6 +2832,8 @@ paths:
       - Config
       summary: Get Config
       operationId: get_config
+      security:
+      - OAuth2PasswordBearer: []
       parameters:
       - name: section
         in: query
@@ -2872,6 +2914,8 @@ paths:
       - Config
       summary: Get Config Value
       operationId: get_config_value
+      security:
+      - OAuth2PasswordBearer: []
       parameters:
       - name: section
         in: path
@@ -3746,12 +3790,16 @@ paths:
       summary: Get Extra Links
       description: Get extra links for task instance.
       operationId: get_extra_links
+      security:
+      - OAuth2PasswordBearer: []
       parameters:
       - name: dag_id
         in: path
         required: true
         schema:
-          type: string
+          anyOf:
+          - type: string
+          - type: 'null'
           title: Dag Id
       - name: dag_run_id
         in: path
@@ -7953,9 +8001,6 @@ components:
         audit_view_included_events:
           type: string
           title: Audit View Included Events
-        is_k8s:
-          type: boolean
-          title: Is K8S
         test_connection:
           type: string
           title: Test Connection
@@ -7981,7 +8026,6 @@ components:
       - warn_deployment_exposure
       - audit_view_excluded_events
       - audit_view_included_events
-      - is_k8s
       - test_connection
       - state_color_mapping
       title: ConfigResponse

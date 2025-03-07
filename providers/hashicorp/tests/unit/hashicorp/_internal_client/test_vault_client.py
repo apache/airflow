@@ -154,6 +154,30 @@ class TestVaultClient:
         assert vault_client.kv_engine_version == 2
 
     @mock.patch("airflow.providers.hashicorp._internal_client.vault_client.hvac")
+    def test_aws_iam_different_region(self, mock_hvac):
+        mock_client = mock.MagicMock()
+        mock_hvac.Client.return_value = mock_client
+        vault_client = _VaultClient(
+            auth_type="aws_iam",
+            role_id="role",
+            url="http://localhost:8180",
+            key_id="user",
+            secret_id="pass",
+            session=None,
+            region="us-east-2",
+        )
+        client = vault_client.client
+        mock_hvac.Client.assert_called_with(url="http://localhost:8180", session=None)
+        client.auth.aws.iam_login.assert_called_with(
+            access_key="user",
+            secret_key="pass",
+            role="role",
+            region="us-east-2",
+        )
+        client.is_authenticated.assert_called_with()
+        assert vault_client.kv_engine_version == 2
+
+    @mock.patch("airflow.providers.hashicorp._internal_client.vault_client.hvac")
     def test_azure(self, mock_hvac):
         mock_client = mock.MagicMock()
         mock_hvac.Client.return_value = mock_client

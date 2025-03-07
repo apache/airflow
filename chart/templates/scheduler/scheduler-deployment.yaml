@@ -211,6 +211,7 @@ spec:
                   {{- include "scheduler_liveness_check_command" . | indent 14 }}
                 {{- end }}
           startupProbe:
+            initialDelaySeconds: {{ .Values.scheduler.startupProbe.initialDelaySeconds }}
             timeoutSeconds: {{ .Values.scheduler.startupProbe.timeoutSeconds }}
             failureThreshold: {{ .Values.scheduler.startupProbe.failureThreshold }}
             periodSeconds: {{ .Values.scheduler.startupProbe.periodSeconds }}

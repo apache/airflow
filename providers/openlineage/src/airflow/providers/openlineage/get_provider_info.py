@@ -72,7 +72,7 @@ def get_provider_info():
         ],
         "config": {
             "openlineage": {
-                "description": "This section applies settings for OpenLineage integration.\nMore about configuration and it's precedence can be found at\nhttps://airflow.apache.org/docs/apache-airflow-providers-openlineage/stable/guides/user.html#transport-setup\n",
+                "description": "This section applies settings for OpenLineage integration.\nMore about configuration and it's precedence can be found in the `user's guide\n<https://airflow.apache.org/docs/apache-airflow-providers-openlineage/stable/guides/user.html#transport-setup>`_.\n",
                 "options": {
                     "disabled": {
                         "description": "Disable sending events without uninstalling the OpenLineage Provider by setting this to true.\n",
@@ -124,7 +124,7 @@ def get_provider_info():
                         "default": "",
                     },
                     "transport": {
-                        "description": "Pass OpenLineage Client transport configuration as JSON string. It should contain type of the\ntransport and additional options (different for each transport type). For more details see:\nhttps://openlineage.io/docs/client/python/#built-in-transport-types\n\nCurrently supported types are:\n\n  * HTTP\n  * Kafka\n  * Console\n  * File\n",
+                        "description": "Pass OpenLineage Client transport configuration as a JSON string, including the transport type\nand any additional options specific to that type, as described in `OpenLineage docs\n<https://openlineage.io/docs/client/python/#built-in-transport-types>`_.\n\nCurrently supported types are:\n\n  * HTTP\n  * Kafka\n  * Console\n  * File\n  * Composite\n  * Custom\n",
                         "type": "string",
                         "example": '{"type": "http", "url": "http://localhost:5000", "endpoint": "api/v1/lineage"}',
                         "default": "",
@@ -145,7 +145,7 @@ def get_provider_info():
                         "version_added": "1.8.0",
                     },
                     "execution_timeout": {
-                        "description": "Maximum amount of time (in seconds) that OpenLineage can spend executing metadata extraction.\n",
+                        "description": "Maximum amount of time (in seconds) that OpenLineage can spend executing metadata extraction.\nNote that other configurations, sometimes with higher priority, such as\n`[core] task_success_overtime\n<https://airflow.apache.org/docs/apache-airflow/stable/configurations-ref.html#task-success-overtime>`_,\nmay also affect how much time OpenLineage has for execution.\n",
                         "default": "10",
                         "example": None,
                         "type": "integer",
@@ -189,7 +189,6 @@ def get_provider_info():
             "attrs>=22.2",
             "openlineage-integration-common>=1.24.2",
             "openlineage-python>=1.24.2",
-            "uuid6>=2024.7.10",
         ],
-        "devel-dependencies": [],
+        "devel-dependencies": ["uuid6>=2024.7.10"],
     }

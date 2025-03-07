@@ -450,6 +450,10 @@ CONFIGS_CHANGES = [
         config=ConfigParameter("smtp", "smtp_password"),
         suggestion="Please use the SMTP connection (`smtp_default`).",
     ),
+    # database
+    ConfigChange(
+        config=ConfigParameter("database", "load_default_connections"),
+    ),
 ]
 
 

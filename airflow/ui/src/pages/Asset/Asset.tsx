@@ -24,9 +24,10 @@ import { useParams } from "react-router-dom";
 import { useAssetServiceGetAsset } from "openapi/queries";
 import { AssetEvents } from "src/components/Assets/AssetEvents";
 import { BreadcrumbStats } from "src/components/BreadcrumbStats";
-import { ProgressBar } from "src/components/ui";
+import { ProgressBar, Toaster } from "src/components/ui";
 
 import { AssetGraph } from "./AssetGraph";
+import { CreateAssetEvent } from "./CreateAssetEvent";
 import { Header } from "./Header";
 
 export const Asset = () => {
@@ -50,13 +51,15 @@ export const Asset = () => {
 
   return (
     <ReactFlowProvider>
+      <Toaster />
       <HStack justifyContent="space-between" mb={2}>
         <BreadcrumbStats links={links} />
+        <CreateAssetEvent asset={asset} />
       </HStack>
       <ProgressBar size="xs" visibility={Boolean(isLoading) ? "visible" : "hidden"} />
       <Box flex={1} minH={0}>
         <PanelGroup autoSaveId={assetId} direction="horizontal">
-          <Panel defaultSize={20} minSize={6}>
+          <Panel defaultSize={70} minSize={6}>
             <Box height="100%" position="relative" pr={2}>
               <AssetGraph asset={asset} />
             </Box>
@@ -64,7 +67,7 @@ export const Asset = () => {
           <PanelResizeHandle className="resize-handle">
             <Box bg="fg.subtle" cursor="col-resize" h="100%" transition="background 0.2s" w={0.5} />
           </PanelResizeHandle>
-          <Panel defaultSize={50} minSize={20}>
+          <Panel defaultSize={30} minSize={20}>
             <Header asset={asset} />
             <Box h="100%" overflow="auto" px={2}>
               <AssetEvents assetId={asset?.id} />

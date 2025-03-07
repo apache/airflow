@@ -227,7 +227,7 @@ dependencies. For example, to install Amazon provider you need to install ``amaz
 
 .. code:: bash
 
-   pip install -e "./task_sdk"
+   pip install -e "./task-sdk"
    pip install -e "./devel-common"
    pip install -e "./providers/amazon"
    pip install -e ".[amazon]"
@@ -284,7 +284,7 @@ You can run the following command in the venv that you have installed airflow in
 .. code:: bash
 
     pip install -e ".[google]"
-    pip install -e "./task_sdk"
+    pip install -e "./task-sdk"
     pip install -e "./devel-common"
     pip install -e "./providers/google"
 
@@ -294,7 +294,7 @@ dependency groups will be implemented in ``pip`` - April 2025) - it will not be 
 when installing airflow - currently with ``pip`` it is the only way to install development dependencies
 of the provider and is a bit convoluted.
 
-The second installs ``task_sdk`` project - where APIs for providers are kept.
+The second installs ``task-sdk`` project - where APIs for providers are kept.
 
 The third one installs google provider source code in development mode, so that modifications
 to the code are automatically reflected in your installed virtualenv.

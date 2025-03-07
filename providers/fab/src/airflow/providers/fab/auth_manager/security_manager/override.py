@@ -23,13 +23,13 @@ import itertools
 import logging
 import os
 import random
+import re
 import uuid
 from collections.abc import Collection, Iterable, Mapping, Sequence
 from typing import TYPE_CHECKING, Any, Callable
 
 import jwt
 import packaging.version
-import re2
 from flask import flash, g, has_request_context, session
 from flask_appbuilder import const
 from flask_appbuilder.const import (
@@ -973,12 +973,12 @@ class FabAirflowSecurityManagerOverride(AirflowSecurityManagerV2):
     @staticmethod
     def get_readable_dag_ids(user=None) -> set[str]:
         """Get the DAG IDs readable by authenticated user."""
-        return get_auth_manager().get_permitted_dag_ids(methods=["GET"], user=user)
+        return get_auth_manager().get_permitted_dag_ids(user=user)
 
     @staticmethod
     def get_editable_dag_ids(user=None) -> set[str]:
         """Get the DAG IDs editable by authenticated user."""
-        return get_auth_manager().get_permitted_dag_ids(methods=["PUT"], user=user)
+        return get_auth_manager().get_permitted_dag_ids(method="PUT", user=user)
 
     def can_access_some_dags(self, action: str, dag_id: str | None = None) -> bool:
         """Check if user has read or write access to some dags."""
@@ -2698,7 +2698,7 @@ class FabAirflowSecurityManagerOverride(AirflowSecurityManagerV2):
         """Check permission on builtin role."""
         perms = self.builtin_roles.get(role.name, [])
         for _resource_name, _action_name in perms:
-            if re2.match(_resource_name, resource_name) and re2.match(_action_name, action_name):
+            if re.match(_resource_name, resource_name) and re.match(_action_name, action_name):
                 return True
         return False
 
