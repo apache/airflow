@@ -19,10 +19,10 @@ from __future__ import annotations
 
 from fastapi import status
 
+from airflow.api_fastapi.auth.managers.simple.datamodels.login import LoginBody, LoginResponse
+from airflow.api_fastapi.auth.managers.simple.services.login import SimpleAuthManagerLogin
 from airflow.api_fastapi.common.router import AirflowRouter
 from airflow.api_fastapi.core_api.openapi.exceptions import create_openapi_http_exception_doc
-from airflow.auth.managers.simple.datamodels.login import LoginBody, LoginResponse
-from airflow.auth.managers.simple.services.login import SimpleAuthManagerLogin
 from airflow.configuration import conf
 
 login_router = AirflowRouter(tags=["SimpleAuthManagerLogin"])

@@ -31,8 +31,8 @@ from sqlalchemy.orm import Session, joinedload
 from starlette.middleware.wsgi import WSGIMiddleware
 
 from airflow import __version__ as airflow_version
-from airflow.auth.managers.base_auth_manager import BaseAuthManager
-from airflow.auth.managers.models.resource_details import (
+from airflow.api_fastapi.auth.managers.base_auth_manager import BaseAuthManager
+from airflow.api_fastapi.auth.managers.models.resource_details import (
     AccessView,
     ConfigurationDetails,
     ConnectionDetails,
@@ -41,7 +41,10 @@ from airflow.auth.managers.models.resource_details import (
     PoolDetails,
     VariableDetails,
 )
-from airflow.auth.managers.utils.fab import get_fab_action_from_method_map, get_method_from_fab_action_map
+from airflow.api_fastapi.auth.managers.utils.fab import (
+    get_fab_action_from_method_map,
+    get_method_from_fab_action_map,
+)
 from airflow.cli.cli_config import (
     DefaultHelpParser,
     GroupCommand,
@@ -90,7 +93,7 @@ from airflow.utils.session import NEW_SESSION, create_session, provide_session
 from airflow.utils.yaml import safe_load
 
 if TYPE_CHECKING:
-    from airflow.auth.managers.base_auth_manager import ResourceMethod
+    from airflow.api_fastapi.auth.managers.base_auth_manager import ResourceMethod
     from airflow.cli.cli_config import (
         CLICommand,
     )

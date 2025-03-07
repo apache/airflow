@@ -22,7 +22,7 @@ from unittest.mock import patch
 
 import pytest
 
-from airflow.auth.managers.simple.datamodels.login import LoginResponse
+from airflow.api_fastapi.auth.managers.simple.datamodels.login import LoginResponse
 
 TEST_USER_1 = "test1"
 TEST_USER_2 = "test2"
@@ -36,7 +36,7 @@ class TestLogin:
             TEST_USER_2,
         ],
     )
-    @patch("airflow.auth.managers.simple.routes.login.SimpleAuthManagerLogin")
+    @patch("airflow.api_fastapi.auth.managers.simple.routes.login.SimpleAuthManagerLogin")
     def test_create_token(self, mock_simple_auth_manager_login, test_client, auth_manager, test_user):
         mock_simple_auth_manager_login.create_token.return_value = LoginResponse(jwt_token="DUMMY_TOKEN")
 
@@ -62,7 +62,7 @@ class TestLogin:
             TEST_USER_2,
         ],
     )
-    @patch("airflow.auth.managers.simple.routes.login.SimpleAuthManagerLogin")
+    @patch("airflow.api_fastapi.auth.managers.simple.routes.login.SimpleAuthManagerLogin")
     def test_create_token_cli(self, mock_simple_auth_manager_login, test_client, auth_manager, test_user):
         mock_simple_auth_manager_login.create_token.return_value = LoginResponse(jwt_token="DUMMY_TOKEN")
 

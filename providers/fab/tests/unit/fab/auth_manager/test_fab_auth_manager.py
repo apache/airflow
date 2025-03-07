@@ -31,7 +31,11 @@ from airflow.providers.standard.operators.empty import EmptyOperator
 from unit.fab.auth_manager.api_endpoints.api_connexion_utils import create_user, delete_user
 
 try:
-    from airflow.auth.managers.models.resource_details import AccessView, DagAccessEntity, DagDetails
+    from airflow.api_fastapi.auth.managers.models.resource_details import (
+        AccessView,
+        DagAccessEntity,
+        DagDetails,
+    )
 except ImportError:
     pass
 
@@ -63,7 +67,7 @@ from airflow.providers.fab.www.security.permissions import (
 )
 
 if TYPE_CHECKING:
-    from airflow.auth.managers.base_auth_manager import ResourceMethod
+    from airflow.api_fastapi.auth.managers.base_auth_manager import ResourceMethod
 
 
 IS_AUTHORIZED_METHODS_SIMPLE = {

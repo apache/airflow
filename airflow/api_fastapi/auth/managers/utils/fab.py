@@ -28,7 +28,7 @@ from airflow.security.permissions import (
 )
 
 if TYPE_CHECKING:
-    from airflow.auth.managers.base_auth_manager import ResourceMethod
+    from airflow.api_fastapi.auth.managers.base_auth_manager import ResourceMethod
 
 # Convert methods to FAB action name
 _MAP_METHOD_NAME_TO_FAB_ACTION_NAME: dict[ResourceMethod, str] = {

@@ -23,8 +23,8 @@ from unittest.mock import patch
 import pytest
 from fastapi import HTTPException
 
-from airflow.auth.managers.simple.datamodels.login import LoginBody, LoginResponse
-from airflow.auth.managers.simple.services.login import SimpleAuthManagerLogin
+from airflow.api_fastapi.auth.managers.simple.datamodels.login import LoginBody, LoginResponse
+from airflow.api_fastapi.auth.managers.simple.services.login import SimpleAuthManagerLogin
 
 from tests_common.test_utils.config import conf_vars
 
@@ -43,7 +43,7 @@ class TestLogin:
             TEST_USER_2,
         ],
     )
-    @patch("airflow.auth.managers.simple.services.login.get_auth_manager")
+    @patch("airflow.api_fastapi.auth.managers.simple.services.login.get_auth_manager")
     def test_create_token(self, get_auth_manager, auth_manager, test_user):
         get_auth_manager.return_value = auth_manager
 

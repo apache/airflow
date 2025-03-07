@@ -133,19 +133,19 @@ def _delete_dag_model(dag_model, session, security_manager):
 
 
 def _can_read_dag(dag_id: str, user) -> bool:
-    from airflow.auth.managers.models.resource_details import DagDetails
+    from airflow.api_fastapi.auth.managers.models.resource_details import DagDetails
 
     return get_auth_manager().is_authorized_dag(method="GET", details=DagDetails(id=dag_id), user=user)
 
 
 def _can_edit_dag(dag_id: str, user) -> bool:
-    from airflow.auth.managers.models.resource_details import DagDetails
+    from airflow.api_fastapi.auth.managers.models.resource_details import DagDetails
 
     return get_auth_manager().is_authorized_dag(method="PUT", details=DagDetails(id=dag_id), user=user)
 
 
 def _can_delete_dag(dag_id: str, user) -> bool:
-    from airflow.auth.managers.models.resource_details import DagDetails
+    from airflow.api_fastapi.auth.managers.models.resource_details import DagDetails
 
     return get_auth_manager().is_authorized_dag(method="DELETE", details=DagDetails(id=dag_id), user=user)
 
@@ -243,7 +243,7 @@ def sample_dags(security_manager):
 @pytest.fixture(scope="module")
 def has_dag_perm(security_manager):
     def _has_dag_perm(perm, dag_id, user):
-        from airflow.auth.managers.models.resource_details import DagDetails
+        from airflow.api_fastapi.auth.managers.models.resource_details import DagDetails
 
         return get_auth_manager().is_authorized_dag(method=perm, details=DagDetails(id=dag_id), user=user)
 

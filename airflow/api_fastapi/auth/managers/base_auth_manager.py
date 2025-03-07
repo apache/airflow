@@ -24,8 +24,8 @@ from typing import TYPE_CHECKING, Any, Generic, TypeVar
 from jwt import InvalidTokenError
 from sqlalchemy import select
 
-from airflow.auth.managers.models.base_user import BaseUser
-from airflow.auth.managers.models.resource_details import DagDetails
+from airflow.api_fastapi.auth.managers.models.base_user import BaseUser
+from airflow.api_fastapi.auth.managers.models.resource_details import DagDetails
 from airflow.configuration import conf
 from airflow.models import DagModel
 from airflow.typing_compat import Literal
@@ -39,13 +39,13 @@ if TYPE_CHECKING:
     from fastapi import FastAPI
     from sqlalchemy.orm import Session
 
-    from airflow.auth.managers.models.batch_apis import (
+    from airflow.api_fastapi.auth.managers.models.batch_apis import (
         IsAuthorizedConnectionRequest,
         IsAuthorizedDagRequest,
         IsAuthorizedPoolRequest,
         IsAuthorizedVariableRequest,
     )
-    from airflow.auth.managers.models.resource_details import (
+    from airflow.api_fastapi.auth.managers.models.resource_details import (
         AccessView,
         AssetDetails,
         ConfigurationDetails,
