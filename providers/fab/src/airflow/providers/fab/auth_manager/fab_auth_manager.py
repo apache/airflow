@@ -232,10 +232,10 @@ class FabAuthManager(BaseAuthManager[User]):
 
     def deserialize_user(self, token: dict[str, Any]) -> User:
         with create_session() as session:
-            return session.get(User, token["id"])
+            return session.get(User, token["sub"])
 
-    def serialize_user(self, user: User) -> dict[str, Any]:
-        return {"id": user.id}
+    def serialize_user(self, user: User) -> tuple[str, dict[str, Any]]:
+        return user.id, {}
 
     def is_logged_in(self) -> bool:
         """Return whether the user is logged in."""

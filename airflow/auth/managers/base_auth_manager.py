@@ -28,8 +28,8 @@ from airflow.auth.managers.models.base_user import BaseUser
 from airflow.auth.managers.models.resource_details import DagDetails
 from airflow.configuration import conf
 from airflow.models import DagModel
+from airflow.security.tokens import JWTGenerator, JWTValidator, get_signing_key
 from airflow.typing_compat import Literal
-from airflow.utils.jwt_signer import JWTSigner, get_signing_key
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.session import NEW_SESSION, provide_session
 
@@ -83,13 +83,13 @@ class BaseAuthManager(Generic[T], LoggingMixin):
         """Create a user object from dict."""
 
     @abstractmethod
-    def serialize_user(self, user: T) -> dict[str, Any]:
-        """Create a dict from a user object."""
+    def serialize_user(self, user: T) -> tuple[str, dict[str, Any]]:
+        """Create a subject and extra claims dict from a user object."""
 
     def get_user_from_token(self, token: str) -> BaseUser:
         """Verify the JWT token is valid and create a user object from it if valid."""
         try:
-            payload: dict[str, Any] = self._get_token_signer().verify_token(token)
+            payload: dict[str, Any] = self._get_token_validator().validated_claims(token)
             return self.deserialize_user(payload)
         except InvalidTokenError as e:
             log.error("JWT token is not valid")
@@ -101,7 +101,21 @@ class BaseAuthManager(Generic[T], LoggingMixin):
         """Return the JWT token from a user object."""
         return self._get_token_signer(
             expiration_time_in_seconds=expiration_time_in_seconds
-        ).generate_signed_token(self.serialize_user(user))
+        ).generate(*self.serialize_user(user))
+
+    def get_user_id(self) -> str | None:
+        """Return the user ID associated to the user in session."""
+        user = self.get_user()
+        if not user:
+            self.log.error("Calling 'get_user_id()' but the user is not signed in.")
+            raise AirflowException("The user must be signed in.")
+        if user_id := user.get_id():
+            return str(user_id)
+        return None
+
+    @abstractmethod
+    def is_logged_in(self) -> bool:
+        """Return whether the user is logged in."""
 
     @abstractmethod
     def get_url_login(self, **kwargs) -> str:
@@ -388,7 +402,7 @@ class BaseAuthManager(Generic[T], LoggingMixin):
     @staticmethod
     def _get_token_signer(
         expiration_time_in_seconds: int = conf.getint("api", "auth_jwt_expiration_time"),
-    ) -> JWTSigner:
+    ) -> JWTGenerator:
         """
         Return the signer used to sign JWT token.
 
@@ -396,8 +410,22 @@ class BaseAuthManager(Generic[T], LoggingMixin):
 
         :param expiration_time_in_seconds: expiration time in seconds of the token
         """
-        return JWTSigner(
-            secret_key=get_signing_key("api", "auth_jwt_secret"),
-            expiration_time_in_seconds=expiration_time_in_seconds,
+        return JWTGenerator(
+            secret_key=get_signing_key("api_auth", "jwt_secret"),
+            valid_for=expiration_time_in_seconds
+            audience="front-apis",
+        )
+
+    @staticmethod
+    def _get_token_validator() -> JWTValidator:
+        """
+        Return the signer used to sign JWT token.
+
+        :meta private:
+        """
+        return JWTValidator(
+            # issuer=conf.get("api_auth", "jwt_iussuer"),
+            secret_key=get_signing_key("api_auth", "jwt_secret"),
+            leeway=conf.getint("api", "auth_jwt_expiration_time"),
             audience="front-apis",
         )

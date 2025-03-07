@@ -29,6 +29,8 @@ from airflow.auth.managers.models.resource_details import (
     PoolDetails,
     VariableDetails,
 )
+from airflow.exceptions import AirflowException
+from airflow.security.tokens import JWTGenerator, JWTValidator
 
 if TYPE_CHECKING:
     from airflow.auth.managers.base_auth_manager import ResourceMethod
@@ -55,7 +57,7 @@ class EmptyAuthManager(BaseAuthManager[BaseAuthManagerUserTest]):
     def deserialize_user(self, token: dict[str, Any]) -> BaseAuthManagerUserTest:
         raise NotImplementedError()
 
-    def serialize_user(self, user: BaseAuthManagerUserTest) -> dict[str, Any]:
+    def serialize_user(self, user: BaseAuthManagerUserTest) -> tuple[str, dict[str, Any]]:
         raise NotImplementedError()
 
     def is_authorized_configuration(
@@ -139,38 +141,38 @@ class TestBaseAuthManager:
     def test_get_fastapi_app_return_none(self, auth_manager):
         assert auth_manager.get_fastapi_app() is None
 
-    @patch("airflow.auth.managers.base_auth_manager.JWTSigner")
+    @patch("airflow.auth.managers.base_auth_manager.JWTValidator", autospec=True)
     @patch.object(EmptyAuthManager, "deserialize_user")
-    def test_get_user_from_token(self, mock_deserialize_user, mock_jwt_signer, auth_manager):
+    def test_get_user_from_token(self, mock_deserialize_user, mock_jwt_validator, auth_manager):
         token = "token"
         payload = {}
         user = BaseAuthManagerUserTest(name="test")
-        signer = Mock()
-        signer.verify_token.return_value = payload
-        mock_jwt_signer.return_value = signer
+        signer = Mock(spec=JWTValidator)
+        signer.validated_claims.return_value = payload
+        mock_jwt_validator.return_value = signer
         mock_deserialize_user.return_value = user
 
         result = auth_manager.get_user_from_token(token)
 
         mock_deserialize_user.assert_called_once_with(payload)
-        signer.verify_token.assert_called_once_with(token)
+        signer.validated_claims.assert_called_once_with(token)
         assert result == user
 
-    @patch("airflow.auth.managers.base_auth_manager.JWTSigner")
+    @patch("airflow.auth.managers.base_auth_manager.JWTGenerator", autospec=True)
     @patch.object(EmptyAuthManager, "serialize_user")
     def test_get_jwt_token(self, mock_serialize_user, mock_jwt_signer, auth_manager):
         token = "token"
         serialized_user = "serialized_user"
-        signer = Mock()
-        signer.generate_signed_token.return_value = token
+        signer = Mock(spec=JWTGenerator)
+        signer.generate.return_value = token
         mock_jwt_signer.return_value = signer
-        mock_serialize_user.return_value = serialized_user
+        mock_serialize_user.return_value = ("subject", serialized_user)
         user = BaseAuthManagerUserTest(name="test")
 
         result = auth_manager.get_jwt_token(user)
 
         mock_serialize_user.assert_called_once_with(user)
-        signer.generate_signed_token.assert_called_once_with(serialized_user)
+        signer.generate.assert_called_once_with("subject", serialized_user)
         assert result == token
 
     @pytest.mark.parametrize(
