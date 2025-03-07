@@ -175,7 +175,7 @@ def requires_access_asset(method: ResourceMethod) -> Callable:
     return inner
 
 
-def requires_access_view(access_view: AccessView) -> Callable:
+def requires_access_view(access_view: AccessView) -> Callable[[Request, BaseUser | None], None]:
     def inner(
         request: Request,
         user: Annotated[BaseUser | None, Depends(get_user)] = None,
