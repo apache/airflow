@@ -83,7 +83,7 @@ def requires_access_dag(method: ResourceMethod, access_entity: DagAccessEntity |
         request: Request,
         user: Annotated[BaseUser, Depends(get_user)],
     ) -> None:
-        dag_id = request.path_params.get("dag_id")
+        dag_id = request.path_params.get("dag_id") or request.query_params.get("dag_id")
 
         _requires_access(
             is_authorized_callback=lambda: get_auth_manager().is_authorized_dag(
