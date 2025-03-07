@@ -728,13 +728,12 @@ class TestShortCircuitOperator(BasePythonTest):
         if AIRFLOW_V_3_0_PLUS:
             from airflow.exceptions import DownstreamTasksSkipped
 
-            with pytest.raises(DownstreamTasksSkipped) as exc_info:
-                short_circuit.run(start_date=self.default_date, end_date=self.default_date)
-                # If we manage to run short_circuit without raising an exception, without
-                # raising an exception, it means that it returned None and no tasks were skipped.
-                raise DownstreamTasksSkipped(tasks=[])
-
-            assert set(exc_info.value.tasks) == set(expected_skipped_tasks)
+            if expected_skipped_tasks:
+                with pytest.raises(DownstreamTasksSkipped) as exc_info:
+                    short_circuit.run(start_date=self.default_date, end_date=self.default_date)
+                assert set(exc_info.value.tasks) == set(expected_skipped_tasks)
+            else:
+                assert short_circuit.run(start_date=self.default_date, end_date=self.default_date) is None
 
         else:
             short_circuit.run(start_date=self.default_date, end_date=self.default_date)

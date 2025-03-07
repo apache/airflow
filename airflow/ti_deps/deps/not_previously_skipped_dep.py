@@ -34,7 +34,7 @@ class NotPreviouslySkippedDep(BaseTIDep):
     IS_TASK_DEP = True
 
     def _get_dep_statuses(self, ti, session, dep_context):
-        from airflow.models.skipmixin import (
+        from airflow.providers.standard.utils.skipmixin import (
             XCOM_SKIPMIXIN_FOLLOWED,
             XCOM_SKIPMIXIN_KEY,
             XCOM_SKIPMIXIN_SKIPPED,

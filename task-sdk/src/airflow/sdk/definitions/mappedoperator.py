@@ -203,7 +203,7 @@ class OperatorPartial:
         return self._expand(ListOfDictsExpandInput(kwargs), strict=strict)
 
     def _expand(self, expand_input: ExpandInput, *, strict: bool) -> MappedOperator:
-        from airflow.models import SkipMixin
+        from airflow.models.skipmixin import SkipMixin
         from airflow.providers.standard.operators.empty import EmptyOperator
         from airflow.sensors.base import BaseSensorOperator
 
