@@ -30,7 +30,6 @@
 
 # Security/Permissions
 /airflow/security/permissions.py @vincbeck
-/airflow/www/security.py @vincbeck
 
 # Calendar/Timetables
 /airflow/timetables/ @uranusjr
