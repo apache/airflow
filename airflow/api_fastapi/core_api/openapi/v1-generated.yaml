@@ -2832,6 +2832,8 @@ paths:
       - Config
       summary: Get Config
       operationId: get_config
+      security:
+      - OAuth2PasswordBearer: []
       parameters:
       - name: section
         in: query
@@ -2912,6 +2914,8 @@ paths:
       - Config
       summary: Get Config Value
       operationId: get_config_value
+      security:
+      - OAuth2PasswordBearer: []
       parameters:
       - name: section
         in: path

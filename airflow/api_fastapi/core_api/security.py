@@ -27,6 +27,7 @@ from airflow.api_fastapi.app import get_auth_manager
 from airflow.auth.managers.models.base_user import BaseUser
 from airflow.auth.managers.models.resource_details import (
     AssetDetails,
+    ConfigurationDetails,
     ConnectionDetails,
     DagAccessEntity,
     DagDetails,
@@ -117,6 +118,24 @@ def requires_access_connection(method: ResourceMethod) -> Callable[[Request, Bas
         _requires_access(
             is_authorized_callback=lambda: get_auth_manager().is_authorized_connection(
                 method=method, details=ConnectionDetails(conn_id=connection_id), user=user
+            )
+        )
+
+    return inner
+
+
+def requires_access_configuration(method: ResourceMethod) -> Callable[[Request, BaseUser | None], None]:
+    def inner(
+        request: Request,
+        user: Annotated[BaseUser | None, Depends(get_user)] = None,
+    ) -> None:
+        section: str | None = request.query_params.get("section") or request.path_params.get("section")
+
+        _requires_access(
+            is_authorized_callback=lambda: get_auth_manager().is_authorized_configuration(
+                method=method,
+                details=ConfigurationDetails(section=section),
+                user=user,
             )
         )
 
