@@ -22,6 +22,7 @@ import type { DAGResponse, DAGWithLatestDagRunsResponse } from "openapi/requests
 import { Menu } from "src/components/ui";
 
 import ActionButton from "../ui/ActionButton";
+import ParseDag from "./ParseDag";
 import RunBackfillButton from "./RunBackfillButton";
 
 type Props = {
@@ -34,6 +35,9 @@ const MenuButton: React.FC<Props> = ({ dag }) => (
       <ActionButton actionName="" icon={<MdMoreHoriz />} text="" />
     </Menu.Trigger>
     <Menu.Content>
+      <Menu.Item asChild value="Reparse Dag">
+        <ParseDag dagId={dag.dag_id} fileToken={dag.file_token} />
+      </Menu.Item>
       <Menu.Item asChild value="Run Backfill">
         <RunBackfillButton dag={dag} />
       </Menu.Item>

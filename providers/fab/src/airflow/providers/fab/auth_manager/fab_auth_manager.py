@@ -18,7 +18,6 @@
 from __future__ import annotations
 
 import argparse
-from collections.abc import Container
 from functools import cached_property
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
@@ -27,7 +26,6 @@ import packaging.version
 from connexion import FlaskApi
 from fastapi import FastAPI
 from flask import Blueprint, g, url_for
-from flask_appbuilder.menu import MenuItem
 from packaging.version import Version
 from sqlalchemy import select
 from sqlalchemy.orm import Session, joinedload
@@ -59,12 +57,12 @@ from airflow.providers.fab.auth_manager.cli_commands.definition import (
     USERS_COMMANDS,
 )
 from airflow.providers.fab.auth_manager.models import Permission, Role, User
+from airflow.providers.fab.auth_manager.models.anonymous_user import AnonymousUser
 from airflow.providers.fab.www.app import create_app
 from airflow.providers.fab.www.constants import SWAGGER_BUNDLE, SWAGGER_ENABLED
 from airflow.providers.fab.www.extensions.init_views import _CustomErrorRequestBodyValidator, _LazyResolver
 from airflow.providers.fab.www.security import permissions
 from airflow.providers.fab.www.security.permissions import (
-    ACTION_CAN_ACCESS_MENU,
     RESOURCE_AUDIT_LOG,
     RESOURCE_CLUSTER_ACTIVITY,
     RESOURCE_CONFIG,
@@ -146,12 +144,6 @@ class FabAuthManager(BaseAuthManager[User]):
 
     appbuilder: AirflowAppBuilder | None = None
 
-    is_in_fab: bool = False
-    """
-    Whether the instance is run in FAB or Fastapi.
-    Can be deleted once the Airflow 2 legacy UI is removed.
-    """
-
     def init(self) -> None:
         """Run operations when Airflow is initializing."""
         if self.appbuilder:
@@ -185,6 +177,9 @@ class FabAuthManager(BaseAuthManager[User]):
         return commands
 
     def get_fastapi_app(self) -> FastAPI | None:
+        """Get the FastAPI app."""
+        from airflow.providers.fab.auth_manager.api_fastapi.routes.login import login_router
+
         flask_app = create_app(enable_plugins=False)
 
         app = FastAPI(
@@ -196,6 +191,10 @@ class FabAuthManager(BaseAuthManager[User]):
                 "manager."
             ),
         )
+
+        # Add the login router to the FastAPI app
+        app.include_router(login_router)
+
         app.mount("/", WSGIMiddleware(flask_app))
 
         return app
@@ -207,20 +206,12 @@ class FabAuthManager(BaseAuthManager[User]):
         return FlaskApi(
             specification=specification,
             resolver=_LazyResolver(),
-            # TODO: change to "/fab/v1" when legacy UI is gone
-            base_path="/auth/fab/v1",
+            base_path="/fab/v1",
             options={"swagger_ui": SWAGGER_ENABLED, "swagger_path": SWAGGER_BUNDLE.__fspath__()},
             strict_validation=True,
             validate_responses=True,
             validator_map={"body": _CustomErrorRequestBodyValidator},
         ).blueprint
-
-    def get_user_display_name(self) -> str:
-        """Return the user's display name associated to the user in session."""
-        user = self.get_user()
-        first_name = user.first_name.strip() if isinstance(user.first_name, str) else ""
-        last_name = user.last_name.strip() if isinstance(user.last_name, str) else ""
-        return f"{first_name} {last_name}".strip()
 
     def get_user(self) -> User:
         """
@@ -299,7 +290,7 @@ class FabAuthManager(BaseAuthManager[User]):
                 if no specific DAG is targeted, just check the sub entity.
 
         :param method: The method to authorize.
-        :param user: The user.
+        :param user: The user performing the action.
         :param access_entity: The dag access entity.
         :param details: The dag details.
         """
@@ -347,7 +338,9 @@ class FabAuthManager(BaseAuthManager[User]):
             method=method, resource_type=_MAP_ACCESS_VIEW_TO_FAB_RESOURCE_TYPE[access_view], user=user
         )
 
-    def is_authorized_custom_view(self, *, method: ResourceMethod | str, resource_name: str, user: User):
+    def is_authorized_custom_view(
+        self, *, method: ResourceMethod | str, resource_name: str, user: User
+    ) -> bool:
         fab_action_name = get_fab_action_from_method_map().get(method, method)
         return (fab_action_name, resource_name) in self._get_user_permissions(user)
 
@@ -356,30 +349,24 @@ class FabAuthManager(BaseAuthManager[User]):
         self,
         *,
         user: User,
-        methods: Container[ResourceMethod] | None = None,
+        method: ResourceMethod = "GET",
         session: Session = NEW_SESSION,
     ) -> set[str]:
-        if not methods:
-            methods = ["PUT", "GET"]
-
-        if not self.is_logged_in():
-            roles = user.roles
-        else:
-            if ("GET" in methods and self.is_authorized_dag(method="GET", user=user)) or (
-                "PUT" in methods and self.is_authorized_dag(method="PUT", user=user)
-            ):
-                # If user is authorized to read/edit all DAGs, return all DAGs
-                return {dag.dag_id for dag in session.execute(select(DagModel.dag_id))}
-            user_query = session.scalar(
-                select(User)
-                .options(
-                    joinedload(User.roles)
-                    .subqueryload(Role.permissions)
-                    .options(joinedload(Permission.action), joinedload(Permission.resource))
-                )
-                .where(User.id == user.id)
+        if self._is_authorized(method=method, resource_type=RESOURCE_DAG, user=user):
+            # If user is authorized to access all DAGs, return all DAGs
+            return {dag.dag_id for dag in session.execute(select(DagModel.dag_id))}
+        if isinstance(user, AnonymousUser):
+            return set()
+        user_query = session.scalar(
+            select(User)
+            .options(
+                joinedload(User.roles)
+                .subqueryload(Role.permissions)
+                .options(joinedload(Permission.action), joinedload(Permission.resource))
             )
-            roles = user_query.roles
+            .where(User.id == user.id)
+        )
+        roles = user_query.roles
 
         map_fab_action_name_to_method_name = get_method_from_fab_action_map()
         resources = set()
@@ -388,7 +375,7 @@ class FabAuthManager(BaseAuthManager[User]):
                 action = permission.action.name
                 if (
                     action in map_fab_action_name_to_method_name
-                    and map_fab_action_name_to_method_name[action] in methods
+                    and map_fab_action_name_to_method_name[action] == method
                 ):
                     resource = permission.resource.name
                     if resource == permissions.RESOURCE_DAG:
@@ -398,32 +385,6 @@ class FabAuthManager(BaseAuthManager[User]):
                     else:
                         resources.add(resource)
         return set(session.scalars(select(DagModel.dag_id).where(DagModel.dag_id.in_(resources))))
-
-    def filter_permitted_menu_items(self, menu_items: list[MenuItem]) -> list[MenuItem]:
-        """
-        Filter menu items based on user permissions.
-
-        :param menu_items: list of all menu items
-        """
-        items = filter(
-            lambda item: self.security_manager.has_access(ACTION_CAN_ACCESS_MENU, item.name), menu_items
-        )
-        accessible_items = []
-        for menu_item in items:
-            menu_item_copy = MenuItem(
-                **{
-                    **menu_item.__dict__,
-                    "childs": [],
-                }
-            )
-            if menu_item.childs:
-                accessible_children = []
-                for child in menu_item.childs:
-                    if self.security_manager.has_access(ACTION_CAN_ACCESS_MENU, child.name):
-                        accessible_children.append(child)
-                menu_item_copy.childs = accessible_children
-            accessible_items.append(menu_item_copy)
-        return accessible_items
 
     @cached_property
     def security_manager(self) -> FabAirflowSecurityManagerOverride:
@@ -447,29 +408,13 @@ class FabAuthManager(BaseAuthManager[User]):
 
     def get_url_login(self, **kwargs) -> str:
         """Return the login page url."""
-        if self.is_in_fab:
-            if not self.security_manager.auth_view:
-                raise AirflowException("`auth_view` not defined in the security manager.")
-            if next_url := kwargs.get("next_url"):
-                return url_for(f"{self.security_manager.auth_view.endpoint}.login", next=next_url)
-            else:
-                return url_for(f"{self.security_manager.auth_view.endpoint}.login")
-        else:
-            return f"{self.apiserver_endpoint}/auth/login"
+        return f"{self.apiserver_endpoint}/auth/login"
 
     def get_url_logout(self):
         """Return the logout page url."""
         if not self.security_manager.auth_view:
             raise AirflowException("`auth_view` not defined in the security manager.")
         return url_for(f"{self.security_manager.auth_view.endpoint}.logout")
-
-    def get_url_user_profile(self) -> str | None:
-        """Return the url to a page displaying info about the current user."""
-        if not self.security_manager.user_view or (
-            self.appbuilder and self.appbuilder.get_app.config.get("AUTH_ROLE_PUBLIC", None)
-        ):
-            return None
-        return url_for(f"{self.security_manager.user_view.endpoint}.userinfo")
 
     def register_views(self) -> None:
         self.security_manager.register_views()
@@ -486,7 +431,7 @@ class FabAuthManager(BaseAuthManager[User]):
 
         :param method: the method to perform
         :param resource_type: the type of resource the user attempts to perform the action on
-        :param user: the user to perform the action on
+        :param user: the user to performing the action
 
         :meta private:
         """
@@ -506,7 +451,7 @@ class FabAuthManager(BaseAuthManager[User]):
 
         :param method: the method to perform
         :param details: details about the DAG
-        :param user: the user to perform the action on
+        :param user: the user to performing the action
 
         :meta private:
         """
@@ -532,7 +477,7 @@ class FabAuthManager(BaseAuthManager[User]):
 
         :param method: the method to perform
         :param details: details about the DAG
-        :param user: the user to perform the action on
+        :param user: the user to performing the action
 
         :meta private:
         """

@@ -27,7 +27,7 @@ def get_provider_info():
         "name": "Sendgrid",
         "description": "`Sendgrid <https://sendgrid.com/>`__\n",
         "state": "ready",
-        "source-date-epoch": 1740734187,
+        "source-date-epoch": 1741121937,
         "versions": [
             "4.0.0",
             "3.6.0",
@@ -50,4 +50,5 @@ def get_provider_info():
             "1.0.0",
         ],
         "dependencies": ["apache-airflow>=2.9.0", "sendgrid>=6.0.0"],
+        "devel-dependencies": [],
     }

@@ -153,29 +153,25 @@ def assert_outputs_are_printed(expected_outputs: dict[str, str], stderr: str):
             pytest.param(
                 ("airflow/api/file.py",),
                 {
-                    "selected-providers-list-as-string": "amazon common.compat fab",
+                    "selected-providers-list-as-string": "",
                     "all-python-versions": "['3.9']",
                     "all-python-versions-list-as-string": "3.9",
                     "python-versions": "['3.9']",
                     "python-versions-list-as-string": "3.9",
                     "ci-image-build": "true",
-                    "prod-image-build": "false",
-                    "needs-helm-tests": "false",
+                    "prod-image-build": "true",
+                    "needs-helm-tests": "true",
                     "run-tests": "true",
-                    "run-amazon-tests": "true",
                     "docs-build": "true",
-                    "skip-pre-commits": "check-provider-yaml-valid,identity,lint-helm-chart,mypy-airflow,mypy-dev,"
-                    "mypy-docs,mypy-providers,mypy-task-sdk,ts-compile-format-lint-ui",
+                    "skip-pre-commits": "identity,mypy-airflow,mypy-dev,mypy-docs,mypy-providers,mypy-task-sdk",
                     "upgrade-to-newer-dependencies": "false",
-                    "core-test-types-list-as-string": "API Always",
-                    "providers-test-types-list-as-string": "Providers[amazon] Providers[common.compat,fab]",
-                    "individual-providers-test-types-list-as-string": "Providers[amazon] Providers[common.compat] Providers[fab]",
-                    "testable-core-integrations": "['celery', 'kerberos']",
-                    "testable-providers-integrations": "['cassandra', 'drill', 'kafka', 'mongo', 'pinot', 'qdrant', 'redis', 'trino', 'ydb']",
+                    "core-test-types-list-as-string": ALL_CI_SELECTIVE_TEST_TYPES,
+                    "providers-test-types-list-as-string": ALL_PROVIDERS_SELECTIVE_TEST_TYPES,
+                    "individual-providers-test-types-list-as-string": LIST_OF_ALL_PROVIDER_TESTS,
                     "needs-mypy": "true",
-                    "mypy-checks": "['mypy-airflow']",
+                    "mypy-checks": "['mypy-airflow', 'mypy-providers', 'mypy-docs', 'mypy-dev', 'mypy-task-sdk']",
                 },
-                id="Only API tests and DOCS and common.compat, FAB providers should run",
+                id="All tests should be run when API file changed",
             )
         ),
         (
@@ -187,21 +183,20 @@ def assert_outputs_are_printed(expected_outputs: dict[str, str], stderr: str):
                     "python-versions": "['3.9']",
                     "python-versions-list-as-string": "3.9",
                     "ci-image-build": "true",
-                    "prod-image-build": "false",
-                    "needs-helm-tests": "false",
+                    "prod-image-build": "true",
+                    "needs-helm-tests": "true",
                     "run-tests": "true",
-                    "run-amazon-tests": "false",
+                    "run-amazon-tests": "true",
                     "docs-build": "true",
-                    "skip-pre-commits": "check-provider-yaml-valid,identity,lint-helm-chart,mypy-airflow,mypy-dev,"
-                    "mypy-docs,mypy-providers,mypy-task-sdk,ts-compile-format-lint-ui",
+                    "skip-pre-commits": "identity,mypy-airflow,mypy-dev,mypy-docs,mypy-providers,mypy-task-sdk",
                     "upgrade-to-newer-dependencies": "false",
-                    "core-test-types-list-as-string": "API Always",
-                    "providers-test-types-list-as-string": "",
-                    "individual-providers-test-types-list-as-string": "",
+                    "core-test-types-list-as-string": ALL_CI_SELECTIVE_TEST_TYPES,
+                    "providers-test-types-list-as-string": ALL_PROVIDERS_SELECTIVE_TEST_TYPES,
+                    "individual-providers-test-types-list-as-string": LIST_OF_ALL_PROVIDER_TESTS,
                     "needs-mypy": "true",
-                    "mypy-checks": "['mypy-airflow']",
+                    "mypy-checks": "['mypy-airflow', 'mypy-providers', 'mypy-docs', 'mypy-dev', 'mypy-task-sdk']",
                 },
-                id="Only API tests and DOCS should run (no provider tests) when only ui api changed",
+                id="All tests should be run when fastapi files change",
             )
         ),
         (
@@ -213,21 +208,20 @@ def assert_outputs_are_printed(expected_outputs: dict[str, str], stderr: str):
                     "python-versions": "['3.9']",
                     "python-versions-list-as-string": "3.9",
                     "ci-image-build": "true",
-                    "prod-image-build": "false",
-                    "needs-helm-tests": "false",
+                    "prod-image-build": "true",
+                    "needs-helm-tests": "true",
                     "run-tests": "true",
-                    "run-amazon-tests": "false",
-                    "docs-build": "false",
-                    "skip-pre-commits": "check-provider-yaml-valid,identity,lint-helm-chart,mypy-airflow,mypy-dev,"
-                    "mypy-docs,mypy-providers,mypy-task-sdk,ts-compile-format-lint-ui",
+                    "run-amazon-tests": "true",
+                    "docs-build": "true",
+                    "skip-pre-commits": "identity,mypy-airflow,mypy-dev,mypy-docs,mypy-providers,mypy-task-sdk",
                     "upgrade-to-newer-dependencies": "false",
-                    "core-test-types-list-as-string": "API Always",
-                    "providers-test-types-list-as-string": "",
-                    "individual-providers-test-types-list-as-string": "",
+                    "core-test-types-list-as-string": ALL_CI_SELECTIVE_TEST_TYPES,
+                    "providers-test-types-list-as-string": ALL_PROVIDERS_SELECTIVE_TEST_TYPES,
+                    "individual-providers-test-types-list-as-string": LIST_OF_ALL_PROVIDER_TESTS,
                     "needs-mypy": "true",
-                    "mypy-checks": "['mypy-airflow']",
+                    "mypy-checks": "['mypy-airflow', 'mypy-providers', 'mypy-docs', 'mypy-dev', 'mypy-task-sdk']",
                 },
-                id="Only API tests should run (no provider tests) and no DOCs build when only test API files changed",
+                id="All tests should run when API test files change",
             )
         ),
         (
@@ -318,31 +312,26 @@ def assert_outputs_are_printed(expected_outputs: dict[str, str], stderr: str):
                     "providers/postgres/tests/unit/postgres/file.py",
                 ),
                 {
-                    "selected-providers-list-as-string": "amazon common.compat common.sql fab google openlineage "
-                    "pgvector postgres",
+                    "selected-providers-list-as-string": "",
                     "all-python-versions": "['3.9']",
                     "all-python-versions-list-as-string": "3.9",
                     "python-versions": "['3.9']",
                     "python-versions-list-as-string": "3.9",
                     "ci-image-build": "true",
-                    "prod-image-build": "false",
-                    "needs-helm-tests": "false",
+                    "prod-image-build": "true",
+                    "needs-helm-tests": "true",
                     "run-tests": "true",
                     "run-amazon-tests": "true",
                     "docs-build": "true",
-                    "skip-pre-commits": "identity,lint-helm-chart,mypy-airflow,mypy-dev,mypy-docs,mypy-providers,mypy-task-sdk,"
-                    "ts-compile-format-lint-ui",
+                    "skip-pre-commits": "identity,mypy-airflow,mypy-dev,mypy-docs,mypy-providers,mypy-task-sdk",
                     "upgrade-to-newer-dependencies": "false",
-                    "core-test-types-list-as-string": "API Always",
-                    "providers-test-types-list-as-string": "Providers[amazon] "
-                    "Providers[common.compat,common.sql,fab,openlineage,pgvector,postgres] Providers[google]",
-                    "individual-providers-test-types-list-as-string": "Providers[amazon] Providers[common.compat] Providers[common.sql] "
-                    "Providers[fab] Providers[google] Providers[openlineage] Providers[pgvector] "
-                    "Providers[postgres]",
+                    "core-test-types-list-as-string": ALL_CI_SELECTIVE_TEST_TYPES,
+                    "providers-test-types-list-as-string": ALL_PROVIDERS_SELECTIVE_TEST_TYPES,
+                    "individual-providers-test-types-list-as-string": LIST_OF_ALL_PROVIDER_TESTS,
                     "needs-mypy": "true",
-                    "mypy-checks": "['mypy-airflow', 'mypy-providers']",
+                    "mypy-checks": "['mypy-airflow', 'mypy-providers', 'mypy-docs', 'mypy-dev', 'mypy-task-sdk']",
                 },
-                id="API and providers tests and docs should run",
+                id="All tests and docs should run on API change",
             )
         ),
         (
@@ -503,7 +492,7 @@ def assert_outputs_are_printed(expected_outputs: dict[str, str], stderr: str):
         ),
         (
             pytest.param(
-                ("task_sdk/src/airflow/sdk/random.py",),
+                ("task-sdk/src/airflow/sdk/random.py",),
                 {
                     "all-python-versions": "['3.9']",
                     "all-python-versions-list-as-string": "3.9",
@@ -722,7 +711,7 @@ def assert_outputs_are_printed(expected_outputs: dict[str, str], stderr: str):
             ("providers/amazon/src/airflow/providers/amazon/__init__.py",),
             {
                 "selected-providers-list-as-string": "amazon apache.hive cncf.kubernetes "
-                "common.compat common.messaging common.sql exasol fab ftp google http imap microsoft.azure "
+                "common.compat common.messaging common.sql exasol ftp google http imap microsoft.azure "
                 "mongo mysql openlineage postgres salesforce ssh teradata",
                 "all-python-versions": "['3.9']",
                 "all-python-versions-list-as-string": "3.9",
@@ -739,7 +728,7 @@ def assert_outputs_are_printed(expected_outputs: dict[str, str], stderr: str):
                 "upgrade-to-newer-dependencies": "false",
                 "run-amazon-tests": "true",
                 "core-test-types-list-as-string": "Always",
-                "providers-test-types-list-as-string": "Providers[amazon] Providers[apache.hive,cncf.kubernetes,common.compat,common.messaging,common.sql,exasol,fab,ftp,http,imap,microsoft.azure,mongo,mysql,openlineage,postgres,salesforce,ssh,teradata] Providers[google]",
+                "providers-test-types-list-as-string": "Providers[amazon] Providers[apache.hive,cncf.kubernetes,common.compat,common.messaging,common.sql,exasol,ftp,http,imap,microsoft.azure,mongo,mysql,openlineage,postgres,salesforce,ssh,teradata] Providers[google]",
                 "needs-mypy": "true",
                 "mypy-checks": "['mypy-providers']",
             },
@@ -774,7 +763,7 @@ def assert_outputs_are_printed(expected_outputs: dict[str, str], stderr: str):
             ("providers/amazon/src/airflow/providers/amazon/file.py",),
             {
                 "selected-providers-list-as-string": "amazon apache.hive cncf.kubernetes "
-                "common.compat common.messaging common.sql exasol fab ftp google http imap microsoft.azure "
+                "common.compat common.messaging common.sql exasol ftp google http imap microsoft.azure "
                 "mongo mysql openlineage postgres salesforce ssh teradata",
                 "all-python-versions": "['3.9']",
                 "all-python-versions-list-as-string": "3.9",
@@ -791,7 +780,7 @@ def assert_outputs_are_printed(expected_outputs: dict[str, str], stderr: str):
                 "run-kubernetes-tests": "false",
                 "upgrade-to-newer-dependencies": "false",
                 "core-test-types-list-as-string": "Always",
-                "providers-test-types-list-as-string": "Providers[amazon] Providers[apache.hive,cncf.kubernetes,common.compat,common.messaging,common.sql,exasol,fab,ftp,http,imap,microsoft.azure,mongo,mysql,openlineage,postgres,salesforce,ssh,teradata] Providers[google]",
+                "providers-test-types-list-as-string": "Providers[amazon] Providers[apache.hive,cncf.kubernetes,common.compat,common.messaging,common.sql,exasol,ftp,http,imap,microsoft.azure,mongo,mysql,openlineage,postgres,salesforce,ssh,teradata] Providers[google]",
                 "needs-mypy": "true",
                 "mypy-checks": "['mypy-providers']",
             },
@@ -904,7 +893,7 @@ def assert_outputs_are_printed(expected_outputs: dict[str, str], stderr: str):
         ),
         (
             pytest.param(
-                ("tests_common/__init__.py",),
+                ("devel-common/src/tests_common/test_utils/__init__.py",),
                 {
                     "selected-providers-list-as-string": ALL_PROVIDERS_AFFECTED,
                     "all-python-versions": "['3.9']",
@@ -927,7 +916,7 @@ def assert_outputs_are_printed(expected_outputs: dict[str, str], stderr: str):
                     "needs-mypy": "true",
                     "mypy-checks": "['mypy-airflow', 'mypy-providers', 'mypy-docs', 'mypy-dev', 'mypy-task-sdk']",
                 },
-                id="All tests should be run when tests_common/ change",
+                id="All tests should be run when devel-common/ change",
             )
         ),
         (
@@ -1621,7 +1610,7 @@ def test_expected_output_push(
                 "providers/google/tests/unit/google/file.py",
             ),
             {
-                "selected-providers-list-as-string": "amazon apache.beam apache.cassandra "
+                "selected-providers-list-as-string": "amazon apache.beam apache.cassandra apache.kafka "
                 "cncf.kubernetes common.compat common.sql "
                 "facebook google hashicorp microsoft.azure microsoft.mssql mysql "
                 "openlineage oracle postgres presto salesforce samba sftp ssh trino",
@@ -1635,14 +1624,14 @@ def test_expected_output_push(
                 "test-groups": "['core', 'providers']",
                 "docs-build": "true",
                 "docs-list-as-string": "apache-airflow helm-chart amazon apache.beam apache.cassandra "
-                "cncf.kubernetes common.compat common.sql facebook google hashicorp microsoft.azure "
+                "apache.kafka cncf.kubernetes common.compat common.sql facebook google hashicorp microsoft.azure "
                 "microsoft.mssql mysql openlineage oracle postgres "
                 "presto salesforce samba sftp ssh trino",
                 "skip-pre-commits": "identity,mypy-airflow,mypy-dev,mypy-docs,mypy-providers,mypy-task-sdk,ts-compile-format-lint-ui",
                 "run-kubernetes-tests": "true",
                 "upgrade-to-newer-dependencies": "false",
                 "core-test-types-list-as-string": "Always CLI",
-                "providers-test-types-list-as-string": "Providers[amazon] Providers[apache.beam,apache.cassandra,cncf.kubernetes,common.compat,common.sql,facebook,"
+                "providers-test-types-list-as-string": "Providers[amazon] Providers[apache.beam,apache.cassandra,apache.kafka,cncf.kubernetes,common.compat,common.sql,facebook,"
                 "hashicorp,microsoft.azure,microsoft.mssql,mysql,openlineage,oracle,postgres,presto,"
                 "salesforce,samba,sftp,ssh,trino] Providers[google]",
                 "needs-mypy": "true",
@@ -1677,22 +1666,21 @@ def test_expected_output_push(
         pytest.param(
             ("airflow/api_fastapi/core_api/openapi/v1-generated.yaml",),
             {
-                "selected-providers-list-as-string": None,
+                "selected-providers-list-as-string": "",
                 "all-python-versions": "['3.9']",
                 "all-python-versions-list-as-string": "3.9",
                 "ci-image-build": "true",
-                "needs-helm-tests": "false",
+                "needs-helm-tests": "true",
                 "run-tests": "true",
-                "skip-providers-tests": "true",
-                "test-groups": "['core']",
-                "docs-build": "false",
-                "docs-list-as-string": None,
+                "skip-providers-tests": "false",
+                "test-groups": "['core', 'providers']",
+                "docs-build": "true",
+                "docs-list-as-string": "",
                 "upgrade-to-newer-dependencies": "false",
-                "skip-pre-commits": "check-provider-yaml-valid,flynt,identity,lint-helm-chart,"
-                "mypy-airflow,mypy-dev,mypy-docs,mypy-providers,mypy-task-sdk",
-                "core-test-types-list-as-string": None,
-                "needs-mypy": "false",
-                "mypy-checks": "[]",
+                "skip-pre-commits": "identity,mypy-airflow,mypy-dev,mypy-docs,mypy-providers,mypy-task-sdk",
+                "core-test-types-list-as-string": "API Always CLI Core Operators Other Serialization",
+                "needs-mypy": "true",
+                "mypy-checks": "['mypy-airflow', 'mypy-providers', 'mypy-docs', 'mypy-dev', 'mypy-task-sdk']",
             },
             id="pre commit ts-compile-format-lint should not be ignored if openapi spec changed.",
         ),
@@ -1700,7 +1688,7 @@ def test_expected_output_push(
             (
                 "airflow/assets/",
                 "airflow/models/assets/",
-                "task_sdk/src/airflow/sdk/definitions/asset/",
+                "task-sdk/src/airflow/sdk/definitions/asset/",
                 "airflow/datasets/",
             ),
             {
@@ -1890,7 +1878,7 @@ def test_upgrade_to_newer_dependencies(
         pytest.param(
             ("providers/google/docs/some_file.rst",),
             {
-                "docs-list-as-string": "amazon apache.beam apache.cassandra "
+                "docs-list-as-string": "amazon apache.beam apache.cassandra apache.kafka "
                 "cncf.kubernetes common.compat common.sql facebook google hashicorp "
                 "microsoft.azure microsoft.mssql mysql openlineage oracle "
                 "postgres presto salesforce samba sftp ssh trino",
@@ -2467,7 +2455,7 @@ def test_provider_compatibility_checks(labels: tuple[str, ...], expected_outputs
             id="Airflow mypy checks on airflow files with model changes.",
         ),
         pytest.param(
-            ("task_sdk/src/airflow/sdk/a_file.py",),
+            ("task-sdk/src/airflow/sdk/a_file.py",),
             {
                 "needs-mypy": "true",
                 "mypy-checks": "['mypy-providers', 'mypy-task-sdk']",
@@ -2606,7 +2594,7 @@ def test_pr_labels(
             id="Caplog is in the git diff Providers",
         ),
         pytest.param(
-            ("task_sdk/tests/definitions/test_dag.py",),
+            ("task-sdk/tests/definitions/test_dag.py",),
             (),
             GithubEvents.PULL_REQUEST,
             id="Caplog is in the git diff TaskSDK",
@@ -2663,7 +2651,7 @@ def test_is_log_mocked_in_the_tests_fail(
             id="Caplog is in the git diff Providers",
         ),
         pytest.param(
-            ("task_sdk/tests/definitions/test_dag.py",),
+            ("task-sdk/tests/definitions/test_dag.py",),
             (),
             GithubEvents.PULL_REQUEST,
             id="Caplog is in the git diff TaskSDK",
@@ -2723,7 +2711,7 @@ def test_is_log_mocked_in_the_tests_fail_formatted(
             id="Caplog is in the git diff Providers",
         ),
         pytest.param(
-            ("task_sdk/tests/definitions/test_dag.py",),
+            ("task-sdk/tests/definitions/test_dag.py",),
             (),
             GithubEvents.PULL_REQUEST,
             id="Caplog is in the git diff TaskSDK",
@@ -2771,7 +2759,7 @@ def test_is_log_mocked_in_the_tests_not_fail(
             id="Caplog is in the git diff Providers",
         ),
         pytest.param(
-            ("task_sdk/tests/definitions/test_dag.py",),
+            ("task-sdk/tests/definitions/test_dag.py",),
             (LOG_WITHOUT_MOCK_IN_TESTS_EXCEPTION_LABEL,),
             GithubEvents.PULL_REQUEST,
             id="Caplog is in the git diff TaskSDK",

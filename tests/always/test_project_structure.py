@@ -71,6 +71,7 @@ class TestProjectStructure:
             "providers/amazon/tests/unit/amazon/aws/sensors/test_emr.py",
             "providers/amazon/tests/unit/amazon/aws/sensors/test_sagemaker.py",
             "providers/amazon/tests/unit/amazon/aws/test_exceptions.py",
+            "providers/amazon/tests/unit/amazon/aws/triggers/test_sagemaker_unified_studio.py",
             "providers/amazon/tests/unit/amazon/aws/triggers/test_step_function.py",
             "providers/amazon/tests/unit/amazon/aws/utils/test_rds.py",
             "providers/amazon/tests/unit/amazon/aws/utils/test_sagemaker.py",
@@ -118,6 +119,7 @@ class TestProjectStructure:
             "providers/edge/tests/unit/edge/worker_api/test_auth.py",
             "providers/edge/tests/unit/edge/worker_api/test_datamodels.py",
             "providers/elasticsearch/tests/unit/elasticsearch/test_version_compat.py",
+            "providers/fab/tests/unit/fab/auth_manager/api_fastapi/datamodels/test_login.py",
             "providers/fab/tests/unit/fab/migrations/test_env.py",
             "providers/fab/tests/unit/fab/www/api_connexion/test_exceptions.py",
             "providers/fab/tests/unit/fab/www/api_connexion/test_parameters.py",
@@ -133,6 +135,7 @@ class TestProjectStructure:
             "providers/fab/tests/unit/fab/www/test_airflow_flask_app.py",
             "providers/fab/tests/unit/fab/www/test_app.py",
             "providers/fab/tests/unit/fab/www/test_constants.py",
+            "providers/fab/tests/unit/fab/www/test_security_appless.py",
             "providers/fab/tests/unit/fab/www/test_security_manager.py",
             "providers/fab/tests/unit/fab/www/test_session.py",
             "providers/fab/tests/unit/fab/www/test_utils.py",
@@ -601,6 +604,8 @@ class TestAmazonProviderProjectStructure(ExampleCoverageTest):
         # These operations take a lot of time, there are commented out in the system tests for this reason
         "airflow.providers.amazon.aws.operators.dms.DmsStartReplicationOperator",
         "airflow.providers.amazon.aws.operators.dms.DmsStopReplicationOperator",
+        # These modules are used in the SageMakerNotebookOperator and therefore don't have their own examples
+        "airflow.providers.amazon.aws.sensors.sagemaker_unified_studio.SageMakerNotebookSensor",
     }
 
     DEPRECATED_CLASSES = {

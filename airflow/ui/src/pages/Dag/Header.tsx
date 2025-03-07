@@ -26,7 +26,6 @@ import DagRunInfo from "src/components/DagRunInfo";
 import DisplayMarkdownButton from "src/components/DisplayMarkdownButton";
 import { HeaderCard } from "src/components/HeaderCard";
 import MenuButton from "src/components/Menu/MenuButton";
-import ParseDag from "src/components/ParseDag";
 import { TogglePause } from "src/components/TogglePause";
 import { Tooltip } from "src/components/ui";
 
@@ -108,7 +107,6 @@ export const Header = ({
                 text="Dag Docs"
               />
             )}
-            <ParseDag dagId={dag.dag_id} fileToken={dag.file_token} />
             <MenuButton dag={dag} />
           </>
         )

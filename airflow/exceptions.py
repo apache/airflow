@@ -475,13 +475,6 @@ except ImportError:
         """Raised when an error is encountered while trying to merge pod configs."""
 
 
-class RemovedInAirflow3Warning(DeprecationWarning):
-    """Issued for usage of deprecated features that will be removed in Airflow3."""
-
-    deprecated_since: str | None = None
-    "Indicates the airflow version that started raising this deprecation warning"
-
-
 class RemovedInAirflow4Warning(DeprecationWarning):
     """Issued for usage of deprecated features that will be removed in Airflow4."""
 

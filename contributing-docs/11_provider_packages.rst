@@ -34,17 +34,15 @@ of advantages, because code and CI infrastructure and tests can be shared. Also 
 single repository - so no matter if you contribute to Airflow or Providers, you are contributing to the same
 repository and project.
 
-It has also some disadvantages as this introduces some coupling between those - so contributing to providers might
-interfere with contributing to Airflow. Python ecosystem does not yet have proper monorepo support for keeping
-several packages in one repository and being able to work on more than one of them at the same time. The tool ``uv`` is
-recommended to help manage this through it's ``workspace`` feature. While developing, dependencies and extras for a
-provider can be installed using ``uv``'s ``sync`` command. Here is an example for the microsoft.azure provider:
+The tool ``uv`` is recommended to help manage this through it's ``workspace`` feature. While developing,
+dependencies and extras for a provider can be installed using ``uv``'s ``sync`` command. Here is an example
+for the amazon provider:
 
 .. code:: bash
 
-    uv sync --extra devel --extra devel-tests --extra microsoft.azure
+    uv sync --extra amazon
 
-This will synchronize all extras that you need for development and testing of Airflow and the Microsoft Azure provider
+This will synchronize all extras that you need for development and testing of Airflow and the Amazon provider
 dependencies including runtime dependencies. See `local virtualenv <../07_local_virtualenv.rst>`_ or the uv project
 for more information.
 
@@ -132,9 +130,8 @@ How to reuse code between tests in different providers
 ------------------------------------------------------
 
 When you develop providers, you might want to reuse some of the code between tests in different providers.
-This is possible by placing the code in ``test_utils`` in the ``tests_common`` directory. The ``tests_common``
-module is automatically available in the ``sys.path`` when running tests for the providers and you can
-import common code from there.
+This is possible by placing the code in ``test_utils`` in the ``devel-common/src`` directory.
+The ``tests_common`` module is installed automatically by uv in the uv workspace.
 
 Chicken-egg providers
 ---------------------

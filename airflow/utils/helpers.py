@@ -256,7 +256,7 @@ def build_airflow_dagrun_url(dag_id: str, run_id: str) -> str:
     Build airflow dagrun url using base_url and provided dag_id and run_id.
 
     For example:
-    http://localhost:9091/dags/hi/runs/manual__2025-02-23T18:27:39.051358+00:00_RZa1at4Q
+    http://localhost:8080/dags/hi/runs/manual__2025-02-23T18:27:39.051358+00:00_RZa1at4Q
     """
     baseurl = conf.get("api", "base_url")
     return f"{baseurl}/dags/{dag_id}/runs/{run_id}"

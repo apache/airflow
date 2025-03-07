@@ -27,7 +27,7 @@ def get_provider_info():
         "name": "Apache Flink",
         "description": "`Apache Flink <https://flink.apache.org/>`__\n",
         "state": "ready",
-        "source-date-epoch": 1740734081,
+        "source-date-epoch": 1741121821,
         "versions": [
             "1.6.0",
             "1.5.1",
@@ -70,4 +70,5 @@ def get_provider_info():
             "cryptography>=41.0.0",
             "apache-airflow-providers-cncf-kubernetes>=5.1.0",
         ],
+        "devel-dependencies": [],
     }

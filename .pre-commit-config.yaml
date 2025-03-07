@@ -125,7 +125,7 @@ repos:
           - --fuzzy-match-generates-todo
       - id: insert-license
         name: Add license for all YAML files except Helm templates
-        exclude: ^\.github/.*$|^chart/templates/.*|.*/reproducible_build.yaml$|^airflow/api_fastapi/core_api/openapi/v1-generated.yaml$|^airflow/auth/managers/simple/openapi/v1-generated.yaml$|^.*/pnpm-lock.yaml$
+        exclude: ^\.github/.*$|^chart/templates/.*|.*/reproducible_build.yaml$|^airflow/api_fastapi/core_api/openapi/v1-generated.yaml$|^airflow/auth/managers/simple/openapi/v1-generated.yaml$|^providers/fab/src/airflow/providers/fab/auth_manager/api_fastapi/openapi/v1-generated.yaml$|^.*/pnpm-lock.yaml$
         types: [yaml]
         files: \.ya?ml$
         args:
@@ -676,7 +676,7 @@ repos:
         name: Sync template context variable refs
         language: python
         entry: ./scripts/ci/pre_commit/template_context_key_sync.py
-        files: ^airflow/models/taskinstance\.py$|^task_sdk/src/airflow/sdk/definitions/context\.py$|^docs/apache-airflow/templates-ref\.rst$
+        files: ^airflow/models/taskinstance\.py$|^task-sdk/src/airflow/sdk/definitions/context\.py$|^docs/apache-airflow/templates-ref\.rst$
       - id: check-base-operator-usage
         language: pygrep
         name: Check BaseOperator core imports
@@ -736,7 +736,7 @@ repos:
         name: Verify usage of Airflow deprecation classes in core
         entry: category=DeprecationWarning|category=PendingDeprecationWarning
         files: \.py$
-        exclude: ^airflow/configuration\.py$|^providers/.*/src/airflow/providers/|^scripts/in_container/verify_providers\.py$|^(providers/.*/)?tests/.*$|^tests_common/
+        exclude: ^airflow/configuration\.py$|^providers/.*/src/airflow/providers/|^scripts/in_container/verify_providers\.py$|^(providers/.*/)?tests/.*$|^devel-common/
         pass_filenames: true
       - id: check-provide-create-sessions-imports
         language: pygrep
@@ -1174,14 +1174,14 @@ repos:
           ^tests/ |
           ^providers/tests/ |
           ^providers/.*/tests/ |
-          ^task_sdk/src/airflow/sdk/definitions/dag.py$ |
-          ^task_sdk/src/airflow/sdk/execution_time/secrets_masker.py$ |
-          ^task_sdk/src/airflow/sdk/definitions/_internal/node.py$ |
+          ^task-sdk/src/airflow/sdk/definitions/dag.py$ |
+          ^task-sdk/src/airflow/sdk/execution_time/secrets_masker.py$ |
+          ^task-sdk/src/airflow/sdk/definitions/_internal/node.py$ |
           ^dev/.*\.py$ |
           ^scripts/.*\.py$ |
           ^docker_tests/.*$ |
           ^helm_tests/.*$ |
-          ^tests_common/.*$ |
+          ^devel-common/.*$ |
           ^docs/.*\.py$ |
           ^hatch_build.py$
       - id: check-provider-docs-valid
@@ -1293,7 +1293,7 @@ repos:
             provider_packages|
             providers/|
             scripts|
-            task_sdk/|
+            task-sdk/|
             tests/dags/test_imports\.py
           )
         require_serial: true
@@ -1344,18 +1344,35 @@ repos:
         name: Run mypy for Task SDK
         language: python
         entry: ./scripts/ci/pre_commit/mypy.py --namespace-packages
-        files: ^task_sdk/src/airflow/sdk/.*\.py$|^task_sdk/tests//.*\.py$
+        files: ^task-sdk/src/airflow/sdk/.*\.py$|^task-sdk/tests//.*\.py$
         require_serial: true
         additional_dependencies: ['rich>=12.4.4']
       - id: mypy-task-sdk
         stages: ['manual']
         name: Run mypy for Task SDK (manual)
         language: python
-        entry: ./scripts/ci/pre_commit/mypy_folder.py task_sdk/src/airflow/sdk
+        entry: ./scripts/ci/pre_commit/mypy_folder.py task-sdk/src/airflow/sdk
         pass_filenames: false
         files: ^.*\.py$
         require_serial: true
         additional_dependencies: ['rich>=12.4.4']
+      - id: generate-openapi-spec
+        name: Generate the FastAPI API spec
+        language: python
+        entry: ./scripts/ci/pre_commit/update_fastapi_api_spec.py
+        pass_filenames: false
+        files: ^airflow/api_fastapi/.*\.py$|^airflow/auth/managers/simple/.*\.py$|^providers/fab/src/airflow/providers/fab/auth_manager/api_fastapi/.*\.py$
+        exclude: ^airflow/api_fastapi/execution_api/.*
+        additional_dependencies: ['rich>=12.4.4']
+      - id: ts-compile-format-lint-ui
+        name: Compile / format / lint UI
+        description: TS types generation / ESLint / Prettier new UI files
+        language: node
+        types_or: [javascript, ts, tsx, yaml, css, json]
+        files: ^airflow/ui/|^airflow/api_fastapi/core_api/openapi/v1-generated\.yaml$|^airflow/auth/managers/simple/ui/|^airflow/auth/managers/simple/openapi/v1-generated\.yaml$
+        entry: ./scripts/ci/pre_commit/lint_ui.py
+        additional_dependencies: ['pnpm@9.7.1']
+        pass_filenames: false
       - id: check-provider-yaml-valid
         name: Validate provider.yaml files
         entry: ./scripts/ci/pre_commit/check_provider_yaml_files.py
@@ -1378,18 +1395,10 @@ repos:
         pass_filenames: false
         files: ^airflow/migrations/versions/.*\.py$|^docs/apache-airflow/migrations-ref\.rst$
         additional_dependencies: ['rich>=12.4.4']
-      - id: generate-openapi-spec
-        name: Generate the FastAPI API spec
-        language: python
-        entry: ./scripts/ci/pre_commit/update_fastapi_api_spec.py
-        pass_filenames: false
-        files: ^airflow/api_fastapi/.*\.py$
-        exclude: ^airflow/api_fastapi/execution_api/.*
-        additional_dependencies: ['rich>=12.4.4']
       - id: generate-tasksdk-datamodels
         name: Generate Datamodels for TaskSDK client
         language: python
-        entry: uv run --active --group codegen --project apache-airflow-task-sdk --directory task_sdk -s dev/generate_models.py
+        entry: uv run --active --group codegen --project apache-airflow-task-sdk --directory task-sdk -s dev/generate_models.py
         pass_filenames: false
         files: ^airflow/api_fastapi/execution_api/.*\.py$
         require_serial: true

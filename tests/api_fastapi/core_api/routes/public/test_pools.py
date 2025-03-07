@@ -65,6 +65,14 @@ class TestDeletePool(TestPoolsEndpoint):
         pools = session.query(Pool).all()
         assert len(pools) == 2
 
+    def test_delete_should_respond_401(self, unauthenticated_test_client):
+        response = unauthenticated_test_client.delete(f"/public/pools/{POOL1_NAME}")
+        assert response.status_code == 401
+
+    def test_should_respond_403(self, unauthorized_test_client):
+        response = unauthorized_test_client.delete(f"/public/pools/{POOL1_NAME}")
+        assert response.status_code == 403
+
     def test_delete_should_respond_400(self, test_client):
         response = test_client.delete("/public/pools/default_pool")
         assert response.status_code == 400
@@ -95,6 +103,14 @@ class TestGetPool(TestPoolsEndpoint):
             "scheduled_slots": 0,
             "slots": 3,
         }
+
+    def test_get_should_respond_401(self, unauthenticated_test_client):
+        response = unauthenticated_test_client.get(f"/public/pools/{POOL1_NAME}")
+        assert response.status_code == 401
+
+    def test_should_respond_403(self, unauthorized_test_client):
+        response = unauthorized_test_client.get(f"/public/pools/{POOL1_NAME}")
+        assert response.status_code == 403
 
     def test_get_should_respond_404(self, test_client):
         response = test_client.get(f"/public/pools/{POOL1_NAME}")
@@ -133,6 +149,14 @@ class TestGetPools(TestPoolsEndpoint):
         body = response.json()
         assert body["total_entries"] == expected_total_entries
         assert [pool["name"] for pool in body["pools"]] == expected_ids
+
+    def test_should_respond_401(self, unauthenticated_test_client):
+        response = unauthenticated_test_client.get("/public/pools", params={"pool_name_pattern": "~"})
+        assert response.status_code == 401
+
+    def test_should_respond_403(self, unauthorized_test_client):
+        response = unauthorized_test_client.get("/public/pools", params={"pool_name_pattern": "~"})
+        assert response.status_code == 403
 
 
 class TestPatchPool(TestPoolsEndpoint):
@@ -277,6 +301,14 @@ class TestPatchPool(TestPoolsEndpoint):
 
         assert body == expected_response
 
+    def test_should_respond_401(self, unauthenticated_test_client):
+        response = unauthenticated_test_client.patch(f"/public/pools/{POOL1_NAME}", params={}, json={})
+        assert response.status_code == 401
+
+    def test_should_respond_403(self, unauthorized_test_client):
+        response = unauthorized_test_client.patch(f"/public/pools/{POOL1_NAME}", params={}, json={})
+        assert response.status_code == 403
+
 
 class TestPostPool(TestPoolsEndpoint):
     @pytest.mark.parametrize(
@@ -324,6 +356,14 @@ class TestPostPool(TestPoolsEndpoint):
 
         assert response.json() == expected_response
         assert session.query(Pool).count() == n_pools + 1
+
+    def test_should_respond_401(self, unauthenticated_test_client):
+        response = unauthenticated_test_client.post("/public/pools", json={})
+        assert response.status_code == 401
+
+    def test_should_respond_403(self, unauthorized_test_client):
+        response = unauthorized_test_client.post("/public/pools", json={})
+        assert response.status_code == 403
 
     @pytest.mark.parametrize(
         "body,first_expected_status_code, first_expected_response, second_expected_status_code, second_expected_response",
@@ -711,3 +751,11 @@ class TestBulkPools(TestPoolsEndpoint):
         response_data = response.json()
         for key, value in expected_results.items():
             assert response_data[key] == value
+
+    def test_should_respond_401(self, unauthenticated_test_client):
+        response = unauthenticated_test_client.patch("/public/pools", json={})
+        assert response.status_code == 401
+
+    def test_should_respond_403(self, unauthorized_test_client):
+        response = unauthorized_test_client.patch("/public/pools", json={})
+        assert response.status_code == 403

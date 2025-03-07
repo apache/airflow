@@ -23,12 +23,16 @@ from fastapi.openapi.utils import get_openapi
 
 from airflow.api_fastapi.app import create_app
 from airflow.auth.managers.simple.simple_auth_manager import SimpleAuthManager
+from airflow.providers.fab.auth_manager.fab_auth_manager import FabAuthManager
 
 if TYPE_CHECKING:
     from fastapi import FastAPI
 
 OPENAPI_SPEC_FILE = "airflow/api_fastapi/core_api/openapi/v1-generated.yaml"
 SIMPLE_AUTH_MANAGER_OPENAPI_SPEC_FILE = "airflow/auth/managers/simple/openapi/v1-generated.yaml"
+FAB_AUTH_MANAGER_OPENAPI_SPEC_FILE = (
+    "providers/fab/src/airflow/providers/fab/auth_manager/api_fastapi/openapi/v1-generated.yaml"
+)
 
 
 def generate_file(app: FastAPI, file_path: str, prefix: str = ""):
@@ -60,9 +64,16 @@ def generate_file(app: FastAPI, file_path: str, prefix: str = ""):
 
 
 # Generate main application openapi spec
-generate_file(create_app(), OPENAPI_SPEC_FILE)
+generate_file(app=create_app(), file_path=OPENAPI_SPEC_FILE)
 
 # Generate simple auth manager openapi spec
 simple_auth_manager_app = SimpleAuthManager().get_fastapi_app()
 if simple_auth_manager_app:
-    generate_file(simple_auth_manager_app, SIMPLE_AUTH_MANAGER_OPENAPI_SPEC_FILE, "/auth")
+    generate_file(
+        app=simple_auth_manager_app, file_path=SIMPLE_AUTH_MANAGER_OPENAPI_SPEC_FILE, prefix="/auth"
+    )
+
+# Generate FAB auth manager openapi spec
+fab_auth_manager_app = FabAuthManager().get_fastapi_app()
+if fab_auth_manager_app:
+    generate_file(app=fab_auth_manager_app, file_path=FAB_AUTH_MANAGER_OPENAPI_SPEC_FILE)

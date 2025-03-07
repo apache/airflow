@@ -27,7 +27,7 @@ def get_provider_info():
         "name": "Github",
         "description": "`GitHub <https://www.github.com/>`__\n",
         "state": "ready",
-        "source-date-epoch": 1740734131,
+        "source-date-epoch": 1741121877,
         "versions": [
             "2.8.2",
             "2.8.0",
@@ -73,4 +73,5 @@ def get_provider_info():
             }
         ],
         "dependencies": ["apache-airflow>=2.9.0", "PyGithub>=2.1.1"],
+        "devel-dependencies": [],
     }

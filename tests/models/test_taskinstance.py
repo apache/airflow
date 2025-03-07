@@ -3902,6 +3902,7 @@ class TestTaskInstance:
             "end_date": run_date + datetime.timedelta(days=1, seconds=1, milliseconds=234),
             "duration": 1.234,
             "state": State.SUCCESS,
+            "try_id": mock.ANY,
             "try_number": 1,
             "max_tries": 1,
             "hostname": "some_unique_hostname",
@@ -4039,12 +4040,19 @@ class TestTaskInstance:
         dr = dag_maker.create_dagrun()
         ti = dr.task_instances[0]
         ti.task = task
+        try_id = ti.try_id
         with pytest.raises(AirflowException):
             ti.run()
-        ti.refresh_from_db()
+        ti = session.query(TaskInstance).one()
+        # the ti.try_id should be different from the previous one
+        assert ti.try_id != try_id
         assert ti.state == State.UP_FOR_RETRY
         assert session.query(TaskInstance).count() == 1
-        assert session.query(TaskInstanceHistory).count() == 1
+        tih = session.query(TaskInstanceHistory).all()
+        assert len(tih) == 1
+        # the new try_id should be different from what's recorded in tih
+        assert tih[0].try_id == try_id
+        assert tih[0].try_id != ti.try_id
 
     @pytest.mark.want_activate_assets(True)
     def test_run_with_inactive_assets(self, dag_maker, session):

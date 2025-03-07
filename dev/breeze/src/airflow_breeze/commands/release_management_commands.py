@@ -627,7 +627,7 @@ def prepare_airflow_packages(
     get_console().print("[success]Successfully prepared Airflow packages")
 
 
-TASK_SDK_DIR_PATH = AIRFLOW_SOURCES_ROOT / "task_sdk"
+TASK_SDK_DIR_PATH = AIRFLOW_SOURCES_ROOT / "task-sdk"
 TASK_SDK_DIST_DIR_PATH = TASK_SDK_DIR_PATH / "dist"
 
 
@@ -692,7 +692,7 @@ def prepare_airflow_task_sdk_packages(
                 "-e",
                 "GITHUB_ACTIONS",
                 "-w",
-                "/opt/airflow/task_sdk",
+                "/opt/airflow/task-sdk",
                 AIRFLOW_BUILD_IMAGE_TAG,
                 "bash",
                 "-c",
@@ -707,7 +707,7 @@ def prepare_airflow_task_sdk_packages(
         DIST_DIR.mkdir(parents=True, exist_ok=True)
         get_console().print()
         # Copy all files in the dist directory in container to the host dist directory (note '/.' in SRC)
-        run_command(["docker", "cp", f"{container_id}:/opt/airflow/task_sdk/dist/.", "./dist"], check=True)
+        run_command(["docker", "cp", f"{container_id}:/opt/airflow/task-sdk/dist/.", "./dist"], check=True)
         run_command(["docker", "rm", "--force", container_id], check=False, stdout=DEVNULL, stderr=DEVNULL)
 
     if use_local_hatch:

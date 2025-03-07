@@ -212,7 +212,7 @@ To be able to merge PRs, committers have to integrate their GitHub ID with Apach
 
 1.  Verify you have a GitHub ID `enabled with 2FA <https://help.github.com/articles/securing-your-account-with-two-factor-authentication-2fa/>`__.
 2.  Merge your Apache and GitHub accounts using `GitBox (Apache Account Linking utility) <https://gitbox.apache.org/setup/>`__. This also asks you to link your
-    Github id to your Apache account. You should see 5 green checks in GitBox.
+    GitHub ID to your Apache account. You should see 5 green checks in GitBox.
 3.  Wait at least 30  minutes for an email inviting you to Apache GitHub Organization and accept invitation.
 4.  After accepting the GitHub Invitation verify that you are a member of the `Airflow committers team on GitHub <https://github.com/orgs/apache/teams/airflow-committers>`__.
 5.  Ask in ``#internal-airflow-ci-cd`` channel to be `configured in self-hosted runners <https://github.com/apache/airflow-ci-infra/blob/main/scripts/list_committers>`_
@@ -221,7 +221,7 @@ To be able to merge PRs, committers have to integrate their GitHub ID with Apach
 
     * ``dev/breeze/src/airflow_breeze/global_constants.py`` (COMMITTERS variable)
     * name and GitHub ID in `project.rst <https://github.com/apache/airflow/blob/main/docs/apache-airflow/project.rst>`__.
-    * If you had been a collaborator role before getting committer, remove your Github ID from ``.asf.yaml``.
+    * If you had been a collaborator role before getting committer, remove your GitHub ID from ``.asf.yaml``.
 7.  Raise a PR to `airflow-site <https://github.com/apache/airflow-site>`_ repository with the following additions:
 
     * List your name(s) in the `committers list <https://github.com/apache/airflow-site/blob/main/landing-pages/site/data/committers.json>`__.

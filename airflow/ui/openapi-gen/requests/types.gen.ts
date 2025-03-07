@@ -1678,6 +1678,7 @@ export type GetAssetQueuedEventsResponse = QueuedEventCollectionResponse;
 export type DeleteAssetQueuedEventsData = {
   assetId: number;
   before?: string | null;
+  dagId?: string | null;
 };
 
 export type DeleteAssetQueuedEventsResponse = void;
@@ -1690,14 +1691,14 @@ export type GetAssetResponse = AssetResponse;
 
 export type GetDagAssetQueuedEventsData = {
   before?: string | null;
-  dagId: string;
+  dagId: string | null;
 };
 
 export type GetDagAssetQueuedEventsResponse = QueuedEventCollectionResponse;
 
 export type DeleteDagAssetQueuedEventsData = {
   before?: string | null;
-  dagId: string;
+  dagId: string | null;
 };
 
 export type DeleteDagAssetQueuedEventsResponse = void;
@@ -1705,7 +1706,7 @@ export type DeleteDagAssetQueuedEventsResponse = void;
 export type GetDagAssetQueuedEventData = {
   assetId: number;
   before?: string | null;
-  dagId: string;
+  dagId: string | null;
 };
 
 export type GetDagAssetQueuedEventResponse = QueuedEventResponse;
@@ -1713,7 +1714,7 @@ export type GetDagAssetQueuedEventResponse = QueuedEventResponse;
 export type DeleteDagAssetQueuedEventData = {
   assetId: number;
   before?: string | null;
-  dagId: string;
+  dagId: string | null;
 };
 
 export type DeleteDagAssetQueuedEventResponse = void;
@@ -1870,6 +1871,7 @@ export type PatchConnectionData = {
 export type PatchConnectionResponse = ConnectionResponse;
 
 export type GetConnectionsData = {
+  connectionIdPattern?: string | null;
   limit?: number;
   offset?: number;
   orderBy?: string;
@@ -2072,6 +2074,7 @@ export type GetDagTagsData = {
 export type GetDagTagsResponse = DAGTagCollectionResponse;
 
 export type GetEventLogData = {
+  dagId?: string | null;
   eventLogId: number;
 };
 
@@ -2496,6 +2499,13 @@ export type ReparseDagFileData = {
 };
 
 export type ReparseDagFileResponse = null;
+
+export type GetDagVersionData = {
+  dagId: string;
+  versionNumber: number;
+};
+
+export type GetDagVersionResponse = DagVersionResponse;
 
 export type GetDagVersionsData = {
   bundleName?: string;
@@ -5194,6 +5204,33 @@ export type $OpenApiTs = {
          * Successful Response
          */
         201: null;
+        /**
+         * Unauthorized
+         */
+        401: HTTPExceptionResponse;
+        /**
+         * Forbidden
+         */
+        403: HTTPExceptionResponse;
+        /**
+         * Not Found
+         */
+        404: HTTPExceptionResponse;
+        /**
+         * Validation Error
+         */
+        422: HTTPValidationError;
+      };
+    };
+  };
+  "/public/dags/{dag_id}/dagVersions/{version_number}": {
+    get: {
+      req: GetDagVersionData;
+      res: {
+        /**
+         * Successful Response
+         */
+        200: DagVersionResponse;
         /**
          * Unauthorized
          */

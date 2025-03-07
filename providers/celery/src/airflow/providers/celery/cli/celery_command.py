@@ -197,11 +197,11 @@ def worker(args):
         from airflow.sdk.log import configure_logging
 
         configure_logging(output=sys.stdout.buffer)
-
-    # Disable connection pool so that celery worker does not hold an unnecessary db connection
-    settings.reconfigure_orm(disable_connection_pool=True)
-    if not settings.validate_session():
-        raise SystemExit("Worker exiting, database connection precheck failed.")
+    else:
+        # Disable connection pool so that celery worker does not hold an unnecessary db connection
+        settings.reconfigure_orm(disable_connection_pool=True)
+        if not settings.validate_session():
+            raise SystemExit("Worker exiting, database connection precheck failed.")
 
     autoscale = args.autoscale
     skip_serve_logs = args.skip_serve_logs
