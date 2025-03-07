@@ -614,31 +614,6 @@ key3 = value3
         section_dict = conf.getsection("example_section")
         assert isinstance(section_dict[key], type)
 
-    def test_auth_backends_adds_session(self):
-        with patch("os.environ", {"AIRFLOW__API__AUTH_BACKEND": None}):
-            test_conf = AirflowConfigParser(default_config="")
-            # Guarantee we have deprecated settings, so we test the deprecation
-            # lookup even if we remove this explicit fallback
-            test_conf.deprecated_values = {
-                "api": {
-                    "auth_backends": (
-                        re.compile(r"^airflow\.api\.auth\.backend\.deny_all$|^$"),
-                        "airflow.providers.fab.auth_manager.api.auth.backend.session",
-                        "3.0",
-                    ),
-                },
-            }
-            test_conf.read_dict(
-                {"api": {"auth_backends": "airflow.providers.fab.auth_manager.api.auth.backend.basic_auth"}}
-            )
-
-            with pytest.warns(FutureWarning):
-                test_conf.validate()
-                assert (
-                    test_conf.get("api", "auth_backends")
-                    == "airflow.providers.fab.auth_manager.api.auth.backend.basic_auth,airflow.providers.fab.auth_manager.api.auth.backend.session"
-                )
-
     def test_command_from_env(self):
         test_cmdenv_config = textwrap.dedent("""\
             [testcmdenv]

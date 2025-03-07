@@ -589,19 +589,6 @@ def logging(header_separator: str):
 
 @cli.command()
 @option_header_separator
-def auth_backends(header_separator: str):
-    """Renders Logger content"""
-    print(
-        _common_render_list_content(
-            header_separator=header_separator,
-            resource_type="auth-backends",
-            template="auth_backend.rst.jinja2",
-        )
-    )
-
-
-@cli.command()
-@option_header_separator
 def secret_backends(header_separator: str):
     """Renders Secret Backends content"""
     print(
