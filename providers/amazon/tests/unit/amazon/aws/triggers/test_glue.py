@@ -36,8 +36,6 @@ from unit.amazon.aws.utils.test_waiter import assert_expected_waiter_type
 
 BASE_TRIGGER_CLASSPATH = "airflow.providers.amazon.aws.triggers.glue."
 
-pytest.importorskip("aiobotocore")
-
 
 class TestGlueJobTrigger:
     @pytest.mark.asyncio
@@ -155,7 +153,7 @@ class TestGlueDataQualityEvaluationRunCompletedTrigger:
 
     @pytest.mark.asyncio
     @mock.patch.object(GlueDataQualityHook, "get_waiter")
-    @mock.patch.object(GlueDataQualityHook, "async_conn")
+    @mock.patch.object(GlueDataQualityHook, "get_async_conn")
     async def test_run_success(self, mock_async_conn, mock_get_waiter):
         mock_async_conn.__aenter__.return_value = mock.MagicMock()
         mock_get_waiter().wait = AsyncMock()
@@ -182,7 +180,7 @@ class TestGlueDataQualityRuleRecommendationRunCompleteTrigger:
 
     @pytest.mark.asyncio
     @mock.patch.object(GlueDataQualityHook, "get_waiter")
-    @mock.patch.object(GlueDataQualityHook, "async_conn")
+    @mock.patch.object(GlueDataQualityHook, "get_async_conn")
     async def test_run_success(self, mock_async_conn, mock_get_waiter):
         mock_async_conn.__aenter__.return_value = mock.MagicMock()
         mock_get_waiter().wait = AsyncMock()
