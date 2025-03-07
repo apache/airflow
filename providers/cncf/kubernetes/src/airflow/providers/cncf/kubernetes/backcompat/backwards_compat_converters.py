@@ -76,9 +76,9 @@ def convert_env_vars_from_list_of_dicts(env_vars: list[dict[str, str]]) -> list[
 
     If the collection is a str-str list of dict, convert it into a list of ``V1EnvVar`` variables.
     """
-    if isinstance(env_vars, list):
-        return [k8s.V1EnvVar(name=env_var.get('name'), value=env_var.get('value')) for env_var in
-                env_vars]
+    if isinstance(env_vars, list) and \
+        all(isinstance(item, dict) and "name" in item and "value" in item for item in env_vars):
+        return [k8s.V1EnvVar(name=env_var.get("name"), value=env_var.get("value")) for env_var in env_vars]
     return env_vars
 
 
@@ -100,10 +100,8 @@ def convert_env_vars_or_raise_error(env_vars: list[k8s.V1EnvVar] | dict[str, str
     This is used after the template strings have been rendered.
     """
     env_vars = convert_env_vars(env_vars)
-    if all(isinstance(item, dict) and "name" in item and "value" in item for item in env_vars):
+    if isinstance(env_vars, list):
         return convert_env_vars_from_list_of_dicts(env_vars)
-    elif isinstance(env_vars, list):
-        return env_vars
     raise AirflowException(f"Expected dict or list, got {type(env_vars)}")
 
 
