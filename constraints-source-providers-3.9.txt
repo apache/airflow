@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2025-03-07T14:12:28.384187
+# This constraints file was automatically generated on 2025-03-07T20:08:56.986489
 # via "eager-upgrade" mechanism of PIP. For the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version of both
 # 'apache-airflow' package and all available community provider packages.
@@ -261,7 +261,6 @@ google-cloud-videointelligence==2.16.0
 google-cloud-vision==3.10.0
 google-cloud-workflows==1.17.0
 google-crc32c==1.6.0
-google-re2==1.1.20240702
 google-resumable-media==2.7.2
 googleapis-common-protos==1.69.1
 graphql-core==3.2.6
@@ -661,7 +660,7 @@ yamllint==1.35.1
 yandex-query-client==0.1.4
 yandexcloud==0.328.0
 yarl==1.18.3
-ydb-dbapi==0.1.10
+ydb-dbapi==0.1.11
 ydb==3.19.2
 zeep==4.3.1
 zenpy==2.0.56
