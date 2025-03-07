@@ -24,7 +24,6 @@ from typing import TYPE_CHECKING, Any
 
 import nest_asyncio
 from gremlin_python.driver.client import Client
-from gremlin_python.driver.serializer import GraphSONSerializersV2d0
 
 from airflow.hooks.base import BaseHook
 
@@ -62,7 +61,7 @@ class GremlinHook(BaseHook):
         self.connection = kwargs.pop("connection", None)
         self.client: Client | None = None
 
-    def get_conn(self) -> Client:
+    def get_conn(self, serializer=None) -> Client:
         """Establish a connection to Graph DB with the Gremlin API."""
         if self.client is not None:
             return self.client
@@ -72,7 +71,9 @@ class GremlinHook(BaseHook):
         uri = self.get_uri(self.connection)
         self.log.info("Connecting to URI: %s", uri)
 
-        self.client = self.get_client(self.connection, self.traversal_source, uri)
+        self.client = self.get_client(
+            self.connection, self.traversal_source, uri, message_serializer=serializer
+        )
         return self.client
 
     def get_uri(self, conn: Connection) -> str:
@@ -89,7 +90,9 @@ class GremlinHook(BaseHook):
         schema = "" if conn.conn_type == "gremlin" else "gremlin"
         return f"{scheme}://{host}:{port}/{schema}"
 
-    def get_client(self, conn: Connection, traversal_source: str, uri: str) -> Client:
+    def get_client(
+        self, conn: Connection, traversal_source: str, uri: str, message_serializer=None
+    ) -> Client:
         """
         Create and return a new Gremlin client.
 
@@ -103,26 +106,37 @@ class GremlinHook(BaseHook):
         schema = conn.schema if conn.schema not in ["gremlin", None] else ""
         password = conn.password if conn.password not in ["mysecret", None] else ""
         username = f"/dbs/{login}/colls/{schema}" if login and schema else ""
-        # Remove the redundant addition of traversal_source to kwargs.
-        return Client(
-            url=uri,
-            traversal_source=traversal_source,
-            username=username,
-            password=password,
-            message_serializer=GraphSONSerializersV2d0(),
-        )
+        # Build the kwargs for the Client.
+        client_kwargs = {
+            "url": uri,
+            "traversal_source": traversal_source,
+            "username": username,
+            "password": password,
+        }
 
-    def run(self, query: str) -> list[Any]:
+        # If a serializer is provided, check if it's a type and instantiate it.
+        if message_serializer is not None:
+            if isinstance(message_serializer, type):
+                message_serializer = message_serializer()
+            client_kwargs["message_serializer"] = message_serializer
+
+        return Client(**client_kwargs)
+
+    def run(self, query: str, serializer=None, bindings=None, request_options=None) -> list[Any]:
         """
         Execute a Gremlin query and return the results.
 
         :param query: Gremlin query string.
         :return: List containing the query results.
         """
-        client = self.get_conn()
+        client = self.get_conn(serializer)
 
         try:
-            results_list = client.submit(query).all().result()
+            results_list = (
+                client.submit(message=query, bindings=bindings, request_options=request_options)
+                .all()
+                .result()
+            )
         except Exception as e:
             logger.error("An error occurred while running the query: %s", str(e))
             raise e

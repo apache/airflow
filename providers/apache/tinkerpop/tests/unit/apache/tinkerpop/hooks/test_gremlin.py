@@ -74,6 +74,37 @@ class TestGremlinHook:
         assert call_args["password"] == "mypassword"
 
     @pytest.mark.parametrize(
+        "serializer, should_include",
+        [
+            (None, False),
+            ("dummy_serializer", True),
+        ],
+    )
+    @mock.patch("airflow.providers.apache.tinkerpop.hooks.gremlin.Client")
+    def test_get_client_message_serializer(self, mock_client, serializer, should_include):
+        """
+        Test that get_client() includes message_serializer only when provided.
+        """
+        hook = GremlinHook()
+        conn = Connection(
+            conn_id="gremlin_default",
+            host="host",
+            port=1234,
+            schema="mydb",
+            login="login",
+            password="mypassword",
+        )
+        uri = "wss://test.uri"
+        traversal_source = "g"
+        hook.get_client(conn, traversal_source, uri, message_serializer=serializer)
+        call_args = mock_client.call_args.kwargs
+        if should_include:
+            assert "message_serializer" in call_args
+            assert call_args["message_serializer"] == serializer
+        else:
+            assert "message_serializer" not in call_args
+
+    @pytest.mark.parametrize(
         "side_effect, expected_exception, expected_result",
         [
             (None, None, ["dummy_result"]),

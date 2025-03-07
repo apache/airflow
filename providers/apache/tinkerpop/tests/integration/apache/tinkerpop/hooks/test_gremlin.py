@@ -19,6 +19,7 @@ from __future__ import annotations
 import os
 
 import pytest
+from gremlin_python.driver.serializer import GraphSONSerializersV2d0
 
 from airflow.providers.apache.tinkerpop.hooks.gremlin import GremlinHook
 
@@ -41,5 +42,8 @@ class TestGremlinHook:
         assert isinstance(result, list)
 
     def test_run(self):
-        result = self.hook.run("g.V().hasLabel('person').valueMap(true)")
-        assert result == [{"id": ["person1"], "label": "person", "name": ["Alice"]}]
+        result = self.hook.run(
+            "g.V().hasLabel('person').valueMap(true)", serializer=GraphSONSerializersV2d0()
+        )
+        expected = "[{<T.id: 1>: 3, <T.label: 4>: 'person', 'name': ['Alice'], 'id': ['person1']}]"
+        assert str(result) == expected

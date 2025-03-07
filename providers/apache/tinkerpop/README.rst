@@ -26,8 +26,9 @@ Package ``apache-airflow-providers-apache-tinkerpop``
 Release: ``1.0.0``
 
 
-`Gremlin <https://tinkerpop.apache.org/gremlin.html>`__
-provides hooks to interact with Graph DB using the Gremlin API.
+`Apache TinkerPop <https://tinkerpop.apache.org/>`__
+Apache TinkerPop is a graph computing framework for both graph databases (OLTP) and graph analytic
+systems (OLAP) and Gremlin is its graph traversal language.
 
 
 Provider package

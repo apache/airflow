@@ -31,27 +31,7 @@ For parameter definition take a look at :class:`~airflow.providers.apache.tinker
 Using the operator
 """"""""""""""""""
 
-Use the ``gremlin_conn_id`` argument to connect to your Gremlin instance where
-the connection metadata is structured as follows:
-
-.. list-table:: Gremlin Airflow Connection Metadata
-   :widths: 25 25
-   :header-rows: 1
-
-   * - Parameter
-     - Input
-   * - Host: string
-     - Gremlin hostname
-   * - Port: int
-     - Gremlin port
-   * - Username: string
-     - Gremlin user
-   * - Password: string
-     - Gremlin user password
-   * - Scheme: string
-     - Gremlin Scheme
-   * - Schema: string
-     - Gremlin Schema
+An example usage of the GremlinOperator to query from gremlin server is as follows:
 
 .. exampleinclude:: /../../providers/apache/tinkerpop/tests/system/apache/tinkerpop/example_gremlin_dag.py
     :language: python
