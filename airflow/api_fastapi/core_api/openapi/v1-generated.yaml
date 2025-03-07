@@ -3790,12 +3790,16 @@ paths:
       summary: Get Extra Links
       description: Get extra links for task instance.
       operationId: get_extra_links
+      security:
+      - OAuth2PasswordBearer: []
       parameters:
       - name: dag_id
         in: path
         required: true
         schema:
-          type: string
+          anyOf:
+          - type: string
+          - type: 'null'
           title: Dag Id
       - name: dag_run_id
         in: path
