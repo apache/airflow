@@ -68,6 +68,7 @@ from sqlalchemy.orm import backref, load_only, relationship
 from sqlalchemy.sql import Select, expression
 
 from airflow import settings, utils
+from airflow.assets.evaluation import AssetEvaluator
 from airflow.configuration import conf as airflow_conf, secrets_backend_list
 from airflow.exceptions import (
     AirflowException,
@@ -1134,7 +1135,7 @@ class DAG(TaskSDKDag, LoggingMixin):
                     if not external_dag:
                         raise AirflowException(f"Could not find dag {tii.dag_id}")
                     downstream = external_dag.partial_subset(
-                        task_ids_or_regex=[tii.task_id],
+                        task_ids=[tii.task_id],
                         include_upstream=False,
                         include_downstream=True,
                     )
@@ -1248,7 +1249,7 @@ class DAG(TaskSDKDag, LoggingMixin):
         # Flush the session so that the tasks marked success are reflected in the db.
         session.flush()
         subdag = self.partial_subset(
-            task_ids_or_regex={task_id},
+            task_ids={task_id},
             include_downstream=True,
             include_upstream=False,
         )
@@ -1360,7 +1361,7 @@ class DAG(TaskSDKDag, LoggingMixin):
             # Flush the session so that the tasks marked success are reflected in the db.
             session.flush()
             task_subset = self.partial_subset(
-                task_ids_or_regex=task_ids,
+                task_ids=task_ids,
                 include_downstream=True,
                 include_upstream=False,
             )
@@ -2323,12 +2324,14 @@ class DagModel(Base):
         """
         from airflow.models.serialized_dag import SerializedDagModel
 
+        evaluator = AssetEvaluator(session)
+
         def dag_ready(dag_id: str, cond: BaseAsset, statuses: dict[AssetUniqueKey, bool]) -> bool | None:
             # if dag was serialized before 2.9 and we *just* upgraded,
             # we may be dealing with old version.  In that case,
             # just wait for the dag to be reserialized.
             try:
-                return cond.evaluate(statuses, session=session)
+                return evaluator.run(cond, statuses)
             except AttributeError:
                 log.warning("dag '%s' has old serialization; skipping DAG run creation.", dag_id)
                 return None

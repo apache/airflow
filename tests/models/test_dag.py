@@ -3046,7 +3046,7 @@ class TestTaskClearingSetupTeardownBehavior:
         upstream = False
         return set(
             task.dag.partial_subset(
-                task_ids_or_regex=[task.task_id],
+                task_ids=[task.task_id],
                 include_downstream=not upstream,
                 include_upstream=upstream,
             ).tasks
@@ -3058,7 +3058,7 @@ class TestTaskClearingSetupTeardownBehavior:
         upstream = True
         return set(
             task.dag.partial_subset(
-                task_ids_or_regex=task.task_id,
+                task_ids=task.task_id,
                 include_downstream=not upstream,
                 include_upstream=upstream,
             ).tasks
@@ -3069,7 +3069,7 @@ class TestTaskClearingSetupTeardownBehavior:
         """Helper to return tasks that would be cleared if **upstream** selected."""
         return set(
             task.dag.partial_subset(
-                task_ids_or_regex=[task.task_id],
+                task_ids=[task.task_id],
                 include_downstream=False,
                 include_upstream=False,
             ).tasks
