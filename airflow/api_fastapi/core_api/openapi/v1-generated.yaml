@@ -20,7 +20,9 @@ paths:
         in: path
         required: true
         schema:
-          type: string
+          anyOf:
+          - type: string
+          - type: 'null'
           title: Dag Id
       responses:
         '200':
