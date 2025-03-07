@@ -13,6 +13,8 @@ paths:
       - Asset
       summary: Next Run Assets
       operationId: next_run_assets
+      security:
+      - OAuth2PasswordBearer: []
       parameters:
       - name: dag_id
         in: path
