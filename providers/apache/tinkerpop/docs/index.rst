@@ -16,8 +16,8 @@
     specific language governing permissions and limitations
     under the License.
 
-``apache-airflow-providers-apache-tinkerpop``
-=============================================
+Package ``apache-airflow-providers-apache-tinkerpop``
+=====================================================
 
 .. toctree::
     :hidden:
@@ -33,6 +33,7 @@
     :maxdepth: 1
     :caption: Guides
 
+    Connection Types <connections/tinkerpop>
     Operators <operators>
 
 .. toctree::
@@ -70,10 +71,11 @@
 
 
 apache-airflow-providers-apache-tinkerpop package
-------------------------------------------------------
+-------------------------------------------------
 
-`Gremlin <https://tinkerpop.apache.org/gremlin.html>`__
-provides hooks to interact with Graph DB using the Gremlin API.
+`Apache TinkerPop <https://tinkerpop.apache.org/>`__.
+Apache TinkerPop is a graph computing framework for both graph databases (OLTP) and graph analytic
+systems (OLAP) and Gremlin is its graph traversal language.
 
 
 Release: 1.0.0

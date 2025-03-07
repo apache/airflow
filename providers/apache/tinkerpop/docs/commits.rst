@@ -23,11 +23,12 @@
 
  .. THE REMAINDER OF THE FILE IS AUTOMATICALLY GENERATED. IT WILL BE OVERWRITTEN!
 
-Package apache-airflow-providers-apache-tinkerpop
--------------------------------------------------
+Package ``apache-airflow-providers-apache-tinkerpop``
+------------------------------------------------------
 
-`Gremlin <https://tinkerpop.apache.org/gremlin.html>`__
-provides hooks to interact with Graph DB using the Gremlin API.
+`Apache TinkerPop <https://tinkerpop.apache.org/>`__.
+Apache TinkerPop is a graph computing framework for both graph databases (OLTP) and graph analytic
+systems (OLAP) and Gremlin is its graph traversal language.
 
 
 This is detailed commit list of changes for versions provider package: ``apache.tinkerpop``.

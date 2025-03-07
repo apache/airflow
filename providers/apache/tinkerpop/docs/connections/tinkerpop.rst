@@ -1,19 +1,19 @@
 .. Licensed to the Apache Software Foundation (ASF) under one
-    or more contributor license agreements.  See the NOTICE file
-    distributed with this work for additional information
-    regarding copyright ownership.  The ASF licenses this file
-    to you under the Apache License, Version 2.0 (the
-    "License"); you may not use this file except in compliance
-    with the License.  You may obtain a copy of the License at
+  or more contributor license agreements.  See the NOTICE file
+  distributed with this work for additional information
+  regarding copyright ownership.  The ASF licenses this file
+  to you under the Apache License, Version 2.0 (the
+  "License"); you may not use this file except in compliance
+  with the License.  You may obtain a copy of the License at
 
- ..   http://www.apache.org/licenses/LICENSE-2.0
+..   http://www.apache.org/licenses/LICENSE-2.0
 
- .. Unless required by applicable law or agreed to in writing,
-    software distributed under the License is distributed on an
-    "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
-    KIND, either express or implied.  See the License for the
-    specific language governing permissions and limitations
-    under the License.
+.. Unless required by applicable law or agreed to in writing,
+  software distributed under the License is distributed on an
+  "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+  KIND, either express or implied.  See the License for the
+  specific language governing permissions and limitations
+  under the License.
 
 
 
@@ -27,13 +27,13 @@ The Gremlin connection type enables integrations with Gremlin Server.
 Authenticating to Gremlin
 ---------------------------
 
-Authenticate to Snowflake using the `Snowflake python connector default authentication
-<https://docs.snowflake.com/en/user-guide/python-connector-example.html#connecting-using-the-default-authenticator>`_.
+Authenticate to Gremlin using the `Germlin python client default authentication
+<https://tinkerpop.apache.org/docs/current/reference/#gremlin-python-configuration>`_.
 
 Default Connection IDs
 ----------------------
 
-Hooks and operators related to Snowflake use ``gremlin_default`` by default.
+Hooks and operators related to Gremlin use ``gremlin_default`` by default.
 
 Configuring the Connection
 --------------------------
@@ -67,7 +67,7 @@ If serializing with Airflow URI:
 
 .. code-block:: bash
 
-   export AIRFLOW_CONN_GREMLIN_DEFAULT='gremlin://username:password@host:port/schema
+  export AIRFLOW_CONN_GREMLIN_DEFAULT='gremlin://username:password@host:port/schema'
 
 Note that all components of the URI should be URL-encoded.
 
@@ -78,11 +78,11 @@ If serializing with JSON:
 
 .. code-block:: bash
 
-    export AIRFLOW_CONN_SNOWFLAKE_DEFAULT='{
-        "conn_type": "gremlin",
-        "login": "username",
-        "host": "host",
-        "password": "password",
-        "schema": "schema",
-        "port": 433
-    }'
+  export AIRFLOW_CONN_GREMLIN_DEFAULT='{
+      "conn_type": "gremlin",
+      "login": "username",
+      "host": "host",
+      "password": "password",
+      "schema": "schema",
+      "port": 433
+  }'
