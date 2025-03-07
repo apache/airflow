@@ -40,7 +40,10 @@ export const Login = () => {
     const onSuccess = (data: LoginResponse) => {
         // Redirect to appropriate page with the token
         const next = searchParams.get("next")
-        globalThis.location.replace(`${next ?? ""}?token=${data.jwt_token}`);
+
+        localStorage.setItem("token", JSON.stringify(data.jwt_token));
+
+        globalThis.location.replace(`${next ?? ""}`);
     }
     const {createToken, error: err, isPending, setError} = useCreateToken({onSuccess});
     const error = err as ExpandedApiError;
