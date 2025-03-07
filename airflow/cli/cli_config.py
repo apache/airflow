@@ -544,51 +544,8 @@ ARG_KEYTAB = Arg(("-k", "--keytab"), help="keytab", nargs="?", default=conf.get(
 ARG_KERBEROS_ONE_TIME_MODE = Arg(
     ("-o", "--one-time"), help="Run airflow kerberos one time instead of forever", action="store_true"
 )
-# run
-ARG_INTERACTIVE = Arg(
-    ("-N", "--interactive"),
-    help="Do not capture standard output and error streams (useful for interactive debugging)",
-    action="store_true",
-)
-# TODO(aoen): "force" is a poor choice of name here since it implies it overrides
-# all dependencies (not just past success), e.g. the ignore_depends_on_past
-# dependency. This flag should be deprecated and renamed to 'ignore_ti_state' and
-# the "ignore_all_dependencies" command should be called the"force" command
-# instead.
-ARG_FORCE = Arg(
-    ("-f", "--force"),
-    help="Ignore previous task instance state, rerun regardless if task already succeeded/failed",
-    action="store_true",
-)
-ARG_RAW = Arg(("-r", "--raw"), argparse.SUPPRESS, "store_true")
-ARG_IGNORE_ALL_DEPENDENCIES = Arg(
-    ("-A", "--ignore-all-dependencies"),
-    help="Ignores all non-critical dependencies, including ignore_ti_state and ignore_task_deps",
-    action="store_true",
-)
-# TODO(aoen): ignore_dependencies is a poor choice of name here because it is too
-# vague (e.g. a task being in the appropriate state to be run is also a dependency
-# but is not ignored by this flag), the name 'ignore_task_dependencies' is
-# slightly better (as it ignores all dependencies that are specific to the task),
-# so deprecate the old command name and use this instead.
-ARG_IGNORE_DEPENDENCIES = Arg(
-    ("-i", "--ignore-dependencies"),
-    help="Ignore task-specific dependencies, e.g. upstream, depends_on_past, and retry delay dependencies",
-    action="store_true",
-)
-ARG_DEPENDS_ON_PAST = Arg(
-    ("-d", "--depends-on-past"),
-    help="Determine how Airflow should deal with past dependencies. The default action is `check`, Airflow "
-    "will check if the past dependencies are met for the tasks having `depends_on_past=True` before run "
-    "them, if `ignore` is provided, the past dependencies will be ignored, if `wait` is provided and "
-    "`depends_on_past=True`, Airflow will wait the past dependencies until they are met before running or "
-    "skipping the task",
-    choices={"check", "ignore", "wait"},
-    default="check",
-)
-ARG_CFG_PATH = Arg(("--cfg-path",), help="Path to config file to use instead of airflow.cfg")
+# tasks
 ARG_MAP_INDEX = Arg(("--map-index",), type=int, default=-1, help="Mapped task index")
-ARG_READ_FROM_DB = Arg(("--read-from-db",), help="Read dag from DB instead of dag file", action="store_true")
 
 
 # database
@@ -838,7 +795,7 @@ ARG_OPTIONAL_SECTION = Arg(
 # jobs check
 ARG_JOB_TYPE_FILTER = Arg(
     ("--job-type",),
-    choices=("LocalTaskJob", "SchedulerJob", "TriggererJob", "DagProcessorJob"),
+    choices=("SchedulerJob", "TriggererJob", "DagProcessorJob"),
     action="store",
     help="The type of job(s) that will be checked.",
 )
@@ -1251,31 +1208,6 @@ TASKS_COMMANDS = (
             ARG_SUBDIR,
             ARG_VERBOSE,
             ARG_MAP_INDEX,
-        ),
-    ),
-    ActionCommand(
-        name="run",
-        help="Run a single task instance",
-        func=lazy_load_command("airflow.cli.commands.remote_commands.task_command.task_run"),
-        args=(
-            ARG_DAG_ID,
-            ARG_TASK_ID,
-            ARG_LOGICAL_DATE_OR_RUN_ID,
-            ARG_SUBDIR,
-            ARG_MARK_SUCCESS,
-            ARG_FORCE,
-            ARG_POOL,
-            ARG_CFG_PATH,
-            ARG_LOCAL,
-            ARG_RAW,
-            ARG_IGNORE_ALL_DEPENDENCIES,
-            ARG_IGNORE_DEPENDENCIES,
-            ARG_DEPENDS_ON_PAST,
-            ARG_INTERACTIVE,
-            ARG_SHUT_DOWN_LOGGING,
-            ARG_MAP_INDEX,
-            ARG_VERBOSE,
-            ARG_READ_FROM_DB,
         ),
     ),
     ActionCommand(
