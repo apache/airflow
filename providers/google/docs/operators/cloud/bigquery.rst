@@ -96,6 +96,22 @@ method only replaces fields that are provided in the submitted Table resource.
     :start-after: [START howto_operator_bigquery_update_table]
     :end-before: [END howto_operator_bigquery_update_table]
 
+You can use this operator to update a view.
+
+.. exampleinclude:: /../../google/tests/system/google/cloud/bigquery/example_bigquery_tables.py
+    :language: python
+    :dedent: 4
+    :start-after: [START howto_operator_bigquery_update_view]
+    :end-before: [END howto_operator_bigquery_update_view]
+
+And use the same operator to update a materialized view.
+
+.. exampleinclude:: /../../google/tests/system/google/cloud/bigquery/example_bigquery_tables.py
+    :language: python
+    :dedent: 4
+    :start-after: [START howto_operator_bigquery_update_materialized_view]
+    :end-before: [END howto_operator_bigquery_update_materialized_view]
+
 .. _howto/operator:BigQueryUpdateDatasetOperator:
 
 Update dataset
