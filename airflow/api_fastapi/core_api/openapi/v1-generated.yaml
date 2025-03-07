@@ -3789,9 +3789,7 @@ paths:
         in: path
         required: true
         schema:
-          anyOf:
-          - type: string
-          - type: 'null'
+          type: string
           title: Dag Id
       - name: dag_run_id
         in: path
