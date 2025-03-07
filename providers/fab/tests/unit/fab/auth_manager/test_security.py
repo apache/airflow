@@ -245,10 +245,7 @@ def has_dag_perm(security_manager):
     def _has_dag_perm(perm, dag_id, user):
         from airflow.auth.managers.models.resource_details import DagDetails
 
-        root_dag_id = security_manager._get_root_dag_id(dag_id)
-        return get_auth_manager().is_authorized_dag(
-            method=perm, details=DagDetails(id=root_dag_id), user=user
-        )
+        return get_auth_manager().is_authorized_dag(method=perm, details=DagDetails(id=dag_id), user=user)
 
     return _has_dag_perm
 
@@ -897,23 +894,6 @@ def test_override_role_vm(app_builder):
     test_security_manager = MockSecurityManager(appbuilder=app_builder)
     assert len(test_security_manager.VIEWER_VMS) == 1
     assert {"Airflow"} == test_security_manager.VIEWER_VMS
-
-
-def test_correct_roles_have_perms_to_read_config(security_manager):
-    roles_to_check = security_manager.get_all_roles()
-    assert len(roles_to_check) >= 5
-    for role in roles_to_check:
-        if role.name in ["Admin", "Op"]:
-            assert security_manager.permission_exists_in_one_or_more_roles(
-                permissions.RESOURCE_CONFIG, permissions.ACTION_CAN_READ, [role.id]
-            )
-        else:
-            assert not security_manager.permission_exists_in_one_or_more_roles(
-                permissions.RESOURCE_CONFIG, permissions.ACTION_CAN_READ, [role.id]
-            ), (
-                f"{role.name} should not have {permissions.ACTION_CAN_READ} "
-                f"on {permissions.RESOURCE_CONFIG}"
-            )
 
 
 def test_create_dag_specific_permissions(session, security_manager, monkeypatch, sample_dags):
