@@ -39,7 +39,9 @@ from airflow.api_fastapi.core_api.datamodels.backfills import (
 from airflow.api_fastapi.core_api.openapi.exceptions import (
     create_openapi_http_exception_doc,
 )
+from airflow.api_fastapi.core_api.security import requires_access_dag
 from airflow.api_fastapi.logging.decorators import action_logging
+from airflow.auth.managers.models.resource_details import DagAccessEntity
 from airflow.exceptions import DagNotFound
 from airflow.models import DagRun
 from airflow.models.backfill import (
@@ -108,6 +110,7 @@ def get_backfill(
             status.HTTP_409_CONFLICT,
         ]
     ),
+    dependencies=[Depends(requires_access_dag(method="PUT", access_entity=DagAccessEntity.RUN))],
 )
 def pause_backfill(backfill_id, session: SessionDep) -> BackfillResponse:
     b = session.get(Backfill, backfill_id)
@@ -129,6 +132,7 @@ def pause_backfill(backfill_id, session: SessionDep) -> BackfillResponse:
             status.HTTP_409_CONFLICT,
         ]
     ),
+    dependencies=[Depends(requires_access_dag(method="PUT", access_entity=DagAccessEntity.RUN))],
 )
 def unpause_backfill(backfill_id, session: SessionDep) -> BackfillResponse:
     b = session.get(Backfill, backfill_id)
@@ -149,7 +153,10 @@ def unpause_backfill(backfill_id, session: SessionDep) -> BackfillResponse:
             status.HTTP_409_CONFLICT,
         ]
     ),
-    dependencies=[Depends(action_logging())],
+    dependencies=[
+        Depends(action_logging()),
+        Depends(requires_access_dag(method="PUT", access_entity=DagAccessEntity.RUN)),
+    ],
 )
 def cancel_backfill(backfill_id, session: SessionDep) -> BackfillResponse:
     b: Backfill = session.get(Backfill, backfill_id)
@@ -190,7 +197,10 @@ def cancel_backfill(backfill_id, session: SessionDep) -> BackfillResponse:
 @backfills_router.post(
     path="",
     responses=create_openapi_http_exception_doc([status.HTTP_404_NOT_FOUND, status.HTTP_409_CONFLICT]),
-    dependencies=[Depends(action_logging())],
+    dependencies=[
+        Depends(action_logging()),
+        Depends(requires_access_dag(method="POST", access_entity=DagAccessEntity.RUN)),
+    ],
 )
 def create_backfill(
     backfill_request: BackfillPostBody,
