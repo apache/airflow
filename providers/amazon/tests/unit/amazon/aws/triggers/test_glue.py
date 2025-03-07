@@ -36,6 +36,8 @@ from unit.amazon.aws.utils.test_waiter import assert_expected_waiter_type
 
 BASE_TRIGGER_CLASSPATH = "airflow.providers.amazon.aws.triggers.glue."
 
+pytest.importorskip("aiobotocore")
+
 
 class TestGlueJobTrigger:
     @pytest.mark.asyncio

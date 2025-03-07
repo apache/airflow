@@ -30,6 +30,8 @@ from unit.amazon.aws.utils.test_waiter import assert_expected_waiter_type
 
 BASE_TRIGGER_CLASSPATH = "airflow.providers.amazon.aws.triggers.kinesis_analytics."
 
+pytest.importorskip("aiobotocore")
+
 
 class TestKinesisAnalyticsV2ApplicationOperationCompleteTrigger:
     APPLICATION_NAME = "demo"

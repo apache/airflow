@@ -82,6 +82,7 @@ def get_provider_info():
             "flask>=2.2,<2.3",
             "flask-appbuilder==4.5.3",
             "flask-login>=0.6.2",
+            "connexion[flask]>=2.14.2,<3.0",
             "jmespath>=0.7.0",
         ],
         "optional-dependencies": {"kerberos": ["kerberos>=1.3.0"]},

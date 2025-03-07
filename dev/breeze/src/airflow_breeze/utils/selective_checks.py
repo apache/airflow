@@ -80,8 +80,6 @@ FORCE_PIP_LABEL = "force pip"
 FULL_TESTS_NEEDED_LABEL = "full tests needed"
 INCLUDE_SUCCESS_OUTPUTS_LABEL = "include success outputs"
 LATEST_VERSIONS_ONLY_LABEL = "latest versions only"
-LEGACY_UI_LABEL = "legacy ui"
-LEGACY_API_LABEL = "legacy api"
 LOG_WITHOUT_MOCK_IN_TESTS_EXCEPTION_LABEL = "log exception"
 NON_COMMITTER_BUILD_LABEL = "non committer build"
 UPGRADE_TO_NEWER_DEPENDENCIES_LABEL = "upgrade to newer dependencies"
@@ -102,7 +100,6 @@ class FileGroupForCi(Enum):
     ALWAYS_TESTS_FILES = "always_test_files"
     API_FILES = "api_files"
     API_CODEGEN_FILES = "api_codegen_files"
-    LEGACY_API_FILES = "legacy_api_files"
     HELM_FILES = "helm_files"
     DEPENDENCY_FILES = "dependency_files"
     DOC_FILES = "doc_files"
@@ -170,9 +167,6 @@ CI_FILE_GROUP_MATCHES = HashableDict(
         FileGroupForCi.API_CODEGEN_FILES: [
             r"^airflow/api_fastapi/core_api/openapi/v1-generated\.yaml",
             r"^clients/gen",
-        ],
-        FileGroupForCi.LEGACY_API_FILES: [
-            r"^airflow/api_connexion/",
         ],
         FileGroupForCi.HELM_FILES: [
             r"^chart",
@@ -288,10 +282,8 @@ TEST_TYPE_MATCHES = HashableDict(
     {
         SelectiveCoreTestType.API: [
             r"^airflow/api/",
-            r"^airflow/api_connexion/",
             r"^airflow/api_fastapi/",
             r"^tests/api/",
-            r"^tests/api_connexion/",
             r"^tests/api_fastapi/",
         ],
         SelectiveCoreTestType.CLI: [
@@ -1509,30 +1501,6 @@ class SelectiveChecks:
             self._github_event in [GithubEvents.SCHEDULE, GithubEvents.PUSH]
             and self._github_repository == APACHE_AIRFLOW_GITHUB_REPOSITORY
         ) or CANARY_LABEL in self._pr_labels
-
-    @cached_property
-    def is_legacy_ui_api_labeled(self) -> bool:
-        # Selective check for legacy UI/API updates.
-        # It is to ping the maintainer to add the label and make them aware of the changes.
-        if self._is_canary_run() or self._github_event not in (
-            GithubEvents.PULL_REQUEST,
-            GithubEvents.PULL_REQUEST_TARGET,
-        ):
-            return False
-
-        if (
-            self._matching_files(
-                FileGroupForCi.LEGACY_API_FILES, CI_FILE_GROUP_MATCHES, CI_FILE_GROUP_EXCLUDES
-            )
-            and LEGACY_API_LABEL not in self._pr_labels
-        ):
-            get_console().print(
-                f"[error]Please ask maintainer to assign "
-                f"the '{LEGACY_API_LABEL}' label to the PR in order to continue"
-            )
-            sys.exit(1)
-        else:
-            return True
 
     @classmethod
     def _find_caplog_in_def(cls, added_lines):

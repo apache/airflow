@@ -31,6 +31,8 @@ from unit.amazon.aws.utils.test_waiter import assert_expected_waiter_type
 
 BASE_TRIGGER_CLASSPATH = "airflow.providers.amazon.aws.triggers.comprehend."
 
+pytest.importorskip("aiobotocore")
+
 
 class TestBaseComprehendTrigger:
     EXPECTED_WAITER_NAME: str | None = None

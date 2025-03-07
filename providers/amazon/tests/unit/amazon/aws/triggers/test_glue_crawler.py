@@ -26,6 +26,8 @@ from airflow.providers.amazon.aws.triggers.glue_crawler import GlueCrawlerComple
 from airflow.triggers.base import TriggerEvent
 from unit.amazon.aws.utils.test_waiter import assert_expected_waiter_type
 
+pytest.importorskip("aiobotocore")
+
 
 class TestGlueCrawlerCompleteTrigger:
     def test_serialization(self):
