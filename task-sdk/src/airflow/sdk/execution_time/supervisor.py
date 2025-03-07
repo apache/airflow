@@ -31,7 +31,7 @@ from collections.abc import Generator
 from contextlib import suppress
 from datetime import datetime, timezone
 from http import HTTPStatus
-from socket import socket, socketpair
+from socket import SocketIO, socket, socketpair
 from typing import (
     TYPE_CHECKING,
     BinaryIO,
@@ -129,16 +129,10 @@ def mkpipe(remote_read: Literal[True]) -> tuple[socket, BinaryIO]: ...
 def mkpipe(
     remote_read: bool = False,
 ) -> tuple[socket, socket | BinaryIO]:
-    """
-    Create a pair of connected sockets.
-
-    The inheritable flag will be set correctly so that the end destined for the subprocess is kept open but
-    the end for this process is closed automatically by the OS.
-    """
+    """Create a pair of connected sockets."""
     rsock, wsock = socketpair()
     local, remote = (wsock, rsock) if remote_read else (rsock, wsock)
 
-    remote.set_inheritable(True)
     local.setblocking(False)
 
     io: BinaryIO | socket
@@ -399,7 +393,8 @@ class WatchedSubprocess:
 
         pid = os.fork()
         if pid == 0:
-            # Parent ends of the sockets are closed by the OS as they are set as non-inheritable
+            # Close and delete of the parent end of the sockets.
+            cls._close_unused_sockets(feed_stdin, read_stdout, read_stderr, read_msgs, read_logs)
 
             # Python GC should delete these for us, but lets make double sure that we don't keep anything
             # around in the forked processes, especially things that might involve open files or sockets!
@@ -501,6 +496,10 @@ class WatchedSubprocess:
     def _close_unused_sockets(*sockets):
         """Close unused ends of sockets after fork."""
         for sock in sockets:
+            if isinstance(sock, SocketIO):
+                # If we have the socket IO object, we need to close the underlying socket foricebly here too,
+                # else we get unclosed socket warnings, and likely leaking FDs too
+                sock._sock.close()
             sock.close()
 
     def kill(
@@ -617,6 +616,7 @@ class WatchedSubprocess:
             try:
                 self._exit_code = self._process.wait(timeout=0)
                 log.debug("Workload process exited", exit_code=self._exit_code)
+                self._close_unused_sockets(self.stdin)
             except psutil.TimeoutExpired:
                 if raise_on_timeout:
                     raise

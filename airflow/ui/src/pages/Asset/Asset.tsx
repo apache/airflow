@@ -59,7 +59,7 @@ export const Asset = () => {
       <ProgressBar size="xs" visibility={Boolean(isLoading) ? "visible" : "hidden"} />
       <Box flex={1} minH={0}>
         <PanelGroup autoSaveId={assetId} direction="horizontal">
-          <Panel defaultSize={20} minSize={6}>
+          <Panel defaultSize={70} minSize={6}>
             <Box height="100%" position="relative" pr={2}>
               <AssetGraph asset={asset} />
             </Box>
@@ -67,7 +67,7 @@ export const Asset = () => {
           <PanelResizeHandle className="resize-handle">
             <Box bg="fg.subtle" cursor="col-resize" h="100%" transition="background 0.2s" w={0.5} />
           </PanelResizeHandle>
-          <Panel defaultSize={50} minSize={20}>
+          <Panel defaultSize={30} minSize={20}>
             <Header asset={asset} />
             <Box h="100%" overflow="auto" px={2}>
               <AssetEvents assetId={asset?.id} />

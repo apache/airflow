@@ -89,7 +89,7 @@ class LogCapture:
 
 @pytest.fixture
 def test_dags_dir():
-    return Path(__file__).parent.joinpath("dags")
+    return Path(__file__).parent.joinpath("task_sdk", "dags")
 
 
 @pytest.fixture

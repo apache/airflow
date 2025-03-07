@@ -38,7 +38,7 @@ ALLOWED_FOLDERS = [
     *[f"providers/{provider_id.replace('.', '/')}/src" for provider_id in get_all_provider_ids()],
     "dev",
     "docs",
-    "task_sdk/src/airflow/sdk",
+    "task-sdk/src/airflow/sdk",
     "all_providers",
 ]
 
@@ -69,8 +69,8 @@ for mypy_folder in mypy_folders:
     elif mypy_folder.startswith("providers/"):
         arguments.append(f"{Path(mypy_folder).parent.as_posix()}/tests")
         namespace_packages = True
-    if mypy_folder == "task_sdk/src/airflow/sdk":
-        arguments.append("task_sdk/tests")
+    if mypy_folder == "task-sdk/src/airflow/sdk":
+        arguments.append("task-sdk/tests")
         namespace_packages = True
     if mypy_folder == "airflow":
         arguments.append("tests")
