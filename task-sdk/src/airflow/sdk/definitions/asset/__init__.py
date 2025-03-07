@@ -442,25 +442,15 @@ class Asset(os.PathLike, BaseAsset):
 
         :meta private:
         """
-        from airflow.models.asset import resolve_assets_as_dag_dependencies
-        from airflow.utils.session import create_session
-
-        with create_session() as session:
-            dag_dependencies = resolve_assets_as_dag_dependencies(
-                source=source or "asset", target=target or "asset", assets=[self], session=session
-            )
-
-        # handle the case that asset has not yet been added
-        if dag_dependencies:
-            yield dag_dependencies[0]
-        else:
-            yield DagDependency(
-                source=source or "asset",
-                target=target or "asset",
-                label=self.name,
-                dependency_type="asset",
-                dependency_id=None,
-            )
+        yield DagDependency(
+            source=source or "asset",
+            target=target or "asset",
+            label=self.name,
+            dependency_type="asset",
+            # We can't get asset id at this stage.
+            # This will be updated when running SerializedDagModel.get_dag_dependencies
+            dependency_id=None,
+        )
 
     def asprofile(self) -> AssetProfile:
         """
@@ -498,6 +488,7 @@ class AssetRef(BaseAsset, AttrsInstance):
         yield DagDependency(
             source=source or "asset-ref",
             target=target or "asset-ref",
+            label=dependency_id,
             dependency_type="asset-ref",
             dependency_id=dependency_id,
         )
@@ -562,6 +553,7 @@ class AssetAlias(BaseAsset):
         yield DagDependency(
             source=source or "asset-alias",
             target=target or "asset-alias",
+            label=self.name,
             dependency_type="asset-alias",
             dependency_id=self.name,
         )
