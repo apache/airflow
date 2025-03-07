@@ -43,9 +43,9 @@ from tests_common.test_utils.config import conf_vars
 
 if TYPE_CHECKING:
     from airflow.auth.managers.base_auth_manager import ResourceMethod
-    from airflow.auth.managers.models.resource_details import AssetDetails
+    from airflow.auth.managers.models.resource_details import AssetAliasDetails, AssetDetails
 else:
-    from airflow.providers.common.compat.assets import AssetDetails
+    from airflow.providers.common.compat.assets import AssetAliasDetails, AssetDetails
 
 
 mock = Mock()
@@ -226,6 +226,37 @@ class TestAwsAuthManager:
 
         is_authorized.assert_called_once_with(
             method=method, entity_type=AvpEntities.ASSET, user=expected_user, entity_id=expected_entity_id
+        )
+        assert result
+
+    @pytest.mark.parametrize(
+        "details, user, expected_user, expected_entity_id",
+        [
+            (None, mock, ANY, None),
+            (AssetAliasDetails(id="1"), mock, mock, "1"),
+        ],
+    )
+    @patch.object(AwsAuthManager, "avp_facade")
+    def test_is_authorized_asset_alias(
+        self,
+        mock_avp_facade,
+        details,
+        user,
+        expected_user,
+        expected_entity_id,
+        auth_manager,
+    ):
+        is_authorized = Mock(return_value=True)
+        mock_avp_facade.is_authorized = is_authorized
+
+        method: ResourceMethod = "GET"
+        result = auth_manager.is_authorized_asset_alias(method=method, details=details, user=user)
+
+        is_authorized.assert_called_once_with(
+            method=method,
+            entity_type=AvpEntities.ASSET_ALIAS,
+            user=expected_user,
+            entity_id=expected_entity_id,
         )
         assert result
 
