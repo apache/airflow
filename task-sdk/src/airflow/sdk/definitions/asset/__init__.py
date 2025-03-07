@@ -17,7 +17,6 @@
 
 from __future__ import annotations
 
-import contextlib
 import logging
 import operator
 import os
@@ -33,8 +32,6 @@ from airflow.serialization.dag_dependency import DagDependency
 if TYPE_CHECKING:
     from collections.abc import Iterable, Iterator
     from urllib.parse import SplitResult
-
-    from sqlalchemy.orm import Session
 
     from airflow.models.asset import AssetModel
     from airflow.serialization.serialized_objects import SerializedAssetWatcher
@@ -231,9 +228,6 @@ class BaseAsset:
 
         :meta private:
         """
-        raise NotImplementedError
-
-    def evaluate(self, statuses: dict[AssetUniqueKey, bool], *, session: Session | None = None) -> bool:
         raise NotImplementedError
 
     def iter_assets(self) -> Iterator[tuple[AssetUniqueKey, Asset]]:
@@ -442,9 +436,6 @@ class Asset(os.PathLike, BaseAsset):
     def iter_asset_refs(self) -> Iterator[AssetRef]:
         return iter(())
 
-    def evaluate(self, statuses: dict[AssetUniqueKey, bool], *, session: Session | None = None) -> bool:
-        return statuses.get(AssetUniqueKey.from_asset(self), False)
-
     def iter_dag_dependencies(self, *, source: str, target: str) -> Iterator[DagDependency]:
         """
         Iterate an asset as dag dependency.
@@ -489,35 +480,14 @@ class AssetRef(BaseAsset, AttrsInstance):
     def iter_asset_refs(self) -> Iterator[AssetRef]:
         yield self
 
-    def _resolve_asset(self, *, session: Session | None = None) -> Asset | None:
-        from airflow.models.asset import resolve_ref_to_asset
-        from airflow.utils.session import create_session
-
-        with contextlib.nullcontext(session) if session else create_session() as session:
-            asset = resolve_ref_to_asset(**attrs.asdict(self), session=session)
-        return asset.to_public() if asset else None
-
-    def evaluate(self, statuses: dict[AssetUniqueKey, bool], *, session: Session | None = None) -> bool:
-        if asset := self._resolve_asset(session=session):
-            return asset.evaluate(statuses=statuses, session=session)
-        return False
-
     def iter_dag_dependencies(self, *, source: str = "", target: str = "") -> Iterator[DagDependency]:
         (dependency_id,) = attrs.astuple(self)
-        if asset := self._resolve_asset():
-            yield DagDependency(
-                source=f"asset-ref:{dependency_id}" if source else "asset",
-                target="asset" if source else f"asset-ref:{dependency_id}",
-                dependency_type="asset",
-                dependency_id=asset.name,
-            )
-        else:
-            yield DagDependency(
-                source=source or "asset-ref",
-                target=target or "asset-ref",
-                dependency_type="asset-ref",
-                dependency_id=dependency_id,
-            )
+        yield DagDependency(
+            source=source or "asset-ref",
+            target=target or "asset-ref",
+            dependency_type="asset-ref",
+            dependency_id=dependency_id,
+        )
 
 
 @attrs.define(hash=True)
@@ -553,14 +523,6 @@ class AssetAlias(BaseAsset):
     name: str = attrs.field(validator=_validate_non_empty_identifier)
     group: str = attrs.field(kw_only=True, default="asset", validator=_validate_identifier)
 
-    def _resolve_assets(self, session: Session | None = None) -> list[Asset]:
-        from airflow.models.asset import expand_alias_to_assets
-        from airflow.utils.session import create_session
-
-        with contextlib.nullcontext(session) if session else create_session() as session:
-            asset_models = expand_alias_to_assets(self.name, session)
-        return [m.to_public() for m in asset_models]
-
     def as_expression(self) -> Any:
         """
         Serialize the asset alias into its scheduling expression.
@@ -568,9 +530,6 @@ class AssetAlias(BaseAsset):
         :meta private:
         """
         return {"alias": {"name": self.name, "group": self.group}}
-
-    def evaluate(self, statuses: dict[AssetUniqueKey, bool], *, session: Session | None = None) -> bool:
-        return any(x.evaluate(statuses=statuses, session=session) for x in self._resolve_assets(session))
 
     def iter_assets(self) -> Iterator[tuple[AssetUniqueKey, Asset]]:
         return iter(())
@@ -587,34 +546,20 @@ class AssetAlias(BaseAsset):
 
         :meta private:
         """
-        if not (resolved_assets := self._resolve_assets()):
-            yield DagDependency(
-                source=source or "asset-alias",
-                target=target or "asset-alias",
-                dependency_type="asset-alias",
-                dependency_id=self.name,
-            )
-            return
-        for asset in resolved_assets:
-            asset_name = asset.name
-            # asset
-            yield DagDependency(
-                source=f"asset-alias:{self.name}" if source else "asset",
-                target="asset" if source else f"asset-alias:{self.name}",
-                dependency_type="asset",
-                dependency_id=asset_name,
-            )
-            # asset alias
-            yield DagDependency(
-                source=source or f"asset:{asset_name}",
-                target=target or f"asset:{asset_name}",
-                dependency_type="asset-alias",
-                dependency_id=self.name,
-            )
+        yield DagDependency(
+            source=source or "asset-alias",
+            target=target or "asset-alias",
+            dependency_type="asset-alias",
+            dependency_id=self.name,
+        )
 
 
-class _AssetBooleanCondition(BaseAsset):
-    """Base class for asset boolean logic."""
+class AssetBooleanCondition(BaseAsset):
+    """
+    Base class for asset boolean logic.
+
+    :meta private:
+    """
 
     agg_func: Callable[[Iterable], bool]
 
@@ -622,9 +567,6 @@ class _AssetBooleanCondition(BaseAsset):
         if not all(isinstance(o, BaseAsset) for o in objects):
             raise TypeError("expect asset expressions in condition")
         self.objects = objects
-
-    def evaluate(self, statuses: dict[AssetUniqueKey, bool], *, session: Session | None = None) -> bool:
-        return self.agg_func(x.evaluate(statuses=statuses, session=session) for x in self.objects)
 
     def iter_assets(self) -> Iterator[tuple[AssetUniqueKey, Asset]]:
         for o in self.objects:
@@ -648,7 +590,7 @@ class _AssetBooleanCondition(BaseAsset):
             yield from obj.iter_dag_dependencies(source=source, target=target)
 
 
-class AssetAny(_AssetBooleanCondition):
+class AssetAny(AssetBooleanCondition):
     """Use to combine assets schedule references in an "or" relationship."""
 
     agg_func = any
@@ -671,7 +613,7 @@ class AssetAny(_AssetBooleanCondition):
         return {"any": [o.as_expression() for o in self.objects]}
 
 
-class AssetAll(_AssetBooleanCondition):
+class AssetAll(AssetBooleanCondition):
     """Use to combine assets schedule references in an "and" relationship."""
 
     agg_func = all

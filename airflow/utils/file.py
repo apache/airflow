@@ -21,6 +21,7 @@ import ast
 import hashlib
 import logging
 import os
+import re
 import zipfile
 from collections.abc import Generator
 from io import TextIOWrapper
@@ -28,7 +29,6 @@ from pathlib import Path
 from re import Pattern
 from typing import NamedTuple, Protocol, overload
 
-import re2
 from pathspec.patterns import GitWildMatchPattern
 
 from airflow.configuration import conf
@@ -64,8 +64,8 @@ class _RegexpIgnoreRule(NamedTuple):
     def compile(pattern: str, base_dir: Path, definition_file: Path) -> _IgnoreRule | None:
         """Build an ignore rule from the supplied regexp pattern and log a useful warning if it is invalid."""
         try:
-            return _RegexpIgnoreRule(re2.compile(pattern), base_dir)
-        except re2.error as e:
+            return _RegexpIgnoreRule(re.compile(pattern), base_dir)
+        except re.error as e:
             log.warning("Ignoring invalid regex '%s' from %s: %s", pattern, definition_file, e)
             return None
 
@@ -122,7 +122,7 @@ class _GlobIgnoreRule(NamedTuple):
         return matched
 
 
-ZIP_REGEX = re2.compile(rf"((.*\.zip){re2.escape(os.sep)})?(.*)")
+ZIP_REGEX = re.compile(rf"((.*\.zip){re.escape(os.sep)})?(.*)")
 
 
 @overload
@@ -186,7 +186,7 @@ def _find_path_from_directory(
         ignore_file_path = Path(root) / ignore_file_name
         if ignore_file_path.is_file():
             with open(ignore_file_path) as ifile:
-                lines_no_comments = [re2.sub(r"\s*#.*", "", line) for line in ifile.read().split("\n")]
+                lines_no_comments = [re.sub(r"\s*#.*", "", line) for line in ifile.read().split("\n")]
                 # append new patterns and filter out "None" objects, which are invalid patterns
                 patterns += [
                     p
@@ -282,7 +282,7 @@ def find_dag_file_paths(directory: str | os.PathLike[str], safe_mode: bool) -> l
     return file_paths
 
 
-COMMENT_PATTERN = re2.compile(r"\s*#.*")
+COMMENT_PATTERN = re.compile(r"\s*#.*")
 
 
 def might_contain_dag(file_path: str, safe_mode: bool, zip_file: zipfile.ZipFile | None = None) -> bool:
@@ -350,6 +350,6 @@ def get_unique_dag_module_name(file_path: str) -> str:
     """Return a unique module name in the format unusual_prefix_{sha1 of module's file path}_{original module name}."""
     if isinstance(file_path, str):
         path_hash = hashlib.sha1(file_path.encode("utf-8"), usedforsecurity=False).hexdigest()
-        org_mod_name = re2.sub(r"[.-]", "_", Path(file_path).stem)
+        org_mod_name = re.sub(r"[.-]", "_", Path(file_path).stem)
         return MODIFIED_DAG_MODULE_NAME.format(path_hash=path_hash, module_name=org_mod_name)
     raise ValueError("file_path should be a string to generate unique module name")

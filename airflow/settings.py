@@ -141,12 +141,13 @@ def _get_rich_console(file):
 def custom_show_warning(message, category, filename, lineno, file=None, line=None):
     """Print rich and visible warnings."""
     # Delay imports until we need it
-    import re2
+    import re
+
     from rich.markup import escape
 
-    re2_escape_regex = re2.compile(r"(\\*)(\[[a-z#/@][^[]*?])").sub
+    re_escape_regex = re.compile(r"(\\*)(\[[a-z#/@][^[]*?])").sub
     msg = f"[bold]{line}" if line else f"[bold][yellow]{filename}:{lineno}"
-    msg += f" {category.__name__}[/bold]: {escape(str(message), _escape=re2_escape_regex)}[/yellow]"
+    msg += f" {category.__name__}[/bold]: {escape(str(message), _escape=re_escape_regex)}[/yellow]"
     write_console = _get_rich_console(file or sys.stderr)
     write_console.print(msg, soft_wrap=True)
 
