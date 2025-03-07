@@ -99,7 +99,7 @@ else:
                             "url": tp.url,
                             "endpoint": tp.endpoint,
                             "timeoutInMillis": str(
-                                int(tp.timeout * 1000)
+                                int(tp.timeout) * 1000
                                 # convert to milliseconds, as required by Spark integration
                             ),
                         }
