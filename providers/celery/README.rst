@@ -56,7 +56,6 @@ PIP package         Version required
 ``apache-airflow``  ``>=2.9.0``
 ``celery[redis]``   ``>=5.4.0,<6``
 ``flower``          ``>=1.0.0``
-``google-re2``      ``>=1.0``
 ==================  ==================
 
 Cross provider package dependencies

@@ -421,15 +421,6 @@ repos:
         exclude: ^providers/.*/src/airflow/providers/
         entry: ./scripts/ci/pre_commit/check_cncf_k8s_used_for_k8s_executor_only.py
         additional_dependencies: ['rich>=12.4.4']
-      - id: check-google-re2-as-dependency
-        name: Check google-re2 declared as dep
-        description: Check google-re2 is declared as dependency when needed
-        entry: ./scripts/ci/pre_commit/check_google_re2_imports.py
-        language: python
-        pass_filenames: true
-        require_serial: true
-        files: ^providers/.*/src/airflow/providers/.*\.py$
-        additional_dependencies: ['rich>=12.4.4']
       - id: update-local-yml-file
         name: Update mounts in the local yml file
         entry: ./scripts/ci/pre_commit/local_yml_mounts.py
@@ -518,7 +509,7 @@ repos:
           ^providers/fab/src/airflow/providers/fab/migrations/versions/.*$|^providers/fab/src/airflow/providers/fab/migrations/versions|
           ^airflow/utils/db.py$|
           ^providers/fab/src/airflow/providers/fab/auth_manager/models/db.py$
-        additional_dependencies: ['packaging','google-re2']
+        additional_dependencies: ['packaging']
       - id: update-version
         name: Update versions in docs
         entry: ./scripts/ci/pre_commit/update_versions.py
@@ -694,10 +685,11 @@ repos:
       - id: check-base-operator-usage
         language: pygrep
         name: Check BaseOperatorLink core imports
-        description: Make sure BaseOperatorLink is imported from airflow.models.baseoperatorlink in core
-        entry: "from airflow\\.models import.* BaseOperatorLink"
+        description: Make sure BaseOperatorLink is not imported from airflow.models in core
+        entry: "^\\s*from airflow\\.models\\.baseoperatorlink import BaseOperatorLink\\b"
         files: \.py$
         pass_filenames: true
+        echo: True
         exclude: >
           (?x)
           ^airflow/decorators/.*$|
@@ -708,9 +700,9 @@ repos:
           ^dev/provider_packages/.*$
       - id: check-base-operator-usage
         language: pygrep
-        name: Check BaseOperator[Link] other imports
-        description: Make sure BaseOperator[Link] is imported from airflow.models outside of core
-        entry: "from airflow\\.models\\.baseoperator(link)? import.* BaseOperator"
+        name: Check BaseOperator other imports
+        description: Make sure BaseOperator is imported from airflow.models outside of core
+        entry: "from airflow\\.models\\.baseoperator import.* BaseOperator"
         pass_filenames: true
         files: >
           (?x)
@@ -1155,35 +1147,6 @@ repos:
         language: python
         pass_filenames: true
         files: ^tests/.*\.py$
-      - id: check-usage-of-re2-over-re
-        language: pygrep
-        name: Use re2 module instead of re
-        description: Use re2 module instead of re
-        entry: "^\\s*from re\\s|^\\s*import re\\s"
-        pass_filenames: true
-        files: \.py$
-        exclude: |
-          (?x)
-          ^airflow/configuration.py$ |
-          ^airflow/metrics/validators.py$ |
-          ^airflow/models/dag.py$ |
-          ^airflow/serialization/serde.py$ |
-          ^airflow/utils/file.py$ |
-          ^airflow/utils/helpers.py$ |
-          ^providers/ |
-          ^tests/ |
-          ^providers/tests/ |
-          ^providers/.*/tests/ |
-          ^task-sdk/src/airflow/sdk/definitions/dag.py$ |
-          ^task-sdk/src/airflow/sdk/execution_time/secrets_masker.py$ |
-          ^task-sdk/src/airflow/sdk/definitions/_internal/node.py$ |
-          ^dev/.*\.py$ |
-          ^scripts/.*\.py$ |
-          ^docker_tests/.*$ |
-          ^helm_tests/.*$ |
-          ^devel-common/.*$ |
-          ^docs/.*\.py$ |
-          ^hatch_build.py$
       - id: check-provider-docs-valid
         name: Validate provider doc files
         entry: ./scripts/ci/pre_commit/check_provider_docs.py

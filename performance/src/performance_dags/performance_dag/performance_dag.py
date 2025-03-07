@@ -44,10 +44,10 @@ from __future__ import annotations
 import enum
 import json
 import os
+import re
 import time
 from enum import Enum
 
-import re2 as re
 from performance_dags.performance_dag.performance_dag_utils import (
     parse_schedule_interval,
     parse_start_date,

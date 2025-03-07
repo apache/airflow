@@ -23,13 +23,13 @@ import itertools
 import logging
 import os
 import random
+import re
 import uuid
 from collections.abc import Collection, Iterable, Mapping, Sequence
 from typing import TYPE_CHECKING, Any, Callable
 
 import jwt
 import packaging.version
-import re2
 from flask import flash, g, has_request_context, session
 from flask_appbuilder import const
 from flask_appbuilder.const import (
@@ -2698,7 +2698,7 @@ class FabAirflowSecurityManagerOverride(AirflowSecurityManagerV2):
         """Check permission on builtin role."""
         perms = self.builtin_roles.get(role.name, [])
         for _resource_name, _action_name in perms:
-            if re2.match(_resource_name, resource_name) and re2.match(_action_name, action_name):
+            if re.match(_resource_name, resource_name) and re.match(_action_name, action_name):
                 return True
         return False
 

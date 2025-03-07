@@ -171,6 +171,8 @@ BaseHook
 BaseObject
 BaseOperator
 baseOperator
+BaseOperatorLink
+baseoperatorlink
 basestring
 basetaskrunner
 BaseView
