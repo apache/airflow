@@ -102,9 +102,9 @@ class PinotAdminHook(BaseHook):
         :param with_exec: bool
         """
         cmd = ["AddSchema"]
-        if self.username is not None:
+        if self.username:
             cmd += ["-user", self.username]
-        if self.password is not None:
+        if self.password:
             cmd += ["-password", self.password]
         cmd += ["-controllerHost", self.host]
         cmd += ["-controllerPort", self.port]
@@ -121,9 +121,9 @@ class PinotAdminHook(BaseHook):
         :param with_exec: bool
         """
         cmd = ["AddTable"]
-        if self.username is not None:
+        if self.username:
             cmd += ["-user", self.username]
-        if self.password is not None:
+        if self.password:
             cmd += ["-password", self.password]
         cmd += ["-controllerHost", self.host]
         cmd += ["-controllerPort", self.port]
@@ -155,10 +155,10 @@ class PinotAdminHook(BaseHook):
     ) -> Any:
         """Create Pinot segment by run CreateSegment command."""
         cmd = ["CreateSegment"]
-        if self.username is not None:
+        if self.username:
             cmd += ["-user", self.username]
 
-        if self.password is not None:
+        if self.password:
             cmd += ["-password", self.password]
 
         if generator_config_file:
@@ -226,9 +226,9 @@ class PinotAdminHook(BaseHook):
         :return:
         """
         cmd = ["UploadSegment"]
-        if self.username is not None:
+        if self.username:
             cmd += ["-user", self.username]
-        if self.password is not None:
+        if self.password:
             cmd += ["-password", self.password]
         cmd += ["-controllerHost", self.host]
         cmd += ["-controllerPort", self.port]
@@ -313,9 +313,9 @@ class PinotDbApiHook(DbApiHook):
         """
         conn = self.get_connection(self.get_conn_id())
         host = conn.host
-        if conn.login is not None and conn.password is not None:
+        if conn.login and conn.password:
             host = f"{quote_plus(conn.login)}:{quote_plus(conn.password)}@{host}"
-        if conn.port is not None:
+        if conn.port:
             host += f":{conn.port}"
         conn_type = conn.conn_type or "http"
         endpoint = conn.extra_dejson.get("endpoint", "query/sql")
