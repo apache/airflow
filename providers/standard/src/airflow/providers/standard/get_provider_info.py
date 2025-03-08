@@ -52,6 +52,7 @@ def get_provider_info():
                     "airflow.providers.standard.operators.empty",
                     "airflow.providers.standard.operators.trigger_dagrun",
                     "airflow.providers.standard.operators.latest_only",
+                    "airflow.providers.standard.operators.smooth",
                 ],
             }
         ],
