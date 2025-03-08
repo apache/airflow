@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2025-03-07T20:09:06.828921
+# This constraints file was automatically generated on 2025-03-08T02:25:30.968143
 # via "eager-upgrade" mechanism of PIP. For the "main" branch of Airflow.
 # This variant of constraints install just the 'bare' 'apache-airflow' package build from the HEAD of
 # the branch, without installing any of the providers.
@@ -78,7 +78,7 @@ fastapi-cli==0.0.7
 fastapi==0.115.11
 fastavro==1.10.0
 frozenlist==1.5.0
-fsspec==2025.2.0
+fsspec==2025.3.0
 gevent==24.11.1
 gitdb==4.0.12
 googleapis-common-protos==1.69.1
@@ -103,7 +103,7 @@ kerberos==1.3.1
 krb5==0.7.1
 lazy-object-proxy==1.10.0
 libcst==1.6.0
-limits==4.0.1
+limits==4.1
 linkify-it-py==2.0.3
 lockfile==0.12.2
 markdown-it-py==3.0.0
@@ -162,7 +162,7 @@ rich-argparse==1.7.0
 rich-toolkit==0.13.2
 rich==13.9.4
 rpds-py==0.23.1
-s3fs==2025.2.0
+s3fs==2025.3.0
 sentry-sdk==2.22.0
 setproctitle==1.3.5
 shellingham==1.5.4
