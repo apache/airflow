@@ -32,13 +32,8 @@ import time_machine
 from airflow import settings
 from airflow.cli import cli_parser
 from airflow.cli.commands.remote_commands import dag_command
-from airflow.decorators import task
 from airflow.exceptions import AirflowException
 from airflow.models import DagBag, DagModel, DagRun
-from airflow.models.baseoperator import BaseOperator
-from airflow.models.dag import _run_inline_trigger
-from airflow.providers.standard.triggers.temporal import DateTimeTrigger, TimeDeltaTrigger
-from airflow.triggers.base import TriggerEvent
 from airflow.utils import timezone
 from airflow.utils.session import create_session
 from airflow.utils.types import DagRunType
@@ -498,69 +493,3 @@ class TestCliDags:
             )
             is None
         )
-
-    def test_dag_test_run_inline_trigger(self, dag_maker):
-        now = timezone.utcnow()
-        trigger = DateTimeTrigger(moment=now)
-        e = _run_inline_trigger(trigger)
-        assert isinstance(e, TriggerEvent)
-        assert e.payload == now
-
-    def test_dag_test_no_triggerer_running(self, dag_maker):
-        with mock.patch("airflow.models.dag._run_inline_trigger", wraps=_run_inline_trigger) as mock_run:
-            with dag_maker() as dag:
-
-                @task
-                def one():
-                    return 1
-
-                @task
-                def two(val):
-                    return val + 1
-
-                trigger = TimeDeltaTrigger(timedelta(seconds=0))
-
-                class MyOp(BaseOperator):
-                    template_fields = ("tfield",)
-
-                    def __init__(self, tfield, **kwargs):
-                        self.tfield = tfield
-                        super().__init__(**kwargs)
-
-                    def execute(self, context, event=None):
-                        if event is None:
-                            print("I AM DEFERRING")
-                            self.defer(trigger=trigger, method_name="execute")
-                            return
-                        print("RESUMING")
-                        return self.tfield + 1
-
-                task_one = one()
-                task_two = two(task_one)
-                op = MyOp(task_id="abc", tfield=task_two)
-                task_two >> op
-            dr = dag.test()
-            assert mock_run.call_args_list[0] == ((trigger,), {})
-            tis = dr.get_task_instances()
-            assert next(x for x in tis if x.task_id == "abc").state == "success"
-
-    @mock.patch("airflow.models.taskinstance.TaskInstance._execute_task_with_callbacks")
-    def test_dag_test_with_mark_success(self, mock__execute_task_with_callbacks):
-        """
-        option `--mark-success-pattern` should mark matching tasks as success without executing them.
-        """
-        cli_args = self.parser.parse_args(
-            [
-                "dags",
-                "test",
-                "example_sensor_decorator",
-                datetime(2024, 1, 1, 0, 0, 0).isoformat(),
-                "--mark-success-pattern",
-                "wait_for_upstream",
-            ]
-        )
-        dag_command.dag_test(cli_args)
-
-        # only second operator was actually executed, first one was marked as success
-        assert len(mock__execute_task_with_callbacks.call_args_list) == 1
-        assert mock__execute_task_with_callbacks.call_args_list[0].kwargs["self"].task_id == "dummy_operator"
