@@ -41,7 +41,9 @@ class TestClient:
 
             return httpx.Response(422, json={"detail": [{"loc": ["#0"], "msg": "err", "type": "required"}]})
 
-        client = Client(base_url=None, dry_run=True, mounts={"'http://": httpx.MockTransport(handle_request)})
+        client = Client(
+            base_url=None, dry_run=True, token="", mounts={"'http://": httpx.MockTransport(handle_request)}
+        )
 
         with pytest.raises(ServerResponseError) as err:
             client.get("http://error")
@@ -59,7 +61,9 @@ class TestClient:
 
             return httpx.Response(422, content=b"Internal Server Error")
 
-        client = Client(base_url=None, dry_run=True, mounts={"'http://": httpx.MockTransport(handle_request)})
+        client = Client(
+            base_url=None, dry_run=True, token="", mounts={"'http://": httpx.MockTransport(handle_request)}
+        )
 
         with pytest.raises(httpx.HTTPStatusError) as err:
             client.get("http://error")
@@ -70,7 +74,9 @@ class TestClient:
             # Some other json than an error body.
             return httpx.Response(404, json={"detail": "Not found"})
 
-        client = Client(base_url=None, dry_run=True, mounts={"'http://": httpx.MockTransport(handle_request)})
+        client = Client(
+            base_url=None, dry_run=True, token="", mounts={"'http://": httpx.MockTransport(handle_request)}
+        )
 
         with pytest.raises(ServerResponseError) as err:
             client.get("http://error")
