@@ -1059,7 +1059,7 @@ DAGS_COMMANDS = (
             "If you want to create a DOT file then you should execute the following command:\n"
             "airflow dags show <DAG_ID> --save output.dot\n"
         ),
-        func=lazy_load_command("airflow.cli.commands.remote_commands.dag_command.dag_show"),
+        func=lazy_load_command("airflow.cli.commands.local_commands.dag_command.dag_show"),
         args=(
             ARG_DAG_ID,
             ARG_SUBDIR,
@@ -1088,7 +1088,7 @@ DAGS_COMMANDS = (
             "If you want to create a DOT file then you should execute the following command:\n"
             "airflow dags show-dependencies --save output.dot\n"
         ),
-        func=lazy_load_command("airflow.cli.commands.remote_commands.dag_command.dag_dependencies_show"),
+        func=lazy_load_command("airflow.cli.commands.local_commands.dag_command.dag_dependencies_show"),
         args=(
             ARG_SUBDIR,
             ARG_SAVE,
@@ -1118,7 +1118,7 @@ DAGS_COMMANDS = (
             "If you want to create a DOT file then you should execute the following command:\n"
             "airflow dags test <DAG_ID> <LOGICAL_DATE> --save-dagrun output.dot\n"
         ),
-        func=lazy_load_command("airflow.cli.commands.remote_commands.dag_command.dag_test"),
+        func=lazy_load_command("airflow.cli.commands.local_commands.dag_command.dag_test"),
         args=(
             ARG_DAG_ID,
             ARG_LOGICAL_DATE_OPTIONAL,
@@ -1140,7 +1140,7 @@ DAGS_COMMANDS = (
             "particularly useful if your serialized DAGs become out of sync with the Airflow "
             "version you are using."
         ),
-        func=lazy_load_command("airflow.cli.commands.remote_commands.dag_command.dag_reserialize"),
+        func=lazy_load_command("airflow.cli.commands.local_commands.dag_command.dag_reserialize"),
         args=(
             ARG_BUNDLE_NAME,
             ARG_VERBOSE,
@@ -1151,13 +1151,13 @@ TASKS_COMMANDS = (
     ActionCommand(
         name="list",
         help="List the tasks within a DAG",
-        func=lazy_load_command("airflow.cli.commands.remote_commands.task_command.task_list"),
+        func=lazy_load_command("airflow.cli.commands.local_commands.task_command.task_list"),
         args=(ARG_DAG_ID, ARG_SUBDIR, ARG_VERBOSE),
     ),
     ActionCommand(
         name="clear",
         help="Clear a set of task instance, as if they never ran",
-        func=lazy_load_command("airflow.cli.commands.remote_commands.task_command.task_clear"),
+        func=lazy_load_command("airflow.cli.commands.local_commands.task_command.task_clear"),
         args=(
             ARG_DAG_ID,
             ARG_TASK_REGEX,
@@ -1176,7 +1176,7 @@ TASKS_COMMANDS = (
     ActionCommand(
         name="state",
         help="Get the status of a task instance",
-        func=lazy_load_command("airflow.cli.commands.remote_commands.task_command.task_state"),
+        func=lazy_load_command("airflow.cli.commands.local_commands.task_command.task_state"),
         args=(
             ARG_DAG_ID,
             ARG_TASK_ID,
@@ -1194,13 +1194,13 @@ TASKS_COMMANDS = (
             "In other words, why a task instance doesn't get scheduled and then queued by the scheduler, "
             "and then run by an executor."
         ),
-        func=lazy_load_command("airflow.cli.commands.remote_commands.task_command.task_failed_deps"),
+        func=lazy_load_command("airflow.cli.commands.local_commands.task_command.task_failed_deps"),
         args=(ARG_DAG_ID, ARG_TASK_ID, ARG_LOGICAL_DATE_OR_RUN_ID, ARG_SUBDIR, ARG_MAP_INDEX, ARG_VERBOSE),
     ),
     ActionCommand(
         name="render",
         help="Render a task instance's template(s)",
-        func=lazy_load_command("airflow.cli.commands.remote_commands.task_command.task_render"),
+        func=lazy_load_command("airflow.cli.commands.local_commands.task_command.task_render"),
         args=(
             ARG_DAG_ID,
             ARG_TASK_ID,
@@ -1217,7 +1217,7 @@ TASKS_COMMANDS = (
             "Test a task instance. This will run a task without checking for dependencies or recording "
             "its state in the database"
         ),
-        func=lazy_load_command("airflow.cli.commands.remote_commands.task_command.task_test"),
+        func=lazy_load_command("airflow.cli.commands.local_commands.task_command.task_test"),
         args=(
             ARG_DAG_ID,
             ARG_TASK_ID,
@@ -1234,7 +1234,7 @@ TASKS_COMMANDS = (
     ActionCommand(
         name="states-for-dag-run",
         help="Get the status of all task instances in a dag run",
-        func=lazy_load_command("airflow.cli.commands.remote_commands.task_command.task_states_for_dag_run"),
+        func=lazy_load_command("airflow.cli.commands.local_commands.task_command.task_states_for_dag_run"),
         args=(ARG_DAG_ID, ARG_LOGICAL_DATE_OR_RUN_ID, ARG_OUTPUT, ARG_VERBOSE),
     ),
 )
@@ -1524,14 +1524,14 @@ PROVIDERS_COMMANDS = (
     ActionCommand(
         name="links",
         help="List extra links registered by the providers",
-        func=lazy_load_command("airflow.cli.commands.remote_commands.provider_command.extra_links_list"),
+        func=lazy_load_command("airflow.cli.commands.local_commands.provider_command.extra_links_list"),
         args=(ARG_OUTPUT, ARG_VERBOSE),
     ),
     ActionCommand(
         name="widgets",
         help="Get information about registered connection form widgets",
         func=lazy_load_command(
-            "airflow.cli.commands.remote_commands.provider_command.connection_form_widget_list"
+            "airflow.cli.commands.local_commands.provider_command.connection_form_widget_list"
         ),
         args=(
             ARG_OUTPUT,
@@ -1541,63 +1541,63 @@ PROVIDERS_COMMANDS = (
     ActionCommand(
         name="hooks",
         help="List registered provider hooks",
-        func=lazy_load_command("airflow.cli.commands.remote_commands.provider_command.hooks_list"),
+        func=lazy_load_command("airflow.cli.commands.local_commands.provider_command.hooks_list"),
         args=(ARG_OUTPUT, ARG_VERBOSE),
     ),
     ActionCommand(
         name="triggers",
         help="List registered provider triggers",
-        func=lazy_load_command("airflow.cli.commands.remote_commands.provider_command.triggers_list"),
+        func=lazy_load_command("airflow.cli.commands.local_commands.provider_command.triggers_list"),
         args=(ARG_OUTPUT, ARG_VERBOSE),
     ),
     ActionCommand(
         name="behaviours",
         help="Get information about registered connection types with custom behaviours",
         func=lazy_load_command(
-            "airflow.cli.commands.remote_commands.provider_command.connection_field_behaviours"
+            "airflow.cli.commands.local_commands.provider_command.connection_field_behaviours"
         ),
         args=(ARG_OUTPUT, ARG_VERBOSE),
     ),
     ActionCommand(
         name="logging",
         help="Get information about task logging handlers provided",
-        func=lazy_load_command("airflow.cli.commands.remote_commands.provider_command.logging_list"),
+        func=lazy_load_command("airflow.cli.commands.local_commands.provider_command.logging_list"),
         args=(ARG_OUTPUT, ARG_VERBOSE),
     ),
     ActionCommand(
         name="secrets",
         help="Get information about secrets backends provided",
-        func=lazy_load_command("airflow.cli.commands.remote_commands.provider_command.secrets_backends_list"),
+        func=lazy_load_command("airflow.cli.commands.local_commands.provider_command.secrets_backends_list"),
         args=(ARG_OUTPUT, ARG_VERBOSE),
     ),
     ActionCommand(
         name="executors",
         help="Get information about executors provided",
-        func=lazy_load_command("airflow.cli.commands.remote_commands.provider_command.executors_list"),
+        func=lazy_load_command("airflow.cli.commands.local_commands.provider_command.executors_list"),
         args=(ARG_OUTPUT, ARG_VERBOSE),
     ),
     ActionCommand(
         name="notifications",
         help="Get information about notifications provided",
-        func=lazy_load_command("airflow.cli.commands.remote_commands.provider_command.notifications_list"),
+        func=lazy_load_command("airflow.cli.commands.local_commands.provider_command.notifications_list"),
         args=(ARG_OUTPUT, ARG_VERBOSE),
     ),
     ActionCommand(
         name="configs",
         help="Get information about provider configuration",
-        func=lazy_load_command("airflow.cli.commands.remote_commands.provider_command.config_list"),
+        func=lazy_load_command("airflow.cli.commands.local_commands.provider_command.config_list"),
         args=(ARG_OUTPUT, ARG_VERBOSE),
     ),
     ActionCommand(
         name="lazy-loaded",
         help="Checks that provider configuration is lazy loaded",
-        func=lazy_load_command("airflow.cli.commands.remote_commands.provider_command.lazy_loaded"),
+        func=lazy_load_command("airflow.cli.commands.local_commands.provider_command.lazy_loaded"),
         args=(ARG_VERBOSE,),
     ),
     ActionCommand(
         name="auth-managers",
         help="Get information about auth managers provided",
-        func=lazy_load_command("airflow.cli.commands.remote_commands.provider_command.auth_managers_list"),
+        func=lazy_load_command("airflow.cli.commands.local_commands.provider_command.auth_managers_list"),
         args=(ARG_OUTPUT, ARG_VERBOSE),
     ),
 )
