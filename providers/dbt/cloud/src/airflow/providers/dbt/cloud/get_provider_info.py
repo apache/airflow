@@ -98,6 +98,9 @@ def get_provider_info():
             "asgiref>=2.3.0",
             "aiohttp>=3.9.2",
         ],
-        "optional-dependencies": {"openlineage": ["apache-airflow-providers-openlineage>=1.7.0"]},
+        "optional-dependencies": {
+            "openlineage": ["apache-airflow-providers-openlineage>=1.7.0"],
+            "common.compat": ["apache-airflow-providers-common-compat"],
+        },
         "devel-dependencies": [],
     }

@@ -197,13 +197,6 @@ DEPENDENCIES = [
     "blinker>=1.6.2",
     "colorlog>=6.8.2",
     "configupdater>=3.1.1",
-    # `airflow/www/extensions/init_views` imports `connexion.decorators.validation.RequestBodyValidator`
-    # connexion v3 has refactored the entire module to middleware, see: /spec-first/connexion/issues/1525
-    # Specifically, RequestBodyValidator was removed in: /spec-first/connexion/pull/1595
-    # The usage was added in #30596, seemingly only to override and improve the default error message.
-    # Either revert that change or find another way, preferably without using connexion internals.
-    # This limit can be removed after https://github.com/apache/airflow/issues/35234 is fixed
-    "connexion[flask]>=2.14.2,<3.0",
     "cron-descriptor>=1.2.24",
     "croniter>=2.0.2",
     "cryptography>=41.0.0",
@@ -226,8 +219,6 @@ DEPENDENCIES = [
     "flask>=2.2.1,<2.3",
     "fsspec>=2023.10.0",
     "gitpython>=3.1.40",
-    'google-re2>=1.0;python_version<"3.12"',
-    'google-re2>=1.1;python_version>="3.12"',
     "gunicorn>=20.1.0",
     "httpx>=0.25.0",
     'importlib_metadata>=6.5;python_version<"3.12"',
@@ -281,8 +272,8 @@ DEPENDENCIES = [
     # Does not work with it Tracked in https://github.com/fsspec/universal_pathlib/issues/276
     "universal-pathlib>=0.2.2,!=0.2.4",
     "uuid6>=2024.7.10",
-    # Werkzug 3 breaks Flask-Login 0.6.2, also connexion needs to be updated to >= 3.0
-    # we should remove this limitation when FAB supports Flask 2.3 and we migrate connexion to 3+
+    # Werkzug 3 breaks Flask-Login 0.6.2
+    # we should remove this limitation when FAB supports Flask 2.3
     "werkzeug>=2.0,<3",
 ]
 

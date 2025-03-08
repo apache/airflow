@@ -247,6 +247,9 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
         )
 
     def _debug_dump(self, signum: int, frame: FrameType | None) -> None:
+        import threading
+        from traceback import extract_stack
+
         if not _is_parent_process():
             # Only the parent process should perform the debug dump.
             return
@@ -261,6 +264,13 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
         for executor in self.job.executors:
             self.log.info("Debug dump for the executor %s", executor)
             executor.debug_dump()
+            self.log.info("-" * 80)
+
+        id2name = {th.ident: th.name for th in threading.enumerate()}
+        for threadId, stack in sys._current_frames().items():
+            self.log.info("Stack Trace for Scheduler Job Runner on thread: %s", id2name[threadId])
+            callstack = extract_stack(f=stack, limit=10)
+            self.log.info("\n\t".join(map(repr, callstack)))
             self.log.info("-" * 80)
 
     def _executable_task_instances_to_queued(self, max_tis: int, session: Session) -> list[TI]:

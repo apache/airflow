@@ -24,7 +24,7 @@ import pytest
 from fastapi.testclient import TestClient
 
 from airflow.api_fastapi.app import create_app
-from airflow.auth.managers.simple.user import SimpleAuthManagerUser
+from airflow.api_fastapi.auth.managers.simple.user import SimpleAuthManagerUser
 from airflow.models import Connection
 from airflow.models.dag_version import DagVersion
 from airflow.models.serialized_dag import SerializedDagModel
@@ -34,7 +34,7 @@ from tests_common.test_utils.config import conf_vars
 from tests_common.test_utils.db import clear_db_connections, parse_and_sync_to_db
 
 if TYPE_CHECKING:
-    from airflow.auth.managers.simple.simple_auth_manager import SimpleAuthManager
+    from airflow.api_fastapi.auth.managers.simple.simple_auth_manager import SimpleAuthManager
 
 
 @pytest.fixture
@@ -44,7 +44,7 @@ def test_client():
             (
                 "core",
                 "auth_manager",
-            ): "airflow.auth.managers.simple.simple_auth_manager.SimpleAuthManager",
+            ): "airflow.api_fastapi.auth.managers.simple.simple_auth_manager.SimpleAuthManager",
         }
     ):
         app = create_app()
@@ -76,7 +76,7 @@ def unauthorized_test_client():
             (
                 "core",
                 "auth_manager",
-            ): "airflow.auth.managers.simple.simple_auth_manager.SimpleAuthManager",
+            ): "airflow.api_fastapi.auth.managers.simple.simple_auth_manager.SimpleAuthManager",
         }
     ):
         app = create_app()

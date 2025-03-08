@@ -26,6 +26,7 @@ export enum SearchParamsKeys {
   OFFSET = "offset",
   PAUSED = "paused",
   SORT = "sort",
+  SOURCE = "log_source",
   START_DATE = "start_date",
   STATE = "state",
   TAGS = "tags",
