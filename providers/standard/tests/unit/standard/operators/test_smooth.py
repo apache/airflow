@@ -1,4 +1,3 @@
-#
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
 # distributed with this work for additional information
@@ -17,22 +16,14 @@
 # under the License.
 from __future__ import annotations
 
-from typing import TYPE_CHECKING
+import logging
 
-from airflow.models.baseoperator import BaseOperator
-
-if TYPE_CHECKING:
-    from airflow.sdk.definitions.context import Context
+from airflow.providers.standard.operators.smooth import SmoothOperator
 
 
-class SmoothOperator(BaseOperator):
-    """Operator that does nothing, it logs a YouTube link to Sade song "Smooth Operator"."""
-
-    ui_color = "#e8f7e4"
-    yt_link: str = "https://www.youtube.com/watch?v=4TYv2PhG89A"
-
-    def __init__(self, **kwargs) -> None:
-        super().__init__(**kwargs)
-
-    def execute(self, context: Context):
-        self.log.info("Enjoy Sade - Smooth Operator: %s", self.yt_link)
+class TestSmoothOperator:
+    def test_execute(self, caplog):
+        op = SmoothOperator(task_id="test")
+        op.execute(None)
+        with caplog.at_level(logging.INFO):
+            assert "Enjoy Sade - Smooth Operator: https://www.youtube.com/watch?v=4TYv2PhG89A" in caplog.text
