@@ -74,6 +74,8 @@ class SFTPOperator(BaseOperator):
                 create_intermediate_dirs=True,
                 dag=dag,
             )
+    :param concurrency: Number of threads when transferring directories. Each thread opens a new SFTP connection.
+        This parameter is used only when transferring directories, not individual files. (Default is 1)
 
     """
 
