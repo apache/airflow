@@ -28,6 +28,7 @@ from airflow.models.dagrun import DagRun
 from airflow.models.taskmap import TaskMap
 from airflow.models.xcom import XCom
 from airflow.utils.session import create_session
+from airflow.serialization.serde import serialize
 
 pytestmark = pytest.mark.db_test
 
@@ -106,7 +107,7 @@ class TestXComsSetEndpoint:
         """
         ti = create_task_instance()
         session.commit()
-
+        value = serialize(value)
         response = client.post(
             f"/execution/xcoms/{ti.dag_id}/{ti.run_id}/{ti.task_id}/xcom_1",
             json=value,
@@ -124,10 +125,12 @@ class TestXComsSetEndpoint:
         ti = create_task_instance()
         session.commit()
 
+        value = serialize("value1")
+
         response = client.post(
             f"/execution/xcoms/{ti.dag_id}/{ti.run_id}/{ti.task_id}/xcom_1",
             params={"map_index": -1, "mapped_length": 3},
-            json="value1",
+            json=value,
         )
 
         assert response.status_code == 201
@@ -217,6 +220,7 @@ class TestXComsSetEndpoint:
         """
         ti = create_task_instance()
 
+        value = serialize(value)
         session.commit()
         client.post(
             f"/execution/xcoms/{ti.dag_id}/{ti.run_id}/{ti.task_id}/test_xcom_roundtrip",
@@ -234,3 +238,22 @@ class TestXComsSetEndpoint:
 
         assert response.status_code == 200
         assert XComResponse.model_validate_json(response.read()).value == expected_value
+
+
+class TestXComsDeleteEndpoint:
+    def test_xcom_delete_endpoint(self, client, create_task_instance, session):
+        """Test that XCom value is deleted when Delete API is called."""
+        ti = create_task_instance()
+        ti.xcom_push(key="xcom_1", value='"value1"', session=session)
+        session.commit()
+
+        xcom = session.query(XCom).filter_by(task_id=ti.task_id, dag_id=ti.dag_id, key="xcom_1").first()
+        assert xcom is not None
+
+        response = client.delete(f"/execution/xcoms/{ti.dag_id}/{ti.run_id}/{ti.task_id}/xcom_1")
+
+        assert response.status_code == 200
+        assert response.json() == {"message": f"XCom with key: xcom_1 successfully deleted."}
+
+        xcom = session.query(XCom).filter_by(task_id=ti.task_id, dag_id=ti.dag_id, key="xcom_1").first()
+        assert xcom is None
