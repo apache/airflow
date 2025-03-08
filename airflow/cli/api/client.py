@@ -126,12 +126,24 @@ class Credentials:
             sys.exit(1)
 
 
+class BearerAuth(httpx.Auth):
+    def __init__(self, token: str):
+        self.token: str = token
+
+    def auth_flow(self, request: httpx.Request):
+        if self.token:
+            request.headers["Authorization"] = "Bearer " + self.token
+        yield request
+
+
 class Client(httpx.Client):
     """Client for the Airflow REST API."""
 
-    def __init__(self, *, base_url: str | None, dry_run: bool = False, **kwargs: Any):
+    def __init__(self, *, base_url: str | None, dry_run: bool = False, token: str, **kwargs: Any):
         if (not base_url) ^ dry_run:
             raise ValueError(f"Can only specify one of {base_url=} or {dry_run=}")
+        auth = BearerAuth(token)
+
         if dry_run:
             # If dry run is requested, install a no op handler so that simple tasks can "heartbeat" using a
             # real client, but just don't make any HTTP requests
@@ -141,7 +153,7 @@ class Client(httpx.Client):
         pyver = f"{'.'.join(map(str, sys.version_info[:3]))}"
         # TODO add auth using token after sign in integrated
         super().__init__(
-            auth=None,
+            auth=auth,
             headers={"user-agent": f"apache-airflow-cli/{version} (Python/{pyver})"},
             event_hooks={"response": [raise_on_4xx_5xx], "request": [add_correlation_id]},
             **kwargs,
