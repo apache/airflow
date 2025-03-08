@@ -47,7 +47,7 @@ from airflow.models.dag_version import DagVersion
 from airflow.settings import json
 from airflow.utils import timezone
 from airflow.utils.session import create_session
-from airflow.utils.sqlalchemy import UtcDateTime, nulls_first
+from airflow.utils.sqlalchemy import UtcDateTime, nulls_first, with_row_locks
 from airflow.utils.state import DagRunState
 from airflow.utils.types import DagRunTriggeredByType, DagRunType
 
@@ -166,6 +166,9 @@ class BackfillDagRun(Base):
     backfill = relationship("Backfill", back_populates="backfill_dag_run_associations")
     dag_run = relationship("DagRun")
 
+    def __repr__(self):
+        return f"BackfillDagRun(id={self.id}, backfill_id={self.backfill_id}, logical_date='{self.logical_date}')"
+
     __table_args__ = (
         UniqueConstraint("backfill_id", "dag_run_id", name="ix_bdr_backfill_id_dag_run_id"),
         ForeignKeyConstraint(
@@ -265,28 +268,6 @@ def _do_dry_run(*, dag_id, from_date, to_date, reverse, reprocess_behavior, sess
     return logical_dates
 
 
-def should_create_backfill_dag_run(
-    info, reprocess_behavior, backfill_id, backfill_sort_ordinal, session
-) -> bool:
-    """Determine if a backfill DAG run should be created and add a BackfillDagRun if required."""
-    dr = session.scalar(_get_latest_dag_run_row_query(info, session))
-    if not dr:
-        return False
-    non_create_reason = _get_dag_run_no_create_reason(dr, reprocess_behavior)
-    if non_create_reason:
-        session.add(
-            BackfillDagRun(
-                backfill_id=backfill_id,
-                dag_run_id=None,
-                logical_date=info.logical_date,
-                exception_reason=non_create_reason,
-                sort_ordinal=backfill_sort_ordinal,
-            )
-        )
-        return True
-    return False
-
-
 def _create_backfill_dag_run(
     *,
     dag: DAG,
@@ -299,12 +280,49 @@ def _create_backfill_dag_run(
 ):
     from airflow.models.dagrun import DagRun
 
-    with session.begin_nested():
-        should_skip_create_backfill = should_create_backfill_dag_run(
-            info, reprocess_behavior, backfill_id, backfill_sort_ordinal, session
-        )
-        if should_skip_create_backfill:
-            return
+    with session.begin_nested() as nested:
+        dr = session.scalar(_get_latest_dag_run_row_query(info, session))
+        if dr:
+            non_create_reason = _get_dag_run_no_create_reason(dr, reprocess_behavior)
+            if non_create_reason:
+                session.add(
+                    BackfillDagRun(
+                        backfill_id=backfill_id,
+                        dag_run_id=None,
+                        logical_date=info.logical_date,
+                        exception_reason=non_create_reason,
+                        sort_ordinal=backfill_sort_ordinal,
+                    )
+                )
+                return
+            else:
+                lock = session.execute(
+                    with_row_locks(
+                        query=select(DagRun).where(DagRun.logical_date == info.logical_date),
+                        session=session,
+                        skip_locked=True,
+                    )
+                )
+                if lock:
+                    _handle_clear_run(
+                        session=session,
+                        dag=dag,
+                        dr=dr,
+                        info=info,
+                        backfill_id=backfill_id,
+                        sort_ordinal=backfill_sort_ordinal,
+                    )
+                else:
+                    session.add(
+                        BackfillDagRun(
+                            backfill_id=backfill_id,
+                            dag_run_id=None,
+                            logical_date=info.logical_date,
+                            exception_reason=BackfillDagRunExceptionReason.IN_FLIGHT,
+                            sort_ordinal=backfill_sort_ordinal,
+                        )
+                    )
+                return
 
         dag_version = DagVersion.get_latest_version(dag.dag_id, session=session)
         try:
@@ -335,15 +353,20 @@ def _create_backfill_dag_run(
         except IntegrityError:
             log.info(
                 "Skipped creating backfill dag run for dag_id=%s backfill_id=%s, logical_date=%s (already exists)",
-                dr.dag_id,
-                dr.id,
+                dag.dag_id,
+                backfill_id,
                 info.logical_date,
             )
-            log.info("Doing session rollback.")
-            session.rollback()
+            nested.rollback()
 
-            should_create_backfill_dag_run(
-                info, reprocess_behavior, backfill_id, backfill_sort_ordinal, session
+            session.add(
+                BackfillDagRun(
+                    backfill_id=backfill_id,
+                    dag_run_id=None,
+                    logical_date=info.logical_date,
+                    exception_reason=BackfillDagRunExceptionReason.IN_FLIGHT,
+                    sort_ordinal=backfill_sort_ordinal,
+                )
             )
 
 
@@ -360,6 +383,42 @@ def _get_info_list(
     if reverse:
         dagrun_info_list = reversed(dagrun_info_list)
     return dagrun_info_list
+
+
+def _handle_clear_run(session, dag, dr, info, backfill_id, sort_ordinal):
+    """Clear the existing DAG run and update backfill metadata."""
+    from sqlalchemy.sql import update
+
+    from airflow.models import DagRun
+    from airflow.utils.state import DagRunState
+    from airflow.utils.types import DagRunType
+
+    dag.clear(
+        run_id=dr.run_id,
+        dag_run_state=DagRunState.QUEUED,
+        session=session,
+        confirm_prompt=False,
+        dry_run=False,
+    )
+
+    # Update backfill_id and run_type in DagRun table
+    session.execute(
+        update(DagRun)
+        .where(DagRun.logical_date == info.logical_date)
+        .values(
+            backfill_id=backfill_id,
+            run_type=DagRunType.BACKFILL_JOB,
+            triggered_by=DagRunTriggeredByType.BACKFILL,
+        )
+    )
+    session.add(
+        BackfillDagRun(
+            backfill_id=backfill_id,
+            dag_run_id=dr.id,
+            logical_date=info.logical_date,
+            sort_ordinal=sort_ordinal,
+        )
+    )
 
 
 def _create_backfill(

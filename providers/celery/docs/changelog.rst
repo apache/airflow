@@ -27,6 +27,33 @@
 Changelog
 ---------
 
+3.10.2
+......
+
+.. note::
+  This version has no code changes. It's released due to yank of previous version due to packaging issues.
+
+3.10.1
+......
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fixing log typos in Local & Celery Executors (#46866)``
+
+Misc
+~~~~
+
+* ``Rework the TriggererJobRunner to run triggers in a process without DB access (#46677)``
+* ``AIP-66: Make DAG callbacks bundle aware (#45860)``
+* ``Swap CeleryExecutor over to use TaskSDK for execution. (#46265)``
+* ``Remove 2.8 version check from CeleryExecutor CLI (#46910)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Move provider_tests to unit folder in provider tests (#46800)``
+   * ``Removed the unused provider's distribution (#46608)``
+
 3.10.0
 ......
 

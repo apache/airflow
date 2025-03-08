@@ -19,8 +19,9 @@
 
 from __future__ import annotations
 
-from airflow.models import BaseOperator
 from google.api_core.gapic_v1.method import DEFAULT
+
+from airflow.models import BaseOperator
 
 
 class GoogleCloudBaseOperator(BaseOperator):

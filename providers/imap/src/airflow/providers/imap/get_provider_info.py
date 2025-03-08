@@ -27,8 +27,9 @@ def get_provider_info():
         "name": "Internet Message Access Protocol (IMAP)",
         "description": "`Internet Message Access Protocol (IMAP) <https://tools.ietf.org/html/rfc3501>`__\n",
         "state": "ready",
-        "source-date-epoch": 1734534918,
+        "source-date-epoch": 1741121888,
         "versions": [
+            "3.8.2",
             "3.8.0",
             "3.7.0",
             "3.6.1",
@@ -92,4 +93,5 @@ def get_provider_info():
             }
         },
         "dependencies": ["apache-airflow>=2.9.0"],
+        "devel-dependencies": [],
     }

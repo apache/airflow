@@ -32,10 +32,13 @@ from enum import Enum
 from functools import cached_property
 from typing import TYPE_CHECKING, Any, Callable, Literal
 
+import kubernetes
 import tenacity
+from kubernetes.client import CoreV1Api, V1Pod, models as k8s
+from kubernetes.client.exceptions import ApiException
+from kubernetes.stream import stream
 from urllib3.exceptions import HTTPError
 
-import kubernetes
 from airflow.configuration import conf
 from airflow.exceptions import (
     AirflowException,
@@ -81,9 +84,6 @@ from airflow.settings import pod_mutation_hook
 from airflow.utils import yaml
 from airflow.utils.helpers import prune_dict, validate_key
 from airflow.version import version as airflow_version
-from kubernetes.client import CoreV1Api, V1Pod, models as k8s
-from kubernetes.client.exceptions import ApiException
-from kubernetes.stream import stream
 
 if TYPE_CHECKING:
     import jinja2
@@ -132,23 +132,23 @@ class KubernetesPodOperator(BaseOperator):
         simplifies the authorization process.
 
     :param kubernetes_conn_id: The :ref:`kubernetes connection id <howto/connection:kubernetes>`
-        for the Kubernetes cluster.
+        for the Kubernetes cluster. (templated)
     :param namespace: the namespace to run within kubernetes.
-    :param image: Docker image you wish to launch. Defaults to hub.docker.com,
+    :param image: Container image you wish to launch. Defaults to hub.docker.com,
         but fully qualified URLS will point to custom repositories. (templated)
     :param name: name of the pod in which the task will run, will be used (plus a random
         suffix if random_name_suffix is True) to generate a pod id (DNS-1123 subdomain,
-        containing only [a-z0-9.-]).
+        containing only [a-z0-9.-]). (templated)
     :param random_name_suffix: if True, will generate a random suffix.
-    :param cmds: entrypoint of the container. (templated)
-        The docker images's entrypoint is used if this is not provided.
-    :param arguments: arguments of the entrypoint. (templated)
-        The docker image's CMD is used if this is not provided.
+    :param cmds: entrypoint of the container.
+        The container images's entrypoint is used if this is not provided. (templated)
+    :param arguments: arguments of the entrypoint.
+        The container image's CMD is used if this is not provided. (templated)
     :param ports: ports for the launched pod.
-    :param volume_mounts: volumeMounts for the launched pod.
-    :param volumes: volumes for the launched pod. Includes ConfigMaps and PersistentVolumes.
+    :param volume_mounts: volumeMounts for the launched pod. (templated)
+    :param volumes: volumes for the launched pod. Includes ConfigMaps and PersistentVolumes. (templated)
     :param env_vars: Environment variables initialized in the container. (templated)
-    :param env_from: (Optional) List of sources to populate environment variables in the container.
+    :param env_from: (Optional) List of sources to populate environment variables in the container. (templated)
     :param secrets: Kubernetes secrets to inject in the container.
         They can be exposed as environment vars or files in a volume.
     :param in_cluster: run kubernetes client with in_cluster configuration.
@@ -187,7 +187,7 @@ class KubernetesPodOperator(BaseOperator):
     :param container_security_context: security options the container should run with.
     :param dnspolicy: dnspolicy for the pod.
     :param dns_config: dns configuration (ip addresses, searches, options) for the pod.
-    :param hostname: hostname for the pod.
+    :param hostname: hostname for the pod. (templated)
     :param subdomain: subdomain for the pod.
     :param schedulername: Specify a schedulername for the pod
     :param full_pod_spec: The complete podSpec

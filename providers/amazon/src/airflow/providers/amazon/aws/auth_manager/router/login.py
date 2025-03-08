@@ -79,12 +79,13 @@ def login_callback(request: Request):
         username=saml_auth.get_nameid(),
         email=attributes["email"][0] if "email" in attributes else None,
     )
-    return RedirectResponse(url=f"/webapp?token={get_auth_manager().get_jwt_token(user)}", status_code=303)
+    url = f"{conf.get('api', 'base_url')}/?token={get_auth_manager().get_jwt_token(user)}"
+    return RedirectResponse(url=url, status_code=303)
 
 
 def _init_saml_auth(request: Request) -> OneLogin_Saml2_Auth:
     request_data = _prepare_request(request)
-    base_url = conf.get(section="fastapi", key="base_url")
+    base_url = conf.get(section="api", key="base_url")
     settings = {
         # We want to keep this flag on in case of errors.
         # It provides an error reasons, if turned off, it does not

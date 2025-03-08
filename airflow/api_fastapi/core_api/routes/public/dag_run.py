@@ -19,7 +19,6 @@ from __future__ import annotations
 
 from typing import Annotated, Literal, cast
 
-import pendulum
 from fastapi import Depends, HTTPException, Query, Request, status
 from fastapi.exceptions import RequestValidationError
 from pydantic import ValidationError
@@ -60,13 +59,12 @@ from airflow.api_fastapi.core_api.datamodels.task_instances import (
     TaskInstanceResponse,
 )
 from airflow.api_fastapi.core_api.openapi.exceptions import create_openapi_http_exception_doc
+from airflow.api_fastapi.core_api.security import requires_access_asset
 from airflow.api_fastapi.logging.decorators import action_logging
 from airflow.exceptions import ParamValidationError
 from airflow.listeners.listener import get_listener_manager
 from airflow.models import DAG, DagModel, DagRun
 from airflow.models.dag_version import DagVersion
-from airflow.timetables.base import DataInterval
-from airflow.utils import timezone
 from airflow.utils.state import DagRunState
 from airflow.utils.types import DagRunTriggeredByType, DagRunType
 
@@ -192,6 +190,7 @@ def patch_dag_run(
             status.HTTP_404_NOT_FOUND,
         ]
     ),
+    dependencies=[Depends(requires_access_asset(method="GET"))],
 )
 def get_upstream_asset_events(
     dag_id: str, dag_run_id: str, session: SessionDep
@@ -289,7 +288,6 @@ def get_dag_runs(
                     "start_date",
                     "end_date",
                     "updated_at",
-                    "external_trigger",
                     "conf",
                 ],
                 DagRun,
@@ -358,41 +356,18 @@ def trigger_dag_run(
             f"DAG with dag_id: '{dag_id}' has import errors and cannot be triggered",
         )
 
-    logical_date = timezone.coerce_datetime(body.logical_date)
-    coerced_logical_date = timezone.coerce_datetime(logical_date)
-    run_after = timezone.coerce_datetime(body.run_after)
-
     try:
         dag: DAG = request.app.state.dag_bag.get_dag(dag_id)
-        data_interval = None
-        if body.logical_date:
-            if body.data_interval_start and body.data_interval_end:
-                data_interval = DataInterval(
-                    start=pendulum.instance(body.data_interval_start),
-                    end=pendulum.instance(body.data_interval_end),
-                )
-            else:
-                data_interval = dag.timetable.infer_manual_data_interval(
-                    run_after=coerced_logical_date or run_after
-                )
-                run_after = data_interval.end
-
-        if body.dag_run_id:
-            run_id = body.dag_run_id
-        else:
-            run_id = DagRun.generate_run_id(
-                run_type=DagRunType.SCHEDULED, logical_date=coerced_logical_date, run_after=run_after
-            )
+        params = body.validate_context(dag)
 
         dag_run = dag.create_dagrun(
-            run_id=run_id,
-            logical_date=coerced_logical_date,
-            data_interval=data_interval,
-            run_after=run_after,
-            conf=body.conf,
+            run_id=params["run_id"],
+            logical_date=params["logical_date"],
+            data_interval=params["data_interval"],
+            run_after=params["run_after"],
+            conf=params["conf"],
             run_type=DagRunType.MANUAL,
             triggered_by=DagRunTriggeredByType.REST_API,
-            external_trigger=True,
             dag_version=DagVersion.get_latest_version(dag.dag_id),
             state=DagRunState.QUEUED,
             session=session,
@@ -446,7 +421,6 @@ def get_list_dag_runs_batch(
             "start_date",
             "end_date",
             "updated_at",
-            "external_trigger",
             "conf",
         ],
         DagRun,

@@ -20,12 +20,13 @@ from __future__ import annotations
 from functools import cached_property
 from typing import TYPE_CHECKING, Any, cast
 
-from airflow.exceptions import AirflowException
-from airflow.providers.microsoft.azure.hooks.base_azure import AzureBaseHook
-from airflow.providers.microsoft.azure.utils import get_sync_default_azure_credential
 from azure.common.client_factory import get_client_from_auth_file, get_client_from_json_dict
 from azure.identity import ClientSecretCredential, DefaultAzureCredential
 from azure.mgmt.containerinstance import ContainerInstanceManagementClient
+
+from airflow.exceptions import AirflowException
+from airflow.providers.microsoft.azure.hooks.base_azure import AzureBaseHook
+from airflow.providers.microsoft.azure.utils import get_sync_default_azure_credential
 
 if TYPE_CHECKING:
     from azure.mgmt.containerinstance.models import (

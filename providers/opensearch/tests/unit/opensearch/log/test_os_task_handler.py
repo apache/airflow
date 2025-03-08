@@ -80,7 +80,10 @@ class TestOpensearchTaskHandler:
         if AIRFLOW_V_3_0_PLUS:
             create_log_template(self.FILENAME_TEMPLATE, "{dag_id}-{task_id}-{logical_date}-{try_number}")
         else:
-            create_log_template(self.FILENAME_TEMPLATE, "{dag_id}-{task_id}-{execution_date}-{try_number}")
+            create_log_template(
+                self.FILENAME_TEMPLATE,
+                "{dag_id}-{task_id}-{execution_date}-{try_number}",
+            )
         yield get_ti(
             dag_id=self.DAG_ID,
             task_id=self.TASK_ID,
@@ -195,17 +198,28 @@ class TestOpensearchTaskHandler:
             ti, 1, {"offset": 0, "last_log_timestamp": str(ts), "end_of_log": False}
         )
 
-        assert len(logs) == 1
-        assert len(logs) == len(metadatas)
-        assert len(logs[0]) == 1
-        assert (
-            logs[0][0][-1] == "Dependencies all met for dep_context=non-requeueable"
+        expected_msg = (
+            "Dependencies all met for dep_context=non-requeueable"
             " deps ti=<TaskInstance: example_bash_operator.run_after_loop owen_run_run [queued]>\n"
             "Starting attempt 1 of 1\nExecuting <Task(BashOperator): run_after_loop> "
             "on 2023-07-09 07:47:32+00:00"
         )
-        assert not metadatas[0]["end_of_log"]
-        assert timezone.parse(metadatas[0]["last_log_timestamp"]) > ts
+        if AIRFLOW_V_3_0_PLUS:
+            assert logs[0].event == "::group::Log message source details"
+            assert logs[0].sources == ["default_host"]
+            assert logs[1].event == "::endgroup::"
+            assert logs[2].event == expected_msg
+            metadata = metadatas
+        else:
+            assert len(logs) == 1
+            assert len(logs) == len(metadatas)
+            assert len(logs[0]) == 1
+            assert logs[0][0][-1] == expected_msg
+
+            metadata = metadatas[0]
+
+        assert not metadata["end_of_log"]
+        assert timezone.parse(metadata["last_log_timestamp"]) > ts
 
     def test_read_with_patterns(self, ti):
         ts = pendulum.now()
@@ -214,17 +228,28 @@ class TestOpensearchTaskHandler:
                 ti, 1, {"offset": 0, "last_log_timestamp": str(ts), "end_of_log": False}
             )
 
-        assert len(logs) == 1
-        assert len(logs) == len(metadatas)
-        assert len(logs[0]) == 1
-        assert (
-            logs[0][0][-1] == "Dependencies all met for dep_context=non-requeueable"
+        expected_msg = (
+            "Dependencies all met for dep_context=non-requeueable"
             " deps ti=<TaskInstance: example_bash_operator.run_after_loop owen_run_run [queued]>\n"
             "Starting attempt 1 of 1\nExecuting <Task(BashOperator): run_after_loop> "
             "on 2023-07-09 07:47:32+00:00"
         )
-        assert not metadatas[0]["end_of_log"]
-        assert timezone.parse(metadatas[0]["last_log_timestamp"]) > ts
+        if AIRFLOW_V_3_0_PLUS:
+            assert logs[0].event == "::group::Log message source details"
+            assert logs[0].sources == ["default_host"]
+            assert logs[1].event == "::endgroup::"
+            assert logs[2].event == expected_msg
+            metadata = metadatas
+        else:
+            assert len(logs) == 1
+            assert len(logs) == len(metadatas)
+            assert len(logs[0]) == 1
+            assert logs[0][0][-1] == expected_msg
+
+            metadata = metadatas[0]
+
+        assert not metadata["end_of_log"]
+        assert timezone.parse(metadata["last_log_timestamp"]) > ts
 
     def test_read_with_patterns_no_match(self, ti):
         ts = pendulum.now()
@@ -240,26 +265,43 @@ class TestOpensearchTaskHandler:
                 },
             ):
                 logs, metadatas = self.os_task_handler.read(
-                    ti, 1, {"offset": 0, "last_log_timestamp": str(ts), "end_of_log": False}
+                    ti,
+                    1,
+                    {"offset": 0, "last_log_timestamp": str(ts), "end_of_log": False},
                 )
+        if AIRFLOW_V_3_0_PLUS:
+            assert logs == []
 
-        assert len(logs) == 1
-        assert len(logs) == len(metadatas)
-        assert logs == [[]]
-        assert not metadatas[0]["end_of_log"]
-        assert metadatas[0]["offset"] == "0"
+            metadata = metadatas
+        else:
+            assert len(logs) == 1
+            assert len(logs) == len(metadatas)
+            assert logs == [[]]
+
+            metadata = metadatas[0]
+
+        assert not metadata["end_of_log"]
+        assert metadata["offset"] == "0"
         # last_log_timestamp won't change if no log lines read.
-        assert timezone.parse(metadatas[0]["last_log_timestamp"]) == ts
+        assert timezone.parse(metadata["last_log_timestamp"]) == ts
 
     def test_read_with_missing_index(self, ti):
         ts = pendulum.now()
         with mock.patch.object(self.os_task_handler, "index_patterns", new="nonexistent,test_*"):
             with mock.patch.object(
-                self.os_task_handler.client, "count", side_effect=NotFoundError(404, "IndexNotFoundError")
+                self.os_task_handler.client,
+                "count",
+                side_effect=NotFoundError(404, "IndexNotFoundError"),
             ):
                 with pytest.raises(NotFoundError, match=r"IndexNotFoundError"):
                     self.os_task_handler.read(
-                        ti, 1, {"offset": 0, "last_log_timestamp": str(ts), "end_of_log": False}
+                        ti,
+                        1,
+                        {
+                            "offset": 0,
+                            "last_log_timestamp": str(ts),
+                            "end_of_log": False,
+                        },
                     )
 
     @pytest.mark.parametrize("seconds", [3, 6])
@@ -286,36 +328,64 @@ class TestOpensearchTaskHandler:
             },
         ):
             logs, metadatas = self.os_task_handler.read(ti, 1, {"offset": 0, "last_log_timestamp": str(ts)})
-
-        assert len(logs) == 1
-        if seconds > 5:
-            # we expect a log not found message when checking began more than 5 seconds ago
-            assert len(logs[0]) == 1
-            actual_message = logs[0][0][1]
-            expected_pattern = r"^\*\*\* Log .* not found in Opensearch.*"
-            assert re.match(expected_pattern, actual_message) is not None
-            assert metadatas[0]["end_of_log"] is True
+        if AIRFLOW_V_3_0_PLUS:
+            if seconds > 5:
+                # we expect a log not found message when checking began more than 5 seconds ago
+                assert len(logs[0]) == 2
+                actual_message = logs[0][1]
+                expected_pattern = r"^\*\*\* Log .* not found in Opensearch.*"
+                assert re.match(expected_pattern, actual_message) is not None
+                assert metadatas["end_of_log"] is True
+            else:
+                # we've "waited" less than 5 seconds so it should not be "end of log" and should be no log message
+                assert logs == []
+                assert metadatas["end_of_log"] is False
+            assert metadatas["offset"] == "0"
+            assert timezone.parse(metadatas["last_log_timestamp"]) == ts
         else:
-            # we've "waited" less than 5 seconds so it should not be "end of log" and should be no log message
-            assert len(logs[0]) == 0
-            assert logs == [[]]
-            assert metadatas[0]["end_of_log"] is False
-        assert len(logs) == len(metadatas)
-        assert metadatas[0]["offset"] == "0"
-        assert timezone.parse(metadatas[0]["last_log_timestamp"]) == ts
+            assert len(logs) == 1
+            if seconds > 5:
+                # we expect a log not found message when checking began more than 5 seconds ago
+                assert len(logs[0]) == 1
+                actual_message = logs[0][0][1]
+                expected_pattern = r"^\*\*\* Log .* not found in Opensearch.*"
+                assert re.match(expected_pattern, actual_message) is not None
+                assert metadatas[0]["end_of_log"] is True
+            else:
+                # we've "waited" less than 5 seconds so it should not be "end of log" and should be no log message
+                assert len(logs[0]) == 0
+                assert logs == [[]]
+                assert metadatas[0]["end_of_log"] is False
+            assert len(logs) == len(metadatas)
+            assert metadatas[0]["offset"] == "0"
+            assert timezone.parse(metadatas[0]["last_log_timestamp"]) == ts
 
     def test_read_with_none_metadata(self, ti):
         logs, metadatas = self.os_task_handler.read(ti, 1)
-        assert len(logs) == 1
-        assert len(logs) == len(metadatas)
-        assert (
-            logs[0][0][-1] == "Dependencies all met for dep_context=non-requeueable"
+
+        expected_message = (
+            "Dependencies all met for dep_context=non-requeueable"
             " deps ti=<TaskInstance: example_bash_operator.run_after_loop owen_run_run [queued]>\n"
             "Starting attempt 1 of 1\nExecuting <Task(BashOperator): run_after_loop> "
             "on 2023-07-09 07:47:32+00:00"
         )
-        assert not metadatas[0]["end_of_log"]
-        assert timezone.parse(metadatas[0]["last_log_timestamp"]) < pendulum.now()
+        if AIRFLOW_V_3_0_PLUS:
+            assert logs[0].event == "::group::Log message source details"
+            assert logs[0].sources == ["default_host"]
+            assert logs[1].event == "::endgroup::"
+            assert logs[2].event == expected_message
+
+            metadata = metadatas
+        else:
+            assert len(logs) == 1
+            assert len(logs) == len(metadatas)
+            assert len(logs[0]) == 1
+            assert logs[0][0][-1] == expected_message
+
+            metadata = metadatas[0]
+
+        assert not metadata["end_of_log"]
+        assert timezone.parse(metadata["last_log_timestamp"]) < pendulum.now()
 
     def test_set_context(self, ti):
         self.os_task_handler.set_context(ti)

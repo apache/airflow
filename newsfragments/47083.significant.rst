@@ -1,0 +1,45 @@
+``airflow api-server`` has replaced ``airflow webserver`` cli command
+
+The new Airflow UI is now being served as part of the ``airflow api-server`` command and the ``airflow webserver`` command has been removed.
+
+The following configuration options have moved to the ``[api]`` section:
+
+- ``[webserver] web_server_host`` has been moved to ``[api] host``
+- ``[webserver] web_server_port`` has been moved to ``[api] port``
+- ``[webserver] workers`` has been moved to ``[api] workers``
+- ``[webserver] web_server_worker_timeout`` has been moved to ``[api] worker_timeout``
+- ``[webserver] web_server_ssl_cert`` has been moved to ``[api] ssl_cert``
+- ``[webserver] web_server_ssl_key`` has been moved to ``[api] ssl_key``
+- ``[webserver] access_logfile`` has been moved to ``[api] access_logfile``
+
+The following configuration options have been removed:
+
+- ``[webserver] error_logfile``
+- ``[webserver] access_logformat``
+
+* Types of change
+
+  * [ ] Dag changes
+  * [x] Config changes
+  * [ ] API changes
+  * [x] CLI changes
+  * [ ] Behaviour changes
+  * [ ] Plugin changes
+  * [ ] Dependency changes
+  * [ ] Code interface changes
+
+.. List the migration rules needed for this change (see https://github.com/apache/airflow/issues/41641)
+
+* Migration rules needed
+
+  * ``airflow config lint``
+
+    * [x] ``[webserver] web_server_host`` → ``[api] host``
+    * [x] ``[webserver] web_server_port`` → ``[api] port``
+    * [x] ``[webserver] workers`` → ``[api] workers``
+    * [x] ``[webserver] web_server_worker_timeout`` → ``[api] worker_timeout``
+    * [x] ``[webserver] web_server_ssl_cert`` → ``[api] ssl_cert``
+    * [x] ``[webserver] web_server_ssl_key`` → ``[api] ssl_key``
+    * [x] ``[webserver] access_logfile`` → ``[api] access_logfile``
+    * [x] ``[webserver] error_logfile`` removed
+    * [x] ``[webserver] access_logformat`` removed

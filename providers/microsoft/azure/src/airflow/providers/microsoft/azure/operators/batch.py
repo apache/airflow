@@ -21,10 +21,11 @@ from collections.abc import Sequence
 from functools import cached_property
 from typing import TYPE_CHECKING, Any
 
+from azure.batch import models as batch_models
+
 from airflow.exceptions import AirflowException
 from airflow.models import BaseOperator
 from airflow.providers.microsoft.azure.hooks.batch import AzureBatchHook
-from azure.batch import models as batch_models
 
 if TYPE_CHECKING:
     from airflow.utils.context import Context

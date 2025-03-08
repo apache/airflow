@@ -20,10 +20,11 @@ from __future__ import annotations
 import inspect
 from typing import Callable
 
+from openlineage.client.facet_v2 import source_code_job
+
 from airflow.providers.openlineage import conf
 from airflow.providers.openlineage.extractors.base import BaseExtractor, OperatorLineage
 from airflow.providers.openlineage.utils.utils import get_unknown_source_attribute_run_facet
-from openlineage.client.facet_v2 import source_code_job
 
 """
 :meta private:

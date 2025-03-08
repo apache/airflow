@@ -37,9 +37,11 @@ from queue import Empty, Queue
 from typing import TYPE_CHECKING, Any
 
 from deprecated import deprecated
+from kubernetes.dynamic import DynamicClient
 from sqlalchemy import select
 
-from kubernetes.dynamic import DynamicClient
+from airflow.providers.cncf.kubernetes.pod_generator import PodGenerator
+from airflow.providers.cncf.kubernetes.version_compat import AIRFLOW_V_3_0_PLUS
 
 try:
     from airflow.cli.cli_config import ARG_LOGICAL_DATE
@@ -76,8 +78,11 @@ from airflow.utils.state import TaskInstanceState
 if TYPE_CHECKING:
     import argparse
 
+    from kubernetes import client
+    from kubernetes.client import models as k8s
     from sqlalchemy.orm import Session
 
+    from airflow.executors import workloads
     from airflow.executors.base_executor import CommandType
     from airflow.models.taskinstance import TaskInstance
     from airflow.models.taskinstancekey import TaskInstanceKey
@@ -88,8 +93,6 @@ if TYPE_CHECKING:
     from airflow.providers.cncf.kubernetes.executors.kubernetes_executor_utils import (
         AirflowKubernetesScheduler,
     )
-    from kubernetes import client
-    from kubernetes.client import models as k8s
 
 # CLI Args
 ARG_NAMESPACE = Arg(
@@ -135,6 +138,11 @@ class KubernetesExecutor(BaseExecutor):
 
     RUNNING_POD_LOG_LINES = 100
     supports_ad_hoc_ti_run: bool = True
+
+    if TYPE_CHECKING and AIRFLOW_V_3_0_PLUS:
+        # In the v3 path, we store workloads, not commands as strings.
+        # TODO: TaskSDK: move this type change into BaseExecutor
+        queued_tasks: dict[TaskInstanceKey, workloads.All]  # type: ignore[assignment]
 
     def __init__(self):
         self.kube_config = KubeConfig()
@@ -250,8 +258,6 @@ class KubernetesExecutor(BaseExecutor):
         else:
             self.log.info("Add task %s with command %s", key, command)
 
-        from airflow.providers.cncf.kubernetes.pod_generator import PodGenerator
-
         try:
             kube_executor_config = PodGenerator.from_obj(executor_config)
         except Exception:
@@ -268,6 +274,32 @@ class KubernetesExecutor(BaseExecutor):
         # We keep a temporary local record that we've handled this so we don't
         # try and remove it from the QUEUED state while we process it
         self.last_handled[key] = time.time()
+
+    def queue_workload(self, workload: workloads.All, session: Session | None) -> None:
+        from airflow.executors import workloads
+
+        if not isinstance(workload, workloads.ExecuteTask):
+            raise RuntimeError(f"{type(self)} cannot handle workloads of type {type(workload)}")
+        ti = workload.ti
+        self.queued_tasks[ti.key] = workload
+
+    def _process_workloads(self, workloads: list[workloads.All]) -> None:
+        from airflow.executors.workloads import ExecuteTask
+
+        # Airflow V3 version
+        for w in workloads:
+            if not isinstance(w, ExecuteTask):
+                raise RuntimeError(f"{type(self)} cannot handle workloads of type {type(w)}")
+
+            # TODO: AIP-72 handle populating tokens once https://github.com/apache/airflow/issues/45107 is handled.
+            command = [w]
+            key = w.ti.key
+            queue = w.ti.queue
+            executor_config = w.ti.executor_config or {}
+
+            del self.queued_tasks[key]
+            self.execute_async(key=key, command=command, queue=queue, executor_config=executor_config)  # type: ignore[arg-type]
+            self.running.add(key)
 
     def sync(self) -> None:
         """Synchronize task state."""

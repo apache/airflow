@@ -155,7 +155,9 @@ def refresh_provider_metadata_from_yaml_file(provider_yaml_path: Path):
         PROVIDER_METADATA[provider_id]["optional-dependencies"] = optional_dependencies
     dependency_groups = toml_content.get("dependency-groups")
     if dependency_groups and dependency_groups.get("dev"):
-        devel_dependencies = dependency_groups.get("dev")
+        devel_dependencies = [
+            dep for dep in dependency_groups.get("dev") if not dep.startswith("apache-airflow")
+        ]
         PROVIDER_METADATA[provider_id]["devel-dependencies"] = devel_dependencies
 
 
@@ -813,6 +815,13 @@ def get_latest_provider_tag(provider_id: str, suffix: str) -> str:
     return get_version_tag(current_version, provider_id, suffix)
 
 
+IMPLICIT_CROSS_PROVIDERS_DEPENDENCIES = [
+    "common.sql",
+    "fab",
+    "standard",
+]
+
+
 def regenerate_pyproject_toml(
     context: dict[str, Any], provider_details: ProviderPackageDetails, version_suffix: str | None
 ):
@@ -828,7 +837,7 @@ def regenerate_pyproject_toml(
     dependency_groups: list[str] = []
     in_required_dependencies = False
     in_optional_dependencies = False
-    in_dependency_groups = False
+    in_additional_devel_dependency_groups = False
     for line in pyproject_toml_content.splitlines():
         if line == "dependencies = [":
             in_required_dependencies = True
@@ -836,14 +845,15 @@ def regenerate_pyproject_toml(
         if in_required_dependencies and line == "]":
             in_required_dependencies = False
             continue
-        if line == "[dependency-groups]":
-            in_dependency_groups = True
+        if line == (
+            "    # Additional devel dependencies (do not remove this "
+            "line and add extra development dependencies)"
+        ):
+            in_additional_devel_dependency_groups = True
             continue
-        if in_dependency_groups and line == "":
-            in_dependency_groups = False
+        if in_additional_devel_dependency_groups and line == "]":
+            in_additional_devel_dependency_groups = False
             continue
-        if in_dependency_groups and line.startswith("["):
-            in_dependency_groups = False
         if line == "[project.optional-dependencies]":
             in_optional_dependencies = True
             continue
@@ -856,7 +866,7 @@ def regenerate_pyproject_toml(
             required_dependencies.append(line)
         if in_optional_dependencies:
             optional_dependencies.append(line)
-        if in_dependency_groups:
+        if in_additional_devel_dependency_groups:
             dependency_groups.append(line)
     matcher = re.compile(r"(^.*\")(apache-airflow.*>=[\d.]*)(\".*)$")
     # For additional providers we want to load the dependencies and see if cross-provider-dependencies are
@@ -872,18 +882,28 @@ def regenerate_pyproject_toml(
                 new_dependencies.append(dependency)
         required_dependencies = new_dependencies
     context["INSTALL_REQUIREMENTS"] = "\n".join(required_dependencies)
-
+    cross_provider_ids = set(PROVIDER_DEPENDENCIES.get(provider_details.provider_id)["cross-providers-deps"])
+    cross_provider_dependencies = []
     # Add cross-provider dependencies to the optional dependencies if they are missing
-    for module in PROVIDER_DEPENDENCIES.get(provider_details.provider_id)["cross-providers-deps"]:
-        if f'"{module}" = [' not in optional_dependencies and get_pip_package_name(module) not in "\n".join(
-            required_dependencies
-        ):
-            optional_dependencies.append(f'"{module}" = [')
-            optional_dependencies.append(f'    "{get_pip_package_name(module)}"')
+    for provider_id in sorted(cross_provider_ids):
+        cross_provider_dependencies.append(f'    "{get_pip_package_name(provider_id)}",')
+        if f'"{provider_id}" = [' not in optional_dependencies and get_pip_package_name(
+            provider_id
+        ) not in "\n".join(required_dependencies):
+            optional_dependencies.append(f'"{provider_id}" = [')
+            optional_dependencies.append(f'    "{get_pip_package_name(provider_id)}"')
             optional_dependencies.append("]")
     context["EXTRAS_REQUIREMENTS"] = "\n".join(optional_dependencies)
-    context["DEPENDENCY_GROUPS"] = "\n".join(dependency_groups)
+    formatted_dependency_groups = "\n".join(dependency_groups)
+    if formatted_dependency_groups:
+        formatted_dependency_groups = "\n" + formatted_dependency_groups
+    if cross_provider_dependencies:
+        formatted_cross_provider_dependencies = "\n" + "\n".join(cross_provider_dependencies)
+    else:  # If there are no cross-provider dependencies, we need to remove the line
+        formatted_cross_provider_dependencies = ""
 
+    context["CROSS_PROVIDER_DEPENDENCIES"] = formatted_cross_provider_dependencies
+    context["DEPENDENCY_GROUPS"] = formatted_dependency_groups
     get_pyproject_toml_content = render_template(
         template_name="pyproject",
         context=context,
@@ -893,7 +913,6 @@ def regenerate_pyproject_toml(
         trim_blocks=True,
         keep_trailing_newline=True,
     )
-
     get_pyproject_toml_path.write_text(get_pyproject_toml_content)
     get_console().print(
         f"[info]Generated {get_pyproject_toml_path} for the {provider_details.provider_id} provider\n"

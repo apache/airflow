@@ -28,12 +28,14 @@ from __future__ import annotations
 import copy
 import logging
 import os
+import re
 import warnings
 from functools import reduce
 from typing import TYPE_CHECKING
 
-import re2
 from dateutil import parser
+from kubernetes.client import V1EmptyDirVolumeSource, V1Volume, V1VolumeMount, models as k8s
+from kubernetes.client.api_client import ApiClient
 
 from airflow.exceptions import (
     AirflowConfigException,
@@ -47,8 +49,6 @@ from airflow.providers.cncf.kubernetes.kubernetes_helper_functions import (
 from airflow.utils import yaml
 from airflow.utils.hashlib_wrapper import md5
 from airflow.version import version as airflow_version
-from kubernetes.client import models as k8s
-from kubernetes.client.api_client import ApiClient
 
 if TYPE_CHECKING:
     import datetime
@@ -70,7 +70,7 @@ def make_safe_label_value(string: str) -> str:
     way from the original value sent to this function, then we need to truncate to
     53 chars, and append it with a unique hash.
     """
-    safe_label = re2.sub(r"^[^a-z0-9A-Z]*|[^a-zA-Z0-9_\-\.]|[^a-z0-9A-Z]*$", "", string)
+    safe_label = re.sub(r"^[^a-z0-9A-Z]*|[^a-zA-Z0-9_\-\.]|[^a-z0-9A-Z]*$", "", string)
 
     if len(safe_label) > MAX_LABEL_LEN or string != safe_label:
         safe_hash = md5(string.encode()).hexdigest()[:9]
@@ -288,6 +288,7 @@ class PodGenerator:
         scheduler_job_id: str,
         run_id: str | None = None,
         map_index: int = -1,
+        content_json_for_volume: str = "",
         *,
         with_mutation_hook: bool = False,
     ) -> k8s.V1Pod:
@@ -326,6 +327,14 @@ class PodGenerator:
         if run_id:
             annotations["run_id"] = run_id
 
+        main_container = k8s.V1Container(
+            name="base",
+            args=args,
+            image=image,
+            env=[
+                k8s.V1EnvVar(name="AIRFLOW_IS_K8S_EXECUTOR_POD", value="True"),
+            ],
+        )
         dynamic_pod = k8s.V1Pod(
             metadata=k8s.V1ObjectMeta(
                 namespace=namespace,
@@ -341,17 +350,46 @@ class PodGenerator:
                     run_id=run_id,
                 ),
             ),
-            spec=k8s.V1PodSpec(
-                containers=[
-                    k8s.V1Container(
-                        name="base",
-                        args=args,
-                        image=image,
-                        env=[k8s.V1EnvVar(name="AIRFLOW_IS_K8S_EXECUTOR_POD", value="True")],
-                    )
-                ]
-            ),
         )
+
+        podspec = k8s.V1PodSpec(
+            containers=[main_container],
+        )
+
+        if content_json_for_volume:
+            import shlex
+
+            input_file_path = "/tmp/execute/input.json"
+            execute_volume = V1Volume(
+                name="execute-volume",
+                empty_dir=V1EmptyDirVolumeSource(),
+            )
+
+            execute_volume_mount = V1VolumeMount(
+                name="execute-volume",
+                mount_path="/tmp/execute",
+                read_only=False,
+            )
+
+            escaped_json = shlex.quote(content_json_for_volume)
+            init_container = k8s.V1Container(
+                name="init-container",
+                image="busybox",
+                command=["/bin/sh", "-c", f"echo {escaped_json} > {input_file_path}"],
+                volume_mounts=[execute_volume_mount],
+            )
+
+            main_container.volume_mounts = [execute_volume_mount]
+            main_container.command = args[:-1]
+            main_container.args = args[-1:]
+
+            podspec = k8s.V1PodSpec(
+                containers=[main_container],
+                volumes=[execute_volume],
+                init_containers=[init_container],
+            )
+
+        dynamic_pod.spec = podspec
 
         # Reconcile the pods starting with the first chronologically,
         # Pod from the pod_template_File -> Pod from the K8s executor -> Pod from executor_config arg

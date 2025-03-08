@@ -34,14 +34,14 @@ from airflow.exceptions import (
     DagNotFound,
     DagRunAlreadyExists,
 )
-from airflow.models import BaseOperator, BaseOperatorLink
+from airflow.models import BaseOperator
 from airflow.models.dag import DagModel
 from airflow.models.dagbag import DagBag
 from airflow.models.dagrun import DagRun
 from airflow.models.xcom import XCom
 from airflow.providers.standard.triggers.external_task import DagStateTrigger
+from airflow.providers.standard.version_compat import AIRFLOW_V_3_0_PLUS
 from airflow.utils import timezone
-from airflow.utils.helpers import build_airflow_url_with_query
 from airflow.utils.session import provide_session
 from airflow.utils.state import DagRunState
 from airflow.utils.types import DagRunTriggeredByType, DagRunType
@@ -60,6 +60,11 @@ if TYPE_CHECKING:
     except ImportError:
         # TODO: Remove once provider drops support for Airflow 2
         from airflow.utils.context import Context
+
+if AIRFLOW_V_3_0_PLUS:
+    from airflow.sdk import BaseOperatorLink
+else:
+    from airflow.models.baseoperatorlink import BaseOperatorLink  # type: ignore[no-redef]
 
 
 class TriggerDagRunLink(BaseOperatorLink):
@@ -86,8 +91,15 @@ class TriggerDagRunLink(BaseOperatorLink):
         # stored in xcom during execution of the triggerING task.
         triggered_dag_run_id = XCom.get_value(ti_key=ti_key, key=XCOM_RUN_ID)
 
-        query = {"dag_id": trigger_dag_id, "dag_run_id": triggered_dag_run_id}
-        return build_airflow_url_with_query(query)
+        if AIRFLOW_V_3_0_PLUS:
+            from airflow.utils.helpers import build_airflow_dagrun_url
+
+            return build_airflow_dagrun_url(dag_id=trigger_dag_id, run_id=triggered_dag_run_id)
+        else:
+            from airflow.utils.helpers import build_airflow_url_with_query  # type:ignore[attr-defined]
+
+            query = {"dag_id": trigger_dag_id, "dag_run_id": triggered_dag_run_id}
+            return build_airflow_url_with_query(query)
 
 
 class TriggerDagRunOperator(BaseOperator):

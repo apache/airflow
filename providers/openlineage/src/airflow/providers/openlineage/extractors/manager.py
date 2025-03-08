@@ -34,9 +34,10 @@ from airflow.providers.openlineage.utils.utils import (
 from airflow.utils.log.logging_mixin import LoggingMixin
 
 if TYPE_CHECKING:
+    from openlineage.client.event_v2 import Dataset
+
     from airflow.models import Operator
     from airflow.providers.common.compat.lineage.entities import Table
-    from openlineage.client.event_v2 import Dataset
 
 
 def _iter_extractor_types() -> Iterator[type[BaseExtractor]]:
@@ -290,8 +291,9 @@ class ExtractorManager(LoggingMixin):
 
     @staticmethod
     def convert_to_ol_dataset(obj) -> Dataset | None:
-        from airflow.providers.common.compat.lineage.entities import File, Table
         from openlineage.client.event_v2 import Dataset
+
+        from airflow.providers.common.compat.lineage.entities import File, Table
 
         if isinstance(obj, Dataset):
             return obj

@@ -109,6 +109,7 @@ from airflow.sdk.definitions._internal.templater import SandboxedEnvironment
 from airflow.sdk.definitions.asset import Asset, AssetAlias, AssetNameRef, AssetUniqueKey, AssetUriRef
 from airflow.sdk.definitions.param import process_params
 from airflow.sdk.definitions.taskgroup import MappedTaskGroup
+from airflow.sdk.execution_time.context import InletEventsAccessors
 from airflow.sentry import Sentry
 from airflow.settings import task_instance_mutation_hook
 from airflow.stats import Stats
@@ -119,7 +120,6 @@ from airflow.utils import timezone
 from airflow.utils.context import (
     ConnectionAccessor,
     Context,
-    InletEventsAccessors,
     OutletEventAccessors,
     VariableAccessor,
     context_get_outlet_events,
@@ -472,6 +472,7 @@ def clear_task_instances(
 
     for ti in tis:
         TaskInstanceHistory.record_ti(ti, session)
+        ti.try_id = uuid7()
         if ti.state == TaskInstanceState.RUNNING:
             # If a task is cleared when running, set its state to RESTARTING so that
             # the task is terminated and becomes eligible for retry.
@@ -764,6 +765,7 @@ def _set_ti_attrs(target, source, include_dag_run=False):
     target.end_date = source.end_date
     target.duration = source.duration
     target.state = source.state
+    target.try_id = source.try_id
     target.try_number = source.try_number
     target.max_tries = source.max_tries
     target.hostname = source.hostname
@@ -798,7 +800,6 @@ def _set_ti_attrs(target, source, include_dag_run=False):
         target.dag_run.state = source.dag_run.state
         target.dag_run.run_id = source.dag_run.run_id
         target.dag_run.creating_job_id = source.dag_run.creating_job_id
-        target.dag_run.external_trigger = source.dag_run.external_trigger
         target.dag_run.run_type = source.dag_run.run_type
         target.dag_run.conf = source.dag_run.conf
         target.dag_run.data_interval_start = source.dag_run.data_interval_start
@@ -967,14 +968,14 @@ def _get_template_context(
         return triggering_events
 
     # NOTE: If you add to this dict, make sure to also update the following:
-    # * Context in task_sdk/src/airflow/sdk/definitions/context.py
+    # * Context in task-sdk/src/airflow/sdk/definitions/context.py
     # * KNOWN_CONTEXT_KEYS in airflow/utils/context.py
     # * Table in docs/apache-airflow/templates-ref.rst
 
     context.update(
         {
             "outlet_events": OutletEventAccessors(),
-            "inlet_events": InletEventsAccessors(task.inlets, session=session),
+            "inlet_events": InletEventsAccessors(task.inlets),
             "macros": macros,
             "params": validated_params,
             "prev_data_interval_start_success": get_prev_data_interval_start_success(),
@@ -1656,6 +1657,7 @@ class TaskInstance(Base, LoggingMixin):
     end_date = Column(UtcDateTime)
     duration = Column(Float)
     state = Column(String(20))
+    try_id = Column(UUIDType(binary=False), default=uuid7, unique=True, nullable=False)
     try_number = Column(Integer, default=0)
     max_tries = Column(Integer, server_default=text("-1"))
     hostname = Column(String(1000))
@@ -1675,7 +1677,7 @@ class TaskInstance(Base, LoggingMixin):
     executor = Column(String(1000))
     executor_config = Column(ExecutorConfigType(pickler=dill))
     updated_at = Column(UtcDateTime, default=timezone.utcnow, onupdate=timezone.utcnow)
-    rendered_map_index = Column(String(250))
+    _rendered_map_index = Column("rendered_map_index", String(250))
 
     external_executor_id = Column(StringID())
 
@@ -1845,6 +1847,14 @@ class TaskInstance(Base, LoggingMixin):
     @hybrid_property
     def task_display_name(self) -> str:
         return self._task_display_property_value or self.task_id
+
+    @hybrid_property
+    def rendered_map_index(self) -> str | None:
+        if self._rendered_map_index is not None:
+            return self._rendered_map_index
+        if self.map_index >= 0:
+            return str(self.map_index)
+        return None
 
     @classmethod
     def from_runtime_ti(cls, runtime_ti: RuntimeTaskInstanceProtocol) -> TaskInstance:
@@ -2849,7 +2859,9 @@ class TaskInstance(Base, LoggingMixin):
             self.log.error("Received SIGTERM. Terminating subprocesses.")
             self.log.error("Stacktrace: \n%s", "".join(traceback.format_stack()))
             self.task.on_kill()
-            raise AirflowTaskTerminated("Task received SIGTERM signal")
+            raise AirflowTaskTerminated(
+                f"Task received SIGTERM signal {self.task_id=} {self.dag_id=} {self.run_id=} {self.map_index=}"
+            )
 
         signal.signal(signal.SIGTERM, signal_handler)
 
@@ -2918,10 +2930,10 @@ class TaskInstance(Base, LoggingMixin):
                 except Exception:
                     # If the task failed, swallow rendering error so it doesn't mask the main error.
                     with contextlib.suppress(jinja2.TemplateSyntaxError, jinja2.UndefinedError):
-                        self.rendered_map_index = _render_map_index(context, jinja_env=jinja_env)
+                        self._rendered_map_index = _render_map_index(context, jinja_env=jinja_env)
                     raise
                 else:  # If the task succeeded, render normally to let rendering error bubble up.
-                    self.rendered_map_index = _render_map_index(context, jinja_env=jinja_env)
+                    self._rendered_map_index = _render_map_index(context, jinja_env=jinja_env)
 
             # Run post_execute callback
             self.task.post_execute(context=context, result=result)
@@ -3136,6 +3148,7 @@ class TaskInstance(Base, LoggingMixin):
                 from airflow.models.taskinstancehistory import TaskInstanceHistory
 
                 TaskInstanceHistory.record_ti(ti, session=session)
+                ti.try_id = uuid7()
 
             ti.state = State.UP_FOR_RETRY
             email_for_state = operator.attrgetter("email_on_retry")

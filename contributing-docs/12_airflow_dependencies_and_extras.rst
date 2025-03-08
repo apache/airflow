@@ -180,42 +180,16 @@ or dependencies that are necessary to enable the feature in editable build.
 airbyte, alibaba, amazon, apache.beam, apache.cassandra, apache.drill, apache.druid, apache.flink,
 apache.hdfs, apache.hive, apache.iceberg, apache.impala, apache.kafka, apache.kylin, apache.livy,
 apache.pig, apache.pinot, apache.spark, apprise, arangodb, asana, atlassian.jira, celery, cloudant,
-cncf.kubernetes, cohere, common.compat, common.io, common.sql, databricks, datadog, dbt.cloud,
-dingding, discord, docker, edge, elasticsearch, exasol, fab, facebook, ftp, github, google, grpc,
-hashicorp, http, imap, influxdb, jdbc, jenkins, microsoft.azure, microsoft.mssql, microsoft.psrp,
-microsoft.winrm, mongo, mysql, neo4j, odbc, openai, openfaas, openlineage, opensearch, opsgenie,
-oracle, pagerduty, papermill, pgvector, pinecone, postgres, presto, qdrant, redis, salesforce,
-samba, segment, sendgrid, sftp, singularity, slack, smtp, snowflake, sqlite, ssh, standard, tableau,
-telegram, teradata, trino, vertica, weaviate, yandex, ydb, zendesk
+cncf.kubernetes, cohere, common.compat, common.io, common.messaging, common.sql, databricks,
+datadog, dbt.cloud, dingding, discord, docker, edge, elasticsearch, exasol, fab, facebook, ftp,
+github, google, grpc, hashicorp, http, imap, influxdb, jdbc, jenkins, microsoft.azure,
+microsoft.mssql, microsoft.psrp, microsoft.winrm, mongo, mysql, neo4j, odbc, openai, openfaas,
+openlineage, opensearch, opsgenie, oracle, pagerduty, papermill, pgvector, pinecone, postgres,
+presto, qdrant, redis, salesforce, samba, segment, sendgrid, sftp, singularity, slack, smtp,
+snowflake, sqlite, ssh, standard, tableau, telegram, teradata, trino, vertica, weaviate, yandex,
+ydb, zendesk
 
   .. END PROVIDER EXTRAS HERE
-
-
-Devel extras
-.............
-
-The ``devel`` extras are not available in the released packages. They are only available when you install
-Airflow from sources in ``editable`` installation - i.e. one that you are usually using to contribute to
-Airflow. They provide tools such as ``pytest`` and ``mypy`` for general purpose development and testing.
-
-  .. START DEVEL EXTRAS HERE
-
-devel, devel-all-dbs, devel-ci, devel-debuggers, devel-devscripts, devel-duckdb, devel-hadoop,
-devel-mypy, devel-sentry, devel-static-checks, devel-tests
-
-  .. END DEVEL EXTRAS HERE
-
-Bundle extras
-.............
-
-Those extras are bundles dynamically generated from other extras.
-
-  .. START BUNDLE EXTRAS HERE
-
-all, all-core, all-dbs, devel-all, devel-ci
-
-  .. END BUNDLE EXTRAS HERE
-
 
 Doc extras
 ...........
@@ -232,18 +206,6 @@ provider packages respectively). The ``doc`` package is enough to build regular 
 doc, doc-gen
 
   .. END DOC EXTRAS HERE
-
-Deprecated extras
-.................
-
-The ``deprecated`` extras are deprecated extras from Airflow 1 that will be removed in future versions.
-
-  .. START DEPRECATED EXTRAS HERE
-
-atlas, aws, azure, cassandra, crypto, druid, gcp, gcp-api, hdfs, hive, kubernetes, mssql, pinot, s3,
-spark, webhdfs, winrm
-
-  .. END DEPRECATED EXTRAS HERE
 
 -----
 

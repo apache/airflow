@@ -30,6 +30,7 @@ from typing import Any, Callable
 from hatchling.builders.config import BuilderConfig
 from hatchling.builders.hooks.plugin.interface import BuildHookInterface
 from hatchling.builders.plugin.interface import BuilderInterface
+from hatchling.metadata.plugin.interface import MetadataHookInterface
 from hatchling.plugin.manager import PluginManager
 
 log = logging.getLogger(__name__)
@@ -182,166 +183,8 @@ DOC_EXTRAS: dict[str, list[str]] = {
     # END OF doc extras
 }
 
-DEVEL_EXTRAS: dict[str, list[str]] = {
-    # START OF devel extras
-    "devel-debuggers": [
-        "ipdb>=0.13.13",
-        "pdbr>=0.8.9",
-    ],
-    "devel-devscripts": [
-        "click>=8.1.8",
-        "gitpython>=3.1.40",
-        "incremental>=24.7.2",
-        "pipdeptree>=2.13.1",
-        "pygithub>=2.1.1",
-        "restructuredtext-lint>=1.4.0",
-        "rich-click>=1.7.0",
-        "semver>=3.0.2",
-        "towncrier>=23.11.0",
-        "twine>=4.0.2",
-    ],
-    "devel-duckdb": [
-        # Python 3.12 support was added in 0.10.0
-        "duckdb>=0.10.0; python_version >= '3.12'",
-        "duckdb>=0.9.0; python_version < '3.12'",
-    ],
-    # Mypy 0.900 and above ships only with stubs from stdlib so if we need other stubs, we need to install them
-    # manually as `types-*`. See https://mypy.readthedocs.io/en/stable/running_mypy.html#missing-imports
-    # for details. We want to install them explicitly because we want to eventually move to
-    # mypyd which does not support installing the types dynamically with --install-types
-    "devel-mypy": [
-        # TODO: upgrade to newer versions of MyPy continuously as they are released
-        # Make sure to upgrade the mypy version in update-common-sql-api-stubs in .pre-commit-config.yaml
-        # when you upgrade it here !!!!
-        "mypy==1.9.0",
-        "types-Deprecated>=1.2.9.20240311",
-        "types-Markdown>=3.6.0.20240316",
-        "types-PyMySQL>=1.1.0.20240425",
-        "types-PyYAML>=6.0.12.20240724",
-        "types-aiofiles>=23.2.0.20240403",
-        "types-certifi>=2021.10.8.3",
-        "types-croniter>=2.0.0.20240423",
-        "types-docutils>=0.21.0.20240704",
-        "types-paramiko>=3.4.0.20240423",
-        "types-protobuf>=5.26.0.20240422",
-        "types-python-dateutil>=2.9.0.20240316",
-        "types-python-slugify>=8.0.2.20240310",
-        "types-pytz>=2024.1.0.20240417",
-        "types-redis>=4.6.0.20240425",
-        # aiobotocore>=2.9.0 requires urllib<2. types-requests>=2.31.0.7 uses urllib>2.
-        # hence, 2.31.0.6 is required for aiobotocore>=2.9.0
-        "types-requests>=2.31.0.6",
-        "types-setuptools>=69.5.0.20240423",
-        "types-tabulate>=0.9.0.20240106",
-        "types-toml>=0.10.8.20240310",
-    ],
-    "devel-sentry": [
-        "blinker>=1.7.0",
-    ],
-    "devel-static-checks": [
-        "black>=23.12.0",
-        "ruff==0.8.1",
-        "yamllint>=1.33.0",
-    ],
-    "devel-tests": [
-        "aioresponses>=0.7.6",
-        "beautifulsoup4>=4.7.1",
-        # Coverage 7.4.0 added experimental support for Python 3.12 PEP669 which we use in Airflow
-        "coverage>=7.4.0",
-        "deepdiff>=8.1.1",
-        "jmespath>=0.7.0",
-        "kgb>=7.0.0",
-        # We need to adjust all our tests to work with "proper" handiing of the async loops in pytest-asyncio
-        # Implemented in Pytest-asyncio 0.25.1 and 0.25.2. See: https://github.com/apache/airflow/issues/45355
-        "pytest-asyncio>=0.23.6,<0.25.1",
-        "pytest-cov>=4.1.0",
-        "pytest-custom-exit-code>=0.3.0",
-        "pytest-icdiff>=0.9",
-        "pytest-instafail>=0.5.0",
-        "pytest-mock>=3.12.0",
-        "pytest-rerunfailures>=13.0",
-        "pytest-timeouts>=1.2.1",
-        "pytest-unordered>=0.6.1",
-        "pytest-xdist>=3.5.0",
-        "pytest>=8.2,<9",
-        "requests_mock>=1.11.0",
-        "semver>=3.0.2",
-        "time-machine>=2.13.0",
-        "wheel>=0.42.0",
-    ],
-    "devel": [
-        "apache-airflow[celery]",
-        "apache-airflow[cncf-kubernetes]",
-        "apache-airflow[devel-debuggers]",
-        "apache-airflow[devel-devscripts]",
-        "apache-airflow[devel-duckdb]",
-        "apache-airflow[devel-mypy]",
-        "apache-airflow[devel-sentry]",
-        "apache-airflow[devel-static-checks]",
-        "apache-airflow[devel-tests]",
-    ],
-    "devel-all-dbs": [
-        "apache-airflow[apache-cassandra]",
-        "apache-airflow[apache-drill]",
-        "apache-airflow[apache-druid]",
-        "apache-airflow[apache-hdfs]",
-        "apache-airflow[apache-hive]",
-        "apache-airflow[apache-impala]",
-        "apache-airflow[apache-pinot]",
-        "apache-airflow[arangodb]",
-        "apache-airflow[cloudant]",
-        "apache-airflow[databricks]",
-        "apache-airflow[exasol]",
-        "apache-airflow[influxdb]",
-        "apache-airflow[microsoft-mssql]",
-        "apache-airflow[mongo]",
-        "apache-airflow[mysql]",
-        "apache-airflow[neo4j]",
-        "apache-airflow[postgres]",
-        "apache-airflow[presto]",
-        "apache-airflow[trino]",
-        "apache-airflow[vertica]",
-    ],
-    "devel-ci": [
-        "apache-airflow[devel-all]",
-    ],
-    "devel-hadoop": [
-        "apache-airflow[apache-hdfs]",
-        "apache-airflow[apache-hive]",
-        "apache-airflow[apache-impala]",
-        "apache-airflow[devel]",
-        "apache-airflow[hdfs]",
-        "apache-airflow[kerberos]",
-        "apache-airflow[presto]",
-    ],
-}
-
-BUNDLE_EXTRAS: dict[str, list[str]] = {
-    "all-dbs": [
-        "apache-airflow[apache-cassandra]",
-        "apache-airflow[apache-drill]",
-        "apache-airflow[apache-druid]",
-        "apache-airflow[apache-hdfs]",
-        "apache-airflow[apache-hive]",
-        "apache-airflow[apache-impala]",
-        "apache-airflow[apache-pinot]",
-        "apache-airflow[arangodb]",
-        "apache-airflow[cloudant]",
-        "apache-airflow[databricks]",
-        "apache-airflow[exasol]",
-        "apache-airflow[influxdb]",
-        "apache-airflow[microsoft-mssql]",
-        "apache-airflow[mongo]",
-        "apache-airflow[mysql]",
-        "apache-airflow[neo4j]",
-        "apache-airflow[postgres]",
-        "apache-airflow[presto]",
-        "apache-airflow[trino]",
-        "apache-airflow[vertica]",
-    ],
-}
-
 DEPENDENCIES = [
+    "a2wsgi>=1.10.8",
     # Alembic is important to handle our migrations in predictable and performant way. It is developed
     # together with SQLAlchemy. Our experience with Alembic is that it very stable in minor version
     # The 1.13.0 of alembic marked some migration code as SQLAlchemy 2+ only so we limit it to 1.13.1
@@ -354,13 +197,6 @@ DEPENDENCIES = [
     "blinker>=1.6.2",
     "colorlog>=6.8.2",
     "configupdater>=3.1.1",
-    # `airflow/www/extensions/init_views` imports `connexion.decorators.validation.RequestBodyValidator`
-    # connexion v3 has refactored the entire module to middleware, see: /spec-first/connexion/issues/1525
-    # Specifically, RequestBodyValidator was removed in: /spec-first/connexion/pull/1595
-    # The usage was added in #30596, seemingly only to override and improve the default error message.
-    # Either revert that change or find another way, preferably without using connexion internals.
-    # This limit can be removed after https://github.com/apache/airflow/issues/35234 is fixed
-    "connexion[flask]>=2.14.2,<3.0",
     "cron-descriptor>=1.2.24",
     "croniter>=2.0.2",
     "cryptography>=41.0.0",
@@ -369,7 +205,9 @@ DEPENDENCIES = [
     # Required for python 3.9 to work with new annotations styles. Check package
     # description on PyPI for more details: https://pypi.org/project/eval-type-backport/
     'eval-type-backport>=0.2.0;python_version<"3.10"',
-    "fastapi[standard]>=0.112.2",
+    # 0.115.10 fastapi was a bad release that broke our API's and static checks.
+    # Related fastapi issue here: https://github.com/fastapi/fastapi/discussions/13431
+    "fastapi[standard]>=0.112.2,!=0.115.10",
     "flask-caching>=2.0.0",
     # Flask-Session 0.6 add new arguments into the SqlAlchemySessionInterface constructor as well as
     # all parameters now are mandatory which make AirflowDatabaseSessionInterface incompatible with this version.
@@ -381,8 +219,6 @@ DEPENDENCIES = [
     "flask>=2.2.1,<2.3",
     "fsspec>=2023.10.0",
     "gitpython>=3.1.40",
-    'google-re2>=1.0;python_version<"3.12"',
-    'google-re2>=1.1;python_version>="3.12"',
     "gunicorn>=20.1.0",
     "httpx>=0.25.0",
     'importlib_metadata>=6.5;python_version<"3.12"',
@@ -400,7 +236,7 @@ DEPENDENCIES = [
     "methodtools>=0.4.7",
     "opentelemetry-api>=1.24.0",
     "opentelemetry-exporter-otlp>=1.24.0",
-    "packaging>=23.0",
+    "packaging>=23.2",
     "pathspec>=0.9.0",
     'pendulum>=2.1.2,<4.0;python_version<"3.12"',
     'pendulum>=3.0.0,<4.0;python_version>="3.12"',
@@ -417,7 +253,7 @@ DEPENDENCIES = [
     "python-slugify>=5.0",
     # Requests 3 if it will be released, will be heavily breaking.
     "requests>=2.27.0,<3",
-    "requests-toolbelt>=0.4.0",
+    "requests-toolbelt>=1.0.0",
     "rfc3339-validator>=0.1.4",
     "rich-argparse>=1.0.0",
     "rich>=13.1.0",
@@ -426,7 +262,7 @@ DEPENDENCIES = [
     # See https://sqlalche.me/e/b8d9 for details of deprecated features
     # you can set environment variable SQLALCHEMY_WARN_20=1 to show all deprecation warnings.
     # The issue tracking it is https://github.com/apache/airflow/issues/28723
-    "sqlalchemy>=1.4.36,<2.0",
+    "sqlalchemy>=1.4.49,<2.0",
     "sqlalchemy-jsonfield>=1.0",
     "sqlalchemy-utils>=0.41.2",
     "tabulate>=0.7.5",
@@ -436,24 +272,50 @@ DEPENDENCIES = [
     # Does not work with it Tracked in https://github.com/fsspec/universal_pathlib/issues/276
     "universal-pathlib>=0.2.2,!=0.2.4",
     "uuid6>=2024.7.10",
-    # Werkzug 3 breaks Flask-Login 0.6.2, also connexion needs to be updated to >= 3.0
-    # we should remove this limitation when FAB supports Flask 2.3 and we migrate connexion to 3+
+    # Werkzug 3 breaks Flask-Login 0.6.2
+    # we should remove this limitation when FAB supports Flask 2.3
     "werkzeug>=2.0,<3",
 ]
+
+
+def normalize_extra(dependency_id: str) -> str:
+    return dependency_id.replace(".", "-").replace("_", "-")
 
 
 ALL_DYNAMIC_EXTRA_DICTS: list[tuple[dict[str, list[str]], str]] = [
     (CORE_EXTRAS, "Core extras"),
     (DOC_EXTRAS, "Doc extras"),
-    (DEVEL_EXTRAS, "Devel extras"),
-    (BUNDLE_EXTRAS, "Bundle extras"),
 ]
 
-ALL_GENERATED_BUNDLE_EXTRAS = ["all", "all-core", "devel-all", "devel-ci"]
+ALL_DYNAMIC_EXTRAS: list[str] = sorted(
+    set(
+        itertools.chain(
+            *[d for d, desc in ALL_DYNAMIC_EXTRA_DICTS],
+            [normalize_extra(_provider_id) for _provider_id in PROVIDER_DEPENDENCIES],
+        )
+    )
+)
 
 
-def normalize_extra(dependency_id: str) -> str:
-    return dependency_id.replace(".", "-").replace("_", "-")
+def get_dependencies_including_devel(provider_id: str) -> list[str]:
+    """
+    Get provider dependencies including devel dependencies.
+
+    :param provider_id: provider id
+    :return: editable deps of the provider excluding airflow and including devel-deps.
+    """
+    deps: list[str] = PROVIDER_DEPENDENCIES[provider_id]["deps"]
+    deps = [dep for dep in deps if not dep.startswith("apache-airflow>=")]
+    devel_deps: list[str] = PROVIDER_DEPENDENCIES[provider_id].get("devel-deps", [])
+    # for editable packages - add regular + devel dependencies retrieved from provider.yaml
+    # but convert the provider dependencies to apache-airflow[extras]
+    # and adding python exclusions where needed
+    editable_deps = []
+    for dep in itertools.chain(deps, devel_deps):
+        if dep.startswith("apache-airflow-providers-"):
+            dep = convert_to_extra_dependency(dep)
+        editable_deps.append(dep)
+    return editable_deps
 
 
 def normalize_requirement(requirement: str):
@@ -472,17 +334,6 @@ def normalize_requirement(requirement: str):
     if req.marker:
         version_required += f"; {req.marker}"
     return str(package_str + version_required)
-
-
-ALL_DYNAMIC_EXTRAS: list[str] = sorted(
-    set(
-        itertools.chain(
-            *[d for d, desc in ALL_DYNAMIC_EXTRA_DICTS],
-            [normalize_extra(provider) for provider in PROVIDER_DEPENDENCIES],
-            ALL_GENERATED_BUNDLE_EXTRAS,
-        )
-    )
-)
 
 
 def get_provider_id(provider_spec: str) -> str:
@@ -515,14 +366,15 @@ def get_provider_requirement(provider_spec: str) -> str:
        by >=VERSION.
     :return: requirement for the provider that can be used as dependency.
     """
-    if ">=" in provider_spec:
+    airflow_init_py_path = AIRFLOW_ROOT_PATH / "airflow" / "__init__.py"
+    if ">=" in provider_spec and airflow_init_py_path.exists():
         # we cannot import `airflow` here directly as it would pull re2 and a number of airflow
         # dependencies so we need to read airflow version by matching a regexp
-        airflow_init_content = (AIRFLOW_ROOT_PATH / "airflow" / "__init__.py").read_text()
+        airflow_init_content = airflow_init_py_path.read_text()
         airflow_version_pattern = r'__version__ = "(\d+\.\d+\.\d+\S*)"'
         airflow_version_match = re.search(airflow_version_pattern, airflow_init_content)
         if not airflow_version_match:
-            raise RuntimeError("Cannot find Airflow version in airflow/__init__.py")
+            raise RuntimeError(f"Cannot find Airflow version in {airflow_init_py_path}")
         from packaging.version import Version
 
         current_airflow_version = Version(airflow_version_match.group(1))
@@ -550,35 +402,218 @@ PREINSTALLED_PROVIDER_REQUIREMENTS = [
 # dependency to another provider
 ALL_PREINSTALLED_PROVIDER_DEPS: list[str] = []
 
-# We very rarely - and only for the time when we plan to release a new preinstalled provider in next release
-# we have the preinstalled provider that is in non-ready state.
-# If provider is in not-ready state, we need to install its dependencies in editable mode as well as
-# when we are building the wheel in CI. In pre-release branch we should never have a non-ready provider
-# added, so this will only be used in main branch for CI builds.
-PREINSTALLED_NOT_READY_PROVIDER_DEPS: list[str] = []
-
 for provider_spec in PRE_INSTALLED_PROVIDERS:
-    provider_id = get_provider_id(provider_spec)
-    for dependency in PROVIDER_DEPENDENCIES[provider_id]["deps"]:
+    _provider_id = get_provider_id(provider_spec)
+    for dependency in PROVIDER_DEPENDENCIES[_provider_id]["deps"]:
         if (
             dependency.startswith("apache-airflow-providers")
             and get_provider_id(dependency) not in PRE_INSTALLED_PROVIDERS
         ):
             msg = (
-                f"The provider {provider_id} is pre-installed and it has a dependency "
+                f"The provider {_provider_id} is pre-installed and it has a dependency "
                 f"to another provider {dependency} which is not preinstalled. This is not allowed. "
                 f"Pre-installed providers should only have 'apache-airflow', other preinstalled providers"
                 f"and regular non-airflow dependencies."
             )
             raise SystemExit(msg)
         if not dependency.startswith("apache-airflow"):
-            if PROVIDER_DEPENDENCIES[provider_id]["state"] not in ["suspended", "removed"]:
+            if PROVIDER_DEPENDENCIES[_provider_id]["state"] not in ["suspended", "removed"]:
                 ALL_PREINSTALLED_PROVIDER_DEPS.append(dependency)
-                if PROVIDER_DEPENDENCIES[provider_id]["state"] in ["not-ready"]:
-                    PREINSTALLED_NOT_READY_PROVIDER_DEPS.append(dependency)
 
 ALL_PREINSTALLED_PROVIDER_DEPS = sorted(set(ALL_PREINSTALLED_PROVIDER_DEPS))
-PREINSTALLED_NOT_READY_PROVIDER_DEPS = sorted(set(PREINSTALLED_NOT_READY_PROVIDER_DEPS))
+
+
+def convert_to_extra_dependency(provider_requirement: str) -> str:
+    """
+    Convert provider specification to extra dependency.
+
+    :param provider_requirement: requirement of the provider in the form of apache-airflow-provider-*,
+        optionally followed by >=VERSION.
+    :return: extra dependency in the form of apache-airflow[extra]
+    """
+    # if there is version in dependency - remove it as we do not need it in extra specification
+    # for editable installation
+    if ">=" in provider_requirement:
+        provider_requirement = provider_requirement.split(">=")[0]
+    extra = provider_requirement.replace("apache-airflow-providers-", "").replace("-", "_").replace(".", "_")
+    return f"apache-airflow[{extra}]"
+
+
+def get_python_exclusion(excluded_python_versions: list[str]):
+    """
+    Produce the Python exclusion that should be used - converted from the list of python versions.
+
+    :param excluded_python_versions: list of python versions to exclude the dependency for.
+    :return: python version exclusion string that can be added to dependency in specification.
+    """
+    exclusion = ""
+    if excluded_python_versions:
+        separator = ";"
+        for version in excluded_python_versions:
+            exclusion += f'{separator}python_version != "{version}"'
+            separator = " and "
+    return exclusion
+
+
+def skip_for_editable_build(excluded_python_versions: list[str]) -> bool:
+    """
+    Whether the dependency should be skipped for editable build for current python version.
+
+    :param excluded_python_versions: list of excluded python versions.
+    :return: True if the dependency should be skipped for editable build for the current python version.
+    """
+    current_python_version = f"{sys.version_info.major}.{sys.version_info.minor}"
+    if current_python_version in excluded_python_versions:
+        return True
+    return False
+
+
+def update_optional_dependencies_with_editable_provider_deps(optional_dependencies):
+    for provider_id in PROVIDER_DEPENDENCIES:
+        excluded_python_versions = PROVIDER_DEPENDENCIES[provider_id].get("excluded-python-versions")
+        if skip_for_editable_build(excluded_python_versions):
+            continue
+        normalized_extra_name = normalize_extra(provider_id)
+        optional_dependencies[normalized_extra_name] = get_dependencies_including_devel(provider_id)
+
+
+def update_optional_dependencies_with_standard_provider_deps(optional_dependencies) -> None:
+    """
+    Process all provider extras for standard wheel build.
+
+    Processes all provider dependencies. This generates dependencies for editable builds
+    and providers for wheel builds.
+
+    """
+    for provider_id in PROVIDER_DEPENDENCIES.keys():
+        normalized_extra_name = normalize_extra(provider_id)
+        if PROVIDER_DEPENDENCIES[provider_id]["state"] != "ready":
+            if optional_dependencies.get(normalized_extra_name):
+                del optional_dependencies[normalized_extra_name]
+        # add providers instead of dependencies for wheel builds
+        excluded_python_versions = PROVIDER_DEPENDENCIES[provider_id].get("excluded-python-versions")
+        optional_dependencies[normalized_extra_name] = [
+            f"apache-airflow-providers-{normalized_extra_name}"
+            f"{get_python_exclusion(excluded_python_versions)}"
+        ]
+
+
+def get_all_core_deps() -> list[str]:
+    all_core_deps: list[str] = []
+    for deps in CORE_EXTRAS.values():
+        all_core_deps.extend(deps)
+    return all_core_deps
+
+
+def update_editable_optional_dependencies(optional_dependencies: dict[str, list[str]]):
+    optional_dependencies.update(CORE_EXTRAS)
+    optional_dependencies.update(DOC_EXTRAS)
+    update_optional_dependencies_with_editable_provider_deps(optional_dependencies)
+    all_deps: list[str] = []
+    for extra, deps in optional_dependencies.items():
+        if extra == "all":
+            raise RuntimeError("The 'all' extra should not be in the original optional_dependencies")
+        all_deps.extend(deps)
+    optional_dependencies["all"] = all_deps
+    optional_dependencies["all-core"] = get_all_core_deps()
+
+
+class CustomMetadataHook(MetadataHookInterface):
+    """
+    Custom metadata hook that updates optional dependencies and dependencies of airflow.
+
+    Since our extras are (still) dynamic - because we need preinstalled provider requirements and we
+    have to treat provider dependencies differently for editable and standard builds (including
+    installing devel dependencies of the provider including the provider dependencies), we need to
+    generate the optional dependencies and dependencies in the metadata hook.
+
+    Those are the "editable" dependencies variants, because the hook is locally resolved only when
+    either preparing to build the wheel, or when we install airflow in editable mode. In both
+    cases we just need the "editable" dependencies, and we replace the editable dependencies in
+    metadata in the build hook to reflect the changes needed in wheel.
+
+    This whole dynamic mechanism might not be needed in the future when:
+
+    * `doc` building will be extracted to a separate distribution with its own doc dependencies.
+       Similarly to test dependencies, doc dependencies might be extracted to a separate distribution
+       where we will not need to include doc dependencies in the main distribution at all. This is
+       planned as part of documentation restructuring.
+
+    * `pip` will be released with support for dependency groups - then we will be able to install
+       provider devel dependencies via `dev` dependency group: https://peps.python.org/pep-0735/.
+       This PEP is already approved and implemented by uv, so `uv sync` does not need to use provider
+       extras at all. PIP 25.1 is supposed to release support for dependency groups. Once we switch
+       to PIP 25.1, we will be able to get rid of "dynamic" dependencies for extras as they will stop being
+       used at all for local development and we will be able to replace them with static
+       "apache-airflow-provider" deps.
+
+    * The default extras for python software packages will be approved and implemented in `pip` and `uv` -
+       https://peps.python.org/pep-0771/. This will allow us to convert preinstalled providers into
+       default extras. This might also be fixed by separating out airflow-core from the main
+       airflow pyproject.toml which is planned next.
+    """
+
+    def update(self, metadata: dict) -> None:
+        optional_dependencies: dict[str, list[str]] = {}
+        update_editable_optional_dependencies(optional_dependencies)
+        metadata["optional-dependencies"] = optional_dependencies
+        dependencies: list[str] = []
+        dependencies.extend(DEPENDENCIES)
+        dependencies.extend(PREINSTALLED_PROVIDER_REQUIREMENTS)
+        metadata["dependencies"] = dependencies
+
+
+class CustomBuildHook(BuildHookInterface[BuilderConfig]):
+    """
+    Custom build hook for Airflow.
+
+    Generates required and optional dependencies depends on the build `version`.
+
+    - standard: Generates all dependencies for the standard (.whl) package:
+       * doc extras not included
+       * core extras
+       * provider optional dependencies resolve to "apache-airflow-providers-{provider}"
+       * pre-installed providers added as required dependencies
+
+    - editable: Generates all dependencies for the editable installation:
+       * doc extras included
+       * core extras
+       * provider optional dependencies resolve to provider dependencies including devel dependencies
+       * pre-installed providers not included - instead their dependencies included in required dependencies
+    """
+
+    def __init__(self, *args: Any, **kwargs: Any) -> None:
+        self.optional_dependencies: dict[str, list[str]] = {}
+        self._dependencies: list[str] = []
+
+        super().__init__(*args, **kwargs)
+
+    def initialize(self, version: str, build_data: dict[str, Any]) -> None:
+        """
+        Initialize hook immediately before each build.
+
+        Any modifications to the build data will be seen by the build target.
+
+        :param version: "standard" or "editable" build.
+        :param build_data: build data dictionary.
+        """
+        self._dependencies = DEPENDENCIES
+        if version == "standard":
+            # Process all provider extras and replace provider requirements with providers
+            self.optional_dependencies.update(CORE_EXTRAS)
+            update_optional_dependencies_with_standard_provider_deps(self.optional_dependencies)
+            # Add preinstalled providers into the dependencies for standard packages
+            self._dependencies.extend(PREINSTALLED_PROVIDER_REQUIREMENTS)
+        else:
+            update_editable_optional_dependencies(self.optional_dependencies)
+
+        # with hatchling, we can modify dependencies dynamically by modifying the build_data
+        build_data["dependencies"] = self._dependencies
+
+        # unfortunately hatchling currently does not have a way to override optional_dependencies
+        # via build_data (or so it seem) so we need to modify internal _optional_dependencies
+        # field in core.metadata until this is possible
+        self.metadata.core._optional_dependencies = self.optional_dependencies
 
 
 class CustomBuild(BuilderInterface[BuilderConfig, PluginManager]):
@@ -592,8 +627,6 @@ class CustomBuild(BuilderInterface[BuilderConfig, PluginManager]):
     def clean(self, directory: str, versions: Iterable[str]) -> None:
         work_dir = Path(self.root)
         commands = [
-            ["rm -rf airflow/www/static/dist"],
-            ["rm -rf airflow/www/node_modules"],
             ["rm -rf airflow/ui/dist"],
             ["rm -rf airflow/ui/node_modules"],
         ]
@@ -608,7 +641,6 @@ class CustomBuild(BuilderInterface[BuilderConfig, PluginManager]):
         self.write_git_version()
         work_dir = Path(self.root)
         commands = [
-            ["pre-commit run --hook-stage manual compile-www-assets --all-files"],
             ["pre-commit run --hook-stage manual compile-ui-assets --all-files"],
         ]
         for cmd in commands:
@@ -660,226 +692,3 @@ class CustomBuild(BuilderInterface[BuilderConfig, PluginManager]):
         git_version_file = Path(self.root) / "airflow" / "git_version"
         self.app.display(f"Writing version {version} to {git_version_file}")
         git_version_file.write_text(version)
-
-
-def _is_devel_extra(extra: str) -> bool:
-    return extra.startswith("devel") or extra in ["doc", "doc-gen"]
-
-
-GENERATED_DEPENDENCIES_START = "# START OF GENERATED DEPENDENCIES"
-GENERATED_DEPENDENCIES_END = "# END OF GENERATED DEPENDENCIES"
-
-
-def convert_to_extra_dependency(provider_requirement: str) -> str:
-    """
-    Convert provider specification to extra dependency.
-
-    :param provider_requirement: requirement of the provider in the form of apache-airflow-provider-*,
-        optionally followed by >=VERSION.
-    :return: extra dependency in the form of apache-airflow[extra]
-    """
-    # if there is version in dependency - remove it as we do not need it in extra specification
-    # for editable installation
-    if ">=" in provider_requirement:
-        provider_requirement = provider_requirement.split(">=")[0]
-    extra = provider_requirement.replace("apache-airflow-providers-", "").replace("-", "_").replace(".", "_")
-    return f"apache-airflow[{extra}]"
-
-
-def get_python_exclusion(excluded_python_versions: list[str]):
-    """
-    Produce the Python exclusion that should be used - converted from the list of python versions.
-
-    :param excluded_python_versions: list of python versions to exclude the dependency for.
-    :return: python version exclusion string that can be added to dependency in specification.
-    """
-    exclusion = ""
-    if excluded_python_versions:
-        separator = ";"
-        for version in excluded_python_versions:
-            exclusion += f'{separator}python_version != "{version}"'
-            separator = " and "
-    return exclusion
-
-
-def skip_for_editable_build(excluded_python_versions: list[str]) -> bool:
-    """
-    Whether the dependency should be skipped for editable build for current python version.
-
-    :param excluded_python_versions: list of excluded python versions.
-    :return: True if the dependency should be skipped for editable build for the current python version.
-    """
-    current_python_version = f"{sys.version_info.major}.{sys.version_info.minor}"
-    if current_python_version in excluded_python_versions:
-        return True
-    return False
-
-
-class CustomBuildHook(BuildHookInterface[BuilderConfig]):
-    """
-    Custom build hook for Airflow.
-
-    Generates required and optional dependencies depends on the build `version`.
-
-    - standard: Generates all dependencies for the standard (.whl) package:
-       * devel and doc extras not included
-       * core extras and "production" bundle extras included
-       * provider optional dependencies resolve to "apache-airflow-providers-{provider}"
-       * pre-installed providers added as required dependencies
-
-    - editable: Generates all dependencies for the editable installation:
-       * devel and doc extras (including devel bundle extras are included)
-       * core extras and "production" bundles included
-       * provider optional dependencies resolve to provider dependencies including devel dependencies
-       * pre-installed providers not included - their dependencies included in devel extras
-    """
-
-    def __init__(self, *args: Any, **kwargs: Any) -> None:
-        # Stores all dependencies that that any of the airflow extras (including devel) use
-        self.all_devel_ci_dependencies: set[str] = set()
-        # All extras that should be included in the wheel package
-        self.all_non_devel_extras: set[str] = set()
-        # All extras that should be available in the editable install
-        self.all_devel_extras: set[str] = set()
-        self.optional_dependencies: dict[str, list[str]] = {}
-        self._dependencies: list[str] = []
-        super().__init__(*args, **kwargs)
-
-    def initialize(self, version: str, build_data: dict[str, Any]) -> None:
-        """
-        Initialize hook immediately before each build.
-
-        Any modifications to the build data will be seen by the build target.
-
-        :param version: "standard" or "editable" build.
-        :param build_data: build data dictionary.
-        """
-        self._process_all_built_in_extras(version)
-        self._process_all_provider_extras(version)
-
-        # Adds all-core extras for the extras that are built-in and not devel
-        self.optional_dependencies["all-core"] = sorted(
-            set([f"apache-airflow[{extra}]" for extra in CORE_EXTRAS.keys()])
-        )
-        # Adds "apache-airflow[extra]" for all extras that are not devel extras for wheel and editable builds
-        self.optional_dependencies["all"] = [
-            f"apache-airflow[{extra}]" for extra in sorted(self.all_non_devel_extras)
-        ]
-        # Adds all devel extras for the extras that are built-in only for editable builds
-        if version != "standard":
-            self.optional_dependencies["devel-all"] = [
-                f"apache-airflow[{extra}]" for extra in sorted(self.all_devel_extras)
-            ]
-        # This is special dependency that is used to install all possible
-        # 3rd-party dependencies for airflow for the CI image. It is exposed in the wheel package
-        # because we want to use for building the image cache from GitHub URL.
-        self.optional_dependencies["devel-ci"] = sorted(self.all_devel_ci_dependencies)
-        self._dependencies = DEPENDENCIES
-
-        if version == "standard":
-            # Inject preinstalled providers into the dependencies for standard packages
-            self._dependencies.extend(PREINSTALLED_PROVIDER_REQUIREMENTS)
-            self._dependencies.extend(PREINSTALLED_NOT_READY_PROVIDER_DEPS)
-        else:
-            self._dependencies.extend(ALL_PREINSTALLED_PROVIDER_DEPS)
-
-        # with hatchling, we can modify dependencies dynamically by modifying the build_data
-        build_data["dependencies"] = self._dependencies
-
-        # unfortunately hatchling currently does not have a way to override optional_dependencies
-        # via build_data (or so it seem) so we need to modify internal _optional_dependencies
-        # field in core.metadata until this is possible
-        self.metadata.core._optional_dependencies = self.optional_dependencies
-
-        # Add entrypoints dynamically for all provider packages, in editable build
-        # else they will not be found by plugin manager
-        if version != "standard":
-            entry_points = self.metadata.core._entry_points or {}
-            plugins = entry_points.get("airflow.plugins") or {}
-            for provider in PROVIDER_DEPENDENCIES.values():
-                for plugin in provider["plugins"]:
-                    plugin_class: str = plugin["plugin-class"]
-                    plugins[plugin["name"]] = plugin_class[::-1].replace(".", ":", 1)[::-1]
-            entry_points["airflow.plugins"] = plugins
-            self.metadata.core._entry_points = entry_points
-
-    def _add_devel_ci_dependencies(self, deps: list[str], python_exclusion: str) -> None:
-        """
-        Add devel_ci_dependencies.
-
-        Adds all external dependencies which are not apache-airflow deps to the list of dependencies
-        that are going to be added to `devel-ci` extra. Optionally exclude dependencies for specific
-        python versions.
-
-        :param deps: list of dependencies to add
-        :param python_exclusion: Python version exclusion string.
-        """
-        for dep in deps:
-            if not dep.startswith("apache-airflow"):
-                self.all_devel_ci_dependencies.add(normalize_requirement(dep) + python_exclusion)
-
-    def _process_all_provider_extras(self, version: str) -> None:
-        """
-        Process all provider extras.
-
-        Processes all provider dependencies. This generates dependencies for editable builds
-        and providers for wheel builds.
-
-        :param version: "standard" or "editable" build.
-        """
-        for dependency_id in PROVIDER_DEPENDENCIES.keys():
-            if PROVIDER_DEPENDENCIES[dependency_id]["state"] != "ready":
-                continue
-            excluded_python_versions = PROVIDER_DEPENDENCIES[dependency_id].get("excluded-python-versions")
-            if version != "standard" and skip_for_editable_build(excluded_python_versions):
-                continue
-            normalized_extra_name = normalize_extra(dependency_id)
-            deps: list[str] = PROVIDER_DEPENDENCIES[dependency_id]["deps"]
-
-            deps = [dep for dep in deps if not dep.startswith("apache-airflow>=")]
-            devel_deps: list[str] = PROVIDER_DEPENDENCIES[dependency_id].get("devel-deps", [])
-
-            if version == "standard":
-                # add providers instead of dependencies for wheel builds
-                self.optional_dependencies[normalized_extra_name] = [
-                    f"apache-airflow-providers-{normalized_extra_name}"
-                    f"{get_python_exclusion(excluded_python_versions)}"
-                ]
-            else:
-                # for editable packages - add regular + devel dependencies retrieved from provider.yaml
-                # but convert the provider dependencies to apache-airflow[extras]
-                # and adding python exclusions where needed
-                editable_deps = []
-                for dep in itertools.chain(deps, devel_deps):
-                    if dep.startswith("apache-airflow-providers-"):
-                        dep = convert_to_extra_dependency(dep)
-                    editable_deps.append(dep)
-                self.optional_dependencies[normalized_extra_name] = sorted(set(editable_deps))
-                self._add_devel_ci_dependencies(editable_deps, python_exclusion="")
-            self.all_devel_extras.add(normalized_extra_name)
-            self.all_non_devel_extras.add(normalized_extra_name)
-
-    def _process_all_built_in_extras(self, version: str) -> None:
-        """
-        Process all built-in extras.
-
-        Adds all core extras (for editable builds) minus devel and doc extras (for wheel builds)
-        to the list of dependencies. It also builds the list of all non-devel built-in extras that will be
-        used to produce "all" extra.
-
-        :param version: "standard" or "editable" build.
-        """
-        for dict, _ in ALL_DYNAMIC_EXTRA_DICTS:
-            for extra, deps in dict.items():
-                self.all_devel_extras.add(extra)
-                self._add_devel_ci_dependencies(deps, python_exclusion="")
-                if dict not in [DEVEL_EXTRAS, DOC_EXTRAS]:
-                    # do not add deprecated extras to "all" extras
-                    self.all_non_devel_extras.add(extra)
-                if version == "standard":
-                    # for wheel builds we skip devel and doc extras
-                    if dict not in [DEVEL_EXTRAS, DOC_EXTRAS]:
-                        self.optional_dependencies[extra] = deps
-                else:
-                    # for editable builds we add all extras
-                    self.optional_dependencies[extra] = deps

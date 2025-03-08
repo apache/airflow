@@ -145,12 +145,12 @@ class TestWorkerApiRoutes:
             ),
         ],
     )
-    def test_redefine_state_if_maintenance(
+    def test_redefine_state(
         self, worker_state: EdgeWorkerState, body_state: EdgeWorkerState, expected_state: EdgeWorkerState
     ):
-        from airflow.providers.edge.worker_api.routes.worker import redefine_state_if_maintenance
+        from airflow.providers.edge.worker_api.routes.worker import redefine_state
 
-        assert redefine_state_if_maintenance(worker_state, body_state) == expected_state
+        assert redefine_state(worker_state, body_state) == expected_state
 
     def test_set_state(self, session: Session, cli_worker: _EdgeWorkerCli):
         queues = ["default", "default2"]

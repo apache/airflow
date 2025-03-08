@@ -61,8 +61,8 @@ x-airflow-common:
     AIRFLOW__CORE__DAGS_ARE_PAUSED_AT_CREATION: 'true'
     AIRFLOW__CORE__LOAD_EXAMPLES: 'true'
     AIRFLOW__API__AUTH_BACKENDS: >-
-       airflow.providers.fab.auth_manager.api.auth.backend.basic_auth,airflow.api.auth.backend.session
-    AIRFLOW__WORKERS__EXECUTION_API_SERVER_URL: 'http://airflow-apiserver:9091/execution/'
+       airflow.providers.fab.auth_manager.api.auth.backend.basic_auth,airflow.providers.fab.auth_manager.api.auth.backend.session
+    AIRFLOW__WORKERS__EXECUTION_API_SERVER_URL: 'http://airflow-apiserver:8080/execution/'
     # yamllint disable rule:line-length
     # Use simple http server on scheduler for health checks
     # See https://airflow.apache.org/docs/apache-airflow/stable/administration-and-deployment/logging-monitoring/check-health.html#scheduler-health-check-server
@@ -117,30 +117,13 @@ services:
       start_period: 30s
     restart: always
 
-  airflow-webserver:
+  airflow-apiserver:
     <<: *airflow-common
-    command: webserver
+    command: api-server
     ports:
       - "8080:8080"
     healthcheck:
-      test: ["CMD", "curl", "--fail", "http://localhost:8080/health"]
-      interval: 30s
-      timeout: 10s
-      retries: 5
-      start_period: 30s
-    restart: always
-    depends_on:
-      <<: *airflow-common-depends-on
-      airflow-init:
-        condition: service_completed_successfully
-
-  airflow-apiserver:
-    <<: *airflow-common
-    command: fastapi-api
-    ports:
-      - "9091:9091"
-    healthcheck:
-      test: ["CMD", "curl", "--fail", "http://localhost:9091/public/version"]
+      test: ["CMD", "curl", "--fail", "http://localhost:8080/public/version"]
       interval: 30s
       timeout: 10s
       retries: 5

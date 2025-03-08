@@ -26,6 +26,8 @@ from collections import defaultdict
 from collections.abc import Iterable
 from typing import TYPE_CHECKING, Any
 
+from google.cloud.dataproc_v1 import Batch, RuntimeConfig
+
 from airflow.providers.common.compat.openlineage.facet import (
     ColumnLineageDatasetFacet,
     DatasetFacet,
@@ -42,12 +44,12 @@ from airflow.providers.common.compat.openlineage.utils.spark import (
     inject_transport_information_into_spark_properties,
 )
 from airflow.providers.google.cloud.hooks.gcs import _parse_gcs_url
-from google.cloud.dataproc_v1 import Batch, RuntimeConfig
 
 if TYPE_CHECKING:
+    from google.cloud.bigquery.table import Table
+
     from airflow.providers.common.compat.openlineage.facet import Dataset
     from airflow.utils.context import Context
-    from google.cloud.bigquery.table import Table
 
 
 log = logging.getLogger(__name__)

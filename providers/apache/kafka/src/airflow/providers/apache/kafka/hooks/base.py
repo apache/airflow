@@ -22,6 +22,7 @@ from typing import Any
 from confluent_kafka.admin import AdminClient
 
 from airflow.hooks.base import BaseHook
+from airflow.providers.google.cloud.hooks.managed_kafka import ManagedKafkaHook
 
 
 class KafkaBaseHook(BaseHook):
@@ -63,6 +64,16 @@ class KafkaBaseHook(BaseHook):
         if not (config.get("bootstrap.servers", None)):
             raise ValueError("config['bootstrap.servers'] must be provided.")
 
+        bootstrap_servers = config.get("bootstrap.servers")
+        if (
+            bootstrap_servers
+            and bootstrap_servers.find("cloud.goog") != -1
+            and bootstrap_servers.find("managedkafka") != -1
+        ):
+            self.log.info("Adding token generation for Google Auth to the confluent configuration.")
+            hook = ManagedKafkaHook()
+            token = hook.get_confluent_token
+            config.update({"oauth_cb": token})
         return self._get_client(config)
 
     def test_connection(self) -> tuple[bool, str]:

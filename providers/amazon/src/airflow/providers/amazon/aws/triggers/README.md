@@ -65,10 +65,10 @@ To call the asynchronous `wait` function, first create a hook for the particular
 self.redshift_hook = RedshiftHook(aws_conn_id=self.aws_conn_id)
 ```
 
-With this hook, we can use the async_conn property to get access to the aiobotocore client:
+With this hook, we can use the asynchronous get_async_conn method to get access to the aiobotocore client:
 
 ```python
-async with self.redshift_hook.async_conn as client:
+async with await self.redshift_hook.get_async_conn() as client:
     await client.get_waiter("cluster_available").wait(
         ClusterIdentifier=self.cluster_identifier,
         WaiterConfig={
@@ -81,7 +81,7 @@ async with self.redshift_hook.async_conn as client:
 In this case, we are using the built-in cluster_available waiter. If we wanted to use a custom waiter, we would change the code slightly to use the `get_waiter` function from the hook, rather than the aiobotocore client:
 
 ```python
-async with self.redshift_hook.async_conn as client:
+async with await self.redshift_hook.get_async_conn() as client:
     waiter = self.redshift_hook.get_waiter("cluster_paused", deferrable=True, client=client)
     await waiter.wait(
         ClusterIdentifier=self.cluster_identifier,
@@ -131,7 +131,7 @@ For more information about writing custom waiter, see the [README.md](https://gi
 In some cases, a built-in or custom waiter may not be able to solve the problem. In such cases, the asynchronous method used to poll the boto3 API would need to be defined in the hook of the service being used. This method is essentially the same as the synchronous version of the method, except that it will use the aiobotocore client, and will be awaited. For the Redshift example, the async `describe_clusters` method would look as follows:
 
 ```python
-async with self.async_conn as client:
+async with await self.get_async_conn() as client:
     response = client.describe_clusters(ClusterIdentifier=self.cluster_identifier)
 ```
 

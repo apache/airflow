@@ -40,7 +40,6 @@ mock_config_response = {
     "warn_deployment_exposure": False,
     "audit_view_excluded_events": "",
     "audit_view_included_events": "",
-    "is_k8s": False,
     "test_connection": "Disabled",
     "state_color_mapping": {
         "deferred": "mediumpurple",

@@ -39,8 +39,8 @@ class TestGetLogin(TestLoginEndpoint):
         [
             {},
             {"next": None},
-            {"next": "http://localhost:29091"},
-            {"next": "http://localhost:29091", "other_param": "something_else"},
+            {"next": "http://localhost:28080"},
+            {"next": "http://localhost:28080", "other_param": "something_else"},
         ],
     )
     def test_should_respond_308(self, test_client, params):

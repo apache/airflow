@@ -1215,10 +1215,6 @@ export const $ConfigResponse = {
       type: "string",
       title: "Audit View Included Events",
     },
-    is_k8s: {
-      type: "boolean",
-      title: "Is K8S",
-    },
     test_connection: {
       type: "string",
       title: "Test Connection",
@@ -1247,7 +1243,6 @@ export const $ConfigResponse = {
     "warn_deployment_exposure",
     "audit_view_excluded_events",
     "audit_view_included_events",
-    "is_k8s",
     "test_connection",
     "state_color_mapping",
   ],
@@ -1868,6 +1863,18 @@ export const $DAGDetailsResponse = {
       description: "Return max_active_tasks as concurrency.",
       readOnly: true,
     },
+    latest_dag_version: {
+      anyOf: [
+        {
+          $ref: "#/components/schemas/DagVersionResponse",
+        },
+        {
+          type: "null",
+        },
+      ],
+      description: "Return the latest DagVersion.",
+      readOnly: true,
+    },
   },
   type: "object",
   required: [
@@ -1907,6 +1914,7 @@ export const $DAGDetailsResponse = {
     "last_parsed",
     "file_token",
     "concurrency",
+    "latest_dag_version",
   ],
   title: "DAGDetailsResponse",
   description: "Specific serializer for DAG Details responses.",
@@ -2324,10 +2332,6 @@ export const $DAGRunResponse = {
     state: {
       $ref: "#/components/schemas/DagRunState",
     },
-    external_trigger: {
-      type: "boolean",
-      title: "External Trigger",
-    },
     triggered_by: {
       $ref: "#/components/schemas/DagRunTriggeredByType",
     },
@@ -2346,6 +2350,13 @@ export const $DAGRunResponse = {
       ],
       title: "Note",
     },
+    dag_versions: {
+      items: {
+        $ref: "#/components/schemas/DagVersionResponse",
+      },
+      type: "array",
+      title: "Dag Versions",
+    },
   },
   type: "object",
   required: [
@@ -2361,10 +2372,10 @@ export const $DAGRunResponse = {
     "last_scheduling_decision",
     "run_type",
     "state",
-    "external_trigger",
     "triggered_by",
     "conf",
     "note",
+    "dag_versions",
   ],
   title: "DAGRunResponse",
   description: "DAG Run serializer for responses.",
@@ -4629,6 +4640,25 @@ export const $StructureDataResponse = {
   description: "Structure Data serializer for responses.",
 } as const;
 
+export const $StructuredLogMessage = {
+  properties: {
+    timestamp: {
+      type: "string",
+      format: "date-time",
+      title: "Timestamp",
+    },
+    event: {
+      type: "string",
+      title: "Event",
+    },
+  },
+  additionalProperties: true,
+  type: "object",
+  required: ["event"],
+  title: "StructuredLogMessage",
+  description: "An individual log message.",
+} as const;
+
 export const $TaskCollectionResponse = {
   properties: {
     tasks: {
@@ -5186,7 +5216,6 @@ export const $TaskInstanceResponse = {
     rendered_fields: {
       type: "object",
       title: "Rendered Fields",
-      default: {},
     },
     trigger: {
       anyOf: [
@@ -5612,7 +5641,20 @@ export const $TaskInstancesBatchBody = {
 export const $TaskInstancesLogResponse = {
   properties: {
     content: {
-      type: "string",
+      anyOf: [
+        {
+          items: {
+            $ref: "#/components/schemas/StructuredLogMessage",
+          },
+          type: "array",
+        },
+        {
+          items: {
+            type: "string",
+          },
+          type: "array",
+        },
+      ],
       title: "Content",
     },
     continuation_token: {
@@ -6054,8 +6096,15 @@ export const $TriggerDAGRunPostBody = {
       title: "Logical Date",
     },
     run_after: {
-      type: "string",
-      format: "date-time",
+      anyOf: [
+        {
+          type: "string",
+          format: "date-time",
+        },
+        {
+          type: "null",
+        },
+      ],
       title: "Run After",
     },
     conf: {
