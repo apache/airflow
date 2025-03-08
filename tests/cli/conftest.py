@@ -71,7 +71,7 @@ def cli_api_client_maker(cli_api_client_credentials):
 
     def make_cli_api_client(transport: httpx.MockTransport) -> Client:
         """Get a client with a custom transport"""
-        return Client(base_url="test://server", transport=transport)
+        return Client(base_url="test://server", transport=transport, token="")
 
     def _cli_api_client(path: str, response_json: dict, expected_http_status_code: int) -> Client:
         """Get a client with a custom transport"""

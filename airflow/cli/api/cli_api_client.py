@@ -37,10 +37,7 @@ def get_client():
     try:
         credentials = Credentials().load()
         limits = httpx.Limits(max_keepalive_connections=1, max_connections=1)
-        cli_api_client = Client(
-            base_url=credentials.api_url,
-            limits=limits,
-        )
+        cli_api_client = Client(base_url=credentials.api_url, limits=limits, token=credentials.api_token)
         yield cli_api_client
     finally:
         if cli_api_client:

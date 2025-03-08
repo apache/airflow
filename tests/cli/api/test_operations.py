@@ -76,10 +76,10 @@ from airflow.cli.api.operations import SERVER_CONNECTION_REFUSED_ERROR
 
 
 def make_cli_api_client(
-    transport: httpx.MockTransport | None = None, base_url: str = "test://server"
+    transport: httpx.MockTransport | None = None, base_url: str = "test://server", token=""
 ) -> Client:
     """Get a client with a custom transport"""
-    return Client(base_url=base_url, transport=transport)
+    return Client(base_url=base_url, transport=transport, token=token)
 
 
 class TestBaseOperations:
