@@ -84,21 +84,25 @@ registering it in a plugin.
     :end-before: [END custom_priority_weight_strategy]
 
 
-Then to use it, you can create an instance of the custom class and provide it in the ``weight_rule`` parameter
-of the task or provide the path of the custom class:
+To check if the custom priority weight strategy is already available in Airflow, you can run the bash command
+``airflow plugins``. Then to use it, you can create an instance of the custom class and provide it in the
+``weight_rule`` parameter of the task or provide the path of the custom class:
 
 .. code-block:: python
 
-    from custom_weight_rule_module import CustomPriorityWeightStrategy
+    from decreasing_priority_weight_strategy import DecreasingPriorityStrategy
 
     # provide the class instance
-    task1 = BashOperator(task_id="task", bash_command="echo 1", weight_rule=CustomPriorityWeightStrategy())
+    task1 = BashOperator(task_id="task", bash_command="echo 1", weight_rule=DecreasingPriorityStrategy())
 
     # or provide the path of the class
     task1 = BashOperator(
         task_id="task",
         bash_command="echo 1",
-        weight_rule="custom_weight_rule_module.CustomPriorityWeightStrategy",
+        weight_rule="decreasing_priority_weight_strategy.DecreasingPriorityStrategy",
     )
+
+After the DAG is running, you can check the ``priority_weight`` parameter on the task to verify that it is using
+the custom priority strategy rule.
 
 |experimental|
