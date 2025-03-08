@@ -279,7 +279,7 @@ class TestPinotAdminHookWithAuth:
         self.conn = conn = mock.MagicMock()
         self.conn.host = "host"
         self.conn.port = "1000"
-        self.conn.user = "user"
+        self.conn.login = "user"
         self.conn.password = "pwd"
         self.conn.extra_dejson = {}
 
@@ -297,7 +297,7 @@ class TestPinotAdminHookWithAuth:
             [
                 "AddSchema",
                 "-user",
-                self.conn.user,
+                self.conn.login,
                 "-password",
                 self.conn.password,
                 "-controllerHost",
@@ -317,7 +317,7 @@ class TestPinotAdminHookWithAuth:
             [
                 "AddTable",
                 "-user",
-                self.conn.user,
+                self.conn.login,
                 "-password",
                 self.conn.password,
                 "-controllerHost",
@@ -358,7 +358,7 @@ class TestPinotAdminHookWithAuth:
             [
                 "CreateSegment",
                 "-user",
-                self.conn.user,
+                self.conn.login,
                 "-password",
                 self.conn.password,
                 "-generatorConfigFile",
@@ -406,7 +406,7 @@ class TestPinotAdminHookWithAuth:
             [
                 "UploadSegment",
                 "-user",
-                self.conn.user,
+                self.conn.login,
                 "-password",
                 self.conn.password,
                 "-controllerHost",
@@ -425,7 +425,7 @@ class TestPinotDbApiHookWithAuth:
         self.conn.host = "host"
         self.conn.port = "1000"
         self.conn.conn_type = "http"
-        self.conn.user_name = "user"
+        self.conn.login = "user"
         self.conn.password = "pwd"
         self.conn.extra_dejson = {"endpoint": "query/sql"}
         self.cur = mock.MagicMock(rowcount=0)
@@ -456,7 +456,7 @@ class TestPinotDbApiHookWithAuth:
         conn = self.db_hook().get_conn()
         assert conn.host == "host"
         assert conn.port == "1000"
-        assert conn.user == "user"
+        assert conn.login == "user"
         assert conn.password == "pwd"
         assert conn.conn_type == "http"
         assert conn.extra_dejson.get("endpoint") == "query/sql"
