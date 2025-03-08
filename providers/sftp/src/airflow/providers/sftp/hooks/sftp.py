@@ -341,7 +341,7 @@ class SFTPHook(SSHHook):
                 self.retrieve_file(file_path, new_local_path, prefetch)
 
     def retrieve_directory_concurrently(
-        self, remote_full_path: str, local_full_path: str, workers: int = os.cpu_count() or 1
+        self, remote_full_path: str, local_full_path: str, workers: int = os.cpu_count() or 2
     ) -> None:
         """
         Transfer the remote directory to a local location concurrently.
@@ -352,7 +352,7 @@ class SFTPHook(SSHHook):
         :param remote_full_path: full path to the remote directory
         :param local_full_path: full path to the local directory
         :param prefetch: controls whether prefetch is performed (default: True)
-        :param workers: number of workers to use for concurrent transfer (default: number of CPUs or 1 if undetermined)
+        :param workers: number of workers to use for concurrent transfer (default: number of CPUs or 2 if undetermined)
         """
 
         def retrieve_file_chunk(
@@ -430,7 +430,7 @@ class SFTPHook(SSHHook):
         remote_full_path: str,
         local_full_path: str,
         confirm: bool = True,
-        workers: int = os.cpu_count() or 1,
+        workers: int = os.cpu_count() or 2,
     ) -> None:
         """
         Transfer a local directory to the remote location concurrently.
@@ -441,7 +441,7 @@ class SFTPHook(SSHHook):
         :param remote_full_path: full path to the remote directory
         :param local_full_path: full path to the local directory
         :param confirm: whether to confirm the file size after transfer (default: True)
-        :param workers: number of workers to use for concurrent transfer (default: number of CPUs or 1 if undetermined)
+        :param workers: number of workers to use for concurrent transfer (default: number of CPUs or 2 if undetermined)
         """
 
         def store_file_chunk(
