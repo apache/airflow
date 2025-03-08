@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2025-03-08T14:08:10.381143
+# This constraints file was automatically generated on 2025-03-08T20:01:39.087924
 # via "eager-upgrade" mechanism of PIP. For the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version of both
 # 'apache-airflow' package and all available community provider packages.
@@ -200,12 +200,12 @@ fastjsonschema==2.21.1
 filelock==3.17.0
 flower==2.0.1
 frozenlist==1.5.0
-fsspec==2025.2.0
+fsspec==2025.3.0
 future==1.0.0
 gcloud-aio-auth==5.3.2
 gcloud-aio-bigquery==7.1.0
 gcloud-aio-storage==9.3.0
-gcsfs==2025.2.0
+gcsfs==2025.3.0
 geomet==0.2.1.post1
 gevent==24.11.1
 gitdb==4.0.12
@@ -292,7 +292,7 @@ ibm-cloud-sdk-core==3.20.3
 ibmcloudant==0.9.1
 icdiff==2.0.7
 id==1.5.0
-identify==2.6.8
+identify==2.6.9
 idna==3.10
 ijson==3.3.0
 imagesize==1.4.1
@@ -305,7 +305,7 @@ influxdb-client==1.48.0
 iniconfig==2.0.0
 ipdb==0.13.13
 ipykernel==6.29.5
-ipython==8.33.0
+ipython==8.34.0
 isodate==0.7.2
 itsdangerous==2.2.0
 jaraco.classes==3.4.0
@@ -530,7 +530,7 @@ rich==13.9.4
 rpds-py==0.23.1
 rsa==4.9
 ruff==0.8.1
-s3fs==2025.2.0
+s3fs==2025.3.0
 s3transfer==0.11.3
 sagemaker_studio==1.0.9
 scikit-learn==1.5.2
