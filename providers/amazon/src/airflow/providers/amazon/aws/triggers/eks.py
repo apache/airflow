@@ -70,7 +70,7 @@ class EksCreateClusterTrigger(AwsBaseWaiterTrigger):
         return EksHook(aws_conn_id=self.aws_conn_id, region_name=self.region_name)
 
     async def run(self):
-        async with self.hook().async_conn as client:
+        async with await self.hook().get_async_conn() as client:
             waiter = client.get_waiter(self.waiter_name)
             try:
                 await async_wait(
@@ -140,7 +140,7 @@ class EksDeleteClusterTrigger(AwsBaseWaiterTrigger):
         return EksHook(aws_conn_id=self.aws_conn_id, region_name=self.region_name)
 
     async def run(self):
-        async with self.hook().async_conn as client:
+        async with await self.hook().get_async_conn() as client:
             waiter = client.get_waiter("cluster_deleted")
             if self.force_delete_compute:
                 await self.delete_any_nodegroups(client=client)

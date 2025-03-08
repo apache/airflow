@@ -51,10 +51,6 @@ LIST_OF_ALL_PROVIDER_TESTS = " ".join(
 # commit that is neutral - allows to keep pyproject.toml-changing PRS neutral for unit tests
 NEUTRAL_COMMIT = "938f0c1f3cc4cbe867123ee8aa9f290f9f18100a"
 
-# for is_legacy_ui_api_labeled tests
-LEGACY_UI_LABEL = "legacy ui"
-LEGACY_API_LABEL = "legacy api"
-
 # Use me if you are adding test for the changed files that includes caplog
 LOG_WITHOUT_MOCK_IN_TESTS_EXCEPTION_LABEL = "log exception"
 

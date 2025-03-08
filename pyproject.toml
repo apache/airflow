@@ -337,7 +337,6 @@ testing = ["dev", "providers.tests", "tests_common", "tests"]
 # Annotated is central for FastAPI dependency injection, skipping rules for FastAPI folders.
 "airflow/api_fastapi/*" = ["TC001", "TC002"]
 "tests/api_fastapi/*" = ["T001", "TC002"]
-"airflow/auth/managers/simple/*" = ["TC001", "TC002"]
 
 # Ignore pydoc style from these
 "*.pyi" = ["D"]
@@ -506,12 +505,6 @@ filterwarnings = [
     "ignore::DeprecationWarning:flask_sqlalchemy",
     # https://github.com/dpgaspar/Flask-AppBuilder/pull/1903
     "ignore::DeprecationWarning:apispec.utils",
-    # Connexion 2 use different deprecated objects, this should be resolved into Connexion 3
-    # https://github.com/spec-first/connexion/pull/1536
-    'ignore::DeprecationWarning:connexion.spec',
-    'ignore:jsonschema\.RefResolver:DeprecationWarning:connexion.json_schema',
-    'ignore:jsonschema\.exceptions\.RefResolutionError:DeprecationWarning:connexion.json_schema',
-    'ignore:Accessing jsonschema\.draft4_format_checker:DeprecationWarning:connexion.decorators.validation',
 ]
 # We cannot add warnings from the airflow package into `filterwarnings`,
 # because it invokes import airflow before we set up test environment which breaks the tests.

@@ -158,7 +158,6 @@ def _find_all_integration_folders() -> list[str]:
             "Other",
             [
                 "tests/assets",
-                "tests/auth",
                 "tests/callbacks",
                 "tests/charts",
                 "tests/cluster_policies",

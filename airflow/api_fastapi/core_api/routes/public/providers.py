@@ -17,7 +17,7 @@
 
 from __future__ import annotations
 
-import re2
+import re
 
 from airflow.api_fastapi.common.parameters import QueryLimit, QueryOffset
 from airflow.api_fastapi.common.router import AirflowRouter
@@ -28,7 +28,7 @@ providers_router = AirflowRouter(tags=["Provider"], prefix="/providers")
 
 
 def _remove_rst_syntax(value: str) -> str:
-    return re2.sub("[`_<>]", "", value.strip(" \n."))
+    return re.sub("[`_<>]", "", value.strip(" \n."))
 
 
 def _provider_mapper(provider: ProviderInfo) -> ProviderResponse:
