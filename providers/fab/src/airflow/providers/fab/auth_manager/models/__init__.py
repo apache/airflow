@@ -44,7 +44,7 @@ from sqlalchemy import (
 from sqlalchemy.orm import backref, declared_attr, registry, relationship
 
 from airflow import __version__ as airflow_version
-from airflow.auth.managers.models.base_user import BaseUser
+from airflow.api_fastapi.auth.managers.models.base_user import BaseUser
 from airflow.models.base import _get_schema, naming_convention
 
 if TYPE_CHECKING:

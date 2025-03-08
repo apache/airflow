@@ -102,7 +102,7 @@ class S3KeyTrigger(BaseTrigger):
     async def run(self) -> AsyncIterator[TriggerEvent]:
         """Make an asynchronous connection using S3HookAsync."""
         try:
-            async with self.hook.async_conn as client:
+            async with await self.hook.get_async_conn() as client:
                 while True:
                     if await self.hook.check_key_async(
                         client, self.bucket_name, self.bucket_key, self.wildcard_match, self.use_regex
@@ -216,7 +216,7 @@ class S3KeysUnchangedTrigger(BaseTrigger):
     async def run(self) -> AsyncIterator[TriggerEvent]:
         """Make an asynchronous connection using S3Hook."""
         try:
-            async with self.hook.async_conn as client:
+            async with await self.hook.get_async_conn() as client:
                 while True:
                     result = await self.hook.is_keys_unchanged_async(
                         client=client,

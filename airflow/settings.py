@@ -37,7 +37,6 @@ from sqlalchemy.pool import NullPool
 from airflow import __version__ as airflow_version, policies
 from airflow.configuration import AIRFLOW_HOME, WEBSERVER_CONFIG, conf  # noqa: F401
 from airflow.exceptions import AirflowInternalRuntimeError
-from airflow.executors import executor_constants
 from airflow.logging_config import configure_logging
 from airflow.utils.orm_event_handlers import setup_event_handlers
 from airflow.utils.sqlalchemy import is_sqlalchemy_v1
@@ -680,9 +679,6 @@ LAZY_LOAD_PLUGINS: bool = conf.getboolean("core", "lazy_load_plugins", fallback=
 # Set it to False, if you want to discover providers whenever 'airflow' is invoked via cli or
 # loaded from module.
 LAZY_LOAD_PROVIDERS: bool = conf.getboolean("core", "lazy_discover_providers", fallback=True)
-
-# Determines if the executor utilizes Kubernetes
-IS_K8S_OR_K8SCELERY_EXECUTOR = conf.get("core", "EXECUTOR") == executor_constants.KUBERNETES_EXECUTOR
 
 # Executors can set this to true to configure logging correctly for
 # containerized executors.

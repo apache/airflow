@@ -125,7 +125,7 @@ repos:
           - --fuzzy-match-generates-todo
       - id: insert-license
         name: Add license for all YAML files except Helm templates
-        exclude: ^\.github/.*$|^chart/templates/.*|.*/reproducible_build.yaml$|^airflow/api_fastapi/core_api/openapi/v1-generated.yaml$|^airflow/auth/managers/simple/openapi/v1-generated.yaml$|^providers/fab/src/airflow/providers/fab/auth_manager/api_fastapi/openapi/v1-generated.yaml$|^.*/pnpm-lock.yaml$
+        exclude: ^\.github/.*$|^chart/templates/.*|.*/reproducible_build.yaml$|^.*/v1-generated.yaml$|^.*/pnpm-lock.yaml$
         types: [yaml]
         files: \.ya?ml$
         args:
@@ -281,9 +281,8 @@ repos:
           ^.*airflow\.template\.yaml$|
           ^.*init_git_sync\.template\.yaml$|
           ^chart/(?:templates|files)/.*\.yaml$|
-          ^airflow/api_fastapi/core_api/openapi/v1-generated\.yaml$|
+          .*/v1-generated\.yaml$|
           ^.*openapi.*\.yaml$|
-          ^airflow/api_fastapi/core_api/openapi/v1-generated\.yaml$|
           ^\.pre-commit-config\.yaml$|
           ^.*/reproducible_build.yaml$|
           ^.*pnpm-lock\.yaml$
@@ -825,7 +824,7 @@ repos:
         language: node
         stages: ['manual']
         types_or: [javascript, ts, tsx]
-        files: ^airflow/ui/|^airflow/auth/managers/simple/ui/
+        files: ^airflow/ui/|^airflow/api_fastapi/auth/managers/simple/ui/
         entry: ./scripts/ci/pre_commit/compile_ui_assets.py
         pass_filenames: false
         additional_dependencies: ['pnpm@9.7.1']
@@ -842,7 +841,7 @@ repos:
         language: node
         stages: ['manual']
         types_or: [javascript, ts, tsx]
-        files: ^airflow/ui/|^airflow/auth/managers/simple/ui/
+        files: ^airflow/ui/|^airflow/api_fastapi/auth/managers/simple/ui/
         entry: ./scripts/ci/pre_commit/compile_ui_assets_dev.py
         pass_filenames: false
         additional_dependencies: ['pnpm@9.7.1']
@@ -1131,15 +1130,6 @@ repos:
         additional_dependencies: ['rich>=12.4.4']
         pass_filenames: false
         files: ^tests/.*\.py$
-      - id: ts-compile-format-lint-ui
-        name: Compile / format / lint UI
-        description: TS types generation / ESLint / Prettier new UI files
-        language: node
-        types_or: [javascript, ts, tsx, yaml, css, json]
-        files: ^airflow/ui/|^airflow/api_fastapi/core_api/openapi/v1-generated\.yaml$|^airflow/auth/managers/simple/ui/|^airflow/auth/managers/simple/openapi/v1-generated\.yaml$
-        entry: ./scripts/ci/pre_commit/lint_ui.py
-        additional_dependencies: ['pnpm@9.7.1']
-        pass_filenames: false
       - id: check-tests-unittest-testcase
         name: Unit tests do not inherit from unittest.TestCase
         description: Check that unit tests do not inherit from unittest.TestCase
@@ -1324,7 +1314,7 @@ repos:
         language: python
         entry: ./scripts/ci/pre_commit/update_fastapi_api_spec.py
         pass_filenames: false
-        files: ^airflow/api_fastapi/.*\.py$|^airflow/auth/managers/simple/.*\.py$|^providers/fab/src/airflow/providers/fab/auth_manager/api_fastapi/.*\.py$
+        files: ^airflow/api_fastapi/.*\.py$|^airflow/api_fastapi/auth/managers/simple/.*\.py$|^providers/fab/src/airflow/providers/fab/auth_manager/api_fastapi/.*\.py$
         exclude: ^airflow/api_fastapi/execution_api/.*
         additional_dependencies: ['rich>=12.4.4']
       - id: ts-compile-format-lint-ui
@@ -1332,7 +1322,11 @@ repos:
         description: TS types generation / ESLint / Prettier new UI files
         language: node
         types_or: [javascript, ts, tsx, yaml, css, json]
-        files: ^airflow/ui/|^airflow/api_fastapi/core_api/openapi/v1-generated\.yaml$|^airflow/auth/managers/simple/ui/|^airflow/auth/managers/simple/openapi/v1-generated\.yaml$
+        files: |
+          (?x)
+          ^airflow/ui/|^airflow/api_fastapi/core_api/openapi/v1-generated\.yaml$ |
+          ^airflow/api_fastapi/auth/managers/simple/ui/ |
+          ^airflow/api_fastapi/auth/managers/simple/openapi/v1-generated\.yaml$
         entry: ./scripts/ci/pre_commit/lint_ui.py
         additional_dependencies: ['pnpm@9.7.1']
         pass_filenames: false
