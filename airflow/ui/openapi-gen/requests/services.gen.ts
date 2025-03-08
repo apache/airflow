@@ -3388,6 +3388,7 @@ export class DagParsingService {
    * Request re-parsing a DAG file.
    * @param data The data for the request.
    * @param data.fileToken
+   * @param data.dagId
    * @returns null Successful Response
    * @throws ApiError
    */
@@ -3397,6 +3398,9 @@ export class DagParsingService {
       url: "/public/parseDagFile/{file_token}",
       path: {
         file_token: data.fileToken,
+      },
+      query: {
+        dag_id: data.dagId,
       },
       errors: {
         401: "Unauthorized",

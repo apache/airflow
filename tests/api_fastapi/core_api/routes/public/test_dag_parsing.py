@@ -65,6 +65,18 @@ class TestDagParsingEndpoint:
         assert parsing_requests[0].fileloc == test_dag.fileloc
         _check_last_log(session, dag_id=None, event="reparse_dag_file", logical_date=None)
 
+    def test_should_respond_401(self, unauthenticated_test_client):
+        response = unauthenticated_test_client.put(
+            "/public/parseDagFile/token", headers={"Accept": "application/json"}
+        )
+        assert response.status_code == 401
+
+    def test_should_respond_403(self, unauthorized_test_client):
+        response = unauthorized_test_client.put(
+            "/public/parseDagFile/token", headers={"Accept": "application/json"}
+        )
+        assert response.status_code == 403
+
     def test_bad_file_request(self, url_safe_serializer, session, test_client):
         url = f"/public/parseDagFile/{url_safe_serializer.dumps('/some/random/file.py')}"
         response = test_client.put(url, headers={"Accept": "application/json"})
