@@ -16,12 +16,9 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Box, Button, Heading, HStack, Field } from "@chakra-ui/react";
-import { useQueryClient } from "@tanstack/react-query";
-import type { OptionsOrGroups, GroupBase, SingleValue } from "chakra-react-select";
-import { AsyncSelect } from "chakra-react-select";
-import { useState, useCallback } from "react";
-import { useParams, useSearchParams } from "react-router-dom";
+import { Box, Button, Heading, HStack, Link } from "@chakra-ui/react";
+import { useState } from "react";
+import { useParams } from "react-router-dom";
 import { createElement, PrismLight as SyntaxHighlighter } from "react-syntax-highlighter";
 import python from "react-syntax-highlighter/dist/esm/languages/prism/python";
 import { oneLight, oneDark } from "react-syntax-highlighter/dist/esm/styles/prism";
@@ -29,30 +26,22 @@ import { oneLight, oneDark } from "react-syntax-highlighter/dist/esm/styles/pris
 import {
   useDagServiceGetDagDetails,
   useDagSourceServiceGetDagSource,
-  UseDagVersionServiceGetDagVersionsKeyFn,
+  useDagVersionServiceGetDagVersion,
 } from "openapi/queries";
-import { DagVersionService } from "openapi/requests/services.gen";
-import type { DAGVersionCollectionResponse, DagVersionResponse } from "openapi/requests/types.gen";
+import DagVersionSelect from "src/components/DagVersionSelect";
 import { ErrorAlert } from "src/components/ErrorAlert";
 import Time from "src/components/Time";
 import { ProgressBar } from "src/components/ui";
 import { useColorMode } from "src/context/colorMode";
+import useSelectedVersion from "src/hooks/useSelectedVersion";
 import { useConfig } from "src/queries/useConfig";
 
 SyntaxHighlighter.registerLanguage("python", python);
 
-const VERSION_PARAM = "version";
-
-type Option = {
-  label: string;
-  value: string;
-};
-
 export const Code = () => {
   const { dagId } = useParams();
-  const [searchParams, setSearchParams] = useSearchParams();
-  const selectedVersion = searchParams.get(VERSION_PARAM);
-  const queryClient = useQueryClient();
+
+  const selectedVersion = useSelectedVersion();
 
   const {
     data: dag,
@@ -62,13 +51,22 @@ export const Code = () => {
     dagId: dagId ?? "",
   });
 
+  const { data: dagVersion } = useDagVersionServiceGetDagVersion(
+    {
+      dagId: dagId ?? "",
+      versionNumber: selectedVersion ?? 1,
+    },
+    undefined,
+    { enabled: dag !== undefined && selectedVersion !== undefined },
+  );
+
   const {
     data: code,
     error: codeError,
     isLoading: isCodeLoading,
   } = useDagSourceServiceGetDagSource({
     dagId: dagId ?? "",
-    versionNumber: selectedVersion === null ? undefined : parseInt(selectedVersion, 10),
+    versionNumber: selectedVersion,
   });
 
   const defaultWrap = Boolean(useConfig("default_wrap"));
@@ -85,65 +83,40 @@ export const Code = () => {
     style['code[class*="language-"]'].whiteSpace = wrap ? "pre-wrap" : "pre";
   }
 
-  const loadVersions = (
-    _: string,
-    callback: (options: OptionsOrGroups<Option, GroupBase<Option>>) => void,
-  ): Promise<OptionsOrGroups<Option, GroupBase<Option>>> =>
-    queryClient.fetchQuery({
-      queryFn: () =>
-        DagVersionService.getDagVersions({
-          dagId: dagId ?? "",
-        }).then((data: DAGVersionCollectionResponse) => {
-          const options = data.dag_versions.map((version: DagVersionResponse) => {
-            const versionNumber = version.version_number.toString();
-
-            return {
-              label: versionNumber,
-              value: versionNumber,
-            };
-          });
-
-          callback(options);
-
-          return options;
-        }),
-      queryKey: UseDagVersionServiceGetDagVersionsKeyFn({ dagId: dagId ?? "" }),
-      staleTime: 0,
-    });
-
-  const handleStateChange = useCallback(
-    (version: SingleValue<Option>) => {
-      if (version) {
-        searchParams.set(VERSION_PARAM, version.value);
-        setSearchParams(searchParams);
-      }
-    },
-    [searchParams, setSearchParams],
-  );
-
   return (
     <Box>
       <HStack justifyContent="space-between" mt={2}>
-        {dag?.last_parsed_time !== undefined && (
-          <Heading as="h4" fontSize="14px" size="md">
-            Parsed at: <Time datetime={dag.last_parsed_time} />
-          </Heading>
-        )}
-        <HStack>
-          <Field.Root>
-            <AsyncSelect
-              defaultOptions
-              filterOption={undefined}
-              isSearchable={false}
-              loadOptions={loadVersions}
-              onChange={handleStateChange}
-              placeholder="Dag Version"
-              // null is required https://github.com/JedWatson/react-select/issues/3066
-              // eslint-disable-next-line unicorn/no-null
-              value={selectedVersion === null ? null : { label: selectedVersion, value: selectedVersion }}
-            />
-          </Field.Root>
+        <HStack gap={5}>
+          {dag?.last_parsed_time !== undefined && (
+            <Heading as="h4" fontSize="14px" size="md">
+              Parsed at: <Time datetime={dag.last_parsed_time} />
+            </Heading>
+          )}
 
+          {
+            // eslint-disable-next-line @typescript-eslint/prefer-optional-chain
+            dagVersion !== undefined && dagVersion.bundle_version !== null ? (
+              <Heading as="h4" fontSize="14px" size="md" wordBreak="break-word">
+                Bundle Version:{" "}
+                {dagVersion.bundle_url === null ? (
+                  dagVersion.bundle_version
+                ) : (
+                  <Link
+                    aria-label="Bundle Url"
+                    color="fg.info"
+                    href={dagVersion.bundle_url}
+                    rel="noopener noreferrer"
+                    target="_blank"
+                  >
+                    {dagVersion.bundle_version}
+                  </Link>
+                )}
+              </Heading>
+            ) : undefined
+          }
+        </HStack>
+        <HStack>
+          <DagVersionSelect />
           <Button aria-label={wrap ? "Unwrap" : "Wrap"} bg="bg.panel" onClick={toggleWrap} variant="outline">
             {wrap ? "Unwrap" : "Wrap"}
           </Button>

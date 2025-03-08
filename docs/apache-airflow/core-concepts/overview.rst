@@ -80,7 +80,7 @@ performance in your Airflow:
 
 * Optional folder of *plugins*. Plugins are a way to extend Airflow's functionality (similar to installed
   packages). Plugins are read by the *scheduler*, *dag processor*, *triggerer* and *webserver*. More about
-  plugins can be found in :doc:`/authoring-and-scheduling/plugins`.
+  plugins can be found in :doc:`/administration-and-deployment/plugins`.
 
 Deploying Airflow components
 ----------------------------

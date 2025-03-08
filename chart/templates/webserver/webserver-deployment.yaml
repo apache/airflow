@@ -20,7 +20,7 @@
 ################################
 ## Airflow Webserver Deployment
 #################################
-{{- if .Values.webserver.enabled }}
+{{- if and .Values.webserver.enabled (semverCompare "<3.0.0" .Values.airflowVersion) }}
 {{- $nodeSelector := or .Values.webserver.nodeSelector .Values.nodeSelector }}
 {{- $affinity := or .Values.webserver.affinity .Values.affinity }}
 {{- $tolerations := or .Values.webserver.tolerations .Values.tolerations }}
@@ -248,6 +248,7 @@ spec:
                   value: {{ regexReplaceAll ":\\d+$" (urlParse (tpl .Values.config.webserver.base_url .)).host  "" }}
               {{- end }}
               scheme: {{ .Values.webserver.startupProbe.scheme | default "http" }}
+            initialDelaySeconds: {{ .Values.webserver.startupProbe.initialDelaySeconds }}
             timeoutSeconds: {{ .Values.webserver.startupProbe.timeoutSeconds }}
             failureThreshold: {{ .Values.webserver.startupProbe.failureThreshold }}
             periodSeconds: {{ .Values.webserver.startupProbe.periodSeconds }}

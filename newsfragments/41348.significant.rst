@@ -99,11 +99,11 @@ Rename ``Dataset`` as ``Asset``
 
       * Rename decorator ``requires_access_dataset`` as ``requires_access_asset``
 
-  * In module ``airflow.auth.managers.models.resource_details``
+  * In module ``airflow.api_fastapi.auth.managers.models.resource_details``
 
       * Rename class ``DatasetDetails`` as ``AssetDetails``
 
-  * In module ``airflow.auth.managers.base_auth_manager``
+  * In module ``airflow.api_fastapi.auth.managers.base_auth_manager``
 
       * Rename function ``is_authorized_dataset`` as ``is_authorized_asset``
 
@@ -265,8 +265,8 @@ Rename ``Dataset`` as ``Asset``
 
       * [ ] context key ``triggering_dataset_events`` → ``triggering_asset_events``
       * [x] ``airflow.api_connexion.security.requires_access_dataset`` → ``airflow.api_connexion.security.requires_access_asset``
-      * [x] ``airflow.auth.managers.base_auth_manager.is_authorized_dataset`` → ``airflow.auth.managers.base_auth_manager.is_authorized_asset``
-      * [x] ``airflow.auth.managers.models.resource_details.DatasetDetails`` → ``airflow.auth.managers.models.resource_details.AssetDetails``
+      * [ ] ``airflow.auth.managers.base_auth_manager.is_authorized_dataset`` → ``airflow.api_fastapi.auth.managers.base_auth_manager.is_authorized_asset``
+      * [ ] ``airflow.auth.managers.models.resource_details.DatasetDetails`` → ``airflow.api_fastapi.auth.managers.models.resource_details.AssetDetails``
       * [x] ``airflow.lineage.hook.DatasetLineageInfo`` → ``airflow.lineage.hook.AssetLineageInfo``
       * [x] ``airflow.security.permissions.RESOURCE_DATASET`` → ``airflow.security.permissions.RESOURCE_ASSET``
       * [x] ``airflow.www.auth.has_access_dataset`` → ``airflow.www.auth.has_access_dataset.has_access_asset``

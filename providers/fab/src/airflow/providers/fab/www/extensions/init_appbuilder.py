@@ -306,7 +306,9 @@ class AirflowAppBuilder:
         self.indexview = self._check_and_init(self.indexview)
         self.add_view_no_menu(self.indexview)
         self.add_view_no_menu(UtilView())
-        get_auth_manager().register_views()
+        auth_manager = get_auth_manager()
+        if hasattr(auth_manager, "register_views"):
+            auth_manager.register_views()
 
     def _add_addon_views(self):
         """Register declared addons."""
@@ -543,7 +545,8 @@ class AirflowAppBuilder:
     def _add_permission(self, baseview, update_perms=False):
         if self.update_perms or update_perms:
             try:
-                self.sm.add_permissions_view(baseview.base_permissions, baseview.class_permission_name)
+                if hasattr(self.sm, "add_permissions_view"):
+                    self.sm.add_permissions_view(baseview.base_permissions, baseview.class_permission_name)
             except Exception as e:
                 log.exception(e)
                 log.error(LOGMSG_ERR_FAB_ADD_PERMISSION_VIEW, e)
@@ -557,7 +560,8 @@ class AirflowAppBuilder:
     def _add_permissions_menu(self, name, update_perms=False):
         if self.update_perms or update_perms:
             try:
-                self.sm.add_permissions_menu(name)
+                if hasattr(self.sm, "add_permissions_menu"):
+                    self.sm.add_permissions_menu(name)
             except Exception as e:
                 log.exception(e)
                 log.error(LOGMSG_ERR_FAB_ADD_PERMISSION_MENU, e)

@@ -172,6 +172,7 @@ ARG_BUNDLE_NAME = Arg(
         "--bundle-name",
     ),
     help=("The name of the DAG bundle to use; may be provided more than once"),
+    type=str,
     default=None,
     action="append",
 )
@@ -543,51 +544,8 @@ ARG_KEYTAB = Arg(("-k", "--keytab"), help="keytab", nargs="?", default=conf.get(
 ARG_KERBEROS_ONE_TIME_MODE = Arg(
     ("-o", "--one-time"), help="Run airflow kerberos one time instead of forever", action="store_true"
 )
-# run
-ARG_INTERACTIVE = Arg(
-    ("-N", "--interactive"),
-    help="Do not capture standard output and error streams (useful for interactive debugging)",
-    action="store_true",
-)
-# TODO(aoen): "force" is a poor choice of name here since it implies it overrides
-# all dependencies (not just past success), e.g. the ignore_depends_on_past
-# dependency. This flag should be deprecated and renamed to 'ignore_ti_state' and
-# the "ignore_all_dependencies" command should be called the"force" command
-# instead.
-ARG_FORCE = Arg(
-    ("-f", "--force"),
-    help="Ignore previous task instance state, rerun regardless if task already succeeded/failed",
-    action="store_true",
-)
-ARG_RAW = Arg(("-r", "--raw"), argparse.SUPPRESS, "store_true")
-ARG_IGNORE_ALL_DEPENDENCIES = Arg(
-    ("-A", "--ignore-all-dependencies"),
-    help="Ignores all non-critical dependencies, including ignore_ti_state and ignore_task_deps",
-    action="store_true",
-)
-# TODO(aoen): ignore_dependencies is a poor choice of name here because it is too
-# vague (e.g. a task being in the appropriate state to be run is also a dependency
-# but is not ignored by this flag), the name 'ignore_task_dependencies' is
-# slightly better (as it ignores all dependencies that are specific to the task),
-# so deprecate the old command name and use this instead.
-ARG_IGNORE_DEPENDENCIES = Arg(
-    ("-i", "--ignore-dependencies"),
-    help="Ignore task-specific dependencies, e.g. upstream, depends_on_past, and retry delay dependencies",
-    action="store_true",
-)
-ARG_DEPENDS_ON_PAST = Arg(
-    ("-d", "--depends-on-past"),
-    help="Determine how Airflow should deal with past dependencies. The default action is `check`, Airflow "
-    "will check if the past dependencies are met for the tasks having `depends_on_past=True` before run "
-    "them, if `ignore` is provided, the past dependencies will be ignored, if `wait` is provided and "
-    "`depends_on_past=True`, Airflow will wait the past dependencies until they are met before running or "
-    "skipping the task",
-    choices={"check", "ignore", "wait"},
-    default="check",
-)
-ARG_CFG_PATH = Arg(("--cfg-path",), help="Path to config file to use instead of airflow.cfg")
+# tasks
 ARG_MAP_INDEX = Arg(("--map-index",), type=int, default=-1, help="Mapped task index")
-ARG_READ_FROM_DB = Arg(("--read-from-db",), help="Read dag from DB instead of dag file", action="store_true")
 
 
 # database
@@ -638,75 +596,16 @@ ARG_DB_SKIP_INIT = Arg(
     default=False,
 )
 
-# webserver
-ARG_PORT = Arg(
-    ("-p", "--port"),
-    default=conf.get("webserver", "WEB_SERVER_PORT"),
-    type=int,
-    help="The port on which to run the server",
-)
-ARG_SSL_CERT = Arg(
-    ("--ssl-cert",),
-    default=conf.get("webserver", "WEB_SERVER_SSL_CERT"),
-    help="Path to the SSL certificate for the webserver",
-)
-ARG_SSL_KEY = Arg(
-    ("--ssl-key",),
-    default=conf.get("webserver", "WEB_SERVER_SSL_KEY"),
-    help="Path to the key to use with the SSL certificate",
-)
-ARG_WORKERS = Arg(
-    ("-w", "--workers"),
-    default=conf.get("webserver", "WORKERS"),
-    type=int,
-    help="Number of workers to run the webserver on",
-)
-ARG_WORKERCLASS = Arg(
-    ("-k", "--workerclass"),
-    default=conf.get("webserver", "WORKER_CLASS"),
-    choices=["sync", "eventlet", "gevent", "tornado"],
-    help="The worker class to use for Gunicorn",
-)
-ARG_WORKER_TIMEOUT = Arg(
-    ("-t", "--worker-timeout"),
-    default=conf.get("webserver", "WEB_SERVER_WORKER_TIMEOUT"),
-    type=int,
-    help="The timeout for waiting on webserver workers",
-)
-ARG_HOSTNAME = Arg(
-    ("-H", "--hostname"),
-    default=conf.get("webserver", "WEB_SERVER_HOST"),
-    help="Set the hostname on which to run the web server",
-)
-ARG_DEBUG = Arg(
-    ("-d", "--debug"), help="Use the server that ships with Flask in debug mode", action="store_true"
-)
-ARG_ACCESS_LOGFILE = Arg(
-    ("-A", "--access-logfile"),
-    default=conf.get("webserver", "ACCESS_LOGFILE"),
-    help="The logfile to store the webserver access log. Use '-' to print to stdout",
-)
-ARG_ERROR_LOGFILE = Arg(
-    ("-E", "--error-logfile"),
-    default=conf.get("webserver", "ERROR_LOGFILE"),
-    help="The logfile to store the webserver error log. Use '-' to print to stderr",
-)
-ARG_ACCESS_LOGFORMAT = Arg(
-    ("-L", "--access-logformat"),
-    default=conf.get("webserver", "ACCESS_LOGFORMAT"),
-    help="The access log format for gunicorn logs",
-)
-
 # api-server
 ARG_API_SERVER_PORT = Arg(
     ("-p", "--port"),
-    default=9091,
+    default=conf.get("api", "port"),
     type=int,
     help="The port on which to run the API server",
 )
 ARG_API_SERVER_WORKERS = Arg(
     ("-w", "--workers"),
-    default=4,
+    default=conf.get("api", "workers"),
     type=int,
     help="Number of workers to run on the API server",
 )
@@ -717,21 +616,14 @@ ARG_API_SERVER_WORKER_TIMEOUT = Arg(
     help="The timeout for waiting on API server workers",
 )
 ARG_API_SERVER_HOSTNAME = Arg(
-    ("-H", "--hostname"),
-    default="0.0.0.0",  # nosec
-    help="Set the hostname on which to run the API server",
+    ("-H", "--host"),
+    default=conf.get("api", "host"),
+    help="Set the host on which to run the API server",
 )
 ARG_API_SERVER_ACCESS_LOGFILE = Arg(
     ("-A", "--access-logfile"),
+    default=conf.get("api", "access_logfile"),
     help="The logfile to store the access log. Use '-' to print to stdout",
-)
-ARG_API_SERVER_ERROR_LOGFILE = Arg(
-    ("-E", "--error-logfile"),
-    help="The logfile to store the error log. Use '-' to print to stderr",
-)
-ARG_API_SERVER_ACCESS_LOGFORMAT = Arg(
-    ("-L", "--access-logformat"),
-    help="The access log format for gunicorn logs",
 )
 ARG_API_SERVER_APPS = Arg(
     ("--apps",),
@@ -743,7 +635,17 @@ ARG_API_SERVER_ALLOW_PROXY_FORWARDING = Arg(
     help="Enable X-Forwarded-Proto, X-Forwarded-For, X-Forwarded-Port to populate remote address info.",
     action="store_true",
 )
-
+ARG_SSL_CERT = Arg(
+    ("--ssl-cert",),
+    default=conf.get("api", "ssl_cert"),
+    help="Path to the SSL certificate for the webserver",
+)
+ARG_SSL_KEY = Arg(
+    ("--ssl-key",),
+    default=conf.get("api", "ssl_key"),
+    help="Path to the key to use with the SSL certificate",
+)
+ARG_DEV = Arg(("-d", "--dev"), help="Start FastAPI in development mode", action="store_true")
 
 # scheduler
 ARG_NUM_RUNS = Arg(
@@ -893,7 +795,7 @@ ARG_OPTIONAL_SECTION = Arg(
 # jobs check
 ARG_JOB_TYPE_FILTER = Arg(
     ("--job-type",),
-    choices=("LocalTaskJob", "SchedulerJob", "TriggererJob", "DagProcessorJob"),
+    choices=("SchedulerJob", "TriggererJob", "DagProcessorJob"),
     action="store",
     help="The type of job(s) that will be checked.",
 )
@@ -936,7 +838,7 @@ ARG_DAG_LIST_COLUMNS = Arg(
     ("--columns",),
     type=string_list_type,
     help="List of columns to render. (default: ['dag_id', 'fileloc', 'owner', 'is_paused'])",
-    default=("dag_id", "fileloc", "owners", "is_paused"),
+    default=("dag_id", "fileloc", "owners", "is_paused", "bundle_name", "bundle_version"),
 )
 
 ARG_ASSET_LIST_COLUMNS = Arg(
@@ -1034,7 +936,7 @@ DAGS_COMMANDS = (
         name="list",
         help="List all the DAGs",
         func=lazy_load_command("airflow.cli.commands.remote_commands.dag_command.dag_list_dags"),
-        args=(ARG_SUBDIR, ARG_OUTPUT, ARG_VERBOSE, ARG_DAG_LIST_COLUMNS),
+        args=(ARG_OUTPUT, ARG_VERBOSE, ARG_DAG_LIST_COLUMNS, ARG_BUNDLE_NAME),
     ),
     ActionCommand(
         name="list-import-errors",
@@ -1306,31 +1208,6 @@ TASKS_COMMANDS = (
             ARG_SUBDIR,
             ARG_VERBOSE,
             ARG_MAP_INDEX,
-        ),
-    ),
-    ActionCommand(
-        name="run",
-        help="Run a single task instance",
-        func=lazy_load_command("airflow.cli.commands.remote_commands.task_command.task_run"),
-        args=(
-            ARG_DAG_ID,
-            ARG_TASK_ID,
-            ARG_LOGICAL_DATE_OR_RUN_ID,
-            ARG_SUBDIR,
-            ARG_MARK_SUCCESS,
-            ARG_FORCE,
-            ARG_POOL,
-            ARG_CFG_PATH,
-            ARG_LOCAL,
-            ARG_RAW,
-            ARG_IGNORE_ALL_DEPENDENCIES,
-            ARG_IGNORE_DEPENDENCIES,
-            ARG_DEPENDS_ON_PAST,
-            ARG_INTERACTIVE,
-            ARG_SHUT_DOWN_LOGGING,
-            ARG_MAP_INDEX,
-            ARG_VERBOSE,
-            ARG_READ_FROM_DB,
         ),
     ),
     ActionCommand(
@@ -1858,29 +1735,6 @@ core_commands: list[CLICommand] = [
         ),
     ),
     ActionCommand(
-        name="webserver",
-        help="Start an Airflow webserver instance",
-        func=lazy_load_command("airflow.cli.commands.local_commands.webserver_command.webserver"),
-        args=(
-            ARG_PORT,
-            ARG_WORKERS,
-            ARG_WORKERCLASS,
-            ARG_WORKER_TIMEOUT,
-            ARG_HOSTNAME,
-            ARG_PID,
-            ARG_DAEMON,
-            ARG_STDOUT,
-            ARG_STDERR,
-            ARG_ACCESS_LOGFILE,
-            ARG_ERROR_LOGFILE,
-            ARG_ACCESS_LOGFORMAT,
-            ARG_LOG_FILE,
-            ARG_SSL_CERT,
-            ARG_SSL_KEY,
-            ARG_DEBUG,
-        ),
-    ),
-    ActionCommand(
         name="api-server",
         help="Start an Airflow API server instance",
         func=lazy_load_command("airflow.cli.commands.local_commands.api_server_command.api_server"),
@@ -1894,13 +1748,11 @@ core_commands: list[CLICommand] = [
             ARG_STDOUT,
             ARG_STDERR,
             ARG_API_SERVER_ACCESS_LOGFILE,
-            ARG_API_SERVER_ERROR_LOGFILE,
-            ARG_API_SERVER_ACCESS_LOGFORMAT,
             ARG_API_SERVER_APPS,
             ARG_LOG_FILE,
             ARG_SSL_CERT,
             ARG_SSL_KEY,
-            ARG_DEBUG,
+            ARG_DEV,
             ARG_API_SERVER_ALLOW_PROXY_FORWARDING,
         ),
     ),

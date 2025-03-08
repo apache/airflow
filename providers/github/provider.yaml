@@ -23,7 +23,7 @@ description: |
     `GitHub <https://www.github.com/>`__
 
 state: ready
-source-date-epoch: 1739963244
+source-date-epoch: 1741121877
 # note that those versions are maintained by release manager - do not update them manually
 versions:
   - 2.8.2

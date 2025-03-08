@@ -26,9 +26,9 @@ DEVELOPER_COMMANDS: dict[str, str | list[str]] = {
         "shell",
         "exec",
         "compile-ui-assets",
-        "compile-www-assets",
         "cleanup",
         "generate-migration-file",
+        "doctor",
     ],
 }
 DEVELOPER_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] = {
@@ -84,7 +84,7 @@ DEVELOPER_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] = {
                 "--load-example-dags",
                 "--load-default-connections",
                 "--standalone-dag-processor",
-                "--start-webserver-with-examples",
+                "--start-api-server-with-examples",
             ],
         },
         {
@@ -188,15 +188,6 @@ DEVELOPER_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] = {
                 "--no-db-cleanup",
             ],
         },
-    ],
-    "breeze compile-www-assets": [
-        {
-            "name": "Compile www assets flag",
-            "options": [
-                "--dev",
-                "--force-clean",
-            ],
-        }
     ],
     "breeze compile-ui-assets": [
         {
@@ -302,7 +293,6 @@ DEVELOPER_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] = {
             "options": [
                 "--preserve-volumes",
                 "--cleanup-mypy-cache",
-                "--project-name",
             ],
         },
     ],
@@ -371,5 +361,13 @@ DEVELOPER_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] = {
                 "--builder",
             ],
         },
+    ],
+    "breeze doctor": [
+        {
+            "name": "Auto-healing of breeze",
+            "options": [
+                "--answer",
+            ],
+        }
     ],
 }

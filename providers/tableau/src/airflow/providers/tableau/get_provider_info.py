@@ -27,7 +27,7 @@ def get_provider_info():
         "name": "Tableau",
         "description": "`Tableau <https://www.tableau.com/>`__\n",
         "state": "ready",
-        "source-date-epoch": 1739964561,
+        "source-date-epoch": 1741121954,
         "versions": [
             "5.0.1",
             "5.0.0",
@@ -84,4 +84,5 @@ def get_provider_info():
             }
         ],
         "dependencies": ["apache-airflow>=2.9.0", "tableauserverclient>=0.25"],
+        "devel-dependencies": [],
     }

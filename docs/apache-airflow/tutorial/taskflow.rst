@@ -348,7 +348,7 @@ Notes on using the operator:
 
 .. note:: Using ``@task.kubernetes`` decorator in one of the earlier Airflow versions
 
-    Since ``@task.kubernetes`` decorator is available in the docker provider, you might be tempted to use it in
+    Since ``@task.kubernetes`` decorator is available in the cncf.kubernetes provider, you might be tempted to use it in
     Airflow version before 2.4, but this is not going to work. You will get this error if you try:
 
     .. code-block:: text

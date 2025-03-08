@@ -27,7 +27,7 @@ def get_provider_info():
         "name": "YDB",
         "description": "`YDB <https://ydb.tech/>`__\n",
         "state": "ready",
-        "source-date-epoch": 1734537521,
+        "source-date-epoch": 1741121966,
         "versions": ["2.1.0", "2.0.0", "1.4.0", "1.3.0", "1.2.0", "1.1.0", "1.0.0"],
         "integrations": [
             {
@@ -49,4 +49,5 @@ def get_provider_info():
             "ydb>=3.18.8",
             "ydb-dbapi>=0.1.0",
         ],
+        "devel-dependencies": [],
     }

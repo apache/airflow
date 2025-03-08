@@ -211,7 +211,7 @@ class GlueJobHook(AwsBaseHook):
 
         The async version of get_job_state.
         """
-        async with self.async_conn as client:
+        async with await self.get_async_conn() as client:
             job_run = await client.get_job_run(JobName=job_name, RunId=run_id)
         return job_run["JobRun"]["JobRunState"]
 
@@ -236,6 +236,9 @@ class GlueJobHook(AwsBaseHook):
         """
         log_client = self.logs_hook.get_conn()
         paginator = log_client.get_paginator("filter_log_events")
+        job_run = self.conn.get_job_run(JobName=job_name, RunId=run_id)["JobRun"]
+        # StartTime needs to be an int and is Epoch time in milliseconds
+        start_time = int(job_run["StartedOn"].timestamp() * 1000)
 
         def display_logs_from(log_group: str, continuation_token: str | None) -> str | None:
             """Mutualize iteration over the 2 different log streams glue jobs write to."""
@@ -245,6 +248,7 @@ class GlueJobHook(AwsBaseHook):
                 for response in paginator.paginate(
                     logGroupName=log_group,
                     logStreamNames=[run_id],
+                    startTime=start_time,
                     PaginationConfig={"StartingToken": continuation_token},
                 ):
                     fetched_logs.extend([event["message"] for event in response["events"]])
@@ -270,7 +274,7 @@ class GlueJobHook(AwsBaseHook):
                 self.log.info("No new log from the Glue Job in %s", log_group)
             return next_token
 
-        log_group_prefix = self.conn.get_job_run(JobName=job_name, RunId=run_id)["JobRun"]["LogGroupName"]
+        log_group_prefix = job_run["LogGroupName"]
         log_group_default = f"{log_group_prefix}/{DEFAULT_LOG_SUFFIX}"
         log_group_error = f"{log_group_prefix}/{ERROR_LOG_SUFFIX}"
         # one would think that the error log group would contain only errors, but it actually contains

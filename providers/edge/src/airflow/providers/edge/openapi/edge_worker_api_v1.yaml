@@ -617,6 +617,13 @@ components:
           description: System information of the worker.
           title: Sysinfo
           type: object
+        maintenance_comments:
+          description: Comments about the maintenance state of the worker.
+          title: Maintenance Comments
+          anyOf:
+          - type: string
+          - type: object
+            nullable: true
       title: WorkerStateBody
     WorkerQueuesBody:
       description: Queues that a worker supports to run jobs on.
@@ -656,6 +663,13 @@ components:
         state:
           $ref: '#/components/schemas/EdgeWorkerState'
           description: State of the worker from the view of the worker.
+        maintenance_comments:
+          description: Comments about the maintenance state of the worker.
+          title: Maintenance Comments
+          anyOf:
+          - type: string
+          - type: object
+            nullable: true
       title: WorkerSetStateReturn
     EdgeJobFetched:
       description: Job that is to be executed on the edge worker.

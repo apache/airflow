@@ -20,7 +20,7 @@
 ################################
 ## Airflow Webserver Ingress
 #################################
-{{- if .Values.webserver.enabled }}
+{{- if and .Values.webserver.enabled (semverCompare "<3.0.0" .Values.airflowVersion) }}
 {{- if or .Values.ingress.web.enabled .Values.ingress.enabled }}
 {{- $fullname := (include "airflow.fullname" .) }}
 apiVersion: networking.k8s.io/v1

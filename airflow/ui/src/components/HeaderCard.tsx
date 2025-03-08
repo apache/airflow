@@ -16,27 +16,12 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Box, Flex, GridItem, Heading, HStack, SimpleGrid, Spinner } from "@chakra-ui/react";
-import { type ReactNode, useRef } from "react";
+import { Box, Flex, GridItem, Heading, HStack, Spinner } from "@chakra-ui/react";
+import type { ReactNode } from "react";
 
 import type { TaskInstanceState } from "openapi/requests/types.gen";
 import { Stat } from "src/components/Stat";
 import { StateBadge } from "src/components/StateBadge";
-import { useContainerWidth } from "src/utils";
-
-const getColumnCount = (width: number) => {
-  if (width < 400) {
-    return 2;
-  }
-  if (width < 800) {
-    return 4;
-  }
-  if (width < 1000) {
-    return 6;
-  }
-
-  return 8;
-};
 
 type Props = {
   readonly actions?: ReactNode;
@@ -48,34 +33,24 @@ type Props = {
   readonly title: ReactNode | string;
 };
 
-export const HeaderCard = ({ actions, icon, isRefreshing, state, stats, subTitle, title }: Props) => {
-  const containerRef = useRef<HTMLDivElement>();
-  const containerWidth = useContainerWidth(containerRef);
-
-  return (
-    <Box borderColor="border" borderRadius={8} borderWidth={1} m={2} p={2} ref={containerRef}>
-      <Flex alignItems="center" flexWrap="wrap" justifyContent="space-between" mb={2}>
-        <Flex alignItems="center" flexWrap="wrap" gap={2}>
-          <Heading size="xl">{icon}</Heading>
-          <Heading size="lg">{title}</Heading>
-          <Heading size="lg">{subTitle}</Heading>
-          {state === undefined ? undefined : <StateBadge state={state}>{state}</StateBadge>}
-          {isRefreshing ? <Spinner /> : <div />}
-        </Flex>
-        <HStack gap={1}>{actions}</HStack>
+export const HeaderCard = ({ actions, icon, isRefreshing, state, stats, subTitle, title }: Props) => (
+  <Box borderColor="border" borderRadius={8} borderWidth={1} ml={2} p={2}>
+    <Flex alignItems="center" flexWrap="wrap" justifyContent="space-between" mb={2}>
+      <Flex alignItems="center" flexWrap="wrap" gap={2}>
+        <Heading size="xl">{icon}</Heading>
+        <Heading size="lg">{title}</Heading>
+        <Heading size="lg">{subTitle}</Heading>
+        {state === undefined ? undefined : <StateBadge state={state}>{state}</StateBadge>}
+        {isRefreshing ? <Spinner /> : <div />}
       </Flex>
-      <SimpleGrid
-        autoFlow="row dense"
-        gap={4}
-        my={2}
-        templateColumns={`repeat(${getColumnCount(containerWidth)}, 1fr)`}
-      >
-        {stats.map(({ label, value }) => (
-          <GridItem key={label}>
-            <Stat label={label}>{value}</Stat>
-          </GridItem>
-        ))}
-      </SimpleGrid>
-    </Box>
-  );
-};
+      <HStack gap={1}>{actions}</HStack>
+    </Flex>
+    <HStack alignItems="flex-start" flexWrap="wrap" gap={5} justifyContent="space-between" my={2}>
+      {stats.map(({ label, value }) => (
+        <GridItem key={label}>
+          <Stat label={label}>{value}</Stat>
+        </GridItem>
+      ))}
+    </HStack>
+  </Box>
+);

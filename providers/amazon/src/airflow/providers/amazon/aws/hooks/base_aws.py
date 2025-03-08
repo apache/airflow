@@ -30,6 +30,7 @@ import inspect
 import json
 import logging
 import os
+import warnings
 from copy import deepcopy
 from functools import cached_property, wraps
 from pathlib import Path
@@ -41,6 +42,7 @@ import botocore.session
 import jinja2
 import requests
 import tenacity
+from asgiref.sync import sync_to_async
 from botocore.config import Config
 from botocore.waiter import Waiter, WaiterModel
 from dateutil.tz import tzlocal
@@ -50,6 +52,7 @@ from airflow.configuration import conf
 from airflow.exceptions import (
     AirflowException,
     AirflowNotFoundException,
+    AirflowProviderDeprecationWarning,
 )
 from airflow.hooks.base import BaseHook
 from airflow.providers.amazon.aws.utils.connection_wrapper import AwsConnectionWrapper
@@ -747,7 +750,29 @@ class AwsGenericHook(BaseHook, Generic[BaseAwsConnection]):
 
     @property
     def async_conn(self):
+        """
+        [DEPRECATED] Get an aiobotocore client to use for async operations.
+
+        This property is deprecated. Accessing it in an async context will cause the event loop to block.
+        Use the async method `get_async_conn` instead.
+        """
+        warnings.warn(
+            "The property `async_conn` is deprecated. Accessing it in an async context will cause the event loop to block. "
+            "Use the async method `get_async_conn` instead.",
+            AirflowProviderDeprecationWarning,
+            stacklevel=2,
+        )
+
+        return self._get_async_conn()
+
+    async def get_async_conn(self):
         """Get an aiobotocore client to use for async operations."""
+        # We have to wrap the call `self.get_client_type` in another call `_get_async_conn`,
+        # because one of it's arguments `self.region_name` is a `@property` decorated function
+        # calling the cached property `self.conn_config` at the end.
+        return await sync_to_async(self._get_async_conn)()
+
+    def _get_async_conn(self):
         if not self.client_type:
             raise ValueError("client_type must be specified.")
 

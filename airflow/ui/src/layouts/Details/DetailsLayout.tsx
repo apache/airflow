@@ -16,11 +16,9 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Box, HStack, IconButton, ButtonGroup, Flex } from "@chakra-ui/react";
+import { Box, HStack, Flex } from "@chakra-ui/react";
 import { useReactFlow } from "@xyflow/react";
 import type { PropsWithChildren, ReactNode } from "react";
-import { FiGrid } from "react-icons/fi";
-import { MdOutlineAccountTree } from "react-icons/md";
 import { Panel, PanelGroup, PanelResizeHandle } from "react-resizable-panels";
 import { Outlet, useParams } from "react-router-dom";
 import { useLocalStorage } from "usehooks-ts";
@@ -38,6 +36,7 @@ import { DagBreadcrumb } from "./DagBreadcrumb";
 import { Graph } from "./Graph";
 import { Grid } from "./Grid";
 import { NavTabs } from "./NavTabs";
+import { PanelButtons } from "./PanelButtons";
 
 type Props = {
   readonly dag?: DAGResponse;
@@ -70,36 +69,9 @@ export const DetailsLayout = ({ children, error, isLoading, tabs }: Props) => {
       <Toaster />
       <Box flex={1} minH={0}>
         <PanelGroup autoSaveId={dagId} direction="horizontal">
-          <Panel defaultSize={20} minSize={6}>
-            <Box height="100%" position="relative">
-              <ButtonGroup
-                attached
-                left={0}
-                position="absolute"
-                size="sm"
-                top={0}
-                variant="outline"
-                zIndex={1}
-              >
-                <IconButton
-                  aria-label="Show Grid"
-                  colorPalette="blue"
-                  onClick={() => setDagView("grid")}
-                  title="Show Grid"
-                  variant={dagView === "grid" ? "solid" : "outline"}
-                >
-                  <FiGrid />
-                </IconButton>
-                <IconButton
-                  aria-label="Show Graph"
-                  colorPalette="blue"
-                  onClick={() => setDagView("graph")}
-                  title="Show Graph"
-                  variant={dagView === "graph" ? "solid" : "outline"}
-                >
-                  <MdOutlineAccountTree />
-                </IconButton>
-              </ButtonGroup>
+          <Panel defaultSize={dagView === "graph" ? 70 : 20} minSize={6}>
+            <Box height="100%" position="relative" pr={2}>
+              <PanelButtons dagView={dagView} setDagView={setDagView} />
               {dagView === "graph" ? <Graph /> : <Grid />}
             </Box>
           </Panel>
@@ -115,12 +87,12 @@ export const DetailsLayout = ({ children, error, isLoading, tabs }: Props) => {
           >
             <Box bg="fg.subtle" cursor="col-resize" h="100%" transition="background 0.2s" w={0.5} />
           </PanelResizeHandle>
-          <Panel defaultSize={50} minSize={20}>
+          <Panel defaultSize={dagView === "graph" ? 30 : 80} minSize={20}>
             <Box display="flex" flexDirection="column" h="100%">
               {children}
               <ErrorAlert error={error} />
               <ProgressBar size="xs" visibility={isLoading ? "visible" : "hidden"} />
-              <NavTabs keepSearch tabs={tabs} />
+              <NavTabs tabs={tabs} />
               <Box h="100%" overflow="auto" px={2}>
                 <Outlet />
               </Box>

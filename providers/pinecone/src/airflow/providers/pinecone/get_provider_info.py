@@ -27,7 +27,7 @@ def get_provider_info():
         "name": "Pinecone",
         "description": "`Pinecone <https://docs.pinecone.io/docs/overview>`__\n",
         "state": "ready",
-        "source-date-epoch": 1739964117,
+        "source-date-epoch": 1741121923,
         "versions": [
             "2.2.1",
             "2.2.0",
@@ -64,4 +64,5 @@ def get_provider_info():
             }
         ],
         "dependencies": ["apache-airflow>=2.9.0", "pinecone>=3.1.0"],
+        "devel-dependencies": [],
     }

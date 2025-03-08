@@ -71,7 +71,7 @@ class TestBasicAuth(BaseTestAuth):
         clear_db_pools()
 
         with self.app.test_client() as test_client:
-            response = test_client.get("/auth/fab/v1/users", headers={"Authorization": token})
+            response = test_client.get("/fab/v1/users", headers={"Authorization": token})
             assert current_user.email == "test@fab.org"
 
         assert response.status_code == 200

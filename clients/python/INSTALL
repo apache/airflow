@@ -1,6 +1,6 @@
 # INSTALL / BUILD instructions for Apache Airflow Python Client
 
-This ia a generic installation method that requires a number of dependencies to be installed.
+This is a generic installation method that requires a number of dependencies to be installed.
 
 Depending on your system you might need different prerequisites, but the Python3.6 or above is a must.
 

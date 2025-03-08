@@ -18,7 +18,7 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
-from airflow.models import BaseOperatorLink, XCom
+from airflow.models import XCom
 
 if TYPE_CHECKING:
     from airflow.models import BaseOperator
@@ -29,6 +29,13 @@ if TYPE_CHECKING:
     except ImportError:
         # TODO: Remove once provider drops support for Airflow 2
         from airflow.utils.context import Context
+
+from airflow.providers.common.compat.version_compat import AIRFLOW_V_3_0_PLUS
+
+if AIRFLOW_V_3_0_PLUS:
+    from airflow.sdk import BaseOperatorLink
+else:
+    from airflow.models.baseoperatorlink import BaseOperatorLink  # type: ignore[no-redef]
 
 XCOM_WEBLINK_KEY = "web_link"
 

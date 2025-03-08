@@ -47,6 +47,7 @@ export const Plugins = () => {
         columns={columns}
         data={data?.plugins ?? []}
         errorMessage={<ErrorAlert error={error} />}
+        modelName="Plugin"
         total={data?.total_entries}
       />
     </Box>

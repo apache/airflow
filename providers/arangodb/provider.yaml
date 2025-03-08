@@ -22,7 +22,7 @@ description: |
     `ArangoDB <https://www.arangodb.com/>`__
 
 state: ready
-source-date-epoch: 1739958929
+source-date-epoch: 1741121840
 # note that those versions are maintained by release manager - do not update them manually
 versions:
   - 2.7.2

@@ -25,7 +25,12 @@ from pydantic import ValidationError
 from sqlalchemy import select
 
 from airflow.api_fastapi.common.db.common import SessionDep, paginated_select
-from airflow.api_fastapi.common.parameters import QueryLimit, QueryOffset, SortParam
+from airflow.api_fastapi.common.parameters import (
+    QueryConnectionIdPatternSearch,
+    QueryLimit,
+    QueryOffset,
+    SortParam,
+)
 from airflow.api_fastapi.common.router import AirflowRouter
 from airflow.api_fastapi.core_api.datamodels.common import (
     BulkBody,
@@ -38,6 +43,7 @@ from airflow.api_fastapi.core_api.datamodels.connections import (
     ConnectionTestResponse,
 )
 from airflow.api_fastapi.core_api.openapi.exceptions import create_openapi_http_exception_doc
+from airflow.api_fastapi.core_api.security import requires_access_connection
 from airflow.api_fastapi.core_api.services.public.connections import BulkConnectionService
 from airflow.api_fastapi.logging.decorators import action_logging
 from airflow.configuration import conf
@@ -53,7 +59,7 @@ connections_router = AirflowRouter(tags=["Connection"], prefix="/connections")
     "/{connection_id}",
     status_code=status.HTTP_204_NO_CONTENT,
     responses=create_openapi_http_exception_doc([status.HTTP_404_NOT_FOUND]),
-    dependencies=[Depends(action_logging())],
+    dependencies=[Depends(requires_access_connection(method="DELETE")), Depends(action_logging())],
 )
 def delete_connection(
     connection_id: str,
@@ -73,6 +79,7 @@ def delete_connection(
 @connections_router.get(
     "/{connection_id}",
     responses=create_openapi_http_exception_doc([status.HTTP_404_NOT_FOUND]),
+    dependencies=[Depends(requires_access_connection(method="GET"))],
 )
 def get_connection(
     connection_id: str,
@@ -92,6 +99,7 @@ def get_connection(
 @connections_router.get(
     "",
     responses=create_openapi_http_exception_doc([status.HTTP_404_NOT_FOUND]),
+    dependencies=[Depends(requires_access_connection(method="GET"))],
 )
 def get_connections(
     limit: QueryLimit,
@@ -107,10 +115,12 @@ def get_connections(
         ),
     ],
     session: SessionDep,
+    connection_id_pattern: QueryConnectionIdPatternSearch,
 ) -> ConnectionCollectionResponse:
     """Get all connection entries."""
     connection_select, total_entries = paginated_select(
         statement=select(Connection),
+        filters=[connection_id_pattern],
         order_by=order_by,
         offset=offset,
         limit=limit,
@@ -131,7 +141,7 @@ def get_connections(
     responses=create_openapi_http_exception_doc(
         [status.HTTP_409_CONFLICT]
     ),  # handled by global exception handler
-    dependencies=[Depends(action_logging())],
+    dependencies=[Depends(requires_access_connection(method="POST")), Depends(action_logging())],
 )
 def post_connection(
     post_body: ConnectionBody,
@@ -143,7 +153,9 @@ def post_connection(
     return connection
 
 
-@connections_router.patch("", dependencies=[Depends(action_logging())])
+@connections_router.patch(
+    "", dependencies=[Depends(requires_access_connection(method="PUT")), Depends(action_logging())]
+)
 def bulk_connections(
     request: BulkBody[ConnectionBody],
     session: SessionDep,
@@ -160,7 +172,7 @@ def bulk_connections(
             status.HTTP_404_NOT_FOUND,
         ]
     ),
-    dependencies=[Depends(action_logging())],
+    dependencies=[Depends(requires_access_connection(method="PUT")), Depends(action_logging())],
 )
 def patch_connection(
     connection_id: str,
@@ -201,9 +213,7 @@ def patch_connection(
     return connection
 
 
-@connections_router.post(
-    "/test",
-)
+@connections_router.post("/test", dependencies=[Depends(requires_access_connection(method="POST"))])
 def test_connection(
     test_body: ConnectionBody,
 ) -> ConnectionTestResponse:
@@ -237,7 +247,7 @@ def test_connection(
 @connections_router.post(
     "/defaults",
     status_code=status.HTTP_204_NO_CONTENT,
-    dependencies=[Depends(action_logging())],
+    dependencies=[Depends(requires_access_connection(method="POST")), Depends(action_logging())],
 )
 def create_default_connections(
     session: SessionDep,

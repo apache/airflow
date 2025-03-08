@@ -24,7 +24,8 @@ from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
 from airflow.configuration import conf
-from airflow.models import BaseOperator, BaseOperatorLink, XCom
+from airflow.models import BaseOperator, XCom
+from airflow.providers.common.compat.version_compat import AIRFLOW_V_3_0_PLUS
 from airflow.providers.dbt.cloud.hooks.dbt import (
     DbtCloudHook,
     DbtCloudJobRunException,
@@ -37,6 +38,11 @@ from airflow.providers.dbt.cloud.utils.openlineage import generate_openlineage_e
 if TYPE_CHECKING:
     from airflow.providers.openlineage.extractors import OperatorLineage
     from airflow.utils.context import Context
+
+if AIRFLOW_V_3_0_PLUS:
+    from airflow.sdk import BaseOperatorLink
+else:
+    from airflow.models.baseoperatorlink import BaseOperatorLink  # type: ignore[no-redef]
 
 
 class DbtCloudRunJobOperatorLink(BaseOperatorLink):

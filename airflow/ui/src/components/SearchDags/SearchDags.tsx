@@ -27,13 +27,9 @@ import { useNavigate } from "react-router-dom";
 import { UseDagServiceGetDagsKeyFn } from "openapi/queries";
 import { DagService } from "openapi/requests/services.gen";
 import type { DAGCollectionResponse, DAGResponse } from "openapi/requests/types.gen";
+import type { Option } from "src/utils/option";
 
 import { DropdownIndicator } from "./SearchDagsDropdownIndicator";
-
-export type Option = {
-  label: string;
-  value: string;
-};
 
 export const SearchDags = ({
   setIsOpen,

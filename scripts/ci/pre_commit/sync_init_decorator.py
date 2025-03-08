@@ -28,7 +28,7 @@ from typing import TYPE_CHECKING
 
 ROOT = pathlib.Path(__file__).resolve().parents[3]
 PACKAGE_ROOT = ROOT.joinpath("airflow")
-SDK_DEFINITIONS_PKG = ROOT.joinpath("task_sdk", "src", "airflow", "sdk", "definitions")
+SDK_DEFINITIONS_PKG = ROOT.joinpath("task-sdk", "src", "airflow", "sdk", "definitions")
 DAG_PY = SDK_DEFINITIONS_PKG.joinpath("dag.py")
 TG_PY = SDK_DEFINITIONS_PKG.joinpath("taskgroup.py")
 DECOS_TG_PY = PACKAGE_ROOT.joinpath("decorators", "task_group.py")

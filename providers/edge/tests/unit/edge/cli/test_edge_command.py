@@ -27,7 +27,8 @@ import pytest
 import time_machine
 from requests import HTTPError, Response
 
-from airflow.providers.edge.cli.edge_command import _EdgeWorkerCli, _Job, _write_pid_to_pidfile
+from airflow.providers.edge.cli.dataclasses import Job
+from airflow.providers.edge.cli.edge_command import _EdgeWorkerCli, _write_pid_to_pidfile
 from airflow.providers.edge.models.edge_worker import EdgeWorkerState, EdgeWorkerVersionException
 from airflow.providers.edge.worker_api.datamodels import EdgeJobFetched, WorkerSetStateReturn
 from airflow.utils import timezone
@@ -114,12 +115,12 @@ class _MockPopen(Popen):
 
 class TestEdgeWorkerCli:
     @pytest.fixture
-    def mock_joblist(self, tmp_path: Path) -> list[_Job]:
+    def mock_joblist(self, tmp_path: Path) -> list[Job]:
         logfile = tmp_path / "file.log"
         logfile.touch()
 
         return [
-            _Job(
+            Job(
                 edge_job=EdgeJobFetched(
                     dag_id="test",
                     task_id="test1",
@@ -136,7 +137,7 @@ class TestEdgeWorkerCli:
         ]
 
     @pytest.fixture
-    def worker_with_job(self, tmp_path: Path, mock_joblist: list[_Job]) -> _EdgeWorkerCli:
+    def worker_with_job(self, tmp_path: Path, mock_joblist: list[Job]) -> _EdgeWorkerCli:
         test_worker = _EdgeWorkerCli(str(tmp_path / "mock.pid"), "mock", None, 8, 5, 5)
         _EdgeWorkerCli.jobs = mock_joblist
         return test_worker

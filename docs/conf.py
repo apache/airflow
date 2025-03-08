@@ -229,6 +229,8 @@ elif PACKAGE_NAME.startswith("apache-airflow-providers-"):
         "_api/airflow/providers/atlassian/index.rst",
         "_api/airflow/providers/cncf/index.rst",
         "_api/airflow/providers/common/index.rst",
+        "_api/airflow/providers/common/messaging/providers/base_provider/index.rst",
+        "_api/airflow/providers/common/messaging/providers/sqs/index.rst",
         "_api/airflow/providers/dbt/index.rst",
         "_api/airflow/providers/microsoft/index.rst",
         *[f"_api/tests/system/{subpackage}/index.rst" for subpackage in empty_subpackages],
@@ -275,7 +277,6 @@ if PACKAGE_NAME == "apache-airflow":
 
     models_included: set[str] = {
         "baseoperator.py",
-        "baseoperatorlink.py",
         "connection.py",
         "dag.py",
         "dagrun.py",
@@ -335,7 +336,7 @@ html_short_title = ""
 #  configuration directory) that is the favicon of the docs. Modern browsers
 #  use this as the icon for tabs, windows and bookmarks. It should be a
 #  Windows-style icon file (.ico), which is 16x16 or 32x32 pixels large.
-html_favicon = "../airflow/www/static/pin_32.png"
+html_favicon = "../airflow/ui/public/pin_32.png"
 
 # Add any paths that contain custom static files (such as style sheets) here,
 # relative to this directory. They are copied after the builtin static files,
@@ -885,7 +886,7 @@ graphviz_output_format = "svg"
 # See: https://sphinxcontrib-redoc.readthedocs.io/en/stable/
 if PACKAGE_NAME == "apache-airflow":
     OPENAPI_FILE = os.path.join(
-        os.path.dirname(__file__), "..", "airflow", "api_connexion", "openapi", "v1.yaml"
+        os.path.dirname(__file__), "..", "airflow", "api_fastapi", "core_api", "openapi", "v1-generated.yaml"
     )
     redoc = [
         {

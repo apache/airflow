@@ -110,8 +110,7 @@ ignore:
   - "airflow/example_dags"
   - "airflow/migrations"
   - "airflow/providers/**/example_dags"
-  - "airflow/www/node_modules"
   - "airflow/ui/node_modules"
-  - "airflow/auth/managers/simple/ui/node_modules"
+  - "airflow/api_fastapi/auth/managers/simple/ui/node_modules"
 
 comment: false

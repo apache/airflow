@@ -102,7 +102,6 @@ jobs:
       # This write is only given here for `push` events from "apache/airflow" repo. It is not given for PRs
       # from forks. This is to prevent malicious PRs from creating images in the "apache/airflow" repo.
       packages: write
-    secrets: inherit
     with:
       runs-on-as-json-public: ${{ inputs.runs-on-as-json-public }}
       runs-on-as-json-self-hosted: ${{ inputs.runs-on-as-json-self-hosted }}
@@ -165,7 +164,6 @@ jobs:
 #    permissions:
 #      contents: read
 #      packages: write
-#    secrets: inherit
 #    with:
 #      platform: "linux/arm64"
 #      push-image: "false"

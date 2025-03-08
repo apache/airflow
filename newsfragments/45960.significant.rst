@@ -1,0 +1,37 @@
+Change how asset uris are accessed in inlet_events
+
+We used to be able to read asset uri through
+
+.. code-block:: python
+
+   @task
+   def access_inlet_events(inlet_events):
+       print(inlet_events["uri"])
+
+Now we'll need to do
+
+.. code-block:: python
+
+   @task
+   def access_inlet_events(inlet_events):
+       print(inlet_events["asset"]["uri"])
+
+
+* Types of change
+
+  * [x] Dag changes
+  * [ ] Config changes
+  * [ ] API changes
+  * [ ] CLI changes
+  * [ ] Behaviour changes
+  * [ ] Plugin changes
+  * [ ] Dependency changes
+  * [ ] Code interface changes
+
+* Migration rules needed
+
+  * ruff
+
+    * AIR302
+
+      * [ ] context_key ``inlet_events.uri`` → ``inlet_events.asset.uri``

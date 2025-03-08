@@ -566,10 +566,10 @@ DEVELOPER_COMMANDS = [
     "down",
     "exec",
     "shell",
-    "compile-www-assets",
     "compile-ui-assets",
     "cleanup",
     "generate-migration-file",
+    "doctor",
 ]
 
 

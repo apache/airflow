@@ -2494,7 +2494,7 @@ def test_async_kpo_wait_termination_before_cleanup_on_failure(
     ti_mock.xcom_push.assert_not_called()
 
     if do_xcom_push:
-        # assert that the xcom are not extracted if do_xcom_push is Fale
+        # assert that the xcom are not extracted if do_xcom_push is False
         mock_extract_xcom.assert_called_once()
     else:
         # but that it is extracted when do_xcom_push is true because the sidecare

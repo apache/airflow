@@ -70,15 +70,20 @@ export const TaskTrySelect = ({ onSelectTryNumber, selectedTryNumber, taskInstan
   const logAttemptDropdownLimit = 10;
   const showDropdown = finalTryNumber > logAttemptDropdownLimit;
 
+  // For some reason tries aren't sorted by try_number
+  const sortedTries = [...(tiHistory?.task_instances ?? [])].sort(
+    (tryA, tryB) => tryA.try_number - tryB.try_number,
+  );
+
   const tryOptions = createListCollection({
-    items: (tiHistory?.task_instances ?? []).map((ti) => ({
+    items: sortedTries.map((ti) => ({
       task_instance: ti,
       value: ti.try_number.toString(),
     })),
   });
 
   return (
-    <VStack alignItems="flex-start" gap={1} my={3}>
+    <VStack alignItems="flex-start" gap={1} mb={3}>
       <Heading size="md">Task Tries</Heading>
       {showDropdown ? (
         <Select.Root
@@ -119,7 +124,7 @@ export const TaskTrySelect = ({ onSelectTryNumber, selectedTryNumber, taskInstan
         </Select.Root>
       ) : (
         <HStack>
-          {tiHistory?.task_instances.map((ti) => (
+          {sortedTries.map((ti) => (
             <TaskInstanceTooltip key={ti.try_number} taskInstance={ti}>
               <Button
                 colorPalette="blue"

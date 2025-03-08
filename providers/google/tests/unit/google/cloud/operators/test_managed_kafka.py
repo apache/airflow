@@ -24,12 +24,16 @@ from airflow.providers.google.cloud.operators.managed_kafka import (
     ManagedKafkaCreateClusterOperator,
     ManagedKafkaCreateTopicOperator,
     ManagedKafkaDeleteClusterOperator,
+    ManagedKafkaDeleteConsumerGroupOperator,
     ManagedKafkaDeleteTopicOperator,
     ManagedKafkaGetClusterOperator,
+    ManagedKafkaGetConsumerGroupOperator,
     ManagedKafkaGetTopicOperator,
     ManagedKafkaListClustersOperator,
+    ManagedKafkaListConsumerGroupsOperator,
     ManagedKafkaListTopicsOperator,
     ManagedKafkaUpdateClusterOperator,
+    ManagedKafkaUpdateConsumerGroupOperator,
     ManagedKafkaUpdateTopicOperator,
 )
 
@@ -79,6 +83,8 @@ TEST_UPDATED_TOPIC: dict = {
     "partition_count": 2000,
     "replication_factor": 1912,
 }
+
+TEST_CONSUMER_GROUP_ID: str = "test-consumer-group-id"
 
 
 class TestManagedKafkaCreateClusterOperator:
@@ -389,6 +395,131 @@ class TestManagedKafkaDeleteTopicOperator:
             project_id=GCP_PROJECT,
             cluster_id=TEST_CLUSTER_ID,
             topic_id=TEST_TOPIC_ID,
+            retry=RETRY,
+            timeout=TIMEOUT,
+            metadata=METADATA,
+        )
+
+
+class TestManagedKafkaListConsumerGroupsOperator:
+    @mock.patch(MANAGED_KAFKA_PATH.format("types.ListConsumerGroupsResponse.to_dict"))
+    @mock.patch(MANAGED_KAFKA_PATH.format("types.ConsumerGroup.to_dict"))
+    @mock.patch(MANAGED_KAFKA_PATH.format("ManagedKafkaHook"))
+    def test_execute(self, mock_hook, to_cluster_dict_mock, to_clusters_dict_mock):
+        page_token = "page_token"
+        page_size = 42
+
+        op = ManagedKafkaListConsumerGroupsOperator(
+            task_id=TASK_ID,
+            gcp_conn_id=GCP_CONN_ID,
+            impersonation_chain=IMPERSONATION_CHAIN,
+            location=GCP_LOCATION,
+            project_id=GCP_PROJECT,
+            cluster_id=TEST_CLUSTER_ID,
+            page_size=page_size,
+            page_token=page_token,
+            retry=RETRY,
+            timeout=TIMEOUT,
+            metadata=METADATA,
+        )
+        op.execute(context={"ti": mock.MagicMock()})
+        mock_hook.assert_called_once_with(gcp_conn_id=GCP_CONN_ID, impersonation_chain=IMPERSONATION_CHAIN)
+        mock_hook.return_value.list_consumer_groups.assert_called_once_with(
+            location=GCP_LOCATION,
+            project_id=GCP_PROJECT,
+            cluster_id=TEST_CLUSTER_ID,
+            page_size=page_size,
+            page_token=page_token,
+            retry=RETRY,
+            timeout=TIMEOUT,
+            metadata=METADATA,
+        )
+
+
+class TestManagedKafkaGetConsumerGroupOperator:
+    @mock.patch(MANAGED_KAFKA_PATH.format("types.ConsumerGroup.to_dict"))
+    @mock.patch(MANAGED_KAFKA_PATH.format("ManagedKafkaHook"))
+    def test_execute(self, mock_hook, to_dict_mock):
+        op = ManagedKafkaGetConsumerGroupOperator(
+            task_id=TASK_ID,
+            gcp_conn_id=GCP_CONN_ID,
+            impersonation_chain=IMPERSONATION_CHAIN,
+            location=GCP_LOCATION,
+            project_id=GCP_PROJECT,
+            cluster_id=TEST_CLUSTER_ID,
+            consumer_group_id=TEST_CONSUMER_GROUP_ID,
+            retry=RETRY,
+            timeout=TIMEOUT,
+            metadata=METADATA,
+        )
+        op.execute(context={"ti": mock.MagicMock()})
+        mock_hook.assert_called_once_with(gcp_conn_id=GCP_CONN_ID, impersonation_chain=IMPERSONATION_CHAIN)
+        mock_hook.return_value.get_consumer_group.assert_called_once_with(
+            location=GCP_LOCATION,
+            project_id=GCP_PROJECT,
+            cluster_id=TEST_CLUSTER_ID,
+            consumer_group_id=TEST_CONSUMER_GROUP_ID,
+            retry=RETRY,
+            timeout=TIMEOUT,
+            metadata=METADATA,
+        )
+
+
+class TestManagedKafkaUpdateConsumerGroupOperator:
+    @mock.patch(MANAGED_KAFKA_PATH.format("types.ConsumerGroup.to_dict"))
+    @mock.patch(MANAGED_KAFKA_PATH.format("ManagedKafkaHook"))
+    def test_execute(self, mock_hook, to_dict_mock):
+        op = ManagedKafkaUpdateConsumerGroupOperator(
+            task_id=TASK_ID,
+            gcp_conn_id=GCP_CONN_ID,
+            impersonation_chain=IMPERSONATION_CHAIN,
+            project_id=GCP_PROJECT,
+            location=GCP_LOCATION,
+            cluster_id=TEST_CLUSTER_ID,
+            consumer_group_id=TEST_CONSUMER_GROUP_ID,
+            consumer_group={},
+            update_mask={},
+            retry=RETRY,
+            timeout=TIMEOUT,
+            metadata=METADATA,
+        )
+        op.execute(context={"ti": mock.MagicMock()})
+        mock_hook.assert_called_once_with(gcp_conn_id=GCP_CONN_ID, impersonation_chain=IMPERSONATION_CHAIN)
+        mock_hook.return_value.update_consumer_group.assert_called_once_with(
+            project_id=GCP_PROJECT,
+            location=GCP_LOCATION,
+            cluster_id=TEST_CLUSTER_ID,
+            consumer_group_id=TEST_CONSUMER_GROUP_ID,
+            consumer_group={},
+            update_mask={},
+            retry=RETRY,
+            timeout=TIMEOUT,
+            metadata=METADATA,
+        )
+
+
+class TestManagedKafkaDeleteConsumerGroupOperator:
+    @mock.patch(MANAGED_KAFKA_PATH.format("ManagedKafkaHook"))
+    def test_execute(self, mock_hook):
+        op = ManagedKafkaDeleteConsumerGroupOperator(
+            task_id=TASK_ID,
+            gcp_conn_id=GCP_CONN_ID,
+            impersonation_chain=IMPERSONATION_CHAIN,
+            location=GCP_LOCATION,
+            project_id=GCP_PROJECT,
+            cluster_id=TEST_CLUSTER_ID,
+            consumer_group_id=TEST_CONSUMER_GROUP_ID,
+            retry=RETRY,
+            timeout=TIMEOUT,
+            metadata=METADATA,
+        )
+        op.execute(context={})
+        mock_hook.assert_called_once_with(gcp_conn_id=GCP_CONN_ID, impersonation_chain=IMPERSONATION_CHAIN)
+        mock_hook.return_value.delete_consumer_group.assert_called_once_with(
+            location=GCP_LOCATION,
+            project_id=GCP_PROJECT,
+            cluster_id=TEST_CLUSTER_ID,
+            consumer_group_id=TEST_CONSUMER_GROUP_ID,
             retry=RETRY,
             timeout=TIMEOUT,
             metadata=METADATA,

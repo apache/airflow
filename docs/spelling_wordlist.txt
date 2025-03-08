@@ -171,6 +171,8 @@ BaseHook
 BaseObject
 BaseOperator
 baseOperator
+BaseOperatorLink
+baseoperatorlink
 basestring
 basetaskrunner
 BaseView
@@ -319,6 +321,7 @@ connectTimeoutMS
 connexion
 containerConfiguration
 containerd
+ContainerEntrypoint
 ContainerGroup
 containerinstance
 ContainerPort
@@ -467,6 +470,7 @@ DeidentifyTemplate
 del
 delim
 delitem
+deltalake
 dep
 DependencyMixin
 deploymentUrl
@@ -693,6 +697,7 @@ Gantt
 gantt
 gapic
 gapped
+gb
 gbq
 gcc
 gcloud
@@ -826,6 +831,7 @@ ImageAnnotatorClient
 imageORfile
 imagePullPolicy
 imagePullSecrets
+ImageUri
 imageVersion
 Imap
 imap
@@ -859,6 +865,7 @@ InstanceFlexibilityPolicy
 InstanceGroupConfig
 InstanceSelection
 instanceTemplates
+InstanceType
 instantiation
 integrations
 interdependencies
@@ -876,6 +883,7 @@ IPv4
 ipv4
 IPv6
 ipv6
+ipynb
 iPython
 irreproducible
 IRSA
@@ -1050,6 +1058,7 @@ masterType
 Matomo
 matomo
 Maxime
+MaxRuntimeInSeconds
 mb
 md
 mediawiki
@@ -1373,6 +1382,8 @@ Qubole
 qubole
 QuboleCheckHook
 Quboles
+querybook
+Querybooks
 queryParameters
 querystring
 queueing
@@ -1854,6 +1865,7 @@ urls
 useHCatalog
 useLegacySQL
 useQueryCache
+userguide
 userId
 userpass
 usr
@@ -1887,8 +1899,10 @@ views
 virtualenv
 virtualenvs
 vm
+VolumeKmsKeyId
 VolumeMount
 volumeMounts
+VolumeSizeInGB
 vpc
 WaiterModel
 wape

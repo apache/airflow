@@ -40,6 +40,10 @@ const links = [
     href: "/plugins",
     title: "Plugins",
   },
+  {
+    href: "/connections",
+    title: "Connections",
+  },
 ];
 
 export const AdminButton = () => (

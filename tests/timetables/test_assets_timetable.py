@@ -273,8 +273,11 @@ class TestAssetConditionWithTimetable:
         return [Asset(uri=f"test://asset{i}", name=f"hello{i}") for i in range(1, 3)]
 
     def test_asset_dag_run_queue_processing(self, session, dag_maker, create_test_assets):
+        from airflow.assets.evaluation import AssetEvaluator
+
         assets = create_test_assets
         asset_models = session.query(AssetModel).all()
+        evaluator = AssetEvaluator(session)
 
         with dag_maker(schedule=AssetAny(*assets)) as dag:
             EmptyOperator(task_id="hello")
@@ -298,7 +301,7 @@ class TestAssetConditionWithTimetable:
             dag = SerializedDAG.deserialize(serialized_dag.data)
             for asset_uri, status in dag_statuses[dag.dag_id].items():
                 cond = dag.timetable.asset_condition
-                assert cond.evaluate({asset_uri: status}), "DAG trigger evaluation failed"
+                assert evaluator.run(cond, {asset_uri: status}), "DAG trigger evaluation failed"
 
     def test_dag_with_complex_asset_condition(self, session, dag_maker):
         # Create Asset instances

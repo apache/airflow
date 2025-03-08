@@ -27,7 +27,7 @@ def get_provider_info():
         "name": "Apache Hive",
         "description": "`Apache Hive <https://hive.apache.org/>`__\n",
         "state": "ready",
-        "source-date-epoch": 1739958611,
+        "source-date-epoch": 1741121825,
         "versions": [
             "9.0.2",
             "9.0.0",
@@ -199,4 +199,5 @@ def get_provider_info():
             "samba": ["apache-airflow-providers-samba"],
             "vertica": ["apache-airflow-providers-vertica"],
         },
+        "devel-dependencies": [],
     }

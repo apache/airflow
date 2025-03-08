@@ -34,17 +34,15 @@ of advantages, because code and CI infrastructure and tests can be shared. Also 
 single repository - so no matter if you contribute to Airflow or Providers, you are contributing to the same
 repository and project.
 
-It has also some disadvantages as this introduces some coupling between those - so contributing to providers might
-interfere with contributing to Airflow. Python ecosystem does not yet have proper monorepo support for keeping
-several packages in one repository and being able to work on more than one of them at the same time. The tool ``uv`` is
-recommended to help manage this through it's ``workspace`` feature. While developing, dependencies and extras for a
-provider can be installed using ``uv``'s ``sync`` command. Here is an example for the microsoft.azure provider:
+The tool ``uv`` is recommended to help manage this through it's ``workspace`` feature. While developing,
+dependencies and extras for a provider can be installed using ``uv``'s ``sync`` command. Here is an example
+for the amazon provider:
 
 .. code:: bash
 
-    uv sync --extra devel --extra devel-tests --extra microsoft.azure
+    uv sync --extra amazon
 
-This will synchronize all extras that you need for development and testing of Airflow and the Microsoft Azure provider
+This will synchronize all extras that you need for development and testing of Airflow and the Amazon provider
 dependencies including runtime dependencies. See `local virtualenv <../07_local_virtualenv.rst>`_ or the uv project
 for more information.
 
@@ -99,9 +97,23 @@ How to manage provider's dependencies
 -------------------------------------
 
 If you want to add dependencies to the provider, you should add them to the corresponding ``pyproject.toml``
-file.
+file. For regular local virtualenv development you also need to run ``uv sync --extra PROVIDER`` after you
+do it or run ``pip install -e ./providers/PROVIDER`` to install the provider in development mode in your venv
+and IDE. If you are using breeze you should also run the below command to regenerate all files that
+needs to be updated after you change dependencies:
 
-Providers are not packaged together with the core when you build "apache-airflow" package.
+.. code:: bash
+
+    breeze static-checks --type update-providers-dependencies --all-files
+
+If you have ``pre-commit`` installed, this will be done automatically for you when you commit the changes and
+you should do it before you make a PR with such changed dependency changes
+
+Also, you should rebuild the image ``breeze ci-image build`` or answer ``y`` when you are asked to rebuild the
+image for the new dependencies to be used in the Breeze CI environment.
+
+Provider's cross-dependencies
+-----------------------------
 
 Some of the packages have cross-dependencies with other providers packages. This typically happens for
 transfer operators where operators use hooks from the other providers in case they are transferring
@@ -114,20 +126,12 @@ you need functionality from the other provider package you can install it adding
 ``pip install apache-airflow-providers-google[amazon]`` in case you want to use GCP
 transfer operators from Amazon ECS.
 
-If you add a new dependency between different providers packages, it will be detected automatically during
-and pre-commit will generate new entry in ``generated/provider_dependencies.json`` and update
-``pyproject.toml`` in the new providers so that the package extra dependencies are properly handled when
-package might be installed when breeze is restarted or by your IDE or by running ``uv sync --extra PROVIDER``
-or when you run ``pip install -e "./providers"`` or ``pip install -e "./providers/<PROVIDER>"`` for the new
-provider structure.
-
 How to reuse code between tests in different providers
 ------------------------------------------------------
 
 When you develop providers, you might want to reuse some of the code between tests in different providers.
-This is possible by placing the code in ``test_utils`` in the ``tests_common`` directory. The ``tests_common``
-module is automatically available in the ``sys.path`` when running tests for the providers and you can
-import common code from there.
+This is possible by placing the code in ``test_utils`` in the ``devel-common/src`` directory.
+The ``tests_common`` module is installed automatically by uv in the uv workspace.
 
 Chicken-egg providers
 ---------------------

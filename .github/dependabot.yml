@@ -22,7 +22,7 @@ updates:
       - /clients/python
       - /dev/breeze
       - /docker_tests
-      - /task_sdk
+      - /task-sdk
       - /
     schedule:
       interval: daily

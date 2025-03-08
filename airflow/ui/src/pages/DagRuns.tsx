@@ -27,15 +27,22 @@ import { ClearRunButton } from "src/components/Clear";
 import { DataTable } from "src/components/DataTable";
 import { useTableURLState } from "src/components/DataTable/useTableUrlState";
 import { ErrorAlert } from "src/components/ErrorAlert";
+import { LimitedItemsList } from "src/components/LimitedItemsList";
 import { MarkRunAsButton } from "src/components/MarkAs";
 import { RunTypeIcon } from "src/components/RunTypeIcon";
 import { StateBadge } from "src/components/StateBadge";
 import Time from "src/components/Time";
 import { Select } from "src/components/ui";
+import { SearchParamsKeys, type SearchParamsKeysType } from "src/constants/searchParams";
 import { dagRunStateOptions as stateOptions } from "src/constants/stateOptions";
 import { capitalize, getDuration, useAutoRefresh, isStatePending } from "src/utils";
 
 type DagRunRow = { row: { original: DAGRunResponse } };
+const {
+  END_DATE: END_DATE_PARAM,
+  START_DATE: START_DATE_PARAM,
+  STATE: STATE_PARAM,
+}: SearchParamsKeysType = SearchParamsKeys;
 
 const runColumns = (dagId?: string): Array<ColumnDef<DAGRunResponse>> => [
   ...(Boolean(dagId)
@@ -93,6 +100,16 @@ const runColumns = (dagId?: string): Array<ColumnDef<DAGRunResponse>> => [
     header: "Duration",
   },
   {
+    accessorKey: "dag_versions",
+    cell: ({ row: { original } }) => (
+      <LimitedItemsList
+        items={original.dag_versions.map(({ version_number: versionNumber }) => `v${versionNumber}`)}
+      />
+    ),
+    enableSorting: false,
+    header: "Dag Version(s)",
+  },
+  {
     accessorKey: "actions",
     cell: ({ row }) => (
       <Flex justifyContent="end">
@@ -108,8 +125,6 @@ const runColumns = (dagId?: string): Array<ColumnDef<DAGRunResponse>> => [
   },
 ];
 
-const STATE_PARAM = "state";
-
 export const DagRuns = () => {
   const { dagId } = useParams();
   const [searchParams, setSearchParams] = useSearchParams();
@@ -120,15 +135,19 @@ export const DagRuns = () => {
   const orderBy = sort ? `${sort.desc ? "-" : ""}${sort.id}` : "-run_after";
 
   const filteredState = searchParams.get(STATE_PARAM);
+  const startDate = searchParams.get(START_DATE_PARAM);
+  const endDate = searchParams.get(END_DATE_PARAM);
 
   const refetchInterval = useAutoRefresh({});
 
   const { data, error, isLoading } = useDagRunServiceGetDagRuns(
     {
       dagId: dagId ?? "~",
+      endDateLte: endDate ?? undefined,
       limit: pagination.pageSize,
       offset: pagination.pageIndex * pagination.pageSize,
       orderBy,
+      startDateGte: startDate ?? undefined,
       state: filteredState === null ? undefined : [filteredState],
     },
     undefined,

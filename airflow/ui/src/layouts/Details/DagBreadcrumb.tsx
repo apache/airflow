@@ -16,28 +16,21 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { HStack, Stat } from "@chakra-ui/react";
 import type { ReactNode } from "react";
-import { LiaSlashSolid } from "react-icons/lia";
-import { Link as RouterLink, useParams, useSearchParams } from "react-router-dom";
+import { useParams } from "react-router-dom";
 
 import {
   useDagRunServiceGetDagRun,
   useDagServiceGetDagDetails,
-  useTaskInstanceServiceGetMappedTaskInstance,
   useTaskServiceGetTask,
 } from "openapi/queries";
+import { BreadcrumbStats } from "src/components/BreadcrumbStats";
 import { StateBadge } from "src/components/StateBadge";
 import Time from "src/components/Time";
 import { TogglePause } from "src/components/TogglePause";
-import { Breadcrumb } from "src/components/ui";
 
 export const DagBreadcrumb = () => {
-  const { dagId = "", runId, taskId } = useParams();
-
-  const [searchParams] = useSearchParams();
-  const mapIndexParam = searchParams.get("map_index");
-  const mapIndex = parseInt(mapIndexParam ?? "-1", 10);
+  const { dagId = "", mapIndex = "-1", runId, taskId } = useParams();
 
   const { data: dag } = useDagServiceGetDagDetails({
     dagId,
@@ -56,50 +49,28 @@ export const DagBreadcrumb = () => {
 
   const { data: task } = useTaskServiceGetTask({ dagId, taskId }, undefined, { enabled: Boolean(taskId) });
 
-  const { data: taskInstance } = useTaskInstanceServiceGetMappedTaskInstance(
-    {
-      dagId,
-      dagRunId: runId ?? "",
-      mapIndex,
-      taskId: taskId ?? "",
-    },
-    undefined,
-    {
-      enabled: Boolean(runId) && Boolean(taskId),
-    },
-  );
-
-  const links: Array<{ label: ReactNode | string; title?: string; value?: string }> = [
-    { label: "Dags", value: "/dags" },
-    {
-      label: (
-        <HStack>
+  const links: Array<{ label: ReactNode | string; labelExtra?: ReactNode; title?: string; value?: string }> =
+    [
+      {
+        label: dag?.dag_display_name ?? dagId,
+        labelExtra: (
           <TogglePause
             dagDisplayName={dag?.dag_display_name}
             dagId={dagId}
             isPaused={Boolean(dag?.is_paused)}
             skipConfirm
           />
-          {dag?.dag_display_name ?? dagId}
-        </HStack>
-      ),
-      title: "Dag",
-      value: `/dags/${dagId}`,
-    },
-  ];
+        ),
+        title: "Dag",
+        value: `/dags/${dagId}`,
+      },
+    ];
 
   // Add dag run breadcrumb
   if (runId !== undefined) {
     links.push({
-      label:
-        dagRun === undefined ? (
-          runId
-        ) : (
-          <HStack>
-            <StateBadge fontSize="xs" state={dagRun.state} />
-            <Time datetime={dagRun.run_after} />
-          </HStack>
-        ),
+      label: dagRun === undefined ? runId : <Time datetime={dagRun.run_after} />,
+      labelExtra: dagRun === undefined ? undefined : <StateBadge fontSize="xs" state={dagRun.state} />,
       title: "Dag Run",
       value: `/dags/${dagId}/runs/${runId}`,
     });
@@ -107,7 +78,18 @@ export const DagBreadcrumb = () => {
 
   // Add task breadcrumb
   if (runId !== undefined && taskId !== undefined) {
-    links.push({ label: taskInstance?.task_display_name ?? taskId, title: "Task" });
+    if (task?.is_mapped) {
+      links.push({
+        label: `${task.task_display_name ?? taskId} [ ]`,
+        title: "Task",
+        value: `/dags/${dagId}/runs/${runId}/tasks/${taskId}/mapped`,
+      });
+    } else {
+      links.push({
+        label: task?.task_display_name ?? taskId,
+        title: "Task",
+      });
+    }
   }
 
   if (runId === undefined && taskId !== undefined) {
@@ -115,29 +97,9 @@ export const DagBreadcrumb = () => {
     links.push({ label: task?.task_display_name ?? taskId, title: "Task" });
   }
 
-  if (mapIndexParam !== null) {
-    links.push({ label: mapIndexParam, title: "Map Index" });
+  if (mapIndex !== "-1") {
+    links.push({ label: mapIndex, title: "Map Index" });
   }
 
-  return (
-    <Breadcrumb.Root mb={1} separator={<LiaSlashSolid />}>
-      {links.map((link, index) => (
-        // eslint-disable-next-line react/no-array-index-key
-        <Stat.Root gap={0} key={`${link.title}-${index}`}>
-          <Stat.Label fontSize="xs" fontWeight="bold">
-            {link.title}
-          </Stat.Label>
-          <Stat.ValueText fontSize="sm" fontWeight="normal">
-            {index === links.length - 1 ? (
-              <Breadcrumb.CurrentLink>{link.label}</Breadcrumb.CurrentLink>
-            ) : (
-              <Breadcrumb.Link asChild color="fg.info">
-                <RouterLink to={link.value ?? ""}>{link.label}</RouterLink>
-              </Breadcrumb.Link>
-            )}
-          </Stat.ValueText>
-        </Stat.Root>
-      ))}
-    </Breadcrumb.Root>
-  );
+  return <BreadcrumbStats links={links} />;
 };

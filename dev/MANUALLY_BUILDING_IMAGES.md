@@ -22,6 +22,7 @@
 **Table of Contents**  *generated with [DocToc](https://github.com/thlorenz/doctoc)*
 
 - [Building docker images](#building-docker-images)
+- [Keeping your docker context small](#keeping-your-docker-context-small)
 - [Setting environment with emulation](#setting-environment-with-emulation)
 - [Setting up cache refreshing with hardware ARM/AMD support](#setting-up-cache-refreshing-with-hardware-armamd-support)
 
@@ -36,6 +37,31 @@ you do not have those two installed.
 
 You also need to have the right permissions to push the images, so you should run
 `docker login` before and authenticate with your DockerHub token.
+
+## Keeping your docker context small
+
+Sometimes, especially when you generate node assets, some of the files generated are kept in the source
+directory. This can make the docker context very large when building images, because the whole context
+is transferred to the docker daemon. In order to avoid this we have .dockerignore where we exclude certain
+paths from being treated as part of the context - similar to .gitignore that keeps them away from git.
+
+If your context gets large you see a long (minutes) preliminary step before dockeer build is run
+where the context is being transmitted.
+
+You can see all the context files by running:
+
+```shell script
+printf 'FROM scratch\nCOPY . /' | DOCKER_BUILDKIT=1 docker build -q -f- -o- . | tar t
+```
+
+Once you see something that should be excluded from the context, you should add it to `.dockerignore` file.
+
+You can also check the size of the context by running:
+
+```shell script
+printf 'FROM scratch\nCOPY . /' | DOCKER_BUILDKIT=1 docker build -q -f- -o- . | wc -c | numfmt --to=iec --suffix=B
+```
+
 
 ## Setting environment with emulation
 

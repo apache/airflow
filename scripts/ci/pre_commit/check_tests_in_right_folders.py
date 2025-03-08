@@ -31,7 +31,6 @@ POSSIBLE_TEST_FOLDERS = [
     "_internals",
     "always",
     "api",
-    "api_connexion",
     "api_internal",
     "api_fastapi",
     "assets",

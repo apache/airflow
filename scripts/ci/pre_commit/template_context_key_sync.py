@@ -27,9 +27,9 @@ import typing
 
 ROOT_DIR = pathlib.Path(__file__).resolve().parents[3]
 
-TASKRUNNER_PY = ROOT_DIR.joinpath("task_sdk", "src", "airflow", "sdk", "execution_time", "task_runner.py")
+TASKRUNNER_PY = ROOT_DIR.joinpath("task-sdk", "src", "airflow", "sdk", "execution_time", "task_runner.py")
 CONTEXT_PY = ROOT_DIR.joinpath("airflow", "utils", "context.py")
-CONTEXT_HINT = ROOT_DIR.joinpath("task_sdk", "src", "airflow", "sdk", "definitions", "context.py")
+CONTEXT_HINT = ROOT_DIR.joinpath("task-sdk", "src", "airflow", "sdk", "definitions", "context.py")
 TEMPLATES_REF_RST = ROOT_DIR.joinpath("docs", "apache-airflow", "templates-ref.rst")
 
 # These are only conditionally set

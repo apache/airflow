@@ -20,7 +20,7 @@ import { ReactFlowProvider } from "@xyflow/react";
 import { FiCode } from "react-icons/fi";
 import { MdDetails, MdOutlineEventNote, MdReorder, MdSyncAlt } from "react-icons/md";
 import { PiBracketsCurlyBold } from "react-icons/pi";
-import { useParams, useSearchParams } from "react-router-dom";
+import { useParams } from "react-router-dom";
 
 import { useDagServiceGetDagDetails, useTaskInstanceServiceGetMappedTaskInstance } from "openapi/queries";
 import { DetailsLayout } from "src/layouts/Details/DetailsLayout";
@@ -38,11 +38,7 @@ const tabs = [
 ];
 
 export const TaskInstance = () => {
-  const { dagId = "", runId = "", taskId = "" } = useParams();
-  const [searchParams] = useSearchParams();
-
-  const mapIndexParam = searchParams.get("map_index");
-  const mapIndex = parseInt(mapIndexParam ?? "-1", 10);
+  const { dagId = "", mapIndex = "-1", runId = "", taskId = "" } = useParams();
 
   const refetchInterval = useAutoRefresh({ dagId });
 
@@ -62,7 +58,7 @@ export const TaskInstance = () => {
     {
       dagId,
       dagRunId: runId,
-      mapIndex,
+      mapIndex: parseInt(mapIndex, 10),
       taskId,
     },
     undefined,

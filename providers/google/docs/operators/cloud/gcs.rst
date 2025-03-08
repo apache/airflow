@@ -122,6 +122,37 @@ See Google Cloud Storage insert documentation to `create a ACL entry for ObjectA
 <https://cloud.google.com/storage/docs/json_api/v1/objectAccessControls/insert>`_.
 
 
+.. _howto/operator:GCSListObjectsOperator:
+
+GCSListObjectsOperator
+----------------------
+
+Use the
+:class:`~airflow.providers.google.cloud.operators.gcs.GCSListObjectsOperator`
+to list objects in a Google Cloud Storage bucket. Optionally specify a prefix to list only objects whose
+names begin with that prefix, and a delimiter to emulate directory-like organization.
+
+.. exampleinclude:: /../../providers/google/tests/system/google/cloud/gcs/example_gcs_copy_delete.py
+    :language: python
+    :dedent: 4
+    :start-after: [START howto_operator_gcs_list_bucket]
+    :end-before: [END howto_operator_gcs_list_bucket]
+
+.. _howto/operator:GCSDeleteObjectsOperator:
+
+GCSDeleteObjectsOperator
+------------------------
+
+Use the
+:class:`~airflow.providers.google.cloud.operators.gcs.GCSDeleteObjectsOperator`
+to delete one or more objects from a Google Cloud Storage bucket.
+
+.. exampleinclude:: /../../providers/google/tests/system/google/cloud/gcs/example_gcs_copy_delete.py
+    :language: python
+    :dedent: 4
+    :start-after: [START howto_operator_gcs_delete_object]
+    :end-before: [END howto_operator_gcs_delete_object]
+
 .. _howto/operator:GCSDeleteBucketOperator:
 
 Deleting Bucket

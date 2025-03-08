@@ -27,7 +27,7 @@ def get_provider_info():
         "name": "Discord",
         "description": "`Discord <https://discord.com/>`__\n",
         "state": "ready",
-        "source-date-epoch": 1739959447,
+        "source-date-epoch": 1741121864,
         "versions": [
             "3.9.2",
             "3.9.0",
@@ -80,4 +80,5 @@ def get_provider_info():
         ],
         "notifications": ["airflow.providers.discord.notifications.discord.DiscordNotifier"],
         "dependencies": ["apache-airflow>=2.9.0", "apache-airflow-providers-http"],
+        "devel-dependencies": [],
     }

@@ -23,8 +23,7 @@ from airflow.providers.fab.www import app as application
 from airflow.providers.fab.www.security import permissions
 from unit.fab.auth_manager.api_endpoints.api_connexion_utils import create_user, delete_user
 from unit.fab.auth_manager.views import _assert_dataset_deprecation_warning
-
-from tests_common.test_utils.www import client_with_login
+from unit.fab.utils import client_with_login
 
 
 @pytest.fixture(scope="module")
