@@ -86,7 +86,7 @@ from airflow.sdk.execution_time.comms import (
     ToSupervisor,
     VariableResult,
     XComCountResponse,
-    XComResult,
+    XComResult, DeleteXCom,
 )
 
 if TYPE_CHECKING:
@@ -890,6 +890,10 @@ class ActivitySubprocess(WatchedSubprocess):
         elif isinstance(msg, SetXCom):
             self.client.xcoms.set(
                 msg.dag_id, msg.run_id, msg.task_id, msg.key, msg.value, msg.map_index, msg.mapped_length
+            )
+        elif isinstance(msg, DeleteXCom):
+            self.client.xcoms.delete(
+                msg.dag_id, msg.run_id, msg.task_id, msg.key
             )
         elif isinstance(msg, PutVariable):
             self.client.variables.set(msg.key, msg.value, msg.description)

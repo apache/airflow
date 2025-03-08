@@ -328,6 +328,13 @@ class SetXCom(BaseModel):
     type: Literal["SetXCom"] = "SetXCom"
 
 
+class DeleteXCom(BaseModel):
+    key: str
+    dag_id: str
+    run_id: str
+    task_id: str
+    type: Literal["DeleteXCom"] = "DeleteXCom"
+
 class GetConnection(BaseModel):
     conn_id: str
     type: Literal["GetConnection"] = "GetConnection"
@@ -400,6 +407,7 @@ ToSupervisor = Annotated[
         SetXCom,
         TaskState,
         RuntimeCheckOnTask,
+        DeleteXCom,
     ],
     Field(discriminator="type"),
 ]

@@ -62,7 +62,7 @@ from airflow.sdk.execution_time.comms import (
     TaskState,
     ToSupervisor,
     ToTask,
-    XComResult,
+    XComResult, DeleteXCom,
 )
 from airflow.sdk.execution_time.context import (
     ConnectionAccessor,
@@ -73,6 +73,7 @@ from airflow.sdk.execution_time.context import (
     get_previous_dagrun_success,
     set_current_context,
 )
+from airflow.sdk.execution_time.xcom import resolve_xcom_backend
 from airflow.utils.net import get_hostname
 from airflow.utils.state import TaskInstanceState
 
@@ -604,6 +605,23 @@ def run(
     ti: RuntimeTaskInstance, log: Logger
 ) -> tuple[IntermediateTIState | TerminalTIState, ToSupervisor | None, BaseException | None]:
     """Run the task in this process."""
+    # First, clear the xcom data
+    if ti._ti_context_from_server and ti._ti_context_from_server.xcom_keys_to_clear:
+        keys_to_delete = ti._ti_context_from_server.xcom_keys_to_clear
+
+        for x in keys_to_delete:
+            log.debug("Clearing XCom with key", key=x)
+            XCom.purge()
+            SUPERVISOR_COMMS.send_request(
+                log=log,
+                msg=DeleteXCom(
+                    key=x,
+                    dag_id=ti.dag_id,
+                    task_id=ti.task_id,
+                    run_id=ti.run_id,
+                ),
+            )
+
     from airflow.exceptions import (
         AirflowException,
         AirflowFailException,
@@ -802,27 +820,6 @@ def _push_xcom_if_needed(result: Any, ti: RuntimeTaskInstance, log: Logger):
 
     # TODO: Use constant for XCom return key & use serialize_value from Task SDK
     _xcom_push(ti, "return_value", result, mapped_length=mapped_length)
-
-
-def resolve_xcom_backend(log: Logger):
-    """
-    Resolve a custom XCom class.
-
-    :returns: returns the custom XCom class if configured.
-    """
-    from airflow.configuration import conf
-
-    clazz = conf.getimport("core", "xcom_backend")
-    if not clazz or clazz.__name__ == "BaseXCom":
-        log.info("Custom XCom backend not configured, using `BaseXCom` as fallback")
-        return None
-    # if not issubclass(clazz, BaseXCom):
-    #     raise TypeError(
-    #         f"Your custom XCom class `{clazz.__name__}` is not a subclass of `{BaseXCom.__name__}`."
-    #     )
-    log.info("Custom XCom backend configured, using configured custom XCom backend", clazz=clazz)
-    return clazz
-
 
 def finalize(
     ti: RuntimeTaskInstance, state: TerminalTIState, log: Logger, error: BaseException | None = None
