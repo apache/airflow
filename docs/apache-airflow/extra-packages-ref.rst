@@ -243,7 +243,6 @@ These are extras that add dependencies needed for integration with external serv
 | zendesk             | ``pip install 'apache-airflow[zendesk]'``           | Zendesk hooks                                       |
 +---------------------+-----------------------------------------------------+-----------------------------------------------------+
 
-
 Locally installed software extras
 =================================
 
@@ -321,6 +320,8 @@ pre-installed when Airflow is installed.
 +---------------------+-----------------------------------------------------+--------------------------------------+--------------+
 | common-io           | ``pip install 'apache-airflow[common-io]'``         | Core IO Operators                    |              |
 +---------------------+-----------------------------------------------------+--------------------------------------+--------------+
+| common-messaging    | ``pip install 'apache-airflow[common-messaging]'``  | Core Messaging Operators             |              |
++---------------------+-----------------------------------------------------+--------------------------------------+--------------+
 | common-sql          | ``pip install 'apache-airflow[common-sql]'``        | Core SQL Operators                   |      *       |
 +---------------------+-----------------------------------------------------+--------------------------------------+--------------+
 | ftp                 | ``pip install 'apache-airflow[ftp]'``               | FTP hooks and operators              |      *       |
@@ -352,78 +353,6 @@ pre-installed when Airflow is installed.
 | ssh                 | ``pip install 'apache-airflow[ssh]'``               | SSH hooks and operators              |              |
 +---------------------+-----------------------------------------------------+--------------------------------------+--------------+
 
-Production Bundle extras
--------------------------
-
-These are extras that install one or more extras as a bundle.
-
-+---------------------+-----------------------------------------------------+------------------------------------------------------------------------+
-| extra               | install command                                     | enables                                                                |
-+=====================+=====================================================+========================================================================+
-| all                 | ``pip install 'apache-airflow[all]'``               | All Airflow user facing features (no devel and doc requirements)       |
-+---------------------+-----------------------------------------------------+------------------------------------------------------------------------+
-| all-core            | ``pip install 'apache-airflow[all-core]'``          | All core airflow features that do not require installing providers     |
-+---------------------+-----------------------------------------------------+------------------------------------------------------------------------+
-| all-dbs             | ``pip install 'apache-airflow[all-dbs]'``           | All database integrations                                              |
-+---------------------+-----------------------------------------------------+------------------------------------------------------------------------+
-
-Development extras
-------------------
-
-The ``devel`` extras only make sense in editable mode. Users of Airflow should not be using them, unless they
-start contributing back and install airflow from sources. Those extras are only available in Airflow when
-it is installed in editable mode from sources (``pip install -e .[devel,EXTRAS]``).
-
-Devel extras
-============
-
-The devel extras do not install dependencies for features of Airflow, but add functionality that is needed to
-develop Airflow, such as running tests, static checks.
-
-+---------------------+-----------------------------------------+------------------------------------------------------+
-| extra               | install command                         | enables                                              |
-+=====================+=========================================+======================================================+
-| devel-debuggers     | pip install -e '.[devel-debuggers]'     | Adds all test libraries needed to test debuggers     |
-+---------------------+-----------------------------------------+------------------------------------------------------+
-| devel-devscripts    | pip install -e '.[devel-devscripts]'    | Adds all test libraries needed to test devel scripts |
-+---------------------+-----------------------------------------+------------------------------------------------------+
-| devel-duckdb        | pip install -e '.[devel-duckdb]'        | Adds all test libraries needed to test duckdb        |
-+---------------------+-----------------------------------------+------------------------------------------------------+
-| devel-iceberg       | pip install -e '.[devel-iceberg]'       | Adds all test libraries needed to test iceberg       |
-+---------------------+-----------------------------------------+------------------------------------------------------+
-| devel-mypy          | pip install -e '.[devel-mypy]'          | Adds all test libraries needed to test mypy          |
-+---------------------+-----------------------------------------+------------------------------------------------------+
-| devel-sentry        | pip install -e '.[devel-sentry]'        | Adds all test libraries needed to test sentry        |
-+---------------------+-----------------------------------------+------------------------------------------------------+
-| devel-static-checks | pip install -e '.[devel-static-checks]' | Adds all test libraries needed to test static_checks |
-+---------------------+-----------------------------------------+------------------------------------------------------+
-| devel-tests         | pip install -e '.[devel-tests]'         | Adds all test libraries needed to test tests         |
-+---------------------+-----------------------------------------+------------------------------------------------------+
-
-Bundle devel extras
-===================
-
-Those are extras that bundle devel, editable and doc extras together to make it easy to install them together in a single installation. Some of the
-extras are more difficult to install on certain systems (such as ARM MacBooks) because they require system level dependencies to be installed.
-
-Note that ``pip install -e ".[devel]"`` should be run at least once, the first time you initialize the editable environment in order
-to get minimal, complete test environment with usual tools and dependencies needed for unit testing.
-
-+---------------------+-----------------------------------------------------+------------------------------------------------------------------------+
-| extra               | install command                                     | enables                                                                |
-+=====================+=====================================================+========================================================================+
-| devel               | ``pip install -e '.[devel]'``                       | Minimum development dependencies - minimal, complete test environment  |
-+---------------------+-----------------------------------------------------+------------------------------------------------------------------------+
-| devel-hadoop        | ``pip install -e '.[devel-hadoop]'``                | Adds Hadoop stack libraries ``devel`` dependencies                     |
-+---------------------+-----------------------------------------------------+------------------------------------------------------------------------+
-| devel-all-dbs       | ``pip install -e '.[devel-all-dbs]'``               | Adds all libraries needed to test database providers                   |
-+---------------------+-----------------------------------------------------+------------------------------------------------------------------------+
-| devel-all           | ``pip install -e '.[devel-all]'``                   | Everything needed for development including Hadoop, all devel extras,  |
-|                     |                                                     | all doc extras. Generally: all possible dependencies except providers  |
-+---------------------+-----------------------------------------------------+------------------------------------------------------------------------+
-| devel-ci            | ``pip install -e '.[devel-ci]'``                    | All dependencies required for CI tests (same as ``devel-all``)         |
-+---------------------+-----------------------------------------------------+------------------------------------------------------------------------+
-
 Doc extras
 ==========
 
@@ -436,51 +365,3 @@ Those are the extras that are needed to generated documentation for Airflow. Thi
 +---------------------+-----------------------------------------------------+------------------------------------------------------------------------+
 | doc-gen             | ``pip install -e '.[doc-gen]'``                     | Packages needed to generate er diagrams (included in ``devel-all``)    |
 +---------------------+-----------------------------------------------------+------------------------------------------------------------------------+
-
-
-Deprecated 1.10 extras
-----------------------
-
-These are the extras that have been deprecated in 2.0 and will be removed in Airflow 3.0.0. They were
-all replaced by new extras, which have naming consistent with the names of provider packages.
-
-The ``crypto`` extra is not needed any more, because all crypto dependencies are part of airflow package,
-so there is no replacement for ``crypto`` extra.
-
-+---------------------+-----------------------------+
-| Deprecated extra    | Extra to be used instead    |
-+=====================+=============================+
-| atlas               | apache-atlas                |
-+---------------------+-----------------------------+
-| aws                 | amazon                      |
-+---------------------+-----------------------------+
-| azure               | microsoft-azure             |
-+---------------------+-----------------------------+
-| cassandra           | apache-cassandra            |
-+---------------------+-----------------------------+
-| crypto              |                             |
-+---------------------+-----------------------------+
-| druid               | apache-druid                |
-+---------------------+-----------------------------+
-| gcp                 | google                      |
-+---------------------+-----------------------------+
-| gcp-api             | google                      |
-+---------------------+-----------------------------+
-| hdfs                | apache-hdfs                 |
-+---------------------+-----------------------------+
-| hive                | apache-hive                 |
-+---------------------+-----------------------------+
-| kubernetes          | cncf-kubernetes             |
-+---------------------+-----------------------------+
-| mssql               | microsoft-mssql             |
-+---------------------+-----------------------------+
-| pinot               | apache-pinot                |
-+---------------------+-----------------------------+
-| s3                  | amazon                      |
-+---------------------+-----------------------------+
-| spark               | apache-spark                |
-+---------------------+-----------------------------+
-| webhdfs             | apache-webhdfs              |
-+---------------------+-----------------------------+
-| winrm               | microsoft-winrm             |
-+---------------------+-----------------------------+

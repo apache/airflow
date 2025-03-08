@@ -17,26 +17,23 @@
  * under the License.
  */
 import { Box, Button, Heading, HStack } from "@chakra-ui/react";
-import { useParams, useSearchParams } from "react-router-dom";
+import { useParams } from "react-router-dom";
 
 import { useTaskInstanceServiceGetExtraLinks } from "openapi/queries";
 
 export const ExtraLinks = () => {
-  const { dagId = "", runId = "", taskId = "" } = useParams();
-  const [searchParams] = useSearchParams();
-  const mapIndexParam = searchParams.get("map_index");
-  const mapIndex = parseInt(mapIndexParam ?? "-1", 10);
+  const { dagId = "", mapIndex = "-1", runId = "", taskId = "" } = useParams();
 
   const { data } = useTaskInstanceServiceGetExtraLinks({
     dagId,
     dagRunId: runId,
-    mapIndex,
+    mapIndex: parseInt(mapIndex, 10),
     taskId,
   });
 
   return data && Object.keys(data).length > 0 ? (
     <Box py={1}>
-      <Heading size="sm"> Extra Links </Heading>
+      <Heading size="sm">Extra Links</Heading>
       <HStack gap={2} py={2}>
         {Object.entries(data).map(([key, value], _) =>
           value === null ? undefined : (

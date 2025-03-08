@@ -83,12 +83,6 @@ class StandaloneCommand:
             command=["dag-processor"],
             env=env,
         )
-        self.subcommands["webserver"] = SubCommand(
-            self,
-            name="webserver",
-            command=["webserver"],
-            env=env,
-        )
         self.subcommands["api-server"] = SubCommand(
             self,
             name="api-server",
@@ -102,7 +96,6 @@ class StandaloneCommand:
             env=env,
         )
 
-        self.web_server_port = conf.getint("webserver", "WEB_SERVER_PORT", fallback=8080)
         # Run subcommand threads
         for command in self.subcommands.values():
             command.start()
@@ -152,7 +145,6 @@ class StandaloneCommand:
         """
         color: dict[str, Color] = {
             "api-server": "magenta",
-            "webserver": "green",
             "scheduler": "blue",
             "dag-processor": "yellow",
             "triggerer": "cyan",
@@ -200,7 +192,8 @@ class StandaloneCommand:
         from airflow.providers.fab.auth_manager.cli_commands.utils import get_application_builder
 
         with get_application_builder() as appbuilder:
-            user_name, password = appbuilder.sm.create_admin_standalone()
+            if hasattr(appbuilder.sm, "create_admin_standalone"):
+                user_name, password = appbuilder.sm.create_admin_standalone()
         # Store what we know about the user for printing later in startup
         self.user_info = {"username": user_name, "password": password}
 
@@ -211,8 +204,7 @@ class StandaloneCommand:
         For now, it's simply time-based.
         """
         return (
-            self.port_open(self.web_server_port)
-            and self.job_running(SchedulerJobRunner)
+            self.job_running(SchedulerJobRunner)
             and self.job_running(DagProcessorJobRunner)
             and self.job_running(TriggererJobRunner)
         )

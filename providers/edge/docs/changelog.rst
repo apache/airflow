@@ -27,6 +27,25 @@
 Changelog
 ---------
 
+0.20.0pre0
+..........
+
+Misc
+~~~~
+
+* ``Edge worker exports not ti.start and ti.finished metrics.``
+
+
+0.19.0pre0
+..........
+
+Misc
+~~~~
+
+* ``Edge worker can be set to maintenance via CLI and also return to normal operation.``
+
+
+
 0.18.1pre0
 ..........
 

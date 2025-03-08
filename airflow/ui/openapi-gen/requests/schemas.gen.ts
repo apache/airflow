@@ -1215,10 +1215,6 @@ export const $ConfigResponse = {
       type: "string",
       title: "Audit View Included Events",
     },
-    is_k8s: {
-      type: "boolean",
-      title: "Is K8S",
-    },
     test_connection: {
       type: "string",
       title: "Test Connection",
@@ -1247,7 +1243,6 @@ export const $ConfigResponse = {
     "warn_deployment_exposure",
     "audit_view_excluded_events",
     "audit_view_included_events",
-    "is_k8s",
     "test_connection",
     "state_color_mapping",
   ],
@@ -4645,6 +4640,25 @@ export const $StructureDataResponse = {
   description: "Structure Data serializer for responses.",
 } as const;
 
+export const $StructuredLogMessage = {
+  properties: {
+    timestamp: {
+      type: "string",
+      format: "date-time",
+      title: "Timestamp",
+    },
+    event: {
+      type: "string",
+      title: "Event",
+    },
+  },
+  additionalProperties: true,
+  type: "object",
+  required: ["event"],
+  title: "StructuredLogMessage",
+  description: "An individual log message.",
+} as const;
+
 export const $TaskCollectionResponse = {
   properties: {
     tasks: {
@@ -5202,7 +5216,6 @@ export const $TaskInstanceResponse = {
     rendered_fields: {
       type: "object",
       title: "Rendered Fields",
-      default: {},
     },
     trigger: {
       anyOf: [
@@ -5628,7 +5641,20 @@ export const $TaskInstancesBatchBody = {
 export const $TaskInstancesLogResponse = {
   properties: {
     content: {
-      type: "string",
+      anyOf: [
+        {
+          items: {
+            $ref: "#/components/schemas/StructuredLogMessage",
+          },
+          type: "array",
+        },
+        {
+          items: {
+            type: "string",
+          },
+          type: "array",
+        },
+      ],
       title: "Content",
     },
     continuation_token: {

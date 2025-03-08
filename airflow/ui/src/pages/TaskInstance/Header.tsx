@@ -17,16 +17,17 @@
  * under the License.
  */
 import { Box } from "@chakra-ui/react";
-import { useRef } from "react";
+import { useCallback, useRef, useState } from "react";
 import { FiMessageSquare } from "react-icons/fi";
 import { MdOutlineTask } from "react-icons/md";
 
 import type { TaskInstanceResponse } from "openapi/requests/types.gen";
 import { ClearTaskInstanceButton } from "src/components/Clear";
-import DisplayMarkdownButton from "src/components/DisplayMarkdownButton";
+import EditableMarkdownButton from "src/components/EditableMarkdownButton";
 import { HeaderCard } from "src/components/HeaderCard";
 import { MarkTaskInstanceAsButton } from "src/components/MarkAs";
 import Time from "src/components/Time";
+import { usePatchTaskInstance } from "src/queries/usePatchTaskInstance";
 import { getDuration, useContainerWidth } from "src/utils";
 
 export const Header = ({
@@ -46,24 +47,57 @@ export const Header = ({
     { label: "Start", value: <Time datetime={taskInstance.start_date} /> },
     { label: "End", value: <Time datetime={taskInstance.end_date} /> },
     { label: "Duration", value: `${getDuration(taskInstance.start_date, taskInstance.end_date)}s` },
-    ...(taskInstance.dag_version?.version_number === undefined
-      ? []
-      : [{ label: "Dag Version", value: `v${taskInstance.dag_version.version_number}` }]),
+    {
+      label: "DAG Version",
+      value:
+        taskInstance.dag_version?.version_number === undefined
+          ? ""
+          : `v${taskInstance.dag_version.version_number}`,
+    },
   ];
+
+  const [note, setNote] = useState<string | null>(taskInstance.note);
+
+  const dagId = taskInstance.dag_id;
+  const dagRunId = taskInstance.dag_run_id;
+  const taskId = taskInstance.task_id;
+  const mapIndex = taskInstance.map_index;
+
+  const { isPending, mutate } = usePatchTaskInstance({
+    dagId,
+    dagRunId,
+    mapIndex,
+    taskId,
+  });
+
+  const onConfirm = useCallback(() => {
+    if (note !== taskInstance.note) {
+      mutate({
+        dagId,
+        dagRunId,
+        mapIndex,
+        requestBody: { note },
+        taskId,
+      });
+    }
+  }, [dagId, dagRunId, mapIndex, mutate, note, taskId, taskInstance.note]);
 
   return (
     <Box ref={containerRef}>
       <HeaderCard
         actions={
           <>
-            {taskInstance.note === null || taskInstance.note.length === 0 ? undefined : (
-              <DisplayMarkdownButton
-                header="Task Instance Note"
-                icon={<FiMessageSquare color="black" />}
-                mdContent={taskInstance.note}
-                text="Note"
-              />
-            )}
+            <EditableMarkdownButton
+              header="Task Instance Note"
+              icon={<FiMessageSquare />}
+              isPending={isPending}
+              mdContent={note}
+              onConfirm={onConfirm}
+              placeholder="Add a note..."
+              setMdContent={setNote}
+              text={Boolean(taskInstance.note) ? "Note" : "Add a note"}
+              withText={containerWidth > 700}
+            />
             <ClearTaskInstanceButton taskInstance={taskInstance} withText={containerWidth > 700} />
             <MarkTaskInstanceAsButton taskInstance={taskInstance} withText={containerWidth > 700} />
           </>

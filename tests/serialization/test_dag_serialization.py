@@ -53,12 +53,10 @@ from airflow.decorators.base import DecoratedOperator
 from airflow.exceptions import (
     AirflowException,
     ParamValidationError,
-    RemovedInAirflow3Warning,
     SerializationError,
 )
 from airflow.hooks.base import BaseHook
 from airflow.models.baseoperator import BaseOperator
-from airflow.models.baseoperatorlink import XComOperatorLink
 from airflow.models.connection import Connection
 from airflow.models.dag import DAG
 from airflow.models.dagbag import DagBag
@@ -69,6 +67,7 @@ from airflow.providers.cncf.kubernetes.pod_generator import PodGenerator
 from airflow.providers.standard.operators.bash import BashOperator
 from airflow.providers.standard.sensors.bash import BashSensor
 from airflow.sdk.definitions.asset import Asset
+from airflow.sdk.definitions.baseoperatorlink import XComOperatorLink
 from airflow.sdk.definitions.param import Param, ParamsDict
 from airflow.security import permissions
 from airflow.serialization.enums import Encoding
@@ -980,15 +979,7 @@ class TestStringifiedDAGs:
 
         assert "params" in serialized_dag["dag"]
 
-        if val and any([True for k, v in val.items() if isinstance(v, set)]):
-            with pytest.warns(
-                RemovedInAirflow3Warning,
-                match="The use of non-json-serializable params is deprecated and will be removed in a future release",
-            ):
-                deserialized_dag = SerializedDAG.from_dict(serialized_dag)
-
-        else:
-            deserialized_dag = SerializedDAG.from_dict(serialized_dag)
+        deserialized_dag = SerializedDAG.from_dict(serialized_dag)
         deserialized_simple_task = deserialized_dag.task_dict["simple_task"]
         assert expected_val == deserialized_dag.params.dump()
         assert expected_val == deserialized_simple_task.params.dump()
@@ -2228,8 +2219,8 @@ class TestStringifiedDAGs:
 
         class TestOperator(BaseOperator):
             template_fields = (
-                "email",  # templateable
                 "execution_timeout",  # not templateable
+                "run_as_user",  # templateable
             )
 
             def execute(self, context: Context):
@@ -2240,18 +2231,18 @@ class TestStringifiedDAGs:
         with dag:
             task = TestOperator(
                 task_id="test_task",
-                email="{{ ','.join(test_email_list) }}",
+                run_as_user="{{ test_run_as_user }}",
                 execution_timeout=timedelta(seconds=10),
             )
-            task.render_template_fields(context={"test_email_list": ["foo@test.com", "bar@test.com"]})
-            assert task.email == "foo@test.com,bar@test.com"
+            task.render_template_fields(context={"test_run_as_user": "foo"})
+            assert task.run_as_user == "foo"
 
         with pytest.raises(
             AirflowException,
             match=re.escape(
                 dedent(
                     """Failed to serialize DAG 'test_dag': Cannot template BaseOperator field:
-                        'execution_timeout' op.__class__.__name__='TestOperator' op.template_fields=('email', 'execution_timeout')"""
+                        'execution_timeout' op.__class__.__name__='TestOperator' op.template_fields=('execution_timeout', 'run_as_user')"""
                 )
             ),
         ):

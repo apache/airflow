@@ -57,7 +57,7 @@ metadata:
     release: {{ .Release.Name }}
     chart: "{{ .Chart.Name }}-{{ .Chart.Version }}"
     heritage: {{ .Release.Service }}
-    executor: "{{ .Values.executor }}"
+    executor: {{ .Values.executor | replace "," "-" | quote }}
     {{- with .Values.labels }}
       {{- toYaml . | nindent 4 }}
     {{- end }}
@@ -211,6 +211,7 @@ spec:
                   {{- include "scheduler_liveness_check_command" . | indent 14 }}
                 {{- end }}
           startupProbe:
+            initialDelaySeconds: {{ .Values.scheduler.startupProbe.initialDelaySeconds }}
             timeoutSeconds: {{ .Values.scheduler.startupProbe.timeoutSeconds }}
             failureThreshold: {{ .Values.scheduler.startupProbe.failureThreshold }}
             periodSeconds: {{ .Values.scheduler.startupProbe.periodSeconds }}

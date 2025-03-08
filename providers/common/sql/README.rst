@@ -56,6 +56,7 @@ PIP package         Version required
 ``apache-airflow``  ``>=2.9.0``
 ``sqlparse``        ``>=0.5.1``
 ``more-itertools``  ``>=9.0.0``
+``methodtools``     ``>=0.4.7``
 ==================  ==================
 
 Cross provider package dependencies

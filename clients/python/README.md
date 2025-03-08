@@ -534,11 +534,11 @@ that uses the API to run the tests. To do that, you need to:
 
 ```ini
 [api]
-auth_backend = airflow.api.auth.backend.session,airflow.providers.fab.auth_manager.api.auth.backend.basic_auth
+auth_backend = airflow.providers.fab.auth_manager.api.auth.backend.session,airflow.providers.fab.auth_manager.api.auth.backend.basic_auth
 ```
 
 You can also set it by env variable:
-`export AIRFLOW__API__AUTH_BACKENDS=airflow.api.auth.backend.session,airflow.providers.fab.auth_manager.api.auth.backend.basic_auth`
+`export AIRFLOW__API__AUTH_BACKENDS=airflow.providers.fab.auth_manager.api.auth.backend.session,airflow.providers.fab.auth_manager.api.auth.backend.basic_auth`
 
 * configure your airflow webserver to load example dags
   In the `[core]` section of your `airflow.cfg` set:

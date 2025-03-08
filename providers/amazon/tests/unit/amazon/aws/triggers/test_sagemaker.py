@@ -60,9 +60,9 @@ class TestSagemakerTrigger:
         ],
     )
     @mock.patch("airflow.providers.amazon.aws.hooks.sagemaker.SageMakerHook.get_waiter")
-    @mock.patch("airflow.providers.amazon.aws.hooks.sagemaker.SageMakerHook.async_conn")
+    @mock.patch("airflow.providers.amazon.aws.hooks.sagemaker.SageMakerHook.get_async_conn")
     async def test_sagemaker_trigger_run_all_job_types(self, mock_async_conn, mock_get_waiter, job_type):
-        mock_async_conn.__aenter__.return_value = mock.MagicMock()
+        mock_async_conn.return_value.__aenter__.return_value = mock.MagicMock()
 
         mock_get_waiter().wait = AsyncMock()
 

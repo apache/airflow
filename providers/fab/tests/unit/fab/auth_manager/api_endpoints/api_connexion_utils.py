@@ -18,6 +18,8 @@ from __future__ import annotations
 
 from contextlib import contextmanager
 
+from airflow.providers.fab.www.api_connexion.exceptions import EXCEPTIONS_LINK_MAP
+
 from tests_common.test_utils.compat import ignore_provider_compatibility_error
 
 with ignore_provider_compatibility_error("2.9.0+", __file__):
@@ -113,3 +115,13 @@ def delete_user(app, username):
             ]
             appbuilder.sm.del_register_user(user)
             break
+
+
+def assert_401(response):
+    assert response.status_code == 401, f"Current code: {response.status_code}"
+    assert response.json == {
+        "detail": None,
+        "status": 401,
+        "title": "Unauthorized",
+        "type": EXCEPTIONS_LINK_MAP[401],
+    }

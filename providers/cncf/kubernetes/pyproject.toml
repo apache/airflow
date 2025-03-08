@@ -52,8 +52,10 @@ classifiers = [
 ]
 requires-python = "~=3.9"
 
-# The dependencies should be modified in place in the generated file
+# The dependencies should be modified in place in the generated file.
 # Any change in the dependencies is preserved when the file is regenerated
+# Make sure to run ``breeze static-checks --type update-providers-dependencies --all-files``
+# After you modify the dependencies, and rebuild your Breeze CI image with ``breeze ci-image build``
 dependencies = [
     "aiofiles>=23.2.0",
     "apache-airflow>=2.9.0",
@@ -74,8 +76,25 @@ dependencies = [
     # (started from current 24.2.2 version) to prevent introducing some problems that could be due to some
     #  major changes in the package.
     "kubernetes_asyncio>=29.0.0,<=31.0.0",
-    "google-re2>=1.0",
 ]
+
+[dependency-groups]
+dev = [
+    "apache-airflow",
+    "apache-airflow-task-sdk",
+    "apache-airflow-devel-common",
+    # Additional devel dependencies (do not remove this line and add extra development dependencies)
+]
+
+[tool.uv.sources]
+# These names must match the names as defined in the pyproject.toml of the workspace items,
+# *not* the workspace folder paths
+apache-airflow = {workspace = true}
+apache-airflow-devel-common = {workspace = true}
+apache-airflow-task-sdk = {workspace = true}
+apache-airflow-providers-common-sql = {workspace = true}
+apache-airflow-providers-fab = {workspace = true}
+apache-airflow-providers-standard = {workspace = true}
 
 [project.urls]
 "Documentation" = "https://airflow.apache.org/docs/apache-airflow-providers-cncf-kubernetes/10.3.0"
@@ -91,6 +110,3 @@ provider_info = "airflow.providers.cncf.kubernetes.get_provider_info:get_provide
 
 [tool.flit.module]
 name = "airflow.providers.cncf.kubernetes"
-
-[tool.pytest.ini_options]
-ignore = "tests/system/"

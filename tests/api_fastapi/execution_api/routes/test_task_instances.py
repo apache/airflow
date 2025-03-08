@@ -29,6 +29,7 @@ from airflow.exceptions import AirflowInactiveAssetInInletOrOutletException
 from airflow.models import RenderedTaskInstanceFields, TaskReschedule, Trigger
 from airflow.models.asset import AssetActive, AssetAliasModel, AssetEvent, AssetModel
 from airflow.models.taskinstance import TaskInstance
+from airflow.models.taskinstancehistory import TaskInstanceHistory
 from airflow.sdk.definitions.asset import AssetUniqueKey
 from airflow.utils import timezone
 from airflow.utils.state import State, TaskInstanceState, TerminalTIState
@@ -117,6 +118,37 @@ class TestTIRunState:
         assert ti.hostname == "random-hostname"
         assert ti.unixname == "random-unixname"
         assert ti.pid == 100
+
+        response1 = response.json()
+
+        # Test that if we make a second request (simulating a network glitch so the client issues a retry)
+        # that it is accepted and we get the same info back
+
+        response = client.patch(
+            f"/execution/task-instances/{ti.id}/run",
+            json={
+                "state": "running",
+                "hostname": "random-hostname",
+                "unixname": "random-unixname",
+                "pid": 100,
+                "start_date": instant_str,
+            },
+        )
+        assert response.status_code == 200
+        assert response.json() == response1
+
+        # But that for a different pid on the same host (etc) it fails
+        response = client.patch(
+            f"/execution/task-instances/{ti.id}/run",
+            json={
+                "state": "running",
+                "hostname": "random-hostname",
+                "unixname": "random-unixname",
+                "pid": 101,
+                "start_date": instant_str,
+            },
+        )
+        assert response.status_code == 409
 
     def test_next_kwargs_still_encoded(self, client, session, create_task_instance, time_machine):
         instant_str = "2024-09-30T12:00:00Z"
@@ -620,6 +652,16 @@ class TestTIUpdateState:
         assert ti.state == expected_state
         assert ti.next_method is None
         assert ti.next_kwargs is None
+
+        tih = session.query(TaskInstanceHistory).where(
+            TaskInstanceHistory.task_id == ti.task_id, TaskInstanceHistory.task_instance_id == ti.id
+        )
+        tih_count = tih.count()
+        assert tih_count == (1 if retries else 0)
+        if retries:
+            tih = tih.one()
+            assert tih.try_id
+            assert tih.try_id != ti.try_id
 
     def test_ti_update_state_when_ti_is_restarting(self, client, session, create_task_instance):
         ti = create_task_instance(

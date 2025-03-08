@@ -195,7 +195,8 @@ with DAG(
             ("/aws-glue/jobs/logs-v2", submit_glue_job.output),
             ("/aws-glue/jobs/error", submit_glue_job.output),
             ("/aws-glue/jobs/output", submit_glue_job.output),
-        ]
+        ],
+        delete_log_groups=False,
     )
 
     chain(

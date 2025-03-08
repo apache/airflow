@@ -30,14 +30,14 @@ console = Console(width=400, color_system="standard")
 
 
 @pytest.mark.db_test
-class TestCliFastAPI(_CommonCLIGunicornTestClass):
+class TestCliApiServer(_CommonCLIGunicornTestClass):
     main_process_regexp = r"airflow api-server"
 
     @pytest.mark.parametrize(
         "args, expected_command",
         [
             (
-                ["api-server", "--port", "9092", "--hostname", "somehost", "--debug"],
+                ["api-server", "--port", "9092", "--host", "somehost", "--dev"],
                 [
                     "fastapi",
                     "dev",
@@ -49,7 +49,7 @@ class TestCliFastAPI(_CommonCLIGunicornTestClass):
                 ],
             ),
             (
-                ["api-server", "--port", "9092", "--hostname", "somehost", "--debug", "--proxy-headers"],
+                ["api-server", "--port", "9092", "--host", "somehost", "--dev", "--proxy-headers"],
                 [
                     "fastapi",
                     "dev",
@@ -63,7 +63,7 @@ class TestCliFastAPI(_CommonCLIGunicornTestClass):
             ),
         ],
     )
-    def test_cli_fastapi_api_debug(self, app, args, expected_command):
+    def test_dev_arg(self, args, expected_command):
         with (
             mock.patch("subprocess.Popen") as Popen,
         ):
@@ -75,7 +75,7 @@ class TestCliFastAPI(_CommonCLIGunicornTestClass):
                 close_fds=True,
             )
 
-    def test_cli_fastapi_api_env_var_set_unset(self, app):
+    def test_apps_env_var_set_unset(self):
         """
         Test that AIRFLOW_API_APPS is set and unset in the environment when
         calling the airflow api-server command
@@ -86,11 +86,11 @@ class TestCliFastAPI(_CommonCLIGunicornTestClass):
         ):
             apps_value = "core,execution"
             port = "9092"
-            hostname = "somehost"
+            host = "somehost"
 
             # Parse the command line arguments
             args = self.parser.parse_args(
-                ["api-server", "--port", port, "--hostname", hostname, "--apps", apps_value, "--debug"]
+                ["api-server", "--port", port, "--host", host, "--apps", apps_value, "--dev"]
             )
 
             # Ensure AIRFLOW_API_APPS is not set initially
@@ -111,7 +111,7 @@ class TestCliFastAPI(_CommonCLIGunicornTestClass):
                     "--port",
                     port,
                     "--host",
-                    hostname,
+                    host,
                 ],
                 close_fds=True,
             )
@@ -119,7 +119,7 @@ class TestCliFastAPI(_CommonCLIGunicornTestClass):
             # Assert that AIRFLOW_API_APPS was unset after subprocess
             mock_environ.pop.assert_called_with("AIRFLOW_API_APPS")
 
-    def test_cli_fastapi_api_args(self, ssl_cert_and_key):
+    def test_args_to_uvicorn(self, ssl_cert_and_key):
         cert_path, key_path = ssl_cert_and_key
 
         with (
@@ -128,8 +128,6 @@ class TestCliFastAPI(_CommonCLIGunicornTestClass):
             args = self.parser.parse_args(
                 [
                     "api-server",
-                    "--access-logformat",
-                    "custom_log_format",
                     "--pid",
                     "/tmp/x.pid",
                     "--ssl-cert",
@@ -145,7 +143,7 @@ class TestCliFastAPI(_CommonCLIGunicornTestClass):
             mock_run.assert_called_with(
                 "airflow.api_fastapi.main:app",
                 host="0.0.0.0",
-                port=9091,
+                port=8080,
                 workers=4,
                 timeout_keep_alive=120,
                 timeout_graceful_shutdown=120,

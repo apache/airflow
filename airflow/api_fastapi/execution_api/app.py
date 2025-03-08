@@ -22,11 +22,16 @@ from functools import cached_property
 from typing import TYPE_CHECKING
 
 import attrs
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
 from fastapi.openapi.utils import get_openapi
+from fastapi.responses import JSONResponse
 
 if TYPE_CHECKING:
     import httpx
+
+import structlog
+
+logger = structlog.get_logger(logger_name=__name__)
 
 
 @asynccontextmanager
@@ -86,6 +91,16 @@ def create_task_execution_api_app() -> FastAPI:
     app.openapi = custom_openapi  # type: ignore[method-assign]
 
     app.include_router(execution_api_router)
+
+    # As we are mounted as a sub app, we don't get any logs for unhandled exceptions without this!
+    @app.exception_handler(Exception)
+    def handle_exceptions(request: Request, exc: Exception):
+        logger.exception("Handle died with an error", exc_info=(type(exc), exc, exc.__traceback__))
+        content = {"message": "Internal server error"}
+        if "correlation-id" in request.headers:
+            content["correlation-id"] = request.headers["correlation-id"]
+        return JSONResponse(status_code=500, content=content)
+
     return app
 
 

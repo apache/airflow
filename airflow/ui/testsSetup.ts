@@ -20,7 +20,7 @@ import * as matchers from "@testing-library/jest-dom/matchers";
 import "@testing-library/jest-dom/vitest";
 import type { HttpHandler } from "msw";
 import { setupServer, type SetupServerApi } from "msw/node";
-import { afterEach, expect, beforeAll, afterAll } from "vitest";
+import { beforeEach, expect, beforeAll, afterAll } from "vitest";
 
 import { handlers } from "src/mocks/handlers";
 
@@ -34,5 +34,5 @@ beforeAll(() => {
   server.listen({ onUnhandledRequest: "bypass" });
 });
 
-afterEach(() => server.resetHandlers());
+beforeEach(() => server.resetHandlers());
 afterAll(() => server.close());

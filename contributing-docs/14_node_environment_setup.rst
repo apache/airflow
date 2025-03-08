@@ -18,20 +18,10 @@
 Node.js Environment Setup
 =========================
 
-Contributing to the UI in Airflow
+Contributing to the REST API in Airflow
 ---------------------------------
 
-In Airflow 3, we are moving the UI away from Flask App Builder views to a pure React powered frontend living at ``airflow/ui``.
-During 3.0 development, we will need to run both the new and legacy UIs at the same time until the new UI is feature-complete.
-But we want to limit modifications to the legacy ``airflow/www`` views, to mainly three rules:
-
-1. Bug fixes to cherry pick for 2.10.x and 2.11
-2. The minimum necessary to unblock other Airflow 3.0 feature work
-3. Fixes to react views which we haven't migrated over yet, but can still be ported over to the new UI
-
-Custom endpoints for the UI will also be moved away from ``airflow/www/views.py`` and to ``airflow/api_fastapi``.
-Contributions to the legacy views file will follow the same rules.
-Committers will exercise their judgement on what endpoints should exist in the public ``airflow/api_connexion`` versus the private ``airflow/api_fastapi``
+Committers will exercise their judgement on what endpoints should exist in the public ``airflow/api_fastapi/public`` versus the private ``airflow/api_fastapi/ui``
 
 Airflow UI
 ----------
@@ -93,17 +83,6 @@ Copy the example environment
 
     cp .env.example .env.local
 
-DEPRECATED Airflow WWW
-----------------------
-
-``airflow/www/`` contains all yarn-managed, front-end assets. Flask-Appbuilder
-itself comes bundled with jQuery and bootstrap. While they may be phased out
-over time, these packages are currently not managed with yarn.
-
-Make sure you are using recent versions of node and yarn. No problems have been
-found with node\>=8.11.3 and yarn\>=1.19.1. The pre-commit framework of ours install
-node and yarn automatically when installed - if you use ``breeze`` you do not need to install
-neither node nor yarn.
 
 **The outline for this document in GitHub is available at top-right corner button (with 3-dots and 3 lines).**
 
@@ -183,7 +162,7 @@ Most IDE directly integrate with these tools, you can also manually run them wit
 React, JSX and Chakra
 ---------------------
 
-In order to create a more modern UI, we have started to include `React <https://reactjs.org/>`__ in the ``airflow/www/`` project.
+In order to create a more modern UI, we have started to include `React <https://reactjs.org/>`__ in the ``airflow/ui/`` project.
 If you are unfamiliar with React then it is recommended to check out their documentation to understand components and jsx syntax.
 
 We are using `Chakra UI <https://chakra-ui.com/>`__ as a component and styling library. Notably, all styling is done in a theme file or

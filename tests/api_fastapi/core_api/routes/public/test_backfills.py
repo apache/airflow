@@ -33,7 +33,6 @@ from airflow.utils import timezone
 from airflow.utils.session import provide_session
 from airflow.utils.state import DagRunState
 
-from tests_common.test_utils.api_fastapi import _check_last_log
 from tests_common.test_utils.db import (
     clear_db_backfills,
     clear_db_dags,
@@ -41,6 +40,7 @@ from tests_common.test_utils.db import (
     clear_db_runs,
     clear_db_serialized_dags,
 )
+from tests_common.test_utils.logs import check_last_log
 
 pytestmark = [pytest.mark.db_test, pytest.mark.need_serialized_dag]
 
@@ -214,7 +214,7 @@ class TestCreateBackfill(TestBackfillEndpoint):
             "to_date": to_date_iso,
             "updated_at": mock.ANY,
         }
-        _check_last_log(session, dag_id="TEST_DAG_1", event="create_backfill", logical_date=None)
+        check_last_log(session, dag_id="TEST_DAG_1", event="create_backfill", logical_date=None)
 
     def test_dag_not_exist(self, session, test_client):
         session.query(DagModel).all()
@@ -680,7 +680,7 @@ class TestCancelBackfill(TestBackfillEndpoint):
         # get conflict when canceling already-canceled backfill
         response = test_client.put(f"/public/backfills/{backfill.id}/cancel")
         assert response.status_code == 409
-        _check_last_log(session, dag_id=None, event="cancel_backfill", logical_date=None)
+        check_last_log(session, dag_id=None, event="cancel_backfill", logical_date=None)
 
     def test_cancel_backfill_end_states(self, dag_maker, session, test_client):
         """

@@ -27,7 +27,7 @@ def get_provider_info():
         "name": "MongoDB",
         "description": "`MongoDB <https://www.mongodb.com/>`__\n",
         "state": "ready",
-        "source-date-epoch": 1739963853,
+        "source-date-epoch": 1741121903,
         "versions": [
             "5.0.1",
             "5.0.0",
@@ -73,6 +73,6 @@ def get_provider_info():
         "connection-types": [
             {"hook-class-name": "airflow.providers.mongo.hooks.mongo.MongoHook", "connection-type": "mongo"}
         ],
-        "dependencies": ["apache-airflow>=2.9.0", "dnspython>=1.13.0", "pymongo>=4.0.0,!=4.11,!=4.11.1"],
+        "dependencies": ["apache-airflow>=2.9.0", "dnspython>=1.13.0", "pymongo>=4.0.0,<4.11.0"],
         "devel-dependencies": ["mongomock>=4.0.0"],
     }
