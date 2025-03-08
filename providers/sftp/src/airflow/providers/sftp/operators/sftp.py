@@ -173,9 +173,7 @@ class SFTPOperator(BaseOperator):
                                     workers=self.concurrency,
                                 )
                             elif self.concurrency == 1:
-                                self.sftp_hook.retrieve_directory_concurrently(
-                                    _remote_filepath, _local_filepath
-                                )
+                                self.sftp_hook.retrieve_directory(_remote_filepath, _local_filepath)
                         else:
                             self.sftp_hook.retrieve_file(_remote_filepath, _local_filepath)
                     elif self.operation.lower() == SFTPOperation.PUT:

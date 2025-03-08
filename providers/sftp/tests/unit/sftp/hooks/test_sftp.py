@@ -530,6 +530,23 @@ class TestSFTPHook:
         )
         assert retrieved_dir_name in os.listdir(os.path.join(self.temp_dir, TMP_DIR_FOR_TESTS))
 
+    def test_store_and_retrieve_directory_concurrently(self):
+        stored_dir_name = "stored_dir"
+        self.hook.store_directory_concurrently(
+            remote_full_path=os.path.join(self.temp_dir, TMP_DIR_FOR_TESTS, stored_dir_name),
+            local_full_path=os.path.join(self.temp_dir, TMP_DIR_FOR_TESTS, SUB_DIR),
+        )
+        output = self.hook.list_directory(
+            path=os.path.join(self.temp_dir, TMP_DIR_FOR_TESTS, stored_dir_name)
+        )
+        assert output == [TMP_FILE_FOR_TESTS]
+        retrieved_dir_name = "retrieved_dir"
+        self.hook.retrieve_directory_concurrently(
+            remote_full_path=os.path.join(self.temp_dir, TMP_DIR_FOR_TESTS, stored_dir_name),
+            local_full_path=os.path.join(self.temp_dir, TMP_DIR_FOR_TESTS, retrieved_dir_name),
+        )
+        assert retrieved_dir_name in os.listdir(os.path.join(self.temp_dir, TMP_DIR_FOR_TESTS))
+
     @patch("paramiko.SSHClient")
     @patch("paramiko.ProxyCommand")
     def test_sftp_hook_with_proxy_command(self, mock_proxy_command, mock_ssh_client):
