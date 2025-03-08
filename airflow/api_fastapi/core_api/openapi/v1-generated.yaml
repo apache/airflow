@@ -6820,6 +6820,8 @@ paths:
       summary: Reparse Dag File
       description: Request re-parsing a DAG file.
       operationId: reparse_dag_file
+      security:
+      - OAuth2PasswordBearer: []
       parameters:
       - name: file_token
         in: path
@@ -6827,6 +6829,14 @@ paths:
         schema:
           type: string
           title: File Token
+      - name: dag_id
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Dag Id
       responses:
         '201':
           description: Successful Response

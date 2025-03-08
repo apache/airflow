@@ -3596,6 +3596,7 @@ export const useBackfillServiceCancelBackfill = <
  * Request re-parsing a DAG file.
  * @param data The data for the request.
  * @param data.fileToken
+ * @param data.dagId
  * @returns null Successful Response
  * @throws ApiError
  */
@@ -3609,6 +3610,7 @@ export const useDagParsingServiceReparseDagFile = <
       TData,
       TError,
       {
+        dagId?: string;
         fileToken: string;
       },
       TContext
@@ -3620,12 +3622,13 @@ export const useDagParsingServiceReparseDagFile = <
     TData,
     TError,
     {
+      dagId?: string;
       fileToken: string;
     },
     TContext
   >({
-    mutationFn: ({ fileToken }) =>
-      DagParsingService.reparseDagFile({ fileToken }) as unknown as Promise<TData>,
+    mutationFn: ({ dagId, fileToken }) =>
+      DagParsingService.reparseDagFile({ dagId, fileToken }) as unknown as Promise<TData>,
     ...options,
   });
 /**
