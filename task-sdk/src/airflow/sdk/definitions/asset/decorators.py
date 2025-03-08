@@ -28,8 +28,6 @@ from airflow.sdk.definitions.asset import Asset, AssetNameRef, AssetRef, BaseAss
 if TYPE_CHECKING:
     from collections.abc import Callable, Collection, Iterator, Mapping
 
-    from sqlalchemy.orm import Session
-
     from airflow.io.path import ObjectStoragePath
     from airflow.sdk.definitions.asset import AssetAlias, AssetUniqueKey
     from airflow.sdk.definitions.dag import DAG, DagStateChangeCallback, ScheduleArg
@@ -122,9 +120,6 @@ class MultiAssetDefinition(BaseAsset):
         with self._source.create_dag(dag_id=self._function.__name__):
             _AssetMainOperator.from_definition(self)
 
-    def evaluate(self, statuses: dict[AssetUniqueKey, bool], *, session: Session | None = None) -> bool:
-        return all(o.evaluate(statuses=statuses, session=session) for o in self._source.outlets)
-
     def iter_assets(self) -> Iterator[tuple[AssetUniqueKey, Asset]]:
         for o in self._source.outlets:
             yield from o.iter_assets()
@@ -140,6 +135,10 @@ class MultiAssetDefinition(BaseAsset):
     def iter_dag_dependencies(self, *, source: str, target: str) -> Iterator[DagDependency]:
         for obj in self._source.outlets:
             yield from obj.iter_dag_dependencies(source=source, target=target)
+
+    def iter_outlets(self) -> Iterator[BaseAsset]:
+        """For asset evaluation in the scheduler."""
+        return iter(self._source.outlets)
 
 
 @attrs.define(kw_only=True)

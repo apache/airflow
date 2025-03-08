@@ -131,22 +131,22 @@ jobs:
       - name: "Restore eslint cache (simple auth manager UI)"
         uses: apache/infrastructure-actions/stash/restore@1c35b5ccf8fba5d4c3fdf25a045ca91aa0cbc468
         with:
-          path: airflow/auth/managers/simple/ui/node_modules/
+          path: airflow/api_fastapi/auth/managers/simple/ui/node_modules/
           key: >
             cache-simple-am-ui-node-modules-v1-
-            ${{ runner.os }}-${{ hashFiles('airflow/auth/managers/simple/ui/**/pnpm-lock.yaml') }}
+            ${{ runner.os }}-${{ hashFiles('airflow/api_fastapi/auth/managers/simple/ui/**/pnpm-lock.yaml') }}
         id: restore-eslint-cache-simple-am-ui
-      - run: cd airflow/auth/managers/simple/ui && pnpm install --frozen-lockfile
-      - run: cd airflow/auth/managers/simple/ui && pnpm test
+      - run: cd airflow/api_fastapi/auth/managers/simple/ui && pnpm install --frozen-lockfile
+      - run: cd airflow/api_fastapi/auth/managers/simple/ui && pnpm test
         env:
           FORCE_COLOR: 2
       - name: "Save eslint cache (ui)"
         uses: apache/infrastructure-actions/stash/save@1c35b5ccf8fba5d4c3fdf25a045ca91aa0cbc468
         with:
-          path: airflow/auth/managers/simple/ui/node_modules/
+          path: airflow/api_fastapi/auth/managers/simple/ui/node_modules/
           key: >
             cache-simple-am-ui-node-modules-v1-
-            ${{ runner.os }}-${{ hashFiles('airflow/auth/managers/simple/ui/**/pnpm-lock.yaml') }}
+            ${{ runner.os }}-${{ hashFiles('airflow/api_fastapi/auth/managers/simple/ui/**/pnpm-lock.yaml') }}
           if-no-files-found: 'error'
           retention-days: '2'
         if: steps.restore-eslint-cache-simple-am-ui.outputs.stash-hit != 'true'

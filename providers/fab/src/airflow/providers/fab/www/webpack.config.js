@@ -76,19 +76,16 @@ const config = {
       // Be sure to update aliases in jest.config.js and tsconfig.json
       src: path.resolve(__dirname, "static/js"),
     },
-    extensions: [".js", ".jsx", ".ts", ".tsx", ".css"],
+    extensions: [".js", ".css"],
   },
   module: {
     rules: [
       {
-        test: /\.(js|jsx|tsx|ts)$/,
+        test: /\.(js)$/,
         exclude: /node_modules/,
         use: [
           {
             loader: "babel-loader",
-            options: {
-              presets: ["@babel/preset-react", "@babel/preset-typescript"],
-            },
           },
         ],
       },
@@ -150,11 +147,6 @@ const config = {
     ],
   },
   plugins: [
-    new WebpackManifestPlugin({
-      // d3-tip is named index.js in its dist folder which was confusing the manifest
-      map: (file) =>
-        file.path === "d3-tip.js" ? { ...file, name: "d3-tip.js" } : file,
-    }),
     new cwplg.CleanWebpackPlugin({
       verbose: true,
     }),
@@ -177,43 +169,11 @@ const config = {
     new CopyWebpackPlugin({
       patterns: [
         {
-          from: "node_modules/d3/d3.min.*",
-          to: path.resolve(__dirname, 'dist', 'assets', '[name][ext]'),
-        },
-        {
-          from: "node_modules/dagre-d3/dist/*.min.*",
-          to: path.resolve(__dirname, 'dist', 'assets', '[name][ext]'),
-        },
-        {
-          from: "node_modules/d3-shape/dist/*.min.*",
-          to: path.resolve(__dirname, 'dist', 'assets', '[name][ext]'),
-        },
-        {
-          from: "node_modules/d3-tip/dist/index.js",
-          to: "d3-tip.js",
-        },
-        {
           from: "node_modules/jquery-ui/dist/jquery-ui.min.js",
           to: path.resolve(__dirname, 'dist', 'assets', '[name][ext]'),
         },
         {
           from: "node_modules/jquery-ui/dist/themes/base/jquery-ui.min.css",
-          to: path.resolve(__dirname, 'dist', 'assets', '[name][ext]'),
-        },
-        {
-          from: "node_modules/codemirror/lib/codemirror.*",
-          to: path.resolve(__dirname, 'dist', 'assets', '[name][ext]'),
-        },
-        {
-          from: "node_modules/codemirror/addon/lint/**.*",
-          to: path.resolve(__dirname, 'dist', 'assets', '[name][ext]'),
-        },
-        {
-          from: "node_modules/codemirror/mode/javascript/javascript.js",
-          to: path.resolve(__dirname, 'dist', 'assets', '[name][ext]'),
-        },
-        {
-          from: "node_modules/jshint/dist/jshint.js",
           to: path.resolve(__dirname, 'dist', 'assets', '[name][ext]'),
         },
       ],

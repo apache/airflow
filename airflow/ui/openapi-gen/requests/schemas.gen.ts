@@ -1215,10 +1215,6 @@ export const $ConfigResponse = {
       type: "string",
       title: "Audit View Included Events",
     },
-    is_k8s: {
-      type: "boolean",
-      title: "Is K8S",
-    },
     test_connection: {
       type: "string",
       title: "Test Connection",
@@ -1247,7 +1243,6 @@ export const $ConfigResponse = {
     "warn_deployment_exposure",
     "audit_view_excluded_events",
     "audit_view_included_events",
-    "is_k8s",
     "test_connection",
     "state_color_mapping",
   ],

@@ -36,7 +36,7 @@ except ImportError:
     from airflow.models.errors import ImportError as ParseImportError  # type: ignore[no-redef,attr-defined]
 
 try:
-    from airflow.models.baseoperatorlink import BaseOperatorLink
+    from airflow.sdk import BaseOperatorLink
 except ImportError:
     # Compatibility for Airflow 2.7.*
     from airflow.models.baseoperator import BaseOperatorLink

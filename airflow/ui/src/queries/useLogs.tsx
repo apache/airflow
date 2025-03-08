@@ -34,6 +34,7 @@ import { LogLevel, logLevelColorMapping } from "src/utils/logs";
 type Props = {
   dagId: string;
   logLevelFilters?: Array<string>;
+  sourceFilters?: Array<string>;
   taskInstance?: TaskInstanceResponse;
   tryNumber?: number;
 };
@@ -41,13 +42,22 @@ type Props = {
 type ParseLogsProps = {
   data: TaskInstancesLogResponse["content"];
   logLevelFilters?: Array<string>;
+  sourceFilters?: Array<string>;
 };
 
-const renderStructuredLog = (
-  logMessage: string | StructuredLogMessage,
-  index: number,
-  logLevelFilters?: Array<string>,
-) => {
+type RenderStructuredLogProps = {
+  index: number;
+  logLevelFilters?: Array<string>;
+  logMessage: string | StructuredLogMessage;
+  sourceFilters?: Array<string>;
+};
+
+const renderStructuredLog = ({
+  index,
+  logLevelFilters,
+  logMessage,
+  sourceFilters,
+}: RenderStructuredLogProps) => {
   if (typeof logMessage === "string") {
     return (
       <chakra.span key={index} lineHeight={1.5}>
@@ -64,6 +74,15 @@ const renderStructuredLog = (
     logLevelFilters !== undefined &&
     Boolean(logLevelFilters.length) &&
     ((typeof level === "string" && !logLevelFilters.includes(level)) || !Boolean(level))
+  ) {
+    return "";
+  }
+
+  if (
+    sourceFilters !== undefined &&
+    Boolean(sourceFilters.length) &&
+    (("logger" in structured && !sourceFilters.includes(structured.logger as string)) ||
+      !("logger" in structured))
   ) {
     return "";
   }
@@ -97,9 +116,9 @@ const renderStructuredLog = (
     if (Object.hasOwn(structured, key)) {
       elements.push(
         " ",
-        <span className={`log-key ${key}`} key={`prop_${key}`}>
-          {key}={JSON.stringify(structured[key])}
-        </span>,
+        <chakra.span color={key === "logger" ? "fg.info" : undefined} key={`prop_${key}`}>
+          {key === "logger" ? "source" : key}={JSON.stringify(structured[key])}
+        </chakra.span>,
       );
     }
   }
@@ -111,16 +130,26 @@ const renderStructuredLog = (
   );
 };
 
-// TODO: add support for log groups, colors, formats, filters
-const parseLogs = ({ data, logLevelFilters }: ParseLogsProps) => {
+const parseLogs = ({ data, logLevelFilters, sourceFilters }: ParseLogsProps) => {
   let warning;
   let parsedLines;
   let startGroup = false;
   let groupLines: Array<JSX.Element | ""> = [];
   let groupName = "";
+  const sources: Array<string> = [];
 
   try {
-    parsedLines = data.map((datum, index) => renderStructuredLog(datum, index, logLevelFilters));
+    parsedLines = data.map((datum, index) => {
+      if (typeof datum !== "string" && "logger" in datum) {
+        const source = datum.logger as string;
+
+        if (!sources.includes(source)) {
+          sources.push(source);
+        }
+      }
+
+      return renderStructuredLog({ index, logLevelFilters, logMessage: datum, sourceFilters });
+    });
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : "An error occurred.";
 
@@ -167,14 +196,14 @@ const parseLogs = ({ data, logLevelFilters }: ParseLogsProps) => {
   });
 
   return {
-    fileSources: [],
     parsedLogs: parsedLines,
+    sources,
     warning,
   };
 };
 
 export const useLogs = (
-  { dagId, logLevelFilters, taskInstance, tryNumber = 1 }: Props,
+  { dagId, logLevelFilters, sourceFilters, taskInstance, tryNumber = 1 }: Props,
   options?: Omit<UseQueryOptions<TaskInstancesLogResponse>, "queryFn" | "queryKey">,
 ) => {
   const refetchInterval = useAutoRefresh({ dagId });
@@ -202,6 +231,7 @@ export const useLogs = (
   const parsedData = parseLogs({
     data: data?.content ?? [],
     logLevelFilters,
+    sourceFilters,
   });
 
   return { data: parsedData, ...rest };
