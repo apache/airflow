@@ -240,7 +240,7 @@ class TestGetDags(TestDagEndpoint):
         assert body["total_entries"] == expected_total_entries
         assert [dag["dag_id"] for dag in body["dags"]] == expected_ids
 
-    @mock.patch("airflow.auth.managers.base_auth_manager.BaseAuthManager.get_permitted_dag_ids")
+    @mock.patch("airflow.api_fastapi.auth.managers.base_auth_manager.BaseAuthManager.get_permitted_dag_ids")
     def test_get_dags_should_call_permitted_dag_ids(self, mock_get_permitted_dag_ids, test_client):
         mock_get_permitted_dag_ids.return_value = {DAG1_ID, DAG2_ID}
         response = test_client.get("/public/dags")
@@ -349,7 +349,7 @@ class TestPatchDags(TestDagEndpoint):
             paused_dag_ids = [dag["dag_id"] for dag in body["dags"] if dag["is_paused"]]
             assert paused_dag_ids == expected_paused_ids
 
-    @mock.patch("airflow.auth.managers.base_auth_manager.BaseAuthManager.get_permitted_dag_ids")
+    @mock.patch("airflow.api_fastapi.auth.managers.base_auth_manager.BaseAuthManager.get_permitted_dag_ids")
     def test_patch_dags_should_call_permitted_dag_ids(self, mock_get_permitted_dag_ids, test_client):
         mock_get_permitted_dag_ids.return_value = {DAG1_ID, DAG2_ID}
         response = test_client.patch(
