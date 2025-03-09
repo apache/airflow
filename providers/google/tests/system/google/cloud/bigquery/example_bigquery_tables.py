@@ -140,6 +140,32 @@ with DAG(
     )
     # [END howto_operator_bigquery_update_table]
 
+    # [START howto_operator_bigquery_update_view]
+    update_view = BigQueryUpdateTableOperator(
+        task_id="update_view",
+        dataset_id=DATASET_NAME,
+        table_id="test_view",
+        fields=["friendlyName", "description"],
+        table_resource={
+            "friendlyName": "Updated View friendlyName",
+            "description": "Updated View description",
+        },
+    )
+    # [END howto_operator_bigquery_update_view]
+
+    # [START howto_operator_bigquery_update_materialized_view]
+    update_materialized_view = BigQueryUpdateTableOperator(
+        task_id="update_materialized_view",
+        dataset_id=DATASET_NAME,
+        table_id="test_materialized_view",
+        fields=["friendlyName", "description"],
+        table_resource={
+            "friendlyName": "Updated View friendlyName",
+            "description": "Updated View description",
+        },
+    )
+    # [END howto_operator_bigquery_update_materialized_view]
+
     # [START howto_operator_bigquery_upsert_table]
     upsert_table = BigQueryUpsertTableOperator(
         task_id="upsert_table",
@@ -234,6 +260,8 @@ with DAG(
             delete_view,
         ]
         >> update_table
+        >> update_view
+        >> update_materialized_view
         >> upsert_table
         >> update_table_schema
         >> create_table_schema_json
