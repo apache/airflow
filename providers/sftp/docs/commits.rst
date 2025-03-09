@@ -488,7 +488,7 @@ Latest change: 2022-03-14
 Commit                                                                                              Committed    Subject
 ==================================================================================================  ===========  ======================================================================================================
 `16adc035b1 <https://github.com/apache/airflow/commit/16adc035b1ecdf533f44fbb3e32bea972127bb71>`__  2022-03-14   ``Add documentation for Classifier release for March 2022 (#22226)``
-`69f5ab1987 <https://github.com/apache/airflow/commit/69f5ab19872871a34179551a53fe302efe884e62>`__  2022-03-13   ``SFTP docs add example “extras” field using ''key_file'', ''private_key'' and ''host_key'' (#20757)``
+`69f5ab1987 <https://github.com/apache/airflow/commit/69f5ab19872871a34179551a53fe302efe884e62>`__  2022-03-13   ``SFTP docs add example "extras" field using ''key_file'', ''private_key'' and ''host_key'' (#20757)``
 ==================================================================================================  ===========  ======================================================================================================
 
 2.5.0
