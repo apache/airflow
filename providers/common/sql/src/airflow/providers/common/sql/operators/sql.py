@@ -1200,7 +1200,7 @@ class BranchSQLOperator(BaseSQLOperator, SkipMixin):
             self.conn_id,
         )
         record = self.get_db_hook().get_first(self.sql, self.parameters)
-        if not record:
+        if record is None:
             raise AirflowException(
                 "No rows returned from sql query. Operator expected True or False return value."
             )

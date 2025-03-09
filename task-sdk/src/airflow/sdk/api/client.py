@@ -47,6 +47,7 @@ from airflow.sdk.api.datamodels._generated import (
     TIHeartbeatInfo,
     TIRescheduleStatePayload,
     TIRunContext,
+    TISkippedDownstreamTasksStatePayload,
     TISuccessStatePayload,
     TITerminalStatePayload,
     ValidationError as RemoteValidationError,
@@ -55,7 +56,12 @@ from airflow.sdk.api.datamodels._generated import (
     XComResponse,
 )
 from airflow.sdk.exceptions import ErrorType
-from airflow.sdk.execution_time.comms import ErrorResponse, OKResponse, RuntimeCheckOnTask
+from airflow.sdk.execution_time.comms import (
+    ErrorResponse,
+    OKResponse,
+    RuntimeCheckOnTask,
+    SkipDownstreamTasks,
+)
 from airflow.utils.net import get_hostname
 from airflow.utils.platform import getuser
 
@@ -164,6 +170,11 @@ class TaskInstanceOperations:
 
         # Create a reschedule state payload from msg
         self.client.patch(f"task-instances/{id}/state", content=body.model_dump_json())
+
+    def skip_downstream_tasks(self, id: uuid.UUID, msg: SkipDownstreamTasks):
+        """Tell the API server to skip the downstream tasks of this TI."""
+        body = TISkippedDownstreamTasksStatePayload(tasks=msg.tasks)
+        self.client.patch(f"task-instances/{id}/skip-downstream", content=body.model_dump_json())
 
     def set_rtif(self, id: uuid.UUID, body: dict[str, str]) -> dict[str, bool]:
         """Set Rendered Task Instance Fields via the API server."""

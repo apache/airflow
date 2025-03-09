@@ -201,6 +201,7 @@ class TestProjectStructure:
             "providers/standard/tests/unit/standard/sensors/test_external_task.py",
             "providers/standard/tests/unit/standard/sensors/test_filesystem.py",
             "providers/standard/tests/unit/standard/test_version_compat.py",
+            "providers/standard/tests/unit/standard/utils/test_branch.py",
             "providers/standard/tests/unit/standard/utils/test_sensor_helper.py",
             "providers/trino/tests/unit/trino/test_version_compat.py",
         ]

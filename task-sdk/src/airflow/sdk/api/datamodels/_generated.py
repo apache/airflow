@@ -193,6 +193,17 @@ class TIRuntimeCheckPayload(BaseModel):
     outlets: Annotated[list[AssetProfile] | None, Field(title="Outlets")] = None
 
 
+class TISkippedDownstreamTasksStatePayload(BaseModel):
+    """
+    Schema for updating downstream tasks TaskInstance to a skipped state.
+    """
+
+    model_config = ConfigDict(
+        extra="forbid",
+    )
+    tasks: Annotated[list, Field(title="Tasks")]
+
+
 class TISuccessStatePayload(BaseModel):
     """
     Schema for updating TaskInstance to success state.

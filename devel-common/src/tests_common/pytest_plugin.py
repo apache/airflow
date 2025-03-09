@@ -23,6 +23,7 @@ import platform
 import re
 import subprocess
 import sys
+import warnings
 from collections.abc import Generator
 from contextlib import ExitStack, suppress
 from datetime import datetime, timedelta, timezone
@@ -902,7 +903,13 @@ def dag_maker(request) -> Generator[DagMaker, None, None]:
                 DagRunType.ASSET_TRIGGERED = DagRunType.DATASET_TRIGGERED
 
             if "execution_date" in kwargs:
-                raise TypeError("use logical_date instead")
+                warnings.warn(
+                    "'execution_date' parameter is preserved only for backward compatibility with Airflow 2 "
+                    "and will be removed in future version. In Airflow 3, use logical_date instead.",
+                    DeprecationWarning,
+                    stacklevel=2,
+                )
+                logical_date = kwargs.pop("execution_date")
 
             dag = self.dag
             kwargs = {
