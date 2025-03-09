@@ -88,20 +88,6 @@ To check if the custom priority weight strategy is already available in Airflow,
 ``airflow plugins``. Then to use it, you can create an instance of the custom class and provide it in the
 ``weight_rule`` parameter of the task or provide the path of the custom class:
 
-.. code-block:: python
-
-    from decreasing_priority_weight_strategy import DecreasingPriorityStrategy
-
-    # provide the class instance
-    task1 = BashOperator(task_id="task", bash_command="echo 1", weight_rule=DecreasingPriorityStrategy())
-
-    # or provide the path of the class
-    task1 = BashOperator(
-        task_id="task",
-        bash_command="echo 1",
-        weight_rule="decreasing_priority_weight_strategy.DecreasingPriorityStrategy",
-    )
-
 .. exampleinclude:: /../../airflow/example_dags/example_custom_weight.py
     :language: python
     :dedent: 0

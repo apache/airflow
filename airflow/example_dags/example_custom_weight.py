@@ -22,11 +22,12 @@ from __future__ import annotations
 import datetime
 
 import pendulum
+from airflow.example_dags.plugins.decreasing_priority_weight_strategy import DecreasingPriorityStrategy
+
 # [START example_custom_weight_dag]
 from airflow.models.dag import DAG
 from airflow.providers.standard.operators.bash import BashOperator
 from airflow.providers.standard.operators.empty import EmptyOperator
-from decreasing_priority_weight_strategy import DecreasingPriorityStrategy
 
 with DAG(
     dag_id="example_custom_weight",
@@ -36,30 +37,21 @@ with DAG(
     dagrun_timeout=datetime.timedelta(minutes=60),
     tags=["example", "example2"],
 ) as dag:
-
     start = EmptyOperator(
         task_id="start",
     )
 
     # provide the class instance
-    task_1 = BashOperator(
-        task_id="task_1",
-        bash_command="echo 1",
-        weight_rule=DecreasingPriorityStrategy()
-    )
+    task_1 = BashOperator(task_id="task_1", bash_command="echo 1", weight_rule=DecreasingPriorityStrategy())
 
-    #or provide the path of the class
+    # or provide the path of the class
     task_2 = BashOperator(
         task_id="task_2",
         bash_command="echo 1",
-        weight_rule="decreasing_priority_weight_strategy.DecreasingPriorityStrategy"
+        weight_rule="airflow.example_dags.plugins.decreasing_priority_weight_strategy.DecreasingPriorityStrategy",
     )
 
-    task_non_custom = BashOperator(
-        task_id="task_non_custom",
-        bash_command="echo 1",
-        priority_weight=2
-    )
+    task_non_custom = BashOperator(task_id="task_non_custom", bash_command="echo 1", priority_weight=2)
 
     start >> [task_1, task_2, task_non_custom]
 # [END example_custom_weight_dag]
