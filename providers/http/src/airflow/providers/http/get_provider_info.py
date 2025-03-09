@@ -27,8 +27,9 @@ def get_provider_info():
         "name": "Hypertext Transfer Protocol (HTTP)",
         "description": "`Hypertext Transfer Protocol (HTTP) <https://www.w3.org/Protocols/>`__\n",
         "state": "ready",
-        "source-date-epoch": 1741121885,
+        "source-date-epoch": 1741508912,
         "versions": [
+            "5.2.1",
             "5.2.0",
             "5.0.0",
             "4.13.3",

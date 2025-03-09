@@ -27,8 +27,9 @@ def get_provider_info():
         "name": "Vertica",
         "description": "`Vertica <https://www.vertica.com/>`__\n",
         "state": "ready",
-        "source-date-epoch": 1741121961,
+        "source-date-epoch": 1741509977,
         "versions": [
+            "4.0.1",
             "4.0.0",
             "3.9.1",
             "3.9.0",
