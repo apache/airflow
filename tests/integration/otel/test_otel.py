@@ -536,8 +536,10 @@ def print_ti_output(ti: TaskInstance):
             )
             while metadata["end_of_log"] is False:
                 logs, metadata = task_log_reader.read_log_chunks(ti, ti.try_number - 1, metadata)
-                if ti.hostname in dict(logs[0]):
-                    output = output + str(dict(logs[0])[ti.hostname]).replace("\\n", "\n")
+                log_entry = logs[0]
+                assert isinstance(log_entry, dict), f"Expected dict but got: {type(log_entry)}"
+                if ti.hostname in dict(log_entry):
+                    output = output + str(dict(log_entry)[ti.hostname]).replace("\\n", "\n")
             # Logging the output is enough for capfd to capture it.
             log.info(format(output))
 
