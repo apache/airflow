@@ -2355,7 +2355,7 @@ class TestSchedulerJob:
         self.job_runner.active_spans = ThreadSafeDict()
         assert len(self.job_runner.active_spans.get_all()) == 0
 
-        dr = dag_maker.create_dagrun(external_trigger=True)
+        dr = dag_maker.create_dagrun()
         dr.state = State.RUNNING
         dr.span_status = SpanStatus.ACTIVE
         dr.scheduled_by_job_id = old_job.id
@@ -2416,7 +2416,7 @@ class TestSchedulerJob:
         self.job_runner.active_spans = ThreadSafeDict()
         assert len(self.job_runner.active_spans.get_all()) == 0
 
-        dr = dag_maker.create_dagrun(external_trigger=True)
+        dr = dag_maker.create_dagrun()
         dr.state = State.SUCCESS
         dr.span_status = SpanStatus.SHOULD_END
 
@@ -2474,7 +2474,7 @@ class TestSchedulerJob:
         self.job_runner.active_spans = ThreadSafeDict()
         assert len(self.job_runner.active_spans.get_all()) == 0
 
-        dr = dag_maker.create_dagrun(external_trigger=True)
+        dr = dag_maker.create_dagrun()
         dr.state = state
         dr.span_status = SpanStatus.ACTIVE
 

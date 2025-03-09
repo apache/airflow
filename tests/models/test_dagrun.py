@@ -582,8 +582,7 @@ class TestDagRun:
         assert dag_run.active_spans is not None
         assert dag_run.active_spans.get(dag_run.run_id) is not None
 
-        dag_version = DagVersion.get_latest_version(dag.dag_id)
-        dag_run.end_dr_span_if_needed(dagv=dag_version)
+        dag_run.end_dr_span_if_needed()
 
         assert dag_run.span_status == SpanStatus.ENDED
         assert dag_run.active_spans.get(dag_run.run_id) is None
@@ -621,8 +620,7 @@ class TestDagRun:
         assert dag_run.active_spans is not None
         assert dag_run.active_spans.get(dag_run.run_id) is None
 
-        dag_version = DagVersion.get_latest_version(dag.dag_id)
-        dag_run.end_dr_span_if_needed(dagv=dag_version)
+        dag_run.end_dr_span_if_needed()
 
         assert dag_run.span_status == SpanStatus.SHOULD_END
 
