@@ -43,7 +43,7 @@ Misc
 * ``Upgrade flit to 3.11.0 (#46938)``
 
 Doc-only
-~~~~
+~~~~~~~~
 
 * ``Include driver classpath in --jars cmd docstring in spark-submit hook and operator (#45210)``
 

@@ -40,7 +40,7 @@ Misc
 * ``Upgrade flit to 3.11.0 (#46938)``
 
 Doc-only
-~~~~
+~~~~~~~~
 
 * ``Remove extra whitespace in provider readme template (#46975)``
 
