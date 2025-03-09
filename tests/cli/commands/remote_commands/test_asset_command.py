@@ -19,15 +19,20 @@
 from __future__ import annotations
 
 import contextlib
+import datetime
 import io
 import json
 import os
 import typing
+from unittest.mock import patch
 
 import pytest
 
 from airflow.cli import cli_parser
 from airflow.cli.commands.remote_commands import asset_command
+from airflow.models import DagRun
+from airflow.utils.state import DagRunState
+from airflow.utils.types import DagRunTriggeredByType
 
 from tests_common.test_utils.db import clear_db_dags, clear_db_runs, parse_and_sync_to_db
 
@@ -117,15 +122,21 @@ def test_cli_assets_alias_details(parser: ArgumentParser) -> None:
     assert alias_detail_list[0] | undeterministic == undeterministic | {"name": "example-alias", "group": ""}
 
 
-def test_cli_assets_materialize(parser: ArgumentParser) -> None:
+@patch("airflow.cli.commands.remote_commands.asset_command.trigger_dag")
+def test_cli_assets_materialize(mock_trigger_dag_run, parser: ArgumentParser) -> None:
     args = parser.parse_args(["assets", "materialize", "--name=asset1_producer", "--output=json"])
+    mock_trigger_dag_run.return_value = DagRun(
+        dag_id="asset1_producer",
+        run_id="test_run_id",
+        state=DagRunState.QUEUED,
+        run_type="manual",
+        triggered_by=DagRunTriggeredByType.CLI,
+        run_after=datetime.datetime(2025, 2, 12, 19, 27, 59, 66046),
+    )
     with contextlib.redirect_stdout(io.StringIO()) as temp_stdout:
         asset_command.asset_materialize(args)
 
-    output = temp_stdout.getvalue()
-    # Skip the first line of `temp_stdout` since the current `DAGRunResponse` requires `DagBundlesManager`, which logs `INFO - DAG bundles loaded: dags-folder, example_dags`.
-    output = "\n".join(output.splitlines()[1:])
-    run_list = json.loads(output)
+    run_list = json.loads(temp_stdout.getvalue())
     assert len(run_list) == 1
 
     # No good way to statically compare these.
