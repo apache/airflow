@@ -102,6 +102,13 @@ To check if the custom priority weight strategy is already available in Airflow,
         weight_rule="decreasing_priority_weight_strategy.DecreasingPriorityStrategy",
     )
 
+.. exampleinclude:: /../../airflow/example_dags/example_custom_weight.py
+    :language: python
+    :dedent: 0
+    :start-after: [START example_custom_weight_dag]
+    :end-before: [END example_custom_weight_dag]
+
+
 After the DAG is running, you can check the ``priority_weight`` parameter on the task to verify that it is using
 the custom priority strategy rule.
 
