@@ -28,6 +28,7 @@ PRE_COMMIT_LIST = [
     "blacken-docs",
     "check-aiobotocore-optional",
     "check-airflow-k8s-not-used",
+    "check-airflow-provider-compatibility",
     "check-airflow-providers-bug-report-template",
     "check-apache-license-rat",
     "check-base-operator-partial-arguments",
