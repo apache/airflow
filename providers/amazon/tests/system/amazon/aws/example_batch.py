@@ -20,12 +20,6 @@ import logging
 from datetime import datetime
 
 import boto3
-from providers.amazon.tests.system.amazon.aws.utils import (
-    ENV_ID_KEY,
-    SystemTestContextBuilder,
-    prune_logs,
-    split_string,
-)
 
 from airflow.decorators import task
 from airflow.models.baseoperator import chain
@@ -38,6 +32,12 @@ from airflow.providers.amazon.aws.sensors.batch import (
     BatchSensor,
 )
 from airflow.utils.trigger_rule import TriggerRule
+from system.amazon.aws.utils import (
+    ENV_ID_KEY,
+    SystemTestContextBuilder,
+    prune_logs,
+    split_string,
+)
 
 log = logging.getLogger(__name__)
 

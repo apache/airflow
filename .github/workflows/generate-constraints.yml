@@ -119,7 +119,8 @@ jobs:
           for PYTHON in $PYTHON_VERSIONS; do
             breeze release-management generate-constraints \
             --airflow-constraints-mode constraints --answer yes \
-            --chicken-egg-providers "${CHICKEN_EGG_PROVIDERS}"
+            --chicken-egg-providers "${CHICKEN_EGG_PROVIDERS}" \
+            --python "${PYTHON}"
           done
       - name: "Dependency upgrade summary"
         shell: bash

@@ -67,6 +67,7 @@ services:
       - ../../../providers/cohere/tests:/opt/airflow/providers/cohere/tests
       - ../../../providers/common/compat/tests:/opt/airflow/providers/common/compat/tests
       - ../../../providers/common/io/tests:/opt/airflow/providers/common/io/tests
+      - ../../../providers/common/messaging/tests:/opt/airflow/providers/common/messaging/tests
       - ../../../providers/common/sql/tests:/opt/airflow/providers/common/sql/tests
       - ../../../providers/databricks/tests:/opt/airflow/providers/databricks/tests
       - ../../../providers/datadog/tests:/opt/airflow/providers/datadog/tests

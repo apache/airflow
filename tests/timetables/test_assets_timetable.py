@@ -244,24 +244,6 @@ def asset_events(mocker) -> list[AssetEvent]:
     return [event_earlier, event_later]
 
 
-def test_data_interval_for_events(
-    asset_timetable: AssetOrTimeSchedule, asset_events: list[AssetEvent]
-) -> None:
-    """
-    Tests the data_interval_for_events method of AssetOrTimeSchedule.
-
-    :param asset_timetable: The AssetOrTimeSchedule instance to test.
-    :param asset_events: A list of mock AssetEvent instances.
-    """
-    data_interval = asset_timetable.data_interval_for_events(logical_date=DateTime.now(), events=asset_events)
-    assert data_interval.start == min(
-        event.timestamp for event in asset_events
-    ), "Data interval start does not match"
-    assert data_interval.end == max(
-        event.timestamp for event in asset_events
-    ), "Data interval end does not match"
-
-
 def test_run_ordering_inheritance(asset_timetable: AssetOrTimeSchedule) -> None:
     """
     Tests that AssetOrTimeSchedule inherits run_ordering from its parent class correctly.
@@ -291,8 +273,11 @@ class TestAssetConditionWithTimetable:
         return [Asset(uri=f"test://asset{i}", name=f"hello{i}") for i in range(1, 3)]
 
     def test_asset_dag_run_queue_processing(self, session, dag_maker, create_test_assets):
+        from airflow.assets.evaluation import AssetEvaluator
+
         assets = create_test_assets
         asset_models = session.query(AssetModel).all()
+        evaluator = AssetEvaluator(session)
 
         with dag_maker(schedule=AssetAny(*assets)) as dag:
             EmptyOperator(task_id="hello")
@@ -316,7 +301,7 @@ class TestAssetConditionWithTimetable:
             dag = SerializedDAG.deserialize(serialized_dag.data)
             for asset_uri, status in dag_statuses[dag.dag_id].items():
                 cond = dag.timetable.asset_condition
-                assert cond.evaluate({asset_uri: status}), "DAG trigger evaluation failed"
+                assert evaluator.run(cond, {asset_uri: status}), "DAG trigger evaluation failed"
 
     def test_dag_with_complex_asset_condition(self, session, dag_maker):
         # Create Asset instances

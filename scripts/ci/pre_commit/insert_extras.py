@@ -30,8 +30,6 @@ from common_precommit_utils import insert_documentation
 sys.path.insert(0, AIRFLOW_ROOT_PATH.as_posix())  # make sure airflow root is imported
 from hatch_build import (
     ALL_DYNAMIC_EXTRA_DICTS,
-    ALL_GENERATED_BUNDLE_EXTRAS,
-    BUNDLE_EXTRAS,
     PROVIDER_DEPENDENCIES,
 )
 
@@ -62,8 +60,6 @@ def get_extra_types_dict() -> dict[str, list[str]]:
 
     for extra_dict, extra_description in ALL_DYNAMIC_EXTRA_DICTS:
         extra_list = sorted(extra_dict)
-        if extra_dict == BUNDLE_EXTRAS:
-            extra_list = sorted(extra_list + ALL_GENERATED_BUNDLE_EXTRAS)
         extra_type_dict[extra_description] = get_wrapped_list(extra_list)
     extra_type_dict["Provider extras"] = get_wrapped_list(PROVIDER_DEPENDENCIES)
     return extra_type_dict

@@ -41,6 +41,9 @@ import logging
 import os
 from datetime import datetime
 
+from google.analytics import admin_v1beta as google_analytics
+from google.cloud.exceptions import NotFound
+
 from airflow.decorators import task
 from airflow.models import Connection
 from airflow.models.dag import DAG
@@ -56,8 +59,6 @@ from airflow.providers.google.marketing_platform.operators.analytics_admin impor
 )
 from airflow.settings import Session
 from airflow.utils.trigger_rule import TriggerRule
-from google.analytics import admin_v1beta as google_analytics
-from google.cloud.exceptions import NotFound
 
 ENV_ID = os.environ.get("SYSTEM_TESTS_ENV_ID", "default")
 DAG_ID = "google_analytics_admin"

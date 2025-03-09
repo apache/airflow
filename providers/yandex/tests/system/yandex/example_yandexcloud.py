@@ -18,9 +18,6 @@ from __future__ import annotations
 
 from datetime import datetime
 
-from google.protobuf.json_format import MessageToDict
-from yandexcloud.operations import OperationError
-
 import yandex.cloud.dataproc.v1.cluster_pb2 as cluster_pb
 import yandex.cloud.dataproc.v1.cluster_service_pb2 as cluster_service_pb
 import yandex.cloud.dataproc.v1.cluster_service_pb2_grpc as cluster_service_grpc_pb
@@ -29,6 +26,9 @@ import yandex.cloud.dataproc.v1.job_pb2 as job_pb
 import yandex.cloud.dataproc.v1.job_service_pb2 as job_service_pb
 import yandex.cloud.dataproc.v1.job_service_pb2_grpc as job_service_grpc_pb
 import yandex.cloud.dataproc.v1.subcluster_pb2 as subcluster_pb
+from google.protobuf.json_format import MessageToDict
+from yandexcloud.operations import OperationError
+
 from airflow import DAG
 from airflow.decorators import task
 from airflow.providers.yandex.hooks.yandex import YandexCloudBaseHook

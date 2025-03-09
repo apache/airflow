@@ -26,6 +26,8 @@ from __future__ import annotations
 import os
 from datetime import datetime
 
+from google.cloud import aiplatform
+
 from airflow.models.dag import DAG
 from airflow.providers.google.cloud.operators.gcs import GCSCreateBucketOperator, GCSDeleteBucketOperator
 from airflow.providers.google.cloud.operators.vertex_ai.hyperparameter_tuning_job import (
@@ -35,7 +37,6 @@ from airflow.providers.google.cloud.operators.vertex_ai.hyperparameter_tuning_jo
     ListHyperparameterTuningJobOperator,
 )
 from airflow.utils.trigger_rule import TriggerRule
-from google.cloud import aiplatform
 
 ENV_ID = os.environ.get("SYSTEM_TESTS_ENV_ID", "default")
 PROJECT_ID = os.environ.get("SYSTEM_TESTS_GCP_PROJECT", "default")

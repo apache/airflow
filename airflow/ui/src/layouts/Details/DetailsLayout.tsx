@@ -16,66 +16,90 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Box, Button, HStack } from "@chakra-ui/react";
-import type { PropsWithChildren } from "react";
-import { FiChevronsLeft } from "react-icons/fi";
-import { Outlet, Link as RouterLink, useParams, useSearchParams } from "react-router-dom";
+import { Box, HStack, Flex } from "@chakra-ui/react";
+import { useReactFlow } from "@xyflow/react";
+import type { PropsWithChildren, ReactNode } from "react";
+import { Panel, PanelGroup, PanelResizeHandle } from "react-resizable-panels";
+import { Outlet, useParams } from "react-router-dom";
+import { useLocalStorage } from "usehooks-ts";
 
+import { useDagServiceGetDag } from "openapi/queries";
 import type { DAGResponse } from "openapi/requests/types.gen";
 import { ErrorAlert } from "src/components/ErrorAlert";
 import { SearchDagsButton } from "src/components/SearchDags";
+import TriggerDAGButton from "src/components/TriggerDag/TriggerDAGButton";
 import { ProgressBar } from "src/components/ui";
 import { Toaster } from "src/components/ui";
 import { OpenGroupsProvider } from "src/context/openGroups";
 
-import { DagVizModal } from "./DagVizModal";
+import { DagBreadcrumb } from "./DagBreadcrumb";
+import { Graph } from "./Graph";
+import { Grid } from "./Grid";
 import { NavTabs } from "./NavTabs";
+import { PanelButtons } from "./PanelButtons";
 
 type Props = {
   readonly dag?: DAGResponse;
   readonly error?: unknown;
   readonly isLoading?: boolean;
-  readonly tabs: Array<{ label: string; value: string }>;
+  readonly tabs: Array<{ icon: ReactNode; label: string; value: string }>;
 } & PropsWithChildren;
 
-export const DetailsLayout = ({ children, dag, error, isLoading, tabs }: Props) => {
+export const DetailsLayout = ({ children, error, isLoading, tabs }: Props) => {
   const { dagId = "" } = useParams();
 
-  const [searchParams, setSearchParams] = useSearchParams();
+  const { data: dag } = useDagServiceGetDag({ dagId });
 
-  const modal = searchParams.get("modal");
+  const [dagView, setDagView] = useLocalStorage<"graph" | "grid">(
+    `dag_view-${dagId}`,
+    dag && (dag.default_view === "graph" || dag.default_view === "grid") ? dag.default_view : "grid",
+  );
 
-  const isModalOpen = modal !== null;
-  const onClose = () => {
-    searchParams.delete("modal");
-    setSearchParams(searchParams);
-  };
+  const { fitView, getZoom } = useReactFlow();
 
   return (
     <OpenGroupsProvider dagId={dagId}>
-      <Box>
-        <HStack justifyContent="space-between" mb={2}>
-          <Button asChild colorPalette="blue" variant="ghost">
-            <RouterLink to="/dags">
-              <FiChevronsLeft />
-              Back to all dags
-            </RouterLink>
-          </Button>
+      <HStack justifyContent="space-between" mb={2}>
+        <DagBreadcrumb />
+        <Flex gap={1}>
           <SearchDagsButton />
-        </HStack>
-        <Toaster />
-        {isModalOpen ? undefined : children}
-        <ErrorAlert error={error} />
-        <ProgressBar size="xs" visibility={isLoading ? "visible" : "hidden"} />
-        <NavTabs tabs={tabs} />
-        <DagVizModal
-          dagDisplayName={dag?.dag_display_name}
-          dagId={dag?.dag_id}
-          onClose={onClose}
-          open={isModalOpen}
-        />
+          {dag === undefined ? undefined : <TriggerDAGButton dag={dag} />}
+        </Flex>
+      </HStack>
+      <Toaster />
+      <Box flex={1} minH={0}>
+        <PanelGroup autoSaveId={dagId} direction="horizontal">
+          <Panel defaultSize={dagView === "graph" ? 70 : 20} minSize={6}>
+            <Box height="100%" position="relative" pr={2}>
+              <PanelButtons dagView={dagView} setDagView={setDagView} />
+              {dagView === "graph" ? <Graph /> : <Grid />}
+            </Box>
+          </Panel>
+          <PanelResizeHandle
+            className="resize-handle"
+            onDragging={(isDragging) => {
+              if (!isDragging) {
+                const zoom = getZoom();
+
+                void fitView({ maxZoom: zoom, minZoom: zoom });
+              }
+            }}
+          >
+            <Box bg="fg.subtle" cursor="col-resize" h="100%" transition="background 0.2s" w={0.5} />
+          </PanelResizeHandle>
+          <Panel defaultSize={dagView === "graph" ? 30 : 80} minSize={20}>
+            <Box display="flex" flexDirection="column" h="100%">
+              {children}
+              <ErrorAlert error={error} />
+              <ProgressBar size="xs" visibility={isLoading ? "visible" : "hidden"} />
+              <NavTabs tabs={tabs} />
+              <Box h="100%" overflow="auto" px={2}>
+                <Outlet />
+              </Box>
+            </Box>
+          </Panel>
+        </PanelGroup>
       </Box>
-      <Box overflow="auto">{isModalOpen ? undefined : <Outlet />}</Box>
     </OpenGroupsProvider>
   );
 };

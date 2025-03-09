@@ -25,17 +25,18 @@ from airflow.utils.session import provide_session
 class RunnableExecDateDep(BaseTIDep):
     """Determines whether a task's logical date is valid."""
 
-    NAME = "Execution Date"
+    NAME = "Logical Date"
     IGNORABLE = True
 
     @provide_session
     def _get_dep_statuses(self, ti, session, dep_context):
+        logical_date = ti.get_dagrun(session).logical_date
+        if logical_date is None:
+            return
+
         cur_date = timezone.utcnow()
 
-        # don't consider runs that are executed in the future unless
-        # specified by config and schedule is None
-        logical_date = ti.get_dagrun(session).logical_date
-        if logical_date > cur_date and not ti.task.dag.allow_future_exec_dates:
+        if logical_date > cur_date:
             yield self._failing_status(
                 reason=(
                     f"Logical date {logical_date.isoformat()} is in the future "

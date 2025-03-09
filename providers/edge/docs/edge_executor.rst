@@ -134,7 +134,6 @@ before use. The following features have been initially tested and are working:
     optimized for scalability. This will need to be considered in future releases. A dedicated performance
     assessment is to be completed ensuring that in a hybrid setup other executors are not impacted before
     version 1.0.0 is to be released.
-  - Stuck tasks in queue are not explicitly handled as ``cleanup_stuck_queued_tasks()`` is not implemented.
 
 
 Architecture
@@ -281,7 +280,6 @@ The following features are known missing and will be implemented in increments:
   - Use WebSockets instead of HTTP calls for communication
   - Send logs also to TaskFileHandler if external logging services are used
   - Integration into telemetry to send metrics from remote site
-  - Allow ``airflow edge stop`` to wait until completed to terminated
   - Publish system metrics with heartbeats (CPU, Disk space, RAM, Load)
   - Be more liberal e.g. on patch version. MVP requires exact version match
     (In current state if versions do not match, the worker will gracefully shut

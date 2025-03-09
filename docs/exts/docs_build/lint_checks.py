@@ -275,16 +275,11 @@ def find_example_dags(provider_dir):
 
 def get_indexfile(provider: dict[str, Any]) -> Path:
     package_name = provider["package-name"]
-    # TODO(potiuk) - remove this when all providers are moved to the new structure
-    candidate = Path(DOCS_DIR) / package_name / "index.rst"
+    provider_id = provider["package-name"].replace("apache-airflow-providers-", "").replace("-", ".")
+    candidate = Path(PROVIDERS_DIR).joinpath(*provider_id.split(".")) / "docs" / "index.rst"
     if candidate.exists():
         return candidate
-    else:
-        provider_id = provider["package-name"].replace("apache-airflow-providers-", "").replace("-", ".")
-        candidate = Path(PROVIDERS_DIR).joinpath(*provider_id.split(".")) / "docs" / "index.rst"
-        if candidate.exists():
-            return candidate
-        raise ValueError(f"The index.rst for {package_name} does not exist at {candidate}")
+    raise ValueError(f"The index.rst for {package_name} does not exist at {candidate}")
 
 
 def check_pypi_repository_in_provider_tocs() -> list[DocBuildError]:

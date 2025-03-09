@@ -22,9 +22,10 @@ from functools import cached_property
 from typing import TYPE_CHECKING, Any
 from urllib import parse
 
+from elasticsearch import Elasticsearch
+
 from airflow.hooks.base import BaseHook
 from airflow.providers.common.sql.hooks.sql import DbApiHook
-from elasticsearch import Elasticsearch
 
 if TYPE_CHECKING:
     from elastic_transport import ObjectApiResponse
@@ -44,7 +45,7 @@ def connect(
 
 
 class ElasticsearchSQLCursor:
-    """A PEP 249-like Cursor class for Elasticsearch SQL API"""
+    """A PEP 249-like Cursor class for Elasticsearch SQL API."""
 
     def __init__(self, es: Elasticsearch, **kwargs):
         self.es = es

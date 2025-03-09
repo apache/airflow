@@ -679,3 +679,115 @@ use :class:`~airflow.providers.google.cloud.operators.dataplex.DataplexCatalogUp
     :dedent: 4
     :start-after: [START howto_operator_dataplex_catalog_update_aspect_type]
     :end-before: [END howto_operator_dataplex_catalog_update_aspect_type]
+
+.. _howto/operator:DataplexCatalogCreateEntryOperator:
+
+Create an Entry
+---------------
+
+To create an Entry in specific location in Dataplex Catalog you can
+use :class:`~airflow.providers.google.cloud.operators.dataplex.DataplexCatalogCreateEntryOperator`
+For more information about the available fields to pass when creating an Entry, visit `Entry resource configuration. <https://cloud.google.com/dataplex/docs/reference/rest/v1/projects.locations.entryGroups.entries>`__
+
+A simple Entry configuration can look as followed:
+
+.. exampleinclude:: /../../providers/google/tests/system/google/cloud/dataplex/example_dataplex_catalog.py
+    :language: python
+    :dedent: 0
+    :start-after: [START howto_dataplex_entry_configuration]
+    :end-before: [END howto_dataplex_entry_configuration]
+
+With this configuration you can create an Entry resource:
+
+:class:`~airflow.providers.google.cloud.operators.dataplex.DataplexCatalogCreateEntryOperator`
+
+.. exampleinclude:: /../../providers/google/tests/system/google/cloud/dataplex/example_dataplex_catalog.py
+    :language: python
+    :dedent: 4
+    :start-after: [START howto_operator_dataplex_catalog_create_entry]
+    :end-before: [END howto_operator_dataplex_catalog_create_entry]
+
+.. _howto/operator:DataplexCatalogDeleteEntryOperator:
+
+Delete an Entry
+---------------
+
+To delete an Entry in specific location in Dataplex Catalog you can
+use :class:`~airflow.providers.google.cloud.operators.dataplex.DataplexCatalogDeleteEntryOperator`
+
+.. exampleinclude:: /../../providers/google/tests/system/google/cloud/dataplex/example_dataplex_catalog.py
+    :language: python
+    :dedent: 4
+    :start-after: [START howto_operator_dataplex_catalog_delete_entry]
+    :end-before: [END howto_operator_dataplex_catalog_delete_entry]
+
+.. _howto/operator:DataplexCatalogListEntriesOperator:
+
+List Entries
+------------
+
+To list all Entries in specific location in Dataplex Catalog you can
+use :class:`~airflow.providers.google.cloud.operators.dataplex.DataplexCatalogListEntriesOperator`.
+This operator also supports filtering and ordering the result of the operation.
+
+.. exampleinclude:: /../../providers/google/tests/system/google/cloud/dataplex/example_dataplex_catalog.py
+    :language: python
+    :dedent: 4
+    :start-after: [START howto_operator_dataplex_catalog_list_entries]
+    :end-before: [END howto_operator_dataplex_catalog_list_entries]
+
+.. _howto/operator:DataplexCatalogGetEntryOperator:
+
+Get an Entry
+------------
+
+To retrieve an Entry in specific location in Dataplex Catalog you can
+use :class:`~airflow.providers.google.cloud.operators.dataplex.DataplexCatalogGetEntryOperator`
+
+.. exampleinclude:: /../../providers/google/tests/system/google/cloud/dataplex/example_dataplex_catalog.py
+    :language: python
+    :dedent: 4
+    :start-after: [START howto_operator_dataplex_catalog_get_entry]
+    :end-before: [END howto_operator_dataplex_catalog_get_entry]
+
+.. _howto/operator:DataplexCatalogUpdateEntryOperator:
+
+Update an Entry
+---------------
+
+To update an Entry in specific location in Dataplex Catalog you can
+use :class:`~airflow.providers.google.cloud.operators.dataplex.DataplexCatalogUpdateEntryOperator`
+
+.. exampleinclude:: /../../providers/google/tests/system/google/cloud/dataplex/example_dataplex_catalog.py
+    :language: python
+    :dedent: 4
+    :start-after: [START howto_operator_dataplex_catalog_update_entry]
+    :end-before: [END howto_operator_dataplex_catalog_update_entry]
+
+.. _howto/operator:DataplexCatalogLookupEntryOperator:
+
+Look up a single Entry
+----------------------
+
+To look up a single Entry by name using the permission on the source system in Dataplex Catalog you can
+use :class:`~airflow.providers.google.cloud.operators.dataplex.DataplexCatalogLookupEntryOperator`
+
+.. exampleinclude:: /../../providers/google/tests/system/google/cloud/dataplex/example_dataplex_catalog.py
+    :language: python
+    :dedent: 4
+    :start-after: [START howto_operator_dataplex_catalog_lookup_entry]
+    :end-before: [END howto_operator_dataplex_catalog_lookup_entry]
+
+.. _howto/operator:DataplexCatalogSearchEntriesOperator:
+
+Search Entries
+--------------
+
+To search for Entries matching the given query and scope in Dataplex Catalog you can
+use :class:`~airflow.providers.google.cloud.operators.dataplex.DataplexCatalogSearchEntriesOperator`
+
+.. exampleinclude:: /../../providers/google/tests/system/google/cloud/dataplex/example_dataplex_catalog.py
+    :language: python
+    :dedent: 4
+    :start-after: [START howto_operator_dataplex_catalog_search_entry]
+    :end-before: [END howto_operator_dataplex_catalog_search_entry]

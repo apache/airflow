@@ -20,7 +20,6 @@ from datetime import datetime
 from typing import TYPE_CHECKING
 
 import boto3
-from providers.amazon.tests.system.amazon.aws.utils import ENV_ID_KEY, SystemTestContextBuilder, prune_logs
 
 from airflow.decorators import task
 from airflow.models.baseoperator import chain
@@ -36,6 +35,7 @@ from airflow.providers.amazon.aws.sensors.glue import GlueJobSensor
 from airflow.providers.amazon.aws.sensors.glue_catalog_partition import GlueCatalogPartitionSensor
 from airflow.providers.amazon.aws.sensors.glue_crawler import GlueCrawlerSensor
 from airflow.utils.trigger_rule import TriggerRule
+from system.amazon.aws.utils import ENV_ID_KEY, SystemTestContextBuilder, prune_logs
 
 if TYPE_CHECKING:
     from botocore.client import BaseClient
@@ -195,7 +195,8 @@ with DAG(
             ("/aws-glue/jobs/logs-v2", submit_glue_job.output),
             ("/aws-glue/jobs/error", submit_glue_job.output),
             ("/aws-glue/jobs/output", submit_glue_job.output),
-        ]
+        ],
+        delete_log_groups=False,
     )
 
     chain(

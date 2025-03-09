@@ -31,13 +31,14 @@ from typing import (
     overload,
 )
 
+from databricks import sql  # type: ignore[attr-defined]
+from databricks.sql.types import Row
+
 from airflow.exceptions import AirflowException
 from airflow.models.connection import Connection as AirflowConnection
 from airflow.providers.common.sql.hooks.sql import DbApiHook, return_single_query_results
 from airflow.providers.databricks.exceptions import DatabricksSqlExecutionError, DatabricksSqlExecutionTimeout
 from airflow.providers.databricks.hooks.databricks_base import BaseDatabricksHook
-from databricks import sql  # type: ignore[attr-defined]
-from databricks.sql.types import Row
 
 if TYPE_CHECKING:
     from databricks.sql.client import Connection

@@ -23,13 +23,15 @@ from __future__ import annotations
 import os
 from datetime import datetime
 
-from providers.google.tests.system.google import DEFAULT_GCP_SYSTEM_TEST_PROJECT_ID
+from google.cloud import dataplex_v1
+from google.cloud.dataplex_v1 import DataQualitySpec
+from google.protobuf.field_mask_pb2 import FieldMask
 
 from airflow.models.baseoperator import chain
 from airflow.models.dag import DAG
 from airflow.providers.google.cloud.operators.bigquery import (
     BigQueryCreateEmptyDatasetOperator,
-    BigQueryCreateEmptyTableOperator,
+    BigQueryCreateTableOperator,
     BigQueryDeleteDatasetOperator,
     BigQueryInsertJobOperator,
 )
@@ -48,9 +50,7 @@ from airflow.providers.google.cloud.operators.dataplex import (
 )
 from airflow.providers.google.cloud.sensors.dataplex import DataplexDataQualityJobStatusSensor
 from airflow.utils.trigger_rule import TriggerRule
-from google.cloud import dataplex_v1
-from google.cloud.dataplex_v1 import DataQualitySpec
-from google.protobuf.field_mask_pb2 import FieldMask
+from system.google import DEFAULT_GCP_SYSTEM_TEST_PROJECT_ID
 
 ENV_ID = os.environ.get("SYSTEM_TESTS_ENV_ID", "default")
 PROJECT_ID = os.environ.get("SYSTEM_TESTS_GCP_PROJECT") or DEFAULT_GCP_SYSTEM_TEST_PROJECT_ID
@@ -155,18 +155,22 @@ with DAG(
     tags=["example", "dataplex", "data_quality"],
 ) as dag:
     create_dataset = BigQueryCreateEmptyDatasetOperator(task_id="create_dataset", dataset_id=DATASET)
-    create_table_1 = BigQueryCreateEmptyTableOperator(
+    create_table_1 = BigQueryCreateTableOperator(
         task_id="create_table_1",
         dataset_id=DATASET,
         table_id=TABLE_1,
-        schema_fields=SCHEMA,
+        table_resource={
+            "schema": {"fields": SCHEMA},
+        },
         location=LOCATION,
     )
-    create_table_2 = BigQueryCreateEmptyTableOperator(
+    create_table_2 = BigQueryCreateTableOperator(
         task_id="create_table_2",
         dataset_id=DATASET,
         table_id=TABLE_2,
-        schema_fields=SCHEMA,
+        table_resource={
+            "schema": {"fields": SCHEMA},
+        },
         location=LOCATION,
     )
     insert_query_job = BigQueryInsertJobOperator(

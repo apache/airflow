@@ -1,0 +1,45 @@
+Operator Links interface changed to not run user code in Airflow Webserver
+
+The Operator Extra links, which can be defined either via plugins or custom operators
+now do not execute any user code in the Airflow Webserver, but instead push the "full"
+links to XCom backend and the link is fetched from the XCom backend when viewing
+task details, for example from grid view.
+
+Example for users with custom links class:
+
+.. code-block:: python
+
+  @attr.s(auto_attribs=True)
+  class CustomBaseIndexOpLink(BaseOperatorLink):
+      """Custom Operator Link for Google BigQuery Console."""
+
+      index: int = attr.ib()
+
+      @property
+      def name(self) -> str:
+          return f"BigQuery Console #{self.index + 1}"
+
+      @property
+      def xcom_key(self) -> str:
+          return f"bigquery_{self.index + 1}"
+
+      def get_link(self, operator, *, ti_key):
+          search_queries = XCom.get_one(
+              task_id=ti_key.task_id, dag_id=ti_key.dag_id, run_id=ti_key.run_id, key="search_query"
+          )
+          return f"https://console.cloud.google.com/bigquery?j={search_query}"
+
+The link has an xcom_key defined, which is how it will be stored in the XCOM backend, with key as xcom_key and
+value as the entire link, this case: https://console.cloud.google.com/bigquery?j=search
+
+
+* Types of change
+
+  * [ ] Dag changes
+  * [ ] Config changes
+  * [ ] API changes
+  * [ ] CLI changes
+  * [ ] Behaviour changes
+  * [ ] Plugin changes
+  * [ ] Dependency changes
+  * [ ] Code interface changes

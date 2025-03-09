@@ -27,6 +27,34 @@
 Changelog
 ---------
 
+6.1.0
+.....
+
+Features
+~~~~~~~~
+
+* ``SnowflakeSqlApiOperator snowflake_conn_id add to template_fields (#46422)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``snowflake: pass through the ocsp_fail_open setting (#46476)``
+
+Misc
+~~~~
+
+* ``AIP-83 amendment: Add logic for generating run_id when logical date is None. (#46616)``
+* ``AIP-72: Support better type-hinting for Context dict in SDK  (#45583)``
+* ``Remove obsolete pandas specfication for pre-python 3.9 (#45399)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Move provider_tests to unit folder in provider tests (#46800)``
+   * ``Removed the unused provider's distribution (#46608)``
+   * ``Fix doc issues found with recent moves (#46372)``
+   * ``Move SNOWFLAKE provider to new structure (#46059)``
+   * ``move standard, alibaba and common.sql provider to the new structure (#45964)``
+
 6.0.0
 .....
 

@@ -25,8 +25,6 @@ from __future__ import annotations
 import datetime
 import os
 
-from providers.google.tests.system.google import DEFAULT_GCP_SYSTEM_TEST_PROJECT_ID
-
 from airflow.models.dag import DAG
 from airflow.providers.google.cloud.operators.dataproc_metastore import (
     DataprocMetastoreCreateBackupOperator,
@@ -37,6 +35,7 @@ from airflow.providers.google.cloud.operators.dataproc_metastore import (
     DataprocMetastoreRestoreServiceOperator,
 )
 from airflow.utils.trigger_rule import TriggerRule
+from system.google import DEFAULT_GCP_SYSTEM_TEST_PROJECT_ID
 
 DAG_ID = "dataproc_metastore_backup"
 

@@ -30,8 +30,6 @@ import logging
 import os
 from datetime import datetime
 
-from providers.google.tests.system.google import DEFAULT_GCP_SYSTEM_TEST_PROJECT_ID
-
 from airflow import models
 from airflow.decorators import task
 from airflow.models import Connection
@@ -49,6 +47,7 @@ from airflow.providers.google.cloud.operators.gcs import GCSCreateBucketOperator
 from airflow.providers.google.cloud.sensors.dataprep import DataprepJobGroupIsFinishedSensor
 from airflow.settings import Session
 from airflow.utils.trigger_rule import TriggerRule
+from system.google import DEFAULT_GCP_SYSTEM_TEST_PROJECT_ID
 
 ENV_ID = os.environ.get("SYSTEM_TESTS_ENV_ID", "default")
 DAG_ID = "dataprep"

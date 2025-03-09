@@ -27,6 +27,35 @@
 Changelog
 ---------
 
+6.2.0
+.....
+
+.. note::
+  This version has no code changes. It's released due to yank of previous version due to packaging issues.
+
+
+6.1.0
+.....
+
+Features
+~~~~~~~~
+
+* ``Implemented cursor for ElasticsearchSQLHook so it can be used through SQLExecuteQueryOperator (#46439)``
+* ``Add write feature to ESTaskHandler (#44973)``
+
+Misc
+~~~~
+
+* ``Start porting mapped task to SDK (#45627)``
+* ``Update index.rst (#45263)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Move provider_tests to unit folder in provider tests (#46800)``
+   * ``Removed the unused provider's distribution (#46608)``
+   * ``Fix doc issues found with recent moves (#46372)``
+   * ``refactor(providers/elasticsearch): move elasticsearch provider to new structure (#46146)``
+
 6.0.0
 .....
 

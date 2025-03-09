@@ -66,7 +66,7 @@
     :maxdepth: 1
     :caption: Resources
 
-    Example DAGs <https://github.com/apache/airflow/tree/providers-cncf-kubernetes/|version|/providers/tests/system/cncf/kubernetes>
+    Example DAGs <https://github.com/apache/airflow/tree/providers-cncf-kubernetes/|version|/providers/cncf/kubernetes/tests/system/cncf/kubernetes>
     PyPI Repository <https://pypi.org/project/apache-airflow-providers-cncf-kubernetes/>
     Installing from sources <installing-providers-from-sources>
 
@@ -87,7 +87,7 @@ apache-airflow-providers-cncf-kubernetes package
 `Kubernetes <https://kubernetes.io/>`__
 
 
-Release: 10.1.0
+Release: 10.3.0
 
 Provider package
 ----------------
@@ -116,5 +116,4 @@ PIP package             Version required
 ``cryptography``        ``>=41.0.0``
 ``kubernetes``          ``>=29.0.0,<=31.0.0``
 ``kubernetes_asyncio``  ``>=29.0.0,<=31.0.0``
-``google-re2``          ``>=1.0``
 ======================  =====================

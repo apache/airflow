@@ -15,6 +15,8 @@ import type {
   GetAssetEventsResponse,
   CreateAssetEventData,
   CreateAssetEventResponse,
+  MaterializeAssetData,
+  MaterializeAssetResponse,
   GetAssetQueuedEventsData,
   GetAssetQueuedEventsResponse,
   DeleteAssetQueuedEventsData,
@@ -36,6 +38,8 @@ import type {
   GetConfigValueResponse,
   RecentDagRunsData,
   RecentDagRunsResponse,
+  GetDependenciesData,
+  GetDependenciesResponse,
   HistoricalMetricsData,
   HistoricalMetricsResponse,
   StructureDataData,
@@ -199,6 +203,10 @@ import type {
   BulkVariablesResponse,
   ReparseDagFileData,
   ReparseDagFileResponse,
+  GetDagVersionData,
+  GetDagVersionResponse,
+  GetDagVersionsData,
+  GetDagVersionsResponse,
   GetHealthResponse,
   GetVersionResponse,
   LoginData,
@@ -380,6 +388,31 @@ export class AssetService {
   }
 
   /**
+   * Materialize Asset
+   * Materialize an asset by triggering a DAG run that produces it.
+   * @param data The data for the request.
+   * @param data.assetId
+   * @returns DAGRunResponse Successful Response
+   * @throws ApiError
+   */
+  public static materializeAsset(data: MaterializeAssetData): CancelablePromise<MaterializeAssetResponse> {
+    return __request(OpenAPI, {
+      method: "POST",
+      url: "/public/assets/{asset_id}/materialize",
+      path: {
+        asset_id: data.assetId,
+      },
+      errors: {
+        401: "Unauthorized",
+        403: "Forbidden",
+        404: "Not Found",
+        409: "Conflict",
+        422: "Validation Error",
+      },
+    });
+  }
+
+  /**
    * Get Asset Queued Events
    * Get queued asset events for an asset.
    * @param data The data for the request.
@@ -415,6 +448,7 @@ export class AssetService {
    * @param data The data for the request.
    * @param data.assetId
    * @param data.before
+   * @param data.dagId
    * @returns void Successful Response
    * @throws ApiError
    */
@@ -429,6 +463,7 @@ export class AssetService {
       },
       query: {
         before: data.before,
+        dag_id: data.dagId,
       },
       errors: {
         401: "Unauthorized",
@@ -710,6 +745,30 @@ export class DagsService {
   }
 }
 
+export class DependenciesService {
+  /**
+   * Get Dependencies
+   * Dependencies graph.
+   * @param data The data for the request.
+   * @param data.nodeId
+   * @returns BaseGraphResponse Successful Response
+   * @throws ApiError
+   */
+  public static getDependencies(data: GetDependenciesData = {}): CancelablePromise<GetDependenciesResponse> {
+    return __request(OpenAPI, {
+      method: "GET",
+      url: "/ui/dependencies",
+      query: {
+        node_id: data.nodeId,
+      },
+      errors: {
+        404: "Not Found",
+        422: "Validation Error",
+      },
+    });
+  }
+}
+
 export class DashboardService {
   /**
    * Historical Metrics
@@ -980,14 +1039,16 @@ export class GridService {
    * @param data.dagId
    * @param data.includeUpstream
    * @param data.includeDownstream
-   * @param data.logicalDateGte
-   * @param data.logicalDateLte
    * @param data.root
    * @param data.offset
    * @param data.runType
    * @param data.state
    * @param data.limit
    * @param data.orderBy
+   * @param data.runAfterGte
+   * @param data.runAfterLte
+   * @param data.logicalDateGte
+   * @param data.logicalDateLte
    * @returns GridResponse Successful Response
    * @throws ApiError
    */
@@ -1001,14 +1062,16 @@ export class GridService {
       query: {
         include_upstream: data.includeUpstream,
         include_downstream: data.includeDownstream,
-        logical_date_gte: data.logicalDateGte,
-        logical_date_lte: data.logicalDateLte,
         root: data.root,
         offset: data.offset,
         run_type: data.runType,
         state: data.state,
         limit: data.limit,
         order_by: data.orderBy,
+        run_after_gte: data.runAfterGte,
+        run_after_lte: data.runAfterLte,
+        logical_date_gte: data.logicalDateGte,
+        logical_date_lte: data.logicalDateLte,
       },
       errors: {
         400: "Bad Request",
@@ -1107,6 +1170,7 @@ export class ConnectionService {
    * @param data.limit
    * @param data.offset
    * @param data.orderBy
+   * @param data.connectionIdPattern
    * @returns ConnectionCollectionResponse Successful Response
    * @throws ApiError
    */
@@ -1118,6 +1182,7 @@ export class ConnectionService {
         limit: data.limit,
         offset: data.offset,
         order_by: data.orderBy,
+        connection_id_pattern: data.connectionIdPattern,
       },
       errors: {
         401: "Unauthorized",
@@ -1369,6 +1434,8 @@ export class DagRunService {
    * @param data.dagId
    * @param data.limit
    * @param data.offset
+   * @param data.runAfterGte
+   * @param data.runAfterLte
    * @param data.logicalDateGte
    * @param data.logicalDateLte
    * @param data.startDateGte
@@ -1392,6 +1459,8 @@ export class DagRunService {
       query: {
         limit: data.limit,
         offset: data.offset,
+        run_after_gte: data.runAfterGte,
+        run_after_lte: data.runAfterLte,
         logical_date_gte: data.logicalDateGte,
         logical_date_lte: data.logicalDateLte,
         start_date_gte: data.startDateGte,
@@ -1835,6 +1904,7 @@ export class EventLogService {
    * Get Event Log
    * @param data The data for the request.
    * @param data.eventLogId
+   * @param data.dagId
    * @returns EventLogResponse Successful Response
    * @throws ApiError
    */
@@ -1844,6 +1914,9 @@ export class EventLogService {
       url: "/public/eventLogs/{event_log_id}",
       path: {
         event_log_id: data.eventLogId,
+      },
+      query: {
+        dag_id: data.dagId,
       },
       errors: {
         401: "Unauthorized",
@@ -1858,10 +1931,10 @@ export class EventLogService {
    * Get Event Logs
    * Get all Event Logs.
    * @param data The data for the request.
+   * @param data.dagId
    * @param data.limit
    * @param data.offset
    * @param data.orderBy
-   * @param data.dagId
    * @param data.taskId
    * @param data.runId
    * @param data.mapIndex
@@ -1880,10 +1953,10 @@ export class EventLogService {
       method: "GET",
       url: "/public/eventLogs",
       query: {
+        dag_id: data.dagId,
         limit: data.limit,
         offset: data.offset,
         order_by: data.orderBy,
-        dag_id: data.dagId,
         task_id: data.taskId,
         run_id: data.runId,
         map_index: data.mapIndex,
@@ -2045,6 +2118,8 @@ export class TaskInstanceService {
    * @param data.dagId
    * @param data.dagRunId
    * @param data.taskId
+   * @param data.runAfterGte
+   * @param data.runAfterLte
    * @param data.logicalDateGte
    * @param data.logicalDateLte
    * @param data.startDateGte
@@ -2078,6 +2153,8 @@ export class TaskInstanceService {
         task_id: data.taskId,
       },
       query: {
+        run_after_gte: data.runAfterGte,
+        run_after_lte: data.runAfterLte,
         logical_date_gte: data.logicalDateGte,
         logical_date_lte: data.logicalDateLte,
         start_date_gte: data.startDateGte,
@@ -2320,6 +2397,8 @@ export class TaskInstanceService {
    * @param data.dagId
    * @param data.dagRunId
    * @param data.taskId
+   * @param data.runAfterGte
+   * @param data.runAfterLte
    * @param data.logicalDateGte
    * @param data.logicalDateLte
    * @param data.startDateGte
@@ -2352,6 +2431,8 @@ export class TaskInstanceService {
       },
       query: {
         task_id: data.taskId,
+        run_after_gte: data.runAfterGte,
+        run_after_lte: data.runAfterLte,
         logical_date_gte: data.logicalDateGte,
         logical_date_lte: data.logicalDateLte,
         start_date_gte: data.startDateGte,
@@ -3322,6 +3403,74 @@ export class DagParsingService {
       url: "/public/parseDagFile/{file_token}",
       path: {
         file_token: data.fileToken,
+      },
+      errors: {
+        401: "Unauthorized",
+        403: "Forbidden",
+        404: "Not Found",
+        422: "Validation Error",
+      },
+    });
+  }
+}
+
+export class DagVersionService {
+  /**
+   * Get Dag Version
+   * Get one Dag Version.
+   * @param data The data for the request.
+   * @param data.dagId
+   * @param data.versionNumber
+   * @returns DagVersionResponse Successful Response
+   * @throws ApiError
+   */
+  public static getDagVersion(data: GetDagVersionData): CancelablePromise<GetDagVersionResponse> {
+    return __request(OpenAPI, {
+      method: "GET",
+      url: "/public/dags/{dag_id}/dagVersions/{version_number}",
+      path: {
+        dag_id: data.dagId,
+        version_number: data.versionNumber,
+      },
+      errors: {
+        401: "Unauthorized",
+        403: "Forbidden",
+        404: "Not Found",
+        422: "Validation Error",
+      },
+    });
+  }
+
+  /**
+   * Get Dag Versions
+   * Get all DAG Versions.
+   *
+   * This endpoint allows specifying `~` as the dag_id to retrieve DAG Versions for all DAGs.
+   * @param data The data for the request.
+   * @param data.dagId
+   * @param data.limit
+   * @param data.offset
+   * @param data.versionNumber
+   * @param data.bundleName
+   * @param data.bundleVersion
+   * @param data.orderBy
+   * @returns DAGVersionCollectionResponse Successful Response
+   * @throws ApiError
+   */
+  public static getDagVersions(data: GetDagVersionsData): CancelablePromise<GetDagVersionsResponse> {
+    return __request(OpenAPI, {
+      method: "GET",
+      url: "/public/dags/{dag_id}/dagVersions",
+      path: {
+        dag_id: data.dagId,
+      },
+      query: {
+        limit: data.limit,
+        offset: data.offset,
+        version_number: data.versionNumber,
+        bundle_name: data.bundleName,
+        bundle_version: data.bundleVersion,
+        order_by: data.orderBy,
       },
       errors: {
         401: "Unauthorized",

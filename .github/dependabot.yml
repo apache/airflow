@@ -22,7 +22,17 @@ updates:
       - /clients/python
       - /dev/breeze
       - /docker_tests
-      - /task_sdk
+      - /task-sdk
       - /
     schedule:
       interval: daily
+
+  - package-ecosystem: pip
+    directories:
+      - /providers/*/
+    schedule:
+      interval: daily
+    groups:
+      provider-dependencies:
+        patterns:
+          - "*"

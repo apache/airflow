@@ -27,6 +27,28 @@
 Changelog
 ---------
 
+5.0.1
+.....
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fix side effect of not tearing down mongo hook in tests (#46291)``
+* ``Fix pymongo generated dependencies not updated in pymongo fix (#46220)``
+* ``Bugfix/prevent pymongo 4.11 (#46216)``
+
+Misc
+~~~~
+
+* ``Disallow pymongo: 4.11.1 to fix CI tests (#46636)``
+* ``AIP-72: Support better type-hinting for Context dict in SDK  (#45583)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Move provider_tests to unit folder in provider tests (#46800)``
+   * ``Removed the unused provider's distribution (#46608)``
+   * ``refactor(providers/mongo): move mongodb provider to new structure (#46094)``
+
 5.0.0
 .....
 

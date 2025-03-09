@@ -31,19 +31,19 @@ is anything more needed for the test to be executed, it should be documented in 
 Example files structure:
 
 ```
-providers/tests/system/google
-                            ├── bigquery
-                            │   ├── resources
-                            │   │   ├── example_bigquery_query.sql
-                            │   │   └── us-states.csv
-                            │   ├── example_bigquery_queries.py
-                            │   ├── example_bigquery_operations.py
-                            .   .
-                            │   └── example_bigquery_*.py
-                            ├── dataflow
-                            ├── gcs
-                            .
-                            └── *
+providers/google/tests/system/google
+                                   ├── bigquery
+                                   │   ├── resources
+                                   │   │   ├── example_bigquery_query.sql
+                                   │   │   └── us-states.csv
+                                   │   ├── example_bigquery_queries.py
+                                   │   ├── example_bigquery_operations.py
+                                   .   .
+                                   │   └── example_bigquery_*.py
+                                   ├── dataflow
+                                   ├── gcs
+                                   .
+                                   └── *
 ```
 
 ## Initial configuration

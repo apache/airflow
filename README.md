@@ -97,14 +97,14 @@ Airflow is not a streaming solution, but it is often used to process real-time d
 
 Apache Airflow is tested with:
 
-|            | Main version (dev)         | Stable version (2.10.5)    |
-|------------|----------------------------|----------------------------|
-| Python     | 3.9, 3.10, 3.11, 3.12      | 3.8, 3.9, 3.10, 3.11, 3.12 |
-| Platform   | AMD64/ARM64(\*)            | AMD64/ARM64(\*)            |
-| Kubernetes | 1.28, 1.29, 1.30, 1.31     | 1.27, 1.28, 1.29, 1.30     |
-| PostgreSQL | 13, 14, 15, 16, 17         | 12, 13, 14, 15, 16         |
-| MySQL      | 8.0, 8.4, Innovation       | 8.0, 8.4, Innovation       |
-| SQLite     | 3.15.0+                    | 3.15.0+                    |
+|            | Main version (dev)     | Stable version (2.10.5)    |
+|------------|------------------------|----------------------------|
+| Python     | 3.9, 3.10, 3.11, 3.12  | 3.8, 3.9, 3.10, 3.11, 3.12 |
+| Platform   | AMD64/ARM64(\*)        | AMD64/ARM64(\*)            |
+| Kubernetes | 1.29, 1.30, 1.31, 1.32 | 1.27, 1.28, 1.29, 1.30     |
+| PostgreSQL | 13, 14, 15, 16, 17     | 12, 13, 14, 15, 16         |
+| MySQL      | 8.0, 8.4, Innovation   | 8.0, 8.4, Innovation       |
+| SQLite     | 3.15.0+                | 3.15.0+                    |
 
 \* Experimental
 
@@ -535,4 +535,4 @@ The CI infrastructure for Apache Airflow has been sponsored by:
 <!-- Ordered by most recently "funded" -->
 
 <a href="https://astronomer.io"><img src="https://assets2.astronomer.io/logos/logoForLIGHTbackground.png" alt="astronomer.io" width="250px"></a>
-<a href="https://aws.amazon.com/opensource/"><img src="docs/integration-logos/aws/AWS-Cloud-alt_light-bg@4x.png" alt="AWS OpenSource" width="130px"></a>
+<a href="https://aws.amazon.com/opensource/"><img src="https://github.com/apache/airflow/blob/main/providers/amazon/docs/integration-logos/AWS-Cloud-alt_light-bg@4x.png?raw=true" alt="AWS OpenSource" width="130px"></a>

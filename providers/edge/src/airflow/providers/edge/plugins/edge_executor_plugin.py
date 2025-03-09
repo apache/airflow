@@ -17,32 +17,41 @@
 
 from __future__ import annotations
 
+import re
 from datetime import datetime, timedelta
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
 from flask import Blueprint, redirect, request, url_for
 from flask_appbuilder import BaseView, expose
+from markupsafe import Markup
 from sqlalchemy import select
 
-from airflow.auth.managers.models.resource_details import AccessView
 from airflow.configuration import conf
 from airflow.exceptions import AirflowConfigException
 from airflow.models.taskinstance import TaskInstanceState
 from airflow.plugins_manager import AirflowPlugin
 from airflow.providers.edge.version_compat import AIRFLOW_V_3_0_PLUS
+from airflow.utils.state import State
+
+if AIRFLOW_V_3_0_PLUS:
+    from airflow.api_fastapi.auth.managers.models.resource_details import AccessView
+    from airflow.providers.fab.www.auth import has_access_view
+
+else:
+    from airflow.auth.managers.models.resource_details import AccessView  # type: ignore[no-redef]
+    from airflow.www.auth import has_access_view  # type: ignore[no-redef]
 from airflow.utils.session import NEW_SESSION, provide_session
 from airflow.utils.yaml import safe_load
-from airflow.www import utils as wwwutils
-from airflow.www.auth import has_access_view
-from airflow.www.constants import SWAGGER_BUNDLE, SWAGGER_ENABLED
-from airflow.www.extensions.init_views import _CustomErrorRequestBodyValidator, _LazyResolver
 
 if TYPE_CHECKING:
     from sqlalchemy.orm import Session
 
 
 def _get_airflow_2_api_endpoint() -> Blueprint:
+    from airflow.www.constants import SWAGGER_BUNDLE, SWAGGER_ENABLED
+    from airflow.www.extensions.init_views import _CustomErrorRequestBodyValidator, _LazyResolver
+
     folder = Path(__file__).parents[1].resolve()  # this is airflow/providers/edge/
     with folder.joinpath("openapi", "edge_worker_api_v1.yaml").open() as f:
         specification = safe_load(f)
@@ -52,8 +61,8 @@ def _get_airflow_2_api_endpoint() -> Blueprint:
         specification=specification,
         resolver=_LazyResolver(),
         base_path="/edge_worker/v1",
-        options={"swagger_ui": SWAGGER_ENABLED, "swagger_path": SWAGGER_BUNDLE.__fspath__()},
         strict_validation=True,
+        options={"swagger_ui": SWAGGER_ENABLED, "swagger_path": SWAGGER_BUNDLE.__fspath__()},
         validate_responses=True,
         validator_map={"body": _CustomErrorRequestBodyValidator},
     ).blueprint
@@ -72,6 +81,38 @@ def _get_api_endpoint() -> dict[str, Any]:
         "url_prefix": "/edge_worker/v1",
         "name": "Airflow Edge Worker API",
     }
+
+
+def _state_token(state):
+    """Return a formatted string with HTML for a given State."""
+    color = State.color(state)
+    fg_color = State.color_fg(state)
+    return Markup(
+        """
+        <span class="label" style="color:{fg_color}; background-color:{color};"
+            title="Current State: {state}">{state}</span>
+        """
+    ).format(color=color, state=state, fg_color=fg_color)
+
+
+def modify_maintenance_comment_on_update(maintenance_comment: str | None, username: str) -> str:
+    if maintenance_comment:
+        if re.search(
+            r"^\[[-\d:\s]+\] - .+ put node into maintenance mode\r?\nComment:.*", maintenance_comment
+        ):
+            return re.sub(
+                r"^\[[-\d:\s]+\] - .+ put node into maintenance mode\r?\nComment:",
+                f'[{datetime.now().strftime("%Y-%m-%d %H:%M")}] - {username} updated maintenance mode\nComment:',
+                maintenance_comment,
+            )
+        elif re.search(r"^\[[-\d:\s]+\] - .+ updated maintenance mode\r?\nComment:.*", maintenance_comment):
+            return re.sub(
+                r"^\[[-\d:\s]+\] - .+ updated maintenance mode\r?\nComment:",
+                f'[{datetime.now().strftime("%Y-%m-%d %H:%M")}] - {username} updated maintenance mode\nComment:',
+                maintenance_comment,
+            )
+        return f'[{datetime.now().strftime("%Y-%m-%d %H:%M")}] - {username} updated maintenance mode\nComment: {maintenance_comment}'
+    return f'[{datetime.now().strftime("%Y-%m-%d %H:%M")}] - {username} updated maintenance mode\nComment:'
 
 
 # registers airflow/providers/edge/plugins/templates as a Jinja template folder
@@ -95,7 +136,7 @@ class EdgeWorkerJobs(BaseView):
 
         jobs = session.scalars(select(EdgeJobModel).order_by(EdgeJobModel.queued_dttm)).all()
         html_states = {
-            str(state): wwwutils.state_token(str(state)) for state in TaskInstanceState.__members__.values()
+            str(state): _state_token(str(state)) for state in TaskInstanceState.__members__.values()
         }
         return self.render_template("edge_worker_jobs.html", jobs=jobs, html_states=html_states)
 
@@ -118,9 +159,12 @@ class EdgeWorkerHosts(BaseView):
     @expose("/status/maintenance/<string:worker_name>/on", methods=["POST"])
     @has_access_view(AccessView.JOBS)
     def worker_to_maintenance(self, worker_name: str):
+        from flask_login import current_user
+
         from airflow.providers.edge.models.edge_worker import request_maintenance
 
         maintenance_comment = request.form.get("maintenance_comment")
+        maintenance_comment = f'[{datetime.now().strftime("%Y-%m-%d %H:%M")}] - {current_user.username} put node into maintenance mode\nComment: {maintenance_comment}'
         request_maintenance(worker_name, maintenance_comment)
         return redirect(url_for("EdgeWorkerHosts.status"))
 
@@ -143,9 +187,12 @@ class EdgeWorkerHosts(BaseView):
     @expose("/status/maintenance/<string:worker_name>/change_comment", methods=["POST"])
     @has_access_view(AccessView.JOBS)
     def change_maintenance_comment(self, worker_name: str):
+        from flask_login import current_user
+
         from airflow.providers.edge.models.edge_worker import change_maintenance_comment
 
         maintenance_comment = request.form.get("maintenance_comment")
+        maintenance_comment = modify_maintenance_comment_on_update(maintenance_comment, current_user.username)
         change_maintenance_comment(worker_name, maintenance_comment)
         return redirect(url_for("EdgeWorkerHosts.status"))
 

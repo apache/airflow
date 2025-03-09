@@ -22,9 +22,10 @@ description: |
   Amazon integration (including `Amazon Web Services (AWS) <https://aws.amazon.com/>`__).
 
 state: ready
-source-date-epoch: 1734527035
+source-date-epoch: 1741121812
 # note that those versions are maintained by release manager - do not update them manually
 versions:
+  - 9.4.0
   - 9.2.0
   - 9.1.0
   - 9.0.0
@@ -233,6 +234,12 @@ integrations:
     how-to-guide:
       - /docs/apache-airflow-providers-amazon/operators/sagemaker.rst
     tags: [aws]
+  - integration-name: Amazon SageMaker Unified Studio
+    external-doc-url: https://aws.amazon.com/sagemaker/unified-studio/
+    logo: /docs/integration-logos/Amazon-SageMaker_light-bg@4x.png
+    how-to-guide:
+      - /docs/apache-airflow-providers-amazon/operators/sagemakerunifiedstudio.rst
+    tags: [aws]
   - integration-name: Amazon SecretsManager
     external-doc-url: https://aws.amazon.com/secrets-manager/
     logo: /docs/integration-logos/AWS-Secrets-Manager_light-bg@4x.png
@@ -392,12 +399,18 @@ operators:
   - integration-name: Amazon Managed Service for Apache Flink
     python-modules:
       - airflow.providers.amazon.aws.operators.kinesis_analytics
+  - integration-name: Amazon Managed Workflows for Apache Airflow (MWAA)
+    python-modules:
+      - airflow.providers.amazon.aws.operators.mwaa
   - integration-name: Amazon Simple Storage Service (S3)
     python-modules:
       - airflow.providers.amazon.aws.operators.s3
   - integration-name: Amazon SageMaker
     python-modules:
       - airflow.providers.amazon.aws.operators.sagemaker
+  - integration-name: Amazon SageMaker Unified Studio
+    python-modules:
+      - airflow.providers.amazon.aws.operators.sagemaker_unified_studio
   - integration-name: Amazon Simple Notification Service (SNS)
     python-modules:
       - airflow.providers.amazon.aws.operators.sns
@@ -481,6 +494,9 @@ sensors:
   - integration-name: Amazon Managed Service for Apache Flink
     python-modules:
       - airflow.providers.amazon.aws.sensors.kinesis_analytics
+  - integration-name: Amazon Managed Workflows for Apache Airflow (MWAA)
+    python-modules:
+      - airflow.providers.amazon.aws.sensors.mwaa
   - integration-name: Amazon OpenSearch Serverless
     python-modules:
       - airflow.providers.amazon.aws.sensors.opensearch_serverless
@@ -496,6 +512,9 @@ sensors:
   - integration-name: Amazon SageMaker
     python-modules:
       - airflow.providers.amazon.aws.sensors.sagemaker
+  - integration-name: Amazon SageMaker Unified Studio
+    python-modules:
+      - airflow.providers.amazon.aws.sensors.sagemaker_unified_studio
   - integration-name: Amazon Simple Queue Service (SQS)
     python-modules:
       - airflow.providers.amazon.aws.sensors.sqs
@@ -600,6 +619,9 @@ hooks:
   - integration-name: Amazon CloudWatch Logs
     python-modules:
       - airflow.providers.amazon.aws.hooks.logs
+  - integration-name: Amazon Managed Workflows for Apache Airflow (MWAA)
+    python-modules:
+      - airflow.providers.amazon.aws.hooks.mwaa
   - integration-name: Amazon OpenSearch Serverless
     python-modules:
       - airflow.providers.amazon.aws.hooks.opensearch_serverless
@@ -617,6 +639,9 @@ hooks:
   - integration-name: Amazon SageMaker
     python-modules:
       - airflow.providers.amazon.aws.hooks.sagemaker
+  - integration-name: Amazon SageMaker Unified Studio
+    python-modules:
+      - airflow.providers.amazon.aws.hooks.sagemaker_unified_studio
   - integration-name: Amazon Simple Email Service (SES)
     python-modules:
       - airflow.providers.amazon.aws.hooks.ses
@@ -689,6 +714,9 @@ triggers:
   - integration-name: Amazon SageMaker
     python-modules:
       - airflow.providers.amazon.aws.triggers.sagemaker
+  - integration-name: Amazon SageMaker Unified Studio
+    python-modules:
+      - airflow.providers.amazon.aws.triggers.sagemaker_unified_studio
   - integration-name: AWS Glue
     python-modules:
       - airflow.providers.amazon.aws.triggers.glue
@@ -723,7 +751,6 @@ triggers:
   - integration-name: AWS Database Migration Service
     python-modules:
       - airflow.providers.amazon.aws.triggers.dms
-
 
 transfers:
   - source-integration-name: Amazon DynamoDB
@@ -827,6 +854,7 @@ extra-links:
   - airflow.providers.amazon.aws.links.glue.GlueJobRunDetailsLink
   - airflow.providers.amazon.aws.links.logs.CloudWatchEventsLink
   - airflow.providers.amazon.aws.links.sagemaker.SageMakerTransformJobLink
+  - airflow.providers.amazon.aws.links.sagemaker_unified_studio.SageMakerUnifiedStudioLink
   - airflow.providers.amazon.aws.links.step_function.StateMachineDetailsLink
   - airflow.providers.amazon.aws.links.step_function.StateMachineExecutionsDetailsLink
   - airflow.providers.amazon.aws.links.comprehend.ComprehendPiiEntitiesDetectionLink

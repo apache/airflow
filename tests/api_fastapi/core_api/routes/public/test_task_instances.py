@@ -201,6 +201,7 @@ class TestGetTaskInstance(TestTaskInstanceEndpoint):
             "dag_run_id": "TEST_DAG_RUN_ID",
             "rendered_fields": {},
             "rendered_map_index": None,
+            "run_after": "2020-01-01T00:00:00Z",
             "trigger": None,
             "triggerer_job": None,
         }
@@ -249,6 +250,7 @@ class TestGetTaskInstance(TestTaskInstanceEndpoint):
             "note": None,
             "rendered_map_index": None,
             "rendered_fields": {},
+            "run_after": mock.ANY,
             "trigger": None,
             "triggerer_job": None,
             "dag_version": {
@@ -256,7 +258,8 @@ class TestGetTaskInstance(TestTaskInstanceEndpoint):
                 "version_number": expected_version_number,
                 "dag_id": "dag_with_multiple_versions",
                 "bundle_name": "dag_maker",
-                "bundle_version": None,
+                "bundle_version": f"some_commit_hash{expected_version_number}",
+                "bundle_url": f"fakeprotocol://test_host.github.com/tree/some_commit_hash{expected_version_number}",
                 "created_at": mock.ANY,
             },
         }
@@ -315,6 +318,7 @@ class TestGetTaskInstance(TestTaskInstanceEndpoint):
             "try_number": 0,
             "unixname": getuser(),
             "dag_run_id": "TEST_DAG_RUN_ID",
+            "run_after": "2020-01-01T00:00:00Z",
             "rendered_fields": {},
             "rendered_map_index": None,
             "trigger": {
@@ -366,6 +370,7 @@ class TestGetTaskInstance(TestTaskInstanceEndpoint):
             "dag_run_id": "TEST_DAG_RUN_ID",
             "rendered_fields": {},
             "rendered_map_index": None,
+            "run_after": "2020-01-01T00:00:00Z",
             "trigger": None,
             "triggerer_job": None,
         }
@@ -411,6 +416,7 @@ class TestGetTaskInstance(TestTaskInstanceEndpoint):
             "dag_run_id": "TEST_DAG_RUN_ID",
             "rendered_fields": {"op_args": "()", "op_kwargs": {}, "templates_dict": None},
             "rendered_map_index": None,
+            "run_after": "2020-01-01T00:00:00Z",
             "trigger": None,
             "triggerer_job": None,
         }
@@ -512,7 +518,8 @@ class TestGetMappedTaskInstance(TestTaskInstanceEndpoint):
                 "unixname": getuser(),
                 "dag_run_id": "TEST_DAG_RUN_ID",
                 "rendered_fields": {"op_args": "()", "op_kwargs": {}, "templates_dict": None},
-                "rendered_map_index": None,
+                "rendered_map_index": str(map_index),
+                "run_after": "2020-01-01T00:00:00Z",
                 "trigger": None,
                 "triggerer_job": None,
             }
@@ -733,7 +740,7 @@ class TestGetMappedTaskInstances:
             .first()
         )
 
-        ti.rendered_map_index = "a"
+        ti._rendered_map_index = "a"
 
         session.commit()
 
@@ -1865,7 +1872,8 @@ class TestGetTaskInstanceTry(TestTaskInstanceEndpoint):
                 "version_number": expected_version_number,
                 "dag_id": "dag_with_multiple_versions",
                 "bundle_name": "dag_maker",
-                "bundle_version": None,
+                "bundle_version": f"some_commit_hash{expected_version_number}",
+                "bundle_url": f"fakeprotocol://test_host.github.com/tree/some_commit_hash{expected_version_number}",
                 "created_at": mock.ANY,
             },
         }
@@ -2054,6 +2062,31 @@ class TestPostClearTaskInstances(TestTaskInstanceEndpoint):
         assert response.status_code == 200
         assert response.json()["total_entries"] == expected_ti
 
+    @pytest.mark.parametrize("flag", ["include_future", "include_past"])
+    def test_dag_run_with_future_or_past_flag_returns_400(self, test_client, session, flag):
+        dag_id = "example_python_operator"
+        payload = {
+            "dry_run": True,
+            "dag_run_id": "TEST_DAG_RUN_ID_0",
+            "only_failed": True,
+            flag: True,
+        }
+        task_instances = [{"logical_date": DEFAULT_DATETIME_1, "state": State.FAILED}]
+        self.create_task_instances(
+            session,
+            dag_id=dag_id,
+            task_instances=task_instances,
+            update_extras=False,
+            dag_run_state=State.FAILED,
+        )
+        self.dagbag.sync_to_db("dags-folder", None)
+        response = test_client.post(f"/public/dags/{dag_id}/clearTaskInstances", json=payload)
+        assert response.status_code == 400
+        assert (
+            "Cannot use include_past or include_future when dag_run_id is provided"
+            in response.json()["detail"]
+        )
+
     @pytest.mark.parametrize(
         "main_dag, task_instances, request_dag, payload, expected_ti",
         [
@@ -2230,7 +2263,20 @@ class TestPostClearTaskInstances(TestTaskInstanceEndpoint):
         assert response.json()["total_entries"] == 6
         assert failed_dag_runs == 0
 
-    def test_should_respond_200_with_dag_run_id(self, test_client, session):
+    @pytest.mark.parametrize(
+        "target_logical_date, response_logical_date",
+        [
+            pytest.param(DEFAULT_DATETIME_1, "2020-01-01T00:00:00Z", id="date"),
+            pytest.param(None, None, id="null"),
+        ],
+    )
+    def test_should_respond_200_with_dag_run_id(
+        self,
+        test_client,
+        session,
+        target_logical_date,
+        response_logical_date,
+    ):
         dag_id = "example_python_operator"
         payload = {
             "dry_run": False,
@@ -2239,29 +2285,14 @@ class TestPostClearTaskInstances(TestTaskInstanceEndpoint):
             "only_running": True,
             "dag_run_id": "TEST_DAG_RUN_ID_0",
         }
-        task_instances = [
-            {"logical_date": DEFAULT_DATETIME_1, "state": State.RUNNING},
-            {
-                "logical_date": DEFAULT_DATETIME_1 + dt.timedelta(days=1),
-                "state": State.RUNNING,
-            },
-            {
-                "logical_date": DEFAULT_DATETIME_1 + dt.timedelta(days=2),
-                "state": State.RUNNING,
-            },
-            {
-                "logical_date": DEFAULT_DATETIME_1 + dt.timedelta(days=3),
-                "state": State.RUNNING,
-            },
-            {
-                "logical_date": DEFAULT_DATETIME_1 + dt.timedelta(days=4),
-                "state": State.RUNNING,
-            },
-            {
-                "logical_date": DEFAULT_DATETIME_1 + dt.timedelta(days=5),
-                "state": State.RUNNING,
-            },
-        ]
+        if target_logical_date:
+            task_instances = [
+                {"logical_date": target_logical_date + dt.timedelta(days=i), "state": State.RUNNING}
+                for i in range(6)
+            ]
+        else:
+            self.ti_extras["run_after"] = DEFAULT_DATETIME_1
+            task_instances = [{"logical_date": target_logical_date, "state": State.RUNNING} for _ in range(6)]
 
         self.create_task_instances(
             session,
@@ -2288,7 +2319,7 @@ class TestPostClearTaskInstances(TestTaskInstanceEndpoint):
                 "executor_config": "{}",
                 "hostname": "",
                 "id": mock.ANY,
-                "logical_date": "2020-01-01T00:00:00Z",
+                "logical_date": response_logical_date,
                 "map_index": -1,
                 "max_tries": 0,
                 "note": "placeholder-note",
@@ -2302,6 +2333,7 @@ class TestPostClearTaskInstances(TestTaskInstanceEndpoint):
                 "scheduled_when": None,
                 "rendered_fields": {},
                 "rendered_map_index": None,
+                "run_after": "2020-01-01T00:00:00Z",
                 "start_date": "2020-01-02T00:00:00Z",
                 "state": "restarting",
                 "task_display_name": "print_the_context",
@@ -2875,7 +2907,8 @@ class TestGetTaskInstanceTries(TestTaskInstanceEndpoint):
                 "version_number": expected_version_number,
                 "dag_id": "dag_with_multiple_versions",
                 "bundle_name": "dag_maker",
-                "bundle_version": None,
+                "bundle_version": f"some_commit_hash{expected_version_number}",
+                "bundle_url": f"fakeprotocol://test_host.github.com/tree/some_commit_hash{expected_version_number}",
                 "created_at": mock.ANY,
             },
         }
@@ -2940,6 +2973,7 @@ class TestPatchTaskInstance(TestTaskInstanceEndpoint):
             "unixname": getuser(),
             "rendered_fields": {},
             "rendered_map_index": None,
+            "run_after": "2020-01-01T00:00:00Z",
             "trigger": None,
             "triggerer_job": None,
         }
@@ -3136,6 +3170,7 @@ class TestPatchTaskInstance(TestTaskInstanceEndpoint):
                     "unixname": getuser(),
                     "rendered_fields": {},
                     "rendered_map_index": None,
+                    "run_after": "2020-01-01T00:00:00Z",
                     "trigger": None,
                     "triggerer_job": None,
                 },
@@ -3237,6 +3272,7 @@ class TestPatchTaskInstance(TestTaskInstanceEndpoint):
             "dag_run_id": self.RUN_ID,
             "rendered_fields": {},
             "rendered_map_index": None,
+            "run_after": "2020-01-01T00:00:00Z",
             "trigger": None,
             "triggerer_job": None,
         }
@@ -3279,6 +3315,7 @@ class TestPatchTaskInstance(TestTaskInstanceEndpoint):
             "dag_run_id": self.RUN_ID,
             "rendered_fields": {},
             "rendered_map_index": None,
+            "run_after": "2020-01-01T00:00:00Z",
             "trigger": None,
             "triggerer_job": None,
         }
@@ -3334,7 +3371,8 @@ class TestPatchTaskInstance(TestTaskInstanceEndpoint):
                 "unixname": getuser(),
                 "dag_run_id": self.RUN_ID,
                 "rendered_fields": {"op_args": "()", "op_kwargs": {}, "templates_dict": None},
-                "rendered_map_index": None,
+                "rendered_map_index": str(map_index),
+                "run_after": "2020-01-01T00:00:00Z",
                 "trigger": None,
                 "triggerer_job": None,
             }
@@ -3434,6 +3472,7 @@ class TestPatchTaskInstanceDryRun(TestTaskInstanceEndpoint):
                     "unixname": getuser(),
                     "rendered_fields": {},
                     "rendered_map_index": None,
+                    "run_after": "2020-01-01T00:00:00Z",
                     "trigger": None,
                     "triggerer_job": None,
                 }
@@ -3657,6 +3696,7 @@ class TestPatchTaskInstanceDryRun(TestTaskInstanceEndpoint):
                             "unixname": getuser(),
                             "rendered_fields": {},
                             "rendered_map_index": None,
+                            "run_after": "2020-01-01T00:00:00Z",
                             "trigger": None,
                             "triggerer_job": None,
                         }

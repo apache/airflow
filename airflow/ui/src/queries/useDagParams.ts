@@ -22,7 +22,7 @@ import { toaster } from "src/components/ui";
 export type DagParamsSpec = Record<string, ParamSpec>;
 
 export type ParamSpec = {
-  description: string | undefined;
+  description: string | null;
   schema: ParamSchema;
   value: unknown;
 };

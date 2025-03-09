@@ -18,6 +18,11 @@
  */
 import { QueryClient } from "@tanstack/react-query";
 
+import { OpenAPI } from "openapi/requests/core/OpenAPI";
+
+// Dynamically set the base URL for XHR requests based on the meta tag.
+OpenAPI.BASE = document.querySelector("meta[name='backend-server-base-url']")?.getAttribute("content") ?? "";
+
 export const queryClient = new QueryClient({
   defaultOptions: {
     mutations: {

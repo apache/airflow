@@ -496,6 +496,46 @@ export const $BackfillResponse = {
   description: "Base serializer for Backfill.",
 } as const;
 
+export const $BaseEdgeResponse = {
+  properties: {
+    source_id: {
+      type: "string",
+      title: "Source Id",
+    },
+    target_id: {
+      type: "string",
+      title: "Target Id",
+    },
+  },
+  type: "object",
+  required: ["source_id", "target_id"],
+  title: "BaseEdgeResponse",
+  description: "Base Edge serializer for responses.",
+} as const;
+
+export const $BaseGraphResponse = {
+  properties: {
+    edges: {
+      items: {
+        $ref: "#/components/schemas/BaseEdgeResponse",
+      },
+      type: "array",
+      title: "Edges",
+    },
+    nodes: {
+      items: {
+        $ref: "#/components/schemas/BaseNodeResponse",
+      },
+      type: "array",
+      title: "Nodes",
+    },
+  },
+  type: "object",
+  required: ["edges", "nodes"],
+  title: "BaseGraphResponse",
+  description: "Base Graph serializer for responses.",
+} as const;
+
 export const $BaseInfoResponse = {
   properties: {
     status: {
@@ -514,6 +554,28 @@ export const $BaseInfoResponse = {
   required: ["status"],
   title: "BaseInfoResponse",
   description: "Base info serializer for responses.",
+} as const;
+
+export const $BaseNodeResponse = {
+  properties: {
+    id: {
+      type: "string",
+      title: "Id",
+    },
+    label: {
+      type: "string",
+      title: "Label",
+    },
+    type: {
+      type: "string",
+      enum: ["join", "task", "asset-condition", "asset", "asset-alias", "dag", "sensor", "trigger"],
+      title: "Type",
+    },
+  },
+  type: "object",
+  required: ["id", "label", "type"],
+  title: "BaseNodeResponse",
+  description: "Base Node serializer for responses.",
 } as const;
 
 export const $BulkAction = {
@@ -1153,10 +1215,6 @@ export const $ConfigResponse = {
       type: "string",
       title: "Audit View Included Events",
     },
-    is_k8s: {
-      type: "boolean",
-      title: "Is K8S",
-    },
     test_connection: {
       type: "string",
       title: "Test Connection",
@@ -1185,7 +1243,6 @@ export const $ConfigResponse = {
     "warn_deployment_exposure",
     "audit_view_excluded_events",
     "audit_view_included_events",
-    "is_k8s",
     "test_connection",
     "state_color_mapping",
   ],
@@ -1614,7 +1671,7 @@ export const $DAGDetailsResponse = {
       type: "boolean",
       title: "Has Import Errors",
     },
-    next_dagrun: {
+    next_dagrun_logical_date: {
       anyOf: [
         {
           type: "string",
@@ -1624,7 +1681,7 @@ export const $DAGDetailsResponse = {
           type: "null",
         },
       ],
-      title: "Next Dagrun",
+      title: "Next Dagrun Logical Date",
     },
     next_dagrun_data_interval_start: {
       anyOf: [
@@ -1650,7 +1707,7 @@ export const $DAGDetailsResponse = {
       ],
       title: "Next Dagrun Data Interval End",
     },
-    next_dagrun_create_after: {
+    next_dagrun_run_after: {
       anyOf: [
         {
           type: "string",
@@ -1660,7 +1717,7 @@ export const $DAGDetailsResponse = {
           type: "null",
         },
       ],
-      title: "Next Dagrun Create After",
+      title: "Next Dagrun Run After",
     },
     owners: {
       items: {
@@ -1806,6 +1863,18 @@ export const $DAGDetailsResponse = {
       description: "Return max_active_tasks as concurrency.",
       readOnly: true,
     },
+    latest_dag_version: {
+      anyOf: [
+        {
+          $ref: "#/components/schemas/DagVersionResponse",
+        },
+        {
+          type: "null",
+        },
+      ],
+      description: "Return the latest DagVersion.",
+      readOnly: true,
+    },
   },
   type: "object",
   required: [
@@ -1826,10 +1895,10 @@ export const $DAGDetailsResponse = {
     "max_consecutive_failed_dag_runs",
     "has_task_concurrency_limits",
     "has_import_errors",
-    "next_dagrun",
+    "next_dagrun_logical_date",
     "next_dagrun_data_interval_start",
     "next_dagrun_data_interval_end",
-    "next_dagrun_create_after",
+    "next_dagrun_run_after",
     "owners",
     "catchup",
     "dag_run_timeout",
@@ -1845,6 +1914,7 @@ export const $DAGDetailsResponse = {
     "last_parsed",
     "file_token",
     "concurrency",
+    "latest_dag_version",
   ],
   title: "DAGDetailsResponse",
   description: "Specific serializer for DAG Details responses.",
@@ -1988,7 +2058,7 @@ export const $DAGResponse = {
       type: "boolean",
       title: "Has Import Errors",
     },
-    next_dagrun: {
+    next_dagrun_logical_date: {
       anyOf: [
         {
           type: "string",
@@ -1998,7 +2068,7 @@ export const $DAGResponse = {
           type: "null",
         },
       ],
-      title: "Next Dagrun",
+      title: "Next Dagrun Logical Date",
     },
     next_dagrun_data_interval_start: {
       anyOf: [
@@ -2024,7 +2094,7 @@ export const $DAGResponse = {
       ],
       title: "Next Dagrun Data Interval End",
     },
-    next_dagrun_create_after: {
+    next_dagrun_run_after: {
       anyOf: [
         {
           type: "string",
@@ -2034,7 +2104,7 @@ export const $DAGResponse = {
           type: "null",
         },
       ],
-      title: "Next Dagrun Create After",
+      title: "Next Dagrun Run After",
     },
     owners: {
       items: {
@@ -2069,10 +2139,10 @@ export const $DAGResponse = {
     "max_consecutive_failed_dag_runs",
     "has_task_concurrency_limits",
     "has_import_errors",
-    "next_dagrun",
+    "next_dagrun_logical_date",
     "next_dagrun_data_interval_start",
     "next_dagrun_data_interval_end",
-    "next_dagrun_create_after",
+    "next_dagrun_run_after",
     "owners",
     "file_token",
   ],
@@ -2239,6 +2309,11 @@ export const $DAGRunResponse = {
       ],
       title: "Data Interval End",
     },
+    run_after: {
+      type: "string",
+      format: "date-time",
+      title: "Run After",
+    },
     last_scheduling_decision: {
       anyOf: [
         {
@@ -2256,10 +2331,6 @@ export const $DAGRunResponse = {
     },
     state: {
       $ref: "#/components/schemas/DagRunState",
-    },
-    external_trigger: {
-      type: "boolean",
-      title: "External Trigger",
     },
     triggered_by: {
       $ref: "#/components/schemas/DagRunTriggeredByType",
@@ -2279,6 +2350,13 @@ export const $DAGRunResponse = {
       ],
       title: "Note",
     },
+    dag_versions: {
+      items: {
+        $ref: "#/components/schemas/DagVersionResponse",
+      },
+      type: "array",
+      title: "Dag Versions",
+    },
   },
   type: "object",
   required: [
@@ -2290,13 +2368,14 @@ export const $DAGRunResponse = {
     "end_date",
     "data_interval_start",
     "data_interval_end",
+    "run_after",
     "last_scheduling_decision",
     "run_type",
     "state",
-    "external_trigger",
     "triggered_by",
     "conf",
     "note",
+    "dag_versions",
   ],
   title: "DAGRunResponse",
   description: "DAG Run serializer for responses.",
@@ -2411,6 +2490,30 @@ export const $DAGRunsBatchBody = {
         },
       ],
       title: "States",
+    },
+    run_after_gte: {
+      anyOf: [
+        {
+          type: "string",
+          format: "date-time",
+        },
+        {
+          type: "null",
+        },
+      ],
+      title: "Run After Gte",
+    },
+    run_after_lte: {
+      anyOf: [
+        {
+          type: "string",
+          format: "date-time",
+        },
+        {
+          type: "null",
+        },
+      ],
+      title: "Run After Lte",
     },
     logical_date_gte: {
       anyOf: [
@@ -2544,6 +2647,26 @@ export const $DAGTagCollectionResponse = {
   required: ["tags", "total_entries"],
   title: "DAGTagCollectionResponse",
   description: "DAG Tags Collection serializer for responses.",
+} as const;
+
+export const $DAGVersionCollectionResponse = {
+  properties: {
+    dag_versions: {
+      items: {
+        $ref: "#/components/schemas/DagVersionResponse",
+      },
+      type: "array",
+      title: "Dag Versions",
+    },
+    total_entries: {
+      type: "integer",
+      title: "Total Entries",
+    },
+  },
+  type: "object",
+  required: ["dag_versions", "total_entries"],
+  title: "DAGVersionCollectionResponse",
+  description: "DAG Version Collection serializer for responses.",
 } as const;
 
 export const $DAGWarningCollectionResponse = {
@@ -2735,7 +2858,7 @@ export const $DAGWithLatestDagRunsResponse = {
       type: "boolean",
       title: "Has Import Errors",
     },
-    next_dagrun: {
+    next_dagrun_logical_date: {
       anyOf: [
         {
           type: "string",
@@ -2745,7 +2868,7 @@ export const $DAGWithLatestDagRunsResponse = {
           type: "null",
         },
       ],
-      title: "Next Dagrun",
+      title: "Next Dagrun Logical Date",
     },
     next_dagrun_data_interval_start: {
       anyOf: [
@@ -2771,7 +2894,7 @@ export const $DAGWithLatestDagRunsResponse = {
       ],
       title: "Next Dagrun Data Interval End",
     },
-    next_dagrun_create_after: {
+    next_dagrun_run_after: {
       anyOf: [
         {
           type: "string",
@@ -2781,7 +2904,7 @@ export const $DAGWithLatestDagRunsResponse = {
           type: "null",
         },
       ],
-      title: "Next Dagrun Create After",
+      title: "Next Dagrun Run After",
     },
     owners: {
       items: {
@@ -2823,10 +2946,10 @@ export const $DAGWithLatestDagRunsResponse = {
     "max_consecutive_failed_dag_runs",
     "has_task_concurrency_limits",
     "has_import_errors",
-    "next_dagrun",
+    "next_dagrun_logical_date",
     "next_dagrun_data_interval_start",
     "next_dagrun_data_interval_end",
-    "next_dagrun_create_after",
+    "next_dagrun_run_after",
     "owners",
     "latest_dag_runs",
     "file_token",
@@ -2877,8 +3000,15 @@ export const $DagRunAssetReference = {
       title: "Dag Id",
     },
     logical_date: {
-      type: "string",
-      format: "date-time",
+      anyOf: [
+        {
+          type: "string",
+          format: "date-time",
+        },
+        {
+          type: "null",
+        },
+      ],
       title: "Logical Date",
     },
     start_date: {
@@ -2903,13 +3033,27 @@ export const $DagRunAssetReference = {
       title: "State",
     },
     data_interval_start: {
-      type: "string",
-      format: "date-time",
+      anyOf: [
+        {
+          type: "string",
+          format: "date-time",
+        },
+        {
+          type: "null",
+        },
+      ],
       title: "Data Interval Start",
     },
     data_interval_end: {
-      type: "string",
-      format: "date-time",
+      anyOf: [
+        {
+          type: "string",
+          format: "date-time",
+        },
+        {
+          type: "null",
+        },
+      ],
       title: "Data Interval End",
     },
   },
@@ -3086,9 +3230,21 @@ export const $DagVersionResponse = {
       format: "date-time",
       title: "Created At",
     },
+    bundle_url: {
+      anyOf: [
+        {
+          type: "string",
+        },
+        {
+          type: "null",
+        },
+      ],
+      title: "Bundle Url",
+      readOnly: true,
+    },
   },
   type: "object",
-  required: ["id", "version_number", "dag_id", "bundle_name", "bundle_version", "created_at"],
+  required: ["id", "version_number", "dag_id", "bundle_name", "bundle_version", "created_at", "bundle_url"],
   title: "DagVersionResponse",
   description: "Dag Version serializer for responses.",
 } as const;
@@ -3139,6 +3295,14 @@ export const $DryRunBackfillResponse = {
 
 export const $EdgeResponse = {
   properties: {
+    source_id: {
+      type: "string",
+      title: "Source Id",
+    },
+    target_id: {
+      type: "string",
+      title: "Target Id",
+    },
     is_setup_teardown: {
       anyOf: [
         {
@@ -3160,14 +3324,6 @@ export const $EdgeResponse = {
         },
       ],
       title: "Label",
-    },
-    source_id: {
-      type: "string",
-      title: "Source Id",
-    },
-    target_id: {
-      type: "string",
-      title: "Target Id",
     },
     is_source_asset: {
       anyOf: [
@@ -3410,11 +3566,28 @@ export const $GridDAGRunwithTIs = {
       ],
       title: "End Date",
     },
+    run_after: {
+      type: "string",
+      format: "date-time",
+      title: "Run After",
+    },
     state: {
       $ref: "#/components/schemas/DagRunState",
     },
     run_type: {
       $ref: "#/components/schemas/DagRunType",
+    },
+    logical_date: {
+      anyOf: [
+        {
+          type: "string",
+          format: "date-time",
+        },
+        {
+          type: "null",
+        },
+      ],
+      title: "Logical Date",
     },
     data_interval_start: {
       anyOf: [
@@ -3476,8 +3649,10 @@ export const $GridDAGRunwithTIs = {
     "queued_at",
     "start_date",
     "end_date",
+    "run_after",
     "state",
     "run_type",
+    "logical_date",
     "data_interval_start",
     "data_interval_end",
     "version_number",
@@ -3885,6 +4060,19 @@ export const $JobResponse = {
 
 export const $NodeResponse = {
   properties: {
+    id: {
+      type: "string",
+      title: "Id",
+    },
+    label: {
+      type: "string",
+      title: "Label",
+    },
+    type: {
+      type: "string",
+      enum: ["join", "task", "asset-condition", "asset", "asset-alias", "dag", "sensor", "trigger"],
+      title: "Type",
+    },
     children: {
       anyOf: [
         {
@@ -3899,10 +4087,6 @@ export const $NodeResponse = {
       ],
       title: "Children",
     },
-    id: {
-      type: "string",
-      title: "Id",
-    },
     is_mapped: {
       anyOf: [
         {
@@ -3913,10 +4097,6 @@ export const $NodeResponse = {
         },
       ],
       title: "Is Mapped",
-    },
-    label: {
-      type: "string",
-      title: "Label",
     },
     tooltip: {
       anyOf: [
@@ -3940,11 +4120,6 @@ export const $NodeResponse = {
         },
       ],
       title: "Setup Teardown Type",
-    },
-    type: {
-      type: "string",
-      enum: ["join", "task", "asset-condition", "asset", "asset-alias", "dag", "sensor", "trigger"],
-      title: "Type",
     },
     operator: {
       anyOf: [
@@ -4465,6 +4640,25 @@ export const $StructureDataResponse = {
   description: "Structure Data serializer for responses.",
 } as const;
 
+export const $StructuredLogMessage = {
+  properties: {
+    timestamp: {
+      type: "string",
+      format: "date-time",
+      title: "Timestamp",
+    },
+    event: {
+      type: "string",
+      title: "Event",
+    },
+  },
+  additionalProperties: true,
+  type: "object",
+  required: ["event"],
+  title: "StructuredLogMessage",
+  description: "An individual log message.",
+} as const;
+
 export const $TaskCollectionResponse = {
   properties: {
     tasks: {
@@ -4811,9 +5005,21 @@ export const $TaskInstanceResponse = {
       title: "Map Index",
     },
     logical_date: {
+      anyOf: [
+        {
+          type: "string",
+          format: "date-time",
+        },
+        {
+          type: "null",
+        },
+      ],
+      title: "Logical Date",
+    },
+    run_after: {
       type: "string",
       format: "date-time",
-      title: "Logical Date",
+      title: "Run After",
     },
     start_date: {
       anyOf: [
@@ -5010,7 +5216,6 @@ export const $TaskInstanceResponse = {
     rendered_fields: {
       type: "object",
       title: "Rendered Fields",
-      default: {},
     },
     trigger: {
       anyOf: [
@@ -5051,6 +5256,7 @@ export const $TaskInstanceResponse = {
     "dag_run_id",
     "map_index",
     "logical_date",
+    "run_after",
     "start_date",
     "end_date",
     "duration",
@@ -5242,6 +5448,30 @@ export const $TaskInstancesBatchBody = {
       ],
       title: "State",
     },
+    run_after_gte: {
+      anyOf: [
+        {
+          type: "string",
+          format: "date-time",
+        },
+        {
+          type: "null",
+        },
+      ],
+      title: "Run After Gte",
+    },
+    run_after_lte: {
+      anyOf: [
+        {
+          type: "string",
+          format: "date-time",
+        },
+        {
+          type: "null",
+        },
+      ],
+      title: "Run After Lte",
+    },
     logical_date_gte: {
       anyOf: [
         {
@@ -5411,7 +5641,20 @@ export const $TaskInstancesBatchBody = {
 export const $TaskInstancesLogResponse = {
   properties: {
     content: {
-      type: "string",
+      anyOf: [
+        {
+          items: {
+            $ref: "#/components/schemas/StructuredLogMessage",
+          },
+          type: "array",
+        },
+        {
+          items: {
+            type: "string",
+          },
+          type: "array",
+        },
+      ],
       title: "Content",
     },
     continuation_token: {
@@ -5853,8 +6096,15 @@ export const $TriggerDAGRunPostBody = {
       title: "Logical Date",
     },
     run_after: {
-      type: "string",
-      format: "date-time",
+      anyOf: [
+        {
+          type: "string",
+          format: "date-time",
+        },
+        {
+          type: "null",
+        },
+      ],
       title: "Run After",
     },
     conf: {
@@ -6138,8 +6388,15 @@ export const $XComResponse = {
       title: "Timestamp",
     },
     logical_date: {
-      type: "string",
-      format: "date-time",
+      anyOf: [
+        {
+          type: "string",
+          format: "date-time",
+        },
+        {
+          type: "null",
+        },
+      ],
       title: "Logical Date",
     },
     map_index: {
@@ -6177,8 +6434,15 @@ export const $XComResponseNative = {
       title: "Timestamp",
     },
     logical_date: {
-      type: "string",
-      format: "date-time",
+      anyOf: [
+        {
+          type: "string",
+          format: "date-time",
+        },
+        {
+          type: "null",
+        },
+      ],
       title: "Logical Date",
     },
     map_index: {
@@ -6219,8 +6483,15 @@ export const $XComResponseString = {
       title: "Timestamp",
     },
     logical_date: {
-      type: "string",
-      format: "date-time",
+      anyOf: [
+        {
+          type: "string",
+          format: "date-time",
+        },
+        {
+          type: "null",
+        },
+      ],
       title: "Logical Date",
     },
     map_index: {

@@ -133,9 +133,9 @@ def on_dag_run_failed(dag_run: DagRun, msg: str):
     print("Dag run  in failure state")
     dag_id = dag_run.dag_id
     run_id = dag_run.run_id
-    external_trigger = dag_run.external_trigger
+    run_type = dag_run.run_type
 
-    print(f"Dag information:{dag_id} Run id: {run_id} external trigger: {external_trigger}")
+    print(f"Dag information:{dag_id} Run id: {run_id} Run type: {run_type}")
     print(f"Failed with message: {msg}")
 
 
@@ -151,7 +151,7 @@ def on_dag_run_running(dag_run: DagRun, msg: str):
     print("Dag run  in running state")
     queued_at = dag_run.queued_at
 
-    version = dag_run.dag_version.version
+    version = dag_run.version_number
 
     print(f"Dag information Queued at: {queued_at} version: {version}")
 

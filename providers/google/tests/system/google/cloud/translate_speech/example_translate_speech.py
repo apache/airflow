@@ -20,12 +20,13 @@ from __future__ import annotations
 import os
 from datetime import datetime
 
+from google.cloud.speech_v1 import RecognitionAudio, RecognitionConfig
+
 from airflow.models.dag import DAG
 from airflow.providers.google.cloud.operators.gcs import GCSCreateBucketOperator, GCSDeleteBucketOperator
 from airflow.providers.google.cloud.operators.text_to_speech import CloudTextToSpeechSynthesizeOperator
 from airflow.providers.google.cloud.operators.translate_speech import CloudTranslateSpeechOperator
 from airflow.utils.trigger_rule import TriggerRule
-from google.cloud.speech_v1 import RecognitionAudio, RecognitionConfig
 
 ENV_ID = os.environ.get("SYSTEM_TESTS_ENV_ID", "default")
 PROJECT_ID = os.environ.get("SYSTEM_TESTS_GCP_PROJECT", "default")

@@ -17,18 +17,13 @@
  * under the License.
  */
 import { Text } from "@chakra-ui/react";
-import { json } from "@codemirror/lang-json";
-import { githubLight, githubDark } from "@uiw/codemirror-themes-all";
-import CodeMirror from "@uiw/react-codemirror";
 import { useState } from "react";
 
-import { useColorMode } from "src/context/colorMode";
-
 import type { FlexibleFormElementProps } from ".";
+import { JsonEditor } from "../JsonEditor";
 import { paramPlaceholder, useParamStore } from "../TriggerDag/useParamStore";
 
 export const FieldAdvancedArray = ({ name }: FlexibleFormElementProps) => {
-  const { colorMode } = useColorMode();
   const { paramsDict, setParamsDict } = useParamStore();
   const param = paramsDict[name] ?? paramPlaceholder;
   const [error, setError] = useState<unknown>(undefined);
@@ -76,29 +71,13 @@ export const FieldAdvancedArray = ({ name }: FlexibleFormElementProps) => {
 
   return (
     <>
-      <CodeMirror
-        basicSetup={{
-          autocompletion: true,
-          bracketMatching: true,
-          foldGutter: true,
-          lineNumbers: true,
-        }}
-        extensions={[json()]}
-        height="200px"
+      <JsonEditor
         id={`element_${name}`}
         onChange={handleChange}
-        style={{
-          border: "1px solid var(--chakra-colors-border)",
-          borderRadius: "8px",
-          outline: "none",
-          padding: "2px",
-          width: "100%",
-        }}
-        theme={colorMode === "dark" ? githubDark : githubLight}
         value={JSON.stringify(param.value ?? [], undefined, 2)}
       />
       {Boolean(error) ? (
-        <Text color="red.solid" fontSize="xs">
+        <Text color="fg.error" fontSize="xs">
           {String(error)}
         </Text>
       ) : undefined}

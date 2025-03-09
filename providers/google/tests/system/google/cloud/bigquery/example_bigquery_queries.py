@@ -25,15 +25,12 @@ import os
 from datetime import datetime
 from pathlib import Path
 
-from providers.google.tests.system.google import DEFAULT_GCP_SYSTEM_TEST_PROJECT_ID
-from providers.openlineage.tests.system.openlineage.operator import OpenLineageTestOperator
-
 from airflow.models.dag import DAG
 from airflow.providers.google.cloud.operators.bigquery import (
     BigQueryCheckOperator,
     BigQueryColumnCheckOperator,
     BigQueryCreateEmptyDatasetOperator,
-    BigQueryCreateEmptyTableOperator,
+    BigQueryCreateTableOperator,
     BigQueryDeleteDatasetOperator,
     BigQueryGetDataOperator,
     BigQueryInsertJobOperator,
@@ -43,6 +40,8 @@ from airflow.providers.google.cloud.operators.bigquery import (
 )
 from airflow.providers.standard.operators.bash import BashOperator
 from airflow.utils.trigger_rule import TriggerRule
+from system.google import DEFAULT_GCP_SYSTEM_TEST_PROJECT_ID
+from system.openlineage.operator import OpenLineageTestOperator
 
 ENV_ID = os.environ.get("SYSTEM_TESTS_ENV_ID", "default")
 PROJECT_ID = os.environ.get("SYSTEM_TESTS_GCP_PROJECT") or DEFAULT_GCP_SYSTEM_TEST_PROJECT_ID
@@ -83,18 +82,22 @@ with DAG(
         dataset_id=DATASET_NAME,
     )
 
-    create_table_1 = BigQueryCreateEmptyTableOperator(
+    create_table_1 = BigQueryCreateTableOperator(
         task_id="create_table_1",
         dataset_id=DATASET_NAME,
         table_id=TABLE_1,
-        schema_fields=SCHEMA,
+        table_resource={
+            "schema": {"fields": SCHEMA},
+        },
     )
 
-    create_table_2 = BigQueryCreateEmptyTableOperator(
+    create_table_2 = BigQueryCreateTableOperator(
         task_id="create_table_2",
         dataset_id=DATASET_NAME,
         table_id=TABLE_2,
-        schema_fields=SCHEMA,
+        table_resource={
+            "schema": {"fields": SCHEMA},
+        },
     )
 
     # [START howto_operator_bigquery_insert_job]

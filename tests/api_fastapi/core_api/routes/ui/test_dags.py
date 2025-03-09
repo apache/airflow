@@ -53,6 +53,7 @@ class TestRecentDagRuns(TestPublicDagEndpoint):
                     run_type=DagRunType.MANUAL,
                     start_date=start_date,
                     logical_date=start_date,
+                    run_after=start_date,
                     state=(DagRunState.FAILED if i % 2 == 0 else DagRunState.SUCCESS),
                     triggered_by=DagRunTriggeredByType.TEST,
                 )
@@ -82,6 +83,7 @@ class TestRecentDagRuns(TestPublicDagEndpoint):
             ({"dag_display_name_pattern": "test_dag2"}, [DAG2_ID], 5),
         ],
     )
+    @pytest.mark.usefixtures("configure_git_connection_for_dag_bundle")
     def test_recent_dag_runs(self, test_client, query_params, expected_ids, expected_total_dag_runs):
         response = test_client.get("/ui/dags/recent_dag_runs", params=query_params)
         assert response.status_code == 200
@@ -90,16 +92,17 @@ class TestRecentDagRuns(TestPublicDagEndpoint):
             "dag_run_id",
             "dag_id",
             "state",
-            "logical_date",
+            "run_after",
+            "dag_versions",
         ]
         for recent_dag_runs in body["dags"]:
             dag_runs = recent_dag_runs["latest_dag_runs"]
             # check date ordering
-            previous_logical_date = None
+            previous_run_after = None
             for dag_run in dag_runs:
                 # validate the response
                 for key in required_dag_run_key:
                     assert key in dag_run
-                if previous_logical_date:
-                    assert previous_logical_date > dag_run["logical_date"]
-                previous_logical_date = dag_run["logical_date"]
+                if previous_run_after:
+                    assert previous_run_after > dag_run["run_after"]
+                previous_run_after = dag_run["run_after"]

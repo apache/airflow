@@ -22,10 +22,6 @@ from __future__ import annotations
 from collections.abc import Sequence
 from typing import TYPE_CHECKING, Any
 
-from airflow.exceptions import AirflowNotFoundException
-from airflow.providers.google.cloud.operators.cloud_base import GoogleCloudBaseOperator
-from airflow.providers.google.marketing_platform.hooks.analytics_admin import GoogleAnalyticsAdminHook
-from airflow.providers.google.marketing_platform.links.analytics_admin import GoogleAnalyticsPropertyLink
 from google.analytics.admin_v1beta import (
     Account,
     DataStream,
@@ -34,10 +30,16 @@ from google.analytics.admin_v1beta import (
 )
 from google.api_core.gapic_v1.method import DEFAULT, _MethodDefault
 
+from airflow.exceptions import AirflowNotFoundException
+from airflow.providers.google.cloud.operators.cloud_base import GoogleCloudBaseOperator
+from airflow.providers.google.marketing_platform.hooks.analytics_admin import GoogleAnalyticsAdminHook
+from airflow.providers.google.marketing_platform.links.analytics_admin import GoogleAnalyticsPropertyLink
+
 if TYPE_CHECKING:
-    from airflow.utils.context import Context
     from google.api_core.retry import Retry
     from google.protobuf.message import Message
+
+    from airflow.utils.context import Context
 
 
 class GoogleAnalyticsAdminListAccountsOperator(GoogleCloudBaseOperator):

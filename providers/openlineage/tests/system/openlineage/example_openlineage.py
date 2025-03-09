@@ -19,10 +19,9 @@ from __future__ import annotations
 from datetime import datetime
 from pathlib import Path
 
-from providers.openlineage.tests.system.openlineage.operator import OpenLineageTestOperator
-
 from airflow import DAG
 from airflow.providers.standard.operators.python import PythonOperator
+from system.openlineage.operator import OpenLineageTestOperator
 
 
 def do_nothing():

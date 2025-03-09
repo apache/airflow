@@ -17,7 +17,7 @@
 # under the License.
 
 """
-Utility code that write DAGs in bulk into the database.
+Utility code that writes DAGs in bulk into the database.
 
 This should generally only be called by internal methods such as
 ``DagBag._sync_to_db``, ``DAG.bulk_write_to_db``.
@@ -27,18 +27,16 @@ This should generally only be called by internal methods such as
 
 from __future__ import annotations
 
-import json
 import logging
 import traceback
-from typing import TYPE_CHECKING, Any, NamedTuple, cast
+from typing import TYPE_CHECKING, NamedTuple, cast
 
-from sqlalchemy import and_, delete, exists, func, insert, select, tuple_
+from sqlalchemy import delete, func, insert, select, tuple_
 from sqlalchemy.exc import OperationalError
 from sqlalchemy.orm import joinedload, load_only
 
 from airflow.assets.manager import asset_manager
 from airflow.models.asset import (
-    AssetActive,
     AssetAliasModel,
     AssetModel,
     DagScheduleAssetAliasReference,
@@ -53,7 +51,8 @@ from airflow.models.dagwarning import DagWarningType
 from airflow.models.errors import ParseImportError
 from airflow.models.trigger import Trigger
 from airflow.sdk.definitions.asset import Asset, AssetAlias, AssetNameRef, AssetUriRef
-from airflow.serialization.serialized_objects import BaseSerialization, SerializedAssetWatcher
+from airflow.serialization.serialized_objects import SerializedAssetWatcher
+from airflow.triggers.base import BaseEventTrigger
 from airflow.utils.retries import MAX_DB_RETRIES, run_with_db_retries
 from airflow.utils.sqlalchemy import with_row_locks
 from airflow.utils.timezone import utcnow
@@ -202,6 +201,7 @@ def _serialize_dag_capturing_errors(
         else:
             # Check and update DagCode
             DagCode.update_source_code(dag.dag_id, dag.fileloc)
+
         return []
     except OperationalError:
         raise
@@ -217,7 +217,7 @@ def _sync_dag_perms(dag: MaybeSerializedDAG, session: Session):
     dag_id = dag.dag_id
 
     log.debug("Syncing DAG permissions: %s to the DB", dag_id)
-    from airflow.www.security_appless import ApplessAirflowSecurityManager
+    from airflow.providers.fab.www.security_appless import ApplessAirflowSecurityManager
 
     security_manager = ApplessAirflowSecurityManager(session=session)
     security_manager.sync_perm_for_dag(dag_id, dag.access_control)
@@ -494,8 +494,8 @@ def _find_all_assets(dags: Iterable[MaybeSerializedDAG]) -> Iterator[Asset]:
     for dag in dags:
         for _, asset in dag.timetable.asset_condition.iter_assets():
             yield asset
-        for _, alias in dag.get_task_assets(of_type=Asset):
-            yield alias
+        for _, asset in dag.get_task_assets(of_type=Asset):
+            yield asset
 
 
 def _find_all_asset_aliases(dags: Iterable[MaybeSerializedDAG]) -> Iterator[AssetAlias]:
@@ -506,34 +506,14 @@ def _find_all_asset_aliases(dags: Iterable[MaybeSerializedDAG]) -> Iterator[Asse
             yield alias
 
 
-def _find_active_assets(name_uri_assets, session: Session):
-    active_dags = {
-        dm.dag_id
-        for dm in session.scalars(select(DagModel).where(DagModel.is_active).where(~DagModel.is_paused))
-    }
-
+def _find_active_assets(name_uri_assets: Iterable[tuple[str, str]], session: Session) -> set[tuple[str, str]]:
     return set(
         session.execute(
-            select(
-                AssetModel.name,
-                AssetModel.uri,
-            ).where(
+            select(AssetModel.name, AssetModel.uri).where(
                 tuple_(AssetModel.name, AssetModel.uri).in_(name_uri_assets),
-                exists(
-                    select(1).where(
-                        and_(
-                            AssetActive.name == AssetModel.name,
-                            AssetActive.uri == AssetModel.uri,
-                        ),
-                    )
-                ),
-                exists(
-                    select(1).where(
-                        and_(
-                            DagScheduleAssetReference.asset_id == AssetModel.id,
-                            DagScheduleAssetReference.dag_id.in_(active_dags),
-                        )
-                    )
+                AssetModel.active.has(),
+                AssetModel.consuming_dags.any(
+                    DagScheduleAssetReference.dag.has(DagModel.is_active & ~DagModel.is_paused)
                 ),
             )
         )
@@ -582,7 +562,7 @@ class AssetModelOperation(NamedTuple):
         )
         return coll
 
-    def add_assets(self, *, session: Session) -> dict[tuple[str, str], AssetModel]:
+    def sync_assets(self, *, session: Session) -> dict[tuple[str, str], AssetModel]:
         # Optimization: skip all database calls if no assets were collected.
         if not self.assets:
             return {}
@@ -592,6 +572,10 @@ class AssetModelOperation(NamedTuple):
                 select(AssetModel).where(tuple_(AssetModel.name, AssetModel.uri).in_(self.assets))
             )
         }
+        for key, model in orm_assets.items():
+            asset = self.assets[key]
+            model.group = asset.group
+            model.extra = asset.extra
         orm_assets.update(
             ((model.name, model.uri), model)
             for model in asset_manager.create_assets(
@@ -601,7 +585,7 @@ class AssetModelOperation(NamedTuple):
         )
         return orm_assets
 
-    def add_asset_aliases(self, *, session: Session) -> dict[str, AssetAliasModel]:
+    def sync_asset_aliases(self, *, session: Session) -> dict[str, AssetAliasModel]:
         # Optimization: skip all database calls if no asset aliases were collected.
         if not self.asset_aliases:
             return {}
@@ -611,6 +595,8 @@ class AssetModelOperation(NamedTuple):
                 select(AssetAliasModel).where(AssetAliasModel.name.in_(self.asset_aliases))
             )
         }
+        for name, model in orm_aliases.items():
+            model.group = self.asset_aliases[name].group
         orm_aliases.update(
             (model.name, model)
             for model in asset_manager.create_asset_aliases(
@@ -748,7 +734,7 @@ class AssetModelOperation(NamedTuple):
         triggers: dict[int, dict] = {}
 
         # Optimization: if no asset collected, skip fetching active assets
-        active_assets = _find_active_assets(self.assets.keys(), session=session) if self.assets else {}
+        active_assets = _find_active_assets(self.assets, session=session) if self.assets else {}
 
         for name_uri, asset in self.assets.items():
             # If the asset belong to a DAG not active or paused, consider there is no watcher associated to it
@@ -758,7 +744,7 @@ class AssetModelOperation(NamedTuple):
                 else []
             )
             trigger_hash_to_trigger_dict: dict[int, dict] = {
-                self._get_trigger_hash(
+                BaseEventTrigger.hash(
                     watcher.trigger["classpath"], watcher.trigger["kwargs"]
                 ): watcher.trigger
                 for watcher in asset_watchers
@@ -768,7 +754,7 @@ class AssetModelOperation(NamedTuple):
 
             asset_model = assets[name_uri]
             trigger_hash_from_asset_model: set[int] = {
-                self._get_trigger_hash(trigger.classpath, trigger.kwargs) for trigger in asset_model.triggers
+                BaseEventTrigger.hash(trigger.classpath, trigger.kwargs) for trigger in asset_model.triggers
             }
 
             # Optimization: no diff between the DB and DAG definitions, no update needed
@@ -796,7 +782,7 @@ class AssetModelOperation(NamedTuple):
                 for trigger_hash in trigger_hashes
             }
             orm_triggers: dict[int, Trigger] = {
-                self._get_trigger_hash(trigger.classpath, trigger.kwargs): trigger
+                BaseEventTrigger.hash(trigger.classpath, trigger.kwargs): trigger
                 for trigger in session.scalars(
                     select(Trigger).where(
                         tuple_(Trigger.classpath, Trigger.encrypted_kwargs).in_(all_trigger_keys)
@@ -817,7 +803,7 @@ class AssetModelOperation(NamedTuple):
             ]
             session.add_all(new_trigger_models)
             orm_triggers.update(
-                (self._get_trigger_hash(trigger.classpath, trigger.kwargs), trigger)
+                (BaseEventTrigger.hash(trigger.classpath, trigger.kwargs), trigger)
                 for trigger in new_trigger_models
             )
 
@@ -835,7 +821,7 @@ class AssetModelOperation(NamedTuple):
                 asset_model.triggers = [
                     trigger
                     for trigger in asset_model.triggers
-                    if self._get_trigger_hash(trigger.classpath, trigger.kwargs) not in trigger_hashes
+                    if BaseEventTrigger.hash(trigger.classpath, trigger.kwargs) not in trigger_hashes
                 ]
 
         # Remove references from assets no longer used
@@ -845,15 +831,3 @@ class AssetModelOperation(NamedTuple):
         for asset_model in orphan_assets:
             if (asset_model.name, asset_model.uri) not in self.assets:
                 asset_model.triggers = []
-
-    @staticmethod
-    def _get_trigger_hash(classpath: str, kwargs: dict[str, Any]) -> int:
-        """
-        Return the hash of the trigger classpath and kwargs. This is used to uniquely identify a trigger.
-
-        We do not want to move this logic in a `__hash__` method in `BaseTrigger` because we do not want to
-        make the triggers hashable. The reason being, when the triggerer retrieve the list of triggers, we do
-        not want it dedupe them. When used to defer tasks, 2 triggers can have the same classpath and kwargs.
-        This is not true for event driven scheduling.
-        """
-        return hash((classpath, json.dumps(BaseSerialization.serialize(kwargs)).encode("utf-8")))

@@ -24,11 +24,12 @@ import json
 from collections.abc import Sequence
 from typing import TYPE_CHECKING, Any, ClassVar
 
+from databricks.sql.utils import ParamEscaper
+
 from airflow.exceptions import AirflowException
 from airflow.models import BaseOperator
 from airflow.providers.common.sql.operators.sql import SQLExecuteQueryOperator
 from airflow.providers.databricks.hooks.databricks_sql import DatabricksSqlHook
-from databricks.sql.utils import ParamEscaper
 
 if TYPE_CHECKING:
     from airflow.utils.context import Context

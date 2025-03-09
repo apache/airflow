@@ -24,6 +24,8 @@ from __future__ import annotations
 import os
 from datetime import datetime
 
+from google.cloud.language_v1 import Document
+
 from airflow.models.dag import DAG
 from airflow.providers.google.cloud.operators.natural_language import (
     CloudNaturalLanguageAnalyzeEntitiesOperator,
@@ -32,7 +34,6 @@ from airflow.providers.google.cloud.operators.natural_language import (
     CloudNaturalLanguageClassifyTextOperator,
 )
 from airflow.providers.standard.operators.bash import BashOperator
-from google.cloud.language_v1 import Document
 
 ENV_ID = os.environ.get("SYSTEM_TESTS_ENV_ID", "default")
 DAG_ID = "gcp_natural_language"

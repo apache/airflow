@@ -99,7 +99,8 @@ with DAG(
     @task
     def variable():
         Variable.set("integration_test_key", "value")
-        assert Variable.get("integration_test_key") == "value"
+        if Variable.get("integration_test_key") != "value":
+            raise ValueError("Variable not set as expected.")
         Variable.delete("integration_test_key")
 
     @task

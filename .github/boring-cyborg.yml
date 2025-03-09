@@ -299,10 +299,10 @@ labelPRBasedOnFilePath:
 
   area:API:
     - airflow/api/**/*
-    - airflow/api_connexion/**/*
+    - airflow/api_fastapi/**/*
     - clients/**/*
     - docs/apache-airflow/stable-rest-api-ref.rst
-    - tests/api_connexion/**/*
+    - tests/api_fastapi/**/*
 
   area:dev-tools:
     - scripts/**/*
@@ -319,10 +319,6 @@ labelPRBasedOnFilePath:
     - .pre-commit-config.yaml
     - .rat-excludes
     - .readthedocs.yml
-    - airflow/www/.eslintignore
-    - airflow/www/.eslintrc
-    - airflow/www/.stylelintignore
-    - airflow/www/.stylelintrc
 
   kind:documentation:
     - docs/**/*
@@ -331,22 +327,7 @@ labelPRBasedOnFilePath:
     - chart/**/*
     - docs/helm-chart/**
 
-  area:Webserver:
-    - airflow/cli/commands/local_commands/webserver_command.py
-    - airflow/www/**/*
-    - tests/cli/commands/local_commands/test_webserver_command.py
-    - tests/www/**/*
-
   area:UI:
-    - airflow/www/static/**/*
-    - airflow/www/templates/**/*
-    - airflow/www/.eslintignore
-    - airflow/www/.eslintrc
-    - airflow/www/.stylelintignore
-    - airflow/www/.stylelintrc
-    - airflow/www/package.json
-    - airflow/www/webpack.config.js
-    - airflow/www/yarn.lock
     - docs/apache-airflow/ui.rst
     - airflow/ui/**/*
 
@@ -372,11 +353,10 @@ labelPRBasedOnFilePath:
     - airflow/plugins_manager.py
     - tests/cli/commands/local_commands/test_plugins_command.py
     - tests/plugins/**/*
-    - docs/apache-airflow/authoring-and-scheduling/plugins.rst
+    - docs/apache-airflow/administration-and-deployment/plugins.rst
 
   area:Scheduler:
     - airflow/jobs/scheduler_job_runner.py
-    - airflow/task/standard_task_runner.py
     - docs/apache-airflow/administration-and-deployment/scheduler.rst
     - tests/jobs/test_scheduler_job.py
 
@@ -405,8 +385,7 @@ labelPRBasedOnFilePath:
     - tests/cli/commands/local_commands/test_triggerer_command.py
     - tests/jobs/test_triggerer_job.py
     - tests/models/test_trigger.py
-    - tests/jobs/test_triggerer_job_logging.py
-    - providers/standard/tests/provider_tests/standard/triggers/**/*
+    - providers/standard/tests/unit/standard/triggers/**/*
 
   area:Serialization:
     - airflow/serialization/**/*
@@ -434,10 +413,13 @@ labelPRBasedOnFilePath:
     - tests/system/**/*
 
   area:task-sdk:
-    - task_sdk/**/*
+    - task-sdk/**/*
 
   area:db-migrations:
     - airflow/migrations/versions/*
+
+  area:providers:
+    - providers/**/*
 
 # Various Flags to control behaviour of the "Labeler"
 labelerFlags:

@@ -16,7 +16,7 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Box, Skeleton } from "@chakra-ui/react";
+import { Box, HStack, Skeleton, Spacer } from "@chakra-ui/react";
 import { useState } from "react";
 import { useSearchParams } from "react-router-dom";
 
@@ -25,6 +25,7 @@ import { ErrorAlert } from "src/components/ErrorAlert";
 import { SearchBar } from "src/components/SearchBar";
 import { type SearchParamsKeysType, SearchParamsKeys } from "src/constants/searchParams";
 
+import AddPoolButton from "./AddPoolButton";
 import PoolBar from "./PoolBar";
 
 export const Pools = () => {
@@ -54,6 +55,10 @@ export const Pools = () => {
         onChange={handleSearchChange}
         placeHolder="Search Pools"
       />
+      <HStack gap={4} mt={4}>
+        <Spacer />
+        <AddPoolButton />
+      </HStack>
       <Box mt={4}>
         {isLoading ? (
           <Skeleton height="100px" />

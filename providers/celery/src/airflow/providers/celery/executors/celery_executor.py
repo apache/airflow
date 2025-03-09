@@ -35,6 +35,7 @@ from concurrent.futures import ProcessPoolExecutor
 from multiprocessing import cpu_count
 from typing import TYPE_CHECKING, Any
 
+from celery import states as celery_states
 from deprecated import deprecated
 
 from airflow.cli.cli_config import (
@@ -53,10 +54,9 @@ from airflow.cli.cli_config import (
 from airflow.configuration import conf
 from airflow.exceptions import AirflowProviderDeprecationWarning, AirflowTaskTimeout
 from airflow.executors.base_executor import BaseExecutor
-from airflow.providers.celery.version_compat import AIRFLOW_V_2_8_PLUS, AIRFLOW_V_3_0_PLUS
+from airflow.providers.celery.version_compat import AIRFLOW_V_3_0_PLUS
 from airflow.stats import Stats
 from airflow.utils.state import TaskInstanceState
-from celery import states as celery_states
 
 log = logging.getLogger(__name__)
 
@@ -158,10 +158,7 @@ ARG_WITHOUT_GOSSIP = Arg(
     action="store_true",
 )
 
-if AIRFLOW_V_2_8_PLUS:
-    CELERY_CLI_COMMAND_PATH = "airflow.providers.celery.cli.celery_command"
-else:
-    CELERY_CLI_COMMAND_PATH = "airflow.cli.commands.celery_command"
+CELERY_CLI_COMMAND_PATH = "airflow.providers.celery.cli.celery_command"
 
 CELERY_COMMANDS = (
     ActionCommand(
@@ -267,11 +264,20 @@ class CeleryExecutor(BaseExecutor):
 
         self._send_tasks(task_tuples_to_send)
 
-    def _process_workloads(self, workloads: list[workloads.All]) -> None:
-        # Airflow V3 version
+    def _process_workloads(self, input: list[workloads.All]) -> None:
+        # Airflow V3 version -- have to delay imports until we know we are on v3
+        from airflow.executors import workloads
         from airflow.providers.celery.executors.celery_executor_utils import execute_workload
 
-        tasks = [(workload.ti.key, workload, workload.ti.queue, execute_workload) for workload in workloads]
+        tasks = [
+            (workload.ti.key, workload, workload.ti.queue, execute_workload)
+            for workload in input
+            if isinstance(workload, workloads.ExecuteTask)
+        ]
+        if len(tasks) != len(input):
+            invalid = list(workload for workload in input if not isinstance(workload, workloads.ExecuteTask))
+            raise ValueError(f"{type(self)}._process_workloads cannot handle {invalid}")
+
         self._send_tasks(tasks)
 
     def _send_tasks(self, task_tuples_to_send: Sequence[TaskInstanceInCelery]):
@@ -495,7 +501,11 @@ class CeleryExecutor(BaseExecutor):
             ),
         ]
 
-    def queue_workload(self, workload: workloads.ExecuteTask, session: Session | None) -> None:
+    def queue_workload(self, workload: workloads.All, session: Session | None) -> None:
+        from airflow.executors import workloads
+
+        if not isinstance(workload, workloads.ExecuteTask):
+            raise RuntimeError(f"{type(self)} cannot handle workloads of type {type(workload)}")
         ti = workload.ti
         self.queued_tasks[ti.key] = workload
 

@@ -42,7 +42,7 @@ def _trigger_dag(
     dag_bag: DagBag,
     *,
     triggered_by: DagRunTriggeredByType,
-    run_after: datetime,
+    run_after: datetime | None = None,
     run_id: str | None = None,
     conf: dict | str | None = None,
     logical_date: datetime | None = None,
@@ -67,6 +67,7 @@ def _trigger_dag(
     if dag is None or dag_id not in dag_bag.dags:
         raise DagNotFound(f"Dag id {dag_id} not found")
 
+    run_after = run_after or timezone.coerce_datetime(timezone.utcnow())
     if logical_date:
         if not timezone.is_localized(logical_date):
             raise ValueError("The logical date should be localized")
@@ -82,7 +83,7 @@ def _trigger_dag(
                     f"[{min_dag_start_date.isoformat()}] from DAG's default_args"
                 )
         coerced_logical_date = timezone.coerce_datetime(logical_date)
-        data_interval = dag.timetable.infer_manual_data_interval(run_after=coerced_logical_date)
+        data_interval = dag.timetable.infer_manual_data_interval(run_after=run_after)
     else:
         coerced_logical_date = None
         data_interval = None
@@ -106,13 +107,12 @@ def _trigger_dag(
     dag_version = DagVersion.get_latest_version(dag.dag_id, session=session)
     dag_run = dag.create_dagrun(
         run_id=run_id,
-        logical_date=logical_date,
+        logical_date=coerced_logical_date,
         data_interval=data_interval,
         run_after=run_after,
         conf=run_conf,
         run_type=DagRunType.MANUAL,
         triggered_by=triggered_by,
-        external_trigger=True,
         dag_version=dag_version,
         state=DagRunState.QUEUED,
         session=session,

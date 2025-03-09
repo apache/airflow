@@ -91,6 +91,7 @@ def get_suspended_providers_folders() -> list[str]:
             suspended_providers.append(
                 provider_path.parent.relative_to(AIRFLOW_SOURCES_ROOT)
                 .as_posix()
+                # TODO(potiuk): check
                 .replace("providers/src/airflow/providers/", "")
             )
     return suspended_providers
@@ -109,6 +110,7 @@ def get_python_excluded_providers_folders() -> list[str]:
             excluded_providers.append(
                 provider_path.parent.relative_to(AIRFLOW_SOURCES_ROOT)
                 .as_posix()
+                # TODO(potiuk): check
                 .replace("providers/src/airflow/providers/", "")
             )
     return excluded_providers
@@ -169,14 +171,6 @@ def example_not_excluded_dags(xfail_db_exception: bool = False):
                         f"Skipping {candidate} because providers are not included for {default_branch} branch."
                     )
                     continue
-                # Do not raise an error for airflow.exceptions.RemovedInAirflow3Warning.
-                # We should not rush to enforce new syntax updates in providers
-                # because a version of Airflow that deprecates certain features may not yet be released.
-                # Instead, it is advisable to periodically review the warning reports and implement manual
-                # updates as needed.
-                param_marks.append(
-                    pytest.mark.filterwarnings("default::airflow.exceptions.RemovedInAirflow3Warning")
-                )
                 if candidate.endswith(IGNORE_AIRFLOW_PROVIDER_DEPRECATION_WARNING):
                     param_marks.append(
                         pytest.mark.filterwarnings(

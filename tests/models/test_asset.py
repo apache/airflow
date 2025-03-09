@@ -72,7 +72,7 @@ class TestAssetAliasModel:
         return asset_alias_2
 
     def test_expand_alias_to_assets_empty(self, session, asset_alias_1):
-        assert expand_alias_to_assets(asset_alias_1.name, session) == []
+        assert list(expand_alias_to_assets(asset_alias_1.name, session=session)) == []
 
     def test_expand_alias_to_assets_resolved(self, session, resolved_asset_alias_2, asset_model):
-        assert expand_alias_to_assets(resolved_asset_alias_2.name, session) == [asset_model]
+        assert list(expand_alias_to_assets(resolved_asset_alias_2.name, session=session)) == [asset_model]

@@ -24,17 +24,16 @@ from __future__ import annotations
 import os
 from datetime import datetime
 
-from providers.google.tests.system.google import DEFAULT_GCP_SYSTEM_TEST_PROJECT_ID
-
 from airflow.models.dag import DAG
 from airflow.providers.google.cloud.operators.bigquery import (
     BigQueryCreateEmptyDatasetOperator,
-    BigQueryCreateEmptyTableOperator,
+    BigQueryCreateTableOperator,
     BigQueryDeleteDatasetOperator,
 )
 from airflow.providers.google.cloud.operators.gcs import GCSCreateBucketOperator, GCSDeleteBucketOperator
 from airflow.providers.google.cloud.transfers.bigquery_to_gcs import BigQueryToGCSOperator
 from airflow.utils.trigger_rule import TriggerRule
+from system.google import DEFAULT_GCP_SYSTEM_TEST_PROJECT_ID
 
 ENV_ID = os.environ.get("SYSTEM_TESTS_ENV_ID", "default")
 DAG_ID = "bigquery_to_gcs"
@@ -44,6 +43,10 @@ BUCKET_NAME = f"bucket_{DAG_ID}_{ENV_ID}"
 PROJECT_ID = os.environ.get("SYSTEM_TESTS_GCP_PROJECT") or DEFAULT_GCP_SYSTEM_TEST_PROJECT_ID
 BUCKET_FILE = "test.csv"
 TABLE = "test"
+SCHEMA = [
+    {"name": "emp_name", "type": "STRING", "mode": "REQUIRED"},
+    {"name": "salary", "type": "INTEGER", "mode": "NULLABLE"},
+]
 
 
 with DAG(
@@ -59,14 +62,13 @@ with DAG(
 
     create_dataset = BigQueryCreateEmptyDatasetOperator(task_id="create_dataset", dataset_id=DATASET_NAME)
 
-    create_table = BigQueryCreateEmptyTableOperator(
+    create_table = BigQueryCreateTableOperator(
         task_id="create_table",
         dataset_id=DATASET_NAME,
         table_id=TABLE,
-        schema_fields=[
-            {"name": "emp_name", "type": "STRING", "mode": "REQUIRED"},
-            {"name": "salary", "type": "INTEGER", "mode": "NULLABLE"},
-        ],
+        table_resource={
+            "schema": {"fields": SCHEMA},
+        },
     )
 
     # [START howto_operator_bigquery_to_gcs]
@@ -76,6 +78,13 @@ with DAG(
         destination_cloud_storage_uris=[f"gs://{BUCKET_NAME}/{BUCKET_FILE}"],
     )
     # [END howto_operator_bigquery_to_gcs]
+
+    bigquery_to_gcs_async = BigQueryToGCSOperator(
+        task_id="bigquery_to_gcs_async",
+        source_project_dataset_table=f"{DATASET_NAME}.{TABLE}",
+        destination_cloud_storage_uris=[f"gs://{BUCKET_NAME}/{BUCKET_FILE}"],
+        deferrable=True,
+    )
 
     delete_bucket = GCSDeleteBucketOperator(
         task_id="delete_bucket", bucket_name=BUCKET_NAME, trigger_rule=TriggerRule.ALL_DONE
@@ -94,6 +103,7 @@ with DAG(
         >> create_table
         # TEST BODY
         >> bigquery_to_gcs
+        >> bigquery_to_gcs_async
         # TEST TEARDOWN
         >> [delete_bucket, delete_dataset]
     )

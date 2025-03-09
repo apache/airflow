@@ -20,6 +20,20 @@
 Changelog
 ---------
 
+1.5.1
+.....
+
+Misc
+~~~~
+
+* ``AIP-72: Support better type-hinting for Context dict in SDK  (#45583)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Move provider_tests to unit folder in provider tests (#46800)``
+   * ``Removed the unused provider's distribution (#46608)``
+   * ``refactor(providers/openai): move openai provider to new structure (#46099)``
+
 1.5.0
 .....
 

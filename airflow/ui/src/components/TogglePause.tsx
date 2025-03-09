@@ -23,6 +23,7 @@ import { useCallback } from "react";
 import {
   UseDagRunServiceGetDagRunsKeyFn,
   UseDagServiceGetDagDetailsKeyFn,
+  UseDagServiceGetDagKeyFn,
   useDagServiceGetDagsKey,
   useDagServicePatchDag,
   useDagsServiceRecentDagRunsKey,
@@ -31,16 +32,16 @@ import {
 import { useConfig } from "src/queries/useConfig";
 
 import { ConfirmationModal } from "./ConfirmationModal";
-import { Switch } from "./ui";
+import { Switch, type SwitchProps } from "./ui";
 
 type Props = {
   readonly dagDisplayName?: string;
   readonly dagId: string;
   readonly isPaused: boolean;
   readonly skipConfirm?: boolean;
-};
+} & SwitchProps;
 
-export const TogglePause = ({ dagDisplayName, dagId, isPaused, skipConfirm }: Props) => {
+export const TogglePause = ({ dagDisplayName, dagId, isPaused, skipConfirm, ...rest }: Props) => {
   const queryClient = useQueryClient();
   const { onClose, onOpen, open } = useDisclosure();
 
@@ -48,6 +49,7 @@ export const TogglePause = ({ dagDisplayName, dagId, isPaused, skipConfirm }: Pr
     const queryKeys = [
       [useDagServiceGetDagsKey],
       [useDagsServiceRecentDagRunsKey],
+      UseDagServiceGetDagKeyFn({ dagId }, [{ dagId }]),
       UseDagServiceGetDagDetailsKeyFn({ dagId }, [{ dagId }]),
       UseDagRunServiceGetDagRunsKeyFn({ dagId }, [{ dagId }]),
       UseTaskInstanceServiceGetTaskInstancesKeyFn({ dagId, dagRunId: "~" }, [{ dagId, dagRunId: "~" }]),
@@ -81,7 +83,7 @@ export const TogglePause = ({ dagDisplayName, dagId, isPaused, skipConfirm }: Pr
 
   return (
     <>
-      <Switch checked={!isPaused} colorPalette="blue" onCheckedChange={onChange} size="sm" />
+      <Switch checked={!isPaused} colorPalette="blue" onCheckedChange={onChange} size="sm" {...rest} />
       <ConfirmationModal
         header={`${isPaused ? "Unpause" : "Pause"} ${dagDisplayName ?? dagId}?`}
         onConfirm={onToggle}

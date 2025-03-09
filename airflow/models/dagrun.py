@@ -19,6 +19,7 @@ from __future__ import annotations
 
 import itertools
 import os
+import re
 from collections import defaultdict
 from collections.abc import Iterable, Iterator, Sequence
 from typing import (
@@ -31,10 +32,8 @@ from typing import (
     overload,
 )
 
-import re2
 from sqlalchemy import (
     JSON,
-    Boolean,
     Column,
     Enum,
     ForeignKey,
@@ -60,9 +59,7 @@ from sqlalchemy.ext.mutable import MutableDict
 from sqlalchemy.orm import declared_attr, joinedload, relationship, synonym, validates
 from sqlalchemy.sql.expression import case, false, select, true
 from sqlalchemy.sql.functions import coalesce
-from sqlalchemy_utils import UUIDType
 
-from airflow import settings
 from airflow.callbacks.callback_requests import DagCallbackRequest
 from airflow.configuration import conf as airflow_conf
 from airflow.exceptions import AirflowException, TaskNotFound
@@ -71,8 +68,8 @@ from airflow.models import Log
 from airflow.models.abstractoperator import NotMapped
 from airflow.models.backfill import Backfill
 from airflow.models.base import Base, StringID
-from airflow.models.dag_version import DagVersion
 from airflow.models.taskinstance import TaskInstance as TI
+from airflow.models.taskinstancehistory import TaskInstanceHistory as TIH
 from airflow.models.tasklog import LogTemplate
 from airflow.models.taskmap import TaskMap
 from airflow.stats import Stats
@@ -97,9 +94,11 @@ if TYPE_CHECKING:
 
     from opentelemetry.sdk.trace import Span
     from sqlalchemy.orm import Query, Session
+    from sqlalchemy_utils import UUIDType
 
     from airflow.models.baseoperator import BaseOperator
     from airflow.models.dag import DAG
+    from airflow.models.dag_version import DagVersion
     from airflow.models.operator import Operator
     from airflow.typing_compat import Literal
     from airflow.utils.types import ArgNotSet
@@ -155,7 +154,6 @@ class DagRun(Base, LoggingMixin):
     _state = Column("state", String(50), default=DagRunState.QUEUED)
     run_id = Column(StringID(), nullable=False)
     creating_job_id = Column(Integer)
-    external_trigger = Column(Boolean, default=True)
     run_type = Column(String(50), nullable=False)
     triggered_by = Column(
         Enum(DagRunTriggeredByType, native_enum=False, length=50)
@@ -187,8 +185,6 @@ class DagRun(Base, LoggingMixin):
 
     It's possible this could change if e.g. the dag run is cleared to be rerun, or perhaps re-backfilled.
     """
-    dag_version_id = Column(UUIDType(binary=False), ForeignKey("dag_version.id", ondelete="CASCADE"))
-    dag_version = relationship("DagVersion", back_populates="dag_runs")
     bundle_version = Column(StringID())
 
     scheduled_by_job_id = Column(Integer)
@@ -227,7 +223,16 @@ class DagRun(Base, LoggingMixin):
     )
 
     task_instances = relationship(
-        TI, back_populates="dag_run", cascade="save-update, merge, delete, delete-orphan"
+        TI,
+        back_populates="dag_run",
+        cascade="save-update, merge, delete, delete-orphan",
+    )
+    task_instances_histories = relationship(
+        TIH,
+        primaryjoin="and_(DagRun.dag_id == TaskInstanceHistory.dag_id, DagRun.run_id == TaskInstanceHistory.run_id)",
+        foreign_keys="TaskInstanceHistory.dag_id, TaskInstanceHistory.run_id",
+        order_by=TIH.dag_version_id,
+        viewonly=True,
     )
     dag_model = relationship(
         "DagModel",
@@ -252,6 +257,8 @@ class DagRun(Base, LoggingMixin):
         "max_dagruns_per_loop_to_schedule",
         fallback=20,
     )
+    _ti_dag_versions = association_proxy("task_instances", "dag_version")
+    _tih_dag_versions = association_proxy("task_instances_histories", "dag_version")
 
     def __init__(
         self,
@@ -262,7 +269,6 @@ class DagRun(Base, LoggingMixin):
         logical_date: datetime | None = None,
         run_after: datetime | None = None,
         start_date: datetime | None = None,
-        external_trigger: bool | None = None,
         conf: Any | None = None,
         state: DagRunState | None = None,
         run_type: str | None = None,
@@ -270,22 +276,23 @@ class DagRun(Base, LoggingMixin):
         data_interval: tuple[datetime, datetime] | None = None,
         triggered_by: DagRunTriggeredByType | None = None,
         backfill_id: int | None = None,
-        dag_version: DagVersion | None = None,
         bundle_version: str | None = None,
     ):
+        # For manual runs where logical_date is None, ensure no data_interval is set.
+        if logical_date is None and data_interval is not None:
+            raise ValueError("data_interval must be None if logical_date is None")
+
         if data_interval is None:
             # Legacy: Only happen for runs created prior to Airflow 2.2.
             self.data_interval_start = self.data_interval_end = None
         else:
             self.data_interval_start, self.data_interval_end = data_interval
-
         self.bundle_version = bundle_version
         self.dag_id = dag_id
         self.run_id = run_id
         self.logical_date = logical_date
         self.run_after = run_after
         self.start_date = start_date
-        self.external_trigger = external_trigger
         self.conf = conf or {}
         if state is not None:
             self.state = state
@@ -298,7 +305,6 @@ class DagRun(Base, LoggingMixin):
         self.backfill_id = backfill_id
         self.clear_number = 0
         self.triggered_by = triggered_by
-        self.dag_version = dag_version
         self.scheduled_by_job_id = None
         self.context_carrier = {}
         super().__init__()
@@ -306,21 +312,53 @@ class DagRun(Base, LoggingMixin):
     def __repr__(self):
         return (
             f"<DagRun {self.dag_id} @ {self.logical_date}: {self.run_id}, state:{self.state}, "
-            f"queued_at: {self.queued_at}. externally triggered: {self.external_trigger}>"
+            f"queued_at: {self.queued_at}. run_type: {self.run_type}>"
         )
 
     @validates("run_id")
     def validate_run_id(self, key: str, run_id: str) -> str | None:
         if not run_id:
             return None
-        if re2.match(RUN_ID_REGEX, run_id):
+        if re.match(RUN_ID_REGEX, run_id):
             return run_id
         regex = airflow_conf.get("scheduler", "allowed_run_id_pattern").strip()
-        if regex and re2.match(regex, run_id):
+        if regex and re.match(regex, run_id):
             return run_id
         raise ValueError(
             f"The run_id provided '{run_id}' does not match regex pattern '{regex}' or '{RUN_ID_REGEX}'"
         )
+
+    @property
+    def dag_versions(self) -> list[DagVersion]:
+        """Return the DAG versions associated with the TIs of this DagRun."""
+        dag_versions = [
+            dv
+            for dv in dict.fromkeys(list(self._tih_dag_versions) + list(self._ti_dag_versions))
+            if dv is not None
+        ]
+        sorted_ = sorted(dag_versions, key=lambda dv: dv.id)
+        return sorted_
+
+    @property
+    def version_number(self) -> int | None:
+        """Return the DAG version number associated with the latest TI of this DagRun."""
+        dag_versions = self.dag_versions
+        if dag_versions:
+            return dag_versions[-1].version_number
+        return None
+
+    @provide_session
+    def check_version_id_exists_in_dr(self, dag_version_id: UUIDType, session: Session = NEW_SESSION):
+        select_stmt = (
+            select(TI.dag_version_id)
+            .where(TI.dag_id == self.dag_id, TI.dag_version_id == dag_version_id, TI.run_id == self.run_id)
+            .union(
+                select(TIH.dag_version_id).where(
+                    TIH.dag_id == self.dag_id, TIH.dag_version_id == dag_version_id, TIH.run_id == self.run_id
+                )
+            )
+        )
+        return session.scalar(select_stmt)
 
     @property
     def stats_tags(self) -> dict[str, str]:
@@ -473,18 +511,18 @@ class DagRun(Base, LoggingMixin):
                 DagModel.is_paused == false(),
                 DagModel.is_active == true(),
             )
+            .options(joinedload(cls.task_instances))
             .order_by(
                 nulls_first(BackfillDagRun.sort_ordinal, session=session),
                 nulls_first(cls.last_scheduling_decision, session=session),
-                cls.logical_date,
+                cls.run_after,
             )
             .limit(cls.DEFAULT_DAGRUNS_TO_EXAMINE)
         )
 
-        if not settings.ALLOW_FUTURE_LOGICAL_DATES:
-            query = query.where(DagRun.logical_date <= func.now())
+        query = query.where(DagRun.run_after <= func.now())
 
-        return session.scalars(with_row_locks(query, of=cls, session=session, skip_locked=True))
+        return session.scalars(with_row_locks(query, of=cls, session=session, skip_locked=True)).unique()
 
     @classmethod
     @retry_db_transaction
@@ -562,13 +600,12 @@ class DagRun(Base, LoggingMixin):
                 nulls_first(BackfillDagRun.sort_ordinal, session=session),
                 nulls_first(cls.last_scheduling_decision, session=session),
                 nulls_first(running_drs.c.num_running, session=session),  # many running -> lower priority
-                cls.logical_date,
+                cls.run_after,
             )
             .limit(cls.DEFAULT_DAGRUNS_TO_EXAMINE)
         )
 
-        if not settings.ALLOW_FUTURE_LOGICAL_DATES:
-            query = query.where(DagRun.logical_date <= func.now())
+        query = query.where(DagRun.run_after <= func.now())
 
         return session.scalars(with_row_locks(query, of=cls, session=session, skip_locked=True))
 
@@ -580,7 +617,6 @@ class DagRun(Base, LoggingMixin):
         run_id: Iterable[str] | None = None,
         logical_date: datetime | Iterable[datetime] | None = None,
         state: DagRunState | None = None,
-        external_trigger: bool | None = None,
         no_backfills: bool = False,
         run_type: DagRunType | None = None,
         session: Session = NEW_SESSION,
@@ -595,7 +631,6 @@ class DagRun(Base, LoggingMixin):
         :param run_type: type of DagRun
         :param logical_date: the logical date
         :param state: the state of the dag run
-        :param external_trigger: whether this dag run is externally triggered
         :param no_backfills: return no backfills (True), return all (False).
             Defaults to False
         :param session: database session
@@ -623,8 +658,6 @@ class DagRun(Base, LoggingMixin):
             qry = qry.where(cls.logical_date <= logical_end_date)
         if state:
             qry = qry.where(cls.state == state)
-        if external_trigger is not None:
-            qry = qry.where(cls.external_trigger == external_trigger)
         if run_type:
             qry = qry.where(cls.run_type == run_type)
         if no_backfills:
@@ -851,6 +884,8 @@ class DagRun(Base, LoggingMixin):
         :param session: SQLAlchemy ORM Session
         """
         dag_run = session.get(DagRun, dag_run_id)
+        if not dag_run.logical_date:
+            return None
         return session.scalar(
             select(DagRun)
             .where(
@@ -887,7 +922,7 @@ class DagRun(Base, LoggingMixin):
         leaf_tis = {ti for ti in tis if ti.task_id in leaf_task_ids if ti.state != TaskInstanceState.REMOVED}
         return leaf_tis
 
-    def set_dagrun_span_attrs(self, span: Span | EmptySpan, dagv: DagVersion):
+    def set_dagrun_span_attrs(self, span: Span | EmptySpan):
         if self._state == DagRunState.FAILED:
             span.set_attribute("airflow.dag_run.error", True)
 
@@ -919,7 +954,6 @@ class DagRun(Base, LoggingMixin):
             "airflow.dag_run.run_type": str(self.run_type),
             "airflow.dag_run.data_interval_start": str(self.data_interval_start),
             "airflow.dag_run.data_interval_end": str(self.data_interval_end),
-            "airflow.dag_version.version": str(dagv.version if dagv else None),
             "airflow.dag_run.conf": str(self.conf),
         }
         if span.is_recording():
@@ -989,7 +1023,7 @@ class DagRun(Base, LoggingMixin):
                     self.run_id,
                 )
 
-    def end_dr_span_if_needed(self, dagv: DagVersion):
+    def end_dr_span_if_needed(self):
         if self.active_spans is not None:
             active_span = self.active_spans.get(self.run_id)
             if active_span is not None:
@@ -1001,7 +1035,7 @@ class DagRun(Base, LoggingMixin):
                     self.state,
                 )
 
-                self.set_dagrun_span_attrs(span=active_span, dagv=dagv)
+                self.set_dagrun_span_attrs(span=active_span)
                 active_span.end(end_time=datetime_to_nano(self.end_date))
                 # Remove the span from the dict.
                 self.active_spans.delete(self.run_id)
@@ -1102,7 +1136,7 @@ class DagRun(Base, LoggingMixin):
                     filepath=self.dag_model.relative_fileloc,
                     dag_id=self.dag_id,
                     run_id=self.run_id,
-                    bundle_name=self.dag_version.bundle_name,
+                    bundle_name=self.dag_model.bundle_name,
                     bundle_version=self.bundle_version,
                     is_failure_callback=True,
                     msg="task_failure",
@@ -1131,7 +1165,7 @@ class DagRun(Base, LoggingMixin):
                     filepath=self.dag_model.relative_fileloc,
                     dag_id=self.dag_id,
                     run_id=self.run_id,
-                    bundle_name=self.dag_version.bundle_name,
+                    bundle_name=self.dag_model.bundle_name,
                     bundle_version=self.bundle_version,
                     is_failure_callback=False,
                     msg="success",
@@ -1150,7 +1184,7 @@ class DagRun(Base, LoggingMixin):
                     filepath=self.dag_model.relative_fileloc,
                     dag_id=self.dag_id,
                     run_id=self.run_id,
-                    bundle_name=self.dag_version.bundle_name,
+                    bundle_name=self.dag_model.bundle_name,
                     bundle_version=self.bundle_version,
                     is_failure_callback=True,
                     msg="all_tasks_deadlocked",
@@ -1167,10 +1201,9 @@ class DagRun(Base, LoggingMixin):
             msg = (
                 "DagRun Finished: dag_id=%s, logical_date=%s, run_id=%s, "
                 "run_start_date=%s, run_end_date=%s, run_duration=%s, "
-                "state=%s, external_trigger=%s, run_type=%s, "
-                "data_interval_start=%s, data_interval_end=%s, dag_version_name=%s"
+                "state=%s, run_type=%s, "
+                "data_interval_start=%s, data_interval_end=%s,"
             )
-            dagv = session.scalar(select(DagVersion).where(DagVersion.id == self.dag_version_id))
             self.log.info(
                 msg,
                 self.dag_id,
@@ -1184,14 +1217,12 @@ class DagRun(Base, LoggingMixin):
                     else None
                 ),
                 self._state,
-                self.external_trigger,
                 self.run_type,
                 self.data_interval_start,
                 self.data_interval_end,
-                dagv.version if dagv else None,
             )
 
-            self.end_dr_span_if_needed(dagv=dagv)
+            self.end_dr_span_if_needed()
 
             session.flush()
 
@@ -1395,11 +1426,11 @@ class DagRun(Base, LoggingMixin):
         rid of the outliers on the stats side through dashboards tooling.
 
         Note that the stat will only be emitted for scheduler-triggered DAG runs
-        (i.e. when ``external_trigger`` is *False* and ``clear_number`` is equal to 0).
+        (i.e. when ``run_type`` is *SCHEDULED* and ``clear_number`` is equal to 0).
         """
         if self.state == TaskInstanceState.RUNNING:
             return
-        if self.external_trigger:
+        if self.run_type != DagRunType.SCHEDULED:
             return
         if self.clear_number > 0:
             return
@@ -1449,13 +1480,15 @@ class DagRun(Base, LoggingMixin):
         Stats.timing(f"dagrun.duration.{self.state}", **timer_params)
 
     @provide_session
-    def verify_integrity(self, *, session: Session = NEW_SESSION) -> None:
+    def verify_integrity(
+        self, *, session: Session = NEW_SESSION, dag_version_id: UUIDType | None = None
+    ) -> None:
         """
         Verify the DagRun by checking for removed tasks or tasks that are not in the database yet.
 
         It will set state to removed or add the task if required.
 
-        :missing_indexes: A dictionary of task vs indexes that are missing.
+        :param dag_version_id: The DAG version ID
         :param session: Sqlalchemy ORM Session
         """
         from airflow.settings import task_instance_mutation_hook
@@ -1481,7 +1514,9 @@ class DagRun(Base, LoggingMixin):
             )
 
         created_counts: dict[str, int] = defaultdict(int)
-        task_creator = self._get_task_creator(created_counts, task_instance_mutation_hook, hook_is_noop)
+        task_creator = self._get_task_creator(
+            created_counts, task_instance_mutation_hook, hook_is_noop, dag_version_id
+        )
 
         # Create the missing tasks, including mapped tasks
         tasks_to_create = (task for task in dag.task_dict.values() if task_filter(task))
@@ -1577,6 +1612,7 @@ class DagRun(Base, LoggingMixin):
         created_counts: dict[str, int],
         ti_mutation_hook: Callable,
         hook_is_noop: Literal[True],
+        dag_version_id: UUIDType | None,
     ) -> Callable[[Operator, Iterable[int]], Iterator[dict[str, Any]]]: ...
 
     @overload
@@ -1585,6 +1621,7 @@ class DagRun(Base, LoggingMixin):
         created_counts: dict[str, int],
         ti_mutation_hook: Callable,
         hook_is_noop: Literal[False],
+        dag_version_id: UUIDType | None,
     ) -> Callable[[Operator, Iterable[int]], Iterator[TI]]: ...
 
     def _get_task_creator(
@@ -1592,6 +1629,7 @@ class DagRun(Base, LoggingMixin):
         created_counts: dict[str, int],
         ti_mutation_hook: Callable,
         hook_is_noop: Literal[True, False],
+        dag_version_id: UUIDType | None,
     ) -> Callable[[Operator, Iterable[int]], Iterator[dict[str, Any]] | Iterator[TI]]:
         """
         Get the task creator function.
@@ -1609,7 +1647,7 @@ class DagRun(Base, LoggingMixin):
                 created_counts[task.task_type] += 1
                 for map_index in indexes:
                     yield TI.insert_mapping(
-                        self.run_id, task, map_index=map_index, dag_version_id=self.dag_version_id
+                        self.run_id, task, map_index=map_index, dag_version_id=dag_version_id
                     )
 
             creator = create_ti_mapping
@@ -1618,7 +1656,7 @@ class DagRun(Base, LoggingMixin):
 
             def create_ti(task: Operator, indexes: Iterable[int]) -> Iterator[TI]:
                 for map_index in indexes:
-                    ti = TI(task, run_id=self.run_id, map_index=map_index, dag_version_id=self.dag_version_id)
+                    ti = TI(task, run_id=self.run_id, map_index=map_index, dag_version_id=dag_version_id)
                     ti_mutation_hook(ti)
                     created_counts[ti.operator] += 1
                     yield ti

@@ -24,13 +24,14 @@ from __future__ import annotations
 import os
 from datetime import datetime
 
+from kubernetes.client import models as k8s
+
 from airflow import DAG
 from airflow.providers.cncf.kubernetes.operators.kueue import (
     KubernetesInstallKueueOperator,
     KubernetesStartKueueJobOperator,
 )
 from airflow.providers.cncf.kubernetes.operators.resource import KubernetesCreateResourceOperator
-from kubernetes.client import models as k8s
 
 ENV_ID = os.environ.get("SYSTEM_TESTS_ENV_ID", "default")
 DAG_ID = "example_kubernetes_kueue_operators"

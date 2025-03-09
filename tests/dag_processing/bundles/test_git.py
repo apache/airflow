@@ -25,6 +25,7 @@ import pytest
 from git import Repo
 from git.exc import GitCommandError, NoSuchPathError
 
+from airflow.dag_processing.bundles.base import get_bundle_storage_root_path
 from airflow.dag_processing.bundles.git import GitDagBundle, GitHook
 from airflow.exceptions import AirflowException
 from airflow.models import Connection
@@ -63,7 +64,6 @@ AIRFLOW_GIT = "git@github.com:apache/airflow.git"
 ACCESS_TOKEN = "my_access_token"
 CONN_DEFAULT = "git_default"
 CONN_HTTPS = "my_git_conn"
-CONN_HTTPS_PASSWORD = "my_git_conn_https_password"
 CONN_ONLY_PATH = "my_git_conn_only_path"
 CONN_ONLY_INLINE_KEY = "my_git_conn_only_inline_key"
 CONN_BOTH_PATH_INLINE = "my_git_conn_both_path_inline"
@@ -95,11 +95,6 @@ class TestGitHook:
         )
         db.merge_conn(
             Connection(
-                conn_id=CONN_HTTPS_PASSWORD, host=AIRFLOW_HTTPS_URL, conn_type="git", password=ACCESS_TOKEN
-            )
-        )
-        db.merge_conn(
-            Connection(
                 conn_id=CONN_ONLY_PATH,
                 host="path/to/repo",
                 conn_type="git",
@@ -117,16 +112,20 @@ class TestGitHook:
         )
 
     @pytest.mark.parametrize(
-        "conn_id, expected_repo_url",
+        "conn_id, hook_kwargs, expected_repo_url",
         [
-            (CONN_DEFAULT, AIRFLOW_GIT),
-            (CONN_HTTPS, f"https://{ACCESS_TOKEN}@github.com/apache/airflow.git"),
-            (CONN_HTTPS_PASSWORD, f"https://{ACCESS_TOKEN}@github.com/apache/airflow.git"),
-            (CONN_ONLY_PATH, "path/to/repo"),
+            (CONN_DEFAULT, {}, AIRFLOW_GIT),
+            (CONN_HTTPS, {}, f"https://{ACCESS_TOKEN}@github.com/apache/airflow.git"),
+            (
+                CONN_HTTPS,
+                {"repo_url": "https://github.com/apache/zzzairflow"},
+                f"https://{ACCESS_TOKEN}@github.com/apache/zzzairflow",
+            ),
+            (CONN_ONLY_PATH, {}, "path/to/repo"),
         ],
     )
-    def test_correct_repo_urls(self, conn_id, expected_repo_url):
-        hook = GitHook(git_conn_id=conn_id)
+    def test_correct_repo_urls(self, conn_id, hook_kwargs, expected_repo_url):
+        hook = GitHook(git_conn_id=conn_id, **hook_kwargs)
         assert hook.repo_url == expected_repo_url
 
     def test_env_var_with_configure_hook_env(self, session):
@@ -216,6 +215,14 @@ class TestGitDagBundle:
         )
         db.merge_conn(
             Connection(
+                conn_id=CONN_HTTPS,
+                host=AIRFLOW_HTTPS_URL,
+                password=ACCESS_TOKEN,
+                conn_type="git",
+            )
+        )
+        db.merge_conn(
+            Connection(
                 conn_id=CONN_NO_REPO_URL,
                 conn_type="git",
             )
@@ -224,24 +231,26 @@ class TestGitDagBundle:
     def test_supports_versioning(self):
         assert GitDagBundle.supports_versioning is True
 
-    def test_uses_dag_bundle_root_storage_path(self, git_repo):
-        repo_path, repo = git_repo
+    def test_uses_dag_bundle_root_storage_path(self):
         bundle = GitDagBundle(name="test", tracking_ref=GIT_DEFAULT_BRANCH)
-        assert str(bundle._dag_bundle_root_storage_path) in str(bundle.path)
+        base = get_bundle_storage_root_path()
+        assert bundle.path.is_relative_to(base)
 
-    def test_repo_url_overrides_connection_host_when_provided(self, git_repo):
-        repo_path, repo = git_repo
+    def test_repo_url_overrides_connection_host_when_provided(self):
+        bundle = GitDagBundle(name="test", tracking_ref=GIT_DEFAULT_BRANCH, repo_url="/some/other/repo")
+        assert bundle.repo_url == "/some/other/repo"
+
+    def test_https_access_token_repo_url_overrides_connection_host_when_provided(self):
         bundle = GitDagBundle(
-            name="test", tracking_ref=GIT_DEFAULT_BRANCH, repo_url="git@myorg.github.com:apache/airflow.git"
+            name="test",
+            git_conn_id=CONN_HTTPS,
+            tracking_ref=GIT_DEFAULT_BRANCH,
+            repo_url="https://github.com/apache/zzzairflow",
         )
-        assert bundle.repo_url != bundle.hook.repo_url
-        assert bundle.repo_url == "git@myorg.github.com:apache/airflow.git"
+        assert bundle.repo_url == f"https://{ACCESS_TOKEN}@github.com/apache/zzzairflow"
 
-    def test_falls_back_to_connection_host_when_no_repo_url_provided(self, git_repo):
-        repo_path, repo = git_repo
+    def test_falls_back_to_connection_host_when_no_repo_url_provided(self):
         bundle = GitDagBundle(name="test", tracking_ref=GIT_DEFAULT_BRANCH)
-
-        assert bundle.repo_url
         assert bundle.repo_url == bundle.hook.repo_url
 
     @mock.patch("airflow.dag_processing.bundles.git.GitHook")
@@ -287,7 +296,6 @@ class TestGitDagBundle:
 
         # add tag
         repo.create_tag("test")
-        print(repo.tags)
 
         # Add new file to the repo
         file_path = repo_path / "new_test.py"
@@ -327,11 +335,23 @@ class TestGitDagBundle:
         files_in_repo = {f.name for f in bundle.path.iterdir() if f.is_file()}
         assert {"test_dag.py", "new_test.py"} == files_in_repo
 
+    @pytest.mark.parametrize(
+        "amend",
+        [
+            True,
+            False,
+        ],
+    )
     @mock.patch("airflow.dag_processing.bundles.git.GitHook")
-    def test_refresh(self, mock_githook, git_repo):
+    def test_refresh(self, mock_githook, git_repo, amend):
+        """Ensure that the bundle refresh works when tracking a branch, with a new commit and amending the commit"""
         repo_path, repo = git_repo
         mock_githook.return_value.repo_url = repo_path
         starting_commit = repo.head.commit
+
+        with repo.config_writer() as writer:
+            writer.set_value("user", "name", "Test User")
+            writer.set_value("user", "email", "test@example.com")
 
         bundle = GitDagBundle(name="test", tracking_ref=GIT_DEFAULT_BRANCH)
         bundle.initialize()
@@ -345,7 +365,38 @@ class TestGitDagBundle:
         with open(file_path, "w") as f:
             f.write("hello world")
         repo.index.add([file_path])
+        commit = repo.git.commit(amend=amend, message="Another commit")
+
+        bundle.refresh()
+
+        assert bundle.get_current_version()[:6] in commit
+
+        files_in_repo = {f.name for f in bundle.path.iterdir() if f.is_file()}
+        assert {"test_dag.py", "new_test.py"} == files_in_repo
+
+    @mock.patch("airflow.dag_processing.bundles.git.GitHook")
+    def test_refresh_tag(self, mock_githook, git_repo):
+        """Ensure that the bundle refresh works when tracking a tag"""
+        repo_path, repo = git_repo
+        mock_githook.return_value.repo_url = repo_path
+        starting_commit = repo.head.commit
+
+        # add tag
+        repo.create_tag("test123")
+
+        bundle = GitDagBundle(name="test", tracking_ref="test123")
+        bundle.initialize()
+        assert bundle.get_current_version() == starting_commit.hexsha
+
+        # Add new file to the repo
+        file_path = repo_path / "new_test.py"
+        with open(file_path, "w") as f:
+            f.write("hello world")
+        repo.index.add([file_path])
         commit = repo.index.commit("Another commit")
+
+        # update tag
+        repo.create_tag("test123", force=True)
 
         bundle.refresh()
 
@@ -432,36 +483,18 @@ class TestGitDagBundle:
             tracking_ref=GIT_DEFAULT_BRANCH,
         )
         bundle.initialize()
+        assert mock_gitRepo.return_value.remotes.origin.fetch.call_count == 2  # 1 in bare, 1 in main repo
+        mock_gitRepo.return_value.remotes.origin.fetch.reset_mock()
         bundle.refresh()
-        # check remotes called twice. one at initialize and one at refresh above
         assert mock_gitRepo.return_value.remotes.origin.fetch.call_count == 2
-
-    @pytest.mark.parametrize(
-        "repo_url",
-        [
-            pytest.param("https://github.com/apache/airflow", id="https_url"),
-            pytest.param("airflow@example:apache/airflow.git", id="does_not_start_with_git_at"),
-            pytest.param("git@example:apache/airflow", id="does_not_end_with_dot_git"),
-        ],
-    )
-    @mock.patch("airflow.dag_processing.bundles.git.GitHook")
-    def test_repo_url_validation_for_ssh(self, mock_hook, repo_url, session):
-        mock_hook.return_value.repo_url = repo_url
-        bundle = GitDagBundle(
-            name="test",
-            git_conn_id="git_default",
-            tracking_ref=GIT_DEFAULT_BRANCH,
-        )
-        with pytest.raises(
-            AirflowException,
-            match=f"Invalid git URL: {repo_url}. URL must start with git@ or https and end with .git",
-        ):
-            bundle.initialize()
 
     @pytest.mark.parametrize(
         "repo_url, expected_url",
         [
             ("git@github.com:apache/airflow.git", "https://github.com/apache/airflow/tree/0f0f0f"),
+            ("git@github.com:apache/airflow", "https://github.com/apache/airflow/tree/0f0f0f"),
+            ("https://github.com/apache/airflow", "https://github.com/apache/airflow/tree/0f0f0f"),
+            ("https://github.com/apache/airflow.git", "https://github.com/apache/airflow/tree/0f0f0f"),
             ("git@gitlab.com:apache/airflow.git", "https://gitlab.com/apache/airflow/-/tree/0f0f0f"),
             ("git@bitbucket.org:apache/airflow.git", "https://bitbucket.org/apache/airflow/src/0f0f0f"),
             (
@@ -472,6 +505,8 @@ class TestGitDagBundle:
                 "https://myorg.github.com/apache/airflow.git",
                 "https://myorg.github.com/apache/airflow/tree/0f0f0f",
             ),
+            ("/dev/null", None),
+            ("file:///dev/null", None),
         ],
     )
     @mock.patch("airflow.dag_processing.bundles.git.Repo")
@@ -488,8 +523,10 @@ class TestGitDagBundle:
             name="test",
             tracking_ref="main",
         )
+        bundle.initialize = mock.MagicMock()
         view_url = bundle.view_url("0f0f0f")
         assert view_url == expected_url
+        bundle.initialize.assert_not_called()
 
     @mock.patch("airflow.dag_processing.bundles.git.Repo")
     def test_view_url_returns_none_when_no_version_in_view_url(self, mock_gitrepo):

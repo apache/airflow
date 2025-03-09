@@ -25,8 +25,6 @@ from __future__ import annotations
 import os
 from datetime import datetime
 
-from providers.google.tests.system.google import DEFAULT_GCP_SYSTEM_TEST_PROJECT_ID
-
 from airflow.models.dag import DAG
 from airflow.providers.google.cloud.operators.dlp import (
     CloudDLPCreateJobTriggerOperator,
@@ -36,6 +34,7 @@ from airflow.providers.google.cloud.operators.dlp import (
     CloudDLPUpdateJobTriggerOperator,
 )
 from airflow.utils.trigger_rule import TriggerRule
+from system.google import DEFAULT_GCP_SYSTEM_TEST_PROJECT_ID
 
 DAG_ID = "dlp_job_trigger"
 ENV_ID = os.environ.get("SYSTEM_TESTS_ENV_ID", "default")

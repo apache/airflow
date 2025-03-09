@@ -18,16 +18,18 @@
  */
 import { Box, HStack, Skeleton, SimpleGrid } from "@chakra-ui/react";
 import dayjs from "dayjs";
-import { useState } from "react";
+import { lazy, useState, Suspense } from "react";
 import { useParams } from "react-router-dom";
 
 import { useDagRunServiceGetDagRuns, useTaskInstanceServiceGetTaskInstances } from "openapi/queries";
+import { DurationChart } from "src/components/DurationChart";
 import TimeRangeSelector from "src/components/TimeRangeSelector";
 import { TrendCountButton } from "src/components/TrendCountButton";
+import { isStatePending, useAutoRefresh } from "src/utils";
 
-import { RunDuration } from "./RunDuration";
+const FailedLogs = lazy(() => import("./FailedLogs"));
 
-const defaultHour = "168";
+const defaultHour = "24";
 
 export const Overview = () => {
   const { dagId } = useParams();
@@ -36,26 +38,35 @@ export const Overview = () => {
   const [startDate, setStartDate] = useState(now.subtract(Number(defaultHour), "hour").toISOString());
   const [endDate, setEndDate] = useState(now.toISOString());
 
+  const refetchInterval = useAutoRefresh({});
+
   const { data: failedTasks, isLoading } = useTaskInstanceServiceGetTaskInstances({
     dagId: dagId ?? "",
     dagRunId: "~",
-    logicalDateGte: startDate,
-    logicalDateLte: endDate,
+    runAfterGte: startDate,
+    runAfterLte: endDate,
     state: ["failed"],
   });
 
   const { data: failedRuns, isLoading: isLoadingFailedRuns } = useDagRunServiceGetDagRuns({
     dagId: dagId ?? "",
-    logicalDateGte: startDate,
-    logicalDateLte: endDate,
+    runAfterGte: startDate,
+    runAfterLte: endDate,
     state: ["failed"],
   });
 
-  const { data: runs, isLoading: isLoadingRuns } = useDagRunServiceGetDagRuns({
-    dagId: dagId ?? "",
-    limit: 14,
-    orderBy: "-start_date",
-  });
+  const { data: runs, isLoading: isLoadingRuns } = useDagRunServiceGetDagRuns(
+    {
+      dagId: dagId ?? "",
+      limit: 14,
+      orderBy: "-run_after",
+    },
+    undefined,
+    {
+      refetchInterval: (query) =>
+        query.state.data?.dag_runs.some((run) => isStatePending(run.state)) ? refetchInterval : false,
+    },
+  );
 
   return (
     <Box m={4}>
@@ -68,7 +79,7 @@ export const Overview = () => {
           startDate={startDate}
         />
       </Box>
-      <HStack>
+      <HStack flexWrap="wrap">
         <TrendCountButton
           colorPalette="failed"
           count={failedTasks?.total_entries ?? 0}
@@ -89,7 +100,7 @@ export const Overview = () => {
           count={failedRuns?.total_entries ?? 0}
           endDate={endDate}
           events={(failedRuns?.dag_runs ?? []).map((dr) => ({
-            timestamp: dr.start_date ?? dr.logical_date ?? "",
+            timestamp: dr.run_after,
           }))}
           isLoading={isLoadingFailedRuns}
           label="Failed Run"
@@ -101,14 +112,17 @@ export const Overview = () => {
         />
       </HStack>
       <SimpleGrid columns={3} gap={5} my={5}>
-        <Box borderRadius={4} borderStyle="solid" borderWidth={1} p={2}>
+        <Box borderRadius={4} borderStyle="solid" borderWidth={1} p={2} width="350px">
           {isLoadingRuns ? (
             <Skeleton height="200px" w="full" />
           ) : (
-            <RunDuration runs={runs?.dag_runs} totalEntries={runs?.total_entries ?? 0} />
+            <DurationChart entries={runs?.dag_runs.slice().reverse()} kind="Dag Run" />
           )}
         </Box>
       </SimpleGrid>
+      <Suspense fallback={<Skeleton height="100px" width="full" />}>
+        <FailedLogs failedTasks={failedTasks} />
+      </Suspense>
     </Box>
   );
 };

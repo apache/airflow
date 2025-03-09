@@ -32,7 +32,13 @@ from airflow.providers.fab.www.extensions.init_appbuilder import init_appbuilder
 from airflow.providers.fab.www.extensions.init_jinja_globals import init_jinja_globals
 from airflow.providers.fab.www.extensions.init_manifest_files import configure_manifest_files
 from airflow.providers.fab.www.extensions.init_security import init_api_auth, init_xframe_protection
-from airflow.providers.fab.www.extensions.init_views import init_error_handlers, init_plugins
+from airflow.providers.fab.www.extensions.init_session import init_airflow_session_interface
+from airflow.providers.fab.www.extensions.init_views import (
+    init_api_auth_provider,
+    init_api_error_handlers,
+    init_error_handlers,
+    init_plugins,
+)
 
 app: Flask | None = None
 
@@ -58,6 +64,8 @@ def create_app(enable_plugins: bool):
     if "SQLALCHEMY_ENGINE_OPTIONS" not in flask_app.config:
         flask_app.config["SQLALCHEMY_ENGINE_OPTIONS"] = settings.prepare_engine_args()
 
+    csrf.init_app(flask_app)
+
     db = SQLA()
     db.session = settings.Session
     db.init_app(flask_app)
@@ -68,11 +76,15 @@ def create_app(enable_plugins: bool):
 
     with flask_app.app_context():
         init_appbuilder(flask_app, enable_plugins=enable_plugins)
+        init_error_handlers(flask_app)
         if enable_plugins:
             init_plugins(flask_app)
-        init_error_handlers(flask_app)
+        else:
+            init_api_auth_provider(flask_app)
+            init_api_error_handlers(flask_app)
         init_jinja_globals(flask_app, enable_plugins=enable_plugins)
         init_xframe_protection(flask_app)
+        init_airflow_session_interface(flask_app)
     return flask_app
 
 

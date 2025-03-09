@@ -16,18 +16,20 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { LiaSlashSolid } from "react-icons/lia";
-import { useParams, Link as RouterLink } from "react-router-dom";
+import { ReactFlowProvider } from "@xyflow/react";
+import { LuChartColumn } from "react-icons/lu";
+import { MdOutlineEventNote, MdOutlineTask } from "react-icons/md";
+import { useParams } from "react-router-dom";
 
 import { useDagServiceGetDagDetails, useTaskServiceGetTask } from "openapi/queries";
-import { Breadcrumb } from "src/components/ui";
 import { DetailsLayout } from "src/layouts/Details/DetailsLayout";
 
 import { Header } from "./Header";
 
 const tabs = [
-  { label: "Task Instances", value: "" },
-  { label: "Events", value: "events" },
+  { icon: <LuChartColumn />, label: "Overview", value: "" },
+  { icon: <MdOutlineTask />, label: "Task Instances", value: "task_instances" },
+  { icon: <MdOutlineEventNote />, label: "Events", value: "events" },
 ];
 
 export const Task = () => {
@@ -43,32 +45,11 @@ export const Task = () => {
     dagId,
   });
 
-  const links = [
-    { label: "Dags", value: "/dags" },
-    { label: dag?.dag_display_name ?? dagId, value: `/dags/${dagId}` },
-    { label: task?.task_display_name ?? taskId },
-  ];
-
   return (
-    <DetailsLayout dag={dag} error={error ?? dagError} isLoading={isLoading || isDagLoading} tabs={tabs}>
-      <Breadcrumb.Root mb={3} separator={<LiaSlashSolid />}>
-        {links.map((link, index) => {
-          if (index === links.length - 1) {
-            return <Breadcrumb.CurrentLink key={link.label}>{link.label}</Breadcrumb.CurrentLink>;
-          }
-
-          return link.value === undefined ? (
-            <Breadcrumb.Link color="fg.info" key={link.label}>
-              {link.label}
-            </Breadcrumb.Link>
-          ) : (
-            <Breadcrumb.Link asChild color="fg.info" key={link.label}>
-              <RouterLink to={link.value}>{link.label}</RouterLink>
-            </Breadcrumb.Link>
-          );
-        })}
-      </Breadcrumb.Root>
-      {task === undefined ? undefined : <Header task={task} />}
-    </DetailsLayout>
+    <ReactFlowProvider>
+      <DetailsLayout dag={dag} error={error ?? dagError} isLoading={isLoading || isDagLoading} tabs={tabs}>
+        {task === undefined ? undefined : <Header task={task} />}
+      </DetailsLayout>
+    </ReactFlowProvider>
   );
 };

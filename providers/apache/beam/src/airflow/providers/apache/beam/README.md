@@ -69,19 +69,19 @@ in [Naming conventions for provider packages](https://github.com/apache/airflow/
 
 ### New operators
 
-| New Airflow 2.0 operators: `airflow.providers.apache.beam` package                                                                                                                 |
-|:---------------------------------------------------------------------------------------------------------------------------------------------|
-| [operators.beam.BeamRunJavaPipelineOperator](https://github.com/apache/airflow/blob/main/providers/src/airflow/providers/apache/beam/operators/beam.py)    |
-| [operators.beam.BeamRunPythonPipelineOperator](https://github.com/apache/airflow/blob/main/providers/src/airflow/providers/apache/beam/operators/beam.py)  |
+| New Airflow 2.0 operators: `airflow.providers.apache.beam` package                                                                                                    |
+|:----------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| [operators.beam.BeamRunJavaPipelineOperator](https://github.com/apache/airflow/blob/main/providers/apache/beam/src/airflow/providers/apache/beam/operators/beam.py)   |
+| [operators.beam.BeamRunPythonPipelineOperator](https://github.com/apache/airflow/blob/main/providers/apache/beam/src/airflow/providers/apache/beam/operators/beam.py) |
 
 
 ## Hooks
 
 ### New hooks
 
-| New Airflow 2.0 hooks: `airflow.providers.apache.beam` package                                                   |
-|:-----------------------------------------------------------------------------------------------------------------|
-| [hooks.beam.BeamHook](https://github.com/apache/airflow/blob/main/providers/src/airflow/providers/apache/beam/hooks/beam.py) |
+| New Airflow 2.0 hooks: `airflow.providers.apache.beam` package                                                                           |
+|:-----------------------------------------------------------------------------------------------------------------------------------------|
+| [hooks.beam.BeamHook](https://github.com/apache/airflow/blob/main/providers/apache/beam/src/airflow/providers/apache/beam/hooks/beam.py) |
 
 
 ## Releases

@@ -24,6 +24,10 @@ from __future__ import annotations
 import os
 from datetime import datetime
 
+from google.cloud.aiplatform import schema
+from google.protobuf.json_format import ParseDict
+from google.protobuf.struct_pb2 import Value
+
 from airflow.models.dag import DAG
 from airflow.providers.google.cloud.operators.gcs import (
     GCSCreateBucketOperator,
@@ -39,9 +43,6 @@ from airflow.providers.google.cloud.operators.vertex_ai.dataset import (
     DeleteDatasetOperator,
 )
 from airflow.utils.trigger_rule import TriggerRule
-from google.cloud.aiplatform import schema
-from google.protobuf.json_format import ParseDict
-from google.protobuf.struct_pb2 import Value
 
 ENV_ID = os.environ.get("SYSTEM_TESTS_ENV_ID", "default")
 PROJECT_ID = os.environ.get("SYSTEM_TESTS_GCP_PROJECT", "default")

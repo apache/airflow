@@ -27,7 +27,7 @@ from uuid import uuid4
 import pendulum
 import pytest
 from sqlalchemy import text
-from sqlalchemy.exc import OperationalError
+from sqlalchemy.exc import OperationalError, SQLAlchemyError
 from sqlalchemy.ext.declarative import DeclarativeMeta
 
 from airflow.exceptions import AirflowException
@@ -36,6 +36,7 @@ from airflow.providers.standard.operators.python import PythonOperator
 from airflow.utils import timezone
 from airflow.utils.db_cleanup import (
     ARCHIVE_TABLE_PREFIX,
+    ARCHIVED_TABLES_FROM_DB_MIGRATIONS,
     CreateTableAs,
     _build_query,
     _cleanup_table,
@@ -48,6 +49,7 @@ from airflow.utils.db_cleanup import (
     run_cleanup,
 )
 from airflow.utils.session import create_session
+from airflow.utils.types import DagRunType
 
 from tests_common.test_utils.db import (
     clear_db_assets,
@@ -183,17 +185,23 @@ class TestDBCleanup:
             do_delete.assert_called()
 
     @pytest.mark.parametrize(
-        "table_name, date_add_kwargs, expected_to_delete, external_trigger",
+        "table_name, date_add_kwargs, expected_to_delete, run_type",
         [
-            pytest.param("task_instance", dict(days=0), 0, False, id="beginning"),
-            pytest.param("task_instance", dict(days=4), 4, False, id="middle"),
-            pytest.param("task_instance", dict(days=9), 9, False, id="end_exactly"),
-            pytest.param("task_instance", dict(days=9, microseconds=1), 10, False, id="beyond_end"),
-            pytest.param("dag_run", dict(days=9, microseconds=1), 9, False, id="beyond_end_dr"),
-            pytest.param("dag_run", dict(days=9, microseconds=1), 10, True, id="beyond_end_dr_external"),
+            pytest.param("task_instance", dict(days=0), 0, DagRunType.SCHEDULED, id="beginning"),
+            pytest.param("task_instance", dict(days=4), 4, DagRunType.SCHEDULED, id="middle"),
+            pytest.param("task_instance", dict(days=9), 9, DagRunType.SCHEDULED, id="end_exactly"),
+            pytest.param(
+                "task_instance", dict(days=9, microseconds=1), 10, DagRunType.SCHEDULED, id="beyond_end"
+            ),
+            pytest.param(
+                "dag_run", dict(days=9, microseconds=1), 9, DagRunType.SCHEDULED, id="beyond_end_dr"
+            ),
+            pytest.param(
+                "dag_run", dict(days=9, microseconds=1), 10, DagRunType.MANUAL, id="beyond_end_dr_external"
+            ),
         ],
     )
-    def test__build_query(self, table_name, date_add_kwargs, expected_to_delete, external_trigger):
+    def test__build_query(self, table_name, date_add_kwargs, expected_to_delete, run_type):
         """
         Verify that ``_build_query`` produces a query that would delete the right
         task instance records depending on the value of ``clean_before_timestamp``.
@@ -208,7 +216,7 @@ class TestDBCleanup:
         create_tis(
             base_date=base_date,
             num_tis=10,
-            external_trigger=external_trigger,
+            run_type=run_type,
         )
         target_table_name = "_airflow_temp_table_name"
         with create_session() as session:
@@ -225,17 +233,23 @@ class TestDBCleanup:
                 assert row[0] == expected_to_delete
 
     @pytest.mark.parametrize(
-        "table_name, date_add_kwargs, expected_to_delete, external_trigger",
+        "table_name, date_add_kwargs, expected_to_delete, run_type",
         [
-            pytest.param("task_instance", dict(days=0), 0, False, id="beginning"),
-            pytest.param("task_instance", dict(days=4), 4, False, id="middle"),
-            pytest.param("task_instance", dict(days=9), 9, False, id="end_exactly"),
-            pytest.param("task_instance", dict(days=9, microseconds=1), 10, False, id="beyond_end"),
-            pytest.param("dag_run", dict(days=9, microseconds=1), 9, False, id="beyond_end_dr"),
-            pytest.param("dag_run", dict(days=9, microseconds=1), 10, True, id="beyond_end_dr_external"),
+            pytest.param("task_instance", dict(days=0), 0, DagRunType.SCHEDULED, id="beginning"),
+            pytest.param("task_instance", dict(days=4), 4, DagRunType.SCHEDULED, id="middle"),
+            pytest.param("task_instance", dict(days=9), 9, DagRunType.SCHEDULED, id="end_exactly"),
+            pytest.param(
+                "task_instance", dict(days=9, microseconds=1), 10, DagRunType.SCHEDULED, id="beyond_end"
+            ),
+            pytest.param(
+                "dag_run", dict(days=9, microseconds=1), 9, DagRunType.SCHEDULED, id="beyond_end_dr"
+            ),
+            pytest.param(
+                "dag_run", dict(days=9, microseconds=1), 10, DagRunType.MANUAL, id="beyond_end_dr_external"
+            ),
         ],
     )
-    def test__cleanup_table(self, table_name, date_add_kwargs, expected_to_delete, external_trigger):
+    def test__cleanup_table(self, table_name, date_add_kwargs, expected_to_delete, run_type):
         """
         Verify that _cleanup_table actually deletes the rows it should.
 
@@ -254,7 +268,7 @@ class TestDBCleanup:
         create_tis(
             base_date=base_date,
             num_tis=num_tis,
-            external_trigger=external_trigger,
+            run_type=run_type,
         )
         with create_session() as session:
             clean_before_date = base_date.add(**date_add_kwargs)
@@ -304,6 +318,37 @@ class TestDBCleanup:
             model = config_dict["dag_run"].orm_model
             assert len(session.query(model).all()) == 5
             assert len(_get_archived_table_names(["dag_run"], session)) == expected_archives
+
+    @patch("airflow.utils.db.reflect_tables")
+    def test_skip_archive_failure_will_remove_table(self, reflect_tables_mock):
+        """
+        Verify that running cleanup_table with skip_archive = True, and failure happens.
+
+        The archive table should be removed from db if any exception.
+        """
+        reflect_tables_mock.side_effect = SQLAlchemyError("Deletion failed")
+        base_date = pendulum.DateTime(2022, 1, 1, tzinfo=pendulum.timezone("UTC"))
+        num_tis = 10
+        create_tis(
+            base_date=base_date,
+            num_tis=num_tis,
+        )
+        try:
+            with create_session() as session:
+                clean_before_date = base_date.add(days=5)
+                _cleanup_table(
+                    **config_dict["dag_run"].__dict__,
+                    clean_before_timestamp=clean_before_date,
+                    dry_run=False,
+                    session=session,
+                    table_names=["dag_run"],
+                    skip_archive=True,
+                )
+        except SQLAlchemyError:
+            pass
+        archived_table_names = _get_archived_table_names(["dag_run"], session)
+        assert len(archived_table_names) == 1
+        assert archived_table_names[0] in ARCHIVED_TABLES_FROM_DB_MIGRATIONS
 
     def test_no_models_missing(self):
         """
@@ -549,7 +594,7 @@ class TestDBCleanup:
             confirm_mock.assert_not_called()
 
 
-def create_tis(base_date, num_tis, external_trigger=False):
+def create_tis(base_date, num_tis, run_type=DagRunType.SCHEDULED):
     with create_session() as session:
         dag = DagModel(dag_id=f"test-dag_{uuid4()}")
         session.add(dag)
@@ -558,9 +603,8 @@ def create_tis(base_date, num_tis, external_trigger=False):
             dag_run = DagRun(
                 dag.dag_id,
                 run_id=f"abc_{num}",
-                run_type="none",
+                run_type=run_type,
                 start_date=start_date,
-                external_trigger=external_trigger,
             )
             ti = TaskInstance(
                 PythonOperator(task_id="dummy-task", python_callable=print), run_id=dag_run.run_id

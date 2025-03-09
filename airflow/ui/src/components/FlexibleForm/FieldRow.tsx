@@ -40,17 +40,21 @@ export const FieldRow = ({ name }: FlexibleFormElementProps) => {
   return (
     <Field.Root orientation="horizontal" required={isRequired(param)}>
       <Stack>
-        <Field.Label fontSize="md">
+        <Field.Label fontSize="md" style={{ flexBasis: "30%" }}>
           {param.schema.title ?? name} <Field.RequiredIndicator />
         </Field.Label>
       </Stack>
-      <Stack css={{ "flex-basis": "70%" }}>
+      <Stack css={{ flexBasis: "70%" }}>
         <FieldSelector name={name} />
-        <Field.HelperText>
-          {param.description ?? (
-            <Markdown remarkPlugins={[remarkGfm]}>{param.schema.description_md}</Markdown>
-          )}
-        </Field.HelperText>
+        {param.description === null ? (
+          param.schema.description_md === undefined ? undefined : (
+            <Field.HelperText>
+              <Markdown remarkPlugins={[remarkGfm]}>{param.schema.description_md}</Markdown>
+            </Field.HelperText>
+          )
+        ) : (
+          <Field.HelperText>{param.description}</Field.HelperText>
+        )}
       </Stack>
     </Field.Root>
   );

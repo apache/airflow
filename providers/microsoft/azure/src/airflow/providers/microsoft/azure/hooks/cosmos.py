@@ -30,6 +30,11 @@ import uuid
 from typing import TYPE_CHECKING, Any, Union
 from urllib.parse import urlparse
 
+from azure.cosmos import PartitionKey
+from azure.cosmos.cosmos_client import CosmosClient
+from azure.cosmos.exceptions import CosmosHttpResponseError
+from azure.mgmt.cosmosdb import CosmosDBManagementClient
+
 from airflow.exceptions import AirflowBadRequest, AirflowException
 from airflow.hooks.base import BaseHook
 from airflow.providers.microsoft.azure.utils import (
@@ -37,10 +42,6 @@ from airflow.providers.microsoft.azure.utils import (
     get_field,
     get_sync_default_azure_credential,
 )
-from azure.cosmos import PartitionKey
-from azure.cosmos.cosmos_client import CosmosClient
-from azure.cosmos.exceptions import CosmosHttpResponseError
-from azure.mgmt.cosmosdb import CosmosDBManagementClient
 
 if TYPE_CHECKING:
     PartitionKeyType = Union[str, list[str]]

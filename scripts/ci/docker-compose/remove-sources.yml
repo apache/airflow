@@ -17,19 +17,13 @@
 ---
 services:
   airflow:
+    environment:
+      - AIRFLOW__CORE__PLUGINS_FOLDER=/files/plugins
     volumes:
       # Removes airflow sources from container
-      - type: bind
-        source: ./empty
-        target: /opt/airflow/airflow
-      # Removes task_sdk sources from container
-      - type: bind
-        source: ./empty
-        target: /opt/airflow/task_sdk
-      # Removes providers sources from container (but not tests)
-      - type: bind
-        source: ./empty
-        target: /opt/airflow/providers/src
+      - ../../../empty:/opt/airflow/airflow
+      # Removes task-sdk sources from container
+      - ../../../empty:/opt/airflow/task-sdk/src
       # Remove all provider sources from container
       # START automatically generated volumes by generate-volumes-for-sources pre-commit
       - ../../../empty:/opt/airflow/providers/airbyte/src
@@ -60,6 +54,7 @@ services:
       - ../../../empty:/opt/airflow/providers/cohere/src
       - ../../../empty:/opt/airflow/providers/common/compat/src
       - ../../../empty:/opt/airflow/providers/common/io/src
+      - ../../../empty:/opt/airflow/providers/common/messaging/src
       - ../../../empty:/opt/airflow/providers/common/sql/src
       - ../../../empty:/opt/airflow/providers/databricks/src
       - ../../../empty:/opt/airflow/providers/datadog/src

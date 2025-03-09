@@ -17,10 +17,10 @@
 from __future__ import annotations
 
 import pendulum
+from weaviate.collections.classes.config import Configure
 
 from airflow.decorators import dag, setup, task, teardown
 from airflow.providers.weaviate.operators.weaviate import WeaviateIngestOperator
-from weaviate.collections.classes.config import Configure
 
 COLLECTION_NAMES = ["Weaviate_DTM_example_collection_1", "Weaviate_DTM_example_collection_2"]
 

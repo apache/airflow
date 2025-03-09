@@ -42,7 +42,7 @@ const ClearRunButton = ({ dagRun, withText = true }: Props) => {
         withText={withText}
       />
 
-      <ClearRunDialog dagRun={dagRun} onClose={onClose} open={open} />
+      {open ? <ClearRunDialog dagRun={dagRun} onClose={onClose} open={open} /> : undefined}
     </Box>
   );
 };

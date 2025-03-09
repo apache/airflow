@@ -27,7 +27,7 @@ from datetime import datetime
 from airflow.models.dag import DAG
 from airflow.providers.google.cloud.operators.bigquery import (
     BigQueryCreateEmptyDatasetOperator,
-    BigQueryCreateEmptyTableOperator,
+    BigQueryCreateTableOperator,
     BigQueryDeleteDatasetOperator,
     BigQueryInsertJobOperator,
 )
@@ -68,14 +68,16 @@ with DAG(
         task_id="create_dataset", dataset_id=DATASET_NAME, project_id=PROJECT_ID
     )
 
-    create_table = BigQueryCreateEmptyTableOperator(
+    create_table = BigQueryCreateTableOperator(
         task_id="create_table",
         dataset_id=DATASET_NAME,
         table_id=TABLE_NAME,
-        schema_fields=SCHEMA,
-        time_partitioning={
-            "type": "DAY",
-            "field": "ds",
+        table_resource={
+            "schema": {"fields": SCHEMA},
+            "timePartitioning": {
+                "type": "DAY",
+                "field": "ds",
+            },
         },
     )
 

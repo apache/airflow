@@ -19,8 +19,6 @@ from __future__ import annotations
 import json
 from datetime import datetime
 
-from providers.amazon.tests.system.amazon.aws.utils import ENV_ID_KEY, SystemTestContextBuilder
-
 from airflow.decorators import task
 from airflow.models.baseoperator import chain
 from airflow.models.dag import DAG
@@ -30,6 +28,7 @@ from airflow.providers.amazon.aws.operators.step_function import (
     StepFunctionStartExecutionOperator,
 )
 from airflow.providers.amazon.aws.sensors.step_function import StepFunctionExecutionSensor
+from system.amazon.aws.utils import ENV_ID_KEY, SystemTestContextBuilder
 
 DAG_ID = "example_step_functions"
 

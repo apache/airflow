@@ -27,8 +27,9 @@ def get_provider_info():
         "name": "Pagerduty",
         "description": "`Pagerduty <https://www.pagerduty.com/>`__\n",
         "state": "ready",
-        "source-date-epoch": 1734536176,
+        "source-date-epoch": 1741121919,
         "versions": [
+            "4.0.1",
             "4.0.0",
             "3.8.1",
             "3.8.0",
@@ -84,4 +85,5 @@ def get_provider_info():
         ],
         "notifications": ["airflow.providers.pagerduty.notifications.pagerduty.PagerdutyNotifier"],
         "dependencies": ["apache-airflow>=2.9.0", "pdpyras>=4.2.0"],
+        "devel-dependencies": [],
     }

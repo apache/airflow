@@ -27,8 +27,9 @@ def get_provider_info():
         "name": "Google",
         "description": "Google services including:\n\n  - `Google Ads <https://ads.google.com/>`__\n  - `Google Cloud (GCP) <https://cloud.google.com/>`__\n  - `Google Firebase <https://firebase.google.com/>`__\n  - `Google LevelDB <https://github.com/google/leveldb/>`__\n  - `Google Marketing Platform <https://marketingplatform.google.com/>`__\n  - `Google Workspace <https://workspace.google.com/>`__ (formerly Google Suite)\n",
         "state": "ready",
-        "source-date-epoch": 1732429547,
+        "source-date-epoch": 1741121879,
         "versions": [
+            "14.0.0",
             "12.0.0",
             "11.0.0",
             "10.26.0",
@@ -218,6 +219,12 @@ def get_provider_info():
                 "external-doc-url": "https://cloud.google.com/life-sciences/",
                 "how-to-guide": ["/docs/apache-airflow-providers-google/operators/cloud/life_sciences.rst"],
                 "logo": "/docs/integration-logos/Google-Cloud-Life-Sciences.png",
+                "tags": ["gcp"],
+            },
+            {
+                "integration-name": "Google Cloud Managed Service for Apache Kafka",
+                "external-doc-url": "https://cloud.google.com/managed-service-for-apache-kafka/docs/",
+                "how-to-guide": ["/docs/apache-airflow-providers-google/operators/cloud/managed_kafka.rst"],
                 "tags": ["gcp"],
             },
             {
@@ -753,6 +760,10 @@ def get_provider_info():
                 "integration-name": "Google Cloud Batch",
                 "python-modules": ["airflow.providers.google.cloud.operators.cloud_batch"],
             },
+            {
+                "integration-name": "Google Cloud Managed Service for Apache Kafka",
+                "python-modules": ["airflow.providers.google.cloud.operators.managed_kafka"],
+            },
         ],
         "sensors": [
             {
@@ -1112,6 +1123,10 @@ def get_provider_info():
                 "integration-name": "Google Cloud Batch",
                 "python-modules": ["airflow.providers.google.cloud.hooks.cloud_batch"],
             },
+            {
+                "integration-name": "Google Cloud Managed Service for Apache Kafka",
+                "python-modules": ["airflow.providers.google.cloud.hooks.managed_kafka"],
+            },
         ],
         "triggers": [
             {
@@ -1436,6 +1451,7 @@ def get_provider_info():
             "airflow.providers.google.cloud.links.dataplex.DataplexTasksLink",
             "airflow.providers.google.cloud.links.dataplex.DataplexLakeLink",
             "airflow.providers.google.cloud.links.dataplex.DataplexCatalogAspectTypeLink",
+            "airflow.providers.google.cloud.links.dataplex.DataplexCatalogEntryLink",
             "airflow.providers.google.cloud.links.dataplex.DataplexCatalogAspectTypesLink",
             "airflow.providers.google.cloud.links.dataplex.DataplexCatalogEntryGroupLink",
             "airflow.providers.google.cloud.links.dataplex.DataplexCatalogEntryGroupsLink",
@@ -1551,6 +1567,10 @@ def get_provider_info():
             "airflow.providers.google.cloud.links.translate.TranslationModelsListLink",
             "airflow.providers.google.cloud.links.translate.TranslateResultByOutputConfigLink",
             "airflow.providers.google.cloud.links.translate.TranslationGlossariesListLink",
+            "airflow.providers.google.cloud.links.managed_kafka.ApacheKafkaClusterLink",
+            "airflow.providers.google.cloud.links.managed_kafka.ApacheKafkaClusterListLink",
+            "airflow.providers.google.cloud.links.managed_kafka.ApacheKafkaTopicLink",
+            "airflow.providers.google.cloud.links.managed_kafka.ApacheKafkaConsumerGroupLink",
         ],
         "secrets-backends": [
             "airflow.providers.google.cloud.secrets.secret_manager.CloudSecretManagerBackend"
@@ -1570,7 +1590,7 @@ def get_provider_info():
             "gcloud-aio-bigquery>=6.1.2",
             "gcloud-aio-storage>=9.0.0",
             "gcsfs>=2023.10.0",
-            "google-ads>=25.1.0",
+            "google-ads>=26.0.0",
             "google-analytics-admin>=0.9.0",
             "google-api-core>=2.11.0,!=2.16.0,!=2.18.0",
             "google-api-python-client>=2.0.2",
@@ -1582,7 +1602,7 @@ def get_provider_info():
             "google-cloud-bigquery>=3.4.0,!=3.21.*,!=3.22.0,!=3.23.*",
             "google-cloud-bigquery-datatransfer>=3.13.0",
             "google-cloud-bigtable>=2.17.0",
-            "google-cloud-build>=3.22.0",
+            "google-cloud-build>=3.31.0",
             "google-cloud-compute>=1.10.0",
             "google-cloud-container>=2.17.4",
             "google-cloud-datacatalog>=3.23.0",
@@ -1595,11 +1615,12 @@ def get_provider_info():
             "google-cloud-kms>=2.15.0",
             "google-cloud-language>=2.9.0",
             "google-cloud-logging>=3.5.0",
+            "google-cloud-managedkafka>=0.1.6",
             "google-cloud-memcache>=1.7.0",
             "google-cloud-monitoring>=2.18.0",
             "google-cloud-orchestration-airflow>=1.10.0",
             "google-cloud-os-login>=2.9.1",
-            "google-cloud-pubsub>=2.19.0",
+            "google-cloud-pubsub>=2.21.3",
             "google-cloud-redis>=2.12.0",
             "google-cloud-secret-manager>=2.16.0",
             "google-cloud-spanner>=3.11.1,!=3.49.0",
@@ -1630,7 +1651,10 @@ def get_provider_info():
             "immutabledict>=4.2.0",
         ],
         "optional-dependencies": {
-            "apache.beam": ["apache-beam[gcp]"],
+            "apache.beam": [
+                'apache-beam[gcp]>=2.53.0; python_version < "3.12"',
+                'apache-beam[gcp]>=2.57.0; python_version >= "3.12"',
+            ],
             "cncf.kubernetes": ["apache-airflow-providers-cncf-kubernetes>=10.1.0"],
             "leveldb": ["plyvel>=1.5.1"],
             "oracle": ["apache-airflow-providers-oracle>=3.1.0"],
@@ -1648,4 +1672,5 @@ def get_provider_info():
             "ssh": ["apache-airflow-providers-ssh"],
             "trino": ["apache-airflow-providers-trino"],
         },
+        "devel-dependencies": [],
     }

@@ -21,34 +21,17 @@ from __future__ import annotations
 
 from collections.abc import (
     Container,
-    Iterator,
-    Mapping,
 )
 from typing import (
     TYPE_CHECKING,
     Any,
-    Union,
     cast,
 )
 
-import attrs
-from sqlalchemy import and_, select
+from sqlalchemy import select
 
 from airflow.models.asset import (
-    AssetAliasModel,
-    AssetEvent,
     AssetModel,
-    fetch_active_assets_by_name,
-    fetch_active_assets_by_uri,
-)
-from airflow.sdk.definitions.asset import (
-    Asset,
-    AssetAlias,
-    AssetAliasUniqueKey,
-    AssetNameRef,
-    AssetRef,
-    AssetUniqueKey,
-    AssetUriRef,
 )
 from airflow.sdk.definitions.context import Context
 from airflow.sdk.execution_time.context import (
@@ -56,19 +39,15 @@ from airflow.sdk.execution_time.context import (
     OutletEventAccessors as OutletEventAccessorsSDK,
     VariableAccessor as VariableAccessorSDK,
 )
-from airflow.utils.db import LazySelectSequence
 from airflow.utils.session import create_session
 from airflow.utils.types import NOTSET
 
 if TYPE_CHECKING:
-    from sqlalchemy.engine import Row
-    from sqlalchemy.orm import Session
-    from sqlalchemy.sql.expression import Select, TextClause
-
+    from airflow.sdk.definitions.asset import Asset
     from airflow.sdk.types import OutletEventAccessorsProtocol
 
 # NOTE: Please keep this in sync with the following:
-# * Context in task_sdk/src/airflow/sdk/definitions/context.py
+# * Context in task-sdk/src/airflow/sdk/definitions/context.py
 # * Table in docs/apache-airflow/templates-ref.rst
 KNOWN_CONTEXT_KEYS: set[str] = {
     "conn",
@@ -168,106 +147,6 @@ class OutletEventAccessors(OutletEventAccessorsSDK):
             raise ValueError("Either name or uri must be provided")
 
         return asset.to_public()
-
-
-class LazyAssetEventSelectSequence(LazySelectSequence[AssetEvent]):
-    """
-    List-like interface to lazily access AssetEvent rows.
-
-    :meta private:
-    """
-
-    @staticmethod
-    def _rebuild_select(stmt: TextClause) -> Select:
-        return select(AssetEvent).from_statement(stmt)
-
-    @staticmethod
-    def _process_row(row: Row) -> AssetEvent:
-        return row[0]
-
-
-@attrs.define(init=False)
-class InletEventsAccessors(Mapping[Union[int, Asset, AssetAlias, AssetRef], LazyAssetEventSelectSequence]):
-    """
-    Lazy mapping for inlet asset events accessors.
-
-    :meta private:
-    """
-
-    _inlets: list[Any]
-    _assets: dict[AssetUniqueKey, Asset]
-    _asset_aliases: dict[AssetAliasUniqueKey, AssetAlias]
-    _session: Session
-
-    def __init__(self, inlets: list, *, session: Session) -> None:
-        self._inlets = inlets
-        self._session = session
-        self._assets = {}
-        self._asset_aliases = {}
-
-        _asset_ref_names: list[str] = []
-        _asset_ref_uris: list[str] = []
-        for inlet in inlets:
-            if isinstance(inlet, Asset):
-                self._assets[AssetUniqueKey.from_asset(inlet)] = inlet
-            elif isinstance(inlet, AssetAlias):
-                self._asset_aliases[AssetAliasUniqueKey.from_asset_alias(inlet)] = inlet
-            elif isinstance(inlet, AssetNameRef):
-                _asset_ref_names.append(inlet.name)
-            elif isinstance(inlet, AssetUriRef):
-                _asset_ref_uris.append(inlet.uri)
-
-        if _asset_ref_names:
-            for _, asset in fetch_active_assets_by_name(_asset_ref_names, self._session).items():
-                self._assets[AssetUniqueKey.from_asset(asset)] = asset
-        if _asset_ref_uris:
-            for _, asset in fetch_active_assets_by_uri(_asset_ref_uris, self._session).items():
-                self._assets[AssetUniqueKey.from_asset(asset)] = asset
-
-    def __iter__(self) -> Iterator[Asset | AssetAlias]:
-        return iter(self._inlets)
-
-    def __len__(self) -> int:
-        return len(self._inlets)
-
-    def __getitem__(self, key: int | Asset | AssetAlias | AssetRef) -> LazyAssetEventSelectSequence:
-        if isinstance(key, int):  # Support index access; it's easier for trivial cases.
-            obj = self._inlets[key]
-            if not isinstance(obj, (Asset, AssetAlias, AssetRef)):
-                raise IndexError(key)
-        else:
-            obj = key
-
-        if isinstance(obj, Asset):
-            asset = self._assets[AssetUniqueKey.from_asset(obj)]
-            join_clause = AssetEvent.asset
-            where_clause = and_(AssetModel.name == asset.name, AssetModel.uri == asset.uri)
-        elif isinstance(obj, AssetAlias):
-            asset_alias = self._asset_aliases[AssetAliasUniqueKey.from_asset_alias(obj)]
-            join_clause = AssetEvent.source_aliases
-            where_clause = AssetAliasModel.name == asset_alias.name
-        elif isinstance(obj, AssetNameRef):
-            try:
-                asset = next(a for k, a in self._assets.items() if k.name == obj.name)
-            except StopIteration:
-                raise KeyError(obj) from None
-            join_clause = AssetEvent.asset
-            where_clause = and_(AssetModel.name == asset.name, AssetModel.active.has())
-        elif isinstance(obj, AssetUriRef):
-            try:
-                asset = next(a for k, a in self._assets.items() if k.uri == obj.uri)
-            except StopIteration:
-                raise KeyError(obj) from None
-            join_clause = AssetEvent.asset
-            where_clause = and_(AssetModel.uri == asset.uri, AssetModel.active.has())
-        else:
-            raise ValueError(key)
-
-        return LazyAssetEventSelectSequence.from_select(
-            select(AssetEvent).join(join_clause).where(where_clause),
-            order_by=[AssetEvent.timestamp],
-            session=self._session,
-        )
 
 
 def context_merge(context: Context, *args: Any, **kwargs: Any) -> None:

@@ -29,6 +29,9 @@ import aiofiles
 import requests
 import tenacity
 from asgiref.sync import sync_to_async
+from kubernetes import client, config, utils, watch
+from kubernetes.client.models import V1Deployment
+from kubernetes.config import ConfigException
 from kubernetes_asyncio import client as async_client, config as async_config
 from urllib3.exceptions import HTTPError
 
@@ -43,9 +46,6 @@ from airflow.providers.cncf.kubernetes.utils.pod_manager import (
     container_is_running,
 )
 from airflow.utils import yaml
-from kubernetes import client, config, utils, watch
-from kubernetes.client.models import V1Deployment
-from kubernetes.config import ConfigException
 
 if TYPE_CHECKING:
     from kubernetes.client import V1JobList

@@ -29,7 +29,7 @@ import pytest
 from airflow.models.dag import DAG
 from airflow.providers.google.cloud.operators.bigquery import (
     BigQueryCreateEmptyDatasetOperator,
-    BigQueryCreateEmptyTableOperator,
+    BigQueryCreateTableOperator,
     BigQueryDeleteDatasetOperator,
 )
 
@@ -45,6 +45,10 @@ DATASET_NAME = f"dataset_{DAG_ID}_{ENV_ID}".replace("-", "_")
 DATA_EXPORT_BUCKET_NAME = os.environ.get("GCP_BIGQUERY_EXPORT_BUCKET_NAME", "INVALID BUCKET NAME")
 TABLE = "table_42"
 destination_table = "mysql_table_test"
+SCHEMA = [
+    {"name": "emp_name", "type": "STRING", "mode": "REQUIRED"},
+    {"name": "salary", "type": "INTEGER", "mode": "NULLABLE"},
+]
 
 with DAG(
     DAG_ID,
@@ -64,14 +68,13 @@ with DAG(
 
     create_dataset = BigQueryCreateEmptyDatasetOperator(task_id="create_dataset", dataset_id=DATASET_NAME)
 
-    create_table = BigQueryCreateEmptyTableOperator(
+    create_table = BigQueryCreateTableOperator(
         task_id="create_table",
         dataset_id=DATASET_NAME,
         table_id=TABLE,
-        schema_fields=[
-            {"name": "emp_name", "type": "STRING", "mode": "REQUIRED"},
-            {"name": "salary", "type": "INTEGER", "mode": "NULLABLE"},
-        ],
+        table_resource={
+            "schema": {"fields": SCHEMA},
+        },
     )
 
     delete_dataset = BigQueryDeleteDatasetOperator(

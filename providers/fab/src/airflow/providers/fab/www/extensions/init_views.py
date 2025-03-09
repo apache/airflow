@@ -22,21 +22,31 @@ from typing import TYPE_CHECKING
 
 from connexion import Resolver
 from connexion.decorators.validation import RequestBodyValidator
-from connexion.exceptions import BadRequestProblem
-from flask import jsonify
-from starlette import status
+from connexion.exceptions import BadRequestProblem, ProblemException
+from flask import request
 
-from airflow.providers.fab.www.api_connexion.exceptions import (
-    BadRequest,
-    NotFound,
-    PermissionDenied,
-    Unauthenticated,
-)
+from airflow.api_fastapi.app import get_auth_manager
+from airflow.providers.fab.www.api_connexion.exceptions import common_error_handler
 
 if TYPE_CHECKING:
     from flask import Flask
 
 log = logging.getLogger(__name__)
+
+
+def init_appbuilder_views(app):
+    """Initialize Web UI views."""
+    from airflow.models import import_all_models
+    from airflow.providers.fab.www import views
+
+    import_all_models()
+
+    appbuilder = app.appbuilder
+
+    # Remove the session from scoped_session registry to avoid
+    # reusing a session with a disconnected connection
+    appbuilder.session.remove()
+    appbuilder.add_view_no_menu(views.FabIndexView())
 
 
 class _LazyResolution:
@@ -121,28 +131,47 @@ def init_plugins(app):
         app.register_blueprint(blue_print["blueprint"])
 
 
+base_paths: list[str] = []  # contains the list of base paths that have api endpoints
+
+
+def init_api_error_handlers(app: Flask) -> None:
+    """Add error handlers for 404 and 405 errors for existing API paths."""
+    from airflow.providers.fab.www import views
+
+    @app.errorhandler(404)
+    def _handle_api_not_found(ex):
+        if any([request.path.startswith(p) for p in base_paths]):
+            # 404 errors are never handled on the blueprint level
+            # unless raised from a view func so actual 404 errors,
+            # i.e. "no route for it" defined, need to be handled
+            # here on the application level
+            return common_error_handler(ex)
+        else:
+            return views.not_found(ex)
+
+    @app.errorhandler(405)
+    def _handle_method_not_allowed(ex):
+        if any([request.path.startswith(p) for p in base_paths]):
+            return common_error_handler(ex)
+        else:
+            return views.method_not_allowed(ex)
+
+    app.register_error_handler(ProblemException, common_error_handler)
+
+
 def init_error_handlers(app: Flask):
     """Add custom errors handlers."""
+    from airflow.providers.fab.www import views
 
-    def handle_bad_request(error):
-        response = {"error": "Bad request"}
-        return jsonify(response), status.HTTP_400_BAD_REQUEST
+    app.register_error_handler(500, views.show_traceback)
+    app.register_error_handler(404, views.not_found)
 
-    def handle_not_found(error):
-        response = {"error": "Not found"}
-        return jsonify(response), status.HTTP_404_NOT_FOUND
 
-    def handle_unauthenticated(error):
-        response = {"error": "User is not authenticated"}
-        return jsonify(response), status.HTTP_401_UNAUTHORIZED
-
-    def handle_denied(error):
-        response = {"error": "Access is denied"}
-        return jsonify(response), status.HTTP_403_FORBIDDEN
-
-    app.register_error_handler(404, handle_not_found)
-
-    app.register_error_handler(BadRequest, handle_bad_request)
-    app.register_error_handler(NotFound, handle_not_found)
-    app.register_error_handler(Unauthenticated, handle_unauthenticated)
-    app.register_error_handler(PermissionDenied, handle_denied)
+def init_api_auth_provider(app):
+    """Initialize the API offered by the auth manager."""
+    auth_mgr = get_auth_manager()
+    blueprint = auth_mgr.get_api_endpoints()
+    if blueprint:
+        base_paths.append(blueprint.url_prefix)
+        app.register_blueprint(blueprint)
+        app.extensions["csrf"].exempt(blueprint)

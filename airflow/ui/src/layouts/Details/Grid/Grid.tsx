@@ -38,7 +38,7 @@ import { flattenNodes, type RunWithDuration } from "./utils";
 dayjs.extend(dayjsDuration);
 
 const OFFSET_CHANGE = 10;
-const limit = 25;
+const limit = 14;
 
 export const Grid = () => {
   const { openGroupIds } = useOpenGroups();
@@ -59,7 +59,7 @@ export const Grid = () => {
       dagId,
       limit,
       offset,
-      orderBy: "-start_date",
+      orderBy: "-run_after",
     },
     undefined,
     {
@@ -72,7 +72,9 @@ export const Grid = () => {
   const runs: Array<RunWithDuration> = useMemo(
     () =>
       (gridData?.dag_runs ?? []).map((run) => {
-        const duration = dayjs.duration(dayjs(run.end_date).diff(run.start_date)).asSeconds();
+        const duration = dayjs
+          .duration(dayjs(run.end_date ?? undefined).diff(run.start_date ?? undefined))
+          .asSeconds();
 
         return {
           ...run,
@@ -112,8 +114,8 @@ export const Grid = () => {
   );
 
   return (
-    <Flex justifyContent="flex-end" mr={3} position="relative" pt="75px" width="100%">
-      <Box position="absolute" top="175px" width="100%">
+    <Flex justifyContent="flex-end" mr={3} position="relative" pt={50} width="100%">
+      <Box position="absolute" top="150px" width="100%">
         <TaskNames nodes={flatNodes} />
       </Box>
       <Box>
@@ -144,8 +146,8 @@ export const Grid = () => {
             )}
           </Flex>
           <Flex flexDirection="row-reverse">
-            {runs.map((dr, index) => (
-              <Bar index={index} key={dr.dag_run_id} limit={limit} max={max} nodes={flatNodes} run={dr} />
+            {runs.map((dr) => (
+              <Bar key={dr.dag_run_id} max={max} nodes={flatNodes} run={dr} />
             ))}
           </Flex>
           <IconButton

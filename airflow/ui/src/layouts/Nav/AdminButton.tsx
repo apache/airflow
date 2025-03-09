@@ -36,6 +36,14 @@ const links = [
     href: "/providers",
     title: "Providers",
   },
+  {
+    href: "/plugins",
+    title: "Plugins",
+  },
+  {
+    href: "/connections",
+    title: "Connections",
+  },
 ];
 
 export const AdminButton = () => (

@@ -18,8 +18,9 @@
 
 from __future__ import annotations
 
-from airflow.exceptions import AirflowException
 from kubernetes.client import ApiClient, models as k8s
+
+from airflow.exceptions import AirflowException
 
 
 def _convert_kube_model_object(obj, new_class):
@@ -73,7 +74,7 @@ def convert_env_vars(env_vars: list[k8s.V1EnvVar] | dict[str, str]) -> list[k8s.
     """
     Coerce env var collection for kubernetes.
 
-    If the collection is a str-str dict, convert it into a list of ``V1EnvVar``s.
+    If the collection is a str-str dict, convert it into a list of ``V1EnvVar`` variables.
     """
     if isinstance(env_vars, dict):
         return [k8s.V1EnvVar(name=k, value=v) for k, v in env_vars.items()]

@@ -33,6 +33,26 @@ from typing import TYPE_CHECKING, Any, NoReturn, Union, cast
 
 from aiohttp import ClientSession as ClientSession
 from gcloud.aio.bigquery import Job, Table as Table_async
+from google.cloud.bigquery import (
+    DEFAULT_RETRY,
+    Client,
+    CopyJob,
+    ExtractJob,
+    LoadJob,
+    QueryJob,
+    SchemaField,
+    UnknownJob,
+)
+from google.cloud.bigquery.dataset import AccessEntry, Dataset, DatasetListItem, DatasetReference
+from google.cloud.bigquery.retry import DEFAULT_JOB_RETRY
+from google.cloud.bigquery.table import (
+    Row,
+    RowIterator,
+    Table,
+    TableListItem,
+    TableReference,
+)
+from google.cloud.exceptions import NotFound
 from googleapiclient.discovery import build
 from pandas_gbq import read_gbq
 from pandas_gbq.gbq import GbqConnector  # noqa: F401 used in ``airflow.contrib.hooks.bigquery``
@@ -55,29 +75,9 @@ from airflow.providers.google.common.hooks.base_google import (
 from airflow.utils.hashlib_wrapper import md5
 from airflow.utils.helpers import convert_camel_to_snake
 from airflow.utils.log.logging_mixin import LoggingMixin
-from google.cloud.bigquery import (
-    DEFAULT_RETRY,
-    Client,
-    CopyJob,
-    ExtractJob,
-    LoadJob,
-    QueryJob,
-    SchemaField,
-    UnknownJob,
-)
-from google.cloud.bigquery.dataset import AccessEntry, Dataset, DatasetListItem, DatasetReference
-from google.cloud.bigquery.retry import DEFAULT_JOB_RETRY
-from google.cloud.bigquery.table import (
-    Row,
-    RowIterator,
-    Table,
-    TableReference,
-)
-from google.cloud.exceptions import NotFound
 
 if TYPE_CHECKING:
     import pandas as pd
-
     from google.api_core.page_iterator import HTTPIterator
     from google.api_core.retry import Retry
 
@@ -120,7 +120,7 @@ class BigQueryHook(GoogleBaseHook, DbApiHook):
         from wtforms import validators
         from wtforms.fields.simple import BooleanField, StringField
 
-        from airflow.www.validators import ValidJson
+        from airflow.providers.google.cloud.utils.validators import ValidJson
 
         connection_form_widgets = super().get_connection_form_widgets()
         connection_form_widgets["use_legacy_sql"] = BooleanField(lazy_gettext("Use Legacy SQL"), default=True)
@@ -346,6 +346,11 @@ class BigQueryHook(GoogleBaseHook, DbApiHook):
         except NotFound:
             return False
 
+    @deprecated(
+        planned_removal_date="July 30, 2025",
+        use_instead="airflow.providers.google.cloud.hooks.bigquery.BigQueryHook.create_table",
+        category=AirflowProviderDeprecationWarning,
+    )
     @GoogleBaseHook.fallback_to_default_project_id
     def create_empty_table(
         self,
@@ -458,6 +463,72 @@ class BigQueryHook(GoogleBaseHook, DbApiHook):
         table = Table.from_api_repr(table_resource)
         result = self.get_client(project_id=project_id, location=location).create_table(
             table=table, exists_ok=exists_ok, retry=retry
+        )
+        get_hook_lineage_collector().add_output_asset(
+            context=self,
+            scheme="bigquery",
+            asset_kwargs={
+                "project_id": result.project,
+                "dataset_id": result.dataset_id,
+                "table_id": result.table_id,
+            },
+        )
+        return result
+
+    @GoogleBaseHook.fallback_to_default_project_id
+    def create_table(
+        self,
+        dataset_id: str,
+        table_id: str,
+        table_resource: dict[str, Any] | Table | TableReference | TableListItem,
+        location: str | None = None,
+        project_id: str = PROVIDE_PROJECT_ID,
+        exists_ok: bool = True,
+        schema_fields: list | None = None,
+        retry: Retry = DEFAULT_RETRY,
+        timeout: float | None = None,
+    ) -> Table:
+        """
+        Create a new, empty table in the dataset.
+
+        :param project_id: Optional. The project to create the table into.
+        :param dataset_id: Required. The dataset to create the table into.
+        :param table_id: Required. The Name of the table to be created.
+        :param table_resource: Required. Table resource as described in documentation:
+            https://cloud.google.com/bigquery/docs/reference/rest/v2/tables#Table
+            If ``table`` is a reference, an empty table is created with the specified ID. The dataset that
+            the table belongs to must already exist.
+        :param schema_fields: Optional. If set, the schema field list as defined here:
+            https://cloud.google.com/bigquery/docs/reference/rest/v2/jobs#configuration.load.schema
+
+            .. code-block:: python
+
+                schema_fields = [
+                    {"name": "emp_name", "type": "STRING", "mode": "REQUIRED"},
+                    {"name": "salary", "type": "INTEGER", "mode": "NULLABLE"},
+                ]
+        :param location: Optional. The location used for the operation.
+        :param exists_ok: Optional. If ``True``, ignore "already exists" errors when creating the table.
+        :param retry: Optional. A retry object used  to retry requests. If `None` is specified, requests
+            will not be retried.
+        :param timeout: Optional. The amount of time, in seconds, to wait for the request to complete.
+            Note that if `retry` is specified, the timeout applies to each individual attempt.
+        """
+        _table_resource: dict[str, Any] = {}
+        if isinstance(table_resource, Table):
+            _table_resource = Table.from_api_repr(table_resource)  # type: ignore
+        if schema_fields:
+            _table_resource["schema"] = {"fields": schema_fields}
+        table_resource_final = {**table_resource, **_table_resource}  # type: ignore
+        table_resource = self._resolve_table_reference(
+            table_resource=table_resource_final,
+            project_id=project_id,
+            dataset_id=dataset_id,
+            table_id=table_id,
+        )
+        table = Table.from_api_repr(table_resource)
+        result = self.get_client(project_id=project_id, location=location).create_table(
+            table=table, exists_ok=exists_ok, retry=retry, timeout=timeout
         )
         get_hook_lineage_collector().add_output_asset(
             context=self,
@@ -900,8 +971,8 @@ class BigQueryHook(GoogleBaseHook, DbApiHook):
             table = self.update_table(table_resource=table_resource)
         else:
             self.log.info("Table %s:%s.%s does not exist. creating.", project_id, dataset_id, table_id)
-            table = self.create_empty_table(
-                table_resource=table_resource, project_id=project_id
+            table = self.create_table(
+                dataset_id=dataset_id, table_id=table_id, table_resource=table_resource, project_id=project_id
             ).to_api_repr()
         return table
 

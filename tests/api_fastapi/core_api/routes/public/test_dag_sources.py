@@ -20,6 +20,7 @@ from __future__ import annotations
 import json
 import os
 
+import pendulum
 import pytest
 from httpx import Response
 from sqlalchemy import select
@@ -27,8 +28,10 @@ from sqlalchemy import select
 from airflow.models.dagbag import DagBag
 from airflow.models.dagcode import DagCode
 from airflow.models.serialized_dag import SerializedDagModel
+from airflow.utils.state import DagRunState
+from airflow.utils.types import DagRunTriggeredByType, DagRunType
 
-from tests_common.test_utils.db import clear_db_dags, parse_and_sync_to_db
+from tests_common.test_utils.db import clear_db_dags, clear_db_runs, parse_and_sync_to_db
 
 pytestmark = pytest.mark.db_test
 
@@ -61,6 +64,7 @@ class TestGetDAGSource:
 
     def clear_db(self):
         clear_db_dags()
+        clear_db_runs()
 
     def test_should_respond_200_text(self, test_client, test_dag):
         dag_content = self._get_dag_file_code(test_dag.fileloc)
@@ -94,6 +98,13 @@ class TestGetDAGSource:
     @pytest.mark.parametrize("accept", ["application/json", "text/plain"])
     def test_should_respond_200_version(self, test_client, accept, session, test_dag, testing_dag_bundle):
         dag_content = self._get_dag_file_code(test_dag.fileloc)
+        test_dag.create_dagrun(
+            run_id="test1",
+            run_after=pendulum.datetime(2025, 1, 1, tz="UTC"),
+            state=DagRunState.QUEUED,
+            triggered_by=DagRunTriggeredByType.TEST,
+            run_type=DagRunType.MANUAL,
+        )
         # force reserialization
         test_dag.doc_md = "new doc"
         SerializedDagModel.write_dag(test_dag, bundle_name="testing")

@@ -26,8 +26,9 @@ from airflow.providers.google.cloud.hooks.gcs import parse_json_from_gcs
 from airflow.sensors.base import BaseSensorOperator
 
 if TYPE_CHECKING:
-    from airflow.utils.context import Context
     from google.api_core.operation import Operation
+
+    from airflow.utils.context import Context
 
 
 class MetastoreHivePartitionSensor(BaseSensorOperator):

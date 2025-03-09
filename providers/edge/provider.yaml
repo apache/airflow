@@ -21,11 +21,11 @@ description: |
   Handle edge workers on remote sites via HTTP(s) connection and orchestrates work over distributed sites
 
 state: not-ready
-source-date-epoch: 1737371680
+source-date-epoch: 1741121867
 
 # note that those versions are maintained by release manager - do not update them manually
 versions:
-  - 0.14.1pre0
+  - 0.20.0pre0
 
 plugins:
   - name: edge_executor

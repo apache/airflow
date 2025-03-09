@@ -49,7 +49,7 @@ TEST_FILE_IDENTIFIERS: list[str] = ["example_", "test_"]
 
 INVALID_ENV_ID_MSG: str = (
     "To maximize compatibility, the SYSTEM_TESTS_ENV_ID must be an alphanumeric string "
-    "which starts with a letter. Please see `providers/tests/system/amazon/README.md`."
+    "which starts with a letter. Please see `providers/amazon/tests/system/amazon/README.md`."
 )
 LOWERCASE_ENV_ID_MSG: str = (
     "The provided Environment ID contains uppercase letters and "
@@ -115,7 +115,10 @@ def _fetch_from_ssm(key: str, test_name: str | None = None) -> str:
     except hook.conn.exceptions.ParameterNotFound as e:
         log.info("SSM does not contain any parameter for this test: %s", e)
     except KeyError as e:
-        log.info("SSM contains one parameter for this test, but not the requested value: %s", e)
+        log.info(
+            "SSM contains one parameter for this test, but not the requested value: %s",
+            e,
+        )
     return value
 
 
@@ -286,6 +289,7 @@ def prune_logs(
     force_delete: bool = False,
     retry: bool = False,
     retry_times: int = 3,
+    delete_log_groups: bool = True,
     ti=None,
 ):
     """
@@ -300,11 +304,13 @@ def prune_logs(
         cases, the log group/stream is created seconds after the main resource has
         been created. By default, it retries for 3 times with a 5s waiting period.
     :param retry_times: Number of retries.
+    :param delete_log_groups: Whether to delete the log groups if they are empty.
+        Overridden by force_delete.
     :param ti: Used to check the status of the tasks. This gets pulled from the
         DAG's context and does not need to be passed manually.
     """
     if all_tasks_passed(ti):
-        _purge_logs(logs, force_delete, retry, retry_times)
+        _purge_logs(logs, force_delete, retry, retry_times, delete_log_groups)
     else:
         client: BaseClient = boto3.client("logs")
         for group, _ in logs:
@@ -316,6 +322,7 @@ def _purge_logs(
     force_delete: bool = False,
     retry: bool = False,
     retry_times: int = 3,
+    delete_log_groups: bool = True,
 ) -> None:
     """
     Accepts a tuple in the format: ('log group name', 'log stream prefix').
@@ -332,6 +339,8 @@ def _purge_logs(
         is created seconds after the main resource has been created. By default, it retries for 3 times
         with a 5s waiting period
     :param retry_times: Number of retries
+    :param delete_log_groups: Whether to delete the log groups if they are empty.
+        Overridden by force_delete.
     """
     client: BaseClient = boto3.client("logs")
 
@@ -346,7 +355,9 @@ def _purge_logs(
                 for stream_name in [stream["logStreamName"] for stream in log_streams]:
                     client.delete_log_stream(logGroupName=group, logStreamName=stream_name)
 
-            if force_delete or not client.describe_log_streams(logGroupName=group)["logStreams"]:
+            if force_delete or (
+                delete_log_groups and not client.describe_log_streams(logGroupName=group)["logStreams"]
+            ):
                 client.delete_log_group(logGroupName=group)
         except ClientError as e:
             if not retry or retry_times == 0 or e.response["Error"]["Code"] != "ResourceNotFoundException":

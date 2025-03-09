@@ -27,7 +27,7 @@ def get_provider_info():
         "name": "SQLite",
         "description": "`SQLite <https://www.sqlite.org/>`__\n",
         "state": "ready",
-        "source-date-epoch": 1734536738,
+        "source-date-epoch": 1741121949,
         "versions": [
             "4.0.0",
             "3.9.1",
@@ -83,4 +83,5 @@ def get_provider_info():
             "aiosqlite>=0.20.0",
             "apache-airflow-providers-common-sql>=1.20.0",
         ],
+        "devel-dependencies": [],
     }

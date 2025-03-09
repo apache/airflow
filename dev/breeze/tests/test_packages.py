@@ -30,12 +30,11 @@ from airflow_breeze.utils.packages import (
     get_available_packages,
     get_cross_provider_dependent_packages,
     get_dist_package_name_prefix,
-    get_install_requirements_for_old_providers,
     get_long_package_name,
     get_min_airflow_version,
-    get_old_documentation_package_path,
-    get_old_source_providers_package_path,
     get_pip_package_name,
+    get_previous_documentation_package_path,
+    get_previous_source_providers_package_path,
     get_provider_info_dict,
     get_provider_requirements,
     get_removed_provider_ids,
@@ -50,6 +49,19 @@ from airflow_breeze.utils.path_utils import AIRFLOW_SOURCES_ROOT, DOCS_ROOT
 def test_get_available_packages():
     assert len(get_available_packages()) > 70
     assert all(package not in REGULAR_DOC_PACKAGES for package in get_available_packages())
+
+
+def test_get_source_package_path():
+    assert get_previous_source_providers_package_path("apache.hdfs") == AIRFLOW_SOURCES_ROOT.joinpath(
+        "providers", "src", "airflow", "providers", "apache", "hdfs"
+    )
+
+
+def test_get_old_documentation_package_path():
+    assert (
+        get_previous_documentation_package_path("apache.hdfs")
+        == DOCS_ROOT / "apache-airflow-providers-apache-hdfs"
+    )
 
 
 def test_expand_all_provider_packages():
@@ -145,94 +157,6 @@ def test_find_matching_long_package_name(
 def test_find_matching_long_package_name_bad_filter():
     with pytest.raises(SystemExit, match=r"Some filters did not find any package: \['bad-filter-\*"):
         find_matching_long_package_names(short_packages=(), filters=("bad-filter-*",))
-
-
-def test_get_source_package_path():
-    assert get_old_source_providers_package_path("apache.hdfs") == AIRFLOW_SOURCES_ROOT.joinpath(
-        "providers", "src", "airflow", "providers", "apache", "hdfs"
-    )
-
-
-def test_get_old_documentation_package_path():
-    assert (
-        get_old_documentation_package_path("apache.hdfs")
-        == DOCS_ROOT / "apache-airflow-providers-apache-hdfs"
-    )
-
-
-# TODO(potiuk) - remove when all providers are new-style
-@pytest.mark.parametrize(
-    "provider, version_suffix, expected",
-    [
-        pytest.param(
-            "fab",
-            "",
-            """
-    "apache-airflow-providers-common-compat>=1.2.1",
-    "apache-airflow>=3.0.0.dev0",
-    "flask-appbuilder==4.5.3",
-    "flask-login>=0.6.2",
-    "flask>=2.2,<2.3",
-    "google-re2>=1.0",
-    "jmespath>=0.7.0",
-    """,
-            id="No suffix fab",
-        ),
-        pytest.param(
-            "fab",
-            "dev0",
-            """
-    "apache-airflow-providers-common-compat>=1.2.1.dev0",
-    "apache-airflow>=3.0.0.dev0",
-    "flask-appbuilder==4.5.3",
-    "flask-login>=0.6.2",
-    "flask>=2.2,<2.3",
-    "google-re2>=1.0",
-    "jmespath>=0.7.0",
-    """,
-            id="dev0 suffix fab",
-        ),
-        pytest.param(
-            "fab",
-            "beta0",
-            """
-    "apache-airflow-providers-common-compat>=1.2.1b0",
-    "apache-airflow>=3.0.0b0",
-    "flask-appbuilder==4.5.3",
-    "flask-login>=0.6.2",
-    "flask>=2.2,<2.3",
-    "google-re2>=1.0",
-    "jmespath>=0.7.0",
-    """,
-            id="beta0 suffix fab",
-        ),
-        pytest.param(
-            "postgres",
-            "beta0",
-            """
-    "apache-airflow-providers-common-sql>=1.20.0b0",
-    "apache-airflow>=2.9.0b0",
-    "asyncpg>=0.30.0",
-    "psycopg2-binary>=2.9.9",
-    """,
-            id="beta0 suffix postgres",
-        ),
-        pytest.param(
-            "postgres",
-            "",
-            """
-    "apache-airflow-providers-common-sql>=1.20.0",
-    "apache-airflow>=2.9.0",
-    "asyncpg>=0.30.0",
-    "psycopg2-binary>=2.9.9",
-    """,
-            id="No suffix postgres",
-        ),
-    ],
-)
-def test_get_install_requirements(provider: str, version_suffix: str, expected: str):
-    actual = get_install_requirements_for_old_providers(provider, version_suffix)
-    assert actual.strip() == expected.strip()
 
 
 @pytest.mark.parametrize(

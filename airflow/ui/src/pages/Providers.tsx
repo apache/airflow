@@ -38,17 +38,19 @@ const columns: Array<ColumnDef<ProviderResponse>> = [
         {original.package_name}
       </Link>
     ),
+    enableSorting: false,
     header: "Package Name",
   },
   {
     accessorKey: "version",
     cell: ({ row: { original } }) => original.version,
+    enableSorting: false,
     header: () => "Version",
   },
   {
     accessorKey: "description",
     cell: ({ row: { original } }) => {
-      const urlRegex = /http(s)?:\/\/[\w.-]+(\.?:[\w.-]+)*([#/?][\w!#$%&'()*+,./:;=?@[\]~-]*)?/gu;
+      const urlRegex = /https?:\/\/[\w.-]+(?:\.?:[\w.-]+)*(?:[#/?][\w!#$%&'()*+,./:;=?@[\]~-]*)?/gu;
       const urls = original.description.match(urlRegex);
       const cleanText = original.description.replaceAll(/\n(?:and)?/gu, " ").split(" ");
 
@@ -62,6 +64,7 @@ const columns: Array<ColumnDef<ProviderResponse>> = [
         ),
       );
     },
+    enableSorting: false,
     header: "Description",
   },
 ];
@@ -76,6 +79,7 @@ export const Providers = () => {
         columns={columns}
         data={data?.providers ?? []}
         errorMessage={<ErrorAlert error={error} />}
+        modelName="Provider"
         total={data?.total_entries}
       />
     </Box>

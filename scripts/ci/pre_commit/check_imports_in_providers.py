@@ -61,10 +61,6 @@ def check_imports(folders_to_check: list[Path]):
         console.print(importing_file_path)
         imported_files_array = import_tree.get(importing_file, None)
         if imported_files_array is None:
-            if importing_file != "providers/src/airflow/providers/__init__.py":
-                # providers/__init__.py should be ignored
-                console.print(f"[red]The file {importing_file} is not discovered by ruff analyze!")
-                errors_found = True
             continue
         imported_file_paths = [Path(file) for file in imported_files_array]
         for imported_file_path in imported_file_paths:
