@@ -16,14 +16,16 @@
 # under the License.
 from __future__ import annotations
 
-from fastapi import HTTPException, Response, status
+from fastapi import Depends, HTTPException, Response, status
 
+from airflow.api_fastapi.auth.managers.models.resource_details import DagAccessEntity
 from airflow.api_fastapi.common.db.common import SessionDep
 from airflow.api_fastapi.common.headers import HeaderAcceptJsonOrText
 from airflow.api_fastapi.common.router import AirflowRouter
 from airflow.api_fastapi.common.types import Mimetype
 from airflow.api_fastapi.core_api.datamodels.dag_sources import DAGSourceResponse
 from airflow.api_fastapi.core_api.openapi.exceptions import create_openapi_http_exception_doc
+from airflow.api_fastapi.core_api.security import requires_access_dag
 from airflow.models.dag_version import DagVersion
 
 dag_sources_router = AirflowRouter(tags=["DagSource"], prefix="/dagSources")
@@ -47,6 +49,7 @@ dag_sources_router = AirflowRouter(tags=["DagSource"], prefix="/dagSources")
         },
     },
     response_model=DAGSourceResponse,
+    dependencies=[Depends(requires_access_dag(method="GET", access_entity=DagAccessEntity.CODE))],
 )
 def get_dag_source(
     accept: HeaderAcceptJsonOrText,
