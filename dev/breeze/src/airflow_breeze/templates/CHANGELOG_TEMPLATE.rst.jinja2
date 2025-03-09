@@ -63,7 +63,7 @@ Misc
 {%- if classified_changes and classified_changes.docs %}
 
 Doc-only
-~~~~
+~~~~~~~~
 {% for doc in classified_changes.docs %}
 * ``{{ doc.message_without_backticks | safe }}``
 {%- endfor %}
