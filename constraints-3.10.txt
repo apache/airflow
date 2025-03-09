@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2025-03-08T20:12:13.702686
+# This constraints file was automatically generated on 2025-03-09T02:39:01.924582
 # via "eager-upgrade" mechanism of PIP. For the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version for 'apache-airflow' but installs
 # the providers from PIP-released packages at the moment of the constraint generation.
@@ -527,7 +527,7 @@ orjson==3.10.15
 oss2==2.19.1
 packaging==24.2
 pandas-gbq==0.28.0
-pandas-stubs==2.2.3.241126
+pandas-stubs==2.2.3.250308
 pandas==2.1.4
 papermill==2.6.0
 paramiko==3.5.1
