@@ -21,7 +21,8 @@ import inspect
 import json
 import logging
 from collections.abc import Iterable
-from typing import TYPE_CHECKING, Any, cast
+from typing import TYPE_CHECKING, Any, cast, Annotated
+from pydantic import StringConstraints
 
 from sqlalchemy import (
     JSON,
@@ -154,6 +155,9 @@ class BaseXCom(TaskInstanceDependencies, LoggingMixin):
         """
         from airflow.models.dagrun import DagRun
 
+        if not key:
+            raise ValueError(f"XCom key must be a non-empty string. Received: {key!r}")
+
         if not run_id:
             raise ValueError(f"run_id must be passed. Passed run_id={run_id}")
 
@@ -218,7 +222,7 @@ class BaseXCom(TaskInstanceDependencies, LoggingMixin):
     def get_value(
         *,
         ti_key: TaskInstanceKey,
-        key: str | None = None,
+        key: str,
         session: Session = NEW_SESSION,
     ) -> Any:
         """
@@ -233,7 +237,7 @@ class BaseXCom(TaskInstanceDependencies, LoggingMixin):
 
         :param ti_key: The TaskInstanceKey to look up the XCom for.
         :param key: A key for the XCom. If provided, only XCom with matching
-            keys will be returned. Pass *None* (default) to remove the filter.
+            keys will be returned.
         :param session: Database session. If not given, a new session will be
             created for this function.
         """
@@ -250,7 +254,7 @@ class BaseXCom(TaskInstanceDependencies, LoggingMixin):
     @provide_session
     def get_one(
         *,
-        key: str | None = None,
+        key: str,
         dag_id: str | None = None,
         task_id: str | None = None,
         run_id: str,
@@ -279,7 +283,7 @@ class BaseXCom(TaskInstanceDependencies, LoggingMixin):
         :param map_index: Only XCom from task with matching ID will be pulled.
             Pass *None* (default) to remove the filter.
         :param key: A key for the XCom. If provided, only XCom with matching
-            keys will be returned. Pass *None* (default) to remove the filter.
+            keys will be returned.
         :param include_prior_dates: If *False* (default), only XCom from the
             specified DAG run is returned. If *True*, the latest matching XCom is
             returned regardless of the run it belongs to.
@@ -338,6 +342,9 @@ class BaseXCom(TaskInstanceDependencies, LoggingMixin):
         :param limit: Limiting returning XComs
         """
         from airflow.models.dagrun import DagRun
+
+        if key is not None and not key:
+            raise ValueError(f"XCom key must be a non-empty string. Received: {key!r}")
 
         if not run_id:
             raise ValueError(f"run_id must be passed. Passed run_id={run_id}")
