@@ -29,6 +29,7 @@ import { Connections } from "src/pages/Connections";
 import { Dag } from "src/pages/Dag";
 import { Backfills } from "src/pages/Dag/Backfills";
 import { Code } from "src/pages/Dag/Code";
+import { Details as DagDetails } from "src/pages/Dag/Details";
 import { Overview } from "src/pages/Dag/Overview";
 import { Tasks } from "src/pages/Dag/Tasks";
 import { DagRuns } from "src/pages/DagRuns";
@@ -134,6 +135,7 @@ export const routerConfig = [
           { element: <Backfills />, path: "backfills" },
           { element: <Events />, path: "events" },
           { element: <Code />, path: "code" },
+          { element: <DagDetails />, path: "details" },
         ],
         element: <Dag />,
         path: "dags/:dagId",
