@@ -27,8 +27,9 @@ def get_provider_info():
         "name": "MySQL",
         "description": "`MySQL <https://www.mysql.com/>`__\n",
         "state": "ready",
-        "source-date-epoch": 1740734157,
+        "source-date-epoch": 1741509216,
         "versions": [
+            "6.2.0",
             "6.1.0",
             "6.0.0",
             "5.7.4",
@@ -130,4 +131,5 @@ def get_provider_info():
             "trino": ["apache-airflow-providers-trino"],
             "vertica": ["apache-airflow-providers-vertica"],
         },
+        "devel-dependencies": [],
     }

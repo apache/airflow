@@ -56,9 +56,11 @@ def get_doc_url_for_provider(provider_name: str, provider_version: str) -> str:
             for item in metadata_items:
                 if item.lower().startswith("documentation"):
                     _, _, url = item.partition(",")
-                    parsed_url = urlparse(url)
-                    if url and (parsed_url.scheme in ("http", "https") and bool(parsed_url.netloc)):
-                        return url.strip()
+                    if url:
+                        url = url.strip()
+                        parsed_url = urlparse(url)
+                        if url and (parsed_url.scheme in ("http", "https") and bool(parsed_url.netloc)):
+                            return url
     except metadata.PackageNotFoundError:
         pass
     # Fallback if provider is apache one

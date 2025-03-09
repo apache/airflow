@@ -39,13 +39,16 @@ Setup your project
              alt="Cloning github fork to Pycharm">
       </div>
 
-3. Configure the source root directories well as for task_sdk. You also have to
-   set "source" and "tests" root directories for each provider you want to develop (!).
-   This is important in Airflow 3.0 we split providers to be separate
-   distributions - each with separate ``pyproject.toml`` file, so you need to separately
+3. Configure the source root directories well as for ``task-sdk`` and ``devel-common``.
+   You also have to set "source" and "tests" root directories for each provider you want to develop (!).
+
+   This is important in Airflow 3.0 we split ``task-sdk``, ``devel-common`` and each provider to be separate
+   distribution - each with separate ``pyproject.toml`` file, so you need to separately
    add "src" and "tests" directories for each provider you develop to be respectively
-   "source roots" and "test roots". This might improve and might be better automated
-   in the future, but for now you need to do it for each provider separately.
+   "source roots" and "test roots".
+
+   This might be improve and might be better automated in the future, but for now you need to do it
+   for each provider separately.
 
    .. raw:: html
 
@@ -54,15 +57,12 @@ Setup your project
              alt="Adding Source Root directories to Pycharm">
       </div>
 
-   You also need to add ``task_sdk`` sources. Note! For now you do not need to add
-   ``task_sdk`` tests - slight refactoring of that is coming in the near future where
-   we separate ``tests_common`` to a separate distribution and move ``airflow core``
-   to its own distribution.
+   You also need to add ``task-sdk`` sources (and ``devel-common`` in similar way).
 
    .. raw:: html
 
       <div align="center" style="padding-bottom:10px">
-        <img src="images/pycharm_add_task_sdk_sources.png"
+        <img src="images/pycharm_add_task-sdk_sources.png"
              alt="Adding Source Root directories to Pycharm">
       </div>
 

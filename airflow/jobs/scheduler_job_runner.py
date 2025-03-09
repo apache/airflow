@@ -26,13 +26,12 @@ import sys
 import time
 from collections import Counter, defaultdict, deque
 from collections.abc import Collection, Iterable, Iterator
-from contextlib import ExitStack, suppress
+from contextlib import ExitStack
 from datetime import date, timedelta
 from functools import lru_cache, partial
 from itertools import groupby
 from typing import TYPE_CHECKING, Any, Callable
 
-from deprecated import deprecated
 from sqlalchemy import and_, delete, exists, func, select, text, tuple_, update
 from sqlalchemy.exc import OperationalError
 from sqlalchemy.orm import joinedload, lazyload, load_only, make_transient, selectinload
@@ -42,7 +41,6 @@ from airflow import settings
 from airflow.callbacks.callback_requests import DagCallbackRequest, TaskCallbackRequest
 from airflow.configuration import conf
 from airflow.dag_processing.bundles.base import BundleUsageTrackingManager
-from airflow.exceptions import RemovedInAirflow3Warning
 from airflow.executors import workloads
 from airflow.executors.base_executor import BaseExecutor
 from airflow.executors.executor_loader import ExecutorLoader
@@ -247,6 +245,9 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
         )
 
     def _debug_dump(self, signum: int, frame: FrameType | None) -> None:
+        import threading
+        from traceback import extract_stack
+
         if not _is_parent_process():
             # Only the parent process should perform the debug dump.
             return
@@ -261,6 +262,13 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
         for executor in self.job.executors:
             self.log.info("Debug dump for the executor %s", executor)
             executor.debug_dump()
+            self.log.info("-" * 80)
+
+        id2name = {th.ident: th.name for th in threading.enumerate()}
+        for threadId, stack in sys._current_frames().items():
+            self.log.info("Stack Trace for Scheduler Job Runner on thread: %s", id2name[threadId])
+            callstack = extract_stack(f=stack, limit=10)
+            self.log.info("\n\t".join(map(repr, callstack)))
             self.log.info("-" * 80)
 
     def _executable_task_instances_to_queued(self, max_tis: int, session: Session) -> list[TI]:
@@ -937,7 +945,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                 except Exception:
                     self.log.exception("Exception when executing Executor.end on %s", executor)
 
-            # Under normal execution, this doesn't metter, but by resetting signals it lets us run more things
+            # Under normal execution, this doesn't matter, but by resetting signals it lets us run more things
             # in the same process under testing without leaking global state
             reset_signals.close()
             self.log.info("Exited execute loop")
@@ -1022,11 +1030,6 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
         timers.call_regular_interval(
             conf.getfloat("scheduler", "parsing_cleanup_interval"),
             self._update_asset_orphanage,
-        )
-
-        timers.call_regular_interval(
-            conf.getfloat("scheduler", "parsing_cleanup_interval"),
-            self._cleanup_stale_dags,
         )
 
         if any(x.is_local for x in self.job.executors):
@@ -1732,12 +1735,6 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                     )
                     session.commit()
             except NotImplementedError:
-                # this block only gets entered if the executor has not implemented `revoke_task`.
-                # in which case, we try the fallback logic
-                # todo: remove the call to _stuck_in_queued_backcompat_logic in airflow 3.0.
-                #   after 3.0, `cleanup_stuck_queued_tasks` will be removed, so we should
-                #   just continue immediately.
-                self._stuck_in_queued_backcompat_logic(executor, stuck_tis)
                 continue
 
     def _get_tis_stuck_in_queued(self, session) -> Iterable[TaskInstance]:
@@ -1783,28 +1780,6 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                 )
             )
             ti.set_state(TaskInstanceState.FAILED, session=session)
-
-    @deprecated(
-        reason="This is backcompat layer for older executor interface. Should be removed in 3.0",
-        category=RemovedInAirflow3Warning,
-        action="ignore",
-    )
-    def _stuck_in_queued_backcompat_logic(self, executor, stuck_tis):
-        """
-        Try to invoke stuck in queued cleanup for older executor interface.
-
-        TODO: remove in airflow 3.0
-
-        Here we handle case where the executor pre-dates the interface change that
-        introduced `cleanup_tasks_stuck_in_queued` and deprecated `cleanup_stuck_queued_tasks`.
-
-        """
-        with suppress(NotImplementedError):
-            for ti_repr in executor.cleanup_stuck_queued_tasks(tis=stuck_tis):
-                self.log.warning(
-                    "Task instance %s stuck in queued. Will be set to failed.",
-                    ti_repr,
-                )
 
     def _reschedule_stuck_task(self, ti: TaskInstance, session: Session):
         session.execute(
@@ -2061,29 +2036,6 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
             zombie_message_details["External Executor Id"] = ti.external_executor_id
 
         return zombie_message_details
-
-    @provide_session
-    def _cleanup_stale_dags(self, session: Session = NEW_SESSION) -> None:
-        """
-        Find all dags that were not updated by Dag Processor recently and mark them as inactive.
-
-        In case one of DagProcessors is stopped (in case there are multiple of them
-        for different dag folders), its dags are never marked as inactive.
-        TODO: AIP-66 Does it make sense to mark them as inactive just because the processor isn't running?
-        """
-        self.log.debug("Checking dags not parsed within last %s seconds.", self._dag_stale_not_seen_duration)
-        limit_lpt = timezone.utcnow() - timedelta(seconds=self._dag_stale_not_seen_duration)
-        stale_dags = session.scalars(
-            select(DagModel).where(DagModel.is_active, DagModel.last_parsed_time < limit_lpt)
-        ).all()
-        if not stale_dags:
-            self.log.debug("Not stale dags found.")
-            return
-
-        self.log.info("Found (%d) stales dags not parsed after %s.", len(stale_dags), limit_lpt)
-        for dag in stale_dags:
-            dag.is_active = False
-        session.flush()
 
     @provide_session
     def _update_asset_orphanage(self, session: Session = NEW_SESSION) -> None:

@@ -27,8 +27,9 @@ def get_provider_info():
         "name": "Simple Mail Transfer Protocol (SMTP)",
         "description": "`Simple Mail Transfer Protocol (SMTP) <https://tools.ietf.org/html/rfc5321>`__\n",
         "state": "ready",
-        "source-date-epoch": 1740734194,
+        "source-date-epoch": 1741509651,
         "versions": [
+            "2.0.1",
             "2.0.0",
             "1.9.0",
             "1.8.1",
@@ -73,4 +74,5 @@ def get_provider_info():
         ],
         "notifications": ["airflow.providers.smtp.notifications.smtp.SmtpNotifier"],
         "dependencies": ["apache-airflow>=2.9.0"],
+        "devel-dependencies": [],
     }

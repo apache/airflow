@@ -34,6 +34,25 @@ For high-level changelog, see :doc:`package information including changelog <ind
 
 
 
+10.3.1
+......
+
+Latest change: 2025-03-07
+
+==================================================================================================  ===========  ==================================================================================
+Commit                                                                                              Committed    Subject
+==================================================================================================  ===========  ==================================================================================
+`092cc57f02 <https://github.com/apache/airflow/commit/092cc57f0257c55bfa4e7db9aa91d9c2525bca41>`__  2025-03-07   ``Get rid of google-re2 as dependency (#47493)``
+`e4002c3305 <https://github.com/apache/airflow/commit/e4002c3305a757f5926f96c996e701e8f998a042>`__  2025-03-05   ``Move tests_common package to devel-common project (#47281)``
+`1447705482 <https://github.com/apache/airflow/commit/144770548242295dc69d5ea7b7e11a748c246262>`__  2025-03-01   ``Fix codespell issues detected by new codespell (#47259)``
+`1addb55154 <https://github.com/apache/airflow/commit/1addb55154fbef31bfa021537cfbd4395696381c>`__  2025-02-28   ``Improve documentation for updating provider dependencies (#47203)``
+`c6c4f95ed9 <https://github.com/apache/airflow/commit/c6c4f95ed9e3220133815b9126c135e805637022>`__  2025-02-25   ``Add legacy namespace packages to airflow.providers (#47064)``
+`dbf8bb4092 <https://github.com/apache/airflow/commit/dbf8bb409223687c7d2ad10649a92d02c24bb3b4>`__  2025-02-24   ``Remove extra whitespace in provider readme template (#46975)``
+`961e33d32e <https://github.com/apache/airflow/commit/961e33d32e5457d5ca6bea5160dd08ea02e507c7>`__  2025-02-24   ``AIP-72: Port over executor_config for K8sExecutor when using task sdk (#46926)``
+`18582ebbeb <https://github.com/apache/airflow/commit/18582ebbeb53802f59971e3ed021dd1f863799ea>`__  2025-02-22   ``Update templated fields in KPO doc-string + wording (#46970)``
+`b28c336e8b <https://github.com/apache/airflow/commit/b28c336e8b7aa1d69c0f9520b182b1b661377337>`__  2025-02-21   ``Upgrade flit to 3.11.0 (#46938)``
+==================================================================================================  ===========  ==================================================================================
+
 10.3.0
 ......
 
@@ -42,6 +61,7 @@ Latest change: 2025-02-21
 ==================================================================================================  ===========  =====================================================================================================
 Commit                                                                                              Committed    Subject
 ==================================================================================================  ===========  =====================================================================================================
+`0653ffe78e <https://github.com/apache/airflow/commit/0653ffe78e4a0acaf70801a5ceef8dbabdac8b15>`__  2025-02-21   ``Prepare docs for Feb 1st wave of providers (fixed) (#46962)``
 `5d87bddf0a <https://github.com/apache/airflow/commit/5d87bddf0aa5f485f3684c909fb95f461e5a2ab6>`__  2025-02-21   ``Prepare docs for Feb 1st wave of providers (#46893)``
 `56e083f145 <https://github.com/apache/airflow/commit/56e083f1455a83dcd8204e9746cfb2fad18f06da>`__  2025-02-20   ``AIP-72: Swap KubernetesExecutor to use taskSDK for execution (#46860)``
 `3e6c6a109e <https://github.com/apache/airflow/commit/3e6c6a109ea0b1567d68d85ff4bc6ebeed17facf>`__  2025-02-19   ``Fix wrong operator name in doc string of @task.kubernetes (#46873)``

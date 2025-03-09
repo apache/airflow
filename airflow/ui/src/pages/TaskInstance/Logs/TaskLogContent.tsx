@@ -16,7 +16,7 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Box, Code, Skeleton, VStack } from "@chakra-ui/react";
+import { Box, Code, VStack } from "@chakra-ui/react";
 import type { ReactNode } from "react";
 
 import { ErrorAlert } from "src/components/ErrorAlert";
@@ -33,10 +33,21 @@ type Props = {
 export const TaskLogContent = ({ error, isLoading, logError, parsedLogs, wrap }: Props) => (
   <Box>
     <ErrorAlert error={error ?? logError} />
-    <Skeleton />
     <ProgressBar size="xs" visibility={isLoading ? "visible" : "hidden"} />
-    <Code overflow="auto" py={3} textWrap={wrap ? "pre" : "nowrap"} width="100%">
-      <VStack alignItems="flex-start">{parsedLogs}</VStack>
+    <Code
+      css={{
+        "& *::selection": {
+          bg: "blue.subtle",
+        },
+      }}
+      overflow="auto"
+      py={3}
+      textWrap={wrap ? "pre" : "nowrap"}
+      width="100%"
+    >
+      <VStack alignItems="flex-start" gap={0}>
+        {parsedLogs}
+      </VStack>
     </Code>
   </Box>
 );

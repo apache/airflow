@@ -450,6 +450,10 @@ CONFIGS_CHANGES = [
         config=ConfigParameter("smtp", "smtp_password"),
         suggestion="Please use the SMTP connection (`smtp_default`).",
     ),
+    # database
+    ConfigChange(
+        config=ConfigParameter("database", "load_default_connections"),
+    ),
 ]
 
 
@@ -522,7 +526,7 @@ def lint_config(args) -> None:
             continue
 
         if conf.has_option(
-            configuration.config.section, configuration.config.option, lookup_from_deprecated_options=False
+            configuration.config.section, configuration.config.option, lookup_from_deprecated=False
         ):
             lint_issues.append(configuration.message)
 

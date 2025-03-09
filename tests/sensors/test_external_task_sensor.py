@@ -1286,7 +1286,7 @@ def clear_tasks(
     """
     Clear the task and its downstream tasks recursively for the dag in the given dagbag.
     """
-    partial: DAG = dag.partial_subset(task_ids_or_regex=[task.task_id], include_downstream=True)
+    partial: DAG = dag.partial_subset(task_ids=[task.task_id], include_downstream=True)
     return partial.clear(
         start_date=start_date,
         end_date=end_date,
@@ -1719,7 +1719,7 @@ def test_clear_overlapping_external_task_marker_mapped_tasks(dag_bag_head_tail_m
     session.flush()
 
     dag = dag.partial_subset(
-        task_ids_or_regex=["head"],
+        task_ids=["head"],
         include_downstream=True,
         include_upstream=False,
     )

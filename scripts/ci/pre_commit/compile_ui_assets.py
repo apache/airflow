@@ -35,7 +35,9 @@ AIRFLOW_SOURCES_PATH = Path(__file__).parents[3].resolve()
 MAIN_UI_DIRECTORY = AIRFLOW_SOURCES_PATH / "airflow" / "ui"
 MAIN_UI_HASH_FILE = AIRFLOW_SOURCES_PATH / ".build" / "ui" / "hash.txt"
 
-SIMPLE_AUTH_MANAGER_UI_DIRECTORY = AIRFLOW_SOURCES_PATH / "airflow" / "auth" / "managers" / "simple" / "ui"
+SIMPLE_AUTH_MANAGER_UI_DIRECTORY = (
+    AIRFLOW_SOURCES_PATH / "airflow" / "api_fastapi" / "auth" / "managers" / "simple" / "ui"
+)
 SIMPLE_AUTH_MANAGER_UI_HASH_FILE = AIRFLOW_SOURCES_PATH / ".build" / "ui" / "simple-auth-manager-hash.txt"
 
 INTERNAL_SERVER_ERROR = "500 Internal Server Error"

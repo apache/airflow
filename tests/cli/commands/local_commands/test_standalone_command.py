@@ -26,11 +26,9 @@ from airflow.cli.commands.local_commands.standalone_command import StandaloneCom
 from airflow.executors import executor_loader
 from airflow.executors.executor_constants import (
     CELERY_EXECUTOR,
-    CELERY_KUBERNETES_EXECUTOR,
     DEBUG_EXECUTOR,
     KUBERNETES_EXECUTOR,
     LOCAL_EXECUTOR,
-    LOCAL_KUBERNETES_EXECUTOR,
     SEQUENTIAL_EXECUTOR,
 )
 
@@ -40,17 +38,13 @@ class TestStandaloneCommand:
         "conf_executor_name, conf_sql_alchemy_conn, expected_standalone_executor",
         [
             (LOCAL_EXECUTOR, "sqlite_conn_string", LOCAL_EXECUTOR),
-            (LOCAL_KUBERNETES_EXECUTOR, "sqlite_conn_string", SEQUENTIAL_EXECUTOR),
             (SEQUENTIAL_EXECUTOR, "sqlite_conn_string", SEQUENTIAL_EXECUTOR),
             (CELERY_EXECUTOR, "sqlite_conn_string", SEQUENTIAL_EXECUTOR),
-            (CELERY_KUBERNETES_EXECUTOR, "sqlite_conn_string", SEQUENTIAL_EXECUTOR),
             (KUBERNETES_EXECUTOR, "sqlite_conn_string", SEQUENTIAL_EXECUTOR),
             (DEBUG_EXECUTOR, "sqlite_conn_string", SEQUENTIAL_EXECUTOR),
             (LOCAL_EXECUTOR, "other_db_conn_string", LOCAL_EXECUTOR),
-            (LOCAL_KUBERNETES_EXECUTOR, "other_db_conn_string", LOCAL_EXECUTOR),
             (SEQUENTIAL_EXECUTOR, "other_db_conn_string", SEQUENTIAL_EXECUTOR),
             (CELERY_EXECUTOR, "other_db_conn_string", LOCAL_EXECUTOR),
-            (CELERY_KUBERNETES_EXECUTOR, "other_db_conn_string", LOCAL_EXECUTOR),
             (KUBERNETES_EXECUTOR, "other_db_conn_string", LOCAL_EXECUTOR),
             (DEBUG_EXECUTOR, "other_db_conn_string", LOCAL_EXECUTOR),
         ],

@@ -21,6 +21,7 @@ import asyncio
 import copy
 import functools
 import logging
+import re
 import sys
 import time
 from collections import defaultdict
@@ -42,7 +43,6 @@ from typing import (
 import attrs
 import methodtools
 import pendulum
-import re2
 import sqlalchemy_jsonfield
 from dateutil.relativedelta import relativedelta
 from packaging import version as packaging_version
@@ -68,6 +68,7 @@ from sqlalchemy.orm import backref, load_only, relationship
 from sqlalchemy.sql import Select, expression
 
 from airflow import settings, utils
+from airflow.assets.evaluation import AssetEvaluator
 from airflow.configuration import conf as airflow_conf, secrets_backend_list
 from airflow.exceptions import (
     AirflowException,
@@ -1134,7 +1135,7 @@ class DAG(TaskSDKDag, LoggingMixin):
                     if not external_dag:
                         raise AirflowException(f"Could not find dag {tii.dag_id}")
                     downstream = external_dag.partial_subset(
-                        task_ids_or_regex=[tii.task_id],
+                        task_ids=[tii.task_id],
                         include_upstream=False,
                         include_downstream=True,
                     )
@@ -1248,7 +1249,7 @@ class DAG(TaskSDKDag, LoggingMixin):
         # Flush the session so that the tasks marked success are reflected in the db.
         session.flush()
         subdag = self.partial_subset(
-            task_ids_or_regex={task_id},
+            task_ids={task_id},
             include_downstream=True,
             include_upstream=False,
         )
@@ -1360,7 +1361,7 @@ class DAG(TaskSDKDag, LoggingMixin):
             # Flush the session so that the tasks marked success are reflected in the db.
             session.flush()
             task_subset = self.partial_subset(
-                task_ids_or_regex=task_ids,
+                task_ids=task_ids,
                 include_downstream=True,
                 include_upstream=False,
             )
@@ -1721,7 +1722,7 @@ class DAG(TaskSDKDag, LoggingMixin):
                     ti.task = tasks[ti.task_id]
 
                     mark_success = (
-                        re2.compile(mark_success_pattern).fullmatch(ti.task_id) is not None
+                        re.compile(mark_success_pattern).fullmatch(ti.task_id) is not None
                         if mark_success_pattern is not None
                         else False
                     )
@@ -1803,9 +1804,9 @@ class DAG(TaskSDKDag, LoggingMixin):
 
         # This is also done on the DagRun model class, but SQLAlchemy column
         # validator does not work well for some reason.
-        if not re2.match(RUN_ID_REGEX, run_id):
+        if not re.match(RUN_ID_REGEX, run_id):
             regex = airflow_conf.get("scheduler", "allowed_run_id_pattern").strip()
-            if not regex or not re2.match(regex, run_id):
+            if not regex or not re.match(regex, run_id):
                 raise ValueError(
                     f"The run_id provided '{run_id}' does not match regex pattern "
                     f"'{regex}' or '{RUN_ID_REGEX}'"
@@ -2323,12 +2324,14 @@ class DagModel(Base):
         """
         from airflow.models.serialized_dag import SerializedDagModel
 
+        evaluator = AssetEvaluator(session)
+
         def dag_ready(dag_id: str, cond: BaseAsset, statuses: dict[AssetUniqueKey, bool]) -> bool | None:
             # if dag was serialized before 2.9 and we *just* upgraded,
             # we may be dealing with old version.  In that case,
             # just wait for the dag to be reserialized.
             try:
-                return cond.evaluate(statuses, session=session)
+                return evaluator.run(cond, statuses)
             except AttributeError:
                 log.warning("dag '%s' has old serialization; skipping DAG run creation.", dag_id)
                 return None

@@ -27,6 +27,29 @@
 Changelog
 ---------
 
+12.2.1
+......
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Remove extra string interpolation from fstrings (#47436)``
+* ``Fix support for old method signature of pagination_function in MSGraphAsyncOperator (#47101)``
+
+Misc
+~~~~
+
+* ``AIP-72: Moving BaseOperatorLink to task sdk (#47008)``
+* ``Render structured logs in the new UI rather than showing raw JSON (#46827)``
+* ``Upgrade flit to 3.11.0 (#46938)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Move tests_common package to devel-common project (#47281)``
+   * ``Improve documentation for updating provider dependencies (#47203)``
+   * ``Add legacy namespace packages to airflow.providers (#47064)``
+   * ``Remove extra whitespace in provider readme template (#46975)``
+
 12.2.0
 ......
 

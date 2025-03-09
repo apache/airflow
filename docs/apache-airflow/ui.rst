@@ -222,7 +222,7 @@ The form display is based on the DAG Parameters as described in :doc:`core-conce
 
 ------------
 
-.. image:: img/trigger-dag-tutorial-form.png
+.. image:: img/trigger-dag-tutorial-form-1.png
 
 Audit Log
 .............

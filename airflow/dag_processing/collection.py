@@ -217,7 +217,7 @@ def _sync_dag_perms(dag: MaybeSerializedDAG, session: Session):
     dag_id = dag.dag_id
 
     log.debug("Syncing DAG permissions: %s to the DB", dag_id)
-    from airflow.www.security_appless import ApplessAirflowSecurityManager
+    from airflow.providers.fab.www.security_appless import ApplessAirflowSecurityManager
 
     security_manager = ApplessAirflowSecurityManager(session=session)
     security_manager.sync_perm_for_dag(dag_id, dag.access_control)

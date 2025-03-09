@@ -35,7 +35,6 @@ from airflow_breeze.global_constants import (
     ALLOWED_POSTGRES_VERSIONS,
     ALLOWED_PYTHON_MAJOR_MINOR_VERSIONS,
     APACHE_AIRFLOW_GITHUB_REPOSITORY,
-    API_SERVER_HOST_PORT,
     CELERY_BROKER_URLS_MAP,
     CELERY_EXECUTOR,
     DEFAULT_CELERY_BROKER,
@@ -60,7 +59,7 @@ from airflow_breeze.global_constants import (
     TESTABLE_CORE_INTEGRATIONS,
     TESTABLE_PROVIDERS_INTEGRATIONS,
     USE_AIRFLOW_MOUNT_SOURCES,
-    WEBSERVER_HOST_PORT,
+    WEB_HOST_PORT,
     GithubEvents,
     GroupOfTests,
     get_airflow_version,
@@ -507,7 +506,12 @@ class ShellParams:
         _set_var(_env, "AIRFLOW_VERSION", self.airflow_version)
         _set_var(_env, "AIRFLOW__CELERY__BROKER_URL", self.airflow_celery_broker_url)
         _set_var(_env, "AIRFLOW__CORE__EXECUTOR", self.executor)
-        _set_var(_env, "AIRFLOW__API__BASE_URL", f"http://localhost:{API_SERVER_HOST_PORT}")
+        _set_var(_env, "AIRFLOW__API__BASE_URL", f"http://localhost:{WEB_HOST_PORT}")
+        _set_var(
+            _env,
+            "AIRFLOW__CORE__SIMPLE_AUTH_MANAGER_PASSWORDS_FILE",
+            "/files/simple_auth_manager_passwords.json.generated",
+        )
         if self.executor == EDGE_EXECUTOR:
             _set_var(
                 _env, "AIRFLOW__CORE__EXECUTOR", "airflow.providers.edge.executors.edge_executor.EdgeExecutor"
@@ -524,11 +528,7 @@ class ShellParams:
                 "attempt={{ try_number|default(ti.try_number) }}.log",
             )
 
-            # Dev Airflow 3 runs API on FastAPI transitional
-            port = 9091
-            if self.use_airflow_version and self.use_airflow_version.startswith("2."):
-                # Airflow 2.10 runs it in the webserver atm
-                port = 8080
+            port = 8080
             _set_var(_env, "AIRFLOW__EDGE__API_URL", f"http://localhost:{port}/edge_worker/v1/rpcapi")
         _set_var(_env, "ANSWER", get_forced_answer() or "")
         _set_var(_env, "BACKEND", self.backend)
@@ -617,8 +617,7 @@ class ShellParams:
         _set_var(_env, "VERBOSE", get_verbose())
         _set_var(_env, "VERBOSE_COMMANDS", self.verbose_commands)
         _set_var(_env, "VERSION_SUFFIX_FOR_PYPI", self.version_suffix_for_pypi)
-        _set_var(_env, "WEBSERVER_HOST_PORT", None, WEBSERVER_HOST_PORT)
-        _set_var(_env, "API_SERVER_HOST_PORT", None, API_SERVER_HOST_PORT)
+        _set_var(_env, "WEB_HOST_PORT", None, WEB_HOST_PORT)
         _set_var(_env, "_AIRFLOW_RUN_DB_TESTS_ONLY", self.run_db_tests_only)
         _set_var(_env, "_AIRFLOW_SKIP_DB_TESTS", self.skip_db_tests)
         self._generate_env_for_docker_compose_file_if_needed(_env)

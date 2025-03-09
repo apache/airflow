@@ -61,7 +61,7 @@ class TaskInstance(BaseModel):
     pool_slots: int
     queue: str
     priority_weight: int
-    executor_config: dict | None = None
+    executor_config: dict | None = Field(default=None, exclude=True)
 
     # TODO: Task-SDK: Can we replace TastInstanceKey with just the uuid across the codebase?
     @property

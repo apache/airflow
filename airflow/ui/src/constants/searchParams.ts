@@ -17,6 +17,7 @@
  * under the License.
  */
 export enum SearchParamsKeys {
+  DEPENDENCIES = "dependencies",
   END_DATE = "end_date",
   LAST_DAG_RUN_STATE = "last_dag_run_state",
   LIMIT = "limit",
@@ -25,6 +26,7 @@ export enum SearchParamsKeys {
   OFFSET = "offset",
   PAUSED = "paused",
   SORT = "sort",
+  SOURCE = "log_source",
   START_DATE = "start_date",
   STATE = "state",
   TAGS = "tags",

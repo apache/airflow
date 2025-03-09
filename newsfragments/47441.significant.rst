@@ -1,0 +1,15 @@
+There are no more production bundle or devel extras
+
+There are no more production ``all*`` or ``devel*`` bundle extras available in ``wheel`` package of airflow.
+If you want to install airflow with all extras you can use ``uv pip install --all-extras`` command.
+
+* Types of change
+
+  * [ ] Dag changes
+  * [ ] Config changes
+  * [ ] API changes
+  * [ ] CLI changes
+  * [ ] Behaviour changes
+  * [ ] Plugin changes
+  * [x] Dependency changes
+  * [ ] Code interface changes

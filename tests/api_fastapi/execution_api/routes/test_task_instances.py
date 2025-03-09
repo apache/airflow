@@ -22,7 +22,7 @@ from unittest import mock
 
 import pytest
 import uuid6
-from sqlalchemy import func, select, update
+from sqlalchemy import select, update
 from sqlalchemy.exc import SQLAlchemyError
 
 from airflow.exceptions import AirflowInactiveAssetInInletOrOutletException
@@ -653,12 +653,15 @@ class TestTIUpdateState:
         assert ti.next_method is None
         assert ti.next_kwargs is None
 
-        tih_count = (
-            session.query(func.count(TaskInstanceHistory.id))
-            .where(TaskInstanceHistory.task_id == ti.task_id)
-            .scalar()
+        tih = session.query(TaskInstanceHistory).where(
+            TaskInstanceHistory.task_id == ti.task_id, TaskInstanceHistory.task_instance_id == ti.id
         )
+        tih_count = tih.count()
         assert tih_count == (1 if retries else 0)
+        if retries:
+            tih = tih.one()
+            assert tih.try_id
+            assert tih.try_id != ti.try_id
 
     def test_ti_update_state_when_ti_is_restarting(self, client, session, create_task_instance):
         ti = create_task_instance(

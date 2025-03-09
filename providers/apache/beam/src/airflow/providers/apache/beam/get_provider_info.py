@@ -27,8 +27,9 @@ def get_provider_info():
         "name": "Apache Beam",
         "description": "`Apache Beam <https://beam.apache.org/>`__.\n",
         "state": "ready",
-        "source-date-epoch": 1740734074,
+        "source-date-epoch": 1741507741,
         "versions": [
+            "6.0.3",
             "6.0.2",
             "6.0.0",
             "5.9.1",
@@ -108,4 +109,5 @@ def get_provider_info():
             ],
             "common.compat": ["apache-airflow-providers-common-compat"],
         },
+        "devel-dependencies": [],
     }

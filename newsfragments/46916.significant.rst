@@ -1,0 +1,19 @@
+Public API authentication is migrated to JWT token based authentication for default (Simple Auth Manager) and FAB provider.
+
+The default setting is using API to create a token (JWT) to authenticate the requests to access the API.
+The endpoints are populated under ``/auth`` path.
+If none of the providers are installed such as FAB, the API will use the default use Simple Auth Manager in the core.
+
+To integrate the same functioning into API requests using FAB provider. Please install ``apache-airflow-providers-fab``.
+For more information, please look at :doc:`apache-airflow-providers-fab:auth-manager/api-authentication`.
+
+* Types of change
+
+  * [ ] Dag changes
+  * [ ] Config changes
+  * [x] API changes
+  * [ ] CLI changes
+  * [ ] Behaviour changes
+  * [ ] Plugin changes
+  * [ ] Dependency changes
+  * [ ] Code interface changes

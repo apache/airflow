@@ -184,7 +184,7 @@ class SqsSensorTrigger(BaseEventTrigger):
         while True:
             # This loop will run indefinitely until the timeout, which is set in the self.defer
             # method, is reached.
-            async with self.hook.async_conn as client:
+            async with await self.hook.get_async_conn() as client:
                 result = await self.poke(client=client)
                 if result:
                     yield TriggerEvent({"status": "success", "message_batch": result})

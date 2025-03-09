@@ -27,6 +27,23 @@
 Changelog
 ---------
 
+5.0.2
+.....
+
+Misc
+~~~~
+
+* ``Add explanation to why pymongo is limited to 4.11.0 (#47338)``
+* ``Restrict pymongo to less than 4.11 for our CI (#47336)``
+* ``Upgrade flit to 3.11.0 (#46938)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Move tests_common package to devel-common project (#47281)``
+   * ``Improve documentation for updating provider dependencies (#47203)``
+   * ``Add legacy namespace packages to airflow.providers (#47064)``
+   * ``Remove extra whitespace in provider readme template (#46975)``
+
 5.0.1
 .....
 

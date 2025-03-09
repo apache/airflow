@@ -32,7 +32,7 @@ from airflow.providers.fab.auth_manager.fab_auth_manager import FabAuthManager
 from airflow.utils.net import getfqdn
 
 if TYPE_CHECKING:
-    from airflow.auth.managers.models.base_user import BaseUser
+    from airflow.api_fastapi.auth.managers.models.base_user import BaseUser
 
 log = logging.getLogger(__name__)
 

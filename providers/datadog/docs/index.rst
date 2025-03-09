@@ -68,7 +68,7 @@ apache-airflow-providers-datadog package
 `Datadog <https://www.datadoghq.com/>`__
 
 
-Release: 3.8.2
+Release: 3.8.3
 
 Provider package
 ----------------

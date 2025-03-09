@@ -163,7 +163,7 @@ definitions in Airflow.
     # This is the class you derive to create a plugin
     from airflow.plugins_manager import AirflowPlugin
     from airflow.security import permissions
-    from airflow.www.auth import has_access
+    from airflow.providers.fab.www.auth import has_access
 
     from fastapi import FastAPI
     from flask import Blueprint

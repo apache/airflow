@@ -34,6 +34,25 @@ For high-level changelog, see :doc:`package information including changelog <ind
 
 
 
+12.2.1
+......
+
+Latest change: 2025-03-07
+
+==================================================================================================  ===========  ================================================================================================
+Commit                                                                                              Committed    Subject
+==================================================================================================  ===========  ================================================================================================
+`aa07160892 <https://github.com/apache/airflow/commit/aa0716089235407f555fee06ac6363419b390bcc>`__  2025-03-07   ``AIP-72: Moving BaseOperatorLink to task sdk (#47008)``
+`9f344f2730 <https://github.com/apache/airflow/commit/9f344f27309f85b23fd30b5a7e7b3de13639053c>`__  2025-03-06   ``Remove extra string interpolation from fstrings (#47436)``
+`e4002c3305 <https://github.com/apache/airflow/commit/e4002c3305a757f5926f96c996e701e8f998a042>`__  2025-03-05   ``Move tests_common package to devel-common project (#47281)``
+`b835219e1e <https://github.com/apache/airflow/commit/b835219e1ee723bc24b914e949e409e3cd785715>`__  2025-02-28   ``Fix support for old method signature of pagination_function in MSGraphAsyncOperator (#47101)``
+`1addb55154 <https://github.com/apache/airflow/commit/1addb55154fbef31bfa021537cfbd4395696381c>`__  2025-02-28   ``Improve documentation for updating provider dependencies (#47203)``
+`aa61371a07 <https://github.com/apache/airflow/commit/aa61371a071c92214bcc1bd29842fc8d4b0e33a2>`__  2025-02-27   ``Render structured logs in the new UI rather than showing raw JSON (#46827)``
+`c6c4f95ed9 <https://github.com/apache/airflow/commit/c6c4f95ed9e3220133815b9126c135e805637022>`__  2025-02-25   ``Add legacy namespace packages to airflow.providers (#47064)``
+`dbf8bb4092 <https://github.com/apache/airflow/commit/dbf8bb409223687c7d2ad10649a92d02c24bb3b4>`__  2025-02-24   ``Remove extra whitespace in provider readme template (#46975)``
+`b28c336e8b <https://github.com/apache/airflow/commit/b28c336e8b7aa1d69c0f9520b182b1b661377337>`__  2025-02-21   ``Upgrade flit to 3.11.0 (#46938)``
+==================================================================================================  ===========  ================================================================================================
+
 12.2.0
 ......
 
@@ -42,6 +61,7 @@ Latest change: 2025-02-21
 ==================================================================================================  ===========  ===================================================================================================================================================
 Commit                                                                                              Committed    Subject
 ==================================================================================================  ===========  ===================================================================================================================================================
+`0653ffe78e <https://github.com/apache/airflow/commit/0653ffe78e4a0acaf70801a5ceef8dbabdac8b15>`__  2025-02-21   ``Prepare docs for Feb 1st wave of providers (fixed) (#46962)``
 `5d87bddf0a <https://github.com/apache/airflow/commit/5d87bddf0aa5f485f3684c909fb95f461e5a2ab6>`__  2025-02-21   ``Prepare docs for Feb 1st wave of providers (#46893)``
 `4833b53705 <https://github.com/apache/airflow/commit/4833b53705acfc4bd0a26bf3e4dd4fc7a22b0bfa>`__  2025-02-19   ``Refactor result_processor and event_handler signatures in MSGraphAsyncOperator (#46637)``
 `4e17ecd3f8 <https://github.com/apache/airflow/commit/4e17ecd3f892497e910f4e7df7ecb007a7f3d039>`__  2025-02-16   ``Avoid imports from "providers" (#46801)``

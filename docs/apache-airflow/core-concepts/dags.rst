@@ -740,10 +740,6 @@ match any of the patterns would be ignored (under the hood, ``Pattern.search()``
 to match the pattern). Use the ``#`` character to indicate a comment; all characters
 on lines starting with ``#`` will be ignored.
 
-As with most regexp matching in Airflow, the regexp engine is ``re2``, which explicitly
-doesn't support many advanced features, please check its
-`documentation <https://github.com/google/re2/wiki/Syntax>`_ for more information.
-
 The ``.airflowignore`` file should be put in your ``DAG_FOLDER``. For example, you can prepare
 a ``.airflowignore`` file with the ``glob`` syntax
 

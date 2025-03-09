@@ -441,10 +441,14 @@ class TestBeamOptionsToArgs:
         "options, expected_args",
         [
             ({"key": "val"}, ["--key=val"]),
-            ({"key": None}, ["--key"]),
+            ({"key": None}, []),
             ({"key": True}, ["--key"]),
             ({"key": False}, []),
             ({"key": ["a", "b", "c"]}, ["--key=a", "--key=b", "--key=c"]),
+            ({"key": {"a_key": "a_val", "b_key": "b_val"}}, ['--key={"a_key": "a_val", "b_key": "b_val"}']),
+            # Sets False value cases
+            ({"use_public_ips": False}, ["--no_use_public_ips"]),
+            ({"usePublicIps": False}, ["--usePublicIps=false"]),
         ],
     )
     def test_beam_options_to_args(self, options, expected_args):

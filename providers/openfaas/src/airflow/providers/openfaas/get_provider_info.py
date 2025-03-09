@@ -27,8 +27,9 @@ def get_provider_info():
         "name": "OpenFaaS",
         "description": "`OpenFaaS <https://www.openfaas.com/>`__\n",
         "state": "ready",
-        "source-date-epoch": 1740734163,
+        "source-date-epoch": 1741509298,
         "versions": [
+            "3.7.1",
             "3.7.0",
             "3.6.0",
             "3.5.1",
@@ -59,4 +60,5 @@ def get_provider_info():
             {"integration-name": "OpenFaaS", "python-modules": ["airflow.providers.openfaas.hooks.openfaas"]}
         ],
         "dependencies": ["apache-airflow>=2.9.0"],
+        "devel-dependencies": [],
     }

@@ -29,31 +29,34 @@ if you follow the guide.
 
 There are three ways you can run the Airflow dev env:
 
-1. With a Docker Containers and Docker Compose (on your local machine). This environment is managed
-   with `Breeze <../dev/breeze/doc/README.rst>`_ tool written in Python that makes the environment
-   management, yeah you guessed it - a breeze
-2. With a local virtual environment (on your local machine)
+1. With a local virtual environment (on your local machine)
+2. With Docker Containers and Docker Compose (on your local machine). This environment is managed
+   with the `Breeze <../dev/breeze/doc/README.rst>`_ tool written in Python that makes environment
+   management, yeah you guessed it - a breeze.
 3. With a remote, managed environment (via remote development environment)
 
 Before deciding which method to choose, there are a couple of factors to consider:
 
-* Running Airflow in a container is the most reliable way: it provides a more consistent environment
-  and allows integration tests with a number of integrations (cassandra, mongo, mysql, etc.).
+* In most cases, installing Airflow in a local environment might be sufficient.
+  For a comprehensive local virtualenv tutorial, visit `Local virtualenv <07_local_virtualenv.rst>`_
+* Running Airflow in a container is the most reliable and repeatable way: it provides a more consistent
+  environment - with almost no dependencies (except docker) on your Host OS / machine
+  and allows integration tests with a number of integrations (Cassandra, MongoDB, MySQL, etc.).
   However, it also requires **4GB RAM, 40GB disk space and at least 2 cores**.
-* If you are working on a basic feature, installing Airflow on a local environment might be sufficient.
-  For a comprehensive venv tutorial - visit `Local virtualenv <07_local_virtualenv.rst>`_
-* You need to have usually a paid account to access managed, remote virtual environment.
+* You need to have a (usually paid) account to access managed, remote virtual environments.
 
 Local machine development
 #########################
 
 If you do not work in a remote development environment, you will need these prerequisites:
 
-1. Docker Community Edition (you can also use Colima, see instructions below)
-2. Docker Compose
-3. Hatch (you can also use pyenv, pyenv-virtualenv or virtualenvwrapper)
+1. UV is recommended for managing Python versions and virtual environments
+2. Docker Community Edition (you can also use Colima or others, see instructions below)
+3. Docker buildx
+3. Docker Compose
 
-The below setup describes `Ubuntu installation <https://docs.docker.com/engine/install/ubuntu/>`_. It might be slightly different on different machines.
+The below setup describes `Ubuntu installation <https://docs.docker.com/engine/install/ubuntu/>`_.
+It might be slightly different on different machines.
 
 Docker Community Edition
 ------------------------
@@ -77,7 +80,7 @@ Docker Community Edition
     "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.gpg] https://download.docker.com/linux/ubuntu \
     $(lsb_release -cs) stable" | sudo tee /etc/apt/sources.list.d/docker.list > /dev/null
 
-1. Install Docker Engine, containerd
+2. Install Docker Engine, containerd
 
 .. code-block:: bash
 
@@ -162,11 +165,9 @@ Install manually:
 Setting up virtual-env
 ----------------------
 
-1. While you can use any virtualenv manager, we recommend using `Hatch <https://hatch.pypa.io/latest/>`__
-   as your build and integration frontend, and we already use ``hatchling`` build backend for Airflow.
-   You can read more about Hatch and it's use in Airflow in `Local virtualenv <07_local_virtualenv.rst>`_.
-   See [PEP-517](https://peps.python.org/pep-0517/#terminology-and-goals) for explanation of what the
-   frontend and backend meaning is
+1. While you can use any virtualenv manager, we recommend using `UV <https://github.com/astral-sh/uv>`__
+   as your build and integration frontend. You can read more about UV and it's use in
+   Airflow in `Local virtualenv <07_local_virtualenv.rst>`_.
 
 2. After creating the environment, you need to install a few more required packages for Airflow. The below command adds
    basic system-level dependencies on Debian/Ubuntu-like system. You will have to adapt it to install similar packages
@@ -178,7 +179,7 @@ Setting up virtual-env
 
 If you want to install all airflow providers, more system dependencies might be needed. For example on Debian/Ubuntu
 like system, this command will install all necessary dependencies that should be installed when you use
-``devel-all`` extra while installing airflow.
+``all`` extras while installing airflow.
 
 .. code-block:: bash
 
@@ -187,9 +188,6 @@ like system, this command will install all necessary dependencies that should be
   libkrb5-dev libldap2-dev libpq-dev libsasl2-2 libsasl2-dev libsasl2-modules \
   libssl-dev locales lsb-release openssh-client sasl2-bin \
   software-properties-common sqlite3 sudo unixodbc unixodbc-dev
-
-3. With Hatch you can enter the virtual environment with ``hatch shell`` command, check
-   `Local virtualenvs <./07_local_virtualenv.rst#using-hatch>`__ for more details
 
 Forking and cloning Project
 ---------------------------
@@ -485,9 +483,9 @@ Using Breeze
 ------------
 
 1. Starting the Breeze environment using ``breeze start-airflow`` starts the Breeze environment with last configuration run(
-   In this case python version and backend are picked up from last execution ``breeze --python 3.9 --backend postgres``)
+   In this case Python version and backend are picked up from last execution ``breeze --python 3.9 --backend postgres``)
    It also automatically starts the webserver, triggerer, dag processor, FastAPI api and scheduler. It drops you in tmux with triggerer to the right, and
-   scheduler, FastAPI api, dag processor and webserver from left to right at the bottom. Use ``[Ctrl + B] and Arrow keys`` to navigate.
+   Scheduler, FastAPI API, DAG processor and webserver from left to right at the bottom. Use ``[Ctrl + B] and Arrow keys`` to navigate.
 
 .. code-block:: bash
 
@@ -505,7 +503,7 @@ Using Breeze
 
         Ports are forwarded to the running docker containers for webserver and database
           * 12322 -> forwarded to Airflow ssh server -> airflow:22
-          * 29091 -> forwarded to Airflow api server API -> airflow:9091
+          * 28080 -> forwarded to Airflow api server API -> airflow:8080
           * 25555 -> forwarded to Flower dashboard -> airflow:5555
           * 25433 -> forwarded to Postgres database -> postgres:5432
           * 23306 -> forwarded to MySQL database  -> mysql:3306
@@ -514,7 +512,7 @@ Using Breeze
         Direct links to those services that you can use from the host:
 
           * ssh connection for remote debugging: ssh -p 12322 airflow@127.0.0.1 (password: airflow)
-          * API server:    http://127.0.0.1:29091
+          * API server:    http://127.0.0.1:28080
           * Flower:    http://127.0.0.1:25555
           * Postgres:  jdbc:postgresql://127.0.0.1:25433/airflow?user=postgres&password=airflow
           * Mysql:     jdbc:mysql://127.0.0.1:23306/airflow?user=root
@@ -575,12 +573,12 @@ Using Breeze
     :select-layout tiled
 
 
-2. Now you can access airflow web interface on your local machine at |http://localhost:29091| with user name ``admin``
+2. Now you can access airflow web interface on your local machine at |http://localhost:28080| with user name ``admin``
    and password ``admin``
 
-   .. |http://localhost:29091| raw:: html
+   .. |http://localhost:28080| raw:: html
 
-      <a href="http://localhost:29091" target="_blank">http://localhost:29091</a>
+      <a href="http://localhost:28080" target="_blank">http://localhost:28080</a>
 
    .. raw:: html
 

@@ -1,0 +1,13 @@
+``uri`` is replaced with ``id`` in ``AssetDetails`` . Hence, ``is_authorized_asset`` method needs to be updated in Auth Managers to use ``id`` instead of ``uri``.
+
+
+* Types of change
+
+  * [ ] Dag changes
+  * [ ] Config changes
+  * [ ] API changes
+  * [ ] CLI changes
+  * [ ] Behaviour changes
+  * [ ] Plugin changes
+  * [ ] Dependency changes
+  * [X] Code interface changes

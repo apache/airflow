@@ -170,6 +170,7 @@ pnpm-debug.log*
 .vscode/*
 !.vscode/extensions.json
 /.vite/
+airflow/ui/.vite/
 .pnpm-store
 *.tsbuildinfo
 

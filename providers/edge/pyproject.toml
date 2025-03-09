@@ -62,6 +62,32 @@ dependencies = [
     "retryhttp>=1.2.0,!=1.3.0",
 ]
 
+# The optional dependencies should be modified in place in the generated file
+# Any change in the dependencies is preserved when the file is regenerated
+[project.optional-dependencies]
+"fab" = [
+    "apache-airflow-providers-fab"
+]
+
+[dependency-groups]
+dev = [
+    "apache-airflow",
+    "apache-airflow-task-sdk",
+    "apache-airflow-devel-common",
+    "apache-airflow-providers-fab",
+    # Additional devel dependencies (do not remove this line and add extra development dependencies)
+]
+
+[tool.uv.sources]
+# These names must match the names as defined in the pyproject.toml of the workspace items,
+# *not* the workspace folder paths
+apache-airflow = {workspace = true}
+apache-airflow-devel-common = {workspace = true}
+apache-airflow-task-sdk = {workspace = true}
+apache-airflow-providers-common-sql = {workspace = true}
+apache-airflow-providers-fab = {workspace = true}
+apache-airflow-providers-standard = {workspace = true}
+
 [project.urls]
 "Documentation" = "https://airflow.apache.org/docs/apache-airflow-providers-edge/0.20.0pre0"
 "Changelog" = "https://airflow.apache.org/docs/apache-airflow-providers-edge/0.20.0pre0/changelog.html"
@@ -79,6 +105,3 @@ edge_executor = "airflow.providers.edge.plugins.edge_executor_plugin:EdgeExecuto
 
 [tool.flit.module]
 name = "airflow.providers.edge"
-
-[tool.pytest.ini_options]
-ignore = "tests/system/"

@@ -64,7 +64,7 @@ apache-airflow-providers-smtp package
 `Simple Mail Transfer Protocol (SMTP) <https://tools.ietf.org/html/rfc5321>`__
 
 
-Release: 2.0.0
+Release: 2.0.1
 
 Provider package
 ----------------

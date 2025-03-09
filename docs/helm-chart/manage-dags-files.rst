@@ -203,7 +203,7 @@ to use `submodules <https://git-scm.com/book/en/v2/Git-Tools-Submodules>`_ to cr
 that you can use to bring a number of git repositories checked out together (with ``--submodules recursive``
 option). There are success stories of Airflow users using such approach with 100s of repositories put
 together as submodules via such "umbrella" repo approach. When you choose this solution, however,
-you need to work out the way how to ling the submodules, when to updated the umbrella repo when "submodule"
+you need to work out the way how to link the submodules, when to update the umbrella repo when "submodule"
 repository change and work out versioning approach and automate it. This might be as simple as always
 using latest versions of all the submodule repositories, or as complex as managing versioning of shared
 libraries, DAGs and code across multiple teams and doing that following your release process.

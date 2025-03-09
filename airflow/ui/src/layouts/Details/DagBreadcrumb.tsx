@@ -16,20 +16,18 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { HStack, Stat } from "@chakra-ui/react";
 import type { ReactNode } from "react";
-import { LiaSlashSolid } from "react-icons/lia";
-import { Link as RouterLink, useParams } from "react-router-dom";
+import { useParams } from "react-router-dom";
 
 import {
   useDagRunServiceGetDagRun,
   useDagServiceGetDagDetails,
   useTaskServiceGetTask,
 } from "openapi/queries";
+import { BreadcrumbStats } from "src/components/BreadcrumbStats";
 import { StateBadge } from "src/components/StateBadge";
 import Time from "src/components/Time";
 import { TogglePause } from "src/components/TogglePause";
-import { Breadcrumb } from "src/components/ui";
 
 export const DagBreadcrumb = () => {
   const { dagId = "", mapIndex = "-1", runId, taskId } = useParams();
@@ -53,7 +51,6 @@ export const DagBreadcrumb = () => {
 
   const links: Array<{ label: ReactNode | string; labelExtra?: ReactNode; title?: string; value?: string }> =
     [
-      { label: "Dags", value: "/dags" },
       {
         label: dag?.dag_display_name ?? dagId,
         labelExtra: (
@@ -104,33 +101,5 @@ export const DagBreadcrumb = () => {
     links.push({ label: mapIndex, title: "Map Index" });
   }
 
-  return (
-    <Breadcrumb.Root mb={1} separator={<LiaSlashSolid />}>
-      {links.map((link, index) => (
-        // eslint-disable-next-line react/no-array-index-key
-        <Stat.Root gap={0} key={`${link.title}-${index}`}>
-          <Stat.Label fontSize="xs" fontWeight="bold">
-            {link.title}
-          </Stat.Label>
-          <Stat.ValueText fontSize="sm" fontWeight="normal">
-            {index === links.length - 1 ? (
-              <Breadcrumb.CurrentLink>
-                <HStack>
-                  {link.labelExtra}
-                  {link.label}
-                </HStack>
-              </Breadcrumb.CurrentLink>
-            ) : (
-              <Breadcrumb.Link asChild color="fg.info">
-                <HStack>
-                  {link.labelExtra}
-                  <RouterLink to={link.value ?? ""}>{link.label}</RouterLink>
-                </HStack>
-              </Breadcrumb.Link>
-            )}
-          </Stat.ValueText>
-        </Stat.Root>
-      ))}
-    </Breadcrumb.Root>
-  );
+  return <BreadcrumbStats links={links} />;
 };

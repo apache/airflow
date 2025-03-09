@@ -53,6 +53,9 @@ class S3KeyTrigger(BaseTrigger):
         poke_interval: float = 5.0,
         should_check_fn: bool = False,
         use_regex: bool = False,
+        region_name: str | None = None,
+        verify: bool | str | None = None,
+        botocore_config: dict | None = None,
         **hook_params: Any,
     ):
         super().__init__()
@@ -64,6 +67,9 @@ class S3KeyTrigger(BaseTrigger):
         self.poke_interval = poke_interval
         self.should_check_fn = should_check_fn
         self.use_regex = use_regex
+        self.region_name = region_name
+        self.verify = verify
+        self.botocore_config = botocore_config
 
     def serialize(self) -> tuple[str, dict[str, Any]]:
         """Serialize S3KeyTrigger arguments and classpath."""
@@ -78,17 +84,25 @@ class S3KeyTrigger(BaseTrigger):
                 "poke_interval": self.poke_interval,
                 "should_check_fn": self.should_check_fn,
                 "use_regex": self.use_regex,
+                "region_name": self.region_name,
+                "verify": self.verify,
+                "botocore_config": self.botocore_config,
             },
         )
 
     @cached_property
     def hook(self) -> S3Hook:
-        return S3Hook(aws_conn_id=self.aws_conn_id, verify=self.hook_params.get("verify"))
+        return S3Hook(
+            aws_conn_id=self.aws_conn_id,
+            region_name=self.region_name,
+            verify=self.verify,
+            config=self.botocore_config,
+        )
 
     async def run(self) -> AsyncIterator[TriggerEvent]:
         """Make an asynchronous connection using S3HookAsync."""
         try:
-            async with self.hook.async_conn as client:
+            async with await self.hook.get_async_conn() as client:
                 while True:
                     if await self.hook.check_key_async(
                         client, self.bucket_name, self.bucket_key, self.wildcard_match, self.use_regex
@@ -143,7 +157,9 @@ class S3KeysUnchangedTrigger(BaseTrigger):
         allow_delete: bool = True,
         aws_conn_id: str | None = "aws_default",
         last_activity_time: datetime | None = None,
+        region_name: str | None = None,
         verify: bool | str | None = None,
+        botocore_config: dict | None = None,
         **hook_params: Any,
     ):
         super().__init__()
@@ -160,8 +176,10 @@ class S3KeysUnchangedTrigger(BaseTrigger):
         self.allow_delete = allow_delete
         self.aws_conn_id = aws_conn_id
         self.last_activity_time = last_activity_time
-        self.verify = verify
         self.polling_period_seconds = 0
+        self.region_name = region_name
+        self.verify = verify
+        self.botocore_config = botocore_config
         self.hook_params = hook_params
 
     def serialize(self) -> tuple[str, dict[str, Any]]:
@@ -179,19 +197,26 @@ class S3KeysUnchangedTrigger(BaseTrigger):
                 "aws_conn_id": self.aws_conn_id,
                 "last_activity_time": self.last_activity_time,
                 "hook_params": self.hook_params,
-                "verify": self.verify,
                 "polling_period_seconds": self.polling_period_seconds,
+                "region_name": self.region_name,
+                "verify": self.verify,
+                "botocore_config": self.botocore_config,
             },
         )
 
     @cached_property
     def hook(self) -> S3Hook:
-        return S3Hook(aws_conn_id=self.aws_conn_id, verify=self.hook_params.get("verify"))
+        return S3Hook(
+            aws_conn_id=self.aws_conn_id,
+            region_name=self.region_name,
+            verify=self.verify,
+            config=self.botocore_config,
+        )
 
     async def run(self) -> AsyncIterator[TriggerEvent]:
         """Make an asynchronous connection using S3Hook."""
         try:
-            async with self.hook.async_conn as client:
+            async with await self.hook.get_async_conn() as client:
                 while True:
                     result = await self.hook.is_keys_unchanged_async(
                         client=client,

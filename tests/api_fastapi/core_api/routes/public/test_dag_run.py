@@ -1073,6 +1073,18 @@ class TestGetDagRunAssetTriggerEvents:
         }
         assert response.json() == expected_response
 
+    def test_should_respond_401(self, unauthenticated_test_client):
+        response = unauthenticated_test_client.get(
+            "/public/dags/TEST_DAG_ID/dagRuns/TEST_DAG_RUN_ID/upstreamAssetEvents",
+        )
+        assert response.status_code == 401
+
+    def test_should_respond_403(self, unauthorized_test_client):
+        response = unauthorized_test_client.get(
+            "/public/dags/TEST_DAG_ID/dagRuns/TEST_DAG_RUN_ID/upstreamAssetEvents"
+        )
+        assert response.status_code == 403
+
     def test_should_respond_404(self, test_client):
         response = test_client.get(
             "public/dags/invalid-id/dagRuns/invalid-run-id/upstreamAssetEvents",
@@ -1191,7 +1203,6 @@ class TestTriggerDagRun:
         if data_interval_end is not None:
             request_json["data_interval_end"] = data_interval_end
         request_json["logical_date"] = fixed_now
-
         response = test_client.post(
             f"/public/dags/{DAG1_ID}/dagRuns",
             json=request_json,

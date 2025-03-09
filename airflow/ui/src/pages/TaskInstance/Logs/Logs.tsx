@@ -35,6 +35,7 @@ export const Logs = () => {
 
   const tryNumberParam = searchParams.get(SearchParamsKeys.TRY_NUMBER);
   const logLevelFilters = searchParams.getAll(SearchParamsKeys.LOG_LEVEL);
+  const sourceFilters = searchParams.getAll(SearchParamsKeys.SOURCE);
 
   const {
     data: taskInstance,
@@ -77,6 +78,7 @@ export const Logs = () => {
   } = useLogs({
     dagId,
     logLevelFilters,
+    sourceFilters,
     taskInstance,
     tryNumber: tryNumber === 0 ? 1 : tryNumber,
   });
@@ -85,6 +87,7 @@ export const Logs = () => {
     <Box p={2}>
       <TaskLogHeader
         onSelectTryNumber={onSelectTryNumber}
+        sourceOptions={data.sources}
         taskInstance={taskInstance}
         toggleFullscreen={toggleFullscreen}
         toggleWrap={toggleWrap}

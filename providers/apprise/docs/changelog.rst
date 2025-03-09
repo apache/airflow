@@ -27,6 +27,26 @@
 Changelog
 ---------
 
+2.0.1
+.....
+
+Misc
+~~~~
+
+* ``Upgrade flit to 3.11.0 (#46938)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Move tests_common package to devel-common project (#47281)``
+   * ``Improve documentation for updating provider dependencies (#47203)``
+   * ``Add legacy namespace packages to airflow.providers (#47064)``
+   * ``Remove extra whitespace in provider readme template (#46975)``
+   * ``Prepare docs for Feb 1st wave of providers (#46893)``
+   * ``Move provider_tests to unit folder in provider tests (#46800)``
+   * ``Removed the unused provider's distribution (#46608)``
+   * ``Moving EmptyOperator to standard provider (#46231)``
+   * ``Move Apprise provider to new structure (#46161)``
+
 2.0.0
 .....
 

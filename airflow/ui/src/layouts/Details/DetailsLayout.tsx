@@ -69,9 +69,9 @@ export const DetailsLayout = ({ children, error, isLoading, tabs }: Props) => {
       <Toaster />
       <Box flex={1} minH={0}>
         <PanelGroup autoSaveId={dagId} direction="horizontal">
-          <Panel defaultSize={20} minSize={6}>
+          <Panel defaultSize={dagView === "graph" ? 70 : 20} minSize={6}>
             <Box height="100%" position="relative" pr={2}>
-              <PanelButtons dagId={dagId} dagView={dagView} setDagView={setDagView} />
+              <PanelButtons dagView={dagView} setDagView={setDagView} />
               {dagView === "graph" ? <Graph /> : <Grid />}
             </Box>
           </Panel>
@@ -87,7 +87,7 @@ export const DetailsLayout = ({ children, error, isLoading, tabs }: Props) => {
           >
             <Box bg="fg.subtle" cursor="col-resize" h="100%" transition="background 0.2s" w={0.5} />
           </PanelResizeHandle>
-          <Panel defaultSize={50} minSize={20}>
+          <Panel defaultSize={dagView === "graph" ? 30 : 80} minSize={20}>
             <Box display="flex" flexDirection="column" h="100%">
               {children}
               <ErrorAlert error={error} />

@@ -27,7 +27,7 @@ def get_provider_info():
         "name": "Common Messaging",
         "description": "``Common Messaging Provider``\n",
         "state": "ready",
-        "source-date-epoch": 1740836407,
+        "source-date-epoch": 1741121853,
         "versions": ["1.0.0"],
         "triggers": [
             {
@@ -37,4 +37,5 @@ def get_provider_info():
         ],
         "dependencies": ["apache-airflow>=3.0.0.dev0"],
         "optional-dependencies": {"amazon": ["apache-airflow-providers-amazon"]},
+        "devel-dependencies": [],
     }
