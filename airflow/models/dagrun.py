@@ -950,7 +950,6 @@ class DagRun(Base, LoggingMixin):
                 (self.end_date - self.start_date).total_seconds() if self.start_date and self.end_date else 0
             ),
             "airflow.dag_run.state": str(self._state),
-            "airflow.dag_run.external_trigger": str(self.external_trigger),
             "airflow.dag_run.run_type": str(self.run_type),
             "airflow.dag_run.data_interval_start": str(self.data_interval_start),
             "airflow.dag_run.data_interval_end": str(self.data_interval_end),
