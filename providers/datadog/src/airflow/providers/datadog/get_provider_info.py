@@ -27,8 +27,9 @@ def get_provider_info():
         "name": "Datadog",
         "description": "`Datadog <https://www.datadoghq.com/>`__\n",
         "state": "ready",
-        "source-date-epoch": 1741121859,
+        "source-date-epoch": 1741508717,
         "versions": [
+            "3.8.3",
             "3.8.2",
             "3.8.0",
             "3.7.1",
