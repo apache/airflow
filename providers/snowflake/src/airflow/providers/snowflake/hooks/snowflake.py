@@ -26,8 +26,10 @@ from pathlib import Path
 from typing import TYPE_CHECKING, Any, Callable, TypeVar, overload
 from urllib.parse import urlparse
 
+import requests
 from cryptography.hazmat.backends import default_backend
 from cryptography.hazmat.primitives import serialization
+from requests.auth import HTTPBasicAuth
 from snowflake import connector
 from snowflake.connector import DictCursor, SnowflakeConnection, util_text
 from snowflake.sqlalchemy import URL
@@ -185,6 +187,30 @@ class SnowflakeHook(DbApiHook):
             return extra_dict[field_name] or None
         return extra_dict.get(backcompat_key) or None
 
+    def get_oauth_token(self, conn_config: dict) -> str:
+        """Generate temporary OAuth access token using refresh token in connection details."""
+        url = f"https://{conn_config['account']}.snowflakecomputing.com/oauth/token-request"
+        data = {
+            "grant_type": "refresh_token",
+            "refresh_token": conn_config["refresh_token"],
+            "redirect_uri": conn_config.get("redirect_uri", "https://localhost.com"),
+        }
+        response = requests.post(
+            url,
+            data=data,
+            headers={
+                "Content-Type": "application/x-www-form-urlencoded",
+            },
+            auth=HTTPBasicAuth(conn_config["client_id"], conn_config["client_secret"]),  # type: ignore[arg-type]
+        )
+
+        try:
+            response.raise_for_status()
+        except requests.exceptions.HTTPError as e:  # pragma: no cover
+            msg = f"Response: {e.response.content.decode()} Status Code: {e.response.status_code}"
+            raise AirflowException(msg)
+        return response.json()["access_token"]
+
     @cached_property
     def _get_conn_params(self) -> dict[str, str | None]:
         """
@@ -289,7 +315,10 @@ class SnowflakeHook(DbApiHook):
             conn_config["client_id"] = conn.login
             conn_config["client_secret"] = conn.password
             conn_config.pop("login", None)
+            conn_config.pop("user", None)
             conn_config.pop("password", None)
+
+            conn_config["token"] = self.get_oauth_token(conn_config=conn_config)
 
         # configure custom target hostname and port, if specified
         snowflake_host = extra_dict.get("host")
