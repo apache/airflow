@@ -526,7 +526,9 @@ def print_ti_output(ti: TaskInstance):
     if task_log_reader.supports_read:
         metadata: dict[str, Any] = {}
         logs, metadata = task_log_reader.read_log_chunks(ti, ti.try_number, metadata)
-        if ti.hostname in dict(logs[0]):
+        log_entry = logs[0]
+        assert isinstance(log_entry, dict), f"Expected dict but got: {type(log_entry)}"
+        if ti.hostname in dict(log_entry):
             output = (
                 str(dict(logs[0])[ti.hostname])
                 .replace("\\n", "\n")
