@@ -24,7 +24,6 @@ import os
 import pathlib
 import signal
 import sys
-import urllib
 from traceback import format_exception
 from typing import cast
 from unittest import mock
@@ -1941,13 +1940,18 @@ class TestTaskInstance:
     def test_mark_success_url(self, create_task_instance):
         now = pendulum.now("Europe/Brussels")
         ti = create_task_instance(dag_id="dag", task_id="op", logical_date=now)
-        query = urllib.parse.parse_qs(
-            urllib.parse.urlsplit(ti.mark_success_url).query, keep_blank_values=True, strict_parsing=True
+
+        expected_url = (
+            "http://localhost:8080"
+            "/confirm"
+            "?task_id=op"
+            "&dag_id=dag"
+            "&dag_run_id=test"
+            "&upstream=false"
+            "&downstream=false"
+            "&state=success"
         )
-        assert query["dag_id"][0] == "dag"
-        assert query["task_id"][0] == "op"
-        assert query["dag_run_id"][0] == "test"
-        assert ti.logical_date == now
+        assert ti.mark_success_url == expected_url
 
     def test_overwrite_params_with_dag_run_conf(self, create_task_instance):
         ti = create_task_instance()
@@ -2173,9 +2177,9 @@ class TestTaskInstance:
 
         # check that the asset event has an earlier timestamp than the ADRQ's
         adrq_timestamps = session.query(AssetDagRunQueue.created_at).filter_by(asset_id=event.asset.id).all()
-        assert all(
-            event.timestamp < adrq_timestamp for (adrq_timestamp,) in adrq_timestamps
-        ), f"Some items in {[str(t) for t in adrq_timestamps]} are earlier than {event.timestamp}"
+        assert all(event.timestamp < adrq_timestamp for (adrq_timestamp,) in adrq_timestamps), (
+            f"Some items in {[str(t) for t in adrq_timestamps]} are earlier than {event.timestamp}"
+        )
 
     def test_outlet_assets_failed(self, create_task_instance, testing_dag_bundle):
         """
@@ -3959,9 +3963,9 @@ class TestTaskInstance:
         for key, expected_value in expected_values.items():
             assert hasattr(ti, key), f"Key {key} is missing in the TaskInstance."
             if key not in hybrid_props:
-                assert (
-                    getattr(ti, key) == expected_value
-                ), f"Key: {key} had different values. Make sure it loads it in the refresh refresh_from_db()"
+                assert getattr(ti, key) == expected_value, (
+                    f"Key: {key} had different values. Make sure it loads it in the refresh refresh_from_db()"
+                )
 
     def test_operator_field_with_serialization(self, create_task_instance):
         ti = create_task_instance()
