@@ -16,8 +16,12 @@
 # under the License.
 from __future__ import annotations
 
+import re
+from json import JSONDecodeError
+
 from fastapi import HTTPException, Request
 from starlette.middleware.base import BaseHTTPMiddleware
+from starlette.responses import Response
 
 
 # Custom Middleware Class
@@ -35,5 +39,41 @@ class FlaskExceptionsMiddleware(BaseHTTPMiddleware):
                 raise HTTPException(
                     status_code=response.status_code,
                     detail=body["error"],
+                )
+        return response
+
+
+class RegexpExceptionMiddleware(BaseHTTPMiddleware):
+    """Middleware that converts exceptions response if any field in the request contains regexp pattern."""
+
+    @classmethod
+    def _detect_regexp_in_dict_values(cls, data) -> str | None:
+        for key, value in data.items():
+            try:
+                pattern = re.compile(value)
+                if not bool(pattern.fullmatch(value)):
+                    return key
+            except re.error:
+                pass
+        return None
+
+    async def dispatch(self, request: Request, call_next):
+        response = await call_next(request)
+        if response.status_code < 300:
+            try:
+                payload = await request.json()
+            except JSONDecodeError:
+                payload = {}
+
+            params = request.query_params
+
+            found_key = self._detect_regexp_in_dict_values(data=params) or self._detect_regexp_in_dict_values(
+                data=payload
+            )
+
+            if found_key:
+                return Response(
+                    status_code=400,
+                    content=f"Regexp not allowed in payload or in query params (key: {found_key}).",
                 )
         return response

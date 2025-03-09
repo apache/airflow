@@ -32,7 +32,7 @@ from starlette.templating import Jinja2Templates
 
 from airflow.api_fastapi.auth.tokens import get_signing_key
 from airflow.api_fastapi.core_api.init_dagbag import get_dag_bag
-from airflow.api_fastapi.core_api.middleware import FlaskExceptionsMiddleware
+from airflow.api_fastapi.core_api.middleware import FlaskExceptionsMiddleware, RegexpExceptionMiddleware
 from airflow.configuration import conf
 from airflow.exceptions import AirflowException
 from airflow.settings import AIRFLOW_PATH
@@ -176,3 +176,4 @@ def init_error_handlers(app: FastAPI) -> None:
 
 def init_middlewares(app: FastAPI) -> None:
     app.add_middleware(FlaskExceptionsMiddleware)
+    app.add_middleware(RegexpExceptionMiddleware)
