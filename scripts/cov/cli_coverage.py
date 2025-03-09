@@ -30,7 +30,6 @@ cli_files = ["tests/cli"]
 files_not_fully_covered = [
     "airflow/cli/cli_config.py",
     "airflow/cli/cli_parser.py",
-    "airflow/cli/commands/local_commands/celery_command.py",
     "airflow/cli/commands/remote_commands/config_command.py",
     "airflow/cli/commands/remote_commands/connection_command.py",
     "airflow/cli/commands/remote_commands/dag_command.py",
@@ -45,7 +44,6 @@ files_not_fully_covered = [
     "airflow/cli/commands/local_commands/standalone_command.py",
     "airflow/cli/commands/remote_commands/task_command.py",
     "airflow/cli/commands/remote_commands/variable_command.py",
-    "airflow/cli/commands/local_commands/webserver_command.py",
     "airflow/cli/simple_table.py",
 ]
 

@@ -25,9 +25,10 @@ from airflow.providers.microsoft.azure.hooks.asb import AdminClientHook, Message
 if TYPE_CHECKING:
     import datetime
 
-    from airflow.utils.context import Context
     from azure.servicebus import ServiceBusMessage
     from azure.servicebus.management import AuthorizationRule, CorrelationRuleFilter, SqlRuleFilter
+
+    from airflow.utils.context import Context
 
     MessageCallback = Callable[[ServiceBusMessage, Context], None]
 

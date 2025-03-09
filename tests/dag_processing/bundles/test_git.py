@@ -25,6 +25,7 @@ import pytest
 from git import Repo
 from git.exc import GitCommandError, NoSuchPathError
 
+from airflow.dag_processing.bundles.base import get_bundle_storage_root_path
 from airflow.dag_processing.bundles.git import GitDagBundle, GitHook
 from airflow.exceptions import AirflowException
 from airflow.models import Connection
@@ -230,10 +231,10 @@ class TestGitDagBundle:
     def test_supports_versioning(self):
         assert GitDagBundle.supports_versioning is True
 
-    def test_uses_dag_bundle_root_storage_path(self, git_repo):
-        repo_path, repo = git_repo
+    def test_uses_dag_bundle_root_storage_path(self):
         bundle = GitDagBundle(name="test", tracking_ref=GIT_DEFAULT_BRANCH)
-        assert str(bundle._dag_bundle_root_storage_path) in str(bundle.path)
+        base = get_bundle_storage_root_path()
+        assert bundle.path.is_relative_to(base)
 
     def test_repo_url_overrides_connection_host_when_provided(self):
         bundle = GitDagBundle(name="test", tracking_ref=GIT_DEFAULT_BRANCH, repo_url="/some/other/repo")
@@ -295,7 +296,6 @@ class TestGitDagBundle:
 
         # add tag
         repo.create_tag("test")
-        print(repo.tags)
 
         # Add new file to the repo
         file_path = repo_path / "new_test.py"
@@ -335,11 +335,23 @@ class TestGitDagBundle:
         files_in_repo = {f.name for f in bundle.path.iterdir() if f.is_file()}
         assert {"test_dag.py", "new_test.py"} == files_in_repo
 
+    @pytest.mark.parametrize(
+        "amend",
+        [
+            True,
+            False,
+        ],
+    )
     @mock.patch("airflow.dag_processing.bundles.git.GitHook")
-    def test_refresh(self, mock_githook, git_repo):
+    def test_refresh(self, mock_githook, git_repo, amend):
+        """Ensure that the bundle refresh works when tracking a branch, with a new commit and amending the commit"""
         repo_path, repo = git_repo
         mock_githook.return_value.repo_url = repo_path
         starting_commit = repo.head.commit
+
+        with repo.config_writer() as writer:
+            writer.set_value("user", "name", "Test User")
+            writer.set_value("user", "email", "test@example.com")
 
         bundle = GitDagBundle(name="test", tracking_ref=GIT_DEFAULT_BRANCH)
         bundle.initialize()
@@ -353,7 +365,38 @@ class TestGitDagBundle:
         with open(file_path, "w") as f:
             f.write("hello world")
         repo.index.add([file_path])
+        commit = repo.git.commit(amend=amend, message="Another commit")
+
+        bundle.refresh()
+
+        assert bundle.get_current_version()[:6] in commit
+
+        files_in_repo = {f.name for f in bundle.path.iterdir() if f.is_file()}
+        assert {"test_dag.py", "new_test.py"} == files_in_repo
+
+    @mock.patch("airflow.dag_processing.bundles.git.GitHook")
+    def test_refresh_tag(self, mock_githook, git_repo):
+        """Ensure that the bundle refresh works when tracking a tag"""
+        repo_path, repo = git_repo
+        mock_githook.return_value.repo_url = repo_path
+        starting_commit = repo.head.commit
+
+        # add tag
+        repo.create_tag("test123")
+
+        bundle = GitDagBundle(name="test", tracking_ref="test123")
+        bundle.initialize()
+        assert bundle.get_current_version() == starting_commit.hexsha
+
+        # Add new file to the repo
+        file_path = repo_path / "new_test.py"
+        with open(file_path, "w") as f:
+            f.write("hello world")
+        repo.index.add([file_path])
         commit = repo.index.commit("Another commit")
+
+        # update tag
+        repo.create_tag("test123", force=True)
 
         bundle.refresh()
 
@@ -440,8 +483,9 @@ class TestGitDagBundle:
             tracking_ref=GIT_DEFAULT_BRANCH,
         )
         bundle.initialize()
+        assert mock_gitRepo.return_value.remotes.origin.fetch.call_count == 2  # 1 in bare, 1 in main repo
+        mock_gitRepo.return_value.remotes.origin.fetch.reset_mock()
         bundle.refresh()
-        # check remotes called twice. one at initialize and one at refresh above
         assert mock_gitRepo.return_value.remotes.origin.fetch.call_count == 2
 
     @pytest.mark.parametrize(

@@ -18,7 +18,7 @@
  */
 import { Box } from "@chakra-ui/react";
 import type { ColumnDef } from "@tanstack/react-table";
-import { useParams, useSearchParams } from "react-router-dom";
+import { useParams } from "react-router-dom";
 
 import { useXcomServiceGetXcomEntries } from "openapi/queries";
 import type { XComResponse } from "openapi/requests/types.gen";
@@ -50,10 +50,7 @@ const columns: Array<ColumnDef<XComResponse>> = [
 ];
 
 export const XCom = () => {
-  const { dagId = "~", runId = "~", taskId = "~" } = useParams();
-  const [searchParams] = useSearchParams();
-  const mapIndexParam = searchParams.get("map_index");
-  const mapIndex = parseInt(mapIndexParam ?? "-1", 10);
+  const { dagId = "~", mapIndex = "-1", runId = "~", taskId = "~" } = useParams();
 
   const { setTableURLState, tableURLState } = useTableURLState();
   const { pagination } = tableURLState;
@@ -63,7 +60,7 @@ export const XCom = () => {
       dagId,
       dagRunId: runId,
       limit: pagination.pageSize,
-      mapIndex,
+      mapIndex: mapIndex === "-1" ? undefined : parseInt(mapIndex, 10),
       offset: pagination.pageIndex * pagination.pageSize,
       taskId,
     },

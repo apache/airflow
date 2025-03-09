@@ -135,7 +135,7 @@ function run_tests() {
         core_tests
     elif [[ "${TEST_GROUP}" == "providers" ]]; then
         providers_tests
-    elif [[ "${TEST_GROUP}" == "task_sdk" ]]; then
+    elif [[ "${TEST_GROUP}" == "task-sdk" ]]; then
         task_sdk_tests
     else
         echo "Unknown test group: ${TEST_GROUP}"

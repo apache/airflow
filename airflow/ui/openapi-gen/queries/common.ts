@@ -341,10 +341,14 @@ export type DependenciesServiceGetDependenciesQueryResult<
   TError = unknown,
 > = UseQueryResult<TData, TError>;
 export const useDependenciesServiceGetDependenciesKey = "DependenciesServiceGetDependencies";
-export const UseDependenciesServiceGetDependenciesKeyFn = (queryKey?: Array<unknown>) => [
-  useDependenciesServiceGetDependenciesKey,
-  ...(queryKey ?? []),
-];
+export const UseDependenciesServiceGetDependenciesKeyFn = (
+  {
+    nodeId,
+  }: {
+    nodeId?: string;
+  } = {},
+  queryKey?: Array<unknown>,
+) => [useDependenciesServiceGetDependenciesKey, ...(queryKey ?? [{ nodeId }])];
 export type DashboardServiceHistoricalMetricsDefaultResponse = Awaited<
   ReturnType<typeof DashboardService.historicalMetrics>
 >;
@@ -537,16 +541,21 @@ export type ConnectionServiceGetConnectionsQueryResult<
 export const useConnectionServiceGetConnectionsKey = "ConnectionServiceGetConnections";
 export const UseConnectionServiceGetConnectionsKeyFn = (
   {
+    connectionIdPattern,
     limit,
     offset,
     orderBy,
   }: {
+    connectionIdPattern?: string;
     limit?: number;
     offset?: number;
     orderBy?: string;
   } = {},
   queryKey?: Array<unknown>,
-) => [useConnectionServiceGetConnectionsKey, ...(queryKey ?? [{ limit, offset, orderBy }])];
+) => [
+  useConnectionServiceGetConnectionsKey,
+  ...(queryKey ?? [{ connectionIdPattern, limit, offset, orderBy }]),
+];
 export type DagRunServiceGetDagRunDefaultResponse = Awaited<ReturnType<typeof DagRunService.getDagRun>>;
 export type DagRunServiceGetDagRunQueryResult<
   TData = DagRunServiceGetDagRunDefaultResponse,
@@ -847,12 +856,14 @@ export type EventLogServiceGetEventLogQueryResult<
 export const useEventLogServiceGetEventLogKey = "EventLogServiceGetEventLog";
 export const UseEventLogServiceGetEventLogKeyFn = (
   {
+    dagId,
     eventLogId,
   }: {
+    dagId?: string;
     eventLogId: number;
   },
   queryKey?: Array<unknown>,
-) => [useEventLogServiceGetEventLogKey, ...(queryKey ?? [{ eventLogId }])];
+) => [useEventLogServiceGetEventLogKey, ...(queryKey ?? [{ dagId, eventLogId }])];
 export type EventLogServiceGetEventLogsDefaultResponse = Awaited<
   ReturnType<typeof EventLogService.getEventLogs>
 >;
@@ -1661,6 +1672,24 @@ export const UseVariableServiceGetVariablesKeyFn = (
   } = {},
   queryKey?: Array<unknown>,
 ) => [useVariableServiceGetVariablesKey, ...(queryKey ?? [{ limit, offset, orderBy, variableKeyPattern }])];
+export type DagVersionServiceGetDagVersionDefaultResponse = Awaited<
+  ReturnType<typeof DagVersionService.getDagVersion>
+>;
+export type DagVersionServiceGetDagVersionQueryResult<
+  TData = DagVersionServiceGetDagVersionDefaultResponse,
+  TError = unknown,
+> = UseQueryResult<TData, TError>;
+export const useDagVersionServiceGetDagVersionKey = "DagVersionServiceGetDagVersion";
+export const UseDagVersionServiceGetDagVersionKeyFn = (
+  {
+    dagId,
+    versionNumber,
+  }: {
+    dagId: string;
+    versionNumber: number;
+  },
+  queryKey?: Array<unknown>,
+) => [useDagVersionServiceGetDagVersionKey, ...(queryKey ?? [{ dagId, versionNumber }])];
 export type DagVersionServiceGetDagVersionsDefaultResponse = Awaited<
   ReturnType<typeof DagVersionService.getDagVersions>
 >;

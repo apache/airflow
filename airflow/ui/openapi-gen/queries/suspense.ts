@@ -532,6 +532,8 @@ export const useDagsServiceRecentDagRunsSuspense = <
 /**
  * Get Dependencies
  * Dependencies graph.
+ * @param data The data for the request.
+ * @param data.nodeId
  * @returns BaseGraphResponse Successful Response
  * @throws ApiError
  */
@@ -540,12 +542,17 @@ export const useDependenciesServiceGetDependenciesSuspense = <
   TError = unknown,
   TQueryKey extends Array<unknown> = unknown[],
 >(
+  {
+    nodeId,
+  }: {
+    nodeId?: string;
+  } = {},
   queryKey?: TQueryKey,
   options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">,
 ) =>
   useSuspenseQuery<TData, TError>({
-    queryKey: Common.UseDependenciesServiceGetDependenciesKeyFn(queryKey),
-    queryFn: () => DependenciesService.getDependencies() as TData,
+    queryKey: Common.UseDependenciesServiceGetDependenciesKeyFn({ nodeId }, queryKey),
+    queryFn: () => DependenciesService.getDependencies({ nodeId }) as TData,
     ...options,
   });
 /**
@@ -855,6 +862,7 @@ export const useConnectionServiceGetConnectionSuspense = <
  * @param data.limit
  * @param data.offset
  * @param data.orderBy
+ * @param data.connectionIdPattern
  * @returns ConnectionCollectionResponse Successful Response
  * @throws ApiError
  */
@@ -864,10 +872,12 @@ export const useConnectionServiceGetConnectionsSuspense = <
   TQueryKey extends Array<unknown> = unknown[],
 >(
   {
+    connectionIdPattern,
     limit,
     offset,
     orderBy,
   }: {
+    connectionIdPattern?: string;
     limit?: number;
     offset?: number;
     orderBy?: string;
@@ -876,8 +886,11 @@ export const useConnectionServiceGetConnectionsSuspense = <
   options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">,
 ) =>
   useSuspenseQuery<TData, TError>({
-    queryKey: Common.UseConnectionServiceGetConnectionsKeyFn({ limit, offset, orderBy }, queryKey),
-    queryFn: () => ConnectionService.getConnections({ limit, offset, orderBy }) as TData,
+    queryKey: Common.UseConnectionServiceGetConnectionsKeyFn(
+      { connectionIdPattern, limit, offset, orderBy },
+      queryKey,
+    ),
+    queryFn: () => ConnectionService.getConnections({ connectionIdPattern, limit, offset, orderBy }) as TData,
     ...options,
   });
 /**
@@ -1368,6 +1381,7 @@ export const useDagServiceGetDagTagsSuspense = <
  * Get Event Log
  * @param data The data for the request.
  * @param data.eventLogId
+ * @param data.dagId
  * @returns EventLogResponse Successful Response
  * @throws ApiError
  */
@@ -1377,26 +1391,28 @@ export const useEventLogServiceGetEventLogSuspense = <
   TQueryKey extends Array<unknown> = unknown[],
 >(
   {
+    dagId,
     eventLogId,
   }: {
+    dagId?: string;
     eventLogId: number;
   },
   queryKey?: TQueryKey,
   options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">,
 ) =>
   useSuspenseQuery<TData, TError>({
-    queryKey: Common.UseEventLogServiceGetEventLogKeyFn({ eventLogId }, queryKey),
-    queryFn: () => EventLogService.getEventLog({ eventLogId }) as TData,
+    queryKey: Common.UseEventLogServiceGetEventLogKeyFn({ dagId, eventLogId }, queryKey),
+    queryFn: () => EventLogService.getEventLog({ dagId, eventLogId }) as TData,
     ...options,
   });
 /**
  * Get Event Logs
  * Get all Event Logs.
  * @param data The data for the request.
+ * @param data.dagId
  * @param data.limit
  * @param data.offset
  * @param data.orderBy
- * @param data.dagId
  * @param data.taskId
  * @param data.runId
  * @param data.mapIndex
@@ -2727,6 +2743,35 @@ export const useVariableServiceGetVariablesSuspense = <
       queryKey,
     ),
     queryFn: () => VariableService.getVariables({ limit, offset, orderBy, variableKeyPattern }) as TData,
+    ...options,
+  });
+/**
+ * Get Dag Version
+ * Get one Dag Version.
+ * @param data The data for the request.
+ * @param data.dagId
+ * @param data.versionNumber
+ * @returns DagVersionResponse Successful Response
+ * @throws ApiError
+ */
+export const useDagVersionServiceGetDagVersionSuspense = <
+  TData = Common.DagVersionServiceGetDagVersionDefaultResponse,
+  TError = unknown,
+  TQueryKey extends Array<unknown> = unknown[],
+>(
+  {
+    dagId,
+    versionNumber,
+  }: {
+    dagId: string;
+    versionNumber: number;
+  },
+  queryKey?: TQueryKey,
+  options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">,
+) =>
+  useSuspenseQuery<TData, TError>({
+    queryKey: Common.UseDagVersionServiceGetDagVersionKeyFn({ dagId, versionNumber }, queryKey),
+    queryFn: () => DagVersionService.getDagVersion({ dagId, versionNumber }) as TData,
     ...options,
   });
 /**

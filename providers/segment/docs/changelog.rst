@@ -27,6 +27,20 @@
 Changelog
 ---------
 
+3.7.1
+.....
+
+Misc
+~~~~
+
+* ``AIP-72: Support better type-hinting for Context dict in SDK  (#45583)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Move provider_tests to unit folder in provider tests (#46800)``
+   * ``Removed the unused provider's distribution (#46608)``
+   * ``Move SEGMENT Provider to new structure (#46070)``
+
 3.7.0
 .....
 

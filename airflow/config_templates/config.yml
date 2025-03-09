@@ -71,8 +71,7 @@ core:
       description: |
         The executor class that airflow should use. Choices include
         ``SequentialExecutor``, ``LocalExecutor``, ``CeleryExecutor``,
-        ``KubernetesExecutor``, ``CeleryKubernetesExecutor``, ``LocalKubernetesExecutor`` or the
-        full import path to the class when using a custom executor.
+        ``KubernetesExecutor`` or the full import path to the class when using a custom executor.
       version_added: ~
       type: string
       example: ~
@@ -102,6 +101,14 @@ core:
       type: string
       example: ~
       default: "False"
+    simple_auth_manager_passwords_file:
+      description: |
+        The json file where the simple auth manager stores passwords for the configured users.
+        By default this is ``AIRFLOW_HOME/simple_auth_manager_passwords.json.generated``.
+      version_added: 3.0.0
+      type: string
+      example: "/path/to/passwords.json"
+      default: ~
     parallelism:
       description: |
         This defines the maximum number of task instances that can run concurrently per scheduler in
@@ -528,6 +535,13 @@ core:
       type: integer
       example: ~
       default: "4096"
+    execution_api_server_url:
+      description: |
+        The url of the execution api server.
+      version_added: 3.0.0
+      type: string
+      example: ~
+      default: "http://localhost:8080/execution/"
 database:
   description: ~
   options:
@@ -663,22 +677,6 @@ database:
       type: string
       example: 'airflow_local_settings._sessionmaker'
       default: ~
-    load_default_connections:
-      description: |
-        Whether to load the default connections that ship with Airflow when ``airflow db init`` is called.
-        It's good to get started, but you probably want to set this to ``False`` in a production environment.
-      version_added: 2.3.0
-      version_deprecated: 2.7.0
-      deprecation_reason: |
-        This option is only used by the deprecated "airflow db init" command.
-        This option has been used in previous versions of Airflow to determine if loading of the default
-        connections is done with the ``airflow db init`` command. This command has been deprecated and
-        replaced by two separate commands ``airflow db migrate`` and
-        ``airflow connections create-default-connections`` and ``load_default_connections`` is not
-        used anymore by those commands.
-      type: string
-      example: ~
-      default: "True"
     max_db_retries:
       description: |
         Number of times the code should be retried in case of DB Operational Errors.
@@ -926,7 +924,7 @@ logging:
         consoles\.
       version_added: 2.0.0
       type: string
-      example: "connexion,sqlalchemy"
+      example: "fastapi,sqlalchemy"
       default: ""
     worker_log_server_port:
       description: |
@@ -1306,6 +1304,66 @@ debug:
 api:
   description: ~
   options:
+    base_url:
+      description: |
+        The base url of the API server. Airflow cannot guess what domain or CNAME you are using.
+        If the Airflow console (the front-end) and the API server are on a different domain, this config
+        should contain the API server endpoint.
+      version_added: ~
+      type: string
+      example: ~
+      default: "http://localhost:8080"
+    host:
+      description: |
+        The ip specified when starting the api server
+      version_added: ~
+      type: string
+      example: ~
+      default: "0.0.0.0"
+    port:
+      description: |
+        The port on which to run the api server
+      version_added: ~
+      type: string
+      example: ~
+      default: "8080"
+    workers:
+      description: |
+        Number of workers to run on the API server
+      version_added: ~
+      type: string
+      example: ~
+      default: "4"
+    worker_timeout:
+      description: |
+        Number of seconds the API server waits before timing out on a worker
+      version_added: ~
+      type: string
+      example: ~
+      default: "120"
+    access_logfile:
+      description: |
+        Log files for the api server. '-' means log to stderr.
+      version_added: ~
+      type: string
+      example: ~
+      default: "-"
+    ssl_cert:
+      description: |
+        Paths to the SSL certificate and key for the api server. When both are
+        provided SSL will be enabled. This does not change the api server port.
+      version_added: ~
+      type: string
+      example: ~
+      default: ""
+    ssl_key:
+      description: |
+        Paths to the SSL certificate and key for the api server. When both are
+        provided SSL will be enabled. This does not change the api server port.
+      version_added: ~
+      type: string
+      example: ~
+      default: ""
     auth_backends:
       description: |
         Comma separated list of auth backends to authenticate users of the API. See
@@ -1518,36 +1576,6 @@ webserver:
       example: "America/New_York"
       # Default is left as UTC for now so the date's don't "suddenly" change on upgrade
       default: "UTC"
-    web_server_host:
-      description: |
-        The ip specified when starting the web server
-      version_added: ~
-      type: string
-      example: ~
-      default: "0.0.0.0"
-    web_server_port:
-      description: |
-        The port on which to run the web server
-      version_added: ~
-      type: string
-      example: ~
-      default: "8080"
-    web_server_ssl_cert:
-      description: |
-        Paths to the SSL certificate and key for the web server. When both are
-        provided SSL will be enabled. This does not change the web server port.
-      version_added: ~
-      type: string
-      example: ~
-      default: ""
-    web_server_ssl_key:
-      description: |
-        Paths to the SSL certificate and key for the web server. When both are
-        provided SSL will be enabled. This does not change the web server port.
-      version_added: ~
-      type: string
-      example: ~
-      default: ""
     session_backend:
       description: |
         The type of backend used to store web session data, can be ``database`` or ``securecookie``. For the
@@ -1570,13 +1598,6 @@ webserver:
     web_server_master_timeout:
       description: |
         Number of seconds the webserver waits before killing gunicorn master that doesn't respond
-      version_added: ~
-      type: string
-      example: ~
-      default: "120"
-    web_server_worker_timeout:
-      description: |
-        Number of seconds the gunicorn webserver waits before timing out on a worker
       version_added: ~
       type: string
       example: ~
@@ -1620,13 +1641,6 @@ webserver:
       sensitive: true
       example: ~
       default: "{SECRET_KEY}"
-    workers:
-      description: |
-        Number of workers to run the Gunicorn web server
-      version_added: ~
-      type: string
-      example: ~
-      default: "4"
     worker_class:
       description: |
         The worker class gunicorn should use. Choices include
@@ -1650,30 +1664,6 @@ webserver:
       type: string
       example: ~
       default: "sync"
-    access_logfile:
-      description: |
-        Log files for the gunicorn webserver. '-' means log to stderr.
-      version_added: ~
-      type: string
-      example: ~
-      default: "-"
-    error_logfile:
-      description: |
-        Log files for the gunicorn webserver. '-' means log to stderr.
-      version_added: ~
-      type: string
-      example: ~
-      default: "-"
-    access_logformat:
-      description: |
-        Access log format for gunicorn webserver.
-        default format is ``%%(h)s %%(l)s %%(u)s %%(t)s "%%(r)s" %%(s)s %%(b)s "%%(f)s" "%%(a)s"``
-        See `Gunicorn Settings: 'access_log_format' Reference
-        <https://docs.gunicorn.org/en/stable/settings.html#access-log-format>`__ for more details
-      version_added: 2.0.0
-      type: string
-      example: ~
-      default: ""
     expose_config:
       description: |
         Expose the configuration file in the web server. Set to ``non-sensitive-only`` to show all values
@@ -2446,8 +2436,27 @@ scheduler:
       version_added: 2.9.0
       type: boolean
       example: ~
-      default: "True"
-      see_also: ":ref:`Differences between the two cron timetables`"
+      default: "False"
+      see_also: ':ref:`Differences between "trigger" and "data interval" timetables`'
+    create_delta_data_intervals:
+      description: |
+        Whether to create DAG runs that span an interval or one single point in time when a timedelta or
+        relativedelta is provided to ``schedule`` argument of a DAG.
+
+        * ``True``: **DeltaDataIntervalTimetable** is used, which is suitable for DAGs with well-defined data
+          interval. You get contiguous intervals from the end of the previous interval up to the scheduled
+          datetime.
+        * ``False``: **DeltaTriggerTimetable** is used, which is suitable for DAGs that simply want to say
+          e.g. "run this every day" and do not care about the data interval.
+
+        Notably, for **DeltaTriggerTimetable**, the logical date is the same as the time the DAG Run will
+        try to schedule, while for **DeltaDataIntervalTimetable**, the logical date is the beginning of
+        the data interval, but the DAG Run will try to schedule at the end of the data interval.
+      version_added: 2.11.0
+      type: boolean
+      example: ~
+      default: "False"
+      see_also: ':ref:`Differences between "trigger" and "data interval" timetables`'
     enable_tracemalloc:
       description: |
         Whether to enable memory allocation tracing in the scheduler. If enabled, Airflow will start
@@ -2669,15 +2678,44 @@ dag_processor:
       type: integer
       example: ~
       default: "30"
-fastapi:
-  description: Configuration for the Fastapi webserver.
-  options:
-    base_url:
+    bundle_refresh_check_interval:
       description: |
-        The base url of the Fastapi endpoint. Airflow cannot guess what domain or CNAME you are using.
-        If the Airflow console (the front-end) and the Fastapi apis are on a different domain, this config
-        should contain the Fastapi apis endpoint.
+        How often the DAG processor should check if any DAG bundles are ready for a refresh, either by hitting
+        the bundles refresh_interval or because another DAG processor has seen a newer version of the bundle.
+        A low value means we check more frequently, and have a smaller window of time where DAG processors are
+        out of sync with each other, parsing different versions of the same bundle.
       version_added: ~
-      type: string
+      type: integer
       example: ~
-      default: "http://localhost:29091"
+      default: "5"
+    stale_bundle_cleanup_interval:
+      description: |
+        On shared workers, bundle copies accumulate in local storage as tasks run
+        and version of the bundle changes.
+        This setting represents the delta in seconds between checks for these stale bundles.
+        Bundles which are older than `stale_bundle_cleanup_age_threshold` may be removed. But
+        we always keep `stale_bundle_cleanup_min_versions` versions locally.
+        Set to 0 or negative to disable.
+      version_added: ~
+      type: integer
+      example: ~
+      default: "1800"
+    stale_bundle_cleanup_age_threshold:
+      description: |
+        Bundle versions used more recently than this threshold will not be removed.
+        Recency of use is determined by when the task began running on the worker,
+        that age is compared with this setting, given as time delta in seconds.
+      version_added: ~
+      type: integer
+      example: ~
+      default: "21600"
+    stale_bundle_cleanup_min_versions:
+      description: |
+        Minimum number of local bundle versions to retain on disk.
+        Local bundle versions older than `stale_bundle_cleanup_age_threshold` will
+        only be deleted we have more than `stale_bundle_cleanup_min_versions` versions
+        accumulated on the worker.
+      version_added: ~
+      type: integer
+      example: ~
+      default: "10"

@@ -28,6 +28,35 @@
 Changelog
 ---------
 
+4.2.0
+.....
+
+.. note::
+  This version has no code changes. It's released due to yank of previous version due to packaging issues.
+
+4.1.0
+.....
+
+Features
+~~~~~~~~
+
+* ``New Optional dbt Cloud Job Operator Params (#45634)``
+
+Misc
+~~~~
+
+* ``AIP-72: Improving Operator Links Interface to Prevent User Code Execution in Webserver (#46613)``
+* ``Add missing newline on conn string example (#45603)``
+* ``Remove classes from 'typing_compat' that can be imported directly (#45589)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Move provider_tests to unit folder in provider tests (#46800)``
+   * ``Removed the unused provider's distribution (#46608)``
+   * ``Moving EmptyOperator to standard provider (#46231)``
+   * ``Fix doc issues found with recent moves (#46372)``
+   * ``refactor(providers/dbt.cloud): move dbt cloud provider to new structure (#46208)``
+
 4.0.0
 .....
 

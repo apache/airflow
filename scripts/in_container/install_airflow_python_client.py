@@ -79,8 +79,6 @@ def install_airflow_python_client(package_format: str, use_packages_from_dist: b
         "/usr/local/bin/uv",
         "pip",
         "install",
-        "--python",
-        "/usr/local/bin/python",
         find_airflow_python_client(extension),
     ]
     console.print("\n[bright_blue]Installing airflow python client\n")

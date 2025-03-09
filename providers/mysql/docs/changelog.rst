@@ -26,6 +26,31 @@
 Changelog
 ---------
 
+6.1.0
+.....
+
+Features
+~~~~~~~~
+
+* ``Introduce notion of dialects in DbApiHook (#41327)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fix escaping of special characters or reserved words as column names in dialects of common sql provider (#45640)``
+
+Misc
+~~~~
+
+* ``AIP-72: Support better type-hinting for Context dict in SDK  (#45583)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Move provider_tests to unit folder in provider tests (#46800)``
+   * ``Removed the unused provider's distribution (#46608)``
+   * ``Fix doc issues found with recent moves (#46372)``
+   * ``Move mysql, odbc, jenkins, pagerduty to new provider structure.  (#46102)``
+
 6.0.0
 .....
 

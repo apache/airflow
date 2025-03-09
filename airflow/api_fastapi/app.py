@@ -38,7 +38,7 @@ from airflow.configuration import conf
 from airflow.exceptions import AirflowConfigException
 
 if TYPE_CHECKING:
-    from airflow.auth.managers.base_auth_manager import BaseAuthManager
+    from airflow.api_fastapi.auth.managers.base_auth_manager import BaseAuthManager
 
 log = logging.getLogger(__name__)
 
@@ -61,9 +61,9 @@ async def lifespan(app: FastAPI):
 def create_app(apps: str = "all") -> FastAPI:
     apps_list = apps.split(",") if apps else ["all"]
 
-    fastapi_base_url = conf.get("fastapi", "base_url")
+    fastapi_base_url = conf.get("api", "base_url")
     if fastapi_base_url.endswith("/"):
-        raise AirflowConfigException("fastapi.base_url conf cannot have a trailing slash.")
+        raise AirflowConfigException("`[api] base_url` config option cannot have a trailing slash.")
 
     root_path = urlsplit(fastapi_base_url).path
     if not root_path or root_path == "/":
@@ -78,19 +78,19 @@ def create_app(apps: str = "all") -> FastAPI:
         root_path=root_path,
     )
 
+    if "execution" in apps_list or "all" in apps_list:
+        task_exec_api_app = create_task_execution_api_app()
+        init_error_handlers(task_exec_api_app)
+        app.mount("/execution", task_exec_api_app)
+
     if "core" in apps_list or "all" in apps_list:
         init_dag_bag(app)
-        init_views(app)
         init_plugins(app)
         init_auth_manager(app)
         init_flask_plugins(app)
+        init_views(app)  # Core views need to be the last routes added - it has a catch all route
         init_error_handlers(app)
         init_middlewares(app)
-
-    if "execution" in apps_list or "all" in apps_list:
-        task_exec_api_app = create_task_execution_api_app(app)
-        init_error_handlers(task_exec_api_app)
-        app.mount("/execution", task_exec_api_app)
 
     init_config(app)
 

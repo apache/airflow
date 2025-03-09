@@ -26,6 +26,7 @@ from functools import cached_property
 from typing import TYPE_CHECKING
 
 from dateutil import parser
+from google.cloud.orchestration.airflow.service_v1.types import Environment, ExecuteAirflowCommandResponse
 
 from airflow.configuration import conf
 from airflow.exceptions import AirflowException
@@ -34,7 +35,6 @@ from airflow.providers.google.cloud.triggers.cloud_composer import CloudComposer
 from airflow.providers.google.common.consts import GOOGLE_DEFAULT_DEFERRABLE_METHOD_NAME
 from airflow.sensors.base import BaseSensorOperator
 from airflow.utils.state import TaskInstanceState
-from google.cloud.orchestration.airflow.service_v1.types import Environment, ExecuteAirflowCommandResponse
 
 if TYPE_CHECKING:
     from airflow.utils.context import Context

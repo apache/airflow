@@ -27,6 +27,26 @@
 Changelog
 ---------
 
+3.9.0
+.....
+
+.. note::
+  This version has no code changes. It's released due to yank of previous version due to packaging issues.
+
+3.8.0
+.....
+
+Features
+~~~~~~~~
+
+* ``add expected_return_code parameter to WinRMOperator (#46534)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Move provider_tests to unit folder in provider tests (#46800)``
+   * ``Removed the unused provider's distribution (#46608)``
+   * ``Move microsoft winrm to new provider structure (#46469)``
+
 3.7.0
 .....
 

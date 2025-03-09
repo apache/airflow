@@ -27,8 +27,9 @@ def get_provider_info():
         "name": "Samba",
         "description": "`Samba <https://www.samba.org/>`__\n",
         "state": "ready",
-        "source-date-epoch": 1734536458,
+        "source-date-epoch": 1741121934,
         "versions": [
+            "4.9.1",
             "4.9.0",
             "4.8.0",
             "4.7.1",
@@ -73,4 +74,5 @@ def get_provider_info():
         ],
         "dependencies": ["apache-airflow>=2.9.0", "smbprotocol>=1.5.0"],
         "optional-dependencies": {"google": ["apache-airflow-providers-google"]},
+        "devel-dependencies": [],
     }

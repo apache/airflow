@@ -27,7 +27,7 @@ import pytest
 from airflow import DAG
 from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning
 from airflow.models import Connection, DagRun, TaskInstance as TI, XCom
-from airflow.providers.common.sql.hooks.sql import fetch_all_handler
+from airflow.providers.common.sql.hooks.handlers import fetch_all_handler
 from airflow.providers.common.sql.operators.sql import (
     BaseSQLOperator,
     BranchSQLOperator,

@@ -20,7 +20,7 @@ from __future__ import annotations
 from flask import current_app
 from flask_login import AnonymousUserMixin
 
-from airflow.auth.managers.models.base_user import BaseUser
+from airflow.api_fastapi.auth.managers.models.base_user import BaseUser
 
 
 class AnonymousUser(AnonymousUserMixin, BaseUser):

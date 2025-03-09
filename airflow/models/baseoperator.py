@@ -35,7 +35,6 @@ from typing import (
     TYPE_CHECKING,
     Any,
     Callable,
-    NoReturn,
     TypeVar,
 )
 
@@ -47,9 +46,6 @@ from sqlalchemy.orm.exc import NoResultFound
 from airflow.configuration import conf
 from airflow.exceptions import (
     AirflowException,
-    TaskDeferralError,
-    TaskDeferralTimeout,
-    TaskDeferred,
 )
 from airflow.lineage import apply_lineage, prepare_lineage
 
@@ -62,7 +58,6 @@ from airflow.models.abstractoperator import (
 from airflow.models.base import _sentinel
 from airflow.models.taskinstance import TaskInstance, clear_task_instances
 from airflow.models.taskmixin import DependencyMixin
-from airflow.models.trigger import TRIGGER_FAIL_REPR, TriggerFailureReason
 from airflow.sdk.definitions._internal.abstractoperator import AbstractOperator as TaskSDKAbstractOperator
 from airflow.sdk.definitions.baseoperator import (
     BaseOperatorMeta as TaskSDKBaseOperatorMeta,
@@ -93,12 +88,12 @@ if TYPE_CHECKING:
     from sqlalchemy.orm import Session
 
     from airflow.models.abstractoperator import TaskStateChangeCallback
-    from airflow.models.baseoperatorlink import BaseOperatorLink
     from airflow.models.dag import DAG as SchedulerDAG
     from airflow.models.operator import Operator
+    from airflow.sdk import BaseOperatorLink
     from airflow.sdk.definitions.node import DAGNode
     from airflow.ti_deps.deps.base_ti_dep import BaseTIDep
-    from airflow.triggers.base import BaseTrigger, StartTriggerArgs
+    from airflow.triggers.base import StartTriggerArgs
 
 TaskPreExecuteHook = Callable[[Context], None]
 TaskPostExecuteHook = Callable[[Context, Any], None]
@@ -740,44 +735,6 @@ class BaseOperator(TaskSDKBaseOperator, AbstractOperator, metaclass=BaseOperator
     def serialize_for_task_group(self) -> tuple[DagAttributeTypes, Any]:
         """Serialize; required by DAGNode."""
         return DagAttributeTypes.OP, self.task_id
-
-    def defer(
-        self,
-        *,
-        trigger: BaseTrigger,
-        method_name: str,
-        kwargs: dict[str, Any] | None = None,
-        timeout: timedelta | int | float | None = None,
-    ) -> NoReturn:
-        """
-        Mark this Operator "deferred", suspending its execution until the provided trigger fires an event.
-
-        This is achieved by raising a special exception (TaskDeferred)
-        which is caught in the main _execute_task wrapper. Triggers can send execution back to task or end
-        the task instance directly. If the trigger will end the task instance itself, ``method_name`` should
-        be None; otherwise, provide the name of the method that should be used when resuming execution in
-        the task.
-        """
-        raise TaskDeferred(trigger=trigger, method_name=method_name, kwargs=kwargs, timeout=timeout)
-
-    def resume_execution(self, next_method: str, next_kwargs: dict[str, Any] | None, context: Context):
-        """Call this method when a deferred task is resumed."""
-        # __fail__ is a special signal value for next_method that indicates
-        # this task was scheduled specifically to fail.
-        if next_method == TRIGGER_FAIL_REPR:
-            next_kwargs = next_kwargs or {}
-            traceback = next_kwargs.get("traceback")
-            if traceback is not None:
-                self.log.error("Trigger failed:\n%s", "\n".join(traceback))
-            if (error := next_kwargs.get("error", "Unknown")) == TriggerFailureReason.TRIGGER_TIMEOUT:
-                raise TaskDeferralTimeout(error)
-            else:
-                raise TaskDeferralError(error)
-        # Grab the callable off the Operator/Task and add in any kwargs
-        execute_callable = getattr(self, next_method)
-        if next_kwargs:
-            execute_callable = functools.partial(execute_callable, **next_kwargs)
-        return execute_callable(context)
 
     def unmap(self, resolve: None | dict[str, Any] | tuple[Context, Session]) -> BaseOperator:
         """

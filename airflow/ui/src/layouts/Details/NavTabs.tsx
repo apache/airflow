@@ -17,50 +17,47 @@
  * under the License.
  */
 import { Center, Flex } from "@chakra-ui/react";
-import type { ReactNode } from "react";
-import { NavLink, useSearchParams } from "react-router-dom";
+import { useRef, type ReactNode } from "react";
+import { NavLink } from "react-router-dom";
+
+import { useContainerWidth } from "src/utils";
 
 type Props = {
-  readonly keepSearch?: boolean;
-  readonly rightButtons?: ReactNode;
-  readonly tabs: Array<{ label: string; value: string }>;
+  readonly tabs: Array<{ icon?: ReactNode; label: string; value: string }>;
 };
 
-export const NavTabs = ({ keepSearch, rightButtons, tabs }: Props) => {
-  const [searchParams] = useSearchParams();
+export const NavTabs = ({ tabs }: Props) => {
+  const containerRef = useRef<HTMLDivElement>(null);
+  const containerWidth = useContainerWidth(containerRef);
 
   return (
-    <Flex alignItems="center" borderBottomWidth={1} justifyContent="space-between" mb={2}>
-      <Flex>
-        {tabs.map(({ label, value }) => (
-          <NavLink
-            end
-            key={value}
-            to={{
-              pathname: value,
-              // Preserve search params when navigating
-              search: keepSearch ? searchParams.toString() : undefined,
-            }}
-          >
-            {({ isActive }) => (
-              <Center
-                borderBottomColor="border.info"
-                borderBottomWidth={isActive ? 3 : 0}
-                color={isActive ? "fg" : "fg.muted"}
-                fontWeight="bold"
-                height="40px"
-                mb="-2px" // Show the border on top of its parent's border
-                pb={isActive ? 0 : "3px"}
-                px={4}
-                transition="all 0.2s ease"
-              >
-                {label}
-              </Center>
-            )}
-          </NavLink>
-        ))}
-      </Flex>
-      <Flex alignSelf="flex-end">{rightButtons}</Flex>
+    <Flex alignItems="center" borderBottomWidth={1} mb={2} ref={containerRef}>
+      {tabs.map(({ icon, label, value }) => (
+        <NavLink
+          end
+          key={value}
+          title={label}
+          to={{
+            pathname: value,
+          }}
+        >
+          {({ isActive }) => (
+            <Center
+              borderBottomColor="border.info"
+              borderBottomWidth={isActive ? 3 : 0}
+              color={isActive ? "fg" : "fg.muted"}
+              fontWeight="bold"
+              height="40px"
+              mb="-2px" // Show the border on top of its parent's border
+              pb={isActive ? 0 : "3px"}
+              px={4}
+              transition="all 0.2s ease"
+            >
+              {containerWidth > 600 || !Boolean(icon) ? label : icon}
+            </Center>
+          )}
+        </NavLink>
+      ))}
     </Flex>
   );
 };

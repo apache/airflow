@@ -137,6 +137,7 @@ class TestDagFileProcessorManager:
         proc.create_time.return_value = time.time()
         proc.wait.return_value = 0
         ret = DagFileProcessorProcess(
+            log=MagicMock(),
             id=uuid7(),
             pid=1234,
             process=proc,
@@ -164,16 +165,18 @@ class TestDagFileProcessorManager:
                 processor_timeout=365 * 86_400,
             )
 
-            with create_session() as session:
-                manager.run()
+            manager.run()
 
+            with create_session() as session:
                 import_errors = session.query(ParseImportError).all()
                 assert len(import_errors) == 1
 
                 path_to_parse.unlink()
 
-                # Rerun the parser once the dag file has been removed
-                manager.run()
+            # Rerun the parser once the dag file has been removed
+            manager.run()
+
+            with create_session() as session:
                 import_errors = session.query(ParseImportError).all()
 
                 assert len(import_errors) == 0
@@ -417,6 +420,9 @@ class TestDagFileProcessorManager:
             max_runs=1,
             processor_timeout=10 * 60,
         )
+        bundle = MagicMock()
+        bundle.name = "testing"
+        manager._dag_bundles = [bundle]
 
         test_dag_path = DagFileInfo(
             bundle_name="testing",
@@ -657,6 +663,7 @@ class TestDagFileProcessorManager:
         shutil.copy(source_location, zip_dag_path)
 
         with configure_testing_dag_bundle(bundle_path):
+            session.commit()
             manager = DagFileProcessorManager(max_runs=1)
             manager.run()
 
@@ -947,6 +954,36 @@ class TestDagFileProcessorManager:
                 manager = DagFileProcessorManager(max_runs=2)
                 manager.run()
                 assert bundletwo.refresh.call_count == 2
+
+    def test_bundle_refresh_check_interval(self):
+        """Ensure dag processor doesn't refresh bundles every loop."""
+        config = [
+            {
+                "name": "bundleone",
+                "classpath": "airflow.dag_processing.bundles.local.LocalDagBundle",
+                "kwargs": {"path": "/dev/null", "refresh_interval": 0},
+            },
+        ]
+
+        bundleone = MagicMock()
+        bundleone.name = "bundleone"
+        bundleone.path = "/dev/null"
+        bundleone.refresh_interval = 0
+        bundleone.get_current_version.return_value = None
+
+        with conf_vars(
+            {
+                ("dag_processor", "dag_bundle_config_list"): json.dumps(config),
+                ("dag_processor", "bundle_refresh_check_interval"): "10",
+            }
+        ):
+            DagBundlesManager().sync_bundles_to_db()
+            manager = DagFileProcessorManager(max_runs=2)
+            manager._dag_bundles = [bundleone]
+            manager._refresh_dag_bundles({})
+            assert bundleone.refresh.call_count == 1
+            manager._refresh_dag_bundles({})
+            assert bundleone.refresh.call_count == 1  # didn't fresh the second time
 
     def test_bundles_versions_are_stored(self, session):
         config = [

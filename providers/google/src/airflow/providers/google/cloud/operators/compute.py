@@ -23,6 +23,8 @@ from collections.abc import Sequence
 from copy import deepcopy
 from typing import TYPE_CHECKING, Any
 
+from google.api_core import exceptions
+from google.cloud.compute_v1.types import Instance, InstanceGroupManager, InstanceTemplate
 from json_merge_patch import merge
 
 from airflow.exceptions import AirflowException
@@ -36,12 +38,11 @@ from airflow.providers.google.cloud.operators.cloud_base import GoogleCloudBaseO
 from airflow.providers.google.cloud.utils.field_sanitizer import GcpBodyFieldSanitizer
 from airflow.providers.google.cloud.utils.field_validator import GcpBodyFieldValidator
 from airflow.providers.google.common.hooks.base_google import PROVIDE_PROJECT_ID
-from google.api_core import exceptions
-from google.cloud.compute_v1.types import Instance, InstanceGroupManager, InstanceTemplate
 
 if TYPE_CHECKING:
-    from airflow.utils.context import Context
     from google.api_core.retry import Retry
+
+    from airflow.utils.context import Context
 
 
 class ComputeEngineBaseOperator(GoogleCloudBaseOperator):

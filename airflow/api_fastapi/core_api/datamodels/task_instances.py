@@ -71,7 +71,7 @@ class TaskInstanceResponse(BaseModel):
     rendered_map_index: str | None
     rendered_fields: dict = Field(
         validation_alias=AliasPath("rendered_task_instance_fields", "rendered_fields"),
-        default={},
+        default_factory=dict,
     )
     trigger: TriggerResponse | None
     queued_by_job: JobResponse | None = Field(alias="triggerer_job")

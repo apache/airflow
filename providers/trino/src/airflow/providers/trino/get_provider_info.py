@@ -27,8 +27,9 @@ def get_provider_info():
         "name": "Trino",
         "description": "`Trino <https://trino.io/>`__\n",
         "state": "ready",
-        "source-date-epoch": 1734537382,
+        "source-date-epoch": 1741121959,
         "versions": [
+            "6.0.1",
             "6.0.0",
             "5.9.0",
             "5.8.1",
@@ -100,10 +101,11 @@ def get_provider_info():
             "apache-airflow>=2.9.0",
             "apache-airflow-providers-common-sql>=1.20.0",
             "pandas>=2.1.2,<2.2",
-            "trino>=0.318.0",
+            "trino>=0.319.0",
         ],
         "optional-dependencies": {
             "google": ["apache-airflow-providers-google"],
             "openlineage": ["apache-airflow-providers-openlineage"],
         },
+        "devel-dependencies": [],
     }

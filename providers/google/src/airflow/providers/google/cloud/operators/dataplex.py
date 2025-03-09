@@ -23,34 +23,19 @@ from collections.abc import MutableSequence, Sequence
 from functools import cached_property
 from typing import TYPE_CHECKING, Any
 
+from google.protobuf.json_format import MessageToDict
+
 from airflow.exceptions import AirflowException
 from airflow.providers.google.cloud.triggers.dataplex import (
     DataplexDataProfileJobTrigger,
     DataplexDataQualityJobTrigger,
 )
-from google.protobuf.json_format import MessageToDict
 
 if TYPE_CHECKING:
-    from airflow.utils.context import Context
     from google.protobuf.field_mask_pb2 import FieldMask
 
-from googleapiclient.errors import HttpError
+    from airflow.utils.context import Context
 
-from airflow.configuration import conf
-from airflow.providers.google.cloud.hooks.dataplex import AirflowDataQualityScanException, DataplexHook
-from airflow.providers.google.cloud.links.dataplex import (
-    DataplexCatalogAspectTypeLink,
-    DataplexCatalogAspectTypesLink,
-    DataplexCatalogEntryGroupLink,
-    DataplexCatalogEntryGroupsLink,
-    DataplexCatalogEntryLink,
-    DataplexCatalogEntryTypeLink,
-    DataplexCatalogEntryTypesLink,
-    DataplexLakeLink,
-    DataplexTaskLink,
-    DataplexTasksLink,
-)
-from airflow.providers.google.cloud.operators.cloud_base import GoogleCloudBaseOperator
 from google.api_core.exceptions import AlreadyExists, GoogleAPICallError, NotFound
 from google.api_core.gapic_v1.method import DEFAULT, _MethodDefault
 from google.api_core.retry import Retry, exponential_sleep_generator
@@ -72,6 +57,23 @@ from google.cloud.dataplex_v1.types import (
     Task,
     Zone,
 )
+from googleapiclient.errors import HttpError
+
+from airflow.configuration import conf
+from airflow.providers.google.cloud.hooks.dataplex import AirflowDataQualityScanException, DataplexHook
+from airflow.providers.google.cloud.links.dataplex import (
+    DataplexCatalogAspectTypeLink,
+    DataplexCatalogAspectTypesLink,
+    DataplexCatalogEntryGroupLink,
+    DataplexCatalogEntryGroupsLink,
+    DataplexCatalogEntryLink,
+    DataplexCatalogEntryTypeLink,
+    DataplexCatalogEntryTypesLink,
+    DataplexLakeLink,
+    DataplexTaskLink,
+    DataplexTasksLink,
+)
+from airflow.providers.google.cloud.operators.cloud_base import GoogleCloudBaseOperator
 
 
 class DataplexCreateTaskOperator(GoogleCloudBaseOperator):

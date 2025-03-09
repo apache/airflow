@@ -27,8 +27,9 @@ def get_provider_info():
         "name": "Yandex",
         "description": "This package is for Yandex, including:\n\n    - `Yandex.Cloud <https://cloud.yandex.com/>`__\n",
         "state": "ready",
-        "source-date-epoch": 1734537491,
+        "source-date-epoch": 1741121964,
         "versions": [
+            "4.0.1",
             "4.0.0",
             "3.12.0",
             "3.11.2",
@@ -118,4 +119,6 @@ def get_provider_info():
             }
         },
         "dependencies": ["apache-airflow>=2.9.0", "yandexcloud>=0.308.0", "yandex-query-client>=0.1.4"],
+        "optional-dependencies": {"common.compat": ["apache-airflow-providers-common-compat"]},
+        "devel-dependencies": [],
     }

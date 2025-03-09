@@ -35,7 +35,6 @@ from airflow.configuration import conf
 from airflow.dag_processing.collection import (
     AssetModelOperation,
     _get_latest_runs_stmt,
-    _sync_dag_perms,
     update_dag_parsing_results_in_db,
 )
 from airflow.exceptions import SerializationError
@@ -50,7 +49,7 @@ from airflow.models.errors import ParseImportError
 from airflow.models.serialized_dag import SerializedDagModel
 from airflow.providers.standard.operators.empty import EmptyOperator
 from airflow.providers.standard.triggers.temporal import TimeDeltaTrigger
-from airflow.sdk.definitions.asset import Asset, AssetWatcher
+from airflow.sdk.definitions.asset import Asset, AssetAlias, AssetWatcher
 from airflow.serialization.serialized_objects import LazyDeserializedDAG, SerializedDAG
 from airflow.utils import timezone as tz
 from airflow.utils.session import create_session
@@ -149,7 +148,7 @@ class TestAssetModelOperation:
                 dag.is_active = is_active
                 dag.is_paused = is_paused
 
-            orm_assets = asset_op.add_assets(session=session)
+            orm_assets = asset_op.sync_assets(session=session)
             # Create AssetActive objects from assets. It is usually done in the scheduler
             for asset in orm_assets.values():
                 session.add(AssetActive.for_asset(asset))
@@ -161,6 +160,57 @@ class TestAssetModelOperation:
 
             assert session.query(Trigger).count() == expected_num_triggers
             assert session.query(asset_trigger_association_table).count() == expected_num_triggers
+
+    def test_change_asset_property_sync_group(self, dag_maker, session):
+        asset = Asset("myasset", group="old_group")
+        with dag_maker(schedule=[asset]) as dag:
+            EmptyOperator(task_id="mytask")
+
+        asset_op = AssetModelOperation.collect({dag.dag_id: dag})
+        orm_assets = asset_op.sync_assets(session=session)
+        assert len(orm_assets) == 1
+        assert next(iter(orm_assets.values())).group == "old_group"
+
+        # Parser should pick up group change.
+        asset.group = "new_group"
+        asset_op = AssetModelOperation.collect({dag.dag_id: dag})
+        orm_assets = asset_op.sync_assets(session=session)
+        assert len(orm_assets) == 1
+        assert next(iter(orm_assets.values())).group == "new_group"
+
+    def test_change_asset_property_sync_extra(self, dag_maker, session):
+        asset = Asset("myasset", extra={"foo": "old"})
+        with dag_maker(schedule=asset) as dag:
+            EmptyOperator(task_id="mytask")
+
+        asset_op = AssetModelOperation.collect({dag.dag_id: dag})
+        orm_assets = asset_op.sync_assets(session=session)
+        assert len(orm_assets) == 1
+        assert next(iter(orm_assets.values())).extra == {"foo": "old"}
+
+        # Parser should pick up extra change.
+        asset.extra = {"foo": "new"}
+        asset_op = AssetModelOperation.collect({dag.dag_id: dag})
+        orm_assets = asset_op.sync_assets(session=session)
+        assert len(orm_assets) == 1
+        assert next(iter(orm_assets.values())).extra == {"foo": "new"}
+
+    def test_change_asset_alias_property_sync_group(self, dag_maker, session):
+        alias = AssetAlias("myalias", group="old_group")
+        with dag_maker(schedule=alias) as dag:
+            EmptyOperator(task_id="mytask")
+
+        asset_op = AssetModelOperation.collect({dag.dag_id: dag})
+        orm_aliases = asset_op.sync_asset_aliases(session=session)
+        assert len(orm_aliases) == 1
+        assert next(iter(orm_aliases.values())).group == "old_group"
+
+        # Parser should pick up group change.
+        alias.group = "new_group"
+        asset_op = AssetModelOperation.collect({dag.dag_id: dag})
+        orm_aliases = asset_op.sync_asset_aliases(session=session)
+        assert len(orm_aliases) == 1
+        assert next(iter(orm_aliases.values())).group == "new_group"
 
 
 @pytest.mark.db_test
@@ -414,37 +464,6 @@ class TestUpdateDagParsingResults:
         import_errors = set(session.execute(select(ParseImportError.filename, ParseImportError.bundle_name)))
 
         assert import_errors == {("def.py", bundle_name)}
-
-    def test_sync_perm_for_dag_with_dict_access_control(self, session, spy_agency: SpyAgency):
-        """
-        Test that dagbag._sync_perm_for_dag will call ApplessAirflowSecurityManager.sync_perm_for_dag
-        """
-        from airflow.www.security_appless import ApplessAirflowSecurityManager
-
-        spy = spy_agency.spy_on(
-            ApplessAirflowSecurityManager.sync_perm_for_dag, owner=ApplessAirflowSecurityManager
-        )
-
-        dag = DAG(dag_id="test")
-
-        def _sync_perms():
-            spy.reset_calls()
-            _sync_dag_perms(dag, session=session)
-
-        # perms dont exist
-        _sync_perms()
-        spy_agency.assert_spy_called_with(spy, dag.dag_id, access_control=None)
-
-        # perms now exist
-        _sync_perms()
-        spy_agency.assert_spy_called_with(spy, dag.dag_id, access_control=None)
-
-        # Always sync if we have access_control
-        dag.access_control = {"Public": {"DAGs": {"can_read"}, "DAG Runs": {"can_create"}}}
-        _sync_perms()
-        spy_agency.assert_spy_called_with(
-            spy, dag.dag_id, access_control={"Public": {"DAGs": {"can_read"}, "DAG Runs": {"can_create"}}}
-        )
 
     @pytest.mark.parametrize(
         ("attrs", "expected"),

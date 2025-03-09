@@ -45,7 +45,6 @@ class TestExecutorLoader:
         "executor_name",
         [
             "CeleryExecutor",
-            "CeleryKubernetesExecutor",
             "DebugExecutor",
             "KubernetesExecutor",
             "LocalExecutor",
@@ -287,7 +286,6 @@ class TestExecutorLoader:
         ("executor_config", "expected_value"),
         [
             ("CeleryExecutor", "CeleryExecutor"),
-            ("CeleryKubernetesExecutor", "CeleryKubernetesExecutor"),
             ("DebugExecutor", "DebugExecutor"),
             ("KubernetesExecutor", "KubernetesExecutor"),
             ("LocalExecutor", "LocalExecutor"),

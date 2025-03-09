@@ -19,9 +19,7 @@ from __future__ import annotations
 
 import contextlib
 import datetime
-import json
 import logging
-import os
 from typing import TYPE_CHECKING
 from unittest import mock
 from unittest.mock import patch
@@ -32,10 +30,10 @@ from flask_appbuilder import SQLA, Model, expose, has_access
 from flask_appbuilder.views import BaseView, ModelView
 from sqlalchemy import Column, Date, Float, Integer, String
 
-from airflow.configuration import initialize_config
 from airflow.exceptions import AirflowException
 from airflow.models import DagModel
 from airflow.models.dag import DAG
+from airflow.providers.fab.www.utils import CustomSQLAInterface
 
 from tests_common.test_utils.compat import ignore_provider_compatibility_error
 
@@ -45,11 +43,9 @@ with ignore_provider_compatibility_error("2.9.0+", __file__):
     from airflow.providers.fab.auth_manager.models.anonymous_user import AnonymousUser
 
 from airflow.api_fastapi.app import get_auth_manager
+from airflow.providers.fab.www import app as application
 from airflow.providers.fab.www.security import permissions
 from airflow.providers.fab.www.security.permissions import ACTION_CAN_READ
-from airflow.www import app as application
-from airflow.www.auth import get_access_denied_message
-from airflow.www.utils import CustomSQLAInterface
 from unit.fab.auth_manager.api_endpoints.api_connexion_utils import (
     create_user,
     create_user_scope,
@@ -137,19 +133,19 @@ def _delete_dag_model(dag_model, session, security_manager):
 
 
 def _can_read_dag(dag_id: str, user) -> bool:
-    from airflow.auth.managers.models.resource_details import DagDetails
+    from airflow.api_fastapi.auth.managers.models.resource_details import DagDetails
 
     return get_auth_manager().is_authorized_dag(method="GET", details=DagDetails(id=dag_id), user=user)
 
 
 def _can_edit_dag(dag_id: str, user) -> bool:
-    from airflow.auth.managers.models.resource_details import DagDetails
+    from airflow.api_fastapi.auth.managers.models.resource_details import DagDetails
 
     return get_auth_manager().is_authorized_dag(method="PUT", details=DagDetails(id=dag_id), user=user)
 
 
 def _can_delete_dag(dag_id: str, user) -> bool:
-    from airflow.auth.managers.models.resource_details import DagDetails
+    from airflow.api_fastapi.auth.managers.models.resource_details import DagDetails
 
     return get_auth_manager().is_authorized_dag(method="DELETE", details=DagDetails(id=dag_id), user=user)
 
@@ -180,7 +176,7 @@ def clear_db_before_test():
 
 @pytest.fixture(scope="module")
 def app():
-    _app = application.create_app(testing=True)
+    _app = application.create_app(enable_plugins=False)
     _app.config["WTF_CSRF_ENABLED"] = False
     return _app
 
@@ -247,12 +243,9 @@ def sample_dags(security_manager):
 @pytest.fixture(scope="module")
 def has_dag_perm(security_manager):
     def _has_dag_perm(perm, dag_id, user):
-        from airflow.auth.managers.models.resource_details import DagDetails
+        from airflow.api_fastapi.auth.managers.models.resource_details import DagDetails
 
-        root_dag_id = security_manager._get_root_dag_id(dag_id)
-        return get_auth_manager().is_authorized_dag(
-            method=perm, details=DagDetails(id=root_dag_id), user=user
-        )
+        return get_auth_manager().is_authorized_dag(method=perm, details=DagDetails(id=dag_id), user=user)
 
     return _has_dag_perm
 
@@ -548,7 +541,7 @@ def test_dont_get_inaccessible_dag_ids_for_dag_resource_permission(
                 dag_id, access_control={role_name: permission_action}
             )
 
-            assert get_auth_manager().get_permitted_dag_ids(methods=["GET"], user=user) == set()
+            assert get_auth_manager().get_permitted_dag_ids(user=user) == set()
 
 
 def test_has_access(security_manager):
@@ -903,23 +896,6 @@ def test_override_role_vm(app_builder):
     assert {"Airflow"} == test_security_manager.VIEWER_VMS
 
 
-def test_correct_roles_have_perms_to_read_config(security_manager):
-    roles_to_check = security_manager.get_all_roles()
-    assert len(roles_to_check) >= 5
-    for role in roles_to_check:
-        if role.name in ["Admin", "Op"]:
-            assert security_manager.permission_exists_in_one_or_more_roles(
-                permissions.RESOURCE_CONFIG, permissions.ACTION_CAN_READ, [role.id]
-            )
-        else:
-            assert not security_manager.permission_exists_in_one_or_more_roles(
-                permissions.RESOURCE_CONFIG, permissions.ACTION_CAN_READ, [role.id]
-            ), (
-                f"{role.name} should not have {permissions.ACTION_CAN_READ} "
-                f"on {permissions.RESOURCE_CONFIG}"
-            )
-
-
 def test_create_dag_specific_permissions(session, security_manager, monkeypatch, sample_dags):
     access_control = (
         {"Public": {"DAGs": {permissions.ACTION_CAN_READ}}}
@@ -1113,81 +1089,3 @@ def test_users_can_be_found(app, security_manager, session, caplog):
     assert len(users) == 1
     delete_user(app, "Test")
     assert "Error adding new user to database" in caplog.text
-
-
-def test_default_access_denied_message():
-    initialize_config()
-    assert get_access_denied_message() == "Access is Denied"
-
-
-def test_custom_access_denied_message():
-    with mock.patch.dict(
-        os.environ,
-        {"AIRFLOW__WEBSERVER__ACCESS_DENIED_MESSAGE": "My custom access denied message"},
-        clear=True,
-    ):
-        initialize_config()
-        assert get_access_denied_message() == "My custom access denied message"
-
-
-@pytest.mark.db_test
-class TestHasAccessDagDecorator:
-    @pytest.mark.parametrize(
-        "dag_id_args, dag_id_kwargs, dag_id_form, dag_id_json, fail",
-        [
-            ("a", None, None, None, False),
-            (None, "b", None, None, False),
-            (None, None, "c", None, False),
-            (None, None, None, "d", False),
-            ("a", "a", None, None, False),
-            ("a", "a", "a", None, False),
-            ("a", "a", "a", "a", False),
-            (None, "a", "a", "a", False),
-            (None, None, "a", "a", False),
-            ("a", None, None, "a", False),
-            ("a", None, "a", None, False),
-            ("a", None, "c", None, True),
-            (None, "b", "c", None, True),
-            (None, None, "c", "d", True),
-            ("a", "b", "c", "d", True),
-        ],
-    )
-    def test_dag_id_consistency(
-        self,
-        app,
-        dag_id_args: str | None,
-        dag_id_kwargs: str | None,
-        dag_id_form: str | None,
-        dag_id_json: str | None,
-        fail: bool,
-    ):
-        with app.test_request_context() as mock_context:
-            from airflow.www.auth import has_access_dag
-
-            mock_context.request.args = {"dag_id": dag_id_args} if dag_id_args else {}
-            kwargs = {"dag_id": dag_id_kwargs} if dag_id_kwargs else {}
-            mock_context.request.form = {"dag_id": dag_id_form} if dag_id_form else {}
-            if dag_id_json:
-                mock_context.request._cached_data = json.dumps({"dag_id": dag_id_json})
-                mock_context.request._parsed_content_type = ["application/json"]
-
-            with create_user_scope(
-                app,
-                username="test-user",
-                role_name="limited-role",
-                permissions=[(permissions.ACTION_CAN_READ, permissions.RESOURCE_DAG)],
-            ) as user:
-                with patch(
-                    "airflow.providers.fab.auth_manager.fab_auth_manager.FabAuthManager.get_user"
-                ) as mock_get_user:
-                    mock_get_user.return_value = user
-
-                    @has_access_dag("GET")
-                    def test_func(**kwargs):
-                        return True
-
-                    result = test_func(**kwargs)
-                    if fail:
-                        assert result[1] == 403
-                    else:
-                        assert result is True

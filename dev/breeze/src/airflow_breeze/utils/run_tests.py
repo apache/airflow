@@ -153,7 +153,7 @@ def get_excluded_provider_args(python_version: str) -> list[str]:
 
 TEST_TYPE_CORE_MAP_TO_PYTEST_ARGS: dict[str, list[str]] = {
     "Always": ["tests/always"],
-    "API": ["tests/api", "tests/api_connexion", "tests/api_fastapi"],
+    "API": ["tests/api", "tests/api_fastapi"],
     "CLI": ["tests/cli"],
     "Core": [
         "tests/core",
@@ -168,7 +168,7 @@ TEST_TYPE_CORE_MAP_TO_PYTEST_ARGS: dict[str, list[str]] = {
     "Serialization": [
         "tests/serialization",
     ],
-    "TaskSDK": ["task_sdk/tests"],
+    "TaskSDK": ["task-sdk/tests"],
     "WWW": [
         "tests/www",
     ],
@@ -200,7 +200,7 @@ ALL_PROVIDER_INTEGRATION_TEST_FOLDERS: list[str] = sorted(
 TEST_GROUP_TO_TEST_FOLDERS: dict[GroupOfTests, list[str]] = {
     GroupOfTests.CORE: ["tests"],
     GroupOfTests.PROVIDERS: ALL_PROVIDER_TEST_FOLDERS,
-    GroupOfTests.TASK_SDK: ["task_sdk/tests"],
+    GroupOfTests.TASK_SDK: ["task-sdk/tests"],
     GroupOfTests.HELM: ["helm_tests"],
     GroupOfTests.INTEGRATION_CORE: ["tests/integration"],
     GroupOfTests.INTEGRATION_PROVIDERS: ALL_PROVIDER_INTEGRATION_TEST_FOLDERS,

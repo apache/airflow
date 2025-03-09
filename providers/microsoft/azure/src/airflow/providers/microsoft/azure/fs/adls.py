@@ -18,9 +18,10 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, Any
 
+from azure.identity import ClientSecretCredential
+
 from airflow.hooks.base import BaseHook
 from airflow.providers.microsoft.azure.utils import get_field, parse_blob_account_url
-from azure.identity import ClientSecretCredential
 
 if TYPE_CHECKING:
     from fsspec import AbstractFileSystem

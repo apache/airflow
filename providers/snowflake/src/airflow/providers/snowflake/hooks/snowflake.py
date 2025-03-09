@@ -28,15 +28,15 @@ from urllib.parse import urlparse
 
 from cryptography.hazmat.backends import default_backend
 from cryptography.hazmat.primitives import serialization
+from snowflake import connector
+from snowflake.connector import DictCursor, SnowflakeConnection, util_text
+from snowflake.sqlalchemy import URL
 from sqlalchemy import create_engine
 
 from airflow.exceptions import AirflowException
 from airflow.providers.common.sql.hooks.sql import DbApiHook, return_single_query_results
 from airflow.providers.snowflake.utils.openlineage import fix_snowflake_sqlalchemy_uri
 from airflow.utils.strings import to_boolean
-from snowflake import connector
-from snowflake.connector import DictCursor, SnowflakeConnection, util_text
-from snowflake.sqlalchemy import URL
 
 T = TypeVar("T")
 if TYPE_CHECKING:
@@ -367,9 +367,10 @@ class SnowflakeHook(DbApiHook):
 
         :return: the created session.
         """
+        from snowflake.snowpark import Session
+
         from airflow import __version__ as airflow_version
         from airflow.providers.snowflake import __version__ as provider_version
-        from snowflake.snowpark import Session
 
         conn_config = self._get_conn_params
         session = Session.builder.configs(conn_config).create()

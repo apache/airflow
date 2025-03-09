@@ -518,7 +518,7 @@ class TestGetMappedTaskInstance(TestTaskInstanceEndpoint):
                 "unixname": getuser(),
                 "dag_run_id": "TEST_DAG_RUN_ID",
                 "rendered_fields": {"op_args": "()", "op_kwargs": {}, "templates_dict": None},
-                "rendered_map_index": None,
+                "rendered_map_index": str(map_index),
                 "run_after": "2020-01-01T00:00:00Z",
                 "trigger": None,
                 "triggerer_job": None,
@@ -740,7 +740,7 @@ class TestGetMappedTaskInstances:
             .first()
         )
 
-        ti.rendered_map_index = "a"
+        ti._rendered_map_index = "a"
 
         session.commit()
 
@@ -2062,6 +2062,31 @@ class TestPostClearTaskInstances(TestTaskInstanceEndpoint):
         assert response.status_code == 200
         assert response.json()["total_entries"] == expected_ti
 
+    @pytest.mark.parametrize("flag", ["include_future", "include_past"])
+    def test_dag_run_with_future_or_past_flag_returns_400(self, test_client, session, flag):
+        dag_id = "example_python_operator"
+        payload = {
+            "dry_run": True,
+            "dag_run_id": "TEST_DAG_RUN_ID_0",
+            "only_failed": True,
+            flag: True,
+        }
+        task_instances = [{"logical_date": DEFAULT_DATETIME_1, "state": State.FAILED}]
+        self.create_task_instances(
+            session,
+            dag_id=dag_id,
+            task_instances=task_instances,
+            update_extras=False,
+            dag_run_state=State.FAILED,
+        )
+        self.dagbag.sync_to_db("dags-folder", None)
+        response = test_client.post(f"/public/dags/{dag_id}/clearTaskInstances", json=payload)
+        assert response.status_code == 400
+        assert (
+            "Cannot use include_past or include_future when dag_run_id is provided"
+            in response.json()["detail"]
+        )
+
     @pytest.mark.parametrize(
         "main_dag, task_instances, request_dag, payload, expected_ti",
         [
@@ -3346,7 +3371,7 @@ class TestPatchTaskInstance(TestTaskInstanceEndpoint):
                 "unixname": getuser(),
                 "dag_run_id": self.RUN_ID,
                 "rendered_fields": {"op_args": "()", "op_kwargs": {}, "templates_dict": None},
-                "rendered_map_index": None,
+                "rendered_map_index": str(map_index),
                 "run_after": "2020-01-01T00:00:00Z",
                 "trigger": None,
                 "triggerer_job": None,

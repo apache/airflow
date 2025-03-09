@@ -28,6 +28,33 @@
 Changelog
 ---------
 
+4.2.0
+.....
+
+.. note::
+  This version has no code changes. It's released due to yank of previous version due to packaging issues.
+
+
+4.1.0
+.....
+
+Features
+~~~~~~~~
+
+* ``Add 'endpoint_prefix' to 'LivyHook' (#45811)``
+
+Misc
+~~~~
+
+* ``Satisfy Mypy for Livy Hook (#46157)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Move provider_tests to unit folder in provider tests (#46800)``
+   * ``Removed the unused provider's distribution (#46608)``
+   * ``Fix doc issues found with recent moves (#46372)``
+   * ``Move Apache Livy to new provider structure (#46131)``
+
 4.0.0
 .....
 

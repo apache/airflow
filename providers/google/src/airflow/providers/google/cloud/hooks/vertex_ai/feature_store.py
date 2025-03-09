@@ -18,13 +18,14 @@
 
 from __future__ import annotations
 
-from airflow.exceptions import AirflowException
-from airflow.providers.google.common.consts import CLIENT_INFO
-from airflow.providers.google.common.hooks.base_google import PROVIDE_PROJECT_ID, GoogleBaseHook
 from google.api_core.client_options import ClientOptions
 from google.cloud.aiplatform_v1beta1 import (
     FeatureOnlineStoreAdminServiceClient,
 )
+
+from airflow.exceptions import AirflowException
+from airflow.providers.google.common.consts import CLIENT_INFO
+from airflow.providers.google.common.hooks.base_google import PROVIDE_PROJECT_ID, GoogleBaseHook
 
 
 class FeatureStoreHook(GoogleBaseHook):

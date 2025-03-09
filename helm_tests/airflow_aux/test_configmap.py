@@ -51,6 +51,7 @@ class TestConfigmap:
     @pytest.mark.parametrize(
         "af_version, secret_key, secret_key_name, expected",
         [
+            ("3.0.0", None, None, False),
             ("2.2.0", None, None, True),
             ("2.2.0", "foo", None, False),
             ("2.2.0", None, "foo", False),

@@ -17,6 +17,7 @@
  * under the License.
  */
 import { Box, Flex, HStack, VStack, Text } from "@chakra-ui/react";
+import { Link as RouterLink } from "react-router-dom";
 
 import type { TaskInstanceState } from "openapi/requests/types.gen";
 import { StateBadge } from "src/components/StateBadge";
@@ -26,12 +27,15 @@ const BAR_WIDTH = 100;
 const BAR_HEIGHT = 5;
 
 type MetricSectionProps = {
+  readonly endDate: string;
+  readonly kind: string;
   readonly runs: number;
+  readonly startDate: string;
   readonly state: TaskInstanceState;
   readonly total: number;
 };
 
-export const MetricSection = ({ runs, state, total }: MetricSectionProps) => {
+export const MetricSection = ({ endDate, kind, runs, startDate, state, total }: MetricSectionProps) => {
   // Calculate the given state as a percentage of total and draw a bar
   // in state's color with width as state's percentage and remaining width filed as gray
   const statePercent = total === 0 ? 0 : ((runs / total) * 100).toFixed(2);
@@ -42,9 +46,11 @@ export const MetricSection = ({ runs, state, total }: MetricSectionProps) => {
     <VStack align="left" gap={1} mb={4} ml={0} pl={0}>
       <Flex justify="space-between">
         <HStack>
-          <StateBadge fontSize="md" state={state}>
-            {runs}
-          </StateBadge>
+          <RouterLink to={`/${kind}?state=${state}&start_date=${startDate}&end_date=${endDate}`}>
+            <StateBadge fontSize="md" state={state}>
+              {runs}
+            </StateBadge>
+          </RouterLink>
           <Text>
             {state
               .split("_")

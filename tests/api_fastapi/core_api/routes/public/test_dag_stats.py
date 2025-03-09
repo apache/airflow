@@ -62,7 +62,6 @@ class TestDagStatsEndpoint:
             run_type=DagRunType.MANUAL,
             logical_date=timezone.parse(self.default_time),
             start_date=timezone.parse(self.default_time),
-            external_trigger=True,
             state="running",
         )
         dag_1_run_2 = DagRun(
@@ -71,7 +70,6 @@ class TestDagStatsEndpoint:
             run_type=DagRunType.MANUAL,
             logical_date=timezone.parse(self.default_time) + timedelta(days=1),
             start_date=timezone.parse(self.default_time),
-            external_trigger=True,
             state="failed",
         )
         dag_2 = DagModel(
@@ -89,7 +87,6 @@ class TestDagStatsEndpoint:
             run_type=DagRunType.MANUAL,
             logical_date=timezone.parse(self.default_time),
             start_date=timezone.parse(self.default_time),
-            external_trigger=True,
             state="queued",
         )
         dag_3 = DagModel(
@@ -107,7 +104,6 @@ class TestDagStatsEndpoint:
             run_type=DagRunType.MANUAL,
             logical_date=timezone.parse(self.default_time),
             start_date=timezone.parse(self.default_time),
-            external_trigger=True,
             state="success",
         )
         entities = (

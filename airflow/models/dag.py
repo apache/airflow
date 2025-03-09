@@ -21,6 +21,7 @@ import asyncio
 import copy
 import functools
 import logging
+import re
 import sys
 import time
 from collections import defaultdict
@@ -42,7 +43,6 @@ from typing import (
 import attrs
 import methodtools
 import pendulum
-import re2
 import sqlalchemy_jsonfield
 from dateutil.relativedelta import relativedelta
 from packaging import version as packaging_version
@@ -68,6 +68,7 @@ from sqlalchemy.orm import backref, load_only, relationship
 from sqlalchemy.sql import Select, expression
 
 from airflow import settings, utils
+from airflow.assets.evaluation import AssetEvaluator
 from airflow.configuration import conf as airflow_conf, secrets_backend_list
 from airflow.exceptions import (
     AirflowException,
@@ -180,7 +181,7 @@ def _get_model_data_interval(
     return DataInterval(start, end)
 
 
-def get_last_dagrun(dag_id, session, include_externally_triggered=False):
+def get_last_dagrun(dag_id, session, include_manually_triggered=False):
     """
     Return the last dag run for a dag, None if there was none.
 
@@ -189,8 +190,8 @@ def get_last_dagrun(dag_id, session, include_externally_triggered=False):
     """
     DR = DagRun
     query = select(DR).where(DR.dag_id == dag_id, DR.logical_date.is_not(None))
-    if not include_externally_triggered:
-        query = query.where(DR.external_trigger == expression.false())
+    if not include_manually_triggered:
+        query = query.where(DR.run_type != DagRunType.MANUAL)
     query = query.order_by(DR.logical_date.desc())
     return session.scalar(query.limit(1))
 
@@ -252,7 +253,6 @@ def _create_orm_dagrun(
     data_interval: DataInterval | None,
     run_after: datetime,
     start_date: datetime | None,
-    external_trigger: bool,
     conf: Any,
     state: DagRunState | None,
     run_type: DagRunType,
@@ -268,7 +268,6 @@ def _create_orm_dagrun(
         logical_date=logical_date,
         start_date=start_date,
         run_after=run_after,
-        external_trigger=external_trigger,
         conf=conf,
         state=state,
         run_type=run_type,
@@ -710,16 +709,16 @@ class DAG(TaskSDKDag, LoggingMixin):
                 break
 
     @provide_session
-    def get_last_dagrun(self, session=NEW_SESSION, include_externally_triggered=False):
+    def get_last_dagrun(self, session=NEW_SESSION, include_manually_triggered=False):
         return get_last_dagrun(
-            self.dag_id, session=session, include_externally_triggered=include_externally_triggered
+            self.dag_id, session=session, include_manually_triggered=include_manually_triggered
         )
 
     @provide_session
-    def has_dag_runs(self, session=NEW_SESSION, include_externally_triggered=True) -> bool:
+    def has_dag_runs(self, session=NEW_SESSION, include_manually_triggered=True) -> bool:
         return (
             get_last_dagrun(
-                self.dag_id, session=session, include_externally_triggered=include_externally_triggered
+                self.dag_id, session=session, include_manually_triggered=include_manually_triggered
             )
             is not None
         )
@@ -1136,7 +1135,7 @@ class DAG(TaskSDKDag, LoggingMixin):
                     if not external_dag:
                         raise AirflowException(f"Could not find dag {tii.dag_id}")
                     downstream = external_dag.partial_subset(
-                        task_ids_or_regex=[tii.task_id],
+                        task_ids=[tii.task_id],
                         include_upstream=False,
                         include_downstream=True,
                     )
@@ -1250,7 +1249,7 @@ class DAG(TaskSDKDag, LoggingMixin):
         # Flush the session so that the tasks marked success are reflected in the db.
         session.flush()
         subdag = self.partial_subset(
-            task_ids_or_regex={task_id},
+            task_ids={task_id},
             include_downstream=True,
             include_upstream=False,
         )
@@ -1362,7 +1361,7 @@ class DAG(TaskSDKDag, LoggingMixin):
             # Flush the session so that the tasks marked success are reflected in the db.
             session.flush()
             task_subset = self.partial_subset(
-                task_ids_or_regex=task_ids,
+                task_ids=task_ids,
                 include_downstream=True,
                 include_upstream=False,
             )
@@ -1723,7 +1722,7 @@ class DAG(TaskSDKDag, LoggingMixin):
                     ti.task = tasks[ti.task_id]
 
                     mark_success = (
-                        re2.compile(mark_success_pattern).fullmatch(ti.task_id) is not None
+                        re.compile(mark_success_pattern).fullmatch(ti.task_id) is not None
                         if mark_success_pattern is not None
                         else False
                     )
@@ -1767,7 +1766,6 @@ class DAG(TaskSDKDag, LoggingMixin):
         conf: dict | None = None,
         run_type: DagRunType,
         triggered_by: DagRunTriggeredByType,
-        external_trigger: bool = False,
         dag_version: DagVersion | None = None,
         state: DagRunState,
         start_date: datetime | None = None,
@@ -1806,9 +1804,9 @@ class DAG(TaskSDKDag, LoggingMixin):
 
         # This is also done on the DagRun model class, but SQLAlchemy column
         # validator does not work well for some reason.
-        if not re2.match(RUN_ID_REGEX, run_id):
+        if not re.match(RUN_ID_REGEX, run_id):
             regex = airflow_conf.get("scheduler", "allowed_run_id_pattern").strip()
-            if not regex or not re2.match(regex, run_id):
+            if not regex or not re.match(regex, run_id):
                 raise ValueError(
                     f"The run_id provided '{run_id}' does not match regex pattern "
                     f"'{regex}' or '{RUN_ID_REGEX}'"
@@ -1839,7 +1837,6 @@ class DAG(TaskSDKDag, LoggingMixin):
             data_interval=data_interval,
             run_after=timezone.coerce_datetime(run_after),
             start_date=timezone.coerce_datetime(start_date),
-            external_trigger=external_trigger,
             conf=conf,
             state=state,
             run_type=run_type,
@@ -1880,8 +1877,8 @@ class DAG(TaskSDKDag, LoggingMixin):
 
         asset_op = AssetModelOperation.collect(dag_op.dags)
 
-        orm_assets = asset_op.add_assets(session=session)
-        orm_asset_aliases = asset_op.add_asset_aliases(session=session)
+        orm_assets = asset_op.sync_assets(session=session)
+        orm_asset_aliases = asset_op.sync_asset_aliases(session=session)
         session.flush()  # This populates id so we can create fks in later calls.
 
         orm_dags = dag_op.find_orm_dags(session=session)  # Refetch so relationship is up to date.
@@ -2206,9 +2203,9 @@ class DagModel(Base):
         return session.scalar(select(cls).where(cls.dag_id == dag_id))
 
     @provide_session
-    def get_last_dagrun(self, session=NEW_SESSION, include_externally_triggered=False):
+    def get_last_dagrun(self, session=NEW_SESSION, include_manually_triggered=False):
         return get_last_dagrun(
-            self.dag_id, session=session, include_externally_triggered=include_externally_triggered
+            self.dag_id, session=session, include_manually_triggered=include_manually_triggered
         )
 
     def get_is_paused(self, *, session: Session | None = None) -> bool:
@@ -2279,7 +2276,7 @@ class DagModel(Base):
         :meta private:
         """
         return case(
-            (self._dag_display_property_value.isnot(None), self._dag_display_property_value),
+            (self._dag_display_property_value.is_not(None), self._dag_display_property_value),
             else_=self.dag_id,
         )
 
@@ -2327,12 +2324,14 @@ class DagModel(Base):
         """
         from airflow.models.serialized_dag import SerializedDagModel
 
+        evaluator = AssetEvaluator(session)
+
         def dag_ready(dag_id: str, cond: BaseAsset, statuses: dict[AssetUniqueKey, bool]) -> bool | None:
             # if dag was serialized before 2.9 and we *just* upgraded,
             # we may be dealing with old version.  In that case,
             # just wait for the dag to be reserialized.
             try:
-                return cond.evaluate(statuses, session=session)
+                return evaluator.run(cond, statuses)
             except AttributeError:
                 log.warning("dag '%s' has old serialization; skipping DAG run creation.", dag_id)
                 return None

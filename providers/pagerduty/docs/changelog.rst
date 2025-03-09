@@ -27,6 +27,21 @@
 Changelog
 ---------
 
+4.0.1
+.....
+
+Bug Fixes
+~~~~~~~~~
+
+* ``(bugfix): replace 'create_event'  with 'send_event'  in 'PagerdutyNotifier' (#45630)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Move provider_tests to unit folder in provider tests (#46800)``
+   * ``Removed the unused provider's distribution (#46608)``
+   * ``Moving EmptyOperator to standard provider (#46231)``
+   * `` Move mysql, odbc, jenkins, pagerduty to new provider structure.  (#46102)``
+
 4.0.0
 .....
 

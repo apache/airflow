@@ -630,8 +630,14 @@ def post_clear_task_instances(
         if dag_run is None:
             error_message = f"Dag Run id {dag_run_id} not found in dag {dag_id}"
             raise HTTPException(status.HTTP_404_NOT_FOUND, error_message)
-        body.start_date = dag_run.logical_date
-        body.end_date = dag_run.logical_date
+
+        if past or future:
+            raise HTTPException(
+                status.HTTP_400_BAD_REQUEST,
+                "Cannot use include_past or include_future when dag_run_id is provided because logical_date is not applicable.",
+            )
+        body.start_date = dag_run.logical_date if dag_run.logical_date is not None else None
+        body.end_date = dag_run.logical_date if dag_run.logical_date is not None else None
 
     if past:
         body.start_date = None
@@ -643,7 +649,7 @@ def post_clear_task_instances(
     if task_ids is not None:
         task_id = [task[0] if isinstance(task, tuple) else task for task in task_ids]
         dag = dag.partial_subset(
-            task_ids_or_regex=task_id,
+            task_ids=task_id,
             include_downstream=downstream,
             include_upstream=upstream,
         )

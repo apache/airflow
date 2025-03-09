@@ -28,8 +28,9 @@ from airflow.models import BaseOperator
 from airflow.providers.microsoft.azure.hooks.adx import AzureDataExplorerHook
 
 if TYPE_CHECKING:
-    from airflow.utils.context import Context
     from azure.kusto.data._models import KustoResultTable
+
+    from airflow.utils.context import Context
 
 
 class AzureDataExplorerQueryOperator(BaseOperator):

@@ -18,7 +18,7 @@
 default_stages: [pre-commit, pre-push]
 default_language_version:
   python: python3
-  node: 22.2.0
+  node: 22.14.0
 minimum_pre_commit_version: '3.2.0'
 exclude: ^.*/.*_vendor/
 repos:
@@ -67,20 +67,10 @@ repos:
       - id: insert-license
         name: Add license for CSS/JS/JSX/PUML/TS/TSX
         files: \.(css|jsx?|puml|tsx?)$
-        exclude: ^\.github/.*$|^airflow/www/static/js/types/api-generated.ts$|ui/openapi-gen/|.*/dist/.*
+        exclude: ^\.github/.*$|ui/openapi-gen/|.*/dist/.*
         args:
           - --comment-style
           - "/*!| *| */"
-          - --license-filepath
-          - scripts/ci/license-templates/LICENSE.txt
-          - --fuzzy-match-generates-todo
-      - id: insert-license
-        name: Add license for all JINJA template files
-        files: ^airflow/www/templates/.*\.html$
-        exclude: ^\.github/.*$
-        args:
-          - --comment-style
-          - "{#||#}"
           - --license-filepath
           - scripts/ci/license-templates/LICENSE.txt
           - --fuzzy-match-generates-todo
@@ -135,7 +125,7 @@ repos:
           - --fuzzy-match-generates-todo
       - id: insert-license
         name: Add license for all YAML files except Helm templates
-        exclude: ^\.github/.*$|^chart/templates/.*|.*/reproducible_build.yaml$|^airflow/api_fastapi/core_api/openapi/v1-generated.yaml$|^airflow/auth/managers/simple/openapi/v1-generated.yaml$|^.*/pnpm-lock.yaml$
+        exclude: ^\.github/.*$|^chart/templates/.*|.*/reproducible_build.yaml$|^.*/v1-generated.yaml$|^.*/pnpm-lock.yaml$
         types: [yaml]
         files: \.ya?ml$
         args:
@@ -286,7 +276,16 @@ repos:
         name: Check YAML files with yamllint
         entry: yamllint -c yamllint-config.yml --strict
         types: [yaml]
-        exclude: ^.*airflow\.template\.yaml$|^.*init_git_sync\.template\.yaml$|^chart/(?:templates|files)/.*\.yaml$|openapi/.*\.yaml$|^\.pre-commit-config\.yaml$|^.*/reproducible_build.yaml$|^.*pnpm-lock\.yaml$
+        exclude: >
+          (?x)
+          ^.*airflow\.template\.yaml$|
+          ^.*init_git_sync\.template\.yaml$|
+          ^chart/(?:templates|files)/.*\.yaml$|
+          .*/v1-generated\.yaml$|
+          ^.*openapi.*\.yaml$|
+          ^\.pre-commit-config\.yaml$|
+          ^.*/reproducible_build.yaml$|
+          ^.*pnpm-lock\.yaml$
   - repo: https://github.com/ikamensh/flynt
     rev: '1.0.1'
     hooks:
@@ -299,7 +298,7 @@ repos:
          - --line-length
          - '99999'
   - repo: https://github.com/codespell-project/codespell
-    rev: v2.3.0
+    rev: v2.4.1
     hooks:
       - id: codespell
         name: Run codespell
@@ -312,10 +311,10 @@ repos:
         exclude: material-icons\.css$|^images/.*$|^RELEASE_NOTES\.txt$|^.*package-lock\.json$|^.*/kinglear\.txt$|^.*pnpm-lock\.yaml$|.*/dist/.*
         args:
           - --ignore-words=docs/spelling_wordlist.txt
-          - --skip=providers/.*/src/airflow/providers/*/*.rst,providers/*/docs/changelog.rst,airflow/www/*.log,docs/*/commits.rst,providers/*/docs/commits.rst,providers/*/*/docs/commits.rst,docs/apache-airflow/tutorial/pipeline_example.csv,*.min.js,*.lock,INTHEWILD.md
+          - --skip=providers/.*/src/airflow/providers/*/*.rst,providers/*/docs/changelog.rst,docs/*/commits.rst,providers/*/docs/commits.rst,providers/*/*/docs/commits.rst,docs/apache-airflow/tutorial/pipeline_example.csv,*.min.js,*.lock,INTHEWILD.md
           - --exclude-file=.codespellignorelines
   - repo: https://github.com/woodruffw/zizmor-pre-commit
-    rev: v1.0.0
+    rev: v1.4.1
     hooks:
       - id: zizmor
         name: Run zizmor to check for github workflow syntax errors
@@ -383,17 +382,6 @@ repos:
         types: [file, text]
         exclude: ^clients/gen/go\.sh$|^\.gitmodules$|.*/dist/.*
         additional_dependencies: ['rich>=12.4.4']
-      - id: lint-openapi
-        name: Lint OpenAPI using spectral
-        language: docker_image
-        entry: stoplight/spectral lint -r ./scripts/ci/spectral_rules/connexion.yml
-        files: ^airflow/api_connexion/openapi/
-      - id: lint-openapi
-        name: Lint OpenAPI using openapi-spec-validator
-        entry: openapi-spec-validator --schema 3.0.0
-        language: python
-        additional_dependencies: ['openapi-spec-validator>=0.7.1', 'openapi-schema-validator>=0.6.2']
-        files: ^airflow/api_connexion/openapi/
       - id: lint-dockerfile
         name: Lint Dockerfile
         language: python
@@ -431,22 +419,6 @@ repos:
         require_serial: true
         exclude: ^providers/.*/src/airflow/providers/
         entry: ./scripts/ci/pre_commit/check_cncf_k8s_used_for_k8s_executor_only.py
-        additional_dependencies: ['rich>=12.4.4']
-      - id: check-airflow-provider-compatibility
-        name: Check compatibility of Providers with Airflow
-        entry: ./scripts/ci/pre_commit/check_provider_airflow_compatibility.py
-        language: python
-        pass_filenames: true
-        files: ^providers/.*/src/airflow/providers/.*\.py$
-        additional_dependencies: ['rich>=12.4.4']
-      - id: check-google-re2-as-dependency
-        name: Check google-re2 declared as dep
-        description: Check google-re2 is declared as dependency when needed
-        entry: ./scripts/ci/pre_commit/check_google_re2_imports.py
-        language: python
-        pass_filenames: true
-        require_serial: true
-        files: ^providers/.*/src/airflow/providers/.*\.py$
         additional_dependencies: ['rich>=12.4.4']
       - id: update-local-yml-file
         name: Update mounts in the local yml file
@@ -536,7 +508,7 @@ repos:
           ^providers/fab/src/airflow/providers/fab/migrations/versions/.*$|^providers/fab/src/airflow/providers/fab/migrations/versions|
           ^airflow/utils/db.py$|
           ^providers/fab/src/airflow/providers/fab/auth_manager/models/db.py$
-        additional_dependencies: ['packaging','google-re2']
+        additional_dependencies: ['packaging']
       - id: update-version
         name: Update versions in docs
         entry: ./scripts/ci/pre_commit/update_versions.py
@@ -613,10 +585,9 @@ repos:
         pass_filenames: true
         exclude: >
           (?x)
-          ^airflow/api_connexion/openapi/v1.yaml$|
+          ^clients/python/openapi_v1.yaml$|
           ^airflow/ui/openapi-gen/|
           ^airflow/cli/commands/local_commands/fastapi_api_command.py$|
-          ^airflow/cli/commands/local_commands/webserver_command.py$|
           ^airflow/config_templates/|
           ^airflow/models/baseoperator.py$|
           ^airflow/operators/__init__.py$|
@@ -649,9 +620,6 @@ repos:
           ^airflow/ui/pnpm-lock.yaml$|
           ^airflow/utils/db.py$|
           ^airflow/utils/trigger_rule.py$|
-          ^airflow/www/static/css/bootstrap-theme.css$|
-          ^airflow/www/static/js/types/api-generated.ts$|
-          ^airflow/www/templates/appbuilder/flash.html$|
           ^chart/values.schema.json$|
           ^dev/|
           ^docs/README.rst$|
@@ -698,7 +666,7 @@ repos:
         name: Sync template context variable refs
         language: python
         entry: ./scripts/ci/pre_commit/template_context_key_sync.py
-        files: ^airflow/models/taskinstance\.py$|^task_sdk/src/airflow/sdk/definitions/context\.py$|^docs/apache-airflow/templates-ref\.rst$
+        files: ^airflow/models/taskinstance\.py$|^task-sdk/src/airflow/sdk/definitions/context\.py$|^docs/apache-airflow/templates-ref\.rst$
       - id: check-base-operator-usage
         language: pygrep
         name: Check BaseOperator core imports
@@ -716,10 +684,11 @@ repos:
       - id: check-base-operator-usage
         language: pygrep
         name: Check BaseOperatorLink core imports
-        description: Make sure BaseOperatorLink is imported from airflow.models.baseoperatorlink in core
-        entry: "from airflow\\.models import.* BaseOperatorLink"
+        description: Make sure BaseOperatorLink is not imported from airflow.models in core
+        entry: "^\\s*from airflow\\.models\\.baseoperatorlink import BaseOperatorLink\\b"
         files: \.py$
         pass_filenames: true
+        echo: True
         exclude: >
           (?x)
           ^airflow/decorators/.*$|
@@ -730,9 +699,9 @@ repos:
           ^dev/provider_packages/.*$
       - id: check-base-operator-usage
         language: pygrep
-        name: Check BaseOperator[Link] other imports
-        description: Make sure BaseOperator[Link] is imported from airflow.models outside of core
-        entry: "from airflow\\.models\\.baseoperator(link)? import.* BaseOperator"
+        name: Check BaseOperator other imports
+        description: Make sure BaseOperator is imported from airflow.models outside of core
+        entry: "from airflow\\.models\\.baseoperator import.* BaseOperator"
         pass_filenames: true
         files: >
           (?x)
@@ -758,7 +727,7 @@ repos:
         name: Verify usage of Airflow deprecation classes in core
         entry: category=DeprecationWarning|category=PendingDeprecationWarning
         files: \.py$
-        exclude: ^airflow/configuration\.py$|^providers/.*/src/airflow/providers/|^scripts/in_container/verify_providers\.py$|^(providers/.*/)?tests/.*$|^tests_common/
+        exclude: ^airflow/configuration\.py$|^providers/.*/src/airflow/providers/|^scripts/in_container/verify_providers\.py$|^(providers/.*/)?tests/.*$|^devel-common/
         pass_filenames: true
       - id: check-provide-create-sessions-imports
         language: pygrep
@@ -828,14 +797,6 @@ repos:
         files: ^\.pre-commit-config\.yaml$|^docs/spelling_wordlist\.txt$
         require_serial: true
         pass_filenames: false
-      - id: update-openapi-spec-tags-to-be-sorted
-        name: Sort alphabetically openapi spec tags
-        entry: ./scripts/ci/pre_commit/sort_tags_in_openapi_spec.py
-        types: [yaml]
-        language: python
-        files: ^\.pre-commit-config\.yaml$|^airflow/api_connexion/openapi/v1\.yaml$
-        require_serial: true
-        pass_filenames: false
       - id: lint-helm-chart
         name: Lint Helm Chart
         entry: ./scripts/ci/pre_commit/helm_lint.py
@@ -858,29 +819,13 @@ repos:
         entry: koalaman/shellcheck:v0.8.0 -x -a
         files: \.(bash|sh)$|^hooks/build$|^hooks/push$
         exclude: ^dev/breeze/autocomplete/.*$
-      - id: lint-css
-        name: stylelint
-        entry: "stylelint"
-        language: node
-        files: ^airflow/www/.*\.(css|sass|scss)$
-        # Keep dependency versions in sync w/ airflow/www/package.json
-        additional_dependencies: ['stylelint@13.3.1', 'stylelint-config-standard@20.0.0', 'stylelint-config-prettier@9.0.5']
       - id: compile-ui-assets
         name: Compile ui assets (manual)
         language: node
         stages: ['manual']
         types_or: [javascript, ts, tsx]
-        files: ^airflow/ui/|^airflow/auth/managers/simple/ui/
+        files: ^airflow/ui/|^airflow/api_fastapi/auth/managers/simple/ui/
         entry: ./scripts/ci/pre_commit/compile_ui_assets.py
-        pass_filenames: false
-        additional_dependencies: ['pnpm@9.7.1']
-      - id: compile-ui-assets-dev
-        name: Compile ui assets in dev mode (manual)
-        language: node
-        stages: ['manual']
-        types_or: [javascript, ts, tsx]
-        files: ^airflow/ui/|^airflow/auth/managers/simple/ui/
-        entry: ./scripts/ci/pre_commit/compile_ui_assets_dev.py
         pass_filenames: false
         additional_dependencies: ['pnpm@9.7.1']
       - id: compile-fab-assets
@@ -891,24 +836,15 @@ repos:
         entry: ./scripts/ci/pre_commit/compile_fab_assets.py
         pass_filenames: false
         additional_dependencies: [ 'yarn@1.22.21' ]
-      - id: compile-www-assets
-        name: Compile www assets (manual)
+      - id: compile-ui-assets-dev
+        name: Compile ui assets in dev mode (manual)
         language: node
         stages: ['manual']
-        'types_or': [javascript, ts, tsx]
-        files: ^airflow/www/
-        entry: ./scripts/ci/pre_commit/compile_www_assets.py
+        types_or: [javascript, ts, tsx]
+        files: ^airflow/ui/|^airflow/api_fastapi/auth/managers/simple/ui/
+        entry: ./scripts/ci/pre_commit/compile_ui_assets_dev.py
         pass_filenames: false
-        additional_dependencies: ['yarn@1.22.21']
-      - id: compile-www-assets-dev
-        name: Compile www assets in dev mode (manual)
-        language: node
-        stages: ['manual']
-        'types_or': [javascript, ts, tsx]
-        files: ^airflow/www/
-        entry: ./scripts/ci/pre_commit/compile_www_assets_dev.py
-        pass_filenames: false
-        additional_dependencies: ['yarn@1.22.21']
+        additional_dependencies: ['pnpm@9.7.1']
       - id: check-providers-subpackages-init-file-exist
         name: Provider subpackage init files are there
         pass_filenames: false
@@ -1194,24 +1130,6 @@ repos:
         additional_dependencies: ['rich>=12.4.4']
         pass_filenames: false
         files: ^tests/.*\.py$
-      - id: ts-compile-format-lint-www
-        name: Compile / format / lint WWW
-        description: TS types generation / ESLint / Prettier against UI files
-        language: node
-        'types_or': [javascript, ts, tsx, yaml, css, json]
-        files: ^airflow/www/static/(js|css)/|^airflow/api_connexion/openapi/v1\.yaml$
-        entry: ./scripts/ci/pre_commit/lint_www.py
-        additional_dependencies: ['yarn@1.22.21', "openapi-typescript@>=6.7.4"]
-        pass_filenames: false
-      - id: ts-compile-format-lint-ui
-        name: Compile / format / lint UI
-        description: TS types generation / ESLint / Prettier new UI files
-        language: node
-        types_or: [javascript, ts, tsx, yaml, css, json]
-        files: ^airflow/ui/|^airflow/api_fastapi/core_api/openapi/v1-generated\.yaml$|^airflow/auth/managers/simple/ui/|^airflow/auth/managers/simple/openapi/v1-generated\.yaml$
-        entry: ./scripts/ci/pre_commit/lint_ui.py
-        additional_dependencies: ['pnpm@9.7.1']
-        pass_filenames: false
       - id: check-tests-unittest-testcase
         name: Unit tests do not inherit from unittest.TestCase
         description: Check that unit tests do not inherit from unittest.TestCase
@@ -1219,35 +1137,6 @@ repos:
         language: python
         pass_filenames: true
         files: ^tests/.*\.py$
-      - id: check-usage-of-re2-over-re
-        language: pygrep
-        name: Use re2 module instead of re
-        description: Use re2 module instead of re
-        entry: "^\\s*from re\\s|^\\s*import re\\s"
-        pass_filenames: true
-        files: \.py$
-        exclude: |
-          (?x)
-          ^airflow/configuration.py$ |
-          ^airflow/metrics/validators.py$ |
-          ^airflow/models/dag.py$ |
-          ^airflow/serialization/serde.py$ |
-          ^airflow/utils/file.py$ |
-          ^airflow/utils/helpers.py$ |
-          ^providers/ |
-          ^tests/ |
-          ^providers/tests/ |
-          ^providers/.*/tests/ |
-          ^task_sdk/src/airflow/sdk/definitions/dag.py$ |
-          ^task_sdk/src/airflow/sdk/execution_time/secrets_masker.py$ |
-          ^task_sdk/src/airflow/sdk/definitions/_internal/node.py$ |
-          ^dev/.*\.py$ |
-          ^scripts/.*\.py$ |
-          ^docker_tests/.*$ |
-          ^helm_tests/.*$ |
-          ^tests_common/.*$ |
-          ^docs/.*\.py$ |
-          ^hatch_build.py$
       - id: check-provider-docs-valid
         name: Validate provider doc files
         entry: ./scripts/ci/pre_commit/check_provider_docs.py
@@ -1357,7 +1246,7 @@ repos:
             provider_packages|
             providers/|
             scripts|
-            task_sdk/|
+            task-sdk/|
             tests/dags/test_imports\.py
           )
         require_serial: true
@@ -1408,18 +1297,39 @@ repos:
         name: Run mypy for Task SDK
         language: python
         entry: ./scripts/ci/pre_commit/mypy.py --namespace-packages
-        files: ^task_sdk/src/airflow/sdk/.*\.py$|^task_sdk/tests//.*\.py$
+        files: ^task-sdk/src/airflow/sdk/.*\.py$|^task-sdk/tests//.*\.py$
         require_serial: true
         additional_dependencies: ['rich>=12.4.4']
       - id: mypy-task-sdk
         stages: ['manual']
         name: Run mypy for Task SDK (manual)
         language: python
-        entry: ./scripts/ci/pre_commit/mypy_folder.py task_sdk/src/airflow/sdk
+        entry: ./scripts/ci/pre_commit/mypy_folder.py task-sdk/src/airflow/sdk
         pass_filenames: false
         files: ^.*\.py$
         require_serial: true
         additional_dependencies: ['rich>=12.4.4']
+      - id: generate-openapi-spec
+        name: Generate the FastAPI API spec
+        language: python
+        entry: ./scripts/ci/pre_commit/update_fastapi_api_spec.py
+        pass_filenames: false
+        files: ^airflow/api_fastapi/.*\.py$|^airflow/api_fastapi/auth/managers/simple/.*\.py$|^providers/fab/src/airflow/providers/fab/auth_manager/api_fastapi/.*\.py$
+        exclude: ^airflow/api_fastapi/execution_api/.*
+        additional_dependencies: ['rich>=12.4.4']
+      - id: ts-compile-format-lint-ui
+        name: Compile / format / lint UI
+        description: TS types generation / ESLint / Prettier new UI files
+        language: node
+        types_or: [javascript, ts, tsx, yaml, css, json]
+        files: |
+          (?x)
+          ^airflow/ui/|^airflow/api_fastapi/core_api/openapi/v1-generated\.yaml$ |
+          ^airflow/api_fastapi/auth/managers/simple/ui/ |
+          ^airflow/api_fastapi/auth/managers/simple/openapi/v1-generated\.yaml$
+        entry: ./scripts/ci/pre_commit/lint_ui.py
+        additional_dependencies: ['pnpm@9.7.1']
+        pass_filenames: false
       - id: check-provider-yaml-valid
         name: Validate provider.yaml files
         entry: ./scripts/ci/pre_commit/check_provider_yaml_files.py
@@ -1442,12 +1352,13 @@ repos:
         pass_filenames: false
         files: ^airflow/migrations/versions/.*\.py$|^docs/apache-airflow/migrations-ref\.rst$
         additional_dependencies: ['rich>=12.4.4']
-      - id: generate-openapi-spec
-        name: Generate the FastAPI API spec
+      - id: generate-tasksdk-datamodels
+        name: Generate Datamodels for TaskSDK client
         language: python
-        entry: ./scripts/ci/pre_commit/update_fastapi_api_spec.py
+        entry: uv run --active --group codegen --project apache-airflow-task-sdk --directory task-sdk -s dev/generate_models.py
         pass_filenames: false
-        files: ^airflow/api_fastapi/.*\.py$
+        files: ^airflow/api_fastapi/execution_api/.*\.py$
+        require_serial: true
         additional_dependencies: ['rich>=12.4.4']
       - id: update-er-diagram
         name: Update ER diagram

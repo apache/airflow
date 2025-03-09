@@ -52,3 +52,26 @@ class TestFabAirflowSecurityManagerOverride:
         sm.load_user.assert_called_once_with("test_identity")
         assert actual_user is mock_user
         assert mock_g.user is mock_user
+
+    @mock.patch("airflow.providers.fab.auth_manager.security_manager.override.check_password_hash")
+    def test_check_password(self, check_password):
+        sm = EmptySecurityManager()
+        mock_user = Mock()
+        sm.find_user = Mock(return_value=mock_user)
+        check_password.return_value = True
+        assert sm.check_password("test_user", "test_password")
+
+    @mock.patch("airflow.providers.fab.auth_manager.security_manager.override.check_password_hash")
+    def test_check_password_user_not_found(self, check_password):
+        sm = EmptySecurityManager()
+        sm.find_user = Mock(return_value=None)
+        check_password.return_value = False
+        assert not sm.check_password("test_user", "test_password")
+
+    @mock.patch("airflow.providers.fab.auth_manager.security_manager.override.check_password_hash")
+    def test_check_password_not_match(self, check_password):
+        sm = EmptySecurityManager()
+        mock_user = Mock()
+        sm.find_user = Mock(return_value=mock_user)
+        check_password.return_value = False
+        assert not sm.check_password("test_user", "test_password")

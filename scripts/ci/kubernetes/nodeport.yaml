@@ -22,7 +22,7 @@ metadata:
 spec:
   type: NodePort
   selector:
-    component: webserver
+    component: api-server
     release: airflow
     tier: airflow
   ports:

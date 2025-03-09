@@ -17,6 +17,7 @@
 from __future__ import annotations
 
 import os
+import re
 import subprocess
 import tempfile
 import time
@@ -25,7 +26,6 @@ from pathlib import Path
 from subprocess import check_call, check_output
 
 import pytest
-import re2
 import requests
 import requests.exceptions
 from requests.adapters import HTTPAdapter
@@ -62,7 +62,7 @@ class BaseK8STest:
         self.test_id = f"{request.node.cls.__name__}_{request.node.name}"
         self.session = self._get_session_with_retries()
         try:
-            self._ensure_airflow_webserver_is_healthy()
+            self._ensure_airflow_api_server_is_healthy()
             yield
         finally:
             self.session.close()
@@ -110,7 +110,7 @@ class BaseK8STest:
     def _num_pods_in_namespace(namespace):
         air_pod = check_output(["kubectl", "get", "pods", "-n", namespace]).decode()
         air_pod = air_pod.splitlines()
-        names = [re2.compile(r"\s+").split(x)[0] for x in air_pod if "airflow" in x]
+        names = [re.compile(r"\s+").split(x)[0] for x in air_pod if "airflow" in x]
         return len(names)
 
     @staticmethod
@@ -118,7 +118,7 @@ class BaseK8STest:
         suffix = f"-{name}" if name else ""
         air_pod = check_output(["kubectl", "get", "pods"]).decode()
         air_pod = air_pod.splitlines()
-        names = [re2.compile(r"\s+").split(x)[0] for x in air_pod if "airflow" + suffix in x]
+        names = [re.compile(r"\s+").split(x)[0] for x in air_pod if "airflow" + suffix in x]
         if names:
             check_call(["kubectl", "delete", "pod", names[0]])
 
@@ -135,25 +135,25 @@ class BaseK8STest:
         session.mount("https://", HTTPAdapter(max_retries=retries))
         return session
 
-    def _ensure_airflow_webserver_is_healthy(self):
+    def _ensure_airflow_api_server_is_healthy(self):
         max_tries = 10
         timeout_seconds = 5
         for i in range(max_tries):
             try:
                 response = self.session.get(
-                    f"http://{KUBERNETES_HOST_PORT}/health",
+                    f"http://{KUBERNETES_HOST_PORT}/public/monitor/health",
                     timeout=1,
                 )
                 if response.status_code == 200:
-                    print("Airflow webserver is healthy!")
+                    print("Airflow api server is healthy!")
                     return
             except Exception as e:
-                print(f"Exception when checking if webserver is healthy {e}")
+                print(f"Exception when checking if api server is healthy {e}")
                 if i < max_tries - 1:
                     print(f"Waiting {timeout_seconds} s and retrying.")
                     time.sleep(timeout_seconds)
         raise Exception(
-            f"Giving up. The webserver of Airflow was not healthy after {max_tries} tries "
+            f"Giving up. The api server of Airflow was not healthy after {max_tries} tries "
             f"with {timeout_seconds} s delays"
         )
 
@@ -167,7 +167,7 @@ class BaseK8STest:
             # Check task state
             try:
                 get_string = (
-                    f"http://{host}/api/v1/dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances/{task_id}"
+                    f"http://{host}/public/dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances/{task_id}"
                 )
                 print(f"Calling [monitor_task]#1 {get_string}")
                 result = self.session.get(get_string)
@@ -211,7 +211,7 @@ class BaseK8STest:
         # Wait some time for the operator to complete
         while tries < max_tries:
             time.sleep(5)
-            get_string = f"http://{host}/api/v1/dags/{dag_id}/dagRuns"
+            get_string = f"http://{host}/public/dags/{dag_id}/dagRuns"
             print(f"Calling {get_string}")
             # Get all dagruns
             result = self.session.get(get_string)
@@ -238,7 +238,7 @@ class BaseK8STest:
         # Maybe check if we can retrieve the logs, but then we need to extend the API
 
     def start_dag(self, dag_id, host):
-        patch_string = f"http://{host}/api/v1/dags/{dag_id}"
+        patch_string = f"http://{host}/public/dags/{dag_id}"
         print(f"Calling [start_dag]#1 {patch_string}")
         max_attempts = 10
         result = {}
@@ -262,7 +262,7 @@ class BaseK8STest:
             result_json = str(result)
         print(f"Received [start_dag]#1 {result_json}")
         assert result.status_code == 200, f"Could not enable DAG: {result_json}"
-        post_string = f"http://{host}/api/v1/dags/{dag_id}/dagRuns"
+        post_string = f"http://{host}/public/dags/{dag_id}/dagRuns"
         print(f"Calling [start_dag]#2 {post_string}")
 
         logical_date = datetime.now(timezone.utc).isoformat()
@@ -277,7 +277,7 @@ class BaseK8STest:
 
         time.sleep(1)
 
-        get_string = f"http://{host}/api/v1/dags/{dag_id}/dagRuns"
+        get_string = f"http://{host}/public/dags/{dag_id}/dagRuns"
         print(f"Calling [start_dag]#3 {get_string}")
         result = self.session.get(get_string)
         assert result.status_code == 200, f"Could not get DAGRuns: {result.json()}"

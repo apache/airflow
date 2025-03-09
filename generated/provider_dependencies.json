@@ -38,6 +38,7 @@
       "jsonpath_ng>=1.5.3",
       "python3-saml>=1.16.0",
       "redshift_connector>=2.0.918",
+      "sagemaker-studio>=1.0.9",
       "watchtower>=3.0.0,!=3.3.0,<4"
     ],
     "devel-deps": [
@@ -50,6 +51,7 @@
       "mypy-boto3-s3>=1.34.90",
       "openapi-schema-validator>=0.6.2",
       "openapi-spec-validator>=0.7.1",
+      "opensearch-py>=2.2.0",
       "s3fs>=2023.10.0"
     ],
     "plugins": [],
@@ -104,7 +106,7 @@
     "deps": [
       "apache-airflow-providers-common-sql>=1.20.0",
       "apache-airflow>=2.9.0",
-      "sqlalchemy-drill>=1.1.0"
+      "sqlalchemy-drill>=1.1.0,!=1.1.6,!=1.1.7"
     ],
     "devel-deps": [],
     "plugins": [],
@@ -221,7 +223,9 @@
     ],
     "devel-deps": [],
     "plugins": [],
-    "cross-providers-deps": [],
+    "cross-providers-deps": [
+      "google"
+    ],
     "excluded-python-versions": [],
     "state": "ready"
   },
@@ -239,7 +243,7 @@
   "apache.livy": {
     "deps": [
       "aiohttp>=3.9.2",
-      "apache-airflow-providers-http",
+      "apache-airflow-providers-http>=5.1.0",
       "apache-airflow>=2.9.0",
       "asgiref>=2.3.0"
     ],
@@ -338,8 +342,7 @@
     "deps": [
       "apache-airflow>=2.9.0",
       "celery[redis]>=5.4.0,<6",
-      "flower>=1.0.0",
-      "google-re2>=1.0"
+      "flower>=1.0.0"
     ],
     "devel-deps": [],
     "plugins": [],
@@ -368,7 +371,6 @@
       "apache-airflow>=2.9.0",
       "asgiref>=3.5.2",
       "cryptography>=41.0.0",
-      "google-re2>=1.0",
       "kubernetes>=29.0.0,<=31.0.0",
       "kubernetes_asyncio>=29.0.0,<=31.0.0"
     ],
@@ -415,9 +417,22 @@
     "excluded-python-versions": [],
     "state": "ready"
   },
+  "common.messaging": {
+    "deps": [
+      "apache-airflow>=3.0.0.dev0"
+    ],
+    "devel-deps": [],
+    "plugins": [],
+    "cross-providers-deps": [
+      "amazon"
+    ],
+    "excluded-python-versions": [],
+    "state": "ready"
+  },
   "common.sql": {
     "deps": [
       "apache-airflow>=2.9.0",
+      "methodtools>=0.4.7",
       "more-itertools>=9.0.0",
       "sqlparse>=0.5.1"
     ],
@@ -450,7 +465,8 @@
       }
     ],
     "cross-providers-deps": [
-      "common.sql"
+      "common.sql",
+      "fab"
     ],
     "excluded-python-versions": [],
     "state": "ready"
@@ -476,6 +492,7 @@
     "devel-deps": [],
     "plugins": [],
     "cross-providers-deps": [
+      "common.compat",
       "http",
       "openlineage"
     ],
@@ -535,7 +552,9 @@
         "plugin-class": "airflow.providers.edge.plugins.edge_executor_plugin.EdgeExecutorPlugin"
       }
     ],
-    "cross-providers-deps": [],
+    "cross-providers-deps": [
+      "fab"
+    ],
     "excluded-python-versions": [],
     "state": "not-ready"
   },
@@ -572,10 +591,10 @@
     "deps": [
       "apache-airflow-providers-common-compat>=1.2.1",
       "apache-airflow>=3.0.0.dev0",
+      "connexion[flask]>=2.14.2,<3.0",
       "flask-appbuilder==4.5.3",
       "flask-login>=0.6.2",
       "flask>=2.2,<2.3",
-      "google-re2>=1.0",
       "jmespath>=0.7.0"
     ],
     "devel-deps": [
@@ -635,7 +654,7 @@
       "gcloud-aio-bigquery>=6.1.2",
       "gcloud-aio-storage>=9.0.0",
       "gcsfs>=2023.10.0",
-      "google-ads>=25.1.0",
+      "google-ads>=26.0.0",
       "google-analytics-admin>=0.9.0",
       "google-api-core>=2.11.0,!=2.16.0,!=2.18.0",
       "google-api-python-client>=2.0.2",
@@ -648,7 +667,7 @@
       "google-cloud-bigquery-datatransfer>=3.13.0",
       "google-cloud-bigquery>=3.4.0,!=3.21.*,!=3.22.0,!=3.23.*",
       "google-cloud-bigtable>=2.17.0",
-      "google-cloud-build>=3.22.0",
+      "google-cloud-build>=3.31.0",
       "google-cloud-compute>=1.10.0",
       "google-cloud-container>=2.17.4",
       "google-cloud-datacatalog>=3.23.0",
@@ -666,7 +685,7 @@
       "google-cloud-monitoring>=2.18.0",
       "google-cloud-orchestration-airflow>=1.10.0",
       "google-cloud-os-login>=2.9.1",
-      "google-cloud-pubsub>=2.19.0",
+      "google-cloud-pubsub>=2.21.3",
       "google-cloud-redis>=2.12.0",
       "google-cloud-run>=0.10.0",
       "google-cloud-secret-manager>=2.16.0",
@@ -750,7 +769,7 @@
       "aiohttp>=3.9.2,!=3.11.0",
       "apache-airflow>=2.9.0",
       "asgiref>=2.3.0",
-      "requests-toolbelt>=0.4.0",
+      "requests-toolbelt>=1.0.0",
       "requests>=2.27.0,<3"
     ],
     "devel-deps": [],
@@ -851,7 +870,7 @@
   },
   "microsoft.mssql": {
     "deps": [
-      "apache-airflow-providers-common-sql>=1.20.0",
+      "apache-airflow-providers-common-sql>=1.23.0",
       "apache-airflow>=2.9.0",
       "methodtools>=0.4.7",
       "pymssql>=2.3.0"
@@ -891,7 +910,7 @@
     "deps": [
       "apache-airflow>=2.9.0",
       "dnspython>=1.13.0",
-      "pymongo>=4.0.0,!=4.11,!=4.11.1"
+      "pymongo>=4.0.0,<4.11.0"
     ],
     "devel-deps": [
       "mongomock>=4.0.0"
@@ -975,10 +994,11 @@
       "apache-airflow>=2.9.0",
       "attrs>=22.2",
       "openlineage-integration-common>=1.24.2",
-      "openlineage-python>=1.24.2",
+      "openlineage-python>=1.24.2"
+    ],
+    "devel-deps": [
       "uuid6>=2024.7.10"
     ],
-    "devel-deps": [],
     "plugins": [
       {
         "name": "openlineage",
@@ -1073,7 +1093,7 @@
   "pinecone": {
     "deps": [
       "apache-airflow>=2.9.0",
-      "pinecone-client>=3.1.0"
+      "pinecone>=3.1.0"
     ],
     "devel-deps": [],
     "plugins": [],
@@ -1284,7 +1304,6 @@
   },
   "standard": {
     "deps": [
-      "apache-airflow-providers-common-sql>=1.20.0",
       "apache-airflow>=2.9.0"
     ],
     "devel-deps": [],
@@ -1337,7 +1356,7 @@
       "apache-airflow-providers-common-sql>=1.20.0",
       "apache-airflow>=2.9.0",
       "pandas>=2.1.2,<2.2",
-      "trino>=0.318.0"
+      "trino>=0.319.0"
     ],
     "devel-deps": [],
     "plugins": [],
@@ -1384,7 +1403,9 @@
     ],
     "devel-deps": [],
     "plugins": [],
-    "cross-providers-deps": [],
+    "cross-providers-deps": [
+      "common.compat"
+    ],
     "excluded-python-versions": [],
     "state": "ready"
   },

@@ -115,11 +115,11 @@ images:
     pullPolicy: IfNotPresent
   pgbouncer:
     repository: apache/airflow
-    tag: airflow-pgbouncer-2025.01.10-1.24.0
+    tag: airflow-pgbouncer-2025.03.05-1.23.1
     pullPolicy: IfNotPresent
   pgbouncerExporter:
     repository: apache/airflow
-    tag: airflow-pgbouncer-exporter-2024.06.18-0.17.0
+    tag: airflow-pgbouncer-exporter-2025.03.05-0.18.0
     pullPolicy: IfNotPresent
   gitSync:
     repository: registry.k8s.io/git-sync/git-sync
@@ -297,7 +297,7 @@ airflowConfigAnnotations: {}
 
 # `airflow_local_settings` file as a string (templated).
 airflowLocalSettings: |-
-  {{- if semverCompare ">=2.2.0" .Values.airflowVersion }}
+  {{- if semverCompare ">=2.2.0 <3.0.0" .Values.airflowVersion }}
   {{- if not (or .Values.webserverSecretKey .Values.webserverSecretKeySecretName) }}
   from airflow.www.utils import UIAlert
 
@@ -897,6 +897,7 @@ scheduler:
   # Wait for at most 1 minute (6*10s) for the scheduler container to startup.
   # livenessProbe kicks in after the first successful startupProbe
   startupProbe:
+    initialDelaySeconds: 0
     failureThreshold: 6
     periodSeconds: 10
     timeoutSeconds: 20
@@ -1253,7 +1254,7 @@ migrateDatabaseJob:
   applyCustomEnv: true
   env: []
 
-_apiServer:
+apiServer:
 
   # Labels specific to workers objects and pods
   labels: {}
@@ -1261,7 +1262,8 @@ _apiServer:
   # Command to use when running the Airflow API server (templated).
   command: ~
   # Args to use when running the Airflow API server (templated).
-  args: ["bash", "-c", "exec airflow fastapi-api"]
+  args: ["bash", "-c", "exec airflow api-server"]
+  allowPodLogReading: true
   env: []
   serviceAccount:
     # default value is true
@@ -1281,7 +1283,7 @@ _apiServer:
     annotations: {}
     ports:
       - name: api-server
-        port: "{{ .Values.ports._apiServer }}"
+        port: "{{ .Values.ports.apiServer }}"
 
     loadBalancerIP: ~
     ## Limit load balancer source ips to list of CIDRs
@@ -1320,7 +1322,7 @@ _apiServer:
       from: []
       # Ports for webserver NetworkPolicy ingress (if `from` is set)
       ports:
-        - port: "{{ .Values.ports._apiServer }}"
+        - port: "{{ .Values.ports.apiServer }}"
 
   resources: {}
   #   limits:
@@ -1345,6 +1347,7 @@ _apiServer:
     scheme: HTTP
 
   startupProbe:
+    initialDelaySeconds: 0
     timeoutSeconds: 20
     failureThreshold: 6
     periodSeconds: 10
@@ -1381,6 +1384,7 @@ webserver:
   # Wait for at most 1 minute (6*10s) for the webserver container to startup.
   # livenessProbe kicks in after the first successful startupProbe
   startupProbe:
+    initialDelaySeconds: 0
     timeoutSeconds: 20
     failureThreshold: 6
     periodSeconds: 10
@@ -1976,6 +1980,7 @@ flower:
   # Wait for at most 1 minute (6*10s) for the flower container to startup.
   # livenessProbe kicks in after the first successful startupProbe
   startupProbe:
+    initialDelaySeconds: 0
     timeoutSeconds: 20
     failureThreshold: 6
     periodSeconds: 10
@@ -2540,7 +2545,7 @@ ports:
   statsdScrape: 9102
   pgbouncer: 6543
   pgbouncerScrape: 9127
-  _apiServer: 9091
+  apiServer: 8080
 
 # Define any ResourceQuotas for namespace
 quotas: {}

@@ -28,12 +28,13 @@ import logging
 import os
 from functools import cached_property
 
-from airflow.providers.microsoft.azure.utils import get_sync_default_azure_credential
-from airflow.secrets import BaseSecretsBackend
-from airflow.utils.log.logging_mixin import LoggingMixin
 from azure.core.exceptions import ResourceNotFoundError
 from azure.identity import ClientSecretCredential, DefaultAzureCredential
 from azure.keyvault.secrets import SecretClient
+
+from airflow.providers.microsoft.azure.utils import get_sync_default_azure_credential
+from airflow.secrets import BaseSecretsBackend
+from airflow.utils.log.logging_mixin import LoggingMixin
 
 
 class AzureKeyVaultBackend(BaseSecretsBackend, LoggingMixin):

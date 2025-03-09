@@ -115,9 +115,6 @@ Airflow tasks are executed ad hoc inside containers/pods. Each task is isolated 
 Using Multiple Executors Concurrently
 -------------------------------------
 
-.. warning::
-    Multiple executor configuration is an alpha/experimental feature at the moment and may be subject to change without warning.
-
 Starting with version 2.10.0, Airflow can now operate with a multi-executor configuration. Each executor has its own set of pros and cons, often they are trade-offs between latency, isolation and compute efficiency among other properties (see :ref:`here <executor-types-comparison>` for comparisons of executors). Running multiple executors allows you to make better use of the strengths of all the available executors and avoid their weaknesses. In other words, you can use a specific executor for a specific set of tasks where its particular merits and benefits make the most sense for that use case.
 
 Configuration
@@ -263,7 +260,6 @@ The following methods aren't required to override to have a functional Airflow e
 * ``start``: The Airflow scheduler job will call this method after it initializes the executor object. Any additional setup required by the executor can be completed here.
 * ``end``: The Airflow scheduler job will call this method as it is tearing down. Any synchronous cleanup required to finish running jobs should be done here.
 * ``terminate``: More forcefully stop the executor, even killing/stopping in-flight tasks instead of synchronously waiting for completion.
-* ``cleanup_stuck_queued_tasks``: If tasks are stuck in the queued state for longer than ``task_queued_timeout`` then they are collected by the scheduler and provided to the executor to have an opportunity to handle them (perform any graceful cleanup/teardown) via this method and return the Task Instances for a warning message displayed to users.
 * ``try_adopt_task_instances``: Tasks that have been abandoned (e.g. from a scheduler job that died) are provided to the executor to adopt or otherwise handle them via this method. Any tasks that cannot be adopted (by default the BaseExecutor assumes all cannot be adopted) should be returned.
 * ``get_cli_commands``: Executors may vend CLI commands to users by implementing this method, see the `CLI`_ section below for more details.
 * ``get_task_log``: Executors may vend log messages to Airflow task logs by implementing this method, see the `Logging`_ section below for more details.
