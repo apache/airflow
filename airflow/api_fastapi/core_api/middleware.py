@@ -48,16 +48,22 @@ class RegexpExceptionMiddleware(BaseHTTPMiddleware):
 
     @classmethod
     def _detect_regexp_in_dict_values(cls, data) -> str | None:
+        """Return the key of the first dict value that contains a regexp pattern."""
+        regex_indicators = r"[*+?|^$()[\]{}\\.]"
+        indicator_regex = re.compile(regex_indicators)
+
         for key, value in data.items():
-            try:
-                pattern = re.compile(value)
-                if not bool(pattern.fullmatch(value)):
-                    return key
-            except re.error:
-                pass
+            if isinstance(value, str):
+                if indicator_regex.search(value):
+                    try:
+                        re.compile(value)
+                        return key
+                    except re.error:
+                        pass
         return None
 
     async def dispatch(self, request: Request, call_next):
+        """Check if the request contains a regexp pattern in any of the fields."""
         response = await call_next(request)
         if response.status_code < 300:
             try:
