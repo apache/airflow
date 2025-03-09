@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2025-03-09T08:12:55.103907
+# This constraints file was automatically generated on 2025-03-09T14:13:54.851102
 # via "eager-upgrade" mechanism of PIP. For the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version for 'apache-airflow' but installs
 # the providers from PIP-released packages at the moment of the constraint generation.
@@ -193,7 +193,7 @@ argcomplete==3.6.0
 asana==5.1.0
 asgiref==3.8.1
 asn1crypto==1.5.1
-astroid==3.3.8
+astroid==3.3.9
 asttokens==3.0.0
 async-timeout==5.0.1
 asyncpg==0.30.0
@@ -501,7 +501,7 @@ nodeenv==1.9.1
 numpy==1.26.4
 oauthlib==3.2.2
 objsize==0.7.1
-openai==1.65.4
+openai==1.65.5
 openapi-schema-validator==0.6.3
 openapi-spec-validator==0.7.1
 openlineage-integration-common==1.29.0
