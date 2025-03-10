@@ -22,7 +22,7 @@ from typing import TYPE_CHECKING
 import yaml
 from fastapi.openapi.utils import get_openapi
 
-from airflow.api_fastapi.app import create_app
+from airflow.api_fastapi.app import AUTH_MANAGER_FASTAPI_APP_PREFIX, create_app
 from airflow.api_fastapi.auth.managers.simple import __file__ as SIMPLE_AUTH_MANAGER_PATH
 from airflow.api_fastapi.auth.managers.simple.simple_auth_manager import SimpleAuthManager
 from airflow.api_fastapi.core_api import __file__ as CORE_API_PATH
@@ -76,7 +76,9 @@ generate_file(app=create_app(), file_path=OPENAPI_SPEC_FILE)
 simple_auth_manager_app = SimpleAuthManager().get_fastapi_app()
 if simple_auth_manager_app:
     generate_file(
-        app=simple_auth_manager_app, file_path=SIMPLE_AUTH_MANAGER_OPENAPI_SPEC_FILE, prefix="/auth"
+        app=simple_auth_manager_app,
+        file_path=SIMPLE_AUTH_MANAGER_OPENAPI_SPEC_FILE,
+        prefix=AUTH_MANAGER_FASTAPI_APP_PREFIX,
     )
 
 # Generate FAB auth manager openapi spec
