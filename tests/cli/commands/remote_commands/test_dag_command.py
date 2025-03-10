@@ -331,7 +331,7 @@ class TestCliDags:
         log_output = caplog.text
 
         assert err_ctx.value.code == 1
-        assert path_to_parse in log_output
+        assert str(path_to_parse) in log_output
         assert "[0 100 * * *] is not acceptable, out of range" in log_output
 
     def test_cli_list_dag_runs(self):
@@ -690,14 +690,17 @@ class TestCliDags:
         assert "data_interval" in mock__get_or_create_dagrun.call_args.kwargs
 
     @mock.patch("airflow.models.dag._get_or_create_dagrun")
-    def test_dag_with_parsing_context(self, mock__get_or_create_dagrun):
+    def test_dag_with_parsing_context(self, mock__get_or_create_dagrun, configure_testing_dag_bundle):
         """
         airflow parsing context should be set when calling `dags test`.
         """
-        cli_args = self.parser.parse_args(
-            ["dags", "test", "test_dag_parsing_context", DEFAULT_DATE.isoformat()]
-        )
-        dag_command.dag_test(cli_args)
+        path_to_parse = TEST_DAGS_FOLDER / "test_dag_parsing_context.py"
+
+        with configure_testing_dag_bundle(path_to_parse):
+            cli_args = self.parser.parse_args(
+                ["dags", "test", "test_dag_parsing_context", DEFAULT_DATE.isoformat()]
+            )
+            dag_command.dag_test(cli_args)
 
         # if dag_parsing_context is not set, this DAG will only have 1 task
         assert len(mock__get_or_create_dagrun.call_args[1]["dag"].task_ids) == 2
