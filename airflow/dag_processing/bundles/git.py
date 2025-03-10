@@ -166,8 +166,8 @@ class GitDagBundle(BaseDagBundle, LoggingMixin):
                 versions_path=self.versions_dir,
                 git_conn_id=self.git_conn_id,
                 repo_url=self.repo_url,
-                **kwargs,
             )
+            context.update(kwargs)
 
             for k, v in context.items():
                 msg += f" {k}='{v}'"
