@@ -212,13 +212,11 @@ class PythonOperator(BaseOperator):
         """
         try:
             from airflow.utils.operator_helpers import ExecutionCallableRunner
-
-            asset_events = self._asset_events if AIRFLOW_V_3_0_PLUS else self._dataset_events
-
-            runner = ExecutionCallableRunner(self.python_callable, asset_events, logger=self.log)
         except ImportError:
-            # Handle Pre Airflow 3.10 case where ExecutionCallableRunner was not available
+            # Handle Pre Airflow 2.10 case where ExecutionCallableRunner was not available
             return self.python_callable(*self.op_args, **self.op_kwargs)
+        asset_events = self._asset_events if AIRFLOW_V_3_0_PLUS else self._dataset_events
+        runner = ExecutionCallableRunner(self.python_callable, asset_events, logger=self.log)
         return runner.run(*self.op_args, **self.op_kwargs)
 
 
