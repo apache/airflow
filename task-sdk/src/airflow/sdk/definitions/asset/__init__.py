@@ -445,8 +445,11 @@ class Asset(os.PathLike, BaseAsset):
         yield DagDependency(
             source=source or "asset",
             target=target or "asset",
+            label=self.name,
             dependency_type="asset",
-            dependency_id=self.name,
+            # We can't get asset id at this stage.
+            # This will be updated when running SerializedDagModel.get_dag_dependencies
+            dependency_id=None,
         )
 
     def asprofile(self) -> AssetProfile:
@@ -485,6 +488,7 @@ class AssetRef(BaseAsset, AttrsInstance):
         yield DagDependency(
             source=source or "asset-ref",
             target=target or "asset-ref",
+            label=dependency_id,
             dependency_type="asset-ref",
             dependency_id=dependency_id,
         )
@@ -549,6 +553,7 @@ class AssetAlias(BaseAsset):
         yield DagDependency(
             source=source or "asset-alias",
             target=target or "asset-alias",
+            label=self.name,
             dependency_type="asset-alias",
             dependency_id=self.name,
         )

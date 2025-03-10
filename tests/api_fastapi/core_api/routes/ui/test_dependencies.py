@@ -68,7 +68,7 @@ def expected_primary_component_response():
     return {
         "edges": [
             {
-                "source_id": "asset:asset1",
+                "source_id": "asset:1",
                 "target_id": "dag:downstream",
             },
             {
@@ -81,7 +81,7 @@ def expected_primary_component_response():
             },
             {
                 "source_id": "dag:upstream",
-                "target_id": "asset:asset1",
+                "target_id": "asset:1",
             },
             {
                 "source_id": "sensor:other_dag:downstream:external_task_sensor",
@@ -99,7 +99,7 @@ def expected_primary_component_response():
                 "type": "dag",
             },
             {
-                "id": "asset:asset1",
+                "id": "asset:1",
                 "label": "asset1",
                 "type": "asset",
             },
@@ -149,12 +149,12 @@ def expected_secondary_component_response():
     return {
         "edges": [
             {
-                "source_id": "asset:asset2",
+                "source_id": "asset:2",
                 "target_id": "dag:downstream_secondary",
             },
             {
                 "source_id": "dag:upstream_secondary",
-                "target_id": "asset:asset2",
+                "target_id": "asset:2",
             },
         ],
         "nodes": [
@@ -164,7 +164,7 @@ def expected_secondary_component_response():
                 "type": "dag",
             },
             {
-                "id": "asset:asset2",
+                "id": "asset:2",
                 "label": "asset2",
                 "type": "asset",
             },
@@ -189,7 +189,7 @@ def test_get_dependencies(test_client, expected_primary_component_response):
     "node_id, expected_response_fixture",
     [
         # Primary Component
-        ("asset:asset1", "expected_primary_component_response"),
+        ("asset:1", "expected_primary_component_response"),
         ("dag:downstream", "expected_primary_component_response"),
         ("sensor:other_dag:downstream:external_task_sensor", "expected_primary_component_response"),
         ("dag:external_trigger_dag_id", "expected_primary_component_response"),
@@ -199,7 +199,7 @@ def test_get_dependencies(test_client, expected_primary_component_response):
         ),
         ("dag:upstream", "expected_primary_component_response"),
         # Secondary Component
-        ("asset:asset2", "expected_secondary_component_response"),
+        ("asset:2", "expected_secondary_component_response"),
         ("dag:downstream_secondary", "expected_secondary_component_response"),
         ("dag:upstream_secondary", "expected_secondary_component_response"),
     ],

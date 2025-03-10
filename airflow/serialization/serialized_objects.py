@@ -1068,6 +1068,7 @@ class DependencyDetector:
                 DagDependency(
                     source=task.dag_id,
                     target=getattr(task, "trigger_dag_id"),
+                    label=task.task_display_name,
                     dependency_type="trigger",
                     dependency_id=task.task_id,
                 )
@@ -1081,6 +1082,7 @@ class DependencyDetector:
                 DagDependency(
                     source=task.dag_id,
                     target=task.partial_kwargs["trigger_dag_id"],
+                    label=task.task_display_name,
                     dependency_type="trigger",
                     dependency_id=task.task_id,
                 )
@@ -1090,6 +1092,7 @@ class DependencyDetector:
                 DagDependency(
                     source=getattr(task, "external_dag_id"),
                     target=task.dag_id,
+                    label=task.task_display_name,
                     dependency_type="sensor",
                     dependency_id=task.task_id,
                 )
@@ -1103,22 +1106,26 @@ class DependencyDetector:
                 DagDependency(
                     source=task.partial_kwargs["external_dag_id"],
                     target=task.dag_id,
+                    label=task.task_display_name,
                     dependency_type="sensor",
                     dependency_id=task.task_id,
                 )
             )
+
         for obj in task.outlets or []:
             if isinstance(obj, Asset):
                 deps.append(
                     DagDependency(
                         source=task.dag_id,
                         target="asset",
+                        label=obj.name,
                         dependency_type="asset",
-                        dependency_id=obj.name,
+                        dependency_id=None,
                     )
                 )
             elif isinstance(obj, AssetAlias):
                 deps.extend(obj.iter_dag_dependencies(source=task.dag_id, target=""))
+
         return deps
 
     @staticmethod
