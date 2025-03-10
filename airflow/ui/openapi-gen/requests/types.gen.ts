@@ -2298,7 +2298,7 @@ export type PatchTaskInstanceDryRun1Response = TaskInstanceCollectionResponse;
 
 export type GetLogData = {
   accept?: "application/json" | "text/plain" | "*/*";
-  dagId: string;
+  dagId: string | null;
   dagRunId: string;
   fullContent?: boolean;
   mapIndex?: number;
