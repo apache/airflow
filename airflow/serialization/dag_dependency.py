@@ -17,6 +17,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+from typing import Literal
 
 
 @dataclass(frozen=True, order=True)
@@ -30,7 +31,7 @@ class DagDependency:
     source: str
     target: str
     label: str
-    dependency_type: str
+    dependency_type: Literal["asset", "asset-name-ref", "asset-uri-ref", "tirgger", "sensor"]
     dependency_id: str | None = None
 
     @property
