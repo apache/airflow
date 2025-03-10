@@ -64,23 +64,23 @@ class TestMwaaDagRunSuccessSensor:
         assert sensor.failure_states == {DagRunState.FAILED.value}
 
     def test_init_failure(self):
-        with pytest.raises(ValueError):
+        with pytest.raises(ValueError, match=r".*success_states.*failure_states.*"):
             MwaaDagRunSensor(
                 **SENSOR_KWARGS, success_states={"state1", "state2"}, failure_states={"state2", "state3"}
             )
 
-    @pytest.mark.parametrize("status", SENSOR_STATE_KWARGS["success_states"])
-    def test_poke_completed(self, mock_invoke_rest_api, status):
-        mock_invoke_rest_api.return_value = {"RestApiResponse": {"state": status}}
+    @pytest.mark.parametrize("state", SENSOR_STATE_KWARGS["success_states"])
+    def test_poke_completed(self, mock_invoke_rest_api, state):
+        mock_invoke_rest_api.return_value = {"RestApiResponse": {"state": state}}
         assert MwaaDagRunSensor(**SENSOR_KWARGS, **SENSOR_STATE_KWARGS).poke({})
 
-    @pytest.mark.parametrize("status", ["e", "f"])
-    def test_poke_not_completed(self, mock_invoke_rest_api, status):
-        mock_invoke_rest_api.return_value = {"RestApiResponse": {"state": status}}
+    @pytest.mark.parametrize("state", ["e", "f"])
+    def test_poke_not_completed(self, mock_invoke_rest_api, state):
+        mock_invoke_rest_api.return_value = {"RestApiResponse": {"state": state}}
         assert not MwaaDagRunSensor(**SENSOR_KWARGS, **SENSOR_STATE_KWARGS).poke({})
 
-    @pytest.mark.parametrize("status", SENSOR_STATE_KWARGS["failure_states"])
-    def test_poke_terminated(self, mock_invoke_rest_api, status):
-        mock_invoke_rest_api.return_value = {"RestApiResponse": {"state": status}}
-        with pytest.raises(AirflowException):
+    @pytest.mark.parametrize("state", SENSOR_STATE_KWARGS["failure_states"])
+    def test_poke_terminated(self, mock_invoke_rest_api, state):
+        mock_invoke_rest_api.return_value = {"RestApiResponse": {"state": state}}
+        with pytest.raises(AirflowException, match=f".*{state}.*"):
             MwaaDagRunSensor(**SENSOR_KWARGS, **SENSOR_STATE_KWARGS).poke({})

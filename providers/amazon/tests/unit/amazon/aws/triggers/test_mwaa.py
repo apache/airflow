@@ -73,7 +73,7 @@ class TestMwaaDagRunCompletedTrigger:
         }
 
     def test_init_fail(self):
-        with pytest.raises(ValueError):
+        with pytest.raises(ValueError, match=r".*success_states.*failure_states.*"):
             MwaaDagRunCompletedTrigger(**TRIGGER_KWARGS, success_states=("a", "b"), failure_states=("b", "c"))
 
     def test_serialization(self):

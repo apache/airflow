@@ -62,7 +62,7 @@ class MwaaDagRunCompletedTrigger(AwsBaseWaiterTrigger):
         self.failure_states = set(failure_states) if failure_states else {DagRunState.FAILED.value}
 
         if len(self.success_states & self.failure_states):
-            raise ValueError("allowed_states and failed_states must not have any values in common")
+            raise ValueError("success_states and failure_states must not have any values in common")
 
         in_progress_states = {s.value for s in DagRunState} - self.success_states - self.failure_states
 

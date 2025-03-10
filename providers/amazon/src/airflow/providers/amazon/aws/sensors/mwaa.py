@@ -100,7 +100,7 @@ class MwaaDagRunSensor(AwsBaseSensor[MwaaHook]):
         self.failure_states = set(failure_states) if failure_states else {DagRunState.FAILED.value}
 
         if len(self.success_states & self.failure_states):
-            raise ValueError("allowed_states and failed_states must not have any values in common")
+            raise ValueError("success_states and failure_states must not have any values in common")
 
         self.external_env_name = external_env_name
         self.external_dag_id = external_dag_id
