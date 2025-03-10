@@ -39,8 +39,7 @@ const BackfillBanner = ({ dagId }: Props) => {
   const { data, isLoading } = useBackfillServiceListBackfills({
     dagId,
   });
-
-  const backfill = data?.backfills[0];
+  const [backfill] = data?.backfills.filter((bf) => bf.completed_at === null) ?? [];
 
   const { isPending: isPausePending, mutate: pauseMutate } = useBackfillServicePauseBackfill();
   const { isPending: isUnPausePending, mutate: unpauseMutate } = useBackfillServiceUnpauseBackfill();
@@ -49,24 +48,24 @@ const BackfillBanner = ({ dagId }: Props) => {
 
   let initialVisibility = false;
 
-  if (data?.total_entries !== undefined && data.total_entries > 0) {
+  if (backfill !== undefined) {
     initialVisibility = true;
   }
   const [isVisible, setIsVisible] = useState<boolean>(initialVisibility);
-  const [isActive, setIsActive] = useState(false);
-  const [isDisabled, setIsDisabled] = useState<boolean>(false);
+  const [isPaused, setIsPaused] = useState(backfill?.is_paused ?? false);
+  const [isDisabled, setIsDisabled] = useState<boolean>(isPausePending || isUnPausePending || isStopPending);
   const togglePause = () => {
-    if (isActive) {
+    if (isPaused) {
       pauseMutate({ backfillId: backfill?.id });
     } else {
       unpauseMutate({ backfillId: backfill?.id });
     }
-    setIsActive(!isActive);
+    setIsPaused(!isPaused);
   };
 
   const cancel = () => {
     stopPending({ backfillId: backfill?.id });
-    setIsDisabled(!isDisabled);
+    setIsDisabled(true);
   };
 
   return isVisible && !isLoading ? (
@@ -77,11 +76,11 @@ const BackfillBanner = ({ dagId }: Props) => {
           <Time datetime={data?.backfills[0]?.from_date} /> - <Time datetime={data?.backfills[0]?.to_date} />
         </>
         <Spacer flex="max-content" />
-        <ProgressBar key="progressbar" size="xs" visibility="visible" />
+        <ProgressBar size="xs" visibility="visible" />
         <ActionButton
           actionName=""
           disabled={isDisabled}
-          icon={isActive ? <MdPlayArrow color="white" size="1" /> : <MdPause color="white" size="1" />}
+          icon={isPaused ? <MdPlayArrow color="white" size="1" /> : <MdPause color="white" size="1" />}
           loading={isPausePending || isUnPausePending}
           onClick={() => {
             togglePause();
