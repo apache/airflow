@@ -65,6 +65,7 @@ from airflow.sdk.execution_time.comms import (
     AssetResult,
     ConnectionResult,
     DeferTask,
+    DeleteXCom,
     GetAssetByName,
     GetAssetByUri,
     GetAssetEventByAsset,
@@ -87,7 +88,6 @@ from airflow.sdk.execution_time.comms import (
     VariableResult,
     XComCountResponse,
     XComResult,
-    DeleteXCom,
 )
 
 if TYPE_CHECKING:

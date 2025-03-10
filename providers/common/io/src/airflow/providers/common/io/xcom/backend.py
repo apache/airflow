@@ -21,17 +21,16 @@ import json
 import uuid
 from functools import cache
 from pathlib import Path
-from typing import TYPE_CHECKING, Any, TypeVar
+from typing import Any, TypeVar
 from urllib.parse import urlsplit
 
 import fsspec.utils
 
 from airflow.configuration import conf
 from airflow.io.path import ObjectStoragePath
-from airflow.sdk.execution_time.xcom import BaseXCom
 from airflow.providers.common.io.version_compat import AIRFLOW_V_3_0_PLUS
+from airflow.sdk.execution_time.xcom import BaseXCom
 from airflow.utils.json import XComDecoder, XComEncoder
-
 
 T = TypeVar("T")
 

@@ -50,6 +50,7 @@ from airflow.utils.sqlalchemy import UtcDateTime
 # which should import the constants directly after apache-airflow>=2.6.0
 from airflow.utils.xcom import (
     MAX_XCOM_SIZE,  # noqa: F401
+    XCOM_RETURN_KEY,  # noqa: F401
 )
 
 log = logging.getLogger(__name__)
