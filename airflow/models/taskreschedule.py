@@ -32,6 +32,7 @@ from sqlalchemy import (
     select,
 )
 from sqlalchemy.dialects import postgresql
+from sqlalchemy.orm import relationship
 
 from airflow.models.base import Base
 from airflow.utils.sqlalchemy import UtcDateTime
@@ -59,6 +60,10 @@ class TaskReschedule(Base):
     end_date = Column(UtcDateTime, nullable=False)
     duration = Column(Integer, nullable=False)
     reschedule_date = Column(UtcDateTime, nullable=False)
+
+    task_instance = relationship(
+        "TaskInstance", primaryjoin="TaskReschedule.ti_id == foreign(TaskInstance.id)", uselist=False
+    )
 
     def __init__(
         self,
