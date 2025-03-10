@@ -142,3 +142,19 @@ class BulkResponse(BaseModel):
         default=None,
         description="Details of the bulk delete operation, including successful keys and errors.",
     )
+
+
+class RegexpMiddlewareResponse(BaseModel):
+    """
+    Serializer for responses to requests that contain regex patterns.
+
+    This structure is used to inform users that the request contains a regex pattern in one of the fields.
+    The response includes the name of the field that contains the regex pattern and a message indicating the issue.
+    """
+
+    field: str = Field(
+        description="The name of the field that contains the regex pattern.",
+    )
+    detail: str = Field(
+        description="A detail indicating that the request contains a regex pattern.",
+    )
