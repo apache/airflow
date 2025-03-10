@@ -21,6 +21,7 @@ import argparse
 from functools import cached_property
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
+from urllib.parse import urljoin
 
 import packaging.version
 from connexion import FlaskApi
