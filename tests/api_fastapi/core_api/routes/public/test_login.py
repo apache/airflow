@@ -20,6 +20,8 @@ from unittest.mock import MagicMock
 
 import pytest
 
+from tests_common.test_utils.config import conf_vars
+
 AUTH_MANAGER_LOGIN_URL = "http://some_login_url"
 
 pytestmark = pytest.mark.db_test
@@ -39,11 +41,11 @@ class TestGetLogin(TestLoginEndpoint):
         [
             {},
             {"next": None},
-            {"next": "http://localhost:28080"},
-            {"next": "http://localhost:28080", "other_param": "something_else"},
+            {"next": "http://localhost:8080"},
+            {"next": "http://localhost:8080", "other_param": "something_else"},
         ],
     )
-    def test_should_respond_308(self, test_client, params):
+    def test_should_respond_307(self, test_client, params):
         response = test_client.get("/public/login", follow_redirects=False, params=params)
 
         assert response.status_code == 307
@@ -52,3 +54,16 @@ class TestGetLogin(TestLoginEndpoint):
             if params.get("next")
             else AUTH_MANAGER_LOGIN_URL
         )
+
+    @pytest.mark.parametrize(
+        "params",
+        [
+            {"next": "http://fake_domain.com:8080"},
+            {"next": "http://localhost:8080/../../up"},
+        ],
+    )
+    @conf_vars({("api", "base_url"): "http://localhost:8080/prefix"})
+    def test_should_respond_400(self, test_client, params):
+        response = test_client.get("/public/login", follow_redirects=False, params=params)
+
+        assert response.status_code == 400
