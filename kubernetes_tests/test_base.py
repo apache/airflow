@@ -64,10 +64,6 @@ class BaseK8STest:
         self.rollout_restart_deployment("airflow-api-server")
         self.ensure_deployment_health("airflow-api-server")
 
-        # Sometimes the DAGs are not serialized yet, will cause the trigger dagRun API to get 404 error
-        # so we need to do it manually
-        self.dags_reserialize()
-
         # Replacement for unittests.TestCase.id()
         self.test_id = f"{request.node.cls.__name__}_{request.node.name}"
         self.session = self._get_session_with_retries()
@@ -315,23 +311,6 @@ class BaseK8STest:
                 "merge",
                 "-p",
                 f'{{"data": {{"{configmap_key}": "{self._parse_airflow_cfg_dict_as_escaped_toml(airflow_cfg_dict)}"}}}}',
-            ]
-        )
-
-    @staticmethod
-    def dags_reserialize():
-        """Reserialize the DAGs using the airflow CLI in the scheduler pod."""
-        check_call(
-            [
-                "kubectl",
-                "-n",
-                "airflow",
-                "exec",
-                "deployment/airflow-scheduler",
-                "--",
-                "airflow",
-                "dags",
-                "reserialize",
             ]
         )
 
