@@ -41,10 +41,6 @@ from airflow.api_fastapi.auth.managers.models.resource_details import (
     PoolDetails,
     VariableDetails,
 )
-from airflow.api_fastapi.auth.managers.utils.fab import (
-    get_fab_action_from_method_map,
-    get_method_from_fab_action_map,
-)
 from airflow.cli.cli_config import (
     DefaultHelpParser,
     GroupCommand,
@@ -89,6 +85,7 @@ from airflow.providers.fab.www.security.permissions import (
     RESOURCE_WEBSITE,
     RESOURCE_XCOM,
 )
+from airflow.providers.fab.www.utils import get_fab_action_from_method_map, get_method_from_fab_action_map
 from airflow.utils.session import NEW_SESSION, create_session, provide_session
 from airflow.utils.yaml import safe_load
 
