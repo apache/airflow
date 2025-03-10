@@ -22,7 +22,6 @@ from typing import TYPE_CHECKING, ClassVar
 
 import attrs
 
-from airflow.models.xcom import BaseXCom
 from airflow.utils.log.logging_mixin import LoggingMixin
 
 if TYPE_CHECKING:
@@ -38,6 +37,7 @@ class XComOperatorLink(LoggingMixin):
     xcom_key: str
 
     def get_link(self, operator: BaseOperator, *, ti_key: TaskInstanceKey) -> str:
+        from airflow.sdk.execution_time.xcom import BaseXCom
         """
         Retrieve the link from the XComs.
 
