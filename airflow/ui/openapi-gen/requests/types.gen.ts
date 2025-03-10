@@ -1795,6 +1795,7 @@ export type ListBackfills1Data = {
 export type ListBackfills1Response = BackfillCollectionResponse;
 
 export type CreateBackfillData = {
+  dagId?: string | null;
   requestBody: BackfillPostBody;
 };
 
@@ -1808,18 +1809,21 @@ export type GetBackfillResponse = BackfillResponse;
 
 export type PauseBackfillData = {
   backfillId: unknown;
+  dagId?: string | null;
 };
 
 export type PauseBackfillResponse = BackfillResponse;
 
 export type UnpauseBackfillData = {
   backfillId: unknown;
+  dagId?: string | null;
 };
 
 export type UnpauseBackfillResponse = BackfillResponse;
 
 export type CancelBackfillData = {
   backfillId: unknown;
+  dagId?: string | null;
 };
 
 export type CancelBackfillResponse = BackfillResponse;
