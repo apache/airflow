@@ -117,6 +117,18 @@ class TestGetDagVersion(TestDagVersionEndpoint):
             "detail": "The DagVersion with dag_id: `dag_with_multiple_versions` and version_number: `99` was not found",
         }
 
+    def test_should_respond_401(self, unauthenticated_test_client):
+        response = unauthenticated_test_client.get(
+            "/public/dags/dag_with_multiple_versions/dagVersions/99", params={}
+        )
+        assert response.status_code == 401
+
+    def test_should_respond_403(self, unauthorized_test_client):
+        response = unauthorized_test_client.get(
+            "/public/dags/dag_with_multiple_versions/dagVersions/99", params={}
+        )
+        assert response.status_code == 403
+
 
 class TestGetDagVersions(TestDagVersionEndpoint):
     @pytest.mark.parametrize(
@@ -298,3 +310,11 @@ class TestGetDagVersions(TestDagVersionEndpoint):
         assert response.json() == {
             "detail": "The DAG with dag_id: `MISSING_ID` was not found",
         }
+
+    def test_should_respond_401(self, unauthenticated_test_client):
+        response = unauthenticated_test_client.get("/public/dags/~/dagVersions", params={})
+        assert response.status_code == 401
+
+    def test_should_respond_403(self, unauthorized_test_client):
+        response = unauthorized_test_client.get("/public/dags/~/dagVersions", params={})
+        assert response.status_code == 403
