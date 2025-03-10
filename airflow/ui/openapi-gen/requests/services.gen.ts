@@ -3,7 +3,6 @@ import type { CancelablePromise } from "./core/CancelablePromise";
 import { OpenAPI } from "./core/OpenAPI";
 import { request as __request } from "./core/request";
 import type {
-  NextRunAssetsData,
   NextRunAssetsResponse,
   GetAssetsData,
   GetAssetsResponse,
@@ -216,21 +215,13 @@ import type {
 export class AssetService {
   /**
    * Next Run Assets
-   * @param data The data for the request.
-   * @param data.dagId
    * @returns unknown Successful Response
    * @throws ApiError
    */
-  public static nextRunAssets(data: NextRunAssetsData): CancelablePromise<NextRunAssetsResponse> {
+  public static nextRunAssets(): CancelablePromise<NextRunAssetsResponse> {
     return __request(OpenAPI, {
       method: "GET",
       url: "/ui/next_run_assets/{dag_id}",
-      path: {
-        dag_id: data.dagId,
-      },
-      errors: {
-        422: "Validation Error",
-      },
     });
   }
 
@@ -448,7 +439,6 @@ export class AssetService {
    * @param data The data for the request.
    * @param data.assetId
    * @param data.before
-   * @param data.dagId
    * @returns void Successful Response
    * @throws ApiError
    */
@@ -463,7 +453,6 @@ export class AssetService {
       },
       query: {
         before: data.before,
-        dag_id: data.dagId,
       },
       errors: {
         401: "Unauthorized",
@@ -1904,7 +1893,6 @@ export class EventLogService {
    * Get Event Log
    * @param data The data for the request.
    * @param data.eventLogId
-   * @param data.dagId
    * @returns EventLogResponse Successful Response
    * @throws ApiError
    */
@@ -1914,9 +1902,6 @@ export class EventLogService {
       url: "/public/eventLogs/{event_log_id}",
       path: {
         event_log_id: data.eventLogId,
-      },
-      query: {
-        dag_id: data.dagId,
       },
       errors: {
         401: "Unauthorized",
@@ -1931,10 +1916,10 @@ export class EventLogService {
    * Get Event Logs
    * Get all Event Logs.
    * @param data The data for the request.
-   * @param data.dagId
    * @param data.limit
    * @param data.offset
    * @param data.orderBy
+   * @param data.dagId
    * @param data.taskId
    * @param data.runId
    * @param data.mapIndex
@@ -1953,10 +1938,10 @@ export class EventLogService {
       method: "GET",
       url: "/public/eventLogs",
       query: {
-        dag_id: data.dagId,
         limit: data.limit,
         offset: data.offset,
         order_by: data.orderBy,
+        dag_id: data.dagId,
         task_id: data.taskId,
         run_id: data.runId,
         map_index: data.mapIndex,
