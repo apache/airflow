@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2025-03-10T08:06:00.725410
+# This constraints file was automatically generated on 2025-03-10T20:12:58.199606
 # via "eager-upgrade" mechanism of PIP. For the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version of both
 # 'apache-airflow' package and all available community provider packages.
@@ -135,7 +135,7 @@ celery==5.4.0
 certifi==2025.1.31
 cffi==1.17.1
 cfgv==3.4.0
-cfn-lint==1.28.0
+cfn-lint==1.29.1
 cgroupspy==0.2.3
 chardet==5.2.0
 charset-normalizer==3.4.1
@@ -208,7 +208,7 @@ gevent==24.11.1
 gitdb==4.0.12
 google-ads==26.0.0
 google-analytics-admin==0.23.5
-google-api-core==2.24.1
+google-api-core==2.24.2
 google-api-python-client==2.163.0
 google-auth-httplib2==0.2.0
 google-auth-oauthlib==1.2.1
@@ -442,7 +442,7 @@ prison==0.2.1
 prometheus_client==0.21.1
 prompt_toolkit==3.0.50
 propcache==0.3.0
-proto-plus==1.26.0
+proto-plus==1.26.1
 protobuf==4.25.6
 psutil==7.0.0
 psycopg2-binary==2.9.10
