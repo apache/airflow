@@ -60,6 +60,8 @@ export const Logs = () => {
   const tryNumber = tryNumberParam === null ? taskInstance?.try_number : parseInt(tryNumberParam, 10);
 
   const defaultWrap = Boolean(useConfig("default_wrap"));
+  const errorKeywords = (useConfig("color_log_error_keywords") ?? []) as Array<string>;
+  const warningKeywords = (useConfig("color_log_warning_keywords") ?? []) as Array<string>;
 
   const [wrap, setWrap] = useState(defaultWrap);
   const [fullscreen, setFullscreen] = useState(false);
@@ -77,10 +79,12 @@ export const Logs = () => {
     isLoading: isLoadingLogs,
   } = useLogs({
     dagId,
+    errorKeywords,
     logLevelFilters,
     sourceFilters,
     taskInstance,
     tryNumber: tryNumber === 0 ? 1 : tryNumber,
+    warningKeywords,
   });
 
   return (
