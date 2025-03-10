@@ -142,6 +142,8 @@ def _get_v1_env_var_type() -> type:
 def _is_v1_env_var(v: Any) -> TypeGuard[V1EnvVar]:
     return isinstance(v, _get_v1_env_var_type())
 
+    # TODO(potiuk): check if regexp pattern matching here is safe
+
 
 class SecretsMasker(logging.Filter):
     """Redact secrets from logs."""
@@ -343,7 +345,6 @@ class SecretsMasker(logging.Filter):
                     if pattern not in self.patterns and (not name or should_hide_value_for_key(name)):
                         self.patterns.add(pattern)
                         new_mask = True
-
             if new_mask:
                 self.replacer = re.compile("|".join(self.patterns))
 

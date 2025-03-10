@@ -45,7 +45,8 @@ PRE_INSTALLED_PROVIDERS = [
     "common.compat",
     "common.io",
     "common.sql",
-    "fab>=1.0.2",
+    # TODO(potiuk) make pre-installed providers optional depending on python version
+    #    "fab>=1.0.2",
     "ftp",
     "http",
     "imap",
@@ -60,9 +61,9 @@ CORE_EXTRAS: dict[str, list[str]] = {
     # Aiobotocore required for AWS deferrable operators.
     # There is conflict between boto3 and aiobotocore dependency botocore.
     # TODO: We can remove it once boto3 and aiobotocore both have compatible botocore version or
-    # boto3 have native aync support and we move away from aio aiobotocore
+    # boto3 have native async support and we move away from aio aiobotocore
     "aiobotocore": [
-        "aiobotocore>=2.9.0",
+        'aiobotocore>=2.9.0; python_version < "3.13"',
     ],
     "async": [
         "eventlet>=0.33.3",
@@ -84,11 +85,11 @@ CORE_EXTRAS: dict[str, list[str]] = {
         "cloudpickle>=2.2.1",
     ],
     "github-enterprise": [
-        "apache-airflow[fab]",
+        "apache-airflow[fab]; python_version < '3.13'",
         "authlib>=1.0.0",
     ],
     "google-auth": [
-        "apache-airflow[fab]",
+        "apache-airflow[fab]; python_version < '3.13'",
         "authlib>=1.0.0",
     ],
     "graphviz": [
@@ -109,17 +110,13 @@ CORE_EXTRAS: dict[str, list[str]] = {
         # The plyvel package is a huge pain when installing on MacOS - especially when Apple releases new
         # OS version. It's usually next to impossible to install it at least for a few months after the new
         # MacOS version is released. We can skip it on MacOS as this is an optional feature anyway.
-        "plyvel>=1.5.1; sys_platform != 'darwin'",
+        "plyvel>=1.5.1; sys_platform != 'darwin' and python_version < '3.13'",
     ],
     "otel": [
         "opentelemetry-exporter-prometheus>=0.47b0",
     ],
     "pandas": [
-        # In pandas 2.2 minimal version of the sqlalchemy is 2.0
-        # https://pandas.pydata.org/docs/whatsnew/v2.2.0.html#increased-minimum-versions-for-dependencies
-        # However Airflow not fully supports it yet: https://github.com/apache/airflow/issues/28723
-        # In addition FAB also limit sqlalchemy to < 2.0
-        "pandas>=1.2.5,<2.2",
+        "pandas>=1.2.5",
     ],
     "password": [
         "bcrypt>=2.0.0",
@@ -238,8 +235,9 @@ DEPENDENCIES = [
     "opentelemetry-exporter-otlp>=1.24.0",
     "packaging>=23.2",
     "pathspec>=0.9.0",
-    'pendulum>=2.1.2,<4.0;python_version<"3.12"',
-    'pendulum>=3.0.0,<4.0;python_version>="3.12"',
+    # 'pendulum>=2.1.2,<4.0;python_version<"3.12"',
+    # 'pendulum>=3.0.0,<4.0;python_version>="3.12"',
+    "pendulum @ git+https://github.com/python-pendulum/pendulum.git@76422468575b5817f7a58f3d05c26b480bf671a9",
     "pluggy>=1.5.0",
     "psutil>=5.8.0",
     "pydantic>=2.10.2",
@@ -262,7 +260,7 @@ DEPENDENCIES = [
     # See https://sqlalche.me/e/b8d9 for details of deprecated features
     # you can set environment variable SQLALCHEMY_WARN_20=1 to show all deprecation warnings.
     # The issue tracking it is https://github.com/apache/airflow/issues/28723
-    "sqlalchemy>=1.4.49,<2.0",
+    "sqlalchemy>=2.0,<3.0",
     "sqlalchemy-jsonfield>=1.0",
     "sqlalchemy-utils>=0.41.2",
     "tabulate>=0.7.5",
@@ -368,7 +366,7 @@ def get_provider_requirement(provider_spec: str) -> str:
     """
     airflow_init_py_path = AIRFLOW_ROOT_PATH / "airflow" / "__init__.py"
     if ">=" in provider_spec and airflow_init_py_path.exists():
-        # we cannot import `airflow` here directly as it would pull re2 and a number of airflow
+        # we cannot import `airflow` here directly as it would create circular
         # dependencies so we need to read airflow version by matching a regexp
         airflow_init_content = airflow_init_py_path.read_text()
         airflow_version_pattern = r'__version__ = "(\d+\.\d+\.\d+\S*)"'
