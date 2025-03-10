@@ -53,7 +53,7 @@ if TYPE_CHECKING:
     )
     from airflow.models import DagRun, Pool, TaskInstance, Variable
     from airflow.models.connection import Connection
-    from airflow.models.xcom import BaseXCom
+    from airflow.models.xcom import XComModel
 
 T = TypeVar("T", bound=Callable)
 
@@ -249,7 +249,7 @@ def has_access_dag_entities(method: ResourceMethod, access_entity: DagAccessEnti
     def has_access_decorator(func: T):
         @wraps(func)
         def decorated(*args, **kwargs):
-            items: set[BaseXCom | DagRun | TaskInstance] = set(args[1])
+            items: set[XComModel | DagRun | TaskInstance] = set(args[1])
             requests: Sequence[IsAuthorizedDagRequest] = [
                 {
                     "method": method,
