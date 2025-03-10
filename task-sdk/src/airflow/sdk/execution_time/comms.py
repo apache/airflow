@@ -335,6 +335,7 @@ class DeleteXCom(BaseModel):
     task_id: str
     type: Literal["DeleteXCom"] = "DeleteXCom"
 
+
 class GetConnection(BaseModel):
     conn_id: str
     type: Literal["GetConnection"] = "GetConnection"
