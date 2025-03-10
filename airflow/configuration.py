@@ -1290,6 +1290,11 @@ class AirflowConfigParser(ConfigParser):
         """
         section = section.lower()
         option = option.lower()
+        defaults = self.configuration_description or {}
+        if not self.has_section(section) and section in defaults:
+            # Trying to set a key in a section that exists in default, but not in the user config;
+            # automatically create it
+            self.add_section(section)
         super().set(section, option, value)
 
     def remove_option(self, section: str, option: str, remove_default: bool = True):

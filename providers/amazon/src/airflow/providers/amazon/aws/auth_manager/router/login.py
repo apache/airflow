@@ -19,6 +19,7 @@ from __future__ import annotations
 
 import logging
 from typing import Any
+from urllib.parse import urljoin
 
 import anyio
 from fastapi import HTTPException, Request
@@ -79,7 +80,7 @@ def login_callback(request: Request):
         username=saml_auth.get_nameid(),
         email=attributes["email"][0] if "email" in attributes else None,
     )
-    url = f"{conf.get('api', 'base_url')}/?token={get_auth_manager().get_jwt_token(user)}"
+    url = urljoin(conf.get("api", "base_url"), f"?token={get_auth_manager().get_jwt_token(user)}")
     return RedirectResponse(url=url, status_code=303)
 
 
