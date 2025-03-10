@@ -308,7 +308,7 @@ class TestSecretsMasker:
 
     def test_redact_with_str_type(self, logger, caplog):
         """
-        SecretsMasker's re2 replacer has issues handling a redactable item of type
+        SecretsMasker's re replacer has issues handling a redactable item of type
         `str` with required constructor args. This test ensures there is a shim in
         place that avoids any issues.
         See: https://github.com/apache/airflow/issues/19816#issuecomment-983311373
@@ -457,7 +457,7 @@ class TestMaskSecretAdapter:
         with patch(
             "airflow.sdk.execution_time.secrets_masker._secrets_masker", return_value=self.secrets_masker
         ):
-            with patch("airflow.sdk.execution_time.secrets_masker.re2.escape", lambda x: x):
+            with patch("airflow.sdk.execution_time.secrets_masker.re.escape", lambda x: x):
                 yield
 
     def test_calling_mask_secret_adds_adaptations_for_returned_str(self):

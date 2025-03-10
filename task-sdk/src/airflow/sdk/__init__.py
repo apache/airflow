@@ -26,6 +26,7 @@ __all__ = [
     "AssetAny",
     "AssetWatcher",
     "BaseOperator",
+    "BaseOperatorLink",
     "Connection",
     "Context",
     "DAG",
@@ -50,6 +51,7 @@ if TYPE_CHECKING:
     from airflow.sdk.definitions.assets.decorators import asset
     from airflow.sdk.definitions.assets.metadata import Metadata
     from airflow.sdk.definitions.baseoperator import BaseOperator
+    from airflow.sdk.definitions.baseoperatorlink import BaseOperatorLink
     from airflow.sdk.definitions.connection import Connection
     from airflow.sdk.definitions.context import Context, get_current_context, get_parsing_context
     from airflow.sdk.definitions.dag import DAG, dag
@@ -67,6 +69,7 @@ __lazy_imports: dict[str, str] = {
     "AssetAny": ".definitions.asset",
     "AssetWatcher": ".definitions.asset",
     "BaseOperator": ".definitions.baseoperator",
+    "BaseOperatorLink": ".definitions.baseoperatorlink",
     "Connection": ".definitions.connection",
     "Context": ".definitions.context",
     "DAG": ".definitions.dag",

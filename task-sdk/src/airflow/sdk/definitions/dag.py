@@ -28,7 +28,6 @@ from collections import abc
 from collections.abc import Collection, Iterable, MutableSet
 from datetime import datetime, timedelta
 from inspect import signature
-from re import Pattern
 from typing import (
     TYPE_CHECKING,
     Any,
@@ -41,7 +40,6 @@ from urllib.parse import urlsplit
 
 import attrs
 import jinja2
-import re2
 from dateutil.relativedelta import relativedelta
 
 from airflow import settings
@@ -741,7 +739,7 @@ class DAG:
 
     def partial_subset(
         self,
-        task_ids_or_regex: str | Pattern | Iterable[str],
+        task_ids: str | Iterable[str],
         include_downstream=False,
         include_upstream=True,
         include_direct_upstream=False,
@@ -753,8 +751,7 @@ class DAG:
         based on a regex that should match one or many tasks, and includes
         upstream and downstream neighbours based on the flag passed.
 
-        :param task_ids_or_regex: Either a list of task_ids, or a regex to
-            match against task ids (as a string, or compiled regex pattern).
+        :param task_ids: Either a list of task_ids, or a string task_id
         :param include_downstream: Include all downstream tasks of matched
             tasks, in addition to matched tasks.
         :param include_upstream: Include all upstream tasks of matched tasks,
@@ -769,10 +766,10 @@ class DAG:
         memo = {id(self.task_dict): None, id(self.task_group): None}
         dag = copy.deepcopy(self, memo)  # type: ignore
 
-        if isinstance(task_ids_or_regex, (str, Pattern)):
-            matched_tasks = [t for t in self.tasks if re2.findall(task_ids_or_regex, t.task_id)]
+        if isinstance(task_ids, str):
+            matched_tasks = [t for t in self.tasks if task_ids in t.task_id]
         else:
-            matched_tasks = [t for t in self.tasks if t.task_id in task_ids_or_regex]
+            matched_tasks = [t for t in self.tasks if t.task_id in task_ids]
 
         also_include_ids: set[str] = set()
         for t in matched_tasks:

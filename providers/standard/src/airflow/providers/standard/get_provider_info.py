@@ -27,8 +27,8 @@ def get_provider_info():
         "name": "Standard",
         "description": "Airflow Standard Provider\n",
         "state": "ready",
-        "source-date-epoch": 1741121952,
-        "versions": ["0.1.0", "0.0.3", "0.0.2", "0.0.1"],
+        "source-date-epoch": 1741509906,
+        "versions": ["0.1.1", "0.1.0", "0.0.3", "0.0.2", "0.0.1"],
         "integrations": [
             {
                 "integration-name": "Standard",
@@ -52,6 +52,7 @@ def get_provider_info():
                     "airflow.providers.standard.operators.empty",
                     "airflow.providers.standard.operators.trigger_dagrun",
                     "airflow.providers.standard.operators.latest_only",
+                    "airflow.providers.standard.operators.smooth",
                 ],
             }
         ],

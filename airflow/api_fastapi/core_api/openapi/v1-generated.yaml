@@ -2832,6 +2832,8 @@ paths:
       - Config
       summary: Get Config
       operationId: get_config
+      security:
+      - OAuth2PasswordBearer: []
       parameters:
       - name: section
         in: query
@@ -2912,6 +2914,8 @@ paths:
       - Config
       summary: Get Config Value
       operationId: get_config_value
+      security:
+      - OAuth2PasswordBearer: []
       parameters:
       - name: section
         in: path
@@ -3786,12 +3790,16 @@ paths:
       summary: Get Extra Links
       description: Get extra links for task instance.
       operationId: get_extra_links
+      security:
+      - OAuth2PasswordBearer: []
       parameters:
       - name: dag_id
         in: path
         required: true
         schema:
-          type: string
+          anyOf:
+          - type: string
+          - type: 'null'
           title: Dag Id
       - name: dag_run_id
         in: path
@@ -7993,9 +8001,6 @@ components:
         audit_view_included_events:
           type: string
           title: Audit View Included Events
-        is_k8s:
-          type: boolean
-          title: Is K8S
         test_connection:
           type: string
           title: Test Connection
@@ -8021,7 +8026,6 @@ components:
       - warn_deployment_exposure
       - audit_view_excluded_events
       - audit_view_included_events
-      - is_k8s
       - test_connection
       - state_color_mapping
       title: ConfigResponse

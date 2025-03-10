@@ -38,7 +38,7 @@ from airflow.configuration import conf
 from airflow.exceptions import AirflowConfigException
 
 if TYPE_CHECKING:
-    from airflow.auth.managers.base_auth_manager import BaseAuthManager
+    from airflow.api_fastapi.auth.managers.base_auth_manager import BaseAuthManager
 
 log = logging.getLogger(__name__)
 

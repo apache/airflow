@@ -56,7 +56,7 @@ class TestBedrockCustomizeModelCompletedTrigger(TestBaseBedrockTrigger):
 
     @pytest.mark.asyncio
     @mock.patch.object(BedrockHook, "get_waiter")
-    @mock.patch.object(BedrockHook, "async_conn")
+    @mock.patch.object(BedrockHook, "get_async_conn")
     async def test_run_success(self, mock_async_conn, mock_get_waiter):
         mock_async_conn.__aenter__.return_value = mock.MagicMock()
         mock_get_waiter().wait = AsyncMock()
@@ -85,7 +85,7 @@ class TestBedrockProvisionModelThroughputCompletedTrigger(TestBaseBedrockTrigger
 
     @pytest.mark.asyncio
     @mock.patch.object(BedrockHook, "get_waiter")
-    @mock.patch.object(BedrockHook, "async_conn")
+    @mock.patch.object(BedrockHook, "get_async_conn")
     async def test_run_success(self, mock_async_conn, mock_get_waiter):
         mock_async_conn.__aenter__.return_value = mock.MagicMock()
         mock_get_waiter().wait = AsyncMock()
@@ -116,7 +116,7 @@ class TestBedrockKnowledgeBaseActiveTrigger(TestBaseBedrockTrigger):
 
     @pytest.mark.asyncio
     @mock.patch.object(BedrockAgentHook, "get_waiter")
-    @mock.patch.object(BedrockAgentHook, "async_conn")
+    @mock.patch.object(BedrockAgentHook, "get_async_conn")
     async def test_run_success(self, mock_async_conn, mock_get_waiter):
         mock_async_conn.__aenter__.return_value = mock.MagicMock()
         mock_get_waiter().wait = AsyncMock()
@@ -152,7 +152,7 @@ class TestBedrockIngestionJobTrigger(TestBaseBedrockTrigger):
 
     @pytest.mark.asyncio
     @mock.patch.object(BedrockAgentHook, "get_waiter")
-    @mock.patch.object(BedrockAgentHook, "async_conn")
+    @mock.patch.object(BedrockAgentHook, "get_async_conn")
     async def test_run_success(self, mock_async_conn, mock_get_waiter):
         mock_async_conn.__aenter__.return_value = mock.MagicMock()
         mock_get_waiter().wait = AsyncMock()
