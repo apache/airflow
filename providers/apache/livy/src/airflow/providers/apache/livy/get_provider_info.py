@@ -27,8 +27,9 @@ def get_provider_info():
         "name": "Apache Livy",
         "description": "`Apache Livy <https://livy.apache.org/>`__\n",
         "state": "ready",
-        "source-date-epoch": 1741121832,
+        "source-date-epoch": 1741508288,
         "versions": [
+            "4.2.1",
             "4.2.0",
             "4.0.0",
             "3.9.2",
