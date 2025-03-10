@@ -616,6 +616,8 @@ paths:
       summary: Get Asset Aliases
       description: Get asset aliases.
       operationId: get_asset_aliases
+      security:
+      - OAuth2PasswordBearer: []
       parameters:
       - name: limit
         in: query
@@ -686,6 +688,8 @@ paths:
       summary: Get Asset Alias
       description: Get an asset alias.
       operationId: get_asset_alias
+      security:
+      - OAuth2PasswordBearer: []
       parameters:
       - name: asset_alias_id
         in: path

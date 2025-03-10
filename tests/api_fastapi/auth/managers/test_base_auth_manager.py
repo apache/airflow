@@ -34,6 +34,7 @@ if TYPE_CHECKING:
     from airflow.api_fastapi.auth.managers.base_auth_manager import ResourceMethod
     from airflow.api_fastapi.auth.managers.models.resource_details import (
         AccessView,
+        AssetAliasDetails,
         AssetDetails,
         ConfigurationDetails,
         DagAccessEntity,
@@ -91,6 +92,15 @@ class EmptyAuthManager(BaseAuthManager[BaseAuthManagerUserTest]):
         *,
         method: ResourceMethod,
         details: AssetDetails | None = None,
+        user: BaseAuthManagerUserTest | None = None,
+    ) -> bool:
+        raise NotImplementedError()
+
+    def is_authorized_asset_alias(
+        self,
+        *,
+        method: ResourceMethod,
+        details: AssetAliasDetails | None = None,
         user: BaseAuthManagerUserTest | None = None,
     ) -> bool:
         raise NotImplementedError()

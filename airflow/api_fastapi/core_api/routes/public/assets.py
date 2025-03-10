@@ -53,7 +53,11 @@ from airflow.api_fastapi.core_api.datamodels.assets import (
 )
 from airflow.api_fastapi.core_api.datamodels.dag_run import DAGRunResponse
 from airflow.api_fastapi.core_api.openapi.exceptions import create_openapi_http_exception_doc
-from airflow.api_fastapi.core_api.security import requires_access_asset, requires_access_dag
+from airflow.api_fastapi.core_api.security import (
+    requires_access_asset,
+    requires_access_asset_alias,
+    requires_access_dag,
+)
 from airflow.api_fastapi.logging.decorators import action_logging
 from airflow.assets.manager import asset_manager
 from airflow.models.asset import (
@@ -130,6 +134,7 @@ def get_assets(
 @assets_router.get(
     "/assets/aliases",
     responses=create_openapi_http_exception_doc([status.HTTP_404_NOT_FOUND]),
+    dependencies=[Depends(requires_access_asset_alias(method="GET"))],
 )
 def get_asset_aliases(
     limit: QueryLimit,
@@ -160,6 +165,7 @@ def get_asset_aliases(
 @assets_router.get(
     "/assets/aliases/{asset_alias_id}",
     responses=create_openapi_http_exception_doc([status.HTTP_404_NOT_FOUND]),
+    dependencies=[Depends(requires_access_asset_alias(method="GET"))],
 )
 def get_asset_alias(asset_alias_id: int, session: SessionDep):
     """Get an asset alias."""

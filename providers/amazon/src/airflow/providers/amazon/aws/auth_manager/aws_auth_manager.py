@@ -55,7 +55,11 @@ if TYPE_CHECKING:
         IsAuthorizedPoolRequest,
         IsAuthorizedVariableRequest,
     )
-    from airflow.api_fastapi.auth.managers.models.resource_details import AssetDetails, ConfigurationDetails
+    from airflow.api_fastapi.auth.managers.models.resource_details import (
+        AssetAliasDetails,
+        AssetDetails,
+        ConfigurationDetails,
+    )
 
 
 class AwsAuthManager(BaseAuthManager[AwsAuthManagerUser]):
@@ -156,6 +160,14 @@ class AwsAuthManager(BaseAuthManager[AwsAuthManagerUser]):
         asset_id = details.id if details else None
         return self.avp_facade.is_authorized(
             method=method, entity_type=AvpEntities.ASSET, user=user, entity_id=asset_id
+        )
+
+    def is_authorized_asset_alias(
+        self, *, method: ResourceMethod, user: AwsAuthManagerUser, details: AssetAliasDetails | None = None
+    ) -> bool:
+        asset_alias_id = details.id if details else None
+        return self.avp_facade.is_authorized(
+            method=method, entity_type=AvpEntities.ASSET_ALIAS, user=user, entity_id=asset_alias_id
         )
 
     def is_authorized_pool(
