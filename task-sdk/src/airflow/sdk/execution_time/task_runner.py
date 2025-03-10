@@ -51,18 +51,15 @@ from airflow.sdk.definitions.mappedoperator import MappedOperator
 from airflow.sdk.definitions.param import process_params
 from airflow.sdk.execution_time.comms import (
     DeferTask,
-    GetXCom,
     OKResponse,
     RescheduleTask,
     RuntimeCheckOnTask,
     SetRenderedFields,
-    SetXCom,
     StartupDetails,
     SucceedTask,
     TaskState,
     ToSupervisor,
     ToTask,
-    XComResult, DeleteXCom,
 )
 from airflow.sdk.execution_time.context import (
     ConnectionAccessor,
@@ -73,7 +70,7 @@ from airflow.sdk.execution_time.context import (
     get_previous_dagrun_success,
     set_current_context,
 )
-from airflow.sdk.execution_time.xcom import resolve_xcom_backend
+from airflow.sdk.execution_time.xcom import XCom
 from airflow.utils.net import get_hostname
 from airflow.utils.state import TaskInstanceState
 
@@ -303,47 +300,16 @@ class RuntimeTaskInstance(TaskInstance):
         elif isinstance(map_indexes, Iterable):
             # TODO: Handle multiple map_indexes or remove support
             raise NotImplementedError("Multiple map_indexes are not supported yet")
-
-        log = structlog.get_logger(logger_name="task")
-
         xcoms = []
         for t in task_ids:
-            if XCom:
-                value = XCom.get_one(
-                    run_id=run_id,
-                    key=key,
-                    task_id=t,
-                    dag_id=dag_id,
-                    map_index=map_indexes,
-                )
-                xcoms.append(XCom.deserialize_value(value))
-                continue
-            SUPERVISOR_COMMS.send_request(
-                log=log,
-                msg=GetXCom(
-                    key=key,
-                    dag_id=dag_id,
-                    task_id=t,
-                    run_id=run_id,
-                    map_index=map_indexes,
-                ),
+            value = XCom.get_one(
+                run_id=run_id,
+                key=key,
+                task_id=t,
+                dag_id=dag_id,
+                map_index=map_indexes,
             )
-
-            msg = SUPERVISOR_COMMS.get_message()
-            if not isinstance(msg, XComResult):
-                raise TypeError(f"Expected XComResult, received: {type(msg)} {msg}")
-
-            if msg.value is not None:
-                from airflow.serialization.serde import deserialize
-
-                # TODO: Move XCom serialization & deserialization to Task SDK
-                #   https://github.com/apache/airflow/issues/45231
-
-                # The execution API server deals in json compliant types now.
-                # serde's deserialize can handle deserializing primitive, collections, and complex objects too
-                xcoms.append(deserialize(msg.value))  # type: ignore[type-var]
-            else:
-                xcoms.append(default)
+            xcoms.append(value if value else default)
 
         if len(xcoms) == 1:
             return xcoms[0]
@@ -368,37 +334,12 @@ class RuntimeTaskInstance(TaskInstance):
 def _xcom_push(ti: RuntimeTaskInstance, key: str, value: Any, mapped_length: int | None = None) -> None:
     # Private function, as we don't want to expose the ability to manually set `mapped_length` to SDK
     # consumers
-    from airflow.serialization.serde import serialize
-
-    if XCom:
-        XCom.set(
-            key=key,
-            value=value,
-            dag_id=ti.dag_id,
-            task_id=ti.task_id,
-            run_id=ti.run_id,
-        )
-        return
-    # TODO: Move XCom serialization & deserialization to Task SDK
-    #   https://github.com/apache/airflow/issues/45231
-
-    # The execution API server now deals in json compliant objects.
-    # It is responsibility of the client to handle any non native object serialization.
-    # serialize does just that.
-    value = serialize(value)
-
-    log = structlog.get_logger(logger_name="task")
-    SUPERVISOR_COMMS.send_request(
-        log=log,
-        msg=SetXCom(
-            key=key,
-            value=value,
-            dag_id=ti.dag_id,
-            task_id=ti.task_id,
-            run_id=ti.run_id,
-            map_index=ti.map_index,
-            mapped_length=mapped_length,
-        ),
+    XCom.set(
+        key=key,
+        value=value,
+        dag_id=ti.dag_id,
+        task_id=ti.task_id,
+        run_id=ti.run_id,
     )
 
 
@@ -506,8 +447,6 @@ SUPERVISOR_COMMS: CommsDecoder[ToTask, ToSupervisor]
 # 2. Execution (run task code, possibly send requests)
 # 3. Shutdown and report status
 
-XCom: Any = None
-
 
 def startup() -> tuple[RuntimeTaskInstance, Logger]:
     msg = SUPERVISOR_COMMS.get_message()
@@ -523,9 +462,6 @@ def startup() -> tuple[RuntimeTaskInstance, Logger]:
         with _airflow_parsing_context_manager(dag_id=msg.ti.dag_id, task_id=msg.ti.task_id):
             ti = parse(msg)
         log.debug("DAG file parsed", file=msg.dag_rel_path)
-
-        global XCom
-        XCom = resolve_xcom_backend(log)
     else:
         raise RuntimeError(f"Unhandled startup message {type(msg)} {msg}")
 
@@ -611,15 +547,11 @@ def run(
 
         for x in keys_to_delete:
             log.debug("Clearing XCom with key", key=x)
-            XCom.purge()
-            SUPERVISOR_COMMS.send_request(
-                log=log,
-                msg=DeleteXCom(
-                    key=x,
-                    dag_id=ti.dag_id,
-                    task_id=ti.task_id,
-                    run_id=ti.run_id,
-                ),
+            XCom.delete(
+                key=x,
+                dag_id=ti.dag_id,
+                task_id=ti.task_id,
+                run_id=ti.run_id,
             )
 
     from airflow.exceptions import (
@@ -820,6 +752,7 @@ def _push_xcom_if_needed(result: Any, ti: RuntimeTaskInstance, log: Logger):
 
     # TODO: Use constant for XCom return key & use serialize_value from Task SDK
     _xcom_push(ti, "return_value", result, mapped_length=mapped_length)
+
 
 def finalize(
     ti: RuntimeTaskInstance, state: TerminalTIState, log: Logger, error: BaseException | None = None

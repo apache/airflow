@@ -1,17 +1,34 @@
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
+#
+#   http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
+
 from __future__ import annotations
 
-import json
 from typing import Any
 
 import structlog
 
-from airflow.sdk.execution_time.comms import SetXCom, GetXCom, XComResult
-from airflow.utils.json import XComEncoder, XComDecoder
+from airflow.sdk.execution_time.comms import DeleteXCom, GetXCom, SetXCom, XComResult
 
 log = structlog.get_logger(logger_name="task")
 
 
 class BaseXCom:
+    """BaseXcom is an interface now to interact with XCom backends."""
+
     @classmethod
     def set(
         cls,
@@ -35,6 +52,7 @@ class BaseXCom:
             The default is ``-1`` (set for a non-mapped task).
         """
         from airflow.sdk.execution_time.task_runner import SUPERVISOR_COMMS
+
         value = cls.serialize_value(
             value=value,
             key=key,
@@ -43,17 +61,6 @@ class BaseXCom:
             run_id=run_id,
             map_index=map_index,
         )
-
-        # TODO: call delete api here
-        # session.execute(
-        #     delete(cls).where(
-        #         cls.key == key,
-        #         cls.run_id == run_id,
-        #         cls.task_id == task_id,
-        #         cls.dag_id == dag_id,
-        #         cls.map_index == map_index,
-        #     )
-        # )
 
         SUPERVISOR_COMMS.send_request(
             log=log,
@@ -67,39 +74,38 @@ class BaseXCom:
             ),
         )
 
-    # @staticmethod
-    # def get_value(
-    #     *,
-    #     ti_key: TaskInstanceKey,
-    #     key: str | None = None,
-    # ) -> Any:
-    #     """
-    #     Retrieve an XCom value for a task instance.
-    #
-    #     This method returns "full" XCom values (i.e. uses ``deserialize_value``
-    #     from the XCom backend). Use :meth:`get_many` if you want the "shortened"
-    #     value via ``orm_deserialize_value``.
-    #
-    #     If there are no results, *None* is returned. If multiple XCom entries
-    #     match the criteria, an arbitrary one is returned.
-    #
-    #     :param ti_key: The TaskInstanceKey to look up the XCom for.
-    #     :param key: A key for the XCom. If provided, only XCom with matching
-    #         keys will be returned. Pass *None* (default) to remove the filter.
-    #     :param session: Database session. If not given, a new session will be
-    #         created for this function.
-    #     """
-    #     return BaseXCom.get_one(
-    #         key=key,
-    #         task_id=ti_key.task_id,
-    #         dag_id=ti_key.dag_id,
-    #         run_id=ti_key.run_id,
-    #         map_index=ti_key.map_index,
-    #         session=session,
-    #     )
+    @classmethod
+    def get_value(
+        cls,
+        *,
+        ti_key: Any,
+        key: str | None = None,
+    ) -> Any:
+        """
+        Retrieve an XCom value for a task instance.
 
-    @staticmethod
+        This method returns "full" XCom values (i.e. uses ``deserialize_value``
+        from the XCom backend). Use :meth:`get_many` if you want the "shortened"
+        value via ``orm_deserialize_value``.
+
+        If there are no results, *None* is returned. If multiple XCom entries
+        match the criteria, an arbitrary one is returned.
+
+        :param ti_key: The TaskInstanceKey to look up the XCom for.
+        :param key: A key for the XCom. If provided, only XCom with matching
+            keys will be returned. Pass *None* (default) to remove the filter.
+        """
+        return cls.get_one(
+            key=key,
+            task_id=ti_key.task_id,
+            dag_id=ti_key.dag_id,
+            run_id=ti_key.run_id,
+            map_index=ti_key.map_index,
+        )
+
+    @classmethod
     def get_one(
+        cls,
         *,
         key: str | None = None,
         dag_id: str | None = None,
@@ -135,6 +141,7 @@ class BaseXCom:
             returned regardless of the run it belongs to.
         """
         from airflow.sdk.execution_time.task_runner import SUPERVISOR_COMMS
+
         SUPERVISOR_COMMS.send_request(
             log=log,
             msg=GetXCom(
@@ -151,15 +158,8 @@ class BaseXCom:
             raise TypeError(f"Expected XComResult, received: {type(msg)} {msg}")
 
         if msg.value is not None:
-            from airflow.serialization.serde import deserialize
-
-            # TODO: Move XCom serialization & deserialization to Task SDK
-            #   https://github.com/apache/airflow/issues/45231
-
-            # The execution API server deals in json compliant types now.
-            # serde's deserialize can handle deserializing primitive, collections, and complex objects too
-            print("I am retruning XCom.", BaseXCom.deserialize_value(msg.value))
-            return deserialize(msg.value)
+            return cls.deserialize_value(msg.value)
+        return None
 
     @staticmethod
     def serialize_value(
@@ -172,34 +172,62 @@ class BaseXCom:
         map_index: int | None = None,
     ) -> str:
         """Serialize XCom value to JSON str."""
-        try:
-            return json.dumps(value, cls=XComEncoder)
-        except (ValueError, TypeError):
-            raise ValueError("XCom value must be JSON serializable")
+        from airflow.serialization.serde import serialize
 
-    @staticmethod
-    def _deserialize_value(result, orm: bool) -> Any:
-        object_hook = None
-        if orm:
-            object_hook = XComDecoder.orm_object_hook
-
-        if result.value is None:
-            return None
-
-        return json.loads(result.value, cls=XComDecoder, object_hook=object_hook)
+        # return back the value for BaseXCom, custom backends will implement this
+        return serialize(value)
 
     @staticmethod
     def deserialize_value(result) -> Any:
-        """Deserialize XCom value from str or pickle object."""
-        return BaseXCom._deserialize_value(result, False)
+        """Deserialize XCom value from str objects."""
+        from airflow.serialization.serde import deserialize
 
-    def orm_deserialize_value(self) -> Any:
-        """
-        Deserialize method which is used to reconstruct ORM XCom object.
+        return deserialize(result)
 
-        This method should be overridden in custom XCom backends to avoid
-        unnecessary request or other resource consuming operations when
-        creating XCom orm model. This is used when viewing XCom listing
-        in the webserver, for example.
-        """
-        return BaseXCom._deserialize_value(self, True)
+    @classmethod
+    def purge(cls, xcom) -> None:
+        """Purge an XCom entry from underlying storage implementations."""
+        pass
+
+    @classmethod
+    def delete(
+        cls,
+        key: str | None = None,
+        task_id: str | None = None,
+        dag_id: str | None = None,
+        run_id: str | None = None,
+    ) -> None:
+        """Delete an Xcom entry."""
+        from airflow.sdk.execution_time.task_runner import SUPERVISOR_COMMS
+
+        cls.purge()
+        SUPERVISOR_COMMS.send_request(
+            log=log,
+            msg=DeleteXCom(
+                key=key,
+                dag_id=dag_id,
+                task_id=task_id,
+                run_id=run_id,
+            ),
+        )
+
+
+def resolve_xcom_backend():
+    """
+    Resolve custom XCom class.
+
+    :returns: returns the custom XCom class if configured.
+    """
+    from airflow.configuration import conf
+
+    clazz = conf.getimport("core", "xcom_backend")
+    if not clazz:
+        return BaseXCom
+    if not issubclass(clazz, BaseXCom):
+        raise TypeError(
+            f"Your custom XCom class `{clazz.__name__}` is not a subclass of `{BaseXCom.__name__}`."
+        )
+    return clazz
+
+
+XCom = resolve_xcom_backend()
