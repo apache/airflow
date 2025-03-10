@@ -2995,6 +2995,7 @@ export const useAssetServiceMaterializeAsset = <
  * Create Backfill
  * @param data The data for the request.
  * @param data.requestBody
+ * @param data.dagId
  * @returns BackfillResponse Successful Response
  * @throws ApiError
  */
@@ -3008,6 +3009,7 @@ export const useBackfillServiceCreateBackfill = <
       TData,
       TError,
       {
+        dagId?: string;
         requestBody: BackfillPostBody;
       },
       TContext
@@ -3019,12 +3021,13 @@ export const useBackfillServiceCreateBackfill = <
     TData,
     TError,
     {
+      dagId?: string;
       requestBody: BackfillPostBody;
     },
     TContext
   >({
-    mutationFn: ({ requestBody }) =>
-      BackfillService.createBackfill({ requestBody }) as unknown as Promise<TData>,
+    mutationFn: ({ dagId, requestBody }) =>
+      BackfillService.createBackfill({ dagId, requestBody }) as unknown as Promise<TData>,
     ...options,
   });
 /**
@@ -3490,6 +3493,7 @@ export const useVariableServicePostVariable = <
  * Pause Backfill
  * @param data The data for the request.
  * @param data.backfillId
+ * @param data.dagId
  * @returns BackfillResponse Successful Response
  * @throws ApiError
  */
@@ -3504,6 +3508,7 @@ export const useBackfillServicePauseBackfill = <
       TError,
       {
         backfillId: unknown;
+        dagId?: string;
       },
       TContext
     >,
@@ -3515,17 +3520,19 @@ export const useBackfillServicePauseBackfill = <
     TError,
     {
       backfillId: unknown;
+      dagId?: string;
     },
     TContext
   >({
-    mutationFn: ({ backfillId }) =>
-      BackfillService.pauseBackfill({ backfillId }) as unknown as Promise<TData>,
+    mutationFn: ({ backfillId, dagId }) =>
+      BackfillService.pauseBackfill({ backfillId, dagId }) as unknown as Promise<TData>,
     ...options,
   });
 /**
  * Unpause Backfill
  * @param data The data for the request.
  * @param data.backfillId
+ * @param data.dagId
  * @returns BackfillResponse Successful Response
  * @throws ApiError
  */
@@ -3540,6 +3547,7 @@ export const useBackfillServiceUnpauseBackfill = <
       TError,
       {
         backfillId: unknown;
+        dagId?: string;
       },
       TContext
     >,
@@ -3551,17 +3559,19 @@ export const useBackfillServiceUnpauseBackfill = <
     TError,
     {
       backfillId: unknown;
+      dagId?: string;
     },
     TContext
   >({
-    mutationFn: ({ backfillId }) =>
-      BackfillService.unpauseBackfill({ backfillId }) as unknown as Promise<TData>,
+    mutationFn: ({ backfillId, dagId }) =>
+      BackfillService.unpauseBackfill({ backfillId, dagId }) as unknown as Promise<TData>,
     ...options,
   });
 /**
  * Cancel Backfill
  * @param data The data for the request.
  * @param data.backfillId
+ * @param data.dagId
  * @returns BackfillResponse Successful Response
  * @throws ApiError
  */
@@ -3576,6 +3586,7 @@ export const useBackfillServiceCancelBackfill = <
       TError,
       {
         backfillId: unknown;
+        dagId?: string;
       },
       TContext
     >,
@@ -3587,11 +3598,12 @@ export const useBackfillServiceCancelBackfill = <
     TError,
     {
       backfillId: unknown;
+      dagId?: string;
     },
     TContext
   >({
-    mutationFn: ({ backfillId }) =>
-      BackfillService.cancelBackfill({ backfillId }) as unknown as Promise<TData>,
+    mutationFn: ({ backfillId, dagId }) =>
+      BackfillService.cancelBackfill({ backfillId, dagId }) as unknown as Promise<TData>,
     ...options,
   });
 /**

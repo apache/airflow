@@ -1410,6 +1410,17 @@ paths:
       - Backfill
       summary: Create Backfill
       operationId: create_backfill
+      security:
+      - OAuth2PasswordBearer: []
+      parameters:
+      - name: dag_id
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Dag Id
       requestBody:
         required: true
         content:
@@ -1503,12 +1514,22 @@ paths:
       - Backfill
       summary: Pause Backfill
       operationId: pause_backfill
+      security:
+      - OAuth2PasswordBearer: []
       parameters:
       - name: backfill_id
         in: path
         required: true
         schema:
           title: Backfill Id
+      - name: dag_id
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Dag Id
       responses:
         '200':
           description: Successful Response
@@ -1552,12 +1573,22 @@ paths:
       - Backfill
       summary: Unpause Backfill
       operationId: unpause_backfill
+      security:
+      - OAuth2PasswordBearer: []
       parameters:
       - name: backfill_id
         in: path
         required: true
         schema:
           title: Backfill Id
+      - name: dag_id
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Dag Id
       responses:
         '200':
           description: Successful Response
@@ -1601,12 +1632,22 @@ paths:
       - Backfill
       summary: Cancel Backfill
       operationId: cancel_backfill
+      security:
+      - OAuth2PasswordBearer: []
       parameters:
       - name: backfill_id
         in: path
         required: true
         schema:
           title: Backfill Id
+      - name: dag_id
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Dag Id
       responses:
         '200':
           description: Successful Response
