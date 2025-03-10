@@ -179,7 +179,7 @@ class BaseK8STest:
         session = requests.Session()
         session.headers.update({"Authorization": f"Bearer {jwt_token}"})
         retries = Retry(
-            total=3,
+            total=5,
             backoff_factor=10,
             status_forcelist=[404],
             allowed_methods=Retry.DEFAULT_ALLOWED_METHODS | frozenset(["PATCH", "POST"]),
