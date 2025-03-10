@@ -2547,7 +2547,7 @@ export type ReparseDagFileData = {
 export type ReparseDagFileResponse = null;
 
 export type GetDagVersionData = {
-  dagId: string;
+  dagId: string | null;
   versionNumber: number;
 };
 
@@ -2556,7 +2556,7 @@ export type GetDagVersionResponse = DagVersionResponse;
 export type GetDagVersionsData = {
   bundleName?: string;
   bundleVersion?: string | null;
-  dagId: string;
+  dagId: string | null;
   limit?: number;
   offset?: number;
   orderBy?: string;
