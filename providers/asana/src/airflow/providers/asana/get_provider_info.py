@@ -27,8 +27,9 @@ def get_provider_info():
         "name": "Asana",
         "description": "`Asana <https://asana.com/>`__\n",
         "state": "ready",
-        "source-date-epoch": 1741121841,
+        "source-date-epoch": 1741508454,
         "versions": [
+            "2.9.1",
             "2.9.0",
             "2.7.0",
             "2.6.0",

@@ -33,6 +33,7 @@ ACCEPTED_NON_INIT_DIRS = [
     "static",
     "dist",
     "node_modules",
+    "non_python_src",
 ]
 
 PATH_EXTENSION_STRING = '__path__ = __import__("pkgutil").extend_path(__path__, __name__)  # type: ignore'

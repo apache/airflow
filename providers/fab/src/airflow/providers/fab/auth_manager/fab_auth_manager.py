@@ -26,14 +26,13 @@ import packaging.version
 from connexion import FlaskApi
 from fastapi import FastAPI
 from flask import Blueprint, g, url_for
-from packaging.version import Version
 from sqlalchemy import select
 from sqlalchemy.orm import Session, joinedload
 from starlette.middleware.wsgi import WSGIMiddleware
 
 from airflow import __version__ as airflow_version
-from airflow.auth.managers.base_auth_manager import BaseAuthManager
-from airflow.auth.managers.models.resource_details import (
+from airflow.api_fastapi.auth.managers.base_auth_manager import BaseAuthManager
+from airflow.api_fastapi.auth.managers.models.resource_details import (
     AccessView,
     ConfigurationDetails,
     ConnectionDetails,
@@ -42,7 +41,10 @@ from airflow.auth.managers.models.resource_details import (
     PoolDetails,
     VariableDetails,
 )
-from airflow.auth.managers.utils.fab import get_fab_action_from_method_map, get_method_from_fab_action_map
+from airflow.api_fastapi.auth.managers.utils.fab import (
+    get_fab_action_from_method_map,
+    get_method_from_fab_action_map,
+)
 from airflow.cli.cli_config import (
     DefaultHelpParser,
     GroupCommand,
@@ -89,19 +91,18 @@ from airflow.providers.fab.www.security.permissions import (
 )
 from airflow.utils.session import NEW_SESSION, create_session, provide_session
 from airflow.utils.yaml import safe_load
-from airflow.version import version
 
 if TYPE_CHECKING:
-    from airflow.auth.managers.base_auth_manager import ResourceMethod
+    from airflow.api_fastapi.auth.managers.base_auth_manager import ResourceMethod
     from airflow.cli.cli_config import (
         CLICommand,
     )
-    from airflow.providers.common.compat.assets import AssetDetails
+    from airflow.providers.common.compat.assets import AssetAliasDetails, AssetDetails
     from airflow.providers.fab.auth_manager.security_manager.override import FabAirflowSecurityManagerOverride
     from airflow.providers.fab.www.extensions.init_appbuilder import AirflowAppBuilder
-    from airflow.providers.fab.www.security.permissions import RESOURCE_ASSET
+    from airflow.providers.fab.www.security.permissions import RESOURCE_ASSET, RESOURCE_ASSET_ALIAS
 else:
-    from airflow.providers.common.compat.security.permissions import RESOURCE_ASSET
+    from airflow.providers.common.compat.security.permissions import RESOURCE_ASSET, RESOURCE_ASSET_ALIAS
 
 
 _MAP_DAG_ACCESS_ENTITY_TO_FAB_RESOURCE_TYPE: dict[DagAccessEntity, tuple[str, ...]] = {
@@ -240,14 +241,11 @@ class FabAuthManager(BaseAuthManager[User]):
     def is_logged_in(self) -> bool:
         """Return whether the user is logged in."""
         user = self.get_user()
-        if Version(Version(version).base_version) < Version("3.0.0"):
-            return not user.is_anonymous and user.is_active
-        else:
-            return (
-                self.appbuilder
-                and self.appbuilder.get_app.config.get("AUTH_ROLE_PUBLIC", None)
-                or (not user.is_anonymous and user.is_active)
-            )
+        return (
+            self.appbuilder
+            and self.appbuilder.get_app.config.get("AUTH_ROLE_PUBLIC", None)
+            or (not user.is_anonymous and user.is_active)
+        )
 
     def is_authorized_configuration(
         self,
@@ -320,6 +318,11 @@ class FabAuthManager(BaseAuthManager[User]):
         self, *, method: ResourceMethod, user: User, details: AssetDetails | None = None
     ) -> bool:
         return self._is_authorized(method=method, resource_type=RESOURCE_ASSET, user=user)
+
+    def is_authorized_asset_alias(
+        self, *, method: ResourceMethod, user: User, details: AssetAliasDetails | None = None
+    ) -> bool:
+        return self._is_authorized(method=method, resource_type=RESOURCE_ASSET_ALIAS, user=user)
 
     def is_authorized_pool(
         self, *, method: ResourceMethod, user: User, details: PoolDetails | None = None
@@ -570,11 +573,7 @@ class FabAuthManager(BaseAuthManager[User]):
         # Otherwise, when the name of a view or menu is changed, the framework
         # will add the new Views and Menus names to the backend, but will not
         # delete the old ones.
-        if Version(Version(version).base_version) >= Version("3.0.0"):
-            fallback = None
-        else:
-            fallback = conf.getboolean("webserver", "UPDATE_FAB_PERMS")
-        if conf.getboolean("fab", "UPDATE_FAB_PERMS", fallback=fallback):
+        if conf.getboolean("fab", "UPDATE_FAB_PERMS"):
             self.security_manager.sync_roles()
 
 

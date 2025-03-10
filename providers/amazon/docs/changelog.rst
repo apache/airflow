@@ -26,6 +26,57 @@
 Changelog
 ---------
 
+9.5.0
+.....
+
+Features
+~~~~~~~~
+
+* ``Add a backup implementation in AWS MwaaHook for calling the MWAA API (#47035)``
+* ``Add AWS SageMaker Unified Studio Workflow Operator (#45726)``
+* ``Add error statuses check in RdsExportTaskExistenceSensor  (#46917)``
+* ``Common Message Queue (#46694)``
+* ``add startTime to paginator.paginate when fetching logs in GlueJobHook (#46950)``
+* ``Add MwaaDagRunSensor to Amazon Provider Package (#46945)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fix aws trigger tests, use get_async_conn for mock object (#47515)``
+* ``fix: don't use blocking property access for async purposes (#47326)``
+* ``Fix and simplify 'get_permitted_dag_ids' in auth manager (#47458)``
+* ``Log state for EMR Containers sensor on failure (#47125)``
+
+Misc
+~~~~
+
+* ``Relocate airflow.auth to airflow.api_fastapi.auth (#47492)``
+* ``AIP-72: Moving BaseOperatorLink to task sdk (#47008)``
+* ``Add some typing and require kwargs for auth manager (#47455)``
+* ``AIP-84 - Add Auth for Assets (#47136)``
+* ``Base AWS classes - S3 (#47321)``
+* ``Remove unused methods from auth managers (#47316)``
+* ``Move api-server to port 8080 (#47310)``
+* ``Render structured logs in the new UI rather than showing raw JSON (#46827)``
+* ``Remove old UI and webserver (#46942)``
+* ``Don't remove log groups from example_glue.py (#47128)``
+* ``Move 'fastapi-api' command to 'api-server' (#47076)``
+* ``Remove '/webapp' prefix from new UI (#47041)``
+* ``Restricting moto 5.1.0 to fix ci (#47005)``
+* ``Upgrade flit to 3.11.0 (#46938)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Add skipimport check for aiobotocore module in aws trigger tests (#47512)``
+   * ``Move tests_common package to devel-common project (#47281)``
+   * ``Fix codespell issues detected by new codespell (#47259)``
+   * ``Improve documentation for updating provider dependencies (#47203)``
+   * ``Add legacy namespace packages to airflow.providers (#47064)``
+   * ``Replace 'external_trigger' check with DagRunType (#45961)``
+   * ``Remove extra whitespace in provider readme template (#46975)``
+   * ``Fix TestRdsCopyDbSnapshotOperator tests (#47006)``
+   * ``Fix new UI when running outside of breeze (#46991)``
+
 9.4.0
 .....
 

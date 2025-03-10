@@ -34,8 +34,6 @@ from unit.amazon.aws.utils.test_waiter import assert_expected_waiter_type
 
 BASE_TRIGGER_CLASSPATH = "airflow.providers.amazon.aws.triggers.dms."
 
-pytest.importorskip("aiobotocore")
-
 
 class TestBaseDmsTrigger:
     EXPECTED_WAITER_NAME: str | None = None
@@ -59,7 +57,7 @@ class TestDmsReplicationCompleteTrigger(TestBaseDmsTrigger):
 
     @pytest.mark.asyncio
     @mock.patch.object(DmsHook, "get_waiter")
-    @mock.patch.object(DmsHook, "get_conn")
+    @mock.patch.object(DmsHook, "get_async_conn")
     async def test_complete(self, mock_async_conn, mock_get_waiter):
         mock_async_conn.__aenter__.return_value = mock.MagicMock()
         mock_get_waiter().wait = AsyncMock()
@@ -86,7 +84,7 @@ class TestDmsReplicationTerminalStatusTrigger(TestBaseDmsTrigger):
 
     @pytest.mark.asyncio
     @mock.patch.object(DmsHook, "get_waiter")
-    @mock.patch.object(DmsHook, "get_conn")
+    @mock.patch.object(DmsHook, "get_async_conn")
     async def test_complete(self, mock_async_conn, mock_get_waiter):
         mock_async_conn.__aenter__.return_value = mock.MagicMock()
         mock_get_waiter().wait = AsyncMock()
@@ -115,7 +113,7 @@ class TestDmsReplicationConfigDeletedTrigger(TestBaseDmsTrigger):
 
     @pytest.mark.asyncio
     @mock.patch.object(DmsHook, "get_waiter")
-    @mock.patch.object(DmsHook, "get_conn")
+    @mock.patch.object(DmsHook, "get_async_conn")
     async def test_complete(self, mock_async_conn, mock_get_waiter):
         mock_async_conn.__aenter__.return_value = mock.MagicMock()
         mock_get_waiter().wait = AsyncMock()
@@ -147,7 +145,7 @@ class TestDmsReplicationStoppedTrigger(TestBaseDmsTrigger):
 
     @pytest.mark.asyncio
     @mock.patch.object(DmsHook, "get_waiter")
-    @mock.patch.object(DmsHook, "get_conn")
+    @mock.patch.object(DmsHook, "get_async_conn")
     async def test_complete(self, mock_async_conn, mock_get_waiter):
         mock_async_conn.__aenter__.return_value = mock.MagicMock()
         mock_get_waiter().wait = AsyncMock()
@@ -175,7 +173,7 @@ class TestDmsReplicationDeprovisionedTrigger(TestBaseDmsTrigger):
 
     @pytest.mark.asyncio
     @mock.patch.object(DmsHook, "get_waiter")
-    @mock.patch.object(DmsHook, "get_conn")
+    @mock.patch.object(DmsHook, "get_async_conn")
     async def test_complete(self, mock_async_conn, mock_get_waiter):
         mock_async_conn.__aenter__.return_value = mock.MagicMock()
         mock_get_waiter().wait = AsyncMock()
