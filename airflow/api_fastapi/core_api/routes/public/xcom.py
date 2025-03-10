@@ -73,7 +73,10 @@ def get_xcom_entry(
         query = select(XComModel)
 
     query = query.where(
-        XComModel.dag_id == dag_id, XComModel.task_id == task_id, XComModel.key == xcom_key, XComModel.map_index == map_index
+        XComModel.dag_id == dag_id,
+        XComModel.task_id == task_id,
+        XComModel.key == xcom_key,
+        XComModel.map_index == map_index,
     )
     query = query.join(DR, and_(XComModel.dag_id == DR.dag_id, XComModel.run_id == DR.run_id))
     query = query.where(DR.run_id == dag_run_id)
@@ -142,7 +145,9 @@ def get_xcom_entries(
         limit=limit,
         session=session,
     )
-    query = query.order_by(XComModel.dag_id, XComModel.task_id, XComModel.run_id, XComModel.map_index, XComModel.key)
+    query = query.order_by(
+        XComModel.dag_id, XComModel.task_id, XComModel.run_id, XComModel.map_index, XComModel.key
+    )
     xcoms = session.scalars(query)
     return XComCollectionResponse(xcom_entries=xcoms, total_entries=total_entries)
 
