@@ -40,6 +40,7 @@ if TYPE_CHECKING:
     from airflow.api_fastapi.auth.managers.base_auth_manager import ResourceMethod
     from airflow.api_fastapi.auth.managers.models.resource_details import (
         AccessView,
+        AssetAliasDetails,
         AssetDetails,
         ConfigurationDetails,
         ConnectionDetails,
@@ -172,6 +173,20 @@ class SimpleAuthManager(BaseAuthManager[SimpleAuthManagerUser]):
         method: ResourceMethod,
         user: SimpleAuthManagerUser,
         details: AssetDetails | None = None,
+    ) -> bool:
+        return self._is_authorized(
+            method=method,
+            allow_get_role=SimpleAuthManagerRole.VIEWER,
+            allow_role=SimpleAuthManagerRole.OP,
+            user=user,
+        )
+
+    def is_authorized_asset_alias(
+        self,
+        *,
+        method: ResourceMethod,
+        user: SimpleAuthManagerUser,
+        details: AssetAliasDetails | None = None,
     ) -> bool:
         return self._is_authorized(
             method=method,
