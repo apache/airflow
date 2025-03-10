@@ -420,6 +420,9 @@ class TestDagFileProcessorManager:
             max_runs=1,
             processor_timeout=10 * 60,
         )
+        bundle = MagicMock()
+        bundle.name = "testing"
+        manager._dag_bundles = [bundle]
 
         test_dag_path = DagFileInfo(
             bundle_name="testing",

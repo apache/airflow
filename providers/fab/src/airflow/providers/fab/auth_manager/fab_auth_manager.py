@@ -26,6 +26,7 @@ import packaging.version
 from connexion import FlaskApi
 from fastapi import FastAPI
 from flask import Blueprint, g, url_for
+from flask_login import logout_user
 from sqlalchemy import select
 from sqlalchemy.orm import Session, joinedload
 from starlette.middleware.wsgi import WSGIMiddleware
@@ -40,10 +41,6 @@ from airflow.api_fastapi.auth.managers.models.resource_details import (
     DagDetails,
     PoolDetails,
     VariableDetails,
-)
-from airflow.api_fastapi.auth.managers.utils.fab import (
-    get_fab_action_from_method_map,
-    get_method_from_fab_action_map,
 )
 from airflow.cli.cli_config import (
     DefaultHelpParser,
@@ -89,6 +86,7 @@ from airflow.providers.fab.www.security.permissions import (
     RESOURCE_WEBSITE,
     RESOURCE_XCOM,
 )
+from airflow.providers.fab.www.utils import get_fab_action_from_method_map, get_method_from_fab_action_map
 from airflow.utils.session import NEW_SESSION, create_session, provide_session
 from airflow.utils.yaml import safe_load
 
@@ -97,12 +95,12 @@ if TYPE_CHECKING:
     from airflow.cli.cli_config import (
         CLICommand,
     )
-    from airflow.providers.common.compat.assets import AssetDetails
+    from airflow.providers.common.compat.assets import AssetAliasDetails, AssetDetails
     from airflow.providers.fab.auth_manager.security_manager.override import FabAirflowSecurityManagerOverride
     from airflow.providers.fab.www.extensions.init_appbuilder import AirflowAppBuilder
-    from airflow.providers.fab.www.security.permissions import RESOURCE_ASSET
+    from airflow.providers.fab.www.security.permissions import RESOURCE_ASSET, RESOURCE_ASSET_ALIAS
 else:
-    from airflow.providers.common.compat.security.permissions import RESOURCE_ASSET
+    from airflow.providers.common.compat.security.permissions import RESOURCE_ASSET, RESOURCE_ASSET_ALIAS
 
 
 _MAP_DAG_ACCESS_ENTITY_TO_FAB_RESOURCE_TYPE: dict[DagAccessEntity, tuple[str, ...]] = {
@@ -319,6 +317,11 @@ class FabAuthManager(BaseAuthManager[User]):
     ) -> bool:
         return self._is_authorized(method=method, resource_type=RESOURCE_ASSET, user=user)
 
+    def is_authorized_asset_alias(
+        self, *, method: ResourceMethod, user: User, details: AssetAliasDetails | None = None
+    ) -> bool:
+        return self._is_authorized(method=method, resource_type=RESOURCE_ASSET_ALIAS, user=user)
+
     def is_authorized_pool(
         self, *, method: ResourceMethod, user: User, details: PoolDetails | None = None
     ) -> bool:
@@ -406,13 +409,17 @@ class FabAuthManager(BaseAuthManager[User]):
 
     def get_url_login(self, **kwargs) -> str:
         """Return the login page url."""
-        return f"{self.apiserver_endpoint}/auth/login"
+        return f"{self.apiserver_endpoint}/auth/login/"
 
     def get_url_logout(self):
         """Return the logout page url."""
         if not self.security_manager.auth_view:
             raise AirflowException("`auth_view` not defined in the security manager.")
         return url_for(f"{self.security_manager.auth_view.endpoint}.logout")
+
+    def logout(self) -> None:
+        """Logout the user."""
+        logout_user()
 
     def register_views(self) -> None:
         self.security_manager.register_views()

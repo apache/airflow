@@ -1,4 +1,3 @@
-#
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
 # distributed with this work for additional information
@@ -15,3 +14,16 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
+
+import logging
+
+from airflow.providers.standard.operators.smooth import SmoothOperator
+
+
+class TestSmoothOperator:
+    def test_execute(self, caplog):
+        op = SmoothOperator(task_id="test")
+        op.execute(None)
+        with caplog.at_level(logging.INFO):
+            assert "Enjoy Sade - Smooth Operator: https://www.youtube.com/watch?v=4TYv2PhG89A" in caplog.text

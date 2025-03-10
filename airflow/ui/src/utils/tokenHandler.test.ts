@@ -16,45 +16,41 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { render } from "@testing-library/react";
-import { URLSearchParams } from "node:url";
-import * as reactRouterDom from "react-router-dom";
+import type { InternalAxiosRequestConfig } from "axios";
 import { afterEach, describe, it, vi, expect } from "vitest";
 
-import { Wrapper } from "src/utils/Wrapper";
-
-import { BaseLayout, TOKEN_QUERY_PARAM_NAME, TOKEN_STORAGE_KEY } from "./BaseLayout";
+import { TOKEN_QUERY_PARAM_NAME, TOKEN_STORAGE_KEY, tokenHandler } from "./tokenHandler";
 
 describe.each([
   { searchParams: new URLSearchParams({ token: "something" }) },
   { searchParams: new URLSearchParams({ param2: "someParam2", token: "else" }) },
   { searchParams: new URLSearchParams({}) },
-])("BaseLayout", ({ searchParams }) => {
+])("TokenFlow Interceptor", ({ searchParams }) => {
   it("Should read from the SearchParams, persist to the localStorage and remove from the SearchParams", () => {
-    const useSearchParamMock = vi.spyOn(reactRouterDom, "useSearchParams");
-
-    const setSearchParamsMock = vi.fn();
-
     const token = searchParams.get(TOKEN_QUERY_PARAM_NAME);
-
-    useSearchParamMock.mockImplementation(() => [searchParams, setSearchParamsMock]);
 
     const setItemMock = vi.spyOn(localStorage, "setItem");
 
-    render(<BaseLayout />, { wrapper: Wrapper });
+    vi.stubGlobal("location", { search: searchParams.toString() });
 
-    expect(useSearchParamMock).toHaveBeenCalled();
+    const headers = {};
+
+    const config = { headers };
+
+    const { headers: updatedHeaders } = tokenHandler(config as InternalAxiosRequestConfig);
 
     if (token === null) {
       expect(setItemMock).toHaveBeenCalledTimes(0);
     } else {
       expect(setItemMock).toHaveBeenCalledOnce();
-      expect(setItemMock).toHaveBeenCalledWith(TOKEN_STORAGE_KEY, JSON.stringify(token));
+      expect(setItemMock).toHaveBeenCalledWith(TOKEN_STORAGE_KEY, token);
       expect(searchParams).not.to.contains.keys(TOKEN_QUERY_PARAM_NAME);
+      expect(updatedHeaders).toEqual({ Authorization: `Bearer ${token}` });
     }
   });
 });
 
 afterEach(() => {
   vi.restoreAllMocks();
+  vi.unstubAllGlobals();
 });

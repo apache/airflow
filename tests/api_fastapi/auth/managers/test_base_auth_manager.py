@@ -34,6 +34,7 @@ if TYPE_CHECKING:
     from airflow.api_fastapi.auth.managers.base_auth_manager import ResourceMethod
     from airflow.api_fastapi.auth.managers.models.resource_details import (
         AccessView,
+        AssetAliasDetails,
         AssetDetails,
         ConfigurationDetails,
         DagAccessEntity,
@@ -95,6 +96,15 @@ class EmptyAuthManager(BaseAuthManager[BaseAuthManagerUserTest]):
     ) -> bool:
         raise NotImplementedError()
 
+    def is_authorized_asset_alias(
+        self,
+        *,
+        method: ResourceMethod,
+        details: AssetAliasDetails | None = None,
+        user: BaseAuthManagerUserTest | None = None,
+    ) -> bool:
+        raise NotImplementedError()
+
     def is_authorized_pool(
         self,
         *,
@@ -138,6 +148,9 @@ class TestBaseAuthManager:
 
     def test_get_fastapi_app_return_none(self, auth_manager):
         assert auth_manager.get_fastapi_app() is None
+
+    def test_logout_return_none(self, auth_manager):
+        assert auth_manager.logout() is None
 
     @patch("airflow.api_fastapi.auth.managers.base_auth_manager.JWTSigner")
     @patch.object(EmptyAuthManager, "deserialize_user")
