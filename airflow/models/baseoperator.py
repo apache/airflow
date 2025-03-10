@@ -157,6 +157,17 @@ class ExecutorSafeguard:
                 if not getattr(cls._sentinel, "callers", None):
                     cls._sentinel.callers = {}
                 cls._sentinel.callers[sentinel_key] = sentinel
+                # This is to ensure that the sentinel is propagated to all the base classes,
+                # because the call order of the wrapped exute methods is usually Child -> Parent[s]
+                for base_class in self.__class__.mro():
+                    base_sentinel_key = f"{base_class.__name__}__sentinel"
+                    if (
+                        issubclass(base_class, BaseOperator)
+                        and not base_class == BaseOperator
+                        and not getattr(base_class.execute, "__isabstractmethod__", False)
+                        and base_sentinel_key not in cls._sentinel.callers
+                    ):
+                        cls._sentinel.callers[base_sentinel_key] = sentinel
             else:
                 sentinel = cls._sentinel.callers.pop(f"{func.__qualname__.split('.')[0]}__sentinel", None)
 
@@ -164,7 +175,12 @@ class ExecutorSafeguard:
                 message = f"{self.__class__.__name__}.{func.__name__} cannot be called outside TaskInstance!"
                 if not self.allow_nested_operators:
                     raise AirflowException(message)
-                self.log.warning(message)
+                # We manipulate dunder attribute to ensure the warning is only logged
+                # once per operator instance even in case of deep inheritance
+                if not getattr(self, "__nested_operator_warning", False):
+                    self.log.warning(message)
+                    setattr(self, "__nested_operator_warning", True)
+
             return func(self, *args, **kwargs)
 
         return wrapper
