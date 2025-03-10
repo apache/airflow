@@ -411,7 +411,7 @@ class FabAuthManager(BaseAuthManager[User]):
 
     def get_url_login(self, **kwargs) -> str:
         """Return the login page url."""
-        return f"{self.apiserver_endpoint}/auth/login"
+        return f"{self.apiserver_endpoint}/auth/login/"
 
     def get_url_logout(self):
         """Return the logout page url."""
