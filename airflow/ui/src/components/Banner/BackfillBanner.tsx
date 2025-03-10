@@ -18,9 +18,14 @@
  */
 import { Box, HStack, Spacer, Text } from "@chakra-ui/react";
 import { useState } from "react";
-import { MdClose, MdPause, MdStop } from "react-icons/md";
+import { MdClose, MdPause, MdPlayArrow, MdStop } from "react-icons/md";
 
-import { useBackfillServiceListBackfills } from "openapi/queries";
+import {
+  useBackfillServiceCancelBackfill,
+  useBackfillServiceListBackfills,
+  useBackfillServicePauseBackfill,
+  useBackfillServiceUnpauseBackfill,
+} from "openapi/queries";
 
 import Time from "../Time";
 import { ProgressBar } from "../ui";
@@ -35,14 +40,36 @@ const BackfillBanner = ({ dagId }: Props) => {
     dagId,
   });
 
+  const backfill = data?.backfills[0];
+
+  const { isPending: isPausePending, mutate: pauseMutate } = useBackfillServicePauseBackfill();
+  const { isPending: isUnPausePending, mutate: unpauseMutate } = useBackfillServiceUnpauseBackfill();
+
+  const { isPending: isStopPending, mutate: stopPending } = useBackfillServiceCancelBackfill();
+
   let initialVisibility = false;
 
   if (data?.total_entries !== undefined && data.total_entries > 0) {
     initialVisibility = true;
   }
-  const [visible, setVisible] = useState<boolean>(initialVisibility);
+  const [isVisible, setIsVisible] = useState<boolean>(initialVisibility);
+  const [isActive, setIsActive] = useState(false);
+  const [isDisabled, setIsDisabled] = useState<boolean>(false);
+  const togglePause = () => {
+    if (isActive) {
+      pauseMutate({ backfillId: backfill?.id });
+    } else {
+      unpauseMutate({ backfillId: backfill?.id });
+    }
+    setIsActive(!isActive);
+  };
 
-  return visible && !isLoading ? (
+  const cancel = () => {
+    stopPending({ backfillId: backfill?.id });
+    setIsDisabled(!isDisabled);
+  };
+
+  return isVisible && !isLoading ? (
     <Box bg="blue.solid" color="white" fontSize="m" mr="1.5" my="1" px="2" py="1" rounded="lg">
       <HStack>
         <Text key="backfill">Backfill in progress:</Text>
@@ -53,8 +80,12 @@ const BackfillBanner = ({ dagId }: Props) => {
         <ProgressBar key="progressbar" size="xs" visibility="visible" />
         <ActionButton
           actionName=""
-          icon={<MdPause color="white" size="xs" />}
-          key="pause"
+          disabled={isDisabled}
+          icon={isActive ? <MdPlayArrow color="white" size="1" /> : <MdPause color="white" size="1" />}
+          loading={isPausePending || isUnPausePending}
+          onClick={() => {
+            togglePause();
+          }}
           rounded="full"
           size="xs"
           text=""
@@ -62,8 +93,12 @@ const BackfillBanner = ({ dagId }: Props) => {
         />
         <ActionButton
           actionName=""
-          icon={<MdStop color="white" size="xs" />}
-          key="stop"
+          disabled={isDisabled}
+          icon={<MdStop color="white" size="1" />}
+          loading={isStopPending}
+          onClick={() => {
+            cancel();
+          }}
           rounded="full"
           size="xs"
           text=""
@@ -71,9 +106,8 @@ const BackfillBanner = ({ dagId }: Props) => {
         />
         <ActionButton
           actionName=""
-          icon={<MdClose color="white" size="xs" />}
-          key="close"
-          onClick={() => setVisible(false)}
+          icon={<MdClose color="white" size="1" />}
+          onClick={() => setIsVisible(false)}
           rounded="full"
           size="xs"
           text=""
