@@ -80,7 +80,6 @@ from airflow.configuration import conf
 from airflow.exceptions import (
     AirflowException,
     AirflowFailException,
-    AirflowInactiveAssetAddedToAssetAliasException,
     AirflowInactiveAssetInInletOrOutletException,
     AirflowRescheduleException,
     AirflowSensorTimeout,
@@ -94,7 +93,7 @@ from airflow.exceptions import (
     XComForMappingNotPushed,
 )
 from airflow.listeners.listener import get_listener_manager
-from airflow.models.asset import AssetActive, AssetEvent, AssetModel
+from airflow.models.asset import AssetActive, AssetAliasModel, AssetEvent, AssetModel
 from airflow.models.base import Base, StringID, TaskInstanceDependencies
 from airflow.models.dagbag import DagBag
 from airflow.models.log import Log
@@ -2744,104 +2743,105 @@ class TaskInstance(Base, LoggingMixin):
     def register_asset_changes_in_db(
         ti: TaskInstance,
         task_outlets: list[AssetProfile],
-        outlet_events: list[Any],
+        outlet_events: list[dict[str, Any]],
         session: Session = NEW_SESSION,
     ) -> None:
-        # One task only triggers one asset event for each asset with the same extra.
-        # This tuple[asset uri, extra] to sets alias names mapping is used to find whether
-        # there're assets with same uri but different extra that we need to emit more than one asset events.
-        asset_alias_names: dict[tuple[AssetUniqueKey, frozenset], set[str]] = defaultdict(set)
-        asset_name_refs: set[str] = set()
-        asset_uri_refs: set[str] = set()
+        asset_keys = {(o.name, o.uri) for o in task_outlets if o.type == Asset.__name__}
+        asset_name_refs = {o.name for o in task_outlets if o.type == AssetNameRef.__name__}
+        asset_uri_refs = {o.uri for o in task_outlets if o.type == AssetUriRef.__name__}
 
-        for obj in task_outlets:
-            ti.log.debug("outlet obj %s", obj)
-            # Lineage can have other types of objects besides assets
-            if obj.type == Asset.__name__:
+        @cache
+        def asset_event_extras_by_unique_key() -> dict[AssetUniqueKey, dict]:
+            return {
+                AssetUniqueKey(**event["dest_asset_key"]): event["extra"]
+                for event in outlet_events
+                if "source_alias_name" not in event
+            }
+
+        @cache
+        def asset_event_extras_by_name() -> dict[str, dict]:
+            return {key.name: extra for key, extra in asset_event_extras_by_unique_key().items()}
+
+        @cache
+        def asset_event_extras_by_uri() -> dict[str, dict]:
+            return {key.uri: extra for key, extra in asset_event_extras_by_unique_key().items()}
+
+        asset_models: Iterable[AssetModel]
+        if asset_keys:
+            asset_models = session.scalars(
+                select(AssetModel).where(tuple_(AssetModel.name, AssetModel.uri).in_(asset_keys))
+            )
+            for am in asset_models:
+                ti.log.debug("register event for asset %s", am)
                 asset_manager.register_asset_change(
                     task_instance=ti,
-                    asset=Asset(name=obj.name, uri=obj.uri),  # type: ignore
-                    extra=outlet_events[0]["extra"],
+                    asset=am,
+                    extra=asset_event_extras_by_unique_key().get(AssetUniqueKey.from_asset(am)),
                     session=session,
                 )
-            elif obj.type == AssetNameRef.__name__:
-                asset_name_refs.add(obj.name)  # type: ignore
-            elif obj.type == AssetUriRef.__name__:
-                asset_uri_refs.add(obj.uri)  # type: ignore
-            elif obj.type == AssetAlias.__name__:
-                outlet_events = list(
-                    map(
-                        lambda event: {**event, "dest_asset_key": AssetUniqueKey(**event["dest_asset_key"])},
-                        outlet_events,
+        if asset_name_refs:
+            asset_models = session.scalars(
+                select(AssetModel).where(AssetModel.name.in_(asset_name_refs), AssetModel.active.has())
+            )
+            for am in asset_models:
+                ti.log.debug("register event for asset name ref %s", am)
+                asset_manager.register_asset_change(
+                    task_instance=ti,
+                    asset=am,
+                    extra=asset_event_extras_by_name().get(am.name),
+                    session=session,
+                )
+        if asset_uri_refs:
+            asset_models = session.scalars(
+                select(AssetModel).where(AssetModel.uri.in_(asset_uri_refs), AssetModel.active.has())
+            )
+            for am in asset_models:
+                ti.log.debug("register event for asset uri ref %s", am)
+                asset_manager.register_asset_change(
+                    task_instance=ti,
+                    asset=am,
+                    extra=asset_event_extras_by_uri().get(am.uri),
+                    session=session,
+                )
+
+        @cache
+        def asset_event_extras_from_aliases() -> dict[tuple[AssetUniqueKey, frozenset], set[str]]:
+            d = defaultdict(set)
+            for event in outlet_events:
+                try:
+                    alias_name = event["source_alias_name"]
+                except KeyError:
+                    continue
+                asset_key = AssetUniqueKey(**event["dest_asset_key"])
+                extra_key = frozenset(event["extra"].items())
+                d[asset_key, extra_key].add(alias_name)
+            return d
+
+        outlet_alias_names = {o.name for o in task_outlets if o.type == AssetAlias.__name__ if o.name}
+        if outlet_alias_names and (event_from_aliases := asset_event_extras_from_aliases()):
+            asset_alias_models: dict[str, AssetAliasModel] = dict(
+                session.execute(
+                    select(AssetAliasModel.name, AssetAliasModel).where(
+                        AssetAliasModel.name.in_(outlet_alias_names)
                     )
                 )
-                for asset_alias_event in outlet_events:
-                    asset_alias_name = asset_alias_event["source_alias_name"]
-                    asset_unique_key = asset_alias_event["dest_asset_key"]
-                    frozen_extra = frozenset(asset_alias_event["extra"].items())
-                    asset_alias_names[(asset_unique_key, frozen_extra)].add(asset_alias_name)
-
-        asset_unique_keys = {key for key, _ in asset_alias_names}
-        existing_aliased_assets: set[AssetUniqueKey] = {
-            AssetUniqueKey.from_asset(asset_obj)
-            for asset_obj in session.scalars(
-                select(AssetModel).where(
-                    tuple_(AssetModel.name, AssetModel.uri).in_(
-                        attrs.astuple(key) for key in asset_unique_keys
-                    )
+            )
+            for (asset_key, extra_key), event_aliase_names in event_from_aliases.items():
+                aliases = [
+                    alias_model
+                    for alias_model in (asset_alias_models.get(n) for n in event_aliase_names)
+                    if alias_model is not None
+                ]
+                if not aliases:
+                    continue
+                ti.log.debug("register event for asset %s with alias %s", asset_key, aliases)
+                asset_manager.register_asset_change(
+                    task_instance=ti,
+                    asset=asset_key,
+                    aliases=aliases,
+                    extra=dict(extra_key),
+                    session=session,
                 )
-            )
-        }
-        inactive_asset_unique_keys = TaskInstance._get_inactive_asset_unique_keys(
-            asset_unique_keys={key for key in asset_unique_keys if key in existing_aliased_assets},
-            session=session,
-        )
-        if inactive_asset_unique_keys:
-            raise AirflowInactiveAssetAddedToAssetAliasException(inactive_asset_unique_keys)
-
-        if missing_assets := [
-            asset_unique_key.to_asset()
-            for asset_unique_key, _ in asset_alias_names
-            if asset_unique_key not in existing_aliased_assets
-        ]:
-            asset_manager.create_assets(missing_assets, session=session)
-            ti.log.warning("Created new assets for alias reference: %s", missing_assets)
-            session.flush()  # Needed because we need the id for fk.
-
-        for (unique_key, extra_items), alias_names in asset_alias_names.items():
-            ti.log.info(
-                'Creating event for %r through aliases "%s"',
-                unique_key,
-                ", ".join(alias_names),
-            )
-            asset_manager.register_asset_change(
-                task_instance=ti,
-                asset=unique_key,
-                aliases=[AssetAlias(name=name) for name in alias_names],
-                extra=dict(extra_items),
-                session=session,
-                source_alias_names=alias_names,
-            )
-
-        # Handle events derived from references.
-        asset_stmt = select(AssetModel).where(AssetModel.name.in_(asset_name_refs), AssetModel.active.has())
-        for asset_model in session.scalars(asset_stmt):
-            ti.log.info("Creating event through asset name reference %r", asset_model.name)
-            asset_manager.register_asset_change(
-                task_instance=ti,
-                asset=asset_model,
-                extra=outlet_events[asset_model].extra,
-                session=session,
-            )
-        asset_stmt = select(AssetModel).where(AssetModel.uri.in_(asset_uri_refs), AssetModel.active.has())
-        for asset_model in session.scalars(asset_stmt):
-            ti.log.info("Creating event for through asset URI reference %r", asset_model.uri)
-            asset_manager.register_asset_change(
-                task_instance=ti,
-                asset=asset_model,
-                extra=outlet_events[asset_model].extra,
-                session=session,
-            )
 
     def _execute_task_with_callbacks(self, context: Context, test_mode: bool = False, *, session: Session):
         """Prepare Task for Execution."""
