@@ -3619,12 +3619,12 @@ class TaskInstance(Base, LoggingMixin):
         from airflow.models.renderedtifields import RenderedTaskInstanceFields
 
         tables: list[type[TaskInstanceDependencies]] = [
-            TaskInstanceNote,
             TaskReschedule,
             XCom,
             RenderedTaskInstanceFields,
             TaskMap,
         ]
+        tables_by_id: list[type[Base]] = [TaskInstanceNote]
         for table in tables:
             session.execute(
                 delete(table).where(
@@ -3634,6 +3634,8 @@ class TaskInstance(Base, LoggingMixin):
                     table.map_index == self.map_index,
                 )
             )
+        for table in tables_by_id:
+            session.execute(delete(table).where(table.ti_id == self.id))
 
     @classmethod
     def duration_expression_update(
@@ -3804,31 +3806,27 @@ class SimpleTaskInstance:
         )
 
 
-class TaskInstanceNote(TaskInstanceDependencies):
+class TaskInstanceNote(Base):
     """For storage of arbitrary notes concerning the task instance."""
 
     __tablename__ = "task_instance_note"
-
+    ti_id = Column(
+        String(36).with_variant(postgresql.UUID(as_uuid=False), "postgresql"),
+        primary_key=True,
+        nullable=False,
+    )
     user_id = Column(String(128), nullable=True)
-    task_id = Column(StringID(), primary_key=True, nullable=False)
-    dag_id = Column(StringID(), primary_key=True, nullable=False)
-    run_id = Column(StringID(), primary_key=True, nullable=False)
-    map_index = Column(Integer, primary_key=True, nullable=False)
     content = Column(String(1000).with_variant(Text(1000), "mysql"))
     created_at = Column(UtcDateTime, default=timezone.utcnow, nullable=False)
     updated_at = Column(UtcDateTime, default=timezone.utcnow, onupdate=timezone.utcnow, nullable=False)
 
-    task_instance = relationship("TaskInstance", back_populates="task_instance_note")
+    task_instance = relationship("TaskInstance", back_populates="task_instance_note", uselist=False)
 
     __table_args__ = (
-        PrimaryKeyConstraint("task_id", "dag_id", "run_id", "map_index", name="task_instance_note_pkey"),
         ForeignKeyConstraint(
-            (dag_id, task_id, run_id, map_index),
+            (ti_id,),
             [
-                "task_instance.dag_id",
-                "task_instance.task_id",
-                "task_instance.run_id",
-                "task_instance.map_index",
+                "task_instance.id",
             ],
             name="task_instance_note_ti_fkey",
             ondelete="CASCADE",
@@ -3840,10 +3838,10 @@ class TaskInstanceNote(TaskInstanceDependencies):
         self.user_id = user_id
 
     def __repr__(self):
-        prefix = f"<{self.__class__.__name__}: {self.dag_id}.{self.task_id} {self.run_id}"
-        if self.map_index != -1:
-            prefix += f" map_index={self.map_index}"
-        return prefix + ">"
+        prefix = f"<{self.__class__.__name__}: {self.task_instance.dag_id}.{self.task_instance.task_id} {self.task_instance.run_id}"
+        if self.task_instance.map_index != -1:
+            prefix += f" map_index={self.task_instance.map_index}"
+        return prefix + f" TI ID: {self.ti_id}>"
 
 
 STATICA_HACK = True
