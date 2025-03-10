@@ -163,3 +163,11 @@ class TestGetJobs(TestJobEndpoint):
                 "unixname": self.scheduler_jobs[idx].unixname,
             }
             assert resp_job == expected_job
+
+    def test_should_raises_401_unauthenticated(self, unauthenticated_test_client):
+        response = unauthenticated_test_client.get("/public/jobs")
+        assert response.status_code == 401
+
+    def test_should_raises_403_unauthorized(self, unauthorized_test_client):
+        response = unauthorized_test_client.get("/public/jobs")
+        assert response.status_code == 403

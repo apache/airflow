@@ -39,6 +39,7 @@ from airflow.api_fastapi.core_api.datamodels.job import (
     JobCollectionResponse,
 )
 from airflow.api_fastapi.core_api.openapi.exceptions import create_openapi_http_exception_doc
+from airflow.api_fastapi.core_api.security import AccessView, requires_access_view
 from airflow.jobs.job import Job
 from airflow.utils.state import JobState
 
@@ -48,6 +49,7 @@ job_router = AirflowRouter(tags=["Job"], prefix="/jobs")
 @job_router.get(
     "",
     responses=create_openapi_http_exception_doc([status.HTTP_400_BAD_REQUEST]),
+    dependencies=[Depends(requires_access_view(AccessView.JOBS))],
 )
 def get_jobs(
     start_date_range: Annotated[
