@@ -24,11 +24,12 @@ import httpx
 import pytest
 
 from airflow.api_fastapi.execution_api.datamodels.xcom import XComResponse
+from airflow.models import XComModel
 from airflow.models.dagrun import DagRun
 from airflow.models.taskmap import TaskMap
 from airflow.models.xcom import XCom
-from airflow.utils.session import create_session
 from airflow.serialization.serde import serialize
+from airflow.utils.session import create_session
 
 pytestmark = pytest.mark.db_test
 
@@ -38,7 +39,7 @@ def reset_db():
     """Reset XCom entries."""
     with create_session() as session:
         session.query(DagRun).delete()
-        session.query(XCom).delete()
+        session.query(XComModel).delete()
 
 
 class TestXComsGetEndpoint:
@@ -57,7 +58,7 @@ class TestXComsGetEndpoint:
         ti.xcom_push(key="xcom_1", value=value, session=session)
         session.commit()
 
-        xcom = session.query(XCom).filter_by(task_id=ti.task_id, dag_id=ti.dag_id, key="xcom_1").first()
+        xcom = session.query(XComModel).filter_by(task_id=ti.task_id, dag_id=ti.dag_id, key="xcom_1").first()
         assert xcom.value == expected_value
 
         response = client.get(f"/execution/xcoms/{ti.dag_id}/{ti.run_id}/{ti.task_id}/xcom_1")
@@ -116,7 +117,7 @@ class TestXComsSetEndpoint:
         assert response.status_code == 201
         assert response.json() == {"message": "XCom successfully set"}
 
-        xcom = session.query(XCom).filter_by(task_id=ti.task_id, dag_id=ti.dag_id, key="xcom_1").first()
+        xcom = session.query(XComModel).filter_by(task_id=ti.task_id, dag_id=ti.dag_id, key="xcom_1").first()
         assert xcom.value == expected_value
         task_map = session.query(TaskMap).filter_by(task_id=ti.task_id, dag_id=ti.dag_id).one_or_none()
         assert task_map is None, "Should not be mapped"
@@ -228,7 +229,7 @@ class TestXComsSetEndpoint:
         )
 
         xcom = (
-            session.query(XCom)
+            session.query(XComModel)
             .filter_by(task_id=ti.task_id, dag_id=ti.dag_id, key="test_xcom_roundtrip")
             .first()
         )
@@ -247,13 +248,13 @@ class TestXComsDeleteEndpoint:
         ti.xcom_push(key="xcom_1", value='"value1"', session=session)
         session.commit()
 
-        xcom = session.query(XCom).filter_by(task_id=ti.task_id, dag_id=ti.dag_id, key="xcom_1").first()
+        xcom = session.query(XComModel).filter_by(task_id=ti.task_id, dag_id=ti.dag_id, key="xcom_1").first()
         assert xcom is not None
 
         response = client.delete(f"/execution/xcoms/{ti.dag_id}/{ti.run_id}/{ti.task_id}/xcom_1")
 
         assert response.status_code == 200
-        assert response.json() == {"message": f"XCom with key: xcom_1 successfully deleted."}
+        assert response.json() == {"message": "XCom with key: xcom_1 successfully deleted."}
 
-        xcom = session.query(XCom).filter_by(task_id=ti.task_id, dag_id=ti.dag_id, key="xcom_1").first()
+        xcom = session.query(XComModel).filter_by(task_id=ti.task_id, dag_id=ti.dag_id, key="xcom_1").first()
         assert xcom is None

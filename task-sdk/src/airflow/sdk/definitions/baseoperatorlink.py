@@ -38,6 +38,7 @@ class XComOperatorLink(LoggingMixin):
 
     def get_link(self, operator: BaseOperator, *, ti_key: TaskInstanceKey) -> str:
         from airflow.sdk.execution_time.xcom import BaseXCom
+
         """
         Retrieve the link from the XComs.
 

@@ -47,7 +47,7 @@ from airflow.models.dagrun import DagRun as DR
 from airflow.models.taskinstance import TaskInstance as TI, _update_rtif
 from airflow.models.taskreschedule import TaskReschedule
 from airflow.models.trigger import Trigger
-from airflow.models.xcom import XCom, XComModel
+from airflow.models.xcom import XComModel
 from airflow.utils import timezone
 from airflow.utils.state import DagRunState, TaskInstanceState, TerminalTIState
 
@@ -191,7 +191,9 @@ def ti_run(
         if not ti.next_method:
             map_index = None if ti.map_index < 0 else ti.map_index
             log.info("Clearing xcom data for task id: %s", ti_id_str)
-            query = session.query(XComModel.key).filter_by(dag_id=ti.dag_id, task_id=ti.task_id, run_id=ti.run_id)
+            query = session.query(XComModel.key).filter_by(
+                dag_id=ti.dag_id, task_id=ti.task_id, run_id=ti.run_id
+            )
             if map_index is not None:
                 query = query.filter_by(map_index=map_index)
 
@@ -219,7 +221,7 @@ def ti_run(
             # TODO: Add variables and connections that are needed (and has perms) for the task
             variables=[],
             connections=[],
-            xcom_keys_to_clear=xcom_keys
+            xcom_keys_to_clear=xcom_keys,
         )
 
         # Only set if they are non-null

@@ -33,12 +33,12 @@ from airflow.models import (
     TaskReschedule,
     Trigger,
     Variable,
-    XCom,
 )
 from airflow.models.dag import DagOwnerAttributes
 from airflow.models.dagcode import DagCode
 from airflow.models.dagwarning import DagWarning
 from airflow.models.serialized_dag import SerializedDagModel
+from airflow.models.xcom import XComModel
 from airflow.security.permissions import RESOURCE_DAG_PREFIX
 from airflow.utils.db import add_default_pool_if_not_exists, create_default_connections, reflect_tables
 from airflow.utils.session import create_session
@@ -252,7 +252,7 @@ def clear_db_dag_warnings():
 
 def clear_db_xcom():
     with create_session() as session:
-        session.query(XCom).delete()
+        session.query(XComModel).delete()
 
 
 def clear_db_logs():

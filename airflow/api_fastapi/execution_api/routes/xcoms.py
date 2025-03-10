@@ -18,7 +18,7 @@
 from __future__ import annotations
 
 import logging
-from typing import Annotated, cast, Any
+from typing import Annotated, Any, cast
 
 from fastapi import Body, Depends, HTTPException, Query, Response, status
 from pydantic import JsonValue
@@ -269,6 +269,7 @@ def set_xcom(
 
     return {"message": "XCom successfully set"}
 
+
 @router.delete(
     "/{dag_id}/{run_id}/{task_id}/{key}",
     responses={status.HTTP_404_NOT_FOUND: {"description": "XCom not found"}},
@@ -295,6 +296,7 @@ def delete_xcom(
     session.delete(query)
     session.commit()
     return {"message": f"XCom with key: {key} successfully deleted."}
+
 
 def has_xcom_access(
     dag_id: str, run_id: str, task_id: str, xcom_key: str, token: TIToken, write: bool = False
