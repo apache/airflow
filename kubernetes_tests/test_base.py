@@ -155,7 +155,6 @@ class BaseK8STest:
         # get csrf token from login page
         session = requests.Session()
         get_login_form_response = session.get(f"http://{KUBERNETES_HOST_PORT}/auth/login")
-        # input id="csrf_token"
         csrf_token = re.search(
             r'<input id="csrf_token" name="csrf_token" type="hidden" value="(.+?)">',
             get_login_form_response.text,
@@ -182,6 +181,8 @@ class BaseK8STest:
             query_params = parse_qs(str(parsed_url.query))
             jwt_token_list = query_params.get("token")
             jwt_token = jwt_token_list[0] if jwt_token_list else None
+        else:
+            raise
         assert jwt_token, f"Failed to get JWT token from redirect url {redirect_url_str}"
         return jwt_token
 
