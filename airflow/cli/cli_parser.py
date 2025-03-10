@@ -36,7 +36,6 @@ from typing import TYPE_CHECKING
 import lazy_object_proxy
 from rich_argparse import RawTextRichHelpFormatter, RichHelpFormatter
 
-from airflow.api_fastapi.app import get_auth_manager_cls
 from airflow.cli.cli_config import (
     DAG_CLI_DICT,
     ActionCommand,
@@ -44,7 +43,9 @@ from airflow.cli.cli_config import (
     GroupCommand,
     core_commands,
 )
+from airflow.cli.commands._generated_commands import AUTH_MANAGERS_CLI_COMMANDS, EXECUTORS_CLI_COMMANDS
 from airflow.cli.utils import CliConflictError
+from airflow.configuration import conf
 from airflow.exceptions import AirflowException
 from airflow.executors.executor_loader import ExecutorLoader
 from airflow.utils.helpers import partition
@@ -62,8 +63,11 @@ log = logging.getLogger(__name__)
 
 for executor_name in ExecutorLoader.get_executor_names():
     try:
-        executor, _ = ExecutorLoader.import_executor_cls(executor_name)
-        airflow_commands.extend(executor.get_cli_commands())
+        if executor_name.alias in EXECUTORS_CLI_COMMANDS:
+            airflow_commands.extend(EXECUTORS_CLI_COMMANDS[executor_name.alias])
+        else:
+            executor, _ = ExecutorLoader.import_executor_cls(executor_name)
+            airflow_commands.extend(executor.get_cli_commands())
     except Exception:
         log.exception("Failed to load CLI commands from executor: %s", executor_name)
         log.error(
@@ -75,8 +79,14 @@ for executor_name in ExecutorLoader.get_executor_names():
         # other commands.
 
 try:
-    auth_mgr = get_auth_manager_cls()
-    airflow_commands.extend(auth_mgr.get_cli_commands())
+    auth_mgr_name = conf.get("core", "auth_manager").split(".")[-1]
+    if auth_mgr_name in AUTH_MANAGERS_CLI_COMMANDS:
+        airflow_commands.extend(AUTH_MANAGERS_CLI_COMMANDS[auth_mgr_name])
+    else:
+        from airflow.api_fastapi.app import get_auth_manager_cls
+
+        auth_mgr = get_auth_manager_cls()
+        airflow_commands.extend(auth_mgr.get_cli_commands())
 except Exception as e:
     log.warning("cannot load CLI commands from auth manager: %s", e)
     log.warning("Authentication manager is not configured and webserver will not be able to start.")
