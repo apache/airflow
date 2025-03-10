@@ -3820,7 +3820,7 @@ class TaskInstanceNote(Base):
     created_at = Column(UtcDateTime, default=timezone.utcnow, nullable=False)
     updated_at = Column(UtcDateTime, default=timezone.utcnow, onupdate=timezone.utcnow, nullable=False)
 
-    task_instance = relationship("TaskInstance", back_populates="task_instance_note")
+    task_instance = relationship("TaskInstance", back_populates="task_instance_note", uselist=False)
 
     __table_args__ = (
         ForeignKeyConstraint(
