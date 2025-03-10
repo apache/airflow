@@ -805,26 +805,35 @@ class PodManager(LoggingMixin):
     )
     def extract_xcom_json(self, pod: V1Pod) -> str:
         """Retrieve XCom value and also check if xcom json is valid."""
+        command = (
+            f"if [ -s {PodDefaults.XCOM_MOUNT_PATH}/return.json ]; "
+            f"then cat {PodDefaults.XCOM_MOUNT_PATH}/return.json; "
+            f"else echo {EMPTY_XCOM_RESULT}; fi"
+        )
         with closing(
             kubernetes_stream(
                 self._client.connect_get_namespaced_pod_exec,
                 pod.metadata.name,
                 pod.metadata.namespace,
                 container=PodDefaults.SIDECAR_CONTAINER_NAME,
-                command=["/bin/sh"],
-                stdin=True,
+                command=[
+                    "/bin/sh",
+                    "-c",
+                    command,
+                ],
+                stdin=False,
                 stdout=True,
                 stderr=True,
                 tty=False,
                 _preload_content=False,
             )
-        ) as resp:
-            result = self._exec_pod_command(
-                resp,
-                f"if [ -s {PodDefaults.XCOM_MOUNT_PATH}/return.json ]; "
-                f"then cat {PodDefaults.XCOM_MOUNT_PATH}/return.json; "
-                f"else echo {EMPTY_XCOM_RESULT}; fi",
-            )
+        ) as client:
+            self.log.info("Running command... %s", command)
+            client.run_forever()
+            if client.peek_stderr():
+                stderr = client.read_stderr()
+                self.log.error("stderr from command: %s", stderr)
+            result = client.read_all()
             if result and result.rstrip() != EMPTY_XCOM_RESULT:
                 # Note: result string is parsed to check if its valid json.
                 # This function still returns a string which is converted into json in the calling method.
