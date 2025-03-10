@@ -41,6 +41,8 @@ mock_config_response = {
     "audit_view_excluded_events": "",
     "audit_view_included_events": "",
     "test_connection": "Disabled",
+    "color_log_error_keywords": ["error"],
+    "color_log_warning_keywords": ["warning"],
     "state_color_mapping": {
         "deferred": "mediumpurple",
         "failed": "red",
@@ -83,7 +85,11 @@ def mock_config_data():
                 "warn_deployment_exposure": "false",
                 "audit_view_excluded_events": "",
                 "audit_view_included_events": "",
-            }
+            },
+            "logging": {
+                "color_log_error_keywords": "error",
+                "color_log_warning_keywords": "warning",
+            },
         }
         with patch(
             "airflow.settings.STATE_COLORS",

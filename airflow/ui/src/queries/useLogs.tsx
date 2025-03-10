@@ -28,39 +28,70 @@ import type {
   TaskInstancesLogResponse,
 } from "openapi/requests/types.gen";
 import Time from "src/components/Time";
+import { system } from "src/theme";
 import { isStatePending, useAutoRefresh } from "src/utils";
 import { LogLevel, logLevelColorMapping } from "src/utils/logs";
 
 type Props = {
   dagId: string;
+  errorKeywords: Array<string>;
   logLevelFilters?: Array<string>;
   sourceFilters?: Array<string>;
   taskInstance?: TaskInstanceResponse;
   tryNumber?: number;
+  warningKeywords: Array<string>;
 };
 
 type ParseLogsProps = {
   data: TaskInstancesLogResponse["content"];
+  readonly errorKeywords: Array<string>;
   logLevelFilters?: Array<string>;
   sourceFilters?: Array<string>;
+  readonly warningKeywords: Array<string>;
 };
 
 type RenderStructuredLogProps = {
+  errorKeywords: Array<string>;
   index: number;
   logLevelFilters?: Array<string>;
   logMessage: string | StructuredLogMessage;
   sourceFilters?: Array<string>;
+  warningKeywords: Array<string>;
+};
+
+type HighlightLogProps = {
+  errorKeywords: Array<string>;
+  logMessage: string;
+  warningKeywords: Array<string>;
+};
+
+const errorColor = system.tokens.categoryMap.get("colors")?.get("fg.error")?.value as string;
+const warningColor = system.tokens.categoryMap.get("colors")?.get("fg.warning")?.value as string;
+const colorByKeyword = ({ errorKeywords, logMessage, warningKeywords }: HighlightLogProps) => {
+  if (errorKeywords.some((keyword) => logMessage.includes(keyword))) {
+    return errorColor;
+  } else if (warningKeywords.some((keyword) => logMessage.includes(keyword))) {
+    return warningColor;
+  }
+
+  return undefined;
 };
 
 const renderStructuredLog = ({
+  errorKeywords,
   index,
   logLevelFilters,
   logMessage,
   sourceFilters,
+  warningKeywords,
 }: RenderStructuredLogProps) => {
+  let color;
+
   if (typeof logMessage === "string") {
+    color = colorByKeyword({ errorKeywords, logMessage, warningKeywords });
+
     return (
-      <chakra.span key={index} lineHeight={1.5}>
+      <chakra.span key={index} lineHeight={1.5} style={{ color }}>
         {logMessage}
       </chakra.span>
     );
@@ -106,8 +137,10 @@ const renderStructuredLog = ({
     );
   }
 
+  color = colorByKeyword({ errorKeywords, logMessage: event, warningKeywords });
+
   elements.push(
-    <span className="event" key={2}>
+    <span className="event" key={2} style={{ color }}>
       {event}
     </span>,
   );
@@ -130,7 +163,13 @@ const renderStructuredLog = ({
   );
 };
 
-const parseLogs = ({ data, logLevelFilters, sourceFilters }: ParseLogsProps) => {
+const parseLogs = ({
+  data,
+  errorKeywords,
+  logLevelFilters,
+  sourceFilters,
+  warningKeywords,
+}: ParseLogsProps) => {
   let warning;
   let parsedLines;
   let startGroup = false;
@@ -148,7 +187,14 @@ const parseLogs = ({ data, logLevelFilters, sourceFilters }: ParseLogsProps) => 
         }
       }
 
-      return renderStructuredLog({ index, logLevelFilters, logMessage: datum, sourceFilters });
+      return renderStructuredLog({
+        errorKeywords,
+        index,
+        logLevelFilters,
+        logMessage: datum,
+        sourceFilters,
+        warningKeywords,
+      });
     });
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : "An error occurred.";
@@ -203,7 +249,15 @@ const parseLogs = ({ data, logLevelFilters, sourceFilters }: ParseLogsProps) => 
 };
 
 export const useLogs = (
-  { dagId, logLevelFilters, sourceFilters, taskInstance, tryNumber = 1 }: Props,
+  {
+    dagId,
+    errorKeywords,
+    logLevelFilters,
+    sourceFilters,
+    taskInstance,
+    tryNumber = 1,
+    warningKeywords,
+  }: Props,
   options?: Omit<UseQueryOptions<TaskInstancesLogResponse>, "queryFn" | "queryKey">,
 ) => {
   const refetchInterval = useAutoRefresh({ dagId });
@@ -230,8 +284,10 @@ export const useLogs = (
 
   const parsedData = parseLogs({
     data: data?.content ?? [],
+    errorKeywords,
     logLevelFilters,
     sourceFilters,
+    warningKeywords,
   });
 
   return { data: parsedData, ...rest };

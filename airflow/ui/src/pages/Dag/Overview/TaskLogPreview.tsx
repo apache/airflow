@@ -37,9 +37,11 @@ export const TaskLogPreview = ({
   const { data, error, isLoading } = useLogs(
     {
       dagId: taskInstance.dag_id,
+      errorKeywords: [],
       logLevelFilters: ["error", "critical"],
       taskInstance,
       tryNumber: taskInstance.try_number,
+      warningKeywords: [],
     },
     {
       refetchInterval: false,
