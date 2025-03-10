@@ -428,7 +428,7 @@
       "amazon"
     ],
     "excluded-python-versions": [],
-    "state": "ready"
+    "state": "not-ready"
   },
   "common.sql": {
     "deps": [
@@ -606,7 +606,7 @@
       "common.compat"
     ],
     "excluded-python-versions": [],
-    "state": "ready"
+    "state": "not-ready"
   },
   "facebook": {
     "deps": [
