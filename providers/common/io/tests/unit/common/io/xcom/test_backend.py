@@ -20,9 +20,10 @@ from __future__ import annotations
 import pytest
 
 import airflow.models.xcom
-from airflow.models.xcom import BaseXCom, resolve_xcom_backend
+from airflow.models import XComModel
 from airflow.providers.common.io.xcom.backend import XComObjectStorageBackend
 from airflow.providers.standard.operators.empty import EmptyOperator
+from airflow.sdk.execution_time.xcom import BaseXCom, resolve_xcom_backend
 from airflow.utils import timezone
 from airflow.utils.xcom import XCOM_RETURN_KEY
 
@@ -83,7 +84,7 @@ class TestXComObjectStorageBackend:
     def test_value_db(self, task_instance, session):
         session.add(task_instance)
         session.commit()
-        XCom = resolve_xcom_backend()
+        XCom = XComModel
         airflow.models.xcom.XCom = XCom
 
         XCom.set(
@@ -109,7 +110,7 @@ class TestXComObjectStorageBackend:
             run_id=task_instance.run_id,
             session=session,
         )
-        assert qry.first().value == {"key": "value"}
+        assert qry.first().value == '{"key": "value"}'
 
     def test_value_storage(self, task_instance, session):
         session.add(task_instance)
@@ -134,7 +135,7 @@ class TestXComObjectStorageBackend:
                 run_id=task_instance.run_id,
                 session=session,
             )
-            .with_entities(BaseXCom.value)
+            .with_entities(XComModel.value)
             .first()
         )
 
