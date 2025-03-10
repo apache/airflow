@@ -98,7 +98,12 @@ class MwaaDagRunCompletedTrigger(AwsBaseWaiterTrigger):
         )
 
     def hook(self) -> AwsGenericHook:
-        return MwaaHook()
+        return MwaaHook(
+            aws_conn_id=self.aws_conn_id,
+            region_name=self.region_name,
+            verify=self.verify,
+            botocore_config=self.botocore_config,
+        )
 
 
 def _build_waiter_acceptors(
