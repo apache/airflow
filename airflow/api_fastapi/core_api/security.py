@@ -16,8 +16,10 @@
 # under the License.
 from __future__ import annotations
 
+import posixpath
 from functools import cache
 from typing import TYPE_CHECKING, Annotated, Callable
+from urllib.parse import urljoin, urlparse
 
 from fastapi import Depends, HTTPException, Request, status
 from fastapi.security import OAuth2PasswordBearer
@@ -214,3 +216,26 @@ def _requires_access(
 ) -> None:
     if not is_authorized_callback():
         raise HTTPException(status.HTTP_403_FORBIDDEN, "Forbidden")
+
+
+def is_safe_url(target_url: str) -> bool:
+    """
+    Check that the URL is safe.
+
+    Needs to belong to the same domain as base_url, use HTTP or HTTPS (no JavaScript/data schemes),
+    is a valid normalized path.
+    """
+    base_url = conf.get("api", "base_url")
+    parsed_base = urlparse(base_url)
+    parsed_target = urlparse(urljoin(base_url, target_url))  # Resolves relative URLs
+
+    normalized_target_path = posixpath.normpath(parsed_target.path)
+
+    if (
+        normalized_target_path
+        and parsed_base.path
+        and not normalized_target_path.startswith(parsed_base.path)
+    ):
+        return False
+
+    return parsed_target.scheme in {"http", "https"} and parsed_target.netloc == parsed_base.netloc
