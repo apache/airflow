@@ -102,7 +102,7 @@ class MwaaDagRunCompletedTrigger(AwsBaseWaiterTrigger):
             aws_conn_id=self.aws_conn_id,
             region_name=self.region_name,
             verify=self.verify,
-            botocore_config=self.botocore_config,
+            config=self.botocore_config,
         )
 
 
