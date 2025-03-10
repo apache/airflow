@@ -27,6 +27,7 @@ from airflow.api_fastapi.auth.managers.models.resource_details import DagDetails
 from airflow.api_fastapi.common.db.common import SessionDep
 from airflow.api_fastapi.common.router import AirflowRouter
 from airflow.api_fastapi.core_api.openapi.exceptions import create_openapi_http_exception_doc
+from airflow.api_fastapi.core_api.security import requires_access_dag
 from airflow.api_fastapi.logging.decorators import action_logging
 from airflow.models.dag import DagModel
 from airflow.models.dagbag import DagPriorityParsingRequest
@@ -41,7 +42,7 @@ dag_parsing_router = AirflowRouter(tags=["DAG Parsing"], prefix="/parseDagFile/{
     "",
     responses=create_openapi_http_exception_doc([status.HTTP_404_NOT_FOUND]),
     status_code=status.HTTP_201_CREATED,
-    dependencies=[Depends(action_logging())],
+    dependencies=[Depends(requires_access_dag(method="PUT")), Depends(action_logging())],
 )
 def reparse_dag_file(
     file_token: str,

@@ -1579,6 +1579,7 @@ export class DagStatsService {
    * Get Dag Stats
    * Get Dag statistics.
    * @param data The data for the request.
+   * @param data.dagId
    * @param data.dagIds
    * @returns DagStatsCollectionResponse Successful Response
    * @throws ApiError
@@ -1588,6 +1589,7 @@ export class DagStatsService {
       method: "GET",
       url: "/public/dagStats",
       query: {
+        dag_id: data.dagId,
         dag_ids: data.dagIds,
       },
       errors: {
@@ -3388,6 +3390,7 @@ export class DagParsingService {
    * Request re-parsing a DAG file.
    * @param data The data for the request.
    * @param data.fileToken
+   * @param data.dagId
    * @returns null Successful Response
    * @throws ApiError
    */
@@ -3397,6 +3400,9 @@ export class DagParsingService {
       url: "/public/parseDagFile/{file_token}",
       path: {
         file_token: data.fileToken,
+      },
+      query: {
+        dag_id: data.dagId,
       },
       errors: {
         401: "Unauthorized",

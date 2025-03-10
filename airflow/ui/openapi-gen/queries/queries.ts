@@ -1115,6 +1115,7 @@ export const useDagSourceServiceGetDagSource = <
  * Get Dag Stats
  * Get Dag statistics.
  * @param data The data for the request.
+ * @param data.dagId
  * @param data.dagIds
  * @returns DagStatsCollectionResponse Successful Response
  * @throws ApiError
@@ -1125,16 +1126,18 @@ export const useDagStatsServiceGetDagStats = <
   TQueryKey extends Array<unknown> = unknown[],
 >(
   {
+    dagId,
     dagIds,
   }: {
+    dagId?: string;
     dagIds?: string[];
   } = {},
   queryKey?: TQueryKey,
   options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">,
 ) =>
   useQuery<TData, TError>({
-    queryKey: Common.UseDagStatsServiceGetDagStatsKeyFn({ dagIds }, queryKey),
-    queryFn: () => DagStatsService.getDagStats({ dagIds }) as TData,
+    queryKey: Common.UseDagStatsServiceGetDagStatsKeyFn({ dagId, dagIds }, queryKey),
+    queryFn: () => DagStatsService.getDagStats({ dagId, dagIds }) as TData,
     ...options,
   });
 /**
@@ -3216,7 +3219,7 @@ export const useDagRunServiceTriggerDagRun = <
       TData,
       TError,
       {
-        dagId: unknown;
+        dagId: string;
         requestBody: TriggerDAGRunPostBody;
       },
       TContext
@@ -3228,7 +3231,7 @@ export const useDagRunServiceTriggerDagRun = <
     TData,
     TError,
     {
-      dagId: unknown;
+      dagId: string;
       requestBody: TriggerDAGRunPostBody;
     },
     TContext
@@ -3256,7 +3259,7 @@ export const useDagRunServiceGetListDagRunsBatch = <
       TData,
       TError,
       {
-        dagId: "~";
+        dagId: string;
         requestBody: DAGRunsBatchBody;
       },
       TContext
@@ -3268,7 +3271,7 @@ export const useDagRunServiceGetListDagRunsBatch = <
     TData,
     TError,
     {
-      dagId: "~";
+      dagId: string;
       requestBody: DAGRunsBatchBody;
     },
     TContext
@@ -3297,7 +3300,7 @@ export const useTaskInstanceServiceGetTaskInstancesBatch = <
       TData,
       TError,
       {
-        dagId: "~";
+        dagId: string;
         dagRunId: "~";
         requestBody: TaskInstancesBatchBody;
       },
@@ -3310,7 +3313,7 @@ export const useTaskInstanceServiceGetTaskInstancesBatch = <
     TData,
     TError,
     {
-      dagId: "~";
+      dagId: string;
       dagRunId: "~";
       requestBody: TaskInstancesBatchBody;
     },
@@ -3596,6 +3599,7 @@ export const useBackfillServiceCancelBackfill = <
  * Request re-parsing a DAG file.
  * @param data The data for the request.
  * @param data.fileToken
+ * @param data.dagId
  * @returns null Successful Response
  * @throws ApiError
  */
@@ -3609,6 +3613,7 @@ export const useDagParsingServiceReparseDagFile = <
       TData,
       TError,
       {
+        dagId?: string;
         fileToken: string;
       },
       TContext
@@ -3620,12 +3625,13 @@ export const useDagParsingServiceReparseDagFile = <
     TData,
     TError,
     {
+      dagId?: string;
       fileToken: string;
     },
     TContext
   >({
-    mutationFn: ({ fileToken }) =>
-      DagParsingService.reparseDagFile({ fileToken }) as unknown as Promise<TData>,
+    mutationFn: ({ dagId, fileToken }) =>
+      DagParsingService.reparseDagFile({ dagId, fileToken }) as unknown as Promise<TData>,
     ...options,
   });
 /**
