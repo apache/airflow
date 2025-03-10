@@ -31,6 +31,8 @@ import sqlalchemy as sa
 from alembic import op
 from sqlalchemy.dialects import postgresql
 
+from airflow.migrations.db_types import StringID
+
 # revision identifiers, used by Alembic.
 revision = "d469d27e2a64"
 down_revision = "cf87489a35df"
@@ -47,13 +49,14 @@ def upgrade():
                 "ti_id", sa.String(length=36).with_variant(postgresql.UUID(), "postgresql"), nullable=False
             )
         )
-        batch_op.drop_index("idx_task_reschedule_dag_run")
-        batch_op.drop_index("idx_task_reschedule_dag_task_run")
         batch_op.drop_constraint("task_reschedule_ti_fkey", type_="foreignkey")
         batch_op.drop_constraint("task_reschedule_dr_fkey", type_="foreignkey")
         batch_op.create_foreign_key(
             "task_reschedule_ti_fkey", "task_instance", ["ti_id"], ["id"], ondelete="CASCADE"
         )
+
+        batch_op.drop_index("idx_task_reschedule_dag_run")
+        batch_op.drop_index("idx_task_reschedule_dag_task_run")
         batch_op.drop_column("map_index")
         batch_op.drop_column("dag_id")
         batch_op.drop_column("task_id")
@@ -62,20 +65,56 @@ def upgrade():
 
 def downgrade():
     """Unapply Use ti_id as FK to TaskReschedule."""
+    dialect_name = op.get_context().dialect.name
     with op.batch_alter_table("task_reschedule", schema=None) as batch_op:
-        batch_op.add_column(sa.Column("run_id", sa.VARCHAR(length=250), autoincrement=False, nullable=False))
-        batch_op.add_column(sa.Column("task_id", sa.VARCHAR(length=250), autoincrement=False, nullable=False))
-        batch_op.add_column(sa.Column("dag_id", sa.VARCHAR(length=250), autoincrement=False, nullable=False))
+        batch_op.drop_constraint("task_reschedule_ti_fkey", type_="foreignkey")
+        batch_op.add_column(sa.Column("run_id", StringID(), nullable=True))
+        batch_op.add_column(sa.Column("task_id", StringID(), nullable=True))
+        batch_op.add_column(sa.Column("dag_id", StringID(), nullable=True))
         batch_op.add_column(
             sa.Column(
                 "map_index",
                 sa.INTEGER(),
-                server_default=sa.text("'-1'::integer"),
-                autoincrement=False,
+                server_default=sa.text("-1"),
                 nullable=False,
             )
         )
-        batch_op.drop_constraint("task_reschedule_ti_fkey", type_="foreignkey")
+    # fill the task_id, dag_id, run_id, map_index columns from taskinstance
+    if dialect_name == "postgresql":
+        op.execute("""
+                UPDATE task_reschedule
+                SET dag_id = task_instance.dag_id,
+                    task_id = task_instance.task_id,
+                    run_id = task_instance.run_id,
+                    map_index = task_instance.map_index
+                FROM task_instance
+                WHERE task_reschedule.ti_id = task_instance.id
+                """)
+    elif dialect_name == "mysql":
+        op.execute("""
+                UPDATE task_reschedule tir
+                JOIN task_instance ti ON
+                    tir.ti_id = ti.id
+                SET tir.dag_id = ti.dag_id,
+                    tir.task_id = ti.task_id,
+                    tir.run_id = ti.run_id,
+                    tir.map_index = ti.map_index
+                """)
+    else:
+        op.execute("""
+                UPDATE task_reschedule
+                SET dag_id = (SELECT dag_id FROM task_instance WHERE task_reschedule.ti_id = task_instance.id),
+                    task_id = (SELECT task_id FROM task_instance WHERE task_reschedule.ti_id = task_instance.id),
+                    run_id = (SELECT run_id FROM task_instance WHERE task_reschedule.ti_id = task_instance.id),
+                    map_index = (SELECT map_index FROM task_instance WHERE task_reschedule.ti_id = task_instance.id)
+                """)
+    with op.batch_alter_table("task_reschedule", schema=None) as batch_op:
+        batch_op.drop_column("ti_id")
+        batch_op.alter_column("run_id", nullable=False, existing_type=StringID())
+        batch_op.alter_column("task_id", nullable=False, existing_type=StringID())
+        batch_op.alter_column("dag_id", nullable=False, existing_type=StringID())
+        batch_op.alter_column("map_index", nullable=False, existing_type=sa.INTEGER())
+
         batch_op.create_foreign_key(
             "task_reschedule_dr_fkey",
             "dag_run",
@@ -94,4 +133,3 @@ def downgrade():
             "idx_task_reschedule_dag_task_run", ["dag_id", "task_id", "run_id", "map_index"], unique=False
         )
         batch_op.create_index("idx_task_reschedule_dag_run", ["dag_id", "run_id"], unique=False)
-        batch_op.drop_column("ti_id")
