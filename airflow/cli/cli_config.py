@@ -485,8 +485,10 @@ ARG_DB_RETRY_DELAY = Arg(
     type=positive_int(allow_zero=False),
     help="Wait time between retries in seconds",
 )
-ARG_DAG_IDS = Arg(("--dag-ids",), help="The ids of the dags to clean up")
-ARG_EXCLUDE_DAG_IDS = Arg(("--exclude-dag-ids",), help="The ids of the dags to exclude from clean up")
+ARG_DAG_IDS = Arg(("--dag-ids",), help="The ids of the dags to clean up", type=string_list_type)
+ARG_EXCLUDE_DAG_IDS = Arg(
+    ("--exclude-dag-ids",), help="The ids of the dags to exclude from clean up", type=string_list_type
+)
 
 # pool
 ARG_POOL_NAME = Arg(("pool",), metavar="NAME", help="Pool name")
