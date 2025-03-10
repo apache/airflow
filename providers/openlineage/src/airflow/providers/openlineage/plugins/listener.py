@@ -76,7 +76,8 @@ def _executor_initializer():
     Reconfigures the ORM engine to prevent issues that arise when multiple processes interact with
     the Airflow database.
     """
-    settings.configure_orm()
+    if not AIRFLOW_V_3_0_PLUS:
+        settings.configure_orm()
 
 
 class OpenLineageListener:
@@ -481,7 +482,8 @@ class OpenLineageListener:
             self.log.debug("Process with pid %s finished - parent", pid)
         else:
             setproctitle(getproctitle() + " - OpenLineage - " + callable_name)
-            configure_orm(disable_connection_pool=True)
+            if not AIRFLOW_V_3_0_PLUS:
+                configure_orm(disable_connection_pool=True)
             self.log.debug("Executing OpenLineage process - %s - pid %s", callable_name, os.getpid())
             callable()
             self.log.debug("Process with current pid finishes after %s", callable_name)
