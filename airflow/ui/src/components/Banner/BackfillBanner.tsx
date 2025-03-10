@@ -17,7 +17,7 @@
  * under the License.
  */
 import { Box, HStack, Spacer, Text } from "@chakra-ui/react";
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { MdClose, MdPause, MdStop } from "react-icons/md";
 
 import { useBackfillServiceListBackfills } from "openapi/queries";
@@ -31,18 +31,19 @@ type Props = {
 };
 
 const BackfillBanner = ({ dagId }: Props) => {
-  const { data } = useBackfillServiceListBackfills({
+  const { data, isLoading } = useBackfillServiceListBackfills({
     dagId,
   });
 
-  const [visible, setVisible] = useState<boolean>(false);
+  let initialVisibility = false;
 
-  useEffect(() => {
-    setVisible(data?.total_entries === undefined ? false : data.total_entries > 0);
-  }, [data]);
+  if (data?.total_entries !== undefined && data.total_entries > 0) {
+    initialVisibility = true;
+  }
+  const [visible, setVisible] = useState<boolean>(initialVisibility);
 
-  return visible ? (
-    <Box bg="blue.solid" color="white" fontSize="m" my="1" px="2" py="1" rounded="lg">
+  return visible && !isLoading ? (
+    <Box bg="blue.solid" color="white" fontSize="m" mr="1.5" my="1" px="2" py="1" rounded="lg">
       <HStack>
         <Text key="backfill">Backfill in progress:</Text>
         <>
