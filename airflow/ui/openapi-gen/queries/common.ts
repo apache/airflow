@@ -556,6 +556,18 @@ export const UseConnectionServiceGetConnectionsKeyFn = (
   useConnectionServiceGetConnectionsKey,
   ...(queryKey ?? [{ connectionIdPattern, limit, offset, orderBy }]),
 ];
+export type ConnectionServiceHookMetaDataDefaultResponse = Awaited<
+  ReturnType<typeof ConnectionService.hookMetaData>
+>;
+export type ConnectionServiceHookMetaDataQueryResult<
+  TData = ConnectionServiceHookMetaDataDefaultResponse,
+  TError = unknown,
+> = UseQueryResult<TData, TError>;
+export const useConnectionServiceHookMetaDataKey = "ConnectionServiceHookMetaData";
+export const UseConnectionServiceHookMetaDataKeyFn = (queryKey?: Array<unknown>) => [
+  useConnectionServiceHookMetaDataKey,
+  ...(queryKey ?? []),
+];
 export type DagRunServiceGetDagRunDefaultResponse = Awaited<ReturnType<typeof DagRunService.getDagRun>>;
 export type DagRunServiceGetDagRunQueryResult<
   TData = DagRunServiceGetDagRunDefaultResponse,

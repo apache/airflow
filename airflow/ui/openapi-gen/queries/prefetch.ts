@@ -752,6 +752,17 @@ export const prefetchUseConnectionServiceGetConnections = (
     queryFn: () => ConnectionService.getConnections({ connectionIdPattern, limit, offset, orderBy }),
   });
 /**
+ * Hook Meta Data
+ * Retrieve information about available connection types (hook classes) and their parameters.
+ * @returns HookMetaData Successful Response
+ * @throws ApiError
+ */
+export const prefetchUseConnectionServiceHookMetaData = (queryClient: QueryClient) =>
+  queryClient.prefetchQuery({
+    queryKey: Common.UseConnectionServiceHookMetaDataKeyFn(),
+    queryFn: () => ConnectionService.hookMetaData(),
+  });
+/**
  * Get Dag Run
  * @param data The data for the request.
  * @param data.dagId

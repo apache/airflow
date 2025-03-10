@@ -77,6 +77,7 @@ import type {
   TestConnectionData,
   TestConnectionResponse,
   CreateDefaultConnectionsResponse,
+  HookMetaDataResponse,
   GetDagRunData,
   GetDagRunResponse,
   DeleteDagRunData,
@@ -1272,6 +1273,23 @@ export class ConnectionService {
     return __request(OpenAPI, {
       method: "POST",
       url: "/public/connections/defaults",
+      errors: {
+        401: "Unauthorized",
+        403: "Forbidden",
+      },
+    });
+  }
+
+  /**
+   * Hook Meta Data
+   * Retrieve information about available connection types (hook classes) and their parameters.
+   * @returns HookMetaData Successful Response
+   * @throws ApiError
+   */
+  public static hookMetaData(): CancelablePromise<HookMetaDataResponse> {
+    return __request(OpenAPI, {
+      method: "GET",
+      url: "/public/connections/hook_meta",
       errors: {
         401: "Unauthorized",
         403: "Forbidden",
