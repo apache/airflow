@@ -62,7 +62,7 @@ from airflow.sdk.execution_time.comms import (
     TaskState,
     ToSupervisor,
     ToTask,
-    XComResult,
+    XComResult, DeleteXCom,
 )
 from airflow.sdk.execution_time.context import (
     ConnectionAccessor,
@@ -73,6 +73,7 @@ from airflow.sdk.execution_time.context import (
     get_previous_dagrun_success,
     set_current_context,
 )
+from airflow.sdk.execution_time.xcom import resolve_xcom_backend
 from airflow.utils.net import get_hostname
 from airflow.utils.state import TaskInstanceState
 
@@ -253,7 +254,9 @@ class RuntimeTaskInstance(TaskInstance):
         run_id: str | None = None,
     ) -> Any:
         """
-        Pull XComs that optionally meet certain criteria.
+        Pull XComs either from the API server (BaseXCom) or from the custom XCOM backend if configured.
+
+        The pull can be filtered optionally by certain criterion.
 
         :param key: A key for the XCom. If provided, only XComs with matching
             keys will be returned. The default key is ``'return_value'``, also
@@ -305,6 +308,16 @@ class RuntimeTaskInstance(TaskInstance):
 
         xcoms = []
         for t in task_ids:
+            if XCom:
+                value = XCom.get_one(
+                    run_id=run_id,
+                    key=key,
+                    task_id=t,
+                    dag_id=dag_id,
+                    map_index=map_indexes,
+                )
+                xcoms.append(XCom.deserialize_value(value))
+                continue
             SUPERVISOR_COMMS.send_request(
                 log=log,
                 msg=GetXCom(
@@ -357,6 +370,15 @@ def _xcom_push(ti: RuntimeTaskInstance, key: str, value: Any, mapped_length: int
     # consumers
     from airflow.serialization.serde import serialize
 
+    if XCom:
+        XCom.set(
+            key=key,
+            value=value,
+            dag_id=ti.dag_id,
+            task_id=ti.task_id,
+            run_id=ti.run_id,
+        )
+        return
     # TODO: Move XCom serialization & deserialization to Task SDK
     #   https://github.com/apache/airflow/issues/45231
 
@@ -484,6 +506,8 @@ SUPERVISOR_COMMS: CommsDecoder[ToTask, ToSupervisor]
 # 2. Execution (run task code, possibly send requests)
 # 3. Shutdown and report status
 
+XCom: Any = None
+
 
 def startup() -> tuple[RuntimeTaskInstance, Logger]:
     msg = SUPERVISOR_COMMS.get_message()
@@ -499,6 +523,9 @@ def startup() -> tuple[RuntimeTaskInstance, Logger]:
         with _airflow_parsing_context_manager(dag_id=msg.ti.dag_id, task_id=msg.ti.task_id):
             ti = parse(msg)
         log.debug("DAG file parsed", file=msg.dag_rel_path)
+
+        global XCom
+        XCom = resolve_xcom_backend(log)
     else:
         raise RuntimeError(f"Unhandled startup message {type(msg)} {msg}")
 
@@ -578,6 +605,23 @@ def run(
     ti: RuntimeTaskInstance, log: Logger
 ) -> tuple[IntermediateTIState | TerminalTIState, ToSupervisor | None, BaseException | None]:
     """Run the task in this process."""
+    # First, clear the xcom data
+    if ti._ti_context_from_server and ti._ti_context_from_server.xcom_keys_to_clear:
+        keys_to_delete = ti._ti_context_from_server.xcom_keys_to_clear
+
+        for x in keys_to_delete:
+            log.debug("Clearing XCom with key", key=x)
+            XCom.purge()
+            SUPERVISOR_COMMS.send_request(
+                log=log,
+                msg=DeleteXCom(
+                    key=x,
+                    dag_id=ti.dag_id,
+                    task_id=ti.task_id,
+                    run_id=ti.run_id,
+                ),
+            )
+
     from airflow.exceptions import (
         AirflowException,
         AirflowFailException,
@@ -776,7 +820,6 @@ def _push_xcom_if_needed(result: Any, ti: RuntimeTaskInstance, log: Logger):
 
     # TODO: Use constant for XCom return key & use serialize_value from Task SDK
     _xcom_push(ti, "return_value", result, mapped_length=mapped_length)
-
 
 def finalize(
     ti: RuntimeTaskInstance, state: TerminalTIState, log: Logger, error: BaseException | None = None
