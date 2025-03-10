@@ -20,6 +20,7 @@ from __future__ import annotations
 import argparse
 import contextlib
 import json
+import logging
 import os
 from datetime import datetime, timedelta
 from io import StringIO
@@ -314,18 +315,24 @@ class TestCliDags:
         assert list(dag_details.keys()) == valid_cols
 
     @conf_vars({("core", "load_examples"): "false"})
-    def test_cli_list_import_errors(self):
-        dag_path = os.path.join(TEST_DAGS_FOLDER, "test_invalid_cron.py")
+    def test_cli_list_import_errors(self, get_test_dag, configure_testing_dag_bundle, caplog):
+        path_to_parse = TEST_DAGS_FOLDER / "test_invalid_cron.py"
+        get_test_dag("test_invalid_cron")
+
         args = self.parser.parse_args(
-            ["dags", "list-import-errors", "--output", "yaml", "--subdir", dag_path]
+            ["dags", "list-import-errors", "--output", "yaml", "--bundle-name", "testing"]
         )
-        with contextlib.redirect_stdout(StringIO()) as temp_stdout:
+
+        with configure_testing_dag_bundle(path_to_parse):
             with pytest.raises(SystemExit) as err_ctx:
-                dag_command.dag_list_import_errors(args)
-            out = temp_stdout.getvalue()
-        assert "[0 100 * * *] is not acceptable, out of range" in out
-        assert dag_path in out
+                with caplog.at_level(logging.ERROR):
+                    dag_command.dag_list_import_errors(args)
+
+        log_output = caplog.text
+
         assert err_ctx.value.code == 1
+        assert path_to_parse in log_output
+        assert "[0 100 * * *] is not acceptable, out of range" in log_output
 
     def test_cli_list_dag_runs(self):
         dag_command.dag_trigger(
@@ -565,7 +572,7 @@ class TestCliDags:
 
         mock_get_dag.assert_has_calls(
             [
-                mock.call(subdir=cli_args.subdir, dag_id="example_bash_operator"),
+                mock.call(subdir=None, dag_id="example_bash_operator", from_db=True),
                 mock.call().test(
                     logical_date=timezone.parse(DEFAULT_DATE.isoformat()),
                     run_conf=None,
@@ -599,7 +606,7 @@ class TestCliDags:
 
         mock_get_dag.assert_has_calls(
             [
-                mock.call(subdir=cli_args.subdir, dag_id="example_bash_operator"),
+                mock.call(subdir=None, dag_id="example_bash_operator", from_db=True),
                 mock.call().test(
                     logical_date=mock.ANY,
                     run_conf=None,
@@ -626,7 +633,7 @@ class TestCliDags:
 
         mock_get_dag.assert_has_calls(
             [
-                mock.call(subdir=cli_args.subdir, dag_id="example_bash_operator"),
+                mock.call(subdir=None, dag_id="example_bash_operator", from_db=True),
                 mock.call().test(
                     logical_date=timezone.parse(DEFAULT_DATE.isoformat()),
                     run_conf={"dag_run_conf_param": "param_value"},
@@ -654,7 +661,7 @@ class TestCliDags:
 
         mock_get_dag.assert_has_calls(
             [
-                mock.call(subdir=cli_args.subdir, dag_id="example_bash_operator"),
+                mock.call(subdir=None, dag_id="example_bash_operator", from_db=True),
                 mock.call().test(
                     logical_date=timezone.parse(DEFAULT_DATE.isoformat()),
                     run_conf=None,
