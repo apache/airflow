@@ -16,27 +16,30 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Box } from "@chakra-ui/react";
-import type { PropsWithChildren } from "react";
-import { Outlet } from "react-router-dom";
+import type { InternalAxiosRequestConfig } from "axios";
 
-import { useConfig } from "src/queries/useConfig";
+export const TOKEN_STORAGE_KEY = "token";
+export const TOKEN_QUERY_PARAM_NAME = "token";
 
-import { Nav } from "./Nav";
+export const tokenHandler = (config: InternalAxiosRequestConfig) => {
+  const searchParams = new URLSearchParams(globalThis.location.search);
 
-export const BaseLayout = ({ children }: PropsWithChildren) => {
-  const instanceName = useConfig("instance_name");
+  const tokenUrl = searchParams.get(TOKEN_QUERY_PARAM_NAME);
 
-  if (typeof instanceName === "string") {
-    document.title = instanceName;
+  let token: string | null;
+
+  if (tokenUrl === null) {
+    token = localStorage.getItem(TOKEN_STORAGE_KEY);
+  } else {
+    localStorage.setItem(TOKEN_QUERY_PARAM_NAME, tokenUrl);
+    searchParams.delete(TOKEN_QUERY_PARAM_NAME);
+    globalThis.location.search = searchParams.toString();
+    token = tokenUrl;
   }
 
-  return (
-    <>
-      <Nav />
-      <Box display="flex" flexDirection="column" h="100vh" ml={20} p={3}>
-        {children ?? <Outlet />}
-      </Box>
-    </>
-  );
+  if (token !== null) {
+    config.headers.Authorization = `Bearer ${token}`;
+  }
+
+  return config;
 };

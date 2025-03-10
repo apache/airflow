@@ -24,6 +24,8 @@ As part of this change the following breaking changes have occurred:
     - ``get_api_endpoints``
     - ``register_views``
 
+  - A new optional method ``logout`` has been added to the interface
+
   - All the following method signatures changed to make the parameter ``user`` required (it was optional)
 
     - ``is_authorized_configuration``

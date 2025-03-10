@@ -79,7 +79,7 @@ All Airflow auth managers implement a common interface so that they are pluggabl
 to all abilities and integrations within Airflow. This interface is used across Airflow to perform all user
 authentication and user authorization related operation.
 
-The public interface is :class:`~airflow.auth.managers.base_auth_manager.BaseAuthManager`.
+The public interface is :class:`~airflow.api_fastapi.auth.managers.base_auth_manager.BaseAuthManager`.
 You can look through the code for the most detailed and up to date interface, but some important highlights are
 outlined below.
 
@@ -102,7 +102,7 @@ Authentication related BaseAuthManager methods
 Authorization related BaseAuthManager methods
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-Most of authorization methods in :class:`~airflow.auth.managers.base_auth_manager.BaseAuthManager` look the same.
+Most of authorization methods in :class:`~airflow.api_fastapi.auth.managers.base_auth_manager.BaseAuthManager` look the same.
 Let's go over the different parameters used by most of these methods.
 
 * ``method``: Use HTTP method naming to determine the type of action being done on a specific resource.
@@ -184,7 +184,7 @@ Endpoints defined by ``get_fastapi_app`` are mounted in ``/auth``.
 Next Steps
 ^^^^^^^^^^
 
-Once you have created a new auth manager class implementing the :class:`~airflow.auth.managers.base_auth_manager.BaseAuthManager` interface, you can configure Airflow to use it by setting the ``core.auth_manager`` configuration value to the module path of your auth manager:
+Once you have created a new auth manager class implementing the :class:`~airflow.api_fastapi.auth.managers.base_auth_manager.BaseAuthManager` interface, you can configure Airflow to use it by setting the ``core.auth_manager`` configuration value to the module path of your auth manager:
 
 .. code-block:: ini
 

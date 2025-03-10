@@ -18,16 +18,24 @@
 
 from __future__ import annotations
 
+import os
+
 import pytest
 from fastapi.testclient import TestClient
 
+from airflow.api_fastapi.app import create_app
 from airflow.api_fastapi.auth.managers.simple.simple_auth_manager import SimpleAuthManager
 from airflow.api_fastapi.auth.managers.simple.user import SimpleAuthManagerUser
+
+from tests_common.test_utils.config import conf_vars
 
 
 @pytest.fixture
 def auth_manager():
-    return SimpleAuthManager(None)
+    auth_manager = SimpleAuthManager()
+    if os.path.exists(auth_manager.get_generated_password_file()):
+        os.remove(auth_manager.get_generated_password_file())
+    return auth_manager
 
 
 @pytest.fixture
@@ -41,5 +49,13 @@ def test_admin():
 
 
 @pytest.fixture
-def test_client(auth_manager):
-    return TestClient(auth_manager.get_fastapi_app())
+def test_client():
+    with conf_vars(
+        {
+            (
+                "core",
+                "auth_manager",
+            ): "airflow.api_fastapi.auth.managers.simple.simple_auth_manager.SimpleAuthManager"
+        }
+    ):
+        return TestClient(create_app("core"))

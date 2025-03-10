@@ -22,7 +22,7 @@ from __future__ import annotations
 from flask import Blueprint
 from flask_appbuilder import BaseView, expose
 
-from airflow.auth.managers.models.resource_details import AccessView
+from airflow.api_fastapi.auth.managers.models.resource_details import AccessView
 from airflow.plugins_manager import AirflowPlugin
 from airflow.providers.fab.www.auth import has_access_view
 

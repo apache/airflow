@@ -17,6 +17,7 @@
 from __future__ import annotations
 
 import json
+import os
 
 import pytest
 
@@ -57,9 +58,19 @@ class TestSimpleAuthManager:
 
                 assert len(user_passwords_from_file) == 2
 
+    def test_init_with_all_admins(self, auth_manager):
+        with conf_vars({("core", "simple_auth_manager_all_admins"): "true"}):
+            auth_manager.init()
+            assert not os.path.exists(auth_manager.get_generated_password_file())
+
     def test_get_url_login(self, auth_manager):
         result = auth_manager.get_url_login()
-        assert result == "/auth/webapp/login"
+        assert result == "/auth/login"
+
+    def test_get_url_login_with_all_admins(self, auth_manager):
+        with conf_vars({("core", "simple_auth_manager_all_admins"): "true"}):
+            result = auth_manager.get_url_login()
+            assert result == "/auth/token"
 
     def test_deserialize_user(self, auth_manager):
         result = auth_manager.deserialize_user({"username": "test", "role": "admin"})

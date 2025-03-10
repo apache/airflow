@@ -108,6 +108,15 @@ class BaseAuthManager(Generic[T], LoggingMixin):
     def get_url_login(self, **kwargs) -> str:
         """Return the login page url."""
 
+    def logout(self) -> None:
+        """
+        Logout the user.
+
+        This method is called when the user is logging out. By default, it does nothing. Override it to
+        invalidate resources when logging out, such as a session.
+        """
+        return None
+
     @abstractmethod
     def is_authorized_configuration(
         self,
