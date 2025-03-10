@@ -66,9 +66,7 @@ def create_app(apps: str = "all") -> FastAPI:
         fastapi_base_url += "/"
         conf.set("api", "base_url", fastapi_base_url)
 
-    root_path = urlsplit(fastapi_base_url).path
-    if not root_path or root_path == "/":
-        root_path = ""
+    root_path = urlsplit(fastapi_base_url).path.removesuffix("/")
 
     app = FastAPI(
         title="Airflow API",
