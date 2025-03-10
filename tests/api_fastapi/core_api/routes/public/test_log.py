@@ -341,6 +341,20 @@ class TestTaskInstancesLog:
         # assert response.status_code == 400
         assert response.json() == {"detail": "Bad Signature. Please use only the tokens provided by the API."}
 
+    def test_should_raises_401_unauthenticated(self, unauthenticated_test_client):
+        response = unauthenticated_test_client.get(
+            f"public/dags/{self.DAG_ID}/dagRuns/{self.RUN_ID}/taskInstances/{self.TASK_ID}/logs/1",
+            headers={"Accept": "application/json"},
+        )
+        assert response.status_code == 401
+
+    def test_should_raises_403_unauthorized(self, unauthorized_test_client):
+        response = unauthorized_test_client.get(
+            f"public/dags/{self.DAG_ID}/dagRuns/{self.RUN_ID}/taskInstances/{self.TASK_ID}/logs/1",
+            headers={"Accept": "application/json"},
+        )
+        assert response.status_code == 403
+
     def test_raises_404_for_invalid_dag_run_id(self):
         response = self.client.get(
             f"public/dags/{self.DAG_ID}/dagRuns/NO_DAG_RUN/"  # invalid run_id
