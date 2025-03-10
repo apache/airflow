@@ -943,6 +943,7 @@ class AwsGenericHook(BaseHook, Generic[BaseAwsConnection]):
         self,
         waiter_name: str,
         parameters: dict[str, str] | None = None,
+        config_overrides: dict[str, Any] | None = None,
         deferrable: bool = False,
         client=None,
     ) -> Waiter:
@@ -962,6 +963,9 @@ class AwsGenericHook(BaseHook, Generic[BaseAwsConnection]):
         :param parameters: will scan the waiter config for the keys of that dict,
             and replace them with the corresponding value. If a custom waiter has
             such keys to be expanded, they need to be provided here.
+            Note: cannot be used if parameters are included in config_overrides
+        :param config_overrides: will update values of provided keys in the waiter's
+            config. Only specified keys will be updated.
         :param deferrable: If True, the waiter is going to be an async custom waiter.
             An async client must be provided in that case.
         :param client: The client to use for the waiter's operations
@@ -970,14 +974,18 @@ class AwsGenericHook(BaseHook, Generic[BaseAwsConnection]):
 
         if deferrable and not client:
             raise ValueError("client must be provided for a deferrable waiter.")
+        if parameters is not None and config_overrides is not None and "acceptors" in config_overrides:
+            raise ValueError('parameters must be None when "acceptors" is included in config_overrides')
         # Currently, the custom waiter doesn't work with resource_type, only client_type is supported.
         client = client or self._client
         if self.waiter_path and (waiter_name in self._list_custom_waiters()):
             # Technically if waiter_name is in custom_waiters then self.waiter_path must
             # exist but MyPy doesn't like the fact that self.waiter_path could be None.
             with open(self.waiter_path) as config_file:
-                config = json.loads(config_file.read())
+                config: dict = json.loads(config_file.read())
 
+            if config_overrides is not None:
+                config["waiters"][waiter_name].update(config_overrides)
             config = self._apply_parameters_value(config, waiter_name, parameters)
             return BaseBotoWaiter(client=client, model_config=config, deferrable=deferrable).waiter(
                 waiter_name
