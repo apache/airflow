@@ -16,8 +16,16 @@
 # under the License.
 from __future__ import annotations
 
+import json
+import re
+from json import JSONDecodeError
+from typing import Any
+
 from fastapi import HTTPException, Request
 from starlette.middleware.base import BaseHTTPMiddleware
+from starlette.responses import Response
+
+from airflow.api_fastapi.core_api.datamodels.common import RegexpMiddlewareResponse
 
 
 # Custom Middleware Class
@@ -36,4 +44,116 @@ class FlaskExceptionsMiddleware(BaseHTTPMiddleware):
                     status_code=response.status_code,
                     detail=body["error"],
                 )
+        return response
+
+
+class RegexpExceptionMiddleware(BaseHTTPMiddleware):
+    """Middleware that converts exceptions response if any field in the request contains regexp pattern."""
+
+    @classmethod
+    def _detect_regexp(cls, key: str | None = None, value: Any = None) -> str | None:
+        """Return the key value if the value contains a regexp pattern."""
+        common_evil_regex = [
+            # Three common regex structures
+            # Please be proactive if there are important regex structures that are not included here
+            "(a+)+",  # Nesting quantifiers
+            "(a|a)+",  # Quantified overlapping disjunctions
+            r"\d+\d+",  # Quantified Overlapping Adjacencies
+        ]
+        # There are infinite ways to write a regex pattern, so we are checking for common regex structures
+        # If the value contains any of the common regex structures, we will consider it as a regex pattern
+        regex_structures = [
+            # Three common regex structures
+            r"\[.*?\]",  # Character classes
+            r"\(.*?\)",  # Grouping
+            r"\{.*?,.*?\}",  # Quantifiers with ranges
+            r"\^.*\$",  # start and end anchors
+            r"\|",  # or operator
+            r"\(\?.*?\)",  # non-capturing groups
+            r"\.\*",  # common wildcard
+            r"\.\+",
+            r"\.\?",
+            r"\\A",  # start of string
+            r"\\b",  # word boundary
+            r"\\B",  # non-word boundary
+            r"\\d",  # digit
+            r"\\D",  # non-digit
+            r"\\s",  # whitespace
+            r"\\S",  # non-whitespace
+            r"\\w",  # word character
+            r"\\W",  # non-word character
+            r"\\Z",  # end of string
+            r"\*",  # quantifier
+            r"\+",  # quantifier
+            r"\?",  # quantifier
+            r"\\.",  # escaped dot
+            r"\\-",  # escaped dash
+            r"\\/",  # escaped slash
+            r"\\\\",  # escaped backslash
+        ]
+
+        # Date-time pattern regex to exclude
+        date_time_pattern = r"^\d{4}-\d{2}-\d{2}(T\d{2}:\d{2}:\d{2}(\.\d+)?)?(Z|[\+-]\d{2}:\d{2})?$"
+
+        # Excluded keys to avoid checking for fields that can contain regexp like patterns
+        # password and extra are excluded as they can contain any string for connections.
+        # We should always ensure these fields not accepting regexp and validate accordingly.
+        excluded_keys: set = {"password", "extra"}
+
+        compiled_structures = [re.compile(pattern) for pattern in regex_structures]
+
+        if isinstance(value, str):
+            # Early return if the value is empty or the key is in the excluded keys
+            if key in excluded_keys or value == "":
+                return None
+            # Check if the string is a valid JSON and call the function recursively
+            try:
+                dict_candidate = json.loads(value)
+                return cls._detect_regexp(key=key, value=dict_candidate)
+            except JSONDecodeError:
+                pass
+
+            # Include matching regex indicators and exclude date-time pattern
+            if (
+                any(structure.search(value) for structure in compiled_structures)
+                or any(value in evil_regex for evil_regex in common_evil_regex)
+            ) and not re.match(date_time_pattern, value):
+                try:
+                    re.compile(value)
+                    return key
+                except re.error:
+                    pass
+        elif isinstance(value, dict):
+            # Call the function recursively for the dict values
+            for key, dict_value in value.items():
+                if not value:
+                    continue
+                found_key = cls._detect_regexp(key=key, value=dict_value)
+                if found_key:
+                    return found_key
+
+        return None
+
+    async def dispatch(self, request: Request, call_next):
+        """Check if the request contains a regexp pattern in any of the fields."""
+        try:
+            payload = await request.json()
+        except JSONDecodeError:
+            payload = {}
+
+        params = request.query_params
+
+        found_key = self._detect_regexp(value=params) or self._detect_regexp(value=payload)
+        if found_key:
+            return Response(
+                status_code=400,
+                content=RegexpMiddlewareResponse.model_validate(
+                    {
+                        "field": found_key,
+                        "detail": f"Regex pattern detected in field '{found_key}'. It is not allowed.",
+                    }
+                ).model_dump_json(),
+            )
+
+        response = await call_next(request)
         return response
