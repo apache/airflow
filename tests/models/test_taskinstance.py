@@ -4974,7 +4974,7 @@ def test_taskinstance_with_note(create_task_instance, session):
     session.delete(ti)
     session.commit()
 
-    assert session.query(TaskInstance).filter_by(ti_id=ti.id).one_or_none() is None
+    assert session.query(TaskInstance).filter_by(id=ti.id).one_or_none() is None
     assert session.query(TaskInstanceNote).filter_by(ti_id=ti.id).one_or_none() is None
 
 
