@@ -372,6 +372,7 @@ class MetricsMap:
 def get_otel_logger(cls) -> SafeOtelLogger:
     host = conf.get("metrics", "otel_host")  # ex: "breeze-otel-collector"
     port = conf.getint("metrics", "otel_port")  # ex: 4318
+    path = conf.get("metrics", "otel_path", fallback="/v1/metrics") # ex: "/api/v1/otlp/v1/metrics"
     prefix = conf.get("metrics", "otel_prefix")  # ex: "airflow"
     ssl_active = conf.getboolean("metrics", "otel_ssl_active")
     # PeriodicExportingMetricReader will default to an interval of 60000 millis.
@@ -382,7 +383,7 @@ def get_otel_logger(cls) -> SafeOtelLogger:
     resource = Resource.create(attributes={HOST_NAME: get_hostname(), SERVICE_NAME: service_name})
 
     protocol = "https" if ssl_active else "http"
-    endpoint = f"{protocol}://{host}:{port}/v1/metrics"
+    endpoint = f"{protocol}://{host}:{port}{path}"
 
     log.info("[Metric Exporter] Connecting to OpenTelemetry Collector at %s", endpoint)
     readers = [
