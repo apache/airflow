@@ -26,6 +26,7 @@ import packaging.version
 from connexion import FlaskApi
 from fastapi import FastAPI
 from flask import Blueprint, g, url_for
+from flask_login import logout_user
 from sqlalchemy import select
 from sqlalchemy.orm import Session, joinedload
 from starlette.middleware.wsgi import WSGIMiddleware
@@ -415,6 +416,10 @@ class FabAuthManager(BaseAuthManager[User]):
         if not self.security_manager.auth_view:
             raise AirflowException("`auth_view` not defined in the security manager.")
         return url_for(f"{self.security_manager.auth_view.endpoint}.logout")
+
+    def logout(self) -> None:
+        """Logout the user."""
+        logout_user()
 
     def register_views(self) -> None:
         self.security_manager.register_views()

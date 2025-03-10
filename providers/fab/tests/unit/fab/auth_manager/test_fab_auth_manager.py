@@ -575,3 +575,9 @@ class TestFabAuthManager:
         auth_manager_with_appbuilder.security_manager.auth_view.endpoint = "test_endpoint"
         auth_manager_with_appbuilder.get_url_logout()
         mock_url_for.assert_called_once_with("test_endpoint.logout")
+
+    @pytest.mark.db_test
+    @mock.patch("airflow.providers.fab.auth_manager.fab_auth_manager.logout_user")
+    def test_logout(self, mock_logout_user, auth_manager_with_appbuilder):
+        auth_manager_with_appbuilder.logout()
+        mock_logout_user.assert_called_once()
