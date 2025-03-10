@@ -550,6 +550,15 @@ class SnowflakeHook(DbApiHook):
         from airflow.providers.openlineage.sqlparser import SQLParser
 
         if self.query_ids:
+            if len(self.query_ids) > 1:
+                self.log.warning(
+                    "OpenLineage detected multiple query IDs after executing Snowflake queries: `%s`. "
+                    "Only the first query ID (`%s`) will be included in ExternalQueryRunFacet."
+                    "Currently the only way to prevent this is to set `split_statements=False` and"
+                    "execute each statement within a separate SQLExecuteQueryOperator.",
+                    self.query_ids,
+                    self.query_ids[0],
+                )
             self.log.debug("openlineage: getting connection to get database info")
             connection = self.get_connection(self.get_conn_id())
             namespace = SQLParser.create_namespace(self.get_openlineage_database_info(connection))
