@@ -42,6 +42,7 @@ from airflow.api_fastapi.core_api.datamodels.pools import (
 from airflow.api_fastapi.core_api.openapi.exceptions import create_openapi_http_exception_doc
 from airflow.api_fastapi.core_api.security import requires_access_pool
 from airflow.api_fastapi.core_api.services.public.pools import BulkPoolService
+from airflow.api_fastapi.logging.decorators import action_logging
 from airflow.models.pool import Pool
 
 pools_router = AirflowRouter(tags=["Pool"], prefix="/pools")
@@ -56,7 +57,7 @@ pools_router = AirflowRouter(tags=["Pool"], prefix="/pools")
             status.HTTP_404_NOT_FOUND,
         ]
     ),
-    dependencies=[Depends(requires_access_pool(method="DELETE"))],
+    dependencies=[Depends(requires_access_pool(method="DELETE")), Depends(action_logging())],
 )
 def delete_pool(
     pool_name: str,
@@ -130,7 +131,7 @@ def get_pools(
             status.HTTP_404_NOT_FOUND,
         ]
     ),
-    dependencies=[Depends(requires_access_pool(method="PUT"))],
+    dependencies=[Depends(requires_access_pool(method="PUT")), Depends(action_logging())],
 )
 def patch_pool(
     pool_name: str,
@@ -182,7 +183,7 @@ def patch_pool(
     responses=create_openapi_http_exception_doc(
         [status.HTTP_409_CONFLICT]
     ),  # handled by global exception handler
-    dependencies=[Depends(requires_access_pool(method="POST"))],
+    dependencies=[Depends(requires_access_pool(method="POST")), Depends(action_logging())],
 )
 def post_pool(
     body: PoolBody,
@@ -196,7 +197,7 @@ def post_pool(
 
 @pools_router.patch(
     "",
-    dependencies=[Depends(requires_access_pool(method="PUT"))],
+    dependencies=[Depends(requires_access_pool(method="PUT")), Depends(action_logging())],
 )
 def bulk_pools(
     request: BulkBody[PoolBody],
