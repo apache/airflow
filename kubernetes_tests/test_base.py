@@ -162,27 +162,19 @@ class BaseK8STest:
         assert csrf_token, "Failed to get csrf token from login page"
         csrf_token_str = csrf_token.group(1)
         assert csrf_token_str, "Failed to get csrf token from login page"
-        try:
-            # login with form data
-            session.post(
-                f"http://{KUBERNETES_HOST_PORT}/auth/login",
-                data={"username": username, "password": password, "csrf_token": csrf_token_str},
-            )
-        except requests.exceptions.ConnectionError as e:
-            # expected to have a connection error
-            # currently, the login page redirects to http://localhost:8080/?token=... with status code 308
-            # but the KUBERNETES_HOST_PORT is *not* localhost:8080
-            # TODO: remove this try/except block when the redirect url is fixed
-            redirect_url = e.request.url if e.request else None
-            # ensure redirect_url is a string
-            redirect_url_str = str(redirect_url) if redirect_url is not None else ""
-            assert "/?token" in redirect_url_str, f"Login failed with redirect url {redirect_url_str}"
-            parsed_url = urlparse(redirect_url_str)
-            query_params = parse_qs(str(parsed_url.query))
-            jwt_token_list = query_params.get("token")
-            jwt_token = jwt_token_list[0] if jwt_token_list else None
-        else:
-            raise
+        # login with form data
+        login_response = session.post(
+            f"http://{KUBERNETES_HOST_PORT}/auth/login",
+            data={"username": username, "password": password, "csrf_token": csrf_token_str},
+        )
+        redirect_url = login_response.url
+        # ensure redirect_url is a string
+        redirect_url_str = str(redirect_url) if redirect_url is not None else ""
+        assert "/?token" in redirect_url_str, f"Login failed with redirect url {redirect_url_str}"
+        parsed_url = urlparse(redirect_url_str)
+        query_params = parse_qs(str(parsed_url.query))
+        jwt_token_list = query_params.get("token")
+        jwt_token = jwt_token_list[0] if jwt_token_list else None
         assert jwt_token, f"Failed to get JWT token from redirect url {redirect_url_str}"
         return jwt_token
 
