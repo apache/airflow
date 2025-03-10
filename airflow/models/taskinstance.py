@@ -95,7 +95,7 @@ from airflow.exceptions import (
 )
 from airflow.listeners.listener import get_listener_manager
 from airflow.models.asset import AssetActive, AssetEvent, AssetModel
-from airflow.models.base import Base, StringID, TaskInstanceDependencies, _sentinel
+from airflow.models.base import Base, StringID, TaskInstanceDependencies
 from airflow.models.dagbag import DagBag
 from airflow.models.log import Log
 from airflow.models.renderedtifields import get_serialized_template_fields
@@ -654,6 +654,7 @@ def _execute_task(task_instance: TaskInstance, context: Context, task_orig: Oper
 
     :meta private:
     """
+    from airflow.sdk.definitions.baseoperator import ExecutorSafeguard
     from airflow.sdk.definitions.mappedoperator import MappedOperator
 
     task_to_execute = task_instance.task
@@ -675,14 +676,18 @@ def _execute_task(task_instance: TaskInstance, context: Context, task_orig: Oper
         if task_instance.next_method == "execute":
             if not task_instance.next_kwargs:
                 task_instance.next_kwargs = {}
-            task_instance.next_kwargs[f"{task_to_execute.__class__.__name__}__sentinel"] = _sentinel
+            task_instance.next_kwargs[f"{task_to_execute.__class__.__name__}__sentinel"] = (
+                ExecutorSafeguard.sentinel_value
+            )
         execute_callable = task_to_execute.resume_execution
         execute_callable_kwargs["next_method"] = task_instance.next_method
         execute_callable_kwargs["next_kwargs"] = task_instance.next_kwargs
     else:
         execute_callable = task_to_execute.execute
         if execute_callable.__name__ == "execute":
-            execute_callable_kwargs[f"{task_to_execute.__class__.__name__}__sentinel"] = _sentinel
+            execute_callable_kwargs[f"{task_to_execute.__class__.__name__}__sentinel"] = (
+                ExecutorSafeguard.sentinel_value
+            )
 
     def _execute_callable(context: Context, **execute_callable_kwargs):
         try:

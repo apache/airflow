@@ -28,8 +28,7 @@ import logging
 import operator
 from collections.abc import Collection, Iterable, Iterator, Sequence
 from datetime import datetime, timedelta
-from functools import singledispatchmethod, wraps
-from threading import local
+from functools import singledispatchmethod
 from types import FunctionType
 from typing import (
     TYPE_CHECKING,
@@ -43,7 +42,6 @@ import pendulum
 from sqlalchemy import select
 from sqlalchemy.orm.exc import NoResultFound
 
-from airflow.configuration import conf
 from airflow.exceptions import (
     AirflowException,
 )
@@ -55,12 +53,10 @@ from airflow.models.abstractoperator import (
     AbstractOperator,
     NotMapped,
 )
-from airflow.models.base import _sentinel
 from airflow.models.taskinstance import TaskInstance, clear_task_instances
 from airflow.models.taskmixin import DependencyMixin
 from airflow.sdk.definitions._internal.abstractoperator import AbstractOperator as TaskSDKAbstractOperator
 from airflow.sdk.definitions.baseoperator import (
-    BaseOperatorMeta as TaskSDKBaseOperatorMeta,
     get_merged_defaults as get_merged_defaults,  # Re-export for compat
 )
 from airflow.sdk.definitions.context import Context
@@ -131,58 +127,7 @@ def coerce_resources(resources: dict[str, Any] | None) -> Resources | None:
     return Resources(**resources)
 
 
-class ExecutorSafeguard:
-    """
-    The ExecutorSafeguard decorator.
-
-    Checks if the execute method of an operator isn't manually called outside
-    the TaskInstance as we want to avoid bad mixing between decorated and
-    classic operators.
-    """
-
-    test_mode = conf.getboolean("core", "unit_test_mode")
-    _sentinel = local()
-    _sentinel.callers = {}
-
-    @classmethod
-    def decorator(cls, func):
-        @wraps(func)
-        def wrapper(self, *args, **kwargs):
-            from airflow.decorators.base import DecoratedOperator
-
-            sentinel_key = f"{self.__class__.__name__}__sentinel"
-            sentinel = kwargs.pop(sentinel_key, None)
-
-            if sentinel:
-                if not getattr(cls._sentinel, "callers", None):
-                    cls._sentinel.callers = {}
-                cls._sentinel.callers[sentinel_key] = sentinel
-            else:
-                sentinel = cls._sentinel.callers.pop(f"{func.__qualname__.split('.')[0]}__sentinel", None)
-
-            if not cls.test_mode and not sentinel == _sentinel and not isinstance(self, DecoratedOperator):
-                message = f"{self.__class__.__name__}.{func.__name__} cannot be called outside TaskInstance!"
-                if not self.allow_nested_operators:
-                    raise AirflowException(message)
-                self.log.warning(message)
-            return func(self, *args, **kwargs)
-
-        return wrapper
-
-
-# TODO: Task-SDK - temporarily extend the metaclass to add in the ExecutorSafeguard.
-class BaseOperatorMeta(TaskSDKBaseOperatorMeta):
-    """:meta private:"""  # noqa: D400
-
-    def __new__(cls, name, bases, namespace, **kwargs):
-        execute_method = namespace.get("execute")
-        if callable(execute_method) and not getattr(execute_method, "__isabstractmethod__", False):
-            namespace["execute"] = ExecutorSafeguard().decorator(execute_method)
-        new_cls = super().__new__(cls, name, bases, namespace, **kwargs)
-        return new_cls
-
-
-class BaseOperator(TaskSDKBaseOperator, AbstractOperator, metaclass=BaseOperatorMeta):
+class BaseOperator(TaskSDKBaseOperator, AbstractOperator):
     r"""
     Abstract base class for all operators.
 

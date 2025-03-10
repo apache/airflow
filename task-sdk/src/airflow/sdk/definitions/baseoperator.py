@@ -25,6 +25,7 @@ import inspect
 import sys
 import warnings
 from collections.abc import Callable, Collection, Iterable, Sequence
+from contextvars import ContextVar
 from dataclasses import dataclass, field
 from datetime import datetime, timedelta
 from enum import Enum
@@ -328,6 +329,57 @@ else:
         )
 
 
+class ExecutorSafeguard:
+    """
+    The ExecutorSafeguard decorator.
+
+    Checks if the execute method of an operator isn't manually called outside
+    the TaskInstance as we want to avoid bad mixing between decorated and
+    classic operators.
+    """
+
+    test_mode: ClassVar[bool] = False
+    tracker: ClassVar[ContextVar[BaseOperator]] = ContextVar("ExecutorSafeguard_sentinel")
+    sentinel_value: ClassVar[object] = object()
+
+    @classmethod
+    def decorator(cls, func):
+        @wraps(func)
+        def wrapper(self, *args, **kwargs):
+            sentinel_key = f"{self.__class__.__name__}__sentinel"
+            sentinel = kwargs.pop(sentinel_key, None)
+
+            with contextlib.ExitStack() as stack:
+                if sentinel is cls.sentinel_value:
+                    token = cls.tracker.set(self)
+                    sentinel = self
+                    stack.callback(cls.tracker.reset, token)
+                else:
+                    # No sentinel passed in, maybe the subclass execute did have it passed?
+                    sentinel = cls.tracker.get(None)
+
+                if not cls.test_mode and sentinel is not self:
+                    message = f"{self.__class__.__name__}.{func.__name__} cannot be called outside of the Task Runner!"
+                    if not self.allow_nested_operators:
+                        raise AirflowException(message)
+                    self.log.warning(message)
+
+                    # Now that we've logged, set sentinel so that `super()` calls don't log again
+                    token = cls.tracker.set(self)
+                    stack.callback(cls.tracker.reset, token)
+
+                return func(self, *args, **kwargs)
+
+        return wrapper
+
+
+if "airflow.configuration" in sys.modules:
+    # Don't try and import it if its not already loaded
+    from airflow.configuration import conf
+
+    ExecutorSafeguard.test_mode = conf.getboolean("core", "unit_test_mode")
+
+
 class BaseOperatorMeta(abc.ABCMeta):
     """Metaclass of BaseOperator."""
 
@@ -433,10 +485,9 @@ class BaseOperatorMeta(abc.ABCMeta):
         return cast(T, apply_defaults)
 
     def __new__(cls, name, bases, namespace, **kwargs):
-        # TODO: Task-SDK
-        # execute_method = namespace.get("execute")
-        # if callable(execute_method) and not getattr(execute_method, "__isabstractmethod__", False):
-        #     namespace["execute"] = ExecutorSafeguard().decorator(execute_method)
+        execute_method = namespace.get("execute")
+        if callable(execute_method) and not getattr(execute_method, "__isabstractmethod__", False):
+            namespace["execute"] = ExecutorSafeguard.decorator(execute_method)
         new_cls = super().__new__(cls, name, bases, namespace, **kwargs)
         with contextlib.suppress(KeyError):
             # Update the partial descriptor with the class method, so it calls the actual function
@@ -446,7 +497,8 @@ class BaseOperatorMeta(abc.ABCMeta):
                 partial_desc.class_method = classmethod(partial)
 
         # We patch `__init__` only if the class defines it.
-        if inspect.getmro(new_cls)[1].__init__ is not new_cls.__init__:
+        first_superclass = new_cls.mro()[1]
+        if new_cls.__init__ is not first_superclass.__init__:
             new_cls.__init__ = cls._apply_defaults(new_cls.__init__)
 
         return new_cls

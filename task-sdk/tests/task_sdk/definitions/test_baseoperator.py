@@ -26,8 +26,9 @@ from unittest import mock
 
 import jinja2
 import pytest
+import structlog
 
-from airflow.sdk.definitions.baseoperator import BaseOperator, BaseOperatorMeta
+from airflow.sdk.definitions.baseoperator import BaseOperator, BaseOperatorMeta, ExecutorSafeguard
 from airflow.sdk.definitions.dag import DAG
 from airflow.sdk.definitions.template import literal
 from airflow.task.priority_strategy import _DownstreamPriorityWeightStrategy, _UpstreamPriorityWeightStrategy
@@ -599,7 +600,7 @@ def test_dag_level_retry_delay():
     ],
 )
 def test_render_template_fields_logging(
-    caplog, monkeypatch, task, context, expected_exception, expected_rendering, expected_log, not_expected_log
+    caplog, task, context, expected_exception, expected_rendering, expected_log, not_expected_log
 ):
     """Verify if operator attributes are correctly templated."""
 
@@ -621,3 +622,82 @@ def test_render_template_fields_logging(
         assert expected_log in caplog.text
     if not_expected_log:
         assert not_expected_log not in caplog.text
+
+
+class HelloWorldOperator(BaseOperator):
+    log = structlog.get_logger()
+
+    def execute(self, context):
+        return f"Hello {self.owner}!"
+
+
+class ExtendedHelloWorldOperator(HelloWorldOperator):
+    def execute(self, context):
+        return super().execute(context)
+
+
+class TestExecutorSafeguard:
+    @pytest.fixture(autouse=True)
+    def _disable_test_mode(self, monkeypatch):
+        monkeypatch.setattr(ExecutorSafeguard, "test_mode", False)
+
+    def test_execute_not_allow_nested_ops(self):
+        with DAG("d1"):
+            op = ExtendedHelloWorldOperator(task_id="hello_operator", allow_nested_operators=False)
+
+        with pytest.raises(RuntimeError):
+            op.execute(context={})
+
+    def test_execute_subclassed_op_warns_once(self, captured_logs):
+        with DAG("d1"):
+            op = ExtendedHelloWorldOperator(task_id="hello_operator")
+
+        op.execute(context={})
+        assert captured_logs == [
+            {
+                "event": "ExtendedHelloWorldOperator.execute cannot be called outside of the Task Runner!",
+                "level": "warning",
+                "timestamp": mock.ANY,
+            },
+        ]
+
+    def test_decorated_operators(self, captured_logs):
+        with DAG("d1") as dag:
+
+            @dag.task(task_id="task_id", dag=dag)
+            def say_hello(**context):
+                operator = HelloWorldOperator(task_id="hello_operator")
+                return operator.execute(context=context)
+
+            op = say_hello()
+
+        op.operator.execute(context={})
+        assert captured_logs == [
+            {
+                "event": "HelloWorldOperator.execute cannot be called outside of the Task Runner!",
+                "level": "warning",
+                "timestamp": mock.ANY,
+            },
+        ]
+
+    def test_python_op(self, captured_logs):
+        from airflow.providers.standard.operators.python import PythonOperator
+
+        with DAG("d1"):
+
+            def say_hello(**context):
+                operator = HelloWorldOperator(task_id="hello_operator")
+                return operator.execute(context=context)
+
+            op = PythonOperator(
+                task_id="say_hello",
+                python_callable=say_hello,
+            )
+        op.execute(context={}, PythonOperator__sentinel=ExecutorSafeguard.sentinel_value)
+        assert captured_logs == [
+            {
+                "event": "HelloWorldOperator.execute cannot be called outside of the Task Runner!",
+                "level": "warning",
+                "timestamp": mock.ANY,
+            },
+        ]
