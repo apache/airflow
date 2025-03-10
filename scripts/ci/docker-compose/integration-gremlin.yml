@@ -27,7 +27,7 @@ services:
       - graph-data:/opt/gremlin-server/data
       - ./gremlin/gremlin-entrypoint.sh:/opt/gremlin-server/gremlin-entrypoint.sh  # New entrypoint script
     ports:
-      - "8182:8182"
+      - "${GREMLIN_HOST_PORT}:8182"
     entrypoint: /opt/gremlin-server/gremlin-entrypoint.sh  # Use custom entrypoint
     user: "0:0"  # Run as root
   airflow:

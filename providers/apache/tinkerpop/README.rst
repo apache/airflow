@@ -55,9 +55,9 @@ Requirements
 ==================  ==================
 PIP package         Version required
 ==================  ==================
-``apache-airflow``  ``>=2.10.3``
-``gremlinpython``   ``>=3.4.8``
-``nest-asyncio``    ``>=1.5.6``
+``apache-airflow``  ``>=2.9.0``
+``gremlinpython``   ``>=3.7.0``
+``nest-asyncio``    ``>=1.6.0``
 ==================  ==================
 
 The changelog for the provider package can be found in the
