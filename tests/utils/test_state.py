@@ -24,13 +24,9 @@ from airflow.models.dag import DAG
 from airflow.models.dagrun import DagRun
 from airflow.utils.session import create_session
 from airflow.utils.state import DagRunState
-from airflow.utils.types import DagRunType
+from airflow.utils.types import DagRunTriggeredByType, DagRunType
 
 from tests.models import DEFAULT_DATE
-from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS
-
-if AIRFLOW_V_3_0_PLUS:
-    from airflow.utils.types import DagRunTriggeredByType
 
 pytestmark = pytest.mark.db_test
 
@@ -42,11 +38,10 @@ def test_dagrun_state_enum_escape():
     """
     with create_session() as session:
         dag = DAG(dag_id="test_dagrun_state_enum_escape", schedule=timedelta(days=1), start_date=DEFAULT_DATE)
-        triggered_by_kwargs = {"triggered_by": DagRunTriggeredByType.TEST} if AIRFLOW_V_3_0_PLUS else {}
         dag.create_dagrun(
             run_id=dag.timetable.generate_run_id(
                 run_type=DagRunType.SCHEDULED,
-                logical_date=DEFAULT_DATE,
+                run_after=DEFAULT_DATE,
                 data_interval=dag.timetable.infer_manual_data_interval(run_after=DEFAULT_DATE),
             ),
             run_type=DagRunType.SCHEDULED,
@@ -55,7 +50,8 @@ def test_dagrun_state_enum_escape():
             start_date=DEFAULT_DATE,
             data_interval=dag.timetable.infer_manual_data_interval(run_after=DEFAULT_DATE),
             session=session,
-            **triggered_by_kwargs,
+            run_after=DEFAULT_DATE,
+            triggered_by=DagRunTriggeredByType.TEST,
         )
 
         query = session.query(

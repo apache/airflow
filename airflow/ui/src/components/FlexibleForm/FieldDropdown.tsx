@@ -22,6 +22,7 @@ import { useRef } from "react";
 import { Select } from "src/components/ui";
 
 import type { FlexibleFormElementProps } from ".";
+import { paramPlaceholder, useParamStore } from "../TriggerDag/useParamStore";
 
 const labelLookup = (key: string, valuesDisplay: Record<string, string> | undefined): string => {
   if (valuesDisplay && typeof valuesDisplay === "object") {
@@ -32,7 +33,10 @@ const labelLookup = (key: string, valuesDisplay: Record<string, string> | undefi
 };
 const enumTypes = ["string", "number", "integer"];
 
-export const FieldDropdown = ({ name, param }: FlexibleFormElementProps) => {
+export const FieldDropdown = ({ name }: FlexibleFormElementProps) => {
+  const { paramsDict, setParamsDict } = useParamStore();
+  const param = paramsDict[name] ?? paramPlaceholder;
+
   const selectOptions = createListCollection({
     items:
       param.schema.enum?.map((value) => ({
@@ -40,18 +44,30 @@ export const FieldDropdown = ({ name, param }: FlexibleFormElementProps) => {
         value,
       })) ?? [],
   });
+
   const contentRef = useRef<HTMLDivElement>(null);
+
+  const handleChange = ([value]: Array<string>) => {
+    if (paramsDict[name]) {
+      // "undefined" values are removed from params, so we set it to null to avoid falling back to DAG defaults.
+      // eslint-disable-next-line unicorn/no-null
+      paramsDict[name].value = value ?? null;
+    }
+
+    setParamsDict(paramsDict);
+  };
 
   return (
     <Select.Root
       collection={selectOptions}
-      defaultValue={enumTypes.includes(typeof param.value) ? [String(param.value)] : undefined}
       id={`element_${name}`}
       name={`element_${name}`}
+      onValueChange={(event) => handleChange(event.value)}
       ref={contentRef}
       size="sm"
+      value={enumTypes.includes(typeof param.value) ? [param.value as string] : undefined}
     >
-      <Select.Trigger>
+      <Select.Trigger clearable>
         <Select.ValueText placeholder="Select Value" />
       </Select.Trigger>
       <Select.Content portalRef={contentRef}>

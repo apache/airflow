@@ -19,19 +19,22 @@ from __future__ import annotations
 import copy
 from typing import Annotated
 
-from fastapi import HTTPException, Query, status
+from fastapi import HTTPException, Query, Request, status
 from sqlalchemy import and_, select
 
 from airflow.api_fastapi.common.db.common import SessionDep, paginated_select
 from airflow.api_fastapi.common.parameters import QueryLimit, QueryOffset
 from airflow.api_fastapi.common.router import AirflowRouter
 from airflow.api_fastapi.core_api.datamodels.xcom import (
-    XComCollection,
+    XComCollectionResponse,
+    XComCreateBody,
     XComResponseNative,
     XComResponseString,
+    XComUpdateBody,
 )
 from airflow.api_fastapi.core_api.openapi.exceptions import create_openapi_http_exception_doc
-from airflow.models import DagRun as DR, XCom
+from airflow.exceptions import TaskNotFound
+from airflow.models import DAG, DagRun as DR, XCom
 from airflow.settings import conf
 
 xcom_router = AirflowRouter(
@@ -112,7 +115,7 @@ def get_xcom_entries(
     session: SessionDep,
     xcom_key: Annotated[str | None, Query()] = None,
     map_index: Annotated[int | None, Query(ge=-1)] = None,
-) -> XComCollection:
+) -> XComCollectionResponse:
     """
     Get all XCom entries.
 
@@ -140,4 +143,128 @@ def get_xcom_entries(
     )
     query = query.order_by(XCom.dag_id, XCom.task_id, XCom.run_id, XCom.map_index, XCom.key)
     xcoms = session.scalars(query)
-    return XComCollection(xcom_entries=xcoms, total_entries=total_entries)
+    return XComCollectionResponse(xcom_entries=xcoms, total_entries=total_entries)
+
+
+@xcom_router.post(
+    "",
+    status_code=status.HTTP_201_CREATED,
+    responses=create_openapi_http_exception_doc(
+        [
+            status.HTTP_400_BAD_REQUEST,
+            status.HTTP_404_NOT_FOUND,
+        ]
+    ),
+)
+def create_xcom_entry(
+    dag_id: str,
+    task_id: str,
+    dag_run_id: str,
+    request_body: XComCreateBody,
+    session: SessionDep,
+    request: Request,
+) -> XComResponseNative:
+    """Create an XCom entry."""
+    # Validate DAG ID
+    dag: DAG = request.app.state.dag_bag.get_dag(dag_id)
+    if not dag:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, f"Dag with ID: `{dag_id}` was not found")
+
+    # Validate Task ID
+    try:
+        dag.get_task(task_id)
+    except TaskNotFound:
+        raise HTTPException(
+            status.HTTP_404_NOT_FOUND, f"Task with ID: `{task_id}` not found in DAG: `{dag_id}`"
+        )
+
+    # Validate DAG Run ID
+    dag_run = dag.get_dagrun(dag_run_id, session)
+    if not dag_run:
+        raise HTTPException(
+            status.HTTP_404_NOT_FOUND, f"DAG Run with ID: `{dag_run_id}` not found for DAG: `{dag_id}`"
+        )
+
+    # Check existing XCom
+    if XCom.get_one(
+        key=request_body.key,
+        task_id=task_id,
+        dag_id=dag_id,
+        run_id=dag_run_id,
+        map_index=request_body.map_index,
+        session=session,
+    ):
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail=f"The XCom with key: `{request_body.key}` with mentioned task instance already exists.",
+        )
+
+    # Create XCom entry
+    XCom.set(
+        dag_id=dag_id,
+        task_id=task_id,
+        run_id=dag_run_id,
+        key=request_body.key,
+        value=XCom.serialize_value(request_body.value),
+        map_index=request_body.map_index,
+        session=session,
+    )
+
+    xcom = session.scalar(
+        select(XCom)
+        .filter(
+            XCom.dag_id == dag_id,
+            XCom.task_id == task_id,
+            XCom.run_id == dag_run_id,
+            XCom.key == request_body.key,
+            XCom.map_index == request_body.map_index,
+        )
+        .limit(1)
+    )
+
+    return XComResponseNative.model_validate(xcom)
+
+
+@xcom_router.patch(
+    "/{xcom_key}",
+    status_code=status.HTTP_200_OK,
+    responses=create_openapi_http_exception_doc(
+        [
+            status.HTTP_400_BAD_REQUEST,
+            status.HTTP_404_NOT_FOUND,
+        ]
+    ),
+)
+def update_xcom_entry(
+    dag_id: str,
+    task_id: str,
+    dag_run_id: str,
+    xcom_key: str,
+    patch_body: XComUpdateBody,
+    session: SessionDep,
+) -> XComResponseNative:
+    """Update an existing XCom entry."""
+    # Check if XCom entry exists
+    xcom_new_value = XCom.serialize_value(patch_body.value)
+    xcom_entry = session.scalar(
+        select(XCom)
+        .where(
+            XCom.dag_id == dag_id,
+            XCom.task_id == task_id,
+            XCom.run_id == dag_run_id,
+            XCom.key == xcom_key,
+            XCom.map_index == patch_body.map_index,
+        )
+        .limit(1)
+    )
+
+    if not xcom_entry:
+        raise HTTPException(
+            status.HTTP_404_NOT_FOUND,
+            f"The XCom with key: `{xcom_key}` with mentioned task instance doesn't exist.",
+        )
+
+    # Update XCom entry
+    xcom_entry.value = XCom.serialize_value(xcom_new_value)
+
+    return XComResponseNative.model_validate(xcom_entry)

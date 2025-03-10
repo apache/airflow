@@ -25,24 +25,27 @@ from pydantic import ValidationError
 from sqlalchemy import select
 
 from airflow.api_fastapi.common.db.common import SessionDep, paginated_select
-from airflow.api_fastapi.common.parameters import QueryLimit, QueryOffset, SortParam
+from airflow.api_fastapi.common.parameters import (
+    QueryConnectionIdPatternSearch,
+    QueryLimit,
+    QueryOffset,
+    SortParam,
+)
 from airflow.api_fastapi.common.router import AirflowRouter
-from airflow.api_fastapi.core_api.datamodels.common import BulkAction
+from airflow.api_fastapi.core_api.datamodels.common import (
+    BulkBody,
+    BulkResponse,
+)
 from airflow.api_fastapi.core_api.datamodels.connections import (
     ConnectionBody,
-    ConnectionBulkActionResponse,
-    ConnectionBulkBody,
-    ConnectionBulkResponse,
     ConnectionCollectionResponse,
     ConnectionResponse,
     ConnectionTestResponse,
 )
 from airflow.api_fastapi.core_api.openapi.exceptions import create_openapi_http_exception_doc
-from airflow.api_fastapi.core_api.services.public.connections import (
-    handle_bulk_create,
-    handle_bulk_delete,
-    handle_bulk_update,
-)
+from airflow.api_fastapi.core_api.security import requires_access_connection
+from airflow.api_fastapi.core_api.services.public.connections import BulkConnectionService
+from airflow.api_fastapi.logging.decorators import action_logging
 from airflow.configuration import conf
 from airflow.models import Connection
 from airflow.secrets.environment_variables import CONN_ENV_PREFIX
@@ -56,6 +59,7 @@ connections_router = AirflowRouter(tags=["Connection"], prefix="/connections")
     "/{connection_id}",
     status_code=status.HTTP_204_NO_CONTENT,
     responses=create_openapi_http_exception_doc([status.HTTP_404_NOT_FOUND]),
+    dependencies=[Depends(requires_access_connection(method="DELETE")), Depends(action_logging())],
 )
 def delete_connection(
     connection_id: str,
@@ -75,6 +79,7 @@ def delete_connection(
 @connections_router.get(
     "/{connection_id}",
     responses=create_openapi_http_exception_doc([status.HTTP_404_NOT_FOUND]),
+    dependencies=[Depends(requires_access_connection(method="GET"))],
 )
 def get_connection(
     connection_id: str,
@@ -94,6 +99,7 @@ def get_connection(
 @connections_router.get(
     "",
     responses=create_openapi_http_exception_doc([status.HTTP_404_NOT_FOUND]),
+    dependencies=[Depends(requires_access_connection(method="GET"))],
 )
 def get_connections(
     limit: QueryLimit,
@@ -109,10 +115,12 @@ def get_connections(
         ),
     ],
     session: SessionDep,
+    connection_id_pattern: QueryConnectionIdPatternSearch,
 ) -> ConnectionCollectionResponse:
     """Get all connection entries."""
     connection_select, total_entries = paginated_select(
         statement=select(Connection),
+        filters=[connection_id_pattern],
         order_by=order_by,
         offset=offset,
         limit=limit,
@@ -133,6 +141,7 @@ def get_connections(
     responses=create_openapi_http_exception_doc(
         [status.HTTP_409_CONFLICT]
     ),  # handled by global exception handler
+    dependencies=[Depends(requires_access_connection(method="POST")), Depends(action_logging())],
 )
 def post_connection(
     post_body: ConnectionBody,
@@ -144,26 +153,15 @@ def post_connection(
     return connection
 
 
-@connections_router.patch("")
+@connections_router.patch(
+    "", dependencies=[Depends(requires_access_connection(method="PUT")), Depends(action_logging())]
+)
 def bulk_connections(
-    request: ConnectionBulkBody,
+    request: BulkBody[ConnectionBody],
     session: SessionDep,
-) -> ConnectionBulkResponse:
+) -> BulkResponse:
     """Bulk create, update, and delete connections."""
-    results: dict[str, ConnectionBulkActionResponse] = {}
-
-    for action in request.actions:
-        if action.action.value not in results:
-            results[action.action.value] = ConnectionBulkActionResponse()
-
-        if action.action == BulkAction.CREATE:
-            handle_bulk_create(session, action, results[action.action.value])  # type: ignore
-        elif action.action == BulkAction.UPDATE:
-            handle_bulk_update(session, action, results[action.action.value])  # type: ignore
-        elif action.action == BulkAction.DELETE:
-            handle_bulk_delete(session, action, results[action.action.value])  # type: ignore
-
-    return ConnectionBulkResponse(**results)
+    return BulkConnectionService(session=session, request=request).handle_request()
 
 
 @connections_router.patch(
@@ -174,6 +172,7 @@ def bulk_connections(
             status.HTTP_404_NOT_FOUND,
         ]
     ),
+    dependencies=[Depends(requires_access_connection(method="PUT")), Depends(action_logging())],
 )
 def patch_connection(
     connection_id: str,
@@ -200,13 +199,13 @@ def patch_connection(
 
     if update_mask:
         fields_to_update = fields_to_update.intersection(update_mask)
-        data = patch_body.model_dump(include=fields_to_update - non_update_fields, by_alias=True)
     else:
         try:
             ConnectionBody(**patch_body.model_dump())
         except ValidationError as e:
             raise RequestValidationError(errors=e.errors())
-        data = patch_body.model_dump(exclude=non_update_fields, by_alias=True)
+
+    data = patch_body.model_dump(include=fields_to_update - non_update_fields, by_alias=True)
 
     for key, val in data.items():
         setattr(connection, key, val)
@@ -214,9 +213,7 @@ def patch_connection(
     return connection
 
 
-@connections_router.post(
-    "/test",
-)
+@connections_router.post("/test", dependencies=[Depends(requires_access_connection(method="POST"))])
 def test_connection(
     test_body: ConnectionBody,
 ) -> ConnectionTestResponse:
@@ -250,6 +247,7 @@ def test_connection(
 @connections_router.post(
     "/defaults",
     status_code=status.HTTP_204_NO_CONTENT,
+    dependencies=[Depends(requires_access_connection(method="POST")), Depends(action_logging())],
 )
 def create_default_connections(
     session: SessionDep,

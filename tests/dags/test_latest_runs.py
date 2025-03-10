@@ -20,7 +20,7 @@ from __future__ import annotations
 from datetime import datetime
 
 from airflow.models.dag import DAG
-from airflow.operators.empty import EmptyOperator
+from airflow.providers.standard.operators.empty import EmptyOperator
 
 for i in range(1, 2):
     dag = DAG(dag_id=f"test_latest_runs_{i}", schedule=None)

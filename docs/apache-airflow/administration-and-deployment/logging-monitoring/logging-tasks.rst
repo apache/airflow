@@ -25,7 +25,7 @@ Core Airflow provides an interface FileTaskHandler, which writes task logs to fi
 services (:doc:`apache-airflow-providers:index`) and some of them provide handlers that extend the logging
 capability of Apache Airflow. You can see all of these providers in :doc:`apache-airflow-providers:core-extensions/logging`.
 
-When using S3, GCS, WASB or OSS remote logging service, you can delete the local log files after
+When using S3, GCS, WASB, HDFS or OSS remote logging service, you can delete the local log files after
 they are uploaded to the remote location, by setting the config:
 
 .. code-block:: ini

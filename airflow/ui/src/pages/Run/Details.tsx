@@ -22,8 +22,9 @@ import { useParams } from "react-router-dom";
 import { useDagRunServiceGetDagRun } from "openapi/queries";
 import RenderedJsonField from "src/components/RenderedJsonField";
 import { RunTypeIcon } from "src/components/RunTypeIcon";
+import { StateBadge } from "src/components/StateBadge";
 import Time from "src/components/Time";
-import { ClipboardRoot, ClipboardIconButton, Status } from "src/components/ui";
+import { ClipboardRoot, ClipboardIconButton } from "src/components/ui";
 import { getDuration } from "src/utils";
 
 export const Details = () => {
@@ -43,10 +44,10 @@ export const Details = () => {
         <Table.Root striped>
           <Table.Body>
             <Table.Row>
-              <Table.Cell>Status</Table.Cell>
+              <Table.Cell>State</Table.Cell>
               <Table.Cell>
                 <Flex gap={1}>
-                  <Status state={dagRun.state} />
+                  <StateBadge state={dagRun.state} />
                   {dagRun.state}
                 </Flex>
               </Table.Cell>
@@ -112,15 +113,9 @@ export const Details = () => {
               </Table.Cell>
             </Table.Row>
             <Table.Row>
-              <Table.Cell>Externally Triggered</Table.Cell>
-              <Table.Cell>{dagRun.external_trigger ? "True" : "False"}</Table.Cell>
+              <Table.Cell>Trigger Source</Table.Cell>
+              <Table.Cell>{dagRun.triggered_by}</Table.Cell>
             </Table.Row>
-            {dagRun.external_trigger ? (
-              <Table.Row>
-                <Table.Cell>Externally Trigger Source</Table.Cell>
-                <Table.Cell>{dagRun.triggered_by}</Table.Cell>
-              </Table.Row>
-            ) : undefined}
             <Table.Row>
               <Table.Cell>Run Config</Table.Cell>
               <Table.Cell>

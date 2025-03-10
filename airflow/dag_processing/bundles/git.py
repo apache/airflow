@@ -17,21 +17,26 @@
 
 from __future__ import annotations
 
+import contextlib
 import json
+import logging
 import os
-from typing import TYPE_CHECKING, Any
+import tempfile
+from pathlib import Path
+from typing import Any
 from urllib.parse import urlparse
 
 from git import Repo
-from git.exc import BadName
+from git.exc import BadName, GitCommandError, NoSuchPathError
 
-from airflow.dag_processing.bundles.base import BaseDagBundle
+from airflow.dag_processing.bundles.base import (
+    BaseDagBundle,
+)
 from airflow.exceptions import AirflowException
 from airflow.hooks.base import BaseHook
 from airflow.utils.log.logging_mixin import LoggingMixin
 
-if TYPE_CHECKING:
-    from pathlib import Path
+log = logging.getLogger(__name__)
 
 
 class GitHook(BaseHook):
@@ -60,21 +65,34 @@ class GitHook(BaseHook):
                 "extra": json.dumps(
                     {
                         "key_file": "optional/path/to/keyfile",
+                        "private_key": "optional inline private key",
                     }
                 )
             },
         }
 
-    def __init__(self, git_conn_id="git_default", *args, **kwargs):
+    def __init__(
+        self, git_conn_id: str = "git_default", repo_url: str | None = None, *args, **kwargs
+    ) -> None:
         super().__init__()
         connection = self.get_connection(git_conn_id)
-        self.repo_url = connection.host
+        self.repo_url = repo_url or connection.host
         self.auth_token = connection.password
+        self.private_key = connection.extra_dejson.get("private_key")
         self.key_file = connection.extra_dejson.get("key_file")
+        self.strict_host_key_checking = connection.extra_dejson.get("strict_host_key_checking", "no")
         self.env: dict[str, str] = {}
-        if self.key_file:
-            self.env["GIT_SSH_COMMAND"] = f"ssh -i {self.key_file} -o IdentitiesOnly=yes"
+
+        if self.key_file and self.private_key:
+            raise AirflowException("Both 'key_file' and 'private_key' cannot be provided at the same time")
         self._process_git_auth_url()
+
+    def _build_ssh_command(self, key_path: str) -> str:
+        return (
+            f"ssh -i {key_path} "
+            f"-o IdentitiesOnly=yes "
+            f"-o StrictHostKeyChecking={self.strict_host_key_checking}"
+        )
 
     def _process_git_auth_url(self):
         if not isinstance(self.repo_url, str):
@@ -83,6 +101,22 @@ class GitHook(BaseHook):
             self.repo_url = self.repo_url.replace("https://", f"https://{self.auth_token}@")
         elif not self.repo_url.startswith("git@") or not self.repo_url.startswith("https://"):
             self.repo_url = os.path.expanduser(self.repo_url)
+
+    def set_git_env(self, key: str) -> None:
+        self.env["GIT_SSH_COMMAND"] = self._build_ssh_command(key)
+
+    @contextlib.contextmanager
+    def configure_hook_env(self):
+        if self.private_key:
+            with tempfile.NamedTemporaryFile(mode="w", delete=True) as tmp_keyfile:
+                tmp_keyfile.write(self.private_key)
+                tmp_keyfile.flush()
+                os.chmod(tmp_keyfile.name, 0o600)
+                self.set_git_env(tmp_keyfile.name)
+                yield
+        else:
+            self.set_git_env(self.key_file)
+            yield
 
 
 class GitDagBundle(BaseDagBundle, LoggingMixin):
@@ -95,6 +129,7 @@ class GitDagBundle(BaseDagBundle, LoggingMixin):
     :param tracking_ref: Branch or tag for this DAG bundle
     :param subdir: Subdirectory within the repository where the DAGs are stored (Optional)
     :param git_conn_id: Connection ID for SSH/token based connection to the repository (Optional)
+    :param repo_url: Explicit Git repository URL to override the connection's host. (Optional)
     """
 
     supports_versioning = True
@@ -105,64 +140,100 @@ class GitDagBundle(BaseDagBundle, LoggingMixin):
         tracking_ref: str,
         subdir: str | None = None,
         git_conn_id: str = "git_default",
+        repo_url: str | None = None,
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
         self.tracking_ref = tracking_ref
         self.subdir = subdir
-        self.bare_repo_path = self._dag_bundle_root_storage_path / "git" / self.name
-        self.repo_path = (
-            self._dag_bundle_root_storage_path / "git" / (self.name + f"+{self.version or self.tracking_ref}")
-        )
+        self.bare_repo_path = self.base_dir / "bare"
+        if self.version:
+            self.repo_path = self.versions_dir / self.version
+        else:
+            self.repo_path = self.base_dir / "tracking_repo"
         self.git_conn_id = git_conn_id
-        self.hook = GitHook(git_conn_id=self.git_conn_id)
-        self.repo_url = self.hook.repo_url
+        self.repo_url = repo_url
+
+        def log_debug(msg, **kwargs):
+            if not log.isEnabledFor(logging.DEBUG):
+                return
+            # ugly; replace when structlog implemented
+            context = dict(
+                bundle_name=self.name,
+                version=self.version,
+                bare_repo_path=self.bare_repo_path,
+                repo_path=self.repo_path,
+                versions_path=self.versions_dir,
+                git_conn_id=self.git_conn_id,
+                repo_url=self.repo_url,
+                **kwargs,
+            )
+
+            for k, v in context.items():
+                msg += f" {k}='{v}'"
+            log.debug(msg)
+
+        self._log_debug = log_debug
+        log_debug("bundle configured")
+        try:
+            self.hook = GitHook(git_conn_id=self.git_conn_id, repo_url=self.repo_url)
+            self.repo_url = self.hook.repo_url
+            log_debug("repo_url updated from hook", repo_url=self.repo_url)
+        except AirflowException as e:
+            self.log.warning("Could not create GitHook for connection %s : %s", self.git_conn_id, e)
 
     def _initialize(self):
-        self._clone_bare_repo_if_required()
-        self._ensure_version_in_bare_repo()
-        self._clone_repo_if_required()
-        self.repo.git.checkout(self.tracking_ref)
-        if self.version:
-            if not self._has_version(self.repo, self.version):
-                self.repo.remotes.origin.fetch()
-            self.repo.head.set_reference(self.repo.commit(self.version))
-            self.repo.head.reset(index=True, working_tree=True)
-        else:
-            self.refresh()
+        with self.lock():
+            with self.hook.configure_hook_env():
+                self._clone_bare_repo_if_required()
+                self._ensure_version_in_bare_repo()
+
+            self._clone_repo_if_required()
+            self.repo.git.checkout(self.tracking_ref)
+            self._log_debug("bundle initialize", version=self.version)
+            if self.version:
+                if not self._has_version(self.repo, self.version):
+                    self.repo.remotes.origin.fetch()
+                self.repo.head.set_reference(str(self.repo.commit(self.version)))
+                self.repo.head.reset(index=True, working_tree=True)
+            else:
+                self.refresh()
 
     def initialize(self) -> None:
         if not self.repo_url:
-            raise AirflowException(f"Connection {self.git_conn_id} doesn't have a git_repo_url")
-        if isinstance(self.repo_url, os.PathLike):
-            self._initialize()
-        elif not self.repo_url.startswith("git@") or not self.repo_url.endswith(".git"):
-            raise AirflowException(
-                f"Invalid git URL: {self.repo_url}. URL must start with git@ and end with .git"
-            )
-        else:
-            self._initialize()
+            raise AirflowException(f"Connection {self.git_conn_id} doesn't have a host url")
+        self._initialize()
         super().initialize()
 
     def _clone_repo_if_required(self) -> None:
         if not os.path.exists(self.repo_path):
             self.log.info("Cloning repository to %s from %s", self.repo_path, self.bare_repo_path)
-            Repo.clone_from(
-                url=self.bare_repo_path,
-                to_path=self.repo_path,
-            )
-
+            try:
+                Repo.clone_from(
+                    url=self.bare_repo_path,
+                    to_path=self.repo_path,
+                )
+            except NoSuchPathError as e:
+                # Protection should the bare repo be removed manually
+                raise AirflowException("Repository path: %s not found", self.bare_repo_path) from e
+        else:
+            self._log_debug("repo exists", repo_path=self.repo_path)
         self.repo = Repo(self.repo_path)
 
     def _clone_bare_repo_if_required(self) -> None:
+        if not self.repo_url:
+            raise AirflowException(f"Connection {self.git_conn_id} doesn't have a host url")
         if not os.path.exists(self.bare_repo_path):
             self.log.info("Cloning bare repository to %s", self.bare_repo_path)
-            Repo.clone_from(
-                url=self.repo_url,
-                to_path=self.bare_repo_path,
-                bare=True,
-                env=self.hook.env,
-            )
+            try:
+                Repo.clone_from(
+                    url=self.repo_url,
+                    to_path=self.bare_repo_path,
+                    bare=True,
+                    env=self.hook.env,
+                )
+            except GitCommandError as e:
+                raise AirflowException("Error cloning repository") from e
         self.bare_repo = Repo(self.bare_repo_path)
 
     def _ensure_version_in_bare_repo(self) -> None:
@@ -201,22 +272,35 @@ class GitDagBundle(BaseDagBundle, LoggingMixin):
             return False
 
     def _fetch_bare_repo(self):
+        refspecs = ["+refs/heads/*:refs/heads/*", "+refs/tags/*:refs/tags/*"]
         if self.hook.env:
             with self.bare_repo.git.custom_environment(GIT_SSH_COMMAND=self.hook.env.get("GIT_SSH_COMMAND")):
-                self.bare_repo.remotes.origin.fetch("+refs/heads/*:refs/heads/*")
+                self.bare_repo.remotes.origin.fetch(refspecs)
         else:
-            self.bare_repo.remotes.origin.fetch("+refs/heads/*:refs/heads/*")
+            self.bare_repo.remotes.origin.fetch(refspecs)
 
     def refresh(self) -> None:
         if self.version:
             raise AirflowException("Refreshing a specific version is not supported")
-        self._fetch_bare_repo()
-        self.repo.remotes.origin.pull()
 
-    def _convert_git_ssh_url_to_https(self) -> str:
-        if not self.repo_url.startswith("git@"):
-            raise ValueError(f"Invalid git SSH URL: {self.repo_url}")
-        parts = self.repo_url.split(":")
+        with self.lock():
+            with self.hook.configure_hook_env():
+                self._fetch_bare_repo()
+                self.repo.remotes.origin.fetch(
+                    ["+refs/heads/*:refs/remotes/origin/*", "+refs/tags/*:refs/tags/*"]
+                )
+                remote_branch = f"origin/{self.tracking_ref}"
+                if remote_branch in [ref.name for ref in self.repo.remotes.origin.refs]:
+                    target = remote_branch
+                else:
+                    target = self.tracking_ref
+                self.repo.head.reset(target, index=True, working_tree=True)
+
+    @staticmethod
+    def _convert_git_ssh_url_to_https(url: str) -> str:
+        if not url.startswith("git@"):
+            raise ValueError(f"Invalid git SSH URL: {url}")
+        parts = url.split(":")
         domain = parts[0].replace("git@", "https://")
         repo_path = parts[1].replace(".git", "")
         return f"{domain}/{repo_path}"
@@ -225,8 +309,12 @@ class GitDagBundle(BaseDagBundle, LoggingMixin):
         if not version:
             return None
         url = self.repo_url
+        if not url:
+            return None
         if url.startswith("git@"):
-            url = self._convert_git_ssh_url_to_https()
+            url = self._convert_git_ssh_url_to_https(url)
+        if url.endswith(".git"):
+            url = url[:-4]
         parsed_url = urlparse(url)
         host = parsed_url.hostname
         if not host:

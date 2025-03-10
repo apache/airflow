@@ -17,21 +17,25 @@
  * under the License.
  */
 import { Box, Flex, HStack, VStack, Text } from "@chakra-ui/react";
+import { Link as RouterLink } from "react-router-dom";
 
-import { MetricsBadge } from "src/components/MetricsBadge";
+import type { TaskInstanceState } from "openapi/requests/types.gen";
+import { StateBadge } from "src/components/StateBadge";
 import { capitalize } from "src/utils";
-import { stateColor } from "src/utils/stateColor";
 
 const BAR_WIDTH = 100;
 const BAR_HEIGHT = 5;
 
 type MetricSectionProps = {
+  readonly endDate: string;
+  readonly kind: string;
   readonly runs: number;
-  readonly state: string;
+  readonly startDate: string;
+  readonly state: TaskInstanceState;
   readonly total: number;
 };
 
-export const MetricSection = ({ runs, state, total }: MetricSectionProps) => {
+export const MetricSection = ({ endDate, kind, runs, startDate, state, total }: MetricSectionProps) => {
   // Calculate the given state as a percentage of total and draw a bar
   // in state's color with width as state's percentage and remaining width filed as gray
   const statePercent = total === 0 ? 0 : ((runs / total) * 100).toFixed(2);
@@ -42,14 +46,23 @@ export const MetricSection = ({ runs, state, total }: MetricSectionProps) => {
     <VStack align="left" gap={1} mb={4} ml={0} pl={0}>
       <Flex justify="space-between">
         <HStack>
-          <MetricsBadge backgroundColor={stateColor[state as keyof typeof stateColor]} runs={runs} />
-          <Text> {capitalize(state)} </Text>
+          <RouterLink to={`/${kind}?state=${state}&start_date=${startDate}&end_date=${endDate}`}>
+            <StateBadge fontSize="md" state={state}>
+              {runs}
+            </StateBadge>
+          </RouterLink>
+          <Text>
+            {state
+              .split("_")
+              .map((st) => capitalize(st))
+              .join(" ")}
+          </Text>
         </HStack>
         <Text color="fg.muted"> {statePercent}% </Text>
       </Flex>
       <HStack gap={0} mt={2}>
         <Box
-          bg={stateColor[state as keyof typeof stateColor]}
+          bg={`${state}.solid`}
           borderLeftRadius={5}
           height={`${BAR_HEIGHT}px`}
           minHeight={2}

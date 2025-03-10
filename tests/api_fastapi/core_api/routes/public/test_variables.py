@@ -18,6 +18,7 @@ from __future__ import annotations
 
 import json
 from io import BytesIO
+from unittest import mock
 
 import pytest
 
@@ -106,6 +107,14 @@ class TestDeleteVariable(TestVariableEndpoint):
         variables = session.query(Variable).all()
         assert len(variables) == 3
 
+    def test_delete_should_respond_401(self, unauthenticated_test_client):
+        response = unauthenticated_test_client.delete(f"/public/variables/{TEST_VARIABLE_KEY}")
+        assert response.status_code == 401
+
+    def test_delete_should_respond_403(self, unauthorized_test_client):
+        response = unauthorized_test_client.delete(f"/public/variables/{TEST_VARIABLE_KEY}")
+        assert response.status_code == 403
+
     def test_delete_should_respond_404(self, test_client):
         response = test_client.delete(f"/public/variables/{TEST_VARIABLE_KEY}")
         assert response.status_code == 404
@@ -161,6 +170,14 @@ class TestGetVariable(TestVariableEndpoint):
         response = test_client.get(f"/public/variables/{key}")
         assert response.status_code == 200
         assert response.json() == expected_response
+
+    def test_get_should_respond_401(self, unauthenticated_test_client):
+        response = unauthenticated_test_client.get(f"/public/variables/{TEST_VARIABLE_KEY}")
+        assert response.status_code == 401
+
+    def test_get_should_respond_403(self, unauthorized_test_client):
+        response = unauthorized_test_client.get(f"/public/variables/{TEST_VARIABLE_KEY}")
+        assert response.status_code == 403
 
     def test_get_should_respond_404(self, test_client):
         response = test_client.get(f"/public/variables/{TEST_VARIABLE_KEY}")
@@ -218,6 +235,14 @@ class TestGetVariables(TestVariableEndpoint):
         body = response.json()
         assert body["total_entries"] == expected_total_entries
         assert [variable["key"] for variable in body["variables"]] == expected_keys
+
+    def test_get_should_respond_401(self, unauthenticated_test_client):
+        response = unauthenticated_test_client.get("/public/variables")
+        assert response.status_code == 401
+
+    def test_get_should_respond_403(self, unauthorized_test_client):
+        response = unauthorized_test_client.get("/public/variables")
+        assert response.status_code == 403
 
 
 class TestPatchVariable(TestVariableEndpoint):
@@ -302,6 +327,20 @@ class TestPatchVariable(TestVariableEndpoint):
         body = response.json()
         assert body["detail"] == "Invalid body, key from request body doesn't match uri parameter"
 
+    def test_patch_should_respond_401(self, unauthenticated_test_client):
+        response = unauthenticated_test_client.patch(
+            f"/public/variables/{TEST_VARIABLE_KEY}",
+            json={"key": TEST_VARIABLE_KEY, "value": "some_value", "description": None},
+        )
+        assert response.status_code == 401
+
+    def test_patch_should_respond_403(self, unauthorized_test_client):
+        response = unauthorized_test_client.patch(
+            f"/public/variables/{TEST_VARIABLE_KEY}",
+            json={"key": TEST_VARIABLE_KEY, "value": "some_value", "description": None},
+        )
+        assert response.status_code == 403
+
     def test_patch_should_respond_404(self, test_client):
         response = test_client.patch(
             f"/public/variables/{TEST_VARIABLE_KEY}",
@@ -377,6 +416,28 @@ class TestPostVariable(TestVariableEndpoint):
         assert response.status_code == 201
         assert response.json() == expected_response
 
+    def test_post_should_respond_401(self, unauthenticated_test_client):
+        response = unauthenticated_test_client.post(
+            "/public/variables",
+            json={
+                "key": "new variable key",
+                "value": "new variable value",
+                "description": "new variable description",
+            },
+        )
+        assert response.status_code == 401
+
+    def test_post_should_respond_403(self, unauthorized_test_client):
+        response = unauthorized_test_client.post(
+            "/public/variables",
+            json={
+                "key": "new variable key",
+                "value": "new variable value",
+                "description": "new variable description",
+            },
+        )
+        assert response.status_code == 403
+
     def test_post_should_respond_409_when_key_exists(self, test_client, session):
         self.create_variables()
         # Attempting to post a variable with an existing key
@@ -432,6 +493,24 @@ class TestPostVariable(TestVariableEndpoint):
             ]
         }
 
+    @pytest.mark.parametrize(
+        "body",
+        [
+            {
+                "key": "new variable key",
+                "value": "new variable value",
+                "description": "new variable description",
+            },
+        ],
+    )
+    @mock.patch("airflow.api_fastapi.logging.decorators._mask_variable_fields")
+    def test_mask_variable_fields_called(self, mock_mask_variable_fields, test_client, body):
+        mock_mask_variable_fields.return_value = {**body, "method": "POST"}
+        response = test_client.post("/public/variables", json=body)
+        assert response.status_code == 201
+
+        mock_mask_variable_fields.assert_called_once_with(body)
+
 
 class TestBulkVariables(TestVariableEndpoint):
     @pytest.mark.enable_redact
@@ -444,7 +523,7 @@ class TestBulkVariables(TestVariableEndpoint):
                     "actions": [
                         {
                             "action": "create",
-                            "variables": [
+                            "entities": [
                                 {"key": "new_var1", "value": "new_value1", "description": "New variable 1"},
                                 {"key": "new_var2", "value": "new_value2", "description": "New variable 2"},
                             ],
@@ -460,7 +539,7 @@ class TestBulkVariables(TestVariableEndpoint):
                     "actions": [
                         {
                             "action": "create",
-                            "variables": [
+                            "entities": [
                                 {
                                     "key": "test_variable_key",
                                     "value": "new_value1",
@@ -480,7 +559,7 @@ class TestBulkVariables(TestVariableEndpoint):
                     "actions": [
                         {
                             "action": "create",
-                            "variables": [
+                            "entities": [
                                 {
                                     "key": "test_variable_key",
                                     "value": "new_value1",
@@ -500,7 +579,7 @@ class TestBulkVariables(TestVariableEndpoint):
                     "actions": [
                         {
                             "action": "create",
-                            "variables": [
+                            "entities": [
                                 {
                                     "key": "test_variable_key",
                                     "value": "new_value",
@@ -529,7 +608,7 @@ class TestBulkVariables(TestVariableEndpoint):
                     "actions": [
                         {
                             "action": "update",
-                            "variables": [
+                            "entities": [
                                 {
                                     "key": "test_variable_key",
                                     "value": "updated_value",
@@ -548,7 +627,7 @@ class TestBulkVariables(TestVariableEndpoint):
                     "actions": [
                         {
                             "action": "update",
-                            "variables": [
+                            "entities": [
                                 {
                                     "key": "key_not_present",
                                     "value": "updated_value",
@@ -567,7 +646,7 @@ class TestBulkVariables(TestVariableEndpoint):
                     "actions": [
                         {
                             "action": "update",
-                            "variables": [
+                            "entities": [
                                 {
                                     "key": "nonexistent_var",
                                     "value": "updated_value",
@@ -594,7 +673,11 @@ class TestBulkVariables(TestVariableEndpoint):
             (
                 {
                     "actions": [
-                        {"action": "delete", "keys": ["test_variable_key"], "action_on_non_existence": "skip"}
+                        {
+                            "action": "delete",
+                            "entities": ["test_variable_key"],
+                            "action_on_non_existence": "skip",
+                        }
                     ]
                 },
                 {"delete": {"success": ["test_variable_key"], "errors": []}},
@@ -603,7 +686,11 @@ class TestBulkVariables(TestVariableEndpoint):
             (
                 {
                     "actions": [
-                        {"action": "delete", "keys": ["key_not_present"], "action_on_non_existence": "skip"}
+                        {
+                            "action": "delete",
+                            "entities": ["key_not_present"],
+                            "action_on_non_existence": "skip",
+                        }
                     ]
                 },
                 {"delete": {"success": [], "errors": []}},
@@ -612,7 +699,11 @@ class TestBulkVariables(TestVariableEndpoint):
             (
                 {
                     "actions": [
-                        {"action": "delete", "keys": ["nonexistent_var"], "action_on_non_existence": "fail"}
+                        {
+                            "action": "delete",
+                            "entities": ["nonexistent_var"],
+                            "action_on_non_existence": "fail",
+                        }
                     ]
                 },
                 {
@@ -633,12 +724,12 @@ class TestBulkVariables(TestVariableEndpoint):
                     "actions": [
                         {
                             "action": "create",
-                            "variables": [{"key": "new_var1", "value": "new_value1"}],
+                            "entities": [{"key": "new_var1", "value": "new_value1"}],
                             "action_on_existence": "skip",
                         },
                         {
                             "action": "update",
-                            "variables": [
+                            "entities": [
                                 {
                                     "key": "test_variable_key",
                                     "value": "updated_value",
@@ -649,7 +740,7 @@ class TestBulkVariables(TestVariableEndpoint):
                         },
                         {
                             "action": "delete",
-                            "keys": ["dictionary_password"],
+                            "entities": ["dictionary_password"],
                             "action_on_non_existence": "skip",
                         },
                     ]
@@ -666,7 +757,7 @@ class TestBulkVariables(TestVariableEndpoint):
                     "actions": [
                         {
                             "action": "create",
-                            "variables": [
+                            "entities": [
                                 {
                                     "key": "test_variable_key",
                                     "value": "new_value",
@@ -677,7 +768,7 @@ class TestBulkVariables(TestVariableEndpoint):
                         },
                         {
                             "action": "update",
-                            "variables": [
+                            "entities": [
                                 {
                                     "key": "dictionary_password",
                                     "value": "updated_value",
@@ -686,7 +777,11 @@ class TestBulkVariables(TestVariableEndpoint):
                             ],
                             "action_on_non_existence": "fail",
                         },
-                        {"action": "delete", "keys": ["nonexistent_var"], "action_on_non_existence": "skip"},
+                        {
+                            "action": "delete",
+                            "entities": ["nonexistent_var"],
+                            "action_on_non_existence": "skip",
+                        },
                     ]
                 },
                 {
@@ -709,7 +804,7 @@ class TestBulkVariables(TestVariableEndpoint):
                     "actions": [
                         {
                             "action": "create",
-                            "variables": [
+                            "entities": [
                                 {
                                     "key": "test_variable_key",
                                     "value": "new_value1",
@@ -720,7 +815,7 @@ class TestBulkVariables(TestVariableEndpoint):
                         },
                         {
                             "action": "update",
-                            "variables": [
+                            "entities": [
                                 {
                                     "key": "nonexistent_var",
                                     "value": "updated_value",
@@ -729,7 +824,11 @@ class TestBulkVariables(TestVariableEndpoint):
                             ],
                             "action_on_non_existence": "skip",
                         },
-                        {"action": "delete", "keys": ["nonexistent_var"], "action_on_non_existence": "skip"},
+                        {
+                            "action": "delete",
+                            "entities": ["nonexistent_var"],
+                            "action_on_non_existence": "skip",
+                        },
                     ]
                 },
                 {
@@ -744,7 +843,7 @@ class TestBulkVariables(TestVariableEndpoint):
                     "actions": [
                         {
                             "action": "create",
-                            "variables": [
+                            "entities": [
                                 {
                                     "key": "new_variable_key",
                                     "value": "new_value1",
@@ -755,7 +854,7 @@ class TestBulkVariables(TestVariableEndpoint):
                         },
                         {
                             "action": "update",
-                            "variables": [
+                            "entities": [
                                 {
                                     "key": "new_variable_key",
                                     "value": "updated_value",
@@ -764,7 +863,11 @@ class TestBulkVariables(TestVariableEndpoint):
                             ],
                             "action_on_non_existence": "fail",
                         },
-                        {"action": "delete", "keys": ["new_variable_key"], "action_on_non_existence": "fail"},
+                        {
+                            "action": "delete",
+                            "entities": ["new_variable_key"],
+                            "action_on_non_existence": "fail",
+                        },
                     ]
                 },
                 {
@@ -779,7 +882,7 @@ class TestBulkVariables(TestVariableEndpoint):
                     "actions": [
                         {
                             "action": "create",
-                            "variables": [
+                            "entities": [
                                 {
                                     "key": "test_variable_key",
                                     "value": "new_value1",
@@ -790,7 +893,7 @@ class TestBulkVariables(TestVariableEndpoint):
                         },
                         {
                             "action": "update",
-                            "variables": [
+                            "entities": [
                                 {
                                     "key": "test_variable_key",
                                     "value": "updated_value",
@@ -801,7 +904,7 @@ class TestBulkVariables(TestVariableEndpoint):
                         },
                         {
                             "action": "create",
-                            "variables": [
+                            "entities": [
                                 {
                                     "key": "new_key",
                                     "value": "new_value1",
@@ -812,7 +915,7 @@ class TestBulkVariables(TestVariableEndpoint):
                         },
                         {
                             "action": "update",
-                            "variables": [
+                            "entities": [
                                 {
                                     "key": "nonexistent_var",
                                     "value": "updated_value",
@@ -823,12 +926,12 @@ class TestBulkVariables(TestVariableEndpoint):
                         },
                         {
                             "action": "delete",
-                            "keys": ["dictionary_password"],
+                            "entities": ["dictionary_password"],
                             "action_on_non_existence": "fail",
                         },
                         {
                             "action": "create",
-                            "variables": [
+                            "entities": [
                                 {
                                     "key": "new_variable_key_1",
                                     "value": "new_value1",
@@ -839,7 +942,7 @@ class TestBulkVariables(TestVariableEndpoint):
                         },
                         {
                             "action": "update",
-                            "variables": [
+                            "entities": [
                                 {
                                     "key": "new_variable_key",
                                     "value": "updated_value",
@@ -884,3 +987,11 @@ class TestBulkVariables(TestVariableEndpoint):
         response_data = response.json()
         for key, value in expected_results.items():
             assert response_data[key] == value
+
+    def test_bulk_variables_should_respond_401(self, unauthenticated_test_client):
+        response = unauthenticated_test_client.patch("/public/variables", json={})
+        assert response.status_code == 401
+
+    def test_bulk_variables_should_respond_403(self, unauthorized_test_client):
+        response = unauthorized_test_client.patch("/public/variables", json={})
+        assert response.status_code == 403

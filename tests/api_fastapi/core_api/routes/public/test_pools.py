@@ -65,6 +65,14 @@ class TestDeletePool(TestPoolsEndpoint):
         pools = session.query(Pool).all()
         assert len(pools) == 2
 
+    def test_delete_should_respond_401(self, unauthenticated_test_client):
+        response = unauthenticated_test_client.delete(f"/public/pools/{POOL1_NAME}")
+        assert response.status_code == 401
+
+    def test_should_respond_403(self, unauthorized_test_client):
+        response = unauthorized_test_client.delete(f"/public/pools/{POOL1_NAME}")
+        assert response.status_code == 403
+
     def test_delete_should_respond_400(self, test_client):
         response = test_client.delete("/public/pools/default_pool")
         assert response.status_code == 400
@@ -96,6 +104,14 @@ class TestGetPool(TestPoolsEndpoint):
             "slots": 3,
         }
 
+    def test_get_should_respond_401(self, unauthenticated_test_client):
+        response = unauthenticated_test_client.get(f"/public/pools/{POOL1_NAME}")
+        assert response.status_code == 401
+
+    def test_should_respond_403(self, unauthorized_test_client):
+        response = unauthorized_test_client.get(f"/public/pools/{POOL1_NAME}")
+        assert response.status_code == 403
+
     def test_get_should_respond_404(self, test_client):
         response = test_client.get(f"/public/pools/{POOL1_NAME}")
         assert response.status_code == 404
@@ -114,6 +130,13 @@ class TestGetPools(TestPoolsEndpoint):
             # Sort
             ({"order_by": "-id"}, 3, [POOL2_NAME, POOL1_NAME, Pool.DEFAULT_POOL_NAME]),
             ({"order_by": "id"}, 3, [Pool.DEFAULT_POOL_NAME, POOL1_NAME, POOL2_NAME]),
+            # Search
+            (
+                {"pool_name_pattern": "~"},
+                3,
+                [Pool.DEFAULT_POOL_NAME, POOL1_NAME, POOL2_NAME],
+            ),
+            ({"pool_name_pattern": "default"}, 1, [Pool.DEFAULT_POOL_NAME]),
         ],
     )
     def test_should_respond_200(
@@ -126,6 +149,14 @@ class TestGetPools(TestPoolsEndpoint):
         body = response.json()
         assert body["total_entries"] == expected_total_entries
         assert [pool["name"] for pool in body["pools"]] == expected_ids
+
+    def test_should_respond_401(self, unauthenticated_test_client):
+        response = unauthenticated_test_client.get("/public/pools", params={"pool_name_pattern": "~"})
+        assert response.status_code == 401
+
+    def test_should_respond_403(self, unauthorized_test_client):
+        response = unauthorized_test_client.get("/public/pools", params={"pool_name_pattern": "~"})
+        assert response.status_code == 403
 
 
 class TestPatchPool(TestPoolsEndpoint):
@@ -143,63 +174,51 @@ class TestPatchPool(TestPoolsEndpoint):
             (
                 Pool.DEFAULT_POOL_NAME,
                 {"update_mask": ["description"]},
-                {},
+                {"pool": Pool.DEFAULT_POOL_NAME},
                 400,
                 {"detail": "Only slots and included_deferred can be modified on Default Pool"},
             ),
             (
                 "unknown_pool",
                 {},
-                {},
+                {"pool": "unknown_pool"},
                 404,
                 {"detail": "The Pool with name: `unknown_pool` was not found"},
+            ),
+            # Pool name can't be updated
+            (
+                POOL1_NAME,
+                {},
+                {"pool": "pool1_updated"},
+                400,
+                {"detail": "Invalid body, pool name from request body doesn't match uri parameter"},
             ),
             (
                 POOL1_NAME,
                 {},
-                {},
+                {"pool": POOL1_NAME},
                 422,
                 {
                     "detail": [
                         {
-                            "input": None,
-                            "loc": ["pool"],
-                            "msg": "Input should be a valid string",
-                            "type": "string_type",
-                        },
-                        {
-                            "input": None,
+                            "input": {"pool": POOL1_NAME},
                             "loc": ["slots"],
-                            "msg": "Input should be a valid integer",
-                            "type": "int_type",
+                            "msg": "Field required",
+                            "type": "missing",
                         },
                         {
-                            "input": None,
+                            "input": {"pool": POOL1_NAME},
+                            "loc": ["description"],
+                            "msg": "Field required",
+                            "type": "missing",
+                        },
+                        {
+                            "input": {"pool": POOL1_NAME},
                             "loc": ["include_deferred"],
-                            "msg": "Input should be a valid boolean",
-                            "type": "bool_type",
+                            "msg": "Field required",
+                            "type": "missing",
                         },
                     ],
-                },
-            ),
-            # Success
-            # Partial body
-            (
-                POOL1_NAME,
-                {"update_mask": ["name"]},
-                {"slots": 150, "name": "pool_1_updated"},
-                200,
-                {
-                    "deferred_slots": 0,
-                    "description": None,
-                    "include_deferred": True,
-                    "name": "pool_1_updated",
-                    "occupied_slots": 0,
-                    "open_slots": 3,
-                    "queued_slots": 0,
-                    "running_slots": 0,
-                    "scheduled_slots": 0,
-                    "slots": 3,
                 },
             ),
             # Partial body on default_pool
@@ -225,7 +244,7 @@ class TestPatchPool(TestPoolsEndpoint):
             (
                 Pool.DEFAULT_POOL_NAME,
                 {"update_mask": ["slots", "include_deferred"]},
-                {"slots": 150, "include_deferred": True},
+                {"pool": Pool.DEFAULT_POOL_NAME, "slots": 150, "include_deferred": True},
                 200,
                 {
                     "deferred_slots": 0,
@@ -247,7 +266,7 @@ class TestPatchPool(TestPoolsEndpoint):
                 {
                     "slots": 8,
                     "description": "Description Updated",
-                    "name": "pool_1_updated",
+                    "name": POOL1_NAME,
                     "include_deferred": False,
                 },
                 200,
@@ -255,7 +274,7 @@ class TestPatchPool(TestPoolsEndpoint):
                     "deferred_slots": 0,
                     "description": "Description Updated",
                     "include_deferred": False,
-                    "name": "pool_1_updated",
+                    "name": POOL1_NAME,
                     "occupied_slots": 0,
                     "open_slots": 8,
                     "queued_slots": 0,
@@ -281,6 +300,14 @@ class TestPatchPool(TestPoolsEndpoint):
                 del error["url"]
 
         assert body == expected_response
+
+    def test_should_respond_401(self, unauthenticated_test_client):
+        response = unauthenticated_test_client.patch(f"/public/pools/{POOL1_NAME}", params={}, json={})
+        assert response.status_code == 401
+
+    def test_should_respond_403(self, unauthorized_test_client):
+        response = unauthorized_test_client.patch(f"/public/pools/{POOL1_NAME}", params={}, json={})
+        assert response.status_code == 403
 
 
 class TestPostPool(TestPoolsEndpoint):
@@ -329,6 +356,14 @@ class TestPostPool(TestPoolsEndpoint):
 
         assert response.json() == expected_response
         assert session.query(Pool).count() == n_pools + 1
+
+    def test_should_respond_401(self, unauthenticated_test_client):
+        response = unauthenticated_test_client.post("/public/pools", json={})
+        assert response.status_code == 401
+
+    def test_should_respond_403(self, unauthorized_test_client):
+        response = unauthorized_test_client.post("/public/pools", json={})
+        assert response.status_code == 403
 
     @pytest.mark.parametrize(
         "body,first_expected_status_code, first_expected_response, second_expected_status_code, second_expected_response",
@@ -392,7 +427,7 @@ class TestBulkPools(TestPoolsEndpoint):
                     "actions": [
                         {
                             "action": "create",
-                            "pools": [
+                            "entities": [
                                 {"name": "pool3", "slots": 10, "description": "New Description"},
                                 {"name": "pool4", "slots": 20, "description": "New Description"},
                             ],
@@ -408,7 +443,7 @@ class TestBulkPools(TestPoolsEndpoint):
                     "actions": [
                         {
                             "action": "create",
-                            "pools": [
+                            "entities": [
                                 {"name": "pool3", "slots": 10, "description": "New Description"},
                                 {"name": "pool1", "slots": 20, "description": "New Description"},
                             ],
@@ -424,7 +459,7 @@ class TestBulkPools(TestPoolsEndpoint):
                     "actions": [
                         {
                             "action": "create",
-                            "pools": [
+                            "entities": [
                                 {"name": "pool3", "slots": 10, "description": "New Description"},
                                 {"name": "pool2", "slots": 20, "description": "New Description"},
                             ],
@@ -440,7 +475,7 @@ class TestBulkPools(TestPoolsEndpoint):
                     "actions": [
                         {
                             "action": "create",
-                            "pools": [{"name": "pool2", "slots": 20, "description": "New Description"}],
+                            "entities": [{"name": "pool2", "slots": 20, "description": "New Description"}],
                             "action_on_existence": "fail",
                         }
                     ]
@@ -463,7 +498,7 @@ class TestBulkPools(TestPoolsEndpoint):
                     "actions": [
                         {
                             "action": "update",
-                            "pools": [{"name": "pool2", "slots": 10, "description": "New Description"}],
+                            "entities": [{"name": "pool2", "slots": 10, "description": "New Description"}],
                             "action_on_non_existence": "fail",
                         }
                     ]
@@ -476,7 +511,7 @@ class TestBulkPools(TestPoolsEndpoint):
                     "actions": [
                         {
                             "action": "update",
-                            "pools": [{"name": "pool4", "slots": 20, "description": "New Description"}],
+                            "entities": [{"name": "pool4", "slots": 20, "description": "New Description"}],
                             "action_on_non_existence": "skip",
                         }
                     ]
@@ -489,7 +524,7 @@ class TestBulkPools(TestPoolsEndpoint):
                     "actions": [
                         {
                             "action": "update",
-                            "pools": [{"name": "pool4", "slots": 10, "description": "New Description"}],
+                            "entities": [{"name": "pool4", "slots": 10, "description": "New Description"}],
                             "action_on_non_existence": "fail",
                         }
                     ]
@@ -508,29 +543,17 @@ class TestBulkPools(TestPoolsEndpoint):
             ),
             # Test successful delete
             (
-                {
-                    "actions": [
-                        {"action": "delete", "pool_names": ["pool1"], "action_on_non_existence": "skip"}
-                    ]
-                },
+                {"actions": [{"action": "delete", "entities": ["pool1"], "action_on_non_existence": "skip"}]},
                 {"delete": {"success": ["pool1"], "errors": []}},
             ),
             # Test delete with skip
             (
-                {
-                    "actions": [
-                        {"action": "delete", "pool_names": ["pool3"], "action_on_non_existence": "skip"}
-                    ]
-                },
+                {"actions": [{"action": "delete", "entities": ["pool3"], "action_on_non_existence": "skip"}]},
                 {"delete": {"success": [], "errors": []}},
             ),
             # Test delete not found
             (
-                {
-                    "actions": [
-                        {"action": "delete", "pool_names": ["pool4"], "action_on_non_existence": "fail"}
-                    ]
-                },
+                {"actions": [{"action": "delete", "entities": ["pool4"], "action_on_non_existence": "fail"}]},
                 {
                     "delete": {
                         "success": [],
@@ -549,15 +572,15 @@ class TestBulkPools(TestPoolsEndpoint):
                     "actions": [
                         {
                             "action": "create",
-                            "pools": [{"name": "pool6", "slots": 10, "description": "New Description"}],
+                            "entities": [{"name": "pool6", "slots": 10, "description": "New Description"}],
                             "action_on_existence": "skip",
                         },
                         {
                             "action": "update",
-                            "pools": [{"name": "pool1", "slots": 10, "description": "New Description"}],
+                            "entities": [{"name": "pool1", "slots": 10, "description": "New Description"}],
                             "action_on_non_existence": "fail",
                         },
-                        {"action": "delete", "pool_names": ["pool2"], "action_on_non_existence": "skip"},
+                        {"action": "delete", "entities": ["pool2"], "action_on_non_existence": "skip"},
                     ]
                 },
                 {
@@ -572,15 +595,15 @@ class TestBulkPools(TestPoolsEndpoint):
                     "actions": [
                         {
                             "action": "create",
-                            "pools": [{"name": "pool1", "slots": 10, "description": "New Description"}],
+                            "entities": [{"name": "pool1", "slots": 10, "description": "New Description"}],
                             "action_on_existence": "fail",
                         },
                         {
                             "action": "update",
-                            "pools": [{"name": "pool1", "slots": 100, "description": "New Description"}],
+                            "entities": [{"name": "pool1", "slots": 100, "description": "New Description"}],
                             "action_on_non_existence": "fail",
                         },
-                        {"action": "delete", "pool_names": ["pool4"], "action_on_non_existence": "skip"},
+                        {"action": "delete", "entities": ["pool4"], "action_on_non_existence": "skip"},
                     ]
                 },
                 {
@@ -603,15 +626,15 @@ class TestBulkPools(TestPoolsEndpoint):
                     "actions": [
                         {
                             "action": "create",
-                            "pools": [{"name": "pool1", "slots": 10, "description": "New Description"}],
+                            "entities": [{"name": "pool1", "slots": 10, "description": "New Description"}],
                             "action_on_existence": "skip",
                         },
                         {
                             "action": "update",
-                            "pools": [{"name": "pool5", "slots": 10, "description": "New Description"}],
+                            "entities": [{"name": "pool5", "slots": 10, "description": "New Description"}],
                             "action_on_non_existence": "skip",
                         },
-                        {"action": "delete", "pool_names": ["pool5"], "action_on_non_existence": "skip"},
+                        {"action": "delete", "entities": ["pool5"], "action_on_non_existence": "skip"},
                     ]
                 },
                 {
@@ -626,15 +649,17 @@ class TestBulkPools(TestPoolsEndpoint):
                     "actions": [
                         {
                             "action": "create",
-                            "pools": [{"name": "pool5", "slots": 10, "description": "New Description"}],
+                            "entities": [{"name": "pool5", "slots": 10, "description": "New Description"}],
                             "action_on_existence": "fail",
                         },
                         {
                             "action": "update",
-                            "pools": [{"name": "pool5", "slots": 100, "description": "New test Description"}],
+                            "entities": [
+                                {"name": "pool5", "slots": 100, "description": "New test Description"}
+                            ],
                             "action_on_non_existence": "fail",
                         },
-                        {"action": "delete", "pool_names": ["pool5"], "action_on_non_existence": "fail"},
+                        {"action": "delete", "entities": ["pool5"], "action_on_non_existence": "fail"},
                     ]
                 },
                 {
@@ -649,33 +674,45 @@ class TestBulkPools(TestPoolsEndpoint):
                     "actions": [
                         {
                             "action": "create",
-                            "pools": [{"name": "pool1", "slots": 100, "description": "New test Description"}],
+                            "entities": [
+                                {"name": "pool1", "slots": 100, "description": "New test Description"}
+                            ],
                             "action_on_existence": "fail",
                         },
                         {
                             "action": "update",
-                            "pools": [{"name": "pool1", "slots": 100, "description": "New test Description"}],
+                            "entities": [
+                                {"name": "pool1", "slots": 100, "description": "New test Description"}
+                            ],
                             "action_on_non_existence": "fail",
                         },
                         {
                             "action": "create",
-                            "pools": [{"name": "pool5", "slots": 100, "description": "New test Description"}],
+                            "entities": [
+                                {"name": "pool5", "slots": 100, "description": "New test Description"}
+                            ],
                             "action_on_existence": "fail",
                         },
                         {
                             "action": "update",
-                            "pools": [{"name": "pool8", "slots": 100, "description": "New test Description"}],
+                            "entities": [
+                                {"name": "pool8", "slots": 100, "description": "New test Description"}
+                            ],
                             "action_on_non_existence": "fail",
                         },
-                        {"action": "delete", "pool_names": ["pool2"], "action_on_non_existence": "fail"},
+                        {"action": "delete", "entities": ["pool2"], "action_on_non_existence": "fail"},
                         {
                             "action": "create",
-                            "pools": [{"name": "pool6", "slots": 100, "description": "New test Description"}],
+                            "entities": [
+                                {"name": "pool6", "slots": 100, "description": "New test Description"}
+                            ],
                             "action_on_existence": "fail",
                         },
                         {
                             "action": "update",
-                            "pools": [{"name": "pool9", "slots": 100, "description": "New test Description"}],
+                            "entities": [
+                                {"name": "pool9", "slots": 100, "description": "New test Description"}
+                            ],
                             "action_on_non_existence": "fail",
                         },
                     ]
@@ -714,3 +751,11 @@ class TestBulkPools(TestPoolsEndpoint):
         response_data = response.json()
         for key, value in expected_results.items():
             assert response_data[key] == value
+
+    def test_should_respond_401(self, unauthenticated_test_client):
+        response = unauthenticated_test_client.patch("/public/pools", json={})
+        assert response.status_code == 401
+
+    def test_should_respond_403(self, unauthorized_test_client):
+        response = unauthorized_test_client.patch("/public/pools", json={})
+        assert response.status_code == 403

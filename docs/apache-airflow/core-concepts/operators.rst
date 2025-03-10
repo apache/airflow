@@ -30,7 +30,6 @@ Airflow has a very extensive set of operators available, with some built-in to t
 
 - :class:`~airflow.providers.standard.operators.bash.BashOperator` - executes a bash command
 - :class:`~airflow.providers.standard.operators.python.PythonOperator` - calls an arbitrary Python function
-- :class:`~airflow.operators.email.EmailOperator` - sends an email
 - Use the ``@task`` decorator to execute an arbitrary Python function. It doesn't support rendering jinja templates passed as arguments.
 
 .. note::
@@ -41,6 +40,7 @@ For a list of all core operators, see: :doc:`Core Operators and Hooks Reference 
 
 If the operator you need isn't installed with Airflow by default, you can probably find it as part of our huge set of community :doc:`provider packages <apache-airflow-providers:index>`. Some popular operators from here include:
 
+- :class:`~airflow.providers.smtp.operators.smtp.EmailOperator`
 - :class:`~airflow.providers.http.operators.http.HttpOperator`
 - :class:`~airflow.providers.common.sql.operators.sql.SQLExecuteQueryOperator`
 - :class:`~airflow.providers.docker.operators.docker.DockerOperator`

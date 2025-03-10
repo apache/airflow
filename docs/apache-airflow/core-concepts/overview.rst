@@ -80,7 +80,7 @@ performance in your Airflow:
 
 * Optional folder of *plugins*. Plugins are a way to extend Airflow's functionality (similar to installed
   packages). Plugins are read by the *scheduler*, *dag processor*, *triggerer* and *webserver*. More about
-  plugins can be found in :doc:`/authoring-and-scheduling/plugins`.
+  plugins can be found in :doc:`/administration-and-deployment/plugins`.
 
 Deploying Airflow components
 ----------------------------
@@ -125,6 +125,10 @@ The meaning of the different connection types in the diagrams below is as follow
 * **red dashed lines** represent accessing the *metadata database* by all components
 
 .. _overview-basic-airflow-architecture:
+
+..
+  TODO AIP-66 / AIP-72: These example architectures and diagrams need to be updated to reflect AF3 changes
+  like bundles, required DAG processor, execution api, etc.
 
 Basic Airflow deployment
 ........................

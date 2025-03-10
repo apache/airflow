@@ -14,7 +14,7 @@ a hard error on validation failure.
   * [ ] Dependency changes
   * [ ] Code interface changes
 
-* Migrations rules needed
+* Migration rules needed
 
   * ``airflow config lint``
 

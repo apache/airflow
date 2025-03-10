@@ -21,7 +21,7 @@ import time
 from typing import TYPE_CHECKING
 
 from airflow.models.dag import DAG
-from airflow.operators.empty import EmptyOperator
+from airflow.providers.standard.operators.empty import EmptyOperator
 from airflow.utils.timezone import datetime
 
 if TYPE_CHECKING:

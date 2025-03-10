@@ -26,7 +26,6 @@ import pytest
 
 from airflow.decorators import task as task_decorator
 from airflow.exceptions import AirflowException, TaskDeferralTimeout
-from airflow.lineage.entities import File
 from airflow.models.baseoperator import (
     BaseOperator,
     chain,
@@ -37,6 +36,7 @@ from airflow.models.dag import DAG
 from airflow.models.dagrun import DagRun
 from airflow.models.taskinstance import TaskInstance
 from airflow.models.trigger import TriggerFailureReason
+from airflow.providers.common.compat.lineage.entities import File
 from airflow.providers.common.sql.operators import sql
 from airflow.utils.edgemodifier import Label
 from airflow.utils.task_group import TaskGroup

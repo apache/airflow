@@ -43,7 +43,9 @@ def compare_attributes(path1, path2):
         get_class_attributes(path2, "TaskInstanceHistory")
     )
     diff = diff - {
+        "run_after",
         "_logger_name",
+        "_rendered_map_index",
         "_task_display_property_value",
         "task_instance_note",
         "dag_run",
@@ -54,7 +56,7 @@ def compare_attributes(path1, path2):
         "rendered_task_instance_fields",
         # Storing last heartbeat for historic TIs is not interesting/useful
         "last_heartbeat_at",
-        "dag_version",
+        "id",
     }  # exclude attrs not necessary to be in TaskInstanceHistory
     if not diff:
         return

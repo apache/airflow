@@ -19,12 +19,12 @@ from __future__ import annotations
 
 import json
 import logging
+import re
 from contextlib import suppress
 from json import JSONDecodeError
 from typing import Any
 from urllib.parse import parse_qsl, quote, unquote, urlencode, urlsplit
 
-import re2
 from sqlalchemy import Boolean, Column, Integer, String, Text
 from sqlalchemy.orm import declared_attr, reconstructor, synonym
 
@@ -32,10 +32,10 @@ from airflow.configuration import ensure_secrets_loaded
 from airflow.exceptions import AirflowException, AirflowNotFoundException
 from airflow.models.base import ID_LEN, Base
 from airflow.models.crypto import get_fernet
+from airflow.sdk.execution_time.secrets_masker import mask_secret
 from airflow.secrets.cache import SecretCache
 from airflow.utils.helpers import prune_dict
 from airflow.utils.log.logging_mixin import LoggingMixin
-from airflow.utils.log.secrets_masker import mask_secret
 from airflow.utils.module_loading import import_string
 
 log = logging.getLogger(__name__)
@@ -43,7 +43,7 @@ log = logging.getLogger(__name__)
 # the symbols #,!,-,_,.,:,\,/ and () requiring at least one match.
 #
 # You can try the regex here: https://regex101.com/r/69033B/1
-RE_SANITIZE_CONN_ID = re2.compile(r"^[\w\#\!\(\)\-\.\:\/\\]{1,}$")
+RE_SANITIZE_CONN_ID = re.compile(r"^[\w\#\!\(\)\-\.\:\/\\]{1,}$")
 # the conn ID max len should be 250
 CONN_ID_MAX_LEN: int = 250
 
@@ -66,7 +66,7 @@ def sanitize_conn_id(conn_id: str | None, max_length=CONN_ID_MAX_LEN) -> str | N
     """
     # check if `conn_id` or our match group is `None` and the `conn_id` is within the specified length.
     if (not isinstance(conn_id, str) or len(conn_id) > max_length) or (
-        res := re2.match(RE_SANITIZE_CONN_ID, conn_id)
+        res := re.match(RE_SANITIZE_CONN_ID, conn_id)
     ) is None:
         return None
 

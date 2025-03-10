@@ -81,7 +81,11 @@ from airflow_breeze.commands.common_package_installation_options import (
     option_airflow_constraints_location,
     option_airflow_constraints_mode_prod,
 )
-from airflow_breeze.global_constants import ALLOWED_INSTALLATION_METHODS, DEFAULT_EXTRAS
+from airflow_breeze.global_constants import (
+    ALLOWED_INSTALLATION_METHODS,
+    CONSTRAINTS_SOURCE_PROVIDERS,
+    DEFAULT_EXTRAS,
+)
 from airflow_breeze.params.build_prod_params import BuildProdParams
 from airflow_breeze.utils.ci_group import ci_group
 from airflow_breeze.utils.click_utils import BreezeGroup
@@ -329,6 +333,10 @@ def build(
         if return_code != 0:
             get_console().print(f"[error]Error when building image! {info}")
             sys.exit(return_code)
+
+    if not install_airflow_version and not airflow_constraints_location:
+        get_console().print(f"[yellow]Using {CONSTRAINTS_SOURCE_PROVIDERS} constraints mode[/]")
+        airflow_constraints_mode = CONSTRAINTS_SOURCE_PROVIDERS
 
     perform_environment_checks()
     check_remote_ghcr_io_commands()

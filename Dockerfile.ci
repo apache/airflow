@@ -392,13 +392,8 @@ function common::get_packaging_tool() {
         echo
         export PACKAGING_TOOL="uv"
         export PACKAGING_TOOL_CMD="uv pip"
-        if [[ -z ${VIRTUAL_ENV=} ]]; then
-            export EXTRA_INSTALL_FLAGS="--system"
-            export EXTRA_UNINSTALL_FLAGS="--system"
-        else
-            export EXTRA_INSTALL_FLAGS=""
-            export EXTRA_UNINSTALL_FLAGS=""
-        fi
+        export EXTRA_INSTALL_FLAGS=""
+        export EXTRA_UNINSTALL_FLAGS=""
         export UPGRADE_EAGERLY="--upgrade --resolution highest"
         export UPGRADE_IF_NEEDED="--upgrade"
         UV_CONCURRENT_DOWNLOADS=$(nproc --all)
@@ -590,9 +585,7 @@ function install_airflow() {
     local installation_command_flags
     if [[ ${AIRFLOW_INSTALLATION_METHOD} == "." ]]; then
         # When installing from sources - we always use `--editable` mode
-        # TODO(potiuk) when we move all providers to new structure, we will be able to remove all that and
-        # Use `uv sync` rather than `uv pip install` rather than finding all pyproject toml / projects here
-        installation_command_flags="--editable .[${AIRFLOW_EXTRAS}]${AIRFLOW_VERSION_SPECIFICATION} --editable ./task_sdk"
+        installation_command_flags="--editable .[${AIRFLOW_EXTRAS}]${AIRFLOW_VERSION_SPECIFICATION} --editable ./task-sdk --editable ./devel-common"
         while IFS= read -r -d '' pyproject_toml_file; do
             project_folder=$(dirname ${pyproject_toml_file})
             installation_command_flags="${installation_command_flags} --editable ${project_folder}"
@@ -632,7 +625,7 @@ function install_airflow() {
         echo "${COLOR_BLUE}Installing all packages with constraints. Installation method: ${AIRFLOW_INSTALLATION_METHOD}${COLOR_RESET}"
         echo
         set -x
-        # Install all packages with constraints
+        # TODO(potiuk) - when we switch to storing uv.lock in the repo, we might use `uv sync` here - but that requires changing our upgrade dependency workflow and strategy
         if ! ${PACKAGING_TOOL_CMD} install ${EXTRA_INSTALL_FLAGS} ${ADDITIONAL_PIP_INSTALL_FLAGS} ${installation_command_flags} --constraint "${HOME}/constraints.txt"; then
             set +x
             echo
@@ -740,12 +733,12 @@ ASSET_COMPILATION_WAIT_MULTIPLIER=${ASSET_COMPILATION_WAIT_MULTIPLIER:=1}
 . "${IN_CONTAINER_DIR}/check_connectivity.sh"
 
 function wait_for_asset_compilation() {
-    if [[ -f "${AIRFLOW_SOURCES}/.build/www/.asset_compile.lock" ]]; then
+    if [[ -f "${AIRFLOW_SOURCES}/.build/ui/.asset_compile.lock" ]]; then
         echo
         echo "${COLOR_YELLOW}Waiting for asset compilation to complete in the background.${COLOR_RESET}"
         echo
         local counter=0
-        while [[ -f "${AIRFLOW_SOURCES}/.build/www/.asset_compile.lock" ]]; do
+        while [[ -f "${AIRFLOW_SOURCES}/.build/ui/.asset_compile.lock" ]]; do
             if (( counter % 5 == 2 )); then
                 echo "${COLOR_BLUE}Still waiting .....${COLOR_RESET}"
             fi
@@ -757,7 +750,7 @@ function wait_for_asset_compilation() {
                 echo """
 If it does not complete soon, you might want to stop it and remove file lock:
    * press Ctrl-C
-   * run 'rm ${AIRFLOW_SOURCES}/.build/www/.asset_compile.lock'
+   * run 'rm ${AIRFLOW_SOURCES}/.build/ui/.asset_compile.lock'
 """
             fi
             if [[ ${counter} == 60*$ASSET_COMPILATION_WAIT_MULTIPLIER ]]; then
@@ -769,12 +762,12 @@ If it does not complete soon, you might want to stop it and remove file lock:
             fi
         done
     fi
-    if [ -f "${AIRFLOW_SOURCES}/.build/www/asset_compile.out" ]; then
+    if [ -f "${AIRFLOW_SOURCES}/.build/ui/asset_compile.out" ]; then
         echo
         echo "${COLOR_RED}The asset compilation failed. Exiting.${COLOR_RESET}"
         echo
-        cat "${AIRFLOW_SOURCES}/.build/www/asset_compile.out"
-        rm "${AIRFLOW_SOURCES}/.build/www/asset_compile.out"
+        cat "${AIRFLOW_SOURCES}/.build/ui/asset_compile.out"
+        rm "${AIRFLOW_SOURCES}/.build/ui/asset_compile.out"
         echo
         exit 1
     fi
@@ -801,7 +794,7 @@ function environment_initialization() {
 
     if [[ ${STANDALONE_DAG_PROCESSOR=} == "true" ]]; then
         echo
-        echo "${COLOR_BLUE}Running forcing scheduler/standalone_dag_processor to be True${COLOR_RESET}"
+        echo "${COLOR_BLUE}Forcing scheduler/standalone_dag_processor to True${COLOR_RESET}"
         echo
         export AIRFLOW__SCHEDULER__STANDALONE_DAG_PROCESSOR=True
     fi
@@ -811,9 +804,6 @@ function environment_initialization() {
 
     # Added to have run-tests on path
     export PATH=${PATH}:${AIRFLOW_SOURCES}
-
-    # Directory where simple auth manager store generated passwords
-    export AIRFLOW_AUTH_MANAGER_CREDENTIAL_DIRECTORY="/files"
 
     mkdir -pv "${AIRFLOW_HOME}/logs/"
 
@@ -903,25 +893,22 @@ function determine_airflow_to_use() {
                 xargs ${PACKAGING_TOOL_CMD} uninstall ${EXTRA_UNINSTALL_FLAGS}
             # Now install rich ad click first to use the installation script
             # shellcheck disable=SC2086
-            ${PACKAGING_TOOL_CMD} install ${EXTRA_INSTALL_FLAGS} rich rich-click click --python "/usr/local/bin/python" \
+            ${PACKAGING_TOOL_CMD} install ${EXTRA_INSTALL_FLAGS} rich rich-click click \
                 --constraint https://raw.githubusercontent.com/apache/airflow/constraints-main/constraints-${PYTHON_MAJOR_MINOR_VERSION}.txt
         fi
-        python "${IN_CONTAINER_DIR}/install_airflow_and_providers.py"
         echo
         echo "${COLOR_BLUE}Reinstalling all development dependencies${COLOR_RESET}"
         echo
-        python "${IN_CONTAINER_DIR}/install_devel_deps.py" \
+        # Use uv run to install necessary dependencies automatically
+        uv run /opt/airflow/scripts/in_container/install_development_dependencies.py \
            --constraint https://raw.githubusercontent.com/apache/airflow/constraints-main/constraints-${PYTHON_MAJOR_MINOR_VERSION}.txt
         # Some packages might leave legacy typing module which causes test issues
         # shellcheck disable=SC2086
         ${PACKAGING_TOOL_CMD} uninstall ${EXTRA_UNINSTALL_FLAGS} typing || true
-        if [[ ${LINK_PROVIDERS_TO_AIRFLOW_PACKAGE=} == "true" ]]; then
-            echo
-            echo "${COLOR_BLUE}Linking providers to airflow package as we are using them from mounted sources.${COLOR_RESET}"
-            echo
-            rm -rf /usr/local/lib/python${PYTHON_MAJOR_MINOR_VERSION}/site-packages/airflow/providers
-            ln -s "${AIRFLOW_SOURCES}/providers/src/airflow/providers" "/usr/local/lib/python${PYTHON_MAJOR_MINOR_VERSION}/site-packages/airflow/providers"
-        fi
+        echo
+        echo "${COLOR_BLUE}Installing airflow and providers ${COLOR_RESET}"
+        echo
+        python "${IN_CONTAINER_DIR}/install_airflow_and_providers.py"
     fi
 
     if [[ "${USE_AIRFLOW_VERSION}" =~ ^2\.2\..*|^2\.1\..*|^2\.0\..* && "${AIRFLOW__DATABASE__SQL_ALCHEMY_CONN=}" != "" ]]; then
@@ -937,24 +924,12 @@ function check_boto_upgrade() {
     echo
     echo "${COLOR_BLUE}Upgrading boto3, botocore to latest version to run Amazon tests with them${COLOR_RESET}"
     echo
-    # shellcheck disable=SC2086
-    ${PACKAGING_TOOL_CMD} uninstall ${EXTRA_UNINSTALL_FLAGS} aiobotocore s3fs yandexcloud opensearch-py || true
-    # We need to include few dependencies to pass pip check with other dependencies:
-    #   * oss2 as dependency as otherwise jmespath will be bumped (sync with alibaba provider)
-    #   * cryptography is kept for snowflake-connector-python limitation (sync with snowflake provider)
-    #   * requests needs to be limited to be compatible with apache beam (sync with apache-beam provider)
-    #   * yandexcloud requirements for requests does not match those of apache.beam and latest botocore
-    #   Both requests and yandexcloud exclusion above might be removed after
-    #   https://github.com/apache/beam/issues/32080 is addressed
-    #   This is already addressed and planned for 2.59.0 release.
-    #   When you remove yandexcloud and opensearch from the above list, you can also remove the
-    #   optional providers_dependencies exclusions from "test_example_dags.py" in "tests/always".
     set -x
     # shellcheck disable=SC2086
-    ${PACKAGING_TOOL_CMD} install ${EXTRA_INSTALL_FLAGS} --upgrade boto3 botocore \
-       "oss2>=2.14.0" "cryptography<43.0.0" "requests!=2.32.*,<3.0.0,>=2.24.0"
+    ${PACKAGING_TOOL_CMD} uninstall ${EXTRA_UNINSTALL_FLAGS} aiobotocore s3fs || true
+    # shellcheck disable=SC2086
+    ${PACKAGING_TOOL_CMD} install ${EXTRA_INSTALL_FLAGS} --upgrade boto3 botocore
     set +x
-    pip check
 }
 
 function check_downgrade_sqlalchemy() {
@@ -1026,7 +1001,7 @@ function check_force_lowest_dependencies() {
         echo
     fi
     set -x
-    uv pip install --python "$(which python)" --resolution lowest-direct --upgrade --editable ".${EXTRA}" --editable "./task_sdk"
+    uv pip install --python "$(which python)" --resolution lowest-direct --upgrade --editable ".${EXTRA}" --editable "./task-sdk" --editable "./devel-common"
     set +x
 }
 
@@ -1037,12 +1012,12 @@ function check_airflow_python_client_installation() {
     python "${IN_CONTAINER_DIR}/install_airflow_python_client.py"
 }
 
-function start_webserver_with_examples(){
-    if [[ ${START_WEBSERVER_WITH_EXAMPLES=} != "true" ]]; then
+function start_api_server_with_examples(){
+    if [[ ${START_API_SERVER_WITH_EXAMPLES=} != "true" ]]; then
         return
     fi
     export AIRFLOW__CORE__LOAD_EXAMPLES=True
-    export AIRFLOW__API__AUTH_BACKENDS=airflow.api.auth.backend.session,airflow.providers.fab.auth_manager.api.auth.backend.basic_auth
+    export AIRFLOW__API__AUTH_BACKENDS=airflow.providers.fab.auth_manager.api.auth.backend.session,airflow.providers.fab.auth_manager.api.auth.backend.basic_auth
     export AIRFLOW__WEBSERVER__EXPOSE_CONFIG=True
     echo
     echo "${COLOR_BLUE}Initializing database${COLOR_RESET}"
@@ -1059,22 +1034,22 @@ function start_webserver_with_examples(){
     airflow users create -u admin -p admin -f Thor -l Administrator -r Admin -e admin@email.domain
     echo "Admin user created"
     echo
-    echo "${COLOR_BLUE}Starting airflow webserver${COLOR_RESET}"
+    echo "${COLOR_BLUE}Starting airflow api server${COLOR_RESET}"
     echo
-    airflow webserver --port 8080 --daemon
+    airflow api-server --port 8080 --daemon
     echo
-    echo "${COLOR_BLUE}Waiting for webserver to start${COLOR_RESET}"
+    echo "${COLOR_BLUE}Waiting for api-server to start${COLOR_RESET}"
     echo
-    check_service_connection "Airflow webserver" "run_nc localhost 8080" 100
+    check_service_connection "Airflow api-server" "run_nc localhost 8080" 100
     EXIT_CODE=$?
     if [[ ${EXIT_CODE} != 0 ]]; then
         echo
-        echo "${COLOR_RED}Webserver did not start properly${COLOR_RESET}"
+        echo "${COLOR_RED}Api server did not start properly${COLOR_RESET}"
         echo
         exit ${EXIT_CODE}
     fi
     echo
-    echo "${COLOR_BLUE}Airflow webserver started${COLOR_RESET}"
+    echo "${COLOR_BLUE}Airflow api-server started${COLOR_RESET}"
 }
 
 handle_mount_sources
@@ -1085,7 +1060,7 @@ check_downgrade_sqlalchemy
 check_downgrade_pendulum
 check_force_lowest_dependencies
 check_airflow_python_client_installation
-start_webserver_with_examples
+start_api_server_with_examples
 check_run_tests "${@}"
 
 exec /bin/bash "${@}"
@@ -1136,8 +1111,8 @@ ARG DEV_APT_COMMAND=""
 ARG ADDITIONAL_DEV_APT_COMMAND=""
 ARG ADDITIONAL_DEV_ENV_VARS=""
 ARG ADDITIONAL_DEV_APT_DEPS="bash-completion dumb-init git graphviz krb5-user \
-less libenchant-2-2 libgcc-11-dev libgeos-dev libpq-dev net-tools netcat-openbsd \
-openssh-server postgresql-client software-properties-common rsync tmux unzip vim xxd"
+    less libenchant-2-2 libgcc-11-dev libgeos-dev libpq-dev net-tools netcat-openbsd \
+    openssh-server postgresql-client software-properties-common rsync tmux unzip vim xxd"
 
 ARG ADDITIONAL_DEV_APT_ENV=""
 
@@ -1174,7 +1149,7 @@ RUN bash /scripts/docker/install_mysql.sh prod \
     && bash /scripts/docker/install_postgres.sh dev \
     # The user is added to allow ssh debugging (you can connect with airflow/airflow over ssh)
     && adduser --gecos "First Last,RoomNumber,WorkPhone,HomePhone" --disabled-password \
-              --quiet "airflow" --home "/home/airflow" \
+    --quiet "airflow" --home "/home/airflow" \
     && echo -e "airflow\nairflow" | passwd airflow 2>&1 \
     && echo "airflow ALL=(ALL) NOPASSWD: ALL" > /etc/sudoers.d/airflow \
     && chmod 0440 /etc/sudoers.d/airflow
@@ -1197,7 +1172,7 @@ RUN mkdir -pv ${AIRFLOW_HOME} && \
 ARG AIRFLOW_REPO=apache/airflow
 ARG AIRFLOW_BRANCH=main
 # Airflow Extras installed
-ARG AIRFLOW_EXTRAS="devel-ci"
+ARG AIRFLOW_EXTRAS="all"
 ARG ADDITIONAL_AIRFLOW_EXTRAS=""
 # Allows to override constraints source
 ARG CONSTRAINTS_GITHUB_REPOSITORY="apache/airflow"
@@ -1241,6 +1216,7 @@ ENV AIRFLOW_REPO=${AIRFLOW_REPO}\
     AIRFLOW_UV_VERSION=${AIRFLOW_UV_VERSION} \
     AIRFLOW_USE_UV=${AIRFLOW_USE_UV} \
     UV_HTTP_TIMEOUT=${UV_HTTP_TIMEOUT} \
+    UV_SYSTEM_PYTHON="true" \
     INSTALL_MYSQL_CLIENT="true" \
     INSTALL_MYSQL_CLIENT_TYPE=${INSTALL_MYSQL_CLIENT_TYPE} \
     INSTALL_MSSQL_CLIENT="true" \
@@ -1266,11 +1242,11 @@ COPY --from=scripts common.sh install_packaging_tools.sh install_additional_depe
 # You can swap comments between those two args to test pip from the main version
 # When you attempt to test if the version of `pip` from specified branch works for our builds
 # Also use `force pip` label on your PR to swap all places we use `uv` to `pip`
-ARG AIRFLOW_PIP_VERSION=24.3.1
+ARG AIRFLOW_PIP_VERSION=25.0.1
 # ARG AIRFLOW_PIP_VERSION="git+https://github.com/pypa/pip.git@main"
-ARG AIRFLOW_UV_VERSION=0.5.20
+ARG AIRFLOW_UV_VERSION=0.6.3
 # TODO(potiuk): automate with upgrade check (possibly)
-ARG AIRFLOW_PRE_COMMIT_VERSION="4.0.1"
+ARG AIRFLOW_PRE_COMMIT_VERSION="4.1.0"
 ARG AIRFLOW_PRE_COMMIT_UV_VERSION="4.1.4"
 
 ENV AIRFLOW_PIP_VERSION=${AIRFLOW_PIP_VERSION} \
@@ -1330,7 +1306,7 @@ ENV ADDITIONAL_PYTHON_DEPS=${ADDITIONAL_PYTHON_DEPS}
 RUN --mount=type=cache,id=ci-$TARGETARCH-$DEPENDENCY_CACHE_EPOCH,target=/root/.cache/ \
     bash /scripts/docker/install_packaging_tools.sh; \
     if [[ -n "${ADDITIONAL_PYTHON_DEPS}" ]]; then \
-        bash /scripts/docker/install_additional_dependencies.sh; \
+    bash /scripts/docker/install_additional_dependencies.sh; \
     fi
 
 COPY --from=scripts entrypoint_ci.sh /entrypoint
@@ -1340,7 +1316,7 @@ RUN chmod a+x /entrypoint /entrypoint-exec
 
 # Install autocomplete for airflow and kubectl
 RUN if command -v airflow; then \
-        register-python-argcomplete airflow >> ~/.bashrc ; \
+    register-python-argcomplete airflow >> ~/.bashrc ; \
     fi; \
     echo "source /etc/bash_completion" >> ~/.bashrc
 
@@ -1367,27 +1343,27 @@ RUN ln -sf /usr/bin/dumb-init /usr/local/bin/dumb-init
 EXPOSE 8080
 
 LABEL org.apache.airflow.distro="debian" \
-  org.apache.airflow.module="airflow" \
-  org.apache.airflow.component="airflow" \
-  org.apache.airflow.image="airflow-ci" \
-  org.apache.airflow.version="${AIRFLOW_VERSION}" \
-  org.apache.airflow.uid="0" \
-  org.apache.airflow.gid="0" \
-  org.apache.airflow.build-id="${BUILD_ID}" \
-  org.apache.airflow.commit-sha="${COMMIT_SHA}" \
-  org.opencontainers.image.source="${AIRFLOW_IMAGE_REPOSITORY}" \
-  org.opencontainers.image.created="${AIRFLOW_IMAGE_DATE_CREATED}" \
-  org.opencontainers.image.authors="dev@airflow.apache.org" \
-  org.opencontainers.image.url="https://airflow.apache.org" \
-  org.opencontainers.image.documentation="https://airflow.apache.org/docs/docker-stack/index.html" \
-  org.opencontainers.image.source="https://github.com/apache/airflow" \
-  org.opencontainers.image.version="${AIRFLOW_VERSION}" \
-  org.opencontainers.image.revision="${COMMIT_SHA}" \
-  org.opencontainers.image.vendor="Apache Software Foundation" \
-  org.opencontainers.image.licenses="Apache-2.0" \
-  org.opencontainers.image.ref.name="airflow-ci-image" \
-  org.opencontainers.image.title="Continuous Integration Airflow Image" \
-  org.opencontainers.image.description="Installed Apache Airflow with Continuous Integration dependencies"
+    org.apache.airflow.module="airflow" \
+    org.apache.airflow.component="airflow" \
+    org.apache.airflow.image="airflow-ci" \
+    org.apache.airflow.version="${AIRFLOW_VERSION}" \
+    org.apache.airflow.uid="0" \
+    org.apache.airflow.gid="0" \
+    org.apache.airflow.build-id="${BUILD_ID}" \
+    org.apache.airflow.commit-sha="${COMMIT_SHA}" \
+    org.opencontainers.image.source="${AIRFLOW_IMAGE_REPOSITORY}" \
+    org.opencontainers.image.created="${AIRFLOW_IMAGE_DATE_CREATED}" \
+    org.opencontainers.image.authors="dev@airflow.apache.org" \
+    org.opencontainers.image.url="https://airflow.apache.org" \
+    org.opencontainers.image.documentation="https://airflow.apache.org/docs/docker-stack/index.html" \
+    org.opencontainers.image.source="https://github.com/apache/airflow" \
+    org.opencontainers.image.version="${AIRFLOW_VERSION}" \
+    org.opencontainers.image.revision="${COMMIT_SHA}" \
+    org.opencontainers.image.vendor="Apache Software Foundation" \
+    org.opencontainers.image.licenses="Apache-2.0" \
+    org.opencontainers.image.ref.name="airflow-ci-image" \
+    org.opencontainers.image.title="Continuous Integration Airflow Image" \
+    org.opencontainers.image.description="Installed Apache Airflow with Continuous Integration dependencies"
 
 ENTRYPOINT ["/usr/bin/dumb-init", "--", "/entrypoint"]
 CMD []

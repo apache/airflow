@@ -74,39 +74,39 @@ def recent_dag_runs(
     recent_runs_subquery = (
         select(
             DagRun.dag_id,
-            DagRun.logical_date,
+            DagRun.run_after,
             func.rank()
             .over(
                 partition_by=DagRun.dag_id,
-                order_by=DagRun.logical_date.desc(),
+                order_by=DagRun.run_after.desc(),
             )
             .label("rank"),
         )
-        .order_by(DagRun.logical_date.desc())
+        .order_by(DagRun.run_after.desc())
         .subquery()
     )
     dags_with_recent_dag_runs_select = (
         select(
             DagRun,
             DagModel,
-            recent_runs_subquery.c.logical_date,
+            recent_runs_subquery.c.run_after,
         )
         .join(DagModel, DagModel.dag_id == recent_runs_subquery.c.dag_id)
         .join(
             DagRun,
             and_(
                 DagRun.dag_id == DagModel.dag_id,
-                DagRun.logical_date == recent_runs_subquery.c.logical_date,
+                DagRun.run_after == recent_runs_subquery.c.run_after,
             ),
         )
         .where(recent_runs_subquery.c.rank <= dag_runs_limit)
         .group_by(
             DagModel.dag_id,
-            recent_runs_subquery.c.logical_date,
-            DagRun.logical_date,
+            recent_runs_subquery.c.run_after,
+            DagRun.run_after,
             DagRun.id,
         )
-        .order_by(recent_runs_subquery.c.logical_date.desc())
+        .order_by(recent_runs_subquery.c.run_after.desc())
     )
     dags_with_recent_dag_runs_select_filter, _ = paginated_select(
         statement=dags_with_recent_dag_runs_select,

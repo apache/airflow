@@ -31,21 +31,16 @@ from airflow.api_fastapi.common.parameters import (
     SortParam,
 )
 from airflow.api_fastapi.common.router import AirflowRouter
-from airflow.api_fastapi.core_api.datamodels.common import BulkAction
+from airflow.api_fastapi.core_api.datamodels.common import BulkBody, BulkResponse
 from airflow.api_fastapi.core_api.datamodels.variables import (
     VariableBody,
-    VariableBulkActionResponse,
-    VariableBulkBody,
-    VariableBulkResponse,
     VariableCollectionResponse,
     VariableResponse,
 )
 from airflow.api_fastapi.core_api.openapi.exceptions import create_openapi_http_exception_doc
-from airflow.api_fastapi.core_api.services.public.variables import (
-    handle_bulk_create,
-    handle_bulk_delete,
-    handle_bulk_update,
-)
+from airflow.api_fastapi.core_api.security import requires_access_variable
+from airflow.api_fastapi.core_api.services.public.variables import BulkVariableService
+from airflow.api_fastapi.logging.decorators import action_logging
 from airflow.models.variable import Variable
 
 variables_router = AirflowRouter(tags=["Variable"], prefix="/variables")
@@ -55,6 +50,7 @@ variables_router = AirflowRouter(tags=["Variable"], prefix="/variables")
     "/{variable_key}",
     status_code=status.HTTP_204_NO_CONTENT,
     responses=create_openapi_http_exception_doc([status.HTTP_404_NOT_FOUND]),
+    dependencies=[Depends(requires_access_variable("DELETE"))],
 )
 def delete_variable(
     variable_key: str,
@@ -70,6 +66,7 @@ def delete_variable(
 @variables_router.get(
     "/{variable_key}",
     responses=create_openapi_http_exception_doc([status.HTTP_404_NOT_FOUND]),
+    dependencies=[Depends(requires_access_variable("GET"))],
 )
 def get_variable(
     variable_key: str,
@@ -88,6 +85,7 @@ def get_variable(
 
 @variables_router.get(
     "",
+    dependencies=[Depends(requires_access_variable("GET"))],
 )
 def get_variables(
     limit: QueryLimit,
@@ -130,6 +128,7 @@ def get_variables(
             status.HTTP_404_NOT_FOUND,
         ]
     ),
+    dependencies=[Depends(requires_access_variable("PUT"))],
 )
 def patch_variable(
     variable_key: str,
@@ -152,13 +151,13 @@ def patch_variable(
     fields_to_update = patch_body.model_fields_set
     if update_mask:
         fields_to_update = fields_to_update.intersection(update_mask)
-        data = patch_body.model_dump(include=fields_to_update - non_update_fields, by_alias=True)
     else:
         try:
             VariableBody(**patch_body.model_dump())
         except ValidationError as e:
             raise RequestValidationError(errors=e.errors())
-        data = patch_body.model_dump(exclude=non_update_fields, by_alias=True)
+
+    data = patch_body.model_dump(include=fields_to_update - non_update_fields, by_alias=True)
 
     for key, val in data.items():
         setattr(variable, key, val)
@@ -170,6 +169,7 @@ def patch_variable(
     "",
     status_code=status.HTTP_201_CREATED,
     responses=create_openapi_http_exception_doc([status.HTTP_409_CONFLICT]),
+    dependencies=[Depends(action_logging()), Depends(requires_access_variable("POST"))],
 )
 def post_variable(
     post_body: VariableBody,
@@ -191,23 +191,10 @@ def post_variable(
     return variable
 
 
-@variables_router.patch("")
+@variables_router.patch("", dependencies=[Depends(requires_access_variable("PUT"))])
 def bulk_variables(
-    request: VariableBulkBody,
+    request: BulkBody[VariableBody],
     session: SessionDep,
-) -> VariableBulkResponse:
+) -> BulkResponse:
     """Bulk create, update, and delete variables."""
-    results: dict[str, VariableBulkActionResponse] = {}
-
-    for action in request.actions:
-        if action.action.value not in results:
-            results[action.action.value] = VariableBulkActionResponse()
-
-        if action.action == BulkAction.CREATE:
-            handle_bulk_create(session, action, results[action.action.value])  # type: ignore
-        elif action.action == BulkAction.UPDATE:
-            handle_bulk_update(session, action, results[action.action.value])  # type: ignore
-        elif action.action == BulkAction.DELETE:
-            handle_bulk_delete(session, action, results[action.action.value])  # type: ignore
-
-    return VariableBulkResponse(**results)
+    return BulkVariableService(session=session, request=request).handle_request()

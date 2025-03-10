@@ -119,16 +119,17 @@ class DagBag(LoggingMixin):
 
     def __init__(
         self,
-        dag_folder: str | Path | None = None,
+        dag_folder: str | Path | None = None,  # todo AIP-66: rename this to path
         include_examples: bool | ArgNotSet = NOTSET,
         safe_mode: bool | ArgNotSet = NOTSET,
         read_dags_from_db: bool = False,
         load_op_links: bool = True,
         collect_dags: bool = True,
         known_pools: set[str] | None = None,
+        bundle_path: Path | None = None,
     ):
         super().__init__()
-
+        self.bundle_path: Path | None = bundle_path
         include_examples = (
             include_examples
             if isinstance(include_examples, bool)
@@ -482,6 +483,10 @@ class DagBag(LoggingMixin):
 
         for dag, mod in top_level_dags:
             dag.fileloc = mod.__file__
+            if self.bundle_path:
+                dag.relative_fileloc = str(Path(mod.__file__).relative_to(self.bundle_path))
+            else:
+                dag.relative_fileloc = dag.fileloc
             try:
                 dag.validate()
                 self.bag_dag(dag=dag)

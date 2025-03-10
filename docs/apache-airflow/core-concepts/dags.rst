@@ -20,7 +20,9 @@
 DAGs
 ====
 
-A *DAG* (Directed Acyclic Graph) is the core concept of Airflow, collecting :doc:`tasks` together, organized with dependencies and relationships to say how they should run.
+.. include:: ../../exts/includes/dag-definition.rst
+    :start-after: .. dag-definition-start
+    :end-before: .. dag-definition-end
 
 Here's a basic example DAG:
 
@@ -30,6 +32,9 @@ It defines four Tasks - A, B, C, and D - and dictates the order in which they ha
 
 The DAG itself doesn't care about *what* is happening inside the tasks; it is merely concerned with *how* to execute them - the order to run them in, how many times to retry them, if they have timeouts, and so on.
 
+.. include:: ../../exts/includes/dag-definition.rst
+    :start-after: .. dag-etymology-start
+    :end-before: .. dag-etymology-end
 
 Declaring a DAG
 ---------------
@@ -43,7 +48,7 @@ which will add anything inside it to the DAG implicitly:
     import datetime
 
     from airflow import DAG
-    from airflow.operators.empty import EmptyOperator
+    from airflow.providers.standard.operators.empty import EmptyOperator
 
     with DAG(
         dag_id="my_dag_name",
@@ -61,7 +66,7 @@ Or, you can use a standard constructor, passing the DAG into any operators you u
     import datetime
 
     from airflow import DAG
-    from airflow.operators.empty import EmptyOperator
+    from airflow.providers.standard.operators.empty import EmptyOperator
 
     my_dag = DAG(
         dag_id="my_dag_name",
@@ -79,7 +84,7 @@ Or, you can use the ``@dag`` decorator to :ref:`turn a function into a DAG gener
     import datetime
 
     from airflow.decorators import dag
-    from airflow.operators.empty import EmptyOperator
+    from airflow.providers.standard.operators.empty import EmptyOperator
 
 
     @dag(start_date=datetime.datetime(2021, 1, 1), schedule="@daily")
@@ -455,7 +460,7 @@ You can also combine this with the :ref:`concepts:depends-on-past` functionality
 
         from airflow.decorators import task
         from airflow.models import DAG
-        from airflow.operators.empty import EmptyOperator
+        from airflow.providers.standard.operators.empty import EmptyOperator
 
         dag = DAG(
             dag_id="branch_without_trigger",
@@ -575,7 +580,7 @@ TaskGroup also supports ``default_args`` like DAG, it will overwrite the ``defau
     from airflow import DAG
     from airflow.decorators import task_group
     from airflow.providers.standard.operators.bash import BashOperator
-    from airflow.operators.empty import EmptyOperator
+    from airflow.providers.standard.operators.empty import EmptyOperator
 
     with DAG(
         dag_id="dag1",
@@ -734,10 +739,6 @@ specifies a regular expression pattern, and directories or files whose names (no
 match any of the patterns would be ignored (under the hood, ``Pattern.search()`` is used
 to match the pattern). Use the ``#`` character to indicate a comment; all characters
 on lines starting with ``#`` will be ignored.
-
-As with most regexp matching in Airflow, the regexp engine is ``re2``, which explicitly
-doesn't support many advanced features, please check its
-`documentation <https://github.com/google/re2/wiki/Syntax>`_ for more information.
 
 The ``.airflowignore`` file should be put in your ``DAG_FOLDER``. For example, you can prepare
 a ``.airflowignore`` file with the ``glob`` syntax

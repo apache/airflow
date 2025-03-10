@@ -97,7 +97,7 @@ class SkipMixin(LoggingMixin):
         dag_id: str,
         run_id: str,
         tasks: Iterable[DAGNode],
-        map_index: int = -1,
+        map_index: int | None = -1,
         session: Session = NEW_SESSION,
     ):
         """
@@ -125,6 +125,9 @@ class SkipMixin(LoggingMixin):
 
         if task_id is not None:
             from airflow.models.xcom import XCom
+
+            if map_index is None:
+                map_index = -1
 
             XCom.set(
                 key=XCOM_SKIPMIXIN_KEY,

@@ -85,7 +85,7 @@ jobs:
       - run: uv tool run --from apache-airflow-breeze pytest -n auto --color=yes
         working-directory: ./dev/breeze/
   tests-ui:
-    timeout-minutes: 10
+    timeout-minutes: 15
     name: React UI tests
     runs-on: ${{ fromJSON(inputs.runs-on-as-json-public) }}
     if: inputs.run-ui-tests == 'true'
@@ -115,7 +115,7 @@ jobs:
         with:
           path: airflow/ui/node_modules/
           key: cache-ui-node-modules-v1-${{ runner.os }}-${{ hashFiles('airflow/ui/**/pnpm-lock.yaml') }}
-        id: restore-eslint-cache
+        id: restore-eslint-cache-ui
       - run: cd airflow/ui && pnpm install --frozen-lockfile
       - run: cd airflow/ui && pnpm test
         env:
@@ -127,45 +127,29 @@ jobs:
           key: cache-ui-node-modules-v1-${{ runner.os }}-${{ hashFiles('airflow/ui/**/pnpm-lock.yaml') }}
           if-no-files-found: 'error'
           retention-days: '2'
-        if: steps.restore-eslint-cache.outputs.stash-hit != 'true'
-
-  tests-www:
-    timeout-minutes: 10
-    name: React WWW tests
-    runs-on: ${{ fromJSON(inputs.runs-on-as-json-public) }}
-    if: inputs.run-www-tests == 'true'
-    steps:
-      - name: "Cleanup repo"
-        shell: bash
-        run: docker run -v "${GITHUB_WORKSPACE}:/workspace" -u 0:0 bash -c "rm -rf /workspace/*"
-      - name: "Checkout ${{ github.ref }} ( ${{ github.sha }} )"
-        uses: actions/checkout@v4
-        with:
-          persist-credentials: false
-      - name: "Cleanup docker"
-        run: ./scripts/ci/cleanup_docker.sh
-      - name: "Setup node"
-        uses: actions/setup-node@v4
-        with:
-          node-version: 21
-      - name: "Restore eslint cache (www)"
+        if: steps.restore-eslint-cache-ui.outputs.stash-hit != 'true'
+      - name: "Restore eslint cache (simple auth manager UI)"
         uses: apache/infrastructure-actions/stash/restore@1c35b5ccf8fba5d4c3fdf25a045ca91aa0cbc468
         with:
-          path: airflow/www/node_modules/
-          key: cache-www-node-modules-v1-${{ runner.os }}-${{ hashFiles('airflow/www/**/yarn.lock') }}
-        id: restore-eslint-cache
-      - run: yarn --cwd airflow/www/ install --frozen-lockfile --non-interactive
-      - run: yarn --cwd airflow/www/ run test
+          path: airflow/api_fastapi/auth/managers/simple/ui/node_modules/
+          key: >
+            cache-simple-am-ui-node-modules-v1-
+            ${{ runner.os }}-${{ hashFiles('airflow/api_fastapi/auth/managers/simple/ui/**/pnpm-lock.yaml') }}
+        id: restore-eslint-cache-simple-am-ui
+      - run: cd airflow/api_fastapi/auth/managers/simple/ui && pnpm install --frozen-lockfile
+      - run: cd airflow/api_fastapi/auth/managers/simple/ui && pnpm test
         env:
           FORCE_COLOR: 2
-      - name: "Save eslint cache (www)"
+      - name: "Save eslint cache (ui)"
         uses: apache/infrastructure-actions/stash/save@1c35b5ccf8fba5d4c3fdf25a045ca91aa0cbc468
         with:
-          path: airflow/www/node_modules/
-          key: cache-www-node-modules-v1-${{ runner.os }}-${{ hashFiles('airflow/www/**/yarn.lock') }}
+          path: airflow/api_fastapi/auth/managers/simple/ui/node_modules/
+          key: >
+            cache-simple-am-ui-node-modules-v1-
+            ${{ runner.os }}-${{ hashFiles('airflow/api_fastapi/auth/managers/simple/ui/**/pnpm-lock.yaml') }}
           if-no-files-found: 'error'
           retention-days: '2'
-        if: steps.restore-eslint-cache.outputs.stash-hit != 'true'
+        if: steps.restore-eslint-cache-simple-am-ui.outputs.stash-hit != 'true'
 
   install-pre-commit:
     timeout-minutes: 5
@@ -173,7 +157,6 @@ jobs:
     runs-on: ${{ fromJSON(inputs.runs-on-as-json-public) }}
     env:
       PYTHON_MAJOR_MINOR_VERSION: "${{ inputs.default-python-version }}"
-    if: inputs.basic-checks-only == 'true'
     steps:
       - name: "Cleanup repo"
         shell: bash
@@ -256,7 +239,7 @@ jobs:
     needs: install-pre-commit
     env:
       PYTHON_MAJOR_MINOR_VERSION: "${{ inputs.default-python-version }}"
-    if: inputs.canary-run == 'true' && inputs.latest-versions-only != 'true'
+    if: inputs.canary-run == 'true'
     steps:
       - name: "Cleanup repo"
         shell: bash
@@ -286,15 +269,6 @@ jobs:
           --hook-stage manual
           update-black-version
         if: always()
-      - name: "Run automated upgrade for build dependencies"
-        run: >
-          pre-commit run
-          --all-files --show-diff-on-failure --color always --verbose
-          --hook-stage manual
-          update-build-dependencies
-        if: always()
-        env:
-          SKIP_TROVE_CLASSIFIERS_ONLY: "true"
       - name: "Run automated upgrade for chart dependencies"
         run: >
           pre-commit run
@@ -314,16 +288,19 @@ jobs:
         env:
           UPGRADE_UV: "true"
           UPGRADE_PIP: "false"
-          UPGRADE_PRE_COMMIT: "true"
-      - name: "Run automated upgrade for pip"
+          UPGRADE_PRE_COMMIT: "false"
+          UPGRADE_NODE_LTS: "false"
+      - name: "Run automated upgrade for pip, pre-commit and node"
         run: >
           pre-commit run
           --all-files --show-diff-on-failure --color always --verbose
-          --hook-stage manual update-installers
+          --hook-stage manual update-installers-and-pre-commit
         if: always()
         env:
           UPGRADE_UV: "false"
           UPGRADE_PIP: "true"
+          UPGRADE_PRE_COMMIT: "true"
+          UPGRADE_NODE_LTS: "true"
 
   test-airflow-release-commands:
     timeout-minutes: 80

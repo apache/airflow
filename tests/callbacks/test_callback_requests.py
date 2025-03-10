@@ -43,10 +43,12 @@ class TestCallbackRequest:
             ),
             (
                 DagCallbackRequest(
-                    full_filepath="filepath",
+                    filepath="filepath",
                     dag_id="fake_dag",
                     run_id="fake_run",
                     is_failure_callback=False,
+                    bundle_name="testing",
+                    bundle_version=None,
                 ),
                 DagCallbackRequest,
             ),
@@ -64,10 +66,10 @@ class TestCallbackRequest:
                 run_id="fake_run",
                 state=State.RUNNING,
             )
+            ti.start_date = timezone.utcnow()
 
             input = TaskCallbackRequest(
-                full_filepath="filepath",
-                ti=ti,
+                filepath="filepath", ti=ti, bundle_name="testing", bundle_version=None
             )
         json_str = input.to_json()
         result = request_class.from_json(json_str)
@@ -79,10 +81,7 @@ class TestCallbackRequest:
         ti.end_date = timezone.utcnow()
         session.merge(ti)
         session.flush()
-        input = TaskCallbackRequest(
-            full_filepath="filepath",
-            ti=ti,
-        )
+        input = TaskCallbackRequest(filepath="filepath", ti=ti, bundle_name="testing", bundle_version=None)
         json_str = input.to_json()
         result = TaskCallbackRequest.from_json(json_str)
         assert input == result

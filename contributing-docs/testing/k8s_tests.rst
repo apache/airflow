@@ -89,9 +89,12 @@ In order to deploy Airflow, the PROD image of Airflow need to be extended and ex
 template files should be added to the image. This is done via ``build-k8s-image``, ``upload-k8s-image``.
 This can also be done for all/selected images/clusters in parallel via ``--run-in-parallel`` flag.
 
+Deploy Airflow to Kubernetes Cluster
+------------------------------------
+
 Then Airflow (by using Helm Chart) can be deployed to the cluster via ``deploy-airflow`` command.
 This can also be done for all/selected images/clusters in parallel via ``--run-in-parallel`` flag. You can
-pass extra options when deploying airflow to configure your depliyment.
+pass extra options when deploying airflow to configure your deployment.
 
 You can check the status, dump logs and finally delete cluster via ``status``, ``logs``, ``delete-cluster``
 commands. This can also be done for all created clusters in parallel via ``--all`` flag.
@@ -100,6 +103,22 @@ You can interact with the cluster (via ``shell`` and ``k9s`` commands).
 
 You can run set of k8s tests via ``tests`` command. You can also run tests in parallel on all/selected
 clusters by ``--run-in-parallel`` flag.
+
+
+**Note**:
+
+If you want to run tests with a non-``LocalExecutor``, you need to deploy Airflow with the corresponding ``executor`` flags.
+For example, if you want to run tests with ``KubernetesExecutor``
+
+.. code-block:: bash
+
+    breeze k8s tests --executor KubernetesExecutor
+
+you need to deploy Airflow with the ``--executor KubernetesExecutor`` flag.
+
+.. code-block:: bash
+
+    breeze k8s deploy-airflow --executor KubernetesExecutor
 
 
 Running tests with Kubernetes Cluster

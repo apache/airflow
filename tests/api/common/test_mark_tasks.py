@@ -21,7 +21,7 @@ from typing import TYPE_CHECKING
 import pytest
 
 from airflow.api.common.mark_tasks import set_dag_run_state_to_failed, set_dag_run_state_to_success
-from airflow.operators.empty import EmptyOperator
+from airflow.providers.standard.operators.empty import EmptyOperator
 from airflow.utils.state import TaskInstanceState
 
 if TYPE_CHECKING:

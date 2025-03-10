@@ -21,13 +21,12 @@ import { useState } from "react";
 import { FiRefreshCw } from "react-icons/fi";
 
 import type { DAGRunResponse } from "openapi/requests/types.gen";
+import { ActionAccordion } from "src/components/ActionAccordion";
 import { Button, Dialog } from "src/components/ui";
 import SegmentedControl from "src/components/ui/SegmentedControl";
 import { useClearDagRunDryRun } from "src/queries/useClearDagRunDryRun";
 import { useClearDagRun } from "src/queries/useClearRun";
 import { usePatchDagRun } from "src/queries/usePatchDagRun";
-
-import ClearAccordion from "../ClearAccordion";
 
 type Props = {
   readonly dagRun: DAGRunResponse;
@@ -97,7 +96,7 @@ const ClearRunDialog = ({ dagRun, onClose, open }: Props) => {
               ]}
             />
           </Flex>
-          <ClearAccordion affectedTasks={affectedTasks} note={note} setNote={setNote} />
+          <ActionAccordion affectedTasks={affectedTasks} note={note} setNote={setNote} />
           <Flex justifyContent="end" mt={3}>
             <Button
               colorPalette="blue"

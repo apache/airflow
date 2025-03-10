@@ -22,16 +22,17 @@ description: |
     `Iceberg <https://iceberg.apache.org/>`__
 
 state: ready
-source-date-epoch: 1734528119
+source-date-epoch: 1741507920
 # note that those versions are maintained by release manager - do not update them manually
 versions:
+  - 1.2.1
   - 1.2.0
   - 1.1.0
   - 1.0.0
 
 integrations:
   - integration-name: Iceberg
-    logo: /docs/integration-logo/iceberg.png
+    logo: /docs/integration-logos/iceberg.png
     external-doc-url: https://iceberg.apache.org/
     tags: [software]
 

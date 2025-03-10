@@ -368,30 +368,38 @@ class TestRenderedTaskInstanceFields:
         )
 
     @mock.patch.dict(os.environ, {"AIRFLOW_VAR_API_KEY": "secret"})
-    @mock.patch("airflow.utils.log.secrets_masker.redact", autospec=True)
-    def test_redact(self, redact, dag_maker):
-        with dag_maker("test_ritf_redact", serialized=True):
-            task = BashOperator(
-                task_id="test",
-                bash_command="echo {{ var.value.api_key }}",
-                env={"foo": "secret", "other_api_key": "masked based on key name"},
-            )
-        dr = dag_maker.create_dagrun()
-        redact.side_effect = [
-            # Order depends on order in Operator template_fields
-            "val 1",  # bash_command
-            "val 2",  # env
-            "val 3",  # cwd
-        ]
+    def test_redact(self, dag_maker):
+        from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS
 
-        ti = dr.task_instances[0]
-        ti.task = task
-        rtif = RTIF(ti=ti)
-        assert rtif.rendered_fields == {
-            "bash_command": "val 1",
-            "env": "val 2",
-            "cwd": "val 3",
-        }
+        target = (
+            "airflow.sdk.execution_time.secrets_masker.redact"
+            if AIRFLOW_V_3_0_PLUS
+            else "airflow.utils.log.secrets_masker.mask_secret.redact"
+        )
+
+        with mock.patch(target, autospec=True) as redact:
+            with dag_maker("test_ritf_redact", serialized=True):
+                task = BashOperator(
+                    task_id="test",
+                    bash_command="echo {{ var.value.api_key }}",
+                    env={"foo": "secret", "other_api_key": "masked based on key name"},
+                )
+            dr = dag_maker.create_dagrun()
+            redact.side_effect = [
+                # Order depends on order in Operator template_fields
+                "val 1",  # bash_command
+                "val 2",  # env
+                "val 3",  # cwd
+            ]
+
+            ti = dr.task_instances[0]
+            ti.task = task
+            rtif = RTIF(ti=ti)
+            assert rtif.rendered_fields == {
+                "bash_command": "val 1",
+                "env": "val 2",
+                "cwd": "val 3",
+            }
 
     def test_rtif_deletion_stale_data_error(self, dag_maker, session):
         """

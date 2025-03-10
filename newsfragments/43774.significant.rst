@@ -16,7 +16,7 @@ For easier change in the future, this function now takes only keyword arguments.
   * [ ] Dependency changes
   * [ ] Code interface changes
 
-* Migrations rules needed
+* Migration rules needed
 
   * ruff
 

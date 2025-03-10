@@ -38,11 +38,11 @@ metadata:
   {{- end }}
 {{- $Global := . }}
 data:
-  {{/*- Set a default for workers.execution_api_server_url pointing to the api-server service if it's not set -*/}}
+  {{/*- Set a default for core.execution_api_server_url pointing to the api-server service if it's not set -*/}}
   {{- if semverCompare ">=3.0.0" .Values.airflowVersion -}}
-    {{- $config := merge .Values.config ( dict  "workers" dict )}}
-    {{- if not (hasKey $config.workers "execution_api_server_url") -}}
-      {{- $_ := set $config.workers "execution_api_server_url" (printf "http://%s-api-server:%d/execution/" (include "airflow.fullname" .) (int .Values.ports.apiServer))  -}}
+    {{- $config := merge .Values.config ( dict  "core" dict )}}
+    {{- if not (hasKey $config.core "execution_api_server_url") -}}
+      {{- $_ := set $config.core "execution_api_server_url" (printf "http://%s-api-server:%d/execution/" (include "airflow.fullname" .) (int .Values.ports.apiServer))  -}}
     {{- end -}}
   {{- end -}}
   # These are system-specified config overrides.

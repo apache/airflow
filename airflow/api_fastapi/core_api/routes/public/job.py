@@ -37,7 +37,6 @@ from airflow.api_fastapi.common.parameters import (
 from airflow.api_fastapi.common.router import AirflowRouter
 from airflow.api_fastapi.core_api.datamodels.job import (
     JobCollectionResponse,
-    JobResponse,
 )
 from airflow.api_fastapi.core_api.openapi.exceptions import create_openapi_http_exception_doc
 from airflow.jobs.job import Job
@@ -124,12 +123,6 @@ def get_jobs(
         jobs = [job for job in jobs if job.is_alive()]
 
     return JobCollectionResponse(
-        jobs=[
-            JobResponse.model_validate(
-                job,
-                from_attributes=True,
-            )
-            for job in jobs
-        ],
+        jobs=jobs,
         total_entries=total_entries,
     )

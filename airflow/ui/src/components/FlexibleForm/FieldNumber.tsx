@@ -17,18 +17,42 @@
  * under the License.
  */
 import type { FlexibleFormElementProps } from ".";
+import { paramPlaceholder, useParamStore } from "../TriggerDag/useParamStore";
 import { NumberInputField, NumberInputRoot } from "../ui/NumberInput";
 
-export const FieldNumber = ({ name, param }: FlexibleFormElementProps) => (
-  <NumberInputRoot
-    allowMouseWheel
-    defaultValue={String(param.value ?? "")}
-    id={`element_${name}`}
-    max={param.schema.maximum ?? undefined}
-    min={param.schema.minimum ?? undefined}
-    name={`element_${name}`}
-    size="sm"
-  >
-    <NumberInputField />
-  </NumberInputRoot>
-);
+export const FieldNumber = ({ name }: FlexibleFormElementProps) => {
+  const { paramsDict, setParamsDict } = useParamStore();
+  const param = paramsDict[name] ?? paramPlaceholder;
+  const handleChange = (value: string) => {
+    if (value === "") {
+      // If input is cleared, set the value to null or undefined
+      if (paramsDict[name]) {
+        // "undefined" values are removed from params, so we set it to null to avoid falling back to DAG defaults.
+        // eslint-disable-next-line unicorn/no-null
+        paramsDict[name].value = null;
+      }
+    } else {
+      // Convert the string to a number if a valid value is entered
+      if (paramsDict[name]) {
+        paramsDict[name].value = Number(value);
+      }
+    }
+
+    setParamsDict(paramsDict);
+  };
+
+  return (
+    <NumberInputRoot
+      allowMouseWheel
+      id={`element_${name}`}
+      max={param.schema.maximum ?? undefined}
+      min={param.schema.minimum ?? undefined}
+      name={`element_${name}`}
+      onValueChange={(event) => handleChange(event.value)}
+      size="sm"
+      value={String(param.value ?? "")}
+    >
+      <NumberInputField />
+    </NumberInputRoot>
+  );
+};

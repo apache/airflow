@@ -26,8 +26,7 @@ Google Cloud SDK installation
 -----------------------------
 
 Some operators, such as :class:`~airflow.providers.google.cloud.operators.kubernetes_engine.GKEStartPodOperator`,
-:class:`~airflow.providers.google.cloud.operators.dataflow.DataflowStartSqlJobOperator`, require
-the installation of `Google Cloud SDK <https://cloud.google.com/sdk>`__ (includes ``gcloud``).
+require the installation of `Google Cloud SDK <https://cloud.google.com/sdk>`__ (includes ``gcloud``).
 You can also run these commands with BashOperator.
 
 Create a new Dockerfile like the one shown below.

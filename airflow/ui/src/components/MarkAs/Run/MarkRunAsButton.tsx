@@ -21,17 +21,17 @@ import { useState } from "react";
 import { MdArrowDropDown } from "react-icons/md";
 
 import type { DAGRunPatchStates, DAGRunResponse } from "openapi/requests/types.gen";
-import { Menu, Status } from "src/components/ui";
+import { StateBadge } from "src/components/StateBadge";
+import { Menu } from "src/components/ui";
 import ActionButton from "src/components/ui/ActionButton";
 
+import { allowedStates } from "../utils";
 import MarkRunAsDialog from "./MarkRunAsDialog";
 
 type Props = {
   readonly dagRun: DAGRunResponse;
   readonly withText?: boolean;
 };
-
-const allowedStates: Array<DAGRunPatchStates> = ["success", "failed"];
 
 const MarkRunAsButton = ({ dagRun, withText = true }: Props) => {
   const { onClose, onOpen, open } = useDisclosure();
@@ -50,7 +50,7 @@ const MarkRunAsButton = ({ dagRun, withText = true }: Props) => {
           />
         </Menu.Trigger>
         <Menu.Content>
-          {allowedStates.map((menuState: DAGRunPatchStates) => (
+          {allowedStates.map((menuState) => (
             <Menu.Item
               asChild
               disabled={dagRun.state === menuState}
@@ -63,13 +63,15 @@ const MarkRunAsButton = ({ dagRun, withText = true }: Props) => {
               }}
               value={menuState}
             >
-              <Status state={menuState}>{menuState}</Status>
+              <StateBadge my={1} state={menuState}>
+                {menuState}
+              </StateBadge>
             </Menu.Item>
           ))}
         </Menu.Content>
       </Menu.Root>
 
-      <MarkRunAsDialog dagRun={dagRun} onClose={onClose} open={open} state={state} />
+      {open ? <MarkRunAsDialog dagRun={dagRun} onClose={onClose} open={open} state={state} /> : undefined}
     </Box>
   );
 };

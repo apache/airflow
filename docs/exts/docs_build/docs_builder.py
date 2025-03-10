@@ -45,12 +45,11 @@ class AirflowDocsBuilder:
 
     def __init__(self, package_name: str):
         self.package_name = package_name
-        self.new_structure_provider = False
+        self.is_provider = False
         if self.package_name.startswith("apache-airflow-providers-"):
             self.package_id = self.package_name.split("apache-airflow-providers-", 1)[1].replace("-", ".")
             self.provider_path = (Path(ROOT_PROJECT_DIR) / "providers").joinpath(*self.package_id.split("."))
-            if self.provider_path.exists():
-                self.new_structure_provider = True
+            self.is_provider = True
 
     @property
     def _doctree_dir(self) -> str:
@@ -123,9 +122,8 @@ class AirflowDocsBuilder:
         shutil.rmtree(self.log_spelling_output_dir, ignore_errors=True)
         os.makedirs(self.log_spelling_output_dir, exist_ok=True)
 
-        # TODO(potiuk) - remove if when all providers are new-style
-        if self.new_structure_provider:
-            self.cleanup_new_provider_dir()
+        if self.is_provider:
+            self.cleanup_provider_dir()
         build_cmd = [
             "sphinx-build",
             "-W",  # turn warnings into errors
@@ -196,28 +194,17 @@ class AirflowDocsBuilder:
                 console.print(
                     f"[bright_blue]{self.package_name:60}:[/] [green]Finished spell-checking successfully[/]"
                 )
-        if self.new_structure_provider:
+        if self.is_provider:
             if skip_deletion:
                 console.print(
-                    f"[bright_blue]{self.package_name:60}:[/] [magenta](NEW)[/] Leaving generated files in {self._src_dir}."
+                    f"[bright_blue]{self.package_name:60}:[/] Leaving generated files in {self._src_dir}."
                 )
             else:
-                console.print(
-                    f"[bright_blue]{self.package_name:60}:[/] [magenta](NEW)[/] Cleaning up generated files in {self._src_dir}."
-                )
                 shutil.rmtree(self._src_dir, ignore_errors=True)
         return spelling_errors, build_errors
 
-    # TODO(potiuk) - rename when all providers are new-style
-    def cleanup_new_provider_dir(self):
-        console.print(
-            f"[bright_blue]{self.package_name:60}:[/] [magenta](NEW)[/] Cleaning up old files in {self._src_dir}."
-        )
+    def cleanup_provider_dir(self):
         shutil.rmtree(self._src_dir, ignore_errors=True)
-        console.print(
-            f"[bright_blue]{self.package_name:60}:[/] [magenta](NEW)[/] Coping docs "
-            f"from {self.provider_path}/docs to {self._src_dir}."
-        )
         shutil.copytree(
             f"{self.provider_path}/docs",
             self._src_dir,
@@ -234,9 +221,8 @@ class AirflowDocsBuilder:
         build_errors = []
         os.makedirs(self._build_dir, exist_ok=True)
 
-        # TODO(potiuk) - remove if when all providers are new-style
-        if self.new_structure_provider:
-            self.cleanup_new_provider_dir()
+        if self.is_provider:
+            self.cleanup_provider_dir()
         build_cmd = [
             "sphinx-build",
             "-T",  # show full traceback on exception
@@ -295,15 +281,12 @@ class AirflowDocsBuilder:
             console.print(
                 f"[bright_blue]{self.package_name:60}:[/] [green]Finished docs building successfully[/]"
             )
-        if self.new_structure_provider:
+        if self.is_provider:
             if skip_deletion:
                 console.print(
-                    f"[bright_blue]{self.package_name:60}:[/] [magenta](NEW)[/] Leaving generated files in {self._src_dir}."
+                    f"[bright_blue]{self.package_name:60}:[/] Leaving generated files in {self._src_dir}."
                 )
             else:
-                console.print(
-                    f"[bright_blue]{self.package_name:60}:[/] [magenta](NEW)[/] Cleaning up generated files in {self._src_dir}."
-                )
                 shutil.rmtree(self._src_dir, ignore_errors=True)
         return build_errors
 

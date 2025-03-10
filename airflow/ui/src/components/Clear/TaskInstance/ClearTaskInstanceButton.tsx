@@ -42,7 +42,9 @@ const ClearTaskInstanceButton = ({ taskInstance, withText = true }: Props) => {
         withText={withText}
       />
 
-      <ClearTaskInstanceDialog onClose={onClose} open={open} taskInstance={taskInstance} />
+      {open ? (
+        <ClearTaskInstanceDialog onClose={onClose} open={open} taskInstance={taskInstance} />
+      ) : undefined}
     </Box>
   );
 };

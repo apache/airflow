@@ -17,10 +17,12 @@
 # under the License.
 from __future__ import annotations
 
+import inspect
 import pathlib
 import sys
+import textwrap
 from socket import socketpair
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Callable
 from unittest.mock import patch
 
 import pytest
@@ -32,6 +34,7 @@ from airflow.configuration import conf
 from airflow.dag_processing.processor import (
     DagFileParseRequest,
     DagFileParsingResult,
+    DagFileProcessorProcess,
     _parse_file,
 )
 from airflow.models import DagBag, TaskInstance
@@ -51,16 +54,9 @@ if TYPE_CHECKING:
 pytestmark = pytest.mark.db_test
 
 DEFAULT_DATE = timezone.datetime(2016, 1, 1)
-PY311 = sys.version_info >= (3, 11)
-
-# Include the words "airflow" and "dag" in the file contents,
-# tricking airflow into thinking these
-# files contain a DAG (otherwise Airflow will skip them)
-PARSEABLE_DAG_FILE_CONTENTS = '"airflow DAG"'
 
 # Filename to be used for dags that are created in an ad-hoc manner and can be removed/
 # created at runtime
-TEMP_DAG_FILENAME = "temp_dag.py"
 TEST_DAG_FOLDER = pathlib.Path(__file__).parents[1].resolve() / "dags"
 
 
@@ -75,9 +71,14 @@ def disable_load_example():
 class TestDagFileProcessor:
     def _process_file(
         self, file_path, callback_requests: list[CallbackRequest] | None = None
-    ) -> DagFileParsingResult:
+    ) -> DagFileParsingResult | None:
         return _parse_file(
-            DagFileParseRequest(file=file_path, requests_fd=1, callback_requests=callback_requests or []),
+            DagFileParseRequest(
+                file=file_path,
+                bundle_path=TEST_DAG_FOLDER,
+                requests_fd=1,
+                callback_requests=callback_requests or [],
+            ),
             log=structlog.get_logger(),
         )
 
@@ -99,6 +100,7 @@ class TestDagFileProcessor:
                 logical_date=DEFAULT_DATE,
                 run_type=DagRunType.SCHEDULED,
                 data_interval=dag.infer_automated_data_interval(DEFAULT_DATE),
+                run_after=DEFAULT_DATE,
                 triggered_by=DagRunTriggeredByType.TEST,
                 session=session,
             )
@@ -107,7 +109,7 @@ class TestDagFileProcessor:
             session.add(ti)
 
             if has_serialized_dag:
-                assert SerializedDagModel.write_dag(dag, session=session) is True
+                assert SerializedDagModel.write_dag(dag, bundle_name="testing", session=session) is True
                 session.flush()
 
         requests = [TaskCallbackRequest(full_filepath="A", ti=ti, msg="Message")]
@@ -122,49 +124,76 @@ class TestDagFileProcessor:
             dagbag.import_errors["a.py"] = "Import error"
 
         resp = self._process_file("a.py")
-
+        assert resp is not None
         assert not resp.serialized_dags
         assert resp.import_errors is not None
         assert "a.py" in resp.import_errors
 
+    # @pytest.mark.execution_timeout(10)
+    def test_top_level_variable_access(
+        self, spy_agency: SpyAgency, tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch
+    ):
+        def dag_in_a_fn():
+            from airflow.sdk import DAG, Variable
 
-#     @conf_vars({("logging", "dag_processor_log_target"): "stdout"})
-#     @mock.patch("airflow.dag_processing.processor.settings.dispose_orm", MagicMock)
-#     @mock.patch("airflow.dag_processing.processor.redirect_stdout")
-#     def test_dag_parser_output_when_logging_to_stdout(self, mock_redirect_stdout_for_file):
-#         processor = DagFileProcessorProcess(
-#             file_path="abc.txt",
-#             dag_directory=[],
-#             callback_requests=[],
-#         )
-#         processor._run_file_processor(
-#             result_channel=MagicMock(),
-#             parent_channel=MagicMock(),
-#             file_path="fake_file_path",
-#             thread_name="fake_thread_name",
-#             callback_requests=[],
-#             dag_directory=[],
-#         )
-#         mock_redirect_stdout_for_file.assert_not_called()
-#
-#     @conf_vars({("logging", "dag_processor_log_target"): "file"})
-#     @mock.patch("airflow.dag_processing.processor.settings.dispose_orm", MagicMock)
-#     @mock.patch("airflow.dag_processing.processor.redirect_stdout")
-#     def test_dag_parser_output_when_logging_to_file(self, mock_redirect_stdout_for_file):
-#         processor = DagFileProcessorProcess(
-#             file_path="abc.txt",
-#             dag_directory=[],
-#             callback_requests=[],
-#         )
-#         processor._run_file_processor(
-#             result_channel=MagicMock(),
-#             parent_channel=MagicMock(),
-#             file_path="fake_file_path",
-#             thread_name="fake_thread_name",
-#             callback_requests=[],
-#             dag_directory=[],
-#         )
-#         mock_redirect_stdout_for_file.assert_called_once()
+            with DAG(f"test_{Variable.get('myvar')}"):
+                ...
+
+        path = write_dag_in_a_fn_to_file(dag_in_a_fn, tmp_path)
+
+        monkeypatch.setenv("AIRFLOW_VAR_MYVAR", "abc")
+        proc = DagFileProcessorProcess.start(
+            id=1,
+            path=path,
+            bundle_path=tmp_path,
+            callbacks=[],
+        )
+
+        while not proc.is_ready:
+            proc._service_subprocess(0.1)
+
+        result = proc.parsing_result
+        assert result is not None
+        assert result.import_errors == {}
+        assert result.serialized_dags[0].dag_id == "test_abc"
+
+    def test_top_level_connection_access(self, tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch):
+        def dag_in_a_fn():
+            from airflow.hooks.base import BaseHook
+            from airflow.sdk import DAG
+
+            with DAG(f"test_{BaseHook.get_connection(conn_id='my_conn').conn_id}"):
+                ...
+
+        path = write_dag_in_a_fn_to_file(dag_in_a_fn, tmp_path)
+
+        monkeypatch.setenv("AIRFLOW_CONN_MY_CONN", '{"conn_type": "aws"}')
+        proc = DagFileProcessorProcess.start(
+            id=1,
+            path=path,
+            bundle_path=tmp_path,
+            callbacks=[],
+        )
+
+        while not proc.is_ready:
+            proc._service_subprocess(0.1)
+
+        result = proc.parsing_result
+        assert result is not None
+        assert result.import_errors == {}
+        assert result.serialized_dags[0].dag_id == "test_my_conn"
+
+
+def write_dag_in_a_fn_to_file(fn: Callable[[], None], folder: pathlib.Path) -> pathlib.Path:
+    # Create the dag in a fn, and use inspect.getsource to write it to a file so that
+    # a) the test dag is directly viewable here in the tests
+    # b) that it shows to IDEs/mypy etc.
+    assert folder.is_dir()
+    name = fn.__name__
+    path = folder.joinpath(name + ".py")
+    path.write_text(textwrap.dedent(inspect.getsource(fn)) + f"\n\n{name}()")
+
+    return path
 
 
 @pytest.fixture
@@ -178,6 +207,7 @@ def disable_capturing():
     sys.stdin, sys.stdout, sys.stderr = old_in, old_out, old_err
 
 
+@pytest.mark.usefixtures("testing_dag_bundle")
 @pytest.mark.usefixtures("disable_capturing")
 def test_parse_file_entrypoint_parses_dag_callbacks(spy_agency):
     r, w = socketpair()
@@ -185,9 +215,9 @@ def test_parse_file_entrypoint_parses_dag_callbacks(spy_agency):
     _, w2 = socketpair()
 
     w.makefile("wb").write(
-        b'{"file":"/files/dags/wait.py","requests_fd":'
+        b'{"file":"/files/dags/wait.py","bundle_path":"/files/dags","requests_fd":'
         + str(w2.fileno()).encode("ascii")
-        + b',"callback_requests": [{"full_filepath": "/files/dags/wait.py", '
+        + b',"callback_requests": [{"filepath": "wait.py", "bundle_name": "testing", "bundle_version": null, '
         b'"msg": "task_failure", "dag_id": "wait_to_fail", "run_id": '
         b'"manual__2024-12-30T21:02:55.203691+00:00", '
         b'"is_failure_callback": true, "type": "DagCallbackRequest"}], "type": "DagFileParseRequest"}\n'
@@ -203,11 +233,13 @@ def test_parse_file_entrypoint_parses_dag_callbacks(spy_agency):
     assert msg.file == "/files/dags/wait.py"
     assert msg.callback_requests == [
         DagCallbackRequest(
-            full_filepath="/files/dags/wait.py",
+            filepath="wait.py",
             msg="task_failure",
             dag_id="wait_to_fail",
             run_id="manual__2024-12-30T21:02:55.203691+00:00",
             is_failure_callback=True,
+            bundle_name="testing",
+            bundle_version=None,
         )
     ]
 
@@ -230,14 +262,17 @@ def test_parse_file_with_dag_callbacks(spy_agency):
 
     requests = [
         DagCallbackRequest(
-            full_filepath="A",
+            filepath="A",
             msg="Message",
             dag_id="a",
             run_id="b",
+            bundle_name="testing",
+            bundle_version=None,
         )
     ]
     _parse_file(
-        DagFileParseRequest(file="A", requests_fd=1, callback_requests=requests), log=structlog.get_logger()
+        DagFileParseRequest(file="A", bundle_path="no matter", requests_fd=1, callback_requests=requests),
+        log=structlog.get_logger(),
     )
 
     assert called is True
@@ -263,9 +298,11 @@ def test_parse_file_with_task_callbacks(spy_agency):
 
     requests = [
         TaskCallbackRequest(
-            full_filepath="A",
+            filepath="A",
             msg="Message",
             ti=None,
+            bundle_name="testing",
+            bundle_version=None,
         )
     ]
     _parse_file(

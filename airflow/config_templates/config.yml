@@ -71,8 +71,7 @@ core:
       description: |
         The executor class that airflow should use. Choices include
         ``SequentialExecutor``, ``LocalExecutor``, ``CeleryExecutor``,
-        ``KubernetesExecutor``, ``CeleryKubernetesExecutor``, ``LocalKubernetesExecutor`` or the
-        full import path to the class when using a custom executor.
+        ``KubernetesExecutor`` or the full import path to the class when using a custom executor.
       version_added: ~
       type: string
       example: ~
@@ -102,6 +101,14 @@ core:
       type: string
       example: ~
       default: "False"
+    simple_auth_manager_passwords_file:
+      description: |
+        The json file where the simple auth manager stores passwords for the configured users.
+        By default this is ``AIRFLOW_HOME/simple_auth_manager_passwords.json.generated``.
+      version_added: 3.0.0
+      type: string
+      example: "/path/to/passwords.json"
+      default: ~
     parallelism:
       description: |
         This defines the maximum number of task instances that can run concurrently per scheduler in
@@ -229,13 +236,6 @@ core:
       type: integer
       example: ~
       default: "2"
-    dag_file_processor_timeout:
-      description: |
-        How long before timing out a DagFileProcessor, which processes a dag file
-      version_added: 1.10.6
-      type: string
-      example: ~
-      default: "50"
     default_impersonation:
       description: |
         If set, tasks without a ``run_as_user`` argument will be run with this user
@@ -535,6 +535,13 @@ core:
       type: integer
       example: ~
       default: "4096"
+    execution_api_server_url:
+      description: |
+        The url of the execution api server.
+      version_added: 3.0.0
+      type: string
+      example: ~
+      default: "http://localhost:8080/execution/"
 database:
   description: ~
   options:
@@ -670,22 +677,6 @@ database:
       type: string
       example: 'airflow_local_settings._sessionmaker'
       default: ~
-    load_default_connections:
-      description: |
-        Whether to load the default connections that ship with Airflow when ``airflow db init`` is called.
-        It's good to get started, but you probably want to set this to ``False`` in a production environment.
-      version_added: 2.3.0
-      version_deprecated: 2.7.0
-      deprecation_reason: |
-        This option is only used by the deprecated "airflow db init" command.
-        This option has been used in previous versions of Airflow to determine if loading of the default
-        connections is done with the ``airflow db init`` command. This command has been deprecated and
-        replaced by two separate commands ``airflow db migrate`` and
-        ``airflow connections create-default-connections`` and ``load_default_connections`` is not
-        used anymore by those commands.
-      type: string
-      example: ~
-      default: "True"
     max_db_retries:
       description: |
         Number of times the code should be retried in case of DB Operational Errors.
@@ -746,7 +737,7 @@ logging:
       default: ""
     delete_local_logs:
       description: |
-        Whether the local log files for GCS, S3, WASB and OSS remote logging should be deleted after
+        Whether the local log files for GCS, S3, WASB, HDFS and OSS remote logging should be deleted after
         they are uploaded to the remote location.
       version_added: 2.6.0
       type: string
@@ -893,10 +884,10 @@ logging:
     secret_mask_adapter:
       description: |
         An import path to a function to add adaptations of each secret added with
-        ``airflow.utils.log.secrets_masker.mask_secret`` to be masked in log messages. The given function
-        is expected to require a single parameter: the secret to be adapted. It may return a
-        single adaptation of the secret or an iterable of adaptations to each be masked as secrets.
-        The original secret will be masked as well as any adaptations returned.
+        ``airflow.sdk.execution_time.secrets_masker.mask_secret`` to be masked in log messages.
+        The given function is expected to require a single parameter: the secret to be adapted.
+        It may return a single adaptation of the secret or an iterable of adaptations to each be
+        masked as secrets. The original secret will be masked as well as any adaptations returned.
       version_added: 2.6.0
       type: string
       default: ""
@@ -919,28 +910,6 @@ logging:
       default: "dag_id={{ ti.dag_id }}/run_id={{ ti.run_id }}/task_id={{ ti.task_id }}/\
                {%% if ti.map_index >= 0 %%}map_index={{ ti.map_index }}/{%% endif %%}\
                attempt={{ try_number|default(ti.try_number) }}.log"
-    log_processor_filename_template:
-      description: |
-        Formatting for how airflow generates file names for log
-      version_added: 2.0.0
-      type: string
-      example: ~
-      is_template: true
-      default: "{{ filename }}.log"
-    dag_processor_manager_log_location:
-      description: |
-        Full path of dag_processor_manager logfile.
-      version_added: 2.0.0
-      type: string
-      example: ~
-      default: "{AIRFLOW_HOME}/logs/dag_processor_manager/dag_processor_manager.log"
-    dag_processor_manager_log_stdout:
-      description: |
-        Whether DAG processor manager will write logs to stdout
-      version_added: 2.9.0
-      type: boolean
-      example: ~
-      default: "False"
     task_log_reader:
       description: |
         Name of handler to read task instance logs.
@@ -955,7 +924,7 @@ logging:
         consoles\.
       version_added: 2.0.0
       type: string
-      example: "connexion,sqlalchemy"
+      example: "fastapi,sqlalchemy"
       default: ""
     worker_log_server_port:
       description: |
@@ -1342,6 +1311,66 @@ debug:
 api:
   description: ~
   options:
+    base_url:
+      description: |
+        The base url of the API server. Airflow cannot guess what domain or CNAME you are using.
+        If the Airflow console (the front-end) and the API server are on a different domain, this config
+        should contain the API server endpoint.
+      version_added: ~
+      type: string
+      example: ~
+      default: "http://localhost:8080"
+    host:
+      description: |
+        The ip specified when starting the api server
+      version_added: ~
+      type: string
+      example: ~
+      default: "0.0.0.0"
+    port:
+      description: |
+        The port on which to run the api server
+      version_added: ~
+      type: string
+      example: ~
+      default: "8080"
+    workers:
+      description: |
+        Number of workers to run on the API server
+      version_added: ~
+      type: string
+      example: ~
+      default: "4"
+    worker_timeout:
+      description: |
+        Number of seconds the API server waits before timing out on a worker
+      version_added: ~
+      type: string
+      example: ~
+      default: "120"
+    access_logfile:
+      description: |
+        Log files for the api server. '-' means log to stderr.
+      version_added: ~
+      type: string
+      example: ~
+      default: "-"
+    ssl_cert:
+      description: |
+        Paths to the SSL certificate and key for the api server. When both are
+        provided SSL will be enabled. This does not change the api server port.
+      version_added: ~
+      type: string
+      example: ~
+      default: ""
+    ssl_key:
+      description: |
+        Paths to the SSL certificate and key for the api server. When both are
+        provided SSL will be enabled. This does not change the api server port.
+      version_added: ~
+      type: string
+      example: ~
+      default: ""
     auth_backends:
       description: |
         Comma separated list of auth backends to authenticate users of the API. See
@@ -1441,6 +1470,16 @@ api:
       type: integer
       example: ~
       default: "86400"
+    auth_jwt_cli_expiration_time:
+      description: |
+        Number in seconds until the JWT token used for authentication expires for CLI commands.
+        When the token expires, all CLI calls using this token will fail on authentication.
+        Make sure that time on ALL the machines that you run airflow components on is synchronized
+        (for example using ntpd) otherwise you might get "forbidden" errors.
+      version_added: 3.0.0
+      type: integer
+      example: ~
+      default: "3600"
 lineage:
   description: ~
   options:
@@ -1544,36 +1583,6 @@ webserver:
       example: "America/New_York"
       # Default is left as UTC for now so the date's don't "suddenly" change on upgrade
       default: "UTC"
-    web_server_host:
-      description: |
-        The ip specified when starting the web server
-      version_added: ~
-      type: string
-      example: ~
-      default: "0.0.0.0"
-    web_server_port:
-      description: |
-        The port on which to run the web server
-      version_added: ~
-      type: string
-      example: ~
-      default: "8080"
-    web_server_ssl_cert:
-      description: |
-        Paths to the SSL certificate and key for the web server. When both are
-        provided SSL will be enabled. This does not change the web server port.
-      version_added: ~
-      type: string
-      example: ~
-      default: ""
-    web_server_ssl_key:
-      description: |
-        Paths to the SSL certificate and key for the web server. When both are
-        provided SSL will be enabled. This does not change the web server port.
-      version_added: ~
-      type: string
-      example: ~
-      default: ""
     session_backend:
       description: |
         The type of backend used to store web session data, can be ``database`` or ``securecookie``. For the
@@ -1600,18 +1609,11 @@ webserver:
       type: string
       example: ~
       default: "120"
-    web_server_worker_timeout:
-      description: |
-        Number of seconds the gunicorn webserver waits before timing out on a worker
-      version_added: ~
-      type: string
-      example: ~
-      default: "120"
     worker_refresh_batch_size:
       description: |
-        Number of workers to refresh at a time. When set to 0, worker refresh is
-        disabled. When nonzero, airflow periodically refreshes webserver workers by
-        bringing up new ones and killing old ones.
+        Number of workers to refresh at a time through Gunicorn's built-in worker management.
+        When set to 0, worker refresh is disabled. When nonzero, airflow periodically refreshes
+        webserver workers by bringing up new ones and killing old ones.
       version_added: ~
       type: string
       example: ~
@@ -1646,13 +1648,6 @@ webserver:
       sensitive: true
       example: ~
       default: "{SECRET_KEY}"
-    workers:
-      description: |
-        Number of workers to run the Gunicorn web server
-      version_added: ~
-      type: string
-      example: ~
-      default: "4"
     worker_class:
       description: |
         The worker class gunicorn should use. Choices include
@@ -1676,30 +1671,6 @@ webserver:
       type: string
       example: ~
       default: "sync"
-    access_logfile:
-      description: |
-        Log files for the gunicorn webserver. '-' means log to stderr.
-      version_added: ~
-      type: string
-      example: ~
-      default: "-"
-    error_logfile:
-      description: |
-        Log files for the gunicorn webserver. '-' means log to stderr.
-      version_added: ~
-      type: string
-      example: ~
-      default: "-"
-    access_logformat:
-      description: |
-        Access log format for gunicorn webserver.
-        default format is ``%%(h)s %%(l)s %%(u)s %%(t)s "%%(r)s" %%(s)s %%(b)s "%%(f)s" "%%(a)s"``
-        See `Gunicorn Settings: 'access_log_format' Reference
-        <https://docs.gunicorn.org/en/stable/settings.html#access-log-format>`__ for more details
-      version_added: 2.0.0
-      type: string
-      example: ~
-      default: ""
     expose_config:
       description: |
         Expose the configuration file in the web server. Set to ``non-sensitive-only`` to show all values
@@ -1890,15 +1861,6 @@ webserver:
       type: string
       example: ~
       default: "False"
-    cookie_samesite:
-      description: |
-        Set samesite policy on session cookies.
-        As `recommended <https://flask.palletsprojects.com/en/1.1.x/config/#SESSION_COOKIE_SAMESITE>`_
-        by Flask, the default is set to ``Lax`` and not a empty string.
-      version_added: 1.10.3
-      type: string
-      example: ~
-      default: "Lax"
     default_wrap:
       description: |
         Default setting for wrap toggle on DAG code and TI log views.
@@ -2051,6 +2013,22 @@ webserver:
       type: boolean
       example: ~
       default: "False"
+    max_form_memory_size:
+      description: |
+        The maximum size in bytes any non-file form field may be in a multipart/form-data body.
+        If this limit is exceeded, a 413 RequestEntityTooLarge error is raised by webserver.
+      version_added: 2.10.5
+      type: integer
+      example: ~
+      default: "500000"
+    max_form_parts:
+      description: |
+        The maximum number of fields that may be present in a multipart/form-data body.
+        If this limit is exceeded, a 413 RequestEntityTooLarge error is raised by webserver.
+      version_added: 2.10.5
+      type: integer
+      example: ~
+      default: "1000"
 email:
   description: |
     Configuration email backend and whether to
@@ -2255,15 +2233,6 @@ scheduler:
       type: float
       example: ~
       default: "1"
-    min_file_process_interval:
-      description: |
-        Number of seconds after which a DAG file is parsed. The DAG file is parsed every
-        ``[scheduler] min_file_process_interval`` number of seconds. Updates to DAGs are reflected after
-        this interval. Keeping this number low will increase CPU usage.
-      version_added: ~
-      type: integer
-      example: ~
-      default: "30"
     parsing_cleanup_interval:
       description: |
         How often (in seconds) to check for stale DAGs (DAGs which are no longer present in
@@ -2273,25 +2242,6 @@ scheduler:
       type: integer
       example: ~
       default: "60"
-    stale_dag_threshold:
-      description: |
-        How long (in seconds) to wait after we have re-parsed a DAG file before deactivating stale
-        DAGs (DAGs which are no longer present in the expected files). The reason why we need
-        this threshold is to account for the time between when the file is parsed and when the
-        DAG is loaded. The absolute maximum that this could take is ``[core] dag_file_processor_timeout``,
-        but when you have a long timeout configured, it results in a significant delay in the
-        deactivation of stale dags.
-      version_added: 2.6.0
-      type: integer
-      example: ~
-      default: "50"
-    print_stats_interval:
-      description: |
-        How often should stats be printed to the logs. Setting to 0 will disable printing stats
-      version_added: ~
-      type: integer
-      example: ~
-      default: "30"
     pool_metrics_interval:
       description: |
         How often (in seconds) should pool usage stats be sent to StatsD (if statsd_on is enabled)
@@ -2431,36 +2381,6 @@ scheduler:
       type: boolean
       example: ~
       default: "True"
-    parsing_processes:
-      description: |
-        The scheduler can run multiple processes in parallel to parse dags.
-        This defines how many processes will run.
-      version_added: 1.10.14
-      type: integer
-      example: ~
-      default: "2"
-    file_parsing_sort_mode:
-      description: |
-        One of ``modified_time``, ``random_seeded_by_host`` and ``alphabetical``.
-        The scheduler will list and sort the dag files to decide the parsing order.
-
-        * ``modified_time``: Sort by modified time of the files. This is useful on large scale to parse the
-          recently modified DAGs first.
-        * ``random_seeded_by_host``: Sort randomly across multiple Schedulers but with same order on the
-          same host. This is useful when running with Scheduler in HA mode where each scheduler can
-          parse different DAG files.
-        * ``alphabetical``: Sort by filename
-      version_added: 2.1.0
-      type: string
-      example: ~
-      default: "modified_time"
-    max_callbacks_per_loop:
-      description: |
-        The maximum number of callbacks that are fetched during a single loop.
-      version_added: 2.3.0
-      type: integer
-      example: ~
-      default: "20"
     dag_stale_not_seen_duration:
       description: |
         Time in seconds after which dags, which were not updated by Dag Processor are deactivated.
@@ -2476,14 +2396,6 @@ scheduler:
       type: boolean
       example: ~
       default: "True"
-    allow_trigger_in_future:
-      description: |
-        Allow externally triggered DagRuns for Execution Dates in the future
-        Only has effect if schedule is set to None in DAG
-      version_added: 1.10.8
-      type: boolean
-      example: ~
-      default: "False"
     trigger_timeout_check_interval:
       description: |
         How often to check for expired trigger requests that have not run yet.
@@ -2531,8 +2443,27 @@ scheduler:
       version_added: 2.9.0
       type: boolean
       example: ~
-      default: "True"
-      see_also: ":ref:`Differences between the two cron timetables`"
+      default: "False"
+      see_also: ':ref:`Differences between "trigger" and "data interval" timetables`'
+    create_delta_data_intervals:
+      description: |
+        Whether to create DAG runs that span an interval or one single point in time when a timedelta or
+        relativedelta is provided to ``schedule`` argument of a DAG.
+
+        * ``True``: **DeltaDataIntervalTimetable** is used, which is suitable for DAGs with well-defined data
+          interval. You get contiguous intervals from the end of the previous interval up to the scheduled
+          datetime.
+        * ``False``: **DeltaTriggerTimetable** is used, which is suitable for DAGs that simply want to say
+          e.g. "run this every day" and do not care about the data interval.
+
+        Notably, for **DeltaTriggerTimetable**, the logical date is the same as the time the DAG Run will
+        try to schedule, while for **DeltaDataIntervalTimetable**, the logical date is the beginning of
+        the data interval, but the DAG Run will try to schedule at the end of the data interval.
+      version_added: 2.11.0
+      type: boolean
+      example: ~
+      default: "False"
+      see_also: ':ref:`Differences between "trigger" and "data interval" timetables`'
     enable_tracemalloc:
       description: |
         Whether to enable memory allocation tracing in the scheduler. If enabled, Airflow will start
@@ -2632,10 +2563,13 @@ sensors:
       type: float
       example: ~
       default: "604800"
-dag_bundles:
+dag_processor:
   description: |
-    Configuration for the DAG bundles. This allows Airflow to load DAGs from different sources.
-
+    Configuration for the Airflow DAG processor. This includes, for example:
+      - DAG bundles, which allows Airflow to load DAGs from different sources
+      - Parsing configuration, like:
+         - how often to refresh DAGs from those sources
+         - how many files to parse concurrently
   options:
     dag_bundle_storage_path:
       description: |
@@ -2647,11 +2581,11 @@ dag_bundles:
       example: "/tmp/some-place"
       default: ~
 
-    config_list:
+    dag_bundle_config_list:
       description: |
         List of backend configs.  Must supply name, classpath, and kwargs for each backend.
 
-        By default, ``refresh_interval`` is set to ``[dag_bundles] refresh_interval``, but that can
+        By default, ``refresh_interval`` is set to ``[dag_processor] refresh_interval``, but that can
         also be overridden in kwargs if desired.
 
         The default is the dags folder dag bundle.
@@ -2668,7 +2602,6 @@ dag_bundles:
                 "classpath": "airflow.dag_processing.bundles.git.GitDagBundle",
                 "kwargs": {
                     "subdir": "dags",
-                    "repo_url": "git@github.com:example.com/my-dags.git",
                     "tracking_ref": "main",
                     "refresh_interval": 0
             }
@@ -2688,3 +2621,108 @@ dag_bundles:
       type: integer
       example: ~
       default: "300"
+    parsing_processes:
+      description: |
+        The DAG processor can run multiple processes in parallel to parse dags.
+        This defines how many processes will run.
+      version_added: ~
+      type: integer
+      example: ~
+      default: "2"
+    file_parsing_sort_mode:
+      description: |
+        One of ``modified_time``, ``random_seeded_by_host`` and ``alphabetical``.
+        The DAG processor will list and sort the dag files to decide the parsing order.
+
+        * ``modified_time``: Sort by modified time of the files. This is useful on large scale to parse the
+          recently modified DAGs first.
+        * ``random_seeded_by_host``: Sort randomly across multiple DAG processors but with same order on the
+          same host, allowing each processor to parse the files in a different order.
+        * ``alphabetical``: Sort by filename
+      version_added: ~
+      type: string
+      example: ~
+      default: "modified_time"
+    max_callbacks_per_loop:
+      description: |
+        The maximum number of callbacks that are fetched during a single loop.
+      version_added: ~
+      type: integer
+      example: ~
+      default: "20"
+    min_file_process_interval:
+      description: |
+        Number of seconds after which a DAG file is parsed. The DAG file is parsed every
+        ``[dag_processor] min_file_process_interval`` number of seconds. Updates to DAGs are reflected after
+        this interval. Keeping this number low will increase CPU usage.
+      version_added: ~
+      type: integer
+      example: ~
+      default: "30"
+    stale_dag_threshold:
+      description: |
+        How long (in seconds) to wait after we have re-parsed a DAG file before deactivating stale
+        DAGs (DAGs which are no longer present in the expected files). The reason why we need
+        this threshold is to account for the time between when the file is parsed and when the
+        DAG is loaded. The absolute maximum that this could take is
+        ``[dag_processor] dag_file_processor_timeout``, but when you have a long timeout configured,
+        it results in a significant delay in the deactivation of stale dags.
+      version_added: ~
+      type: integer
+      example: ~
+      default: "50"
+    dag_file_processor_timeout:
+      description: |
+        How long before timing out a DagFileProcessor, which processes a dag file
+      version_added: ~
+      type: string
+      example: ~
+      default: "50"
+    print_stats_interval:
+      description: |
+        How often should DAG processor stats be printed to the logs. Setting to 0 will disable printing stats
+      version_added: ~
+      type: integer
+      example: ~
+      default: "30"
+    bundle_refresh_check_interval:
+      description: |
+        How often the DAG processor should check if any DAG bundles are ready for a refresh, either by hitting
+        the bundles refresh_interval or because another DAG processor has seen a newer version of the bundle.
+        A low value means we check more frequently, and have a smaller window of time where DAG processors are
+        out of sync with each other, parsing different versions of the same bundle.
+      version_added: ~
+      type: integer
+      example: ~
+      default: "5"
+    stale_bundle_cleanup_interval:
+      description: |
+        On shared workers, bundle copies accumulate in local storage as tasks run
+        and version of the bundle changes.
+        This setting represents the delta in seconds between checks for these stale bundles.
+        Bundles which are older than `stale_bundle_cleanup_age_threshold` may be removed. But
+        we always keep `stale_bundle_cleanup_min_versions` versions locally.
+        Set to 0 or negative to disable.
+      version_added: ~
+      type: integer
+      example: ~
+      default: "1800"
+    stale_bundle_cleanup_age_threshold:
+      description: |
+        Bundle versions used more recently than this threshold will not be removed.
+        Recency of use is determined by when the task began running on the worker,
+        that age is compared with this setting, given as time delta in seconds.
+      version_added: ~
+      type: integer
+      example: ~
+      default: "21600"
+    stale_bundle_cleanup_min_versions:
+      description: |
+        Minimum number of local bundle versions to retain on disk.
+        Local bundle versions older than `stale_bundle_cleanup_age_threshold` will
+        only be deleted we have more than `stale_bundle_cleanup_min_versions` versions
+        accumulated on the worker.
+      version_added: ~
+      type: integer
+      example: ~
+      default: "10"

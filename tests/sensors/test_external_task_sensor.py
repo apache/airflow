@@ -35,8 +35,8 @@ from airflow.models import DagBag, DagRun, TaskInstance
 from airflow.models.dag import DAG
 from airflow.models.serialized_dag import SerializedDagModel
 from airflow.models.xcom_arg import XComArg
-from airflow.operators.empty import EmptyOperator
 from airflow.providers.standard.operators.bash import BashOperator
+from airflow.providers.standard.operators.empty import EmptyOperator
 from airflow.providers.standard.operators.python import PythonOperator
 from airflow.providers.standard.sensors.external_task import (
     ExternalTaskMarker,
@@ -109,12 +109,13 @@ def dag_zip_maker(testing_dag_bundle):
     return DagZipMaker()
 
 
+@pytest.mark.usefixtures("testing_dag_bundle")
 class TestExternalTaskSensor:
     def setup_method(self):
         self.dagbag = DagBag(dag_folder=DEV_NULL, include_examples=True)
         self.args = {"owner": "airflow", "start_date": DEFAULT_DATE}
         self.dag = DAG(TEST_DAG_ID, schedule=None, default_args=self.args)
-        self.dag_run_id = DagRunType.MANUAL.generate_run_id(DEFAULT_DATE)
+        self.dag_run_id = DagRunType.MANUAL.generate_run_id(suffix=DEFAULT_DATE.isoformat())
 
     def add_time_sensor(self, task_id=TEST_TASK_ID):
         op = TimeSensor(task_id=task_id, target_time=time(0), dag=self.dag)
@@ -126,7 +127,7 @@ class TestExternalTaskSensor:
             with TaskGroup(group_id=TEST_TASK_GROUP_ID) as task_group:
                 _ = [EmptyOperator(task_id=f"task{i}") for i in range(len(target_states))]
             dag.sync_to_db()
-            SerializedDagModel.write_dag(dag)
+            SerializedDagModel.write_dag(dag, bundle_name="test_bundle")
 
         for idx, task in enumerate(task_group):
             ti = TaskInstance(task=task, run_id=self.dag_run_id)
@@ -149,7 +150,7 @@ class TestExternalTaskSensor:
                 fake_task()
                 fake_mapped_task.expand(x=list(map_indexes))
         dag.sync_to_db()
-        SerializedDagModel.write_dag(dag)
+        SerializedDagModel.write_dag(dag, bundle_name="test_bundle")
 
         for task in task_group:
             if task.task_id == "fake_mapped_task":
@@ -1067,7 +1068,6 @@ def test_external_task_sensor_extra_link(
     expected_external_dag_id,
     expected_external_task_id,
     create_task_instance_of_operator,
-    app,
 ):
     ti = create_task_instance_of_operator(
         ExternalTaskSensor,
@@ -1083,11 +1083,9 @@ def test_external_task_sensor_extra_link(
     assert ti.task.external_task_id == expected_external_task_id
     assert ti.task.external_task_ids == [expected_external_task_id]
 
-    app.config["SERVER_NAME"] = ""
-    with app.app_context():
-        url = ti.task.get_extra_links(ti, "External DAG")
+    url = ti.task.operator_extra_links[0].get_link(operator=ti.task, ti_key=ti.key)
 
-    assert f"/dags/{expected_external_dag_id}/grid" in url
+    assert f"/dags/{expected_external_dag_id}/runs" in url
 
 
 class TestExternalTaskMarker:
@@ -1238,11 +1236,12 @@ def run_tasks(
         runs[dag.dag_id] = dagrun = dag.create_dagrun(
             run_id=dag.timetable.generate_run_id(
                 run_type=DagRunType.MANUAL,
-                logical_date=logical_date,
+                run_after=logical_date,
                 data_interval=data_interval,
             ),
             logical_date=logical_date,
             data_interval=data_interval,
+            run_after=logical_date,
             run_type=DagRunType.MANUAL,
             triggered_by=DagRunTriggeredByType.TEST,
             dag_version=None,
@@ -1287,7 +1286,7 @@ def clear_tasks(
     """
     Clear the task and its downstream tasks recursively for the dag in the given dagbag.
     """
-    partial: DAG = dag.partial_subset(task_ids_or_regex=[task.task_id], include_downstream=True)
+    partial: DAG = dag.partial_subset(task_ids=[task.task_id], include_downstream=True)
     return partial.clear(
         start_date=start_date,
         end_date=end_date,
@@ -1720,7 +1719,7 @@ def test_clear_overlapping_external_task_marker_mapped_tasks(dag_bag_head_tail_m
     session.flush()
 
     dag = dag.partial_subset(
-        task_ids_or_regex=["head"],
+        task_ids=["head"],
         include_downstream=True,
         include_upstream=False,
     )

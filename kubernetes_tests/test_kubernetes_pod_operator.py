@@ -50,13 +50,30 @@ POD_MANAGER_CLASS = "airflow.providers.cncf.kubernetes.utils.pod_manager.PodMana
 
 
 def create_context(task) -> Context:
+    from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS
+
     dag = DAG(dag_id="dag", schedule=None)
     logical_date = timezone.datetime(2016, 1, 1, 1, 0, 0, tzinfo=timezone.parse_timezone("Europe/Amsterdam"))
-    dag_run = DagRun(
-        dag_id=dag.dag_id,
-        logical_date=logical_date,
-        run_id=DagRun.generate_run_id(DagRunType.MANUAL, logical_date),
-    )
+
+    if AIRFLOW_V_3_0_PLUS:
+        dag_run = DagRun(
+            dag_id=dag.dag_id,
+            logical_date=logical_date,
+            run_id=DagRun.generate_run_id(
+                run_type=DagRunType.MANUAL,
+                logical_date=logical_date,
+                run_after=logical_date,
+            ),
+        )
+    else:
+        dag_run = DagRun(
+            dag_id=dag.dag_id,
+            logical_date=logical_date,
+            run_id=DagRun.generate_run_id(  # type: ignore[call-arg]
+                run_type=DagRunType.MANUAL,
+                logical_date=logical_date,
+            ),
+        )
     task_instance = TaskInstance(task=task)
     task_instance.dag_run = dag_run
     task_instance.dag_id = dag.dag_id
@@ -1054,18 +1071,22 @@ class TestKubernetesPodOperatorSystem:
 
     def test_pod_name(self, mock_get_connection):
         pod_name_too_long = "a" * 221
+        k = KubernetesPodOperator(
+            namespace="default",
+            image="ubuntu:16.04",
+            cmds=["bash", "-cx"],
+            arguments=["echo 10"],
+            labels=self.labels,
+            name=pod_name_too_long,
+            task_id=str(uuid4()),
+            in_cluster=False,
+            do_xcom_push=False,
+        )
+        # Name is now in template fields, and it's final value requires context
+        # so we need to execute for name validation
+        context = create_context(k)
         with pytest.raises(AirflowException):
-            KubernetesPodOperator(
-                namespace="default",
-                image="ubuntu:16.04",
-                cmds=["bash", "-cx"],
-                arguments=["echo 10"],
-                labels=self.labels,
-                name=pod_name_too_long,
-                task_id=str(uuid4()),
-                in_cluster=False,
-                do_xcom_push=False,
-            )
+            k.execute(context)
 
     def test_on_kill(self, mock_get_connection):
         hook = KubernetesHook(conn_id=None, in_cluster=False)

@@ -21,14 +21,13 @@ import { useState } from "react";
 import { FiRefreshCw } from "react-icons/fi";
 
 import type { TaskInstanceResponse } from "openapi/requests/types.gen";
+import { ActionAccordion } from "src/components/ActionAccordion";
 import Time from "src/components/Time";
 import { Button, Dialog } from "src/components/ui";
 import SegmentedControl from "src/components/ui/SegmentedControl";
 import { useClearTaskInstances } from "src/queries/useClearTaskInstances";
 import { useClearTaskInstancesDryRun } from "src/queries/useClearTaskInstancesDryRun";
 import { usePatchTaskInstance } from "src/queries/usePatchTaskInstance";
-
-import ClearAccordion from "../ClearAccordion";
 
 type Props = {
   readonly onClose: () => void;
@@ -106,15 +105,15 @@ const ClearTaskInstanceDialog = ({ onClose, open, taskInstance }: Props) => {
               multiple
               onChange={setSelectedOptions}
               options={[
-                { label: "Past", value: "past" },
-                { label: "Future", value: "future" },
+                { disabled: taskInstance.logical_date === null, label: "Past", value: "past" },
+                { disabled: taskInstance.logical_date === null, label: "Future", value: "future" },
                 { label: "Upstream", value: "upstream" },
                 { label: "Downstream", value: "downstream" },
                 { label: "Only Failed", value: "onlyFailed" },
               ]}
             />
           </Flex>
-          <ClearAccordion affectedTasks={affectedTasks} note={note} setNote={setNote} />
+          <ActionAccordion affectedTasks={affectedTasks} note={note} setNote={setNote} />
           <Flex justifyContent="end" mt={3}>
             <Button
               colorPalette="blue"

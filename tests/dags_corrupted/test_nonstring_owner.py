@@ -20,7 +20,7 @@ from __future__ import annotations
 from datetime import datetime, timedelta
 
 from airflow.models.dag import DAG
-from airflow.operators.empty import EmptyOperator
+from airflow.providers.standard.operators.empty import EmptyOperator
 
 with DAG(
     dag_id="test_nonstring_owner",

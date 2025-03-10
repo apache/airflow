@@ -35,7 +35,6 @@ from airflow.configuration import conf
 from airflow.dag_processing.collection import (
     AssetModelOperation,
     _get_latest_runs_stmt,
-    _sync_dag_perms,
     update_dag_parsing_results_in_db,
 )
 from airflow.exceptions import SerializationError
@@ -48,9 +47,9 @@ from airflow.models.asset import (
 from airflow.models.dag import DAG
 from airflow.models.errors import ParseImportError
 from airflow.models.serialized_dag import SerializedDagModel
-from airflow.operators.empty import EmptyOperator
+from airflow.providers.standard.operators.empty import EmptyOperator
 from airflow.providers.standard.triggers.temporal import TimeDeltaTrigger
-from airflow.sdk.definitions.asset import Asset
+from airflow.sdk.definitions.asset import Asset, AssetAlias, AssetWatcher
 from airflow.serialization.serialized_objects import LazyDeserializedDAG, SerializedDAG
 from airflow.utils import timezone as tz
 from airflow.utils.session import create_session
@@ -131,7 +130,11 @@ class TestAssetModelOperation:
     )
     def test_add_asset_trigger_references(self, is_active, is_paused, expected_num_triggers, dag_maker):
         trigger = TimeDeltaTrigger(timedelta(seconds=0))
-        asset = Asset("test_add_asset_trigger_references_asset", watchers=[trigger])
+        classpath, kwargs = trigger.serialize()
+        asset = Asset(
+            "test_add_asset_trigger_references_asset",
+            watchers=[AssetWatcher(name="test", trigger={"classpath": classpath, "kwargs": kwargs})],
+        )
 
         with dag_maker(dag_id="test_add_asset_trigger_references_dag", schedule=[asset]) as dag:
             EmptyOperator(task_id="mytask")
@@ -145,7 +148,7 @@ class TestAssetModelOperation:
                 dag.is_active = is_active
                 dag.is_paused = is_paused
 
-            orm_assets = asset_op.add_assets(session=session)
+            orm_assets = asset_op.sync_assets(session=session)
             # Create AssetActive objects from assets. It is usually done in the scheduler
             for asset in orm_assets.values():
                 session.add(AssetActive.for_asset(asset))
@@ -157,6 +160,57 @@ class TestAssetModelOperation:
 
             assert session.query(Trigger).count() == expected_num_triggers
             assert session.query(asset_trigger_association_table).count() == expected_num_triggers
+
+    def test_change_asset_property_sync_group(self, dag_maker, session):
+        asset = Asset("myasset", group="old_group")
+        with dag_maker(schedule=[asset]) as dag:
+            EmptyOperator(task_id="mytask")
+
+        asset_op = AssetModelOperation.collect({dag.dag_id: dag})
+        orm_assets = asset_op.sync_assets(session=session)
+        assert len(orm_assets) == 1
+        assert next(iter(orm_assets.values())).group == "old_group"
+
+        # Parser should pick up group change.
+        asset.group = "new_group"
+        asset_op = AssetModelOperation.collect({dag.dag_id: dag})
+        orm_assets = asset_op.sync_assets(session=session)
+        assert len(orm_assets) == 1
+        assert next(iter(orm_assets.values())).group == "new_group"
+
+    def test_change_asset_property_sync_extra(self, dag_maker, session):
+        asset = Asset("myasset", extra={"foo": "old"})
+        with dag_maker(schedule=asset) as dag:
+            EmptyOperator(task_id="mytask")
+
+        asset_op = AssetModelOperation.collect({dag.dag_id: dag})
+        orm_assets = asset_op.sync_assets(session=session)
+        assert len(orm_assets) == 1
+        assert next(iter(orm_assets.values())).extra == {"foo": "old"}
+
+        # Parser should pick up extra change.
+        asset.extra = {"foo": "new"}
+        asset_op = AssetModelOperation.collect({dag.dag_id: dag})
+        orm_assets = asset_op.sync_assets(session=session)
+        assert len(orm_assets) == 1
+        assert next(iter(orm_assets.values())).extra == {"foo": "new"}
+
+    def test_change_asset_alias_property_sync_group(self, dag_maker, session):
+        alias = AssetAlias("myalias", group="old_group")
+        with dag_maker(schedule=alias) as dag:
+            EmptyOperator(task_id="mytask")
+
+        asset_op = AssetModelOperation.collect({dag.dag_id: dag})
+        orm_aliases = asset_op.sync_asset_aliases(session=session)
+        assert len(orm_aliases) == 1
+        assert next(iter(orm_aliases.values())).group == "old_group"
+
+        # Parser should pick up group change.
+        alias.group = "new_group"
+        asset_op = AssetModelOperation.collect({dag.dag_id: dag})
+        orm_aliases = asset_op.sync_asset_aliases(session=session)
+        assert len(orm_aliases) == 1
+        assert next(iter(orm_aliases.values())).group == "new_group"
 
 
 @pytest.mark.db_test
@@ -265,7 +319,13 @@ class TestUpdateDagParsingResults:
         # and the session was roll-backed before even reaching 'SerializedDagModel.write_dag'
         mock_s10n_write_dag.assert_has_calls(
             [
-                mock.call(mock_dag, min_update_interval=mock.ANY, session=mock_session),
+                mock.call(
+                    mock_dag,
+                    bundle_name="testing",
+                    bundle_version=None,
+                    min_update_interval=mock.ANY,
+                    session=mock_session,
+                ),
             ]
         )
 
@@ -405,37 +465,6 @@ class TestUpdateDagParsingResults:
 
         assert import_errors == {("def.py", bundle_name)}
 
-    def test_sync_perm_for_dag_with_dict_access_control(self, session, spy_agency: SpyAgency):
-        """
-        Test that dagbag._sync_perm_for_dag will call ApplessAirflowSecurityManager.sync_perm_for_dag
-        """
-        from airflow.www.security_appless import ApplessAirflowSecurityManager
-
-        spy = spy_agency.spy_on(
-            ApplessAirflowSecurityManager.sync_perm_for_dag, owner=ApplessAirflowSecurityManager
-        )
-
-        dag = DAG(dag_id="test")
-
-        def _sync_perms():
-            spy.reset_calls()
-            _sync_dag_perms(dag, session=session)
-
-        # perms dont exist
-        _sync_perms()
-        spy_agency.assert_spy_called_with(spy, dag.dag_id, access_control=None)
-
-        # perms now exist
-        _sync_perms()
-        spy_agency.assert_spy_called_with(spy, dag.dag_id, access_control=None)
-
-        # Always sync if we have access_control
-        dag.access_control = {"Public": {"DAGs": {"can_read"}, "DAG Runs": {"can_create"}}}
-        _sync_perms()
-        spy_agency.assert_spy_called_with(
-            spy, dag.dag_id, access_control={"Public": {"DAGs": {"can_read"}, "DAG Runs": {"can_create"}}}
-        )
-
     @pytest.mark.parametrize(
         ("attrs", "expected"),
         [
@@ -488,13 +517,14 @@ class TestUpdateDagParsingResults:
         ],
     )
     @pytest.mark.usefixtures("clean_db")
-    def test_dagmodel_properties(self, attrs, expected, session, time_machine, testing_dag_bundle):
+    def test_dagmodel_properties(self, attrs, expected, session, time_machine, testing_dag_bundle, dag_maker):
         """Test that properties on the dag model are correctly set when dealing with a LazySerializedDag"""
         dt = tz.datetime(2020, 1, 5, 0, 0, 0)
         time_machine.move_to(dt, tick=False)
 
         tasks = attrs.pop("_tasks_", None)
-        dag = DAG("dag", **attrs)
+        with dag_maker("dag", **attrs) as dag:
+            ...
         if tasks:
             dag.add_tasks(tasks)
 
@@ -507,7 +537,6 @@ class TestUpdateDagParsingResults:
             dr1 = DagRun(logical_date=dt, run_id="test_run_id_1", **dr_kwargs, start_date=dt)
             session.add(dr1)
             session.commit()
-
         update_dag_parsing_results_in_db("testing", None, [self.dag_to_lazy_serdag(dag)], {}, set(), session)
 
         orm_dag = session.get(DagModel, ("dag",))
@@ -520,20 +549,23 @@ class TestUpdateDagParsingResults:
 
         assert orm_dag.last_parsed_time == dt
 
-    def test_existing_dag_is_paused_upon_creation(self, testing_dag_bundle, session):
-        dag = DAG("dag_paused", schedule=None)
+    def test_existing_dag_is_paused_upon_creation(self, testing_dag_bundle, session, dag_maker):
+        with dag_maker("dag_paused", schedule=None) as dag:
+            ...
         update_dag_parsing_results_in_db("testing", None, [self.dag_to_lazy_serdag(dag)], {}, set(), session)
         orm_dag = session.get(DagModel, ("dag_paused",))
         assert orm_dag.is_paused is False
 
-        dag = DAG("dag_paused", schedule=None, is_paused_upon_creation=True)
+        with dag_maker("dag_paused", schedule=None, is_paused_upon_creation=True) as dag:
+            ...
         update_dag_parsing_results_in_db("testing", None, [self.dag_to_lazy_serdag(dag)], {}, set(), session)
         # Since the dag existed before, it should not follow the pause flag upon creation
         orm_dag = session.get(DagModel, ("dag_paused",))
         assert orm_dag.is_paused is False
 
-    def test_bundle_name_and_version_are_stored(self, testing_dag_bundle, session):
-        dag = DAG("mydag", schedule=None)
+    def test_bundle_name_and_version_are_stored(self, testing_dag_bundle, session, dag_maker):
+        with dag_maker("mydag", schedule=None) as dag:
+            ...
         update_dag_parsing_results_in_db("testing", "1.0", [self.dag_to_lazy_serdag(dag)], {}, set(), session)
         orm_dag = session.get(DagModel, "mydag")
         assert orm_dag.bundle_name == "testing"

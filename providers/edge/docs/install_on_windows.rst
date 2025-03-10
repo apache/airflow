@@ -55,7 +55,7 @@ To setup a instance of Edge Worker on Windows, you need to follow the steps belo
 7. Create a new folder ``dags`` in ``C:\\Airflow`` and copy the relevant DAG files in it.
    (At least the DAG files which should be executed on the edge alongside the dependencies. For testing purposes
    the DAGs from the ``apache-airflow`` repository can be used located in
-   <https://github.com/apache/airflow/tree/main/providers/src/airflow/providers/edge/example_dags>.)
+   <https://github.com/apache/airflow/tree/main/providers/edge/src/airflow/providers/edge/example_dags>.)
 8. Collect needed parameters from your running Airflow backend, at least the following:
 
   - ``edge`` / ``api_url``: The HTTP(s) endpoint where the Edge Worker connects to

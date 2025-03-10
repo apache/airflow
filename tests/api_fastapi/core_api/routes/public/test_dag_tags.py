@@ -23,7 +23,7 @@ import pytest
 
 from airflow.models.dag import DagModel, DagTag
 from airflow.models.dagrun import DagRun
-from airflow.operators.empty import EmptyOperator
+from airflow.providers.standard.operators.empty import EmptyOperator
 from airflow.utils.session import provide_session
 from airflow.utils.state import DagRunState
 from airflow.utils.types import DagRunTriggeredByType, DagRunType

@@ -88,8 +88,8 @@ class TestOpenMaybeZipped:
             open_maybe_zipped(path)
             mock_file.assert_called_once_with(path, mode="r")
 
-    def test_open_maybe_zipped_archive(self):
-        test_file_path = os.path.join(TEST_DAGS_FOLDER, "test_zip.zip", "test_zip.py")
+    def test_open_maybe_zipped_archive(self, test_zip_path):
+        test_file_path = os.path.join(test_zip_path, "test_zip.py")
         with open_maybe_zipped(test_file_path, "r") as test_file:
             content = test_file.read()
         assert isinstance(content, str)
@@ -219,7 +219,7 @@ class TestListPyFilesPath:
 
         assert len(modules) == 0
 
-    def test_list_py_file_paths(self):
+    def test_list_py_file_paths(self, test_zip_path):
         detected_files = set()
         expected_files = set()
         # No_dags is empty, _invalid_ is ignored by .airflowignore
@@ -234,6 +234,8 @@ class TestListPyFilesPath:
             "test_invalid_param4.py",
             "test_nested_dag.py",
             "test_imports.py",
+            "file_no_airflow_dag.py",  # no_dag test case in test_zip folder
+            "test.py",  # no_dag test case in test_zip_module folder
             "__init__.py",
         }
         for root, _, files in os.walk(TEST_DAG_FOLDER):

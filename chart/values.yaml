@@ -68,13 +68,13 @@ airflowHome: /opt/airflow
 defaultAirflowRepository: apache/airflow
 
 # Default airflow tag to deploy
-defaultAirflowTag: "2.10.4"
+defaultAirflowTag: "2.10.5"
 
 # Default airflow digest. If specified, it takes precedence over tag
 defaultAirflowDigest: ~
 
 # Airflow version (Used to make some decisions based on Airflow Version being deployed)
-airflowVersion: "2.10.4"
+airflowVersion: "2.10.5"
 
 # Images
 images:
@@ -115,11 +115,11 @@ images:
     pullPolicy: IfNotPresent
   pgbouncer:
     repository: apache/airflow
-    tag: airflow-pgbouncer-2025.01.10-1.24.0
+    tag: airflow-pgbouncer-2025.03.05-1.23.1
     pullPolicy: IfNotPresent
   pgbouncerExporter:
     repository: apache/airflow
-    tag: airflow-pgbouncer-exporter-2024.06.18-0.17.0
+    tag: airflow-pgbouncer-exporter-2025.03.05-0.18.0
     pullPolicy: IfNotPresent
   gitSync:
     repository: registry.k8s.io/git-sync/git-sync
@@ -160,7 +160,7 @@ ingress:
 
     # The hostnames or hosts configuration for the web Ingress
     hosts: []
-    #   # The hostname for the web Ingress (can be templated)
+    #   # The hostname for the web Ingress (templated)
     # - name: ""
     #   # configs for web Ingress TLS
     #   tls:
@@ -204,7 +204,7 @@ ingress:
 
     # The hostnames or hosts configuration for the flower Ingress
     hosts: []
-    #   # The hostname for the flower Ingress (can be templated)
+    #   # The hostname for the flower Ingress (templated)
     # - name: ""
     #   tls:
     #     # Enable TLS termination for the flower Ingress
@@ -241,7 +241,7 @@ ingress:
 
     # The hostnames or hosts configuration for the statsd Ingress
     hosts: []
-    #   # The hostname for the statsd Ingress (can be templated)
+    #   # The hostname for the statsd Ingress (templated)
     # - name: ""
     #   tls:
     #     # Enable TLS termination for the statsd Ingress
@@ -271,7 +271,7 @@ ingress:
 
     # The hostnames or hosts configuration for the pgbouncer Ingress
     hosts: []
-    #   # The hostname for the statsd Ingress (can be templated)
+    #   # The hostname for the statsd Ingress (templated)
     # - name: ""
     #   tls:
     #     # Enable TLS termination for the pgbouncer Ingress
@@ -295,9 +295,9 @@ airflowPodAnnotations: {}
 # main Airflow configmap
 airflowConfigAnnotations: {}
 
-# `airflow_local_settings` file as a string (can be templated).
+# `airflow_local_settings` file as a string (templated).
 airflowLocalSettings: |-
-  {{- if semverCompare ">=2.2.0" .Values.airflowVersion }}
+  {{- if semverCompare ">=2.2.0 <3.0.0" .Values.airflowVersion }}
   {{- if not (or .Values.webserverSecretKey .Values.webserverSecretKeySecretName) }}
   from airflow.www.utils import UIAlert
 
@@ -386,9 +386,9 @@ priorityClasses: []
 # Extra secrets that will be managed by the chart
 # (You can use them with extraEnv or extraEnvFrom or some of the extraVolumes values).
 # The format for secret data is "key/value" where
-#    * key (can be templated) is the name of the secret that will be created
+#    * key (templated) is the name of the secret that will be created
 #    * value: an object with the standard 'data' or 'stringData' key (or both).
-#          The value associated with those keys must be a string (can be templated)
+#          The value associated with those keys must be a string (templated)
 extraSecrets: {}
 # eg:
 # extraSecrets:
@@ -413,9 +413,9 @@ extraSecrets: {}
 # Extra ConfigMaps that will be managed by the chart
 # (You can use them with extraEnv or extraEnvFrom or some of the extraVolumes values).
 # The format for configmap data is "key/value" where
-#    * key (can be templated) is the name of the configmap that will be created
+#    * key (templated) is the name of the configmap that will be created
 #    * value: an object with the standard 'data' key.
-#          The value associated with this keys must be a string (can be templated)
+#          The value associated with this keys must be a string (templated)
 extraConfigMaps: {}
 # eg:
 # extraConfigMaps:
@@ -427,7 +427,7 @@ extraConfigMaps: {}
 #       AIRFLOW_VAR_KUBERNETES_NAMESPACE: "{{ .Release.Namespace }}"
 
 # Extra env 'items' that will be added to the definition of airflow containers
-# a string is expected (can be templated).
+# a string is expected (templated).
 # TODO: difference from `env`? This is a templated string. Probably should template `env` and remove this.
 extraEnv: ~
 # eg:
@@ -436,7 +436,7 @@ extraEnv: ~
 #     value: 'True'
 
 # Extra envFrom 'items' that will be added to the definition of airflow containers
-# A string is expected (can be templated).
+# A string is expected (templated).
 extraEnvFrom: ~
 # eg:
 # extraEnvFrom: |
@@ -777,6 +777,9 @@ workers:
   extraVolumes: []
   extraVolumeMounts: []
 
+  # Expose additional ports. These can be used for additional metric collection.
+  extraPorts: []
+
   # Select certain nodes for airflow worker pods.
   nodeSelector: {}
   runtimeClassName: ~
@@ -821,6 +824,8 @@ workers:
     args: ["bash", "/clean-logs"]
     # Number of days to retain logs
     retentionDays: 15
+    # frequency to attempt to groom logs, in minutes
+    frequencyMinutes: 15
     resources: {}
     #  limits:
     #   cpu: 100m
@@ -831,6 +836,7 @@ workers:
     # Detailed default security context for logGroomerSidecar for container level
     securityContexts:
       container: {}
+    env: []
 
   waitForMigrations:
     # Whether to create init container to wait for db migrations
@@ -891,6 +897,7 @@ scheduler:
   # Wait for at most 1 minute (6*10s) for the scheduler container to startup.
   # livenessProbe kicks in after the first successful startupProbe
   startupProbe:
+    initialDelaySeconds: 0
     failureThreshold: 6
     periodSeconds: 10
     timeoutSeconds: 20
@@ -1022,6 +1029,8 @@ scheduler:
     args: ["bash", "/clean-logs"]
     # Number of days to retain logs
     retentionDays: 15
+    # frequency to attempt to groom logs, in minutes
+    frequencyMinutes: 15
     resources: {}
     #  limits:
     #   cpu: 100m
@@ -1034,6 +1043,7 @@ scheduler:
       container: {}
     # container level lifecycle hooks
     containerLifecycleHooks: {}
+    env: []
 
   waitForMigrations:
     # Whether to create init container to wait for db migrations
@@ -1252,7 +1262,8 @@ apiServer:
   # Command to use when running the Airflow API server (templated).
   command: ~
   # Args to use when running the Airflow API server (templated).
-  args: ["bash", "-c", "exec airflow fastapi-api"]
+  args: ["bash", "-c", "exec airflow api-server"]
+  allowPodLogReading: true
   env: []
   serviceAccount:
     # default value is true
@@ -1336,6 +1347,7 @@ apiServer:
     scheme: HTTP
 
   startupProbe:
+    initialDelaySeconds: 0
     timeoutSeconds: 20
     failureThreshold: 6
     periodSeconds: 10
@@ -1372,6 +1384,7 @@ webserver:
   # Wait for at most 1 minute (6*10s) for the webserver container to startup.
   # livenessProbe kicks in after the first successful startupProbe
   startupProbe:
+    initialDelaySeconds: 0
     timeoutSeconds: 20
     failureThreshold: 6
     periodSeconds: 10
@@ -1503,7 +1516,7 @@ webserver:
   extraVolumes: []
   extraVolumeMounts: []
 
-  # This string (can be templated) will be mounted into the Airflow Webserver
+  # This string (templated) will be mounted into the Airflow Webserver
   # as a custom webserver_config.py. You can bake a webserver_config.py in to
   # your image instead or specify a configmap containing the
   # webserver_config.py.
@@ -1734,6 +1747,8 @@ triggerer:
     args: ["bash", "/clean-logs"]
     # Number of days to retain logs
     retentionDays: 15
+    # frequency to attempt to groom logs, in minutes
+    frequencyMinutes: 15
     resources: {}
     #  limits:
     #   cpu: 100m
@@ -1747,6 +1762,8 @@ triggerer:
 
     # container level lifecycle hooks
     containerLifecycleHooks: {}
+
+    env: []
 
   waitForMigrations:
     # Whether to create init container to wait for db migrations
@@ -1918,6 +1935,8 @@ dagProcessor:
     args: ["bash", "/clean-logs"]
     # Number of days to retain logs
     retentionDays: 15
+    # frequency to attempt to groom logs, in minutes
+    frequencyMinutes: 15
     resources: {}
     #  limits:
     #   cpu: 100m
@@ -1927,6 +1946,8 @@ dagProcessor:
     #   memory: 128Mi
     securityContexts:
       container: {}
+
+    env: []
 
   waitForMigrations:
     # Whether to create init container to wait for db migrations
@@ -1955,6 +1976,14 @@ flower:
     timeoutSeconds: 5
     failureThreshold: 10
     periodSeconds: 5
+
+  # Wait for at most 1 minute (6*10s) for the flower container to startup.
+  # livenessProbe kicks in after the first successful startupProbe
+  startupProbe:
+    initialDelaySeconds: 0
+    timeoutSeconds: 20
+    failureThreshold: 6
+    periodSeconds: 10
 
   # Max number of old replicasets to retain
   revisionHistoryLimit: ~
@@ -2516,7 +2545,7 @@ ports:
   statsdScrape: 9102
   pgbouncer: 6543
   pgbouncerScrape: 9127
-  apiServer: 9091
+  apiServer: 8080
 
 # Define any ResourceQuotas for namespace
 quotas: {}

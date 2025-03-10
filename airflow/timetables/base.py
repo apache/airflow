@@ -281,8 +281,15 @@ class Timetable(Protocol):
         self,
         *,
         run_type: DagRunType,
-        logical_date: DateTime,
+        run_after: DateTime,
         data_interval: DataInterval | None,
         **extra,
     ) -> str:
-        return run_type.generate_run_id(logical_date)
+        """
+        Generate a unique run ID.
+
+        :param run_type: The type of DAG run.
+        :param run_after: the datetime before which to Dag cannot run.
+        :param data_interval: The data interval of the DAG run.
+        """
+        return run_type.generate_run_id(suffix=run_after.isoformat())

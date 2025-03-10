@@ -16,30 +16,32 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Box, Flex, HStack, Table } from "@chakra-ui/react";
+import { Box, Flex, HStack, Table, Heading } from "@chakra-ui/react";
 import { useParams, useSearchParams } from "react-router-dom";
 
 import {
   useTaskInstanceServiceGetMappedTaskInstance,
   useTaskInstanceServiceGetTaskInstanceTryDetails,
 } from "openapi/queries";
+import { StateBadge } from "src/components/StateBadge";
 import { TaskTrySelect } from "src/components/TaskTrySelect";
 import Time from "src/components/Time";
-import { ClipboardRoot, ClipboardIconButton, Status } from "src/components/ui";
-import { getDuration } from "src/utils";
+import { ClipboardRoot, ClipboardIconButton } from "src/components/ui";
+import { getDuration, useAutoRefresh, isStatePending } from "src/utils";
+
+import { ExtraLinks } from "./ExtraLinks";
+import { TriggererInfo } from "./TriggererInfo";
 
 export const Details = () => {
-  const { dagId = "", runId = "", taskId = "" } = useParams();
+  const { dagId = "", mapIndex = "-1", runId = "", taskId = "" } = useParams();
   const [searchParams, setSearchParams] = useSearchParams();
 
-  const mapIndexParam = searchParams.get("map_index");
   const tryNumberParam = searchParams.get("try_number");
-  const mapIndex = parseInt(mapIndexParam ?? "-1", 10);
 
   const { data: taskInstance } = useTaskInstanceServiceGetMappedTaskInstance({
     dagId,
     dagRunId: runId,
-    mapIndex,
+    mapIndex: parseInt(mapIndex, 10),
     taskId,
   });
 
@@ -54,13 +56,21 @@ export const Details = () => {
 
   const tryNumber = tryNumberParam === null ? taskInstance?.try_number : parseInt(tryNumberParam, 10);
 
-  const { data: tryInstance } = useTaskInstanceServiceGetTaskInstanceTryDetails({
-    dagId,
-    dagRunId: runId,
-    mapIndex,
-    taskId,
-    taskTryNumber: tryNumber ?? 1,
-  });
+  const refetchInterval = useAutoRefresh({ dagId });
+
+  const { data: tryInstance } = useTaskInstanceServiceGetTaskInstanceTryDetails(
+    {
+      dagId,
+      dagRunId: runId,
+      mapIndex: parseInt(mapIndex, 10),
+      taskId,
+      taskTryNumber: tryNumber ?? 1,
+    },
+    undefined,
+    {
+      refetchInterval: (query) => (isStatePending(query.state.data?.state) ? refetchInterval : false),
+    },
+  );
 
   return (
     <Box p={2}>
@@ -73,13 +83,20 @@ export const Details = () => {
           taskInstance={taskInstance}
         />
       )}
+      <ExtraLinks />
+      {taskInstance !== undefined && (taskInstance.trigger ?? taskInstance.triggerer_job) ? (
+        <TriggererInfo taskInstance={taskInstance} />
+      ) : undefined}
+      <Heading py={2} size="sm">
+        Task Instance Info
+      </Heading>
       <Table.Root striped>
         <Table.Body>
           <Table.Row>
-            <Table.Cell>Status</Table.Cell>
+            <Table.Cell>State</Table.Cell>
             <Table.Cell>
               <Flex gap={1}>
-                <Status state={tryInstance?.state ?? null} />
+                <StateBadge state={tryInstance?.state} />
                 {tryInstance?.state ?? "no status"}
               </Flex>
             </Table.Cell>
@@ -117,7 +134,11 @@ export const Details = () => {
           <Table.Row>
             <Table.Cell>Duration</Table.Cell>
             <Table.Cell>
-              {getDuration(tryInstance?.start_date ?? null, tryInstance?.end_date ?? null)}s
+              {
+                // eslint-disable-next-line unicorn/no-null
+                getDuration(tryInstance?.start_date ?? null, tryInstance?.end_date ?? null)
+              }
+              s
             </Table.Cell>
           </Table.Row>
           <Table.Row>

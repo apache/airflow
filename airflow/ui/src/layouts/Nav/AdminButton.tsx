@@ -32,6 +32,18 @@ const links = [
     href: "/pools",
     title: "Pools",
   },
+  {
+    href: "/providers",
+    title: "Providers",
+  },
+  {
+    href: "/plugins",
+    title: "Plugins",
+  },
+  {
+    href: "/connections",
+    title: "Connections",
+  },
 ];
 
 export const AdminButton = () => (

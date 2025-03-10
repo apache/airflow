@@ -27,6 +27,60 @@
 Changelog
 ---------
 
+3.10.3
+......
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Avoid scheduler crash with passing executor_config with CeleryExecutor (#47375)``
+* ``bugfix: cannot import name 'workloads' for Airflow v2 (#47152)``
+
+Misc
+~~~~
+
+* ``Get rid of google-re2 as dependency (#47493)``
+* ``Remove the old 'task run' commands and LocalTaskJob (#47453)``
+* ``Disable ORM access from Tasks, DAG processing and Triggers (#47320)``
+* ``Implement stale dag bundle cleanup (#46503)``
+* ``Render structured logs in the new UI rather than showing raw JSON (#46827)``
+* ``Move execution_api_server_url config to the core section (#46969)``
+* ``Upgrade flit to 3.11.0 (#46938)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Move tests_common package to devel-common project (#47281)``
+   * ``Improve documentation for updating provider dependencies (#47203)``
+   * ``Add legacy namespace packages to airflow.providers (#47064)``
+   * ``Remove extra whitespace in provider readme template (#46975)``
+
+3.10.2
+......
+
+.. note::
+  This version has no code changes. It's released due to yank of previous version due to packaging issues.
+
+3.10.1
+......
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fixing log typos in Local & Celery Executors (#46866)``
+
+Misc
+~~~~
+
+* ``Rework the TriggererJobRunner to run triggers in a process without DB access (#46677)``
+* ``AIP-66: Make DAG callbacks bundle aware (#45860)``
+* ``Swap CeleryExecutor over to use TaskSDK for execution. (#46265)``
+* ``Remove 2.8 version check from CeleryExecutor CLI (#46910)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Move provider_tests to unit folder in provider tests (#46800)``
+   * ``Removed the unused provider's distribution (#46608)``
+
 3.10.0
 ......
 
@@ -52,6 +106,8 @@ Misc
    * ``move Celery provider to new provider code structure (#45786)``
    * ``Move new provider tests to "provider_tests" submodule (#45955)``
    * ``Add script to move providers to the new directory structure (#45945)``
+   * ``move standard, alibaba and common.sql provider to the new structure (#45964)``
+   * ``Prepare docs for ad hoc release celery provider Jan 2025 (#45942)``
 
 3.9.0
 .....

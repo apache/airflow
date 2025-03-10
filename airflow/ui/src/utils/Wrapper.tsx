@@ -23,7 +23,7 @@ import { MemoryRouter } from "react-router-dom";
 
 import { TimezoneProvider } from "src/context/timezone";
 
-export const Wrapper = ({ children }: PropsWithChildren) => {
+export const BaseWrapper = ({ children }: PropsWithChildren) => {
   const queryClient = new QueryClient({
     defaultOptions: {
       queries: {
@@ -34,11 +34,15 @@ export const Wrapper = ({ children }: PropsWithChildren) => {
 
   return (
     <ChakraProvider value={defaultSystem}>
-      <QueryClientProvider client={queryClient}>
-        <MemoryRouter>
-          <TimezoneProvider>{children}</TimezoneProvider>
-        </MemoryRouter>
-      </QueryClientProvider>
+      <QueryClientProvider client={queryClient}>{children}</QueryClientProvider>
     </ChakraProvider>
   );
 };
+
+export const Wrapper = ({ children }: PropsWithChildren) => (
+  <BaseWrapper>
+    <MemoryRouter>
+      <TimezoneProvider>{children}</TimezoneProvider>
+    </MemoryRouter>
+  </BaseWrapper>
+);

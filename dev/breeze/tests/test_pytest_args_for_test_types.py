@@ -23,17 +23,19 @@ from airflow_breeze.utils.path_utils import AIRFLOW_SOURCES_ROOT
 from airflow_breeze.utils.run_tests import convert_parallel_types_to_folders, convert_test_type_to_pytest_args
 
 
-# TODO(potiuk): rename to all_providers when we move all providers to the new structure
-def _all_new_providers() -> list[str]:
-    all_new_providers: list[str] = []
+def _all_providers() -> list[str]:
     providers_root = AIRFLOW_SOURCES_ROOT / "providers"
-    for file in providers_root.rglob("provider.yaml"):
-        # TODO: remove this check when all providers are moved to the new structure
-        if file.is_relative_to(providers_root / "src"):
-            continue
-        provider_path = file.parent.relative_to(providers_root)
-        all_new_providers.append(provider_path.as_posix())
-    return sorted(all_new_providers)
+    return sorted(
+        file.parent.relative_to(providers_root).as_posix() for file in providers_root.rglob("provider.yaml")
+    )
+
+
+def _find_all_integration_folders() -> list[str]:
+    providers_root = AIRFLOW_SOURCES_ROOT / "providers"
+    return sorted(
+        provider_posix_path.relative_to(AIRFLOW_SOURCES_ROOT).as_posix()
+        for provider_posix_path in providers_root.rglob("integration")
+    )
 
 
 @pytest.mark.parametrize(
@@ -55,7 +57,21 @@ def _all_new_providers() -> list[str]:
         (
             GroupOfTests.INTEGRATION_PROVIDERS,
             "All",
-            ["providers/tests/integration"],
+            [
+                "providers/apache/cassandra/tests/integration",
+                "providers/apache/drill/tests/integration",
+                "providers/apache/hive/tests/integration",
+                "providers/apache/kafka/tests/integration",
+                "providers/apache/pinot/tests/integration",
+                "providers/google/tests/integration",
+                "providers/microsoft/mssql/tests/integration",
+                "providers/mongo/tests/integration",
+                "providers/openlineage/tests/integration",
+                "providers/qdrant/tests/integration",
+                "providers/redis/tests/integration",
+                "providers/trino/tests/integration",
+                "providers/ydb/tests/integration",
+            ],
         ),
         (
             GroupOfTests.INTEGRATION_CORE,
@@ -65,7 +81,7 @@ def _all_new_providers() -> list[str]:
         (
             GroupOfTests.CORE,
             "API",
-            ["tests/api", "tests/api_connexion", "tests/api_fastapi"],
+            ["tests/api", "tests/api_fastapi"],
         ),
         (
             GroupOfTests.CORE,
@@ -80,35 +96,45 @@ def _all_new_providers() -> list[str]:
         (
             GroupOfTests.PROVIDERS,
             "Providers",
-            [*[f"providers/{provider}/tests" for provider in _all_new_providers()], "providers/tests"],
+            [
+                *[f"providers/{provider}/tests" for provider in _all_providers()],
+            ],
         ),
         (
             GroupOfTests.PROVIDERS,
             "Providers[amazon]",
-            ["providers/tests/amazon"],
+            ["providers/amazon/tests"],
         ),
         (
             GroupOfTests.PROVIDERS,
             "Providers[common.io]",
-            ["providers/tests/common/io"],
+            ["providers/common/io/tests"],
         ),
         (
             GroupOfTests.PROVIDERS,
             "Providers[amazon,google,apache.hive]",
-            ["providers/tests/amazon", "providers/tests/google", "providers/tests/apache/hive"],
+            [
+                "providers/amazon/tests",
+                "providers/google/tests",
+                "providers/apache/hive/tests",
+            ],
         ),
         (
             GroupOfTests.PROVIDERS,
             "Providers[-amazon,google,microsoft.azure]",
             [
-                *[f"providers/{provider}/tests" for provider in _all_new_providers()],
-                "providers/tests",
-                "--ignore=providers/tests/amazon",
-                "--ignore=providers/amazon",
-                "--ignore=providers/tests/google",
-                "--ignore=providers/google",
-                "--ignore=providers/tests/microsoft/azure",
-                "--ignore=providers/microsoft/tests/azure",
+                *[
+                    f"providers/{provider}/tests"
+                    for provider in _all_providers()
+                    if provider not in ["amazon", "google", "microsoft/azure"]
+                ],
+            ],
+        ),
+        (
+            GroupOfTests.PROVIDERS,
+            "Providers[-edge]",
+            [
+                *[f"providers/{provider}/tests" for provider in _all_providers() if provider != "edge"],
             ],
         ),
         (
@@ -120,8 +146,7 @@ def _all_new_providers() -> list[str]:
             GroupOfTests.PROVIDERS,
             "All-Quarantined",
             [
-                *[f"providers/{provider}/tests" for provider in _all_new_providers()],
-                "providers/tests",
+                *[f"providers/{provider}/tests" for provider in _all_providers()],
                 "-m",
                 "quarantined",
                 "--include-quarantined",
@@ -132,7 +157,6 @@ def _all_new_providers() -> list[str]:
             "Other",
             [
                 "tests/assets",
-                "tests/auth",
                 "tests/callbacks",
                 "tests/charts",
                 "tests/cluster_policies",
@@ -195,7 +219,7 @@ def test_pytest_args_for_missing_provider():
         (
             GroupOfTests.CORE,
             "API",
-            ["tests/api", "tests/api_connexion", "tests/api_fastapi"],
+            ["tests/api", "tests/api_fastapi"],
         ),
         (
             GroupOfTests.CORE,
@@ -209,7 +233,6 @@ def test_pytest_args_for_missing_provider():
             "API CLI",
             [
                 "tests/api",
-                "tests/api_connexion",
                 "tests/api_fastapi",
                 "tests/cli",
             ],
@@ -223,47 +246,51 @@ def test_pytest_args_for_missing_provider():
             GroupOfTests.PROVIDERS,
             "Providers",
             [
-                *[f"providers/{provider}/tests" for provider in _all_new_providers()],
-                "providers/tests",
+                *[f"providers/{provider}/tests" for provider in _all_providers()],
             ],
         ),
         (
             GroupOfTests.PROVIDERS,
             "Providers[amazon]",
             [
-                "providers/tests/amazon",
+                "providers/amazon/tests",
             ],
         ),
         (
             GroupOfTests.PROVIDERS,
             "Providers[amazon] Providers[google]",
             [
-                "providers/tests/amazon",
-                "providers/tests/google",
+                "providers/amazon/tests",
+                "providers/google/tests",
             ],
         ),
         (
             GroupOfTests.PROVIDERS,
             "Providers[-amazon,google]",
             [
-                *[f"providers/{provider}/tests" for provider in _all_new_providers()],
-                "providers/tests",
+                *[
+                    f"providers/{provider}/tests"
+                    for provider in _all_providers()
+                    if provider not in ["amazon", "google"]
+                ],
             ],
         ),
         (
             GroupOfTests.PROVIDERS,
             "Providers[-amazon,google] Providers[amazon] Providers[google]",
             [
-                *[f"providers/{provider}/tests" for provider in _all_new_providers()],
-                "providers/tests",
+                *[
+                    f"providers/{provider}/tests"
+                    for provider in _all_providers()
+                    if provider not in ["amazon", "google"]
+                ],
+                *["providers/amazon/tests", "providers/google/tests"],
             ],
         ),
         (
             GroupOfTests.INTEGRATION_PROVIDERS,
             "All",
-            [
-                "providers/tests/integration",
-            ],
+            _find_all_integration_folders(),
         ),
         (
             GroupOfTests.HELM,
@@ -276,7 +303,7 @@ def test_pytest_args_for_missing_provider():
             GroupOfTests.TASK_SDK,
             "All",
             [
-                "task_sdk/tests",
+                "task-sdk/tests",
             ],
         ),
         (

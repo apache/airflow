@@ -135,6 +135,22 @@ export type BackfillResponse = {
 };
 
 /**
+ * Base Edge serializer for responses.
+ */
+export type BaseEdgeResponse = {
+  source_id: string;
+  target_id: string;
+};
+
+/**
+ * Base Graph serializer for responses.
+ */
+export type BaseGraphResponse = {
+  edges: Array<BaseEdgeResponse>;
+  nodes: Array<BaseNodeResponse>;
+};
+
+/**
  * Base info serializer for responses.
  */
 export type BaseInfoResponse = {
@@ -142,12 +158,31 @@ export type BaseInfoResponse = {
 };
 
 /**
+ * Base Node serializer for responses.
+ */
+export type BaseNodeResponse = {
+  id: string;
+  label: string;
+  type: "join" | "task" | "asset-condition" | "asset" | "asset-alias" | "dag" | "sensor" | "trigger";
+};
+
+export type type =
+  | "join"
+  | "task"
+  | "asset-condition"
+  | "asset"
+  | "asset-alias"
+  | "dag"
+  | "sensor"
+  | "trigger";
+
+/**
  * Bulk Action to be performed on the used model.
  */
 export type BulkAction = "create" | "delete" | "update";
 
 /**
- * Bulk Action to be taken if the entity does not exists.
+ * Bulk Action to be taken if the entity does not exist.
  */
 export type BulkActionNotOnExistence = "fail" | "skip";
 
@@ -155,6 +190,172 @@ export type BulkActionNotOnExistence = "fail" | "skip";
  * Bulk Action to be taken if the entity already exists or not.
  */
 export type BulkActionOnExistence = "fail" | "skip" | "overwrite";
+
+/**
+ * Serializer for individual bulk action responses.
+ *
+ * Represents the outcome of a single bulk operation (create, update, or delete).
+ * The response includes a list of successful keys and any errors encountered during the operation.
+ * This structure helps users understand which key actions succeeded and which failed.
+ */
+export type BulkActionResponse = {
+  /**
+   * A list of unique id/key representing successful operations.
+   */
+  success?: Array<string>;
+  /**
+   * A list of errors encountered during the operation, each containing details about the issue.
+   */
+  errors?: Array<{
+    [key: string]: unknown;
+  }>;
+};
+
+export type BulkBody_ConnectionBody_ = {
+  actions: Array<
+    BulkCreateAction_ConnectionBody_ | BulkUpdateAction_ConnectionBody_ | BulkDeleteAction_ConnectionBody_
+  >;
+};
+
+export type BulkBody_PoolBody_ = {
+  actions: Array<BulkCreateAction_PoolBody_ | BulkUpdateAction_PoolBody_ | BulkDeleteAction_PoolBody_>;
+};
+
+export type BulkBody_VariableBody_ = {
+  actions: Array<
+    BulkCreateAction_VariableBody_ | BulkUpdateAction_VariableBody_ | BulkDeleteAction_VariableBody_
+  >;
+};
+
+export type BulkCreateAction_ConnectionBody_ = {
+  /**
+   * The action to be performed on the entities.
+   */
+  action: BulkAction;
+  /**
+   * A list of entities to be created.
+   */
+  entities: Array<ConnectionBody>;
+  action_on_existence?: BulkActionOnExistence;
+};
+
+export type BulkCreateAction_PoolBody_ = {
+  /**
+   * The action to be performed on the entities.
+   */
+  action: BulkAction;
+  /**
+   * A list of entities to be created.
+   */
+  entities: Array<PoolBody>;
+  action_on_existence?: BulkActionOnExistence;
+};
+
+export type BulkCreateAction_VariableBody_ = {
+  /**
+   * The action to be performed on the entities.
+   */
+  action: BulkAction;
+  /**
+   * A list of entities to be created.
+   */
+  entities: Array<VariableBody>;
+  action_on_existence?: BulkActionOnExistence;
+};
+
+export type BulkDeleteAction_ConnectionBody_ = {
+  /**
+   * The action to be performed on the entities.
+   */
+  action: BulkAction;
+  /**
+   * A list of entity id/key to be deleted.
+   */
+  entities: Array<string>;
+  action_on_non_existence?: BulkActionNotOnExistence;
+};
+
+export type BulkDeleteAction_PoolBody_ = {
+  /**
+   * The action to be performed on the entities.
+   */
+  action: BulkAction;
+  /**
+   * A list of entity id/key to be deleted.
+   */
+  entities: Array<string>;
+  action_on_non_existence?: BulkActionNotOnExistence;
+};
+
+export type BulkDeleteAction_VariableBody_ = {
+  /**
+   * The action to be performed on the entities.
+   */
+  action: BulkAction;
+  /**
+   * A list of entity id/key to be deleted.
+   */
+  entities: Array<string>;
+  action_on_non_existence?: BulkActionNotOnExistence;
+};
+
+/**
+ * Serializer for responses to bulk entity operations.
+ *
+ * This represents the results of create, update, and delete actions performed on entity in bulk.
+ * Each action (if requested) is represented as a field containing details about successful keys and any encountered errors.
+ * Fields are populated in the response only if the respective action was part of the request, else are set None.
+ */
+export type BulkResponse = {
+  /**
+   * Details of the bulk create operation, including successful keys and errors.
+   */
+  create?: BulkActionResponse | null;
+  /**
+   * Details of the bulk update operation, including successful keys and errors.
+   */
+  update?: BulkActionResponse | null;
+  /**
+   * Details of the bulk delete operation, including successful keys and errors.
+   */
+  delete?: BulkActionResponse | null;
+};
+
+export type BulkUpdateAction_ConnectionBody_ = {
+  /**
+   * The action to be performed on the entities.
+   */
+  action: BulkAction;
+  /**
+   * A list of entities to be updated.
+   */
+  entities: Array<ConnectionBody>;
+  action_on_non_existence?: BulkActionNotOnExistence;
+};
+
+export type BulkUpdateAction_PoolBody_ = {
+  /**
+   * The action to be performed on the entities.
+   */
+  action: BulkAction;
+  /**
+   * A list of entities to be updated.
+   */
+  entities: Array<PoolBody>;
+  action_on_non_existence?: BulkActionNotOnExistence;
+};
+
+export type BulkUpdateAction_VariableBody_ = {
+  /**
+   * The action to be performed on the entities.
+   */
+  action: BulkAction;
+  /**
+   * A list of entities to be updated.
+   */
+  entities: Array<VariableBody>;
+  action_on_non_existence?: BulkActionNotOnExistence;
+};
 
 /**
  * Request body for Clear Task Instances endpoint.
@@ -166,7 +367,7 @@ export type ClearTaskInstancesBody = {
   only_failed?: boolean;
   only_running?: boolean;
   reset_dag_runs?: boolean;
-  task_ids?: Array<string> | null;
+  task_ids?: Array<string | [string, number]> | null;
   dag_run_id?: string | null;
   include_upstream?: boolean;
   include_downstream?: boolean;
@@ -210,7 +411,6 @@ export type ConfigResponse = {
   warn_deployment_exposure: boolean;
   audit_view_excluded_events: string;
   audit_view_included_events: string;
-  is_k8s: boolean;
   test_connection: string;
   state_color_mapping: {
     [key: string]: unknown;
@@ -238,94 +438,6 @@ export type ConnectionBody = {
   port?: number | null;
   password?: string | null;
   extra?: string | null;
-};
-
-/**
- * Serializer for individual bulk action responses.
- *
- * Represents the outcome of a single bulk operation (create, update, or delete).
- * The response includes a list of successful connection_ids and any errors encountered during the operation.
- * This structure helps users understand which key actions succeeded and which failed.
- */
-export type ConnectionBulkActionResponse = {
-  /**
-   * A list of connection_ids representing successful operations.
-   */
-  success?: Array<string>;
-  /**
-   * A list of errors encountered during the operation, each containing details about the issue.
-   */
-  errors?: Array<{
-    [key: string]: unknown;
-  }>;
-};
-
-/**
- * Request body for bulk Connection operations (create, update, delete).
- */
-export type ConnectionBulkBody = {
-  /**
-   * A list of Connection actions to perform.
-   */
-  actions: Array<ConnectionBulkCreateAction | ConnectionBulkUpdateAction | ConnectionBulkDeleteAction>;
-};
-
-/**
- * Bulk Create Variable serializer for request bodies.
- */
-export type ConnectionBulkCreateAction = {
-  action?: BulkAction;
-  /**
-   * A list of connections to be created.
-   */
-  connections: Array<ConnectionBody>;
-  action_on_existence?: BulkActionOnExistence;
-};
-
-/**
- * Bulk Delete Connection serializer for request bodies.
- */
-export type ConnectionBulkDeleteAction = {
-  action?: BulkAction;
-  /**
-   * A list of connection IDs to be deleted.
-   */
-  connection_ids: Array<string>;
-  action_on_non_existence?: BulkActionNotOnExistence;
-};
-
-/**
- * Serializer for responses to bulk connection operations.
- *
- * This represents the results of create, update, and delete actions performed on connections in bulk.
- * Each action (if requested) is represented as a field containing details about successful connection_ids and any encountered errors.
- * Fields are populated in the response only if the respective action was part of the request, else are set None.
- */
-export type ConnectionBulkResponse = {
-  /**
-   * Details of the bulk create operation, including successful connection_ids and errors.
-   */
-  create?: ConnectionBulkActionResponse | null;
-  /**
-   * Details of the bulk update operation, including successful connection_ids and errors.
-   */
-  update?: ConnectionBulkActionResponse | null;
-  /**
-   * Details of the bulk delete operation, including successful connection_ids and errors.
-   */
-  delete?: ConnectionBulkActionResponse | null;
-};
-
-/**
- * Bulk Update Connection serializer for request bodies.
- */
-export type ConnectionBulkUpdateAction = {
-  action?: BulkAction;
-  /**
-   * A list of connections to be updated.
-   */
-  connections: Array<ConnectionBody>;
-  action_on_non_existence?: BulkActionNotOnExistence;
 };
 
 /**
@@ -398,10 +510,10 @@ export type DAGDetailsResponse = {
   max_consecutive_failed_dag_runs: number;
   has_task_concurrency_limits: boolean;
   has_import_errors: boolean;
-  next_dagrun: string | null;
+  next_dagrun_logical_date: string | null;
   next_dagrun_data_interval_start: string | null;
   next_dagrun_data_interval_end: string | null;
-  next_dagrun_create_after: string | null;
+  next_dagrun_run_after: string | null;
   owners: Array<string>;
   catchup: boolean;
   dag_run_timeout: string | null;
@@ -427,6 +539,10 @@ export type DAGDetailsResponse = {
    * Return max_active_tasks as concurrency.
    */
   readonly concurrency: number;
+  /**
+   * Return the latest DagVersion.
+   */
+  readonly latest_dag_version: DagVersionResponse | null;
 };
 
 /**
@@ -457,10 +573,10 @@ export type DAGResponse = {
   max_consecutive_failed_dag_runs: number;
   has_task_concurrency_limits: boolean;
   has_import_errors: boolean;
-  next_dagrun: string | null;
+  next_dagrun_logical_date: string | null;
   next_dagrun_data_interval_start: string | null;
   next_dagrun_data_interval_end: string | null;
-  next_dagrun_create_after: string | null;
+  next_dagrun_run_after: string | null;
   owners: Array<string>;
   /**
    * Return file token.
@@ -509,15 +625,16 @@ export type DAGRunResponse = {
   end_date: string | null;
   data_interval_start: string | null;
   data_interval_end: string | null;
+  run_after: string;
   last_scheduling_decision: string | null;
   run_type: DagRunType;
   state: DagRunState;
-  external_trigger: boolean;
   triggered_by: DagRunTriggeredByType;
   conf: {
     [key: string]: unknown;
   };
   note: string | null;
+  dag_versions: Array<DagVersionResponse>;
 };
 
 /**
@@ -549,6 +666,8 @@ export type DAGRunsBatchBody = {
   page_limit?: number;
   dag_ids?: Array<string> | null;
   states?: Array<DagRunState | null> | null;
+  run_after_gte?: string | null;
+  run_after_lte?: string | null;
   logical_date_gte?: string | null;
   logical_date_lte?: string | null;
   start_date_gte?: string | null;
@@ -571,6 +690,14 @@ export type DAGSourceResponse = {
  */
 export type DAGTagCollectionResponse = {
   tags: Array<string>;
+  total_entries: number;
+};
+
+/**
+ * DAG Version Collection serializer for responses.
+ */
+export type DAGVersionCollectionResponse = {
+  dag_versions: Array<DagVersionResponse>;
   total_entries: number;
 };
 
@@ -621,10 +748,10 @@ export type DAGWithLatestDagRunsResponse = {
   max_consecutive_failed_dag_runs: number;
   has_task_concurrency_limits: boolean;
   has_import_errors: boolean;
-  next_dagrun: string | null;
+  next_dagrun_logical_date: string | null;
   next_dagrun_data_interval_start: string | null;
   next_dagrun_data_interval_end: string | null;
-  next_dagrun_create_after: string | null;
+  next_dagrun_run_after: string | null;
   owners: Array<string>;
   latest_dag_runs: Array<DAGRunResponse>;
   /**
@@ -647,12 +774,12 @@ export type DagProcessorInfoResponse = {
 export type DagRunAssetReference = {
   run_id: string;
   dag_id: string;
-  logical_date: string;
+  logical_date: string | null;
   start_date: string;
   end_date: string | null;
   state: string;
-  data_interval_start: string;
-  data_interval_end: string;
+  data_interval_start: string | null;
+  data_interval_end: string | null;
 };
 
 /**
@@ -724,6 +851,19 @@ export type DagTagResponse = {
 };
 
 /**
+ * Dag Version serializer for responses.
+ */
+export type DagVersionResponse = {
+  id: string;
+  version_number: number;
+  dag_id: string;
+  bundle_name: string;
+  bundle_version: string | null;
+  created_at: string;
+  readonly bundle_url: string | null;
+};
+
+/**
  * Enum for DAG warning types.
  *
  * This is the set of allowable values for the ``warning_type`` field
@@ -750,10 +890,10 @@ export type DryRunBackfillResponse = {
  * Edge serializer for responses.
  */
 export type EdgeResponse = {
-  is_setup_teardown?: boolean | null;
-  label?: string | null;
   source_id: string;
   target_id: string;
+  is_setup_teardown?: boolean | null;
+  label?: string | null;
   is_source_asset?: boolean | null;
 };
 
@@ -807,11 +947,13 @@ export type GridDAGRunwithTIs = {
   queued_at: string | null;
   start_date: string | null;
   end_date: string | null;
+  run_after: string;
   state: DagRunState;
   run_type: DagRunType;
+  logical_date: string | null;
   data_interval_start: string | null;
   data_interval_end: string | null;
-  version_number: string | null;
+  version_number: number | null;
   note: string | null;
   task_instances: Array<GridTaskInstanceSummary>;
 };
@@ -921,33 +1063,22 @@ export type JobResponse = {
  * Node serializer for responses.
  */
 export type NodeResponse = {
-  children?: Array<NodeResponse> | null;
   id: string;
-  is_mapped?: boolean | null;
   label: string;
+  type: "join" | "task" | "asset-condition" | "asset" | "asset-alias" | "dag" | "sensor" | "trigger";
+  children?: Array<NodeResponse> | null;
+  is_mapped?: boolean | null;
   tooltip?: string | null;
   setup_teardown_type?: "setup" | "teardown" | null;
-  type: "join" | "task" | "asset-condition" | "asset" | "asset-alias" | "dag" | "sensor" | "trigger";
   operator?: string | null;
   asset_condition_type?: "or-gate" | "and-gate" | null;
 };
-
-export type type =
-  | "join"
-  | "task"
-  | "asset-condition"
-  | "asset"
-  | "asset-alias"
-  | "dag"
-  | "sensor"
-  | "trigger";
 
 /**
  * Request body for Clear Task Instances endpoint.
  */
 export type PatchTaskInstanceBody = {
-  dry_run?: boolean;
-  new_state?: string | null;
+  new_state?: TaskInstanceState | null;
   note?: string | null;
   include_upstream?: boolean;
   include_downstream?: boolean;
@@ -981,91 +1112,13 @@ export type PluginResponse = {
 };
 
 /**
- * Serializer for individual bulk action responses.
- *
- * Represents the outcome of a single bulk operation (create, update, or delete).
- * The response includes a list of successful pool names and any errors encountered during the operation.
- * This structure helps users understand which key actions succeeded and which failed.
+ * Pool serializer for post bodies.
  */
-export type PoolBulkActionResponse = {
-  /**
-   * A list of pool names representing successful operations.
-   */
-  success?: Array<string>;
-  /**
-   * A list of errors encountered during the operation, each containing details about the issue.
-   */
-  errors?: Array<{
-    [key: string]: unknown;
-  }>;
-};
-
-/**
- * Request body for bulk Pool operations (create, update, delete).
- */
-export type PoolBulkBody = {
-  /**
-   * A list of Pool actions to perform.
-   */
-  actions: Array<PoolBulkCreateAction | PoolBulkUpdateAction | PoolBulkDeleteAction>;
-};
-
-/**
- * Bulk Create Pool serializer for request bodies.
- */
-export type PoolBulkCreateAction = {
-  action?: BulkAction;
-  /**
-   * A list of pools to be created.
-   */
-  pools: Array<PoolPostBody>;
-  action_on_existence?: BulkActionOnExistence;
-};
-
-/**
- * Bulk Delete Pool serializer for request bodies.
- */
-export type PoolBulkDeleteAction = {
-  action?: BulkAction;
-  /**
-   * A list of pool names to be deleted.
-   */
-  pool_names: Array<string>;
-  action_on_non_existence?: BulkActionNotOnExistence;
-};
-
-/**
- * Serializer for responses to bulk pool operations.
- *
- * This represents the results of create, update, and delete actions performed on pools in bulk.
- * Each action (if requested) is represented as a field containing details about successful pool names and any encountered errors.
- * Fields are populated in the response only if the respective action was part of the request, else are set None.
- */
-export type PoolBulkResponse = {
-  /**
-   * Details of the bulk create operation, including successful pool names and errors.
-   */
-  create?: PoolBulkActionResponse | null;
-  /**
-   * Details of the bulk update operation, including successful pool names and errors.
-   */
-  update?: PoolBulkActionResponse | null;
-  /**
-   * Details of the bulk delete operation, including successful pool names and errors.
-   */
-  delete?: PoolBulkActionResponse | null;
-};
-
-/**
- * Bulk Update Pool serializer for request bodies.
- */
-export type PoolBulkUpdateAction = {
-  action?: BulkAction;
-  /**
-   * A list of pools to be updated.
-   */
-  pools: Array<PoolPatchBody>;
-  action_on_non_existence?: BulkActionNotOnExistence;
+export type PoolBody = {
+  name: string;
+  slots: number;
+  description?: string | null;
+  include_deferred?: boolean;
 };
 
 /**
@@ -1084,16 +1137,6 @@ export type PoolPatchBody = {
   slots?: number | null;
   description?: string | null;
   include_deferred?: boolean | null;
-};
-
-/**
- * Pool serializer for post bodies.
- */
-export type PoolPostBody = {
-  name: string;
-  slots: number;
-  description?: string | null;
-  include_deferred?: boolean;
 };
 
 /**
@@ -1173,6 +1216,15 @@ export type StructureDataResponse = {
 export type arrange = "BT" | "LR" | "RL" | "TB";
 
 /**
+ * An individual log message.
+ */
+export type StructuredLogMessage = {
+  timestamp?: string;
+  event: string;
+  [key: string]: unknown | string;
+};
+
+/**
  * Task collection serializer for responses.
  */
 export type TaskCollectionResponse = {
@@ -1234,9 +1286,11 @@ export type TaskInstanceHistoryResponse = {
   priority_weight: number | null;
   operator: string | null;
   queued_when: string | null;
+  scheduled_when: string | null;
   pid: number | null;
   executor: string | null;
   executor_config: string;
+  dag_version: DagVersionResponse | null;
 };
 
 /**
@@ -1248,7 +1302,8 @@ export type TaskInstanceResponse = {
   dag_id: string;
   dag_run_id: string;
   map_index: number;
-  logical_date: string;
+  logical_date: string | null;
+  run_after: string;
   start_date: string | null;
   end_date: string | null;
   duration: number | null;
@@ -1264,6 +1319,7 @@ export type TaskInstanceResponse = {
   priority_weight: number | null;
   operator: string | null;
   queued_when: string | null;
+  scheduled_when: string | null;
   pid: number | null;
   executor: string | null;
   executor_config: string;
@@ -1274,6 +1330,7 @@ export type TaskInstanceResponse = {
   };
   trigger: TriggerResponse | null;
   triggerer_job: JobResponse | null;
+  dag_version: DagVersionResponse | null;
 };
 
 /**
@@ -1322,6 +1379,8 @@ export type TaskInstancesBatchBody = {
   dag_run_ids?: Array<string> | null;
   task_ids?: Array<string> | null;
   state?: Array<TaskInstanceState | null> | null;
+  run_after_gte?: string | null;
+  run_after_lte?: string | null;
   logical_date_gte?: string | null;
   logical_date_lte?: string | null;
   start_date_gte?: string | null;
@@ -1342,7 +1401,7 @@ export type TaskInstancesBatchBody = {
  * Log serializer for responses.
  */
 export type TaskInstancesLogResponse = {
-  content: string;
+  content: Array<StructuredLogMessage> | Array<string>;
   continuation_token: string | null;
 };
 
@@ -1413,6 +1472,8 @@ export type TriggerDAGRunPostBody = {
   dag_run_id?: string | null;
   data_interval_start?: string | null;
   data_interval_end?: string | null;
+  logical_date: string | null;
+  run_after?: string | null;
   conf?: {
     [key: string]: unknown;
   };
@@ -1454,94 +1515,6 @@ export type VariableBody = {
 };
 
 /**
- * Serializer for individual bulk action responses.
- *
- * Represents the outcome of a single bulk operation (create, update, or delete).
- * The response includes a list of successful keys and any errors encountered during the operation.
- * This structure helps users understand which key actions succeeded and which failed.
- */
-export type VariableBulkActionResponse = {
-  /**
-   * A list of keys representing successful operations.
-   */
-  success?: Array<string>;
-  /**
-   * A list of errors encountered during the operation, each containing details about the issue.
-   */
-  errors?: Array<{
-    [key: string]: unknown;
-  }>;
-};
-
-/**
- * Request body for bulk variable operations (create, update, delete).
- */
-export type VariableBulkBody = {
-  /**
-   * A list of variable actions to perform.
-   */
-  actions: Array<VariableBulkCreateAction | VariableBulkUpdateAction | VariableBulkDeleteAction>;
-};
-
-/**
- * Bulk Create Variable serializer for request bodies.
- */
-export type VariableBulkCreateAction = {
-  action?: BulkAction;
-  /**
-   * A list of variables to be created.
-   */
-  variables: Array<VariableBody>;
-  action_on_existence?: BulkActionOnExistence;
-};
-
-/**
- * Bulk Delete Variable serializer for request bodies.
- */
-export type VariableBulkDeleteAction = {
-  action?: BulkAction;
-  /**
-   * A list of variable keys to be deleted.
-   */
-  keys: Array<string>;
-  action_on_non_existence?: BulkActionNotOnExistence;
-};
-
-/**
- * Serializer for responses to bulk variable operations.
- *
- * This represents the results of create, update, and delete actions performed on variables in bulk.
- * Each action (if requested) is represented as a field containing details about successful keys and any encountered errors.
- * Fields are populated in the response only if the respective action was part of the request, else are set None.
- */
-export type VariableBulkResponse = {
-  /**
-   * Details of the bulk create operation, including successful keys and errors.
-   */
-  create?: VariableBulkActionResponse | null;
-  /**
-   * Details of the bulk update operation, including successful keys and errors.
-   */
-  update?: VariableBulkActionResponse | null;
-  /**
-   * Details of the bulk delete operation, including successful keys and errors.
-   */
-  delete?: VariableBulkActionResponse | null;
-};
-
-/**
- * Bulk Update Variable serializer for request bodies.
- */
-export type VariableBulkUpdateAction = {
-  action?: BulkAction;
-  /**
-   * A list of variables to be updated.
-   */
-  variables: Array<VariableBody>;
-  action_on_non_existence?: BulkActionNotOnExistence;
-};
-
-/**
  * Variable Collection serializer for responses.
  */
 export type VariableCollectionResponse = {
@@ -1568,11 +1541,20 @@ export type VersionInfo = {
 };
 
 /**
- * List of XCom items.
+ * XCom Collection serializer for responses.
  */
-export type XComCollection = {
+export type XComCollectionResponse = {
   xcom_entries: Array<XComResponse>;
   total_entries: number;
+};
+
+/**
+ * Payload serializer for creating an XCom entry.
+ */
+export type XComCreateBody = {
+  key: string;
+  value: unknown;
+  map_index?: number;
 };
 
 /**
@@ -1581,7 +1563,7 @@ export type XComCollection = {
 export type XComResponse = {
   key: string;
   timestamp: string;
-  logical_date: string;
+  logical_date: string | null;
   map_index: number;
   task_id: string;
   dag_id: string;
@@ -1594,7 +1576,7 @@ export type XComResponse = {
 export type XComResponseNative = {
   key: string;
   timestamp: string;
-  logical_date: string;
+  logical_date: string | null;
   map_index: number;
   task_id: string;
   dag_id: string;
@@ -1608,12 +1590,20 @@ export type XComResponseNative = {
 export type XComResponseString = {
   key: string;
   timestamp: string;
-  logical_date: string;
+  logical_date: string | null;
   map_index: number;
   task_id: string;
   dag_id: string;
   run_id: string;
   value: string | null;
+};
+
+/**
+ * Payload serializer for updating an XCom entry.
+ */
+export type XComUpdateBody = {
+  value: unknown;
+  map_index?: number;
 };
 
 export type NextRunAssetsData = {
@@ -1671,6 +1661,12 @@ export type CreateAssetEventData = {
 
 export type CreateAssetEventResponse = AssetEventResponse;
 
+export type MaterializeAssetData = {
+  assetId: number;
+};
+
+export type MaterializeAssetResponse = DAGRunResponse;
+
 export type GetAssetQueuedEventsData = {
   assetId: number;
   before?: string | null;
@@ -1681,6 +1677,7 @@ export type GetAssetQueuedEventsResponse = QueuedEventCollectionResponse;
 export type DeleteAssetQueuedEventsData = {
   assetId: number;
   before?: string | null;
+  dagId?: string | null;
 };
 
 export type DeleteAssetQueuedEventsResponse = void;
@@ -1693,14 +1690,14 @@ export type GetAssetResponse = AssetResponse;
 
 export type GetDagAssetQueuedEventsData = {
   before?: string | null;
-  dagId: string;
+  dagId: string | null;
 };
 
 export type GetDagAssetQueuedEventsResponse = QueuedEventCollectionResponse;
 
 export type DeleteDagAssetQueuedEventsData = {
   before?: string | null;
-  dagId: string;
+  dagId: string | null;
 };
 
 export type DeleteDagAssetQueuedEventsResponse = void;
@@ -1708,7 +1705,7 @@ export type DeleteDagAssetQueuedEventsResponse = void;
 export type GetDagAssetQueuedEventData = {
   assetId: number;
   before?: string | null;
-  dagId: string;
+  dagId: string | null;
 };
 
 export type GetDagAssetQueuedEventResponse = QueuedEventResponse;
@@ -1716,7 +1713,7 @@ export type GetDagAssetQueuedEventResponse = QueuedEventResponse;
 export type DeleteDagAssetQueuedEventData = {
   assetId: number;
   before?: string | null;
-  dagId: string;
+  dagId: string | null;
 };
 
 export type DeleteDagAssetQueuedEventResponse = void;
@@ -1755,6 +1752,12 @@ export type RecentDagRunsData = {
 
 export type RecentDagRunsResponse = DAGWithLatestDagRunsCollectionResponse;
 
+export type GetDependenciesData = {
+  nodeId?: string | null;
+};
+
+export type GetDependenciesResponse = BaseGraphResponse;
+
 export type HistoricalMetricsData = {
   endDate?: string | null;
   startDate: string;
@@ -1768,6 +1771,7 @@ export type StructureDataData = {
   includeDownstream?: boolean;
   includeUpstream?: boolean;
   root?: string | null;
+  versionNumber?: number | null;
 };
 
 export type StructureDataResponse2 = StructureDataResponse;
@@ -1837,6 +1841,8 @@ export type GridDataData = {
   offset?: number;
   orderBy?: string;
   root?: string | null;
+  runAfterGte?: string | null;
+  runAfterLte?: string | null;
   runType?: Array<string>;
   state?: Array<string>;
 };
@@ -1864,6 +1870,7 @@ export type PatchConnectionData = {
 export type PatchConnectionResponse = ConnectionResponse;
 
 export type GetConnectionsData = {
+  connectionIdPattern?: string | null;
   limit?: number;
   offset?: number;
   orderBy?: string;
@@ -1878,10 +1885,10 @@ export type PostConnectionData = {
 export type PostConnectionResponse = ConnectionResponse;
 
 export type BulkConnectionsData = {
-  requestBody: ConnectionBulkBody;
+  requestBody: BulkBody_ConnectionBody_;
 };
 
-export type BulkConnectionsResponse = ConnectionBulkResponse;
+export type BulkConnectionsResponse = BulkResponse;
 
 export type TestConnectionData = {
   requestBody: ConnectionBody;
@@ -1938,6 +1945,8 @@ export type GetDagRunsData = {
   logicalDateLte?: string | null;
   offset?: number;
   orderBy?: string;
+  runAfterGte?: string | null;
+  runAfterLte?: string | null;
   startDateGte?: string | null;
   startDateLte?: string | null;
   state?: Array<string>;
@@ -1975,11 +1984,11 @@ export type GetDagStatsData = {
 
 export type GetDagStatsResponse = DagStatsCollectionResponse;
 
-export type GetDagReportData = {
+export type GetDagReportsData = {
   subdir: string;
 };
 
-export type GetDagReportResponse = unknown;
+export type GetDagReportsResponse = unknown;
 
 export type ListDagWarningsData = {
   dagId?: string | null;
@@ -2064,6 +2073,7 @@ export type GetDagTagsData = {
 export type GetDagTagsResponse = DAGTagCollectionResponse;
 
 export type GetEventLogData = {
+  dagId?: string | null;
   eventLogId: number;
 };
 
@@ -2089,8 +2099,9 @@ export type GetEventLogsData = {
 export type GetEventLogsResponse = EventLogCollectionResponse;
 
 export type GetExtraLinksData = {
-  dagId: string;
+  dagId: string | null;
   dagRunId: string;
+  mapIndex?: number;
   taskId: string;
 };
 
@@ -2130,12 +2141,15 @@ export type GetMappedTaskInstancesData = {
   orderBy?: string;
   pool?: Array<string>;
   queue?: Array<string>;
+  runAfterGte?: string | null;
+  runAfterLte?: string | null;
   startDateGte?: string | null;
   startDateLte?: string | null;
   state?: Array<string>;
   taskId: string;
   updatedAtGte?: string | null;
   updatedAtLte?: string | null;
+  versionNumber?: Array<number>;
 };
 
 export type GetMappedTaskInstancesResponse = TaskInstanceCollectionResponse;
@@ -2211,6 +2225,8 @@ export type GetTaskInstancesData = {
   orderBy?: string;
   pool?: Array<string>;
   queue?: Array<string>;
+  runAfterGte?: string | null;
+  runAfterLte?: string | null;
   startDateGte?: string | null;
   startDateLte?: string | null;
   state?: Array<string>;
@@ -2218,6 +2234,7 @@ export type GetTaskInstancesData = {
   taskId?: string | null;
   updatedAtGte?: string | null;
   updatedAtLte?: string | null;
+  versionNumber?: Array<number>;
 };
 
 export type GetTaskInstancesResponse = TaskInstanceCollectionResponse;
@@ -2256,6 +2273,28 @@ export type PostClearTaskInstancesData = {
 };
 
 export type PostClearTaskInstancesResponse = TaskInstanceCollectionResponse;
+
+export type PatchTaskInstanceDryRunData = {
+  dagId: string;
+  dagRunId: string;
+  mapIndex: number;
+  requestBody: PatchTaskInstanceBody;
+  taskId: string;
+  updateMask?: Array<string> | null;
+};
+
+export type PatchTaskInstanceDryRunResponse = TaskInstanceCollectionResponse;
+
+export type PatchTaskInstanceDryRun1Data = {
+  dagId: string;
+  dagRunId: string;
+  mapIndex?: number;
+  requestBody: PatchTaskInstanceBody;
+  taskId: string;
+  updateMask?: Array<string> | null;
+};
+
+export type PatchTaskInstanceDryRun1Response = TaskInstanceCollectionResponse;
 
 export type GetLogData = {
   accept?: "application/json" | "text/plain" | "*/*";
@@ -2332,21 +2371,22 @@ export type GetPoolsData = {
   limit?: number;
   offset?: number;
   orderBy?: string;
+  poolNamePattern?: string | null;
 };
 
 export type GetPoolsResponse = PoolCollectionResponse;
 
 export type PostPoolData = {
-  requestBody: PoolPostBody;
+  requestBody: PoolBody;
 };
 
 export type PostPoolResponse = PoolResponse;
 
 export type BulkPoolsData = {
-  requestBody: PoolBulkBody;
+  requestBody: BulkBody_PoolBody_;
 };
 
-export type BulkPoolsResponse = PoolBulkResponse;
+export type BulkPoolsResponse = BulkResponse;
 
 export type GetProvidersData = {
   limit?: number;
@@ -2367,6 +2407,16 @@ export type GetXcomEntryData = {
 
 export type GetXcomEntryResponse = XComResponseNative | XComResponseString;
 
+export type UpdateXcomEntryData = {
+  dagId: string;
+  dagRunId: string;
+  requestBody: XComUpdateBody;
+  taskId: string;
+  xcomKey: string;
+};
+
+export type UpdateXcomEntryResponse = XComResponseNative;
+
 export type GetXcomEntriesData = {
   dagId: string;
   dagRunId: string;
@@ -2377,7 +2427,16 @@ export type GetXcomEntriesData = {
   xcomKey?: string | null;
 };
 
-export type GetXcomEntriesResponse = XComCollection;
+export type GetXcomEntriesResponse = XComCollectionResponse;
+
+export type CreateXcomEntryData = {
+  dagId: string;
+  dagRunId: string;
+  requestBody: XComCreateBody;
+  taskId: string;
+};
+
+export type CreateXcomEntryResponse = XComResponseNative;
 
 export type GetTasksData = {
   dagId: string;
@@ -2429,10 +2488,10 @@ export type PostVariableData = {
 export type PostVariableResponse = VariableResponse;
 
 export type BulkVariablesData = {
-  requestBody: VariableBulkBody;
+  requestBody: BulkBody_VariableBody_;
 };
 
-export type BulkVariablesResponse = VariableBulkResponse;
+export type BulkVariablesResponse = BulkResponse;
 
 export type ReparseDagFileData = {
   fileToken: string;
@@ -2440,9 +2499,34 @@ export type ReparseDagFileData = {
 
 export type ReparseDagFileResponse = null;
 
+export type GetDagVersionData = {
+  dagId: string;
+  versionNumber: number;
+};
+
+export type GetDagVersionResponse = DagVersionResponse;
+
+export type GetDagVersionsData = {
+  bundleName?: string;
+  bundleVersion?: string | null;
+  dagId: string;
+  limit?: number;
+  offset?: number;
+  orderBy?: string;
+  versionNumber?: number;
+};
+
+export type GetDagVersionsResponse = DAGVersionCollectionResponse;
+
 export type GetHealthResponse = HealthInfoResponse;
 
 export type GetVersionResponse = VersionInfo;
+
+export type LoginData = {
+  next?: string | null;
+};
+
+export type LoginResponse = unknown;
 
 export type $OpenApiTs = {
   "/ui/next_run_assets/{dag_id}": {
@@ -2588,6 +2672,37 @@ export type $OpenApiTs = {
          * Not Found
          */
         404: HTTPExceptionResponse;
+        /**
+         * Validation Error
+         */
+        422: HTTPValidationError;
+      };
+    };
+  };
+  "/public/assets/{asset_id}/materialize": {
+    post: {
+      req: MaterializeAssetData;
+      res: {
+        /**
+         * Successful Response
+         */
+        200: DAGRunResponse;
+        /**
+         * Unauthorized
+         */
+        401: HTTPExceptionResponse;
+        /**
+         * Forbidden
+         */
+        403: HTTPExceptionResponse;
+        /**
+         * Not Found
+         */
+        404: HTTPExceptionResponse;
+        /**
+         * Conflict
+         */
+        409: HTTPExceptionResponse;
         /**
          * Validation Error
          */
@@ -2870,6 +2985,25 @@ export type $OpenApiTs = {
          * Successful Response
          */
         200: DAGWithLatestDagRunsCollectionResponse;
+        /**
+         * Validation Error
+         */
+        422: HTTPValidationError;
+      };
+    };
+  };
+  "/ui/dependencies": {
+    get: {
+      req: GetDependenciesData;
+      res: {
+        /**
+         * Successful Response
+         */
+        200: BaseGraphResponse;
+        /**
+         * Not Found
+         */
+        404: HTTPExceptionResponse;
         /**
          * Validation Error
          */
@@ -3298,7 +3432,7 @@ export type $OpenApiTs = {
         /**
          * Successful Response
          */
-        200: ConnectionBulkResponse;
+        200: BulkResponse;
         /**
          * Unauthorized
          */
@@ -3649,7 +3783,7 @@ export type $OpenApiTs = {
   };
   "/public/dagReports": {
     get: {
-      req: GetDagReportData;
+      req: GetDagReportsData;
       res: {
         /**
          * Successful Response
@@ -4359,6 +4493,68 @@ export type $OpenApiTs = {
       };
     };
   };
+  "/public/dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances/{task_id}/{map_index}/dry_run": {
+    patch: {
+      req: PatchTaskInstanceDryRunData;
+      res: {
+        /**
+         * Successful Response
+         */
+        200: TaskInstanceCollectionResponse;
+        /**
+         * Bad Request
+         */
+        400: HTTPExceptionResponse;
+        /**
+         * Unauthorized
+         */
+        401: HTTPExceptionResponse;
+        /**
+         * Forbidden
+         */
+        403: HTTPExceptionResponse;
+        /**
+         * Not Found
+         */
+        404: HTTPExceptionResponse;
+        /**
+         * Validation Error
+         */
+        422: HTTPValidationError;
+      };
+    };
+  };
+  "/public/dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances/{task_id}/dry_run": {
+    patch: {
+      req: PatchTaskInstanceDryRun1Data;
+      res: {
+        /**
+         * Successful Response
+         */
+        200: TaskInstanceCollectionResponse;
+        /**
+         * Bad Request
+         */
+        400: HTTPExceptionResponse;
+        /**
+         * Unauthorized
+         */
+        401: HTTPExceptionResponse;
+        /**
+         * Forbidden
+         */
+        403: HTTPExceptionResponse;
+        /**
+         * Not Found
+         */
+        404: HTTPExceptionResponse;
+        /**
+         * Validation Error
+         */
+        422: HTTPValidationError;
+      };
+    };
+  };
   "/public/dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances/{task_id}/logs/{try_number}": {
     get: {
       req: GetLogData;
@@ -4628,7 +4824,7 @@ export type $OpenApiTs = {
         /**
          * Successful Response
          */
-        200: PoolBulkResponse;
+        200: BulkResponse;
         /**
          * Unauthorized
          */
@@ -4697,6 +4893,35 @@ export type $OpenApiTs = {
         422: HTTPValidationError;
       };
     };
+    patch: {
+      req: UpdateXcomEntryData;
+      res: {
+        /**
+         * Successful Response
+         */
+        200: XComResponseNative;
+        /**
+         * Bad Request
+         */
+        400: HTTPExceptionResponse;
+        /**
+         * Unauthorized
+         */
+        401: HTTPExceptionResponse;
+        /**
+         * Forbidden
+         */
+        403: HTTPExceptionResponse;
+        /**
+         * Not Found
+         */
+        404: HTTPExceptionResponse;
+        /**
+         * Validation Error
+         */
+        422: HTTPValidationError;
+      };
+    };
   };
   "/public/dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances/{task_id}/xcomEntries": {
     get: {
@@ -4705,7 +4930,36 @@ export type $OpenApiTs = {
         /**
          * Successful Response
          */
-        200: XComCollection;
+        200: XComCollectionResponse;
+        /**
+         * Bad Request
+         */
+        400: HTTPExceptionResponse;
+        /**
+         * Unauthorized
+         */
+        401: HTTPExceptionResponse;
+        /**
+         * Forbidden
+         */
+        403: HTTPExceptionResponse;
+        /**
+         * Not Found
+         */
+        404: HTTPExceptionResponse;
+        /**
+         * Validation Error
+         */
+        422: HTTPValidationError;
+      };
+    };
+    post: {
+      req: CreateXcomEntryData;
+      res: {
+        /**
+         * Successful Response
+         */
+        201: XComResponseNative;
         /**
          * Bad Request
          */
@@ -4925,7 +5179,7 @@ export type $OpenApiTs = {
         /**
          * Successful Response
          */
-        200: VariableBulkResponse;
+        200: BulkResponse;
         /**
          * Unauthorized
          */
@@ -4968,6 +5222,60 @@ export type $OpenApiTs = {
       };
     };
   };
+  "/public/dags/{dag_id}/dagVersions/{version_number}": {
+    get: {
+      req: GetDagVersionData;
+      res: {
+        /**
+         * Successful Response
+         */
+        200: DagVersionResponse;
+        /**
+         * Unauthorized
+         */
+        401: HTTPExceptionResponse;
+        /**
+         * Forbidden
+         */
+        403: HTTPExceptionResponse;
+        /**
+         * Not Found
+         */
+        404: HTTPExceptionResponse;
+        /**
+         * Validation Error
+         */
+        422: HTTPValidationError;
+      };
+    };
+  };
+  "/public/dags/{dag_id}/dagVersions": {
+    get: {
+      req: GetDagVersionsData;
+      res: {
+        /**
+         * Successful Response
+         */
+        200: DAGVersionCollectionResponse;
+        /**
+         * Unauthorized
+         */
+        401: HTTPExceptionResponse;
+        /**
+         * Forbidden
+         */
+        403: HTTPExceptionResponse;
+        /**
+         * Not Found
+         */
+        404: HTTPExceptionResponse;
+        /**
+         * Validation Error
+         */
+        422: HTTPValidationError;
+      };
+    };
+  };
   "/public/monitor/health": {
     get: {
       res: {
@@ -4985,6 +5293,25 @@ export type $OpenApiTs = {
          * Successful Response
          */
         200: VersionInfo;
+      };
+    };
+  };
+  "/public/login": {
+    get: {
+      req: LoginData;
+      res: {
+        /**
+         * Successful Response
+         */
+        200: unknown;
+        /**
+         * Temporary Redirect
+         */
+        307: HTTPExceptionResponse;
+        /**
+         * Validation Error
+         */
+        422: HTTPValidationError;
       };
     };
   };

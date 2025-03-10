@@ -15,7 +15,7 @@ fetching logs to attach to the trace)
   * [ ] Dependency changes
   * [ ] Code interface changes
 
-* Migrations rules needed
+* Migration rules needed
 
   * ``airflow config lint``
 

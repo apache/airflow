@@ -30,10 +30,10 @@ For example, instead of ``from airflow.sensors import TimeDeltaSensor``, use ``f
 
       * [x] ``airflow.operators.bash_operator.BashOperator`` → ``airflow.operators.bash.BashOperator``
       * [x] ``airflow.operators.branch_operator.BaseBranchOperator`` → ``airflow.operators.branch.BaseBranchOperator``
-      * [x] ``airflow.operators....EmptyOperator`` → ``airflow.operators.empty.EmptyOperator``
-      * [x] ``airflow.operators....DummyOperator`` → ``airflow.operators.empty.EmptyOperator``
-      * [x] ``airflow.operators.dummy_operator.EmptyOperator`` → ``airflow.operators.empty.EmptyOperator``
-      * [x] ``airflow.operators.dummy_operator.DummyOperator`` → ``airflow.operators.empty.EmptyOperator``
+      * [ ] ``airflow.operators....EmptyOperator`` → ``airflow.providers.standard.operators.empty.EmptyOperator``
+      * [ ] ``airflow.operators....DummyOperator`` → ``airflow.providers.standard.operators.empty.EmptyOperator``
+      * [ ] ``airflow.operators.dummy_operator.EmptyOperator`` → ``airflow.providers.standard.operators.empty.EmptyOperator``
+      * [ ] ``airflow.operators.dummy_operator.DummyOperator`` → ``airflow.providers.standard.operators.empty.EmptyOperator``
       * [x] ``airflow.operators.email_operator.EmailOperator`` → ``airflow.operators.email.EmailOperator``
       * [x] ``airflow.sensors.base_sensor_operator.BaseSensorOperator`` → ``airflow.sensors.base.BaseSensorOperator``
       * [x] ``airflow.sensors.date_time_sensor.DateTimeSensor`` → ``airflow.sensors.date_time.DateTimeSensor``

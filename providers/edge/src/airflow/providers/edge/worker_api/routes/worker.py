@@ -23,11 +23,12 @@ from typing import Annotated
 
 from sqlalchemy import select
 
-from airflow.providers.edge.models.edge_worker import EdgeWorkerModel, set_metrics
+from airflow.providers.edge.models.edge_worker import EdgeWorkerModel, EdgeWorkerState, set_metrics
 from airflow.providers.edge.worker_api.auth import jwt_token_authorization_rest
 from airflow.providers.edge.worker_api.datamodels import (
-    WorkerQueueUpdateBody,  # noqa: TC001
-    WorkerStateBody,  # noqa: TC001
+    WorkerQueueUpdateBody,
+    WorkerSetStateReturn,
+    WorkerStateBody,
 )
 from airflow.providers.edge.worker_api.routes._v2_compat import (
     AirflowRouter,
@@ -112,6 +113,43 @@ _worker_queue_doc = Body(
 )
 
 
+def redefine_state(worker_state: EdgeWorkerState, body_state: EdgeWorkerState) -> EdgeWorkerState:
+    """Redefine the state of the worker based on maintenance request."""
+    if (
+        worker_state == EdgeWorkerState.MAINTENANCE_REQUEST
+        and body_state
+        not in (
+            EdgeWorkerState.MAINTENANCE_PENDING,
+            EdgeWorkerState.MAINTENANCE_MODE,
+        )
+        or worker_state == EdgeWorkerState.OFFLINE_MAINTENANCE
+        and body_state == EdgeWorkerState.STARTING
+    ):
+        return EdgeWorkerState.MAINTENANCE_REQUEST
+
+    if worker_state == EdgeWorkerState.MAINTENANCE_EXIT:
+        if body_state == EdgeWorkerState.MAINTENANCE_PENDING:
+            return EdgeWorkerState.RUNNING
+        if body_state == EdgeWorkerState.MAINTENANCE_MODE:
+            return EdgeWorkerState.IDLE
+
+    return body_state
+
+
+def redefine_maintenance_comments(
+    worker_maintenance_comment: str | None, body_maintenance_comments: str | None
+) -> str | None:
+    """Add new maintenance comments or overwrite the old ones if it is too long."""
+    if body_maintenance_comments:
+        if (
+            worker_maintenance_comment
+            and len(body_maintenance_comments) + len(worker_maintenance_comment) < 1020
+        ):
+            return f"{worker_maintenance_comment}\n\n{body_maintenance_comments}"
+        return body_maintenance_comments
+    return worker_maintenance_comment
+
+
 @worker_router.post("/{worker_name}", dependencies=[Depends(jwt_token_authorization_rest)])
 def register(
     worker_name: Annotated[str, _worker_name_doc],
@@ -124,7 +162,10 @@ def register(
     worker: EdgeWorkerModel = session.scalar(query)
     if not worker:
         worker = EdgeWorkerModel(worker_name=worker_name, state=body.state, queues=body.queues)
-    worker.state = body.state
+    worker.state = redefine_state(worker.state, body.state)
+    worker.maintenance_comment = redefine_maintenance_comments(
+        worker.maintenance_comment, body.maintenance_comments
+    )
     worker.queues = body.queues
     worker.sysinfo = json.dumps(body.sysinfo)
     worker.last_update = timezone.utcnow()
@@ -137,11 +178,14 @@ def set_state(
     worker_name: Annotated[str, _worker_name_doc],
     body: Annotated[WorkerStateBody, _worker_state_doc],
     session: SessionDep,
-) -> list[str] | None:
+) -> WorkerSetStateReturn:
     """Set state of worker and returns the current assigned queues."""
     query = select(EdgeWorkerModel).where(EdgeWorkerModel.worker_name == worker_name)
     worker: EdgeWorkerModel = session.scalar(query)
-    worker.state = body.state
+    worker.state = redefine_state(worker.state, body.state)
+    worker.maintenance_comment = redefine_maintenance_comments(
+        worker.maintenance_comment, body.maintenance_comments
+    )
     worker.jobs_active = body.jobs_active
     worker.sysinfo = json.dumps(body.sysinfo)
     worker.last_update = timezone.utcnow()
@@ -157,7 +201,9 @@ def set_state(
         queues=worker.queues,
     )
     _assert_version(body.sysinfo)  #  Exception only after worker state is in the DB
-    return worker.queues
+    return WorkerSetStateReturn(
+        state=worker.state, queues=worker.queues, maintenance_comments=worker.maintenance_comment
+    )
 
 
 @worker_router.patch(

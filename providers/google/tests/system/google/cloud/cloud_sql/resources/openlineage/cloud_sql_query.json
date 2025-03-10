@@ -1,0 +1,66 @@
+[
+    {
+        "eventType": "START",
+        "job": {
+            "name": "cloudsql_query.execute_queries_mysql.execute_query_cloudsql_query_{{ env_var('SYSTEM_TESTS_ENV_ID', 'default') }}_proxy_socket_mysql"
+        },
+        "inputs": [],
+        "outputs": []
+    },
+    {
+        "eventType": "COMPLETE",
+        "job": {
+            "name": "cloudsql_query.execute_queries_mysql.execute_query_cloudsql_query_{{ env_var('SYSTEM_TESTS_ENV_ID', 'default') }}_proxy_socket_mysql"
+        },
+        "run": {
+            "facets": {
+                "sql": {
+                    "query": "CREATE TABLE IF NOT EXISTS TABLE_TEST (I INTEGER);\nCREATE TABLE IF NOT EXISTS TABLE_TEST (I INTEGER);\nINSERT INTO TABLE_TEST VALUES (0);\nCREATE TABLE IF NOT EXISTS TABLE_TEST2 (I INTEGER);\nDROP TABLE TABLE_TEST;\nDROP TABLE TABLE_TEST2"
+                }
+            }
+        },
+        "inputs": [],
+        "outputs": [
+            {
+                "namespace": "{{ result.startswith('mysql://') }}",
+                "name": "test_db.TABLE_TEST"
+            },
+            {
+                "namespace": "{{ result.startswith('mysql://') }}",
+                "name": "test_db.TABLE_TEST2"
+            }
+        ]
+    },
+    {
+        "eventType": "START",
+        "job": {
+            "name": "cloudsql_query.execute_queries_postgres.execute_query_cloudsql_query_{{ env_var('SYSTEM_TESTS_ENV_ID', 'default') }}_proxy_socket_postgres"
+        },
+        "inputs": [],
+        "outputs": []
+    },
+    {
+        "eventType": "COMPLETE",
+        "job": {
+            "name": "cloudsql_query.execute_queries_postgres.execute_query_cloudsql_query_{{ env_var('SYSTEM_TESTS_ENV_ID', 'default') }}_proxy_socket_postgres"
+        },
+        "run": {
+            "facets": {
+                "sql": {
+                    "query": "CREATE TABLE IF NOT EXISTS TABLE_TEST (I INTEGER);\nCREATE TABLE IF NOT EXISTS TABLE_TEST (I INTEGER);\nINSERT INTO TABLE_TEST VALUES (0);\nCREATE TABLE IF NOT EXISTS TABLE_TEST2 (I INTEGER);\nDROP TABLE TABLE_TEST;\nDROP TABLE TABLE_TEST2"
+                }
+            }
+        },
+        "inputs": [],
+        "outputs": [
+            {
+                "namespace": "{{ result.startswith('postgres://') }}",
+                "name": "test_db.public.TABLE_TEST"
+            },
+            {
+                "namespace": "{{ result.startswith('postgres://') }}",
+                "name": "test_db.public.TABLE_TEST2"
+            }
+        ]
+    }
+]

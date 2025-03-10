@@ -20,21 +20,18 @@ from unittest import mock
 
 import pytest
 
-from airflow.operators.empty import EmptyOperator
+from airflow.providers.standard.operators.empty import EmptyOperator
 from airflow.sdk.definitions.asset import Asset
 
-from tests_common.test_utils.db import initial_db_init
+from tests_common.test_utils.db import clear_db_dags, clear_db_serialized_dags
 
 pytestmark = pytest.mark.db_test
 
 
 @pytest.fixture(autouse=True)
 def cleanup():
-    """
-    Before each test re-init the database dropping and recreating the tables.
-    This will allow to reset indexes to be able to assert auto-incremented primary keys.
-    """
-    initial_db_init()
+    clear_db_dags()
+    clear_db_serialized_dags()
 
 
 def test_next_run_assets(test_client, dag_maker):

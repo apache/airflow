@@ -16,40 +16,31 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { LiaSlashSolid } from "react-icons/lia";
-import { useParams, Link as RouterLink, useSearchParams } from "react-router-dom";
+import { ReactFlowProvider } from "@xyflow/react";
+import { FiCode } from "react-icons/fi";
+import { MdDetails, MdOutlineEventNote, MdReorder, MdSyncAlt } from "react-icons/md";
+import { PiBracketsCurlyBold } from "react-icons/pi";
+import { useParams } from "react-router-dom";
 
 import { useDagServiceGetDagDetails, useTaskInstanceServiceGetMappedTaskInstance } from "openapi/queries";
-import { Breadcrumb } from "src/components/ui";
 import { DetailsLayout } from "src/layouts/Details/DetailsLayout";
+import { isStatePending, useAutoRefresh } from "src/utils";
 
 import { Header } from "./Header";
 
 const tabs = [
-  { label: "Logs", value: "" },
-  { label: "Events", value: "events" },
-  { label: "XCom", value: "xcom" },
-  { label: "Code", value: "code" },
-  { label: "Details", value: "details" },
+  { icon: <MdReorder />, label: "Logs", value: "" },
+  { icon: <PiBracketsCurlyBold />, label: "Rendered Templates", value: "rendered_templates" },
+  { icon: <MdSyncAlt />, label: "XCom", value: "xcom" },
+  { icon: <MdOutlineEventNote />, label: "Events", value: "events" },
+  { icon: <FiCode />, label: "Code", value: "code" },
+  { icon: <MdDetails />, label: "Details", value: "details" },
 ];
 
 export const TaskInstance = () => {
-  const { dagId = "", runId = "", taskId = "" } = useParams();
-  const [searchParams] = useSearchParams();
+  const { dagId = "", mapIndex = "-1", runId = "", taskId = "" } = useParams();
 
-  const mapIndexParam = searchParams.get("map_index");
-  const mapIndex = parseInt(mapIndexParam ?? "-1", 10);
-
-  const {
-    data: taskInstance,
-    error,
-    isLoading,
-  } = useTaskInstanceServiceGetMappedTaskInstance({
-    dagId,
-    dagRunId: runId,
-    mapIndex,
-    taskId,
-  });
+  const refetchInterval = useAutoRefresh({ dagId });
 
   const {
     data: dag,
@@ -59,37 +50,33 @@ export const TaskInstance = () => {
     dagId,
   });
 
-  const links = [
-    { label: "Dags", value: "/dags" },
-    { label: dag?.dag_display_name ?? dagId, value: `/dags/${dagId}` },
-    { label: runId, value: `/dags/${dagId}/runs/${runId}` },
-    { label: taskInstance?.task_display_name ?? taskId },
-  ];
-
-  if (mapIndexParam !== null) {
-    links.push({ label: taskInstance?.rendered_map_index ?? mapIndexParam });
-  }
+  const {
+    data: taskInstance,
+    error,
+    isLoading,
+  } = useTaskInstanceServiceGetMappedTaskInstance(
+    {
+      dagId,
+      dagRunId: runId,
+      mapIndex: parseInt(mapIndex, 10),
+      taskId,
+    },
+    undefined,
+    {
+      refetchInterval: (query) => (isStatePending(query.state.data?.state) ? refetchInterval : false),
+    },
+  );
 
   return (
-    <DetailsLayout dag={dag} error={error ?? dagError} isLoading={isLoading || isDagLoading} tabs={tabs}>
-      <Breadcrumb.Root mb={3} separator={<LiaSlashSolid />}>
-        {links.map((link, index) => {
-          if (index === links.length - 1) {
-            return <Breadcrumb.CurrentLink key={link.label}>{link.label}</Breadcrumb.CurrentLink>;
-          }
-
-          return link.value === undefined ? (
-            <Breadcrumb.Link color="fg.info" key={link.label}>
-              {link.label}
-            </Breadcrumb.Link>
-          ) : (
-            <Breadcrumb.Link asChild color="fg.info" key={link.label}>
-              <RouterLink to={link.value}>{link.label}</RouterLink>
-            </Breadcrumb.Link>
-          );
-        })}
-      </Breadcrumb.Root>
-      {taskInstance === undefined ? undefined : <Header taskInstance={taskInstance} />}
-    </DetailsLayout>
+    <ReactFlowProvider>
+      <DetailsLayout dag={dag} error={error ?? dagError} isLoading={isLoading || isDagLoading} tabs={tabs}>
+        {taskInstance === undefined ? undefined : (
+          <Header
+            isRefreshing={Boolean(isStatePending(taskInstance.state) && Boolean(refetchInterval))}
+            taskInstance={taskInstance}
+          />
+        )}
+      </DetailsLayout>
+    </ReactFlowProvider>
   );
 };

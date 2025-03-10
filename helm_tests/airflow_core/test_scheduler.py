@@ -838,6 +838,7 @@ class TestScheduler:
             "CeleryExecutor",
             "KubernetesExecutor",
             "CeleryKubernetesExecutor",
+            "CeleryExecutor,KubernetesExecutor",
         ],
     )
     def test_scheduler_deployment_has_executor_label(self, executor):
@@ -847,7 +848,7 @@ class TestScheduler:
         )
 
         assert len(docs) == 1
-        assert executor == docs[0]["metadata"]["labels"].get("executor")
+        assert executor.replace(",", "-") == docs[0]["metadata"]["labels"].get("executor")
 
     def test_should_add_component_specific_annotations(self):
         docs = render_chart(
@@ -995,6 +996,28 @@ class TestSchedulerService:
         assert "test_label" in jmespath.search("metadata.labels", docs[0])
         assert jmespath.search("metadata.labels", docs[0])["test_label"] == "test_label_value"
 
+    @pytest.mark.parametrize(
+        "executor, expected_label",
+        [
+            ("LocalExecutor", "LocalExecutor"),
+            ("CeleryExecutor", "CeleryExecutor"),
+            ("CeleryKubernetesExecutor", "CeleryKubernetesExecutor"),
+            ("KubernetesExecutor", "KubernetesExecutor"),
+            ("LocalKubernetesExecutor", "LocalKubernetesExecutor"),
+            ("CeleryExecutor,KubernetesExecutor", "CeleryExecutor-KubernetesExecutor"),
+        ],
+    )
+    def test_should_add_executor_labels(self, executor, expected_label):
+        docs = render_chart(
+            values={
+                "executor": executor,
+            },
+            show_only=["templates/scheduler/scheduler-deployment.yaml"],
+        )
+
+        assert "executor" in jmespath.search("metadata.labels", docs[0])
+        assert jmespath.search("metadata.labels", docs[0])["executor"] == expected_label
+
 
 class TestSchedulerServiceAccount:
     """Tests scheduler service account."""
@@ -1021,6 +1044,7 @@ class TestSchedulerServiceAccount:
             ("CeleryKubernetesExecutor", None),
             ("KubernetesExecutor", None),
             ("LocalKubernetesExecutor", None),
+            ("CeleryExecutor,KubernetesExecutor", None),
         ],
     )
     def test_default_automount_service_account_token(self, executor, default_automount_service_account):
@@ -1043,6 +1067,7 @@ class TestSchedulerServiceAccount:
             ("CeleryKubernetesExecutor", False, None),
             ("KubernetesExecutor", False, None),
             ("LocalKubernetesExecutor", False, None),
+            ("CeleryExecutor,KubernetesExecutor", False, None),
         ],
     )
     def test_overridden_automount_service_account_token(

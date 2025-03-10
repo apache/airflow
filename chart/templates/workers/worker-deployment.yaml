@@ -260,6 +260,9 @@ spec:
                 {{- end }}
           {{- end }}
           ports:
+            {{- if .Values.workers.extraPorts }}
+              {{- toYaml .Values.workers.extraPorts | nindent 12 }}
+            {{- end }}
             - name: worker-logs
               containerPort: {{ .Values.ports.workerLogs }}
           volumeMounts:
@@ -322,12 +325,19 @@ spec:
           {{- if .Values.workers.logGroomerSidecar.args }}
           args: {{ tpl (toYaml .Values.workers.logGroomerSidecar.args) . | nindent 12 }}
           {{- end }}
-          {{- if .Values.workers.logGroomerSidecar.retentionDays }}
           env:
+          {{- if .Values.workers.logGroomerSidecar.retentionDays }}
             - name: AIRFLOW__LOG_RETENTION_DAYS
               value: "{{ .Values.workers.logGroomerSidecar.retentionDays }}"
+          {{- end }}
+          {{- if .Values.workers.logGroomerSidecar.frequencyMinutes }}
+            - name: AIRFLOW__LOG_CLEANUP_FREQUENCY_MINUTES
+              value: "{{ .Values.workers.logGroomerSidecar.frequencyMinutes }}"
+          {{- end }}
             - name: AIRFLOW_HOME
               value: "{{ .Values.airflowHome }}"
+          {{- if .Values.workers.logGroomerSidecar.env }}
+              {{- tpl (toYaml .Values.workers.logGroomerSidecar.env) $ | nindent 12 }}
           {{- end }}
           resources: {{- toYaml .Values.workers.logGroomerSidecar.resources | nindent 12 }}
           volumeMounts:

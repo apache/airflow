@@ -23,7 +23,7 @@ import pytest
 
 from airflow.models.taskinstance import TaskInstance as TI
 from airflow.operators.branch import BaseBranchOperator
-from airflow.operators.empty import EmptyOperator
+from airflow.providers.standard.operators.empty import EmptyOperator
 from airflow.utils import timezone
 from airflow.utils.state import State
 from airflow.utils.task_group import TaskGroup

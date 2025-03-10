@@ -17,13 +17,17 @@
 
 from __future__ import annotations
 
-import io
 import sys
-from collections.abc import Collection
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from io import IOBase
+    import datetime
+    from collections.abc import Collection
+    from io import IOBase, TextIOWrapper
+
+    from sqlalchemy.orm import Session
+
+    from airflow.models.dagrun import DagRun
 
 
 class CliConflictError(Exception):
@@ -45,8 +49,50 @@ def is_stdout(fileio: IOBase) -> bool:
     return fileio.fileno() == sys.stdout.fileno()
 
 
-def print_export_output(command_type: str, exported_items: Collection, file: io.TextIOWrapper):
+def print_export_output(command_type: str, exported_items: Collection, file: TextIOWrapper):
     if not file.closed and is_stdout(file):
         print(f"\n{len(exported_items)} {command_type} successfully exported.", file=sys.stderr)
     else:
         print(f"{len(exported_items)} {command_type} successfully exported to {file.name}.")
+
+
+def fetch_dag_run_from_run_id_or_logical_date_string(
+    *,
+    dag_id: str,
+    value: str,
+    session: Session,
+) -> tuple[DagRun | None, datetime.datetime | None]:
+    """
+    Try to find a DAG run with a given string value.
+
+    The string value may be a run ID, or a logical date in string form. We first
+    try to use it as a run_id; if a run is found, it is returned as-is.
+
+    Otherwise, the string value is parsed into a datetime. If that works, it is
+    used to find a DAG run.
+
+    The return value is a two-tuple. The first item is the found DAG run (or
+    *None* if one cannot be found). The second is the parsed logical date. This
+    second value can be used to create a new run by the calling function when
+    one cannot be found here.
+    """
+    from pendulum.parsing.exceptions import ParserError
+    from sqlalchemy import select
+
+    from airflow.models.dag import DAG
+    from airflow.models.dagrun import DagRun
+    from airflow.utils import timezone
+
+    if dag_run := DAG.fetch_dagrun(dag_id=dag_id, run_id=value, session=session):
+        return dag_run, dag_run.logical_date
+    try:
+        logical_date = timezone.parse(value)
+    except (ParserError, TypeError):
+        return None, None
+    dag_run = session.scalar(
+        select(DagRun)
+        .where(DagRun.dag_id == dag_id, DagRun.logical_date == logical_date)
+        .order_by(DagRun.id.desc())
+        .limit(1)
+    )
+    return dag_run, logical_date

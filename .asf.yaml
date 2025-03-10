@@ -134,7 +134,8 @@ github:
     - vatsrahul1001
     - cmarteepants
     - bugraoz93
-    - briana-okyere
+    - karenbraganz
+    - gyli
 
 notifications:
   jobs: jobs@airflow.apache.org

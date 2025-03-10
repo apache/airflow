@@ -24,25 +24,24 @@ from pydantic import ValidationError
 from sqlalchemy import delete, select
 
 from airflow.api_fastapi.common.db.common import SessionDep, paginated_select
-from airflow.api_fastapi.common.parameters import QueryLimit, QueryOffset, SortParam
+from airflow.api_fastapi.common.parameters import (
+    QueryLimit,
+    QueryOffset,
+    QueryPoolNamePatternSearch,
+    SortParam,
+)
 from airflow.api_fastapi.common.router import AirflowRouter
-from airflow.api_fastapi.core_api.datamodels.common import BulkAction
+from airflow.api_fastapi.core_api.datamodels.common import BulkBody, BulkResponse
 from airflow.api_fastapi.core_api.datamodels.pools import (
     BasePool,
-    PoolBulkActionResponse,
-    PoolBulkBody,
-    PoolBulkResponse,
+    PoolBody,
     PoolCollectionResponse,
     PoolPatchBody,
-    PoolPostBody,
     PoolResponse,
 )
 from airflow.api_fastapi.core_api.openapi.exceptions import create_openapi_http_exception_doc
-from airflow.api_fastapi.core_api.services.public.pools import (
-    handle_bulk_create,
-    handle_bulk_delete,
-    handle_bulk_update,
-)
+from airflow.api_fastapi.core_api.security import requires_access_pool
+from airflow.api_fastapi.core_api.services.public.pools import BulkPoolService
 from airflow.models.pool import Pool
 
 pools_router = AirflowRouter(tags=["Pool"], prefix="/pools")
@@ -57,6 +56,7 @@ pools_router = AirflowRouter(tags=["Pool"], prefix="/pools")
             status.HTTP_404_NOT_FOUND,
         ]
     ),
+    dependencies=[Depends(requires_access_pool(method="DELETE"))],
 )
 def delete_pool(
     pool_name: str,
@@ -75,6 +75,7 @@ def delete_pool(
 @pools_router.get(
     "/{pool_name}",
     responses=create_openapi_http_exception_doc([status.HTTP_404_NOT_FOUND]),
+    dependencies=[Depends(requires_access_pool(method="GET"))],
 )
 def get_pool(
     pool_name: str,
@@ -91,6 +92,7 @@ def get_pool(
 @pools_router.get(
     "",
     responses=create_openapi_http_exception_doc([status.HTTP_404_NOT_FOUND]),
+    dependencies=[Depends(requires_access_pool(method="GET"))],
 )
 def get_pools(
     limit: QueryLimit,
@@ -99,11 +101,13 @@ def get_pools(
         SortParam,
         Depends(SortParam(["id", "name"], Pool).dynamic_depends()),
     ],
+    pool_name_pattern: QueryPoolNamePatternSearch,
     session: SessionDep,
 ) -> PoolCollectionResponse:
     """Get all pools entries."""
     pools_select, total_entries = paginated_select(
         statement=select(Pool),
+        filters=[pool_name_pattern],
         order_by=order_by,
         offset=offset,
         limit=limit,
@@ -126,6 +130,7 @@ def get_pools(
             status.HTTP_404_NOT_FOUND,
         ]
     ),
+    dependencies=[Depends(requires_access_pool(method="PUT"))],
 )
 def patch_pool(
     pool_name: str,
@@ -134,6 +139,11 @@ def patch_pool(
     update_mask: list[str] | None = Query(None),
 ) -> PoolResponse:
     """Update a Pool."""
+    if patch_body.name and patch_body.name != pool_name:
+        raise HTTPException(
+            status.HTTP_400_BAD_REQUEST,
+            "Invalid body, pool name from request body doesn't match uri parameter",
+        )
     # Only slots and include_deferred can be modified in 'default_pool'
     if pool_name == Pool.DEFAULT_POOL_NAME:
         if update_mask and all(mask.strip() in {"slots", "include_deferred"} for mask in update_mask):
@@ -143,7 +153,6 @@ def patch_pool(
                 status.HTTP_400_BAD_REQUEST,
                 "Only slots and included_deferred can be modified on Default Pool",
             )
-
     pool = session.scalar(select(Pool).where(Pool.pool == pool_name).limit(1))
     if not pool:
         raise HTTPException(
@@ -155,7 +164,7 @@ def patch_pool(
         fields_to_update = fields_to_update.intersection(update_mask)
         data = patch_body.model_dump(include=fields_to_update, by_alias=True)
     else:
-        data = patch_body.model_dump(by_alias=True)
+        data = patch_body.model_dump(include=fields_to_update, by_alias=True)
         try:
             BasePool.model_validate(data)
         except ValidationError as e:
@@ -173,9 +182,10 @@ def patch_pool(
     responses=create_openapi_http_exception_doc(
         [status.HTTP_409_CONFLICT]
     ),  # handled by global exception handler
+    dependencies=[Depends(requires_access_pool(method="POST"))],
 )
 def post_pool(
-    body: PoolPostBody,
+    body: PoolBody,
     session: SessionDep,
 ) -> PoolResponse:
     """Create a Pool."""
@@ -184,23 +194,13 @@ def post_pool(
     return pool
 
 
-@pools_router.patch("")
+@pools_router.patch(
+    "",
+    dependencies=[Depends(requires_access_pool(method="PUT"))],
+)
 def bulk_pools(
-    request: PoolBulkBody,
+    request: BulkBody[PoolBody],
     session: SessionDep,
-) -> PoolBulkResponse:
+) -> BulkResponse:
     """Bulk create, update, and delete pools."""
-    results: dict[str, PoolBulkActionResponse] = {}
-
-    for action in request.actions:
-        if action.action.value not in results:
-            results[action.action.value] = PoolBulkActionResponse()
-
-        if action.action == BulkAction.CREATE:
-            handle_bulk_create(session, action, results[action.action.value])  # type: ignore
-        elif action.action == BulkAction.UPDATE:
-            handle_bulk_update(session, action, results[action.action.value])  # type: ignore
-        elif action.action == BulkAction.DELETE:
-            handle_bulk_delete(session, action, results[action.action.value])  # type: ignore
-
-    return PoolBulkResponse(**results)
+    return BulkPoolService(session=session, request=request).handle_request()

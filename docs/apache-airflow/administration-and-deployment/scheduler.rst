@@ -66,15 +66,6 @@ In the UI, it appears as if Airflow is running your tasks a day **late**
     waiting than the queue slots. Thus there can be cases where low priority tasks will be scheduled before high priority tasks if they share the same batch.
     For more read about that you can reference `this GitHub discussion <https://github.com/apache/airflow/discussions/28809>`__.
 
-
-Triggering DAG with Future Date
--------------------------------
-
-If you want to use 'external trigger' to run future-dated data intervals, set ``allow_trigger_in_future = True`` in ``scheduler`` section in ``airflow.cfg``.
-This only has effect if your DAG is defined with ``schedule=None``.
-When set to ``False`` (the default value), if you manually trigger a run with future-dated data intervals,
-the scheduler will not execute it until its ``data_interval_start`` is in the past.
-
 .. _scheduler:ha:
 
 Running More Than One Scheduler
@@ -209,7 +200,7 @@ There are several areas of resource usage that you should pay attention to:
 * The Airflow Scheduler scales almost linearly with several instances, so you can also add more Schedulers
   if your Scheduler's performance is CPU-bound.
 * Make sure when you look at memory usage, pay attention to the kind of memory you are observing.
-  Usually you should look at ``working memory``(names might vary depending on your deployment) rather
+  Usually you should look at ``working memory`` (names might vary depending on your deployment) rather
   than ``total memory used``.
 
 What can you do, to improve Scheduler's performance

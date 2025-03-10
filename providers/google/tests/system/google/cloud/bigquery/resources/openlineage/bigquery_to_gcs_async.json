@@ -1,0 +1,126 @@
+[
+    {
+        "eventType": "START",
+        "job": {
+            "name": "bigquery_to_gcs_async.create_table"
+        },
+        "inputs": [],
+        "outputs": []
+    },
+    {
+        "eventType": "COMPLETE",
+        "job": {
+            "name": "bigquery_to_gcs_async.create_table"
+        },
+        "inputs": [],
+        "outputs": [
+            {
+                "namespace": "bigquery",
+                "name": "{{ env_var('SYSTEM_TESTS_GCP_PROJECT', 'example-project') }}.dataset_bigquery_to_gcs_async_{{ env_var('SYSTEM_TESTS_ENV_ID', 'default') }}.test",
+                "facets": {
+                    "schema": {
+                        "fields": [
+                            {
+                                "fields": [],
+                                "name": "emp_name",
+                                "type": "STRING"
+                            },
+                            {
+                                "fields": [],
+                                "name": "salary",
+                                "type": "INTEGER"
+                            }
+                        ]
+                    }
+                }
+            }
+        ]
+    },
+    {
+        "eventType": "START",
+        "job": {
+            "name": "bigquery_to_gcs_async.bigquery_to_gcs"
+        },
+        "inputs": [],
+        "outputs": []
+    },
+    {
+        "eventType": "COMPLETE",
+        "job": {
+            "name": "bigquery_to_gcs_async.bigquery_to_gcs"
+        },
+        "inputs": [
+            {
+                "namespace": "bigquery",
+                "name": "{{ env_var('SYSTEM_TESTS_GCP_PROJECT', 'example-project') }}.dataset_bigquery_to_gcs_async_{{ env_var('SYSTEM_TESTS_ENV_ID', 'default') }}.test",
+                "facets": {
+                    "schema": {
+                        "fields": [
+                            {
+                                "fields": [],
+                                "name": "emp_name",
+                                "type": "STRING"
+                            },
+                            {
+                                "fields": [],
+                                "name": "salary",
+                                "type": "INTEGER"
+                            }
+                        ]
+                    }
+                }
+            }
+        ],
+        "outputs": [
+            {
+                "facets": {
+                    "columnLineage": {
+                        "dataset": [],
+                        "fields": {
+                            "emp_name": {
+                                "inputFields": [
+                                    {
+                                        "field": "emp_name",
+                                        "name": "{{ env_var('SYSTEM_TESTS_GCP_PROJECT', 'example-project') }}.dataset_bigquery_to_gcs_async_{{ env_var('SYSTEM_TESTS_ENV_ID', 'default') }}.test",
+                                        "namespace": "bigquery",
+                                        "transformations": []
+                                    }
+                                ],
+                                "transformationDescription": "identical",
+                                "transformationType": "IDENTITY"
+                            },
+                            "salary": {
+                                "inputFields": [
+                                    {
+                                        "field": "salary",
+                                        "name": "{{ env_var('SYSTEM_TESTS_GCP_PROJECT', 'example-project') }}.dataset_bigquery_to_gcs_async_{{ env_var('SYSTEM_TESTS_ENV_ID', 'default') }}.test",
+                                        "namespace": "bigquery",
+                                        "transformations": []
+                                    }
+                                ],
+                                "transformationDescription": "identical",
+                                "transformationType": "IDENTITY"
+                            }
+                        }
+                    },
+                    "schema": {
+                        "fields": [
+                            {
+                                "fields": [],
+                                "name": "emp_name",
+                                "type": "STRING"
+                            },
+                            {
+                                "fields": [],
+                                "name": "salary",
+                                "type": "INTEGER"
+                            }
+                        ]
+                    }
+                },
+                "name": "test.csv",
+                "namespace": "gs://bucket_bigquery_to_gcs_async_{{ env_var('SYSTEM_TESTS_ENV_ID', 'default') }}"
+            }
+        ]
+    }
+]

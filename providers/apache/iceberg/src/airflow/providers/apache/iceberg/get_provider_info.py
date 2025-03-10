@@ -27,12 +27,12 @@ def get_provider_info():
         "name": "Apache Iceberg",
         "description": "`Iceberg <https://iceberg.apache.org/>`__\n",
         "state": "ready",
-        "source-date-epoch": 1734528119,
-        "versions": ["1.2.0", "1.1.0", "1.0.0"],
+        "source-date-epoch": 1741507920,
+        "versions": ["1.2.1", "1.2.0", "1.1.0", "1.0.0"],
         "integrations": [
             {
                 "integration-name": "Iceberg",
-                "logo": "/docs/integration-logo/iceberg.png",
+                "logo": "/docs/integration-logos/iceberg.png",
                 "external-doc-url": "https://iceberg.apache.org/",
                 "tags": ["software"],
             }

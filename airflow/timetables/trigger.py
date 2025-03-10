@@ -17,9 +17,12 @@
 from __future__ import annotations
 
 import datetime
+import math
+import operator
 from typing import TYPE_CHECKING, Any
 
 from airflow.timetables._cron import CronMixin
+from airflow.timetables._delta import DeltaMixin
 from airflow.timetables.base import DagRunInfo, DataInterval, Timetable
 from airflow.utils.timezone import coerce_datetime, utcnow
 
@@ -31,7 +34,136 @@ if TYPE_CHECKING:
     from airflow.timetables.base import TimeRestriction
 
 
-class CronTriggerTimetable(CronMixin, Timetable):
+def _serialize_interval(interval: datetime.timedelta | relativedelta) -> float | dict:
+    from airflow.serialization.serialized_objects import encode_relativedelta
+
+    if isinstance(interval, datetime.timedelta):
+        return interval.total_seconds()
+    return encode_relativedelta(interval)
+
+
+def _deserialize_interval(value: int | dict) -> datetime.timedelta | relativedelta:
+    from airflow.serialization.serialized_objects import decode_relativedelta
+
+    if isinstance(value, dict):
+        return decode_relativedelta(value)
+    return datetime.timedelta(seconds=value)
+
+
+def _serialize_run_immediately(value: bool | datetime.timedelta) -> bool | float:
+    if isinstance(value, datetime.timedelta):
+        return value.total_seconds()
+    return value
+
+
+def _deserialize_run_immediately(value: bool | float) -> bool | datetime.timedelta:
+    if isinstance(value, float):
+        return datetime.timedelta(seconds=value)
+    return value
+
+
+class _TriggerTimetable(Timetable):
+    _interval: datetime.timedelta | relativedelta
+
+    def infer_manual_data_interval(self, *, run_after: DateTime) -> DataInterval:
+        return DataInterval(
+            coerce_datetime(run_after - self._interval),
+            run_after,
+        )
+
+    def _calc_first_run(self) -> DateTime:
+        """
+        If no start_time is set, determine the start.
+
+        If True, always prefer past run, if False, never. If None, if within 10% of next run,
+        if timedelta, if within that timedelta from past run.
+        """
+        raise NotImplementedError()
+
+    def _align_to_next(self, current: DateTime) -> DateTime:
+        raise NotImplementedError()
+
+    def _align_to_prev(self, current: DateTime) -> DateTime:
+        raise NotImplementedError()
+
+    def _get_next(self, current: DateTime) -> DateTime:
+        raise NotImplementedError()
+
+    def _get_prev(self, current: DateTime) -> DateTime:
+        raise NotImplementedError()
+
+    def next_dagrun_info(
+        self,
+        *,
+        last_automated_data_interval: DataInterval | None,
+        restriction: TimeRestriction,
+    ) -> DagRunInfo | None:
+        if restriction.catchup:
+            if last_automated_data_interval is not None:
+                next_start_time = self._get_next(last_automated_data_interval.end)
+            elif restriction.earliest is None:
+                next_start_time = self._calc_first_run()
+            else:
+                next_start_time = self._align_to_next(restriction.earliest)
+        else:
+            start_time_candidates = [self._align_to_prev(coerce_datetime(utcnow()))]
+            if last_automated_data_interval is not None:
+                start_time_candidates.append(self._get_next(last_automated_data_interval.end))
+            elif restriction.earliest is None:
+                # Run immediately has no effect if there is restriction on earliest
+                start_time_candidates.append(self._calc_first_run())
+            if restriction.earliest is not None:
+                start_time_candidates.append(self._align_to_next(restriction.earliest))
+            next_start_time = max(start_time_candidates)
+        if restriction.latest is not None and restriction.latest < next_start_time:
+            return None
+        return DagRunInfo.interval(
+            coerce_datetime(next_start_time - self._interval),
+            next_start_time,
+        )
+
+
+class DeltaTriggerTimetable(DeltaMixin, _TriggerTimetable):
+    """
+    Timetable that triggers DAG runs according to a cron expression.
+
+    This is different from ``DeltaDataIntervalTimetable``, where the delta value
+    specifies the *data interval* of a DAG run. With this timetable, the data
+    intervals are specified independently. Also for the same reason, this
+    timetable kicks off a DAG run immediately at the start of the period,
+    instead of needing to wait for one data interval to pass.
+
+    :param delta: How much time to wait between each run.
+    :param interval: The data interval of each run. Default is 0.
+    """
+
+    def __init__(
+        self,
+        delta: datetime.timedelta | relativedelta,
+        *,
+        interval: datetime.timedelta | relativedelta = datetime.timedelta(),
+    ) -> None:
+        super().__init__(delta)
+        self._interval = interval
+
+    @classmethod
+    def deserialize(cls, data: dict[str, Any]) -> Timetable:
+        return cls(
+            _deserialize_interval(data["delta"]),
+            interval=_deserialize_interval(data["interval"]),
+        )
+
+    def serialize(self) -> dict[str, Any]:
+        return {
+            "delta": _serialize_interval(self._delta),
+            "interval": _serialize_interval(self._interval),
+        }
+
+    def _calc_first_run(self) -> DateTime:
+        return self._align_to_prev(coerce_datetime(utcnow()))
+
+
+class CronTriggerTimetable(CronMixin, _TriggerTimetable):
     """
     Timetable that triggers DAG runs according to a cron expression.
 
@@ -73,95 +205,30 @@ class CronTriggerTimetable(CronMixin, Timetable):
     ) -> None:
         super().__init__(cron, timezone)
         self._interval = interval
-        self.run_immediately = run_immediately
+        self._run_immediately = run_immediately
 
     @classmethod
     def deserialize(cls, data: dict[str, Any]) -> Timetable:
-        from airflow.serialization.serialized_objects import decode_relativedelta, decode_timezone
-
-        interval: datetime.timedelta | relativedelta
-        if isinstance(data["interval"], dict):
-            interval = decode_relativedelta(data["interval"])
-        else:
-            interval = datetime.timedelta(seconds=data["interval"])
-
-        immediate: bool | datetime.timedelta
-        if "immediate" not in data:
-            immediate = False
-        elif isinstance(data["immediate"], float):
-            immediate = datetime.timedelta(seconds=data["interval"])
-        else:
-            immediate = data["immediate"]
+        from airflow.serialization.serialized_objects import decode_timezone
 
         return cls(
             data["expression"],
             timezone=decode_timezone(data["timezone"]),
-            interval=interval,
-            run_immediately=immediate,
+            interval=_deserialize_interval(data["interval"]),
+            run_immediately=_deserialize_run_immediately(data.get("run_immediately", False)),
         )
 
     def serialize(self) -> dict[str, Any]:
-        from airflow.serialization.serialized_objects import encode_relativedelta, encode_timezone
+        from airflow.serialization.serialized_objects import encode_timezone
 
-        interval: float | dict[str, Any]
-        if isinstance(self._interval, datetime.timedelta):
-            interval = self._interval.total_seconds()
-        else:
-            interval = encode_relativedelta(self._interval)
-        timezone = encode_timezone(self._timezone)
-        immediate: bool | float
-        if isinstance(self.run_immediately, datetime.timedelta):
-            immediate = self.run_immediately.total_seconds()
-        else:
-            immediate = self.run_immediately
         return {
             "expression": self._expression,
-            "timezone": timezone,
-            "interval": interval,
-            "run_immediately": immediate,
+            "timezone": encode_timezone(self._timezone),
+            "interval": _serialize_interval(self._interval),
+            "run_immediately": _serialize_run_immediately(self._run_immediately),
         }
 
-    def infer_manual_data_interval(self, *, run_after: DateTime) -> DataInterval:
-        return DataInterval(
-            # pendulum.Datetime ± timedelta should return pendulum.Datetime
-            # however mypy decide that output would be datetime.datetime
-            run_after - self._interval,  # type: ignore[arg-type]
-            run_after,
-        )
-
-    def next_dagrun_info(
-        self,
-        *,
-        last_automated_data_interval: DataInterval | None,
-        restriction: TimeRestriction,
-    ) -> DagRunInfo | None:
-        if restriction.catchup:
-            if last_automated_data_interval is not None:
-                next_start_time = self._get_next(last_automated_data_interval.end)
-            elif restriction.earliest is None:
-                next_start_time = self._calc_first_run()
-            else:
-                next_start_time = self._align_to_next(restriction.earliest)
-        else:
-            start_time_candidates = [self._align_to_prev(coerce_datetime(utcnow()))]
-            if last_automated_data_interval is not None:
-                start_time_candidates.append(self._get_next(last_automated_data_interval.end))
-            elif restriction.earliest is None:
-                # Run immediately has no effect if there is restriction on earliest
-                start_time_candidates.append(self._calc_first_run())
-            if restriction.earliest is not None:
-                start_time_candidates.append(self._align_to_next(restriction.earliest))
-            next_start_time = max(start_time_candidates)
-        if restriction.latest is not None and restriction.latest < next_start_time:
-            return None
-        return DagRunInfo.interval(
-            # pendulum.Datetime ± timedelta should return pendulum.Datetime
-            # however mypy decide that output would be datetime.datetime
-            next_start_time - self._interval,  # type: ignore[arg-type]
-            next_start_time,
-        )
-
-    def _calc_first_run(self):
+    def _calc_first_run(self) -> DateTime:
         """
         If no start_time is set, determine the start.
 
@@ -171,16 +238,108 @@ class CronTriggerTimetable(CronMixin, Timetable):
         now = coerce_datetime(utcnow())
         past_run_time = self._align_to_prev(now)
         next_run_time = self._align_to_next(now)
-        if self.run_immediately is True:  # not truthy, actually set to True
+        if self._run_immediately is True:  # Check for 'True' exactly because deltas also evaluate to true.
             return past_run_time
 
         gap_between_runs = next_run_time - past_run_time
         gap_to_past = now - past_run_time
-        if isinstance(self.run_immediately, datetime.timedelta):
-            buffer_between_runs = self.run_immediately
+        if isinstance(self._run_immediately, datetime.timedelta):
+            buffer_between_runs = self._run_immediately
         else:
             buffer_between_runs = max(gap_between_runs / 10, datetime.timedelta(minutes=5))
         if gap_to_past <= buffer_between_runs:
             return past_run_time
         else:
             return next_run_time
+
+
+class MultipleCronTriggerTimetable(Timetable):
+    """
+    Timetable that triggers DAG runs according to multiple cron expressions.
+
+    This combines multiple ``CronTriggerTimetable`` instances underneath, and
+    triggers a DAG run whenever one of the timetables want to trigger a run.
+
+    Only at most one run is triggered for any given time, even if more than one
+    timetable fires at the same time.
+    """
+
+    def __init__(
+        self,
+        *crons: str,
+        timezone: str | Timezone | FixedTimezone,
+        interval: datetime.timedelta | relativedelta = datetime.timedelta(),
+        run_immediately: bool | datetime.timedelta = False,
+    ) -> None:
+        if not crons:
+            raise ValueError("cron expression required")
+        self._timetables = [
+            CronTriggerTimetable(cron, timezone=timezone, interval=interval, run_immediately=run_immediately)
+            for cron in crons
+        ]
+        self.description = ", ".join(t.description for t in self._timetables)
+
+    @classmethod
+    def deserialize(cls, data: dict[str, Any]) -> Timetable:
+        from airflow.serialization.serialized_objects import decode_timezone
+
+        return cls(
+            *data["expressions"],
+            timezone=decode_timezone(data["timezone"]),
+            interval=_deserialize_interval(data["interval"]),
+            run_immediately=_deserialize_run_immediately(data["run_immediately"]),
+        )
+
+    def serialize(self) -> dict[str, Any]:
+        from airflow.serialization.serialized_objects import encode_timezone
+
+        # All timetables share the same timezone, interval, and run_immediately
+        # values, so we can just use the first to represent them.
+        timetable = self._timetables[0]
+        return {
+            "expressions": [t._expression for t in self._timetables],
+            "timezone": encode_timezone(timetable._timezone),
+            "interval": _serialize_interval(timetable._interval),
+            "run_immediately": _serialize_run_immediately(timetable._run_immediately),
+        }
+
+    @property
+    def summary(self) -> str:
+        return ", ".join(t.summary for t in self._timetables)
+
+    def infer_manual_data_interval(self, *, run_after: DateTime) -> DataInterval:
+        return min(
+            (t.infer_manual_data_interval(run_after=run_after) for t in self._timetables),
+            key=operator.attrgetter("start"),
+        )
+
+    def next_dagrun_info(
+        self,
+        *,
+        last_automated_data_interval: DataInterval | None,
+        restriction: TimeRestriction,
+    ) -> DagRunInfo | None:
+        infos = (
+            timetable.next_dagrun_info(
+                last_automated_data_interval=last_automated_data_interval,
+                restriction=restriction,
+            )
+            for timetable in self._timetables
+        )
+        return min(infos, key=self._dagrun_info_sort_key)
+
+    @staticmethod
+    def _dagrun_info_sort_key(info: DagRunInfo | None) -> float:
+        """
+        Sort key for DagRunInfo values.
+
+        This is passed as the sort key to ``min`` in ``next_dagrun_info`` to
+        find the next closest run, ordered by logical date.
+
+        The sort is done by simply returning the logical date converted to a
+        Unix timestamp. If the input is *None* (no next run), *inf* is returned
+        so it's selected last.
+        """
+        if info is None:
+            return math.inf
+        return info.logical_date.timestamp()

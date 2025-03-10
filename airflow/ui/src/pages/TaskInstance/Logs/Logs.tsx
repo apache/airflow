@@ -22,6 +22,7 @@ import { useParams, useSearchParams } from "react-router-dom";
 
 import { useTaskInstanceServiceGetMappedTaskInstance } from "openapi/queries";
 import { Dialog } from "src/components/ui";
+import { SearchParamsKeys } from "src/constants/searchParams";
 import { useConfig } from "src/queries/useConfig";
 import { useLogs } from "src/queries/useLogs";
 
@@ -29,12 +30,12 @@ import { TaskLogContent } from "./TaskLogContent";
 import { TaskLogHeader } from "./TaskLogHeader";
 
 export const Logs = () => {
-  const { dagId = "", runId = "", taskId = "" } = useParams();
+  const { dagId = "", mapIndex = "-1", runId = "", taskId = "" } = useParams();
   const [searchParams, setSearchParams] = useSearchParams();
 
-  const mapIndexParam = searchParams.get("map_index");
-  const tryNumberParam = searchParams.get("try_number");
-  const mapIndex = parseInt(mapIndexParam ?? "-1", 10);
+  const tryNumberParam = searchParams.get(SearchParamsKeys.TRY_NUMBER);
+  const logLevelFilters = searchParams.getAll(SearchParamsKeys.LOG_LEVEL);
+  const sourceFilters = searchParams.getAll(SearchParamsKeys.SOURCE);
 
   const {
     data: taskInstance,
@@ -43,15 +44,15 @@ export const Logs = () => {
   } = useTaskInstanceServiceGetMappedTaskInstance({
     dagId,
     dagRunId: runId,
-    mapIndex,
+    mapIndex: parseInt(mapIndex, 10),
     taskId,
   });
 
   const onSelectTryNumber = (newTryNumber: number) => {
     if (newTryNumber === taskInstance?.try_number) {
-      searchParams.delete("try_number");
+      searchParams.delete(SearchParamsKeys.TRY_NUMBER);
     } else {
-      searchParams.set("try_number", newTryNumber.toString());
+      searchParams.set(SearchParamsKeys.TRY_NUMBER, newTryNumber.toString());
     }
     setSearchParams(searchParams);
   };
@@ -76,16 +77,17 @@ export const Logs = () => {
     isLoading: isLoadingLogs,
   } = useLogs({
     dagId,
-    mapIndex,
-    runId,
-    taskId,
-    tryNumber: tryNumber ?? 1,
+    logLevelFilters,
+    sourceFilters,
+    taskInstance,
+    tryNumber: tryNumber === 0 ? 1 : tryNumber,
   });
 
   return (
     <Box p={2}>
       <TaskLogHeader
         onSelectTryNumber={onSelectTryNumber}
+        sourceOptions={data.sources}
         taskInstance={taskInstance}
         toggleFullscreen={toggleFullscreen}
         toggleWrap={toggleWrap}

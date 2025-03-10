@@ -28,14 +28,12 @@ import logging
 import operator
 from collections.abc import Collection, Iterable, Iterator, Sequence
 from datetime import datetime, timedelta
-from functools import singledispatchmethod, wraps
-from threading import local
+from functools import singledispatchmethod
 from types import FunctionType
 from typing import (
     TYPE_CHECKING,
     Any,
     Callable,
-    NoReturn,
     TypeVar,
 )
 
@@ -44,12 +42,8 @@ import pendulum
 from sqlalchemy import select
 from sqlalchemy.orm.exc import NoResultFound
 
-from airflow.configuration import conf
 from airflow.exceptions import (
     AirflowException,
-    TaskDeferralError,
-    TaskDeferralTimeout,
-    TaskDeferred,
 )
 from airflow.lineage import apply_lineage, prepare_lineage
 
@@ -59,13 +53,10 @@ from airflow.models.abstractoperator import (
     AbstractOperator,
     NotMapped,
 )
-from airflow.models.base import _sentinel
 from airflow.models.taskinstance import TaskInstance, clear_task_instances
 from airflow.models.taskmixin import DependencyMixin
-from airflow.models.trigger import TRIGGER_FAIL_REPR, TriggerFailureReason
 from airflow.sdk.definitions._internal.abstractoperator import AbstractOperator as TaskSDKAbstractOperator
 from airflow.sdk.definitions.baseoperator import (
-    BaseOperatorMeta as TaskSDKBaseOperatorMeta,
     get_merged_defaults as get_merged_defaults,  # Re-export for compat
 )
 from airflow.sdk.definitions.context import Context
@@ -93,12 +84,12 @@ if TYPE_CHECKING:
     from sqlalchemy.orm import Session
 
     from airflow.models.abstractoperator import TaskStateChangeCallback
-    from airflow.models.baseoperatorlink import BaseOperatorLink
     from airflow.models.dag import DAG as SchedulerDAG
     from airflow.models.operator import Operator
+    from airflow.sdk import BaseOperatorLink
     from airflow.sdk.definitions.node import DAGNode
     from airflow.ti_deps.deps.base_ti_dep import BaseTIDep
-    from airflow.triggers.base import BaseTrigger, StartTriggerArgs
+    from airflow.triggers.base import StartTriggerArgs
 
 TaskPreExecuteHook = Callable[[Context], None]
 TaskPostExecuteHook = Callable[[Context, Any], None]
@@ -136,58 +127,7 @@ def coerce_resources(resources: dict[str, Any] | None) -> Resources | None:
     return Resources(**resources)
 
 
-class ExecutorSafeguard:
-    """
-    The ExecutorSafeguard decorator.
-
-    Checks if the execute method of an operator isn't manually called outside
-    the TaskInstance as we want to avoid bad mixing between decorated and
-    classic operators.
-    """
-
-    test_mode = conf.getboolean("core", "unit_test_mode")
-    _sentinel = local()
-    _sentinel.callers = {}
-
-    @classmethod
-    def decorator(cls, func):
-        @wraps(func)
-        def wrapper(self, *args, **kwargs):
-            from airflow.decorators.base import DecoratedOperator
-
-            sentinel_key = f"{self.__class__.__name__}__sentinel"
-            sentinel = kwargs.pop(sentinel_key, None)
-
-            if sentinel:
-                if not getattr(cls._sentinel, "callers", None):
-                    cls._sentinel.callers = {}
-                cls._sentinel.callers[sentinel_key] = sentinel
-            else:
-                sentinel = cls._sentinel.callers.pop(f"{func.__qualname__.split('.')[0]}__sentinel", None)
-
-            if not cls.test_mode and not sentinel == _sentinel and not isinstance(self, DecoratedOperator):
-                message = f"{self.__class__.__name__}.{func.__name__} cannot be called outside TaskInstance!"
-                if not self.allow_nested_operators:
-                    raise AirflowException(message)
-                self.log.warning(message)
-            return func(self, *args, **kwargs)
-
-        return wrapper
-
-
-# TODO: Task-SDK - temporarily extend the metaclass to add in the ExecutorSafeguard.
-class BaseOperatorMeta(TaskSDKBaseOperatorMeta):
-    """:meta private:"""  # noqa: D400
-
-    def __new__(cls, name, bases, namespace, **kwargs):
-        execute_method = namespace.get("execute")
-        if callable(execute_method) and not getattr(execute_method, "__isabstractmethod__", False):
-            namespace["execute"] = ExecutorSafeguard().decorator(execute_method)
-        new_cls = super().__new__(cls, name, bases, namespace, **kwargs)
-        return new_cls
-
-
-class BaseOperator(TaskSDKBaseOperator, AbstractOperator, metaclass=BaseOperatorMeta):
+class BaseOperator(TaskSDKBaseOperator, AbstractOperator):
     r"""
     Abstract base class for all operators.
 
@@ -628,10 +568,15 @@ class BaseOperator(TaskSDKBaseOperator, AbstractOperator, metaclass=BaseOperator
                 # This is _mostly_ only used in tests
                 dr = DagRun(
                     dag_id=self.dag_id,
-                    run_id=DagRun.generate_run_id(DagRunType.MANUAL, info.logical_date),
+                    run_id=DagRun.generate_run_id(
+                        run_type=DagRunType.MANUAL,
+                        logical_date=info.logical_date,
+                        run_after=info.run_after,
+                    ),
                     run_type=DagRunType.MANUAL,
                     logical_date=info.logical_date,
                     data_interval=info.data_interval,
+                    run_after=info.run_after,
                     triggered_by=DagRunTriggeredByType.TEST,
                     state=DagRunState.RUNNING,
                 )
@@ -736,44 +681,6 @@ class BaseOperator(TaskSDKBaseOperator, AbstractOperator, metaclass=BaseOperator
         """Serialize; required by DAGNode."""
         return DagAttributeTypes.OP, self.task_id
 
-    def defer(
-        self,
-        *,
-        trigger: BaseTrigger,
-        method_name: str,
-        kwargs: dict[str, Any] | None = None,
-        timeout: timedelta | int | float | None = None,
-    ) -> NoReturn:
-        """
-        Mark this Operator "deferred", suspending its execution until the provided trigger fires an event.
-
-        This is achieved by raising a special exception (TaskDeferred)
-        which is caught in the main _execute_task wrapper. Triggers can send execution back to task or end
-        the task instance directly. If the trigger will end the task instance itself, ``method_name`` should
-        be None; otherwise, provide the name of the method that should be used when resuming execution in
-        the task.
-        """
-        raise TaskDeferred(trigger=trigger, method_name=method_name, kwargs=kwargs, timeout=timeout)
-
-    def resume_execution(self, next_method: str, next_kwargs: dict[str, Any] | None, context: Context):
-        """Call this method when a deferred task is resumed."""
-        # __fail__ is a special signal value for next_method that indicates
-        # this task was scheduled specifically to fail.
-        if next_method == TRIGGER_FAIL_REPR:
-            next_kwargs = next_kwargs or {}
-            traceback = next_kwargs.get("traceback")
-            if traceback is not None:
-                self.log.error("Trigger failed:\n%s", "\n".join(traceback))
-            if (error := next_kwargs.get("error", "Unknown")) == TriggerFailureReason.TRIGGER_TIMEOUT:
-                raise TaskDeferralTimeout(error)
-            else:
-                raise TaskDeferralError(error)
-        # Grab the callable off the Operator/Task and add in any kwargs
-        execute_callable = getattr(self, next_method)
-        if next_kwargs:
-            execute_callable = functools.partial(execute_callable, **next_kwargs)
-        return execute_callable(context)
-
     def unmap(self, resolve: None | dict[str, Any] | tuple[Context, Session]) -> BaseOperator:
         """
         Get the "normal" operator from the current operator.
@@ -847,11 +754,20 @@ class BaseOperator(TaskSDKBaseOperator, AbstractOperator, metaclass=BaseOperator
         @get_mapped_ti_count.register(MappedOperator)
         @classmethod
         def _(cls, task: MappedOperator, run_id: str, *, session: Session) -> int:
-            from airflow.serialization.serialized_objects import _ExpandInputRef
+            from airflow.serialization.serialized_objects import BaseSerialization, _ExpandInputRef
 
             exp_input = task._get_specified_expand_input()
             if isinstance(exp_input, _ExpandInputRef):
                 exp_input = exp_input.deref(task.dag)
+            # TODO: TaskSDK This is only needed to support `dag.test()` etc until we port it over to use the
+            # task sdk runner.
+            if not hasattr(exp_input, "get_total_map_length"):
+                exp_input = _ExpandInputRef(
+                    type(exp_input).EXPAND_INPUT_TYPE,
+                    BaseSerialization.deserialize(BaseSerialization.serialize(exp_input.value)),
+                )
+                exp_input = exp_input.deref(task.dag)
+
             current_count = exp_input.get_total_map_length(run_id, session=session)
 
             group = task.get_closest_mapped_task_group()
@@ -877,18 +793,24 @@ class BaseOperator(TaskSDKBaseOperator, AbstractOperator, metaclass=BaseOperator
             :raise NotFullyPopulated: If upstream tasks are not all complete yet.
             :return: Total number of mapped TIs this task should have.
             """
+            from airflow.serialization.serialized_objects import BaseSerialization, _ExpandInputRef
 
-            def iter_mapped_task_groups(group) -> Iterator[MappedTaskGroup]:
+            def iter_mapped_task_group_lengths(group) -> Iterator[int]:
                 while group is not None:
                     if isinstance(group, MappedTaskGroup):
-                        yield group
+                        exp_input = group._expand_input
+                        # TODO: TaskSDK This is only needed to support `dag.test()` etc until we port it over to use the
+                        # task sdk runner.
+                        if not hasattr(exp_input, "get_total_map_length"):
+                            exp_input = _ExpandInputRef(
+                                type(exp_input).EXPAND_INPUT_TYPE,
+                                BaseSerialization.deserialize(BaseSerialization.serialize(exp_input.value)),
+                            )
+                            exp_input = exp_input.deref(group.dag)
+                        yield exp_input.get_total_map_length(run_id, session=session)
                     group = group.parent_group
 
-            groups = iter_mapped_task_groups(group)
-            return functools.reduce(
-                operator.mul,
-                (g._expand_input.get_total_map_length(run_id, session=session) for g in groups),
-            )
+            return functools.reduce(operator.mul, iter_mapped_task_group_lengths(group))
 
 
 def chain(*tasks: DependencyMixin | Sequence[DependencyMixin]) -> None:
