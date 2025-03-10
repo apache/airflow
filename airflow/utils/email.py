@@ -20,6 +20,7 @@ from __future__ import annotations
 import collections.abc
 import logging
 import os
+import re
 import smtplib
 import ssl
 from collections.abc import Iterable
@@ -28,8 +29,6 @@ from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
 from email.utils import formatdate
 from typing import Any
-
-import re2
 
 from airflow.configuration import conf
 from airflow.exceptions import AirflowException
@@ -331,4 +330,4 @@ def _get_email_list_from_str(addresses: str) -> list[str]:
     :return: A list of email addresses.
     """
     pattern = r"\s*[,;]\s*"
-    return re2.split(pattern, addresses)
+    return re.split(pattern, addresses)

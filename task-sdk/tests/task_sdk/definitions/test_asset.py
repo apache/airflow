@@ -37,7 +37,7 @@ from airflow.sdk.definitions.asset import (
     _sanitize_uri,
 )
 from airflow.sdk.definitions.dag import DAG
-from airflow.serialization.serialized_objects import BaseSerialization, SerializedDAG
+from airflow.serialization.serialized_objects import SerializedDAG
 
 ASSET_MODULE_PATH = "airflow.sdk.definitions.asset"
 
@@ -185,18 +185,6 @@ def test_asset_iter_asset_aliases():
     ]
 
 
-@pytest.mark.parametrize(
-    "statuses, result",
-    [
-        ({AssetUniqueKey.from_asset(asset1): True}, True),
-        ({AssetUniqueKey.from_asset(asset1): False}, False),
-        ({}, False),
-    ],
-)
-def test_asset_evaluate(statuses, result):
-    assert asset1.evaluate(statuses) is result
-
-
 def test_asset_any_operations():
     result_or = (asset1 | asset2) | asset3
     assert isinstance(result_or, AssetAny)
@@ -210,116 +198,6 @@ def test_asset_all_operations():
     assert isinstance(result_or, AssetAny)
     result_and = (asset1 & asset2) & asset3
     assert isinstance(result_and, AssetAll)
-
-
-@pytest.mark.parametrize(
-    "condition, statuses, result",
-    [
-        (
-            AssetAny(asset1, asset2),
-            {AssetUniqueKey.from_asset(asset1): False, AssetUniqueKey.from_asset(asset2): True},
-            True,
-        ),
-        (
-            AssetAll(asset1, asset2),
-            {AssetUniqueKey.from_asset(asset1): True, AssetUniqueKey.from_asset(asset2): False},
-            False,
-        ),
-    ],
-)
-def test_assset_boolean_condition_evaluate_iter(condition, statuses, result):
-    """
-    Tests _AssetBooleanCondition's evaluate and iter_assets methods through AssetAny and AssetAll.
-    Ensures AssetAny evaluate returns True with any true condition, AssetAll evaluate returns False if
-    any condition is false, and both classes correctly iterate over assets without duplication.
-    """
-    assert condition.evaluate(statuses) is result
-    assert dict(condition.iter_assets()) == {
-        AssetUniqueKey("asset-1", "s3://bucket1/data1"): asset1,
-        AssetUniqueKey("asset-2", "s3://bucket2/data2"): asset2,
-    }
-
-
-@pytest.mark.parametrize(
-    "inputs, scenario, expected",
-    [
-        # Scenarios for AssetAny
-        ((True, True, True), "any", True),
-        ((True, True, False), "any", True),
-        ((True, False, True), "any", True),
-        ((True, False, False), "any", True),
-        ((False, False, True), "any", True),
-        ((False, True, False), "any", True),
-        ((False, True, True), "any", True),
-        ((False, False, False), "any", False),
-        # Scenarios for AssetAll
-        ((True, True, True), "all", True),
-        ((True, True, False), "all", False),
-        ((True, False, True), "all", False),
-        ((True, False, False), "all", False),
-        ((False, False, True), "all", False),
-        ((False, True, False), "all", False),
-        ((False, True, True), "all", False),
-        ((False, False, False), "all", False),
-    ],
-)
-def test_asset_logical_conditions_evaluation_and_serialization(inputs, scenario, expected):
-    class_ = AssetAny if scenario == "any" else AssetAll
-    assets = [Asset(uri=f"s3://abc/{i}", name=f"asset_{i}") for i in range(123, 126)]
-    condition = class_(*assets)
-
-    statuses = {AssetUniqueKey.from_asset(asset): status for asset, status in zip(assets, inputs)}
-    assert (
-        condition.evaluate(statuses) == expected
-    ), f"Condition evaluation failed for inputs {inputs} and scenario '{scenario}'"
-
-    # Serialize and deserialize the condition to test persistence
-    serialized = BaseSerialization.serialize(condition)
-    deserialized = BaseSerialization.deserialize(serialized)
-    assert deserialized.evaluate(statuses) == expected, "Serialization round-trip failed"
-
-
-@pytest.mark.parametrize(
-    "status_values, expected_evaluation",
-    [
-        (
-            (False, True, True),
-            False,
-        ),  # AssetAll requires all conditions to be True, but asset1 is False
-        ((True, True, True), True),  # All conditions are True
-        (
-            (True, False, True),
-            True,
-        ),  # asset1 is True, and AssetAny condition (asset2 or asset3 being True) is met
-        (
-            (True, False, False),
-            False,
-        ),  # asset1 is True, but neither asset2 nor asset3 meet the AssetAny condition
-    ],
-)
-def test_nested_asset_conditions_with_serialization(status_values, expected_evaluation):
-    # Define assets
-    asset1 = Asset(uri="s3://abc/123")
-    asset2 = Asset(uri="s3://abc/124")
-    asset3 = Asset(uri="s3://abc/125")
-
-    # Create a nested condition: AssetAll with asset1 and AssetAny with asset2 and asset3
-    nested_condition = AssetAll(asset1, AssetAny(asset2, asset3))
-
-    statuses = {
-        AssetUniqueKey.from_asset(asset1): status_values[0],
-        AssetUniqueKey.from_asset(asset2): status_values[1],
-        AssetUniqueKey.from_asset(asset3): status_values[2],
-    }
-
-    assert nested_condition.evaluate(statuses) == expected_evaluation, "Initial evaluation mismatch"
-
-    serialized_condition = BaseSerialization.serialize(nested_condition)
-    deserialized_condition = BaseSerialization.deserialize(serialized_condition)
-
-    assert (
-        deserialized_condition.evaluate(statuses) == expected_evaluation
-    ), "Post-serialization evaluation mismatch"
 
 
 @pytest.fixture
@@ -500,37 +378,9 @@ def test_normalize_uri_valid_uri(mock_get_normalized_scheme):
 
 
 class TestAssetAlias:
-    @pytest.fixture
-    def asset(self):
-        """Example asset links to asset alias resolved_asset_alias_2."""
-        return Asset(uri="test://asset1/", name="test_name", group="asset")
-
-    @pytest.fixture
-    def asset_alias_1(self):
-        """Example asset alias links to no assets."""
-        asset_alias_1 = AssetAlias(name="test_name", group="test")
-        with mock.patch.object(asset_alias_1, "_resolve_assets", return_value=[]):
-            yield asset_alias_1
-
-    @pytest.fixture
-    def resolved_asset_alias_2(self, asset):
-        """Example asset alias links to asset."""
-        asset_alias_2 = AssetAlias(name="test_name_2")
-        with mock.patch.object(asset_alias_2, "_resolve_assets", return_value=[asset]):
-            yield asset_alias_2
-
-    @pytest.mark.parametrize("alias_fixture_name", ["asset_alias_1", "resolved_asset_alias_2"])
-    def test_as_expression(self, request: pytest.FixtureRequest, alias_fixture_name):
-        alias = request.getfixturevalue(alias_fixture_name)
+    def test_as_expression(self):
+        alias = AssetAlias(name="test_name", group="test")
         assert alias.as_expression() == {"alias": {"name": alias.name, "group": alias.group}}
-
-    def test_evalute_empty(self, asset_alias_1, asset):
-        assert asset_alias_1.evaluate({AssetUniqueKey.from_asset(asset): True}) is False
-        assert asset_alias_1._resolve_assets.mock_calls == [mock.call(None)]
-
-    def test_evalute_resolved(self, resolved_asset_alias_2, asset):
-        assert resolved_asset_alias_2.evaluate({AssetUniqueKey.from_asset(asset): True}) is True
-        assert resolved_asset_alias_2._resolve_assets.mock_calls == [mock.call(None)]
 
 
 class TestAssetSubclasses:

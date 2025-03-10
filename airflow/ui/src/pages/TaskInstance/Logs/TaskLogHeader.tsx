@@ -16,7 +16,14 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Badge, Box, HStack, IconButton, type SelectValueChangeDetails } from "@chakra-ui/react";
+import {
+  Badge,
+  Box,
+  createListCollection,
+  HStack,
+  IconButton,
+  type SelectValueChangeDetails,
+} from "@chakra-ui/react";
 import { useCallback } from "react";
 import { MdOutlineOpenInFull } from "react-icons/md";
 import { useSearchParams } from "react-router-dom";
@@ -30,6 +37,7 @@ import { type LogLevel, logLevelColorMapping, logLevelOptions } from "src/utils/
 type Props = {
   readonly isFullscreen?: boolean;
   readonly onSelectTryNumber: (tryNumber: number) => void;
+  readonly sourceOptions?: Array<string>;
   readonly taskInstance?: TaskInstanceResponse;
   readonly toggleFullscreen: () => void;
   readonly toggleWrap: () => void;
@@ -40,6 +48,7 @@ type Props = {
 export const TaskLogHeader = ({
   isFullscreen = false,
   onSelectTryNumber,
+  sourceOptions,
   taskInstance,
   toggleFullscreen,
   toggleWrap,
@@ -47,11 +56,21 @@ export const TaskLogHeader = ({
   wrap,
 }: Props) => {
   const [searchParams, setSearchParams] = useSearchParams();
-
+  const sources = searchParams.getAll(SearchParamsKeys.SOURCE);
   const logLevels = searchParams.getAll(SearchParamsKeys.LOG_LEVEL);
   const hasLogLevels = logLevels.length > 0;
 
-  const handleStateChange = useCallback(
+  const sourceOptionList = createListCollection<{
+    label: string;
+    value: string;
+  }>({
+    items: [
+      { label: "All Sources", value: "all" },
+      ...(sourceOptions ?? []).map((source) => ({ label: source, value: source })),
+    ],
+  });
+
+  const handleLevelChange = useCallback(
     ({ value }: SelectValueChangeDetails<string>) => {
       const [val, ...rest] = value;
 
@@ -62,6 +81,23 @@ export const TaskLogHeader = ({
         value
           .filter((state) => state !== "all")
           .map((state) => searchParams.append(SearchParamsKeys.LOG_LEVEL, state));
+      }
+      setSearchParams(searchParams);
+    },
+    [searchParams, setSearchParams],
+  );
+
+  const handleSourceChange = useCallback(
+    ({ value }: SelectValueChangeDetails<string>) => {
+      const [val, ...rest] = value;
+
+      if ((val === undefined || val === "all") && rest.length === 0) {
+        searchParams.delete(SearchParamsKeys.SOURCE);
+      } else {
+        searchParams.delete(SearchParamsKeys.SOURCE);
+        value
+          .filter((state) => state !== "all")
+          .map((state) => searchParams.append(SearchParamsKeys.SOURCE, state));
       }
       setSearchParams(searchParams);
     },
@@ -82,7 +118,7 @@ export const TaskLogHeader = ({
           collection={logLevelOptions}
           maxW="250px"
           multiple
-          onValueChange={handleStateChange}
+          onValueChange={handleLevelChange}
           value={hasLogLevels ? logLevels : ["all"]}
         >
           <Select.Trigger {...(hasLogLevels ? { clearable: true } : {})} isActive={Boolean(logLevels)}>
@@ -114,6 +150,26 @@ export const TaskLogHeader = ({
             ))}
           </Select.Content>
         </Select.Root>
+        {sourceOptions !== undefined && sourceOptions.length > 0 ? (
+          <Select.Root
+            collection={sourceOptionList}
+            maxW="250px"
+            multiple
+            onValueChange={handleSourceChange}
+            value={sources}
+          >
+            <Select.Trigger clearable>
+              <Select.ValueText placeholder="All Sources" />
+            </Select.Trigger>
+            <Select.Content>
+              {sourceOptionList.items.map((option) => (
+                <Select.Item item={option} key={option.label}>
+                  {option.label}
+                </Select.Item>
+              ))}
+            </Select.Content>
+          </Select.Root>
+        ) : undefined}
         <HStack>
           <Button aria-label={wrap ? "Unwrap" : "Wrap"} bg="bg.panel" onClick={toggleWrap} variant="outline">
             {wrap ? "Unwrap" : "Wrap"}

@@ -295,7 +295,7 @@ class RuntimeTaskInstance(TaskInstance):
 
         if task_ids is None:
             # default to the current task if not provided
-            task_ids = self.task_id
+            task_ids = [self.task_id]
         elif isinstance(task_ids, str):
             task_ids = [task_ids]
         if isinstance(map_indexes, ArgNotSet):

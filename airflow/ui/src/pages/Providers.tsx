@@ -79,6 +79,7 @@ export const Providers = () => {
         columns={columns}
         data={data?.providers ?? []}
         errorMessage={<ErrorAlert error={error} />}
+        modelName="Provider"
         total={data?.total_entries}
       />
     </Box>

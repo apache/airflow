@@ -51,10 +51,10 @@ class TestEC2StateSensorTrigger:
 
     @pytest.mark.asyncio
     @mock.patch("airflow.providers.amazon.aws.hooks.ec2.EC2Hook.get_instance_state_async")
-    @mock.patch("airflow.providers.amazon.aws.hooks.ec2.EC2Hook.async_conn")
+    @mock.patch("airflow.providers.amazon.aws.hooks.ec2.EC2Hook.get_async_conn")
     async def test_ec2_state_sensor_run(self, mock_async_conn, mock_get_instance_state_async):
         mock = AsyncMock()
-        mock_async_conn.__aenter__.return_value = mock
+        mock_async_conn.return_value.__aenter__.return_value = mock
         mock_get_instance_state_async.return_value = TEST_TARGET_STATE
 
         test_ec2_state_sensor = EC2StateSensorTrigger(
@@ -73,12 +73,12 @@ class TestEC2StateSensorTrigger:
     @pytest.mark.asyncio
     @mock.patch("asyncio.sleep")
     @mock.patch("airflow.providers.amazon.aws.hooks.ec2.EC2Hook.get_instance_state_async")
-    @mock.patch("airflow.providers.amazon.aws.hooks.ec2.EC2Hook.async_conn")
+    @mock.patch("airflow.providers.amazon.aws.hooks.ec2.EC2Hook.get_async_conn")
     async def test_ec2_state_sensor_run_multiple(
         self, mock_async_conn, mock_get_instance_state_async, mock_sleep
     ):
         mock = AsyncMock()
-        mock_async_conn.__aenter__.return_value = mock
+        mock_async_conn.return_value.__aenter__.return_value = mock
         mock_get_instance_state_async.side_effect = ["test-state", TEST_TARGET_STATE]
         mock_sleep.return_value = True
 
