@@ -1,0 +1,15 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Redirecting...</title>
+  <script type="text/javascript">
+    document.addEventListener("DOMContentLoaded", function () {
+      localStorage.setItem("token", JSON.stringify("{{ token }}"));
+      window.location.href = "{{ redirect_url }}";
+    });
+  </script>
+</head>
+<body>
+</body>
+</html>

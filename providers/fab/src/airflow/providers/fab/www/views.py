@@ -23,8 +23,8 @@ from urllib.parse import unquote, urljoin, urlsplit
 
 from flask import (
     g,
-    redirect,
     render_template,
+    redirect,
     request,
     url_for,
 )
@@ -70,7 +70,8 @@ class FabIndexView(IndexView):
     def index(self):
         if g.user is not None and g.user.is_authenticated:
             token = get_auth_manager().generate_jwt(g.user)
-            return redirect(urljoin(conf.get("api", "base_url"), f"?token={token}"), code=302)
+            url = f"{conf.get('api', 'base_url')}/"
+            return render_template("airflow/token_set.html", token=token, redirect_url=url)
         else:
             return redirect(conf.get("api", "base_url"), code=302)
 
