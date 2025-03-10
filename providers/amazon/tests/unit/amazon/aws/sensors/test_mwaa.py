@@ -30,6 +30,9 @@ SENSOR_KWARGS = {
     "external_env_name": "test_env",
     "external_dag_id": "test_dag",
     "external_dag_run_id": "test_run_id",
+    "deferrable": False,
+    "poke_interval": 5,
+    "max_retries": 100,
 }
 
 
@@ -51,9 +54,12 @@ class TestMwaaDagRunSuccessSensor:
         assert sensor.external_dag_run_id == SENSOR_KWARGS["external_dag_run_id"]
         assert set(sensor.success_states) == success_states
         assert set(sensor.failure_states) == failure_states
+        assert sensor.deferrable == SENSOR_KWARGS["deferrable"]
+        assert sensor.poke_interval == SENSOR_KWARGS["poke_interval"]
+        assert sensor.max_retries == SENSOR_KWARGS["max_retries"]
 
     def test_init_failure(self):
-        with pytest.raises(AirflowException):
+        with pytest.raises(ValueError):
             MwaaDagRunSensor(
                 **SENSOR_KWARGS, success_states={"state1", "state2"}, failure_states={"state2", "state3"}
             )
