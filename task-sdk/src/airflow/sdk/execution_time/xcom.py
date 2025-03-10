@@ -79,7 +79,7 @@ class BaseXCom:
         cls,
         *,
         ti_key: Any,
-        key: str | None = None,
+        key: str,
     ) -> Any:
         """
         Retrieve an XCom value for a task instance.
@@ -107,9 +107,9 @@ class BaseXCom:
     def get_one(
         cls,
         *,
-        key: str | None = None,
-        dag_id: str | None = None,
-        task_id: str | None = None,
+        key: str,
+        dag_id: str,
+        task_id: str,
         run_id: str,
         map_index: int | None = None,
         include_prior_dates: bool = False,
@@ -175,7 +175,7 @@ class BaseXCom:
         from airflow.serialization.serde import serialize
 
         # return back the value for BaseXCom, custom backends will implement this
-        return serialize(value)
+        return serialize(value)  # type: ignore[return-value]
 
     @staticmethod
     def deserialize_value(result) -> Any:
@@ -192,15 +192,15 @@ class BaseXCom:
     @classmethod
     def delete(
         cls,
-        key: str | None = None,
-        task_id: str | None = None,
-        dag_id: str | None = None,
-        run_id: str | None = None,
+        key: str,
+        task_id: str,
+        dag_id: str,
+        run_id: str,
     ) -> None:
         """Delete an Xcom entry."""
         from airflow.sdk.execution_time.task_runner import SUPERVISOR_COMMS
 
-        cls.purge()
+        cls.purge()  # type: ignore[call-arg]
         SUPERVISOR_COMMS.send_request(
             log=log,
             msg=DeleteXCom(
