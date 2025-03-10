@@ -31,9 +31,12 @@ class TestRegexExceptionMiddleware:
             ({"key": "value.*"}, "key"),
             ({"key": "value.*", "key2": "value2"}, "key"),
             ({"key": "value", "key2": "value2.*"}, "key2"),
-            ({"key": "^value", "key2": "value2"}, "key"),
             ({"key": "value", "key2": "^value2$", "key3": "value3"}, "key2"),
+            ({"key": "value", "key2": "^value2$", "key3": "value3.*"}, "key2"),
+            ({"key": "value", "key2": {"key3": "value3.*"}}, "key3"),
+            ({"key": "value", "key2": {"key3": "^[0-9]*$"}}, "key3"),
+            ({"key": "value", "key2": {"key3": "^[0-9]*[a-z]*$"}}, "key3"),
         ],
     )
     def test_detect_regexp_in_dict_values(self, data, expected):
-        assert RegexpExceptionMiddleware._detect_regexp_in_dict_values(data) == expected
+        assert RegexpExceptionMiddleware._detect_regexp(key=None, value=data) == expected
