@@ -56,13 +56,13 @@ from airflow.exceptions import (
     SerializationError,
 )
 from airflow.hooks.base import BaseHook
+from airflow.models import XComModel
 from airflow.models.baseoperator import BaseOperator
 from airflow.models.connection import Connection
 from airflow.models.dag import DAG
 from airflow.models.dagbag import DagBag
 from airflow.models.expandinput import EXPAND_INPUT_EMPTY
 from airflow.models.mappedoperator import MappedOperator
-from airflow.models.xcom import XCom
 from airflow.providers.cncf.kubernetes.pod_generator import PodGenerator
 from airflow.providers.standard.operators.bash import BashOperator
 from airflow.providers.standard.sensors.bash import BashSensor
@@ -1141,7 +1141,7 @@ class TestStringifiedDAGs:
 
         dr = dag_maker.create_dagrun(logical_date=test_date)
         (ti,) = dr.task_instances
-        XCom.set(
+        XComModel.set(
             key="search_query",
             value=bash_command,
             task_id=simple_task.task_id,
@@ -1153,7 +1153,7 @@ class TestStringifiedDAGs:
         # Test Deserialized inbuilt link
         for name, expected in links.items():
             # staging the part where a task at runtime pushes xcom for extra links
-            XCom.set(
+            XComModel.set(
                 key=simple_task.operator_extra_links[c].xcom_key,
                 value=expected,
                 task_id=simple_task.task_id,

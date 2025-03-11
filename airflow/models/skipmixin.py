@@ -124,12 +124,12 @@ class SkipMixin(LoggingMixin):
         session.commit()
 
         if task_id is not None:
-            from airflow.models.xcom import XCom
+            from airflow.models.xcom import XComModel
 
             if map_index is None:
                 map_index = -1
 
-            XCom.set(
+            XComModel.set(
                 key=XCOM_SKIPMIXIN_KEY,
                 value={XCOM_SKIPMIXIN_SKIPPED: task_ids_list},
                 task_id=task_id,

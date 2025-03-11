@@ -22,8 +22,8 @@ from unittest import mock
 
 import pytest
 
-from airflow.models.xcom import XCom
 from airflow.providers.amazon.aws.links.base_aws import BaseAwsLink
+from airflow.sdk.execution_time.xcom import XCom
 from airflow.serialization.serialized_objects import SerializedDAG
 
 from tests_common.test_utils.mock_operators import MockOperator

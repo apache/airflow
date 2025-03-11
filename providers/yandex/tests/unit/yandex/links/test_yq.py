@@ -21,8 +21,8 @@ from unittest import mock
 import pytest
 
 from airflow.models.taskinstance import TaskInstance
-from airflow.models.xcom import XCom
 from airflow.providers.yandex.links.yq import YQLink
+from airflow.sdk.execution_time.xcom import XCom
 
 from tests_common.test_utils.mock_operators import MockOperator
 from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS

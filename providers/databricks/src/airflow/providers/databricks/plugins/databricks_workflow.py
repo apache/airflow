@@ -31,10 +31,10 @@ from airflow.models import DagBag
 from airflow.models.dag import DAG, clear_task_instances
 from airflow.models.dagrun import DagRun
 from airflow.models.taskinstance import TaskInstance, TaskInstanceKey
-from airflow.models.xcom import XCom
 from airflow.plugins_manager import AirflowPlugin
 from airflow.providers.databricks.hooks.databricks import DatabricksHook
 from airflow.providers.databricks.version_compat import AIRFLOW_V_3_0_PLUS
+from airflow.sdk.execution_time.xcom import XCom
 
 if AIRFLOW_V_3_0_PLUS:
     from airflow.providers.fab.www import auth

@@ -28,7 +28,6 @@ from airflow.configuration import conf
 from airflow.models import XComModel
 from airflow.models.dagrun import DagRun, DagRunType
 from airflow.models.taskinstance import TaskInstance
-from airflow.models.xcom import XCom
 from airflow.providers.standard.operators.empty import EmptyOperator
 from airflow.sdk.execution_time.xcom import BaseXCom, resolve_xcom_backend
 from airflow.settings import json
@@ -212,7 +211,7 @@ class TestXCom:
 @pytest.fixture
 def push_simple_json_xcom(session):
     def func(*, ti: TaskInstance, key: str, value):
-        return XCom.set(
+        return XComModel.set(
             key=key,
             value=value,
             dag_id=ti.dag_id,
@@ -231,7 +230,7 @@ class TestXComGet:
 
     @pytest.mark.usefixtures("setup_for_xcom_get_one")
     def test_xcom_get_one(self, session, task_instance):
-        stored_value = XCom.get_one(
+        stored_value = XComModel.get_one(
             key="xcom_1",
             dag_id=task_instance.dag_id,
             task_id=task_instance.task_id,
@@ -258,7 +257,7 @@ class TestXComGet:
 
     def test_xcom_get_one_from_prior_date(self, session, tis_for_xcom_get_one_from_prior_date):
         _, ti2 = tis_for_xcom_get_one_from_prior_date
-        retrieved_value = XCom.get_one(
+        retrieved_value = XComModel.get_one(
             run_id=ti2.run_id,
             key="xcom_1",
             task_id="task_1",
@@ -274,7 +273,7 @@ class TestXComGet:
 
     @pytest.mark.usefixtures("setup_for_xcom_get_many_single_argument_value")
     def test_xcom_get_many_single_argument_value(self, session, task_instance):
-        stored_xcoms = XCom.get_many(
+        stored_xcoms = XComModel.get_many(
             key="xcom_1",
             dag_ids=task_instance.dag_id,
             task_ids=task_instance.task_id,
@@ -293,7 +292,7 @@ class TestXComGet:
 
     @pytest.mark.usefixtures("setup_for_xcom_get_many_multiple_tasks")
     def test_xcom_get_many_multiple_tasks(self, session, task_instance):
-        stored_xcoms = XCom.get_many(
+        stored_xcoms = XComModel.get_many(
             key="xcom_1",
             dag_ids=task_instance.dag_id,
             task_ids=["task_1", "task_2"],
@@ -315,7 +314,7 @@ class TestXComGet:
 
     def test_xcom_get_many_from_prior_dates(self, session, tis_for_xcom_get_many_from_prior_dates):
         ti1, ti2 = tis_for_xcom_get_many_from_prior_dates
-        stored_xcoms = XCom.get_many(
+        stored_xcoms = XComModel.get_many(
             run_id=ti2.run_id,
             key="xcom_1",
             dag_ids="dag",
@@ -342,7 +341,7 @@ class TestXComSet:
         ],
     )
     def test_xcom_set(self, session, task_instance, key, value, expected_value):
-        XCom.set(
+        XComModel.set(
             key=key,
             value=value,
             dag_id=task_instance.dag_id,
@@ -350,7 +349,7 @@ class TestXComSet:
             run_id=task_instance.run_id,
             session=session,
         )
-        stored_xcoms = session.query(XCom).all()
+        stored_xcoms = session.query(XComModel).all()
         assert stored_xcoms[0].key == key
         assert isinstance(stored_xcoms[0].value, type(expected_value))
         assert stored_xcoms[0].value == expected_value
@@ -364,8 +363,8 @@ class TestXComSet:
 
     @pytest.mark.usefixtures("setup_for_xcom_set_again_replace")
     def test_xcom_set_again_replace(self, session, task_instance):
-        assert session.query(XCom).one().value == {"key1": "value1"}
-        XCom.set(
+        assert session.query(XComModel).one().value == {"key1": "value1"}
+        XComModel.set(
             key="xcom_1",
             value={"key2": "value2"},
             dag_id=task_instance.dag_id,
@@ -373,7 +372,7 @@ class TestXComSet:
             run_id=task_instance.run_id,
             session=session,
         )
-        assert session.query(XCom).one().value == {"key2": "value2"}
+        assert session.query(XComModel).one().value == {"key2": "value2"}
 
 
 class TestXComClear:
@@ -384,22 +383,22 @@ class TestXComClear:
     @pytest.mark.usefixtures("setup_for_xcom_clear")
     @mock.patch("airflow.models.xcom.XCom.purge")
     def test_xcom_clear(self, mock_purge, session, task_instance):
-        assert session.query(XCom).count() == 1
-        XCom.clear(
+        assert session.query(XComModel).count() == 1
+        XComModel.clear(
             dag_id=task_instance.dag_id,
             task_id=task_instance.task_id,
             run_id=task_instance.run_id,
             session=session,
         )
-        assert session.query(XCom).count() == 0
+        assert session.query(XComModel).count() == 0
         assert mock_purge.call_count == 1
 
     @pytest.mark.usefixtures("setup_for_xcom_clear")
     def test_xcom_clear_different_run(self, session, task_instance):
-        XCom.clear(
+        XComModel.clear(
             dag_id=task_instance.dag_id,
             task_id=task_instance.task_id,
             run_id="different_run",
             session=session,
         )
-        assert session.query(XCom).count() == 1
+        assert session.query(XComModel).count() == 1

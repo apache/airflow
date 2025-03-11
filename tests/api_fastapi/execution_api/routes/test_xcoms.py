@@ -27,7 +27,7 @@ from airflow.api_fastapi.execution_api.datamodels.xcom import XComResponse
 from airflow.models import XComModel
 from airflow.models.dagrun import DagRun
 from airflow.models.taskmap import TaskMap
-from airflow.models.xcom import XCom
+from airflow.sdk.execution_time.xcom import XCom
 from airflow.serialization.serde import serialize
 from airflow.utils.session import create_session
 

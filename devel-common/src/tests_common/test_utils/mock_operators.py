@@ -21,7 +21,7 @@ from typing import TYPE_CHECKING
 
 import attr
 from airflow.models.baseoperator import BaseOperator
-from airflow.models.xcom import XCom
+from airflow.models.xcom import XComModel
 
 from tests_common.test_utils.compat import BaseOperatorLink
 
@@ -89,9 +89,12 @@ class CustomBaseIndexOpLink(BaseOperatorLink):
         return f"bigquery_{self.index + 1}"
 
     def get_link(self, operator, *, ti_key):
-        search_queries = XCom.get_one(
+        search_queries = XComModel.get_many(
             task_id=ti_key.task_id, dag_id=ti_key.dag_id, run_id=ti_key.run_id, key="search_query"
-        )
+        ).first()
+
+        search_queries = XComModel.deserialize_value(search_queries)
+
         if not search_queries:
             return None
         if len(search_queries) < self.index:
@@ -106,7 +109,7 @@ class CustomOpLink(BaseOperatorLink):
     name = "Google Custom"
 
     def get_link(self, operator, *, ti_key):
-        search_query = XCom.get_one(
+        search_query = XComModel.get_one(
             task_id=ti_key.task_id,
             dag_id=ti_key.dag_id,
             run_id=ti_key.run_id,
