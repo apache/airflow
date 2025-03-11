@@ -1388,6 +1388,45 @@ export const $ConnectionCollectionResponse = {
   description: "Connection Collection serializer for responses.",
 } as const;
 
+export const $ConnectionHookFieldBehavior = {
+  properties: {
+    hidden: {
+      type: "boolean",
+      title: "Hidden",
+      description: "Flag if the form field should be hidden.",
+      default: false,
+    },
+    title: {
+      anyOf: [
+        {
+          type: "string",
+        },
+        {
+          type: "null",
+        },
+      ],
+      title: "Title",
+      description:
+        "Label / title for the field that should be displayed, if re-labelling is needed. Use `None` to display standard title.",
+    },
+    placeholder: {
+      anyOf: [
+        {
+          type: "string",
+        },
+        {
+          type: "null",
+        },
+      ],
+      title: "Placeholder",
+      description: "Placeholder text that should be populated to the form.",
+    },
+  },
+  type: "object",
+  title: "ConnectionHookFieldBehavior",
+  description: "A class to store the behavior of each standard field of a Hook.",
+} as const;
+
 export const $ConnectionHookMetaData = {
   properties: {
     connection_type: {
@@ -3914,45 +3953,6 @@ export const $HistoricalMetricDataResponse = {
   description: "Historical Metric Data serializer for responses.",
 } as const;
 
-export const $HookFieldBehavior = {
-  properties: {
-    hidden: {
-      type: "boolean",
-      title: "Hidden",
-      description: "Flag if the form field should be hidden.",
-      default: false,
-    },
-    title: {
-      anyOf: [
-        {
-          type: "string",
-        },
-        {
-          type: "null",
-        },
-      ],
-      title: "Title",
-      description:
-        "Label / title for the field that should be displayed, if re-labelling is needed. Use `None` to display standard title.",
-    },
-    placeholder: {
-      anyOf: [
-        {
-          type: "string",
-        },
-        {
-          type: "null",
-        },
-      ],
-      title: "Placeholder",
-      description: "Placeholder text that should be populated to the form.",
-    },
-  },
-  type: "object",
-  title: "HookFieldBehavior",
-  description: "A class to store the behavior of each standard field of a Hook.",
-} as const;
-
 export const $ImportErrorCollectionResponse = {
   properties: {
     import_errors: {
@@ -4709,7 +4709,7 @@ export const $StandardHookFields = {
     description: {
       anyOf: [
         {
-          $ref: "#/components/schemas/HookFieldBehavior",
+          $ref: "#/components/schemas/ConnectionHookFieldBehavior",
         },
         {
           type: "null",
@@ -4719,7 +4719,7 @@ export const $StandardHookFields = {
     url_schema: {
       anyOf: [
         {
-          $ref: "#/components/schemas/HookFieldBehavior",
+          $ref: "#/components/schemas/ConnectionHookFieldBehavior",
         },
         {
           type: "null",
@@ -4729,7 +4729,7 @@ export const $StandardHookFields = {
     host: {
       anyOf: [
         {
-          $ref: "#/components/schemas/HookFieldBehavior",
+          $ref: "#/components/schemas/ConnectionHookFieldBehavior",
         },
         {
           type: "null",
@@ -4739,7 +4739,7 @@ export const $StandardHookFields = {
     port: {
       anyOf: [
         {
-          $ref: "#/components/schemas/HookFieldBehavior",
+          $ref: "#/components/schemas/ConnectionHookFieldBehavior",
         },
         {
           type: "null",
@@ -4749,7 +4749,7 @@ export const $StandardHookFields = {
     login: {
       anyOf: [
         {
-          $ref: "#/components/schemas/HookFieldBehavior",
+          $ref: "#/components/schemas/ConnectionHookFieldBehavior",
         },
         {
           type: "null",
@@ -4759,7 +4759,7 @@ export const $StandardHookFields = {
     password: {
       anyOf: [
         {
-          $ref: "#/components/schemas/HookFieldBehavior",
+          $ref: "#/components/schemas/ConnectionHookFieldBehavior",
         },
         {
           type: "null",

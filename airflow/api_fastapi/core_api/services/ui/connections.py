@@ -23,8 +23,8 @@ from functools import cache
 from typing import TYPE_CHECKING
 
 from airflow.api_fastapi.core_api.datamodels.connections import (
+    ConnectionHookFieldBehavior,
     ConnectionHookMetaData,
-    HookFieldBehavior,
     StandardHookFields,
 )
 from airflow.sdk import Param
@@ -155,12 +155,12 @@ class HookMetaService:
         if not field_behaviour:
             return None
 
-        def make_field(field_name: str, field_behaviour: dict) -> HookFieldBehavior | None:
+        def make_field(field_name: str, field_behaviour: dict) -> ConnectionHookFieldBehavior | None:
             hidden_fields = field_behaviour.get("hidden_fields", [])
             relabeling = field_behaviour.get("relabeling", {}).get(field_name)
             placeholder = field_behaviour.get("placeholders", {}).get(field_name)
             if any([field_name in hidden_fields, relabeling, placeholder]):
-                return HookFieldBehavior(
+                return ConnectionHookFieldBehavior(
                     hidden=field_name in hidden_fields,
                     title=relabeling,
                     placeholder=placeholder,

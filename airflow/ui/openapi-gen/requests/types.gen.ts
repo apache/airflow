@@ -449,6 +449,24 @@ export type ConnectionCollectionResponse = {
 };
 
 /**
+ * A class to store the behavior of each standard field of a Hook.
+ */
+export type ConnectionHookFieldBehavior = {
+  /**
+   * Flag if the form field should be hidden.
+   */
+  hidden?: boolean;
+  /**
+   * Label / title for the field that should be displayed, if re-labelling is needed. Use `None` to display standard title.
+   */
+  title?: string | null;
+  /**
+   * Placeholder text that should be populated to the form.
+   */
+  placeholder?: string | null;
+};
+
+/**
  * Response model for Hook information == Connection type meta data.
  *
  * It is used to transfer providers information loaded by providers_manager such that
@@ -1034,24 +1052,6 @@ export type HistoricalMetricDataResponse = {
 };
 
 /**
- * A class to store the behavior of each standard field of a Hook.
- */
-export type HookFieldBehavior = {
-  /**
-   * Flag if the form field should be hidden.
-   */
-  hidden?: boolean;
-  /**
-   * Label / title for the field that should be displayed, if re-labelling is needed. Use `None` to display standard title.
-   */
-  title?: string | null;
-  /**
-   * Placeholder text that should be populated to the form.
-   */
-  placeholder?: string | null;
-};
-
-/**
  * Import Error Collection Response.
  */
 export type ImportErrorCollectionResponse = {
@@ -1243,12 +1243,12 @@ export type SchedulerInfoResponse = {
  * Standard fields of a Hook that a form will render.
  */
 export type StandardHookFields = {
-  description: HookFieldBehavior | null;
-  url_schema: HookFieldBehavior | null;
-  host: HookFieldBehavior | null;
-  port: HookFieldBehavior | null;
-  login: HookFieldBehavior | null;
-  password: HookFieldBehavior | null;
+  description: ConnectionHookFieldBehavior | null;
+  url_schema: ConnectionHookFieldBehavior | null;
+  host: ConnectionHookFieldBehavior | null;
+  port: ConnectionHookFieldBehavior | null;
+  login: ConnectionHookFieldBehavior | null;
+  password: ConnectionHookFieldBehavior | null;
 };
 
 /**

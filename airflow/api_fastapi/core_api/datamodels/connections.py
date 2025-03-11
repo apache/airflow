@@ -77,7 +77,7 @@ class ConnectionTestResponse(BaseModel):
     message: str
 
 
-class HookFieldBehavior(BaseModel):
+class ConnectionHookFieldBehavior(BaseModel):
     """A class to store the behavior of each standard field of a Hook."""
 
     hidden: Annotated[
@@ -99,12 +99,12 @@ class HookFieldBehavior(BaseModel):
 class StandardHookFields(BaseModel):
     """Standard fields of a Hook that a form will render."""
 
-    description: HookFieldBehavior | None
-    url_schema: HookFieldBehavior | None
-    host: HookFieldBehavior | None
-    port: HookFieldBehavior | None
-    login: HookFieldBehavior | None
-    password: HookFieldBehavior | None
+    description: ConnectionHookFieldBehavior | None
+    url_schema: ConnectionHookFieldBehavior | None
+    host: ConnectionHookFieldBehavior | None
+    port: ConnectionHookFieldBehavior | None
+    login: ConnectionHookFieldBehavior | None
+    password: ConnectionHookFieldBehavior | None
 
 
 class ConnectionHookMetaData(BaseModel):

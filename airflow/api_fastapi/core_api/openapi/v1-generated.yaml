@@ -8141,6 +8141,29 @@ components:
       - total_entries
       title: ConnectionCollectionResponse
       description: Connection Collection serializer for responses.
+    ConnectionHookFieldBehavior:
+      properties:
+        hidden:
+          type: boolean
+          title: Hidden
+          description: Flag if the form field should be hidden.
+          default: false
+        title:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Title
+          description: Label / title for the field that should be displayed, if re-labelling
+            is needed. Use `None` to display standard title.
+        placeholder:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Placeholder
+          description: Placeholder text that should be populated to the form.
+      type: object
+      title: ConnectionHookFieldBehavior
+      description: A class to store the behavior of each standard field of a Hook.
     ConnectionHookMetaData:
       properties:
         connection_type:
@@ -9772,29 +9795,6 @@ components:
       - task_instance_states
       title: HistoricalMetricDataResponse
       description: Historical Metric Data serializer for responses.
-    HookFieldBehavior:
-      properties:
-        hidden:
-          type: boolean
-          title: Hidden
-          description: Flag if the form field should be hidden.
-          default: false
-        title:
-          anyOf:
-          - type: string
-          - type: 'null'
-          title: Title
-          description: Label / title for the field that should be displayed, if re-labelling
-            is needed. Use `None` to display standard title.
-        placeholder:
-          anyOf:
-          - type: string
-          - type: 'null'
-          title: Placeholder
-          description: Placeholder text that should be populated to the form.
-      type: object
-      title: HookFieldBehavior
-      description: A class to store the behavior of each standard field of a Hook.
     ImportErrorCollectionResponse:
       properties:
         import_errors:
@@ -10320,27 +10320,27 @@ components:
       properties:
         description:
           anyOf:
-          - $ref: '#/components/schemas/HookFieldBehavior'
+          - $ref: '#/components/schemas/ConnectionHookFieldBehavior'
           - type: 'null'
         url_schema:
           anyOf:
-          - $ref: '#/components/schemas/HookFieldBehavior'
+          - $ref: '#/components/schemas/ConnectionHookFieldBehavior'
           - type: 'null'
         host:
           anyOf:
-          - $ref: '#/components/schemas/HookFieldBehavior'
+          - $ref: '#/components/schemas/ConnectionHookFieldBehavior'
           - type: 'null'
         port:
           anyOf:
-          - $ref: '#/components/schemas/HookFieldBehavior'
+          - $ref: '#/components/schemas/ConnectionHookFieldBehavior'
           - type: 'null'
         login:
           anyOf:
-          - $ref: '#/components/schemas/HookFieldBehavior'
+          - $ref: '#/components/schemas/ConnectionHookFieldBehavior'
           - type: 'null'
         password:
           anyOf:
-          - $ref: '#/components/schemas/HookFieldBehavior'
+          - $ref: '#/components/schemas/ConnectionHookFieldBehavior'
           - type: 'null'
       type: object
       required:
