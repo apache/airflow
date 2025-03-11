@@ -16,29 +16,42 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { QueryClient } from "@tanstack/react-query";
 
-import { OpenAPI } from "openapi/requests/core/OpenAPI";
-
-// Dynamically set the base URL for XHR requests based on the meta tag.
-OpenAPI.BASE = document.querySelector("head>base")?.getAttribute("href") ?? "";
-if (OpenAPI.BASE.endsWith("/")) {
-  OpenAPI.BASE = OpenAPI.BASE.slice(0, -1);
+.panel-heading #alerts-accordion-toggle::after {
+  float: right;
+  color: grey;
 }
 
-export const queryClient = new QueryClient({
-  defaultOptions: {
-    mutations: {
-      retry: 1,
-      retryDelay: 500,
-    },
-    queries: {
-      initialDataUpdatedAt: new Date().setMinutes(-6), // make sure initial data is already expired
-      refetchOnMount: true, // Refetches stale queries, not "always"
-      refetchOnWindowFocus: false,
-      retry: 1,
-      retryDelay: 500,
-      staleTime: 5 * 60 * 1000, // 5 minutes
-    },
-  },
-});
+.panel-heading #alerts-accordion-toggle.collapsed::after {
+  float: right;
+  color: grey;
+}
+
+#errorHeading {
+  background-color: #d6d8d9; /* same color as Bootstrap's Dark Alert */
+}
+
+.dag-import-error {
+  position: relative;
+  white-space: pre;
+  height: 14px;
+  line-height: 14px; /* show only one line of 14px text */
+  overflow: hidden;
+  cursor: pointer;
+}
+
+.expanded-error {
+  height: 100%;
+}
+
+.dag-import-error::after {
+  float: right;
+  color: #e43921;
+  position: absolute;
+  top: 0;
+  right: 0;
+}
+
+.expanded-error .toggle-direction {
+  transform: rotate(180deg);
+}

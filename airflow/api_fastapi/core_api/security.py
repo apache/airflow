@@ -17,7 +17,9 @@
 from __future__ import annotations
 
 from functools import cache
+from pathlib import Path
 from typing import TYPE_CHECKING, Annotated, Callable
+from urllib.parse import urljoin, urlparse
 
 from fastapi import Depends, HTTPException, Request, status
 from fastapi.security import OAuth2PasswordBearer
@@ -36,11 +38,15 @@ from airflow.api_fastapi.auth.managers.models.resource_details import (
     PoolDetails,
     VariableDetails,
 )
+from airflow.api_fastapi.core_api.base import OrmClause
 from airflow.configuration import conf
+from airflow.models.dag import DagModel
 from airflow.utils.jwt_signer import JWTSigner, get_signing_key
 
 if TYPE_CHECKING:
-    from airflow.api_fastapi.auth.managers.base_auth_manager import ResourceMethod
+    from sqlalchemy.sql import Select
+
+    from airflow.api_fastapi.auth.managers.base_auth_manager import BaseAuthManager, ResourceMethod
 
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="token")
 
@@ -63,6 +69,9 @@ def get_user(token_str: Annotated[str, Depends(oauth2_scheme)]) -> BaseUser:
         raise HTTPException(status.HTTP_403_FORBIDDEN, "Forbidden")
 
 
+GetUserDep = Annotated[BaseUser, Depends(get_user)]
+
+
 async def get_user_with_exception_handling(request: Request) -> BaseUser | None:
     # Currently the UI does not support JWT authentication, this method defines a fallback if no token is provided by the UI.
     # We can remove this method when issue https://github.com/apache/airflow/issues/44884 is done.
@@ -80,12 +89,14 @@ async def get_user_with_exception_handling(request: Request) -> BaseUser | None:
     return get_user(token_str)
 
 
-def requires_access_dag(method: ResourceMethod, access_entity: DagAccessEntity | None = None) -> Callable:
+def requires_access_dag(
+    method: ResourceMethod, access_entity: DagAccessEntity | None = None
+) -> Callable[[Request, BaseUser], None]:
     def inner(
         request: Request,
-        user: Annotated[BaseUser, Depends(get_user)],
+        user: GetUserDep,
     ) -> None:
-        dag_id = request.path_params.get("dag_id") or request.query_params.get("dag_id")
+        dag_id: str | None = request.path_params.get("dag_id")
 
         _requires_access(
             is_authorized_callback=lambda: get_auth_manager().is_authorized_dag(
@@ -96,10 +107,40 @@ def requires_access_dag(method: ResourceMethod, access_entity: DagAccessEntity |
     return inner
 
 
+class PermittedDagFilter(OrmClause[set[str]]):
+    """A parameter that filters the permitted dags for the user."""
+
+    def to_orm(self, select: Select) -> Select:
+        return select.where(DagModel.dag_id.in_(self.value))
+
+
+def permitted_dag_filter_factory(method: ResourceMethod) -> Callable[[Request, BaseUser], PermittedDagFilter]:
+    """
+    Create a callable for Depends in FastAPI that returns a filter of the permitted dags for the user.
+
+    :param method: whether filter readable or writable.
+    :return: The callable that can be used as Depends in FastAPI.
+    """
+
+    def depends_permitted_dags_filter(
+        request: Request,
+        user: GetUserDep,
+    ) -> PermittedDagFilter:
+        auth_manager: BaseAuthManager = request.app.state.auth_manager
+        permitted_dags: set[str] = auth_manager.get_permitted_dag_ids(user=user, method=method)
+        return PermittedDagFilter(permitted_dags)
+
+    return depends_permitted_dags_filter
+
+
+EditableDagsFilterDep = Annotated[PermittedDagFilter, Depends(permitted_dag_filter_factory("PUT"))]
+ReadableDagsFilterDep = Annotated[PermittedDagFilter, Depends(permitted_dag_filter_factory("GET"))]
+
+
 def requires_access_pool(method: ResourceMethod) -> Callable[[Request, BaseUser], None]:
     def inner(
         request: Request,
-        user: Annotated[BaseUser, Depends(get_user)],
+        user: GetUserDep,
     ) -> None:
         pool_name = request.path_params.get("pool_name")
 
@@ -115,7 +156,7 @@ def requires_access_pool(method: ResourceMethod) -> Callable[[Request, BaseUser]
 def requires_access_connection(method: ResourceMethod) -> Callable[[Request, BaseUser], None]:
     def inner(
         request: Request,
-        user: Annotated[BaseUser, Depends(get_user)],
+        user: GetUserDep,
     ) -> None:
         connection_id = request.path_params.get("connection_id")
 
@@ -214,3 +255,23 @@ def _requires_access(
 ) -> None:
     if not is_authorized_callback():
         raise HTTPException(status.HTTP_403_FORBIDDEN, "Forbidden")
+
+
+def is_safe_url(target_url: str) -> bool:
+    """
+    Check that the URL is safe.
+
+    Needs to belong to the same domain as base_url, use HTTP or HTTPS (no JavaScript/data schemes),
+    is a valid normalized path.
+    """
+    base_url = conf.get("api", "base_url")
+
+    parsed_base = urlparse(base_url)
+    parsed_target = urlparse(urljoin(base_url, target_url))  # Resolves relative URLs
+
+    target_path = Path(parsed_target.path).resolve()
+
+    if target_path and parsed_base.path and not target_path.is_relative_to(parsed_base.path):
+        return False
+
+    return parsed_target.scheme in {"http", "https"} and parsed_target.netloc == parsed_base.netloc
