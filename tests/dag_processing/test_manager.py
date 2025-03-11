@@ -134,7 +134,7 @@ class TestDagFileProcessorManager:
 
     def mock_processor(self) -> DagFileProcessorProcess:
         proc = MagicMock()
-        filehandle = MagicMock()
+        logger_filehandle = MagicMock()
         proc.create_time.return_value = time.time()
         proc.wait.return_value = 0
         ret = DagFileProcessorProcess(
@@ -144,7 +144,7 @@ class TestDagFileProcessorManager:
             process=proc,
             stdin=io.BytesIO(),
             requests_fd=123,
-            filehandle=filehandle,
+            logger_filehandle=logger_filehandle,
         )
         ret._num_open_sockets = 0
         return ret
@@ -504,6 +504,7 @@ class TestDagFileProcessorManager:
             manager._kill_timed_out_processors()
         mock_kill.assert_called_once_with(signal.SIGKILL)
         assert len(manager._processors) == 0
+        processor.logger_filehandle.close.assert_called()
 
     def test_kill_timed_out_processors_no_kill(self):
         manager = DagFileProcessorManager(
@@ -776,10 +777,10 @@ class TestDagFileProcessorManager:
                 assert session.query(DbCallbackRequest).count() == 1
 
     @mock.patch.object(DagFileProcessorManager, "_get_logger_for_dag_file")
-    def test_callback_queue(self, mock_logger_filehandle, configure_testing_dag_bundle):
+    def test_callback_queue(self, mock_get_logger, configure_testing_dag_bundle):
         mock_logger = MagicMock()
         mock_filehandle = MagicMock()
-        mock_logger_filehandle.return_value = [mock_logger, mock_filehandle]
+        mock_get_logger.return_value = [mock_logger, mock_filehandle]
 
         tmp_path = "/green_eggs/ham"
         with configure_testing_dag_bundle(tmp_path):
@@ -862,7 +863,7 @@ class TestDagFileProcessorManager:
                     callbacks=[dag2_req1],
                     selector=mock.ANY,
                     logger=mock_logger,
-                    filehandle=mock_filehandle,
+                    logger_filehandle=mock_filehandle,
                 ),
                 mock.call(
                     id=mock.ANY,
@@ -871,7 +872,7 @@ class TestDagFileProcessorManager:
                     callbacks=[dag1_req1, dag1_req2],
                     selector=mock.ANY,
                     logger=mock_logger,
-                    filehandle=mock_filehandle,
+                    logger_filehandle=mock_filehandle,
                 ),
             ]
             # And removed from the queue

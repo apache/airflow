@@ -220,7 +220,7 @@ class DagFileProcessorProcess(WatchedSubprocess):
     in core Airflow.
     """
 
-    filehandle: BinaryIO
+    logger_filehandle: BinaryIO
     parsing_result: DagFileParsingResult | None = None
     decoder: ClassVar[TypeAdapter[ToManager]] = TypeAdapter[ToManager](ToManager)
 
