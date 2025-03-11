@@ -699,7 +699,7 @@ class TestPodGenerator:
         sanitized_res = self.k8s_client.sanitize_for_serialization(result)
         assert sanitized_res == {}
         assert len(caplog.records) == 1
-        assert "non_existent.yaml does not exist or is not defined." in caplog.text
+        assert "non_existent.yaml does not exist." in caplog.text
 
     @pytest.mark.parametrize(
         "input",
