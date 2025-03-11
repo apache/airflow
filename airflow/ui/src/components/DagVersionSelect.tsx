@@ -85,7 +85,9 @@ const DagVersionSelect = ({ disabled = false }: { readonly disabled?: boolean })
         onChange={handleStateChange}
         placeholder="Dag Version"
         value={
-          selectedVersion === undefined ? undefined : { label: `v${selectedVersion}`, value: selectedVersion }
+          selectedVersion === undefined
+            ? undefined
+            : { label: `v${selectedVersion}`, value: selectedVersion.toString() }
         }
       />
     </Field.Root>

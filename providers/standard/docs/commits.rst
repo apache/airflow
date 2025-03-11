@@ -34,14 +34,37 @@ For high-level changelog, see :doc:`package information including changelog <ind
 
 
 
+0.1.1
+.....
+
+Latest change: 2025-03-08
+
+==================================================================================================  ===========  =======================================================================
+Commit                                                                                              Committed    Subject
+==================================================================================================  ===========  =======================================================================
+`6b69eb7b9a <https://github.com/apache/airflow/commit/6b69eb7b9aa1c90cd3e7a6b5e9bfa6d8f6b03fe8>`__  2025-03-08   ``Relocate SmoothOperator to standard provider and add tests (#47530)``
+`aa07160892 <https://github.com/apache/airflow/commit/aa0716089235407f555fee06ac6363419b390bcc>`__  2025-03-07   ``AIP-72: Moving BaseOperatorLink to task sdk (#47008)``
+`e4002c3305 <https://github.com/apache/airflow/commit/e4002c3305a757f5926f96c996e701e8f998a042>`__  2025-03-05   ``Move tests_common package to devel-common project (#47281)``
+`1447705482 <https://github.com/apache/airflow/commit/144770548242295dc69d5ea7b7e11a748c246262>`__  2025-03-01   ``Fix codespell issues detected by new codespell (#47259)``
+`1addb55154 <https://github.com/apache/airflow/commit/1addb55154fbef31bfa021537cfbd4395696381c>`__  2025-02-28   ``Improve documentation for updating provider dependencies (#47203)``
+`51415547d6 <https://github.com/apache/airflow/commit/51415547d681942ec389f143125e8f9f163d690c>`__  2025-02-26   ``Remove old UI and webserver (#46942)``
+`310f5cdfde <https://github.com/apache/airflow/commit/310f5cdfde87b9d2c7327fbe03f0dcfe854405a9>`__  2025-02-26   ``Add deferred pagination mode to GenericTransfer (#44809)``
+`c6c4f95ed9 <https://github.com/apache/airflow/commit/c6c4f95ed9e3220133815b9126c135e805637022>`__  2025-02-25   ``Add legacy namespace packages to airflow.providers (#47064)``
+`811fa2b016 <https://github.com/apache/airflow/commit/811fa2b016ca613061e5d4d32fee005e53c1bf1d>`__  2025-02-25   ``Replace 'external_trigger' check with DagRunType (#45961)``
+`518287ce7f <https://github.com/apache/airflow/commit/518287ce7fbb7bb70df499239523b1b2e9ac7656>`__  2025-02-24   ``Runtime context shouldn't have start_date as a key (#46961)``
+`dbf8bb4092 <https://github.com/apache/airflow/commit/dbf8bb409223687c7d2ad10649a92d02c24bb3b4>`__  2025-02-24   ``Remove extra whitespace in provider readme template (#46975)``
+`b28c336e8b <https://github.com/apache/airflow/commit/b28c336e8b7aa1d69c0f9520b182b1b661377337>`__  2025-02-21   ``Upgrade flit to 3.11.0 (#46938)``
+==================================================================================================  ===========  =======================================================================
+
 0.1.0
 .....
 
-Latest change: 2025-02-18
+Latest change: 2025-02-21
 
 ==================================================================================================  ===========  ============================================================================================================================================================
 Commit                                                                                              Committed    Subject
 ==================================================================================================  ===========  ============================================================================================================================================================
+`5d87bddf0a <https://github.com/apache/airflow/commit/5d87bddf0aa5f485f3684c909fb95f461e5a2ab6>`__  2025-02-21   ``Prepare docs for Feb 1st wave of providers (#46893)``
 `fdbd68f02e <https://github.com/apache/airflow/commit/fdbd68f02e86dcfec20178d3309b7398cb43ce32>`__  2025-02-18   ``TriggerDagRunOperator by defaults set logical date as null (#46633)``
 `4d5846f58f <https://github.com/apache/airflow/commit/4d5846f58fe0de9b43358c0be75dd72e968dacc4>`__  2025-02-16   ``Move provider_tests to unit folder in provider tests (#46800)``
 `e027457a24 <https://github.com/apache/airflow/commit/e027457a24d0c6235bfed9c2a8399f75342e82f1>`__  2025-02-15   ``Removed the unused provider's distribution (#46608)``

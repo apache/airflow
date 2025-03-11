@@ -411,7 +411,6 @@ export type ConfigResponse = {
   warn_deployment_exposure: boolean;
   audit_view_excluded_events: string;
   audit_view_included_events: string;
-  is_k8s: boolean;
   test_connection: string;
   state_color_mapping: {
     [key: string]: unknown;
@@ -2073,7 +2072,6 @@ export type GetDagTagsData = {
 export type GetDagTagsResponse = DAGTagCollectionResponse;
 
 export type GetEventLogData = {
-  dagId?: string | null;
   eventLogId: number;
 };
 

@@ -57,6 +57,7 @@ from airflow.api_fastapi.core_api.datamodels.dags import (
     DAGResponse,
 )
 from airflow.api_fastapi.core_api.openapi.exceptions import create_openapi_http_exception_doc
+from airflow.api_fastapi.logging.decorators import action_logging
 from airflow.exceptions import AirflowException, DagNotFound
 from airflow.models import DAG, DagModel
 from airflow.models.dagrun import DagRun
@@ -207,6 +208,7 @@ def get_dag_details(dag_id: str, session: SessionDep, request: Request) -> DAGDe
             status.HTTP_404_NOT_FOUND,
         ]
     ),
+    dependencies=[Depends(action_logging())],
 )
 def patch_dag(
     dag_id: str,
@@ -249,6 +251,7 @@ def patch_dag(
             status.HTTP_404_NOT_FOUND,
         ]
     ),
+    dependencies=[Depends(action_logging())],
 )
 def patch_dags(
     patch_body: DAGPatchBody,
@@ -310,6 +313,7 @@ def patch_dags(
             status.HTTP_422_UNPROCESSABLE_ENTITY,
         ]
     ),
+    dependencies=[Depends(action_logging())],
 )
 def delete_dag(
     dag_id: str,

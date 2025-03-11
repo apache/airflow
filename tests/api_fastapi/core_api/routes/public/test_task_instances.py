@@ -46,6 +46,7 @@ from tests_common.test_utils.db import (
     clear_db_runs,
     clear_rendered_ti_fields,
 )
+from tests_common.test_utils.logs import check_last_log
 from tests_common.test_utils.mock_operators import MockOperator
 
 pytestmark = pytest.mark.db_test
@@ -1394,6 +1395,7 @@ class TestGetTaskInstancesBatch(TestTaskInstanceEndpoint):
         assert response.status_code == 200, body
         assert expected_ti_count == body["total_entries"]
         assert expected_ti_count == len(body["task_instances"])
+        check_last_log(session, dag_id="~", event="get_task_instances_batch", logical_date=None)
 
     def test_should_respond_200_for_order_by(self, test_client, session):
         dag_id = "example_python_operator"
@@ -2061,6 +2063,7 @@ class TestPostClearTaskInstances(TestTaskInstanceEndpoint):
         )
         assert response.status_code == 200
         assert response.json()["total_entries"] == expected_ti
+        check_last_log(session, dag_id=request_dag, event="post_clear_task_instances", logical_date=None)
 
     @pytest.mark.parametrize("flag", ["include_future", "include_past"])
     def test_dag_run_with_future_or_past_flag_returns_400(self, test_client, session, flag):
@@ -2990,6 +2993,7 @@ class TestPatchTaskInstance(TestTaskInstanceEndpoint):
             state=self.NEW_STATE,
             task_id=self.TASK_ID,
         )
+        check_last_log(session, dag_id=self.DAG_ID, event="patch_task_instance", logical_date=None)
 
     def test_should_update_task_instance_state(self, test_client, session):
         self.create_task_instances(session)

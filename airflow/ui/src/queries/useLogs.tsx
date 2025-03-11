@@ -16,7 +16,7 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Badge, Text } from "@chakra-ui/react";
+import { chakra, Code } from "@chakra-ui/react";
 import type { UseQueryOptions } from "@tanstack/react-query";
 import dayjs from "dayjs";
 import innerText from "react-innertext";
@@ -34,6 +34,7 @@ import { LogLevel, logLevelColorMapping } from "src/utils/logs";
 type Props = {
   dagId: string;
   logLevelFilters?: Array<string>;
+  sourceFilters?: Array<string>;
   taskInstance?: TaskInstanceResponse;
   tryNumber?: number;
 };
@@ -41,18 +42,27 @@ type Props = {
 type ParseLogsProps = {
   data: TaskInstancesLogResponse["content"];
   logLevelFilters?: Array<string>;
+  sourceFilters?: Array<string>;
 };
 
-const renderStructuredLog = (
-  logMessage: string | StructuredLogMessage,
-  index: number,
-  logLevelFilters?: Array<string>,
-) => {
+type RenderStructuredLogProps = {
+  index: number;
+  logLevelFilters?: Array<string>;
+  logMessage: string | StructuredLogMessage;
+  sourceFilters?: Array<string>;
+};
+
+const renderStructuredLog = ({
+  index,
+  logLevelFilters,
+  logMessage,
+  sourceFilters,
+}: RenderStructuredLogProps) => {
   if (typeof logMessage === "string") {
     return (
-      <Text key={index} py={1}>
+      <chakra.span key={index} lineHeight={1.5}>
         {logMessage}
-      </Text>
+      </chakra.span>
     );
   }
 
@@ -68,20 +78,30 @@ const renderStructuredLog = (
     return "";
   }
 
+  if (
+    sourceFilters !== undefined &&
+    Boolean(sourceFilters.length) &&
+    (("logger" in structured && !sourceFilters.includes(structured.logger as string)) ||
+      !("logger" in structured))
+  ) {
+    return "";
+  }
+
   if (Boolean(timestamp)) {
     elements.push("[", <Time datetime={timestamp} key={0} />, "] ");
   }
 
   if (typeof level === "string") {
     elements.push(
-      <Badge
+      <Code
         colorPalette={level.toUpperCase() in LogLevel ? logLevelColorMapping[level as LogLevel] : undefined}
         key={1}
-        minH={3}
-        size="sm"
+        lineHeight={1.5}
+        minH={0}
+        px={0}
       >
         {level.toUpperCase()}
-      </Badge>,
+      </Code>,
       " - ",
     );
   }
@@ -96,30 +116,40 @@ const renderStructuredLog = (
     if (Object.hasOwn(structured, key)) {
       elements.push(
         " ",
-        <span className={`log-key ${key}`} key={`prop_${key}`}>
-          {key}={JSON.stringify(structured[key])}
-        </span>,
+        <chakra.span color={key === "logger" ? "fg.info" : undefined} key={`prop_${key}`}>
+          {key === "logger" ? "source" : key}={JSON.stringify(structured[key])}
+        </chakra.span>,
       );
     }
   }
 
   return (
-    <Text key={index} py={1}>
+    <chakra.span key={index} lineHeight={1.5}>
       {elements}
-    </Text>
+    </chakra.span>
   );
 };
 
-// TODO: add support for log groups, colors, formats, filters
-const parseLogs = ({ data, logLevelFilters }: ParseLogsProps) => {
+const parseLogs = ({ data, logLevelFilters, sourceFilters }: ParseLogsProps) => {
   let warning;
   let parsedLines;
   let startGroup = false;
   let groupLines: Array<JSX.Element | ""> = [];
   let groupName = "";
+  const sources: Array<string> = [];
 
   try {
-    parsedLines = data.map((datum, index) => renderStructuredLog(datum, index, logLevelFilters));
+    parsedLines = data.map((datum, index) => {
+      if (typeof datum !== "string" && "logger" in datum) {
+        const source = datum.logger as string;
+
+        if (!sources.includes(source)) {
+          sources.push(source);
+        }
+      }
+
+      return renderStructuredLog({ index, logLevelFilters, logMessage: datum, sourceFilters });
+    });
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : "An error occurred.";
 
@@ -143,9 +173,9 @@ const parseLogs = ({ data, logLevelFilters }: ParseLogsProps) => {
       const group = (
         <details key={groupName} style={{ width: "100%" }}>
           <summary data-testid={`summary-${groupName}`}>
-            <Text as="span" color="fg.info" cursor="pointer">
+            <chakra.span color="fg.info" cursor="pointer">
               {groupName}
-            </Text>
+            </chakra.span>
           </summary>
           {groupLines}
         </details>
@@ -166,14 +196,14 @@ const parseLogs = ({ data, logLevelFilters }: ParseLogsProps) => {
   });
 
   return {
-    fileSources: [],
     parsedLogs: parsedLines,
+    sources,
     warning,
   };
 };
 
 export const useLogs = (
-  { dagId, logLevelFilters, taskInstance, tryNumber = 1 }: Props,
+  { dagId, logLevelFilters, sourceFilters, taskInstance, tryNumber = 1 }: Props,
   options?: Omit<UseQueryOptions<TaskInstancesLogResponse>, "queryFn" | "queryKey">,
 ) => {
   const refetchInterval = useAutoRefresh({ dagId });
@@ -201,6 +231,7 @@ export const useLogs = (
   const parsedData = parseLogs({
     data: data?.content ?? [],
     logLevelFilters,
+    sourceFilters,
   });
 
   return { data: parsedData, ...rest };

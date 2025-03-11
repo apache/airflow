@@ -60,9 +60,9 @@ from tests_common.test_utils.mock_security_manager import MockSecurityManager
 from tests_common.test_utils.permissions import _resource_name
 
 if TYPE_CHECKING:
-    from airflow.providers.fab.www.security.permissions import RESOURCE_ASSET
+    from airflow.providers.fab.www.security.permissions import RESOURCE_ASSET, RESOURCE_ASSET_ALIAS
 else:
-    from airflow.providers.common.compat.security.permissions import RESOURCE_ASSET
+    from airflow.providers.common.compat.security.permissions import RESOURCE_ASSET, RESOURCE_ASSET_ALIAS
 
 
 pytestmark = pytest.mark.db_test
@@ -133,19 +133,19 @@ def _delete_dag_model(dag_model, session, security_manager):
 
 
 def _can_read_dag(dag_id: str, user) -> bool:
-    from airflow.auth.managers.models.resource_details import DagDetails
+    from airflow.api_fastapi.auth.managers.models.resource_details import DagDetails
 
     return get_auth_manager().is_authorized_dag(method="GET", details=DagDetails(id=dag_id), user=user)
 
 
 def _can_edit_dag(dag_id: str, user) -> bool:
-    from airflow.auth.managers.models.resource_details import DagDetails
+    from airflow.api_fastapi.auth.managers.models.resource_details import DagDetails
 
     return get_auth_manager().is_authorized_dag(method="PUT", details=DagDetails(id=dag_id), user=user)
 
 
 def _can_delete_dag(dag_id: str, user) -> bool:
-    from airflow.auth.managers.models.resource_details import DagDetails
+    from airflow.api_fastapi.auth.managers.models.resource_details import DagDetails
 
     return get_auth_manager().is_authorized_dag(method="DELETE", details=DagDetails(id=dag_id), user=user)
 
@@ -243,12 +243,9 @@ def sample_dags(security_manager):
 @pytest.fixture(scope="module")
 def has_dag_perm(security_manager):
     def _has_dag_perm(perm, dag_id, user):
-        from airflow.auth.managers.models.resource_details import DagDetails
+        from airflow.api_fastapi.auth.managers.models.resource_details import DagDetails
 
-        root_dag_id = security_manager._get_root_dag_id(dag_id)
-        return get_auth_manager().is_authorized_dag(
-            method=perm, details=DagDetails(id=root_dag_id), user=user
-        )
+        return get_auth_manager().is_authorized_dag(method=perm, details=DagDetails(id=dag_id), user=user)
 
     return _has_dag_perm
 
@@ -422,6 +419,7 @@ def test_get_user_roles_for_anonymous_user(app, security_manager):
         (permissions.ACTION_CAN_READ, permissions.RESOURCE_DAG_CODE),
         (permissions.ACTION_CAN_READ, permissions.RESOURCE_DAG_RUN),
         (permissions.ACTION_CAN_READ, RESOURCE_ASSET),
+        (permissions.ACTION_CAN_READ, RESOURCE_ASSET_ALIAS),
         (permissions.ACTION_CAN_READ, permissions.RESOURCE_CLUSTER_ACTIVITY),
         (permissions.ACTION_CAN_READ, permissions.RESOURCE_IMPORT_ERROR),
         (permissions.ACTION_CAN_READ, permissions.RESOURCE_DAG_WARNING),
@@ -544,7 +542,7 @@ def test_dont_get_inaccessible_dag_ids_for_dag_resource_permission(
                 dag_id, access_control={role_name: permission_action}
             )
 
-            assert get_auth_manager().get_permitted_dag_ids(methods=["GET"], user=user) == set()
+            assert get_auth_manager().get_permitted_dag_ids(user=user) == set()
 
 
 def test_has_access(security_manager):
@@ -897,23 +895,6 @@ def test_override_role_vm(app_builder):
     test_security_manager = MockSecurityManager(appbuilder=app_builder)
     assert len(test_security_manager.VIEWER_VMS) == 1
     assert {"Airflow"} == test_security_manager.VIEWER_VMS
-
-
-def test_correct_roles_have_perms_to_read_config(security_manager):
-    roles_to_check = security_manager.get_all_roles()
-    assert len(roles_to_check) >= 5
-    for role in roles_to_check:
-        if role.name in ["Admin", "Op"]:
-            assert security_manager.permission_exists_in_one_or_more_roles(
-                permissions.RESOURCE_CONFIG, permissions.ACTION_CAN_READ, [role.id]
-            )
-        else:
-            assert not security_manager.permission_exists_in_one_or_more_roles(
-                permissions.RESOURCE_CONFIG, permissions.ACTION_CAN_READ, [role.id]
-            ), (
-                f"{role.name} should not have {permissions.ACTION_CAN_READ} "
-                f"on {permissions.RESOURCE_CONFIG}"
-            )
 
 
 def test_create_dag_specific_permissions(session, security_manager, monkeypatch, sample_dags):

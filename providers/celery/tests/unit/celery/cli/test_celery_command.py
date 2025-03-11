@@ -19,14 +19,11 @@ from __future__ import annotations
 
 import importlib
 import os
-from argparse import Namespace
 from unittest import mock
 from unittest.mock import patch
 
 import pytest
-import sqlalchemy
 
-import airflow
 from airflow.cli import cli_parser
 from airflow.configuration import conf
 from airflow.executors import executor_loader
@@ -37,37 +34,6 @@ from tests_common.test_utils.config import conf_vars
 from tests_common.test_utils.version_compat import AIRFLOW_V_2_10_PLUS, AIRFLOW_V_3_0_PLUS
 
 pytestmark = pytest.mark.db_test
-
-
-@conf_vars({("dag_processor", "stale_bundle_cleanup_interval"): 0})
-class TestWorkerPrecheck:
-    @mock.patch("airflow.settings.validate_session")
-    def test_error(self, mock_validate_session):
-        """
-        Test to verify the exit mechanism of airflow-worker cli
-        by mocking validate_session method
-        """
-        mock_validate_session.return_value = False
-        with pytest.raises(SystemExit) as ctx, conf_vars({("core", "executor"): "CeleryExecutor"}):
-            celery_command.worker(Namespace(queues=1, concurrency=1))
-        assert str(ctx.value) == "Worker exiting, database connection precheck failed."
-
-    @conf_vars({("celery", "worker_precheck"): "False"})
-    def test_worker_precheck_exception(self):
-        """
-        Test to check the behaviour of validate_session method
-        when worker_precheck is absent in airflow configuration
-        """
-        assert airflow.settings.validate_session()
-
-    @mock.patch("sqlalchemy.orm.session.Session.execute")
-    @conf_vars({("celery", "worker_precheck"): "True"})
-    def test_validate_session_dbapi_exception(self, mock_session):
-        """
-        Test to validate connection failure scenario on SELECT 1 query
-        """
-        mock_session.side_effect = sqlalchemy.exc.OperationalError("m1", "m2", "m3", "m4")
-        assert airflow.settings.validate_session() is False
 
 
 @pytest.mark.backend("mysql", "postgres")

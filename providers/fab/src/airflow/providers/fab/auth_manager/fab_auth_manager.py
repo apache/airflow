@@ -18,7 +18,6 @@
 from __future__ import annotations
 
 import argparse
-from collections.abc import Container
 from functools import cached_property
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
@@ -27,14 +26,14 @@ import packaging.version
 from connexion import FlaskApi
 from fastapi import FastAPI
 from flask import Blueprint, g, url_for
-from packaging.version import Version
+from flask_login import logout_user
 from sqlalchemy import select
 from sqlalchemy.orm import Session, joinedload
 from starlette.middleware.wsgi import WSGIMiddleware
 
 from airflow import __version__ as airflow_version
-from airflow.auth.managers.base_auth_manager import BaseAuthManager
-from airflow.auth.managers.models.resource_details import (
+from airflow.api_fastapi.auth.managers.base_auth_manager import BaseAuthManager
+from airflow.api_fastapi.auth.managers.models.resource_details import (
     AccessView,
     ConfigurationDetails,
     ConnectionDetails,
@@ -43,7 +42,6 @@ from airflow.auth.managers.models.resource_details import (
     PoolDetails,
     VariableDetails,
 )
-from airflow.auth.managers.utils.fab import get_fab_action_from_method_map, get_method_from_fab_action_map
 from airflow.cli.cli_config import (
     DefaultHelpParser,
     GroupCommand,
@@ -58,6 +56,7 @@ from airflow.providers.fab.auth_manager.cli_commands.definition import (
     USERS_COMMANDS,
 )
 from airflow.providers.fab.auth_manager.models import Permission, Role, User
+from airflow.providers.fab.auth_manager.models.anonymous_user import AnonymousUser
 from airflow.providers.fab.www.app import create_app
 from airflow.providers.fab.www.constants import SWAGGER_BUNDLE, SWAGGER_ENABLED
 from airflow.providers.fab.www.extensions.init_views import _CustomErrorRequestBodyValidator, _LazyResolver
@@ -87,21 +86,21 @@ from airflow.providers.fab.www.security.permissions import (
     RESOURCE_WEBSITE,
     RESOURCE_XCOM,
 )
+from airflow.providers.fab.www.utils import get_fab_action_from_method_map, get_method_from_fab_action_map
 from airflow.utils.session import NEW_SESSION, create_session, provide_session
 from airflow.utils.yaml import safe_load
-from airflow.version import version
 
 if TYPE_CHECKING:
-    from airflow.auth.managers.base_auth_manager import ResourceMethod
+    from airflow.api_fastapi.auth.managers.base_auth_manager import ResourceMethod
     from airflow.cli.cli_config import (
         CLICommand,
     )
-    from airflow.providers.common.compat.assets import AssetDetails
+    from airflow.providers.common.compat.assets import AssetAliasDetails, AssetDetails
     from airflow.providers.fab.auth_manager.security_manager.override import FabAirflowSecurityManagerOverride
     from airflow.providers.fab.www.extensions.init_appbuilder import AirflowAppBuilder
-    from airflow.providers.fab.www.security.permissions import RESOURCE_ASSET
+    from airflow.providers.fab.www.security.permissions import RESOURCE_ASSET, RESOURCE_ASSET_ALIAS
 else:
-    from airflow.providers.common.compat.security.permissions import RESOURCE_ASSET
+    from airflow.providers.common.compat.security.permissions import RESOURCE_ASSET, RESOURCE_ASSET_ALIAS
 
 
 _MAP_DAG_ACCESS_ENTITY_TO_FAB_RESOURCE_TYPE: dict[DagAccessEntity, tuple[str, ...]] = {
@@ -143,12 +142,6 @@ class FabAuthManager(BaseAuthManager[User]):
     """
 
     appbuilder: AirflowAppBuilder | None = None
-
-    is_in_fab: bool = False
-    """
-    Whether the instance is run in FAB or Fastapi.
-    Can be deleted once the Airflow 2 legacy UI is removed.
-    """
 
     def init(self) -> None:
         """Run operations when Airflow is initializing."""
@@ -246,14 +239,11 @@ class FabAuthManager(BaseAuthManager[User]):
     def is_logged_in(self) -> bool:
         """Return whether the user is logged in."""
         user = self.get_user()
-        if Version(Version(version).base_version) < Version("3.0.0"):
-            return not user.is_anonymous and user.is_active
-        else:
-            return (
-                self.appbuilder
-                and self.appbuilder.get_app.config.get("AUTH_ROLE_PUBLIC", None)
-                or (not user.is_anonymous and user.is_active)
-            )
+        return (
+            self.appbuilder
+            and self.appbuilder.get_app.config.get("AUTH_ROLE_PUBLIC", None)
+            or (not user.is_anonymous and user.is_active)
+        )
 
     def is_authorized_configuration(
         self,
@@ -327,6 +317,11 @@ class FabAuthManager(BaseAuthManager[User]):
     ) -> bool:
         return self._is_authorized(method=method, resource_type=RESOURCE_ASSET, user=user)
 
+    def is_authorized_asset_alias(
+        self, *, method: ResourceMethod, user: User, details: AssetAliasDetails | None = None
+    ) -> bool:
+        return self._is_authorized(method=method, resource_type=RESOURCE_ASSET_ALIAS, user=user)
+
     def is_authorized_pool(
         self, *, method: ResourceMethod, user: User, details: PoolDetails | None = None
     ) -> bool:
@@ -344,7 +339,9 @@ class FabAuthManager(BaseAuthManager[User]):
             method=method, resource_type=_MAP_ACCESS_VIEW_TO_FAB_RESOURCE_TYPE[access_view], user=user
         )
 
-    def is_authorized_custom_view(self, *, method: ResourceMethod | str, resource_name: str, user: User):
+    def is_authorized_custom_view(
+        self, *, method: ResourceMethod | str, resource_name: str, user: User
+    ) -> bool:
         fab_action_name = get_fab_action_from_method_map().get(method, method)
         return (fab_action_name, resource_name) in self._get_user_permissions(user)
 
@@ -353,30 +350,24 @@ class FabAuthManager(BaseAuthManager[User]):
         self,
         *,
         user: User,
-        methods: Container[ResourceMethod] | None = None,
+        method: ResourceMethod = "GET",
         session: Session = NEW_SESSION,
     ) -> set[str]:
-        if not methods:
-            methods = ["PUT", "GET"]
-
-        if not self.is_logged_in():
-            roles = user.roles
-        else:
-            if ("GET" in methods and self.is_authorized_dag(method="GET", user=user)) or (
-                "PUT" in methods and self.is_authorized_dag(method="PUT", user=user)
-            ):
-                # If user is authorized to read/edit all DAGs, return all DAGs
-                return {dag.dag_id for dag in session.execute(select(DagModel.dag_id))}
-            user_query = session.scalar(
-                select(User)
-                .options(
-                    joinedload(User.roles)
-                    .subqueryload(Role.permissions)
-                    .options(joinedload(Permission.action), joinedload(Permission.resource))
-                )
-                .where(User.id == user.id)
+        if self._is_authorized(method=method, resource_type=RESOURCE_DAG, user=user):
+            # If user is authorized to access all DAGs, return all DAGs
+            return {dag.dag_id for dag in session.execute(select(DagModel.dag_id))}
+        if isinstance(user, AnonymousUser):
+            return set()
+        user_query = session.scalar(
+            select(User)
+            .options(
+                joinedload(User.roles)
+                .subqueryload(Role.permissions)
+                .options(joinedload(Permission.action), joinedload(Permission.resource))
             )
-            roles = user_query.roles
+            .where(User.id == user.id)
+        )
+        roles = user_query.roles
 
         map_fab_action_name_to_method_name = get_method_from_fab_action_map()
         resources = set()
@@ -385,7 +376,7 @@ class FabAuthManager(BaseAuthManager[User]):
                 action = permission.action.name
                 if (
                     action in map_fab_action_name_to_method_name
-                    and map_fab_action_name_to_method_name[action] in methods
+                    and map_fab_action_name_to_method_name[action] == method
                 ):
                     resource = permission.resource.name
                     if resource == permissions.RESOURCE_DAG:
@@ -418,21 +409,17 @@ class FabAuthManager(BaseAuthManager[User]):
 
     def get_url_login(self, **kwargs) -> str:
         """Return the login page url."""
-        if self.is_in_fab:
-            if not self.security_manager.auth_view:
-                raise AirflowException("`auth_view` not defined in the security manager.")
-            if next_url := kwargs.get("next_url"):
-                return url_for(f"{self.security_manager.auth_view.endpoint}.login", next=next_url)
-            else:
-                return url_for(f"{self.security_manager.auth_view.endpoint}.login")
-        else:
-            return f"{self.apiserver_endpoint}/auth/login"
+        return f"{self.apiserver_endpoint}/auth/login/"
 
     def get_url_logout(self):
         """Return the logout page url."""
         if not self.security_manager.auth_view:
             raise AirflowException("`auth_view` not defined in the security manager.")
         return url_for(f"{self.security_manager.auth_view.endpoint}.logout")
+
+    def logout(self) -> None:
+        """Logout the user."""
+        logout_user()
 
     def register_views(self) -> None:
         self.security_manager.register_views()
@@ -588,11 +575,7 @@ class FabAuthManager(BaseAuthManager[User]):
         # Otherwise, when the name of a view or menu is changed, the framework
         # will add the new Views and Menus names to the backend, but will not
         # delete the old ones.
-        if Version(Version(version).base_version) >= Version("3.0.0"):
-            fallback = None
-        else:
-            fallback = conf.getboolean("webserver", "UPDATE_FAB_PERMS")
-        if conf.getboolean("fab", "UPDATE_FAB_PERMS", fallback=fallback):
+        if conf.getboolean("fab", "UPDATE_FAB_PERMS"):
             self.security_manager.sync_roles()
 
 

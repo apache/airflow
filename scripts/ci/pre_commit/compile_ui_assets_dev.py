@@ -42,7 +42,9 @@ UI_ASSET_OUT_FILE = UI_CACHE_DIR / "asset_compile.out"
 UI_ASSET_OUT_DEV_MODE_FILE = UI_CACHE_DIR / "asset_compile_dev_mode.out"
 
 
-SIMPLE_AUTH_MANAGER_UI_DIRECTORY = AIRFLOW_SOURCES_PATH / "airflow" / "auth" / "managers" / "simple" / "ui"
+SIMPLE_AUTH_MANAGER_UI_DIRECTORY = (
+    AIRFLOW_SOURCES_PATH / "airflow" / "api_fastapi" / "auth" / "managers" / "simple" / "ui"
+)
 SIMPLE_AUTH_MANAGER_UI_HASH_FILE = UI_CACHE_DIR / "simple-auth-manager-hash.txt"
 SIMPLE_AUTH_MANAGER_UI_ASSET_OUT_FILE = UI_CACHE_DIR / "simple_auth_manager_asset_compile.out"
 SIMPLE_AUTH_MANAGER_UI_ASSET_OUT_DEV_MODE_FILE = (

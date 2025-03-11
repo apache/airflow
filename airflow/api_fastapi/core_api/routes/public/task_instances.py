@@ -60,6 +60,7 @@ from airflow.api_fastapi.core_api.datamodels.task_instances import (
     TaskInstancesBatchBody,
 )
 from airflow.api_fastapi.core_api.openapi.exceptions import create_openapi_http_exception_doc
+from airflow.api_fastapi.logging.decorators import action_logging
 from airflow.exceptions import TaskNotFound
 from airflow.models import Base, DagRun
 from airflow.models.dag import DAG
@@ -463,6 +464,7 @@ def get_task_instances(
 @task_instances_router.post(
     task_instances_prefix + "/list",
     responses=create_openapi_http_exception_doc([status.HTTP_404_NOT_FOUND]),
+    dependencies=[Depends(action_logging())],
 )
 def get_task_instances_batch(
     dag_id: Literal["~"],
@@ -601,6 +603,7 @@ def get_mapped_task_instance_try_details(
 @task_instances_router.post(
     "/clearTaskInstances",
     responses=create_openapi_http_exception_doc([status.HTTP_404_NOT_FOUND]),
+    dependencies=[Depends(action_logging())],
 )
 def post_clear_task_instances(
     dag_id: str,
@@ -649,7 +652,7 @@ def post_clear_task_instances(
     if task_ids is not None:
         task_id = [task[0] if isinstance(task, tuple) else task for task in task_ids]
         dag = dag.partial_subset(
-            task_ids_or_regex=task_id,
+            task_ids=task_id,
             include_downstream=downstream,
             include_upstream=upstream,
         )
@@ -805,12 +808,14 @@ def patch_task_instance_dry_run(
     responses=create_openapi_http_exception_doc(
         [status.HTTP_404_NOT_FOUND, status.HTTP_400_BAD_REQUEST, status.HTTP_409_CONFLICT],
     ),
+    dependencies=[Depends(action_logging())],
 )
 @task_instances_router.patch(
     task_instances_prefix + "/{task_id}/{map_index}",
     responses=create_openapi_http_exception_doc(
         [status.HTTP_404_NOT_FOUND, status.HTTP_400_BAD_REQUEST, status.HTTP_409_CONFLICT],
     ),
+    dependencies=[Depends(action_logging())],
 )
 def patch_task_instance(
     dag_id: str,

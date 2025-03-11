@@ -192,7 +192,8 @@ class StandaloneCommand:
         from airflow.providers.fab.auth_manager.cli_commands.utils import get_application_builder
 
         with get_application_builder() as appbuilder:
-            user_name, password = appbuilder.sm.create_admin_standalone()
+            if hasattr(appbuilder.sm, "create_admin_standalone"):
+                user_name, password = appbuilder.sm.create_admin_standalone()
         # Store what we know about the user for printing later in startup
         self.user_info = {"username": user_name, "password": password}
 

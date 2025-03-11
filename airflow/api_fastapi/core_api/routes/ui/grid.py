@@ -134,7 +134,7 @@ def grid_data(
     if root:
         task_node_map_exclude = get_task_group_map(
             dag=dag.partial_subset(
-                task_ids_or_regex=root,
+                task_ids=root,
                 include_upstream=include_upstream,
                 include_downstream=include_downstream,
             )
@@ -145,9 +145,12 @@ def grid_data(
     parent_tis: dict[tuple[str, str], list] = collections.defaultdict(list)
     all_tis: dict[tuple[str, str], list] = collections.defaultdict(list)
     for ti in task_instances:
-        # Skip the Task Instances if upstream/downstream filtering is applied
-        if task_node_map_exclude and ti.task_id not in task_node_map_exclude.keys():
+        # Skip the Task Instances if upstream/downstream filtering is applied or if task is deleted
+        if (
+            task_node_map_exclude and ti.task_id not in task_node_map_exclude.keys()
+        ) or ti.task_id not in task_node_map.keys():
             continue
+
         # Populate the Grouped Task Instances (All Task Instances except the Parent Task Instances)
         if ti.task_id in get_child_task_map(
             parent_task_id=task_node_map[ti.task_id]["parent_id"], task_node_map=task_node_map
