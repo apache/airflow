@@ -750,6 +750,9 @@ export type DAGWithLatestDagRunsResponse = {
   next_dagrun_data_interval_end: string | null;
   next_dagrun_run_after: string | null;
   owners: Array<string>;
+  asset_expression: {
+    [key: string]: unknown;
+  } | null;
   latest_dag_runs: Array<DAGRunResponse>;
   /**
    * Return file token.

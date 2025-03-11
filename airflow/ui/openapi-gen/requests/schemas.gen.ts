@@ -2878,6 +2878,17 @@ export const $DAGWithLatestDagRunsResponse = {
       type: "array",
       title: "Owners",
     },
+    asset_expression: {
+      anyOf: [
+        {
+          type: "object",
+        },
+        {
+          type: "null",
+        },
+      ],
+      title: "Asset Expression",
+    },
     latest_dag_runs: {
       items: {
         $ref: "#/components/schemas/DAGRunResponse",
@@ -2915,6 +2926,7 @@ export const $DAGWithLatestDagRunsResponse = {
     "next_dagrun_data_interval_end",
     "next_dagrun_run_after",
     "owners",
+    "asset_expression",
     "latest_dag_runs",
     "file_token",
   ],
