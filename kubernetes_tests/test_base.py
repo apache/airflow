@@ -149,7 +149,10 @@ class BaseK8STest:
         :return: The JWT token
         """
         # get csrf token from login page
+        retry = Retry(total=5, backoff_factor=10)
         session = requests.Session()
+        session.mount("http://", HTTPAdapter(max_retries=retry))
+        session.mount("https://", HTTPAdapter(max_retries=retry))
         get_login_form_response = session.get(f"http://{KUBERNETES_HOST_PORT}/auth/login")
         csrf_token = re.search(
             r'<input id="csrf_token" name="csrf_token" type="hidden" value="(.+?)">',
