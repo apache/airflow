@@ -834,6 +834,10 @@ class KubernetesPodOperator(BaseOperator):
             last_log_time = event.get("last_log_time")
 
             if event["status"] in ("error", "failed", "timeout"):
+                event_message = event.get("message", "No message provided")
+                self.log.error(
+                    "Trigger emitted an %s event, failing the task: %s", event["status"], event_message
+                )
                 # fetch some logs when pod is failed
                 if self.get_logs:
                     self._write_logs(self.pod, follow=follow, since_time=last_log_time)

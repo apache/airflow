@@ -21,8 +21,8 @@ import pendulum
 
 from airflow.decorators import dag, task
 from airflow.exceptions import AirflowSkipException
-from airflow.models.baseoperator import chain
 from airflow.providers.standard.operators.empty import EmptyOperator
+from airflow.sdk import chain
 from airflow.utils.trigger_rule import TriggerRule
 from airflow.utils.weekday import WeekDay
 

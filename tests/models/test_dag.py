@@ -98,6 +98,7 @@ from tests.plugins.priority_weight_strategy import (
 from tests_common.test_utils.asserts import assert_queries_count
 from tests_common.test_utils.db import (
     clear_db_assets,
+    clear_db_dag_bundles,
     clear_db_dags,
     clear_db_runs,
     clear_db_serialized_dags,
@@ -120,9 +121,11 @@ repo_root = Path(__file__).parents[2]
 def clear_dags():
     clear_db_dags()
     clear_db_serialized_dags()
+    clear_db_dag_bundles()
     yield
     clear_db_dags()
     clear_db_serialized_dags()
+    clear_db_dag_bundles()
 
 
 @pytest.fixture
@@ -3493,3 +3496,38 @@ class TestTaskClearingSetupTeardownBehavior:
                 Exception, match="Setup tasks must be followed with trigger rule ALL_SUCCESS."
             ):
                 dag.validate_setup_teardown()
+
+
+@pytest.mark.parametrize(
+    "disable, bundle_version, expected",
+    [
+        (True, "some-version", None),
+        (False, "some-version", "some-version"),
+    ],
+)
+def test_disable_bundle_versioning(disable, bundle_version, expected, dag_maker, session, clear_dags):
+    """When bundle versioning is disabled for a dag, the dag run should not have a bundle version."""
+
+    def hello():
+        print("hello")
+
+    with dag_maker(disable_bundle_versioning=disable, session=session, serialized=True) as dag:
+        PythonOperator(task_id="hi", python_callable=hello)
+
+    assert dag.disable_bundle_versioning is disable
+
+    # the dag *always* has bundle version
+    dag_model = session.scalar(select(DagModel).where(DagModel.dag_id == dag.dag_id))
+    dag_model.bundle_version = bundle_version
+    session.commit()
+
+    dr = dag.create_dagrun(
+        run_id="abcoercuhcrh",
+        run_after=pendulum.now(),
+        run_type="manual",
+        triggered_by=DagRunTriggeredByType.TEST,
+        state=None,
+    )
+
+    # but it only gets stamped on the dag run when bundle versioning not disabled
+    assert dr.bundle_version == expected

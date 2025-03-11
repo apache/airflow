@@ -26,7 +26,7 @@ from fastapi import HTTPException, Request
 from starlette import status
 from starlette.responses import RedirectResponse
 
-from airflow.api_fastapi.app import get_auth_manager
+from airflow.api_fastapi.app import AUTH_MANAGER_FASTAPI_APP_PREFIX, get_auth_manager
 from airflow.api_fastapi.common.router import AirflowRouter
 from airflow.configuration import conf
 from airflow.providers.amazon.aws.auth_manager.constants import CONF_SAML_METADATA_URL_KEY, CONF_SECTION_NAME
@@ -94,7 +94,7 @@ def _init_saml_auth(request: Request) -> OneLogin_Saml2_Auth:
         "sp": {
             "entityId": "aws-auth-manager-saml-client",
             "assertionConsumerService": {
-                "url": f"{base_url}/auth/login_callback",
+                "url": f"{base_url}{AUTH_MANAGER_FASTAPI_APP_PREFIX}/login_callback",
                 "binding": "urn:oasis:names:tc:SAML:2.0:bindings:HTTP-POST",
             },
         },

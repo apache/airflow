@@ -88,7 +88,12 @@ class TestEdgeExecutor:
         executor = EdgeExecutor()
 
         delta_to_purge = timedelta(minutes=conf.getint("edge", "job_fail_purge") + 1)
-        delta_to_orphaned = timedelta(seconds=conf.getint("scheduler", "scheduler_zombie_task_threshold") + 1)
+        if AIRFLOW_V_3_0_PLUS:
+            delta_to_orphaned_config_name = "task_instance_heartbeat_timeout"
+        else:
+            delta_to_orphaned_config_name = "scheduler_zombie_task_threshold"
+
+        delta_to_orphaned = timedelta(seconds=conf.getint("scheduler", delta_to_orphaned_config_name) + 1)
 
         with create_session() as session:
             for task_id, state, last_update in [

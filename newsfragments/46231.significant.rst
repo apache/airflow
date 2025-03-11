@@ -20,4 +20,4 @@ For new and existing DAGs, users must import ``EmptyOperator`` from ``airflow.pr
 
     * AIR302
 
-      * [ ] ``airflow.operators....EmptyOperator`` → ``airflow.providers.standard.operators.empty.EmptyOperator``
+      * [ ] ``airflow.operators.EmptyOperator`` → ``airflow.providers.standard.operators.empty.EmptyOperator``

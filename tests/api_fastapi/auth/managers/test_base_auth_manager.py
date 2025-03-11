@@ -152,6 +152,9 @@ class TestBaseAuthManager:
     def test_logout_return_none(self, auth_manager):
         assert auth_manager.logout() is None
 
+    def test_get_menu_items_return_empty_list(self, auth_manager):
+        assert auth_manager.get_menu_items(user=BaseAuthManagerUserTest(name="test")) == []
+
     @patch("airflow.api_fastapi.auth.managers.base_auth_manager.JWTSigner")
     @patch.object(EmptyAuthManager, "deserialize_user")
     def test_get_user_from_token(self, mock_deserialize_user, mock_jwt_signer, auth_manager):

@@ -32,6 +32,7 @@ from starlette.staticfiles import StaticFiles
 from starlette.templating import Jinja2Templates
 from termcolor import colored
 
+from airflow.api_fastapi.app import AUTH_MANAGER_FASTAPI_APP_PREFIX
 from airflow.api_fastapi.auth.managers.base_auth_manager import BaseAuthManager
 from airflow.api_fastapi.auth.managers.simple.user import SimpleAuthManagerUser
 from airflow.configuration import AIRFLOW_HOME, conf
@@ -131,9 +132,9 @@ class SimpleAuthManager(BaseAuthManager[SimpleAuthManagerUser]):
         """Return the login page url."""
         is_simple_auth_manager_all_admins = conf.getboolean("core", "simple_auth_manager_all_admins")
         if is_simple_auth_manager_all_admins:
-            return "/auth/token"
+            return AUTH_MANAGER_FASTAPI_APP_PREFIX + "/token"
 
-        return "/auth/login"
+        return AUTH_MANAGER_FASTAPI_APP_PREFIX + "/login"
 
     def deserialize_user(self, token: dict[str, Any]) -> SimpleAuthManagerUser:
         return SimpleAuthManagerUser(username=token["username"], role=token["role"])

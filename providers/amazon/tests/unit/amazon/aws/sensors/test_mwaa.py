@@ -23,13 +23,21 @@ import pytest
 from airflow.exceptions import AirflowException
 from airflow.providers.amazon.aws.hooks.mwaa import MwaaHook
 from airflow.providers.amazon.aws.sensors.mwaa import MwaaDagRunSensor
-from airflow.utils.state import State
+from airflow.utils.state import DagRunState
 
 SENSOR_KWARGS = {
     "task_id": "test_mwaa_sensor",
     "external_env_name": "test_env",
     "external_dag_id": "test_dag",
     "external_dag_run_id": "test_run_id",
+    "deferrable": False,
+    "poke_interval": 5,
+    "max_retries": 100,
+}
+
+SENSOR_STATE_KWARGS = {
+    "success_states": ["a", "b"],
+    "failure_states": ["c", "d"],
 }
 
 
@@ -41,35 +49,38 @@ def mock_invoke_rest_api():
 
 class TestMwaaDagRunSuccessSensor:
     def test_init_success(self):
-        success_states = {"state1", "state2"}
-        failure_states = {"state3", "state4"}
-        sensor = MwaaDagRunSensor(
-            **SENSOR_KWARGS, success_states=success_states, failure_states=failure_states
-        )
+        sensor = MwaaDagRunSensor(**SENSOR_KWARGS, **SENSOR_STATE_KWARGS)
         assert sensor.external_env_name == SENSOR_KWARGS["external_env_name"]
         assert sensor.external_dag_id == SENSOR_KWARGS["external_dag_id"]
         assert sensor.external_dag_run_id == SENSOR_KWARGS["external_dag_run_id"]
-        assert set(sensor.success_states) == success_states
-        assert set(sensor.failure_states) == failure_states
+        assert set(sensor.success_states) == set(SENSOR_STATE_KWARGS["success_states"])
+        assert set(sensor.failure_states) == set(SENSOR_STATE_KWARGS["failure_states"])
+        assert sensor.deferrable == SENSOR_KWARGS["deferrable"]
+        assert sensor.poke_interval == SENSOR_KWARGS["poke_interval"]
+        assert sensor.max_retries == SENSOR_KWARGS["max_retries"]
+
+        sensor = MwaaDagRunSensor(**SENSOR_KWARGS)
+        assert sensor.success_states == {DagRunState.SUCCESS.value}
+        assert sensor.failure_states == {DagRunState.FAILED.value}
 
     def test_init_failure(self):
-        with pytest.raises(AirflowException):
+        with pytest.raises(ValueError, match=r".*success_states.*failure_states.*"):
             MwaaDagRunSensor(
                 **SENSOR_KWARGS, success_states={"state1", "state2"}, failure_states={"state2", "state3"}
             )
 
-    @pytest.mark.parametrize("status", sorted(State.success_states))
-    def test_poke_completed(self, mock_invoke_rest_api, status):
-        mock_invoke_rest_api.return_value = {"RestApiResponse": {"state": status}}
-        assert MwaaDagRunSensor(**SENSOR_KWARGS).poke({})
+    @pytest.mark.parametrize("state", SENSOR_STATE_KWARGS["success_states"])
+    def test_poke_completed(self, mock_invoke_rest_api, state):
+        mock_invoke_rest_api.return_value = {"RestApiResponse": {"state": state}}
+        assert MwaaDagRunSensor(**SENSOR_KWARGS, **SENSOR_STATE_KWARGS).poke({})
 
-    @pytest.mark.parametrize("status", ["running", "queued"])
-    def test_poke_not_completed(self, mock_invoke_rest_api, status):
-        mock_invoke_rest_api.return_value = {"RestApiResponse": {"state": status}}
-        assert not MwaaDagRunSensor(**SENSOR_KWARGS).poke({})
+    @pytest.mark.parametrize("state", ["e", "f"])
+    def test_poke_not_completed(self, mock_invoke_rest_api, state):
+        mock_invoke_rest_api.return_value = {"RestApiResponse": {"state": state}}
+        assert not MwaaDagRunSensor(**SENSOR_KWARGS, **SENSOR_STATE_KWARGS).poke({})
 
-    @pytest.mark.parametrize("status", sorted(State.failed_states))
-    def test_poke_terminated(self, mock_invoke_rest_api, status):
-        mock_invoke_rest_api.return_value = {"RestApiResponse": {"state": status}}
-        with pytest.raises(AirflowException):
-            MwaaDagRunSensor(**SENSOR_KWARGS).poke({})
+    @pytest.mark.parametrize("state", SENSOR_STATE_KWARGS["failure_states"])
+    def test_poke_terminated(self, mock_invoke_rest_api, state):
+        mock_invoke_rest_api.return_value = {"RestApiResponse": {"state": state}}
+        with pytest.raises(AirflowException, match=f".*{state}.*"):
+            MwaaDagRunSensor(**SENSOR_KWARGS, **SENSOR_STATE_KWARGS).poke({})

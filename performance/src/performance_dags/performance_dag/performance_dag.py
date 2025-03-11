@@ -54,9 +54,9 @@ from performance_dags.performance_dag.performance_dag_utils import (
 )
 
 from airflow import DAG
-from airflow.models.baseoperator import chain
 from airflow.operators.bash import BashOperator
 from airflow.operators.python import PythonOperator
+from airflow.sdk import chain
 from airflow.utils.trigger_rule import TriggerRule
 
 # DAG File used in performance tests. Its shape can be configured by environment variables.

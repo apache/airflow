@@ -882,6 +882,10 @@ def get_provider_info():
                 "python-modules": ["airflow.providers.amazon.aws.triggers.lambda_function"],
             },
             {
+                "integration-name": "Amazon Managed Workflows for Apache Airflow (MWAA)",
+                "python-modules": ["airflow.providers.amazon.aws.triggers.mwaa"],
+            },
+            {
                 "integration-name": "Amazon Managed Service for Apache Flink",
                 "python-modules": ["airflow.providers.amazon.aws.triggers.kinesis_analytics"],
             },

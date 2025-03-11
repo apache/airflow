@@ -388,11 +388,9 @@ def configure_orm(disable_connection_pool=False, pool_class=None):
     NonScopedSession = _session_maker(engine)
     Session = scoped_session(NonScopedSession)
 
-    from sqlalchemy.orm.session import close_all_sessions
-
-    os.register_at_fork(after_in_child=close_all_sessions)
     # https://docs.sqlalchemy.org/en/20/core/pooling.html#using-connection-pools-with-multiprocessing-or-os-fork
     os.register_at_fork(after_in_child=lambda: engine.dispose(close=False))
+    os.register_at_fork(after_in_child=lambda: async_engine.sync_engine.dispose(close=False))
 
 
 DEFAULT_ENGINE_ARGS = {

@@ -26,7 +26,7 @@ from __future__ import annotations
 import functools
 import logging
 import operator
-from collections.abc import Collection, Iterable, Iterator, Sequence
+from collections.abc import Collection, Iterable, Iterator
 from datetime import datetime, timedelta
 from functools import singledispatchmethod
 from types import FunctionType
@@ -54,14 +54,16 @@ from airflow.models.abstractoperator import (
     NotMapped,
 )
 from airflow.models.taskinstance import TaskInstance, clear_task_instances
-from airflow.models.taskmixin import DependencyMixin
 from airflow.sdk.definitions._internal.abstractoperator import AbstractOperator as TaskSDKAbstractOperator
 from airflow.sdk.definitions.baseoperator import (
-    get_merged_defaults as get_merged_defaults,  # Re-export for compat
+    # Re-export for compat
+    chain as chain,
+    chain_linear as chain_linear,
+    cross_downstream as cross_downstream,
+    get_merged_defaults as get_merged_defaults,
 )
 from airflow.sdk.definitions.context import Context
 from airflow.sdk.definitions.dag import BaseOperator as TaskSDKBaseOperator
-from airflow.sdk.definitions.edges import EdgeModifier as TaskSDKEdgeModifier
 from airflow.sdk.definitions.mappedoperator import MappedOperator
 from airflow.sdk.definitions.taskgroup import MappedTaskGroup, TaskGroup
 from airflow.serialization.enums import DagAttributeTypes
@@ -72,7 +74,6 @@ from airflow.ti_deps.deps.prev_dagrun_dep import PrevDagrunDep
 from airflow.ti_deps.deps.trigger_rule_dep import TriggerRuleDep
 from airflow.utils import timezone
 from airflow.utils.context import context_get_outlet_events
-from airflow.utils.edgemodifier import EdgeModifier
 from airflow.utils.operator_helpers import ExecutionCallableRunner
 from airflow.utils.operator_resources import Resources
 from airflow.utils.session import NEW_SESSION, provide_session
@@ -87,7 +88,7 @@ if TYPE_CHECKING:
     from airflow.models.dag import DAG as SchedulerDAG
     from airflow.models.operator import Operator
     from airflow.sdk import BaseOperatorLink
-    from airflow.sdk.definitions.node import DAGNode
+    from airflow.sdk.definitions._internal.node import DAGNode
     from airflow.ti_deps.deps.base_ti_dep import BaseTIDep
     from airflow.triggers.base import StartTriggerArgs
 
@@ -811,265 +812,3 @@ class BaseOperator(TaskSDKBaseOperator, AbstractOperator):
                     group = group.parent_group
 
             return functools.reduce(operator.mul, iter_mapped_task_group_lengths(group))
-
-
-def chain(*tasks: DependencyMixin | Sequence[DependencyMixin]) -> None:
-    r"""
-    Given a number of tasks, builds a dependency chain.
-
-    This function accepts values of BaseOperator (aka tasks), EdgeModifiers (aka Labels), XComArg, TaskGroups,
-    or lists containing any mix of these types (or a mix in the same list). If you want to chain between two
-    lists you must ensure they have the same length.
-
-    Using classic operators/sensors:
-
-    .. code-block:: python
-
-        chain(t1, [t2, t3], [t4, t5], t6)
-
-    is equivalent to::
-
-          / -> t2 -> t4 \
-        t1               -> t6
-          \ -> t3 -> t5 /
-
-    .. code-block:: python
-
-        t1.set_downstream(t2)
-        t1.set_downstream(t3)
-        t2.set_downstream(t4)
-        t3.set_downstream(t5)
-        t4.set_downstream(t6)
-        t5.set_downstream(t6)
-
-    Using task-decorated functions aka XComArgs:
-
-    .. code-block:: python
-
-        chain(x1(), [x2(), x3()], [x4(), x5()], x6())
-
-    is equivalent to::
-
-          / -> x2 -> x4 \
-        x1               -> x6
-          \ -> x3 -> x5 /
-
-    .. code-block:: python
-
-        x1 = x1()
-        x2 = x2()
-        x3 = x3()
-        x4 = x4()
-        x5 = x5()
-        x6 = x6()
-        x1.set_downstream(x2)
-        x1.set_downstream(x3)
-        x2.set_downstream(x4)
-        x3.set_downstream(x5)
-        x4.set_downstream(x6)
-        x5.set_downstream(x6)
-
-    Using TaskGroups:
-
-    .. code-block:: python
-
-        chain(t1, task_group1, task_group2, t2)
-
-        t1.set_downstream(task_group1)
-        task_group1.set_downstream(task_group2)
-        task_group2.set_downstream(t2)
-
-
-    It is also possible to mix between classic operator/sensor, EdgeModifiers, XComArg, and TaskGroups:
-
-    .. code-block:: python
-
-        chain(t1, [Label("branch one"), Label("branch two")], [x1(), x2()], task_group1, x3())
-
-    is equivalent to::
-
-          / "branch one" -> x1 \
-        t1                      -> task_group1 -> x3
-          \ "branch two" -> x2 /
-
-    .. code-block:: python
-
-        x1 = x1()
-        x2 = x2()
-        x3 = x3()
-        label1 = Label("branch one")
-        label2 = Label("branch two")
-        t1.set_downstream(label1)
-        label1.set_downstream(x1)
-        t2.set_downstream(label2)
-        label2.set_downstream(x2)
-        x1.set_downstream(task_group1)
-        x2.set_downstream(task_group1)
-        task_group1.set_downstream(x3)
-
-        # or
-
-        x1 = x1()
-        x2 = x2()
-        x3 = x3()
-        t1.set_downstream(x1, edge_modifier=Label("branch one"))
-        t1.set_downstream(x2, edge_modifier=Label("branch two"))
-        x1.set_downstream(task_group1)
-        x2.set_downstream(task_group1)
-        task_group1.set_downstream(x3)
-
-
-    :param tasks: Individual and/or list of tasks, EdgeModifiers, XComArgs, or TaskGroups to set dependencies
-    """
-    for up_task, down_task in zip(tasks, tasks[1:]):
-        if isinstance(up_task, DependencyMixin):
-            up_task.set_downstream(down_task)
-            continue
-        if isinstance(down_task, DependencyMixin):
-            down_task.set_upstream(up_task)
-            continue
-        if not isinstance(up_task, Sequence) or not isinstance(down_task, Sequence):
-            raise TypeError(f"Chain not supported between instances of {type(up_task)} and {type(down_task)}")
-        up_task_list = up_task
-        down_task_list = down_task
-        if len(up_task_list) != len(down_task_list):
-            raise AirflowException(
-                f"Chain not supported for different length Iterable. "
-                f"Got {len(up_task_list)} and {len(down_task_list)}."
-            )
-        for up_t, down_t in zip(up_task_list, down_task_list):
-            up_t.set_downstream(down_t)
-
-
-def cross_downstream(
-    from_tasks: Sequence[DependencyMixin],
-    to_tasks: DependencyMixin | Sequence[DependencyMixin],
-):
-    r"""
-    Set downstream dependencies for all tasks in from_tasks to all tasks in to_tasks.
-
-    Using classic operators/sensors:
-
-    .. code-block:: python
-
-        cross_downstream(from_tasks=[t1, t2, t3], to_tasks=[t4, t5, t6])
-
-    is equivalent to::
-
-        t1 ---> t4
-           \ /
-        t2 -X -> t5
-           / \
-        t3 ---> t6
-
-    .. code-block:: python
-
-        t1.set_downstream(t4)
-        t1.set_downstream(t5)
-        t1.set_downstream(t6)
-        t2.set_downstream(t4)
-        t2.set_downstream(t5)
-        t2.set_downstream(t6)
-        t3.set_downstream(t4)
-        t3.set_downstream(t5)
-        t3.set_downstream(t6)
-
-    Using task-decorated functions aka XComArgs:
-
-    .. code-block:: python
-
-        cross_downstream(from_tasks=[x1(), x2(), x3()], to_tasks=[x4(), x5(), x6()])
-
-    is equivalent to::
-
-        x1 ---> x4
-           \ /
-        x2 -X -> x5
-           / \
-        x3 ---> x6
-
-    .. code-block:: python
-
-        x1 = x1()
-        x2 = x2()
-        x3 = x3()
-        x4 = x4()
-        x5 = x5()
-        x6 = x6()
-        x1.set_downstream(x4)
-        x1.set_downstream(x5)
-        x1.set_downstream(x6)
-        x2.set_downstream(x4)
-        x2.set_downstream(x5)
-        x2.set_downstream(x6)
-        x3.set_downstream(x4)
-        x3.set_downstream(x5)
-        x3.set_downstream(x6)
-
-    It is also possible to mix between classic operator/sensor and XComArg tasks:
-
-    .. code-block:: python
-
-        cross_downstream(from_tasks=[t1, x2(), t3], to_tasks=[x1(), t2, x3()])
-
-    is equivalent to::
-
-        t1 ---> x1
-           \ /
-        x2 -X -> t2
-           / \
-        t3 ---> x3
-
-    .. code-block:: python
-
-        x1 = x1()
-        x2 = x2()
-        x3 = x3()
-        t1.set_downstream(x1)
-        t1.set_downstream(t2)
-        t1.set_downstream(x3)
-        x2.set_downstream(x1)
-        x2.set_downstream(t2)
-        x2.set_downstream(x3)
-        t3.set_downstream(x1)
-        t3.set_downstream(t2)
-        t3.set_downstream(x3)
-
-    :param from_tasks: List of tasks or XComArgs to start from.
-    :param to_tasks: List of tasks or XComArgs to set as downstream dependencies.
-    """
-    for task in from_tasks:
-        task.set_downstream(to_tasks)
-
-
-def chain_linear(*elements: DependencyMixin | Sequence[DependencyMixin]):
-    """
-    Simplify task dependency definition.
-
-    E.g.: suppose you want precedence like so::
-
-            ╭─op2─╮ ╭─op4─╮
-        op1─┤     ├─├─op5─┤─op7
-            ╰-op3─╯ ╰-op6─╯
-
-    Then you can accomplish like so::
-
-        chain_linear(op1, [op2, op3], [op4, op5, op6], op7)
-
-    :param elements: a list of operators / lists of operators
-    """
-    if not elements:
-        raise ValueError("No tasks provided; nothing to do.")
-    prev_elem = None
-    deps_set = False
-    for curr_elem in elements:
-        if isinstance(curr_elem, (EdgeModifier, TaskSDKEdgeModifier)):
-            raise ValueError("Labels are not supported by chain_linear")
-        if prev_elem is not None:
-            for task in prev_elem:
-                task >> curr_elem
-                if not deps_set:
-                    deps_set = True
-        prev_elem = [curr_elem] if isinstance(curr_elem, DependencyMixin) else curr_elem
-    if not deps_set:
-        raise ValueError("No dependencies were set. Did you forget to expand with `*`?")

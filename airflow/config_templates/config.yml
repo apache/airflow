@@ -2193,11 +2193,11 @@ scheduler:
       type: integer
       example: ~
       default: "5"
-    local_task_job_heartbeat_sec:
+    task_instance_heartbeat_sec:
       description: |
         The frequency (in seconds) at which the LocalTaskJob should send heartbeat signals to the
         scheduler to notify it's still alive. If this value is set to 0, the heartbeat interval will default
-        to the value of ``[scheduler] scheduler_zombie_task_threshold``.
+        to the value of ``[scheduler] task_instance_heartbeat_timeout``.
       version_added: 2.7.0
       type: integer
       example: ~
@@ -2283,7 +2283,7 @@ scheduler:
       type: string
       example: ~
       default: "{AIRFLOW_HOME}/logs/scheduler"
-    scheduler_zombie_task_threshold:
+    task_instance_heartbeat_timeout:
       description: |
         Local task jobs periodically heartbeat to the DB. If the job has
         not heartbeat in this many seconds, the scheduler will mark the
@@ -2292,9 +2292,9 @@ scheduler:
       type: integer
       example: ~
       default: "300"
-    zombie_detection_interval:
+    task_instance_heartbeat_timeout_detection_interval:
       description: |
-        How often (in seconds) should the scheduler check for zombie tasks.
+        How often (in seconds) should the scheduler check for task instances whose heartbeats have timed out.
       version_added: 2.3.0
       type: float
       example: ~
@@ -2671,6 +2671,14 @@ dag_processor:
       type: integer
       example: ~
       default: "30"
+    disable_bundle_versioning:
+      description: |
+        Always run tasks with the latest code.  If set to True, the bundle version will not
+        be stored on the dag run and therefore, the latest code will always be used.
+      version_added: ~
+      type: boolean
+      example: ~
+      default: "False"
     bundle_refresh_check_interval:
       description: |
         How often the DAG processor should check if any DAG bundles are ready for a refresh, either by hitting
