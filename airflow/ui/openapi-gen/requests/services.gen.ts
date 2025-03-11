@@ -1103,7 +1103,6 @@ export class BackfillService {
    * Create Backfill
    * @param data The data for the request.
    * @param data.requestBody
-   * @param data.dagId
    * @returns BackfillResponse Successful Response
    * @throws ApiError
    */
@@ -1111,9 +1110,6 @@ export class BackfillService {
     return __request(OpenAPI, {
       method: "POST",
       url: "/public/backfills",
-      query: {
-        dag_id: data.dagId,
-      },
       body: data.requestBody,
       mediaType: "application/json",
       errors: {
@@ -1153,7 +1149,6 @@ export class BackfillService {
    * Pause Backfill
    * @param data The data for the request.
    * @param data.backfillId
-   * @param data.dagId
    * @returns BackfillResponse Successful Response
    * @throws ApiError
    */
@@ -1163,9 +1158,6 @@ export class BackfillService {
       url: "/public/backfills/{backfill_id}/pause",
       path: {
         backfill_id: data.backfillId,
-      },
-      query: {
-        dag_id: data.dagId,
       },
       errors: {
         401: "Unauthorized",
@@ -1181,7 +1173,6 @@ export class BackfillService {
    * Unpause Backfill
    * @param data The data for the request.
    * @param data.backfillId
-   * @param data.dagId
    * @returns BackfillResponse Successful Response
    * @throws ApiError
    */
@@ -1191,9 +1182,6 @@ export class BackfillService {
       url: "/public/backfills/{backfill_id}/unpause",
       path: {
         backfill_id: data.backfillId,
-      },
-      query: {
-        dag_id: data.dagId,
       },
       errors: {
         401: "Unauthorized",
@@ -1209,7 +1197,6 @@ export class BackfillService {
    * Cancel Backfill
    * @param data The data for the request.
    * @param data.backfillId
-   * @param data.dagId
    * @returns BackfillResponse Successful Response
    * @throws ApiError
    */
@@ -1219,9 +1206,6 @@ export class BackfillService {
       url: "/public/backfills/{backfill_id}/cancel",
       path: {
         backfill_id: data.backfillId,
-      },
-      query: {
-        dag_id: data.dagId,
       },
       errors: {
         401: "Unauthorized",

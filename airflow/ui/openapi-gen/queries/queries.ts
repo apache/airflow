@@ -3008,84 +3008,6 @@ export const useAssetServiceMaterializeAsset = <
     ...options,
   });
 /**
-<<<<<<< HEAD
-=======
- * Create Backfill
- * @param data The data for the request.
- * @param data.requestBody
- * @param data.dagId
- * @returns BackfillResponse Successful Response
- * @throws ApiError
- */
-export const useBackfillServiceCreateBackfill = <
-  TData = Common.BackfillServiceCreateBackfillMutationResult,
-  TError = unknown,
-  TContext = unknown,
->(
-  options?: Omit<
-    UseMutationOptions<
-      TData,
-      TError,
-      {
-        dagId?: string;
-        requestBody: BackfillPostBody;
-      },
-      TContext
-    >,
-    "mutationFn"
-  >,
-) =>
-  useMutation<
-    TData,
-    TError,
-    {
-      dagId?: string;
-      requestBody: BackfillPostBody;
-    },
-    TContext
-  >({
-    mutationFn: ({ dagId, requestBody }) =>
-      BackfillService.createBackfill({ dagId, requestBody }) as unknown as Promise<TData>,
-    ...options,
-  });
-/**
- * Create Backfill Dry Run
- * @param data The data for the request.
- * @param data.requestBody
- * @returns DryRunBackfillCollectionResponse Successful Response
- * @throws ApiError
- */
-export const useBackfillServiceCreateBackfillDryRun = <
-  TData = Common.BackfillServiceCreateBackfillDryRunMutationResult,
-  TError = unknown,
-  TContext = unknown,
->(
-  options?: Omit<
-    UseMutationOptions<
-      TData,
-      TError,
-      {
-        requestBody: BackfillPostBody;
-      },
-      TContext
-    >,
-    "mutationFn"
-  >,
-) =>
-  useMutation<
-    TData,
-    TError,
-    {
-      requestBody: BackfillPostBody;
-    },
-    TContext
-  >({
-    mutationFn: ({ requestBody }) =>
-      BackfillService.createBackfillDryRun({ requestBody }) as unknown as Promise<TData>,
-    ...options,
-  });
-/**
->>>>>>> 337339e8b6 (add auth to backfills endpoints)
  * Post Connection
  * Create connection entry.
  * @param data The data for the request.
@@ -3584,7 +3506,6 @@ export const useVariableServicePostVariable = <
  * Pause Backfill
  * @param data The data for the request.
  * @param data.backfillId
- * @param data.dagId
  * @returns BackfillResponse Successful Response
  * @throws ApiError
  */
@@ -3599,7 +3520,6 @@ export const useBackfillServicePauseBackfill = <
       TError,
       {
         backfillId: unknown;
-        dagId?: string;
       },
       TContext
     >,
@@ -3611,19 +3531,17 @@ export const useBackfillServicePauseBackfill = <
     TError,
     {
       backfillId: unknown;
-      dagId?: string;
     },
     TContext
   >({
-    mutationFn: ({ backfillId, dagId }) =>
-      BackfillService.pauseBackfill({ backfillId, dagId }) as unknown as Promise<TData>,
+    mutationFn: ({ backfillId }) =>
+      BackfillService.pauseBackfill({ backfillId }) as unknown as Promise<TData>,
     ...options,
   });
 /**
  * Unpause Backfill
  * @param data The data for the request.
  * @param data.backfillId
- * @param data.dagId
  * @returns BackfillResponse Successful Response
  * @throws ApiError
  */
@@ -3638,7 +3556,6 @@ export const useBackfillServiceUnpauseBackfill = <
       TError,
       {
         backfillId: unknown;
-        dagId?: string;
       },
       TContext
     >,
@@ -3650,19 +3567,17 @@ export const useBackfillServiceUnpauseBackfill = <
     TError,
     {
       backfillId: unknown;
-      dagId?: string;
     },
     TContext
   >({
-    mutationFn: ({ backfillId, dagId }) =>
-      BackfillService.unpauseBackfill({ backfillId, dagId }) as unknown as Promise<TData>,
+    mutationFn: ({ backfillId }) =>
+      BackfillService.unpauseBackfill({ backfillId }) as unknown as Promise<TData>,
     ...options,
   });
 /**
  * Cancel Backfill
  * @param data The data for the request.
  * @param data.backfillId
- * @param data.dagId
  * @returns BackfillResponse Successful Response
  * @throws ApiError
  */
@@ -3677,7 +3592,6 @@ export const useBackfillServiceCancelBackfill = <
       TError,
       {
         backfillId: unknown;
-        dagId?: string;
       },
       TContext
     >,
@@ -3689,12 +3603,11 @@ export const useBackfillServiceCancelBackfill = <
     TError,
     {
       backfillId: unknown;
-      dagId?: string;
     },
     TContext
   >({
-    mutationFn: ({ backfillId, dagId }) =>
-      BackfillService.cancelBackfill({ backfillId, dagId }) as unknown as Promise<TData>,
+    mutationFn: ({ backfillId }) =>
+      BackfillService.cancelBackfill({ backfillId }) as unknown as Promise<TData>,
     ...options,
   });
 /**
