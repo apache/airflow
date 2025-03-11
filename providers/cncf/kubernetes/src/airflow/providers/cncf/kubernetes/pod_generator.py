@@ -492,19 +492,22 @@ class PodGenerator:
         return api_client.sanitize_for_serialization(pod)
 
     @staticmethod
-    def deserialize_model_file(path: str) -> k8s.V1Pod:
+    def deserialize_model_file(path: str | None) -> k8s.V1Pod:
         """
         Generate a Pod from a file.
 
         :param path: Path to the file
         :return: a kubernetes.client.models.V1Pod
         """
-        if os.path.exists(path):
+        if not path:
+            pod = None
+            log.warning("Model file is not defined. Using default model file.")
+        elif os.path.exists(path):
             with open(path) as stream:
                 pod = yaml.safe_load(stream)
         else:
             pod = None
-            log.warning("Model file %s does not exist. Using default model file.", path)
+            log.warning("Model file %s does not exist.", path)
 
         return PodGenerator.deserialize_model_dict(pod)
 
