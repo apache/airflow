@@ -21,7 +21,7 @@ import dayjs from "dayjs";
 import { useState } from "react";
 import { PiBooks } from "react-icons/pi";
 
-import { useDashboardServiceHistoricalMetrics } from "openapi/queries";
+import { useAssetServiceGetAssetEvents, useDashboardServiceHistoricalMetrics } from "openapi/queries";
 import { AssetEvents } from "src/components/Assets/AssetEvents";
 import { ErrorAlert } from "src/components/ErrorAlert";
 import TimeRangeSelector from "src/components/TimeRangeSelector";
@@ -50,6 +50,13 @@ export const HistoricalMetrics = () => {
   const taskRunTotal = data
     ? Object.values(data.task_instance_states).reduce((partialSum, value) => partialSum + value, 0)
     : 0;
+
+  const { data: assetEventsData, isLoading: isLoadingAssetEvents } = useAssetServiceGetAssetEvents({
+    limit: 6,
+    orderBy: assetSortBy,
+    timestampGte: startDate,
+    timestampLte: endDate,
+  });
 
   return (
     <Box width="100%">
@@ -90,10 +97,10 @@ export const HistoricalMetrics = () => {
           </GridItem>
           <GridItem colSpan={{ base: 3 }}>
             <AssetEvents
+              data={assetEventsData}
               endDate={endDate}
-              orderBy={assetSortBy}
+              isLoading={isLoadingAssetEvents}
               setOrderBy={setAssetSortBy}
-              startDate={startDate}
             />
           </GridItem>
         </SimpleGrid>
