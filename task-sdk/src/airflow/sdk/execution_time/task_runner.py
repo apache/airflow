@@ -523,7 +523,12 @@ def _process_outlets(context: Context, outlets: list[AssetProfile]):
 
     for obj in outlets or []:
         # Lineage can have other types of objects besides assets
-        asset_type = type(obj).__name__
+        #
+        # The asset_type here is not Asset.asset_type but the obj type instead.
+        # Only Asset is expected to be subclassed so
+        # any subclass of Asset should be set as Asset to be handled correctly.
+        # TODO: We should rename it later.
+        asset_type = "Asset" if isinstance(obj, Asset) else type(obj).__name__
         if isinstance(obj, Asset):
             task_outlets.append(AssetProfile(name=obj.name, uri=obj.uri, asset_type=asset_type))
             outlet_events.append(attrs.asdict(events[obj]))  # type: ignore
