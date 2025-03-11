@@ -60,9 +60,11 @@ class BaseK8STest:
 
     @pytest.fixture(autouse=True)
     def base_tests_setup(self, request):
-        self.set_api_server_base_url_config()
-        self.rollout_restart_deployment("airflow-api-server")
-        self.ensure_deployment_health("airflow-api-server")
+        if self.set_api_server_base_url_config():
+            # only restart the deployment if the configmap was updated
+            # speed up the test and make the airflow-api-server deployment more stable
+            self.rollout_restart_deployment("airflow-api-server")
+            self.ensure_deployment_health("airflow-api-server")
 
         # Replacement for unittests.TestCase.id()
         self.test_id = f"{request.node.cls.__name__}_{request.node.name}"
@@ -178,6 +180,30 @@ class BaseK8STest:
         return jwt_token
 
     def _get_session_with_retries(self):
+        class JWTRefreshAdapter(HTTPAdapter):
+            def __init__(self, base_instance, **kwargs):
+                self.base_instance = base_instance
+                super().__init__(**kwargs)
+
+            def send(self, request, **kwargs):
+                response = super().send(request, **kwargs)
+                if response.status_code in (401, 403):
+                    # Refresh token and update the Authorization header with retry logic.
+                    attempts = 0
+                    jwt_token = None
+                    while attempts < 5:
+                        try:
+                            jwt_token = self.base_instance._get_jwt_token("admin", "admin")
+                            break
+                        except Exception:
+                            attempts += 1
+                            time.sleep(1)
+                    if jwt_token is None:
+                        raise Exception("Failed to refresh JWT token after 5 attempts")
+                    request.headers["Authorization"] = f"Bearer {jwt_token}"
+                    response = super().send(request, **kwargs)
+                return response
+
         jwt_token = self._get_jwt_token("admin", "admin")
         session = requests.Session()
         session.headers.update({"Authorization": f"Bearer {jwt_token}"})
@@ -187,8 +213,9 @@ class BaseK8STest:
             status_forcelist=[404],
             allowed_methods=Retry.DEFAULT_ALLOWED_METHODS | frozenset(["PATCH", "POST"]),
         )
-        session.mount("http://", HTTPAdapter(max_retries=retries))
-        session.mount("https://", HTTPAdapter(max_retries=retries))
+        adapter = JWTRefreshAdapter(self, max_retries=retries)
+        session.mount("http://", adapter)
+        session.mount("https://", adapter)
         return session
 
     def _ensure_airflow_api_server_is_healthy(self):
@@ -288,8 +315,11 @@ class BaseK8STest:
         # escape newlines and double quotes
         return airflow_cfg_str.replace("\n", "\\n").replace('"', '\\"')
 
-    def set_api_server_base_url_config(self):
-        """Set [api/base_url] with `f"http://{KUBERNETES_HOST_PORT}"` as env in k8s configmap."""
+    def set_api_server_base_url_config(self) -> bool:
+        """Set [api/base_url] with `f"http://{KUBERNETES_HOST_PORT}"` as env in k8s configmap.
+
+        :return: True if the configmap was updated successfully, False otherwise
+        """
         configmap_name = "airflow-config"
         configmap_key = "airflow.cfg"
         original_configmap_json_str = check_output(
@@ -302,7 +332,7 @@ class BaseK8STest:
         airflow_cfg_dict = self._parse_airflow_cfg_as_dict(original_airflow_cfg)
         airflow_cfg_dict["api"]["base_url"] = f"http://{KUBERNETES_HOST_PORT}"
         # update the configmap with the new airflow.cfg
-        check_call(
+        patch_configmap_result = check_output(
             [
                 "kubectl",
                 "patch",
@@ -315,7 +345,10 @@ class BaseK8STest:
                 "-p",
                 f'{{"data": {{"{configmap_key}": "{self._parse_airflow_cfg_dict_as_escaped_toml(airflow_cfg_dict)}"}}}}',
             ]
-        )
+        ).decode()
+        if "(no change)" in patch_configmap_result:
+            return False
+        return True
 
     def ensure_dag_expected_state(self, host, logical_date, dag_id, expected_final_state, timeout):
         tries = 0
