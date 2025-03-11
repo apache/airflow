@@ -171,9 +171,6 @@ def _create_customized_form_field_behaviours_schema_validator():
 
 
 def _check_builtin_provider_prefix(provider_package: str, class_name: str) -> bool:
-    if "bundles" in provider_package:
-        # TODO: AIP-66: remove this when this package is moved to providers directory
-        return True
     if provider_package.startswith("apache-airflow"):
         provider_path = provider_package[len("apache-") :].replace("-", ".")
         if not class_name.startswith(provider_path):
