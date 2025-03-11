@@ -3402,11 +3402,6 @@ class TaskInstance(Base, LoggingMixin):
             )
         return num_running_task_instances_query.scalar()
 
-    def init_run_context(self, raw: bool = False) -> None:
-        """Set the log context."""
-        self.raw = raw
-        self._set_context(self)
-
     @staticmethod
     def filter_for_tis(tis: Iterable[TaskInstance | TaskInstanceKey]) -> BooleanClauseList | None:
         """Return SQLAlchemy filter to query selected task instances."""
