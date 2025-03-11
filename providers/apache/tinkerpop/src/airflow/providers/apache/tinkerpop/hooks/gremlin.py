@@ -14,7 +14,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-"""This module allows connecting to an Graph DB using the Gremlin API."""
+"""This module allows connecting to an Graph DB using the Gremlin Client."""
 
 from __future__ import annotations
 
@@ -41,7 +41,7 @@ logger = logging.getLogger(__name__)
 
 class GremlinHook(BaseHook):
     """
-    Interact with Graph DB using the Gremlin API.
+    Interact with Graph DB using the Gremlin Client.
 
     This hook creates a connection to Graph DB and allows you to run Gremlin queries.`
 
@@ -62,7 +62,13 @@ class GremlinHook(BaseHook):
         self.client: Client | None = None
 
     def get_conn(self, serializer=None) -> Client:
-        """Establish a connection to Graph DB with the Gremlin API."""
+        """
+        Establish a connection to Graph DB with the Gremlin Client.
+
+        :param serializer: Message serializer to use for the client.
+
+        :return: An instance of the Gremlin Client.
+        """
         if self.client is not None:
             return self.client
 
@@ -81,6 +87,7 @@ class GremlinHook(BaseHook):
         Build the URI from the connection object and extra parameters.
 
         :param conn: Airflow Connection object.
+
         :return: URI string.
         """
         # For Graph DB using Gremlin, the secure WebSocket scheme is typically "wss"
@@ -99,6 +106,8 @@ class GremlinHook(BaseHook):
         :param conn: Airflow Connection object.
         :param traversal_source: Traversal source for the Gremlin client.
         :param uri: URI string for connecting to Graph DB.
+        :param message_serializer: Message serializer to use for the client.
+
         :return: An instance of the Gremlin Client.
         """
         # Build the username. This example uses the connection's schema and login.
@@ -127,6 +136,10 @@ class GremlinHook(BaseHook):
         Execute a Gremlin query and return the results.
 
         :param query: Gremlin query string.
+        :param serializer: Message serializer to use for the query.
+        :param bindings: Bindings to use for the query.
+        :param request_options: Request options to use for the query.
+
         :return: List containing the query results.
         """
         client = self.get_conn(serializer)
