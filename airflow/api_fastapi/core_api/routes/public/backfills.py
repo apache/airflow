@@ -33,15 +33,15 @@ from airflow.api_fastapi.core_api.datamodels.backfills import (
     BackfillCollectionResponse,
     BackfillPostBody,
     BackfillResponse,
+    DagAccessEntity,
     DryRunBackfillCollectionResponse,
     DryRunBackfillResponse,
 )
 from airflow.api_fastapi.core_api.openapi.exceptions import (
     create_openapi_http_exception_doc,
 )
-from airflow.api_fastapi.core_api.security import requires_access_dag
+from airflow.api_fastapi.core_api.security import requires_access_backfill, requires_access_dag
 from airflow.api_fastapi.logging.decorators import action_logging
-from airflow.auth.managers.models.resource_details import DagAccessEntity
 from airflow.exceptions import DagNotFound
 from airflow.models import DagRun
 from airflow.models.backfill import (
