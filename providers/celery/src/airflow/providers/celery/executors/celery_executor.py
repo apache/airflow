@@ -179,7 +179,6 @@ CELERY_COMMANDS = (
             ARG_SKIP_SERVE_LOGS,
             ARG_WITHOUT_MINGLE,
             ARG_WITHOUT_GOSSIP,
-            ARG_VERBOSE,
         ),
     ),
     ActionCommand(
