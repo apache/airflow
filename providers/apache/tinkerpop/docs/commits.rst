@@ -23,7 +23,7 @@
 
  .. THE REMAINDER OF THE FILE IS AUTOMATICALLY GENERATED. IT WILL BE OVERWRITTEN!
 
-Package ``apache-airflow-providers-apache-tinkerpop``
+Package apache-airflow-providers-apache-tinkerpop
 ------------------------------------------------------
 
 `Apache TinkerPop <https://tinkerpop.apache.org/>`__.

@@ -71,7 +71,7 @@ Package ``apache-airflow-providers-apache-tinkerpop``
 
 
 apache-airflow-providers-apache-tinkerpop package
--------------------------------------------------
+------------------------------------------------------
 
 `Apache TinkerPop <https://tinkerpop.apache.org/>`__.
 Apache TinkerPop is a graph computing framework for both graph databases (OLTP) and graph analytic
@@ -96,7 +96,7 @@ For the minimum Airflow version supported, see ``Requirements`` below.
 Requirements
 ------------
 
-The minimum Apache Airflow version supported by this provider package is ``2.10.3``.
+The minimum Apache Airflow version supported by this provider package is ``2.9.0``.
 
 ==================  ==================
 PIP package         Version required
