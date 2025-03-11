@@ -34,7 +34,6 @@ from airflow.models.taskinstance import TaskInstance, TaskInstanceKey
 from airflow.plugins_manager import AirflowPlugin
 from airflow.providers.databricks.hooks.databricks import DatabricksHook
 from airflow.providers.databricks.version_compat import AIRFLOW_V_3_0_PLUS
-from airflow.sdk.execution_time.xcom import XCom
 
 if AIRFLOW_V_3_0_PLUS:
     from airflow.providers.fab.www import auth
@@ -53,7 +52,9 @@ if TYPE_CHECKING:
 
 if AIRFLOW_V_3_0_PLUS:
     from airflow.sdk import BaseOperatorLink
+    from airflow.sdk.execution_time.xcom import XCom
 else:
+    from airflow.models import XCom  # type: ignore[no-redef]
     from airflow.models.baseoperatorlink import BaseOperatorLink  # type: ignore[no-redef]
 
 

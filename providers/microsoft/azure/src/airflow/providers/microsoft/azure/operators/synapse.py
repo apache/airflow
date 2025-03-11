@@ -31,7 +31,6 @@ from airflow.providers.microsoft.azure.hooks.synapse import (
     AzureSynapsePipelineRunStatus,
     AzureSynapseSparkBatchRunStatus,
 )
-from airflow.sdk.execution_time.xcom import XCom
 
 if TYPE_CHECKING:
     from azure.synapse.spark.models import SparkBatchJobOptions
@@ -43,7 +42,9 @@ from airflow.providers.microsoft.azure.version_compat import AIRFLOW_V_3_0_PLUS
 
 if AIRFLOW_V_3_0_PLUS:
     from airflow.sdk import BaseOperatorLink
+    from airflow.sdk.execution_time.xcom import XCom
 else:
+    from airflow.models import XCom  # type: ignore[no-redef]
     from airflow.models.baseoperatorlink import BaseOperatorLink  # type: ignore[no-redef]
 
 

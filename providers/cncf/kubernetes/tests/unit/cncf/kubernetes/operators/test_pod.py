@@ -46,7 +46,6 @@ from airflow.providers.cncf.kubernetes.secret import Secret
 from airflow.providers.cncf.kubernetes.triggers.pod import KubernetesPodTrigger
 from airflow.providers.cncf.kubernetes.utils.pod_manager import OnFinishAction, PodLoggingStatus, PodPhase
 from airflow.providers.cncf.kubernetes.utils.xcom_sidecar import PodDefaults
-from airflow.sdk.execution_time.xcom import XCom
 from airflow.utils import timezone
 
 if TYPE_CHECKING:
@@ -56,6 +55,11 @@ from airflow.utils.types import DagRunType
 
 from tests_common.test_utils import db
 from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS
+
+if AIRFLOW_V_3_0_PLUS:
+    from airflow.sdk.execution_time.xcom import XCom
+else:
+    from airflow.models import XCom  # type: ignore[no-redef]
 
 pytestmark = pytest.mark.db_test
 

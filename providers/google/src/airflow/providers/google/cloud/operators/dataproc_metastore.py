@@ -35,7 +35,6 @@ from airflow.models import BaseOperator, BaseOperatorLink
 from airflow.providers.google.cloud.hooks.dataproc_metastore import DataprocMetastoreHook
 from airflow.providers.google.cloud.operators.cloud_base import GoogleCloudBaseOperator
 from airflow.providers.google.common.links.storage import StorageLink
-from airflow.sdk.execution_time.xcom import XCom
 
 if TYPE_CHECKING:
     from google.protobuf.field_mask_pb2 import FieldMask
@@ -48,7 +47,9 @@ from airflow.providers.google.version_compat import AIRFLOW_V_3_0_PLUS
 
 if AIRFLOW_V_3_0_PLUS:
     from airflow.sdk import BaseOperatorLink
+    from airflow.sdk.execution_time.xcom import XCom
 else:
+    from airflow.models import XCom  # type: ignore[no-redef]
     from airflow.models.baseoperatorlink import BaseOperatorLink  # type: ignore[no-redef]
 
 

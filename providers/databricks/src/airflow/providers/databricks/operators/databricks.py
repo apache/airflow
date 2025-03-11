@@ -42,7 +42,6 @@ from airflow.providers.databricks.plugins.databricks_workflow import (
 from airflow.providers.databricks.triggers.databricks import DatabricksExecutionTrigger
 from airflow.providers.databricks.utils.databricks import normalise_json_content, validate_trigger_event
 from airflow.providers.databricks.version_compat import AIRFLOW_V_3_0_PLUS
-from airflow.sdk.execution_time.xcom import XCom
 
 if TYPE_CHECKING:
     from airflow.models.taskinstancekey import TaskInstanceKey
@@ -51,7 +50,9 @@ if TYPE_CHECKING:
 
 if AIRFLOW_V_3_0_PLUS:
     from airflow.sdk import BaseOperatorLink
+    from airflow.sdk.execution_time.xcom import XCom
 else:
+    from airflow.models import XCom  # type: ignore[no-redef]
     from airflow.models.baseoperatorlink import BaseOperatorLink  # type: ignore[no-redef]
 
 DEFER_METHOD_NAME = "execute_complete"
