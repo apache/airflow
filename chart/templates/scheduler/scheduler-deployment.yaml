@@ -236,6 +236,9 @@ spec:
               subPath: pod_template_file.yaml
               readOnly: true
             {{- end }}
+            {{- if .Values.devMode.enabled }}
+              {{- include "airflow_code_mount" . | nindent 12 }}
+            {{- end }}
             - name: logs
               mountPath: {{ template "airflow_logs" . }}
             {{- include "airflow_config_mount" . | nindent 12 }}
