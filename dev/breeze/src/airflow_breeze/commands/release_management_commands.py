@@ -753,6 +753,12 @@ def provider_action_summary(description: str, message_type: MessageType, package
     help="Prepare CHANGELOG, README and COMMITS information for providers.",
 )
 @click.option(
+    "--allow-already-released",
+    default=False,
+    is_flag=True,
+    help="Skip bumping provider version if it already exists in the remote & local repository",
+)
+@click.option(
     "--skip-git-fetch",
     is_flag=True,
     help="Skips removal and recreation of `apache-https-for-providers` remote in git. By default, the "
@@ -788,6 +794,16 @@ def provider_action_summary(description: str, message_type: MessageType, package
     help="Only reapply templates, do not bump version. Useful if templates were added"
     " and you need to regenerate documentation.",
 )
+@option_version_suffix_for_pypi
+@click.option(
+    "--version-suffix-for-local",
+    default=None,
+    show_default=False,
+    help="Version suffix for local builds. Do not provide the leading plus sign ('+'). The suffix must "
+    "contain only ascii letters, numbers, and periods. The first character must be an ascii letter or number "
+    "and the last character must be an ascii letter or number. Note: the local suffix will be appended after "
+    "the PyPi suffix if both are provided.",
+)
 @option_verbose
 def prepare_provider_documentation(
     base_branch: str,
@@ -799,6 +815,9 @@ def prepare_provider_documentation(
     provider_packages: tuple[str],
     reapply_templates_only: bool,
     skip_git_fetch: bool,
+    allow_already_released: bool,
+    version_suffix_for_pypi: str,
+    version_suffix_for_local: str,
 ):
     from airflow_breeze.prepare_providers.provider_documentation import (
         PrepareReleaseDocsChangesOnlyException,
@@ -806,6 +825,7 @@ def prepare_provider_documentation(
         PrepareReleaseDocsNoChangesException,
         PrepareReleaseDocsUserQuitException,
         PrepareReleaseDocsUserSkippedException,
+        should_skip_the_documentation,
         update_changelog,
         update_min_airflow_version_and_build_files,
         update_release_notes,
@@ -822,6 +842,12 @@ def prepare_provider_documentation(
     if not skip_git_fetch:
         run_command(["git", "remote", "rm", "apache-https-for-providers"], check=False, stderr=DEVNULL)
         make_sure_remote_apache_exists_and_fetch(github_repository=github_repository)
+    documentation_version_suffix = get_package_version_suffix(
+        version_suffix_for_pypi, version_suffix_for_local
+    )
+    if not allow_already_released and not is_local_package_version(documentation_version_suffix):
+        run_command(["git", "remote", "rm", "apache-https-for-providers"], check=False, stderr=DEVNULL)
+        make_sure_remote_apache_exists_and_fetch(github_repository=github_repository)
     no_changes_packages = []
     doc_only_packages = []
     error_packages = []
@@ -834,6 +860,13 @@ def prepare_provider_documentation(
         if os.environ.get("GITHUB_ACTIONS", "false") != "true":
             if not only_min_version_update:
                 get_console().print("-" * get_console().width)
+
+        if not allow_already_released:
+            should_skip, documentation_version_suffix = should_skip_the_documentation(
+                provider_id, documentation_version_suffix
+            )
+            if should_skip:
+                return
         try:
             with_breaking_changes = False
             maybe_with_new_features = False
