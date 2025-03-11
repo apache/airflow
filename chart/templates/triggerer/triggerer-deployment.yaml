@@ -255,6 +255,9 @@ spec:
               {{- tpl (toYaml .Values.triggerer.logGroomerSidecar.env) $ | nindent 12 }}
           {{- end }}
           volumeMounts:
+            {{- if .Values.devMode.enabled }}
+              {{- include "airflow_code_mount" . | nindent 12 }}
+            {{- end }}
             - name: logs
               mountPath: {{ template "airflow_logs" . }}
             {{- if .Values.volumeMounts }}
