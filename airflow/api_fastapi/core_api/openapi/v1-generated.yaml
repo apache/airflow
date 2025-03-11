@@ -4448,6 +4448,8 @@ paths:
       summary: Get Providers
       description: Get providers.
       operationId: get_providers
+      security:
+      - OAuth2PasswordBearer: []
       parameters:
       - name: limit
         in: query
