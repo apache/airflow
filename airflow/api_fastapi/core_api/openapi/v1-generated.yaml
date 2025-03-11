@@ -6697,6 +6697,8 @@ paths:
       summary: Get Log
       description: Get logs for a specific task instance.
       operationId: get_log
+      security:
+      - OAuth2PasswordBearer: []
       parameters:
       - name: dag_id
         in: path
