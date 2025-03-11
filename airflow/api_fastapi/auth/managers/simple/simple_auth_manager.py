@@ -40,6 +40,7 @@ if TYPE_CHECKING:
     from airflow.api_fastapi.auth.managers.base_auth_manager import ResourceMethod
     from airflow.api_fastapi.auth.managers.models.resource_details import (
         AccessView,
+        AssetAliasDetails,
         AssetDetails,
         ConfigurationDetails,
         ConnectionDetails,
@@ -111,6 +112,9 @@ class SimpleAuthManager(BaseAuthManager[SimpleAuthManagerUser]):
         }
 
     def init(self) -> None:
+        is_simple_auth_manager_all_admins = conf.getboolean("core", "simple_auth_manager_all_admins")
+        if is_simple_auth_manager_all_admins:
+            return
         users = self.get_users()
         passwords = self.get_passwords(users)
         for user in users:
@@ -125,7 +129,11 @@ class SimpleAuthManager(BaseAuthManager[SimpleAuthManagerUser]):
 
     def get_url_login(self, **kwargs) -> str:
         """Return the login page url."""
-        return "/auth/webapp/login"
+        is_simple_auth_manager_all_admins = conf.getboolean("core", "simple_auth_manager_all_admins")
+        if is_simple_auth_manager_all_admins:
+            return "/auth/token"
+
+        return "/auth/login"
 
     def deserialize_user(self, token: dict[str, Any]) -> SimpleAuthManagerUser:
         return SimpleAuthManagerUser(username=token["username"], role=token["role"])
@@ -172,6 +180,20 @@ class SimpleAuthManager(BaseAuthManager[SimpleAuthManagerUser]):
         method: ResourceMethod,
         user: SimpleAuthManagerUser,
         details: AssetDetails | None = None,
+    ) -> bool:
+        return self._is_authorized(
+            method=method,
+            allow_get_role=SimpleAuthManagerRole.VIEWER,
+            allow_role=SimpleAuthManagerRole.OP,
+            user=user,
+        )
+
+    def is_authorized_asset_alias(
+        self,
+        *,
+        method: ResourceMethod,
+        user: SimpleAuthManagerUser,
+        details: AssetAliasDetails | None = None,
     ) -> bool:
         return self._is_authorized(
             method=method,
@@ -243,7 +265,7 @@ class SimpleAuthManager(BaseAuthManager[SimpleAuthManagerUser]):
             name="simple_auth_manager_ui_folder",
         )
 
-        @app.get("/webapp/{rest_of_path:path}", response_class=HTMLResponse, include_in_schema=False)
+        @app.get("/{rest_of_path:path}", response_class=HTMLResponse, include_in_schema=False)
         def webapp(request: Request, rest_of_path: str):
             return templates.TemplateResponse("/index.html", {"request": request}, media_type="text/html")
 

@@ -19,34 +19,20 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
-from airflow.security.permissions import (
-    ACTION_CAN_ACCESS_MENU,
-    ACTION_CAN_CREATE,
-    ACTION_CAN_DELETE,
-    ACTION_CAN_EDIT,
-    ACTION_CAN_READ,
-)
+from airflow.models.baseoperator import BaseOperator
 
 if TYPE_CHECKING:
-    from airflow.api_fastapi.auth.managers.base_auth_manager import ResourceMethod
-
-# Convert methods to FAB action name
-_MAP_METHOD_NAME_TO_FAB_ACTION_NAME: dict[ResourceMethod, str] = {
-    "POST": ACTION_CAN_CREATE,
-    "GET": ACTION_CAN_READ,
-    "PUT": ACTION_CAN_EDIT,
-    "DELETE": ACTION_CAN_DELETE,
-    "MENU": ACTION_CAN_ACCESS_MENU,
-}
+    from airflow.sdk.definitions.context import Context
 
 
-def get_fab_action_from_method_map():
-    """Return the map associating a method to a FAB action."""
-    return _MAP_METHOD_NAME_TO_FAB_ACTION_NAME
+class SmoothOperator(BaseOperator):
+    """Operator that logs a YouTube link to Sade song "Smooth Operator"."""
 
+    ui_color = "#e8f7e4"
+    yt_link: str = "https://www.youtube.com/watch?v=4TYv2PhG89A"
 
-def get_method_from_fab_action_map():
-    """Return the map associating a FAB action to a method."""
-    return {
-        **{v: k for k, v in _MAP_METHOD_NAME_TO_FAB_ACTION_NAME.items()},
-    }
+    def __init__(self, **kwargs) -> None:
+        super().__init__(**kwargs)
+
+    def execute(self, context: Context):
+        self.log.info("Enjoy Sade - Smooth Operator: %s", self.yt_link)

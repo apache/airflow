@@ -688,7 +688,6 @@ repos:
         entry: "^\\s*from airflow\\.models\\.baseoperatorlink import BaseOperatorLink\\b"
         files: \.py$
         pass_filenames: true
-        echo: True
         exclude: >
           (?x)
           ^airflow/decorators/.*$|

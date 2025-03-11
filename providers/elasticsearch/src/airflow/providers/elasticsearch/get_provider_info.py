@@ -27,8 +27,9 @@ def get_provider_info():
         "name": "Elasticsearch",
         "description": "`Elasticsearch <https://www.elastic.co/elasticsearch>`__\n",
         "state": "ready",
-        "source-date-epoch": 1741121869,
+        "source-date-epoch": 1741508781,
         "versions": [
+            "6.2.1",
             "6.2.0",
             "6.0.0",
             "5.5.3",

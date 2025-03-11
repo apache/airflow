@@ -567,7 +567,7 @@ You have to specify which packages you run it on. For example you can run it for
 
 .. code-block:: bash
 
-     release-management add-back-references --airflow-site-directory DIRECTORY all-providers
+     breeze release-management add-back-references --airflow-site-directory DIRECTORY all-providers
 
 The flag ``--airflow-site-directory`` takes the path of the cloned ``airflow-site``. The command will
 not proceed if this is an invalid path.

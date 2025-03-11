@@ -27,8 +27,9 @@ def get_provider_info():
         "name": "OpenFaaS",
         "description": "`OpenFaaS <https://www.openfaas.com/>`__\n",
         "state": "ready",
-        "source-date-epoch": 1741121911,
+        "source-date-epoch": 1741509298,
         "versions": [
+            "3.7.1",
             "3.7.0",
             "3.6.0",
             "3.5.1",
