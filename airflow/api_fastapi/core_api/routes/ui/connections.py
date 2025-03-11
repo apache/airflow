@@ -21,7 +21,7 @@ from fastapi import Depends
 from airflow.api_fastapi.common.router import AirflowRouter
 from airflow.api_fastapi.core_api.datamodels.connections import ConnectionHookMetaData
 from airflow.api_fastapi.core_api.security import requires_access_connection
-from airflow.api_fastapi.core_api.services.public.connections import HookMetaService
+from airflow.api_fastapi.core_api.services.ui.connections import HookMetaService
 
 connections_router = AirflowRouter(tags=["Connection"], prefix="/connections")
 
