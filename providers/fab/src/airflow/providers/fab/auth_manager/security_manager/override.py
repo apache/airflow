@@ -110,6 +110,7 @@ from airflow.providers.fab.www.session import (
     AirflowDatabaseSessionInterface,
     AirflowDatabaseSessionInterface as FabAirflowDatabaseSessionInterface,
 )
+from airflow.security.permissions import RESOURCE_BACKFILL
 
 if TYPE_CHECKING:
     from airflow.providers.fab.www.security.permissions import (
