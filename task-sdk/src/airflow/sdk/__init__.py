@@ -38,6 +38,9 @@ __all__ = [
     "Variable",
     "XComArg",
     "asset",
+    "chain",
+    "chain_linear",
+    "cross_downstream",
     "dag",
     "get_current_context",
     "get_parsing_context",
@@ -50,7 +53,7 @@ if TYPE_CHECKING:
     from airflow.sdk.definitions.asset import Asset, AssetAlias, AssetAll, AssetAny, AssetWatcher
     from airflow.sdk.definitions.assets.decorators import asset
     from airflow.sdk.definitions.assets.metadata import Metadata
-    from airflow.sdk.definitions.baseoperator import BaseOperator
+    from airflow.sdk.definitions.baseoperator import BaseOperator, chain, chain_linear, cross_downstream
     from airflow.sdk.definitions.baseoperatorlink import BaseOperatorLink
     from airflow.sdk.definitions.connection import Connection
     from airflow.sdk.definitions.context import Context, get_current_context, get_parsing_context
@@ -81,6 +84,9 @@ __lazy_imports: dict[str, str] = {
     "Variable": ".definitions.variable",
     "XComArg": ".definitions.xcom_arg",
     "asset": ".definitions.asset.decorators",
+    "chain": ".definitions.baseoperator",
+    "chain_linear": ".definitions.baseoperator",
+    "cross_downstream": ".definitions.baseoperator",
     "dag": ".definitions.dag",
     "get_current_context": ".definitions.context",
     "get_parsing_context": ".definitions.context",
