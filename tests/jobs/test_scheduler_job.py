@@ -5445,18 +5445,18 @@ class TestSchedulerJob:
         with pytest.raises(OperationalError):
             check_if_trigger_timeout(1)
 
-    def test_find_and_purge_zombies_nothing(self):
+    def test_find_and_purge_task_instances_without_heartbeats_nothing(self):
         executor = MockExecutor(do_update=False)
         scheduler_job = Job(executor=executor)
         with mock.patch("airflow.executors.executor_loader.ExecutorLoader.load_executor") as loader_mock:
             loader_mock.return_value = executor
             self.job_runner = SchedulerJobRunner(scheduler_job)
 
-            self.job_runner._find_and_purge_zombies()
+            self.job_runner._find_and_purge_task_instances_without_heartbeats()
         executor.callback_sink.send.assert_not_called()
 
     @pytest.mark.usefixtures("testing_dag_bundle")
-    def test_find_and_purge_zombies(self, session, create_dagrun):
+    def test_find_and_purge_task_instances_without_heartbeats(self, session, create_dagrun):
         dagfile = os.path.join(EXAMPLE_DAGS_FOLDER, "example_branch_operator.py")
         dagbag = DagBag(dagfile)
         dag = dagbag.get_dag("example_branch_operator")
@@ -5477,7 +5477,7 @@ class TestSchedulerJob:
             loader_mock.return_value = executor
             self.job_runner = SchedulerJobRunner(job=scheduler_job)
 
-            # We will provision 2 tasks so we can check we only find zombies from this scheduler
+            # We will provision 2 tasks so we can check we only find task instances without heartbeats from this scheduler
             tasks_to_setup = ["branching", "run_this_first"]
 
             for task_id in tasks_to_setup:
@@ -5496,7 +5496,7 @@ class TestSchedulerJob:
             ti.queued_by_job_id = scheduler_job.id
             session.flush()
             executor.running.add(ti.key)  # The executor normally does this during heartbeat.
-            self.job_runner._find_and_purge_zombies()
+            self.job_runner._find_and_purge_task_instances_without_heartbeats()
             assert ti.key not in executor.running
 
         executor.callback_sink.send.assert_called_once()
@@ -5504,7 +5504,9 @@ class TestSchedulerJob:
         assert len(callback_requests) == 1
         callback_request = callback_requests[0]
         assert callback_request.filepath == dag.relative_fileloc
-        assert callback_request.msg == str(self.job_runner._generate_zombie_message_details(ti))
+        assert callback_request.msg == str(
+            self.job_runner._generate_task_instance_heartbeat_timeout_message_details(ti)
+        )
         assert callback_request.is_failure_callback is True
         assert callback_request.ti.dag_id == ti.dag_id
         assert callback_request.ti.task_id == ti.task_id
@@ -5512,9 +5514,9 @@ class TestSchedulerJob:
         assert callback_request.ti.map_index == ti.map_index
 
     @pytest.mark.usefixtures("testing_dag_bundle")
-    def test_zombie_message(self, session, create_dagrun):
+    def test_task_instance_heartbeat_timeout_message(self, session, create_dagrun):
         """
-        Check that the zombie message comes out as expected
+        Check that the task instance heartbeat timeout message comes out as expected
         """
         dagfile = os.path.join(EXAMPLE_DAGS_FOLDER, "example_branch_operator.py")
         dagbag = DagBag(dagfile)
@@ -5534,7 +5536,7 @@ class TestSchedulerJob:
         scheduler_job = Job(executor=MockExecutor())
         self.job_runner = SchedulerJobRunner(job=scheduler_job)
 
-        # We will provision 2 tasks so we can check we only find zombies from this scheduler
+        # We will provision 2 tasks so we can check we only find task instance heartbeat timeouts from this scheduler
         tasks_to_setup = ["branching", "run_this_first"]
 
         for task_id in tasks_to_setup:
@@ -5550,8 +5552,10 @@ class TestSchedulerJob:
         ti.queued_by_job_id = scheduler_job.id
         session.flush()
 
-        zombie_message = self.job_runner._generate_zombie_message_details(ti)
-        assert zombie_message == {
+        task_instance_heartbeat_timeout_message = (
+            self.job_runner._generate_task_instance_heartbeat_timeout_message_details(ti)
+        )
+        assert task_instance_heartbeat_timeout_message == {
             "DAG Id": "example_branch_operator",
             "Task Id": "run_this_first",
             "Run Id": "scheduled__2016-01-01T00:00:00+00:00",
@@ -5561,8 +5565,10 @@ class TestSchedulerJob:
         ti.map_index = 2
         ti.external_executor_id = "abcdefg"
 
-        zombie_message = self.job_runner._generate_zombie_message_details(ti)
-        assert zombie_message == {
+        task_instance_heartbeat_timeout_message = (
+            self.job_runner._generate_task_instance_heartbeat_timeout_message_details(ti)
+        )
+        assert task_instance_heartbeat_timeout_message == {
             "DAG Id": "example_branch_operator",
             "Task Id": "run_this_first",
             "Run Id": "scheduled__2016-01-01T00:00:00+00:00",
@@ -5572,12 +5578,12 @@ class TestSchedulerJob:
         }
 
     @pytest.mark.usefixtures("testing_dag_bundle")
-    def test_find_zombies_handle_failure_callbacks_are_correctly_passed_to_dag_processor(
+    def test_find_task_instances_without_heartbeats_handle_failure_callbacks_are_correctly_passed_to_dag_processor(
         self, create_dagrun, session
     ):
         """
-        Check that the same set of failure callback with zombies are passed to the dag
-        file processors until the next zombie detection logic is invoked.
+        Check that the same set of failure callbacks for task instances without heartbeats are passed to the dag
+        file processors until the next task instance heartbeat timeout detection logic is invoked.
         """
         with conf_vars({("core", "load_examples"): "False"}):
             dagbag = DagBag(
@@ -5610,7 +5616,7 @@ class TestSchedulerJob:
         scheduler_job = Job(executor=self.null_exec)
         self.job_runner = SchedulerJobRunner(job=scheduler_job)
 
-        self.job_runner._find_and_purge_zombies()
+        self.job_runner._find_and_purge_task_instances_without_heartbeats()
 
         scheduler_job.executor.callback_sink.send.assert_called_once()
 
@@ -5618,16 +5624,17 @@ class TestSchedulerJob:
             TaskCallbackRequest(
                 filepath=dag.relative_fileloc,
                 ti=ti,
-                msg=str(self.job_runner._generate_zombie_message_details(ti)),
+                msg=str(self.job_runner._generate_task_instance_heartbeat_timeout_message_details(ti)),
                 bundle_name="testing",
                 bundle_version=dag_run.bundle_version,
             )
         ]
         callback_requests = scheduler_job.executor.callback_sink.send.call_args.args
         assert len(callback_requests) == 1
-        assert {zombie.ti.id for zombie in expected_failure_callback_requests} == {
-            result.ti.id for result in callback_requests
-        }
+        assert {
+            task_instances_without_heartbeats.ti.id
+            for task_instances_without_heartbeats in expected_failure_callback_requests
+        } == {result.ti.id for result in callback_requests}
         expected_failure_callback_requests[0].ti = None
         callback_requests[0].ti = None
         assert expected_failure_callback_requests[0] == callback_requests[0]

@@ -3110,7 +3110,7 @@ class TaskInstance(Base, LoggingMixin):
 
         ti.clear_next_method_args()
 
-        # In extreme cases (zombie in case of dag with parse error) we might _not_ have a Task.
+        # In extreme cases (task instance heartbeat timeout in case of dag with parse error) we might _not_ have a Task.
         if context is None and getattr(ti, "task", None):
             context = ti.get_template_context(session)
 
