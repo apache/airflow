@@ -41,6 +41,7 @@ structure_router = AirflowRouter(tags=["Structure"], prefix="/structure")
     dependencies=[
         Depends(requires_access_dag("GET")),
         Depends(requires_access_dag("GET", DagAccessEntity.DEPENDENCIES)),
+        Depends(requires_access_dag("GET", DagAccessEntity.TASK_INSTANCE)),
     ],
 )
 def structure_data(
