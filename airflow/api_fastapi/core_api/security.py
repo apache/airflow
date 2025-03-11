@@ -16,8 +16,8 @@
 # under the License.
 from __future__ import annotations
 
-import posixpath
 from functools import cache
+from pathlib import Path
 from typing import TYPE_CHECKING, Annotated, Callable
 from urllib.parse import urljoin, urlparse
 
@@ -226,16 +226,13 @@ def is_safe_url(target_url: str) -> bool:
     is a valid normalized path.
     """
     base_url = conf.get("api", "base_url")
+
     parsed_base = urlparse(base_url)
     parsed_target = urlparse(urljoin(base_url, target_url))  # Resolves relative URLs
 
-    normalized_target_path = posixpath.normpath(parsed_target.path)
+    target_path = Path(parsed_target.path).resolve()
 
-    if (
-        normalized_target_path
-        and parsed_base.path
-        and not normalized_target_path.startswith(parsed_base.path)
-    ):
+    if target_path and parsed_base.path and not target_path.is_relative_to(parsed_base.path):
         return False
 
     return parsed_target.scheme in {"http", "https"} and parsed_target.netloc == parsed_base.netloc
