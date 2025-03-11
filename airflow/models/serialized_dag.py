@@ -27,17 +27,22 @@ from typing import TYPE_CHECKING, Any
 
 import sqlalchemy_jsonfield
 import uuid6
-from sqlalchemy import Column, ForeignKey, LargeBinary, String, exc, select
+from sqlalchemy import Column, ForeignKey, LargeBinary, String, exc, select, tuple_
 from sqlalchemy.orm import backref, foreign, relationship
 from sqlalchemy.sql.expression import func, literal
 from sqlalchemy_utils import UUIDType
 
 from airflow.exceptions import TaskNotFound
+from airflow.models.asset import (
+    AssetAliasModel,
+    AssetModel,
+)
 from airflow.models.base import ID_LEN, Base
 from airflow.models.dag import DagModel
 from airflow.models.dag_version import DagVersion
 from airflow.models.dagcode import DagCode
 from airflow.models.dagrun import DagRun
+from airflow.sdk.definitions.asset import AssetUniqueKey
 from airflow.serialization.dag_dependency import DagDependency
 from airflow.serialization.serialized_objects import SerializedDAG
 from airflow.settings import COMPRESS_SERIALIZED_DAGS, MIN_SERIALIZED_DAG_UPDATE_INTERVAL, json
@@ -477,7 +482,7 @@ class SerializedDagModel(Base):
                 .join(cls.dag_model)
                 .where(DagModel.is_active)
             )
-            iterator = ((dag_id, json.loads(deps_data) if deps_data else []) for dag_id, deps_data in query)
+            iterator = [(dag_id, json.loads(deps_data) if deps_data else []) for dag_id, deps_data in query]
         else:
             iterator = session.execute(
                 select(cls.dag_id, func.json_extract_path(cls._data, "dag", "dag_dependencies"))
@@ -489,7 +494,11 @@ class SerializedDagModel(Base):
                 .join(cls.dag_model)
                 .where(DagModel.is_active)
             )
-        return {dag_id: [DagDependency(**d) for d in (deps_data or [])] for dag_id, deps_data in iterator}
+
+        resolver = _DagDependenciesResolver(dag_id_dependencies=iterator, session=session)
+        dag_depdendencies_by_dag = resolver.resolve()
+
+        return dag_depdendencies_by_dag
 
     @staticmethod
     @provide_session

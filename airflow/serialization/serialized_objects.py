@@ -1121,7 +1121,7 @@ class DependencyDetector:
                         target="asset",
                         label=obj.name,
                         dependency_type="asset",
-                        dependency_id=None,
+                        dependency_id=AssetUniqueKey.from_asset(obj).to_str(),
                     )
                 )
             elif isinstance(obj, AssetAlias):

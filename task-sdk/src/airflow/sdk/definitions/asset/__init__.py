@@ -17,6 +17,7 @@
 
 from __future__ import annotations
 
+import json
 import logging
 import operator
 import os
@@ -76,6 +77,13 @@ class AssetUniqueKey(attrs.AttrsInstance):
 
     def to_asset(self) -> Asset:
         return Asset(name=self.name, uri=self.uri)
+
+    @staticmethod
+    def from_str(key: str) -> AssetUniqueKey:
+        return AssetUniqueKey(**json.loads(key))
+
+    def to_str(self) -> str:
+        return json.dumps(attrs.asdict(self))
 
 
 @attrs.define(frozen=True)
@@ -449,7 +457,7 @@ class Asset(os.PathLike, BaseAsset):
             dependency_type="asset",
             # We can't get asset id at this stage.
             # This will be updated when running SerializedDagModel.get_dag_dependencies
-            dependency_id=None,
+            dependency_id=AssetUniqueKey.from_asset(self).to_str(),
         )
 
     def asprofile(self) -> AssetProfile:
