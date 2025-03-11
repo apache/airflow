@@ -29,9 +29,7 @@ from airflow.api_fastapi.core_api.datamodels.common import (
     BulkDeleteAction,
     BulkUpdateAction,
 )
-from airflow.api_fastapi.core_api.datamodels.connections import (
-    ConnectionBody,
-)
+from airflow.api_fastapi.core_api.datamodels.connections import ConnectionBody
 from airflow.api_fastapi.core_api.services.public.common import BulkService
 from airflow.models.connection import Connection
 
