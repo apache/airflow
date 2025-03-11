@@ -48,11 +48,11 @@ def _validate_bundle_config(config_list):
         if not isinstance(item, dict):
             raise _bundle_item_exc(f"Expected dict but got {item.__class__}")
         actual_keys = set(item.keys())
-        if not actual_keys == config_list:
-            raise
+        if not actual_keys == expected_keys:
+            raise _bundle_item_exc(f"Expected keys {expected_keys} but found {actual_keys}")
         bundle_name = item["name"]
         if not bundle_name:
-            raise _bundle_item_exc(f"Expected keys {expected_keys} but found {actual_keys}")
+            raise _bundle_item_exc(f"Item {item} missing required `name` attr.")
         if bundle_name == _example_dag_bundle_name:
             raise AirflowConfigException(
                 f"Bundle name '{_example_dag_bundle_name}' is a reserved name. Please choose another name for your bundle."
