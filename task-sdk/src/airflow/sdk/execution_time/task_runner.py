@@ -74,6 +74,7 @@ from airflow.sdk.execution_time.context import (
 )
 from airflow.sdk.execution_time.xcom import XCom
 from airflow.utils.net import get_hostname
+from airflow.utils.operator_helpers import context_to_airflow_vars
 from airflow.utils.state import TaskInstanceState
 
 if TYPE_CHECKING:
@@ -571,6 +572,10 @@ def run(
                 )
 
         context = ti.get_template_context()
+        # Export context to make it available for operators to use.
+        airflow_context_vars = context_to_airflow_vars(context, in_env_var_format=True)
+        os.environ.update(airflow_context_vars)
+
         with set_current_context(context):
             # This is the earliest that we can render templates -- as if it excepts for any reason we need to
             # catch it and handle it like a normal task failure
@@ -580,7 +585,6 @@ def run(
                 return state, msg, error
 
             result = _execute_task(context, ti)
-
         _push_xcom_if_needed(result, ti, log)
 
         msg, state = _handle_current_task_success(context, ti)
