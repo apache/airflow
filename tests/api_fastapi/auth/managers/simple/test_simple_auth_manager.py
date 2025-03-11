@@ -21,6 +21,7 @@ import os
 
 import pytest
 
+from airflow.api_fastapi.app import AUTH_MANAGER_FASTAPI_APP_PREFIX
 from airflow.api_fastapi.auth.managers.models.resource_details import AccessView
 from airflow.api_fastapi.auth.managers.simple.user import SimpleAuthManagerUser
 
@@ -65,12 +66,12 @@ class TestSimpleAuthManager:
 
     def test_get_url_login(self, auth_manager):
         result = auth_manager.get_url_login()
-        assert result == "/auth/login"
+        assert result == AUTH_MANAGER_FASTAPI_APP_PREFIX + "/login"
 
     def test_get_url_login_with_all_admins(self, auth_manager):
         with conf_vars({("core", "simple_auth_manager_all_admins"): "true"}):
             result = auth_manager.get_url_login()
-            assert result == "/auth/token"
+            assert result == AUTH_MANAGER_FASTAPI_APP_PREFIX + "/token"
 
     def test_deserialize_user(self, auth_manager):
         result = auth_manager.deserialize_user({"username": "test", "role": "admin"})
