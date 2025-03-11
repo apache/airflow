@@ -38,7 +38,6 @@ from airflow.models.dag import DagOwnerAttributes
 from airflow.models.dagcode import DagCode
 from airflow.models.dagwarning import DagWarning
 from airflow.models.serialized_dag import SerializedDagModel
-from airflow.models.xcom import XComModel
 from airflow.security.permissions import RESOURCE_DAG_PREFIX
 from airflow.utils.db import add_default_pool_if_not_exists, create_default_connections, reflect_tables
 from airflow.utils.session import create_session
@@ -55,6 +54,11 @@ from tests_common.test_utils.version_compat import AIRFLOW_V_2_10_PLUS, AIRFLOW_
 
 if TYPE_CHECKING:
     from pathlib import Path
+
+if AIRFLOW_V_3_0_PLUS:
+    from airflow.models.xcom import XComModel as XCom
+else:
+    from airflow.models.xcom import XCom
 
 
 def _bootstrap_dagbag():
@@ -252,7 +256,7 @@ def clear_db_dag_warnings():
 
 def clear_db_xcom():
     with create_session() as session:
-        session.query(XComModel).delete()
+        session.query(XCom).delete()
 
 
 def clear_db_logs():

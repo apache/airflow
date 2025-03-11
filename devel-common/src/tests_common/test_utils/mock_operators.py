@@ -21,12 +21,17 @@ from typing import TYPE_CHECKING
 
 import attr
 from airflow.models.baseoperator import BaseOperator
-from airflow.models.xcom import XComModel
 
 from tests_common.test_utils.compat import BaseOperatorLink
+from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS
 
 if TYPE_CHECKING:
     from airflow.sdk.definitions.context import Context
+
+if AIRFLOW_V_3_0_PLUS:
+    from airflow.models.xcom import XComModel as XCom
+else:
+    from airflow.models.xcom import XCom  # type: ignore[no-redef]
 
 
 class MockOperator(BaseOperator):
@@ -89,11 +94,16 @@ class CustomBaseIndexOpLink(BaseOperatorLink):
         return f"bigquery_{self.index + 1}"
 
     def get_link(self, operator, *, ti_key):
-        search_queries = XComModel.get_many(
-            task_id=ti_key.task_id, dag_id=ti_key.dag_id, run_id=ti_key.run_id, key="search_query"
-        ).first()
+        if AIRFLOW_V_3_0_PLUS:
+            search_queries = XCom.get_one(
+                task_id=ti_key.task_id, dag_id=ti_key.dag_id, run_id=ti_key.run_id, key="search_query"
+            )
+        else:
+            search_queries = XCom.get_many(
+                task_id=ti_key.task_id, dag_id=ti_key.dag_id, run_id=ti_key.run_id, key="search_query"
+            ).first()
 
-        search_queries = XComModel.deserialize_value(search_queries)
+            search_queries = XCom.deserialize_value(search_queries)
 
         if not search_queries:
             return None
@@ -109,13 +119,23 @@ class CustomOpLink(BaseOperatorLink):
     name = "Google Custom"
 
     def get_link(self, operator, *, ti_key):
-        search_query = XComModel.get_one(
-            task_id=ti_key.task_id,
-            dag_id=ti_key.dag_id,
-            run_id=ti_key.run_id,
-            map_index=ti_key.map_index,
-            key="search_query",
-        )
+        if AIRFLOW_V_3_0_PLUS:
+            search_query = XCom.get_one(
+                task_id=ti_key.task_id,
+                dag_id=ti_key.dag_id,
+                run_id=ti_key.run_id,
+                map_index=ti_key.map_index,
+                key="search_query",
+            )
+        else:
+            search_query = XCom.get_many(
+                task_id=ti_key.task_id,
+                dag_id=ti_key.dag_id,
+                run_id=ti_key.run_id,
+                map_index=ti_key.map_index,
+                key="search_query",
+            )
+            search_query = XCom.deserialize_value(search_query)
         if not search_query:
             return None
         return f"http://google.com/custom_base_link?search={search_query}"
