@@ -479,8 +479,18 @@ class Connection(Base, LoggingMixin):
                 if hasattr(sys.modules.get("airflow.sdk.execution_time.task_runner"), "SUPERVISOR_COMMS"):
                     # TODO: AIP 72: Add deprecation here once we move this module to task sdk.
                     from airflow.sdk import Connection as TaskSDKConnection
+                    from airflow.sdk.exceptions import AirflowRuntimeError, ErrorType
 
-                    return TaskSDKConnection.get(conn_id=conn_id)
+                    try:
+                        return TaskSDKConnection.get(conn_id=conn_id)
+                    except AirflowRuntimeError as e:
+                        if e.error.error == ErrorType.CONNECTION_NOT_FOUND:
+                            log.exception(
+                                "Unable to retrieve connection from MetastoreBackend using Task SDK"
+                            )
+                            raise AirflowNotFoundException(f"The conn_id `{conn_id}` isn't defined")
+                        else:
+                            raise
             try:
                 conn = secrets_backend.get_connection(conn_id=conn_id)
                 if conn:
