@@ -185,6 +185,8 @@ paths:
       summary: Get Dependencies
       description: Dependencies graph.
       operationId: get_dependencies
+      security:
+      - OAuth2PasswordBearer: []
       parameters:
       - name: node_id
         in: query
