@@ -190,7 +190,6 @@ def ti_run(
         # However, do not clear it for deferral
         if not ti.next_method:
             map_index = None if ti.map_index < 0 else ti.map_index
-            log.info("Clearing xcom data for task id: %s", ti_id_str)
             query = session.query(XComModel.key).filter_by(
                 dag_id=ti.dag_id, task_id=ti.task_id, run_id=ti.run_id
             )

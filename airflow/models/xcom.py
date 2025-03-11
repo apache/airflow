@@ -121,6 +121,8 @@ class XComModel(TaskInstanceDependencies):
         """
         Clear all XCom data from the database for the given task instance.
 
+        .. note:: This **will not** purge any data from a custom XCom backend.
+
         :param dag_id: ID of DAG to clear the XCom for.
         :param task_id: ID of task to clear the XCom for.
         :param run_id: ID of DAG run to clear the XCom for.
