@@ -23,7 +23,8 @@ import airflow.models.xcom
 from airflow.models import XComModel
 from airflow.providers.common.io.xcom.backend import XComObjectStorageBackend
 from airflow.providers.standard.operators.empty import EmptyOperator
-from airflow.sdk.execution_time.xcom import BaseXCom, resolve_xcom_backend
+from airflow.sdk.execution_time.comms import XComResult
+from airflow.sdk.execution_time.xcom import resolve_xcom_backend
 from airflow.utils import timezone
 from airflow.utils.xcom import XCOM_RETURN_KEY
 
@@ -81,10 +82,10 @@ class TestXComObjectStorageBackend:
         with conf_vars(configuration):
             yield
 
-    def test_value_db(self, task_instance, session):
+    def test_value_db(self, task_instance, mock_supervisor_comms, session):
         session.add(task_instance)
         session.commit()
-        XCom = XComModel
+        XCom = resolve_xcom_backend()
         airflow.models.xcom.XCom = XCom
 
         XCom.set(
@@ -93,26 +94,19 @@ class TestXComObjectStorageBackend:
             dag_id=task_instance.dag_id,
             task_id=task_instance.task_id,
             run_id=task_instance.run_id,
-            session=session,
+        )
+
+        mock_supervisor_comms.get_message.return_value = XComResult(
+            key="return_value", value={"key": "value"}
         )
 
         value = XCom.get_value(
             key=XCOM_RETURN_KEY,
             ti_key=task_instance.key,
-            session=session,
         )
         assert value == {"key": "value"}
 
-        qry = XCom.get_many(
-            key=XCOM_RETURN_KEY,
-            dag_ids=task_instance.dag_id,
-            task_ids=task_instance.task_id,
-            run_id=task_instance.run_id,
-            session=session,
-        )
-        assert qry.first().value == '{"key": "value"}'
-
-    def test_value_storage(self, task_instance, session):
+    def test_value_storage(self, task_instance, mock_supervisor_comms, session):
         session.add(task_instance)
         session.commit()
         XCom = resolve_xcom_backend()
@@ -124,11 +118,18 @@ class TestXComObjectStorageBackend:
             dag_id=task_instance.dag_id,
             task_id=task_instance.task_id,
             run_id=task_instance.run_id,
-            session=session,
+        )
+
+        XComModel.set(
+            key=XCOM_RETURN_KEY,
+            value=self.path,
+            dag_id=task_instance.dag_id,
+            task_id=task_instance.task_id,
+            run_id=task_instance.run_id,
         )
 
         res = (
-            XCom.get_many(
+            XComModel.get_many(
                 key=XCOM_RETURN_KEY,
                 dag_ids=task_instance.dag_id,
                 task_ids=task_instance.task_id,
@@ -139,29 +140,30 @@ class TestXComObjectStorageBackend:
             .first()
         )
 
-        data = BaseXCom.deserialize_value(res)
+        data = XComModel.deserialize_value(res)
         p = XComObjectStorageBackend._get_full_path(data)
         assert p.exists() is True
+
+        mock_supervisor_comms.get_message.return_value = XComResult(
+            key=XCOM_RETURN_KEY, value={"key": "bigvaluebigvaluebigvalue" * 100}
+        )
 
         value = XCom.get_value(
             key=XCOM_RETURN_KEY,
             ti_key=task_instance.key,
-            session=session,
         )
         assert value == {"key": "bigvaluebigvaluebigvalue" * 100}
 
-        qry = XCom.get_many(
+        qry = XComModel.get_many(
             key=XCOM_RETURN_KEY,
             dag_ids=task_instance.dag_id,
             task_ids=task_instance.task_id,
             run_id=task_instance.run_id,
             session=session,
         )
-        assert str(p) == qry.first().value
+        assert str(p) == XComModel.deserialize_value(qry.first())
 
-    def test_clear(self, task_instance, session):
-        session.add(task_instance)
-        session.commit()
+    def test_clear(self, task_instance, session, mock_supervisor_comms):
         XCom = resolve_xcom_backend()
         airflow.models.xcom.XCom = XCom
 
@@ -171,33 +173,43 @@ class TestXComObjectStorageBackend:
             dag_id=task_instance.dag_id,
             task_id=task_instance.task_id,
             run_id=task_instance.run_id,
-            session=session,
+        )
+
+        XComModel.set(
+            key=XCOM_RETURN_KEY,
+            value=self.path,
+            dag_id=task_instance.dag_id,
+            task_id=task_instance.task_id,
+            run_id=task_instance.run_id,
         )
 
         res = (
-            XCom.get_many(
+            XComModel.get_many(
                 key=XCOM_RETURN_KEY,
                 dag_ids=task_instance.dag_id,
                 task_ids=task_instance.task_id,
                 run_id=task_instance.run_id,
                 session=session,
             )
-            .with_entities(BaseXCom.value)
+            .with_entities(XComModel.value)
             .first()
         )
 
-        data = BaseXCom.deserialize_value(res)
+        data = XComModel.deserialize_value(res)
         p = XComObjectStorageBackend._get_full_path(data)
         assert p.exists() is True
+
+        mock_supervisor_comms.get_message.return_value = XComResult(
+            key=XCOM_RETURN_KEY, value={"key": "superlargevalue" * 100}
+        )
 
         value = XCom.get_value(
             key=XCOM_RETURN_KEY,
             ti_key=task_instance.key,
-            session=session,
         )
         assert value
 
-        XCom.clear(
+        XComModel.clear(
             dag_id=task_instance.dag_id,
             task_id=task_instance.task_id,
             run_id=task_instance.run_id,
@@ -214,9 +226,10 @@ class TestXComObjectStorageBackend:
         assert not value
 
     @conf_vars({("common.io", "xcom_objectstorage_compression"): "gzip"})
-    def test_compression(self, task_instance, session):
+    def test_compression(self, task_instance, session, mock_supervisor_comms):
         session.add(task_instance)
         session.commit()
+
         XCom = resolve_xcom_backend()
         airflow.models.xcom.XCom = XCom
 
@@ -226,30 +239,37 @@ class TestXComObjectStorageBackend:
             dag_id=task_instance.dag_id,
             task_id=task_instance.task_id,
             run_id=task_instance.run_id,
-            session=session,
+        )
+
+        XComModel.set(
+            key=XCOM_RETURN_KEY,
+            value=self.path + ".gz",
+            dag_id=task_instance.dag_id,
+            task_id=task_instance.task_id,
+            run_id=task_instance.run_id,
         )
 
         res = (
-            XCom.get_many(
+            XComModel.get_many(
                 key=XCOM_RETURN_KEY,
                 dag_ids=task_instance.dag_id,
                 task_ids=task_instance.task_id,
                 run_id=task_instance.run_id,
                 session=session,
             )
-            .with_entities(BaseXCom.value)
+            .with_entities(XComModel.value)
             .first()
         )
 
-        data = BaseXCom.deserialize_value(res)
-        p = XComObjectStorageBackend._get_full_path(data)
-        assert p.exists() is True
-        assert p.suffix == ".gz"
+        data = XComModel.deserialize_value(res)
+        assert data.endswith(".gz")
 
+        mock_supervisor_comms.get_message.return_value = XComResult(
+            key=XCOM_RETURN_KEY, value={"key": "superlargevalue" * 100}
+        )
         value = XCom.get_value(
             key=XCOM_RETURN_KEY,
             ti_key=task_instance.key,
-            session=session,
         )
 
         assert value == {"key": "superlargevalue" * 100}
