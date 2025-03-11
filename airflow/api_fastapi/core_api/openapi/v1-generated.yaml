@@ -8227,11 +8227,6 @@ components:
             format: date-time
           - type: 'null'
           title: Last Expired
-        default_view:
-          anyOf:
-          - type: string
-          - type: 'null'
-          title: Default View
         fileloc:
           type: string
           title: Fileloc
@@ -8387,7 +8382,6 @@ components:
       - is_active
       - last_parsed_time
       - last_expired
-      - default_view
       - fileloc
       - description
       - timetable_summary
@@ -8457,11 +8451,6 @@ components:
             format: date-time
           - type: 'null'
           title: Last Expired
-        default_view:
-          anyOf:
-          - type: string
-          - type: 'null'
-          title: Default View
         fileloc:
           type: string
           title: Fileloc
@@ -8544,7 +8533,6 @@ components:
       - is_active
       - last_parsed_time
       - last_expired
-      - default_view
       - fileloc
       - description
       - timetable_summary
@@ -8973,11 +8961,6 @@ components:
             format: date-time
           - type: 'null'
           title: Last Expired
-        default_view:
-          anyOf:
-          - type: string
-          - type: 'null'
-          title: Default View
         fileloc:
           type: string
           title: Fileloc
@@ -9065,7 +9048,6 @@ components:
       - is_active
       - last_parsed_time
       - last_expired
-      - default_view
       - fileloc
       - description
       - timetable_summary

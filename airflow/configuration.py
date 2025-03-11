@@ -358,7 +358,6 @@ class AirflowConfigParser(ConfigParser):
         },
         "webserver": {
             "navbar_color": (re.compile(r"(?i)^#007A87$"), "#fff", "2.1"),
-            "dag_default_view": (re.compile(r"^tree$"), "grid", "3.0"),
         },
         "email": {
             "email_backend": (

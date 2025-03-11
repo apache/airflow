@@ -90,7 +90,6 @@ class DAGSchema(SQLAlchemySchema):
     is_active = auto_field(dump_only=True)
     last_parsed_time = auto_field(dump_only=True)
     last_expired = auto_field(dump_only=True)
-    default_view = auto_field(dump_only=True)
     fileloc = auto_field(dump_only=True)
     file_token = fields.Method("get_token", dump_only=True)
     owners = fields.Method("get_owners", dump_only=True)
@@ -295,7 +294,6 @@ def _get_dagbag_dag_details(dag: DAG) -> dict:
         "is_active": dag.get_is_active(),
         "last_parsed_time": None,
         "last_expired": None,
-        "default_view": dag.default_view,
         "fileloc": dag.fileloc,
         "file_token": None,
         "owners": dag.owner,
