@@ -645,6 +645,8 @@ class ActivitySubprocess(WatchedSubprocess):
     TASK_OVERTIME_THRESHOLD: ClassVar[float] = 20.0
     _task_end_time_monotonic: float | None = attrs.field(default=None, init=False)
 
+    _what: TaskInstance | None = attrs.field(default=None, init=False)
+
     decoder: ClassVar[TypeAdapter[ToSupervisor]] = TypeAdapter(ToSupervisor)
 
     @classmethod
@@ -667,6 +669,7 @@ class ActivitySubprocess(WatchedSubprocess):
 
     def _on_child_started(self, ti: TaskInstance, dag_rel_path: str | os.PathLike[str], bundle_info):
         """Send startup message to the subprocess."""
+        self._what = ti
         start_date = datetime.now(tz=timezone.utc)
         try:
             # We've forked, but the task won't start doing anything until we send it the StartupDetails
@@ -735,7 +738,17 @@ class ActivitySubprocess(WatchedSubprocess):
         """
         from airflow.sdk.log import upload_to_remote
 
-        upload_to_remote(self.log)
+        log_meta_dict = (
+            {
+                "dag_id": self._what.dag_id,
+                "task_id": self._what.task_id,
+                "run_id": self._what.run_id,
+                "try_number": str(self._what.try_number),
+            }
+            if self._what
+            else {}
+        )
+        upload_to_remote(self.log, log_meta_dict)
 
     def _monitor_subprocess(self):
         """
