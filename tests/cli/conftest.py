@@ -64,7 +64,7 @@ def parser():
 
 
 @pytest.fixture(scope="session")
-def cli_api_client_maker(cli_api_client_credentials):
+def cli_api_client_maker(client_credentials):
     """
     Create a CLI API client with a custom transport and returns callable to create a client with a custom transport
     """
@@ -87,7 +87,7 @@ def cli_api_client_maker(cli_api_client_credentials):
 
 
 @pytest.fixture(scope="session")
-def cli_api_client_credentials():
+def client_credentials():
     """Create credentials for CLI API"""
     with patch("airflow.cli.api.client.keyring"):
         Credentials(api_url="http://localhost:9091", api_token="NO_TOKEN").save()

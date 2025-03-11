@@ -23,23 +23,23 @@ import sys
 
 import rich
 
-from airflow.cli.api.cli_api_client import Credentials
+from airflow.cli.api.client import Credentials
 from airflow.utils import cli as cli_utils
 
 
 @cli_utils.action_cli
 def login(args) -> None:
     """Login to a provider."""
-    if not args.api_token and not os.environ.get("APACHE_AIRFLOW_CLI_TOKEN"):
+    if not (token := args.api_token or os.environ.get("AIRFLOW_CLI_TOKEN")):
         # Exit
         rich.print("[red]No token found.")
         rich.print(
             "[green]Please pass:[/green] [blue]--api-token[/blue] or set "
-            "[blue]APACHE_AIRFLOW_CLI_TOKEN[/blue] environment variable to login."
+            "[blue]AIRFLOW_CLI_TOKEN[/blue] environment variable to login."
         )
         sys.exit(1)
     Credentials(
         api_url=args.api_url,
-        api_token=args.api_token or os.getenv("APACHE_AIRFLOW_CLI_TOKEN"),
+        api_token=token,
         api_environment=args.env,
     ).save()

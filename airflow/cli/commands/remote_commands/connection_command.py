@@ -26,7 +26,7 @@ from pathlib import Path
 from typing import TYPE_CHECKING, Any
 from urllib.parse import urlsplit, urlunsplit
 
-from airflow.cli.api.cli_api_client import NEW_CLI_API_CLIENT, provide_cli_api_client
+from airflow.cli.api.client import NEW_CLI_API_CLIENT, provide_api_client
 from airflow.cli.api.datamodels._generated import (
     BulkAction,
     BulkActionOnExistence,
@@ -36,6 +36,7 @@ from airflow.cli.api.datamodels._generated import (
     ConnectionResponse,
     ConnectionTestResponse,
 )
+from airflow.cli.api.operations import ServerResponseError
 from airflow.cli.simple_table import AirflowConsole
 from airflow.cli.utils import is_stdout, print_export_output
 from airflow.configuration import conf
@@ -70,10 +71,13 @@ def _connection_mapper(conn: Connection) -> dict[str, Any]:
 
 @suppress_logs_and_warning
 @providers_configuration_loaded
-@provide_cli_api_client
+@provide_api_client
 def connections_get(args, cli_api_client=NEW_CLI_API_CLIENT):
     """Get a connection."""
-    connection = cli_api_client.connections.get(conn_id=args.conn_id)
+    try:
+        connection = cli_api_client.connections.get(conn_id=args.conn_id)
+    except ServerResponseError:
+        raise SystemExit("Connection not found.")
     AirflowConsole().print_as(
         data=[_response_to_connection(connection)],
         output=args.output,
@@ -83,7 +87,7 @@ def connections_get(args, cli_api_client=NEW_CLI_API_CLIENT):
 
 @suppress_logs_and_warning
 @providers_configuration_loaded
-@provide_cli_api_client
+@provide_api_client
 def connections_list(args, cli_api_client=NEW_CLI_API_CLIENT):
     """List all connections at the command line."""
     cli_api_client.connections.exit_in_error = True
@@ -110,7 +114,7 @@ def _connection_to_dict(conn: Connection) -> dict:
     }
 
 
-@provide_cli_api_client
+@provide_api_client
 def create_default_connections(args, cli_api_client=NEW_CLI_API_CLIENT):
     """Create default connections."""
     cli_api_client.connections.create_defaults()
@@ -196,7 +200,7 @@ def _get_connection_types() -> list[str]:
 
 
 @providers_configuration_loaded
-@provide_cli_api_client
+@provide_api_client
 def connections_export(args, cli_api_client=NEW_CLI_API_CLIENT):
     """Export all connections to a file."""
     file_formats = [".yaml", ".json", ".env"]
@@ -243,7 +247,7 @@ alternative_conn_specs = ["conn_type", "conn_host", "conn_login", "conn_password
 
 @cli_utils.action_cli
 @providers_configuration_loaded
-@provide_cli_api_client
+@provide_api_client
 def connections_add(args, cli_api_client=NEW_CLI_API_CLIENT):
     """Add new connection."""
     has_uri = bool(args.conn_uri)
@@ -335,7 +339,7 @@ def connections_add(args, cli_api_client=NEW_CLI_API_CLIENT):
 
 @cli_utils.action_cli
 @providers_configuration_loaded
-@provide_cli_api_client
+@provide_api_client
 def connections_delete(args, cli_api_client=NEW_CLI_API_CLIENT):
     """Delete connection from DB."""
     cli_api_client.connections.delete(conn_id=args.conn_id)
@@ -344,7 +348,7 @@ def connections_delete(args, cli_api_client=NEW_CLI_API_CLIENT):
 
 @cli_utils.action_cli(check_db=False)
 @providers_configuration_loaded
-@provide_cli_api_client
+@provide_api_client
 def connections_import(args, cli_api_client=NEW_CLI_API_CLIENT):
     """Import connections from a file."""
     if os.path.exists(args.file):
@@ -377,26 +381,31 @@ def _import_helper(file_path: str, overwrite: bool, cli_api_client: Client) -> N
             )
         )
 
-    cli_api_client.connections.bulk(
-        connections=ConnectionBulkBody(
-            actions=[
-                ConnectionBulkCreateAction(
-                    action=BulkAction.CREATE,
-                    connections=connections_to_create,
-                    action_on_existence=BulkActionOnExistence.FAIL
-                    if not overwrite
-                    else BulkActionOnExistence.OVERWRITE,
-                )
-            ]
+    try:
+        cli_api_client.connections.bulk(
+            connections=ConnectionBulkBody(
+                actions=[
+                    ConnectionBulkCreateAction(
+                        action=BulkAction.CREATE,
+                        connections=connections_to_create,
+                        action_on_existence=BulkActionOnExistence.FAIL
+                        if not overwrite
+                        else BulkActionOnExistence.OVERWRITE,
+                    )
+                ]
+            )
         )
-    )
+    except Exception as e:
+        print(f"Could not import connection. {e}")
+        raise SystemExit(1)
+
     for conn_id in connections:
         print(f"Imported connection {conn_id}")
 
 
 @suppress_logs_and_warning
 @providers_configuration_loaded
-@provide_cli_api_client
+@provide_api_client
 def connections_test(args, cli_api_client=NEW_CLI_API_CLIENT) -> None:
     """Test an Airflow connection."""
     console = AirflowConsole()
@@ -408,12 +417,16 @@ def connections_test(args, cli_api_client=NEW_CLI_API_CLIENT) -> None:
         raise SystemExit(1)
 
     print("\nTesting...")
-    connection_test_response: ConnectionTestResponse = cli_api_client.connections.test(
-        ConnectionBody(
-            connection_id=args.conn_id,
-            conn_type=args.conn_type,
+    try:
+        connection_test_response: ConnectionTestResponse = cli_api_client.connections.test(
+            ConnectionBody(
+                connection_id=args.conn_id,
+                # TODO update me when ConnectionTestBody is created allowing to pass conn_type None
+                conn_type="",
+            )
         )
-    )
+    except ServerResponseError as e:
+        raise SystemExit(f"Could not test connection. {e}")
 
     status, message = (
         connection_test_response.model_dump().get("status"),

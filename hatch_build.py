@@ -222,7 +222,6 @@ DEPENDENCIES = [
     "itsdangerous>=2.0",
     "jinja2>=3.0.0",
     "jsonschema>=4.18.0",
-    # Added for CLI
     "keyring>=25.6.0",
     "lazy-object-proxy>=1.2.0",
     "libcst >=1.1.0",
@@ -237,7 +236,6 @@ DEPENDENCIES = [
     "opentelemetry-exporter-otlp>=1.24.0",
     "packaging>=23.2",
     "pathspec>=0.9.0",
-    # Added for CLI
     "platformdirs>=4.3.6",
     'pendulum>=2.1.2,<4.0;python_version<"3.12"',
     'pendulum>=3.0.0,<4.0;python_version>="3.12"',

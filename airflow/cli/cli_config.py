@@ -680,7 +680,6 @@ ARG_ENV_VARS = Arg(
 
 # connections
 ARG_CONN_ID = Arg(("conn_id",), help="Connection id, required to get/add/delete/test a connection", type=str)
-ARG_CONN_TYPE_POSITIONAL = Arg(("conn_type",), help="Connection type, required to add a connection", type=str)
 ARG_CONN_ID_FILTER = Arg(
     ("--conn-id",), help="If passed, only items with the specified connection ID will be displayed", type=str
 )
@@ -867,7 +866,7 @@ ALTERNATIVE_CONN_SPECS_ARGS = [
 ARG_AUTH_URL = Arg(
     flags=("--api-url",),
     type=str,
-    default="http://localhost:9091",
+    default="http://localhost:8080",
     dest="api_url",
     help="The URL of the metadata database API",
 )
@@ -1518,7 +1517,7 @@ CONNECTIONS_COMMANDS = (
         name="test",
         help="Test a connection",
         func=lazy_load_command("airflow.cli.commands.remote_commands.connection_command.connections_test"),
-        args=(ARG_CONN_ID, ARG_CONN_TYPE_POSITIONAL, ARG_VERBOSE),
+        args=(ARG_CONN_ID, ARG_VERBOSE),
     ),
     ActionCommand(
         name="create-default-connections",

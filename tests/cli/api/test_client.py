@@ -20,8 +20,6 @@ from __future__ import annotations
 import json
 import os
 import shutil
-from contextlib import redirect_stdout
-from io import StringIO
 from unittest.mock import MagicMock, patch
 
 import httpx
@@ -30,6 +28,7 @@ from platformdirs import user_config_path
 
 from airflow.cli.api.client import Client, Credentials
 from airflow.cli.api.operations import ServerResponseError
+from airflow.exceptions import AirflowNotFoundException
 
 
 class TestClient:
@@ -41,9 +40,7 @@ class TestClient:
 
             return httpx.Response(422, json={"detail": [{"loc": ["#0"], "msg": "err", "type": "required"}]})
 
-        client = Client(
-            base_url=None, dry_run=True, token="", mounts={"'http://": httpx.MockTransport(handle_request)}
-        )
+        client = Client(base_url="", token="", mounts={"'http://": httpx.MockTransport(handle_request)})
 
         with pytest.raises(ServerResponseError) as err:
             client.get("http://error")
@@ -61,9 +58,7 @@ class TestClient:
 
             return httpx.Response(422, content=b"Internal Server Error")
 
-        client = Client(
-            base_url=None, dry_run=True, token="", mounts={"'http://": httpx.MockTransport(handle_request)}
-        )
+        client = Client(base_url="", token="", mounts={"'http://": httpx.MockTransport(handle_request)})
 
         with pytest.raises(httpx.HTTPStatusError) as err:
             client.get("http://error")
@@ -74,9 +69,7 @@ class TestClient:
             # Some other json than an error body.
             return httpx.Response(404, json={"detail": "Not found"})
 
-        client = Client(
-            base_url=None, dry_run=True, token="", mounts={"'http://": httpx.MockTransport(handle_request)}
-        )
+        client = Client(base_url="", token="", mounts={"'http://": httpx.MockTransport(handle_request)})
 
         with pytest.raises(ServerResponseError) as err:
             client.get("http://error")
@@ -86,8 +79,8 @@ class TestClient:
 class TestCredentials:
     default_config_dir = user_config_path("airflow", "Apache Software Foundation")
 
-    @patch.dict(os.environ, {"APACHE_AIRFLOW_CLI_TOKEN": "TEST_TOKEN"})
-    @patch.dict(os.environ, {"APACHE_AIRFLOW_CLI_ENVIRONMENT": "TEST_SAVE"})
+    @patch.dict(os.environ, {"AIRFLOW_CLI_TOKEN": "TEST_TOKEN"})
+    @patch.dict(os.environ, {"AIRFLOW_CLI_ENVIRONMENT": "TEST_SAVE"})
     @patch("airflow.cli.api.client.keyring")
     def test_save(self, mock_keyring):
         mock_keyring.set_password.return_value = MagicMock()
@@ -103,8 +96,8 @@ class TestCredentials:
                 "api_url": credentials.api_url,
             }
 
-    @patch.dict(os.environ, {"APACHE_AIRFLOW_CLI_ENVIRONMENT": "TEST_LOAD"})
-    @patch.dict(os.environ, {"APACHE_AIRFLOW_CLI_TOKEN": "TEST_TOKEN"})
+    @patch.dict(os.environ, {"AIRFLOW_CLI_ENVIRONMENT": "TEST_LOAD"})
+    @patch.dict(os.environ, {"AIRFLOW_CLI_TOKEN": "TEST_TOKEN"})
     @patch("airflow.cli.api.client.keyring")
     def test_load(self, mock_keyring):
         mock_keyring.set_password.return_value = MagicMock()
@@ -119,16 +112,13 @@ class TestCredentials:
                 "api_url": credentials.api_url,
             }
 
-    @patch.dict(os.environ, {"APACHE_AIRFLOW_CLI_ENVIRONMENT": "TEST_NO_CREDENTIALS"})
-    @patch.dict(os.environ, {"APACHE_AIRFLOW_CLI_TOKEN": "TEST_TOKEN"})
+    @patch.dict(os.environ, {"AIRFLOW_CLI_ENVIRONMENT": "TEST_NO_CREDENTIALS"})
+    @patch.dict(os.environ, {"AIRFLOW_CLI_TOKEN": "TEST_TOKEN"})
     @patch("airflow.cli.api.client.keyring")
     def test_load_no_credentials(self, mock_keyring):
         if os.path.exists(self.default_config_dir):
             shutil.rmtree(self.default_config_dir)
-        with pytest.raises(SystemExit), redirect_stdout(StringIO()) as stdout:
+        with pytest.raises(AirflowNotFoundException):
             Credentials().load()
 
-        stdout = stdout.getvalue()
-        assert "No credentials found." in stdout
-        assert "Please run: airflow auth login" in stdout
         assert not os.path.exists(self.default_config_dir)

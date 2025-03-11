@@ -33,8 +33,8 @@ from airflow.cli.commands.remote_commands import auth_command
 class TestCliAuthCommands:
     parser = cli_parser.get_parser()
 
-    @patch.dict(os.environ, {"APACHE_AIRFLOW_CLI_TOKEN": "TEST_TOKEN"})
-    @patch.dict(os.environ, {"APACHE_AIRFLOW_CLI_ENVIRONMENT": "TEST_AUTH_LOGIN"})
+    @patch.dict(os.environ, {"AIRFLOW_CLI_TOKEN": "TEST_TOKEN"})
+    @patch.dict(os.environ, {"AIRFLOW_CLI_ENVIRONMENT": "TEST_AUTH_LOGIN"})
     @patch("airflow.cli.api.client.keyring")
     def test_login(self, mock_keyring):
         mock_keyring.set_password = mock.MagicMock()

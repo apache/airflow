@@ -36,6 +36,7 @@ from airflow.cli.api.datamodels._generated import (
     ConnectionResponse,
     ConnectionTestResponse,
 )
+from airflow.cli.api.operations import ServerResponseError
 from airflow.cli.commands.remote_commands import connection_command
 from airflow.exceptions import AirflowException
 
@@ -734,7 +735,7 @@ class TestCliAddConnections(TestCliConnection):
             expected_http_status_code=409,
         )
         # Check for addition attempt
-        with pytest.raises(SystemExit):
+        with pytest.raises(ServerResponseError):
             connection_command.connections_add(
                 self.parser.parse_args(
                     ["connections", "add", self.connection.connection_id, f"--conn-uri={TEST_URL}"],
@@ -855,7 +856,7 @@ class TestCliDeleteConnections(TestCliConnection):
             response_json={"detail": "Connection not found."},
             expected_http_status_code=404,
         )
-        with pytest.raises(SystemExit):
+        with pytest.raises(ServerResponseError):
             connection_command.connections_delete(
                 self.parser.parse_args(["connections", "delete", self.connection.connection_id]),
                 cli_api_client=cli_api_client,
@@ -989,9 +990,7 @@ class TestCliTestConnections(TestCliConnection):
         )
         with redirect_stdout(StringIO()) as stdout:
             connection_command.connections_test(
-                self.parser.parse_args(
-                    ["connections", "test", self.connection.connection_id, self.connection.conn_type]
-                ),
+                self.parser.parse_args(["connections", "test", self.connection.connection_id]),
                 cli_api_client=cli_api_client,
             )
 
@@ -1007,9 +1006,7 @@ class TestCliTestConnections(TestCliConnection):
         )
         with redirect_stdout(StringIO()) as stdout:
             connection_command.connections_test(
-                self.parser.parse_args(
-                    ["connections", "test", self.connection.connection_id, self.connection.conn_type]
-                ),
+                self.parser.parse_args(["connections", "test", self.connection.connection_id]),
                 cli_api_client=cli_api_client,
             )
 
@@ -1025,9 +1022,7 @@ class TestCliTestConnections(TestCliConnection):
         )
         with redirect_stdout(StringIO()) as stdout, pytest.raises(SystemExit):
             connection_command.connections_test(
-                self.parser.parse_args(
-                    ["connections", "test", self.connection.connection_id, self.connection.conn_type]
-                ),
+                self.parser.parse_args(["connections", "test", self.connection.connection_id]),
                 cli_api_client=cli_api_client,
             )
         assert "Connection not found." in stdout.getvalue()
@@ -1041,9 +1036,7 @@ class TestCliTestConnections(TestCliConnection):
         )
         with redirect_stdout(StringIO()) as stdout, pytest.raises(SystemExit):
             connection_command.connections_test(
-                self.parser.parse_args(
-                    ["connections", "test", self.connection.connection_id, self.connection.conn_type]
-                ),
+                self.parser.parse_args(["connections", "test", self.connection.connection_id]),
                 cli_api_client=cli_api_client,
             )
         assert (

@@ -17,14 +17,15 @@
 
 from __future__ import annotations
 
+import contextlib
 import json
 import os
 import sys
-from typing import TYPE_CHECKING, Any
+from functools import wraps
+from typing import TYPE_CHECKING, Any, Callable, TypeVar, cast
 
 import httpx
 import keyring
-import rich
 import structlog
 from platformdirs import user_config_path
 from uuid6 import uuid7
@@ -43,6 +44,8 @@ from airflow.cli.api.operations import (
     VariablesOperations,
     VersionOperations,
 )
+from airflow.exceptions import AirflowNotFoundException
+from airflow.typing_compat import ParamSpec
 from airflow.version import version
 
 if TYPE_CHECKING:
@@ -61,6 +64,9 @@ __all__ = [
     "Client",
     "Credentials",
 ]
+
+PS = ParamSpec("PS")
+RT = TypeVar("RT")
 
 
 def add_correlation_id(request: httpx.Request):
@@ -95,11 +101,11 @@ class Credentials:
     ):
         self.api_url = api_url
         self.api_token = api_token
-        self.api_environment = os.getenv("APACHE_AIRFLOW_CLI_ENVIRONMENT") or api_environment
+        self.api_environment = os.getenv("AIRFLOW_CLI_ENVIRONMENT") or api_environment
 
     @property
     def input_cli_config_file(self) -> str:
-        """Generate path and always generate that path but let's not world readable."""
+        """Generate path for the CLI config file."""
         return f"{self.api_environment}.json"
 
     def save(self):
@@ -121,9 +127,7 @@ class Credentials:
                 self.api_token = keyring.get_password("airflow-cli", f"api_token-{self.api_environment}")
             return self
         else:
-            rich.print("[red]No credentials found.")
-            rich.print("[green]Please run: [blue]airflow auth login")
-            sys.exit(1)
+            raise AirflowNotFoundException(f"No credentials found in {default_config_dir}")
 
 
 class BearerAuth(httpx.Auth):
@@ -139,19 +143,11 @@ class BearerAuth(httpx.Auth):
 class Client(httpx.Client):
     """Client for the Airflow REST API."""
 
-    def __init__(self, *, base_url: str | None, dry_run: bool = False, token: str, **kwargs: Any):
-        if (not base_url) ^ dry_run:
-            raise ValueError(f"Can only specify one of {base_url=} or {dry_run=}")
+    def __init__(self, *, base_url: str, token: str, **kwargs: Any):
         auth = BearerAuth(token)
 
-        if dry_run:
-            # If dry run is requested, install a no op handler so that simple tasks can "heartbeat" using a
-            # real client, but just don't make any HTTP requests
-            kwargs["base_url"] = "dry-run://server"
-        else:
-            kwargs["base_url"] = f"{base_url}/public"
+        kwargs["base_url"] = f"{base_url}/public"
         pyver = f"{'.'.join(map(str, sys.version_info[:3]))}"
-        # TODO add auth using token after sign in integrated
         super().__init__(
             auth=auth,
             headers={"user-agent": f"apache-airflow-cli/{version} (Python/{pyver})"},
@@ -224,3 +220,45 @@ class Client(httpx.Client):
     def version(self):
         """Get the version of the server."""
         return VersionOperations(self)
+
+
+# API Client Decorator for CLI Actions
+@contextlib.contextmanager
+def get_client():
+    """Get CLI API client."""
+    cli_api_client = None
+    try:
+        credentials = Credentials().load()
+        limits = httpx.Limits(max_keepalive_connections=1, max_connections=1)
+        cli_api_client = Client(base_url=credentials.api_url, limits=limits, token=credentials.api_token)
+        yield cli_api_client
+    except AirflowNotFoundException as e:
+        raise e
+    finally:
+        if cli_api_client:
+            cli_api_client.close()
+
+
+def provide_api_client(func: Callable[PS, RT]) -> Callable[PS, RT]:
+    """
+    Provide a CLI API Client to the decorated function.
+
+    CLI API Client shouldn't be passed to the function when this wrapper is used
+    if the purpose is not mocking or testing.
+    If you want to reuse a CLI API Client or run the function as part of
+    API call, you pass it to the function, if not this wrapper
+    will create one and close it for you.
+    """
+
+    @wraps(func)
+    def wrapper(*args, **kwargs) -> RT:
+        if "cli_api_client" not in kwargs:
+            with get_client() as cli_api_client:
+                return func(*args, cli_api_client=cli_api_client, **kwargs)
+        # The CLI API Client should be only passed for Mocking and Testing
+        return func(*args, **kwargs)
+
+    return wrapper
+
+
+NEW_CLI_API_CLIENT: Client = cast(Client, None)
