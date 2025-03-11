@@ -97,7 +97,7 @@ export const Graph = () => {
 
   const selectedColor = colorMode === "dark" ? selectedDarkColor : selectedLightColor;
 
-  const { data: graphData = { arrange: "LR", edges: [], nodes: [] } } = useStructureServiceStructureData({
+  const { data: graphData = { edges: [], nodes: [] } } = useStructureServiceStructureData({
     dagId,
     externalDependencies: dependencies === "immediate",
     versionNumber: selectedVersion,
@@ -122,8 +122,8 @@ export const Graph = () => {
   const dagDepNodes = dependencies === "all" ? dagDependencies.nodes : [];
 
   const { data } = useGraphLayout({
-    arrange: "LR",
     dagId,
+    direction: "RIGHT",
     edges: [...graphData.edges, ...dagDepEdges],
     nodes: dagDepNodes.length
       ? dagDepNodes.map((node) =>
