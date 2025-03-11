@@ -60,17 +60,21 @@ class BaseHook(LoggingMixin):
         :param conn_id: connection id
         :return: connection
         """
-        # TODO: This is not the best way of having compat, but it's "better than erroring" for now. This still
-        # means SQLA etc is loaded, but we can't avoid that unless/until we add import shims as a big
-        # back-compat layer
+        from airflow.configuration import conf
 
-        # If this is set it means are in some kind of execution context (Task, Dag Parse or Triggerer perhaps)
-        # and should use the Task SDK API server path
-        if hasattr(sys.modules.get("airflow.sdk.execution_time.task_runner"), "SUPERVISOR_COMMS"):
-            # TODO: AIP 72: Add deprecation here once we move this module to task sdk.
-            from airflow.sdk import Connection as TaskSDKConnection
+        is_backend_configured = conf.get("secrets", "backend")
+        if not is_backend_configured:
+            # TODO: This is not the best way of having compat, but it's "better than erroring" for now. This still
+            # means SQLA etc is loaded, but we can't avoid that unless/until we add import shims as a big
+            # back-compat layer
 
-            return TaskSDKConnection.get(conn_id=conn_id)
+            # If this is set it means are in some kind of execution context (Task, Dag Parse or Triggerer perhaps)
+            # and should use the Task SDK API server path
+            if hasattr(sys.modules.get("airflow.sdk.execution_time.task_runner"), "SUPERVISOR_COMMS"):
+                # TODO: AIP 72: Add deprecation here once we move this module to task sdk.
+                from airflow.sdk import Connection as TaskSDKConnection
+
+                return TaskSDKConnection.get(conn_id=conn_id)
 
         from airflow.models.connection import Connection
 
