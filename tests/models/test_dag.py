@@ -125,7 +125,7 @@ def clear_dags():
     yield
     clear_db_dags()
     clear_db_serialized_dags()
-    clear_db_dag_bundles
+    clear_db_dag_bundles()
 
 
 @pytest.fixture
