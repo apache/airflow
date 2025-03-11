@@ -619,13 +619,16 @@ class TestSchedulerJob:
             for executor in scheduler_job.executors:
                 executor.get_event_buffer.assert_called_once()
 
-    def test_executor_debug_dump(self, mock_executors):
+    @patch("traceback.extract_stack")
+    def test_executor_debug_dump(self, patch_traceback_extract_stack, mock_executors):
         scheduler_job = Job()
         self.job_runner = SchedulerJobRunner(job=scheduler_job, num_runs=1)
         self.job_runner._debug_dump(1, mock.MagicMock())
 
         for executor in scheduler_job.executors:
             executor.debug_dump.assert_called_once()
+
+        patch_traceback_extract_stack.assert_called()
 
     def test_find_executable_task_instances_backfill(self, dag_maker):
         dag_id = "SchedulerJobTest.test_find_executable_task_instances_backfill"

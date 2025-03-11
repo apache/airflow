@@ -27,8 +27,9 @@ def get_provider_info():
         "name": "Apache Kylin",
         "description": "`Apache Kylin <https://kylin.apache.org/>`__\n",
         "state": "ready",
-        "source-date-epoch": 1741121830,
+        "source-date-epoch": 1741508276,
         "versions": [
+            "3.8.1",
             "3.8.0",
             "3.7.0",
             "3.6.2",

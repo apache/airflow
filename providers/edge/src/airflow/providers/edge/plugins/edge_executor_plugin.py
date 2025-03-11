@@ -27,7 +27,6 @@ from flask_appbuilder import BaseView, expose
 from markupsafe import Markup
 from sqlalchemy import select
 
-from airflow.auth.managers.models.resource_details import AccessView
 from airflow.configuration import conf
 from airflow.exceptions import AirflowConfigException
 from airflow.models.taskinstance import TaskInstanceState
@@ -36,9 +35,12 @@ from airflow.providers.edge.version_compat import AIRFLOW_V_3_0_PLUS
 from airflow.utils.state import State
 
 if AIRFLOW_V_3_0_PLUS:
+    from airflow.api_fastapi.auth.managers.models.resource_details import AccessView
     from airflow.providers.fab.www.auth import has_access_view
+
 else:
-    from airflow.www.auth import has_access_view  # type: ignore
+    from airflow.auth.managers.models.resource_details import AccessView  # type: ignore[no-redef]
+    from airflow.www.auth import has_access_view  # type: ignore[no-redef]
 from airflow.utils.session import NEW_SESSION, provide_session
 from airflow.utils.yaml import safe_load
 

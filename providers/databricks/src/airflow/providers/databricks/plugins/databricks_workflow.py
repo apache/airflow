@@ -62,7 +62,10 @@ REPAIR_WAIT_DELAY = os.getenv("DATABRICKS_REPAIR_WAIT_DELAY", 0.5)
 
 
 def get_auth_decorator():
-    from airflow.auth.managers.models.resource_details import DagAccessEntity
+    if AIRFLOW_V_3_0_PLUS:
+        from airflow.api_fastapi.auth.managers.models.resource_details import DagAccessEntity
+    else:
+        from airflow.auth.managers.models.resource_details import DagAccessEntity
 
     return auth.has_access_dag("POST", DagAccessEntity.RUN)
 

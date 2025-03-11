@@ -31,7 +31,11 @@ from airflow.providers.standard.operators.empty import EmptyOperator
 from unit.fab.auth_manager.api_endpoints.api_connexion_utils import create_user, delete_user
 
 try:
-    from airflow.auth.managers.models.resource_details import AccessView, DagAccessEntity, DagDetails
+    from airflow.api_fastapi.auth.managers.models.resource_details import (
+        AccessView,
+        DagAccessEntity,
+        DagDetails,
+    )
 except ImportError:
     pass
 
@@ -41,7 +45,7 @@ with ignore_provider_compatibility_error("2.9.0+", __file__):
     from airflow.providers.fab.auth_manager.fab_auth_manager import FabAuthManager
     from airflow.providers.fab.auth_manager.security_manager.override import FabAirflowSecurityManagerOverride
 
-from airflow.providers.common.compat.security.permissions import RESOURCE_ASSET
+from airflow.providers.common.compat.security.permissions import RESOURCE_ASSET, RESOURCE_ASSET_ALIAS
 from airflow.providers.fab.www.security.permissions import (
     ACTION_CAN_ACCESS_MENU,
     ACTION_CAN_CREATE,
@@ -63,13 +67,14 @@ from airflow.providers.fab.www.security.permissions import (
 )
 
 if TYPE_CHECKING:
-    from airflow.auth.managers.base_auth_manager import ResourceMethod
+    from airflow.api_fastapi.auth.managers.base_auth_manager import ResourceMethod
 
 
 IS_AUTHORIZED_METHODS_SIMPLE = {
     "is_authorized_configuration": RESOURCE_CONFIG,
     "is_authorized_connection": RESOURCE_CONNECTION,
     "is_authorized_asset": RESOURCE_ASSET,
+    "is_authorized_asset_alias": RESOURCE_ASSET_ALIAS,
     "is_authorized_variable": RESOURCE_VARIABLE,
 }
 
@@ -556,7 +561,7 @@ class TestFabAuthManager:
 
     def test_get_url_login(self, auth_manager):
         result = auth_manager.get_url_login()
-        assert result == "http://localhost:8080/auth/login"
+        assert result == "http://localhost:8080/auth/login/"
 
     @pytest.mark.db_test
     def test_get_url_logout_when_auth_view_not_defined(self, auth_manager_with_appbuilder):
@@ -570,3 +575,9 @@ class TestFabAuthManager:
         auth_manager_with_appbuilder.security_manager.auth_view.endpoint = "test_endpoint"
         auth_manager_with_appbuilder.get_url_logout()
         mock_url_for.assert_called_once_with("test_endpoint.logout")
+
+    @pytest.mark.db_test
+    @mock.patch("airflow.providers.fab.auth_manager.fab_auth_manager.logout_user")
+    def test_logout(self, mock_logout_user, auth_manager_with_appbuilder):
+        auth_manager_with_appbuilder.logout()
+        mock_logout_user.assert_called_once()

@@ -24,8 +24,8 @@ from typing import TYPE_CHECKING, Any, cast
 
 from fastapi import FastAPI
 
-from airflow.auth.managers.base_auth_manager import BaseAuthManager
-from airflow.auth.managers.models.resource_details import (
+from airflow.api_fastapi.auth.managers.base_auth_manager import BaseAuthManager
+from airflow.api_fastapi.auth.managers.models.resource_details import (
     AccessView,
     ConnectionDetails,
     DagAccessEntity,
@@ -48,14 +48,18 @@ from airflow.providers.amazon.aws.auth_manager.user import AwsAuthManagerUser
 from airflow.providers.amazon.version_compat import AIRFLOW_V_3_0_PLUS
 
 if TYPE_CHECKING:
-    from airflow.auth.managers.base_auth_manager import ResourceMethod
-    from airflow.auth.managers.models.batch_apis import (
+    from airflow.api_fastapi.auth.managers.base_auth_manager import ResourceMethod
+    from airflow.api_fastapi.auth.managers.models.batch_apis import (
         IsAuthorizedConnectionRequest,
         IsAuthorizedDagRequest,
         IsAuthorizedPoolRequest,
         IsAuthorizedVariableRequest,
     )
-    from airflow.auth.managers.models.resource_details import AssetDetails, ConfigurationDetails
+    from airflow.api_fastapi.auth.managers.models.resource_details import (
+        AssetAliasDetails,
+        AssetDetails,
+        ConfigurationDetails,
+    )
 
 
 class AwsAuthManager(BaseAuthManager[AwsAuthManagerUser]):
@@ -156,6 +160,14 @@ class AwsAuthManager(BaseAuthManager[AwsAuthManagerUser]):
         asset_id = details.id if details else None
         return self.avp_facade.is_authorized(
             method=method, entity_type=AvpEntities.ASSET, user=user, entity_id=asset_id
+        )
+
+    def is_authorized_asset_alias(
+        self, *, method: ResourceMethod, user: AwsAuthManagerUser, details: AssetAliasDetails | None = None
+    ) -> bool:
+        asset_alias_id = details.id if details else None
+        return self.avp_facade.is_authorized(
+            method=method, entity_type=AvpEntities.ASSET_ALIAS, user=user, entity_id=asset_alias_id
         )
 
     def is_authorized_pool(

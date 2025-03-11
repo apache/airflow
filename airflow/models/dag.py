@@ -21,6 +21,7 @@ import asyncio
 import copy
 import functools
 import logging
+import re
 import sys
 import time
 from collections import defaultdict
@@ -42,7 +43,6 @@ from typing import (
 import attrs
 import methodtools
 import pendulum
-import re2
 import sqlalchemy_jsonfield
 from dateutil.relativedelta import relativedelta
 from packaging import version as packaging_version
@@ -1722,7 +1722,7 @@ class DAG(TaskSDKDag, LoggingMixin):
                     ti.task = tasks[ti.task_id]
 
                     mark_success = (
-                        re2.compile(mark_success_pattern).fullmatch(ti.task_id) is not None
+                        re.compile(mark_success_pattern).fullmatch(ti.task_id) is not None
                         if mark_success_pattern is not None
                         else False
                     )
@@ -1804,9 +1804,9 @@ class DAG(TaskSDKDag, LoggingMixin):
 
         # This is also done on the DagRun model class, but SQLAlchemy column
         # validator does not work well for some reason.
-        if not re2.match(RUN_ID_REGEX, run_id):
+        if not re.match(RUN_ID_REGEX, run_id):
             regex = airflow_conf.get("scheduler", "allowed_run_id_pattern").strip()
-            if not regex or not re2.match(regex, run_id):
+            if not regex or not re.match(regex, run_id):
                 raise ValueError(
                     f"The run_id provided '{run_id}' does not match regex pattern "
                     f"'{regex}' or '{RUN_ID_REGEX}'"

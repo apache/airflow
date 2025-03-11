@@ -27,8 +27,9 @@ def get_provider_info():
         "name": "Apache Drill",
         "description": "`Apache Drill <https://drill.apache.org/>`__.\n",
         "state": "ready",
-        "source-date-epoch": 1741121818,
+        "source-date-epoch": 1741507793,
         "versions": [
+            "3.0.1",
             "3.0.0",
             "2.8.1",
             "2.8.0",

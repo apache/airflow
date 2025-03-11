@@ -24,9 +24,8 @@ from fastapi.security import OAuth2PasswordBearer
 from jwt import ExpiredSignatureError, InvalidTokenError
 
 from airflow.api_fastapi.app import get_auth_manager
-from airflow.auth.managers.models.base_user import BaseUser
-from airflow.auth.managers.models.resource_details import (
-    AccessView,
+from airflow.api_fastapi.auth.managers.models.resource_details import (
+    AssetAliasDetails,
     AssetDetails,
     ConfigurationDetails,
     ConnectionDetails,
@@ -35,11 +34,13 @@ from airflow.auth.managers.models.resource_details import (
     PoolDetails,
     VariableDetails,
 )
+from airflow.auth.managers.models.base_user import BaseUser
+from airflow.auth.managers.models.resource_details import AccessView
 from airflow.configuration import conf
 from airflow.utils.jwt_signer import JWTSigner, get_signing_key
 
 if TYPE_CHECKING:
-    from airflow.auth.managers.base_auth_manager import ResourceMethod
+    from airflow.api_fastapi.auth.managers.base_auth_manager import ResourceMethod
 
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="token")
 
@@ -81,9 +82,11 @@ async def get_user_with_exception_handling(request: Request) -> BaseUser | None:
 
 def requires_access_dag(method: ResourceMethod, access_entity: DagAccessEntity | None = None) -> Callable:
     def inner(
+        request: Request,
         user: Annotated[BaseUser, Depends(get_user)],
-        dag_id: str | None = None,
     ) -> None:
+        dag_id = request.path_params.get("dag_id") or request.query_params.get("dag_id")
+
         _requires_access(
             is_authorized_callback=lambda: get_auth_manager().is_authorized_dag(
                 method=method, access_entity=access_entity, details=DagDetails(id=dag_id), user=user
@@ -183,6 +186,22 @@ def requires_access_view(access_view: AccessView) -> Callable[[Request, BaseUser
         _requires_access(
             is_authorized_callback=lambda: get_auth_manager().is_authorized_view(
                 access_view=access_view, user=user
+            ),
+        )
+
+    return inner
+
+
+def requires_access_asset_alias(method: ResourceMethod) -> Callable:
+    def inner(
+        request: Request,
+        user: Annotated[BaseUser | None, Depends(get_user)] = None,
+    ) -> None:
+        asset_alias_id: str | None = request.path_params.get("asset_alias_id")
+
+        _requires_access(
+            is_authorized_callback=lambda: get_auth_manager().is_authorized_asset_alias(
+                method=method, details=AssetAliasDetails(id=asset_alias_id), user=user
             ),
         )
 
