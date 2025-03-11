@@ -134,6 +134,7 @@ def _create_timetable(interval: ScheduleInterval, timezone: Timezone | FixedTime
 
 def _config_bool_factory(section: str, key: str):
     from airflow.configuration import conf
+    
     return functools.partial(conf.getboolean, section, key)
 
 
