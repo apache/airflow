@@ -2671,6 +2671,14 @@ dag_processor:
       type: integer
       example: ~
       default: "30"
+    disable_bundle_versioning:
+      description: |
+        Always run tasks with the latest code.  If set to True, the bundle version will not
+        be stored on the dag run and therefore, the latest code will always be used.
+      version_added: ~
+      type: boolean
+      example: ~
+      default: "False"
     bundle_refresh_check_interval:
       description: |
         How often the DAG processor should check if any DAG bundles are ready for a refresh, either by hitting

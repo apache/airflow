@@ -261,6 +261,11 @@ def _create_orm_dagrun(
     triggered_by: DagRunTriggeredByType,
     session: Session = NEW_SESSION,
 ) -> DagRun:
+    bundle_version = None
+    if not dag.disable_bundle_versioning:
+        bundle_version = session.scalar(
+            select(DagModel.bundle_version).where(DagModel.dag_id == dag.dag_id),
+        )
     run = DagRun(
         dag_id=dag.dag_id,
         run_id=run_id,
@@ -274,7 +279,7 @@ def _create_orm_dagrun(
         data_interval=data_interval,
         triggered_by=triggered_by,
         backfill_id=backfill_id,
-        bundle_version=session.scalar(select(DagModel.bundle_version).where(DagModel.dag_id == dag.dag_id)),
+        bundle_version=bundle_version,
     )
     # Load defaults into the following two fields to ensure result can be serialized detached
     run.log_template_id = int(session.scalar(select(func.max(LogTemplate.__table__.c.id))))
