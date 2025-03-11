@@ -95,7 +95,7 @@ from airflow.exceptions import (
 )
 from airflow.listeners.listener import get_listener_manager
 from airflow.models.asset import AssetActive, AssetEvent, AssetModel
-from airflow.models.base import Base, StringID, TaskInstanceDependencies, _sentinel
+from airflow.models.base import Base, StringID, TaskInstanceDependencies
 from airflow.models.dagbag import DagBag
 from airflow.models.log import Log
 from airflow.models.renderedtifields import get_serialized_template_fields
@@ -109,6 +109,7 @@ from airflow.sdk.definitions._internal.templater import SandboxedEnvironment
 from airflow.sdk.definitions.asset import Asset, AssetAlias, AssetNameRef, AssetUniqueKey, AssetUriRef
 from airflow.sdk.definitions.param import process_params
 from airflow.sdk.definitions.taskgroup import MappedTaskGroup
+from airflow.sdk.execution_time.context import InletEventsAccessors
 from airflow.sentry import Sentry
 from airflow.settings import task_instance_mutation_hook
 from airflow.stats import Stats
@@ -119,7 +120,6 @@ from airflow.utils import timezone
 from airflow.utils.context import (
     ConnectionAccessor,
     Context,
-    InletEventsAccessors,
     OutletEventAccessors,
     VariableAccessor,
     context_get_outlet_events,
@@ -472,6 +472,7 @@ def clear_task_instances(
 
     for ti in tis:
         TaskInstanceHistory.record_ti(ti, session)
+        ti.try_id = uuid7()
         if ti.state == TaskInstanceState.RUNNING:
             # If a task is cleared when running, set its state to RESTARTING so that
             # the task is terminated and becomes eligible for retry.
@@ -653,6 +654,7 @@ def _execute_task(task_instance: TaskInstance, context: Context, task_orig: Oper
 
     :meta private:
     """
+    from airflow.sdk.definitions.baseoperator import ExecutorSafeguard
     from airflow.sdk.definitions.mappedoperator import MappedOperator
 
     task_to_execute = task_instance.task
@@ -674,14 +676,18 @@ def _execute_task(task_instance: TaskInstance, context: Context, task_orig: Oper
         if task_instance.next_method == "execute":
             if not task_instance.next_kwargs:
                 task_instance.next_kwargs = {}
-            task_instance.next_kwargs[f"{task_to_execute.__class__.__name__}__sentinel"] = _sentinel
+            task_instance.next_kwargs[f"{task_to_execute.__class__.__name__}__sentinel"] = (
+                ExecutorSafeguard.sentinel_value
+            )
         execute_callable = task_to_execute.resume_execution
         execute_callable_kwargs["next_method"] = task_instance.next_method
         execute_callable_kwargs["next_kwargs"] = task_instance.next_kwargs
     else:
         execute_callable = task_to_execute.execute
         if execute_callable.__name__ == "execute":
-            execute_callable_kwargs[f"{task_to_execute.__class__.__name__}__sentinel"] = _sentinel
+            execute_callable_kwargs[f"{task_to_execute.__class__.__name__}__sentinel"] = (
+                ExecutorSafeguard.sentinel_value
+            )
 
     def _execute_callable(context: Context, **execute_callable_kwargs):
         try:
@@ -764,6 +770,7 @@ def _set_ti_attrs(target, source, include_dag_run=False):
     target.end_date = source.end_date
     target.duration = source.duration
     target.state = source.state
+    target.try_id = source.try_id
     target.try_number = source.try_number
     target.max_tries = source.max_tries
     target.hostname = source.hostname
@@ -966,14 +973,14 @@ def _get_template_context(
         return triggering_events
 
     # NOTE: If you add to this dict, make sure to also update the following:
-    # * Context in task_sdk/src/airflow/sdk/definitions/context.py
+    # * Context in task-sdk/src/airflow/sdk/definitions/context.py
     # * KNOWN_CONTEXT_KEYS in airflow/utils/context.py
     # * Table in docs/apache-airflow/templates-ref.rst
 
     context.update(
         {
             "outlet_events": OutletEventAccessors(),
-            "inlet_events": InletEventsAccessors(task.inlets, session=session),
+            "inlet_events": InletEventsAccessors(task.inlets),
             "macros": macros,
             "params": validated_params,
             "prev_data_interval_start_success": get_prev_data_interval_start_success(),
@@ -1655,6 +1662,7 @@ class TaskInstance(Base, LoggingMixin):
     end_date = Column(UtcDateTime)
     duration = Column(Float)
     state = Column(String(20))
+    try_id = Column(UUIDType(binary=False), default=uuid7, unique=True, nullable=False)
     try_number = Column(Integer, default=0)
     max_tries = Column(Integer, server_default=text("-1"))
     hostname = Column(String(1000))
@@ -3145,6 +3153,7 @@ class TaskInstance(Base, LoggingMixin):
                 from airflow.models.taskinstancehistory import TaskInstanceHistory
 
                 TaskInstanceHistory.record_ti(ti, session=session)
+                ti.try_id = uuid7()
 
             ti.state = State.UP_FOR_RETRY
             email_for_state = operator.attrgetter("email_on_retry")
@@ -3610,12 +3619,12 @@ class TaskInstance(Base, LoggingMixin):
         from airflow.models.renderedtifields import RenderedTaskInstanceFields
 
         tables: list[type[TaskInstanceDependencies]] = [
-            TaskInstanceNote,
             TaskReschedule,
             XCom,
             RenderedTaskInstanceFields,
             TaskMap,
         ]
+        tables_by_id: list[type[Base]] = [TaskInstanceNote]
         for table in tables:
             session.execute(
                 delete(table).where(
@@ -3625,6 +3634,8 @@ class TaskInstance(Base, LoggingMixin):
                     table.map_index == self.map_index,
                 )
             )
+        for table in tables_by_id:
+            session.execute(delete(table).where(table.ti_id == self.id))
 
     @classmethod
     def duration_expression_update(
@@ -3795,31 +3806,27 @@ class SimpleTaskInstance:
         )
 
 
-class TaskInstanceNote(TaskInstanceDependencies):
+class TaskInstanceNote(Base):
     """For storage of arbitrary notes concerning the task instance."""
 
     __tablename__ = "task_instance_note"
-
+    ti_id = Column(
+        String(36).with_variant(postgresql.UUID(as_uuid=False), "postgresql"),
+        primary_key=True,
+        nullable=False,
+    )
     user_id = Column(String(128), nullable=True)
-    task_id = Column(StringID(), primary_key=True, nullable=False)
-    dag_id = Column(StringID(), primary_key=True, nullable=False)
-    run_id = Column(StringID(), primary_key=True, nullable=False)
-    map_index = Column(Integer, primary_key=True, nullable=False)
     content = Column(String(1000).with_variant(Text(1000), "mysql"))
     created_at = Column(UtcDateTime, default=timezone.utcnow, nullable=False)
     updated_at = Column(UtcDateTime, default=timezone.utcnow, onupdate=timezone.utcnow, nullable=False)
 
-    task_instance = relationship("TaskInstance", back_populates="task_instance_note")
+    task_instance = relationship("TaskInstance", back_populates="task_instance_note", uselist=False)
 
     __table_args__ = (
-        PrimaryKeyConstraint("task_id", "dag_id", "run_id", "map_index", name="task_instance_note_pkey"),
         ForeignKeyConstraint(
-            (dag_id, task_id, run_id, map_index),
+            (ti_id,),
             [
-                "task_instance.dag_id",
-                "task_instance.task_id",
-                "task_instance.run_id",
-                "task_instance.map_index",
+                "task_instance.id",
             ],
             name="task_instance_note_ti_fkey",
             ondelete="CASCADE",
@@ -3831,10 +3838,10 @@ class TaskInstanceNote(TaskInstanceDependencies):
         self.user_id = user_id
 
     def __repr__(self):
-        prefix = f"<{self.__class__.__name__}: {self.dag_id}.{self.task_id} {self.run_id}"
-        if self.map_index != -1:
-            prefix += f" map_index={self.map_index}"
-        return prefix + ">"
+        prefix = f"<{self.__class__.__name__}: {self.task_instance.dag_id}.{self.task_instance.task_id} {self.task_instance.run_id}"
+        if self.task_instance.map_index != -1:
+            prefix += f" map_index={self.task_instance.map_index}"
+        return prefix + f" TI ID: {self.ti_id}>"
 
 
 STATICA_HACK = True

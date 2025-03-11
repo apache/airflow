@@ -885,6 +885,7 @@ export const useConnectionServiceGetConnection = <
  * @param data.limit
  * @param data.offset
  * @param data.orderBy
+ * @param data.connectionIdPattern
  * @returns ConnectionCollectionResponse Successful Response
  * @throws ApiError
  */
@@ -894,10 +895,12 @@ export const useConnectionServiceGetConnections = <
   TQueryKey extends Array<unknown> = unknown[],
 >(
   {
+    connectionIdPattern,
     limit,
     offset,
     orderBy,
   }: {
+    connectionIdPattern?: string;
     limit?: number;
     offset?: number;
     orderBy?: string;
@@ -906,8 +909,11 @@ export const useConnectionServiceGetConnections = <
   options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">,
 ) =>
   useQuery<TData, TError>({
-    queryKey: Common.UseConnectionServiceGetConnectionsKeyFn({ limit, offset, orderBy }, queryKey),
-    queryFn: () => ConnectionService.getConnections({ limit, offset, orderBy }) as TData,
+    queryKey: Common.UseConnectionServiceGetConnectionsKeyFn(
+      { connectionIdPattern, limit, offset, orderBy },
+      queryKey,
+    ),
+    queryFn: () => ConnectionService.getConnections({ connectionIdPattern, limit, offset, orderBy }) as TData,
     ...options,
   });
 /**
@@ -2757,6 +2763,35 @@ export const useVariableServiceGetVariables = <
       queryKey,
     ),
     queryFn: () => VariableService.getVariables({ limit, offset, orderBy, variableKeyPattern }) as TData,
+    ...options,
+  });
+/**
+ * Get Dag Version
+ * Get one Dag Version.
+ * @param data The data for the request.
+ * @param data.dagId
+ * @param data.versionNumber
+ * @returns DagVersionResponse Successful Response
+ * @throws ApiError
+ */
+export const useDagVersionServiceGetDagVersion = <
+  TData = Common.DagVersionServiceGetDagVersionDefaultResponse,
+  TError = unknown,
+  TQueryKey extends Array<unknown> = unknown[],
+>(
+  {
+    dagId,
+    versionNumber,
+  }: {
+    dagId: string;
+    versionNumber: number;
+  },
+  queryKey?: TQueryKey,
+  options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">,
+) =>
+  useQuery<TData, TError>({
+    queryKey: Common.UseDagVersionServiceGetDagVersionKeyFn({ dagId, versionNumber }, queryKey),
+    queryFn: () => DagVersionService.getDagVersion({ dagId, versionNumber }) as TData,
     ...options,
   });
 /**

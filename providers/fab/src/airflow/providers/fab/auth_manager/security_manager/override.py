@@ -24,12 +24,11 @@ import logging
 import os
 import random
 import uuid
-from collections.abc import Collection, Iterable, Mapping, Sequence
-from typing import TYPE_CHECKING, Any, Callable
+from collections.abc import Collection, Iterable, Mapping
+from typing import TYPE_CHECKING, Any
 
 import jwt
 import packaging.version
-import re2
 from flask import flash, g, has_request_context, session
 from flask_appbuilder import const
 from flask_appbuilder.const import (
@@ -63,20 +62,19 @@ from flask_appbuilder.security.views import (
 )
 from flask_appbuilder.views import expose
 from flask_babel import lazy_gettext
-from flask_jwt_extended import JWTManager, current_user as current_user_jwt
+from flask_jwt_extended import JWTManager
 from flask_login import LoginManager
 from itsdangerous import want_bytes
 from markupsafe import Markup
-from sqlalchemy import and_, func, inspect, literal, or_, select
+from sqlalchemy import func, inspect, or_, select
 from sqlalchemy.exc import MultipleResultsFound
 from sqlalchemy.orm import joinedload
 from werkzeug.security import check_password_hash, generate_password_hash
 
 from airflow import __version__ as airflow_version
-from airflow.api_fastapi.app import get_auth_manager
 from airflow.configuration import conf
 from airflow.exceptions import AirflowException
-from airflow.models import DagBag, DagModel
+from airflow.models import DagBag
 from airflow.providers.fab.auth_manager.models import (
     Action,
     Permission,
@@ -84,7 +82,6 @@ from airflow.providers.fab.auth_manager.models import (
     Resource,
     Role,
     User,
-    assoc_permission_role,
 )
 from airflow.providers.fab.auth_manager.models.anonymous_user import AnonymousUser
 from airflow.providers.fab.auth_manager.security_manager.constants import EXISTING_ROLES
@@ -115,9 +112,9 @@ from airflow.providers.fab.www.session import (
 )
 
 if TYPE_CHECKING:
-    from airflow.providers.fab.www.security.permissions import RESOURCE_ASSET
+    from airflow.providers.fab.www.security.permissions import RESOURCE_ASSET, RESOURCE_ASSET_ALIAS
 else:
-    from airflow.providers.common.compat.security.permissions import RESOURCE_ASSET
+    from airflow.providers.common.compat.security.permissions import RESOURCE_ASSET, RESOURCE_ASSET_ALIAS
 
 log = logging.getLogger(__name__)
 
@@ -213,8 +210,6 @@ class FabAirflowSecurityManagerOverride(AirflowSecurityManagerV2):
 
     jwt_manager = None
     """ Flask-JWT-Extended """
-    oid = None
-    """ Flask-OpenID OpenID """
     oauth = None
     oauth_remotes: dict[str, Any]
     """ Initialized (remote_app) providers dict {'provider_name', OBJ } """
@@ -238,6 +233,7 @@ class FabAirflowSecurityManagerOverride(AirflowSecurityManagerV2):
         (permissions.ACTION_CAN_READ, permissions.RESOURCE_DAG_CODE),
         (permissions.ACTION_CAN_READ, permissions.RESOURCE_DAG_RUN),
         (permissions.ACTION_CAN_READ, RESOURCE_ASSET),
+        (permissions.ACTION_CAN_READ, RESOURCE_ASSET_ALIAS),
         (permissions.ACTION_CAN_READ, permissions.RESOURCE_CLUSTER_ACTIVITY),
         (permissions.ACTION_CAN_READ, permissions.RESOURCE_POOL),
         (permissions.ACTION_CAN_READ, permissions.RESOURCE_IMPORT_ERROR),
@@ -723,37 +719,9 @@ class FabAirflowSecurityManagerOverride(AirflowSecurityManagerV2):
         return self.appbuilder.get_app.config["AUTH_ROLES_MAPPING"]
 
     @property
-    def auth_user_registration_role_jmespath(self) -> str:
-        """The JMESPATH role to use for user registration."""
-        return self.appbuilder.get_app.config["AUTH_USER_REGISTRATION_ROLE_JMESPATH"]
-
-    @property
-    def auth_remote_user_env_var(self) -> str:
-        return self.appbuilder.get_app.config["AUTH_REMOTE_USER_ENV_VAR"]
-
-    @property
-    def api_login_allow_multiple_providers(self):
-        return self.appbuilder.get_app.config["AUTH_API_LOGIN_ALLOW_MULTIPLE_PROVIDERS"]
-
-    @property
     def auth_username_ci(self):
         """Get the auth username for CI."""
         return self.appbuilder.get_app.config.get("AUTH_USERNAME_CI", True)
-
-    @property
-    def auth_ldap_bind_first(self):
-        """LDAP bind first."""
-        return self.appbuilder.get_app.config["AUTH_LDAP_BIND_FIRST"]
-
-    @property
-    def openid_providers(self):
-        """Openid providers."""
-        return self.appbuilder.get_app.config["OPENID_PROVIDERS"]
-
-    @property
-    def auth_type_provider_name(self):
-        provider_to_auth_type = {AUTH_DB: "db", AUTH_LDAP: "ldap"}
-        return provider_to_auth_type.get(self.auth_type)
 
     @property
     def auth_user_registration(self):
@@ -969,27 +937,6 @@ class FabAirflowSecurityManagerOverride(AirflowSecurityManagerV2):
             log.exception(const.LOGMSG_ERR_SEC_CREATE_DB)
             exit(1)
 
-    @staticmethod
-    def get_readable_dag_ids(user=None) -> set[str]:
-        """Get the DAG IDs readable by authenticated user."""
-        return get_auth_manager().get_permitted_dag_ids(methods=["GET"], user=user)
-
-    @staticmethod
-    def get_editable_dag_ids(user=None) -> set[str]:
-        """Get the DAG IDs editable by authenticated user."""
-        return get_auth_manager().get_permitted_dag_ids(methods=["PUT"], user=user)
-
-    def can_access_some_dags(self, action: str, dag_id: str | None = None) -> bool:
-        """Check if user has read or write access to some dags."""
-        if dag_id and dag_id != "~":
-            root_dag_id = self._get_root_dag_id(dag_id)
-            return self.has_access(action, self._resource_name(root_dag_id, permissions.RESOURCE_DAG))
-
-        user = g.user
-        if action == permissions.ACTION_CAN_READ:
-            return any(self.get_readable_dag_ids(user))
-        return any(self.get_editable_dag_ids(user))
-
     def get_all_permissions(self) -> set[tuple[str, str]]:
         """Return all permissions as a set of tuples with the action and resource names."""
         return set(
@@ -1016,8 +963,7 @@ class FabAirflowSecurityManagerOverride(AirflowSecurityManagerV2):
         dags = dagbag.dags.values()
 
         for dag in dags:
-            # TODO: Remove this when the minimum version of Airflow is bumped to 3.0
-            root_dag_id = (getattr(dag, "parent_dag", None) or dag).dag_id
+            root_dag_id = dag.dag_id
             for resource_name, resource_values in self.RESOURCE_DETAILS_MAP.items():
                 dag_resource_name = self._resource_name(root_dag_id, resource_name)
                 for action_name in resource_values["actions"]:
@@ -1026,12 +972,6 @@ class FabAirflowSecurityManagerOverride(AirflowSecurityManagerV2):
 
             if dag.access_control is not None:
                 self.sync_perm_for_dag(root_dag_id, dag.access_control)
-
-    def is_dag_resource(self, resource_name: str) -> bool:
-        """Determine if a resource belongs to a DAG or all DAGs."""
-        if resource_name == permissions.RESOURCE_DAG:
-            return True
-        return resource_name.startswith(permissions.RESOURCE_DAG_PREFIX)
 
     def sync_perm_for_dag(
         self,
@@ -1219,31 +1159,6 @@ class FabAirflowSecurityManagerOverride(AirflowSecurityManagerV2):
             role_admin = self.find_role(self.auth_role_admin)
             self.add_permission_to_role(role_admin, perm)
 
-    def security_cleanup(self, baseviews, menus):
-        """
-        Cleanup all unused permissions from the database.
-
-        :param baseviews: A list of BaseViews class
-        :param menus: Menu class
-        """
-        resources = self.get_all_resources()
-        roles = self.get_all_roles()
-        for resource in resources:
-            found = False
-            for baseview in baseviews:
-                if resource.name == baseview.class_permission_name:
-                    found = True
-                    break
-            if menus.find(resource.name):
-                found = True
-            if not found:
-                permissions = self.get_resource_permissions(resource)
-                for permission in permissions:
-                    for role in roles:
-                        self.remove_permission_from_role(role, permission)
-                    self.delete_permission(permission.action.name, resource.name)
-                self.delete_resource(resource.name)
-
     def sync_roles(self) -> None:
         """
         Initialize default and custom roles with related permissions.
@@ -1323,40 +1238,6 @@ class FabAirflowSecurityManagerOverride(AirflowSecurityManagerV2):
         if deleted_count:
             self.log.info("Deleted %s faulty permissions", deleted_count)
 
-    def permission_exists_in_one_or_more_roles(
-        self, resource_name: str, action_name: str, role_ids: list[int]
-    ) -> bool:
-        """
-        Efficiently check if a certain permission exists on a list of role ids; used by `has_access`.
-
-        :param resource_name: The view's name to check if exists on one of the roles
-        :param action_name: The permission name to check if exists
-        :param role_ids: a list of Role ids
-        :return: Boolean
-        """
-        q = (
-            self.appbuilder.get_session.query(self.permission_model)
-            .join(
-                assoc_permission_role,
-                and_(self.permission_model.id == assoc_permission_role.c.permission_view_id),
-            )
-            .join(self.role_model)
-            .join(self.action_model)
-            .join(self.resource_model)
-            .filter(
-                self.resource_model.name == resource_name,
-                self.action_model.name == action_name,
-                self.role_model.id.in_(role_ids),
-            )
-            .exists()
-        )
-        # Special case for MSSQL/Oracle (works on PG and MySQL > 8)
-        # Note: We need to keep MSSQL compatibility as long as this provider package
-        #       might still be updated by Airflow prior 2.9.0 users with MSSQL
-        if self.appbuilder.get_session.bind.dialect.name in ("mssql", "oracle"):
-            return self.appbuilder.get_session.query(literal(True)).filter(q).scalar()
-        return self.appbuilder.get_session.query(q).scalar()
-
     def perms_include_action(self, perms, action_name):
         return any(perm.action and perm.action.name == action_name for perm in perms)
 
@@ -1377,15 +1258,6 @@ class FabAirflowSecurityManagerOverride(AirflowSecurityManagerV2):
 
                 if perm not in role.permissions:
                     self.add_permission_to_role(role, perm)
-
-    def sync_resource_permissions(self, perms: Iterable[tuple[str, str]] | None = None) -> None:
-        """Populate resource-based permissions."""
-        if not perms:
-            return
-
-        for action_name, resource_name in perms:
-            self.create_resource(resource_name)
-            self.create_permission(action_name, resource_name)
 
     """
     -----------
@@ -1578,13 +1450,6 @@ class FabAirflowSecurityManagerOverride(AirflowSecurityManagerV2):
                 log.error("Multiple results found for user with email %s", email)
                 return None
 
-    def find_register_user(self, registration_hash):
-        return self.get_session.scalar(
-            select(self.registeruser_mode)
-            .where(self.registeruser_model.registration_hash == registration_hash)
-            .limit(1)
-        )
-
     def update_user(self, user: User) -> bool:
         try:
             self.get_session.merge(user)
@@ -1734,38 +1599,6 @@ class FabAirflowSecurityManagerOverride(AirflowSecurityManagerV2):
                 self.get_session.rollback()
         return resource
 
-    def get_all_resources(self) -> list[Resource]:
-        """Get all existing resource records."""
-        return self.get_session.query(self.resource_model).all()
-
-    def delete_resource(self, name: str) -> bool:
-        """
-        Delete a Resource from the backend.
-
-        :param name:
-            name of the resource
-        """
-        resource = self.get_resource(name)
-        if not resource:
-            log.warning(const.LOGMSG_WAR_SEC_DEL_VIEWMENU, name)
-            return False
-        try:
-            perms = (
-                self.get_session.query(self.permission_model)
-                .filter(self.permission_model.resource == resource)
-                .all()
-            )
-            if perms:
-                log.warning(const.LOGMSG_WAR_SEC_DEL_VIEWMENU_PVM, resource, perms)
-                return False
-            self.get_session.delete(resource)
-            self.get_session.commit()
-            return True
-        except Exception as e:
-            log.error(const.LOGMSG_ERR_SEC_DEL_PERMISSION, e)
-            self.get_session.rollback()
-            return False
-
     """
     ---------------
     Permission entity
@@ -1894,13 +1727,6 @@ class FabAirflowSecurityManagerOverride(AirflowSecurityManagerV2):
             except Exception as e:
                 log.error(const.LOGMSG_ERR_SEC_DEL_PERMROLE, e)
                 self.get_session.rollback()
-
-    def get_oid_identity_url(self, provider_name: str) -> str | None:
-        """Return the OIDC identity provider URL."""
-        for provider in self.openid_providers:
-            if provider.get("name") == provider_name:
-                return provider.get("url")
-        return None
 
     @staticmethod
     def get_user_roles(user=None):
@@ -2104,6 +1930,20 @@ class FabAirflowSecurityManagerOverride(AirflowSecurityManagerV2):
                 log.error(e)
                 return None
 
+    def check_password(self, username, password) -> bool:
+        """
+        Check if the password is correct for the username.
+
+        :param username: the username
+        :param password: the password
+        """
+        user = self.find_user(username=username)
+        if user is None:
+            user = self.find_user(email=username)
+        if user is None:
+            return False
+        return check_password_hash(user.password, password)
+
     def auth_user_db(self, username, password):
         """
         Authenticate user, auth db style.
@@ -2134,32 +1974,6 @@ class FabAirflowSecurityManagerOverride(AirflowSecurityManagerV2):
             self.update_user_auth_stat(user, False)
             log.info(LOGMSG_WAR_SEC_LOGIN_FAILED, username)
             return None
-
-    def oauth_user_info_getter(
-        self,
-        func: Callable[[AirflowSecurityManagerV2, str, dict[str, Any] | None], dict[str, Any]],
-    ):
-        """
-        Get OAuth user info for all the providers.
-
-        Receives provider and response return a dict with the information returned from the provider.
-        The returned user info dict should have its keys with the same name as the User Model.
-
-        Use it like this an example for GitHub ::
-
-            @appbuilder.sm.oauth_user_info_getter
-            def my_oauth_user_info(sm, provider, response=None):
-                if provider == "github":
-                    me = sm.oauth_remotes[provider].get("user")
-                    return {"username": me.data.get("login")}
-                return {}
-        """
-
-        def wraps(provider: str, response: dict[str, Any] | None = None) -> dict[str, Any]:
-            return func(self, provider, response)
-
-        self.oauth_user_info = wraps
-        return wraps
 
     def get_oauth_user_info(self, provider: str, resp: dict[str, Any]) -> dict[str, Any]:
         """
@@ -2281,183 +2095,6 @@ class FabAirflowSecurityManagerOverride(AirflowSecurityManagerV2):
         token = session.get("oauth")
         log.debug("Token Get: %s", token)
         return token
-
-    def check_authorization(
-        self,
-        perms: Sequence[tuple[str, str]] | None = None,
-        dag_id: str | None = None,
-    ) -> bool:
-        """Check the logged-in user has the specified permissions."""
-        if not perms:
-            return True
-
-        for perm in perms:
-            if perm in (
-                (permissions.ACTION_CAN_READ, permissions.RESOURCE_DAG),
-                (permissions.ACTION_CAN_EDIT, permissions.RESOURCE_DAG),
-                (permissions.ACTION_CAN_DELETE, permissions.RESOURCE_DAG),
-            ):
-                can_access_all_dags = self.has_access(*perm)
-                if not can_access_all_dags:
-                    action = perm[0]
-                    if not self.can_access_some_dags(action, dag_id):
-                        return False
-            elif not self.has_access(*perm):
-                return False
-
-        return True
-
-    def set_oauth_session(self, provider, oauth_response):
-        """Set the current session with OAuth user secrets."""
-        # Get this provider key names for token_key and token_secret
-        token_key = self.get_oauth_token_key_name(provider)
-        token_secret = self.get_oauth_token_secret_name(provider)
-        # Save users token on encrypted session cookie
-        session["oauth"] = (
-            oauth_response[token_key],
-            oauth_response.get(token_secret, ""),
-        )
-        session["oauth_provider"] = provider
-
-    def get_oauth_token_key_name(self, provider):
-        """
-        Return the token_key name for the oauth provider.
-
-        If none is configured defaults to oauth_token
-        this is configured using OAUTH_PROVIDERS and token_key key.
-        """
-        for _provider in self.oauth_providers:
-            if _provider["name"] == provider:
-                return _provider.get("token_key", "oauth_token")
-
-    def get_oauth_token_secret_name(self, provider):
-        """
-        Get the ``token_secret`` name for the oauth provider.
-
-        If none is configured, defaults to ``oauth_secret``. This is configured
-        using ``OAUTH_PROVIDERS`` and ``token_secret``.
-        """
-        for _provider in self.oauth_providers:
-            if _provider["name"] == provider:
-                return _provider.get("token_secret", "oauth_token_secret")
-
-    def auth_user_oauth(self, userinfo):
-        """
-        Authenticate user with OAuth.
-
-        :userinfo: dict with user information
-                   (keys are the same as User model columns)
-        """
-        # extract the username from `userinfo`
-        if "username" in userinfo:
-            username = userinfo["username"]
-        elif "email" in userinfo:
-            username = userinfo["email"]
-        else:
-            log.error("OAUTH userinfo does not have username or email %s", userinfo)
-            return None
-
-        # If username is empty, go away
-        if (username is None) or username == "":
-            return None
-
-        # Search the DB for this user
-        user = self.find_user(username=username)
-
-        # If user is not active, go away
-        if user and (not user.is_active):
-            return None
-
-        # If user is not registered, and not self-registration, go away
-        if (not user) and (not self.auth_user_registration):
-            return None
-
-        # Sync the user's roles
-        if user and self.auth_roles_sync_at_login:
-            user.roles = self._oauth_calculate_user_roles(userinfo)
-            log.debug("Calculated new roles for user=%r as: %s", username, user.roles)
-
-        # If the user is new, register them
-        if (not user) and self.auth_user_registration:
-            user = self.add_user(
-                username=username,
-                first_name=userinfo.get("first_name", ""),
-                last_name=userinfo.get("last_name", ""),
-                email=userinfo.get("email", "") or f"{username}@email.notfound",
-                role=self._oauth_calculate_user_roles(userinfo),
-            )
-            log.debug("New user registered: %s", user)
-
-            # If user registration failed, go away
-            if not user:
-                log.error("Error creating a new OAuth user %s", username)
-                return None
-
-        # LOGIN SUCCESS (only if user is now registered)
-        if user:
-            self._rotate_session_id()
-            self.update_user_auth_stat(user)
-            return user
-        else:
-            return None
-
-    def auth_user_oid(self, email):
-        """
-        Openid user Authentication.
-
-        :param email: user's email to authenticate
-        """
-        user = self.find_user(email=email)
-        if user is None or (not user.is_active):
-            log.info(LOGMSG_WAR_SEC_LOGIN_FAILED, email)
-            return None
-        else:
-            self._rotate_session_id()
-            self.update_user_auth_stat(user)
-            return user
-
-    def auth_user_remote_user(self, username):
-        """
-        REMOTE_USER user Authentication.
-
-        :param username: user's username for remote auth
-        """
-        user = self.find_user(username=username)
-
-        # User does not exist, create one if auto user registration.
-        if user is None and self.auth_user_registration:
-            user = self.add_user(
-                # All we have is REMOTE_USER, so we set
-                # the other fields to blank.
-                username=username,
-                first_name=username,
-                last_name="-",
-                email=username + "@email.notfound",
-                role=self.find_role(self.auth_user_registration_role),
-            )
-
-        # If user does not exist on the DB and not auto user registration,
-        # or user is inactive, go away.
-        elif user is None or (not user.is_active):
-            log.info(LOGMSG_WAR_SEC_LOGIN_FAILED, username)
-            return None
-
-        self._rotate_session_id()
-        self.update_user_auth_stat(user)
-        return user
-
-    def get_user_menu_access(self, menu_names: list[str] | None = None) -> set[str]:
-        if get_auth_manager().is_logged_in():
-            return self._get_user_permission_resources(g.user, "menu_access", resource_names=menu_names)
-        elif current_user_jwt:
-            return self._get_user_permission_resources(
-                # the current_user_jwt is a lazy proxy, so we need to ignore type checking
-                current_user_jwt,  # type: ignore[arg-type]
-                "menu_access",
-                resource_names=menu_names,
-            )
-        else:
-            return self._get_user_permission_resources(None, "menu_access", resource_names=menu_names)
 
     @staticmethod
     def ldap_extract_list(ldap_dict: dict[str, list[bytes]], field_name: str) -> list[str]:
@@ -2616,77 +2253,6 @@ class FabAirflowSecurityManagerOverride(AirflowSecurityManagerV2):
 
         return list(user_role_objects)
 
-    def _oauth_calculate_user_roles(self, userinfo) -> list[str]:
-        user_role_objects = set()
-
-        # apply AUTH_ROLES_MAPPING
-        if self.auth_roles_mapping:
-            user_role_keys = userinfo.get("role_keys", [])
-            user_role_objects.update(self.get_roles_from_keys(user_role_keys))
-
-        # apply AUTH_USER_REGISTRATION_ROLE
-        if self.auth_user_registration:
-            registration_role_name = self.auth_user_registration_role
-
-            # if AUTH_USER_REGISTRATION_ROLE_JMESPATH is set,
-            # use it for the registration role
-            if self.auth_user_registration_role_jmespath:
-                import jmespath
-
-                registration_role_name = jmespath.search(self.auth_user_registration_role_jmespath, userinfo)
-
-            # lookup registration role in flask db
-            fab_role = self.find_role(registration_role_name)
-            if fab_role:
-                user_role_objects.add(fab_role)
-            else:
-                log.warning("Can't find AUTH_USER_REGISTRATION role: %s", registration_role_name)
-
-        return list(user_role_objects)
-
-    def _get_user_permission_resources(
-        self, user: User | None, action_name: str, resource_names: list[str] | None = None
-    ) -> set[str]:
-        """
-        Get resource names with a certain action name that a user has access to.
-
-        Mainly used to fetch all menu permissions on a single db call, will also
-        check public permissions and builtin roles
-        """
-        if not resource_names:
-            resource_names = []
-
-        db_role_ids = []
-        if user is None:
-            # include public role
-            roles = [self.get_public_role()]
-        else:
-            roles = user.roles
-        # First check against builtin (statically configured) roles
-        # because no database query is needed
-        result = set()
-        for role in roles:
-            if role.name in self.builtin_roles:
-                for resource_name in resource_names:
-                    if self._has_access_builtin_roles(role, action_name, resource_name):
-                        result.add(resource_name)
-            else:
-                db_role_ids.append(role.id)
-        # Then check against database-stored roles
-        role_resource_names = [
-            perm.resource.name for perm in self.filter_roles_by_perm_with_action(action_name, db_role_ids)
-        ]
-        result.update(role_resource_names)
-        return result
-
-    def _has_access_builtin_roles(self, role, action_name: str, resource_name: str) -> bool:
-        """Check permission on builtin role."""
-        perms = self.builtin_roles.get(role.name, [])
-        for _resource_name, _action_name in perms:
-            if re2.match(_resource_name, resource_name) and re2.match(_action_name, action_name):
-                return True
-        return False
-
     def _merge_perm(self, action_name: str, resource_name: str) -> None:
         """
         Add the new (action, resource) to assoc_permission_role if it doesn't exist.
@@ -2733,32 +2299,6 @@ class FabAirflowSecurityManagerOverride(AirflowSecurityManagerV2):
                 )
             )
         }
-
-    def filter_roles_by_perm_with_action(self, action_name: str, role_ids: list[int]):
-        """Find roles with permission."""
-        return (
-            self.appbuilder.get_session.query(self.permission_model)
-            .join(
-                assoc_permission_role,
-                and_(self.permission_model.id == assoc_permission_role.c.permission_view_id),
-            )
-            .join(self.role_model)
-            .join(self.action_model)
-            .join(self.resource_model)
-            .filter(
-                self.action_model.name == action_name,
-                self.role_model.id.in_(role_ids),
-            )
-        ).all()
-
-    def _get_root_dag_id(self, dag_id: str) -> str:
-        # TODO: The "root_dag_id" check can be remove when the minimum version of Airflow is bumped to 3.0
-        if "." in dag_id and hasattr(DagModel, "root_dag_id"):
-            dm = self.appbuilder.get_session.execute(
-                select(DagModel.dag_id, DagModel.root_dag_id).where(DagModel.dag_id == dag_id)
-            ).one()
-            return dm.root_dag_id or dm.dag_id
-        return dag_id
 
     @staticmethod
     def _cli_safe_flash(text: str, level: str) -> None:

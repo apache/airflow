@@ -35,11 +35,9 @@ from airflow.exceptions import (
 from airflow.executors.debug_executor import DebugExecutor
 from airflow.executors.executor_constants import (
     CELERY_EXECUTOR,
-    CELERY_KUBERNETES_EXECUTOR,
     DEBUG_EXECUTOR,
     KUBERNETES_EXECUTOR,
     LOCAL_EXECUTOR,
-    LOCAL_KUBERNETES_EXECUTOR,
     SEQUENTIAL_EXECUTOR,
 )
 from airflow.executors.local_executor import LocalExecutor
@@ -48,9 +46,7 @@ from airflow.models import TaskInstance, TaskReschedule
 from airflow.models.trigger import TriggerFailureReason
 from airflow.models.xcom import XCom
 from airflow.providers.celery.executors.celery_executor import CeleryExecutor
-from airflow.providers.celery.executors.celery_kubernetes_executor import CeleryKubernetesExecutor
 from airflow.providers.cncf.kubernetes.executors.kubernetes_executor import KubernetesExecutor
-from airflow.providers.cncf.kubernetes.executors.local_kubernetes_executor import LocalKubernetesExecutor
 from airflow.providers.standard.operators.empty import EmptyOperator
 from airflow.sensors.base import BaseSensorOperator, PokeReturnValue, poke_mode_only
 from airflow.ti_deps.deps.ready_to_reschedule import ReadyToRescheduleDep
@@ -1306,20 +1302,16 @@ class TestBaseSensor:
         "executor_cls_mode",
         [
             (CeleryExecutor, "poke"),
-            (CeleryKubernetesExecutor, "poke"),
             (DebugExecutor, "reschedule"),
             (KubernetesExecutor, "poke"),
             (LocalExecutor, "poke"),
-            (LocalKubernetesExecutor, "poke"),
             (SequentialExecutor, "poke"),
         ],
         ids=[
             CELERY_EXECUTOR,
-            CELERY_KUBERNETES_EXECUTOR,
             DEBUG_EXECUTOR,
             KUBERNETES_EXECUTOR,
             LOCAL_EXECUTOR,
-            LOCAL_KUBERNETES_EXECUTOR,
             SEQUENTIAL_EXECUTOR,
         ],
     )

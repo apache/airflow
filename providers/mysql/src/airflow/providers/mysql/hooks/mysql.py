@@ -249,7 +249,7 @@ class MySqlHook(DbApiHook):
             raise ValueError(f"Invalid table name: {table}")
 
         cur.execute(
-            f"LOAD DATA LOCAL INFILE %s INTO TABLE {table}",
+            f"LOAD DATA LOCAL INFILE %s INTO TABLE `{table}`",
             (tmp_file,),
         )
         conn.commit()
@@ -266,7 +266,7 @@ class MySqlHook(DbApiHook):
             raise ValueError(f"Invalid table name: {table}")
 
         cur.execute(
-            f"SELECT * INTO OUTFILE %s FROM {table}",
+            f"SELECT * INTO OUTFILE %s FROM `{table}`",
             (tmp_file,),
         )
         conn.commit()
@@ -331,7 +331,7 @@ class MySqlHook(DbApiHook):
         cursor = conn.cursor()
 
         cursor.execute(
-            f"LOAD DATA LOCAL INFILE %s %s INTO TABLE {table} %s",
+            f"LOAD DATA LOCAL INFILE %s %s INTO TABLE `{table}` %s",
             (tmp_file, duplicate_key_handling, extra_options),
         )
 

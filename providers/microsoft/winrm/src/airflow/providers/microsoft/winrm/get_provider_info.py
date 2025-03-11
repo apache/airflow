@@ -27,8 +27,9 @@ def get_provider_info():
         "name": "Windows Remote Management (WinRM)",
         "description": "`Windows Remote Management (WinRM) <https://docs.microsoft.com/windows/win32/winrm/portal>`__\n",
         "state": "ready",
-        "source-date-epoch": 1740734153,
+        "source-date-epoch": 1741509045,
         "versions": [
+            "3.9.1",
             "3.9.0",
             "3.7.0",
             "3.6.1",
@@ -76,4 +77,5 @@ def get_provider_info():
             }
         ],
         "dependencies": ["apache-airflow>=2.9.0", "pywinrm>=0.4"],
+        "devel-dependencies": [],
     }

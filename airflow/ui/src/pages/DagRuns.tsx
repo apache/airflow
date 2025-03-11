@@ -27,6 +27,7 @@ import { ClearRunButton } from "src/components/Clear";
 import { DataTable } from "src/components/DataTable";
 import { useTableURLState } from "src/components/DataTable/useTableUrlState";
 import { ErrorAlert } from "src/components/ErrorAlert";
+import { LimitedItemsList } from "src/components/LimitedItemsList";
 import { MarkRunAsButton } from "src/components/MarkAs";
 import { RunTypeIcon } from "src/components/RunTypeIcon";
 import { StateBadge } from "src/components/StateBadge";
@@ -97,6 +98,16 @@ const runColumns = (dagId?: string): Array<ColumnDef<DAGRunResponse>> => [
   {
     cell: ({ row: { original } }) => getDuration(original.start_date, original.end_date),
     header: "Duration",
+  },
+  {
+    accessorKey: "dag_versions",
+    cell: ({ row: { original } }) => (
+      <LimitedItemsList
+        items={original.dag_versions.map(({ version_number: versionNumber }) => `v${versionNumber}`)}
+      />
+    ),
+    enableSorting: false,
+    header: "Dag Version(s)",
   },
   {
     accessorKey: "actions",

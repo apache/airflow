@@ -27,6 +27,23 @@
 Changelog
 ---------
 
+1.6.2
+.....
+
+Misc
+~~~~
+
+* ``Render structured logs in the new UI rather than showing raw JSON (#46827)``
+* ``Upgrade flit to 3.11.0 (#46938)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Move tests_common package to devel-common project (#47281)``
+   * ``Deprecating email, email_on_retry, email_on_failure in BaseOperator (#47146)``
+   * ``Improve documentation for updating provider dependencies (#47203)``
+   * ``Add legacy namespace packages to airflow.providers (#47064)``
+   * ``Remove extra whitespace in provider readme template (#46975)``
+
 1.6.1
 .....
 

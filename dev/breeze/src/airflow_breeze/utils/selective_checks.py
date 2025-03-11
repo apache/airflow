@@ -80,8 +80,6 @@ FORCE_PIP_LABEL = "force pip"
 FULL_TESTS_NEEDED_LABEL = "full tests needed"
 INCLUDE_SUCCESS_OUTPUTS_LABEL = "include success outputs"
 LATEST_VERSIONS_ONLY_LABEL = "latest versions only"
-LEGACY_UI_LABEL = "legacy ui"
-LEGACY_API_LABEL = "legacy api"
 LOG_WITHOUT_MOCK_IN_TESTS_EXCEPTION_LABEL = "log exception"
 NON_COMMITTER_BUILD_LABEL = "non committer build"
 UPGRADE_TO_NEWER_DEPENDENCIES_LABEL = "upgrade to newer dependencies"
@@ -100,9 +98,8 @@ class FileGroupForCi(Enum):
     PYTHON_PRODUCTION_FILES = "python_scans"
     JAVASCRIPT_PRODUCTION_FILES = "javascript_scans"
     ALWAYS_TESTS_FILES = "always_test_files"
-    API_TEST_FILES = "api_test_files"
+    API_FILES = "api_files"
     API_CODEGEN_FILES = "api_codegen_files"
-    LEGACY_API_FILES = "legacy_api_files"
     HELM_FILES = "helm_files"
     DEPENDENCY_FILES = "dependency_files"
     DOC_FILES = "doc_files"
@@ -159,18 +156,17 @@ CI_FILE_GROUP_MATCHES = HashableDict(
             r"^airflow/.*\.[jt]sx?",
             r"^airflow/.*\.lock",
             r"^airflow/ui/.*\.yaml$",
-            r"^airflow/auth/managers/simple/ui/.*\.yaml$",
+            r"^airflow/api_fastapi/auth/managers/simple/ui/.*\.yaml$",
         ],
-        FileGroupForCi.API_TEST_FILES: [
+        FileGroupForCi.API_FILES: [
             r"^airflow/api/",
-            r"^airflow/api_connexion/",
+            r"^airflow/api_fastapi/",
+            r"^tests/api/",
+            r"^tests/api_fastapi/",
         ],
         FileGroupForCi.API_CODEGEN_FILES: [
             r"^airflow/api_fastapi/core_api/openapi/v1-generated\.yaml",
             r"^clients/gen",
-        ],
-        FileGroupForCi.LEGACY_API_FILES: [
-            r"^airflow/api_connexion/",
         ],
         FileGroupForCi.HELM_FILES: [
             r"^chart",
@@ -188,7 +184,7 @@ CI_FILE_GROUP_MATCHES = HashableDict(
             r"^chart",
             r"^providers/.*/src/",
             r"^providers/.*/docs/",
-            r"^task_sdk/src/",
+            r"^task-sdk/src/",
             r"^tests/system",
             r"^CHANGELOG\.txt",
             r"^airflow/config_templates/config\.yml",
@@ -196,7 +192,7 @@ CI_FILE_GROUP_MATCHES = HashableDict(
             r"^chart/values\.schema\.json",
             r"^chart/values\.json",
         ],
-        FileGroupForCi.UI_FILES: [r"^airflow/ui/", r"^airflow/auth/managers/simple/ui/"],
+        FileGroupForCi.UI_FILES: [r"^airflow/ui/", r"^airflow/api_fastapi/auth/managers/simple/ui/"],
         FileGroupForCi.KUBERNETES_FILES: [
             r"^chart",
             r"^kubernetes_tests",
@@ -224,10 +220,10 @@ CI_FILE_GROUP_MATCHES = HashableDict(
             r"^providers/tests/",
             r"^providers/.*/src/",
             r"^providers/.*/tests/",
-            r"^task_sdk/src/",
-            r"^task_sdk/tests/",
+            r"^task-sdk/src/",
+            r"^task-sdk/tests/",
             r"^tests",
-            r"^tests_common",
+            r"^devel-common",
             r"^kubernetes_tests",
         ],
         FileGroupForCi.SYSTEM_TEST_FILES: [
@@ -241,21 +237,21 @@ CI_FILE_GROUP_MATCHES = HashableDict(
         ],
         FileGroupForCi.TESTS_UTILS_FILES: [
             r"^tests/utils/",
-            r"^tests_common/.*\.py$",
+            r"^devel-common/.*\.py$",
         ],
         FileGroupForCi.TASK_SDK_FILES: [
-            r"^task_sdk/src/airflow/sdk/.*\.py$",
-            r"^task_sdk/tests/.*\.py$",
+            r"^task-sdk/src/airflow/sdk/.*\.py$",
+            r"^task-sdk/tests/.*\.py$",
         ],
         FileGroupForCi.ASSET_FILES: [
             r"^airflow/assets/",
             r"^airflow/models/assets/",
-            r"^task_sdk/src/airflow/sdk/definitions/asset/",
+            r"^task-sdk/src/airflow/sdk/definitions/asset/",
             r"^airflow/datasets/",
         ],
         FileGroupForCi.UNIT_TEST_FILES: [
             r"^tests/",
-            r"^task_sdk/tests/",
+            r"^task-sdk/tests/",
             r"^providers/.*/tests/",
             r"^dev/breeze/tests/",
         ],
@@ -272,8 +268,8 @@ CI_FILE_GROUP_EXCLUDES = HashableDict(
             r"^docs/.*",
             r"^providers/.*/tests/.*",
             r"^tests/dags/test_imports.py",
-            r"^task_sdk/src/airflow/sdk/.*\.py$",
-            r"^task_sdk/tests/.*\.py$",
+            r"^task-sdk/src/airflow/sdk/.*\.py$",
+            r"^task-sdk/tests/.*\.py$",
         ]
     }
 )
@@ -286,10 +282,8 @@ TEST_TYPE_MATCHES = HashableDict(
     {
         SelectiveCoreTestType.API: [
             r"^airflow/api/",
-            r"^airflow/api_connexion/",
             r"^airflow/api_fastapi/",
             r"^tests/api/",
-            r"^tests/api_connexion/",
             r"^tests/api_fastapi/",
         ],
         SelectiveCoreTestType.CLI: [
@@ -305,8 +299,8 @@ TEST_TYPE_MATCHES = HashableDict(
             r"^providers/.*/tests/",
         ],
         SelectiveTaskSdkTestType.TASK_SDK: [
-            r"^task_sdk/src/",
-            r"^task_sdk/tests/",
+            r"^task-sdk/src/",
+            r"^task-sdk/tests/",
         ],
         SelectiveCoreTestType.SERIALIZATION: [
             r"^airflow/serialization/",
@@ -338,7 +332,7 @@ def find_provider_affected(changed_file: str, include_docs: bool) -> str | None:
                 # new providers structure
                 return str(relative_path).replace(os.sep, ".")
     if file_path.is_relative_to(AIRFLOW_TEST_COMMON_DIR):
-        # if tests_common changes, we want to run tests for all providers, as they might start failing
+        # if devel-common changes, we want to run tests for all providers, as they might start failing
         return "Providers"
     return None
 
@@ -495,6 +489,13 @@ class SelectiveChecks:
             CI_FILE_GROUP_EXCLUDES,
         ):
             get_console().print("[warning]Running full set of tests because env files changed[/]")
+            return True
+        if self._matching_files(
+            FileGroupForCi.API_FILES,
+            CI_FILE_GROUP_MATCHES,
+            CI_FILE_GROUP_EXCLUDES,
+        ):
+            get_console().print("[warning]Running full set of tests because api files changed[/]")
             return True
         if self._matching_files(
             FileGroupForCi.TESTS_UTILS_FILES,
@@ -692,7 +693,7 @@ class SelectiveChecks:
 
     @cached_property
     def needs_api_tests(self) -> bool:
-        return self._should_be_run(FileGroupForCi.API_TEST_FILES)
+        return self._should_be_run(FileGroupForCi.API_FILES)
 
     @cached_property
     def needs_ol_tests(self) -> bool:
@@ -1500,30 +1501,6 @@ class SelectiveChecks:
             self._github_event in [GithubEvents.SCHEDULE, GithubEvents.PUSH]
             and self._github_repository == APACHE_AIRFLOW_GITHUB_REPOSITORY
         ) or CANARY_LABEL in self._pr_labels
-
-    @cached_property
-    def is_legacy_ui_api_labeled(self) -> bool:
-        # Selective check for legacy UI/API updates.
-        # It is to ping the maintainer to add the label and make them aware of the changes.
-        if self._is_canary_run() or self._github_event not in (
-            GithubEvents.PULL_REQUEST,
-            GithubEvents.PULL_REQUEST_TARGET,
-        ):
-            return False
-
-        if (
-            self._matching_files(
-                FileGroupForCi.LEGACY_API_FILES, CI_FILE_GROUP_MATCHES, CI_FILE_GROUP_EXCLUDES
-            )
-            and LEGACY_API_LABEL not in self._pr_labels
-        ):
-            get_console().print(
-                f"[error]Please ask maintainer to assign "
-                f"the '{LEGACY_API_LABEL}' label to the PR in order to continue"
-            )
-            sys.exit(1)
-        else:
-            return True
 
     @classmethod
     def _find_caplog_in_def(cls, added_lines):

@@ -27,7 +27,6 @@ export const handlers: Array<HttpHandler> = [
     const successDag = {
       dag_display_name: "tutorial_taskflow_api_success",
       dag_id: "tutorial_taskflow_api_success",
-      default_view: "grid",
       file_token:
         ".eJw9yUsOgCAMBcC7cAB7JPISizR82kCJcnvjxtUsJlDWxlQwPEvhjU7TV0pk27N2goxU9f7lB80qxxPXJF-uQ1CjY5avI0wO2-EFouohiw.fhdU5u0Pb7lElEd-AUUXqjHSsdo",
       fileloc: "/airflow/dags/tutorial_taskflow_api.py",
@@ -64,7 +63,6 @@ export const handlers: Array<HttpHandler> = [
     const failedDag = {
       dag_display_name: "tutorial_taskflow_api_failed",
       dag_id: "tutorial_taskflow_api_failed",
-      default_view: "grid",
       file_token:
         ".eJw9yUsOgCAMBcC7cAB7JPISizR82kCJcnvjxtUsJlDWxlQwPEvhjU7TV0pk27N2goxU9f7lB80qxxPXJF-uQ1CjY5avI0wO2-EFouohiw.fhdU5u0Pb7lElEd-AUUXqjHSsdo",
       fileloc: "/airflow/dags/tutorial_taskflow_api_failed.py",
@@ -122,7 +120,6 @@ export const handlers: Array<HttpHandler> = [
     const failedDag = {
       dag_display_name: "tutorial_taskflow_api_failed",
       dag_id: "tutorial_taskflow_api_failed",
-      default_view: "grid",
       description: null,
       file_token:
         ".eJw9yUsOgCAMBcC7cAB7JPISizR82kCJcnvjxtUsJlDWxlQwPEvhjU7TV0pk27N2goxU9f7lB80qxxPXJF-uQ1CjY5avI0wO2-EFouohiw.fhdU5u0Pb7lElEd-AUUXqjHSsdo",
@@ -149,7 +146,6 @@ export const handlers: Array<HttpHandler> = [
     const successDag = {
       dag_display_name: "tutorial_taskflow_api_success",
       dag_id: "tutorial_taskflow_api_success",
-      default_view: "grid",
       description: null,
       file_token:
         ".eJw9yUsOgCAMBcC7cAB7JPISizR82kCJcnvjxtUsJlDWxlQwPEvhjU7TV0pk27N2goxU9f7lB80qxxPXJF-uQ1CjY5avI0wO2-EFouohiw.fhdU5u0Pb7lElEd-AUUXqjHSsdo",

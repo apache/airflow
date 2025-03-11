@@ -357,7 +357,6 @@ labelPRBasedOnFilePath:
 
   area:Scheduler:
     - airflow/jobs/scheduler_job_runner.py
-    - airflow/task/standard_task_runner.py
     - docs/apache-airflow/administration-and-deployment/scheduler.rst
     - tests/jobs/test_scheduler_job.py
 
@@ -414,10 +413,13 @@ labelPRBasedOnFilePath:
     - tests/system/**/*
 
   area:task-sdk:
-    - task_sdk/**/*
+    - task-sdk/**/*
 
   area:db-migrations:
     - airflow/migrations/versions/*
+
+  area:providers:
+    - providers/**/*
 
 # Various Flags to control behaviour of the "Labeler"
 labelerFlags:

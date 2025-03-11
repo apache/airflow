@@ -29,7 +29,7 @@ description: |
     - `Google Workspace <https://workspace.google.com/>`__ (formerly Google Suite)
 
 state: ready
-source-date-epoch: 1740734133
+source-date-epoch: 1741121879
 # note that those versions are maintained by release manager - do not update them manually
 versions:
   - 14.0.0
@@ -1231,6 +1231,7 @@ extra-links:
   - airflow.providers.google.cloud.links.managed_kafka.ApacheKafkaClusterLink
   - airflow.providers.google.cloud.links.managed_kafka.ApacheKafkaClusterListLink
   - airflow.providers.google.cloud.links.managed_kafka.ApacheKafkaTopicLink
+  - airflow.providers.google.cloud.links.managed_kafka.ApacheKafkaConsumerGroupLink
 
 
 secrets-backends:

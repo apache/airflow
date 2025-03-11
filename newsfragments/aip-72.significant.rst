@@ -42,6 +42,14 @@ As part of this change the following breaking changes have occurred:
 
   It is recommended that you replace such a custom operator with a deferrable sensor, a condition or another triggering mechanism.
 
+- ``BaseOperatorLink`` has now been moved into the task SDK to be consumed by DAG authors to write custom operator links.
+
+  Any occurrences of imports from ``airflow.models.baseoperatorlink`` will need to be updated to ``airflow.sdk.definitions.baseoperatorlink``
+
+- With the We have removed DAG level settings that control the UI behaviour.
+  These are now as per-user settings controlled by the UI
+
+  - ``default_view``
 
 * Types of change
 
@@ -50,7 +58,7 @@ As part of this change the following breaking changes have occurred:
   * [ ] API changes
   * [ ] CLI changes
   * [x] Behaviour changes
-  * [ ] Plugin changes
+  * [x] Plugin changes
   * [ ] Dependency changes
   * [ ] Code interface changes
 
@@ -60,3 +68,10 @@ As part of this change the following breaking changes have occurred:
 
     * [x] ``core.task_runner``
     * [x] ``core.enable_xcom_pickling``
+
+  * ruff
+
+    * AIR302
+
+      * [ ] ``airflow.models.baseoperatorlink`` → ``airflow.sdk``
+      * [ ] ``default_view`` argument to DAG removed

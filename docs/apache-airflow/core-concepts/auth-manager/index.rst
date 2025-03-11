@@ -79,7 +79,7 @@ All Airflow auth managers implement a common interface so that they are pluggabl
 to all abilities and integrations within Airflow. This interface is used across Airflow to perform all user
 authentication and user authorization related operation.
 
-The public interface is :class:`~airflow.auth.managers.base_auth_manager.BaseAuthManager`.
+The public interface is :class:`~airflow.api_fastapi.auth.managers.base_auth_manager.BaseAuthManager`.
 You can look through the code for the most detailed and up to date interface, but some important highlights are
 outlined below.
 
@@ -96,15 +96,13 @@ Some reasons you may want to write a custom auth manager include:
 Authentication related BaseAuthManager methods
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-* ``is_logged_in``: Return whether the user is signed-in.
 * ``get_user``: Return the signed-in user.
 * ``get_url_login``: Return the URL the user is redirected to for signing in.
-* ``get_url_logout``: Return the URL the user is redirected to for signing out.
 
 Authorization related BaseAuthManager methods
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-Most of authorization methods in :class:`~airflow.auth.managers.base_auth_manager.BaseAuthManager` look the same.
+Most of authorization methods in :class:`~airflow.api_fastapi.auth.managers.base_auth_manager.BaseAuthManager` look the same.
 Let's go over the different parameters used by most of these methods.
 
 * ``method``: Use HTTP method naming to determine the type of action being done on a specific resource.
@@ -142,7 +140,6 @@ The following methods aren't required to override to have a functional Airflow a
 * ``batch_is_authorized_pool``: Batch version of ``is_authorized_pool``. If not overridden, it will call ``is_authorized_pool`` for every single item.
 * ``batch_is_authorized_variable``: Batch version of ``is_authorized_variable``. If not overridden, it will call ``is_authorized_variable`` for every single item.
 * ``get_permitted_dag_ids``: Return the list of DAG IDs the user has access to.  If not overridden, it will call ``is_authorized_dag`` for every single DAG available in the environment.
-* ``filter_permitted_menu_items``: Return the menu items the user has access to.  If not overridden, it will call ``has_access`` in :class:`~airflow.www.security_manager.AirflowSecurityManagerV2` for every single menu item.
 
 CLI
 ^^^
@@ -176,15 +173,18 @@ Auth managers may vend CLI commands which will be included in the ``airflow`` co
 .. note::
     When creating a new auth manager, or updating any existing auth manager, be sure to not import or execute any expensive operations/code at the module level. Auth manager classes are imported in several places and if they are slow to import this will negatively impact the performance of your Airflow environment, especially for CLI commands.
 
-Rest API
-^^^^^^^^
+Extending API server application
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-Auth managers may vend Rest API endpoints which will be included in the :doc:`/stable-rest-api-ref` by implementing the ``get_api_endpoints`` method. The endpoints can be used to manage resources such as users, groups, roles (if any) handled by your auth manager. Endpoints are only vended for the currently configured auth manager.
+Auth managers have the option to extend the Airflow API server. Doing so, allow, for instance, to vend additional public API endpoints.
+To extend the API server application, you need to implement the ``get_fastapi_app`` method.
+Such additional endpoints can be used to manage resources such as users, groups, roles (if any) handled by your auth manager.
+Endpoints defined by ``get_fastapi_app`` are mounted in ``/auth``.
 
 Next Steps
 ^^^^^^^^^^
 
-Once you have created a new auth manager class implementing the :class:`~airflow.auth.managers.base_auth_manager.BaseAuthManager` interface, you can configure Airflow to use it by setting the ``core.auth_manager`` configuration value to the module path of your auth manager:
+Once you have created a new auth manager class implementing the :class:`~airflow.api_fastapi.auth.managers.base_auth_manager.BaseAuthManager` interface, you can configure Airflow to use it by setting the ``core.auth_manager`` configuration value to the module path of your auth manager:
 
 .. code-block:: ini
 

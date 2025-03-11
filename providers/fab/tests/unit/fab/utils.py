@@ -211,7 +211,6 @@ class _TemplateWithContext(NamedTuple):
             # flask_appbuilder.baseviews.BaseView.render_template
             "appbuilder",
             "base_template",
-            # airflow.www.app.py.create_app (inner method - jinja_globals)
             "server_timezone",
             "default_ui_timezone",
             "hostname",
@@ -227,11 +226,8 @@ class _TemplateWithContext(NamedTuple):
             "airflow_version",
             "git_version",
             "k8s_or_k8scelery_executor",
-            # airflow.www.static_config.configure_manifest_files
             "url_for_asset",
-            # airflow.www.views.AirflowBaseView.render_template
             "scheduler_job",
-            # airflow.www.views.AirflowBaseView.extra_args
             "macros",
             "auth_manager",
             "triggerer_job",

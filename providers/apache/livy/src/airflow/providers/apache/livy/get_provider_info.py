@@ -27,8 +27,9 @@ def get_provider_info():
         "name": "Apache Livy",
         "description": "`Apache Livy <https://livy.apache.org/>`__\n",
         "state": "ready",
-        "source-date-epoch": 1740734090,
+        "source-date-epoch": 1741508288,
         "versions": [
+            "4.2.1",
             "4.2.0",
             "4.0.0",
             "3.9.2",
@@ -106,4 +107,5 @@ def get_provider_info():
             "aiohttp>=3.9.2",
             "asgiref>=2.3.0",
         ],
+        "devel-dependencies": [],
     }

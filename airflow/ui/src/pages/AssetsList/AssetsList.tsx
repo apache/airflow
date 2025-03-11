@@ -16,10 +16,10 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Box, Heading, VStack } from "@chakra-ui/react";
+import { Box, Heading, Link, VStack } from "@chakra-ui/react";
 import type { ColumnDef } from "@tanstack/react-table";
 import { useState } from "react";
-import { useSearchParams } from "react-router-dom";
+import { useSearchParams, Link as RouterLink } from "react-router-dom";
 
 import { useAssetServiceGetAssets } from "openapi/queries";
 import type { AssetResponse } from "openapi/requests/types.gen";
@@ -28,13 +28,21 @@ import { useTableURLState } from "src/components/DataTable/useTableUrlState";
 import { ErrorAlert } from "src/components/ErrorAlert";
 import { SearchBar } from "src/components/SearchBar";
 import { SearchParamsKeys } from "src/constants/searchParams";
+import { CreateAssetEvent } from "src/pages/Asset/CreateAssetEvent";
 import { pluralize } from "src/utils";
 
 import { DependencyPopover } from "./DependencyPopover";
 
+type AssetRow = { row: { original: AssetResponse } };
+
 const columns: Array<ColumnDef<AssetResponse>> = [
   {
     accessorKey: "name",
+    cell: ({ row: { original } }: AssetRow) => (
+      <Link asChild color="fg.info" fontWeight="bold">
+        <RouterLink to={`/assets/${original.id}`}>{original.name}</RouterLink>
+      </Link>
+    ),
     header: () => "Name",
   },
   {
@@ -44,21 +52,27 @@ const columns: Array<ColumnDef<AssetResponse>> = [
   },
   {
     accessorKey: "consuming_dags",
-    cell: ({ row }) =>
-      row.original.consuming_dags.length ? (
-        <DependencyPopover dependencies={row.original.consuming_dags} type="Dag" />
+    cell: ({ row: { original } }: AssetRow) =>
+      original.consuming_dags.length ? (
+        <DependencyPopover dependencies={original.consuming_dags} type="Dag" />
       ) : undefined,
     enableSorting: false,
     header: () => "Consuming Dags",
   },
   {
     accessorKey: "producing_tasks",
-    cell: ({ row }) =>
-      row.original.producing_tasks.length ? (
-        <DependencyPopover dependencies={row.original.producing_tasks} type="Task" />
+    cell: ({ row: { original } }: AssetRow) =>
+      original.producing_tasks.length ? (
+        <DependencyPopover dependencies={original.producing_tasks} type="Task" />
       ) : undefined,
     enableSorting: false,
     header: () => "Producing Tasks",
+  },
+  {
+    accessorKey: "trigger",
+    cell: ({ row }) => <CreateAssetEvent asset={row.original} withText={false} />,
+    enableSorting: false,
+    header: "",
   },
 ];
 

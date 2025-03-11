@@ -165,16 +165,18 @@ class TestDagFileProcessorManager:
                 processor_timeout=365 * 86_400,
             )
 
-            with create_session() as session:
-                manager.run()
+            manager.run()
 
+            with create_session() as session:
                 import_errors = session.query(ParseImportError).all()
                 assert len(import_errors) == 1
 
                 path_to_parse.unlink()
 
-                # Rerun the parser once the dag file has been removed
-                manager.run()
+            # Rerun the parser once the dag file has been removed
+            manager.run()
+
+            with create_session() as session:
                 import_errors = session.query(ParseImportError).all()
 
                 assert len(import_errors) == 0
@@ -418,6 +420,9 @@ class TestDagFileProcessorManager:
             max_runs=1,
             processor_timeout=10 * 60,
         )
+        bundle = MagicMock()
+        bundle.name = "testing"
+        manager._dag_bundles = [bundle]
 
         test_dag_path = DagFileInfo(
             bundle_name="testing",
@@ -658,6 +663,7 @@ class TestDagFileProcessorManager:
         shutil.copy(source_location, zip_dag_path)
 
         with configure_testing_dag_bundle(bundle_path):
+            session.commit()
             manager = DagFileProcessorManager(max_runs=1)
             manager.run()
 

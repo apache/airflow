@@ -27,8 +27,9 @@ def get_provider_info():
         "name": "Common IO",
         "description": "``Common IO Provider``\n",
         "state": "ready",
-        "source-date-epoch": 1740734109,
+        "source-date-epoch": 1741508612,
         "versions": [
+            "1.5.1",
             "1.5.0",
             "1.4.2",
             "1.4.1",
@@ -105,4 +106,5 @@ def get_provider_info():
             "common.compat": ["apache-airflow-providers-common-compat"],
             "openlineage": ["apache-airflow-providers-openlineage"],
         },
+        "devel-dependencies": [],
     }

@@ -1318,7 +1318,7 @@ class SageMakerHook(AwsBaseHook):
 
         :param job_name: the name of the training job
         """
-        async with self.async_conn as client:
+        async with await self.get_async_conn() as client:
             response: dict[str, Any] = await client.describe_training_job(TrainingJobName=job_name)
             return response
 

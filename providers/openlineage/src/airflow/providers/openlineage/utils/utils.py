@@ -326,25 +326,35 @@ class DagInfo(InfoJsonEncodable):
 
     @classmethod
     def serialize_timetable(cls, dag: DAG) -> dict[str, Any]:
-        serialized = dag.timetable.serialize()
-        if serialized != {} and serialized is not None:
-            return serialized
-        if (
-            hasattr(dag, "dataset_triggers")
-            and isinstance(dag.dataset_triggers, list)
-            and len(dag.dataset_triggers)
-        ):
-            triggers = dag.dataset_triggers
-            return {
-                "dataset_condition": {
+        # This is enough for Airflow 2.10+ and has all the information needed
+        serialized = dag.timetable.serialize() or {}
+
+        # In Airflow 2.9 when using Dataset scheduling we do not receive datasets in serialized timetable
+        # Also for DatasetOrTimeSchedule, we only receive timetable without dataset_condition
+        if hasattr(dag, "dataset_triggers") and "dataset_condition" not in serialized:
+            try:
+                # Make sure we are in Airflow version where these are importable
+                from airflow.datasets import BaseDatasetEventInput, DatasetAll, DatasetAny
+            except ImportError:
+                log.warning("OpenLineage could not serialize full dag's timetable for dag `%s`.", dag.dag_id)
+                return serialized
+
+            def _serialize_ds(ds: BaseDatasetEventInput) -> dict[str, Any]:
+                if isinstance(ds, (DatasetAny, DatasetAll)):
+                    return {
+                        "__type": "dataset_all" if isinstance(ds, DatasetAll) else "dataset_any",
+                        "objects": [_serialize_ds(child) for child in ds.objects],
+                    }
+                return {"__type": "dataset", "uri": ds.uri, "extra": ds.extra}
+
+            if isinstance(dag.dataset_triggers, BaseDatasetEventInput):
+                serialized["dataset_condition"] = _serialize_ds(dag.dataset_triggers)
+            elif isinstance(dag.dataset_triggers, list) and len(dag.dataset_triggers):
+                serialized["dataset_condition"] = {
                     "__type": "dataset_all",
-                    "objects": [
-                        {"__type": "dataset", "uri": trigger.uri, "extra": trigger.extra}
-                        for trigger in triggers
-                    ],
+                    "objects": [_serialize_ds(trigger) for trigger in dag.dataset_triggers],
                 }
-            }
-        return {}
+        return serialized
 
 
 class DagRunInfo(InfoJsonEncodable):
@@ -355,6 +365,7 @@ class DagRunInfo(InfoJsonEncodable):
         "dag_id",
         "data_interval_start",
         "data_interval_end",
+        "external_trigger",  # Removed in Airflow 3, use run_type instead
         "run_id",
         "run_type",
         "start_date",

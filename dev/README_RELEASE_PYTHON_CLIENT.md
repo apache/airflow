@@ -92,7 +92,7 @@ echo "${VERSION}" > clients/python/version.txt
 
 ```shell script
 cd ${AIRFLOW_REPO_ROOT}
-git log 2.8.0..HEAD --pretty=oneline -- airflow/api_connexion/openapi/v1.yaml
+git log 2.8.0..HEAD --pretty=oneline -- clients/python/openapi_v1.yaml
 ```
 
 - Update CHANGELOG.md with the details.
@@ -477,7 +477,7 @@ and allows you to test the client in a real environment.
    variable in `files/airflow-breeze-config/init.sh`:
 
 ```shell
-export AIRFLOW__API__AUTH_BACKENDS=airflow.api.auth.backend.session,airflow.providers.fab.auth_manager.api.auth.backend.basic_auth
+export AIRFLOW__API__AUTH_BACKENDS=airflow.providers.fab.auth_manager.api.auth.backend.session,airflow.providers.fab.auth_manager.api.auth.backend.basic_auth
 export AIRFLOW__WEBSERVER__EXPOSE_CONFIG=True
 ```
 

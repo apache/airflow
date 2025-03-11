@@ -193,7 +193,7 @@ if MYSQL_INNOVATION_RELEASE:
 ALLOWED_INSTALL_MYSQL_CLIENT_TYPES = ["mariadb", "mysql"]
 
 PIP_VERSION = "25.0.1"
-UV_VERSION = "0.6.3"
+UV_VERSION = "0.6.5"
 
 DEFAULT_UV_HTTP_TIMEOUT = 300
 DEFAULT_WSL2_HTTP_TIMEOUT = 900
@@ -287,7 +287,7 @@ def all_task_sdk_test_packages() -> list[str]:
         return sorted(
             [
                 candidate.name
-                for candidate in (AIRFLOW_SOURCES_ROOT / "task_sdk" / "tests").iterdir()
+                for candidate in (AIRFLOW_SOURCES_ROOT / "task-sdk" / "tests").iterdir()
                 if candidate.is_dir() and candidate.name != "__pycache__"
             ]
         )
@@ -334,8 +334,7 @@ RABBITMQ_HOST_PORT = "25672"
 REDIS_HOST_PORT = "26379"
 SSH_PORT = "12322"
 VITE_DEV_PORT = "5173"
-WEBSERVER_HOST_PORT = "28080"
-API_SERVER_HOST_PORT = "29091"
+WEB_HOST_PORT = "28080"
 
 CELERY_BROKER_URLS_MAP = {"rabbitmq": "amqp://guest:guest@rabbitmq:5672", "redis": "redis://redis:6379/0"}
 SQLITE_URL = "sqlite:////root/airflow/sqlite/airflow.db"
@@ -592,7 +591,7 @@ DEFAULT_EXTRAS = [
     # END OF EXTRAS LIST UPDATED BY PRE COMMIT
 ]
 
-CHICKEN_EGG_PROVIDERS = " ".join(["common.compat", "cncf.kubernetes"])
+CHICKEN_EGG_PROVIDERS = " ".join([])
 
 
 PROVIDERS_COMPATIBILITY_TESTS_MATRIX: list[dict[str, str | list[str]]] = [

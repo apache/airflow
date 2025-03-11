@@ -71,8 +71,7 @@ core:
       description: |
         The executor class that airflow should use. Choices include
         ``SequentialExecutor``, ``LocalExecutor``, ``CeleryExecutor``,
-        ``KubernetesExecutor``, ``CeleryKubernetesExecutor``, ``LocalKubernetesExecutor`` or the
-        full import path to the class when using a custom executor.
+        ``KubernetesExecutor`` or the full import path to the class when using a custom executor.
       version_added: ~
       type: string
       example: ~
@@ -102,6 +101,14 @@ core:
       type: string
       example: ~
       default: "False"
+    simple_auth_manager_passwords_file:
+      description: |
+        The json file where the simple auth manager stores passwords for the configured users.
+        By default this is ``AIRFLOW_HOME/simple_auth_manager_passwords.json.generated``.
+      version_added: 3.0.0
+      type: string
+      example: "/path/to/passwords.json"
+      default: ~
     parallelism:
       description: |
         This defines the maximum number of task instances that can run concurrently per scheduler in
@@ -534,7 +541,7 @@ core:
       version_added: 3.0.0
       type: string
       example: ~
-      default: "http://localhost:9091/execution/"
+      default: "http://localhost:8080/execution/"
 database:
   description: ~
   options:
@@ -670,22 +677,6 @@ database:
       type: string
       example: 'airflow_local_settings._sessionmaker'
       default: ~
-    load_default_connections:
-      description: |
-        Whether to load the default connections that ship with Airflow when ``airflow db init`` is called.
-        It's good to get started, but you probably want to set this to ``False`` in a production environment.
-      version_added: 2.3.0
-      version_deprecated: 2.7.0
-      deprecation_reason: |
-        This option is only used by the deprecated "airflow db init" command.
-        This option has been used in previous versions of Airflow to determine if loading of the default
-        connections is done with the ``airflow db init`` command. This command has been deprecated and
-        replaced by two separate commands ``airflow db migrate`` and
-        ``airflow connections create-default-connections`` and ``load_default_connections`` is not
-        used anymore by those commands.
-      type: string
-      example: ~
-      default: "True"
     max_db_retries:
       description: |
         Number of times the code should be retried in case of DB Operational Errors.
@@ -933,7 +924,7 @@ logging:
         consoles\.
       version_added: 2.0.0
       type: string
-      example: "connexion,sqlalchemy"
+      example: "fastapi,sqlalchemy"
       default: ""
     worker_log_server_port:
       description: |
@@ -1321,7 +1312,7 @@ api:
       version_added: ~
       type: string
       example: ~
-      default: "http://localhost:9091"
+      default: "http://localhost:8080"
     host:
       description: |
         The ip specified when starting the api server
@@ -1335,7 +1326,7 @@ api:
       version_added: ~
       type: string
       example: ~
-      default: "9091"
+      default: "8080"
     workers:
       description: |
         Number of workers to run on the API server
@@ -1696,13 +1687,6 @@ webserver:
       type: string
       example: ~
       default: "False"
-    dag_default_view:
-      description: |
-        Default DAG view. Valid values are: ``grid``, ``graph``, ``duration``, ``gantt``, ``landing_times``
-      version_added: ~
-      type: string
-      example: ~
-      default: "grid"
     dag_orientation:
       description: |
         Default DAG orientation. Valid values are:

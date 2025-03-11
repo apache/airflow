@@ -25,7 +25,7 @@ build-backend = "flit_core.buildapi"
 
 [project]
 name = "apache-airflow-providers-amazon"
-version = "9.4.0"
+version = "9.5.0"
 description = "Provider package apache-airflow-providers-amazon for Apache Airflow"
 readme = "README.rst"
 authors = [
@@ -75,6 +75,7 @@ dependencies = [
     "PyAthena>=3.0.10",
     "jmespath>=0.7.0",
     "python3-saml>=1.16.0",
+    "sagemaker-studio>=1.0.9",
 ]
 
 # The optional dependencies should be modified in place in the generated file
@@ -135,11 +136,30 @@ dependencies = [
 "ssh" = [
     "apache-airflow-providers-ssh"
 ]
+"standard" = [
+    "apache-airflow-providers-standard"
+]
 
-# The dependency groups should be modified in place in the generated file
-# Any change in the dependencies is preserved when the file is regenerated
 [dependency-groups]
 dev = [
+    "apache-airflow",
+    "apache-airflow-task-sdk",
+    "apache-airflow-devel-common",
+    "apache-airflow-providers-apache-hive",
+    "apache-airflow-providers-cncf-kubernetes",
+    "apache-airflow-providers-common-compat",
+    "apache-airflow-providers-common-sql",
+    "apache-airflow-providers-exasol",
+    "apache-airflow-providers-ftp",
+    "apache-airflow-providers-google",
+    "apache-airflow-providers-http",
+    "apache-airflow-providers-imap",
+    "apache-airflow-providers-microsoft-azure",
+    "apache-airflow-providers-mongo",
+    "apache-airflow-providers-openlineage",
+    "apache-airflow-providers-salesforce",
+    "apache-airflow-providers-ssh",
+    # Additional devel dependencies (do not remove this line and add extra development dependencies)
     "aiobotocore>=2.13.0",
     "aws_xray_sdk>=2.12.0",
     "moto[cloudformation,glue]>=5.0.0",
@@ -150,11 +170,22 @@ dev = [
     "s3fs>=2023.10.0",
     "openapi-schema-validator>=0.6.2",
     "openapi-spec-validator>=0.7.1",
+    "opensearch-py>=2.2.0",
 ]
 
+[tool.uv.sources]
+# These names must match the names as defined in the pyproject.toml of the workspace items,
+# *not* the workspace folder paths
+apache-airflow = {workspace = true}
+apache-airflow-devel-common = {workspace = true}
+apache-airflow-task-sdk = {workspace = true}
+apache-airflow-providers-common-sql = {workspace = true}
+apache-airflow-providers-fab = {workspace = true}
+apache-airflow-providers-standard = {workspace = true}
+
 [project.urls]
-"Documentation" = "https://airflow.apache.org/docs/apache-airflow-providers-amazon/9.4.0"
-"Changelog" = "https://airflow.apache.org/docs/apache-airflow-providers-amazon/9.4.0/changelog.html"
+"Documentation" = "https://airflow.apache.org/docs/apache-airflow-providers-amazon/9.5.0"
+"Changelog" = "https://airflow.apache.org/docs/apache-airflow-providers-amazon/9.5.0/changelog.html"
 "Bug Tracker" = "https://github.com/apache/airflow/issues"
 "Source Code" = "https://github.com/apache/airflow"
 "Slack Chat" = "https://s.apache.org/airflow-slack"
@@ -166,6 +197,3 @@ provider_info = "airflow.providers.amazon.get_provider_info:get_provider_info"
 
 [tool.flit.module]
 name = "airflow.providers.amazon"
-
-[tool.pytest.ini_options]
-ignore = "tests/system/"

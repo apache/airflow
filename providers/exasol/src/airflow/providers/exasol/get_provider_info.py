@@ -27,8 +27,9 @@ def get_provider_info():
         "name": "Exasol",
         "description": "`Exasol <https://www.exasol.com/>`__\n",
         "state": "ready",
-        "source-date-epoch": 1740734125,
+        "source-date-epoch": 1741508800,
         "versions": [
+            "4.7.3",
             "4.7.2",
             "4.7.0",
             "4.6.1",
@@ -92,4 +93,5 @@ def get_provider_info():
             "pyexasol>=0.5.1",
             "pandas>=2.1.2,<2.2",
         ],
+        "devel-dependencies": [],
     }

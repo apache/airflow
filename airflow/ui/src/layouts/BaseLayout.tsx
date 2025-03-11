@@ -17,41 +17,19 @@
  * under the License.
  */
 import { Box } from "@chakra-ui/react";
-import { useEffect, type PropsWithChildren } from "react";
-import { Outlet, useSearchParams } from "react-router-dom";
-import { useLocalStorage } from "usehooks-ts";
+import type { PropsWithChildren } from "react";
+import { Outlet } from "react-router-dom";
 
 import { useConfig } from "src/queries/useConfig";
 
 import { Nav } from "./Nav";
 
-export const TOKEN_STORAGE_KEY = "token";
-
-export const TOKEN_QUERY_PARAM_NAME = "token";
-
 export const BaseLayout = ({ children }: PropsWithChildren) => {
   const instanceName = useConfig("instance_name");
-  // const instanceNameHasMarkup =
-  //   webserverConfig?.options.find(
-  //     ({ key }) => key === "instance_name_has_markup",
-  //   )?.value === "True";
 
   if (typeof instanceName === "string") {
     document.title = instanceName;
   }
-
-  const [searchParams, setSearchParams] = useSearchParams();
-  const paramToken = searchParams.get(TOKEN_QUERY_PARAM_NAME);
-
-  const [, setToken] = useLocalStorage<string | null>(TOKEN_STORAGE_KEY, paramToken);
-
-  useEffect(() => {
-    if (paramToken !== null) {
-      setToken(paramToken);
-      searchParams.delete(TOKEN_QUERY_PARAM_NAME);
-      setSearchParams(searchParams);
-    }
-  }, [paramToken, searchParams, setSearchParams, setToken]);
 
   return (
     <>

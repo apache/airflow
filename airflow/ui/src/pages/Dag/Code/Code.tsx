@@ -16,30 +16,32 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Box, Button, Heading, HStack } from "@chakra-ui/react";
+import { Box, Button, Heading, HStack, Link } from "@chakra-ui/react";
 import { useState } from "react";
-import { useParams, useSearchParams } from "react-router-dom";
+import { useParams } from "react-router-dom";
 import { createElement, PrismLight as SyntaxHighlighter } from "react-syntax-highlighter";
 import python from "react-syntax-highlighter/dist/esm/languages/prism/python";
 import { oneLight, oneDark } from "react-syntax-highlighter/dist/esm/styles/prism";
 
-import { useDagServiceGetDagDetails, useDagSourceServiceGetDagSource } from "openapi/queries";
+import {
+  useDagServiceGetDagDetails,
+  useDagSourceServiceGetDagSource,
+  useDagVersionServiceGetDagVersion,
+} from "openapi/queries";
 import DagVersionSelect from "src/components/DagVersionSelect";
 import { ErrorAlert } from "src/components/ErrorAlert";
 import Time from "src/components/Time";
 import { ProgressBar } from "src/components/ui";
-import { SearchParamsKeys } from "src/constants/searchParams";
 import { useColorMode } from "src/context/colorMode";
+import useSelectedVersion from "src/hooks/useSelectedVersion";
 import { useConfig } from "src/queries/useConfig";
 
 SyntaxHighlighter.registerLanguage("python", python);
 
-const VERSION_NUMBER_PARAM = SearchParamsKeys.VERSION_NUMBER;
-
 export const Code = () => {
   const { dagId } = useParams();
-  const [searchParams] = useSearchParams();
-  const selectedVersion = searchParams.get(VERSION_NUMBER_PARAM);
+
+  const selectedVersion = useSelectedVersion();
 
   const {
     data: dag,
@@ -49,13 +51,22 @@ export const Code = () => {
     dagId: dagId ?? "",
   });
 
+  const { data: dagVersion } = useDagVersionServiceGetDagVersion(
+    {
+      dagId: dagId ?? "",
+      versionNumber: selectedVersion ?? 1,
+    },
+    undefined,
+    { enabled: dag !== undefined && selectedVersion !== undefined },
+  );
+
   const {
     data: code,
     error: codeError,
     isLoading: isCodeLoading,
   } = useDagSourceServiceGetDagSource({
     dagId: dagId ?? "",
-    versionNumber: selectedVersion === null ? undefined : parseInt(selectedVersion, 10),
+    versionNumber: selectedVersion,
   });
 
   const defaultWrap = Boolean(useConfig("default_wrap"));
@@ -75,13 +86,37 @@ export const Code = () => {
   return (
     <Box>
       <HStack justifyContent="space-between" mt={2}>
-        {dag?.last_parsed_time !== undefined && (
-          <Heading as="h4" fontSize="14px" size="md">
-            Parsed at: <Time datetime={dag.last_parsed_time} />
-          </Heading>
-        )}
+        <HStack gap={5}>
+          {dag?.last_parsed_time !== undefined && (
+            <Heading as="h4" fontSize="14px" size="md">
+              Parsed at: <Time datetime={dag.last_parsed_time} />
+            </Heading>
+          )}
+
+          {
+            // eslint-disable-next-line @typescript-eslint/prefer-optional-chain
+            dagVersion !== undefined && dagVersion.bundle_version !== null ? (
+              <Heading as="h4" fontSize="14px" size="md" wordBreak="break-word">
+                Bundle Version:{" "}
+                {dagVersion.bundle_url === null ? (
+                  dagVersion.bundle_version
+                ) : (
+                  <Link
+                    aria-label="Bundle Url"
+                    color="fg.info"
+                    href={dagVersion.bundle_url}
+                    rel="noopener noreferrer"
+                    target="_blank"
+                  >
+                    {dagVersion.bundle_version}
+                  </Link>
+                )}
+              </Heading>
+            ) : undefined
+          }
+        </HStack>
         <HStack>
-          <DagVersionSelect dagId={dagId} />
+          <DagVersionSelect />
           <Button aria-label={wrap ? "Unwrap" : "Wrap"} bg="bg.panel" onClick={toggleWrap} variant="outline">
             {wrap ? "Unwrap" : "Wrap"}
           </Button>

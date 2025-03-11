@@ -139,7 +139,7 @@ class AwsBaseWaiterTrigger(BaseTrigger):
 
     async def run(self) -> AsyncIterator[TriggerEvent]:
         hook = self.hook()
-        async with hook.async_conn as client:
+        async with await hook.get_async_conn() as client:
             waiter = hook.get_waiter(self.waiter_name, deferrable=True, client=client)
             await async_wait(
                 waiter,

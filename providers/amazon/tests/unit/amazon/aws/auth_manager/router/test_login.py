@@ -117,7 +117,7 @@ class TestLoginRouter:
                 response = client.post("/auth/login_callback", follow_redirects=False)
                 assert response.status_code == 303
                 assert "location" in response.headers
-                assert response.headers["location"].startswith("http://localhost:9091/?token=")
+                assert response.headers["location"].startswith("http://localhost:8080/?token=")
 
     def test_login_callback_unsuccessful(self):
         with conf_vars(

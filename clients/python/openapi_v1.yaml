@@ -2926,14 +2926,6 @@ components:
             (e.g. the DAG's "refresh" button was clicked in the web UI)
 
             *New in version 2.3.0*
-        default_view:
-          type: string
-          nullable: true
-          readOnly: true
-          description: |
-            Default view of the DAG inside the webserver
-
-            *New in version 2.3.0*
         fileloc:
           description: The absolute path to the file.
           type: string
@@ -4035,10 +4027,6 @@ components:
                 *Changed in 3.0.0*: The asset_expression value was renamed from dataset_expression.
               nullable: true
             doc_md:
-              type: string
-              readOnly: true
-              nullable: true
-            default_view:
               type: string
               readOnly: true
               nullable: true

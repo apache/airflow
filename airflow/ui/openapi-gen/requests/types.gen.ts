@@ -411,7 +411,6 @@ export type ConfigResponse = {
   warn_deployment_exposure: boolean;
   audit_view_excluded_events: string;
   audit_view_included_events: string;
-  is_k8s: boolean;
   test_connection: string;
   state_color_mapping: {
     [key: string]: unknown;
@@ -500,7 +499,6 @@ export type DAGDetailsResponse = {
   is_active: boolean;
   last_parsed_time: string | null;
   last_expired: string | null;
-  default_view: string | null;
   fileloc: string;
   description: string | null;
   timetable_summary: string | null;
@@ -563,7 +561,6 @@ export type DAGResponse = {
   is_active: boolean;
   last_parsed_time: string | null;
   last_expired: string | null;
-  default_view: string | null;
   fileloc: string;
   description: string | null;
   timetable_summary: string | null;
@@ -738,7 +735,6 @@ export type DAGWithLatestDagRunsResponse = {
   is_active: boolean;
   last_parsed_time: string | null;
   last_expired: string | null;
-  default_view: string | null;
   fileloc: string;
   description: string | null;
   timetable_summary: string | null;
@@ -1870,6 +1866,7 @@ export type PatchConnectionData = {
 export type PatchConnectionResponse = ConnectionResponse;
 
 export type GetConnectionsData = {
+  connectionIdPattern?: string | null;
   limit?: number;
   offset?: number;
   orderBy?: string;
@@ -2496,6 +2493,13 @@ export type ReparseDagFileData = {
 };
 
 export type ReparseDagFileResponse = null;
+
+export type GetDagVersionData = {
+  dagId: string;
+  versionNumber: number;
+};
+
+export type GetDagVersionResponse = DagVersionResponse;
 
 export type GetDagVersionsData = {
   bundleName?: string;
@@ -5194,6 +5198,33 @@ export type $OpenApiTs = {
          * Successful Response
          */
         201: null;
+        /**
+         * Unauthorized
+         */
+        401: HTTPExceptionResponse;
+        /**
+         * Forbidden
+         */
+        403: HTTPExceptionResponse;
+        /**
+         * Not Found
+         */
+        404: HTTPExceptionResponse;
+        /**
+         * Validation Error
+         */
+        422: HTTPValidationError;
+      };
+    };
+  };
+  "/public/dags/{dag_id}/dagVersions/{version_number}": {
+    get: {
+      req: GetDagVersionData;
+      res: {
+        /**
+         * Successful Response
+         */
+        200: DagVersionResponse;
         /**
          * Unauthorized
          */
