@@ -58,6 +58,7 @@ Foundation (http://www.apache.org/).
 const config = {
   entry: {
     airflowDefaultTheme: `${CSS_DIR}/bootstrap-theme.css`,
+    flash: `${CSS_DIR}/flash.css`,
     loadingDots: `${CSS_DIR}/loading-dots.css`,
     main: [`${CSS_DIR}/main.css`, `${JS_DIR}/main.js`],
     materialIcons: `${CSS_DIR}/material-icons.css`,
@@ -147,6 +148,11 @@ const config = {
     ],
   },
   plugins: [
+    new WebpackManifestPlugin({
+      // d3-tip is named index.js in its dist folder which was confusing the manifest
+      map: (file) =>
+        file.path === "d3-tip.js" ? { ...file, name: "d3-tip.js" } : file,
+    }),
     new cwplg.CleanWebpackPlugin({
       verbose: true,
     }),
@@ -170,11 +176,11 @@ const config = {
       patterns: [
         {
           from: "node_modules/jquery-ui/dist/jquery-ui.min.js",
-          to: path.resolve(__dirname, 'dist', 'assets', '[name][ext]'),
+          flatten: true,
         },
         {
           from: "node_modules/jquery-ui/dist/themes/base/jquery-ui.min.css",
-          to: path.resolve(__dirname, 'dist', 'assets', '[name][ext]'),
+          flatten: true,
         },
       ],
     }),

@@ -592,7 +592,6 @@ repos:
           ^airflow/models/baseoperator.py$|
           ^airflow/operators/__init__.py$|
           ^providers/common/sql/tests/provider_tests/common/sql/operators/test_sql_execute.py$|
-          ^providers/fab/src/airflow/providers/fab/www/static/css/bootstrap-theme.css$|
           ^providers/amazon/src/airflow/providers/amazon/aws/hooks/emr.py$|
           ^providers/amazon/src/airflow/providers/amazon/aws/operators/emr.py$|
           ^providers/apache/cassandra/src/airflow/providers/apache/cassandra/hooks/cassandra.py$|
@@ -603,14 +602,14 @@ repos:
           ^providers/apache/spark/src/airflow/providers/apache/spark/operators/|
           ^providers/exasol/src/airflow/providers/exasol/hooks/exasol.py$|
           ^providers/fab/src/airflow/providers/fab/auth_manager/security_manager/|
-          ^providers/fab/src/airflow/providers/fab/www/static/css/bootstrap-theme.css$|
+          ^providers/fab/src/airflow/providers/fab/www/static/|
+          ^providers/fab/src/airflow/providers/fab/www/templates/|
           ^providers/google/src/airflow/providers/google/cloud/hooks/bigquery.py$|
           ^providers/google/src/airflow/providers/google/cloud/operators/cloud_build.py$|
           ^providers/google/src/airflow/providers/google/cloud/operators/dataproc.py$|
           ^providers/google/src/airflow/providers/google/cloud/operators/mlengine.py$|
           ^providers/microsoft/azure/src/airflow/providers/microsoft/azure/hooks/cosmos.py$|
           ^providers/microsoft/winrm/src/airflow/providers/microsoft/winrm/hooks/winrm.py$|
-          ^airflow/www/fab_security/manager.py$|
           ^docs/.*commits.rst$|
           ^docs/apache-airflow-providers-apache-cassandra/connections/cassandra.rst$|
           ^providers/microsoft/winrm/src/airflow/providers/microsoft/winrm/operators/winrm.py$|

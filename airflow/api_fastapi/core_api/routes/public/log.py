@@ -19,7 +19,7 @@ from __future__ import annotations
 
 import textwrap
 
-from fastapi import HTTPException, Request, Response, status
+from fastapi import Depends, HTTPException, Request, Response, status
 from itsdangerous import BadSignature, URLSafeSerializer
 from pydantic import PositiveInt
 from sqlalchemy.orm import joinedload
@@ -31,6 +31,7 @@ from airflow.api_fastapi.common.router import AirflowRouter
 from airflow.api_fastapi.common.types import Mimetype
 from airflow.api_fastapi.core_api.datamodels.log import TaskInstancesLogResponse
 from airflow.api_fastapi.core_api.openapi.exceptions import create_openapi_http_exception_doc
+from airflow.api_fastapi.core_api.security import DagAccessEntity, requires_access_dag
 from airflow.exceptions import TaskNotFound
 from airflow.models import TaskInstance, Trigger
 from airflow.models.taskinstancehistory import TaskInstanceHistory
@@ -63,6 +64,7 @@ text_example_response_for_get_log = {
             "content": text_example_response_for_get_log,
         },
     },
+    dependencies=[Depends(requires_access_dag("GET", DagAccessEntity.TASK_LOGS))],
     response_model=TaskInstancesLogResponse,
     response_model_exclude_unset=True,
 )
