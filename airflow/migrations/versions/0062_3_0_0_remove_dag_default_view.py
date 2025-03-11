@@ -1,4 +1,4 @@
-#!/usr/bin/env bash
+#
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
 # distributed with this work for additional information
@@ -15,21 +15,34 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-set -euxo pipefail
 
-cd "$( dirname "${BASH_SOURCE[0]}" )/../../"
+"""
+Remove dag.default_view column.
 
-PYTHON_ARG=""
+Revision ID: 16f7f5ee874e
+Revises: cf87489a35df
+Create Date: 2025-03-11 10:39:25.449265
 
-PIP_VERSION="25.0.1"
-UV_VERSION="0.6.5"
-if [[ ${PYTHON_VERSION=} != "" ]]; then
-    PYTHON_ARG="--python=$(which python"${PYTHON_VERSION}") "
-fi
+"""
 
-python -m pip install --upgrade "pip==${PIP_VERSION}"
-python -m pip install "uv==${UV_VERSION}"
-uv tool uninstall apache-airflow-breeze >/dev/null 2>&1 || true
-# shellcheck disable=SC2086
-uv tool install ${PYTHON_ARG} --force --editable ./dev/breeze/
-echo '/home/runner/.local/bin' >> "${GITHUB_PATH}"
+from __future__ import annotations
+
+import sqlalchemy as sa
+from alembic import op
+
+# revision identifiers, used by Alembic.
+revision = "16f7f5ee874e"
+down_revision = "cf87489a35df"
+branch_labels = None
+depends_on = None
+airflow_version = "3.0.0"
+
+
+def upgrade():
+    with op.batch_alter_table("dag", schema=None) as batch_op:
+        batch_op.drop_column("default_view")
+
+
+def downgrade():
+    with op.batch_alter_table("dag", schema=None) as batch_op:
+        batch_op.add_column(sa.Column("default_view", sa.VARCHAR(length=25), nullable=True))

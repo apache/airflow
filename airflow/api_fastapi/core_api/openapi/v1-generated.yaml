@@ -3058,6 +3058,8 @@ paths:
       summary: Get Dags
       description: Get all DAGs.
       operationId: get_dags
+      security:
+      - OAuth2PasswordBearer: []
       parameters:
       - name: limit
         in: query
@@ -3223,6 +3225,8 @@ paths:
       summary: Patch Dags
       description: Patch multiple DAGs.
       operationId: patch_dags
+      security:
+      - OAuth2PasswordBearer: []
       parameters:
       - name: update_mask
         in: query
@@ -3358,6 +3362,8 @@ paths:
       summary: Get Dag
       description: Get basic information about a DAG.
       operationId: get_dag
+      security:
+      - OAuth2PasswordBearer: []
       parameters:
       - name: dag_id
         in: path
@@ -3408,6 +3414,8 @@ paths:
       summary: Patch Dag
       description: Patch the specific DAG.
       operationId: patch_dag
+      security:
+      - OAuth2PasswordBearer: []
       parameters:
       - name: dag_id
         in: path
@@ -3474,6 +3482,8 @@ paths:
       summary: Delete Dag
       description: Delete the specific DAG.
       operationId: delete_dag
+      security:
+      - OAuth2PasswordBearer: []
       parameters:
       - name: dag_id
         in: path
@@ -3524,6 +3534,8 @@ paths:
       summary: Get Dag Details
       description: Get details of DAG.
       operationId: get_dag_details
+      security:
+      - OAuth2PasswordBearer: []
       parameters:
       - name: dag_id
         in: path
@@ -3941,6 +3953,8 @@ paths:
       summary: Get Jobs
       description: Get all jobs.
       operationId: get_jobs
+      security:
+      - OAuth2PasswordBearer: []
       parameters:
       - name: is_alive
         in: query
@@ -6697,6 +6711,8 @@ paths:
       summary: Get Log
       description: Get logs for a specific task instance.
       operationId: get_log
+      security:
+      - OAuth2PasswordBearer: []
       parameters:
       - name: dag_id
         in: path
@@ -8227,11 +8243,6 @@ components:
             format: date-time
           - type: 'null'
           title: Last Expired
-        default_view:
-          anyOf:
-          - type: string
-          - type: 'null'
-          title: Default View
         fileloc:
           type: string
           title: Fileloc
@@ -8387,7 +8398,6 @@ components:
       - is_active
       - last_parsed_time
       - last_expired
-      - default_view
       - fileloc
       - description
       - timetable_summary
@@ -8457,11 +8467,6 @@ components:
             format: date-time
           - type: 'null'
           title: Last Expired
-        default_view:
-          anyOf:
-          - type: string
-          - type: 'null'
-          title: Default View
         fileloc:
           type: string
           title: Fileloc
@@ -8544,7 +8549,6 @@ components:
       - is_active
       - last_parsed_time
       - last_expired
-      - default_view
       - fileloc
       - description
       - timetable_summary
@@ -8973,11 +8977,6 @@ components:
             format: date-time
           - type: 'null'
           title: Last Expired
-        default_view:
-          anyOf:
-          - type: string
-          - type: 'null'
-          title: Default View
         fileloc:
           type: string
           title: Fileloc
@@ -9065,7 +9064,6 @@ components:
       - is_active
       - last_parsed_time
       - last_expired
-      - default_view
       - fileloc
       - description
       - timetable_summary

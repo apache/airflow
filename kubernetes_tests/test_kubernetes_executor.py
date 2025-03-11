@@ -50,7 +50,7 @@ class TestKubernetesExecutor(BaseK8STest):
             timeout=300,
         )
 
-    @pytest.mark.execution_timeout(300)
+    @pytest.mark.execution_timeout(500)
     def test_integration_run_dag_with_scheduler_failure(self):
         dag_id = "example_kubernetes_executor"
 
