@@ -1,4 +1,3 @@
-#
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
 # distributed with this work for additional information
@@ -15,24 +14,23 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+#
+# NOTE! THIS FILE IS COPIED MANUALLY IN OTHER PROVIDERS DELIBERATELY TO AVOID ADDING UNNECESSARY
+# DEPENDENCIES BETWEEN PROVIDERS. IF YOU WANT TO ADD CONDITIONAL CODE IN YOUR PROVIDER THAT DEPENDS
+# ON AIRFLOW VERSION, PLEASE COPY THIS FILE TO THE ROOT PACKAGE OF YOUR PROVIDER AND IMPORT
+# THOSE CONSTANTS FROM IT RATHER THAN IMPORTING THEM FROM ANOTHER PROVIDER OR TEST CODE
+#
 from __future__ import annotations
 
-from typing import TYPE_CHECKING
 
-from airflow.models.baseoperator import BaseOperator
+def get_base_airflow_version_tuple() -> tuple[int, int, int]:
+    from packaging.version import Version
 
-if TYPE_CHECKING:
-    from airflow.sdk.definitions.context import Context
+    from airflow import __version__
+
+    airflow_version = Version(__version__)
+    return airflow_version.major, airflow_version.minor, airflow_version.micro
 
 
-class SmoothOperator(BaseOperator):
-    """Operator that does nothing, it logs a YouTube link to Sade song "Smooth Operator"."""
-
-    ui_color = "#e8f7e4"
-    yt_link: str = "https://www.youtube.com/watch?v=4TYv2PhG89A"
-
-    def __init__(self, **kwargs) -> None:
-        super().__init__(**kwargs)
-
-    def execute(self, context: Context):
-        self.log.info("Enjoy Sade - Smooth Operator: %s", self.yt_link)
+AIRFLOW_V_2_10_PLUS = get_base_airflow_version_tuple() >= (2, 10, 0)
+AIRFLOW_V_3_0_PLUS = get_base_airflow_version_tuple() >= (3, 0, 0)

@@ -13,6 +13,8 @@ paths:
       - Asset
       summary: Next Run Assets
       operationId: next_run_assets
+      security:
+      - OAuth2PasswordBearer: []
       parameters:
       - name: dag_id
         in: path
@@ -54,6 +56,8 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/HTTPExceptionResponse'
+      security:
+      - OAuth2PasswordBearer: []
   /ui/dags/recent_dag_runs:
     get:
       tags:
@@ -616,6 +620,8 @@ paths:
       summary: Get Asset Aliases
       description: Get asset aliases.
       operationId: get_asset_aliases
+      security:
+      - OAuth2PasswordBearer: []
       parameters:
       - name: limit
         in: query
@@ -686,6 +692,8 @@ paths:
       summary: Get Asset Alias
       description: Get an asset alias.
       operationId: get_asset_alias
+      security:
+      - OAuth2PasswordBearer: []
       parameters:
       - name: asset_alias_id
         in: path
@@ -1021,14 +1029,6 @@ paths:
           - type: string
           - type: 'null'
           title: Before
-      - name: dag_id
-        in: query
-        required: false
-        schema:
-          anyOf:
-          - type: string
-          - type: 'null'
-          title: Dag Id
       responses:
         '204':
           description: Successful Response
@@ -1117,9 +1117,7 @@ paths:
         in: path
         required: true
         schema:
-          anyOf:
-          - type: string
-          - type: 'null'
+          type: string
           title: Dag Id
       - name: before
         in: query
@@ -1172,9 +1170,7 @@ paths:
         in: path
         required: true
         schema:
-          anyOf:
-          - type: string
-          - type: 'null'
+          type: string
           title: Dag Id
       - name: before
         in: query
@@ -1231,9 +1227,7 @@ paths:
         in: path
         required: true
         schema:
-          anyOf:
-          - type: string
-          - type: 'null'
+          type: string
           title: Dag Id
       - name: asset_id
         in: path
@@ -1293,9 +1287,7 @@ paths:
         in: path
         required: true
         schema:
-          anyOf:
-          - type: string
-          - type: 'null'
+          type: string
           title: Dag Id
       - name: asset_id
         in: path
@@ -2092,9 +2084,7 @@ paths:
         in: path
         required: true
         schema:
-          anyOf:
-          - type: string
-          - type: 'null'
+          type: string
           title: Dag Id
       - name: dag_run_id
         in: path
@@ -2146,9 +2136,7 @@ paths:
         in: path
         required: true
         schema:
-          anyOf:
-          - type: string
-          - type: 'null'
+          type: string
           title: Dag Id
       - name: dag_run_id
         in: path
@@ -2202,9 +2190,7 @@ paths:
         in: path
         required: true
         schema:
-          anyOf:
-          - type: string
-          - type: 'null'
+          type: string
           title: Dag Id
       - name: dag_run_id
         in: path
@@ -2280,9 +2266,7 @@ paths:
         in: path
         required: true
         schema:
-          anyOf:
-          - type: string
-          - type: 'null'
+          type: string
           title: Dag Id
       - name: dag_run_id
         in: path
@@ -2334,9 +2318,7 @@ paths:
         in: path
         required: true
         schema:
-          anyOf:
-          - type: string
-          - type: 'null'
+          type: string
           title: Dag Id
       - name: dag_run_id
         in: path
@@ -2402,9 +2384,7 @@ paths:
         in: path
         required: true
         schema:
-          anyOf:
-          - type: string
-          - type: 'null'
+          type: string
           title: Dag Id
       - name: limit
         in: query
@@ -2571,9 +2551,6 @@ paths:
         in: path
         required: true
         schema:
-          anyOf:
-          - type: string
-          - type: 'null'
           title: Dag Id
       requestBody:
         required: true
@@ -2638,9 +2615,8 @@ paths:
         in: path
         required: true
         schema:
-          anyOf:
-          - type: string
-          - type: 'null'
+          const: '~'
+          type: string
           title: Dag Id
       requestBody:
         required: true
@@ -2693,9 +2669,7 @@ paths:
         in: path
         required: true
         schema:
-          anyOf:
-          - type: string
-          - type: 'null'
+          type: string
           title: Dag Id
       - name: version_number
         in: query
@@ -2773,14 +2747,6 @@ paths:
       security:
       - OAuth2PasswordBearer: []
       parameters:
-      - name: dag_id
-        in: query
-        required: false
-        schema:
-          anyOf:
-          - type: string
-          - type: 'null'
-          title: Dag Id
       - name: dag_ids
         in: query
         required: false
@@ -3112,6 +3078,8 @@ paths:
       summary: Get Dags
       description: Get all DAGs.
       operationId: get_dags
+      security:
+      - OAuth2PasswordBearer: []
       parameters:
       - name: limit
         in: query
@@ -3277,6 +3245,8 @@ paths:
       summary: Patch Dags
       description: Patch multiple DAGs.
       operationId: patch_dags
+      security:
+      - OAuth2PasswordBearer: []
       parameters:
       - name: update_mask
         in: query
@@ -3412,6 +3382,8 @@ paths:
       summary: Get Dag
       description: Get basic information about a DAG.
       operationId: get_dag
+      security:
+      - OAuth2PasswordBearer: []
       parameters:
       - name: dag_id
         in: path
@@ -3462,6 +3434,8 @@ paths:
       summary: Patch Dag
       description: Patch the specific DAG.
       operationId: patch_dag
+      security:
+      - OAuth2PasswordBearer: []
       parameters:
       - name: dag_id
         in: path
@@ -3528,6 +3502,8 @@ paths:
       summary: Delete Dag
       description: Delete the specific DAG.
       operationId: delete_dag
+      security:
+      - OAuth2PasswordBearer: []
       parameters:
       - name: dag_id
         in: path
@@ -3578,6 +3554,8 @@ paths:
       summary: Get Dag Details
       description: Get details of DAG.
       operationId: get_dag_details
+      security:
+      - OAuth2PasswordBearer: []
       parameters:
       - name: dag_id
         in: path
@@ -3637,14 +3615,6 @@ paths:
         schema:
           type: integer
           title: Event Log Id
-      - name: dag_id
-        in: query
-        required: false
-        schema:
-          anyOf:
-          - type: string
-          - type: 'null'
-          title: Dag Id
       responses:
         '200':
           description: Successful Response
@@ -3686,14 +3656,6 @@ paths:
       security:
       - OAuth2PasswordBearer: []
       parameters:
-      - name: dag_id
-        in: query
-        required: false
-        schema:
-          anyOf:
-          - type: string
-          - type: 'null'
-          title: Dag Id
       - name: limit
         in: query
         required: false
@@ -3717,6 +3679,14 @@ paths:
           type: string
           default: id
           title: Order By
+      - name: dag_id
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Dag Id
       - name: task_id
         in: query
         required: false
@@ -3843,9 +3813,7 @@ paths:
         in: path
         required: true
         schema:
-          anyOf:
-          - type: string
-          - type: 'null'
+          type: string
           title: Dag Id
       - name: dag_run_id
         in: path
@@ -4005,6 +3973,8 @@ paths:
       summary: Get Jobs
       description: Get all jobs.
       operationId: get_jobs
+      security:
+      - OAuth2PasswordBearer: []
       parameters:
       - name: is_alive
         in: query
@@ -4142,6 +4112,8 @@ paths:
       - Plugin
       summary: Get Plugins
       operationId: get_plugins
+      security:
+      - OAuth2PasswordBearer: []
       parameters:
       - name: limit
         in: query
@@ -4510,6 +4482,8 @@ paths:
       summary: Get Providers
       description: Get providers.
       operationId: get_providers
+      security:
+      - OAuth2PasswordBearer: []
       parameters:
       - name: limit
         in: query
@@ -4566,9 +4540,7 @@ paths:
         in: path
         required: true
         schema:
-          anyOf:
-          - type: string
-          - type: 'null'
+          type: string
           title: Dag Id
       - name: task_id
         in: path
@@ -4663,9 +4635,7 @@ paths:
         in: path
         required: true
         schema:
-          anyOf:
-          - type: string
-          - type: 'null'
+          type: string
           title: Dag Id
       - name: task_id
         in: path
@@ -4746,9 +4716,7 @@ paths:
         in: path
         required: true
         schema:
-          anyOf:
-          - type: string
-          - type: 'null'
+          type: string
           title: Dag Id
       - name: dag_run_id
         in: path
@@ -4845,9 +4813,7 @@ paths:
         in: path
         required: true
         schema:
-          anyOf:
-          - type: string
-          - type: 'null'
+          type: string
           title: Dag Id
       - name: task_id
         in: path
@@ -4918,9 +4884,7 @@ paths:
         in: path
         required: true
         schema:
-          anyOf:
-          - type: string
-          - type: 'null'
+          type: string
           title: Dag Id
       - name: dag_run_id
         in: path
@@ -4978,9 +4942,7 @@ paths:
         in: path
         required: true
         schema:
-          anyOf:
-          - type: string
-          - type: 'null'
+          type: string
           title: Dag Id
       - name: dag_run_id
         in: path
@@ -5074,9 +5036,7 @@ paths:
         in: path
         required: true
         schema:
-          anyOf:
-          - type: string
-          - type: 'null'
+          type: string
           title: Dag Id
       - name: dag_run_id
         in: path
@@ -5304,9 +5264,7 @@ paths:
         in: path
         required: true
         schema:
-          anyOf:
-          - type: string
-          - type: 'null'
+          type: string
           title: Dag Id
       - name: dag_run_id
         in: path
@@ -5371,9 +5329,7 @@ paths:
         in: path
         required: true
         schema:
-          anyOf:
-          - type: string
-          - type: 'null'
+          type: string
           title: Dag Id
       - name: dag_run_id
         in: path
@@ -5439,9 +5395,7 @@ paths:
         in: path
         required: true
         schema:
-          anyOf:
-          - type: string
-          - type: 'null'
+          type: string
           title: Dag Id
       - name: dag_run_id
         in: path
@@ -5506,9 +5460,7 @@ paths:
         in: path
         required: true
         schema:
-          anyOf:
-          - type: string
-          - type: 'null'
+          type: string
           title: Dag Id
       - name: dag_run_id
         in: path
@@ -5573,9 +5525,7 @@ paths:
         in: path
         required: true
         schema:
-          anyOf:
-          - type: string
-          - type: 'null'
+          type: string
           title: Dag Id
       - name: dag_run_id
         in: path
@@ -5639,9 +5589,7 @@ paths:
         in: path
         required: true
         schema:
-          anyOf:
-          - type: string
-          - type: 'null'
+          type: string
           title: Dag Id
       - name: dag_run_id
         in: path
@@ -5740,9 +5688,7 @@ paths:
         in: path
         required: true
         schema:
-          anyOf:
-          - type: string
-          - type: 'null'
+          type: string
           title: Dag Id
       - name: dag_run_id
         in: path
@@ -5980,9 +5926,8 @@ paths:
         in: path
         required: true
         schema:
-          anyOf:
-          - type: string
-          - type: 'null'
+          const: '~'
+          type: string
           title: Dag Id
       - name: dag_run_id
         in: path
@@ -6042,9 +5987,7 @@ paths:
         in: path
         required: true
         schema:
-          anyOf:
-          - type: string
-          - type: 'null'
+          type: string
           title: Dag Id
       - name: dag_run_id
         in: path
@@ -6115,9 +6058,7 @@ paths:
         in: path
         required: true
         schema:
-          anyOf:
-          - type: string
-          - type: 'null'
+          type: string
           title: Dag Id
       - name: dag_run_id
         in: path
@@ -6188,9 +6129,7 @@ paths:
         in: path
         required: true
         schema:
-          anyOf:
-          - type: string
-          - type: 'null'
+          type: string
           title: Dag Id
       requestBody:
         required: true
@@ -6243,9 +6182,7 @@ paths:
         in: path
         required: true
         schema:
-          anyOf:
-          - type: string
-          - type: 'null'
+          type: string
           title: Dag Id
       - name: dag_run_id
         in: path
@@ -6332,9 +6269,7 @@ paths:
         in: path
         required: true
         schema:
-          anyOf:
-          - type: string
-          - type: 'null'
+          type: string
           title: Dag Id
       - name: dag_run_id
         in: path
@@ -6836,6 +6771,8 @@ paths:
       summary: Get Log
       description: Get logs for a specific task instance.
       operationId: get_log
+      security:
+      - OAuth2PasswordBearer: []
       parameters:
       - name: dag_id
         in: path
@@ -6948,14 +6885,6 @@ paths:
         schema:
           type: string
           title: File Token
-      - name: dag_id
-        in: query
-        required: false
-        schema:
-          anyOf:
-          - type: string
-          - type: 'null'
-          title: Dag Id
       responses:
         '201':
           description: Successful Response

@@ -923,7 +923,6 @@ export const prefetchUseDagSourceServiceGetDagSource = (
  * Get Dag Stats
  * Get Dag statistics.
  * @param data The data for the request.
- * @param data.dagId
  * @param data.dagIds
  * @returns DagStatsCollectionResponse Successful Response
  * @throws ApiError
@@ -931,16 +930,14 @@ export const prefetchUseDagSourceServiceGetDagSource = (
 export const prefetchUseDagStatsServiceGetDagStats = (
   queryClient: QueryClient,
   {
-    dagId,
     dagIds,
   }: {
-    dagId?: string;
     dagIds?: string[];
   } = {},
 ) =>
   queryClient.prefetchQuery({
-    queryKey: Common.UseDagStatsServiceGetDagStatsKeyFn({ dagId, dagIds }),
-    queryFn: () => DagStatsService.getDagStats({ dagId, dagIds }),
+    queryKey: Common.UseDagStatsServiceGetDagStatsKeyFn({ dagIds }),
+    queryFn: () => DagStatsService.getDagStats({ dagIds }),
   });
 /**
  * Get Dag Reports
@@ -1167,32 +1164,29 @@ export const prefetchUseDagServiceGetDagTags = (
  * Get Event Log
  * @param data The data for the request.
  * @param data.eventLogId
- * @param data.dagId
  * @returns EventLogResponse Successful Response
  * @throws ApiError
  */
 export const prefetchUseEventLogServiceGetEventLog = (
   queryClient: QueryClient,
   {
-    dagId,
     eventLogId,
   }: {
-    dagId?: string;
     eventLogId: number;
   },
 ) =>
   queryClient.prefetchQuery({
-    queryKey: Common.UseEventLogServiceGetEventLogKeyFn({ dagId, eventLogId }),
-    queryFn: () => EventLogService.getEventLog({ dagId, eventLogId }),
+    queryKey: Common.UseEventLogServiceGetEventLogKeyFn({ eventLogId }),
+    queryFn: () => EventLogService.getEventLog({ eventLogId }),
   });
 /**
  * Get Event Logs
  * Get all Event Logs.
  * @param data The data for the request.
- * @param data.dagId
  * @param data.limit
  * @param data.offset
  * @param data.orderBy
+ * @param data.dagId
  * @param data.taskId
  * @param data.runId
  * @param data.mapIndex

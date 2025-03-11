@@ -448,7 +448,6 @@ export class AssetService {
    * @param data The data for the request.
    * @param data.assetId
    * @param data.before
-   * @param data.dagId
    * @returns void Successful Response
    * @throws ApiError
    */
@@ -463,7 +462,6 @@ export class AssetService {
       },
       query: {
         before: data.before,
-        dag_id: data.dagId,
       },
       errors: {
         401: "Unauthorized",
@@ -1581,7 +1579,6 @@ export class DagStatsService {
    * Get Dag Stats
    * Get Dag statistics.
    * @param data The data for the request.
-   * @param data.dagId
    * @param data.dagIds
    * @returns DagStatsCollectionResponse Successful Response
    * @throws ApiError
@@ -1591,7 +1588,6 @@ export class DagStatsService {
       method: "GET",
       url: "/public/dagStats",
       query: {
-        dag_id: data.dagId,
         dag_ids: data.dagIds,
       },
       errors: {
@@ -1906,7 +1902,6 @@ export class EventLogService {
    * Get Event Log
    * @param data The data for the request.
    * @param data.eventLogId
-   * @param data.dagId
    * @returns EventLogResponse Successful Response
    * @throws ApiError
    */
@@ -1916,9 +1911,6 @@ export class EventLogService {
       url: "/public/eventLogs/{event_log_id}",
       path: {
         event_log_id: data.eventLogId,
-      },
-      query: {
-        dag_id: data.dagId,
       },
       errors: {
         401: "Unauthorized",
@@ -1933,10 +1925,10 @@ export class EventLogService {
    * Get Event Logs
    * Get all Event Logs.
    * @param data The data for the request.
-   * @param data.dagId
    * @param data.limit
    * @param data.offset
    * @param data.orderBy
+   * @param data.dagId
    * @param data.taskId
    * @param data.runId
    * @param data.mapIndex
@@ -1955,10 +1947,10 @@ export class EventLogService {
       method: "GET",
       url: "/public/eventLogs",
       query: {
-        dag_id: data.dagId,
         limit: data.limit,
         offset: data.offset,
         order_by: data.orderBy,
+        dag_id: data.dagId,
         task_id: data.taskId,
         run_id: data.runId,
         map_index: data.mapIndex,
@@ -3396,7 +3388,6 @@ export class DagParsingService {
    * Request re-parsing a DAG file.
    * @param data The data for the request.
    * @param data.fileToken
-   * @param data.dagId
    * @returns null Successful Response
    * @throws ApiError
    */
@@ -3406,9 +3397,6 @@ export class DagParsingService {
       url: "/public/parseDagFile/{file_token}",
       path: {
         file_token: data.fileToken,
-      },
-      query: {
-        dag_id: data.dagId,
       },
       errors: {
         401: "Unauthorized",

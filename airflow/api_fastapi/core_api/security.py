@@ -26,6 +26,8 @@ from jwt import ExpiredSignatureError, InvalidTokenError
 from airflow.api_fastapi.app import get_auth_manager
 from airflow.api_fastapi.auth.managers.models.base_user import BaseUser
 from airflow.api_fastapi.auth.managers.models.resource_details import (
+    AccessView,
+    AssetAliasDetails,
     AssetDetails,
     ConfigurationDetails,
     ConnectionDetails,
@@ -34,11 +36,15 @@ from airflow.api_fastapi.auth.managers.models.resource_details import (
     PoolDetails,
     VariableDetails,
 )
+from airflow.api_fastapi.core_api.base import OrmClause
 from airflow.configuration import conf
+from airflow.models.dag import DagModel
 from airflow.utils.jwt_signer import JWTSigner, get_signing_key
 
 if TYPE_CHECKING:
-    from airflow.api_fastapi.auth.managers.base_auth_manager import ResourceMethod
+    from sqlalchemy.sql import Select
+
+    from airflow.api_fastapi.auth.managers.base_auth_manager import BaseAuthManager, ResourceMethod
 
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="token")
 
@@ -61,6 +67,9 @@ def get_user(token_str: Annotated[str, Depends(oauth2_scheme)]) -> BaseUser:
         raise HTTPException(status.HTTP_403_FORBIDDEN, "Forbidden")
 
 
+GetUserDep = Annotated[BaseUser, Depends(get_user)]
+
+
 async def get_user_with_exception_handling(request: Request) -> BaseUser | None:
     # Currently the UI does not support JWT authentication, this method defines a fallback if no token is provided by the UI.
     # We can remove this method when issue https://github.com/apache/airflow/issues/44884 is done.
@@ -78,11 +87,15 @@ async def get_user_with_exception_handling(request: Request) -> BaseUser | None:
     return get_user(token_str)
 
 
-def requires_access_dag(method: ResourceMethod, access_entity: DagAccessEntity | None = None) -> Callable:
+def requires_access_dag(
+    method: ResourceMethod, access_entity: DagAccessEntity | None = None
+) -> Callable[[Request, BaseUser], None]:
     def inner(
-        user: Annotated[BaseUser, Depends(get_user)],
-        dag_id: str | None = None,
+        request: Request,
+        user: GetUserDep,
     ) -> None:
+        dag_id: str | None = request.path_params.get("dag_id")
+
         _requires_access(
             is_authorized_callback=lambda: get_auth_manager().is_authorized_dag(
                 method=method, access_entity=access_entity, details=DagDetails(id=dag_id), user=user
@@ -92,10 +105,40 @@ def requires_access_dag(method: ResourceMethod, access_entity: DagAccessEntity |
     return inner
 
 
+class PermittedDagFilter(OrmClause[set[str]]):
+    """A parameter that filters the permitted dags for the user."""
+
+    def to_orm(self, select: Select) -> Select:
+        return select.where(DagModel.dag_id.in_(self.value))
+
+
+def permitted_dag_filter_factory(method: ResourceMethod) -> Callable[[Request, BaseUser], PermittedDagFilter]:
+    """
+    Create a callable for Depends in FastAPI that returns a filter of the permitted dags for the user.
+
+    :param method: whether filter readable or writable.
+    :return: The callable that can be used as Depends in FastAPI.
+    """
+
+    def depends_permitted_dags_filter(
+        request: Request,
+        user: GetUserDep,
+    ) -> PermittedDagFilter:
+        auth_manager: BaseAuthManager = request.app.state.auth_manager
+        permitted_dags: set[str] = auth_manager.get_permitted_dag_ids(user=user, method=method)
+        return PermittedDagFilter(permitted_dags)
+
+    return depends_permitted_dags_filter
+
+
+EditableDagsFilterDep = Annotated[PermittedDagFilter, Depends(permitted_dag_filter_factory("PUT"))]
+ReadableDagsFilterDep = Annotated[PermittedDagFilter, Depends(permitted_dag_filter_factory("GET"))]
+
+
 def requires_access_pool(method: ResourceMethod) -> Callable[[Request, BaseUser], None]:
     def inner(
         request: Request,
-        user: Annotated[BaseUser, Depends(get_user)],
+        user: GetUserDep,
     ) -> None:
         pool_name = request.path_params.get("pool_name")
 
@@ -111,7 +154,7 @@ def requires_access_pool(method: ResourceMethod) -> Callable[[Request, BaseUser]
 def requires_access_connection(method: ResourceMethod) -> Callable[[Request, BaseUser], None]:
     def inner(
         request: Request,
-        user: Annotated[BaseUser, Depends(get_user)],
+        user: GetUserDep,
     ) -> None:
         connection_id = request.path_params.get("connection_id")
 
@@ -168,6 +211,36 @@ def requires_access_asset(method: ResourceMethod) -> Callable:
         _requires_access(
             is_authorized_callback=lambda: get_auth_manager().is_authorized_asset(
                 method=method, details=AssetDetails(id=asset_id), user=user
+            ),
+        )
+
+    return inner
+
+
+def requires_access_view(access_view: AccessView) -> Callable[[Request, BaseUser | None], None]:
+    def inner(
+        request: Request,
+        user: Annotated[BaseUser | None, Depends(get_user)] = None,
+    ) -> None:
+        _requires_access(
+            is_authorized_callback=lambda: get_auth_manager().is_authorized_view(
+                access_view=access_view, user=user
+            ),
+        )
+
+    return inner
+
+
+def requires_access_asset_alias(method: ResourceMethod) -> Callable:
+    def inner(
+        request: Request,
+        user: Annotated[BaseUser | None, Depends(get_user)] = None,
+    ) -> None:
+        asset_alias_id: str | None = request.path_params.get("asset_alias_id")
+
+        _requires_access(
+            is_authorized_callback=lambda: get_auth_manager().is_authorized_asset_alias(
+                method=method, details=AssetAliasDetails(id=asset_alias_id), user=user
             ),
         )
 

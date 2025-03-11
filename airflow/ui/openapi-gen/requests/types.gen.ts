@@ -1677,7 +1677,6 @@ export type GetAssetQueuedEventsResponse = QueuedEventCollectionResponse;
 export type DeleteAssetQueuedEventsData = {
   assetId: number;
   before?: string | null;
-  dagId?: string | null;
 };
 
 export type DeleteAssetQueuedEventsResponse = void;
@@ -1690,14 +1689,14 @@ export type GetAssetResponse = AssetResponse;
 
 export type GetDagAssetQueuedEventsData = {
   before?: string | null;
-  dagId: string | null;
+  dagId: string;
 };
 
 export type GetDagAssetQueuedEventsResponse = QueuedEventCollectionResponse;
 
 export type DeleteDagAssetQueuedEventsData = {
   before?: string | null;
-  dagId: string | null;
+  dagId: string;
 };
 
 export type DeleteDagAssetQueuedEventsResponse = void;
@@ -1705,7 +1704,7 @@ export type DeleteDagAssetQueuedEventsResponse = void;
 export type GetDagAssetQueuedEventData = {
   assetId: number;
   before?: string | null;
-  dagId: string | null;
+  dagId: string;
 };
 
 export type GetDagAssetQueuedEventResponse = QueuedEventResponse;
@@ -1713,7 +1712,7 @@ export type GetDagAssetQueuedEventResponse = QueuedEventResponse;
 export type DeleteDagAssetQueuedEventData = {
   assetId: number;
   before?: string | null;
-  dagId: string | null;
+  dagId: string;
 };
 
 export type DeleteDagAssetQueuedEventResponse = void;
@@ -1899,21 +1898,21 @@ export type TestConnectionResponse = ConnectionTestResponse;
 export type CreateDefaultConnectionsResponse = void;
 
 export type GetDagRunData = {
-  dagId: string | null;
+  dagId: string;
   dagRunId: string;
 };
 
 export type GetDagRunResponse = DAGRunResponse;
 
 export type DeleteDagRunData = {
-  dagId: string | null;
+  dagId: string;
   dagRunId: string;
 };
 
 export type DeleteDagRunResponse = void;
 
 export type PatchDagRunData = {
-  dagId: string | null;
+  dagId: string;
   dagRunId: string;
   requestBody: DAGRunPatchBody;
   updateMask?: Array<string> | null;
@@ -1922,14 +1921,14 @@ export type PatchDagRunData = {
 export type PatchDagRunResponse = DAGRunResponse;
 
 export type GetUpstreamAssetEventsData = {
-  dagId: string | null;
+  dagId: string;
   dagRunId: string;
 };
 
 export type GetUpstreamAssetEventsResponse = AssetEventCollectionResponse;
 
 export type ClearDagRunData = {
-  dagId: string | null;
+  dagId: string;
   dagRunId: string;
   requestBody: DAGRunClearBody;
 };
@@ -1937,7 +1936,7 @@ export type ClearDagRunData = {
 export type ClearDagRunResponse = TaskInstanceCollectionResponse | DAGRunResponse;
 
 export type GetDagRunsData = {
-  dagId: string | null;
+  dagId: string;
   endDateGte?: string | null;
   endDateLte?: string | null;
   limit?: number;
@@ -1957,14 +1956,14 @@ export type GetDagRunsData = {
 export type GetDagRunsResponse = DAGRunCollectionResponse;
 
 export type TriggerDagRunData = {
-  dagId: string | null;
+  dagId: unknown;
   requestBody: TriggerDAGRunPostBody;
 };
 
 export type TriggerDagRunResponse = DAGRunResponse;
 
 export type GetListDagRunsBatchData = {
-  dagId: string | null;
+  dagId: "~";
   requestBody: DAGRunsBatchBody;
 };
 
@@ -1972,14 +1971,13 @@ export type GetListDagRunsBatchResponse = DAGRunCollectionResponse;
 
 export type GetDagSourceData = {
   accept?: "application/json" | "text/plain" | "*/*";
-  dagId: string | null;
+  dagId: string;
   versionNumber?: number | null;
 };
 
 export type GetDagSourceResponse = DAGSourceResponse;
 
 export type GetDagStatsData = {
-  dagId?: string | null;
   dagIds?: Array<string>;
 };
 
@@ -2074,7 +2072,6 @@ export type GetDagTagsData = {
 export type GetDagTagsResponse = DAGTagCollectionResponse;
 
 export type GetEventLogData = {
-  dagId?: string | null;
   eventLogId: number;
 };
 
@@ -2100,7 +2097,7 @@ export type GetEventLogsData = {
 export type GetEventLogsResponse = EventLogCollectionResponse;
 
 export type GetExtraLinksData = {
-  dagId: string | null;
+  dagId: string;
   dagRunId: string;
   mapIndex?: number;
   taskId: string;
@@ -2109,7 +2106,7 @@ export type GetExtraLinksData = {
 export type GetExtraLinksResponse = ExtraLinksResponse;
 
 export type GetTaskInstanceData = {
-  dagId: string | null;
+  dagId: string;
   dagRunId: string;
   taskId: string;
 };
@@ -2117,7 +2114,7 @@ export type GetTaskInstanceData = {
 export type GetTaskInstanceResponse = TaskInstanceResponse;
 
 export type PatchTaskInstanceData = {
-  dagId: string | null;
+  dagId: string;
   dagRunId: string;
   mapIndex?: number;
   requestBody: PatchTaskInstanceBody;
@@ -2128,7 +2125,7 @@ export type PatchTaskInstanceData = {
 export type PatchTaskInstanceResponse = TaskInstanceResponse;
 
 export type GetMappedTaskInstancesData = {
-  dagId: string | null;
+  dagId: string;
   dagRunId: string;
   durationGte?: number | null;
   durationLte?: number | null;
@@ -2156,7 +2153,7 @@ export type GetMappedTaskInstancesData = {
 export type GetMappedTaskInstancesResponse = TaskInstanceCollectionResponse;
 
 export type GetTaskInstanceDependenciesData = {
-  dagId: string | null;
+  dagId: string;
   dagRunId: string;
   mapIndex: number;
   taskId: string;
@@ -2165,7 +2162,7 @@ export type GetTaskInstanceDependenciesData = {
 export type GetTaskInstanceDependenciesResponse = TaskDependencyCollectionResponse;
 
 export type GetTaskInstanceDependencies1Data = {
-  dagId: string | null;
+  dagId: string;
   dagRunId: string;
   mapIndex?: number;
   taskId: string;
@@ -2174,7 +2171,7 @@ export type GetTaskInstanceDependencies1Data = {
 export type GetTaskInstanceDependencies1Response = TaskDependencyCollectionResponse;
 
 export type GetTaskInstanceTriesData = {
-  dagId: string | null;
+  dagId: string;
   dagRunId: string;
   mapIndex?: number;
   taskId: string;
@@ -2183,7 +2180,7 @@ export type GetTaskInstanceTriesData = {
 export type GetTaskInstanceTriesResponse = TaskInstanceHistoryCollectionResponse;
 
 export type GetMappedTaskInstanceTriesData = {
-  dagId: string | null;
+  dagId: string;
   dagRunId: string;
   mapIndex: number;
   taskId: string;
@@ -2192,7 +2189,7 @@ export type GetMappedTaskInstanceTriesData = {
 export type GetMappedTaskInstanceTriesResponse = TaskInstanceHistoryCollectionResponse;
 
 export type GetMappedTaskInstanceData = {
-  dagId: string | null;
+  dagId: string;
   dagRunId: string;
   mapIndex: number;
   taskId: string;
@@ -2201,7 +2198,7 @@ export type GetMappedTaskInstanceData = {
 export type GetMappedTaskInstanceResponse = TaskInstanceResponse;
 
 export type PatchTaskInstance1Data = {
-  dagId: string | null;
+  dagId: string;
   dagRunId: string;
   mapIndex: number;
   requestBody: PatchTaskInstanceBody;
@@ -2212,7 +2209,7 @@ export type PatchTaskInstance1Data = {
 export type PatchTaskInstance1Response = TaskInstanceResponse;
 
 export type GetTaskInstancesData = {
-  dagId: string | null;
+  dagId: string;
   dagRunId: string;
   durationGte?: number | null;
   durationLte?: number | null;
@@ -2241,7 +2238,7 @@ export type GetTaskInstancesData = {
 export type GetTaskInstancesResponse = TaskInstanceCollectionResponse;
 
 export type GetTaskInstancesBatchData = {
-  dagId: string | null;
+  dagId: "~";
   dagRunId: "~";
   requestBody: TaskInstancesBatchBody;
 };
@@ -2249,7 +2246,7 @@ export type GetTaskInstancesBatchData = {
 export type GetTaskInstancesBatchResponse = TaskInstanceCollectionResponse;
 
 export type GetTaskInstanceTryDetailsData = {
-  dagId: string | null;
+  dagId: string;
   dagRunId: string;
   mapIndex?: number;
   taskId: string;
@@ -2259,7 +2256,7 @@ export type GetTaskInstanceTryDetailsData = {
 export type GetTaskInstanceTryDetailsResponse = TaskInstanceHistoryResponse;
 
 export type GetMappedTaskInstanceTryDetailsData = {
-  dagId: string | null;
+  dagId: string;
   dagRunId: string;
   mapIndex: number;
   taskId: string;
@@ -2269,14 +2266,14 @@ export type GetMappedTaskInstanceTryDetailsData = {
 export type GetMappedTaskInstanceTryDetailsResponse = TaskInstanceHistoryResponse;
 
 export type PostClearTaskInstancesData = {
-  dagId: string | null;
+  dagId: string;
   requestBody: ClearTaskInstancesBody;
 };
 
 export type PostClearTaskInstancesResponse = TaskInstanceCollectionResponse;
 
 export type PatchTaskInstanceDryRunData = {
-  dagId: string | null;
+  dagId: string;
   dagRunId: string;
   mapIndex: number;
   requestBody: PatchTaskInstanceBody;
@@ -2287,7 +2284,7 @@ export type PatchTaskInstanceDryRunData = {
 export type PatchTaskInstanceDryRunResponse = TaskInstanceCollectionResponse;
 
 export type PatchTaskInstanceDryRun1Data = {
-  dagId: string | null;
+  dagId: string;
   dagRunId: string;
   mapIndex?: number;
   requestBody: PatchTaskInstanceBody;
@@ -2397,7 +2394,7 @@ export type GetProvidersData = {
 export type GetProvidersResponse = ProviderCollectionResponse;
 
 export type GetXcomEntryData = {
-  dagId: string | null;
+  dagId: string;
   dagRunId: string;
   deserialize?: boolean;
   mapIndex?: number;
@@ -2409,7 +2406,7 @@ export type GetXcomEntryData = {
 export type GetXcomEntryResponse = XComResponseNative | XComResponseString;
 
 export type UpdateXcomEntryData = {
-  dagId: string | null;
+  dagId: string;
   dagRunId: string;
   requestBody: XComUpdateBody;
   taskId: string;
@@ -2419,7 +2416,7 @@ export type UpdateXcomEntryData = {
 export type UpdateXcomEntryResponse = XComResponseNative;
 
 export type GetXcomEntriesData = {
-  dagId: string | null;
+  dagId: string;
   dagRunId: string;
   limit?: number;
   mapIndex?: number | null;
@@ -2431,7 +2428,7 @@ export type GetXcomEntriesData = {
 export type GetXcomEntriesResponse = XComCollectionResponse;
 
 export type CreateXcomEntryData = {
-  dagId: string | null;
+  dagId: string;
   dagRunId: string;
   requestBody: XComCreateBody;
   taskId: string;
@@ -2495,7 +2492,6 @@ export type BulkVariablesData = {
 export type BulkVariablesResponse = BulkResponse;
 
 export type ReparseDagFileData = {
-  dagId?: string | null;
   fileToken: string;
 };
 

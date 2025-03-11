@@ -26,7 +26,7 @@ from flask_appbuilder import SQLA
 
 from airflow import settings
 from airflow.providers.fab.www import app as application
-from airflow.security import permissions
+from airflow.providers.fab.www.security import permissions
 from unit.fab.auth_manager.api_endpoints.api_connexion_utils import (
     create_user,
     delete_role,

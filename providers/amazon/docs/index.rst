@@ -86,7 +86,7 @@ apache-airflow-providers-amazon package
 Amazon integration (including `Amazon Web Services (AWS) <https://aws.amazon.com/>`__).
 
 
-Release: 9.4.0
+Release: 9.5.0
 
 Provider package
 ----------------
@@ -123,6 +123,7 @@ PIP package                                 Version required
 ``PyAthena``                                ``>=3.0.10``
 ``jmespath``                                ``>=0.7.0``
 ``python3-saml``                            ``>=1.16.0``
+``sagemaker-studio``                        ``>=1.0.9``
 ==========================================  ======================
 
 Cross provider package dependencies
@@ -163,5 +164,5 @@ Downloading official packages
 You can download officially released packages and verify their checksums and signatures from the
 `Official Apache Download site <https://downloads.apache.org/airflow/providers/>`_
 
-* `The apache-airflow-providers-amazon 9.4.0 sdist package <https://downloads.apache.org/airflow/providers/apache_airflow_providers_amazon-9.4.0.tar.gz>`_ (`asc <https://downloads.apache.org/airflow/providers/apache_airflow_providers_amazon-9.4.0.tar.gz.asc>`__, `sha512 <https://downloads.apache.org/airflow/providers/apache_airflow_providers_amazon-9.4.0.tar.gz.sha512>`__)
-* `The apache-airflow-providers-amazon 9.4.0 wheel package <https://downloads.apache.org/airflow/providers/apache_airflow_providers_amazon-9.4.0-py3-none-any.whl>`_ (`asc <https://downloads.apache.org/airflow/providers/apache_airflow_providers_amazon-9.4.0-py3-none-any.whl.asc>`__, `sha512 <https://downloads.apache.org/airflow/providers/apache_airflow_providers_amazon-9.4.0-py3-none-any.whl.sha512>`__)
+* `The apache-airflow-providers-amazon 9.5.0 sdist package <https://downloads.apache.org/airflow/providers/apache_airflow_providers_amazon-9.5.0.tar.gz>`_ (`asc <https://downloads.apache.org/airflow/providers/apache_airflow_providers_amazon-9.5.0.tar.gz.asc>`__, `sha512 <https://downloads.apache.org/airflow/providers/apache_airflow_providers_amazon-9.5.0.tar.gz.sha512>`__)
+* `The apache-airflow-providers-amazon 9.5.0 wheel package <https://downloads.apache.org/airflow/providers/apache_airflow_providers_amazon-9.5.0-py3-none-any.whl>`_ (`asc <https://downloads.apache.org/airflow/providers/apache_airflow_providers_amazon-9.5.0-py3-none-any.whl.asc>`__, `sha512 <https://downloads.apache.org/airflow/providers/apache_airflow_providers_amazon-9.5.0-py3-none-any.whl.sha512>`__)

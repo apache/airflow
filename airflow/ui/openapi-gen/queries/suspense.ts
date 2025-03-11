@@ -1092,7 +1092,6 @@ export const useDagSourceServiceGetDagSourceSuspense = <
  * Get Dag Stats
  * Get Dag statistics.
  * @param data The data for the request.
- * @param data.dagId
  * @param data.dagIds
  * @returns DagStatsCollectionResponse Successful Response
  * @throws ApiError
@@ -1103,18 +1102,16 @@ export const useDagStatsServiceGetDagStatsSuspense = <
   TQueryKey extends Array<unknown> = unknown[],
 >(
   {
-    dagId,
     dagIds,
   }: {
-    dagId?: string;
     dagIds?: string[];
   } = {},
   queryKey?: TQueryKey,
   options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">,
 ) =>
   useSuspenseQuery<TData, TError>({
-    queryKey: Common.UseDagStatsServiceGetDagStatsKeyFn({ dagId, dagIds }, queryKey),
-    queryFn: () => DagStatsService.getDagStats({ dagId, dagIds }) as TData,
+    queryKey: Common.UseDagStatsServiceGetDagStatsKeyFn({ dagIds }, queryKey),
+    queryFn: () => DagStatsService.getDagStats({ dagIds }) as TData,
     ...options,
   });
 /**
@@ -1384,7 +1381,6 @@ export const useDagServiceGetDagTagsSuspense = <
  * Get Event Log
  * @param data The data for the request.
  * @param data.eventLogId
- * @param data.dagId
  * @returns EventLogResponse Successful Response
  * @throws ApiError
  */
@@ -1394,28 +1390,26 @@ export const useEventLogServiceGetEventLogSuspense = <
   TQueryKey extends Array<unknown> = unknown[],
 >(
   {
-    dagId,
     eventLogId,
   }: {
-    dagId?: string;
     eventLogId: number;
   },
   queryKey?: TQueryKey,
   options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">,
 ) =>
   useSuspenseQuery<TData, TError>({
-    queryKey: Common.UseEventLogServiceGetEventLogKeyFn({ dagId, eventLogId }, queryKey),
-    queryFn: () => EventLogService.getEventLog({ dagId, eventLogId }) as TData,
+    queryKey: Common.UseEventLogServiceGetEventLogKeyFn({ eventLogId }, queryKey),
+    queryFn: () => EventLogService.getEventLog({ eventLogId }) as TData,
     ...options,
   });
 /**
  * Get Event Logs
  * Get all Event Logs.
  * @param data The data for the request.
- * @param data.dagId
  * @param data.limit
  * @param data.offset
  * @param data.orderBy
+ * @param data.dagId
  * @param data.taskId
  * @param data.runId
  * @param data.mapIndex

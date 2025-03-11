@@ -62,6 +62,7 @@ from airflow.api_fastapi.core_api.datamodels.task_instances import (
 )
 from airflow.api_fastapi.core_api.openapi.exceptions import create_openapi_http_exception_doc
 from airflow.api_fastapi.core_api.security import requires_access_dag
+from airflow.api_fastapi.logging.decorators import action_logging
 from airflow.exceptions import TaskNotFound
 from airflow.models import Base, DagRun
 from airflow.models.dag import DAG
@@ -473,7 +474,10 @@ def get_task_instances(
 @task_instances_router.post(
     task_instances_prefix + "/list",
     responses=create_openapi_http_exception_doc([status.HTTP_404_NOT_FOUND]),
-    dependencies=[Depends(requires_access_dag(method="GET", access_entity=DagAccessEntity.TASK_INSTANCE))],
+    dependencies=[
+        Depends(action_logging()),
+        Depends(requires_access_dag(method="GET", access_entity=DagAccessEntity.TASK_INSTANCE)),
+    ],
 )
 def get_task_instances_batch(
     dag_id: Literal["~"],
@@ -614,7 +618,10 @@ def get_mapped_task_instance_try_details(
 @task_instances_router.post(
     "/clearTaskInstances",
     responses=create_openapi_http_exception_doc([status.HTTP_404_NOT_FOUND]),
-    dependencies=[Depends(requires_access_dag(method="PUT", access_entity=DagAccessEntity.TASK_INSTANCE))],
+    dependencies=[
+        Depends(action_logging()),
+        Depends(requires_access_dag(method="PUT", access_entity=DagAccessEntity.TASK_INSTANCE)),
+    ],
 )
 def post_clear_task_instances(
     dag_id: str,
@@ -821,14 +828,20 @@ def patch_task_instance_dry_run(
     responses=create_openapi_http_exception_doc(
         [status.HTTP_404_NOT_FOUND, status.HTTP_400_BAD_REQUEST, status.HTTP_409_CONFLICT],
     ),
-    dependencies=[Depends(requires_access_dag(method="PUT", access_entity=DagAccessEntity.TASK_INSTANCE))],
+    dependencies=[
+        Depends(action_logging()),
+        Depends(requires_access_dag(method="PUT", access_entity=DagAccessEntity.TASK_INSTANCE)),
+    ],
 )
 @task_instances_router.patch(
     task_instances_prefix + "/{task_id}/{map_index}",
     responses=create_openapi_http_exception_doc(
         [status.HTTP_404_NOT_FOUND, status.HTTP_400_BAD_REQUEST, status.HTTP_409_CONFLICT],
     ),
-    dependencies=[Depends(requires_access_dag(method="PUT", access_entity=DagAccessEntity.TASK_INSTANCE))],
+    dependencies=[
+        Depends(action_logging()),
+        Depends(requires_access_dag(method="PUT", access_entity=DagAccessEntity.TASK_INSTANCE)),
+    ],
 )
 def patch_task_instance(
     dag_id: str,

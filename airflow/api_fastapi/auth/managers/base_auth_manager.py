@@ -47,6 +47,7 @@ if TYPE_CHECKING:
     )
     from airflow.api_fastapi.auth.managers.models.resource_details import (
         AccessView,
+        AssetAliasDetails,
         AssetDetails,
         ConfigurationDetails,
         ConnectionDetails,
@@ -106,6 +107,15 @@ class BaseAuthManager(Generic[T], LoggingMixin):
     @abstractmethod
     def get_url_login(self, **kwargs) -> str:
         """Return the login page url."""
+
+    def logout(self) -> None:
+        """
+        Logout the user.
+
+        This method is called when the user is logging out. By default, it does nothing. Override it to
+        invalidate resources when logging out, such as a session.
+        """
+        return None
 
     @abstractmethod
     def is_authorized_configuration(
@@ -172,6 +182,22 @@ class BaseAuthManager(Generic[T], LoggingMixin):
         :param method: the method to perform
         :param user: the user to performing the action
         :param details: optional details about the asset
+        """
+
+    @abstractmethod
+    def is_authorized_asset_alias(
+        self,
+        *,
+        method: ResourceMethod,
+        user: T,
+        details: AssetAliasDetails | None = None,
+    ) -> bool:
+        """
+        Return whether the user is authorized to perform a given action on an asset alias.
+
+        :param method: the method to perform
+        :param user: the user to perform the action on
+        :param details: optional details about the asset alias
         """
 
     @abstractmethod

@@ -26,6 +26,39 @@
 Changelog
 ---------
 
+5.0.1
+.....
+
+Bug Fixes
+~~~~~~~~~
+
+* ``fix: api_version on on_kill method (#46833)``
+
+Misc
+~~~~
+
+* ``Upgrade flit to 3.11.0 (#46938)``
+
+Doc-only
+~~~~~~~~
+
+* ``Remove extra whitespace in provider readme template (#46975)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Move tests_common package to devel-common project (#47281)``
+   * ``Improve documentation for updating provider dependencies (#47203)``
+   * ``Add legacy namespace packages to airflow.providers (#47064)``
+   * ``Prepare docs for Feb 1st wave of providers (#46893)``
+   * ``Move provider_tests to unit folder in provider tests (#46800)``
+   * ``Removed the unused provider's distribution (#46608)``
+   * ``move standard, alibaba and common.sql provider to the new structure (#45964)``
+   * ``Move new provider tests to "provider_tests" submodule (#45955)``
+   * ``Add script to move providers to the new directory structure (#45945)``
+   * ``Move apache.iceberg provider to new providers structure (#45809)``
+   * ``move Celery provider to new provider code structure (#45786)``
+   * ``Move first provider (airbyte) to a separate project (#45259)``
+
 5.0.0
 .....
 

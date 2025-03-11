@@ -284,9 +284,13 @@ class DbtCloudRunJobOperator(BaseOperator):
         """
         from airflow.providers.openlineage.extractors import OperatorLineage
 
-        if isinstance(self.run_id, int) and self.wait_for_termination is True:
-            return generate_openlineage_events_from_dbt_cloud_run(operator=self, task_instance=task_instance)
-        return OperatorLineage()
+        if not isinstance(self.run_id, int):
+            self.log.info("Skipping OpenLineage event extraction: `self.run_id` is not set.")
+            return OperatorLineage()
+        if not self.wait_for_termination:
+            self.log.info("Skipping OpenLineage event extraction: `self.wait_for_termination` is False.")
+            return OperatorLineage()
+        return generate_openlineage_events_from_dbt_cloud_run(operator=self, task_instance=task_instance)
 
 
 class DbtCloudGetJobRunArtifactOperator(BaseOperator):

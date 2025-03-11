@@ -60,9 +60,9 @@ from tests_common.test_utils.mock_security_manager import MockSecurityManager
 from tests_common.test_utils.permissions import _resource_name
 
 if TYPE_CHECKING:
-    from airflow.providers.fab.www.security.permissions import RESOURCE_ASSET
+    from airflow.providers.fab.www.security.permissions import RESOURCE_ASSET, RESOURCE_ASSET_ALIAS
 else:
-    from airflow.providers.common.compat.security.permissions import RESOURCE_ASSET
+    from airflow.providers.common.compat.security.permissions import RESOURCE_ASSET, RESOURCE_ASSET_ALIAS
 
 
 pytestmark = pytest.mark.db_test
@@ -419,6 +419,7 @@ def test_get_user_roles_for_anonymous_user(app, security_manager):
         (permissions.ACTION_CAN_READ, permissions.RESOURCE_DAG_CODE),
         (permissions.ACTION_CAN_READ, permissions.RESOURCE_DAG_RUN),
         (permissions.ACTION_CAN_READ, RESOURCE_ASSET),
+        (permissions.ACTION_CAN_READ, RESOURCE_ASSET_ALIAS),
         (permissions.ACTION_CAN_READ, permissions.RESOURCE_CLUSTER_ACTIVITY),
         (permissions.ACTION_CAN_READ, permissions.RESOURCE_IMPORT_ERROR),
         (permissions.ACTION_CAN_READ, permissions.RESOURCE_DAG_WARNING),
