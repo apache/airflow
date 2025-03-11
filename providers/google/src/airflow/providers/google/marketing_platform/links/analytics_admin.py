@@ -18,9 +18,10 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, ClassVar
 
-from airflow.models import BaseOperator, XCom
+from airflow.sdk.execution_time.xcom import XCom
 
 if TYPE_CHECKING:
+    from airflow.models import BaseOperator
     from airflow.models.taskinstancekey import TaskInstanceKey
     from airflow.utils.context import Context
 

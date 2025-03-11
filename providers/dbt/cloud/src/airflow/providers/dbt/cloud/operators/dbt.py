@@ -24,7 +24,7 @@ from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
 from airflow.configuration import conf
-from airflow.models import BaseOperator, XCom
+from airflow.models import BaseOperator
 from airflow.providers.common.compat.version_compat import AIRFLOW_V_3_0_PLUS
 from airflow.providers.dbt.cloud.hooks.dbt import (
     DbtCloudHook,
@@ -34,6 +34,7 @@ from airflow.providers.dbt.cloud.hooks.dbt import (
 )
 from airflow.providers.dbt.cloud.triggers.dbt import DbtCloudRunJobTrigger
 from airflow.providers.dbt.cloud.utils.openlineage import generate_openlineage_events_from_dbt_cloud_run
+from airflow.sdk.execution_time.xcom import XCom
 
 if TYPE_CHECKING:
     from airflow.providers.openlineage.extractors import OperatorLineage

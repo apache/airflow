@@ -25,7 +25,7 @@ from typing import TYPE_CHECKING, Any
 from airflow.configuration import conf
 from airflow.exceptions import AirflowException
 from airflow.hooks.base import BaseHook
-from airflow.models import BaseOperator, XCom
+from airflow.models import BaseOperator
 from airflow.providers.microsoft.azure.hooks.data_factory import (
     AzureDataFactoryHook,
     AzureDataFactoryPipelineRunException,
@@ -33,6 +33,7 @@ from airflow.providers.microsoft.azure.hooks.data_factory import (
     get_field,
 )
 from airflow.providers.microsoft.azure.triggers.data_factory import AzureDataFactoryTrigger
+from airflow.sdk.execution_time.xcom import XCom
 from airflow.utils.log.logging_mixin import LoggingMixin
 
 if TYPE_CHECKING:
