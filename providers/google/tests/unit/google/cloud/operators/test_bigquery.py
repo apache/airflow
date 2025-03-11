@@ -2344,7 +2344,7 @@ class TestBigQueryInsertJobOperator:
     def test_labels_with_task_group_prefix_group_id(self, dag_maker):
         configuration = {
             "query": {
-                "query": "SELECT * FROM `bigquery-public-data.america_health_rankings.ahr` LIMIT 1000;",
+                "query": "SELECT * FROM any",
                 "useLegacySql": False,
             },
         }
