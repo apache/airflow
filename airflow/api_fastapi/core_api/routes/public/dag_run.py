@@ -229,7 +229,7 @@ def get_upstream_asset_events(
     "/{dag_run_id}/clear",
     responses=create_openapi_http_exception_doc([status.HTTP_404_NOT_FOUND]),
     dependencies=[
-        Depends(requires_access_dag(method="POST", access_entity=DagAccessEntity.RUN)),
+        Depends(requires_access_dag(method="PUT", access_entity=DagAccessEntity.RUN)),
         Depends(action_logging()),
     ],
 )
@@ -407,7 +407,7 @@ def trigger_dag_run(
 @dag_run_router.post(
     "/list",
     responses=create_openapi_http_exception_doc([status.HTTP_404_NOT_FOUND]),
-    dependencies=[Depends(requires_access_dag(method="POST", access_entity=DagAccessEntity.RUN))],
+    dependencies=[Depends(requires_access_dag(method="GET", access_entity=DagAccessEntity.RUN))],
 )
 def get_list_dag_runs_batch(
     dag_id: Literal["~"], body: DAGRunsBatchBody, session: SessionDep
