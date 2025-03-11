@@ -28,6 +28,7 @@ import { useTableURLState } from "src/components/DataTable/useTableUrlState";
 import { ErrorAlert } from "src/components/ErrorAlert";
 import { SearchBar } from "src/components/SearchBar";
 import { SearchParamsKeys } from "src/constants/searchParams";
+import { CreateAssetEvent } from "src/pages/Asset/CreateAssetEvent";
 import { pluralize } from "src/utils";
 
 import { DependencyPopover } from "./DependencyPopover";
@@ -66,6 +67,12 @@ const columns: Array<ColumnDef<AssetResponse>> = [
       ) : undefined,
     enableSorting: false,
     header: () => "Producing Tasks",
+  },
+  {
+    accessorKey: "trigger",
+    cell: ({ row }) => <CreateAssetEvent asset={row.original} withText={false} />,
+    enableSorting: false,
+    header: "",
   },
 ];
 
