@@ -18,11 +18,9 @@
 from __future__ import annotations
 
 import datetime
-import sys
 from typing import TYPE_CHECKING, Any
 
 import httpx
-import rich
 import structlog
 
 from airflow.cli.api.datamodels._generated import (
@@ -98,17 +96,12 @@ class ServerResponseError(httpx.HTTPStatusError):
         return self
 
 
-# Decorator to apply methods to all operations, this is initiated at __init_subclass__ on BaseOperations
-SERVER_CONNECTION_REFUSED_ERROR: str = "API Server is not running, please contact your administrator."
-
-
 def _check_flag_and_exit_if_server_response_error(func):
     """Return decorator to check for ServerResponseError and exit if the server is not running."""
 
     def _exit_if_server_response_error(response: Any | ServerResponseError):
         if isinstance(response, ServerResponseError):
-            rich.print(f"[bold red]Error:[/bold red] {response.response.json()}")
-            sys.exit(1)
+            raise response
         return response
 
     def wrapped(self, *args, **kwargs):
@@ -118,9 +111,7 @@ def _check_flag_and_exit_if_server_response_error(func):
             else:
                 return func(self, *args, **kwargs)
         except httpx.ConnectError as e:
-            rich.print(f"error: {e}")
-            rich.print(f"[bold red]{SERVER_CONNECTION_REFUSED_ERROR}[/bold red]")
-            sys.exit(1)
+            raise e
 
     return wrapped
 
@@ -159,13 +150,7 @@ class AssetsOperations(BaseOperations):
             self.response = self.client.get(f"assets/{asset_id}")
             return AssetResponse.model_validate_json(self.response.content)
         except ServerResponseError as e:
-            log.error(
-                "Asset not found",
-                asset_id=asset_id,
-                detail=e,
-                status_code=e.response.status_code,
-            )
-            return e
+            raise e
 
     def get_by_alias(self, alias: str) -> AssetAliasResponse | ServerResponseError:
         """Get an asset by alias from the API server."""
@@ -173,13 +158,7 @@ class AssetsOperations(BaseOperations):
             self.response = self.client.get(f"assets/aliases/{alias}")
             return AssetAliasResponse.model_validate_json(self.response.content)
         except ServerResponseError as e:
-            log.error(
-                "Asset alias not found",
-                alias=alias,
-                detail=e,
-                status_code=e.response.status_code,
-            )
-            return e
+            raise e
 
     def list(self) -> AssetCollectionResponse | ServerResponseError:
         """List all assets from the API server."""
@@ -187,12 +166,7 @@ class AssetsOperations(BaseOperations):
             self.response = self.client.get("assets")
             return AssetCollectionResponse.model_validate_json(self.response.content)
         except ServerResponseError as e:
-            log.error(
-                "Assets not found",
-                detail=e,
-                status_code=e.response.status_code,
-            )
-            return e
+            raise e
 
     def list_by_alias(self) -> AssetAliasCollectionResponse | ServerResponseError:
         """List all assets by alias from the API server."""
@@ -200,12 +174,7 @@ class AssetsOperations(BaseOperations):
             self.response = self.client.get("/assets/aliases")
             return AssetAliasCollectionResponse.model_validate_json(self.response.content)
         except ServerResponseError as e:
-            log.error(
-                "Asset aliases not found",
-                detail=e,
-                status_code=e.response.status_code,
-            )
-            return e
+            raise e
 
 
 class BackfillsOperations(BaseOperations):
@@ -217,12 +186,7 @@ class BackfillsOperations(BaseOperations):
             self.response = self.client.post("backfills", data=backfill.model_dump())
             return BackfillResponse.model_validate_json(self.response.content)
         except ServerResponseError as e:
-            log.error(
-                "Backfill already exists",
-                detail=e,
-                status_code=e.response.status_code,
-            )
-            return e
+            raise e
 
 
 class ConfigOperations(BaseOperations):
@@ -234,12 +198,7 @@ class ConfigOperations(BaseOperations):
             self.response = self.client.get(f"/section/{section}/option/{option}")
             return Config.model_validate_json(self.response.content)
         except ServerResponseError as e:
-            log.error(
-                "Config not found",
-                detail=e,
-                status_code=e.response.status_code,
-            )
-            return e
+            raise e
 
 
 class ConnectionsOperations(BaseOperations):
@@ -251,13 +210,7 @@ class ConnectionsOperations(BaseOperations):
             self.response = self.client.get(f"connections/{conn_id}")
             return ConnectionResponse.model_validate_json(self.response.content)
         except ServerResponseError as e:
-            log.error(
-                "Connection not found",
-                conn_id=conn_id,
-                detail=e,
-                status_code=e.response.status_code,
-            )
-            return e
+            raise e
 
     def list(self) -> ConnectionCollectionResponse | ServerResponseError:
         """List all connections from the API server."""
@@ -265,12 +218,7 @@ class ConnectionsOperations(BaseOperations):
             self.response = self.client.get("connections")
             return ConnectionCollectionResponse.model_validate_json(self.response.content)
         except ServerResponseError as e:
-            log.error(
-                "Connection not found",
-                detail=e,
-                status_code=e.response.status_code,
-            )
-            return e
+            raise e
 
     def create(
         self,
@@ -281,12 +229,7 @@ class ConnectionsOperations(BaseOperations):
             self.response = self.client.post("connections", json=connection.model_dump())
             return ConnectionResponse.model_validate_json(self.response.content)
         except ServerResponseError as e:
-            log.error(
-                "Connection already exists",
-                detail=e,
-                status_code=e.response.status_code,
-            )
-            return e
+            raise e
 
     def bulk(self, connections: ConnectionBulkBody) -> ConnectionBulkActionResponse | ServerResponseError:
         """CRUD multiple connections."""
@@ -294,12 +237,7 @@ class ConnectionsOperations(BaseOperations):
             self.response = self.client.patch("connections", json=connections.model_dump())
             return ConnectionBulkActionResponse.model_validate_json(self.response.content)
         except ServerResponseError as e:
-            log.error(
-                "Failed to create connections",
-                detail=e,
-                status_code=e.response.status_code,
-            )
-            return e
+            raise e
 
     def create_defaults(self) -> None | ServerResponseError:
         """Create default connections."""
@@ -307,12 +245,7 @@ class ConnectionsOperations(BaseOperations):
             self.response = self.client.post("connections/defaults")
             return None
         except ServerResponseError as e:
-            log.error(
-                "Failed to create default connections",
-                detail=e,
-                status_code=e.response.status_code,
-            )
-            return e
+            raise e
 
     def delete(self, conn_id: str) -> str | ServerResponseError:
         """Delete a connection."""
@@ -320,13 +253,7 @@ class ConnectionsOperations(BaseOperations):
             self.client.delete(f"connections/{conn_id}")
             return conn_id
         except ServerResponseError as e:
-            log.error(
-                "Connection not found",
-                conn_id=conn_id,
-                detail=e,
-                status_code=e.response.status_code,
-            )
-            return e
+            raise e
 
     def update(
         self,
@@ -339,13 +266,7 @@ class ConnectionsOperations(BaseOperations):
             )
             return ConnectionResponse.model_validate_json(self.response.content)
         except ServerResponseError as e:
-            log.error(
-                "Connection not found",
-                conn_id=connection.connection_id,
-                detail=e,
-                status_code=e.response.status_code,
-            )
-            return e
+            raise e
 
     def test(
         self,
@@ -356,13 +277,7 @@ class ConnectionsOperations(BaseOperations):
             self.response = self.client.post("connections/test", json=connection.model_dump())
             return ConnectionTestResponse.model_validate_json(self.response.content)
         except ServerResponseError as e:
-            log.error(
-                "Connection test failed",
-                conn_id=connection.connection_id,
-                detail=e,
-                status_code=e.response.status_code,
-            )
-            return e
+            raise e
 
 
 class DagOperations(BaseOperations):
@@ -374,13 +289,7 @@ class DagOperations(BaseOperations):
             self.response = self.client.get(f"dags/{dag_id}")
             return DAGResponse.model_validate_json(self.response.content)
         except ServerResponseError as e:
-            log.error(
-                "Failed to get dag",
-                dag_id=dag_id,
-                detail=e,
-                status_code=e.response.status_code,
-            )
-            return e
+            raise e
 
     def get_details(self, dag_id: str) -> DAGDetailsResponse | ServerResponseError:
         """Get a DAG details."""
@@ -388,13 +297,7 @@ class DagOperations(BaseOperations):
             self.response = self.client.get(f"dags/{dag_id}/details")
             return DAGDetailsResponse.model_validate_json(self.response.content)
         except ServerResponseError as e:
-            log.error(
-                "Failed to get dag details",
-                dag_id=dag_id,
-                detail=e,
-                status_code=e.response.status_code,
-            )
-            return e
+            raise e
 
 
 class DagRunOperations(BaseOperations):
@@ -406,13 +309,7 @@ class DagRunOperations(BaseOperations):
             self.response = self.client.get(f"dag_runs/{dag_run_id}")
             return DAGRunResponse.model_validate_json(self.response.content)
         except ServerResponseError as e:
-            log.error(
-                "Failed to get dag run",
-                dag_run_id=dag_run_id,
-                detail=e,
-                status_code=e.response.status_code,
-            )
-            return e
+            raise e
 
     def list(
         self,
@@ -433,14 +330,7 @@ class DagRunOperations(BaseOperations):
             self.response = self.client.get("dag_runs", params=params)  # type: ignore
             return DAGRunCollectionResponse.model_validate_json(self.response.content)
         except ServerResponseError as e:
-            log.error(
-                "Failed to list dag runs",
-                dag_id=dag_id,
-                limit=limit,
-                detail=e,
-                status_code=e.response.status_code,
-            )
-            return e
+            raise e
 
     def create(
         self, dag_id: str, trigger_dag_run: TriggerDAGRunPostBody
@@ -451,12 +341,7 @@ class DagRunOperations(BaseOperations):
             self.response = self.client.post(f"dag_runs/{dag_id}", json=trigger_dag_run.model_dump_json())
             return DAGRunResponse.model_validate_json(self.response.content)
         except ServerResponseError as e:
-            log.error(
-                "Failed to create dag run",
-                detail=e,
-                status_code=e.response.status_code,
-            )
-            return e
+            raise e
 
 
 class JobsOperations(BaseOperations):
@@ -471,16 +356,7 @@ class JobsOperations(BaseOperations):
             self.response = self.client.get("jobs", params=params)  # type: ignore
             return JobCollectionResponse.model_validate_json(self.response.content)
         except ServerResponseError as e:
-            log.error(
-                "Failed to list jobs",
-                job_type=job_type,
-                hostname=hostname,
-                limit=limit,
-                is_alive=is_alive,
-                detail=e,
-                status_code=e.response.status_code,
-            )
-            return e
+            raise e
 
 
 class PoolsOperations(BaseOperations):
@@ -492,13 +368,7 @@ class PoolsOperations(BaseOperations):
             self.response = self.client.get(f"pools/{pool_name}")
             return PoolResponse.model_validate_json(self.response.content)
         except ServerResponseError as e:
-            log.error(
-                "Failed to get pool",
-                pool_name=pool_name,
-                detail=e,
-                status_code=e.response.status_code,
-            )
-            return e
+            raise e
 
     def list(self) -> PoolCollectionResponse | ServerResponseError:
         """List all pools."""
@@ -506,12 +376,7 @@ class PoolsOperations(BaseOperations):
             self.response = self.client.get("pools")
             return PoolCollectionResponse.model_validate_json(self.response.content)
         except ServerResponseError as e:
-            log.error(
-                "Failed to list pools",
-                detail=e,
-                status_code=e.response.status_code,
-            )
-            return e
+            raise e
 
     def create(self, pool: PoolPostBody) -> PoolResponse | ServerResponseError:
         """Create a pool."""
@@ -519,12 +384,7 @@ class PoolsOperations(BaseOperations):
             self.response = self.client.post("pools", json=pool.model_dump())
             return PoolResponse.model_validate_json(self.response.content)
         except ServerResponseError as e:
-            log.error(
-                "Failed to create pool",
-                detail=e,
-                status_code=e.response.status_code,
-            )
-            return e
+            raise e
 
     def bulk(self, pools: PoolBulkBody) -> PoolBulkActionResponse | ServerResponseError:
         """CRUD multiple pools."""
@@ -532,12 +392,7 @@ class PoolsOperations(BaseOperations):
             self.response = self.client.patch("pools", json=pools.model_dump())
             return PoolBulkActionResponse.model_validate_json(self.response.content)
         except ServerResponseError as e:
-            log.error(
-                "Failed to create pools",
-                detail=e,
-                status_code=e.response.status_code,
-            )
-            return e
+            raise e
 
     def delete(self, pool: str) -> str | ServerResponseError:
         """Delete a pool."""
@@ -545,12 +400,7 @@ class PoolsOperations(BaseOperations):
             self.client.delete(f"pools/{pool}")
             return pool
         except ServerResponseError as e:
-            log.error(
-                "Failed to delete pool",
-                detail=e,
-                status_code=e.response.status_code,
-            )
-            return e
+            raise e
 
     def update(self, pool_body: PoolPatchBody) -> PoolResponse | ServerResponseError:
         """Update a pool."""
@@ -558,12 +408,7 @@ class PoolsOperations(BaseOperations):
             self.response = self.client.patch(f"pools/{pool_body.pool}", json=pool_body.model_dump())
             return PoolResponse.model_validate_json(self.response.content)
         except ServerResponseError as e:
-            log.error(
-                "Failed to update pool",
-                detail=e,
-                status_code=e.response.status_code,
-            )
-            return e
+            raise e
 
 
 class ProvidersOperations(BaseOperations):
@@ -575,12 +420,7 @@ class ProvidersOperations(BaseOperations):
             self.response = self.client.get("providers")
             return ProviderCollectionResponse.model_validate_json(self.response.content)
         except ServerResponseError as e:
-            log.error(
-                "Failed to list providers",
-                detail=e,
-                status_code=e.response.status_code,
-            )
-            return e
+            raise e
 
 
 class VariablesOperations(BaseOperations):
@@ -592,13 +432,7 @@ class VariablesOperations(BaseOperations):
             self.response = self.client.get(f"variables/{variable_key}")
             return VariableResponse.model_validate_json(self.response.content)
         except ServerResponseError as e:
-            log.error(
-                "Failed to get variable",
-                variable_key=variable_key,
-                detail=e,
-                status_code=e.response.status_code,
-            )
-            return e
+            raise e
 
     def list(self) -> VariableCollectionResponse | ServerResponseError:
         """List all variables."""
@@ -606,12 +440,7 @@ class VariablesOperations(BaseOperations):
             self.response = self.client.get("variables")
             return VariableCollectionResponse.model_validate_json(self.response.content)
         except ServerResponseError as e:
-            log.error(
-                "Failed to list variables",
-                detail=e,
-                status_code=e.response.status_code,
-            )
-            return e
+            raise e
 
     def create(self, variable: VariableBody) -> VariableResponse | ServerResponseError:
         """Create a variable."""
@@ -619,12 +448,7 @@ class VariablesOperations(BaseOperations):
             self.response = self.client.post("variables", json=variable.model_dump())
             return VariableResponse.model_validate_json(self.response.content)
         except ServerResponseError as e:
-            log.error(
-                "Failed to create variable",
-                detail=e,
-                status_code=e.response.status_code,
-            )
-            return e
+            raise e
 
     def bulk(self, variables: VariableBulkBody) -> VariableBulkActionResponse | ServerResponseError:
         """CRUD multiple variables."""
@@ -632,12 +456,7 @@ class VariablesOperations(BaseOperations):
             self.response = self.client.patch("variables", json=variables.model_dump())
             return VariableBulkActionResponse.model_validate_json(self.response.content)
         except ServerResponseError as e:
-            log.error(
-                "Failed to create variables",
-                detail=e,
-                status_code=e.response.status_code,
-            )
-            return e
+            raise e
 
     def delete(self, variable_key: str) -> str | ServerResponseError:
         """Delete a variable."""
@@ -645,13 +464,7 @@ class VariablesOperations(BaseOperations):
             self.client.delete(f"variables/{variable_key}")
             return variable_key
         except ServerResponseError as e:
-            log.error(
-                "Failed to delete variable",
-                variable_key=variable_key,
-                detail=e,
-                status_code=e.response.status_code,
-            )
-            return e
+            raise e
 
     def update(self, variable: VariableBody) -> VariableResponse | ServerResponseError:
         """Update a variable."""
@@ -659,12 +472,7 @@ class VariablesOperations(BaseOperations):
             self.response = self.client.patch(f"variables/{variable.key}", json=variable.model_dump())
             return VariableResponse.model_validate_json(self.response.content)
         except ServerResponseError as e:
-            log.error(
-                "Failed to update variable",
-                detail=e,
-                status_code=e.response.status_code,
-            )
-            return e
+            raise e
 
 
 class VersionOperations(BaseOperations):
@@ -676,9 +484,4 @@ class VersionOperations(BaseOperations):
             self.response = self.client.get("version")
             return VersionInfo.model_validate_json(self.response.content)
         except ServerResponseError as e:
-            log.error(
-                "Failed to get version",
-                detail=e,
-                status_code=e.response.status_code,
-            )
-            return e
+            raise e
