@@ -22,6 +22,7 @@ from airflow.models.pool import Pool
 from airflow.utils.session import provide_session
 
 from tests_common.test_utils.db import clear_db_pools
+from tests_common.test_utils.logs import check_last_log
 
 pytestmark = pytest.mark.db_test
 
@@ -64,6 +65,7 @@ class TestDeletePool(TestPoolsEndpoint):
         assert response.status_code == 204
         pools = session.query(Pool).all()
         assert len(pools) == 2
+        check_last_log(session, dag_id=None, event="delete_pool", logical_date=None)
 
     def test_delete_should_respond_401(self, unauthenticated_test_client):
         response = unauthenticated_test_client.delete(f"/public/pools/{POOL1_NAME}")
@@ -300,6 +302,8 @@ class TestPatchPool(TestPoolsEndpoint):
                 del error["url"]
 
         assert body == expected_response
+        if response.status_code == 200:
+            check_last_log(session, dag_id=None, event="patch_pool", logical_date=None)
 
     def test_should_respond_401(self, unauthenticated_test_client):
         response = unauthenticated_test_client.patch(f"/public/pools/{POOL1_NAME}", params={}, json={})
@@ -356,6 +360,7 @@ class TestPostPool(TestPoolsEndpoint):
 
         assert response.json() == expected_response
         assert session.query(Pool).count() == n_pools + 1
+        check_last_log(session, dag_id=None, event="post_pool", logical_date=None)
 
     def test_should_respond_401(self, unauthenticated_test_client):
         response = unauthenticated_test_client.post("/public/pools", json={})
@@ -751,6 +756,7 @@ class TestBulkPools(TestPoolsEndpoint):
         response_data = response.json()
         for key, value in expected_results.items():
             assert response_data[key] == value
+        check_last_log(session, dag_id=None, event="bulk_pools", logical_date=None)
 
     def test_should_respond_401(self, unauthenticated_test_client):
         response = unauthenticated_test_client.patch("/public/pools", json={})
