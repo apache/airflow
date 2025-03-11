@@ -77,7 +77,7 @@ def _make_generic_request(method: str, rest_path: str, data: str | None = None) 
     if AIRFLOW_V_3_0_PLUS:
         from functools import cache
 
-        from airflow.security.tokens import JWTGenerator
+        from airflow.api_fastapi.auth.tokens import JWTGenerator
 
         @cache
         def jwt_generator() -> JWTGenerator:
@@ -89,7 +89,7 @@ def _make_generic_request(method: str, rest_path: str, data: str | None = None) 
             )
 
         generator = jwt_generator()
-        authorization = generator.generate(rest_path)
+        authorization = generator.generate({"method": rest_path})
     else:
         # Airflow 2.10 compatibility
         from airflow.providers.edge.worker_api.auth import jwt_signer

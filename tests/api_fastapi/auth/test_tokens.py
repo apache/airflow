@@ -27,7 +27,7 @@ import jwt
 import pytest
 from cryptography.hazmat.primitives.asymmetric.rsa import RSAPrivateKey
 
-from airflow.security.tokens import (
+from airflow.api_fastapi.auth.tokens import (
     JWKS,
     InvalidClaimError,
     JWTGenerator,
@@ -139,7 +139,7 @@ def jwt_generator(ed25519_private_key: Ed25519PrivateKey):
     return JWTGenerator(
         private_key=key,
         kid="kid1",
-        valid_for=timedelta(minutes=1),
+        valid_for=60,
         issuer="http://test-issuer",
         algorithm="EdDSA",
         audience="abc",
@@ -149,16 +149,18 @@ def jwt_generator(ed25519_private_key: Ed25519PrivateKey):
 @pytest.fixture
 def jwt_validator(ed25519_private_key: Ed25519PrivateKey):
     key = ed25519_private_key
-    jwks = JWKS.from_private_key(kid1=key)
+    jwks = JWKS.from_private_key((key, "kid1"))
     return JWTValidator(jwks=jwks, issuer="http://test-issuer", algorithm="EdDSA", audience="abc")
 
 
-async def test_task_jwt_generator_validator(jwt_generator, jwt_validator, ed25519_private_key):
-    token = jwt_generator.generate(subject="test_subject")
+async def test_task_jwt_generator_validator(
+    jwt_generator: JWTGenerator, jwt_validator: JWTValidator, ed25519_private_key
+):
+    token = jwt_generator.generate({"sub": "test_subject"})
     # if this does not raise ValueError then the generated token can be decoded and contains all the required
     # fields.
     claims = await jwt_validator.avalidated_claims(
-        token, extra_claims={"sub": {"essential": True, "value": "test_subject"}}
+        token, required_claims={"sub": {"essential": True, "value": "test_subject"}}
     )
     nbf = datetime.fromtimestamp(claims["nbf"], timezone.utc)
     iat = datetime.fromtimestamp(claims["iat"], timezone.utc)
@@ -185,13 +187,13 @@ async def test_task_jwt_generator_validator(jwt_generator, jwt_validator, ed2551
         bad_token = token_without_claim(required_claim)
         # check that the missing claim is detected in validation
         with pytest.raises(jwt.MissingRequiredClaimError) as exc_info:
-            await jwt_validator.avalidated_claims(bad_token, extra_claims={"sub": "test_subject"})
+            await jwt_validator.avalidated_claims(bad_token, required_claims={"sub": "test_subject"})
         assert exc_info.value.claim == required_claim
 
 
 async def test_jwt_wrong_subject(jwt_generator, jwt_validator):
     # check that the token is invalid if the subject is not as expected
-    wrong_subject = jwt_generator.generate(subject="wrong_subject")
+    wrong_subject = jwt_generator.generate({"sub": "wrong_subject"})
     with pytest.raises(InvalidClaimError, match="Invalid claim: sub"):
         await jwt_validator.avalidated_claims(
             wrong_subject, extra_claims={"sub": {"essential": True, "value": "test_subject"}}

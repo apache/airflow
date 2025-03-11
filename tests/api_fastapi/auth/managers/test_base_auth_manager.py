@@ -30,8 +30,8 @@ from airflow.api_fastapi.auth.managers.models.resource_details import (
     PoolDetails,
     VariableDetails,
 )
+from airflow.api_fastapi.auth.tokens import JWTGenerator, JWTValidator
 from airflow.api_fastapi.common.types import MenuItem
-from airflow.security.tokens import JWTGenerator, JWTValidator
 
 if TYPE_CHECKING:
     from airflow.api_fastapi.auth.managers.base_auth_manager import ResourceMethod
@@ -59,7 +59,7 @@ class EmptyAuthManager(BaseAuthManager[BaseAuthManagerUserTest]):
     def deserialize_user(self, token: dict[str, Any]) -> BaseAuthManagerUserTest:
         raise NotImplementedError()
 
-    def serialize_user(self, user: BaseAuthManagerUserTest) -> tuple[str, dict[str, Any]]:
+    def serialize_user(self, user: BaseAuthManagerUserTest) -> dict[str, Any]:
         raise NotImplementedError()
 
     def is_authorized_configuration(
@@ -197,19 +197,19 @@ class TestBaseAuthManager:
 
     @patch("airflow.api_fastapi.auth.managers.base_auth_manager.JWTGenerator", autospec=True)
     @patch.object(EmptyAuthManager, "serialize_user")
-    def test_get_jwt_token(self, mock_serialize_user, mock_jwt_generator, auth_manager):
+    def test_generate_jwt_token(self, mock_serialize_user, mock_jwt_generator, auth_manager):
         token = "token"
         serialized_user = "serialized_user"
         signer = Mock(spec=JWTGenerator)
         signer.generate.return_value = token
         mock_jwt_generator.return_value = signer
-        mock_serialize_user.return_value = ("subject", serialized_user)
+        mock_serialize_user.return_value = {"sub": serialized_user}
         user = BaseAuthManagerUserTest(name="test")
 
-        result = auth_manager.get_jwt_token(user)
+        result = auth_manager.generate_jwt(user)
 
         mock_serialize_user.assert_called_once_with(user)
-        signer.generate.assert_called_once_with("subject", serialized_user)
+        signer.generate.assert_called_once_with({"sub": serialized_user})
         assert result == token
 
     @pytest.mark.parametrize(

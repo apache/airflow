@@ -24,8 +24,8 @@ import jwt
 import pytest
 import time_machine
 
+from airflow.api_fastapi.auth.tokens import JWTGenerator
 from airflow.config_templates.airflow_local_settings import DEFAULT_LOGGING_CONFIG
-from airflow.security.tokens import JWTGenerator
 from airflow.utils import timezone
 from airflow.utils.serve_logs import create_app
 

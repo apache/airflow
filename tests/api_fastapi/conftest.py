@@ -81,7 +81,7 @@ def unauthorized_test_client():
     ):
         app = create_app()
         auth_manager: SimpleAuthManager = app.state.auth_manager
-        token = auth_manager._get_token_signer().generate_signed_token(
+        token = auth_manager._get_token_signer().generate(
             auth_manager.serialize_user(SimpleAuthManagerUser(username="dummy", role=None))
         )
         yield TestClient(app, headers={"Authorization": f"Bearer {token}"})

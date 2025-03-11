@@ -19,6 +19,7 @@ from __future__ import annotations
 
 import logging
 from abc import ABCMeta, abstractmethod
+from functools import cache
 from typing import TYPE_CHECKING, Any, Generic, TypeVar
 
 from jwt import InvalidTokenError
@@ -26,10 +27,15 @@ from sqlalchemy import select
 
 from airflow.api_fastapi.auth.managers.models.base_user import BaseUser
 from airflow.api_fastapi.auth.managers.models.resource_details import BackfillDetails, DagDetails
+from airflow.api_fastapi.auth.tokens import (
+    JWTGenerator,
+    JWTValidator,
+    get_sig_validation_args,
+    get_signing_args,
+)
 from airflow.api_fastapi.common.types import ExtraMenuItem, MenuItem
 from airflow.configuration import conf
 from airflow.models import DagModel
-from airflow.security.tokens import JWTGenerator, JWTValidator, get_signing_key
 from airflow.typing_compat import Literal
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.session import NEW_SESSION, provide_session
@@ -56,6 +62,7 @@ if TYPE_CHECKING:
         PoolDetails,
         VariableDetails,
     )
+    from airflow.api_fastapi.common.types import MenuItem
     from airflow.cli.cli_config import CLICommand
 
 # This cannot be in the TYPE_CHECKING block since some providers import it globally.
@@ -85,7 +92,7 @@ class BaseAuthManager(Generic[T], LoggingMixin, metaclass=ABCMeta):
         """Create a user object from dict."""
 
     @abstractmethod
-    def serialize_user(self, user: T) -> tuple[str, dict[str, Any]]:
+    def serialize_user(self, user: T) -> dict[str, Any]:
         """Create a subject and extra claims dict from a user object."""
 
     def get_user_from_token(self, token: str) -> BaseUser:
@@ -97,23 +104,13 @@ class BaseAuthManager(Generic[T], LoggingMixin, metaclass=ABCMeta):
             log.error("JWT token is not valid")
             raise e
 
-    def get_jwt_token(
-        self, user: T, *, expiration_time_in_seconds: int = conf.getint("api", "auth_jwt_expiration_time")
+    def generate_jwt(
+        self, user: T, *, expiration_time_in_seconds: int = conf.getint("api_auth", "jwt_expiration_time")
     ) -> str:
         """Return the JWT token from a user object."""
-        return self._get_token_signer(
-            expiration_time_in_seconds=expiration_time_in_seconds
-        ).generate(*self.serialize_user(user))
-
-    def get_user_id(self) -> str | None:
-        """Return the user ID associated to the user in session."""
-        user = self.get_user()
-        if not user:
-            self.log.error("Calling 'get_user_id()' but the user is not signed in.")
-            raise AirflowException("The user must be signed in.")
-        if user_id := user.get_id():
-            return str(user_id)
-        return None
+        return self._get_token_signer(expiration_time_in_seconds=expiration_time_in_seconds).generate(
+            self.serialize_user(user)
+        )
 
     @abstractmethod
     def get_url_login(self, **kwargs) -> str:
@@ -460,9 +457,11 @@ class BaseAuthManager(Generic[T], LoggingMixin, metaclass=ABCMeta):
         """
         return []
 
-    @staticmethod
+    @classmethod
+    @cache
     def _get_token_signer(
-        expiration_time_in_seconds: int = conf.getint("api", "auth_jwt_expiration_time"),
+        cls,
+        expiration_time_in_seconds: int = conf.getint("api_auth", "jwt_expiration_time"),
     ) -> JWTGenerator:
         """
         Return the signer used to sign JWT token.
@@ -472,21 +471,21 @@ class BaseAuthManager(Generic[T], LoggingMixin, metaclass=ABCMeta):
         :param expiration_time_in_seconds: expiration time in seconds of the token
         """
         return JWTGenerator(
-            secret_key=get_signing_key("api_auth", "jwt_secret"),
-            valid_for=expiration_time_in_seconds
-            audience="front-apis",
+            **get_signing_args(),
+            valid_for=expiration_time_in_seconds,
+            audience=conf.get("api", "jwt_audience", fallback="apache-airflow"),
         )
 
-    @staticmethod
-    def _get_token_validator() -> JWTValidator:
+    @classmethod
+    @cache
+    def _get_token_validator(cls) -> JWTValidator:
         """
         Return the signer used to sign JWT token.
 
         :meta private:
         """
         return JWTValidator(
-            # issuer=conf.get("api_auth", "jwt_iussuer"),
-            secret_key=get_signing_key("api_auth", "jwt_secret"),
-            leeway=conf.getint("api", "auth_jwt_expiration_time"),
-            audience="front-apis",
+            **get_sig_validation_args(),
+            leeway=conf.getint("api_auth", "jwt_leeway"),
+            audience=conf.get("api_auth", "jwt_audience", fallback="apache-airflow"),
         )

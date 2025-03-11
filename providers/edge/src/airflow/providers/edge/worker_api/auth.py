@@ -43,7 +43,7 @@ log = logging.getLogger(__name__)
 
 
 if AIRFLOW_V_3_0_PLUS:
-    from airflow.security.tokens import JWTValidator
+    from airflow.api_fastapi.auth.tokens import JWTValidator
 
     @cache
     def jwt_validator() -> JWTValidator:

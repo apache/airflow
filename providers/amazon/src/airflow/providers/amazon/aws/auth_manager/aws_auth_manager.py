@@ -95,7 +95,8 @@ class AwsAuthManager(BaseAuthManager[AwsAuthManagerUser]):
         return AwsAuthManagerUser(user_id=token.pop("sub"), **token)
 
     def serialize_user(self, user: AwsAuthManagerUser) -> dict[str, Any]:
-        return user.get_id(), {
+        return {
+            "sub": user.get_id(),
             "groups": user.get_groups(),
             "username": user.username,
             "email": user.email,

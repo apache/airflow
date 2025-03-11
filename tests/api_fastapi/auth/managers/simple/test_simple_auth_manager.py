@@ -82,7 +82,7 @@ class TestSimpleAuthManager:
     def test_serialize_user(self, auth_manager):
         user = SimpleAuthManagerUser(username="test", role="admin")
         result = auth_manager.serialize_user(user)
-        assert result == ("test", {"role": "admin"})
+        assert result == {"sub": "test", "role": "admin"}
 
     @pytest.mark.parametrize(
         "api",

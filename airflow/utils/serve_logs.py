@@ -35,8 +35,8 @@ from jwt.exceptions import (
 from setproctitle import setproctitle
 from werkzeug.exceptions import HTTPException
 
+from airflow.api_fastapi.auth.tokens import JWTValidator
 from airflow.configuration import conf
-from airflow.security.tokens import JWTValidator
 from airflow.utils.docs import get_docs_url
 from airflow.utils.module_loading import import_string
 

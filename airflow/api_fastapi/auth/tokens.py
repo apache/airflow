@@ -19,8 +19,9 @@ from __future__ import annotations
 import json
 import os
 import time
+from base64 import urlsafe_b64encode
 from collections.abc import Sequence
-from datetime import datetime, timedelta
+from datetime import datetime
 from typing import TYPE_CHECKING, Any
 
 import attrs
@@ -45,6 +46,8 @@ __all__ = [
     "JWTGenerator",
     "JWTValidator",
     "generate_private_key",
+    "get_sig_validation_args",
+    "get_signing_args",
     "get_signing_key",
     "key_to_pem",
     "key_to_jwk_dict",
@@ -114,10 +117,15 @@ class JWKS:
         return f"JWKS(url={self.url}, fetched_at={self.fetched_at})"
 
     @classmethod
-    def from_private_key(cls, **keys: AllowedPrivateKeys):
+    def from_private_key(cls, *keys: AllowedPrivateKeys | tuple[AllowedPrivateKeys, str]):
         obj = cls(url=os.devnull)
 
-        obj._jwks = jwt.PyJWKSet([key_to_jwk_dict(key, kid) for kid, key in keys.items()])
+        keyset = [
+            # Each `key` is either the key directly or `(key, "my-kid")`
+            key_to_jwk_dict(*key if isinstance(key, tuple) else key)
+            for key in keys
+        ]
+        obj._jwks = jwt.PyJWKSet(keyset)
         return obj
 
     async def fetch_jwks(self) -> None:
@@ -224,12 +232,6 @@ def _conf_list_factory(section, key, first_only: bool = False, **kwargs):
     return factory
 
 
-def _sec_to_timedelta(what: int | timedelta) -> timedelta:
-    if isinstance(what, timedelta):
-        return what
-    return timedelta(seconds=what)
-
-
 def _to_list(val: str | list[str]) -> list[str]:
     if isinstance(val, str):
         val = [val]
@@ -255,11 +257,11 @@ class JWTValidator:
     audience: str | Sequence[str]
     algorithm: list[str] = attrs.field(default=["GUESS"], converter=_to_list)
 
-    leeway: timedelta = attrs.field(default=timedelta(seconds=5), converter=_sec_to_timedelta)
+    leeway: float = attrs.field(factory=_conf_factory("api_auth", "jwt_leeway"), converter=int)
 
     def __attrs_post_init__(self):
         if not (self.jwks is None) ^ (self.secret_key is None):
-            raise ValueError("Exactly one of priavte_key and secret_key must be specified")
+            raise ValueError("Exactly one of private_key and secret_key must be specified")
 
         if self.algorithm == ["GUESS"]:
             if self.jwks:
@@ -285,12 +287,12 @@ class JWTValidator:
         return await self.jwks.get_key(kid)
 
     def validated_claims(
-        self, unvalidated: str, extra_claims: dict[str, Any] | None = None
+        self, unvalidated: str, required_claims: dict[str, Any] | None = None
     ) -> dict[str, Any]:
-        return async_to_sync(self.avalidated_claims)(unvalidated, extra_claims)
+        return async_to_sync(self.avalidated_claims)(unvalidated, required_claims)
 
     async def avalidated_claims(
-        self, unvalidated: str, extra_claims: dict[str, Any] | None = None
+        self, unvalidated: str, required_claims: dict[str, Any] | None = None
     ) -> dict[str, Any]:
         """Decode the JWT token, returning the validated claims or raising an exception."""
         key = await self._get_validation_key(unvalidated)
@@ -305,8 +307,8 @@ class JWTValidator:
         )
 
         # Validate additional claims if provided
-        if extra_claims:
-            for claim, expected_value in extra_claims.items():
+        if required_claims:
+            for claim, expected_value in required_claims.items():
                 if expected_value["essential"] and (
                     claim not in claims or claims[claim] != expected_value["value"]
                 ):
@@ -325,12 +327,23 @@ def _pem_to_key(pem_data: str | bytes | AllowedPrivateKeys) -> AllowedPrivateKey
     return load_pem_private_key(pem_data, password=None)  # type: ignore[return-value]
 
 
+def _load_key_from_configured_file() -> AllowedPrivateKeys | None:
+    from airflow.configuration import conf
+
+    path = conf.get("api_auth", "jwt_private_key_path", fallback=None)
+    if not path:
+        return None
+
+    with open(path, mode="rb") as fh:
+        return _pem_to_key(fh.read())
+
+
 @attrs.define(repr=False, kw_only=True)
 class JWTGenerator:
     """Generate JWT tokens."""
 
     _private_key: AllowedPrivateKeys | None = attrs.field(
-        repr=False, alias="private_key", converter=_pem_to_key
+        repr=False, alias="private_key", converter=_pem_to_key, factory=_load_key_from_configured_file
     )
     """
     Private key to sign generated tokens.
@@ -346,23 +359,12 @@ class JWTGenerator:
     """A pre-shared secret key to sign tokens with symmetric encryption"""
 
     kid: str = attrs.field()
-    valid_for: timedelta = attrs.field(converter=_sec_to_timedelta)
+    valid_for: float
     audience: str
     issuer: str | list[str] | None = attrs.field(
         factory=_conf_list_factory("api_auth", "jwt_issuer", first_only=True, fallback=None)
     )
     algorithm: str = attrs.field(factory=_conf_factory("api_auth", "jwt_algorithm", fallback="GUESS"))
-
-    @_private_key.default
-    def _load_key_from_configured_file(self) -> bytes | None:
-        from airflow.configuration import conf
-
-        path = conf.get("api_auth", "jwt_private_key_path", fallback=None)
-        if not path:
-            return None
-
-        with open(path, mode="rb") as fh:
-            return fh.read()
 
     @kid.default
     def _generate_kid(self):
@@ -374,11 +376,11 @@ class JWTGenerator:
 
     def __attrs_post_init__(self):
         if not (self._private_key is None) ^ (self._secret_key is None):
-            raise ValueError("Exactly one of priavte_key and secret_key must be specified")
+            raise ValueError("Exactly one of privaate_key and secret_key must be specified")
 
         if self.algorithm == "GUESS":
             if self._private_key:
-                ...
+                self.algorithm = _guess_best_algorithm(self._private_key)
             else:
                 self.algorithm = "HS512"
 
@@ -393,18 +395,15 @@ class JWTGenerator:
             assert self._secret_key
         return self._secret_key
 
-    def generate(
-        self, subject: str, extras: dict[str, Any] | None = None, headers: dict[str, Any] | None = None
-    ) -> str:
+    def generate(self, extras: dict[str, Any] | None = None, headers: dict[str, Any] | None = None) -> str:
         """Generate a signed JWT for the subject."""
-        now = datetime.now(tz=timezone.utc)
+        now = int(datetime.now(tz=timezone.utc).timestamp())
         claims = {
             "iss": self.issuer,
             "aud": self.audience,
-            "sub": subject,
-            "nbf": int(now.timestamp()),
-            "exp": int((now + self.valid_for).timestamp()),
-            "iat": int(now.timestamp()),
+            "nbf": now,
+            "exp": int(now + self.valid_for),
+            "iat": now,
         }
         if extras is not None:
             claims.update(extras)
@@ -412,17 +411,6 @@ class JWTGenerator:
         if self._private_key:
             headers["kid"] = self.kid
         return jwt.encode(claims, self.signing_arg, algorithm=self.algorithm, headers=headers)
-
-
-# @attrs.define(repr=False)
-# class TaskJWTGenerator(JWTGenerator):
-#     issuer: str = attrs.field(factory=_default_issuer)
-#     audience: str = attrs.field(
-#         factory=_conf_factory("task_execution_api", "jwt_audience", fallback="urn:airflow.apache.org:task")
-#     )
-#     algorithm: str = attrs.field(
-#         factory=_conf_factory("task_execution_api", "jwt_algorithm", default="EdDSA")
-#     )
 
 
 def generate_private_key(key_type: str = "RSA", key_size: int = 2048):
@@ -473,8 +461,6 @@ def thumbprint(jwk: dict[str, Any], hashalg=hashes.SHA256()) -> str:
 
 
 def base64url_encode(payload):
-    from base64 import urlsafe_b64encode
-
     if not isinstance(payload, bytes):
         payload = payload.encode("utf-8")
     encode = urlsafe_b64encode(payload)
@@ -502,3 +488,40 @@ def get_signing_key(section: str, key: str) -> str:
 
     # Mypy can't grock the `if not secret_key`
     return secret_key  # type: ignore[return-value]
+
+
+def get_signing_args() -> dict[str, Any]:
+    """
+    Return the args to splat into JWTGenerator for private or secret key.
+
+    Will use ``get_signing_key`` to generate a key if nothing else suitable is found.
+    """
+    # Try private key first
+    priv = _load_key_from_configured_file()
+
+    if priv is not None:
+        return {"private_key": priv}
+
+    # Don't call this unless we have to as it might issue a warning
+    return {"secret_key": get_signing_key("api_auth", "jwt_secret")}
+
+
+def get_sig_validation_args() -> dict[str, Any]:
+    from airflow.configuration import conf
+
+    sentinel = object()
+
+    # Try JWKS url first
+    url = conf.get("api_auth", "trusted_jwks_url", fallback=sentinel)
+
+    if url and url is not sentinel:
+        jwks = JWKS(url=url)
+        return {"jwks": jwks}
+
+    key = _load_key_from_configured_file()
+
+    if key is not None:
+        jwks = JWKS.from_private_key(key)
+        return {"jwks": jwks}
+
+    return {"secret_key": get_signing_key("api_auth", "jwt_secret")}
