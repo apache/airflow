@@ -22,6 +22,7 @@ from __future__ import annotations
 import datetime
 
 import pendulum
+
 from airflow.example_dags.plugins.decreasing_priority_weight_strategy import DecreasingPriorityStrategy
 
 # [START example_custom_weight_dag]

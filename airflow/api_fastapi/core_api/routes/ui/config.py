@@ -18,11 +18,12 @@ from __future__ import annotations
 
 from typing import Any
 
-from fastapi import status
+from fastapi import Depends, status
 
 from airflow.api_fastapi.common.router import AirflowRouter
 from airflow.api_fastapi.core_api.datamodels.ui.config import ConfigResponse
 from airflow.api_fastapi.core_api.openapi.exceptions import create_openapi_http_exception_doc
+from airflow.api_fastapi.core_api.security import requires_access_configuration
 from airflow.configuration import conf
 from airflow.settings import STATE_COLORS
 
@@ -49,6 +50,7 @@ WEBSERVER_CONFIG_KEYS = [
 @config_router.get(
     "/config",
     responses=create_openapi_http_exception_doc([status.HTTP_404_NOT_FOUND]),
+    dependencies=[Depends(requires_access_configuration("GET"))],
 )
 def get_configs() -> ConfigResponse:
     """Get configs for UI."""

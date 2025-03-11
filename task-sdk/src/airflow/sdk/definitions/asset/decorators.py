@@ -97,7 +97,7 @@ class AssetDefinition(Asset):
     _source: asset
 
     def __attrs_post_init__(self) -> None:
-        with self._source.create_dag(dag_id=self.name):
+        with self._source.create_dag(default_dag_id=self.name):
             _AssetMainOperator.from_definition(self)
 
 
@@ -117,7 +117,7 @@ class MultiAssetDefinition(BaseAsset):
     _source: asset.multi
 
     def __attrs_post_init__(self) -> None:
-        with self._source.create_dag(dag_id=self._function.__name__):
+        with self._source.create_dag(default_dag_id=self._function.__name__):
             _AssetMainOperator.from_definition(self)
 
     def iter_assets(self) -> Iterator[tuple[AssetUniqueKey, Asset]]:
@@ -153,7 +153,8 @@ class _DAGFactory:
     schedule: ScheduleArg
     is_paused_upon_creation: bool | None = None
 
-    display_name: str | None = None
+    dag_id: str | None = None
+    dag_display_name: str | None = None
     description: str | None = None
 
     params: ParamsDict | None = None
@@ -163,15 +164,16 @@ class _DAGFactory:
     access_control: dict[str, dict[str, Collection[str]]] | None = None
     owner_links: dict[str, str] | None = None
 
-    def create_dag(self, *, dag_id: str) -> DAG:
+    def create_dag(self, *, default_dag_id: str) -> DAG:
         from airflow.models.dag import DAG  # TODO: Use the SDK DAG when it works.
 
+        dag_id = self.dag_id or default_dag_id
         return DAG(
             dag_id=dag_id,
             schedule=self.schedule,
             is_paused_upon_creation=self.is_paused_upon_creation,
             catchup=False,
-            dag_display_name=self.display_name or dag_id,
+            dag_display_name=self.dag_display_name or dag_id,
             description=self.description,
             params=self.params,
             on_success_callback=self.on_success_callback,
@@ -184,6 +186,7 @@ class _DAGFactory:
 class asset(_DAGFactory):
     """Create an asset by decorating a materialization function."""
 
+    name: str | None = None
     uri: str | ObjectStoragePath | None = None
     group: str = Asset.asset_type
     extra: dict[str, Any] = attrs.field(factory=dict)
@@ -203,8 +206,9 @@ class asset(_DAGFactory):
             return MultiAssetDefinition(function=f, source=self)
 
     def __call__(self, f: Callable) -> AssetDefinition:
-        if (name := f.__name__) != f.__qualname__:
+        if f.__name__ != f.__qualname__:
             raise ValueError("nested function not supported")
+        name = self.name or f.__name__
         return AssetDefinition(
             name=name,
             uri=name if self.uri is None else str(self.uri),

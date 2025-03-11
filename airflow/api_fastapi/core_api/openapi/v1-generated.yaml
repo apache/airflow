@@ -56,6 +56,8 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/HTTPExceptionResponse'
+      security:
+      - OAuth2PasswordBearer: []
   /ui/dags/recent_dag_runs:
     get:
       tags:
@@ -4076,6 +4078,8 @@ paths:
       - Plugin
       summary: Get Plugins
       operationId: get_plugins
+      security:
+      - OAuth2PasswordBearer: []
       parameters:
       - name: limit
         in: query
