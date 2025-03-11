@@ -25,10 +25,12 @@ from unittest.mock import MagicMock
 import pytest
 
 from airflow.configuration import conf
+from airflow.models import XComModel
 from airflow.models.dagrun import DagRun, DagRunType
 from airflow.models.taskinstance import TaskInstance
-from airflow.models.xcom import BaseXCom, XCom, resolve_xcom_backend
+from airflow.models.xcom import XCom
 from airflow.providers.standard.operators.empty import EmptyOperator
+from airflow.sdk.execution_time.xcom import BaseXCom, resolve_xcom_backend
 from airflow.settings import json
 from airflow.utils import timezone
 from airflow.utils.session import create_session
@@ -52,7 +54,7 @@ def reset_db():
     """Reset XCom entries."""
     with create_session() as session:
         session.query(DagRun).delete()
-        session.query(XCom).delete()
+        session.query(XComModel).delete()
 
 
 @pytest.fixture
