@@ -30,6 +30,7 @@ from airflow.utils.state import DagRunState, TaskInstanceState
 from airflow.utils.types import DagRunTriggeredByType, DagRunType
 
 from tests_common.test_utils.db import clear_db_dags, clear_db_runs, clear_db_serialized_dags
+from tests_common.test_utils.logs import check_last_log
 
 pytestmark = pytest.mark.db_test
 
@@ -257,7 +258,7 @@ class TestPatchDag(TestDagEndpoint):
         ],
     )
     def test_patch_dag(
-        self, test_client, query_params, dag_id, body, expected_status_code, expected_is_paused
+        self, test_client, query_params, dag_id, body, expected_status_code, expected_is_paused, session
     ):
         response = test_client.patch(f"/public/dags/{dag_id}", json=body, params=query_params)
 
@@ -265,6 +266,7 @@ class TestPatchDag(TestDagEndpoint):
         if expected_status_code == 200:
             body = response.json()
             assert body["is_paused"] == expected_is_paused
+            check_last_log(session, dag_id=dag_id, event="patch_dag", logical_date=None)
 
 
 class TestPatchDags(TestDagEndpoint):
@@ -312,7 +314,14 @@ class TestPatchDags(TestDagEndpoint):
         ],
     )
     def test_patch_dags(
-        self, test_client, query_params, body, expected_status_code, expected_ids, expected_paused_ids
+        self,
+        test_client,
+        query_params,
+        body,
+        expected_status_code,
+        expected_ids,
+        expected_paused_ids,
+        session,
     ):
         response = test_client.patch("/public/dags", json=body, params=query_params)
 
@@ -322,6 +331,7 @@ class TestPatchDags(TestDagEndpoint):
             assert [dag["dag_id"] for dag in body["dags"]] == expected_ids
             paused_dag_ids = [dag["dag_id"] for dag in body["dags"] if dag["is_paused"]]
             assert paused_dag_ids == expected_paused_ids
+            check_last_log(session, dag_id=DAG1_ID, event="patch_dag", logical_date=None)
 
 
 class TestDagDetails(TestDagEndpoint):
@@ -496,6 +506,7 @@ class TestDeleteDAG(TestDagEndpoint):
         status_code_details,
         has_running_dagruns,
         is_create_dag,
+        session,
     ):
         if is_create_dag:
             self._create_dag_for_deletion(
@@ -510,3 +521,5 @@ class TestDeleteDAG(TestDagEndpoint):
 
         details_response = test_client.get(f"{API_PREFIX}/{dag_id}/details")
         assert details_response.status_code == status_code_details
+        if details_response.status_code == 204:
+            check_last_log(session, dag_id=dag_id, event="delete_dag", logical_date=None)

@@ -106,6 +106,23 @@ class TestAssetDecorator:
 
         assert err.value.args[0].startswith("prohibited name for asset: ")
 
+    @pytest.mark.parametrize(
+        "provided_uri, expected_uri",
+        [
+            pytest.param(None, "custom", id="default-uri"),
+            pytest.param("s3://bucket/object", "s3://bucket/object", id="custom-uri"),
+        ],
+    )
+    def test_custom_name(self, example_asset_func, provided_uri, expected_uri):
+        asset_definition = asset(name="custom", uri=provided_uri, schedule=None)(example_asset_func)
+        assert asset_definition.name == "custom"
+        assert asset_definition.uri == expected_uri
+
+    def test_custom_dag_id(self, example_asset_func):
+        asset_definition = asset(name="asset", dag_id="dag", schedule=None)(example_asset_func)
+        assert asset_definition.name == "asset"
+        assert asset_definition._source.dag_id == "dag"
+
 
 class TestAssetMultiDecorator:
     def test_multi_asset(self, example_asset_func):
@@ -117,6 +134,14 @@ class TestAssetMultiDecorator:
         assert definition._function == example_asset_func
         assert definition._source.schedule is None
         assert definition._source.outlets == [Asset(name="a"), Asset(name="b")]
+
+    def test_multi_custom_dag_id(self, example_asset_func):
+        definition = asset.multi(
+            dag_id="custom",
+            schedule=None,
+            outlets=[Asset(name="a"), Asset(name="b")],
+        )(example_asset_func)
+        assert definition._source.dag_id == "custom"
 
 
 class TestAssetDefinition:
