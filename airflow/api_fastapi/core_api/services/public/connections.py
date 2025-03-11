@@ -35,8 +35,8 @@ from airflow.api_fastapi.core_api.datamodels.common import (
 )
 from airflow.api_fastapi.core_api.datamodels.connections import (
     ConnectionBody,
+    ConnectionHookMetaData,
     HookFieldBehavior,
-    HookMetaData,
     StandardHookFields,
 )
 from airflow.api_fastapi.core_api.services.public.common import BulkService
@@ -323,14 +323,14 @@ class HookMetaService:
 
     @staticmethod
     @cache
-    def hook_meta_data() -> list[HookMetaData]:
+    def hook_meta_data() -> list[ConnectionHookMetaData]:
         hooks, connection_form_widgets, field_behaviours = HookMetaService._get_hooks_with_mocked_fab()
-        result: list[HookMetaData] = []
+        result: list[ConnectionHookMetaData] = []
         widgets = HookMetaService._convert_extra_fields(connection_form_widgets)
         for hook_key, hook_info in hooks.items():
             if not hook_info:
                 continue
-            hook_meta = HookMetaData(
+            hook_meta = ConnectionHookMetaData(
                 connection_type=hook_key,
                 hook_class_name=hook_info.hook_class_name,
                 default_conn_name=None,  # TODO: later

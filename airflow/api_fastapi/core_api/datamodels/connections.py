@@ -107,7 +107,7 @@ class StandardHookFields(BaseModel):
     password: HookFieldBehavior | None
 
 
-class HookMetaData(BaseModel):
+class ConnectionHookMetaData(BaseModel):
     """
     Response model for Hook information == Connection type meta data.
 

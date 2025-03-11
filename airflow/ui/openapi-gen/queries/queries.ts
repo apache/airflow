@@ -917,25 +917,6 @@ export const useConnectionServiceGetConnections = <
     ...options,
   });
 /**
- * Hook Meta Data
- * Retrieve information about available connection types (hook classes) and their parameters.
- * @returns HookMetaData Successful Response
- * @throws ApiError
- */
-export const useConnectionServiceHookMetaData = <
-  TData = Common.ConnectionServiceHookMetaDataDefaultResponse,
-  TError = unknown,
-  TQueryKey extends Array<unknown> = unknown[],
->(
-  queryKey?: TQueryKey,
-  options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">,
-) =>
-  useQuery<TData, TError>({
-    queryKey: Common.UseConnectionServiceHookMetaDataKeyFn(queryKey),
-    queryFn: () => ConnectionService.hookMetaData() as TData,
-    ...options,
-  });
-/**
  * Get Dag Run
  * @param data The data for the request.
  * @param data.dagId

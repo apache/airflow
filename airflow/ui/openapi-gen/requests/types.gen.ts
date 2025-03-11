@@ -1017,41 +1017,6 @@ export type HistoricalMetricDataResponse = {
 };
 
 /**
- * A class to store the behavior of each standard field of a Hook.
- */
-export type HookFieldBehavior = {
-  /**
-   * Flag if the form field should be hidden.
-   */
-  hidden?: boolean;
-  /**
-   * Label / title for the field that should be displayed, if re-labelling is needed. Use `None` to display standard title.
-   */
-  title?: string | null;
-  /**
-   * Placeholder text that should be populated to the form.
-   */
-  placeholder?: string | null;
-};
-
-/**
- * Response model for Hook information == Connection type meta data.
- *
- * It is used to transfer providers information loaded by providers_manager such that
- * the API server/Web UI can use this data to render connection form UI.
- */
-export type HookMetaData = {
-  connection_type: string | null;
-  hook_class_name: string | null;
-  default_conn_name: string | null;
-  hook_name: string;
-  standard_fields: StandardHookFields | null;
-  extra_fields: {
-    [key: string]: unknown;
-  } | null;
-};
-
-/**
  * Import Error Collection Response.
  */
 export type ImportErrorCollectionResponse = {
@@ -1237,18 +1202,6 @@ export type ReprocessBehavior = "failed" | "completed" | "none";
 export type SchedulerInfoResponse = {
   status: string | null;
   latest_scheduler_heartbeat: string | null;
-};
-
-/**
- * Standard fields of a Hook that a form will render.
- */
-export type StandardHookFields = {
-  description: HookFieldBehavior | null;
-  url_schema: HookFieldBehavior | null;
-  host: HookFieldBehavior | null;
-  port: HookFieldBehavior | null;
-  login: HookFieldBehavior | null;
-  password: HookFieldBehavior | null;
 };
 
 /**
@@ -1943,8 +1896,6 @@ export type TestConnectionData = {
 export type TestConnectionResponse = ConnectionTestResponse;
 
 export type CreateDefaultConnectionsResponse = void;
-
-export type HookMetaDataResponse = Array<HookMetaData>;
 
 export type GetDagRunData = {
   dagId: string;
@@ -3525,24 +3476,6 @@ export type $OpenApiTs = {
          * Successful Response
          */
         204: void;
-        /**
-         * Unauthorized
-         */
-        401: HTTPExceptionResponse;
-        /**
-         * Forbidden
-         */
-        403: HTTPExceptionResponse;
-      };
-    };
-  };
-  "/public/connections/hook_meta": {
-    get: {
-      res: {
-        /**
-         * Successful Response
-         */
-        200: Array<HookMetaData>;
         /**
          * Unauthorized
          */

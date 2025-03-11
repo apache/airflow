@@ -41,11 +41,10 @@ from airflow.api_fastapi.core_api.datamodels.connections import (
     ConnectionCollectionResponse,
     ConnectionResponse,
     ConnectionTestResponse,
-    HookMetaData,
 )
 from airflow.api_fastapi.core_api.openapi.exceptions import create_openapi_http_exception_doc
 from airflow.api_fastapi.core_api.security import requires_access_connection
-from airflow.api_fastapi.core_api.services.public.connections import BulkConnectionService, HookMetaService
+from airflow.api_fastapi.core_api.services.public.connections import BulkConnectionService
 from airflow.api_fastapi.logging.decorators import action_logging
 from airflow.configuration import conf
 from airflow.models import Connection
@@ -255,17 +254,3 @@ def create_default_connections(
 ):
     """Create default connections."""
     db_create_default_connections(session)
-
-
-@connections_router.get(
-    "/hook_meta",
-    dependencies=[Depends(requires_access_connection(method="GET"))],
-)
-def hook_meta_data() -> list[HookMetaData]:
-    """Retrieve information about available connection types (hook classes) and their parameters."""
-    # Note:
-    # This endpoint is implemented to serve the connections form in the UI. It is building on providers
-    # manager and hooks being loaded in the API server. Target should be that the API server reads the
-    # information from a database table to un-bundle the dependency for provider package install from
-    # the API server.
-    return HookMetaService.hook_meta_data()
