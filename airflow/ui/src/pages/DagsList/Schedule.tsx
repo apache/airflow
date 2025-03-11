@@ -37,7 +37,7 @@ export const Schedule = ({ dag }: Props) =>
       </Tooltip>
     ) : (
       // eslint-disable-next-line jsx-a11y/no-autofocus
-      <Popover.Root autoFocus={false} lazyMount unmountOnExit>
+      <Popover.Root autoFocus={false} lazyMount positioning={{ placement: "bottom-end" }} unmountOnExit>
         <Popover.Trigger asChild>
           <Button size="sm" variant="ghost">
             <FiCalendar style={{ display: "inline" }} /> {dag.timetable_summary}
