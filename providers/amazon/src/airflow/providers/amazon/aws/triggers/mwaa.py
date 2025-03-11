@@ -109,14 +109,6 @@ class MwaaDagRunCompletedTrigger(AwsBaseWaiterTrigger):
 def _build_waiter_acceptors(
     success_states: set[str], failure_states: set[str], in_progress_states: set[str]
 ) -> list:
-    def build_acceptor(dag_run_state: str, state_waiter_category: str):
-        return {
-            "matcher": "path",
-            "argument": "RestApiResponse.state",
-            "expected": dag_run_state,
-            "state": state_waiter_category,
-        }
-
     acceptors = []
     for state_set, state_waiter_category in (
         (success_states, "success"),
@@ -124,6 +116,13 @@ def _build_waiter_acceptors(
         (in_progress_states, "retry"),
     ):
         for dag_run_state in state_set:
-            acceptors.append(build_acceptor(dag_run_state, state_waiter_category))
+            acceptors.append(
+                {
+                    "matcher": "path",
+                    "argument": "RestApiResponse.state",
+                    "expected": dag_run_state,
+                    "state": state_waiter_category,
+                }
+            )
 
     return acceptors
