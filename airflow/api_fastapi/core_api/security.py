@@ -24,7 +24,9 @@ from fastapi.security import OAuth2PasswordBearer
 from jwt import ExpiredSignatureError, InvalidTokenError
 
 from airflow.api_fastapi.app import get_auth_manager
+from airflow.api_fastapi.auth.managers.models.base_user import BaseUser
 from airflow.api_fastapi.auth.managers.models.resource_details import (
+    AccessView,
     AssetAliasDetails,
     AssetDetails,
     ConfigurationDetails,
@@ -34,8 +36,6 @@ from airflow.api_fastapi.auth.managers.models.resource_details import (
     PoolDetails,
     VariableDetails,
 )
-from airflow.auth.managers.models.base_user import BaseUser
-from airflow.auth.managers.models.resource_details import AccessView
 from airflow.configuration import conf
 from airflow.utils.jwt_signer import JWTSigner, get_signing_key
 
