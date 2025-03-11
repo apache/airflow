@@ -91,7 +91,7 @@ const RunBackfillForm = ({ dag, onClose }: RunBackfillFormProps) => {
       togglePause({
         dagId: dag.dag_id,
         requestBody: {
-          is_paused: !dag.is_paused,
+          is_paused: false,
         },
       });
     }

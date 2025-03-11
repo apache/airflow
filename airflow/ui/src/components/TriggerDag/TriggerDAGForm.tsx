@@ -77,7 +77,7 @@ const TriggerDAGForm = ({ dagId, isPaused, onClose, open }: TriggerDAGFormProps)
       togglePause({
         dagId,
         requestBody: {
-          is_paused: !isPaused,
+          is_paused: false,
         },
       });
     }

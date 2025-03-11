@@ -147,7 +147,7 @@ export const CreateAssetEventModal = ({ asset, onClose, open }: Props) => {
         togglePause({
           dagId: dag.dag_id,
           requestBody: {
-            is_paused: !dag.is_paused,
+            is_paused: false,
           },
         });
       }
