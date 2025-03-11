@@ -179,8 +179,10 @@ def render_dag_dependencies(deps: dict[str, list[DagDependency]]) -> graphviz.Di
                     "label": dag,
                 },
             ) as dep_subgraph:
-                dep_subgraph.edge(dep.source, dep.label)
-                dep_subgraph.edge(dep.label, dep.target)
+                print(dep.source)
+                print(dep.dependency_id)
+                dep_subgraph.edge(dep.source, dep.dependency_id)
+                dep_subgraph.edge(dep.dependency_id, dep.target)
 
     return dot
 

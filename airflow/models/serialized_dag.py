@@ -482,7 +482,7 @@ class SerializedDagModel(Base):
                     and (cls.created_at == latest_sdag_subquery.c.max_created),
                 )
             )
-            iterator = ((dag_id, json.loads(deps_data) if deps_data else []) for dag_id, deps_data in query)
+            iterator = [(dag_id, json.loads(deps_data) if deps_data else []) for dag_id, deps_data in query]
         else:
             iterator = session.execute(
                 select(cls.dag_id, func.json_extract_path(cls._data, "dag", "dag_dependencies")).join(
@@ -502,8 +502,8 @@ class SerializedDagModel(Base):
                 dep_type = dep_data["dependency_type"]
                 dep_id = dep_data["dependency_id"]
                 if dep_type == "asset":
-                    # TODO
-                    name_uri_assets.add((dep_id.name, dep_id.uri))
+                    unique_key = AssetUniqueKey.from_str(dep_id)
+                    name_uri_assets.add((unique_key.name, unique_key.uri))
                 elif dep_type == "asset-name-ref":
                     asset_ref_names.add(dep_id)
                 elif dep_type == "asset-uri-ref":
@@ -514,7 +514,7 @@ class SerializedDagModel(Base):
         # fetch data from db
         asset_key_to_id: dict[AssetUniqueKey, int] = {
             AssetUniqueKey(name=name, uri=uri): asset_id
-            for name, uri, asset_id in session.scalars(
+            for name, uri, asset_id in session.execute(
                 select(AssetModel.name, AssetModel.uri, AssetModel.id).where(
                     tuple_(AssetModel.name, AssetModel.uri).in_(name_uri_assets)
                 )
@@ -522,7 +522,7 @@ class SerializedDagModel(Base):
         }
         asset_ref_name_to_asset_id_name: dict[str, tuple[int, str]] = {
             name: (asset_id, name)
-            for name, asset_id in session.scalars(
+            for name, asset_id in session.execute(
                 select(AssetModel.name, AssetModel.id).where(
                     AssetModel.name.in_(asset_ref_names), AssetModel.active.has()
                 )
@@ -530,7 +530,7 @@ class SerializedDagModel(Base):
         }
         asset_ref_uri_to_asset_id_name: dict[str, tuple[int, str]] = {
             uri: (asset_id, name)
-            for uri, name, asset_id in session.scalars(
+            for uri, name, asset_id in session.execute(
                 select(AssetModel.uri, AssetModel.name, AssetModel.id).where(
                     AssetModel.uri.in_(asset_ref_uris), AssetModel.active.has()
                 )
@@ -550,7 +550,8 @@ class SerializedDagModel(Base):
                 dep_type = dep_data["dependency_type"]
                 dep_id = dep_data["dependency_id"]
                 if dep_type == "asset":
-                    dep_data["dependency_id"] = asset_key_to_id[dep_id]
+                    unique_key = AssetUniqueKey.from_str(dep_id)
+                    dep_data["dependency_id"] = str(asset_key_to_id[unique_key])
                     dag_deps.append(DagDependency(**dep_data))
                 elif dep_type == "asset-name-ref":
                     asset_id, asset_name = asset_ref_name_to_asset_id_name[dep_id]
