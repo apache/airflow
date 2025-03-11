@@ -1391,24 +1391,6 @@ api:
       example: ~
       version_added: 2.0.0
       default: "100"
-    google_oauth2_audience:
-      description: The intended audience for JWT token credentials used for authorization.
-        This value must match on the client and server sides.
-        If empty, audience will not be tested.
-      type: string
-      version_added: 2.0.0
-      example: project-id-random-value.apps.googleusercontent.com
-      default: ""
-    google_key_path:
-      description: |
-        Path to Google Cloud Service Account key file (JSON). If omitted, authorization based on
-        `the Application Default Credentials
-        <https://cloud.google.com/docs/authentication/production#finding_credentials_automatically>`__ will
-        be used.
-      type: string
-      version_added: 2.0.0
-      example: /files/service-account-json
-      default: ""
     access_control_allow_headers:
       description: |
         Used in response to a preflight request to indicate which HTTP

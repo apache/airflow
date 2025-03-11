@@ -37,7 +37,9 @@ from airflow.providers.google.common.utils.id_token_credentials import get_defau
 log = logging.getLogger(__name__)
 
 _GOOGLE_ISSUERS = ("accounts.google.com", "https://accounts.google.com")
-AUDIENCE = conf.get("api", "google_oauth2_audience")
+AUDIENCE = conf.get(
+    "api", "google_oauth2_audience", fallback="project-id-random-value.apps.googleusercontent.com"
+)
 
 
 def create_client_session():
