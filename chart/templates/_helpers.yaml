@@ -518,6 +518,14 @@ server_tls_key_file = /etc/pgbouncer/server.key
   {{- printf "%s/logs" .Values.airflowHome }}
 {{- end }}
 
+{{- define "airflow_code_volume_claim" -}}
+  {{- if .Values.devMode.persistence.existingClaim }}
+    {{- .Values.devMode.persistence.existingClaim }}
+  {{- else }}
+    {{- printf "%s-code" .Release.Name }}
+  {{- end }}
+{{- end }}
+
 {{- define "airflow_logs_volume_claim" -}}
   {{- if .Values.logs.persistence.existingClaim }}
     {{- .Values.logs.persistence.existingClaim }}
@@ -548,6 +556,12 @@ server_tls_key_file = /etc/pgbouncer/server.key
   {{- else }}
     {{- printf "%s-dags" .Release.Name }}
   {{- end }}
+{{- end }}
+
+{{- define "airflow_code_mount" -}}
+- name: code
+  mountPath: {{  .Values.airflowHome }}
+  readOnly: true
 {{- end }}
 
 {{- define "airflow_dags_mount" -}}
