@@ -18,7 +18,7 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
-from airflow.models import XCom
+from airflow.sdk.execution_time.xcom import XCom
 
 if TYPE_CHECKING:
     from airflow.models import BaseOperator

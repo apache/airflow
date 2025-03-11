@@ -19,9 +19,9 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, ClassVar
 
-from airflow.models import XCom
 from airflow.providers.amazon.aws.utils.suppress import return_on_error
 from airflow.providers.amazon.version_compat import AIRFLOW_V_3_0_PLUS
+from airflow.sdk.execution_time.xcom import XCom
 
 if TYPE_CHECKING:
     from airflow.models import BaseOperator
