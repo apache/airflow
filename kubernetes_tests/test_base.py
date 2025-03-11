@@ -25,6 +25,7 @@ import time
 from datetime import datetime, timezone
 from pathlib import Path
 from subprocess import check_call, check_output
+from urllib.parse import parse_qs, urlparse
 
 import pytest
 import requests
@@ -59,9 +60,12 @@ class BaseK8STest:
 
     @pytest.fixture(autouse=True)
     def base_tests_setup(self, request):
-        self.set_api_server_base_url_config()
-        self.rollout_restart_deployment("airflow-api-server")
-        self.ensure_deployment_health("airflow-api-server")
+        if self.set_api_server_base_url_config():
+            # only restart the deployment if the configmap was updated
+            # speed up the test and make the airflow-api-server deployment more stable
+            self.rollout_restart_deployment("airflow-api-server")
+            self.ensure_deployment_health("airflow-api-server")
+
         # Replacement for unittests.TestCase.id()
         self.test_id = f"{request.node.cls.__name__}_{request.node.name}"
         self.session = self._get_session_with_retries()
@@ -126,17 +130,92 @@ class BaseK8STest:
         if names:
             check_call(["kubectl", "delete", "pod", names[0]])
 
-    def _get_session_with_retries(self):
+    @staticmethod
+    def _get_jwt_token(username: str, password: str) -> str:
+        """Get the JWT token for the given username and password.
+
+        Note: API server is still using FAB Auth Manager.
+
+        Steps:
+        1. Get the login page to get the csrf token
+            - The csrf token is in the hidden input field with id "csrf_token"
+        2. Login with the username and password
+            - Must use the same session to keep the csrf token session
+        3. Extract the JWT token from the redirect url
+            - Expected to have a connection error
+            - The redirect url should have the JWT token as a query parameter
+
+        :param session: The session to use for the request
+        :param username: The username to use for the login
+        :param password: The password to use for the login
+        :return: The JWT token
+        """
+        # get csrf token from login page
+        retry = Retry(total=5, backoff_factor=10)
         session = requests.Session()
-        session.auth = ("admin", "admin")
+        session.mount("http://", HTTPAdapter(max_retries=retry))
+        session.mount("https://", HTTPAdapter(max_retries=retry))
+        get_login_form_response = session.get(f"http://{KUBERNETES_HOST_PORT}/auth/login")
+        csrf_token = re.search(
+            r'<input id="csrf_token" name="csrf_token" type="hidden" value="(.+?)">',
+            get_login_form_response.text,
+        )
+        assert csrf_token, "Failed to get csrf token from login page"
+        csrf_token_str = csrf_token.group(1)
+        assert csrf_token_str, "Failed to get csrf token from login page"
+        # login with form data
+        login_response = session.post(
+            f"http://{KUBERNETES_HOST_PORT}/auth/login",
+            data={"username": username, "password": password, "csrf_token": csrf_token_str},
+        )
+        redirect_url = login_response.url
+        # ensure redirect_url is a string
+        redirect_url_str = str(redirect_url) if redirect_url is not None else ""
+        assert "/?token" in redirect_url_str, f"Login failed with redirect url {redirect_url_str}"
+        parsed_url = urlparse(redirect_url_str)
+        query_params = parse_qs(str(parsed_url.query))
+        jwt_token_list = query_params.get("token")
+        jwt_token = jwt_token_list[0] if jwt_token_list else None
+        assert jwt_token, f"Failed to get JWT token from redirect url {redirect_url_str}"
+        return jwt_token
+
+    def _get_session_with_retries(self):
+        class JWTRefreshAdapter(HTTPAdapter):
+            def __init__(self, base_instance, **kwargs):
+                self.base_instance = base_instance
+                super().__init__(**kwargs)
+
+            def send(self, request, **kwargs):
+                response = super().send(request, **kwargs)
+                if response.status_code in (401, 403):
+                    # Refresh token and update the Authorization header with retry logic.
+                    attempts = 0
+                    jwt_token = None
+                    while attempts < 5:
+                        try:
+                            jwt_token = self.base_instance._get_jwt_token("admin", "admin")
+                            break
+                        except Exception:
+                            attempts += 1
+                            time.sleep(1)
+                    if jwt_token is None:
+                        raise Exception("Failed to refresh JWT token after 5 attempts")
+                    request.headers["Authorization"] = f"Bearer {jwt_token}"
+                    response = super().send(request, **kwargs)
+                return response
+
+        jwt_token = self._get_jwt_token("admin", "admin")
+        session = requests.Session()
+        session.headers.update({"Authorization": f"Bearer {jwt_token}"})
         retries = Retry(
-            total=3,
+            total=5,
             backoff_factor=10,
             status_forcelist=[404],
             allowed_methods=Retry.DEFAULT_ALLOWED_METHODS | frozenset(["PATCH", "POST"]),
         )
-        session.mount("http://", HTTPAdapter(max_retries=retries))
-        session.mount("https://", HTTPAdapter(max_retries=retries))
+        adapter = JWTRefreshAdapter(self, max_retries=retries)
+        session.mount("http://", adapter)
+        session.mount("https://", adapter)
         return session
 
     def _ensure_airflow_api_server_is_healthy(self):
@@ -236,8 +315,11 @@ class BaseK8STest:
         # escape newlines and double quotes
         return airflow_cfg_str.replace("\n", "\\n").replace('"', '\\"')
 
-    def set_api_server_base_url_config(self):
-        """Set [api/base_url] with `f"http://{KUBERNETES_HOST_PORT}"` as env in k8s configmap."""
+    def set_api_server_base_url_config(self) -> bool:
+        """Set [api/base_url] with `f"http://{KUBERNETES_HOST_PORT}"` as env in k8s configmap.
+
+        :return: True if the configmap was updated successfully, False otherwise
+        """
         configmap_name = "airflow-config"
         configmap_key = "airflow.cfg"
         original_configmap_json_str = check_output(
@@ -250,7 +332,7 @@ class BaseK8STest:
         airflow_cfg_dict = self._parse_airflow_cfg_as_dict(original_airflow_cfg)
         airflow_cfg_dict["api"]["base_url"] = f"http://{KUBERNETES_HOST_PORT}"
         # update the configmap with the new airflow.cfg
-        check_call(
+        patch_configmap_result = check_output(
             [
                 "kubectl",
                 "patch",
@@ -263,7 +345,10 @@ class BaseK8STest:
                 "-p",
                 f'{{"data": {{"{configmap_key}": "{self._parse_airflow_cfg_dict_as_escaped_toml(airflow_cfg_dict)}"}}}}',
             ]
-        )
+        ).decode()
+        if "(no change)" in patch_configmap_result:
+            return False
+        return True
 
     def ensure_dag_expected_state(self, host, logical_date, dag_id, expected_final_state, timeout):
         tries = 0
