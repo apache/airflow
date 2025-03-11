@@ -17,6 +17,8 @@
 
 from __future__ import annotations
 
+from urllib.parse import urljoin
+
 from fastapi import HTTPException, status
 from starlette.responses import RedirectResponse
 
@@ -60,7 +62,7 @@ def create_token_all_admins() -> RedirectResponse:
         username="Anonymous",
         role="ADMIN",
     )
-    url = f"{conf.get('api', 'base_url')}/?token={get_auth_manager().get_jwt_token(user)}"
+    url = urljoin(conf.get("api", "base_url"), f"?token={get_auth_manager().get_jwt_token(user)}")
     return RedirectResponse(url=url)
 
 
