@@ -40,7 +40,7 @@ from airflow.api_fastapi.auth.managers.models.resource_details import (
 )
 from airflow.api_fastapi.core_api.base import OrmClause
 from airflow.configuration import conf
-from airflow.models.dag import DagModel
+from airflow.models.dag import DagModel, DagRun
 from airflow.utils.jwt_signer import JWTSigner, get_signing_key
 
 if TYPE_CHECKING:
@@ -114,7 +114,16 @@ class PermittedDagFilter(OrmClause[set[str]]):
         return select.where(DagModel.dag_id.in_(self.value))
 
 
-def permitted_dag_filter_factory(method: ResourceMethod) -> Callable[[Request, BaseUser], PermittedDagFilter]:
+class PermittedDagRunFilter(PermittedDagFilter):
+    """A parameter that filters the permitted dag runs for the user."""
+
+    def to_orm(self, select: Select) -> Select:
+        return select.where(DagRun.dag_id.in_(self.value))
+
+
+def permitted_dag_filter_factory(
+    method: ResourceMethod, filter_class=PermittedDagFilter
+) -> Callable[[Request, BaseUser], PermittedDagFilter]:
     """
     Create a callable for Depends in FastAPI that returns a filter of the permitted dags for the user.
 
@@ -128,13 +137,19 @@ def permitted_dag_filter_factory(method: ResourceMethod) -> Callable[[Request, B
     ) -> PermittedDagFilter:
         auth_manager: BaseAuthManager = request.app.state.auth_manager
         permitted_dags: set[str] = auth_manager.get_permitted_dag_ids(user=user, method=method)
-        return PermittedDagFilter(permitted_dags)
+        return filter_class(permitted_dags)
 
     return depends_permitted_dags_filter
 
 
 EditableDagsFilterDep = Annotated[PermittedDagFilter, Depends(permitted_dag_filter_factory("PUT"))]
 ReadableDagsFilterDep = Annotated[PermittedDagFilter, Depends(permitted_dag_filter_factory("GET"))]
+ReadableDagRunsFilterDep = Annotated[
+    PermittedDagRunFilter, Depends(permitted_dag_filter_factory("GET", PermittedDagRunFilter))
+]
+EditableDagRunsFilterDep = Annotated[
+    PermittedDagRunFilter, Depends(permitted_dag_filter_factory("PUT", PermittedDagRunFilter))
+]
 
 
 def requires_access_pool(method: ResourceMethod) -> Callable[[Request, BaseUser], None]:
