@@ -23,7 +23,7 @@ import sys
 import textwrap
 from socket import socketpair
 from typing import TYPE_CHECKING, Callable
-from unittest.mock import patch
+from unittest.mock import MagicMock, patch
 
 import pytest
 import structlog
@@ -133,6 +133,8 @@ class TestDagFileProcessor:
     def test_top_level_variable_access(
         self, spy_agency: SpyAgency, tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch
     ):
+        logger_filehandle = MagicMock()
+
         def dag_in_a_fn():
             from airflow.sdk import DAG, Variable
 
@@ -143,10 +145,7 @@ class TestDagFileProcessor:
 
         monkeypatch.setenv("AIRFLOW_VAR_MYVAR", "abc")
         proc = DagFileProcessorProcess.start(
-            id=1,
-            path=path,
-            bundle_path=tmp_path,
-            callbacks=[],
+            id=1, path=path, bundle_path=tmp_path, callbacks=[], logger_filehandle=logger_filehandle
         )
 
         while not proc.is_ready:
@@ -158,6 +157,8 @@ class TestDagFileProcessor:
         assert result.serialized_dags[0].dag_id == "test_abc"
 
     def test_top_level_connection_access(self, tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch):
+        logger_filehandle = MagicMock()
+
         def dag_in_a_fn():
             from airflow.hooks.base import BaseHook
             from airflow.sdk import DAG
@@ -169,10 +170,7 @@ class TestDagFileProcessor:
 
         monkeypatch.setenv("AIRFLOW_CONN_MY_CONN", '{"conn_type": "aws"}')
         proc = DagFileProcessorProcess.start(
-            id=1,
-            path=path,
-            bundle_path=tmp_path,
-            callbacks=[],
+            id=1, path=path, bundle_path=tmp_path, callbacks=[], logger_filehandle=logger_filehandle
         )
 
         while not proc.is_ready:
