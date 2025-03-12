@@ -17,22 +17,28 @@
  * under the License.
  */
 import { Box, HStack, Spacer, Text } from "@chakra-ui/react";
-import { useState } from "react";
 import { MdPause, MdPlayArrow, MdStop } from "react-icons/md";
 
 import {
   useBackfillServiceCancelBackfill,
   useBackfillServiceListBackfills,
+  useBackfillServiceListBackfillsKey,
   useBackfillServicePauseBackfill,
   useBackfillServiceUnpauseBackfill,
 } from "openapi/queries";
+import { queryClient } from "src/queryClient";
 
 import Time from "../Time";
-import { ProgressBar } from "../ui";
-import ActionButton from "../ui/ActionButton";
+import { Button, ProgressBar } from "../ui";
 
 type Props = {
   readonly dagId: string;
+};
+
+const onSuccess = async () => {
+  await queryClient.invalidateQueries({
+    queryKey: [useBackfillServiceListBackfillsKey],
+  });
 };
 
 const BackfillBanner = ({ dagId }: Props) => {
@@ -41,25 +47,23 @@ const BackfillBanner = ({ dagId }: Props) => {
   });
   const [backfill] = data?.backfills.filter((bf) => bf.completed_at === null) ?? [];
 
-  const { isPending: isPausePending, mutate: pauseMutate } = useBackfillServicePauseBackfill();
-  const { isPending: isUnPausePending, mutate: unpauseMutate } = useBackfillServiceUnpauseBackfill();
+  const { isPending: isPausePending, mutate: pauseMutate } = useBackfillServicePauseBackfill({ onSuccess });
+  const { isPending: isUnPausePending, mutate: unpauseMutate } = useBackfillServiceUnpauseBackfill({
+    onSuccess,
+  });
 
-  const { isPending: isStopPending, mutate: stopPending } = useBackfillServiceCancelBackfill();
+  const { isPending: isStopPending, mutate: stopPending } = useBackfillServiceCancelBackfill({ onSuccess });
 
-  const [isPaused, setIsPaused] = useState(backfill?.is_paused ?? false);
-  const [isDisabled, setIsDisabled] = useState<boolean>(isPausePending || isUnPausePending || isStopPending);
   const togglePause = () => {
-    if (isPaused) {
-      pauseMutate({ backfillId: backfill?.id });
+    if (backfill?.is_paused) {
+      unpauseMutate({ backfillId: backfill.id });
     } else {
-      unpauseMutate({ backfillId: backfill?.id });
+      pauseMutate({ backfillId: backfill?.id });
     }
-    setIsPaused(!isPaused);
   };
 
   const cancel = () => {
     stopPending({ backfillId: backfill?.id });
-    setIsDisabled(true);
   };
 
   if (isLoading || backfill === undefined) {
@@ -75,32 +79,30 @@ const BackfillBanner = ({ dagId }: Props) => {
         </>
         <Spacer flex="max-content" />
         <ProgressBar size="xs" visibility="visible" />
-        <ActionButton
-          actionName=""
-          disabled={isDisabled}
-          icon={isPaused ? <MdPlayArrow color="white" size="1" /> : <MdPause color="white" size="1" />}
+        <Button
+          aria-label={backfill.is_paused ? "Unpause backfill" : "Pause backfill"}
           loading={isPausePending || isUnPausePending}
           onClick={() => {
             togglePause();
           }}
           rounded="full"
           size="xs"
-          text=""
           variant="outline"
-        />
-        <ActionButton
-          actionName=""
-          disabled={isDisabled}
-          icon={<MdStop color="white" size="1" />}
+        >
+          {backfill.is_paused ? <MdPlayArrow color="white" size="1" /> : <MdPause color="white" size="1" />}
+        </Button>
+        <Button
+          aria-label="Cancel backfill"
           loading={isStopPending}
           onClick={() => {
             cancel();
           }}
           rounded="full"
           size="xs"
-          text=""
           variant="outline"
-        />
+        >
+          <MdStop color="white" size="1" />
+        </Button>
       </HStack>
     </Box>
   );
