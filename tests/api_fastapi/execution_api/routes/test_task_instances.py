@@ -362,7 +362,7 @@ class TestTIUpdateState:
         ("task_outlets", "outlet_events"),
         [
             (
-                [{"name": "s3://bucket/my-task", "uri": "s3://bucket/my-task", "asset_type": "Asset"}],
+                [{"name": "s3://bucket/my-task", "uri": "s3://bucket/my-task", "type": "Asset"}],
                 [
                     {
                         "key": {"name": "s3://bucket/my-task", "uri": "s3://bucket/my-task"},
@@ -372,7 +372,7 @@ class TestTIUpdateState:
                 ],
             ),
             (
-                [{"asset_type": "AssetAlias"}],
+                [{"type": "AssetAlias"}],
                 [
                     {
                         "source_alias_name": "example-alias",
@@ -398,7 +398,7 @@ class TestTIUpdateState:
         )
         asset_active = AssetActive.for_asset(asset)
         session.add_all([asset, asset_active])
-        asset_type = task_outlets[0]["asset_type"]
+        asset_type = task_outlets[0]["type"]
         if asset_type == "AssetAlias":
             _create_asset_aliases(session, num=1)
             asset_alias = session.query(AssetAliasModel).all()
