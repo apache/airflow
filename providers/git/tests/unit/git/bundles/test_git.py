@@ -47,14 +47,16 @@ def bundle_temp_dir(tmp_path):
 GIT_DEFAULT_BRANCH = "main"
 
 AIRFLOW_HTTPS_URL = "https://github.com/apache/airflow.git"
-AIRFLOW_GIT = "git@github.com:apache/airflow.git"
 ACCESS_TOKEN = "my_access_token"
-CONN_DEFAULT = "git_default"
 CONN_HTTPS = "my_git_conn"
 CONN_ONLY_PATH = "my_git_conn_only_path"
-CONN_ONLY_INLINE_KEY = "my_git_conn_only_inline_key"
-CONN_BOTH_PATH_INLINE = "my_git_conn_both_path_inline"
 CONN_NO_REPO_URL = "my_git_conn_no_repo_url"
+
+
+@pytest.fixture(autouse=True)
+def bundle_temp_dir(tmp_path):
+    with conf_vars({("dag_processor", "dag_bundle_storage_path"): str(tmp_path)}):
+        yield tmp_path
 
 
 @pytest.fixture
