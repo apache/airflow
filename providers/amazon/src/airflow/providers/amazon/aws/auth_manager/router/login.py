@@ -19,7 +19,6 @@ from __future__ import annotations
 
 import logging
 from typing import Any
-from urllib.parse import urljoin
 
 import anyio
 from fastapi import HTTPException, Request
@@ -80,8 +79,11 @@ def login_callback(request: Request):
         username=saml_auth.get_nameid(),
         email=attributes["email"][0] if "email" in attributes else None,
     )
-    url = urljoin(conf.get("api", "base_url"), f"?token={get_auth_manager().generate_jwt(user)}")
-    return RedirectResponse(url=url, status_code=303)
+    url = conf.get("api", "base_url")
+    token = get_auth_manager().generate_jwt(user)
+    response = RedirectResponse(url=url, status_code=303)
+    response.set_cookie("_token", token)
+    return response
 
 
 def _init_saml_auth(request: Request) -> OneLogin_Saml2_Auth:

@@ -41,7 +41,7 @@ export const Login = () => {
         // Redirect to appropriate page with the token
         const next = searchParams.get("next")
 
-        localStorage.setItem("token", JSON.stringify(data.jwt_token));
+        localStorage.setItem("token", data.jwt_token);
 
         globalThis.location.replace(`${next ?? ""}`);
     }

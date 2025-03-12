@@ -21,23 +21,29 @@ import type { InternalAxiosRequestConfig } from "axios";
 export const TOKEN_STORAGE_KEY = "token";
 export const TOKEN_QUERY_PARAM_NAME = "token";
 
-export const tokenHandler = (config: InternalAxiosRequestConfig) => {
-  const searchParams = new URLSearchParams(globalThis.location.search);
+const getTokenFromCookies = (): string | undefined => {
+  const cookies = document.cookie.split(";");
 
-  const tokenUrl = searchParams.get(TOKEN_QUERY_PARAM_NAME);
+  for (const cookie of cookies) {
+    if (cookie.startsWith("_token=")) {
+      const [, token] = cookie.split("=");
 
-  let token: string | null;
+      if (token !== undefined) {
+        localStorage.setItem(TOKEN_STORAGE_KEY, token);
+        document.cookie = "_token=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;";
 
-  if (tokenUrl === null) {
-    token = localStorage.getItem(TOKEN_STORAGE_KEY);
-  } else {
-    localStorage.setItem(TOKEN_QUERY_PARAM_NAME, tokenUrl);
-    searchParams.delete(TOKEN_QUERY_PARAM_NAME);
-    globalThis.location.search = searchParams.toString();
-    token = tokenUrl;
+        return token;
+      }
+    }
   }
 
-  if (token !== null) {
+  return undefined;
+};
+
+export const tokenHandler = (config: InternalAxiosRequestConfig) => {
+  const token = localStorage.getItem(TOKEN_STORAGE_KEY) ?? getTokenFromCookies();
+
+  if (token !== undefined) {
     config.headers.Authorization = `Bearer ${token}`;
   }
 
