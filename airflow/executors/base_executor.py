@@ -359,7 +359,7 @@ class BaseExecutor(LoggingMixin):
         """
         sorted_queue = self.order_queued_tasks_by_priority()
         task_tuples = []
-        workloads = []
+        workload_list = []
 
         for _ in range(min((open_slots, len(self.queued_tasks)))):
             key, item = sorted_queue.pop(0)
@@ -403,43 +403,55 @@ class BaseExecutor(LoggingMixin):
                 # TODO: TaskSDK: Compat, remove when KubeExecutor is fully moved over to TaskSDK too.
                 # TODO: TaskSDK: We need to minimum version requirements on executors with Airflow 3.
                 # How/where do we do that? Executor loader?
-                if hasattr(self, "_process_workloads"):
-                    workloads.append(item)
-                else:
-                    (command, _, queue, ti) = item
+                from airflow.executors import workloads
+
+                carrier: dict = {}
+                if isinstance(item, workloads.TaskInstance) and hasattr(item, "ti"):
+                    ti = item.ti
+
                     # If it's None, then the span for the current TaskInstanceKey hasn't been started.
                     if self.active_spans is not None and self.active_spans.get(key) is None:
                         from airflow.models.taskinstance import SimpleTaskInstance
 
                         if isinstance(ti, SimpleTaskInstance):
                             parent_context = Trace.extract(ti.parent_context_carrier)
+                        elif isinstance(ti, workloads.TaskInstance):
+                            parent_context = Trace.extract(ti.parent_context_carrier)
                         else:
                             parent_context = Trace.extract(ti.dag_run.context_carrier)
                         # Start a new span using the context from the parent.
                         # Attributes will be set once the task has finished so that all
                         # values will be available (end_time, duration, etc.).
+                        from airflow.utils import timezone
+
                         span = Trace.start_child_span(
                             span_name=f"{ti.task_id}",
                             parent_context=parent_context,
                             component="task",
-                            start_time=ti.queued_dttm,
+                            start_time=timezone.utcnow(),
                             start_as_current=False,
                         )
                         self.active_spans.set(key, span)
                         # Inject the current context into the carrier.
                         carrier = Trace.inject()
-                        # The carrier needs to be set on the ti, but it can't happen here because db calls are expensive.
-                        # So set the carrier as an argument to the command.
-                        # The command execution will set it on the ti, and it will be propagated to the task itself.
-                        command = list(command)
-                        command.append("--carrier")
-                        command.append(json.dumps(carrier))
+                        ti.context_carrier = carrier
+
+                if hasattr(self, "_process_workloads"):
+                    workload_list.append(item)
+                else:
+                    (command, _, queue, ti) = item
+                    # The carrier needs to be set on the ti, but it can't happen here because db calls are expensive.
+                    # So set the carrier as an argument to the command.
+                    # The command execution will set it on the ti, and it will be propagated to the task itself.
+                    command = list(command)
+                    command.append("--carrier")
+                    command.append(json.dumps(carrier))
                     task_tuples.append((key, command, queue, getattr(ti, "executor_config", None)))
 
         if task_tuples:
             self._process_tasks(task_tuples)
-        elif workloads:
-            self._process_workloads(workloads)  # type: ignore[attr-defined]
+        elif workload_list:
+            self._process_workloads(workload_list)  # type: ignore[attr-defined]
 
     @add_span
     def _process_tasks(self, task_tuples: list[TaskTuple]) -> None:

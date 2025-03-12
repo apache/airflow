@@ -63,6 +63,10 @@ class TaskInstance(BaseModel):
     priority_weight: int
     executor_config: dict | None = None
 
+    parent_context_carrier: dict | None = None
+    context_carrier: dict | None = None
+    queued_dttm: datetime | None = None
+
     # TODO: Task-SDK: Can we replace TastInstanceKey with just the uuid across the codebase?
     @property
     def key(self) -> TaskInstanceKey:
@@ -99,6 +103,7 @@ class ExecuteTask(BaseWorkload):
         from airflow.utils.helpers import log_filename_template_renderer
 
         ser_ti = TaskInstance.model_validate(ti, from_attributes=True)
+        ser_ti.parent_context_carrier = ti.dag_run.context_carrier
         bundle_info = BundleInfo(
             name=ti.dag_model.bundle_name,
             version=ti.dag_run.bundle_version,
