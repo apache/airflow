@@ -290,6 +290,136 @@ class TestDBCleanup:
                 raise Exception("unexpected")
 
     @pytest.mark.parametrize(
+        "table_name, dag_ids, date_add_kwargs, expected_to_delete",
+        [
+            pytest.param(
+                "task_instance",
+                dict(
+                    dag_to_delete1=f"dag_to_delete_{uuid4()}",
+                    dag_to_delete2=f"dag_to_delete_{uuid4()}",
+                    dag_to_not_delete=f"dag_to_not_delete_{uuid4()}",
+                ),
+                dict(days=4),
+                8,  # should only delete 8 TI's (4 from each "dag_to_delete" DAG above)
+                id="only_delete_some_dag_ids",
+            ),
+            pytest.param(
+                "task_instance",
+                dict(
+                    dag_to_implicitly_delete1=f"dag_to_implicitly_delete_{uuid4()}",
+                    dag_to_implicitly_delete2=f"dag_to_implicitly_delete_{uuid4()}",
+                    dag_to_implicitly_delete3=f"dag_to_implicitly_delete_{uuid4()}",
+                ),
+                dict(days=20),
+                15,  # All DAGs should be deleted since none were passed into the 'dag_ids' param
+                id="delete_all_dag_ids",
+            ),
+            pytest.param(
+                "dag_run",
+                dict(
+                    dag_to_delete1=f"dag_to_delete_{uuid4()}",
+                    dag_to_delete2=f"dag_to_delete_{uuid4()}",
+                    dag_to_not_delete=f"dag_to_not_delete_{uuid4()}",
+                ),
+                dict(days=30),
+                8,  # delete 8 DagRuns, 4 from each dag_to_delete DAG (not 5, dag_run has keep_last=True)
+                id="delete_from_dag_run_table",
+            ),
+        ],
+    )
+    def test__cleanup_dag_ids(self, table_name, dag_ids, date_add_kwargs, expected_to_delete):
+        """
+        Verify that _cleanup_table actually deletes the rows it should with dag_ids parameter.
+        The _cleanup_table should delete all the dags that are in the dag_ids list and
+        if there are none, delete none.
+        """
+        base_date = pendulum.DateTime(2022, 1, 1, tzinfo=pendulum.timezone("America/New_York"))
+        num_tis = 5
+
+        for _, dag_id in dag_ids.items():
+            create_tis(base_date=base_date, num_tis=num_tis, dag_id=dag_id)
+
+        with create_session() as session:
+            clean_before_date = base_date.add(**date_add_kwargs)
+            _cleanup_table(
+                **config_dict[table_name].__dict__,
+                clean_before_timestamp=clean_before_date,
+                dry_run=False,
+                session=session,
+                dag_ids=[dag_id for dag_id in dag_ids.values() if "dag_to_delete" in dag_id],
+            )
+
+            expected_remaining = (num_tis * len(dag_ids)) - expected_to_delete
+
+            model = config_dict[table_name].orm_model
+            assert len(session.query(model).all()) == expected_remaining
+
+    @pytest.mark.parametrize(
+        "table_name, dag_ids, date_add_kwargs, expected_to_delete",
+        [
+            pytest.param(
+                "task_instance",
+                dict(
+                    dag_to_exclude1=f"dag_to_exclude_{uuid4()}",
+                    dag_to_exclude2=f"dag_to_exclude_{uuid4()}",
+                    dag_to_not_exclude=f"dag_to_not_exclude_{uuid4()}",
+                ),
+                dict(days=4),
+                4,  # should only delete 4 TI's (all from the dag_to_not_exclude DAG above)
+                id="only_exclude_some_dag_ids",
+            ),
+            pytest.param(
+                "task_instance",
+                dict(
+                    dag_to_implicitly_delete1=f"dag_to_implicitly_delete_{uuid4()}",
+                    dag_to_implicitly_delete2=f"dag_to_implicitly_delete_{uuid4()}",
+                    dag_to_implicitly_delete3=f"dag_to_implicitly_delete_{uuid4()}",
+                ),
+                dict(days=20),
+                15,  # All DAGs should be deleted since none were excluded
+                id="delete_all_dag_ids",
+            ),
+            pytest.param(
+                "dag_run",
+                dict(
+                    dag_to_exclude1=f"dag_to_exclude_{uuid4()}",
+                    dag_to_exclude2=f"dag_to_exclude_{uuid4()}",
+                    dag_to_not_exclude=f"dag_to_not_exclude_{uuid4()}",
+                ),
+                dict(days=20),
+                4,  # delete 4 DagRuns (not 5, dag_run has keep_last=True)
+                id="delete_from_dag_run_table",
+            ),
+        ],
+    )
+    def test__cleanup_exclude_dag_ids(self, table_name, dag_ids, date_add_kwargs, expected_to_delete):
+        """
+        Verify that _cleanup_table actually deletes the rows it should with the exclude_dag_ids parameter.
+        The _cleanup_table should delete all the dags that are not in the exclude_dag_ids list and
+        if there are none, delete all DAGs.
+        """
+        base_date = pendulum.DateTime(2022, 1, 1, tzinfo=pendulum.timezone("America/New_York"))
+        num_tis = 5  # each test case above has 3 DAGs with 5 ti's each
+
+        for _, dag_id in dag_ids.items():
+            create_tis(base_date=base_date, num_tis=num_tis, dag_id=dag_id)
+
+        with create_session() as session:
+            clean_before_date = base_date.add(**date_add_kwargs)
+            _cleanup_table(
+                **config_dict[table_name].__dict__,
+                clean_before_timestamp=clean_before_date,
+                dry_run=False,
+                session=session,
+                exclude_dag_ids=[dag_id for dag_id in dag_ids.values() if "dag_to_exclude" in dag_id],
+            )
+
+            expected_remaining = (num_tis * len(dag_ids)) - expected_to_delete
+
+            model = config_dict[table_name].orm_model
+            assert len(session.query(model).all()) == expected_remaining
+
+    @pytest.mark.parametrize(
         "skip_archive, expected_archives",
         [pytest.param(True, 1, id="skip_archive"), pytest.param(False, 2, id="do_archive")],
     )
@@ -594,9 +724,9 @@ class TestDBCleanup:
             confirm_mock.assert_not_called()
 
 
-def create_tis(base_date, num_tis, run_type=DagRunType.SCHEDULED):
+def create_tis(base_date, num_tis, dag_id=None, run_type=DagRunType.SCHEDULED):
     with create_session() as session:
-        dag = DagModel(dag_id=f"test-dag_{uuid4()}")
+        dag = DagModel(dag_id=dag_id) if dag_id else DagModel(dag_id=f"test-dag_{uuid4()}")
         session.add(dag)
         for num in range(num_tis):
             start_date = base_date.add(days=num)
