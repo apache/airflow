@@ -18,12 +18,14 @@
  */
 import { Box, HStack } from "@chakra-ui/react";
 import { ReactFlowProvider } from "@xyflow/react";
+import { useCallback } from "react";
 import { Panel, PanelGroup, PanelResizeHandle } from "react-resizable-panels";
 import { useParams } from "react-router-dom";
 
-import { useAssetServiceGetAsset } from "openapi/queries";
+import { useAssetServiceGetAsset, useAssetServiceGetAssetEvents } from "openapi/queries";
 import { AssetEvents } from "src/components/Assets/AssetEvents";
 import { BreadcrumbStats } from "src/components/BreadcrumbStats";
+import { useTableURLState } from "src/components/DataTable/useTableUrlState";
 import { ProgressBar, Toaster } from "src/components/ui";
 
 import { AssetGraph } from "./AssetGraph";
@@ -32,6 +34,11 @@ import { Header } from "./Header";
 
 export const Asset = () => {
   const { assetId } = useParams();
+
+  const { setTableURLState, tableURLState } = useTableURLState();
+  const { pagination, sorting } = tableURLState;
+  const [sort] = sorting;
+  const orderBy = sort ? `${sort.desc ? "-" : ""}${sort.id}` : "-timestamp";
 
   const { data: asset, isLoading } = useAssetServiceGetAsset(
     { assetId: assetId === undefined ? 0 : parseInt(assetId, 10) },
@@ -48,6 +55,32 @@ export const Asset = () => {
       value: `/assets/${assetId}`,
     },
   ];
+
+  const { data, isLoading: isLoadingEvents } = useAssetServiceGetAssetEvents(
+    {
+      assetId: asset?.id,
+      limit: pagination.pageSize,
+      offset: pagination.pageIndex * pagination.pageSize,
+      orderBy,
+    },
+    undefined,
+    { enabled: Boolean(asset?.id) },
+  );
+
+  const setOrderBy = useCallback(
+    (value: string) => {
+      setTableURLState({
+        pagination,
+        sorting: [
+          {
+            desc: value.startsWith("-"),
+            id: value.replace("-", ""),
+          },
+        ],
+      });
+    },
+    [pagination, setTableURLState],
+  );
 
   return (
     <ReactFlowProvider>
@@ -69,8 +102,15 @@ export const Asset = () => {
           </PanelResizeHandle>
           <Panel defaultSize={30} minSize={20}>
             <Header asset={asset} />
-            <Box h="100%" overflow="auto" px={2}>
-              <AssetEvents assetId={asset?.id} />
+            <Box h="100%" overflow="auto" pt={2}>
+              <AssetEvents
+                assetId={asset?.id}
+                data={data}
+                isLoading={isLoadingEvents}
+                setOrderBy={setOrderBy}
+                setTableUrlState={setTableURLState}
+                tableUrlState={tableURLState}
+              />
             </Box>
           </Panel>
         </PanelGroup>

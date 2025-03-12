@@ -42,7 +42,7 @@ export const AssetEvent = ({
   }
 
   return (
-    <Box fontSize={13} mt={1} w="full">
+    <Box borderBottomWidth={1} fontSize={13} mt={1} p={2}>
       <Text fontWeight="bold">
         <Time datetime={event.timestamp} />
       </Text>
