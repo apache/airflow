@@ -16,6 +16,10 @@
 # under the License.
 from __future__ import annotations
 
+import pytest
+
+pytestmark = pytest.mark.db_test
+
 
 class TestHookMetaData:
     def test_hook_meta_data(self, test_client):
