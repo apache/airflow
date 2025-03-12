@@ -188,6 +188,7 @@ def ti_run(
 
         # Send the XCom data for clearance for the task instance since we are certain it is executing at this point.
         # However, do not clear it for deferral
+        xcom_keys = []
         if not ti.next_method:
             map_index = None if ti.map_index < 0 else ti.map_index
             query = session.query(XComModel.key).filter_by(
@@ -196,7 +197,7 @@ def ti_run(
             if map_index is not None:
                 query = query.filter_by(map_index=map_index)
 
-            xcom_keys = session.execute(query)
+            xcom_keys = [row.key for row in session.execute(query).all()]
 
         task_reschedule_count = (
             session.query(

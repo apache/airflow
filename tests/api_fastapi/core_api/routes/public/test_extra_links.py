@@ -22,8 +22,8 @@ import pytest
 
 from airflow.dag_processing.bundles.manager import DagBundlesManager
 from airflow.models.dagbag import DagBag
+from airflow.models.xcom import XComModel as XCom
 from airflow.plugins_manager import AirflowPlugin
-from airflow.sdk.execution_time.xcom import XCom
 from airflow.utils import timezone
 from airflow.utils.state import DagRunState
 from airflow.utils.types import DagRunType
