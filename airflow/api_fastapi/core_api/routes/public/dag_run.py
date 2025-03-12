@@ -60,7 +60,11 @@ from airflow.api_fastapi.core_api.datamodels.task_instances import (
     TaskInstanceResponse,
 )
 from airflow.api_fastapi.core_api.openapi.exceptions import create_openapi_http_exception_doc
-from airflow.api_fastapi.core_api.security import requires_access_asset, requires_access_dag
+from airflow.api_fastapi.core_api.security import (
+    ReadableDagRunsFilterDep,
+    requires_access_asset,
+    requires_access_dag,
+)
 from airflow.api_fastapi.logging.decorators import action_logging
 from airflow.exceptions import ParamValidationError
 from airflow.listeners.listener import get_listener_manager
@@ -313,6 +317,8 @@ def get_dag_runs(
             ).dynamic_depends(default="id")
         ),
     ],
+    # readable_dags_filter: ReadableDagsFilterDep,
+    readable_dag_runs_filter: ReadableDagRunsFilterDep,
     session: SessionDep,
     request: Request,
 ) -> DAGRunCollectionResponse:
@@ -321,6 +327,9 @@ def get_dag_runs(
 
     This endpoint allows specifying `~` as the dag_id to retrieve Dag Runs for all DAGs.
     """
+    # if readable_dags_filter.value is None:
+    #     return DAGRunCollectionResponse(dag_runs=[], total_entries=0)
+
     query = select(DagRun)
 
     if dag_id != "~":
@@ -328,11 +337,24 @@ def get_dag_runs(
         if not dag:
             raise HTTPException(status.HTTP_404_NOT_FOUND, f"The DAG with dag_id: `{dag_id}` was not found")
 
+        # if dag_id not in readable_dags_filter.value:
+        #     raise HTTPException(status.HTTP_403_FORBIDDEN, f"Access to DAG with dag_id: `{dag_id}` is forbidden")
+
         query = query.filter(DagRun.dag_id == dag_id)
+    # else:
+    #     query = query.filter(DagRun.dag_id.in_(readable_dags_filter.value))
 
     dag_run_select, total_entries = paginated_select(
         statement=query,
-        filters=[run_after, logical_date, start_date_range, end_date_range, update_at_range, state],
+        filters=[
+            run_after,
+            logical_date,
+            start_date_range,
+            end_date_range,
+            update_at_range,
+            state,
+            readable_dag_runs_filter,
+        ],
         order_by=order_by,
         offset=offset,
         limit=limit,
@@ -410,7 +432,10 @@ def trigger_dag_run(
     dependencies=[Depends(requires_access_dag(method="GET", access_entity=DagAccessEntity.RUN))],
 )
 def get_list_dag_runs_batch(
-    dag_id: Literal["~"], body: DAGRunsBatchBody, session: SessionDep
+    dag_id: Literal["~"],
+    body: DAGRunsBatchBody,
+    readable_dag_runs_filter: ReadableDagRunsFilterDep,
+    session: SessionDep,
 ) -> DAGRunCollectionResponse:
     """Get a list of DAG Runs."""
     dag_ids = FilterParam(DagRun.dag_id, body.dag_ids, FilterOptionEnum.IN)
@@ -455,7 +480,7 @@ def get_list_dag_runs_batch(
     base_query = select(DagRun)
     dag_runs_select, total_entries = paginated_select(
         statement=base_query,
-        filters=[dag_ids, logical_date, run_after, start_date, end_date, state],
+        filters=[dag_ids, logical_date, run_after, start_date, end_date, state, readable_dag_runs_filter],
         order_by=order_by,
         offset=offset,
         limit=limit,
