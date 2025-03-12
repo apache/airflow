@@ -51,8 +51,8 @@ __version__ = "1.0.0.alpha1"
 
 if TYPE_CHECKING:
     from airflow.sdk.definitions.asset import Asset, AssetAlias, AssetAll, AssetAny, AssetWatcher
-    from airflow.sdk.definitions.assets.decorators import asset
-    from airflow.sdk.definitions.assets.metadata import Metadata
+    from airflow.sdk.definitions.asset.decorators import asset
+    from airflow.sdk.definitions.asset.metadata import Metadata
     from airflow.sdk.definitions.baseoperator import BaseOperator, chain, chain_linear, cross_downstream
     from airflow.sdk.definitions.baseoperatorlink import BaseOperatorLink
     from airflow.sdk.definitions.connection import Connection
