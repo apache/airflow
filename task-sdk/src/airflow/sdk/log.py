@@ -505,7 +505,7 @@ def upload_to_remote(logger: FilteringBoundLogger, log_meta_dict: dict[str, Any]
     # set_context() which opens a real FH again. (And worse, in some cases it _truncates_ the file too). This
     # is just for the first Airflow 3 betas, but we will re-write a better remote log interface that isn't
     # tied to being a logging Handler.
-    handler.log_meta_dict = log_meta_dict
+    handler.log_meta_dict = log_meta_dict  # type: ignore[attr-defined]
     handler.log_relative_path = relative_path.as_posix()  # type: ignore[attr-defined]
     handler.upload_on_close = True  # type: ignore[attr-defined]
 
