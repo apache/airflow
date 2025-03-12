@@ -65,6 +65,8 @@ paths:
       summary: Recent Dag Runs
       description: Get recent DAG runs.
       operationId: recent_dag_runs
+      security:
+      - OAuth2PasswordBearer: []
       parameters:
       - name: dag_runs_limit
         in: query
@@ -185,6 +187,8 @@ paths:
       summary: Get Dependencies
       description: Dependencies graph.
       operationId: get_dependencies
+      security:
+      - OAuth2PasswordBearer: []
       parameters:
       - name: node_id
         in: query

@@ -62,7 +62,7 @@ from tests_common.test_utils.db import clear_db_dag_bundles
             set(),
             id="remove_dags_folder_default",
         ),
-        pytest.param("1", "Bundle config is not a list", id="int"),
+        pytest.param("1", "key `dag_bundle_config_list` must be list", id="int"),
         pytest.param("abc", "Unable to parse .* as valid json", id="not_json"),
     ],
 )
@@ -192,7 +192,7 @@ def test_example_dags_bundle_added():
 
 
 def test_example_dags_name_is_reserved():
-    reserved_name_config = [{"name": "example_dags"}]
+    reserved_name_config = [{"name": "example_dags", "classpath": "yo face", "kwargs": {}}]
     with conf_vars({("dag_processor", "dag_bundle_config_list"): json.dumps(reserved_name_config)}):
         with pytest.raises(AirflowConfigException, match="Bundle name 'example_dags' is a reserved name."):
             DagBundlesManager().parse_config()

@@ -117,8 +117,9 @@ export const DataTable = <TData,>({
   const display = displayMode === "card" && Boolean(cardDef) ? "card" : "table";
   const hasRows = rows.length > 0;
   const hasPagination =
-    table.getState().pagination.pageIndex !== 0 ||
-    (table.getState().pagination.pageIndex === 0 && rows.length !== total);
+    initialState?.pagination !== undefined &&
+    (table.getState().pagination.pageIndex !== 0 ||
+      (table.getState().pagination.pageIndex === 0 && rows.length !== total));
 
   return (
     <>

@@ -22,6 +22,7 @@ from typing import Annotated
 from fastapi import Depends
 from sqlalchemy import and_, func, select
 
+from airflow.api_fastapi.auth.managers.models.resource_details import DagAccessEntity
 from airflow.api_fastapi.common.db.common import (
     SessionDep,
     paginated_select,
@@ -47,12 +48,23 @@ from airflow.api_fastapi.core_api.datamodels.ui.dags import (
     DAGWithLatestDagRunsCollectionResponse,
     DAGWithLatestDagRunsResponse,
 )
+from airflow.api_fastapi.core_api.security import (
+    ReadableDagsFilterDep,
+    requires_access_dag,
+)
 from airflow.models import DagModel, DagRun
 
 dags_router = AirflowRouter(prefix="/dags", tags=["Dags"])
 
 
-@dags_router.get("/recent_dag_runs", response_model_exclude_none=True)
+@dags_router.get(
+    "/recent_dag_runs",
+    response_model_exclude_none=True,
+    dependencies=[
+        Depends(requires_access_dag(method="GET")),
+        Depends(requires_access_dag("GET", DagAccessEntity.RUN)),
+    ],
+)
 def recent_dag_runs(
     limit: QueryLimit,
     offset: QueryOffset,
@@ -67,6 +79,7 @@ def recent_dag_runs(
     only_active: QueryOnlyActiveFilter,
     paused: QueryPausedFilter,
     last_dag_run_state: QueryLastDagRunStateFilter,
+    readable_dags_filter: ReadableDagsFilterDep,
     session: SessionDep,
     dag_runs_limit: int = 10,
 ) -> DAGWithLatestDagRunsCollectionResponse:
@@ -119,6 +132,7 @@ def recent_dag_runs(
             tags,
             owners,
             last_dag_run_state,
+            readable_dags_filter,
         ],
         order_by=None,
         offset=offset,

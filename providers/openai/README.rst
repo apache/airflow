@@ -50,12 +50,12 @@ The package supports the following python versions: 3.9,3.10,3.11,3.12
 Requirements
 ------------
 
-===================  ==================
+===================  ====================
 PIP package          Version required
-===================  ==================
+===================  ====================
 ``apache-airflow``   ``>=2.9.0``
-``openai[datalib]``  ``>=1.32.0``
-===================  ==================
+``openai[datalib]``  ``>=1.32.0,<1.66.0``
+===================  ====================
 
 The changelog for the provider package can be found in the
 `changelog <https://airflow.apache.org/docs/apache-airflow-providers-openai/1.5.2/changelog.html>`_.

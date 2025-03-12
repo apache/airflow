@@ -17,13 +17,15 @@
 
 from __future__ import annotations
 
-from fastapi import status
+from fastapi import Depends, status
 from fastapi.exceptions import HTTPException
 
+from airflow.api_fastapi.auth.managers.models.resource_details import DagAccessEntity
 from airflow.api_fastapi.common.db.common import SessionDep
 from airflow.api_fastapi.common.router import AirflowRouter
 from airflow.api_fastapi.core_api.datamodels.ui.common import BaseGraphResponse
 from airflow.api_fastapi.core_api.openapi.exceptions import create_openapi_http_exception_doc
+from airflow.api_fastapi.core_api.security import requires_access_dag
 from airflow.api_fastapi.core_api.services.ui.dependencies import extract_single_connected_component
 from airflow.models.serialized_dag import SerializedDagModel
 
@@ -37,6 +39,7 @@ dependencies_router = AirflowRouter(tags=["Dependencies"])
             status.HTTP_404_NOT_FOUND,
         ]
     ),
+    dependencies=[Depends(requires_access_dag("GET", DagAccessEntity.DEPENDENCIES))],
 )
 def get_dependencies(session: SessionDep, node_id: str | None = None) -> BaseGraphResponse:
     """Dependencies graph."""
