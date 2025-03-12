@@ -18,20 +18,7 @@ from __future__ import annotations
 
 from unittest import mock
 
-import pytest
-
 from airflow.api_fastapi.common.types import MenuItem
-
-
-@pytest.fixture
-def test_unauthorized_client_with_mock_user(unauthorized_test_client):
-    import airflow.api_fastapi.core_api.security as security
-
-    mock_user = mock.Mock()
-    mock_user.perms = {}
-    unauthorized_test_client.app.dependency_overrides[security.get_user] = lambda: mock_user
-    yield unauthorized_test_client
-    unauthorized_test_client.app.dependency_overrides = {}
 
 
 class TestGetAuthLinks:
@@ -44,17 +31,20 @@ class TestGetAuthLinks:
         response = test_client.get("/ui/auth/links")
 
         assert response.status_code == 200
-        assert response.json() == [
-            {"text": "name1", "href": "path1"},
-            {"text": "name2", "href": "path2"},
-        ]
+        assert response.json() == {
+            "menu_items": [
+                {"text": "name1", "href": "path1"},
+                {"text": "name2", "href": "path2"},
+            ],
+            "total_entries": 2,
+        }
 
     def test_with_unauthenticated_user(self, unauthenticated_test_client):
         response = unauthenticated_test_client.get("/ui/auth/links")
         assert response.status_code == 401
         assert response.json() == {"detail": "Not authenticated"}
 
-    def test_with_unauthorized_user(self, test_unauthorized_client_with_mock_user):
-        response = test_unauthorized_client_with_mock_user.get("/ui/auth/links")
+    def test_with_unauthorized_user(self, unauthorized_test_client):
+        response = unauthorized_test_client.get("/ui/auth/links")
         assert response.status_code == 200
-        assert response.json() == []
+        assert response.json() == {"menu_items": [], "total_entries": 0}
