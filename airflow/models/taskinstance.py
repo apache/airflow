@@ -103,7 +103,6 @@ from airflow.models.taskmap import TaskMap
 from airflow.models.taskreschedule import TaskReschedule
 from airflow.models.xcom import LazyXComSelectSequence, XCom
 from airflow.plugins_manager import integrate_macros_plugins
-from airflow.sdk.api.datamodels._generated import AssetProfile
 from airflow.sdk.definitions._internal.templater import SandboxedEnvironment
 from airflow.sdk.definitions.asset import Asset, AssetAlias, AssetNameRef, AssetUniqueKey, AssetUriRef
 from airflow.sdk.definitions.param import process_params
@@ -158,6 +157,7 @@ if TYPE_CHECKING:
     from airflow.models.baseoperator import BaseOperator
     from airflow.models.dag import DAG as SchedulerDAG, DagModel
     from airflow.models.dagrun import DagRun
+    from airflow.sdk.api.datamodels._generated import AssetProfile
     from airflow.sdk.definitions._internal.abstractoperator import Operator
     from airflow.sdk.definitions.dag import DAG
     from airflow.sdk.types import RuntimeTaskInstanceProtocol
@@ -355,28 +355,17 @@ def _run_raw_task(
         if not test_mode:
             _add_log(event=ti.state, task_instance=ti, session=session)
             if ti.state == TaskInstanceState.SUCCESS:
-                added_alias_to_task_outlet = False
-                task_outlets = []
-                outlet_events = []
-                events = context["outlet_events"]
-                for obj in ti.task.outlets or []:
-                    # Lineage can have other types of objects besides assets
-                    if isinstance(obj, Asset):
-                        task_outlets.append(AssetProfile(name=obj.name, uri=obj.uri, type=Asset.__name__))
-                        outlet_events.append(attrs.asdict(events[obj]))  # type: ignore
-                    elif isinstance(obj, AssetNameRef):
-                        task_outlets.append(AssetProfile(name=obj.name, type=AssetNameRef.__name__))
-                        outlet_events.append(attrs.asdict(events))  # type: ignore
-                    elif isinstance(obj, AssetUriRef):
-                        task_outlets.append(AssetProfile(uri=obj.uri, type=AssetUriRef.__name__))
-                        outlet_events.append(attrs.asdict(events))  # type: ignore
-                    elif isinstance(obj, AssetAlias):
-                        if not added_alias_to_task_outlet:
-                            task_outlets.append(AssetProfile(name=obj.name, type=AssetAlias.__name__))
-                            added_alias_to_task_outlet = True
-                        for asset_alias_event in events[obj].asset_alias_events:
-                            outlet_events.append(attrs.asdict(asset_alias_event))
-                TaskInstance.register_asset_changes_in_db(ti, task_outlets, outlet_events, session=session)
+                from airflow.sdk.execution_time.task_runner import (
+                    _build_asset_profiles,
+                    _serialize_outlet_events,
+                )
+
+                TaskInstance.register_asset_changes_in_db(
+                    ti,
+                    list(_build_asset_profiles(ti.task.outlets)),
+                    list(_serialize_outlet_events(context["outlet_events"])),
+                    session=session,
+                )
 
             TaskInstance.save_to_db(ti=ti, session=session)
             if ti.state == TaskInstanceState.SUCCESS:

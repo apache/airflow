@@ -83,6 +83,7 @@ if TYPE_CHECKING:
 
     from airflow.sdk.definitions._internal.abstractoperator import AbstractOperator
     from airflow.sdk.definitions.context import Context
+    from airflow.sdk.types import OutletEventAccessorsProtocol
 
 
 class TaskRunnerMarker:
@@ -528,7 +529,9 @@ def _build_asset_profiles(lineage_objects: list) -> Iterator[AssetProfile]:
             yield AssetProfile(name=obj.name, type=AssetAlias.__name__)
 
 
-def _serialize_outlet_events(events: OutletEventAccessors) -> Iterator[dict[str, Any]]:
+def _serialize_outlet_events(events: OutletEventAccessorsProtocol) -> Iterator[dict[str, Any]]:
+    if TYPE_CHECKING:
+        assert isinstance(events, OutletEventAccessors)
     # We just collect everything the user recorded in the accessors.
     # Further filtering will be done in the API server.
     for key, accessor in events._dict.items():
@@ -607,7 +610,7 @@ def run(
         msg = SucceedTask(
             end_date=datetime.now(tz=timezone.utc),
             task_outlets=list(_build_asset_profiles(ti.task.outlets)),
-            outlet_events=list(_serialize_outlet_events(context["outlet_events"])),  # type: ignore
+            outlet_events=list(_serialize_outlet_events(context["outlet_events"])),
         )
         state = TerminalTIState.SUCCESS
     except TaskDeferred as defer:
