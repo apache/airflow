@@ -18,7 +18,7 @@
  */
 import { Box, HStack, Spacer, Text } from "@chakra-ui/react";
 import { useState } from "react";
-import { MdClose, MdPause, MdPlayArrow, MdStop } from "react-icons/md";
+import { MdPause, MdPlayArrow, MdStop } from "react-icons/md";
 
 import {
   useBackfillServiceCancelBackfill,
@@ -46,12 +46,6 @@ const BackfillBanner = ({ dagId }: Props) => {
 
   const { isPending: isStopPending, mutate: stopPending } = useBackfillServiceCancelBackfill();
 
-  let initialVisibility = false;
-
-  if (backfill !== undefined) {
-    initialVisibility = true;
-  }
-  const [isVisible, setIsVisible] = useState<boolean>(initialVisibility);
   const [isPaused, setIsPaused] = useState(backfill?.is_paused ?? false);
   const [isDisabled, setIsDisabled] = useState<boolean>(isPausePending || isUnPausePending || isStopPending);
   const togglePause = () => {
@@ -68,8 +62,12 @@ const BackfillBanner = ({ dagId }: Props) => {
     setIsDisabled(true);
   };
 
-  return isVisible && !isLoading ? (
-    <Box bg="blue.solid" color="white" fontSize="m" mr="1.5" my="1" px="2" py="1" rounded="lg">
+  if (isLoading || backfill === undefined) {
+    return undefined;
+  }
+
+  return (
+    <Box bg="blue.solid" color="white" fontSize="m" mr="0.5" my="1" px="2" py="1" rounded="lg">
       <HStack>
         <Text key="backfill">Backfill in progress:</Text>
         <>
@@ -103,19 +101,8 @@ const BackfillBanner = ({ dagId }: Props) => {
           text=""
           variant="outline"
         />
-        <ActionButton
-          actionName=""
-          icon={<MdClose color="white" size="1" />}
-          onClick={() => setIsVisible(false)}
-          rounded="full"
-          size="xs"
-          text=""
-          variant="outline"
-        />
       </HStack>
     </Box>
-  ) : (
-    ""
   );
 };
 
