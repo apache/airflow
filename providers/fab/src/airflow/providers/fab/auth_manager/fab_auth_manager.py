@@ -434,33 +434,27 @@ class FabAuthManager(BaseAuthManager[User]):
             {
                 "resource_type": "List Users",
                 "text": "Users",
-                "href": AUTH_MANAGER_FASTAPI_APP_PREFIX
-                + url_for(f"{self.security_manager.user_view.__class__.__name__}.list", _external=False),
+                "href": f"{AUTH_MANAGER_FASTAPI_APP_PREFIX}/users/list/",
             },
             {
                 "resource_type": "List Roles",
                 "text": "Roles",
-                "href": AUTH_MANAGER_FASTAPI_APP_PREFIX
-                + url_for("CustomRoleModelView.list", _external=False),
+                "href": f"{AUTH_MANAGER_FASTAPI_APP_PREFIX}/roles/list/",
             },
             {
                 "resource_type": "Actions",
                 "text": "Actions",
-                "href": AUTH_MANAGER_FASTAPI_APP_PREFIX + url_for("ActionModelView.list", _external=False),
+                "href": f"{AUTH_MANAGER_FASTAPI_APP_PREFIX}/actions/list/",
             },
             {
                 "resource_type": "Resources",
                 "text": "Resources",
-                "href": AUTH_MANAGER_FASTAPI_APP_PREFIX + url_for("ResourceModelView.list", _external=False),
+                "href": f"{AUTH_MANAGER_FASTAPI_APP_PREFIX}/resources/list/",
             },
             {
                 "resource_type": "Permission Pairs",
                 "text": "Permissions",
-                "href": AUTH_MANAGER_FASTAPI_APP_PREFIX
-                + url_for(
-                    "PermissionPairModelView.list",
-                    _external=False,
-                ),
+                "href": f"{AUTH_MANAGER_FASTAPI_APP_PREFIX}/permissions/list/",
             },
         ]
 

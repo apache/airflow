@@ -587,8 +587,7 @@ class TestFabAuthManager:
 
     @mock.patch.object(FabAuthManager, "_is_authorized", return_value=True)
     def test_get_menu_items(self, _, auth_manager_with_appbuilder, flask_app):
-        with flask_app.app_context():
-            auth_manager_with_appbuilder.register_views()
-            result = auth_manager_with_appbuilder.get_menu_items(user=Mock())
-            assert len(result) == 5
-            assert all(item.href.startswith(AUTH_MANAGER_FASTAPI_APP_PREFIX) for item in result)
+        auth_manager_with_appbuilder.register_views()
+        result = auth_manager_with_appbuilder.get_menu_items(user=Mock())
+        assert len(result) == 5
+        assert all(item.href.startswith(AUTH_MANAGER_FASTAPI_APP_PREFIX) for item in result)
