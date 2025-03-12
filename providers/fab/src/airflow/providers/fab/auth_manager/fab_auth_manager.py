@@ -21,6 +21,7 @@ import argparse
 from functools import cached_property
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
+from urllib.parse import urljoin
 
 import packaging.version
 from connexion import FlaskApi
@@ -32,6 +33,7 @@ from sqlalchemy.orm import Session, joinedload
 from starlette.middleware.wsgi import WSGIMiddleware
 
 from airflow import __version__ as airflow_version
+from airflow.api_fastapi.app import AUTH_MANAGER_FASTAPI_APP_PREFIX
 from airflow.api_fastapi.auth.managers.base_auth_manager import BaseAuthManager
 from airflow.api_fastapi.auth.managers.models.resource_details import (
     AccessView,
@@ -42,6 +44,7 @@ from airflow.api_fastapi.auth.managers.models.resource_details import (
     PoolDetails,
     VariableDetails,
 )
+from airflow.api_fastapi.common.types import MenuItem
 from airflow.cli.cli_config import (
     DefaultHelpParser,
     GroupCommand,
@@ -409,7 +412,7 @@ class FabAuthManager(BaseAuthManager[User]):
 
     def get_url_login(self, **kwargs) -> str:
         """Return the login page url."""
-        return f"{self.apiserver_endpoint}/auth/login/"
+        return urljoin(self.apiserver_endpoint, f"{AUTH_MANAGER_FASTAPI_APP_PREFIX}/login/")
 
     def get_url_logout(self):
         """Return the logout page url."""
@@ -423,6 +426,49 @@ class FabAuthManager(BaseAuthManager[User]):
 
     def register_views(self) -> None:
         self.security_manager.register_views()
+
+    def get_menu_items(self, *, user: User) -> list[MenuItem]:
+        # Contains the list of menu items. ``resource_type`` is the name of the resource in FAB
+        # permission model to check whether the user is allowed to see this menu item
+        items = [
+            {
+                "resource_type": "List Users",
+                "text": "Users",
+                "href": AUTH_MANAGER_FASTAPI_APP_PREFIX
+                + url_for(f"{self.security_manager.user_view.__class__.__name__}.list", _external=False),
+            },
+            {
+                "resource_type": "List Roles",
+                "text": "Roles",
+                "href": AUTH_MANAGER_FASTAPI_APP_PREFIX
+                + url_for("CustomRoleModelView.list", _external=False),
+            },
+            {
+                "resource_type": "Actions",
+                "text": "Actions",
+                "href": AUTH_MANAGER_FASTAPI_APP_PREFIX + url_for("ActionModelView.list", _external=False),
+            },
+            {
+                "resource_type": "Resources",
+                "text": "Resources",
+                "href": AUTH_MANAGER_FASTAPI_APP_PREFIX + url_for("ResourceModelView.list", _external=False),
+            },
+            {
+                "resource_type": "Permission Pairs",
+                "text": "Permissions",
+                "href": AUTH_MANAGER_FASTAPI_APP_PREFIX
+                + url_for(
+                    "PermissionPairModelView.list",
+                    _external=False,
+                ),
+            },
+        ]
+
+        return [
+            MenuItem(text=item["text"], href=item["href"])
+            for item in items
+            if self._is_authorized(method="MENU", resource_type=item["resource_type"], user=user)
+        ]
 
     def _is_authorized(
         self,

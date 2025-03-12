@@ -362,19 +362,18 @@ def _run_raw_task(
                 events = context["outlet_events"]
                 for obj in ti.task.outlets or []:
                     # Lineage can have other types of objects besides assets
-                    asset_type = type(obj).__name__
                     if isinstance(obj, Asset):
-                        task_outlets.append(AssetProfile(name=obj.name, uri=obj.uri, asset_type=asset_type))
+                        task_outlets.append(AssetProfile(name=obj.name, uri=obj.uri, type=Asset.__name__))
                         outlet_events.append(attrs.asdict(events[obj]))  # type: ignore
                     elif isinstance(obj, AssetNameRef):
-                        task_outlets.append(AssetProfile(name=obj.name, asset_type=asset_type))
+                        task_outlets.append(AssetProfile(name=obj.name, type=AssetNameRef.__name__))
                         outlet_events.append(attrs.asdict(events))  # type: ignore
                     elif isinstance(obj, AssetUriRef):
-                        task_outlets.append(AssetProfile(uri=obj.uri, asset_type=asset_type))
+                        task_outlets.append(AssetProfile(uri=obj.uri, type=AssetUriRef.__name__))
                         outlet_events.append(attrs.asdict(events))  # type: ignore
                     elif isinstance(obj, AssetAlias):
                         if not added_alias_to_task_outlet:
-                            task_outlets.append(AssetProfile(asset_type=asset_type))
+                            task_outlets.append(AssetProfile(name=obj.name, type=AssetAlias.__name__))
                             added_alias_to_task_outlet = True
                         for asset_alias_event in events[obj].asset_alias_events:
                             outlet_events.append(attrs.asdict(asset_alias_event))
@@ -2758,18 +2757,18 @@ class TaskInstance(Base, LoggingMixin):
         for obj in task_outlets:
             ti.log.debug("outlet obj %s", obj)
             # Lineage can have other types of objects besides assets
-            if obj.asset_type == Asset.__name__:
+            if obj.type == Asset.__name__:
                 asset_manager.register_asset_change(
                     task_instance=ti,
                     asset=Asset(name=obj.name, uri=obj.uri),  # type: ignore
                     extra=outlet_events[0]["extra"],
                     session=session,
                 )
-            elif obj.asset_type == AssetNameRef.__name__:
+            elif obj.type == AssetNameRef.__name__:
                 asset_name_refs.add(obj.name)  # type: ignore
-            elif obj.asset_type == AssetUriRef.__name__:
+            elif obj.type == AssetUriRef.__name__:
                 asset_uri_refs.add(obj.uri)  # type: ignore
-            elif obj.asset_type == AssetAlias.__name__:
+            elif obj.type == AssetAlias.__name__:
                 outlet_events = list(
                     map(
                         lambda event: {**event, "dest_asset_key": AssetUniqueKey(**event["dest_asset_key"])},
@@ -3110,7 +3109,7 @@ class TaskInstance(Base, LoggingMixin):
 
         ti.clear_next_method_args()
 
-        # In extreme cases (zombie in case of dag with parse error) we might _not_ have a Task.
+        # In extreme cases (task instance heartbeat timeout in case of dag with parse error) we might _not_ have a Task.
         if context is None and getattr(ti, "task", None):
             context = ti.get_template_context(session)
 
@@ -3401,11 +3400,6 @@ class TaskInstance(Base, LoggingMixin):
                 TaskInstance.run_id == self.run_id
             )
         return num_running_task_instances_query.scalar()
-
-    def init_run_context(self, raw: bool = False) -> None:
-        """Set the log context."""
-        self.raw = raw
-        self._set_context(self)
 
     @staticmethod
     def filter_for_tis(tis: Iterable[TaskInstance | TaskInstanceKey]) -> BooleanClauseList | None:

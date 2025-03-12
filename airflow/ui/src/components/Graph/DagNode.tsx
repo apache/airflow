@@ -47,11 +47,7 @@ export const DagNode = ({
       >
         <HStack alignItems="center" justifyContent="space-between">
           <DagIcon />
-          <TogglePause
-            dagId={dag?.dag_id ?? label}
-            disabled={!Boolean(dag)}
-            isPaused={dag?.is_paused ?? false}
-          />
+          <TogglePause dagId={dag?.dag_id ?? label} disabled={!Boolean(dag)} isPaused={dag?.is_paused} />
         </HStack>
         <Link asChild color="fg.info" mb={2}>
           <RouterLink to={`/dags/${dag?.dag_id ?? label}`}>{dag?.dag_display_name ?? label}</RouterLink>
