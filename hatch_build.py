@@ -191,7 +191,9 @@ DEPENDENCIES = [
     "alembic>=1.13.1, <2.0",
     "argcomplete>=1.10",
     "asgiref>=2.3.0",
-    "attrs>=22.1.0",
+    # attrs 25.2.0 has broken DAG __init__
+    # tracking issue: https://github.com/apache/airflow/issues/47682
+    "attrs>=22.1.0, <25.2.0",
     # Blinker use for signals in Flask, this is an optional dependency in Flask 2.2 and lower.
     # In Flask 2.3 it becomes a mandatory dependency, and flask signals are always available.
     "blinker>=1.6.2",
