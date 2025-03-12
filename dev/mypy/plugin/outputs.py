@@ -19,8 +19,8 @@ from __future__ import annotations
 
 from typing import Callable
 
-from mypy.plugin import AttributeContext, MethodContext, Plugin
-from mypy.types import AnyType, Type, TypeOfAny
+from mypy.plugin import AttributeContext, MethodContext, MethodSigContext, Plugin
+from mypy.types import AnyType, CallableType, FunctionLike, Type, TypeOfAny
 
 OUTPUT_PROPERTIES = {
     "airflow.models.baseoperator.BaseOperator.output",
@@ -71,6 +71,50 @@ class OperatorOutputPlugin(Plugin):
         if fullname not in TASK_CALL_FUNCTIONS:
             return None
         return self._treat_as_any
+
+    def _treat_as_no_kwargs(self, context: MethodSigContext, /) -> FunctionLike:
+        ats = []
+        aks = []
+        ans = []
+        for arg_type, arg_kind, arg_name in zip(
+            context.default_signature.arg_types,
+            context.default_signature.arg_kinds,
+            context.default_signature.arg_names,
+            strict=True,
+        ):
+            if arg_name not in {"dag_run", "ti"}:
+                ats.append(arg_type)
+                aks.append(arg_kind)
+                ans.append(arg_name)
+
+        return CallableType(
+            ats,
+            aks,
+            ans,
+            context.default_signature.ret_type,
+            context.default_signature.fallback,
+            context.default_signature.name,
+            context.default_signature.definition,
+            context.default_signature.variables,
+            context.default_signature.line,
+            context.default_signature.column,
+            context.default_signature.is_ellipsis_args,
+            context.default_signature.implicit,
+            context.default_signature.special_sig,
+            context.default_signature.from_type_type,
+            context.default_signature.bound_args,
+            context.default_signature.def_extras,
+            context.default_signature.type_guard,
+            context.default_signature.type_is,
+            context.default_signature.from_concatenate,
+            context.default_signature.imprecise_arg_kinds,
+            context.default_signature.unpack_kwargs,
+        )
+
+    def get_method_signature_hook(self, fullname: str) -> Callable[[MethodSigContext], FunctionLike] | None:
+        if fullname not in TASK_CALL_FUNCTIONS:
+            return None
+        return self._treat_as_no_kwargs
 
 
 def plugin(version: str):
