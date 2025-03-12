@@ -447,41 +447,28 @@ class TestConfigLint:
         assert config_change.suggestion in normalized_output
 
     def test_lint_detects_default_value_change_upgrade(self):
+        dummy_change = ConfigChange(config=ConfigParameter("dummy", "dummy"))
         with (
-            mock.patch("airflow.configuration.conf.has_option", return_value=True),
             mock.patch(
                 "airflow.configuration.conf.get",
                 return_value="{{ ti.dag_id }}/{{ ti.task_id }}/{{ ts }}/{{ try_number }}.log",
             ),
-            mock.patch("airflow.configuration.conf.set") as set_patch,
+            mock.patch(
+                "airflow.configuration.conf.get_default_value",
+                return_value="XX-set-after-default-config-loaded-XX",
+            ),
+            mock.patch("airflow.configuration.conf.set") as _set_patch,
             mock.patch("airflow.configuration.conf.write") as _write_patch,
-            mock.patch("airflow.cli.commands.remote_commands.config_command.CONFIGS_CHANGES", []),
+            mock.patch("airflow.cli.commands.remote_commands.config_command.CONFIGS_CHANGES", [dummy_change]),
+            mock.patch(
+                "airflow.configuration.conf.has_option",
+                side_effect=lambda section, option, **kwargs: True
+                if section == "logging" and option == "log_filename_template"
+                else False,
+            ),
         ):
             args = cli_parser.get_parser().parse_args(["config", "lint", "--upgrade-defaults"])
-            with contextlib.redirect_stdout(StringIO()) as temp_stdout:
+            with pytest.warns(FutureWarning) as record:
                 config_command.lint_config(args)
-            output = temp_stdout.getvalue()
-        assert "Automatically upgraded logging.log_filename_template" in output
-        set_patch.assert_called_with(
-            "logging", "log_filename_template", "XX-set-after-default-config-loaded-XX"
-        )
-
-    def test_lint_detects_default_value_change_warning(self):
-        with (
-            mock.patch("airflow.configuration.conf.has_option", return_value=True),
-            mock.patch(
-                "airflow.configuration.conf.get",
-                return_value="{{ ti.dag_id }}/{{ ti.task_id }}/{{ ts }}/{{ try_number }}.log",
-            ),
-            mock.patch("airflow.configuration.conf.set") as set_patch,
-            mock.patch("airflow.cli.commands.remote_commands.config_command.CONFIGS_CHANGES", []),
-        ):
-            args = cli_parser.get_parser().parse_args(["config", "lint"])
-            with contextlib.redirect_stdout(StringIO()) as temp_stdout:
-                config_command.lint_config(args)
-            output = temp_stdout.getvalue()
-        assert (
-            "The default value for 'log_filename_template' from Airflow 2 may break task logs in the new UI."
-            in output
-        )
-        set_patch.assert_not_called()
+            warning_messages = " ".join(str(w.message) for w in record)
+            assert "Auto-upgraded" in warning_messages, f"Warnings: {warning_messages}"

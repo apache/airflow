@@ -403,6 +403,46 @@ class AirflowConfigParser(ConfigParser):
     upgraded_values: dict[tuple[str, str], str]
     """Mapping of (section,option) to the old value that was upgraded"""
 
+    legacy_incompatible_defaults: dict[tuple[str, str], tuple[Pattern, str, str]] = {
+        ("logging", "log_filename_template"): (
+            re.compile(
+                r"^(?:" + re.escape("{{ ti.dag_id }}/{{ ti.task_id }}/{{ ts }}/{{ try_number }}.log") + r"|"
+                r"dag_id=\{\s*ti\.dag_id\s*\}/run_id=\{\s*ti\.run_id\s*\}/task_id=\{\s*ti\.task_id\s*\}/"
+                r"\{%%\s*if\s+ti\.map_index\s*>=\s*0\s*%%\}map_index=\{\s*ti\.map_index\s*\}/\{%%\s*endif\s*%%\}"
+                r"attempt=\{\s*try_number\s*\}\.log" + r")$"
+            ),
+            "3.0",
+            "The default value for 'log_filename_template' from Airflow 2 may break task logs in the new UI.",
+        ),
+    }
+
+    def handle_incompatible_airflow2_defaults(self, upgrade: bool | None = True) -> None:
+        """
+        Check and optionally upgrade default configuration values from Airflow 2 that are incompatible with Airflow 3.
+
+        :param upgrade: If True, auto-upgrade legacy defaults. If False, only warn about the legacy defaults without making any changes.
+        """
+        for (section, key), (old_pattern, _version, message) in self.legacy_incompatible_defaults.items():
+            default_val = self.get_default_value(section, key, raw=True)
+            current_value = self.get(section, key, fallback="")
+            if self._using_old_value(old_pattern, current_value):
+                if upgrade:
+                    self.upgraded_values[(section, key)] = default_val
+                    updated_val = old_pattern.sub(default_val, current_value)
+                    self._update_env_var(section, key, updated_val)
+                    warnings.warn(
+                        f"[{section}] {key}: {message} Auto-upgraded from '{current_value}' to '{updated_val}'.",
+                        FutureWarning,
+                        stacklevel=1,
+                    )
+                else:
+                    warnings.warn(
+                        f"[{section}] {key}: {message} Current value: '{current_value}'. "
+                        f"Consider updating to '{default_val}'.",
+                        FutureWarning,
+                        stacklevel=1,
+                    )
+
     def get_sections_including_defaults(self) -> list[str]:
         """
         Retrieve all sections from the configuration parser, including sections defined by built-in defaults.
@@ -2148,3 +2188,4 @@ WEBSERVER_CONFIG = ""  # Set by initialize_config
 conf: AirflowConfigParser = initialize_config()
 secrets_backend_list = initialize_secrets_backends()
 conf.validate()
+conf.handle_incompatible_airflow2_defaults()
