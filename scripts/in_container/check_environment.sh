@@ -99,7 +99,7 @@ function startairflow_if_requested() {
             # set the removed AIRFLOW__DATABASE__LOAD_DEFAULT_CONNECTIONS
             AIRFLOW__DATABASE__LOAD_DEFAULT_CONNECTIONS=${LOAD_DEFAULT_CONNECTIONS} airflow db init
         fi
-        airflow users create -u admin -p admin -f Thor -l Adminstra -r Admin -e admin@email.domain
+        airflow users create -u admin -p admin -f Thor -l Adminstra -r Admin -e admin@email.domain > /dev/null 2>&1 || true
 
         . "$( dirname "${BASH_SOURCE[0]}" )/run_init_script.sh"
 

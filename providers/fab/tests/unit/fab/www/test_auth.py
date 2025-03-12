@@ -26,12 +26,22 @@ from airflow.api_fastapi.auth.managers.models.resource_details import DagAccessE
 from airflow.models import Connection, Pool, Variable
 from airflow.providers.fab.www import app as application
 
+from tests_common.test_utils.config import conf_vars
+
 mock_call = Mock()
 
 
 @pytest.fixture
 def app():
-    return application.create_app(enable_plugins=False)
+    with conf_vars(
+        {
+            (
+                "core",
+                "auth_manager",
+            ): "airflow.providers.fab.auth_manager.fab_auth_manager.FabAuthManager",
+        }
+    ):
+        yield application.create_app(enable_plugins=False)
 
 
 @pytest.mark.parametrize(

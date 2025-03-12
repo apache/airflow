@@ -158,7 +158,7 @@ function create_www_user() {
        --lastname "${_AIRFLOW_WWW_USER_LASTNAME="Admin"}" \
        --email "${_AIRFLOW_WWW_USER_EMAIL="airflowadmin@example.com"}" \
        --role "${_AIRFLOW_WWW_USER_ROLE="Admin"}" \
-       --password "${local_password}" || true
+       --password "${local_password}" > /dev/null 2>&1 || true
 }
 
 function create_system_user_if_missing() {

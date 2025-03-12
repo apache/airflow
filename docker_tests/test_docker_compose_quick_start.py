@@ -42,35 +42,16 @@ DAG_RUN_ID = "test_dag_run_id"
 
 
 def get_jwt_token() -> str:
-    """Get the JWT token.
-
-    Note: API server is still using FAB Auth Manager.
-
-    Steps:
-    1. Get the login page to get the csrf token
-        - The csrf token is in the hidden input field with id "csrf_token"
-    2. Login with the username and password
-        - Must use the same session to keep the csrf token session
-    3. Extract the JWT token from the redirect url
-        - Expected to have a connection error
-        - The redirect url should have the JWT token as a query parameter
-
-    :return: The JWT token
-    """
-    # get csrf token from login page
+    """Get the JWT token."""
     session = requests.Session()
-    url = f"http://{DOCKER_COMPOSE_HOST_PORT}/auth/token"
-    login_response = session.post(
-        url,
-        json={
-            "username": AIRFLOW_WWW_USER_USERNAME,
-            "password": AIRFLOW_WWW_USER_PASSWORD,
+    response = session.post(
+        f"http://{DOCKER_COMPOSE_HOST_PORT}/auth/token",
+        data={
+            "username": "admin",
+            "password": "admin",
         },
     )
-    jwt_token = login_response.json().get("jwt_token")
-
-    assert jwt_token, f"Failed to get JWT token from redirect url {url} with status code {login_response}"
-    return jwt_token
+    return response.json()["jwt_token"]
 
 
 def api_request(

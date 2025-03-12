@@ -28,6 +28,7 @@ from airflow_breeze.branch_defaults import AIRFLOW_BRANCH, DEFAULT_AIRFLOW_CONST
 from airflow_breeze.global_constants import (
     ALL_CORE_INTEGRATIONS,
     ALL_PROVIDERS_INTEGRATIONS,
+    ALLOWED_AUTH_MANAGERS,
     ALLOWED_BACKENDS,
     ALLOWED_CONSTRAINTS_MODES_CI,
     ALLOWED_DOCKER_COMPOSE_PROJECTS,
@@ -43,6 +44,7 @@ from airflow_breeze.global_constants import (
     DOCKER_DEFAULT_PLATFORM,
     DRILL_HOST_PORT,
     EDGE_EXECUTOR,
+    FAB_AUTH_MANAGER,
     FLOWER_HOST_PORT,
     KEYCLOAK_INTEGRATION,
     MOUNT_ALL,
@@ -55,6 +57,7 @@ from airflow_breeze.global_constants import (
     POSTGRES_BACKEND,
     POSTGRES_HOST_PORT,
     REDIS_HOST_PORT,
+    SIMPLE_AUTH_MANAGER,
     SSH_PORT,
     START_AIRFLOW_DEFAULT_ALLOWED_EXECUTOR,
     TESTABLE_CORE_INTEGRATIONS,
@@ -137,6 +140,7 @@ class ShellParams:
     airflow_constraints_reference: str = ""
     airflow_extras: str = ""
     airflow_skip_constraints: bool = False
+    auth_manager: str = ALLOWED_AUTH_MANAGERS[0]
     backend: str = ALLOWED_BACKENDS[0]
     base_branch: str = "main"
     builder: str = "autodetect"
@@ -265,6 +269,14 @@ class ShellParams:
     @cached_property
     def airflow_sources(self):
         return AIRFLOW_SOURCES_ROOT
+
+    @cached_property
+    def auth_manager_path(self):
+        auth_manager_paths = {
+            SIMPLE_AUTH_MANAGER: "airflow.api_fastapi.auth.managers.simple.simple_auth_manager.SimpleAuthManager",
+            FAB_AUTH_MANAGER: "airflow.providers.fab.auth_manager.fab_auth_manager.FabAuthManager",
+        }
+        return auth_manager_paths[self.auth_manager]
 
     @cached_property
     def image_type(self) -> str:
@@ -509,10 +521,12 @@ class ShellParams:
         _set_var(_env, "AIRFLOW__CORE__EXECUTOR", self.executor)
         _set_var(_env, "AIRFLOW__API__BASE_URL", f"http://localhost:{WEB_HOST_PORT}")
         _set_var(_env, "AIRFLOW__WEBSERVER__SECRET_KEY", b64encode(os.urandom(16)).decode("utf-8"))
+        _set_var(_env, "AIRFLOW__CORE__AUTH_MANAGER", self.auth_manager_path)
+        _set_var(_env, "AIRFLOW__CORE__SIMPLE_AUTH_MANAGER_USERS", "admin:admin,viewer:viewer")
         _set_var(
             _env,
             "AIRFLOW__CORE__SIMPLE_AUTH_MANAGER_PASSWORDS_FILE",
-            "/files/simple_auth_manager_passwords.json.generated",
+            "/opt/airflow/dev/breeze/src/airflow_breeze/files/simple_auth_manager_passwords.json",
         )
         if self.executor == EDGE_EXECUTOR:
             _set_var(

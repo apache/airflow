@@ -120,15 +120,17 @@ class SimpleAuthManager(BaseAuthManager[SimpleAuthManagerUser]):
             return
         users = self.get_users()
         passwords = self.get_passwords(users)
+        changed = False
         for user in users:
             if user["username"] not in passwords:
                 # User dot not exist in the file, adding it
                 passwords[user["username"]] = self._generate_password()
+                self._print_output(f"Password for user '{user['username']}': {passwords[user['username']]}")
+                changed = True
 
-            self._print_output(f"Password for user '{user['username']}': {passwords[user['username']]}")
-
-        with open(self.get_generated_password_file(), "w") as file:
-            file.write(json.dumps(passwords))
+        if changed:
+            with open(self.get_generated_password_file(), "w") as file:
+                file.write(json.dumps(passwords) + "\n")
 
     def get_url_login(self, **kwargs) -> str:
         """Return the login page url."""
@@ -151,7 +153,12 @@ class SimpleAuthManager(BaseAuthManager[SimpleAuthManagerUser]):
         user: SimpleAuthManagerUser,
         details: ConfigurationDetails | None = None,
     ) -> bool:
-        return self._is_authorized(method=method, allow_role=SimpleAuthManagerRole.OP, user=user)
+        return self._is_authorized(
+            method=method,
+            allow_get_role=SimpleAuthManagerRole.VIEWER,
+            allow_role=SimpleAuthManagerRole.OP,
+            user=user,
+        )
 
     def is_authorized_connection(
         self,
