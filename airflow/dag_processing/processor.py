@@ -443,7 +443,7 @@ class DagFileProcessor(LoggingMixin):
     @classmethod
     @internal_api_call
     @provide_session
-    def manage_slas(cls, dag_folder, dag_id: str, session: Session = NEW_SESSION) -> None:
+    def manage_slas(cls, dagbag, dag_id: str, session: Session = NEW_SESSION) -> None:
         """
         Find all tasks that have SLAs defined, and send alert emails when needed.
 
@@ -452,10 +452,10 @@ class DagFileProcessor(LoggingMixin):
         We are assuming that the scheduler runs often, so we only check for
         tasks that should have succeeded in the past hour.
         """
-        dagbag = DagFileProcessor._get_dagbag(dag_folder)
         dag = dagbag.get_dag(dag_id)
         cls.logger().info("Running SLA Checks for %s", dag.dag_id)
-        if not any(isinstance(ti.sla, timedelta) for ti in dag.tasks):
+        tasks_with_sla = [ti.task_id for ti in dag.tasks if isinstance(ti.sla, timedelta)]
+        if not tasks_with_sla:
             cls.logger().info("Skipping SLA check for %s because no tasks in DAG have SLAs", dag)
             return
         qry = (
@@ -463,7 +463,7 @@ class DagFileProcessor(LoggingMixin):
             .join(TI.dag_run)
             .where(TI.dag_id == dag.dag_id)
             .where(or_(TI.state == TaskInstanceState.SUCCESS, TI.state == TaskInstanceState.SKIPPED))
-            .where(TI.task_id.in_(dag.task_ids))
+            .where(TI.task_id.in_(tasks_with_sla))
             .group_by(TI.task_id)
             .subquery("sq")
         )
@@ -485,8 +485,6 @@ class DagFileProcessor(LoggingMixin):
 
         for ti in max_tis:
             task = dag.get_task(ti.task_id)
-            if not task.sla:
-                continue
 
             if not isinstance(task.sla, timedelta):
                 raise TypeError(
@@ -756,7 +754,7 @@ class DagFileProcessor(LoggingMixin):
                             "SlaCallbacks are not supported when the Internal API is enabled"
                         )
                     else:
-                        DagFileProcessor.manage_slas(dagbag.dag_folder, request.dag_id, session=session)
+                        DagFileProcessor.manage_slas(dagbag, request.dag_id, session=session)
                 elif isinstance(request, DagCallbackRequest):
                     cls._execute_dag_callbacks(dagbag, request, session=session)
             except Exception:

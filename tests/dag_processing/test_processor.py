@@ -146,7 +146,7 @@ class TestDagFileProcessor:
         mock_get_dagbag.return_value = mock_dagbag
         session.commit()
 
-        DagFileProcessor.manage_slas(dag_folder=dag.fileloc, dag_id="test_sla_miss", session=session)
+        DagFileProcessor.manage_slas(mock_dagbag, dag_id="test_sla_miss", session=session)
 
         assert sla_callback.called
 
@@ -180,7 +180,7 @@ class TestDagFileProcessor:
         mock_dagbag.get_dag.return_value = dag
         mock_get_dagbag.return_value = mock_dagbag
 
-        DagFileProcessor.manage_slas(dag_folder=dag.fileloc, dag_id="test_sla_miss", session=session)
+        DagFileProcessor.manage_slas(mock_dagbag, dag_id="test_sla_miss", session=session)
         sla_callback.assert_not_called()
 
     @pytest.mark.skip_if_database_isolation_mode
@@ -225,7 +225,7 @@ class TestDagFileProcessor:
         mock_get_dagbag.return_value = mock_dagbag
 
         # Now call manage_slas and see if the sla_miss callback gets called
-        DagFileProcessor.manage_slas(dag_folder=dag.fileloc, dag_id="test_sla_miss", session=session)
+        DagFileProcessor.manage_slas(mock_dagbag, dag_id="test_sla_miss", session=session)
 
         sla_callback.assert_not_called()
 
@@ -260,7 +260,7 @@ class TestDagFileProcessor:
         mock_dagbag.get_dag.return_value = dag
         mock_get_dagbag.return_value = mock_dagbag
 
-        DagFileProcessor.manage_slas(dag_folder=dag.fileloc, dag_id="test_sla_miss", session=session)
+        DagFileProcessor.manage_slas(mock_dagbag, dag_id="test_sla_miss", session=session)
         sla_miss_count = (
             session.query(SlaMiss)
             .filter(
@@ -275,7 +275,7 @@ class TestDagFileProcessor:
         # because of existing SlaMiss above.
         # Since this is run often, it's possible that it runs before another
         # ti is successful thereby trying to insert a duplicate record.
-        DagFileProcessor.manage_slas(dag_folder=dag.fileloc, dag_id="test_sla_miss", session=session)
+        DagFileProcessor.manage_slas(mock_dagbag, dag_id="test_sla_miss", session=session)
 
     @pytest.mark.skip_if_database_isolation_mode
     @mock.patch("airflow.dag_processing.processor.Stats.incr")
@@ -312,7 +312,7 @@ class TestDagFileProcessor:
         mock_dagbag.get_dag.return_value = dag
         mock_get_dagbag.return_value = mock_dagbag
 
-        DagFileProcessor.manage_slas(dag_folder=dag.fileloc, dag_id="test_sla_miss", session=session)
+        DagFileProcessor.manage_slas(mock_dagbag, dag_id="test_sla_miss", session=session)
         sla_miss_count = (
             session.query(SlaMiss)
             .filter(
@@ -371,7 +371,7 @@ class TestDagFileProcessor:
             mock_dagbag.get_dag.return_value = dag
             mock_get_dagbag.return_value = mock_dagbag
 
-            DagFileProcessor.manage_slas(dag_folder=dag.fileloc, dag_id="test_sla_miss", session=session)
+            DagFileProcessor.manage_slas(mock_dagbag, dag_id="test_sla_miss", session=session)
             assert sla_callback.called
             mock_log.exception.assert_called_once_with(
                 "Could not call sla_miss_callback(%s) for DAG %s",
@@ -411,7 +411,7 @@ class TestDagFileProcessor:
         mock_dagbag.get_dag.return_value = dag
         mock_get_dagbag.return_value = mock_dagbag
 
-        DagFileProcessor.manage_slas(dag_folder=dag.fileloc, dag_id="test_sla_miss", session=session)
+        DagFileProcessor.manage_slas(mock_dagbag, dag_id="test_sla_miss", session=session)
 
         assert len(mock_send_email.call_args_list) == 1
 
@@ -465,7 +465,7 @@ class TestDagFileProcessor:
         mock_dagbag.get_dag.return_value = dag
         mock_get_dagbag.return_value = mock_dagbag
 
-        DagFileProcessor.manage_slas(dag_folder=dag.fileloc, dag_id=dag_id, session=session)
+        DagFileProcessor.manage_slas(mock_dagbag, dag_id=dag_id, session=session)
         mock_log.exception.assert_called_once_with(
             "Could not send SLA Miss email notification for DAG %s", dag_id
         )
@@ -500,7 +500,7 @@ class TestDagFileProcessor:
         mock_dagbag.get_dag.return_value = dag
         mock_get_dagbag.return_value = mock_dagbag
 
-        DagFileProcessor.manage_slas(dag_folder=dag.fileloc, dag_id="test_sla_miss", session=session)
+        DagFileProcessor.manage_slas(mock_dagbag, dag_id="test_sla_miss", session=session)
 
     @pytest.mark.skip_if_database_isolation_mode  # Test is broken in db isolation mode
     @patch.object(TaskInstance, "handle_failure")
