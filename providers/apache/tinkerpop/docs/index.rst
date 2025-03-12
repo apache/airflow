@@ -34,7 +34,7 @@ Package ``apache-airflow-providers-apache-tinkerpop``
     :caption: Guides
 
     Connection Types <connections/tinkerpop>
-    Operators <operators>
+    Operators <operators/tinkerpop>
 
 .. toctree::
     :hidden:
