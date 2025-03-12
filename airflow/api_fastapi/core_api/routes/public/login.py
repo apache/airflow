@@ -16,11 +16,12 @@
 # under the License.
 from __future__ import annotations
 
-from fastapi import Request, status
+from fastapi import HTTPException, Request, status
 from fastapi.responses import RedirectResponse
 
 from airflow.api_fastapi.common.router import AirflowRouter
 from airflow.api_fastapi.core_api.openapi.exceptions import create_openapi_http_exception_doc
+from airflow.api_fastapi.core_api.security import is_safe_url
 
 login_router = AirflowRouter(tags=["Login"], prefix="/login")
 
@@ -32,6 +33,9 @@ login_router = AirflowRouter(tags=["Login"], prefix="/login")
 def login(request: Request, next: None | str = None) -> RedirectResponse:
     """Redirect to the login URL depending on the AuthManager configured."""
     login_url = request.app.state.auth_manager.get_url_login()
+
+    if next and not is_safe_url(next):
+        raise HTTPException(status_code=400, detail="Invalid or unsafe next URL")
 
     if next:
         login_url += f"?next={next}"

@@ -25,7 +25,7 @@ from jwt import ExpiredSignatureError, InvalidTokenError
 from airflow.api_fastapi.app import create_app
 from airflow.api_fastapi.auth.managers.models.resource_details import DagAccessEntity
 from airflow.api_fastapi.auth.managers.simple.user import SimpleAuthManagerUser
-from airflow.api_fastapi.core_api.security import get_user, requires_access_dag
+from airflow.api_fastapi.core_api.security import get_user, is_safe_url, requires_access_dag
 
 from tests_common.test_utils.config import conf_vars
 
@@ -88,11 +88,10 @@ class TestFastApiSecurity:
         auth_manager = Mock()
         auth_manager.is_authorized_dag.return_value = True
         mock_get_auth_manager.return_value = auth_manager
+        fastapi_request = Mock()
+        fastapi_request.path_params.return_value = {}
 
-        mock_request = Mock()
-        mock_request.path_params.return_value = {"dag_id": "test"}
-
-        requires_access_dag("GET", DagAccessEntity.CODE)(mock_request, Mock())
+        requires_access_dag("GET", DagAccessEntity.CODE)(fastapi_request, Mock())
 
         auth_manager.is_authorized_dag.assert_called_once()
 
@@ -101,11 +100,38 @@ class TestFastApiSecurity:
         auth_manager = Mock()
         auth_manager.is_authorized_dag.return_value = False
         mock_get_auth_manager.return_value = auth_manager
+        fastapi_request = Mock()
+        fastapi_request.path_params.return_value = {}
 
         mock_request = Mock()
         mock_request.path_params.return_value = {}
 
         with pytest.raises(HTTPException, match="Forbidden"):
-            requires_access_dag("GET", DagAccessEntity.CODE)(mock_request, Mock())
+            requires_access_dag("GET", DagAccessEntity.CODE)(fastapi_request, Mock())
 
         auth_manager.is_authorized_dag.assert_called_once()
+
+    @pytest.mark.parametrize(
+        "url, expected_is_safe",
+        [
+            ("https://server_base_url.com/prefix/some_page?with_param=3", True),
+            ("https://server_base_url.com/prefix/", True),
+            ("https://server_base_url.com/prefix", True),
+            ("/prefix/some_other", True),
+            ("prefix/some_other", True),
+            # Relative path, will go up one level escaping the prefix folder
+            ("some_other", False),
+            ("./some_other", False),
+            # wrong scheme
+            ("javascript://server_base_url.com/prefix/some_page?with_param=3", False),
+            # wrong netloc
+            ("https://some_netlock.com/prefix/some_page?with_param=3", False),
+            # Absolute path escaping the prefix folder
+            ("/some_other_page/", False),
+            # traversal, escaping the `prefix` folder
+            ("/../../../../some_page?with_param=3", False),
+        ],
+    )
+    @conf_vars({("api", "base_url"): "https://server_base_url.com/prefix"})
+    def test_is_safe_url(self, url, expected_is_safe):
+        assert is_safe_url(url) == expected_is_safe

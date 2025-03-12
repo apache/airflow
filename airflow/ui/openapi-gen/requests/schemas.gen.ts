@@ -1589,17 +1589,6 @@ export const $DAGDetailsResponse = {
       ],
       title: "Last Expired",
     },
-    default_view: {
-      anyOf: [
-        {
-          type: "string",
-        },
-        {
-          type: "null",
-        },
-      ],
-      title: "Default View",
-    },
     fileloc: {
       type: "string",
       title: "Fileloc",
@@ -1884,7 +1873,6 @@ export const $DAGDetailsResponse = {
     "is_active",
     "last_parsed_time",
     "last_expired",
-    "default_view",
     "fileloc",
     "description",
     "timetable_summary",
@@ -1975,17 +1963,6 @@ export const $DAGResponse = {
         },
       ],
       title: "Last Expired",
-    },
-    default_view: {
-      anyOf: [
-        {
-          type: "string",
-        },
-        {
-          type: "null",
-        },
-      ],
-      title: "Default View",
     },
     fileloc: {
       type: "string",
@@ -2128,7 +2105,6 @@ export const $DAGResponse = {
     "is_active",
     "last_parsed_time",
     "last_expired",
-    "default_view",
     "fileloc",
     "description",
     "timetable_summary",
@@ -2776,17 +2752,6 @@ export const $DAGWithLatestDagRunsResponse = {
       ],
       title: "Last Expired",
     },
-    default_view: {
-      anyOf: [
-        {
-          type: "string",
-        },
-        {
-          type: "null",
-        },
-      ],
-      title: "Default View",
-    },
     fileloc: {
       type: "string",
       title: "Fileloc",
@@ -2913,6 +2878,17 @@ export const $DAGWithLatestDagRunsResponse = {
       type: "array",
       title: "Owners",
     },
+    asset_expression: {
+      anyOf: [
+        {
+          type: "object",
+        },
+        {
+          type: "null",
+        },
+      ],
+      title: "Asset Expression",
+    },
     latest_dag_runs: {
       items: {
         $ref: "#/components/schemas/DAGRunResponse",
@@ -2935,7 +2911,6 @@ export const $DAGWithLatestDagRunsResponse = {
     "is_active",
     "last_parsed_time",
     "last_expired",
-    "default_view",
     "fileloc",
     "description",
     "timetable_summary",
@@ -2951,6 +2926,7 @@ export const $DAGWithLatestDagRunsResponse = {
     "next_dagrun_data_interval_end",
     "next_dagrun_run_after",
     "owners",
+    "asset_expression",
     "latest_dag_runs",
     "file_token",
   ],

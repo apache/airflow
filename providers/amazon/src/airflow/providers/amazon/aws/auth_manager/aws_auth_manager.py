@@ -21,9 +21,11 @@ from collections import defaultdict
 from collections.abc import Sequence
 from functools import cached_property
 from typing import TYPE_CHECKING, Any, cast
+from urllib.parse import urljoin
 
 from fastapi import FastAPI
 
+from airflow.api_fastapi.app import AUTH_MANAGER_FASTAPI_APP_PREFIX
 from airflow.api_fastapi.auth.managers.base_auth_manager import BaseAuthManager
 from airflow.api_fastapi.auth.managers.models.resource_details import (
     AccessView,
@@ -321,7 +323,7 @@ class AwsAuthManager(BaseAuthManager[AwsAuthManagerUser]):
         return {dag_id for dag_id in dag_ids if _has_access_to_dag(requests[dag_id][method])}
 
     def get_url_login(self, **kwargs) -> str:
-        return f"{self.apiserver_endpoint}/auth/login"
+        return urljoin(self.apiserver_endpoint, f"{AUTH_MANAGER_FASTAPI_APP_PREFIX}/login")
 
     @staticmethod
     def get_cli_commands() -> list[CLICommand]:

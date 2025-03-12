@@ -26,6 +26,7 @@ import {
   UseAssetServiceGetAssetEventsKeyFn,
   useAssetServiceMaterializeAsset,
   UseDagRunServiceGetDagRunsKeyFn,
+  useDagServiceGetDagDetails,
   useDagsServiceRecentDagRunsKey,
   useDependenciesServiceGetDependencies,
   UseGridServiceGridDataKeyFn,
@@ -40,7 +41,9 @@ import type {
 import { ErrorAlert } from "src/components/ErrorAlert";
 import { JsonEditor } from "src/components/JsonEditor";
 import { Dialog, toaster } from "src/components/ui";
+import { Checkbox } from "src/components/ui/Checkbox";
 import { RadioCardItem, RadioCardRoot } from "src/components/ui/RadioCard";
+import { useTogglePause } from "src/queries/useTogglePause";
 
 type Props = {
   readonly asset: AssetResponse;
@@ -51,6 +54,7 @@ type Props = {
 export const CreateAssetEventModal = ({ asset, onClose, open }: Props) => {
   const [eventType, setEventType] = useState("manual");
   const [extraError, setExtraError] = useState<string | undefined>();
+  const [unpause, setUnpause] = useState(true);
   const [extra, setExtra] = useState("{}");
   const queryClient = useQueryClient();
 
@@ -118,6 +122,12 @@ export const CreateAssetEventModal = ({ asset, onClose, open }: Props) => {
     await Promise.all(queryKeys.map((key) => queryClient.invalidateQueries({ queryKey: key })));
   };
 
+  const { data: dag } = useDagServiceGetDagDetails({ dagId: upstreamDagId ?? "" }, undefined, {
+    enabled: Boolean(upstreamDagId),
+  });
+
+  const { mutate: togglePause } = useTogglePause({ dagId: dag?.dag_id ?? upstreamDagId ?? "" });
+
   const {
     error: manualError,
     isPending,
@@ -133,6 +143,14 @@ export const CreateAssetEventModal = ({ asset, onClose, open }: Props) => {
 
   const handleSubmit = () => {
     if (eventType === "materialize") {
+      if (unpause && dag?.is_paused) {
+        togglePause({
+          dagId: dag.dag_id,
+          requestBody: {
+            is_paused: false,
+          },
+        });
+      }
       materializeAsset({ assetId: asset.id });
     } else {
       createAssetEvent({
@@ -162,7 +180,7 @@ export const CreateAssetEventModal = ({ asset, onClose, open }: Props) => {
           >
             <HStack align="stretch">
               <RadioCardItem
-                description={`Trigger the Dag upstream of this asset${upstreamDagId === undefined ? "" : `: ${upstreamDagId}`}`}
+                description={`Trigger the Dag upstream of this asset${upstreamDagId === undefined ? "" : `: ${dag?.dag_display_name ?? upstreamDagId}`}`}
                 disabled={!hasUpstreamDag}
                 label="Materialize"
                 value="materialize"
@@ -176,6 +194,11 @@ export const CreateAssetEventModal = ({ asset, onClose, open }: Props) => {
               <JsonEditor onChange={validateAndPrettifyJson} value={extra} />
               <Text color="fg.error">{extraError}</Text>
             </Field.Root>
+          ) : undefined}
+          {eventType === "materialize" && dag?.is_paused ? (
+            <Checkbox checked={unpause} colorPalette="blue" onChange={() => setUnpause(!unpause)}>
+              Unpause {dag.dag_display_name} on trigger
+            </Checkbox>
           ) : undefined}
           <ErrorAlert error={eventType === "manual" ? manualError : materializeError} />
         </Dialog.Body>

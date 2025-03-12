@@ -1637,7 +1637,6 @@ class SerializedDAG(DAG, BaseSerialization):
     def __get_constructor_defaults():
         param_to_attr = {
             "description": "_description",
-            "default_view": "_default_view",
         }
         return {
             param_to_attr.get(k, k): v.default
@@ -1917,7 +1916,6 @@ class LazyDeserializedDAG(pydantic.BaseModel):
         "max_consecutive_failed_dag_runs",
         "owner_links",
         "access_control",
-        "default_view",
     }
 
     @property

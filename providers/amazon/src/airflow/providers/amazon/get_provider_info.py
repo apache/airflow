@@ -882,6 +882,10 @@ def get_provider_info():
                 "python-modules": ["airflow.providers.amazon.aws.triggers.lambda_function"],
             },
             {
+                "integration-name": "Amazon Managed Workflows for Apache Airflow (MWAA)",
+                "python-modules": ["airflow.providers.amazon.aws.triggers.mwaa"],
+            },
+            {
                 "integration-name": "Amazon Managed Service for Apache Flink",
                 "python-modules": ["airflow.providers.amazon.aws.triggers.kinesis_analytics"],
             },
@@ -1381,6 +1385,7 @@ def get_provider_info():
             "PyAthena>=3.0.10",
             "jmespath>=0.7.0",
             "python3-saml>=1.16.0",
+            "xmlsec!=1.3.15",
             "sagemaker-studio>=1.0.9",
         ],
         "optional-dependencies": {

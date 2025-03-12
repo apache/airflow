@@ -58,7 +58,7 @@ requires-python = "~=3.9"
 # After you modify the dependencies, and rebuild your Breeze CI image with ``breeze ci-image build``
 dependencies = [
     "apache-airflow>=2.9.0",
-    "openai[datalib]>=1.32.0",
+    "openai[datalib]>=1.32.0,<1.66.0",  # Pinned due to https://github.com/apache/airflow/issues/47642
 ]
 
 [dependency-groups]

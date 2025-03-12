@@ -426,7 +426,6 @@ class DagModelOperation(NamedTuple):
             dm.is_active = True
             dm.has_import_errors = False
             dm.last_parsed_time = utcnow()
-            dm.default_view = dag.default_view or conf.get("webserver", "dag_default_view").lower()
             if hasattr(dag, "_dag_display_property_value"):
                 dm._dag_display_property_value = dag._dag_display_property_value
             elif dag.dag_display_name != dag.dag_id:

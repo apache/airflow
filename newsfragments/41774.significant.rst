@@ -1,7 +1,6 @@
 Removed a set of deprecations in ``DAG`` from ``airflow.models``.
 
 - Removed deprecated parameters ``full_filepath`` and ``concurrency`` (Replaced by ``max_active_tasks``) from DAG and ``@dag`` decorator.
-- Removed fallback support for legacy ``default_view == "tree"``.
 - Removed legacy support for permissions named ``can_dag_read`` and ``can_dag_edit``. The permissions need to be named ``can_read`` and ``can_edit``.
 - Removed legacy deprecated functions ``following_schedule()`` and ``previous_schedule``.
 - Removed deprecated support for ``datetime`` in ``next_dagrun_info()``. Use ``DataInterval``.
