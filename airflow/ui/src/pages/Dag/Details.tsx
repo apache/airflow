@@ -100,7 +100,7 @@ export const Details = () => {
             </Table.Row>
             <Table.Row>
               <Table.Cell>Has Task Concurrency Limits</Table.Cell>
-              <Table.Cell>{dag.has_task_concurrency_limits}</Table.Cell>
+              <Table.Cell>{dag.has_task_concurrency_limits.toString()}</Table.Cell>
             </Table.Row>
             <Table.Row>
               <Table.Cell>Dag Run Timeout</Table.Cell>
