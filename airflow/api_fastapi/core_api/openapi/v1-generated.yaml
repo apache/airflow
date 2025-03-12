@@ -6334,6 +6334,8 @@ paths:
       summary: Get Tasks
       description: Get tasks for DAG.
       operationId: get_tasks
+      security:
+      - OAuth2PasswordBearer: []
       parameters:
       - name: dag_id
         in: path
@@ -6392,6 +6394,8 @@ paths:
       summary: Get Task
       description: Get simplified representation of a task.
       operationId: get_task
+      security:
+      - OAuth2PasswordBearer: []
       parameters:
       - name: dag_id
         in: path
