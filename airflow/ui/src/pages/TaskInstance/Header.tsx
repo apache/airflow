@@ -46,7 +46,9 @@ export const Header = ({
     ...(taskInstance.try_number > 1 ? [{ label: "Try Number", value: taskInstance.try_number }] : []),
     { label: "Start", value: <Time datetime={taskInstance.start_date} /> },
     { label: "End", value: <Time datetime={taskInstance.end_date} /> },
-    { label: "Duration", value: `${getDuration(taskInstance.start_date, taskInstance.end_date)}s` },
+    ...(Boolean(taskInstance.start_date)
+      ? [{ label: "Duration", value: `${getDuration(taskInstance.start_date, taskInstance.end_date)}s` }]
+      : []),
     {
       label: "DAG Version",
       value:

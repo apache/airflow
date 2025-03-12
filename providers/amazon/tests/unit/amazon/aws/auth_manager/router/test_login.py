@@ -28,7 +28,7 @@ if not AIRFLOW_V_3_0_PLUS:
 from fastapi.testclient import TestClient
 from onelogin.saml2.idp_metadata_parser import OneLogin_Saml2_IdPMetadataParser
 
-from airflow.api_fastapi.app import create_app
+from airflow.api_fastapi.app import AUTH_MANAGER_FASTAPI_APP_PREFIX, create_app
 
 from tests_common.test_utils.config import conf_vars
 
@@ -75,7 +75,7 @@ def test_client():
 
 class TestLoginRouter:
     def test_login(self, test_client):
-        response = test_client.get("/auth/login", follow_redirects=False)
+        response = test_client.get(AUTH_MANAGER_FASTAPI_APP_PREFIX + "/login", follow_redirects=False)
         assert response.status_code == 307
         assert "location" in response.headers
         assert response.headers["location"].startswith(
@@ -114,7 +114,9 @@ class TestLoginRouter:
                 }
                 mock_init_saml_auth.return_value = auth
                 client = TestClient(create_app())
-                response = client.post("/auth/login_callback", follow_redirects=False)
+                response = client.post(
+                    AUTH_MANAGER_FASTAPI_APP_PREFIX + "/login_callback", follow_redirects=False
+                )
                 assert response.status_code == 303
                 assert "location" in response.headers
                 assert response.headers["location"].startswith("http://localhost:8080/?token=")
@@ -145,5 +147,5 @@ class TestLoginRouter:
                 auth.is_authenticated.return_value = False
                 mock_init_saml_auth.return_value = auth
                 client = TestClient(create_app())
-                response = client.post("/auth/login_callback")
+                response = client.post(AUTH_MANAGER_FASTAPI_APP_PREFIX + "/login_callback")
                 assert response.status_code == 500

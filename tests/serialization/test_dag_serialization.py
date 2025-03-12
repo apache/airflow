@@ -86,6 +86,7 @@ from airflow.utils.operator_resources import Resources
 from airflow.utils.task_group import TaskGroup
 from airflow.utils.xcom import XCOM_RETURN_KEY
 
+from tests_common.test_utils.config import conf_vars
 from tests_common.test_utils.mock_operators import (
     AirflowLink2,
     CustomOperator,
@@ -154,6 +155,7 @@ serialized_simple_dag_ground_truth = {
         },
         "is_paused_upon_creation": False,
         "dag_id": "simple_dag",
+        "disable_bundle_versioning": False,
         "doc_md": "### DAG Tutorial Documentation",
         "fileloc": None,
         "_processor_dags_folder": f"{repo_root}/tests/dags",
@@ -2067,6 +2069,38 @@ class TestStringifiedDAGs:
         deserialized_dag = SerializedDAG.from_dict(serialized_dag)
 
         assert deserialized_dag.has_on_failure_callback is expected_value
+
+    @pytest.mark.parametrize(
+        "dag_arg, conf_arg, expected",
+        [
+            (True, "True", True),
+            (True, "False", True),
+            (False, "True", False),
+            (False, "False", False),
+            (None, "True", True),
+            (None, "False", False),
+        ],
+    )
+    def test_dag_disable_bundle_versioning_roundtrip(self, dag_arg, conf_arg, expected):
+        """
+        Test that when disable_bundle_versioning is passed to the DAG, has_disable_bundle_versioning is stored
+        in Serialized JSON blob. And when it is de-serialized dag.has_disable_bundle_versioning is set to True.
+
+        When the callback is not set, has_disable_bundle_versioning should not be stored in Serialized blob
+        and so default to False on de-serialization
+        """
+        with conf_vars({("dag_processor", "disable_bundle_versioning"): conf_arg}):
+            kwargs = {}
+            kwargs["disable_bundle_versioning"] = dag_arg
+            dag = DAG(
+                dag_id="test_dag_disable_bundle_versioning_roundtrip",
+                schedule=None,
+                **kwargs,
+            )
+            BaseOperator(task_id="simple_task", dag=dag, start_date=datetime(2019, 8, 1))
+            serialized_dag = SerializedDAG.to_dict(dag)
+            deserialized_dag = SerializedDAG.from_dict(serialized_dag)
+            assert deserialized_dag.disable_bundle_versioning is expected
 
     @pytest.mark.parametrize(
         "object_to_serialized, expected_output",

@@ -3518,8 +3518,8 @@ class TestTaskInstance:
     @patch.object(Stats, "incr")
     def test_handle_failure_no_task(self, Stats_incr, dag_maker):
         """
-        When a zombie is detected for a DAG with a parse error, we need to be able to run handle_failure
-        _without_ ti.task being set
+        When a task instance heartbeat timeout is detected for a DAG with a parse error,
+        we need to be able to run handle_failure _without_ ti.task being set
         """
         session = settings.Session()
         with dag_maker():
