@@ -82,13 +82,13 @@ core:
       version_added: 2.7.0
       type: string
       example: ~
-      default: "airflow.providers.fab.auth_manager.fab_auth_manager.FabAuthManager"
+      default: "airflow.api_fastapi.auth.managers.simple.simple_auth_manager.SimpleAuthManager"
     simple_auth_manager_users:
       description: |
         The list of users and their associated role in simple auth manager. If the simple auth manager is
         used in your environment, this list controls who can access the environment.
 
-        List of user-role delimited with a space. Each user-role is a comma delimited couple of username and
+        List of user-role delimited with a comma. Each user-role is a colon delimited couple of username and
         role. Roles are predefined in simple auth managers: viewer, user, op, admin.
       version_added: 3.0.0
       type: string
