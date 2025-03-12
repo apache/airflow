@@ -104,3 +104,4 @@ class DagAccessEntity(Enum):
     TASK_LOGS = "TASK_LOGS"
     WARNING = "WARNING"
     XCOM = "XCOM"
+    DAG_VERSION = "DAG_VERSION"
