@@ -1297,8 +1297,8 @@ class TestBaseSensor:
         actual_xcom_value = XComModel.get_many(
             key="return_value", task_ids=SENSOR_OP, dag_ids=dr.dag_id, run_id=dr.run_id
         ).first()
-        actual_xcom_value = XComModel.deserialize_value(actual_xcom_value)
-
+        if actual_xcom_value:
+            actual_xcom_value = XComModel.deserialize_value(actual_xcom_value)
         assert actual_xcom_value is None
 
     @pytest.mark.parametrize(
