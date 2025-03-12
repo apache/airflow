@@ -79,8 +79,8 @@ from airflow.providers.google.cloud.triggers.bigquery import (
     BigQueryIntervalCheckTrigger,
     BigQueryValueCheckTrigger,
 )
-from airflow.utils.timezone import datetime
 from airflow.utils.task_group import TaskGroup
+from airflow.utils.timezone import datetime
 
 pytestmark = pytest.mark.db_test
 
@@ -2317,19 +2317,19 @@ class TestBigQueryInsertJobOperator:
             },
         }
         with dag_maker("dag_replace_dots_with_hyphens"):
-           op = BigQueryInsertJobOperator(
+            op = BigQueryInsertJobOperator(
                 task_id="task.name.with.dots",
                 configuration=configuration,
                 location=TEST_DATASET_LOCATION,
                 project_id=TEST_GCP_PROJECT_ID,
-              )
+            )
         op._add_job_labels()
         assert "labels" in configuration
         assert configuration["labels"]["airflow-dag"] == "dag_replace_dots_with_hyphens"
         assert configuration["labels"]["airflow-task"] == "task-name-with-dots"
 
         with dag_maker("dag_with_taskgroup"):
-            with TaskGroup("task_group") as tg:
+            with TaskGroup("task_group"):
                 op = BigQueryInsertJobOperator(
                     task_id="task_name",
                     configuration=configuration,
@@ -2349,7 +2349,7 @@ class TestBigQueryInsertJobOperator:
             },
         }
         with dag_maker("dag_with_taskgroup"):
-            with TaskGroup("task_group", prefix_group_id = False) as tg:
+            with TaskGroup("task_group", prefix_group_id=False):
                 op = BigQueryInsertJobOperator(
                     task_id="task_name",
                     configuration=configuration,
@@ -2362,7 +2362,7 @@ class TestBigQueryInsertJobOperator:
         assert configuration["labels"]["airflow-task"] == "task_name"
 
         with dag_maker("dag_with_taskgroup_prefix_group_id_false_with_dots"):
-            with TaskGroup("task_group_prefix_group_id_false", prefix_group_id = False) as tg:
+            with TaskGroup("task_group_prefix_group_id_false", prefix_group_id=False):
                 op = BigQueryInsertJobOperator(
                     task_id="task.name.with.dots",
                     configuration=configuration,
@@ -2373,7 +2373,7 @@ class TestBigQueryInsertJobOperator:
         assert "labels" in configuration
         assert configuration["labels"]["airflow-dag"] == "dag_with_taskgroup_prefix_group_id_false_with_dots"
         assert configuration["labels"]["airflow-task"] == "task-name-with-dots"
-        
+
     def test_handle_job_error_raises_on_error_result_or_error(self, caplog):
         caplog.set_level(logging.ERROR)
         configuration = {
