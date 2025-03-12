@@ -244,6 +244,8 @@ paths:
       summary: Historical Metrics
       description: Return cluster activity historical metrics.
       operationId: historical_metrics
+      security:
+      - OAuth2PasswordBearer: []
       parameters:
       - name: start_date
         in: query
