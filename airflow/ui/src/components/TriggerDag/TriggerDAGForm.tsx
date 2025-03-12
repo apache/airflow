@@ -22,17 +22,20 @@ import { useForm, Controller } from "react-hook-form";
 import { FiPlay } from "react-icons/fi";
 
 import { useDagParams } from "src/queries/useDagParams";
+import { useTogglePause } from "src/queries/useTogglePause";
 import { useTrigger } from "src/queries/useTrigger";
 
 import { ErrorAlert } from "../ErrorAlert";
 import { FlexibleForm, flexibleFormDefaultSection } from "../FlexibleForm";
 import { JsonEditor } from "../JsonEditor";
 import { Accordion } from "../ui";
+import { Checkbox } from "../ui/Checkbox";
 import EditableMarkdown from "./EditableMarkdown";
 import { useParamStore } from "./useParamStore";
 
 type TriggerDAGFormProps = {
   readonly dagId: string;
+  readonly isPaused: boolean;
   readonly onClose: () => void;
   readonly open: boolean;
 };
@@ -44,11 +47,14 @@ export type DagRunTriggerParams = {
   note: string;
 };
 
-const TriggerDAGForm = ({ dagId, onClose, open }: TriggerDAGFormProps) => {
+const TriggerDAGForm = ({ dagId, isPaused, onClose, open }: TriggerDAGFormProps) => {
   const [errors, setErrors] = useState<{ conf?: string; date?: unknown }>({});
   const initialParamsDict = useDagParams(dagId, open);
   const { error: errorTrigger, isPending, triggerDagRun } = useTrigger({ dagId, onSuccessConfirm: onClose });
   const { conf, setConf } = useParamStore();
+  const [unpause, setUnpause] = useState(true);
+
+  const { mutate: togglePause } = useTogglePause({ dagId });
 
   const { control, handleSubmit, reset } = useForm<DagRunTriggerParams>({
     defaultValues: {
@@ -67,6 +73,14 @@ const TriggerDAGForm = ({ dagId, onClose, open }: TriggerDAGFormProps) => {
   }, [conf, reset]);
 
   const onSubmit = (data: DagRunTriggerParams) => {
+    if (unpause && isPaused) {
+      togglePause({
+        dagId,
+        requestBody: {
+          is_paused: false,
+        },
+      });
+    }
     triggerDagRun(data);
   };
 
@@ -186,6 +200,11 @@ const TriggerDAGForm = ({ dagId, onClose, open }: TriggerDAGFormProps) => {
           </Accordion.ItemContent>
         </Accordion.Item>
       </Accordion.Root>
+      {isPaused ? (
+        <Checkbox checked={unpause} colorPalette="blue" onChange={() => setUnpause(!unpause)}>
+          Unpause {dagId} on trigger
+        </Checkbox>
+      ) : undefined}
       <ErrorAlert error={errors.date ?? errorTrigger} />
       <Box as="footer" display="flex" justifyContent="flex-end" mt={4}>
         <HStack w="full">

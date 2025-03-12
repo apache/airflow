@@ -26,6 +26,7 @@ from airflow.providers.amazon.version_compat import AIRFLOW_V_3_0_PLUS
 if not AIRFLOW_V_3_0_PLUS:
     pytest.skip("AWS auth manager is only compatible with Airflow >= 3.0.0", allow_module_level=True)
 
+from airflow.api_fastapi.app import AUTH_MANAGER_FASTAPI_APP_PREFIX
 from airflow.api_fastapi.auth.managers.models.resource_details import (
     AccessView,
     ConfigurationDetails,
@@ -569,7 +570,7 @@ class TestAwsAuthManager:
 
     def test_get_url_login(self, auth_manager):
         result = auth_manager.get_url_login()
-        assert result == "http://localhost:8080/auth/login"
+        assert result == f"http://localhost:8080{AUTH_MANAGER_FASTAPI_APP_PREFIX}/login"
 
     def test_get_cli_commands_return_cli_commands(self, auth_manager):
         assert len(auth_manager.get_cli_commands()) > 0

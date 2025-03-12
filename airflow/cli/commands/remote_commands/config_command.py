@@ -419,6 +419,18 @@ CONFIGS_CHANGES = [
         config=ConfigParameter("scheduler", "dag_dir_list_interval"),
         renamed_to=ConfigParameter("dag_processor", "refresh_interval"),
     ),
+    ConfigChange(
+        config=ConfigParameter("scheduler", "local_task_job_heartbeat_sec"),
+        renamed_to=ConfigParameter("scheduler", "task_instance_heartbeat_sec"),
+    ),
+    ConfigChange(
+        config=ConfigParameter("scheduler", "scheduler_zombie_task_threshold"),
+        renamed_to=ConfigParameter("scheduler", "task_instance_heartbeat_timeout"),
+    ),
+    ConfigChange(
+        config=ConfigParameter("scheduler", "zombie_detection_interval"),
+        renamed_to=ConfigParameter("scheduler", "task_instance_heartbeat_timeout_detection_interval"),
+    ),
     # celery
     ConfigChange(
         config=ConfigParameter("celery", "stalled_task_timeout"),

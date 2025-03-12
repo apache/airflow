@@ -50,10 +50,7 @@ export const DetailsLayout = ({ children, error, isLoading, tabs }: Props) => {
 
   const { data: dag } = useDagServiceGetDag({ dagId });
 
-  const [dagView, setDagView] = useLocalStorage<"graph" | "grid">(
-    `dag_view-${dagId}`,
-    dag && (dag.default_view === "graph" || dag.default_view === "grid") ? dag.default_view : "grid",
-  );
+  const [dagView, setDagView] = useLocalStorage<"graph" | "grid">(`dag_view-${dagId}`, "grid");
 
   const { fitView, getZoom } = useReactFlow();
 

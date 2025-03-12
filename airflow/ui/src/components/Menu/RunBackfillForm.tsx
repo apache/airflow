@@ -25,6 +25,7 @@ import { Alert, Button } from "src/components/ui";
 import { reprocessBehaviors } from "src/constants/reprocessBehaviourParams";
 import { useCreateBackfill } from "src/queries/useCreateBackfill";
 import { useCreateBackfillDryRun } from "src/queries/useCreateBackfillDryRun";
+import { useTogglePause } from "src/queries/useTogglePause";
 
 import { ErrorAlert } from "../ErrorAlert";
 import { Checkbox } from "../ui/Checkbox";
@@ -38,6 +39,7 @@ const today = new Date().toISOString().slice(0, 16);
 
 const RunBackfillForm = ({ dag, onClose }: RunBackfillFormProps) => {
   const [errors, setErrors] = useState<{ conf?: string; date?: unknown }>({});
+  const [unpause, setUnpause] = useState(true);
 
   const { control, handleSubmit, reset, watch } = useForm<BackfillPostBody>({
     defaultValues: {
@@ -69,6 +71,8 @@ const RunBackfillForm = ({ dag, onClose }: RunBackfillFormProps) => {
     },
   });
 
+  const { mutate: togglePause } = useTogglePause({ dagId: dag.dag_id });
+
   const { createBackfill, dateValidationError, error, isPending } = useCreateBackfill({
     onSuccessConfirm: onClose,
   });
@@ -83,6 +87,14 @@ const RunBackfillForm = ({ dag, onClose }: RunBackfillFormProps) => {
   const dataIntervalEnd = watch("to_date");
 
   const onSubmit = (fdata: BackfillPostBody) => {
+    if (unpause && dag.is_paused) {
+      togglePause({
+        dagId: dag.dag_id,
+        requestBody: {
+          is_paused: false,
+        },
+      });
+    }
     createBackfill({
       requestBody: fdata,
     });
@@ -195,6 +207,11 @@ const RunBackfillForm = ({ dag, onClose }: RunBackfillFormProps) => {
           <Alert>{affectedTasks.total_entries} runs will be triggered</Alert>
         ) : undefined}
       </VStack>
+      {dag.is_paused ? (
+        <Checkbox checked={unpause} colorPalette="blue" onChange={() => setUnpause(!unpause)}>
+          Unpause {dag.dag_display_name} on trigger
+        </Checkbox>
+      ) : undefined}
       <ErrorAlert error={errors.date ?? error} />
       <Box as="footer" display="flex" justifyContent="flex-end" mt={4}>
         <HStack w="full">

@@ -31,7 +31,6 @@ from sqlalchemy import func, select
 from sqlalchemy.exc import OperationalError, SAWarning
 
 import airflow.dag_processing.collection
-from airflow.configuration import conf
 from airflow.dag_processing.collection import (
     AssetModelOperation,
     _get_latest_runs_stmt,
@@ -95,8 +94,7 @@ def test_statement_latest_runs_many_dag():
         expected = [
             "SELECT dag_run.id, dag_run.dag_id, dag_run.logical_date, "
             "dag_run.data_interval_start, dag_run.data_interval_end",
-            "FROM dag_run, (SELECT dag_run.dag_id AS dag_id, "
-            "max(dag_run.logical_date) AS max_logical_date",
+            "FROM dag_run, (SELECT dag_run.dag_id AS dag_id, max(dag_run.logical_date) AS max_logical_date",
             "FROM dag_run",
             "WHERE dag_run.dag_id IN (__[POSTCOMPILE_dag_id_1]) "
             "AND dag_run.run_type IN (__[POSTCOMPILE_run_type_1]) GROUP BY dag_run.dag_id) AS anon_1",
@@ -477,10 +475,7 @@ class TestUpdateDagParsingResults:
                         EmptyOperator(task_id="task4", owner="owner2"),
                     ]
                 },
-                {
-                    "default_view": conf.get("webserver", "dag_default_view").lower(),
-                    "owners": ["owner1", "owner2"],
-                },
+                {"owners": ["owner1", "owner2"]},
                 id="tasks-multiple-owners",
             ),
             pytest.param(
@@ -505,7 +500,6 @@ class TestUpdateDagParsingResults:
                     "catchup": False,
                 },
                 {
-                    "default_view": conf.get("webserver", "dag_default_view").lower(),
                     "owners": ["owner1", "owner2"],
                     "next_dagrun": tz.datetime(2020, 1, 5, 0, 0, 0),
                     "next_dagrun_data_interval_start": tz.datetime(2020, 1, 5, 0, 0, 0),

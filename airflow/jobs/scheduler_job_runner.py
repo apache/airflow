@@ -175,8 +175,10 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
         # configure -- they'll want num_runs
         self.num_times_parse_dags = num_times_parse_dags
         self._scheduler_idle_sleep_time = scheduler_idle_sleep_time
-        # How many seconds do we wait for tasks to heartbeat before mark them as zombies.
-        self._zombie_threshold_secs = conf.getint("scheduler", "scheduler_zombie_task_threshold")
+        # How many seconds do we wait for tasks to heartbeat before timeout.
+        self._task_instance_heartbeat_timeout_secs = conf.getint(
+            "scheduler", "task_instance_heartbeat_timeout"
+        )
         self._dag_stale_not_seen_duration = conf.getint("scheduler", "dag_stale_not_seen_duration")
         self._task_queued_timeout = conf.getfloat("scheduler", "task_queued_timeout")
         self._enable_tracemalloc = conf.getboolean("scheduler", "enable_tracemalloc")
@@ -827,7 +829,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
             # or the TI is queued by another job. Either ways we should not fail it.
 
             # All of this could also happen if the state is "running",
-            # but that is handled by the zombie detection.
+            # but that is handled by the scheduler detecting task instances without heartbeats.
 
             ti_queued = ti.try_number == buffer_key.try_number and ti.state in (
                 TaskInstanceState.SCHEDULED,
@@ -1016,8 +1018,8 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
         )
 
         timers.call_regular_interval(
-            conf.getfloat("scheduler", "zombie_detection_interval", fallback=10.0),
-            self._find_and_purge_zombies,
+            conf.getfloat("scheduler", "task_instance_heartbeat_timeout_detection_interval", fallback=10.0),
+            self._find_and_purge_task_instances_without_heartbeats,
         )
 
         timers.call_regular_interval(60.0, self._update_dag_run_state_for_paused_dags)
@@ -1950,26 +1952,30 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                 if num_timed_out_tasks:
                     self.log.info("Timed out %i deferred tasks without fired triggers", num_timed_out_tasks)
 
-    # [START find_and_purge_zombies]
-    def _find_and_purge_zombies(self) -> None:
+    # [START find_and_purge_task_instances_without_heartbeats]
+    def _find_and_purge_task_instances_without_heartbeats(self) -> None:
         """
-        Find and purge zombie task instances.
+        Find and purge task instances without heartbeats.
 
-        Zombie instances are tasks that failed to heartbeat for too long, or
-        have a no-longer-running LocalTaskJob.
+        Task instances that failed to heartbeat for too long, or
+        have a no-longer-running LocalTaskJob will be failed by the scheduler.
 
-        A TaskCallbackRequest is also created for the killed zombie to be
+        A TaskCallbackRequest is also created for the killed task instance to be
         handled by the DAG processor, and the executor is informed to no longer
-        count the zombie as running when it calculates parallelism.
+        count the task instance as running when it calculates parallelism.
         """
         with create_session() as session:
-            if zombies := self._find_zombies(session=session):
-                self._purge_zombies(zombies, session=session)
+            if task_instances_without_heartbeats := self._find_task_instances_without_heartbeats(
+                session=session
+            ):
+                self._purge_task_instances_without_heartbeats(
+                    task_instances_without_heartbeats, session=session
+                )
 
-    def _find_zombies(self, *, session: Session) -> list[TI]:
+    def _find_task_instances_without_heartbeats(self, *, session: Session) -> list[TI]:
         self.log.debug("Finding 'running' jobs without a recent heartbeat")
-        limit_dttm = timezone.utcnow() - timedelta(seconds=self._zombie_threshold_secs)
-        zombies = session.scalars(
+        limit_dttm = timezone.utcnow() - timedelta(seconds=self._task_instance_heartbeat_timeout_secs)
+        task_instances_without_heartbeats = session.scalars(
             select(TI)
             .with_hint(TI, "USE INDEX (ti_state)", dialect_name="mysql")
             .join(DM, TI.dag_id == DM.dag_id)
@@ -1979,63 +1985,77 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
             )
             .where(TI.queued_by_job_id == self.job.id)
         ).all()
-        if zombies:
-            self.log.warning("Failing %s TIs without heartbeat after %s", len(zombies), limit_dttm)
-        return zombies
+        if task_instances_without_heartbeats:
+            self.log.warning(
+                "Failing %s TIs without heartbeat after %s",
+                len(task_instances_without_heartbeats),
+                limit_dttm,
+            )
+        return task_instances_without_heartbeats
 
-    def _purge_zombies(self, zombies: list[TI], *, session: Session) -> None:
-        for ti in zombies:
-            zombie_message_details = self._generate_zombie_message_details(ti)
+    def _purge_task_instances_without_heartbeats(
+        self, task_instances_without_heartbeats: list[TI], *, session: Session
+    ) -> None:
+        for ti in task_instances_without_heartbeats:
+            task_instance_heartbeat_timeout_message_details = (
+                self._generate_task_instance_heartbeat_timeout_message_details(ti)
+            )
             request = TaskCallbackRequest(
                 filepath=ti.dag_model.relative_fileloc,
                 bundle_name=ti.dag_version.bundle_name,
                 bundle_version=ti.dag_run.bundle_version,
                 ti=ti,
-                msg=str(zombie_message_details),
+                msg=str(task_instance_heartbeat_timeout_message_details),
             )
             session.add(
                 Log(
                     event="heartbeat timeout",
                     task_instance=ti.key,
                     extra=(
-                        f"Task did not emit heartbeat within time limit ({self._zombie_threshold_secs} "
+                        f"Task did not emit heartbeat within time limit ({self._task_instance_heartbeat_timeout_secs} "
                         "seconds) and will be terminated. "
                         "See https://airflow.apache.org/docs/apache-airflow/"
-                        "stable/core-concepts/tasks.html#zombie-tasks"
+                        "stable/core-concepts/tasks.html#task-instance-heartbeat-timeout"
                     ),
                 )
             )
             self.log.error(
-                "Detected zombie job: %s "
+                "Detected a task instance without a heartbeat: %s "
                 "(See https://airflow.apache.org/docs/apache-airflow/"
-                "stable/core-concepts/tasks.html#zombie-tasks)",
+                "stable/core-concepts/tasks.html#task-instance-heartbeat-timeout)",
                 request,
             )
             self.job.executor.send_callback(request)
             if (executor := self._try_to_load_executor(ti.executor)) is None:
-                self.log.warning("Cannot clean up zombie %r with non-existent executor %s", ti, ti.executor)
+                self.log.warning(
+                    "Cannot clean up task instance without heartbeat %r with non-existent executor %s",
+                    ti,
+                    ti.executor,
+                )
                 continue
             executor.change_state(ti.key, TaskInstanceState.FAILED, remove_running=True)
-            Stats.incr("zombies_killed", tags={"dag_id": ti.dag_id, "task_id": ti.task_id})
+            Stats.incr(
+                "task_instances_without_heartbeats_killed", tags={"dag_id": ti.dag_id, "task_id": ti.task_id}
+            )
 
-    # [END find_and_purge_zombies]
+    # [END find_and_purge_task_instances_without_heartbeats]
 
     @staticmethod
-    def _generate_zombie_message_details(ti: TI) -> dict[str, Any]:
-        zombie_message_details = {
+    def _generate_task_instance_heartbeat_timeout_message_details(ti: TI) -> dict[str, Any]:
+        task_instance_heartbeat_timeout_message_details = {
             "DAG Id": ti.dag_id,
             "Task Id": ti.task_id,
             "Run Id": ti.run_id,
         }
 
         if ti.map_index != -1:
-            zombie_message_details["Map Index"] = ti.map_index
+            task_instance_heartbeat_timeout_message_details["Map Index"] = ti.map_index
         if ti.hostname:
-            zombie_message_details["Hostname"] = ti.hostname
+            task_instance_heartbeat_timeout_message_details["Hostname"] = ti.hostname
         if ti.external_executor_id:
-            zombie_message_details["External Executor Id"] = ti.external_executor_id
+            task_instance_heartbeat_timeout_message_details["External Executor Id"] = ti.external_executor_id
 
-        return zombie_message_details
+        return task_instance_heartbeat_timeout_message_details
 
     @provide_session
     def _update_asset_orphanage(self, session: Session = NEW_SESSION) -> None:

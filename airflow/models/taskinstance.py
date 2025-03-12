@@ -3110,7 +3110,7 @@ class TaskInstance(Base, LoggingMixin):
 
         ti.clear_next_method_args()
 
-        # In extreme cases (zombie in case of dag with parse error) we might _not_ have a Task.
+        # In extreme cases (task instance heartbeat timeout in case of dag with parse error) we might _not_ have a Task.
         if context is None and getattr(ti, "task", None):
             context = ti.get_template_context(session)
 
@@ -3401,11 +3401,6 @@ class TaskInstance(Base, LoggingMixin):
                 TaskInstance.run_id == self.run_id
             )
         return num_running_task_instances_query.scalar()
-
-    def init_run_context(self, raw: bool = False) -> None:
-        """Set the log context."""
-        self.raw = raw
-        self._set_context(self)
 
     @staticmethod
     def filter_for_tis(tis: Iterable[TaskInstance | TaskInstanceKey]) -> BooleanClauseList | None:
