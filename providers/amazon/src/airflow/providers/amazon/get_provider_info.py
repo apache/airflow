@@ -1385,7 +1385,7 @@ def get_provider_info():
             "PyAthena>=3.0.10",
             "jmespath>=0.7.0",
             "python3-saml>=1.16.0",
-            "xmlsec!=1.3.15",
+            "xmlsec!=1.3.15,>=1.3.14",
             "sagemaker-studio>=1.0.9",
         ],
         "optional-dependencies": {
