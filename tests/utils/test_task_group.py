@@ -1458,7 +1458,7 @@ def test_add_to_another_group():
 
 
 def test_task_group_edge_modifier_chain():
-    from airflow.models.baseoperator import chain
+    from airflow.sdk import chain
     from airflow.utils.edgemodifier import Label
 
     with DAG(dag_id="test", schedule=None, start_date=pendulum.DateTime(2022, 5, 20)) as dag:

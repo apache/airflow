@@ -21,9 +21,11 @@ from collections import defaultdict
 from collections.abc import Sequence
 from functools import cached_property
 from typing import TYPE_CHECKING, Any, cast
+from urllib.parse import urljoin
 
 from fastapi import FastAPI
 
+from airflow.api_fastapi.app import AUTH_MANAGER_FASTAPI_APP_PREFIX
 from airflow.api_fastapi.auth.managers.base_auth_manager import BaseAuthManager
 from airflow.api_fastapi.auth.managers.models.resource_details import (
     AccessView,
@@ -55,7 +57,11 @@ if TYPE_CHECKING:
         IsAuthorizedPoolRequest,
         IsAuthorizedVariableRequest,
     )
-    from airflow.api_fastapi.auth.managers.models.resource_details import AssetDetails, ConfigurationDetails
+    from airflow.api_fastapi.auth.managers.models.resource_details import (
+        AssetAliasDetails,
+        AssetDetails,
+        ConfigurationDetails,
+    )
 
 
 class AwsAuthManager(BaseAuthManager[AwsAuthManagerUser]):
@@ -156,6 +162,14 @@ class AwsAuthManager(BaseAuthManager[AwsAuthManagerUser]):
         asset_id = details.id if details else None
         return self.avp_facade.is_authorized(
             method=method, entity_type=AvpEntities.ASSET, user=user, entity_id=asset_id
+        )
+
+    def is_authorized_asset_alias(
+        self, *, method: ResourceMethod, user: AwsAuthManagerUser, details: AssetAliasDetails | None = None
+    ) -> bool:
+        asset_alias_id = details.id if details else None
+        return self.avp_facade.is_authorized(
+            method=method, entity_type=AvpEntities.ASSET_ALIAS, user=user, entity_id=asset_alias_id
         )
 
     def is_authorized_pool(
@@ -309,7 +323,7 @@ class AwsAuthManager(BaseAuthManager[AwsAuthManagerUser]):
         return {dag_id for dag_id in dag_ids if _has_access_to_dag(requests[dag_id][method])}
 
     def get_url_login(self, **kwargs) -> str:
-        return f"{self.apiserver_endpoint}/auth/login"
+        return urljoin(self.apiserver_endpoint, f"{AUTH_MANAGER_FASTAPI_APP_PREFIX}/login")
 
     @staticmethod
     def get_cli_commands() -> list[CLICommand]:

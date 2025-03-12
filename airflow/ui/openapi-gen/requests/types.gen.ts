@@ -499,7 +499,6 @@ export type DAGDetailsResponse = {
   is_active: boolean;
   last_parsed_time: string | null;
   last_expired: string | null;
-  default_view: string | null;
   fileloc: string;
   description: string | null;
   timetable_summary: string | null;
@@ -562,7 +561,6 @@ export type DAGResponse = {
   is_active: boolean;
   last_parsed_time: string | null;
   last_expired: string | null;
-  default_view: string | null;
   fileloc: string;
   description: string | null;
   timetable_summary: string | null;
@@ -737,7 +735,6 @@ export type DAGWithLatestDagRunsResponse = {
   is_active: boolean;
   last_parsed_time: string | null;
   last_expired: string | null;
-  default_view: string | null;
   fileloc: string;
   description: string | null;
   timetable_summary: string | null;
@@ -753,6 +750,9 @@ export type DAGWithLatestDagRunsResponse = {
   next_dagrun_data_interval_end: string | null;
   next_dagrun_run_after: string | null;
   owners: Array<string>;
+  asset_expression: {
+    [key: string]: unknown;
+  } | null;
   latest_dag_runs: Array<DAGRunResponse>;
   /**
    * Return file token.
@@ -1677,7 +1677,6 @@ export type GetAssetQueuedEventsResponse = QueuedEventCollectionResponse;
 export type DeleteAssetQueuedEventsData = {
   assetId: number;
   before?: string | null;
-  dagId?: string | null;
 };
 
 export type DeleteAssetQueuedEventsResponse = void;
@@ -1690,14 +1689,14 @@ export type GetAssetResponse = AssetResponse;
 
 export type GetDagAssetQueuedEventsData = {
   before?: string | null;
-  dagId: string | null;
+  dagId: string;
 };
 
 export type GetDagAssetQueuedEventsResponse = QueuedEventCollectionResponse;
 
 export type DeleteDagAssetQueuedEventsData = {
   before?: string | null;
-  dagId: string | null;
+  dagId: string;
 };
 
 export type DeleteDagAssetQueuedEventsResponse = void;
@@ -1705,7 +1704,7 @@ export type DeleteDagAssetQueuedEventsResponse = void;
 export type GetDagAssetQueuedEventData = {
   assetId: number;
   before?: string | null;
-  dagId: string | null;
+  dagId: string;
 };
 
 export type GetDagAssetQueuedEventResponse = QueuedEventResponse;
@@ -1713,7 +1712,7 @@ export type GetDagAssetQueuedEventResponse = QueuedEventResponse;
 export type DeleteDagAssetQueuedEventData = {
   assetId: number;
   before?: string | null;
-  dagId: string | null;
+  dagId: string;
 };
 
 export type DeleteDagAssetQueuedEventResponse = void;
@@ -2073,7 +2072,6 @@ export type GetDagTagsData = {
 export type GetDagTagsResponse = DAGTagCollectionResponse;
 
 export type GetEventLogData = {
-  dagId?: string | null;
   eventLogId: number;
 };
 
@@ -2099,7 +2097,7 @@ export type GetEventLogsData = {
 export type GetEventLogsResponse = EventLogCollectionResponse;
 
 export type GetExtraLinksData = {
-  dagId: string | null;
+  dagId: string;
   dagRunId: string;
   mapIndex?: number;
   taskId: string;

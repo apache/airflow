@@ -40,6 +40,9 @@ from airflow.exceptions import AirflowConfigException
 if TYPE_CHECKING:
     from airflow.api_fastapi.auth.managers.base_auth_manager import BaseAuthManager
 
+# Define the path in which the potential auth manager fastapi is mounted
+AUTH_MANAGER_FASTAPI_APP_PREFIX = "/auth"
+
 log = logging.getLogger(__name__)
 
 app: FastAPI | None = None
@@ -61,13 +64,12 @@ async def lifespan(app: FastAPI):
 def create_app(apps: str = "all") -> FastAPI:
     apps_list = apps.split(",") if apps else ["all"]
 
-    fastapi_base_url = conf.get("api", "base_url")
-    if fastapi_base_url.endswith("/"):
-        raise AirflowConfigException("`[api] base_url` config option cannot have a trailing slash.")
+    fastapi_base_url = conf.get("api", "base_url", fallback="")
+    if fastapi_base_url and not fastapi_base_url.endswith("/"):
+        fastapi_base_url += "/"
+        conf.set("api", "base_url", fastapi_base_url)
 
-    root_path = urlsplit(fastapi_base_url).path
-    if not root_path or root_path == "/":
-        root_path = ""
+    root_path = urlsplit(fastapi_base_url).path.removesuffix("/")
 
     app = FastAPI(
         title="Airflow API",
@@ -142,7 +144,7 @@ def init_auth_manager(app: FastAPI | None = None) -> BaseAuthManager:
     am.init()
 
     if app and (auth_manager_fastapi_app := am.get_fastapi_app()):
-        app.mount("/auth", auth_manager_fastapi_app)
+        app.mount(AUTH_MANAGER_FASTAPI_APP_PREFIX, auth_manager_fastapi_app)
         app.state.auth_manager = am
 
     return am

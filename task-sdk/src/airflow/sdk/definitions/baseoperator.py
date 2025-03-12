@@ -25,6 +25,7 @@ import inspect
 import sys
 import warnings
 from collections.abc import Callable, Collection, Iterable, Sequence
+from contextvars import ContextVar
 from dataclasses import dataclass, field
 from datetime import datetime, timedelta
 from enum import Enum
@@ -49,11 +50,13 @@ from airflow.sdk.definitions._internal.abstractoperator import (
     DEFAULT_WAIT_FOR_PAST_DEPENDS_BEFORE_SKIPPING,
     DEFAULT_WEIGHT_RULE,
     AbstractOperator,
+    DependencyMixin,
     TaskStateChangeCallback,
 )
 from airflow.sdk.definitions._internal.decorators import fixup_decorator_warning_stack
 from airflow.sdk.definitions._internal.node import validate_key
 from airflow.sdk.definitions._internal.types import NOTSET, ArgNotSet, validate_instance_args
+from airflow.sdk.definitions.edges import EdgeModifier
 from airflow.sdk.definitions.mappedoperator import OperatorPartial, validate_mapping_kwargs
 from airflow.sdk.definitions.param import ParamsDict
 from airflow.task.priority_strategy import (
@@ -328,6 +331,57 @@ else:
         )
 
 
+class ExecutorSafeguard:
+    """
+    The ExecutorSafeguard decorator.
+
+    Checks if the execute method of an operator isn't manually called outside
+    the TaskInstance as we want to avoid bad mixing between decorated and
+    classic operators.
+    """
+
+    test_mode: ClassVar[bool] = False
+    tracker: ClassVar[ContextVar[BaseOperator]] = ContextVar("ExecutorSafeguard_sentinel")
+    sentinel_value: ClassVar[object] = object()
+
+    @classmethod
+    def decorator(cls, func):
+        @wraps(func)
+        def wrapper(self, *args, **kwargs):
+            sentinel_key = f"{self.__class__.__name__}__sentinel"
+            sentinel = kwargs.pop(sentinel_key, None)
+
+            with contextlib.ExitStack() as stack:
+                if sentinel is cls.sentinel_value:
+                    token = cls.tracker.set(self)
+                    sentinel = self
+                    stack.callback(cls.tracker.reset, token)
+                else:
+                    # No sentinel passed in, maybe the subclass execute did have it passed?
+                    sentinel = cls.tracker.get(None)
+
+                if not cls.test_mode and sentinel is not self:
+                    message = f"{self.__class__.__name__}.{func.__name__} cannot be called outside of the Task Runner!"
+                    if not self.allow_nested_operators:
+                        raise AirflowException(message)
+                    self.log.warning(message)
+
+                    # Now that we've logged, set sentinel so that `super()` calls don't log again
+                    token = cls.tracker.set(self)
+                    stack.callback(cls.tracker.reset, token)
+
+                return func(self, *args, **kwargs)
+
+        return wrapper
+
+
+if "airflow.configuration" in sys.modules:
+    # Don't try and import it if its not already loaded
+    from airflow.configuration import conf
+
+    ExecutorSafeguard.test_mode = conf.getboolean("core", "unit_test_mode")
+
+
 class BaseOperatorMeta(abc.ABCMeta):
     """Metaclass of BaseOperator."""
 
@@ -433,10 +487,9 @@ class BaseOperatorMeta(abc.ABCMeta):
         return cast(T, apply_defaults)
 
     def __new__(cls, name, bases, namespace, **kwargs):
-        # TODO: Task-SDK
-        # execute_method = namespace.get("execute")
-        # if callable(execute_method) and not getattr(execute_method, "__isabstractmethod__", False):
-        #     namespace["execute"] = ExecutorSafeguard().decorator(execute_method)
+        execute_method = namespace.get("execute")
+        if callable(execute_method) and not getattr(execute_method, "__isabstractmethod__", False):
+            namespace["execute"] = ExecutorSafeguard.decorator(execute_method)
         new_cls = super().__new__(cls, name, bases, namespace, **kwargs)
         with contextlib.suppress(KeyError):
             # Update the partial descriptor with the class method, so it calls the actual function
@@ -446,7 +499,8 @@ class BaseOperatorMeta(abc.ABCMeta):
                 partial_desc.class_method = classmethod(partial)
 
         # We patch `__init__` only if the class defines it.
-        if inspect.getmro(new_cls)[1].__init__ is not new_cls.__init__:
+        first_superclass = new_cls.mro()[1]
+        if new_cls.__init__ is not first_superclass.__init__:
             new_cls.__init__ = cls._apply_defaults(new_cls.__init__)
 
         return new_cls
@@ -1525,3 +1579,265 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
         # Grab the callable off the Operator/Task and add in any kwargs
         execute_callable = getattr(self, next_method)
         return execute_callable(context, **next_kwargs)
+
+
+def chain(*tasks: DependencyMixin | Sequence[DependencyMixin]) -> None:
+    r"""
+    Given a number of tasks, builds a dependency chain.
+
+    This function accepts values of BaseOperator (aka tasks), EdgeModifiers (aka Labels), XComArg, TaskGroups,
+    or lists containing any mix of these types (or a mix in the same list). If you want to chain between two
+    lists you must ensure they have the same length.
+
+    Using classic operators/sensors:
+
+    .. code-block:: python
+
+        chain(t1, [t2, t3], [t4, t5], t6)
+
+    is equivalent to::
+
+          / -> t2 -> t4 \
+        t1               -> t6
+          \ -> t3 -> t5 /
+
+    .. code-block:: python
+
+        t1.set_downstream(t2)
+        t1.set_downstream(t3)
+        t2.set_downstream(t4)
+        t3.set_downstream(t5)
+        t4.set_downstream(t6)
+        t5.set_downstream(t6)
+
+    Using task-decorated functions aka XComArgs:
+
+    .. code-block:: python
+
+        chain(x1(), [x2(), x3()], [x4(), x5()], x6())
+
+    is equivalent to::
+
+          / -> x2 -> x4 \
+        x1               -> x6
+          \ -> x3 -> x5 /
+
+    .. code-block:: python
+
+        x1 = x1()
+        x2 = x2()
+        x3 = x3()
+        x4 = x4()
+        x5 = x5()
+        x6 = x6()
+        x1.set_downstream(x2)
+        x1.set_downstream(x3)
+        x2.set_downstream(x4)
+        x3.set_downstream(x5)
+        x4.set_downstream(x6)
+        x5.set_downstream(x6)
+
+    Using TaskGroups:
+
+    .. code-block:: python
+
+        chain(t1, task_group1, task_group2, t2)
+
+        t1.set_downstream(task_group1)
+        task_group1.set_downstream(task_group2)
+        task_group2.set_downstream(t2)
+
+
+    It is also possible to mix between classic operator/sensor, EdgeModifiers, XComArg, and TaskGroups:
+
+    .. code-block:: python
+
+        chain(t1, [Label("branch one"), Label("branch two")], [x1(), x2()], task_group1, x3())
+
+    is equivalent to::
+
+          / "branch one" -> x1 \
+        t1                      -> task_group1 -> x3
+          \ "branch two" -> x2 /
+
+    .. code-block:: python
+
+        x1 = x1()
+        x2 = x2()
+        x3 = x3()
+        label1 = Label("branch one")
+        label2 = Label("branch two")
+        t1.set_downstream(label1)
+        label1.set_downstream(x1)
+        t2.set_downstream(label2)
+        label2.set_downstream(x2)
+        x1.set_downstream(task_group1)
+        x2.set_downstream(task_group1)
+        task_group1.set_downstream(x3)
+
+        # or
+
+        x1 = x1()
+        x2 = x2()
+        x3 = x3()
+        t1.set_downstream(x1, edge_modifier=Label("branch one"))
+        t1.set_downstream(x2, edge_modifier=Label("branch two"))
+        x1.set_downstream(task_group1)
+        x2.set_downstream(task_group1)
+        task_group1.set_downstream(x3)
+
+
+    :param tasks: Individual and/or list of tasks, EdgeModifiers, XComArgs, or TaskGroups to set dependencies
+    """
+    for up_task, down_task in zip(tasks, tasks[1:]):
+        if isinstance(up_task, DependencyMixin):
+            up_task.set_downstream(down_task)
+            continue
+        if isinstance(down_task, DependencyMixin):
+            down_task.set_upstream(up_task)
+            continue
+        if not isinstance(up_task, Sequence) or not isinstance(down_task, Sequence):
+            raise TypeError(f"Chain not supported between instances of {type(up_task)} and {type(down_task)}")
+        up_task_list = up_task
+        down_task_list = down_task
+        if len(up_task_list) != len(down_task_list):
+            raise ValueError(
+                f"Chain not supported for different length Iterable. "
+                f"Got {len(up_task_list)} and {len(down_task_list)}."
+            )
+        for up_t, down_t in zip(up_task_list, down_task_list):
+            up_t.set_downstream(down_t)
+
+
+def cross_downstream(
+    from_tasks: Sequence[DependencyMixin],
+    to_tasks: DependencyMixin | Sequence[DependencyMixin],
+):
+    r"""
+    Set downstream dependencies for all tasks in from_tasks to all tasks in to_tasks.
+
+    Using classic operators/sensors:
+
+    .. code-block:: python
+
+        cross_downstream(from_tasks=[t1, t2, t3], to_tasks=[t4, t5, t6])
+
+    is equivalent to::
+
+        t1 ---> t4
+           \ /
+        t2 -X -> t5
+           / \
+        t3 ---> t6
+
+    .. code-block:: python
+
+        t1.set_downstream(t4)
+        t1.set_downstream(t5)
+        t1.set_downstream(t6)
+        t2.set_downstream(t4)
+        t2.set_downstream(t5)
+        t2.set_downstream(t6)
+        t3.set_downstream(t4)
+        t3.set_downstream(t5)
+        t3.set_downstream(t6)
+
+    Using task-decorated functions aka XComArgs:
+
+    .. code-block:: python
+
+        cross_downstream(from_tasks=[x1(), x2(), x3()], to_tasks=[x4(), x5(), x6()])
+
+    is equivalent to::
+
+        x1 ---> x4
+           \ /
+        x2 -X -> x5
+           / \
+        x3 ---> x6
+
+    .. code-block:: python
+
+        x1 = x1()
+        x2 = x2()
+        x3 = x3()
+        x4 = x4()
+        x5 = x5()
+        x6 = x6()
+        x1.set_downstream(x4)
+        x1.set_downstream(x5)
+        x1.set_downstream(x6)
+        x2.set_downstream(x4)
+        x2.set_downstream(x5)
+        x2.set_downstream(x6)
+        x3.set_downstream(x4)
+        x3.set_downstream(x5)
+        x3.set_downstream(x6)
+
+    It is also possible to mix between classic operator/sensor and XComArg tasks:
+
+    .. code-block:: python
+
+        cross_downstream(from_tasks=[t1, x2(), t3], to_tasks=[x1(), t2, x3()])
+
+    is equivalent to::
+
+        t1 ---> x1
+           \ /
+        x2 -X -> t2
+           / \
+        t3 ---> x3
+
+    .. code-block:: python
+
+        x1 = x1()
+        x2 = x2()
+        x3 = x3()
+        t1.set_downstream(x1)
+        t1.set_downstream(t2)
+        t1.set_downstream(x3)
+        x2.set_downstream(x1)
+        x2.set_downstream(t2)
+        x2.set_downstream(x3)
+        t3.set_downstream(x1)
+        t3.set_downstream(t2)
+        t3.set_downstream(x3)
+
+    :param from_tasks: List of tasks or XComArgs to start from.
+    :param to_tasks: List of tasks or XComArgs to set as downstream dependencies.
+    """
+    for task in from_tasks:
+        task.set_downstream(to_tasks)
+
+
+def chain_linear(*elements: DependencyMixin | Sequence[DependencyMixin]):
+    """
+    Simplify task dependency definition.
+
+    E.g.: suppose you want precedence like so::
+
+            ╭─op2─╮ ╭─op4─╮
+        op1─┤     ├─├─op5─┤─op7
+            ╰-op3─╯ ╰-op6─╯
+
+    Then you can accomplish like so::
+
+        chain_linear(op1, [op2, op3], [op4, op5, op6], op7)
+
+    :param elements: a list of operators / lists of operators
+    """
+    if not elements:
+        raise ValueError("No tasks provided; nothing to do.")
+    prev_elem = None
+    deps_set = False
+    for curr_elem in elements:
+        if isinstance(curr_elem, EdgeModifier):
+            raise ValueError("Labels are not supported by chain_linear")
+        if prev_elem is not None:
+            for task in prev_elem:
+                task >> curr_elem
+                if not deps_set:
+                    deps_set = True
+        prev_elem = [curr_elem] if isinstance(curr_elem, DependencyMixin) else curr_elem
+    if not deps_set:
+        raise ValueError("No dependencies were set. Did you forget to expand with `*`?")

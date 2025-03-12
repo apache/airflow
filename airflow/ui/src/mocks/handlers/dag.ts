@@ -27,7 +27,6 @@ export const MOCK_DAG = {
   dag_display_name: "tutorial_taskflow_api",
   dag_id: "tutorial_taskflow_api",
   dag_run_timeout: null,
-  default_view: "grid",
   description: null,
   doc_md:
     "\n    ### TaskFlow API Tutorial Documentation\n    This is a simple data pipeline example which demonstrates the use of\n    the TaskFlow API using three simple tasks for Extract, Transform, and Load.\n    Documentation that goes along with the Airflow TaskFlow API tutorial is\n    located\n    [here](https://airflow.apache.org/docs/apache-airflow/stable/tutorial_taskflow_api.html)\n    ",

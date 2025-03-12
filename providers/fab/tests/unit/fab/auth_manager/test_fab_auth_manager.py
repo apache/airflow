@@ -25,6 +25,7 @@ from unittest.mock import Mock
 import pytest
 from flask import Flask, g
 
+from airflow.api_fastapi.app import AUTH_MANAGER_FASTAPI_APP_PREFIX
 from airflow.exceptions import AirflowConfigException, AirflowException
 from airflow.providers.fab.www.extensions.init_appbuilder import init_appbuilder
 from airflow.providers.standard.operators.empty import EmptyOperator
@@ -45,7 +46,7 @@ with ignore_provider_compatibility_error("2.9.0+", __file__):
     from airflow.providers.fab.auth_manager.fab_auth_manager import FabAuthManager
     from airflow.providers.fab.auth_manager.security_manager.override import FabAirflowSecurityManagerOverride
 
-from airflow.providers.common.compat.security.permissions import RESOURCE_ASSET
+from airflow.providers.common.compat.security.permissions import RESOURCE_ASSET, RESOURCE_ASSET_ALIAS
 from airflow.providers.fab.www.security.permissions import (
     ACTION_CAN_ACCESS_MENU,
     ACTION_CAN_CREATE,
@@ -74,6 +75,7 @@ IS_AUTHORIZED_METHODS_SIMPLE = {
     "is_authorized_configuration": RESOURCE_CONFIG,
     "is_authorized_connection": RESOURCE_CONNECTION,
     "is_authorized_asset": RESOURCE_ASSET,
+    "is_authorized_asset_alias": RESOURCE_ASSET_ALIAS,
     "is_authorized_variable": RESOURCE_VARIABLE,
 }
 
@@ -97,6 +99,8 @@ def flask_app():
 
 @pytest.fixture
 def auth_manager_with_appbuilder(flask_app):
+    flask_app.config["AUTH_RATE_LIMITED"] = False
+    flask_app.config["SERVER_NAME"] = "localhost"
     appbuilder = init_appbuilder(flask_app, enable_plugins=False)
     auth_manager = FabAuthManager()
     auth_manager.appbuilder = appbuilder
@@ -560,7 +564,7 @@ class TestFabAuthManager:
 
     def test_get_url_login(self, auth_manager):
         result = auth_manager.get_url_login()
-        assert result == "http://localhost:8080/auth/login"
+        assert result == f"http://localhost:8080{AUTH_MANAGER_FASTAPI_APP_PREFIX}/login/"
 
     @pytest.mark.db_test
     def test_get_url_logout_when_auth_view_not_defined(self, auth_manager_with_appbuilder):
@@ -574,3 +578,17 @@ class TestFabAuthManager:
         auth_manager_with_appbuilder.security_manager.auth_view.endpoint = "test_endpoint"
         auth_manager_with_appbuilder.get_url_logout()
         mock_url_for.assert_called_once_with("test_endpoint.logout")
+
+    @pytest.mark.db_test
+    @mock.patch("airflow.providers.fab.auth_manager.fab_auth_manager.logout_user")
+    def test_logout(self, mock_logout_user, auth_manager_with_appbuilder):
+        auth_manager_with_appbuilder.logout()
+        mock_logout_user.assert_called_once()
+
+    @mock.patch.object(FabAuthManager, "_is_authorized", return_value=True)
+    def test_get_menu_items(self, _, auth_manager_with_appbuilder, flask_app):
+        with flask_app.app_context():
+            auth_manager_with_appbuilder.register_views()
+            result = auth_manager_with_appbuilder.get_menu_items(user=Mock())
+            assert len(result) == 5
+            assert all(item.href.startswith(AUTH_MANAGER_FASTAPI_APP_PREFIX) for item in result)

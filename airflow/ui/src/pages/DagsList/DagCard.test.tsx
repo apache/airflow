@@ -27,9 +27,9 @@ import { Wrapper } from "src/utils/Wrapper";
 import { DagCard } from "./DagCard";
 
 const mockDag = {
+  asset_expression: null,
   dag_display_name: "nested_groups",
   dag_id: "nested_groups",
-  default_view: "grid",
   description: null,
   file_token: "Ii9maWxlcy9kYWdzL25lc3RlZF90YXNrX2dyb3Vwcy5weSI.G3EkdxmDUDQsVb7AIZww1TSGlFE",
   fileloc: "/files/dags/nested_task_groups.py",

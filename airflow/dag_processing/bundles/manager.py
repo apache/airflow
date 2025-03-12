@@ -32,6 +32,52 @@ if TYPE_CHECKING:
 
     from airflow.dag_processing.bundles.base import BaseDagBundle
 
+_example_dag_bundle_name = "example_dags"
+
+
+def _bundle_item_exc(msg):
+    return AirflowConfigException(
+        "Invalid config for section `dag_processor` key `dag_bundle_config_list`. " + msg
+    )
+
+
+def _validate_bundle_config(config_list):
+    all_names = []
+    expected_keys = {"name", "classpath", "kwargs"}
+    for item in config_list:
+        if not isinstance(item, dict):
+            raise _bundle_item_exc(f"Expected dict but got {item.__class__}")
+        actual_keys = set(item.keys())
+        if not actual_keys == expected_keys:
+            raise _bundle_item_exc(f"Expected keys {expected_keys} but found {actual_keys}")
+        bundle_name = item["name"]
+        if not bundle_name:
+            raise _bundle_item_exc(f"Item {item} missing required `name` attr.")
+        if bundle_name == _example_dag_bundle_name:
+            raise AirflowConfigException(
+                f"Bundle name '{_example_dag_bundle_name}' is a reserved name. Please choose another name for your bundle."
+                " Example DAGs can be enabled with the '[core] load_examples' config."
+            )
+
+        all_names.append(bundle_name)
+    if len(all_names) != len(set(all_names)):
+        raise _bundle_item_exc(f"One or more bundle names appeared multiple times: {all_names}")
+
+
+def _add_example_dag_bundle(config_list):
+    from airflow import example_dags
+
+    example_dag_folder = next(iter(example_dags.__path__))
+    config_list.append(
+        {
+            "name": _example_dag_bundle_name,
+            "classpath": "airflow.dag_processing.bundles.local.LocalDagBundle",
+            "kwargs": {
+                "path": example_dag_folder,
+            },
+        }
+    )
+
 
 class DagBundlesManager(LoggingMixin):
     """Manager for DAG bundles."""
@@ -54,44 +100,20 @@ class DagBundlesManager(LoggingMixin):
         if self._bundle_config:
             return
 
-        backends = conf.getjson("dag_processor", "dag_bundle_config_list")
-
-        if not backends:
+        config_list = conf.getjson("dag_processor", "dag_bundle_config_list")
+        if not config_list:
             return
-
-        if not isinstance(backends, list):
+        if not isinstance(config_list, list):
             raise AirflowConfigException(
-                "Bundle config is not a list. Check config value"
-                " for section `dag_processor` and key `dag_bundle_config_list`."
+                "Section `dag_processor` key `dag_bundle_config_list` "
+                f"must be list but got {config_list.__class__}"
             )
-
-        if any(b["name"] == "example_dags" for b in backends):
-            raise AirflowConfigException(
-                "Bundle name 'example_dags' is a reserved name. Please choose another name for your bundle."
-                " Example DAGs can be enabled with the '[core] load_examples' config."
-            )
-
-        # example dags!
+        _validate_bundle_config(config_list)
         if conf.getboolean("core", "LOAD_EXAMPLES"):
-            from airflow import example_dags
+            _add_example_dag_bundle(config_list)
 
-            example_dag_folder = next(iter(example_dags.__path__))
-            backends.append(
-                {
-                    "name": "example_dags",
-                    "classpath": "airflow.dag_processing.bundles.local.LocalDagBundle",
-                    "kwargs": {
-                        "path": example_dag_folder,
-                    },
-                }
-            )
-
-        seen = set()
-        for cfg in backends:
+        for cfg in config_list:
             name = cfg["name"]
-            if name in seen:
-                raise ValueError(f"Dag bundle {name} is configured twice.")
-            seen.add(name)
             class_ = import_string(cfg["classpath"])
             kwargs = cfg["kwargs"]
             self._bundle_config[name] = (class_, kwargs)

@@ -19,6 +19,7 @@
 
 from __future__ import annotations
 
+import contextvars
 import functools
 import os
 import sys
@@ -46,7 +47,7 @@ from airflow.sdk.api.datamodels._generated import (
 from airflow.sdk.definitions._internal.dag_parsing_context import _airflow_parsing_context_manager
 from airflow.sdk.definitions._internal.types import NOTSET, ArgNotSet
 from airflow.sdk.definitions.asset import Asset, AssetAlias, AssetNameRef, AssetUriRef
-from airflow.sdk.definitions.baseoperator import BaseOperator
+from airflow.sdk.definitions.baseoperator import BaseOperator, ExecutorSafeguard
 from airflow.sdk.definitions.mappedoperator import MappedOperator
 from airflow.sdk.definitions.param import process_params
 from airflow.sdk.execution_time.comms import (
@@ -485,21 +486,20 @@ def _process_outlets(context: Context, outlets: list[AssetProfile]):
 
     for obj in outlets or []:
         # Lineage can have other types of objects besides assets
-        asset_type = type(obj).__name__
         if isinstance(obj, Asset):
-            task_outlets.append(AssetProfile(name=obj.name, uri=obj.uri, asset_type=asset_type))
+            task_outlets.append(AssetProfile(name=obj.name, uri=obj.uri, type=Asset.__name__))
             outlet_events.append(attrs.asdict(events[obj]))  # type: ignore
         elif isinstance(obj, AssetNameRef):
-            task_outlets.append(AssetProfile(name=obj.name, asset_type=asset_type))
+            task_outlets.append(AssetProfile(name=obj.name, type=AssetNameRef.__name__))
             # Send all events, filtering can be done in API server.
             outlet_events.append(attrs.asdict(events))  # type: ignore
         elif isinstance(obj, AssetUriRef):
-            task_outlets.append(AssetProfile(uri=obj.uri, asset_type=asset_type))
+            task_outlets.append(AssetProfile(uri=obj.uri, type=AssetUriRef.__name__))
             # Send all events, filtering can be done in API server.
             outlet_events.append(attrs.asdict(events))  # type: ignore
         elif isinstance(obj, AssetAlias):
             if not added_alias_to_task_outlet:
-                task_outlets.append(AssetProfile(asset_type=asset_type))
+                task_outlets.append(AssetProfile(name=obj.name, type=AssetAlias.__name__))
                 added_alias_to_task_outlet = True
             for asset_alias_event in events[obj].asset_alias_events:
                 outlet_events.append(attrs.asdict(asset_alias_event))
@@ -685,6 +685,10 @@ def _execute_task(context: Context, ti: RuntimeTaskInstance):
 
         execute = functools.partial(task.resume_execution, next_method=next_method, next_kwargs=kwargs)
 
+    ctx = contextvars.copy_context()
+    # Populate the context var so ExecutorSafeguard doesn't complain
+    ctx.run(ExecutorSafeguard.tracker.set, task)
+
     if task.execution_timeout:
         # TODO: handle timeout in case of deferral
         from airflow.utils.timeout import timeout
@@ -696,12 +700,12 @@ def _execute_task(context: Context, ti: RuntimeTaskInstance):
                 raise AirflowTaskTimeout()
             # Run task in timeout wrapper
             with timeout(timeout_seconds):
-                result = execute(context=context)
+                result = ctx.run(execute, context=context)
         except AirflowTaskTimeout:
             # TODO: handle on kill callback here
             raise
     else:
-        result = execute(context=context)
+        result = ctx.run(execute, context=context)
     return result
 
 
