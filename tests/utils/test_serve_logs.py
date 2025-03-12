@@ -39,7 +39,12 @@ LOG_DATA = "Airflow log data" * 20
 
 @pytest.fixture
 def client_without_config(tmp_path):
-    with conf_vars({("logging", "base_log_folder"): tmp_path.as_posix()}):
+    with conf_vars(
+        {
+            ("logging", "base_log_folder"): tmp_path.as_posix(),
+            ("api_auth", "jwt_leeyway"): "0",
+        }
+    ):
         app = create_app()
 
         yield app.test_client()
@@ -52,7 +57,8 @@ def client_with_config():
             (
                 "logging",
                 "logging_config_class",
-            ): "airflow.config_templates.airflow_local_settings.DEFAULT_LOGGING_CONFIG"
+            ): "airflow.config_templates.airflow_local_settings.DEFAULT_LOGGING_CONFIG",
+            ("api_auth", "jwt_leeyway"): "0",
         }
     ):
         app = create_app()
@@ -85,7 +91,7 @@ def sample_log(request, tmp_path):
 def jwt_generator(secret_key):
     return JWTGenerator(
         secret_key=secret_key,
-        valid_for=30,
+        valid_for=5,
         audience="task-instance-logs",
     )
 
@@ -108,7 +114,7 @@ class TestServeLogs:
         response = client.get(
             "/log/sample.log",
             headers={
-                "Authorization": jwt_generator.generate("logs", {"filename": "sample.log"}),
+                "Authorization": jwt_generator.generate({"filename": "sample.log"}),
             },
         )
         assert response.data.decode() == LOG_DATA
@@ -118,14 +124,14 @@ class TestServeLogs:
         response = client.get(
             "/log/sample.log",
             headers={
-                "Authorization": jwt_generator.generate("logs", {"filename": "different.log"}),
+                "Authorization": jwt_generator.generate({"filename": "different.log"}),
             },
         )
         assert response.status_code == 403
 
     def test_forbidden_expired(self, client: FlaskClient, jwt_generator):
         with time_machine.travel("2010-01-14"):
-            token = jwt_generator.generate("logs", {"filename": "sample.log"})
+            token = jwt_generator.generate({"filename": "sample.log"})
         assert (
             client.get(
                 "/log/sample.log",
@@ -138,7 +144,7 @@ class TestServeLogs:
 
     def test_forbidden_future(self, client: FlaskClient, jwt_generator):
         with time_machine.travel(timezone.utcnow() + timedelta(seconds=3600)):
-            token = jwt_generator.generate("logs", {"filename": "sample.log"})
+            token = jwt_generator.generate({"filename": "sample.log"})
         assert (
             client.get(
                 "/log/sample.log",
@@ -153,7 +159,7 @@ class TestServeLogs:
         print(f"Ts= {timezone.utcnow().timestamp()}")
         with time_machine.travel(timezone.utcnow() + timedelta(seconds=1)):
             print(f"Ts with travvel = {timezone.utcnow().timestamp()}")
-            token = jwt_generator.generate("logs", {"filename": "sample.log"})
+            token = jwt_generator.generate({"filename": "sample.log"})
         assert (
             client.get(
                 "/log/sample.log",
@@ -166,7 +172,7 @@ class TestServeLogs:
 
     def test_ok_with_short_past_skew(self, client: FlaskClient, jwt_generator):
         with time_machine.travel(timezone.utcnow() - timedelta(seconds=31)):
-            token = jwt_generator.generate("logs", {"filename": "sample.log"})
+            token = jwt_generator.generate({"filename": "sample.log"})
         assert (
             client.get(
                 "/log/sample.log",
@@ -178,8 +184,8 @@ class TestServeLogs:
         )
 
     def test_forbidden_with_long_future_skew(self, client: FlaskClient, jwt_generator):
-        with time_machine.travel(timezone.utcnow() + timedelta(seconds=10)):
-            token = jwt_generator.generate("logs", {"filename": "sample.log"})
+        with time_machine.travel(timezone.utcnow() + timedelta(seconds=40)):
+            token = jwt_generator.generate({"filename": "sample.log"})
         assert (
             client.get(
                 "/log/sample.log",
@@ -192,7 +198,7 @@ class TestServeLogs:
 
     def test_forbidden_with_long_past_skew(self, client: FlaskClient, jwt_generator):
         with time_machine.travel(timezone.utcnow() - timedelta(seconds=40)):
-            token = jwt_generator.generate("logs", {"filename": "sample.log"})
+            token = jwt_generator.generate({"filename": "sample.log"})
         assert (
             client.get(
                 "/log/sample.log",
@@ -208,7 +214,7 @@ class TestServeLogs:
             client.get(
                 "/log/sample.log",
                 headers={
-                    "Authorization": different_audience.generate("logs", {"filename": "sample.log"}),
+                    "Authorization": different_audience.generate({"filename": "sample.log"}),
                 },
             ).status_code
             == 403

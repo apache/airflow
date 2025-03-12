@@ -53,9 +53,9 @@ if TYPE_CHECKING:
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="token")
 
 
-def get_user(token_str: Annotated[str, Depends(oauth2_scheme)]) -> BaseUser:
+async def get_user(token_str: Annotated[str, Depends(oauth2_scheme)]) -> BaseUser:
     try:
-        return get_auth_manager().get_user_from_token(token_str)
+        return await get_auth_manager().get_user_from_token(token_str)
     except ExpiredSignatureError:
         raise HTTPException(status.HTTP_401_UNAUTHORIZED, "Token Expired")
     except InvalidTokenError:
@@ -79,7 +79,7 @@ async def get_user_with_exception_handling(request: Request) -> BaseUser | None:
 
     if not token_str:  # Handle None or empty token
         return None
-    return get_user(token_str)
+    return await get_user(token_str)
 
 
 def requires_access_dag(

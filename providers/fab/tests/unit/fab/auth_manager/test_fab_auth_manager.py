@@ -137,13 +137,13 @@ class TestFabAuthManager:
 
     def test_deserialize_user(self, flask_app, auth_manager_with_appbuilder):
         user = create_user(flask_app, "test")
-        result = auth_manager_with_appbuilder.deserialize_user({"id": user.id})
+        result = auth_manager_with_appbuilder.deserialize_user({"sub": str(user.id)})
         assert user == result
 
     def test_serialize_user(self, flask_app, auth_manager_with_appbuilder):
         user = create_user(flask_app, "test")
         result = auth_manager_with_appbuilder.serialize_user(user)
-        assert result == {"id": user.id}
+        assert result == {"sub": str(user.id)}
 
     @pytest.mark.db_test
     @mock.patch.object(FabAuthManager, "get_user")

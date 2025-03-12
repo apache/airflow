@@ -107,7 +107,7 @@ def _fetch_logs_from_service(url, log_relative_path):
     response = requests.get(
         url,
         timeout=timeout,
-        headers={"Authorization": generator.generate({"sub": "task-logs", "filename": log_relative_path})},
+        headers={"Authorization": generator.generate({"filename": log_relative_path})},
     )
     response.encoding = "utf-8"
     return response

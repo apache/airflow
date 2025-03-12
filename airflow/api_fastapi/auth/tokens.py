@@ -405,6 +405,11 @@ class JWTGenerator:
             "exp": int(now + self.valid_for),
             "iat": now,
         }
+        if claims["iss"] is None:
+            del claims["iss"]
+        if claims["aud"] is None:
+            del claims["aud"]
+
         if extras is not None:
             claims.update(extras)
         headers = {"alg": self.algorithm, **(headers or {})}

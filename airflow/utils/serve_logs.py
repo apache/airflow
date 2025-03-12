@@ -45,6 +45,7 @@ logger = logging.getLogger(__name__)
 
 def create_app():
     flask_app = Flask(__name__, static_folder=None)
+    leeway = conf.getint("webserver", "log_request_clock_grace", fallback=30)
     log_directory = os.path.expanduser(conf.get("logging", "BASE_LOG_FOLDER"))
     log_config_class = conf.get("logging", "logging_config_class")
     if log_config_class:
@@ -72,6 +73,7 @@ def create_app():
     signer = JWTValidator(
         issuer=None,
         secret_key=conf.get("webserver", "secret_key"),
+        leeway=leeway,
         audience="task-instance-logs",
     )
 

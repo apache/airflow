@@ -1500,7 +1500,7 @@ api_auth:
         Mutually exclusive with ``jwt_secret``.
 
         If a ``jwt_private_key_path`` is given but this settings is not set then the private key will be
-        trusted. If this is providerd it is your responsibility to ensure that the private key used for
+        trusted. If this is provided it is your responsibility to ensure that the private key used for
         generation is in this list.
       default: ~
       example: '"/path/to/public-jwks.json" or "https://my-issuer/.well-known/jwks.json"'
@@ -1515,7 +1515,7 @@ api_auth:
 
         Not required, but strongly recommended to be set.
 
-        See also :ref:`config:task_execution_api_auth__jwt_audience` and :ref:`config:api_auth__jwt_audience`
+        See also :ref:`config:api_auth__jwt_audience`
       default: ~
       example: "http://my-airflow.mycompany.com"
       type: string

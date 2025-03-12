@@ -196,7 +196,7 @@ async def test_jwt_wrong_subject(jwt_generator, jwt_validator):
     wrong_subject = jwt_generator.generate({"sub": "wrong_subject"})
     with pytest.raises(InvalidClaimError, match="Invalid claim: sub"):
         await jwt_validator.avalidated_claims(
-            wrong_subject, extra_claims={"sub": {"essential": True, "value": "test_subject"}}
+            wrong_subject, required_claims={"sub": {"essential": True, "value": "test_subject"}}
         )
 
 

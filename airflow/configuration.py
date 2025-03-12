@@ -95,7 +95,7 @@ def expand_env_var(env_var: str | None) -> str | None:
     Repeat and apply `expandvars` and `expanduser` until
     interpolation stops having any effect.
     """
-    if not env_var:
+    if not env_var or not isinstance(env_var, str):
         return env_var
     while True:
         interpolated = os.path.expanduser(os.path.expandvars(str(env_var)))
