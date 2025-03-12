@@ -4558,7 +4558,7 @@ paths:
         required: false
         schema:
           type: boolean
-          default: true
+          default: false
           title: Stringify
       responses:
         '200':

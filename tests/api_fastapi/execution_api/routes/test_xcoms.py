@@ -43,27 +43,34 @@ def reset_db():
 
 class TestXComsGetEndpoint:
     @pytest.mark.parametrize(
-        ("value", "expected_value"),
+        ("db_value"),
         [
-            ('"value1"', '"value1"'),
-            ('{"key2": "value2"}', '{"key2": "value2"}'),
-            ('{"key2": "value2", "key3": ["value3"]}', '{"key2": "value2", "key3": ["value3"]}'),
-            ('["value1"]', '["value1"]'),
+            ("value1"),
+            ({"key2": "value2"}),
+            ({"key2": "value2", "key3": ["value3"]}),
+            (["value1"]),
         ],
     )
-    def test_xcom_get_from_db(self, client, create_task_instance, session, value, expected_value):
+    def test_xcom_get_from_db(self, client, create_task_instance, session, db_value):
         """Test that XCom value is returned from the database in JSON-compatible format."""
+        # The tests expect serialised strings because v2 serialised and stored in the DB
         ti = create_task_instance()
-        ti.xcom_push(key="xcom_1", value=value, session=session)
-        session.commit()
 
-        xcom = session.query(XComModel).filter_by(task_id=ti.task_id, dag_id=ti.dag_id, key="xcom_1").first()
-        assert xcom.value == expected_value
+        x = XComModel(
+            key="xcom_1",
+            value=db_value,
+            dag_run_id=ti.dag_run.id,
+            run_id=ti.run_id,
+            task_id=ti.task_id,
+            dag_id=ti.dag_id,
+        )
+        session.add(x)
+        session.commit()
 
         response = client.get(f"/execution/xcoms/{ti.dag_id}/{ti.run_id}/{ti.task_id}/xcom_1")
 
         assert response.status_code == 200
-        assert response.json() == {"key": "xcom_1", "value": expected_value}
+        assert response.json() == {"key": "xcom_1", "value": db_value}
 
     def test_xcom_not_found(self, client, create_task_instance):
         response = client.get("/execution/xcoms/dag/runid/task/xcom_non_existent")

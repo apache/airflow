@@ -60,7 +60,7 @@ def get_xcom_entry(
     session: SessionDep,
     map_index: Annotated[int, Query(ge=-1)] = -1,
     deserialize: Annotated[bool, Query()] = False,
-    stringify: Annotated[bool, Query()] = True,
+    stringify: Annotated[bool, Query()] = False,
 ) -> XComResponseNative | XComResponseString:
     """Get an XCom entry."""
     if deserialize:
@@ -90,10 +90,12 @@ def get_xcom_entry(
         raise HTTPException(status.HTTP_404_NOT_FOUND, f"XCom entry with key: `{xcom_key}` not found")
 
     if deserialize:
+        from airflow.sdk.execution_time.xcom import XCom
+
         xcom, value = item
         xcom_stub = copy.copy(xcom)
         xcom_stub.value = value
-        xcom_stub.value = XComModel.deserialize_value(xcom_stub)
+        xcom_stub.value = XCom.deserialize_value(xcom_stub)
         item = xcom_stub
 
     if stringify:

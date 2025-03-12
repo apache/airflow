@@ -37,7 +37,6 @@ from sqlalchemy.dialects import postgresql
 from sqlalchemy.ext.associationproxy import association_proxy
 from sqlalchemy.orm import Query, relationship
 
-import airflow.sdk.execution_time.xcom
 from airflow.models.base import COLLATION_ARGS, ID_LEN, TaskInstanceDependencies
 from airflow.utils import timezone
 from airflow.utils.db import LazySelectSequence
@@ -322,14 +321,13 @@ class LazyXComSelectSequence(LazySelectSequence[Any]):
         return XComModel.deserialize_value(row)
 
 
-if TYPE_CHECKING:
-    XCom = XComModel
-else:
-    XCom = airflow.sdk.execution_time.xcom.resolve_xcom_backend()
+def __getattr__(name: str):
+    if name == "BaseXCom" or name == "XCom":
+        from airflow.sdk.execution_time import xcom
 
+        val = getattr(xcom, name)
 
-# 1. Implement DELETE API -- run endpoint should return keys and those should eb called by worker. ✅
-# 2. (Do not clear during xcom during /run) ✅
-# 3. Wipe out BaseXcom in models ✅
-# 4. Purge after getting the ctx then delete request (XCOM.delete also)
-# 5. Lazy import from task sdk: __get_attr__ ✅
+        globals()[name] = val
+        return val
+
+    raise AttributeError(f"module {__name__!r} has no attribute {name!r}")

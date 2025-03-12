@@ -15,17 +15,3 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-from __future__ import annotations
-
-
-def __getattr__(name: str):
-    if name == "BaseXCom":
-        import importlib
-
-        mod = importlib.import_module(".xcom", __name__)
-        val = getattr(mod, name)
-
-        globals()[name] = val
-        return val
-
-    raise AttributeError(f"module {__name__!r} has no attribute {name!r}")

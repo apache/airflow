@@ -158,7 +158,7 @@ class BaseXCom:
             raise TypeError(f"Expected XComResult, received: {type(msg)} {msg}")
 
         if msg.value is not None:
-            return cls.deserialize_value(msg.value)
+            return cls.deserialize_value(msg)
         return None
 
     @staticmethod
@@ -182,7 +182,7 @@ class BaseXCom:
         """Deserialize XCom value from str objects."""
         from airflow.serialization.serde import deserialize
 
-        return deserialize(result)
+        return deserialize(result.value)
 
     @classmethod
     def purge(cls, xcom) -> None:
