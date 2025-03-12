@@ -414,6 +414,24 @@ class AirflowConfigParser(ConfigParser):
             "3.0",
             "The default value for 'log_filename_template' from Airflow 2 may break task logs in the new UI.",
         ),
+        ("core", "dag_ignore_file_syntax"): (
+            re.compile(r"^regexp$"),
+            "3.0",
+            "The default value changed from 'regexp' in Airflow 2.x to 'glob' in Airflow 3.0.",
+        ),
+        ("api", "auth_backends"): (
+            re.compile(r"^airflow\.api\.auth\.backend\.session$"),
+            "3.0",
+            "The default auth backend has changed from 'airflow.api.auth.backend.session' to "
+            "'airflow.providers.fab.auth_manager.api.auth.backend.session' in Airflow 3.0.",
+        ),
+        ("scheduler", "task_instance_heartbeat_timeout"): (
+            re.compile(r"^300$"),
+            "3.0",
+            "Airflow 2.x used 'scheduler_zombie_task_threshold' with a default of 300. In 3.0 this setting "
+            "has been renamed to 'task_instance_heartbeat_timeout' (with the same numeric default), which may "
+            "cause legacy configurations to be ignored.",
+        ),
     }
 
     def handle_incompatible_airflow2_defaults(self, upgrade: bool | None = True) -> None:
