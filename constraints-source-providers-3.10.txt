@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2025-03-11T14:13:22.435098
+# This constraints file was automatically generated on 2025-03-12T20:05:48.768317
 # via "eager-upgrade" mechanism of PIP. For the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version of both
 # 'apache-airflow' package and all available community provider packages.
@@ -18,7 +18,7 @@ Flask-Babel==2.0.0
 Flask-Bcrypt==1.0.1
 Flask-Caching==2.3.1
 Flask-JWT-Extended==4.7.1
-Flask-Limiter==3.10.1
+Flask-Limiter==3.11.0
 Flask-Login==0.6.3
 Flask-SQLAlchemy==2.5.1
 Flask-Session==0.5.0
@@ -27,6 +27,7 @@ Flask==2.2.5
 GitPython==3.1.44
 JayDeBeApi==1.2.3
 Jinja2==3.1.6
+Js2Py==0.74
 Mako==1.3.9
 Markdown==3.7
 MarkupSafe==3.0.2
@@ -50,7 +51,7 @@ adal==1.2.7
 adlfs==2024.12.0
 aiobotocore==2.21.1
 aiofiles==23.2.1
-aiohappyeyeballs==2.5.0
+aiohappyeyeballs==2.6.1
 aiohttp==3.11.13
 aioitertools==0.12.0
 aiomysql==0.2.0
@@ -60,7 +61,7 @@ aiosqlite==0.21.0
 airbyte-api==0.52.2
 alabaster==1.0.0
 alembic==1.15.1
-alibabacloud-adb20211201==2.1.0
+alibabacloud-adb20211201==2.2.0
 alibabacloud-tea==0.4.2
 alibabacloud_credentials==0.3.6
 alibabacloud_endpoint_util==0.0.3
@@ -76,7 +77,7 @@ analytics-python==1.2.9
 annotated-types==0.7.0
 ansicolors==1.1.8
 anyio==4.8.0
-apache-beam==2.63.0
+apache-beam==2.59.0
 apispec==6.8.1
 apprise==1.9.2
 argcomplete==3.6.0
@@ -98,9 +99,9 @@ azure-common==1.1.28
 azure-core==1.32.0
 azure-cosmos==4.9.0
 azure-datalake-store==0.0.53
-azure-identity==1.20.0
+azure-identity==1.21.0
 azure-keyvault-secrets==4.9.0
-azure-kusto-data==4.6.3
+azure-kusto-data==5.0.1
 azure-mgmt-containerinstance==10.1.0
 azure-mgmt-containerregistry==12.0.0
 azure-mgmt-core==1.5.0
@@ -113,9 +114,9 @@ azure-mgmt-resource==23.3.0
 azure-mgmt-storage==22.1.1
 azure-nspkg==3.0.2
 azure-servicebus==7.14.0
-azure-storage-blob==12.24.1
-azure-storage-file-datalake==12.18.1
-azure-storage-file-share==12.20.1
+azure-storage-blob==12.25.0
+azure-storage-file-datalake==12.19.0
+azure-storage-file-share==12.21.0
 azure-synapse-artifacts==0.20.0
 azure-synapse-spark==0.7.0
 babel==2.17.0
@@ -216,7 +217,7 @@ google-api-python-client==2.163.0
 google-auth-httplib2==0.2.0
 google-auth-oauthlib==1.2.1
 google-auth==2.38.0
-google-cloud-aiplatform==1.83.0
+google-cloud-aiplatform==1.84.0
 google-cloud-alloydb==0.4.3
 google-cloud-appengine-logging==1.6.0
 google-cloud-audit-log==0.3.1
@@ -271,7 +272,7 @@ grpcio-gcp==0.2.2
 grpcio-health-checking==1.62.3
 grpcio-status==1.62.3
 grpcio-tools==1.62.3
-grpcio==1.65.5
+grpcio==1.71.0
 gssapi==1.9.0
 gunicorn==23.0.0
 h11==0.14.0
@@ -339,10 +340,10 @@ kubernetes_asyncio==30.3.1
 kylinpy==2.8.4
 lazy-object-proxy==1.10.0
 libcst==1.6.0
-limits==4.1
+limits==4.2
 linkify-it-py==2.0.3
 lockfile==0.12.2
-looker-sdk==25.2.0
+looker-sdk==25.4.0
 lxml==5.3.1
 lz4==4.4.3
 markdown-it-py==3.0.0
@@ -431,7 +432,7 @@ pgvector==0.3.6
 pinecone-plugin-interface==0.0.7
 pinecone==6.0.1
 pinotdb==5.6.0
-pipdeptree==2.25.0
+pipdeptree==2.25.1
 platformdirs==4.3.6
 pluggy==1.5.0
 ply==3.11
@@ -470,6 +471,7 @@ pyenchant==3.2.2
 pyexasol==0.27.0
 pygraphviz==1.14
 pyiceberg==0.9.0
+pyjsparser==2.7.1
 pykerberos==1.2.4
 pymongo==4.10.1
 pymssql==2.3.2
@@ -503,7 +505,7 @@ python-telegram-bot==21.11.1
 python3-saml==1.16.0
 pytz==2025.1
 pywinrm==0.5.0
-pyzmq==26.2.1
+pyzmq==26.3.0
 qdrant-client==1.13.3
 reactivex==4.0.4
 readme_renderer==44.0
@@ -518,7 +520,7 @@ requests-oauthlib==2.0.0
 requests-toolbelt==1.0.0
 requests==2.32.3
 requests_ntlm==1.3.0
-responses==0.25.6
+responses==0.25.7
 restructuredtext_lint==1.4.0
 retryhttp==1.3.1
 rfc3339-validator==0.1.4
@@ -574,7 +576,7 @@ sphinxcontrib-redoc==1.6.0
 sphinxcontrib-serializinghtml==2.0.0
 sphinxcontrib-spelling==8.0.1
 spython==0.3.14
-sqlalchemy-bigquery==1.12.1
+sqlalchemy-bigquery==1.13.0
 sqlalchemy-spanner==1.9.0
 sqlalchemy_drill==1.1.8
 sqlparse==0.5.3
@@ -585,7 +587,7 @@ starlette==0.46.1
 statsd==4.0.1
 std-uritemplate==2.0.3
 strictyaml==1.7.3
-structlog==25.1.0
+structlog==25.2.0
 sympy==1.13.3
 tableauserverclient==0.36
 tabulate==0.9.0
@@ -637,7 +639,7 @@ universal_pathlib==0.2.6
 uritemplate==4.1.1
 urllib3==2.3.0
 uuid6==2024.7.10
-uv==0.6.3
+uv==0.6.5
 uvicorn==0.34.0
 uvloop==0.21.0
 validators==0.34.0

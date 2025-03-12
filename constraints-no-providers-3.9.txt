@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2025-03-11T14:13:32.627171
+# This constraints file was automatically generated on 2025-03-12T20:05:58.870680
 # via "eager-upgrade" mechanism of PIP. For the "main" branch of Airflow.
 # This variant of constraints install just the 'bare' 'apache-airflow' package build from the HEAD of
 # the branch, without installing any of the providers.
@@ -16,7 +16,7 @@ Flask-Babel==2.0.0
 Flask-Bcrypt==1.0.1
 Flask-Caching==2.3.1
 Flask-JWT-Extended==4.7.1
-Flask-Limiter==3.10.1
+Flask-Limiter==3.11.0
 Flask-Login==0.6.3
 Flask-SQLAlchemy==2.5.1
 Flask-Session==0.5.0
@@ -36,7 +36,7 @@ WTForms==3.2.1
 Werkzeug==2.2.3
 a2wsgi==1.10.8
 aiobotocore==2.21.1
-aiohappyeyeballs==2.5.0
+aiohappyeyeballs==2.6.1
 aiohttp==3.11.13
 aioitertools==0.12.0
 aiosignal==1.3.2
@@ -96,7 +96,7 @@ httpcore==1.0.7
 httptools==0.6.4
 httpx==0.28.1
 idna==3.10
-importlib_metadata==8.5.0
+importlib_metadata==8.6.1
 inflection==0.5.1
 itsdangerous==2.2.0
 jmespath==1.0.1
@@ -106,7 +106,7 @@ kerberos==1.3.1
 krb5==0.7.1
 lazy-object-proxy==1.10.0
 libcst==1.6.0
-limits==4.1
+limits==4.2
 linkify-it-py==2.0.3
 lockfile==0.12.2
 markdown-it-py==3.0.0
@@ -119,15 +119,15 @@ methodtools==0.4.7
 more-itertools==10.6.0
 multidict==6.1.0
 numpy==1.26.4
-opentelemetry-api==1.30.0
-opentelemetry-exporter-otlp-proto-common==1.30.0
-opentelemetry-exporter-otlp-proto-grpc==1.30.0
-opentelemetry-exporter-otlp-proto-http==1.30.0
-opentelemetry-exporter-otlp==1.30.0
-opentelemetry-exporter-prometheus==0.51b0
-opentelemetry-proto==1.30.0
-opentelemetry-sdk==1.30.0
-opentelemetry-semantic-conventions==0.51b0
+opentelemetry-api==1.31.0
+opentelemetry-exporter-otlp-proto-common==1.31.0
+opentelemetry-exporter-otlp-proto-grpc==1.31.0
+opentelemetry-exporter-otlp-proto-http==1.31.0
+opentelemetry-exporter-otlp==1.31.0
+opentelemetry-exporter-prometheus==0.52b0
+opentelemetry-proto==1.31.0
+opentelemetry-sdk==1.31.0
+opentelemetry-semantic-conventions==0.52b0
 ordered-set==4.1.0
 packaging==24.2
 pandas==2.1.4
@@ -189,7 +189,7 @@ uc-micro-py==1.0.3
 universal_pathlib==0.2.6
 urllib3==1.26.20
 uuid6==2024.7.10
-uv==0.6.3
+uv==0.6.5
 uvicorn==0.34.0
 uvloop==0.21.0
 vine==5.1.0
