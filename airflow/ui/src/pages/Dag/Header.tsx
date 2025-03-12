@@ -16,8 +16,7 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Text } from "@chakra-ui/react";
-import { FiBookOpen, FiCalendar } from "react-icons/fi";
+import { FiBookOpen } from "react-icons/fi";
 import { useParams } from "react-router-dom";
 
 import type { DAGDetailsResponse, DAGWithLatestDagRunsResponse } from "openapi/requests/types.gen";
@@ -27,9 +26,9 @@ import DisplayMarkdownButton from "src/components/DisplayMarkdownButton";
 import { HeaderCard } from "src/components/HeaderCard";
 import MenuButton from "src/components/Menu/MenuButton";
 import { TogglePause } from "src/components/TogglePause";
-import { Tooltip } from "src/components/ui";
 
 import { DagTags } from "../DagsList/DagTags";
+import { Schedule } from "../DagsList/Schedule";
 
 export const Header = ({
   dag,
@@ -47,13 +46,7 @@ export const Header = ({
   const stats = [
     {
       label: "Schedule",
-      value: Boolean(dag?.timetable_summary) ? (
-        <Tooltip content={dag?.timetable_description}>
-          <Text fontSize="sm">
-            <FiCalendar style={{ display: "inline" }} /> {dag?.timetable_summary}
-          </Text>
-        </Tooltip>
-      ) : undefined,
+      value: dag === undefined ? undefined : <Schedule dag={dag} />,
     },
     {
       label: "Latest Run",

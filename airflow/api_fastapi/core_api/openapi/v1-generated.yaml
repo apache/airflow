@@ -2088,7 +2088,9 @@ paths:
         in: path
         required: true
         schema:
-          type: string
+          anyOf:
+          - type: string
+          - type: 'null'
           title: Dag Id
       - name: dag_run_id
         in: path
@@ -2140,7 +2142,9 @@ paths:
         in: path
         required: true
         schema:
-          type: string
+          anyOf:
+          - type: string
+          - type: 'null'
           title: Dag Id
       - name: dag_run_id
         in: path
@@ -2194,7 +2198,9 @@ paths:
         in: path
         required: true
         schema:
-          type: string
+          anyOf:
+          - type: string
+          - type: 'null'
           title: Dag Id
       - name: dag_run_id
         in: path
@@ -2270,7 +2276,9 @@ paths:
         in: path
         required: true
         schema:
-          type: string
+          anyOf:
+          - type: string
+          - type: 'null'
           title: Dag Id
       - name: dag_run_id
         in: path
@@ -2322,7 +2330,9 @@ paths:
         in: path
         required: true
         schema:
-          type: string
+          anyOf:
+          - type: string
+          - type: 'null'
           title: Dag Id
       - name: dag_run_id
         in: path
@@ -2388,7 +2398,9 @@ paths:
         in: path
         required: true
         schema:
-          type: string
+          anyOf:
+          - type: string
+          - type: 'null'
           title: Dag Id
       - name: limit
         in: query
@@ -2555,6 +2567,9 @@ paths:
         in: path
         required: true
         schema:
+          anyOf:
+          - type: string
+          - type: 'null'
           title: Dag Id
       requestBody:
         required: true
@@ -2619,8 +2634,9 @@ paths:
         in: path
         required: true
         schema:
-          const: '~'
-          type: string
+          anyOf:
+          - type: string
+          - type: 'null'
           title: Dag Id
       requestBody:
         required: true
@@ -2673,7 +2689,9 @@ paths:
         in: path
         required: true
         schema:
-          type: string
+          anyOf:
+          - type: string
+          - type: 'null'
           title: Dag Id
       - name: version_number
         in: query
@@ -2751,6 +2769,14 @@ paths:
       security:
       - OAuth2PasswordBearer: []
       parameters:
+      - name: dag_id
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Dag Id
       - name: dag_ids
         in: query
         required: false
@@ -4544,7 +4570,9 @@ paths:
         in: path
         required: true
         schema:
-          type: string
+          anyOf:
+          - type: string
+          - type: 'null'
           title: Dag Id
       - name: task_id
         in: path
@@ -4639,7 +4667,9 @@ paths:
         in: path
         required: true
         schema:
-          type: string
+          anyOf:
+          - type: string
+          - type: 'null'
           title: Dag Id
       - name: task_id
         in: path
@@ -4720,7 +4750,9 @@ paths:
         in: path
         required: true
         schema:
-          type: string
+          anyOf:
+          - type: string
+          - type: 'null'
           title: Dag Id
       - name: dag_run_id
         in: path
@@ -4817,7 +4849,9 @@ paths:
         in: path
         required: true
         schema:
-          type: string
+          anyOf:
+          - type: string
+          - type: 'null'
           title: Dag Id
       - name: task_id
         in: path
@@ -4888,7 +4922,9 @@ paths:
         in: path
         required: true
         schema:
-          type: string
+          anyOf:
+          - type: string
+          - type: 'null'
           title: Dag Id
       - name: dag_run_id
         in: path
@@ -4946,7 +4982,9 @@ paths:
         in: path
         required: true
         schema:
-          type: string
+          anyOf:
+          - type: string
+          - type: 'null'
           title: Dag Id
       - name: dag_run_id
         in: path
@@ -5040,7 +5078,9 @@ paths:
         in: path
         required: true
         schema:
-          type: string
+          anyOf:
+          - type: string
+          - type: 'null'
           title: Dag Id
       - name: dag_run_id
         in: path
@@ -5268,7 +5308,9 @@ paths:
         in: path
         required: true
         schema:
-          type: string
+          anyOf:
+          - type: string
+          - type: 'null'
           title: Dag Id
       - name: dag_run_id
         in: path
@@ -5333,7 +5375,9 @@ paths:
         in: path
         required: true
         schema:
-          type: string
+          anyOf:
+          - type: string
+          - type: 'null'
           title: Dag Id
       - name: dag_run_id
         in: path
@@ -5399,7 +5443,9 @@ paths:
         in: path
         required: true
         schema:
-          type: string
+          anyOf:
+          - type: string
+          - type: 'null'
           title: Dag Id
       - name: dag_run_id
         in: path
@@ -5464,7 +5510,9 @@ paths:
         in: path
         required: true
         schema:
-          type: string
+          anyOf:
+          - type: string
+          - type: 'null'
           title: Dag Id
       - name: dag_run_id
         in: path
@@ -5529,7 +5577,9 @@ paths:
         in: path
         required: true
         schema:
-          type: string
+          anyOf:
+          - type: string
+          - type: 'null'
           title: Dag Id
       - name: dag_run_id
         in: path
@@ -5593,7 +5643,9 @@ paths:
         in: path
         required: true
         schema:
-          type: string
+          anyOf:
+          - type: string
+          - type: 'null'
           title: Dag Id
       - name: dag_run_id
         in: path
@@ -5692,7 +5744,9 @@ paths:
         in: path
         required: true
         schema:
-          type: string
+          anyOf:
+          - type: string
+          - type: 'null'
           title: Dag Id
       - name: dag_run_id
         in: path
@@ -5930,8 +5984,9 @@ paths:
         in: path
         required: true
         schema:
-          const: '~'
-          type: string
+          anyOf:
+          - type: string
+          - type: 'null'
           title: Dag Id
       - name: dag_run_id
         in: path
@@ -5991,7 +6046,9 @@ paths:
         in: path
         required: true
         schema:
-          type: string
+          anyOf:
+          - type: string
+          - type: 'null'
           title: Dag Id
       - name: dag_run_id
         in: path
@@ -6062,7 +6119,9 @@ paths:
         in: path
         required: true
         schema:
-          type: string
+          anyOf:
+          - type: string
+          - type: 'null'
           title: Dag Id
       - name: dag_run_id
         in: path
@@ -6133,7 +6192,9 @@ paths:
         in: path
         required: true
         schema:
-          type: string
+          anyOf:
+          - type: string
+          - type: 'null'
           title: Dag Id
       requestBody:
         required: true
@@ -6186,7 +6247,9 @@ paths:
         in: path
         required: true
         schema:
-          type: string
+          anyOf:
+          - type: string
+          - type: 'null'
           title: Dag Id
       - name: dag_run_id
         in: path
@@ -6273,7 +6336,9 @@ paths:
         in: path
         required: true
         schema:
-          type: string
+          anyOf:
+          - type: string
+          - type: 'null'
           title: Dag Id
       - name: dag_run_id
         in: path
@@ -6889,6 +6954,14 @@ paths:
         schema:
           type: string
           title: File Token
+      - name: dag_id
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Dag Id
       responses:
         '201':
           description: Successful Response
@@ -9112,6 +9185,11 @@ components:
             type: string
           type: array
           title: Owners
+        asset_expression:
+          anyOf:
+          - type: object
+          - type: 'null'
+          title: Asset Expression
         latest_dag_runs:
           items:
             $ref: '#/components/schemas/DAGRunResponse'
@@ -9145,6 +9223,7 @@ components:
       - next_dagrun_data_interval_end
       - next_dagrun_run_after
       - owners
+      - asset_expression
       - latest_dag_runs
       - file_token
       title: DAGWithLatestDagRunsResponse

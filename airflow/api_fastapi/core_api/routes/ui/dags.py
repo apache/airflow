@@ -148,9 +148,11 @@ def recent_dag_runs(
         dag_run_response = DAGRunResponse.model_validate(dag_run)
         if dag_id not in dag_runs_by_dag_id:
             dag_response = DAGResponse.model_validate(dag)
+            dag_model: DagModel = session.get(DagModel, dag.dag_id)
             dag_runs_by_dag_id[dag_id] = DAGWithLatestDagRunsResponse.model_validate(
                 {
                     **dag_response.model_dump(),
+                    "asset_expression": dag_model.asset_expression,
                     "latest_dag_runs": [dag_run_response],
                 }
             )
