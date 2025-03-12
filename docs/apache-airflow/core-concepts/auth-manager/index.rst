@@ -92,6 +92,11 @@ Some reasons you may want to write a custom auth manager include:
 * You'd like to use an auth manager that leverages an identity provider from your preferred cloud provider.
 * You have a private user management tool that is only available to you or your organization.
 
+.. note::
+     When you write your own auth manager, you have to set the JWT token to a cookie key ``_token``.
+     before redirecting to the Airflow UI.This is the key used by the Airflow UI to extract the JWT token from
+     the cookie.
+     refer the fab auth manager for more details. :class:`~airflow.providers.fab.www.views.FabIndexView`
 
 Authentication related BaseAuthManager methods
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
