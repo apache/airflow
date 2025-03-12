@@ -2088,9 +2088,7 @@ paths:
         in: path
         required: true
         schema:
-          anyOf:
-          - type: string
-          - type: 'null'
+          type: string
           title: Dag Id
       - name: dag_run_id
         in: path
@@ -2142,9 +2140,7 @@ paths:
         in: path
         required: true
         schema:
-          anyOf:
-          - type: string
-          - type: 'null'
+          type: string
           title: Dag Id
       - name: dag_run_id
         in: path
@@ -2198,9 +2194,7 @@ paths:
         in: path
         required: true
         schema:
-          anyOf:
-          - type: string
-          - type: 'null'
+          type: string
           title: Dag Id
       - name: dag_run_id
         in: path
@@ -2276,9 +2270,7 @@ paths:
         in: path
         required: true
         schema:
-          anyOf:
-          - type: string
-          - type: 'null'
+          type: string
           title: Dag Id
       - name: dag_run_id
         in: path
@@ -2330,9 +2322,7 @@ paths:
         in: path
         required: true
         schema:
-          anyOf:
-          - type: string
-          - type: 'null'
+          type: string
           title: Dag Id
       - name: dag_run_id
         in: path
@@ -2398,9 +2388,7 @@ paths:
         in: path
         required: true
         schema:
-          anyOf:
-          - type: string
-          - type: 'null'
+          type: string
           title: Dag Id
       - name: limit
         in: query
@@ -2567,9 +2555,6 @@ paths:
         in: path
         required: true
         schema:
-          anyOf:
-          - type: string
-          - type: 'null'
           title: Dag Id
       requestBody:
         required: true
@@ -2634,9 +2619,8 @@ paths:
         in: path
         required: true
         schema:
-          anyOf:
-          - type: string
-          - type: 'null'
+          const: '~'
+          type: string
           title: Dag Id
       requestBody:
         required: true
@@ -2689,9 +2673,7 @@ paths:
         in: path
         required: true
         schema:
-          anyOf:
-          - type: string
-          - type: 'null'
+          type: string
           title: Dag Id
       - name: version_number
         in: query
@@ -2769,14 +2751,6 @@ paths:
       security:
       - OAuth2PasswordBearer: []
       parameters:
-      - name: dag_id
-        in: query
-        required: false
-        schema:
-          anyOf:
-          - type: string
-          - type: 'null'
-          title: Dag Id
       - name: dag_ids
         in: query
         required: false
@@ -4570,9 +4544,7 @@ paths:
         in: path
         required: true
         schema:
-          anyOf:
-          - type: string
-          - type: 'null'
+          type: string
           title: Dag Id
       - name: task_id
         in: path
@@ -4667,9 +4639,7 @@ paths:
         in: path
         required: true
         schema:
-          anyOf:
-          - type: string
-          - type: 'null'
+          type: string
           title: Dag Id
       - name: task_id
         in: path
@@ -4750,9 +4720,7 @@ paths:
         in: path
         required: true
         schema:
-          anyOf:
-          - type: string
-          - type: 'null'
+          type: string
           title: Dag Id
       - name: dag_run_id
         in: path
@@ -4849,9 +4817,7 @@ paths:
         in: path
         required: true
         schema:
-          anyOf:
-          - type: string
-          - type: 'null'
+          type: string
           title: Dag Id
       - name: task_id
         in: path
@@ -4922,9 +4888,7 @@ paths:
         in: path
         required: true
         schema:
-          anyOf:
-          - type: string
-          - type: 'null'
+          type: string
           title: Dag Id
       - name: dag_run_id
         in: path
@@ -4982,9 +4946,7 @@ paths:
         in: path
         required: true
         schema:
-          anyOf:
-          - type: string
-          - type: 'null'
+          type: string
           title: Dag Id
       - name: dag_run_id
         in: path
@@ -5078,9 +5040,7 @@ paths:
         in: path
         required: true
         schema:
-          anyOf:
-          - type: string
-          - type: 'null'
+          type: string
           title: Dag Id
       - name: dag_run_id
         in: path
@@ -5308,9 +5268,7 @@ paths:
         in: path
         required: true
         schema:
-          anyOf:
-          - type: string
-          - type: 'null'
+          type: string
           title: Dag Id
       - name: dag_run_id
         in: path
@@ -5375,9 +5333,7 @@ paths:
         in: path
         required: true
         schema:
-          anyOf:
-          - type: string
-          - type: 'null'
+          type: string
           title: Dag Id
       - name: dag_run_id
         in: path
@@ -5443,9 +5399,7 @@ paths:
         in: path
         required: true
         schema:
-          anyOf:
-          - type: string
-          - type: 'null'
+          type: string
           title: Dag Id
       - name: dag_run_id
         in: path
@@ -5510,9 +5464,7 @@ paths:
         in: path
         required: true
         schema:
-          anyOf:
-          - type: string
-          - type: 'null'
+          type: string
           title: Dag Id
       - name: dag_run_id
         in: path
@@ -5577,9 +5529,7 @@ paths:
         in: path
         required: true
         schema:
-          anyOf:
-          - type: string
-          - type: 'null'
+          type: string
           title: Dag Id
       - name: dag_run_id
         in: path
@@ -5643,9 +5593,7 @@ paths:
         in: path
         required: true
         schema:
-          anyOf:
-          - type: string
-          - type: 'null'
+          type: string
           title: Dag Id
       - name: dag_run_id
         in: path
@@ -5744,9 +5692,7 @@ paths:
         in: path
         required: true
         schema:
-          anyOf:
-          - type: string
-          - type: 'null'
+          type: string
           title: Dag Id
       - name: dag_run_id
         in: path
@@ -5984,9 +5930,8 @@ paths:
         in: path
         required: true
         schema:
-          anyOf:
-          - type: string
-          - type: 'null'
+          const: '~'
+          type: string
           title: Dag Id
       - name: dag_run_id
         in: path
@@ -6046,9 +5991,7 @@ paths:
         in: path
         required: true
         schema:
-          anyOf:
-          - type: string
-          - type: 'null'
+          type: string
           title: Dag Id
       - name: dag_run_id
         in: path
@@ -6119,9 +6062,7 @@ paths:
         in: path
         required: true
         schema:
-          anyOf:
-          - type: string
-          - type: 'null'
+          type: string
           title: Dag Id
       - name: dag_run_id
         in: path
@@ -6192,9 +6133,7 @@ paths:
         in: path
         required: true
         schema:
-          anyOf:
-          - type: string
-          - type: 'null'
+          type: string
           title: Dag Id
       requestBody:
         required: true
@@ -6247,9 +6186,7 @@ paths:
         in: path
         required: true
         schema:
-          anyOf:
-          - type: string
-          - type: 'null'
+          type: string
           title: Dag Id
       - name: dag_run_id
         in: path
@@ -6336,9 +6273,7 @@ paths:
         in: path
         required: true
         schema:
-          anyOf:
-          - type: string
-          - type: 'null'
+          type: string
           title: Dag Id
       - name: dag_run_id
         in: path
@@ -6954,14 +6889,6 @@ paths:
         schema:
           type: string
           title: File Token
-      - name: dag_id
-        in: query
-        required: false
-        schema:
-          anyOf:
-          - type: string
-          - type: 'null'
-          title: Dag Id
       responses:
         '201':
           description: Successful Response

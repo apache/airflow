@@ -683,14 +683,12 @@ export type DagStatsServiceGetDagStatsQueryResult<
 export const useDagStatsServiceGetDagStatsKey = "DagStatsServiceGetDagStats";
 export const UseDagStatsServiceGetDagStatsKeyFn = (
   {
-    dagId,
     dagIds,
   }: {
-    dagId?: string;
     dagIds?: string[];
   } = {},
   queryKey?: Array<unknown>,
-) => [useDagStatsServiceGetDagStatsKey, ...(queryKey ?? [{ dagId, dagIds }])];
+) => [useDagStatsServiceGetDagStatsKey, ...(queryKey ?? [{ dagIds }])];
 export type DagReportServiceGetDagReportsDefaultResponse = Awaited<
   ReturnType<typeof DagReportService.getDagReports>
 >;
