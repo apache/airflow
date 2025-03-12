@@ -20,7 +20,7 @@
 Use ti_id as FK to TaskReschedule.
 
 Revision ID: d469d27e2a64
-Revises: cf87489a35df
+Revises: 16f7f5ee874e
 Create Date: 2025-03-06 16:04:49.106274
 
 """
@@ -35,7 +35,7 @@ from airflow.migrations.db_types import StringID
 
 # revision identifiers, used by Alembic.
 revision = "d469d27e2a64"
-down_revision = "cf87489a35df"
+down_revision = "16f7f5ee874e"
 branch_labels = None
 depends_on = None
 airflow_version = "3.0.0"
