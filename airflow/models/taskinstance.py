@@ -2806,15 +2806,16 @@ class TaskInstance(Base, LoggingMixin):
                 d[asset_key, extra_key].add(alias_name)
             return d
 
-        outlet_alias_names = {o.name for o in task_outlets if o.type == AssetAlias.__name__ if o.name}
+        outlet_alias_names = {o.name for o in task_outlets if o.type == AssetAlias.__name__ and o.name}
         if outlet_alias_names and (event_from_aliases := asset_event_extras_from_aliases()):
-            asset_alias_models: dict[str, AssetAliasModel] = dict(
-                session.execute(
+            asset_alias_models: dict[str, AssetAliasModel] = {
+                name: model
+                for name, model in session.execute(
                     select(AssetAliasModel.name, AssetAliasModel).where(
                         AssetAliasModel.name.in_(outlet_alias_names)
                     )
                 )
-            )
+            }
             for (asset_key, extra_key), event_aliase_names in event_from_aliases.items():
                 aliases = [
                     alias_model
