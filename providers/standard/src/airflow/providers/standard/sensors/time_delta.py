@@ -71,13 +71,12 @@ class TimeDeltaSensor(BaseSensorOperator):
         """
         data_interval_end = context.get("data_interval_end")
         if data_interval_end:
-            base_time = data_interval_end
+            return data_interval_end
         else:
-            dag_run = context["dag_run"]
+            dag_run = context.get("dag_run")
             if not dag_run:
-                raise ValueError("No dag run found in task context")
-            base_time = dag_run.run_after
-        return base_time
+                raise ValueError("`dag_run` not found in task context")
+            return dag_run.run_after
 
     def poke(self, context: Context):
         base_time = self._derive_base_time(context=context)
