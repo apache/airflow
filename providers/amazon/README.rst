@@ -68,7 +68,6 @@ PIP package                                 Version required
 ``jmespath``                                ``>=0.7.0``
 ``python3-saml``                            ``>=1.16.0``
 ``xmlsec``                                  ``>=1.3.14,!=1.3.15``
-``sagemaker-studio``                        ``>=1.0.9``
 ==========================================  ======================
 
 Cross provider package dependencies

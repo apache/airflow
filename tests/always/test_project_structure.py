@@ -71,7 +71,6 @@ class TestProjectStructure:
             "providers/amazon/tests/unit/amazon/aws/sensors/test_emr.py",
             "providers/amazon/tests/unit/amazon/aws/sensors/test_sagemaker.py",
             "providers/amazon/tests/unit/amazon/aws/test_exceptions.py",
-            "providers/amazon/tests/unit/amazon/aws/triggers/test_sagemaker_unified_studio.py",
             "providers/amazon/tests/unit/amazon/aws/triggers/test_step_function.py",
             "providers/amazon/tests/unit/amazon/aws/utils/test_rds.py",
             "providers/amazon/tests/unit/amazon/aws/utils/test_sagemaker.py",
@@ -605,8 +604,6 @@ class TestAmazonProviderProjectStructure(ExampleCoverageTest):
         # These operations take a lot of time, there are commented out in the system tests for this reason
         "airflow.providers.amazon.aws.operators.dms.DmsStartReplicationOperator",
         "airflow.providers.amazon.aws.operators.dms.DmsStopReplicationOperator",
-        # These modules are used in the SageMakerNotebookOperator and therefore don't have their own examples
-        "airflow.providers.amazon.aws.sensors.sagemaker_unified_studio.SageMakerNotebookSensor",
     }
 
     DEPRECATED_CLASSES = {
