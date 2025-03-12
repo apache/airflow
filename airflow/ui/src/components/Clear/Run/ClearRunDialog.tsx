@@ -18,7 +18,7 @@
  */
 import { Flex, Heading, VStack } from "@chakra-ui/react";
 import { useState } from "react";
-import { LuRedo } from "react-icons/lu";
+import { CgRedo } from "react-icons/cg";
 
 import type { DAGRunResponse } from "openapi/requests/types.gen";
 import { ActionAccordion } from "src/components/ActionAccordion";
@@ -117,7 +117,7 @@ const ClearRunDialog = ({ dagRun, onClose, open }: Props) => {
                 }
               }}
             >
-              <LuRedo /> Confirm
+              <CgRedo /> Confirm
             </Button>
           </Flex>
         </Dialog.Body>

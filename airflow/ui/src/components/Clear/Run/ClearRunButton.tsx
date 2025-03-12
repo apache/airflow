@@ -17,7 +17,7 @@
  * under the License.
  */
 import { Box, useDisclosure } from "@chakra-ui/react";
-import { LuRedo } from "react-icons/lu";
+import { CgRedo } from "react-icons/cg";
 
 import type { DAGRunResponse } from "openapi/requests/types.gen";
 import ActionButton from "src/components/ui/ActionButton";
@@ -36,7 +36,7 @@ const ClearRunButton = ({ dagRun, withText = true }: Props) => {
     <Box>
       <ActionButton
         actionName="Clear Dag Run"
-        icon={<LuRedo />}
+        icon={<CgRedo />}
         onClick={onOpen}
         text="Clear Run"
         withText={withText}
