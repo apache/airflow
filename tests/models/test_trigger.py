@@ -264,7 +264,10 @@ def test_submit_event_task_end(mock_utcnow, session, create_task_instance, event
     assert ti.end_date == now
     assert ti.duration is not None
     actual_xcoms = {x.key: x.value for x in get_xcoms(ti)}
-    assert actual_xcoms == {"return_value": "xcomret", "a": "b", "c": "d"}
+    expected_xcoms = {}
+    for k, v in {"return_value": "xcomret", "a": "b", "c": "d"}.items():
+        expected_xcoms[k] = json.dumps(v)
+    assert actual_xcoms == expected_xcoms
 
 
 def test_assign_unassigned(session, create_task_instance):

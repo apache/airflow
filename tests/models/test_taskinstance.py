@@ -19,6 +19,7 @@ from __future__ import annotations
 
 import contextlib
 import datetime
+import json
 import operator
 import os
 import pathlib
@@ -2375,7 +2376,7 @@ class TestTaskInstance:
                 dag_id=dr.dag_id, run_id=dr.run_id, task_id="write1", key="return_value"
             )
         ).one()
-        assert xcom.value == "write_1 result"
+        assert xcom.value == json.dumps("write_1 result")
 
         events = dict(iter(session.execute(select(AssetEvent.source_task_id, AssetEvent))))
         assert set(events) == {"write1", "write2"}
