@@ -16,11 +16,12 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Box, Flex, HStack, Table, Text } from "@chakra-ui/react";
+import { Box, Flex, HStack, StackSeparator, Table, Text, VStack } from "@chakra-ui/react";
 import { useParams } from "react-router-dom";
 
 import { useDagRunServiceGetDagRun, useDagRunServiceGetUpstreamAssetEvents } from "openapi/queries";
 import { AssetEvents } from "src/components/Assets/AssetEvents";
+import { DagVersionDetails } from "src/components/DagVersionDetails";
 import RenderedJsonField from "src/components/RenderedJsonField";
 import { RunTypeIcon } from "src/components/RunTypeIcon";
 import { StateBadge } from "src/components/StateBadge";
@@ -130,6 +131,16 @@ export const Details = () => {
             <Table.Row>
               <Table.Cell>Trigger Source</Table.Cell>
               <Table.Cell>{dagRun.triggered_by}</Table.Cell>
+            </Table.Row>
+            <Table.Row>
+              <Table.Cell>Dag Version(s)</Table.Cell>
+              <Table.Cell>
+                <VStack separator={<StackSeparator />}>
+                  {dagRun.dag_versions.map((dagVersion) => (
+                    <DagVersionDetails dagVersion={dagVersion} key={dagVersion.id} />
+                  ))}
+                </VStack>
+              </Table.Cell>
             </Table.Row>
             <Table.Row>
               <Table.Cell>Run Config</Table.Cell>
