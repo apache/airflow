@@ -27,7 +27,7 @@ pytestmark = pytest.mark.db_test
 
 
 class TestGetConnection:
-    def test_connection_get_from_db(self, client, session):
+    def test_connection_get_from_db(self, test_client, session):
         connection = Connection(
             conn_id="test_conn",
             conn_type="http",
@@ -43,7 +43,7 @@ class TestGetConnection:
         session.add(connection)
         session.commit()
 
-        response = client.get("/execution/connections/test_conn")
+        response = test_client.get("/execution/connections/test_conn")
 
         assert response.status_code == 200
         assert response.json() == {
@@ -65,8 +65,8 @@ class TestGetConnection:
         "os.environ",
         {"AIRFLOW_CONN_TEST_CONN2": '{"uri": "http://root:admin@localhost:8080/https?headers=header"}'},
     )
-    def test_connection_get_from_env_var(self, client, session):
-        response = client.get("/execution/connections/test_conn2")
+    def test_connection_get_from_env_var(self, test_client, session):
+        response = test_client.get("/execution/connections/test_conn2")
 
         assert response.status_code == 200
         assert response.json() == {
@@ -80,8 +80,8 @@ class TestGetConnection:
             "extra": '{"headers": "header"}',
         }
 
-    def test_connection_get_not_found(self, client):
-        response = client.get("/execution/connections/non_existent_test_conn")
+    def test_connection_get_not_found(self, test_client):
+        response = test_client.get("/execution/connections/non_existent_test_conn")
 
         assert response.status_code == 404
         assert response.json() == {
@@ -91,11 +91,11 @@ class TestGetConnection:
             }
         }
 
-    def test_connection_get_access_denied(self, client):
+    def test_connection_get_access_denied(self, test_client):
         with mock.patch(
             "airflow.api_fastapi.execution_api.routes.connections.has_connection_access", return_value=False
         ):
-            response = client.get("/execution/connections/test_conn")
+            response = test_client.get("/execution/connections/test_conn")
 
         # Assert response status code and detail for access denied
         assert response.status_code == 403
@@ -105,3 +105,11 @@ class TestGetConnection:
                 "message": "Task does not have access to connection test_conn",
             }
         }
+
+    def test_get_config_should_response_401(self, unauthenticated_test_client):
+        response = unauthenticated_test_client.get("/execution/connections/test_conn")
+        assert response.status_code == 401
+
+    def test_get_config_should_response_403(self, unauthorized_test_client):
+        response = unauthorized_test_client.get("/execution/connections/test_conn")
+        assert response.status_code == 403

@@ -19,9 +19,10 @@ from __future__ import annotations
 
 import logging
 
-from fastapi import HTTPException, status
+from fastapi import Depends, HTTPException, status
 
 from airflow.api_fastapi.common.router import AirflowRouter
+from airflow.api_fastapi.core_api.security import requires_access_connection
 from airflow.api_fastapi.execution_api import deps
 from airflow.api_fastapi.execution_api.datamodels.connection import ConnectionResponse
 from airflow.api_fastapi.execution_api.datamodels.token import TIToken
@@ -31,6 +32,7 @@ from airflow.models.connection import Connection
 # TODO: Add dependency on JWT token
 router = AirflowRouter(
     responses={status.HTTP_404_NOT_FOUND: {"description": "Connection not found"}},
+    dependencies=[Depends(requires_access_connection("GET"))],
 )
 
 log = logging.getLogger(__name__)
