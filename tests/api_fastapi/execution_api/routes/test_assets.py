@@ -28,7 +28,7 @@ pytestmark = pytest.mark.db_test
 
 
 class TestGetAssetByName:
-    def test_get_asset_by_name(self, client, session):
+    def test_get_asset_by_name(self, test_client, session):
         asset = AssetModel(
             id=1,
             name="test_get_asset_by_name",
@@ -44,7 +44,7 @@ class TestGetAssetByName:
         session.add_all([asset, asset_active])
         session.commit()
 
-        response = client.get("/execution/assets/by-name", params={"name": "test_get_asset_by_name"})
+        response = test_client.get("/execution/assets/by-name", params={"name": "test_get_asset_by_name"})
 
         assert response.status_code == 200
         assert response.json() == {
@@ -58,8 +58,8 @@ class TestGetAssetByName:
         session.delete(asset_active)
         session.commit()
 
-    def test_asset_name_not_found(self, client):
-        response = client.get("/execution/assets/by-name", params={"name": "non_existent"})
+    def test_asset_name_not_found(self, test_client):
+        response = test_client.get("/execution/assets/by-name", params={"name": "non_existent"})
 
         assert response.status_code == 404
         assert response.json() == {
@@ -69,9 +69,21 @@ class TestGetAssetByName:
             }
         }
 
+    def test_get_config_should_response_401(self, unauthenticated_test_client):
+        response = unauthenticated_test_client.get(
+            "/execution/assets/by-name", params={"name": "test_get_asset_by_name"}
+        )
+        assert response.status_code == 401
+
+    def test_get_config_should_response_403(self, unauthorized_test_client):
+        response = unauthorized_test_client.get(
+            "/execution/assets/by-name", params={"name": "test_get_asset_by_name"}
+        )
+        assert response.status_code == 403
+
 
 class TestGetAssetByUri:
-    def test_get_asset_by_uri(self, client, session):
+    def test_get_asset_by_uri(self, test_client, session):
         asset = AssetModel(
             name="test_get_asset_by_uri",
             uri="s3://bucket/key",
@@ -84,7 +96,7 @@ class TestGetAssetByUri:
         session.add_all([asset, asset_active])
         session.commit()
 
-        response = client.get("/execution/assets/by-uri", params={"uri": "s3://bucket/key"})
+        response = test_client.get("/execution/assets/by-uri", params={"uri": "s3://bucket/key"})
 
         assert response.status_code == 200
         assert response.json() == {
@@ -98,8 +110,8 @@ class TestGetAssetByUri:
         session.delete(asset_active)
         session.commit()
 
-    def test_asset_uri_not_found(self, client):
-        response = client.get("/execution/assets/by-uri", params={"uri": "non_existent"})
+    def test_asset_uri_not_found(self, test_client):
+        response = test_client.get("/execution/assets/by-uri", params={"uri": "non_existent"})
 
         assert response.status_code == 404
         assert response.json() == {
@@ -108,3 +120,13 @@ class TestGetAssetByUri:
                 "reason": "not_found",
             }
         }
+
+    def test_get_config_should_response_401(self, unauthenticated_test_client):
+        response = unauthenticated_test_client.get(
+            "/execution/assets/by-uri", params={"uri": "s3://bucket/key"}
+        )
+        assert response.status_code == 401
+
+    def test_get_config_should_response_403(self, unauthorized_test_client):
+        response = unauthorized_test_client.get("/execution/assets/by-uri", params={"uri": "s3://bucket/key"})
+        assert response.status_code == 403
