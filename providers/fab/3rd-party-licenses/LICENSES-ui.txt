@@ -1,5 +1,5 @@
 Apache Airflow
-Copyright 2016-2023 The Apache Software Foundation
+Copyright 2016-2025 The Apache Software Foundation
 
 This product includes software developed at The Apache Software
 Foundation (http://www.apache.org/).
@@ -85,4 +85,3 @@ COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER
 IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
 CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 https://github.com/moment/moment-timezone.git
-
