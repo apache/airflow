@@ -219,7 +219,11 @@ CONFIGS_CHANGES = [
     ),
     ConfigChange(
         config=ConfigParameter("api", "auth_backend"),
-        renamed_to=ConfigParameter("api", "auth_backends"),
+        renamed_to=ConfigParameter("fab", "auth_backends"),
+    ),
+    ConfigChange(
+        config=ConfigParameter("api", "auth_backends"),
+        renamed_to=ConfigParameter("fab", "auth_backends"),
     ),
     # logging
     ConfigChange(

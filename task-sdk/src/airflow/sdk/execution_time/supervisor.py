@@ -234,8 +234,6 @@ def block_orm_access():
         from airflow import settings
         from airflow.configuration import conf
 
-        settings.dispose_orm()
-
         for attr in ("engine", "async_engine", "Session", "AsyncSession", "NonScopedSession"):
             if hasattr(settings, attr):
                 delattr(settings, attr)
@@ -329,7 +327,7 @@ def _fork_main(
         import traceback
 
         try:
-            last_chance_stderr.write("--- Last chance exception handler ---\n")
+            last_chance_stderr.write("--- Supervised process Last chance exception handler ---\n")
             traceback.print_exception(exc, value=v, tb=tb, file=last_chance_stderr)
             # Exit code 126 and 125 don't have any "special" meaning, they are only meant to serve as an
             # identifier that the task process died in a really odd way.

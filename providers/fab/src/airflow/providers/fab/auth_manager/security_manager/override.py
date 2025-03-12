@@ -1117,6 +1117,8 @@ class FabAirflowSecurityManagerOverride(AirflowSecurityManagerV2):
                 action = self.create_permission(action_name, resource_name)
                 if self.auth_role_admin not in self.builtin_roles:
                     admin_role = self.find_role(self.auth_role_admin)
+                    if not admin_role:
+                        admin_role = self.add_role(self.auth_role_admin)
                     self.add_permission_to_role(admin_role, action)
         else:
             # Permissions on this view exist but....

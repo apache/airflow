@@ -25,6 +25,7 @@ import {
   useTaskInstanceServiceGetTaskInstanceTryDetails,
 } from "openapi/queries";
 import { AssetEvents } from "src/components/Assets/AssetEvents";
+import { DagVersionDetails } from "src/components/DagVersionDetails";
 import { StateBadge } from "src/components/StateBadge";
 import { TaskTrySelect } from "src/components/TaskTrySelect";
 import Time from "src/components/Time";
@@ -165,6 +166,12 @@ export const Details = () => {
             <Table.Cell>Ended</Table.Cell>
             <Table.Cell>
               <Time datetime={tryInstance?.end_date} />
+            </Table.Cell>
+          </Table.Row>
+          <Table.Row>
+            <Table.Cell>Dag Version</Table.Cell>
+            <Table.Cell>
+              <DagVersionDetails dagVersion={taskInstance?.dag_version} />
             </Table.Cell>
           </Table.Row>
           <Table.Row>
