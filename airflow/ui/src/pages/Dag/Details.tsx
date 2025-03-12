@@ -120,7 +120,7 @@ export const Details = () => {
             </Table.Row>
             <Table.Row>
               <Table.Cell>Catchup</Table.Cell>
-              <Table.Cell>{dag.catchup}</Table.Cell>
+              <Table.Cell>{dag.catchup.toString()}</Table.Cell>
             </Table.Row>
             {dag.params === null ? undefined : (
               <Table.Row>
