@@ -541,19 +541,6 @@ def run(
     ti: RuntimeTaskInstance, log: Logger
 ) -> tuple[IntermediateTIState | TerminalTIState, ToSupervisor | None, BaseException | None]:
     """Run the task in this process."""
-    # First, clear the xcom data
-    if ti._ti_context_from_server and ti._ti_context_from_server.xcom_keys_to_clear:
-        keys_to_delete = ti._ti_context_from_server.xcom_keys_to_clear
-
-        for x in keys_to_delete:
-            log.debug("Clearing XCom with key", key=x)
-            XCom.delete(
-                key=x,
-                dag_id=ti.dag_id,
-                task_id=ti.task_id,
-                run_id=ti.run_id,
-            )
-
     from airflow.exceptions import (
         AirflowException,
         AirflowFailException,
@@ -573,6 +560,17 @@ def run(
     state: IntermediateTIState | TerminalTIState
     error: BaseException | None = None
     try:
+        # First, clear the xcom data sent from server
+        if ti._ti_context_from_server and (keys_to_delete := ti._ti_context_from_server.xcom_keys_to_clear):
+            for x in keys_to_delete:
+                log.debug("Clearing XCom with key", key=x)
+                XCom.delete(
+                    key=x,
+                    dag_id=ti.dag_id,
+                    task_id=ti.task_id,
+                    run_id=ti.run_id,
+                )
+
         context = ti.get_template_context()
         with set_current_context(context):
             # This is the earliest that we can render templates -- as if it excepts for any reason we need to

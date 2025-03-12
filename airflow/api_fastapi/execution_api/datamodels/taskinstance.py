@@ -267,8 +267,8 @@ class TIRunContext(BaseModel):
     Can either be a "decorated" dict, or a string encrypted with the shared Fernet key.
     """
 
-    """List of Xcom keys that need to be cleared."""
     xcom_keys_to_clear: Annotated[list[str], Field(default_factory=list)]
+    """List of Xcom keys that need to be cleared."""
 
 
 class PrevSuccessfulDagRunResponse(BaseModel):

@@ -186,7 +186,11 @@ def ti_run(
         if not dr:
             raise ValueError(f"DagRun with dag_id={ti.dag_id} and run_id={ti.run_id} not found.")
 
-        # Send the XCom data for clearance for the task instance since we are certain it is executing at this point.
+        # Send the keys to the SDK so that the client requests to clear those XComs from the server.
+        # The reason we cannot do this here in the server is because we need to issue a purge on custom XCom backends
+        # too. With the current assumption, the workers ONLY have access to the custom XCom backends directly and they
+        # can issue the purge.
+
         # However, do not clear it for deferral
         xcom_keys = []
         if not ti.next_method:
