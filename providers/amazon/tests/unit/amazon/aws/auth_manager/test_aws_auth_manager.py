@@ -37,6 +37,7 @@ from airflow.api_fastapi.auth.managers.models.resource_details import (
     PoolDetails,
     VariableDetails,
 )
+from airflow.api_fastapi.common.types import MenuItem
 from airflow.providers.amazon.aws.auth_manager.avp.entities import AvpEntities
 from airflow.providers.amazon.aws.auth_manager.aws_auth_manager import AwsAuthManager
 from airflow.providers.amazon.aws.auth_manager.user import AwsAuthManagerUser
@@ -398,6 +399,77 @@ class TestAwsAuthManager:
             user=ANY,
         )
         assert result
+
+    def test_filter_authorized_menu_items(self, auth_manager):
+        batch_is_authorized_output = [
+            {
+                "request": {
+                    "principal": {"entityType": "Airflow::User", "entityId": "test_user_id"},
+                    "action": {"actionType": "Airflow::Action", "actionId": "Menu.MENU"},
+                    "resource": {"entityType": "Airflow::Menu", "entityId": MenuItem.CONNECTIONS.value},
+                },
+                "decision": "DENY",
+            },
+            {
+                "request": {
+                    "principal": {"entityType": "Airflow::User", "entityId": "test_user_id"},
+                    "action": {"actionType": "Airflow::Action", "actionId": "Menu.MENU"},
+                    "resource": {"entityType": "Airflow::Menu", "entityId": MenuItem.VARIABLES.value},
+                },
+                "decision": "ALLOW",
+            },
+            {
+                "request": {
+                    "principal": {"entityType": "Airflow::User", "entityId": "test_user_id"},
+                    "action": {"actionType": "Airflow::Action", "actionId": "Menu.MENU"},
+                    "resource": {"entityType": "Airflow::Menu", "entityId": MenuItem.ASSETS.value},
+                },
+                "decision": "DENY",
+            },
+            {
+                "request": {
+                    "principal": {"entityType": "Airflow::User", "entityId": "test_user_id"},
+                    "action": {"actionType": "Airflow::Action", "actionId": "Menu.MENU"},
+                    "resource": {"entityType": "Airflow::Menu", "entityId": MenuItem.DAGS.value},
+                },
+                "decision": "ALLOW",
+            },
+        ]
+        auth_manager.avp_facade.get_batch_is_authorized_results = Mock(
+            return_value=batch_is_authorized_output
+        )
+
+        result = auth_manager.filter_authorized_menu_items(
+            [MenuItem.CONNECTIONS, MenuItem.VARIABLES, MenuItem.ASSETS, MenuItem.DAGS],
+            user=AwsAuthManagerUser(user_id="test_user_id", groups=[]),
+        )
+
+        auth_manager.avp_facade.get_batch_is_authorized_results.assert_called_once_with(
+            requests=[
+                {
+                    "method": "MENU",
+                    "entity_type": AvpEntities.MENU,
+                    "entity_id": MenuItem.CONNECTIONS.value,
+                },
+                {
+                    "method": "MENU",
+                    "entity_type": AvpEntities.MENU,
+                    "entity_id": MenuItem.VARIABLES.value,
+                },
+                {
+                    "method": "MENU",
+                    "entity_type": AvpEntities.MENU,
+                    "entity_id": MenuItem.ASSETS.value,
+                },
+                {
+                    "method": "MENU",
+                    "entity_type": AvpEntities.MENU,
+                    "entity_id": MenuItem.DAGS.value,
+                },
+            ],
+            user=ANY,
+        )
+        assert result == [MenuItem.VARIABLES, MenuItem.DAGS]
 
     @patch.object(AwsAuthManager, "avp_facade")
     def test_batch_is_authorized_dag(

@@ -31,7 +31,7 @@ auth_router = AirflowRouter(tags=["Auth Links"])
 def get_auth_links(
     user: GetUserDep,
 ) -> MenuItemCollectionResponse:
-    menu_items = get_auth_manager().get_menu_items(user=user)
+    menu_items = get_auth_manager().get_extra_menu_items(user=user)
 
     return MenuItemCollectionResponse(
         menu_items=cast(list[MenuItem], menu_items),
