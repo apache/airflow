@@ -39,7 +39,7 @@ from airflow.api_fastapi.core_api.datamodels.dag_stats import (
     DagStatsStateResponse,
 )
 from airflow.api_fastapi.core_api.openapi.exceptions import create_openapi_http_exception_doc
-from airflow.api_fastapi.core_api.security import requires_access_dag
+from airflow.api_fastapi.core_api.security import ReadableDagRunsFilterDep, requires_access_dag
 from airflow.models.dagrun import DagRun
 from airflow.utils.state import DagRunState
 
@@ -57,6 +57,7 @@ dag_stats_router = AirflowRouter(tags=["DagStats"], prefix="/dagStats")
     dependencies=[Depends(requires_access_dag(method="GET", access_entity=DagAccessEntity.RUN))],
 )
 def get_dag_stats(
+    readable_dag_runs_filter: ReadableDagRunsFilterDep,
     session: SessionDep,
     dag_ids: Annotated[
         FilterParam[list[str]],
@@ -66,7 +67,7 @@ def get_dag_stats(
     """Get Dag statistics."""
     dagruns_select, _ = paginated_select(
         statement=dagruns_select_with_state_count,
-        filters=[dag_ids],
+        filters=[dag_ids, readable_dag_runs_filter],
         session=session,
         return_total_entries=False,
     )

@@ -34,7 +34,7 @@ from airflow.api_fastapi.core_api.datamodels.xcom import (
     XComUpdateBody,
 )
 from airflow.api_fastapi.core_api.openapi.exceptions import create_openapi_http_exception_doc
-from airflow.api_fastapi.core_api.security import requires_access_dag
+from airflow.api_fastapi.core_api.security import ReadableXComFilterDep, requires_access_dag
 from airflow.exceptions import TaskNotFound
 from airflow.models import DAG, DagRun as DR, XCom
 from airflow.settings import conf
@@ -116,6 +116,7 @@ def get_xcom_entries(
     task_id: str,
     limit: QueryLimit,
     offset: QueryOffset,
+    readable_xcom_filter: ReadableXComFilterDep,
     session: SessionDep,
     xcom_key: Annotated[str | None, Query()] = None,
     map_index: Annotated[int | None, Query(ge=-1)] = None,
@@ -141,6 +142,7 @@ def get_xcom_entries(
 
     query, total_entries = paginated_select(
         statement=query,
+        filters=[readable_xcom_filter],
         offset=offset,
         limit=limit,
         session=session,

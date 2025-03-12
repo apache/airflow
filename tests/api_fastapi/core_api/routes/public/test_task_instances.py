@@ -1133,7 +1133,6 @@ class TestGetTaskInstances(TestTaskInstanceEndpoint):
             == f"Invalid value for state. Valid values are {', '.join(TaskInstanceState)}"
         )
 
-    @pytest.mark.xfail(reason="permissions not implemented yet.")
     def test_return_TI_only_from_readable_dags(self, test_client, session):
         task_instances = {
             "example_python_operator": 1,

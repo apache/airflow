@@ -61,7 +61,7 @@ from airflow.api_fastapi.core_api.datamodels.task_instances import (
     TaskInstancesBatchBody,
 )
 from airflow.api_fastapi.core_api.openapi.exceptions import create_openapi_http_exception_doc
-from airflow.api_fastapi.core_api.security import requires_access_dag
+from airflow.api_fastapi.core_api.security import ReadableTIFilterDep, requires_access_dag
 from airflow.api_fastapi.logging.decorators import action_logging
 from airflow.exceptions import TaskNotFound
 from airflow.models import Base, DagRun
@@ -416,6 +416,7 @@ def get_task_instances(
             ).dynamic_depends(default="map_index")
         ),
     ],
+    readable_ti_filter: ReadableTIFilterDep,
     session: SessionDep,
 ) -> TaskInstanceCollectionResponse:
     """
@@ -457,6 +458,7 @@ def get_task_instances(
             task_id,
             task_display_name_pattern,
             version_number,
+            readable_ti_filter,
         ],
         order_by=order_by,
         offset=offset,
@@ -483,6 +485,7 @@ def get_task_instances_batch(
     dag_id: Literal["~"],
     dag_run_id: Literal["~"],
     body: TaskInstancesBatchBody,
+    readable_ti_filter: ReadableTIFilterDep,
     session: SessionDep,
 ) -> TaskInstanceCollectionResponse:
     """Get list of task instances."""
@@ -538,6 +541,7 @@ def get_task_instances_batch(
             pool,
             queue,
             executor,
+            readable_ti_filter,
         ],
         order_by=order_by,
         offset=offset,

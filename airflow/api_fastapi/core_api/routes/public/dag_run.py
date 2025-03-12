@@ -317,7 +317,6 @@ def get_dag_runs(
             ).dynamic_depends(default="id")
         ),
     ],
-    # readable_dags_filter: ReadableDagsFilterDep,
     readable_dag_runs_filter: ReadableDagRunsFilterDep,
     session: SessionDep,
     request: Request,
@@ -327,9 +326,6 @@ def get_dag_runs(
 
     This endpoint allows specifying `~` as the dag_id to retrieve Dag Runs for all DAGs.
     """
-    # if readable_dags_filter.value is None:
-    #     return DAGRunCollectionResponse(dag_runs=[], total_entries=0)
-
     query = select(DagRun)
 
     if dag_id != "~":
@@ -337,12 +333,7 @@ def get_dag_runs(
         if not dag:
             raise HTTPException(status.HTTP_404_NOT_FOUND, f"The DAG with dag_id: `{dag_id}` was not found")
 
-        # if dag_id not in readable_dags_filter.value:
-        #     raise HTTPException(status.HTTP_403_FORBIDDEN, f"Access to DAG with dag_id: `{dag_id}` is forbidden")
-
         query = query.filter(DagRun.dag_id == dag_id)
-    # else:
-    #     query = query.filter(DagRun.dag_id.in_(readable_dags_filter.value))
 
     dag_run_select, total_entries = paginated_select(
         statement=query,

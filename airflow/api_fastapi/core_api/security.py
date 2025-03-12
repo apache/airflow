@@ -41,6 +41,9 @@ from airflow.api_fastapi.auth.managers.models.resource_details import (
 from airflow.api_fastapi.core_api.base import OrmClause
 from airflow.configuration import conf
 from airflow.models.dag import DagModel, DagRun
+from airflow.models.dagwarning import DagWarning
+from airflow.models.taskinstance import TaskInstance as TI
+from airflow.models.xcom import XCom
 from airflow.utils.jwt_signer import JWTSigner, get_signing_key
 
 if TYPE_CHECKING:
@@ -121,6 +124,27 @@ class PermittedDagRunFilter(PermittedDagFilter):
         return select.where(DagRun.dag_id.in_(self.value))
 
 
+class PermittedDagWarningFilter(PermittedDagFilter):
+    """A parameter that filters the permitted dag warnings for the user."""
+
+    def to_orm(self, select: Select) -> Select:
+        return select.where(DagWarning.dag_id.in_(self.value))
+
+
+class PermittedTIFilter(PermittedDagFilter):
+    """A parameter that filters the permitted task instances for the user."""
+
+    def to_orm(self, select: Select) -> Select:
+        return select.where(TI.dag_id.in_(self.value))
+
+
+class PermittedXComFilter(PermittedDagFilter):
+    """A parameter that filters the permitted XComs for the user."""
+
+    def to_orm(self, select: Select) -> Select:
+        return select.where(XCom.dag_id.in_(self.value))
+
+
 def permitted_dag_filter_factory(
     method: ResourceMethod, filter_class=PermittedDagFilter
 ) -> Callable[[Request, BaseUser], PermittedDagFilter]:
@@ -147,8 +171,14 @@ ReadableDagsFilterDep = Annotated[PermittedDagFilter, Depends(permitted_dag_filt
 ReadableDagRunsFilterDep = Annotated[
     PermittedDagRunFilter, Depends(permitted_dag_filter_factory("GET", PermittedDagRunFilter))
 ]
-EditableDagRunsFilterDep = Annotated[
-    PermittedDagRunFilter, Depends(permitted_dag_filter_factory("PUT", PermittedDagRunFilter))
+ReadableDagWarningsFilterDep = Annotated[
+    PermittedDagWarningFilter, Depends(permitted_dag_filter_factory("GET", PermittedDagWarningFilter))
+]
+ReadableTIFilterDep = Annotated[
+    PermittedTIFilter, Depends(permitted_dag_filter_factory("GET", PermittedTIFilter))
+]
+ReadableXComFilterDep = Annotated[
+    PermittedXComFilter, Depends(permitted_dag_filter_factory("GET", PermittedXComFilter))
 ]
 
 
