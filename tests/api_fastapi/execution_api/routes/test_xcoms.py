@@ -27,7 +27,6 @@ from airflow.api_fastapi.execution_api.datamodels.xcom import XComResponse
 from airflow.models import XComModel
 from airflow.models.dagrun import DagRun
 from airflow.models.taskmap import TaskMap
-from airflow.sdk.execution_time.xcom import XCom
 from airflow.serialization.serde import serialize
 from airflow.utils.session import create_session
 
@@ -138,7 +137,7 @@ class TestXComsSetEndpoint:
         assert response.json() == {"message": "XCom successfully set"}
 
         xcom = (
-            session.query(XCom)
+            session.query(XComModel)
             .filter_by(task_id=ti.task_id, dag_id=ti.dag_id, key="xcom_1", map_index=-1)
             .first()
         )

@@ -1276,7 +1276,7 @@ class TestBaseSensor:
             if ti.task_id == DUMMY_OP:
                 assert ti.state == State.NONE
         actual_xcom_value = XComModel.get_many(
-            key="return_value", task_id=SENSOR_OP, dag_id=dr.dag_id, run_id=dr.run_id
+            key="return_value", task_ids=SENSOR_OP, dag_ids=dr.dag_id, run_id=dr.run_id
         ).first()
         actual_xcom_value = XComModel.deserialize_value(actual_xcom_value)
         assert actual_xcom_value == xcom_value
@@ -1294,8 +1294,8 @@ class TestBaseSensor:
                 assert ti.state == State.FAILED
             if ti.task_id == DUMMY_OP:
                 assert ti.state == State.NONE
-        actual_xcom_value = XComModel.get_one(
-            key="return_value", task_id=SENSOR_OP, dag_id=dr.dag_id, run_id=dr.run_id
+        actual_xcom_value = XComModel.get_many(
+            key="return_value", task_ids=SENSOR_OP, dag_ids=dr.dag_id, run_id=dr.run_id
         ).first()
         actual_xcom_value = XComModel.deserialize_value(actual_xcom_value)
 

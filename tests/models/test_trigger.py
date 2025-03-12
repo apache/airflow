@@ -29,7 +29,7 @@ from cryptography.fernet import Fernet
 
 from airflow.jobs.job import Job
 from airflow.jobs.triggerer_job_runner import TriggererJobRunner
-from airflow.models import TaskInstance, Trigger, XCom
+from airflow.models import TaskInstance, Trigger, XComModel
 from airflow.models.asset import AssetEvent, AssetModel, asset_trigger_association_table
 from airflow.providers.standard.operators.empty import EmptyOperator
 from airflow.serialization.serialized_objects import BaseSerialization
@@ -241,7 +241,7 @@ def test_submit_event_task_end(mock_utcnow, session, create_task_instance, event
     session.commit()
 
     def get_xcoms(ti):
-        return XCom.get_many(dag_ids=[ti.dag_id], task_ids=[ti.task_id], run_id=ti.run_id).all()
+        return XComModel.get_many(dag_ids=[ti.dag_id], task_ids=[ti.task_id], run_id=ti.run_id).all()
 
     # now for the real test
     # first check initial state
