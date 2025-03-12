@@ -67,7 +67,6 @@ from airflow.providers.cncf.kubernetes.pod_generator import PodGenerator
 from airflow.providers.standard.operators.bash import BashOperator
 from airflow.providers.standard.sensors.bash import BashSensor
 from airflow.sdk.definitions.asset import Asset
-from airflow.sdk.definitions.baseoperatorlink import XComOperatorLink
 from airflow.sdk.definitions.param import Param, ParamsDict
 from airflow.security import permissions
 from airflow.serialization.enums import Encoding
@@ -76,6 +75,7 @@ from airflow.serialization.serialized_objects import (
     BaseSerialization,
     SerializedBaseOperator,
     SerializedDAG,
+    XComOperatorLink,
 )
 from airflow.task.priority_strategy import _DownstreamPriorityWeightStrategy
 from airflow.timetables.simple import NullTimetable, OnceTimetable
