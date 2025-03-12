@@ -56,7 +56,7 @@ TimeSensor
 
 Use the :class:`~airflow.providers.standard.sensors.time_sensor.TimeSensor` to end sensing after time specified.
 
-Time will be evaluated against data_interval_end if present for the dag run, otherwise run_after will be used.
+Time will be evaluated against ``data_interval_end`` if present for the dag run, otherwise ``run_after`` will be used.
 
 .. exampleinclude:: /../../airflow/example_dags/example_sensors.py
     :language: python
