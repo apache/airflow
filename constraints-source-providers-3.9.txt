@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2025-03-13T14:19:58.314067
+# This constraints file was automatically generated on 2025-03-13T20:13:12.426537
 # via "eager-upgrade" mechanism of PIP. For the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version of both
 # 'apache-airflow' package and all available community provider packages.
@@ -91,7 +91,7 @@ asyncpg==0.30.0
 asyncssh==2.20.0
 atlasclient==1.0.0
 atlassian-python-api==3.41.19
-attrs==25.1.0
+attrs==25.3.0
 aws-sam-translator==1.95.0
 aws-xray-sdk==2.14.0
 azure-batch==14.2.0
@@ -138,7 +138,7 @@ celery==5.4.0
 certifi==2025.1.31
 cffi==1.17.1
 cfgv==3.4.0
-cfn-lint==1.29.1
+cfn-lint==1.30.0
 cgroupspy==0.2.3
 chardet==5.2.0
 charset-normalizer==3.4.1
@@ -211,7 +211,7 @@ gcsfs==2025.3.0
 geomet==0.2.1.post1
 gevent==24.11.1
 gitdb==4.0.12
-google-ads==26.0.0
+google-ads==26.0.1
 google-analytics-admin==0.23.5
 google-api-core==2.24.2
 google-api-python-client==2.164.0
@@ -299,7 +299,7 @@ imagesize==1.4.1
 immutabledict==4.2.1
 importlib_metadata==8.4.0
 importlib_resources==6.5.2
-impyla==0.20.0
+impyla==0.21.0
 incremental==24.7.2
 inflection==0.5.1
 influxdb-client==1.48.0
@@ -333,7 +333,7 @@ jupyter_core==5.7.2
 kerberos==1.3.1
 keyring==25.6.0
 kgb==7.2
-kombu==5.4.2
+kombu==5.5.0
 krb5==0.7.1
 kubernetes==31.0.0
 kubernetes_asyncio==30.3.1
@@ -597,7 +597,7 @@ teradatasql==20.0.0.25
 teradatasqlalchemy==20.0.0.3
 termcolor==2.5.0
 text-unidecode==1.3
-threadpoolctl==3.5.0
+threadpoolctl==3.6.0
 thrift-sasl==0.4.3
 thrift==0.16.0
 time-machine==2.16.0
