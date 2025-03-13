@@ -24,6 +24,7 @@ import { AirflowPin } from "src/assets/AirflowPin";
 import { DagIcon } from "src/assets/DagIcon";
 
 import { AdminButton } from "./AdminButton";
+import { AuthButton } from "./AuthButton";
 import { BrowseButton } from "./BrowseButton";
 import { DocsButton } from "./DocsButton";
 import { NavButton } from "./NavButton";
@@ -54,6 +55,7 @@ export const Nav = () => {
         <NavButton icon={<FiDatabase size="1.75rem" />} title="Assets" to="assets" />
         <BrowseButton />
         <AdminButton />
+        <AuthButton />
       </Flex>
       <Flex flexDir="column">
         <DocsButton />
