@@ -28,6 +28,7 @@ from contextlib import ExitStack, suppress
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, Callable, Protocol, TypeVar
+from unittest import mock
 
 import pytest
 import time_machine
@@ -1823,3 +1824,11 @@ def override_caplog(request):
         import airflow.logging_config
 
         airflow.logging_config.configure_logging()
+
+
+@pytest.fixture
+def mock_supervisor_comms():
+    with mock.patch(
+        "airflow.sdk.execution_time.task_runner.SUPERVISOR_COMMS", create=True
+    ) as supervisor_comms:
+        yield supervisor_comms
