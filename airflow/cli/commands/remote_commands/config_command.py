@@ -93,15 +93,17 @@ class ConfigChange:
     renamed_to: ConfigParameter | None = None
     was_deprecated: bool = True
     was_removed: bool = True
+    new_default: str | bool | int | float | None = None
 
     @property
     def message(self) -> str:
         """Generate a message for this configuration change."""
         if self.default_change:
-            return (
-                f"Changed default value of `{self.config.option}` configuration parameter in `{self.config.section}` "
-                f"section. {self.suggestion}"
-            )
+            if self.config.section != self.new_default:
+                return (
+                    f"Changed default value of `{self.config.option}` configuration parameter in `{self.config.section}` "
+                    f"section. {self.suggestion}"
+                )
         if self.renamed_to:
             if self.config.section != self.renamed_to.section:
                 return (
@@ -355,6 +357,7 @@ CONFIGS_CHANGES = [
         config=ConfigParameter("scheduler", "catchup_by_default"),
         default_change=True,
         was_removed=False,
+        new_default=False,
         suggestion="In Airflow 3.0 the default value for `catchup_by_default` is set to `False`. "
         "Which means that DAGs without explicit definition of the `catchup` parameter will not "
         "catchup by default. "
