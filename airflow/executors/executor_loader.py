@@ -21,11 +21,12 @@ from __future__ import annotations
 import functools
 import logging
 import os
+import warnings
 from contextlib import suppress
 from typing import TYPE_CHECKING
 
 from airflow.api_internal.internal_api_call import InternalApiConfig
-from airflow.exceptions import AirflowConfigException, UnknownExecutorException
+from airflow.exceptions import AirflowConfigException, RemovedInAirflow3Warning, UnknownExecutorException
 from airflow.executors.executor_constants import (
     CELERY_EXECUTOR,
     CELERY_KUBERNETES_EXECUTOR,
@@ -345,7 +346,23 @@ class ExecutorLoader:
             raise AirflowConfigException(f"error: cannot use SQLite with the {executor.__name__}")
 
     @classmethod
+    def _warn_of_deprecated_executor(cls, executor_name: str) -> None:
+        """
+        Warn of deprecated executor.
+
+        :param executor_name: Name of the executor
+        """
+        warnings.warn(
+            f"\nThe use and support of the {executor_name} is deprecated and will be removed in Airflow 3.0.\n"
+            "Please migrate to using Multiple Executor Configuration instead:\n"
+            "https://airflow.apache.org/docs/apache-airflow/stable/core-concepts/executor/#using-multiple-executors-concurrently",
+            RemovedInAirflow3Warning,
+            stacklevel=2,
+        )
+
+    @classmethod
     def __load_celery_kubernetes_executor(cls) -> BaseExecutor:
+        cls._warn_of_deprecated_executor(CELERY_KUBERNETES_EXECUTOR)
         celery_executor = import_string(cls.executors[CELERY_EXECUTOR])()
         kubernetes_executor = import_string(cls.executors[KUBERNETES_EXECUTOR])()
 
@@ -354,6 +371,7 @@ class ExecutorLoader:
 
     @classmethod
     def __load_local_kubernetes_executor(cls) -> BaseExecutor:
+        cls._warn_of_deprecated_executor(LOCAL_KUBERNETES_EXECUTOR)
         local_executor = import_string(cls.executors[LOCAL_EXECUTOR])()
         kubernetes_executor = import_string(cls.executors[KUBERNETES_EXECUTOR])()
 

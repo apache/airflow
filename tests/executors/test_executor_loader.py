@@ -22,7 +22,7 @@ from unittest import mock
 import pytest
 
 from airflow import plugins_manager
-from airflow.exceptions import AirflowConfigException
+from airflow.exceptions import AirflowConfigException, RemovedInAirflow3Warning
 from airflow.executors import executor_loader
 from airflow.executors.executor_loader import ConnectorSource, ExecutorName
 from airflow.executors.local_executor import LocalExecutor
@@ -68,7 +68,13 @@ class TestExecutorLoader:
     )
     def test_should_support_executor_from_core(self, executor_name):
         with conf_vars({("core", "executor"): executor_name}):
-            executor = executor_loader.ExecutorLoader.get_default_executor()
+            # These executors are deprecated and will be removed in Airflow 3.0 but we still need to support
+            # them in Airflow 2.10.X
+            if executor_name == "CeleryKubernetesExecutor":
+                with pytest.warns(RemovedInAirflow3Warning):
+                    executor = executor_loader.ExecutorLoader.get_default_executor()
+            else:
+                executor = executor_loader.ExecutorLoader.get_default_executor()
             assert executor is not None
             assert executor_name == executor.__class__.__name__
             assert executor.name is not None
