@@ -29,6 +29,7 @@ from airflow.api_fastapi.app import AUTH_MANAGER_FASTAPI_APP_PREFIX
 from airflow.api_fastapi.auth.managers.base_auth_manager import BaseAuthManager
 from airflow.api_fastapi.auth.managers.models.resource_details import (
     AccessView,
+    BackfillDetails,
     ConnectionDetails,
     DagAccessEntity,
     DagDetails,
@@ -154,6 +155,14 @@ class AwsAuthManager(BaseAuthManager[AwsAuthManagerUser]):
             user=user,
             entity_id=dag_id,
             context=context,
+        )
+
+    def is_authorized_backfill(
+        self, *, method: ResourceMethod, user: AwsAuthManagerUser, details: BackfillDetails | None = None
+    ) -> bool:
+        backfill_id = details.id if details else None
+        return self.avp_facade.is_authorized(
+            method=method, entity_type=AvpEntities.BACKFILL, user=user, entity_id=backfill_id
         )
 
     def is_authorized_asset(

@@ -37,6 +37,7 @@ from airflow.api_fastapi.app import AUTH_MANAGER_FASTAPI_APP_PREFIX
 from airflow.api_fastapi.auth.managers.base_auth_manager import BaseAuthManager
 from airflow.api_fastapi.auth.managers.models.resource_details import (
     AccessView,
+    BackfillDetails,
     ConfigurationDetails,
     ConnectionDetails,
     DagAccessEntity,
@@ -90,6 +91,7 @@ from airflow.providers.fab.www.security.permissions import (
     RESOURCE_XCOM,
 )
 from airflow.providers.fab.www.utils import get_fab_action_from_method_map, get_method_from_fab_action_map
+from airflow.security.permissions import RESOURCE_BACKFILL
 from airflow.utils.session import NEW_SESSION, create_session, provide_session
 from airflow.utils.yaml import safe_load
 
@@ -101,9 +103,15 @@ if TYPE_CHECKING:
     from airflow.providers.common.compat.assets import AssetAliasDetails, AssetDetails
     from airflow.providers.fab.auth_manager.security_manager.override import FabAirflowSecurityManagerOverride
     from airflow.providers.fab.www.extensions.init_appbuilder import AirflowAppBuilder
-    from airflow.providers.fab.www.security.permissions import RESOURCE_ASSET, RESOURCE_ASSET_ALIAS
+    from airflow.providers.fab.www.security.permissions import (
+        RESOURCE_ASSET,
+        RESOURCE_ASSET_ALIAS,
+    )
 else:
-    from airflow.providers.common.compat.security.permissions import RESOURCE_ASSET, RESOURCE_ASSET_ALIAS
+    from airflow.providers.common.compat.security.permissions import (
+        RESOURCE_ASSET,
+        RESOURCE_ASSET_ALIAS,
+    )
 
 
 _MAP_DAG_ACCESS_ENTITY_TO_FAB_RESOURCE_TYPE: dict[DagAccessEntity, tuple[str, ...]] = {
@@ -314,6 +322,11 @@ class FabAuthManager(BaseAuthManager[User]):
                 )
                 for resource_type in resource_types
             )
+
+    def is_authorized_backfill(
+        self, *, method: ResourceMethod, user: User, details: BackfillDetails | None = None
+    ) -> bool:
+        return self._is_authorized(method=method, resource_type=RESOURCE_BACKFILL, user=user)
 
     def is_authorized_asset(
         self, *, method: ResourceMethod, user: User, details: AssetDetails | None = None
