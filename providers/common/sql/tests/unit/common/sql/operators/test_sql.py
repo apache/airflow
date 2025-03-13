@@ -26,7 +26,7 @@ import pytest
 
 from airflow import DAG
 from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning
-from airflow.models import Connection, DagRun, TaskInstance as TI, XCom
+from airflow.models import Connection, DagRun, TaskInstance as TI, XComModel
 from airflow.providers.common.sql.hooks.handlers import fetch_all_handler
 from airflow.providers.common.sql.operators.sql import (
     BaseSQLOperator,
@@ -1043,7 +1043,7 @@ class TestSqlBranch:
         with create_session() as session:
             session.query(DagRun).delete()
             session.query(TI).delete()
-            session.query(XCom).delete()
+            session.query(XComModel).delete()
 
     def setup_method(self):
         self.dag = DAG(
@@ -1059,7 +1059,7 @@ class TestSqlBranch:
         with create_session() as session:
             session.query(DagRun).delete()
             session.query(TI).delete()
-            session.query(XCom).delete()
+            session.query(XComModel).delete()
 
     @pytest.mark.db_test
     def test_unsupported_conn_type(self):
