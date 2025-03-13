@@ -1817,6 +1817,7 @@ class AirflowConfigParser(ConfigParser):
         with StringIO(unit_test_config) as test_config_file:
             self.read_file(test_config_file)
         # set fernet key to a random value
+        global FERNET_KEY
         FERNET_KEY = Fernet.generate_key().decode()
         self.expand_all_configuration_values()
         log.info("Unit test configuration loaded from 'config_unit_tests.cfg'")
@@ -1999,7 +2000,7 @@ def create_pre_2_7_defaults() -> ConfigParser:
 
 
 def write_default_airflow_configuration_if_needed() -> AirflowConfigParser:
-    global FERNET_KEY, JWT_SECRET_KEY
+    global FERNET_KEY
     airflow_config = pathlib.Path(AIRFLOW_CONFIG)
     if airflow_config.is_dir():
         msg = (
@@ -2011,7 +2012,10 @@ def write_default_airflow_configuration_if_needed() -> AirflowConfigParser:
         log.debug("Creating new Airflow config file in: %s", airflow_config.__fspath__())
         config_directory = airflow_config.parent
         if not config_directory.exists():
-            if not config_directory.is_relative_to(AIRFLOW_HOME):
+            # Compatibility with Python 3.8, ``PurePath.is_relative_to`` was added in Python 3.9
+            try:
+                config_directory.relative_to(AIRFLOW_HOME)
+            except ValueError:
                 msg = (
                     f"Config directory {config_directory.__fspath__()!r} not exists "
                     f"and it is not relative to AIRFLOW_HOME {AIRFLOW_HOME!r}. "
@@ -2024,10 +2028,10 @@ def write_default_airflow_configuration_if_needed() -> AirflowConfigParser:
             # We know that FERNET_KEY is not set, so we can generate it, set as global key
             # and also write it to the config file so that same key will be used next time
             FERNET_KEY = _generate_fernet_key()
+            conf.remove_option("core", "fernet_key")
+            conf.set("core", "fernet_key", FERNET_KEY)
             conf.configuration_description["core"]["options"]["fernet_key"]["default"] = FERNET_KEY
 
-        JWT_SECRET_KEY = b64encode(os.urandom(16)).decode("utf-8")
-        conf.configuration_description["api"]["options"]["auth_jwt_secret"]["default"] = JWT_SECRET_KEY
         pathlib.Path(airflow_config.__fspath__()).touch()
         make_group_other_inaccessible(airflow_config.__fspath__())
         with open(airflow_config, "w") as file:
@@ -2331,7 +2335,8 @@ def initialize_auth_manager() -> BaseAuthManager:
 
     if not auth_manager_cls:
         raise AirflowConfigException(
-            "No auth manager defined in the config. Please specify one using section/key [core/auth_manager]."
+            "No auth manager defined in the config. "
+            "Please specify one using section/key [core/auth_manager]."
         )
 
     return auth_manager_cls()
@@ -2363,7 +2368,6 @@ else:
 
 SECRET_KEY = b64encode(os.urandom(16)).decode("utf-8")
 FERNET_KEY = ""  # Set only if needed when generating a new file
-JWT_SECRET_KEY = ""
 WEBSERVER_CONFIG = ""  # Set by initialize_config
 
 conf: AirflowConfigParser = initialize_config()
