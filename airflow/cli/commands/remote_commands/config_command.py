@@ -357,7 +357,7 @@ CONFIGS_CHANGES = [
         config=ConfigParameter("scheduler", "catchup_by_default"),
         default_change=True,
         was_removed=False,
-        new_default=False,
+        new_default="False",
         suggestion="In Airflow 3.0 the default value for `catchup_by_default` is set to `False`. "
         "Which means that DAGs without explicit definition of the `catchup` parameter will not "
         "catchup by default. "
