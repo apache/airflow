@@ -34,9 +34,9 @@ from airflow.utils.state import State
 from airflow.utils.weekday import WeekDay
 
 if AIRFLOW_V_3_0_PLUS:
-    from airflow.sdk.execution_time.xcom import XCom
+    from airflow.models.xcom import XComModel as XCom
 else:
-    from airflow.models import XCom  # type: ignore[no-redef]
+    from airflow.models.xcom import XCom  # type: ignore[no-redef]
 
 pytestmark = pytest.mark.db_test
 
