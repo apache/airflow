@@ -52,6 +52,7 @@ import { TaskInstances } from "src/pages/TaskInstances";
 import { Variables } from "src/pages/Variables";
 import { XCom } from "src/pages/XCom";
 
+import { Security } from "./pages/Security";
 import { queryClient } from "./queryClient";
 
 const taskInstanceRoutes = [
@@ -122,6 +123,10 @@ export const routerConfig = [
       {
         element: <Plugins />,
         path: "plugins",
+      },
+      {
+        element: <Security />,
+        path: "security/:page",
       },
       {
         element: <Connections />,
