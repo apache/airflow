@@ -159,8 +159,8 @@ class TestBaseAuthManager:
     def test_get_fastapi_app_return_none(self, auth_manager):
         assert auth_manager.get_fastapi_app() is None
 
-    def test_logout_return_none(self, auth_manager):
-        assert auth_manager.logout() is None
+    def test_get_url_logout_return_none(self, auth_manager):
+        assert auth_manager.get_url_logout() is None
 
     def test_get_menu_items_return_empty_list(self, auth_manager):
         assert auth_manager.get_menu_items(user=BaseAuthManagerUserTest(name="test")) == []
