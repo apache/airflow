@@ -21,10 +21,11 @@ import { useParams } from "react-router-dom";
 
 import type { DAGDetailsResponse, DAGWithLatestDagRunsResponse } from "openapi/requests/types.gen";
 import { DagIcon } from "src/assets/DagIcon";
+import ParseDag from "src/components/DagActions/ParseDag";
+import RunBackfillButton from "src/components/DagActions/RunBackfillButton";
 import DagRunInfo from "src/components/DagRunInfo";
 import DisplayMarkdownButton from "src/components/DisplayMarkdownButton";
 import { HeaderCard } from "src/components/HeaderCard";
-import MenuButton from "src/components/Menu/MenuButton";
 import { TogglePause } from "src/components/TogglePause";
 
 import { DagTags } from "../DagsList/DagTags";
@@ -100,7 +101,8 @@ export const Header = ({
                 text="Dag Docs"
               />
             )}
-            <MenuButton dag={dag} />
+            <RunBackfillButton dag={dag} />
+            <ParseDag dagId={dag.dag_id} fileToken={dag.file_token} />
           </>
         )
       }
