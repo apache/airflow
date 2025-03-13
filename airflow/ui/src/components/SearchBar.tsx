@@ -16,10 +16,13 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Button, Input, type ButtonProps } from "@chakra-ui/react";
-import { useState, type ChangeEvent } from "react";
+import { Button, Input, Kbd, type ButtonProps } from "@chakra-ui/react";
+import { useState, useRef, type ChangeEvent } from "react";
+import { useHotkeys } from "react-hotkeys-hook";
 import { FiSearch } from "react-icons/fi";
 import { useDebouncedCallback } from "use-debounce";
+
+import { getMetaKey } from "src/utils";
 
 import { CloseButton, InputGroup, type InputGroupProps } from "./ui";
 
@@ -29,19 +32,38 @@ type Props = {
   readonly buttonProps?: ButtonProps;
   readonly defaultValue: string;
   readonly groupProps?: InputGroupProps;
+  readonly hideAdvanced?: boolean;
+  readonly hotkeyDisabled?: boolean;
   readonly onChange: (value: string) => void;
   readonly placeHolder: string;
 };
 
-export const SearchBar = ({ buttonProps, defaultValue, groupProps, onChange, placeHolder }: Props) => {
+export const SearchBar = ({
+  buttonProps,
+  defaultValue,
+  groupProps,
+  hideAdvanced = false,
+  hotkeyDisabled = false,
+  onChange,
+  placeHolder,
+}: Props) => {
   const handleSearchChange = useDebouncedCallback((val: string) => onChange(val), debounceDelay);
-
+  const searchRef = useRef<HTMLInputElement>(null);
   const [value, setValue] = useState(defaultValue);
+  const metaKey = getMetaKey();
 
   const onSearchChange = (event: ChangeEvent<HTMLInputElement>) => {
     setValue(event.target.value);
     handleSearchChange(event.target.value);
   };
+
+  useHotkeys(
+    "mod+k",
+    () => {
+      searchRef.current?.focus();
+    },
+    { enabled: !hotkeyDisabled, preventDefault: true },
+  );
 
   return (
     <InputGroup
@@ -61,9 +83,12 @@ export const SearchBar = ({ buttonProps, defaultValue, groupProps, onChange, pla
               size="xs"
             />
           ) : undefined}
-          <Button fontWeight="normal" height="1.75rem" variant="ghost" width={140} {...buttonProps}>
-            Advanced Search
-          </Button>
+          {Boolean(hideAdvanced) ? undefined : (
+            <Button fontWeight="normal" height="1.75rem" variant="ghost" width={140} {...buttonProps}>
+              Advanced Search
+            </Button>
+          )}
+          {!hotkeyDisabled && <Kbd size="sm">{metaKey}+K</Kbd>}
         </>
       }
       startElement={<FiSearch />}
@@ -73,6 +98,7 @@ export const SearchBar = ({ buttonProps, defaultValue, groupProps, onChange, pla
         onChange={onSearchChange}
         placeholder={placeHolder}
         pr={150}
+        ref={searchRef}
         value={value}
       />
     </InputGroup>

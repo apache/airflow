@@ -59,6 +59,9 @@ ROOT_DIR = CONF_DIR.parent
 PACKAGE_NAME = os.environ.get("AIRFLOW_PACKAGE_NAME", "apache-airflow")
 PACKAGE_DIR: pathlib.Path
 SYSTEM_TESTS_DIR: pathlib.Path | None
+
+conf_py_path = f"/docs/{PACKAGE_NAME}/"
+
 if PACKAGE_NAME == "apache-airflow":
     PACKAGE_DIR = ROOT_DIR / "airflow"
     PACKAGE_VERSION = airflow.__version__
@@ -79,9 +82,14 @@ elif PACKAGE_NAME.startswith("apache-airflow-providers-"):
     # Oddity: since we set autoapi_python_use_implicit_namespaces for provider packages, it does a "../"on the
     # dir we give it. So we want to set the package dir to be airflow so it goes up to src, else we end up
     # with "src" in the output paths of modules which we don't want
-    PACKAGE_DIR = ROOT_DIR / "providers" / "src" / "airflow"
+
+    package_id = PACKAGE_NAME[len("apache-airflow-providers-") :].replace("-", ".")
+    base_provider_dir = (ROOT_DIR / "providers").joinpath(*package_id.split("."))
+    PACKAGE_DIR = base_provider_dir / "src" / "airflow"
     PACKAGE_VERSION = CURRENT_PROVIDER["versions"][0]
-    SYSTEM_TESTS_DIR = ROOT_DIR / "providers" / "tests" / "system"
+    SYSTEM_TESTS_DIR = base_provider_dir / "tests" / "system"
+    target_dir = ROOT_DIR / "docs" / PACKAGE_NAME
+    conf_py_path = f"/providers/{package_id.replace('.', '/')}/docs/"
 elif PACKAGE_NAME == "apache-airflow-providers":
     from provider_yaml_utils import load_package_data
 
@@ -212,7 +220,21 @@ elif PACKAGE_NAME.startswith("apache-airflow-providers-"):
             "sphinx_jinja",
         ]
     )
-    exclude_patterns = ["operators/_partials"]
+    empty_subpackages = ["apache", "atlassian", "common", "cncf", "dbt", "microsoft"]
+    exclude_patterns = [
+        "operators/_partials",
+        "_api/airflow/index.rst",
+        "_api/airflow/providers/index.rst",
+        "_api/airflow/providers/apache/index.rst",
+        "_api/airflow/providers/atlassian/index.rst",
+        "_api/airflow/providers/cncf/index.rst",
+        "_api/airflow/providers/common/index.rst",
+        "_api/airflow/providers/common/messaging/providers/base_provider/index.rst",
+        "_api/airflow/providers/common/messaging/providers/sqs/index.rst",
+        "_api/airflow/providers/dbt/index.rst",
+        "_api/airflow/providers/microsoft/index.rst",
+        *[f"_api/tests/system/{subpackage}/index.rst" for subpackage in empty_subpackages],
+    ]
 else:
     exclude_patterns = []
 
@@ -255,7 +277,6 @@ if PACKAGE_NAME == "apache-airflow":
 
     models_included: set[str] = {
         "baseoperator.py",
-        "baseoperatorlink.py",
         "connection.py",
         "dag.py",
         "dagrun.py",
@@ -315,7 +336,7 @@ html_short_title = ""
 #  configuration directory) that is the favicon of the docs. Modern browsers
 #  use this as the icon for tabs, windows and bookmarks. It should be a
 #  Windows-style icon file (.ico), which is 16x16 or 32x32 pixels large.
-html_favicon = "../airflow/www/static/pin_32.png"
+html_favicon = "../airflow/ui/public/pin_32.png"
 
 # Add any paths that contain custom static files (such as style sheets) here,
 # relative to this directory. They are copied after the builtin static files,
@@ -349,6 +370,7 @@ if PACKAGE_NAME == "apache-airflow":
         "administration-and-deployment/logging-monitoring/advanced-logging-configuration.html",
         "howto/docker-compose/index.html",
     ]
+    html_js_files.append("redirects.js")
 if PACKAGE_NAME.startswith("apache-airflow-providers"):
     manual_substitutions_in_generated_html = ["example-dags.html", "operators.html", "index.html"]
 if PACKAGE_NAME == "docker-stack":
@@ -410,7 +432,7 @@ html_context = {
     # https://github.com/apache/airflow-site/blob/91f760c/sphinx_airflow_theme/sphinx_airflow_theme/suggest_change_button.html#L36-L40
     #
     "theme_vcs_pageview_mode": "edit",
-    "conf_py_path": f"/docs/{PACKAGE_NAME}/",
+    "conf_py_path": conf_py_path,
     "github_user": "apache",
     "github_repo": "airflow",
     "github_version": "main",
@@ -763,22 +785,6 @@ autoapi_ignore = [
     "*/tests/system/__init__.py",
     "*/tests/system/example_empty.py",
     "*/test_aws_auth_manager.py",
-    # These sub-folders aren't really providers, but we need __init__.py files else various tools (ruff, mypy)
-    # get confused by providers/tests/systems/cncf/kubernetes and think that folder is the top level
-    # kubernetes module!
-    "*/providers/src/airflow/providers/__init__.py",
-    "*/providers/tests/__init__.py",
-    "*/providers/tests/cncf/__init__.py",
-    "*/providers/tests/common/__init__.py",
-    "*/providers/tests/apache/__init__.py",
-    "*/providers/tests/dbt/__init__.py",
-    "*/providers/tests/microsoft/__init__.py",
-    "*/providers/tests/system/__init__.py",
-    "*/providers/tests/system/apache/__init__.py",
-    "*/providers/tests/system/cncf/__init__.py",
-    "*/providers/tests/system/common/__init__.py",
-    "*/providers/tests/system/dbt/__init__.py",
-    "*/providers/tests/system/microsoft/__init__.py",
 ]
 
 ignore_re = re.compile(r"\[AutoAPI\] .* Ignoring \s (?P<path>/[\w/.]*)", re.VERBOSE)
@@ -805,11 +811,14 @@ if PACKAGE_NAME.startswith("apache-airflow-providers-"):
     autoapi_ignore.extend(
         (
             "*/airflow/__init__.py",
-            "*/airflow/providiers/__init__.py",
+            "*/airflow/providers/__init__.py",
             "*/example_dags/*",
-            "*/airflow/providers/cncf/kubernetes/backcompat/*",
+            "*/providers/__init__.py",
         )
     )
+
+    # Here we remove all other providers from the autoapi list, only leaving the current provider,
+    # Otherwise all the other provider indexes will no be found in any TOC.
 
     for p in load_package_data(include_suspended=True):
         if p["package-name"] == PACKAGE_NAME:
@@ -823,6 +832,9 @@ if PACKAGE_NAME.startswith("apache-airflow-providers-"):
         autoapi_dirs.append(test_dir)
 
         autoapi_ignore.extend(f"{d}/*" for d in test_dir.glob("*") if d.is_dir() and d.name != "system")
+    print("#### AUTOAPI_IGNORE:")
+    print(autoapi_ignore)
+    print("#### END OF AUTOAPI_IGNORE:")
 else:
     if SYSTEM_TESTS_DIR and os.path.exists(SYSTEM_TESTS_DIR):
         autoapi_dirs.append(SYSTEM_TESTS_DIR)
@@ -874,7 +886,7 @@ graphviz_output_format = "svg"
 # See: https://sphinxcontrib-redoc.readthedocs.io/en/stable/
 if PACKAGE_NAME == "apache-airflow":
     OPENAPI_FILE = os.path.join(
-        os.path.dirname(__file__), "..", "airflow", "api_connexion", "openapi", "v1.yaml"
+        os.path.dirname(__file__), "..", "airflow", "api_fastapi", "core_api", "openapi", "v1-generated.yaml"
     )
     redoc = [
         {
@@ -893,7 +905,7 @@ if PACKAGE_NAME == "apache-airflow":
 
 elif PACKAGE_NAME == "apache-airflow-providers-fab":
     OPENAPI_FILE = os.path.join(
-        os.path.dirname(__file__), "..", "airflow", "providers", "fab", "auth_manager", "openapi", "v1.yaml"
+        os.path.dirname(__file__), "..", "providers", "fab", "auth_manager", "openapi", "v1.yaml"
     )
     redoc = [
         {

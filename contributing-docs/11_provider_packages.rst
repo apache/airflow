@@ -18,10 +18,10 @@
 Provider packages
 =================
 
-Airflow 2.0 is split into core and providers. They are delivered as separate packages:
+Airflow is split into core and providers. They are delivered as separate packages:
 
-* ``apache-airflow`` - core of Apache Airflow
-* ``apache-airflow-providers-*`` - More than 70 provider packages to communicate with external services
+* ``apache-airflow`` - core of Apache Airflow (there are few more sub-packages separated)
+* ``apache-airflow-providers-*`` - More than 90 provider packages to communicate with external services
 
 **The outline for this document in GitHub is available at top-right corner button (with 3-dots and 3 lines).**
 
@@ -34,60 +34,104 @@ of advantages, because code and CI infrastructure and tests can be shared. Also 
 single repository - so no matter if you contribute to Airflow or Providers, you are contributing to the same
 repository and project.
 
-It has also some disadvantages as this introduces some coupling between those - so contributing to providers might
-interfere with contributing to Airflow. Python ecosystem does not yet have proper monorepo support for keeping
-several packages in one repository and being able to work on more than one of them at the same time. The tool ``uv`` is
-recommended to help manage this through it's ``workspace`` feature. While developing, dependencies and extras for a
-provider can be installed using ``uv``'s ``sync`` command. Here is an example for the microsoft.azure provider:
+The tool ``uv`` is recommended to help manage this through it's ``workspace`` feature. While developing,
+dependencies and extras for a provider can be installed using ``uv``'s ``sync`` command. Here is an example
+for the amazon provider:
 
 .. code:: bash
 
-    uv sync --extra devel --extra devel-tests --extra microsoft.azure
+    uv sync --extra amazon
 
-This will synchronize all extras that you need for development and testing of Airflow and the Microsoft Azure provider
+This will synchronize all extras that you need for development and testing of Airflow and the Amazon provider
 dependencies including runtime dependencies. See `local virtualenv <../07_local_virtualenv.rst>`_ or the uv project
 for more information.
 
-Therefore, until we can introduce multiple ``pyproject.toml`` for providers information/meta-data about the providers
-is kept in ``provider.yaml`` file in the right sub-directory of ``providers``. This file contains:
+Each provider is a separate python project, with its own ``pyproject.toml`` file and similar structure:
 
-* package name (``apache-airflow-provider-*``)
+.. code-block:: text
+
+  PROVIDER
+         |- pyproject.toml   # project configuration
+         |- provider.yaml    # additional metadata for provider
+         |- src
+         |.   \- airflow.providers.PROVIDER
+         |                                \ # here are hooks, operators, sensors, transfers
+         |- docs   # docs for provider are stored here
+         \- tests
+                | -unit
+                |      | PROVIDER
+                |               \ # here unit test code is present
+                | - integration
+                |             | PROVIDER
+                |                      \ # here integration test code is present
+                \- system
+                         | PROVIDER
+                                  \ # here system test code is present
+
+PROVIDER is the name of the provider package. It might be single directory (google, amazon, smtp) or in some
+cases we have a nested structure one level down (``apache/cassandra``, ``apache/druid``, ``microsoft/winrm``,
+``common.io`` for example).
+
+What are the pyproject.toml and provider.yaml files
+---------------------------------------------------
+
+On top of the standard ``pyproject.toml`` file where we keep project information,
+we have ``provider.yaml`` file in the provider's module of the ``providers``.
+
+This file contains:
+
 * user-facing name of the provider package
 * description of the package that is available in the documentation
 * list of versions of package that have been released so far
-* list of dependencies of the provider package
-* list of additional-extras that the provider package provides (together with dependencies of those extras)
 * list of integrations, operators, hooks, sensors, transfers provided by the provider (useful for documentation generation)
 * list of connection types, extra-links, secret backends, auth backends, and logging handlers (useful to both
   register them as they are needed by Airflow and to include them in documentation automatically).
-* and more ...
 
-If you want to add dependencies to the provider, you should add them to the corresponding ``provider.yaml``
-and Airflow pre-commits and package generation commands will use them when preparing package information.
+Note that the ``provider.yaml`` file is regenerated automatically when the provider is released so you should
+not modify it - except updating dependencies, as your changes will be lost.
 
-In Airflow 2.0, providers are separated out, and not packaged together with the core when
-you build "apache-airflow" package, however when you install airflow project in editable
-mode with ``pip install -e ".[devel]"`` they are available in the same environment as Airflow.
+Eventually we might migrate ``provider.yaml`` fully to ``pyproject.toml`` file but it would require custom
+``tool.airflow`` toml section to be added to the ``pyproject.toml`` file.
 
-You should only update dependencies for the provider in the corresponding ``provider.yaml`` which is the
-source of truth for all information about the provider.
+How to manage provider's dependencies
+-------------------------------------
+
+If you want to add dependencies to the provider, you should add them to the corresponding ``pyproject.toml``
+file. For regular local virtualenv development you also need to run ``uv sync --extra PROVIDER`` after you
+do it or run ``pip install -e ./providers/PROVIDER`` to install the provider in development mode in your venv
+and IDE. If you are using breeze you should also run the below command to regenerate all files that
+needs to be updated after you change dependencies:
+
+.. code:: bash
+
+    breeze static-checks --type update-providers-dependencies --all-files
+
+If you have ``pre-commit`` installed, this will be done automatically for you when you commit the changes and
+you should do it before you make a PR with such changed dependency changes
+
+Also, you should rebuild the image ``breeze ci-image build`` or answer ``y`` when you are asked to rebuild the
+image for the new dependencies to be used in the Breeze CI environment.
+
+Provider's cross-dependencies
+-----------------------------
 
 Some of the packages have cross-dependencies with other providers packages. This typically happens for
 transfer operators where operators use hooks from the other providers in case they are transferring
 data between the providers. The list of dependencies is maintained (automatically with the
 ``update-providers-dependencies`` pre-commit) in the ``generated/provider_dependencies.json``.
-Same pre-commit also updates generate dependencies in ``pyproject.toml``.
 
-Cross-dependencies between provider packages are converted into extras - if you need functionality from
-the other provider package you can install it adding [extra] after the
+Cross-dependencies between provider packages are converted into optional dependencies (extras) - if
+you need functionality from the other provider package you can install it adding [extra] after the
 ``apache-airflow-providers-PROVIDER`` for example:
 ``pip install apache-airflow-providers-google[amazon]`` in case you want to use GCP
 transfer operators from Amazon ECS.
 
-If you add a new dependency between different providers packages, it will be detected automatically during
-and pre-commit will generate new entry in ``generated/provider_dependencies.json`` and update
-``pyproject.toml`` so that the package extra dependencies are properly handled when package
-might be installed when breeze is restarted or by your IDE or by running ``pip install -e ".[devel]"``.
+How to reuse code between tests in different providers
+------------------------------------------------------
+
+When you develop providers, you might want to reuse some of the code between tests in different providers.
+This is possible by placing the code in ``test_utils`` in the ``devel-common/src`` directory.
+The ``tests_common`` module is installed automatically by uv in the uv workspace.
 
 Chicken-egg providers
 ---------------------
@@ -107,14 +151,23 @@ Developing community managed provider packages
 ----------------------------------------------
 
 While you can develop your own providers, Apache Airflow has 60+ providers that are managed by the community.
-They are part of the same repository as Apache Airflow (we use ``monorepo`` approach where different
+They are part of the same repository as Apache Airflow (we use monorepo approach where different
 parts of the system are developed in the same repository but then they are packaged and released separately).
-All the community-managed providers are in 'airflow/providers' folder and they are all sub-packages of
-'airflow.providers' package. All the providers are available as ``apache-airflow-providers-<PROVIDER_ID>``
+All the community-managed providers are in ``providers`` folder and their code is placed as sub-packages of
+``airflow.providers`` package.
+
+In order to allow the same packages to be present in different parts of the source tree, we are heavily
+utilising `namespace packages <https://packaging.python.org/en/latest/guides/packaging-namespace-packages/>`_.
+For now we have a bit of mixture of native (no ``__init__.py`` namespace packages) and pkgutil-style
+namespace packages (with ``__init__.py`` and path extension) but we are moving
+towards using only native namespace packages.
+
+All the providers are available as ``apache-airflow-providers-<PROVIDER_ID>``
 packages when installed by users, but when you contribute to providers you can work on airflow main
-and install provider dependencies via ``editable`` extras - without having to manage and install providers
-separately, you can easily run tests for the providers and when you run airflow from the ``main``
-sources, all community providers are automatically available for you.
+and install provider dependencies via ``editable`` extras (using uv workspace) - without
+having to manage and install providers separately, you can easily run tests for the providers
+and when you run airflow from the ``main`` sources, all community providers are
+automatically available for you.
 
 The capabilities of the community-managed providers are the same as the third-party ones. When
 the providers are installed from PyPI, they provide the entry-point containing the metadata as described
@@ -198,7 +251,7 @@ flag is preferred. To build with the version-suffix-for-pypi flag, use the follo
 Naming Conventions for provider packages
 ----------------------------------------
 
-In Airflow 2.0 we standardized and enforced naming for provider packages, modules and classes.
+In Airflow we standardized and enforced naming for provider packages, modules and classes.
 those rules (introduced as AIP-21) were not only introduced but enforced using automated checks
 that verify if the naming conventions are followed. Here is a brief summary of the rules, for
 detailed discussion you can go to `AIP-21 Changes in import paths <https://cwiki.apache.org/confluence/display/AIRFLOW/AIP-21%3A+Changes+in+import+paths>`_
@@ -218,12 +271,22 @@ The rules are as follows:
   the providers are connected under common umbrella and they are also tightly coupled on the code level.
 
 * Typical structure of provider package:
-    * example_dags -> example DAGs are stored here (used for documentation and System Tests)
-    * hooks -> hooks are stored here
-    * operators -> operators are stored here
-    * sensors -> sensors are stored here
-    * secrets -> secret backends are stored here
-    * transfers -> transfer operators are stored here
+  * src
+     *  airflow.providers.PROVIDER
+          * hooks -> hooks are stored here
+          * operators -> operators are stored here
+          * sensors -> sensors are stored here
+          * secrets -> secret backends are stored here
+          * transfers -> transfer operators are stored here
+  * docs
+  * tests
+    * unit
+       * PROVIDER
+    * integration
+       * PROVIDER
+    * system
+      * PROVIDER
+          * example_dags -> example DAGs are stored here (used for documentation and System Tests)
 
 * Module names do not contain word "hooks", "operators" etc. The right type comes from
   the package. For example 'hooks.datastore' module contains DataStore hook and 'operators.datastore'
@@ -252,11 +315,11 @@ The rules are as follows:
 
 * Secret Backend name follows the convention: ``<SecretEngine>Backend``.
 
-* Tests are grouped in parallel packages under "tests.providers" top level package. Module name is usually
+* Init Tests are grouped in parallel packages under "tests.providers" top level package. Module name is usually
   ``test_<object_to_test>.py``,
 
 * System tests (not yet fully automated but allowing to run e2e testing of particular provider) are
-  named with _system.py suffix.
+  named with ``example_*`` prefix.
 
 Documentation for the community managed providers
 -------------------------------------------------
@@ -280,8 +343,8 @@ Well documented provider contains those:
 
 You can see for example ``google`` provider which has very comprehensive documentation:
 
-* `Documentation <../docs/apache-airflow-providers-google>`_
-* `System tests/Example DAGs <../tests/system/providers>`_
+* `Documentation <../../providers/google/docs>`_
+* `System tests/Example DAGs <../providers/google/tests/system/google/>`_
 
 Part of the documentation are example dags (placed in the ``tests/system`` folder). The reason why
 they are in ``tests/system`` is because we are using the example dags for various purposes:
@@ -322,10 +385,10 @@ backward compatible with future versions of Airflow, so you can upgrade Airflow 
 at the same version.
 
 When you introduce a breaking change in the provider, you have to make sure that you communicate it
-properly. You have to update ``CHANGELOG.rst`` file in the provider package. Ideally you should provide
-a migration path for the users to follow in the``CHANGELOG.rst``.
+properly. You have to update ``changelog.rst`` file in the ``docs`` folder of the provider package.
+Ideally you should provide a migration path for the users to follow in the``changelog.rst``.
 
-If in doubt, you can always look at ``CHANGELOG.rst``  in other providers to see how we communicate
+If in doubt, you can always look at ``changelog.rst``  in other providers to see how we communicate
 breaking changes in the providers.
 
 It's important to note that the marking release as breaking / major is subject to the

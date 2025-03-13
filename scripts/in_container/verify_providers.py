@@ -70,17 +70,6 @@ class VerifiedEntities(NamedTuple):
     wrong_entities: list[tuple[type, str]]
 
 
-class ProviderPackageDetails(NamedTuple):
-    provider_package_id: str
-    full_package_name: str
-    pypi_package_name: str
-    source_provider_package_path: str
-    documentation_provider_package_path: str
-    provider_description: str
-    versions: list[str]
-    excluded_python_versions: list[str]
-
-
 ENTITY_NAMES = {
     EntityType.Operators: "Operators",
     EntityType.Transfers: "Transfer Operators",

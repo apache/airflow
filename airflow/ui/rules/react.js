@@ -546,7 +546,7 @@ export const reactRules = /** @type {const} @satisfies {FlatConfig.Config} */ ({
      *
      * @see [react/no-multi-comp](https://github.com/jsx-eslint/eslint-plugin-react/blob/HEAD/docs/rules/no-multi-comp.md)
      */
-    [`${reactNamespace}/no-multi-comp`]: WARN,
+    [`${reactNamespace}/no-multi-comp`]: [WARN, { ignoreStateless: true }],
 
     /**
      * Enforce that namespaces are not used in React elements.

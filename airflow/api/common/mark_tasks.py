@@ -27,13 +27,10 @@ from sqlalchemy.orm import lazyload
 
 from airflow.models.dagrun import DagRun
 from airflow.models.taskinstance import TaskInstance
-from airflow.utils import timezone
 from airflow.utils.session import NEW_SESSION, provide_session
 from airflow.utils.state import DagRunState, State, TaskInstanceState
 
 if TYPE_CHECKING:
-    from datetime import datetime
-
     from sqlalchemy.orm import Session as SASession
 
     from airflow.models.dag import DAG
@@ -85,6 +82,9 @@ def set_state(
         raise ValueError("Received tasks with no DAG")
     if not run_id:
         raise ValueError("Received tasks with no run_id")
+
+    if TYPE_CHECKING:
+        assert isinstance(dag, DAG)
 
     dag_run_ids = get_run_ids(dag, run_id, future, past, session=session)
     task_id_map_index_list = list(find_task_relatives(tasks, downstream, upstream))
@@ -139,44 +139,19 @@ def find_task_relatives(tasks, downstream, upstream):
 
 
 @provide_session
-def get_logical_dates(
-    dag: DAG, logical_date: datetime, future: bool, past: bool, *, session: SASession = NEW_SESSION
-) -> list[datetime]:
-    """Return DAG logical dates."""
-    latest_logical_date = dag.get_latest_logical_date(session=session)
-    if latest_logical_date is None:
-        raise ValueError(f"Received non-localized date {logical_date}")
-    logical_date = timezone.coerce_datetime(logical_date)
-    # determine date range of dag runs and tasks to consider
-    end_date = latest_logical_date if future else logical_date
-    if dag.start_date:
-        start_date = dag.start_date
-    else:
-        start_date = logical_date
-    start_date = logical_date if not past else start_date
-    if not dag.timetable.can_be_scheduled:
-        # If the DAG never schedules, need to look at existing DagRun if the user wants future or
-        # past runs.
-        dag_runs = dag.get_dagruns_between(start_date=start_date, end_date=end_date)
-        dates = sorted({d.logical_date for d in dag_runs})
-    elif not dag.timetable.periodic:
-        dates = [start_date]
-    else:
-        dates = [
-            info.logical_date for info in dag.iter_dagrun_infos_between(start_date, end_date, align=False)
-        ]
-    return dates
-
-
-@provide_session
 def get_run_ids(dag: DAG, run_id: str, future: bool, past: bool, session: SASession = NEW_SESSION):
     """Return DAG executions' run_ids."""
-    last_dagrun = dag.get_last_dagrun(include_externally_triggered=True, session=session)
     current_dagrun = dag.get_dagrun(run_id=run_id, session=session)
-    first_dagrun = session.scalar(
-        select(DagRun).filter(DagRun.dag_id == dag.dag_id).order_by(DagRun.logical_date.asc()).limit(1)
-    )
+    if current_dagrun.logical_date is None:
+        return [run_id]
 
+    last_dagrun = dag.get_last_dagrun(include_manually_triggered=True, session=session)
+    first_dagrun = session.scalar(
+        select(DagRun)
+        .where(DagRun.dag_id == dag.dag_id, DagRun.logical_date.is_not(None))
+        .order_by(DagRun.logical_date.asc())
+        .limit(1)
+    )
     if last_dagrun is None:
         raise ValueError(f"DagRun for {dag.dag_id} not found")
 
@@ -239,15 +214,18 @@ def set_dag_run_state_to_success(
         return []
     if not run_id:
         raise ValueError(f"Invalid dag_run_id: {run_id}")
+
+    # Mark all task instances of the dag run to success - except for teardown as they need to complete work.
+    normal_tasks = [task for task in dag.tasks if not task.is_teardown]
+
     # Mark the dag run to success.
-    if commit:
+    if commit and len(normal_tasks) == len(dag.tasks):
         _set_dag_run_state(dag.dag_id, run_id, DagRunState.SUCCESS, session)
 
-    # Mark all task instances of the dag run to success.
-    for task in dag.tasks:
+    for task in normal_tasks:
         task.dag = dag
     return set_state(
-        tasks=dag.tasks,
+        tasks=normal_tasks,
         run_id=run_id,
         state=TaskInstanceState.SUCCESS,
         commit=commit,
@@ -280,10 +258,6 @@ def set_dag_run_state_to_failed(
     if not run_id:
         raise ValueError(f"Invalid dag_run_id: {run_id}")
 
-    # Mark the dag run to failed.
-    if commit:
-        _set_dag_run_state(dag.dag_id, run_id, DagRunState.FAILED, session)
-
     running_states = (
         TaskInstanceState.RUNNING,
         TaskInstanceState.DEFERRED,
@@ -292,25 +266,26 @@ def set_dag_run_state_to_failed(
 
     # Mark only RUNNING task instances.
     task_ids = [task.task_id for task in dag.tasks]
-    tis = session.scalars(
+    running_tis: list[TaskInstance] = session.scalars(
         select(TaskInstance).where(
             TaskInstance.dag_id == dag.dag_id,
             TaskInstance.run_id == run_id,
             TaskInstance.task_id.in_(task_ids),
             TaskInstance.state.in_(running_states),
         )
-    )
+    ).all()
 
-    task_ids_of_running_tis = [task_instance.task_id for task_instance in tis]
+    # Do not kill teardown tasks
+    task_ids_of_running_tis = [ti.task_id for ti in running_tis if not dag.task_dict[ti.task_id].is_teardown]
 
-    tasks = []
+    running_tasks = []
     for task in dag.tasks:
         if task.task_id in task_ids_of_running_tis:
             task.dag = dag
-            tasks.append(task)
+            running_tasks.append(task)
 
     # Mark non-finished tasks as SKIPPED.
-    tis = session.scalars(
+    pending_tis: list[TaskInstance] = session.scalars(
         select(TaskInstance).filter(
             TaskInstance.dag_id == dag.dag_id,
             TaskInstance.run_id == run_id,
@@ -324,12 +299,19 @@ def set_dag_run_state_to_failed(
         )
     ).all()
 
+    # Do not skip teardown tasks
+    pending_normal_tis = [ti for ti in pending_tis if not dag.task_dict[ti.task_id].is_teardown]
+
     if commit:
-        for ti in tis:
+        for ti in pending_normal_tis:
             ti.set_state(TaskInstanceState.SKIPPED)
 
-    return tis + set_state(
-        tasks=tasks,
+        # Mark the dag run to failed if there is no pending teardown (else this would not be scheduled later).
+        if not any(dag.task_dict[ti.task_id].is_teardown for ti in (running_tis + pending_tis)):
+            _set_dag_run_state(dag.dag_id, run_id, DagRunState.FAILED, session)
+
+    return pending_normal_tis + set_state(
+        tasks=running_tasks,
         run_id=run_id,
         state=TaskInstanceState.FAILED,
         commit=commit,

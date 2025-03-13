@@ -88,6 +88,7 @@ This file contains several service definitions:
 
 - ``airflow-scheduler`` - The :doc:`scheduler </administration-and-deployment/scheduler>` monitors all tasks and DAGs, then triggers the
   task instances once their dependencies are complete.
+- ``airflow-dag-processor`` - The DAG processor parses DAG files.
 - ``airflow-webserver`` - The webserver is available at ``http://localhost:8080``.
 - ``airflow-worker`` - The worker that executes the tasks given by the scheduler.
 - ``airflow-triggerer`` - The triggerer runs an event loop for deferrable tasks.
@@ -106,7 +107,7 @@ Some directories in the container are mounted, which means that their contents a
 - ``./dags`` - you can put your DAG files here.
 - ``./logs`` - contains logs from task execution and scheduler.
 - ``./config`` - you can add custom log parser or add ``airflow_local_settings.py`` to configure cluster policy.
-- ``./plugins`` - you can put your :doc:`custom plugins </authoring-and-scheduling/plugins>` here.
+- ``./plugins`` - you can put your :doc:`custom plugins </administration-and-deployment/plugins>` here.
 
 This file uses the latest Airflow image (`apache/airflow <https://hub.docker.com/r/apache/airflow>`__).
 If you need to install a new Python library or system library, you can :doc:`build your image <docker-stack:index>`.
@@ -373,13 +374,13 @@ Steps:
 .. code-block:: yaml
 
     airflow-python:
-    <<: *airflow-common
-    profiles:
-        - debug
-    environment:
-        <<: *airflow-common-env
-    user: "50000:0"
-    entrypoint: [ "/bin/bash", "-c" ]
+      <<: *airflow-common
+      profiles:
+          - debug
+      environment:
+          <<: *airflow-common-env
+      user: "50000:0"
+      entrypoint: [ "/bin/bash", "-c" ]
 
 .. note::
 

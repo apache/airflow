@@ -62,6 +62,8 @@ on:  # yamllint disable-line rule:truthy
         description: "Whether to use uv"
         required: true
         type: string
+permissions:
+  contents: read
 jobs:
   prepare-install-verify-provider-packages:
     timeout-minutes: 80
@@ -97,7 +99,7 @@ jobs:
       - name: "Prepare provider documentation"
         run: >
           breeze release-management prepare-provider-documentation --include-not-ready-providers
-          --non-interactive
+          --non-interactive --answer yes
         if: matrix.package-format == 'wheel'
       - name: "Prepare provider packages: ${{ matrix.package-format }}"
         run: >
@@ -106,6 +108,10 @@ jobs:
       - name: "Prepare airflow package: ${{ matrix.package-format }}"
         run: >
           breeze release-management prepare-airflow-package --version-suffix-for-pypi dev0
+          --package-format ${{ matrix.package-format }}
+      - name: "Prepare task-sdk package: ${{ matrix.package-format }}"
+        run: >
+          breeze release-management prepare-task-sdk-package --version-suffix-for-pypi dev0
           --package-format ${{ matrix.package-format }}
       - name: "Verify ${{ matrix.package-format }} packages with twine"
         run: |
@@ -171,7 +177,7 @@ jobs:
       PYTHON_MAJOR_MINOR_VERSION: "${{ matrix.python-version }}"
       VERSION_SUFFIX_FOR_PYPI: "dev0"
       VERBOSE: "true"
-      CLEAN_AIRFLOW_INSTALLATION: "${{ inputs.canary-run }}"
+      CLEAN_AIRFLOW_INSTALLATION: "true"
     if: inputs.skip-providers-tests != 'true'
     steps:
       - name: "Cleanup repo"

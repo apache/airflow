@@ -126,7 +126,6 @@ class TaskDecoratorCollection:
         show_return_value_in_logs: bool = True,
         env_vars: dict[str, str] | None = None,
         inherit_env: bool = True,
-        use_airflow_context: bool = False,
         **kwargs,
     ) -> TaskDecorator:
         """Create a decorator to convert the decorated callable to a virtual environment task.
@@ -172,7 +171,6 @@ class TaskDecoratorCollection:
             environment. If set to ``True``, the virtual environment will inherit the environment variables
             of the parent process (``os.environ``). If set to ``False``, the virtual environment will be
             executed with a clean environment.
-        :param use_airflow_context: Whether to provide ``get_current_context()`` to the python_callable.
         """
     @overload
     def virtualenv(self, python_callable: Callable[FParams, FReturn]) -> Task[FParams, FReturn]: ...
@@ -188,7 +186,6 @@ class TaskDecoratorCollection:
         show_return_value_in_logs: bool = True,
         env_vars: dict[str, str] | None = None,
         inherit_env: bool = True,
-        use_airflow_context: bool = False,
         **kwargs,
     ) -> TaskDecorator:
         """Create a decorator to convert the decorated callable to a virtual environment task.
@@ -219,7 +216,6 @@ class TaskDecoratorCollection:
             environment. If set to ``True``, the virtual environment will inherit the environment variables
             of the parent process (``os.environ``). If set to ``False``, the virtual environment will be
             executed with a clean environment.
-        :param use_airflow_context: Whether to provide ``get_current_context()`` to the python_callable.
         """
     @overload
     def branch(  # type: ignore[misc]
@@ -252,7 +248,6 @@ class TaskDecoratorCollection:
         index_urls: None | Collection[str] | str = None,
         venv_cache_path: None | str = None,
         show_return_value_in_logs: bool = True,
-        use_airflow_context: bool = False,
         **kwargs,
     ) -> TaskDecorator:
         """Create a decorator to wrap the decorated callable into a BranchPythonVirtualenvOperator.
@@ -291,7 +286,6 @@ class TaskDecoratorCollection:
             logs. Defaults to True, which allows return value log output.
             It can be set to False to prevent log output of return value when you return huge data
             such as transmission a large amount of XCom to TaskAPI.
-        :param use_airflow_context: Whether to provide ``get_current_context()`` to the python_callable.
         """
     @overload
     def branch_virtualenv(self, python_callable: Callable[FParams, FReturn]) -> Task[FParams, FReturn]: ...
@@ -410,6 +404,7 @@ class TaskDecoratorCollection:
         skip_on_exit_code: int | Container[int] | None = None,
         port_bindings: dict | None = None,
         ulimits: list[dict] | None = None,
+        labels: dict[str, str] | list[str] | None = None,
         **kwargs,
     ) -> TaskDecorator:
         """Create a decorator to convert the decorated callable to a Docker task.
@@ -514,6 +509,8 @@ class TaskDecoratorCollection:
             Incompatible with ``"host"`` in ``network_mode``.
         :param ulimits: List of ulimit options to set for the container. Each item should
             be a :py:class:`docker.types.Ulimit` instance.
+        :param labels: A dictionary of name-value labels (e.g. ``{"label1": "value1", "label2": "value2"}``)
+            or a list of names of labels to set with empty values (e.g. ``["label1", "label2"]``)
         """
         # [END decorator_signature]
     def kubernetes(
@@ -594,7 +591,7 @@ class TaskDecoratorCollection:
         :param name: Name of the pod to run. This will be used (plus a random
             suffix if *random_name_suffix* is *True*) to generate a pod ID
             (DNS-1123 subdomain, containing only ``[a-z0-9.-]``). Defaults to
-            ``k8s_airflow_pod_{RANDOM_UUID}``.
+            ``k8s-airflow-pod-{python_callable.__name__}``.
         :param random_name_suffix: If *True*, will generate a random suffix.
         :param arguments: arguments of the entrypoint. (templated)
             The docker image's CMD is used if this is not provided.

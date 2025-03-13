@@ -22,21 +22,38 @@ from unittest import mock
 
 import pytest
 import uuid6
-from sqlalchemy import select
+from sqlalchemy import select, update
 from sqlalchemy.exc import SQLAlchemyError
 
+from airflow.exceptions import AirflowInactiveAssetInInletOrOutletException
 from airflow.models import RenderedTaskInstanceFields, TaskReschedule, Trigger
+from airflow.models.asset import AssetActive, AssetAliasModel, AssetEvent, AssetModel
 from airflow.models.taskinstance import TaskInstance
+from airflow.models.taskinstancehistory import TaskInstanceHistory
+from airflow.sdk.definitions.asset import AssetUniqueKey
 from airflow.utils import timezone
 from airflow.utils.state import State, TaskInstanceState, TerminalTIState
 
-from tests_common.test_utils.db import clear_db_runs, clear_rendered_ti_fields
+from tests_common.test_utils.db import clear_db_assets, clear_db_runs, clear_rendered_ti_fields
 
 pytestmark = pytest.mark.db_test
 
 
 DEFAULT_START_DATE = timezone.parse("2024-10-31T11:00:00Z")
 DEFAULT_END_DATE = timezone.parse("2024-10-31T12:00:00Z")
+
+
+def _create_asset_aliases(session, num: int = 2) -> None:
+    asset_aliases = [
+        AssetAliasModel(
+            id=i,
+            name=f"simple{i}",
+            group="alias",
+        )
+        for i in range(1, 1 + num)
+    ]
+    session.add_all(asset_aliases)
+    session.commit()
 
 
 class TestTIRunState:
@@ -61,7 +78,6 @@ class TestTIRunState:
             session=session,
             start_date=instant,
         )
-
         session.commit()
 
         response = client.patch(
@@ -80,14 +96,18 @@ class TestTIRunState:
             "dag_run": {
                 "dag_id": "dag",
                 "run_id": "test",
+                "clear_number": 0,
                 "logical_date": instant_str,
                 "data_interval_start": instant.subtract(days=1).to_iso8601_string(),
                 "data_interval_end": instant_str,
+                "run_after": instant_str,
                 "start_date": instant_str,
                 "end_date": None,
                 "run_type": "manual",
                 "conf": {},
             },
+            "task_reschedule_count": 0,
+            "max_tries": 0,
             "variables": [],
             "connections": [],
         }
@@ -98,7 +118,80 @@ class TestTIRunState:
         assert ti.hostname == "random-hostname"
         assert ti.unixname == "random-unixname"
         assert ti.pid == 100
-        assert ti.start_date == instant
+
+        response1 = response.json()
+
+        # Test that if we make a second request (simulating a network glitch so the client issues a retry)
+        # that it is accepted and we get the same info back
+
+        response = client.patch(
+            f"/execution/task-instances/{ti.id}/run",
+            json={
+                "state": "running",
+                "hostname": "random-hostname",
+                "unixname": "random-unixname",
+                "pid": 100,
+                "start_date": instant_str,
+            },
+        )
+        assert response.status_code == 200
+        assert response.json() == response1
+
+        # But that for a different pid on the same host (etc) it fails
+        response = client.patch(
+            f"/execution/task-instances/{ti.id}/run",
+            json={
+                "state": "running",
+                "hostname": "random-hostname",
+                "unixname": "random-unixname",
+                "pid": 101,
+                "start_date": instant_str,
+            },
+        )
+        assert response.status_code == 409
+
+    def test_next_kwargs_still_encoded(self, client, session, create_task_instance, time_machine):
+        instant_str = "2024-09-30T12:00:00Z"
+        instant = timezone.parse(instant_str)
+        time_machine.move_to(instant, tick=False)
+
+        ti = create_task_instance(
+            task_id="test_ti_run_state_to_running",
+            state=State.QUEUED,
+            session=session,
+            start_date=instant,
+        )
+
+        ti.next_method = "execute_complete"
+        # ti.next_kwargs under the hood applies the serde encoding for us
+        ti.next_kwargs = {"moment": instant}
+
+        session.commit()
+
+        response = client.patch(
+            f"/execution/task-instances/{ti.id}/run",
+            json={
+                "state": "running",
+                "hostname": "random-hostname",
+                "unixname": "random-unixname",
+                "pid": 100,
+                "start_date": instant_str,
+            },
+        )
+
+        assert response.status_code == 200
+        assert response.json() == {
+            "dag_run": mock.ANY,
+            "task_reschedule_count": 0,
+            "max_tries": 0,
+            "variables": [],
+            "connections": [],
+            "next_method": "execute_complete",
+            "next_kwargs": {
+                "__type": "dict",
+                "__var": {"moment": {"__type": "datetime", "__var": 1727697600.0}},
+            },
+        }
 
     @pytest.mark.parametrize("initial_ti_state", [s for s in TaskInstanceState if s != State.QUEUED])
     def test_ti_run_state_conflict_if_not_queued(
@@ -135,6 +228,92 @@ class TestTIRunState:
         }
 
         assert session.scalar(select(TaskInstance.state).where(TaskInstance.id == ti.id)) == initial_ti_state
+
+    def test_xcom_cleared_when_ti_runs(self, client, session, create_task_instance, time_machine):
+        """
+        Test that the xcoms are cleared when the Task Instance state is updated to running.
+        """
+        instant_str = "2024-09-30T12:00:00Z"
+        instant = timezone.parse(instant_str)
+        time_machine.move_to(instant, tick=False)
+
+        ti = create_task_instance(
+            task_id="test_xcom_cleared_when_ti_runs",
+            state=State.QUEUED,
+            session=session,
+            start_date=instant,
+        )
+        session.commit()
+
+        # Lets stage a xcom push
+        ti.xcom_push(key="key", value="value")
+
+        response = client.patch(
+            f"/execution/task-instances/{ti.id}/run",
+            json={
+                "state": "running",
+                "hostname": "random-hostname",
+                "unixname": "random-unixname",
+                "pid": 100,
+                "start_date": instant_str,
+            },
+        )
+
+        assert response.status_code == 200
+        # Once the task is running, we can check if xcom is cleared
+        assert ti.xcom_pull(task_ids="test_xcom_cleared_when_ti_runs", key="key") is None
+
+    def test_xcom_not_cleared_for_deferral(self, client, session, create_task_instance, time_machine):
+        """
+        Test that the xcoms are not cleared when the Task Instance state is re-running after deferral.
+        """
+        instant_str = "2024-09-30T12:00:00Z"
+        instant = timezone.parse(instant_str)
+        time_machine.move_to(instant, tick=False)
+
+        ti = create_task_instance(
+            task_id="test_xcom_not_cleared_for_deferral",
+            state=State.RUNNING,
+            session=session,
+            start_date=instant,
+        )
+        session.commit()
+
+        # Move this task to deferred
+        payload = {
+            "state": "deferred",
+            "trigger_kwargs": {"key": "value", "moment": "2024-12-18T00:00:00Z"},
+            "trigger_timeout": "P1D",  # 1 day
+            "classpath": "my-classpath",
+            "next_method": "execute_callback",
+        }
+
+        response = client.patch(f"/execution/task-instances/{ti.id}/state", json=payload)
+        assert response.status_code == 204
+        assert response.text == ""
+        session.expire_all()
+
+        # Deferred -> Queued so that we can run it again
+        query = update(TaskInstance).where(TaskInstance.id == ti.id).values(state="queued")
+        session.execute(query)
+        session.commit()
+
+        # Lets stage a xcom push
+        ti.xcom_push(key="key", value="value")
+
+        response = client.patch(
+            f"/execution/task-instances/{ti.id}/run",
+            json={
+                "state": "running",
+                "hostname": "random-hostname",
+                "unixname": "random-unixname",
+                "pid": 100,
+                "start_date": instant_str,
+            },
+        )
+
+        assert response.status_code == 200
+        assert ti.xcom_pull(task_ids="test_xcom_not_cleared_for_deferral", key="key") == "value"
 
 
 class TestTIUpdateState:
@@ -178,6 +357,87 @@ class TestTIUpdateState:
         ti = session.get(TaskInstance, ti.id)
         assert ti.state == expected_state
         assert ti.end_date == end_date
+
+    @pytest.mark.parametrize(
+        ("task_outlets", "outlet_events"),
+        [
+            (
+                [{"name": "s3://bucket/my-task", "uri": "s3://bucket/my-task", "asset_type": "Asset"}],
+                [
+                    {
+                        "key": {"name": "s3://bucket/my-task", "uri": "s3://bucket/my-task"},
+                        "extra": {},
+                        "asset_alias_events": [],
+                    }
+                ],
+            ),
+            (
+                [{"asset_type": "AssetAlias"}],
+                [
+                    {
+                        "source_alias_name": "example-alias",
+                        "dest_asset_key": {"name": "s3://bucket/my-task", "uri": "s3://bucket/my-task"},
+                        "extra": {},
+                    }
+                ],
+            ),
+        ],
+    )
+    def test_ti_update_state_to_success_with_asset_events(
+        self, client, session, create_task_instance, task_outlets, outlet_events
+    ):
+        clear_db_assets()
+        clear_db_runs()
+
+        asset = AssetModel(
+            id=1,
+            name="s3://bucket/my-task",
+            uri="s3://bucket/my-task",
+            group="asset",
+            extra={},
+        )
+        asset_active = AssetActive.for_asset(asset)
+        session.add_all([asset, asset_active])
+        asset_type = task_outlets[0]["asset_type"]
+        if asset_type == "AssetAlias":
+            _create_asset_aliases(session, num=1)
+            asset_alias = session.query(AssetAliasModel).all()
+            assert len(asset_alias) == 1
+            assert asset_alias == [AssetAliasModel(name="simple1")]
+
+        ti = create_task_instance(
+            task_id="test_ti_update_state_to_success_with_asset_events",
+            start_date=DEFAULT_START_DATE,
+            state=State.RUNNING,
+        )
+        session.commit()
+
+        response = client.patch(
+            f"/execution/task-instances/{ti.id}/state",
+            json={
+                "state": "success",
+                "end_date": DEFAULT_END_DATE.isoformat(),
+                "task_outlets": task_outlets,
+                "outlet_events": outlet_events,
+            },
+        )
+
+        assert response.status_code == 204
+        assert response.text == ""
+        session.expire_all()
+
+        # check if asset was created properly
+        asset = session.query(AssetModel).all()
+        assert len(asset) == 1
+        assert asset == [AssetModel(name="s3://bucket/my-task", uri="s3://bucket/my-task", extra={})]
+
+        event = session.query(AssetEvent).all()
+        assert len(event) == 1
+        assert event[0].asset_id == 1
+        assert event[0].asset == AssetModel(name="s3://bucket/my-task", uri="s3://bucket/my-task", extra={})
+        assert event[0].extra == {}
+        if asset_type == "AssetAlias":
+            assert event[0].source_aliases == [AssetAliasModel(name="example-alias")]
 
     def test_ti_update_state_not_found(self, client, session):
         """
@@ -231,13 +491,20 @@ class TestTIUpdateState:
             "end_date": "2024-10-31T12:00:00Z",
         }
 
-        with mock.patch(
-            "airflow.api_fastapi.common.db.common.Session.execute",
-            side_effect=[
-                mock.Mock(one=lambda: ("running", 1, 0)),  # First call returns "queued"
-                SQLAlchemyError("Database error"),  # Second call raises an error
-            ],
+        with (
+            mock.patch(
+                "airflow.api_fastapi.common.db.common.Session.execute",
+                side_effect=[
+                    mock.Mock(one=lambda: ("running", 1, 0)),  # First call returns "queued"
+                    mock.Mock(one=lambda: ("running", 1, 0)),  # Second call returns "queued"
+                    SQLAlchemyError("Database error"),  # Last call raises an error
+                ],
+            ),
+            mock.patch(
+                "airflow.models.taskinstance.TaskInstance.register_asset_changes_in_db",
+            ) as mock_register_asset_changes_in_db,
         ):
+            mock_register_asset_changes_in_db.return_value = None
             response = client.patch(f"/execution/task-instances/{ti.id}/state", json=payload)
             assert response.status_code == 500
             assert response.json()["detail"] == "Database error occurred"
@@ -259,10 +526,18 @@ class TestTIUpdateState:
 
         payload = {
             "state": "deferred",
-            "trigger_kwargs": {"key": "value", "moment": "2024-12-18T00:00:00Z"},
+            # Raw payload is already "encoded", but not encrypted
+            "trigger_kwargs": {
+                "__type": "dict",
+                "__var": {"key": "value", "moment": {"__type": "datetime", "__var": 1734480001.0}},
+            },
+            "trigger_timeout": "P1D",  # 1 day
             "classpath": "my-classpath",
             "next_method": "execute_callback",
-            "trigger_timeout": "P1D",  # 1 day
+            "next_kwargs": {
+                "__type": "dict",
+                "__var": {"foo": {"__type": "datetime", "__var": 1734480000.0}, "bar": "abc"},
+            },
         }
 
         response = client.patch(f"/execution/task-instances/{ti.id}/state", json=payload)
@@ -278,8 +553,8 @@ class TestTIUpdateState:
         assert tis[0].state == TaskInstanceState.DEFERRED
         assert tis[0].next_method == "execute_callback"
         assert tis[0].next_kwargs == {
-            "key": "value",
-            "moment": datetime(2024, 12, 18, 00, 00, 00, tzinfo=timezone.utc),
+            "bar": "abc",
+            "foo": datetime(2024, 12, 18, 00, 00, 00, tzinfo=timezone.utc),
         }
         assert tis[0].trigger_timeout == timezone.make_aware(datetime(2024, 11, 23), timezone=timezone.utc)
 
@@ -289,7 +564,7 @@ class TestTIUpdateState:
         assert t[0].classpath == "my-classpath"
         assert t[0].kwargs == {
             "key": "value",
-            "moment": datetime(2024, 12, 18, 00, 00, 00, tzinfo=timezone.utc),
+            "moment": datetime(2024, 12, 18, 00, 00, 1, tzinfo=timezone.utc),
         }
 
     def test_ti_update_state_to_reschedule(self, client, session, create_task_instance, time_machine):
@@ -378,6 +653,16 @@ class TestTIUpdateState:
         assert ti.next_method is None
         assert ti.next_kwargs is None
 
+        tih = session.query(TaskInstanceHistory).where(
+            TaskInstanceHistory.task_id == ti.task_id, TaskInstanceHistory.task_instance_id == ti.id
+        )
+        tih_count = tih.count()
+        assert tih_count == (1 if retries else 0)
+        if retries:
+            tih = tih.one()
+            assert tih.try_id
+            assert tih.try_id != ti.try_id
+
     def test_ti_update_state_when_ti_is_restarting(self, client, session, create_task_instance):
         ti = create_task_instance(
             task_id="test_ti_update_state_when_ti_is_restarting",
@@ -464,6 +749,65 @@ class TestTIUpdateState:
         assert ti.next_method is None
         assert ti.next_kwargs is None
         assert ti.duration == 3600.00
+
+    @pytest.mark.parametrize(
+        ("state", "expected_status_code"),
+        [
+            (State.RUNNING, 204),
+            (State.SUCCESS, 409),
+            (State.QUEUED, 409),
+            (State.FAILED, 409),
+        ],
+    )
+    def test_ti_runtime_checks_success(
+        self, client, session, create_task_instance, state, expected_status_code
+    ):
+        ti = create_task_instance(
+            task_id="test_ti_runtime_checks",
+            state=state,
+        )
+        session.commit()
+
+        with mock.patch(
+            "airflow.models.taskinstance.TaskInstance.validate_inlet_outlet_assets_activeness"
+        ) as mock_validate_inlet_outlet_assets_activeness:
+            mock_validate_inlet_outlet_assets_activeness.return_value = None
+            response = client.post(
+                f"/execution/task-instances/{ti.id}/runtime-checks",
+                json={
+                    "inlets": [],
+                    "outlets": [],
+                },
+            )
+
+            assert response.status_code == expected_status_code
+
+        session.expire_all()
+
+    def test_ti_runtime_checks_failure(self, client, session, create_task_instance):
+        ti = create_task_instance(
+            task_id="test_ti_runtime_checks_failure",
+            state=State.RUNNING,
+        )
+        session.commit()
+
+        with mock.patch(
+            "airflow.models.taskinstance.TaskInstance.validate_inlet_outlet_assets_activeness"
+        ) as mock_validate_inlet_outlet_assets_activeness:
+            mock_validate_inlet_outlet_assets_activeness.side_effect = (
+                AirflowInactiveAssetInInletOrOutletException([AssetUniqueKey(name="abc", uri="something")])
+            )
+            response = client.post(
+                f"/execution/task-instances/{ti.id}/runtime-checks",
+                json={
+                    "inlets": [],
+                    "outlets": [],
+                },
+            )
+
+            assert response.status_code == 400
+
+        session.expire_all()
 
 
 class TestTIHealthEndpoint:
@@ -698,3 +1042,68 @@ class TestTIPutRTIF:
         response = client.put(f"/execution/task-instances/{random_id}/rtif", json=payload)
         assert response.status_code == 404
         assert response.json()["detail"] == "Not Found"
+
+
+class TestPreviousDagRun:
+    def setup_method(self):
+        clear_db_runs()
+
+    def teardown_method(self):
+        clear_db_runs()
+
+    def test_ti_previous_dag_run(self, client, session, create_task_instance, dag_maker):
+        """Test that the previous dag run is returned correctly for a task instance."""
+        ti = create_task_instance(
+            task_id="test_ti_previous_dag_run",
+            dag_id="test_dag",
+            logical_date=timezone.datetime(2025, 1, 19),
+            state=State.RUNNING,
+            start_date=timezone.datetime(2024, 1, 17),
+            session=session,
+        )
+        session.commit()
+
+        # Create 2 DagRuns for the same DAG to verify that the correct DagRun (last) is returned
+        dr1 = dag_maker.create_dagrun(
+            run_id="test_run_id_1",
+            logical_date=timezone.datetime(2025, 1, 17),
+            run_type="scheduled",
+            state=State.SUCCESS,
+            session=session,
+        )
+        dr1.end_date = timezone.datetime(2025, 1, 17, 1, 0, 0)
+
+        dr2 = dag_maker.create_dagrun(
+            run_id="test_run_id_2",
+            logical_date=timezone.datetime(2025, 1, 18),
+            run_type="scheduled",
+            state=State.SUCCESS,
+            session=session,
+        )
+
+        dr2.end_date = timezone.datetime(2025, 1, 18, 1, 0, 0)
+
+        session.commit()
+
+        response = client.get(f"/execution/task-instances/{ti.id}/previous-successful-dagrun")
+        assert response.status_code == 200
+        assert response.json() == {
+            "data_interval_start": "2025-01-18T00:00:00Z",
+            "data_interval_end": "2025-01-19T00:00:00Z",
+            "start_date": "2024-01-17T00:00:00Z",
+            "end_date": "2025-01-18T01:00:00Z",
+        }
+
+    def test_ti_previous_dag_run_not_found(self, client, session):
+        ti_id = "0182e924-0f1e-77e6-ab50-e977118bc139"
+
+        assert session.get(TaskInstance, ti_id) is None
+
+        response = client.get(f"/execution/task-instances/{ti_id}/previous-successful-dagrun")
+        assert response.status_code == 200
+        assert response.json() == {
+            "data_interval_start": None,
+            "data_interval_end": None,
+            "start_date": None,
+            "end_date": None,
+        }

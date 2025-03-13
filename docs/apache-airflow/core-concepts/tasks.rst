@@ -165,70 +165,35 @@ If you want to control your task's state from within custom Task/Operator code, 
 
 These can be useful if your code has extra knowledge about its environment and wants to fail/skip faster - e.g., skipping when it knows there's no data available, or fast-failing when it detects its API key is invalid (as that will not be fixed by a retry).
 
-.. _concepts:zombies:
+.. _concepts:task-instance-heartbeat-timeout:
 
-Zombie/Undead Tasks
--------------------
+Task Instance Heartbeat Timeout
+-------------------------------
 
-No system runs perfectly, and task instances are expected to die once in a while. Airflow detects two kinds of task/process mismatch:
+No system runs perfectly, and task instances are expected to die once in a while.
 
-* *Zombie tasks* are ``TaskInstances`` stuck in a ``running`` state despite their associated jobs being inactive
-  (e.g. their process did not send a recent heartbeat as it got killed, or the machine died). Airflow will find these
-  periodically, clean them up, and either fail or retry the task depending on its settings. Tasks can become zombies for
-  many reasons, including:
+``TaskInstances`` may get stuck in a ``running`` state despite their associated jobs being inactive
+(for example if the ``TaskInstance``'s worker ran out of memory). Such tasks were formerly known as zombie tasks. Airflow will find these
+periodically, clean them up, and mark the ``TaskInstance`` as failed or retry it if it has available retries. The ``TaskInstance``'s heartbeat can timeout for
+many reasons, including:
 
-    * The Airflow worker ran out of memory and was OOMKilled.
-    * The Airflow worker failed its liveness probe, so the system (for example, Kubernetes) restarted the worker.
-    * The system (for example, Kubernetes) scaled down and moved an Airflow worker from one node to another.
-
-* *Undead tasks* are tasks that are *not* supposed to be running but are, often caused when you manually edit Task
-  Instances via the UI. Airflow will find them periodically and terminate them.
+* The Airflow worker ran out of memory and was OOMKilled.
+* The Airflow worker failed its liveness probe, so the system (for example, Kubernetes) restarted the worker.
+* The system (for example, Kubernetes) scaled down and moved an Airflow worker from one node to another.
 
 
-Below is the code snippet from the Airflow scheduler that runs periodically to detect zombie/undead tasks.
+Reproducing task instance heartbeat timeouts locally
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-.. exampleinclude:: /../../airflow/jobs/scheduler_job_runner.py
-    :language: python
-    :start-after: [START find_and_purge_zombies]
-    :end-before: [END find_and_purge_zombies]
-
-
-The explanation of the criteria used in the above snippet to detect zombie tasks is as below:
-
-1. **Task Instance State**
-
-    Only task instances in the RUNNING state are considered potential zombies.
-
-2. **Job State and Heartbeat Check**
-
-    Zombie tasks are identified if the associated job is not in the RUNNING state or if the latest heartbeat of the job is
-    earlier than the calculated time threshold (limit_dttm). The heartbeat is a mechanism to indicate that a task or job is
-    still alive and running.
-
-3. **Job Type**
-
-    The job associated with the task must be of type ``LocalTaskJob``.
-
-4. **Queued by Job ID**
-
-    Only tasks queued by the same job that is currently being processed are considered.
-
-These conditions collectively help identify running tasks that may be zombies based on their state, associated job
-state, heartbeat status, job type, and the specific job that queued them. If a task meets these criteria, it is
-considered a potential zombie, and further actions, such as logging and sending a callback request, are taken.
-
-Reproducing zombie tasks locally
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-
-If you'd like to reproduce zombie tasks for development/testing processes, follow the steps below:
+If you'd like to reproduce task instance heartbeat timeouts for development/testing processes, follow the steps below:
 
 1. Set the below environment variables for your local Airflow setup (alternatively you could tweak the corresponding config values in airflow.cfg)
 
 .. code-block:: bash
 
-    export AIRFLOW__SCHEDULER__LOCAL_TASK_JOB_HEARTBEAT_SEC=600
-    export AIRFLOW__SCHEDULER__SCHEDULER_ZOMBIE_TASK_THRESHOLD=2
-    export AIRFLOW__SCHEDULER__ZOMBIE_DETECTION_INTERVAL=5
+    export AIRFLOW__SCHEDULER__TASK_INSTANCE_HEARTBEAT_SEC=600
+    export AIRFLOW__SCHEDULER__TASK_INSTANCE_HEARTBEAT_TIMEOUT=2
+    export AIRFLOW__SCHEDULER__TASK_INSTANCE_HEARTBEAT_TIMEOUT_DETECTION_INTERVAL=5
 
 
 2. Have a DAG with a task that takes about 10 minutes to complete(i.e. a long-running task). For example, you could use the below DAG:
@@ -251,7 +216,7 @@ If you'd like to reproduce zombie tasks for development/testing processes, follo
     sleep_dag()
 
 
-Run the above DAG and wait for a while. You should see the task instance becoming a zombie task and then being killed by the scheduler.
+Run the above DAG and wait for a while. The ``TaskInstance`` will be marked failed after <task_instance_heartbeat_timeout> seconds.
 
 
 

@@ -21,7 +21,7 @@ import pytest
 import time_machine
 
 from airflow.models import Log
-from airflow.operators.empty import EmptyOperator
+from airflow.providers.standard.operators.empty import EmptyOperator
 from airflow.utils import timezone
 from airflow.utils.session import provide_session
 from airflow.utils.state import State

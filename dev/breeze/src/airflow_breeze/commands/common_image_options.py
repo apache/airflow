@@ -17,6 +17,9 @@
 
 from __future__ import annotations
 
+import tempfile
+from pathlib import Path
+
 import click
 
 from airflow_breeze.branch_defaults import DEFAULT_AIRFLOW_CONSTRAINTS_BRANCH
@@ -210,4 +213,20 @@ option_github_token_for_images = click.option(
     "https://github.com/settings/tokens/new?description=Read%20repo&scopes=public_repo",
     envvar="GITHUB_TOKEN",
     required=True,
+)
+option_image_file_dir = click.option(
+    "--image-file-dir",
+    help="The path to the directory where the image files are stored by default.",
+    envvar="IMAGE_FILE_DIR",
+    type=click.Path(
+        exists=True,
+        file_okay=False,
+        dir_okay=True,
+        resolve_path=True,
+        writable=True,
+        readable=True,
+        path_type=Path,
+    ),
+    default=tempfile.gettempdir() if not generating_command_images() else "/tmp",
+    show_default=True,
 )

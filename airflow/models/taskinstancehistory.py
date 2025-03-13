@@ -32,7 +32,9 @@ from sqlalchemy import (
     select,
     text,
 )
+from sqlalchemy.dialects import postgresql
 from sqlalchemy.ext.mutable import MutableDict
+from sqlalchemy.orm import relationship
 from sqlalchemy_utils import UUIDType
 
 from airflow.models.base import Base, StringID
@@ -46,6 +48,8 @@ from airflow.utils.sqlalchemy import (
 from airflow.utils.state import State, TaskInstanceState
 
 if TYPE_CHECKING:
+    from sqlalchemy.orm.session import Session
+
     from airflow.models.taskinstance import TaskInstance
 
 
@@ -57,7 +61,11 @@ class TaskInstanceHistory(Base):
     """
 
     __tablename__ = "task_instance_history"
-    id = Column(Integer(), primary_key=True, autoincrement=True)
+    try_id = Column(UUIDType(binary=False), nullable=False, primary_key=True)
+    task_instance_id = Column(
+        String(36).with_variant(postgresql.UUID(as_uuid=False), "postgresql"),
+        nullable=False,
+    )
     task_id = Column(StringID(), nullable=False)
     dag_id = Column(StringID(), nullable=False)
     run_id = Column(StringID(), nullable=False)
@@ -77,6 +85,7 @@ class TaskInstanceHistory(Base):
     operator = Column(String(1000))
     custom_operator_name = Column(String(1000))
     queued_dttm = Column(UtcDateTime)
+    scheduled_dttm = Column(UtcDateTime)
     queued_by_job_id = Column(Integer)
     pid = Column(Integer)
     executor = Column(String(1000))
@@ -90,8 +99,15 @@ class TaskInstanceHistory(Base):
     next_method = Column(String(1000))
     next_kwargs = Column(MutableDict.as_mutable(ExtendedJSON))
 
-    task_display_name = Column("task_display_name", String(2000), nullable=True)
+    task_display_name = Column(String(2000), nullable=True)
     dag_version_id = Column(UUIDType(binary=False))
+
+    dag_version = relationship(
+        "DagVersion",
+        primaryjoin="TaskInstanceHistory.dag_version_id == DagVersion.id",
+        viewonly=True,
+        foreign_keys=[dag_version_id],
+    )
 
     def __init__(
         self,
@@ -101,6 +117,9 @@ class TaskInstanceHistory(Base):
         super().__init__()
         for column in self.__table__.columns:
             if column.name == "id":
+                continue
+            if column.name == "task_instance_id":
+                setattr(self, column.name, ti.id)
                 continue
             setattr(self, column.name, getattr(ti, column.name))
 
@@ -132,7 +151,7 @@ class TaskInstanceHistory(Base):
 
     @staticmethod
     @provide_session
-    def record_ti(ti: TaskInstance, session: NEW_SESSION = None) -> None:
+    def record_ti(ti: TaskInstance, session: Session = NEW_SESSION) -> None:
         """Record a TaskInstance to TaskInstanceHistory."""
         exists_q = session.scalar(
             select(func.count(TaskInstanceHistory.task_id)).where(

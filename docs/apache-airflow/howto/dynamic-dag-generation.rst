@@ -207,7 +207,7 @@ of the context are set to ``None``.
   :emphasize-lines: 4,8,9
 
   from airflow.models.dag import DAG
-  from airflow.utils.dag_parsing_context import get_parsing_context
+  from airflow.sdk import get_parsing_context
 
   current_dag_id = get_parsing_context().dag_id
 

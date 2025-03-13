@@ -18,33 +18,24 @@
 from __future__ import annotations
 
 import copy
-import logging
-import uuid
 from collections import defaultdict
-from datetime import date, datetime
-from typing import NamedTuple
+from datetime import datetime
 from unittest import mock
 
-import jinja2
 import pytest
 
 from airflow.decorators import task as task_decorator
-from airflow.exceptions import AirflowException, TaskDeferralTimeout
-from airflow.lineage.entities import File
+from airflow.exceptions import TaskDeferralTimeout
 from airflow.models.baseoperator import (
     BaseOperator,
-    chain,
-    chain_linear,
-    cross_downstream,
 )
 from airflow.models.dag import DAG
 from airflow.models.dagrun import DagRun
 from airflow.models.taskinstance import TaskInstance
 from airflow.models.trigger import TriggerFailureReason
+from airflow.providers.common.compat.lineage.entities import File
 from airflow.providers.common.sql.operators import sql
-from airflow.utils.edgemodifier import Label
 from airflow.utils.task_group import TaskGroup
-from airflow.utils.template import literal
 from airflow.utils.trigger_rule import TriggerRule
 from airflow.utils.types import DagRunType
 
@@ -72,328 +63,29 @@ class ClassWithCustomAttributes:
         return not self.__eq__(other)
 
 
-# Objects with circular references (for testing purpose)
-object1 = ClassWithCustomAttributes(attr="{{ foo }}_1", template_fields=["ref"])
-object2 = ClassWithCustomAttributes(attr="{{ foo }}_2", ref=object1, template_fields=["ref"])
-setattr(object1, "ref", object2)
-
-
-class MockNamedTuple(NamedTuple):
-    var1: str
-    var2: str
-
-
 class TestBaseOperator:
     def test_trigger_rule_validation(self):
         from airflow.models.abstractoperator import DEFAULT_TRIGGER_RULE
 
-        fail_stop_dag = DAG(
+        fail_fast_dag = DAG(
             dag_id="test_dag_trigger_rule_validation",
             schedule=None,
             start_date=DEFAULT_DATE,
-            fail_stop=True,
+            fail_fast=True,
         )
-        non_fail_stop_dag = DAG(
+        non_fail_fast_dag = DAG(
             dag_id="test_dag_trigger_rule_validation",
             schedule=None,
             start_date=DEFAULT_DATE,
-            fail_stop=False,
+            fail_fast=False,
         )
 
         # An operator with default trigger rule and a fail-stop dag should be allowed
-        BaseOperator(task_id="test_valid_trigger_rule", dag=fail_stop_dag, trigger_rule=DEFAULT_TRIGGER_RULE)
+        BaseOperator(task_id="test_valid_trigger_rule", dag=fail_fast_dag, trigger_rule=DEFAULT_TRIGGER_RULE)
         # An operator with non default trigger rule and a non fail-stop dag should be allowed
         BaseOperator(
-            task_id="test_valid_trigger_rule", dag=non_fail_stop_dag, trigger_rule=TriggerRule.ALWAYS
+            task_id="test_valid_trigger_rule", dag=non_fail_fast_dag, trigger_rule=TriggerRule.ALWAYS
         )
-
-    @pytest.mark.db_test
-    @pytest.mark.parametrize(
-        ("content", "context", "expected_output"),
-        [
-            ("{{ foo }}", {"foo": "bar"}, "bar"),
-            (["{{ foo }}_1", "{{ foo }}_2"], {"foo": "bar"}, ["bar_1", "bar_2"]),
-            (("{{ foo }}_1", "{{ foo }}_2"), {"foo": "bar"}, ("bar_1", "bar_2")),
-            (
-                {"key1": "{{ foo }}_1", "key2": "{{ foo }}_2"},
-                {"foo": "bar"},
-                {"key1": "bar_1", "key2": "bar_2"},
-            ),
-            (
-                {"key_{{ foo }}_1": 1, "key_2": "{{ foo }}_2"},
-                {"foo": "bar"},
-                {"key_{{ foo }}_1": 1, "key_2": "bar_2"},
-            ),
-            (date(2018, 12, 6), {"foo": "bar"}, date(2018, 12, 6)),
-            (datetime(2018, 12, 6, 10, 55), {"foo": "bar"}, datetime(2018, 12, 6, 10, 55)),
-            (MockNamedTuple("{{ foo }}_1", "{{ foo }}_2"), {"foo": "bar"}, MockNamedTuple("bar_1", "bar_2")),
-            ({"{{ foo }}_1", "{{ foo }}_2"}, {"foo": "bar"}, {"bar_1", "bar_2"}),
-            (None, {}, None),
-            ([], {}, []),
-            ({}, {}, {}),
-            (
-                # check nested fields can be templated
-                ClassWithCustomAttributes(att1="{{ foo }}_1", att2="{{ foo }}_2", template_fields=["att1"]),
-                {"foo": "bar"},
-                ClassWithCustomAttributes(att1="bar_1", att2="{{ foo }}_2", template_fields=["att1"]),
-            ),
-            (
-                # check deep nested fields can be templated
-                ClassWithCustomAttributes(
-                    nested1=ClassWithCustomAttributes(
-                        att1="{{ foo }}_1", att2="{{ foo }}_2", template_fields=["att1"]
-                    ),
-                    nested2=ClassWithCustomAttributes(
-                        att3="{{ foo }}_3", att4="{{ foo }}_4", template_fields=["att3"]
-                    ),
-                    template_fields=["nested1"],
-                ),
-                {"foo": "bar"},
-                ClassWithCustomAttributes(
-                    nested1=ClassWithCustomAttributes(
-                        att1="bar_1", att2="{{ foo }}_2", template_fields=["att1"]
-                    ),
-                    nested2=ClassWithCustomAttributes(
-                        att3="{{ foo }}_3", att4="{{ foo }}_4", template_fields=["att3"]
-                    ),
-                    template_fields=["nested1"],
-                ),
-            ),
-            (
-                # check null value on nested template field
-                ClassWithCustomAttributes(att1=None, template_fields=["att1"]),
-                {},
-                ClassWithCustomAttributes(att1=None, template_fields=["att1"]),
-            ),
-            (
-                # check there is no RecursionError on circular references
-                object1,
-                {"foo": "bar"},
-                object1,
-            ),
-            # By default, Jinja2 drops one (single) trailing newline
-            ("{{ foo }}\n\n", {"foo": "bar"}, "bar\n"),
-            (literal("{{ foo }}"), {"foo": "bar"}, "{{ foo }}"),
-            (literal(["{{ foo }}_1", "{{ foo }}_2"]), {"foo": "bar"}, ["{{ foo }}_1", "{{ foo }}_2"]),
-            (literal(("{{ foo }}_1", "{{ foo }}_2")), {"foo": "bar"}, ("{{ foo }}_1", "{{ foo }}_2")),
-        ],
-    )
-    def test_render_template(self, content, context, expected_output):
-        """Test render_template given various input types."""
-        task = BaseOperator(task_id="op1")
-
-        result = task.render_template(content, context)
-        assert result == expected_output
-
-    @pytest.mark.parametrize(
-        ("content", "context", "expected_output"),
-        [
-            ("{{ foo }}", {"foo": "bar"}, "bar"),
-            ("{{ foo }}", {"foo": ["bar1", "bar2"]}, ["bar1", "bar2"]),
-            (["{{ foo }}", "{{ foo | length}}"], {"foo": ["bar1", "bar2"]}, [["bar1", "bar2"], 2]),
-            (("{{ foo }}_1", "{{ foo }}_2"), {"foo": "bar"}, ("bar_1", "bar_2")),
-            ("{{ ds }}", {"ds": date(2018, 12, 6)}, date(2018, 12, 6)),
-            (datetime(2018, 12, 6, 10, 55), {"foo": "bar"}, datetime(2018, 12, 6, 10, 55)),
-            ("{{ ds }}", {"ds": datetime(2018, 12, 6, 10, 55)}, datetime(2018, 12, 6, 10, 55)),
-            (MockNamedTuple("{{ foo }}_1", "{{ foo }}_2"), {"foo": "bar"}, MockNamedTuple("bar_1", "bar_2")),
-            (
-                ("{{ foo }}", "{{ foo.isoformat() }}"),
-                {"foo": datetime(2018, 12, 6, 10, 55)},
-                (datetime(2018, 12, 6, 10, 55), "2018-12-06T10:55:00"),
-            ),
-            (None, {}, None),
-            ([], {}, []),
-            ({}, {}, {}),
-        ],
-    )
-    def test_render_template_with_native_envs(self, content, context, expected_output):
-        """Test render_template given various input types with Native Python types"""
-        with DAG("test-dag", schedule=None, start_date=DEFAULT_DATE, render_template_as_native_obj=True):
-            task = BaseOperator(task_id="op1")
-
-        result = task.render_template(content, context)
-        assert result == expected_output
-
-    @pytest.mark.db_test
-    def test_render_template_fields(self):
-        """Verify if operator attributes are correctly templated."""
-        task = MockOperator(task_id="op1", arg1="{{ foo }}", arg2="{{ bar }}")
-
-        # Assert nothing is templated yet
-        assert task.arg1 == "{{ foo }}"
-        assert task.arg2 == "{{ bar }}"
-
-        # Trigger templating and verify if attributes are templated correctly
-        task.render_template_fields(context={"foo": "footemplated", "bar": "bartemplated"})
-        assert task.arg1 == "footemplated"
-        assert task.arg2 == "bartemplated"
-
-    @pytest.mark.db_test
-    def test_render_template_fields_func_using_context(self):
-        """Verify if operator attributes are correctly templated."""
-
-        def fn_to_template(context, jinja_env):
-            tmp = context["task"].render_template("{{ bar }}", context, jinja_env)
-            return "foo_" + tmp
-
-        task = MockOperator(task_id="op1", arg2=fn_to_template)
-
-        # Trigger templating and verify if attributes are templated correctly
-        task.render_template_fields(context={"bar": "bartemplated", "task": task})
-        assert task.arg2 == "foo_bartemplated"
-
-    @pytest.mark.db_test
-    def test_render_template_fields_simple_func(self):
-        """Verify if operator attributes are correctly templated."""
-
-        def fn_to_template(**kwargs):
-            a = "foo_" + ("bar" * 3)
-            return a
-
-        task = MockOperator(task_id="op1", arg2=fn_to_template)
-        task.render_template_fields({})
-        assert task.arg2 == "foo_barbarbar"
-
-    @pytest.mark.parametrize(("content",), [(object(),), (uuid.uuid4(),)])
-    def test_render_template_fields_no_change(self, content):
-        """Tests if non-templatable types remain unchanged."""
-        task = BaseOperator(task_id="op1")
-
-        result = task.render_template(content, {"foo": "bar"})
-        assert content is result
-
-    @pytest.mark.db_test
-    def test_nested_template_fields_declared_must_exist(self):
-        """Test render_template when a nested template field is missing."""
-        task = BaseOperator(task_id="op1")
-
-        error_message = (
-            "'missing_field' is configured as a template field but ClassWithCustomAttributes does not have "
-            "this attribute."
-        )
-        with pytest.raises(AttributeError, match=error_message):
-            task.render_template(
-                ClassWithCustomAttributes(
-                    template_fields=["missing_field"], task_type="ClassWithCustomAttributes"
-                ),
-                {},
-            )
-
-    def test_string_template_field_attr_is_converted_to_list(self):
-        """Verify template_fields attribute is converted to a list if declared as a string."""
-
-        class StringTemplateFieldsOperator(BaseOperator):
-            template_fields = "a_string"
-
-        warning_message = (
-            "The `template_fields` value for StringTemplateFieldsOperator is a string but should be a "
-            "list or tuple of string. Wrapping it in a list for execution. Please update "
-            "StringTemplateFieldsOperator accordingly."
-        )
-        with pytest.warns(UserWarning, match=warning_message) as warnings:
-            task = StringTemplateFieldsOperator(task_id="op1")
-
-            assert len(warnings) == 1
-            assert isinstance(task.template_fields, list)
-
-    def test_jinja_invalid_expression_is_just_propagated(self):
-        """Test render_template propagates Jinja invalid expression errors."""
-        task = BaseOperator(task_id="op1")
-
-        with pytest.raises(jinja2.exceptions.TemplateSyntaxError):
-            task.render_template("{{ invalid expression }}", {})
-
-    @pytest.mark.db_test
-    @mock.patch("airflow.templates.SandboxedEnvironment", autospec=True)
-    def test_jinja_env_creation(self, mock_jinja_env):
-        """Verify if a Jinja environment is created only once when templating."""
-        task = MockOperator(task_id="op1", arg1="{{ foo }}", arg2="{{ bar }}")
-
-        task.render_template_fields(context={"foo": "whatever", "bar": "whatever"})
-        assert mock_jinja_env.call_count == 1
-
-    def test_cross_downstream(self):
-        """Test if all dependencies between tasks are all set correctly."""
-        dag = DAG(dag_id="test_dag", schedule=None, start_date=datetime.now())
-        start_tasks = [BaseOperator(task_id=f"t{i}", dag=dag) for i in range(1, 4)]
-        end_tasks = [BaseOperator(task_id=f"t{i}", dag=dag) for i in range(4, 7)]
-        cross_downstream(from_tasks=start_tasks, to_tasks=end_tasks)
-
-        for start_task in start_tasks:
-            assert set(start_task.get_direct_relatives(upstream=False)) == set(end_tasks)
-
-        # Begin test for `XComArgs`
-        xstart_tasks = [
-            task_decorator(task_id=f"xcomarg_task{i}", python_callable=lambda: None, dag=dag)()
-            for i in range(1, 4)
-        ]
-        xend_tasks = [
-            task_decorator(task_id=f"xcomarg_task{i}", python_callable=lambda: None, dag=dag)()
-            for i in range(4, 7)
-        ]
-        cross_downstream(from_tasks=xstart_tasks, to_tasks=xend_tasks)
-
-        for xstart_task in xstart_tasks:
-            assert set(xstart_task.operator.get_direct_relatives(upstream=False)) == {
-                xend_task.operator for xend_task in xend_tasks
-            }
-
-    def test_chain(self):
-        dag = DAG(dag_id="test_chain", schedule=None, start_date=datetime.now())
-
-        # Begin test for classic operators with `EdgeModifiers`
-        [label1, label2] = [Label(label=f"label{i}") for i in range(1, 3)]
-        [op1, op2, op3, op4, op5, op6] = [BaseOperator(task_id=f"t{i}", dag=dag) for i in range(1, 7)]
-        chain(op1, [label1, label2], [op2, op3], [op4, op5], op6)
-
-        assert {op2, op3} == set(op1.get_direct_relatives(upstream=False))
-        assert [op4] == op2.get_direct_relatives(upstream=False)
-        assert [op5] == op3.get_direct_relatives(upstream=False)
-        assert {op4, op5} == set(op6.get_direct_relatives(upstream=True))
-
-        assert dag.get_edge_info(upstream_task_id=op1.task_id, downstream_task_id=op2.task_id) == {
-            "label": "label1"
-        }
-        assert dag.get_edge_info(upstream_task_id=op1.task_id, downstream_task_id=op3.task_id) == {
-            "label": "label2"
-        }
-
-        # Begin test for `XComArgs` with `EdgeModifiers`
-        [xlabel1, xlabel2] = [Label(label=f"xcomarg_label{i}") for i in range(1, 3)]
-        [xop1, xop2, xop3, xop4, xop5, xop6] = [
-            task_decorator(task_id=f"xcomarg_task{i}", python_callable=lambda: None, dag=dag)()
-            for i in range(1, 7)
-        ]
-        chain(xop1, [xlabel1, xlabel2], [xop2, xop3], [xop4, xop5], xop6)
-
-        assert {xop2.operator, xop3.operator} == set(xop1.operator.get_direct_relatives(upstream=False))
-        assert [xop4.operator] == xop2.operator.get_direct_relatives(upstream=False)
-        assert [xop5.operator] == xop3.operator.get_direct_relatives(upstream=False)
-        assert {xop4.operator, xop5.operator} == set(xop6.operator.get_direct_relatives(upstream=True))
-
-        assert dag.get_edge_info(
-            upstream_task_id=xop1.operator.task_id, downstream_task_id=xop2.operator.task_id
-        ) == {"label": "xcomarg_label1"}
-        assert dag.get_edge_info(
-            upstream_task_id=xop1.operator.task_id, downstream_task_id=xop3.operator.task_id
-        ) == {"label": "xcomarg_label2"}
-
-        # Begin test for `TaskGroups`
-        [tg1, tg2] = [TaskGroup(group_id=f"tg{i}", dag=dag) for i in range(1, 3)]
-        [op1, op2] = [BaseOperator(task_id=f"task{i}", dag=dag) for i in range(1, 3)]
-        [tgop1, tgop2] = [
-            BaseOperator(task_id=f"task_group_task{i}", task_group=tg1, dag=dag) for i in range(1, 3)
-        ]
-        [tgop3, tgop4] = [
-            BaseOperator(task_id=f"task_group_task{i}", task_group=tg2, dag=dag) for i in range(1, 3)
-        ]
-        chain(op1, tg1, tg2, op2)
-
-        assert {tgop1, tgop2} == set(op1.get_direct_relatives(upstream=False))
-        assert {tgop3, tgop4} == set(tgop1.get_direct_relatives(upstream=False))
-        assert {tgop3, tgop4} == set(tgop2.get_direct_relatives(upstream=False))
-        assert [op2] == tgop3.get_direct_relatives(upstream=False)
-        assert [op2] == tgop4.get_direct_relatives(upstream=False)
 
     def test_baseoperator_raises_exception_when_task_id_plus_taskgroup_id_exceeds_250_chars(self):
         """Test exception is raised when operator task id + taskgroup id > 250 chars."""
@@ -421,110 +113,6 @@ class TestBaseOperator:
             BaseOperator(task_id="1" * 249, dag=dag)
         except Exception as e:
             pytest.fail(f"Exception raised: {e}")
-
-    def test_chain_linear(self):
-        dag = DAG(dag_id="test_chain_linear", schedule=None, start_date=datetime.now())
-
-        t1, t2, t3, t4, t5, t6, t7 = (BaseOperator(task_id=f"t{i}", dag=dag) for i in range(1, 8))
-        chain_linear(t1, [t2, t3, t4], [t5, t6], t7)
-
-        assert set(t1.get_direct_relatives(upstream=False)) == {t2, t3, t4}
-        assert set(t2.get_direct_relatives(upstream=False)) == {t5, t6}
-        assert set(t3.get_direct_relatives(upstream=False)) == {t5, t6}
-        assert set(t7.get_direct_relatives(upstream=True)) == {t5, t6}
-
-        t1, t2, t3, t4, t5, t6 = (
-            task_decorator(task_id=f"xcomarg_task{i}", python_callable=lambda: None, dag=dag)()
-            for i in range(1, 7)
-        )
-        chain_linear(t1, [t2, t3], [t4, t5], t6)
-
-        assert set(t1.operator.get_direct_relatives(upstream=False)) == {t2.operator, t3.operator}
-        assert set(t2.operator.get_direct_relatives(upstream=False)) == {t4.operator, t5.operator}
-        assert set(t3.operator.get_direct_relatives(upstream=False)) == {t4.operator, t5.operator}
-        assert set(t6.operator.get_direct_relatives(upstream=True)) == {t4.operator, t5.operator}
-
-        # Begin test for `TaskGroups`
-        tg1, tg2 = (TaskGroup(group_id=f"tg{i}", dag=dag) for i in range(1, 3))
-        op1, op2 = (BaseOperator(task_id=f"task{i}", dag=dag) for i in range(1, 3))
-        tgop1, tgop2 = (
-            BaseOperator(task_id=f"task_group_task{i}", task_group=tg1, dag=dag) for i in range(1, 3)
-        )
-        tgop3, tgop4 = (
-            BaseOperator(task_id=f"task_group_task{i}", task_group=tg2, dag=dag) for i in range(1, 3)
-        )
-        chain_linear(op1, tg1, tg2, op2)
-
-        assert set(op1.get_direct_relatives(upstream=False)) == {tgop1, tgop2}
-        assert set(tgop1.get_direct_relatives(upstream=False)) == {tgop3, tgop4}
-        assert set(tgop2.get_direct_relatives(upstream=False)) == {tgop3, tgop4}
-        assert set(tgop3.get_direct_relatives(upstream=False)) == {op2}
-        assert set(tgop4.get_direct_relatives(upstream=False)) == {op2}
-
-        t1, t2 = (BaseOperator(task_id=f"t-{i}", dag=dag) for i in range(1, 3))
-        with pytest.raises(ValueError, match="Labels are not supported"):
-            chain_linear(t1, Label("hi"), t2)
-
-        with pytest.raises(ValueError, match="nothing to do"):
-            chain_linear()
-
-        with pytest.raises(ValueError, match="Did you forget to expand"):
-            chain_linear(t1)
-
-    def test_chain_not_support_type(self):
-        dag = DAG(dag_id="test_chain", schedule=None, start_date=datetime.now())
-        [op1, op2] = [BaseOperator(task_id=f"t{i}", dag=dag) for i in range(1, 3)]
-        with pytest.raises(TypeError):
-            chain([op1, op2], 1)
-
-        # Begin test for `XComArgs`
-        [xop1, xop2] = [
-            task_decorator(task_id=f"xcomarg_task{i}", python_callable=lambda: None, dag=dag)()
-            for i in range(1, 3)
-        ]
-
-        with pytest.raises(TypeError):
-            chain([xop1, xop2], 1)
-
-        # Begin test for `EdgeModifiers`
-        with pytest.raises(TypeError):
-            chain([Label("labe1"), Label("label2")], 1)
-
-        # Begin test for `TaskGroups`
-        [tg1, tg2] = [TaskGroup(group_id=f"tg{i}", dag=dag) for i in range(1, 3)]
-
-        with pytest.raises(TypeError):
-            chain([tg1, tg2], 1)
-
-    def test_chain_different_length_iterable(self):
-        dag = DAG(dag_id="test_chain", schedule=None, start_date=datetime.now())
-        [label1, label2] = [Label(label=f"label{i}") for i in range(1, 3)]
-        [op1, op2, op3, op4, op5] = [BaseOperator(task_id=f"t{i}", dag=dag) for i in range(1, 6)]
-
-        with pytest.raises(AirflowException):
-            chain([op1, op2], [op3, op4, op5])
-
-        with pytest.raises(AirflowException):
-            chain([op1, op2, op3], [label1, label2])
-
-        # Begin test for `XComArgs` with `EdgeModifiers`
-        [label3, label4] = [Label(label=f"xcomarg_label{i}") for i in range(1, 3)]
-        [xop1, xop2, xop3, xop4, xop5] = [
-            task_decorator(task_id=f"xcomarg_task{i}", python_callable=lambda: None, dag=dag)()
-            for i in range(1, 6)
-        ]
-
-        with pytest.raises(AirflowException):
-            chain([xop1, xop2], [xop3, xop4, xop5])
-
-        with pytest.raises(AirflowException):
-            chain([xop1, xop2, xop3], [label1, label2])
-
-        # Begin test for `TaskGroups`
-        [tg1, tg2, tg3, tg4, tg5] = [TaskGroup(group_id=f"tg{i}", dag=dag) for i in range(1, 6)]
-
-        with pytest.raises(AirflowException):
-            chain([tg1, tg2], [tg3, tg4, tg5])
 
     def test_lineage_composition(self):
         """
@@ -632,85 +220,6 @@ def test_deepcopy():
     copy.deepcopy(dag)
 
 
-@pytest.mark.db_test
-@pytest.mark.parametrize(
-    ("task", "context", "expected_exception", "expected_rendering", "expected_log", "not_expected_log"),
-    [
-        # Simple success case.
-        (
-            MockOperator(task_id="op1", arg1="{{ foo }}"),
-            dict(foo="footemplated"),
-            None,
-            dict(arg1="footemplated"),
-            None,
-            "Exception rendering Jinja template",
-        ),
-        # Jinja syntax error.
-        (
-            MockOperator(task_id="op1", arg1="{{ foo"),
-            dict(),
-            jinja2.TemplateSyntaxError,
-            None,
-            "Exception rendering Jinja template for task 'op1', field 'arg1'. Template: '{{ foo'",
-            None,
-        ),
-        # Type error
-        (
-            MockOperator(task_id="op1", arg1="{{ foo + 1 }}"),
-            dict(foo="footemplated"),
-            TypeError,
-            None,
-            "Exception rendering Jinja template for task 'op1', field 'arg1'. Template: '{{ foo + 1 }}'",
-            None,
-        ),
-    ],
-)
-def test_render_template_fields_logging(
-    caplog, monkeypatch, task, context, expected_exception, expected_rendering, expected_log, not_expected_log
-):
-    """Verify if operator attributes are correctly templated."""
-
-    # Trigger templating and verify results
-    def _do_render():
-        task.render_template_fields(context=context)
-
-    logger = logging.getLogger("airflow.task")
-    monkeypatch.setattr(logger, "propagate", True)
-    if expected_exception:
-        with pytest.raises(expected_exception):
-            _do_render()
-    else:
-        _do_render()
-        for k, v in expected_rendering.items():
-            assert getattr(task, k) == v
-    if expected_log:
-        assert expected_log in caplog.text
-    if not_expected_log:
-        assert not_expected_log not in caplog.text
-
-
-@pytest.mark.db_test
-def test_find_mapped_dependants_in_another_group(dag_maker):
-    from airflow.utils.task_group import TaskGroup
-
-    @task_decorator
-    def gen(x):
-        return list(range(x))
-
-    @task_decorator
-    def add(x, y):
-        return x + y
-
-    with dag_maker():
-        with TaskGroup(group_id="g1"):
-            gen_result = gen(3)
-        with TaskGroup(group_id="g2"):
-            add_result = add.partial(y=1).expand(x=gen_result)
-
-    dependants = list(gen_result.operator.iter_mapped_dependants())
-    assert dependants == [add_result.operator]
-
-
 def get_states(dr):
     """
     For a given dag run, get a dict of states.
@@ -732,13 +241,13 @@ def get_states(dr):
 
 
 @pytest.mark.db_test
-def test_teardown_and_fail_stop(dag_maker):
+def test_teardown_and_fail_fast(dag_maker):
     """
-    when fail_stop enabled, teardowns should run according to their setups.
+    when fail_fast enabled, teardowns should run according to their setups.
     in this case, the second teardown skips because its setup skips.
     """
 
-    with dag_maker(fail_stop=True) as dag:
+    with dag_maker(fail_fast=True) as dag:
         for num in (1, 2):
             with TaskGroup(f"tg_{num}"):
 

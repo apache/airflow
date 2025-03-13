@@ -16,9 +16,13 @@
 # under the License.
 from __future__ import annotations
 
+import json
 import logging
 import os
 import sys
+import zipfile
+from contextlib import contextmanager
+from pathlib import Path
 from typing import TYPE_CHECKING
 
 import pytest
@@ -38,14 +42,6 @@ collect_ignore = [
     "tests/dags_corrupted/test_impersonation_custom.py",
     "tests_common.test_utils/perf/dags/elastic_dag.py",
 ]
-
-
-@pytest.hookimpl(tryfirst=True)
-def pytest_configure(config: pytest.Config) -> None:
-    dep_path = [config.rootpath.joinpath("tests", "deprecations_ignore.yml")]
-    config.inicfg["airflow_deprecations_ignore"] = (
-        config.inicfg.get("airflow_deprecations_ignore", []) + dep_path  # type: ignore[assignment,operator]
-    )
 
 
 @pytest.fixture
@@ -79,6 +75,66 @@ def clear_all_logger_handlers():
     remove_all_non_pytest_log_handlers()
     yield
     remove_all_non_pytest_log_handlers()
+
+
+@pytest.fixture
+def testing_dag_bundle():
+    from airflow.models.dagbundle import DagBundleModel
+    from airflow.utils.session import create_session
+
+    with create_session() as session:
+        if session.query(DagBundleModel).filter(DagBundleModel.name == "testing").count() == 0:
+            testing = DagBundleModel(name="testing")
+            session.add(testing)
+
+
+@contextmanager
+def _config_bundles(bundles: dict[str, Path | str]):
+    from tests_common.test_utils.config import conf_vars
+
+    bundle_config = []
+    for name, path in bundles.items():
+        bundle_config.append(
+            {
+                "name": name,
+                "classpath": "airflow.dag_processing.bundles.local.LocalDagBundle",
+                "kwargs": {"path": str(path), "refresh_interval": 0},
+            }
+        )
+    with conf_vars({("dag_processor", "dag_bundle_config_list"): json.dumps(bundle_config)}):
+        yield
+
+
+@pytest.fixture
+def configure_dag_bundles():
+    """Configure arbitrary DAG bundles with the provided paths"""
+
+    return _config_bundles
+
+
+@pytest.fixture
+def configure_testing_dag_bundle():
+    """Configure a "testing" DAG bundle with the provided path"""
+
+    @contextmanager
+    def _config_bundle(path_to_parse: Path | str):
+        with _config_bundles({"testing": path_to_parse}):
+            yield
+
+    return _config_bundle
+
+
+@pytest.fixture
+def test_zip_path(tmp_path: Path):
+    TEST_DAGS_FOLDER = Path(__file__).parent / "dags"
+    test_zip_folder = TEST_DAGS_FOLDER / "test_zip"
+    zipped = tmp_path / "test_zip.zip"
+    with zipfile.ZipFile(zipped, "w") as zf:
+        for root, _, files in os.walk(test_zip_folder):
+            for file in files:
+                zf.write(os.path.join(root, file), os.path.relpath(os.path.join(root, file), test_zip_folder))
+
+    return os.fspath(zipped)
 
 
 if TYPE_CHECKING:

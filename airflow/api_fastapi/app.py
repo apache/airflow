@@ -18,6 +18,8 @@ from __future__ import annotations
 
 import logging
 from contextlib import AsyncExitStack, asynccontextmanager
+from typing import TYPE_CHECKING
+from urllib.parse import urlsplit
 
 from fastapi import FastAPI
 from starlette.routing import Mount
@@ -27,13 +29,19 @@ from airflow.api_fastapi.core_api.app import (
     init_dag_bag,
     init_error_handlers,
     init_flask_plugins,
+    init_middlewares,
     init_plugins,
     init_views,
 )
 from airflow.api_fastapi.execution_api.app import create_task_execution_api_app
-from airflow.auth.managers.base_auth_manager import BaseAuthManager
 from airflow.configuration import conf
 from airflow.exceptions import AirflowConfigException
+
+if TYPE_CHECKING:
+    from airflow.api_fastapi.auth.managers.base_auth_manager import BaseAuthManager
+
+# Define the path in which the potential auth manager fastapi is mounted
+AUTH_MANAGER_FASTAPI_APP_PREFIX = "/auth"
 
 log = logging.getLogger(__name__)
 
@@ -56,25 +64,35 @@ async def lifespan(app: FastAPI):
 def create_app(apps: str = "all") -> FastAPI:
     apps_list = apps.split(",") if apps else ["all"]
 
+    fastapi_base_url = conf.get("api", "base_url", fallback="")
+    if fastapi_base_url and not fastapi_base_url.endswith("/"):
+        fastapi_base_url += "/"
+        conf.set("api", "base_url", fastapi_base_url)
+
+    root_path = urlsplit(fastapi_base_url).path.removesuffix("/")
+
     app = FastAPI(
         title="Airflow API",
         description="Airflow API. All endpoints located under ``/public`` can be used safely, are stable and backward compatible. "
         "Endpoints located under ``/ui`` are dedicated to the UI and are subject to breaking change "
         "depending on the need of the frontend. Users should not rely on those but use the public ones instead.",
         lifespan=lifespan,
+        root_path=root_path,
     )
+
+    if "execution" in apps_list or "all" in apps_list:
+        task_exec_api_app = create_task_execution_api_app()
+        init_error_handlers(task_exec_api_app)
+        app.mount("/execution", task_exec_api_app)
 
     if "core" in apps_list or "all" in apps_list:
         init_dag_bag(app)
-        init_views(app)
         init_plugins(app)
         init_auth_manager(app)
         init_flask_plugins(app)
+        init_views(app)  # Core views need to be the last routes added - it has a catch all route
         init_error_handlers(app)
-
-    if "execution" in apps_list or "all" in apps_list:
-        task_exec_api_app = create_task_execution_api_app(app)
-        app.mount("/execution", task_exec_api_app)
+        init_middlewares(app)
 
     init_config(app)
 
@@ -126,7 +144,8 @@ def init_auth_manager(app: FastAPI | None = None) -> BaseAuthManager:
     am.init()
 
     if app and (auth_manager_fastapi_app := am.get_fastapi_app()):
-        app.mount("/auth", auth_manager_fastapi_app)
+        app.mount(AUTH_MANAGER_FASTAPI_APP_PREFIX, auth_manager_fastapi_app)
+        app.state.auth_manager = am
 
     return am
 

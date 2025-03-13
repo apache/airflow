@@ -19,7 +19,6 @@ from __future__ import annotations
 
 from typing import Annotated, Literal, cast
 
-import pendulum
 from fastapi import Depends, HTTPException, Query, Request, status
 from fastapi.exceptions import RequestValidationError
 from pydantic import ValidationError
@@ -60,10 +59,12 @@ from airflow.api_fastapi.core_api.datamodels.task_instances import (
     TaskInstanceResponse,
 )
 from airflow.api_fastapi.core_api.openapi.exceptions import create_openapi_http_exception_doc
+from airflow.api_fastapi.core_api.security import requires_access_asset
+from airflow.api_fastapi.logging.decorators import action_logging
 from airflow.exceptions import ParamValidationError
+from airflow.listeners.listener import get_listener_manager
 from airflow.models import DAG, DagModel, DagRun
 from airflow.models.dag_version import DagVersion
-from airflow.timetables.base import DataInterval
 from airflow.utils.state import DagRunState
 from airflow.utils.types import DagRunTriggeredByType, DagRunType
 
@@ -96,8 +97,9 @@ def get_dag_run(dag_id: str, dag_run_id: str, session: SessionDep) -> DAGRunResp
         [
             status.HTTP_400_BAD_REQUEST,
             status.HTTP_404_NOT_FOUND,
-        ]
+        ],
     ),
+    dependencies=[Depends(action_logging())],
 )
 def delete_dag_run(dag_id: str, dag_run_id: str, session: SessionDep):
     """Delete a DAG Run entry."""
@@ -108,7 +110,6 @@ def delete_dag_run(dag_id: str, dag_run_id: str, session: SessionDep):
             status.HTTP_404_NOT_FOUND,
             f"The DagRun with dag_id: `{dag_id}` and run_id: `{dag_run_id}` was not found",
         )
-
     session.delete(dag_run)
 
 
@@ -118,8 +119,9 @@ def delete_dag_run(dag_id: str, dag_run_id: str, session: SessionDep):
         [
             status.HTTP_400_BAD_REQUEST,
             status.HTTP_404_NOT_FOUND,
-        ]
+        ],
     ),
+    dependencies=[Depends(action_logging())],
 )
 def patch_dag_run(
     dag_id: str,
@@ -146,23 +148,26 @@ def patch_dag_run(
 
     if update_mask:
         fields_to_update = fields_to_update.intersection(update_mask)
-        data = patch_body.model_dump(include=fields_to_update, by_alias=True)
     else:
         try:
             DAGRunPatchBody(**patch_body.model_dump())
         except ValidationError as e:
             raise RequestValidationError(errors=e.errors())
-        data = patch_body.model_dump(by_alias=True)
+
+    data = patch_body.model_dump(include=fields_to_update, by_alias=True)
 
     for attr_name, attr_value in data.items():
         if attr_name == "state":
             attr_value = getattr(patch_body, "state")
             if attr_value == DAGRunPatchStates.SUCCESS:
                 set_dag_run_state_to_success(dag=dag, run_id=dag_run.run_id, commit=True, session=session)
+                get_listener_manager().hook.on_dag_run_success(dag_run=dag_run, msg="")
             elif attr_value == DAGRunPatchStates.QUEUED:
                 set_dag_run_state_to_queued(dag=dag, run_id=dag_run.run_id, commit=True, session=session)
+                # Not notifying on queued - only notifying on RUNNING, this is happening in scheduler
             elif attr_value == DAGRunPatchStates.FAILED:
                 set_dag_run_state_to_failed(dag=dag, run_id=dag_run.run_id, commit=True, session=session)
+                get_listener_manager().hook.on_dag_run_failed(dag_run=dag_run, msg="")
         elif attr_name == "note":
             # Once Authentication is implemented in this FastAPI app,
             # user id will be added when updating dag run note
@@ -185,6 +190,7 @@ def patch_dag_run(
             status.HTTP_404_NOT_FOUND,
         ]
     ),
+    dependencies=[Depends(requires_access_asset(method="GET"))],
 )
 def get_upstream_asset_events(
     dag_id: str, dag_run_id: str, session: SessionDep
@@ -209,7 +215,9 @@ def get_upstream_asset_events(
 
 
 @dag_run_router.post(
-    "/{dag_run_id}/clear", responses=create_openapi_http_exception_doc([status.HTTP_404_NOT_FOUND])
+    "/{dag_run_id}/clear",
+    responses=create_openapi_http_exception_doc([status.HTTP_404_NOT_FOUND]),
+    dependencies=[Depends(action_logging())],
 )
 def clear_dag_run(
     dag_id: str,
@@ -260,6 +268,7 @@ def get_dag_runs(
     dag_id: str,
     limit: QueryLimit,
     offset: QueryOffset,
+    run_after: Annotated[RangeFilter, Depends(datetime_range_filter_factory("run_after", DagRun))],
     logical_date: Annotated[RangeFilter, Depends(datetime_range_filter_factory("logical_date", DagRun))],
     start_date_range: Annotated[RangeFilter, Depends(datetime_range_filter_factory("start_date", DagRun))],
     end_date_range: Annotated[RangeFilter, Depends(datetime_range_filter_factory("end_date", DagRun))],
@@ -275,10 +284,10 @@ def get_dag_runs(
                     "dag_id",
                     "run_id",
                     "logical_date",
+                    "run_after",
                     "start_date",
                     "end_date",
                     "updated_at",
-                    "external_trigger",
                     "conf",
                 ],
                 DagRun,
@@ -305,13 +314,14 @@ def get_dag_runs(
 
     dag_run_select, total_entries = paginated_select(
         statement=query,
-        filters=[logical_date, start_date_range, end_date_range, update_at_range, state],
+        filters=[run_after, logical_date, start_date_range, end_date_range, update_at_range, state],
         order_by=order_by,
         offset=offset,
         limit=limit,
         session=session,
     )
     dag_runs = session.scalars(dag_run_select)
+
     return DAGRunCollectionResponse(
         dag_runs=dag_runs,
         total_entries=total_entries,
@@ -327,9 +337,13 @@ def get_dag_runs(
             status.HTTP_409_CONFLICT,
         ]
     ),
+    dependencies=[Depends(action_logging())],
 )
 def trigger_dag_run(
-    dag_id, body: TriggerDAGRunPostBody, request: Request, session: SessionDep
+    dag_id,
+    body: TriggerDAGRunPostBody,
+    request: Request,
+    session: SessionDep,
 ) -> DAGRunResponse:
     """Trigger a DAG."""
     dm = session.scalar(select(DagModel).where(DagModel.is_active, DagModel.dag_id == dag_id).limit(1))
@@ -342,31 +356,21 @@ def trigger_dag_run(
             f"DAG with dag_id: '{dag_id}' has import errors and cannot be triggered",
         )
 
-    run_id = body.dag_run_id
-    logical_date = pendulum.instance(body.logical_date)
-
     try:
         dag: DAG = request.app.state.dag_bag.get_dag(dag_id)
+        params = body.validate_context(dag)
 
-        if body.data_interval_start and body.data_interval_end:
-            data_interval = DataInterval(
-                start=pendulum.instance(body.data_interval_start),
-                end=pendulum.instance(body.data_interval_end),
-            )
-        else:
-            data_interval = dag.timetable.infer_manual_data_interval(run_after=logical_date)
-        dag_version = DagVersion.get_latest_version(dag.dag_id)
         dag_run = dag.create_dagrun(
+            run_id=params["run_id"],
+            logical_date=params["logical_date"],
+            data_interval=params["data_interval"],
+            run_after=params["run_after"],
+            conf=params["conf"],
             run_type=DagRunType.MANUAL,
-            run_id=run_id,
-            logical_date=logical_date,
-            data_interval=data_interval,
-            state=DagRunState.QUEUED,
-            conf=body.conf,
-            external_trigger=True,
-            dag_version=dag_version,
-            session=session,
             triggered_by=DagRunTriggeredByType.REST_API,
+            dag_version=DagVersion.get_latest_version(dag.dag_id),
+            state=DagRunState.QUEUED,
+            session=session,
         )
         dag_run_note = body.note
         if dag_run_note:
@@ -389,6 +393,10 @@ def get_list_dag_runs_batch(
         Range(lower_bound=body.logical_date_gte, upper_bound=body.logical_date_lte),
         attribute=DagRun.logical_date,
     )
+    run_after = RangeFilter(
+        Range(lower_bound=body.run_after_gte, upper_bound=body.run_after_lte),
+        attribute=DagRun.run_after,
+    )
     start_date = RangeFilter(
         Range(lower_bound=body.start_date_gte, upper_bound=body.start_date_lte),
         attribute=DagRun.start_date,
@@ -407,12 +415,12 @@ def get_list_dag_runs_batch(
             "id",
             "state",
             "dag_id",
+            "run_after",
             "logical_date",
             "run_id",
             "start_date",
             "end_date",
             "updated_at",
-            "external_trigger",
             "conf",
         ],
         DagRun,
@@ -422,7 +430,7 @@ def get_list_dag_runs_batch(
     base_query = select(DagRun)
     dag_runs_select, total_entries = paginated_select(
         statement=base_query,
-        filters=[dag_ids, logical_date, start_date, end_date, state],
+        filters=[dag_ids, logical_date, run_after, start_date, end_date, state],
         order_by=order_by,
         offset=offset,
         limit=limit,

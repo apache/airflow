@@ -31,6 +31,8 @@ from airflow.models.backfill import (
     Backfill,
     BackfillDagRun,
     BackfillDagRunExceptionReason,
+    InvalidBackfillDirection,
+    InvalidReprocessBehavior,
     ReprocessBehavior,
     _create_backfill,
 )
@@ -74,7 +76,10 @@ def test_reverse_and_depends_on_past_fails(dep_on_past, dag_maker, session):
     session.commit()
     cm = nullcontext()
     if dep_on_past:
-        cm = pytest.raises(ValueError, match="cannot be run in reverse")
+        cm = pytest.raises(
+            InvalidBackfillDirection,
+            match="Backfill cannot be run in reverse when the DAG has tasks where depends_on_past=True.",
+        )
     b = None
     with cm:
         b = _create_backfill(
@@ -148,89 +153,55 @@ def test_create_backfill_simple(reverse, existing, dag_maker, session):
 
 
 @pytest.mark.parametrize(
-    "reprocess_behavior, run_counts",
+    "reprocess_behavior, num_in_b, exc_reasons",
     [
         (
             ReprocessBehavior.NONE,
-            {
-                "2021-01-01": 1,
-                "2021-01-09": 1,
-            },
+            4,
+            {"2021-01-05": "already exists", "2021-01-06": "already exists", "2021-01-07": "in flight"},
         ),
         (
             ReprocessBehavior.FAILED,
-            {
-                "2021-01-01": 1,
-                "2021-01-02": 1,
-                "2021-01-03": 1,
-                "2021-01-06": 1,
-                "2021-01-09": 1,
-            },
+            5,
+            {"2021-01-05": "already exists", "2021-01-07": "in flight"},
         ),
-        (
-            ReprocessBehavior.COMPLETED,
-            {
-                "2021-01-01": 1,
-                "2021-01-02": 1,
-                "2021-01-03": 1,
-                "2021-01-04": 1,
-                "2021-01-05": 1,
-                "2021-01-06": 1,
-                "2021-01-09": 1,
-            },
-        ),
+        (ReprocessBehavior.COMPLETED, 6, {"2021-01-07": "in flight"}),
     ],
 )
-def test_reprocess_behavior(reprocess_behavior, run_counts, dag_maker, session):
+def test_reprocess_behavior(reprocess_behavior, num_in_b, exc_reasons, dag_maker, session):
     """
     We have two modes whereby when there's an existing run(s) in the range
-    of the backfill, we will create a new run.
-    This test might need to be altered if we change the behavior re multiple
-    runs of same logical date.  But for now, it verifies the current behavior.
+    of the backfill, we will clear an existing run.
     """
     dag_id = "backfill-test-reprocess-behavior"
     with dag_maker(schedule="@daily", dag_id=dag_id) as dag:
         PythonOperator(task_id="hi", python_callable=print)
 
-    for num, (date, state) in enumerate(
-        [
-            (date, state)
-            for date, states in [
-                # order matters here
-                # whether a dag run is created for backfill depends on
-                # the last run for a logical date
-                ("2021-01-02", ["failed"]),
-                ("2021-01-03", ["success", "failed"]),  # <-- 2021-01-03 is "failed"
-                ("2021-01-04", ["failed", "success"]),  # <-- 2021-01-04 is "success"
-                ("2021-01-05", ["success", "success"]),
-                ("2021-01-06", ["failed", "failed"]),
-                ("2021-01-07", ["running", "running"]),
-                ("2021-01-08", ["failed", "running"]),
-            ]
-            for state in states
-        ]
-    ):
+    for date, state in [
+        ("2021-01-05", "success"),
+        ("2021-01-06", "failed"),
+        ("2021-01-07", "running"),
+    ]:
         dr = dag_maker.create_dagrun(
-            run_id=f"scheduled_{date}-{num}",
+            run_id=f"scheduled_{date}",
             logical_date=timezone.parse(date),
             session=session,
             state=state,
         )
-        dr.start_date = timezone.parse(date) + timedelta(seconds=num)
+        dr.start_date = timezone.parse(date)
         for ti in dr.get_task_instances(session=session):
             ti.state = state
         session.commit()
 
     b = _create_backfill(
         dag_id=dag.dag_id,
-        from_date=pendulum.parse("2021-01-01"),
+        from_date=pendulum.parse("2021-01-03"),
         to_date=pendulum.parse("2021-01-09"),
         max_active_runs=2,
         reprocess_behavior=reprocess_behavior,
         reverse=False,
         dag_run_conf=None,
     )
-    from collections import Counter
 
     session.expunge_all()
     query = (
@@ -241,35 +212,22 @@ def test_reprocess_behavior(reprocess_behavior, run_counts, dag_maker, session):
     )
     # these are all the dag runs that are part of this backfill
     dag_runs_in_b = session.scalars(query).all()
+    assert len(dag_runs_in_b) == num_in_b
+
     # verify they all have the right run type
     assert all(x.run_type == DagRunType.BACKFILL_JOB for x in dag_runs_in_b)
     # verify they all have the right triggered by type
     assert all(x.triggered_by == DagRunTriggeredByType.BACKFILL for x in dag_runs_in_b)
+    # every run associated with the backfill should have the backfill id
+    assert all(x.backfill_id == b.id for x in dag_runs_in_b)
 
-    # verify that we see the dates and counts expected
-    backfill_dates = [str(x.logical_date.date()) for x in dag_runs_in_b]
-    assert Counter(backfill_dates) == run_counts
-
-    def _get_bdr(date):
-        return session.scalar(
-            select(BackfillDagRun).where(BackfillDagRun.logical_date == timezone.parse(date))
+    reasons = session.execute(
+        select(BackfillDagRun.logical_date, BackfillDagRun.exception_reason).where(
+            BackfillDagRun.backfill_id == b.id, BackfillDagRun.exception_reason.is_not(None)
         )
-
-    # 2021-01-08 is running so we will not create a run for it
-    bdr = _get_bdr("2021-01-08")
-    assert bdr.exception_reason == BackfillDagRunExceptionReason.IN_FLIGHT
-
-    # 2021-01-04 is "failed" so it may or may not be reprocessed depending
-    # on the configuration
-    bdr = _get_bdr("2021-01-04")
-    actual_reason = bdr.exception_reason
-    if reprocess_behavior is ReprocessBehavior.FAILED:
-        assert actual_reason == BackfillDagRunExceptionReason.ALREADY_EXISTS
-    elif reprocess_behavior is ReprocessBehavior.COMPLETED:
-        assert actual_reason is None
-    elif reprocess_behavior is ReprocessBehavior.NONE:
-        assert actual_reason == BackfillDagRunExceptionReason.ALREADY_EXISTS
-
+    ).all()
+    actual = dict({str(d.date()): r for d, r in reasons})
+    assert actual == exc_reasons
     # all the runs created by the backfill should have state queued
     assert all(x.state == DagRunState.QUEUED for x in dag_runs_in_b)
 
@@ -432,7 +390,10 @@ def test_depends_on_past_requires_reprocess_failed(dep_on_past, behavior, dag_ma
             python_callable=lambda: print,
             depends_on_past=dep_on_past,
         )
-    raises_cm = pytest.raises(ValueError, match="Dag has task for which depends_on_past is true")
+    raises_cm = pytest.raises(
+        InvalidReprocessBehavior,
+        match="DAG has tasks for which depends_on_past=True. You must set reprocess behavior to reprocess completed or reprocess failed.",
+    )
     null_cm = nullcontext()
     cm = null_cm
     if dep_on_past and behavior in (ReprocessBehavior.NONE, None):

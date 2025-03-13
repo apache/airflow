@@ -20,7 +20,6 @@
 from __future__ import annotations
 
 import os
-from pathlib import Path
 from typing import Any
 from urllib.parse import urlsplit
 
@@ -53,17 +52,6 @@ BASE_LOG_FOLDER: str = conf.get_mandatory_value("logging", "BASE_LOG_FOLDER")
 
 PROCESSOR_LOG_FOLDER: str = conf.get_mandatory_value("scheduler", "CHILD_PROCESS_LOG_DIRECTORY")
 
-DAG_PROCESSOR_MANAGER_LOG_LOCATION: str = conf.get_mandatory_value(
-    "logging", "DAG_PROCESSOR_MANAGER_LOG_LOCATION"
-)
-
-DAG_PROCESSOR_MANAGER_LOG_STDOUT: str = conf.get_mandatory_value(
-    "logging", "DAG_PROCESSOR_MANAGER_LOG_STDOUT"
-)
-
-
-PROCESSOR_FILENAME_TEMPLATE: str = conf.get_mandatory_value("logging", "LOG_PROCESSOR_FILENAME_TEMPLATE")
-
 DEFAULT_LOGGING_CONFIG: dict[str, Any] = {
     "version": 1,
     "disable_existing_loggers": False,
@@ -83,7 +71,7 @@ DEFAULT_LOGGING_CONFIG: dict[str, Any] = {
     },
     "filters": {
         "mask_secrets": {
-            "()": "airflow.utils.log.secrets_masker.SecretsMasker",
+            "()": "airflow.sdk.execution_time.secrets_masker.SecretsMasker",
         },
     },
     "handlers": {
@@ -99,27 +87,8 @@ DEFAULT_LOGGING_CONFIG: dict[str, Any] = {
             "base_log_folder": os.path.expanduser(BASE_LOG_FOLDER),
             "filters": ["mask_secrets"],
         },
-        "processor": {
-            "class": "airflow.utils.log.file_processor_handler.FileProcessorHandler",
-            "formatter": "airflow",
-            "base_log_folder": os.path.expanduser(PROCESSOR_LOG_FOLDER),
-            "filename_template": PROCESSOR_FILENAME_TEMPLATE,
-            "filters": ["mask_secrets"],
-        },
-        "processor_to_stdout": {
-            "class": "airflow.utils.log.logging_mixin.RedirectStdHandler",
-            "formatter": "source_processor",
-            "stream": "sys.stdout",
-            "filters": ["mask_secrets"],
-        },
     },
     "loggers": {
-        "airflow.processor": {
-            "handlers": ["processor_to_stdout" if DAG_PROCESSOR_LOG_TARGET == "stdout" else "processor"],
-            "level": LOG_LEVEL,
-            # Set to true here (and reset via set_context) so that if no file is configured we still get logs!
-            "propagate": True,
-        },
         "airflow.task": {
             "handlers": ["task"],
             "level": LOG_LEVEL,
@@ -151,54 +120,6 @@ if EXTRA_LOGGER_NAMES:
         for logger_name in EXTRA_LOGGER_NAMES.split(",")
     }
     DEFAULT_LOGGING_CONFIG["loggers"].update(new_loggers)
-
-DEFAULT_DAG_PARSING_LOGGING_CONFIG: dict[str, dict[str, dict[str, Any]]] = {
-    "handlers": {
-        "processor_manager": {
-            "class": "airflow.utils.log.non_caching_file_handler.NonCachingRotatingFileHandler",
-            "formatter": "airflow",
-            "filename": DAG_PROCESSOR_MANAGER_LOG_LOCATION,
-            "mode": "a",
-            "maxBytes": 104857600,  # 100MB
-            "backupCount": 5,
-        }
-    },
-    "loggers": {
-        "airflow.processor_manager": {
-            "handlers": ["processor_manager"],
-            "level": LOG_LEVEL,
-            "propagate": False,
-        }
-    },
-}
-
-if DAG_PROCESSOR_MANAGER_LOG_STDOUT == "True":
-    DEFAULT_DAG_PARSING_LOGGING_CONFIG["handlers"].update(
-        {
-            "console": {
-                "class": "airflow.utils.log.logging_mixin.RedirectStdHandler",
-                "formatter": "airflow",
-                "stream": "sys.stdout",
-                "filters": ["mask_secrets"],
-            }
-        }
-    )
-    DEFAULT_DAG_PARSING_LOGGING_CONFIG["loggers"]["airflow.processor_manager"]["handlers"].append("console")
-
-# Only update the handlers and loggers when CONFIG_PROCESSOR_MANAGER_LOGGER is set.
-# This is to avoid exceptions when initializing RotatingFileHandler multiple times
-# in multiple processes.
-if os.environ.get("CONFIG_PROCESSOR_MANAGER_LOGGER") == "True":
-    DEFAULT_LOGGING_CONFIG["handlers"].update(DEFAULT_DAG_PARSING_LOGGING_CONFIG["handlers"])
-    DEFAULT_LOGGING_CONFIG["loggers"].update(DEFAULT_DAG_PARSING_LOGGING_CONFIG["loggers"])
-
-    # Manually create log directory for processor_manager handler as RotatingFileHandler
-    # will only create file but not the directory.
-    processor_manager_handler_config: dict[str, Any] = DEFAULT_DAG_PARSING_LOGGING_CONFIG["handlers"][
-        "processor_manager"
-    ]
-    directory: str = os.path.dirname(processor_manager_handler_config["filename"])
-    Path(directory).mkdir(parents=True, exist_ok=True, mode=0o755)
 
 ##################
 # Remote logging #
@@ -308,8 +229,10 @@ if REMOTE_LOGGING:
         ELASTICSEARCH_END_OF_LOG_MARK: str = conf.get_mandatory_value("elasticsearch", "END_OF_LOG_MARK")
         ELASTICSEARCH_FRONTEND: str = conf.get_mandatory_value("elasticsearch", "frontend")
         ELASTICSEARCH_WRITE_STDOUT: bool = conf.getboolean("elasticsearch", "WRITE_STDOUT")
+        ELASTICSEARCH_WRITE_TO_ES: bool = conf.getboolean("elasticsearch", "WRITE_TO_ES")
         ELASTICSEARCH_JSON_FORMAT: bool = conf.getboolean("elasticsearch", "JSON_FORMAT")
         ELASTICSEARCH_JSON_FIELDS: str = conf.get_mandatory_value("elasticsearch", "JSON_FIELDS")
+        ELASTICSEARCH_TARGET_INDEX: str = conf.get_mandatory_value("elasticsearch", "TARGET_INDEX")
         ELASTICSEARCH_HOST_FIELD: str = conf.get_mandatory_value("elasticsearch", "HOST_FIELD")
         ELASTICSEARCH_OFFSET_FIELD: str = conf.get_mandatory_value("elasticsearch", "OFFSET_FIELD")
 
@@ -322,6 +245,8 @@ if REMOTE_LOGGING:
                 "host": ELASTICSEARCH_HOST,
                 "frontend": ELASTICSEARCH_FRONTEND,
                 "write_stdout": ELASTICSEARCH_WRITE_STDOUT,
+                "write_to_es": ELASTICSEARCH_WRITE_TO_ES,
+                "target_index": ELASTICSEARCH_TARGET_INDEX,
                 "json_format": ELASTICSEARCH_JSON_FORMAT,
                 "json_fields": ELASTICSEARCH_JSON_FIELDS,
                 "host_field": ELASTICSEARCH_HOST_FIELD,

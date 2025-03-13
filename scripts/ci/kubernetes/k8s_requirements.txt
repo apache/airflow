@@ -1,3 +1,5 @@
--e .[devel-devscripts,devel-tests,cncf.kubernetes,sqlite]
--e ./providers
--e ./task_sdk
+-e ./providers/standard
+-e ./task-sdk
+-e ./devel-common
+-e ./providers/cncf/kubernetes
+-e .  # Need this until all airflow.models are migrated to Task SDK

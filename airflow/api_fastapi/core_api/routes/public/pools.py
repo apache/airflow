@@ -16,25 +16,33 @@
 # under the License.
 from __future__ import annotations
 
-from typing import Annotated, cast
+from typing import Annotated
 
-from fastapi import Depends, HTTPException, Query, Response, status
+from fastapi import Depends, HTTPException, Query, status
 from fastapi.exceptions import RequestValidationError
 from pydantic import ValidationError
 from sqlalchemy import delete, select
 
 from airflow.api_fastapi.common.db.common import SessionDep, paginated_select
-from airflow.api_fastapi.common.parameters import QueryLimit, QueryOffset, SortParam
+from airflow.api_fastapi.common.parameters import (
+    QueryLimit,
+    QueryOffset,
+    QueryPoolNamePatternSearch,
+    SortParam,
+)
 from airflow.api_fastapi.common.router import AirflowRouter
+from airflow.api_fastapi.core_api.datamodels.common import BulkBody, BulkResponse
 from airflow.api_fastapi.core_api.datamodels.pools import (
     BasePool,
+    PoolBody,
     PoolCollectionResponse,
     PoolPatchBody,
-    PoolPostBody,
-    PoolPostBulkBody,
     PoolResponse,
 )
 from airflow.api_fastapi.core_api.openapi.exceptions import create_openapi_http_exception_doc
+from airflow.api_fastapi.core_api.security import requires_access_pool
+from airflow.api_fastapi.core_api.services.public.pools import BulkPoolService
+from airflow.api_fastapi.logging.decorators import action_logging
 from airflow.models.pool import Pool
 
 pools_router = AirflowRouter(tags=["Pool"], prefix="/pools")
@@ -49,6 +57,7 @@ pools_router = AirflowRouter(tags=["Pool"], prefix="/pools")
             status.HTTP_404_NOT_FOUND,
         ]
     ),
+    dependencies=[Depends(requires_access_pool(method="DELETE")), Depends(action_logging())],
 )
 def delete_pool(
     pool_name: str,
@@ -67,6 +76,7 @@ def delete_pool(
 @pools_router.get(
     "/{pool_name}",
     responses=create_openapi_http_exception_doc([status.HTTP_404_NOT_FOUND]),
+    dependencies=[Depends(requires_access_pool(method="GET"))],
 )
 def get_pool(
     pool_name: str,
@@ -83,6 +93,7 @@ def get_pool(
 @pools_router.get(
     "",
     responses=create_openapi_http_exception_doc([status.HTTP_404_NOT_FOUND]),
+    dependencies=[Depends(requires_access_pool(method="GET"))],
 )
 def get_pools(
     limit: QueryLimit,
@@ -91,11 +102,13 @@ def get_pools(
         SortParam,
         Depends(SortParam(["id", "name"], Pool).dynamic_depends()),
     ],
+    pool_name_pattern: QueryPoolNamePatternSearch,
     session: SessionDep,
 ) -> PoolCollectionResponse:
     """Get all pools entries."""
     pools_select, total_entries = paginated_select(
         statement=select(Pool),
+        filters=[pool_name_pattern],
         order_by=order_by,
         offset=offset,
         limit=limit,
@@ -118,6 +131,7 @@ def get_pools(
             status.HTTP_404_NOT_FOUND,
         ]
     ),
+    dependencies=[Depends(requires_access_pool(method="PUT")), Depends(action_logging())],
 )
 def patch_pool(
     pool_name: str,
@@ -126,6 +140,11 @@ def patch_pool(
     update_mask: list[str] | None = Query(None),
 ) -> PoolResponse:
     """Update a Pool."""
+    if patch_body.name and patch_body.name != pool_name:
+        raise HTTPException(
+            status.HTTP_400_BAD_REQUEST,
+            "Invalid body, pool name from request body doesn't match uri parameter",
+        )
     # Only slots and include_deferred can be modified in 'default_pool'
     if pool_name == Pool.DEFAULT_POOL_NAME:
         if update_mask and all(mask.strip() in {"slots", "include_deferred"} for mask in update_mask):
@@ -135,7 +154,6 @@ def patch_pool(
                 status.HTTP_400_BAD_REQUEST,
                 "Only slots and included_deferred can be modified on Default Pool",
             )
-
     pool = session.scalar(select(Pool).where(Pool.pool == pool_name).limit(1))
     if not pool:
         raise HTTPException(
@@ -147,7 +165,7 @@ def patch_pool(
         fields_to_update = fields_to_update.intersection(update_mask)
         data = patch_body.model_dump(include=fields_to_update, by_alias=True)
     else:
-        data = patch_body.model_dump(by_alias=True)
+        data = patch_body.model_dump(include=fields_to_update, by_alias=True)
         try:
             BasePool.model_validate(data)
         except ValidationError as e:
@@ -165,9 +183,10 @@ def patch_pool(
     responses=create_openapi_http_exception_doc(
         [status.HTTP_409_CONFLICT]
     ),  # handled by global exception handler
+    dependencies=[Depends(requires_access_pool(method="POST")), Depends(action_logging())],
 )
 def post_pool(
-    body: PoolPostBody,
+    body: PoolBody,
     session: SessionDep,
 ) -> PoolResponse:
     """Create a Pool."""
@@ -176,51 +195,13 @@ def post_pool(
     return pool
 
 
-@pools_router.put(
-    "/bulk",
-    status_code=status.HTTP_201_CREATED,
-    responses={
-        **create_openapi_http_exception_doc(
-            [
-                status.HTTP_409_CONFLICT,  # handled by global exception handler
-            ]
-        ),
-        status.HTTP_201_CREATED: {
-            "description": "Created",
-            "model": PoolCollectionResponse,
-        },
-        status.HTTP_200_OK: {
-            "description": "Created with overwriting",
-            "model": PoolCollectionResponse,
-        },
-    },
+@pools_router.patch(
+    "",
+    dependencies=[Depends(requires_access_pool(method="PUT")), Depends(action_logging())],
 )
-def put_pools(
-    response: Response,
-    put_body: PoolPostBulkBody,
+def bulk_pools(
+    request: BulkBody[PoolBody],
     session: SessionDep,
-) -> PoolCollectionResponse:
-    """Create multiple pools."""
-    response.status_code = status.HTTP_201_CREATED if not put_body.overwrite else status.HTTP_200_OK
-    pools: list[Pool]
-    if not put_body.overwrite:
-        pools = [Pool(**body.model_dump()) for body in put_body.pools]
-    else:
-        pool_names = [pool.pool for pool in put_body.pools]
-        existed_pools = session.execute(select(Pool).filter(Pool.pool.in_(pool_names))).scalars()
-        existed_pools_dict = {pool.pool: pool for pool in existed_pools}
-        pools = []
-        # if pool already exists, update the corresponding pool, else add a new pool
-        for body in put_body.pools:
-            if body.pool in existed_pools_dict:
-                pool = existed_pools_dict[body.pool]
-                for key, val in body.model_dump().items():
-                    setattr(pool, key, val)
-                pools.append(pool)
-            else:
-                pools.append(Pool(**body.model_dump()))
-    session.add_all(pools)
-    return PoolCollectionResponse(
-        pools=cast(list[PoolResponse], pools),
-        total_entries=len(pools),
-    )
+) -> BulkResponse:
+    """Bulk create, update, and delete pools."""
+    return BulkPoolService(session=session, request=request).handle_request()

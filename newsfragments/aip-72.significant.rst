@@ -35,3 +35,73 @@ As part of this change the following breaking changes have occurred:
   .. code-block:: bash
 
       airflow db drop-archived -t "_xcom_archive"
+
+- The ability to specify scheduling conditions for an operator via the ``deps`` class attribute has been removed.
+
+  If you were defining custom scheduling conditions on an operator class (usually by subclassing BaseTIDep) this ability has been removed.
+
+  It is recommended that you replace such a custom operator with a deferrable sensor, a condition or another triggering mechanism.
+
+- ``BaseOperatorLink`` has now been moved into the task SDK to be consumed by DAG authors to write custom operator links.
+
+  Any occurrences of imports from ``airflow.models.baseoperatorlink`` will need to be updated to ``airflow.sdk.definitions.baseoperatorlink``
+
+- ``chain``, ``chain_linear`` and ``cross_downstream`` have been moved to the task SDK.
+
+  Any occurrences of imports from ``airflow.models.baseoperator`` will need to be updated to ``airflow.sdk``
+
+  Old imports:
+
+  .. code-block:: python
+
+      from airflow.models.baseoperator import chain, chain_linear, cross_downstream
+
+  New imports:
+
+  .. code-block:: python
+
+      from airflow.sdk import chain, chain_linear, cross_downstream
+
+- The ``Label`` class has been moved to the task SDK.
+
+  Old imports:
+
+  .. code-block:: python
+
+      from airflow.utils.edgemodifier import Label
+
+  New imports:
+
+  .. code-block:: python
+
+      from airflow.sdk import Label
+
+- We have removed DAG level settings that control the UI behaviour.
+  These are now as per-user settings controlled by the UI
+
+  - ``default_view``
+
+* Types of change
+
+  * [x] Dag changes
+  * [x] Config changes
+  * [ ] API changes
+  * [ ] CLI changes
+  * [x] Behaviour changes
+  * [x] Plugin changes
+  * [ ] Dependency changes
+  * [ ] Code interface changes
+
+* Migration rules needed
+
+  * ``airflow config lint``
+
+    * [x] ``core.task_runner``
+    * [x] ``core.enable_xcom_pickling``
+
+  * ruff
+
+    * AIR302
+
+      * [ ] ``airflow.models.baseoperatorlink`` → ``airflow.sdk``
+      * [ ] ``default_view`` argument to DAG removed

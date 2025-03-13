@@ -16,36 +16,30 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Box, Flex, Heading, HStack, SimpleGrid, Text } from "@chakra-ui/react";
+import { FiBookOpen } from "react-icons/fi";
 
 import type { TaskResponse } from "openapi/requests/types.gen";
 import { TaskIcon } from "src/assets/TaskIcon";
-import DocumentationModal from "src/components/DocumentationModal";
-import { Stat } from "src/components/Stat";
+import DisplayMarkdownButton from "src/components/DisplayMarkdownButton";
+import { HeaderCard } from "src/components/HeaderCard";
 
 export const Header = ({ task }: { readonly task: TaskResponse }) => (
-  <Box borderColor="border" borderRadius={8} borderWidth={1} p={2}>
-    <Flex alignItems="center" justifyContent="space-between" mb={2}>
-      <HStack alignItems="center" gap={2}>
-        <TaskIcon height={8} width={8} />
-        <Heading size="lg">
-          <strong>Task: </strong>
-          {task.task_display_name}
-          {task.is_mapped ? "[ ]" : ""}
-        </Heading>
-        <Flex>
-          <div />
-        </Flex>
-      </HStack>
-      {task.doc_md === null ? undefined : <DocumentationModal docMd={task.doc_md} docType="Task" />}
-    </Flex>
-    <SimpleGrid columns={4} gap={4}>
-      <Stat label="Operator">
-        <Text>{task.operator_name}</Text>
-      </Stat>
-      <Stat label="Trigger Rule">
-        <Text>{task.trigger_rule}</Text>
-      </Stat>
-    </SimpleGrid>
-  </Box>
+  <HeaderCard
+    actions={
+      task.doc_md === null ? undefined : (
+        <DisplayMarkdownButton
+          header="Task Documentation"
+          icon={<FiBookOpen />}
+          mdContent={task.doc_md}
+          text="Task Docs"
+        />
+      )
+    }
+    icon={<TaskIcon />}
+    stats={[
+      { label: "Operator", value: task.operator_name },
+      { label: "Trigger Rule", value: task.trigger_rule },
+    ]}
+    title={`${task.task_display_name}${task.is_mapped ? " [ ]" : ""}`}
+  />
 );

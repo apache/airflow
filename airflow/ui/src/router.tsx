@@ -22,110 +22,179 @@ import { createBrowserRouter } from "react-router-dom";
 import { UseConfigServiceGetConfigsKeyFn } from "openapi/queries";
 import { ConfigService } from "openapi/requests/services.gen";
 import { BaseLayout } from "src/layouts/BaseLayout";
+import { DagsLayout } from "src/layouts/DagsLayout";
+import { Asset } from "src/pages/Asset";
+import { AssetsList } from "src/pages/AssetsList";
+import { Connections } from "src/pages/Connections";
 import { Dag } from "src/pages/Dag";
+import { Backfills } from "src/pages/Dag/Backfills";
 import { Code } from "src/pages/Dag/Code";
 import { Overview } from "src/pages/Dag/Overview";
-import { Runs } from "src/pages/Dag/Runs";
 import { Tasks } from "src/pages/Dag/Tasks";
+import { DagRuns } from "src/pages/DagRuns";
 import { DagsList } from "src/pages/DagsList";
 import { Dashboard } from "src/pages/Dashboard";
 import { ErrorPage } from "src/pages/Error";
 import { Events } from "src/pages/Events";
+import { MappedTaskInstance } from "src/pages/MappedTaskInstance";
+import { Plugins } from "src/pages/Plugins";
+import { Pools } from "src/pages/Pools";
+import { Providers } from "src/pages/Providers";
 import { Run } from "src/pages/Run";
-import { Details } from "src/pages/Run/Details";
-import { TaskInstances } from "src/pages/Run/TaskInstances";
-import { Task, Instances } from "src/pages/Task";
+import { Details as DagRunDetails } from "src/pages/Run/Details";
+import { Task } from "src/pages/Task";
+import { Overview as TaskOverview } from "src/pages/Task/Overview";
 import { TaskInstance, Logs } from "src/pages/TaskInstance";
+import { Details } from "src/pages/TaskInstance/Details";
+import { RenderedTemplates } from "src/pages/TaskInstance/RenderedTemplates";
+import { TaskInstances } from "src/pages/TaskInstances";
+import { Variables } from "src/pages/Variables";
 import { XCom } from "src/pages/XCom";
 
-import { Variables } from "./pages/Variables";
 import { queryClient } from "./queryClient";
 
-export const router = createBrowserRouter(
-  [
-    {
-      children: [
-        {
-          element: <Dashboard />,
-          index: true,
-        },
-        {
-          element: <DagsList />,
-          path: "dags",
-        },
-        {
-          element: <Events />,
-          path: "events",
-        },
-        {
-          element: <XCom />,
-          path: "xcoms",
-        },
-        {
-          element: <Variables />,
-          path: "variables",
-        },
-        {
-          children: [
-            { element: <Overview />, index: true },
-            { element: <Runs />, path: "runs" },
-            { element: <Tasks />, path: "tasks" },
-            { element: <Events />, path: "events" },
-            { element: <Code />, path: "code" },
-          ],
-          element: <Dag />,
-          path: "dags/:dagId",
-        },
-        {
-          children: [
-            { element: <TaskInstances />, index: true },
-            { element: <Events />, path: "events" },
-            { element: <Code />, path: "code" },
-          ],
-          element: <Run />,
-          path: "dags/:dagId/runs/:runId",
-        },
-        {
-          children: [
-            { element: <Logs />, index: true },
-            { element: <Events />, path: "events" },
-            { element: <XCom />, path: "xcom" },
-            { element: <Code />, path: "code" },
-            { element: <Details />, path: "details" },
-          ],
-          element: <TaskInstance />,
-          path: "dags/:dagId/runs/:runId/tasks/:taskId",
-        },
-        {
-          children: [
-            { element: <Instances />, index: true },
-            { element: <Events />, path: "events" },
-          ],
-          element: <Task />,
-          path: "dags/:dagId/tasks/:taskId",
-        },
-      ],
-      element: <BaseLayout />,
-      errorElement: (
-        <BaseLayout>
-          <ErrorPage />
-        </BaseLayout>
-      ),
-      // Use react router loader to ensure we have the config before any other requests are made
-      loader: async () => {
-        const data = await queryClient.ensureQueryData(
-          queryOptions({
-            queryFn: ConfigService.getConfigs,
-            queryKey: UseConfigServiceGetConfigsKeyFn(),
-          }),
-        );
+const taskInstanceRoutes = [
+  { element: <Logs />, index: true },
+  { element: <Events />, path: "events" },
+  { element: <XCom />, path: "xcom" },
+  { element: <Code />, path: "code" },
+  { element: <Details />, path: "details" },
+  { element: <RenderedTemplates />, path: "rendered_templates" },
+  { element: <TaskInstances />, path: "task_instances" },
+];
 
-        return data;
-      },
-      path: "/",
-    },
-  ],
+export const routerConfig = [
   {
-    basename: "/webapp",
+    children: [
+      {
+        element: <Dashboard />,
+        index: true,
+      },
+      {
+        element: <DagsList />,
+        path: "dags",
+      },
+      {
+        element: (
+          <DagsLayout>
+            <DagRuns />
+          </DagsLayout>
+        ),
+        path: "dag_runs",
+      },
+      {
+        element: (
+          <DagsLayout>
+            <TaskInstances />
+          </DagsLayout>
+        ),
+        path: "task_instances",
+      },
+      {
+        element: <AssetsList />,
+        path: "assets",
+      },
+      {
+        element: <Asset />,
+        path: "assets/:assetId",
+      },
+      {
+        element: <Events />,
+        path: "events",
+      },
+      {
+        element: <XCom />,
+        path: "xcoms",
+      },
+      {
+        element: <Variables />,
+        path: "variables",
+      },
+      {
+        element: <Pools />,
+        path: "pools",
+      },
+      {
+        element: <Providers />,
+        path: "providers",
+      },
+      {
+        element: <Plugins />,
+        path: "plugins",
+      },
+      {
+        element: <Connections />,
+        path: "connections",
+      },
+      {
+        children: [
+          { element: <Overview />, index: true },
+          { element: <DagRuns />, path: "runs" },
+          { element: <Tasks />, path: "tasks" },
+          { element: <Backfills />, path: "backfills" },
+          { element: <Events />, path: "events" },
+          { element: <Code />, path: "code" },
+        ],
+        element: <Dag />,
+        path: "dags/:dagId",
+      },
+      {
+        children: [
+          { element: <TaskInstances />, index: true },
+          { element: <Events />, path: "events" },
+          { element: <Code />, path: "code" },
+          { element: <DagRunDetails />, path: "details" },
+        ],
+        element: <Run />,
+        path: "dags/:dagId/runs/:runId",
+      },
+      {
+        children: taskInstanceRoutes,
+        element: <TaskInstance />,
+        path: "dags/:dagId/runs/:runId/tasks/:taskId",
+      },
+      {
+        children: [{ element: <TaskInstances />, index: true }],
+        element: <MappedTaskInstance />,
+        path: "dags/:dagId/runs/:runId/tasks/:taskId/mapped",
+      },
+      {
+        children: taskInstanceRoutes,
+        element: <TaskInstance />,
+        path: "dags/:dagId/runs/:runId/tasks/:taskId/mapped/:mapIndex",
+      },
+      {
+        children: [
+          { element: <TaskOverview />, index: true },
+          { element: <TaskInstances />, path: "task_instances" },
+          { element: <Events />, path: "events" },
+        ],
+        element: <Task />,
+        path: "dags/:dagId/tasks/:taskId",
+      },
+    ],
+    element: <BaseLayout />,
+    errorElement: (
+      <BaseLayout>
+        <ErrorPage />
+      </BaseLayout>
+    ),
+    // Use react router loader to ensure we have the config before any other requests are made
+    loader: async () => {
+      const data = await queryClient.ensureQueryData(
+        queryOptions({
+          queryFn: ConfigService.getConfigs,
+          queryKey: UseConfigServiceGetConfigsKeyFn(),
+        }),
+      );
+
+      return data;
+    },
+    path: "/",
   },
-);
+];
+
+const baseUrl = document.querySelector("base")?.href ?? "http://localhost:8080/";
+const basename = new URL(baseUrl).pathname;
+
+export const router = createBrowserRouter(routerConfig, { basename });

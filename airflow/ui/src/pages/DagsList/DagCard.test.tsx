@@ -27,9 +27,9 @@ import { Wrapper } from "src/utils/Wrapper";
 import { DagCard } from "./DagCard";
 
 const mockDag = {
+  asset_expression: null,
   dag_display_name: "nested_groups",
   dag_id: "nested_groups",
-  default_view: "grid",
   description: null,
   file_token: "Ii9maWxlcy9kYWdzL25lc3RlZF90YXNrX2dyb3Vwcy5weSI.G3EkdxmDUDQsVb7AIZww1TSGlFE",
   fileloc: "/files/dags/nested_task_groups.py",
@@ -43,10 +43,10 @@ const mockDag = {
   max_active_runs: 16,
   max_active_tasks: 16,
   max_consecutive_failed_dag_runs: 0,
-  next_dagrun: "2024-08-22T00:00:00+00:00",
-  next_dagrun_create_after: "2024-08-23T00:00:00+00:00",
   next_dagrun_data_interval_end: "2024-08-23T00:00:00+00:00",
   next_dagrun_data_interval_start: "2024-08-22T00:00:00+00:00",
+  next_dagrun_logical_date: "2024-08-22T00:00:00+00:00",
+  next_dagrun_run_after: "2024-08-23T00:00:00+00:00",
   owners: ["airflow"],
   tags: [],
   timetable_description: "",

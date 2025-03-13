@@ -24,10 +24,10 @@ from typing import TYPE_CHECKING
 
 from airflow.models.baseoperator import BaseOperator
 from airflow.models.skipmixin import SkipMixin
+from airflow.models.taskinstance import TaskInstance
 
 if TYPE_CHECKING:
-    from airflow.models import TaskInstance
-    from airflow.utils.context import Context
+    from airflow.sdk.definitions.context import Context
 
 
 class BranchMixIn(SkipMixin):
@@ -36,8 +36,9 @@ class BranchMixIn(SkipMixin):
     def do_branch(self, context: Context, branches_to_execute: str | Iterable[str]) -> str | Iterable[str]:
         """Implement the handling of branching including logging."""
         self.log.info("Branch into %s", branches_to_execute)
-        branch_task_ids = self._expand_task_group_roots(context["ti"], branches_to_execute)
-        self.skip_all_except(context["ti"], branch_task_ids)
+        ti = TaskInstance.from_runtime_ti(context["ti"])
+        branch_task_ids = self._expand_task_group_roots(ti, branches_to_execute)
+        self.skip_all_except(ti, branch_task_ids)
         return branches_to_execute
 
     def _expand_task_group_roots(

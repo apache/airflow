@@ -28,7 +28,6 @@ if TYPE_CHECKING:
 CURRENT_DIR = os.path.dirname(__file__)
 ROOT_DIR = os.path.abspath(os.path.join(CURRENT_DIR, os.pardir, os.pardir))
 DOCS_DIR = os.path.join(ROOT_DIR, "docs")
-DOCS_PROVIDER_DIR = os.path.join(ROOT_DIR, "docs")
 
 
 def _create_init_py(app, config):
@@ -126,7 +125,7 @@ if __name__ == "__main__":
             cache: dict[Any, Any] = {}
             with concurrent.futures.ThreadPoolExecutor() as pool:
                 for name, (uri, invs) in intersphinx_mapping.values():
-                    pool.submit(fetch_inventory_group, name, uri, invs, cache, _MockApp(), now)
+                    pool.submit(fetch_inventory_group, name, uri, invs, cache, _MockApp(), now)  # type: ignore[arg-type]
 
             inv_dict = {}
             for uri, (name, now, invdata) in cache.items():

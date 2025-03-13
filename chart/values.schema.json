@@ -78,7 +78,7 @@
         "defaultAirflowTag": {
             "description": "Default airflow tag to deploy.",
             "type": "string",
-            "default": "2.10.4",
+            "default": "2.10.5",
             "x-docsSection": "Common"
         },
         "defaultAirflowDigest": {
@@ -93,7 +93,7 @@
         "airflowVersion": {
             "description": "Airflow version (Used to make some decisions based on Airflow Version being deployed).",
             "type": "string",
-            "default": "2.10.4",
+            "default": "2.10.5",
             "x-docsSection": "Common"
         },
         "securityContext": {
@@ -657,7 +657,7 @@
             }
         },
         "airflowLocalSettings": {
-            "description": "`airflow_local_settings` file as a string (can be templated).",
+            "description": "`airflow_local_settings` file as a string (templated).",
             "type": [
                 "string",
                 "null"
@@ -887,7 +887,7 @@
                         "tag": {
                             "description": "The PgBouncer image tag.",
                             "type": "string",
-                            "default": "airflow-pgbouncer-2024.09.19-1.22.1"
+                            "default": "airflow-pgbouncer-2025.03.05-1.23.1"
                         },
                         "pullPolicy": {
                             "description": "The PgBouncer image pull policy.",
@@ -914,7 +914,7 @@
                         "tag": {
                             "description": "The PgBouncer exporter image tag.",
                             "type": "string",
-                            "default": "airflow-pgbouncer-exporter-2024.06.18-0.17.0"
+                            "default": "airflow-pgbouncer-exporter-2025.03.05-0.18.0"
                         },
                         "pullPolicy": {
                             "description": "The PgBouncer exporter image pull policy.",
@@ -1102,7 +1102,7 @@
             }
         },
         "extraEnv": {
-            "description": "Extra env 'items' that will be added to the definition of Airflow containers; a string is expected (can be templated).",
+            "description": "Extra env 'items' that will be added to the definition of Airflow containers; a string is expected (templated).",
             "type": [
                 "null",
                 "string"
@@ -1114,7 +1114,7 @@
             ]
         },
         "extraEnvFrom": {
-            "description": "Extra envFrom 'items' that will be added to the definition of Airflow containers; a string is expected (can be templated).",
+            "description": "Extra envFrom 'items' that will be added to the definition of Airflow containers; a string is expected (templated).",
             "type": [
                 "null",
                 "string"
@@ -1168,7 +1168,7 @@
             "x-docsSection": "Kubernetes",
             "default": {},
             "additionalProperties": {
-                "description": "Name of the secret (can be templated).",
+                "description": "Name of the secret (templated).",
                 "type": "object",
                 "minProperties": 1,
                 "additionalProperties": false,
@@ -1199,11 +1199,11 @@
                         "default": true
                     },
                     "data": {
-                        "description": "Content **as string** for the 'data' item of the secret (can be templated)",
+                        "description": "Content **as string** for the 'data' item of the secret (templated)",
                         "type": "string"
                     },
                     "stringData": {
-                        "description": "Content **as string** for the 'stringData' item of the secret (can be templated)",
+                        "description": "Content **as string** for the 'stringData' item of the secret (templated)",
                         "type": "string"
                     }
                 }
@@ -1223,7 +1223,7 @@
             "x-docsSection": "Kubernetes",
             "default": {},
             "additionalProperties": {
-                "description": "Name of the configMap (can be templated).",
+                "description": "Name of the configMap (templated).",
                 "type": "object",
                 "minProperties": 1,
                 "additionalProperties": false,
@@ -1250,7 +1250,7 @@
                         "default": true
                     },
                     "data": {
-                        "description": "Content **as string** for the 'data' item of the configmap (can be templated)",
+                        "description": "Content **as string** for the 'data' item of the configmap (templated)",
                         "type": "string"
                     }
                 }
@@ -1790,7 +1790,7 @@
                             "default": "100Gi"
                         },
                         "storageClassName": {
-                            "description": "If using a custom StorageClass, pass name ref to all StatefulSets here.",
+                            "description": "If using a custom StorageClass, pass name ref to all StatefulSets here (templated).",
                             "type": [
                                 "string",
                                 "null"
@@ -2069,11 +2069,19 @@
                 },
                 "extraInitContainers": {
                     "description": "Add additional init containers into workers (templated).",
+                    "type": "array",
+                    "default": [],
                     "items": {
                         "$ref": "#/definitions/io.k8s.api.core.v1.Container"
-                    },
+                    }
+                },
+                "extraPorts": {
+                    "description": "Expose additional ports on the worker container.",
                     "type": "array",
-                    "default": []
+                    "default": [],
+                    "items": {
+                        "$ref": "#/definitions/io.k8s.api.core.v1.ContainerPort"
+                    }
                 },
                 "extraVolumes": {
                     "description": "Mount additional volumes into workers.",
@@ -2497,6 +2505,11 @@
                     "type": "object",
                     "additionalProperties": false,
                     "properties": {
+                        "initialDelaySeconds": {
+                            "description": "Number of seconds after the container has started before startup probes are initiated.",
+                            "type": "integer",
+                            "default": 0
+                        },
                         "timeoutSeconds": {
                             "description": "Number of seconds after which the probe times out. Minimum value is 1 seconds.",
                             "type": "integer",
@@ -3161,7 +3174,7 @@
                             "description": "PersistentVolumeClaim retention policy to be used in the lifecycle of a StatefulSet"
                         },
                         "storageClassName": {
-                            "description": "If using a custom StorageClass, pass name ref to all StatefulSets here.",
+                            "description": "If using a custom StorageClass, pass name ref to all StatefulSets here (templated).",
                             "type": [
                                 "string",
                                 "null"
@@ -3586,8 +3599,11 @@
             "properties": {
                 "enabled": {
                     "description": "Enable standalone dag processor (requires Airflow 2.3.0+).",
-                    "type": "boolean",
-                    "default": false
+                    "type": [
+                        "boolean",
+                        "null"
+                    ],
+                    "default": null
                 },
                 "livenessProbe": {
                     "description": "Liveness probe configuration for dag processor.",
@@ -4674,7 +4690,7 @@
             }
         },
         "apiServer": {
-            "description": "Airflow API server settings.",
+            "description": "Airflow API server settings. Airflow 3+ only.",
             "type": "object",
             "x-docsSection": "API Server",
             "additionalProperties": false,
@@ -4783,6 +4799,11 @@
                     "type": "object",
                     "additionalProperties": false,
                     "properties": {
+                        "initialDelaySeconds": {
+                            "description": "API server Startup probe initial delay seconds.",
+                            "type": "integer",
+                            "default": 0
+                        },
                         "timeoutSeconds": {
                             "description": "API server Startup probe timeout seconds.",
                             "type": "integer",
@@ -4842,7 +4863,7 @@
                     "default": [
                         "bash",
                         "-c",
-                        "exec airflow fastapi-api"
+                        "exec airflow api-server"
                     ]
                 },
                 "strategy": {
@@ -4951,7 +4972,7 @@
                                     ],
                                     "examples": [
                                         {
-                                            "port": 9091
+                                            "port": 8080
                                         }
                                     ]
                                 }
@@ -5179,7 +5200,7 @@
                             "examples": [
                                 {
                                     "name": "api-server",
-                                    "port": 9091,
+                                    "port": 8080,
                                     "targetPort": "api-server"
                                 },
                                 {
@@ -5356,7 +5377,7 @@
             }
         },
         "webserver": {
-            "description": "Airflow webserver settings.",
+            "description": "Airflow webserver settings. Airflow 2 only.",
             "type": "object",
             "x-docsSection": "Webserver",
             "additionalProperties": false,
@@ -5470,6 +5491,11 @@
                     "type": "object",
                     "additionalProperties": false,
                     "properties": {
+                        "initialDelaySeconds": {
+                            "description": "Webserver Startup probe initial delay seconds.",
+                            "type": "integer",
+                            "default": 0
+                        },
                         "timeoutSeconds": {
                             "description": "Webserver Startup probe timeout seconds.",
                             "type": "integer",
@@ -5881,7 +5907,7 @@
                     }
                 },
                 "webserverConfig": {
-                    "description": "This string (can be templated) will be mounted into the Airflow webserver as a custom `webserver_config.py`. You can bake a `webserver_config.py` in to your image instead or specify a configmap containing the webserver_config.py.",
+                    "description": "This string (templated) will be mounted into the Airflow webserver as a custom `webserver_config.py`. You can bake a `webserver_config.py` in to your image instead or specify a configmap containing the webserver_config.py.",
                     "type": [
                         "string",
                         "null"
@@ -6238,6 +6264,33 @@
                             "description": "Flower Readiness probe period seconds.",
                             "type": "integer",
                             "default": 5
+                        }
+                    }
+                },
+                "startupProbe": {
+                    "description": "Startup probe configuration.",
+                    "type": "object",
+                    "additionalProperties": false,
+                    "properties": {
+                        "initialDelaySeconds": {
+                            "description": "Flower Startup probe initial delay seconds.",
+                            "type": "integer",
+                            "default": 0
+                        },
+                        "timeoutSeconds": {
+                            "description": "Flower Startup probe timeout seconds.",
+                            "type": "integer",
+                            "default": 20
+                        },
+                        "failureThreshold": {
+                            "description": "Flower Startup probe failure threshold.",
+                            "type": "integer",
+                            "default": 6
+                        },
+                        "periodSeconds": {
+                            "description": "Flower Startup probe period seconds.",
+                            "type": "integer",
+                            "default": 10
                         }
                     }
                 },
@@ -7026,6 +7079,14 @@
                         "additionalProperties": false
                     }
                 },
+                "labels": {
+                    "description": "Labels to add to the PgBouncer objects and pods.",
+                    "type": "object",
+                    "default": {},
+                    "additionalProperties": {
+                        "type": "string"
+                    }
+                },
                 "enabled": {
                     "description": "Enable PgBouncer.",
                     "type": "boolean",
@@ -7080,6 +7141,12 @@
                         "type": "string"
                     },
                     "default": null
+                },
+                "mountConfigSecret": {
+                    "description": "Whether to mount the config secret files under `/etc/pgbouncer/` by default.",
+                    "type": "boolean",
+                    "x-docsSection": "Common",
+                    "default": true
                 },
                 "extraNetworkPolicies": {
                     "description": "Additional NetworkPolicies as needed.",
@@ -7619,6 +7686,14 @@
                                     "default": 1
                                 }
                             }
+                        },
+                        "extraVolumeMounts": {
+                            "description": "Mount additional volumes into PgBouncer Metrics Exporter.",
+                            "type": "array",
+                            "default": [],
+                            "items": {
+                                "$ref": "#/definitions/io.k8s.api.core.v1.VolumeMount"
+                            }
                         }
                     }
                 }
@@ -7689,7 +7764,7 @@
                             "default": "1Gi"
                         },
                         "storageClassName": {
-                            "description": "If using a custom StorageClass, pass name ref to all StatefulSets here.",
+                            "description": "If using a custom StorageClass, pass name ref to all StatefulSets here (templated).",
                             "type": [
                                 "string",
                                 "null"
@@ -8131,7 +8206,7 @@
                 "apiServer": {
                     "description": "API server port.",
                     "type": "integer",
-                    "default": 9091
+                    "default": 8080
                 },
                 "workerLogs": {
                     "description": "Worker logs port.",
@@ -8301,7 +8376,7 @@
                     }
                 },
                 "resources": {
-                    "description": "Resources for or cleanup pods",
+                    "description": "Resources for cleanup pods",
                     "type": "object",
                     "$ref": "#/definitions/io.k8s.api.core.v1.ResourceRequirements",
                     "default": {},
@@ -8621,7 +8696,7 @@
                             "default": "1Gi"
                         },
                         "storageClassName": {
-                            "description": "If using a custom StorageClass, pass name here.",
+                            "description": "If using a custom StorageClass, pass name here (templated).",
                             "type": [
                                 "string",
                                 "null"
@@ -8875,7 +8950,7 @@
                             ]
                         },
                         "envFrom": {
-                            "description": "Extra envFrom 'items' that will be added to the definition of Airflow gitSync containers; a string or array are expected (can be templated).",
+                            "description": "Extra envFrom 'items' that will be added to the definition of Airflow gitSync containers; a string or array are expected (templated).",
                             "type": [
                                 "null",
                                 "string"
@@ -8930,7 +9005,7 @@
                             "default": "100Gi"
                         },
                         "storageClassName": {
-                            "description": "If using a custom StorageClass, pass name here.",
+                            "description": "If using a custom StorageClass, pass name here (templated).",
                             "type": [
                                 "string",
                                 "null"
@@ -12149,6 +12224,21 @@
                     "description": "Number of days to retain the logs when running the Airflow log groomer sidecar.",
                     "type": "integer",
                     "default": 15
+                },
+                "frequencyMinutes": {
+                    "description": "Number of minutes between attempts to groom the Airflow logs in log groomer sidecar.",
+                    "type": "integer",
+                    "default": 15
+                },
+                "env": {
+                    "description": "Add additional env vars to log groomer sidecar container (templated).",
+                    "items": {
+                        "$ref": "#/definitions/io.k8s.api.core.v1.EnvVar"
+                    },
+                    "type": "array",
+                    "default": [],
+                    "x-kubernetes-patch-merge-key": "name",
+                    "x-kubernetes-patch-strategy": "merge"
                 },
                 "resources": {
                     "description": "Resources for Airflow log groomer sidecar.",

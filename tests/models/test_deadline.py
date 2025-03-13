@@ -24,7 +24,7 @@ from sqlalchemy import select
 
 from airflow.models import DagRun
 from airflow.models.deadline import Deadline
-from airflow.operators.empty import EmptyOperator
+from airflow.providers.standard.operators.empty import EmptyOperator
 
 from tests_common.test_utils import db
 

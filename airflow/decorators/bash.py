@@ -19,13 +19,16 @@ from __future__ import annotations
 
 import warnings
 from collections.abc import Collection, Mapping, Sequence
-from typing import Any, Callable, ClassVar
+from typing import TYPE_CHECKING, Any, Callable, ClassVar
 
 from airflow.decorators.base import DecoratedOperator, TaskDecorator, task_decorator_factory
 from airflow.providers.standard.operators.bash import BashOperator
-from airflow.utils.context import Context, context_merge
+from airflow.utils.context import context_merge
 from airflow.utils.operator_helpers import determine_kwargs
 from airflow.utils.types import NOTSET
+
+if TYPE_CHECKING:
+    from airflow.sdk.definitions.context import Context
 
 
 class _BashDecoratedOperator(DecoratedOperator, BashOperator):

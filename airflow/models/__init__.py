@@ -88,7 +88,7 @@ __lazy_imports = {
     "ID_LEN": "airflow.models.base",
     "Base": "airflow.models.base",
     "BaseOperator": "airflow.models.baseoperator",
-    "BaseOperatorLink": "airflow.models.baseoperatorlink",
+    "BaseOperatorLink": "airflow.sdk.definitions.baseoperatorlink",
     "Connection": "airflow.models.connection",
     "DagBag": "airflow.models.dagbag",
     "DagModel": "airflow.models.dag",
@@ -99,7 +99,7 @@ __lazy_imports = {
     "Log": "airflow.models.log",
     "MappedOperator": "airflow.models.mappedoperator",
     "Operator": "airflow.models.operator",
-    "Param": "airflow.models.param",
+    "Param": "airflow.sdk.definitions.param",
     "Pool": "airflow.models.pool",
     "RenderedTaskInstanceFields": "airflow.models.renderedtifields",
     "SkipMixin": "airflow.models.skipmixin",
@@ -117,7 +117,6 @@ if TYPE_CHECKING:
     from airflow.jobs.job import Job
     from airflow.models.base import ID_LEN, Base
     from airflow.models.baseoperator import BaseOperator
-    from airflow.models.baseoperatorlink import BaseOperatorLink
     from airflow.models.connection import Connection
     from airflow.models.dag import DAG, DagModel, DagTag
     from airflow.models.dagbag import DagBag
@@ -128,7 +127,6 @@ if TYPE_CHECKING:
     from airflow.models.log import Log
     from airflow.models.mappedoperator import MappedOperator
     from airflow.models.operator import Operator
-    from airflow.models.param import Param
     from airflow.models.pool import Pool
     from airflow.models.renderedtifields import RenderedTaskInstanceFields
     from airflow.models.skipmixin import SkipMixin
@@ -138,3 +136,5 @@ if TYPE_CHECKING:
     from airflow.models.trigger import Trigger
     from airflow.models.variable import Variable
     from airflow.models.xcom import XCom
+    from airflow.sdk import BaseOperatorLink
+    from airflow.sdk.definitions.param import Param

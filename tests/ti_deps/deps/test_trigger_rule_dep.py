@@ -28,7 +28,7 @@ import pytest
 from airflow.decorators import task, task_group
 from airflow.models.baseoperator import BaseOperator
 from airflow.models.taskinstance import TaskInstance
-from airflow.operators.empty import EmptyOperator
+from airflow.providers.standard.operators.empty import EmptyOperator
 from airflow.ti_deps.dep_context import DepContext
 from airflow.ti_deps.deps.trigger_rule_dep import TriggerRuleDep, _UpstreamTIStates
 from airflow.utils.state import DagRunState, TaskInstanceState

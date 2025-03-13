@@ -40,6 +40,8 @@ on:  # yamllint disable-line rule:truthy
         description: "Whether to use uvloop (true/false)"
         required: true
         type: string
+permissions:
+  contents: read
 jobs:
   tests-helm:
     timeout-minutes: 80

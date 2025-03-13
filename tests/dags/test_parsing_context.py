@@ -18,18 +18,15 @@
 from __future__ import annotations
 
 from pathlib import Path
-from typing import TYPE_CHECKING
 
 from airflow.models.dag import DAG
-from airflow.operators.empty import EmptyOperator
-from airflow.utils.dag_parsing_context import (
+from airflow.providers.standard.operators.empty import EmptyOperator
+from airflow.sdk.definitions.context import (
     _AIRFLOW_PARSING_CONTEXT_DAG_ID,
     _AIRFLOW_PARSING_CONTEXT_TASK_ID,
+    Context,
 )
 from airflow.utils.timezone import datetime
-
-if TYPE_CHECKING:
-    from airflow.utils.context import Context
 
 
 class DagWithParsingContext(EmptyOperator):

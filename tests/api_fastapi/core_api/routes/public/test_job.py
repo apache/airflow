@@ -16,7 +16,7 @@
 # under the License.
 from __future__ import annotations
 
-from typing import Literal
+from typing import TYPE_CHECKING
 
 import pytest
 
@@ -28,15 +28,19 @@ from airflow.utils.state import JobState, State
 from tests_common.test_utils.db import clear_db_jobs
 from tests_common.test_utils.format_datetime import from_datetime_to_zulu
 
+if TYPE_CHECKING:
+    from typing import Literal
+
+    TestCase = Literal[
+        "should_report_success_for_one_working_scheduler",
+        "should_report_success_for_one_working_scheduler_with_hostname",
+        "should_report_success_for_ha_schedulers",
+        "should_ignore_not_running_jobs",
+        "should_raise_exception_for_multiple_scheduler_on_one_host",
+    ]
+
 pytestmark = pytest.mark.db_test
 
-TESTCASE_TYPE = Literal[
-    "should_report_success_for_one_working_scheduler",
-    "should_report_success_for_one_working_scheduler_with_hostname",
-    "should_report_success_for_ha_schedulers",
-    "should_ignore_not_running_jobs",
-    "should_raise_exception_for_multiple_scheduler_on_one_host",
-]
 TESTCASE_ONE_SCHEDULER = "should_report_success_for_one_working_scheduler"
 TESTCASE_ONE_SCHEDULER_WITH_HOSTNAME = "should_report_success_for_one_working_scheduler_with_hostname"
 TESTCASE_HA_SCHEDULERS = "should_report_success_for_ha_schedulers"
@@ -107,7 +111,7 @@ class TestJobEndpoint:
         scheduler_job.heartbeat(heartbeat_callback=job_runner.heartbeat_callback)
 
     @provide_session
-    def setup(self, testcase: TESTCASE_TYPE, session=None) -> None:
+    def setup(self, testcase: TestCase, session=None) -> None:
         """
         Setup testcase at runtime based on the `testcase` provided by `pytest.mark.parametrize`.
         """
@@ -118,10 +122,6 @@ class TestJobEndpoint:
         setup_method(session)
 
     def teardown_method(self) -> None:
-        if self.job_runners:
-            for job_runner in self.job_runners:
-                if job_runner.processor_agent:
-                    job_runner.processor_agent.end()
         clear_db_jobs()
 
 
@@ -163,3 +163,11 @@ class TestGetJobs(TestJobEndpoint):
                 "unixname": self.scheduler_jobs[idx].unixname,
             }
             assert resp_job == expected_job
+
+    def test_should_raises_401_unauthenticated(self, unauthenticated_test_client):
+        response = unauthenticated_test_client.get("/public/jobs")
+        assert response.status_code == 401
+
+    def test_should_raises_403_unauthorized(self, unauthorized_test_client):
+        response = unauthorized_test_client.get("/public/jobs")
+        assert response.status_code == 403

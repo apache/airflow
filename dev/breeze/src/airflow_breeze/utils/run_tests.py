@@ -34,7 +34,10 @@ from airflow_breeze.global_constants import (
 )
 from airflow_breeze.utils.console import Output, get_console
 from airflow_breeze.utils.packages import get_excluded_provider_folders, get_suspended_provider_folders
-from airflow_breeze.utils.path_utils import AIRFLOW_SOURCES_ROOT, TESTS_PROVIDERS_ROOT
+from airflow_breeze.utils.path_utils import (
+    AIRFLOW_PROVIDERS_DIR,
+    AIRFLOW_SOURCES_ROOT,
+)
 from airflow_breeze.utils.run_utils import run_command
 from airflow_breeze.utils.virtualenv_utils import create_temp_venv
 
@@ -134,13 +137,7 @@ def test_paths(test_type: str, backend: str) -> tuple[str, str, str]:
 def get_ignore_switches_for_provider(provider_folders: list[str]) -> list[str]:
     args = []
     for providers in provider_folders:
-        args.extend(
-            [
-                f"--ignore=providers/tests/{providers}",
-                f"--ignore=providers/tests/system/{providers}",
-                f"--ignore=providers/tests/integration/{providers}",
-            ]
-        )
+        args.append(f"--ignore=providers/{providers}/tests/")
     return args
 
 
@@ -156,7 +153,7 @@ def get_excluded_provider_args(python_version: str) -> list[str]:
 
 TEST_TYPE_CORE_MAP_TO_PYTEST_ARGS: dict[str, list[str]] = {
     "Always": ["tests/always"],
-    "API": ["tests/api", "tests/api_connexion", "tests/api_fastapi"],
+    "API": ["tests/api", "tests/api_fastapi"],
     "CLI": ["tests/cli"],
     "Core": [
         "tests/core",
@@ -171,22 +168,43 @@ TEST_TYPE_CORE_MAP_TO_PYTEST_ARGS: dict[str, list[str]] = {
     "Serialization": [
         "tests/serialization",
     ],
-    "TaskSDK": ["task_sdk/tests"],
+    "TaskSDK": ["task-sdk/tests"],
     "WWW": [
         "tests/www",
     ],
     "OpenAPI": ["clients/python"],
 }
 
+ALL_PROVIDER_TEST_FOLDERS: list[str] = sorted(
+    [
+        path.relative_to(AIRFLOW_SOURCES_ROOT).as_posix()
+        for path in AIRFLOW_SOURCES_ROOT.glob("providers/*/tests/")
+    ]
+    + [
+        path.relative_to(AIRFLOW_SOURCES_ROOT).as_posix()
+        for path in AIRFLOW_SOURCES_ROOT.glob("providers/*/*/tests/")
+    ]
+)
+ALL_PROVIDER_INTEGRATION_TEST_FOLDERS: list[str] = sorted(
+    [
+        path.relative_to(AIRFLOW_SOURCES_ROOT).as_posix()
+        for path in AIRFLOW_SOURCES_ROOT.glob("providers/*/tests/integration/")
+    ]
+    + [
+        path.relative_to(AIRFLOW_SOURCES_ROOT).as_posix()
+        for path in AIRFLOW_SOURCES_ROOT.glob("providers/*/*/tests/integration/")
+    ]
+)
 
-TEST_GROUP_TO_TEST_FOLDER: dict[GroupOfTests, str] = {
-    GroupOfTests.CORE: "tests",
-    GroupOfTests.PROVIDERS: "providers/tests",
-    GroupOfTests.TASK_SDK: "task_sdk/tests",
-    GroupOfTests.HELM: "helm_tests",
-    GroupOfTests.INTEGRATION_CORE: "tests/integration",
-    GroupOfTests.INTEGRATION_PROVIDERS: "providers/tests/integration",
-    GroupOfTests.PYTHON_API_CLIENT: "clients/python",
+
+TEST_GROUP_TO_TEST_FOLDERS: dict[GroupOfTests, list[str]] = {
+    GroupOfTests.CORE: ["tests"],
+    GroupOfTests.PROVIDERS: ALL_PROVIDER_TEST_FOLDERS,
+    GroupOfTests.TASK_SDK: ["task-sdk/tests"],
+    GroupOfTests.HELM: ["helm_tests"],
+    GroupOfTests.INTEGRATION_CORE: ["tests/integration"],
+    GroupOfTests.INTEGRATION_PROVIDERS: ALL_PROVIDER_INTEGRATION_TEST_FOLDERS,
+    GroupOfTests.PYTHON_API_CLIENT: ["clients/python"],
 }
 
 
@@ -196,18 +214,18 @@ NO_RECURSE_DIRS = [
     "tests/dags_with_system_exit",
     "tests/dags_corrupted",
     "tests/dags",
-    "providers/tests/system/google/cloud/dataproc/resources",
-    "providers/tests/system/google/cloud/gcs/resources",
+    "providers/google/tests/system/google/cloud/dataproc/resources",
+    "providers/google/tests/system/google/cloud/gcs/resources",
 ]
 
 
 def find_all_other_tests() -> list[str]:
     all_named_test_folders = list(chain.from_iterable(TEST_TYPE_CORE_MAP_TO_PYTEST_ARGS.values()))
-    all_named_test_folders.append(TEST_GROUP_TO_TEST_FOLDER[GroupOfTests.PROVIDERS])
-    all_named_test_folders.append(TEST_GROUP_TO_TEST_FOLDER[GroupOfTests.TASK_SDK])
-    all_named_test_folders.append(TEST_GROUP_TO_TEST_FOLDER[GroupOfTests.HELM])
-    all_named_test_folders.append(TEST_GROUP_TO_TEST_FOLDER[GroupOfTests.INTEGRATION_CORE])
-    all_named_test_folders.append(TEST_GROUP_TO_TEST_FOLDER[GroupOfTests.INTEGRATION_PROVIDERS])
+    all_named_test_folders.extend(TEST_GROUP_TO_TEST_FOLDERS[GroupOfTests.PROVIDERS])
+    all_named_test_folders.extend(TEST_GROUP_TO_TEST_FOLDERS[GroupOfTests.TASK_SDK])
+    all_named_test_folders.extend(TEST_GROUP_TO_TEST_FOLDERS[GroupOfTests.HELM])
+    all_named_test_folders.extend(TEST_GROUP_TO_TEST_FOLDERS[GroupOfTests.INTEGRATION_CORE])
+    all_named_test_folders.extend(TEST_GROUP_TO_TEST_FOLDERS[GroupOfTests.INTEGRATION_PROVIDERS])
     all_named_test_folders.append("tests/system")
     all_named_test_folders.append("providers/tests/system")
     all_named_test_folders.extend(NO_RECURSE_DIRS)
@@ -237,7 +255,7 @@ def convert_test_type_to_pytest_args(
         return []
     if test_type in ALL_TEST_SUITES:
         return [
-            TEST_GROUP_TO_TEST_FOLDER[test_group],
+            *TEST_GROUP_TO_TEST_FOLDERS[test_group],
             *ALL_TEST_SUITES[test_type],
         ]
     if test_group == GroupOfTests.SYSTEM and test_type != NONE_TEST_TYPE:
@@ -247,7 +265,7 @@ def convert_test_type_to_pytest_args(
         if test_type not in all_helm_test_packages():
             get_console().print(f"[error]Unknown helm test type: {test_type}[/]")
             sys.exit(1)
-        helm_folder = TEST_GROUP_TO_TEST_FOLDER[test_group]
+        helm_folder = TEST_GROUP_TO_TEST_FOLDERS[test_group][0]
         if test_type and test_type != ALL_TEST_TYPE:
             return [f"{helm_folder}/{test_type}"]
         else:
@@ -264,33 +282,41 @@ def convert_test_type_to_pytest_args(
     if test_group == GroupOfTests.PROVIDERS:
         if test_type.startswith(PROVIDERS_LIST_EXCLUDE_PREFIX):
             excluded_provider_list = test_type[len(PROVIDERS_LIST_EXCLUDE_PREFIX) : -1].split(",")
-            providers_folder = TEST_GROUP_TO_TEST_FOLDER[GroupOfTests.PROVIDERS]
-            providers_with_exclusions: list = [providers_folder]
+            providers_with_exclusions = TEST_GROUP_TO_TEST_FOLDERS[GroupOfTests.PROVIDERS].copy()
             for excluded_provider in excluded_provider_list:
-                providers_with_exclusions.append(
-                    f"--ignore={providers_folder}/" + excluded_provider.replace(".", "/")
-                )
+                provider_test_to_exclude = f"providers/{excluded_provider.replace('.', '/')}/tests"
+                if provider_test_to_exclude in providers_with_exclusions:
+                    get_console().print(
+                        f"[info]Removing {provider_test_to_exclude} from {providers_with_exclusions}[/]"
+                    )
+                    providers_with_exclusions.remove(provider_test_to_exclude)
             return providers_with_exclusions
         if test_type.startswith(PROVIDERS_LIST_PREFIX):
             provider_list = test_type[len(PROVIDERS_LIST_PREFIX) : -1].split(",")
             providers_to_test = []
             for provider in provider_list:
-                provider_path = TESTS_PROVIDERS_ROOT.joinpath(provider.replace(".", "/"))
+                provider_path = (
+                    AIRFLOW_PROVIDERS_DIR.joinpath(provider.replace(".", "/")).relative_to(
+                        AIRFLOW_SOURCES_ROOT
+                    )
+                    / "tests"
+                )
                 if provider_path.is_dir():
-                    providers_to_test.append(provider_path.relative_to(AIRFLOW_SOURCES_ROOT).as_posix())
+                    providers_to_test.append(provider_path.as_posix())
                 else:
                     get_console().print(
-                        f"[error]Provider directory {provider_path} does not exist for {provider}. "
-                        f"This is bad. Please add it (all providers should have a package in tests)"
+                        f"[error] {provider_path} does not exist for {provider} "
+                        "- which means that this provider has no tests. This is bad idea. "
+                        "Please add it (all providers should have at least a package in tests)."
                     )
                     sys.exit(1)
             return providers_to_test
         if not test_type.startswith(PROVIDERS_PREFIX):
             get_console().print(f"[error]Unknown test type for {GroupOfTests.PROVIDERS}: {test_type}[/]")
             sys.exit(1)
-        return [TEST_GROUP_TO_TEST_FOLDER[test_group]]
+        return TEST_GROUP_TO_TEST_FOLDERS[test_group]
     if test_group == GroupOfTests.PYTHON_API_CLIENT:
-        return [TEST_GROUP_TO_TEST_FOLDER[test_group]]
+        return TEST_GROUP_TO_TEST_FOLDERS[test_group]
     if test_group != GroupOfTests.CORE:
         get_console().print(f"[error]Only {GroupOfTests.CORE} should be allowed here[/]")
     test_dirs = TEST_TYPE_CORE_MAP_TO_PYTEST_ARGS.get(test_type)
@@ -363,12 +389,15 @@ def generate_args_for_pytest(
     if test_group not in [GroupOfTests.SYSTEM]:
         args.append("--ignore-glob=*/tests/system/*")
     if test_group != GroupOfTests.INTEGRATION_CORE:
-        args.append(f"--ignore-glob={TEST_GROUP_TO_TEST_FOLDER[GroupOfTests.INTEGRATION_CORE]}/*")
+        for group_folder in TEST_GROUP_TO_TEST_FOLDERS[GroupOfTests.INTEGRATION_CORE]:
+            args.append(f"--ignore-glob={group_folder}/*")
     if test_group != GroupOfTests.INTEGRATION_PROVIDERS:
-        args.append(f"--ignore-glob={TEST_GROUP_TO_TEST_FOLDER[GroupOfTests.INTEGRATION_PROVIDERS]}/*")
+        for group_folder in TEST_GROUP_TO_TEST_FOLDERS[GroupOfTests.INTEGRATION_PROVIDERS]:
+            args.append(f"--ignore-glob={group_folder}/*")
     if test_group not in IGNORE_WARNING_OUTPUT_FOR_TEST_GROUPS:
         args.append(f"--warning-output-path={warnings_file}")
-        args.append(f"--ignore={TEST_GROUP_TO_TEST_FOLDER[GroupOfTests.HELM]}")
+        for group_folder in TEST_GROUP_TO_TEST_FOLDERS[GroupOfTests.HELM]:
+            args.append(f"--ignore={group_folder}")
     if test_group not in IGNORE_DB_INIT_FOR_TEST_GROUPS:
         args.append("--with-db-init")
     if test_group == GroupOfTests.PYTHON_API_CLIENT:
@@ -416,15 +445,9 @@ def convert_parallel_types_to_folders(test_group: GroupOfTests, parallel_test_ty
                 test_type=_test_type,
             )
         )
+    all_test_prefixes: list[str] = []
     # leave only folders, strip --pytest-args that exclude some folders with `-' prefix
-    folders = [
-        arg for arg in args if any(arg.startswith(prefix) for prefix in TEST_GROUP_TO_TEST_FOLDER.values())
-    ]
-    # remove specific provider sub-folders if "providers/tests" is already in the list
-    # This workarounds pytest issues where it will only run tests from specific subfolders
-    # if both parent and child folders are in the list
-    # The issue in Pytest (changed behaviour in Pytest 8.2 is tracked here
-    # https://github.com/pytest-dev/pytest/issues/12605
-    if "providers/tests" in folders:
-        folders = [folder for folder in folders if not folder.startswith("providers/tests/")]
-    return folders
+    for group_folders in TEST_GROUP_TO_TEST_FOLDERS.values():
+        for group_folder in group_folders:
+            all_test_prefixes.append(group_folder)
+    return [arg for arg in args if any(arg.startswith(prefix) for prefix in all_test_prefixes)]

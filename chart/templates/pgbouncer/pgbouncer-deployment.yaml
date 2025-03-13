@@ -67,8 +67,8 @@ spec:
         tier: airflow
         component: pgbouncer
         release: {{ .Release.Name }}
-        {{- with .Values.labels }}
-          {{- toYaml . | nindent 8 }}
+        {{- if or (.Values.labels) (.Values.pgbouncer.labels) }}
+          {{- mustMerge .Values.pgbouncer.labels .Values.labels | toYaml | nindent 8 }}
         {{- end }}
       annotations:
         checksum/pgbouncer-config-secret: {{ include (print $.Template.BasePath "/secrets/pgbouncer-config-secret.yaml") . | sha256sum }}
@@ -118,7 +118,9 @@ spec:
           readinessProbe:
             tcpSocket:
               port: {{ .Values.ports.pgbouncer }}
+          {{- if or .Values.pgbouncer.mountConfigSecret .Values.pgbouncer.ssl.ca .Values.pgbouncer.ssl.cert .Values.pgbouncer.ssl.key .Values.volumeMounts .Values.pgbouncer.extraVolumeMounts }}
           volumeMounts:
+            {{- if .Values.pgbouncer.mountConfigSecret }}
             - name: pgbouncer-config
               subPath: pgbouncer.ini
               mountPath: /etc/pgbouncer/pgbouncer.ini
@@ -127,6 +129,7 @@ spec:
               subPath: users.txt
               mountPath: /etc/pgbouncer/users.txt
               readOnly: true
+            {{- end}}
             {{- if .Values.pgbouncer.ssl.ca }}
             - name: pgbouncer-certificates
               subPath: root.crt
@@ -151,6 +154,7 @@ spec:
             {{- if .Values.pgbouncer.extraVolumeMounts }}
               {{- tpl (toYaml .Values.pgbouncer.extraVolumeMounts) . | nindent 12 }}
             {{- end }}
+          {{- end}}
           {{- if $containerLifecycleHooks }}
           lifecycle: {{- tpl (toYaml $containerLifecycleHooks) . | nindent 12 }}
           {{- end }}
@@ -191,14 +195,21 @@ spec:
           {{- if $containerLifecycleHooksMetricsExporter }}
           lifecycle: {{- tpl (toYaml $containerLifecycleHooksMetricsExporter) . | nindent 12 }}
           {{- end }}
+          {{- if .Values.pgbouncer.metricsExporterSidecar.extraVolumeMounts }}
+          volumeMounts:
+            {{- tpl (toYaml .Values.pgbouncer.metricsExporterSidecar.extraVolumeMounts) . | nindent 12 }}
+          {{- end}}
         {{- if .Values.pgbouncer.extraContainers }}
           {{- tpl (toYaml .Values.pgbouncer.extraContainers) . | nindent 8 }}
         {{- end }}
+      {{- if or .Values.pgbouncer.mountConfigSecret .Values.pgbouncer.ssl.ca .Values.pgbouncer.ssl.cert .Values.pgbouncer.ssl.key .Values.volumes .Values.pgbouncer.extraVolumes }}
       volumes:
+        {{- if .Values.pgbouncer.mountConfigSecret }}
         - name: pgbouncer-config
           secret:
             secretName: {{ template "pgbouncer_config_secret" . }}
-        {{- if or .Values.pgbouncer.ssl.ca  .Values.pgbouncer.ssl.cert .Values.pgbouncer.ssl.key }}
+        {{- end}}
+        {{- if or .Values.pgbouncer.ssl.ca .Values.pgbouncer.ssl.cert .Values.pgbouncer.ssl.key }}
         - name: pgbouncer-certificates
           secret:
             secretName: {{ template "pgbouncer_certificates_secret" . }}
@@ -209,4 +220,5 @@ spec:
         {{- if .Values.pgbouncer.extraVolumes }}
           {{- tpl (toYaml .Values.pgbouncer.extraVolumes) . | nindent 8 }}
         {{- end }}
+      {{- end }}
 {{- end }}

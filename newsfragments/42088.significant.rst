@@ -12,3 +12,31 @@ Removed deprecated metrics configuration.
    * Removed deprecated configuration ``statsd_datadog_tags`` from ``scheduler``. Please use ``statsd_datadog_tags`` from ``metrics`` instead.
    * Removed deprecated configuration ``statsd_datadog_metrics_tags`` from ``scheduler``. Please use ``statsd_datadog_metrics_tags`` from ``metrics`` instead.
    * Removed deprecated configuration ``statsd_custom_client_path`` from ``scheduler``. Please use ``statsd_custom_client_path`` from ``metrics`` instead.
+
+* Types of change
+
+  * [ ] Dag changes
+  * [x] Config changes
+  * [ ] API changes
+  * [ ] CLI changes
+  * [ ] Behaviour changes
+  * [ ] Plugin changes
+  * [ ] Dependency changes
+  * [ ] Code interface changes
+
+* Migration rules needed
+
+  * ``airflow config lint``
+
+    * [x] ``metrics.statsd_allow_list`` → ``metrics.metrics_allow_list``
+    * [x] ``metrics.statsd_block_list`` → ``metrics.metrics_block_list``
+    * [x] ``scheduler.statsd_on`` → ``metrics.statsd_on``
+    * [x] ``scheduler.statsd_host`` → ``metrics.statsd_host``
+    * [x] ``scheduler.statsd_port`` → ``metrics.statsd_port``
+    * [x] ``scheduler.statsd_prefix`` → ``metrics.statsd_prefix``
+    * [x] ``scheduler.statsd_allow_list`` → ``metrics.statsd_allow_list``
+    * [x] ``scheduler.stat_name_handler`` → ``metrics.stat_name_handler``
+    * [x] ``scheduler.statsd_datadog_enabled`` → ``metrics.statsd_datadog_enabled``
+    * [x] ``scheduler.statsd_datadog_tags`` → ``metrics.statsd_datadog_tags``
+    * [x] ``scheduler.statsd_datadog_metrics_tags`` → ``metrics.statsd_datadog_metrics_tags``
+    * [x] ``scheduler.statsd_custom_client_path`` → ``metrics.statsd_custom_client_path``

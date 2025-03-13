@@ -19,6 +19,8 @@ from __future__ import annotations
 
 import json
 import logging
+import sys
+import warnings
 from typing import TYPE_CHECKING, Any
 
 from sqlalchemy import Boolean, Column, Integer, String, Text, delete, select
@@ -28,10 +30,10 @@ from sqlalchemy.orm import declared_attr, reconstructor, synonym
 from airflow.configuration import ensure_secrets_loaded
 from airflow.models.base import ID_LEN, Base
 from airflow.models.crypto import get_fernet
+from airflow.sdk.execution_time.secrets_masker import mask_secret
 from airflow.secrets.cache import SecretCache
 from airflow.secrets.metastore import MetastoreBackend
 from airflow.utils.log.logging_mixin import LoggingMixin
-from airflow.utils.log.secrets_masker import mask_secret
 from airflow.utils.session import provide_session
 
 if TYPE_CHECKING:
@@ -136,6 +138,28 @@ class Variable(Base, LoggingMixin):
         :param default_var: Default value of the Variable if the Variable doesn't exist
         :param deserialize_json: Deserialize the value to a Python dict
         """
+        # TODO: This is not the best way of having compat, but it's "better than erroring" for now. This still
+        # means SQLA etc is loaded, but we can't avoid that unless/until we add import shims as a big
+        # back-compat layer
+
+        # If this is set it means are in some kind of execution context (Task, Dag Parse or Triggerer perhaps)
+        # and should use the Task SDK API server path
+        if hasattr(sys.modules.get("airflow.sdk.execution_time.task_runner"), "SUPERVISOR_COMMS"):
+            warnings.warn(
+                "Using Variable.get from `airflow.models` is deprecated. Please use `from airflow.sdk import"
+                "Variable` instead",
+                DeprecationWarning,
+                stacklevel=1,
+            )
+            from airflow.sdk import Variable as TaskSDKVariable
+            from airflow.sdk.definitions._internal.types import NOTSET
+
+            return TaskSDKVariable.get(
+                key,
+                default=NOTSET if default_var is cls.__NO_DEFAULT_SENTINEL else default_var,
+                deserialize_json=deserialize_json,
+            )
+
         var_val = Variable.get_variable_from_secrets(key=key)
         if var_val is None:
             if default_var is not cls.__NO_DEFAULT_SENTINEL:

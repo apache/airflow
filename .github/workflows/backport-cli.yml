@@ -41,6 +41,9 @@ on:  # yamllint disable-line rule:truthy
         type: string
 
 permissions:
+  # Those permissions are only active for workflow dispatch (only committers can trigger it) and workflow call
+  # Which is triggered automatically by "automatic-backport" push workflow (only when merging by committer)
+  # Branch protection  prevents from pushing to the "code" branches
   contents: write
   pull-requests: write
 jobs:
@@ -58,7 +61,7 @@ jobs:
       - name: Install Python dependencies
         run: |
           python -m pip install --upgrade pip
-          python -m pip install cherry-picker==2.4.0 requests==2.32.3
+          python -m pip install cherry-picker==2.5.0 requests==2.32.3
 
       - name: Run backport script
         id: execute-backport

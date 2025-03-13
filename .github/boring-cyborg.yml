@@ -19,544 +19,290 @@
 
 labelPRBasedOnFilePath:
   provider:airbyte:
-    - providers/src/airflow/providers/airbyte/**/*
-    - docs/apache-airflow-providers-airbyte/**/*
-    - providers/tests/airbyte/**/*
-    - providers/tests/system/airbyte/**/*
+    - providers/airbyte/**
 
   provider:alibaba:
-    - providers/src/airflow/providers/alibaba/**/*
-    - docs/apache-airflow-providers-alibaba/**/*
-    - providers/tests/alibaba/**/*
-    - providers/tests/system/alibaba/**/*
+    - providers/alibaba/**
 
-  provider:amazon-aws:
-    - providers/src/airflow/providers/amazon/aws/**/*
-    - providers/tests/amazon/aws/**/*
-    - docs/apache-airflow-providers-amazon/**/*
-    - providers/tests/system/amazon/aws/**/*
+  provider:amazon:
+    - providers/amazon/**
 
   provider:apache-beam:
-    - providers/src/airflow/providers/apache/beam/**/*
-    - docs/apache-airflow-providers-apache-beam/**/*
-    - providers/tests/apache/beam/**/*
-    - providers/tests/system/apache/beam/**/*
+    - providers/apache/beam/**
 
   provider:apache-cassandra:
-    - providers/src/airflow/providers/apache/cassandra/**/*
-    - docs/apache-airflow-providers-apache-cassandra/**/*
-    - providers/tests/apache/cassandra/**/*
-    - providers/tests/system/apache/cassandra/**/*
+    - providers/apache/cassandra/**
 
   provider:apache-drill:
-    - providers/src/airflow/providers/apache/drill/**/*
-    - docs/apache-airflow-providers-apache-drill/**/*
-    - providers/tests/apache/drill/**/*
-    - providers/tests/system/apache/drill/**/*
+    - providers/apache/drill/**
 
   provider:apache-druid:
-    - providers/src/airflow/providers/apache/druid/**/*
-    - docs/apache-airflow-providers-apache-druid/**/*
-    - providers/tests/apache/druid/**/*
-    - providers/tests/system/apache/druid/**/*
+    - providers/apache/druid/**
 
   provider:apache-flink:
-    - providers/src/airflow/providers/apache/flink/**/*
-    - docs/apache-airflow-providers-apache-flink/**/*
-    - providers/tests/apache/flink/**/*
+    - providers/apache/flink/**
 
   provider:apache-hdfs:
-    - providers/src/airflow/providers/apache/hdfs/**/*
-    - docs/apache-airflow-providers-apache-hdfs/**/*
-    - providers/tests/apache/hdfs/**/*
+    - providers/apache/hdfs/**
 
   provider:apache-hive:
-    - providers/src/airflow/providers/apache/hive/**/*
-    - docs/apache-airflow-providers-apache-hive/**/*
-    - providers/tests/apache/hive/**/*
-    - providers/tests/system/apache/hive/**/*
+    - providers/apache/hive/**
 
   provider:apache-iceberg:
-    - providers/src/airflow/providers/apache/iceberg/**/*
-    - docs/apache-airflow-providers-apache-iceberg/**/*
-    - providers/tests/apache/iceberg/**/*
-    - providers/tests/system/apache/iceberg/**/*
+    - providers/apache/iceberg/**
 
   provider:apache-impala:
-    - providers/src/airflow/providers/apache/impala/**/*
-    - docs/apache-airflow-providers-apache-impala/**/*
-    - providers/tests/apache/impala/**/*
+    - providers/apache/impala/**
 
   provider:apache-kafka:
-    - providers/src/airflow/providers/apache/kafka/**/*
-    - docs/apache-airflow-providers-apache-kafka/**/*
-    - providers/tests/apache/kafka/**/*
-    - providers/tests/system/apache/kafka/**/*
+    - providers/apache/kafka/**
 
   provider:apache-kylin:
-    - providers/src/airflow/providers/apache/kylin/**/*
-    - docs/apache-airflow-providers-apache-kylin/**/*
-    - providers/tests/apache/kylin/**/*
-    - providers/tests/system/apache/kylin/**/*
+    - providers/apache/kylin/**
 
   provider:apache-livy:
-    - providers/src/airflow/providers/apache/livy/**/*
-    - docs/apache-airflow-providers-apache-livy/**/*
-    - providers/tests/apache/livy/**/*
-    - providers/tests/system/apache/livy/**/*
+    - providers/apache/livy/**
 
   provider:apache-pig:
-    - providers/src/airflow/providers/apache/pig/**/*
-    - docs/apache-airflow-providers-apache-pig/**/*
-    - providers/tests/apache/pig/**/*
-    - providers/tests/system/apache/pig/**/*
+    - providers/apache/pig/**
 
   provider:apache-pinot:
-    - providers/src/airflow/providers/apache/pinot/**/*
-    - docs/apache-airflow-providers-apache-pinot/**/*
-    - providers/tests/apache/pinot/**/*
-    - providers/tests/system/apache/pinot/**/*
+    - providers/apache/pinot/**
 
   provider:apache-spark:
-    - providers/src/airflow/providers/apache/spark/**/*
-    - docs/apache-airflow-providers-apache-spark/**/*
-    - providers/tests/apache/spark/**/*
-    - providers/tests/system/apache/spark/**/*
+    - providers/apache/spark/**
 
   provider:apprise:
-    - providers/src/airflow/providers/apprise/**/*
-    - docs/apache-airflow-providers-apprise/**/*
-    - providers/tests/apprise/**/*
+    - providers/apprise/**
 
   provider:arangodb:
-    - providers/src/airflow/providers/arangodb/**/*
-    - docs/apache-airflow-providers-arangodb/**/*
-    - providers/tests/arangodb/**/*
+    - providers/arangodb/**
 
   provider:asana:
-    - providers/src/airflow/providers/asana/**/*
-    - docs/apache-airflow-providers-asana/**/*
-    - providers/tests/asana/**/*
-    - providers/tests/system/asana/**/*
+    - providers/asana/**
 
   provider:atlassian-jira:
-    - providers/src/airflow/providers/atlassian/jira/**/*
-    - docs/apache-airflow-providers-atlassian-jira/**/*
-    - providers/tests/atlassian/jira/**/*
+    - providers/atlassian/jira/**
 
   provider:celery:
-    - providers/src/airflow/providers/celery/**/*
-    - docs/apache-airflow-providers-celery/**/*
-    - providers/tests/celery/**/*
+    - providers/celery/**
 
   provider:cloudant:
-    - providers/src/airflow/providers/cloudant/**/*
-    - docs/apache-airflow-providers-cloudant/**/*
-    - providers/tests/cloudant/**/*
+    - providers/cloudant/**
 
   provider:cncf-kubernetes:
-    - airflow/example_dags/example_kubernetes_executor.py
-    - airflow/example_dags/example_local_kubernetes_executor.py
-    - providers/src/airflow/providers/cncf/kubernetes/**/*
-    - providers/src/airflow/providers/celery/executors/celery_kubernetes_executor.py
-    - docs/apache-airflow-providers-cncf-kubernetes/**/*
-    - kubernetes_tests/**/*
-    - providers/tests/cncf/kubernetes/**/*
-    - providers/tests/system/cncf/kubernetes/**/*
+    - providers/cncf/kubernetes/**
 
   provider:cohere:
-    - providers/src/airflow/providers/cohere/**/*
-    - docs/apache-airflow-providers-cohere/**/*
-    - providers/tests/cohere/**/*
-    - providers/tests/system/cohere/**/*
+    - providers/cohere/**
 
   provider:common-compat:
-    - providers/src/airflow/providers/common/compat/**/*
-    - docs/apache-airflow-providers-common-compat/**/*
-    - providers/tests/common/compat/**/*
+    - providers/common/compat/**
 
   provider:common-io:
-    - providers/src/airflow/providers/common/io/**/*
-    - docs/apache-airflow-providers-common-io/**/*
-    - providers/tests/system/common/io/**/*
+    - providers/common/io/**
 
   provider:common-sql:
-    - providers/src/airflow/providers/common/sql/**/*
-    - docs/apache-airflow-providers-common-sql/**/*
-    - providers/tests/common/sql/**/*
-    - providers/tests/system/common/sql/**/*
+    - providers/common/sql/**
 
   provider:standard:
-    - providers/src/airflow/providers/standard/**/*
-    - docs/apache-airflow-providers-standard/**/*
-    - providers/tests/standard/**/*
+    - providers/standard/**
 
   provider:databricks:
-    - providers/src/airflow/providers/databricks/**/*
-    - docs/apache-airflow-providers-databricks/**/*
-    - providers/tests/databricks/**/*
-    - providers/tests/system/databricks/**/*
+    - providers/databricks/**
 
   provider:datadog:
-    - providers/src/airflow/providers/datadog/**/*
-    - docs/apache-airflow-providers-datadog/**/*
-    - providers/tests/datadog/**/*
+    - providers/datadog/**
 
   provider:dbt-cloud:
-    - providers/src/airflow/providers/dbt/cloud/**/*
-    - docs/apache-airflow-providers-dbt-cloud/**/*
-    - providers/tests/dbt/cloud/**/*
-    - providers/tests/system/dbt/cloud/**/*
+    - providers/dbt/cloud/**
 
   provider:dingding:
-    - providers/src/airflow/providers/dingding/**/*
-    - docs/apache-airflow-providers-dingding/**/*
-    - providers/tests/dingding/**/*
-    - providers/tests/system/dingding/**/*
+    - providers/dingding/**
 
   provider:discord:
-    - providers/src/airflow/providers/discord/**/*
-    - docs/apache-airflow-providers-discord/**/*
-    - providers/tests/discord/**/*
+    - providers/discord/**
 
   provider:docker:
-    - providers/src/airflow/providers/docker/**/*
-    - docs/apache-airflow-providers-docker/**/*
-    - providers/tests/docker/**/*
-    - providers/tests/system/docker/**/*
+    - providers/docker/**
 
   provider:edge:
-    - providers/src/airflow/providers/edge/**/*
-    - docs/apache-airflow-providers-edge/**/*
-    - providers/tests/edge/**/*
+    - providers/edge/**
 
   provider:elasticsearch:
-    - providers/src/airflow/providers/elasticsearch/**/*
-    - docs/apache-airflow-providers-elasticsearch/**/*
-    - providers/tests/elasticsearch/**/*
-    - providers/tests/system/elasticsearch/**/*
+    - providers/elasticsearch/**
 
   provider:exasol:
-    - providers/src/airflow/providers/exasol/**/*
-    - docs/apache-airflow-providers-exasol/**/*
-    - providers/tests/exasol/**/*
+    - providers/exasol/**
 
   provider:fab:
-    - providers/src/airflow/providers/fab/**/*
-    - docs/apache-airflow-providers-fab/**/*
-    - providers/tests/fab/**/*
+    - providers/fab/**
 
   provider:facebook:
-    - providers/src/airflow/providers/facebook/**/*
-    - docs/apache-airflow-providers-facebook/**/*
-    - providers/tests/facebook/**/*
+    - providers/facebook/**
 
   provider:ftp:
-    - providers/src/airflow/providers/ftp/**/*
-    - docs/apache-airflow-providers-ftp/**/*
-    - providers/tests/ftp/**/*
-    - providers/tests/system/ftp/**/*
+    - providers/ftp/**
 
   provider:github:
-    - providers/src/airflow/providers/github/**/*
-    - docs/apache-airflow-providers-github/**/*
-    - providers/tests/github/**/*
-    - providers/tests/system/github/**/*
+    - providers/github/**
 
   provider:google:
-    - providers/src/airflow/providers/google/**/*
-    - docs/apache-airflow-providers-google/**/*
-    - providers/tests/google/**/*
-    - providers/tests/system/google/**/*
+    - providers/google/**
 
   provider:grpc:
-    - providers/src/airflow/providers/grpc/**/*
-    - docs/apache-airflow-providers-grpc/**/*
-    - providers/tests/grpc/**/*
+    - providers/grpc/**
 
   provider:hashicorp:
-    - providers/src/airflow/providers/hashicorp/**/*
-    - docs/apache-airflow-providers-hashicorp/**/*
-    - providers/tests/hashicorp/**/*
+    - providers/hashicorp/**
 
   provider:http:
-    - providers/src/airflow/providers/http/**/*
-    - docs/apache-airflow-providers-http/**/*
-    - providers/tests/http/**/*
-    - providers/tests/system/http/**/*
+    - providers/http/**
 
   provider:imap:
-    - providers/src/airflow/providers/imap/**/*
-    - docs/apache-airflow-providers-imap/**/*
-    - providers/tests/imap/**/*
+    - providers/imap/**
 
   provider:influxdb:
-    - providers/src/airflow/providers/influxdb/**/*
-    - docs/apache-airflow-providers-influxdb/**/*
-    - providers/tests/influxdb/**/*
-    - providers/tests/system/influxdb/**/*
+    - providers/influxdb/**
 
   provider:jdbc:
-    - providers/src/airflow/providers/jdbc/**/*
-    - docs/apache-airflow-providers-jdbc/**/*
-    - providers/tests/jdbc/**/*
-    - providers/tests/system/jdbc/**/*
+    - providers/jdbc/**
 
   provider:jenkins:
-    - providers/src/airflow/providers/jenkins/**/*
-    - docs/apache-airflow-providers-jenkins/**/*
-    - providers/tests/jenkins/**/*
-    - providers/tests/system/jenkins/**/*
+    - providers/jenkins/**
 
   provider:microsoft-azure:
-    - providers/src/airflow/providers/microsoft/azure/**/*
-    - providers/tests/microsoft/azure/**/*
-    - docs/apache-airflow-providers-microsoft-azure/**/*
-    - providers/tests/system/microsoft/azure/**/*
+    - providers/microsoft/azure/**
 
   provider:microsoft-mssql:
-    - providers/src/airflow/providers/microsoft/mssql/**/*
-    - docs/apache-airflow-providers-microsoft-mssql/**/*
-    - providers/tests/microsoft/mssql/**/*
-    - providers/tests/system/microsoft/mssql/**/*
+    - providers/microsoft/mssql/**
 
   provider:microsoft-psrp:
-    - providers/src/airflow/providers/microsoft/psrp/**/*
-    - docs/apache-airflow-providers-microsoft-psrp/**/*
-    - providers/tests/microsoft/psrp/**/*
+    - providers/microsoft/psrp/**
 
   provider:microsoft-winrm:
-    - providers/src/airflow/providers/microsoft/winrm/**/*
-    - docs/apache-airflow-providers-microsoft-winrm/**/*
-    - providers/tests/microsoft/winrm/**/*
-    - providers/tests/system/microsoft/winrm/**/*
+    - providers/microsoft/winrm/**
 
   provider:mongo:
-    - providers/src/airflow/providers/mongo/**/*
-    - docs/apache-airflow-providers-mongo/**/*
-    - providers/tests/mongo/**/*
+    - providers/mongo/**
 
   provider:mysql:
-    - providers/src/airflow/providers/mysql/**/*
-    - docs/apache-airflow-providers-mysql/**/*
-    - providers/tests/mysql/**/*
-    - providers/tests/system/mysql/**/*
+    - providers/mysql/**
 
   provider:neo4j:
-    - providers/src/airflow/providers/neo4j/**/*
-    - docs/apache-airflow-providers-neo4j/**/*
-    - providers/tests/neo4j/**/*
-    - providers/tests/system/neo4j/**/*
+    - providers/neo4j/**
 
   provider:odbc:
-    - providers/src/airflow/providers/odbc/**/*
-    - docs/apache-airflow-providers-odbc/**/*
-    - providers/tests/odbc/**/*
+    - providers/odbc/**
 
   provider:openai:
-    - providers/src/airflow/providers/openai/**/*
-    - docs/apache-airflow-providers-openai/**/*
-    - providers/tests/openai/**/*
-    - providers/tests/system/openai/**/*
+    - providers/openai/**
 
   provider:openfaas:
-    - providers/src/airflow/providers/openfaas/**/*
-    - docs/apache-airflow-providers-openfaas/**/*
-    - providers/tests/openfaas/**/*
+    - providers/openfaas/**
 
   provider:openlineage:
-    - providers/src/airflow/providers/openlineage/**/*
-    - docs/apache-airflow-providers-openlineage/**/*
-    - providers/tests/openlineage/**/*
+    - providers/openlineage/**
 
   provider:opensearch:
-    - providers/src/airflow/providers/opensearch/**/*
-    - docs/apache-airflow-providers-opensearch/**/*
-    - providers/tests/opensearch/**/*
-    - providers/tests/system/opensearch/**/*
+    - providers/opensearch/**
 
   provider:opsgenie:
-    - providers/src/airflow/providers/opsgenie/**/*
-    - docs/apache-airflow-providers-opsgenie/**/*
-    - providers/tests/opsgenie/**/*
-    - providers/tests/system/opsgenie/**/*
+    - providers/opsgenie/**
 
   provider:Oracle:
-    - providers/src/airflow/providers/oracle/**/*
-    - docs/apache-airflow-providers-oracle/**/*
-    - providers/tests/oracle/**/*
+    - providers/oracle/**
 
   provider:pagerduty:
-    - providers/src/airflow/providers/pagerduty/**/*
-    - docs/apache-airflow-providers-pagerduty/**/*
-    - providers/tests/pagerduty/**/*
+    - providers/pagerduty/**
 
   provider:papermill:
-    - providers/src/airflow/providers/papermill/**/*
-    - docs/apache-airflow-providers-papermill/**/*
-    - providers/tests/papermill/**/*
-    - providers/tests/system/papermill/**/*
+    - providers/papermill/**
 
   provider:pgvector:
-    - providers/src/airflow/providers/pgvector/**/*
-    - docs/apache-airflow-providers-pgvector/**/*
-    - providers/tests/pgvector/**/*
-    - providers/tests/system/pgvector/**/*
+    - providers/pgvector/**
 
   provider:pinecone:
-    - providers/src/airflow/providers/pinecone/**/*
-    - docs/apache-airflow-providers-pinecone/**/*
-    - providers/tests/pinecone/**/*
-    - providers/tests/system/pinecone/**/*
+    - providers/pinecone/**
 
   provider:postgres:
-    - providers/src/airflow/providers/postgres/**/*
-    - docs/apache-airflow-providers-postgres/**/*
-    - providers/tests/postgres/**/*
-    - providers/tests/system/postgres/**/*
+    - providers/postgres/**
 
   provider:presto:
-    - providers/src/airflow/providers/presto/**/*
-    - docs/apache-airflow-providers-presto/**/*
-    - providers/tests/presto/**/*
-    - providers/tests/system/presto/**/*
+    - providers/presto/**
 
   provider:qdrant:
-    - providers/src/airflow/providers/qdrant/**/*
-    - docs/apache-airflow-providers-qdrant/**/*
-    - providers/tests/qdrant/**/*
-    - providers/tests/system/qdrant/**/*
+    - providers/qdrant/**
 
   provider:redis:
-    - providers/src/airflow/providers/redis/**/*
-    - docs/apache-airflow-providers-redis/**/*
-    - providers/tests/redis/**/*
+    - providers/redis/**
 
   provider:salesforce:
-    - providers/src/airflow/providers/salesforce/**/*
-    - docs/apache-airflow-providers-salesforce/**/*
-    - providers/tests/salesforce/**/*
-    - providers/tests/system/salesforce/**/*
+    - providers/salesforce/**
 
   provider:samba:
-    - providers/src/airflow/providers/samba/**/*
-    - docs/apache-airflow-providers-samba/**/*
-    - providers/tests/samba/**/*
+    - providers/samba/**
 
   provider:segment:
-    - providers/src/airflow/providers/segment/**/*
-    - docs/apache-airflow-providers-segment/**/*
-    - providers/tests/segment/**/*
+    - providers/segment/**
 
   provider:sendgrid:
-    - providers/src/airflow/providers/segment/**/*
-    - docs/apache-airflow-providers-segment/**/*
-    - providers/tests/segment/**/*
+    - providers/sendgrid/**
 
   provider:sftp:
-    - providers/src/airflow/providers/sftp/**/*
-    - docs/apache-airflow-providers-sftp/**/*
-    - providers/tests/sftp/**/*
+    - providers/sftp/**
 
   provider:singularity:
-    - providers/src/airflow/providers/singularity/**/*
-    - docs/apache-airflow-providers-singularity/**/*
-    - providers/tests/singularity/**/*
-    - providers/tests/system/singularity/**/*
+    - providers/singularity/**
 
   provider:slack:
-    - providers/src/airflow/providers/slack/**/*
-    - docs/apache-airflow-providers-slack/**/*
-    - providers/tests/slack/**/*
-    - providers/tests/system/slack/**/*
+    - providers/slack/**
 
   provider:smtp:
-    - providers/src/airflow/providers/smtp/**/*
-    - docs/apache-airflow-providers-smtp/**/*
-    - providers/tests/smtp/**/*
+    - providers/smtp/**
 
   provider:snowflake:
-    - providers/src/airflow/providers/snowflake/**/*
-    - docs/apache-airflow-providers-snowflake/**/*
-    - providers/tests/snowflake/**/*
-    - providers/tests/system/snowflake/**/*
+    - providers/snowflake/**
 
   provider:sqlite:
-    - providers/src/airflow/providers/sqlite/**/*
-    - docs/apache-airflow-providers-sqlite/**/*
-    - providers/tests/sqlite/**/*
-    - providers/tests/system/sqlite/**/*
+    - providers/sqlite/**
 
   provider:ssh:
-    - providers/src/airflow/providers/ssh/**/*
-    - docs/apache-airflow-providers-ssh/**/*
-    - providers/tests/ssh/**/*
+    - providers/ssh/**
 
   provider:tableau:
-    - providers/src/airflow/providers/tableau/**/*
-    - docs/apache-airflow-providers-tableau/**/*
-    - providers/tests/tableau/**/*
-    - providers/tests/system/tableau/**/*
+    - providers/tableau/**
 
   provider:telegram:
-    - providers/src/airflow/providers/telegram/**/*
-    - docs/apache-airflow-providers-telegram/**/*
-    - providers/tests/telegram/**/*
-    - providers/tests/system/telegram/**/*
+    - providers/telegram/**
 
   provider:teradata:
-    - providers/src/airflow/providers/teradata/**/*
-    - docs/apache-airflow-providers-teradata/**/*
-    - providers/tests/teradata/**/*
-    - providers/tests/system/teradata/**/*
+    - providers/teradata/**
 
   provider:trino:
-    - providers/src/airflow/providers/trino/**/*
-    - docs/apache-airflow-providers-trino/**/*
-    - providers/tests/trino/**/*
-    - providers/tests/system/trino/**/*
+    - providers/trino/**
 
   provider:vertica:
-    - providers/src/airflow/providers/vertica/**/*
-    - docs/apache-airflow-providers-vertica/**/*
-    - providers/tests/vertica/**/*
+    - providers/vertica/**
 
   provider:weaviate:
-    - providers/src/airflow/providers/weaviate/**/*
-    - docs/apache-airflow-providers-weaviate/**/*
-    - providers/tests/weaviate/**/*
-    - providers/tests/system/weaviate/**/*
+    - providers/weaviate/**
 
   provider:yandex:
-    - providers/src/airflow/providers/yandex/**/*
-    - docs/apache-airflow-providers-yandex/**/*
-    - providers/tests/yandex/**/*
-    - providers/tests/system/yandex/**/*
+    - providers/yandex/**
 
   provider:ydb:
-    - providers/src/airflow/providers/ydb/**/*
-    - docs/apache-airflow-providers-ydb/**/*
-    - providers/tests/ydb/**/*
-    - providers/tests/system/ydb/**/*
+    - providers/ydb/**
 
   provider:zendesk:
-    - providers/src/airflow/providers/zendesk/**/*
-    - docs/apache-airflow-providers-zendesk/**/*
-    - providers/tests/zendesk/**/*
-    - providers/tests/system/zendesk/**/*
-
-  area:providers:
-    - providers/src/airflow/providers/**/*
-    - docs/apache-airflow-providers-*/**/*
-    - providers/tests/**/*
-    - providers/tests/system/**/*
+    - providers/zendesk/**
 
   area:API:
     - airflow/api/**/*
-    - airflow/api_connexion/**/*
+    - airflow/api_fastapi/**/*
     - clients/**/*
     - docs/apache-airflow/stable-rest-api-ref.rst
-    - tests/api_connexion/**/*
+    - tests/api_fastapi/**/*
 
   area:dev-tools:
     - scripts/**/*
@@ -573,10 +319,6 @@ labelPRBasedOnFilePath:
     - .pre-commit-config.yaml
     - .rat-excludes
     - .readthedocs.yml
-    - airflow/www/.eslintignore
-    - airflow/www/.eslintrc
-    - airflow/www/.stylelintignore
-    - airflow/www/.stylelintrc
 
   kind:documentation:
     - docs/**/*
@@ -585,22 +327,7 @@ labelPRBasedOnFilePath:
     - chart/**/*
     - docs/helm-chart/**
 
-  area:Webserver:
-    - airflow/cli/commands/local_commands/webserver_command.py
-    - airflow/www/**/*
-    - tests/cli/commands/local_commands/test_webserver_command.py
-    - tests/www/**/*
-
   area:UI:
-    - airflow/www/static/**/*
-    - airflow/www/templates/**/*
-    - airflow/www/.eslintignore
-    - airflow/www/.eslintrc
-    - airflow/www/.stylelintignore
-    - airflow/www/.stylelintrc
-    - airflow/www/package.json
-    - airflow/www/webpack.config.js
-    - airflow/www/yarn.lock
     - docs/apache-airflow/ui.rst
     - airflow/ui/**/*
 
@@ -616,25 +343,28 @@ labelPRBasedOnFilePath:
     - docs/apache-airflow/administration-and-deployment/lineage.rst
 
   area:Logging:
-    - providers/src/airflow/providers/**/log/*
     - airflow/utils/log/**/*
     - docs/apache-airflow/administration-and-deployment/logging-monitoring/logging-*.rst
-    - providers/tests/**/log/*
     - tests/utils/log/**/*
+    - providers/**/log/*
 
   area:Plugins:
     - airflow/cli/commands/local_commands/plugins_command.py
     - airflow/plugins_manager.py
     - tests/cli/commands/local_commands/test_plugins_command.py
     - tests/plugins/**/*
-    - docs/apache-airflow/authoring-and-scheduling/plugins.rst
+    - docs/apache-airflow/administration-and-deployment/plugins.rst
 
   area:Scheduler:
-    - airflow/jobs/**/*
-    - airflow/task/standard_task_runner.py
-    - airflow/dag_processing/**/*
+    - airflow/jobs/scheduler_job_runner.py
     - docs/apache-airflow/administration-and-deployment/scheduler.rst
-    - tests/jobs/**/*
+    - tests/jobs/test_scheduler_job.py
+
+  area:DAG-processing:
+    - airflow/dag_processing/**/*
+    - airflow/jobs/dag_processor_job_runner.py
+    - docs/apache-airflow/administration-and-deployment/dagfile-processing.rst
+    - tests/dag_processing/**/*
 
   area:Executors-core:
     - airflow/executors/**/*
@@ -643,21 +373,19 @@ labelPRBasedOnFilePath:
 
   area:Secrets:
     - airflow/secrets/**/*
-    - providers/src/airflow/providers/**/secrets/*
     - tests/secrets/**/*
-    - providers/tests/**/secrets/*
+    - providers/**/secrets/*
     - docs/apache-airflow/security/secrets/**/*
 
   area:Triggerer:
     - airflow/cli/commands/local_commands/triggerer_command.py
     - airflow/jobs/triggerer_job_runner.py
     - airflow/models/trigger.py
-    - providers/src/airflow/providers/standard/triggers/**/*
+    - providers/standard/src/airflow/providers/standard/triggers/**/*
     - tests/cli/commands/local_commands/test_triggerer_command.py
     - tests/jobs/test_triggerer_job.py
     - tests/models/test_trigger.py
-    - tests/jobs/test_triggerer_job_logging.py
-    - providers/tests/standard/triggers/**/*
+    - providers/standard/tests/unit/standard/triggers/**/*
 
   area:Serialization:
     - airflow/serialization/**/*
@@ -685,10 +413,13 @@ labelPRBasedOnFilePath:
     - tests/system/**/*
 
   area:task-sdk:
-    - task_sdk/**/*
+    - task-sdk/**/*
 
   area:db-migrations:
     - airflow/migrations/versions/*
+
+  area:providers:
+    - providers/**/*
 
 # Various Flags to control behaviour of the "Labeler"
 labelerFlags:

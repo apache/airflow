@@ -25,12 +25,10 @@ from typing import TYPE_CHECKING
 from airflow.exceptions import AirflowConfigException, UnknownExecutorException
 from airflow.executors.executor_constants import (
     CELERY_EXECUTOR,
-    CELERY_KUBERNETES_EXECUTOR,
     CORE_EXECUTOR_NAMES,
     DEBUG_EXECUTOR,
     KUBERNETES_EXECUTOR,
     LOCAL_EXECUTOR,
-    LOCAL_KUBERNETES_EXECUTOR,
     SEQUENTIAL_EXECUTOR,
     ConnectorSource,
 )
@@ -59,12 +57,8 @@ class ExecutorLoader:
 
     executors = {
         LOCAL_EXECUTOR: "airflow.executors.local_executor.LocalExecutor",
-        LOCAL_KUBERNETES_EXECUTOR: "airflow.providers.cncf.kubernetes."
-        "executors.local_kubernetes_executor.LocalKubernetesExecutor",
         SEQUENTIAL_EXECUTOR: "airflow.executors.sequential_executor.SequentialExecutor",
         CELERY_EXECUTOR: "airflow.providers.celery.executors.celery_executor.CeleryExecutor",
-        CELERY_KUBERNETES_EXECUTOR: "airflow.providers.celery."
-        "executors.celery_kubernetes_executor.CeleryKubernetesExecutor",
         KUBERNETES_EXECUTOR: "airflow.providers.cncf.kubernetes."
         "executors.kubernetes_executor.KubernetesExecutor",
         DEBUG_EXECUTOR: "airflow.executors.debug_executor.DebugExecutor",
@@ -231,6 +225,10 @@ class ExecutorLoader:
     @classmethod
     def lookup_executor_name_by_str(cls, executor_name_str: str) -> ExecutorName:
         # lookup the executor by alias first, if not check if we're given a module path
+        if not _classname_to_executors or not _module_to_executors or not _alias_to_executors:
+            # if we haven't loaded the executors yet, such as directly calling load_executor
+            cls._get_executor_names()
+
         if executor_name := _alias_to_executors.get(executor_name_str):
             return executor_name
         elif executor_name := _module_to_executors.get(executor_name_str):
@@ -261,17 +259,12 @@ class ExecutorLoader:
             _executor_name = executor_name
 
         try:
-            if _executor_name.alias == CELERY_KUBERNETES_EXECUTOR:
-                executor = cls.__load_celery_kubernetes_executor()
-            elif _executor_name.alias == LOCAL_KUBERNETES_EXECUTOR:
-                executor = cls.__load_local_kubernetes_executor()
+            executor_cls, import_source = cls.import_executor_cls(_executor_name)
+            log.debug("Loading executor %s from %s", _executor_name, import_source.value)
+            if _executor_name.team_id:
+                executor = executor_cls(team_id=_executor_name.team_id)
             else:
-                executor_cls, import_source = cls.import_executor_cls(_executor_name)
-                log.debug("Loading executor %s from %s", _executor_name, import_source.value)
-                if _executor_name.team_id:
-                    executor = executor_cls(team_id=_executor_name.team_id)
-                else:
-                    executor = executor_cls()
+                executor = executor_cls()
 
         except ImportError as e:
             log.error(e)
@@ -311,19 +304,3 @@ class ExecutorLoader:
         executor_name = cls.get_default_executor_name()
         executor, source = cls.import_executor_cls(executor_name)
         return executor, source
-
-    @classmethod
-    def __load_celery_kubernetes_executor(cls) -> BaseExecutor:
-        celery_executor = import_string(cls.executors[CELERY_EXECUTOR])()
-        kubernetes_executor = import_string(cls.executors[KUBERNETES_EXECUTOR])()
-
-        celery_kubernetes_executor_cls = import_string(cls.executors[CELERY_KUBERNETES_EXECUTOR])
-        return celery_kubernetes_executor_cls(celery_executor, kubernetes_executor)
-
-    @classmethod
-    def __load_local_kubernetes_executor(cls) -> BaseExecutor:
-        local_executor = import_string(cls.executors[LOCAL_EXECUTOR])()
-        kubernetes_executor = import_string(cls.executors[KUBERNETES_EXECUTOR])()
-
-        local_kubernetes_executor_cls = import_string(cls.executors[LOCAL_KUBERNETES_EXECUTOR])
-        return local_kubernetes_executor_cls(local_executor, kubernetes_executor)

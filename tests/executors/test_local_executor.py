@@ -27,6 +27,7 @@ from uuid6 import uuid7
 
 from airflow.executors import workloads
 from airflow.executors.local_executor import LocalExecutor
+from airflow.utils import timezone
 from airflow.utils.state import State
 
 pytestmark = pytest.mark.db_test
@@ -60,6 +61,11 @@ class TestLocalExecutor:
                 run_id="run1",
                 try_number=1,
                 state="queued",
+                pool_slots=1,
+                queue="default",
+                priority_weight=1,
+                map_index=-1,
+                start_date=timezone.utcnow(),
             )
             for i in range(self.TEST_SUCCESS_COMMANDS)
         ]
@@ -81,11 +87,23 @@ class TestLocalExecutor:
         with spy_on(executor._spawn_worker) as spawn_worker:
             for ti in success_tis:
                 executor.queue_workload(
-                    workloads.ExecuteTask(token="", ti=ti, dag_path="some/path", log_path=None)
+                    workloads.ExecuteTask(
+                        token="",
+                        ti=ti,
+                        dag_rel_path="some/path",
+                        log_path=None,
+                        bundle_info=dict(name="hi", version="hi"),
+                    )
                 )
 
             executor.queue_workload(
-                workloads.ExecuteTask(token="", ti=fail_ti, dag_path="some/path", log_path=None)
+                workloads.ExecuteTask(
+                    token="",
+                    ti=fail_ti,
+                    dag_rel_path="some/path",
+                    log_path=None,
+                    bundle_info=dict(name="hi", version="hi"),
+                )
             )
 
             executor.end()

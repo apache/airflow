@@ -26,7 +26,7 @@ some of those ways that involve creating issues and pull requests on GitHub.
 Report Bugs
 -----------
 
-Report bugs through `GitHub <https://github.com/apache/airflow/issues>`__.
+Report bugs through `GitHub Issues <https://github.com/apache/airflow/issues>`__.
 
 Please report relevant information and preferably code that exhibits the problem.
 

@@ -30,16 +30,14 @@ from airflow.executors.executor_loader import ExecutorLoader
 from airflow.jobs.job import Job, run_job
 from airflow.jobs.scheduler_job_runner import SchedulerJobRunner
 from airflow.utils import cli as cli_utils
-from airflow.utils.cli import process_subdir
 from airflow.utils.providers_configuration_loader import providers_configuration_loaded
 from airflow.utils.scheduler_health import serve_health_check
-from airflow.utils.usage_data_collection import usage_data_collection
 
 log = logging.getLogger(__name__)
 
 
 def _run_scheduler_job(args) -> None:
-    job_runner = SchedulerJobRunner(job=Job(), subdir=process_subdir(args.subdir), num_runs=args.num_runs)
+    job_runner = SchedulerJobRunner(job=Job(), num_runs=args.num_runs)
     enable_health_check = conf.getboolean("scheduler", "ENABLE_HEALTH_CHECK")
     with _serve_logs(args.skip_serve_logs), _serve_health_check(enable_health_check):
         run_job(job=job_runner.job, execute_callable=job_runner._execute)
@@ -50,8 +48,6 @@ def _run_scheduler_job(args) -> None:
 def scheduler(args: Namespace):
     """Start Airflow Scheduler."""
     print(settings.HEADER)
-
-    usage_data_collection()
 
     run_command_with_daemon_option(
         args=args,

@@ -18,8 +18,8 @@
  */
 import { Box, Flex, HStack, Spacer, VStack } from "@chakra-ui/react";
 import type { ColumnDef } from "@tanstack/react-table";
-import { useMemo, useState } from "react";
-import { FiShare, FiTrash2 } from "react-icons/fi";
+import { useEffect, useMemo, useState } from "react";
+import { FiShare } from "react-icons/fi";
 import { useSearchParams } from "react-router-dom";
 
 import { useVariableServiceGetVariables } from "openapi/queries";
@@ -34,7 +34,9 @@ import { ActionBar } from "src/components/ui/ActionBar";
 import { Checkbox } from "src/components/ui/Checkbox";
 import { SearchParamsKeys, type SearchParamsKeysType } from "src/constants/searchParams";
 import { TrimText } from "src/utils/TrimText";
+import { downloadJson } from "src/utils/downloadJson";
 
+import DeleteVariablesButton from "./DeleteVariablesButton";
 import ImportVariablesButton from "./ImportVariablesButton";
 import AddVariableButton from "./ManageVariable/AddVariableButton";
 import DeleteVariableButton from "./ManageVariable/DeleteVariableButton";
@@ -51,12 +53,17 @@ const getColumns = ({
     cell: ({ row }) => (
       <Checkbox
         checked={selectedRows.get(row.original.key)}
+        colorPalette="blue"
         onCheckedChange={(event) => onRowSelect(row.original.key, Boolean(event.checked))}
       />
     ),
     enableSorting: false,
     header: () => (
-      <Checkbox checked={allRowsSelected} onCheckedChange={(event) => onSelectAll(Boolean(event.checked))} />
+      <Checkbox
+        checked={allRowsSelected}
+        colorPalette="blue"
+        onCheckedChange={(event) => onSelectAll(Boolean(event.checked))}
+      />
     ),
     meta: {
       skeletonWidth: 10,
@@ -85,8 +92,8 @@ const getColumns = ({
     accessorKey: "actions",
     cell: ({ row: { original } }) => (
       <Flex justifyContent="end">
-        <EditVariableButton variable={original} />
-        <DeleteVariableButton deleteKey={original.key} />
+        <EditVariableButton disabled={selectedRows.size > 0} variable={original} />
+        <DeleteVariableButton deleteKey={original.key} disabled={selectedRows.size > 0} />
       </Flex>
     ),
     enableSorting: false,
@@ -98,12 +105,15 @@ const getColumns = ({
 ];
 
 export const Variables = () => {
-  const { setTableURLState, tableURLState } = useTableURLState();
+  const { setTableURLState, tableURLState } = useTableURLState({
+    pagination: { pageIndex: 0, pageSize: 30 },
+  }); // To make multiselection smooth
   const [searchParams, setSearchParams] = useSearchParams();
   const { NAME_PATTERN: NAME_PATTERN_PARAM }: SearchParamsKeysType = SearchParamsKeys;
   const [variableKeyPattern, setVariableKeyPattern] = useState(
     searchParams.get(NAME_PATTERN_PARAM) ?? undefined,
   );
+  const [selectedVariables, setSelectedVariables] = useState<Record<string, string | undefined>>({});
   const { pagination, sorting } = tableURLState;
   const [sort] = sorting;
   const orderBy = sort ? `${sort.desc ? "-" : ""}${sort.id === "value" ? "_val" : sort.id}` : "-key";
@@ -138,13 +148,36 @@ export const Variables = () => {
     } else {
       searchParams.delete(NAME_PATTERN_PARAM);
     }
-    setSearchParams(searchParams);
     setTableURLState({
       pagination: { ...pagination, pageIndex: 0 },
       sorting,
     });
+    setSearchParams(searchParams);
     setVariableKeyPattern(value);
   };
+
+  useEffect(() => {
+    const newSelection: Record<string, string | undefined> = { ...selectedVariables };
+
+    data?.variables.forEach((variable) => {
+      if (selectedRows.has(variable.key)) {
+        newSelection[variable.key] = variable.value;
+      }
+    });
+
+    // Filter out keys that are not in selectedRows
+    const filteredSelection = Object.keys(newSelection)
+      .filter((key) => selectedRows.has(key))
+      .reduce<Record<string, string | undefined>>((acc, key) => {
+        acc[key] = newSelection[key];
+
+        return acc;
+      }, {});
+
+    if (Object.keys(filteredSelection).length !== Object.keys(selectedVariables).length) {
+      setSelectedVariables(filteredSelection);
+    }
+  }, [selectedRows, data, selectedVariables]);
 
   return (
     <>
@@ -156,9 +189,9 @@ export const Variables = () => {
           placeHolder="Search Keys"
         />
         <HStack gap={4} mt={2}>
-          <ImportVariablesButton />
+          <ImportVariablesButton disabled={selectedRows.size > 0} />
           <Spacer />
-          <AddVariableButton />
+          <AddVariableButton disabled={selectedRows.size > 0} />
         </HStack>
       </VStack>
       <Box overflow="auto">
@@ -178,15 +211,12 @@ export const Variables = () => {
         <ActionBar.Content>
           <ActionBar.SelectionTrigger>{selectedRows.size} selected</ActionBar.SelectionTrigger>
           <ActionBar.Separator />
-          {/* TODO: Implement the delete and export selected */}
-          <Tooltip content="Delete selected variable coming soon..">
-            <Button disabled size="sm" variant="outline">
-              <FiTrash2 />
-              Delete
-            </Button>
+          {/* TODO: Implement the export selected */}
+          <Tooltip content="Delete selected variables">
+            <DeleteVariablesButton clearSelections={clearSelections} deleteKeys={[...selectedRows.keys()]} />
           </Tooltip>
-          <Tooltip content="Export selected variable coming soon..">
-            <Button disabled size="sm" variant="outline">
+          <Tooltip content="Export selected variables">
+            <Button onClick={() => downloadJson(selectedVariables, "variables")} size="sm" variant="outline">
               <FiShare />
               Export
             </Button>

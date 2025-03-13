@@ -33,6 +33,7 @@ class TestPodLauncher:
             ("CeleryExecutor", True, True, ["worker"]),
             ("LocalExecutor", True, True, ["scheduler"]),
             ("LocalExecutor", False, False, []),
+            ("CeleryExecutor,KubernetesExecutor", True, True, ["scheduler", "worker"]),
         ],
     )
     def test_pod_launcher_role(self, executor, rbac, allow, expected_accounts):

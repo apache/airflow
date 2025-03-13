@@ -16,7 +16,15 @@
 # under the License.
 from __future__ import annotations
 
+from abc import ABC, abstractmethod
+from typing import TYPE_CHECKING, Generic, TypeVar
+
 from pydantic import BaseModel as PydanticBaseModel, ConfigDict
+
+if TYPE_CHECKING:
+    from sqlalchemy.sql import Select
+
+T = TypeVar("T")
 
 
 class BaseModel(PydanticBaseModel):
@@ -26,4 +34,31 @@ class BaseModel(PydanticBaseModel):
     :meta private:
     """
 
-    model_config = ConfigDict(from_attributes=True)
+    model_config = ConfigDict(from_attributes=True, populate_by_name=True)
+
+
+class StrictBaseModel(BaseModel):
+    """
+    StrictBaseModel is a base Pydantic model for REST API that does not allow any extra fields.
+
+    Use this class for models that should not have any extra fields in the payload.
+
+    :meta private:
+    """
+
+    model_config = ConfigDict(from_attributes=True, populate_by_name=True, extra="forbid")
+
+
+class OrmClause(Generic[T], ABC):
+    """
+    Base class for filtering clauses with paginated_select.
+
+    The subclasses should implement the `to_orm` method and set the `value` attribute.
+    """
+
+    def __init__(self, value: T | None = None):
+        self.value = value
+
+    @abstractmethod
+    def to_orm(self, select: Select) -> Select:
+        pass

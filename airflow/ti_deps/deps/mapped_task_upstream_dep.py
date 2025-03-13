@@ -51,7 +51,7 @@ class MappedTaskUpstreamDep(BaseTIDep):
         session: Session,
         dep_context: DepContext,
     ) -> Iterator[TIDepStatus]:
-        from airflow.models.mappedoperator import MappedOperator
+        from airflow.sdk.definitions.mappedoperator import MappedOperator
 
         if isinstance(ti.task, MappedOperator):
             mapped_dependencies = ti.task.iter_mapped_dependencies()

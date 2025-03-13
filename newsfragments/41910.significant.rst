@@ -1,1 +1,20 @@
 Removed deprecated method ``requires_access`` from module ``airflow.api_connexion.security``. Please use ``requires_access_*`` instead.
+
+* Types of change
+
+  * [x] Dag changes
+  * [ ] Config changes
+  * [ ] API changes
+  * [ ] CLI changes
+  * [ ] Behaviour changes
+  * [ ] Plugin changes
+  * [ ] Dependency changes
+  * [ ] Code interface changes
+
+* Migration rules needed
+
+  * ruff
+
+    * AIR302
+
+      * [x] ``airflow.api_connexion.security.requires_access`` → ``airflow.api_connexion.security.requires_access_*``

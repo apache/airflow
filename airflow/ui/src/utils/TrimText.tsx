@@ -21,6 +21,7 @@ import { Text, Box, useDisclosure, Heading, Stack } from "@chakra-ui/react";
 import { Dialog, Tooltip } from "src/components/ui";
 
 import { capitalize } from "./capitalize";
+import { trimText } from "./trimTextFn";
 
 const formatKey = (key: string): string => {
   const formatted = capitalize(key).replaceAll("_", " ");
@@ -44,8 +45,7 @@ export const TrimText = ({
   text,
 }: TrimTextProps) => {
   const safeText = text ?? "";
-  const isTrimmed = safeText.length > charLimit;
-  const trimmedText = isTrimmed ? `${safeText.slice(0, charLimit)}...` : safeText;
+  const { isTrimmed, trimmedText } = trimText(safeText, charLimit);
 
   const { onClose, onOpen, open } = useDisclosure();
 

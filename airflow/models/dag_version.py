@@ -45,6 +45,8 @@ class DagVersion(Base):
     version_number = Column(Integer, nullable=False, default=1)
     dag_id = Column(StringID(), ForeignKey("dag.dag_id", ondelete="CASCADE"), nullable=False)
     dag_model = relationship("DagModel", back_populates="dag_versions")
+    bundle_name = Column(StringID(), nullable=False)
+    bundle_version = Column(StringID())
     dag_code = relationship(
         "DagCode",
         back_populates="dag_version",
@@ -59,9 +61,9 @@ class DagVersion(Base):
         cascade="all, delete, delete-orphan",
         cascade_backrefs=False,
     )
-    dag_runs = relationship("DagRun", back_populates="dag_version", cascade="all, delete, delete-orphan")
     task_instances = relationship("TaskInstance", back_populates="dag_version")
     created_at = Column(UtcDateTime, nullable=False, default=timezone.utcnow)
+    last_updated = Column(UtcDateTime, nullable=False, default=timezone.utcnow, onupdate=timezone.utcnow)
 
     __table_args__ = (
         UniqueConstraint("dag_id", "version_number", name="dag_id_v_name_v_number_unique_constraint"),
@@ -77,6 +79,8 @@ class DagVersion(Base):
         cls,
         *,
         dag_id: str,
+        bundle_name: str,
+        bundle_version: str | None = None,
         version_number: int = 1,
         session: Session = NEW_SESSION,
     ) -> DagVersion:
@@ -99,6 +103,8 @@ class DagVersion(Base):
         dag_version = DagVersion(
             dag_id=dag_id,
             version_number=version_number,
+            bundle_name=bundle_name,
+            bundle_version=bundle_version,
         )
         log.debug("Writing DagVersion %s to the DB", dag_version)
         session.add(dag_version)

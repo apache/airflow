@@ -1,1 +1,12 @@
 Remove ``virtualenv`` extra as PythonVirtualenvOperator has been moved to standard provider and switched to use built-in venv package.
+
+* Types of change
+
+  * [ ] Dag changes
+  * [ ] Config changes
+  * [ ] API changes
+  * [ ] CLI changes
+  * [ ] Behaviour changes
+  * [ ] Plugin changes
+  * [x] Dependency changes
+  * [ ] Code interface changes

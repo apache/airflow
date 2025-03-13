@@ -16,15 +16,75 @@
 # under the License.
 from __future__ import annotations
 
+import datetime
+import os
+from typing import TYPE_CHECKING
+
 import pytest
 from fastapi.testclient import TestClient
 
 from airflow.api_fastapi.app import create_app
+from airflow.api_fastapi.auth.managers.simple.user import SimpleAuthManagerUser
+from airflow.models import Connection
+from airflow.models.dag_version import DagVersion
+from airflow.models.serialized_dag import SerializedDagModel
+from airflow.providers.standard.operators.empty import EmptyOperator
+
+from tests_common.test_utils.config import conf_vars
+from tests_common.test_utils.db import clear_db_connections, parse_and_sync_to_db
+
+if TYPE_CHECKING:
+    from airflow.api_fastapi.auth.managers.simple.simple_auth_manager import SimpleAuthManager
 
 
 @pytest.fixture
 def test_client():
+    with conf_vars(
+        {
+            (
+                "core",
+                "auth_manager",
+            ): "airflow.api_fastapi.auth.managers.simple.simple_auth_manager.SimpleAuthManager",
+        }
+    ):
+        app = create_app()
+        auth_manager: SimpleAuthManager = app.state.auth_manager
+        # set time_very_before to 2014-01-01 00:00:00 and time_very_after to tomorrow
+        # to make the JWT token always valid for all test cases with time_machine
+        time_very_before = datetime.datetime(2014, 1, 1, 0, 0, 0)
+        time_very_after = datetime.datetime.now() + datetime.timedelta(days=1)
+        token = auth_manager._get_token_signer().generate_signed_token(
+            {
+                "iat": time_very_before,
+                "nbf": time_very_before,
+                "exp": time_very_after,
+                **auth_manager.serialize_user(SimpleAuthManagerUser(username="test", role="admin")),
+            }
+        )
+        yield TestClient(app, headers={"Authorization": f"Bearer {token}"})
+
+
+@pytest.fixture
+def unauthenticated_test_client():
     return TestClient(create_app())
+
+
+@pytest.fixture
+def unauthorized_test_client():
+    with conf_vars(
+        {
+            (
+                "core",
+                "auth_manager",
+            ): "airflow.api_fastapi.auth.managers.simple.simple_auth_manager.SimpleAuthManager",
+        }
+    ):
+        app = create_app()
+        auth_manager: SimpleAuthManager = app.state.auth_manager
+        token = auth_manager._get_token_signer().generate_signed_token(
+            auth_manager.serialize_user(SimpleAuthManagerUser(username="dummy", role=None))
+        )
+        yield TestClient(app, headers={"Authorization": f"Bearer {token}"})
 
 
 @pytest.fixture
@@ -38,10 +98,60 @@ def client():
     return create_test_client
 
 
+@pytest.fixture
+def configure_git_connection_for_dag_bundle(session):
+    # Git connection is required for the bundles to have a url.
+    connection = Connection(
+        conn_id="git_default",
+        conn_type="git",
+        description="default git connection",
+        host="fakeprotocol://test_host.github.com",
+        port=8081,
+        login="",
+    )
+    session.add(connection)
+    with conf_vars(
+        {
+            (
+                "dag_processor",
+                "dag_bundle_config_list",
+            ): '[{ "name": "dag_maker", "classpath": "airflow.dag_processing.bundles.git.GitDagBundle", "kwargs": {"subdir": "dags", "tracking_ref": "main", "refresh_interval": 0}}, { "name": "another_bundle_name", "classpath": "airflow.dag_processing.bundles.git.GitDagBundle", "kwargs": {"subdir": "dags", "tracking_ref": "main", "refresh_interval": 0}}]'
+        }
+    ):
+        yield
+
+    clear_db_connections(False)
+
+
+@pytest.fixture
+def make_dag_with_multiple_versions(dag_maker, configure_git_connection_for_dag_bundle):
+    """
+    Create DAG with multiple versions
+
+    Version 1 will have 1 task, version 2 will have 2 tasks, and version 3 will have 3 tasks.
+
+    Configure the associated dag_bundles.
+    """
+
+    dag_id = "dag_with_multiple_versions"
+    for version_number in range(1, 4):
+        with dag_maker(dag_id) as dag:
+            for task_number in range(version_number):
+                EmptyOperator(task_id=f"task{task_number + 1}")
+        SerializedDagModel.write_dag(
+            dag, bundle_name="dag_maker", bundle_version=f"some_commit_hash{version_number}"
+        )
+        dag_maker.create_dagrun(
+            run_id=f"run{version_number}",
+            logical_date=datetime.datetime(2020, 1, version_number, tzinfo=datetime.timezone.utc),
+            dag_version=DagVersion.get_version(dag_id=dag_id, version_number=version_number),
+        )
+        dag.sync_to_db()
+
+
 @pytest.fixture(scope="module")
 def dagbag():
     from airflow.models import DagBag
 
-    dagbag_instance = DagBag(include_examples=True, read_dags_from_db=False)
-    dagbag_instance.sync_to_db()
-    return dagbag_instance
+    parse_and_sync_to_db(os.devnull, include_examples=True)
+    return DagBag(read_dags_from_db=True)

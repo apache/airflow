@@ -64,6 +64,8 @@ on:  # yamllint disable-line rule:truthy
         description: "Whether to use uv"
         required: true
         type: string
+permissions:
+  contents: read
 jobs:
   tests-core-integration:
     timeout-minutes: 130
@@ -195,8 +197,7 @@ jobs:
           use-uv: ${{ inputs.use-uv }}
       - name: "System Tests"
         run: >
-          ./scripts/ci/testing/run_system_tests.sh
-          tests/system/example_empty.py providers/tests/system/example_empty.py
+          ./scripts/ci/testing/run_system_tests.sh tests/system/example_empty.py
       - name: "Post Tests success"
         uses: ./.github/actions/post_tests_success
         with:

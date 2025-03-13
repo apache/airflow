@@ -104,7 +104,7 @@ and build DAG relations between them. This is because of the design decision for
 and the impact the top-level code parsing speed on both performance and scalability of Airflow.
 
 Airflow scheduler executes the code outside the Operator's ``execute`` methods with the minimum interval of
-:ref:`min_file_process_interval<config:scheduler__min_file_process_interval>` seconds. This is done in order
+:ref:`min_file_process_interval<config:dag_processor__min_file_process_interval>` seconds. This is done in order
 to allow dynamic scheduling of the DAGs - where scheduling and dependencies might change over time and
 impact the next schedule of the DAG. Airflow scheduler tries to continuously make sure that what you have
 in DAGs is correctly reflected in scheduled tasks.
@@ -298,6 +298,64 @@ This means that the ``get_array`` is not executed as top-level code, but ``get_t
 
 .. _best_practices/dynamic_dag_generation:
 
+Code Quality and Linting
+------------------------
+
+Maintaining high code quality is essential for the reliability and maintainability of your Airflow workflows. Utilizing linting tools can help identify potential issues and enforce coding standards. One such tool is ``ruff``, a fast Python linter that now includes specific rules for Airflow.
+
+ruff assists in detecting deprecated features and patterns that may affect your migration to Airflow 3.0. For instance, it includes rules prefixed with ``AIR`` to flag potential issues:
+
+- **AIR301**: Flags DAGs without an explicit ``schedule`` argument.
+- **AIR302**: Identifies usage of deprecated ``schedule_interval`` parameter.
+- **AIR303**: Detects imports from modules that have been relocated or removed in Airflow 3.0.
+
+Installing and Using ruff
+-------------------------
+
+1. **Installation**: Install ``ruff`` using pip:
+
+   .. code-block:: bash
+
+      pip install "ruff>=0.9.5"
+
+2. **Running ruff**: Execute ``ruff`` to check your DAGs for potential issues:
+
+   .. code-block:: bash
+
+      ruff check dags/ --select AIR301,AIR302,AIR303
+
+   This command will analyze your DAGs located in the ``dags/`` directory and report any issues related to the specified rules.
+
+Example
+-------
+
+Given a legacy DAG defined as:
+
+.. code-block:: python
+
+   from airflow import dag
+   from airflow.datasets import Dataset
+   from airflow.sensors.filesystem import FileSensor
+
+
+   @dag()
+   def legacy_dag():
+       FileSensor(task_id="wait_for_file", filepath="/tmp/test_file")
+
+Running ``ruff`` will produce:
+
+.. code-block:: none
+
+   dags/legacy_dag.py:7:2: AIR301 DAG should have an explicit schedule argument
+   dags/legacy_dag.py:12:6: AIR302 schedule_interval is removed in Airflow 3.0
+   dags/legacy_dag.py:17:15: AIR302 airflow.datasets.Dataset is removed in Airflow 3.0
+   dags/legacy_dag.py:19:5: AIR303 airflow.sensors.filesystem.FileSensor is moved into ``standard`` provider in Airflow 3.0
+
+By integrating ``ruff`` into your development workflow, you can proactively address deprecations and maintain code quality, facilitating smoother transitions between Airflow versions.
+
+For more information on ``ruff`` and its integration with Airflow, refer to the `official Airflow documentation <https://airflow.apache.org/docs/apache-airflow/stable/best-practices.html>`_.
+
+
 Dynamic DAG Generation
 ----------------------
 Sometimes writing DAGs manually isn't practical.
@@ -442,10 +500,10 @@ at the following configuration parameters and fine tune them according your need
 each parameter by following the links):
 
 * :ref:`config:scheduler__scheduler_idle_sleep_time`
-* :ref:`config:scheduler__min_file_process_interval`
-* :ref:`config:scheduler__dag_dir_list_interval`
-* :ref:`config:scheduler__parsing_processes`
-* :ref:`config:scheduler__file_parsing_sort_mode`
+* :ref:`config:dag_processor__min_file_process_interval`
+* :ref:`config:dag_processor__refresh_interval`
+* :ref:`config:dag_processor__parsing_processes`
+* :ref:`config:dag_processor__file_parsing_sort_mode`
 
 Example of watcher pattern with trigger rules
 ---------------------------------------------
@@ -725,13 +783,14 @@ This is an example test want to verify the structure of a code-generated DAG aga
 
     from airflow import DAG
     from airflow.utils.state import DagRunState, TaskInstanceState
-    from airflow.utils.types import DagRunType
+    from airflow.utils.types import DagRunTriggeredByType, DagRunType
 
     DATA_INTERVAL_START = pendulum.datetime(2021, 9, 13, tz="UTC")
     DATA_INTERVAL_END = DATA_INTERVAL_START + datetime.timedelta(days=1)
 
     TEST_DAG_ID = "my_custom_operator_dag"
     TEST_TASK_ID = "my_custom_operator_task"
+    TEST_RUN_ID = "my_custom_operator_dag_run"
 
 
     @pytest.fixture()
@@ -750,11 +809,13 @@ This is an example test want to verify the structure of a code-generated DAG aga
 
     def test_my_custom_operator_execute_no_trigger(dag):
         dagrun = dag.create_dagrun(
-            state=DagRunState.RUNNING,
-            execution_date=DATA_INTERVAL_START,
+            run_id=TEST_RUN_ID,
+            logical_date=DATA_INTERVAL_START,
             data_interval=(DATA_INTERVAL_START, DATA_INTERVAL_END),
-            start_date=DATA_INTERVAL_END,
             run_type=DagRunType.MANUAL,
+            triggered_by=DagRunTriggeredByType.TIMETABLE,
+            state=DagRunState.RUNNING,
+            start_date=DATA_INTERVAL_END,
         )
         ti = dagrun.get_task_instance(task_id=TEST_TASK_ID)
         ti.task = dag.get_task(task_id=TEST_TASK_ID)

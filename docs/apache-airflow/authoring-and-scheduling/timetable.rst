@@ -64,6 +64,53 @@ Built-in Timetables
 Airflow comes with several common timetables built-in to cover the most common use cases. Additional timetables
 may be available in plugins.
 
+.. _DeltaTriggerTimetable:
+
+DeltaTriggerTimetable
+^^^^^^^^^^^^^^^^^^^^^
+
+A timetable that accepts a :class:`datetime.timedelta` or ``dateutil.relativedelta.relativedelta``, and runs
+the DAG once a delta passes.
+
+.. seealso:: `Differences between "trigger" and "data interval" timetables`_
+
+.. code-block:: python
+
+    from datetime import timedelta
+
+    from airflow.timetables.trigger import DeltaTriggerTimetable
+
+
+    @dag(schedule=DeltaTriggerTimetable(timedelta(days=7)), ...)  # Once every week.
+    def example_dag():
+        pass
+
+You can also provide a static data interval to the timetable. The optional ``interval`` argument also
+should be a :class:`datetime.timedelta` or ``dateutil.relativedelta.relativedelta``. When using these
+arguments, a triggered DAG run's data interval spans the specified duration, and *ends* with the trigger time.
+
+.. code-block:: python
+
+    from datetime import UTC, datetime, timedelta
+
+    from dateutil.relativedelta import relativedelta, FR
+
+    from airflow.timetables.trigger import DeltaTriggerTimetable
+
+
+    @dag(
+        # Runs every Friday at 18:00 to cover the work week.
+        schedule=DeltaTriggerTimetable(
+            relativedelta(weekday=FR(), hour=18),
+            interval=timedelta(days=4, hours=9),
+        ),
+        start_date=datetime(2025, 1, 3, 18, tzinfo=UTC),
+        ...,
+    )
+    def example_dag():
+        pass
+
+
 .. _CronTriggerTimetable:
 
 CronTriggerTimetable
@@ -71,7 +118,7 @@ CronTriggerTimetable
 
 A timetable that accepts a cron expression, and triggers DAG runs according to it.
 
-.. seealso:: `Differences between the two cron timetables`_
+.. seealso:: `Differences between "trigger" and "data interval" timetables`_
 
 .. code-block:: python
 
@@ -98,6 +145,45 @@ must be a :class:`datetime.timedelta` or ``dateutil.relativedelta.relativedelta`
             "0 18 * * 5",
             timezone="UTC",
             interval=timedelta(days=4, hours=9),
+        ),
+        ...,
+    )
+    def example_dag():
+        pass
+
+
+.. _MultipleCronTriggerTimetable:
+
+MultipleCronTriggerTimetable
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+This is similar to CronTriggerTimetable_ except it takes multiple cron expressions. A DAG run is scheduled whenever any of the expressions matches the time. It is particularly useful when the desired schedule cannot be expressed by one single cron expression.
+
+.. code-block:: python
+
+    from airflow.timetables.trigger import MultipleCronTriggerTimetable
+
+
+    # At 1:10 and 2:40 each day.
+    @dag(schedule=MultipleCronTriggerTimetable("10 1 * * *", "40 2 * * *", timezone="UTC"), ...)
+    def example_dag():
+        pass
+
+The same optional ``interval`` argument as CronTriggerTimetable_ is also available.
+
+.. code-block:: python
+
+    from datetime import timedelta
+
+    from airflow.timetables.trigger import MultipleCronTriggerTimetable
+
+
+    @dag(
+        schedule=MultipleCronTriggerTimetable(
+            "10 1 * * *",
+            "40 2 * * *",
+            timezone="UTC",
+            interval=timedelta(hours=1),
         ),
         ...,
     )
@@ -132,7 +218,7 @@ CronDataIntervalTimetable
 A timetable that accepts a cron expression, creates data intervals according to the interval between each cron
 trigger points, and triggers a DAG run at the end of each data interval.
 
-.. seealso:: `Differences between the two cron timetables`_
+.. seealso:: `Differences between "trigger" and "data interval" timetables`_
 .. seealso:: `Differences between the cron and delta data interval timetables`_
 
 Select this timetable by providing a valid cron expression as a string to the ``schedule``
@@ -209,37 +295,39 @@ Here's an example of a DAG using ``AssetOrTimeSchedule``:
 Timetables comparisons
 ----------------------
 
-.. _Differences between the two cron timetables:
+.. _Differences between "trigger" and "data interval" timetables:
 
-Differences between the two cron timetables
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Differences between "trigger" and "data interval" timetables
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-Airflow has two timetables `CronTriggerTimetable`_ and `CronDataIntervalTimetable`_ that accept a cron expression.
+Airflow has two sets of timetables for cron and delta schedules:
 
-However, there are differences between the two:
-- `CronTriggerTimetable`_ does not address *Data Interval*, while `CronDataIntervalTimetable`_ does.
-- The timestamp in the ``run_id``, the ``logical_date`` for `CronTriggerTimetable`_ and `CronDataIntervalTimetable`_  are defined differently based on how they handle the data interval, as described in :ref:`timetables_run_id_logical_date`.
+* CronTriggerTimetable_ and CronDataIntervalTimetable_ both accept a cron expression.
+* DeltaTriggerTimetable_ and DeltaDataIntervalTimetable_ both accept a timedelta or relativedelta.
+
+- A trigger timetable (CronTriggerTimetable_ or DeltaTriggerTimetable_) does not address the concept of *data interval*, while a "data interval" one (CronDataIntervalTimetable_ or DeltaDataIntervalTimetable_) does.
+- The timestamp in the ``run_id``, the ``logical_date`` of the two timetable kinds are defined differently based on how they handle the data interval, as described in :ref:`timetables_run_id_logical_date`.
 
 Whether taking care of *Data Interval*
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-`CronTriggerTimetable`_ *does not* include *data interval*. This means that the value of ``data_interval_start`` and
-``data_interval_end`` (and the legacy ``execution_date``) are the same; the time when a DAG run is triggered.
+A trigger timetable *does not* include *data interval*. This means that the value of ``data_interval_start``
+and ``data_interval_end`` (and the legacy ``execution_date``) are the same; the time when a DAG run is
+triggered.
 
-However, `CronDataIntervalTimetable`_ *does* include *data interval*. This means the value of
-``data_interval_start`` and ``data_interval_end`` (and legacy ``execution_date``) are different. ``data_interval_start`` is the time when a
-DAG run is triggered and ``data_interval_end`` is the end of the interval.
+For a data interval timetable, the value of ``data_interval_start`` and ``data_interval_end`` (and legacy
+``execution_date``) are different. ``data_interval_start`` is the time when a DAG run is triggered and
+``data_interval_end`` is the end of the interval.
 
 *Catchup* behavior
 ^^^^^^^^^^^^^^^^^^
-
-Whether you're using `CronTriggerTimetable`_ or `CronDataIntervalTimetable`_,  there is no difference when ``catchup`` is ``True``.
 
 You might want to use ``False`` for ``catchup`` for certain scenarios, to prevent running unnecessary DAGs:
 - If you create a new DAG with a start date in the past, and don't want to run DAGs for the past. If ``catchup`` is ``True``, Airflow runs all DAGs that would have run in that time interval.
 - If you pause an existing DAG, and then restart it at a later date, and don't want to  If ``catchup`` is ``True``,
 
-In these scenarios, the ``logical_date`` in the ``run_id`` are based on how `CronTriggerTimetable`_ or `CronDataIntervalTimetable`_ handle the data interval.
+In these scenarios, the ``logical_date`` in the ``run_id`` are based on how how the timetable handles the data
+interval.
 
 See :ref:`dag-catchup` for more information about how DAG runs are triggered when using ``catchup``.
 
@@ -248,30 +336,29 @@ See :ref:`dag-catchup` for more information about how DAG runs are triggered whe
 The time when a DAG run is triggered
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-`CronTriggerTimetable`_ and `CronDataIntervalTimetable`_ trigger DAG runs at the same time. However, the timestamp for the ``run_id`` is different for each.
-
-- `CronTriggerTimetable`_ has a ``run_id`` timestamp, the ``logical_date``, showing when DAG run is able to start.
-- `CronTriggerTimetable`_ and `CronDataIntervalTimetable`_ trigger DAG runs at the same time. However, the timestamp for the ``run_id`` (``logical_date``) is different for each.
+Both trigger and data interval timetables trigger DAG runs at the same time. However, the timestamp for the
+``run_id`` is different for each. This is because ``run_id`` is based on ``logical_date``.
 
 For example, suppose there is a cron expression ``@daily`` or ``0 0 * * *``, which is scheduled to run at 12AM every day. If you enable DAGs using the two timetables at 3PM on January
 31st,
-- `CronTriggerTimetable`_ triggers a new DAG run at 12AM on February 1st. The ``run_id`` timestamp is midnight, on February 1st.
-- `CronDataIntervalTimetable`_ immediately triggers a new DAG run, because a DAG run for the daily time interval beginning at 12AM on January 31st did not occur yet. The ``run_id`` timestamp is midnight, on January 31st, since that is the beginning of the data interval.
+- `CronTriggerTimetable`_ creates a new DAG run at 12AM on February 1st. The ``run_id`` timestamp is midnight, on February 1st.
+- `CronDataIntervalTimetable`_ immediately creates a new DAG run, because a DAG run for the daily time interval beginning at 12AM on January 31st did not occur yet. The ``run_id`` timestamp is midnight, on January 31st, since that is the beginning of the data interval.
 
-This is another example showing the difference in the case of skipping DAG runs.
+The following is another example showing the difference in the case of skipping DAG runs:
 
 Suppose there are two running DAGs with a cron expression ``@daily`` or ``0 0 * * *`` that use the two different timetables. If you pause the DAGs at 3PM on January 31st and re-enable them at 3PM on February 2nd,
 - `CronTriggerTimetable`_ skips the DAG runs that were supposed to trigger on February 1st and 2nd. The next DAG run will be triggered at 12AM on February 3rd.
 - `CronDataIntervalTimetable`_ skips the DAG runs that were supposed to trigger on February 1st only. A DAG run for February 2nd is immediately triggered after you re-enable the DAG.
 
-In these examples, you see how `CronTriggerTimetable`_ triggers DAG runs is more intuitive and more similar to what
-people expect cron to behave than how `CronDataIntervalTimetable`_ does.
+In these examples, you see how a trigger timetable creates DAG runs more intuitively and similar to what
+people expect a workflow to behave, while a data interval timetable is designed heavily around the data
+interval it processes, and does not reflect a workflow's own properties.
 
 
 .. _Differences between the cron and delta data interval timetables:
 
-Differences between the cron and delta data interval timetables:
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Differences between the cron and delta data interval timetables
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 Choosing between `DeltaDataIntervalTimetable`_ and `CronDataIntervalTimetable`_ depends on your use case.
 If you enable a DAG at 01:05 on February 1st, the following table summarizes the DAG runs created and the

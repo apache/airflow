@@ -28,6 +28,22 @@ const links = [
     href: "/variables",
     title: "Variables",
   },
+  {
+    href: "/pools",
+    title: "Pools",
+  },
+  {
+    href: "/providers",
+    title: "Providers",
+  },
+  {
+    href: "/plugins",
+    title: "Plugins",
+  },
+  {
+    href: "/connections",
+    title: "Connections",
+  },
 ];
 
 export const AdminButton = () => (

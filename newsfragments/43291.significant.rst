@@ -14,3 +14,22 @@ You should instead import it as:
 .. code-block:: python
 
   from my_plugin import MyHook
+
+* Types of change
+
+  * [ ] Dag changes
+  * [ ] Config changes
+  * [ ] API changes
+  * [ ] CLI changes
+  * [ ] Behaviour changes
+  * [x] Plugin changes
+  * [ ] Dependency changes
+  * [ ] Code interface changes
+
+* Migration rules needed
+
+  * ruff
+
+    * AIR302
+
+      * [x] extension ``hooks`` in ``airflow.plugins_manager.AirflowPlugin``

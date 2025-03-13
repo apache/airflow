@@ -1,1 +1,19 @@
 Removed deprecated ``smtp_user`` and ``smtp_password`` configuration parameters from ``smtp`` section. Please use smtp connection (``smtp_default``).
+
+* Types of change
+
+  * [ ] Dag changes
+  * [x] Config changes
+  * [ ] API changes
+  * [ ] CLI changes
+  * [ ] Behaviour changes
+  * [ ] Plugin changes
+  * [ ] Dependency changes
+  * [ ] Code interface changes
+
+* Migration rules needed
+
+  * ``airflow config lint``
+
+    * [x] ``smtp.smtp_user``
+    * [x] ``smtp.smtp_password``

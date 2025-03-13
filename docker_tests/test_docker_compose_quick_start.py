@@ -18,10 +18,12 @@ from __future__ import annotations
 
 import json
 import os
+import re
 import shlex
 from pprint import pprint
 from shutil import copyfile
 from time import sleep
+from urllib.parse import parse_qs, urlparse
 
 import pytest
 import requests
@@ -34,18 +36,67 @@ from docker_tests.constants import SOURCE_ROOT
 
 # isort:on (needed to workaround isort bug)
 
+DOCKER_COMPOSE_HOST_PORT = os.environ.get("HOST_PORT", "localhost:8080")
 AIRFLOW_WWW_USER_USERNAME = os.environ.get("_AIRFLOW_WWW_USER_USERNAME", "airflow")
 AIRFLOW_WWW_USER_PASSWORD = os.environ.get("_AIRFLOW_WWW_USER_PASSWORD", "airflow")
 DAG_ID = "example_bash_operator"
 DAG_RUN_ID = "test_dag_run_id"
 
 
-def api_request(method: str, path: str, base_url: str = "http://localhost:8080/api/v1", **kwargs) -> dict:
+def get_jwt_token() -> str:
+    """Get the JWT token.
+
+    Note: API server is still using FAB Auth Manager.
+
+    Steps:
+    1. Get the login page to get the csrf token
+        - The csrf token is in the hidden input field with id "csrf_token"
+    2. Login with the username and password
+        - Must use the same session to keep the csrf token session
+    3. Extract the JWT token from the redirect url
+        - Expected to have a connection error
+        - The redirect url should have the JWT token as a query parameter
+
+    :return: The JWT token
+    """
+    # get csrf token from login page
+    session = requests.Session()
+    get_login_form_response = session.get(f"http://{DOCKER_COMPOSE_HOST_PORT}/auth/login")
+    csrf_token = re.search(
+        r'<input id="csrf_token" name="csrf_token" type="hidden" value="(.+?)">',
+        get_login_form_response.text,
+    )
+    assert csrf_token, "Failed to get csrf token from login page"
+    csrf_token_str = csrf_token.group(1)
+    assert csrf_token_str, "Failed to get csrf token from login page"
+    # login with form data
+    login_response = session.post(
+        f"http://{DOCKER_COMPOSE_HOST_PORT}/auth/login",
+        data={
+            "username": AIRFLOW_WWW_USER_USERNAME,
+            "password": AIRFLOW_WWW_USER_PASSWORD,
+            "csrf_token": csrf_token_str,
+        },
+    )
+    redirect_url = login_response.url
+    # ensure redirect_url is a string
+    redirect_url_str = str(redirect_url) if redirect_url is not None else ""
+    assert "/?token" in redirect_url_str, f"Login failed with redirect url {redirect_url_str}"
+    parsed_url = urlparse(redirect_url_str)
+    query_params = parse_qs(str(parsed_url.query))
+    jwt_token_list = query_params.get("token")
+    jwt_token = jwt_token_list[0] if jwt_token_list else None
+    assert jwt_token, f"Failed to get JWT token from redirect url {redirect_url_str}"
+    return jwt_token
+
+
+def api_request(
+    method: str, path: str, base_url: str = f"http://{DOCKER_COMPOSE_HOST_PORT}/public", **kwargs
+) -> dict:
     response = requests.request(
         method=method,
         url=f"{base_url}/{path}",
-        auth=(AIRFLOW_WWW_USER_USERNAME, AIRFLOW_WWW_USER_PASSWORD),
-        headers={"Content-Type": "application/json"},
+        headers={"Authorization": f"Bearer {get_jwt_token()}", "Content-Type": "application/json"},
         **kwargs,
     )
     response.raise_for_status()
@@ -98,17 +149,22 @@ def test_trigger_dag_and_wait_for_result(default_docker_image, tmp_path_factory,
     compose.down(remove_orphans=True, volumes=True, quiet=True)
     try:
         compose.up(detach=True, wait=True, color=not os.environ.get("NO_COLOR"))
-        compose.execute(service="airflow-scheduler", command=["airflow", "scheduler", "-n", "50"])
+        # Before we proceed, let's make sure our DAG has been parsed
+        compose.execute(service="airflow-dag-processor", command=["airflow", "dags", "reserialize"])
 
         api_request("PATCH", path=f"dags/{DAG_ID}", json={"is_paused": False})
-        api_request("POST", path=f"dags/{DAG_ID}/dagRuns", json={"dag_run_id": DAG_RUN_ID})
+        api_request(
+            "POST",
+            path=f"dags/{DAG_ID}/dagRuns",
+            json={"dag_run_id": DAG_RUN_ID, "logical_date": "2020-06-11T18:00:00+00:00"},
+        )
 
         wait_for_terminal_dag_state(dag_id=DAG_ID, dag_run_id=DAG_RUN_ID)
         dag_state = api_request("GET", f"dags/{DAG_ID}/dagRuns/{DAG_RUN_ID}").get("state")
         assert dag_state == "success"
     except Exception:
         print("HTTP: GET health")
-        pprint(api_request("GET", "health"))
+        pprint(api_request("GET", "monitor/health"))
         print(f"HTTP: GET dags/{DAG_ID}/dagRuns")
         pprint(api_request("GET", f"dags/{DAG_ID}/dagRuns"))
         print(f"HTTP: GET dags/{DAG_ID}/dagRuns/{DAG_RUN_ID}/taskInstances")

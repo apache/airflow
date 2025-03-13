@@ -21,15 +21,15 @@ from __future__ import annotations
 import contextlib
 import io
 import json
+import os
 import typing
 
 import pytest
 
 from airflow.cli import cli_parser
 from airflow.cli.commands.remote_commands import asset_command
-from airflow.models.dagbag import DagBag
 
-from tests_common.test_utils.db import clear_db_dags, clear_db_runs
+from tests_common.test_utils.db import clear_db_dags, clear_db_runs, parse_and_sync_to_db
 
 if typing.TYPE_CHECKING:
     from argparse import ArgumentParser
@@ -39,7 +39,7 @@ pytestmark = [pytest.mark.db_test]
 
 @pytest.fixture(scope="module", autouse=True)
 def prepare_examples():
-    DagBag(include_examples=True).sync_to_db()
+    parse_and_sync_to_db(os.devnull, include_examples=True)
     yield
     clear_db_runs()
     clear_db_dags()
@@ -122,27 +122,32 @@ def test_cli_assets_materialize(parser: ArgumentParser) -> None:
     with contextlib.redirect_stdout(io.StringIO()) as temp_stdout:
         asset_command.asset_materialize(args)
 
-    run_list = json.loads(temp_stdout.getvalue())
+    output = temp_stdout.getvalue()
+    # Skip the first line of `temp_stdout` since the current `DAGRunResponse` requires `DagBundlesManager`, which logs `INFO - DAG bundles loaded: dags-folder, example_dags`.
+    output = "\n".join(output.splitlines()[1:])
+    run_list = json.loads(output)
     assert len(run_list) == 1
 
     # No good way to statically compare these.
-    undeterministic = {
+    undeterministic: dict = {
         "dag_run_id": None,
+        "dag_versions": [],
         "data_interval_end": None,
         "data_interval_start": None,
         "logical_date": None,
         "queued_at": None,
+        "run_after": "2025-02-12T19:27:59.066046Z",
     }
 
     assert run_list[0] | undeterministic == undeterministic | {
         "conf": {},
         "dag_id": "asset1_producer",
         "end_date": None,
-        "external_trigger": "True",
         "last_scheduling_decision": None,
         "note": None,
         "run_type": "manual",
         "start_date": None,
         "state": "queued",
         "triggered_by": "cli",
+        "run_after": "2025-02-12T19:27:59.066046Z",
     }

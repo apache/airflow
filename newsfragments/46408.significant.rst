@@ -1,0 +1,30 @@
+DAG processor related config options removed
+
+The follow configuration options have been removed:
+
+- ``[logging] dag_processor_manager_log_location``
+- ``[logging] dag_processor_manager_log_stdout``
+- ``[logging] log_processor_filename_template``
+
+If these config options are still present, they will have no effect any longer.
+
+* Types of change
+
+  * [ ] Dag changes
+  * [x] Config changes
+  * [ ] API changes
+  * [ ] CLI changes
+  * [ ] Behaviour changes
+  * [ ] Plugin changes
+  * [ ] Dependency changes
+  * [ ] Code interface changes
+
+.. List the migration rules needed for this change (see https://github.com/apache/airflow/issues/41641)
+
+* Migration rules needed
+
+  * ``airflow config lint``
+
+    * [x] ``[logging] dag_processor_manager_log_location``
+    * [x] ``[logging] dag_processor_manager_log_stdout``
+    * [x] ``[logging] log_processor_filename_template``

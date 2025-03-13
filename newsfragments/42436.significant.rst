@@ -5,3 +5,14 @@ been changed to ``glob``, which better matches the ignore file behavior of many
 popular tools.
 
 To revert to the previous behavior, set the configuration to ``regexp``.
+
+* Types of change
+
+  * [ ] Dag changes
+  * [ ] Config changes
+  * [ ] API changes
+  * [ ] CLI changes
+  * [ ] Behaviour changes
+  * [ ] Plugin changes
+  * [ ] Dependency changes
+  * [ ] Code interface changes

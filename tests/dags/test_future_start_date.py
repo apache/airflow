@@ -22,7 +22,7 @@ from datetime import timedelta
 import pendulum
 
 from airflow.models.dag import DAG
-from airflow.operators.empty import EmptyOperator
+from airflow.providers.standard.operators.empty import EmptyOperator
 from airflow.providers.standard.operators.python import PythonOperator
 
 exec_date = pendulum.datetime(2021, 1, 1)

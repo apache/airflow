@@ -25,8 +25,8 @@ import pytest
 from airflow.exceptions import AirflowTaskTimeout
 from airflow.models import TaskInstance
 from airflow.models.baseoperator import BaseOperator
-from airflow.operators.empty import EmptyOperator
 from airflow.providers.standard.operators.bash import BashOperator
+from airflow.providers.standard.operators.empty import EmptyOperator
 from airflow.providers.standard.operators.python import PythonOperator
 from airflow.utils.timezone import datetime
 from airflow.utils.types import DagRunType
@@ -106,7 +106,6 @@ class TestCore:
             task2 = EmptyOperator(task_id="task2")
         dr = dag_maker.create_dagrun(
             run_type=DagRunType.SCHEDULED,
-            external_trigger=True,
         )
         task1.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE)
         task2.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE)

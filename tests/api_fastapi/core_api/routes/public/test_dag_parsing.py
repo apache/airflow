@@ -17,28 +17,23 @@
 from __future__ import annotations
 
 import os
-from typing import TYPE_CHECKING
 
 import pytest
 from sqlalchemy import select
 
 from airflow.models import DagBag
 from airflow.models.dagbag import DagPriorityParsingRequest
-from airflow.utils.session import provide_session
 
-from tests_common.test_utils.db import clear_db_dag_parsing_requests
+from tests_common.test_utils.api_fastapi import _check_last_log
+from tests_common.test_utils.db import clear_db_dag_parsing_requests, clear_db_logs, parse_and_sync_to_db
 
 pytestmark = pytest.mark.db_test
-
-if TYPE_CHECKING:
-    from airflow.models.dag import DAG
 
 
 class TestDagParsingEndpoint:
     ROOT_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), os.pardir, os.pardir))
     EXAMPLE_DAG_FILE = os.path.join("airflow", "example_dags", "example_bash_operator.py")
-    EXAMPLE_DAG_ID = "example_bash_operator"
-    TEST_DAG_ID = "latest_only"
+    TEST_DAG_ID = "example_bash_operator"
     NOT_READABLE_DAG_ID = "latest_only_with_trigger"
     TEST_MULTIPLE_DAGS_ID = "asset_produces_1"
 
@@ -46,30 +41,29 @@ class TestDagParsingEndpoint:
     def clear_db():
         clear_db_dag_parsing_requests()
 
-    @provide_session
     @pytest.fixture(autouse=True)
-    def setup(self, session=None) -> None:
+    def setup(self, session) -> None:
         self.clear_db()
-
-    def teardown_method(self) -> None:
-        self.clear_db()
+        clear_db_logs()
 
     def test_201_and_400_requests(self, url_safe_serializer, session, test_client):
-        dagbag = DagBag(dag_folder=self.EXAMPLE_DAG_FILE)
-        dagbag.sync_to_db()
-        test_dag: DAG = dagbag.dags[self.TEST_DAG_ID]
+        parse_and_sync_to_db(self.EXAMPLE_DAG_FILE)
+        dagbag = DagBag(read_dags_from_db=True)
+        test_dag = dagbag.get_dag(self.TEST_DAG_ID)
 
         url = f"/public/parseDagFile/{url_safe_serializer.dumps(test_dag.fileloc)}"
         response = test_client.put(url, headers={"Accept": "application/json"})
         assert response.status_code == 201
         parsing_requests = session.scalars(select(DagPriorityParsingRequest)).all()
         assert parsing_requests[0].fileloc == test_dag.fileloc
+        _check_last_log(session, dag_id=None, event="reparse_dag_file", logical_date=None)
 
         # Duplicate file parsing request
         response = test_client.put(url, headers={"Accept": "application/json"})
         assert response.status_code == 409
         parsing_requests = session.scalars(select(DagPriorityParsingRequest)).all()
         assert parsing_requests[0].fileloc == test_dag.fileloc
+        _check_last_log(session, dag_id=None, event="reparse_dag_file", logical_date=None)
 
     def test_bad_file_request(self, url_safe_serializer, session, test_client):
         url = f"/public/parseDagFile/{url_safe_serializer.dumps('/some/random/file.py')}"

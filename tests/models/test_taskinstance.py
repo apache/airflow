@@ -22,7 +22,6 @@ import datetime
 import operator
 import os
 import pathlib
-import pickle
 import signal
 import sys
 import urllib
@@ -59,8 +58,6 @@ from airflow.models.connection import Connection
 from airflow.models.dag import DAG
 from airflow.models.dagbag import DagBag
 from airflow.models.dagrun import DagRun
-from airflow.models.expandinput import EXPAND_INPUT_EMPTY, NotFullyPopulated
-from airflow.models.param import process_params
 from airflow.models.pool import Pool
 from airflow.models.renderedtifields import RenderedTaskInstanceFields
 from airflow.models.serialized_dag import SerializedDagModel
@@ -74,13 +71,18 @@ from airflow.models.taskinstancehistory import TaskInstanceHistory
 from airflow.models.taskmap import TaskMap
 from airflow.models.taskreschedule import TaskReschedule
 from airflow.models.variable import Variable
-from airflow.models.xcom import LazyXComSelectSequence, XCom
+from airflow.models.xcom import XCom
 from airflow.notifications.basenotifier import BaseNotifier
-from airflow.operators.empty import EmptyOperator
 from airflow.providers.standard.operators.bash import BashOperator
+from airflow.providers.standard.operators.empty import EmptyOperator
 from airflow.providers.standard.operators.python import PythonOperator
 from airflow.providers.standard.sensors.python import PythonSensor
+from airflow.sdk.api.datamodels._generated import AssetEventResponse, AssetResponse
 from airflow.sdk.definitions.asset import Asset, AssetAlias
+from airflow.sdk.definitions.param import process_params
+from airflow.sdk.execution_time.comms import (
+    AssetEventsResult,
+)
 from airflow.sensors.base import BaseSensorOperator
 from airflow.serialization.serialized_objects import SerializedBaseOperator, SerializedDAG
 from airflow.stats import Stats
@@ -95,8 +97,7 @@ from airflow.utils.module_loading import qualname
 from airflow.utils.session import create_session, provide_session
 from airflow.utils.state import DagRunState, State, TaskInstanceState
 from airflow.utils.task_group import TaskGroup
-from airflow.utils.task_instance_session import set_current_task_instance_session
-from airflow.utils.types import DagRunType
+from airflow.utils.types import DagRunTriggeredByType, DagRunType
 from airflow.utils.xcom import XCOM_RETURN_KEY
 
 from tests.models import DEFAULT_DATE, TEST_DAGS_FOLDER
@@ -104,10 +105,6 @@ from tests_common.test_utils import db
 from tests_common.test_utils.config import conf_vars
 from tests_common.test_utils.db import clear_db_connections, clear_db_runs
 from tests_common.test_utils.mock_operators import MockOperator
-from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS
-
-if AIRFLOW_V_3_0_PLUS:
-    from airflow.utils.types import DagRunTriggeredByType
 
 pytestmark = [pytest.mark.db_test]
 
@@ -129,6 +126,14 @@ def task_reschedules_for_ti():
             return session.scalars(TaskReschedule.stmt_for_task_instance(ti=ti, descending=False)).all()
 
     return wrapper
+
+
+@pytest.fixture
+def mock_supervisor_comms():
+    with mock.patch(
+        "airflow.sdk.execution_time.task_runner.SUPERVISOR_COMMS", create=True
+    ) as supervisor_comms:
+        yield supervisor_comms
 
 
 class CallbackWrapper:
@@ -1611,190 +1616,6 @@ class TestTaskInstance:
         session.flush()
         assert ti.are_dependents_done(session) == expected_are_dependents_done
 
-    def test_xcom_pull(self, dag_maker):
-        """Test xcom_pull, using different filtering methods."""
-        with dag_maker(dag_id="test_xcom") as dag:
-            task_1 = EmptyOperator(task_id="test_xcom_1")
-            task_2 = EmptyOperator(task_id="test_xcom_2")
-
-        dagrun = dag_maker.create_dagrun(start_date=timezone.datetime(2016, 6, 1, 0, 0, 0))
-        ti1 = dagrun.get_task_instance(task_1.task_id)
-
-        # Push a value
-        ti1.xcom_push(key="foo", value="bar")
-
-        # Push another value with the same key (but by a different task)
-        XCom.set(key="foo", value="baz", task_id=task_2.task_id, dag_id=dag.dag_id, run_id=dagrun.run_id)
-
-        # Pull with no arguments
-        result = ti1.xcom_pull()
-        assert result is None
-        # Pull the value pushed most recently by any task.
-        result = ti1.xcom_pull(key="foo")
-        assert result in "baz"
-        # Pull the value pushed by the first task
-        result = ti1.xcom_pull(task_ids="test_xcom_1", key="foo")
-        assert result == "bar"
-        # Pull the value pushed by the second task
-        result = ti1.xcom_pull(task_ids="test_xcom_2", key="foo")
-        assert result == "baz"
-        # Pull the values pushed by both tasks & Verify Order of task_ids pass & values returned
-        result = ti1.xcom_pull(task_ids=["test_xcom_1", "test_xcom_2"], key="foo")
-        assert result == ["bar", "baz"]
-
-    def test_xcom_pull_mapped(self, dag_maker, session):
-        with dag_maker(dag_id="test_xcom", session=session):
-            # Use the private _expand() method to avoid the empty kwargs check.
-            # We don't care about how the operator runs here, only its presence.
-            task_1 = EmptyOperator.partial(task_id="task_1")._expand(EXPAND_INPUT_EMPTY, strict=False)
-            EmptyOperator(task_id="task_2")
-
-        dagrun = dag_maker.create_dagrun(start_date=timezone.datetime(2016, 6, 1, 0, 0, 0))
-
-        ti_1_0 = dagrun.get_task_instance("task_1", session=session)
-        ti_1_0.map_index = 0
-        ti_1_1 = session.merge(TI(task_1, run_id=dagrun.run_id, map_index=1, state=ti_1_0.state))
-        session.flush()
-
-        ti_1_0.xcom_push(key=XCOM_RETURN_KEY, value="a", session=session)
-        ti_1_1.xcom_push(key=XCOM_RETURN_KEY, value="b", session=session)
-
-        ti_2 = dagrun.get_task_instance("task_2", session=session)
-
-        assert set(ti_2.xcom_pull(["task_1"], session=session)) == {"a", "b"}  # Ordering not guaranteed.
-        assert ti_2.xcom_pull(["task_1"], map_indexes=0, session=session) == ["a"]
-
-        assert ti_2.xcom_pull(map_indexes=[0, 1], session=session) == ["a", "b"]
-        assert ti_2.xcom_pull("task_1", map_indexes=[1, 0], session=session) == ["b", "a"]
-        assert ti_2.xcom_pull(["task_1"], map_indexes=[0, 1], session=session) == ["a", "b"]
-
-        assert ti_2.xcom_pull("task_1", map_indexes=1, session=session) == "b"
-        assert list(ti_2.xcom_pull("task_1", session=session)) == ["a", "b"]
-
-    def test_xcom_pull_after_success(self, create_task_instance):
-        """
-        tests xcom set/clear relative to a task in a 'success' rerun scenario
-        """
-        key = "xcom_key"
-        value = "xcom_value"
-
-        ti = create_task_instance(
-            dag_id="test_xcom",
-            schedule="@monthly",
-            task_id="test_xcom",
-            pool="test_xcom",
-            serialized=True,
-        )
-
-        ti.run(mark_success=True)
-        ti.xcom_push(key=key, value=value)
-        assert ti.xcom_pull(task_ids="test_xcom", key=key) == value
-        ti.run()
-        # Check that we do not clear Xcom until the task is certain to execute
-        assert ti.xcom_pull(task_ids="test_xcom", key=key) == value
-        # Xcom shouldn't be cleared if the task doesn't execute, even if dependencies are ignored
-        ti.run(ignore_all_deps=True, mark_success=True)
-        assert ti.xcom_pull(task_ids="test_xcom", key=key) == value
-        # Xcom IS finally cleared once task has executed
-        ti.run(ignore_all_deps=True)
-        assert ti.xcom_pull(task_ids="test_xcom", key=key) is None
-
-    def test_xcom_pull_after_deferral(self, create_task_instance, session):
-        """
-        tests xcom will not clear before a task runs its next method after deferral.
-        """
-
-        key = "xcom_key"
-        value = "xcom_value"
-
-        ti = create_task_instance(
-            dag_id="test_xcom",
-            schedule="@monthly",
-            task_id="test_xcom",
-            pool="test_xcom",
-        )
-
-        ti.run(mark_success=True)
-        ti.xcom_push(key=key, value=value)
-
-        ti.next_method = "execute"
-        session.merge(ti)
-        session.commit()
-
-        ti.run(ignore_all_deps=True)
-        assert ti.xcom_pull(task_ids="test_xcom", key=key) == value
-
-    def test_xcom_pull_different_logical_date(self, create_task_instance):
-        """
-        tests xcom fetch behavior with different logical dates, using
-        both xcom_pull with "include_prior_dates" and without
-        """
-        key = "xcom_key"
-        value = "xcom_value"
-
-        ti = create_task_instance(
-            dag_id="test_xcom",
-            schedule="@monthly",
-            task_id="test_xcom",
-            pool="test_xcom",
-        )
-        exec_date = ti.dag_run.logical_date
-
-        ti.run(mark_success=True)
-        ti.xcom_push(key=key, value=value)
-        assert ti.xcom_pull(task_ids="test_xcom", key=key) == value
-        ti.run()
-        exec_date += datetime.timedelta(days=1)
-        triggered_by_kwargs = {"triggered_by": DagRunTriggeredByType.TEST} if AIRFLOW_V_3_0_PLUS else {}
-        dr = ti.task.dag.create_dagrun(
-            run_id="test2",
-            data_interval=(exec_date, exec_date),
-            state=None,
-            **triggered_by_kwargs,
-        )
-        ti = TI(task=ti.task, run_id=dr.run_id)
-        ti.run()
-        # We have set a new logical date (and did not pass in
-        # 'include_prior_dates'which means this task should now have a cleared
-        # xcom value
-        assert ti.xcom_pull(task_ids="test_xcom", key=key) is None
-        # We *should* get a value using 'include_prior_dates'
-        assert ti.xcom_pull(task_ids="test_xcom", key=key, include_prior_dates=True) == value
-
-    def test_xcom_pull_different_run_ids(self, create_task_instance):
-        """
-        tests xcom fetch behavior w/different run ids
-        """
-        key = "xcom_key"
-        task_id = "test_xcom"
-        diff_run_id = "diff_run_id"
-        same_run_id_value = "xcom_value_same_run_id"
-        diff_run_id_value = "xcom_value_different_run_id"
-
-        ti_same_run_id = create_task_instance(
-            dag_id="test_xcom",
-            task_id=task_id,
-        )
-        ti_same_run_id.run(mark_success=True)
-        ti_same_run_id.xcom_push(key=key, value=same_run_id_value)
-
-        ti_diff_run_id = create_task_instance(
-            dag_id="test_xcom",
-            task_id=task_id,
-            run_id=diff_run_id,
-        )
-        ti_diff_run_id.run(mark_success=True)
-        ti_diff_run_id.xcom_push(key=key, value=diff_run_id_value)
-
-        assert (
-            ti_same_run_id.xcom_pull(run_id=ti_same_run_id.dag_run.run_id, task_ids=task_id, key=key)
-            == same_run_id_value
-        )
-        assert (
-            ti_same_run_id.xcom_pull(run_id=ti_diff_run_id.dag_run.run_id, task_ids=task_id, key=key)
-            == diff_run_id_value
-        )
-
     def test_xcom_push_flag(self, dag_maker):
         """
         Tests the option for Operators to push XComs
@@ -1899,13 +1720,13 @@ class TestTaskInstance:
         with pytest.raises(TestError):
             ti.run()
 
-    def test_check_and_change_state_before_execution(self, create_task_instance):
+    def test_check_and_change_state_before_execution(self, create_task_instance, testing_dag_bundle):
         expected_external_executor_id = "banana"
         ti = create_task_instance(
             dag_id="test_check_and_change_state_before_execution",
             external_executor_id=expected_external_executor_id,
         )
-        SerializedDagModel.write_dag(ti.task.dag)
+        SerializedDagModel.write_dag(ti.task.dag, bundle_name="testing")
 
         serialized_dag = SerializedDagModel.get(ti.task.dag.dag_id).dag
         ti_from_deserialized_task = TI(task=serialized_dag.get_task(ti.task_id), run_id=ti.run_id)
@@ -1917,14 +1738,16 @@ class TestTaskInstance:
         assert ti_from_deserialized_task.state == State.RUNNING
         assert ti_from_deserialized_task.try_number == 0
 
-    def test_check_and_change_state_before_execution_provided_id_overrides(self, create_task_instance):
+    def test_check_and_change_state_before_execution_provided_id_overrides(
+        self, create_task_instance, testing_dag_bundle
+    ):
         expected_external_executor_id = "banana"
         ti = create_task_instance(
             dag_id="test_check_and_change_state_before_execution",
             external_executor_id="apple",
         )
         assert ti.external_executor_id == "apple"
-        SerializedDagModel.write_dag(ti.task.dag)
+        SerializedDagModel.write_dag(ti.task.dag, bundle_name="testing")
 
         serialized_dag = SerializedDagModel.get(ti.task.dag.dag_id).dag
         ti_from_deserialized_task = TI(task=serialized_dag.get_task(ti.task_id), run_id=ti.run_id)
@@ -1942,7 +1765,7 @@ class TestTaskInstance:
         expected_external_executor_id = "minions"
         ti = create_task_instance(dag_id="test_check_and_change_state_before_execution")
         assert ti.external_executor_id is None
-        SerializedDagModel.write_dag(ti.task.dag)
+        SerializedDagModel.write_dag(ti.task.dag, bundle_name="testing")
 
         serialized_dag = SerializedDagModel.get(ti.task.dag.dag_id).dag
         ti_from_deserialized_task = TI(task=serialized_dag.get_task(ti.task_id), run_id=ti.run_id)
@@ -1956,23 +1779,27 @@ class TestTaskInstance:
         assert ti_from_deserialized_task.state == State.RUNNING
         assert ti_from_deserialized_task.try_number == 0
 
-    def test_check_and_change_state_before_execution_dep_not_met(self, create_task_instance):
+    def test_check_and_change_state_before_execution_dep_not_met(
+        self, create_task_instance, testing_dag_bundle
+    ):
         ti = create_task_instance(dag_id="test_check_and_change_state_before_execution")
         task2 = EmptyOperator(task_id="task2", dag=ti.task.dag, start_date=DEFAULT_DATE)
         ti.task >> task2
-        SerializedDagModel.write_dag(ti.task.dag)
+        SerializedDagModel.write_dag(ti.task.dag, bundle_name="testing")
 
         serialized_dag = SerializedDagModel.get(ti.task.dag.dag_id).dag
         ti2 = TI(task=serialized_dag.get_task(task2.task_id), run_id=ti.run_id)
         assert not ti2.check_and_change_state_before_execution()
 
-    def test_check_and_change_state_before_execution_dep_not_met_already_running(self, create_task_instance):
+    def test_check_and_change_state_before_execution_dep_not_met_already_running(
+        self, create_task_instance, testing_dag_bundle
+    ):
         """return False if the task instance state is running"""
         ti = create_task_instance(dag_id="test_check_and_change_state_before_execution")
         with create_session() as _:
             ti.state = State.RUNNING
 
-        SerializedDagModel.write_dag(ti.task.dag)
+        SerializedDagModel.write_dag(ti.task.dag, bundle_name="testing")
 
         serialized_dag = SerializedDagModel.get(ti.task.dag.dag_id).dag
         ti_from_deserialized_task = TI(task=serialized_dag.get_task(ti.task_id), run_id=ti.run_id)
@@ -1982,14 +1809,14 @@ class TestTaskInstance:
         assert ti_from_deserialized_task.external_executor_id is None
 
     def test_check_and_change_state_before_execution_dep_not_met_not_runnable_state(
-        self, create_task_instance
+        self, create_task_instance, testing_dag_bundle
     ):
         """return False if the task instance state is failed"""
         ti = create_task_instance(dag_id="test_check_and_change_state_before_execution")
         with create_session() as _:
             ti.state = State.FAILED
 
-        SerializedDagModel.write_dag(ti.task.dag)
+        SerializedDagModel.write_dag(ti.task.dag, bundle_name="testing")
 
         serialized_dag = SerializedDagModel.get(ti.task.dag.dag_id).dag
         ti_from_deserialized_task = TI(task=serialized_dag.get_task(ti.task_id), run_id=ti.run_id)
@@ -2019,14 +1846,15 @@ class TestTaskInstance:
         )
 
         logical_date = DEFAULT_DATE + datetime.timedelta(days=1)
-        triggered_by_kwargs = {"triggered_by": DagRunTriggeredByType.TEST} if AIRFLOW_V_3_0_PLUS else {}
         dr = ti1.task.dag.create_dagrun(
             logical_date=logical_date,
+            run_type=DagRunType.MANUAL,
             state=None,
             run_id="2",
             session=session,
             data_interval=(logical_date, logical_date),
-            **triggered_by_kwargs,
+            run_after=logical_date,
+            triggered_by=DagRunTriggeredByType.TEST,
         )
         assert ti1 in session
         ti2 = dr.task_instances[0]
@@ -2105,8 +1933,8 @@ class TestTaskInstance:
             "/dags/my_dag/grid"
             "?dag_run_id=test"
             "&task_id=op"
-            "&base_date=2018-01-01T00%3A00%3A00%2B0000"
             "&tab=logs"
+            "&base_date=2018-01-01T00%3A00%3A00%2B0000"
         )
         assert ti.log_url == expected_url
 
@@ -2127,7 +1955,7 @@ class TestTaskInstance:
         dag_run.conf = {"override": True}
         ti.task.params = {"override": False}
 
-        params = process_params(ti.task.dag, ti.task, dag_run, suppress_exception=False)
+        params = process_params(ti.task.dag, ti.task, dag_run.conf, suppress_exception=False)
         assert params["override"] is True
 
     def test_overwrite_params_with_dag_run_none(self, create_task_instance):
@@ -2142,7 +1970,7 @@ class TestTaskInstance:
         dag_run = ti.dag_run
         ti.task.params = {"override": False}
 
-        params = process_params(ti.task.dag, ti.task, dag_run, suppress_exception=False)
+        params = process_params(ti.task.dag, ti.task, dag_run.conf, suppress_exception=False)
         assert params["override"] is False
 
     @pytest.mark.parametrize("use_native_obj", [True, False])
@@ -2280,7 +2108,7 @@ class TestTaskInstance:
         ti.refresh_from_db()
         assert ti.state == State.SUCCESS
 
-    def test_outlet_assets(self, create_task_instance):
+    def test_outlet_assets(self, create_task_instance, testing_dag_bundle):
         """
         Verify that when we have an outlet asset on a task, and the task
         completes successfully, an AssetDagRunQueue is logged.
@@ -2291,14 +2119,20 @@ class TestTaskInstance:
         session = settings.Session()
         dagbag = DagBag(dag_folder=example_assets.__file__)
         dagbag.collect_dags(only_if_updated=False, safe_mode=False)
-        dagbag.sync_to_db(session=session)
+        dagbag.sync_to_db("testing", None, session=session)
 
         asset_models = session.scalars(select(AssetModel)).all()
         SchedulerJobRunner._activate_referenced_assets(asset_models, session=session)
         session.flush()
 
         run_id = str(uuid4())
-        dr = DagRun(dag1.dag_id, run_id=run_id, run_type="anything")
+        dr = DagRun(
+            dag1.dag_id,
+            run_id=run_id,
+            run_type="manual",
+            state=DagRunState.RUNNING,
+            logical_date=timezone.utcnow(),
+        )
         session.merge(dr)
         task = dag1.get_task("producing_task_1")
         task.bash_command = "echo 1"  # make it go faster
@@ -2343,7 +2177,7 @@ class TestTaskInstance:
             event.timestamp < adrq_timestamp for (adrq_timestamp,) in adrq_timestamps
         ), f"Some items in {[str(t) for t in adrq_timestamps]} are earlier than {event.timestamp}"
 
-    def test_outlet_assets_failed(self, create_task_instance):
+    def test_outlet_assets_failed(self, create_task_instance, testing_dag_bundle):
         """
         Verify that when we have an outlet asset on a task, and the task
         failed, an AssetDagRunQueue is not logged, and an AssetEvent is
@@ -2355,9 +2189,15 @@ class TestTaskInstance:
         session = settings.Session()
         dagbag = DagBag(dag_folder=test_assets.__file__)
         dagbag.collect_dags(only_if_updated=False, safe_mode=False)
-        dagbag.sync_to_db(session=session)
+        dagbag.sync_to_db("testing", None, session=session)
         run_id = str(uuid4())
-        dr = DagRun(dag_with_fail_task.dag_id, run_id=run_id, run_type="anything")
+        dr = DagRun(
+            dag_with_fail_task.dag_id,
+            run_id=run_id,
+            run_type="manual",
+            state=DagRunState.RUNNING,
+            logical_date=timezone.utcnow(),
+        )
         session.merge(dr)
         task = dag_with_fail_task.get_task("fail_task")
         ti = TaskInstance(task, run_id=run_id)
@@ -2397,7 +2237,7 @@ class TestTaskInstance:
                 task_instance.run()
                 assert task_instance.current_state() == TaskInstanceState.SUCCESS
 
-    def test_outlet_assets_skipped(self):
+    def test_outlet_assets_skipped(self, testing_dag_bundle):
         """
         Verify that when we have an outlet asset on a task, and the task
         is skipped, an AssetDagRunQueue is not logged, and an AssetEvent is
@@ -2409,14 +2249,20 @@ class TestTaskInstance:
         session = settings.Session()
         dagbag = DagBag(dag_folder=test_assets.__file__)
         dagbag.collect_dags(only_if_updated=False, safe_mode=False)
-        dagbag.sync_to_db(session=session)
+        dagbag.sync_to_db("testing", None, session=session)
 
         asset_models = session.scalars(select(AssetModel)).all()
         SchedulerJobRunner._activate_referenced_assets(asset_models, session=session)
         session.flush()
 
         run_id = str(uuid4())
-        dr = DagRun(dag_with_skip_task.dag_id, run_id=run_id, run_type="anything")
+        dr = DagRun(
+            dag_with_skip_task.dag_id,
+            run_id=run_id,
+            run_type="manual",
+            state=DagRunState.RUNNING,
+            logical_date=timezone.utcnow(),
+        )
         session.merge(dr)
         task = dag_with_skip_task.get_task("skip_task")
         ti = TaskInstance(task, run_id=run_id)
@@ -2803,8 +2649,24 @@ class TestTaskInstance:
         assert asset_alias_obj.assets[0].uri == asset_name
 
     @pytest.mark.want_activate_assets(True)
-    def test_inlet_asset_extra(self, dag_maker, session):
+    @pytest.mark.need_serialized_dag
+    def test_inlet_asset_extra(self, dag_maker, session, mock_supervisor_comms):
         from airflow.sdk.definitions.asset import Asset
+
+        mock_supervisor_comms.get_message.return_value = AssetEventsResult(
+            asset_events=[
+                AssetEventResponse(
+                    id=1,
+                    created_dagruns=[],
+                    timestamp=datetime.datetime.now(),
+                    extra={"from": f"write{i}"},
+                    asset=AssetResponse(
+                        name="test_inlet_asset_extra", uri="test_inlet_asset_extra", group="asset"
+                    ),
+                )
+                for i in (1, 2, 3)
+            ]
+        )
 
         read_task_evaluated = False
 
@@ -2819,11 +2681,11 @@ class TestTaskInstance:
             @task(inlets=Asset("test_inlet_asset_extra"))
             def read(*, inlet_events):
                 second_event = inlet_events[Asset("test_inlet_asset_extra")][1]
-                assert second_event.uri == "test_inlet_asset_extra"
+                assert second_event.asset.uri == "test_inlet_asset_extra"
                 assert second_event.extra == {"from": "write2"}
 
                 last_event = inlet_events[Asset("test_inlet_asset_extra")][-1]
-                assert last_event.uri == "test_inlet_asset_extra"
+                assert last_event.asset.uri == "test_inlet_asset_extra"
                 assert last_event.extra == {"from": "write3"}
 
                 with pytest.raises(KeyError):
@@ -2847,11 +2709,15 @@ class TestTaskInstance:
         # Run "write1", "write2", and "write3" (in this order).
         decision = dr.task_instance_scheduling_decisions(session=session)
         for ti in sorted(decision.schedulable_tis, key=operator.attrgetter("task_id")):
+            # TODO: TaskSDK #45549
+            ti.task = dag_maker.dag.get_task(ti.task_id)
             ti.run(session=session)
 
         # Run "read".
         decision = dr.task_instance_scheduling_decisions(session=session)
         for ti in decision.schedulable_tis:
+            # TODO: TaskSDK #45549
+            ti.task = dag_maker.dag.get_task(ti.task_id)
             ti.run(session=session)
 
         # Should be done.
@@ -2859,8 +2725,24 @@ class TestTaskInstance:
         assert read_task_evaluated
 
     @pytest.mark.want_activate_assets(True)
-    def test_inlet_asset_alias_extra(self, dag_maker, session):
+    @pytest.mark.need_serialized_dag
+    def test_inlet_asset_alias_extra(self, dag_maker, session, mock_supervisor_comms):
         from airflow.sdk.definitions.asset import Asset, AssetAlias
+
+        mock_supervisor_comms.get_message.return_value = AssetEventsResult(
+            asset_events=[
+                AssetEventResponse(
+                    id=1,
+                    created_dagruns=[],
+                    timestamp=datetime.datetime.now(),
+                    extra={"from": f"write{i}"},
+                    asset=AssetResponse(
+                        name="test_inlet_asset_extra_ds", uri="test_inlet_asset_extra_ds", group="asset"
+                    ),
+                )
+                for i in (1, 2, 3)
+            ]
+        )
 
         asset_uri = "test_inlet_asset_extra_ds"
         asset_alias_name = "test_inlet_asset_extra_asset_alias"
@@ -2882,11 +2764,11 @@ class TestTaskInstance:
             @task(inlets=AssetAlias(asset_alias_name))
             def read(*, inlet_events):
                 second_event = inlet_events[AssetAlias(asset_alias_name)][1]
-                assert second_event.uri == asset_uri
+                assert second_event.asset.uri == asset_uri
                 assert second_event.extra == {"from": "write2"}
 
                 last_event = inlet_events[AssetAlias(asset_alias_name)][-1]
-                assert last_event.uri == asset_uri
+                assert last_event.asset.uri == asset_uri
                 assert last_event.extra == {"from": "write3"}
 
                 with pytest.raises(KeyError):
@@ -2910,19 +2792,25 @@ class TestTaskInstance:
         # Run "write1", "write2", and "write3" (in this order).
         decision = dr.task_instance_scheduling_decisions(session=session)
         for ti in sorted(decision.schedulable_tis, key=operator.attrgetter("task_id")):
+            # TODO: TaskSDK #45549
+            ti.task = dag_maker.dag.get_task(ti.task_id)
             ti.run(session=session)
 
         # Run "read".
         decision = dr.task_instance_scheduling_decisions(session=session)
         for ti in decision.schedulable_tis:
+            # TODO: TaskSDK #45549
+            ti.task = dag_maker.dag.get_task(ti.task_id)
             ti.run(session=session)
 
         # Should be done.
         assert not dr.task_instance_scheduling_decisions(session=session).schedulable_tis
         assert read_task_evaluated
 
-    def test_inlet_unresolved_asset_alias(self, dag_maker, session):
+    @pytest.mark.need_serialized_dag
+    def test_inlet_unresolved_asset_alias(self, dag_maker, session, mock_supervisor_comms):
         asset_alias_name = "test_inlet_asset_extra_asset_alias"
+        mock_supervisor_comms.get_message.return_value = AssetEventsResult(asset_events=[])
 
         asset_alias_model = AssetAliasModel(name=asset_alias_name)
         session.add(asset_alias_model)
@@ -2941,6 +2829,8 @@ class TestTaskInstance:
 
         dr: DagRun = dag_maker.create_dagrun()
         for ti in dr.get_task_instances(session=session):
+            # TODO: TaskSDK #45549
+            ti.task = dag_maker.dag.get_task(ti.task_id)
             ti.run(session=session)
 
         # Should be done.
@@ -2958,10 +2848,22 @@ class TestTaskInstance:
             (lambda x: x[-5:5], []),
         ],
     )
-    def test_inlet_asset_extra_slice(self, dag_maker, session, slicer, expected):
+    def test_inlet_asset_extra_slice(self, dag_maker, session, slicer, expected, mock_supervisor_comms):
         from airflow.sdk.definitions.asset import Asset
 
         asset_uri = "test_inlet_asset_extra_slice"
+        mock_supervisor_comms.get_message.return_value = AssetEventsResult(
+            asset_events=[
+                AssetEventResponse(
+                    id=1,
+                    created_dagruns=[],
+                    timestamp=datetime.datetime.now(),
+                    extra={"from": i},
+                    asset=AssetResponse(name=asset_uri, uri=asset_uri, group="asset"),
+                )
+                for i in range(0, 10)
+            ]
+        )
 
         with dag_maker(dag_id="write", serialized=True, schedule="@daily", params={"i": -1}, session=session):
 
@@ -2987,7 +2889,8 @@ class TestTaskInstance:
             @task(inlets=Asset(asset_uri))
             def read(*, inlet_events):
                 nonlocal result
-                result = [e.extra for e in slicer(inlet_events[Asset(asset_uri)])]
+                events = inlet_events[Asset(asset_uri)]
+                result = [e.extra for e in slicer(events)]
 
             read()
 
@@ -3012,10 +2915,22 @@ class TestTaskInstance:
         ],
     )
     @pytest.mark.want_activate_assets(True)
-    def test_inlet_asset_alias_extra_slice(self, dag_maker, session, slicer, expected):
+    def test_inlet_asset_alias_extra_slice(self, dag_maker, session, slicer, expected, mock_supervisor_comms):
         from airflow.sdk.definitions.asset import Asset
 
         asset_uri = "test_inlet_asset_alias_extra_slice_ds"
+        mock_supervisor_comms.get_message.return_value = AssetEventsResult(
+            asset_events=[
+                AssetEventResponse(
+                    id=1,
+                    created_dagruns=[],
+                    timestamp=datetime.datetime.now(),
+                    extra={"from": i},
+                    asset=AssetResponse(name=asset_uri, uri=asset_uri, group="asset"),
+                )
+                for i in range(0, 10)
+            ]
+        )
         asset_alias_name = "test_inlet_asset_alias_extra_slice_asset_alias"
 
         asset_model = AssetModel(id=1, uri=asset_uri)
@@ -3201,7 +3116,6 @@ class TestTaskInstance:
 
         day_1 = DEFAULT_DATE
         day_2 = DEFAULT_DATE + datetime.timedelta(days=1)
-        triggered_by_kwargs = {"triggered_by": DagRunTriggeredByType.TEST} if AIRFLOW_V_3_0_PLUS else {}
 
         # Create a DagRun for day_1 and day_2. Calling ti_2.get_previous_start_date()
         # should return the start_date of ti_1 (which is None because ti_1 was not run).
@@ -3210,7 +3124,6 @@ class TestTaskInstance:
             logical_date=day_1,
             state=State.RUNNING,
             run_type=DagRunType.MANUAL,
-            **triggered_by_kwargs,
         )
 
         dagrun_2 = dag_maker.create_dagrun(
@@ -3218,7 +3131,6 @@ class TestTaskInstance:
             state=State.RUNNING,
             run_type=DagRunType.MANUAL,
             data_interval=(day_1, day_2),
-            **triggered_by_kwargs,
         )
 
         ti_1 = dagrun_1.get_task_instance(task.task_id)
@@ -3245,7 +3157,6 @@ class TestTaskInstance:
         session.commit()
 
         logical_date = timezone.utcnow()
-        triggered_by_kwargs = {"triggered_by": DagRunTriggeredByType.TEST} if AIRFLOW_V_3_0_PLUS else {}
         # it's easier to fake a manual run here
         dag, task1 = create_dummy_dag(
             dag_id="test_triggering_asset_events",
@@ -3259,10 +3170,11 @@ class TestTaskInstance:
             run_id="test2",
             run_type=DagRunType.ASSET_TRIGGERED,
             logical_date=logical_date,
-            state=None,
+            state=DagRunState.RUNNING,
             session=session,
             data_interval=(logical_date, logical_date),
-            **triggered_by_kwargs,
+            run_after=logical_date,
+            triggered_by=DagRunTriggeredByType.TEST,
         )
         ds1_event = AssetEvent(asset_id=1)
         ds2_event_1 = AssetEvent(asset_id=2)
@@ -3514,16 +3426,18 @@ class TestTaskInstance:
             session=session,
         )
         logical_date = timezone.utcnow()
-        triggered_by_kwargs = {"triggered_by": DagRunTriggeredByType.TEST} if AIRFLOW_V_3_0_PLUS else {}
         dr = dag.create_dagrun(
             run_id="test2",
             run_type=DagRunType.MANUAL,
             logical_date=logical_date,
-            state=None,
+            state=DagRunState.RUNNING,
+            start_date=logical_date - datetime.timedelta(hours=1),
             session=session,
             data_interval=(logical_date, logical_date),
-            **triggered_by_kwargs,
+            run_after=logical_date,
+            triggered_by=DagRunTriggeredByType.TEST,
         )
+        dr.set_state(DagRunState.FAILED)
         ti1 = dr.get_task_instance(task1.task_id, session=session)
         ti1.task = task1
 
@@ -3604,8 +3518,8 @@ class TestTaskInstance:
     @patch.object(Stats, "incr")
     def test_handle_failure_no_task(self, Stats_incr, dag_maker):
         """
-        When a zombie is detected for a DAG with a parse error, we need to be able to run handle_failure
-        _without_ ti.task being set
+        When a task instance heartbeat timeout is detected for a DAG with a parse error,
+        we need to be able to run handle_failure _without_ ti.task being set
         """
         session = settings.Session()
         with dag_maker():
@@ -3646,31 +3560,32 @@ class TestTaskInstance:
         ti.handle_failure("test ti.task undefined")
 
     @provide_session
-    def test_handle_failure_fail_stop(self, create_dummy_dag, session=None):
+    def test_handle_failure_fail_fast(self, create_dummy_dag, session=None):
         start_date = timezone.datetime(2016, 6, 1)
         clear_db_runs()
 
         dag, task1 = create_dummy_dag(
-            dag_id="test_handle_failure_fail_stop",
+            dag_id="test_handle_failure_fail_fast",
             schedule=None,
             start_date=start_date,
             task_id="task1",
             trigger_rule="all_success",
             with_dagrun_type=DagRunType.MANUAL,
             session=session,
-            fail_stop=True,
+            fail_fast=True,
         )
         logical_date = timezone.utcnow()
-        triggered_by_kwargs = {"triggered_by": DagRunTriggeredByType.TEST} if AIRFLOW_V_3_0_PLUS else {}
         dr = dag.create_dagrun(
             run_id="test_ff",
             run_type=DagRunType.MANUAL,
             logical_date=logical_date,
-            state=None,
+            state=DagRunState.RUNNING,
             session=session,
             data_interval=(logical_date, logical_date),
-            **triggered_by_kwargs,
+            run_after=logical_date,
+            triggered_by=DagRunTriggeredByType.TEST,
         )
+        dr.set_state(DagRunState.SUCCESS)
 
         ti1 = dr.get_task_instance(task1.task_id, session=session)
         ti1.task = task1
@@ -3764,7 +3679,12 @@ class TestTaskInstance:
         assert os.environ["AIRFLOW_CTX_DAG_ID"] == "test_echo_env_variables"
         assert os.environ["AIRFLOW_CTX_TASK_ID"] == "hive_in_python_op"
         assert DEFAULT_DATE.isoformat() == os.environ["AIRFLOW_CTX_LOGICAL_DATE"]
-        assert DagRun.generate_run_id(DagRunType.MANUAL, DEFAULT_DATE) == os.environ["AIRFLOW_CTX_DAG_RUN_ID"]
+        assert (
+            DagRun.generate_run_id(
+                run_type=DagRunType.MANUAL, logical_date=DEFAULT_DATE, run_after=DEFAULT_DATE
+            )
+            == os.environ["AIRFLOW_CTX_DAG_RUN_ID"]
+        )
 
     def test_echo_env_variables(self, dag_maker):
         with dag_maker(
@@ -3775,7 +3695,6 @@ class TestTaskInstance:
             op = PythonOperator(task_id="hive_in_python_op", python_callable=self._env_var_check_callback)
         dr = dag_maker.create_dagrun(
             run_type=DagRunType.MANUAL,
-            external_trigger=False,
         )
         ti = dr.get_task_instance(op.task_id)
         ti.state = State.RUNNING
@@ -3894,9 +3813,11 @@ class TestTaskInstance:
         assert call("ti.start", tags={"dag_id": ti.dag_id, "task_id": ti.task_id}) in stats_mock.mock_calls
         assert stats_mock.call_count == (2 * len(State.task_states)) + 7
 
-    def test_command_as_list(self, create_task_instance):
-        ti = create_task_instance()
-        ti.task.dag.fileloc = os.path.join(TEST_DAGS_FOLDER, "x.py")
+    def test_command_as_list(self, dag_maker):
+        with dag_maker():
+            PythonOperator(python_callable=print, task_id="hi")
+        dr = dag_maker.create_dagrun()
+        ti = dr.task_instances[0]
         assert ti.command_as_list() == [
             "airflow",
             "tasks",
@@ -3905,7 +3826,7 @@ class TestTaskInstance:
             ti.task_id,
             ti.run_id,
             "--subdir",
-            "DAGS_FOLDER/x.py",
+            "DAGS_FOLDER/test_taskinstance.py",
         ]
 
     def test_generate_command_default_param(self):
@@ -3971,7 +3892,7 @@ class TestTaskInstance:
 
     def test_refresh_from_db(self, create_task_instance):
         run_date = timezone.utcnow()
-        hybrid_props = ["task_display_name"]
+        hybrid_props = ["rendered_map_index", "task_display_name"]
         expected_values = {
             "task_id": "test_refresh_from_db_task",
             "dag_id": "test_refresh_from_db_dag",
@@ -3981,6 +3902,7 @@ class TestTaskInstance:
             "end_date": run_date + datetime.timedelta(days=1, seconds=1, milliseconds=234),
             "duration": 1.234,
             "state": State.SUCCESS,
+            "try_id": mock.ANY,
             "try_number": 1,
             "max_tries": 1,
             "hostname": "some_unique_hostname",
@@ -3993,6 +3915,7 @@ class TestTaskInstance:
             "operator": "some_custom_operator",
             "custom_operator_name": "some_custom_operator",
             "queued_dttm": run_date + datetime.timedelta(hours=1),
+            "scheduled_dttm": run_date + datetime.timedelta(hours=1),
             "rendered_map_index": None,
             "queued_by_job_id": 321,
             "pid": 123,
@@ -4006,7 +3929,7 @@ class TestTaskInstance:
             "next_method": None,
             "updated_at": None,
             "task_display_name": "Test Refresh from DB Task",
-            "dag_version_id": None,
+            "dag_version_id": mock.ANY,
         }
         # Make sure we aren't missing any new value in our expected_values list.
         expected_keys = {f"task_instance.{key}" for key in expected_values}
@@ -4052,7 +3975,6 @@ class TestTaskInstance:
         deserialized_op = SerializedBaseOperator.deserialize_operator(serialized_op)
         assert deserialized_op.task_type == "EmptyOperator"
         # Verify that ti.operator field renders correctly "with" Serialization
-        deserialized_op.dag = ti.task.dag
         ser_ti = TI(task=deserialized_op, run_id=None)
         assert ser_ti.operator == "EmptyOperator"
         assert ser_ti.task.operator_name == "EmptyOperator"
@@ -4071,15 +3993,14 @@ class TestTaskInstance:
         for table in tables:
             assert session.query(table).count() == 1
 
-        filter_kwargs = dict(dag_id=ti.dag_id, task_id=ti.task_id, run_id=ti.run_id, map_index=ti.map_index)
-        ti_note = session.query(TaskInstanceNote).filter_by(**filter_kwargs).one()
+        ti_note = session.query(TaskInstanceNote).filter_by(ti_id=ti.id).one()
         assert ti_note.content == "sample note"
 
         ti.clear_db_references(session)
         for table in tables:
             assert session.query(table).count() == 0
 
-        assert session.query(TaskInstanceNote).filter_by(**filter_kwargs).one_or_none() is None
+        assert session.query(TaskInstanceNote).filter_by(ti_id=ti.id).one_or_none() is None
 
     def test_skipped_task_call_on_skipped_callback(self, dag_maker):
         def raise_skip_exception():
@@ -4118,12 +4039,19 @@ class TestTaskInstance:
         dr = dag_maker.create_dagrun()
         ti = dr.task_instances[0]
         ti.task = task
+        try_id = ti.try_id
         with pytest.raises(AirflowException):
             ti.run()
-        ti.refresh_from_db()
+        ti = session.query(TaskInstance).one()
+        # the ti.try_id should be different from the previous one
+        assert ti.try_id != try_id
         assert ti.state == State.UP_FOR_RETRY
         assert session.query(TaskInstance).count() == 1
-        assert session.query(TaskInstanceHistory).count() == 1
+        tih = session.query(TaskInstanceHistory).all()
+        assert len(tih) == 1
+        # the new try_id should be different from what's recorded in tih
+        assert tih[0].try_id == try_id
+        assert tih[0].try_id != ti.try_id
 
     @pytest.mark.want_activate_assets(True)
     def test_run_with_inactive_assets(self, dag_maker, session):
@@ -4901,87 +4829,13 @@ class TestMappedTaskInstanceReceiveValue:
         emit_ti.run()
 
         show_task = dag.get_task("show")
-        mapped_tis, max_map_index = show_task.expand_mapped_task(dag_run.run_id, session=session)
+        mapped_tis, max_map_index = TaskMap.expand_mapped_task(show_task, dag_run.run_id, session=session)
         assert max_map_index + 1 == len(mapped_tis) == len(upstream_return)
 
         for ti in sorted(mapped_tis, key=operator.attrgetter("map_index")):
             ti.refresh_from_task(show_task)
             ti.run()
         assert outputs == expected_outputs
-
-    def test_map_product(self, dag_maker, session):
-        outputs = []
-
-        with dag_maker(dag_id="product", session=session) as dag:
-
-            @dag.task
-            def emit_numbers():
-                return [1, 2]
-
-            @dag.task
-            def emit_letters():
-                return {"a": "x", "b": "y", "c": "z"}
-
-            @dag.task
-            def show(number, letter):
-                outputs.append((number, letter))
-
-            show.expand(number=emit_numbers(), letter=emit_letters())
-
-        dag_run = dag_maker.create_dagrun()
-        for task_id in ["emit_numbers", "emit_letters"]:
-            ti = dag_run.get_task_instance(task_id, session=session)
-            ti.refresh_from_task(dag.get_task(task_id))
-            ti.run()
-
-        show_task = dag.get_task("show")
-        mapped_tis, max_map_index = show_task.expand_mapped_task(dag_run.run_id, session=session)
-        assert max_map_index + 1 == len(mapped_tis) == 6
-
-        for ti in sorted(mapped_tis, key=operator.attrgetter("map_index")):
-            ti.refresh_from_task(show_task)
-            ti.run()
-        assert outputs == [
-            (1, ("a", "x")),
-            (1, ("b", "y")),
-            (1, ("c", "z")),
-            (2, ("a", "x")),
-            (2, ("b", "y")),
-            (2, ("c", "z")),
-        ]
-
-    def test_map_product_same(self, dag_maker, session):
-        """Test a mapped task can refer to the same source multiple times."""
-        outputs = []
-
-        with dag_maker(dag_id="product_same", session=session) as dag:
-
-            @dag.task
-            def emit_numbers():
-                return [1, 2]
-
-            @dag.task
-            def show(a, b):
-                outputs.append((a, b))
-
-            emit_task = emit_numbers()
-            show.expand(a=emit_task, b=emit_task)
-
-        dag_run = dag_maker.create_dagrun()
-        ti = dag_run.get_task_instance("emit_numbers", session=session)
-        ti.refresh_from_task(dag.get_task("emit_numbers"))
-        ti.run()
-
-        show_task = dag.get_task("show")
-        with pytest.raises(NotFullyPopulated):
-            assert show_task.get_parse_time_mapped_ti_count()
-        mapped_tis, max_map_index = show_task.expand_mapped_task(dag_run.run_id, session=session)
-        assert max_map_index + 1 == len(mapped_tis) == 4
-
-        for ti in sorted(mapped_tis, key=operator.attrgetter("map_index")):
-            ti.refresh_from_task(show_task)
-            ti.run()
-        assert outputs == [(1, 1), (1, 2), (2, 1), (2, 2)]
 
     def test_map_literal_cross_product(self, dag_maker, session):
         """Test a mapped task with literal cross product args expand properly."""
@@ -4999,7 +4853,7 @@ class TestMappedTaskInstanceReceiveValue:
 
         show_task = dag.get_task("show")
         assert show_task.get_parse_time_mapped_ti_count() == 6
-        mapped_tis, max_map_index = show_task.expand_mapped_task(dag_run.run_id, session=session)
+        mapped_tis, max_map_index = TaskMap.expand_mapped_task(show_task, dag_run.run_id, session=session)
         assert len(mapped_tis) == 0  # Expanded at parse!
         assert max_map_index == 5
 
@@ -5047,7 +4901,9 @@ class TestMappedTaskInstanceReceiveValue:
             ti.run()
 
         bash_task = dag.get_task("dynamic.bash")
-        mapped_bash_tis, max_map_index = bash_task.expand_mapped_task(dag_run.run_id, session=session)
+        mapped_bash_tis, max_map_index = TaskMap.expand_mapped_task(
+            bash_task, dag_run.run_id, session=session
+        )
         assert max_map_index == 3  # 2 * 2 mapped tasks.
         for ti in sorted(mapped_bash_tis, key=operator.attrgetter("map_index")):
             ti.refresh_from_task(bash_task)
@@ -5085,132 +4941,6 @@ def _get_lazy_xcom_access_expected_sql_lines() -> list[str]:
         raise RuntimeError(f"unknown backend {backend!r}")
 
 
-def test_lazy_xcom_access_does_not_pickle_session(dag_maker, session):
-    with dag_maker(session=session):
-        EmptyOperator(task_id="t")
-
-    run: DagRun = dag_maker.create_dagrun()
-    run.get_task_instance("t", session=session).xcom_push("xxx", 123, session=session)
-
-    with set_current_task_instance_session(session=session):
-        original = LazyXComSelectSequence.from_select(
-            select(XCom.value).filter_by(
-                dag_id=run.dag_id,
-                run_id=run.run_id,
-                task_id="t",
-                map_index=-1,
-                key="xxx",
-            ),
-            order_by=(),
-        )
-        processed = pickle.loads(pickle.dumps(original))
-
-    # After the object went through pickling, the underlying ORM query should be
-    # replaced by one backed by a literal SQL string with all variables binded.
-    sql_lines = [line.strip() for line in str(processed._select_asc.compile(None)).splitlines()]
-    assert sql_lines == _get_lazy_xcom_access_expected_sql_lines()
-
-    assert len(processed) == 1
-    assert list(processed) == [123]
-
-
-@mock.patch("airflow.models.taskinstance.XCom.deserialize_value", side_effect=XCom.deserialize_value)
-def test_ti_xcom_pull_on_mapped_operator_return_lazy_iterable(mock_deserialize_value, dag_maker, session):
-    """Ensure we access XCom lazily when pulling from a mapped operator."""
-    with dag_maker(dag_id="test_xcom", session=session):
-        # Use the private _expand() method to avoid the empty kwargs check.
-        # We don't care about how the operator runs here, only its presence.
-        task_1 = EmptyOperator.partial(task_id="task_1")._expand(EXPAND_INPUT_EMPTY, strict=False)
-        EmptyOperator(task_id="task_2")
-
-    dagrun = dag_maker.create_dagrun()
-
-    ti_1_0 = dagrun.get_task_instance("task_1", session=session)
-    ti_1_0.map_index = 0
-    ti_1_1 = session.merge(TaskInstance(task_1, run_id=dagrun.run_id, map_index=1, state=ti_1_0.state))
-    session.flush()
-
-    ti_1_0.xcom_push(key=XCOM_RETURN_KEY, value="a", session=session)
-    ti_1_1.xcom_push(key=XCOM_RETURN_KEY, value="b", session=session)
-
-    ti_2 = dagrun.get_task_instance("task_2", session=session)
-
-    # Simply pulling the joined XCom value should not deserialize.
-    joined = ti_2.xcom_pull("task_1", session=session)
-    assert isinstance(joined, LazyXComSelectSequence)
-    assert mock_deserialize_value.call_count == 0
-
-    # Only when we go through the iterable does deserialization happen.
-    it = iter(joined)
-    assert next(it) == "a"
-    assert mock_deserialize_value.call_count == 1
-    assert next(it) == "b"
-    assert mock_deserialize_value.call_count == 2
-    with pytest.raises(StopIteration):
-        next(it)
-
-
-def test_ti_mapped_depends_on_mapped_xcom_arg(dag_maker, session):
-    with dag_maker(session=session) as dag:
-
-        @dag.task
-        def add_one(x):
-            return x + 1
-
-        two_three_four = add_one.expand(x=[1, 2, 3])
-        add_one.expand(x=two_three_four)
-
-    dagrun = dag_maker.create_dagrun()
-    for map_index in range(3):
-        ti = dagrun.get_task_instance("add_one", map_index=map_index, session=session)
-        ti.refresh_from_task(dag.get_task("add_one"))
-        ti.run()
-
-    task_345 = dag.get_task("add_one__1")
-    for ti in task_345.expand_mapped_task(dagrun.run_id, session=session)[0]:
-        ti.refresh_from_task(task_345)
-        ti.run()
-
-    query = XCom.get_many(run_id=dagrun.run_id, task_ids=["add_one__1"], session=session)
-    assert [x.value for x in query.order_by(None).order_by(XCom.map_index)] == [3, 4, 5]
-
-
-def test_mapped_upstream_return_none_should_skip(dag_maker, session):
-    results = set()
-
-    with dag_maker(dag_id="test_mapped_upstream_return_none_should_skip", session=session) as dag:
-
-        @dag.task()
-        def transform(value):
-            if value == "b":  # Now downstream doesn't map against this!
-                return None
-            return value
-
-        @dag.task()
-        def pull(value):
-            results.add(value)
-
-        original = ["a", "b", "c"]
-        transformed = transform.expand(value=original)  # ["a", None, "c"]
-        pull.expand(value=transformed)  # ["a", "c"]
-
-    dr = dag_maker.create_dagrun()
-
-    decision = dr.task_instance_scheduling_decisions(session=session)
-    tis = {(ti.task_id, ti.map_index): ti for ti in decision.schedulable_tis}
-    assert sorted(tis) == [("transform", 0), ("transform", 1), ("transform", 2)]
-    for ti in tis.values():
-        ti.run()
-
-    decision = dr.task_instance_scheduling_decisions(session=session)
-    tis = {(ti.task_id, ti.map_index): ti for ti in decision.schedulable_tis}
-    assert sorted(tis) == [("pull", 0), ("pull", 1)]
-    for ti in tis.values():
-        ti.run()
-
-    assert results == {"a", "c"}
-
-
 def test_expand_non_templated_field(dag_maker, session):
     """Test expand on non-templated fields sets upstream deps properly."""
 
@@ -5238,16 +4968,14 @@ def test_taskinstance_with_note(create_task_instance, session):
     session.add(ti)
     session.commit()
 
-    filter_kwargs = dict(dag_id=ti.dag_id, task_id=ti.task_id, run_id=ti.run_id, map_index=ti.map_index)
-
-    ti_note: TaskInstanceNote = session.query(TaskInstanceNote).filter_by(**filter_kwargs).one()
+    ti_note: TaskInstanceNote = session.query(TaskInstanceNote).filter_by(ti_id=ti.id).one()
     assert ti_note.content == "ti with note"
 
     session.delete(ti)
     session.commit()
 
-    assert session.query(TaskInstance).filter_by(**filter_kwargs).one_or_none() is None
-    assert session.query(TaskInstanceNote).filter_by(**filter_kwargs).one_or_none() is None
+    assert session.query(TaskInstance).filter_by(id=ti.id).one_or_none() is None
+    assert session.query(TaskInstanceNote).filter_by(ti_id=ti.id).one_or_none() is None
 
 
 def test__refresh_from_db_should_not_increment_try_number(dag_maker, session):

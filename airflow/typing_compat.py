@@ -22,16 +22,12 @@ from __future__ import annotations
 __all__ = [
     "Literal",
     "ParamSpec",
-    "Protocol",
     "Self",
     "TypeAlias",
-    "TypedDict",
     "TypeGuard",
-    "runtime_checkable",
 ]
 
 import sys
-from typing import Protocol, TypedDict, runtime_checkable
 
 # Literal from typing module has various issues in different Python versions, see:
 # - https://typing-extensions.readthedocs.io/en/latest/#Literal

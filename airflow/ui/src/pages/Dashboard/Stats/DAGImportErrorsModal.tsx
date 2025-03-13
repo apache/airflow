@@ -18,6 +18,7 @@
  */
 import { Heading, Text, HStack, Input } from "@chakra-ui/react";
 import { useEffect, useState } from "react";
+import { LuFileWarning } from "react-icons/lu";
 import { PiFilePy } from "react-icons/pi";
 
 import type { ImportErrorResponse } from "openapi/requests/types.gen";
@@ -60,7 +61,10 @@ export const DAGImportErrorsModal: React.FC<ImportDAGErrorModalProps> = ({ impor
     <Dialog.Root onOpenChange={onOpenChange} open={open} scrollBehavior="inside" size="xl">
       <Dialog.Content backdrop>
         <Dialog.Header>
-          <Heading size="xl">Dag Import Errors</Heading>
+          <HStack fontSize="xl">
+            <LuFileWarning />
+            <Heading>Dag Import Errors</Heading>
+          </HStack>
           <Input
             mt={4}
             onChange={(event) => setSearchQuery(event.target.value)}

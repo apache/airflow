@@ -24,8 +24,9 @@ Key features of setup and teardown tasks:
 
   * If you clear a task, its setups and teardowns will be cleared.
   * By default, teardown tasks are ignored for the purpose of evaluating dag run state.
-  * A teardown task will run if its setup was successful, even if its work tasks failed.
+  * A teardown task will run if its setup was successful, even if its work tasks failed. But it will skip if the setup was skipped.
   * Teardown tasks are ignored when setting dependencies against task groups.
+  * Teardown will also be carried out if the DAG run is manually set to "failed" or "success" to ensure resources will be cleaned-up.
 
 How setup and teardown works
 """"""""""""""""""""""""""""
@@ -231,3 +232,8 @@ Trigger rule behavior for teardowns
 """""""""""""""""""""""""""""""""""
 
 Teardowns use a (non-configurable) trigger rule called ALL_DONE_SETUP_SUCCESS.  With this rule, as long as all upstreams are done and at least one directly connected setup is successful, the teardown will run.  If all of a teardown's setups were skipped or failed, those states will propagate to the teardown.
+
+Side-effect on manual DAG state changes
+"""""""""""""""""""""""""""""""""""""""
+
+As teardown tasks are often used to clean-up resources they need to run also if the DAG is manually terminated. For the purpose of early termination a user can manually mark the DAG run as "success" or "failed" which kills all tasks before completion. If the DAG contains teardown tasks, they will still be executed. Therefore as a side effect allowing teardown tasks to be scheduled, a DAG will not be immediately set to a terminal state if the user requests so.

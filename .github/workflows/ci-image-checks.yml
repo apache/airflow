@@ -108,7 +108,15 @@ on:  # yamllint disable-line rule:truthy
         description: "Whether to use uv to build the image (true/false)"
         required: true
         type: string
+    secrets:
+      DOCS_AWS_ACCESS_KEY_ID:
+        required: true
+      DOCS_AWS_SECRET_ACCESS_KEY:
+        required: true
 
+
+permissions:
+  contents: read
 jobs:
   install-pre-commit:
     timeout-minutes: 5
@@ -145,7 +153,7 @@ jobs:
         shell: bash
         if: inputs.canary-run == 'true'
       - name: "Save pre-commit cache"
-        uses: apache/infrastructure-actions/stash/save@c94b890bbedc2fc61466d28e6bd9966bc6c6643c
+        uses: apache/infrastructure-actions/stash/save@1c35b5ccf8fba5d4c3fdf25a045ca91aa0cbc468
         with:
           # yamllint disable rule:line-length
           key: cache-pre-commit-v4-${{ steps.breeze.outputs.host-python-version }}-${{ hashFiles('.pre-commit-config.yaml') }}
@@ -270,7 +278,7 @@ jobs:
           python: ${{ inputs.default-python-version }}
           use-uv: ${{ inputs.use-uv }}
       - name: "Restore docs inventory cache"
-        uses: apache/infrastructure-actions/stash/restore@c94b890bbedc2fc61466d28e6bd9966bc6c6643c
+        uses: apache/infrastructure-actions/stash/restore@1c35b5ccf8fba5d4c3fdf25a045ca91aa0cbc468
         with:
           path: ./docs/_inventory_cache/
           # TODO(potiuk): do better with determining the key
@@ -282,13 +290,15 @@ jobs:
         run: >
           breeze build-docs ${DOCS_LIST_AS_STRING} ${{ matrix.flag }}
       - name: "Save docs inventory cache"
-        uses: apache/infrastructure-actions/stash/save@c94b890bbedc2fc61466d28e6bd9966bc6c6643c
+        uses: apache/infrastructure-actions/stash/save@1c35b5ccf8fba5d4c3fdf25a045ca91aa0cbc468
         with:
           path: ./docs/_inventory_cache/
           key: cache-docs-inventory-v1-${{ hashFiles('pyproject.toml') }}
           if-no-files-found: 'error'
           retention-days: '2'
-        if: steps.restore-docs-inventory-cache != 'true'
+        # If we upload from multiple matrix jobs we could end up with a race condition. so just pick one job
+        # to be responsible for updating it. https://github.com/actions/upload-artifact/issues/506
+        if: steps.restore-docs-inventory-cache != 'true' && matrix.flag == '--docs-only'
       - name: "Upload build docs"
         uses: actions/upload-artifact@v4
         with:
@@ -301,6 +311,9 @@ jobs:
   publish-docs:
     timeout-minutes: 150
     name: "Publish documentation"
+    permissions:
+      id-token: write
+      contents: read
     needs: build-docs
     runs-on: ${{ fromJSON(inputs.runs-on-as-json-docs-build) }}
     env:

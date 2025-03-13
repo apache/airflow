@@ -1,1 +1,18 @@
 Removed deprecated ``processor_poll_interval`` configuration parameter from ``scheduler`` section. Please use ``scheduler_idle_sleep_time`` configuration parameter.
+
+* Types of change
+
+  * [ ] Dag changes
+  * [x] Config changes
+  * [ ] API changes
+  * [ ] CLI changes
+  * [ ] Behaviour changes
+  * [ ] Plugin changes
+  * [ ] Dependency changes
+  * [ ] Code interface changes
+
+* Migration rules needed
+
+  * ``airflow config lint``
+
+    * [x] ``scheduler.processor_poll_interval`` → ``scheduler.scheduler_idle_sleep_time``

@@ -30,6 +30,7 @@ from termcolor import colored
 from airflow.configuration import conf
 from airflow.executors import executor_constants
 from airflow.executors.executor_loader import ExecutorLoader
+from airflow.jobs.dag_processor_job_runner import DagProcessorJobRunner
 from airflow.jobs.job import most_recent_job
 from airflow.jobs.scheduler_job_runner import SchedulerJobRunner
 from airflow.jobs.triggerer_job_runner import TriggererJobRunner
@@ -76,16 +77,16 @@ class StandaloneCommand:
             command=["scheduler"],
             env=env,
         )
-        self.subcommands["webserver"] = SubCommand(
+        self.subcommands["dag-processor"] = SubCommand(
             self,
-            name="webserver",
-            command=["webserver"],
+            name="dag-processor",
+            command=["dag-processor"],
             env=env,
         )
-        self.subcommands["fastapi-api"] = SubCommand(
+        self.subcommands["api-server"] = SubCommand(
             self,
-            name="fastapi-api",
-            command=["fastapi-api"],
+            name="api-server",
+            command=["api-server"],
             env=env,
         )
         self.subcommands["triggerer"] = SubCommand(
@@ -95,7 +96,6 @@ class StandaloneCommand:
             env=env,
         )
 
-        self.web_server_port = conf.getint("webserver", "WEB_SERVER_PORT", fallback=8080)
         # Run subcommand threads
         for command in self.subcommands.values():
             command.start()
@@ -144,9 +144,9 @@ class StandaloneCommand:
         You can pass multiple lines to output if you wish; it will be split for you.
         """
         color: dict[str, Color] = {
-            "fastapi-api": "magenta",
-            "webserver": "green",
+            "api-server": "magenta",
             "scheduler": "blue",
+            "dag-processor": "yellow",
             "triggerer": "cyan",
             "standalone": "white",
         }
@@ -192,7 +192,8 @@ class StandaloneCommand:
         from airflow.providers.fab.auth_manager.cli_commands.utils import get_application_builder
 
         with get_application_builder() as appbuilder:
-            user_name, password = appbuilder.sm.create_admin_standalone()
+            if hasattr(appbuilder.sm, "create_admin_standalone"):
+                user_name, password = appbuilder.sm.create_admin_standalone()
         # Store what we know about the user for printing later in startup
         self.user_info = {"username": user_name, "password": password}
 
@@ -203,8 +204,8 @@ class StandaloneCommand:
         For now, it's simply time-based.
         """
         return (
-            self.port_open(self.web_server_port)
-            and self.job_running(SchedulerJobRunner)
+            self.job_running(SchedulerJobRunner)
+            and self.job_running(DagProcessorJobRunner)
             and self.job_running(TriggererJobRunner)
         )
 
@@ -228,7 +229,7 @@ class StandaloneCommand:
         """
         Check if the given job name is running and heartbeating correctly.
 
-        Used to tell if scheduler is alive.
+        Used to tell if a component is alive.
         """
         recent = most_recent_job(job_runner_class.job_type)
         if not recent:

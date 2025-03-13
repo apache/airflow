@@ -27,7 +27,7 @@ import pendulum
 
 from airflow.decorators import task
 from airflow.models.dag import DAG
-from airflow.operators.empty import EmptyOperator
+from airflow.providers.standard.operators.empty import EmptyOperator
 from airflow.utils.trigger_rule import TriggerRule
 
 with DAG(

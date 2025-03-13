@@ -38,6 +38,7 @@ class TestHPA:
         [
             ("CeleryExecutor", True),
             ("CeleryKubernetesExecutor", True),
+            ("CeleryExecutor,KubernetesExecutor", True),
         ],
     )
     def test_hpa_enabled(self, executor, is_created):
@@ -78,7 +79,9 @@ class TestHPA:
         assert jmespath.search("spec.minReplicas", docs[0]) == 0 if min_replicas is None else min_replicas
         assert jmespath.search("spec.maxReplicas", docs[0]) == 5 if max_replicas is None else max_replicas
 
-    @pytest.mark.parametrize("executor", ["CeleryExecutor", "CeleryKubernetesExecutor"])
+    @pytest.mark.parametrize(
+        "executor", ["CeleryExecutor", "CeleryKubernetesExecutor", "CeleryExecutor,KubernetesExecutor"]
+    )
     def test_hpa_behavior(self, executor):
         """Verify HPA behavior."""
         expected_behavior = {

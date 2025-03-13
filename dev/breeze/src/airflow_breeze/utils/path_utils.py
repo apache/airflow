@@ -27,11 +27,11 @@ import shutil
 import subprocess
 import sys
 import tempfile
-from functools import cache
 from pathlib import Path
 
 from airflow_breeze import NAME
 from airflow_breeze.utils.console import get_console
+from airflow_breeze.utils.functools_cache import clearable_cache
 from airflow_breeze.utils.reinstall import reinstall_breeze, warn_dependencies_changed, warn_non_editable
 from airflow_breeze.utils.shared_options import get_verbose, set_forced_answer
 
@@ -226,7 +226,7 @@ def get_used_airflow_sources() -> Path:
     return current_sources
 
 
-@cache
+@clearable_cache
 def find_airflow_sources_root_to_operate_on() -> Path:
     """
     Find the root of airflow sources we operate on. Handle the case when Breeze is installed via
@@ -286,27 +286,23 @@ def find_airflow_sources_root_to_operate_on() -> Path:
 AIRFLOW_SOURCES_ROOT = find_airflow_sources_root_to_operate_on().resolve()
 AIRFLOW_WWW_DIR = AIRFLOW_SOURCES_ROOT / "airflow" / "www"
 AIRFLOW_UI_DIR = AIRFLOW_SOURCES_ROOT / "airflow" / "ui"
-AIRFLOW_OLD_PROVIDERS_DIR = AIRFLOW_SOURCES_ROOT / "airflow" / "providers"
-AIRFLOW_PROVIDERS_PROJECT = AIRFLOW_SOURCES_ROOT / "providers"
-AIRFLOW_PROVIDERS_SRC = AIRFLOW_PROVIDERS_PROJECT / "src"
-AIRFLOW_PROVIDERS_NS_PACKAGE = AIRFLOW_PROVIDERS_SRC / "airflow" / "providers"
-TESTS_PROVIDERS_ROOT = AIRFLOW_PROVIDERS_PROJECT / "tests"
-SYSTEM_TESTS_PROVIDERS_ROOT = AIRFLOW_PROVIDERS_PROJECT / "tests" / "system"
+AIRFLOW_ORIGINAL_PROVIDERS_DIR = AIRFLOW_SOURCES_ROOT / "airflow" / "providers"
+AIRFLOW_PROVIDERS_DIR = AIRFLOW_SOURCES_ROOT / "providers"
+
+PREVIOUS_AIRFLOW_PROVIDERS_SRC_DIR = AIRFLOW_PROVIDERS_DIR / "src"
+PREVIOUS_AIRFLOW_PROVIDERS_NS_PACKAGE = PREVIOUS_AIRFLOW_PROVIDERS_SRC_DIR / "airflow" / "providers"
+PREVIOUS_TESTS_PROVIDERS_ROOT = AIRFLOW_PROVIDERS_DIR / "tests"
+PREVIOUS_SYSTEM_TESTS_PROVIDERS_ROOT = AIRFLOW_PROVIDERS_DIR / "tests" / "system"
+
+AIRFLOW_TEST_COMMON_DIR = AIRFLOW_SOURCES_ROOT / "devel-common"
 DOCS_ROOT = AIRFLOW_SOURCES_ROOT / "docs"
 BUILD_CACHE_DIR = AIRFLOW_SOURCES_ROOT / ".build"
 GENERATED_DIR = AIRFLOW_SOURCES_ROOT / "generated"
 CONSTRAINTS_CACHE_DIR = BUILD_CACHE_DIR / "constraints"
 PROVIDER_DEPENDENCIES_JSON_FILE_PATH = GENERATED_DIR / "provider_dependencies.json"
 PROVIDER_METADATA_JSON_FILE_PATH = GENERATED_DIR / "provider_metadata.json"
-WWW_CACHE_DIR = BUILD_CACHE_DIR / "www"
 UI_CACHE_DIR = BUILD_CACHE_DIR / "ui"
 AIRFLOW_TMP_DIR_PATH = AIRFLOW_SOURCES_ROOT / "tmp"
-WWW_ASSET_COMPILE_LOCK = WWW_CACHE_DIR / ".asset_compile.lock"
-WWW_ASSET_OUT_FILE = WWW_CACHE_DIR / "asset_compile.out"
-WWW_ASSET_OUT_DEV_MODE_FILE = WWW_CACHE_DIR / "asset_compile_dev_mode.out"
-WWW_ASSET_HASH_FILE = AIRFLOW_SOURCES_ROOT / ".build" / "www" / "hash.txt"
-WWW_NODE_MODULES_DIR = AIRFLOW_SOURCES_ROOT / "airflow" / "www" / "node_modules"
-WWW_STATIC_DIST_DIR = AIRFLOW_SOURCES_ROOT / "airflow" / "www" / "static" / "dist"
 UI_ASSET_COMPILE_LOCK = UI_CACHE_DIR / ".asset_compile.lock"
 UI_ASSET_OUT_FILE = UI_CACHE_DIR / "asset_compile.out"
 UI_ASSET_OUT_DEV_MODE_FILE = UI_CACHE_DIR / "asset_compile_dev_mode.out"
@@ -334,7 +330,10 @@ GENERATED_DOCKER_LOCK_FILE = SCRIPTS_CI_DOCKER_COMPOSE_DIR / "_generated.lock"
 DOCKER_CONTEXT_DIR = AIRFLOW_SOURCES_ROOT / "docker-context-files"
 CACHE_TMP_FILE_DIR = tempfile.TemporaryDirectory()
 OUTPUT_LOG = Path(CACHE_TMP_FILE_DIR.name, "out.log")
-BREEZE_SOURCES_ROOT = AIRFLOW_SOURCES_ROOT / "dev" / "breeze"
+BREEZE_PROJECT_ROOT = AIRFLOW_SOURCES_ROOT / "dev" / "breeze"
+BREEZE_SOURCES_DIR = BREEZE_PROJECT_ROOT / "src"
+BREEZE_DOC_DIR = BREEZE_PROJECT_ROOT / "doc"
+BREEZE_IMAGES_DIR = BREEZE_DOC_DIR / "images"
 AIRFLOW_HOME_DIR = Path(os.environ.get("AIRFLOW_HOME", Path.home() / "airflow"))
 
 

@@ -13,6 +13,8 @@ paths:
       - Asset
       summary: Next Run Assets
       operationId: next_run_assets
+      security:
+      - OAuth2PasswordBearer: []
       parameters:
       - name: dag_id
         in: path
@@ -54,6 +56,8 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/HTTPExceptionResponse'
+      security:
+      - OAuth2PasswordBearer: []
   /ui/dags/recent_dag_runs:
     get:
       tags:
@@ -61,6 +65,8 @@ paths:
       summary: Recent Dag Runs
       description: Get recent DAG runs.
       operationId: recent_dag_runs
+      security:
+      - OAuth2PasswordBearer: []
       parameters:
       - name: dag_runs_limit
         in: query
@@ -93,6 +99,17 @@ paths:
           items:
             type: string
           title: Tags
+      - name: tags_match_mode
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - enum:
+            - any
+            - all
+            type: string
+          - type: 'null'
+          title: Tags Match Mode
       - name: owners
         in: query
         required: false
@@ -157,6 +174,43 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/DAGWithLatestDagRunsCollectionResponse'
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /ui/dependencies:
+    get:
+      tags:
+      - Dependencies
+      summary: Get Dependencies
+      description: Dependencies graph.
+      operationId: get_dependencies
+      security:
+      - OAuth2PasswordBearer: []
+      parameters:
+      - name: node_id
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Node Id
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BaseGraphResponse'
+        '404':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Not Found
         '422':
           description: Validation Error
           content:
@@ -247,6 +301,14 @@ paths:
           type: boolean
           default: false
           title: External Dependencies
+      - name: version_number
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: integer
+          - type: 'null'
+          title: Version Number
       responses:
         '200':
           description: Successful Response
@@ -359,22 +421,6 @@ paths:
           type: boolean
           default: false
           title: Include Downstream
-      - name: logical_date_gte
-        in: query
-        required: false
-        schema:
-          anyOf:
-          - type: string
-          - type: 'null'
-          title: Logical Date Gte
-      - name: logical_date_lte
-        in: query
-        required: false
-        schema:
-          anyOf:
-          - type: string
-          - type: 'null'
-          title: Logical Date Lte
       - name: root
         in: query
         required: false
@@ -422,6 +468,42 @@ paths:
           type: string
           default: id
           title: Order By
+      - name: run_after_gte
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+          title: Run After Gte
+      - name: run_after_lte
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+          title: Run After Lte
+      - name: logical_date_gte
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+          title: Logical Date Gte
+      - name: logical_date_lte
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+          title: Logical Date Lte
       responses:
         '200':
           description: Successful Response
@@ -454,6 +536,8 @@ paths:
       summary: Get Assets
       description: Get assets.
       operationId: get_assets
+      security:
+      - OAuth2PasswordBearer: []
       parameters:
       - name: limit
         in: query
@@ -540,6 +624,8 @@ paths:
       summary: Get Asset Aliases
       description: Get asset aliases.
       operationId: get_asset_aliases
+      security:
+      - OAuth2PasswordBearer: []
       parameters:
       - name: limit
         in: query
@@ -610,6 +696,8 @@ paths:
       summary: Get Asset Alias
       description: Get an asset alias.
       operationId: get_asset_alias
+      security:
+      - OAuth2PasswordBearer: []
       parameters:
       - name: asset_alias_id
         in: path
@@ -654,6 +742,8 @@ paths:
       summary: Get Asset Events
       description: Get asset events.
       operationId: get_asset_events
+      security:
+      - OAuth2PasswordBearer: []
       parameters:
       - name: limit
         in: query
@@ -773,6 +863,8 @@ paths:
       summary: Create Asset Event
       description: Create asset events.
       operationId: create_asset_event
+      security:
+      - OAuth2PasswordBearer: []
       requestBody:
         required: true
         content:
@@ -810,6 +902,59 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/HTTPValidationError'
+  /public/assets/{asset_id}/materialize:
+    post:
+      tags:
+      - Asset
+      summary: Materialize Asset
+      description: Materialize an asset by triggering a DAG run that produces it.
+      operationId: materialize_asset
+      security:
+      - OAuth2PasswordBearer: []
+      parameters:
+      - name: asset_id
+        in: path
+        required: true
+        schema:
+          type: integer
+          title: Asset Id
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DAGRunResponse'
+        '401':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Unauthorized
+        '403':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Forbidden
+        '404':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Not Found
+        '409':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Conflict
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
   /public/assets/{asset_id}/queuedEvents:
     get:
       tags:
@@ -817,6 +962,8 @@ paths:
       summary: Get Asset Queued Events
       description: Get queued asset events for an asset.
       operationId: get_asset_queued_events
+      security:
+      - OAuth2PasswordBearer: []
       parameters:
       - name: asset_id
         in: path
@@ -869,6 +1016,8 @@ paths:
       summary: Delete Asset Queued Events
       description: Delete queued asset events for an asset.
       operationId: delete_asset_queued_events
+      security:
+      - OAuth2PasswordBearer: []
       parameters:
       - name: asset_id
         in: path
@@ -918,6 +1067,8 @@ paths:
       summary: Get Asset
       description: Get an asset.
       operationId: get_asset
+      security:
+      - OAuth2PasswordBearer: []
       parameters:
       - name: asset_id
         in: path
@@ -963,6 +1114,8 @@ paths:
       summary: Get Dag Asset Queued Events
       description: Get queued asset events for a DAG.
       operationId: get_dag_asset_queued_events
+      security:
+      - OAuth2PasswordBearer: []
       parameters:
       - name: dag_id
         in: path
@@ -1014,6 +1167,8 @@ paths:
       - Asset
       summary: Delete Dag Asset Queued Events
       operationId: delete_dag_asset_queued_events
+      security:
+      - OAuth2PasswordBearer: []
       parameters:
       - name: dag_id
         in: path
@@ -1069,6 +1224,8 @@ paths:
       summary: Get Dag Asset Queued Event
       description: Get a queued asset event for a DAG.
       operationId: get_dag_asset_queued_event
+      security:
+      - OAuth2PasswordBearer: []
       parameters:
       - name: dag_id
         in: path
@@ -1127,6 +1284,8 @@ paths:
       summary: Delete Dag Asset Queued Event
       description: Delete a queued asset event for a DAG.
       operationId: delete_dag_asset_queued_event
+      security:
+      - OAuth2PasswordBearer: []
       parameters:
       - name: dag_id
         in: path
@@ -1481,6 +1640,55 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/HTTPValidationError'
+  /public/backfills/dry_run:
+    post:
+      tags:
+      - Backfill
+      summary: Create Backfill Dry Run
+      operationId: create_backfill_dry_run
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/BackfillPostBody'
+        required: true
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DryRunBackfillCollectionResponse'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+        '403':
+          description: Forbidden
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+        '404':
+          description: Not Found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+        '409':
+          description: Conflict
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
   /public/connections/{connection_id}:
     delete:
       tags:
@@ -1488,6 +1696,8 @@ paths:
       summary: Delete Connection
       description: Delete a connection entry.
       operationId: delete_connection
+      security:
+      - OAuth2PasswordBearer: []
       parameters:
       - name: connection_id
         in: path
@@ -1528,6 +1738,8 @@ paths:
       summary: Get Connection
       description: Get a connection entry.
       operationId: get_connection
+      security:
+      - OAuth2PasswordBearer: []
       parameters:
       - name: connection_id
         in: path
@@ -1572,6 +1784,8 @@ paths:
       summary: Patch Connection
       description: Update a connection entry.
       operationId: patch_connection
+      security:
+      - OAuth2PasswordBearer: []
       parameters:
       - name: connection_id
         in: path
@@ -1639,6 +1853,8 @@ paths:
       summary: Get Connections
       description: Get all connection entries.
       operationId: get_connections
+      security:
+      - OAuth2PasswordBearer: []
       parameters:
       - name: limit
         in: query
@@ -1663,6 +1879,14 @@ paths:
           type: string
           default: id
           title: Order By
+      - name: connection_id_pattern
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Connection Id Pattern
       responses:
         '200':
           description: Successful Response
@@ -1700,6 +1924,8 @@ paths:
       summary: Post Connection
       description: Create connection entry.
       operationId: post_connection
+      security:
+      - OAuth2PasswordBearer: []
       requestBody:
         required: true
         content:
@@ -1737,50 +1963,39 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/HTTPValidationError'
-  /public/connections/bulk:
-    put:
+    patch:
       tags:
       - Connection
-      summary: Put Connections
-      description: Create connection entry.
-      operationId: put_connections
+      summary: Bulk Connections
+      description: Bulk create, update, and delete connections.
+      operationId: bulk_connections
+      security:
+      - OAuth2PasswordBearer: []
       requestBody:
+        required: true
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/ConnectionBulkBody'
-        required: true
+              $ref: '#/components/schemas/BulkBody_ConnectionBody_'
       responses:
         '200':
-          description: Created with overwrite
+          description: Successful Response
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ConnectionCollectionResponse'
+                $ref: '#/components/schemas/BulkResponse'
         '401':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
           description: Unauthorized
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/HTTPExceptionResponse'
         '403':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
           description: Forbidden
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/HTTPExceptionResponse'
-        '409':
-          description: Conflict
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/HTTPExceptionResponse'
-        '201':
-          description: Created
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ConnectionCollectionResponse'
         '422':
           description: Validation Error
           content:
@@ -1801,7 +2016,7 @@ paths:
         as some hook classes tries to find out the `conn` from their __init__ method
         & errors out if not found.
 
-        It also deletes the conn id env variable after the test.'
+        It also deletes the conn id env connection after the test.'
       operationId: test_connection
       requestBody:
         content:
@@ -1834,6 +2049,32 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/HTTPValidationError'
+      security:
+      - OAuth2PasswordBearer: []
+  /public/connections/defaults:
+    post:
+      tags:
+      - Connection
+      summary: Create Default Connections
+      description: Create default connections.
+      operationId: create_default_connections
+      responses:
+        '204':
+          description: Successful Response
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+        '403':
+          description: Forbidden
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+      security:
+      - OAuth2PasswordBearer: []
   /public/dags/{dag_id}/dagRuns/{dag_run_id}:
     get:
       tags:
@@ -2016,6 +2257,8 @@ paths:
       description: If dag run is asset-triggered, return the asset events that triggered
         it.
       operationId: get_upstream_asset_events
+      security:
+      - OAuth2PasswordBearer: []
       parameters:
       - name: dag_id
         in: path
@@ -2153,6 +2396,24 @@ paths:
           minimum: 0
           default: 0
           title: Offset
+      - name: run_after_gte
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+          title: Run After Gte
+      - name: run_after_lte
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+          title: Run After Lte
       - name: logical_date_gte
         in: query
         required: false
@@ -2517,12 +2778,58 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/HTTPValidationError'
+  /public/dagReports:
+    get:
+      tags:
+      - DagReport
+      summary: Get Dag Reports
+      description: Get DAG report.
+      operationId: get_dag_reports
+      parameters:
+      - name: subdir
+        in: query
+        required: true
+        schema:
+          type: string
+          title: Subdir
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema: {}
+        '401':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Unauthorized
+        '403':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Forbidden
+        '400':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Bad Request
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
   /public/config:
     get:
       tags:
       - Config
       summary: Get Config
       operationId: get_config
+      security:
+      - OAuth2PasswordBearer: []
       parameters:
       - name: section
         in: query
@@ -2603,6 +2910,8 @@ paths:
       - Config
       summary: Get Config Value
       operationId: get_config_value
+      security:
+      - OAuth2PasswordBearer: []
       parameters:
       - name: section
         in: path
@@ -2753,6 +3062,8 @@ paths:
       summary: Get Dags
       description: Get all DAGs.
       operationId: get_dags
+      security:
+      - OAuth2PasswordBearer: []
       parameters:
       - name: limit
         in: query
@@ -2778,6 +3089,17 @@ paths:
           items:
             type: string
           title: Tags
+      - name: tags_match_mode
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - enum:
+            - any
+            - all
+            type: string
+          - type: 'null'
+          title: Tags Match Mode
       - name: owners
         in: query
         required: false
@@ -2825,6 +3147,50 @@ paths:
           - $ref: '#/components/schemas/DagRunState'
           - type: 'null'
           title: Last Dag Run State
+      - name: dag_run_start_date_gte
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+          title: Dag Run Start Date Gte
+      - name: dag_run_start_date_lte
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+          title: Dag Run Start Date Lte
+      - name: dag_run_end_date_gte
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+          title: Dag Run End Date Gte
+      - name: dag_run_end_date_lte
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+          title: Dag Run End Date Lte
+      - name: dag_run_state
+        in: query
+        required: false
+        schema:
+          type: array
+          items:
+            type: string
+          title: Dag Run State
       - name: order_by
         in: query
         required: false
@@ -2863,6 +3229,8 @@ paths:
       summary: Patch Dags
       description: Patch multiple DAGs.
       operationId: patch_dags
+      security:
+      - OAuth2PasswordBearer: []
       parameters:
       - name: update_mask
         in: query
@@ -2898,6 +3266,17 @@ paths:
           items:
             type: string
           title: Tags
+      - name: tags_match_mode
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - enum:
+            - any
+            - all
+            type: string
+          - type: 'null'
+          title: Tags Match Mode
       - name: owners
         in: query
         required: false
@@ -2987,6 +3366,8 @@ paths:
       summary: Get Dag
       description: Get basic information about a DAG.
       operationId: get_dag
+      security:
+      - OAuth2PasswordBearer: []
       parameters:
       - name: dag_id
         in: path
@@ -3037,6 +3418,8 @@ paths:
       summary: Patch Dag
       description: Patch the specific DAG.
       operationId: patch_dag
+      security:
+      - OAuth2PasswordBearer: []
       parameters:
       - name: dag_id
         in: path
@@ -3103,6 +3486,8 @@ paths:
       summary: Delete Dag
       description: Delete the specific DAG.
       operationId: delete_dag
+      security:
+      - OAuth2PasswordBearer: []
       parameters:
       - name: dag_id
         in: path
@@ -3153,6 +3538,8 @@ paths:
       summary: Get Dag Details
       description: Get details of DAG.
       operationId: get_dag_details
+      security:
+      - OAuth2PasswordBearer: []
       parameters:
       - name: dag_id
         in: path
@@ -3203,6 +3590,8 @@ paths:
       - Event Log
       summary: Get Event Log
       operationId: get_event_log
+      security:
+      - OAuth2PasswordBearer: []
       parameters:
       - name: event_log_id
         in: path
@@ -3248,6 +3637,8 @@ paths:
       summary: Get Event Logs
       description: Get all Event Logs.
       operationId: get_event_logs
+      security:
+      - OAuth2PasswordBearer: []
       parameters:
       - name: limit
         in: query
@@ -3399,6 +3790,8 @@ paths:
       summary: Get Extra Links
       description: Get extra links for task instance.
       operationId: get_extra_links
+      security:
+      - OAuth2PasswordBearer: []
       parameters:
       - name: dag_id
         in: path
@@ -3418,6 +3811,13 @@ paths:
         schema:
           type: string
           title: Task Id
+      - name: map_index
+        in: query
+        required: false
+        schema:
+          type: integer
+          default: -1
+          title: Map Index
       responses:
         '200':
           description: Successful Response
@@ -3557,6 +3957,8 @@ paths:
       summary: Get Jobs
       description: Get all jobs.
       operationId: get_jobs
+      security:
+      - OAuth2PasswordBearer: []
       parameters:
       - name: is_alive
         in: query
@@ -3694,6 +4096,8 @@ paths:
       - Plugin
       summary: Get Plugins
       operationId: get_plugins
+      security:
+      - OAuth2PasswordBearer: []
       parameters:
       - name: limit
         in: query
@@ -3743,6 +4147,8 @@ paths:
       summary: Delete Pool
       description: Delete a pool entry.
       operationId: delete_pool
+      security:
+      - OAuth2PasswordBearer: []
       parameters:
       - name: pool_name
         in: path
@@ -3789,6 +4195,8 @@ paths:
       summary: Get Pool
       description: Get a pool.
       operationId: get_pool
+      security:
+      - OAuth2PasswordBearer: []
       parameters:
       - name: pool_name
         in: path
@@ -3833,6 +4241,8 @@ paths:
       summary: Patch Pool
       description: Update a Pool.
       operationId: patch_pool
+      security:
+      - OAuth2PasswordBearer: []
       parameters:
       - name: pool_name
         in: path
@@ -3900,6 +4310,8 @@ paths:
       summary: Get Pools
       description: Get all pools entries.
       operationId: get_pools
+      security:
+      - OAuth2PasswordBearer: []
       parameters:
       - name: limit
         in: query
@@ -3924,6 +4336,14 @@ paths:
           type: string
           default: id
           title: Order By
+      - name: pool_name_pattern
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Pool Name Pattern
       responses:
         '200':
           description: Successful Response
@@ -3961,12 +4381,14 @@ paths:
       summary: Post Pool
       description: Create a Pool.
       operationId: post_pool
+      security:
+      - OAuth2PasswordBearer: []
       requestBody:
         required: true
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/PoolPostBody'
+              $ref: '#/components/schemas/PoolBody'
       responses:
         '201':
           description: Successful Response
@@ -3998,50 +4420,39 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/HTTPValidationError'
-  /public/pools/bulk:
-    put:
+    patch:
       tags:
       - Pool
-      summary: Put Pools
-      description: Create multiple pools.
-      operationId: put_pools
+      summary: Bulk Pools
+      description: Bulk create, update, and delete pools.
+      operationId: bulk_pools
+      security:
+      - OAuth2PasswordBearer: []
       requestBody:
+        required: true
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/PoolPostBulkBody'
-        required: true
+              $ref: '#/components/schemas/BulkBody_PoolBody_'
       responses:
-        '201':
-          description: Created
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/PoolCollectionResponse'
-        '401':
-          description: Unauthorized
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/HTTPExceptionResponse'
-        '403':
-          description: Forbidden
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/HTTPExceptionResponse'
-        '409':
-          description: Conflict
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/HTTPExceptionResponse'
         '200':
-          description: Created with overwriting
+          description: Successful Response
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/PoolCollectionResponse'
+                $ref: '#/components/schemas/BulkResponse'
+        '401':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Unauthorized
+        '403':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Forbidden
         '422':
           description: Validation Error
           content:
@@ -4055,6 +4466,8 @@ paths:
       summary: Get Providers
       description: Get providers.
       operationId: get_providers
+      security:
+      - OAuth2PasswordBearer: []
       parameters:
       - name: limit
         in: query
@@ -4191,6 +4604,80 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/HTTPValidationError'
+    patch:
+      tags:
+      - XCom
+      summary: Update Xcom Entry
+      description: Update an existing XCom entry.
+      operationId: update_xcom_entry
+      parameters:
+      - name: dag_id
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Dag Id
+      - name: task_id
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Task Id
+      - name: dag_run_id
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Dag Run Id
+      - name: xcom_key
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Xcom Key
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/XComUpdateBody'
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/XComResponseNative'
+        '401':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Unauthorized
+        '403':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Forbidden
+        '400':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Bad Request
+        '404':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Not Found
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
   /public/dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances/{task_id}/xcomEntries:
     get:
       tags:
@@ -4260,7 +4747,75 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/XComCollection'
+                $ref: '#/components/schemas/XComCollectionResponse'
+        '401':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Unauthorized
+        '403':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Forbidden
+        '400':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Bad Request
+        '404':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Not Found
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+    post:
+      tags:
+      - XCom
+      summary: Create Xcom Entry
+      description: Create an XCom entry.
+      operationId: create_xcom_entry
+      parameters:
+      - name: dag_id
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Dag Id
+      - name: task_id
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Task Id
+      - name: dag_run_id
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Dag Run Id
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/XComCreateBody'
+      responses:
+        '201':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/XComResponseNative'
         '401':
           content:
             application/json:
@@ -4352,7 +4907,7 @@ paths:
       tags:
       - Task Instance
       summary: Patch Task Instance
-      description: Update the state of a task instance.
+      description: Update a task instance.
       operationId: patch_task_instance
       parameters:
       - name: dag_id
@@ -4465,6 +5020,24 @@ paths:
         schema:
           type: string
           title: Task Id
+      - name: run_after_gte
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+          title: Run After Gte
+      - name: run_after_lte
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+          title: Run After Lte
       - name: logical_date_gte
         in: query
         required: false
@@ -4585,6 +5158,14 @@ paths:
           items:
             type: string
           title: Executor
+      - name: version_number
+        in: query
+        required: false
+        schema:
+          type: array
+          items:
+            type: integer
+          title: Version Number
       - name: limit
         in: query
         required: false
@@ -4959,7 +5540,7 @@ paths:
       tags:
       - Task Instance
       summary: Patch Task Instance
-      description: Update the state of a task instance.
+      description: Update a task instance.
       operationId: patch_task_instance
       parameters:
       - name: dag_id
@@ -5079,6 +5660,24 @@ paths:
           - type: string
           - type: 'null'
           title: Task Id
+      - name: run_after_gte
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+          title: Run After Gte
+      - name: run_after_lte
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+          title: Run After Lte
       - name: logical_date_gte
         in: query
         required: false
@@ -5207,6 +5806,14 @@ paths:
           items:
             type: string
           title: Executor
+      - name: version_number
+        in: query
+        required: false
+        schema:
+          type: array
+          items:
+            type: integer
+          title: Version Number
       - name: limit
         in: query
         required: false
@@ -5484,7 +6091,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/TaskInstanceReferenceCollectionResponse'
+                $ref: '#/components/schemas/TaskInstanceCollectionResponse'
         '401':
           content:
             application/json:
@@ -5497,6 +6104,177 @@ paths:
               schema:
                 $ref: '#/components/schemas/HTTPExceptionResponse'
           description: Forbidden
+        '404':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Not Found
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /public/dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances/{task_id}/{map_index}/dry_run:
+    patch:
+      tags:
+      - Task Instance
+      summary: Patch Task Instance Dry Run
+      description: Update a task instance dry_run mode.
+      operationId: patch_task_instance_dry_run
+      parameters:
+      - name: dag_id
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Dag Id
+      - name: dag_run_id
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Dag Run Id
+      - name: task_id
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Task Id
+      - name: map_index
+        in: path
+        required: true
+        schema:
+          type: integer
+          title: Map Index
+      - name: update_mask
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: array
+            items:
+              type: string
+          - type: 'null'
+          title: Update Mask
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PatchTaskInstanceBody'
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TaskInstanceCollectionResponse'
+        '401':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Unauthorized
+        '403':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Forbidden
+        '400':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Bad Request
+        '404':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Not Found
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /public/dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances/{task_id}/dry_run:
+    patch:
+      tags:
+      - Task Instance
+      summary: Patch Task Instance Dry Run
+      description: Update a task instance dry_run mode.
+      operationId: patch_task_instance_dry_run
+      parameters:
+      - name: dag_id
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Dag Id
+      - name: dag_run_id
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Dag Run Id
+      - name: task_id
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Task Id
+      - name: map_index
+        in: query
+        required: false
+        schema:
+          type: integer
+          default: -1
+          title: Map Index
+      - name: update_mask
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: array
+            items:
+              type: string
+          - type: 'null'
+          title: Update Mask
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PatchTaskInstanceBody'
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TaskInstanceCollectionResponse'
+        '401':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Unauthorized
+        '403':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Forbidden
+        '400':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Bad Request
         '404':
           content:
             application/json:
@@ -5630,6 +6408,8 @@ paths:
       summary: Delete Variable
       description: Delete a variable entry.
       operationId: delete_variable
+      security:
+      - OAuth2PasswordBearer: []
       parameters:
       - name: variable_key
         in: path
@@ -5670,6 +6450,8 @@ paths:
       summary: Get Variable
       description: Get a variable entry.
       operationId: get_variable
+      security:
+      - OAuth2PasswordBearer: []
       parameters:
       - name: variable_key
         in: path
@@ -5714,6 +6496,8 @@ paths:
       summary: Patch Variable
       description: Update a variable by key.
       operationId: patch_variable
+      security:
+      - OAuth2PasswordBearer: []
       parameters:
       - name: variable_key
         in: path
@@ -5781,6 +6565,8 @@ paths:
       summary: Get Variables
       description: Get all Variables entries.
       operationId: get_variables
+      security:
+      - OAuth2PasswordBearer: []
       parameters:
       - name: limit
         in: query
@@ -5844,6 +6630,8 @@ paths:
       summary: Post Variable
       description: Create a variable.
       operationId: post_variable
+      security:
+      - OAuth2PasswordBearer: []
       requestBody:
         required: true
         content:
@@ -5881,38 +6669,27 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/HTTPValidationError'
-  /public/variables/import:
-    post:
+    patch:
       tags:
       - Variable
-      summary: Import Variables
-      description: Import variables from a JSON file.
-      operationId: import_variables
-      parameters:
-      - name: action_if_exists
-        in: query
-        required: false
-        schema:
-          enum:
-          - overwrite
-          - fail
-          - skip
-          type: string
-          default: fail
-          title: Action If Exists
+      summary: Bulk Variables
+      description: Bulk create, update, and delete variables.
+      operationId: bulk_variables
+      security:
+      - OAuth2PasswordBearer: []
       requestBody:
         required: true
         content:
-          multipart/form-data:
+          application/json:
             schema:
-              $ref: '#/components/schemas/Body_import_variables'
+              $ref: '#/components/schemas/BulkBody_VariableBody_'
       responses:
         '200':
           description: Successful Response
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/VariablesImportResponse'
+                $ref: '#/components/schemas/BulkResponse'
         '401':
           content:
             application/json:
@@ -5925,24 +6702,12 @@ paths:
               schema:
                 $ref: '#/components/schemas/HTTPExceptionResponse'
           description: Forbidden
-        '400':
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/HTTPExceptionResponse'
-          description: Bad Request
-        '409':
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/HTTPExceptionResponse'
-          description: Conflict
         '422':
+          description: Validation Error
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/HTTPExceptionResponse'
-          description: Unprocessable Entity
+                $ref: '#/components/schemas/HTTPValidationError'
   /public/dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances/{task_id}/logs/{try_number}:
     get:
       tags:
@@ -5950,6 +6715,8 @@ paths:
       summary: Get Log
       description: Get logs for a specific task instance.
       operationId: get_log
+      security:
+      - OAuth2PasswordBearer: []
       parameters:
       - name: dag_id
         in: path
@@ -6156,6 +6923,149 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/HTTPValidationError'
+  /public/dags/{dag_id}/dagVersions/{version_number}:
+    get:
+      tags:
+      - DagVersion
+      summary: Get Dag Version
+      description: Get one Dag Version.
+      operationId: get_dag_version
+      parameters:
+      - name: dag_id
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Dag Id
+      - name: version_number
+        in: path
+        required: true
+        schema:
+          type: integer
+          title: Version Number
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DagVersionResponse'
+        '401':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Unauthorized
+        '403':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Forbidden
+        '404':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Not Found
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /public/dags/{dag_id}/dagVersions:
+    get:
+      tags:
+      - DagVersion
+      summary: Get Dag Versions
+      description: 'Get all DAG Versions.
+
+
+        This endpoint allows specifying `~` as the dag_id to retrieve DAG Versions
+        for all DAGs.'
+      operationId: get_dag_versions
+      parameters:
+      - name: dag_id
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Dag Id
+      - name: limit
+        in: query
+        required: false
+        schema:
+          type: integer
+          minimum: 0
+          default: 100
+          title: Limit
+      - name: offset
+        in: query
+        required: false
+        schema:
+          type: integer
+          minimum: 0
+          default: 0
+          title: Offset
+      - name: version_number
+        in: query
+        required: false
+        schema:
+          type: integer
+          title: Version Number
+      - name: bundle_name
+        in: query
+        required: false
+        schema:
+          type: string
+          title: Bundle Name
+      - name: bundle_version
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Bundle Version
+      - name: order_by
+        in: query
+        required: false
+        schema:
+          type: string
+          default: id
+          title: Order By
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DAGVersionCollectionResponse'
+        '401':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Unauthorized
+        '403':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Forbidden
+        '404':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Not Found
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
   /public/monitor/health:
     get:
       tags:
@@ -6183,6 +7093,40 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/VersionInfo'
+  /public/login:
+    get:
+      tags:
+      - Login
+      summary: Login
+      description: Redirect to the login URL depending on the AuthManager configured.
+      operationId: login
+      parameters:
+      - name: next
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Next
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema: {}
+        '307':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Temporary Redirect
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
 components:
   schemas:
     AppBuilderMenuItemResponse:
@@ -6306,6 +7250,21 @@ components:
         asset_id:
           type: integer
           title: Asset Id
+        uri:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Uri
+        name:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Name
+        group:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Group
         extra:
           anyOf:
           - type: object
@@ -6446,6 +7405,7 @@ components:
           type: integer
           title: Max Active Runs
           default: 10
+      additionalProperties: false
       type: object
       required:
       - dag_id
@@ -6509,6 +7469,38 @@ components:
       - updated_at
       title: BackfillResponse
       description: Base serializer for Backfill.
+    BaseEdgeResponse:
+      properties:
+        source_id:
+          type: string
+          title: Source Id
+        target_id:
+          type: string
+          title: Target Id
+      type: object
+      required:
+      - source_id
+      - target_id
+      title: BaseEdgeResponse
+      description: Base Edge serializer for responses.
+    BaseGraphResponse:
+      properties:
+        edges:
+          items:
+            $ref: '#/components/schemas/BaseEdgeResponse'
+          type: array
+          title: Edges
+        nodes:
+          items:
+            $ref: '#/components/schemas/BaseNodeResponse'
+          type: array
+          title: Nodes
+      type: object
+      required:
+      - edges
+      - nodes
+      title: BaseGraphResponse
+      description: Base Graph serializer for responses.
     BaseInfoResponse:
       properties:
         status:
@@ -6521,16 +7513,343 @@ components:
       - status
       title: BaseInfoResponse
       description: Base info serializer for responses.
-    Body_import_variables:
+    BaseNodeResponse:
       properties:
-        file:
+        id:
           type: string
-          format: binary
-          title: File
+          title: Id
+        label:
+          type: string
+          title: Label
+        type:
+          type: string
+          enum:
+          - join
+          - task
+          - asset-condition
+          - asset
+          - asset-alias
+          - dag
+          - sensor
+          - trigger
+          title: Type
       type: object
       required:
-      - file
-      title: Body_import_variables
+      - id
+      - label
+      - type
+      title: BaseNodeResponse
+      description: Base Node serializer for responses.
+    BulkAction:
+      type: string
+      enum:
+      - create
+      - delete
+      - update
+      title: BulkAction
+      description: Bulk Action to be performed on the used model.
+    BulkActionNotOnExistence:
+      type: string
+      enum:
+      - fail
+      - skip
+      title: BulkActionNotOnExistence
+      description: Bulk Action to be taken if the entity does not exist.
+    BulkActionOnExistence:
+      type: string
+      enum:
+      - fail
+      - skip
+      - overwrite
+      title: BulkActionOnExistence
+      description: Bulk Action to be taken if the entity already exists or not.
+    BulkActionResponse:
+      properties:
+        success:
+          items:
+            type: string
+          type: array
+          title: Success
+          description: A list of unique id/key representing successful operations.
+          default: []
+        errors:
+          items:
+            type: object
+          type: array
+          title: Errors
+          description: A list of errors encountered during the operation, each containing
+            details about the issue.
+          default: []
+      type: object
+      title: BulkActionResponse
+      description: 'Serializer for individual bulk action responses.
+
+
+        Represents the outcome of a single bulk operation (create, update, or delete).
+
+        The response includes a list of successful keys and any errors encountered
+        during the operation.
+
+        This structure helps users understand which key actions succeeded and which
+        failed.'
+    BulkBody_ConnectionBody_:
+      properties:
+        actions:
+          items:
+            oneOf:
+            - $ref: '#/components/schemas/BulkCreateAction_ConnectionBody_'
+            - $ref: '#/components/schemas/BulkUpdateAction_ConnectionBody_'
+            - $ref: '#/components/schemas/BulkDeleteAction_ConnectionBody_'
+          type: array
+          title: Actions
+      additionalProperties: false
+      type: object
+      required:
+      - actions
+      title: BulkBody[ConnectionBody]
+    BulkBody_PoolBody_:
+      properties:
+        actions:
+          items:
+            oneOf:
+            - $ref: '#/components/schemas/BulkCreateAction_PoolBody_'
+            - $ref: '#/components/schemas/BulkUpdateAction_PoolBody_'
+            - $ref: '#/components/schemas/BulkDeleteAction_PoolBody_'
+          type: array
+          title: Actions
+      additionalProperties: false
+      type: object
+      required:
+      - actions
+      title: BulkBody[PoolBody]
+    BulkBody_VariableBody_:
+      properties:
+        actions:
+          items:
+            oneOf:
+            - $ref: '#/components/schemas/BulkCreateAction_VariableBody_'
+            - $ref: '#/components/schemas/BulkUpdateAction_VariableBody_'
+            - $ref: '#/components/schemas/BulkDeleteAction_VariableBody_'
+          type: array
+          title: Actions
+      additionalProperties: false
+      type: object
+      required:
+      - actions
+      title: BulkBody[VariableBody]
+    BulkCreateAction_ConnectionBody_:
+      properties:
+        action:
+          $ref: '#/components/schemas/BulkAction'
+          description: The action to be performed on the entities.
+        entities:
+          items:
+            $ref: '#/components/schemas/ConnectionBody'
+          type: array
+          title: Entities
+          description: A list of entities to be created.
+        action_on_existence:
+          $ref: '#/components/schemas/BulkActionOnExistence'
+          default: fail
+      additionalProperties: false
+      type: object
+      required:
+      - action
+      - entities
+      title: BulkCreateAction[ConnectionBody]
+    BulkCreateAction_PoolBody_:
+      properties:
+        action:
+          $ref: '#/components/schemas/BulkAction'
+          description: The action to be performed on the entities.
+        entities:
+          items:
+            $ref: '#/components/schemas/PoolBody'
+          type: array
+          title: Entities
+          description: A list of entities to be created.
+        action_on_existence:
+          $ref: '#/components/schemas/BulkActionOnExistence'
+          default: fail
+      additionalProperties: false
+      type: object
+      required:
+      - action
+      - entities
+      title: BulkCreateAction[PoolBody]
+    BulkCreateAction_VariableBody_:
+      properties:
+        action:
+          $ref: '#/components/schemas/BulkAction'
+          description: The action to be performed on the entities.
+        entities:
+          items:
+            $ref: '#/components/schemas/VariableBody'
+          type: array
+          title: Entities
+          description: A list of entities to be created.
+        action_on_existence:
+          $ref: '#/components/schemas/BulkActionOnExistence'
+          default: fail
+      additionalProperties: false
+      type: object
+      required:
+      - action
+      - entities
+      title: BulkCreateAction[VariableBody]
+    BulkDeleteAction_ConnectionBody_:
+      properties:
+        action:
+          $ref: '#/components/schemas/BulkAction'
+          description: The action to be performed on the entities.
+        entities:
+          items:
+            type: string
+          type: array
+          title: Entities
+          description: A list of entity id/key to be deleted.
+        action_on_non_existence:
+          $ref: '#/components/schemas/BulkActionNotOnExistence'
+          default: fail
+      additionalProperties: false
+      type: object
+      required:
+      - action
+      - entities
+      title: BulkDeleteAction[ConnectionBody]
+    BulkDeleteAction_PoolBody_:
+      properties:
+        action:
+          $ref: '#/components/schemas/BulkAction'
+          description: The action to be performed on the entities.
+        entities:
+          items:
+            type: string
+          type: array
+          title: Entities
+          description: A list of entity id/key to be deleted.
+        action_on_non_existence:
+          $ref: '#/components/schemas/BulkActionNotOnExistence'
+          default: fail
+      additionalProperties: false
+      type: object
+      required:
+      - action
+      - entities
+      title: BulkDeleteAction[PoolBody]
+    BulkDeleteAction_VariableBody_:
+      properties:
+        action:
+          $ref: '#/components/schemas/BulkAction'
+          description: The action to be performed on the entities.
+        entities:
+          items:
+            type: string
+          type: array
+          title: Entities
+          description: A list of entity id/key to be deleted.
+        action_on_non_existence:
+          $ref: '#/components/schemas/BulkActionNotOnExistence'
+          default: fail
+      additionalProperties: false
+      type: object
+      required:
+      - action
+      - entities
+      title: BulkDeleteAction[VariableBody]
+    BulkResponse:
+      properties:
+        create:
+          anyOf:
+          - $ref: '#/components/schemas/BulkActionResponse'
+          - type: 'null'
+          description: Details of the bulk create operation, including successful
+            keys and errors.
+        update:
+          anyOf:
+          - $ref: '#/components/schemas/BulkActionResponse'
+          - type: 'null'
+          description: Details of the bulk update operation, including successful
+            keys and errors.
+        delete:
+          anyOf:
+          - $ref: '#/components/schemas/BulkActionResponse'
+          - type: 'null'
+          description: Details of the bulk delete operation, including successful
+            keys and errors.
+      type: object
+      title: BulkResponse
+      description: 'Serializer for responses to bulk entity operations.
+
+
+        This represents the results of create, update, and delete actions performed
+        on entity in bulk.
+
+        Each action (if requested) is represented as a field containing details about
+        successful keys and any encountered errors.
+
+        Fields are populated in the response only if the respective action was part
+        of the request, else are set None.'
+    BulkUpdateAction_ConnectionBody_:
+      properties:
+        action:
+          $ref: '#/components/schemas/BulkAction'
+          description: The action to be performed on the entities.
+        entities:
+          items:
+            $ref: '#/components/schemas/ConnectionBody'
+          type: array
+          title: Entities
+          description: A list of entities to be updated.
+        action_on_non_existence:
+          $ref: '#/components/schemas/BulkActionNotOnExistence'
+          default: fail
+      additionalProperties: false
+      type: object
+      required:
+      - action
+      - entities
+      title: BulkUpdateAction[ConnectionBody]
+    BulkUpdateAction_PoolBody_:
+      properties:
+        action:
+          $ref: '#/components/schemas/BulkAction'
+          description: The action to be performed on the entities.
+        entities:
+          items:
+            $ref: '#/components/schemas/PoolBody'
+          type: array
+          title: Entities
+          description: A list of entities to be updated.
+        action_on_non_existence:
+          $ref: '#/components/schemas/BulkActionNotOnExistence'
+          default: fail
+      additionalProperties: false
+      type: object
+      required:
+      - action
+      - entities
+      title: BulkUpdateAction[PoolBody]
+    BulkUpdateAction_VariableBody_:
+      properties:
+        action:
+          $ref: '#/components/schemas/BulkAction'
+          description: The action to be performed on the entities.
+        entities:
+          items:
+            $ref: '#/components/schemas/VariableBody'
+          type: array
+          title: Entities
+          description: A list of entities to be updated.
+        action_on_non_existence:
+          $ref: '#/components/schemas/BulkActionNotOnExistence'
+          default: fail
+      additionalProperties: false
+      type: object
+      required:
+      - action
+      - entities
+      title: BulkUpdateAction[VariableBody]
     ClearTaskInstancesBody:
       properties:
         dry_run:
@@ -6560,11 +7879,18 @@ components:
         reset_dag_runs:
           type: boolean
           title: Reset Dag Runs
-          default: false
+          default: true
         task_ids:
           anyOf:
           - items:
-              type: string
+              anyOf:
+              - type: string
+              - prefixItems:
+                - type: string
+                - type: integer
+                type: array
+                maxItems: 2
+                minItems: 2
             type: array
           - type: 'null'
           title: Task Ids
@@ -6589,6 +7915,7 @@ components:
           type: boolean
           title: Include Past
           default: false
+      additionalProperties: false
       type: object
       title: ClearTaskInstancesBody
       description: Request body for Clear Task Instances endpoint.
@@ -6599,6 +7926,7 @@ components:
             $ref: '#/components/schemas/ConfigSection'
           type: array
           title: Sections
+      additionalProperties: false
       type: object
       required:
       - sections
@@ -6619,6 +7947,7 @@ components:
             maxItems: 2
             minItems: 2
           title: Value
+      additionalProperties: false
       type: object
       required:
       - key
@@ -6678,9 +8007,6 @@ components:
         audit_view_included_events:
           type: string
           title: Audit View Included Events
-        is_k8s:
-          type: boolean
-          title: Is K8S
         test_connection:
           type: string
           title: Test Connection
@@ -6706,7 +8032,6 @@ components:
       - warn_deployment_exposure
       - audit_view_excluded_events
       - audit_view_included_events
-      - is_k8s
       - test_connection
       - state_color_mapping
       title: ConfigResponse
@@ -6721,6 +8046,7 @@ components:
             $ref: '#/components/schemas/ConfigOption'
           type: array
           title: Options
+      additionalProperties: false
       type: object
       required:
       - name
@@ -6772,30 +8098,13 @@ components:
           - type: string
           - type: 'null'
           title: Extra
+      additionalProperties: false
       type: object
       required:
       - connection_id
       - conn_type
       title: ConnectionBody
       description: Connection Serializer for requests body.
-    ConnectionBulkBody:
-      properties:
-        connections:
-          items:
-            $ref: '#/components/schemas/ConnectionBody'
-          type: array
-          title: Connections
-        overwrite:
-          anyOf:
-          - type: boolean
-          - type: 'null'
-          title: Overwrite
-          default: false
-      type: object
-      required:
-      - connections
-      title: ConnectionBulkBody
-      description: Connections Serializer for requests body.
     ConnectionCollectionResponse:
       properties:
         connections:
@@ -6938,11 +8247,6 @@ components:
             format: date-time
           - type: 'null'
           title: Last Expired
-        default_view:
-          anyOf:
-          - type: string
-          - type: 'null'
-          title: Default View
         fileloc:
           type: string
           title: Fileloc
@@ -6983,12 +8287,12 @@ components:
         has_import_errors:
           type: boolean
           title: Has Import Errors
-        next_dagrun:
+        next_dagrun_logical_date:
           anyOf:
           - type: string
             format: date-time
           - type: 'null'
-          title: Next Dagrun
+          title: Next Dagrun Logical Date
         next_dagrun_data_interval_start:
           anyOf:
           - type: string
@@ -7001,12 +8305,12 @@ components:
             format: date-time
           - type: 'null'
           title: Next Dagrun Data Interval End
-        next_dagrun_create_after:
+        next_dagrun_run_after:
           anyOf:
           - type: string
             format: date-time
           - type: 'null'
-          title: Next Dagrun Create After
+          title: Next Dagrun Run After
         owners:
           items:
             type: string
@@ -7084,6 +8388,12 @@ components:
           title: Concurrency
           description: Return max_active_tasks as concurrency.
           readOnly: true
+        latest_dag_version:
+          anyOf:
+          - $ref: '#/components/schemas/DagVersionResponse'
+          - type: 'null'
+          description: Return the latest DagVersion.
+          readOnly: true
       type: object
       required:
       - dag_id
@@ -7092,7 +8402,6 @@ components:
       - is_active
       - last_parsed_time
       - last_expired
-      - default_view
       - fileloc
       - description
       - timetable_summary
@@ -7103,10 +8412,10 @@ components:
       - max_consecutive_failed_dag_runs
       - has_task_concurrency_limits
       - has_import_errors
-      - next_dagrun
+      - next_dagrun_logical_date
       - next_dagrun_data_interval_start
       - next_dagrun_data_interval_end
-      - next_dagrun_create_after
+      - next_dagrun_run_after
       - owners
       - catchup
       - dag_run_timeout
@@ -7122,6 +8431,7 @@ components:
       - last_parsed
       - file_token
       - concurrency
+      - latest_dag_version
       title: DAGDetailsResponse
       description: Specific serializer for DAG Details responses.
     DAGPatchBody:
@@ -7129,6 +8439,7 @@ components:
         is_paused:
           type: boolean
           title: Is Paused
+      additionalProperties: false
       type: object
       required:
       - is_paused
@@ -7160,11 +8471,6 @@ components:
             format: date-time
           - type: 'null'
           title: Last Expired
-        default_view:
-          anyOf:
-          - type: string
-          - type: 'null'
-          title: Default View
         fileloc:
           type: string
           title: Fileloc
@@ -7205,12 +8511,12 @@ components:
         has_import_errors:
           type: boolean
           title: Has Import Errors
-        next_dagrun:
+        next_dagrun_logical_date:
           anyOf:
           - type: string
             format: date-time
           - type: 'null'
-          title: Next Dagrun
+          title: Next Dagrun Logical Date
         next_dagrun_data_interval_start:
           anyOf:
           - type: string
@@ -7223,12 +8529,12 @@ components:
             format: date-time
           - type: 'null'
           title: Next Dagrun Data Interval End
-        next_dagrun_create_after:
+        next_dagrun_run_after:
           anyOf:
           - type: string
             format: date-time
           - type: 'null'
-          title: Next Dagrun Create After
+          title: Next Dagrun Run After
         owners:
           items:
             type: string
@@ -7247,7 +8553,6 @@ components:
       - is_active
       - last_parsed_time
       - last_expired
-      - default_view
       - fileloc
       - description
       - timetable_summary
@@ -7258,10 +8563,10 @@ components:
       - max_consecutive_failed_dag_runs
       - has_task_concurrency_limits
       - has_import_errors
-      - next_dagrun
+      - next_dagrun_logical_date
       - next_dagrun_data_interval_start
       - next_dagrun_data_interval_end
-      - next_dagrun_create_after
+      - next_dagrun_run_after
       - owners
       - file_token
       title: DAGResponse
@@ -7276,6 +8581,7 @@ components:
           type: boolean
           title: Only Failed
           default: false
+      additionalProperties: false
       type: object
       title: DAGRunClearBody
       description: DAG Run serializer for clear endpoint body.
@@ -7307,6 +8613,7 @@ components:
             maxLength: 1000
           - type: 'null'
           title: Note
+      additionalProperties: false
       type: object
       title: DAGRunPatchBody
       description: DAG Run Serializer for PATCH requests.
@@ -7362,6 +8669,10 @@ components:
             format: date-time
           - type: 'null'
           title: Data Interval End
+        run_after:
+          type: string
+          format: date-time
+          title: Run After
         last_scheduling_decision:
           anyOf:
           - type: string
@@ -7372,9 +8683,6 @@ components:
           $ref: '#/components/schemas/DagRunType'
         state:
           $ref: '#/components/schemas/DagRunState'
-        external_trigger:
-          type: boolean
-          title: External Trigger
         triggered_by:
           $ref: '#/components/schemas/DagRunTriggeredByType'
         conf:
@@ -7385,6 +8693,11 @@ components:
           - type: string
           - type: 'null'
           title: Note
+        dag_versions:
+          items:
+            $ref: '#/components/schemas/DagVersionResponse'
+          type: array
+          title: Dag Versions
       type: object
       required:
       - dag_run_id
@@ -7395,13 +8708,14 @@ components:
       - end_date
       - data_interval_start
       - data_interval_end
+      - run_after
       - last_scheduling_decision
       - run_type
       - state
-      - external_trigger
       - triggered_by
       - conf
       - note
+      - dag_versions
       title: DAGRunResponse
       description: DAG Run serializer for responses.
     DAGRunStates:
@@ -7481,6 +8795,18 @@ components:
             type: array
           - type: 'null'
           title: States
+        run_after_gte:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+          title: Run After Gte
+        run_after_lte:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+          title: Run After Lte
         logical_date_gte:
           anyOf:
           - type: string
@@ -7517,6 +8843,7 @@ components:
             format: date-time
           - type: 'null'
           title: End Date Lte
+      additionalProperties: false
       type: object
       title: DAGRunsBatchBody
       description: List DAG Runs body for batch endpoint.
@@ -7558,6 +8885,22 @@ components:
       - total_entries
       title: DAGTagCollectionResponse
       description: DAG Tags Collection serializer for responses.
+    DAGVersionCollectionResponse:
+      properties:
+        dag_versions:
+          items:
+            $ref: '#/components/schemas/DagVersionResponse'
+          type: array
+          title: Dag Versions
+        total_entries:
+          type: integer
+          title: Total Entries
+      type: object
+      required:
+      - dag_versions
+      - total_entries
+      title: DAGVersionCollectionResponse
+      description: DAG Version Collection serializer for responses.
     DAGWarningCollectionResponse:
       properties:
         dag_warnings:
@@ -7638,11 +8981,6 @@ components:
             format: date-time
           - type: 'null'
           title: Last Expired
-        default_view:
-          anyOf:
-          - type: string
-          - type: 'null'
-          title: Default View
         fileloc:
           type: string
           title: Fileloc
@@ -7683,12 +9021,12 @@ components:
         has_import_errors:
           type: boolean
           title: Has Import Errors
-        next_dagrun:
+        next_dagrun_logical_date:
           anyOf:
           - type: string
             format: date-time
           - type: 'null'
-          title: Next Dagrun
+          title: Next Dagrun Logical Date
         next_dagrun_data_interval_start:
           anyOf:
           - type: string
@@ -7701,17 +9039,22 @@ components:
             format: date-time
           - type: 'null'
           title: Next Dagrun Data Interval End
-        next_dagrun_create_after:
+        next_dagrun_run_after:
           anyOf:
           - type: string
             format: date-time
           - type: 'null'
-          title: Next Dagrun Create After
+          title: Next Dagrun Run After
         owners:
           items:
             type: string
           type: array
           title: Owners
+        asset_expression:
+          anyOf:
+          - type: object
+          - type: 'null'
+          title: Asset Expression
         latest_dag_runs:
           items:
             $ref: '#/components/schemas/DAGRunResponse'
@@ -7730,7 +9073,6 @@ components:
       - is_active
       - last_parsed_time
       - last_expired
-      - default_view
       - fileloc
       - description
       - timetable_summary
@@ -7741,11 +9083,12 @@ components:
       - max_consecutive_failed_dag_runs
       - has_task_concurrency_limits
       - has_import_errors
-      - next_dagrun
+      - next_dagrun_logical_date
       - next_dagrun_data_interval_start
       - next_dagrun_data_interval_end
-      - next_dagrun_create_after
+      - next_dagrun_run_after
       - owners
+      - asset_expression
       - latest_dag_runs
       - file_token
       title: DAGWithLatestDagRunsResponse
@@ -7777,8 +9120,10 @@ components:
           type: string
           title: Dag Id
         logical_date:
-          type: string
-          format: date-time
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
           title: Logical Date
         start_date:
           type: string
@@ -7794,13 +9139,18 @@ components:
           type: string
           title: State
         data_interval_start:
-          type: string
-          format: date-time
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
           title: Data Interval Start
         data_interval_end:
-          type: string
-          format: date-time
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
           title: Data Interval End
+      additionalProperties: false
       type: object
       required:
       - run_id
@@ -7864,6 +9214,7 @@ components:
           type: string
           format: date-time
           title: Updated At
+      additionalProperties: false
       type: object
       required:
       - dag_id
@@ -7930,6 +9281,47 @@ components:
       - dag_id
       title: DagTagResponse
       description: DAG Tag serializer for responses.
+    DagVersionResponse:
+      properties:
+        id:
+          type: string
+          format: uuid
+          title: Id
+        version_number:
+          type: integer
+          title: Version Number
+        dag_id:
+          type: string
+          title: Dag Id
+        bundle_name:
+          type: string
+          title: Bundle Name
+        bundle_version:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Bundle Version
+        created_at:
+          type: string
+          format: date-time
+          title: Created At
+        bundle_url:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Bundle Url
+          readOnly: true
+      type: object
+      required:
+      - id
+      - version_number
+      - dag_id
+      - bundle_name
+      - bundle_version
+      - created_at
+      - bundle_url
+      title: DagVersionResponse
+      description: Dag Version serializer for responses.
     DagWarningType:
       type: string
       enum:
@@ -7942,8 +9334,41 @@ components:
         This is the set of allowable values for the ``warning_type`` field
 
         in the DagWarning model.'
+    DryRunBackfillCollectionResponse:
+      properties:
+        backfills:
+          items:
+            $ref: '#/components/schemas/DryRunBackfillResponse'
+          type: array
+          title: Backfills
+        total_entries:
+          type: integer
+          title: Total Entries
+      type: object
+      required:
+      - backfills
+      - total_entries
+      title: DryRunBackfillCollectionResponse
+      description: Backfill collection serializer for responses in dry-run mode.
+    DryRunBackfillResponse:
+      properties:
+        logical_date:
+          type: string
+          format: date-time
+          title: Logical Date
+      type: object
+      required:
+      - logical_date
+      title: DryRunBackfillResponse
+      description: Backfill serializer for responses in dry-run mode.
     EdgeResponse:
       properties:
+        source_id:
+          type: string
+          title: Source Id
+        target_id:
+          type: string
+          title: Target Id
         is_setup_teardown:
           anyOf:
           - type: boolean
@@ -7954,12 +9379,6 @@ components:
           - type: string
           - type: 'null'
           title: Label
-        source_id:
-          type: string
-          title: Source Id
-        target_id:
-          type: string
-          title: Target Id
         is_source_asset:
           anyOf:
           - type: boolean
@@ -8105,10 +9524,20 @@ components:
             format: date-time
           - type: 'null'
           title: End Date
+        run_after:
+          type: string
+          format: date-time
+          title: Run After
         state:
           $ref: '#/components/schemas/DagRunState'
         run_type:
           $ref: '#/components/schemas/DagRunType'
+        logical_date:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+          title: Logical Date
         data_interval_start:
           anyOf:
           - type: string
@@ -8123,8 +9552,7 @@ components:
           title: Data Interval End
         version_number:
           anyOf:
-          - type: string
-            format: uuid
+          - type: integer
           - type: 'null'
           title: Version Number
         note:
@@ -8143,8 +9571,10 @@ components:
       - queued_at
       - start_date
       - end_date
+      - run_after
       - state
       - run_type
+      - logical_date
       - data_interval_start
       - data_interval_end
       - version_number
@@ -8305,6 +9735,9 @@ components:
         filename:
           type: string
           title: Filename
+        bundle_name:
+          type: string
+          title: Bundle Name
         stack_trace:
           type: string
           title: Stack Trace
@@ -8313,6 +9746,7 @@ components:
       - import_error_id
       - timestamp
       - filename
+      - bundle_name
       - stack_trace
       title: ImportErrorResponse
       description: Import Error Response.
@@ -8402,6 +9836,24 @@ components:
       description: Job serializer for responses.
     NodeResponse:
       properties:
+        id:
+          type: string
+          title: Id
+        label:
+          type: string
+          title: Label
+        type:
+          type: string
+          enum:
+          - join
+          - task
+          - asset-condition
+          - asset
+          - asset-alias
+          - dag
+          - sensor
+          - trigger
+          title: Type
         children:
           anyOf:
           - items:
@@ -8409,17 +9861,11 @@ components:
             type: array
           - type: 'null'
           title: Children
-        id:
-          type: string
-          title: Id
         is_mapped:
           anyOf:
           - type: boolean
           - type: 'null'
           title: Is Mapped
-        label:
-          type: string
-          title: Label
         tooltip:
           anyOf:
           - type: string
@@ -8433,18 +9879,6 @@ components:
             - teardown
           - type: 'null'
           title: Setup Teardown Type
-        type:
-          type: string
-          enum:
-          - join
-          - task
-          - asset-condition
-          - asset
-          - asset-alias
-          - dag
-          - sensor
-          - trigger
-          title: Type
         operator:
           anyOf:
           - type: string
@@ -8467,15 +9901,10 @@ components:
       description: Node serializer for responses.
     PatchTaskInstanceBody:
       properties:
-        dry_run:
-          type: boolean
-          title: Dry Run
-          default: true
         new_state:
           anyOf:
-          - type: string
+          - $ref: '#/components/schemas/TaskInstanceState'
           - type: 'null'
-          title: New State
         note:
           anyOf:
           - type: string
@@ -8498,6 +9927,7 @@ components:
           type: boolean
           title: Include Past
           default: false
+      additionalProperties: false
       type: object
       title: PatchTaskInstanceBody
       description: Request body for Clear Task Instances endpoint.
@@ -8560,11 +9990,6 @@ components:
         source:
           type: string
           title: Source
-        ti_deps:
-          items:
-            type: string
-          type: array
-          title: Ti Deps
         listeners:
           items:
             type: string
@@ -8586,11 +10011,35 @@ components:
       - global_operator_extra_links
       - operator_extra_links
       - source
-      - ti_deps
       - listeners
       - timetables
       title: PluginResponse
       description: Plugin serializer.
+    PoolBody:
+      properties:
+        name:
+          type: string
+          maxLength: 256
+          title: Name
+        slots:
+          type: integer
+          title: Slots
+        description:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Description
+        include_deferred:
+          type: boolean
+          title: Include Deferred
+          default: false
+      additionalProperties: false
+      type: object
+      required:
+      - name
+      - slots
+      title: PoolBody
+      description: Pool serializer for post bodies.
     PoolCollectionResponse:
       properties:
         pools:
@@ -8629,51 +10078,10 @@ components:
           - type: boolean
           - type: 'null'
           title: Include Deferred
+      additionalProperties: false
       type: object
       title: PoolPatchBody
       description: Pool serializer for patch bodies.
-    PoolPostBody:
-      properties:
-        name:
-          type: string
-          maxLength: 256
-          title: Name
-        slots:
-          type: integer
-          title: Slots
-        description:
-          anyOf:
-          - type: string
-          - type: 'null'
-          title: Description
-        include_deferred:
-          type: boolean
-          title: Include Deferred
-          default: false
-      type: object
-      required:
-      - name
-      - slots
-      title: PoolPostBody
-      description: Pool serializer for post bodies.
-    PoolPostBulkBody:
-      properties:
-        pools:
-          items:
-            $ref: '#/components/schemas/PoolPostBody'
-          type: array
-          title: Pools
-        overwrite:
-          anyOf:
-          - type: boolean
-          - type: 'null'
-          title: Overwrite
-          default: false
-      type: object
-      required:
-      - pools
-      title: PoolPostBulkBody
-      description: Pools serializer for post bodies.
     PoolResponse:
       properties:
         name:
@@ -8847,6 +10255,21 @@ components:
       - arrange
       title: StructureDataResponse
       description: Structure Data serializer for responses.
+    StructuredLogMessage:
+      properties:
+        timestamp:
+          type: string
+          format: date-time
+          title: Timestamp
+        event:
+          type: string
+          title: Event
+      additionalProperties: true
+      type: object
+      required:
+      - event
+      title: StructuredLogMessage
+      description: An individual log message.
     TaskCollectionResponse:
       properties:
         tasks:
@@ -9002,6 +10425,12 @@ components:
             format: date-time
           - type: 'null'
           title: Queued When
+        scheduled_when:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+          title: Scheduled When
         pid:
           anyOf:
           - type: integer
@@ -9015,6 +10444,10 @@ components:
         executor_config:
           type: string
           title: Executor Config
+        dag_version:
+          anyOf:
+          - $ref: '#/components/schemas/DagVersionResponse'
+          - type: 'null'
       type: object
       required:
       - task_id
@@ -9036,45 +10469,13 @@ components:
       - priority_weight
       - operator
       - queued_when
+      - scheduled_when
       - pid
       - executor
       - executor_config
+      - dag_version
       title: TaskInstanceHistoryResponse
       description: TaskInstanceHistory serializer for responses.
-    TaskInstanceReferenceCollectionResponse:
-      properties:
-        task_instances:
-          items:
-            $ref: '#/components/schemas/TaskInstanceReferenceResponse'
-          type: array
-          title: Task Instances
-        total_entries:
-          type: integer
-          title: Total Entries
-      type: object
-      required:
-      - task_instances
-      - total_entries
-      title: TaskInstanceReferenceCollectionResponse
-      description: Task Instance Reference collection serializer for responses.
-    TaskInstanceReferenceResponse:
-      properties:
-        task_id:
-          type: string
-          title: Task Id
-        dag_run_id:
-          type: string
-          title: Dag Run Id
-        dag_id:
-          type: string
-          title: Dag Id
-      type: object
-      required:
-      - task_id
-      - dag_run_id
-      - dag_id
-      title: TaskInstanceReferenceResponse
-      description: Task Instance Reference serializer for responses.
     TaskInstanceResponse:
       properties:
         id:
@@ -9093,9 +10494,15 @@ components:
           type: integer
           title: Map Index
         logical_date:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+          title: Logical Date
+        run_after:
           type: string
           format: date-time
-          title: Logical Date
+          title: Run After
         start_date:
           anyOf:
           - type: string
@@ -9163,6 +10570,12 @@ components:
             format: date-time
           - type: 'null'
           title: Queued When
+        scheduled_when:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+          title: Scheduled When
         pid:
           anyOf:
           - type: integer
@@ -9189,7 +10602,6 @@ components:
         rendered_fields:
           type: object
           title: Rendered Fields
-          default: {}
         trigger:
           anyOf:
           - $ref: '#/components/schemas/TriggerResponse'
@@ -9197,6 +10609,10 @@ components:
         triggerer_job:
           anyOf:
           - $ref: '#/components/schemas/JobResponse'
+          - type: 'null'
+        dag_version:
+          anyOf:
+          - $ref: '#/components/schemas/DagVersionResponse'
           - type: 'null'
       type: object
       required:
@@ -9206,6 +10622,7 @@ components:
       - dag_run_id
       - map_index
       - logical_date
+      - run_after
       - start_date
       - end_date
       - duration
@@ -9221,6 +10638,7 @@ components:
       - priority_weight
       - operator
       - queued_when
+      - scheduled_when
       - pid
       - executor
       - executor_config
@@ -9228,6 +10646,7 @@ components:
       - rendered_map_index
       - trigger
       - triggerer_job
+      - dag_version
       title: TaskInstanceResponse
       description: TaskInstance serializer for responses.
     TaskInstanceState:
@@ -9340,6 +10759,18 @@ components:
             type: array
           - type: 'null'
           title: State
+        run_after_gte:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+          title: Run After Gte
+        run_after_lte:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+          title: Run After Lte
         logical_date_gte:
           anyOf:
           - type: string
@@ -9422,13 +10853,20 @@ components:
           - type: string
           - type: 'null'
           title: Order By
+      additionalProperties: false
       type: object
       title: TaskInstancesBatchBody
       description: Task Instance body for get batch.
     TaskInstancesLogResponse:
       properties:
         content:
-          type: string
+          anyOf:
+          - items:
+              $ref: '#/components/schemas/StructuredLogMessage'
+            type: array
+          - items:
+              type: string
+            type: array
           title: Content
         continuation_token:
           anyOf:
@@ -9457,6 +10895,7 @@ components:
           type: string
           format: date-time
           title: Updated At
+      additionalProperties: false
       type: object
       required:
       - dag_id
@@ -9674,6 +11113,18 @@ components:
             format: date-time
           - type: 'null'
           title: Data Interval End
+        logical_date:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+          title: Logical Date
+        run_after:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+          title: Run After
         conf:
           type: object
           title: Conf
@@ -9682,7 +11133,10 @@ components:
           - type: string
           - type: 'null'
           title: Note
+      additionalProperties: false
       type: object
+      required:
+      - logical_date
       title: TriggerDAGRunPostBody
       description: Trigger DAG Run Serializer for POST body.
     TriggerResponse:
@@ -9767,6 +11221,7 @@ components:
           - type: string
           - type: 'null'
           title: Description
+      additionalProperties: false
       type: object
       required:
       - key
@@ -9813,26 +11268,6 @@ components:
       - is_encrypted
       title: VariableResponse
       description: Variable serializer for responses.
-    VariablesImportResponse:
-      properties:
-        created_variable_keys:
-          items:
-            type: string
-          type: array
-          title: Created Variable Keys
-        import_count:
-          type: integer
-          title: Import Count
-        created_count:
-          type: integer
-          title: Created Count
-      type: object
-      required:
-      - created_variable_keys
-      - import_count
-      - created_count
-      title: VariablesImportResponse
-      description: Import Variables serializer for responses.
     VersionInfo:
       properties:
         version:
@@ -9849,7 +11284,7 @@ components:
       - git_version
       title: VersionInfo
       description: Version information serializer for responses.
-    XComCollection:
+    XComCollectionResponse:
       properties:
         xcom_entries:
           items:
@@ -9863,8 +11298,26 @@ components:
       required:
       - xcom_entries
       - total_entries
-      title: XComCollection
-      description: List of XCom items.
+      title: XComCollectionResponse
+      description: XCom Collection serializer for responses.
+    XComCreateBody:
+      properties:
+        key:
+          type: string
+          title: Key
+        value:
+          title: Value
+        map_index:
+          type: integer
+          title: Map Index
+          default: -1
+      additionalProperties: false
+      type: object
+      required:
+      - key
+      - value
+      title: XComCreateBody
+      description: Payload serializer for creating an XCom entry.
     XComResponse:
       properties:
         key:
@@ -9875,8 +11328,10 @@ components:
           format: date-time
           title: Timestamp
         logical_date:
-          type: string
-          format: date-time
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
           title: Logical Date
         map_index:
           type: integer
@@ -9911,8 +11366,10 @@ components:
           format: date-time
           title: Timestamp
         logical_date:
-          type: string
-          format: date-time
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
           title: Logical Date
         map_index:
           type: integer
@@ -9950,8 +11407,10 @@ components:
           format: date-time
           title: Timestamp
         logical_date:
-          type: string
-          format: date-time
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
           title: Logical Date
         map_index:
           type: integer
@@ -9982,3 +11441,24 @@ components:
       - value
       title: XComResponseString
       description: XCom response serializer with string return type.
+    XComUpdateBody:
+      properties:
+        value:
+          title: Value
+        map_index:
+          type: integer
+          title: Map Index
+          default: -1
+      additionalProperties: false
+      type: object
+      required:
+      - value
+      title: XComUpdateBody
+      description: Payload serializer for updating an XCom entry.
+  securitySchemes:
+    OAuth2PasswordBearer:
+      type: oauth2
+      flows:
+        password:
+          scopes: {}
+          tokenUrl: token

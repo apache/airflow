@@ -24,7 +24,6 @@ import { Link } from "react-router-dom";
 import type { TaskInstanceResponse } from "openapi/requests/types.gen";
 import TaskInstanceTooltip from "src/components/TaskInstanceTooltip";
 import { getTaskInstanceLink } from "src/utils/links";
-import { stateColor } from "src/utils/stateColor";
 
 dayjs.extend(duration);
 
@@ -52,23 +51,21 @@ export const TaskRecentRuns = ({
 
   return (
     <Flex alignItems="flex-end" flexDirection="row-reverse">
-      {taskInstancesWithDuration.map((taskInstance) =>
-        taskInstance.state === null ? undefined : (
-          <TaskInstanceTooltip key={taskInstance.dag_run_id} taskInstance={taskInstance}>
-            <Link to={getTaskInstanceLink(taskInstance)}>
-              <Box p={1}>
-                <Box
-                  bg={stateColor[taskInstance.state]}
-                  borderRadius="4px"
-                  height={`${(taskInstance.duration / max) * BAR_HEIGHT}px`}
-                  minHeight={1}
-                  width="4px"
-                />
-              </Box>
-            </Link>
-          </TaskInstanceTooltip>
-        ),
-      )}
+      {taskInstancesWithDuration.map((taskInstance) => (
+        <TaskInstanceTooltip key={taskInstance.dag_run_id} taskInstance={taskInstance}>
+          <Link to={getTaskInstanceLink(taskInstance)}>
+            <Box p={1}>
+              <Box
+                bg={`${taskInstance.state ?? "none"}.solid`}
+                borderRadius="4px"
+                height={`${(taskInstance.duration / max) * BAR_HEIGHT}px`}
+                minHeight={1}
+                width="4px"
+              />
+            </Box>
+          </Link>
+        </TaskInstanceTooltip>
+      ))}
     </Flex>
   );
 };

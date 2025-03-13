@@ -18,6 +18,7 @@
 from __future__ import annotations
 
 import argparse
+import os
 from datetime import datetime
 from unittest import mock
 
@@ -26,11 +27,10 @@ import pytest
 
 import airflow.cli.commands.remote_commands.backfill_command
 from airflow.cli import cli_parser
-from airflow.models import DagBag
 from airflow.models.backfill import ReprocessBehavior
 from airflow.utils import timezone
 
-from tests_common.test_utils.db import clear_db_backfills, clear_db_dags, clear_db_runs
+from tests_common.test_utils.db import clear_db_backfills, clear_db_dags, clear_db_runs, parse_and_sync_to_db
 
 DEFAULT_DATE = timezone.make_aware(datetime(2015, 1, 1), timezone=timezone.utc)
 if pendulum.__version__.startswith("3"):
@@ -48,8 +48,7 @@ class TestCliBackfill:
 
     @classmethod
     def setup_class(cls):
-        cls.dagbag = DagBag(include_examples=True)
-        cls.dagbag.sync_to_db()
+        parse_and_sync_to_db(os.devnull, include_examples=True)
         cls.parser = cli_parser.get_parser()
 
     @classmethod
@@ -101,4 +100,36 @@ class TestCliBackfill:
             reverse=False,
             dag_run_conf=None,
             reprocess_behavior=expected_repro,
+        )
+
+    @mock.patch("airflow.cli.commands.remote_commands.backfill_command._do_dry_run")
+    @pytest.mark.parametrize(
+        "reverse",
+        [False, True],
+    )
+    def test_backfill_dry_run(self, mock_dry_run, reverse):
+        args = [
+            "backfill",
+            "create",
+            "--dag-id",
+            "example_bash_operator",
+            "--from-date",
+            DEFAULT_DATE.isoformat(),
+            "--to-date",
+            DEFAULT_DATE.isoformat(),
+            "--dry-run",
+            "--reprocess-behavior",
+            "none",
+        ]
+        if reverse:
+            args.append("--run-backwards")
+        airflow.cli.commands.remote_commands.backfill_command.create_backfill(self.parser.parse_args(args))
+
+        mock_dry_run.assert_called_once_with(
+            dag_id="example_bash_operator",
+            from_date=DEFAULT_DATE.replace(tzinfo=timezone.utc),
+            to_date=DEFAULT_DATE.replace(tzinfo=timezone.utc),
+            reverse=reverse,
+            reprocess_behavior="none",
+            session=mock.ANY,
         )

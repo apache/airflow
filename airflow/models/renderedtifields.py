@@ -47,8 +47,8 @@ if TYPE_CHECKING:
     from sqlalchemy.orm import Session
     from sqlalchemy.sql import FromClause
 
-    from airflow.models import Operator
-    from airflow.models.taskinstance import TaskInstance
+    from airflow.models.taskinstance import TaskInstance, TaskInstanceKey
+    from airflow.sdk.types import Operator
 
 
 def get_serialized_template_fields(task: Operator):
@@ -145,7 +145,7 @@ class RenderedTaskInstanceFields(TaskInstanceDependencies):
         return prefix + ">"
 
     def _redact(self):
-        from airflow.utils.log.secrets_masker import redact
+        from airflow.sdk.execution_time.secrets_masker import redact
 
         if self.k8s_pod_yaml:
             self.k8s_pod_yaml = redact(self.k8s_pod_yaml)
@@ -155,7 +155,11 @@ class RenderedTaskInstanceFields(TaskInstanceDependencies):
 
     @classmethod
     @provide_session
-    def get_templated_fields(cls, ti: TaskInstance, session: Session = NEW_SESSION) -> dict | None:
+    def get_templated_fields(
+        cls,
+        ti: TaskInstance | TaskInstanceKey,
+        session: Session = NEW_SESSION,
+    ) -> dict | None:
         """
         Get templated field for a TaskInstance from the RenderedTaskInstanceFields table.
 

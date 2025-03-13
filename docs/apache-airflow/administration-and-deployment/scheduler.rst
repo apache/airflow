@@ -66,24 +66,6 @@ In the UI, it appears as if Airflow is running your tasks a day **late**
     waiting than the queue slots. Thus there can be cases where low priority tasks will be scheduled before high priority tasks if they share the same batch.
     For more read about that you can reference `this GitHub discussion <https://github.com/apache/airflow/discussions/28809>`__.
 
-
-DAG File Processing
--------------------
-
-You can have the Airflow Scheduler be responsible for starting the process that turns the Python files contained in the DAGs folder into DAG objects
-that contain tasks to be scheduled.
-
-Refer to :doc:`../authoring-and-scheduling/dagfile-processing` for details on how this can be achieved
-
-
-Triggering DAG with Future Date
--------------------------------
-
-If you want to use 'external trigger' to run future-dated data intervals, set ``allow_trigger_in_future = True`` in ``scheduler`` section in ``airflow.cfg``.
-This only has effect if your DAG is defined with ``schedule=None``.
-When set to ``False`` (the default value), if you manually trigger a run with future-dated data intervals,
-the scheduler will not execute it until its ``data_interval_start`` is in the past.
-
 .. _scheduler:ha:
 
 Running More Than One Scheduler
@@ -156,34 +138,20 @@ Fine-tuning your Scheduler performance
 What impacts scheduler's performance
 """"""""""""""""""""""""""""""""""""
 
-The Scheduler is responsible for two operations:
-
-* continuously parsing DAG files and synchronizing with the DAG in the database
-* continuously scheduling tasks for execution
-
-Those two tasks are executed in parallel by the scheduler and run independently of each other in
-different processes. In order to fine-tune your scheduler, you need to include a number of factors:
+The Scheduler is responsible for continuously scheduling tasks for execution.
+In order to fine-tune your scheduler, you need to include a number of factors:
 
 * The kind of deployment you have
-    * what kind of filesystem you have to share the DAGs (impacts performance of continuously reading DAGs)
-    * how fast the filesystem is (in many cases of distributed cloud filesystem you can pay extra to get
-      more throughput/faster filesystem
-    * how much memory you have for your processing
+    * how much memory you have available
     * how much CPU you have available
     * how much networking throughput you have available
 
 * The logic and definition of your DAG structure:
-    * how many DAG files you have
-    * how many DAGs you have in your files
-    * how large the DAG files are (remember DAG parser needs to read and parse the file every n seconds)
-    * how complex they are (i.e. how fast they can be parsed, how many tasks and dependencies they have)
-    * whether parsing your DAG file involves importing a lot of libraries or heavy processing at the top level
-      (Hint! It should not. See :ref:`best_practices/top_level_code`)
+    * how many DAGs you have
+    * how complex they are (i.e. how many tasks and dependencies they have)
 
 * The scheduler configuration
    * How many schedulers you have
-   * How many parsing processes you have in your scheduler
-   * How much time scheduler waits between re-parsing of the same DAG (it happens continuously)
    * How many task instances scheduler processes in one loop
    * How many new DAG runs should be created/scheduled per loop
    * How often the scheduler should perform cleanup and check for orphaned tasks/adopting them
@@ -198,10 +166,7 @@ How to approach Scheduler's fine-tuning
 Airflow gives you a lot of "knobs" to turn to fine tune the performance but it's a separate task,
 depending on your particular deployment, your DAG structure, hardware availability and expectations,
 to decide which knobs to turn to get best effect for you. Part of the job when managing the
-deployment is to decide what you are going to optimize for. Some users are ok with
-30 seconds delays of new DAG parsing, at the expense of lower CPU usage, whereas some other users
-expect the DAGs to be parsed almost instantly when they appear in the DAGs folder at the
-expense of higher CPU usage for example.
+deployment is to decide what you are going to optimize for.
 
 Airflow gives you the flexibility to decide, but you should find out what aspect of performance is
 most important for you and decide which knobs you want to turn in which direction.
@@ -224,23 +189,6 @@ What resources might limit Scheduler's performance
 
 There are several areas of resource usage that you should pay attention to:
 
-* FileSystem performance. Airflow Scheduler relies heavily on parsing (sometimes a lot) of Python
-  files, which are often located on a shared filesystem. Airflow Scheduler continuously reads and
-  re-parses those files. The same files have to be made available to workers, so often they are
-  stored in a distributed filesystem. You can use various filesystems for that purpose (NFS, CIFS, EFS,
-  GCS fuse, Azure File System are good examples). There are various parameters you can control for those
-  filesystems and fine-tune their performance, but this is beyond the scope of this document. You should
-  observe statistics and usage of your filesystem to determine if problems come from the filesystem
-  performance. For example there are anecdotal evidences that increasing IOPS (and paying more) for the
-  EFS performance, dramatically improves stability and speed of parsing Airflow DAGs when EFS is used.
-* Another solution to FileSystem performance, if it becomes your bottleneck, is to turn to alternative
-  mechanisms of distributing your DAGs. Embedding DAGs in your image and GitSync distribution have both
-  the property that the files are available locally for Scheduler and it does not have to use a
-  distributed filesystem to read the files, the files are available locally for the Scheduler and it is
-  usually as fast as it can be, especially if your machines use fast SSD disks for local storage. Those
-  distribution mechanisms have other characteristics that might make them not the best choice for you,
-  but if your problems with performance come from distributed filesystem performance, they might be the
-  best approach to follow.
 * Database connections and Database usage might become a problem as you want to increase performance and
   process more things in parallel. Airflow is known for being "database-connection hungry" - the more DAGs
   you have and the more you want to process in parallel, the more database connections will be opened.
@@ -249,28 +197,10 @@ There are several areas of resource usage that you should pay attention to:
   that if you have even medium size Postgres-based Airflow installation, the best solution is to use
   `PGBouncer <https://www.pgbouncer.org/>`_ as a proxy to your database. The :doc:`helm-chart:index`
   supports PGBouncer out-of-the-box.
-* CPU usage is most important for FileProcessors - those are the processes that parse and execute
-  Python DAG files. Since Schedulers triggers such parsing continuously, when you have a lot of DAGs,
-  the processing might take a lot of CPU. You can mitigate it by increasing the
-  :ref:`config:scheduler__min_file_process_interval`, but this is one of the mentioned trade-offs,
-  result of this is that changes to such files will be picked up slower and you will see delays between
-  submitting the files and getting them available in Airflow UI and executed by Scheduler. Optimizing
-  the way how your DAGs are built, avoiding external data sources is your best approach to improve CPU
-  usage. If you have more CPUs available, you can increase number of processing threads
-  :ref:`config:scheduler__parsing_processes`, Also Airflow Scheduler scales almost linearly with
-  several instances, so you can also add more Schedulers if your Scheduler's performance is CPU-bound.
-* Airflow might use quite a significant amount of memory when you try to get more performance out of it.
-  Often more performance is achieved in Airflow by increasing the number of processes handling the load,
-  and each process requires whole interpreter of Python loaded, a lot of classes imported, temporary
-  in-memory storage. A lot of it is optimized by Airflow by using forking and copy-on-write memory used
-  but in case new classes are imported after forking this can lead to extra memory pressure.
-  You need to observe if your system is using more memory than it has - which results with using swap disk,
-  which dramatically decreases performance. Note that Airflow Scheduler in versions prior to ``2.1.4``
-  generated a lot of ``Page Cache`` memory used by log files (when the log files were not removed).
-  This was generally harmless, as the memory is just cache and could be reclaimed at any time by the system,
-  however, in version ``2.1.4`` and beyond, writing logs will not generate excessive ``Page Cache`` memory.
-  Regardless - make sure when you look at memory usage, pay attention to the kind of memory you are observing.
-  Usually you should look at ``working memory``(names might vary depending on your deployment) rather
+* The Airflow Scheduler scales almost linearly with several instances, so you can also add more Schedulers
+  if your Scheduler's performance is CPU-bound.
+* Make sure when you look at memory usage, pay attention to the kind of memory you are observing.
+  Usually you should look at ``working memory`` (names might vary depending on your deployment) rather
   than ``total memory used``.
 
 What can you do, to improve Scheduler's performance
@@ -278,28 +208,18 @@ What can you do, to improve Scheduler's performance
 
 When you know what your resource usage is, the improvements that you can consider might be:
 
-* improve the logic, efficiency of parsing and reduce complexity of your top-level DAG Python code. It is
-  parsed continuously so optimizing that code might bring tremendous improvements, especially if you try
-  to reach out to some external databases etc. while parsing DAGs (this should be avoided at all cost).
-  The :ref:`best_practices/top_level_code` explains what are the best practices for writing your top-level
-  Python code. The :ref:`best_practices/reducing_dag_complexity` document provides some areas that you might
-  look at when you want to reduce complexity of your code.
 * improve utilization of your resources. This is when you have a free capacity in your system that
   seems underutilized (again CPU, memory I/O, networking are the prime candidates) - you can take
-  actions like increasing number of schedulers, parsing processes or decreasing intervals for more
+  actions like increasing number of schedulers or decreasing intervals for more
   frequent actions might bring improvements in performance at the expense of higher utilization of those.
-* increase hardware capacity (for example if you see that CPU is limiting you or that I/O you use for
-  DAG filesystem is at its limits). Often the problem with scheduler performance is
-  simply because your system is not "capable" enough and this might be the only way. For example if
-  you see that you are using all CPU you have on machine, you might want to add another scheduler on
-  a new machine - in most cases, when you add 2nd or 3rd scheduler, the capacity of scheduling grows
-  linearly (unless the shared database or filesystem is a bottleneck).
+* increase hardware capacity (for example if you see that CPU is limiting you).
+  Often the problem with scheduler performance is simply because your system is not "capable" enough
+  and this might be the only way. For example if you see that you are using all CPU you have on machine,
+  you might want to add another scheduler on a new machine - in most cases, when you add 2nd or 3rd
+  scheduler, the capacity of scheduling grows linearly (unless the shared database or similar is a bottleneck).
 * experiment with different values for the "scheduler tunables". Often you might get better effects by
-  simply exchanging one performance aspect for another. For example if you want to decrease the
-  CPU usage, you might increase file processing interval (but the result will be that new DAGs will
-  appear with bigger delay). Usually performance tuning is the art of balancing different aspects.
-* sometimes you change scheduler behavior slightly (for example change parsing sort order)
-  in order to get better fine-tuned results for your particular deployment.
+  simply exchanging one performance aspect for another.  Usually performance tuning is the art of balancing
+  different aspects.
 
 
 .. _scheduler:ha:tunables:
@@ -354,12 +274,6 @@ However, you can also look at other non-performance-related scheduler configurat
   queued tasks that were launched by the dead process will be "adopted" and
   monitored by this scheduler instead.
 
-- :ref:`config:scheduler__dag_dir_list_interval`
-  How often (in seconds) to scan the DAGs directory for new files.
-
-- :ref:`config:scheduler__file_parsing_sort_mode`
-  The scheduler will list and sort the DAG files to decide the parsing order.
-
 - :ref:`config:scheduler__max_tis_per_query`
   The batch size of queries in the scheduling main loop. This should not be greater than
   ``core.parallelism``. If this is too high then SQL query performance may be impacted by
@@ -367,15 +281,6 @@ However, you can also look at other non-performance-related scheduler configurat
 
   Additionally, you may hit the maximum allowable query length for your db.
   Set this to 0 to use the value of ``core.parallelism``.
-
-- :ref:`config:scheduler__min_file_process_interval`
-  Number of seconds after which a DAG file is re-parsed. The DAG file is parsed every
-  min_file_process_interval number of seconds. Updates to DAGs are reflected after
-  this interval. Keeping this number low will increase CPU usage.
-
-- :ref:`config:scheduler__parsing_processes`
-  The scheduler can run multiple processes in parallel to parse DAG files. This defines
-  how many processes will run.
 
 - :ref:`config:scheduler__scheduler_idle_sleep_time`
   Controls how long the scheduler will sleep between loops, but if there was nothing to do

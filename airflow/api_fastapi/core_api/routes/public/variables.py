@@ -16,10 +16,9 @@
 # under the License.
 from __future__ import annotations
 
-import json
-from typing import Annotated, Literal
+from typing import Annotated
 
-from fastapi import Depends, HTTPException, Query, UploadFile, status
+from fastapi import Depends, HTTPException, Query, status
 from fastapi.exceptions import RequestValidationError
 from pydantic import ValidationError
 from sqlalchemy import select
@@ -32,13 +31,16 @@ from airflow.api_fastapi.common.parameters import (
     SortParam,
 )
 from airflow.api_fastapi.common.router import AirflowRouter
+from airflow.api_fastapi.core_api.datamodels.common import BulkBody, BulkResponse
 from airflow.api_fastapi.core_api.datamodels.variables import (
     VariableBody,
     VariableCollectionResponse,
     VariableResponse,
-    VariablesImportResponse,
 )
 from airflow.api_fastapi.core_api.openapi.exceptions import create_openapi_http_exception_doc
+from airflow.api_fastapi.core_api.security import requires_access_variable
+from airflow.api_fastapi.core_api.services.public.variables import BulkVariableService
+from airflow.api_fastapi.logging.decorators import action_logging
 from airflow.models.variable import Variable
 
 variables_router = AirflowRouter(tags=["Variable"], prefix="/variables")
@@ -48,6 +50,7 @@ variables_router = AirflowRouter(tags=["Variable"], prefix="/variables")
     "/{variable_key}",
     status_code=status.HTTP_204_NO_CONTENT,
     responses=create_openapi_http_exception_doc([status.HTTP_404_NOT_FOUND]),
+    dependencies=[Depends(requires_access_variable("DELETE"))],
 )
 def delete_variable(
     variable_key: str,
@@ -63,6 +66,7 @@ def delete_variable(
 @variables_router.get(
     "/{variable_key}",
     responses=create_openapi_http_exception_doc([status.HTTP_404_NOT_FOUND]),
+    dependencies=[Depends(requires_access_variable("GET"))],
 )
 def get_variable(
     variable_key: str,
@@ -81,6 +85,7 @@ def get_variable(
 
 @variables_router.get(
     "",
+    dependencies=[Depends(requires_access_variable("GET"))],
 )
 def get_variables(
     limit: QueryLimit,
@@ -123,6 +128,7 @@ def get_variables(
             status.HTTP_404_NOT_FOUND,
         ]
     ),
+    dependencies=[Depends(requires_access_variable("PUT"))],
 )
 def patch_variable(
     variable_key: str,
@@ -145,13 +151,13 @@ def patch_variable(
     fields_to_update = patch_body.model_fields_set
     if update_mask:
         fields_to_update = fields_to_update.intersection(update_mask)
-        data = patch_body.model_dump(include=fields_to_update - non_update_fields, by_alias=True)
     else:
         try:
             VariableBody(**patch_body.model_dump())
         except ValidationError as e:
             raise RequestValidationError(errors=e.errors())
-        data = patch_body.model_dump(exclude=non_update_fields, by_alias=True)
+
+    data = patch_body.model_dump(include=fields_to_update - non_update_fields, by_alias=True)
 
     for key, val in data.items():
         setattr(variable, key, val)
@@ -163,6 +169,7 @@ def patch_variable(
     "",
     status_code=status.HTTP_201_CREATED,
     responses=create_openapi_http_exception_doc([status.HTTP_409_CONFLICT]),
+    dependencies=[Depends(action_logging()), Depends(requires_access_variable("POST"))],
 )
 def post_variable(
     post_body: VariableBody,
@@ -184,54 +191,10 @@ def post_variable(
     return variable
 
 
-@variables_router.post(
-    "/import",
-    status_code=status.HTTP_200_OK,
-    responses=create_openapi_http_exception_doc(
-        [status.HTTP_400_BAD_REQUEST, status.HTTP_409_CONFLICT, status.HTTP_422_UNPROCESSABLE_ENTITY]
-    ),
-)
-def import_variables(
-    file: UploadFile,
+@variables_router.patch("", dependencies=[Depends(requires_access_variable("PUT"))])
+def bulk_variables(
+    request: BulkBody[VariableBody],
     session: SessionDep,
-    action_if_exists: Literal["overwrite", "fail", "skip"] = "fail",
-) -> VariablesImportResponse:
-    """Import variables from a JSON file."""
-    try:
-        file_content = file.file.read().decode("utf-8")
-        variables = json.loads(file_content)
-
-        if not isinstance(variables, dict):
-            raise ValueError("Uploaded JSON must contain key-value pairs.")
-    except (json.JSONDecodeError, ValueError) as e:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=f"Invalid JSON format: {e}")
-
-    if not variables:
-        raise HTTPException(
-            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
-            detail="No variables found in the provided JSON.",
-        )
-
-    existing_keys = {variable for variable in session.execute(select(Variable.key)).scalars()}
-    import_keys = set(variables.keys())
-
-    matched_keys = existing_keys & import_keys
-
-    if action_if_exists == "fail" and matched_keys:
-        raise HTTPException(
-            status_code=status.HTTP_409_CONFLICT,
-            detail=f"The variables with these keys: {matched_keys} already exists.",
-        )
-    elif action_if_exists == "skip":
-        create_keys = import_keys - matched_keys
-    else:
-        create_keys = import_keys
-
-    for key in create_keys:
-        Variable.set(key=key, value=variables[key], session=session)
-
-    return VariablesImportResponse(
-        created_count=len(create_keys),
-        import_count=len(import_keys),
-        created_variable_keys=list(create_keys),
-    )
+) -> BulkResponse:
+    """Bulk create, update, and delete variables."""
+    return BulkVariableService(session=session, request=request).handle_request()

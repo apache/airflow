@@ -24,10 +24,10 @@ import pendulum
 
 from airflow.decorators import dag, task
 from airflow.models.baseoperator import BaseOperator
-from airflow.operators.email import EmailOperator
+from airflow.providers.standard.operators.bash import BashOperator
 
 if TYPE_CHECKING:
-    from airflow.utils.context import Context
+    from airflow.sdk.definitions.context import Context
 
 
 class GetRequestOperator(BaseOperator):
@@ -48,27 +48,24 @@ class GetRequestOperator(BaseOperator):
     catchup=False,
     tags=["example"],
 )
-def example_dag_decorator(email: str = "example@example.com"):
+def example_dag_decorator(url: str = "http://httpbin.org/get"):
     """
-    DAG to send server IP to email.
+    DAG to get IP address and echo it via BashOperator.
 
-    :param email: Email to send IP to. Defaults to example@example.com.
+    :param url: URL to get IP address from. Defaults to "http://httpbin.org/get".
     """
-    get_ip = GetRequestOperator(task_id="get_ip", url="http://httpbin.org/get")
+    get_ip = GetRequestOperator(task_id="get_ip", url=url)
 
     @task(multiple_outputs=True)
-    def prepare_email(raw_json: dict[str, Any]) -> dict[str, str]:
+    def prepare_command(raw_json: dict[str, Any]) -> dict[str, str]:
         external_ip = raw_json["origin"]
         return {
-            "subject": f"Server connected from {external_ip}",
-            "body": f"Seems like today your server executing Airflow is connected from IP {external_ip}<br>",
+            "command": f"echo 'Seems like today your server executing Airflow is connected from IP {external_ip}'",
         }
 
-    email_info = prepare_email(get_ip.output)
+    command_info = prepare_command(get_ip.output)
 
-    EmailOperator(
-        task_id="send_email", to=email, subject=email_info["subject"], html_content=email_info["body"]
-    )
+    BashOperator(task_id="echo_ip_info", bash_command=command_info["command"])
 
 
 example_dag = example_dag_decorator()

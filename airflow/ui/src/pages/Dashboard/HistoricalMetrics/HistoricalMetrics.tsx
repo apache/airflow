@@ -16,11 +16,13 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Box, VStack } from "@chakra-ui/react";
+import { Box, VStack, SimpleGrid, GridItem, Flex, Heading } from "@chakra-ui/react";
 import dayjs from "dayjs";
 import { useState } from "react";
+import { PiBooks } from "react-icons/pi";
 
-import { useDashboardServiceHistoricalMetrics } from "openapi/queries";
+import { useAssetServiceGetAssetEvents, useDashboardServiceHistoricalMetrics } from "openapi/queries";
+import { AssetEvents } from "src/components/Assets/AssetEvents";
 import { ErrorAlert } from "src/components/ErrorAlert";
 import TimeRangeSelector from "src/components/TimeRangeSelector";
 
@@ -28,12 +30,13 @@ import { DagRunMetrics } from "./DagRunMetrics";
 import { MetricSectionSkeleton } from "./MetricSectionSkeleton";
 import { TaskInstanceMetrics } from "./TaskInstanceMetrics";
 
-const defaultHour = "168";
+const defaultHour = "24";
 
 export const HistoricalMetrics = () => {
   const now = dayjs();
   const [startDate, setStartDate] = useState(now.subtract(Number(defaultHour), "hour").toISOString());
   const [endDate, setEndDate] = useState(now.toISOString());
+  const [assetSortBy, setAssetSortBy] = useState("-timestamp");
 
   const { data, error, isLoading } = useDashboardServiceHistoricalMetrics({
     endDate,
@@ -48,8 +51,21 @@ export const HistoricalMetrics = () => {
     ? Object.values(data.task_instance_states).reduce((partialSum, value) => partialSum + value, 0)
     : 0;
 
+  const { data: assetEventsData, isLoading: isLoadingAssetEvents } = useAssetServiceGetAssetEvents({
+    limit: 6,
+    orderBy: assetSortBy,
+    timestampGte: startDate,
+    timestampLte: endDate,
+  });
+
   return (
     <Box width="100%">
+      <Flex color="fg.muted" my={2}>
+        <PiBooks />
+        <Heading ml={1} size="xs">
+          History
+        </Heading>
+      </Flex>
       <ErrorAlert error={error} />
       <VStack alignItems="left" gap={2}>
         <TimeRangeSelector
@@ -59,13 +75,35 @@ export const HistoricalMetrics = () => {
           setStartDate={setStartDate}
           startDate={startDate}
         />
-        {isLoading ? <MetricSectionSkeleton /> : undefined}
-        {!isLoading && data !== undefined && (
-          <Box>
-            <DagRunMetrics dagRunStates={data.dag_run_states} total={dagRunTotal} />
-            <TaskInstanceMetrics taskInstanceStates={data.task_instance_states} total={taskRunTotal} />
-          </Box>
-        )}
+        <SimpleGrid columns={{ base: 10 }}>
+          <GridItem colSpan={{ base: 7 }}>
+            {isLoading ? <MetricSectionSkeleton /> : undefined}
+            {!isLoading && data !== undefined && (
+              <Box>
+                <DagRunMetrics
+                  dagRunStates={data.dag_run_states}
+                  endDate={endDate}
+                  startDate={startDate}
+                  total={dagRunTotal}
+                />
+                <TaskInstanceMetrics
+                  endDate={endDate}
+                  startDate={startDate}
+                  taskInstanceStates={data.task_instance_states}
+                  total={taskRunTotal}
+                />
+              </Box>
+            )}
+          </GridItem>
+          <GridItem colSpan={{ base: 3 }}>
+            <AssetEvents
+              data={assetEventsData}
+              endDate={endDate}
+              isLoading={isLoadingAssetEvents}
+              setOrderBy={setAssetSortBy}
+            />
+          </GridItem>
+        </SimpleGrid>
       </VStack>
     </Box>
   );

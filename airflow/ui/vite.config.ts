@@ -22,6 +22,7 @@ import { defineConfig } from "vitest/config";
 
 // https://vitejs.dev/config/
 export default defineConfig({
+  base: "./",
   build: { chunkSizeWarningLimit: 1600, manifest: true },
   plugins: [
     react(),
@@ -29,11 +30,14 @@ export default defineConfig({
     {
       name: "transform-url-src",
       transformIndexHtml: (html) =>
-        html.replace(`src="/assets/`, `src="/static/assets/`).replace(`href="/`, `href="/webapp/`),
+        html.replace(`src="./assets/`, `src="./static/assets/`).replace(`href="/`, `href="./`),
     },
     cssInjectedByJsPlugin(),
   ],
   resolve: { alias: { openapi: "/openapi-gen", src: "/src" } },
+  server: {
+    cors: true, // Only used by the dev server.
+  },
   test: {
     coverage: {
       include: ["src/**/*.ts", "src/**/*.tsx"],

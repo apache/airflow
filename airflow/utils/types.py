@@ -17,43 +17,16 @@
 from __future__ import annotations
 
 import enum
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, TypedDict
 
-import airflow.sdk.types
-from airflow.typing_compat import TypeAlias, TypedDict
+import airflow.sdk.definitions._internal.types
 
 if TYPE_CHECKING:
-    from datetime import datetime
+    from airflow.typing_compat import TypeAlias
 
-ArgNotSet: TypeAlias = airflow.sdk.types.ArgNotSet
+ArgNotSet: TypeAlias = airflow.sdk.definitions._internal.types.ArgNotSet
 
-NOTSET = airflow.sdk.types.NOTSET
-
-
-class AttributeRemoved:
-    """
-    Sentinel type to signal when attribute removed on serialization.
-
-    :meta private:
-    """
-
-    def __init__(self, attribute_name: str):
-        self.attribute_name = attribute_name
-
-    def __getattr__(self, item):
-        if item == "attribute_name":
-            return super().__getattribute__(item)
-        raise RuntimeError(
-            f"Attribute {self.attribute_name} was removed on "
-            f"serialization and must be set again - found when accessing {item}."
-        )
-
-
-"""
-Sentinel value for attributes removed on serialization.
-
-:meta private:
-"""
+NOTSET = airflow.sdk.definitions._internal.types.NOTSET
 
 
 class DagRunType(str, enum.Enum):
@@ -67,8 +40,13 @@ class DagRunType(str, enum.Enum):
     def __str__(self) -> str:
         return self.value
 
-    def generate_run_id(self, logical_date: datetime) -> str:
-        return f"{self}__{logical_date.isoformat()}"
+    def generate_run_id(self, *, suffix: str) -> str:
+        """
+        Generate a string for DagRun based on suffix string.
+
+        :param suffix: Generate run_id from suffix.
+        """
+        return f"{self}__{suffix}"
 
     @staticmethod
     def from_run_id(run_id: str) -> DagRunType:

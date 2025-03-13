@@ -45,7 +45,7 @@ ARG AIRFLOW_UID="50000"
 ARG AIRFLOW_USER_HOME_DIR=/home/airflow
 
 # latest released version here
-ARG AIRFLOW_VERSION="2.10.4"
+ARG AIRFLOW_VERSION="2.10.5"
 
 ARG PYTHON_BASE_IMAGE="python:3.9-slim-bookworm"
 
@@ -53,9 +53,9 @@ ARG PYTHON_BASE_IMAGE="python:3.9-slim-bookworm"
 # You can swap comments between those two args to test pip from the main version
 # When you attempt to test if the version of `pip` from specified branch works for our builds
 # Also use `force pip` label on your PR to swap all places we use `uv` to `pip`
-ARG AIRFLOW_PIP_VERSION=24.3.1
+ARG AIRFLOW_PIP_VERSION=25.0.1
 # ARG AIRFLOW_PIP_VERSION="git+https://github.com/pypa/pip.git@main"
-ARG AIRFLOW_UV_VERSION=0.5.14
+ARG AIRFLOW_UV_VERSION=0.6.5
 ARG AIRFLOW_USE_UV="false"
 ARG UV_HTTP_TIMEOUT="300"
 ARG AIRFLOW_IMAGE_REPOSITORY="https://github.com/apache/airflow"
@@ -451,13 +451,8 @@ function common::get_packaging_tool() {
         echo
         export PACKAGING_TOOL="uv"
         export PACKAGING_TOOL_CMD="uv pip"
-        if [[ -z ${VIRTUAL_ENV=} ]]; then
-            export EXTRA_INSTALL_FLAGS="--system"
-            export EXTRA_UNINSTALL_FLAGS="--system"
-        else
-            export EXTRA_INSTALL_FLAGS=""
-            export EXTRA_UNINSTALL_FLAGS=""
-        fi
+        export EXTRA_INSTALL_FLAGS=""
+        export EXTRA_UNINSTALL_FLAGS=""
         export UPGRADE_EAGERLY="--upgrade --resolution highest"
         export UPGRADE_IF_NEEDED="--upgrade"
         UV_CONCURRENT_DOWNLOADS=$(nproc --all)
@@ -820,7 +815,7 @@ function install_airflow() {
     local installation_command_flags
     if [[ ${AIRFLOW_INSTALLATION_METHOD} == "." ]]; then
         # When installing from sources - we always use `--editable` mode
-        installation_command_flags="--editable .[${AIRFLOW_EXTRAS}]${AIRFLOW_VERSION_SPECIFICATION} --editable ./task_sdk"
+        installation_command_flags="--editable .[${AIRFLOW_EXTRAS}]${AIRFLOW_VERSION_SPECIFICATION} --editable ./task-sdk --editable ./devel-common"
         while IFS= read -r -d '' pyproject_toml_file; do
             project_folder=$(dirname ${pyproject_toml_file})
             installation_command_flags="${installation_command_flags} --editable ${project_folder}"
@@ -860,7 +855,7 @@ function install_airflow() {
         echo "${COLOR_BLUE}Installing all packages with constraints. Installation method: ${AIRFLOW_INSTALLATION_METHOD}${COLOR_RESET}"
         echo
         set -x
-        # Install all packages with constraints
+        # TODO(potiuk) - when we switch to storing uv.lock in the repo, we might use `uv sync` here - but that requires changing our upgrade dependency workflow and strategy
         if ! ${PACKAGING_TOOL_CMD} install ${EXTRA_INSTALL_FLAGS} ${ADDITIONAL_PIP_INSTALL_FLAGS} ${installation_command_flags} --constraint "${HOME}/constraints.txt"; then
             set +x
             echo
@@ -1269,10 +1264,11 @@ set -euo pipefail
 
 readonly DIRECTORY="${AIRFLOW_HOME:-/usr/local/airflow}"
 readonly RETENTION="${AIRFLOW__LOG_RETENTION_DAYS:-15}"
+readonly FREQUENCY="${AIRFLOW__LOG_CLEANUP_FREQUENCY_MINUTES:-15}"
 
 trap "exit" INT TERM
 
-readonly EVERY=$((15*60))
+readonly EVERY=$((FREQUENCY*60))
 
 echo "Cleaning logs every $EVERY seconds"
 

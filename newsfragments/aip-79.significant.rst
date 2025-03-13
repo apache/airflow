@@ -9,3 +9,52 @@ As part of this change the following breaking changes have occurred:
   - A new abstract method ``deserialize_user`` needs to be implemented
 
   - A new abstract method ``serialize_user`` needs to be implemented
+
+  - The property ``security_manager`` has been removed from the interface
+
+  - All these methods have been removed from the interface:
+
+    - ``filter_permitted_menu_items``
+    - ``get_user_name``
+    - ``get_user_display_name``
+    - ``get_user``
+    - ``get_user_id``
+    - ``is_logged_in``
+    - ``get_url_logout``
+    - ``get_api_endpoints``
+    - ``register_views``
+
+  - A new optional method ``logout`` has been added to the interface
+
+  - All the following method signatures changed to make the parameter ``user`` required (it was optional)
+
+    - ``is_authorized_configuration``
+    - ``is_authorized_connection``
+    - ``is_authorized_dag``
+    - ``is_authorized_asset``
+    - ``is_authorized_pool``
+    - ``is_authorized_variable``
+    - ``is_authorized_view``
+    - ``is_authorized_custom_view``
+    - ``get_permitted_dag_ids``
+    - ``filter_permitted_dag_ids``
+
+  - All the following method signatures changed to add the parameter ``user``
+
+    - ``batch_is_authorized_connection``
+    - ``batch_is_authorized_dag``
+    - ``batch_is_authorized_pool``
+    - ``batch_is_authorized_variable``
+
+- The module ``airflow.www.auth`` has been moved to ``airflow.providers.fab.www.auth``
+
+* Types of change
+
+  * [ ] Dag changes
+  * [ ] Config changes
+  * [ ] API changes
+  * [ ] CLI changes
+  * [ ] Behaviour changes
+  * [ ] Plugin changes
+  * [ ] Dependency changes
+  * [x] Code interface changes

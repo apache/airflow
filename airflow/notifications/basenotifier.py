@@ -21,17 +21,18 @@ from abc import abstractmethod
 from collections.abc import Sequence
 from typing import TYPE_CHECKING
 
-from airflow.template.templater import Templater
+from airflow.sdk.definitions._internal.templater import Templater
 from airflow.utils.context import context_merge
+from airflow.utils.log.logging_mixin import LoggingMixin
 
 if TYPE_CHECKING:
     import jinja2
 
     from airflow import DAG
-    from airflow.utils.context import Context
+    from airflow.sdk.definitions.context import Context
 
 
-class BaseNotifier(Templater):
+class BaseNotifier(LoggingMixin, Templater):
     """BaseNotifier class for sending notifications."""
 
     template_fields: Sequence[str] = ()

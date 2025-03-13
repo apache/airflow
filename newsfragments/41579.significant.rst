@@ -1,1 +1,20 @@
 Removed deprecated ``apply_defaults`` function from ``airflow/utils/decorators.py``.
+
+* Types of change
+
+  * [x] Dag changes
+  * [ ] Config changes
+  * [ ] API changes
+  * [ ] CLI changes
+  * [ ] Behaviour changes
+  * [ ] Plugin changes
+  * [ ] Dependency changes
+  * [ ] Code interface changes
+
+* Migration rules needed
+
+  * ruff
+
+    * AIR302
+
+      * [x] ``airflow.utils.decorators.apply_defaults`` (auto applied)

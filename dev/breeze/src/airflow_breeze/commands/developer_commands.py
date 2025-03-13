@@ -23,6 +23,7 @@ import shutil
 import sys
 import threading
 from collections.abc import Iterable
+from pathlib import Path
 from signal import SIGTERM
 from time import sleep
 
@@ -79,7 +80,7 @@ from airflow_breeze.commands.common_package_installation_options import (
     option_providers_skip_constraints,
     option_use_packages_from_dist,
 )
-from airflow_breeze.commands.main_command import main
+from airflow_breeze.commands.main_command import cleanup, main
 from airflow_breeze.commands.testing_commands import (
     option_force_lowest_dependencies,
 )
@@ -100,6 +101,7 @@ from airflow_breeze.params.doc_build_params import DocBuildParams
 from airflow_breeze.params.shell_params import ShellParams
 from airflow_breeze.pre_commit_ids import PRE_COMMIT_LIST
 from airflow_breeze.utils.coertions import one_or_none_set
+from airflow_breeze.utils.confirm import Answer, user_confirm
 from airflow_breeze.utils.console import get_console
 from airflow_breeze.utils.custom_param_types import BetterChoice
 from airflow_breeze.utils.docker_command_utils import (
@@ -120,7 +122,6 @@ from airflow_breeze.utils.run_utils import (
     assert_pre_commit_installed,
     run_command,
     run_compile_ui_assets,
-    run_compile_www_assets,
 )
 from airflow_breeze.utils.shared_options import get_dry_run, get_verbose, set_forced_answer
 
@@ -234,11 +235,27 @@ option_install_airflow_python_client = click.option(
     envvar="INSTALL_AIRFLOW_PYTHON_CLIENT",
 )
 
-option_start_webserver_with_examples = click.option(
-    "--start-webserver-with-examples",
+option_start_api_server_with_examples = click.option(
+    "--start-api-server-with-examples",
     is_flag=True,
-    help="Start minimal airflow webserver with examples (for testing purposes) when entering breeze.",
-    envvar="START_WEBSERVER_WITH_EXAMPLES",
+    help="Start minimal airflow api-server with examples (for testing purposes) when entering breeze.",
+    envvar="START_API_SERVER_WITH_EXAMPLES",
+)
+
+option_load_example_dags = click.option(
+    "-e",
+    "--load-example-dags",
+    help="Enable configuration to load example DAGs when starting Airflow.",
+    is_flag=True,
+    envvar="LOAD_EXAMPLES",
+)
+
+option_load_default_connections = click.option(
+    "-c",
+    "--load-default-connections",
+    help="Enable configuration to load default connections when starting Airflow.",
+    is_flag=True,
+    envvar="LOAD_DEFAULT_CONNECTIONS",
 )
 
 
@@ -261,7 +278,7 @@ option_start_webserver_with_examples = click.option(
     envvar="VERBOSE_COMMANDS",
 )
 @option_install_airflow_python_client
-@option_start_webserver_with_examples
+@option_start_api_server_with_examples
 @option_airflow_constraints_location
 @option_airflow_constraints_mode_ci
 @option_airflow_constraints_reference
@@ -288,6 +305,8 @@ option_start_webserver_with_examples = click.option(
 @option_install_airflow_with_constraints_default_true
 @option_install_selected_providers
 @option_installation_package_format
+@option_load_example_dags
+@option_load_default_connections
 @option_all_integration
 @option_keep_env_variables
 @option_max_time
@@ -343,6 +362,8 @@ def shell(
     install_airflow_python_client: bool,
     integration: tuple[str, ...],
     keep_env_variables: bool,
+    load_example_dags: bool,
+    load_default_connections: bool,
     max_time: int | None,
     mount_sources: str,
     mysql_version: str,
@@ -363,7 +384,7 @@ def shell(
     skip_db_tests: bool,
     skip_image_upgrade_check: bool,
     standalone_dag_processor: bool,
-    start_webserver_with_examples: bool,
+    start_api_server_with_examples: bool,
     tty: str,
     upgrade_boto: bool,
     use_airflow_version: str | None,
@@ -412,6 +433,8 @@ def shell(
         install_selected_providers=install_selected_providers,
         integration=integration,
         keep_env_variables=keep_env_variables,
+        load_example_dags=load_example_dags,
+        load_default_connections=load_default_connections,
         mount_sources=mount_sources,
         mysql_version=mysql_version,
         no_db_cleanup=no_db_cleanup,
@@ -431,7 +454,7 @@ def shell(
         skip_image_upgrade_check=skip_image_upgrade_check,
         skip_environment_initialization=skip_environment_initialization,
         standalone_dag_processor=standalone_dag_processor,
-        start_webserver_with_examples=start_webserver_with_examples,
+        start_api_server_with_examples=start_api_server_with_examples,
         tty=tty,
         upgrade_boto=upgrade_boto,
         use_airflow_version=use_airflow_version,
@@ -446,22 +469,6 @@ def shell(
     fix_ownership_using_docker()
     sys.exit(result.returncode)
 
-
-option_load_example_dags = click.option(
-    "-e",
-    "--load-example-dags",
-    help="Enable configuration to load example DAGs when starting Airflow.",
-    is_flag=True,
-    envvar="LOAD_EXAMPLES",
-)
-
-option_load_default_connection = click.option(
-    "-c",
-    "--load-default-connections",
-    help="Enable configuration to load default connections when starting Airflow.",
-    is_flag=True,
-    envvar="LOAD_DEFAULT_CONNECTIONS",
-)
 
 option_executor_start_airflow = click.option(
     "--executor",
@@ -480,7 +487,7 @@ option_executor_start_airflow = click.option(
 )
 @click.option(
     "--dev-mode",
-    help="Starts webserver in dev mode (assets are always recompiled in this case when starting) "
+    help="Starts api-server in dev mode (assets are always recompiled in this case when starting) "
     "(mutually exclusive with --skip-assets-compilation).",
     is_flag=True,
 )
@@ -506,7 +513,7 @@ option_executor_start_airflow = click.option(
 @option_installation_package_format
 @option_install_selected_providers
 @option_all_integration
-@option_load_default_connection
+@option_load_default_connections
 @option_load_example_dags
 @option_mount_sources
 @option_mysql_version
@@ -578,7 +585,6 @@ def start_airflow(
         skip_assets_compilation = True
     if use_airflow_version is None and not skip_assets_compilation:
         # Now with the /ui project, lets only do a static build of /www and focus on the /ui
-        run_compile_www_assets(dev=False, run_in_background=False, force_clean=False)
         run_compile_ui_assets(dev=dev_mode, run_in_background=True, force_clean=False)
     airflow_constraints_reference = _determine_constraint_branch_used(
         airflow_constraints_reference, use_airflow_version
@@ -667,6 +673,11 @@ def start_airflow(
     is_flag=True,
 )
 @click.option(
+    "--skip-deletion",
+    help="Skip deletion of generated new packages documentation in `docs/apache-airflow-providers-*`.",
+    is_flag=True,
+)
+@click.option(
     "--package-filter",
     help="Filter(s) to use more than one can be specified. You can use glob pattern matching the "
     "full package name, for example `apache-airflow-providers-*`. Useful when you want to select"
@@ -694,6 +705,7 @@ def build_docs(
     include_not_ready_providers: bool,
     include_removed_providers: bool,
     one_pass_only: bool,
+    skip_deletion: bool,
     package_filter: tuple[str, ...],
     package_list: str,
     spellcheck_only: bool,
@@ -710,11 +722,15 @@ def build_docs(
     )
     rebuild_or_pull_ci_image_if_needed(command_params=build_params)
     if clean_build:
-        docs_dir = AIRFLOW_SOURCES_ROOT / "docs"
-        for dir_name in ["_build", "_doctrees", "_inventory_cache", "_api"]:
-            for directory in docs_dir.rglob(dir_name):
-                get_console().print(f"[info]Removing {directory}")
-                shutil.rmtree(directory, ignore_errors=True)
+        directories_to_clean = ["_build", "_doctrees", "_inventory_cache", "_api"]
+    else:
+        directories_to_clean = ["_api"]
+    docs_dir = AIRFLOW_SOURCES_ROOT / "docs"
+    for dir_name in directories_to_clean:
+        for directory in docs_dir.rglob(dir_name):
+            get_console().print(f"[info]Removing {directory}")
+            shutil.rmtree(directory, ignore_errors=True)
+
     docs_list_as_tuple: tuple[str, ...] = ()
     if package_list and len(package_list):
         get_console().print(f"\n[info]Populating provider list from PACKAGE_LIST env as {package_list}")
@@ -730,6 +746,7 @@ def build_docs(
         package_filter=package_filter,
         docs_only=docs_only,
         spellcheck_only=spellcheck_only,
+        skip_deletion=skip_deletion,
         one_pass_only=one_pass_only,
         short_doc_packages=expand_all_provider_packages(
             short_doc_packages=doc_packages,
@@ -748,10 +765,7 @@ def build_docs(
     fix_ownership_using_docker()
     if result.returncode == 0:
         get_console().print(
-            "[info]To view the built documentation, you have two options:\n\n"
-            "1. Start the webserver in breeze and access the built docs at "
-            "http://localhost:28080/docs/\n"
-            "2. Alternatively, you can run ./docs/start_doc_server.sh for a lighter resource option and view "
+            "Run ./docs/start_doc_server.sh for a lighter resource option and view "
             "the built docs at http://localhost:8000"
         )
     sys.exit(result.returncode)
@@ -946,34 +960,6 @@ def static_checks(
 
 
 @main.command(
-    name="compile-www-assets",
-    help="Compiles www assets.",
-)
-@click.option(
-    "--dev",
-    help="Run development version of assets compilation - it will not quit and automatically "
-    "recompile assets on-the-fly when they are changed.",
-    is_flag=True,
-)
-@click.option(
-    "--force-clean",
-    help="Force cleanup of compile assets before building them.",
-    is_flag=True,
-)
-@option_verbose
-@option_dry_run
-def compile_www_assets(dev: bool, force_clean: bool):
-    perform_environment_checks()
-    assert_pre_commit_installed()
-    compile_www_assets_result = run_compile_www_assets(
-        dev=dev, run_in_background=False, force_clean=force_clean
-    )
-    if compile_www_assets_result.returncode != 0:
-        get_console().print("[warn]New assets were generated[/]")
-    sys.exit(0)
-
-
-@main.command(
     name="compile-ui-assets",
     help="Compiles ui assets.",
 )
@@ -1014,14 +1000,11 @@ def compile_ui_assets(dev: bool, force_clean: bool):
     help="Additionally cleanup MyPy cache.",
     is_flag=True,
 )
-@option_project_name
 @option_verbose
 @option_dry_run
-def down(preserve_volumes: bool, cleanup_mypy_cache: bool, project_name: str):
+def down(preserve_volumes: bool, cleanup_mypy_cache: bool):
     perform_environment_checks()
-    shell_params = ShellParams(
-        backend="all", include_mypy_volume=cleanup_mypy_cache, project_name=project_name
-    )
+    shell_params = ShellParams(backend="all", include_mypy_volume=cleanup_mypy_cache)
     bring_compose_project_down(preserve_volumes=preserve_volumes, shell_params=shell_params)
     if cleanup_mypy_cache:
         command_to_execute = ["docker", "volume", "rm", "--force", "mypy-cache-volume"]
@@ -1132,3 +1115,44 @@ def autogenerate(
     cmd = f"/opt/airflow/scripts/in_container/run_generate_migration.sh '{message}'"
     execute_command_in_shell(shell_params, project_name="db", command=cmd)
     fix_ownership_using_docker()
+
+
+@main.command(name="doctor", help="Auto-healing of breeze")
+@option_answer
+@option_verbose
+@option_dry_run
+@click.pass_context
+def doctor(ctx):
+    shell_params = ShellParams()
+    check_docker_resources(shell_params.airflow_image_name)
+    shell_params.print_badge_info()
+
+    perform_environment_checks()
+    fix_ownership_using_docker()
+
+    given_answer = user_confirm("Are you sure with the removal of temporary Python files and Python cache?")
+    if not get_dry_run() and given_answer == Answer.YES:
+        cleanup_python_generated_files()
+
+    shell_params = ShellParams(backend="all", include_mypy_volume=True)
+    bring_compose_project_down(preserve_volumes=False, shell_params=shell_params)
+
+    given_answer = user_confirm("Are you sure with the removal of mypy cache and build cache dir?")
+    if given_answer == Answer.YES:
+        get_console().print("\n[info]Cleaning mypy cache...\n")
+        command_to_execute = ["docker", "volume", "rm", "--force", "mypy-cache-volume"]
+        run_command(command_to_execute)
+
+        get_console().print("\n[info]Deleting .build cache dir...\n")
+        dirpath = Path(".build")
+        if not get_dry_run() and dirpath.exists() and dirpath.is_dir():
+            shutil.rmtree(dirpath)
+
+    given_answer = user_confirm(
+        "Proceed with breeze cleanup to remove all docker volumes, images and networks?"
+    )
+    if given_answer == Answer.YES:
+        get_console().print("\n[info]Executing breeze cleanup...\n")
+        ctx.forward(cleanup)
+    elif given_answer == Answer.QUIT:
+        sys.exit(0)

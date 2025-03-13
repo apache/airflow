@@ -59,7 +59,7 @@ Make sure your code is only about Providers or Helm chart.
 Avoid mixing core changes into the same PR
 
 > [!NOTE]
-> Please note that providers have been relocated from `airflow/providers` to `providers/src/airflow/providers`.
+> Please note that providers have been relocated from `airflow/providers` to `providers/<provider_id>/src/airflow/providers`.
 
 ## Developing for Airflow 3 and 2.10.x / 2.11.x
 

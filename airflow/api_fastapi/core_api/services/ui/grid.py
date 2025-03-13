@@ -32,11 +32,12 @@ from airflow.api_fastapi.core_api.datamodels.ui.grid import (
 )
 from airflow.configuration import conf
 from airflow.exceptions import AirflowConfigException
-from airflow.models import MappedOperator
-from airflow.models.baseoperator import BaseOperator
+from airflow.models.baseoperator import BaseOperator as DBBaseOperator
 from airflow.models.taskmap import TaskMap
+from airflow.sdk import BaseOperator
+from airflow.sdk.definitions.mappedoperator import MappedOperator
+from airflow.sdk.definitions.taskgroup import MappedTaskGroup, TaskGroup
 from airflow.utils.state import TaskInstanceState
-from airflow.utils.task_group import MappedTaskGroup, TaskGroup
 
 
 @cache
@@ -139,7 +140,7 @@ def _get_total_task_count(
         node
         if isinstance(node, int)
         else (
-            node.get_mapped_ti_count(run_id=run_id, session=session)
+            DBBaseOperator.get_mapped_ti_count(node, run_id=run_id, session=session) or 0
             if isinstance(node, (MappedTaskGroup, MappedOperator))
             else node
         )

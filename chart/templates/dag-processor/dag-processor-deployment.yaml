@@ -21,7 +21,11 @@
 ## Airflow Dag Processor Deployment
 #################################
 {{- if semverCompare ">=2.3.0" .Values.airflowVersion }}
-{{- if .Values.dagProcessor.enabled }}
+{{- $enabled := .Values.dagProcessor.enabled }}
+{{- if eq $enabled nil}}
+  {{ $enabled = ternary true false (semverCompare ">=3.0.0" .Values.airflowVersion) }}
+{{- end }}
+{{- if $enabled }}
 {{- $nodeSelector := or .Values.dagProcessor.nodeSelector .Values.nodeSelector }}
 {{- $affinity := or .Values.dagProcessor.affinity .Values.affinity }}
 {{- $tolerations := or .Values.dagProcessor.tolerations .Values.tolerations }}
@@ -206,12 +210,19 @@ spec:
           {{- if .Values.dagProcessor.logGroomerSidecar.args }}
           args: {{- tpl (toYaml .Values.dagProcessor.logGroomerSidecar.args) . | nindent 12 }}
           {{- end }}
-          {{- if .Values.dagProcessor.logGroomerSidecar.retentionDays }}
           env:
+          {{- if .Values.dagProcessor.logGroomerSidecar.retentionDays }}
             - name: AIRFLOW__LOG_RETENTION_DAYS
               value: "{{ .Values.dagProcessor.logGroomerSidecar.retentionDays }}"
+          {{- end }}
+          {{- if .Values.dagProcessor.logGroomerSidecar.frequencyMinutes }}
+            - name: AIRFLOW__LOG_CLEANUP_FREQUENCY_MINUTES
+              value: "{{ .Values.dagProcessor.logGroomerSidecar.frequencyMinutes }}"
+          {{- end }}
             - name: AIRFLOW_HOME
               value: "{{ .Values.airflowHome }}"
+          {{- if .Values.dagProcessor.logGroomerSidecar.env }}
+              {{- tpl (toYaml .Values.dagProcessor.logGroomerSidecar.env) $ | nindent 12 }}
           {{- end }}
           volumeMounts:
             - name: logs

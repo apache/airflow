@@ -22,15 +22,17 @@ from typing import Annotated
 from fastapi import Depends, HTTPException, Query, Request, Response, status
 from fastapi.exceptions import RequestValidationError
 from pydantic import ValidationError
-from sqlalchemy import update
+from sqlalchemy import select, update
 
 from airflow.api.common import delete_dag as delete_dag_module
 from airflow.api_fastapi.common.db.common import (
     SessionDep,
     paginated_select,
 )
-from airflow.api_fastapi.common.db.dags import dags_select_with_latest_dag_run
+from airflow.api_fastapi.common.db.dags import generate_dag_with_latest_run_query
 from airflow.api_fastapi.common.parameters import (
+    FilterOptionEnum,
+    FilterParam,
     QueryDagDisplayNamePatternSearch,
     QueryDagIdPatternSearch,
     QueryDagIdPatternSearchWithNone,
@@ -41,7 +43,11 @@ from airflow.api_fastapi.common.parameters import (
     QueryOwnersFilter,
     QueryPausedFilter,
     QueryTagsFilter,
+    RangeFilter,
     SortParam,
+    _transform_dag_run_states,
+    datetime_range_filter_factory,
+    filter_param_factory,
 )
 from airflow.api_fastapi.common.router import AirflowRouter
 from airflow.api_fastapi.core_api.datamodels.dags import (
@@ -51,6 +57,12 @@ from airflow.api_fastapi.core_api.datamodels.dags import (
     DAGResponse,
 )
 from airflow.api_fastapi.core_api.openapi.exceptions import create_openapi_http_exception_doc
+from airflow.api_fastapi.core_api.security import (
+    EditableDagsFilterDep,
+    ReadableDagsFilterDep,
+    requires_access_dag,
+)
+from airflow.api_fastapi.logging.decorators import action_logging
 from airflow.exceptions import AirflowException, DagNotFound
 from airflow.models import DAG, DagModel
 from airflow.models.dagrun import DagRun
@@ -58,7 +70,7 @@ from airflow.models.dagrun import DagRun
 dags_router = AirflowRouter(tags=["DAG"], prefix="/dags")
 
 
-@dags_router.get("")
+@dags_router.get("", dependencies=[Depends(requires_access_dag(method="GET"))])
 def get_dags(
     limit: QueryLimit,
     offset: QueryOffset,
@@ -69,6 +81,25 @@ def get_dags(
     only_active: QueryOnlyActiveFilter,
     paused: QueryPausedFilter,
     last_dag_run_state: QueryLastDagRunStateFilter,
+    dag_run_start_date_range: Annotated[
+        RangeFilter, Depends(datetime_range_filter_factory("dag_run_start_date", DagRun, "start_date"))
+    ],
+    dag_run_end_date_range: Annotated[
+        RangeFilter, Depends(datetime_range_filter_factory("dag_run_end_date", DagRun, "end_date"))
+    ],
+    dag_run_state: Annotated[
+        FilterParam[list[str]],
+        Depends(
+            filter_param_factory(
+                DagRun.state,
+                list[str],
+                FilterOptionEnum.ANY_EQUAL,
+                "dag_run_state",
+                default_factory=list,
+                transform_callable=_transform_dag_run_states,
+            )
+        ),
+    ],
     order_by: Annotated[
         SortParam,
         Depends(
@@ -79,11 +110,26 @@ def get_dags(
             ).dynamic_depends()
         ),
     ],
+    readable_dags_filter: ReadableDagsFilterDep,
     session: SessionDep,
 ) -> DAGCollectionResponse:
     """Get all DAGs."""
+    dag_runs_select = None
+
+    if dag_run_state.value or dag_run_start_date_range.is_active() or dag_run_end_date_range.is_active():
+        dag_runs_select, _ = paginated_select(
+            statement=select(DagRun),
+            filters=[
+                dag_run_start_date_range,
+                dag_run_end_date_range,
+                dag_run_state,
+            ],
+            session=session,
+        )
+        dag_runs_select = dag_runs_select.cte()
+
     dags_select, total_entries = paginated_select(
-        statement=dags_select_with_latest_dag_run,
+        statement=generate_dag_with_latest_run_query(dag_runs_select),
         filters=[
             only_active,
             paused,
@@ -92,6 +138,7 @@ def get_dags(
             tags,
             owners,
             last_dag_run_state,
+            readable_dags_filter,
         ],
         order_by=order_by,
         offset=offset,
@@ -116,6 +163,7 @@ def get_dags(
             status.HTTP_422_UNPROCESSABLE_ENTITY,
         ]
     ),
+    dependencies=[Depends(requires_access_dag(method="GET"))],
 )
 def get_dag(dag_id: str, session: SessionDep, request: Request) -> DAGResponse:
     """Get basic information about a DAG."""
@@ -142,6 +190,7 @@ def get_dag(dag_id: str, session: SessionDep, request: Request) -> DAGResponse:
             status.HTTP_404_NOT_FOUND,
         ]
     ),
+    dependencies=[Depends(requires_access_dag(method="GET"))],
 )
 def get_dag_details(dag_id: str, session: SessionDep, request: Request) -> DAGDetailsResponse:
     """Get details of DAG."""
@@ -168,6 +217,7 @@ def get_dag_details(dag_id: str, session: SessionDep, request: Request) -> DAGDe
             status.HTTP_404_NOT_FOUND,
         ]
     ),
+    dependencies=[Depends(requires_access_dag(method="PUT")), Depends(action_logging())],
 )
 def patch_dag(
     dag_id: str,
@@ -188,13 +238,13 @@ def patch_dag(
                 status.HTTP_400_BAD_REQUEST, "Only `is_paused` field can be updated through the REST API"
             )
         fields_to_update = fields_to_update.intersection(update_mask)
-        data = patch_body.model_dump(include=fields_to_update, by_alias=True)
     else:
         try:
             DAGPatchBody(**patch_body.model_dump())
         except ValidationError as e:
             raise RequestValidationError(errors=e.errors())
-        data = patch_body.model_dump(by_alias=True)
+
+    data = patch_body.model_dump(include=fields_to_update, by_alias=True)
 
     for key, val in data.items():
         setattr(dag, key, val)
@@ -210,6 +260,7 @@ def patch_dag(
             status.HTTP_404_NOT_FOUND,
         ]
     ),
+    dependencies=[Depends(requires_access_dag(method="PUT")), Depends(action_logging())],
 )
 def patch_dags(
     patch_body: DAGPatchBody,
@@ -221,6 +272,7 @@ def patch_dags(
     only_active: QueryOnlyActiveFilter,
     paused: QueryPausedFilter,
     last_dag_run_state: QueryLastDagRunStateFilter,
+    editable_dags_filter: EditableDagsFilterDep,
     session: SessionDep,
     update_mask: list[str] | None = Query(None),
 ) -> DAGCollectionResponse:
@@ -240,8 +292,8 @@ def patch_dags(
         update_mask = ["is_paused"]
 
     dags_select, total_entries = paginated_select(
-        statement=dags_select_with_latest_dag_run,
-        filters=[only_active, paused, dag_id_pattern, tags, owners, last_dag_run_state],
+        statement=generate_dag_with_latest_run_query(),
+        filters=[only_active, paused, dag_id_pattern, tags, owners, last_dag_run_state, editable_dags_filter],
         order_by=None,
         offset=offset,
         limit=limit,
@@ -271,6 +323,7 @@ def patch_dags(
             status.HTTP_422_UNPROCESSABLE_ENTITY,
         ]
     ),
+    dependencies=[Depends(requires_access_dag(method="DELETE")), Depends(action_logging())],
 )
 def delete_dag(
     dag_id: str,

@@ -623,7 +623,7 @@ key3 = value3
                 "api": {
                     "auth_backends": (
                         re.compile(r"^airflow\.api\.auth\.backend\.deny_all$|^$"),
-                        "airflow.api.auth.backend.session",
+                        "airflow.providers.fab.auth_manager.api.auth.backend.session",
                         "3.0",
                     ),
                 },
@@ -640,10 +640,11 @@ key3 = value3
                 )
 
     def test_command_from_env(self):
-        test_cmdenv_config = """[testcmdenv]
-itsacommand = NOT OK
-notacommand = OK
-"""
+        test_cmdenv_config = textwrap.dedent("""\
+            [testcmdenv]
+            itsacommand=NOT OK
+            notacommand=OK
+        """)
         test_cmdenv_conf = AirflowConfigParser()
         test_cmdenv_conf.read_string(test_cmdenv_config)
         test_cmdenv_conf.sensitive_config_values.add(("testcmdenv", "itsacommand"))
@@ -937,6 +938,48 @@ class TestDeprecatedConf:
 
             with pytest.warns(DeprecationWarning), conf_vars({("celery", "celeryd_concurrency"): "99"}):
                 assert conf.getint("celery", "worker_concurrency") == 99
+
+    @pytest.mark.parametrize(
+        "deprecated_options_dict, kwargs, new_section_expected_value, old_section_expected_value",
+        [
+            pytest.param(
+                {("old_section", "old_key"): ("new_section", "new_key", "2.0.0")},
+                {"fallback": None},
+                None,
+                "value",
+                id="deprecated_in_different_section_lookup_enabled",
+            ),
+            pytest.param(
+                {("old_section", "old_key"): ("new_section", "new_key", "2.0.0")},
+                {"fallback": None, "lookup_from_deprecated": False},
+                None,
+                None,
+                id="deprecated_in_different_section_lookup_disabled",
+            ),
+            pytest.param(
+                {("new_section", "old_key"): ("new_section", "new_key", "2.0.0")},
+                {"fallback": None},
+                "value",
+                None,
+                id="deprecated_in_same_section_lookup_enabled",
+            ),
+            pytest.param(
+                {("new_section", "old_key"): ("new_section", "new_key", "2.0.0")},
+                {"fallback": None, "lookup_from_deprecated": False},
+                None,
+                None,
+                id="deprecated_in_same_section_lookup_disabled",
+            ),
+        ],
+    )
+    def test_deprecated_options_with_lookup_from_deprecated(
+        self, deprecated_options_dict, kwargs, new_section_expected_value, old_section_expected_value
+    ):
+        with conf_vars({("new_section", "new_key"): "value"}):
+            with set_deprecated_options(deprecated_options=deprecated_options_dict):
+                assert conf.get("new_section", "old_key", **kwargs) == new_section_expected_value
+
+                assert conf.get("old_section", "old_key", **kwargs) == old_section_expected_value
 
     @conf_vars(
         {
@@ -1732,11 +1775,49 @@ class TestWriteDefaultAirflowConfigurationIfNeeded:
         "sensitive_config_values",
         new_callable=lambda: [("mysection1", "mykey1"), ("mysection2", "mykey2")],
     )
-    @patch("airflow.utils.log.secrets_masker.mask_secret")
-    def test_mask_conf_values(self, mock_mask_secret, mock_sensitive_config_values):
-        conf.mask_secrets()
+    def test_mask_conf_values(self, mock_sensitive_config_values):
+        from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS
 
-        mock_mask_secret.assert_any_call("supersecret1")
-        mock_mask_secret.assert_any_call("supersecret2")
+        target = (
+            "airflow.sdk.execution_time.secrets_masker.mask_secret"
+            if AIRFLOW_V_3_0_PLUS
+            else "airflow.utils.log.secrets_masker.mask_secret"
+        )
 
-        assert mock_mask_secret.call_count == 2
+        with patch(target) as mock_mask_secret:
+            conf.mask_secrets()
+
+            mock_mask_secret.assert_any_call("supersecret1")
+            mock_mask_secret.assert_any_call("supersecret2")
+
+            assert mock_mask_secret.call_count == 2
+
+
+@conf_vars({("core", "unit_test_mode"): "False"})
+def test_write_default_config_contains_generated_secrets(tmp_path, monkeypatch):
+    import airflow.configuration
+
+    cfgpath = tmp_path / "airflow-gneerated.cfg"
+    # Patch these globals so it gets reverted by monkeypath after this test is over.
+    monkeypatch.setattr(airflow.configuration, "FERNET_KEY", "")
+    monkeypatch.setattr(airflow.configuration, "JWT_SECRET_KEY", "")
+    monkeypatch.setattr(airflow.configuration, "AIRFLOW_CONFIG", str(cfgpath))
+
+    # Create a new global conf object so our changes don't persist
+    localconf: AirflowConfigParser = airflow.configuration.initialize_config()
+    monkeypatch.setattr(airflow.configuration, "conf", localconf)
+
+    airflow.configuration.write_default_airflow_configuration_if_needed()
+
+    assert cfgpath.is_file()
+
+    lines = cfgpath.read_text().splitlines()
+
+    assert airflow.configuration.FERNET_KEY
+    assert airflow.configuration.JWT_SECRET_KEY
+
+    fernet_line = next(line for line in lines if line.startswith("fernet_key = "))
+    jwt_secret_line = next(line for line in lines if line.startswith("auth_jwt_secret = "))
+
+    assert fernet_line == f"fernet_key = {airflow.configuration.FERNET_KEY}"
+    assert jwt_secret_line == f"auth_jwt_secret = {airflow.configuration.JWT_SECRET_KEY}"

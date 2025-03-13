@@ -20,9 +20,8 @@
 from __future__ import annotations
 
 import logging
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, Protocol
 
-from airflow.typing_compat import Protocol
 from airflow.utils.log.logging_mixin import LoggingMixin
 
 if TYPE_CHECKING:

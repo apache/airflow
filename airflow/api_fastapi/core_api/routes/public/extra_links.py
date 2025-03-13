@@ -19,13 +19,14 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
-from fastapi import HTTPException, Request, status
+from fastapi import Depends, HTTPException, Request, status
 from sqlalchemy.sql import select
 
 from airflow.api_fastapi.common.db.common import SessionDep
 from airflow.api_fastapi.common.router import AirflowRouter
 from airflow.api_fastapi.core_api.datamodels.extra_links import ExtraLinksResponse
 from airflow.api_fastapi.core_api.openapi.exceptions import create_openapi_http_exception_doc
+from airflow.api_fastapi.core_api.security import DagAccessEntity, requires_access_dag
 from airflow.exceptions import TaskNotFound
 
 if TYPE_CHECKING:
@@ -40,6 +41,7 @@ extra_links_router = AirflowRouter(
 @extra_links_router.get(
     "",
     responses=create_openapi_http_exception_doc([status.HTTP_404_NOT_FOUND]),
+    dependencies=[Depends(requires_access_dag("GET", DagAccessEntity.TASK_INSTANCE))],
     tags=["Task Instance"],
 )
 def get_extra_links(
@@ -48,6 +50,7 @@ def get_extra_links(
     task_id: str,
     session: SessionDep,
     request: Request,
+    map_index: int = -1,
 ) -> ExtraLinksResponse:
     """Get extra links for task instance."""
     from airflow.models.taskinstance import TaskInstance
@@ -66,6 +69,7 @@ def get_extra_links(
             TaskInstance.dag_id == dag_id,
             TaskInstance.run_id == dag_run_id,
             TaskInstance.task_id == task_id,
+            TaskInstance.map_index == map_index,
         )
     )
 

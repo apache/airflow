@@ -22,7 +22,6 @@ import logging
 from typing import Any
 
 from airflow.cli.commands.local_commands.daemon_utils import run_command_with_daemon_option
-from airflow.configuration import conf
 from airflow.dag_processing.manager import DagFileProcessorManager, reload_configuration_for_dag_processing
 from airflow.jobs.dag_processor_job_runner import DagProcessorJobRunner
 from airflow.jobs.job import Job, run_job
@@ -34,13 +33,13 @@ log = logging.getLogger(__name__)
 
 def _create_dag_processor_job_runner(args: Any) -> DagProcessorJobRunner:
     """Create DagFileProcessorProcess instance."""
-    processor_timeout_seconds: int = conf.getint("core", "dag_file_processor_timeout")
+    if args.bundle_name:
+        cli_utils.validate_dag_bundle_arg(args.bundle_name)
     return DagProcessorJobRunner(
         job=Job(),
         processor=DagFileProcessorManager(
-            processor_timeout=processor_timeout_seconds,
-            dag_directory=args.subdir,
             max_runs=args.num_runs,
+            bundle_names_to_parse=args.bundle_name,
         ),
     )
 
@@ -49,9 +48,6 @@ def _create_dag_processor_job_runner(args: Any) -> DagProcessorJobRunner:
 @providers_configuration_loaded
 def dag_processor(args):
     """Start Airflow Dag Processor Job."""
-    if not conf.getboolean("scheduler", "standalone_dag_processor"):
-        raise SystemExit("The option [scheduler/standalone_dag_processor] must be True.")
-
     job_runner = _create_dag_processor_job_runner(args)
 
     reload_configuration_for_dag_processing()

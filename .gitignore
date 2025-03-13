@@ -10,8 +10,6 @@ airflow.db
 
 # Airflow temporary artifacts
 airflow/git_version
-airflow/www/static/coverage/
-airflow/www/*.log
 airflow/ui/coverage/
 logs/
 airflow-webserver.pid
@@ -34,6 +32,7 @@ env/
 build/
 develop-eggs/
 dist/
+!providers/fab/**/www/static/dist
 downloads/
 eggs/
 .eggs/
@@ -171,6 +170,7 @@ pnpm-debug.log*
 .vscode/*
 !.vscode/extensions.json
 /.vite/
+airflow/ui/.vite/
 .pnpm-store
 *.tsbuildinfo
 
@@ -257,3 +257,6 @@ airflow-build-dockerfile*
 
 # Temporary ignore uv.lock until we integrate it fully in our constraint preparation mechanism
 /uv.lock
+
+# Ignore zip files https://github.com/apache/airflow/issues/46449
+*.zip

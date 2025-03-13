@@ -19,69 +19,22 @@
 
 from __future__ import annotations
 
-import functools
-import operator
-from collections.abc import Iterator
 from typing import TYPE_CHECKING
 
 import airflow.sdk.definitions.taskgroup
 
 if TYPE_CHECKING:
-    from sqlalchemy.orm import Session
-
-    from airflow.models.operator import Operator
     from airflow.typing_compat import TypeAlias
 
 TaskGroup: TypeAlias = airflow.sdk.definitions.taskgroup.TaskGroup
-
-
-class MappedTaskGroup(airflow.sdk.definitions.taskgroup.MappedTaskGroup):
-    """
-    A mapped task group.
-
-    This doesn't really do anything special, just holds some additional metadata
-    for expansion later.
-
-    Don't instantiate this class directly; call *expand* or *expand_kwargs* on
-    a ``@task_group`` function instead.
-    """
-
-    def iter_mapped_dependencies(self) -> Iterator[Operator]:
-        """Upstream dependencies that provide XComs used by this mapped task group."""
-        from airflow.models.xcom_arg import XComArg
-
-        for op, _ in XComArg.iter_xcom_references(self._expand_input):
-            yield op
-
-    def get_mapped_ti_count(self, run_id: str, *, session: Session) -> int:
-        """
-        Return the number of instances a task in this group should be mapped to at run time.
-
-        This considers both literal and non-literal mapped arguments, and the
-        result is therefore available when all depended tasks have finished. The
-        return value should be identical to ``parse_time_mapped_ti_count`` if
-        all mapped arguments are literal.
-
-        If this group is inside mapped task groups, all the nested counts are
-        multiplied and accounted.
-
-        :meta private:
-
-        :raise NotFullyPopulated: If upstream tasks are not all complete yet.
-        :return: Total number of mapped TIs this task should have.
-        """
-        groups = self.iter_mapped_task_groups()
-        return functools.reduce(
-            operator.mul,
-            (g._expand_input.get_total_map_length(run_id, session=session) for g in groups),
-        )
+MappedTaskGroup: TypeAlias = airflow.sdk.definitions.taskgroup.MappedTaskGroup
 
 
 def task_group_to_dict(task_item_or_group):
     """Create a nested dict representation of this TaskGroup and its children used to construct the Graph."""
-    from airflow.models.abstractoperator import AbstractOperator
-    from airflow.models.baseoperator import BaseOperator
-    from airflow.models.mappedoperator import MappedOperator
+    from airflow.sdk.definitions._internal.abstractoperator import AbstractOperator
+    from airflow.sdk.definitions.baseoperator import BaseOperator
+    from airflow.sdk.definitions.mappedoperator import MappedOperator
 
     if isinstance(task := task_item_or_group, AbstractOperator):
         setup_teardown_type = {}

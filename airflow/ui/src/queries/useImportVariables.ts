@@ -19,36 +19,43 @@
 import { useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 
-import { useVariableServiceGetVariablesKey, useVariableServiceImportVariables } from "openapi/queries";
+import { useVariableServiceBulkVariables, useVariableServiceGetVariablesKey } from "openapi/queries";
 import { toaster } from "src/components/ui";
 
 export const useImportVariables = ({ onSuccessConfirm }: { onSuccessConfirm: () => void }) => {
   const queryClient = useQueryClient();
   const [error, setError] = useState<unknown>(undefined);
 
-  const onSuccess = async (responseData: {
-    created_count: number;
-    created_variable_keys: Array<string>;
-    import_count: number;
-  }) => {
+  const onSuccess = async (responseData: { create?: { errors: Array<unknown>; success: Array<string> } }) => {
     await queryClient.invalidateQueries({
       queryKey: [useVariableServiceGetVariablesKey],
     });
 
-    toaster.create({
-      description: `${responseData.created_count} of ${responseData.import_count} variables imported successfully. Keys imported are ${responseData.created_variable_keys.join(", ")}`,
-      title: "Import Variables Request Successful",
-      type: "success",
-    });
+    if (responseData.create) {
+      const { errors, success } = responseData.create;
 
-    onSuccessConfirm();
+      if (Array.isArray(errors) && errors.length > 0) {
+        const apiError = errors[0] as { error: string };
+
+        setError({
+          body: { detail: apiError.error },
+        });
+      } else if (Array.isArray(success) && success.length > 0) {
+        toaster.create({
+          description: `${success.length} variables created successfully. Keys: ${success.join(", ")}`,
+          title: "Import Variables Request Successful",
+          type: "success",
+        });
+        onSuccessConfirm();
+      }
+    }
   };
 
   const onError = (_error: unknown) => {
     setError(_error);
   };
 
-  const { isPending, mutate } = useVariableServiceImportVariables({
+  const { isPending, mutate } = useVariableServiceBulkVariables({
     onError,
     onSuccess,
   });

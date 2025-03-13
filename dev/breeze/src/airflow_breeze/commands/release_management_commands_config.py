@@ -94,6 +94,7 @@ RELEASE_MANAGEMENT_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] = {
             "name": "Package flags",
             "options": [
                 "--package-format",
+                "--version-suffix-for-pypi",
                 "--use-local-hatch",
             ],
         }

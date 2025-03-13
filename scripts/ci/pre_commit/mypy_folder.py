@@ -25,51 +25,58 @@ sys.path.insert(0, str(Path(__file__).parent.resolve()))
 
 from common_precommit_utils import (
     console,
+    get_all_provider_ids,
     initialize_breeze_precommit,
     run_command_via_breeze_shell,
 )
 
 initialize_breeze_precommit(__name__, __file__)
 
+
 ALLOWED_FOLDERS = [
     "airflow",
-    "providers/src/airflow/providers",
+    *[f"providers/{provider_id.replace('.', '/')}/src" for provider_id in get_all_provider_ids()],
     "dev",
     "docs",
-    "task_sdk/src/airflow/sdk",
+    "task-sdk/src/airflow/sdk",
+    "all_providers",
 ]
 
 if len(sys.argv) < 2:
     console.print(f"[yellow]You need to specify the folder to test as parameter: {ALLOWED_FOLDERS}\n")
     sys.exit(1)
 
-mypy_folder = sys.argv[1]
-if mypy_folder not in ALLOWED_FOLDERS:
-    console.print(f"[yellow]Wrong folder {mypy_folder}. It should be one of those: {ALLOWED_FOLDERS}\n")
-    sys.exit(1)
+mypy_folders = sys.argv[1:]
 
-arguments = [mypy_folder]
-if mypy_folder == "providers/src/airflow/providers":
-    arguments.extend(
-        [
-            "providers/tests",
-            "--namespace-packages",
-        ]
-    )
-if mypy_folder == "task_sdk/src/airflow/sdk":
-    arguments.extend(
-        [
-            "task_sdk/tests",
-            "--namespace-packages",
-        ]
-    )
+for mypy_folder in mypy_folders:
+    if mypy_folder not in ALLOWED_FOLDERS:
+        console.print(
+            f"\n[red]ERROR: Folder `{mypy_folder}` is wrong.[/]\n\n"
+            f"All folders passed should be one of those: {ALLOWED_FOLDERS}\n"
+        )
+        sys.exit(1)
 
-if mypy_folder == "airflow":
-    arguments.extend(
-        [
-            "tests",
-        ]
-    )
+arguments = mypy_folders.copy()
+namespace_packages = False
+
+for mypy_folder in mypy_folders:
+    if mypy_folder == "all_providers":
+        arguments.remove("all_providers")
+        for provider_id in get_all_provider_ids():
+            arguments.append(f"providers/{provider_id.replace('.', '/')}/src")
+            arguments.append(f"providers/{provider_id.replace('.', '/')}/tests")
+        namespace_packages = True
+    elif mypy_folder.startswith("providers/"):
+        arguments.append(f"{Path(mypy_folder).parent.as_posix()}/tests")
+        namespace_packages = True
+    if mypy_folder == "task-sdk/src/airflow/sdk":
+        arguments.append("task-sdk/tests")
+        namespace_packages = True
+    if mypy_folder == "airflow":
+        arguments.append("tests")
+
+if namespace_packages:
+    arguments.append("--namespace-packages")
 
 print("Running /opt/airflow/scripts/in_container/run_mypy.sh with arguments: ", arguments)
 

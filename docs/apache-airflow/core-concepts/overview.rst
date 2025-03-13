@@ -49,6 +49,10 @@ A minimal Airflow installation consists of the following components:
   a configuration property of the *scheduler*, not a separate component and runs within the scheduler
   process. There are several executors available out of the box, and you can also write your own.
 
+* A *dag processor*, which parses DAG files and serializes them into the
+  *metadata database*. More about processing DAG files can be found in
+  :doc:`/administration-and-deployment/dagfile-processing`
+
 * A *webserver*, which presents a handy user interface to inspect, trigger and debug the behaviour of
   DAGs and tasks.
 
@@ -74,15 +78,9 @@ performance in your Airflow:
   where deferred tasks are not used, a triggerer is not necessary. More about deferring tasks can be
   found in :doc:`/authoring-and-scheduling/deferring`.
 
-* Optional *dag processor*, which parses DAG files and serializes them into the
-  *metadata database*. By default, the *dag processor* process is part of the scheduler, but it can
-  be run as a separate component for scalability and security reasons. If *dag processor* is present
-  *scheduler* does not need to read the *DAG files* directly. More about
-  processing DAG files can be found in :doc:`/authoring-and-scheduling/dagfile-processing`
-
 * Optional folder of *plugins*. Plugins are a way to extend Airflow's functionality (similar to installed
   packages). Plugins are read by the *scheduler*, *dag processor*, *triggerer* and *webserver*. More about
-  plugins can be found in :doc:`/authoring-and-scheduling/plugins`.
+  plugins can be found in :doc:`/administration-and-deployment/plugins`.
 
 Deploying Airflow components
 ----------------------------
@@ -127,6 +125,10 @@ The meaning of the different connection types in the diagrams below is as follow
 * **red dashed lines** represent accessing the *metadata database* by all components
 
 .. _overview-basic-airflow-architecture:
+
+..
+  TODO AIP-66 / AIP-72: These example architectures and diagrams need to be updated to reflect AF3 changes
+  like bundles, required DAG processor, execution api, etc.
 
 Basic Airflow deployment
 ........................

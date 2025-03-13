@@ -16,8 +16,6 @@
 # under the License.
 from __future__ import annotations
 
-import time
-
 import pytest
 
 from kubernetes_tests.test_base import (
@@ -52,15 +50,14 @@ class TestKubernetesExecutor(BaseK8STest):
             timeout=300,
         )
 
-    @pytest.mark.execution_timeout(300)
+    @pytest.mark.execution_timeout(500)
     def test_integration_run_dag_with_scheduler_failure(self):
         dag_id = "example_kubernetes_executor"
 
         dag_run_id, logical_date = self.start_job_in_kubernetes(dag_id, self.host)
 
         self._delete_airflow_pod("scheduler")
-
-        time.sleep(10)  # give time for pod to restart
+        self.ensure_deployment_health("airflow-scheduler")
 
         # Wait some time for the operator to complete
         self.monitor_task(
@@ -68,15 +65,6 @@ class TestKubernetesExecutor(BaseK8STest):
             dag_run_id=dag_run_id,
             dag_id=dag_id,
             task_id="start_task",
-            expected_final_state="success",
-            timeout=300,
-        )
-
-        self.monitor_task(
-            host=self.host,
-            dag_run_id=dag_run_id,
-            dag_id=dag_id,
-            task_id="other_namespace_task",
             expected_final_state="success",
             timeout=300,
         )

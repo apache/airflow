@@ -21,7 +21,6 @@ import shutil
 import subprocess
 import sys
 from pathlib import Path
-from shutil import copytree, rmtree
 from typing import Any, TextIO
 
 from airflow_breeze.utils.console import get_console
@@ -32,12 +31,10 @@ from airflow_breeze.utils.packages import (
     get_provider_details,
     get_provider_jinja_context,
     get_removed_provider_ids,
-    get_source_package_path,
-    get_target_root_for_copied_provider_sources,
+    regenerate_pyproject_toml,
     render_template,
     tag_exists_for_provider,
 )
-from airflow_breeze.utils.path_utils import AIRFLOW_PROVIDERS_SRC, AIRFLOW_SOURCES_ROOT
 from airflow_breeze.utils.run_utils import run_command
 from airflow_breeze.utils.version_utils import is_local_package_version
 
@@ -73,34 +70,6 @@ class PrepareReleasePackageErrorBuildingPackageException(Exception):
     """Error when building the package."""
 
 
-def copy_provider_sources_to_target(provider_id: str) -> Path:
-    target_provider_root_path = get_target_root_for_copied_provider_sources(provider_id)
-
-    if target_provider_root_path.exists() and not target_provider_root_path.is_dir():
-        get_console().print(
-            f"[error]Target folder for {provider_id} sources is not a directory "
-            f"please delete {target_provider_root_path} and try again!"
-        )
-    rmtree(target_provider_root_path, ignore_errors=True)
-    target_provider_root_path.mkdir(parents=True)
-    source_provider_sources_path = get_source_package_path(provider_id)
-    relative_provider_path = source_provider_sources_path.relative_to(AIRFLOW_PROVIDERS_SRC)
-    target_providers_sub_folder = target_provider_root_path / relative_provider_path
-    get_console().print(
-        f"[info]Copying provider sources: {source_provider_sources_path} -> {target_providers_sub_folder}"
-    )
-    copytree(source_provider_sources_path, target_providers_sub_folder)
-    shutil.copy(AIRFLOW_SOURCES_ROOT / "LICENSE", target_providers_sub_folder / "LICENSE")
-    # We do not copy NOTICE from the top level source of Airflow because NOTICE only refers to
-    # Airflow sources - not to providers. If any of the providers is going to have a code that
-    # requires NOTICE, then it should be stored in the provider sources (airflow/providers/PROVIDER_ID)
-    # And it will be copied from there.
-    (target_providers_sub_folder / ".latest-doc-only-change.txt").unlink(missing_ok=True)
-    (target_providers_sub_folder / "CHANGELOG.rst").unlink(missing_ok=True)
-    (target_providers_sub_folder / "provider.yaml").unlink(missing_ok=True)
-    return target_provider_root_path
-
-
 def get_provider_package_jinja_context(provider_id: str, version_suffix: str) -> dict[str, Any]:
     provider_details = get_provider_details(provider_id)
     jinja_context = get_provider_jinja_context(
@@ -133,6 +102,8 @@ def _prepare_pyproject_toml_file(context: dict[str, Any], target_path: Path):
         context=context,
         extension=".toml",
         autoescape=False,
+        lstrip_blocks=True,
+        trim_blocks=True,
         keep_trailing_newline=True,
     )
     (target_path / "pyproject.toml").write_text(manifest_content)
@@ -179,7 +150,7 @@ def should_skip_the_package(provider_id: str, version_suffix: str) -> tuple[bool
     release_tag = get_latest_provider_tag(provider_id, "")
     if tag_exists_for_provider(provider_id, release_tag):
         get_console().print(f"[warning]The tag {release_tag} exists. Provider is released. Skipping it.[/]")
-        return True, ""
+        return True, version_suffix
     while True:
         current_tag = get_latest_provider_tag(provider_id, f"rc{current_version}")
         if tag_exists_for_provider(provider_id, current_tag):
@@ -198,10 +169,31 @@ def cleanup_build_remnants(target_provider_root_sources_path: Path):
     get_console().print(f"[info]Cleaned remnants in {target_provider_root_sources_path}\n")
 
 
+def apply_version_suffix_to_pyproject_toml(
+    provider_id: str, target_provider_root_sources_path: Path, version_suffix: str
+) -> str:
+    pyproject_toml_path = target_provider_root_sources_path / "pyproject.toml"
+    original_pyproject_toml_content = pyproject_toml_path.read_text()
+    if not version_suffix:
+        return original_pyproject_toml_content
+    get_console().print(f"\n[info]Applying version suffix {version_suffix} to {pyproject_toml_path}")
+    jinja_context = get_provider_package_jinja_context(provider_id=provider_id, version_suffix=version_suffix)
+    provider_details = get_provider_details(provider_id)
+    regenerate_pyproject_toml(jinja_context, provider_details, version_suffix)
+    _prepare_pyproject_toml_file(jinja_context, target_provider_root_sources_path)
+    return original_pyproject_toml_content
+
+
+def restore_pyproject_toml(target_provider_root_sources_path: Path, original_pyproject_toml_content: str):
+    pyproject_toml_path = target_provider_root_sources_path / "pyproject.toml"
+    get_console().print(f"\n[info]Restoring original pyproject.toml in {pyproject_toml_path}")
+    pyproject_toml_path.write_text(original_pyproject_toml_content)
+
+
 def build_provider_package(provider_id: str, target_provider_root_sources_path: Path, package_format: str):
     get_console().print(
-        f"\n[info]Building provider package: {provider_id} in format {package_format} in "
-        f"{target_provider_root_sources_path}\n"
+        f"\n[info]Building provider package: {provider_id} "
+        f"in format {package_format} in {target_provider_root_sources_path}\n"
     )
     command: list[str] = [sys.executable, "-m", "flit", "build", "--no-setup-py", "--no-use-vcs"]
     if package_format != "both":
@@ -222,7 +214,10 @@ def build_provider_package(provider_id: str, target_provider_root_sources_path: 
 
 
 def move_built_packages_and_cleanup(
-    target_provider_root_sources_path: Path, dist_folder: Path, skip_cleanup: bool
+    target_provider_root_sources_path: Path,
+    dist_folder: Path,
+    skip_cleanup: bool,
+    delete_only_build_and_dist_folders: bool = False,
 ):
     for file in (target_provider_root_sources_path / "dist").glob("apache*"):
         get_console().print(f"[info]Moving {file} to {dist_folder}")
@@ -240,8 +235,17 @@ def move_built_packages_and_cleanup(
             f"src/airflow_breeze/templates"
         )
     else:
-        get_console().print(f"[info]Cleaning up {target_provider_root_sources_path}")
-        shutil.rmtree(target_provider_root_sources_path, ignore_errors=True)
+        get_console().print(
+            f"[info]Cleaning up {target_provider_root_sources_path} with "
+            f"delete_only_build_and_dist_folders={delete_only_build_and_dist_folders}"
+        )
+        if delete_only_build_and_dist_folders:
+            shutil.rmtree(target_provider_root_sources_path / "build", ignore_errors=True)
+            shutil.rmtree(target_provider_root_sources_path / "dist", ignore_errors=True)
+            for file in target_provider_root_sources_path.glob("*.egg-info"):
+                shutil.rmtree(file, ignore_errors=True)
+        else:
+            shutil.rmtree(target_provider_root_sources_path, ignore_errors=True)
         get_console().print(f"[info]Cleaned up {target_provider_root_sources_path}")
 
 

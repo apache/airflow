@@ -20,13 +20,10 @@ import datetime
 import logging
 import random
 import warnings
-from collections.abc import Iterable
-from functools import partial
 from typing import TYPE_CHECKING, Callable, Union
 
 from opentelemetry import metrics
 from opentelemetry.exporter.otlp.proto.http.metric_exporter import OTLPMetricExporter
-from opentelemetry.metrics import Observation
 from opentelemetry.sdk.metrics import MeterProvider
 from opentelemetry.sdk.metrics._internal.export import ConsoleMetricExporter, PeriodicExportingMetricReader
 from opentelemetry.sdk.resources import HOST_NAME, SERVICE_NAME, Resource
@@ -159,7 +156,7 @@ class _OtelTimer(Timer):
 
     def stop(self, send: bool = True) -> None:
         super().stop(send)
-        if self.name and send:
+        if self.name and send and self.duration:
             self.otel_logger.metrics_map.set_gauge_value(
                 full_name(prefix=self.otel_logger.prefix, name=self.name), self.duration, False, self.tags
             )
@@ -290,6 +287,25 @@ class SafeOtelLogger:
         return _OtelTimer(self, stat, tags)
 
 
+class InternalGauge:
+    """Stores sync gauge instrument and current value to support delta feature."""
+
+    def __init__(self, meter, name: str, tags: Attributes):
+        self.attributes = tags
+        otel_safe_name = _get_otel_safe_name(name)
+        self.gauge = meter.create_gauge(name=otel_safe_name)
+        log.debug("Created %s as type: %s", otel_safe_name, _type_as_str(self.gauge))
+        self.value = DEFAULT_GAUGE_VALUE
+        self.gauge.set(self.value, attributes=self.attributes)
+
+    def set_value(self, new_value: int | float, delta: bool):
+        """Delta feature to increase old value with new value and metric export."""
+        if delta:
+            new_value += self.value
+        self.value = new_value
+        self.gauge.set(new_value, attributes=self.attributes)
+
+
 class MetricsMap:
     """Stores Otel Instruments."""
 
@@ -335,7 +351,7 @@ class MetricsMap:
         if key in self.map.keys():
             del self.map[key]
 
-    def set_gauge_value(self, name: str, value: float | None, delta: bool, tags: Attributes):
+    def set_gauge_value(self, name: str, value: int | float, delta: bool, tags: Attributes):
         """
         Override the last reading for a Gauge with a new value.
 
@@ -346,48 +362,11 @@ class MetricsMap:
         :returns: None
         """
         key: str = _generate_key_name(name, tags)
-        new_value = value or DEFAULT_GAUGE_VALUE
-        old_value = self.poke_gauge(name, tags)
-        if delta:
-            new_value += old_value
-        # If delta is true, add the new value to the last reading otherwise overwrite it.
-        self.map[key] = Observation(new_value, tags)
 
-    def _create_gauge(self, name: str, attributes: Attributes = None):
-        """
-        Create a new Observable Gauge with the provided name and the default value.
-
-        :param name: The name of the gauge to fetch or create.
-        :param attributes:  Gauge attributes, used to generate a unique key to store the gauge.
-        """
-        otel_safe_name = _get_otel_safe_name(name)
-        key = _generate_key_name(name, attributes)
-
-        gauge = self.meter.create_observable_gauge(
-            name=otel_safe_name,
-            callbacks=[partial(self.read_gauge, _generate_key_name(name, attributes))],
-        )
-        self.map[key] = Observation(DEFAULT_GAUGE_VALUE, attributes)
-
-        return gauge
-
-    def read_gauge(self, key: str, *args) -> Iterable[Observation]:
-        """Return the Observation for the provided key; callback for the Observable Gauges."""
-        yield self.map[key]
-
-    def poke_gauge(self, name: str, attributes: Attributes = None) -> GaugeValues:
-        """
-        Return the value of the gauge; creates a new one with the default value if it did not exist.
-
-        :param name: The name of the gauge to fetch or create.
-        :param attributes:  Gauge attributes, used to generate a unique key to store the gauge.
-        :returns:  The integer or float value last recorded for the provided Gauge name.
-        """
-        key = _generate_key_name(name, attributes)
         if key not in self.map:
-            self._create_gauge(name, attributes)
+            self.map[key] = InternalGauge(meter=self.meter, name=name, tags=tags)
 
-        return self.map[key].value
+        self.map[key].set_value(value, delta)
 
 
 def get_otel_logger(cls) -> SafeOtelLogger:

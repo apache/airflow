@@ -36,8 +36,8 @@ from rich.console import Console
 from tabulate import tabulate
 
 from docs.exts.docs_build import dev_index_generator, lint_checks
-from docs.exts.docs_build.code_utils import CONSOLE_WIDTH
-from docs.exts.docs_build.docs_builder import DOCS_DIR, AirflowDocsBuilder, get_available_packages
+from docs.exts.docs_build.code_utils import CONSOLE_WIDTH, DOCS_DIR, ROOT_PROJECT_DIR
+from docs.exts.docs_build.docs_builder import AirflowDocsBuilder, get_available_packages
 from docs.exts.docs_build.errors import DocBuildError, display_errors_summary
 from docs.exts.docs_build.fetch_inventories import fetch_inventories
 from docs.exts.docs_build.github_action_utils import with_group
@@ -86,21 +86,21 @@ def _promote_new_flags():
     console.print()
     if ON_GITHUB_ACTIONS:
         console.print("You can quickly build documentation locally with just one command.")
-        console.print("    [info]breeze build-docs[/]")
+        console.print("    [bright_blue]breeze build-docs[/]")
         console.print()
         console.print("[yellow]Still too slow?[/]")
         console.print()
     console.print("You can only build one documentation package:")
-    console.print("    [info]breeze build-docs <PACKAGES>[/]")
+    console.print("    [bright_blue]breeze build-docs <PACKAGES>[/]")
     console.print()
     console.print("This usually takes from [yellow]20 seconds[/] to [yellow]2 minutes[/].")
     console.print()
     console.print("You can also use other extra flags to iterate faster:")
-    console.print("   [info]--docs-only       - Only build documentation[/]")
-    console.print("   [info]--spellcheck-only - Only perform spellchecking[/]")
+    console.print("   [bright_blue]--docs-only       - Only build documentation[/]")
+    console.print("   [bright_blue]--spellcheck-only - Only perform spellchecking[/]")
     console.print()
     console.print("For more info:")
-    console.print("   [info]breeze build-docs --help[/]")
+    console.print("   [bright_blue]breeze build-docs --help[/]")
     console.print()
 
 
@@ -134,6 +134,12 @@ def _get_parser():
             "full package name, for example `apache-airflow-providers-*`. Useful when you want to select"
             "several similarly named packages together."
         ),
+    )
+    parser.add_argument(
+        "--skip-deletion",
+        dest="skip_deletion",
+        action="store_true",
+        help="Skip deletion of generated files (for new package structure only)",
     )
     parser.add_argument("--docs-only", dest="docs_only", action="store_true", help="Only build documentation")
     parser.add_argument(
@@ -171,6 +177,7 @@ class BuildSpecification(NamedTuple):
     """Specification of single build."""
 
     package_name: str
+    skip_deletion: bool
     verbose: bool
 
 
@@ -194,10 +201,11 @@ class SpellCheckResult(NamedTuple):
 def perform_docs_build_for_single_package(build_specification: BuildSpecification) -> BuildDocsResult:
     """Performs single package docs build."""
     builder = AirflowDocsBuilder(package_name=build_specification.package_name)
-    console.print(f"[info]{build_specification.package_name:60}:[/] Building documentation")
+    console.print(f"[bright_blue]{build_specification.package_name:60}:[/] Building documentation")
     result = BuildDocsResult(
         package_name=build_specification.package_name,
         errors=builder.build_sphinx_docs(
+            skip_deletion=build_specification.skip_deletion,
             verbose=build_specification.verbose,
         ),
         log_file_name=builder.log_build_filename,
@@ -208,8 +216,9 @@ def perform_docs_build_for_single_package(build_specification: BuildSpecificatio
 def perform_spell_check_for_single_package(build_specification: BuildSpecification) -> SpellCheckResult:
     """Performs single package spell check."""
     builder = AirflowDocsBuilder(package_name=build_specification.package_name)
-    console.print(f"[info]{build_specification.package_name:60}:[/] Checking spelling started")
+    console.print(f"[bright_blue]{build_specification.package_name:60}:[/] Checking spelling started")
     spelling_errors, build_errors = builder.check_spelling(
+        skip_deletion=build_specification.skip_deletion,
         verbose=build_specification.verbose,
     )
     result = SpellCheckResult(
@@ -218,7 +227,7 @@ def perform_spell_check_for_single_package(build_specification: BuildSpecificati
         build_errors=build_errors,
         log_file_name=builder.log_spelling_filename,
     )
-    console.print(f"[info]{build_specification.package_name:60}:[/] Checking spelling completed")
+    console.print(f"[bright_blue]{build_specification.package_name:60}:[/] Checking spelling completed")
     return result
 
 
@@ -226,6 +235,7 @@ def build_docs_for_packages(
     packages_to_build: list[str],
     docs_only: bool,
     spellcheck_only: bool,
+    skip_deletion: bool,
     jobs: int,
     verbose: bool,
 ) -> tuple[dict[str, list[DocBuildError]], dict[str, list[SpellingError]]]:
@@ -234,7 +244,7 @@ def build_docs_for_packages(
     all_spelling_errors: dict[str, list[SpellingError]] = defaultdict(list)
     with with_group("Cleaning documentation files"):
         for package_name in packages_to_build:
-            console.print(f"[info]{package_name:60}:[/] Cleaning files")
+            console.print(f"[bright_blue]{package_name:60}:[/] Cleaning files")
             builder = AirflowDocsBuilder(package_name=package_name)
             builder.clean_files()
     if jobs > 1:
@@ -245,6 +255,7 @@ def build_docs_for_packages(
             docs_only=docs_only,
             jobs=jobs,
             spellcheck_only=spellcheck_only,
+            skip_deletion=skip_deletion,
             verbose=verbose,
         )
     else:
@@ -254,6 +265,7 @@ def build_docs_for_packages(
             packages_to_build=packages_to_build,
             docs_only=docs_only,
             spellcheck_only=spellcheck_only,
+            skip_deletion=skip_deletion,
             verbose=verbose,
         )
     return all_build_errors, all_spelling_errors
@@ -263,6 +275,7 @@ def run_sequentially(
     all_build_errors,
     all_spelling_errors,
     packages_to_build,
+    skip_deletion,
     docs_only,
     spellcheck_only,
     verbose,
@@ -273,6 +286,7 @@ def run_sequentially(
             build_result = perform_docs_build_for_single_package(
                 build_specification=BuildSpecification(
                     package_name=package_name,
+                    skip_deletion=True if not docs_only else skip_deletion,
                     verbose=verbose,
                 )
             )
@@ -284,6 +298,7 @@ def run_sequentially(
             spellcheck_result = perform_spell_check_for_single_package(
                 build_specification=BuildSpecification(
                     package_name=package_name,
+                    skip_deletion=skip_deletion,
                     verbose=verbose,
                 )
             )
@@ -301,6 +316,7 @@ def run_in_parallel(
     docs_only: bool,
     jobs: int,
     spellcheck_only: bool,
+    skip_deletion: bool,
     verbose: bool,
 ):
     """Run both - spellcheck and docs build sequentially without multiprocessing"""
@@ -309,6 +325,7 @@ def run_in_parallel(
             run_docs_build_in_parallel(
                 all_build_errors=all_build_errors,
                 packages_to_build=packages_to_build,
+                skip_deletion=True if not docs_only else skip_deletion,
                 verbose=verbose,
                 pool=pool,
             )
@@ -317,6 +334,7 @@ def run_in_parallel(
                 all_spelling_errors=all_spelling_errors,
                 all_build_errors=all_build_errors,
                 packages_to_build=packages_to_build,
+                skip_deletion=skip_deletion,
                 verbose=verbose,
                 pool=pool,
             )
@@ -326,16 +344,17 @@ def print_build_output(result: BuildDocsResult):
     """Prints output of docs build job."""
     with with_group(f"{TEXT_RED}Output for documentation build {result.package_name}{TEXT_RESET}"):
         console.print()
-        console.print(f"[info]{result.package_name:60}: " + "#" * 80)
+        console.print(f"[bright_blue]{result.package_name:60}: " + "#" * 80)
         with open(result.log_file_name) as output:
             for line in output.read().splitlines():
                 console.print(f"{result.package_name:60} {line}")
-        console.print(f"[info]{result.package_name:60}: " + "#" * 80)
+        console.print(f"[bright_blue]{result.package_name:60}: " + "#" * 80)
 
 
 def run_docs_build_in_parallel(
     all_build_errors: dict[str, list[DocBuildError]],
     packages_to_build: list[str],
+    skip_deletion: bool,
     verbose: bool,
     pool: Any,  # Cannot use multiprocessing types here: https://github.com/python/typeshed/issues/4266
 ):
@@ -343,10 +362,11 @@ def run_docs_build_in_parallel(
     doc_build_specifications: list[BuildSpecification] = []
     with with_group("Scheduling documentation to build"):
         for package_name in packages_to_build:
-            console.print(f"[info]{package_name:60}:[/] Scheduling documentation to build")
+            console.print(f"[bright_blue]{package_name:60}:[/] Scheduling documentation to build")
             doc_build_specifications.append(
                 BuildSpecification(
                     package_name=package_name,
+                    skip_deletion=skip_deletion,
                     verbose=verbose,
                 )
             )
@@ -363,11 +383,11 @@ def print_spelling_output(result: SpellCheckResult):
     """Prints output of spell check job."""
     with with_group(f"{TEXT_RED}Output for spelling check: {result.package_name}{TEXT_RESET}"):
         console.print()
-        console.print(f"[info]{result.package_name:60}: " + "#" * 80)
+        console.print(f"[bright_blue]{result.package_name:60}: " + "#" * 80)
         with open(result.log_file_name) as output:
             for line in output.read().splitlines():
                 console.print(f"{result.package_name:60} {line}")
-        console.print(f"[info]{result.package_name:60}: " + "#" * 80)
+        console.print(f"[bright_blue]{result.package_name:60}: " + "#" * 80)
         console.print()
 
 
@@ -375,6 +395,7 @@ def run_spell_check_in_parallel(
     all_spelling_errors: dict[str, list[SpellingError]],
     all_build_errors: dict[str, list[DocBuildError]],
     packages_to_build: list[str],
+    skip_deletion: bool,
     verbose: bool,
     pool,
 ):
@@ -382,8 +403,10 @@ def run_spell_check_in_parallel(
     spell_check_specifications: list[BuildSpecification] = []
     with with_group("Scheduling spell checking of documentation"):
         for package_name in packages_to_build:
-            console.print(f"[info]{package_name:60}:[/] Scheduling spellchecking")
-            spell_check_specifications.append(BuildSpecification(package_name=package_name, verbose=verbose))
+            console.print(f"[bright_blue]{package_name:60}:[/] Scheduling spellchecking")
+            spell_check_specifications.append(
+                BuildSpecification(package_name=package_name, skip_deletion=skip_deletion, verbose=verbose)
+            )
     with with_group("Running spell checking of documentation"):
         console.print()
         result_list = pool.map(perform_spell_check_for_single_package, spell_check_specifications)
@@ -401,7 +424,7 @@ def display_packages_summary(
     packages_names = {*build_errors.keys(), *spelling_errors.keys()}
     tabular_data = [
         {
-            "Package name": f"[info]{package_name}[/]",
+            "Package name": f"[bright_blue]{package_name}[/]",
             "Count of doc build errors": len(build_errors.get(package_name, [])),
             "Count of spelling errors": len(spelling_errors.get(package_name, [])),
         }
@@ -447,16 +470,23 @@ def main():
     disable_provider_checks = args.disable_provider_checks
     disable_checks = args.disable_checks
     package_filters = args.package_filter
+    skip_deletion = args.skip_deletion
     with with_group("Available packages"):
         for pkg in sorted(available_packages):
             console.print(f" - {pkg}")
 
     for package in available_packages:
-        api_dir = os.path.join(DOCS_DIR, package, "_api")
+        if package.startswith("apache-airflow-providers-"):
+            package_id = package.replace("apache-airflow-providers-", "").replace("-", ".")
+            api_dir = os.path.join(ROOT_PROJECT_DIR, "providers", *package_id.split("."), "docs", "_api")
+        else:
+            api_dir = os.path.join(DOCS_DIR, package, "_api")
         if os.path.exists(api_dir):
             if not os.listdir(api_dir):
                 console.print(
-                    f"[red]The toctree already contains a reference to a non-existing document for provider [green]'{package}'[/green]. Use the --clean-build option while building docs"
+                    "[red]The toctree already contains a reference to a non-existing document "
+                    f"for provider [green]'{package}'[/green]: {api_dir}. "
+                    f"Use the --clean-build option while building docs"
                 )
                 sys.exit(1)
 
@@ -487,6 +517,7 @@ def main():
             packages_to_build=priority_packages,
             docs_only=docs_only,
             spellcheck_only=spellcheck_only,
+            skip_deletion=skip_deletion,
             jobs=jobs,
             verbose=args.verbose,
         )
@@ -503,6 +534,7 @@ def main():
         packages_to_build=packages_to_build if len(priority_packages) > 1 else normal_packages,
         docs_only=docs_only,
         spellcheck_only=spellcheck_only,
+        skip_deletion=skip_deletion,
         jobs=jobs,
         verbose=args.verbose,
     )
@@ -608,6 +640,7 @@ def retry_building_docs_if_needed(
         packages_to_build=to_retry_packages,
         docs_only=docs_only,
         spellcheck_only=False,
+        skip_deletion=args.skip_deletion,
         jobs=jobs,
         verbose=args.verbose,
     )

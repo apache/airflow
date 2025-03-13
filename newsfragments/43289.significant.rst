@@ -2,3 +2,24 @@ Support for adding executors via Airflow Plugins is removed
 
 Executors should no longer be registered or imported via Airflow's plugin mechanism -- these types of classes
 are just treated as plain Python classes by Airflow, so there is no need to register them with Airflow.
+
+* Types of change
+
+  * [ ] Dag changes
+  * [ ] Config changes
+  * [ ] API changes
+  * [ ] CLI changes
+  * [ ] Behaviour changes
+  * [x] Plugin changes
+  * [ ] Dependency changes
+  * [ ] Code interface changes
+
+* Migration rules needed
+
+  * ruff
+
+    * AIR302
+
+      * [x] extension ``executors`` in ``airflow.plugins_manager.AirflowPlugin``
+      * [x] extension ``operators`` in ``airflow.plugins_manager.AirflowPlugin``
+      * [x] extension ``sensors`` in ``airflow.plugins_manager.AirflowPlugin``

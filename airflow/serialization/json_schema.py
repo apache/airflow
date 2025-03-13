@@ -21,11 +21,10 @@ from __future__ import annotations
 
 import pkgutil
 from collections.abc import Iterable
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Protocol
 
 from airflow.exceptions import AirflowException
 from airflow.settings import json
-from airflow.typing_compat import Protocol
 
 if TYPE_CHECKING:
     import jsonschema

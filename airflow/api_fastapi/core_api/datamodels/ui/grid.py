@@ -18,7 +18,6 @@
 from __future__ import annotations
 
 from datetime import datetime
-from uuid import UUID
 
 from pydantic import BaseModel, Field
 
@@ -47,11 +46,13 @@ class GridDAGRunwithTIs(BaseModel):
     queued_at: datetime | None
     start_date: datetime | None
     end_date: datetime | None
+    run_after: datetime
     state: DagRunState
     run_type: DagRunType
+    logical_date: datetime | None
     data_interval_start: datetime | None
     data_interval_end: datetime | None
-    version_number: UUID | None
+    version_number: int | None
     note: str | None
     task_instances: list[GridTaskInstanceSummary]
 

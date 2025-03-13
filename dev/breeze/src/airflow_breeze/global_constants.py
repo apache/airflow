@@ -22,29 +22,10 @@ from __future__ import annotations
 
 import json
 import platform
-import sys
 from enum import Enum
-
-from airflow_breeze.utils.console import get_console
-
-try:
-    from functools import cache
-except ImportError:
-    get_console().print(
-        "\n[error]Breeze doesn't support Python version <=3.8\n\n"
-        "[warning]Use Python 3.9 and force reinstall breeze:"
-        ""
-        " either with uv: \n\n"
-        "     uv tool install --force --reinstall --editable ./dev/breeze\n\n"
-        ""
-        " or with pipx\n\n"
-        "     pipx install --force -e ./dev/breeze --python 3.9\n"
-        "\nTo find out more, visit [info]https://github.com/apache/airflow/"
-        "blob/main/dev/breeze/doc/01_installation.rst[/]\n"
-    )
-    sys.exit(1)
 from pathlib import Path
 
+from airflow_breeze.utils.functools_cache import clearable_cache
 from airflow_breeze.utils.host_info_utils import Architecture
 from airflow_breeze.utils.path_utils import AIRFLOW_SOURCES_ROOT
 
@@ -145,7 +126,7 @@ ALLOWED_DOCKER_COMPOSE_PROJECTS = ["breeze", "pre-commit", "docker-compose"]
 #   - https://endoflife.date/amazon-eks
 #   - https://endoflife.date/azure-kubernetes-service
 #   - https://endoflife.date/google-kubernetes-engine
-ALLOWED_KUBERNETES_VERSIONS = ["v1.28.15", "v1.29.12", "v1.30.8", "v1.31.4", "v1.32.0"]
+ALLOWED_KUBERNETES_VERSIONS = ["v1.29.12", "v1.30.8", "v1.31.4", "v1.32.0"]
 
 LOCAL_EXECUTOR = "LocalExecutor"
 KUBERNETES_EXECUTOR = "KubernetesExecutor"
@@ -167,9 +148,13 @@ START_AIRFLOW_ALLOWED_EXECUTORS = [LOCAL_EXECUTOR, CELERY_EXECUTOR, EDGE_EXECUTO
 START_AIRFLOW_DEFAULT_ALLOWED_EXECUTOR = START_AIRFLOW_ALLOWED_EXECUTORS[0]
 ALLOWED_CELERY_EXECUTORS = [CELERY_EXECUTOR, CELERY_K8S_EXECUTOR]
 
+CONSTRAINTS_SOURCE_PROVIDERS = "constraints-source-providers"
+CONSTRAINTS = "constraints"
+CONSTRAINTS_NO_PROVIDERS = "constraints-no-providers"
+
 ALLOWED_KIND_OPERATIONS = ["start", "stop", "restart", "status", "deploy", "test", "shell", "k9s"]
-ALLOWED_CONSTRAINTS_MODES_CI = ["constraints-source-providers", "constraints", "constraints-no-providers"]
-ALLOWED_CONSTRAINTS_MODES_PROD = ["constraints", "constraints-no-providers", "constraints-source-providers"]
+ALLOWED_CONSTRAINTS_MODES_CI = [CONSTRAINTS_SOURCE_PROVIDERS, CONSTRAINTS, CONSTRAINTS_NO_PROVIDERS]
+ALLOWED_CONSTRAINTS_MODES_PROD = [CONSTRAINTS, CONSTRAINTS_NO_PROVIDERS, CONSTRAINTS_SOURCE_PROVIDERS]
 
 ALLOWED_CELERY_BROKERS = ["rabbitmq", "redis"]
 DEFAULT_CELERY_BROKER = ALLOWED_CELERY_BROKERS[1]
@@ -207,8 +192,8 @@ if MYSQL_INNOVATION_RELEASE:
 
 ALLOWED_INSTALL_MYSQL_CLIENT_TYPES = ["mariadb", "mysql"]
 
-PIP_VERSION = "24.3.1"
-UV_VERSION = "0.5.14"
+PIP_VERSION = "25.0.1"
+UV_VERSION = "0.6.5"
 
 DEFAULT_UV_HTTP_TIMEOUT = 300
 DEFAULT_WSL2_HTTP_TIMEOUT = 900
@@ -222,12 +207,12 @@ REGULAR_DOC_PACKAGES = [
 ]
 
 
-@cache
+@clearable_cache
 def all_selective_core_test_types() -> tuple[str, ...]:
     return tuple(sorted(e.value for e in SelectiveCoreTestType))
 
 
-@cache
+@clearable_cache
 def providers_test_type() -> tuple[str, ...]:
     return tuple(sorted(e.value for e in SelectiveProvidersTestType))
 
@@ -244,7 +229,6 @@ class SelectiveCoreTestType(SelectiveTestType):
     SERIALIZATION = "Serialization"
     OTHER = "Other"
     OPERATORS = "Operators"
-    WWW = "WWW"
 
 
 class SelectiveProvidersTestType(SelectiveTestType):
@@ -278,7 +262,7 @@ ALL_TEST_SUITES: dict[str, tuple[str, ...]] = {
 }
 
 
-@cache
+@clearable_cache
 def all_helm_test_packages() -> list[str]:
     return sorted(
         [
@@ -297,13 +281,13 @@ ALLOWED_TEST_TYPE_CHOICES: dict[GroupOfTests, list[str]] = {
 }
 
 
-@cache
+@clearable_cache
 def all_task_sdk_test_packages() -> list[str]:
     try:
         return sorted(
             [
                 candidate.name
-                for candidate in (AIRFLOW_SOURCES_ROOT / "task_sdk" / "tests").iterdir()
+                for candidate in (AIRFLOW_SOURCES_ROOT / "task-sdk" / "tests").iterdir()
                 if candidate.is_dir() and candidate.name != "__pycache__"
             ]
         )
@@ -349,9 +333,8 @@ POSTGRES_HOST_PORT = "25433"
 RABBITMQ_HOST_PORT = "25672"
 REDIS_HOST_PORT = "26379"
 SSH_PORT = "12322"
-WEBSERVER_HOST_PORT = "28080"
 VITE_DEV_PORT = "5173"
-FASTAPI_API_HOST_PORT = "29091"
+WEB_HOST_PORT = "28080"
 
 CELERY_BROKER_URLS_MAP = {"rabbitmq": "amqp://guest:guest@rabbitmq:5672", "redis": "redis://redis:6379/0"}
 SQLITE_URL = "sqlite:////root/airflow/sqlite/airflow.db"
@@ -422,6 +405,7 @@ AIRFLOW_PYTHON_COMPATIBILITY_MATRIX = {
     "2.10.2": ["3.8", "3.9", "3.10", "3.11", "3.12"],
     "2.10.3": ["3.8", "3.9", "3.10", "3.11", "3.12"],
     "2.10.4": ["3.8", "3.9", "3.10", "3.11", "3.12"],
+    "2.10.5": ["3.8", "3.9", "3.10", "3.11", "3.12"],
 }
 
 DB_RESET = False
@@ -517,7 +501,7 @@ def get_airflow_version():
     return airflow_version
 
 
-@cache
+@clearable_cache
 def get_airflow_extras():
     airflow_dockerfile = AIRFLOW_SOURCES_ROOT / "Dockerfile"
     with open(airflow_dockerfile) as dockerfile:
@@ -528,7 +512,7 @@ def get_airflow_extras():
 
 
 # Initialize integrations
-ALL_PROVIDER_YAML_FILES = Path(AIRFLOW_SOURCES_ROOT, "airflow", "providers").rglob("provider.yaml")
+ALL_PROVIDER_YAML_FILES = Path(AIRFLOW_SOURCES_ROOT, "providers").rglob("provider.yaml")
 PROVIDER_RUNTIME_DATA_SCHEMA_PATH = AIRFLOW_SOURCES_ROOT / "airflow" / "provider_info.schema.json"
 
 with Path(AIRFLOW_SOURCES_ROOT, "generated", "provider_dependencies.json").open() as f:
@@ -607,20 +591,20 @@ DEFAULT_EXTRAS = [
     # END OF EXTRAS LIST UPDATED BY PRE COMMIT
 ]
 
-CHICKEN_EGG_PROVIDERS = " ".join(["common.compat", "cncf.kubernetes"])
+CHICKEN_EGG_PROVIDERS = " ".join([])
 
 
 PROVIDERS_COMPATIBILITY_TESTS_MATRIX: list[dict[str, str | list[str]]] = [
     {
         "python-version": "3.9",
         "airflow-version": "2.9.3",
-        "remove-providers": "cloudant fab edge",
+        "remove-providers": "cloudant common.messaging fab edge",
         "run-tests": "true",
     },
     {
         "python-version": "3.9",
-        "airflow-version": "2.10.4",
-        "remove-providers": "cloudant fab",
+        "airflow-version": "2.10.5",
+        "remove-providers": "cloudant common.messaging fab",
         "run-tests": "true",
     },
 ]
@@ -637,6 +621,6 @@ class GithubEvents(Enum):
     WORKFLOW_RUN = "workflow_run"
 
 
-@cache
+@clearable_cache
 def github_events() -> list[str]:
     return [e.value for e in GithubEvents]

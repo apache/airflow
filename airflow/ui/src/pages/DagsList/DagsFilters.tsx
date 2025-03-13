@@ -32,7 +32,8 @@ import { useSearchParams } from "react-router-dom";
 import { useDagServiceGetDagTags } from "openapi/queries";
 import { useTableURLState } from "src/components/DataTable/useTableUrlState";
 import { QuickFilterButton } from "src/components/QuickFilterButton";
-import { Select, Status } from "src/components/ui";
+import { StateBadge } from "src/components/StateBadge";
+import { Select } from "src/components/ui";
 import { SearchParamsKeys, type SearchParamsKeysType } from "src/constants/searchParams";
 import { useConfig } from "src/queries/useConfig";
 import { pluralize } from "src/utils";
@@ -76,16 +77,16 @@ export const DagsFilters = () => {
     ({ value }: SelectValueChangeDetails<string>) => {
       const [val] = value;
 
-      if (val === undefined) {
+      if (val === undefined || val === "all") {
         searchParams.delete(PAUSED_PARAM);
       } else {
         searchParams.set(PAUSED_PARAM, val);
       }
-      setSearchParams(searchParams);
       setTableURLState({
         pagination: { ...pagination, pageIndex: 0 },
         sorting,
       });
+      setSearchParams(searchParams);
     },
     [pagination, searchParams, setSearchParams, setTableURLState, sorting],
   );
@@ -97,11 +98,11 @@ export const DagsFilters = () => {
       } else {
         searchParams.set(LAST_DAG_RUN_STATE_PARAM, value);
       }
-      setSearchParams(searchParams);
       setTableURLState({
         pagination: { ...pagination, pageIndex: 0 },
         sorting,
       });
+      setSearchParams(searchParams);
     },
     [pagination, searchParams, setSearchParams, setTableURLState, sorting],
   );
@@ -148,14 +149,32 @@ export const DagsFilters = () => {
           <QuickFilterButton isActive={isAll} onClick={handleStateChange} value="all">
             All
           </QuickFilterButton>
-          <QuickFilterButton isActive={isFailed} onClick={handleStateChange} value="failed">
-            <Status state="failed">Failed</Status>
+          <QuickFilterButton
+            data-testid="dags-failed-filter"
+            isActive={isFailed}
+            onClick={handleStateChange}
+            value="failed"
+          >
+            <StateBadge state="failed" />
+            Failed
           </QuickFilterButton>
-          <QuickFilterButton isActive={isRunning} onClick={handleStateChange} value="running">
-            <Status state="running">Running</Status>
+          <QuickFilterButton
+            data-testid="dags-running-filter"
+            isActive={isRunning}
+            onClick={handleStateChange}
+            value="running"
+          >
+            <StateBadge state="running" />
+            Running
           </QuickFilterButton>
-          <QuickFilterButton isActive={isSuccess} onClick={handleStateChange} value="success">
-            <Status state="success">Success</Status>
+          <QuickFilterButton
+            data-testid="dags-success-filter"
+            isActive={isSuccess}
+            onClick={handleStateChange}
+            value="success"
+          >
+            <StateBadge state="success" />
+            Success
           </QuickFilterButton>
         </HStack>
         <Select.Root

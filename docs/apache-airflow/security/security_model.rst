@@ -62,10 +62,7 @@ DAG Authors
 ...........
 
 They can create, modify, and delete DAG files. The
-code in DAG files is executed on workers and in the DAG File Processor. Note
-that in the simple deployment configuration, parsing DAGs is executed as
-a subprocess of the Scheduler process, but with Standalone DAG File Processor
-deployment managers might separate parsing DAGs from the Scheduler process.
+code in DAG files is executed on workers and in the DAG File Processor.
 Therefore, DAG authors can create and change code executed on workers
 and the DAG File Processor and potentially access the credentials that the DAG
 code uses to access external systems. DAG Authors have full access
@@ -157,18 +154,17 @@ in a number of circumstances. The code to execute is neither verified, checked n
 (that would be very difficult if not impossible to do), so effectively DAG authors can execute arbitrary
 code on the workers (part of Celery Workers for Celery Executor, local processes run by scheduler in case
 of Local Executor, Task Kubernetes POD in case of Kubernetes Executor), in the DAG File Processor
-(which can be either executed as standalone process or can be part of the Scheduler) and in the Triggerer.
+and in the Triggerer.
 
 There are several consequences of this model chosen by Airflow, that deployment managers need to be aware of:
 
-Local executor and built-in DAG File Processor
-..............................................
+Local executor
+..............
 
-In case of Local Executor and DAG File Processor running as part of the Scheduler, DAG authors can execute
-arbitrary code on the machine where scheduler is running. This means that they can affect the scheduler
-process itself, and potentially affect the whole Airflow installation - including modifying cluster-wide
-policies and changing Airflow configuration. If you are running Airflow with one of those settings,
-the Deployment Manager must trust the DAG authors not to abuse this capability.
+In case of Local Executor, DAG authors can execute arbitrary code on the machine where scheduler is running.
+This means that they can affect the scheduler process itself, and potentially affect the whole Airflow
+installation - including modifying cluster-wide policies and changing Airflow configuration. If you are running
+Airflow with Local Executor, the Deployment Manager must trust the DAG authors not to abuse this capability.
 
 Celery Executor
 ...............
@@ -199,8 +195,8 @@ DAG files not needed for Scheduler and Webserver
 
 The Deployment Manager might isolate the code execution provided by DAG authors - particularly in
 Scheduler and Webserver by making sure that the Scheduler and Webserver don't even
-have access to the DAG Files (that requires standalone DAG File Processor to be deployed). Generally
-speaking - no DAG author provided code should ever be executed in the Scheduler or Webserver process.
+have access to the DAG Files. Generally speaking - no DAG author provided code should ever be
+executed in the Scheduler or Webserver process.
 
 Allowing DAG authors to execute selected code in Scheduler and Webserver
 ........................................................................

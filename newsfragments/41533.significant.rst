@@ -1,6 +1,5 @@
-**Breaking Change**
-
 The ``load_connections`` function has been removed from the ``local_file_system``.
+
 This function was previously deprecated in favor of ``load_connections_dict``.
 
 If your code still uses ``load_connections``, you should update it to use ``load_connections_dict``
@@ -24,3 +23,23 @@ Example update:
 .. code-block:: python
 
     connection_by_conn_id = LocalFilesystemBackend().get_connection(conn_id="conn_id")
+
+* Types of change
+
+  * [x] Dag changes
+  * [ ] Config changes
+  * [ ] API changes
+  * [ ] CLI changes
+  * [ ] Behaviour changes
+  * [ ] Plugin changes
+  * [ ] Dependency changes
+  * [ ] Code interface changes
+
+* Migration rules needed
+
+  * ruff
+
+    * AIR302
+
+      * [x] ``airflow.secrets.local_filesystem.load_connections`` → ``airflow.secrets.local_filesystem.load_connections_dict``
+      * [x] ``airflow.secrets.local_filesystem.LocalFilesystemBackend.get_connection`` → ``airflow.secrets.local_filesystem.LocalFilesystemBackend.load_connections_dict``

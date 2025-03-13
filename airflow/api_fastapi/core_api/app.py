@@ -30,9 +30,11 @@ from starlette.responses import HTMLResponse
 from starlette.staticfiles import StaticFiles
 from starlette.templating import Jinja2Templates
 
+from airflow.api_fastapi.core_api.init_dagbag import get_dag_bag
+from airflow.api_fastapi.core_api.middleware import FlaskExceptionsMiddleware
+from airflow.configuration import conf
 from airflow.exceptions import AirflowException
 from airflow.settings import AIRFLOW_PATH
-from airflow.www.extensions.init_dagbag import get_dag_bag
 
 log = logging.getLogger(__name__)
 
@@ -73,9 +75,13 @@ def init_views(app: FastAPI) -> None:
         name="webapp_static_folder",
     )
 
-    @app.get("/webapp/{rest_of_path:path}", response_class=HTMLResponse, include_in_schema=False)
+    @app.get("/{rest_of_path:path}", response_class=HTMLResponse, include_in_schema=False)
     def webapp(request: Request, rest_of_path: str):
-        return templates.TemplateResponse("/index.html", {"request": request}, media_type="text/html")
+        return templates.TemplateResponse(
+            "/index.html",
+            {"request": request, "backend_server_base_url": conf.get("api", "base_url")},
+            media_type="text/html",
+        )
 
 
 def init_plugins(app: FastAPI) -> None:
@@ -131,7 +137,7 @@ def init_flask_plugins(app: FastAPI) -> None:
         stacklevel=2,
     )
 
-    flask_app = create_app()
+    flask_app = create_app(enable_plugins=True)
     app.mount("/pluginsv2", WSGIMiddleware(flask_app))
 
 
@@ -165,3 +171,7 @@ def init_error_handlers(app: FastAPI) -> None:
     # register database error handlers
     for handler in DatabaseErrorHandlers:
         app.add_exception_handler(handler.exception_cls, handler.exception_handler)
+
+
+def init_middlewares(app: FastAPI) -> None:
+    app.add_middleware(FlaskExceptionsMiddleware)

@@ -74,6 +74,7 @@ def get_import_errors(
                     "id",
                     "timestamp",
                     "filename",
+                    "bundle_name",
                     "stacktrace",
                 ],
                 ParseImportError,

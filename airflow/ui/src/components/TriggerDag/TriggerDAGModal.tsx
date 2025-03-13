@@ -19,9 +19,8 @@
 import { Heading, VStack } from "@chakra-ui/react";
 import React from "react";
 
-import { Alert, Dialog } from "src/components/ui";
+import { Dialog } from "src/components/ui";
 
-import { TogglePause } from "../TogglePause";
 import TriggerDAGForm from "./TriggerDAGForm";
 
 type TriggerDAGModalProps = {
@@ -41,23 +40,16 @@ const TriggerDAGModal: React.FC<TriggerDAGModalProps> = ({
 }) => (
   <Dialog.Root lazyMount onOpenChange={onClose} open={open} size="xl" unmountOnExit>
     <Dialog.Content backdrop>
-      <Dialog.Header>
+      <Dialog.Header paddingBottom={0}>
         <VStack align="start" gap={4}>
-          <Heading size="xl">
-            Trigger Dag - {dagDisplayName} <TogglePause dagId={dagId} isPaused={isPaused} skipConfirm />
-          </Heading>
-          {isPaused ? (
-            <Alert status="warning" title="Paused DAG">
-              Triggering will create a DAG run, but it will not start until the Dag is unpaused.
-            </Alert>
-          ) : undefined}
+          <Heading size="xl">Trigger Dag - {dagDisplayName}</Heading>
         </VStack>
       </Dialog.Header>
 
       <Dialog.CloseTrigger />
 
       <Dialog.Body>
-        <TriggerDAGForm dagId={dagId} onClose={onClose} open={open} />
+        <TriggerDAGForm dagId={dagId} isPaused={isPaused} onClose={onClose} open={open} />
       </Dialog.Body>
     </Dialog.Content>
   </Dialog.Root>

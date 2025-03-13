@@ -30,9 +30,11 @@ class TestFlowerDeployment:
         [
             ("CeleryExecutor", False, False),
             ("CeleryKubernetesExecutor", False, False),
+            ("CeleryExecutor,KubernetesExecutor", False, False),
             ("KubernetesExecutor", False, False),
             ("CeleryExecutor", True, True),
             ("CeleryKubernetesExecutor", True, True),
+            ("CeleryExecutor,KubernetesExecutor", True, True),
             ("KubernetesExecutor", True, False),
         ],
     )
@@ -151,6 +153,12 @@ class TestFlowerDeployment:
             "$AIRFLOW__CELERY__FLOWER_BASIC_AUTH",
             "localhost:7777",
         ]
+        assert jmespath.search("spec.template.spec.containers[0].startupProbe.exec.command", docs[0]) == [
+            "curl",
+            "--user",
+            "$AIRFLOW__CELERY__FLOWER_BASIC_AUTH",
+            "localhost:7777",
+        ]
 
     def test_should_create_flower_deployment_without_authorization(self):
         docs = render_chart(
@@ -170,6 +178,10 @@ class TestFlowerDeployment:
             "localhost:7777",
         ]
         assert jmespath.search("spec.template.spec.containers[0].readinessProbe.exec.command", docs[0]) == [
+            "curl",
+            "localhost:7777",
+        ]
+        assert jmespath.search("spec.template.spec.containers[0].startupProbe.exec.command", docs[0]) == [
             "curl",
             "localhost:7777",
         ]
@@ -426,6 +438,27 @@ class TestFlowerDeployment:
         assert jmespath.search(f"spec.template.spec.containers[0].{probe}.timeoutSeconds", docs[0]) == 222
         assert jmespath.search(f"spec.template.spec.containers[0].{probe}.failureThreshold", docs[0]) == 333
         assert jmespath.search(f"spec.template.spec.containers[0].{probe}.periodSeconds", docs[0]) == 444
+
+    def test_startup_probe_values_are_configurable(self):
+        docs = render_chart(
+            values={
+                "flower": {
+                    "enabled": True,
+                    "startupProbe": {
+                        "timeoutSeconds": 222,
+                        "failureThreshold": 333,
+                        "periodSeconds": 444,
+                    },
+                },
+            },
+            show_only=["templates/flower/flower-deployment.yaml"],
+        )
+
+        assert jmespath.search("spec.template.spec.containers[0].startupProbe.timeoutSeconds", docs[0]) == 222
+        assert (
+            jmespath.search("spec.template.spec.containers[0].startupProbe.failureThreshold", docs[0]) == 333
+        )
+        assert jmespath.search("spec.template.spec.containers[0].startupProbe.periodSeconds", docs[0]) == 444
 
 
 class TestFlowerService:

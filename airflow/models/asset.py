@@ -70,14 +70,14 @@ def fetch_active_assets_by_uri(uris: Iterable[str], session: Session) -> dict[st
     }
 
 
-def expand_alias_to_assets(alias_name: str, session: Session) -> Iterable[AssetModel]:
+def expand_alias_to_assets(alias_name: str, *, session: Session) -> Iterable[AssetModel]:
     """Expand asset alias to resolved assets."""
     asset_alias_obj = session.scalar(
         select(AssetAliasModel).where(AssetAliasModel.name == alias_name).limit(1)
     )
     if asset_alias_obj:
-        return list(asset_alias_obj.assets)
-    return []
+        return iter(asset_alias_obj.assets)
+    return iter(())
 
 
 def resolve_ref_to_asset(
@@ -713,6 +713,14 @@ class AssetEvent(Base):
     @property
     def uri(self):
         return self.asset.uri
+
+    @property
+    def group(self):
+        return self.asset.group
+
+    @property
+    def name(self):
+        return self.asset.name
 
     def __repr__(self) -> str:
         args = []

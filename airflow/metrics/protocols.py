@@ -19,9 +19,7 @@ from __future__ import annotations
 
 import datetime
 import time
-from typing import Union
-
-from airflow.typing_compat import Protocol
+from typing import Protocol, Union
 
 DeltaType = Union[int, float, datetime.timedelta]
 

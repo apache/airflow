@@ -17,10 +17,9 @@
 from __future__ import annotations
 
 from collections.abc import Iterator, Sequence
-from typing import TYPE_CHECKING, Any, NamedTuple
+from typing import TYPE_CHECKING, Any, NamedTuple, Protocol, runtime_checkable
 
 from airflow.sdk.definitions.asset import AssetUniqueKey, BaseAsset
-from airflow.typing_compat import Protocol, runtime_checkable
 
 if TYPE_CHECKING:
     from pendulum import DateTime
@@ -282,8 +281,15 @@ class Timetable(Protocol):
         self,
         *,
         run_type: DagRunType,
-        logical_date: DateTime,
+        run_after: DateTime,
         data_interval: DataInterval | None,
         **extra,
     ) -> str:
-        return run_type.generate_run_id(logical_date)
+        """
+        Generate a unique run ID.
+
+        :param run_type: The type of DAG run.
+        :param run_after: the datetime before which to Dag cannot run.
+        :param data_interval: The data interval of the DAG run.
+        """
+        return run_type.generate_run_id(suffix=run_after.isoformat())

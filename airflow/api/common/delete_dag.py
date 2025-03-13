@@ -75,7 +75,10 @@ def delete_dag(dag_id: str, keep_records_in_log: bool = True, session: Session =
     # This handles the case when the dag_id is changed in the file
     session.execute(
         delete(ParseImportError)
-        .where(ParseImportError.filename == dag.fileloc)
+        .where(
+            ParseImportError.filename == dag.fileloc,
+            ParseImportError.bundle_name == dag.bundle_name,
+        )
         .execution_options(synchronize_session="fetch")
     )
 

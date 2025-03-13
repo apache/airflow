@@ -53,6 +53,7 @@ Currently, **officially** using Airflow:
 1. [American Family Insurance](https://www.amfam.com/about) [[@di1eep](https://github.com/di1eep)]
 1. [AMPATH](https://www.ampathkenya.org/) [[@AMPATH](https://github.com/AMPATH), [@fatmali](https://github.com/fatmali)]
 1. [Apigee](https://apigee.com) [[@btallman](https://github.com/btallman)]
+1. [Appier](https://www.appier.com) [[@nailo2c](https://github.com/nailo2c)]
 1. [ARGO Labs](http://www.argolabs.org) [[@California Data Collaborative](https://github.com/California-Data-Collaborative)]
 1. [ARMEDANGELS](https://www.armedangels.de) [[@swiffer](https://github.com/swiffer)]
 1. [Arquivei](https://www.arquivei.com.br/) [[@arquivei](https://github.com/arquivei)]
@@ -92,6 +93,7 @@ Currently, **officially** using Airflow:
 1. [Bloomberg](https://www.techatbloomberg.com) [[@skandala23] (https://github.com/skandala23) & [@vfeldsher](https://https://github.com/vfeldsher)]
 1. [Bloomreach](https://www.bloomreach.com/) [[@neelborooah](https://github.com/neelborooah) & [@debodirno](https://github.com/debodirno) & [@ayushmnnit](https://github.com/ayushmnnit)]
 1. [Blue Yonder](http://www.blue-yonder.com) [[@blue-yonder](https://github.com/blue-yonder)]
+1. [Blue3 Investimentos](https://blue3investimentos.com.br) [[@ericcoleta] (https://github.com/ericcoleta) & [@plutaniano](https://github.com/plutaniano)]
 1. [BlueApron](https://www.blueapron.com) [[@jasonjho](https://github.com/jasonjho) & [@matthewdavidhauser](https://github.com/matthewdavidhauser)]
 1. [Bluecore](https://www.bluecore.com) [[@JLDLaughlin](https://github.com/JLDLaughlin)]
 1. [Bluekiri](https://bluekiri.com) [[@Bluekiri](https://github.com/bluekiri)]
@@ -153,7 +155,7 @@ Currently, **officially** using Airflow:
 1. [Crealytics](https://crealytics.com)
 1. [Credit Karma](https://www.creditkarma.com/) [[@preete-dixit-ck](https://github.com/preete-dixit-ck) & [@harish-gaggar-ck](https://github.com/harish-gaggar-ck) & [@greg-finley-ck](https://github.com/greg-finley-ck)]
 1. [Creditas](https://www.creditas.com.br) [[@dcassiano](https://github.com/dcassiano)]
-1. [CreditCards.com](https://www.creditcards.com/) [[@vmAggies](https://github.com/vmAggies) &  [@jay-wallaby](https://github.com/jay-wallaby)]
+1. [CreditCards.com](https://www.creditcards.com/) [[@vmAggies](https://github.com/vmAggies) & [@jay-wallaby](https://github.com/jay-wallaby)]
 1. [CRST - The Transportation Solution, Inc.](https://crst.com)
 1. [Cryptalizer.com](https://www.cryptalizer.com/)
 1. [Currency](https://www.gocurrency.com/) [[@FCLI](https://github.com/FCLI) & [@alexbegg](https://github.com/alexbegg)]
@@ -252,6 +254,7 @@ Currently, **officially** using Airflow:
 1. [GrowthSimple](https://growthsimple.ai/)
 1. [GSN Games](https://www.gsngames.com)
 1. [Gusto](https://gusto.com) [[@frankhsu](https://github.com/frankhsu)]
+1. [Halter](https://www.halterhq.com/) [[@antonysouthworth-halter](https://github.com/antonysouthworth-halter)]
 1. [Handshake](https://joinhandshake.com/) [[@mhickman](https://github.com/mhickman)]
 1. [Handy](http://www.handy.com/careers/73115?gh_jid=73115&gh_src=o5qcxn) [[@marcintustin](https://github.com/marcintustin) / [@mtustin-handy](https://github.com/mtustin-handy)]
 1. [happn](https://www.happn.com) [[@pcorbel](https://github.com/pcorbel)]
@@ -271,6 +274,7 @@ Currently, **officially** using Airflow:
 1. [HP Inc](https://www.hp.com/) [[@hpinc](https://github.com/HPInc)]
 1. [Huq Industries](https://huq.io) [[@huqindustries](https://github.com/huq-industries), [@alepuccetti](https://github.com/alepuccetti), [@turbomerl](https://github.com/turbomerl)]
 1. [Hurb](https://hurb.com/) [[@hurbcom](https://github.com/hurbcom)]
+1. [Idrica](https://www.idrica.com/) [[@xavipuerto](https://github.com/xavipuerto)]
 1. [Iflix](https://piay.iflix.com) [[@ChaturvediSulabh](https://github.com/ChaturvediSulabh)]
 1. [IFTTT](https://www.ifttt.com/) [[@apurvajoshi](https://github.com/apurvajoshi)]
 1. [iHeartRadio](http://www.iheart.com/) [[@yiwang](https://github.com/yiwang)]
@@ -295,7 +299,7 @@ Currently, **officially** using Airflow:
 1. [Jeitto](https://www.jeitto.com.br) [[@BrennerPablo](https://github.com/BrennerPablo) & [@ds-mauri](https://github.com/ds-mauri)]
 1. [Jetlore](http://www.jetlore.com/) [[@bderose](https://github.com/bderose)]
 1. [Jobrapido](https://www.jobrapido.com/) [[@mattiagiupponi](https://github.com/mattiagiupponi)]
-1. [JobTeaser](https://www.jobteaser.com) [[@stefani75](https://github.com/stefani75) &  [@knil-sama](https://github.com/knil-sama)]
+1. [JobTeaser](https://www.jobteaser.com) [[@stefani75](https://github.com/stefani75) & [@knil-sama](https://github.com/knil-sama)]
 1. [JULO](https://www.julo.co.id/) [[@sepam](https://github.com/sepam) & [@tenapril](https://github.com/tenapril) & [@verzqy](https://github.com/verzqy)]
 1. [Kalibrr](https://www.kalibrr.com/) [[@charlesverdad](https://github.com/charlesverdad)]
 1. [Kargo](https://kargo.com) [[@chaithra-yenikapati](https://github.com/chaithra-yenikapati), [@akarsh3007](https://github.com/akarsh3007) & [@dineshanchan](https://github.com/dineshanchan)]

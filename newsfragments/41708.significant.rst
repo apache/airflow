@@ -1,1 +1,21 @@
 Removed deprecated auth manager ``airflow.auth.managers.fab.fab_auth_manager`` and ``airflow.auth.managers.fab.security_manager.override``. Please use ``airflow.providers.fab.auth_manager.security_manager.override`` instead.
+
+* Types of change
+
+  * [ ] Dag changes
+  * [x] Config changes
+  * [ ] API changes
+  * [ ] CLI changes
+  * [ ] Behaviour changes
+  * [ ] Plugin changes
+  * [ ] Dependency changes
+  * [ ] Code interface changes
+
+* Migration rules needed
+
+  * ruff
+
+    * AIR303
+
+      * [x] ``airflow.auth.managers.fab.fab_auth_manager`` → ``airflow.providers.fab.auth_manager.security_manager.override``
+      * [x] ``airflow.auth.managers.fab.security_manager.override`` → ``airflow.providers.fab.auth_manager.security_manager.override``

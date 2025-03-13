@@ -17,13 +17,13 @@
 # under the License.
 from __future__ import annotations
 
+import os
 from unittest import mock
 
 import pytest
 
 from airflow.cli import cli_parser
 from airflow.cli.commands.local_commands import dag_processor_command
-from airflow.configuration import conf
 
 from tests_common.test_utils.config import conf_vars
 
@@ -39,24 +39,20 @@ class TestDagProcessorCommand:
     def setup_class(cls):
         cls.parser = cli_parser.get_parser()
 
-    @conf_vars(
-        {
-            ("scheduler", "standalone_dag_processor"): "True",
-            ("core", "load_examples"): "False",
-        }
-    )
+    @conf_vars({("core", "load_examples"): "False"})
     @mock.patch("airflow.cli.commands.local_commands.dag_processor_command.DagProcessorJobRunner")
-    @pytest.mark.skipif(
-        conf.get_mandatory_value("database", "sql_alchemy_conn").lower().startswith("sqlite"),
-        reason="Standalone Dag Processor doesn't support sqlite.",
-    )
-    def test_start_job(
-        self,
-        mock_dag_job,
-    ):
+    def test_start_job(self, mock_runner):
         """Ensure that DagProcessorJobRunner is started"""
-        with conf_vars({("scheduler", "standalone_dag_processor"): "True"}):
-            mock_dag_job.return_value.job_type = "DagProcessorJob"
-            args = self.parser.parse_args(["dag-processor"])
+        mock_runner.return_value.job_type = "DagProcessorJob"
+        args = self.parser.parse_args(["dag-processor"])
+        dag_processor_command.dag_processor(args)
+        mock_runner.return_value._execute.assert_called()
+
+    @conf_vars({("core", "load_examples"): "False"})
+    @mock.patch("airflow.cli.commands.local_commands.dag_processor_command.DagProcessorJobRunner")
+    def test_bundle_names_passed(self, mock_runner, configure_testing_dag_bundle):
+        mock_runner.return_value.job_type = "DagProcessorJob"
+        args = self.parser.parse_args(["dag-processor", "--bundle-name", "testing"])
+        with configure_testing_dag_bundle(os.devnull):
             dag_processor_command.dag_processor(args)
-            mock_dag_job.return_value._execute.assert_called()
+        assert mock_runner.call_args.kwargs["processor"].bundle_names_to_parse == ["testing"]

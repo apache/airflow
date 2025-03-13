@@ -5,3 +5,14 @@ receives ``Dataset`` objects instead. A list of ``DatasetModel`` objects are
 created inside, and returned by the function.
 
 Also, the ``session`` argument is now keyword-only.
+
+* Types of change
+
+  * [ ] Dag changes
+  * [ ] Config changes
+  * [ ] API changes
+  * [ ] CLI changes
+  * [ ] Behaviour changes
+  * [ ] Plugin changes
+  * [ ] Dependency changes
+  * [ ] Code interface changes

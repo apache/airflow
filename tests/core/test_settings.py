@@ -27,7 +27,6 @@ from unittest.mock import MagicMock, call, patch
 import pytest
 
 from airflow.exceptions import AirflowClusterPolicyViolation, AirflowConfigException
-from airflow.settings import is_usage_data_collection_enabled
 
 from tests_common.test_utils.config import conf_vars
 
@@ -294,26 +293,3 @@ class TestEngineArgs:
         engine_args = settings.prepare_engine_args()
 
         assert "encoding" not in engine_args
-
-
-@pytest.mark.parametrize(
-    "env_var, conf_setting, is_enabled",
-    [
-        ("false", "True", False),  # env forces disable
-        ("false", "False", False),  # Both force disable
-        ("False ", "False", False),  # Both force disable
-        ("true", "True", True),  # Both enable
-        ("true", "False", False),  # Conf forces disable
-        (None, "True", True),  # Default env, conf enables
-        (None, "False", False),  # Default env, conf disables
-    ],
-)
-def test_usage_data_collection_disabled(env_var, conf_setting, is_enabled):
-    conf_patch = conf_vars({("usage_data_collection", "enabled"): conf_setting})
-
-    if env_var is not None:
-        with conf_patch, patch.dict(os.environ, {"SCARF_ANALYTICS": env_var}):
-            assert is_usage_data_collection_enabled() == is_enabled
-    else:
-        with conf_patch:
-            assert is_usage_data_collection_enabled() == is_enabled

@@ -20,7 +20,7 @@ from __future__ import annotations
 import pendulum
 
 from airflow.decorators import dag, task
-from airflow.operators.empty import EmptyOperator
+from airflow.providers.standard.operators.empty import EmptyOperator
 
 
 # [START dag_decorator_usage]

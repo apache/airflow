@@ -31,13 +31,29 @@ from pydantic import (
     field_validator,
 )
 
-from airflow.api_fastapi.core_api.base import BaseModel
+from airflow.api_fastapi.core_api.base import BaseModel, StrictBaseModel
 from airflow.api_fastapi.core_api.datamodels.dag_tags import DagTagResponse
+from airflow.api_fastapi.core_api.datamodels.dag_versions import DagVersionResponse
 from airflow.configuration import conf
+from airflow.models.dag_version import DagVersion
+
+DAG_ALIAS_MAPPING: dict[str, str] = {
+    # The keys are the names in the response, the values are the original names in the model
+    # This is used to map the names in the response to the names in the model
+    # See: https://github.com/apache/airflow/issues/46732
+    "next_dagrun_logical_date": "next_dagrun",
+    "next_dagrun_run_after": "next_dagrun_create_after",
+}
 
 
 class DAGResponse(BaseModel):
     """DAG serializer for responses."""
+
+    model_config = ConfigDict(
+        alias_generator=AliasGenerator(
+            validation_alias=lambda field_name: DAG_ALIAS_MAPPING.get(field_name, field_name),
+        ),
+    )
 
     dag_id: str
     dag_display_name: str
@@ -45,7 +61,6 @@ class DAGResponse(BaseModel):
     is_active: bool
     last_parsed_time: datetime | None
     last_expired: datetime | None
-    default_view: str | None
     fileloc: str
     description: str | None
     timetable_summary: str | None
@@ -56,10 +71,10 @@ class DAGResponse(BaseModel):
     max_consecutive_failed_dag_runs: int
     has_task_concurrency_limits: bool
     has_import_errors: bool
-    next_dagrun: datetime | None
+    next_dagrun_logical_date: datetime | None
     next_dagrun_data_interval_start: datetime | None
     next_dagrun_data_interval_end: datetime | None
-    next_dagrun_create_after: datetime | None
+    next_dagrun_run_after: datetime | None
     owners: list[str]
 
     @field_validator("owners", mode="before")
@@ -92,7 +107,7 @@ class DAGResponse(BaseModel):
         return serializer.dumps(self.fileloc)
 
 
-class DAGPatchBody(BaseModel):
+class DAGPatchBody(StrictBaseModel):
     """Dag Serializer for updatable bodies."""
 
     is_paused: bool
@@ -115,6 +130,7 @@ class DAGDetailsResponse(DAGResponse):
                 "dag_run_timeout": "dagrun_timeout",
                 "last_parsed": "last_loaded",
                 "template_search_path": "template_searchpath",
+                **DAG_ALIAS_MAPPING,
             }.get(field_name, field_name),
         ),
     )
@@ -154,3 +170,13 @@ class DAGDetailsResponse(DAGResponse):
     def concurrency(self) -> int:
         """Return max_active_tasks as concurrency."""
         return self.max_active_tasks
+
+    # Mypy issue https://github.com/python/mypy/issues/1362
+    @computed_field  # type: ignore[misc]
+    @property
+    def latest_dag_version(self) -> DagVersionResponse | None:
+        """Return the latest DagVersion."""
+        latest_dag_version = DagVersion.get_latest_version(self.dag_id)
+        if latest_dag_version is None:
+            return latest_dag_version
+        return DagVersionResponse.model_validate(latest_dag_version)

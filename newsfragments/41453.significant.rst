@@ -9,3 +9,23 @@ presentation purposes.
 Since the DAG object no longer has the ``schedule_interval`` attribute,
 OpenLineage facets that contain the ``dag`` key produced on Airflow 3.0 or
 later will also no longer contain the field.
+
+* Types of change
+
+  * [x] Dag changes
+  * [ ] Config changes
+  * [x] API changes
+  * [ ] CLI changes
+  * [x] Behaviour changes
+  * [ ] Plugin changes
+  * [ ] Dependency changes
+  * [ ] Code interface changes
+
+* Migration rules needed
+
+  * ruff
+
+    * AIR302
+
+      * [x] arguments ``schedule_interval`` in ``DAG``
+      * [x] arguments ``timetable`` in ``DAG``
