@@ -7,6 +7,21 @@ info:
     Users should not rely on those but use the public ones instead.
   version: 0.1.0
 paths:
+  /ui/auth/links:
+    get:
+      tags:
+      - Auth Links
+      summary: Get Auth Links
+      operationId: get_auth_links
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MenuItemCollectionResponse'
+      security:
+      - OAuth2PasswordBearer: []
   /ui/next_run_assets/{dag_id}:
     get:
       tags:
@@ -6972,6 +6987,8 @@ paths:
       summary: Get Dag Tags
       description: Get all DAG tags.
       operationId: get_dag_tags
+      security:
+      - OAuth2PasswordBearer: []
       parameters:
       - name: limit
         in: query
@@ -10008,6 +10025,36 @@ components:
       - unixname
       title: JobResponse
       description: Job serializer for responses.
+    MenuItem:
+      properties:
+        text:
+          type: string
+          title: Text
+        href:
+          type: string
+          title: Href
+      type: object
+      required:
+      - text
+      - href
+      title: MenuItem
+      description: Menu Item for responses.
+    MenuItemCollectionResponse:
+      properties:
+        menu_items:
+          items:
+            $ref: '#/components/schemas/MenuItem'
+          type: array
+          title: Menu Items
+        total_entries:
+          type: integer
+          title: Total Entries
+      type: object
+      required:
+      - menu_items
+      - total_entries
+      title: MenuItemCollectionResponse
+      description: Menu Item Collection serializer for responses.
     NodeResponse:
       properties:
         id:
