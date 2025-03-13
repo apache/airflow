@@ -95,7 +95,7 @@ def get_dags(
         ),
     ],
     order_by: Annotated[
-        list[str],
+        SortParam,
         Depends(
             SortParam(
                 ["dag_id", "dag_display_name", "next_dagrun", "state", "start_date"],

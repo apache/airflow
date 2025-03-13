@@ -208,7 +208,7 @@ class SortParam(BaseParam[str]):
             if column is None:
                 column = getattr(self.model, lstriped_orderby)
 
-            # MySQL does not support `nullslast`, and True/False ordering depends on the
+            # MySQL does not support nullslast, and True/False ordering depends on the
             # database implementation.
             nullscheck = case((column.isnot(None), 0), else_=1)
 
@@ -244,8 +244,12 @@ class SortParam(BaseParam[str]):
         raise NotImplementedError("Use dynamic_depends, depends not implemented.")
 
     def dynamic_depends(self, default: list[str] | None = None) -> Callable:
-        def inner(order_by: list[str] = Query(default or self.get_primary_key_string())) -> SortParam:
-            return self.set_value(order_by if order_by else [self.get_primary_key_string()])
+        def inner(order_by: list[str] | str | None = Query(default)) -> SortParam:
+            if order_by is None:
+                order_by = [self.get_primary_key_string()]
+            elif isinstance(order_by, str):
+                order_by = [order_by]
+            return self.set_value(order_by)
 
         return inner
 
