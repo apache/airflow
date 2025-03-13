@@ -7216,13 +7216,47 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/VersionInfo'
-  /public/login:
+  /public/auth/login:
     get:
       tags:
       - Login
       summary: Login
       description: Redirect to the login URL depending on the AuthManager configured.
       operationId: login
+      parameters:
+      - name: next
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Next
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema: {}
+        '307':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Temporary Redirect
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /public/auth/logout:
+    get:
+      tags:
+      - Login
+      summary: Logout
+      description: Logout the user.
+      operationId: logout
       parameters:
       - name: next
         in: query
@@ -10497,19 +10531,10 @@ components:
             $ref: '#/components/schemas/NodeResponse'
           type: array
           title: Nodes
-        arrange:
-          type: string
-          enum:
-          - BT
-          - LR
-          - RL
-          - TB
-          title: Arrange
       type: object
       required:
       - edges
       - nodes
-      - arrange
       title: StructureDataResponse
       description: Structure Data serializer for responses.
     StructuredLogMessage:
