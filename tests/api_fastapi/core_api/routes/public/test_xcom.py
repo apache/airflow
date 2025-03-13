@@ -150,6 +150,18 @@ class TestGetXComEntry(TestXComEndpoint):
             "value": TEST_XCOM_VALUE,
         }
 
+    def test_should_respond_401(self, unauthenticated_test_client):
+        response = unauthenticated_test_client.get(
+            f"/public/dags/{TEST_DAG_ID}/dagRuns/{run_id}/taskInstances/{TEST_TASK_ID}/xcomEntries/{TEST_XCOM_KEY}"
+        )
+        assert response.status_code == 401
+
+    def test_should_respond_403(self, unauthorized_test_client):
+        response = unauthorized_test_client.get(
+            f"/public/dags/{TEST_DAG_ID}/dagRuns/{run_id}/taskInstances/{TEST_TASK_ID}/xcomEntries/{TEST_XCOM_KEY}"
+        )
+        assert response.status_code == 403
+
     def test_should_raise_404_for_non_existent_xcom(self, test_client):
         response = test_client.get(
             f"/public/dags/{TEST_DAG_ID}/dagRuns/{run_id}/taskInstances/{TEST_TASK_ID}/xcomEntries/{TEST_XCOM_KEY_2}"
@@ -438,6 +450,20 @@ class TestGetXComEntries(TestXComEndpoint):
                 map_index=map_index,
             )
 
+    def test_should_respond_401(self, unauthenticated_test_client):
+        response = unauthenticated_test_client.get(
+            "/public/dags/~/dagRuns/~/taskInstances/~/xcomEntries",
+            params={},
+        )
+        assert response.status_code == 401
+
+    def test_should_respond_403(self, unauthorized_test_client):
+        response = unauthorized_test_client.get(
+            "/public/dags/~/dagRuns/~/taskInstances/~/xcomEntries",
+            params={},
+        )
+        assert response.status_code == 403
+
 
 class TestPaginationGetXComEntries(TestXComEndpoint):
     @pytest.mark.parametrize(
@@ -593,6 +619,20 @@ class TestCreateXComEntry(TestXComEndpoint):
             assert current_data["map_index"] == request_body.map_index
         check_last_log(session, dag_id=TEST_DAG_ID, event="create_xcom_entry", logical_date=None)
 
+    def test_should_respond_401(self, unauthenticated_test_client):
+        response = unauthenticated_test_client.post(
+            "/public/dags/dag_id/dagRuns/dag_run_id/taskInstances/task_id/xcomEntries",
+            json={},
+        )
+        assert response.status_code == 401
+
+    def test_should_respond_403(self, unauthorized_test_client):
+        response = unauthorized_test_client.post(
+            "/public/dags/dag_id/dagRuns/dag_run_id/taskInstances/task_id/xcomEntries",
+            json={},
+        )
+        assert response.status_code == 403
+
 
 class TestPatchXComEntry(TestXComEndpoint):
     @pytest.mark.parametrize(
@@ -634,3 +674,17 @@ class TestPatchXComEntry(TestXComEndpoint):
         else:
             assert response.json()["detail"] == expected_detail
         check_last_log(session, dag_id=TEST_DAG_ID, event="update_xcom_entry", logical_date=None)
+
+    def test_should_respond_401(self, unauthenticated_test_client):
+        response = unauthenticated_test_client.patch(
+            f"/public/dags/{TEST_DAG_ID}/dagRuns/run_id/taskInstances/TEST_TASK_ID/xcomEntries/key",
+            json={},
+        )
+        assert response.status_code == 401
+
+    def test_should_respond_403(self, unauthorized_test_client):
+        response = unauthorized_test_client.patch(
+            f"/public/dags/{TEST_DAG_ID}/dagRuns/run_id/taskInstances/TEST_TASK_ID/xcomEntries/key",
+            json={},
+        )
+        assert response.status_code == 403

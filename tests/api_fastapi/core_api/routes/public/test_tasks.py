@@ -297,6 +297,14 @@ class TestGetTask(TestTaskEndpoint):
         )
         assert response.status_code == 404
 
+    def test_should_respond_401(self, unauthenticated_test_client):
+        response = unauthenticated_test_client.get(f"{self.api_prefix}/{self.dag_id}/tasks/{self.task_id}")
+        assert response.status_code == 401
+
+    def test_should_respond_403(self, unauthorized_test_client):
+        response = unauthorized_test_client.get(f"{self.api_prefix}/{self.dag_id}/tasks/{self.task_id}")
+        assert response.status_code == 403
+
 
 class TestGetTasks(TestTaskEndpoint):
     def test_should_respond_200(self, test_client):
@@ -540,3 +548,11 @@ class TestGetTasks(TestTaskEndpoint):
         dag_id = "xxxx_not_existing"
         response = test_client.get(f"{self.api_prefix}/{dag_id}/tasks")
         assert response.status_code == 404
+
+    def test_should_respond_401(self, unauthenticated_test_client):
+        response = unauthenticated_test_client.get(f"{self.api_prefix}/{self.dag_id}/tasks")
+        assert response.status_code == 401
+
+    def test_should_respond_403(self, unauthorized_test_client):
+        response = unauthorized_test_client.get(f"{self.api_prefix}/{self.dag_id}/tasks")
+        assert response.status_code == 403
