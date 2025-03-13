@@ -311,19 +311,6 @@ def requires_access_asset_alias(method: ResourceMethod) -> Callable:
     return inner
 
 
-def requires_access_view(access_view: AccessView) -> Callable[[BaseUser | None], None]:
-    def inner(
-        user: Annotated[BaseUser | None, Depends(get_user)] = None,
-    ) -> None:
-        _requires_access(
-            is_authorized_callback=lambda: get_auth_manager().is_authorized_view(
-                access_view=access_view, user=user
-            ),
-        )
-
-    return inner
-
-
 def _requires_access(
     *,
     is_authorized_callback: Callable[[], bool],
