@@ -35,7 +35,7 @@ from jwt.exceptions import (
 from setproctitle import setproctitle
 from werkzeug.exceptions import HTTPException
 
-from airflow.api_fastapi.auth.tokens import JWTValidator
+from airflow.api_fastapi.auth.tokens import JWTValidator, get_signing_key
 from airflow.configuration import conf
 from airflow.utils.docs import get_docs_url
 from airflow.utils.module_loading import import_string
@@ -72,7 +72,7 @@ def create_app():
             raise ImportError(f"Unable to load {log_config_class} due to error: {e}")
     signer = JWTValidator(
         issuer=None,
-        secret_key=conf.get("webserver", "secret_key"),
+        secret_key=get_signing_key("webserver", "secret_key"),
         leeway=leeway,
         audience="task-instance-logs",
     )

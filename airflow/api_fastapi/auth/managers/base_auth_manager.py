@@ -62,7 +62,6 @@ if TYPE_CHECKING:
         PoolDetails,
         VariableDetails,
     )
-    from airflow.api_fastapi.common.types import MenuItem
     from airflow.cli.cli_config import CLICommand
 
 # This cannot be in the TYPE_CHECKING block since some providers import it globally.
