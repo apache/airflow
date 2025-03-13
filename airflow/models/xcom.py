@@ -30,6 +30,7 @@ from sqlalchemy import (
     Integer,
     PrimaryKeyConstraint,
     String,
+    delete,
     select,
     text,
 )
@@ -192,6 +193,17 @@ class XComModel(TaskInstanceDependencies):
             dag_id=dag_id,
             run_id=run_id,
             map_index=map_index,
+        )
+
+        # Remove duplicate XComs and insert a new one.
+        session.execute(
+            delete(cls).where(
+                cls.key == key,
+                cls.run_id == run_id,
+                cls.task_id == task_id,
+                cls.dag_id == dag_id,
+                cls.map_index == map_index,
+            )
         )
 
         new = cast(Any, cls)(  # Work around Mypy complaining model not defining '__init__'.

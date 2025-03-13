@@ -21,6 +21,7 @@ from typing import Any
 
 import structlog
 
+from airflow.configuration import conf
 from airflow.sdk.execution_time.comms import DeleteXCom, GetXCom, SetXCom, XComResult
 
 log = structlog.get_logger(logger_name="task")
@@ -218,9 +219,7 @@ def resolve_xcom_backend():
 
     :returns: returns the custom XCom class if configured.
     """
-    from airflow.configuration import conf
-
-    clazz = conf.getimport("core", "xcom_backend")
+    clazz = conf.getimport("core", "xcom_backend", fallback="airflow.sdk.execution_time.xcom.BaseXCom")
     if not clazz:
         return BaseXCom
     if not issubclass(clazz, BaseXCom):
