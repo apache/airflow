@@ -244,6 +244,8 @@ paths:
       summary: Historical Metrics
       description: Return cluster activity historical metrics.
       operationId: historical_metrics
+      security:
+      - OAuth2PasswordBearer: []
       parameters:
       - name: start_date
         in: query
@@ -285,6 +287,8 @@ paths:
       summary: Structure Data
       description: Get Structure Data.
       operationId: structure_data
+      security:
+      - OAuth2PasswordBearer: []
       parameters:
       - name: dag_id
         in: query
@@ -420,6 +424,8 @@ paths:
       summary: Grid Data
       description: Return grid data.
       operationId: grid_data
+      security:
+      - OAuth2PasswordBearer: []
       parameters:
       - name: dag_id
         in: path
@@ -1366,6 +1372,8 @@ paths:
       - Backfill
       summary: List Backfills
       operationId: list_backfills
+      security:
+      - OAuth2PasswordBearer: []
       parameters:
       - name: dag_id
         in: query
@@ -1426,6 +1434,8 @@ paths:
       - Backfill
       summary: Create Backfill
       operationId: create_backfill
+      security:
+      - OAuth2PasswordBearer: []
       requestBody:
         required: true
         content:
@@ -1475,6 +1485,8 @@ paths:
       - Backfill
       summary: Get Backfill
       operationId: get_backfill
+      security:
+      - OAuth2PasswordBearer: []
       parameters:
       - name: backfill_id
         in: path
@@ -1519,6 +1531,8 @@ paths:
       - Backfill
       summary: Pause Backfill
       operationId: pause_backfill
+      security:
+      - OAuth2PasswordBearer: []
       parameters:
       - name: backfill_id
         in: path
@@ -1568,6 +1582,8 @@ paths:
       - Backfill
       summary: Unpause Backfill
       operationId: unpause_backfill
+      security:
+      - OAuth2PasswordBearer: []
       parameters:
       - name: backfill_id
         in: path
@@ -1617,6 +1633,8 @@ paths:
       - Backfill
       summary: Cancel Backfill
       operationId: cancel_backfill
+      security:
+      - OAuth2PasswordBearer: []
       parameters:
       - name: backfill_id
         in: path
@@ -1709,6 +1727,8 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/HTTPValidationError'
+      security:
+      - OAuth2PasswordBearer: []
   /public/connections/{connection_id}:
     delete:
       tags:
@@ -2101,6 +2121,8 @@ paths:
       - DagRun
       summary: Get Dag Run
       operationId: get_dag_run
+      security:
+      - OAuth2PasswordBearer: []
       parameters:
       - name: dag_id
         in: path
@@ -2151,6 +2173,8 @@ paths:
       summary: Delete Dag Run
       description: Delete a DAG Run entry.
       operationId: delete_dag_run
+      security:
+      - OAuth2PasswordBearer: []
       parameters:
       - name: dag_id
         in: path
@@ -2203,6 +2227,8 @@ paths:
       summary: Patch Dag Run
       description: Modify a DAG Run.
       operationId: patch_dag_run
+      security:
+      - OAuth2PasswordBearer: []
       parameters:
       - name: dag_id
         in: path
@@ -2329,6 +2355,8 @@ paths:
       - DagRun
       summary: Clear Dag Run
       operationId: clear_dag_run
+      security:
+      - OAuth2PasswordBearer: []
       parameters:
       - name: dag_id
         in: path
@@ -2393,6 +2421,8 @@ paths:
         This endpoint allows specifying `~` as the dag_id to retrieve Dag Runs for
         all DAGs.'
       operationId: get_dag_runs
+      security:
+      - OAuth2PasswordBearer: []
       parameters:
       - name: dag_id
         in: path
@@ -2558,6 +2588,8 @@ paths:
       summary: Trigger Dag Run
       description: Trigger a DAG.
       operationId: trigger_dag_run
+      security:
+      - OAuth2PasswordBearer: []
       parameters:
       - name: dag_id
         in: path
@@ -2620,6 +2652,8 @@ paths:
       summary: Get List Dag Runs Batch
       description: Get a list of DAG Runs.
       operationId: get_list_dag_runs_batch
+      security:
+      - OAuth2PasswordBearer: []
       parameters:
       - name: dag_id
         in: path
@@ -2672,6 +2706,8 @@ paths:
       summary: Get Dag Source
       description: Get source code using file token.
       operationId: get_dag_source
+      security:
+      - OAuth2PasswordBearer: []
       parameters:
       - name: dag_id
         in: path
@@ -2752,6 +2788,8 @@ paths:
       summary: Get Dag Stats
       description: Get Dag statistics.
       operationId: get_dag_stats
+      security:
+      - OAuth2PasswordBearer: []
       parameters:
       - name: dag_ids
         in: query
@@ -3010,6 +3048,8 @@ paths:
       summary: List Dag Warnings
       description: Get a list of DAG warnings.
       operationId: list_dag_warnings
+      security:
+      - OAuth2PasswordBearer: []
       parameters:
       - name: dag_id
         in: query
@@ -4537,6 +4577,8 @@ paths:
       summary: Get Xcom Entry
       description: Get an XCom entry.
       operationId: get_xcom_entry
+      security:
+      - OAuth2PasswordBearer: []
       parameters:
       - name: dag_id
         in: path
@@ -4630,6 +4672,8 @@ paths:
       summary: Update Xcom Entry
       description: Update an existing XCom entry.
       operationId: update_xcom_entry
+      security:
+      - OAuth2PasswordBearer: []
       parameters:
       - name: dag_id
         in: path
@@ -4709,6 +4753,8 @@ paths:
         This endpoint allows specifying `~` as the dag_id, dag_run_id, task_id to
         retrieve XCom entries for all DAGs.'
       operationId: get_xcom_entries
+      security:
+      - OAuth2PasswordBearer: []
       parameters:
       - name: dag_id
         in: path
@@ -4804,6 +4850,8 @@ paths:
       summary: Create Xcom Entry
       description: Create an XCom entry.
       operationId: create_xcom_entry
+      security:
+      - OAuth2PasswordBearer: []
       parameters:
       - name: dag_id
         in: path
@@ -4873,6 +4921,8 @@ paths:
       summary: Get Task Instance
       description: Get task instance.
       operationId: get_task_instance
+      security:
+      - OAuth2PasswordBearer: []
       parameters:
       - name: dag_id
         in: path
@@ -4929,6 +4979,8 @@ paths:
       summary: Patch Task Instance
       description: Update a task instance.
       operationId: patch_task_instance
+      security:
+      - OAuth2PasswordBearer: []
       parameters:
       - name: dag_id
         in: path
@@ -5021,6 +5073,8 @@ paths:
       summary: Get Mapped Task Instances
       description: Get list of mapped task instances.
       operationId: get_mapped_task_instances
+      security:
+      - OAuth2PasswordBearer: []
       parameters:
       - name: dag_id
         in: path
@@ -5247,6 +5301,8 @@ paths:
       summary: Get Task Instance Dependencies
       description: Get dependencies blocking task from getting scheduled.
       operationId: get_task_instance_dependencies
+      security:
+      - OAuth2PasswordBearer: []
       parameters:
       - name: dag_id
         in: path
@@ -5310,6 +5366,8 @@ paths:
       summary: Get Task Instance Dependencies
       description: Get dependencies blocking task from getting scheduled.
       operationId: get_task_instance_dependencies
+      security:
+      - OAuth2PasswordBearer: []
       parameters:
       - name: dag_id
         in: path
@@ -5374,6 +5432,8 @@ paths:
       summary: Get Task Instance Tries
       description: Get list of task instances history.
       operationId: get_task_instance_tries
+      security:
+      - OAuth2PasswordBearer: []
       parameters:
       - name: dag_id
         in: path
@@ -5437,6 +5497,8 @@ paths:
       - Task Instance
       summary: Get Mapped Task Instance Tries
       operationId: get_mapped_task_instance_tries
+      security:
+      - OAuth2PasswordBearer: []
       parameters:
       - name: dag_id
         in: path
@@ -5500,6 +5562,8 @@ paths:
       summary: Get Mapped Task Instance
       description: Get task instance.
       operationId: get_mapped_task_instance
+      security:
+      - OAuth2PasswordBearer: []
       parameters:
       - name: dag_id
         in: path
@@ -5562,6 +5626,8 @@ paths:
       summary: Patch Task Instance
       description: Update a task instance.
       operationId: patch_task_instance
+      security:
+      - OAuth2PasswordBearer: []
       parameters:
       - name: dag_id
         in: path
@@ -5659,6 +5725,8 @@ paths:
 
         and DAG runs.'
       operationId: get_task_instances
+      security:
+      - OAuth2PasswordBearer: []
       parameters:
       - name: dag_id
         in: path
@@ -5895,6 +5963,8 @@ paths:
       summary: Get Task Instances Batch
       description: Get list of task instances.
       operationId: get_task_instances_batch
+      security:
+      - OAuth2PasswordBearer: []
       parameters:
       - name: dag_id
         in: path
@@ -5954,6 +6024,8 @@ paths:
       summary: Get Task Instance Try Details
       description: Get task instance details by try number.
       operationId: get_task_instance_try_details
+      security:
+      - OAuth2PasswordBearer: []
       parameters:
       - name: dag_id
         in: path
@@ -6023,6 +6095,8 @@ paths:
       - Task Instance
       summary: Get Mapped Task Instance Try Details
       operationId: get_mapped_task_instance_try_details
+      security:
+      - OAuth2PasswordBearer: []
       parameters:
       - name: dag_id
         in: path
@@ -6092,6 +6166,8 @@ paths:
       summary: Post Clear Task Instances
       description: Clear task instances.
       operationId: post_clear_task_instances
+      security:
+      - OAuth2PasswordBearer: []
       parameters:
       - name: dag_id
         in: path
@@ -6143,6 +6219,8 @@ paths:
       summary: Patch Task Instance Dry Run
       description: Update a task instance dry_run mode.
       operationId: patch_task_instance_dry_run
+      security:
+      - OAuth2PasswordBearer: []
       parameters:
       - name: dag_id
         in: path
@@ -6228,6 +6306,8 @@ paths:
       summary: Patch Task Instance Dry Run
       description: Update a task instance dry_run mode.
       operationId: patch_task_instance_dry_run
+      security:
+      - OAuth2PasswordBearer: []
       parameters:
       - name: dag_id
         in: path
@@ -6840,6 +6920,8 @@ paths:
       summary: Reparse Dag File
       description: Request re-parsing a DAG file.
       operationId: reparse_dag_file
+      security:
+      - OAuth2PasswordBearer: []
       parameters:
       - name: file_token
         in: path

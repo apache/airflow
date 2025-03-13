@@ -16,31 +16,30 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Box } from "@chakra-ui/react";
-import { useDisclosure } from "@chakra-ui/react";
+import { AiOutlineFileSync } from "react-icons/ai";
 
-import type { DAGResponse, DAGWithLatestDagRunsResponse } from "openapi/requests/types.gen";
-import { BackfillIcon } from "src/components/BackfillIcon.tsx";
-
-import { Button } from "../ui";
-import RunBackfillModal from "./RunBackfillModal";
+import { Button } from "src/components/ui";
+import { useDagParsing } from "src/queries/useDagParsing.ts";
 
 type Props = {
-  readonly dag: DAGResponse | DAGWithLatestDagRunsResponse;
+  readonly dagId: string;
+  readonly fileToken: string;
 };
 
-const RunBackfillButton: React.FC<Props> = ({ dag }) => {
-  const { onClose, onOpen, open } = useDisclosure();
+const ParseDag = ({ dagId, fileToken }: Props) => {
+  const { isPending, mutate } = useDagParsing({ dagId });
 
   return (
-    <Box>
-      <Button aria-label="Run Backfill" border="none" height={5} onClick={onOpen} variant="ghost">
-        <BackfillIcon />
-        Run Backfill
-      </Button>
-      <RunBackfillModal dag={dag} onClose={onClose} open={open} />
-    </Box>
+    <Button
+      aria-label="Reparse Dag"
+      loading={isPending}
+      onClick={() => mutate({ fileToken })}
+      variant="outline"
+    >
+      <AiOutlineFileSync height={5} width={5} />
+      Reparse Dag
+    </Button>
   );
 };
 
-export default RunBackfillButton;
+export default ParseDag;
