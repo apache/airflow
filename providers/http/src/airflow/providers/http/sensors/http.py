@@ -26,8 +26,8 @@ import cloudpickle
 from requests import Response
 
 from airflow.configuration import conf
-from airflow.exceptions import AirflowException, ResponseCheckFailedException
-from airflow.providers.http.hooks.http import HttpHook
+from airflow.exceptions import AirflowException
+from airflow.providers.http.hooks.http import HttpHook, _default_response_maker
 from airflow.providers.http.triggers.http import HttpSensorTrigger
 from airflow.sensors.base import BaseSensorOperator
 
@@ -186,31 +186,15 @@ class HttpSensor(BaseSensorOperator):
                 method_name="execute_complete",
             )
 
-    @staticmethod
-    def _default_response_maker(response: Response | list[Response]) -> Callable:
-        """
-        Create a default response maker function based on the type of response.
-
-        :param response: The response object or list of response objects.
-        :return: A function that returns response text(s).
-        """
-        if isinstance(response, Response):
-            response_object = response  # Makes mypy happy
-            return lambda: response_object.text
-
-        response_list: list[Response] = response  # Makes mypy happy
-        return lambda: [entry.text for entry in response_list]
-
     def process_response(self, context: Context, response: Response | list[Response]) -> Any:
         """Process the response."""
         from airflow.utils.operator_helpers import determine_kwargs
 
-        make_default_response: Callable = self._default_response_maker(response=response)
+        make_default_response: Callable = _default_response_maker(response=response)
 
         if self.response_check:
             kwargs = determine_kwargs(self.response_check, [response], context)
-            if not self.response_check(response, **kwargs):
-                raise ResponseCheckFailedException("Response check returned False.")
+            return self.response_check(response, **kwargs)
         return make_default_response()
 
     def execute_complete(self, context: Context, event: dict[str, Any]) -> None:
@@ -220,7 +204,7 @@ class HttpSensor(BaseSensorOperator):
         if self.response_check:
             retrieved_data = cloudpickle.loads(base64.standard_b64decode(response))
             if not self.process_response(context=context, response=retrieved_data):
-                raise ResponseCheckFailedException(
+                raise AirflowException(
                     "response_check condition is not matched for %s", self.task_id
                 )
             self.log.info("response_check condition is matched for %s", self.task_id)
