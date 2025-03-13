@@ -1061,14 +1061,16 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                 with create_session() as session:
                     # This will schedule for as many executors as possible.
                     num_queued_tis = self._do_scheduling(session)
-
-                    # Heartbeat all executors, even if they're not receiving new tasks this loop. It will be
-                    # either a no-op, or they will check-in on currently running tasks and send out new
-                    # events to be processed below.
-                    for executor in self.job.executors:
-                        executor.heartbeat()
-
+                    # Don't keep any objects alive -- we've possibly just looked at 500+ ORM objects!
                     session.expunge_all()
+
+                # Heartbeat all executors, even if they're not receiving new tasks this loop. It will be
+                # either a no-op, or they will check-in on currently running tasks and send out new
+                # events to be processed below.
+                for executor in self.job.executors:
+                    executor.heartbeat()
+
+                with create_session() as session:
                     num_finished_events = 0
                     for executor in self.job.executors:
                         num_finished_events += self._process_executor_events(

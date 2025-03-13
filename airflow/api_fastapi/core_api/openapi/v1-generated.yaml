@@ -58,6 +58,26 @@ paths:
                 $ref: '#/components/schemas/HTTPExceptionResponse'
       security:
       - OAuth2PasswordBearer: []
+  /ui/connections/hook_meta:
+    get:
+      tags:
+      - Connection
+      summary: Hook Meta Data
+      description: Retrieve information about available connection types (hook classes)
+        and their parameters.
+      operationId: hook_meta_data
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                items:
+                  $ref: '#/components/schemas/ConnectionHookMetaData'
+                type: array
+                title: Response Hook Meta Data
+      security:
+      - OAuth2PasswordBearer: []
   /ui/dags/recent_dag_runs:
     get:
       tags:
@@ -224,6 +244,8 @@ paths:
       summary: Historical Metrics
       description: Return cluster activity historical metrics.
       operationId: historical_metrics
+      security:
+      - OAuth2PasswordBearer: []
       parameters:
       - name: start_date
         in: query
@@ -265,6 +287,8 @@ paths:
       summary: Structure Data
       description: Get Structure Data.
       operationId: structure_data
+      security:
+      - OAuth2PasswordBearer: []
       parameters:
       - name: dag_id
         in: query
@@ -400,6 +424,8 @@ paths:
       summary: Grid Data
       description: Return grid data.
       operationId: grid_data
+      security:
+      - OAuth2PasswordBearer: []
       parameters:
       - name: dag_id
         in: path
@@ -1346,6 +1372,8 @@ paths:
       - Backfill
       summary: List Backfills
       operationId: list_backfills
+      security:
+      - OAuth2PasswordBearer: []
       parameters:
       - name: dag_id
         in: query
@@ -1406,6 +1434,8 @@ paths:
       - Backfill
       summary: Create Backfill
       operationId: create_backfill
+      security:
+      - OAuth2PasswordBearer: []
       requestBody:
         required: true
         content:
@@ -1455,6 +1485,8 @@ paths:
       - Backfill
       summary: Get Backfill
       operationId: get_backfill
+      security:
+      - OAuth2PasswordBearer: []
       parameters:
       - name: backfill_id
         in: path
@@ -1499,6 +1531,8 @@ paths:
       - Backfill
       summary: Pause Backfill
       operationId: pause_backfill
+      security:
+      - OAuth2PasswordBearer: []
       parameters:
       - name: backfill_id
         in: path
@@ -1548,6 +1582,8 @@ paths:
       - Backfill
       summary: Unpause Backfill
       operationId: unpause_backfill
+      security:
+      - OAuth2PasswordBearer: []
       parameters:
       - name: backfill_id
         in: path
@@ -1597,6 +1633,8 @@ paths:
       - Backfill
       summary: Cancel Backfill
       operationId: cancel_backfill
+      security:
+      - OAuth2PasswordBearer: []
       parameters:
       - name: backfill_id
         in: path
@@ -1689,6 +1727,8 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/HTTPValidationError'
+      security:
+      - OAuth2PasswordBearer: []
   /public/connections/{connection_id}:
     delete:
       tags:
@@ -8121,6 +8161,74 @@ components:
       - total_entries
       title: ConnectionCollectionResponse
       description: Connection Collection serializer for responses.
+    ConnectionHookFieldBehavior:
+      properties:
+        hidden:
+          type: boolean
+          title: Hidden
+          description: Flag if the form field should be hidden.
+          default: false
+        title:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Title
+          description: Label / title for the field that should be displayed, if re-labelling
+            is needed. Use `None` to display standard title.
+        placeholder:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Placeholder
+          description: Placeholder text that should be populated to the form.
+      type: object
+      title: ConnectionHookFieldBehavior
+      description: A class to store the behavior of each standard field of a Hook.
+    ConnectionHookMetaData:
+      properties:
+        connection_type:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Connection Type
+        hook_class_name:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Hook Class Name
+        default_conn_name:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Default Conn Name
+        hook_name:
+          type: string
+          title: Hook Name
+        standard_fields:
+          anyOf:
+          - $ref: '#/components/schemas/StandardHookFields'
+          - type: 'null'
+        extra_fields:
+          anyOf:
+          - type: object
+          - type: 'null'
+          title: Extra Fields
+      type: object
+      required:
+      - connection_type
+      - hook_class_name
+      - default_conn_name
+      - hook_name
+      - standard_fields
+      - extra_fields
+      title: ConnectionHookMetaData
+      description: 'Response model for Hook information == Connection type meta data.
+
+
+        It is used to transfer providers information loaded by providers_manager such
+        that
+
+        the API server/Web UI can use this data to render connection form UI.'
     ConnectionResponse:
       properties:
         connection_id:
@@ -10228,6 +10336,42 @@ components:
       - latest_scheduler_heartbeat
       title: SchedulerInfoResponse
       description: Scheduler info serializer for responses.
+    StandardHookFields:
+      properties:
+        description:
+          anyOf:
+          - $ref: '#/components/schemas/ConnectionHookFieldBehavior'
+          - type: 'null'
+        url_schema:
+          anyOf:
+          - $ref: '#/components/schemas/ConnectionHookFieldBehavior'
+          - type: 'null'
+        host:
+          anyOf:
+          - $ref: '#/components/schemas/ConnectionHookFieldBehavior'
+          - type: 'null'
+        port:
+          anyOf:
+          - $ref: '#/components/schemas/ConnectionHookFieldBehavior'
+          - type: 'null'
+        login:
+          anyOf:
+          - $ref: '#/components/schemas/ConnectionHookFieldBehavior'
+          - type: 'null'
+        password:
+          anyOf:
+          - $ref: '#/components/schemas/ConnectionHookFieldBehavior'
+          - type: 'null'
+      type: object
+      required:
+      - description
+      - url_schema
+      - host
+      - port
+      - login
+      - password
+      title: StandardHookFields
+      description: Standard fields of a Hook that a form will render.
     StructureDataResponse:
       properties:
         edges:

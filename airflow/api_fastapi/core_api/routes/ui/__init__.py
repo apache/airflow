@@ -20,6 +20,7 @@ from airflow.api_fastapi.common.router import AirflowRouter
 from airflow.api_fastapi.core_api.routes.ui.assets import assets_router
 from airflow.api_fastapi.core_api.routes.ui.backfills import backfills_router
 from airflow.api_fastapi.core_api.routes.ui.config import config_router
+from airflow.api_fastapi.core_api.routes.ui.connections import connections_router
 from airflow.api_fastapi.core_api.routes.ui.dags import dags_router
 from airflow.api_fastapi.core_api.routes.ui.dashboard import dashboard_router
 from airflow.api_fastapi.core_api.routes.ui.dependencies import dependencies_router
@@ -30,6 +31,7 @@ ui_router = AirflowRouter(prefix="/ui", include_in_schema=False)
 
 ui_router.include_router(assets_router)
 ui_router.include_router(config_router)
+ui_router.include_router(connections_router)
 ui_router.include_router(dags_router)
 ui_router.include_router(dependencies_router)
 ui_router.include_router(dashboard_router)
