@@ -27,7 +27,7 @@ from openai import OpenAI
 if TYPE_CHECKING:
     from openai.types import FileDeleted, FileObject
     from openai.types.batch import Batch
-    from openai.types.beta import (
+    from openai.types import (
         Assistant,
         AssistantDeleted,
         Thread,
@@ -35,8 +35,8 @@ if TYPE_CHECKING:
         VectorStore,
         VectorStoreDeleted,
     )
-    from openai.types.beta.threads import Message, Run
-    from openai.types.beta.vector_stores import VectorStoreFile, VectorStoreFileBatch, VectorStoreFileDeleted
+    from openai.types.threads import Message, Run
+    from openai.types.vector_stores import VectorStoreFile, VectorStoreFileBatch, VectorStoreFileDeleted
     from openai.types.chat import (
         ChatCompletionAssistantMessageParam,
         ChatCompletionFunctionMessageParam,

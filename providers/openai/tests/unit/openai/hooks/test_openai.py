@@ -21,18 +21,19 @@ from unittest.mock import mock_open, patch
 
 import pytest
 from openai.pagination import SyncCursorPage
-from openai.types import Batch, CreateEmbeddingResponse, Embedding, FileDeleted, FileObject
-from openai.types.beta import (
-    Assistant,
-    AssistantDeleted,
-    Thread,
-    ThreadDeleted,
+from openai.types import (
+    Batch,
+    CreateEmbeddingResponse,
+    Embedding,
+    FileDeleted,
+    FileObject,
     VectorStore,
     VectorStoreDeleted,
 )
+from openai.types.beta import Assistant, AssistantDeleted, Thread, ThreadDeleted
 from openai.types.beta.threads import Message, Run
-from openai.types.beta.vector_stores import VectorStoreFile, VectorStoreFileBatch, VectorStoreFileDeleted
 from openai.types.chat import ChatCompletion
+from openai.types.vector_stores import VectorStoreFile, VectorStoreFileBatch, VectorStoreFileDeleted
 
 from airflow.models import Connection
 from airflow.providers.openai.exceptions import OpenAIBatchJobException, OpenAIBatchTimeout
