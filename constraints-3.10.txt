@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2025-03-13T08:21:37.886869
+# This constraints file was automatically generated on 2025-03-13T14:30:16.329106
 # via "eager-upgrade" mechanism of PIP. For the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version for 'apache-airflow' but installs
 # the providers from PIP-released packages at the moment of the constraint generation.
@@ -363,7 +363,7 @@ google-cloud-redis==2.18.0
 google-cloud-resource-manager==1.14.1
 google-cloud-run==0.10.16
 google-cloud-secret-manager==2.23.1
-google-cloud-spanner==3.52.0
+google-cloud-spanner==3.53.0
 google-cloud-speech==2.31.0
 google-cloud-storage-transfer==1.16.0
 google-cloud-storage==2.19.0
@@ -453,7 +453,7 @@ kubernetes==31.0.0
 kubernetes_asyncio==30.3.1
 kylinpy==2.8.4
 lazy-object-proxy==1.10.0
-libcst==1.6.0
+libcst==1.7.0
 limits==4.2
 linkify-it-py==2.0.3
 lockfile==0.12.2
@@ -711,11 +711,11 @@ teradatasql==20.0.0.25
 teradatasqlalchemy==20.0.0.3
 termcolor==2.5.0
 text-unidecode==1.3
-threadpoolctl==3.5.0
+threadpoolctl==3.6.0
 thrift-sasl==0.4.3
 thrift==0.16.0
 time-machine==2.16.0
-tokenizers==0.21.0
+tokenizers==0.21.1
 tomli==2.2.1
 tomlkit==0.13.2
 tornado==6.4.2
