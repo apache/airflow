@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2025-03-13T02:41:44.268637
+# This constraints file was automatically generated on 2025-03-13T08:11:25.625119
 # via "eager-upgrade" mechanism of PIP. For the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version of both
 # 'apache-airflow' package and all available community provider packages.
@@ -182,7 +182,7 @@ docstring_parser==0.16
 docutils==0.21.2
 duckdb==1.2.1
 durationpy==0.9
-elastic-transport==8.17.0
+elastic-transport==8.17.1
 elasticsearch==8.17.2
 email_validator==2.2.0
 entrypoints==0.4
@@ -628,7 +628,7 @@ types-python-slugify==8.0.2.20240310
 types-pytz==2025.1.0.20250204
 types-redis==4.6.0.20241004
 types-requests==2.31.0.6
-types-setuptools==75.8.2.20250305
+types-setuptools==76.0.0.20250313
 types-tabulate==0.9.0.20241207
 types-toml==0.10.8.20240310
 types-urllib3==1.26.25.14
