@@ -283,7 +283,7 @@ class RuntimeTaskInstance(TaskInstance):
 
         When pulling task is mapped the specified ``map_index`` is used, so by default
         pulling on mapped task will result in no matching XComs if the task instance
-        of the method call is not mapped. Otherwise the map_index of the calling task
+        of the method call is not mapped. Otherwise, the map_index of the calling task
         instance is used. Setting ``map_indexes`` to *None* will pull XCom as it would
         from a non mapped task.
 
@@ -315,26 +315,14 @@ class RuntimeTaskInstance(TaskInstance):
             map_indexes_iterable = map_indexes
         else:
             raise TypeError(
-                "map_indexes can be omitted or must be an int, an iterable of ints, "
-                f"or None, got {type(map_indexes)}"
+                f"Invalid type for map_indexes: expected int, iterable of ints, or None, got {type(map_indexes)}"
             )
 
         xcoms = []
-        # TODO: Execution API only allows working with a single map_index at a time
+        # TODO: AIP 72 Execution API only allows working with a single map_index at a time
         # this is inefficient and leads to task_id * map_index requests to the API.
         # And we can't achieve the original behavior of XCom pull with multiple tasks
         # directly now.
-        # Original behavior may be achieved after `LazyXComSequence` is finished?
-        #
-        # Original description:
-        #
-        # When pulling one single task (``task_id`` is *None* or a str) without
-        # specifying ``map_indexes``, the return value is inferred from whether
-        # the specified task is mapped. If not, value from the one single task
-        # instance is returned. If the task to pull is mapped, an iterator (not a
-        # list) yielding XComs from mapped task instances is returned. In either
-        # case, ``default`` (*None* if not specified) is returned if no matching
-        # XComs are found.
         for t_id, m_idx in product(task_ids, map_indexes_iterable):
             value = XCom.get_one(
                 run_id=run_id,
