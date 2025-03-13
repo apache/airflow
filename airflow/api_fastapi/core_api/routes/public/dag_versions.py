@@ -50,7 +50,7 @@ dag_versions_router = AirflowRouter(tags=["DagVersion"], prefix="/dags/{dag_id}/
             status.HTTP_404_NOT_FOUND,
         ]
     ),
-    dependencies=[Depends(requires_access_dag(method="GET", access_entity=DagAccessEntity.DAG_VERSION))],
+    dependencies=[Depends(requires_access_dag(method="GET", access_entity=DagAccessEntity.VERSION))],
 )
 def get_dag_version(
     dag_id: str,
@@ -76,7 +76,7 @@ def get_dag_version(
             status.HTTP_404_NOT_FOUND,
         ],
     ),
-    dependencies=[Depends(requires_access_dag(method="GET", access_entity=DagAccessEntity.DAG_VERSION))],
+    dependencies=[Depends(requires_access_dag(method="GET", access_entity=DagAccessEntity.VERSION))],
 )
 def get_dag_versions(
     dag_id: str,

@@ -74,6 +74,7 @@ from airflow.providers.fab.www.security.permissions import (
     RESOURCE_DAG_CODE,
     RESOURCE_DAG_DEPENDENCIES,
     RESOURCE_DAG_RUN,
+    RESOURCE_DAG_VERSION,
     RESOURCE_DAG_WARNING,
     RESOURCE_DOCS,
     RESOURCE_IMPORT_ERROR,
@@ -129,6 +130,7 @@ _MAP_DAG_ACCESS_ENTITY_TO_FAB_RESOURCE_TYPE: dict[DagAccessEntity, tuple[str, ..
     DagAccessEntity.TASK_INSTANCE: (RESOURCE_DAG_RUN, RESOURCE_TASK_INSTANCE),
     DagAccessEntity.TASK_LOGS: (RESOURCE_TASK_LOG,),
     DagAccessEntity.TASK_RESCHEDULE: (RESOURCE_TASK_RESCHEDULE,),
+    DagAccessEntity.VERSION: (RESOURCE_DAG_VERSION,),
     DagAccessEntity.WARNING: (RESOURCE_DAG_WARNING,),
     DagAccessEntity.XCOM: (RESOURCE_XCOM,),
 }

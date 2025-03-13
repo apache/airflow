@@ -7043,9 +7043,7 @@ paths:
         in: path
         required: true
         schema:
-          anyOf:
-          - type: string
-          - type: 'null'
+          type: string
           title: Dag Id
       - name: version_number
         in: path
@@ -7102,9 +7100,7 @@ paths:
         in: path
         required: true
         schema:
-          anyOf:
-          - type: string
-          - type: 'null'
+          type: string
           title: Dag Id
       - name: limit
         in: query
