@@ -106,13 +106,11 @@ if TYPE_CHECKING:
     from airflow.providers.fab.www.security.permissions import (
         RESOURCE_ASSET,
         RESOURCE_ASSET_ALIAS,
-        RESOURCE_BACKFILL,
     )
 else:
     from airflow.providers.common.compat.security.permissions import (
         RESOURCE_ASSET,
         RESOURCE_ASSET_ALIAS,
-        RESOURCE_BACKFILL,
     )
 
 
