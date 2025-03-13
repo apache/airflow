@@ -285,6 +285,8 @@ paths:
       summary: Structure Data
       description: Get Structure Data.
       operationId: structure_data
+      security:
+      - OAuth2PasswordBearer: []
       parameters:
       - name: dag_id
         in: query
