@@ -631,6 +631,8 @@ class CustomBuild(BuilderInterface[BuilderConfig, PluginManager]):
         commands = [
             ["rm -rf airflow/ui/dist"],
             ["rm -rf airflow/ui/node_modules"],
+            ["rm -rf airflow/api_fastapi/auth/managers/simple/ui/dist"],
+            ["rm -rf airflow/api_fastapi/auth/managers/simple/ui/node_modules"],
         ]
         for cmd in commands:
             run(cmd, cwd=work_dir.as_posix(), check=True, shell=True)

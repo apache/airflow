@@ -23,7 +23,7 @@ import contextvars
 import functools
 import os
 import sys
-from collections.abc import Iterable, Mapping
+from collections.abc import Iterable, Iterator, Mapping
 from datetime import datetime, timezone
 from io import FileIO
 from pathlib import Path
@@ -46,7 +46,7 @@ from airflow.sdk.api.datamodels._generated import (
 )
 from airflow.sdk.definitions._internal.dag_parsing_context import _airflow_parsing_context_manager
 from airflow.sdk.definitions._internal.types import NOTSET, ArgNotSet
-from airflow.sdk.definitions.asset import Asset, AssetAlias, AssetNameRef, AssetUriRef
+from airflow.sdk.definitions.asset import Asset, AssetAlias, AssetNameRef, AssetUniqueKey, AssetUriRef
 from airflow.sdk.definitions.baseoperator import BaseOperator, ExecutorSafeguard
 from airflow.sdk.definitions.mappedoperator import MappedOperator
 from airflow.sdk.definitions.param import process_params
@@ -83,6 +83,7 @@ if TYPE_CHECKING:
 
     from airflow.sdk.definitions._internal.abstractoperator import AbstractOperator
     from airflow.sdk.definitions.context import Context
+    from airflow.sdk.types import OutletEventAccessorsProtocol
 
 
 class TaskRunnerMarker:
@@ -515,33 +516,29 @@ def _serialize_rendered_fields(task: AbstractOperator) -> dict[str, JsonValue]:
     return {field: serialize_template_field(getattr(task, field), field) for field in task.template_fields}
 
 
-def _process_outlets(context: Context, outlets: list[AssetProfile]):
-    added_alias_to_task_outlet = False
-    task_outlets: list[AssetProfile] = []
-    outlet_events: list[Any] = []
-    events = context["outlet_events"]
-
-    for obj in outlets or []:
-        # Lineage can have other types of objects besides assets
+def _build_asset_profiles(lineage_objects: list) -> Iterator[AssetProfile]:
+    # Lineage can have other types of objects besides assets, so we need to process them a bit.
+    for obj in lineage_objects or ():
         if isinstance(obj, Asset):
-            task_outlets.append(AssetProfile(name=obj.name, uri=obj.uri, type=Asset.__name__))
-            outlet_events.append(attrs.asdict(events[obj]))  # type: ignore
+            yield AssetProfile(name=obj.name, uri=obj.uri, type=Asset.__name__)
         elif isinstance(obj, AssetNameRef):
-            task_outlets.append(AssetProfile(name=obj.name, type=AssetNameRef.__name__))
-            # Send all events, filtering can be done in API server.
-            outlet_events.append(attrs.asdict(events))  # type: ignore
+            yield AssetProfile(name=obj.name, type=AssetNameRef.__name__)
         elif isinstance(obj, AssetUriRef):
-            task_outlets.append(AssetProfile(uri=obj.uri, type=AssetUriRef.__name__))
-            # Send all events, filtering can be done in API server.
-            outlet_events.append(attrs.asdict(events))  # type: ignore
+            yield AssetProfile(uri=obj.uri, type=AssetUriRef.__name__)
         elif isinstance(obj, AssetAlias):
-            if not added_alias_to_task_outlet:
-                task_outlets.append(AssetProfile(name=obj.name, type=AssetAlias.__name__))
-                added_alias_to_task_outlet = True
-            for asset_alias_event in events[obj].asset_alias_events:
-                outlet_events.append(attrs.asdict(asset_alias_event))
+            yield AssetProfile(name=obj.name, type=AssetAlias.__name__)
 
-    return task_outlets, outlet_events
+
+def _serialize_outlet_events(events: OutletEventAccessorsProtocol) -> Iterator[dict[str, Any]]:
+    if TYPE_CHECKING:
+        assert isinstance(events, OutletEventAccessors)
+    # We just collect everything the user recorded in the accessors.
+    # Further filtering will be done in the API server.
+    for key, accessor in events._dict.items():
+        if isinstance(key, AssetUniqueKey):
+            yield {"dest_asset_key": attrs.asdict(key), "extra": accessor.extra}
+        for alias_event in accessor.asset_alias_events:
+            yield attrs.asdict(alias_event)
 
 
 def _prepare(ti: RuntimeTaskInstance, log: Logger, context: Context) -> ToSupervisor | None:
@@ -610,11 +607,10 @@ def run(
 
         _push_xcom_if_needed(result, ti, log)
 
-        task_outlets, outlet_events = _process_outlets(context, ti.task.outlets)
         msg = SucceedTask(
             end_date=datetime.now(tz=timezone.utc),
-            task_outlets=task_outlets,
-            outlet_events=outlet_events,
+            task_outlets=list(_build_asset_profiles(ti.task.outlets)),
+            outlet_events=list(_serialize_outlet_events(context["outlet_events"])),
         )
         state = TerminalTIState.SUCCESS
     except TaskDeferred as defer:

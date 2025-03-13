@@ -14,17 +14,21 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+
 from __future__ import annotations
 
-from typing import TYPE_CHECKING
-
-if TYPE_CHECKING:
-    from airflow.security.permissions import RESOURCE_ASSET, RESOURCE_ASSET_ALIAS, RESOURCE_BACKFILL
-else:
-    try:
-        from airflow.security.permissions import RESOURCE_ASSET, RESOURCE_ASSET_ALIAS, RESOURCE_BACKFILL
-    except ImportError:
-        from airflow.security.permissions import RESOURCE_DATASET as RESOURCE_ASSET
+from airflow.api_fastapi.core_api.base import BaseModel
 
 
-__all__ = ["RESOURCE_ASSET", "RESOURCE_ASSET_ALIAS", "RESOURCE_BACKFILL"]
+class MenuItem(BaseModel):
+    """Menu Item for responses."""
+
+    text: str
+    href: str
+
+
+class MenuItemCollectionResponse(BaseModel):
+    """Menu Item Collection serializer for responses."""
+
+    menu_items: list[MenuItem]
+    total_entries: int
