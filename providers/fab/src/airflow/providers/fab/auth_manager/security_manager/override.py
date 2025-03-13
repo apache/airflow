@@ -112,9 +112,17 @@ from airflow.providers.fab.www.session import (
 )
 
 if TYPE_CHECKING:
-    from airflow.providers.fab.www.security.permissions import RESOURCE_ASSET, RESOURCE_ASSET_ALIAS
+    from airflow.providers.fab.www.security.permissions import (
+        RESOURCE_ASSET,
+        RESOURCE_ASSET_ALIAS,
+        RESOURCE_BACKFILL,
+    )
 else:
-    from airflow.providers.common.compat.security.permissions import RESOURCE_ASSET, RESOURCE_ASSET_ALIAS
+    from airflow.providers.common.compat.security.permissions import (
+        RESOURCE_ASSET,
+        RESOURCE_ASSET_ALIAS,
+        RESOURCE_BACKFILL,
+    )
 
 log = logging.getLogger(__name__)
 
@@ -146,7 +154,13 @@ class _ModifiedAuthView(AuthView):
         return super().logout()
 
 
-for auth_view in [AuthDBView, AuthLDAPView, AuthOAuthView, AuthOIDView, AuthRemoteUserView]:
+for auth_view in [
+    AuthDBView,
+    AuthLDAPView,
+    AuthOAuthView,
+    AuthOIDView,
+    AuthRemoteUserView,
+]:
     auth_view.__bases__ = (_ModifiedAuthView,)
 
 
@@ -234,6 +248,7 @@ class FabAirflowSecurityManagerOverride(AirflowSecurityManagerV2):
         (permissions.ACTION_CAN_READ, permissions.RESOURCE_DAG_RUN),
         (permissions.ACTION_CAN_READ, RESOURCE_ASSET),
         (permissions.ACTION_CAN_READ, RESOURCE_ASSET_ALIAS),
+        (permissions.ACTION_CAN_READ, RESOURCE_BACKFILL),
         (permissions.ACTION_CAN_READ, permissions.RESOURCE_CLUSTER_ACTIVITY),
         (permissions.ACTION_CAN_READ, permissions.RESOURCE_POOL),
         (permissions.ACTION_CAN_READ, permissions.RESOURCE_IMPORT_ERROR),
@@ -301,8 +316,11 @@ class FabAirflowSecurityManagerOverride(AirflowSecurityManagerV2):
         (permissions.ACTION_CAN_EDIT, permissions.RESOURCE_VARIABLE),
         (permissions.ACTION_CAN_DELETE, permissions.RESOURCE_VARIABLE),
         (permissions.ACTION_CAN_DELETE, permissions.RESOURCE_XCOM),
-        (permissions.ACTION_CAN_DELETE, RESOURCE_ASSET),
         (permissions.ACTION_CAN_CREATE, RESOURCE_ASSET),
+        (permissions.ACTION_CAN_DELETE, RESOURCE_ASSET),
+        (permissions.ACTION_CAN_CREATE, RESOURCE_BACKFILL),
+        (permissions.ACTION_CAN_EDIT, RESOURCE_BACKFILL),
+        (permissions.ACTION_CAN_DELETE, RESOURCE_BACKFILL),
     ]
     # [END security_op_perms]
 
@@ -551,7 +569,10 @@ class FabAirflowSecurityManagerOverride(AirflowSecurityManagerV2):
     def reset_user_sessions(self, user: User) -> None:
         if isinstance(
             self.appbuilder.get_app.session_interface, AirflowDatabaseSessionInterface
-        ) or isinstance(self.appbuilder.get_app.session_interface, FabAirflowDatabaseSessionInterface):
+        ) or isinstance(
+            self.appbuilder.get_app.session_interface,
+            FabAirflowDatabaseSessionInterface,
+        ):
             interface = self.appbuilder.get_app.session_interface
             session = interface.db.session
             user_session_model = interface.sql_session_model
@@ -1032,7 +1053,11 @@ class FabAirflowSecurityManagerOverride(AirflowSecurityManagerV2):
         def _get_or_create_dag_permission(action_name: str, dag_resource_name: str) -> Permission | None:
             perm = self.get_permission(action_name, dag_resource_name)
             if not perm:
-                self.log.info("Creating new action '%s' on resource '%s'", action_name, dag_resource_name)
+                self.log.info(
+                    "Creating new action '%s' on resource '%s'",
+                    action_name,
+                    dag_resource_name,
+                )
                 perm = self.create_permission(action_name, dag_resource_name)
             return perm
 
@@ -1344,7 +1369,10 @@ class FabAirflowSecurityManagerOverride(AirflowSecurityManagerV2):
                     if fab_role:
                         _roles.add(fab_role)
                     else:
-                        log.warning("Can't find role specified in AUTH_ROLES_MAPPING: %s", fab_role_name)
+                        log.warning(
+                            "Can't find role specified in AUTH_ROLES_MAPPING: %s",
+                            fab_role_name,
+                        )
         return _roles
 
     def get_public_role(self):
@@ -2192,7 +2220,10 @@ class FabAirflowSecurityManagerOverride(AirflowSecurityManagerV2):
 
         # perform the LDAP search
         log.debug(
-            "LDAP search for %r with fields %s in scope %r", filter_str, request_fields, self.auth_ldap_search
+            "LDAP search for %r with fields %s in scope %r",
+            filter_str,
+            request_fields,
+            self.auth_ldap_search,
         )
         raw_search_result = con.search_s(
             self.auth_ldap_search, ldap.SCOPE_SUBTREE, filter_str, request_fields
@@ -2294,7 +2325,11 @@ class FabAirflowSecurityManagerOverride(AirflowSecurityManagerV2):
             (action_name, resource_name): viewmodel
             for action_name, resource_name, viewmodel in (
                 self.appbuilder.get_session.execute(
-                    select(self.action_model.name, self.resource_model.name, self.permission_model)
+                    select(
+                        self.action_model.name,
+                        self.resource_model.name,
+                        self.permission_model,
+                    )
                     .join(self.permission_model.action)
                     .join(self.permission_model.resource)
                     .where(~self.resource_model.name.like(f"{permissions.RESOURCE_DAG_PREFIX}%"))

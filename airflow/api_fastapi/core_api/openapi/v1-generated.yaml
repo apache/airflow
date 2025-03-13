@@ -1372,6 +1372,8 @@ paths:
       - Backfill
       summary: List Backfills
       operationId: list_backfills
+      security:
+      - OAuth2PasswordBearer: []
       parameters:
       - name: dag_id
         in: query
@@ -1432,6 +1434,8 @@ paths:
       - Backfill
       summary: Create Backfill
       operationId: create_backfill
+      security:
+      - OAuth2PasswordBearer: []
       requestBody:
         required: true
         content:
@@ -1481,6 +1485,8 @@ paths:
       - Backfill
       summary: Get Backfill
       operationId: get_backfill
+      security:
+      - OAuth2PasswordBearer: []
       parameters:
       - name: backfill_id
         in: path
@@ -1525,6 +1531,8 @@ paths:
       - Backfill
       summary: Pause Backfill
       operationId: pause_backfill
+      security:
+      - OAuth2PasswordBearer: []
       parameters:
       - name: backfill_id
         in: path
@@ -1574,6 +1582,8 @@ paths:
       - Backfill
       summary: Unpause Backfill
       operationId: unpause_backfill
+      security:
+      - OAuth2PasswordBearer: []
       parameters:
       - name: backfill_id
         in: path
@@ -1623,6 +1633,8 @@ paths:
       - Backfill
       summary: Cancel Backfill
       operationId: cancel_backfill
+      security:
+      - OAuth2PasswordBearer: []
       parameters:
       - name: backfill_id
         in: path
@@ -1715,6 +1727,8 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/HTTPValidationError'
+      security:
+      - OAuth2PasswordBearer: []
   /public/connections/{connection_id}:
     delete:
       tags:

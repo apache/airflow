@@ -31,6 +31,7 @@ from airflow.api_fastapi.auth.managers.models.resource_details import (
     AccessView,
     AssetAliasDetails,
     AssetDetails,
+    BackfillDetails,
     ConfigurationDetails,
     ConnectionDetails,
     DagAccessEntity,
@@ -135,6 +136,22 @@ def permitted_dag_filter_factory(method: ResourceMethod) -> Callable[[Request, B
 
 EditableDagsFilterDep = Annotated[PermittedDagFilter, Depends(permitted_dag_filter_factory("PUT"))]
 ReadableDagsFilterDep = Annotated[PermittedDagFilter, Depends(permitted_dag_filter_factory("GET"))]
+
+
+def requires_access_backfill(method: ResourceMethod) -> Callable:
+    def inner(
+        request: Request,
+        user: Annotated[BaseUser | None, Depends(get_user)] = None,
+    ) -> None:
+        backfill_id: str | None = request.path_params.get("backfill_id")
+
+        _requires_access(
+            is_authorized_callback=lambda: get_auth_manager().is_authorized_backfill(
+                method=method, details=BackfillDetails(id=backfill_id), user=user
+            ),
+        )
+
+    return inner
 
 
 def requires_access_pool(method: ResourceMethod) -> Callable[[Request, BaseUser], None]:

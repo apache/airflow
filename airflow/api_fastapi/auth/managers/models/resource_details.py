@@ -43,6 +43,13 @@ class DagDetails:
 
 
 @dataclass
+class BackfillDetails:
+    """Represents the details of a backfill."""
+
+    id: str | None = None
+
+
+@dataclass
 class AssetDetails:
     """Represents the details of an asset."""
 
