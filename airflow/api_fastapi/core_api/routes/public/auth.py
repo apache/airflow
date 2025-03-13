@@ -50,8 +50,7 @@ def logout(request: Request, next: None | str = None) -> RedirectResponse:
     """Logout the user."""
     logout_url = request.app.state.auth_manager.get_url_logout()
 
-    if logout_url:
-        return RedirectResponse(logout_url)
+    if not logout_url:
+        logout_url = request.app.state.auth_manager.get_url_login()
 
-    login_url = request.app.state.auth_manager.get_url_login()
-    return RedirectResponse(login_url)
+    return RedirectResponse(logout_url)
