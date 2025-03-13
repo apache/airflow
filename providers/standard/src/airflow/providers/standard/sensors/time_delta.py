@@ -71,6 +71,9 @@ class TimeDeltaSensor(BaseSensorOperator):
         """
         data_interval_end = context.get("data_interval_end")
         if data_interval_end:
+            if not isinstance(data_interval_end, datetime):
+                raise ValueError("`data_interval_end` returned non-datetime object")
+
             return data_interval_end
         else:
             dag_run = context.get("dag_run")
@@ -105,12 +108,8 @@ class TimeDeltaSensorAsync(TimeDeltaSensor):
         self.end_from_trigger = end_from_trigger
 
     def execute(self, context: Context) -> bool | NoReturn:
-        data_interval_end = context["data_interval_end"]
-
-        if not isinstance(data_interval_end, datetime):
-            raise ValueError("`data_interval_end` returned non-datetime object")
-
-        target_dttm: datetime = data_interval_end + self.delta
+        base_time = self._derive_base_time(context=context)
+        target_dttm: datetime = base_time + self.delta
 
         if timezone.utcnow() > target_dttm:
             # If the target datetime is in the past, return immediately
