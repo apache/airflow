@@ -2828,7 +2828,7 @@ class TaskInstance(Base, LoggingMixin):
                 asset_manager.register_asset_change(
                     task_instance=ti,
                     asset=asset_key,
-                    aliases=aliases,
+                    source_alias_names=event_aliase_names,
                     extra=dict(extra_key),
                     session=session,
                 )
