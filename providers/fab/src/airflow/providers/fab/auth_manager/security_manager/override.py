@@ -28,7 +28,6 @@ from collections.abc import Collection, Iterable, Mapping
 from typing import TYPE_CHECKING, Any
 
 import jwt
-import packaging.version
 from flask import flash, g, has_request_context, session
 from flask_appbuilder import const
 from flask_appbuilder.const import (
@@ -57,10 +56,8 @@ from flask_appbuilder.security.views import (
     AuthOAuthView,
     AuthOIDView,
     AuthRemoteUserView,
-    AuthView,
     RegisterUserModelView,
 )
-from flask_appbuilder.views import expose
 from flask_babel import lazy_gettext
 from flask_jwt_extended import JWTManager
 from flask_login import LoginManager
@@ -71,7 +68,6 @@ from sqlalchemy.exc import MultipleResultsFound
 from sqlalchemy.orm import joinedload
 from werkzeug.security import check_password_hash, generate_password_hash
 
-from airflow import __version__ as airflow_version
 from airflow.configuration import conf
 from airflow.exceptions import AirflowException
 from airflow.models import DagBag
@@ -133,35 +129,6 @@ log = logging.getLogger(__name__)
 # continuously creates new sessions. Such setup should be fixed by reusing sessions or by periodically
 # purging the old sessions by using `airflow db clean` command.
 MAX_NUM_DATABASE_USER_SESSIONS = 50000
-
-
-# The following logic patches the logout method within AuthView, so it supports POST method
-# to make CSRF protection effective. It is backward-compatible with Airflow versions <= 2.9.2 as it still
-# allows utilizing the GET method for them.
-# You could remove the patch and configure it when it is supported
-# natively by Flask-AppBuilder (https://github.com/dpgaspar/Flask-AppBuilder/issues/2248)
-if packaging.version.parse(packaging.version.parse(airflow_version).base_version) < packaging.version.parse(
-    "2.10.0"
-):
-    _methods = ["GET", "POST"]
-else:
-    _methods = ["POST"]
-
-
-class _ModifiedAuthView(AuthView):
-    @expose("/logout/", methods=_methods)
-    def logout(self):
-        return super().logout()
-
-
-for auth_view in [
-    AuthDBView,
-    AuthLDAPView,
-    AuthOAuthView,
-    AuthOIDView,
-    AuthRemoteUserView,
-]:
-    auth_view.__bases__ = (_ModifiedAuthView,)
 
 
 class FabAirflowSecurityManagerOverride(AirflowSecurityManagerV2):
