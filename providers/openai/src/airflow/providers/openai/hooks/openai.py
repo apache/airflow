@@ -25,18 +25,15 @@ from typing import TYPE_CHECKING, Any, BinaryIO, Literal
 from openai import OpenAI
 
 if TYPE_CHECKING:
-    from openai.types import FileDeleted, FileObject
-    from openai.types.batch import Batch
     from openai.types import (
-        Assistant,
-        AssistantDeleted,
-        Thread,
-        ThreadDeleted,
+        FileDeleted,
+        FileObject,
         VectorStore,
         VectorStoreDeleted,
     )
-    from openai.types.threads import Message, Run
-    from openai.types.vector_stores import VectorStoreFile, VectorStoreFileBatch, VectorStoreFileDeleted
+    from openai.types.batch import Batch
+    from openai.types.beta import Assistant, AssistantDeleted, Thread, ThreadDeleted
+    from openai.types.beta.threads import Message, Run
     from openai.types.chat import (
         ChatCompletionAssistantMessageParam,
         ChatCompletionFunctionMessageParam,
@@ -45,6 +42,7 @@ if TYPE_CHECKING:
         ChatCompletionToolMessageParam,
         ChatCompletionUserMessageParam,
     )
+    from openai.types.vector_stores import VectorStoreFile, VectorStoreFileBatch, VectorStoreFileDeleted
 from airflow.hooks.base import BaseHook
 from airflow.providers.openai.exceptions import OpenAIBatchJobException, OpenAIBatchTimeout
 
