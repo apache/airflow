@@ -18,7 +18,7 @@
 from __future__ import annotations
 
 import logging
-from abc import abstractmethod
+from abc import ABCMeta, abstractmethod
 from typing import TYPE_CHECKING, Any, Generic, TypeVar
 
 from jwt import InvalidTokenError
@@ -66,7 +66,7 @@ log = logging.getLogger(__name__)
 T = TypeVar("T", bound=BaseUser)
 
 
-class BaseAuthManager(Generic[T], LoggingMixin):
+class BaseAuthManager(Generic[T], LoggingMixin, metaclass=ABCMeta):
     """
     Class to derive in order to implement concrete auth managers.
 
