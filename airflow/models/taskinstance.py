@@ -2827,6 +2827,8 @@ class TaskInstance(Base, LoggingMixin):
                     alias_name = event["source_alias_name"]
                 except KeyError:
                     continue
+                if alias_name not in outlet_alias_names:
+                    continue
                 asset_key = AssetUniqueKey(**event["dest_asset_key"])
                 extra_key = frozenset(event["extra"].items())
                 d[asset_key, extra_key].add(alias_name)
