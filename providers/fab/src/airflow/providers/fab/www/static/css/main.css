@@ -19,7 +19,7 @@
 
 body {
   position: relative;
-  padding: 70px 0;
+  padding: 15px 0;
   min-height: 100vh;
   overflow-y: scroll;
   background-color: #fff;
@@ -52,40 +52,6 @@ div.container {
   padding-right: 15px;
 }
 
-.navbar a {
-  color: #51504f;
-  font-weight: bold;
-}
-
-.navbar a .caret {
-  color: #e2d2e2;
-}
-
-/* If a category has a lot of menu items, we cap it, and
- add a scroll bar */
-.navbar li.dropdown .dropdown-menu {
-  max-height: 85vh;
-  overflow-y: auto;
-}
-
-.navbar-nav li.dropdown:hover > .dropdown-menu,
-.navbar-nav li.dropdown:focus-within > .dropdown-menu {
-  display: block;
-}
-
-/* If a menu remains open due to focus, a menu
-  opened via hover will always be displayed on top */
-.navbar-nav li.dropdown:hover > .dropdown-menu {
-  z-index: 1001;
-}
-
-.navbar-brand {
-  padding: 0 15px;
-  height: 60px;
-  display: inline-flex;
-  align-items: center;
-}
-
 .brand-logo {
   width: 104px;
   height: 40px;
@@ -102,26 +68,6 @@ div.container {
   }
 }
 
-@media (prefers-reduced-motion: no-preference) {
-  .navbar-brand:hover .brand-logo-pinwheel {
-    transform-origin: 17.66px 17.66px;
-    animation: pinSpin 1.5s linear;
-  }
-}
-
-.navbar-user-icon {
-  display: inline-flex;
-  justify-content: center;
-  align-items: center;
-  vertical-align: middle;
-  margin: -5px 0;
-  width: 30px;
-  height: 30px;
-  border-radius: 50%;
-  color: #017cee;
-  background-color: #c0defb;
-}
-
 span.status_square {
   width: 10px;
   height: 10px;
@@ -134,15 +80,6 @@ span.status_square {
 div.squares {
   float: right;
   font-size: 1;
-}
-
-.d3-tip {
-  background: rgba(0, 0, 0, 0.85);
-  color: #fff;
-  border: 0;
-  border-radius: 5px;
-  padding: 10px;
-  margin-top: -4px;
 }
 
 input#execution_date {
@@ -231,77 +168,6 @@ div.form-inline {
 
 body div.panel {
   padding: 0;
-}
-
-.legend-row {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-}
-
-.legend-item {
-  display: inline-flex;
-  align-items: center;
-  margin-right: 4px;
-  border-radius: 4px;
-  border: solid 2px #cbcbcb;
-  padding: 0 3px;
-  font-size: 11px;
-}
-
-.legend-item--interactive {
-  cursor: pointer;
-}
-
-.legend-item--no-border {
-  border-color: transparent;
-  padding: 0;
-}
-
-.legend-item:last-child {
-  margin-right: 0;
-}
-
-.legend-item__swatch {
-  display: inline-block;
-  margin-right: 3px;
-  width: 12px;
-  height: 12px;
-  border-radius: 2px;
-  border: solid 1px #8e8e8d;
-  background: #fff;
-}
-
-.legend-item__swatch--circle {
-  border-radius: 50%;
-  width: 14px;
-  height: 14px;
-}
-
-.legend-item__swatch--no-border {
-  border-color: transparent;
-}
-
-label[for="timezone-other"],
-#timezone-other {
-  margin: 3px 20px;
-  font-weight: normal;
-}
-
-#timezone-menu {
-  overflow-x: hidden;
-}
-
-#timezone-menu ul.typeahead.dropdown-menu {
-  max-height: 200px;
-  overflow-y: auto;
-  overflow-x: hidden;
-  border: none;
-  left: 0 !important;
-}
-
-#timezone-menu .dropdown-item {
-  padding: 3px 20px;
 }
 
 .ui-menu .ui-menu-item a.ui-state-focus,
@@ -606,25 +472,6 @@ label[for="timezone-other"],
   overflow-x: auto;
 }
 
-.refresh-actions {
-  justify-content: flex-end;
-  min-width: 225px;
-  float: right;
-  display: inline-flex;
-  align-items: center;
-  right: 10px;
-  margin-bottom: 15px;
-  position: relative;
-}
-
-.refresh-actions > .switch-label {
-  margin: 0 10px;
-}
-
-.loading-dots.refresh-loading {
-  display: none;
-}
-
 .trigger-dropdown-btn {
   border-bottom-right-radius: 0;
   border-top-right-radius: 0;
@@ -668,9 +515,4 @@ details summary {
 .menu-scroll {
   max-height: 300px;
   overflow-y: auto;
-}
-
-.next-asset-triggered:hover {
-  cursor: pointer;
-  background-color: #cbcbcb;
 }
