@@ -15,7 +15,7 @@
    specific language governing permissions and limitations
    under the License.
 
-.. _howto/connection:exasol:
+.. _howto/connection:exasol_ce_setup:
 
 ########################################
 Exasol Connection Setup for Apache Airflow
@@ -123,30 +123,3 @@ Once the connection is configured, check if it was successfully added:
    airflow connections get exasol_default
 
 This command displays the connection details, ensuring Airflow can communicate with Exasol.
-
-Testing the DAG
-###############
-
-Load DAG Files
-==============
-
-Reserialize and refresh DAGs:
-
-.. code-block:: sh
-
-   airflow dags reserialize
-
-Manual Task Execution
-=====================
-
-Verify connectivity by running a manual task execution:
-
-.. code-block:: sh
-
-   airflow tasks test example_exasol_to_s3 test_exasol_conn $(date +%Y-%m-%d)
-
-If configured correctly, the task will connect to Exasol and extract data.
-
----
-
-This document follows the official Apache Airflow documentation style and ensures professional clarity and consistency.
