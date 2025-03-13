@@ -10,6 +10,8 @@ As part of this change the following breaking changes have occurred:
 
   - A new abstract method ``serialize_user`` needs to be implemented
 
+  - A new abstract method ``filter_authorized_menu_items`` needs to be implemented
+
   - The property ``security_manager`` has been removed from the interface
 
   - The method ``get_url_logout`` is now optional

@@ -44,7 +44,7 @@ from airflow.api_fastapi.auth.managers.models.resource_details import (
     PoolDetails,
     VariableDetails,
 )
-from airflow.api_fastapi.common.types import MenuItem
+from airflow.api_fastapi.common.types import ExtraMenuItem, MenuItem
 from airflow.cli.cli_config import (
     DefaultHelpParser,
     GroupCommand,
@@ -141,6 +141,19 @@ _MAP_ACCESS_VIEW_TO_FAB_RESOURCE_TYPE = {
     AccessView.PROVIDERS: RESOURCE_PROVIDER,
     AccessView.TRIGGERS: RESOURCE_TRIGGER,
     AccessView.WEBSITE: RESOURCE_WEBSITE,
+}
+
+_MAP_MENU_ITEM_TO_FAB_RESOURCE_TYPE = {
+    MenuItem.ASSETS: RESOURCE_ASSET,
+    MenuItem.ASSET_EVENTS: RESOURCE_ASSET,
+    MenuItem.CONNECTIONS: RESOURCE_CONNECTION,
+    MenuItem.DAGS: RESOURCE_DAG,
+    MenuItem.DOCS: RESOURCE_DOCS,
+    MenuItem.PLUGINS: RESOURCE_PLUGIN,
+    MenuItem.POOLS: RESOURCE_POOL,
+    MenuItem.PROVIDERS: RESOURCE_PROVIDER,
+    MenuItem.VARIABLES: RESOURCE_VARIABLE,
+    MenuItem.XCOMS: RESOURCE_XCOM,
 }
 
 
@@ -360,6 +373,17 @@ class FabAuthManager(BaseAuthManager[User]):
         fab_action_name = get_fab_action_from_method_map().get(method, method)
         return (fab_action_name, resource_name) in self._get_user_permissions(user)
 
+    def filter_authorized_menu_items(self, menu_items: list[MenuItem], user: User) -> list[MenuItem]:
+        return [
+            menu_item
+            for menu_item in menu_items
+            if self._is_authorized(
+                method="MENU",
+                resource_type=_MAP_MENU_ITEM_TO_FAB_RESOURCE_TYPE.get(menu_item, menu_item.value),
+                user=user,
+            )
+        ]
+
     @provide_session
     def get_permitted_dag_ids(
         self,
@@ -433,7 +457,7 @@ class FabAuthManager(BaseAuthManager[User]):
     def register_views(self) -> None:
         self.security_manager.register_views()
 
-    def get_menu_items(self, *, user: User) -> list[MenuItem]:
+    def get_extra_menu_items(self, *, user: User) -> list[ExtraMenuItem]:
         # Contains the list of menu items. ``resource_type`` is the name of the resource in FAB
         # permission model to check whether the user is allowed to see this menu item
         items = [
@@ -465,7 +489,7 @@ class FabAuthManager(BaseAuthManager[User]):
         ]
 
         return [
-            MenuItem(text=item["text"], href=item["href"])
+            ExtraMenuItem(text=item["text"], href=item["href"])
             for item in items
             if self._is_authorized(method="MENU", resource_type=item["resource_type"], user=user)
         ]
