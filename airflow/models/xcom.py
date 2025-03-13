@@ -50,7 +50,7 @@ from airflow.utils.sqlalchemy import UtcDateTime
 # which should import the constants directly after apache-airflow>=2.6.0
 from airflow.utils.xcom import (
     MAX_XCOM_SIZE,  # noqa: F401
-    XCOM_RETURN_KEY,  # noqa: F401
+    XCOM_RETURN_KEY,
 )
 
 log = logging.getLogger(__name__)
@@ -185,6 +185,27 @@ class XComModel(TaskInstanceDependencies):
         dag_run_id = session.query(DagRun.id).filter_by(dag_id=dag_id, run_id=run_id).scalar()
         if dag_run_id is None:
             raise ValueError(f"DAG run not found on DAG {dag_id!r} with ID {run_id!r}")
+
+        # Seamlessly resolve LazySelectSequence to a list. This intends to work
+        # as a "lazy list" to avoid pulling a ton of XComs unnecessarily, but if
+        # it's pushed into XCom, the user should be aware of the performance
+        # implications, and this avoids leaking the implementation detail.
+        if isinstance(value, LazySelectSequence):
+            warning_message = (
+                "Coercing mapped lazy proxy %s from task %s (DAG %s, run %s) "
+                "to list, which may degrade performance. Review resource "
+                "requirements for this operation, and call list() to suppress "
+                "this message. See Dynamic Task Mapping documentation for "
+                "more information about lazy proxy objects."
+            )
+            log.warning(
+                warning_message,
+                "return value" if key == XCOM_RETURN_KEY else f"value {key}",
+                task_id,
+                dag_id,
+                run_id,
+            )
+            value = list(value)
 
         value = cls.serialize_value(
             value=value,
