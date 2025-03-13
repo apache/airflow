@@ -18,7 +18,7 @@
  */
 
 /*
-  global d3, localStorage, dagreD3, dagNodes, edges, arrange, document,
+  global d3, localStorage, dagreD3, dagNodes, edges, arrange, document, window,
 */
 
 const highlightColor = "#000000";
@@ -224,6 +224,15 @@ const renderGraph = () => {
   innerSvg.call(render, g);
   setUpNodeHighlighting();
   setUpZoomSupport();
+
+  g.nodes().forEach((nodeId) => {
+    const node = g.node(nodeId);
+    if (node.class === "dag") {
+      d3.select(node.elem).on("click", () => {
+        window.location.href = `/dags/${node.label}/grid?tab=graph`;
+      });
+    }
+  });
 };
 
 // rerender graph when filtering dags with dependencies or not
