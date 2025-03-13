@@ -28,7 +28,7 @@ def get_provider_info():
         "description": "Airflow Standard Provider\n",
         "state": "ready",
         "source-date-epoch": 1741509906,
-        "versions": ["0.1.1", "0.1.0", "0.0.3", "0.0.2", "0.0.1"],
+        "versions": ["0.1.2", "0.1.1", "0.1.0", "0.0.3", "0.0.2", "0.0.1"],
         "integrations": [
             {
                 "integration-name": "Standard",
