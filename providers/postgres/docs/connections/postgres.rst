@@ -76,6 +76,8 @@ Extra (optional)
 
       For more information, refer to the psycopg2 documentation on `connection and cursor subclasses <https://www.psycopg.org/docs/extras.html#connection-and-cursor-subclasses>`_.
 
+    * ``designator`` - Specifies the designator to use in the connection URI. By default, it is set to ``postgres``. This is useful if you want to replace the ``postgres://`` prefix in the URI with a different designator.
+
     More details on all Postgres parameters supported can be found in
     `Postgres documentation <https://www.postgresql.org/docs/current/static/libpq-connect.html#LIBPQ-CONNSTRING>`_.
 
