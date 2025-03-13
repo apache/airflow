@@ -82,27 +82,33 @@ class ConfigChange:
     Class representing the configuration changes in Airflow 3.0.
 
     :param config: The configuration parameter being changed.
+    :param default_change: If the change is a default value change.
+    :param new_default: The new default value for the configuration parameter.
     :param suggestion: A suggestion for replacing or handling the removed configuration.
     :param renamed_to: The new section and option if the configuration is renamed.
     :param was_deprecated: If the config is removed, whether the old config was deprecated.
+    :param was_removed: If the config is removed.
     """
 
     config: ConfigParameter
     default_change: bool = False
+    new_default: str | bool | int | float | None = None
     suggestion: str = ""
     renamed_to: ConfigParameter | None = None
     was_deprecated: bool = True
     was_removed: bool = True
-    new_default: str | bool | int | float | None = None
 
     @property
-    def message(self) -> str:
+    def message(self) -> str | None:
         """Generate a message for this configuration change."""
         if self.default_change:
-            if self.config.section != self.new_default:
+            value = conf.get(self.config.section, self.config.option)
+            if value != self.new_default:
                 return (
-                    f"Changed default value of `{self.config.option}` configuration parameter in `{self.config.section}` "
-                    f"section. {self.suggestion}"
+                    f"Changed default value of `{self.config.option}` "
+                    f"configuration parameter in `{self.config.section}` to `{self.new_default}`. "
+                    f"You currently have `{value}` set. "
+                    f"{self.suggestion} "
                 )
         if self.renamed_to:
             if self.config.section != self.renamed_to.section:
@@ -114,11 +120,13 @@ class ConfigChange:
                 f"`{self.config.option}` configuration parameter renamed to `{self.renamed_to.option}` "
                 f"in the `{self.config.section}` section."
             )
-        return (
-            f"Removed{' deprecated' if self.was_deprecated else ''} `{self.config.option}` configuration parameter "
-            f"from `{self.config.section}` section. "
-            f"{self.suggestion}"
-        )
+        if self.was_removed:
+            return (
+                f"Removed{' deprecated' if self.was_deprecated else ''} `{self.config.option}` configuration parameter "
+                f"from `{self.config.section}` section. "
+                f"{self.suggestion}"
+            )
+        return None
 
 
 CONFIGS_CHANGES = [
@@ -359,7 +367,7 @@ CONFIGS_CHANGES = [
         was_removed=False,
         new_default="False",
         suggestion="In Airflow 3.0 the default value for `catchup_by_default` is set to `False`. "
-        "Which means that DAGs without explicit definition of the `catchup` parameter will not "
+        "This means that DAGs without explicit definition of the `catchup` parameter will not "
         "catchup by default. "
         "If your DAGs rely on catchup behavior, not explicitly defined in the DAG definition, "
         "set this configuration parameter to `True` in the `scheduler` section of your `airflow.cfg` "
@@ -565,7 +573,8 @@ def lint_config(args) -> None:
         if conf.has_option(
             configuration.config.section, configuration.config.option, lookup_from_deprecated=False
         ):
-            lint_issues.append(configuration.message)
+            if configuration.message is not None:
+                lint_issues.append(configuration.message)
 
     if lint_issues:
         console.print("[red]Found issues in your airflow.cfg:[/red]")
