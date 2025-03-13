@@ -2817,9 +2817,6 @@ class TaskInstance(Base, LoggingMixin):
                     session=session,
                 )
 
-        if bad_asset_keys:
-            raise AirflowInactiveAssetInInletOrOutletException(bad_asset_keys)
-
         def _asset_event_extras_from_aliases() -> dict[tuple[AssetUniqueKey, frozenset], set[str]]:
             d = defaultdict(set)
             for event in outlet_events:
@@ -2853,6 +2850,9 @@ class TaskInstance(Base, LoggingMixin):
                 )
             if bad_alias_asset_keys:
                 raise AirflowInactiveAssetAddedToAssetAliasException(bad_alias_asset_keys)
+
+        if bad_asset_keys:
+            raise AirflowInactiveAssetInInletOrOutletException(bad_asset_keys)
 
     def _execute_task_with_callbacks(self, context: Context, test_mode: bool = False, *, session: Session):
         """Prepare Task for Execution."""
