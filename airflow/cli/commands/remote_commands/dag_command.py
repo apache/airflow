@@ -24,9 +24,11 @@ import errno
 import json
 import logging
 import operator
+import os
 import re
 import subprocess
 import sys
+from pathlib import Path
 from typing import TYPE_CHECKING
 
 from itsdangerous import URLSafeSerializer
@@ -481,6 +483,7 @@ def dag_list_import_errors(args, session: Session = NEW_SESSION) -> None:
     # Get import errors from the DB
     query = select(ParseImportError)
     if args.bundle_name:
+        validate_dag_bundle_arg(args.bundle_name)
         query = query.where(ParseImportError.bundle_name.in_(args.bundle_name))
 
     dagbag_import_errors = session.scalars(query).all()
@@ -606,6 +609,29 @@ def dag_list_dag_runs(args, dag: DAG | None = None, session: Session = NEW_SESSI
     AirflowConsole().print_as(data=dag_runs, output=args.output, mapper=_render_dagrun)
 
 
+def _parse_and_get_dag(dag_id: str) -> DAG | None:
+    """Given a dag_id, determine the bundle and relative fileloc from the db, then parse and return the DAG."""
+    db_dag = get_dag(subdir=None, dag_id=dag_id, from_db=True)
+    bundle_name = db_dag.get_bundle_name()
+    if bundle_name is None:
+        raise AirflowException(
+            f"Bundle name for DAG {dag_id!r} is not found in the database. This should not happen."
+        )
+    if db_dag.relative_fileloc is None:
+        raise AirflowException(
+            f"Relative fileloc for DAG {dag_id!r} is not found in the database. This should not happen."
+        )
+    bundle = DagBundlesManager().get_bundle(bundle_name)
+    bundle.initialize()
+    dag_absolute_path = os.fspath(Path(bundle.path, db_dag.relative_fileloc))
+
+    with _airflow_parsing_context_manager(dag_id=dag_id):
+        bag = DagBag(
+            dag_folder=dag_absolute_path, include_examples=False, safe_mode=False, load_op_links=False
+        )
+        return bag.dags.get(dag_id)
+
+
 @cli_utils.action_cli
 @providers_configuration_loaded
 @provide_session
@@ -624,8 +650,12 @@ def dag_test(args, dag: DAG | None = None, session: Session = NEW_SESSION) -> No
         re.compile(args.mark_success_pattern) if args.mark_success_pattern is not None else None
     )
 
-    with _airflow_parsing_context_manager(dag_id=args.dag_id):
-        dag = dag or get_dag(subdir=None, dag_id=args.dag_id, from_db=True)
+    dag = dag or _parse_and_get_dag(args.dag_id)
+    if not dag:
+        raise AirflowException(
+            f"Dag {args.dag_id!r} could not be found; either it does not exist or it failed to parse."
+        )
+
     dr: DagRun = dag.test(
         logical_date=logical_date,
         run_conf=run_conf,
