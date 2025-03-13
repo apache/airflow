@@ -501,13 +501,13 @@ def lint_config(args) -> None:
             Enables detailed output, including the list of ignored sections and options.
             Example: --verbose
 
-        --upgrade-defaults: flag (optional)
+        --upgrade-problematic-defaults: flag (optional)
             Automatically upgrade problematic default values from Airflow 2 to the new recommended values.
-            Example: --upgrade-defaults
+            Example: --upgrade-problematic-defaults
 
-        --skip-default-checks: flag (optional)
+        --skip-problematic-default-checks: flag (optional)
             Skip checking for default values from Airflow 2 that may be problematic in Airflow 3.
-            Example: --skip-default-checks
+            Example: --skip-problematic-default-checks
 
     Examples:
         1. Lint all sections and options:
@@ -529,10 +529,10 @@ def lint_config(args) -> None:
             airflow config lint --verbose
 
         7. Automatically upgrade problematic default values:
-            airflow config lint --upgrade-defaults
+            airflow config lint --upgrade-problematic-defaults
 
         8. Skip checking default values:
-            airflow config lint --skip-default-checks
+            airflow config lint --skip-problematic-default-checks
 
     :param args: The CLI arguments for linting configurations.
     """
@@ -544,9 +544,6 @@ def lint_config(args) -> None:
 
     ignore_sections = args.ignore_section or []
     ignore_options = args.ignore_option or []
-
-    skip_default_checks = args.skip_default_checks or False
-    upgrade_defaults = args.upgrade_defaults or True
 
     for configuration in CONFIGS_CHANGES:
         if section_to_check_if_provided and configuration.config.section not in section_to_check_if_provided:
@@ -563,11 +560,8 @@ def lint_config(args) -> None:
         ):
             lint_issues.append(configuration.message)
 
-        if not skip_default_checks:
-            if upgrade_defaults:
-                conf.handle_incompatible_airflow2_defaults(upgrade=True)
-            else:
-                conf.handle_incompatible_airflow2_defaults(upgrade=False)
+        if not args.skip_problematic_default_checks:
+            conf.handle_incompatible_airflow2_defaults(upgrade=args.upgrade_problematic_defaults)
 
     if lint_issues:
         console.print("[red]Found issues in your airflow.cfg:[/red]")

@@ -419,47 +419,35 @@ class AirflowConfigParser(ConfigParser):
             "3.0",
             "The default value changed from 'regexp' in Airflow 2.x to 'glob' in Airflow 3.0.",
         ),
-        ("api", "auth_backends"): (
-            re.compile(r"^airflow\.api\.auth\.backend\.session$"),
-            "3.0",
-            "The default auth backend has changed from 'airflow.api.auth.backend.session' to "
-            "'airflow.providers.fab.auth_manager.api.auth.backend.session' in Airflow 3.0.",
-        ),
-        ("scheduler", "task_instance_heartbeat_timeout"): (
-            re.compile(r"^300$"),
-            "3.0",
-            "Airflow 2.x used 'scheduler_zombie_task_threshold' with a default of 300. In 3.0 this setting "
-            "has been renamed to 'task_instance_heartbeat_timeout' (with the same numeric default), which may "
-            "cause legacy configurations to be ignored.",
-        ),
     }
 
-    def handle_incompatible_airflow2_defaults(self, upgrade: bool | None = True) -> None:
+    def handle_incompatible_airflow2_defaults(self, upgrade: bool = True) -> None:
         """
         Check and optionally upgrade default configuration values from Airflow 2 that are incompatible with Airflow 3.
 
         :param upgrade: If True, auto-upgrade legacy defaults. If False, only warn about the legacy defaults without making any changes.
         """
         for (section, key), (old_pattern, _version, message) in self.legacy_incompatible_defaults.items():
-            default_val = self.get_default_value(section, key, raw=True)
             current_value = self.get(section, key, fallback="")
-            if self._using_old_value(old_pattern, current_value):
-                if upgrade:
-                    self.upgraded_values[(section, key)] = default_val
-                    updated_val = old_pattern.sub(default_val, current_value)
-                    self._update_env_var(section, key, updated_val)
-                    warnings.warn(
-                        f"[{section}] {key}: {message} Auto-upgraded from '{current_value}' to '{updated_val}'.",
-                        FutureWarning,
-                        stacklevel=1,
-                    )
-                else:
-                    warnings.warn(
-                        f"[{section}] {key}: {message} Current value: '{current_value}'. "
-                        f"Consider updating to '{default_val}'.",
-                        FutureWarning,
-                        stacklevel=1,
-                    )
+            if not self._using_old_value(old_pattern, current_value):
+                continue
+            default_val = self.get_default_value(section, key, raw=True)
+            if upgrade:
+                self.upgraded_values[(section, key)] = default_val
+                updated_val = old_pattern.sub(default_val, current_value)
+                self._update_env_var(section, key, updated_val)
+                warnings.warn(
+                    f"[{section}] {key}: {message} Auto-upgraded from '{current_value}' to '{updated_val}'.",
+                    FutureWarning,
+                    stacklevel=1,
+                )
+            else:
+                warnings.warn(
+                    f"[{section}] {key}: {message} Current value: '{current_value}'. "
+                    f"Consider updating to '{default_val}'.",
+                    FutureWarning,
+                    stacklevel=1,
+                )
 
     def get_sections_including_defaults(self) -> list[str]:
         """
@@ -2206,4 +2194,4 @@ WEBSERVER_CONFIG = ""  # Set by initialize_config
 conf: AirflowConfigParser = initialize_config()
 secrets_backend_list = initialize_secrets_backends()
 conf.validate()
-conf.handle_incompatible_airflow2_defaults()
+conf.handle_incompatible_airflow2_defaults(upgrade=True)

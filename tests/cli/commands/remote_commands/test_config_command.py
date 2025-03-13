@@ -467,7 +467,7 @@ class TestConfigLint:
                 else False,
             ),
         ):
-            args = cli_parser.get_parser().parse_args(["config", "lint", "--upgrade-defaults"])
+            args = cli_parser.get_parser().parse_args(["config", "lint", "--upgrade-problematic-defaults"])
             with pytest.warns(FutureWarning) as record:
                 config_command.lint_config(args)
             warning_messages = " ".join(str(w.message) for w in record)
