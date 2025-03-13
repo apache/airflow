@@ -12,6 +12,8 @@ As part of this change the following breaking changes have occurred:
 
   - The property ``security_manager`` has been removed from the interface
 
+  - The method ``get_url_logout`` is now optional
+
   - All these methods have been removed from the interface:
 
     - ``filter_permitted_menu_items``
@@ -20,11 +22,8 @@ As part of this change the following breaking changes have occurred:
     - ``get_user``
     - ``get_user_id``
     - ``is_logged_in``
-    - ``get_url_logout``
     - ``get_api_endpoints``
     - ``register_views``
-
-  - A new optional method ``logout`` has been added to the interface
 
   - All the following method signatures changed to make the parameter ``user`` required (it was optional)
 
