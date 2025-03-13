@@ -41,7 +41,7 @@ from airflow.api_fastapi.auth.managers.models.resource_details import (
 )
 from airflow.api_fastapi.core_api.base import OrmClause
 from airflow.configuration import conf
-from airflow.models.dag import DagModel, DagRun
+from airflow.models.dag import DagModel, DagRun, DagTag
 from airflow.models.dagwarning import DagWarning
 from airflow.models.taskinstance import TaskInstance as TI
 from airflow.models.xcom import XCom
@@ -146,6 +146,13 @@ class PermittedXComFilter(PermittedDagFilter):
         return select.where(XCom.dag_id.in_(self.value))
 
 
+class PermittedTagFilter(PermittedDagFilter):
+    """A parameter that filters the permitted dag tags for the user."""
+
+    def to_orm(self, select: Select) -> Select:
+        return select.where(DagTag.dag_id.in_(self.value))
+
+
 def permitted_dag_filter_factory(
     method: ResourceMethod, filter_class=PermittedDagFilter
 ) -> Callable[[Request, BaseUser], PermittedDagFilter]:
@@ -180,6 +187,10 @@ ReadableTIFilterDep = Annotated[
 ]
 ReadableXComFilterDep = Annotated[
     PermittedXComFilter, Depends(permitted_dag_filter_factory("GET", PermittedXComFilter))
+]
+
+ReadableTagsFilterDep = Annotated[
+    PermittedTagFilter, Depends(permitted_dag_filter_factory("GET", PermittedTagFilter))
 ]
 
 
