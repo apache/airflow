@@ -98,22 +98,19 @@ Authentication related BaseAuthManager methods
 * ``get_user``: Return the signed-in user.
 * ``get_url_login``: Return the URL the user is redirected to for signing in.
 
-Cookie management related AuthManagers
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-When you write your own auth manager, you have to set the JWT token to a cookie key ``_token``.
-before redirecting to the Airflow UI. This is the key used by the Airflow UI to extract the JWT token from
-the cookie. Once token accessed by the UI, key will be removed from the cookie.
-refer the fab auth manager for more details. :class:`~airflow.providers.fab.www.views.FabIndexView`
-an example of setting a cookie in a response object is shown below:
+JWT token management by auth managers
+-------------------------------------
+The auth manager is responsible of creating the JWT token and pass it to Airflow UI. The protocol to exchange the JWT
+token between the auth manager and Airflow UI is using cookies. The auth manager needs to save the JWT token in a
+cookie named ``_token`` before redirecting to the Airflow UI. The Airflow UI will then read the cookie, saveit and
+delete the cookie.
 
 .. code-block:: python
-
   from airflow.api_fastapi.auth.managers.base_auth_manager import COOKIE_NAME_JWT_TOKEN
 
   response = RedirectResponse(url="/")
-  response.set_cookie(COOKIE_NAME_JWT_TOKEN, "token", secure=True, samesite="Lax")
+  response.set_cookie(COOKIE_NAME_JWT_TOKEN, "_token", secure=True)
   return response
-
 
 .. note::
     Do not set the cookie parameter ``httponly`` to ``True``. Airflow UI needs to access the JWT token from the cookie.

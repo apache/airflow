@@ -43,7 +43,7 @@ export const Login = () => {
         // Redirect to appropriate page with the token
         const next = searchParams.get("next")
 
-        setCookie('_token', data.jwt_token, {path: "/", secure: true, sameSite: 'lax' });
+        setCookie('_token', data.jwt_token, {path: "/", secure: true});
 
         globalThis.location.replace(`${next ?? ""}`);
     }

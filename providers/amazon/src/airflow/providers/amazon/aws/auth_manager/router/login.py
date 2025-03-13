@@ -83,7 +83,7 @@ def login_callback(request: Request):
     url = conf.get("api", "base_url")
     token = get_auth_manager().generate_jwt(user)
     response = RedirectResponse(url=url, status_code=303)
-    response.set_cookie(COOKIE_NAME_JWT_TOKEN, token, secure=True, samesite="lax")
+    response.set_cookie(COOKIE_NAME_JWT_TOKEN, token, secure=True)
     return response
 
 

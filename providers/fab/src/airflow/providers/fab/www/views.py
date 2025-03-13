@@ -73,7 +73,8 @@ class FabIndexView(IndexView):
         if g.user is not None and g.user.is_authenticated:
             token = get_auth_manager().generate_jwt(g.user)
             response = make_response(redirect(f"{conf.get('api', 'base_url')}", code=302))
-            response.set_cookie(COOKIE_NAME_JWT_TOKEN, token, secure=True, samesite="Lax")
+            response.set_cookie(COOKIE_NAME_JWT_TOKEN, token, secure=True)
+
             return response
         else:
             return redirect(conf.get("api", "base_url"), code=302)
