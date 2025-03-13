@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2025-03-12T20:05:48.658120
+# This constraints file was automatically generated on 2025-03-13T02:41:44.268637
 # via "eager-upgrade" mechanism of PIP. For the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version of both
 # 'apache-airflow' package and all available community provider packages.
@@ -113,7 +113,7 @@ azure-mgmt-nspkg==3.0.2
 azure-mgmt-resource==23.3.0
 azure-mgmt-storage==22.1.1
 azure-nspkg==3.0.2
-azure-servicebus==7.14.0
+azure-servicebus==7.14.1
 azure-storage-blob==12.25.0
 azure-storage-file-datalake==12.19.0
 azure-storage-file-share==12.21.0
@@ -214,7 +214,7 @@ gitdb==4.0.12
 google-ads==26.0.0
 google-analytics-admin==0.23.5
 google-api-core==2.24.2
-google-api-python-client==2.163.0
+google-api-python-client==2.164.0
 google-auth-httplib2==0.2.0
 google-auth-oauthlib==1.2.1
 google-auth==2.38.0
@@ -366,7 +366,7 @@ more-itertools==10.6.0
 moto==5.1.1
 mpmath==1.3.0
 msal-extensions==1.2.0
-msal==1.31.1
+msal==1.32.0
 msgraph-core==1.2.1
 msgspec==0.19.0
 msrest==0.7.1
@@ -554,7 +554,7 @@ smmap==5.0.2
 sniffio==1.3.1
 snowballstemmer==2.2.0
 snowflake-connector-python==3.14.0
-snowflake-snowpark-python==1.29.0
+snowflake-snowpark-python==1.29.1
 snowflake-sqlalchemy==1.7.3
 sortedcontainers==2.4.0
 soupsieve==2.6
