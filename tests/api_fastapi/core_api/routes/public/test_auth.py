@@ -27,7 +27,7 @@ AUTH_MANAGER_LOGIN_URL = "http://some_login_url"
 pytestmark = pytest.mark.db_test
 
 
-class TestLoginEndpoint:
+class TestAuthEndpoint:
     @pytest.fixture(autouse=True)
     def setup(self, test_client) -> None:
         auth_manager_mock = MagicMock()
@@ -35,7 +35,7 @@ class TestLoginEndpoint:
         test_client.app.state.auth_manager = auth_manager_mock
 
 
-class TestGetLogin(TestLoginEndpoint):
+class TestGetLogin(TestAuthEndpoint):
     @pytest.mark.parametrize(
         "params",
         [
@@ -46,7 +46,7 @@ class TestGetLogin(TestLoginEndpoint):
         ],
     )
     def test_should_respond_307(self, test_client, params):
-        response = test_client.get("/public/login", follow_redirects=False, params=params)
+        response = test_client.get("/public/auth/login", follow_redirects=False, params=params)
 
         assert response.status_code == 307
         assert (
@@ -64,6 +64,18 @@ class TestGetLogin(TestLoginEndpoint):
     )
     @conf_vars({("api", "base_url"): "http://localhost:8080/prefix"})
     def test_should_respond_400(self, test_client, params):
-        response = test_client.get("/public/login", follow_redirects=False, params=params)
+        response = test_client.get("/public/auth/login", follow_redirects=False, params=params)
 
         assert response.status_code == 400
+
+
+class TestLogout(TestAuthEndpoint):
+    def test_should_respond_307(
+        self,
+        test_client,
+    ):
+        response = test_client.get("/public/auth/logout", follow_redirects=False)
+        test_client.app.state.auth_manager.logout.assert_called_once_with()
+
+        assert response.status_code == 307
+        assert response.headers["location"] == AUTH_MANAGER_LOGIN_URL
