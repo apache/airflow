@@ -54,6 +54,8 @@ github:
     projects: true
     # Enable wiki for documentation
     wiki: false
+    # Enable discussions
+    discussions: true
 
   enabled_merge_buttons:
     squash: true
@@ -66,63 +68,78 @@ github:
         required_approving_review_count: 1
       required_linear_history: true
       required_conversation_resolution: true
+      required_signatures: false
     v1-10-stable:
       required_pull_request_reviews:
         required_approving_review_count: 1
+      required_signatures: false
     v2-0-stable:
       required_pull_request_reviews:
         required_approving_review_count: 1
       required_linear_history: true
+      required_signatures: false
     v2-1-stable:
       required_pull_request_reviews:
         required_approving_review_count: 1
       required_linear_history: true
+      required_signatures: false
     v2-2-stable:
       required_pull_request_reviews:
         required_approving_review_count: 1
       required_linear_history: true
+      required_signatures: false
     v2-3-stable:
       required_pull_request_reviews:
         required_approving_review_count: 1
       required_linear_history: true
+      required_signatures: false
     v2-4-stable:
       required_pull_request_reviews:
         required_approving_review_count: 1
       required_linear_history: true
+      required_signatures: false
     v2-5-stable:
       required_pull_request_reviews:
         required_approving_review_count: 1
       required_linear_history: true
+      required_signatures: false
     v2-6-stable:
       required_pull_request_reviews:
         required_approving_review_count: 1
       required_linear_history: true
+      required_signatures: false
     v2-7-stable:
       required_pull_request_reviews:
         required_approving_review_count: 1
       required_linear_history: true
+      required_signatures: false
     v2-8-stable:
       required_pull_request_reviews:
         required_approving_review_count: 1
       required_linear_history: true
+      required_signatures: false
     v2-9-stable:
       required_pull_request_reviews:
         required_approving_review_count: 1
       required_linear_history: true
+      required_signatures: false
     v2-10-stable:
       required_pull_request_reviews:
         required_approving_review_count: 1
       required_linear_history: true
+      required_signatures: false
     v2-10-test:
       required_pull_request_reviews:
         required_approving_review_count: 1
       required_linear_history: true
       required_conversation_resolution: true
+      required_signatures: false
     providers-fab/v1-5:
       required_pull_request_reviews:
         required_approving_review_count: 1
       required_linear_history: true
       required_conversation_resolution: true
+      required_signatures: false
   collaborators:
     # Max 10 collaborators allowed
     # https://github.com/apache/infrastructure-asfyaml/blob/main/README.md#assigning-the-github-triage-role-to-external-collaborators
@@ -143,3 +160,6 @@ notifications:
   issues: commits@airflow.apache.org
   pullrequests: commits@airflow.apache.org
   discussions: commits@airflow.apache.org
+
+meta:
+  prevgen: true

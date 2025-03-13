@@ -35,7 +35,6 @@ from airflow.models.asset import (
     DagScheduleAssetReference,
     DagScheduleAssetUriReference,
 )
-from airflow.models.dagbag import DagPriorityParsingRequest
 from airflow.stats import Stats
 from airflow.utils.log.logging_mixin import LoggingMixin
 
@@ -110,8 +109,7 @@ class AssetManager(LoggingMixin):
         task_instance: TaskInstance | None = None,
         asset: Asset | AssetModel | AssetUniqueKey,
         extra=None,
-        aliases: Collection[AssetAlias] = (),
-        source_alias_names: Iterable[str] | None = None,
+        source_alias_names: Collection[str] = (),
         session: Session,
         **kwargs,
     ) -> AssetEvent | None:
@@ -136,7 +134,7 @@ class AssetManager(LoggingMixin):
             return None
 
         cls._add_asset_alias_association(
-            alias_names={alias.name for alias in aliases}, asset_model=asset_model, session=session
+            alias_names=source_alias_names, asset_model=asset_model, session=session
         )
 
         event_kwargs = {
@@ -259,36 +257,6 @@ class AssetManager(LoggingMixin):
         values = [{"target_dag_id": dag.dag_id} for dag in dags_to_queue]
         stmt = insert(AssetDagRunQueue).values(asset_id=asset_id).on_conflict_do_nothing()
         session.execute(stmt, values)
-
-    @classmethod
-    def _send_dag_priority_parsing_request(cls, file_locs: Iterable[str], session: Session) -> None:
-        if session.bind.dialect.name == "postgresql":
-            return cls._postgres_send_dag_priority_parsing_request(file_locs, session)
-        return cls._slow_path_send_dag_priority_parsing_request(file_locs, session)
-
-    @classmethod
-    def _slow_path_send_dag_priority_parsing_request(cls, file_locs: Iterable[str], session: Session) -> None:
-        def _send_dag_priority_parsing_request_if_needed(fileloc: str) -> str | None:
-            # Don't error whole transaction when a single DagPriorityParsingRequest item conflicts.
-            # https://docs.sqlalchemy.org/en/14/orm/session_transaction.html#using-savepoint
-            req = DagPriorityParsingRequest(fileloc=fileloc)
-            try:
-                with session.begin_nested():
-                    session.merge(req)
-            except exc.IntegrityError:
-                cls.logger().debug("Skipping request %s, already present", req, exc_info=True)
-                return None
-            return req.fileloc
-
-        for fileloc in file_locs:
-            _send_dag_priority_parsing_request_if_needed(fileloc)
-
-    @classmethod
-    def _postgres_send_dag_priority_parsing_request(cls, file_locs: Iterable[str], session: Session) -> None:
-        from sqlalchemy.dialects.postgresql import insert
-
-        stmt = insert(DagPriorityParsingRequest).on_conflict_do_nothing()
-        session.execute(stmt, [{"fileloc": fileloc} for fileloc in file_locs])
 
 
 def resolve_asset_manager() -> AssetManager:

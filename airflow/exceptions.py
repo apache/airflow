@@ -27,13 +27,13 @@ from datetime import timedelta
 from http import HTTPStatus
 from typing import TYPE_CHECKING, Any, NamedTuple
 
+from airflow.sdk.definitions.asset import AssetNameRef, AssetUniqueKey, AssetUriRef
 from airflow.utils.trigger_rule import TriggerRule
 
 if TYPE_CHECKING:
     from collections.abc import Sized
 
     from airflow.models import DagRun
-    from airflow.sdk.definitions.asset import AssetUniqueKey
 
 
 class AirflowException(Exception):
@@ -113,33 +113,40 @@ class AirflowFailException(AirflowException):
     """Raise when the task should be failed without retrying."""
 
 
-class AirflowExecuteWithInactiveAssetExecption(AirflowFailException):
-    """Raise when the task is executed with inactive assets."""
+class _AirflowExecuteWithInactiveAssetExecption(AirflowFailException):
+    main_message: str
 
-    def __init__(self, inactive_asset_unikeys: Collection[AssetUniqueKey]) -> None:
-        self.inactive_asset_unique_keys = inactive_asset_unikeys
+    def __init__(self, inactive_asset_keys: Collection[AssetUniqueKey | AssetNameRef | AssetUriRef]) -> None:
+        self.inactive_asset_keys = inactive_asset_keys
+
+    @staticmethod
+    def _render_asset_key(key: AssetUniqueKey | AssetNameRef | AssetUriRef) -> str:
+        if isinstance(key, AssetUniqueKey):
+            return f"Asset(name={key.name!r}, uri={key.uri!r})"
+        elif isinstance(key, AssetNameRef):
+            return f"Asset.ref(name={key.name!r})"
+        elif isinstance(key, AssetUriRef):
+            return f"Asset.ref(uri={key.uri!r})"
+        return repr(key)  # Should not happen, but let's fails more gracefully in an exception.
+
+    def __str__(self) -> str:
+        return f"{self.main_message}: {self.inactive_assets_message}"
 
     @property
-    def inactive_assets_error_msg(self):
-        return ", ".join(
-            f'Asset(name="{key.name}", uri="{key.uri}")' for key in self.inactive_asset_unique_keys
-        )
+    def inactive_assets_message(self) -> str:
+        return ", ".join(self._render_asset_key(key) for key in self.inactive_asset_keys)
 
 
-class AirflowInactiveAssetInInletOrOutletException(AirflowExecuteWithInactiveAssetExecption):
+class AirflowInactiveAssetInInletOrOutletException(_AirflowExecuteWithInactiveAssetExecption):
     """Raise when the task is executed with inactive assets in its inlet or outlet."""
 
-    def __str__(self) -> str:
-        return f"Task has the following inactive assets in its inlets or outlets: {self.inactive_assets_error_msg}"
+    main_message = "Task has the following inactive assets in its inlets or outlets"
 
 
-class AirflowInactiveAssetAddedToAssetAliasException(AirflowExecuteWithInactiveAssetExecption):
+class AirflowInactiveAssetAddedToAssetAliasException(_AirflowExecuteWithInactiveAssetExecption):
     """Raise when inactive assets are added to an asset alias."""
 
-    def __str__(self) -> str:
-        return (
-            f"The following assets accessed by an AssetAlias are inactive: {self.inactive_assets_error_msg}"
-        )
+    main_message = "The following assets accessed by an AssetAlias are inactive"
 
 
 class AirflowOptionalProviderFeatureException(AirflowException):

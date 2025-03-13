@@ -1273,8 +1273,8 @@ class TestHandleRequest:
             ),
             pytest.param(
                 RuntimeCheckOnTask(
-                    inlets=[AssetProfile(name="alias", uri="alias", asset_type="asset")],
-                    outlets=[AssetProfile(name="alias", uri="alias", asset_type="asset")],
+                    inlets=[AssetProfile(name="alias", uri="alias", type="asset")],
+                    outlets=[AssetProfile(name="alias", uri="alias", type="asset")],
                 ),
                 b'{"ok":true,"type":"OKResponse"}\n',
                 "task_instances.runtime_checks",
@@ -1282,8 +1282,8 @@ class TestHandleRequest:
                 {
                     "id": TI_ID,
                     "msg": RuntimeCheckOnTask(
-                        inlets=[AssetProfile(name="alias", uri="alias", asset_type="asset")],  # type: ignore
-                        outlets=[AssetProfile(name="alias", uri="alias", asset_type="asset")],  # type: ignore
+                        inlets=[AssetProfile(name="alias", uri="alias", type="asset")],
+                        outlets=[AssetProfile(name="alias", uri="alias", type="asset")],
                         type="RuntimeCheckOnTask",
                     ),
                 },

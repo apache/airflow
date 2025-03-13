@@ -107,9 +107,9 @@ const renderStructuredLog = ({
   }
 
   elements.push(
-    <span className="event" key={2}>
+    <chakra.span className="event" key={2} style={{ whiteSpace: "pre-wrap" }}>
       {event}
-    </span>,
+    </chakra.span>,
   );
 
   for (const key in structured) {
@@ -124,9 +124,9 @@ const renderStructuredLog = ({
   }
 
   return (
-    <chakra.span key={index} lineHeight={1.5}>
+    <chakra.p key={index} lineHeight={1.5}>
       {elements}
-    </chakra.span>
+    </chakra.p>
   );
 };
 
