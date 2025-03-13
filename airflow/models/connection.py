@@ -26,14 +26,14 @@ from json import JSONDecodeError
 from typing import Any
 from urllib.parse import parse_qsl, quote, unquote, urlencode, urlsplit
 
+from airflow.sdk.execution_time.secrets_masker import mask_secret
 from sqlalchemy import Boolean, Column, Integer, String, Text
 from sqlalchemy.orm import declared_attr, reconstructor, synonym
 
 from airflow.configuration import ensure_secrets_loaded
 from airflow.exceptions import AirflowException, AirflowNotFoundException
-from airflow.models.base import ID_LEN, Base
+from airflow.models.base import Base, ID_LEN
 from airflow.models.crypto import get_fernet
-from airflow.sdk.execution_time.secrets_masker import mask_secret
 from airflow.secrets.cache import SecretCache
 from airflow.secrets.metastore import MetastoreBackend
 from airflow.utils.helpers import prune_dict
@@ -257,7 +257,8 @@ class Connection(Base, LoggingMixin):
         if self.conn_type:
             uri = f"{self.conn_type.lower().replace('_', '-')}://"
             if self.conn_type == "postgres":
-                uri = uri.replace("postgres://", "postgresql://", 1)
+                driver = self.extra_dejson.get("postgres_driver", "postgres")
+                uri = uri.replace("postgres://", f"{driver}://", 1)
         else:
             uri = "//"
 
