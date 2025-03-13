@@ -26,6 +26,7 @@ import pytest
 from airflow.decorators import setup, task as task_decorator, teardown
 from airflow.decorators.base import DecoratedMappedOperator
 from airflow.exceptions import AirflowException, XComNotFound
+from airflow.models.asset import AssetActive, AssetModel
 from airflow.models.taskinstance import TaskInstance
 from airflow.models.taskmap import TaskMap
 from airflow.utils import timezone
@@ -977,13 +978,18 @@ def test_task_decorator_asset(dag_maker, session):
     uri = "s3://bucket/name"
     asset_name = "test_asset"
 
+    if AIRFLOW_V_3_0_PLUS:
+        asset = Asset(uri=uri, name=asset_name)
+    else:
+        asset = Asset(uri)
+    session.add(AssetModel.from_public(asset))
+    session.add(AssetActive.for_asset(asset))
+
     with dag_maker(session=session) as dag:
 
         @dag.task()
         def up1() -> Asset:
-            if not AIRFLOW_V_3_0_PLUS:
-                return Asset(uri=uri)
-            return Asset(uri=uri, name=asset_name)
+            return asset
 
         @dag.task()
         def up2(src: Asset) -> str:
