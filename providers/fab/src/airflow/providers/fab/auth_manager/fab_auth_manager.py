@@ -26,8 +26,7 @@ from urllib.parse import urljoin
 import packaging.version
 from connexion import FlaskApi
 from fastapi import FastAPI
-from flask import Blueprint, g, url_for
-from flask_login import logout_user
+from flask import Blueprint, g
 from sqlalchemy import select
 from sqlalchemy.orm import Session, joinedload
 from starlette.middleware.wsgi import WSGIMiddleware
@@ -427,15 +426,9 @@ class FabAuthManager(BaseAuthManager[User]):
         """Return the login page url."""
         return urljoin(self.apiserver_endpoint, f"{AUTH_MANAGER_FASTAPI_APP_PREFIX}/login/")
 
-    def get_url_logout(self):
+    def get_url_logout(self) -> str | None:
         """Return the logout page url."""
-        if not self.security_manager.auth_view:
-            raise AirflowException("`auth_view` not defined in the security manager.")
-        return url_for(f"{self.security_manager.auth_view.endpoint}.logout")
-
-    def logout(self) -> None:
-        """Logout the user."""
-        logout_user()
+        return urljoin(self.apiserver_endpoint, f"{AUTH_MANAGER_FASTAPI_APP_PREFIX}/logout/")
 
     def register_views(self) -> None:
         self.security_manager.register_views()

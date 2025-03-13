@@ -72,7 +72,7 @@ class FabIndexView(IndexView):
             token = get_auth_manager().get_jwt_token(g.user)
             return redirect(urljoin(conf.get("api", "base_url"), f"?token={token}"), code=302)
         else:
-            return super().index()
+            return redirect(conf.get("api", "base_url"), code=302)
 
 
 def show_traceback(error):
@@ -130,3 +130,15 @@ def get_safe_url(url):
 
     # This will ensure we only redirect to the right scheme/netloc
     return redirect_url.geturl()
+
+
+def method_not_allowed(error):
+    """Show Method Not Allowed on screen for any error in the Webserver."""
+    return (
+        render_template(
+            "airflow/error.html",
+            status_code=405,
+            error_message="Received an invalid request.",
+        ),
+        405,
+    )
