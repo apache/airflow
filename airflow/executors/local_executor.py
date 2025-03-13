@@ -35,7 +35,6 @@ from typing import TYPE_CHECKING, Optional
 
 from setproctitle import setproctitle
 
-from airflow import settings
 from airflow.executors import workloads
 from airflow.executors.base_executor import PARALLELISM, BaseExecutor
 from airflow.utils.session import NEW_SESSION, provide_session
@@ -60,10 +59,6 @@ def _run_worker(
 
     log = logging.getLogger(logger_name)
     log.info("Worker starting up pid=%d", os.getpid())
-
-    # We know we've just started a new process, so lets disconnect from the metadata db now
-    settings.engine.pool.dispose()
-    settings.engine.dispose()
 
     while True:
         setproctitle("airflow worker -- LocalExecutor: <idle>")
