@@ -105,7 +105,7 @@ def test_convert_variable_result_to_variable_with_deserialize_json():
     )
 
 
-class TestOperatorHelpers:
+class TestAirflowContextHelpers:
     def setup_method(self):
         self.dag_id = "dag_id"
         self.task_id = "task_id"
