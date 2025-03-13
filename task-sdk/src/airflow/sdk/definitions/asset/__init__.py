@@ -60,7 +60,7 @@ log = logging.getLogger(__name__)
 
 
 @attrs.define(frozen=True)
-class AssetUniqueKey:
+class AssetUniqueKey(attrs.AttrsInstance):
     """
     Columns to identify an unique asset.
 
