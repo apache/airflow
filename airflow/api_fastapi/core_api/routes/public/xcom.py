@@ -224,7 +224,7 @@ def create_xcom_entry(
         )
 
     new = XComModel(
-        dag_run_id=dag_run_id,
+        dag_run_id=dag_run.id,
         key=request_body.key,
         value=value,
         run_id=dag_run_id,
