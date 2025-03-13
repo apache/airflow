@@ -26,8 +26,7 @@ from urllib.parse import urljoin
 import packaging.version
 from connexion import FlaskApi
 from fastapi import FastAPI
-from flask import Blueprint, g, url_for
-from flask_login import logout_user
+from flask import Blueprint, g
 from sqlalchemy import select
 from sqlalchemy.orm import Session, joinedload
 from starlette.middleware.wsgi import WSGIMiddleware
@@ -37,6 +36,7 @@ from airflow.api_fastapi.app import AUTH_MANAGER_FASTAPI_APP_PREFIX
 from airflow.api_fastapi.auth.managers.base_auth_manager import BaseAuthManager
 from airflow.api_fastapi.auth.managers.models.resource_details import (
     AccessView,
+    BackfillDetails,
     ConfigurationDetails,
     ConnectionDetails,
     DagAccessEntity,
@@ -44,7 +44,7 @@ from airflow.api_fastapi.auth.managers.models.resource_details import (
     PoolDetails,
     VariableDetails,
 )
-from airflow.api_fastapi.common.types import MenuItem
+from airflow.api_fastapi.common.types import ExtraMenuItem, MenuItem
 from airflow.cli.cli_config import (
     DefaultHelpParser,
     GroupCommand,
@@ -90,6 +90,7 @@ from airflow.providers.fab.www.security.permissions import (
     RESOURCE_XCOM,
 )
 from airflow.providers.fab.www.utils import get_fab_action_from_method_map, get_method_from_fab_action_map
+from airflow.security.permissions import RESOURCE_BACKFILL
 from airflow.utils.session import NEW_SESSION, create_session, provide_session
 from airflow.utils.yaml import safe_load
 
@@ -101,9 +102,15 @@ if TYPE_CHECKING:
     from airflow.providers.common.compat.assets import AssetAliasDetails, AssetDetails
     from airflow.providers.fab.auth_manager.security_manager.override import FabAirflowSecurityManagerOverride
     from airflow.providers.fab.www.extensions.init_appbuilder import AirflowAppBuilder
-    from airflow.providers.fab.www.security.permissions import RESOURCE_ASSET, RESOURCE_ASSET_ALIAS
+    from airflow.providers.fab.www.security.permissions import (
+        RESOURCE_ASSET,
+        RESOURCE_ASSET_ALIAS,
+    )
 else:
-    from airflow.providers.common.compat.security.permissions import RESOURCE_ASSET, RESOURCE_ASSET_ALIAS
+    from airflow.providers.common.compat.security.permissions import (
+        RESOURCE_ASSET,
+        RESOURCE_ASSET_ALIAS,
+    )
 
 
 _MAP_DAG_ACCESS_ENTITY_TO_FAB_RESOURCE_TYPE: dict[DagAccessEntity, tuple[str, ...]] = {
@@ -134,6 +141,19 @@ _MAP_ACCESS_VIEW_TO_FAB_RESOURCE_TYPE = {
     AccessView.PROVIDERS: RESOURCE_PROVIDER,
     AccessView.TRIGGERS: RESOURCE_TRIGGER,
     AccessView.WEBSITE: RESOURCE_WEBSITE,
+}
+
+_MAP_MENU_ITEM_TO_FAB_RESOURCE_TYPE = {
+    MenuItem.ASSETS: RESOURCE_ASSET,
+    MenuItem.ASSET_EVENTS: RESOURCE_ASSET,
+    MenuItem.CONNECTIONS: RESOURCE_CONNECTION,
+    MenuItem.DAGS: RESOURCE_DAG,
+    MenuItem.DOCS: RESOURCE_DOCS,
+    MenuItem.PLUGINS: RESOURCE_PLUGIN,
+    MenuItem.POOLS: RESOURCE_POOL,
+    MenuItem.PROVIDERS: RESOURCE_PROVIDER,
+    MenuItem.VARIABLES: RESOURCE_VARIABLE,
+    MenuItem.XCOMS: RESOURCE_XCOM,
 }
 
 
@@ -315,6 +335,11 @@ class FabAuthManager(BaseAuthManager[User]):
                 for resource_type in resource_types
             )
 
+    def is_authorized_backfill(
+        self, *, method: ResourceMethod, user: User, details: BackfillDetails | None = None
+    ) -> bool:
+        return self._is_authorized(method=method, resource_type=RESOURCE_BACKFILL, user=user)
+
     def is_authorized_asset(
         self, *, method: ResourceMethod, user: User, details: AssetDetails | None = None
     ) -> bool:
@@ -347,6 +372,17 @@ class FabAuthManager(BaseAuthManager[User]):
     ) -> bool:
         fab_action_name = get_fab_action_from_method_map().get(method, method)
         return (fab_action_name, resource_name) in self._get_user_permissions(user)
+
+    def filter_authorized_menu_items(self, menu_items: list[MenuItem], user: User) -> list[MenuItem]:
+        return [
+            menu_item
+            for menu_item in menu_items
+            if self._is_authorized(
+                method="MENU",
+                resource_type=_MAP_MENU_ITEM_TO_FAB_RESOURCE_TYPE.get(menu_item, menu_item.value),
+                user=user,
+            )
+        ]
 
     @provide_session
     def get_permitted_dag_ids(
@@ -414,58 +450,46 @@ class FabAuthManager(BaseAuthManager[User]):
         """Return the login page url."""
         return urljoin(self.apiserver_endpoint, f"{AUTH_MANAGER_FASTAPI_APP_PREFIX}/login/")
 
-    def get_url_logout(self):
+    def get_url_logout(self) -> str | None:
         """Return the logout page url."""
-        if not self.security_manager.auth_view:
-            raise AirflowException("`auth_view` not defined in the security manager.")
-        return url_for(f"{self.security_manager.auth_view.endpoint}.logout")
-
-    def logout(self) -> None:
-        """Logout the user."""
-        logout_user()
+        return urljoin(self.apiserver_endpoint, f"{AUTH_MANAGER_FASTAPI_APP_PREFIX}/logout/")
 
     def register_views(self) -> None:
         self.security_manager.register_views()
 
-    def get_menu_items(self, *, user: User) -> list[MenuItem]:
+    def get_extra_menu_items(self, *, user: User) -> list[ExtraMenuItem]:
         # Contains the list of menu items. ``resource_type`` is the name of the resource in FAB
         # permission model to check whether the user is allowed to see this menu item
         items = [
             {
                 "resource_type": "List Users",
                 "text": "Users",
-                "href": AUTH_MANAGER_FASTAPI_APP_PREFIX
-                + url_for(f"{self.security_manager.user_view.__class__.__name__}.list", _external=False),
+                "href": f"{AUTH_MANAGER_FASTAPI_APP_PREFIX}/users/list/",
             },
             {
                 "resource_type": "List Roles",
                 "text": "Roles",
-                "href": AUTH_MANAGER_FASTAPI_APP_PREFIX
-                + url_for("CustomRoleModelView.list", _external=False),
+                "href": f"{AUTH_MANAGER_FASTAPI_APP_PREFIX}/roles/list/",
             },
             {
                 "resource_type": "Actions",
                 "text": "Actions",
-                "href": AUTH_MANAGER_FASTAPI_APP_PREFIX + url_for("ActionModelView.list", _external=False),
+                "href": f"{AUTH_MANAGER_FASTAPI_APP_PREFIX}/actions/list/",
             },
             {
                 "resource_type": "Resources",
                 "text": "Resources",
-                "href": AUTH_MANAGER_FASTAPI_APP_PREFIX + url_for("ResourceModelView.list", _external=False),
+                "href": f"{AUTH_MANAGER_FASTAPI_APP_PREFIX}/resources/list/",
             },
             {
                 "resource_type": "Permission Pairs",
                 "text": "Permissions",
-                "href": AUTH_MANAGER_FASTAPI_APP_PREFIX
-                + url_for(
-                    "PermissionPairModelView.list",
-                    _external=False,
-                ),
+                "href": f"{AUTH_MANAGER_FASTAPI_APP_PREFIX}/permissions/list/",
             },
         ]
 
         return [
-            MenuItem(text=item["text"], href=item["href"])
+            ExtraMenuItem(text=item["text"], href=item["href"])
             for item in items
             if self._is_authorized(method="MENU", resource_type=item["resource_type"], user=user)
         ]

@@ -27,7 +27,7 @@ AUTH_MANAGER_LOGIN_URL = "http://some_login_url"
 pytestmark = pytest.mark.db_test
 
 
-class TestLoginEndpoint:
+class TestAuthEndpoint:
     @pytest.fixture(autouse=True)
     def setup(self, test_client) -> None:
         auth_manager_mock = MagicMock()
@@ -35,7 +35,7 @@ class TestLoginEndpoint:
         test_client.app.state.auth_manager = auth_manager_mock
 
 
-class TestGetLogin(TestLoginEndpoint):
+class TestGetLogin(TestAuthEndpoint):
     @pytest.mark.parametrize(
         "params",
         [
@@ -46,7 +46,7 @@ class TestGetLogin(TestLoginEndpoint):
         ],
     )
     def test_should_respond_307(self, test_client, params):
-        response = test_client.get("/public/login", follow_redirects=False, params=params)
+        response = test_client.get("/public/auth/login", follow_redirects=False, params=params)
 
         assert response.status_code == 307
         assert (
@@ -64,6 +64,29 @@ class TestGetLogin(TestLoginEndpoint):
     )
     @conf_vars({("api", "base_url"): "http://localhost:8080/prefix"})
     def test_should_respond_400(self, test_client, params):
-        response = test_client.get("/public/login", follow_redirects=False, params=params)
+        response = test_client.get("/public/auth/login", follow_redirects=False, params=params)
 
         assert response.status_code == 400
+
+
+class TestLogout(TestAuthEndpoint):
+    @pytest.mark.parametrize(
+        "mock_logout_url, expected_redirection",
+        [
+            # logout_url is None, should redirect to the login page directly.
+            (None, AUTH_MANAGER_LOGIN_URL),
+            # logout_url is defined, should redirect to the logout_url.
+            ("http://localhost/auth/some_logout_url", "http://localhost/auth/some_logout_url"),
+        ],
+    )
+    def test_should_respond_307(
+        self,
+        test_client,
+        mock_logout_url,
+        expected_redirection,
+    ):
+        test_client.app.state.auth_manager.get_url_logout.return_value = mock_logout_url
+        response = test_client.get("/public/auth/logout", follow_redirects=False)
+
+        assert response.status_code == 307
+        assert response.headers["location"] == expected_redirection

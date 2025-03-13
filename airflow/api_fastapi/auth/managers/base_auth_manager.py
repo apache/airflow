@@ -25,8 +25,8 @@ from jwt import InvalidTokenError
 from sqlalchemy import select
 
 from airflow.api_fastapi.auth.managers.models.base_user import BaseUser
-from airflow.api_fastapi.auth.managers.models.resource_details import DagDetails
-from airflow.api_fastapi.common.types import MenuItem
+from airflow.api_fastapi.auth.managers.models.resource_details import BackfillDetails, DagDetails
+from airflow.api_fastapi.common.types import ExtraMenuItem, MenuItem
 from airflow.configuration import conf
 from airflow.models import DagModel
 from airflow.typing_compat import Literal
@@ -109,12 +109,13 @@ class BaseAuthManager(Generic[T], LoggingMixin, metaclass=ABCMeta):
     def get_url_login(self, **kwargs) -> str:
         """Return the login page url."""
 
-    def logout(self) -> None:
+    def get_url_logout(self) -> str | None:
         """
-        Logout the user.
+        Return the logout page url.
 
-        This method is called when the user is logging out. By default, it does nothing. Override it to
-        invalidate resources when logging out, such as a session.
+        The user is redirected to this URL when logging out. If None is returned (by default), no redirection
+        is performed. This redirection is usually needed to invalidate resources when logging out, such as a
+        session.
         """
         return None
 
@@ -167,6 +168,22 @@ class BaseAuthManager(Generic[T], LoggingMixin, metaclass=ABCMeta):
         :param access_entity: the kind of DAG information the authorization request is about.
             If not provided, the authorization request is about the DAG itself
         :param details: optional details about the DAG
+        """
+
+    @abstractmethod
+    def is_authorized_backfill(
+        self,
+        *,
+        method: ResourceMethod,
+        user: T,
+        details: BackfillDetails | None = None,
+    ) -> bool:
+        """
+        Return whether the user is authorized to perform a given action on a backfill.
+
+        :param method: the method to perform
+        :param user: the user to performing the action
+        :param details: optional details about the backfill
         """
 
     @abstractmethod
@@ -262,6 +279,15 @@ class BaseAuthManager(Generic[T], LoggingMixin, metaclass=ABCMeta):
             See https://github.com/apache/airflow/issues/39144
         :param resource_name: the name of the resource
         :param user: the user to performing the action
+        """
+
+    @abstractmethod
+    def filter_authorized_menu_items(self, menu_items: list[MenuItem], *, user: T) -> list[MenuItem]:
+        """
+        Filter menu items based on user permissions.
+
+        :param menu_items: list of all menu items
+        :param user: the user
         """
 
     def batch_is_authorized_connection(
@@ -412,7 +438,11 @@ class BaseAuthManager(Generic[T], LoggingMixin, metaclass=ABCMeta):
         """
         return None
 
-    def get_menu_items(self, *, user: T) -> list[MenuItem]:
+    def get_authorized_menu_items(self, *, user: T) -> list[MenuItem]:
+        """Get all menu items the user has access to."""
+        return self.filter_authorized_menu_items(list(MenuItem), user=user)
+
+    def get_extra_menu_items(self, *, user: T) -> list[ExtraMenuItem]:
         """
         Provide additional links to be added to the menu.
 
