@@ -18,7 +18,11 @@ from __future__ import annotations
 
 from unittest import mock
 
+import pytest
+
 from airflow.api_fastapi.common.types import MenuItem
+
+pytestmark = pytest.mark.db_test
 
 
 class TestGetAuthLinks:
