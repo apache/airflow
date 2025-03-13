@@ -24,8 +24,25 @@
     :hidden:
     :maxdepth: 1
     :caption: Basics
+
+    Home <self>
     Changelog <changelog>
     Security <security>
+
+.. toctree::
+    :hidden:
+    :maxdepth: 1
+    :caption: References
+
+    Connection Types <connections/git>
+    Python API <_api/airflow/providers/git/index>
+
+.. toctree::
+    :hidden:
+    :maxdepth: 1
+    :caption: Bundles
+
+    Bundles <bundles/index>
 
 .. toctree::
     :hidden:
