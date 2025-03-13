@@ -18,11 +18,11 @@
 from __future__ import annotations
 
 import base64
+import pickle
 from collections.abc import Sequence
 from datetime import timedelta
 from typing import TYPE_CHECKING, Any, Callable
 
-import cloudpickle
 from requests import Response
 
 from airflow.configuration import conf
@@ -200,12 +200,9 @@ class HttpSensor(BaseSensorOperator):
     def execute_complete(self, context: Context, event: dict[str, Any]) -> None:
         if event["status"] != "success":
             raise AirflowException(f"Unexpected error in the operation: {event['message']}")
-        response = event["response"]
         if self.response_check:
-            retrieved_data = cloudpickle.loads(base64.standard_b64decode(response))
-            if not self.process_response(context=context, response=retrieved_data):
-                raise AirflowException(
-                    "response_check condition is not matched for %s", self.task_id
-                )
+            response = pickle.loads(base64.standard_b64decode(event["response"]))
+            if not self.process_response(context=context, response=response):
+                raise AirflowException("response_check condition is not matched for %s", self.task_id)
             self.log.info("response_check condition is matched for %s", self.task_id)
         self.log.info("%s completed successfully.", self.task_id)

@@ -23,7 +23,6 @@ from collections.abc import AsyncIterator
 from typing import TYPE_CHECKING, Any
 
 import aiohttp
-import cloudpickle
 import requests
 from requests.cookies import RequestsCookieJar
 from requests.structures import CaseInsensitiveDict
@@ -197,8 +196,7 @@ class HttpSensorTrigger(BaseTrigger):
                     yield TriggerEvent(
                         {
                             "status": "success",
-                            "response": base64.standard_b64encode(cloudpickle.dumps(response)).decode(
-                                "ascii"),
+                            "response": base64.standard_b64encode(pickle.dumps(response)).decode("ascii"),
                         }
                     )
                     return

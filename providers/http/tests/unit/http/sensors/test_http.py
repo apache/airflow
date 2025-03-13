@@ -18,10 +18,10 @@
 from __future__ import annotations
 
 import base64
+import pickle
 from unittest import mock
 from unittest.mock import patch
 
-import cloudpickle
 import pytest
 import requests
 
@@ -400,7 +400,7 @@ class TestHttpSensorAsync:
         context = mock.Mock()
         success_event = {
             "status": "success",
-            "response": base64.standard_b64encode(cloudpickle.dumps({"key": "value"})).decode("utf-8"),
+            "response": base64.standard_b64encode(pickle.dumps({"key": "value"})).decode("ascii"),
         }
 
         task.response_check = None
@@ -416,7 +416,7 @@ class TestHttpSensorAsync:
         context = mock.Mock()
         success_event = {
             "status": "success",
-            "response": base64.standard_b64encode(cloudpickle.dumps({"key": "value"})).decode("utf-8"),
+            "response": base64.standard_b64encode(pickle.dumps({"key": "value"})).decode("ascii"),
         }
 
         task.response_check = mock.Mock(return_value=True)
@@ -446,7 +446,7 @@ class TestHttpSensorAsync:
         context = mock.Mock()
         success_event = {
             "status": "success",
-            "response": base64.standard_b64encode(cloudpickle.dumps({"key": "value"})).decode("utf-8"),
+            "response": base64.standard_b64encode(pickle.dumps({"key": "value"})).decode("ascii"),
         }
 
         task.response_check = mock.Mock(return_value=True)
