@@ -16,35 +16,41 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Link } from "@chakra-ui/react";
-import { FiLock } from "react-icons/fi";
+import { Box } from "@chakra-ui/react";
+import { useParams } from "react-router-dom";
 
 import { useAuthLinksServiceGetAuthLinks } from "openapi/queries";
-import { Menu } from "src/components/ui";
+import { ProgressBar } from "src/components/ui";
 
-import { NavButton } from "./NavButton";
+import { ErrorPage } from "./Error";
 
-export const AuthButton = () => {
-  const { data: authLinks } = useAuthLinksServiceGetAuthLinks();
+export const Security = () => {
+  const { page } = useParams();
 
-  if (authLinks?.total_entries === undefined || authLinks.total_entries < 1) {
-    return undefined;
+  const { data: authLinks, isLoading } = useAuthLinksServiceGetAuthLinks();
+
+  const link = authLinks?.menu_items.find((mi) => mi.text.toLowerCase().replace(" ", "-") === page);
+
+  if (!link) {
+    if (isLoading) {
+      return (
+        <Box flexGrow={1}>
+          <ProgressBar />
+        </Box>
+      );
+    }
+
+    return <ErrorPage />;
   }
 
   return (
-    <Menu.Root positioning={{ placement: "right" }}>
-      <Menu.Trigger asChild>
-        <NavButton icon={<FiLock size="1.75rem" />} title="Security" />
-      </Menu.Trigger>
-      <Menu.Content>
-        {authLinks.menu_items.map(({ href, text }) => (
-          <Menu.Item asChild key={text} value={text}>
-            <Link aria-label={text} href={href} rel="noopener noreferrer" target="_blank">
-              {text}
-            </Link>
-          </Menu.Item>
-        ))}
-      </Menu.Content>
-    </Menu.Root>
+    <Box flexGrow={1} m={-3}>
+      <iframe
+        sandbox="allow-same-origin allow-forms"
+        src={link.href}
+        style={{ height: "100%", width: "100%" }}
+        title={link.text}
+      />
+    </Box>
   );
 };
