@@ -2562,7 +2562,7 @@ class TestTaskInstance:
         from airflow.sdk.definitions.asset import Asset, AssetAlias
 
         asset_alias_name = "test_outlet_asset_alias_asset_not_exists_asset_alias"
-        asset_uri = "did_not_exists"
+        asset_uri = "does_not_exist"
 
         with dag_maker(dag_id="producer_dag", schedule=None, serialized=True, session=session):
 
@@ -2572,34 +2572,21 @@ class TestTaskInstance:
 
             producer()
 
-        dr: DagRun = dag_maker.create_dagrun()
+        (ti,) = dag_maker.create_dagrun().get_task_instances(session=session)
 
-        for ti in dr.get_task_instances(session=session):
+        with pytest.raises(AirflowInactiveAssetAddedToAssetAliasException) as ctx:
             ti.run(session=session)
+        assert str(ctx.value) == (
+            "The following assets accessed by an AssetAlias are inactive: "
+            "Asset(name='does_not_exist', uri='does_not_exist')"
+        )
 
-        producer_event = session.scalar(select(AssetEvent).where(AssetEvent.source_task_id == "producer"))
-
-        assert producer_event.source_task_id == "producer"
-        assert producer_event.source_dag_id == "producer_dag"
-        assert producer_event.source_run_id == "test"
-        assert producer_event.source_map_index == -1
-        assert producer_event.asset.uri == asset_uri
-        assert producer_event.extra == {"key": "value"}
-        assert len(producer_event.source_aliases) == 1
-        assert producer_event.source_aliases[0].name == asset_alias_name
-
-        asset_obj = session.scalar(select(AssetModel).where(AssetModel.uri == asset_uri))
-        assert len(asset_obj.aliases) == 1
-        assert asset_obj.aliases[0].name == asset_alias_name
-
-        asset_alias_obj = session.scalar(select(AssetAliasModel))
-        assert len(asset_alias_obj.assets) == 1
-        assert asset_alias_obj.assets[0].uri == asset_uri
+        assert session.scalar(select(AssetEvent)) is None
 
     def test_outlet_asset_alias_asset_inactive(self, dag_maker, session):
         from airflow.sdk.definitions.asset import Asset, AssetAlias
 
-        asset_name = "did_not_exists"
+        asset_name = "did_not_exist"
         asset = Asset(asset_name)
         asset2 = Asset(asset_name, uri="test://asset")
         asm = AssetModel.from_public(asset)
@@ -2625,7 +2612,7 @@ class TestTaskInstance:
         with pytest.raises(AirflowInactiveAssetAddedToAssetAliasException) as exc:
             tis["producer_with_inactive"].run(session=session)
 
-        assert 'Asset(name="did_not_exists", uri="test://asset/")' in str(exc.value)
+        assert "Asset(name='did_not_exist', uri='test://asset/')" in str(exc.value)
 
         producer_event = session.scalar(
             select(AssetEvent).where(AssetEvent.source_task_id == "producer_without_inactive")
@@ -4083,8 +4070,8 @@ class TestTaskInstance:
         with pytest.raises(AirflowInactiveAssetInInletOrOutletException) as exc:
             tis["duplicate_asset_task_in_outlet"].run(session=session)
 
-        assert 'Asset(name="asset_second", uri="asset_second")' in str(exc.value)
-        assert 'Asset(name="asset_first", uri="test://asset/")' in str(exc.value)
+        assert "Asset(name='asset_second', uri='asset_second')" in str(exc.value)
+        assert "Asset(name='asset_first', uri='test://asset/')" in str(exc.value)
 
     @pytest.mark.want_activate_assets(True)
     def test_run_with_inactive_assets_in_outlets_within_the_same_dag(self, dag_maker, session):
@@ -4109,7 +4096,7 @@ class TestTaskInstance:
 
         assert str(exc.value) == (
             "Task has the following inactive assets in its inlets or outlets: "
-            'Asset(name="asset_first", uri="test://asset/")'
+            "Asset(name='asset_first', uri='test://asset/')"
         )
 
     @pytest.mark.want_activate_assets(True)
@@ -4138,7 +4125,7 @@ class TestTaskInstance:
 
         assert str(exc.value) == (
             "Task has the following inactive assets in its inlets or outlets: "
-            'Asset(name="asset_first", uri="test://asset/")'
+            "Asset(name='asset_first', uri='test://asset/')"
         )
 
     @pytest.mark.want_activate_assets(True)
@@ -4163,7 +4150,7 @@ class TestTaskInstance:
 
         assert str(exc.value) == (
             "Task has the following inactive assets in its inlets or outlets: "
-            'Asset(name="asset_first", uri="asset_first")'
+            "Asset(name='asset_first', uri='asset_first')"
         )
 
     @pytest.mark.want_activate_assets(True)
@@ -4192,7 +4179,7 @@ class TestTaskInstance:
 
         assert str(exc.value) == (
             "Task has the following inactive assets in its inlets or outlets: "
-            'Asset(name="asset_first", uri="test://asset/")'
+            "Asset(name='asset_first', uri='test://asset/')"
         )
 
 
