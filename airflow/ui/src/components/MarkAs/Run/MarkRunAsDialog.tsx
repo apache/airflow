@@ -18,7 +18,6 @@
  */
 import { Flex, Heading, VStack } from "@chakra-ui/react";
 import { useState } from "react";
-import { FiRefreshCw } from "react-icons/fi";
 
 import type { DAGRunPatchStates, DAGRunResponse } from "openapi/requests/types.gen";
 import { ActionAccordion } from "src/components/ActionAccordion";
@@ -67,7 +66,7 @@ const MarkRunAsDialog = ({ dagRun, onClose, open, state }: Props) => {
                 });
               }}
             >
-              <FiRefreshCw /> Confirm
+              Confirm
             </Button>
           </Flex>
         </Dialog.Body>

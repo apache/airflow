@@ -16,32 +16,5 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { AiOutlineFileSync } from "react-icons/ai";
 
-import { Button } from "src/components/ui";
-import { useDagParsing } from "src/queries/useDagParsing.ts";
-
-type Props = {
-  readonly dagId: string;
-  readonly fileToken: string;
-};
-
-const ParseDag = ({ dagId, fileToken }: Props) => {
-  const { isPending, mutate } = useDagParsing({ dagId });
-
-  return (
-    <Button
-      aria-label="Reparse Dag"
-      border="none"
-      height={5}
-      loading={isPending}
-      onClick={() => mutate({ fileToken })}
-      variant="ghost"
-    >
-      <AiOutlineFileSync height={5} width={5} />
-      Reparse Dag
-    </Button>
-  );
-};
-
-export default ParseDag;
+export { default as BackfillBanner } from "./BackfillBanner";

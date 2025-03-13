@@ -17,7 +17,7 @@
  * under the License.
  */
 import { Box, useDisclosure } from "@chakra-ui/react";
-import { FiRefreshCw } from "react-icons/fi";
+import { CgRedo } from "react-icons/cg";
 
 import type { TaskInstanceResponse } from "openapi/requests/types.gen";
 import ActionButton from "src/components/ui/ActionButton";
@@ -36,7 +36,7 @@ const ClearTaskInstanceButton = ({ taskInstance, withText = true }: Props) => {
     <Box>
       <ActionButton
         actionName="Clear Task Instance"
-        icon={<FiRefreshCw />}
+        icon={<CgRedo />}
         onClick={onOpen}
         text="Clear Task Instance"
         withText={withText}

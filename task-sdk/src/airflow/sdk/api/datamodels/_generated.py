@@ -30,11 +30,16 @@ from pydantic import BaseModel, ConfigDict, Field, JsonValue
 
 class AssetProfile(BaseModel):
     """
-    Profile of an Asset.
+    Profile of an asset-like object.
 
-    Asset will have name, uri and asset_type defined.
-    AssetNameRef will have name and asset_type defined.
-    AssetUriRef will have uri and asset_type defined.
+    Asset will have name, uri defined, with type set to 'Asset'.
+    AssetNameRef will have name defined, type set to 'AssetNameRef'.
+    AssetUriRef will have uri defined, type set to 'AssetUriRef'.
+    AssetAlias will have name defined, type set to 'AssetAlias'.
+
+    Note that 'type' here is distinct from 'asset_type' the user declares on an
+    Asset (or subclass). This field is for distinguishing between different
+    asset-related types (Asset, AssetRef, or AssetAlias).
     """
 
     model_config = ConfigDict(
@@ -42,7 +47,7 @@ class AssetProfile(BaseModel):
     )
     name: Annotated[str | None, Field(title="Name")] = None
     uri: Annotated[str | None, Field(title="Uri")] = None
-    asset_type: Annotated[str, Field(title="Asset Type")]
+    type: Annotated[str, Field(title="Type")]
 
 
 class AssetResponse(BaseModel):

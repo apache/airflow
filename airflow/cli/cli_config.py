@@ -1571,12 +1571,6 @@ PROVIDERS_COMMANDS = (
         args=(ARG_OUTPUT, ARG_VERBOSE),
     ),
     ActionCommand(
-        name="auth",
-        help="Get information about API auth backends provided",
-        func=lazy_load_command("airflow.cli.commands.remote_commands.provider_command.auth_backend_list"),
-        args=(ARG_OUTPUT, ARG_VERBOSE),
-    ),
-    ActionCommand(
         name="executors",
         help="Get information about executors provided",
         func=lazy_load_command("airflow.cli.commands.remote_commands.provider_command.executors_list"),

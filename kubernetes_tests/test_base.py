@@ -330,6 +330,8 @@ class BaseK8STest:
         # set [api/base_url] with `f"http://{KUBERNETES_HOST_PORT}"` in airflow.cfg
         # The airflow.cfg is toml format, so we need to convert it to json
         airflow_cfg_dict = self._parse_airflow_cfg_as_dict(original_airflow_cfg)
+        if "api" not in airflow_cfg_dict:
+            airflow_cfg_dict["api"] = {}
         airflow_cfg_dict["api"]["base_url"] = f"http://{KUBERNETES_HOST_PORT}"
         # update the configmap with the new airflow.cfg
         patch_configmap_result = check_output(

@@ -16,14 +16,16 @@
 # under the License.
 from __future__ import annotations
 
-from fastapi import HTTPException, status
+from fastapi import Depends, HTTPException, status
 from sqlalchemy import select
 
+from airflow.api_fastapi.auth.managers.models.resource_details import DagAccessEntity
 from airflow.api_fastapi.common.db.common import SessionDep
 from airflow.api_fastapi.common.parameters import QueryIncludeDownstream, QueryIncludeUpstream
 from airflow.api_fastapi.common.router import AirflowRouter
 from airflow.api_fastapi.core_api.datamodels.ui.structure import StructureDataResponse
 from airflow.api_fastapi.core_api.openapi.exceptions import create_openapi_http_exception_doc
+from airflow.api_fastapi.core_api.security import requires_access_dag
 from airflow.api_fastapi.core_api.services.ui.structure import get_upstream_assets
 from airflow.models.dag_version import DagVersion
 from airflow.models.serialized_dag import SerializedDagModel
@@ -36,6 +38,11 @@ structure_router = AirflowRouter(tags=["Structure"], prefix="/structure")
 @structure_router.get(
     "/structure_data",
     responses=create_openapi_http_exception_doc([status.HTTP_404_NOT_FOUND]),
+    dependencies=[
+        Depends(requires_access_dag("GET")),
+        Depends(requires_access_dag("GET", DagAccessEntity.DEPENDENCIES)),
+        Depends(requires_access_dag("GET", DagAccessEntity.TASK_INSTANCE)),
+    ],
 )
 def structure_data(
     session: SessionDep,

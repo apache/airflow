@@ -79,9 +79,9 @@ try:
     airflow_commands.extend(auth_mgr.get_cli_commands())
 except Exception as e:
     log.warning("cannot load CLI commands from auth manager: %s", e)
-    log.warning("Authentication manager is not configured and webserver will not be able to start.")
+    log.warning("Auth manager is not configured and api-server will not be able to start.")
     # do not re-raise for the same reason as above
-    if len(sys.argv) > 1 and sys.argv[1] == "webserver":
+    if len(sys.argv) > 1 and sys.argv[1] == "api-server":
         log.exception(e)
         sys.exit(1)
 

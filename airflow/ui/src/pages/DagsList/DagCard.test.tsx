@@ -27,6 +27,7 @@ import { Wrapper } from "src/utils/Wrapper";
 import { DagCard } from "./DagCard";
 
 const mockDag = {
+  asset_expression: null,
   dag_display_name: "nested_groups",
   dag_id: "nested_groups",
   description: null,

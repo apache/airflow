@@ -80,9 +80,6 @@ Exposing customized functionality to the Airflow's core:
   provider provides. See :doc:`apache-airflow:administration-and-deployment/logging-monitoring/logging-tasks`
   for description of the logging handlers.
 
-* ``auth-backends`` - this field should contain the authentication backend module names for API/UI.
-  See :doc:`apache-airflow:security/api` for description of the auth backends.
-
 * ``notifications`` - this field should contain the notification classes.
   See :doc:`apache-airflow:howto/notifications` for description of the notifications.
 

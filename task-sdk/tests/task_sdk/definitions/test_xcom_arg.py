@@ -131,6 +131,7 @@ def test_xcom_convert_to_kwargs_fails_task(run_ti: RunTI, mock_supervisor_comms,
                 "timestamp": mock.ANY,
                 "exception": [
                     {
+                        "exc_notes": [],
                         "exc_type": "ValueError",
                         "exc_value": "expand_kwargs() expects a list[dict], not list[None]",
                         "frames": mock.ANY,
@@ -174,6 +175,7 @@ def test_xcom_map_error_fails_task(mock_supervisor_comms, run_ti, captured_logs)
                 "timestamp": mock.ANY,
                 "exception": [
                     {
+                        "exc_notes": [],
                         "exc_type": "RuntimeError",
                         "exc_value": "nope",
                         "frames": mock.ANY,

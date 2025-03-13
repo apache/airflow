@@ -1003,6 +1003,14 @@ class TestGetGridDataEndpoint:
         assert response.status_code == 422
         assert response.json() == expected
 
+    def test_should_response_401(self, unauthenticated_test_client):
+        response = unauthenticated_test_client.get(f"/ui/grid/{DAG_ID_3}")
+        assert response.status_code == 401
+
+    def test_should_response_403(self, unauthorized_test_client):
+        response = unauthorized_test_client.get(f"/ui/grid/{DAG_ID_3}")
+        assert response.status_code == 403
+
     def test_should_response_404(self, test_client):
         response = test_client.get("/ui/grid/invalid_dag")
         assert response.status_code == 404

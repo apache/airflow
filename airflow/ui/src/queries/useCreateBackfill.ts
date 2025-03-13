@@ -18,15 +18,19 @@
  */
 import { useState } from "react";
 
-import { useBackfillServiceCreateBackfill } from "openapi/queries";
+import { useBackfillServiceCreateBackfill, useBackfillServiceListBackfillsKey } from "openapi/queries";
 import type { CreateBackfillData } from "openapi/requests/types.gen";
 import { toaster } from "src/components/ui";
+import { queryClient } from "src/queryClient";
 
 export const useCreateBackfill = ({ onSuccessConfirm }: { onSuccessConfirm: () => void }) => {
   const [dateValidationError, setDateValidationError] = useState<unknown>(undefined);
   const [error, setError] = useState<unknown>(undefined);
 
-  const onSuccess = () => {
+  const onSuccess = async () => {
+    await queryClient.invalidateQueries({
+      queryKey: [useBackfillServiceListBackfillsKey],
+    });
     toaster.create({
       description: "Backfill jobs have been successfully triggered.",
       title: "Backfill generated",

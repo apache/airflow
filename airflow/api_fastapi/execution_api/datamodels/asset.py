@@ -38,14 +38,18 @@ class AssetAliasResponse(BaseModel):
 
 class AssetProfile(StrictBaseModel):
     """
-    Profile of an Asset.
+    Profile of an asset-like object.
 
-    Asset will have name, uri and asset_type defined.
-    AssetNameRef will have name and asset_type defined.
-    AssetUriRef will have uri and asset_type defined.
+    Asset will have name, uri defined, with type set to 'Asset'.
+    AssetNameRef will have name defined, type set to 'AssetNameRef'.
+    AssetUriRef will have uri defined, type set to 'AssetUriRef'.
+    AssetAlias will have name defined, type set to 'AssetAlias'.
 
+    Note that 'type' here is distinct from 'asset_type' the user declares on an
+    Asset (or subclass). This field is for distinguishing between different
+    asset-related types (Asset, AssetRef, or AssetAlias).
     """
 
     name: str | None = None
     uri: str | None = None
-    asset_type: str
+    type: str

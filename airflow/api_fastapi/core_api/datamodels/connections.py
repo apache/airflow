@@ -18,6 +18,8 @@
 from __future__ import annotations
 
 import json
+from collections import abc
+from typing import Annotated
 
 from pydantic import Field, field_validator
 from pydantic_core.core_schema import ValidationInfo
@@ -73,6 +75,52 @@ class ConnectionTestResponse(BaseModel):
 
     status: bool
     message: str
+
+
+class ConnectionHookFieldBehavior(BaseModel):
+    """A class to store the behavior of each standard field of a Hook."""
+
+    hidden: Annotated[
+        bool,
+        Field(description="Flag if the form field should be hidden."),
+    ] = False
+    title: Annotated[
+        str | None,
+        Field(
+            description="Label / title for the field that should be displayed, if re-labelling is needed. Use `None` to display standard title."
+        ),
+    ] = None
+    placeholder: Annotated[
+        str | None,
+        Field(description="Placeholder text that should be populated to the form."),
+    ] = None
+
+
+class StandardHookFields(BaseModel):
+    """Standard fields of a Hook that a form will render."""
+
+    description: ConnectionHookFieldBehavior | None
+    url_schema: ConnectionHookFieldBehavior | None
+    host: ConnectionHookFieldBehavior | None
+    port: ConnectionHookFieldBehavior | None
+    login: ConnectionHookFieldBehavior | None
+    password: ConnectionHookFieldBehavior | None
+
+
+class ConnectionHookMetaData(BaseModel):
+    """
+    Response model for Hook information == Connection type meta data.
+
+    It is used to transfer providers information loaded by providers_manager such that
+    the API server/Web UI can use this data to render connection form UI.
+    """
+
+    connection_type: str | None
+    hook_class_name: str | None
+    default_conn_name: str | None
+    hook_name: str
+    standard_fields: StandardHookFields | None
+    extra_fields: abc.MutableMapping | None
 
 
 # Request Models

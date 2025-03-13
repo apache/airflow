@@ -279,6 +279,59 @@ export const UseConfigServiceGetConfigValueKeyFn = (
   },
   queryKey?: Array<unknown>,
 ) => [useConfigServiceGetConfigValueKey, ...(queryKey ?? [{ accept, option, section }])];
+export type ConnectionServiceHookMetaDataDefaultResponse = Awaited<
+  ReturnType<typeof ConnectionService.hookMetaData>
+>;
+export type ConnectionServiceHookMetaDataQueryResult<
+  TData = ConnectionServiceHookMetaDataDefaultResponse,
+  TError = unknown,
+> = UseQueryResult<TData, TError>;
+export const useConnectionServiceHookMetaDataKey = "ConnectionServiceHookMetaData";
+export const UseConnectionServiceHookMetaDataKeyFn = (queryKey?: Array<unknown>) => [
+  useConnectionServiceHookMetaDataKey,
+  ...(queryKey ?? []),
+];
+export type ConnectionServiceGetConnectionDefaultResponse = Awaited<
+  ReturnType<typeof ConnectionService.getConnection>
+>;
+export type ConnectionServiceGetConnectionQueryResult<
+  TData = ConnectionServiceGetConnectionDefaultResponse,
+  TError = unknown,
+> = UseQueryResult<TData, TError>;
+export const useConnectionServiceGetConnectionKey = "ConnectionServiceGetConnection";
+export const UseConnectionServiceGetConnectionKeyFn = (
+  {
+    connectionId,
+  }: {
+    connectionId: string;
+  },
+  queryKey?: Array<unknown>,
+) => [useConnectionServiceGetConnectionKey, ...(queryKey ?? [{ connectionId }])];
+export type ConnectionServiceGetConnectionsDefaultResponse = Awaited<
+  ReturnType<typeof ConnectionService.getConnections>
+>;
+export type ConnectionServiceGetConnectionsQueryResult<
+  TData = ConnectionServiceGetConnectionsDefaultResponse,
+  TError = unknown,
+> = UseQueryResult<TData, TError>;
+export const useConnectionServiceGetConnectionsKey = "ConnectionServiceGetConnections";
+export const UseConnectionServiceGetConnectionsKeyFn = (
+  {
+    connectionIdPattern,
+    limit,
+    offset,
+    orderBy,
+  }: {
+    connectionIdPattern?: string;
+    limit?: number;
+    offset?: number;
+    orderBy?: string;
+  } = {},
+  queryKey?: Array<unknown>,
+) => [
+  useConnectionServiceGetConnectionsKey,
+  ...(queryKey ?? [{ connectionIdPattern, limit, offset, orderBy }]),
+];
 export type DagsServiceRecentDagRunsDefaultResponse = Awaited<ReturnType<typeof DagsService.recentDagRuns>>;
 export type DagsServiceRecentDagRunsQueryResult<
   TData = DagsServiceRecentDagRunsDefaultResponse,
@@ -514,47 +567,6 @@ export const UseGridServiceGridDataKeyFn = (
       state,
     },
   ]),
-];
-export type ConnectionServiceGetConnectionDefaultResponse = Awaited<
-  ReturnType<typeof ConnectionService.getConnection>
->;
-export type ConnectionServiceGetConnectionQueryResult<
-  TData = ConnectionServiceGetConnectionDefaultResponse,
-  TError = unknown,
-> = UseQueryResult<TData, TError>;
-export const useConnectionServiceGetConnectionKey = "ConnectionServiceGetConnection";
-export const UseConnectionServiceGetConnectionKeyFn = (
-  {
-    connectionId,
-  }: {
-    connectionId: string;
-  },
-  queryKey?: Array<unknown>,
-) => [useConnectionServiceGetConnectionKey, ...(queryKey ?? [{ connectionId }])];
-export type ConnectionServiceGetConnectionsDefaultResponse = Awaited<
-  ReturnType<typeof ConnectionService.getConnections>
->;
-export type ConnectionServiceGetConnectionsQueryResult<
-  TData = ConnectionServiceGetConnectionsDefaultResponse,
-  TError = unknown,
-> = UseQueryResult<TData, TError>;
-export const useConnectionServiceGetConnectionsKey = "ConnectionServiceGetConnections";
-export const UseConnectionServiceGetConnectionsKeyFn = (
-  {
-    connectionIdPattern,
-    limit,
-    offset,
-    orderBy,
-  }: {
-    connectionIdPattern?: string;
-    limit?: number;
-    offset?: number;
-    orderBy?: string;
-  } = {},
-  queryKey?: Array<unknown>,
-) => [
-  useConnectionServiceGetConnectionsKey,
-  ...(queryKey ?? [{ connectionIdPattern, limit, offset, orderBy }]),
 ];
 export type DagRunServiceGetDagRunDefaultResponse = Awaited<ReturnType<typeof DagRunService.getDagRun>>;
 export type DagRunServiceGetDagRunQueryResult<
@@ -1759,12 +1771,6 @@ export type AssetServiceCreateAssetEventMutationResult = Awaited<
 export type AssetServiceMaterializeAssetMutationResult = Awaited<
   ReturnType<typeof AssetService.materializeAsset>
 >;
-export type BackfillServiceCreateBackfillMutationResult = Awaited<
-  ReturnType<typeof BackfillService.createBackfill>
->;
-export type BackfillServiceCreateBackfillDryRunMutationResult = Awaited<
-  ReturnType<typeof BackfillService.createBackfillDryRun>
->;
 export type ConnectionServicePostConnectionMutationResult = Awaited<
   ReturnType<typeof ConnectionService.postConnection>
 >;
@@ -1773,6 +1779,12 @@ export type ConnectionServiceTestConnectionMutationResult = Awaited<
 >;
 export type ConnectionServiceCreateDefaultConnectionsMutationResult = Awaited<
   ReturnType<typeof ConnectionService.createDefaultConnections>
+>;
+export type BackfillServiceCreateBackfillMutationResult = Awaited<
+  ReturnType<typeof BackfillService.createBackfill>
+>;
+export type BackfillServiceCreateBackfillDryRunMutationResult = Awaited<
+  ReturnType<typeof BackfillService.createBackfillDryRun>
 >;
 export type DagRunServiceClearDagRunMutationResult = Awaited<ReturnType<typeof DagRunService.clearDagRun>>;
 export type DagRunServiceTriggerDagRunMutationResult = Awaited<

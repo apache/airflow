@@ -68,6 +68,8 @@ export const useDags = (
     const dagWithRuns = runsData?.dags.find((runsDag) => runsDag.dag_id === dag.dag_id);
 
     return {
+      // eslint-disable-next-line unicorn/no-null
+      asset_expression: null,
       latest_dag_runs: [],
       ...dagWithRuns,
       ...dag,

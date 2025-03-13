@@ -458,13 +458,25 @@ def init_log_file(local_relative_path: str) -> Path:
     return full_path
 
 
-def upload_to_remote(logger: FilteringBoundLogger):
+def load_remote_log_handler() -> logging.Handler | None:
+    from airflow.logging_config import configure_logging as airflow_configure_logging
+    from airflow.utils.log.log_reader import TaskLogReader
+
+    try:
+        airflow_configure_logging()
+
+        return TaskLogReader().log_handler
+    finally:
+        # This is a _monstrosity_ but put our logging back immediately...
+        configure_logging()
+
+
+def upload_to_remote(logger: FilteringBoundLogger, log_meta_dict: dict[str, Any]):
     # We haven't yet switched the Remote log handlers over, they are still wired up in providers as
     # logging.Handlers (but we should re-write most of them to just be the upload and read instead of full
     # variants.) In the mean time, lets just create the right handler directly
     from airflow.configuration import conf
     from airflow.utils.log.file_task_handler import FileTaskHandler
-    from airflow.utils.log.log_reader import TaskLogReader
 
     raw_logger = getattr(logger, "_logger")
 
@@ -481,7 +493,7 @@ def upload_to_remote(logger: FilteringBoundLogger):
     base_log_folder = conf.get("logging", "base_log_folder")
     relative_path = Path(fname).relative_to(base_log_folder)
 
-    handler = TaskLogReader().log_handler
+    handler = load_remote_log_handler()
     if not isinstance(handler, FileTaskHandler):
         logger.warning(
             "Airflow core logging is not using a FileTaskHandler, can't upload logs to remote",
@@ -493,6 +505,7 @@ def upload_to_remote(logger: FilteringBoundLogger):
     # set_context() which opens a real FH again. (And worse, in some cases it _truncates_ the file too). This
     # is just for the first Airflow 3 betas, but we will re-write a better remote log interface that isn't
     # tied to being a logging Handler.
+    handler.log_meta_dict = log_meta_dict  # type: ignore[attr-defined]
     handler.log_relative_path = relative_path.as_posix()  # type: ignore[attr-defined]
     handler.upload_on_close = True  # type: ignore[attr-defined]
 

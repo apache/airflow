@@ -52,7 +52,7 @@ from airflow.sdk.api.datamodels._generated import (
     TaskInstance,
     TerminalTIState,
 )
-from airflow.sdk.definitions.asset import Asset, AssetAlias
+from airflow.sdk.definitions.asset import Asset, AssetAlias, Dataset, Model
 from airflow.sdk.definitions.param import DagParam
 from airflow.sdk.definitions.variable import Variable
 from airflow.sdk.execution_time.comms import (
@@ -691,7 +691,7 @@ def test_dag_parsing_context(make_ti_context, mock_supervisor_comms, monkeypatch
                 state="success",
                 end_date=timezone.datetime(2024, 12, 3, 10, 0),
                 task_outlets=[
-                    AssetProfile(name="s3://bucket/my-task", uri="s3://bucket/my-task", asset_type="Asset")
+                    AssetProfile(name="s3://bucket/my-task", uri="s3://bucket/my-task", type="Asset")
                 ],
                 outlet_events=[
                     {
@@ -704,11 +704,81 @@ def test_dag_parsing_context(make_ti_context, mock_supervisor_comms, monkeypatch
             id="asset",
         ),
         pytest.param(
+            [Dataset(name="s3://bucket/my-task", uri="s3://bucket/my-task")],
+            SucceedTask(
+                state="success",
+                end_date=timezone.datetime(2024, 12, 3, 10, 0),
+                task_outlets=[
+                    AssetProfile(name="s3://bucket/my-task", uri="s3://bucket/my-task", type="Asset")
+                ],
+                outlet_events=[
+                    {
+                        "key": {"name": "s3://bucket/my-task", "uri": "s3://bucket/my-task"},
+                        "extra": {},
+                        "asset_alias_events": [],
+                    }
+                ],
+            ),
+            id="dataset",
+        ),
+        pytest.param(
+            [Model(name="s3://bucket/my-task", uri="s3://bucket/my-task")],
+            SucceedTask(
+                state="success",
+                end_date=timezone.datetime(2024, 12, 3, 10, 0),
+                task_outlets=[
+                    AssetProfile(name="s3://bucket/my-task", uri="s3://bucket/my-task", type="Asset")
+                ],
+                outlet_events=[
+                    {
+                        "key": {"name": "s3://bucket/my-task", "uri": "s3://bucket/my-task"},
+                        "extra": {},
+                        "asset_alias_events": [],
+                    }
+                ],
+            ),
+            id="model",
+        ),
+        pytest.param(
+            [Asset.ref(name="s3://bucket/my-task")],
+            SucceedTask(
+                state="success",
+                end_date=timezone.datetime(2024, 12, 3, 10, 0),
+                task_outlets=[AssetProfile(name="s3://bucket/my-task", type="AssetNameRef")],
+                outlet_events=[
+                    {
+                        "key": {"name": "s3://bucket/my-task"},
+                        "extra": {},
+                        "asset_alias_events": [],
+                    }
+                ],
+            ),
+            marks=[pytest.mark.xfail],  # Currently not handled correctly in task runner.
+            id="name-ref",
+        ),
+        pytest.param(
+            [Asset.ref(uri="s3://bucket/my-task")],
+            SucceedTask(
+                state="success",
+                end_date=timezone.datetime(2024, 12, 3, 10, 0),
+                task_outlets=[AssetProfile(uri="s3://bucket/my-task", type="AssetUriRef")],
+                outlet_events=[
+                    {
+                        "key": {"uri": "s3://bucket/my-task"},
+                        "extra": {},
+                        "asset_alias_events": [],
+                    }
+                ],
+            ),
+            marks=[pytest.mark.xfail],  # Currently not handled correctly in task runner.
+            id="uri-ref",
+        ),
+        pytest.param(
             [AssetAlias(name="example-alias", group="asset")],
             SucceedTask(
                 state="success",
                 end_date=timezone.datetime(2024, 12, 3, 10, 0),
-                task_outlets=[AssetProfile(asset_type="AssetAlias")],
+                task_outlets=[AssetProfile(name="example-alias", type="AssetAlias")],
                 outlet_events=[],
             ),
             id="asset-alias",
@@ -791,8 +861,8 @@ def test_run_with_asset_inlets(create_runtime_ti, mock_supervisor_comms):
             SucceedTask(
                 end_date=timezone.datetime(2024, 12, 3, 10, 0),
                 task_outlets=[
-                    AssetProfile(name="name", uri="s3://bucket/my-task", asset_type="Asset"),
-                    AssetProfile(name="new-name", uri="s3://bucket/my-task", asset_type="Asset"),
+                    AssetProfile(name="name", uri="s3://bucket/my-task", type="Asset"),
+                    AssetProfile(name="new-name", uri="s3://bucket/my-task", type="Asset"),
                 ],
                 outlet_events=[
                     {
@@ -851,12 +921,12 @@ def test_run_with_inlets_and_outlets(
 
     expected = RuntimeCheckOnTask(
         inlets=[
-            AssetProfile(name="name", uri="s3://bucket/my-task", asset_type="Asset"),
-            AssetProfile(name="new-name", uri="s3://bucket/my-task", asset_type="Asset"),
+            AssetProfile(name="name", uri="s3://bucket/my-task", type="Asset"),
+            AssetProfile(name="new-name", uri="s3://bucket/my-task", type="Asset"),
         ],
         outlets=[
-            AssetProfile(name="name", uri="s3://bucket/my-task", asset_type="Asset"),
-            AssetProfile(name="new-name", uri="s3://bucket/my-task", asset_type="Asset"),
+            AssetProfile(name="name", uri="s3://bucket/my-task", type="Asset"),
+            AssetProfile(name="new-name", uri="s3://bucket/my-task", type="Asset"),
         ],
     )
     mock_supervisor_comms.send_request.assert_any_call(msg=expected, log=mock.ANY)
