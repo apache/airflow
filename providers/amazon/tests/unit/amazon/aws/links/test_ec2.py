@@ -17,6 +17,7 @@
 from __future__ import annotations
 
 from airflow.providers.amazon.aws.links.ec2 import EC2InstanceDashboardLink, EC2InstanceLink
+from airflow.sdk.execution_time.comms import XComResult
 from unit.amazon.aws.links.test_base_aws import BaseAwsLinksTestCase
 
 
@@ -25,7 +26,16 @@ class TestEC2InstanceLink(BaseAwsLinksTestCase):
 
     INSTANCE_ID = "i-xxxxxxxxxxxx"
 
-    def test_extra_link(self):
+    def test_extra_link(self, mock_supervisor_comms):
+        mock_supervisor_comms.get_message.return_value = XComResult(
+            key=self.link_class.key,
+            value={
+                "region_name": "eu-west-1",
+                "aws_domain": self.link_class.get_aws_domain("aws"),
+                "aws_partition": "aws",
+                "instance_id": self.INSTANCE_ID,
+            },
+        )
         self.assert_extra_link_url(
             expected_url=(
                 "https://console.aws.amazon.com/ec2/home"
@@ -33,7 +43,6 @@ class TestEC2InstanceLink(BaseAwsLinksTestCase):
             ),
             region_name="eu-west-1",
             aws_partition="aws",
-            instance_id=self.INSTANCE_ID,
         )
 
 
@@ -48,8 +57,17 @@ class TestEC2InstanceDashboardLink(BaseAwsLinksTestCase):
         result = EC2InstanceDashboardLink.format_instance_id_filter(self.INSTANCE_IDS)
         assert result == instance_list
 
-    def test_extra_link(self):
+    def test_extra_link(self, mock_supervisor_comms):
         instance_list = ",:".join(self.INSTANCE_IDS)
+        mock_supervisor_comms.get_message.return_value = XComResult(
+            key=self.link_class.key,
+            value={
+                "region_name": "eu-west-1",
+                "aws_domain": self.link_class.get_aws_domain("aws"),
+                "aws_partition": "aws",
+                "instance_ids": EC2InstanceDashboardLink.format_instance_id_filter(self.INSTANCE_IDS),
+            },
+        )
         self.assert_extra_link_url(
             expected_url=(f"{self.BASE_URL}?region=eu-west-1#Instances:instanceId=:{instance_list}"),
             region_name="eu-west-1",

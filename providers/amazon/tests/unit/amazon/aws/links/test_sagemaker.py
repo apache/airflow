@@ -16,14 +16,25 @@
 # under the License.
 from __future__ import annotations
 
+from airflow.providers.amazon.aws.links.base_aws import BaseAwsLink
 from airflow.providers.amazon.aws.links.sagemaker import SageMakerTransformJobLink
+from airflow.sdk.execution_time.comms import XComResult
 from unit.amazon.aws.links.test_base_aws import BaseAwsLinksTestCase
 
 
 class TestSageMakerTransformDetailsLink(BaseAwsLinksTestCase):
     link_class = SageMakerTransformJobLink
 
-    def test_extra_link(self):
+    def test_extra_link(self, mock_supervisor_comms):
+        mock_supervisor_comms.get_message.return_value = XComResult(
+            key="sagemaker_transform_job_details",
+            value={
+                "region_name": "us-east-1",
+                "aws_domain": BaseAwsLink.get_aws_domain("aws"),
+                **{"job_name": "test_job_name"},
+            },
+        )
+
         self.assert_extra_link_url(
             expected_url=(
                 "https://console.aws.amazon.com/sagemaker/home"

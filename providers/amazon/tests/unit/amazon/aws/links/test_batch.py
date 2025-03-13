@@ -21,13 +21,23 @@ from airflow.providers.amazon.aws.links.batch import (
     BatchJobDetailsLink,
     BatchJobQueueLink,
 )
+from airflow.sdk.execution_time.comms import XComResult
 from unit.amazon.aws.links.test_base_aws import BaseAwsLinksTestCase
 
 
 class TestBatchJobDefinitionLink(BaseAwsLinksTestCase):
     link_class = BatchJobDefinitionLink
 
-    def test_extra_link(self):
+    def test_extra_link(self, mock_supervisor_comms):
+        mock_supervisor_comms.get_message.return_value = XComResult(
+            key=self.link_class.key,
+            value={
+                "region_name": "eu-west-1",
+                "aws_domain": self.link_class.get_aws_domain("aws"),
+                "aws_partition": "aws",
+                "job_definition_arn": "arn:fake:jd",
+            },
+        )
         self.assert_extra_link_url(
             expected_url=(
                 "https://console.aws.amazon.com/batch/home"
@@ -42,7 +52,16 @@ class TestBatchJobDefinitionLink(BaseAwsLinksTestCase):
 class TestBatchJobDetailsLink(BaseAwsLinksTestCase):
     link_class = BatchJobDetailsLink
 
-    def test_extra_link(self):
+    def test_extra_link(self, mock_supervisor_comms):
+        mock_supervisor_comms.get_message.return_value = XComResult(
+            key=self.link_class.key,
+            value={
+                "region_name": "cn-north-1",
+                "aws_domain": self.link_class.get_aws_domain("aws-cn"),
+                "aws_partition": "aws-cn",
+                "job_id": "fake-id",
+            },
+        )
         self.assert_extra_link_url(
             expected_url="https://console.amazonaws.cn/batch/home?region=cn-north-1#jobs/detail/fake-id",
             region_name="cn-north-1",
@@ -54,7 +73,16 @@ class TestBatchJobDetailsLink(BaseAwsLinksTestCase):
 class TestBatchJobQueueLink(BaseAwsLinksTestCase):
     link_class = BatchJobQueueLink
 
-    def test_extra_link(self):
+    def test_extra_link(self, mock_supervisor_comms):
+        mock_supervisor_comms.get_message.return_value = XComResult(
+            key=self.link_class.key,
+            value={
+                "region_name": "us-east-1",
+                "aws_domain": self.link_class.get_aws_domain("aws"),
+                "aws_partition": "aws",
+                "job_queue_arn": "arn:fake:jq",
+            },
+        )
         self.assert_extra_link_url(
             expected_url=(
                 "https://console.aws.amazon.com/batch/home?region=us-east-1#queues/detail/arn:fake:jq"
