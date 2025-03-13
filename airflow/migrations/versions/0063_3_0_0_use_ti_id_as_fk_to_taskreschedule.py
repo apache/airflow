@@ -43,11 +43,45 @@ airflow_version = "3.0.0"
 
 def upgrade():
     """Apply Use ti_id as FK to TaskReschedule."""
+    dialect_name = op.get_context().dialect.name
     with op.batch_alter_table("task_reschedule", schema=None) as batch_op:
         batch_op.add_column(
             sa.Column(
-                "ti_id", sa.String(length=36).with_variant(postgresql.UUID(), "postgresql"), nullable=False
+                "ti_id", sa.String(length=36).with_variant(postgresql.UUID(), "postgresql"), nullable=True
             )
+        )
+    if dialect_name == "postgresql":
+        op.execute("""
+            UPDATE task_reschedule SET ti_id = task_instance.id
+            FROM task_instance
+            WHERE task_reschedule.task_id = task_instance.task_id
+            AND task_reschedule.dag_id = task_instance.dag_id
+            AND task_reschedule.run_id = task_instance.run_id
+            AND task_reschedule.map_index = task_instance.map_index
+            """)
+    elif dialect_name == "mysql":
+        op.execute("""
+            UPDATE task_reschedule tir
+            JOIN task_instance ti ON
+                tir.task_id = ti.task_id
+                AND tir.dag_id = ti.dag_id
+                AND tir.run_id = ti.run_id
+                AND tir.map_index = ti.map_index
+            SET tir.ti_id = ti.id
+            """)
+    else:
+        op.execute("""
+            UPDATE task_reschedule
+            SET ti_id = (SELECT id FROM task_instance WHERE task_reschedule.task_id = task_instance.task_id
+            AND task_reschedule.dag_id = task_instance.dag_id
+            AND task_reschedule.run_id = task_instance.run_id
+            AND task_reschedule.map_index = task_instance.map_index)
+            """)
+    with op.batch_alter_table("task_reschedule", schema=None) as batch_op:
+        batch_op.alter_column(
+            "ti_id",
+            nullable=False,
+            existing_type=sa.String(length=36).with_variant(postgresql.UUID(), "postgresql"),
         )
         batch_op.drop_constraint("task_reschedule_ti_fkey", type_="foreignkey")
         batch_op.drop_constraint("task_reschedule_dr_fkey", type_="foreignkey")
