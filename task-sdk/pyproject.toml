@@ -20,7 +20,7 @@ name = "apache-airflow-task-sdk"
 dynamic = ["version"]
 description = "Python Task SDK for Apache Airflow DAG Authors"
 readme = { file = "README.md", content-type = "text/markdown" }
-requires-python = ">=3.9, <3.13"
+requires-python = ">=3.9, <3.14"
 dependencies = [
     # attrs 25.2.0 has broken DAG __init__
     # tracking issue: https://github.com/apache/airflow/issues/47682
@@ -29,8 +29,9 @@ dependencies = [
     "jinja2>=3.1.4",
     "methodtools>=0.4.7",
     "msgspec>=0.19.0",
-    'pendulum>=2.1.2,<4.0;python_version<"3.12"',
-    'pendulum>=3.0.0,<4.0;python_version>="3.12"',
+#    'pendulum>=2.1.2,<4.0;python_version<"3.12"',
+#    'pendulum>=3.0.0,<4.0;python_version>="3.12"',
+    'pendulum @ git+https://github.com/python-pendulum/pendulum.git@76422468575b5817f7a58f3d05c26b480bf671a9',
     "python-dateutil>=2.7.0",
     "psutil>=6.1.0",
     "structlog>=25.2.0",
@@ -51,6 +52,9 @@ path = "src/airflow/sdk/__init__.py"
 packages = ["src/airflow"]
 # This file only exists to make pyright/VSCode happy, don't ship it
 exclude = ["src/airflow/__init__.py"]
+
+[tool.hatch.metadata]
+allow-direct-references = true
 
 [tool.ruff]
 extend = "../pyproject.toml"

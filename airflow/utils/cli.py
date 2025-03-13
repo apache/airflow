@@ -288,6 +288,7 @@ def get_dag(subdir: str | None, dag_id: str, from_db: bool = False) -> DAG:
     return dag
 
 
+# TODO(potiuk): we should likely get rid of rege passed by user here
 def get_dags(subdir: str | None, dag_id: str, use_regex: bool = False):
     """Return DAG(s) matching a given regex or dag_id."""
     from airflow.models import DagBag

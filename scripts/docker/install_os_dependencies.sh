@@ -103,6 +103,8 @@ function install_debian_dev_dependencies() {
     echo
     # shellcheck disable=SC2086
     apt-get install -y --no-install-recommends ${DEV_APT_DEPS} ${ADDITIONAL_DEV_APT_DEPS}
+    # we have to install latest cargo to support let..else statement from pendulum
+    curl https://sh.rustup.rs -sSf | sh -s -- -y
 }
 
 function install_debian_runtime_dependencies() {

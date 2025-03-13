@@ -1806,6 +1806,7 @@ class DAG(TaskSDKDag, LoggingMixin):
         # This is also done on the DagRun model class, but SQLAlchemy column
         # validator does not work well for some reason.
         if not re.match(RUN_ID_REGEX, run_id):
+            # TODO(potiuk): check if it is ok to use regexp from configuration (likely yes)
             regex = airflow_conf.get("scheduler", "allowed_run_id_pattern").strip()
             if not regex or not re.match(regex, run_id):
                 raise ValueError(
