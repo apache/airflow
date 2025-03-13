@@ -256,6 +256,8 @@ class Connection(Base, LoggingMixin):
 
         if self.conn_type:
             uri = f"{self.conn_type.lower().replace('_', '-')}://"
+            if self.conn_type == "postgres":
+                uri = uri.replace("postgres://", "postgresql://", 1)
         else:
             uri = "//"
 
