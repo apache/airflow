@@ -16,22 +16,15 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { type ButtonProps, Link } from "@chakra-ui/react";
+import { Link } from "@chakra-ui/react";
+import { FiChevronRight } from "react-icons/fi";
+import { LuPlug } from "react-icons/lu";
 
 import { usePluginServiceGetPlugins } from "openapi/queries";
 import type { AppBuilderMenuItemResponse } from "openapi/requests/types.gen";
-import { Button, Menu } from "src/components/ui";
+import { Menu } from "src/components/ui";
 
-const styles = {
-  alignItems: "center",
-  borderRadius: "none",
-  colorPalette: "blue",
-  flexDir: "column",
-  height: 10,
-  variant: "ghost",
-  whiteSpace: "wrap",
-  width: 20,
-} satisfies ButtonProps;
+import { NavButton } from "./NavButton";
 
 export const PluginMenus = () => {
   const { data } = usePluginServiceGetPlugins();
@@ -55,35 +48,45 @@ export const PluginMenus = () => {
     });
   });
 
+  if (!buttons.length && !Object.keys(categories).length) {
+    return undefined;
+  }
+
   return (
-    <>
-      {buttons.map((button) =>
-        button.href !== null && button.href !== undefined ? (
-          <Button asChild {...styles} key={button.name}>
-            <Link href={button.href} rel="noopener noreferrer" target="_blank">
-              {button.name}
-            </Link>
-          </Button>
-        ) : undefined,
-      )}
-      {Object.entries(categories).map(([key, menuButtons]) => (
-        <Menu.Root key={key} positioning={{ placement: "right" }}>
-          <Menu.Trigger asChild>
-            <Button {...styles}>{key}</Button>
-          </Menu.Trigger>
-          <Menu.Content>
-            {menuButtons.map(({ href, name }) =>
-              href !== undefined && href !== null ? (
-                <Menu.Item asChild key={name} value={name}>
-                  <Link aria-label={name} href={href} rel="noopener noreferrer" target="_blank">
-                    {name}
-                  </Link>
-                </Menu.Item>
-              ) : undefined,
-            )}
-          </Menu.Content>
-        </Menu.Root>
-      ))}
-    </>
+    <Menu.Root positioning={{ placement: "right" }}>
+      <Menu.Trigger>
+        <NavButton icon={<LuPlug />} title="Plugins" />
+      </Menu.Trigger>
+      <Menu.Content>
+        {buttons.map(({ href, name }) =>
+          href !== null && href !== undefined ? (
+            <Menu.Item asChild key={name} value={name}>
+              <Link aria-label={name} href={href} rel="noopener noreferrer" target="_blank">
+                {name}
+              </Link>
+            </Menu.Item>
+          ) : undefined,
+        )}
+        {Object.entries(categories).map(([key, menuButtons]) => (
+          <Menu.Root key={key} positioning={{ placement: "right" }}>
+            <Menu.TriggerItem display="flex" justifyContent="space-between">
+              {key}
+              <FiChevronRight />
+            </Menu.TriggerItem>
+            <Menu.Content>
+              {menuButtons.map(({ href, name }) =>
+                href !== undefined && href !== null ? (
+                  <Menu.Item asChild key={name} value={name}>
+                    <Link aria-label={name} href={href} rel="noopener noreferrer" target="_blank">
+                      {name}
+                    </Link>
+                  </Menu.Item>
+                ) : undefined,
+              )}
+            </Menu.Content>
+          </Menu.Root>
+        ))}
+      </Menu.Content>
+    </Menu.Root>
   );
 };
