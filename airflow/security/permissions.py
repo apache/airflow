@@ -22,6 +22,7 @@ from typing import TypedDict
 RESOURCE_ACTION = "Permissions"
 RESOURCE_ADMIN_MENU = "Admin"
 RESOURCE_AUDIT_LOG = "Audit Logs"
+RESOURCE_BACKFILL = "Backfills"
 RESOURCE_BROWSE_MENU = "Browse"
 RESOURCE_CONFIG = "Configurations"
 RESOURCE_CONNECTION = "Connections"

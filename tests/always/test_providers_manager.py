@@ -416,11 +416,6 @@ class TestProviderManager:
         secrets_backends_class_names = list(provider_manager.secrets_backend_class_names)
         assert len(secrets_backends_class_names) > 4
 
-    def test_auth_backends(self):
-        provider_manager = ProvidersManager()
-        auth_backend_module_names = list(provider_manager.auth_backend_module_names)
-        assert len(auth_backend_module_names) > 0
-
     def test_trigger(self):
         provider_manager = ProvidersManager()
         trigger_class_names = list(provider_manager.trigger)

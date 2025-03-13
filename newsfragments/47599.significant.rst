@@ -1,0 +1,15 @@
+Remove the option import create_session from db.py util
+
+The ability to create session from ``utils/db.py`` is removed.
+
+
+* Types of change
+
+  * [ ] Dag changes
+  * [ ] Config changes
+  * [ ] API changes
+  * [ ] CLI changes
+  * [x] Behaviour changes
+  * [ ] Plugin changes
+  * [ ] Dependency changes
+  * [ ] Code interface changes

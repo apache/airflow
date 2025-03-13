@@ -46,7 +46,11 @@ with ignore_provider_compatibility_error("2.9.0+", __file__):
     from airflow.providers.fab.auth_manager.fab_auth_manager import FabAuthManager
     from airflow.providers.fab.auth_manager.security_manager.override import FabAirflowSecurityManagerOverride
 
-from airflow.providers.common.compat.security.permissions import RESOURCE_ASSET, RESOURCE_ASSET_ALIAS
+from airflow.providers.common.compat.security.permissions import (
+    RESOURCE_ASSET,
+    RESOURCE_ASSET_ALIAS,
+    RESOURCE_BACKFILL,
+)
 from airflow.providers.fab.www.security.permissions import (
     ACTION_CAN_ACCESS_MENU,
     ACTION_CAN_CREATE,
@@ -76,6 +80,7 @@ IS_AUTHORIZED_METHODS_SIMPLE = {
     "is_authorized_connection": RESOURCE_CONNECTION,
     "is_authorized_asset": RESOURCE_ASSET,
     "is_authorized_asset_alias": RESOURCE_ASSET_ALIAS,
+    "is_authorized_backfill": RESOURCE_BACKFILL,
     "is_authorized_variable": RESOURCE_VARIABLE,
 }
 
@@ -587,8 +592,7 @@ class TestFabAuthManager:
 
     @mock.patch.object(FabAuthManager, "_is_authorized", return_value=True)
     def test_get_menu_items(self, _, auth_manager_with_appbuilder, flask_app):
-        with flask_app.app_context():
-            auth_manager_with_appbuilder.register_views()
-            result = auth_manager_with_appbuilder.get_menu_items(user=Mock())
-            assert len(result) == 5
-            assert all(item.href.startswith(AUTH_MANAGER_FASTAPI_APP_PREFIX) for item in result)
+        auth_manager_with_appbuilder.register_views()
+        result = auth_manager_with_appbuilder.get_menu_items(user=Mock())
+        assert len(result) == 5
+        assert all(item.href.startswith(AUTH_MANAGER_FASTAPI_APP_PREFIX) for item in result)

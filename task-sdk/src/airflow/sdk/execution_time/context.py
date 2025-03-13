@@ -226,7 +226,7 @@ class OutletEventAccessors(Mapping[Union[Asset, AssetAlias], OutletEventAccessor
     def __len__(self) -> int:
         return len(self._dict)
 
-    def __getitem__(self, key: Asset | AssetAlias) -> OutletEventAccessor:
+    def __getitem__(self, key: Asset | AssetAlias | AssetRef) -> OutletEventAccessor:
         hashable_key: BaseAssetUniqueKey
         if isinstance(key, Asset):
             hashable_key = AssetUniqueKey.from_asset(key)
@@ -284,6 +284,8 @@ class OutletEventAccessors(Mapping[Union[Asset, AssetAlias], OutletEventAccessor
 
 @attrs.define(init=False)
 class InletEventsAccessors(Mapping[Union[int, Asset, AssetAlias, AssetRef], Any]):
+    """Lazy mapping of inlet asset event accessors."""
+
     _inlets: list[Any]
     _assets: dict[AssetUniqueKey, Asset]
     _asset_aliases: dict[AssetAliasUniqueKey, AssetAlias]

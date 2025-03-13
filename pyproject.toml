@@ -158,6 +158,7 @@ exclude = [
 ]
 artifacts = [
     "/airflow/ui/dist/",
+    "/airflow/api_fastapi/auth/managers/simple/ui/dist/",
     "/airflow/git_version",
     "/generated/",
 ]
@@ -168,6 +169,7 @@ include = [
 ]
 artifacts = [
     "/airflow/ui/dist/",
+    "/airflow/api_fastapi/auth/managers/simple/ui/dist/",
     "/airflow/git_version"
 ]
 

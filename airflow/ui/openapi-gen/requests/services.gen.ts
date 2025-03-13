@@ -36,6 +36,22 @@ import type {
   GetConfigResponse,
   GetConfigValueData,
   GetConfigValueResponse,
+  HookMetaDataResponse,
+  DeleteConnectionData,
+  DeleteConnectionResponse,
+  GetConnectionData,
+  GetConnectionResponse,
+  PatchConnectionData,
+  PatchConnectionResponse,
+  GetConnectionsData,
+  GetConnectionsResponse,
+  PostConnectionData,
+  PostConnectionResponse,
+  BulkConnectionsData,
+  BulkConnectionsResponse,
+  TestConnectionData,
+  TestConnectionResponse,
+  CreateDefaultConnectionsResponse,
   RecentDagRunsData,
   RecentDagRunsResponse,
   GetDependenciesData,
@@ -62,21 +78,6 @@ import type {
   CreateBackfillDryRunResponse,
   GridDataData,
   GridDataResponse,
-  DeleteConnectionData,
-  DeleteConnectionResponse,
-  GetConnectionData,
-  GetConnectionResponse,
-  PatchConnectionData,
-  PatchConnectionResponse,
-  GetConnectionsData,
-  GetConnectionsResponse,
-  PostConnectionData,
-  PostConnectionResponse,
-  BulkConnectionsData,
-  BulkConnectionsResponse,
-  TestConnectionData,
-  TestConnectionResponse,
-  CreateDefaultConnectionsResponse,
   GetDagRunData,
   GetDagRunResponse,
   DeleteDagRunData,
@@ -698,6 +699,219 @@ export class ConfigService {
   }
 }
 
+export class ConnectionService {
+  /**
+   * Hook Meta Data
+   * Retrieve information about available connection types (hook classes) and their parameters.
+   * @returns ConnectionHookMetaData Successful Response
+   * @throws ApiError
+   */
+  public static hookMetaData(): CancelablePromise<HookMetaDataResponse> {
+    return __request(OpenAPI, {
+      method: "GET",
+      url: "/ui/connections/hook_meta",
+    });
+  }
+
+  /**
+   * Delete Connection
+   * Delete a connection entry.
+   * @param data The data for the request.
+   * @param data.connectionId
+   * @returns void Successful Response
+   * @throws ApiError
+   */
+  public static deleteConnection(data: DeleteConnectionData): CancelablePromise<DeleteConnectionResponse> {
+    return __request(OpenAPI, {
+      method: "DELETE",
+      url: "/public/connections/{connection_id}",
+      path: {
+        connection_id: data.connectionId,
+      },
+      errors: {
+        401: "Unauthorized",
+        403: "Forbidden",
+        404: "Not Found",
+        422: "Validation Error",
+      },
+    });
+  }
+
+  /**
+   * Get Connection
+   * Get a connection entry.
+   * @param data The data for the request.
+   * @param data.connectionId
+   * @returns ConnectionResponse Successful Response
+   * @throws ApiError
+   */
+  public static getConnection(data: GetConnectionData): CancelablePromise<GetConnectionResponse> {
+    return __request(OpenAPI, {
+      method: "GET",
+      url: "/public/connections/{connection_id}",
+      path: {
+        connection_id: data.connectionId,
+      },
+      errors: {
+        401: "Unauthorized",
+        403: "Forbidden",
+        404: "Not Found",
+        422: "Validation Error",
+      },
+    });
+  }
+
+  /**
+   * Patch Connection
+   * Update a connection entry.
+   * @param data The data for the request.
+   * @param data.connectionId
+   * @param data.requestBody
+   * @param data.updateMask
+   * @returns ConnectionResponse Successful Response
+   * @throws ApiError
+   */
+  public static patchConnection(data: PatchConnectionData): CancelablePromise<PatchConnectionResponse> {
+    return __request(OpenAPI, {
+      method: "PATCH",
+      url: "/public/connections/{connection_id}",
+      path: {
+        connection_id: data.connectionId,
+      },
+      query: {
+        update_mask: data.updateMask,
+      },
+      body: data.requestBody,
+      mediaType: "application/json",
+      errors: {
+        400: "Bad Request",
+        401: "Unauthorized",
+        403: "Forbidden",
+        404: "Not Found",
+        422: "Validation Error",
+      },
+    });
+  }
+
+  /**
+   * Get Connections
+   * Get all connection entries.
+   * @param data The data for the request.
+   * @param data.limit
+   * @param data.offset
+   * @param data.orderBy
+   * @param data.connectionIdPattern
+   * @returns ConnectionCollectionResponse Successful Response
+   * @throws ApiError
+   */
+  public static getConnections(data: GetConnectionsData = {}): CancelablePromise<GetConnectionsResponse> {
+    return __request(OpenAPI, {
+      method: "GET",
+      url: "/public/connections",
+      query: {
+        limit: data.limit,
+        offset: data.offset,
+        order_by: data.orderBy,
+        connection_id_pattern: data.connectionIdPattern,
+      },
+      errors: {
+        401: "Unauthorized",
+        403: "Forbidden",
+        404: "Not Found",
+        422: "Validation Error",
+      },
+    });
+  }
+
+  /**
+   * Post Connection
+   * Create connection entry.
+   * @param data The data for the request.
+   * @param data.requestBody
+   * @returns ConnectionResponse Successful Response
+   * @throws ApiError
+   */
+  public static postConnection(data: PostConnectionData): CancelablePromise<PostConnectionResponse> {
+    return __request(OpenAPI, {
+      method: "POST",
+      url: "/public/connections",
+      body: data.requestBody,
+      mediaType: "application/json",
+      errors: {
+        401: "Unauthorized",
+        403: "Forbidden",
+        409: "Conflict",
+        422: "Validation Error",
+      },
+    });
+  }
+
+  /**
+   * Bulk Connections
+   * Bulk create, update, and delete connections.
+   * @param data The data for the request.
+   * @param data.requestBody
+   * @returns BulkResponse Successful Response
+   * @throws ApiError
+   */
+  public static bulkConnections(data: BulkConnectionsData): CancelablePromise<BulkConnectionsResponse> {
+    return __request(OpenAPI, {
+      method: "PATCH",
+      url: "/public/connections",
+      body: data.requestBody,
+      mediaType: "application/json",
+      errors: {
+        401: "Unauthorized",
+        403: "Forbidden",
+        422: "Validation Error",
+      },
+    });
+  }
+
+  /**
+   * Test Connection
+   * Test an API connection.
+   *
+   * This method first creates an in-memory transient conn_id & exports that to an env var,
+   * as some hook classes tries to find out the `conn` from their __init__ method & errors out if not found.
+   * It also deletes the conn id env connection after the test.
+   * @param data The data for the request.
+   * @param data.requestBody
+   * @returns ConnectionTestResponse Successful Response
+   * @throws ApiError
+   */
+  public static testConnection(data: TestConnectionData): CancelablePromise<TestConnectionResponse> {
+    return __request(OpenAPI, {
+      method: "POST",
+      url: "/public/connections/test",
+      body: data.requestBody,
+      mediaType: "application/json",
+      errors: {
+        401: "Unauthorized",
+        403: "Forbidden",
+        422: "Validation Error",
+      },
+    });
+  }
+
+  /**
+   * Create Default Connections
+   * Create default connections.
+   * @returns void Successful Response
+   * @throws ApiError
+   */
+  public static createDefaultConnections(): CancelablePromise<CreateDefaultConnectionsResponse> {
+    return __request(OpenAPI, {
+      method: "POST",
+      url: "/public/connections/defaults",
+      errors: {
+        401: "Unauthorized",
+        403: "Forbidden",
+      },
+    });
+  }
+}
+
 export class DagsService {
   /**
    * Recent Dag Runs
@@ -1075,206 +1289,6 @@ export class GridService {
         400: "Bad Request",
         404: "Not Found",
         422: "Validation Error",
-      },
-    });
-  }
-}
-
-export class ConnectionService {
-  /**
-   * Delete Connection
-   * Delete a connection entry.
-   * @param data The data for the request.
-   * @param data.connectionId
-   * @returns void Successful Response
-   * @throws ApiError
-   */
-  public static deleteConnection(data: DeleteConnectionData): CancelablePromise<DeleteConnectionResponse> {
-    return __request(OpenAPI, {
-      method: "DELETE",
-      url: "/public/connections/{connection_id}",
-      path: {
-        connection_id: data.connectionId,
-      },
-      errors: {
-        401: "Unauthorized",
-        403: "Forbidden",
-        404: "Not Found",
-        422: "Validation Error",
-      },
-    });
-  }
-
-  /**
-   * Get Connection
-   * Get a connection entry.
-   * @param data The data for the request.
-   * @param data.connectionId
-   * @returns ConnectionResponse Successful Response
-   * @throws ApiError
-   */
-  public static getConnection(data: GetConnectionData): CancelablePromise<GetConnectionResponse> {
-    return __request(OpenAPI, {
-      method: "GET",
-      url: "/public/connections/{connection_id}",
-      path: {
-        connection_id: data.connectionId,
-      },
-      errors: {
-        401: "Unauthorized",
-        403: "Forbidden",
-        404: "Not Found",
-        422: "Validation Error",
-      },
-    });
-  }
-
-  /**
-   * Patch Connection
-   * Update a connection entry.
-   * @param data The data for the request.
-   * @param data.connectionId
-   * @param data.requestBody
-   * @param data.updateMask
-   * @returns ConnectionResponse Successful Response
-   * @throws ApiError
-   */
-  public static patchConnection(data: PatchConnectionData): CancelablePromise<PatchConnectionResponse> {
-    return __request(OpenAPI, {
-      method: "PATCH",
-      url: "/public/connections/{connection_id}",
-      path: {
-        connection_id: data.connectionId,
-      },
-      query: {
-        update_mask: data.updateMask,
-      },
-      body: data.requestBody,
-      mediaType: "application/json",
-      errors: {
-        400: "Bad Request",
-        401: "Unauthorized",
-        403: "Forbidden",
-        404: "Not Found",
-        422: "Validation Error",
-      },
-    });
-  }
-
-  /**
-   * Get Connections
-   * Get all connection entries.
-   * @param data The data for the request.
-   * @param data.limit
-   * @param data.offset
-   * @param data.orderBy
-   * @param data.connectionIdPattern
-   * @returns ConnectionCollectionResponse Successful Response
-   * @throws ApiError
-   */
-  public static getConnections(data: GetConnectionsData = {}): CancelablePromise<GetConnectionsResponse> {
-    return __request(OpenAPI, {
-      method: "GET",
-      url: "/public/connections",
-      query: {
-        limit: data.limit,
-        offset: data.offset,
-        order_by: data.orderBy,
-        connection_id_pattern: data.connectionIdPattern,
-      },
-      errors: {
-        401: "Unauthorized",
-        403: "Forbidden",
-        404: "Not Found",
-        422: "Validation Error",
-      },
-    });
-  }
-
-  /**
-   * Post Connection
-   * Create connection entry.
-   * @param data The data for the request.
-   * @param data.requestBody
-   * @returns ConnectionResponse Successful Response
-   * @throws ApiError
-   */
-  public static postConnection(data: PostConnectionData): CancelablePromise<PostConnectionResponse> {
-    return __request(OpenAPI, {
-      method: "POST",
-      url: "/public/connections",
-      body: data.requestBody,
-      mediaType: "application/json",
-      errors: {
-        401: "Unauthorized",
-        403: "Forbidden",
-        409: "Conflict",
-        422: "Validation Error",
-      },
-    });
-  }
-
-  /**
-   * Bulk Connections
-   * Bulk create, update, and delete connections.
-   * @param data The data for the request.
-   * @param data.requestBody
-   * @returns BulkResponse Successful Response
-   * @throws ApiError
-   */
-  public static bulkConnections(data: BulkConnectionsData): CancelablePromise<BulkConnectionsResponse> {
-    return __request(OpenAPI, {
-      method: "PATCH",
-      url: "/public/connections",
-      body: data.requestBody,
-      mediaType: "application/json",
-      errors: {
-        401: "Unauthorized",
-        403: "Forbidden",
-        422: "Validation Error",
-      },
-    });
-  }
-
-  /**
-   * Test Connection
-   * Test an API connection.
-   *
-   * This method first creates an in-memory transient conn_id & exports that to an env var,
-   * as some hook classes tries to find out the `conn` from their __init__ method & errors out if not found.
-   * It also deletes the conn id env connection after the test.
-   * @param data The data for the request.
-   * @param data.requestBody
-   * @returns ConnectionTestResponse Successful Response
-   * @throws ApiError
-   */
-  public static testConnection(data: TestConnectionData): CancelablePromise<TestConnectionResponse> {
-    return __request(OpenAPI, {
-      method: "POST",
-      url: "/public/connections/test",
-      body: data.requestBody,
-      mediaType: "application/json",
-      errors: {
-        401: "Unauthorized",
-        403: "Forbidden",
-        422: "Validation Error",
-      },
-    });
-  }
-
-  /**
-   * Create Default Connections
-   * Create default connections.
-   * @returns void Successful Response
-   * @throws ApiError
-   */
-  public static createDefaultConnections(): CancelablePromise<CreateDefaultConnectionsResponse> {
-    return __request(OpenAPI, {
-      method: "POST",
-      url: "/public/connections/defaults",
-      errors: {
-        401: "Unauthorized",
-        403: "Forbidden",
       },
     });
   }

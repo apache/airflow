@@ -22,6 +22,7 @@ from fastapi import Depends, HTTPException, status
 from fastapi.exceptions import RequestValidationError
 from sqlalchemy import select, update
 
+from airflow.api_fastapi.auth.managers.models.resource_details import DagAccessEntity
 from airflow.api_fastapi.common.db.common import (
     AsyncSessionDep,
     SessionDep,
@@ -39,6 +40,7 @@ from airflow.api_fastapi.core_api.datamodels.backfills import (
 from airflow.api_fastapi.core_api.openapi.exceptions import (
     create_openapi_http_exception_doc,
 )
+from airflow.api_fastapi.core_api.security import requires_access_backfill, requires_access_dag
 from airflow.api_fastapi.logging.decorators import action_logging
 from airflow.exceptions import DagNotFound
 from airflow.models import DagRun
@@ -61,6 +63,9 @@ backfills_router = AirflowRouter(tags=["Backfill"], prefix="/backfills")
 
 @backfills_router.get(
     path="",
+    dependencies=[
+        Depends(requires_access_backfill(method="GET")),
+    ],
 )
 async def list_backfills(
     dag_id: str,
@@ -89,6 +94,9 @@ async def list_backfills(
 @backfills_router.get(
     path="/{backfill_id}",
     responses=create_openapi_http_exception_doc([status.HTTP_404_NOT_FOUND]),
+    dependencies=[
+        Depends(requires_access_backfill(method="GET")),
+    ],
 )
 def get_backfill(
     backfill_id: str,
@@ -108,6 +116,7 @@ def get_backfill(
             status.HTTP_409_CONFLICT,
         ]
     ),
+    dependencies=[Depends(requires_access_backfill(method="PUT"))],
 )
 def pause_backfill(backfill_id, session: SessionDep) -> BackfillResponse:
     b = session.get(Backfill, backfill_id)
@@ -129,6 +138,7 @@ def pause_backfill(backfill_id, session: SessionDep) -> BackfillResponse:
             status.HTTP_409_CONFLICT,
         ]
     ),
+    dependencies=[Depends(requires_access_backfill(method="PUT"))],
 )
 def unpause_backfill(backfill_id, session: SessionDep) -> BackfillResponse:
     b = session.get(Backfill, backfill_id)
@@ -149,7 +159,11 @@ def unpause_backfill(backfill_id, session: SessionDep) -> BackfillResponse:
             status.HTTP_409_CONFLICT,
         ]
     ),
-    dependencies=[Depends(action_logging())],
+    dependencies=[
+        Depends(action_logging()),
+        Depends(requires_access_dag(method="PUT", access_entity=DagAccessEntity.RUN)),
+        Depends(requires_access_backfill(method="PUT")),
+    ],
 )
 def cancel_backfill(backfill_id, session: SessionDep) -> BackfillResponse:
     b: Backfill = session.get(Backfill, backfill_id)
@@ -190,7 +204,11 @@ def cancel_backfill(backfill_id, session: SessionDep) -> BackfillResponse:
 @backfills_router.post(
     path="",
     responses=create_openapi_http_exception_doc([status.HTTP_404_NOT_FOUND, status.HTTP_409_CONFLICT]),
-    dependencies=[Depends(action_logging())],
+    dependencies=[
+        Depends(action_logging()),
+        Depends(requires_access_dag(method="POST", access_entity=DagAccessEntity.RUN)),
+        Depends(requires_access_backfill(method="POST")),
+    ],
 )
 def create_backfill(
     backfill_request: BackfillPostBody,
@@ -232,6 +250,10 @@ def create_backfill(
 @backfills_router.post(
     path="/dry_run",
     responses=create_openapi_http_exception_doc([status.HTTP_404_NOT_FOUND, status.HTTP_409_CONFLICT]),
+    dependencies=[
+        Depends(requires_access_dag(method="POST", access_entity=DagAccessEntity.RUN)),
+        Depends(requires_access_backfill(method="POST")),
+    ],
 )
 def create_backfill_dry_run(
     body: BackfillPostBody,

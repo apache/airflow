@@ -374,13 +374,6 @@ class AirflowConfigParser(ConfigParser):
                 "3.0",
             ),
         },
-        "api": {
-            "auth_backends": (
-                re.compile(r"^airflow\.api\.auth\.backend\.deny_all$|^$"),
-                "airflow.providers.fab.auth_manager.api.auth.backend.session",
-                "3.0",
-            ),
-        },
         "elasticsearch": {
             "log_id_template": (
                 re.compile("^" + re.escape("{dag_id}-{task_id}-{logical_date}-{try_number}") + "$"),
@@ -674,34 +667,8 @@ class AirflowConfigParser(ConfigParser):
                         version=version,
                     )
 
-        self._upgrade_auth_backends()
         self._upgrade_postgres_metastore_conn()
         self.is_validated = True
-
-    def _upgrade_auth_backends(self):
-        """
-        Ensure a custom auth_backends setting contains session.
-
-        This is required by the UI for ajax queries.
-        """
-        old_value = self.get("api", "auth_backends", fallback="")
-        if "airflow.providers.fab.auth_manager.api.auth.backend.session" not in old_value:
-            new_value = old_value + ",airflow.providers.fab.auth_manager.api.auth.backend.session"
-            self._update_env_var(section="api", name="auth_backends", new_value=new_value)
-            self.upgraded_values[("api", "auth_backends")] = old_value
-
-            # if the old value is set via env var, we need to wipe it
-            # otherwise, it'll "win" over our adjusted value
-            old_env_var = self._env_var_name("api", "auth_backend")
-            os.environ.pop(old_env_var, None)
-
-            warnings.warn(
-                "The auth_backends setting in [api] missed airflow.providers.fab.auth_manager.api.auth.backend.session "
-                "in the running config, which is needed by the UI. Please update your config before "
-                "Apache Airflow 3.0.",
-                FutureWarning,
-                stacklevel=1,
-            )
 
     def _upgrade_postgres_metastore_conn(self):
         """
