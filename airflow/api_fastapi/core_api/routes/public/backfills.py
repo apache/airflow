@@ -118,7 +118,7 @@ def get_backfill(
     ),
     dependencies=[Depends(action_logging()), Depends(requires_access_backfill(method="PUT"))],
 )
-def pause_backfill(backfill_id, session: SessionDep) -> BackfillResponse:
+def pause_backfill(backfill_id: str, session: SessionDep) -> BackfillResponse:
     b = session.get(Backfill, backfill_id)
     if not b:
         raise HTTPException(status.HTTP_404_NOT_FOUND, f"Could not find backfill with id {backfill_id}")

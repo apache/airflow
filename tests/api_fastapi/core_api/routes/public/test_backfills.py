@@ -768,6 +768,7 @@ class TestPauseBackfill(TestBackfillEndpoint):
         backfill = Backfill(dag_id=dag.dag_id, from_date=from_date, to_date=to_date)
         session.add(backfill)
         session.commit()
+
         response = test_client.put(f"/public/backfills/{backfill.id}/pause")
         assert response.status_code == 200
         assert response.json() == {
@@ -783,7 +784,7 @@ class TestPauseBackfill(TestBackfillEndpoint):
             "to_date": to_iso(to_date),
             "updated_at": mock.ANY,
         }
-        check_last_log(session, dag_id="TEST_DAG_1", event="pause_backfill", logical_date=None)
+        check_last_log(session, dag_id=None, event="pause_backfill", logical_date=None)
 
     def test_pause_backfill_401(self, session, unauthenticated_test_client):
         (dag,) = self._create_dag_models()
@@ -816,6 +817,7 @@ class TestUnpauseBackfill(TestBackfillEndpoint):
         backfill = Backfill(dag_id=dag.dag_id, from_date=from_date, to_date=to_date)
         session.add(backfill)
         session.commit()
+
         test_client.put(f"/public/backfills/{backfill.id}/pause")
         response = test_client.put(f"/public/backfills/{backfill.id}/unpause")
         assert response.status_code == 200

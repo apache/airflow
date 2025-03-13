@@ -17,7 +17,7 @@
 # under the License.
 from __future__ import annotations
 
-from collections.abc import Collection, Iterable
+from collections.abc import Collection
 from typing import TYPE_CHECKING
 
 from sqlalchemy import exc, or_, select
@@ -109,8 +109,7 @@ class AssetManager(LoggingMixin):
         task_instance: TaskInstance | None = None,
         asset: Asset | AssetModel | AssetUniqueKey,
         extra=None,
-        aliases: Collection[AssetAlias] = (),
-        source_alias_names: Iterable[str] | None = None,
+        source_alias_names: Collection[str] = (),
         session: Session,
         **kwargs,
     ) -> AssetEvent | None:
@@ -135,7 +134,7 @@ class AssetManager(LoggingMixin):
             return None
 
         cls._add_asset_alias_association(
-            alias_names={alias.name for alias in aliases}, asset_model=asset_model, session=session
+            alias_names=source_alias_names, asset_model=asset_model, session=session
         )
 
         event_kwargs = {
