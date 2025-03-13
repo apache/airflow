@@ -33,6 +33,8 @@ import { useLocalStorage } from "usehooks-ts";
 import DagVersionSelect from "src/components/DagVersionSelect";
 import { Select } from "src/components/ui";
 
+import { DagRunSelect } from "./DagRunSelect";
+
 type Props = {
   readonly dagView: string;
   readonly setDagView: (x: "graph" | "grid") => void;
@@ -98,25 +100,29 @@ export const PanelButtons = ({ dagView, setDagView, ...rest }: Props) => {
       <Stack alignItems="flex-end" gap={1} mr={2}>
         <DagVersionSelect disabled={dagView !== "graph"} />
         {dagView === "graph" ? (
-          <Select.Root
-            bg="bg"
-            collection={options}
-            data-testid="filter-duration"
-            onValueChange={handleDepsChange}
-            value={[dependencies]}
-            width="210px"
-          >
-            <Select.Trigger>
-              <Select.ValueText placeholder="Dependencies" />
-            </Select.Trigger>
-            <Select.Content>
-              {options.items.map((option) => (
-                <Select.Item item={option} key={option.value}>
-                  {option.label}
-                </Select.Item>
-              ))}
-            </Select.Content>
-          </Select.Root>
+          <>
+            <Select.Root
+              bg="bg"
+              collection={options}
+              data-testid="filter-duration"
+              onValueChange={handleDepsChange}
+              size="sm"
+              value={[dependencies]}
+              width="210px"
+            >
+              <Select.Trigger>
+                <Select.ValueText placeholder="Dependencies" />
+              </Select.Trigger>
+              <Select.Content>
+                {options.items.map((option) => (
+                  <Select.Item item={option} key={option.value}>
+                    {option.label}
+                  </Select.Item>
+                ))}
+              </Select.Content>
+            </Select.Root>
+            <DagRunSelect />
+          </>
         ) : undefined}
       </Stack>
     </HStack>
