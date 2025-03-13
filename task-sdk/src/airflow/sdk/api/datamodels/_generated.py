@@ -209,7 +209,7 @@ class TISuccessStatePayload(BaseModel):
     state: Annotated[Literal["success"] | None, Field(title="State")] = "success"
     end_date: Annotated[datetime, Field(title="End Date")]
     task_outlets: Annotated[list[AssetProfile] | None, Field(title="Task Outlets")] = None
-    outlet_events: Annotated[list | None, Field(title="Outlet Events")] = None
+    outlet_events: Annotated[list[dict[str, Any]] | None, Field(title="Outlet Events")] = None
 
 
 class TITargetStatePayload(BaseModel):

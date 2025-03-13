@@ -64,15 +64,6 @@ Providers can have their own configuration options which allow you to configure 
 You can see all community-managed providers with their own configuration in
 :doc:`/core-extensions/configurations`
 
-Auth backends
-'''''''''''''
-
-The providers can add custom authentication backends, that allow you to configure the way how your
-web server authenticates your users, integrating it with public or private authentication services.
-
-You can see all the authentication backends available via community-managed providers in
-:doc:`/core-extensions/auth-backends`
-
 Custom connections
 ''''''''''''''''''
 

@@ -18,7 +18,7 @@
  */
 import { Flex, Heading, VStack } from "@chakra-ui/react";
 import { useState } from "react";
-import { FiRefreshCw } from "react-icons/fi";
+import { CgRedo } from "react-icons/cg";
 
 import type { TaskInstanceResponse } from "openapi/requests/types.gen";
 import { ActionAccordion } from "src/components/ActionAccordion";
@@ -144,7 +144,7 @@ const ClearTaskInstanceDialog = ({ onClose, open, taskInstance }: Props) => {
                 }
               }}
             >
-              <FiRefreshCw /> Confirm
+              <CgRedo /> Confirm
             </Button>
           </Flex>
         </Dialog.Body>
