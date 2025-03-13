@@ -154,21 +154,18 @@ export const Graph = () => {
   const gridRun = gridData?.dag_runs.find((dr) => dr.dag_run_id === runId);
 
   // Add task instances to the node data but without having to recalculate how the graph is laid out
-  const nodes =
-    gridRun?.task_instances === undefined
-      ? data?.nodes
-      : data?.nodes.map((node) => {
-          const taskInstance = gridRun.task_instances.find((ti) => ti.task_id === node.id);
+  const nodes = data?.nodes.map((node) => {
+    const taskInstance = gridRun?.task_instances.find((ti) => ti.task_id === node.id);
 
-          return {
-            ...node,
-            data: {
-              ...node.data,
-              isSelected: node.id === taskId,
-              taskInstance,
-            },
-          };
-        });
+    return {
+      ...node,
+      data: {
+        ...node.data,
+        isSelected: node.id === taskId,
+        taskInstance,
+      },
+    };
+  });
 
   const edges = (data?.edges ?? []).map((edge) => ({
     ...edge,
