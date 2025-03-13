@@ -102,15 +102,16 @@ JWT token management by auth managers
 -------------------------------------
 The auth manager is responsible of creating the JWT token and pass it to Airflow UI. The protocol to exchange the JWT
 token between the auth manager and Airflow UI is using cookies. The auth manager needs to save the JWT token in a
-cookie named ``_token`` before redirecting to the Airflow UI. The Airflow UI will then read the cookie, saveit and
+cookie named ``_token`` before redirecting to the Airflow UI. The Airflow UI will then read the cookie, save it and
 delete the cookie.
 
 .. code-block:: python
-  from airflow.api_fastapi.auth.managers.base_auth_manager import COOKIE_NAME_JWT_TOKEN
 
-  response = RedirectResponse(url="/")
-  response.set_cookie(COOKIE_NAME_JWT_TOKEN, "_token", secure=True)
-  return response
+    from airflow.api_fastapi.auth.managers.base_auth_manager import COOKIE_NAME_JWT_TOKEN
+
+    response = RedirectResponse(url="/")
+    response.set_cookie(COOKIE_NAME_JWT_TOKEN, "_token", secure=True)
+    return response
 
 .. note::
     Do not set the cookie parameter ``httponly`` to ``True``. Airflow UI needs to access the JWT token from the cookie.
