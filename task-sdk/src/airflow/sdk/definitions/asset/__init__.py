@@ -60,7 +60,7 @@ log = logging.getLogger(__name__)
 
 
 @attrs.define(frozen=True)
-class AssetUniqueKey:
+class AssetUniqueKey(attrs.AttrsInstance):
     """
     Columns to identify an unique asset.
 
@@ -637,7 +637,7 @@ class AssetAll(AssetBooleanCondition):
 
 
 @attrs.define
-class AssetAliasEvent:
+class AssetAliasEvent(attrs.AttrsInstance):
     """Representation of asset event to be triggered by an asset alias."""
 
     source_alias_name: str
