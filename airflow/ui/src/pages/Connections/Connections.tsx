@@ -16,7 +16,7 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Box } from "@chakra-ui/react";
+import { Box, Flex } from "@chakra-ui/react";
 import type { ColumnDef } from "@tanstack/react-table";
 import { useState } from "react";
 import { useSearchParams } from "react-router-dom";
@@ -28,6 +28,8 @@ import { useTableURLState } from "src/components/DataTable/useTableUrlState";
 import { ErrorAlert } from "src/components/ErrorAlert";
 import { SearchBar } from "src/components/SearchBar";
 import { SearchParamsKeys, type SearchParamsKeysType } from "src/constants/searchParams";
+
+import DeleteConnectionButton from "./DeleteConnectionButton";
 
 const columns: Array<ColumnDef<ConnectionResponse>> = [
   {
@@ -49,6 +51,20 @@ const columns: Array<ColumnDef<ConnectionResponse>> = [
   {
     accessorKey: "port",
     header: "Port",
+  },
+  {
+    accessorKey: "actions",
+    cell: ({ row: { original } }) => (
+      <Flex justifyContent="end">
+        <DeleteConnectionButton connectionId={original.connection_id} disabled={false} />
+        {/* For now disabled is set as false, will depend on selected rows once multi action PR merges */}
+      </Flex>
+    ),
+    enableSorting: false,
+    header: "",
+    meta: {
+      skeletonWidth: 10,
+    },
   },
 ];
 
