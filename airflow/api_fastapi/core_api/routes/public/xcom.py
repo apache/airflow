@@ -19,7 +19,7 @@ from __future__ import annotations
 import copy
 from typing import Annotated
 
-from fastapi import HTTPException, Query, Request, status
+from fastapi import Depends, HTTPException, Query, Request, status
 from sqlalchemy import and_, select
 
 from airflow.api_fastapi.common.db.common import SessionDep, paginated_select
@@ -33,6 +33,7 @@ from airflow.api_fastapi.core_api.datamodels.xcom import (
     XComUpdateBody,
 )
 from airflow.api_fastapi.core_api.openapi.exceptions import create_openapi_http_exception_doc
+from airflow.api_fastapi.logging.decorators import action_logging
 from airflow.exceptions import TaskNotFound
 from airflow.models import DAG, DagRun as DR, XCom
 from airflow.settings import conf
@@ -155,6 +156,7 @@ def get_xcom_entries(
             status.HTTP_404_NOT_FOUND,
         ]
     ),
+    dependencies=[Depends(action_logging())],
 )
 def create_xcom_entry(
     dag_id: str,
