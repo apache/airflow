@@ -207,6 +207,18 @@ class TestGetTaskInstance(TestTaskInstanceEndpoint):
             "triggerer_job": None,
         }
 
+    def test_should_respond_401(self, unauthenticated_test_client):
+        response = unauthenticated_test_client.get(
+            "/public/dags/example_python_operator/dagRuns/TEST_DAG_RUN_ID/taskInstances/print_the_context"
+        )
+        assert response.status_code == 401
+
+    def test_should_respond_403(self, unauthorized_test_client):
+        response = unauthorized_test_client.get(
+            "/public/dags/example_python_operator/dagRuns/TEST_DAG_RUN_ID/taskInstances/print_the_context"
+        )
+        assert response.status_code == 403
+
     @pytest.mark.parametrize(
         "run_id, expected_version_number",
         [
@@ -525,6 +537,18 @@ class TestGetMappedTaskInstance(TestTaskInstanceEndpoint):
                 "triggerer_job": None,
             }
 
+    def test_should_respond_401(self, unauthenticated_test_client):
+        response = unauthenticated_test_client.get(
+            "/public/dags/example_python_operator/dagRuns/TEST_DAG_RUN_ID/taskInstances/print_the_context/1",
+        )
+        assert response.status_code == 401
+
+    def test_should_respond_403(self, unauthorized_test_client):
+        response = unauthorized_test_client.get(
+            "/public/dags/example_python_operator/dagRuns/TEST_DAG_RUN_ID/taskInstances/print_the_context/1",
+        )
+        assert response.status_code == 403
+
     def test_should_respond_404_wrong_map_index(self, test_client, session):
         self.create_task_instances(session)
 
@@ -664,6 +688,18 @@ class TestGetMappedTaskInstances:
                 },
             },
         )
+
+    def test_should_respond_401(self, unauthenticated_test_client):
+        response = unauthenticated_test_client.get(
+            "/public/dags/mapped_tis/dagRuns/run_mapped_tis/taskInstances/task_2/listMapped",
+        )
+        assert response.status_code == 401
+
+    def test_should_respond_403(self, unauthorized_test_client):
+        response = unauthorized_test_client.get(
+            "/public/dags/mapped_tis/dagRuns/run_mapped_tis/taskInstances/task_2/listMapped",
+        )
+        assert response.status_code == 403
 
     def test_should_respond_404(self, test_client):
         response = test_client.get(
@@ -1068,6 +1104,18 @@ class TestGetTaskInstances(TestTaskInstanceEndpoint):
         assert response.json()["total_entries"] == expected_ti
         assert len(response.json()["task_instances"]) == expected_ti
 
+    def test_should_respond_401(self, unauthenticated_test_client):
+        response = unauthenticated_test_client.get(
+            "/public/dags/example_python_operator/dagRuns/~/taskInstances",
+        )
+        assert response.status_code == 401
+
+    def test_should_respond_403(self, unauthorized_test_client):
+        response = unauthorized_test_client.get(
+            "/public/dags/example_python_operator/dagRuns/~/taskInstances",
+        )
+        assert response.status_code == 403
+
     def test_not_found(self, test_client):
         response = test_client.get("/public/dags/invalid/dagRuns/~/taskInstances")
         assert response.status_code == 404
@@ -1085,7 +1133,6 @@ class TestGetTaskInstances(TestTaskInstanceEndpoint):
             == f"Invalid value for state. Valid values are {', '.join(TaskInstanceState)}"
         )
 
-    @pytest.mark.xfail(reason="permissions not implemented yet.")
     def test_return_TI_only_from_readable_dags(self, test_client, session):
         task_instances = {
             "example_python_operator": 1,
@@ -1293,6 +1340,20 @@ class TestGetTaskDependencies(TestTaskInstanceEndpoint):
             "print_the_context/0/dependencies",
         )
         assert response.status_code == 200, response.text
+
+    def test_should_respond_401(self, unauthenticated_test_client):
+        response = unauthenticated_test_client.get(
+            "/public/dags/example_python_operator/dagRuns/TEST_DAG_RUN_ID/taskInstances/"
+            "print_the_context/0/dependencies",
+        )
+        assert response.status_code == 401
+
+    def test_should_respond_403(self, unauthorized_test_client):
+        response = unauthorized_test_client.get(
+            "/public/dags/example_python_operator/dagRuns/TEST_DAG_RUN_ID/taskInstances/"
+            "print_the_context/0/dependencies",
+        )
+        assert response.status_code == 403
 
 
 class TestGetTaskInstancesBatch(TestTaskInstanceEndpoint):
@@ -1507,6 +1568,20 @@ class TestGetTaskInstancesBatch(TestTaskInstanceEndpoint):
                 "type": "missing",
             },
         ]
+
+    def test_should_respond_401(self, unauthenticated_test_client):
+        response = unauthenticated_test_client.post(
+            "/public/dags/~/dagRuns/~/taskInstances/list",
+            json={},
+        )
+        assert response.status_code == 401
+
+    def test_should_respond_403(self, unauthorized_test_client):
+        response = unauthorized_test_client.post(
+            "/public/dags/~/dagRuns/~/taskInstances/list",
+            json={},
+        )
+        assert response.status_code == 403
 
     def test_should_respond_422_for_non_wildcard_path_parameters(self, test_client):
         response = test_client.post(
@@ -1820,6 +1895,18 @@ class TestGetTaskInstanceTry(TestTaskInstanceEndpoint):
             "dag_version": None,
         }
 
+    def test_should_respond_401(self, unauthenticated_test_client):
+        response = unauthenticated_test_client.get(
+            "/public/dags/example_python_operator/dagRuns/TEST_DAG_RUN_ID/taskInstances/print_the_context/tries/1",
+        )
+        assert response.status_code == 401
+
+    def test_should_respond_403(self, unauthorized_test_client):
+        response = unauthorized_test_client.get(
+            "/public/dags/example_python_operator/dagRuns/TEST_DAG_RUN_ID/taskInstances/print_the_context/tries/1",
+        )
+        assert response.status_code == 403
+
     def test_raises_404_for_nonexistent_task_instance(self, test_client, session):
         self.create_task_instances(session)
         response = test_client.get(
@@ -2089,6 +2176,20 @@ class TestPostClearTaskInstances(TestTaskInstanceEndpoint):
             "Cannot use include_past or include_future when dag_run_id is provided"
             in response.json()["detail"]
         )
+
+    def test_should_respond_401(self, unauthenticated_test_client):
+        response = unauthenticated_test_client.post(
+            "/public/dags/dag_id/clearTaskInstances",
+            json={},
+        )
+        assert response.status_code == 401
+
+    def test_should_respond_403(self, unauthorized_test_client):
+        response = unauthorized_test_client.post(
+            "/public/dags/dag_id/clearTaskInstances",
+            json={},
+        )
+        assert response.status_code == 403
 
     @pytest.mark.parametrize(
         "main_dag, task_instances, request_dag, payload, expected_ti",
@@ -2714,6 +2815,18 @@ class TestGetTaskInstanceTries(TestTaskInstanceEndpoint):
             "total_entries": 2,
         }
 
+    def test_should_respond_401(self, unauthenticated_test_client):
+        response = unauthenticated_test_client.get(
+            "/public/dags/example_python_operator/dagRuns/TEST_DAG_RUN_ID/taskInstances/print_the_context/tries"
+        )
+        assert response.status_code == 401
+
+    def test_should_respond_403(self, unauthorized_test_client):
+        response = unauthorized_test_client.get(
+            "/public/dags/example_python_operator/dagRuns/TEST_DAG_RUN_ID/taskInstances/print_the_context/tries"
+        )
+        assert response.status_code == 403
+
     def test_ti_in_retry_state_not_returned(self, test_client, session):
         self.create_task_instances(
             session=session, task_instances=[{"state": State.SUCCESS}], with_ti_history=True
@@ -3028,6 +3141,24 @@ class TestPatchTaskInstance(TestTaskInstanceEndpoint):
         response2 = test_client.get(f"{self.ENDPOINT_URL}/{map_index}")
         assert response2.status_code == 200
         assert response2.json()["state"] == self.NEW_STATE
+
+    def test_should_respond_401(self, unauthenticated_test_client):
+        response = unauthenticated_test_client.patch(
+            self.ENDPOINT_URL,
+            json={
+                "new_state": self.NEW_STATE,
+            },
+        )
+        assert response.status_code == 401
+
+    def test_should_respond_403(self, unauthorized_test_client):
+        response = unauthorized_test_client.patch(
+            self.ENDPOINT_URL,
+            json={
+                "new_state": self.NEW_STATE,
+            },
+        )
+        assert response.status_code == 403
 
     @pytest.mark.parametrize(
         "error, code, payload",
@@ -3528,6 +3659,20 @@ class TestPatchTaskInstanceDryRun(TestTaskInstanceEndpoint):
         task_after = test_client.get(self.ENDPOINT_URL).json()
 
         assert task_before == task_after
+
+    def test_should_respond_401(self, unauthenticated_test_client):
+        response = unauthenticated_test_client.patch(
+            f"{self.ENDPOINT_URL}/dry_run",
+            json={},
+        )
+        assert response.status_code == 401
+
+    def test_should_respond_403(self, unauthorized_test_client):
+        response = unauthorized_test_client.patch(
+            f"{self.ENDPOINT_URL}/dry_run",
+            json={},
+        )
+        assert response.status_code == 403
 
     def test_should_not_update_mapped_task_instance(self, test_client, session):
         map_index = 1
