@@ -109,12 +109,13 @@ class BaseAuthManager(Generic[T], LoggingMixin, metaclass=ABCMeta):
     def get_url_login(self, **kwargs) -> str:
         """Return the login page url."""
 
-    def logout(self) -> None:
+    def get_url_logout(self) -> str | None:
         """
-        Logout the user.
+        Return the logout page url.
 
-        This method is called when the user is logging out. By default, it does nothing. Override it to
-        invalidate resources when logging out, such as a session.
+        The user is redirected to this URL when logging out. If None is returned (by default), no redirection
+        is performed. This redirection is usually needed to invalidate resources when logging out, such as a
+        session.
         """
         return None
 
