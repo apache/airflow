@@ -6987,6 +6987,8 @@ paths:
       summary: Get Dag Tags
       description: Get all DAG tags.
       operationId: get_dag_tags
+      security:
+      - OAuth2PasswordBearer: []
       parameters:
       - name: limit
         in: query
