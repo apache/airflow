@@ -31,6 +31,7 @@ from airflow.providers.dbt.cloud.operators.dbt import (
     DbtCloudRunJobOperator,
 )
 from airflow.providers.dbt.cloud.triggers.dbt import DbtCloudRunJobTrigger
+from airflow.sdk.execution_time.comms import XComResult
 from airflow.utils import db, timezone
 
 pytestmark = pytest.mark.db_test
@@ -641,7 +642,9 @@ class TestDbtCloudRunJobOperator:
         [(ACCOUNT_ID_CONN, None), (NO_ACCOUNT_ID_CONN, ACCOUNT_ID)],
         ids=["default_account", "explicit_account"],
     )
-    def test_run_job_operator_link(self, conn_id, account_id, create_task_instance_of_operator, request):
+    def test_run_job_operator_link(
+        self, conn_id, account_id, create_task_instance_of_operator, request, mock_supervisor_comms
+    ):
         ti = create_task_instance_of_operator(
             DbtCloudRunJobOperator,
             dag_id="test_dbt_cloud_run_job_op_link",
@@ -658,6 +661,14 @@ class TestDbtCloudRunJobOperator:
 
         ti.xcom_push(key="job_run_url", value=_run_response["data"]["href"])
 
+        mock_supervisor_comms.get_message.return_value = XComResult(
+            key="job_run_url",
+            value=EXPECTED_JOB_RUN_OP_EXTRA_LINK.format(
+                account_id=account_id or DEFAULT_ACCOUNT_ID,
+                project_id=PROJECT_ID,
+                run_id=_run_response["data"]["id"],
+            ),
+        )
         url = ti.task.operator_extra_links[0].get_link(operator=ti.task, ti_key=ti.key)
 
         assert url == (
