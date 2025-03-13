@@ -26,6 +26,7 @@ from starlette import status
 from starlette.responses import RedirectResponse
 
 from airflow.api_fastapi.app import AUTH_MANAGER_FASTAPI_APP_PREFIX, get_auth_manager
+from airflow.api_fastapi.auth.managers.base_auth_manager import BaseAuthManagerConstants
 from airflow.api_fastapi.common.router import AirflowRouter
 from airflow.configuration import conf
 from airflow.providers.amazon.aws.auth_manager.constants import CONF_SAML_METADATA_URL_KEY, CONF_SECTION_NAME
@@ -82,7 +83,7 @@ def login_callback(request: Request):
     url = conf.get("api", "base_url")
     token = get_auth_manager().generate_jwt(user)
     response = RedirectResponse(url=url, status_code=303)
-    response.set_cookie("_token", token)
+    response.set_cookie(BaseAuthManagerConstants.COOKIE_JWT_TOKEN.value, token, secure=True, samesite="lax")
     return response
 
 

@@ -17,6 +17,7 @@
 # under the License.
 from __future__ import annotations
 
+import enum
 import logging
 from abc import ABCMeta, abstractmethod
 from functools import cache
@@ -70,6 +71,12 @@ ResourceMethod = Literal["GET", "POST", "PUT", "DELETE", "MENU"]
 
 log = logging.getLogger(__name__)
 T = TypeVar("T", bound=BaseUser)
+
+
+class BaseAuthManagerConstants(enum.Enum):
+    """Constants for BaseAuthManager."""
+
+    COOKIE_JWT_TOKEN = "_token"
 
 
 class BaseAuthManager(Generic[T], LoggingMixin, metaclass=ABCMeta):

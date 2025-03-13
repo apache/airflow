@@ -32,6 +32,7 @@ from flask import (
 from flask_appbuilder import IndexView, expose
 
 from airflow.api_fastapi.app import get_auth_manager
+from airflow.api_fastapi.auth.managers.base_auth_manager import BaseAuthManagerConstants
 from airflow.configuration import conf
 from airflow.utils.net import get_hostname
 from airflow.version import version
@@ -72,7 +73,9 @@ class FabIndexView(IndexView):
         if g.user is not None and g.user.is_authenticated:
             token = get_auth_manager().generate_jwt(g.user)
             response = make_response(redirect(f"{conf.get('api', 'base_url')}", code=302))
-            response.set_cookie("_token", token)
+            response.set_cookie(
+                BaseAuthManagerConstants.COOKIE_JWT_TOKEN.value, token, secure=True, samesite="Lax"
+            )
             return response
         else:
             return redirect(conf.get("api", "base_url"), code=302)

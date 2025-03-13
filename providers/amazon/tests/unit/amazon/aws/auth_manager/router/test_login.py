@@ -119,7 +119,6 @@ class TestLoginRouter:
                 )
                 assert response.status_code == 303
                 assert "location" in response.headers
-                print(response.cookies)
                 assert "_token" in response.cookies
                 assert response.headers["location"].startswith("http://localhost:8080/")
 

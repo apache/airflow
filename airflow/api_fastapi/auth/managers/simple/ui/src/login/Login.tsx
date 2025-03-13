@@ -25,6 +25,7 @@ import {LoginForm} from "src/login/LoginForm";
 import type {ApiError} from "openapi-gen/requests/core/ApiError";
 import type {LoginResponse, HTTPExceptionResponse, HTTPValidationError} from "openapi-gen/requests/types.gen";
 import { useSearchParams } from "react-router-dom";
+import Cookies from "js-cookie";
 
 export type LoginBody = {
     username: string; password: string;
@@ -41,7 +42,7 @@ export const Login = () => {
         // Redirect to appropriate page with the token
         const next = searchParams.get("next")
 
-        localStorage.setItem("token", data.jwt_token);
+        Cookies.set('_token', data.jwt_token, { secure: true, sameSite: 'lax' });
 
         globalThis.location.replace(`${next ?? ""}`);
     }

@@ -23,6 +23,7 @@ from fastapi import HTTPException, status
 from starlette.responses import RedirectResponse
 
 from airflow.api_fastapi.app import get_auth_manager
+from airflow.api_fastapi.auth.managers.base_auth_manager import BaseAuthManagerConstants
 from airflow.api_fastapi.auth.managers.simple.datamodels.login import LoginBody, LoginResponse
 from airflow.api_fastapi.auth.managers.simple.services.login import SimpleAuthManagerLogin
 from airflow.api_fastapi.auth.managers.simple.user import SimpleAuthManagerUser
@@ -63,7 +64,14 @@ def create_token_all_admins() -> RedirectResponse:
         role="ADMIN",
     )
     url = urljoin(conf.get("api", "base_url"), f"?token={get_auth_manager().generate_jwt(user)}")
-    return RedirectResponse(url=url)
+    response = RedirectResponse(url=url)
+    response.set_cookie(
+        BaseAuthManagerConstants.COOKIE_JWT_TOKEN.value,
+        get_auth_manager().generate_jwt(user),
+        secure=True,
+        samesite="lax",
+    )
+    return response
 
 
 @login_router.post(
