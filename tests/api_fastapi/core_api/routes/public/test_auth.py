@@ -70,12 +70,23 @@ class TestGetLogin(TestAuthEndpoint):
 
 
 class TestLogout(TestAuthEndpoint):
+    @pytest.mark.parametrize(
+        "mock_logout_url, expected_redirection",
+        [
+            # logout_url is None, should redirect to the login page directly.
+            (None, AUTH_MANAGER_LOGIN_URL),
+            # logout_url is defined, should redirect to the logout_url.
+            ("http://localhost/auth/some_logout_url", "http://localhost/auth/some_logout_url"),
+        ],
+    )
     def test_should_respond_307(
         self,
         test_client,
+        mock_logout_url,
+        expected_redirection,
     ):
+        test_client.app.state.auth_manager.get_url_logout.return_value = mock_logout_url
         response = test_client.get("/public/auth/logout", follow_redirects=False)
-        test_client.app.state.auth_manager.logout.assert_called_once_with()
 
         assert response.status_code == 307
-        assert response.headers["location"] == AUTH_MANAGER_LOGIN_URL
+        assert response.headers["location"] == expected_redirection

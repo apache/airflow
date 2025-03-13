@@ -48,8 +48,10 @@ def login(request: Request, next: None | str = None) -> RedirectResponse:
 )
 def logout(request: Request, next: None | str = None) -> RedirectResponse:
     """Logout the user."""
-    request.app.state.auth_manager.logout()
+    logout_url = request.app.state.auth_manager.get_url_logout()
+
+    if logout_url:
+        return RedirectResponse(logout_url)
 
     login_url = request.app.state.auth_manager.get_url_login()
-
     return RedirectResponse(login_url)
