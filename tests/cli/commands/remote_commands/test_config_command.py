@@ -267,13 +267,14 @@ class TestConfigLint:
 
             output = temp_stdout.getvalue()
 
-        normalized_output = re.sub(r"\s+", " ", output.strip())
-        normalized_message = re.sub(r"\s+", " ", default_changed_config.message.strip())
+        if default_changed_config.message is not None:
+            normalized_output = re.sub(r"\s+", " ", output.strip())
+            normalized_message = re.sub(r"\s+", " ", default_changed_config.message.strip())
 
-        print("Normalized Message:", normalized_message)
-        print("Normalized Output:", normalized_output)
+            print("Normalized Message:", normalized_message)
+            print("Normalized Output:", normalized_output)
 
-        assert normalized_message in normalized_output
+            assert normalized_message in normalized_output
 
     @pytest.mark.parametrize(
         "section, option, suggestion",
