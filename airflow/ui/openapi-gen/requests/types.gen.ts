@@ -1273,10 +1273,7 @@ export type StandardHookFields = {
 export type StructureDataResponse = {
   edges: Array<EdgeResponse>;
   nodes: Array<NodeResponse>;
-  arrange: "BT" | "LR" | "RL" | "TB";
 };
-
-export type arrange = "BT" | "LR" | "RL" | "TB";
 
 /**
  * An individual log message.
