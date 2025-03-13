@@ -213,6 +213,8 @@ import type {
   GetVersionResponse,
   LoginData,
   LoginResponse,
+  LogoutData,
+  LogoutResponse,
 } from "./types.gen";
 
 export class AuthLinksService {
@@ -3546,7 +3548,29 @@ export class LoginService {
   public static login(data: LoginData = {}): CancelablePromise<LoginResponse> {
     return __request(OpenAPI, {
       method: "GET",
-      url: "/public/login",
+      url: "/public/auth/login",
+      query: {
+        next: data.next,
+      },
+      errors: {
+        307: "Temporary Redirect",
+        422: "Validation Error",
+      },
+    });
+  }
+
+  /**
+   * Logout
+   * Logout the user.
+   * @param data The data for the request.
+   * @param data.next
+   * @returns unknown Successful Response
+   * @throws ApiError
+   */
+  public static logout(data: LogoutData = {}): CancelablePromise<LogoutResponse> {
+    return __request(OpenAPI, {
+      method: "GET",
+      url: "/public/auth/logout",
       query: {
         next: data.next,
       },
