@@ -424,6 +424,8 @@ paths:
       summary: Grid Data
       description: Return grid data.
       operationId: grid_data
+      security:
+      - OAuth2PasswordBearer: []
       parameters:
       - name: dag_id
         in: path
