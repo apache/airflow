@@ -88,6 +88,7 @@ class ConfigChange:
     """
 
     config: ConfigParameter
+    default_change: bool = False
     suggestion: str = ""
     renamed_to: ConfigParameter | None = None
     was_deprecated: bool = True
@@ -95,6 +96,11 @@ class ConfigChange:
     @property
     def message(self) -> str:
         """Generate a message for this configuration change."""
+        if self.default_change:
+            return (
+                f"Changed default value of `{self.config.option}` configuration parameter in `{self.config.section}` "
+                f"section. {self.suggestion}"
+            )
         if self.renamed_to:
             if self.config.section != self.renamed_to.section:
                 return (
@@ -343,6 +349,16 @@ CONFIGS_CHANGES = [
     ),
     ConfigChange(
         config=ConfigParameter("scheduler", "allow_trigger_in_future"),
+    ),
+    ConfigChange(
+        config=ConfigParameter("scheduler", "catchup_by_default"),
+        default_change=True,
+        suggestion="In Airflow 3.0 the default value for `catchup_by_default` is set to `False`. "
+        "Which means that DAGs without explicit definiton of the `catchup` parameter will not "
+        "catchup by default. "
+        "If your DAGs rely on catchup behavior, not explicitely defined in the DAG definition, "
+        "set this configuration parameter to `True` in the `[scheduler]` section of your `airflow.cfg` " 
+        "to enable the behavior from Airflow 2.x.",
     ),
     ConfigChange(
         config=ConfigParameter("scheduler", "processor_poll_interval"),
