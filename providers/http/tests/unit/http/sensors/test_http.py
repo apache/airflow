@@ -28,7 +28,6 @@ import requests
 from airflow.exceptions import (
     AirflowException,
     AirflowSensorTimeout,
-    ResponseCheckFailedException,
     TaskDeferred,
 )
 from airflow.models.dag import DAG
@@ -453,7 +452,7 @@ class TestHttpSensorAsync:
         task.response_check = mock.Mock(return_value=True)
         with mock.patch.object(task, "process_response", return_value=False):
             with pytest.raises(
-                ResponseCheckFailedException,
+                AirflowException,
                 match="('response_check condition is not matched for %s', 'test_http_sensor')",
             ):
                 task.execute_complete(context=context, event=success_event)
