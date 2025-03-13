@@ -245,7 +245,11 @@ class TestCloudBuildHook:
             request={"project_id": PROJECT_ID, "id": BUILD_ID}, retry=DEFAULT, timeout=None, metadata=()
         )
 
-        get_conn.return_value.retry_build.return_value.result.assert_called_once_with(timeout=None)
+        get_conn.return_value.retry_build.return_value.result.assert_called_once_with(
+            timeout=None,
+            polling=None,
+            retry=None,
+        )
 
         get_conn.return_value.get_build.assert_called_once_with(
             request={"project_id": PROJECT_ID, "id": BUILD_ID}, retry=DEFAULT, timeout=None, metadata=()
@@ -299,7 +303,11 @@ class TestCloudBuildHook:
             metadata=(),
         )
 
-        get_conn.return_value.run_build_trigger.return_value.result.assert_called_once_with(timeout=None)
+        get_conn.return_value.run_build_trigger.return_value.result.assert_called_once_with(
+            timeout=None,
+            polling=None,
+            retry=None,
+        )
 
         get_conn.return_value.get_build.assert_called_once_with(
             request={"project_id": PROJECT_ID, "id": BUILD_ID}, retry=DEFAULT, timeout=None, metadata=()
