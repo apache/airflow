@@ -202,7 +202,7 @@ def render_dag(dag: DAG, tis: list[TaskInstance] | None = None) -> graphviz.Digr
     dot = graphviz.Digraph(
         dag.dag_id,
         graph_attr={
-            "rankdir": dag.orientation if dag.orientation else "LR",
+            "rankdir": "LR",
             "labelloc": "t",
             "label": dag.dag_id,
         },

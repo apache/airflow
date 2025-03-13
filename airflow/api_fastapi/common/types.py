@@ -76,8 +76,23 @@ class Mimetype(str, Enum):
 
 
 @dataclass
-class MenuItem:
-    """Define a menu item."""
+class ExtraMenuItem:
+    """Define a menu item that can be added to the menu by auth managers or plugins."""
 
     text: str
     href: str
+
+
+class MenuItem(Enum):
+    """Define all menu items defined in the menu."""
+
+    ASSETS = "Assets"
+    ASSET_EVENTS = "Asset Events"
+    CONNECTIONS = "Connections"
+    DAGS = "Dags"
+    DOCS = "Docs"
+    PLUGINS = "Plugins"
+    POOLS = "Pools"
+    PROVIDERS = "Providers"
+    VARIABLES = "Variables"
+    XCOMS = "XComs"

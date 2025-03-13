@@ -229,12 +229,18 @@ def logging_processors(
 @cache
 def configure_logging(
     enable_pretty_log: bool = True,
-    log_level: str = "DEBUG",
+    log_level: str = "DEFAULT",
     output: BinaryIO | TextIO | None = None,
     cache_logger_on_first_use: bool = True,
     sending_to_supervisor: bool = False,
 ):
     """Set up struct logging and stdlib logging config."""
+    if log_level == "DEFAULT":
+        log_level = "INFO"
+        if "airflow.configuration" in sys.modules:
+            from airflow.configuration import conf
+
+            log_level = conf.get("logging", "logging_level", fallback="INFO")
     lvl = structlog.stdlib.NAME_TO_LEVEL[log_level.lower()]
 
     if enable_pretty_log:

@@ -48,8 +48,8 @@ export const AssetGraph = ({ asset }: { readonly asset?: AssetResponse }) => {
 
   const { data: graphData } = useGraphLayout({
     ...data,
-    arrange: "LR",
     dagId: asset?.name ?? "",
+    direction: "RIGHT",
     openGroupIds: [],
   });
 

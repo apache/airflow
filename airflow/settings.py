@@ -389,8 +389,13 @@ def configure_orm(disable_connection_pool=False, pool_class=None):
     Session = scoped_session(NonScopedSession)
 
     # https://docs.sqlalchemy.org/en/20/core/pooling.html#using-connection-pools-with-multiprocessing-or-os-fork
-    os.register_at_fork(after_in_child=lambda: engine.dispose(close=False))
-    os.register_at_fork(after_in_child=lambda: async_engine.sync_engine.dispose(close=False))
+    def clean_in_fork():
+        if engine:
+            engine.dispose(close=False)
+        if async_engine:
+            async_engine.sync_engine.dispose(close=False)
+
+    os.register_at_fork(after_in_child=clean_in_fork)
 
 
 DEFAULT_ENGINE_ARGS = {
@@ -480,15 +485,16 @@ def prepare_engine_args(disable_connection_pool=False, pool_class=None):
     return engine_args
 
 
-def dispose_orm():
+def dispose_orm(do_log: bool = True):
     """Properly close pooled database connections."""
     global Session, engine, NonScopedSession
 
     _globals = globals()
-    if "engine" not in _globals and "Session" not in _globals:
+    if _globals.get("engine") is None and _globals.get("Session") is None:
         return
 
-    log.debug("Disposing DB connection pool (PID %s)", os.getpid())
+    if do_log:
+        log.debug("Disposing DB connection pool (PID %s)", os.getpid())
 
     if "Session" in _globals and Session is not None:
         from sqlalchemy.orm.session import close_all_sessions

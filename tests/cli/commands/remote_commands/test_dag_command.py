@@ -788,6 +788,12 @@ class TestCliDagsReserialize:
         serialized_dag_ids = set(session.execute(select(SerializedDagModel.dag_id)).scalars())
         assert serialized_dag_ids == {"test_example_bash_operator", "test_dag_with_no_tags", "test_sensor"}
 
+        example_bash_op = session.execute(
+            select(DagModel).filter(DagModel.dag_id == "test_example_bash_operator")
+        ).scalar()
+        assert example_bash_op.relative_fileloc == "."  # the file _is_ the bundle path
+        assert example_bash_op.fileloc == str(TEST_DAGS_FOLDER / "test_example_bash_operator.py")
+
     @conf_vars({("core", "load_examples"): "false"})
     def test_reserialize_should_support_bundle_name_argument(self, configure_dag_bundles, session):
         with configure_dag_bundles(self.test_bundles_config):

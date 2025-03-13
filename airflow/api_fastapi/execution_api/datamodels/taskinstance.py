@@ -97,7 +97,7 @@ class TISuccessStatePayload(StrictBaseModel):
     """When the task completed executing"""
 
     task_outlets: Annotated[list[AssetProfile], Field(default_factory=list)]
-    outlet_events: Annotated[list[Any], Field(default_factory=list)]
+    outlet_events: Annotated[list[dict[str, Any]], Field(default_factory=list)]
 
 
 class TITargetStatePayload(StrictBaseModel):

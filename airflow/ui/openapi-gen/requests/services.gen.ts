@@ -3,6 +3,7 @@ import type { CancelablePromise } from "./core/CancelablePromise";
 import { OpenAPI } from "./core/OpenAPI";
 import { request as __request } from "./core/request";
 import type {
+  GetAuthLinksResponse,
   NextRunAssetsData,
   NextRunAssetsResponse,
   GetAssetsData,
@@ -213,6 +214,20 @@ import type {
   LoginData,
   LoginResponse,
 } from "./types.gen";
+
+export class AuthLinksService {
+  /**
+   * Get Auth Links
+   * @returns MenuItemCollectionResponse Successful Response
+   * @throws ApiError
+   */
+  public static getAuthLinks(): CancelablePromise<GetAuthLinksResponse> {
+    return __request(OpenAPI, {
+      method: "GET",
+      url: "/ui/auth/links",
+    });
+  }
+}
 
 export class AssetService {
   /**

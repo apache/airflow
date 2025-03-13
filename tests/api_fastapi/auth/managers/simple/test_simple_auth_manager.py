@@ -24,6 +24,7 @@ import pytest
 from airflow.api_fastapi.app import AUTH_MANAGER_FASTAPI_APP_PREFIX
 from airflow.api_fastapi.auth.managers.models.resource_details import AccessView
 from airflow.api_fastapi.auth.managers.simple.user import SimpleAuthManagerUser
+from airflow.api_fastapi.common.types import MenuItem
 
 from tests_common.test_utils.config import conf_vars
 
@@ -214,3 +215,10 @@ class TestSimpleAuthManager:
             getattr(auth_manager, api)(method=method, user=SimpleAuthManagerUser(username="test", role=role))
             is result
         )
+
+    def test_filter_authorized_menu_items(self, auth_manager):
+        items = [MenuItem.ASSETS]
+        results = auth_manager.filter_authorized_menu_items(
+            items, user=SimpleAuthManagerUser(username="test", role=None)
+        )
+        assert results == items

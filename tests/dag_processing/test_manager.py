@@ -138,7 +138,7 @@ class TestDagFileProcessorManager:
         proc.create_time.return_value = time.time()
         proc.wait.return_value = 0
         ret = DagFileProcessorProcess(
-            log=MagicMock(),
+            process_log=MagicMock(),
             id=uuid7(),
             pid=1234,
             process=proc,

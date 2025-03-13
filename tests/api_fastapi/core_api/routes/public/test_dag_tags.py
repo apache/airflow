@@ -249,3 +249,11 @@ class TestDagTags(TestDagEndpoint):
             "total_entries": expected_total_entries,
         }
         assert res_json == expected
+
+    def test_should_respond_401(self, unauthenticated_test_client):
+        response = unauthenticated_test_client.get("/public/dagTags")
+        assert response.status_code == 401
+
+    def test_should_respond_403(self, unauthorized_test_client):
+        response = unauthorized_test_client.get("/public/dagTags")
+        assert response.status_code == 403

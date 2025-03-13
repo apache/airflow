@@ -1660,14 +1660,6 @@ webserver:
       type: string
       example: ~
       default: "False"
-    dag_orientation:
-      description: |
-        Default DAG orientation. Valid values are:
-        ``LR`` (Left->Right), ``TB`` (Top->Bottom), ``RL`` (Right->Left), ``BT`` (Bottom->Top)
-      version_added: ~
-      type: string
-      example: ~
-      default: "LR"
     grid_view_sorting_order:
       description: |
         Sorting order in grid view. Valid values are: ``topological``, ``hierarchical_alphabetical``

@@ -20,11 +20,13 @@ from __future__ import annotations
 from operator import attrgetter
 from typing import cast
 
-from fastapi import HTTPException, Request, status
+from fastapi import Depends, HTTPException, Request, status
 
+from airflow.api_fastapi.auth.managers.models.resource_details import DagAccessEntity
 from airflow.api_fastapi.common.router import AirflowRouter
 from airflow.api_fastapi.core_api.datamodels.tasks import TaskCollectionResponse, TaskResponse
 from airflow.api_fastapi.core_api.openapi.exceptions import create_openapi_http_exception_doc
+from airflow.api_fastapi.core_api.security import requires_access_dag
 from airflow.exceptions import TaskNotFound
 from airflow.models import DAG
 
@@ -39,6 +41,7 @@ tasks_router = AirflowRouter(tags=["Task"], prefix="/dags/{dag_id}/tasks")
             status.HTTP_404_NOT_FOUND,
         ]
     ),
+    dependencies=[Depends(requires_access_dag(method="GET", access_entity=DagAccessEntity.TASK))],
 )
 def get_tasks(
     dag_id: str,
@@ -67,6 +70,7 @@ def get_tasks(
             status.HTTP_404_NOT_FOUND,
         ]
     ),
+    dependencies=[Depends(requires_access_dag(method="GET", access_entity=DagAccessEntity.TASK))],
 )
 def get_task(dag_id: str, task_id, request: Request) -> TaskResponse:
     """Get simplified representation of a task."""

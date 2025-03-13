@@ -3,6 +3,7 @@ import { UseQueryResult } from "@tanstack/react-query";
 
 import {
   AssetService,
+  AuthLinksService,
   BackfillService,
   ConfigService,
   ConnectionService,
@@ -36,6 +37,18 @@ import {
 } from "../requests/services.gen";
 import { DagRunState, DagWarningType } from "../requests/types.gen";
 
+export type AuthLinksServiceGetAuthLinksDefaultResponse = Awaited<
+  ReturnType<typeof AuthLinksService.getAuthLinks>
+>;
+export type AuthLinksServiceGetAuthLinksQueryResult<
+  TData = AuthLinksServiceGetAuthLinksDefaultResponse,
+  TError = unknown,
+> = UseQueryResult<TData, TError>;
+export const useAuthLinksServiceGetAuthLinksKey = "AuthLinksServiceGetAuthLinks";
+export const UseAuthLinksServiceGetAuthLinksKeyFn = (queryKey?: Array<unknown>) => [
+  useAuthLinksServiceGetAuthLinksKey,
+  ...(queryKey ?? []),
+];
 export type AssetServiceNextRunAssetsDefaultResponse = Awaited<ReturnType<typeof AssetService.nextRunAssets>>;
 export type AssetServiceNextRunAssetsQueryResult<
   TData = AssetServiceNextRunAssetsDefaultResponse,

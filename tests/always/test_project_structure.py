@@ -186,6 +186,7 @@ class TestProjectStructure:
             "providers/google/tests/unit/google/cloud/utils/test_dataform.py",
             "providers/google/tests/unit/google/common/links/test_storage.py",
             "providers/google/tests/unit/google/common/test_consts.py",
+            "providers/google/tests/unit/google/common/hooks/test_operation_helpers.py",
             "providers/google/tests/unit/google/test_go_module_utils.py",
             "providers/google/tests/unit/google/test_version_compat.py",
             "providers/http/tests/unit/http/test_exceptions.py",

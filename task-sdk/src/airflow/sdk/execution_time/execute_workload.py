@@ -42,16 +42,19 @@ def execute_workload(input: str) -> None:
     from airflow.executors import workloads
     from airflow.sdk.execution_time.supervisor import supervise
     from airflow.sdk.log import configure_logging
+    from airflow.settings import dispose_orm
 
-    configure_logging(output=sys.stdout.buffer)
+    dispose_orm(do_log=False)
+
+    configure_logging(output=sys.stdout.buffer, enable_pretty_log=False)
 
     decoder = TypeAdapter[workloads.All](workloads.All)
     workload = decoder.validate_json(input)
 
     if not isinstance(workload, workloads.ExecuteTask):
-        raise ValueError(f"KubernetesExecutor does not know how to handle {type(workload)}")
+        raise ValueError(f"We do not know how to handle {type(workload)}")
 
-    log.info("Executing workload in Kubernetes", workload=workload)
+    log.info("Executing workload", workload=workload)
 
     supervise(
         # This is the "wrong" ti type, but it duck types the same. TODO: Create a protocol for this.
@@ -61,6 +64,9 @@ def execute_workload(input: str) -> None:
         token=workload.token,
         server=conf.get("core", "execution_api_server_url"),
         log_path=workload.log_path,
+        # Include the output of the task to stdout too, so that in process logs can be read from via the
+        # kubeapi as pod logs.
+        subprocess_logs_to_stdout=True,
     )
 
 
