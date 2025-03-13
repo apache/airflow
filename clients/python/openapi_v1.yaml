@@ -3999,10 +3999,6 @@ components:
               type: boolean
               readOnly: true
               nullable: true
-            orientation:
-              type: string
-              readOnly: true
-              nullable: true
             concurrency:
               type: number
               readOnly: true

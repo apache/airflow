@@ -22,6 +22,7 @@ from fastapi import status
 from airflow.api_fastapi.common.router import AirflowRouter
 from airflow.api_fastapi.core_api.openapi.exceptions import create_openapi_http_exception_doc
 from airflow.api_fastapi.core_api.routes.public.assets import assets_router
+from airflow.api_fastapi.core_api.routes.public.auth import auth_router
 from airflow.api_fastapi.core_api.routes.public.backfills import backfills_router
 from airflow.api_fastapi.core_api.routes.public.config import config_router
 from airflow.api_fastapi.core_api.routes.public.connections import connections_router
@@ -39,7 +40,6 @@ from airflow.api_fastapi.core_api.routes.public.extra_links import extra_links_r
 from airflow.api_fastapi.core_api.routes.public.import_error import import_error_router
 from airflow.api_fastapi.core_api.routes.public.job import job_router
 from airflow.api_fastapi.core_api.routes.public.log import task_instances_log_router
-from airflow.api_fastapi.core_api.routes.public.login import login_router
 from airflow.api_fastapi.core_api.routes.public.monitor import monitor_router
 from airflow.api_fastapi.core_api.routes.public.plugins import plugins_router
 from airflow.api_fastapi.core_api.routes.public.pools import pools_router
@@ -90,4 +90,4 @@ public_router.include_router(authenticated_router)
 # Following routers are not included in common router, for now we don't expect it to have authentication
 public_router.include_router(monitor_router)
 public_router.include_router(version_router)
-public_router.include_router(login_router)
+public_router.include_router(auth_router)

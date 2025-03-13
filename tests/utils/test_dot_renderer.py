@@ -133,35 +133,6 @@ class TestDotRenderer:
             in source
         )
 
-    def test_should_render_dag_orientation(self, session, dag_maker):
-        orientation = "TB"
-        with dag_maker(dag_id="DAG_ID", orientation=orientation, session=session) as dag:
-            task_1 = BashOperator(start_date=START_DATE, task_id="first", bash_command="echo 1")
-            task_2 = BashOperator(start_date=START_DATE, task_id="second", bash_command="echo 1")
-            task_3 = PythonOperator(start_date=START_DATE, task_id="third", python_callable=mock.MagicMock())
-            task_1 >> task_2
-            task_1 >> task_3
-
-        tis = dag_maker.create_dagrun(logical_date=START_DATE).task_instances
-        tis[0].state = State.SCHEDULED
-        tis[1].state = State.SUCCESS
-        tis[2].state = State.RUNNING
-
-        dot = dot_renderer.render_dag(dag, tis=tis)
-        source = dot.source
-        # Should render DAG title with orientation
-        assert "label=DAG_ID" in source
-        assert f"label=DAG_ID labelloc=t rankdir={orientation}" in source
-
-        # Change orientation
-        orientation = "LR"
-        dag = DAG(dag_id="DAG_ID", schedule=None, orientation=orientation)
-        dot = dot_renderer.render_dag(dag, tis=tis)
-        source = dot.source
-        # Should render DAG title with orientation
-        assert "label=DAG_ID" in source
-        assert f"label=DAG_ID labelloc=t rankdir={orientation}" in source
-
     def test_render_task_group(self):
         with DAG(dag_id="example_task_group", schedule=None, start_date=START_DATE) as dag:
             start = EmptyOperator(task_id="start")
