@@ -4150,6 +4150,43 @@ export const $JobResponse = {
   description: "Job serializer for responses.",
 } as const;
 
+export const $MenuItem = {
+  properties: {
+    text: {
+      type: "string",
+      title: "Text",
+    },
+    href: {
+      type: "string",
+      title: "Href",
+    },
+  },
+  type: "object",
+  required: ["text", "href"],
+  title: "MenuItem",
+  description: "Menu Item for responses.",
+} as const;
+
+export const $MenuItemCollectionResponse = {
+  properties: {
+    menu_items: {
+      items: {
+        $ref: "#/components/schemas/MenuItem",
+      },
+      type: "array",
+      title: "Menu Items",
+    },
+    total_entries: {
+      type: "integer",
+      title: "Total Entries",
+    },
+  },
+  type: "object",
+  required: ["menu_items", "total_entries"],
+  title: "MenuItemCollectionResponse",
+  description: "Menu Item Collection serializer for responses.",
+} as const;
+
 export const $NodeResponse = {
   properties: {
     id: {
