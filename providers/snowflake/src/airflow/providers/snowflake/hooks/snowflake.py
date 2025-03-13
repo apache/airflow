@@ -291,6 +291,13 @@ class SnowflakeHook(DbApiHook):
             conn_config.pop("login", None)
             conn_config.pop("password", None)
 
+        token = self._get_field(extra_dict, "token") or ""
+        if token:
+            conn_config["token"] = token
+            conn_config["authenticator"] = "oauth"
+            conn_config.pop("login", None)
+            conn_config.pop("password", None)
+
         # configure custom target hostname and port, if specified
         snowflake_host = extra_dict.get("host")
         snowflake_port = extra_dict.get("port")
