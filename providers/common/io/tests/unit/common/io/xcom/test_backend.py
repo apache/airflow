@@ -164,6 +164,8 @@ class TestXComObjectStorageBackend:
         assert str(p) == XComModel.deserialize_value(qry.first())
 
     def test_clear(self, task_instance, session, mock_supervisor_comms):
+        session.add(task_instance)
+        session.commit()
         XCom = resolve_xcom_backend()
         airflow.models.xcom.XCom = XCom
 
@@ -215,6 +217,7 @@ class TestXComObjectStorageBackend:
             run_id=task_instance.run_id,
             session=session,
         )
+        XCom.purge(res)
 
         assert p.exists() is False
 

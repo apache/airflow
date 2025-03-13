@@ -37,8 +37,6 @@ from airflow.providers.google.cloud.operators.automl import (
     AutoMLTrainModelOperator,
 )
 
-from tests_common.test_utils.task_sdk_fixtures import mock_supervisor_comms
-
 GCP_LOCATION = "test-location"
 GCP_PROJECT_ID = "test-project"
 DATASET = "test-dataset"
@@ -132,7 +130,7 @@ class TestTranslationLegacyModelLink:
 
 class TestTranslationLegacyModelTrainLink:
     @pytest.mark.db_test
-    def test_get_link(self, create_task_instance_of_operator, session):
+    def test_get_link(self, create_task_instance_of_operator, session, mock_supervisor_comms):
         expected_url = (
             f"{TRANSLATION_BASE_LINK}/locations/{GCP_LOCATION}/datasets/{DATASET}/"
             f"train?project={GCP_PROJECT_ID}"
