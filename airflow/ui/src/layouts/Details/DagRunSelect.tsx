@@ -20,11 +20,11 @@ import { createListCollection, type SelectValueChangeDetails } from "@chakra-ui/
 import { forwardRef, type RefObject } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 
-import { useGridServiceGridData } from "openapi/queries";
 import type { GridDAGRunwithTIs } from "openapi/requests/types.gen";
 import { StateBadge } from "src/components/StateBadge";
 import Time from "src/components/Time";
 import { Select } from "src/components/ui";
+import { useGrid } from "src/queries/useGrid";
 
 type DagRunSelected = {
   run: GridDAGRunwithTIs;
@@ -35,14 +35,7 @@ export const DagRunSelect = forwardRef<HTMLDivElement>((_, ref) => {
   const { dagId = "", runId, taskId } = useParams();
   const navigate = useNavigate();
 
-  const { data, isLoading } = useGridServiceGridData(
-    {
-      dagId,
-      limit: 25,
-      orderBy: "-run_after",
-    },
-    undefined,
-  );
+  const { data, isLoading } = useGrid();
 
   const runOptions = createListCollection<DagRunSelected>({
     items: (data?.dag_runs ?? []).map((dr: GridDAGRunwithTIs) => ({
