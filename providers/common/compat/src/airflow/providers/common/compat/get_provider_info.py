@@ -28,7 +28,7 @@ def get_provider_info():
         "description": "``Common Compatibility Provider - providing compatibility code for previous Airflow versions.``\n",
         "state": "ready",
         "source-date-epoch": 1741508595,
-        "versions": ["1.5.1", "1.5.0", "1.3.0", "1.2.2", "1.2.1", "1.2.0", "1.1.0", "1.0.0"],
+        "versions": ["1.5.2", "1.5.1", "1.5.0", "1.3.0", "1.2.2", "1.2.1", "1.2.0", "1.1.0", "1.0.0"],
         "integrations": [
             {
                 "integration-name": "Common Compat",

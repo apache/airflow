@@ -23,7 +23,7 @@
 
 Package ``apache-airflow-providers-common-compat``
 
-Release: ``1.5.1``
+Release: ``1.5.2``
 
 
 ``Common Compatibility Provider - providing compatibility code for previous Airflow versions.``
@@ -36,7 +36,7 @@ This is a provider package for ``common.compat`` provider. All classes for this 
 are in ``airflow.providers.common.compat`` python package.
 
 You can find package information and changelog for the provider
-in the `documentation <https://airflow.apache.org/docs/apache-airflow-providers-common-compat/1.5.1/>`_.
+in the `documentation <https://airflow.apache.org/docs/apache-airflow-providers-common-compat/1.5.2/>`_.
 
 Installation
 ------------
@@ -77,4 +77,4 @@ Dependent package                                                               
 ==============================================================================================================  ===============
 
 The changelog for the provider package can be found in the
-`changelog <https://airflow.apache.org/docs/apache-airflow-providers-common-compat/1.5.1/changelog.html>`_.
+`changelog <https://airflow.apache.org/docs/apache-airflow-providers-common-compat/1.5.2/changelog.html>`_.
