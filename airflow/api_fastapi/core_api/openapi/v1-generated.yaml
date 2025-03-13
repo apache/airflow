@@ -10497,19 +10497,10 @@ components:
             $ref: '#/components/schemas/NodeResponse'
           type: array
           title: Nodes
-        arrange:
-          type: string
-          enum:
-          - BT
-          - LR
-          - RL
-          - TB
-          title: Arrange
       type: object
       required:
       - edges
       - nodes
-      - arrange
       title: StructureDataResponse
       description: Structure Data serializer for responses.
     StructuredLogMessage:

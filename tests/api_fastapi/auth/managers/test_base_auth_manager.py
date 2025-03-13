@@ -21,7 +21,7 @@ from unittest.mock import MagicMock, Mock, patch
 
 import pytest
 
-from airflow.api_fastapi.auth.managers.base_auth_manager import BaseAuthManager
+from airflow.api_fastapi.auth.managers.base_auth_manager import BaseAuthManager, T
 from airflow.api_fastapi.auth.managers.models.base_user import BaseUser
 from airflow.api_fastapi.auth.managers.models.resource_details import (
     BackfillDetails,
@@ -30,6 +30,7 @@ from airflow.api_fastapi.auth.managers.models.resource_details import (
     PoolDetails,
     VariableDetails,
 )
+from airflow.api_fastapi.common.types import MenuItem
 
 if TYPE_CHECKING:
     from airflow.api_fastapi.auth.managers.base_auth_manager import ResourceMethod
@@ -143,6 +144,9 @@ class EmptyAuthManager(BaseAuthManager[BaseAuthManagerUserTest]):
     ):
         raise NotImplementedError()
 
+    def filter_authorized_menu_items(self, menu_items: list[MenuItem], *, user: T) -> list[MenuItem]:
+        raise NotImplementedError()
+
     def get_url_login(self, **kwargs) -> str:
         raise NotImplementedError()
 
@@ -162,8 +166,16 @@ class TestBaseAuthManager:
     def test_get_url_logout_return_none(self, auth_manager):
         assert auth_manager.get_url_logout() is None
 
-    def test_get_menu_items_return_empty_list(self, auth_manager):
-        assert auth_manager.get_menu_items(user=BaseAuthManagerUserTest(name="test")) == []
+    def test_get_extra_menu_items_return_empty_list(self, auth_manager):
+        assert auth_manager.get_extra_menu_items(user=BaseAuthManagerUserTest(name="test")) == []
+
+    @patch.object(EmptyAuthManager, "filter_authorized_menu_items")
+    def test_get_authorized_menu_items(self, mock_filter_authorized_menu_items, auth_manager):
+        user = BaseAuthManagerUserTest(name="test")
+        mock_filter_authorized_menu_items.return_value = []
+        results = auth_manager.get_authorized_menu_items(user=user)
+        mock_filter_authorized_menu_items.assert_called_once_with(list(MenuItem), user=user)
+        assert results == []
 
     @patch("airflow.api_fastapi.auth.managers.base_auth_manager.JWTSigner")
     @patch.object(EmptyAuthManager, "deserialize_user")

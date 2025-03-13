@@ -26,7 +26,7 @@ from sqlalchemy import select
 
 from airflow.api_fastapi.auth.managers.models.base_user import BaseUser
 from airflow.api_fastapi.auth.managers.models.resource_details import BackfillDetails, DagDetails
-from airflow.api_fastapi.common.types import MenuItem
+from airflow.api_fastapi.common.types import ExtraMenuItem, MenuItem
 from airflow.configuration import conf
 from airflow.models import DagModel
 from airflow.typing_compat import Literal
@@ -281,6 +281,15 @@ class BaseAuthManager(Generic[T], LoggingMixin, metaclass=ABCMeta):
         :param user: the user to performing the action
         """
 
+    @abstractmethod
+    def filter_authorized_menu_items(self, menu_items: list[MenuItem], *, user: T) -> list[MenuItem]:
+        """
+        Filter menu items based on user permissions.
+
+        :param menu_items: list of all menu items
+        :param user: the user
+        """
+
     def batch_is_authorized_connection(
         self,
         requests: Sequence[IsAuthorizedConnectionRequest],
@@ -429,7 +438,11 @@ class BaseAuthManager(Generic[T], LoggingMixin, metaclass=ABCMeta):
         """
         return None
 
-    def get_menu_items(self, *, user: T) -> list[MenuItem]:
+    def get_authorized_menu_items(self, *, user: T) -> list[MenuItem]:
+        """Get all menu items the user has access to."""
+        return self.filter_authorized_menu_items(list(MenuItem), user=user)
+
+    def get_extra_menu_items(self, *, user: T) -> list[ExtraMenuItem]:
         """
         Provide additional links to be added to the menu.
 
