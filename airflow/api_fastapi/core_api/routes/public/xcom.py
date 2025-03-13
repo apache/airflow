@@ -236,6 +236,7 @@ def create_xcom_entry(
             status.HTTP_404_NOT_FOUND,
         ]
     ),
+    dependencies=[Depends(action_logging())],
 )
 def update_xcom_entry(
     dag_id: str,
