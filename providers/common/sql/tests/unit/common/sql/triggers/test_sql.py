@@ -18,11 +18,11 @@ from __future__ import annotations
 
 from unittest import mock
 
+from airflow.models.connection import Connection
 from airflow.providers.common.sql.hooks.sql import DbApiHook
 from airflow.providers.common.sql.triggers.sql import SQLExecuteQueryTrigger
 from airflow.triggers.base import TriggerEvent
 
-from airflow.models.connection import Connection
 from tests_common.test_utils.operators.run_deferrable import run_trigger
 
 
