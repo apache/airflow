@@ -92,17 +92,31 @@ Some reasons you may want to write a custom auth manager include:
 * You'd like to use an auth manager that leverages an identity provider from your preferred cloud provider.
 * You have a private user management tool that is only available to you or your organization.
 
-.. note::
-     When you write your own auth manager, you have to set the JWT token to a cookie key ``_token``.
-     before redirecting to the Airflow UI.This is the key used by the Airflow UI to extract the JWT token from
-     the cookie.
-     refer the fab auth manager for more details. :class:`~airflow.providers.fab.www.views.FabIndexView`
-
 Authentication related BaseAuthManager methods
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 * ``get_user``: Return the signed-in user.
 * ``get_url_login``: Return the URL the user is redirected to for signing in.
+
+Cookie management related AuthManagers
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+When you write your own auth manager, you have to set the JWT token to a cookie key ``_token``.
+before redirecting to the Airflow UI. This is the key used by the Airflow UI to extract the JWT token from
+the cookie. Once token accessed by the UI, key will be removed from the cookie.
+refer the fab auth manager for more details. :class:`~airflow.providers.fab.www.views.FabIndexView`
+an example of setting a cookie in a response object is shown below:
+
+.. code-block:: python
+
+  from airflow.api_fastapi.auth.managers.base_auth_manager import COOKIE_NAME_JWT_TOKEN
+
+  response = RedirectResponse(url="/")
+  response.set_cookie(COOKIE_NAME_JWT_TOKEN, "token", secure=True, samesite="Lax")
+  return response
+
+
+.. note::
+    Do not set the cookie parameter ``httponly`` to ``True``. Airflow UI needs to access the JWT token from the cookie.
 
 Authorization related BaseAuthManager methods
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
