@@ -24,6 +24,7 @@ import pytest
 from airflow.api_fastapi.auth.managers.base_auth_manager import BaseAuthManager
 from airflow.api_fastapi.auth.managers.models.base_user import BaseUser
 from airflow.api_fastapi.auth.managers.models.resource_details import (
+    BackfillDetails,
     ConnectionDetails,
     DagDetails,
     PoolDetails,
@@ -83,6 +84,15 @@ class EmptyAuthManager(BaseAuthManager[BaseAuthManagerUserTest]):
         method: ResourceMethod,
         access_entity: DagAccessEntity | None = None,
         details: DagDetails | None = None,
+        user: BaseAuthManagerUserTest | None = None,
+    ) -> bool:
+        raise NotImplementedError()
+
+    def is_authorized_backfill(
+        self,
+        *,
+        method: ResourceMethod,
+        details: BackfillDetails | None = None,
         user: BaseAuthManagerUserTest | None = None,
     ) -> bool:
         raise NotImplementedError()
@@ -148,6 +158,12 @@ class TestBaseAuthManager:
 
     def test_get_fastapi_app_return_none(self, auth_manager):
         assert auth_manager.get_fastapi_app() is None
+
+    def test_logout_return_none(self, auth_manager):
+        assert auth_manager.logout() is None
+
+    def test_get_menu_items_return_empty_list(self, auth_manager):
+        assert auth_manager.get_menu_items(user=BaseAuthManagerUserTest(name="test")) == []
 
     @patch("airflow.api_fastapi.auth.managers.base_auth_manager.JWTSigner")
     @patch.object(EmptyAuthManager, "deserialize_user")

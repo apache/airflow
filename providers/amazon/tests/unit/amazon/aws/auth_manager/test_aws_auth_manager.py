@@ -26,8 +26,10 @@ from airflow.providers.amazon.version_compat import AIRFLOW_V_3_0_PLUS
 if not AIRFLOW_V_3_0_PLUS:
     pytest.skip("AWS auth manager is only compatible with Airflow >= 3.0.0", allow_module_level=True)
 
+from airflow.api_fastapi.app import AUTH_MANAGER_FASTAPI_APP_PREFIX
 from airflow.api_fastapi.auth.managers.models.resource_details import (
     AccessView,
+    BackfillDetails,
     ConfigurationDetails,
     ConnectionDetails,
     DagAccessEntity,
@@ -43,7 +45,10 @@ from tests_common.test_utils.config import conf_vars
 
 if TYPE_CHECKING:
     from airflow.api_fastapi.auth.managers.base_auth_manager import ResourceMethod
-    from airflow.api_fastapi.auth.managers.models.resource_details import AssetAliasDetails, AssetDetails
+    from airflow.api_fastapi.auth.managers.models.resource_details import (
+        AssetAliasDetails,
+        AssetDetails,
+    )
 else:
     from airflow.providers.common.compat.assets import AssetAliasDetails, AssetDetails
 
@@ -198,6 +203,34 @@ class TestAwsAuthManager:
             user=expected_user,
             entity_id=expected_entity_id,
             context=expected_context,
+        )
+        assert result
+
+    @pytest.mark.parametrize(
+        "details, user, expected_user, expected_entity_id",
+        [
+            (None, mock, ANY, None),
+            (BackfillDetails(id="1"), mock, mock, "1"),
+        ],
+    )
+    @patch.object(AwsAuthManager, "avp_facade")
+    def test_is_authorized_backfill(
+        self,
+        mock_avp_facade,
+        details,
+        user,
+        expected_user,
+        expected_entity_id,
+        auth_manager,
+    ):
+        is_authorized = Mock(return_value=True)
+        mock_avp_facade.is_authorized = is_authorized
+
+        method: ResourceMethod = "GET"
+        result = auth_manager.is_authorized_backfill(method=method, details=details, user=user)
+
+        is_authorized.assert_called_once_with(
+            method=method, entity_type=AvpEntities.BACKFILL, user=expected_user, entity_id=expected_entity_id
         )
         assert result
 
@@ -569,7 +602,7 @@ class TestAwsAuthManager:
 
     def test_get_url_login(self, auth_manager):
         result = auth_manager.get_url_login()
-        assert result == "http://localhost:8080/auth/login"
+        assert result == f"http://localhost:8080{AUTH_MANAGER_FASTAPI_APP_PREFIX}/login"
 
     def test_get_cli_commands_return_cli_commands(self, auth_manager):
         assert len(auth_manager.get_cli_commands()) > 0

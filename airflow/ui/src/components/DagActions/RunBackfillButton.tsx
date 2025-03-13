@@ -16,33 +16,30 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { MdMoreHoriz } from "react-icons/md";
+import { useDisclosure } from "@chakra-ui/react";
+import { RiArrowGoBackFill } from "react-icons/ri";
 
 import type { DAGResponse, DAGWithLatestDagRunsResponse } from "openapi/requests/types.gen";
-import { Menu } from "src/components/ui";
 
-import ActionButton from "../ui/ActionButton";
-import ParseDag from "./ParseDag";
-import RunBackfillButton from "./RunBackfillButton";
+import { Button } from "../ui";
+import RunBackfillModal from "./RunBackfillModal";
 
 type Props = {
   readonly dag: DAGResponse | DAGWithLatestDagRunsResponse;
 };
 
-const MenuButton: React.FC<Props> = ({ dag }) => (
-  <Menu.Root positioning={{ placement: "bottom" }}>
-    <Menu.Trigger asChild>
-      <ActionButton actionName="" icon={<MdMoreHoriz />} text="" />
-    </Menu.Trigger>
-    <Menu.Content>
-      <Menu.Item asChild value="Reparse Dag">
-        <ParseDag dagId={dag.dag_id} fileToken={dag.file_token} />
-      </Menu.Item>
-      <Menu.Item asChild value="Run Backfill">
-        <RunBackfillButton dag={dag} />
-      </Menu.Item>
-    </Menu.Content>
-  </Menu.Root>
-);
+const RunBackfillButton: React.FC<Props> = ({ dag }) => {
+  const { onClose, onOpen, open } = useDisclosure();
 
-export default MenuButton;
+  return (
+    <>
+      <Button aria-label="Run Backfill" onClick={onOpen} variant="outline">
+        <RiArrowGoBackFill />
+        Run Backfill
+      </Button>
+      <RunBackfillModal dag={dag} onClose={onClose} open={open} />
+    </>
+  );
+};
+
+export default RunBackfillButton;

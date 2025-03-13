@@ -115,7 +115,7 @@ Or, you can also use the more explicit ``set_upstream`` and ``set_downstream`` m
 
 There are also shortcuts to declaring more complex dependencies. If you want to make a list of tasks depend on another list of tasks, you can't use either of the approaches above, so you need to use ``cross_downstream``::
 
-    from airflow.models.baseoperator import cross_downstream
+    from airflow.sdk import cross_downstream
 
     # Replaces
     # [op1, op2] >> op3
@@ -124,7 +124,7 @@ There are also shortcuts to declaring more complex dependencies. If you want to 
 
 And if you want to chain together dependencies, you can use ``chain``::
 
-    from airflow.models.baseoperator import chain
+    from airflow.sdk import chain
 
     # Replaces op1 >> op2 >> op3 >> op4
     chain(op1, op2, op3, op4)
@@ -134,7 +134,7 @@ And if you want to chain together dependencies, you can use ``chain``::
 
 Chain can also do *pairwise* dependencies for lists the same size (this is different from the *cross dependencies* created by ``cross_downstream``!)::
 
-    from airflow.models.baseoperator import chain
+    from airflow.sdk import chain
 
     # Replaces
     # op1 >> op2 >> op4 >> op6

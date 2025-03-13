@@ -358,7 +358,6 @@ class AirflowConfigParser(ConfigParser):
         },
         "webserver": {
             "navbar_color": (re.compile(r"(?i)^#007A87$"), "#fff", "2.1"),
-            "dag_default_view": (re.compile(r"^tree$"), "grid", "3.0"),
         },
         "email": {
             "email_backend": (
@@ -372,13 +371,6 @@ class AirflowConfigParser(ConfigParser):
                 re.compile(re.escape("{{ ti.dag_id }}/{{ ti.task_id }}/{{ ts }}/{{ try_number }}.log")),
                 # The actual replacement value will be updated after defaults are loaded from config.yml
                 "XX-set-after-default-config-loaded-XX",
-                "3.0",
-            ),
-        },
-        "api": {
-            "auth_backends": (
-                re.compile(r"^airflow\.api\.auth\.backend\.deny_all$|^$"),
-                "airflow.providers.fab.auth_manager.api.auth.backend.session",
                 "3.0",
             ),
         },
@@ -675,34 +667,8 @@ class AirflowConfigParser(ConfigParser):
                         version=version,
                     )
 
-        self._upgrade_auth_backends()
         self._upgrade_postgres_metastore_conn()
         self.is_validated = True
-
-    def _upgrade_auth_backends(self):
-        """
-        Ensure a custom auth_backends setting contains session.
-
-        This is required by the UI for ajax queries.
-        """
-        old_value = self.get("api", "auth_backends", fallback="")
-        if "airflow.providers.fab.auth_manager.api.auth.backend.session" not in old_value:
-            new_value = old_value + ",airflow.providers.fab.auth_manager.api.auth.backend.session"
-            self._update_env_var(section="api", name="auth_backends", new_value=new_value)
-            self.upgraded_values[("api", "auth_backends")] = old_value
-
-            # if the old value is set via env var, we need to wipe it
-            # otherwise, it'll "win" over our adjusted value
-            old_env_var = self._env_var_name("api", "auth_backend")
-            os.environ.pop(old_env_var, None)
-
-            warnings.warn(
-                "The auth_backends setting in [api] missed airflow.providers.fab.auth_manager.api.auth.backend.session "
-                "in the running config, which is needed by the UI. Please update your config before "
-                "Apache Airflow 3.0.",
-                FutureWarning,
-                stacklevel=1,
-            )
 
     def _upgrade_postgres_metastore_conn(self):
         """
@@ -1290,6 +1256,11 @@ class AirflowConfigParser(ConfigParser):
         """
         section = section.lower()
         option = option.lower()
+        defaults = self.configuration_description or {}
+        if not self.has_section(section) and section in defaults:
+            # Trying to set a key in a section that exists in default, but not in the user config;
+            # automatically create it
+            self.add_section(section)
         super().set(section, option, value)
 
     def remove_option(self, section: str, option: str, remove_default: bool = True):

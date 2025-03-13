@@ -523,21 +523,20 @@ def _process_outlets(context: Context, outlets: list[AssetProfile]):
 
     for obj in outlets or []:
         # Lineage can have other types of objects besides assets
-        asset_type = type(obj).__name__
         if isinstance(obj, Asset):
-            task_outlets.append(AssetProfile(name=obj.name, uri=obj.uri, asset_type=asset_type))
+            task_outlets.append(AssetProfile(name=obj.name, uri=obj.uri, type=Asset.__name__))
             outlet_events.append(attrs.asdict(events[obj]))  # type: ignore
         elif isinstance(obj, AssetNameRef):
-            task_outlets.append(AssetProfile(name=obj.name, asset_type=asset_type))
+            task_outlets.append(AssetProfile(name=obj.name, type=AssetNameRef.__name__))
             # Send all events, filtering can be done in API server.
             outlet_events.append(attrs.asdict(events))  # type: ignore
         elif isinstance(obj, AssetUriRef):
-            task_outlets.append(AssetProfile(uri=obj.uri, asset_type=asset_type))
+            task_outlets.append(AssetProfile(uri=obj.uri, type=AssetUriRef.__name__))
             # Send all events, filtering can be done in API server.
             outlet_events.append(attrs.asdict(events))  # type: ignore
         elif isinstance(obj, AssetAlias):
             if not added_alias_to_task_outlet:
-                task_outlets.append(AssetProfile(asset_type=asset_type))
+                task_outlets.append(AssetProfile(name=obj.name, type=AssetAlias.__name__))
                 added_alias_to_task_outlet = True
             for asset_alias_event in events[obj].asset_alias_events:
                 outlet_events.append(attrs.asdict(asset_alias_event))

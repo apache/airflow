@@ -282,7 +282,7 @@ class TestDag:
             dag = DAG("continuous", start_date=DEFAULT_DATE, schedule="@continuous", max_active_runs=25)
 
 
-# Test some of the arg valiadtion. This is not all the validations we perform, just some of them.
+# Test some of the arg validation. This is not all the validations we perform, just some of them.
 @pytest.mark.parametrize(
     ["attr", "value"],
     [

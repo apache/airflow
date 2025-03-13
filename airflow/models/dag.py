@@ -124,7 +124,6 @@ if TYPE_CHECKING:
 
 log = logging.getLogger(__name__)
 
-DEFAULT_VIEW_PRESETS = ["grid", "graph", "duration", "gantt", "landing_times"]
 ORIENTATION_PRESETS = ["LR", "TB", "RL", "BT"]
 
 AssetT = TypeVar("AssetT", bound=BaseAsset)
@@ -262,6 +261,11 @@ def _create_orm_dagrun(
     triggered_by: DagRunTriggeredByType,
     session: Session = NEW_SESSION,
 ) -> DagRun:
+    bundle_version = None
+    if not dag.disable_bundle_versioning:
+        bundle_version = session.scalar(
+            select(DagModel.bundle_version).where(DagModel.dag_id == dag.dag_id),
+        )
     run = DagRun(
         dag_id=dag.dag_id,
         run_id=run_id,
@@ -275,7 +279,7 @@ def _create_orm_dagrun(
         data_interval=data_interval,
         triggered_by=triggered_by,
         backfill_id=backfill_id,
-        bundle_version=session.scalar(select(DagModel.bundle_version).where(DagModel.dag_id == dag.dag_id)),
+        bundle_version=bundle_version,
     )
     # Load defaults into the following two fields to ensure result can be serialized detached
     run.log_template_id = int(session.scalar(select(func.max(LogTemplate.__table__.c.id))))
@@ -380,8 +384,6 @@ class DAG(TaskSDKDag, LoggingMixin):
     :param dagrun_timeout: Specify the duration a DagRun should be allowed to run before it times out or
         fails. Task instances that are running when a DagRun is timed out will be marked as skipped.
     :param sla_miss_callback: DEPRECATED - The SLA feature is removed in Airflow 3.0, to be replaced with a new implementation in 3.1
-    :param default_view: Specify DAG default view (grid, graph, duration,
-                                                   gantt, landing_times), default grid
     :param orientation: Specify DAG orientation in graph view (LR, TB, RL, BT), default LR
     :param catchup: Perform scheduler catchup (or only run latest)? Defaults to True
     :param on_failure_callback: A function or list of functions to be called when a DagRun of this dag fails.
@@ -428,7 +430,6 @@ class DAG(TaskSDKDag, LoggingMixin):
     partial: bool = False
     last_loaded: datetime | None = attrs.field(factory=timezone.utcnow)
 
-    default_view: str = airflow_conf.get_mandatory_value("webserver", "dag_default_view").lower()
     orientation: str = airflow_conf.get_mandatory_value("webserver", "dag_orientation")
 
     # this will only be set at serialization time
@@ -1901,13 +1902,6 @@ class DAG(TaskSDKDag, LoggingMixin):
         bundle_version = self.get_bundle_version(session=session)
         self.bulk_write_to_db(bundle_name, bundle_version, [self], session=session)
 
-    def get_default_view(self):
-        """Allow backward compatible jinja2 templates."""
-        if self.default_view is None:
-            return airflow_conf.get("webserver", "dag_default_view").lower()
-        else:
-            return self.default_view
-
     @staticmethod
     @provide_session
     def deactivate_unknown_dags(active_dag_ids, session=NEW_SESSION):
@@ -2084,8 +2078,6 @@ class DagModel(Base):
     _dag_display_property_value = Column("dag_display_name", String(2000), nullable=True)
     # Description of the dag
     description = Column(Text)
-    # Default view of the DAG inside the webserver
-    default_view = Column(String(25))
     # Timetable summary
     timetable_summary = Column(Text, nullable=True)
     # Timetable description
@@ -2234,11 +2226,6 @@ class DagModel(Base):
 
         paused_dag_ids = {paused_dag_id for (paused_dag_id,) in paused_dag_ids}
         return paused_dag_ids
-
-    def get_default_view(self) -> str:
-        """Get the Default DAG View, returns the default config value if DagModel does not have a value."""
-        # This is for backwards-compatibility with old dags that don't have None as default_view
-        return self.default_view or airflow_conf.get_mandatory_value("webserver", "dag_default_view").lower()
 
     @property
     def safe_dag_id(self):

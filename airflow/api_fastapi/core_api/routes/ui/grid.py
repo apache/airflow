@@ -26,6 +26,7 @@ from sqlalchemy import select
 from sqlalchemy.orm import joinedload
 
 from airflow import DAG
+from airflow.api_fastapi.auth.managers.models.resource_details import DagAccessEntity
 from airflow.api_fastapi.common.db.common import SessionDep, paginated_select
 from airflow.api_fastapi.common.parameters import (
     QueryDagRunRunTypesFilter,
@@ -44,6 +45,7 @@ from airflow.api_fastapi.core_api.datamodels.ui.grid import (
     GridResponse,
 )
 from airflow.api_fastapi.core_api.openapi.exceptions import create_openapi_http_exception_doc
+from airflow.api_fastapi.core_api.security import requires_access_dag
 from airflow.api_fastapi.core_api.services.ui.grid import (
     fill_task_instance_summaries,
     get_child_task_map,
@@ -58,6 +60,10 @@ grid_router = AirflowRouter(prefix="/grid", tags=["Grid"])
 @grid_router.get(
     "/{dag_id}",
     responses=create_openapi_http_exception_doc([status.HTTP_400_BAD_REQUEST, status.HTTP_404_NOT_FOUND]),
+    dependencies=[
+        Depends(requires_access_dag(method="GET", access_entity=DagAccessEntity.TASK_INSTANCE)),
+        Depends(requires_access_dag(method="GET", access_entity=DagAccessEntity.RUN)),
+    ],
 )
 def grid_data(
     dag_id: str,

@@ -19,9 +19,13 @@ from __future__ import annotations
 
 import re
 
+from fastapi import Depends
+
+from airflow.api_fastapi.auth.managers.models.resource_details import AccessView
 from airflow.api_fastapi.common.parameters import QueryLimit, QueryOffset
 from airflow.api_fastapi.common.router import AirflowRouter
 from airflow.api_fastapi.core_api.datamodels.providers import ProviderCollectionResponse, ProviderResponse
+from airflow.api_fastapi.core_api.security import requires_access_view
 from airflow.providers_manager import ProviderInfo, ProvidersManager
 
 providers_router = AirflowRouter(tags=["Provider"], prefix="/providers")
@@ -39,7 +43,10 @@ def _provider_mapper(provider: ProviderInfo) -> ProviderResponse:
     )
 
 
-@providers_router.get("")
+@providers_router.get(
+    "",
+    dependencies=[Depends(requires_access_view(AccessView.PROVIDERS))],
+)
 def get_providers(
     limit: QueryLimit,
     offset: QueryOffset,

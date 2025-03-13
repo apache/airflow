@@ -17,17 +17,38 @@
  * under the License.
  */
 import { Text } from "@chakra-ui/react";
+import { FiCalendar } from "react-icons/fi";
 
-import type { DAGWithLatestDagRunsResponse } from "openapi/requests/types.gen";
-import { Tooltip } from "src/components/ui";
+import type { DAGDetailsResponse, DAGWithLatestDagRunsResponse } from "openapi/requests/types.gen";
+import { AssetExpression, type ExpressionType } from "src/components/AssetExpression";
+import { Button, Popover, Tooltip } from "src/components/ui";
 
 type Props = {
-  readonly dag: DAGWithLatestDagRunsResponse;
+  readonly dag: DAGDetailsResponse | DAGWithLatestDagRunsResponse;
 };
 
 export const Schedule = ({ dag }: Props) =>
-  Boolean(dag.timetable_summary) && dag.timetable_description !== "Never, external triggers only" ? (
-    <Tooltip content={dag.timetable_description}>
-      <Text fontSize="sm">{dag.timetable_summary}</Text>
-    </Tooltip>
+  Boolean(dag.timetable_summary) ? (
+    dag.asset_expression === null ? (
+      <Tooltip content={dag.timetable_description}>
+        <Text fontSize="sm">
+          <FiCalendar style={{ display: "inline" }} /> {dag.timetable_summary}
+        </Text>
+      </Tooltip>
+    ) : (
+      // eslint-disable-next-line jsx-a11y/no-autofocus
+      <Popover.Root autoFocus={false} lazyMount positioning={{ placement: "bottom-end" }} unmountOnExit>
+        <Popover.Trigger asChild>
+          <Button size="sm" variant="ghost">
+            <FiCalendar style={{ display: "inline" }} /> {dag.timetable_summary}
+          </Button>
+        </Popover.Trigger>
+        <Popover.Content width="fit-content">
+          <Popover.Arrow />
+          <Popover.Body>
+            <AssetExpression expression={dag.asset_expression as ExpressionType} />
+          </Popover.Body>
+        </Popover.Content>
+      </Popover.Root>
+    )
   ) : undefined;

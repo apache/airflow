@@ -16,12 +16,19 @@
  specific language governing permissions and limitations
  under the License.
 #}
-{%for provider, provider_dict in items.items() %}
-{{ provider_dict['name'] }}
-{{ header_separator * (provider_dict['name']|length) }}
 
-{% for backend in provider_dict['auth-backends'] -%}
-- :class:`~{{ backend }}`
-{% endfor -%}
+{#-
+  Adapted from: https://github.com/dpgaspar/Flask-AppBuilder/blob/master/flask_appbuilder/templates/appbuilder/flash.html
+-#}
+<link rel="stylesheet" type="text/css" href="{{ url_for_asset('flash.css') }}">
 
-{% endfor %}
+{% with messages = get_flashed_messages(with_categories=true) %}
+  {% if messages %}
+    {% for category, m in messages %}
+      {% if not (request.path == auth_manager.get_url_login() and 'access is denied' in m.lower()) %}
+      {# Don't show 'Access is Denied' alert if user is logged out and on the login page. #}
+        {{ show_message(m, category) }}
+      {% endif %}
+    {% endfor %}
+  {% endif %}
+{% endwith %}

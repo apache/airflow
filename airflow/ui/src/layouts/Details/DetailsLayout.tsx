@@ -25,6 +25,7 @@ import { useLocalStorage } from "usehooks-ts";
 
 import { useDagServiceGetDag } from "openapi/queries";
 import type { DAGResponse } from "openapi/requests/types.gen";
+import BackfillBanner from "src/components/Banner/BackfillBanner";
 import { ErrorAlert } from "src/components/ErrorAlert";
 import { SearchDagsButton } from "src/components/SearchDags";
 import TriggerDAGButton from "src/components/TriggerDag/TriggerDAGButton";
@@ -50,10 +51,7 @@ export const DetailsLayout = ({ children, error, isLoading, tabs }: Props) => {
 
   const { data: dag } = useDagServiceGetDag({ dagId });
 
-  const [dagView, setDagView] = useLocalStorage<"graph" | "grid">(
-    `dag_view-${dagId}`,
-    dag && (dag.default_view === "graph" || dag.default_view === "grid") ? dag.default_view : "grid",
-  );
+  const [dagView, setDagView] = useLocalStorage<"graph" | "grid">(`dag_view-${dagId}`, "grid");
 
   const { fitView, getZoom } = useReactFlow();
 
@@ -67,6 +65,7 @@ export const DetailsLayout = ({ children, error, isLoading, tabs }: Props) => {
         </Flex>
       </HStack>
       <Toaster />
+      <BackfillBanner dagId={dagId} />
       <Box flex={1} minH={0}>
         <PanelGroup autoSaveId={dagId} direction="horizontal">
           <Panel defaultSize={dagView === "graph" ? 70 : 20} minSize={6}>

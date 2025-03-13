@@ -15,30 +15,34 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-"""Authentication backend."""
+
+"""
+Remove dag.default_view column.
+
+Revision ID: 16f7f5ee874e
+Revises: cf87489a35df
+Create Date: 2025-03-11 10:39:25.449265
+
+"""
 
 from __future__ import annotations
 
-import logging
-from importlib import import_module
+import sqlalchemy as sa
+from alembic import op
 
-from airflow.configuration import conf
-from airflow.exceptions import AirflowException
+# revision identifiers, used by Alembic.
+revision = "16f7f5ee874e"
+down_revision = "cf87489a35df"
+branch_labels = None
+depends_on = None
+airflow_version = "3.0.0"
 
-log = logging.getLogger(__name__)
+
+def upgrade():
+    with op.batch_alter_table("dag", schema=None) as batch_op:
+        batch_op.drop_column("default_view")
 
 
-def load_auth():
-    """Load authentication backends."""
-    auth_backends = conf.get("api", "auth_backends")
-
-    backends = []
-    try:
-        for backend in auth_backends.split(","):
-            auth = import_module(backend.strip())
-            log.info("Loaded API auth backend: %s", backend)
-            backends.append(auth)
-    except ImportError as err:
-        log.critical("Cannot import %s for API authentication due to: %s", backend, err)
-        raise AirflowException(err)
-    return backends
+def downgrade():
+    with op.batch_alter_table("dag", schema=None) as batch_op:
+        batch_op.add_column(sa.Column("default_view", sa.VARCHAR(length=25), nullable=True))

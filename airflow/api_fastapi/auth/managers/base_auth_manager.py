@@ -18,14 +18,15 @@
 from __future__ import annotations
 
 import logging
-from abc import abstractmethod
+from abc import ABCMeta, abstractmethod
 from typing import TYPE_CHECKING, Any, Generic, TypeVar
 
 from jwt import InvalidTokenError
 from sqlalchemy import select
 
 from airflow.api_fastapi.auth.managers.models.base_user import BaseUser
-from airflow.api_fastapi.auth.managers.models.resource_details import DagDetails
+from airflow.api_fastapi.auth.managers.models.resource_details import BackfillDetails, DagDetails
+from airflow.api_fastapi.common.types import MenuItem
 from airflow.configuration import conf
 from airflow.models import DagModel
 from airflow.typing_compat import Literal
@@ -65,7 +66,7 @@ log = logging.getLogger(__name__)
 T = TypeVar("T", bound=BaseUser)
 
 
-class BaseAuthManager(Generic[T], LoggingMixin):
+class BaseAuthManager(Generic[T], LoggingMixin, metaclass=ABCMeta):
     """
     Class to derive in order to implement concrete auth managers.
 
@@ -107,6 +108,15 @@ class BaseAuthManager(Generic[T], LoggingMixin):
     @abstractmethod
     def get_url_login(self, **kwargs) -> str:
         """Return the login page url."""
+
+    def logout(self) -> None:
+        """
+        Logout the user.
+
+        This method is called when the user is logging out. By default, it does nothing. Override it to
+        invalidate resources when logging out, such as a session.
+        """
+        return None
 
     @abstractmethod
     def is_authorized_configuration(
@@ -157,6 +167,22 @@ class BaseAuthManager(Generic[T], LoggingMixin):
         :param access_entity: the kind of DAG information the authorization request is about.
             If not provided, the authorization request is about the DAG itself
         :param details: optional details about the DAG
+        """
+
+    @abstractmethod
+    def is_authorized_backfill(
+        self,
+        *,
+        method: ResourceMethod,
+        user: T,
+        details: BackfillDetails | None = None,
+    ) -> bool:
+        """
+        Return whether the user is authorized to perform a given action on a backfill.
+
+        :param method: the method to perform
+        :param user: the user to performing the action
+        :param details: optional details about the backfill
         """
 
     @abstractmethod
@@ -401,6 +427,14 @@ class BaseAuthManager(Generic[T], LoggingMixin):
         This sub application, if specified, is mounted in the main FastAPI application.
         """
         return None
+
+    def get_menu_items(self, *, user: T) -> list[MenuItem]:
+        """
+        Provide additional links to be added to the menu.
+
+        :param user: the user
+        """
+        return []
 
     @staticmethod
     def _get_token_signer(

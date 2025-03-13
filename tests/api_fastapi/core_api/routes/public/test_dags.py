@@ -30,6 +30,7 @@ from airflow.utils.state import DagRunState, TaskInstanceState
 from airflow.utils.types import DagRunTriggeredByType, DagRunType
 
 from tests_common.test_utils.db import clear_db_dags, clear_db_runs, clear_db_serialized_dags
+from tests_common.test_utils.logs import check_last_log
 
 pytestmark = pytest.mark.db_test
 
@@ -234,12 +235,30 @@ class TestGetDags(TestDagEndpoint):
     )
     def test_get_dags(self, test_client, query_params, expected_total_entries, expected_ids):
         response = test_client.get("/public/dags", params=query_params)
-
         assert response.status_code == 200
         body = response.json()
 
         assert body["total_entries"] == expected_total_entries
         assert [dag["dag_id"] for dag in body["dags"]] == expected_ids
+
+    @mock.patch("airflow.api_fastapi.auth.managers.base_auth_manager.BaseAuthManager.get_permitted_dag_ids")
+    def test_get_dags_should_call_permitted_dag_ids(self, mock_get_permitted_dag_ids, test_client):
+        mock_get_permitted_dag_ids.return_value = {DAG1_ID, DAG2_ID}
+        response = test_client.get("/public/dags")
+        mock_get_permitted_dag_ids.assert_called_once_with(user=mock.ANY, method="GET")
+        assert response.status_code == 200
+        body = response.json()
+
+        assert body["total_entries"] == 2
+        assert [dag["dag_id"] for dag in body["dags"]] == [DAG1_ID, DAG2_ID]
+
+    def test_get_dags_should_response_401(self, unauthenticated_test_client):
+        response = unauthenticated_test_client.get("/public/dags")
+        assert response.status_code == 401
+
+    def test_get_dags_should_response_403(self, unauthorized_test_client):
+        response = unauthorized_test_client.get("/public/dags")
+        assert response.status_code == 403
 
 
 class TestPatchDag(TestDagEndpoint):
@@ -257,7 +276,7 @@ class TestPatchDag(TestDagEndpoint):
         ],
     )
     def test_patch_dag(
-        self, test_client, query_params, dag_id, body, expected_status_code, expected_is_paused
+        self, test_client, query_params, dag_id, body, expected_status_code, expected_is_paused, session
     ):
         response = test_client.patch(f"/public/dags/{dag_id}", json=body, params=query_params)
 
@@ -265,6 +284,15 @@ class TestPatchDag(TestDagEndpoint):
         if expected_status_code == 200:
             body = response.json()
             assert body["is_paused"] == expected_is_paused
+            check_last_log(session, dag_id=dag_id, event="patch_dag", logical_date=None)
+
+    def test_patch_dag_should_response_401(self, unauthenticated_test_client):
+        response = unauthenticated_test_client.patch(f"/public/dags/{DAG1_ID}", json={"is_paused": True})
+        assert response.status_code == 401
+
+    def test_patch_dag_should_response_403(self, unauthorized_test_client):
+        response = unauthorized_test_client.patch(f"/public/dags/{DAG1_ID}", json={"is_paused": True})
+        assert response.status_code == 403
 
 
 class TestPatchDags(TestDagEndpoint):
@@ -312,7 +340,14 @@ class TestPatchDags(TestDagEndpoint):
         ],
     )
     def test_patch_dags(
-        self, test_client, query_params, body, expected_status_code, expected_ids, expected_paused_ids
+        self,
+        test_client,
+        query_params,
+        body,
+        expected_status_code,
+        expected_ids,
+        expected_paused_ids,
+        session,
     ):
         response = test_client.patch("/public/dags", json=body, params=query_params)
 
@@ -322,6 +357,27 @@ class TestPatchDags(TestDagEndpoint):
             assert [dag["dag_id"] for dag in body["dags"]] == expected_ids
             paused_dag_ids = [dag["dag_id"] for dag in body["dags"] if dag["is_paused"]]
             assert paused_dag_ids == expected_paused_ids
+            check_last_log(session, dag_id=DAG1_ID, event="patch_dag", logical_date=None)
+
+    @mock.patch("airflow.api_fastapi.auth.managers.base_auth_manager.BaseAuthManager.get_permitted_dag_ids")
+    def test_patch_dags_should_call_permitted_dag_ids(self, mock_get_permitted_dag_ids, test_client):
+        mock_get_permitted_dag_ids.return_value = {DAG1_ID, DAG2_ID}
+        response = test_client.patch(
+            "/public/dags", json={"is_paused": False}, params={"only_active": False, "dag_id_pattern": "~"}
+        )
+        mock_get_permitted_dag_ids.assert_called_once_with(user=mock.ANY, method="PUT")
+        assert response.status_code == 200
+        body = response.json()
+
+        assert [dag["dag_id"] for dag in body["dags"]] == [DAG1_ID, DAG2_ID]
+
+    def test_patch_dags_should_response_401(self, unauthenticated_test_client):
+        response = unauthenticated_test_client.patch("/public/dags", json={"is_paused": True})
+        assert response.status_code == 401
+
+    def test_patch_dags_should_response_403(self, unauthorized_test_client):
+        response = unauthorized_test_client.patch("/public/dags", json={"is_paused": True})
+        assert response.status_code == 403
 
 
 class TestDagDetails(TestDagEndpoint):
@@ -355,7 +411,6 @@ class TestDagDetails(TestDagEndpoint):
             "dag_id": dag_id,
             "dag_display_name": dag_display_name,
             "dag_run_timeout": None,
-            "default_view": "grid",
             "description": None,
             "doc_md": "details",
             "end_date": None,
@@ -404,6 +459,14 @@ class TestDagDetails(TestDagEndpoint):
         }
         assert res_json == expected
 
+    def test_dag_details_should_response_401(self, unauthenticated_test_client):
+        response = unauthenticated_test_client.get(f"/public/dags/{DAG1_ID}/details")
+        assert response.status_code == 401
+
+    def test_dag_details_should_response_403(self, unauthorized_test_client):
+        response = unauthorized_test_client.get(f"/public/dags/{DAG1_ID}/details")
+        assert response.status_code == 403
+
 
 class TestGetDag(TestDagEndpoint):
     """Unit tests for Get DAG."""
@@ -445,12 +508,19 @@ class TestGetDag(TestDagEndpoint):
             "max_consecutive_failed_dag_runs": 0,
             "last_expired": None,
             "max_active_tasks": 16,
-            "default_view": "grid",
             "last_parsed_time": last_parsed_time,
             "timetable_description": "Never, external triggers only",
             "has_import_errors": False,
         }
         assert res_json == expected
+
+    def test_get_dag_should_response_401(self, unauthenticated_test_client):
+        response = unauthenticated_test_client.get(f"/public/dags/{DAG1_ID}")
+        assert response.status_code == 401
+
+    def test_get_dag_should_response_403(self, unauthorized_test_client):
+        response = unauthorized_test_client.get(f"/public/dags/{DAG1_ID}")
+        assert response.status_code == 403
 
 
 class TestDeleteDAG(TestDagEndpoint):
@@ -496,6 +566,7 @@ class TestDeleteDAG(TestDagEndpoint):
         status_code_details,
         has_running_dagruns,
         is_create_dag,
+        session,
     ):
         if is_create_dag:
             self._create_dag_for_deletion(
@@ -510,3 +581,14 @@ class TestDeleteDAG(TestDagEndpoint):
 
         details_response = test_client.get(f"{API_PREFIX}/{dag_id}/details")
         assert details_response.status_code == status_code_details
+
+        if details_response.status_code == 204:
+            check_last_log(session, dag_id=dag_id, event="delete_dag", logical_date=None)
+
+    def test_delete_dag_should_response_401(self, unauthenticated_test_client):
+        response = unauthenticated_test_client.delete(f"{API_PREFIX}/{DAG1_ID}")
+        assert response.status_code == 401
+
+    def test_delete_dag_should_response_403(self, unauthorized_test_client):
+        response = unauthorized_test_client.delete(f"{API_PREFIX}/{DAG1_ID}")
+        assert response.status_code == 403

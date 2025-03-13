@@ -35,8 +35,8 @@ from airflow.utils.xcom import XCOM_RETURN_KEY
 
 if TYPE_CHECKING:
     from airflow.sdk.definitions.baseoperator import BaseOperator
+    from airflow.sdk.definitions.edges import EdgeModifier
     from airflow.sdk.types import Operator
-    from airflow.utils.edgemodifier import EdgeModifier
 
 # Callable objects contained by MapXComArg. We only accept callables from
 # the user, but deserialize them into strings in a serialized XComArg for
