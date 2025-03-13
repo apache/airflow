@@ -33,6 +33,7 @@ from airflow.utils.types import DagRunType
 
 from tests_common.test_utils.config import conf_vars
 from tests_common.test_utils.db import clear_db_dags, clear_db_runs, clear_db_xcom
+from tests_common.test_utils.logs import check_last_log
 
 pytestmark = pytest.mark.db_test
 
@@ -559,7 +560,15 @@ class TestCreateXComEntry(TestXComEndpoint):
         ],
     )
     def test_create_xcom_entry(
-        self, dag_id, task_id, dag_run_id, request_body, expected_status, expected_detail, test_client
+        self,
+        dag_id,
+        task_id,
+        dag_run_id,
+        request_body,
+        expected_status,
+        expected_detail,
+        test_client,
+        session,
     ):
         # Pre-create an XCom entry to test conflict case
         if expected_status == 409:
@@ -582,6 +591,7 @@ class TestCreateXComEntry(TestXComEndpoint):
             assert current_data["task_id"] == task_id
             assert current_data["run_id"] == dag_run_id
             assert current_data["map_index"] == request_body.map_index
+        check_last_log(session, dag_id=TEST_DAG_ID, event="create_xcom_entry", logical_date=None)
 
 
 class TestPatchXComEntry(TestXComEndpoint):

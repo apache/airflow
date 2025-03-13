@@ -108,6 +108,7 @@ def get_backfill(
             status.HTTP_409_CONFLICT,
         ]
     ),
+    dependencies=[Depends(action_logging())],
 )
 def pause_backfill(backfill_id, session: SessionDep) -> BackfillResponse:
     b = session.get(Backfill, backfill_id)
@@ -129,6 +130,7 @@ def pause_backfill(backfill_id, session: SessionDep) -> BackfillResponse:
             status.HTTP_409_CONFLICT,
         ]
     ),
+    dependencies=[Depends(action_logging())],
 )
 def unpause_backfill(backfill_id, session: SessionDep) -> BackfillResponse:
     b = session.get(Backfill, backfill_id)

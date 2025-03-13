@@ -50,7 +50,7 @@ variables_router = AirflowRouter(tags=["Variable"], prefix="/variables")
     "/{variable_key}",
     status_code=status.HTTP_204_NO_CONTENT,
     responses=create_openapi_http_exception_doc([status.HTTP_404_NOT_FOUND]),
-    dependencies=[Depends(requires_access_variable("DELETE"))],
+    dependencies=[Depends(action_logging()), Depends(requires_access_variable("DELETE"))],
 )
 def delete_variable(
     variable_key: str,
@@ -128,7 +128,7 @@ def get_variables(
             status.HTTP_404_NOT_FOUND,
         ]
     ),
-    dependencies=[Depends(requires_access_variable("PUT"))],
+    dependencies=[Depends(action_logging()), Depends(requires_access_variable("PUT"))],
 )
 def patch_variable(
     variable_key: str,
@@ -191,7 +191,9 @@ def post_variable(
     return variable
 
 
-@variables_router.patch("", dependencies=[Depends(requires_access_variable("PUT"))])
+@variables_router.patch(
+    "", dependencies=[Depends(action_logging()), Depends(requires_access_variable("DELETE"))]
+)
 def bulk_variables(
     request: BulkBody[VariableBody],
     session: SessionDep,
