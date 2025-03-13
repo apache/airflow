@@ -245,7 +245,10 @@ def create_xcom_entry(
             status.HTTP_404_NOT_FOUND,
         ]
     ),
-    dependencies=[Depends(requires_access_dag(method="PUT", access_entity=DagAccessEntity.XCOM))],
+    dependencies=[
+        Depends(action_logging()),
+        Depends(requires_access_dag(method="PUT", access_entity=DagAccessEntity.XCOM)),
+    ],
 )
 def update_xcom_entry(
     dag_id: str,
