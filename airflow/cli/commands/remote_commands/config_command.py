@@ -112,12 +112,11 @@ class ConfigChange:
                 f"`{self.config.option}` configuration parameter renamed to `{self.renamed_to.option}` "
                 f"in the `{self.config.section}` section."
             )
-        if self.was_removed:
-            return (
-                f"Removed{' deprecated' if self.was_deprecated else ''} `{self.config.option}` configuration parameter "
-                f"from `{self.config.section}` section. "
-                f"{self.suggestion}"
-            )
+        return (
+            f"Removed{' deprecated' if self.was_deprecated else ''} `{self.config.option}` configuration parameter "
+            f"from `{self.config.section}` section. "
+            f"{self.suggestion}"
+        )
 
 
 CONFIGS_CHANGES = [
@@ -357,10 +356,10 @@ CONFIGS_CHANGES = [
         default_change=True,
         was_removed=False,
         suggestion="In Airflow 3.0 the default value for `catchup_by_default` is set to `False`. "
-        "Which means that DAGs without explicit definiton of the `catchup` parameter will not "
+        "Which means that DAGs without explicit definition of the `catchup` parameter will not "
         "catchup by default. "
-        "If your DAGs rely on catchup behavior, not explicitely defined in the DAG definition, "
-        "set this configuration parameter to `True` in the `scheduler` section of your `airflow.cfg` " 
+        "If your DAGs rely on catchup behavior, not explicitly defined in the DAG definition, "
+        "set this configuration parameter to `True` in the `scheduler` section of your `airflow.cfg` "
         "to enable the behavior from Airflow 2.x.",
     ),
     ConfigChange(
