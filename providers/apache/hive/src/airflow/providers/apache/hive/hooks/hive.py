@@ -36,9 +36,9 @@ from airflow.configuration import conf
 from airflow.exceptions import AirflowException
 from airflow.hooks.base import BaseHook
 from airflow.providers.common.sql.hooks.sql import DbApiHook
+from airflow.sdk.execution_time.context import AIRFLOW_VAR_NAME_FORMAT_MAPPING
 from airflow.security import utils
 from airflow.utils.helpers import as_flattened_list
-from airflow.utils.operator_helpers import AIRFLOW_VAR_NAME_FORMAT_MAPPING
 
 HIVE_QUEUE_PRIORITIES = ["VERY_HIGH", "HIGH", "NORMAL", "LOW", "VERY_LOW"]
 

@@ -26,8 +26,7 @@ from typing import TYPE_CHECKING, Any
 from airflow.configuration import conf
 from airflow.models import BaseOperator
 from airflow.providers.apache.hive.hooks.hive import HiveCliHook
-from airflow.utils import operator_helpers
-from airflow.utils.operator_helpers import context_to_airflow_vars
+from airflow.sdk.execution_time.context import AIRFLOW_VAR_NAME_FORMAT_MAPPING, context_to_airflow_vars
 
 if TYPE_CHECKING:
     from airflow.utils.context import Context
@@ -173,7 +172,5 @@ class HiveOperator(BaseOperator):
 
     def clear_airflow_vars(self) -> None:
         """Reset airflow environment variables to prevent existing ones from impacting behavior."""
-        blank_env_vars = {
-            value["env_var_format"]: "" for value in operator_helpers.AIRFLOW_VAR_NAME_FORMAT_MAPPING.values()
-        }
+        blank_env_vars = {value["env_var_format"]: "" for value in AIRFLOW_VAR_NAME_FORMAT_MAPPING.values()}
         os.environ.update(blank_env_vars)
