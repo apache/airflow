@@ -26,7 +26,7 @@ import pytest
 from flask import Flask, g
 
 from airflow.api_fastapi.app import AUTH_MANAGER_FASTAPI_APP_PREFIX
-from airflow.exceptions import AirflowConfigException, AirflowException
+from airflow.exceptions import AirflowConfigException
 from airflow.providers.fab.www.extensions.init_appbuilder import init_appbuilder
 from airflow.providers.standard.operators.empty import EmptyOperator
 from unit.fab.auth_manager.api_endpoints.api_connexion_utils import create_user, delete_user
@@ -571,24 +571,9 @@ class TestFabAuthManager:
         result = auth_manager.get_url_login()
         assert result == f"http://localhost:8080{AUTH_MANAGER_FASTAPI_APP_PREFIX}/login/"
 
-    @pytest.mark.db_test
-    def test_get_url_logout_when_auth_view_not_defined(self, auth_manager_with_appbuilder):
-        with pytest.raises(AirflowException, match="`auth_view` not defined in the security manager."):
-            auth_manager_with_appbuilder.get_url_logout()
-
-    @pytest.mark.db_test
-    @mock.patch("airflow.providers.fab.auth_manager.fab_auth_manager.url_for")
-    def test_get_url_logout(self, mock_url_for, auth_manager_with_appbuilder):
-        auth_manager_with_appbuilder.security_manager.auth_view = Mock()
-        auth_manager_with_appbuilder.security_manager.auth_view.endpoint = "test_endpoint"
-        auth_manager_with_appbuilder.get_url_logout()
-        mock_url_for.assert_called_once_with("test_endpoint.logout")
-
-    @pytest.mark.db_test
-    @mock.patch("airflow.providers.fab.auth_manager.fab_auth_manager.logout_user")
-    def test_logout(self, mock_logout_user, auth_manager_with_appbuilder):
-        auth_manager_with_appbuilder.logout()
-        mock_logout_user.assert_called_once()
+    def test_get_url_logout(self, auth_manager):
+        result = auth_manager.get_url_logout()
+        assert result == f"http://localhost:8080{AUTH_MANAGER_FASTAPI_APP_PREFIX}/logout/"
 
     @mock.patch.object(FabAuthManager, "_is_authorized", return_value=True)
     def test_get_menu_items(self, _, auth_manager_with_appbuilder, flask_app):
