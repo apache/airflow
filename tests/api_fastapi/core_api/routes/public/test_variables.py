@@ -26,6 +26,7 @@ from airflow.models.variable import Variable
 from airflow.utils.session import provide_session
 
 from tests_common.test_utils.db import clear_db_variables
+from tests_common.test_utils.logs import check_last_log
 
 pytestmark = pytest.mark.db_test
 
@@ -106,6 +107,7 @@ class TestDeleteVariable(TestVariableEndpoint):
         assert response.status_code == 204
         variables = session.query(Variable).all()
         assert len(variables) == 3
+        check_last_log(session, dag_id=None, event="delete_variable", logical_date=None)
 
     def test_delete_should_respond_401(self, unauthenticated_test_client):
         response = unauthenticated_test_client.delete(f"/public/variables/{TEST_VARIABLE_KEY}")
@@ -317,6 +319,7 @@ class TestPatchVariable(TestVariableEndpoint):
         response = test_client.patch(f"/public/variables/{key}", json=body, params=params)
         assert response.status_code == 200
         assert response.json() == expected_response
+        check_last_log(session, dag_id=None, event="patch_variable", logical_date=None)
 
     def test_patch_should_respond_400(self, test_client):
         response = test_client.patch(
@@ -415,6 +418,7 @@ class TestPostVariable(TestVariableEndpoint):
         response = test_client.post("/public/variables", json=body)
         assert response.status_code == 201
         assert response.json() == expected_response
+        check_last_log(session, dag_id=None, event="post_variable", logical_date=None)
 
     def test_post_should_respond_401(self, unauthenticated_test_client):
         response = unauthenticated_test_client.post(
@@ -981,12 +985,13 @@ class TestBulkVariables(TestVariableEndpoint):
             ),
         ],
     )
-    def test_bulk_variables(self, test_client, actions, expected_results):
+    def test_bulk_variables(self, test_client, actions, expected_results, session):
         self.create_variables()
         response = test_client.patch("/public/variables", json=actions)
         response_data = response.json()
         for key, value in expected_results.items():
             assert response_data[key] == value
+        check_last_log(session, dag_id=None, event="bulk_variables", logical_date=None)
 
     def test_bulk_variables_should_respond_401(self, unauthenticated_test_client):
         response = unauthenticated_test_client.patch("/public/variables", json={})
