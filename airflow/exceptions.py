@@ -114,8 +114,6 @@ class AirflowFailException(AirflowException):
 
 
 class _AirflowExecuteWithInactiveAssetExecption(AirflowFailException):
-    """Raise when the task is executed with inactive assets."""
-
     main_message: str
 
     def __init__(self, inactive_asset_keys: Collection[AssetUniqueKey | AssetNameRef | AssetUriRef]) -> None:
@@ -135,7 +133,7 @@ class _AirflowExecuteWithInactiveAssetExecption(AirflowFailException):
         return f"{self.main_message}: {self.inactive_assets_message}"
 
     @property
-    def inactive_assets_message(self):
+    def inactive_assets_message(self) -> str:
         return ", ".join(self._render_asset_key(key) for key in self.inactive_asset_keys)
 
 
