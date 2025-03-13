@@ -244,10 +244,6 @@ def dag_dependencies_show(args) -> None:
 def dag_show(args) -> None:
     """Display DAG or saves its graphic representation to the file."""
     dag = get_dag(subdir=None, dag_id=args.dag_id, from_db=True)
-
-    if args.bundle_name and args.bundle_name[0] != dag.get_bundle_name():
-        raise SystemExit(f"DAG: {args.dag_id} does not belong to bundle: {args.bundle_name}")
-
     dot = render_dag(dag)
     filename = args.save
     imgcat = args.imgcat
@@ -358,8 +354,6 @@ def dag_next_execution(args) -> None:
     2018-08-31 10:38:00
     """
     dag = get_dag(subdir=None, dag_id=args.dag_id, from_db=True)
-    if args.bundle_name and args.bundle_name[0] != dag.get_bundle_name():
-        raise SystemExit(f"DAG: {args.dag_id} does not belong to bundle: {args.bundle_name}")
 
     with create_session() as session:
         last_parsed_dag: DagModel = session.scalars(

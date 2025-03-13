@@ -991,7 +991,7 @@ DAGS_COMMANDS = (
             "num-executions option is given"
         ),
         func=lazy_load_command("airflow.cli.commands.remote_commands.dag_command.dag_next_execution"),
-        args=(ARG_DAG_ID, ARG_BUNDLE_NAME, ARG_NUM_EXECUTIONS, ARG_VERBOSE),
+        args=(ARG_DAG_ID, ARG_NUM_EXECUTIONS, ARG_VERBOSE),
     ),
     ActionCommand(
         name="pause",
@@ -1059,13 +1059,7 @@ DAGS_COMMANDS = (
             "airflow dags show <DAG_ID> --save output.dot\n"
         ),
         func=lazy_load_command("airflow.cli.commands.remote_commands.dag_command.dag_show"),
-        args=(
-            ARG_DAG_ID,
-            ARG_BUNDLE_NAME,
-            ARG_SAVE,
-            ARG_IMGCAT,
-            ARG_VERBOSE,
-        ),
+        args=(ARG_DAG_ID, ARG_SAVE, ARG_IMGCAT, ARG_VERBOSE),
     ),
     ActionCommand(
         name="show-dependencies",
