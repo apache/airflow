@@ -43,6 +43,7 @@ from airflow.providers.google.cloud.operators.dataplex import (
     DataplexCreateTaskOperator,
     DataplexListTasksOperator,
 )
+from airflow.sdk.execution_time.comms import XComResult
 
 TEST_LOCATION = "test-location"
 TEST_PROJECT_ID = "test-project-id"
@@ -101,7 +102,7 @@ EXPECTED_DATAPLEX_CATALOG_ENTRY_LINK = (
 
 class TestDataplexTaskLink:
     @pytest.mark.db_test
-    def test_get_link(self, create_task_instance_of_operator, session):
+    def test_get_link(self, create_task_instance_of_operator, session, mock_supervisor_comms):
         expected_url = EXPECTED_DATAPLEX_TASK_LINK
         link = DataplexTaskLink()
         ti = create_task_instance_of_operator(
@@ -117,13 +118,22 @@ class TestDataplexTaskLink:
         session.add(ti)
         session.commit()
         link.persist(context={"ti": ti}, task_instance=ti.task)
+        mock_supervisor_comms.get_message.return_value = XComResult(
+            key="key",
+            value={
+                "lake_id": ti.task.lake_id,
+                "task_id": ti.task.dataplex_task_id,
+                "region": ti.task.region,
+                "project_id": ti.task.project_id,
+            },
+        )
         actual_url = link.get_link(operator=ti.task, ti_key=ti.key)
         assert actual_url == expected_url
 
 
 class TestDataplexTasksLink:
     @pytest.mark.db_test
-    def test_get_link(self, create_task_instance_of_operator, session):
+    def test_get_link(self, create_task_instance_of_operator, session, mock_supervisor_comms):
         expected_url = EXPECTED_DATAPLEX_TASKS_LINK
         link = DataplexTasksLink()
         ti = create_task_instance_of_operator(
@@ -137,13 +147,21 @@ class TestDataplexTasksLink:
         session.add(ti)
         session.commit()
         link.persist(context={"ti": ti}, task_instance=ti.task)
+        mock_supervisor_comms.get_message.return_value = XComResult(
+            key="key",
+            value={
+                "project_id": ti.task.project_id,
+                "lake_id": ti.task.lake_id,
+                "region": ti.task.region,
+            },
+        )
         actual_url = link.get_link(operator=ti.task, ti_key=ti.key)
         assert actual_url == expected_url
 
 
 class TestDataplexLakeLink:
     @pytest.mark.db_test
-    def test_get_link(self, create_task_instance_of_operator, session):
+    def test_get_link(self, create_task_instance_of_operator, session, mock_supervisor_comms):
         expected_url = DATAPLEX_LAKE_LINK
         link = DataplexLakeLink()
         ti = create_task_instance_of_operator(
@@ -158,13 +176,21 @@ class TestDataplexLakeLink:
         session.add(ti)
         session.commit()
         link.persist(context={"ti": ti}, task_instance=ti.task)
+        mock_supervisor_comms.get_message.return_value = XComResult(
+            key="key",
+            value={
+                "lake_id": ti.task.lake_id,
+                "region": ti.task.region,
+                "project_id": ti.task.project_id,
+            },
+        )
         actual_url = link.get_link(operator=ti.task, ti_key=ti.key)
         assert actual_url == expected_url
 
 
 class TestDataplexCatalogEntryGroupLink:
     @pytest.mark.db_test
-    def test_get_link(self, create_task_instance_of_operator, session):
+    def test_get_link(self, create_task_instance_of_operator, session, mock_supervisor_comms):
         expected_url = EXPECTED_DATAPLEX_CATALOG_ENTRY_GROUP_LINK
         link = DataplexCatalogEntryGroupLink()
         ti = create_task_instance_of_operator(
@@ -178,13 +204,21 @@ class TestDataplexCatalogEntryGroupLink:
         session.add(ti)
         session.commit()
         link.persist(context={"ti": ti}, task_instance=ti.task)
+        mock_supervisor_comms.get_message.return_value = XComResult(
+            key="key",
+            value={
+                "entry_group_id": ti.task.entry_group_id,
+                "location": ti.task.location,
+                "project_id": ti.task.project_id,
+            },
+        )
         actual_url = link.get_link(operator=ti.task, ti_key=ti.key)
         assert actual_url == expected_url
 
 
 class TestDataplexCatalogEntryGroupsLink:
     @pytest.mark.db_test
-    def test_get_link(self, create_task_instance_of_operator, session):
+    def test_get_link(self, create_task_instance_of_operator, session, mock_supervisor_comms):
         expected_url = EXPECTED_DATAPLEX_CATALOG_ENTRY_GROUPS_LINK
         link = DataplexCatalogEntryGroupsLink()
         ti = create_task_instance_of_operator(
@@ -199,13 +233,20 @@ class TestDataplexCatalogEntryGroupsLink:
         session.add(ti)
         session.commit()
         link.persist(context={"ti": ti}, task_instance=ti.task)
+        mock_supervisor_comms.get_message.return_value = XComResult(
+            key="key",
+            value={
+                "location": ti.task.location,
+                "project_id": ti.task.project_id,
+            },
+        )
         actual_url = link.get_link(operator=ti.task, ti_key=ti.key)
         assert actual_url == expected_url
 
 
 class TestDataplexCatalogEntryTypeLink:
     @pytest.mark.db_test
-    def test_get_link(self, create_task_instance_of_operator, session):
+    def test_get_link(self, create_task_instance_of_operator, session, mock_supervisor_comms):
         expected_url = EXPECTED_DATAPLEX_CATALOG_ENTRY_TYPE_LINK
         link = DataplexCatalogEntryTypeLink()
         ti = create_task_instance_of_operator(
@@ -219,13 +260,21 @@ class TestDataplexCatalogEntryTypeLink:
         session.add(ti)
         session.commit()
         link.persist(context={"ti": ti}, task_instance=ti.task)
+        mock_supervisor_comms.get_message.return_value = XComResult(
+            key="key",
+            value={
+                "entry_type_id": ti.task.entry_type_id,
+                "location": ti.task.location,
+                "project_id": ti.task.project_id,
+            },
+        )
         actual_url = link.get_link(operator=ti.task, ti_key=ti.key)
         assert actual_url == expected_url
 
 
 class TestDataplexCatalogEntryTypesLink:
     @pytest.mark.db_test
-    def test_get_link(self, create_task_instance_of_operator, session):
+    def test_get_link(self, create_task_instance_of_operator, session, mock_supervisor_comms):
         expected_url = EXPECTED_DATAPLEX_CATALOG_ENTRY_TYPES_LINK
         link = DataplexCatalogEntryTypesLink()
         ti = create_task_instance_of_operator(
@@ -240,13 +289,20 @@ class TestDataplexCatalogEntryTypesLink:
         session.add(ti)
         session.commit()
         link.persist(context={"ti": ti}, task_instance=ti.task)
+        mock_supervisor_comms.get_message.return_value = XComResult(
+            key="key",
+            value={
+                "location": ti.task.location,
+                "project_id": ti.task.project_id,
+            },
+        )
         actual_url = link.get_link(operator=ti.task, ti_key=ti.key)
         assert actual_url == expected_url
 
 
 class TestDataplexCatalogAspectTypeLink:
     @pytest.mark.db_test
-    def test_get_link(self, create_task_instance_of_operator, session):
+    def test_get_link(self, create_task_instance_of_operator, session, mock_supervisor_comms):
         expected_url = EXPECTED_DATAPLEX_CATALOG_ASPECT_TYPE_LINK
         link = DataplexCatalogAspectTypeLink()
         ti = create_task_instance_of_operator(
@@ -260,13 +316,21 @@ class TestDataplexCatalogAspectTypeLink:
         session.add(ti)
         session.commit()
         link.persist(context={"ti": ti}, task_instance=ti.task)
+        mock_supervisor_comms.get_message.return_value = XComResult(
+            key="key",
+            value={
+                "aspect_type_id": ti.task.aspect_type_id,
+                "location": ti.task.location,
+                "project_id": ti.task.project_id,
+            },
+        )
         actual_url = link.get_link(operator=ti.task, ti_key=ti.key)
         assert actual_url == expected_url
 
 
 class TestDataplexCatalogAspectTypesLink:
     @pytest.mark.db_test
-    def test_get_link(self, create_task_instance_of_operator, session):
+    def test_get_link(self, create_task_instance_of_operator, session, mock_supervisor_comms):
         expected_url = EXPECTED_DATAPLEX_CATALOG_ASPECT_TYPES_LINK
         link = DataplexCatalogAspectTypesLink()
         ti = create_task_instance_of_operator(
@@ -281,13 +345,20 @@ class TestDataplexCatalogAspectTypesLink:
         session.add(ti)
         session.commit()
         link.persist(context={"ti": ti}, task_instance=ti.task)
+        mock_supervisor_comms.get_message.return_value = XComResult(
+            key="key",
+            value={
+                "location": ti.task.location,
+                "project_id": ti.task.project_id,
+            },
+        )
         actual_url = link.get_link(operator=ti.task, ti_key=ti.key)
         assert actual_url == expected_url
 
 
 class TestDataplexCatalogEntryLink:
     @pytest.mark.db_test
-    def test_get_link(self, create_task_instance_of_operator, session):
+    def test_get_link(self, create_task_instance_of_operator, session, mock_supervisor_comms):
         expected_url = EXPECTED_DATAPLEX_CATALOG_ENTRY_LINK
         link = DataplexCatalogEntryLink()
         ti = create_task_instance_of_operator(
@@ -302,5 +373,14 @@ class TestDataplexCatalogEntryLink:
         session.add(ti)
         session.commit()
         link.persist(context={"ti": ti}, task_instance=ti.task)
+        mock_supervisor_comms.get_message.return_value = XComResult(
+            key="key",
+            value={
+                "entry_id": ti.task.entry_id,
+                "entry_group_id": ti.task.entry_group_id,
+                "location": ti.task.location,
+                "project_id": ti.task.project_id,
+            },
+        )
         actual_url = link.get_link(operator=ti.task, ti_key=ti.key)
         assert actual_url == expected_url

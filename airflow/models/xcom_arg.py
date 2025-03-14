@@ -114,7 +114,7 @@ def get_task_map_length(xcom_arg: SchedulerXComArg, run_id: str, *, session: Ses
 def _(xcom_arg: SchedulerPlainXComArg, run_id: str, *, session: Session):
     from airflow.models.taskinstance import TaskInstance
     from airflow.models.taskmap import TaskMap
-    from airflow.models.xcom import XCom
+    from airflow.models.xcom import XComModel
 
     dag_id = xcom_arg.operator.dag_id
     task_id = xcom_arg.operator.task_id
@@ -136,12 +136,12 @@ def _(xcom_arg: SchedulerPlainXComArg, run_id: str, *, session: Session):
         )
         if unfinished_ti_exists:
             return None  # Not all of the expanded tis are done yet.
-        query = select(func.count(XCom.map_index)).where(
-            XCom.dag_id == dag_id,
-            XCom.run_id == run_id,
-            XCom.task_id == task_id,
-            XCom.map_index >= 0,
-            XCom.key == XCOM_RETURN_KEY,
+        query = select(func.count(XComModel.map_index)).where(
+            XComModel.dag_id == dag_id,
+            XComModel.run_id == run_id,
+            XComModel.task_id == task_id,
+            XComModel.map_index >= 0,
+            XComModel.key == XCOM_RETURN_KEY,
         )
     else:
         query = select(TaskMap.length).where(

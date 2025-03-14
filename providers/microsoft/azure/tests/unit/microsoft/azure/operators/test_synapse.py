@@ -33,6 +33,7 @@ from airflow.providers.microsoft.azure.operators.synapse import (
     AzureSynapseRunPipelineOperator,
     AzureSynapseRunSparkBatchOperator,
 )
+from airflow.sdk.execution_time.comms import XComResult
 from airflow.utils import timezone
 
 DEFAULT_DATE = timezone.datetime(2021, 1, 1)
@@ -276,7 +277,7 @@ class TestAzureSynapseRunPipelineOperator:
             mock_get_pipeline_run.assert_not_called()
 
     @pytest.mark.db_test
-    def test_run_pipeline_operator_link(self, create_task_instance_of_operator):
+    def test_run_pipeline_operator_link(self, create_task_instance_of_operator, mock_supervisor_comms):
         ti = create_task_instance_of_operator(
             AzureSynapseRunPipelineOperator,
             dag_id="test_synapse_run_pipeline_op_link",
@@ -287,6 +288,10 @@ class TestAzureSynapseRunPipelineOperator:
         )
 
         ti.xcom_push(key="run_id", value=PIPELINE_RUN_RESPONSE["run_id"])
+        mock_supervisor_comms.get_message.return_value = XComResult(
+            key="run_id",
+            value=PIPELINE_RUN_RESPONSE["run_id"],
+        )
 
         url = ti.task.operator_extra_links[0].get_link(operator=ti.task, ti_key=ti.key)
 

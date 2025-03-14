@@ -28,14 +28,13 @@ import fsspec.utils
 
 from airflow.configuration import conf
 from airflow.io.path import ObjectStoragePath
-from airflow.models.xcom import BaseXCom
 from airflow.providers.common.io.version_compat import AIRFLOW_V_3_0_PLUS
+from airflow.sdk.execution_time.xcom import BaseXCom
 from airflow.utils.json import XComDecoder, XComEncoder
 
 if TYPE_CHECKING:
-    from sqlalchemy.orm import Session
+    from airflow.sdk.execution_time.comms import XComResult
 
-    from airflow.models import XCom
 
 T = TypeVar("T")
 
@@ -149,7 +148,7 @@ class XComObjectStorageBackend(BaseXCom):
         return BaseXCom.serialize_value(str(p))
 
     @staticmethod
-    def deserialize_value(result: XCom) -> Any:
+    def deserialize_value(result) -> Any:
         """
         Deserializes the value from the database or object storage.
 
@@ -167,7 +166,7 @@ class XComObjectStorageBackend(BaseXCom):
             return data
 
     @staticmethod
-    def purge(xcom: XCom, session: Session) -> None:
+    def purge(xcom: XComResult) -> None:
         if not isinstance(xcom.value, str):
             return
         with contextlib.suppress(TypeError, ValueError):

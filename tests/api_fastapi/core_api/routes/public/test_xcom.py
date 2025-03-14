@@ -16,17 +16,18 @@
 # under the License.
 from __future__ import annotations
 
+import json
 from unittest import mock
 
 import pytest
 
 from airflow.api_fastapi.core_api.datamodels.xcom import XComCreateBody
-from airflow.models import XCom
 from airflow.models.dag import DagModel
 from airflow.models.dagrun import DagRun
 from airflow.models.taskinstance import TaskInstance
-from airflow.models.xcom import BaseXCom, resolve_xcom_backend
+from airflow.models.xcom import XComModel
 from airflow.providers.standard.operators.empty import EmptyOperator
+from airflow.sdk.execution_time.xcom import BaseXCom, resolve_xcom_backend
 from airflow.utils import timezone
 from airflow.utils.session import provide_session
 from airflow.utils.types import DagRunType
@@ -39,6 +40,7 @@ pytestmark = pytest.mark.db_test
 
 TEST_XCOM_KEY = "test_xcom_key"
 TEST_XCOM_VALUE = {"key": "value"}
+TEST_XCOM_VALUE_AS_JSON = json.dumps(TEST_XCOM_VALUE)
 TEST_XCOM_KEY_2 = "test_xcom_key_non_existing"
 
 TEST_DAG_ID = "test-dag-id"
@@ -58,7 +60,7 @@ run_id = DagRun.generate_run_id(
 
 @provide_session
 def _create_xcom(key, value, backend, session=None) -> None:
-    backend.set(
+    XComModel.set(
         key=key,
         value=value,
         dag_id=TEST_DAG_ID,
@@ -85,7 +87,7 @@ def _create_dag_run(dag_maker, session=None):
 
 class CustomXCom(BaseXCom):
     @classmethod
-    def deserialize_value(cls, xcom: XCom):
+    def deserialize_value(cls, xcom):
         return f"real deserialized {super().deserialize_value(xcom)}"
 
     def orm_deserialize_value(self):
@@ -107,12 +109,12 @@ class TestXComEndpoint:
     def teardown_method(self) -> None:
         self.clear_db()
 
-    def _create_xcom(self, key, value, backend=XCom) -> None:
+    def _create_xcom(self, key, value, backend=None) -> None:
         _create_xcom(key, value, backend)
 
 
 class TestGetXComEntry(TestXComEndpoint):
-    def test_should_respond_200_stringify(self, test_client):
+    def test_should_respond_200_native(self, test_client):
         self._create_xcom(TEST_XCOM_KEY, TEST_XCOM_VALUE)
         response = test_client.get(
             f"/public/dags/{TEST_DAG_ID}/dagRuns/{run_id}/taskInstances/{TEST_TASK_ID}/xcomEntries/{TEST_XCOM_KEY}"
@@ -128,26 +130,7 @@ class TestGetXComEntry(TestXComEndpoint):
             "task_id": TEST_TASK_ID,
             "map_index": -1,
             "timestamp": current_data["timestamp"],
-            "value": str(TEST_XCOM_VALUE),
-        }
-
-    def test_should_respond_200_native(self, test_client):
-        self._create_xcom(TEST_XCOM_KEY, TEST_XCOM_VALUE)
-        response = test_client.get(
-            f"/public/dags/{TEST_DAG_ID}/dagRuns/{run_id}/taskInstances/{TEST_TASK_ID}/xcomEntries/{TEST_XCOM_KEY}?stringify=false"
-        )
-        assert response.status_code == 200
-
-        current_data = response.json()
-        assert current_data == {
-            "dag_id": TEST_DAG_ID,
-            "logical_date": logical_date_parsed.strftime("%Y-%m-%dT%H:%M:%SZ"),
-            "run_id": run_id,
-            "key": TEST_XCOM_KEY,
-            "task_id": TEST_TASK_ID,
-            "map_index": -1,
-            "timestamp": current_data["timestamp"],
-            "value": TEST_XCOM_VALUE,
+            "value": json.dumps(TEST_XCOM_VALUE),
         }
 
     def test_should_respond_401(self, unauthenticated_test_client):
@@ -175,7 +158,7 @@ class TestGetXComEntry(TestXComEndpoint):
             pytest.param(
                 True,
                 {"deserialize": True},
-                f"real deserialized {TEST_XCOM_VALUE}",
+                f"real deserialized {TEST_XCOM_VALUE_AS_JSON}",
                 id="enabled deserialize-true",
             ),
             pytest.param(
@@ -187,25 +170,25 @@ class TestGetXComEntry(TestXComEndpoint):
             pytest.param(
                 True,
                 {"deserialize": False},
-                f"orm deserialized {TEST_XCOM_VALUE}",
+                f"{TEST_XCOM_VALUE_AS_JSON}",
                 id="enabled deserialize-false",
             ),
             pytest.param(
                 False,
                 {"deserialize": False},
-                f"orm deserialized {TEST_XCOM_VALUE}",
+                f"{TEST_XCOM_VALUE_AS_JSON}",
                 id="disabled deserialize-false",
             ),
             pytest.param(
                 True,
                 {},
-                f"orm deserialized {TEST_XCOM_VALUE}",
+                f"{TEST_XCOM_VALUE_AS_JSON}",
                 id="enabled default",
             ),
             pytest.param(
                 False,
                 {},
-                f"orm deserialized {TEST_XCOM_VALUE}",
+                f"{TEST_XCOM_VALUE_AS_JSON}",
                 id="disabled default",
             ),
         ],
@@ -218,7 +201,7 @@ class TestGetXComEntry(TestXComEndpoint):
         self._create_xcom(TEST_XCOM_KEY, TEST_XCOM_VALUE, backend=XCom)
 
         url = f"/public/dags/{TEST_DAG_ID}/dagRuns/{run_id}/taskInstances/{TEST_TASK_ID}/xcomEntries/{TEST_XCOM_KEY}"
-        with mock.patch("airflow.api_fastapi.core_api.routes.public.xcom.XCom", XCom):
+        with mock.patch("airflow.sdk.execution_time.xcom.XCom", XCom):
             with conf_vars({("api", "enable_xcom_deserialize_support"): str(support_deserialize)}):
                 response = test_client.get(url, params=params)
 
@@ -441,7 +424,7 @@ class TestGetXComEntries(TestXComEndpoint):
                 key = f"{TEST_XCOM_KEY}-{i}"
                 map_index = -1
 
-            XCom.set(
+            XComModel.set(
                 key=key,
                 value=TEST_XCOM_VALUE,
                 run_id=run_id,
@@ -612,7 +595,7 @@ class TestCreateXComEntry(TestXComEndpoint):
             # Validate the created XCom response
             current_data = response.json()
             assert current_data["key"] == request_body.key
-            assert current_data["value"] == XCom.serialize_value(request_body.value)
+            assert current_data["value"] == XComModel.serialize_value(request_body.value)
             assert current_data["dag_id"] == dag_id
             assert current_data["task_id"] == task_id
             assert current_data["run_id"] == dag_run_id
@@ -660,7 +643,7 @@ class TestPatchXComEntry(TestXComEndpoint):
         # Ensure the XCom entry exists before updating
         if expected_status != 404:
             self._create_xcom(TEST_XCOM_KEY, TEST_XCOM_VALUE)
-            new_value = XCom.serialize_value(patch_body["value"])
+            new_value = XComModel.serialize_value(patch_body["value"])
 
         response = test_client.patch(
             f"/public/dags/{TEST_DAG_ID}/dagRuns/{run_id}/taskInstances/{TEST_TASK_ID}/xcomEntries/{key}",
@@ -670,7 +653,7 @@ class TestPatchXComEntry(TestXComEndpoint):
         assert response.status_code == expected_status
 
         if expected_status == 200:
-            assert response.json()["value"] == XCom.serialize_value(new_value)
+            assert response.json()["value"] == XComModel.serialize_value(new_value)
         else:
             assert response.json()["detail"] == expected_detail
         check_last_log(session, dag_id=TEST_DAG_ID, event="update_xcom_entry", logical_date=None)
