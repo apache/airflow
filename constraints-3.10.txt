@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2025-03-14T08:23:50.692432
+# This constraints file was automatically generated on 2025-03-14T20:19:12.638253
 # via "eager-upgrade" mechanism of PIP. For the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version for 'apache-airflow' but installs
 # the providers from PIP-released packages at the moment of the constraint generation.
@@ -135,7 +135,6 @@ apache-airflow-providers-discord==3.9.3
 apache-airflow-providers-docker==4.2.1
 apache-airflow-providers-elasticsearch==6.2.1
 apache-airflow-providers-exasol==4.7.3
-apache-airflow-providers-fab==1.5.3
 apache-airflow-providers-facebook==3.7.1
 apache-airflow-providers-ftp==3.12.3
 apache-airflow-providers-github==2.8.3
@@ -374,7 +373,6 @@ google-cloud-videointelligence==2.16.0
 google-cloud-vision==3.10.0
 google-cloud-workflows==1.17.0
 google-crc32c==1.6.0
-google-re2==1.1.20240702
 google-resumable-media==2.7.2
 googleapis-common-protos==1.69.1
 graphql-core==3.2.6
