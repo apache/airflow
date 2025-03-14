@@ -87,7 +87,7 @@ class TestListBackfills(TestBackfillEndpoint):
             ({"dag_id": "TEST_DAG_1"}, ["backfill1"], 1),
         ],
     )
-    def test_list_backfill(self, test_params, response_params, total_entries, test_client, session):
+    def test_should_response_200(self, test_params, response_params, total_entries, test_client, session):
         dags = self._create_dag_models()
         from_date = timezone.utcnow()
         to_date = timezone.utcnow()
@@ -150,3 +150,11 @@ class TestListBackfills(TestBackfillEndpoint):
             "backfills": expected_response,
             "total_entries": total_entries,
         }
+
+    def test_should_response_401(self, unauthenticated_test_client):
+        response = unauthenticated_test_client.get("/ui/backfills", params={})
+        assert response.status_code == 401
+
+    def test_should_response_403(self, unauthorized_test_client):
+        response = unauthorized_test_client.get("/ui/backfills", params={})
+        assert response.status_code == 403
