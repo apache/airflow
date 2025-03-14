@@ -241,7 +241,9 @@ class TestCliConfigGetValue:
 
 
 class TestConfigLint:
-    @pytest.mark.parametrize("removed_config", config_command.CONFIGS_CHANGES)
+    @pytest.mark.parametrize(
+        "removed_config", [config for config in config_command.CONFIGS_CHANGES if config.was_removed]
+    )
     def test_lint_detects_removed_configs(self, removed_config):
         with mock.patch("airflow.configuration.conf.has_option", return_value=True):
             with contextlib.redirect_stdout(StringIO()) as temp_stdout:
@@ -253,6 +255,23 @@ class TestConfigLint:
         normalized_message = re.sub(r"\s+", " ", removed_config.message.strip())
 
         assert normalized_message in normalized_output
+
+    @pytest.mark.parametrize(
+        "default_changed_config",
+        [config for config in config_command.CONFIGS_CHANGES if config.default_change],
+    )
+    def test_lint_detects_default_changed_configs(self, default_changed_config):
+        with mock.patch("airflow.configuration.conf.has_option", return_value=True):
+            with contextlib.redirect_stdout(StringIO()) as temp_stdout:
+                config_command.lint_config(cli_parser.get_parser().parse_args(["config", "lint"]))
+
+            output = temp_stdout.getvalue()
+
+        if default_changed_config.message is not None:
+            normalized_output = re.sub(r"\s+", " ", output.strip())
+            normalized_message = re.sub(r"\s+", " ", default_changed_config.message.strip())
+
+            assert normalized_message in normalized_output
 
     @pytest.mark.parametrize(
         "section, option, suggestion",

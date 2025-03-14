@@ -406,7 +406,7 @@ class TestDagDetails(TestDagEndpoint):
         file_token = res_json["file_token"]
         expected = {
             "asset_expression": None,
-            "catchup": True,
+            "catchup": False,
             "concurrency": 16,
             "dag_id": dag_id,
             "dag_display_name": dag_display_name,

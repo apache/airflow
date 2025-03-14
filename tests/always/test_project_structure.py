@@ -216,6 +216,8 @@ class TestProjectStructure:
         modules_files = (f for f in modules_files if ".git" not in f.parts)
         # Exclude .venv files
         modules_files = (f for f in modules_files if ".venv" not in f.parts)
+        # Exclude node_modules
+        modules_files = (f for f in modules_files if "node_modules" not in f.parts)
         # Exclude __init__.py
         modules_files = filter(lambda f: f.name != "__init__.py", modules_files)
         # Exclude example_dags
@@ -233,6 +235,8 @@ class TestProjectStructure:
         current_test_files = list(f.relative_to(AIRFLOW_SOURCES_ROOT) for f in current_test_files)
         # Exclude __init__.py
         current_test_files = set(f for f in current_test_files if not f.name == "__init__.py")
+        # Exclude node_modules
+        current_test_files = set(f for f in current_test_files if "node_modules" not in f.parts)
 
         modules_files_set = set(modules_files)
         expected_test_files = set(

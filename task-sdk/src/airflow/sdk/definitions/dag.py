@@ -132,6 +132,12 @@ def _create_timetable(interval: ScheduleInterval, timezone: Timezone | FixedTime
     raise ValueError(f"{interval!r} is not a valid schedule.")
 
 
+def _config_bool_factory(section: str, key: str):
+    from airflow.configuration import conf
+
+    return functools.partial(conf.getboolean, section, key)
+
+
 def _convert_params(val: abc.MutableMapping | None, self_: DAG) -> ParamsDict:
     """
     Convert the plain dict into a ParamsDict.
@@ -309,7 +315,7 @@ class DAG:
     :param dagrun_timeout: Specify the duration a DagRun should be allowed to run before it times out or
         fails. Task instances that are running when a DagRun is timed out will be marked as skipped.
     :param sla_miss_callback: DEPRECATED - The SLA feature is removed in Airflow 3.0, to be replaced with a new implementation in 3.1
-    :param catchup: Perform scheduler catchup (or only run latest)? Defaults to True
+    :param catchup: Perform scheduler catchup (or only run latest)? Defaults to False
     :param on_failure_callback: A function or list of functions to be called when a DagRun of this dag fails.
         A context dictionary is passed as a single parameter to this function.
     :param on_success_callback: Much like the ``on_failure_callback`` except
@@ -400,7 +406,9 @@ class DAG:
         validator=attrs.validators.optional(attrs.validators.instance_of(timedelta)),
     )
     # sla_miss_callback: None | SLAMissCallback | list[SLAMissCallback] = None
-    catchup: bool = attrs.field(default=True, converter=bool)
+    catchup: bool = attrs.field(
+        factory=_config_bool_factory("scheduler", "catchup_by_default"),
+    )
     on_success_callback: None | DagStateChangeCallback | list[DagStateChangeCallback] = None
     on_failure_callback: None | DagStateChangeCallback | list[DagStateChangeCallback] = None
     doc_md: str | None = attrs.field(default=None, converter=_convert_doc_md)

@@ -2348,7 +2348,7 @@ scheduler:
       default: "10.0"
     catchup_by_default:
       description: |
-        Turn off scheduler catchup by setting this to ``False``.
+        Turn on scheduler catchup by setting this to ``True``.
         Default behavior is unchanged and
         Command Line Backfills still work, but the scheduler
         will not do scheduler catchup if this is ``False``,
@@ -2357,7 +2357,7 @@ scheduler:
       version_added: ~
       type: boolean
       example: ~
-      default: "True"
+      default: "False"
     ignore_first_depends_on_past_by_default:
       description: |
         Setting this to ``True`` will make first task instance of a task
