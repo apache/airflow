@@ -1580,7 +1580,7 @@ def test_sensitive_values():
         ("database", "sql_alchemy_conn"),
         ("core", "fernet_key"),
         ("core", "internal_api_secret_key"),
-        ("api", "auth_jwt_secret"),
+        ("api_auth", "jwt_secret"),
         ("webserver", "secret_key"),
         ("secrets", "backend_kwargs"),
         ("sentry", "sentry_dsn"),
@@ -1792,7 +1792,7 @@ def test_write_default_config_contains_generated_secrets(tmp_path, monkeypatch):
     assert airflow.configuration.JWT_SECRET_KEY
 
     fernet_line = next(line for line in lines if line.startswith("fernet_key = "))
-    jwt_secret_line = next(line for line in lines if line.startswith("auth_jwt_secret = "))
+    jwt_secret_line = next(line for line in lines if line.startswith("jwt_secret = "))
 
     assert fernet_line == f"fernet_key = {airflow.configuration.FERNET_KEY}"
-    assert jwt_secret_line == f"auth_jwt_secret = {airflow.configuration.JWT_SECRET_KEY}"
+    assert jwt_secret_line == f"jwt_secret = {airflow.configuration.JWT_SECRET_KEY}"

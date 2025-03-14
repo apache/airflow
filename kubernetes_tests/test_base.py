@@ -368,12 +368,12 @@ class BaseK8STest:
         )
 
     def set_api_auth_jwt_secret_config(self) -> bool:
-        """Set [api/auth_jwt_secret] with AIRFLOW_API_SERVER_JWT_SECRET as env in k8s configmap."
+        """Set [api_auth/jwt_secret] with AIRFLOW_API_SERVER_JWT_SECRET as env in k8s configmap."
 
         :return: True if the configmap was updated successfully, False otherwise"
         """
         return self.set_airflow_cfg_in_kubernetes_configmap(
-            "api", "auth_jwt_secret", AIRFLOW_API_SERVER_JWT_SECRET
+            "api_auth", "jwt_secret", AIRFLOW_API_SERVER_JWT_SECRET
         )
 
     def ensure_dag_expected_state(self, host, logical_date, dag_id, expected_final_state, timeout):
