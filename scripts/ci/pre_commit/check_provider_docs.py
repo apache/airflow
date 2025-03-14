@@ -27,12 +27,13 @@ from rich.console import Console
 sys.path.insert(0, str(Path(__file__).parent.resolve()))  # make sure common utils are importable
 
 from common_precommit_utils import (
+    AIRFLOW_CORE_SOURCES_PATH,
     AIRFLOW_PROVIDERS_ROOT_PATH,
-    AIRFLOW_SOURCES_ROOT_PATH,
+    AIRFLOW_ROOT_PATH,
     get_all_provider_info_dicts,
 )
 
-sys.path.insert(0, str(AIRFLOW_SOURCES_ROOT_PATH))  # make sure setup is imported from Airflow
+sys.path.insert(0, str(AIRFLOW_CORE_SOURCES_PATH))  # make sure setup is imported from Airflow
 
 console = Console(color_system="standard", width=200)
 
@@ -246,10 +247,7 @@ def run_all_checks():
             if (get_provider_doc_folder(provider_id) / "cli-ref.rst").exists():
                 check_documentation_link_exists(
                     link=f"and related CLI commands: :doc:`apache-airflow-providers-{provider_id.replace('.', '-')}:cli-ref`",
-                    docs_file=AIRFLOW_SOURCES_ROOT_PATH
-                    / "docs"
-                    / "apache-airflow"
-                    / "cli-and-env-variables-ref.rst",
+                    docs_file=AIRFLOW_ROOT_PATH / "airflow-core" / "docs" / "cli-and-env-variables-ref.rst",
                 )
         if provider_info.get("config"):
             check_provider_doc_exists_and_in_index(

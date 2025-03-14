@@ -21,7 +21,14 @@ import datetime
 from unittest.mock import MagicMock, Mock, patch
 
 import pytest
+<<<<<<<< HEAD:providers/standard/tests/unit/standard/utils/test_skipmixin.py
 
+|||||||| parent of 8dbbcec3b5 (Move airflow sources to airflow-core package):tests/models/test_skipmixin.py
+
+from airflow import settings
+========
+from airflow import settings
+>>>>>>>> 8dbbcec3b5 (Move airflow sources to airflow-core package):airflow-core/tests/models/test_skipmixin.py
 from airflow.decorators import task, task_group
 from airflow.exceptions import AirflowException
 from airflow.models.mappedoperator import MappedOperator

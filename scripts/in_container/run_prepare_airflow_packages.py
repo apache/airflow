@@ -30,45 +30,47 @@ from rich.console import Console
 
 console = Console(color_system="standard", width=200)
 
-AIRFLOW_SOURCES_ROOT = Path(__file__).parents[2].resolve()
-REPRODUCIBLE_BUILD_FILE = AIRFLOW_SOURCES_ROOT / "airflow" / "reproducible_build.yaml"
-AIRFLOW_INIT_FILE = AIRFLOW_SOURCES_ROOT / "airflow" / "__init__.py"
-WWW_DIRECTORY = AIRFLOW_SOURCES_ROOT / "airflow" / "www"
+AIRFLOW_ROOT_PATH = Path(__file__).parents[2].resolve()
+REPRODUCIBLE_BUILD_YAML_PATH = AIRFLOW_ROOT_PATH / "reproducible_build.yaml"
+AIRFLOW_CORE_ROOT_PATH = AIRFLOW_ROOT_PATH / "airflow-core"
+AIRFLOW_CORE_SOURCES_PATH = AIRFLOW_CORE_ROOT_PATH / "src"
+AIRFLOW_INIT_FILE = AIRFLOW_CORE_SOURCES_PATH / "airflow" / "__init__.py"
+WWW_DIRECTORY = AIRFLOW_CORE_SOURCES_PATH / "airflow" / "www"
 VERSION_SUFFIX = os.environ.get("VERSION_SUFFIX_FOR_PYPI", "")
 PACKAGE_FORMAT = os.environ.get("PACKAGE_FORMAT", "wheel")
 
 
 def clean_build_directory():
     console.print("[bright_blue]Cleaning build directories\n")
-    for egg_info_file in AIRFLOW_SOURCES_ROOT.glob("*egg-info*"):
+    for egg_info_file in AIRFLOW_ROOT_PATH.glob("*egg-info*"):
         rmtree(egg_info_file, ignore_errors=True)
-    rmtree(AIRFLOW_SOURCES_ROOT / "build", ignore_errors=True)
+    rmtree(AIRFLOW_ROOT_PATH / "build", ignore_errors=True)
     console.print("[green]Cleaned build directories\n\n")
 
 
 def mark_git_directory_as_safe():
-    console.print(f"[bright_blue]Marking {AIRFLOW_SOURCES_ROOT} as safe directory for git commands.\n")
+    console.print(f"[bright_blue]Marking {AIRFLOW_ROOT_PATH} as safe directory for git commands.\n")
     subprocess.run(
         ["git", "config", "--global", "--unset-all", "safe.directory"],
-        cwd=AIRFLOW_SOURCES_ROOT,
+        cwd=AIRFLOW_ROOT_PATH,
         stdout=subprocess.DEVNULL,
         stderr=subprocess.DEVNULL,
         check=False,
     )
     subprocess.run(
-        ["git", "config", "--global", "--add", "safe.directory", AIRFLOW_SOURCES_ROOT],
-        cwd=AIRFLOW_SOURCES_ROOT,
+        ["git", "config", "--global", "--add", "safe.directory", AIRFLOW_ROOT_PATH],
+        cwd=AIRFLOW_ROOT_PATH,
         stdout=subprocess.DEVNULL,
         stderr=subprocess.DEVNULL,
         check=False,
     )
-    console.print(f"[green]Marked {AIRFLOW_SOURCES_ROOT} as safe directory for git commands.\n")
+    console.print(f"[green]Marked {AIRFLOW_ROOT_PATH} as safe directory for git commands.\n")
 
 
 def get_current_airflow_version() -> str:
     console.print("[bright_blue]Checking airflow version\n")
     airflow_version = subprocess.check_output(
-        [sys.executable, "-m", "hatch", "version"], text=True, cwd=AIRFLOW_SOURCES_ROOT
+        [sys.executable, "-m", "hatch", "version"], text=True, cwd=AIRFLOW_ROOT_PATH
     ).strip()
     console.print(f"[green]Airflow version: {airflow_version}\n")
     return airflow_version
@@ -81,7 +83,7 @@ def build_airflow_packages(package_format: str):
     if package_format in ["both", "wheel"]:
         build_command.extend(["-t", "wheel"])
 
-    reproducible_date = yaml.safe_load(REPRODUCIBLE_BUILD_FILE.read_text())["source-date-epoch"]
+    reproducible_date = yaml.safe_load(REPRODUCIBLE_BUILD_YAML_PATH.read_text())["source-date-epoch"]
 
     envcopy = os.environ.copy()
     envcopy["SOURCE_DATE_EPOCH"] = str(reproducible_date)
@@ -89,7 +91,7 @@ def build_airflow_packages(package_format: str):
     build_process = subprocess.run(
         build_command,
         capture_output=False,
-        cwd=AIRFLOW_SOURCES_ROOT,
+        cwd=AIRFLOW_ROOT_PATH,
         env=envcopy,
     )
 
@@ -99,7 +101,7 @@ def build_airflow_packages(package_format: str):
     else:
         if package_format in ["both", "sdist"]:
             console.print("[bright_blue]Checking if sdist packages can be built into wheels")
-            for file in (AIRFLOW_SOURCES_ROOT / "dist").glob("apache_airflow-[0-9]*.tar.gz"):
+            for file in (AIRFLOW_ROOT_PATH / "dist").glob("apache_airflow-[0-9]*.tar.gz"):
                 console.print(f"[bright_blue]Validate build wheel from sdist: {file.name}")
                 if "-sources.tar.gz" not in file.name:
                     # no need to delete - we are in temporary container
@@ -133,6 +135,6 @@ mark_git_directory_as_safe()
 
 build_airflow_packages(PACKAGE_FORMAT)
 
-for file in (AIRFLOW_SOURCES_ROOT / "dist").glob("apache*"):
+for file in (AIRFLOW_ROOT_PATH / "dist").glob("apache*"):
     console.print(file.name)
 console.print()

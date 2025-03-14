@@ -26,19 +26,19 @@ from pathlib import Path
 import requests
 
 sys.path.insert(0, str(Path(__file__).parent.resolve()))  # make sure common_precommit_utils is imported
-from common_precommit_utils import AIRFLOW_SOURCES_ROOT_PATH, console
+from common_precommit_utils import AIRFLOW_CORE_SOURCES_PATH, AIRFLOW_ROOT_PATH, console
 
 # List of files to update and whether to keep total length of the original value when replacing.
 FILES_TO_UPDATE: list[tuple[Path, bool]] = [
-    (AIRFLOW_SOURCES_ROOT_PATH / "Dockerfile", False),
-    (AIRFLOW_SOURCES_ROOT_PATH / "Dockerfile.ci", False),
-    (AIRFLOW_SOURCES_ROOT_PATH / "scripts" / "ci" / "install_breeze.sh", False),
-    (AIRFLOW_SOURCES_ROOT_PATH / "scripts" / "docker" / "common.sh", False),
-    (AIRFLOW_SOURCES_ROOT_PATH / "scripts" / "tools" / "setup_breeze", False),
-    (AIRFLOW_SOURCES_ROOT_PATH / "pyproject.toml", False),
-    (AIRFLOW_SOURCES_ROOT_PATH / "dev" / "breeze" / "src" / "airflow_breeze" / "global_constants.py", False),
+    (AIRFLOW_ROOT_PATH / "Dockerfile", False),
+    (AIRFLOW_ROOT_PATH / "Dockerfile.ci", False),
+    (AIRFLOW_ROOT_PATH / "scripts" / "ci" / "install_breeze.sh", False),
+    (AIRFLOW_ROOT_PATH / "scripts" / "docker" / "common.sh", False),
+    (AIRFLOW_ROOT_PATH / "scripts" / "tools" / "setup_breeze", False),
+    (AIRFLOW_ROOT_PATH / "pyproject.toml", False),
+    (AIRFLOW_ROOT_PATH / "dev" / "breeze" / "src" / "airflow_breeze" / "global_constants.py", False),
     (
-        AIRFLOW_SOURCES_ROOT_PATH
+        AIRFLOW_ROOT_PATH
         / "dev"
         / "breeze"
         / "src"
@@ -47,9 +47,10 @@ FILES_TO_UPDATE: list[tuple[Path, bool]] = [
         / "release_management_commands.py",
         False,
     ),
-    (AIRFLOW_SOURCES_ROOT_PATH / ".github" / "actions" / "install-pre-commit" / "action.yml", False),
-    (AIRFLOW_SOURCES_ROOT_PATH / "dev/" / "breeze" / "doc" / "ci" / "02_images.md", True),
-    (AIRFLOW_SOURCES_ROOT_PATH / ".pre-commit-config.yaml", False),
+    (AIRFLOW_ROOT_PATH / ".github" / "actions" / "install-pre-commit" / "action.yml", False),
+    (AIRFLOW_ROOT_PATH / "dev/" / "breeze" / "doc" / "ci" / "02_images.md", True),
+    (AIRFLOW_ROOT_PATH / ".pre-commit-config.yaml", False),
+    (AIRFLOW_CORE_SOURCES_PATH / "pyproject.toml", False),
 ]
 
 

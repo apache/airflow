@@ -69,17 +69,17 @@ from airflow_breeze.utils.console import get_console
 from airflow_breeze.utils.docker_command_utils import is_docker_rootless
 from airflow_breeze.utils.host_info_utils import get_host_group_id, get_host_os, get_host_user_id
 from airflow_breeze.utils.path_utils import (
-    AIRFLOW_SOURCES_ROOT,
-    BUILD_CACHE_DIR,
-    GENERATED_DOCKER_COMPOSE_ENV_FILE,
-    GENERATED_DOCKER_ENV_FILE,
-    GENERATED_DOCKER_LOCK_FILE,
-    SCRIPTS_CI_DIR,
+    AIRFLOW_ROOT_PATH,
+    BUILD_CACHE_PATH,
+    GENERATED_DOCKER_COMPOSE_ENV_PATH,
+    GENERATED_DOCKER_ENV_PATH,
+    GENERATED_DOCKER_LOCK_PATH,
+    SCRIPTS_CI_PATH,
 )
 from airflow_breeze.utils.run_utils import commit_sha, run_command
 from airflow_breeze.utils.shared_options import get_forced_answer, get_verbose
 
-DOCKER_COMPOSE_DIR = SCRIPTS_CI_DIR / "docker-compose"
+DOCKER_COMPOSE_DIR = SCRIPTS_CI_PATH / "docker-compose"
 
 
 def generated_socket_compose_file(local_socket_path: str) -> str:
@@ -264,7 +264,7 @@ class ShellParams:
 
     @cached_property
     def airflow_sources(self):
-        return AIRFLOW_SOURCES_ROOT
+        return AIRFLOW_ROOT_PATH
 
     @cached_property
     def image_type(self) -> str:
@@ -272,7 +272,7 @@ class ShellParams:
 
     @cached_property
     def md5sum_cache_dir(self) -> Path:
-        cache_dir = Path(BUILD_CACHE_DIR, self.airflow_branch, self.python, self.image_type)
+        cache_dir = Path(BUILD_CACHE_PATH, self.airflow_branch, self.python, self.image_type)
         return cache_dir
 
     @cached_property
@@ -676,9 +676,9 @@ class ShellParams:
         """
         from filelock import FileLock
 
-        with FileLock(GENERATED_DOCKER_LOCK_FILE):
-            if GENERATED_DOCKER_ENV_FILE.exists():
-                generated_keys = GENERATED_DOCKER_ENV_FILE.read_text().splitlines()
+        with FileLock(GENERATED_DOCKER_LOCK_PATH):
+            if GENERATED_DOCKER_ENV_PATH.exists():
+                generated_keys = GENERATED_DOCKER_ENV_PATH.read_text().splitlines()
                 if set(env.keys()) == set(generated_keys):
                     # we check if the set of env variables had not changed since last run
                     # if so - cool, we do not need to do anything else
@@ -687,16 +687,16 @@ class ShellParams:
                     if get_verbose():
                         get_console().print(
                             f"[info]The keys has changed vs last run. Regenerating[/]: "
-                            f"{GENERATED_DOCKER_ENV_FILE} and {GENERATED_DOCKER_COMPOSE_ENV_FILE}"
+                            f"{GENERATED_DOCKER_ENV_PATH} and {GENERATED_DOCKER_COMPOSE_ENV_PATH}"
                         )
             if get_verbose():
-                get_console().print(f"[info]Generating new docker env file [/]: {GENERATED_DOCKER_ENV_FILE}")
-            GENERATED_DOCKER_ENV_FILE.write_text("\n".join(sorted(env.keys())))
+                get_console().print(f"[info]Generating new docker env file [/]: {GENERATED_DOCKER_ENV_PATH}")
+            GENERATED_DOCKER_ENV_PATH.write_text("\n".join(sorted(env.keys())))
             if get_verbose():
                 get_console().print(
-                    f"[info]Generating new docker compose env file [/]: {GENERATED_DOCKER_COMPOSE_ENV_FILE}"
+                    f"[info]Generating new docker compose env file [/]: {GENERATED_DOCKER_COMPOSE_ENV_PATH}"
                 )
-            GENERATED_DOCKER_COMPOSE_ENV_FILE.write_text(
+            GENERATED_DOCKER_COMPOSE_ENV_PATH.write_text(
                 "\n".join([f"{k}=${{{k}}}" for k in sorted(env.keys())])
             )
 

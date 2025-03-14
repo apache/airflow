@@ -181,7 +181,7 @@ class BuildProdParams(CommonBuildParams):
                 ]
             )
         maintainers = json.dumps([{"name": "Apache Airflow PMC", "email": "dev@airflow.apache.org"}])
-        logo_url = "https://github.com/apache/airflow/raw/main/docs/apache-airflow/img/logos/wordmark_1.png"
+        logo_url = "https://github.com/apache/airflow/raw/main/airflow-core/docs/img/logos/wordmark_1.png"
         readme_url = "https://raw.githubusercontent.com/apache/airflow/main/docs/docker-stack/README.md"
         extra_build_flags.extend(
             [

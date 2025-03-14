@@ -29,7 +29,7 @@ services:
       # Remove airflow sources from container
       - ../../../empty:/opt/airflow/airflow
       # But keep airflow/__init__.py to make hatchling happy when building empty package
-      - ../../../airflow/__init__.py:/opt/airflow/airflow/__init__.py
+      - ../../../airflow-core/src/airflow/__init__.py:/opt/airflow/airflow-core/src/airflow/__init__.py
       # Remove task-sdk sources from container
       - ../../../empty:/opt/airflow/task-sdk/src
       # But keep task-sdk/a__init__.py to make hatchling happy when building empty package

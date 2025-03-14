@@ -38,10 +38,10 @@ sys.path.insert(
 )  # make sure common utils are importable
 
 from common_precommit_utils import (
-    AIRFLOW_SOURCES_ROOT_PATH,
+    AIRFLOW_SOURCES_PATH,
 )
 
-sys.path.insert(0, str(AIRFLOW_SOURCES_ROOT_PATH))  # make sure setup is imported from Airflow
+sys.path.insert(0, str(AIRFLOW_SOURCES_PATH))  # make sure setup is imported from Airflow
 
 from airflow.api_fastapi.execution_api.app import create_task_execution_api_app
 

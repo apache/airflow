@@ -29,11 +29,11 @@ from pathlib import Path
 from checksumdir import dirhash
 from rich.console import Console
 
-AIRFLOW_SOURCES_ROOT = Path(__file__).parents[2].resolve()
-SVG_FILE = AIRFLOW_SOURCES_ROOT / "docs" / "apache-airflow" / "img" / "airflow_erd.svg"
+AIRFLOW_ROOT_ATH = Path(__file__).parents[2].resolve()
+SVG_FILE = AIRFLOW_ROOT_ATH / "airflow-core" / "docs" / "img" / "airflow_erd.svg"
 HASH_FILE = SVG_FILE.with_suffix(".sha256")
 
-MIGRATIONS_DIR = AIRFLOW_SOURCES_ROOT / "airflow" / "migrations"
+MIGRATIONS_DIR = AIRFLOW_ROOT_ATH / "airflow" / "migrations"
 if __name__ == "__main__":
     console = Console(width=400, color_system="standard")
     try:
@@ -80,6 +80,6 @@ if __name__ == "__main__":
     else:
         console.print("[green]Skip file generation as no files changes since last generation")
         console.print(
-            f"[bright_blue]You can delete [magenta]{HASH_FILE.relative_to(AIRFLOW_SOURCES_ROOT)}[/] "
+            f"[bright_blue]You can delete [magenta]{HASH_FILE.relative_to(AIRFLOW_ROOT_ATH)}[/] "
             f"[bright_blue]to regenerate the diagrams.[/]"
         )

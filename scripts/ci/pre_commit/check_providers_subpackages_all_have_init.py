@@ -22,7 +22,7 @@ import sys
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).parent.resolve()))  # make sure common_precommit_utils is imported
-from common_precommit_utils import AIRFLOW_PROVIDERS_ROOT_PATH, AIRFLOW_SOURCES_ROOT_PATH, console
+from common_precommit_utils import AIRFLOW_PROVIDERS_ROOT_PATH, AIRFLOW_ROOT_PATH, console
 
 ACCEPTED_NON_INIT_DIRS = [
     "adr",
@@ -139,7 +139,7 @@ if __name__ == "__main__":
     check_dir_init_src_folders(providers_distributions)
 
     if missing_init_dirs:
-        with AIRFLOW_SOURCES_ROOT_PATH.joinpath("scripts/ci/license-templates/LICENSE.txt").open() as license:
+        with AIRFLOW_ROOT_PATH.joinpath("scripts/ci/license-templates/LICENSE.txt").open() as license:
             license_txt = license.readlines()
         prefixed_licensed_txt = [f"# {line}" if line != "\n" else "#\n" for line in license_txt]
         for missing_init_dir in missing_init_dirs:

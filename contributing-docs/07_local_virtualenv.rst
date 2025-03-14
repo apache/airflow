@@ -212,7 +212,7 @@ package.
 
 .. code:: bash
 
-    pip install -e "."
+    pip install -e "./airflow-core"
     pip install -e "./devel-common"
 
 This will install airflow in ``editable`` mode and ``devel-common`` dependencies needed to run airflow
@@ -227,17 +227,17 @@ dependencies. For example, to install Amazon provider you need to install ``amaz
 
 .. code:: bash
 
+   pip install -e "./airflow-core[amazon]"
    pip install -e "./task-sdk"
    pip install -e "./devel-common"
    pip install -e "./providers/amazon"
-   pip install -e ".[amazon]"
 
 
 This will install:
 
+* airflow in ``editable`` mode with development dependencies of amazon
 * task sdk library for providers
 * common test dependencies
-* airflow in ``editable`` mode with development dependencies of amazon
 * amazon provider in ``editable`` mode
 
 Note that installing extras will not be needed (similarly as in case of ``uv``) when dependency groups
@@ -283,12 +283,12 @@ You can run the following command in the venv that you have installed airflow in
 
 .. code:: bash
 
-    pip install -e ".[google]"
+    pip install -e "./airflow-core[google]"
     pip install -e "./task-sdk"
     pip install -e "./devel-common"
     pip install -e "./providers/google"
 
-The first command installs airflow, it's development dependencies, test dependencies and
+The first command installs airflow core, it's development dependencies, test dependencies and
 both runtime and development dependencies of the google provider (Note that in the future, when
 dependency groups will be implemented in ``pip`` - April 2025) - it will not be needed to use ``google`` extra
 when installing airflow - currently with ``pip`` it is the only way to install development dependencies

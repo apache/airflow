@@ -108,7 +108,7 @@ from airflow_breeze.utils.parallel import (
     check_async_run_results,
     run_with_pool,
 )
-from airflow_breeze.utils.path_utils import AIRFLOW_SOURCES_ROOT, DOCKER_CONTEXT_DIR
+from airflow_breeze.utils.path_utils import AIRFLOW_ROOT_PATH, DOCKER_CONTEXT_PATH
 from airflow_breeze.utils.python_versions import get_python_version_list
 from airflow_breeze.utils.run_tests import verify_an_image
 from airflow_breeze.utils.run_utils import fix_group_permissions, run_command
@@ -735,7 +735,7 @@ def clean_docker_context_files():
         get_console().print("[info]Cleaning docker-context-files[/]")
     if get_dry_run():
         return
-    context_files_to_delete = DOCKER_CONTEXT_DIR.rglob("*")
+    context_files_to_delete = DOCKER_CONTEXT_PATH.rglob("*")
     for file_to_delete in context_files_to_delete:
         if file_to_delete.name != ".README.md":
             file_to_delete.unlink(missing_ok=True)
@@ -750,7 +750,7 @@ def check_docker_context_files(install_packages_from_context: bool):
 
     :param install_packages_from_context: whether we want to install from docker-context-files
     """
-    context_file = DOCKER_CONTEXT_DIR.rglob("*")
+    context_file = DOCKER_CONTEXT_PATH.rglob("*")
     any_context_files = any(
         context.is_file()
         and context.name not in (".README.md", ".DS_Store")
@@ -816,7 +816,7 @@ def run_build_production_image(
             prepare_docker_build_command(
                 image_params=prod_image_params,
             ),
-            cwd=AIRFLOW_SOURCES_ROOT,
+            cwd=AIRFLOW_ROOT_PATH,
             check=False,
             env=env,
             text=True,

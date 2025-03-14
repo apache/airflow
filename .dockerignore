@@ -27,7 +27,7 @@
 **
 
 # Allow only these directories
-!airflow
+!airflow-core
 !common
 !dags
 !dev

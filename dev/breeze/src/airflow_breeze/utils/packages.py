@@ -42,11 +42,11 @@ from airflow_breeze.utils.console import get_console
 from airflow_breeze.utils.functools_cache import clearable_cache
 from airflow_breeze.utils.path_utils import (
     AIRFLOW_ORIGINAL_PROVIDERS_DIR,
-    AIRFLOW_PROVIDERS_DIR,
-    BREEZE_SOURCES_DIR,
+    AIRFLOW_PROVIDERS_ROOT_PATH,
+    BREEZE_SOURCES_PATH,
     DOCS_ROOT,
-    PREVIOUS_AIRFLOW_PROVIDERS_NS_PACKAGE,
-    PROVIDER_DEPENDENCIES_JSON_FILE_PATH,
+    PREVIOUS_AIRFLOW_PROVIDERS_NS_PACKAGE_PATH,
+    PROVIDER_DEPENDENCIES_JSON_PATH,
 )
 from airflow_breeze.utils.publish_docs_helpers import (
     PROVIDER_DATA_SCHEMA_PATH,
@@ -169,7 +169,7 @@ def clear_cache_for_provider_metadata(provider_yaml_path: Path):
 @clearable_cache
 def get_all_provider_yaml_paths() -> list[Path]:
     """Returns list of provider.yaml files"""
-    return sorted(list(AIRFLOW_PROVIDERS_DIR.glob("**/provider.yaml")))
+    return sorted(list(AIRFLOW_PROVIDERS_ROOT_PATH.glob("**/provider.yaml")))
 
 
 def get_provider_id_from_path(file_path: Path) -> str | None:
@@ -301,7 +301,7 @@ def get_available_packages(
     :param include_all_providers: whether "all-providers" should be included ni the list.
 
     """
-    provider_dependencies = json.loads(PROVIDER_DEPENDENCIES_JSON_FILE_PATH.read_text())
+    provider_dependencies = json.loads(PROVIDER_DEPENDENCIES_JSON_PATH.read_text())
 
     valid_states = set()
     if include_not_ready:
@@ -425,7 +425,7 @@ def get_original_source_package_path(provider_id: str) -> Path:
 
 
 def get_previous_source_providers_package_path(provider_id: str) -> Path:
-    return PREVIOUS_AIRFLOW_PROVIDERS_NS_PACKAGE.joinpath(*provider_id.split("."))
+    return PREVIOUS_AIRFLOW_PROVIDERS_NS_PACKAGE_PATH.joinpath(*provider_id.split("."))
 
 
 def get_previous_documentation_package_path(provider_id: str) -> Path:
@@ -436,7 +436,7 @@ def get_previous_documentation_package_path(provider_id: str) -> Path:
 
 
 def get_documentation_package_path(provider_id: str) -> Path:
-    return AIRFLOW_PROVIDERS_DIR.joinpath(*provider_id.split(".")) / "docs"
+    return AIRFLOW_PROVIDERS_ROOT_PATH.joinpath(*provider_id.split(".")) / "docs"
 
 
 def get_pip_package_name(provider_id: str) -> str:
@@ -489,7 +489,7 @@ def apply_version_suffix(install_clause: str, version_suffix: str) -> str:
 
 
 def get_provider_yaml(provider_id: str) -> Path:
-    return AIRFLOW_PROVIDERS_DIR / provider_id.replace(".", "/") / "provider.yaml"
+    return AIRFLOW_PROVIDERS_ROOT_PATH / provider_id.replace(".", "/") / "provider.yaml"
 
 
 def load_pyproject_toml(pyproject_toml_file_path: Path) -> dict[str, Any]:
@@ -703,7 +703,7 @@ def render_template(
     """
     import jinja2
 
-    template_loader = jinja2.FileSystemLoader(searchpath=BREEZE_SOURCES_DIR / "airflow_breeze" / "templates")
+    template_loader = jinja2.FileSystemLoader(searchpath=BREEZE_SOURCES_PATH / "airflow_breeze" / "templates")
     template_env = jinja2.Environment(
         loader=template_loader,
         undefined=jinja2.StrictUndefined,
