@@ -54,6 +54,7 @@ from airflow.models.errors import ParseImportError
 if TYPE_CHECKING:
     from sqlalchemy.orm import Session
 
+REDACTED_STACKTRACE = "REDACTED - you do not have read permission on all DAGs in the file"
 import_error_router = AirflowRouter(tags=["Import Error"], prefix="/importErrors")
 
 
@@ -98,7 +99,7 @@ def get_import_error(
 
         # Check if user has read access to all the DAGs defined in the file
         if not file_dag_ids.issubset(readable_dag_ids):
-            error.stacktrace = "REDACTED - you do not have read permission on all DAGs in the file"
+            error.stacktrace = REDACTED_STACKTRACE
 
     return error
 
@@ -157,7 +158,7 @@ def get_import_errors(
             session=session,
         )
 
-    import_errors = session.scalars(import_errors_select)
+    import_errors = session.scalars(import_errors_select).all()
     if not can_read_all_dags:
         for import_error in import_errors:
             # Check if user has read access to all the DAGs defined in the file
@@ -171,7 +172,7 @@ def get_import_errors(
             ]
             if not auth_manager.batch_is_authorized_dag(requests, user=user):
                 session.expunge(import_error)
-                import_error.stacktrace = "REDACTED - you do not have read permission on all DAGs in the file"
+                import_error.stacktrace = REDACTED_STACKTRACE
 
     return ImportErrorCollectionResponse(
         import_errors=import_errors,
