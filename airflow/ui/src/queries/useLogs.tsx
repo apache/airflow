@@ -152,6 +152,9 @@ const parseLogs = ({ data, logLevelFilters, sourceFilters, taskInstance }: Parse
   let groupName = "";
   const sources: Array<string> = [];
 
+  // open the summary when hash is present since the link might have a hash linking to a line
+  const open = Boolean(location.hash);
+
   try {
     parsedLines = data.map((datum, index) => {
       if (typeof datum !== "string" && "logger" in datum) {
@@ -185,7 +188,7 @@ const parseLogs = ({ data, logLevelFilters, sourceFilters, taskInstance }: Parse
     } else if (text.includes("::endgroup::")) {
       startGroup = false;
       const group = (
-        <details key={groupName} style={{ width: "100%" }}>
+        <details key={groupName} open={open} style={{ width: "100%" }}>
           <summary data-testid={`summary-${groupName}`}>
             <chakra.span color="fg.info" cursor="pointer">
               {groupName}
