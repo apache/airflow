@@ -84,9 +84,9 @@ class TimeDeltaSensor(BaseSensorOperator):
             raise ValueError("`dag_run` not found in task context")
         return dag_run.run_after
 
-    def poke(self, context: Context):
+    def poke(self, context: Context) -> bool:
         base_time = self._derive_base_time(context=context)
-        target_dttm: datetime = base_time + self.delta
+        target_dttm = base_time + self.delta
         self.log.info("Checking if the delta has elapsed base_time=%s, delta=%s", base_time, self.delta)
         return timezone.utcnow() > target_dttm
 
