@@ -20,6 +20,7 @@ import { chakra, Code } from "@chakra-ui/react";
 import type { UseQueryOptions } from "@tanstack/react-query";
 import dayjs from "dayjs";
 import innerText from "react-innertext";
+import { Link } from "react-router-dom";
 
 import { useTaskInstanceServiceGetLog } from "openapi/queries";
 import type {
@@ -43,6 +44,7 @@ type ParseLogsProps = {
   data: TaskInstancesLogResponse["content"];
   logLevelFilters?: Array<string>;
   sourceFilters?: Array<string>;
+  taskInstance?: TaskInstanceResponse;
 };
 
 type RenderStructuredLogProps = {
@@ -50,6 +52,7 @@ type RenderStructuredLogProps = {
   logLevelFilters?: Array<string>;
   logMessage: string | StructuredLogMessage;
   sourceFilters?: Array<string>;
+  taskInstance?: TaskInstanceResponse;
 };
 
 const renderStructuredLog = ({
@@ -57,6 +60,7 @@ const renderStructuredLog = ({
   logLevelFilters,
   logMessage,
   sourceFilters,
+  taskInstance,
 }: RenderStructuredLogProps) => {
   if (typeof logMessage === "string") {
     return (
@@ -124,13 +128,18 @@ const renderStructuredLog = ({
   }
 
   return (
-    <chakra.p key={index} lineHeight={1.5}>
-      {elements}
-    </chakra.p>
+    <Link
+      key={index}
+      to={`/dags/${taskInstance?.dag_id}/runs/${taskInstance?.dag_run_id}/tasks/${taskInstance?.task_id}#${index}`}
+    >
+      <chakra.p id={index.toString()} key={index} lineHeight={1.5}>
+        {elements}
+      </chakra.p>
+    </Link>
   );
 };
 
-const parseLogs = ({ data, logLevelFilters, sourceFilters }: ParseLogsProps) => {
+const parseLogs = ({ data, logLevelFilters, sourceFilters, taskInstance }: ParseLogsProps) => {
   let warning;
   let parsedLines;
   let startGroup = false;
@@ -148,7 +157,7 @@ const parseLogs = ({ data, logLevelFilters, sourceFilters }: ParseLogsProps) => 
         }
       }
 
-      return renderStructuredLog({ index, logLevelFilters, logMessage: datum, sourceFilters });
+      return renderStructuredLog({ index, logLevelFilters, logMessage: datum, sourceFilters, taskInstance });
     });
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : "An error occurred.";
@@ -232,6 +241,7 @@ export const useLogs = (
     data: data?.content ?? [],
     logLevelFilters,
     sourceFilters,
+    taskInstance,
   });
 
   return { data: parsedData, ...rest };

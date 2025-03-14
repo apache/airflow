@@ -18,6 +18,7 @@
  */
 import { Box, Code, VStack } from "@chakra-ui/react";
 import type { ReactNode } from "react";
+import { useLayoutEffect } from "react";
 
 import { ErrorAlert } from "src/components/ErrorAlert";
 import { ProgressBar } from "src/components/ui";
@@ -30,24 +31,40 @@ type Props = {
   readonly wrap: boolean;
 };
 
-export const TaskLogContent = ({ error, isLoading, logError, parsedLogs, wrap }: Props) => (
-  <Box>
-    <ErrorAlert error={error ?? logError} />
-    <ProgressBar size="xs" visibility={isLoading ? "visible" : "hidden"} />
-    <Code
-      css={{
-        "& *::selection": {
-          bg: "blue.subtle",
-        },
-      }}
-      overflow="auto"
-      py={3}
-      textWrap={wrap ? "pre" : "nowrap"}
-      width="100%"
-    >
-      <VStack alignItems="flex-start" gap={0}>
-        {parsedLogs}
-      </VStack>
-    </Code>
-  </Box>
-);
+export const TaskLogContent = ({ error, isLoading, logError, parsedLogs, wrap }: Props) => {
+  useLayoutEffect(() => {
+    if (location.hash) {
+      const hash = location.hash.replace("#", "");
+
+      setTimeout(() => {
+        const element = document.querySelector(`[id='${hash}']`);
+
+        element?.scrollIntoView({
+          behavior: "smooth",
+        });
+      }, 100);
+    }
+  });
+
+  return (
+    <Box>
+      <ErrorAlert error={error ?? logError} />
+      <ProgressBar size="xs" visibility={isLoading ? "visible" : "hidden"} />
+      <Code
+        css={{
+          "& *::selection": {
+            bg: "blue.subtle",
+          },
+        }}
+        overflow="auto"
+        py={3}
+        textWrap={wrap ? "pre" : "nowrap"}
+        width="100%"
+      >
+        <VStack alignItems="flex-start" gap={0}>
+          {parsedLogs}
+        </VStack>
+      </Code>
+    </Box>
+  );
+};
