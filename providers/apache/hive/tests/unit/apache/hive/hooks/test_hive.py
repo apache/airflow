@@ -30,9 +30,9 @@ from airflow.exceptions import AirflowException
 from airflow.models.connection import Connection
 from airflow.models.dag import DAG
 from airflow.providers.apache.hive.hooks.hive import HiveCliHook, HiveMetastoreHook, HiveServer2Hook
+from airflow.sdk.execution_time.context import AIRFLOW_VAR_NAME_FORMAT_MAPPING
 from airflow.secrets.environment_variables import CONN_ENV_PREFIX
 from airflow.utils import timezone
-from airflow.utils.operator_helpers import AIRFLOW_VAR_NAME_FORMAT_MAPPING
 from unit.apache.hive import (
     BaseMockConnectionCursor,
     InvalidHiveCliHook,

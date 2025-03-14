@@ -71,6 +71,7 @@ from airflow.sdk.execution_time.context import (
     MacrosAccessor,
     OutletEventAccessors,
     VariableAccessor,
+    context_to_airflow_vars,
     get_previous_dagrun_success,
     set_current_context,
 )
@@ -595,6 +596,7 @@ def run(
     error: BaseException | None = None
     try:
         context = ti.get_template_context()
+
         with set_current_context(context):
             # This is the earliest that we can render templates -- as if it excepts for any reason we need to
             # catch it and handle it like a normal task failure
@@ -604,7 +606,6 @@ def run(
                 return state, msg, error
 
             result = _execute_task(context, ti)
-
         _push_xcom_if_needed(result, ti, log)
 
         msg = SucceedTask(
@@ -710,6 +711,10 @@ def _execute_task(context: Context, ti: RuntimeTaskInstance):
     ctx = contextvars.copy_context()
     # Populate the context var so ExecutorSafeguard doesn't complain
     ctx.run(ExecutorSafeguard.tracker.set, task)
+
+    # Export context to make it available for operators to use.
+    airflow_context_vars = context_to_airflow_vars(context, in_env_var_format=True)
+    os.environ.update(airflow_context_vars)
 
     if task.execution_timeout:
         # TODO: handle timeout in case of deferral

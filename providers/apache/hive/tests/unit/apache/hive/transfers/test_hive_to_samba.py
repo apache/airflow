@@ -24,7 +24,7 @@ import pytest
 
 from airflow.providers.apache.hive.transfers.hive_to_samba import HiveToSambaOperator
 from airflow.providers.samba.hooks.samba import SambaHook
-from airflow.utils.operator_helpers import context_to_airflow_vars
+from airflow.sdk.execution_time.context import context_to_airflow_vars
 from unit.apache.hive import (
     DEFAULT_DATE,
     MockConnectionCursor,

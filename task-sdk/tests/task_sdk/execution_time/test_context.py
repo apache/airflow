@@ -18,6 +18,7 @@
 from __future__ import annotations
 
 from datetime import datetime
+from unittest import mock
 from unittest.mock import MagicMock, patch
 
 import pytest
@@ -49,6 +50,7 @@ from airflow.sdk.execution_time.context import (
     VariableAccessor,
     _convert_connection_result_conn,
     _convert_variable_result_to_variable,
+    context_to_airflow_vars,
     set_current_context,
 )
 
@@ -101,6 +103,79 @@ def test_convert_variable_result_to_variable_with_deserialize_json():
     assert var == Variable(
         key="test_key", value={"key1": "value1", "key2": "value2", "enabled": True, "threshold": 42}
     )
+
+
+class TestAirflowContextHelpers:
+    def setup_method(self):
+        self.dag_id = "dag_id"
+        self.task_id = "task_id"
+        self.try_number = 1
+        self.logical_date = "2017-05-21T00:00:00"
+        self.dag_run_id = "dag_run_id"
+        self.owner = ["owner1", "owner2"]
+        self.email = ["email1@test.com"]
+        self.context = {
+            "dag_run": mock.MagicMock(
+                name="dag_run",
+                run_id=self.dag_run_id,
+                logical_date=datetime.strptime(self.logical_date, "%Y-%m-%dT%H:%M:%S"),
+            ),
+            "task_instance": mock.MagicMock(
+                name="task_instance",
+                task_id=self.task_id,
+                dag_id=self.dag_id,
+                try_number=self.try_number,
+                logical_date=datetime.strptime(self.logical_date, "%Y-%m-%dT%H:%M:%S"),
+            ),
+            "task": mock.MagicMock(name="task", owner=self.owner, email=self.email),
+        }
+
+    def test_context_to_airflow_vars_empty_context(self):
+        assert context_to_airflow_vars({}) == {}
+
+    def test_context_to_airflow_vars_all_context(self):
+        assert context_to_airflow_vars(self.context) == {
+            "airflow.ctx.dag_id": self.dag_id,
+            "airflow.ctx.logical_date": self.logical_date,
+            "airflow.ctx.task_id": self.task_id,
+            "airflow.ctx.dag_run_id": self.dag_run_id,
+            "airflow.ctx.try_number": str(self.try_number),
+            "airflow.ctx.dag_owner": "owner1,owner2",
+            "airflow.ctx.dag_email": "email1@test.com",
+        }
+
+        assert context_to_airflow_vars(self.context, in_env_var_format=True) == {
+            "AIRFLOW_CTX_DAG_ID": self.dag_id,
+            "AIRFLOW_CTX_LOGICAL_DATE": self.logical_date,
+            "AIRFLOW_CTX_TASK_ID": self.task_id,
+            "AIRFLOW_CTX_TRY_NUMBER": str(self.try_number),
+            "AIRFLOW_CTX_DAG_RUN_ID": self.dag_run_id,
+            "AIRFLOW_CTX_DAG_OWNER": "owner1,owner2",
+            "AIRFLOW_CTX_DAG_EMAIL": "email1@test.com",
+        }
+
+    def test_context_to_airflow_vars_with_default_context_vars(self):
+        with mock.patch("airflow.settings.get_airflow_context_vars") as mock_method:
+            airflow_cluster = "cluster-a"
+            mock_method.return_value = {"airflow_cluster": airflow_cluster}
+
+            context_vars = context_to_airflow_vars(self.context)
+            assert context_vars["airflow.ctx.airflow_cluster"] == airflow_cluster
+
+            context_vars = context_to_airflow_vars(self.context, in_env_var_format=True)
+            assert context_vars["AIRFLOW_CTX_AIRFLOW_CLUSTER"] == airflow_cluster
+
+        with mock.patch("airflow.settings.get_airflow_context_vars") as mock_method:
+            mock_method.return_value = {"airflow_cluster": [1, 2]}
+            with pytest.raises(TypeError) as error:
+                context_to_airflow_vars(self.context)
+            assert str(error.value) == "value of key <airflow_cluster> must be string, not <class 'list'>"
+
+        with mock.patch("airflow.settings.get_airflow_context_vars") as mock_method:
+            mock_method.return_value = {1: "value"}
+            with pytest.raises(TypeError) as error:
+                context_to_airflow_vars(self.context)
+            assert str(error.value) == "key <1> must be string"
 
 
 class TestConnectionAccessor:
