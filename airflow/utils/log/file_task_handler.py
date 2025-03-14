@@ -96,18 +96,18 @@ def _fetch_logs_from_service(url, log_relative_path):
     # Import occurs in function scope for perf. Ref: https://github.com/apache/airflow/pull/21438
     import requests
 
-    from airflow.utils.jwt_signer import JWTSigner, get_signing_key
+    from airflow.api_fastapi.auth.tokens import JWTGenerator, get_signing_key
 
     timeout = conf.getint("webserver", "log_fetch_timeout_sec", fallback=None)
-    signer = JWTSigner(
+    generator = JWTGenerator(
         secret_key=get_signing_key("webserver", "secret_key"),
-        expiration_time_in_seconds=conf.getint("webserver", "log_request_clock_grace", fallback=30),
+        valid_for=conf.getint("webserver", "log_request_clock_grace", fallback=30),
         audience="task-instance-logs",
     )
     response = requests.get(
         url,
         timeout=timeout,
-        headers={"Authorization": signer.generate_signed_token({"filename": log_relative_path})},
+        headers={"Authorization": generator.generate({"filename": log_relative_path})},
     )
     response.encoding = "utf-8"
     return response

@@ -19,6 +19,7 @@ from __future__ import annotations
 
 import logging
 from abc import ABCMeta, abstractmethod
+from functools import cache
 from typing import TYPE_CHECKING, Any, Generic, TypeVar
 
 from jwt import InvalidTokenError
@@ -26,11 +27,16 @@ from sqlalchemy import select
 
 from airflow.api_fastapi.auth.managers.models.base_user import BaseUser
 from airflow.api_fastapi.auth.managers.models.resource_details import BackfillDetails, DagDetails
+from airflow.api_fastapi.auth.tokens import (
+    JWTGenerator,
+    JWTValidator,
+    get_sig_validation_args,
+    get_signing_args,
+)
 from airflow.api_fastapi.common.types import ExtraMenuItem, MenuItem
 from airflow.configuration import conf
 from airflow.models import DagModel
 from airflow.typing_compat import Literal
-from airflow.utils.jwt_signer import JWTSigner, get_signing_key
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.session import NEW_SESSION, provide_session
 
@@ -86,24 +92,24 @@ class BaseAuthManager(Generic[T], LoggingMixin, metaclass=ABCMeta):
 
     @abstractmethod
     def serialize_user(self, user: T) -> dict[str, Any]:
-        """Create a dict from a user object."""
+        """Create a subject and extra claims dict from a user object."""
 
-    def get_user_from_token(self, token: str) -> BaseUser:
+    async def get_user_from_token(self, token: str) -> BaseUser:
         """Verify the JWT token is valid and create a user object from it if valid."""
         try:
-            payload: dict[str, Any] = self._get_token_signer().verify_token(token)
+            payload: dict[str, Any] = await self._get_token_validator().avalidated_claims(token)
             return self.deserialize_user(payload)
         except InvalidTokenError as e:
-            log.error("JWT token is not valid")
+            log.error("JWT token is not valid: %s", e)
             raise e
 
-    def get_jwt_token(
-        self, user: T, *, expiration_time_in_seconds: int = conf.getint("api", "auth_jwt_expiration_time")
+    def generate_jwt(
+        self, user: T, *, expiration_time_in_seconds: int = conf.getint("api_auth", "jwt_expiration_time")
     ) -> str:
         """Return the JWT token from a user object."""
-        return self._get_token_signer(
-            expiration_time_in_seconds=expiration_time_in_seconds
-        ).generate_signed_token(self.serialize_user(user))
+        return self._get_token_signer(expiration_time_in_seconds=expiration_time_in_seconds).generate(
+            self.serialize_user(user)
+        )
 
     @abstractmethod
     def get_url_login(self, **kwargs) -> str:
@@ -450,10 +456,12 @@ class BaseAuthManager(Generic[T], LoggingMixin, metaclass=ABCMeta):
         """
         return []
 
-    @staticmethod
+    @classmethod
+    @cache
     def _get_token_signer(
-        expiration_time_in_seconds: int = conf.getint("api", "auth_jwt_expiration_time"),
-    ) -> JWTSigner:
+        cls,
+        expiration_time_in_seconds: int = conf.getint("api_auth", "jwt_expiration_time"),
+    ) -> JWTGenerator:
         """
         Return the signer used to sign JWT token.
 
@@ -461,8 +469,22 @@ class BaseAuthManager(Generic[T], LoggingMixin, metaclass=ABCMeta):
 
         :param expiration_time_in_seconds: expiration time in seconds of the token
         """
-        return JWTSigner(
-            secret_key=get_signing_key("api", "auth_jwt_secret"),
-            expiration_time_in_seconds=expiration_time_in_seconds,
-            audience="front-apis",
+        return JWTGenerator(
+            **get_signing_args(),
+            valid_for=expiration_time_in_seconds,
+            audience=conf.get("api", "jwt_audience", fallback="apache-airflow"),
+        )
+
+    @classmethod
+    @cache
+    def _get_token_validator(cls) -> JWTValidator:
+        """
+        Return the signer used to sign JWT token.
+
+        :meta private:
+        """
+        return JWTValidator(
+            **get_sig_validation_args(),
+            leeway=conf.getint("api_auth", "jwt_leeway"),
+            audience=conf.get("api_auth", "jwt_audience", fallback="apache-airflow"),
         )

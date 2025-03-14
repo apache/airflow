@@ -935,6 +935,7 @@ juli
 Jupyter
 jupyter
 jupytercmd
+jwks
 JWT
 jwt
 Kafka
