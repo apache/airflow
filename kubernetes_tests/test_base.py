@@ -25,7 +25,6 @@ import time
 from datetime import datetime, timezone
 from pathlib import Path
 from subprocess import check_call, check_output
-from urllib.parse import parse_qs, urlparse
 
 import pytest
 import requests
@@ -145,13 +144,9 @@ class BaseK8STest:
         Note: API server is still using FAB Auth Manager.
 
         Steps:
-        1. Get the login page to get the csrf token
-            - The csrf token is in the hidden input field with id "csrf_token"
-        2. Login with the username and password
+        1. Login with the username and password
             - Must use the same session to keep the csrf token session
-        3. Extract the JWT token from the redirect url
-            - Expected to have a connection error
-            - The redirect url should have the JWT token as a query parameter
+        2. Extract the JWT token from the auth/token url
 
         :param session: The session to use for the request
         :param username: The username to use for the login
@@ -163,28 +158,14 @@ class BaseK8STest:
         session = requests.Session()
         session.mount("http://", HTTPAdapter(max_retries=retry))
         session.mount("https://", HTTPAdapter(max_retries=retry))
-        get_login_form_response = session.get(f"http://{KUBERNETES_HOST_PORT}/auth/login")
-        csrf_token = re.search(
-            r'<input id="csrf_token" name="csrf_token" type="hidden" value="(.+?)">',
-            get_login_form_response.text,
-        )
-        assert csrf_token, "Failed to get csrf token from login page"
-        csrf_token_str = csrf_token.group(1)
-        assert csrf_token_str, "Failed to get csrf token from login page"
-        # login with form data
+        url = f"http://{KUBERNETES_HOST_PORT}/auth/token"
         login_response = session.post(
-            f"http://{KUBERNETES_HOST_PORT}/auth/login",
-            data={"username": username, "password": password, "csrf_token": csrf_token_str},
+            url,
+            json={"username": username, "password": password},
         )
-        redirect_url = login_response.url
-        # ensure redirect_url is a string
-        redirect_url_str = str(redirect_url) if redirect_url is not None else ""
-        assert "/?token" in redirect_url_str, f"Login failed with redirect url {redirect_url_str}"
-        parsed_url = urlparse(redirect_url_str)
-        query_params = parse_qs(str(parsed_url.query))
-        jwt_token_list = query_params.get("token")
-        jwt_token = jwt_token_list[0] if jwt_token_list else None
-        assert jwt_token, f"Failed to get JWT token from redirect url {redirect_url_str}"
+        jwt_token = login_response.json().get("jwt_token")
+
+        assert jwt_token, f"Failed to get JWT token from redirect url {url} with status code {login_response}"
         return jwt_token
 
     def _get_session_with_retries(self):

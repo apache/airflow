@@ -62,7 +62,7 @@ class TestLogin:
             response = test_client.get("/auth/token", follow_redirects=False)
             assert response.status_code == 307
             assert "location" in response.headers
-            assert response.headers["location"].startswith("http://localhost:8080/?token=")
+            assert response.cookies.get("_token") is not None
 
     def test_create_token_all_admins_config_disabled(self, test_client):
         response = test_client.get("/auth/token")
