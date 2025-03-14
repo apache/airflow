@@ -46,7 +46,7 @@ class TestGetLogin(TestAuthEndpoint):
         ],
     )
     def test_should_respond_307(self, test_client, params):
-        response = test_client.get("/public/auth/login", follow_redirects=False, params=params)
+        response = test_client.get("/v2/auth/login", follow_redirects=False, params=params)
 
         assert response.status_code == 307
         assert (
@@ -64,7 +64,7 @@ class TestGetLogin(TestAuthEndpoint):
     )
     @conf_vars({("api", "base_url"): "http://localhost:8080/prefix"})
     def test_should_respond_400(self, test_client, params):
-        response = test_client.get("/public/auth/login", follow_redirects=False, params=params)
+        response = test_client.get("/v2/auth/login", follow_redirects=False, params=params)
 
         assert response.status_code == 400
 

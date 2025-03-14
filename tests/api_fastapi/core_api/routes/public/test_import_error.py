@@ -158,7 +158,7 @@ class TestGetImportError:
             import_errors[prepared_import_error_idx] if prepared_import_error_idx is not None else None
         )
         import_error_id = import_error.id if import_error else IMPORT_ERROR_NON_EXISTED_ID
-        response = test_client.get(f"/public/importErrors/{import_error_id}")
+        response = test_client.get(f"/v2/importErrors/{import_error_id}")
         assert response.status_code == expected_status_code
         if expected_status_code != 200:
             return
@@ -296,7 +296,7 @@ class TestGetImportErrors:
         expected_total_entries,
         expected_filenames,
     ):
-        response = test_client.get("/public/importErrors", params=query_params)
+        response = test_client.get("/v2/importErrors", params=query_params)
 
         assert response.status_code == expected_status_code
         if expected_status_code != 200:

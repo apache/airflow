@@ -2624,7 +2624,7 @@ export type $OpenApiTs = {
       };
     };
   };
-  "/public/assets": {
+  "/v2/assets": {
     get: {
       req: GetAssetsData;
       res: {
@@ -2651,7 +2651,7 @@ export type $OpenApiTs = {
       };
     };
   };
-  "/public/assets/aliases": {
+  "/v2/assets/aliases": {
     get: {
       req: GetAssetAliasesData;
       res: {
@@ -2678,7 +2678,7 @@ export type $OpenApiTs = {
       };
     };
   };
-  "/public/assets/aliases/{asset_alias_id}": {
+  "/v2/assets/aliases/{asset_alias_id}": {
     get: {
       req: GetAssetAliasData;
       res: {
@@ -2705,7 +2705,7 @@ export type $OpenApiTs = {
       };
     };
   };
-  "/public/assets/events": {
+  "/v2/assets/events": {
     get: {
       req: GetAssetEventsData;
       res: {
@@ -2757,7 +2757,7 @@ export type $OpenApiTs = {
       };
     };
   };
-  "/public/assets/{asset_id}/materialize": {
+  "/v2/assets/{asset_id}/materialize": {
     post: {
       req: MaterializeAssetData;
       res: {
@@ -2788,7 +2788,7 @@ export type $OpenApiTs = {
       };
     };
   };
-  "/public/assets/{asset_id}/queuedEvents": {
+  "/v2/assets/{asset_id}/queuedEvents": {
     get: {
       req: GetAssetQueuedEventsData;
       res: {
@@ -2840,7 +2840,7 @@ export type $OpenApiTs = {
       };
     };
   };
-  "/public/assets/{asset_id}": {
+  "/v2/assets/{asset_id}": {
     get: {
       req: GetAssetData;
       res: {
@@ -2867,7 +2867,7 @@ export type $OpenApiTs = {
       };
     };
   };
-  "/public/dags/{dag_id}/assets/queuedEvents": {
+  "/v2/dags/{dag_id}/assets/queuedEvents": {
     get: {
       req: GetDagAssetQueuedEventsData;
       res: {
@@ -2923,7 +2923,7 @@ export type $OpenApiTs = {
       };
     };
   };
-  "/public/dags/{dag_id}/assets/{asset_id}/queuedEvents": {
+  "/v2/dags/{dag_id}/assets/{asset_id}/queuedEvents": {
     get: {
       req: GetDagAssetQueuedEventData;
       res: {
@@ -2993,7 +2993,7 @@ export type $OpenApiTs = {
       };
     };
   };
-  "/public/config": {
+  "/v2/config": {
     get: {
       req: GetConfigData;
       res: {
@@ -3024,7 +3024,7 @@ export type $OpenApiTs = {
       };
     };
   };
-  "/public/config/section/{section}/option/{option}": {
+  "/v2/config/section/{section}/option/{option}": {
     get: {
       req: GetConfigValueData;
       res: {
@@ -3065,7 +3065,7 @@ export type $OpenApiTs = {
       };
     };
   };
-  "/public/connections/{connection_id}": {
+  "/v2/connections/{connection_id}": {
     delete: {
       req: DeleteConnectionData;
       res: {
@@ -3146,7 +3146,7 @@ export type $OpenApiTs = {
       };
     };
   };
-  "/public/connections": {
+  "/v2/connections": {
     get: {
       req: GetConnectionsData;
       res: {
@@ -3219,7 +3219,7 @@ export type $OpenApiTs = {
       };
     };
   };
-  "/public/connections/test": {
+  "/v2/connections/test": {
     post: {
       req: TestConnectionData;
       res: {
@@ -3242,7 +3242,7 @@ export type $OpenApiTs = {
       };
     };
   };
-  "/public/connections/defaults": {
+  "/v2/connections/defaults": {
     post: {
       res: {
         /**
@@ -3351,7 +3351,7 @@ export type $OpenApiTs = {
       };
     };
   };
-  "/public/backfills": {
+  "/v2/backfills": {
     get: {
       req: ListBackfills1Data;
       res: {
@@ -3403,7 +3403,7 @@ export type $OpenApiTs = {
       };
     };
   };
-  "/public/backfills/{backfill_id}": {
+  "/v2/backfills/{backfill_id}": {
     get: {
       req: GetBackfillData;
       res: {
@@ -3430,7 +3430,7 @@ export type $OpenApiTs = {
       };
     };
   };
-  "/public/backfills/{backfill_id}/pause": {
+  "/v2/backfills/{backfill_id}/pause": {
     put: {
       req: PauseBackfillData;
       res: {
@@ -3461,7 +3461,7 @@ export type $OpenApiTs = {
       };
     };
   };
-  "/public/backfills/{backfill_id}/unpause": {
+  "/v2/backfills/{backfill_id}/unpause": {
     put: {
       req: UnpauseBackfillData;
       res: {
@@ -3492,7 +3492,7 @@ export type $OpenApiTs = {
       };
     };
   };
-  "/public/backfills/{backfill_id}/cancel": {
+  "/v2/backfills/{backfill_id}/cancel": {
     put: {
       req: CancelBackfillData;
       res: {
@@ -3523,7 +3523,7 @@ export type $OpenApiTs = {
       };
     };
   };
-  "/public/backfills/dry_run": {
+  "/v2/backfills/dry_run": {
     post: {
       req: CreateBackfillDryRunData;
       res: {
@@ -3577,7 +3577,7 @@ export type $OpenApiTs = {
       };
     };
   };
-  "/public/dags/{dag_id}/dagRuns/{dag_run_id}": {
+  "/v2/dags/{dag_id}/dagRuns/{dag_run_id}": {
     get: {
       req: GetDagRunData;
       res: {
@@ -3662,7 +3662,7 @@ export type $OpenApiTs = {
       };
     };
   };
-  "/public/dags/{dag_id}/dagRuns/{dag_run_id}/upstreamAssetEvents": {
+  "/v2/dags/{dag_id}/dagRuns/{dag_run_id}/upstreamAssetEvents": {
     get: {
       req: GetUpstreamAssetEventsData;
       res: {
@@ -3689,7 +3689,7 @@ export type $OpenApiTs = {
       };
     };
   };
-  "/public/dags/{dag_id}/dagRuns/{dag_run_id}/clear": {
+  "/v2/dags/{dag_id}/dagRuns/{dag_run_id}/clear": {
     post: {
       req: ClearDagRunData;
       res: {
@@ -3716,7 +3716,7 @@ export type $OpenApiTs = {
       };
     };
   };
-  "/public/dags/{dag_id}/dagRuns": {
+  "/v2/dags/{dag_id}/dagRuns": {
     get: {
       req: GetDagRunsData;
       res: {
@@ -3776,7 +3776,7 @@ export type $OpenApiTs = {
       };
     };
   };
-  "/public/dags/{dag_id}/dagRuns/list": {
+  "/v2/dags/{dag_id}/dagRuns/list": {
     post: {
       req: GetListDagRunsBatchData;
       res: {
@@ -3803,7 +3803,7 @@ export type $OpenApiTs = {
       };
     };
   };
-  "/public/dagSources/{dag_id}": {
+  "/v2/dagSources/{dag_id}": {
     get: {
       req: GetDagSourceData;
       res: {
@@ -3838,7 +3838,7 @@ export type $OpenApiTs = {
       };
     };
   };
-  "/public/dagStats": {
+  "/v2/dagStats": {
     get: {
       req: GetDagStatsData;
       res: {
@@ -3869,7 +3869,7 @@ export type $OpenApiTs = {
       };
     };
   };
-  "/public/dagReports": {
+  "/v2/dagReports": {
     get: {
       req: GetDagReportsData;
       res: {
@@ -3896,7 +3896,7 @@ export type $OpenApiTs = {
       };
     };
   };
-  "/public/dagWarnings": {
+  "/v2/dagWarnings": {
     get: {
       req: ListDagWarningsData;
       res: {
@@ -3919,7 +3919,7 @@ export type $OpenApiTs = {
       };
     };
   };
-  "/public/dags": {
+  "/v2/dags": {
     get: {
       req: GetDagsData;
       res: {
@@ -3971,7 +3971,7 @@ export type $OpenApiTs = {
       };
     };
   };
-  "/public/dags/{dag_id}": {
+  "/v2/dags/{dag_id}": {
     get: {
       req: GetDagData;
       res: {
@@ -4060,7 +4060,7 @@ export type $OpenApiTs = {
       };
     };
   };
-  "/public/dags/{dag_id}/details": {
+  "/v2/dags/{dag_id}/details": {
     get: {
       req: GetDagDetailsData;
       res: {
@@ -4091,7 +4091,7 @@ export type $OpenApiTs = {
       };
     };
   };
-  "/public/dagTags": {
+  "/v2/dagTags": {
     get: {
       req: GetDagTagsData;
       res: {
@@ -4114,7 +4114,7 @@ export type $OpenApiTs = {
       };
     };
   };
-  "/public/eventLogs/{event_log_id}": {
+  "/v2/eventLogs/{event_log_id}": {
     get: {
       req: GetEventLogData;
       res: {
@@ -4141,7 +4141,7 @@ export type $OpenApiTs = {
       };
     };
   };
-  "/public/eventLogs": {
+  "/v2/eventLogs": {
     get: {
       req: GetEventLogsData;
       res: {
@@ -4164,7 +4164,7 @@ export type $OpenApiTs = {
       };
     };
   };
-  "/public/dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances/{task_id}/links": {
+  "/v2/dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances/{task_id}/links": {
     get: {
       req: GetExtraLinksData;
       res: {
@@ -4191,7 +4191,7 @@ export type $OpenApiTs = {
       };
     };
   };
-  "/public/dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances/{task_id}": {
+  "/v2/dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances/{task_id}": {
     get: {
       req: GetTaskInstanceData;
       res: {
@@ -4251,7 +4251,7 @@ export type $OpenApiTs = {
       };
     };
   };
-  "/public/dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances/{task_id}/listMapped": {
+  "/v2/dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances/{task_id}/listMapped": {
     get: {
       req: GetMappedTaskInstancesData;
       res: {
@@ -4278,7 +4278,7 @@ export type $OpenApiTs = {
       };
     };
   };
-  "/public/dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances/{task_id}/{map_index}/dependencies": {
+  "/v2/dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances/{task_id}/{map_index}/dependencies": {
     get: {
       req: GetTaskInstanceDependenciesData;
       res: {
@@ -4305,7 +4305,7 @@ export type $OpenApiTs = {
       };
     };
   };
-  "/public/dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances/{task_id}/dependencies": {
+  "/v2/dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances/{task_id}/dependencies": {
     get: {
       req: GetTaskInstanceDependencies1Data;
       res: {
@@ -4332,7 +4332,7 @@ export type $OpenApiTs = {
       };
     };
   };
-  "/public/dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances/{task_id}/tries": {
+  "/v2/dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances/{task_id}/tries": {
     get: {
       req: GetTaskInstanceTriesData;
       res: {
@@ -4359,7 +4359,7 @@ export type $OpenApiTs = {
       };
     };
   };
-  "/public/dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances/{task_id}/{map_index}/tries": {
+  "/v2/dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances/{task_id}/{map_index}/tries": {
     get: {
       req: GetMappedTaskInstanceTriesData;
       res: {
@@ -4386,7 +4386,7 @@ export type $OpenApiTs = {
       };
     };
   };
-  "/public/dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances/{task_id}/{map_index}": {
+  "/v2/dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances/{task_id}/{map_index}": {
     get: {
       req: GetMappedTaskInstanceData;
       res: {
@@ -4446,7 +4446,7 @@ export type $OpenApiTs = {
       };
     };
   };
-  "/public/dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances": {
+  "/v2/dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances": {
     get: {
       req: GetTaskInstancesData;
       res: {
@@ -4473,7 +4473,7 @@ export type $OpenApiTs = {
       };
     };
   };
-  "/public/dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances/list": {
+  "/v2/dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances/list": {
     post: {
       req: GetTaskInstancesBatchData;
       res: {
@@ -4500,7 +4500,7 @@ export type $OpenApiTs = {
       };
     };
   };
-  "/public/dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances/{task_id}/tries/{task_try_number}": {
+  "/v2/dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances/{task_id}/tries/{task_try_number}": {
     get: {
       req: GetTaskInstanceTryDetailsData;
       res: {
@@ -4527,7 +4527,7 @@ export type $OpenApiTs = {
       };
     };
   };
-  "/public/dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances/{task_id}/{map_index}/tries/{task_try_number}": {
+  "/v2/dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances/{task_id}/{map_index}/tries/{task_try_number}": {
     get: {
       req: GetMappedTaskInstanceTryDetailsData;
       res: {
@@ -4554,7 +4554,7 @@ export type $OpenApiTs = {
       };
     };
   };
-  "/public/dags/{dag_id}/clearTaskInstances": {
+  "/v2/dags/{dag_id}/clearTaskInstances": {
     post: {
       req: PostClearTaskInstancesData;
       res: {
@@ -4581,7 +4581,7 @@ export type $OpenApiTs = {
       };
     };
   };
-  "/public/dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances/{task_id}/{map_index}/dry_run": {
+  "/v2/dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances/{task_id}/{map_index}/dry_run": {
     patch: {
       req: PatchTaskInstanceDryRunData;
       res: {
@@ -4612,7 +4612,7 @@ export type $OpenApiTs = {
       };
     };
   };
-  "/public/dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances/{task_id}/dry_run": {
+  "/v2/dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances/{task_id}/dry_run": {
     patch: {
       req: PatchTaskInstanceDryRun1Data;
       res: {
@@ -4643,7 +4643,7 @@ export type $OpenApiTs = {
       };
     };
   };
-  "/public/dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances/{task_id}/logs/{try_number}": {
+  "/v2/dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances/{task_id}/logs/{try_number}": {
     get: {
       req: GetLogData;
       res: {
@@ -4670,7 +4670,7 @@ export type $OpenApiTs = {
       };
     };
   };
-  "/public/importErrors/{import_error_id}": {
+  "/v2/importErrors/{import_error_id}": {
     get: {
       req: GetImportErrorData;
       res: {
@@ -4697,7 +4697,7 @@ export type $OpenApiTs = {
       };
     };
   };
-  "/public/importErrors": {
+  "/v2/importErrors": {
     get: {
       req: GetImportErrorsData;
       res: {
@@ -4720,7 +4720,7 @@ export type $OpenApiTs = {
       };
     };
   };
-  "/public/jobs": {
+  "/v2/jobs": {
     get: {
       req: GetJobsData;
       res: {
@@ -4747,7 +4747,7 @@ export type $OpenApiTs = {
       };
     };
   };
-  "/public/plugins": {
+  "/v2/plugins": {
     get: {
       req: GetPluginsData;
       res: {
@@ -4770,7 +4770,7 @@ export type $OpenApiTs = {
       };
     };
   };
-  "/public/pools/{pool_name}": {
+  "/v2/pools/{pool_name}": {
     delete: {
       req: DeletePoolData;
       res: {
@@ -4855,7 +4855,7 @@ export type $OpenApiTs = {
       };
     };
   };
-  "/public/pools": {
+  "/v2/pools": {
     get: {
       req: GetPoolsData;
       res: {
@@ -4928,7 +4928,7 @@ export type $OpenApiTs = {
       };
     };
   };
-  "/public/providers": {
+  "/v2/providers": {
     get: {
       req: GetProvidersData;
       res: {
@@ -4951,7 +4951,7 @@ export type $OpenApiTs = {
       };
     };
   };
-  "/public/dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances/{task_id}/xcomEntries/{xcom_key}": {
+  "/v2/dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances/{task_id}/xcomEntries/{xcom_key}": {
     get: {
       req: GetXcomEntryData;
       res: {
@@ -5011,7 +5011,7 @@ export type $OpenApiTs = {
       };
     };
   };
-  "/public/dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances/{task_id}/xcomEntries": {
+  "/v2/dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances/{task_id}/xcomEntries": {
     get: {
       req: GetXcomEntriesData;
       res: {
@@ -5071,7 +5071,7 @@ export type $OpenApiTs = {
       };
     };
   };
-  "/public/dags/{dag_id}/tasks": {
+  "/v2/dags/{dag_id}/tasks": {
     get: {
       req: GetTasksData;
       res: {
@@ -5102,7 +5102,7 @@ export type $OpenApiTs = {
       };
     };
   };
-  "/public/dags/{dag_id}/tasks/{task_id}": {
+  "/v2/dags/{dag_id}/tasks/{task_id}": {
     get: {
       req: GetTaskData;
       res: {
@@ -5133,7 +5133,7 @@ export type $OpenApiTs = {
       };
     };
   };
-  "/public/variables/{variable_key}": {
+  "/v2/variables/{variable_key}": {
     delete: {
       req: DeleteVariableData;
       res: {
@@ -5214,7 +5214,7 @@ export type $OpenApiTs = {
       };
     };
   };
-  "/public/variables": {
+  "/v2/variables": {
     get: {
       req: GetVariablesData;
       res: {
@@ -5283,7 +5283,7 @@ export type $OpenApiTs = {
       };
     };
   };
-  "/public/parseDagFile/{file_token}": {
+  "/v2/parseDagFile/{file_token}": {
     put: {
       req: ReparseDagFileData;
       res: {
@@ -5310,7 +5310,7 @@ export type $OpenApiTs = {
       };
     };
   };
-  "/public/dags/{dag_id}/dagVersions/{version_number}": {
+  "/v2/dags/{dag_id}/dagVersions/{version_number}": {
     get: {
       req: GetDagVersionData;
       res: {
@@ -5337,7 +5337,7 @@ export type $OpenApiTs = {
       };
     };
   };
-  "/public/dags/{dag_id}/dagVersions": {
+  "/v2/dags/{dag_id}/dagVersions": {
     get: {
       req: GetDagVersionsData;
       res: {
@@ -5364,7 +5364,7 @@ export type $OpenApiTs = {
       };
     };
   };
-  "/public/monitor/health": {
+  "/v2/monitor/health": {
     get: {
       res: {
         /**
@@ -5374,7 +5374,7 @@ export type $OpenApiTs = {
       };
     };
   };
-  "/public/version": {
+  "/v2/version": {
     get: {
       res: {
         /**
@@ -5384,7 +5384,7 @@ export type $OpenApiTs = {
       };
     };
   };
-  "/public/auth/login": {
+  "/v2/auth/login": {
     get: {
       req: LoginData;
       res: {
