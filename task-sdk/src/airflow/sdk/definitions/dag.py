@@ -357,7 +357,6 @@ class DAG:
     :param dag_display_name: The display name of the DAG which appears on the UI.
     """
 
-    from airflow.configuration import conf as airflow_conf
 
     __serialized_fields: ClassVar[frozenset[str]]
 
