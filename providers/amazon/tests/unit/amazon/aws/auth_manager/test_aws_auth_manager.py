@@ -484,7 +484,10 @@ class TestAwsAuthManager:
             requests=[
                 {"method": "GET"},
                 {"method": "GET", "details": DagDetails(id="dag_1")},
-                {"method": "GET", "details": DagDetails(id="dag_1"), "access_entity": DagAccessEntity.CODE},
+            ]
+            + [
+                {"method": "GET", "details": DagDetails(id="dag_1"), "access_entity": dag_access_entity}
+                for dag_access_entity in DagAccessEntity
             ],
             user=mock,
         )
@@ -503,16 +506,28 @@ class TestAwsAuthManager:
                     "entity_id": "dag_1",
                     "context": None,
                 },
+            ]
+            + [
                 {
                     "method": "GET",
                     "entity_type": AvpEntities.DAG,
                     "entity_id": "dag_1",
-                    "context": {
-                        "dag_entity": {
-                            "string": DagAccessEntity.CODE.value,
-                        },
-                    },
-                },
+                    "context": {"dag_entity": {"string": dag_entity}},
+                }
+                for dag_entity in (
+                    DagAccessEntity.AUDIT_LOG.value,
+                    DagAccessEntity.CODE.value,
+                    DagAccessEntity.DEPENDENCIES.value,
+                    DagAccessEntity.RUN.value,
+                    DagAccessEntity.SLA_MISS.value,
+                    DagAccessEntity.TASK.value,
+                    DagAccessEntity.TASK_INSTANCE.value,
+                    DagAccessEntity.TASK_LOGS.value,
+                    DagAccessEntity.TASK_RESCHEDULE.value,
+                    DagAccessEntity.VERSION.value,
+                    DagAccessEntity.WARNING.value,
+                    DagAccessEntity.XCOM.value,
+                )
             ],
             user=ANY,
         )
