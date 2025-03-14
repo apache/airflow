@@ -196,6 +196,7 @@ class TestProjectStructure:
             "providers/opensearch/tests/unit/opensearch/test_version_compat.py",
             "providers/presto/tests/unit/presto/test_version_compat.py",
             "providers/redis/tests/unit/redis/test_version_compat.py",
+            "providers/snowflake/tests/unit/snowflake/test_version_compat.py",
             "providers/snowflake/tests/unit/snowflake/triggers/test_snowflake_trigger.py",
             "providers/standard/tests/unit/standard/operators/test_empty.py",
             "providers/standard/tests/unit/standard/operators/test_latest_only.py",
