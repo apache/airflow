@@ -32,23 +32,27 @@ from airflow.providers.amazon.aws.links.emr import (
     get_log_uri,
     get_serverless_dashboard_url,
 )
-from airflow.sdk.execution_time.comms import XComResult
+from airflow.providers.amazon.version_compat import AIRFLOW_V_3_0_PLUS
 from unit.amazon.aws.links.test_base_aws import BaseAwsLinksTestCase
+
+if AIRFLOW_V_3_0_PLUS:
+    from airflow.sdk.execution_time.comms import XComResult
 
 
 class TestEmrClusterLink(BaseAwsLinksTestCase):
     link_class = EmrClusterLink
 
     def test_extra_link(self, mock_supervisor_comms):
-        mock_supervisor_comms.get_message.return_value = XComResult(
-            key=self.link_class.key,
-            value={
-                "region_name": "us-west-1",
-                "aws_domain": self.link_class.get_aws_domain("aws"),
-                "aws_partition": "aws",
-                "job_flow_id": "j-TEST-FLOW-ID",
-            },
-        )
+        if AIRFLOW_V_3_0_PLUS:
+            mock_supervisor_comms.get_message.return_value = XComResult(
+                key=self.link_class.key,
+                value={
+                    "region_name": "us-west-1",
+                    "aws_domain": self.link_class.get_aws_domain("aws"),
+                    "aws_partition": "aws",
+                    "job_flow_id": "j-TEST-FLOW-ID",
+                },
+            )
         self.assert_extra_link_url(
             expected_url=(
                 "https://console.aws.amazon.com/emr/home?region=us-west-1#/clusterDetails/j-TEST-FLOW-ID"
@@ -76,15 +80,16 @@ class TestEmrLogsLink(BaseAwsLinksTestCase):
     link_class = EmrLogsLink
 
     def test_extra_link(self, mock_supervisor_comms):
-        mock_supervisor_comms.get_message.return_value = XComResult(
-            key=self.link_class.key,
-            value={
-                "region_name": "eu-west-2",
-                "aws_domain": self.link_class.get_aws_domain("aws"),
-                "log_uri": "myLogUri/",
-                "job_flow_id": "j-8989898989",
-            },
-        )
+        if AIRFLOW_V_3_0_PLUS:
+            mock_supervisor_comms.get_message.return_value = XComResult(
+                key=self.link_class.key,
+                value={
+                    "region_name": "eu-west-2",
+                    "aws_domain": self.link_class.get_aws_domain("aws"),
+                    "log_uri": "myLogUri/",
+                    "job_flow_id": "j-8989898989",
+                },
+            )
         self.assert_extra_link_url(
             expected_url=(
                 "https://console.aws.amazon.com/s3/buckets/myLogUri/?region=eu-west-2&prefix=j-8989898989/"

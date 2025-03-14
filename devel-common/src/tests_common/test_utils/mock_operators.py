@@ -95,15 +95,15 @@ class CustomBaseIndexOpLink(BaseOperatorLink):
 
     def get_link(self, operator, *, ti_key):
         if AIRFLOW_V_3_0_PLUS:
-            search_queries = XCom.get_one(
-                task_id=ti_key.task_id, dag_id=ti_key.dag_id, run_id=ti_key.run_id, key="search_query"
-            )
-        else:
             search_queries = XCom.get_many(
                 task_id=ti_key.task_id, dag_id=ti_key.dag_id, run_id=ti_key.run_id, key="search_query"
             ).first()
 
             search_queries = XCom.deserialize_value(search_queries)
+        else:
+            search_queries = XCom.get_one(
+                task_id=ti_key.task_id, dag_id=ti_key.dag_id, run_id=ti_key.run_id, key="search_query"
+            )
 
         if not search_queries:
             return None
@@ -120,6 +120,15 @@ class CustomOpLink(BaseOperatorLink):
 
     def get_link(self, operator, *, ti_key):
         if AIRFLOW_V_3_0_PLUS:
+            search_query = XCom.get_many(
+                task_ids=ti_key.task_id,
+                dag_ids=ti_key.dag_id,
+                run_id=ti_key.run_id,
+                map_indexes=ti_key.map_index,
+                key="search_query",
+            ).first()
+            search_query = XCom.deserialize_value(search_query)
+        else:
             search_query = XCom.get_one(
                 task_id=ti_key.task_id,
                 dag_id=ti_key.dag_id,
@@ -127,15 +136,6 @@ class CustomOpLink(BaseOperatorLink):
                 map_index=ti_key.map_index,
                 key="search_query",
             )
-        else:
-            search_query = XCom.get_many(
-                task_id=ti_key.task_id,
-                dag_id=ti_key.dag_id,
-                run_id=ti_key.run_id,
-                map_index=ti_key.map_index,
-                key="search_query",
-            )
-            search_query = XCom.deserialize_value(search_query)
         if not search_query:
             return None
         return f"http://google.com/custom_base_link?search={search_query}"

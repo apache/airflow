@@ -1052,12 +1052,17 @@ def dag_maker(request) -> Generator[DagMaker, None, None]:
             return self
 
         def cleanup(self):
-            from airflow.models import DagModel, DagRun, TaskInstance, XComModel
+            from airflow.models import DagModel, DagRun, TaskInstance
             from airflow.models.serialized_dag import SerializedDagModel
             from airflow.models.taskmap import TaskMap
             from airflow.utils.retries import run_with_db_retries
 
             from tests_common.test_utils.compat import AssetEvent
+
+            if AIRFLOW_V_3_0_PLUS:
+                from airflow.models.xcom import XComModel as XCom
+            else:
+                from airflow.models.xcom import XCom
 
             for attempt in run_with_db_retries(logger=self.log):
                 with attempt:
@@ -1089,7 +1094,7 @@ def dag_maker(request) -> Generator[DagMaker, None, None]:
                         self.session.query(TaskInstance).filter(TaskInstance.dag_id.in_(dag_ids)).delete(
                             synchronize_session=False,
                         )
-                    self.session.query(XComModel).filter(XComModel.dag_id.in_(dag_ids)).delete(
+                    self.session.query(XCom).filter(XCom.dag_id.in_(dag_ids)).delete(
                         synchronize_session=False,
                     )
                     self.session.query(DagModel).filter(DagModel.dag_id.in_(dag_ids)).delete(
