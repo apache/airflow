@@ -22,7 +22,6 @@ import { Dialog } from "src/components/ui";
 
 type Props = {
   readonly children?: DialogBodyProps["children"];
-  readonly description?: string;
   readonly header: string;
   readonly onConfirm: () => void;
   readonly onOpenChange: (details: { open: boolean }) => void;
