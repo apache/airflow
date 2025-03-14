@@ -199,7 +199,7 @@ const RunBackfillForm = ({ dag, onClose }: RunBackfillFormProps) => {
             <HStack>
               <Input
                 {...field}
-                max={affectedTasks.total_entries}
+                max={dag.max_active_runs ?? undefined}
                 min={1}
                 placeholder=""
                 type="number"
@@ -210,9 +210,9 @@ const RunBackfillForm = ({ dag, onClose }: RunBackfillFormProps) => {
           )}
         />
         <Spacer />
-        {affectedTasks.total_entries > 0 ? (
-          <Alert>{affectedTasks.total_entries} runs will be triggered</Alert>
-        ) : undefined}
+        <Alert visibility={affectedTasks.total_entries > 0 ? "visible" : "hidden"}>
+          {affectedTasks.total_entries} runs will be triggered
+        </Alert>
       </VStack>
       {dag.is_paused ? (
         <Checkbox checked={unpause} colorPalette="blue" onChange={() => setUnpause(!unpause)}>
