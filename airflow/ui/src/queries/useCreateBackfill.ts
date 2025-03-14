@@ -50,7 +50,7 @@ export const useCreateBackfill = ({ onSuccessConfirm }: { onSuccessConfirm: () =
     const dataIntervalEnd = new Date(data.requestBody.to_date);
     const dagId = data.requestBody.dag_id;
 
-    if (!Boolean(dataIntervalStart) || !Boolean(dataIntervalEnd)) {
+    if (isNaN(dataIntervalStart.getTime()) || isNaN(dataIntervalEnd.getTime())) {
       setDateValidationError({
         body: {
           detail: "Both Data Interval Start Date and End Date must be provided.",
