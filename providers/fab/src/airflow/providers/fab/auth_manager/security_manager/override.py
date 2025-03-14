@@ -106,18 +106,17 @@ from airflow.providers.fab.www.session import (
     AirflowDatabaseSessionInterface,
     AirflowDatabaseSessionInterface as FabAirflowDatabaseSessionInterface,
 )
+from airflow.security.permissions import RESOURCE_BACKFILL
 
 if TYPE_CHECKING:
     from airflow.providers.fab.www.security.permissions import (
         RESOURCE_ASSET,
         RESOURCE_ASSET_ALIAS,
-        RESOURCE_BACKFILL,
     )
 else:
     from airflow.providers.common.compat.security.permissions import (
         RESOURCE_ASSET,
         RESOURCE_ASSET_ALIAS,
-        RESOURCE_BACKFILL,
     )
 
 log = logging.getLogger(__name__)
@@ -213,13 +212,14 @@ class FabAirflowSecurityManagerOverride(AirflowSecurityManagerV2):
         (permissions.ACTION_CAN_READ, permissions.RESOURCE_DAG_DEPENDENCIES),
         (permissions.ACTION_CAN_READ, permissions.RESOURCE_DAG_CODE),
         (permissions.ACTION_CAN_READ, permissions.RESOURCE_DAG_RUN),
+        (permissions.ACTION_CAN_READ, permissions.RESOURCE_DAG_VERSION),
+        (permissions.ACTION_CAN_READ, permissions.RESOURCE_DAG_WARNING),
         (permissions.ACTION_CAN_READ, RESOURCE_ASSET),
         (permissions.ACTION_CAN_READ, RESOURCE_ASSET_ALIAS),
         (permissions.ACTION_CAN_READ, RESOURCE_BACKFILL),
         (permissions.ACTION_CAN_READ, permissions.RESOURCE_CLUSTER_ACTIVITY),
         (permissions.ACTION_CAN_READ, permissions.RESOURCE_POOL),
         (permissions.ACTION_CAN_READ, permissions.RESOURCE_IMPORT_ERROR),
-        (permissions.ACTION_CAN_READ, permissions.RESOURCE_DAG_WARNING),
         (permissions.ACTION_CAN_READ, permissions.RESOURCE_JOB),
         (permissions.ACTION_CAN_READ, permissions.RESOURCE_MY_PASSWORD),
         (permissions.ACTION_CAN_EDIT, permissions.RESOURCE_MY_PASSWORD),

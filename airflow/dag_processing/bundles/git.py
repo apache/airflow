@@ -19,13 +19,13 @@ from __future__ import annotations
 
 import contextlib
 import json
-import logging
 import os
 import tempfile
 from pathlib import Path
 from typing import Any
 from urllib.parse import urlparse
 
+import structlog
 from git import Repo
 from git.exc import BadName, GitCommandError, NoSuchPathError
 
@@ -34,9 +34,8 @@ from airflow.dag_processing.bundles.base import (
 )
 from airflow.exceptions import AirflowException
 from airflow.hooks.base import BaseHook
-from airflow.utils.log.logging_mixin import LoggingMixin
 
-log = logging.getLogger(__name__)
+log = structlog.get_logger()
 
 
 class GitHook(BaseHook):
@@ -119,7 +118,7 @@ class GitHook(BaseHook):
             yield
 
 
-class GitDagBundle(BaseDagBundle, LoggingMixin):
+class GitDagBundle(BaseDagBundle):
     """
     git DAG bundle - exposes a git repository as a DAG bundle.
 
@@ -154,33 +153,23 @@ class GitDagBundle(BaseDagBundle, LoggingMixin):
         self.git_conn_id = git_conn_id
         self.repo_url = repo_url
 
-        def log_debug(msg, **kwargs):
-            if not log.isEnabledFor(logging.DEBUG):
-                return
-            # ugly; replace when structlog implemented
-            context = dict(
-                bundle_name=self.name,
-                version=self.version,
-                bare_repo_path=self.bare_repo_path,
-                repo_path=self.repo_path,
-                versions_path=self.versions_dir,
-                git_conn_id=self.git_conn_id,
-                repo_url=self.repo_url,
-            )
-            context.update(kwargs)
+        self._log = log.bind(
+            bundle_name=self.name,
+            version=self.version,
+            bare_repo_path=self.bare_repo_path,
+            repo_path=self.repo_path,
+            versions_path=self.versions_dir,
+            git_conn_id=self.git_conn_id,
+            repo_url=self.repo_url,
+        )
 
-            for k, v in context.items():
-                msg += f" {k}='{v}'"
-            log.debug(msg)
-
-        self._log_debug = log_debug
-        log_debug("bundle configured")
+        self._log.debug("bundle configured")
         try:
             self.hook = GitHook(git_conn_id=self.git_conn_id, repo_url=self.repo_url)
             self.repo_url = self.hook.repo_url
-            log_debug("repo_url updated from hook", repo_url=self.repo_url)
+            self._log.debug("repo_url updated from hook", repo_url=self.repo_url)
         except AirflowException as e:
-            self.log.warning("Could not create GitHook for connection %s : %s", self.git_conn_id, e)
+            self._log.warning("Could not create GitHook", conn_id=self.git_conn_id, exc=e)
 
     def _initialize(self):
         with self.lock():
@@ -190,7 +179,7 @@ class GitDagBundle(BaseDagBundle, LoggingMixin):
 
             self._clone_repo_if_required()
             self.repo.git.checkout(self.tracking_ref)
-            self._log_debug("bundle initialize", version=self.version)
+            self._log.debug("bundle initialize", version=self.version)
             if self.version:
                 if not self._has_version(self.repo, self.version):
                     self.repo.remotes.origin.fetch()
@@ -207,7 +196,7 @@ class GitDagBundle(BaseDagBundle, LoggingMixin):
 
     def _clone_repo_if_required(self) -> None:
         if not os.path.exists(self.repo_path):
-            self.log.info("Cloning repository to %s from %s", self.repo_path, self.bare_repo_path)
+            self._log.info("Cloning repository", repo_path=self.repo_path, bare_repo_path=self.bare_repo_path)
             try:
                 Repo.clone_from(
                     url=self.bare_repo_path,
@@ -217,14 +206,14 @@ class GitDagBundle(BaseDagBundle, LoggingMixin):
                 # Protection should the bare repo be removed manually
                 raise AirflowException("Repository path: %s not found", self.bare_repo_path) from e
         else:
-            self._log_debug("repo exists", repo_path=self.repo_path)
+            self._log.debug("repo exists", repo_path=self.repo_path)
         self.repo = Repo(self.repo_path)
 
     def _clone_bare_repo_if_required(self) -> None:
         if not self.repo_url:
             raise AirflowException(f"Connection {self.git_conn_id} doesn't have a host url")
         if not os.path.exists(self.bare_repo_path):
-            self.log.info("Cloning bare repository to %s", self.bare_repo_path)
+            self._log.info("Cloning bare repository", bare_repo_path=self.bare_repo_path)
             try:
                 Repo.clone_from(
                     url=self.repo_url,
