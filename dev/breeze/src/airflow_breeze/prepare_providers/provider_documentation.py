@@ -485,6 +485,31 @@ def _mark_latest_changes_as_documentation_only(
     raise PrepareReleaseDocsChangesOnlyException()
 
 
+def _get_changelog_path(provider_id: str) -> Path:
+    """
+    Returns the path to the changelog file for a given provider.
+    :param provider_id: Name of the provider package (e.g., "airbyte").
+    :return: Path object for the changelog.rst file.
+    """
+
+    return Path(f"providers/{provider_id}/docs/changelog.rst")
+
+
+def _version_exists_in_changelog(provider_id: str, version: str) -> bool:
+    """
+    Checks if the given version exists in the provider's changelog.
+    Uses regex to search within the file.
+    """
+    changelog_path = _get_changelog_path(provider_id)
+
+    if not changelog_path.exists():
+        return False
+
+    changelog_content = changelog_path.read_text()
+
+    return re.search(rf"^{re.escape(version)}\b", changelog_content, re.MULTILINE) is not None
+
+
 def _update_version_in_provider_yaml(
     provider_id: str,
     type_of_change: TypeOfChange,
@@ -497,9 +522,11 @@ def _update_version_in_provider_yaml(
     """
     provider_details = get_provider_details(provider_id)
     version = provider_details.versions[0]
+
     import semver
 
     v = semver.VersionInfo.parse(version)
+
     with_breaking_changes = False
     maybe_with_new_features = False
     if type_of_change == TypeOfChange.BREAKING_CHANGE:
@@ -514,6 +541,15 @@ def _update_version_in_provider_yaml(
         v = v.bump_patch()
     elif type_of_change == TypeOfChange.MISC:
         v = v.bump_patch()
+
+    get_console().print(f"[special]Bumping version to {v}...\n")
+
+    if _version_exists_in_changelog(provider_id, str(v)):
+        get_console().print(
+            f"[error]Version {v} already exists in CHANGELOG. Fix manually before proceeding.[/]"
+        )
+        exit(1)
+
     provider_yaml_path = get_provider_yaml(provider_id)
     original_provider_yaml_content = provider_yaml_path.read_text()
     updated_provider_yaml_content = re.sub(
@@ -522,6 +558,43 @@ def _update_version_in_provider_yaml(
     provider_yaml_path.write_text(updated_provider_yaml_content)
     get_console().print(f"[special]Bumped version to {v}\n")
     return with_breaking_changes, maybe_with_new_features, original_provider_yaml_content
+
+
+def should_skip_the_documentation(provider_id: str, version_suffix: str) -> tuple[bool, str]:
+    """Return True, version if the documentation for a tag should be skipped else False, good version suffix if not.
+
+    For RC and official releases we check if the "officially released" version exists
+    and skip the released if it was. This allows to skip documentation that have not been
+    marked for release in this wave.
+    """
+    from airflow_breeze.utils.packages import (
+        get_latest_provider_tag,
+        tag_exists_for_provider,
+    )
+    from airflow_breeze.utils.version_utils import is_local_package_version
+
+    if version_suffix != "" and (
+        not version_suffix.startswith("rc") or is_local_package_version(version_suffix)
+    ):
+        return False, version_suffix
+    if version_suffix == "":
+        current_tag = get_latest_provider_tag(provider_id, "")
+        if tag_exists_for_provider(provider_id, current_tag):
+            get_console().print(f"[warning]The 'final' tag {current_tag} exists. Skipping the package.[/]")
+            return True, version_suffix
+        return False, version_suffix
+    current_version = int(version_suffix[2:])
+    release_tag = get_latest_provider_tag(provider_id, "")
+    if tag_exists_for_provider(provider_id, release_tag):
+        get_console().print(f"[warning]The tag {release_tag} exists. Provider is released. Skipping it.[/]")
+        return True, version_suffix
+    while True:
+        current_tag = get_latest_provider_tag(provider_id, f"rc{current_version}")
+        if tag_exists_for_provider(provider_id, current_tag):
+            current_version += 1
+            get_console().print(f"[warning]The tag {current_tag} exists. Checking rc{current_version}.[/]")
+        else:
+            return False, f"rc{current_version}"
 
 
 def _update_source_date_epoch_in_provider_yaml(
