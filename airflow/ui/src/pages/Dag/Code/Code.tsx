@@ -72,11 +72,24 @@ export const Code = () => {
   const defaultWrap = Boolean(useConfig("default_wrap"));
 
   const [wrap, setWrap] = useState(defaultWrap);
+  const [copyStatus, setCopyStatus] = useState("Copy Code");
 
   const toggleWrap = () => setWrap(!wrap);
   const { colorMode } = useColorMode();
 
   const style = colorMode === "dark" ? oneDark : oneLight;
+
+  const copyCode = async () => {
+    try {
+      await navigator.clipboard.writeText(code?.content ?? "");
+      setCopyStatus("Code Copied");
+    } catch {
+      setCopyStatus("Failed to Copy Code");
+    }
+    setTimeout(() => {
+      setCopyStatus("Copy Code");
+    }, 2000);
+  };
 
   // wrapLongLines wasn't working with the prsim styles so we have to manually apply the style
   if (style['code[class*="language-"]'] !== undefined) {
@@ -117,6 +130,16 @@ export const Code = () => {
         </HStack>
         <HStack>
           <DagVersionSelect />
+          <Button
+            aria-label="Copy"
+            bg="bg.panel"
+            onClick={() => {
+              void copyCode();
+            }}
+            variant="outline"
+          >
+            {copyStatus}
+          </Button>
           <Button aria-label={wrap ? "Unwrap" : "Wrap"} bg="bg.panel" onClick={toggleWrap} variant="outline">
             {wrap ? "Unwrap" : "Wrap"}
           </Button>
@@ -138,6 +161,12 @@ export const Code = () => {
 
               // Skip line number span when applying line break styles https://github.com/react-syntax-highlighter/react-syntax-highlighter/issues/376#issuecomment-1584440759
               if (lineNumberElement) {
+                if (lineNumberElement.properties) {
+                  lineNumberElement.properties.style = {
+                    WebkitUserSelect: "none",
+                  };
+                }
+
                 row.children = [
                   lineNumberElement,
                   {
