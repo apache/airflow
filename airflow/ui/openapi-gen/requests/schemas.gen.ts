@@ -4826,14 +4826,9 @@ export const $StructureDataResponse = {
       type: "array",
       title: "Nodes",
     },
-    arrange: {
-      type: "string",
-      enum: ["BT", "LR", "RL", "TB"],
-      title: "Arrange",
-    },
   },
   type: "object",
-  required: ["edges", "nodes", "arrange"],
+  required: ["edges", "nodes"],
   title: "StructureDataResponse",
   description: "Structure Data serializer for responses.",
 } as const;

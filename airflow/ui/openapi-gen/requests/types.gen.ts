@@ -1273,10 +1273,7 @@ export type StandardHookFields = {
 export type StructureDataResponse = {
   edges: Array<EdgeResponse>;
   nodes: Array<NodeResponse>;
-  arrange: "BT" | "LR" | "RL" | "TB";
 };
-
-export type arrange = "BT" | "LR" | "RL" | "TB";
 
 /**
  * An individual log message.
@@ -2592,6 +2589,12 @@ export type LoginData = {
 };
 
 export type LoginResponse = unknown;
+
+export type LogoutData = {
+  next?: string | null;
+};
+
+export type LogoutResponse = unknown;
 
 export type $OpenApiTs = {
   "/ui/auth/links": {
@@ -5381,9 +5384,28 @@ export type $OpenApiTs = {
       };
     };
   };
-  "/public/login": {
+  "/public/auth/login": {
     get: {
       req: LoginData;
+      res: {
+        /**
+         * Successful Response
+         */
+        200: unknown;
+        /**
+         * Temporary Redirect
+         */
+        307: HTTPExceptionResponse;
+        /**
+         * Validation Error
+         */
+        422: HTTPValidationError;
+      };
+    };
+  };
+  "/public/auth/logout": {
+    get: {
+      req: LogoutData;
       res: {
         /**
          * Successful Response

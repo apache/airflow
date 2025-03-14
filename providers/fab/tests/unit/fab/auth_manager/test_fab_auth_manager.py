@@ -26,6 +26,7 @@ import pytest
 from flask import Flask, g
 
 from airflow.api_fastapi.app import AUTH_MANAGER_FASTAPI_APP_PREFIX
+from airflow.api_fastapi.common.types import MenuItem
 from airflow.exceptions import AirflowConfigException
 from airflow.providers.fab.www.extensions.init_appbuilder import init_appbuilder
 from airflow.providers.standard.operators.empty import EmptyOperator
@@ -464,6 +465,43 @@ class TestFabAuthManager:
         assert result == expected_result
 
     @pytest.mark.parametrize(
+        "menu_items, user_permissions, expected_result",
+        [
+            (
+                [MenuItem.ASSETS, MenuItem.DAGS],
+                [(ACTION_CAN_ACCESS_MENU, RESOURCE_ASSET), (ACTION_CAN_ACCESS_MENU, RESOURCE_DAG)],
+                [MenuItem.ASSETS, MenuItem.DAGS],
+            ),
+            (
+                [MenuItem.ASSETS, MenuItem.DAGS],
+                [(ACTION_CAN_READ, RESOURCE_ASSET), (ACTION_CAN_READ, RESOURCE_DAG)],
+                [],
+            ),
+            (
+                [MenuItem.ASSET_EVENTS, MenuItem.VARIABLES],
+                [(ACTION_CAN_ACCESS_MENU, RESOURCE_ASSET), (ACTION_CAN_READ, RESOURCE_VARIABLE)],
+                [MenuItem.ASSET_EVENTS],
+            ),
+            (
+                [],
+                [],
+                [],
+            ),
+        ],
+    )
+    def test_filter_authorized_menu_items(
+        self,
+        menu_items: list[MenuItem],
+        user_permissions,
+        expected_result,
+        auth_manager,
+    ):
+        user = Mock()
+        user.perms = user_permissions
+        result = auth_manager.filter_authorized_menu_items(menu_items, user=user)
+        assert result == expected_result
+
+    @pytest.mark.parametrize(
         "method, user_permissions, expected_results",
         [
             # Scenario 1
@@ -576,8 +614,8 @@ class TestFabAuthManager:
         assert result == f"http://localhost:8080{AUTH_MANAGER_FASTAPI_APP_PREFIX}/logout/"
 
     @mock.patch.object(FabAuthManager, "_is_authorized", return_value=True)
-    def test_get_menu_items(self, _, auth_manager_with_appbuilder, flask_app):
+    def test_get_extra_menu_items(self, _, auth_manager_with_appbuilder, flask_app):
         auth_manager_with_appbuilder.register_views()
-        result = auth_manager_with_appbuilder.get_menu_items(user=Mock())
+        result = auth_manager_with_appbuilder.get_extra_menu_items(user=Mock())
         assert len(result) == 5
         assert all(item.href.startswith(AUTH_MANAGER_FASTAPI_APP_PREFIX) for item in result)
