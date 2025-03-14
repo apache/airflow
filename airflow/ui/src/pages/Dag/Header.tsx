@@ -101,7 +101,7 @@ export const Header = ({
                 text="Dag Docs"
               />
             )}
-            <RunBackfillButton dag={dag} />
+            {dag.timetable_summary === null ? undefined : <RunBackfillButton dag={dag} />}
             <ParseDag dagId={dag.dag_id} fileToken={dag.file_token} />
           </>
         )
