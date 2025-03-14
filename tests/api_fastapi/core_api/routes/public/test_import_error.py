@@ -17,13 +17,15 @@
 from __future__ import annotations
 
 from datetime import datetime, timezone
+from unittest import mock
 
 import pytest
 
+from airflow.models import DagModel
 from airflow.models.errors import ParseImportError
 from airflow.utils.session import provide_session
 
-from tests_common.test_utils.db import clear_db_import_errors
+from tests_common.test_utils.db import clear_db_dags, clear_db_import_errors
 from tests_common.test_utils.format_datetime import from_datetime_to_zulu_without_ms
 
 pytestmark = pytest.mark.db_test
@@ -48,6 +50,15 @@ class TestImportErrorEndpoint:
     @staticmethod
     def _clear_db():
         clear_db_import_errors()
+        clear_db_dags()
+
+    @provide_session
+    def prepare_dag_model(self, session=None):
+        dag_model = DagModel(fileloc=FILENAME1, dag_id="dag_id1", is_paused=False)
+        not_permitted_dag_model = DagModel(fileloc=FILENAME1, dag_id="dag_id4", is_paused=False)
+        session.add_all([dag_model, not_permitted_dag_model])
+        self.dag_id = str(dag_model.dag_id)
+        self.not_permitted_dag_id = str(not_permitted_dag_model.dag_id)
 
     @pytest.fixture(autouse=True)
     @provide_session
@@ -138,6 +149,43 @@ class TestGetImportError(TestImportErrorEndpoint):
         import_error_id = setup[FILENAME1].id
         response = unauthorized_test_client.get(f"/public/importErrors/{import_error_id}")
         assert response.status_code == 403
+
+    @mock.patch("airflow.api_fastapi.core_api.routes.public.import_error.get_auth_manager")
+    def test_should_raises_403_unauthorized__user_can_not_read_any_dags_in_file(
+        self, mock_get_auth_manager, test_client, setup
+    ):
+        import_error_id = setup[FILENAME1].id
+        mock_is_authorized_dag = mock_get_auth_manager.return_value.is_authorized_dag
+        mock_is_authorized_dag.return_value = False
+        mock_get_permitted_dag_ids = mock_get_auth_manager.return_value.get_permitted_dag_ids
+        mock_get_permitted_dag_ids.return_value = set()
+        response = test_client.get(f"/public/importErrors/{import_error_id}")
+        mock_is_authorized_dag.assert_called_once_with(method="GET", user=mock.ANY)
+        mock_get_permitted_dag_ids.assert_called_once_with(user=mock.ANY)
+        assert response.status_code == 403
+        assert response.json() == {"detail": "You do not have read permission on any of the DAGs in the file"}
+
+    @mock.patch("airflow.api_fastapi.core_api.routes.public.import_error.requires_access_dag")
+    @mock.patch("airflow.api_fastapi.core_api.routes.public.import_error.get_auth_manager")
+    def test_get_import_error__user_dont_have_read_permission_to_read_all_dags_in_file(
+        self, mock_get_auth_manager, mock_requires_access_dag, test_client, setup
+    ):
+        self.prepare_dag_model()
+        import_error_id = setup[FILENAME1].id
+        mock_is_authorized_dag = mock_get_auth_manager.return_value.is_authorized_dag
+        mock_is_authorized_dag.return_value = False
+        mock_get_permitted_dag_ids = mock_get_auth_manager.return_value.get_permitted_dag_ids
+        mock_get_permitted_dag_ids.return_value = {self.dag_id}
+        mock_requires_access_dag.return_value = lambda method: lambda: None
+        response = test_client.get(f"/public/importErrors/{import_error_id}")
+        assert response.status_code == 200
+        assert response.json() == {
+            "import_error_id": import_error_id,
+            "timestamp": from_datetime_to_zulu_without_ms(TIMESTAMP1),
+            "filename": FILENAME1,
+            "stack_trace": "REDACTED - you do not have read permission on all DAGs in the file",
+            "bundle_name": BUNDLE_NAME,
+        }
 
 
 class TestGetImportErrors(TestImportErrorEndpoint):
@@ -243,3 +291,50 @@ class TestGetImportErrors(TestImportErrorEndpoint):
     def test_should_raises_403_unauthorized(self, unauthorized_test_client):
         response = unauthorized_test_client.get("/public/importErrors")
         assert response.status_code == 403
+
+    @pytest.mark.parametrize(
+        "batch_is_authorized_dag_return_value, expected_stack_trace",
+        [
+            pytest.param(True, STACKTRACE1, id="user_has_read_access_to_all_dags_in_current_file"),
+            pytest.param(
+                False,
+                "REDACTED - you do not have read permission on all DAGs in the file",
+                id="user_does_not_have_read_access_to_all_dags_in_current_file",
+            ),
+        ],
+    )
+    @mock.patch("airflow.api_fastapi.core_api.routes.public.import_error.requires_access_dag")
+    @mock.patch("airflow.api_fastapi.core_api.routes.public.import_error.get_auth_manager")
+    def test_user_can_not_read_all_dags_in_file(
+        self,
+        mock_get_auth_manager,
+        mock_requires_access_dag,
+        test_client,
+        setup,
+        batch_is_authorized_dag_return_value,
+        expected_stack_trace,
+    ):
+        self.prepare_dag_model()
+        mock_is_authorized_dag = mock_get_auth_manager.return_value.is_authorized_dag
+        mock_is_authorized_dag.return_value = False
+        mock_get_permitted_dag_ids = mock_get_auth_manager.return_value.get_permitted_dag_ids
+        mock_get_permitted_dag_ids.return_value = {self.dag_id}
+        mock_batch_is_authorized_dag = mock_get_auth_manager.return_value.batch_is_authorized_dag
+        mock_batch_is_authorized_dag.return_value = batch_is_authorized_dag_return_value
+        mock_requires_access_dag.return_value = lambda method: lambda: None
+        response = test_client.get("/public/importErrors")
+        mock_get_permitted_dag_ids.assert_called_once_with(method="GET", user=mock.ANY)
+        assert response.status_code == 200
+        response_json = response.json()
+        assert response_json == {
+            "total_entries": 1,
+            "import_errors": [
+                {
+                    "import_error_id": setup[FILENAME1].id,
+                    "timestamp": from_datetime_to_zulu_without_ms(TIMESTAMP1),
+                    "filename": FILENAME1,
+                    "stack_trace": expected_stack_trace,
+                    "bundle_name": BUNDLE_NAME,
+                }
+            ],
+        }
