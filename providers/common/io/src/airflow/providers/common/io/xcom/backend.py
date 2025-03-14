@@ -21,7 +21,7 @@ import json
 import uuid
 from functools import cache
 from pathlib import Path
-from typing import Any, TypeVar
+from typing import TYPE_CHECKING, Any, TypeVar
 from urllib.parse import urlsplit
 
 import fsspec.utils
@@ -31,6 +31,10 @@ from airflow.io.path import ObjectStoragePath
 from airflow.providers.common.io.version_compat import AIRFLOW_V_3_0_PLUS
 from airflow.sdk.execution_time.xcom import BaseXCom
 from airflow.utils.json import XComDecoder, XComEncoder
+
+if TYPE_CHECKING:
+    from airflow.sdk.execution_time.comms import XComResult
+
 
 T = TypeVar("T")
 
@@ -162,7 +166,7 @@ class XComObjectStorageBackend(BaseXCom):
             return data
 
     @staticmethod
-    def purge(xcom) -> None:
+    def purge(xcom: XComResult) -> None:
         if not isinstance(xcom.value, str):
             return
         with contextlib.suppress(TypeError, ValueError):

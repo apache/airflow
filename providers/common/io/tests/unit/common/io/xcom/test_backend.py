@@ -177,9 +177,10 @@ class TestXComObjectStorageBackend:
             run_id=task_instance.run_id,
         )
 
+        path = mock_supervisor_comms.send_request.call_args_list[-1].kwargs["msg"].value
         XComModel.set(
             key=XCOM_RETURN_KEY,
-            value=self.path,
+            value=path,
             dag_id=task_instance.dag_id,
             task_id=task_instance.task_id,
             run_id=task_instance.run_id,
@@ -211,20 +212,35 @@ class TestXComObjectStorageBackend:
         )
         assert value
 
+        mock_supervisor_comms.get_message.return_value = XComResult(key=XCOM_RETURN_KEY, value=path)
+
+        XCom.delete(
+            dag_id=task_instance.dag_id,
+            task_id=task_instance.task_id,
+            run_id=task_instance.run_id,
+            key=XCOM_RETURN_KEY,
+            map_index=task_instance.map_index,
+        )
         XComModel.clear(
             dag_id=task_instance.dag_id,
             task_id=task_instance.task_id,
             run_id=task_instance.run_id,
-            session=session,
+            map_index=task_instance.map_index,
         )
-        XCom.purge(res)
 
         assert p.exists() is False
 
-        value = XCom.get_value(
-            key=XCOM_RETURN_KEY,
-            ti_key=task_instance.key,
-            session=session,
+        mock_supervisor_comms.get_message.return_value = XComResult(key=XCOM_RETURN_KEY, value=path)
+        value = (
+            XComModel.get_many(
+                key=XCOM_RETURN_KEY,
+                dag_ids=task_instance.dag_id,
+                task_ids=task_instance.task_id,
+                run_id=task_instance.run_id,
+                session=session,
+            )
+            .with_entities(XComModel.value)
+            .first()
         )
         assert not value
 

@@ -105,6 +105,58 @@ class BaseXCom:
         )
 
     @classmethod
+    def _get_xcom_db_ref(
+        cls,
+        *,
+        key: str,
+        dag_id: str,
+        task_id: str,
+        run_id: str,
+        map_index: int | None = None,
+    ) -> XComResult:
+        """
+        Retrieve an XCom value, optionally meeting certain criteria.
+
+        This method returns "full" XCom values (i.e. uses ``deserialize_value``
+        from the XCom backend). Use :meth:`get_many` if you want the "shortened"
+        value via ``orm_deserialize_value``.
+
+        If there are no results, *None* is returned. If multiple XCom entries
+        match the criteria, an arbitrary one is returned.
+
+        .. seealso:: ``get_value()`` is a convenience function if you already
+            have a structured TaskInstance or TaskInstanceKey object available.
+
+        :param run_id: DAG run ID for the task.
+        :param dag_id: Only pull XCom from this DAG. Pass *None* (default) to
+            remove the filter.
+        :param task_id: Only XCom from task with matching ID will be pulled.
+            Pass *None* (default) to remove the filter.
+        :param map_index: Only XCom from task with matching ID will be pulled.
+            Pass *None* (default) to remove the filter.
+        :param key: A key for the XCom. If provided, only XCom with matching
+            keys will be returned. Pass *None* (default) to remove the filter.
+        """
+        from airflow.sdk.execution_time.task_runner import SUPERVISOR_COMMS
+
+        SUPERVISOR_COMMS.send_request(
+            log=log,
+            msg=GetXCom(
+                key=key,
+                dag_id=dag_id,
+                task_id=task_id,
+                run_id=run_id,
+                map_index=map_index,
+            ),
+        )
+
+        msg = SUPERVISOR_COMMS.get_message()
+        if not isinstance(msg, XComResult):
+            raise TypeError(f"Expected XComResult, received: {type(msg)} {msg}")
+
+        return msg
+
+    @classmethod
     def get_one(
         cls,
         *,
@@ -186,7 +238,7 @@ class BaseXCom:
         return deserialize(result.value)
 
     @classmethod
-    def purge(cls, xcom) -> None:
+    def purge(cls, xcom: XComResult) -> None:
         """Purge an XCom entry from underlying storage implementations."""
         pass
 
@@ -197,11 +249,19 @@ class BaseXCom:
         task_id: str,
         dag_id: str,
         run_id: str,
+        map_index: int | None = None,
     ) -> None:
-        """Delete an Xcom entry."""
+        """Delete an Xcom entry, for custom xcom backends, it gets the path associated with the data on the backend and purges it."""
         from airflow.sdk.execution_time.task_runner import SUPERVISOR_COMMS
 
-        cls.purge()  # type: ignore[call-arg]
+        xcom_result = cls._get_xcom_db_ref(
+            key=key,
+            dag_id=dag_id,
+            task_id=task_id,
+            run_id=run_id,
+            map_index=map_index,
+        )
+        cls.purge(xcom_result)  # type: ignore[call-arg]
         SUPERVISOR_COMMS.send_request(
             log=log,
             msg=DeleteXCom(
