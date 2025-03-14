@@ -130,13 +130,17 @@ and there are those manual ways to build the assets.
     pnpm install -frozen-lockfile --config.confirmModulesPurge=false
     pnpm run build
 
-Finally, you can also clean and recompile assets with `custom` build target when running the Hatch build:
+Finally, you can also clean and recompile assets with `custom` build target when running the Hatch build for
+the ``airflow-core`` package.
 
-    hatch build -t custom -t wheel -t sdist
+    cd airflow-core
+    hatch build -c -t custom
 
-This will also update `git_version` file in the Airflow package that should contain the git commit hash of the
-build. This is used to display the commit hash in the UI. Result of this command is airflow package built
-in the `dist` folder.
+This will also clean-up the generated files,update `git_version` file in the Airflow package (used to display
+it in the UI) that should contain the git commit hash of the build and it will generate the assets.
+
+The result of this command is airflow sdist package built in the `dist` folder of `airflow-core`
+package as well. It requires ``pre-commit`` to be installed in your system.
 
 Using pip and manually managing your virtualenv
 ===============================================
@@ -239,7 +243,11 @@ Using Hatch to build your packages
 
 You can use Hatch to build installable packages from the Airflow sources. Such package will
 include all metadata configured in `pyproject.toml` and will be installable with ``pip`` and and any other
-PEP-compliant packaging front-end.
+PEP-compliant packaging front-end. You can run those commands in:
+
+* root folder of the repository to build "meta" airflow package that install other packages
+* `airflow-core` folder to build the core airflow package
+* any of the `providers` folders that has a pyproject.toml file to build the provider package
 
 The packages will have pre-installed dependencies for providers that are available when Airflow is i
 onstalled from PyPI. Both `wheel` and `sdist` packages are built by default.
@@ -250,6 +258,11 @@ You can also build only `wheel` or `sdist` packages:
 
     hatch build -t wheel
     hatch build -t sdist
+
+In the `airflow-core` folder, you can also build the package with the `custom` target that will clean
+the build directory, update the `git_version` file, and build the assets:
+
+    hatch build -t custom -t wheel -t sdist
 
 Installing recommended version of dependencies
 ==============================================
@@ -299,7 +312,7 @@ auth, graphviz, kerberos, ldap, leveldb, otel, pandas, password, rabbitmq, s3fs,
 Provider extras
 ---------------
 
-Those extras are available as regular Airflow extras; they install provider packages in standard builds
+Those extras are available as regular Airflow extras; they install provider distributions in standard builds
 or dependencies that are necessary to enable the feature in an editable build.
 
 # START PROVIDER EXTRAS HERE

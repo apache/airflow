@@ -23,7 +23,7 @@ from subprocess import CalledProcessError
 import jmespath
 import pytest
 
-from tests.charts.helm_template_generator import prepare_k8s_lookup_dict, render_chart
+from unit.charts.helm_template_generator import prepare_k8s_lookup_dict, render_chart
 
 RELEASE_NAME_REDIS = "test-redis"
 

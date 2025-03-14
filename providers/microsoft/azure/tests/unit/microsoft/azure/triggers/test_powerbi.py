@@ -28,6 +28,7 @@ from airflow.providers.microsoft.azure.hooks.powerbi import (
 )
 from airflow.providers.microsoft.azure.triggers.powerbi import PowerBITrigger
 from airflow.triggers.base import TriggerEvent
+
 from unit.microsoft.azure.test_utils import get_airflow_connection
 
 POWERBI_CONN_ID = "powerbi_default"

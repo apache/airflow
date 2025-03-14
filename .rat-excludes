@@ -44,7 +44,6 @@ venv
 clients/*
 files/*
 dags/*
-airflow.iml
 .gitmodules
 prod_image_installed_providers.txt
 airflow_pre_installed_providers.txt
@@ -110,9 +109,6 @@ tmp
 # generated doc-only-changes.txt
 .latest-doc-only-change.txt
 
-# generated provider_packages
-provider_packages
-
 # Chart ignored files
 chart/.gitignore
 chart/values.schema.json
@@ -138,7 +134,7 @@ tests/*
 scripts/*
 images/*
 dev/*
-chart/*.iml
+.*\.iml
 out/*
 airflow-build-dockerfile*
 

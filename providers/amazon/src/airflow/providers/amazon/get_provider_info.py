@@ -1419,5 +1419,6 @@ def get_provider_info():
             "openapi-schema-validator>=0.6.2",
             "openapi-spec-validator>=0.7.1",
             "opensearch-py>=2.2.0",
+            "responses>=0.25.0",
         ],
     }

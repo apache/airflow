@@ -28,7 +28,7 @@ from airflow_breeze.global_constants import (
     SSH_PORT,
     WEB_HOST_PORT,
 )
-from airflow_breeze.utils.path_utils import AIRFLOW_SOURCES_ROOT
+from airflow_breeze.utils.path_utils import AIRFLOW_ROOT_PATH
 
 ASCIIART = """
 
@@ -100,14 +100,14 @@ CHEATSHEET = f"""
 
         * Your dags for webserver and scheduler are read from `/files/dags` directory
           which is mounted from folder in Airflow sources:
-          * `{AIRFLOW_SOURCES_ROOT}/files/dags`
+          * `{AIRFLOW_ROOT_PATH}/files/dags`
 
         * Your plugins are read from `/files/plugins` directory
           which is mounted from folder in Airflow sources:
-          * `{AIRFLOW_SOURCES_ROOT}/files/plugins`
+          * `{AIRFLOW_ROOT_PATH}/files/plugins`
 
         * You can add `airflow-breeze-config` directory. Place it in
-          `{AIRFLOW_SOURCES_ROOT}/files/airflow-breeze-config` and:
+          `{AIRFLOW_ROOT_PATH}/files/airflow-breeze-config` and:
             * Add `environment_variables.env` - to make breeze source the variables automatically for you
             * Add `.tmux.conf` - to add extra initial configuration to `tmux`
             * Add `init.sh` - this file will be sourced when you enter container, so you can add
@@ -115,7 +115,7 @@ CHEATSHEET = f"""
             * Add `requirements.
 
         * You can also share other files, put them under
-          `{AIRFLOW_SOURCES_ROOT}/files` folder
+          `{AIRFLOW_ROOT_PATH}/files` folder
           and they will be visible in `/files/` folder inside the container.
 
     [info]* Other options[/]

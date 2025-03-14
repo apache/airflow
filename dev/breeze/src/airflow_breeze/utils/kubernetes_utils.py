@@ -43,26 +43,25 @@ from airflow_breeze.global_constants import (
     PIP_VERSION,
     UV_VERSION,
 )
-from airflow_breeze.utils.cache import check_if_cache_exists
 from airflow_breeze.utils.console import Output, get_console
 from airflow_breeze.utils.host_info_utils import Architecture, get_host_architecture, get_host_os
-from airflow_breeze.utils.path_utils import AIRFLOW_SOURCES_ROOT, BUILD_CACHE_DIR
+from airflow_breeze.utils.path_utils import AIRFLOW_ROOT_PATH, BUILD_CACHE_PATH
 from airflow_breeze.utils.run_utils import RunCommandResult, run_command
 from airflow_breeze.utils.shared_options import get_dry_run, get_verbose
 from airflow_breeze.utils.virtualenv_utils import create_pip_command, create_uv_command
 
-K8S_ENV_PATH = BUILD_CACHE_DIR / "k8s-env"
-K8S_CLUSTERS_PATH = BUILD_CACHE_DIR / ".k8s-clusters"
+K8S_ENV_PATH = BUILD_CACHE_PATH / "k8s-env"
+K8S_CLUSTERS_PATH = BUILD_CACHE_PATH / ".k8s-clusters"
 K8S_BIN_BASE_PATH = K8S_ENV_PATH / "bin"
 KIND_BIN_PATH = K8S_BIN_BASE_PATH / "kind"
 KUBECTL_BIN_PATH = K8S_BIN_BASE_PATH / "kubectl"
 HELM_BIN_PATH = K8S_BIN_BASE_PATH / "helm"
 PYTHON_BIN_PATH = K8S_BIN_BASE_PATH / "python"
-SCRIPTS_CI_KUBERNETES_PATH = AIRFLOW_SOURCES_ROOT / "scripts" / "ci" / "kubernetes"
+SCRIPTS_CI_KUBERNETES_PATH = AIRFLOW_ROOT_PATH / "scripts" / "ci" / "kubernetes"
 K8S_REQUIREMENTS_PATH = SCRIPTS_CI_KUBERNETES_PATH / "k8s_requirements.txt"
-HATCH_BUILD_PY_PATH = AIRFLOW_SOURCES_ROOT / "hatch_build.py"
+HATCH_BUILD_PY_PATH = AIRFLOW_ROOT_PATH / "hatch_build.py"
 CACHED_K8S_DEPS_HASH_PATH = K8S_ENV_PATH / "k8s_deps_hash.txt"
-CHART_PATH = AIRFLOW_SOURCES_ROOT / "chart"
+CHART_PATH = AIRFLOW_ROOT_PATH / "chart"
 
 # In case of parallel runs those ports will be quickly allocated by multiple threads and closed, which
 # might mean that the port will be re-bound by parallel running thread. That's why we do not close the
@@ -304,12 +303,7 @@ def _requirements_changed() -> bool:
 
 
 def _install_packages_in_k8s_virtualenv():
-    if check_if_cache_exists("use_uv"):
-        get_console().print("[info]Using uv to install k8s env[/]")
-        command = create_uv_command(PYTHON_BIN_PATH)
-    else:
-        get_console().print("[info]Using pip to install k8s env[/]")
-        command = create_pip_command(PYTHON_BIN_PATH)
+    command = create_uv_command(PYTHON_BIN_PATH)
     install_command_no_constraints = [
         *command,
         "install",
@@ -528,7 +522,7 @@ def set_random_cluster_ports(python: str, kubernetes_version: str, output: Outpu
     )
     cluster_conf_path = get_kind_cluster_config_path(python=python, kubernetes_version=kubernetes_version)
     config = (
-        (AIRFLOW_SOURCES_ROOT / "scripts" / "ci" / "kubernetes" / "kind-cluster-conf.yaml")
+        (AIRFLOW_ROOT_PATH / "scripts" / "ci" / "kubernetes" / "kind-cluster-conf.yaml")
         .read_text()
         .replace("{{FORWARDED_PORT_NUMBER}}", str(forwarded_port_number))
         .replace("{{API_SERVER_PORT}}", str(k8s_api_server_port))

@@ -121,5 +121,5 @@ def get_provider_info():
         },
         "dependencies": ["apache-airflow>=2.9.0", "yandexcloud>=0.308.0", "yandex-query-client>=0.1.4"],
         "optional-dependencies": {"common.compat": ["apache-airflow-providers-common-compat"]},
-        "devel-dependencies": [],
+        "devel-dependencies": ["responses>=0.25.0"],
     }

@@ -56,7 +56,7 @@ from airflow_breeze.commands.common_options import (
     option_include_not_ready_providers,
     option_include_removed_providers,
     option_include_success_outputs,
-    option_installation_package_format,
+    option_installation_distribution_format,
     option_mount_sources,
     option_parallelism,
     option_python,
@@ -80,12 +80,12 @@ from airflow_breeze.commands.common_package_installation_options import (
     option_providers_constraints_mode_ci,
     option_providers_constraints_reference,
     option_providers_skip_constraints,
-    option_use_packages_from_dist,
+    option_use_distributions_from_dist,
 )
 from airflow_breeze.commands.release_management_group import release_management
 from airflow_breeze.global_constants import (
     ALLOWED_DEBIAN_VERSIONS,
-    ALLOWED_PACKAGE_FORMATS,
+    ALLOWED_DISTRIBUTION_FORMATS,
     ALLOWED_PLATFORMS,
     ALLOWED_PYTHON_MAJOR_MINOR_VERSIONS,
     APACHE_AIRFLOW_GITHUB_REPOSITORY,
@@ -94,15 +94,15 @@ from airflow_breeze.global_constants import (
     MULTI_PLATFORM,
 )
 from airflow_breeze.params.shell_params import ShellParams
-from airflow_breeze.prepare_providers.provider_packages import (
+from airflow_breeze.prepare_providers.provider_distributions import (
     PrepareReleasePackageErrorBuildingPackageException,
     PrepareReleasePackageTagExistException,
     PrepareReleasePackageWrongSetupException,
     apply_version_suffix_to_pyproject_toml,
-    build_provider_package,
+    build_provider_distribution,
     cleanup_build_remnants,
     get_packages_list_to_act_on,
-    move_built_packages_and_cleanup,
+    move_built_distributions_and_cleanup,
     restore_pyproject_toml,
     should_skip_the_package,
 )
@@ -123,11 +123,11 @@ from airflow_breeze.utils.docs_publisher import DocsPublisher
 from airflow_breeze.utils.github import download_constraints_file, get_active_airflow_versions
 from airflow_breeze.utils.packages import (
     PackageSuspendedException,
-    expand_all_provider_packages,
+    expand_all_provider_distributions,
     find_matching_long_package_names,
-    get_available_packages,
+    get_available_distributions,
     get_provider_details,
-    get_provider_packages_metadata,
+    get_provider_distributions_metadata,
     make_sure_remote_apache_exists_and_fetch,
 )
 from airflow_breeze.utils.parallel import (
@@ -137,13 +137,17 @@ from airflow_breeze.utils.parallel import (
     run_with_pool,
 )
 from airflow_breeze.utils.path_utils import (
-    AIRFLOW_PROVIDERS_DIR,
-    AIRFLOW_SOURCES_ROOT,
-    CONSTRAINTS_CACHE_DIR,
-    DIST_DIR,
-    GENERATED_PROVIDER_PACKAGES_DIR,
-    OUT_DIR,
-    PROVIDER_METADATA_JSON_FILE_PATH,
+    AIRFLOW_CORE_ROOT_PATH,
+    AIRFLOW_CORE_SOURCES_PATH,
+    AIRFLOW_DIST_PATH,
+    AIRFLOW_PROVIDERS_ROOT_PATH,
+    AIRFLOW_ROOT_PATH,
+    CONSTRAINTS_CACHE_PATH,
+    OUT_PATH,
+    PROVIDER_METADATA_JSON_PATH,
+    TASK_SDK_DIST_PATH,
+    TASK_SDK_ROOT_PATH,
+    TASK_SDK_SOURCES_PATH,
     cleanup_python_generated_files,
 )
 from airflow_breeze.utils.provider_dependencies import (
@@ -169,11 +173,11 @@ from airflow_breeze.utils.virtualenv_utils import create_pip_command, create_ven
 if TYPE_CHECKING:
     from packaging.version import Version
 
-argument_provider_packages = click.argument(
-    "provider_packages",
+argument_provider_distributions = click.argument(
+    "provider_distributions",
     nargs=-1,
     required=False,
-    type=NotVerifiedBetterChoice(get_available_packages(include_removed=False, include_not_ready=False)),
+    type=NotVerifiedBetterChoice(get_available_distributions(include_removed=False, include_not_ready=False)),
 )
 option_airflow_site_directory = click.option(
     "-a",
@@ -186,7 +190,7 @@ option_airflow_site_directory = click.option(
 option_chicken_egg_providers = click.option(
     "--chicken-egg-providers",
     default="",
-    help="List of chicken-egg provider packages - "
+    help="List of chicken-egg provider distributions - "
     "those that have airflow_version >= current_version and should "
     "be installed in CI from locally built packages with >= current_version.dev0 ",
     envvar="CHICKEN_EGG_PROVIDERS",
@@ -203,13 +207,13 @@ option_directory = click.option(
     required=True,
     help="Directory to clean the provider artifacts from.",
 )
-option_package_format = click.option(
-    "--package-format",
-    type=BetterChoice(ALLOWED_PACKAGE_FORMATS),
+option_distribution_format = click.option(
+    "--distribution-format",
+    type=BetterChoice(ALLOWED_DISTRIBUTION_FORMATS),
     help="Format of packages.",
-    default=ALLOWED_PACKAGE_FORMATS[0],
+    default=ALLOWED_DISTRIBUTION_FORMATS[0],
     show_default=True,
-    envvar="PACKAGE_FORMAT",
+    envvar="DISTRIBUTION_FORMAT",
 )
 option_use_local_hatch = click.option(
     "--use-local-hatch",
@@ -237,85 +241,34 @@ class VersionedFile(NamedTuple):
 AIRFLOW_PIP_VERSION = "25.0.1"
 AIRFLOW_UV_VERSION = "0.6.8"
 AIRFLOW_USE_UV = False
-# TODO: automate these as well
-WHEEL_VERSION = "0.44.0"
-GITPYTHON_VERSION = "3.1.43"
+# TODO(potiuk): automate upgrades of these versions (likely via requirements.txt file)
+GITPYTHON_VERSION = "3.1.44"
 RICH_VERSION = "13.9.4"
-NODE_VERSION = "22.2.0"
 PRE_COMMIT_VERSION = "4.2.0"
-HATCH_VERSION = "1.13.0"
+HATCH_VERSION = "1.14.0"
 PYYAML_VERSION = "6.0.2"
+UV_VERSION = "0.6.6"
 
+# no need for pre-commit-uv. Those commands will only ever initialize the compile-www-assets
+# pre-commit environment and this is done with node, no python installation is needed.
 AIRFLOW_BUILD_DOCKERFILE = f"""
+# syntax=docker/dockerfile:1.4
 FROM python:{DEFAULT_PYTHON_MAJOR_MINOR_VERSION}-slim-{ALLOWED_DEBIAN_VERSIONS[0]}
-RUN apt-get update && apt-get install -y --no-install-recommends git
-RUN pip install --root-user-action ignore pip=={AIRFLOW_PIP_VERSION} hatch=={HATCH_VERSION} pyyaml=={PYYAML_VERSION}\
- gitpython=={GITPYTHON_VERSION} rich=={RICH_VERSION} pre-commit=={PRE_COMMIT_VERSION}
+RUN apt-get update && apt-get install -y --no-install-recommends git curl
+RUN pip install uv=={UV_VERSION}
+RUN --mount=type=cache,id=cache-airflow-build-dockerfile-installation,target=/root/.cache/ \
+  uv pip install --system ignore pip=={AIRFLOW_PIP_VERSION} hatch=={HATCH_VERSION} \
+  pyyaml=={PYYAML_VERSION} gitpython=={GITPYTHON_VERSION} rich=={RICH_VERSION} \
+  pre-commit=={PRE_COMMIT_VERSION}
 COPY . /opt/airflow
 """
 
-AIRFLOW_BUILD_DOCKERIGNORE = """
-# Git version is dynamically generated
-airflow/git_version
-# Exclude mode_modules pulled by "yarn" for compilation of www files generated by NPM
-airflow/www/node_modules
-airflow/ui/node_modules
-airflow/api_fastapi/auth/managers/simple/ui/node_modules
-
-# Exclude link to docs
-airflow/www/static/docs
-
-# Exclude out directory
-out/
-
-# Exclude python generated files
-**/__pycache__/
-**/*.py[cod]
-**/*$py.class
-**/.pytest_cache/
-**/env/
-**/build/
-**/develop-eggs/
-/dist/
-**/downloads/
-**/eggs/
-**/.eggs/
-**/lib/
-**/lib64/
-**/parts/
-**/sdist/
-**/var/
-**/wheels/
-**/*.egg-info/
-**/.installed.cfg
-**/*.egg
-
-# Exclude temporary vi files
-**/*~
-
-# Exclude output files
-**/*.out
-**/hive_scratch_dir/
-
-# Exclude auto-generated Finder files on Mac OS
-**/.DS_Store
-**/Thumbs.db
-
-# Exclude docs generated files
-docs/_build/
-docs/_api/
-docs/_doctrees/
-
-# files generated by memray
-*.py.*.html
-*.py.*.bin
-"""
-
 AIRFLOW_BUILD_IMAGE_TAG = "apache/airflow:local-build-image"
-NODE_BUILD_IMAGE_TAG = f"node:{NODE_VERSION}-bookworm-slim"
 
-AIRFLOW_BUILD_DOCKERFILE_PATH = AIRFLOW_SOURCES_ROOT / "airflow-build-dockerfile"
-AIRFLOW_BUILD_DOCKERFILE_IGNORE_PATH = AIRFLOW_SOURCES_ROOT / "airflow-build-dockerfile.dockerignore"
+AIRFLOW_BUILD_DOCKERFILE_PATH = AIRFLOW_ROOT_PATH / "airflow-build-dockerfile"
+AIRFLOW_BUILD_DOCKERFILE_DOCKERIGNORE_PATH = AIRFLOW_ROOT_PATH / "airflow-build-dockerfile.dockerignore"
+AIRFLOW_DOCKERIGNORE_PATH = AIRFLOW_ROOT_PATH / ".dockerignore"
+
 ISSUE_MATCH_IN_BODY = re.compile(r" #([0-9]+)[^0-9]")
 
 
@@ -347,7 +300,7 @@ class DistributionPackageInfo(NamedTuple):
     def dist_packages(
         cls,
         *,
-        package_format: str,
+        distribution_format: str,
         dist_directory: Path,
         build_type: Literal["airflow", "providers", "task-sdk"],
     ) -> tuple[DistributionPackageInfo, ...]:
@@ -358,12 +311,12 @@ class DistributionPackageInfo(NamedTuple):
         else:
             default_glob_pattern = "apache[_-]airflow[_-]providers"
         dists_info = []
-        if package_format in ["sdist", "both"]:
+        if distribution_format in ["sdist", "both"]:
             for file in dist_directory.glob(f"{default_glob_pattern}*tar.gz"):
                 if not file.is_file() or "-source.tar.gz" in file.name:
                     continue
                 dists_info.append(cls.from_sdist(filepath=file))
-        if package_format in ["wheel", "both"]:
+        if distribution_format in ["wheel", "both"]:
             for file in dist_directory.glob(f"{default_glob_pattern}*whl"):
                 if not file.is_file():
                     continue
@@ -382,8 +335,18 @@ def _build_local_build_image():
     # The image used to build airflow package is built from scratch and contains
     # Full Airflow code including Airflow repository is added to the image, but locally build node_modules
     # are not added to the context of that image
-    AIRFLOW_BUILD_DOCKERFILE_PATH.write_text(AIRFLOW_BUILD_DOCKERFILE.strip())
-    AIRFLOW_BUILD_DOCKERFILE_IGNORE_PATH.write_text(AIRFLOW_BUILD_DOCKERIGNORE.strip())
+    AIRFLOW_BUILD_DOCKERFILE_PATH.unlink(missing_ok=True)
+    AIRFLOW_BUILD_DOCKERFILE_PATH.write_text(AIRFLOW_BUILD_DOCKERFILE)
+    AIRFLOW_BUILD_DOCKERFILE_DOCKERIGNORE_PATH.unlink(missing_ok=True)
+    dockerignore_content = AIRFLOW_DOCKERIGNORE_PATH.read_text()
+    dockerignore_content = dockerignore_content + textwrap.dedent("""
+        # Include git in the build context - we need to get git version and pre-commit configuration
+        # And clients python code to be included in the context
+        !.git
+        !.pre-commit-config.yaml
+        !clients/python
+    """)
+    AIRFLOW_BUILD_DOCKERFILE_DOCKERIGNORE_PATH.write_text(dockerignore_content)
     run_command(
         [
             "docker",
@@ -397,7 +360,7 @@ def _build_local_build_image():
         ],
         text=True,
         check=True,
-        cwd=AIRFLOW_SOURCES_ROOT,
+        cwd=AIRFLOW_ROOT_PATH,
         env={"DOCKER_CLI_HINTS": "false"},
     )
 
@@ -457,14 +420,14 @@ def package_version(version_suffix: str, package_path: Path, init_file_path: Pat
 
 
 def _build_airflow_packages_with_docker(
-    package_format: str, source_date_epoch: int, version_suffix_for_pypi: str
+    distribution_format: str, source_date_epoch: int, version_suffix_for_pypi: str
 ):
     _build_local_build_image()
     container_id = f"airflow-build-{random.getrandbits(64):08x}"
     with package_version(
         version_suffix=version_suffix_for_pypi,
-        package_path=AIRFLOW_SOURCES_ROOT,
-        init_file_path=AIRFLOW_SOURCES_ROOT / "airflow" / "__init__.py",
+        package_path=AIRFLOW_CORE_SOURCES_PATH / "..",
+        init_file_path=AIRFLOW_CORE_SOURCES_PATH / "airflow" / "__init__.py",
     ):
         result = run_command(
             cmd=[
@@ -480,12 +443,12 @@ def _build_airflow_packages_with_docker(
                 "-e",
                 "GITHUB_ACTIONS",
                 "-e",
-                f"PACKAGE_FORMAT={package_format}",
+                f"DISTRIBUTION_FORMAT={distribution_format}",
                 "-w",
                 "/opt/airflow",
                 AIRFLOW_BUILD_IMAGE_TAG,
                 "python",
-                "/opt/airflow/scripts/in_container/run_prepare_airflow_packages.py",
+                "/opt/airflow/scripts/in_container/run_prepare_airflow_distributions.py",
             ],
             check=False,
         )
@@ -493,31 +456,52 @@ def _build_airflow_packages_with_docker(
         get_console().print("[error]Error preparing Airflow package[/]")
         fix_ownership_using_docker()
         sys.exit(result.returncode)
-    DIST_DIR.mkdir(parents=True, exist_ok=True)
-    # Copy all files in the dist directory in container to the host dist directory (note '/.' in SRC)
+    AIRFLOW_DIST_PATH.mkdir(parents=True, exist_ok=True)
+    # Copy all files in the dist directory in container to the host dist directories (note '/.' in SRC)
     run_command(["docker", "cp", f"{container_id}:/opt/airflow/dist/.", "./dist"], check=True)
+    run_command(["docker", "cp", f"{container_id}:/opt/airflow/airflow-core/dist/.", "./dist"], check=True)
     run_command(["docker", "rm", "--force", container_id], check=False, stderr=DEVNULL, stdout=DEVNULL)
 
 
+def apply_distribution_format_to_hatch_command(build_command: list[str], distribution_format: str):
+    if distribution_format in ["sdist", "both"]:
+        build_command.extend(["-t", "sdist"])
+    if distribution_format in ["wheel", "both"]:
+        build_command.extend(["-t", "wheel"])
+
+
 def _build_airflow_packages_with_hatch(
-    package_format: str, source_date_epoch: int, version_suffix_for_pypi: str
+    distribution_format: str, source_date_epoch: int, version_suffix_for_pypi: str
 ):
-    hatch_build_command = ["hatch", "build", "-c", "-t", "custom"]
-    if package_format in ["sdist", "both"]:
-        hatch_build_command.extend(["-t", "sdist"])
-    if package_format in ["wheel", "both"]:
-        hatch_build_command.extend(["-t", "wheel"])
+    build_airflow_command = ["hatch", "build", "-c"]
+    apply_distribution_format_to_hatch_command(build_airflow_command, distribution_format)
     env_copy = os.environ.copy()
     env_copy["SOURCE_DATE_EPOCH"] = str(source_date_epoch)
+    build_airflow_core_command = ["hatch", "build", "-c", "-t", "custom"]
+    apply_distribution_format_to_hatch_command(build_airflow_core_command, distribution_format)
+    get_console().print(f"[bright_blue]Building apache-airflow-core distributions: {distribution_format}\n")
     with package_version(
         version_suffix=version_suffix_for_pypi,
-        package_path=AIRFLOW_SOURCES_ROOT,
-        init_file_path=AIRFLOW_SOURCES_ROOT / "airflow" / "__init__.py",
+        package_path=AIRFLOW_CORE_ROOT_PATH,
+        init_file_path=AIRFLOW_CORE_SOURCES_PATH / "airflow" / "__init__.py",
     ):
         run_command(
-            hatch_build_command,
+            build_airflow_core_command,
             check=True,
             env=env_copy,
+            cwd=AIRFLOW_CORE_ROOT_PATH,
+        )
+    get_console().print(f"[bright_blue]Building apache-airflow distributions: {distribution_format}\n")
+    with package_version(
+        version_suffix=version_suffix_for_pypi,
+        package_path=AIRFLOW_CORE_ROOT_PATH,
+        init_file_path=AIRFLOW_CORE_SOURCES_PATH / "airflow" / "__init__.py",
+    ):
+        run_command(
+            build_airflow_command,
+            check=True,
+            env=env_copy,
+            cwd=AIRFLOW_ROOT_PATH,
         )
 
 
@@ -585,32 +569,32 @@ def _check_sdist_to_wheel(dist_info: DistributionPackageInfo, pip_command: list[
 
 
 @release_management.command(
-    name="prepare-airflow-package",
+    name="prepare-airflow-distributions",
     help="Prepare sdist/whl package of Airflow.",
 )
-@option_package_format
+@option_distribution_format
 @option_version_suffix_for_pypi
 @option_use_local_hatch
 @option_verbose
 @option_dry_run
-def prepare_airflow_packages(
-    package_format: str,
+def prepare_airflow_distributions(
+    distribution_format: str,
     version_suffix_for_pypi: str,
     use_local_hatch: bool,
 ):
     perform_environment_checks()
     fix_ownership_using_docker()
     cleanup_python_generated_files()
-    source_date_epoch = get_source_date_epoch(AIRFLOW_SOURCES_ROOT / "airflow")
+    source_date_epoch = get_source_date_epoch(AIRFLOW_ROOT_PATH)
     if use_local_hatch:
         _build_airflow_packages_with_hatch(
-            package_format=package_format,
+            distribution_format=distribution_format,
             source_date_epoch=source_date_epoch,
             version_suffix_for_pypi=version_suffix_for_pypi,
         )
         get_console().print("[info]Checking if sdist packages can be built into wheels[/]")
         packages = DistributionPackageInfo.dist_packages(
-            package_format=package_format, dist_directory=DIST_DIR, build_type="airflow"
+            distribution_format=distribution_format, dist_directory=AIRFLOW_DIST_PATH, build_type="airflow"
         )
         get_console().print()
         _check_sdist_to_wheel_dists(packages)
@@ -620,62 +604,58 @@ def prepare_airflow_packages(
         get_console().print()
     else:
         _build_airflow_packages_with_docker(
-            package_format=package_format,
+            distribution_format=distribution_format,
             source_date_epoch=source_date_epoch,
             version_suffix_for_pypi=version_suffix_for_pypi,
         )
     get_console().print("[success]Successfully prepared Airflow packages")
 
 
-TASK_SDK_DIR_PATH = AIRFLOW_SOURCES_ROOT / "task-sdk"
-TASK_SDK_DIST_DIR_PATH = TASK_SDK_DIR_PATH / "dist"
-
-
 @release_management.command(
-    name="prepare-task-sdk-package",
-    help="Prepare sdist/whl package of Airflow Task SDK.",
+    name="prepare-task-sdk-distributions",
+    help="Prepare sdist/whl distributions of Airflow Task SDK.",
 )
-@option_package_format
+@option_distribution_format
 @option_version_suffix_for_pypi
 @option_use_local_hatch
 @option_verbose
 @option_dry_run
-def prepare_airflow_task_sdk_packages(
-    package_format: str,
+def prepare_task_sdk_distributions(
+    distribution_format: str,
     version_suffix_for_pypi: str,
     use_local_hatch: bool,
 ):
     perform_environment_checks()
     fix_ownership_using_docker()
     cleanup_python_generated_files()
-    source_date_epoch = get_source_date_epoch(AIRFLOW_SOURCES_ROOT / "airflow")
+    source_date_epoch = get_source_date_epoch(AIRFLOW_ROOT_PATH)
 
-    def _build_package_with_hatch(package_format: str):
+    def _build_package_with_hatch(distribution_format: str):
         command = [
             "hatch",
             "build",
             "-c",
         ]
-        if package_format == "sdist" or package_format == "both":
+        if distribution_format == "sdist" or distribution_format == "both":
             command += ["-t", "sdist"]
-        if package_format == "wheel" or package_format == "both":
+        if distribution_format == "wheel" or distribution_format == "both":
             command += ["-t", "wheel"]
         env_copy = os.environ.copy()
         env_copy["SOURCE_DATE_EPOCH"] = str(source_date_epoch)
         run_command(
             cmd=command,
-            cwd=TASK_SDK_DIR_PATH,
+            cwd=TASK_SDK_ROOT_PATH,
             env=env_copy,
             check=True,
         )
-        shutil.copytree(TASK_SDK_DIST_DIR_PATH, DIST_DIR, dirs_exist_ok=True)
+        shutil.copytree(TASK_SDK_DIST_PATH, AIRFLOW_DIST_PATH, dirs_exist_ok=True)
 
-    def _build_package_with_docker(package_format: str):
+    def _build_package_with_docker(distribution_format: str):
         _build_local_build_image()
         command = "hatch build -c "
-        if package_format == "sdist" or package_format == "both":
+        if distribution_format == "sdist" or distribution_format == "both":
             command += "-t sdist "
-        if package_format == "wheel" or package_format == "both":
+        if distribution_format == "wheel" or distribution_format == "both":
             command += "-t wheel "
         container_id = f"airflow-task-sdk-build-{random.getrandbits(64):08x}"
         result = run_command(
@@ -704,7 +684,7 @@ def prepare_airflow_task_sdk_packages(
             get_console().print("[error]Error preparing Airflow Task SDK[/]")
             fix_ownership_using_docker()
             sys.exit(result.returncode)
-        DIST_DIR.mkdir(parents=True, exist_ok=True)
+        AIRFLOW_DIST_PATH.mkdir(parents=True, exist_ok=True)
         get_console().print()
         # Copy all files in the dist directory in container to the host dist directory (note '/.' in SRC)
         run_command(["docker", "cp", f"{container_id}:/opt/airflow/task-sdk/dist/.", "./dist"], check=True)
@@ -713,15 +693,15 @@ def prepare_airflow_task_sdk_packages(
     if use_local_hatch:
         with package_version(
             version_suffix=version_suffix_for_pypi,
-            package_path=TASK_SDK_DIR_PATH,
-            init_file_path=TASK_SDK_DIR_PATH / "src" / "airflow" / "sdk" / "__init__.py",
+            package_path=TASK_SDK_ROOT_PATH,
+            init_file_path=TASK_SDK_SOURCES_PATH / "airflow" / "sdk" / "__init__.py",
         ):
             _build_package_with_hatch(
-                package_format=package_format,
+                distribution_format=distribution_format,
             )
         get_console().print("[info]Checking if sdist packages can be built into wheels[/]")
         packages = DistributionPackageInfo.dist_packages(
-            package_format=package_format, dist_directory=DIST_DIR, build_type="task-sdk"
+            distribution_format=distribution_format, dist_directory=AIRFLOW_DIST_PATH, build_type="task-sdk"
         )
         get_console().print()
         _check_sdist_to_wheel_dists(packages)
@@ -732,11 +712,11 @@ def prepare_airflow_task_sdk_packages(
     else:
         with package_version(
             version_suffix=version_suffix_for_pypi,
-            package_path=TASK_SDK_DIR_PATH,
-            init_file_path=TASK_SDK_DIR_PATH / "src" / "airflow" / "sdk" / "__init__.py",
+            package_path=TASK_SDK_ROOT_PATH,
+            init_file_path=TASK_SDK_SOURCES_PATH / "airflow" / "sdk" / "__init__.py",
         ):
             _build_package_with_docker(
-                package_format=package_format,
+                distribution_format=distribution_format,
             )
     get_console().print("[success]Successfully prepared Airflow Task SDK packages")
 
@@ -766,7 +746,7 @@ def provider_action_summary(description: str, message_type: MessageType, package
     help="Base branch to use as diff for documentation generation (used for releasing from old branch)",
 )
 @option_github_repository
-@argument_provider_packages
+@argument_provider_distributions
 @option_answer
 @option_dry_run
 @option_include_not_ready_providers
@@ -796,7 +776,7 @@ def prepare_provider_documentation(
     include_removed_providers: bool,
     non_interactive: bool,
     only_min_version_update: bool,
-    provider_packages: tuple[str],
+    provider_distributions: tuple[str],
     reapply_templates_only: bool,
     skip_git_fetch: bool,
 ):
@@ -814,8 +794,8 @@ def prepare_provider_documentation(
     perform_environment_checks()
     fix_ownership_using_docker()
     cleanup_python_generated_files()
-    if not provider_packages:
-        provider_packages = get_available_packages(
+    if not provider_distributions:
+        provider_distributions = get_available_distributions(
             include_removed=include_removed_providers, include_not_ready=include_not_ready_providers
         )
 
@@ -829,7 +809,7 @@ def prepare_provider_documentation(
     success_packages = []
     suspended_packages = []
     removed_packages = []
-    for provider_id in provider_packages:
+    for provider_id in provider_distributions:
         provider_metadata = basic_provider_checks(provider_id)
         if os.environ.get("GITHUB_ACTIONS", "false") != "true":
             if not only_min_version_update:
@@ -852,7 +832,7 @@ def prepare_provider_documentation(
                         only_min_version_update=only_min_version_update,
                     )
                 update_min_airflow_version_and_build_files(
-                    provider_package_id=provider_id,
+                    provider_id=provider_id,
                     with_breaking_changes=with_breaking_changes,
                     maybe_with_new_features=maybe_with_new_features,
                 )
@@ -915,33 +895,33 @@ def prepare_provider_documentation(
     )
 
 
-def basic_provider_checks(provider_package_id: str) -> dict[str, Any]:
-    provider_packages_metadata = get_provider_packages_metadata()
-    get_console().print(f"\n[info]Reading provider package metadata: {provider_package_id}[/]")
-    provider_metadata = provider_packages_metadata.get(provider_package_id)
+def basic_provider_checks(provider_id: str) -> dict[str, Any]:
+    provider_distributions_metadata = get_provider_distributions_metadata()
+    get_console().print(f"\n[info]Reading provider package metadata: {provider_id}[/]")
+    provider_metadata = provider_distributions_metadata.get(provider_id)
     if not provider_metadata:
         get_console().print(
-            f"[error]The package {provider_package_id} could not be found in the list "
-            f"of provider packages. Exiting[/]"
+            f"[error]The package {provider_id} could not be found in the list "
+            f"of provider distributions. Exiting[/]"
         )
-        get_console().print("Available provider packages:")
-        get_console().print(provider_packages_metadata)
+        get_console().print("Available provider distributions:")
+        get_console().print(provider_distributions_metadata)
         sys.exit(1)
     if provider_metadata["state"] == "removed":
         get_console().print(
-            f"[warning]The package: {provider_package_id} is scheduled for removal, but "
+            f"[warning]The package: {provider_id} is scheduled for removal, but "
             f"since you asked for it, it will be built [/]\n"
         )
     elif provider_metadata.get("state") == "suspended":
-        get_console().print(f"[warning]The package: {provider_package_id} is suspended skipping it [/]\n")
+        get_console().print(f"[warning]The package: {provider_id} is suspended skipping it [/]\n")
         raise PackageSuspendedException()
     return provider_metadata
 
 
-def _build_provider_package(
+def _build_provider_distributions(
     provider_id: str,
     package_version_suffix: str,
-    package_format: str,
+    distribution_format: str,
     skip_tag_check: bool,
     skip_deleting_generated_files: bool,
 ):
@@ -952,7 +932,7 @@ def _build_provider_package(
     get_console().print()
     with ci_group(f"Preparing provider package [special]{provider_id}"):
         get_console().print()
-        provider_root_dir = AIRFLOW_PROVIDERS_DIR.joinpath(*provider_id.split("."))
+        provider_root_dir = AIRFLOW_PROVIDERS_ROOT_PATH.joinpath(*provider_id.split("."))
         get_console().print(
             f"[info]Provider {provider_id} building in-place with suffix: '{package_version_suffix}'."
         )
@@ -961,29 +941,29 @@ def _build_provider_package(
             provider_id, provider_root_dir, package_version_suffix
         )
         try:
-            build_provider_package(
+            build_provider_distribution(
                 provider_id=provider_id,
-                package_format=package_format,
+                distribution_format=distribution_format,
                 target_provider_root_sources_path=provider_root_dir,
             )
         finally:
             restore_pyproject_toml(provider_root_dir, old_content)
-        move_built_packages_and_cleanup(
+        move_built_distributions_and_cleanup(
             provider_root_dir,
-            DIST_DIR,
+            AIRFLOW_DIST_PATH,
             skip_cleanup=skip_deleting_generated_files,
             delete_only_build_and_dist_folders=True,
         )
 
 
 @release_management.command(
-    name="prepare-provider-packages",
-    help="Prepare sdist/whl packages of Airflow Providers.",
+    name="prepare-provider-distributions",
+    help="Prepare sdist/whl distributions of Airflow Providers.",
 )
-@option_package_format
+@option_distribution_format
 @option_version_suffix_for_pypi
 @click.option(
-    "--package-list-file",
+    "--distributions-list-file",
     type=click.File("rt"),
     help="Read list of packages from text file (one package per line).",
 )
@@ -1017,8 +997,8 @@ def _build_provider_package(
     " in a clean environment",
 )
 @click.option(
-    "--package-list",
-    envvar="PACKAGE_LIST",
+    "--distributions-list",
+    envvar="DISTRIBUTIONS_LIST",
     type=str,
     help="Optional, contains comma-separated list of package ids that are processed for documentation "
     "building, and document publishing. It is an easier alternative to adding individual packages as"
@@ -1028,17 +1008,17 @@ def _build_provider_package(
 @option_github_repository
 @option_include_not_ready_providers
 @option_include_removed_providers
-@argument_provider_packages
+@argument_provider_distributions
 @option_verbose
-def prepare_provider_packages(
+def prepare_provider_distributions(
     clean_dist: bool,
-    package_list: str,
+    distributions_list: str,
     github_repository: str,
     include_not_ready_providers: bool,
     include_removed_providers: bool,
-    package_format: str,
-    package_list_file: IO | None,
-    provider_packages: tuple[str, ...],
+    distribution_format: str,
+    distributions_list_file: IO | None,
+    provider_distributions: tuple[str, ...],
     skip_deleting_generated_files: bool,
     skip_tag_check: bool,
     version_suffix_for_pypi: str,
@@ -1047,21 +1027,23 @@ def prepare_provider_packages(
     perform_environment_checks()
     fix_ownership_using_docker()
     cleanup_python_generated_files()
-    packages_list_as_tuple: tuple[str, ...] = ()
-    if package_list and len(package_list):
-        get_console().print(f"\n[info]Populating provider list from PACKAGE_LIST env as {package_list}")
-        # Override provider_packages with values from PACKAGE_LIST
-        packages_list_as_tuple = tuple(package_list.split(","))
-    if provider_packages and packages_list_as_tuple:
+    distributions_list_as_tuple: tuple[str, ...] = ()
+    if distributions_list and len(distributions_list):
         get_console().print(
-            f"[warning]Both package arguments and --package-list / PACKAGE_LIST passed. "
-            f"Overriding to {packages_list_as_tuple}"
+            f"\n[info]Populating provider list from DISTRIBUTIONS_LIST env as {distributions_list}"
         )
-    provider_packages = packages_list_as_tuple or provider_packages
+        # Override provider_distributios with values from DISTRIBUTIONS_LIST
+        distributions_list_as_tuple = tuple(distributions_list.split(","))
+    if provider_distributions and distributions_list_as_tuple:
+        get_console().print(
+            f"[warning]Both package arguments and --distributions-list / DISTRIBUTIONS_LIST passed. "
+            f"Overriding to {distributions_list_as_tuple}"
+        )
+    provider_distributions = distributions_list_as_tuple or provider_distributions
 
     packages_list = get_packages_list_to_act_on(
-        package_list_file=package_list_file,
-        provider_packages=provider_packages,
+        distributions_list_file=distributions_list_file,
+        provider_distributions=provider_distributions,
         include_removed=include_removed_providers,
         include_not_ready=include_not_ready_providers,
     )
@@ -1076,15 +1058,15 @@ def prepare_provider_packages(
     error_packages = []
     if clean_dist:
         get_console().print("\n[warning]Cleaning dist directory before building packages[/]\n")
-        shutil.rmtree(DIST_DIR, ignore_errors=True)
-        DIST_DIR.mkdir(parents=True, exist_ok=True)
+        shutil.rmtree(AIRFLOW_DIST_PATH, ignore_errors=True)
+        AIRFLOW_DIST_PATH.mkdir(parents=True, exist_ok=True)
     for provider_id in packages_list:
         try:
             basic_provider_checks(provider_id)
-            _build_provider_package(
+            _build_provider_distributions(
                 provider_id,
                 package_version_suffix,
-                package_format,
+                distribution_format,
                 skip_tag_check,
                 skip_deleting_generated_files,
             )
@@ -1099,8 +1081,6 @@ def prepare_provider_packages(
         else:
             get_console().print(f"\n[success]Generated package [special]{provider_id}")
             success_packages.append(provider_id)
-    if not skip_deleting_generated_files:
-        shutil.rmtree(GENERATED_PROVIDER_PACKAGES_DIR, ignore_errors=True)
     get_console().print()
     get_console().print("\n[info]Summary of prepared packages:\n")
     provider_action_summary("Success", MessageType.SUCCESS, success_packages)
@@ -1118,7 +1098,7 @@ def prepare_provider_packages(
         sys.exit(0)
     get_console().print("\n[success]Successfully built packages!\n\n")
     packages = DistributionPackageInfo.dist_packages(
-        package_format=package_format, dist_directory=DIST_DIR, build_type="providers"
+        distribution_format=distribution_format, dist_directory=AIRFLOW_DIST_PATH, build_type="providers"
     )
     get_console().print()
     _check_sdist_to_wheel_dists(packages)
@@ -1387,35 +1367,35 @@ WHEEL_FILENAME_PATTERN = re.compile(rf"{WHEEL_FILENAME_PREFIX}(.*)-[0-9].*\.whl"
 def _get_all_providers_in_dist(
     filename_prefix: str, filename_pattern: re.Pattern[str]
 ) -> Generator[str, None, None]:
-    for file in DIST_DIR.glob(f"{filename_prefix}*.tar.gz"):
+    for file in AIRFLOW_DIST_PATH.glob(f"{filename_prefix}*.tar.gz"):
         matched = filename_pattern.match(file.name)
         if not matched:
             raise SystemExit(f"Cannot parse provider package name from {file.name}")
-        provider_package_id = matched.group(1).replace("_", ".")
-        yield provider_package_id
+        provider_id = matched.group(1).replace("_", ".")
+        yield provider_id
 
 
-def get_all_providers_in_dist(package_format: str, install_selected_providers: str) -> list[str]:
+def get_all_providers_in_dist(distribution_format: str, install_selected_providers: str) -> list[str]:
     """
     Returns all providers in dist, optionally filtered by install_selected_providers.
 
-    :param package_format: package format to look for
+    :param distribution_format: package format to look for
     :param install_selected_providers: list of providers to filter by
     """
-    if package_format == "sdist":
+    if distribution_format == "sdist":
         all_found_providers = list(
             _get_all_providers_in_dist(
                 filename_prefix=SDIST_FILENAME_PREFIX, filename_pattern=SDIST_FILENAME_PATTERN
             )
         )
-    elif package_format == "wheel":
+    elif distribution_format == "wheel":
         all_found_providers = list(
             _get_all_providers_in_dist(
                 filename_prefix=WHEEL_FILENAME_PREFIX, filename_pattern=WHEEL_FILENAME_PATTERN
             )
         )
     else:
-        raise SystemExit(f"Unknown package format {package_format}")
+        raise SystemExit(f"Unknown package format {distribution_format}")
     if install_selected_providers:
         filter_list = install_selected_providers.split(",")
         return [provider for provider in all_found_providers if provider in filter_list]
@@ -1437,8 +1417,8 @@ SDIST_INSTALL_PROGRESS_REGEXP = r"Processing .*|Requirement already satisfied:.*
 
 
 @release_management.command(
-    name="install-provider-packages",
-    help="Installs provider packages that can be found in dist.",
+    name="install-provider-distributions",
+    help="Installs provider distributiobs that can be found in dist.",
 )
 @option_airflow_constraints_mode_ci
 @option_airflow_constraints_location
@@ -1451,7 +1431,7 @@ SDIST_INSTALL_PROGRESS_REGEXP = r"Processing .*|Requirement already satisfied:.*
 @option_github_repository
 @option_include_success_outputs
 @option_install_selected_providers
-@option_installation_package_format
+@option_installation_distribution_format
 @option_mount_sources
 @option_parallelism
 @option_providers_constraints_location
@@ -1462,9 +1442,9 @@ SDIST_INSTALL_PROGRESS_REGEXP = r"Processing .*|Requirement already satisfied:.*
 @option_run_in_parallel
 @option_skip_cleanup
 @option_use_airflow_version
-@option_use_packages_from_dist
+@option_use_distributions_from_dist
 @option_verbose
-def install_provider_packages(
+def install_provider_distributions(
     airflow_constraints_location: str,
     airflow_constraints_mode: str,
     airflow_constraints_reference: str,
@@ -1476,7 +1456,7 @@ def install_provider_packages(
     include_success_outputs: bool,
     install_selected_providers: str,
     mount_sources: str,
-    package_format: str,
+    distribution_format: str,
     providers_constraints_location: str,
     providers_constraints_mode: str,
     providers_constraints_reference: str,
@@ -1486,7 +1466,7 @@ def install_provider_packages(
     run_in_parallel: bool,
     skip_cleanup: bool,
     use_airflow_version: str | None,
-    use_packages_from_dist: bool,
+    use_distributions_from_dist: bool,
 ):
     perform_environment_checks()
     fix_ownership_using_docker()
@@ -1504,19 +1484,19 @@ def install_provider_packages(
         github_repository=github_repository,
         install_selected_providers=install_selected_providers,
         mount_sources=mount_sources,
-        package_format=package_format,
+        distribution_format=distribution_format,
         providers_constraints_location=providers_constraints_location,
         providers_constraints_mode=providers_constraints_mode,
         providers_constraints_reference=providers_constraints_reference,
         providers_skip_constraints=providers_skip_constraints,
         python=python,
         use_airflow_version=use_airflow_version,
-        use_packages_from_dist=use_packages_from_dist,
+        use_distributions_from_dist=use_distributions_from_dist,
     )
     rebuild_or_pull_ci_image_if_needed(command_params=shell_params)
     if run_in_parallel:
         list_of_all_providers = get_all_providers_in_dist(
-            package_format=package_format, install_selected_providers=install_selected_providers
+            distribution_format=distribution_format, install_selected_providers=install_selected_providers
         )
         get_console().print(
             f"[info]Splitting {len(list_of_all_providers)} providers into max {parallelism} chunks"
@@ -1586,7 +1566,7 @@ def install_provider_packages(
 
 
 @release_management.command(
-    name="verify-provider-packages",
+    name="verify-provider-distributions",
     help="Verifies if all provider code is following expectations for providers.",
 )
 @option_airflow_constraints_mode_ci
@@ -1599,7 +1579,7 @@ def install_provider_packages(
 @option_github_repository
 @option_install_airflow_with_constraints
 @option_install_selected_providers
-@option_installation_package_format
+@option_installation_distribution_format
 @option_mount_sources
 @option_python
 @option_providers_constraints_location
@@ -1607,9 +1587,9 @@ def install_provider_packages(
 @option_providers_constraints_reference
 @option_providers_skip_constraints
 @option_use_airflow_version
-@option_use_packages_from_dist
+@option_use_distributions_from_dist
 @option_verbose
-def verify_provider_packages(
+def verify_provider_distributions(
     airflow_constraints_location: str,
     airflow_constraints_mode: str,
     airflow_constraints_reference: str,
@@ -1619,7 +1599,7 @@ def verify_provider_packages(
     install_airflow_with_constraints: bool,
     install_selected_providers: str,
     mount_sources: str,
-    package_format: str,
+    distribution_format: str,
     providers_constraints_location: str,
     providers_constraints_mode: str,
     providers_constraints_reference: str,
@@ -1627,11 +1607,11 @@ def verify_provider_packages(
     python: str,
     airflow_skip_constraints: bool,
     use_airflow_version: str | None,
-    use_packages_from_dist: bool,
+    use_distributions_from_dist: bool,
 ):
-    if install_selected_providers and not use_packages_from_dist:
-        get_console().print("Forcing use_packages_from_dist as installing selected_providers is set")
-        use_packages_from_dist = True
+    if install_selected_providers and not use_distributions_from_dist:
+        get_console().print("Forcing use_distributions_from_dist as installing selected_providers is set")
+        use_distributions_from_dist = True
     perform_environment_checks()
     fix_ownership_using_docker()
     cleanup_python_generated_files()
@@ -1645,14 +1625,14 @@ def verify_provider_packages(
         github_repository=github_repository,
         install_airflow_with_constraints=install_airflow_with_constraints,
         mount_sources=mount_sources,
-        package_format=package_format,
+        distribution_format=distribution_format,
         providers_constraints_location=providers_constraints_location,
         providers_constraints_mode=providers_constraints_mode,
         providers_constraints_reference=providers_constraints_reference,
         providers_skip_constraints=providers_skip_constraints,
         python=python,
         use_airflow_version=use_airflow_version,
-        use_packages_from_dist=use_packages_from_dist,
+        use_distributions_from_dist=use_distributions_from_dist,
     )
     rebuild_or_pull_ci_image_if_needed(command_params=shell_params)
     result_command = execute_command_in_shell(
@@ -1694,7 +1674,7 @@ PUBLISHING_DOCS_PROGRESS_MATCHER = r"Publishing docs|Copy directory"
 
 
 def run_publish_docs_in_parallel(
-    package_list: tuple[str, ...],
+    distributions_list: tuple[str, ...],
     airflow_site_directory: str,
     override_versioned: bool,
     include_success_outputs: bool,
@@ -1707,7 +1687,7 @@ def run_publish_docs_in_parallel(
     skipped_entries = []
 
     with ci_group("Publishing docs for packages"):
-        all_params = [f"Publishing docs {package_name}" for package_name in package_list]
+        all_params = [f"Publishing docs {package_name}" for package_name in distributions_list]
         with run_with_pool(
             parallelism=parallelism,
             all_params=all_params,
@@ -1727,7 +1707,7 @@ def run_publish_docs_in_parallel(
                         "verbose": get_verbose(),
                     },
                 )
-                for index, package_name in enumerate(package_list)
+                for index, package_name in enumerate(distributions_list)
             ]
 
             # Iterate over the results and collect success and skipped entries
@@ -1774,8 +1754,8 @@ def run_publish_docs_in_parallel(
     multiple=True,
 )
 @click.option(
-    "--package-list",
-    envvar="PACKAGE_LIST",
+    "--distributions-list",
+    envvar="DISTRIBUTIONS_LIST",
     type=str,
     help="Optional, contains comma-separated list of package ids that are processed for documentation "
     "building, and document publishing. It is an easier alternative to adding individual packages as"
@@ -1794,7 +1774,7 @@ def publish_docs(
     include_removed_providers: bool,
     override_versioned: bool,
     package_filter: tuple[str, ...],
-    package_list: str,
+    distributions_list: str,
     parallelism: int,
     run_in_parallel: bool,
     skip_cleanup: bool,
@@ -1806,19 +1786,21 @@ def publish_docs(
             "Provide the path of cloned airflow-site repo\n"
         )
     packages_list_as_tuple: tuple[str, ...] = ()
-    if package_list and len(package_list):
-        get_console().print(f"\n[info]Populating provider list from PACKAGE_LIST env as {package_list}")
-        # Override doc_packages with values from PACKAGE_LIST
-        packages_list_as_tuple = tuple(package_list.split(","))
+    if distributions_list and len(distributions_list):
+        get_console().print(
+            f"\n[info]Populating provider list from DISTRIBUTIONS_LIST env as {distributions_list}"
+        )
+        # Override doc_packages with values from DISTRIBUTIONS_LIST
+        packages_list_as_tuple = tuple(distributions_list.split(","))
     if doc_packages and packages_list_as_tuple:
         get_console().print(
-            f"[warning]Both package arguments and --package-list / PACKAGE_LIST passed. "
+            f"[warning]Both package arguments and --distributions-list / DISTRIBUTIONS_LIST passed. "
             f"Overriding to {packages_list_as_tuple}"
         )
     doc_packages = packages_list_as_tuple or doc_packages
 
     current_packages = find_matching_long_package_names(
-        short_packages=expand_all_provider_packages(
+        short_packages=expand_all_provider_distributions(
             short_doc_packages=doc_packages,
             include_removed=include_removed_providers,
             include_not_ready=include_not_ready_providers,
@@ -1831,7 +1813,7 @@ def publish_docs(
     print()
     if run_in_parallel:
         run_publish_docs_in_parallel(
-            package_list=current_packages,
+            distributions_list=current_packages,
             parallelism=parallelism,
             skip_cleanup=skip_cleanup,
             debug_resources=debug_resources,
@@ -1897,7 +1879,7 @@ def add_back_references(
     start_generating_back_references(
         site_path,
         list(
-            expand_all_provider_packages(
+            expand_all_provider_distributions(
                 short_doc_packages=doc_packages,
                 include_removed=include_removed_providers,
                 include_not_ready=include_not_ready_providers,
@@ -1914,7 +1896,7 @@ def _add_chicken_egg_providers_to_build_args(
             f"[info]Adding chicken egg providers to build args as {airflow_version} is "
             f"pre release and we have chicken-egg packages '{chicken_egg_providers}' defined[/]"
         )
-        python_build_args["INSTALL_PACKAGES_FROM_CONTEXT"] = "true"
+        python_build_args["INSTALL_DISTRIBUTIONS_FROM_CONTEXT"] = "true"
         python_build_args["DOCKER_CONTEXT_FILES"] = "./docker-context-files"
 
 
@@ -2185,7 +2167,7 @@ def get_suffix_from_package_in_dist(dist_files: list[str], package: str) -> str 
 def get_prs_for_package(provider_id: str) -> list[int]:
     pr_matcher = re.compile(r".*\(#([0-9]*)\)``$")
     prs = []
-    provider_yaml_dict = get_provider_packages_metadata().get(provider_id)
+    provider_yaml_dict = get_provider_distributions_metadata().get(provider_id)
     if not provider_yaml_dict:
         raise RuntimeError(f"The provider id {provider_id} does not have provider.yaml file")
     current_release_version = provider_yaml_dict["versions"][0]
@@ -2253,26 +2235,26 @@ def create_github_issue_url(title: str, body: str, labels: Iterable[str]) -> str
     is_flag=True,
     help="Only consider package ids with packages prepared in the dist folder",
 )
-@argument_provider_packages
+@argument_provider_distributions
 def generate_issue_content_providers(
     disable_progress: bool,
     excluded_pr_list: str,
     github_token: str,
     only_available_in_dist: bool,
-    provider_packages: list[str],
+    provider_distributions: list[str],
 ):
     import jinja2
     from github import Github, Issue, PullRequest, UnknownObjectException
 
     class ProviderPRInfo(NamedTuple):
-        provider_package_id: str
+        provider_id: str
         pypi_package_name: str
         version: str
         pr_list: list[PullRequest.PullRequest | Issue.Issue]
         suffix: str
 
-    if not provider_packages:
-        provider_packages = list(DEPENDENCIES.keys())
+    if not provider_distributions:
+        provider_distributions = list(DEPENDENCIES.keys())
     with ci_group("Generates GitHub issue content with people who can test it"):
         if excluded_pr_list:
             excluded_prs = [int(pr) for pr in excluded_pr_list.split(",")]
@@ -2281,9 +2263,9 @@ def generate_issue_content_providers(
         all_prs: set[int] = set()
         provider_prs: dict[str, list[int]] = {}
         if only_available_in_dist:
-            files_in_dist = os.listdir(str(AIRFLOW_SOURCES_ROOT / "dist"))
+            files_in_dist = os.listdir(str(AIRFLOW_DIST_PATH))
         prepared_package_ids = []
-        for provider_id in provider_packages:
+        for provider_id in provider_distributions:
             if not only_available_in_dist or is_package_in_dist(files_in_dist, provider_id):
                 get_console().print(f"Extracting PRs for provider {provider_id}")
                 prepared_package_ids.append(provider_id)
@@ -2346,18 +2328,18 @@ def generate_issue_content_providers(
                                 f"Failed to retrieve linked issue #{linked_issue_number}: Unknown Issue"
                             )
                 progress.advance(task)
-        get_provider_packages_metadata.cache_clear()
+        get_provider_distributions_metadata.cache_clear()
         providers: dict[str, ProviderPRInfo] = {}
         for provider_id in prepared_package_ids:
             if provider_id not in provider_prs:
                 continue
             pull_request_list = [pull_requests[pr] for pr in provider_prs[provider_id] if pr in pull_requests]
-            provider_yaml_dict = get_provider_packages_metadata().get(provider_id)
+            provider_yaml_dict = get_provider_distributions_metadata().get(provider_id)
             if pull_request_list:
                 package_suffix = get_suffix_from_package_in_dist(files_in_dist, provider_id)
                 providers[provider_id] = ProviderPRInfo(
                     version=provider_yaml_dict["versions"][0],
-                    provider_package_id=provider_id,
+                    provider_id=provider_id,
                     pypi_package_name=provider_yaml_dict["package-name"],
                     pr_list=pull_request_list,
                     suffix=package_suffix if package_suffix else "",
@@ -2647,17 +2629,17 @@ def get_all_constraint_files(
     refresh_constraints: bool, python_version: str
 ) -> tuple[list[str], dict[str, str]]:
     if refresh_constraints:
-        shutil.rmtree(CONSTRAINTS_CACHE_DIR, ignore_errors=True)
+        shutil.rmtree(CONSTRAINTS_CACHE_PATH, ignore_errors=True)
     all_airflow_versions, airflow_release_dates = get_active_airflow_versions(confirm=False)
-    if not CONSTRAINTS_CACHE_DIR.exists():
+    if not CONSTRAINTS_CACHE_PATH.exists():
         with ci_group(f"Downloading constraints for all Airflow versions for Python {python_version}"):
-            CONSTRAINTS_CACHE_DIR.mkdir(parents=True, exist_ok=True)
+            CONSTRAINTS_CACHE_PATH.mkdir(parents=True, exist_ok=True)
             for airflow_version in all_airflow_versions:
                 if not download_constraints_file(
                     airflow_version=airflow_version,
                     python_version=python_version,
                     include_provider_dependencies=True,
-                    output_file=CONSTRAINTS_CACHE_DIR
+                    output_file=CONSTRAINTS_CACHE_PATH
                     / f"constraints-{airflow_version}-python-{python_version}.txt",
                 ):
                     get_console().print(
@@ -2672,7 +2654,7 @@ MATCH_CONSTRAINTS_FILE_REGEX = re.compile(r"constraints-(.*)-python-(.*).txt")
 
 def load_constraints(python_version: str) -> dict[str, dict[str, str]]:
     constraints: dict[str, dict[str, str]] = {}
-    for filename in sorted(CONSTRAINTS_CACHE_DIR.glob(f"constraints-*-python-{python_version}.txt")):
+    for filename in sorted(CONSTRAINTS_CACHE_PATH.glob(f"constraints-*-python-{python_version}.txt")):
         filename_match = MATCH_CONSTRAINTS_FILE_REGEX.match(filename.name)
         if filename_match:
             airflow_version = filename_match.group(1)
@@ -2717,7 +2699,7 @@ def generate_providers_metadata(refresh_constraints: bool, python: str | None):
             metadata_dict[package_id] = result
     import json
 
-    PROVIDER_METADATA_JSON_FILE_PATH.write_text(json.dumps(metadata_dict, indent=4) + "\n")
+    PROVIDER_METADATA_JSON_PATH.write_text(json.dumps(metadata_dict, indent=4) + "\n")
 
 
 def fetch_remote(constraints_repo: Path, remote_name: str) -> None:
@@ -2947,14 +2929,14 @@ def split_version_and_suffix(file_name: str, suffix: str) -> VersionedFile:
     )
 
 
-PYTHON_CLIENT_DIR_PATH = AIRFLOW_SOURCES_ROOT / "clients" / "python"
+PYTHON_CLIENT_DIR_PATH = AIRFLOW_ROOT_PATH / "clients" / "python"
 PYTHON_CLIENT_DIST_DIR_PATH = PYTHON_CLIENT_DIR_PATH / "dist"
 PYTHON_CLIENT_TMP_DIR = PYTHON_CLIENT_DIR_PATH / "tmp"
 
-REPRODUCIBLE_BUILD_YAML = AIRFLOW_SOURCES_ROOT / "airflow" / "reproducible_build.yaml"
+REPRODUCIBLE_BUILD_YAML = AIRFLOW_ROOT_PATH / "reproducible_build.yaml"
 
 VERSION_FILE = PYTHON_CLIENT_DIR_PATH / "version.txt"
-SOURCE_API_YAML_PATH = AIRFLOW_SOURCES_ROOT / "clients" / "python" / "openapi_v1.yaml"
+SOURCE_API_YAML_PATH = AIRFLOW_ROOT_PATH / "clients" / "python" / "openapi_v1.yaml"
 TARGET_API_YAML_PATH = PYTHON_CLIENT_DIR_PATH / "v1.yaml"
 OPENAPI_GENERATOR_CLI_VER = "5.4.0"
 
@@ -3061,15 +3043,15 @@ def _copy_selected_sources_from_tmp_directory_to_clients_python():
     get_console().print()
 
 
-def _build_client_packages_with_hatch(source_date_epoch: int, package_format: str):
+def _build_client_packages_with_hatch(source_date_epoch: int, distribution_format: str):
     command = [
         "hatch",
         "build",
         "-c",
     ]
-    if package_format == "sdist" or package_format == "both":
+    if distribution_format == "sdist" or distribution_format == "both":
         command += ["-t", "sdist"]
-    if package_format == "wheel" or package_format == "both":
+    if distribution_format == "wheel" or distribution_format == "both":
         command += ["-t", "wheel"]
     env_copy = os.environ.copy()
     env_copy["SOURCE_DATE_EPOCH"] = str(source_date_epoch)
@@ -3079,15 +3061,15 @@ def _build_client_packages_with_hatch(source_date_epoch: int, package_format: st
         env=env_copy,
         check=True,
     )
-    shutil.copytree(PYTHON_CLIENT_DIST_DIR_PATH, DIST_DIR, dirs_exist_ok=True)
+    shutil.copytree(PYTHON_CLIENT_DIST_DIR_PATH, AIRFLOW_DIST_PATH, dirs_exist_ok=True)
 
 
-def _build_client_packages_with_docker(source_date_epoch: int, package_format: str):
+def _build_client_packages_with_docker(source_date_epoch: int, distribution_format: str):
     _build_local_build_image()
     command = "hatch build -c "
-    if package_format == "sdist" or package_format == "both":
+    if distribution_format == "sdist" or distribution_format == "both":
         command += "-t sdist "
-    if package_format == "wheel" or package_format == "both":
+    if distribution_format == "wheel" or distribution_format == "both":
         command += "-t wheel "
     container_id = f"airflow-build-{random.getrandbits(64):08x}"
     result = run_command(
@@ -3116,7 +3098,7 @@ def _build_client_packages_with_docker(source_date_epoch: int, package_format: s
         get_console().print("[error]Error preparing Python client packages[/]")
         fix_ownership_using_docker()
         sys.exit(result.returncode)
-    DIST_DIR.mkdir(parents=True, exist_ok=True)
+    AIRFLOW_DIST_PATH.mkdir(parents=True, exist_ok=True)
     get_console().print()
     # Copy all files in the dist directory in container to the host dist directory (note '/.' in SRC)
     run_command(["docker", "cp", f"{container_id}:/opt/airflow/clients/python/dist/.", "./dist"], check=True)
@@ -3124,7 +3106,7 @@ def _build_client_packages_with_docker(source_date_epoch: int, package_format: s
 
 
 @release_management.command(name="prepare-python-client", help="Prepares python client packages.")
-@option_package_format
+@option_distribution_format
 @option_version_suffix_for_pypi
 @option_use_local_hatch
 @click.option(
@@ -3149,7 +3131,7 @@ def _build_client_packages_with_docker(source_date_epoch: int, package_format: s
 @option_dry_run
 @option_verbose
 def prepare_python_client(
-    package_format: str,
+    distribution_format: str,
     version_suffix_for_pypi: str,
     use_local_hatch: bool,
     python_client_repo: Path | None,
@@ -3228,19 +3210,19 @@ def prepare_python_client(
     try:
         if use_local_hatch:
             _build_client_packages_with_hatch(
-                source_date_epoch=source_date_epoch, package_format=package_format
+                source_date_epoch=source_date_epoch, distribution_format=distribution_format
             )
         else:
             _build_client_packages_with_docker(
-                source_date_epoch=source_date_epoch, package_format=package_format
+                source_date_epoch=source_date_epoch, distribution_format=distribution_format
             )
-        get_console().print(f"\n[success]Built packages in {DIST_DIR}[/]\n")
+        get_console().print(f"\n[success]Built packages in {AIRFLOW_DIST_PATH}[/]\n")
     finally:
         if version_suffix_for_pypi:
             VERSION_FILE.write_text(original_version)
 
 
-CHART_DIR = AIRFLOW_SOURCES_ROOT / "chart"
+CHART_DIR = AIRFLOW_ROOT_PATH / "chart"
 CHART_YAML_FILE = CHART_DIR / "Chart.yaml"
 VALUES_YAML_FILE = CHART_DIR / "values.yaml"
 
@@ -3384,8 +3366,8 @@ def prepare_helm_chart_tarball(
         get_console().print(f"[warning]Skipping tagging the chart with {tag_with_suffix}[/]")
     get_console().print(f"[info]Creating tarball for Helm Chart {tag_with_suffix}[/]")
     archive_name = f"airflow-chart-{version}-source.tar.gz"
-    OUT_DIR.mkdir(parents=True, exist_ok=True)
-    source_archive = OUT_DIR / archive_name
+    OUT_PATH.mkdir(parents=True, exist_ok=True)
+    source_archive = OUT_PATH / archive_name
     source_archive.unlink(missing_ok=True)
     result = run_command(
         [
@@ -3406,8 +3388,8 @@ def prepare_helm_chart_tarball(
     if result.returncode != 0:
         get_console().print(f"[error]Error running git archive for Helm Chart {tag_with_suffix}[/]")
         sys.exit(result.returncode)
-    DIST_DIR.mkdir(parents=True, exist_ok=True)
-    final_archive = DIST_DIR / archive_name
+    AIRFLOW_DIST_PATH.mkdir(parents=True, exist_ok=True)
+    final_archive = AIRFLOW_DIST_PATH / archive_name
     final_archive.unlink(missing_ok=True)
     result = repack_deterministically(
         source_archive=source_archive,
@@ -3455,19 +3437,19 @@ def prepare_helm_chart_package(sign_email: str):
     # See https://github.com/technosophos/helm-gpg/issues/1
     k8s_env["TAR_OPTIONS"] = "--wildcards"
     archive_name = f"airflow-{version}.tgz"
-    OUT_DIR.mkdir(parents=True, exist_ok=True)
+    OUT_PATH.mkdir(parents=True, exist_ok=True)
     result = run_command(
-        cmd=["helm", "package", "chart", "--dependency-update", "--destination", OUT_DIR.as_posix()],
+        cmd=["helm", "package", "chart", "--dependency-update", "--destination", OUT_PATH.as_posix()],
         env=k8s_env,
         check=False,
     )
     if result.returncode != 0:
         get_console().print("[error]Error packaging the chart[/]")
         sys.exit(result.returncode)
-    DIST_DIR.mkdir(parents=True, exist_ok=True)
-    final_archive = DIST_DIR / archive_name
+    AIRFLOW_DIST_PATH.mkdir(parents=True, exist_ok=True)
+    final_archive = AIRFLOW_DIST_PATH / archive_name
     final_archive.unlink(missing_ok=True)
-    source_archive = OUT_DIR / archive_name
+    source_archive = OUT_PATH / archive_name
     result = repack_deterministically(
         source_archive=source_archive,
         dest_archive=final_archive,
@@ -3489,7 +3471,7 @@ def prepare_helm_chart_package(sign_email: str):
             prov_file.unlink()
         result = run_command(
             cmd=["helm", "gpg", "sign", "-u", sign_email, archive_name],
-            cwd=DIST_DIR.as_posix(),
+            cwd=AIRFLOW_DIST_PATH.as_posix(),
             env=k8s_env,
             check=False,
         )
@@ -3498,7 +3480,7 @@ def prepare_helm_chart_package(sign_email: str):
             sys.exit(result.returncode)
         result = run_command(
             cmd=["helm", "gpg", "verify", archive_name],
-            cwd=DIST_DIR.as_posix(),
+            cwd=AIRFLOW_DIST_PATH.as_posix(),
             env=k8s_env,
             check=False,
         )

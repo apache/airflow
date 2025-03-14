@@ -27,7 +27,7 @@ from pathlib import Path
 
 from airflow_breeze.utils.functools_cache import clearable_cache
 from airflow_breeze.utils.host_info_utils import Architecture
-from airflow_breeze.utils.path_utils import AIRFLOW_SOURCES_ROOT
+from airflow_breeze.utils.path_utils import AIRFLOW_CORE_SOURCES_PATH, AIRFLOW_ROOT_PATH
 
 RUNS_ON_PUBLIC_RUNNER = '["ubuntu-22.04"]'
 # we should get more sophisticated logic here in the future, but for now we just check if
@@ -270,7 +270,7 @@ def all_helm_test_packages() -> list[str]:
     return sorted(
         [
             candidate.name
-            for candidate in (AIRFLOW_SOURCES_ROOT / "helm_tests").iterdir()
+            for candidate in (AIRFLOW_ROOT_PATH / "helm_tests").iterdir()
             if candidate.is_dir() and candidate.name != "__pycache__"
         ]
     )
@@ -290,7 +290,7 @@ def all_task_sdk_test_packages() -> list[str]:
         return sorted(
             [
                 candidate.name
-                for candidate in (AIRFLOW_SOURCES_ROOT / "task-sdk" / "tests").iterdir()
+                for candidate in (AIRFLOW_ROOT_PATH / "task-sdk" / "tests").iterdir()
                 if candidate.is_dir() and candidate.name != "__pycache__"
             ]
         )
@@ -303,8 +303,8 @@ ALLOWED_TASK_SDK_TEST_PACKAGES = [
     *all_task_sdk_test_packages(),
 ]
 
-ALLOWED_PACKAGE_FORMATS = ["wheel", "sdist", "both"]
-ALLOWED_INSTALLATION_PACKAGE_FORMATS = ["wheel", "sdist"]
+ALLOWED_DISTRIBUTION_FORMATS = ["wheel", "sdist", "both"]
+ALLOWED_INSTALLATION_DISTRIBUTION_FORMATS = ["wheel", "sdist"]
 ALLOWED_INSTALLATION_METHODS = [".", "apache-airflow"]
 ALLOWED_BUILD_CACHE = ["registry", "local", "disabled"]
 ALLOWED_BUILD_PROGRESS = ["auto", "plain", "tty"]
@@ -496,7 +496,7 @@ COMMITTERS = [
 
 
 def get_airflow_version():
-    airflow_init_py_file = AIRFLOW_SOURCES_ROOT / "airflow" / "__init__.py"
+    airflow_init_py_file = AIRFLOW_CORE_SOURCES_PATH / "airflow" / "__init__.py"
     airflow_version = "unknown"
     with open(airflow_init_py_file) as init_file:
         while line := init_file.readline():
@@ -510,7 +510,7 @@ def get_airflow_version():
 
 @clearable_cache
 def get_airflow_extras():
-    airflow_dockerfile = AIRFLOW_SOURCES_ROOT / "Dockerfile"
+    airflow_dockerfile = AIRFLOW_ROOT_PATH / "Dockerfile"
     with open(airflow_dockerfile) as dockerfile:
         for line in dockerfile.readlines():
             if "ARG AIRFLOW_EXTRAS=" in line:
@@ -519,13 +519,13 @@ def get_airflow_extras():
 
 
 # Initialize integrations
-ALL_PROVIDER_YAML_FILES = Path(AIRFLOW_SOURCES_ROOT, "providers").rglob("provider.yaml")
-PROVIDER_RUNTIME_DATA_SCHEMA_PATH = AIRFLOW_SOURCES_ROOT / "airflow" / "provider_info.schema.json"
+ALL_PROVIDER_YAML_FILES = Path(AIRFLOW_ROOT_PATH, "providers").rglob("provider.yaml")
+PROVIDER_RUNTIME_DATA_SCHEMA_PATH = AIRFLOW_CORE_SOURCES_PATH / "airflow" / "provider_info.schema.json"
 
-with Path(AIRFLOW_SOURCES_ROOT, "generated", "provider_dependencies.json").open() as f:
+with Path(AIRFLOW_ROOT_PATH, "generated", "provider_dependencies.json").open() as f:
     PROVIDER_DEPENDENCIES = json.load(f)
 
-DEVEL_DEPS_PATH = AIRFLOW_SOURCES_ROOT / "generated" / "devel_deps.txt"
+DEVEL_DEPS_PATH = AIRFLOW_ROOT_PATH / "generated" / "devel_deps.txt"
 
 # Initialize files for rebuild check
 FILES_FOR_REBUILD_CHECK = [

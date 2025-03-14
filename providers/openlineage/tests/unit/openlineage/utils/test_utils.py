@@ -708,7 +708,7 @@ def test_get_user_provided_run_facets_with_invalid_function_definition(mock_cust
 
 @patch(
     "airflow.providers.openlineage.conf.custom_run_facets",
-    return_value={"providers.tests.openlineage.utils.custom_facet_fixture.return_type_is_not_dict"},
+    return_value={"providers.unit.openlineage.utils.custom_facet_fixture.return_type_is_not_dict"},
 )
 def test_get_user_provided_run_facets_with_wrong_return_type_function(mock_custom_facet_funcs):
     sample_ti = TaskInstance(
@@ -723,7 +723,7 @@ def test_get_user_provided_run_facets_with_wrong_return_type_function(mock_custo
 
 @patch(
     "airflow.providers.openlineage.conf.custom_run_facets",
-    return_value={"providers.tests.openlineage.utils.custom_facet_fixture.get_custom_facet_throws_exception"},
+    return_value={"providers.unit.openlineage.utils.custom_facet_fixture.get_custom_facet_throws_exception"},
 )
 def test_get_user_provided_run_facets_with_exception(mock_custom_facet_funcs):
     sample_ti = TaskInstance(

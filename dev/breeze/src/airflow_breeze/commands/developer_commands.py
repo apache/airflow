@@ -49,7 +49,7 @@ from airflow_breeze.commands.common_options import (
     option_github_repository,
     option_include_not_ready_providers,
     option_include_removed_providers,
-    option_installation_package_format,
+    option_installation_distribution_format,
     option_keep_env_variables,
     option_max_time,
     option_mount_sources,
@@ -78,7 +78,7 @@ from airflow_breeze.commands.common_package_installation_options import (
     option_providers_constraints_mode_ci,
     option_providers_constraints_reference,
     option_providers_skip_constraints,
-    option_use_packages_from_dist,
+    option_use_distributions_from_dist,
 )
 from airflow_breeze.commands.main_command import cleanup, main
 from airflow_breeze.commands.testing_commands import (
@@ -113,9 +113,9 @@ from airflow_breeze.utils.docker_command_utils import (
     fix_ownership_using_docker,
     perform_environment_checks,
 )
-from airflow_breeze.utils.packages import expand_all_provider_packages
+from airflow_breeze.utils.packages import expand_all_provider_distributions
 from airflow_breeze.utils.path_utils import (
-    AIRFLOW_SOURCES_ROOT,
+    AIRFLOW_ROOT_PATH,
     cleanup_python_generated_files,
 )
 from airflow_breeze.utils.platforms import get_normalized_platform
@@ -231,7 +231,7 @@ option_install_airflow_with_constraints_default_true = click.option(
 option_install_airflow_python_client = click.option(
     "--install-airflow-python-client",
     is_flag=True,
-    help="Install airflow python client packages (--package-format determines type) from 'dist' folder "
+    help="Install airflow python client packages (--distribution-format determines type) from 'dist' folder "
     "when entering breeze.",
     envvar="INSTALL_AIRFLOW_PYTHON_CLIENT",
 )
@@ -305,7 +305,7 @@ option_load_default_connections = click.option(
 @option_include_mypy_volume
 @option_install_airflow_with_constraints_default_true
 @option_install_selected_providers
-@option_installation_package_format
+@option_installation_distribution_format
 @option_load_example_dags
 @option_load_default_connections
 @option_all_integration
@@ -331,7 +331,7 @@ option_load_default_connections = click.option(
 @option_standalone_dag_processor
 @option_upgrade_boto
 @option_use_airflow_version
-@option_use_packages_from_dist
+@option_use_distributions_from_dist
 @option_use_uv
 @option_uv_http_timeout
 @option_verbose
@@ -369,7 +369,7 @@ def shell(
     mount_sources: str,
     mysql_version: str,
     no_db_cleanup: bool,
-    package_format: str,
+    distribution_format: str,
     platform: str | None,
     postgres_version: str,
     project_name: str,
@@ -389,7 +389,7 @@ def shell(
     tty: str,
     upgrade_boto: bool,
     use_airflow_version: str | None,
-    use_packages_from_dist: bool,
+    use_distributions_from_dist: bool,
     use_uv: bool,
     uv_http_timeout: int,
     verbose_commands: bool,
@@ -398,7 +398,7 @@ def shell(
     """Enter breeze environment. this is the default command use when no other is selected."""
     if get_verbose() or get_dry_run() and not quiet:
         get_console().print("\n[success]Welcome to breeze.py[/]\n")
-        get_console().print(f"\n[success]Root of Airflow Sources = {AIRFLOW_SOURCES_ROOT}[/]\n")
+        get_console().print(f"\n[success]Root of Airflow Sources = {AIRFLOW_ROOT_PATH}[/]\n")
     if max_time:
         TimerThread(max_time=max_time).start()
         set_forced_answer("yes")
@@ -439,7 +439,7 @@ def shell(
         mount_sources=mount_sources,
         mysql_version=mysql_version,
         no_db_cleanup=no_db_cleanup,
-        package_format=package_format,
+        distribution_format=distribution_format,
         platform=platform,
         postgres_version=postgres_version,
         project_name=project_name,
@@ -459,7 +459,7 @@ def shell(
         tty=tty,
         upgrade_boto=upgrade_boto,
         use_airflow_version=use_airflow_version,
-        use_packages_from_dist=use_packages_from_dist,
+        use_distributions_from_dist=use_distributions_from_dist,
         use_uv=use_uv,
         uv_http_timeout=uv_http_timeout,
         verbose_commands=verbose_commands,
@@ -520,7 +520,7 @@ option_auth_manager_start_airflow = click.option(
 @option_force_build
 @option_forward_credentials
 @option_github_repository
-@option_installation_package_format
+@option_installation_distribution_format
 @option_install_selected_providers
 @option_all_integration
 @option_load_default_connections
@@ -540,7 +540,7 @@ option_auth_manager_start_airflow = click.option(
 @option_use_uv
 @option_uv_http_timeout
 @option_use_airflow_version
-@option_use_packages_from_dist
+@option_use_distributions_from_dist
 @option_verbose
 def start_airflow(
     airflow_constraints_mode: str,
@@ -568,7 +568,7 @@ def start_airflow(
     load_example_dags: bool,
     mount_sources: str,
     mysql_version: str,
-    package_format: str,
+    distribution_format: str,
     platform: str | None,
     postgres_version: str,
     project_name: str,
@@ -581,7 +581,7 @@ def start_airflow(
     skip_assets_compilation: bool,
     standalone_dag_processor: bool,
     use_airflow_version: str | None,
-    use_packages_from_dist: bool,
+    use_distributions_from_dist: bool,
     use_uv: bool,
     uv_http_timeout: int,
 ):
@@ -639,7 +639,7 @@ def start_airflow(
         load_example_dags=load_example_dags,
         mount_sources=mount_sources,
         mysql_version=mysql_version,
-        package_format=package_format,
+        distribution_format=distribution_format,
         platform=platform,
         postgres_version=postgres_version,
         project_name=project_name,
@@ -652,7 +652,7 @@ def start_airflow(
         standalone_dag_processor=standalone_dag_processor,
         start_airflow=True,
         use_airflow_version=use_airflow_version,
-        use_packages_from_dist=use_packages_from_dist,
+        use_distributions_from_dist=use_distributions_from_dist,
         use_uv=use_uv,
         uv_http_timeout=uv_http_timeout,
     )
@@ -688,7 +688,8 @@ def start_airflow(
 )
 @click.option(
     "--skip-deletion",
-    help="Skip deletion of generated new packages documentation in `docs/apache-airflow-providers-*`.",
+    help="Skip deletion of generated new packages documentation in `docs/apache-airflow-providers-*` and"
+    "docs/apache-airflow/.",
     is_flag=True,
 )
 @click.option(
@@ -700,8 +701,8 @@ def start_airflow(
     multiple=True,
 )
 @click.option(
-    "--package-list",
-    envvar="PACKAGE_LIST",
+    "--distributions-list",
+    envvar="DISTRIBUTIONS_LIST",
     type=str,
     help="Optional, contains comma-separated list of package ids that are processed for documentation "
     "building, and document publishing. It is an easier alternative to adding individual packages as"
@@ -721,7 +722,7 @@ def build_docs(
     one_pass_only: bool,
     skip_deletion: bool,
     package_filter: tuple[str, ...],
-    package_list: str,
+    distributions_list: str,
     spellcheck_only: bool,
     doc_packages: tuple[str, ...],
 ):
@@ -739,20 +740,22 @@ def build_docs(
         directories_to_clean = ["_build", "_doctrees", "_inventory_cache", "_api"]
     else:
         directories_to_clean = ["_api"]
-    docs_dir = AIRFLOW_SOURCES_ROOT / "docs"
+    docs_dir = AIRFLOW_ROOT_PATH / "docs"
     for dir_name in directories_to_clean:
         for directory in docs_dir.rglob(dir_name):
             get_console().print(f"[info]Removing {directory}")
             shutil.rmtree(directory, ignore_errors=True)
 
     docs_list_as_tuple: tuple[str, ...] = ()
-    if package_list and len(package_list):
-        get_console().print(f"\n[info]Populating provider list from PACKAGE_LIST env as {package_list}")
-        # Override doc_packages with values from PACKAGE_LIST
-        docs_list_as_tuple = tuple(package_list.split(","))
+    if distributions_list and len(distributions_list):
+        get_console().print(
+            f"\n[info]Populating provider list from DISTRIBUTIONS_LIST env as {distributions_list}"
+        )
+        # Override doc_packages with values from DISTRIBUTIONS_LIST
+        docs_list_as_tuple = tuple(distributions_list.split(","))
     if doc_packages and docs_list_as_tuple:
         get_console().print(
-            f"[warning]Both package arguments and --package-list / PACKAGE_LIST passed. "
+            f"[warning]Both package arguments and --distributions-list / DISTRIBUTIONS_LIST passed. "
             f"Overriding to {docs_list_as_tuple}"
         )
     doc_packages = docs_list_as_tuple or doc_packages
@@ -762,7 +765,7 @@ def build_docs(
         spellcheck_only=spellcheck_only,
         skip_deletion=skip_deletion,
         one_pass_only=one_pass_only,
-        short_doc_packages=expand_all_provider_packages(
+        short_doc_packages=expand_all_provider_distributions(
             short_doc_packages=doc_packages,
             include_removed=include_removed_providers,
             include_not_ready=include_not_ready_providers,
