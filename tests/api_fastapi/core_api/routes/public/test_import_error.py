@@ -43,7 +43,7 @@ BUNDLE_NAME = "dag_maker"
 
 
 class TestImportErrorEndpoint:
-    """Common class for /public/importErrors related unit tests."""
+    """Common class for /v2/importErrors related unit tests."""
 
     @staticmethod
     def _clear_db():
@@ -116,7 +116,7 @@ class TestGetImportError(TestImportErrorEndpoint):
     ):
         import_error: ParseImportError | None = setup.get(import_error_key)
         import_error_id = import_error.id if import_error else IMPORT_ERROR_NON_EXISTED_ID
-        response = test_client.get(f"/public/importErrors/{import_error_id}")
+        response = test_client.get(f"/v2/importErrors/{import_error_id}")
         assert response.status_code == expected_status_code
         if expected_status_code != 200:
             return
@@ -214,7 +214,7 @@ class TestGetImportErrors(TestImportErrorEndpoint):
         expected_total_entries,
         expected_filenames,
     ):
-        response = test_client.get("/public/importErrors", params=query_params)
+        response = test_client.get("/v2/importErrors", params=query_params)
 
         assert response.status_code == expected_status_code
         if expected_status_code != 200:
