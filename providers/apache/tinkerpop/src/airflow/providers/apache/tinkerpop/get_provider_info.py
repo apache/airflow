@@ -33,7 +33,7 @@ def get_provider_info():
             {
                 "integration-name": "Apache TinkerPop",
                 "external-doc-url": "https://tinkerpop.apache.org/",
-                "how-to-guide": ["/docs/apache-airflow-providers-apache-tinkerpop/operators.rst"],
+                "how-to-guide": ["/docs/apache-airflow-providers-apache-tinkerpop/operators/tinkerpop.rst"],
                 "tags": ["apache"],
             }
         ],
