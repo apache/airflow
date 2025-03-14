@@ -62,7 +62,10 @@ from airflow.providers.fab.auth_manager.models import Permission, Role, User
 from airflow.providers.fab.auth_manager.models.anonymous_user import AnonymousUser
 from airflow.providers.fab.www.app import create_app
 from airflow.providers.fab.www.constants import SWAGGER_BUNDLE, SWAGGER_ENABLED
-from airflow.providers.fab.www.extensions.init_views import _CustomErrorRequestBodyValidator, _LazyResolver
+from airflow.providers.fab.www.extensions.init_views import (
+    _CustomErrorRequestBodyValidator,
+    _LazyResolver,
+)
 from airflow.providers.fab.www.security import permissions
 from airflow.providers.fab.www.security.permissions import (
     RESOURCE_AUDIT_LOG,
@@ -89,7 +92,10 @@ from airflow.providers.fab.www.security.permissions import (
     RESOURCE_WEBSITE,
     RESOURCE_XCOM,
 )
-from airflow.providers.fab.www.utils import get_fab_action_from_method_map, get_method_from_fab_action_map
+from airflow.providers.fab.www.utils import (
+    get_fab_action_from_method_map,
+    get_method_from_fab_action_map,
+)
 from airflow.security.permissions import RESOURCE_BACKFILL
 from airflow.utils.session import NEW_SESSION, create_session, provide_session
 from airflow.utils.yaml import safe_load
@@ -100,7 +106,9 @@ if TYPE_CHECKING:
         CLICommand,
     )
     from airflow.providers.common.compat.assets import AssetAliasDetails, AssetDetails
-    from airflow.providers.fab.auth_manager.security_manager.override import FabAirflowSecurityManagerOverride
+    from airflow.providers.fab.auth_manager.security_manager.override import (
+        FabAirflowSecurityManagerOverride,
+    )
     from airflow.providers.fab.www.extensions.init_appbuilder import AirflowAppBuilder
     from airflow.providers.fab.www.security.permissions import (
         RESOURCE_ASSET,
@@ -200,7 +208,9 @@ class FabAuthManager(BaseAuthManager[User]):
 
     def get_fastapi_app(self) -> FastAPI | None:
         """Get the FastAPI app."""
-        from airflow.providers.fab.auth_manager.api_fastapi.routes.login import login_router
+        from airflow.providers.fab.auth_manager.api_fastapi.routes.login import (
+            login_router,
+        )
 
         flask_app = create_app(enable_plugins=False)
 
@@ -229,7 +239,10 @@ class FabAuthManager(BaseAuthManager[User]):
             specification=specification,
             resolver=_LazyResolver(),
             base_path="/fab/v1",
-            options={"swagger_ui": SWAGGER_ENABLED, "swagger_path": SWAGGER_BUNDLE.__fspath__()},
+            options={
+                "swagger_ui": SWAGGER_ENABLED,
+                "swagger_path": SWAGGER_BUNDLE.__fspath__(),
+            },
             strict_validation=True,
             validate_responses=True,
             validator_map={"body": _CustomErrorRequestBodyValidator},
@@ -336,7 +349,11 @@ class FabAuthManager(BaseAuthManager[User]):
             )
 
     def is_authorized_backfill(
-        self, *, method: ResourceMethod, user: User, details: BackfillDetails | None = None
+        self,
+        *,
+        method: ResourceMethod,
+        user: User,
+        details: BackfillDetails | None = None,
     ) -> bool:
         return self._is_authorized(method=method, resource_type=RESOURCE_BACKFILL, user=user)
 
@@ -346,7 +363,11 @@ class FabAuthManager(BaseAuthManager[User]):
         return self._is_authorized(method=method, resource_type=RESOURCE_ASSET, user=user)
 
     def is_authorized_asset_alias(
-        self, *, method: ResourceMethod, user: User, details: AssetAliasDetails | None = None
+        self,
+        *,
+        method: ResourceMethod,
+        user: User,
+        details: AssetAliasDetails | None = None,
     ) -> bool:
         return self._is_authorized(method=method, resource_type=RESOURCE_ASSET_ALIAS, user=user)
 
@@ -356,7 +377,11 @@ class FabAuthManager(BaseAuthManager[User]):
         return self._is_authorized(method=method, resource_type=RESOURCE_POOL, user=user)
 
     def is_authorized_variable(
-        self, *, method: ResourceMethod, user: User, details: VariableDetails | None = None
+        self,
+        *,
+        method: ResourceMethod,
+        user: User,
+        details: VariableDetails | None = None,
     ) -> bool:
         return self._is_authorized(method=method, resource_type=RESOURCE_VARIABLE, user=user)
 
@@ -364,7 +389,9 @@ class FabAuthManager(BaseAuthManager[User]):
         # "Docs" are only links in the menu, there is no page associated
         method: ResourceMethod = "MENU" if access_view == AccessView.DOCS else "GET"
         return self._is_authorized(
-            method=method, resource_type=_MAP_ACCESS_VIEW_TO_FAB_RESOURCE_TYPE[access_view], user=user
+            method=method,
+            resource_type=_MAP_ACCESS_VIEW_TO_FAB_RESOURCE_TYPE[access_view],
+            user=user,
         )
 
     def is_authorized_custom_view(

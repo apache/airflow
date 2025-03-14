@@ -373,6 +373,8 @@ paths:
       - Backfill
       summary: List Backfills
       operationId: list_backfills
+      security:
+      - OAuth2PasswordBearer: []
       parameters:
       - name: limit
         in: query
