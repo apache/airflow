@@ -35,6 +35,7 @@ from airflow.api_fastapi.core_api.datamodels.xcom import (
 )
 from airflow.api_fastapi.core_api.openapi.exceptions import create_openapi_http_exception_doc
 from airflow.api_fastapi.core_api.security import ReadableXComFilterDep, requires_access_dag
+from airflow.api_fastapi.logging.decorators import action_logging
 from airflow.exceptions import TaskNotFound
 from airflow.models import DAG, DagRun as DR, XCom
 from airflow.settings import conf
@@ -161,7 +162,10 @@ def get_xcom_entries(
             status.HTTP_404_NOT_FOUND,
         ]
     ),
-    dependencies=[Depends(requires_access_dag(method="POST", access_entity=DagAccessEntity.XCOM))],
+    dependencies=[
+        Depends(action_logging()),
+        Depends(requires_access_dag(method="POST", access_entity=DagAccessEntity.XCOM)),
+    ],
 )
 def create_xcom_entry(
     dag_id: str,
@@ -241,7 +245,10 @@ def create_xcom_entry(
             status.HTTP_404_NOT_FOUND,
         ]
     ),
-    dependencies=[Depends(requires_access_dag(method="PUT", access_entity=DagAccessEntity.XCOM))],
+    dependencies=[
+        Depends(action_logging()),
+        Depends(requires_access_dag(method="PUT", access_entity=DagAccessEntity.XCOM)),
+    ],
 )
 def update_xcom_entry(
     dag_id: str,
