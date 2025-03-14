@@ -373,6 +373,8 @@ paths:
       - Backfill
       summary: List Backfills
       operationId: list_backfills
+      security:
+      - OAuth2PasswordBearer: []
       parameters:
       - name: limit
         in: query
@@ -7053,6 +7055,8 @@ paths:
       summary: Get Dag Version
       description: Get one Dag Version.
       operationId: get_dag_version
+      security:
+      - OAuth2PasswordBearer: []
       parameters:
       - name: dag_id
         in: path
@@ -7108,6 +7112,8 @@ paths:
         This endpoint allows specifying `~` as the dag_id to retrieve DAG Versions
         for all DAGs.'
       operationId: get_dag_versions
+      security:
+      - OAuth2PasswordBearer: []
       parameters:
       - name: dag_id
         in: path
