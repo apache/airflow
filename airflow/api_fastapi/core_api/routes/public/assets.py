@@ -96,7 +96,10 @@ def _generate_queued_event_where_clause(
 @assets_router.get(
     "/assets",
     responses=create_openapi_http_exception_doc([status.HTTP_404_NOT_FOUND]),
-    dependencies=[Depends(requires_access_asset(method="GET"))],
+    dependencies=[
+        Depends(requires_access_asset(method="GET")),
+        Depends(requires_access_asset_alias(method="GET")),
+    ],
 )
 def get_assets(
     limit: QueryLimit,
@@ -349,7 +352,10 @@ def get_asset_queued_events(
 @assets_router.get(
     "/assets/{asset_id}",
     responses=create_openapi_http_exception_doc([status.HTTP_404_NOT_FOUND]),
-    dependencies=[Depends(requires_access_asset(method="GET"))],
+    dependencies=[
+        Depends(requires_access_asset(method="GET")),
+        Depends(requires_access_asset_alias(method="GET")),
+    ],
 )
 def get_asset(
     asset_id: int,
