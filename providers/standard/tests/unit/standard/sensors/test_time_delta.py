@@ -32,7 +32,6 @@ from airflow.providers.standard.sensors.time_delta import (
     TimeDeltaSensorAsync,
     WaitSensor,
 )
-from airflow.providers.standard.version_compat import AIRFLOW_V_3_0_PLUS
 from airflow.utils import timezone
 from airflow.utils.timezone import datetime
 from airflow.utils.types import DagRunType
@@ -63,7 +62,6 @@ class TestTimedeltaSensor:
         op.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, ignore_ti_state=True)
 
 
-@pytest.mark.skipif(not AIRFLOW_V_3_0_PLUS, reason="Test requires Airflow 3.0+")
 @pytest.mark.parametrize(
     "run_after, interval_end",
     [
@@ -73,7 +71,7 @@ class TestTimedeltaSensor:
 )
 def test_timedelta_sensor_run_after_vs_interval(run_after, interval_end, dag_maker, session):
     """Interval end should be used as base time when present else run_after"""
-    from airflow.utils.types import DagRunTriggeredByType, DagRunType
+    from airflow.utils.types import DagRunTriggeredByType
 
     context = {}
     if interval_end:
@@ -149,6 +147,8 @@ class TestTimeDeltaSensorAsync:
     )
     def test_timedelta_sensor_async_run_after_vs_interval(self, run_after, interval_end, dag_maker):
         """Interval end should be used as base time when present else run_after"""
+        from airflow.utils.types import DagRunTriggeredByType
+
         context = {}
         if interval_end:
             context["data_interval_end"] = interval_end

@@ -75,11 +75,14 @@ class TimeDeltaSensor(BaseSensorOperator):
                 raise ValueError("`data_interval_end` returned non-datetime object")
 
             return data_interval_end
-        else:
-            dag_run = context.get("dag_run")
-            if not dag_run:
-                raise ValueError("`dag_run` not found in task context")
-            return dag_run.run_after
+
+        if not data_interval_end and not AIRFLOW_V_3_0_PLUS:
+            raise ValueError("`data_interval_end` not found in task context.")
+
+        dag_run = context.get("dag_run")
+        if not dag_run:
+            raise ValueError("`dag_run` not found in task context")
+        return dag_run.run_after
 
     def poke(self, context: Context):
         base_time = self._derive_base_time(context=context)
