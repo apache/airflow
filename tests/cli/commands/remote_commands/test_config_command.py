@@ -271,7 +271,6 @@ class TestConfigLint:
             normalized_output = re.sub(r"\s+", " ", output.strip())
             normalized_message = re.sub(r"\s+", " ", default_changed_config.message.strip())
 
-
             assert normalized_message in normalized_output
 
     @pytest.mark.parametrize(
