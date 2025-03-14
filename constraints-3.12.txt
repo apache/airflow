@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2025-03-13T20:29:15.562872
+# This constraints file was automatically generated on 2025-03-14T02:59:31.027146
 # via "eager-upgrade" mechanism of PIP. For the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version for 'apache-airflow' but installs
 # the providers from PIP-released packages at the moment of the constraint generation.
@@ -476,7 +476,7 @@ mongomock==4.3.0
 more-itertools==10.6.0
 moto==5.1.1
 mpmath==1.3.0
-msal-extensions==1.2.0
+msal-extensions==1.3.0
 msal==1.32.0
 msgraph-core==1.2.1
 msgspec==0.19.0
@@ -541,7 +541,7 @@ pendulum==3.0.0
 pexpect==4.9.0
 pgvector==0.3.6
 pinecone-plugin-interface==0.0.7
-pinecone==6.0.1
+pinecone==6.0.2
 pinotdb==5.6.0
 pipdeptree==2.25.1
 platformdirs==4.3.6
