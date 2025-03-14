@@ -114,7 +114,7 @@ async def paginated_select_async(
 
     # TODO: Re-enable when permissions are handled. Readable / writable entities,
     # for instance:
-    # readable_dags = get_auth_manager().get_permitted_dag_ids(user=g.user)
+    # readable_dags = get_auth_manager().get_authorized_dag_ids(user=g.user)
     # dags_select = dags_select.where(DagModel.dag_id.in_(readable_dags))
 
     statement = apply_filters_to_select(
@@ -173,7 +173,7 @@ def paginated_select(
 
     # TODO: Re-enable when permissions are handled. Readable / writable entities,
     # for instance:
-    # readable_dags = get_auth_manager().get_permitted_dag_ids(user=g.user)
+    # readable_dags = get_auth_manager().get_authorized_dag_ids(user=g.user)
     # dags_select = dags_select.where(DagModel.dag_id.in_(readable_dags))
 
     statement = apply_filters_to_select(statement=statement, filters=[order_by, offset, limit])

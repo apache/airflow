@@ -157,8 +157,8 @@ def permitted_dag_filter_factory(
         user: GetUserDep,
     ) -> PermittedDagFilter:
         auth_manager: BaseAuthManager = request.app.state.auth_manager
-        permitted_dags: set[str] = auth_manager.get_permitted_dag_ids(user=user, method=method)
-        return filter_class(permitted_dags)
+        authorized_dags: set[str] = auth_manager.get_authorized_dag_ids(user=user, method=method)
+        return filter_class(authorized_dags)
 
     return depends_permitted_dags_filter
 
