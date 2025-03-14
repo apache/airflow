@@ -31,6 +31,7 @@ import {
 import DagVersionSelect from "src/components/DagVersionSelect";
 import { ErrorAlert } from "src/components/ErrorAlert";
 import Time from "src/components/Time";
+import { ClipboardRoot, ClipboardButton } from "src/components/ui";
 import { ProgressBar } from "src/components/ui";
 import { useColorMode } from "src/context/colorMode";
 import useSelectedVersion from "src/hooks/useSelectedVersion";
@@ -117,6 +118,9 @@ export const Code = () => {
         </HStack>
         <HStack>
           <DagVersionSelect />
+          <ClipboardRoot value={code?.content ?? ""}>
+            <ClipboardButton />
+          </ClipboardRoot>
           <Button aria-label={wrap ? "Unwrap" : "Wrap"} bg="bg.panel" onClick={toggleWrap} variant="outline">
             {wrap ? "Unwrap" : "Wrap"}
           </Button>
@@ -138,6 +142,13 @@ export const Code = () => {
 
               // Skip line number span when applying line break styles https://github.com/react-syntax-highlighter/react-syntax-highlighter/issues/376#issuecomment-1584440759
               if (lineNumberElement) {
+                if (lineNumberElement.properties) {
+                  lineNumberElement.properties.style = {
+                    ...(lineNumberElement.properties.style as Record<string, string>),
+                    WebkitUserSelect: "none",
+                  };
+                }
+
                 row.children = [
                   lineNumberElement,
                   {
