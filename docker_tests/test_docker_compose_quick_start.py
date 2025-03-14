@@ -18,12 +18,10 @@ from __future__ import annotations
 
 import json
 import os
-import re
 import shlex
 from pprint import pprint
 from shutil import copyfile
 from time import sleep
-from urllib.parse import parse_qs, urlparse
 
 import pytest
 import requests
@@ -34,6 +32,8 @@ from python_on_whales.exceptions import DockerException
 from docker_tests.command_utils import run_command
 from docker_tests.constants import SOURCE_ROOT
 
+from tests_common.test_utils.api_client_helpers import generate_jwt_token
+
 # isort:on (needed to workaround isort bug)
 
 DOCKER_COMPOSE_HOST_PORT = os.environ.get("HOST_PORT", "localhost:8080")
@@ -43,60 +43,16 @@ DAG_ID = "example_bash_operator"
 DAG_RUN_ID = "test_dag_run_id"
 
 
-def get_jwt_token() -> str:
-    """Get the JWT token.
-
-    Note: API server is still using FAB Auth Manager.
-
-    Steps:
-    1. Get the login page to get the csrf token
-        - The csrf token is in the hidden input field with id "csrf_token"
-    2. Login with the username and password
-        - Must use the same session to keep the csrf token session
-    3. Extract the JWT token from the redirect url
-        - Expected to have a connection error
-        - The redirect url should have the JWT token as a query parameter
-
-    :return: The JWT token
-    """
-    # get csrf token from login page
-    session = requests.Session()
-    get_login_form_response = session.get(f"http://{DOCKER_COMPOSE_HOST_PORT}/auth/login")
-    csrf_token = re.search(
-        r'<input id="csrf_token" name="csrf_token" type="hidden" value="(.+?)">',
-        get_login_form_response.text,
-    )
-    assert csrf_token, "Failed to get csrf token from login page"
-    csrf_token_str = csrf_token.group(1)
-    assert csrf_token_str, "Failed to get csrf token from login page"
-    # login with form data
-    login_response = session.post(
-        f"http://{DOCKER_COMPOSE_HOST_PORT}/auth/login",
-        data={
-            "username": AIRFLOW_WWW_USER_USERNAME,
-            "password": AIRFLOW_WWW_USER_PASSWORD,
-            "csrf_token": csrf_token_str,
-        },
-    )
-    redirect_url = login_response.url
-    # ensure redirect_url is a string
-    redirect_url_str = str(redirect_url) if redirect_url is not None else ""
-    assert "/?token" in redirect_url_str, f"Login failed with redirect url {redirect_url_str}"
-    parsed_url = urlparse(redirect_url_str)
-    query_params = parse_qs(str(parsed_url.query))
-    jwt_token_list = query_params.get("token")
-    jwt_token = jwt_token_list[0] if jwt_token_list else None
-    assert jwt_token, f"Failed to get JWT token from redirect url {redirect_url_str}"
-    return jwt_token
-
-
 def api_request(
     method: str, path: str, base_url: str = f"http://{DOCKER_COMPOSE_HOST_PORT}/public", **kwargs
 ) -> dict:
+    jwt_token = generate_jwt_token(
+        AIRFLOW_WWW_USER_USERNAME, AIRFLOW_WWW_USER_PASSWORD, DOCKER_COMPOSE_HOST_PORT
+    )
     response = requests.request(
         method=method,
         url=f"{base_url}/{path}",
-        headers={"Authorization": f"Bearer {get_jwt_token()}", "Content-Type": "application/json"},
+        headers={"Authorization": f"Bearer {jwt_token}", "Content-Type": "application/json"},
         **kwargs,
     )
     response.raise_for_status()

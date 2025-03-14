@@ -25,15 +25,15 @@ import time
 from datetime import datetime, timezone
 from pathlib import Path
 from subprocess import check_call, check_output
-from urllib.parse import parse_qs, urlparse
 
 import pytest
 import requests
 import requests.exceptions
-from requests.adapters import HTTPAdapter
 from requests.exceptions import RetryError
 from urllib3.exceptions import MaxRetryError
 from urllib3.util.retry import Retry
+
+from tests_common.test_utils.api_client_helpers import RefreshJwtAdapter, generate_jwt_token
 
 CLUSTER_FORWARDED_PORT = os.environ.get("CLUSTER_FORWARDED_PORT") or "8080"
 KUBERNETES_HOST_PORT = (os.environ.get("CLUSTER_HOST") or "localhost") + ":" + CLUSTER_FORWARDED_PORT
@@ -138,81 +138,8 @@ class BaseK8STest:
         if names:
             check_call(["kubectl", "delete", "pod", names[0]])
 
-    @staticmethod
-    def _get_jwt_token(username: str, password: str) -> str:
-        """Get the JWT token for the given username and password.
-
-        Note: API server is still using FAB Auth Manager.
-
-        Steps:
-        1. Get the login page to get the csrf token
-            - The csrf token is in the hidden input field with id "csrf_token"
-        2. Login with the username and password
-            - Must use the same session to keep the csrf token session
-        3. Extract the JWT token from the redirect url
-            - Expected to have a connection error
-            - The redirect url should have the JWT token as a query parameter
-
-        :param session: The session to use for the request
-        :param username: The username to use for the login
-        :param password: The password to use for the login
-        :return: The JWT token
-        """
-        # get csrf token from login page
-        retry = Retry(total=5, backoff_factor=10)
-        session = requests.Session()
-        session.mount("http://", HTTPAdapter(max_retries=retry))
-        session.mount("https://", HTTPAdapter(max_retries=retry))
-        get_login_form_response = session.get(f"http://{KUBERNETES_HOST_PORT}/auth/login")
-        csrf_token = re.search(
-            r'<input id="csrf_token" name="csrf_token" type="hidden" value="(.+?)">',
-            get_login_form_response.text,
-        )
-        assert csrf_token, "Failed to get csrf token from login page"
-        csrf_token_str = csrf_token.group(1)
-        assert csrf_token_str, "Failed to get csrf token from login page"
-        # login with form data
-        login_response = session.post(
-            f"http://{KUBERNETES_HOST_PORT}/auth/login",
-            data={"username": username, "password": password, "csrf_token": csrf_token_str},
-        )
-        redirect_url = login_response.url
-        # ensure redirect_url is a string
-        redirect_url_str = str(redirect_url) if redirect_url is not None else ""
-        assert "/?token" in redirect_url_str, f"Login failed with redirect url {redirect_url_str}"
-        parsed_url = urlparse(redirect_url_str)
-        query_params = parse_qs(str(parsed_url.query))
-        jwt_token_list = query_params.get("token")
-        jwt_token = jwt_token_list[0] if jwt_token_list else None
-        assert jwt_token, f"Failed to get JWT token from redirect url {redirect_url_str}"
-        return jwt_token
-
     def _get_session_with_retries(self):
-        class JWTRefreshAdapter(HTTPAdapter):
-            def __init__(self, base_instance, **kwargs):
-                self.base_instance = base_instance
-                super().__init__(**kwargs)
-
-            def send(self, request, **kwargs):
-                response = super().send(request, **kwargs)
-                if response.status_code in (401, 403):
-                    # Refresh token and update the Authorization header with retry logic.
-                    attempts = 0
-                    jwt_token = None
-                    while attempts < 5:
-                        try:
-                            jwt_token = self.base_instance._get_jwt_token("admin", "admin")
-                            break
-                        except Exception:
-                            attempts += 1
-                            time.sleep(1)
-                    if jwt_token is None:
-                        raise Exception("Failed to refresh JWT token after 5 attempts")
-                    request.headers["Authorization"] = f"Bearer {jwt_token}"
-                    response = super().send(request, **kwargs)
-                return response
-
-        jwt_token = self._get_jwt_token("admin", "admin")
+        jwt_token = generate_jwt_token("admin", "admin", self.host)
         session = requests.Session()
         session.headers.update({"Authorization": f"Bearer {jwt_token}"})
         retries = Retry(
@@ -221,7 +148,7 @@ class BaseK8STest:
             status_forcelist=[404],
             allowed_methods=Retry.DEFAULT_ALLOWED_METHODS | frozenset(["PATCH", "POST"]),
         )
-        adapter = JWTRefreshAdapter(self, max_retries=retries)
+        adapter = RefreshJwtAdapter("admin", "admin", self.host, max_retries=retries)
         session.mount("http://", adapter)
         session.mount("https://", adapter)
         return session
