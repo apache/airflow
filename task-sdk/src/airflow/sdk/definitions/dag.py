@@ -357,7 +357,6 @@ class DAG:
     :param dag_display_name: The display name of the DAG which appears on the UI.
     """
 
-
     __serialized_fields: ClassVar[frozenset[str]]
 
     # Note: mypy gets very confused about the use of `@${attr}.default` for attrs without init=False -- and it
