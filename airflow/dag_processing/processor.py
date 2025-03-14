@@ -21,7 +21,7 @@ import os
 import sys
 import traceback
 from pathlib import Path
-from typing import TYPE_CHECKING, Annotated, Callable, ClassVar, Literal, Union
+from typing import TYPE_CHECKING, Annotated, BinaryIO, Callable, ClassVar, Literal, Union
 
 import attrs
 from pydantic import BaseModel, Field, TypeAdapter
@@ -63,14 +63,8 @@ def _parse_file_entrypoint():
     import structlog
 
     from airflow.sdk.execution_time import task_runner
-    from airflow.settings import configure_orm
 
     # Parse DAG file, send JSON back up!
-
-    # We need to reconfigure the orm here, as DagFileProcessorManager does db queries for bundles, and
-    # the session across forks blows things up.
-    configure_orm()
-
     comms_decoder = task_runner.CommsDecoder[ToDagProcessor, ToManager](
         input=sys.stdin,
         decoder=TypeAdapter[ToDagProcessor](ToDagProcessor),
@@ -226,6 +220,7 @@ class DagFileProcessorProcess(WatchedSubprocess):
     in core Airflow.
     """
 
+    logger_filehandle: BinaryIO
     parsing_result: DagFileParsingResult | None = None
     decoder: ClassVar[TypeAdapter[ToManager]] = TypeAdapter[ToManager](ToManager)
 

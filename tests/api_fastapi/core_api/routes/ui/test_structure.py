@@ -486,6 +486,14 @@ class TestStructureDataEndpoint:
         assert response.status_code == 200
         assert response.json() == expected
 
+    def test_delete_dag_should_response_401(self, unauthenticated_test_client):
+        response = unauthenticated_test_client.get("/ui/structure/structure_data", params={"dag_id": DAG_ID})
+        assert response.status_code == 401
+
+    def test_delete_dag_should_response_403(self, unauthorized_test_client):
+        response = unauthorized_test_client.get("/ui/structure/structure_data", params={"dag_id": DAG_ID})
+        assert response.status_code == 403
+
     def test_should_return_404(self, test_client):
         response = test_client.get("/ui/structure/structure_data", params={"dag_id": "not_existing"})
         assert response.status_code == 404

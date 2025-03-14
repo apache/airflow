@@ -20,9 +20,12 @@ import { Box, Flex, HStack, Table, Heading } from "@chakra-ui/react";
 import { useParams, useSearchParams } from "react-router-dom";
 
 import {
+  useAssetServiceGetAssetEvents,
   useTaskInstanceServiceGetMappedTaskInstance,
   useTaskInstanceServiceGetTaskInstanceTryDetails,
 } from "openapi/queries";
+import { AssetEvents } from "src/components/Assets/AssetEvents";
+import { DagVersionDetails } from "src/components/DagVersionDetails";
 import { StateBadge } from "src/components/StateBadge";
 import { TaskTrySelect } from "src/components/TaskTrySelect";
 import Time from "src/components/Time";
@@ -72,8 +75,22 @@ export const Details = () => {
     },
   );
 
+  const { data: assetEventsData, isLoading: isLoadingAssetEvents } = useAssetServiceGetAssetEvents(
+    {
+      sourceDagId: dagId,
+      sourceMapIndex: parseInt(mapIndex, 10),
+      sourceRunId: runId,
+      sourceTaskId: taskId,
+    },
+    undefined,
+    {
+      refetchInterval: () => (isStatePending(taskInstance?.state) ? refetchInterval : false),
+    },
+  );
+
   return (
     <Box p={2}>
+      <AssetEvents data={assetEventsData} isLoading={isLoadingAssetEvents} title="Created Asset Event" />
       {taskInstance === undefined || tryNumber === undefined || taskInstance.try_number <= 1 ? (
         <div />
       ) : (
@@ -134,11 +151,9 @@ export const Details = () => {
           <Table.Row>
             <Table.Cell>Duration</Table.Cell>
             <Table.Cell>
-              {
-                // eslint-disable-next-line unicorn/no-null
-                getDuration(tryInstance?.start_date ?? null, tryInstance?.end_date ?? null)
-              }
-              s
+              {Boolean(tryInstance?.start_date) // eslint-disable-next-line unicorn/no-null
+                ? `${getDuration(tryInstance?.start_date ?? null, tryInstance?.end_date ?? null)}s`
+                : ""}
             </Table.Cell>
           </Table.Row>
           <Table.Row>
@@ -151,6 +166,12 @@ export const Details = () => {
             <Table.Cell>Ended</Table.Cell>
             <Table.Cell>
               <Time datetime={tryInstance?.end_date} />
+            </Table.Cell>
+          </Table.Row>
+          <Table.Row>
+            <Table.Cell>Dag Version</Table.Cell>
+            <Table.Cell>
+              <DagVersionDetails dagVersion={taskInstance?.dag_version} />
             </Table.Cell>
           </Table.Row>
           <Table.Row>

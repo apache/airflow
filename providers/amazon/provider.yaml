@@ -22,9 +22,10 @@ description: |
   Amazon integration (including `Amazon Web Services (AWS) <https://aws.amazon.com/>`__).
 
 state: ready
-source-date-epoch: 1741121812
+source-date-epoch: 1741507721
 # note that those versions are maintained by release manager - do not update them manually
 versions:
+  - 9.5.0
   - 9.4.0
   - 9.2.0
   - 9.1.0
@@ -701,6 +702,9 @@ triggers:
   - integration-name: AWS Lambda
     python-modules:
       - airflow.providers.amazon.aws.triggers.lambda_function
+  - integration-name: Amazon Managed Workflows for Apache Airflow (MWAA)
+    python-modules:
+      - airflow.providers.amazon.aws.triggers.mwaa
   - integration-name: Amazon Managed Service for Apache Flink
     python-modules:
       - airflow.providers.amazon.aws.triggers.kinesis_analytics

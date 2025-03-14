@@ -26,7 +26,7 @@ from airflow.providers.fab.www.airflow_flask_app import AirflowApp
 from airflow.providers.fab.www.api_connexion.exceptions import PermissionDenied, Unauthenticated
 
 if TYPE_CHECKING:
-    from airflow.auth.managers.base_auth_manager import ResourceMethod
+    from airflow.api_fastapi.auth.managers.base_auth_manager import ResourceMethod
 
 T = TypeVar("T", bound=Callable)
 

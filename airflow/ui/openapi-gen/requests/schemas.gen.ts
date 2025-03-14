@@ -1215,10 +1215,6 @@ export const $ConfigResponse = {
       type: "string",
       title: "Audit View Included Events",
     },
-    is_k8s: {
-      type: "boolean",
-      title: "Is K8S",
-    },
     test_connection: {
       type: "string",
       title: "Test Connection",
@@ -1247,7 +1243,6 @@ export const $ConfigResponse = {
     "warn_deployment_exposure",
     "audit_view_excluded_events",
     "audit_view_included_events",
-    "is_k8s",
     "test_connection",
     "state_color_mapping",
   ],
@@ -1391,6 +1386,122 @@ export const $ConnectionCollectionResponse = {
   required: ["connections", "total_entries"],
   title: "ConnectionCollectionResponse",
   description: "Connection Collection serializer for responses.",
+} as const;
+
+export const $ConnectionHookFieldBehavior = {
+  properties: {
+    hidden: {
+      type: "boolean",
+      title: "Hidden",
+      description: "Flag if the form field should be hidden.",
+      default: false,
+    },
+    title: {
+      anyOf: [
+        {
+          type: "string",
+        },
+        {
+          type: "null",
+        },
+      ],
+      title: "Title",
+      description:
+        "Label / title for the field that should be displayed, if re-labelling is needed. Use `None` to display standard title.",
+    },
+    placeholder: {
+      anyOf: [
+        {
+          type: "string",
+        },
+        {
+          type: "null",
+        },
+      ],
+      title: "Placeholder",
+      description: "Placeholder text that should be populated to the form.",
+    },
+  },
+  type: "object",
+  title: "ConnectionHookFieldBehavior",
+  description: "A class to store the behavior of each standard field of a Hook.",
+} as const;
+
+export const $ConnectionHookMetaData = {
+  properties: {
+    connection_type: {
+      anyOf: [
+        {
+          type: "string",
+        },
+        {
+          type: "null",
+        },
+      ],
+      title: "Connection Type",
+    },
+    hook_class_name: {
+      anyOf: [
+        {
+          type: "string",
+        },
+        {
+          type: "null",
+        },
+      ],
+      title: "Hook Class Name",
+    },
+    default_conn_name: {
+      anyOf: [
+        {
+          type: "string",
+        },
+        {
+          type: "null",
+        },
+      ],
+      title: "Default Conn Name",
+    },
+    hook_name: {
+      type: "string",
+      title: "Hook Name",
+    },
+    standard_fields: {
+      anyOf: [
+        {
+          $ref: "#/components/schemas/StandardHookFields",
+        },
+        {
+          type: "null",
+        },
+      ],
+    },
+    extra_fields: {
+      anyOf: [
+        {
+          type: "object",
+        },
+        {
+          type: "null",
+        },
+      ],
+      title: "Extra Fields",
+    },
+  },
+  type: "object",
+  required: [
+    "connection_type",
+    "hook_class_name",
+    "default_conn_name",
+    "hook_name",
+    "standard_fields",
+    "extra_fields",
+  ],
+  title: "ConnectionHookMetaData",
+  description: `Response model for Hook information == Connection type meta data.
+
+It is used to transfer providers information loaded by providers_manager such that
+the API server/Web UI can use this data to render connection form UI.`,
 } as const;
 
 export const $ConnectionResponse = {
@@ -1593,17 +1704,6 @@ export const $DAGDetailsResponse = {
         },
       ],
       title: "Last Expired",
-    },
-    default_view: {
-      anyOf: [
-        {
-          type: "string",
-        },
-        {
-          type: "null",
-        },
-      ],
-      title: "Default View",
     },
     fileloc: {
       type: "string",
@@ -1889,7 +1989,6 @@ export const $DAGDetailsResponse = {
     "is_active",
     "last_parsed_time",
     "last_expired",
-    "default_view",
     "fileloc",
     "description",
     "timetable_summary",
@@ -1980,17 +2079,6 @@ export const $DAGResponse = {
         },
       ],
       title: "Last Expired",
-    },
-    default_view: {
-      anyOf: [
-        {
-          type: "string",
-        },
-        {
-          type: "null",
-        },
-      ],
-      title: "Default View",
     },
     fileloc: {
       type: "string",
@@ -2133,7 +2221,6 @@ export const $DAGResponse = {
     "is_active",
     "last_parsed_time",
     "last_expired",
-    "default_view",
     "fileloc",
     "description",
     "timetable_summary",
@@ -2781,17 +2868,6 @@ export const $DAGWithLatestDagRunsResponse = {
       ],
       title: "Last Expired",
     },
-    default_view: {
-      anyOf: [
-        {
-          type: "string",
-        },
-        {
-          type: "null",
-        },
-      ],
-      title: "Default View",
-    },
     fileloc: {
       type: "string",
       title: "Fileloc",
@@ -2918,6 +2994,17 @@ export const $DAGWithLatestDagRunsResponse = {
       type: "array",
       title: "Owners",
     },
+    asset_expression: {
+      anyOf: [
+        {
+          type: "object",
+        },
+        {
+          type: "null",
+        },
+      ],
+      title: "Asset Expression",
+    },
     latest_dag_runs: {
       items: {
         $ref: "#/components/schemas/DAGRunResponse",
@@ -2940,7 +3027,6 @@ export const $DAGWithLatestDagRunsResponse = {
     "is_active",
     "last_parsed_time",
     "last_expired",
-    "default_view",
     "fileloc",
     "description",
     "timetable_summary",
@@ -2956,6 +3042,7 @@ export const $DAGWithLatestDagRunsResponse = {
     "next_dagrun_data_interval_end",
     "next_dagrun_run_after",
     "owners",
+    "asset_expression",
     "latest_dag_runs",
     "file_token",
   ],
@@ -4615,6 +4702,75 @@ export const $SchedulerInfoResponse = {
   required: ["status", "latest_scheduler_heartbeat"],
   title: "SchedulerInfoResponse",
   description: "Scheduler info serializer for responses.",
+} as const;
+
+export const $StandardHookFields = {
+  properties: {
+    description: {
+      anyOf: [
+        {
+          $ref: "#/components/schemas/ConnectionHookFieldBehavior",
+        },
+        {
+          type: "null",
+        },
+      ],
+    },
+    url_schema: {
+      anyOf: [
+        {
+          $ref: "#/components/schemas/ConnectionHookFieldBehavior",
+        },
+        {
+          type: "null",
+        },
+      ],
+    },
+    host: {
+      anyOf: [
+        {
+          $ref: "#/components/schemas/ConnectionHookFieldBehavior",
+        },
+        {
+          type: "null",
+        },
+      ],
+    },
+    port: {
+      anyOf: [
+        {
+          $ref: "#/components/schemas/ConnectionHookFieldBehavior",
+        },
+        {
+          type: "null",
+        },
+      ],
+    },
+    login: {
+      anyOf: [
+        {
+          $ref: "#/components/schemas/ConnectionHookFieldBehavior",
+        },
+        {
+          type: "null",
+        },
+      ],
+    },
+    password: {
+      anyOf: [
+        {
+          $ref: "#/components/schemas/ConnectionHookFieldBehavior",
+        },
+        {
+          type: "null",
+        },
+      ],
+    },
+  },
+  type: "object",
+  required: ["description", "url_schema", "host", "port", "login", "password"],
+  title: "StandardHookFields",
+  description: "Standard fields of a Hook that a form will render.",
 } as const;
 
 export const $StructureDataResponse = {

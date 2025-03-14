@@ -677,22 +677,6 @@ database:
       type: string
       example: 'airflow_local_settings._sessionmaker'
       default: ~
-    load_default_connections:
-      description: |
-        Whether to load the default connections that ship with Airflow when ``airflow db init`` is called.
-        It's good to get started, but you probably want to set this to ``False`` in a production environment.
-      version_added: 2.3.0
-      version_deprecated: 2.7.0
-      deprecation_reason: |
-        This option is only used by the deprecated "airflow db init" command.
-        This option has been used in previous versions of Airflow to determine if loading of the default
-        connections is done with the ``airflow db init`` command. This command has been deprecated and
-        replaced by two separate commands ``airflow db migrate`` and
-        ``airflow connections create-default-connections`` and ``load_default_connections`` is not
-        used anymore by those commands.
-      type: string
-      example: ~
-      default: "True"
     max_db_retries:
       description: |
         Number of times the code should be retried in case of DB Operational Errors.
@@ -940,7 +924,7 @@ logging:
         consoles\.
       version_added: 2.0.0
       type: string
-      example: "connexion,sqlalchemy"
+      example: "fastapi,sqlalchemy"
       default: ""
     worker_log_server_port:
       description: |
@@ -1380,15 +1364,6 @@ api:
       type: string
       example: ~
       default: ""
-    auth_backends:
-      description: |
-        Comma separated list of auth backends to authenticate users of the API. See
-        `Security: API
-        <https://airflow.apache.org/docs/apache-airflow/stable/security/api.html>`__ for possible values
-      version_added: 2.3.0
-      type: string
-      example: ~
-      default: "airflow.providers.fab.auth_manager.api.auth.backend.session"
     maximum_page_limit:
       description: |
         Used to set the maximum page limit for API requests. If limit passed as param
@@ -1407,24 +1382,6 @@ api:
       example: ~
       version_added: 2.0.0
       default: "100"
-    google_oauth2_audience:
-      description: The intended audience for JWT token credentials used for authorization.
-        This value must match on the client and server sides.
-        If empty, audience will not be tested.
-      type: string
-      version_added: 2.0.0
-      example: project-id-random-value.apps.googleusercontent.com
-      default: ""
-    google_key_path:
-      description: |
-        Path to Google Cloud Service Account key file (JSON). If omitted, authorization based on
-        `the Application Default Credentials
-        <https://cloud.google.com/docs/authentication/production#finding_credentials_automatically>`__ will
-        be used.
-      type: string
-      version_added: 2.0.0
-      example: /files/service-account-json
-      default: ""
     access_control_allow_headers:
       description: |
         Used in response to a preflight request to indicate which HTTP
@@ -1703,13 +1660,6 @@ webserver:
       type: string
       example: ~
       default: "False"
-    dag_default_view:
-      description: |
-        Default DAG view. Valid values are: ``grid``, ``graph``, ``duration``, ``gantt``, ``landing_times``
-      version_added: ~
-      type: string
-      example: ~
-      default: "grid"
     dag_orientation:
       description: |
         Default DAG orientation. Valid values are:
@@ -2216,11 +2166,11 @@ scheduler:
       type: integer
       example: ~
       default: "5"
-    local_task_job_heartbeat_sec:
+    task_instance_heartbeat_sec:
       description: |
         The frequency (in seconds) at which the LocalTaskJob should send heartbeat signals to the
         scheduler to notify it's still alive. If this value is set to 0, the heartbeat interval will default
-        to the value of ``[scheduler] scheduler_zombie_task_threshold``.
+        to the value of ``[scheduler] task_instance_heartbeat_timeout``.
       version_added: 2.7.0
       type: integer
       example: ~
@@ -2306,7 +2256,7 @@ scheduler:
       type: string
       example: ~
       default: "{AIRFLOW_HOME}/logs/scheduler"
-    scheduler_zombie_task_threshold:
+    task_instance_heartbeat_timeout:
       description: |
         Local task jobs periodically heartbeat to the DB. If the job has
         not heartbeat in this many seconds, the scheduler will mark the
@@ -2315,9 +2265,9 @@ scheduler:
       type: integer
       example: ~
       default: "300"
-    zombie_detection_interval:
+    task_instance_heartbeat_timeout_detection_interval:
       description: |
-        How often (in seconds) should the scheduler check for zombie tasks.
+        How often (in seconds) should the scheduler check for task instances whose heartbeats have timed out.
       version_added: 2.3.0
       type: float
       example: ~
@@ -2694,6 +2644,14 @@ dag_processor:
       type: integer
       example: ~
       default: "30"
+    disable_bundle_versioning:
+      description: |
+        Always run tasks with the latest code.  If set to True, the bundle version will not
+        be stored on the dag run and therefore, the latest code will always be used.
+      version_added: ~
+      type: boolean
+      example: ~
+      default: "False"
     bundle_refresh_check_interval:
       description: |
         How often the DAG processor should check if any DAG bundles are ready for a refresh, either by hitting

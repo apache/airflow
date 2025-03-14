@@ -17,19 +17,10 @@
  * under the License.
  */
 import { useDisclosure } from "@chakra-ui/react";
-import { useQueryClient } from "@tanstack/react-query";
 import { useCallback } from "react";
 
-import {
-  UseDagRunServiceGetDagRunsKeyFn,
-  UseDagServiceGetDagDetailsKeyFn,
-  UseDagServiceGetDagKeyFn,
-  useDagServiceGetDagsKey,
-  useDagServicePatchDag,
-  useDagsServiceRecentDagRunsKey,
-  UseTaskInstanceServiceGetTaskInstancesKeyFn,
-} from "openapi/queries";
 import { useConfig } from "src/queries/useConfig";
+import { useTogglePause } from "src/queries/useTogglePause";
 
 import { ConfirmationModal } from "./ConfirmationModal";
 import { Switch, type SwitchProps } from "./ui";
@@ -37,41 +28,24 @@ import { Switch, type SwitchProps } from "./ui";
 type Props = {
   readonly dagDisplayName?: string;
   readonly dagId: string;
-  readonly isPaused: boolean;
+  readonly isPaused?: boolean;
   readonly skipConfirm?: boolean;
 } & SwitchProps;
 
 export const TogglePause = ({ dagDisplayName, dagId, isPaused, skipConfirm, ...rest }: Props) => {
-  const queryClient = useQueryClient();
   const { onClose, onOpen, open } = useDisclosure();
 
-  const onSuccess = async () => {
-    const queryKeys = [
-      [useDagServiceGetDagsKey],
-      [useDagsServiceRecentDagRunsKey],
-      UseDagServiceGetDagKeyFn({ dagId }, [{ dagId }]),
-      UseDagServiceGetDagDetailsKeyFn({ dagId }, [{ dagId }]),
-      UseDagRunServiceGetDagRunsKeyFn({ dagId }, [{ dagId }]),
-      UseTaskInstanceServiceGetTaskInstancesKeyFn({ dagId, dagRunId: "~" }, [{ dagId, dagRunId: "~" }]),
-    ];
-
-    await Promise.all(queryKeys.map((key) => queryClient.invalidateQueries({ queryKey: key })));
-  };
-
-  const { mutate } = useDagServicePatchDag({
-    onSuccess,
-  });
-
+  const { mutate: togglePause } = useTogglePause({ dagId });
   const showConfirmation = Boolean(useConfig("require_confirmation_dag_change"));
 
   const onToggle = useCallback(() => {
-    mutate({
+    togglePause({
       dagId,
       requestBody: {
         is_paused: !isPaused,
       },
     });
-  }, [dagId, isPaused, mutate]);
+  }, [dagId, isPaused, togglePause]);
 
   const onChange = () => {
     if (showConfirmation && skipConfirm !== true) {
@@ -83,7 +57,13 @@ export const TogglePause = ({ dagDisplayName, dagId, isPaused, skipConfirm, ...r
 
   return (
     <>
-      <Switch checked={!isPaused} colorPalette="blue" onCheckedChange={onChange} size="sm" {...rest} />
+      <Switch
+        checked={isPaused === undefined ? undefined : !isPaused}
+        colorPalette="blue"
+        onCheckedChange={onChange}
+        size="sm"
+        {...rest}
+      />
       <ConfirmationModal
         header={`${isPaused ? "Unpause" : "Pause"} ${dagDisplayName ?? dagId}?`}
         onConfirm={onToggle}

@@ -22,7 +22,7 @@ from unittest.mock import Mock, patch
 import pytest
 
 import airflow.providers.fab.www.auth as auth
-from airflow.auth.managers.models.resource_details import DagAccessEntity
+from airflow.api_fastapi.auth.managers.models.resource_details import DagAccessEntity
 from airflow.models import Connection, Pool, Variable
 from airflow.providers.fab.www import app as application
 

@@ -78,7 +78,7 @@ apache-airflow-providers-opsgenie package
 `Opsgenie <https://www.atlassian.com/software/opsgenie>`__
 
 
-Release: 5.8.1
+Release: 5.8.2
 
 Provider package
 ----------------

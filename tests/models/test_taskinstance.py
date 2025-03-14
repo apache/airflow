@@ -3518,8 +3518,8 @@ class TestTaskInstance:
     @patch.object(Stats, "incr")
     def test_handle_failure_no_task(self, Stats_incr, dag_maker):
         """
-        When a zombie is detected for a DAG with a parse error, we need to be able to run handle_failure
-        _without_ ti.task being set
+        When a task instance heartbeat timeout is detected for a DAG with a parse error,
+        we need to be able to run handle_failure _without_ ti.task being set
         """
         session = settings.Session()
         with dag_maker():
@@ -3993,15 +3993,14 @@ class TestTaskInstance:
         for table in tables:
             assert session.query(table).count() == 1
 
-        filter_kwargs = dict(dag_id=ti.dag_id, task_id=ti.task_id, run_id=ti.run_id, map_index=ti.map_index)
-        ti_note = session.query(TaskInstanceNote).filter_by(**filter_kwargs).one()
+        ti_note = session.query(TaskInstanceNote).filter_by(ti_id=ti.id).one()
         assert ti_note.content == "sample note"
 
         ti.clear_db_references(session)
         for table in tables:
             assert session.query(table).count() == 0
 
-        assert session.query(TaskInstanceNote).filter_by(**filter_kwargs).one_or_none() is None
+        assert session.query(TaskInstanceNote).filter_by(ti_id=ti.id).one_or_none() is None
 
     def test_skipped_task_call_on_skipped_callback(self, dag_maker):
         def raise_skip_exception():
@@ -4969,16 +4968,14 @@ def test_taskinstance_with_note(create_task_instance, session):
     session.add(ti)
     session.commit()
 
-    filter_kwargs = dict(dag_id=ti.dag_id, task_id=ti.task_id, run_id=ti.run_id, map_index=ti.map_index)
-
-    ti_note: TaskInstanceNote = session.query(TaskInstanceNote).filter_by(**filter_kwargs).one()
+    ti_note: TaskInstanceNote = session.query(TaskInstanceNote).filter_by(ti_id=ti.id).one()
     assert ti_note.content == "ti with note"
 
     session.delete(ti)
     session.commit()
 
-    assert session.query(TaskInstance).filter_by(**filter_kwargs).one_or_none() is None
-    assert session.query(TaskInstanceNote).filter_by(**filter_kwargs).one_or_none() is None
+    assert session.query(TaskInstance).filter_by(id=ti.id).one_or_none() is None
+    assert session.query(TaskInstanceNote).filter_by(ti_id=ti.id).one_or_none() is None
 
 
 def test__refresh_from_db_should_not_increment_try_number(dag_maker, session):
