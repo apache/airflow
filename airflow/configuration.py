@@ -224,7 +224,6 @@ class AirflowConfigParser(ConfigParser):
             self.deprecated_values["logging"]["log_filename_template"] = (
                 original_replacement[0],
                 default,
-                original_replacement[2],
             )
 
     def is_template(self, section: str, key) -> bool:
@@ -351,35 +350,18 @@ class AirflowConfigParser(ConfigParser):
         }
 
     # A mapping of old default values that we want to change and warn the user
-    # about. Mapping of section -> setting -> { old, replace, by_version }
-    deprecated_values: dict[str, dict[str, tuple[Pattern, str, str]]] = {
-        "core": {
-            "hostname_callable": (re.compile(r":"), r".", "2.1"),
-        },
-        "webserver": {
-            "navbar_color": (re.compile(r"(?i)^#007A87$"), "#fff", "2.1"),
-        },
-        "email": {
-            "email_backend": (
-                re.compile(r"^airflow\.contrib\.utils\.sendgrid\.send_email$"),
-                r"airflow.providers.sendgrid.utils.emailer.send_email",
-                "2.1",
-            ),
-        },
+    # about. Mapping of section -> setting -> { old, replace }
+    deprecated_values: dict[str, dict[str, tuple[Pattern, str]]] = {
         "logging": {
             "log_filename_template": (
-                re.compile(re.escape("{{ ti.dag_id }}/{{ ti.task_id }}/{{ ts }}/{{ try_number }}.log")),
+                re.compile(
+                    re.escape(
+                        "dag_id={{ ti.dag_id }}/run_id={{ ti.run_id }}/task_id={{ ti.task_id }}/{% if ti.map_index >= 0 %}map_index={{ ti.map_index }}/{% endif %}attempt={{ try_number }}.log"
+                    )
+                ),
                 # The actual replacement value will be updated after defaults are loaded from config.yml
                 "XX-set-after-default-config-loaded-XX",
-                "3.0",
             ),
-        },
-        "elasticsearch": {
-            "log_id_template": (
-                re.compile("^" + re.escape("{dag_id}-{task_id}-{logical_date}-{try_number}") + "$"),
-                "{dag_id}-{task_id}-{run_id}-{map_index}-{try_number}",
-                "3.0",
-            )
         },
     }
 
@@ -653,7 +635,7 @@ class AirflowConfigParser(ConfigParser):
 
         for section, replacement in self.deprecated_values.items():
             for name, info in replacement.items():
-                old, new, version = info
+                old, new = info
                 current_value = self.get(section, name, fallback="")
                 if self._using_old_value(old, current_value):
                     self.upgraded_values[(section, name)] = current_value
@@ -664,7 +646,6 @@ class AirflowConfigParser(ConfigParser):
                         section=section,
                         current_value=current_value,
                         new_value=new_value,
-                        version=version,
                     )
 
         self._upgrade_postgres_metastore_conn()
@@ -742,11 +723,10 @@ class AirflowConfigParser(ConfigParser):
         os.environ[env_var] = new_value
 
     @staticmethod
-    def _create_future_warning(name: str, section: str, current_value: Any, new_value: Any, version: str):
+    def _create_future_warning(name: str, section: str, current_value: Any, new_value: Any):
         warnings.warn(
             f"The {name!r} setting in [{section}] has the old default value of {current_value!r}. "
-            f"This value has been changed to {new_value!r} in the running config, but "
-            f"please update your config before Apache Airflow {version}.",
+            f"This value has been changed to {new_value!r} in the running config, but please update your config.",
             FutureWarning,
             stacklevel=3,
         )
