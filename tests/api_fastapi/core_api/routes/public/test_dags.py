@@ -241,11 +241,11 @@ class TestGetDags(TestDagEndpoint):
         assert body["total_entries"] == expected_total_entries
         assert [dag["dag_id"] for dag in body["dags"]] == expected_ids
 
-    @mock.patch("airflow.api_fastapi.auth.managers.base_auth_manager.BaseAuthManager.get_permitted_dag_ids")
-    def test_get_dags_should_call_permitted_dag_ids(self, mock_get_permitted_dag_ids, test_client):
-        mock_get_permitted_dag_ids.return_value = {DAG1_ID, DAG2_ID}
+    @mock.patch("airflow.api_fastapi.auth.managers.base_auth_manager.BaseAuthManager.get_authorized_dag_ids")
+    def test_get_dags_should_call_authorized_dag_ids(self, mock_get_authorized_dag_ids, test_client):
+        mock_get_authorized_dag_ids.return_value = {DAG1_ID, DAG2_ID}
         response = test_client.get("/public/dags")
-        mock_get_permitted_dag_ids.assert_called_once_with(user=mock.ANY, method="GET")
+        mock_get_authorized_dag_ids.assert_called_once_with(user=mock.ANY, method="GET")
         assert response.status_code == 200
         body = response.json()
 
@@ -359,13 +359,13 @@ class TestPatchDags(TestDagEndpoint):
             assert paused_dag_ids == expected_paused_ids
             check_last_log(session, dag_id=DAG1_ID, event="patch_dag", logical_date=None)
 
-    @mock.patch("airflow.api_fastapi.auth.managers.base_auth_manager.BaseAuthManager.get_permitted_dag_ids")
-    def test_patch_dags_should_call_permitted_dag_ids(self, mock_get_permitted_dag_ids, test_client):
-        mock_get_permitted_dag_ids.return_value = {DAG1_ID, DAG2_ID}
+    @mock.patch("airflow.api_fastapi.auth.managers.base_auth_manager.BaseAuthManager.get_authorized_dag_ids")
+    def test_patch_dags_should_call_authorized_dag_ids(self, mock_get_authorized_dag_ids, test_client):
+        mock_get_authorized_dag_ids.return_value = {DAG1_ID, DAG2_ID}
         response = test_client.patch(
             "/public/dags", json={"is_paused": False}, params={"only_active": False, "dag_id_pattern": "~"}
         )
-        mock_get_permitted_dag_ids.assert_called_once_with(user=mock.ANY, method="PUT")
+        mock_get_authorized_dag_ids.assert_called_once_with(user=mock.ANY, method="PUT")
         assert response.status_code == 200
         body = response.json()
 

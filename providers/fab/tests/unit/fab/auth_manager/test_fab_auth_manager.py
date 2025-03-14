@@ -555,7 +555,7 @@ class TestFabAuthManager:
             ),
         ],
     )
-    def test_get_permitted_dag_ids(
+    def test_get_authorized_dag_ids(
         self, method, user_permissions, expected_results, auth_manager_with_appbuilder, dag_maker, flask_app
     ):
         with dag_maker("test_dag1"):
@@ -573,7 +573,7 @@ class TestFabAuthManager:
             permissions=user_permissions,
         )
 
-        results = auth_manager_with_appbuilder.get_permitted_dag_ids(user=user, method=method)
+        results = auth_manager_with_appbuilder.get_authorized_dag_ids(user=user, method=method)
         assert results == expected_results
 
         delete_user(flask_app, "username")

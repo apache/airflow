@@ -16,27 +16,29 @@
  * specific language governing permissions and limitations
  * under the License.
  */
+import { Text } from "@chakra-ui/react";
 import React from "react";
 
-import { Dialog } from "src/components/ui";
+import { ConfirmationModal } from "src/components/ConfirmationModal";
+import { TOKEN_STORAGE_KEY } from "src/utils/tokenHandler";
 
-import TimezoneSelector from "./TimezoneSelector";
-
-type TimezoneModalProps = {
+type LogoutModalProps = {
   isOpen: boolean;
   onClose: () => void;
 };
 
-const TimezoneModal: React.FC<TimezoneModalProps> = ({ isOpen, onClose }) => (
-  <Dialog.Root lazyMount onOpenChange={onClose} open={isOpen} size="xl">
-    <Dialog.Content backdrop>
-      <Dialog.Header>Select Timezone</Dialog.Header>
-      <Dialog.CloseTrigger />
-      <Dialog.Body>
-        <TimezoneSelector />
-      </Dialog.Body>
-    </Dialog.Content>
-  </Dialog.Root>
+const LogoutModal: React.FC<LogoutModalProps> = ({ isOpen, onClose }) => (
+  <ConfirmationModal
+    header="Logout"
+    onConfirm={() => {
+      localStorage.removeItem(TOKEN_STORAGE_KEY);
+      globalThis.location.replace(`/public/auth/logout`);
+    }}
+    onOpenChange={onClose}
+    open={isOpen}
+  >
+    <Text>You are about to logout from the application.</Text>
+  </ConfirmationModal>
 );
 
-export default TimezoneModal;
+export default LogoutModal;

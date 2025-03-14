@@ -414,7 +414,7 @@ class FabAuthManager(BaseAuthManager[User]):
         ]
 
     @provide_session
-    def get_permitted_dag_ids(
+    def get_authorized_dag_ids(
         self,
         *,
         user: User,
