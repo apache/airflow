@@ -2028,9 +2028,8 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
 
         We can then use this information to determine whether to reschedule a task or fail it.
         """
-        return (
-            session.query(Log)
-            .where(
+        return session.execute(
+            select(func.count(Log.id)).where(
                 Log.task_id == ti.task_id,
                 Log.dag_id == ti.dag_id,
                 Log.run_id == ti.run_id,
@@ -2038,8 +2037,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                 Log.try_number == ti.try_number,
                 Log.event == TASK_STUCK_IN_QUEUED_RESCHEDULE_EVENT,
             )
-            .count()
-        )
+        ).scalar()
 
     previous_ti_running_metrics: dict[tuple[str, str, str], int] = {}
 

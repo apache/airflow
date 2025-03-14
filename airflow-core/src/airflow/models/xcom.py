@@ -186,7 +186,9 @@ class XComModel(TaskInstanceDependencies):
         if not run_id:
             raise ValueError(f"run_id must be passed. Passed run_id={run_id}")
 
-        dag_run_id = session.query(DagRun.id).filter_by(dag_id=dag_id, run_id=run_id).scalar()
+        dag_run_id = session.execute(
+            select(DagRun.id).where(DagRun.dag_id == dag_id, DagRun.run_id == run_id)
+        ).scalar()
         if dag_run_id is None:
             raise ValueError(f"DAG run not found on DAG {dag_id!r} with ID {run_id!r}")
 
@@ -287,6 +289,7 @@ class XComModel(TaskInstanceDependencies):
         if not run_id:
             raise ValueError(f"run_id must be passed. Passed run_id={run_id}")
 
+<<<<<<< HEAD
         query = session.query(cls).join(XComModel.dag_run)
 
         if key:
@@ -323,11 +326,104 @@ class XComModel(TaskInstanceDependencies):
             )
         else:
             query = query.filter(cls.run_id == run_id)
+=======
+        query = select(BaseXCom).join(BaseXCom.dag_run)
+
+        if key:
+            query = query.where(BaseXCom.key == key)
+
+        if is_container(task_ids):
+            query = query.where(BaseXCom.task_id.in_(task_ids))
+        elif task_ids is not None:
+            query = query.where(BaseXCom.task_id == task_ids)
+
+        if is_container(dag_ids):
+            query = query.where(BaseXCom.dag_id.in_(dag_ids))
+        elif dag_ids is not None:
+            query = query.where(BaseXCom.dag_id == dag_ids)
+
+        if isinstance(map_indexes, range) and map_indexes.step == 1:
+            query = query.where(
+                BaseXCom.map_index >= map_indexes.start, BaseXCom.map_index < map_indexes.stop
+            )
+        elif is_container(map_indexes):
+            query = query.where(BaseXCom.map_index.in_(map_indexes))
+        elif map_indexes is not None:
+            query = query.where(BaseXCom.map_index == map_indexes)
+
+        if include_prior_dates:
+            dr = select(DagRun.logical_date).where(DagRun.run_id == run_id).subquery()
+            query = query.where(BaseXCom.logical_date <= dr.c.logical_date)
+        else:
+            query = query.where(BaseXCom.run_id == run_id)
+>>>>>>> 1c65940b75 (remove usage of session-query from /airflow)
 
         query = query.order_by(DagRun.logical_date.desc(), cls.timestamp.desc())
         if limit:
             return query.limit(limit)
         return query
+
+    @classmethod
+    @provide_session
+    def delete(cls, xcoms: XCom | Iterable[XCom], session: Session) -> None:
+        """Delete one or multiple XCom entries."""
+        if isinstance(xcoms, XCom):
+            xcoms = [xcoms]
+        for xcom in xcoms:
+            if not isinstance(xcom, XCom):
+                raise TypeError(f"Expected XCom; received {xcom.__class__.__name__}")
+            XCom.purge(xcom, session)
+            session.delete(xcom)
+        session.commit()
+
+    @staticmethod
+    def purge(xcom: XCom, session: Session) -> None:
+        """Purge an XCom entry from underlying storage implementations."""
+        pass
+
+    @staticmethod
+    @provide_session
+    def clear(
+        *,
+        dag_id: str,
+        task_id: str,
+        run_id: str,
+        map_index: int | None = None,
+        session: Session = NEW_SESSION,
+    ) -> None:
+        """
+        Clear all XCom data from the database for the given task instance.
+
+        :param dag_id: ID of DAG to clear the XCom for.
+        :param task_id: ID of task to clear the XCom for.
+        :param run_id: ID of DAG run to clear the XCom for.
+        :param map_index: If given, only clear XCom from this particular mapped
+            task. The default ``None`` clears *all* XComs from the task.
+        :param session: Database session. If not given, a new session will be
+            created for this function.
+        """
+        # Given the historic order of this function (logical_date was first argument) to add a new optional
+        # param we need to add default values for everything :(
+        if dag_id is None:
+            raise TypeError("clear() missing required argument: dag_id")
+        if task_id is None:
+            raise TypeError("clear() missing required argument: task_id")
+
+        if not run_id:
+            raise ValueError(f"run_id must be passed. Passed run_id={run_id}")
+
+        query = select(BaseXCom).where(
+            BaseXCom.dag_id == dag_id, BaseXCom.task_id == task_id, BaseXCom.run_id == run_id
+        )
+        if map_index is not None:
+            query = query.where(BaseXCom.map_index == map_index)
+
+        for xcom in session.execute(query).all():
+            # print(f"Clearing XCOM {xcom} with value {xcom.value}")
+            XCom.purge(xcom, session)
+            session.delete(xcom)
+
+        session.commit()
 
     @staticmethod
     def serialize_value(
