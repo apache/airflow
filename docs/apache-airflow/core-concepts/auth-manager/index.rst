@@ -110,7 +110,7 @@ delete the cookie.
     from airflow.api_fastapi.auth.managers.base_auth_manager import COOKIE_NAME_JWT_TOKEN
 
     response = RedirectResponse(url="/")
-    response.set_cookie(COOKIE_NAME_JWT_TOKEN, "_token", secure=True)
+    response.set_cookie(COOKIE_NAME_JWT_TOKEN, token, secure=True)
     return response
 
 .. note::
