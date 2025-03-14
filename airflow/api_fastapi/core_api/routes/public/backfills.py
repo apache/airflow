@@ -117,6 +117,7 @@ def get_backfill(
         ]
     ),
     dependencies=[
+        Depends(action_logging()),
         Depends(requires_access_backfill(method="PUT")),
         Depends(requires_access_dag(method="PUT", access_entity=DagAccessEntity.RUN)),
     ],
@@ -142,6 +143,7 @@ def pause_backfill(backfill_id, session: SessionDep) -> BackfillResponse:
         ]
     ),
     dependencies=[
+        Depends(action_logging()),
         Depends(requires_access_backfill(method="PUT")),
         Depends(requires_access_dag(method="PUT", access_entity=DagAccessEntity.RUN)),
     ],
