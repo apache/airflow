@@ -286,7 +286,7 @@ class TestStructureDataEndpoint:
                             "is_setup_teardown": None,
                             "label": None,
                             "source_id": "task_2",
-                            "target_id": "asset:s3://dataset-bucket/example.csv",
+                            "target_id": "asset:3",
                             "is_source_asset": None,
                         },
                     ],
@@ -326,7 +326,7 @@ class TestStructureDataEndpoint:
                         },
                         {
                             "children": None,
-                            "id": "asset:s3://dataset-bucket/example.csv",
+                            "id": "asset:3",
                             "is_mapped": None,
                             "label": "s3://dataset-bucket/example.csv",
                             "tooltip": None,
