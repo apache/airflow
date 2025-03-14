@@ -3,6 +3,7 @@ import { UseQueryOptions, useSuspenseQuery } from "@tanstack/react-query";
 
 import {
   AssetService,
+  AuthLinksService,
   BackfillService,
   ConfigService,
   ConnectionService,
@@ -36,6 +37,24 @@ import {
 import { DagRunState, DagWarningType } from "../requests/types.gen";
 import * as Common from "./common";
 
+/**
+ * Get Auth Links
+ * @returns MenuItemCollectionResponse Successful Response
+ * @throws ApiError
+ */
+export const useAuthLinksServiceGetAuthLinksSuspense = <
+  TData = Common.AuthLinksServiceGetAuthLinksDefaultResponse,
+  TError = unknown,
+  TQueryKey extends Array<unknown> = unknown[],
+>(
+  queryKey?: TQueryKey,
+  options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">,
+) =>
+  useSuspenseQuery<TData, TError>({
+    queryKey: Common.UseAuthLinksServiceGetAuthLinksKeyFn(queryKey),
+    queryFn: () => AuthLinksService.getAuthLinks() as TData,
+    ...options,
+  });
 /**
  * Next Run Assets
  * @param data The data for the request.
@@ -2909,5 +2928,31 @@ export const useLoginServiceLoginSuspense = <
   useSuspenseQuery<TData, TError>({
     queryKey: Common.UseLoginServiceLoginKeyFn({ next }, queryKey),
     queryFn: () => LoginService.login({ next }) as TData,
+    ...options,
+  });
+/**
+ * Logout
+ * Logout the user.
+ * @param data The data for the request.
+ * @param data.next
+ * @returns unknown Successful Response
+ * @throws ApiError
+ */
+export const useLoginServiceLogoutSuspense = <
+  TData = Common.LoginServiceLogoutDefaultResponse,
+  TError = unknown,
+  TQueryKey extends Array<unknown> = unknown[],
+>(
+  {
+    next,
+  }: {
+    next?: string;
+  } = {},
+  queryKey?: TQueryKey,
+  options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">,
+) =>
+  useSuspenseQuery<TData, TError>({
+    queryKey: Common.UseLoginServiceLogoutKeyFn({ next }, queryKey),
+    queryFn: () => LoginService.logout({ next }) as TData,
     ...options,
   });

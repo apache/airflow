@@ -98,7 +98,6 @@ export const HistoricalMetrics = () => {
           <GridItem colSpan={{ base: 3 }}>
             <AssetEvents
               data={assetEventsData}
-              endDate={endDate}
               isLoading={isLoadingAssetEvents}
               setOrderBy={setAssetSortBy}
             />

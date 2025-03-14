@@ -39,7 +39,6 @@ const cardDef = (assetId?: number): CardDef<AssetEventResponse> => ({
 type AssetEventProps = {
   readonly assetId?: number;
   readonly data?: AssetEventCollectionResponse;
-  readonly endDate?: string;
   readonly isLoading?: boolean;
   readonly setOrderBy?: (order: string) => void;
   readonly setTableUrlState?: (state: TableState) => void;

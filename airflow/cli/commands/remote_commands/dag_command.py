@@ -647,5 +647,5 @@ def dag_reserialize(args, session: Session = NEW_SESSION) -> None:
         if bundle.name not in bundles_to_reserialize:
             continue
         bundle.initialize()
-        dag_bag = DagBag(bundle.path, include_examples=False)
+        dag_bag = DagBag(bundle.path, bundle_path=bundle.path, include_examples=False)
         dag_bag.sync_to_db(bundle.name, bundle_version=bundle.get_current_version(), session=session)
