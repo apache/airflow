@@ -163,6 +163,7 @@ export const Code = () => {
               if (lineNumberElement) {
                 if (lineNumberElement.properties) {
                   lineNumberElement.properties.style = {
+                    ...(lineNumberElement.properties.style as Record<string, string>),
                     WebkitUserSelect: "none",
                   };
                 }
