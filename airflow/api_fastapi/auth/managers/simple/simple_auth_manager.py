@@ -139,10 +139,10 @@ class SimpleAuthManager(BaseAuthManager[SimpleAuthManagerUser]):
         return AUTH_MANAGER_FASTAPI_APP_PREFIX + "/login"
 
     def deserialize_user(self, token: dict[str, Any]) -> SimpleAuthManagerUser:
-        return SimpleAuthManagerUser(username=token["username"], role=token["role"])
+        return SimpleAuthManagerUser(username=token["sub"], role=token["role"])
 
     def serialize_user(self, user: SimpleAuthManagerUser) -> dict[str, Any]:
-        return {"username": user.username, "role": user.role}
+        return {"sub": user.username, "role": user.role}
 
     def is_authorized_configuration(
         self,
