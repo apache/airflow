@@ -168,7 +168,6 @@ class TestTimeDeltaSensorAsync:
 
             dr = dag.create_dagrun(
                 run_id="abcrhroceuh",
-                run_after=run_after,
                 run_type=DagRunType.MANUAL,
                 state=None,
                 **kwargs,
