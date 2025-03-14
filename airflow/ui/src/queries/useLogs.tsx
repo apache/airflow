@@ -91,6 +91,16 @@ const renderStructuredLog = ({
     return "";
   }
 
+  elements.push(
+    <Link
+      key={`line_${index}`}
+      to={`/dags/${taskInstance?.dag_id}/runs/${taskInstance?.dag_run_id}/tasks/${taskInstance?.task_id}#${index}`}
+    >
+      {index}
+    </Link>,
+    " ",
+  );
+
   if (Boolean(timestamp)) {
     elements.push("[", <Time datetime={timestamp} key={0} />, "] ");
   }
@@ -128,14 +138,9 @@ const renderStructuredLog = ({
   }
 
   return (
-    <Link
-      key={index}
-      to={`/dags/${taskInstance?.dag_id}/runs/${taskInstance?.dag_run_id}/tasks/${taskInstance?.task_id}#${index}`}
-    >
-      <chakra.p id={index.toString()} key={index} lineHeight={1.5}>
-        {elements}
-      </chakra.p>
-    </Link>
+    <chakra.p id={index.toString()} key={index} lineHeight={1.5}>
+      {elements}
+    </chakra.p>
   );
 };
 
