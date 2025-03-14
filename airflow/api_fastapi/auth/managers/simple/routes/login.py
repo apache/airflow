@@ -67,7 +67,6 @@ def create_token_all_admins() -> RedirectResponse:
         COOKIE_NAME_JWT_TOKEN,
         get_auth_manager().generate_jwt(user),
         secure=True,
-        samesite="lax",
     )
     return response
 
