@@ -1547,6 +1547,8 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
     ) -> NoReturn:
         """
         Mark this Operator "deferred", suspending its execution until the provided trigger fires an event.
+        When resumed, a new instance of this Operator will be created to continue execution - any local state
+        will be lost.
 
         This is achieved by raising a special exception (TaskDeferred)
         which is caught in the main _execute_task wrapper. Triggers can send execution back to task or end
