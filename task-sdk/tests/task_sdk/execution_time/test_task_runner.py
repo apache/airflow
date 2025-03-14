@@ -40,6 +40,7 @@ from airflow.exceptions import (
     AirflowSensorTimeout,
     AirflowSkipException,
     AirflowTaskTerminated,
+    DownstreamTasksSkipped,
 )
 from airflow.listeners import hookimpl
 from airflow.listeners.listener import get_listener_manager
@@ -68,6 +69,7 @@ from airflow.sdk.execution_time.comms import (
     RuntimeCheckOnTask,
     SetRenderedFields,
     SetXCom,
+    SkipDownstreamTasks,
     StartupDetails,
     SucceedTask,
     TaskState,
@@ -228,6 +230,30 @@ def test_run_deferred_basic(time_machine, create_runtime_ti, mock_supervisor_com
 
     # send_request will only be called when the TaskDeferred exception is raised
     mock_supervisor_comms.send_request.assert_any_call(msg=expected_defer_task, log=mock.ANY)
+
+
+def test_run_downstream_skipped(mocked_parse, create_runtime_ti, mock_supervisor_comms):
+    listener = TestTaskRunnerCallsListeners.CustomListener()
+    get_listener_manager().add_listener(listener)
+
+    class CustomOperator(BaseOperator):
+        def execute(self, context):
+            raise DownstreamTasksSkipped(tasks=["task1", "task2"])
+
+    task = CustomOperator(
+        task_id="test_task_runner_calls_listeners_skipped", do_xcom_push=True, multiple_outputs=True
+    )
+    ti = create_runtime_ti(task=task)
+
+    log = mock.MagicMock()
+    run(ti, log=log)
+    finalize(ti, log=mock.MagicMock(), state=TerminalTIState.SUCCESS)
+
+    assert listener.state == [TaskInstanceState.RUNNING, TaskInstanceState.SUCCESS]
+    log.info.assert_called_with("Skipping downstream tasks.")
+    mock_supervisor_comms.send_request.assert_any_call(
+        log=mock.ANY, msg=SkipDownstreamTasks(tasks=["task1", "task2"], type="SkipDownstreamTasks")
+    )
 
 
 def test_resume_from_deferred(time_machine, create_runtime_ti, mock_supervisor_comms, spy_agency: SpyAgency):

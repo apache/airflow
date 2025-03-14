@@ -18,14 +18,13 @@
 from __future__ import annotations
 
 import datetime
-from unittest.mock import Mock, patch
+from unittest.mock import MagicMock, Mock, patch
 
 import pytest
 
-from airflow import settings
 from airflow.decorators import task, task_group
 from airflow.exceptions import AirflowException
-from airflow.models.skipmixin import SkipMixin
+from airflow.models.mappedoperator import MappedOperator
 from airflow.models.taskinstance import TaskInstance as TI
 from airflow.providers.standard.operators.empty import EmptyOperator
 from airflow.utils import timezone
@@ -33,9 +32,15 @@ from airflow.utils.state import State
 from airflow.utils.types import DagRunType
 
 from tests_common.test_utils.db import clear_db_dags, clear_db_runs
+from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS
 
 pytestmark = pytest.mark.db_test
 
+if AIRFLOW_V_3_0_PLUS:
+    from airflow.exceptions import DownstreamTasksSkipped
+    from airflow.providers.standard.utils.skipmixin import SkipMixin
+else:
+    from airflow.models.skipmixin import SkipMixin
 
 DEFAULT_DATE = timezone.datetime(2016, 1, 1)
 DEFAULT_DAG_RUN_ID = "test1"
@@ -54,45 +59,83 @@ class TestSkipMixin:
         self.clean_db()
 
     @patch("airflow.utils.timezone.utcnow")
-    def test_skip(self, mock_now, dag_maker):
-        session = settings.Session()
+    def test_skip(self, mock_now, dag_maker, session):
         now = datetime.datetime.now(tz=datetime.timezone.utc)
         mock_now.return_value = now
         with dag_maker("dag"):
             tasks = [EmptyOperator(task_id="task")]
-        dag_run = dag_maker.create_dagrun(
-            run_type=DagRunType.MANUAL,
-            logical_date=now,
-            state=State.FAILED,
-        )
-        SkipMixin().skip(dag_id=dag_run.dag_id, run_id=dag_run.run_id, tasks=tasks)
 
-        session.query(TI).filter(
-            TI.dag_id == "dag",
-            TI.task_id == "task",
-            TI.state == State.SKIPPED,
-            TI.start_date == now,
-            TI.end_date == now,
-        ).one()
+        if AIRFLOW_V_3_0_PLUS:
+            dag_run = dag_maker.create_dagrun(
+                run_type=DagRunType.MANUAL,
+                logical_date=now,
+                state=State.FAILED,
+            )
+
+            with pytest.raises(DownstreamTasksSkipped) as exc_info:
+                SkipMixin().skip(ti=dag_run.get_task_instance("task"), tasks=tasks)
+
+            assert exc_info.value.tasks == ["task"]
+        else:
+            from airflow import settings
+
+            dag_run = dag_maker.create_dagrun(
+                run_type=DagRunType.MANUAL,
+                execution_date=now,
+                state=State.FAILED,
+            )
+            session = settings.Session()
+            SkipMixin().skip(dag_run=dag_run, execution_date=now, tasks=tasks)
+
+            session.query(TI).filter(
+                TI.dag_id == "dag",
+                TI.task_id == "task",
+                TI.state == State.SKIPPED,
+                TI.start_date == now,
+                TI.end_date == now,
+            ).one()
 
     def test_skip_none_tasks(self):
-        session = Mock()
-        SkipMixin().skip(dag_id="test_dag", run_id="test_run", tasks=[])
-        assert not session.query.called
-        assert not session.commit.called
+        if AIRFLOW_V_3_0_PLUS:
+            assert SkipMixin().skip(ti=Mock(), tasks=[]) is None
+        else:
+            session = Mock()
+            assert SkipMixin().skip(dag_run=None, execution_date=None, tasks=[]) is None
+            assert not session.query.called
+            assert not session.commit.called
+
+    @pytest.mark.skipif(not AIRFLOW_V_3_0_PLUS, reason="Airflow 2 had a different implementation")
+    def test_skip__only_mapped_operators_passed(self):
+        ti = Mock(map_index=2)
+        assert (
+            SkipMixin().skip(
+                ti=ti,
+                tasks=[MagicMock(spec=MappedOperator)],
+            )
+            is None
+        )
+
+    @pytest.mark.skipif(not AIRFLOW_V_3_0_PLUS, reason="Airflow 2 had a different implementation")
+    def test_skip__only_none_mapped_operators_passed(self):
+        ti = Mock(map_index=-1)
+        with pytest.raises(DownstreamTasksSkipped) as exc_info:
+            SkipMixin().skip(
+                ti=ti,
+                tasks=[MagicMock(spec=MappedOperator, task_id="task")],
+            )
+        assert exc_info.value.tasks == ["task"]
 
     @pytest.mark.parametrize(
         "branch_task_ids, expected_states",
         [
-            (["task2"], {"task2": State.NONE, "task3": State.SKIPPED}),
-            (("task2",), {"task2": State.NONE, "task3": State.SKIPPED}),
-            ("task2", {"task2": State.NONE, "task3": State.SKIPPED}),
             (None, {"task2": State.SKIPPED, "task3": State.SKIPPED}),
             ([], {"task2": State.SKIPPED, "task3": State.SKIPPED}),
         ],
-        ids=["list-of-task-ids", "tuple-of-task-ids", "str-task-id", "None", "empty-list"],
+        ids=["None", "empty-list"],
     )
-    def test_skip_all_except(self, dag_maker, branch_task_ids, expected_states, session):
+    def test_skip_all_except__branch_task_ids_none(
+        self, dag_maker, branch_task_ids, expected_states, session
+    ):
         with dag_maker(
             "dag_test_skip_all_except",
             serialized=True,
@@ -105,21 +148,75 @@ class TestSkipMixin:
         dag_maker.create_dagrun(run_id=DEFAULT_DAG_RUN_ID)
 
         ti1 = TI(task1, run_id=DEFAULT_DAG_RUN_ID)
-        ti2 = TI(task2, run_id=DEFAULT_DAG_RUN_ID)
-        ti3 = TI(task3, run_id=DEFAULT_DAG_RUN_ID)
 
-        SkipMixin().skip_all_except(ti=ti1, branch_task_ids=branch_task_ids)
+        if AIRFLOW_V_3_0_PLUS:
+            with pytest.raises(DownstreamTasksSkipped) as exc_info:
+                SkipMixin().skip_all_except(ti=ti1, branch_task_ids=branch_task_ids)
 
-        session.expire_all()
+            assert set(exc_info.value.tasks) == {("task2", -1), ("task3", -1)}
+        else:
+            ti2 = TI(task2, run_id=DEFAULT_DAG_RUN_ID)
+            ti3 = TI(task3, run_id=DEFAULT_DAG_RUN_ID)
 
-        def get_state(ti):
-            ti.refresh_from_db()
-            return ti.state
+            SkipMixin().skip_all_except(ti=ti1, branch_task_ids=branch_task_ids)
 
-        executed_states = {"task2": get_state(ti2), "task3": get_state(ti3)}
+            session.expire_all()
 
-        assert executed_states == expected_states
+            def get_state(ti):
+                ti.refresh_from_db()
+                return ti.state
 
+            executed_states = {"task2": get_state(ti2), "task3": get_state(ti3)}
+
+            assert executed_states == expected_states
+
+    @pytest.mark.parametrize(
+        "branch_task_ids, expected_states",
+        [
+            (["task2"], {"task2": State.NONE, "task3": State.SKIPPED}),
+            (("task2",), {"task2": State.NONE, "task3": State.SKIPPED}),
+            ("task2", {"task2": State.NONE, "task3": State.SKIPPED}),
+        ],
+        ids=["list-of-task-ids", "tuple-of-task-ids", "str-task-id"],
+    )
+    def test_skip_all_except__skip_task3(self, dag_maker, branch_task_ids, expected_states, session):
+        with dag_maker(
+            "dag_test_skip_all_except",
+            serialized=True,
+        ):
+            task1 = EmptyOperator(task_id="task1")
+            task2 = EmptyOperator(task_id="task2")
+            task3 = EmptyOperator(task_id="task3")
+
+            task1 >> [task2, task3]
+        dag_maker.create_dagrun(run_id=DEFAULT_DAG_RUN_ID)
+
+        ti1 = TI(task1, run_id=DEFAULT_DAG_RUN_ID)
+
+        if AIRFLOW_V_3_0_PLUS:
+            with pytest.raises(DownstreamTasksSkipped) as exc_info:
+                SkipMixin().skip_all_except(ti=ti1, branch_task_ids=branch_task_ids)
+
+            assert set(exc_info.value.tasks) == {("task3", -1)}
+        else:
+            ti2 = TI(task2, run_id=DEFAULT_DAG_RUN_ID)
+            ti3 = TI(task3, run_id=DEFAULT_DAG_RUN_ID)
+
+            SkipMixin().skip_all_except(ti=ti1, branch_task_ids=branch_task_ids)
+
+            session.expire_all()
+
+            def get_state(ti):
+                ti.refresh_from_db()
+                return ti.state
+
+            executed_states = {"task2": get_state(ti2), "task3": get_state(ti3)}
+
+            assert executed_states == expected_states
+
+    @pytest.mark.skipif(
+        AIRFLOW_V_3_0_PLUS, reason="In Airflow 3, `NotPreviouslySkippedDep` is used for this case"
+    )
     @pytest.mark.need_serialized_dag
     def test_mapped_tasks_skip_all_except(self, dag_maker):
         with dag_maker("dag_test_skip_all_except") as dag:

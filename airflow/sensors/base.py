@@ -42,7 +42,6 @@ from airflow.exceptions import (
 )
 from airflow.executors.executor_loader import ExecutorLoader
 from airflow.models.baseoperator import BaseOperator
-from airflow.models.skipmixin import SkipMixin
 from airflow.models.taskreschedule import TaskReschedule
 from airflow.ti_deps.deps.ready_to_reschedule import ReadyToRescheduleDep
 from airflow.utils import timezone
@@ -82,7 +81,7 @@ class PokeReturnValue:
         return self.is_done
 
 
-class BaseSensorOperator(BaseOperator, SkipMixin):
+class BaseSensorOperator(BaseOperator):
     """
     Sensor operators are derived from this class and inherit these attributes.
 
