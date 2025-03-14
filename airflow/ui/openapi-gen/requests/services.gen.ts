@@ -3,7 +3,6 @@ import type { CancelablePromise } from "./core/CancelablePromise";
 import { OpenAPI } from "./core/OpenAPI";
 import { request as __request } from "./core/request";
 import type {
-  GetAuthLinksResponse,
   NextRunAssetsData,
   NextRunAssetsResponse,
   GetAssetsData,
@@ -213,23 +212,7 @@ import type {
   GetVersionResponse,
   LoginData,
   LoginResponse,
-  LogoutData,
-  LogoutResponse,
 } from "./types.gen";
-
-export class AuthLinksService {
-  /**
-   * Get Auth Links
-   * @returns MenuItemCollectionResponse Successful Response
-   * @throws ApiError
-   */
-  public static getAuthLinks(): CancelablePromise<GetAuthLinksResponse> {
-    return __request(OpenAPI, {
-      method: "GET",
-      url: "/ui/auth/links",
-    });
-  }
-}
 
 export class AssetService {
   /**
@@ -3548,29 +3531,7 @@ export class LoginService {
   public static login(data: LoginData = {}): CancelablePromise<LoginResponse> {
     return __request(OpenAPI, {
       method: "GET",
-      url: "/public/auth/login",
-      query: {
-        next: data.next,
-      },
-      errors: {
-        307: "Temporary Redirect",
-        422: "Validation Error",
-      },
-    });
-  }
-
-  /**
-   * Logout
-   * Logout the user.
-   * @param data The data for the request.
-   * @param data.next
-   * @returns unknown Successful Response
-   * @throws ApiError
-   */
-  public static logout(data: LogoutData = {}): CancelablePromise<LogoutResponse> {
-    return __request(OpenAPI, {
-      method: "GET",
-      url: "/public/auth/logout",
+      url: "/public/login",
       query: {
         next: data.next,
       },

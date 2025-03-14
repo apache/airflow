@@ -17,23 +17,21 @@
  * under the License.
  */
 import type { InternalAxiosRequestConfig } from "axios";
-import { afterEach, describe, it, vi, expect, beforeAll } from "vitest";
+import { afterEach, describe, it, vi, expect } from "vitest";
 
-import { TOKEN_STORAGE_KEY, tokenHandler } from "./tokenHandler";
+import { TOKEN_QUERY_PARAM_NAME, TOKEN_STORAGE_KEY, tokenHandler } from "./tokenHandler";
 
-describe("TokenFlow Interceptor", () => {
-  beforeAll(() => {
-    Object.defineProperty(document, "cookie", {
-      writable: true,
-    });
-  });
-
-  it("Should read from the cookie, persist to the localStorage and remove from the cookie", () => {
-    const token = "test-token";
-
-    document.cookie = `_token=${token};`;
+describe.each([
+  { searchParams: new URLSearchParams({ token: "something" }) },
+  { searchParams: new URLSearchParams({ param2: "someParam2", token: "else" }) },
+  { searchParams: new URLSearchParams({}) },
+])("TokenFlow Interceptor", ({ searchParams }) => {
+  it("Should read from the SearchParams, persist to the localStorage and remove from the SearchParams", () => {
+    const token = searchParams.get(TOKEN_QUERY_PARAM_NAME);
 
     const setItemMock = vi.spyOn(localStorage, "setItem");
+
+    vi.stubGlobal("location", { search: searchParams.toString() });
 
     const headers = {};
 
@@ -41,10 +39,14 @@ describe("TokenFlow Interceptor", () => {
 
     const { headers: updatedHeaders } = tokenHandler(config as InternalAxiosRequestConfig);
 
-    expect(setItemMock).toHaveBeenCalledOnce();
-    expect(setItemMock).toHaveBeenCalledWith(TOKEN_STORAGE_KEY, token);
-    expect(updatedHeaders).toEqual({ Authorization: `Bearer ${token}` });
-    expect(document.cookie).toContain("_token=; expires=");
+    if (token === null) {
+      expect(setItemMock).toHaveBeenCalledTimes(0);
+    } else {
+      expect(setItemMock).toHaveBeenCalledOnce();
+      expect(setItemMock).toHaveBeenCalledWith(TOKEN_STORAGE_KEY, token);
+      expect(searchParams).not.to.contains.keys(TOKEN_QUERY_PARAM_NAME);
+      expect(updatedHeaders).toEqual({ Authorization: `Bearer ${token}` });
+    }
   });
 });
 

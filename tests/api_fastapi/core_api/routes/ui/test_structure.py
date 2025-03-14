@@ -71,6 +71,7 @@ LATEST_VERSION_DAG_RESPONSE: dict = {
             "asset_condition_type": None,
         },
     ],
+    "arrange": "LR",
 }
 SECOND_VERSION_DAG_RESPONSE: dict = copy.deepcopy(LATEST_VERSION_DAG_RESPONSE)
 SECOND_VERSION_DAG_RESPONSE["nodes"] = [
@@ -186,6 +187,7 @@ class TestStructureDataEndpoint:
                             "operator": "EmptyOperator",
                         },
                     ],
+                    "arrange": "LR",
                 },
             ),
             (
@@ -193,7 +195,7 @@ class TestStructureDataEndpoint:
                     "dag_id": DAG_ID,
                     "root": "unknown_task",
                 },
-                {"edges": [], "nodes": []},
+                {"arrange": "LR", "edges": [], "nodes": []},
             ),
             (
                 {
@@ -203,6 +205,7 @@ class TestStructureDataEndpoint:
                     "filter_downstream": False,
                 },
                 {
+                    "arrange": "LR",
                     "edges": [],
                     "nodes": [
                         {
@@ -402,6 +405,7 @@ class TestStructureDataEndpoint:
                             "asset_condition_type": None,
                         },
                     ],
+                    "arrange": "LR",
                 },
             ),
             (
@@ -440,6 +444,7 @@ class TestStructureDataEndpoint:
                             "operator": None,
                         },
                     ],
+                    "arrange": "LR",
                 },
             ),
         ],

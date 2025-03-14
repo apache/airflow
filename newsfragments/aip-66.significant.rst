@@ -17,18 +17,10 @@ instead of their location on disk.
 The ``-subdir`` option of the following commands has been replaced with ``--bundle-name``:
 
 * ``airflow dag-processor``
-* ``airflow dags list-import-errors``
-* ``airflow dags report``
 
-The ``--subdir`` option has been removed from the following commands:
+The ``--subdir`` option has been removed from the following commands (it was a noop):
 
-* ``airflow dags next-execution``
 * ``airflow dags pause``
-* ``airflow dags show``
-* ``airflow dags show-dependencies``
-* ``airflow dags state``
-* ``airflow dags test``
-* ``airflow dags trigger``
 * ``airflow dags unpause``
 
 .. Provide additional contextual information

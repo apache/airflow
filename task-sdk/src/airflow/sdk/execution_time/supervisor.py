@@ -369,10 +369,7 @@ class WatchedSubprocess:
 
     selector: selectors.BaseSelector = attrs.field(factory=selectors.DefaultSelector)
 
-    process_log: FilteringBoundLogger
-
-    subprocess_logs_to_stdout: bool = False
-    """Duplicate log messages to stdout, or only send them to ``self.process_log``."""
+    log: FilteringBoundLogger
 
     @classmethod
     def start(
@@ -428,7 +425,7 @@ class WatchedSubprocess:
             stdin=feed_stdin,
             process=psutil.Process(pid),
             requests_fd=requests_fd,
-            process_log=logger,
+            log=logger,
             **constructor_kwargs,
         )
 
@@ -448,22 +445,17 @@ class WatchedSubprocess:
         # alternatives are used automatically) -- this is a way of having "event-based" code, but without
         # needing full async, to read and process output from each socket as it is received.
 
-        target_loggers: tuple[FilteringBoundLogger, ...] = (self.process_log,)
-        if self.subprocess_logs_to_stdout:
-            target_loggers += (log,)
-        self.selector.register(
-            stdout, selectors.EVENT_READ, self._create_socket_handler(target_loggers, channel="stdout")
-        )
+        self.selector.register(stdout, selectors.EVENT_READ, self._create_socket_handler(self.log, "stdout"))
         self.selector.register(
             stderr,
             selectors.EVENT_READ,
-            self._create_socket_handler(target_loggers, channel="stderr", log_level=logging.ERROR),
+            self._create_socket_handler(self.log, "stderr", log_level=logging.ERROR),
         )
         self.selector.register(
             logs,
             selectors.EVENT_READ,
             make_buffered_socket_reader(
-                process_log_messages_from_subprocess(target_loggers), on_close=self._on_socket_closed
+                process_log_messages_from_subprocess(self.log), on_close=self._on_socket_closed
             ),
         )
         self.selector.register(
@@ -472,10 +464,10 @@ class WatchedSubprocess:
             make_buffered_socket_reader(self.handle_requests(log), on_close=self._on_socket_closed),
         )
 
-    def _create_socket_handler(self, loggers, channel, log_level=logging.INFO) -> Callable[[socket], bool]:
+    def _create_socket_handler(self, logger, channel, log_level=logging.INFO) -> Callable[[socket], bool]:
         """Create a socket handler that forwards logs to a logger."""
         return make_buffered_socket_reader(
-            forward_to_log(loggers, chan=channel, level=log_level), on_close=self._on_socket_closed
+            forward_to_log(logger.bind(chan=channel), level=log_level), on_close=self._on_socket_closed
         )
 
     def _on_socket_closed(self):
@@ -651,6 +643,8 @@ class ActivitySubprocess(WatchedSubprocess):
     TASK_OVERTIME_THRESHOLD: ClassVar[float] = 20.0
     _task_end_time_monotonic: float | None = attrs.field(default=None, init=False)
 
+    _what: TaskInstance | None = attrs.field(default=None, init=False)
+
     decoder: ClassVar[TypeAdapter[ToSupervisor]] = TypeAdapter(ToSupervisor)
 
     @classmethod
@@ -673,6 +667,7 @@ class ActivitySubprocess(WatchedSubprocess):
 
     def _on_child_started(self, ti: TaskInstance, dag_rel_path: str | os.PathLike[str], bundle_info):
         """Send startup message to the subprocess."""
+        self._what = ti
         start_date = datetime.now(tz=timezone.utc)
         try:
             # We've forked, but the task won't start doing anything until we send it the StartupDetails
@@ -741,7 +736,17 @@ class ActivitySubprocess(WatchedSubprocess):
         """
         from airflow.sdk.log import upload_to_remote
 
-        upload_to_remote(self.process_log)
+        log_meta_dict = (
+            {
+                "dag_id": self._what.dag_id,
+                "task_id": self._what.task_id,
+                "run_id": self._what.run_id,
+                "try_number": str(self._what.try_number),
+            }
+            if self._what
+            else {}
+        )
+        upload_to_remote(self.log, log_meta_dict)
 
     def _monitor_subprocess(self):
         """
@@ -971,9 +976,7 @@ def make_buffered_socket_reader(
     return cb
 
 
-def process_log_messages_from_subprocess(
-    loggers: tuple[FilteringBoundLogger, ...],
-) -> Generator[None, bytes, None]:
+def process_log_messages_from_subprocess(log: FilteringBoundLogger) -> Generator[None, bytes, None]:
     from structlog.stdlib import NAME_TO_LEVEL
 
     while True:
@@ -1000,16 +1003,10 @@ def process_log_messages_from_subprocess(
         if exc := event.pop("exception", None):
             # TODO: convert the dict back to a pretty stack trace
             event["error_detail"] = exc
-
-        level = NAME_TO_LEVEL[event.pop("level")]
-        msg = event.pop("event", None)
-        for target in loggers:
-            target.log(level, msg, **event)
+        log.log(NAME_TO_LEVEL[event.pop("level")], event.pop("event", None), **event)
 
 
-def forward_to_log(
-    target_loggers: tuple[FilteringBoundLogger, ...], chan: str, level: int
-) -> Generator[None, bytes, None]:
+def forward_to_log(target_log: FilteringBoundLogger, level: int) -> Generator[None, bytes, None]:
     while True:
         buf = yield
         line = bytes(buf)
@@ -1017,10 +1014,10 @@ def forward_to_log(
         line = line.rstrip()
         try:
             msg = line.decode("utf-8", errors="replace")
+            target_log.log(level, msg)
         except UnicodeDecodeError:
             msg = line.decode("ascii", errors="replace")
-        for log in target_loggers:
-            log.log(level, msg, chan=chan)
+            target_log.log(level, msg)
 
 
 def supervise(
@@ -1032,7 +1029,6 @@ def supervise(
     server: str | None = None,
     dry_run: bool = False,
     log_path: str | None = None,
-    subprocess_logs_to_stdout: bool = False,
     client: Client | None = None,
 ) -> int:
     """
@@ -1045,7 +1041,6 @@ def supervise(
     :param server: Base URL of the API server.
     :param dry_run: If True, execute without actual task execution (simulate run).
     :param log_path: Path to write logs, if required.
-    :param subprocess_logs_to_stdout: Should task logs also be sent to stdout via the main logger.
     :param client: Optional preconfigured client for communication with the server (Mostly for tests).
     :return: Exit code of the process.
     """
@@ -1086,7 +1081,6 @@ def supervise(
         client=client,
         logger=logger,
         bundle_info=bundle_info,
-        subprocess_logs_to_stdout=subprocess_logs_to_stdout,
     )
 
     exit_code = process.wait()

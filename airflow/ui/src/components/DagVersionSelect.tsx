@@ -84,7 +84,6 @@ const DagVersionSelect = ({ disabled = false }: { readonly disabled?: boolean })
         loadOptions={loadVersions}
         onChange={handleStateChange}
         placeholder="Dag Version"
-        size="sm"
         value={
           selectedVersion === undefined
             ? undefined

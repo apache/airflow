@@ -1095,22 +1095,6 @@ export type JobResponse = {
 };
 
 /**
- * Menu Item for responses.
- */
-export type MenuItem = {
-  text: string;
-  href: string;
-};
-
-/**
- * Menu Item Collection serializer for responses.
- */
-export type MenuItemCollectionResponse = {
-  menu_items: Array<MenuItem>;
-  total_entries: number;
-};
-
-/**
  * Node serializer for responses.
  */
 export type NodeResponse = {
@@ -1273,7 +1257,10 @@ export type StandardHookFields = {
 export type StructureDataResponse = {
   edges: Array<EdgeResponse>;
   nodes: Array<NodeResponse>;
+  arrange: "BT" | "LR" | "RL" | "TB";
 };
+
+export type arrange = "BT" | "LR" | "RL" | "TB";
 
 /**
  * An individual log message.
@@ -1665,8 +1652,6 @@ export type XComUpdateBody = {
   value: unknown;
   map_index?: number;
 };
-
-export type GetAuthLinksResponse = MenuItemCollectionResponse;
 
 export type NextRunAssetsData = {
   dagId: string;
@@ -2590,23 +2575,7 @@ export type LoginData = {
 
 export type LoginResponse = unknown;
 
-export type LogoutData = {
-  next?: string | null;
-};
-
-export type LogoutResponse = unknown;
-
 export type $OpenApiTs = {
-  "/ui/auth/links": {
-    get: {
-      res: {
-        /**
-         * Successful Response
-         */
-        200: MenuItemCollectionResponse;
-      };
-    };
-  };
   "/ui/next_run_assets/{dag_id}": {
     get: {
       req: NextRunAssetsData;
@@ -5384,28 +5353,9 @@ export type $OpenApiTs = {
       };
     };
   };
-  "/public/auth/login": {
+  "/public/login": {
     get: {
       req: LoginData;
-      res: {
-        /**
-         * Successful Response
-         */
-        200: unknown;
-        /**
-         * Temporary Redirect
-         */
-        307: HTTPExceptionResponse;
-        /**
-         * Validation Error
-         */
-        422: HTTPValidationError;
-      };
-    };
-  };
-  "/public/auth/logout": {
-    get: {
-      req: LogoutData;
       res: {
         /**
          * Successful Response

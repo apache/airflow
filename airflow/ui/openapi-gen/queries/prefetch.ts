@@ -3,7 +3,6 @@ import { type QueryClient } from "@tanstack/react-query";
 
 import {
   AssetService,
-  AuthLinksService,
   BackfillService,
   ConfigService,
   ConnectionService,
@@ -37,16 +36,6 @@ import {
 import { DagRunState, DagWarningType } from "../requests/types.gen";
 import * as Common from "./common";
 
-/**
- * Get Auth Links
- * @returns MenuItemCollectionResponse Successful Response
- * @throws ApiError
- */
-export const prefetchUseAuthLinksServiceGetAuthLinks = (queryClient: QueryClient) =>
-  queryClient.prefetchQuery({
-    queryKey: Common.UseAuthLinksServiceGetAuthLinksKeyFn(),
-    queryFn: () => AuthLinksService.getAuthLinks(),
-  });
 /**
  * Next Run Assets
  * @param data The data for the request.
@@ -2485,24 +2474,4 @@ export const prefetchUseLoginServiceLogin = (
   queryClient.prefetchQuery({
     queryKey: Common.UseLoginServiceLoginKeyFn({ next }),
     queryFn: () => LoginService.login({ next }),
-  });
-/**
- * Logout
- * Logout the user.
- * @param data The data for the request.
- * @param data.next
- * @returns unknown Successful Response
- * @throws ApiError
- */
-export const prefetchUseLoginServiceLogout = (
-  queryClient: QueryClient,
-  {
-    next,
-  }: {
-    next?: string;
-  } = {},
-) =>
-  queryClient.prefetchQuery({
-    queryKey: Common.UseLoginServiceLogoutKeyFn({ next }),
-    queryFn: () => LoginService.logout({ next }),
   });

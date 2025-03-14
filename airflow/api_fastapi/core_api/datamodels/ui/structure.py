@@ -46,3 +46,5 @@ class NodeResponse(BaseNodeResponse):
 
 class StructureDataResponse(BaseGraphResponse[EdgeResponse, NodeResponse]):
     """Structure Data serializer for responses."""
+
+    arrange: Literal["BT", "LR", "RL", "TB"]

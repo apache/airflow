@@ -63,7 +63,6 @@ if TYPE_CHECKING:
         AssetDetails,
         ConfigurationDetails,
     )
-    from airflow.api_fastapi.common.types import MenuItem
 
 
 class AwsAuthManager(BaseAuthManager[AwsAuthManagerUser]):
@@ -92,11 +91,11 @@ class AwsAuthManager(BaseAuthManager[AwsAuthManagerUser]):
         return conf.get("api", "base_url")
 
     def deserialize_user(self, token: dict[str, Any]) -> AwsAuthManagerUser:
-        return AwsAuthManagerUser(user_id=token.pop("sub"), **token)
+        return AwsAuthManagerUser(**token)
 
     def serialize_user(self, user: AwsAuthManagerUser) -> dict[str, Any]:
         return {
-            "sub": user.get_id(),
+            "user_id": user.get_id(),
             "groups": user.get_groups(),
             "username": user.username,
             "email": user.email,
@@ -227,25 +226,6 @@ class AwsAuthManager(BaseAuthManager[AwsAuthManagerUser]):
             entity_id=resource_name,
         )
 
-    def filter_authorized_menu_items(
-        self, menu_items: list[MenuItem], *, user: AwsAuthManagerUser
-    ) -> list[MenuItem]:
-        requests: dict[str, IsAuthorizedRequest] = {}
-        for menu_item in menu_items:
-            requests[menu_item.value] = self._get_menu_item_request(menu_item.value)
-
-        batch_is_authorized_results = self.avp_facade.get_batch_is_authorized_results(
-            requests=list(requests.values()), user=user
-        )
-
-        def _has_access_to_menu_item(request: IsAuthorizedRequest):
-            result = self.avp_facade.get_batch_is_authorized_single_result(
-                batch_is_authorized_results=batch_is_authorized_results, request=request, user=user
-            )
-            return result["decision"] == "ALLOW"
-
-        return [menu_item for menu_item in menu_items if _has_access_to_menu_item(requests[menu_item.value])]
-
     def batch_is_authorized_connection(
         self,
         requests: Sequence[IsAuthorizedConnectionRequest],
@@ -321,7 +301,7 @@ class AwsAuthManager(BaseAuthManager[AwsAuthManagerUser]):
         ]
         return self.avp_facade.batch_is_authorized(requests=facade_requests, user=user)
 
-    def filter_authorized_dag_ids(
+    def filter_permitted_dag_ids(
         self,
         *,
         dag_ids: set[str],
@@ -379,14 +359,6 @@ class AwsAuthManager(BaseAuthManager[AwsAuthManagerUser]):
         app.include_router(login_router)
 
         return app
-
-    @staticmethod
-    def _get_menu_item_request(menu_item_text: str) -> IsAuthorizedRequest:
-        return {
-            "method": "MENU",
-            "entity_type": AvpEntities.MENU,
-            "entity_id": menu_item_text,
-        }
 
     def _check_avp_schema_version(self):
         if not self.avp_facade.is_policy_store_schema_up_to_date():

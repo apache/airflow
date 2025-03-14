@@ -50,6 +50,7 @@ with DAG(
     catchup=False,
     schedule="@daily",
     tags=["example", "example2"],
+    orientation="TB",
 ) as dag:
     run_this_first = EmptyOperator(
         task_id="run_this_first",

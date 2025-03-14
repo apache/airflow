@@ -16,6 +16,7 @@
 # under the License.
 from __future__ import annotations
 
+from functools import cache
 from pathlib import Path
 from typing import TYPE_CHECKING, Annotated, Callable
 from urllib.parse import urljoin, urlparse
@@ -40,10 +41,11 @@ from airflow.api_fastapi.auth.managers.models.resource_details import (
 )
 from airflow.api_fastapi.core_api.base import OrmClause
 from airflow.configuration import conf
-from airflow.models.dag import DagModel, DagRun, DagTag
+from airflow.models.dag import DagModel, DagRun
 from airflow.models.dagwarning import DagWarning
 from airflow.models.taskinstance import TaskInstance as TI
 from airflow.models.xcom import XCom
+from airflow.utils.jwt_signer import JWTSigner, get_signing_key
 
 if TYPE_CHECKING:
     from sqlalchemy.sql import Select
@@ -53,9 +55,18 @@ if TYPE_CHECKING:
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="token")
 
 
-async def get_user(token_str: Annotated[str, Depends(oauth2_scheme)]) -> BaseUser:
+@cache
+def get_signer() -> JWTSigner:
+    return JWTSigner(
+        secret_key=get_signing_key("api", "auth_jwt_secret"),
+        expiration_time_in_seconds=conf.getint("api", "auth_jwt_expiration_time"),
+        audience="front-apis",
+    )
+
+
+def get_user(token_str: Annotated[str, Depends(oauth2_scheme)]) -> BaseUser:
     try:
-        return await get_auth_manager().get_user_from_token(token_str)
+        return get_auth_manager().get_user_from_token(token_str)
     except ExpiredSignatureError:
         raise HTTPException(status.HTTP_401_UNAUTHORIZED, "Token Expired")
     except InvalidTokenError:
@@ -79,7 +90,7 @@ async def get_user_with_exception_handling(request: Request) -> BaseUser | None:
 
     if not token_str:  # Handle None or empty token
         return None
-    return await get_user(token_str)
+    return get_user(token_str)
 
 
 def requires_access_dag(
@@ -135,13 +146,6 @@ class PermittedXComFilter(PermittedDagFilter):
         return select.where(XCom.dag_id.in_(self.value))
 
 
-class PermittedTagFilter(PermittedDagFilter):
-    """A parameter that filters the permitted dag tags for the user."""
-
-    def to_orm(self, select: Select) -> Select:
-        return select.where(DagTag.dag_id.in_(self.value))
-
-
 def permitted_dag_filter_factory(
     method: ResourceMethod, filter_class=PermittedDagFilter
 ) -> Callable[[Request, BaseUser], PermittedDagFilter]:
@@ -157,8 +161,8 @@ def permitted_dag_filter_factory(
         user: GetUserDep,
     ) -> PermittedDagFilter:
         auth_manager: BaseAuthManager = request.app.state.auth_manager
-        authorized_dags: set[str] = auth_manager.get_authorized_dag_ids(user=user, method=method)
-        return filter_class(authorized_dags)
+        permitted_dags: set[str] = auth_manager.get_permitted_dag_ids(user=user, method=method)
+        return filter_class(permitted_dags)
 
     return depends_permitted_dags_filter
 
@@ -176,10 +180,6 @@ ReadableTIFilterDep = Annotated[
 ]
 ReadableXComFilterDep = Annotated[
     PermittedXComFilter, Depends(permitted_dag_filter_factory("GET", PermittedXComFilter))
-]
-
-ReadableTagsFilterDep = Annotated[
-    PermittedTagFilter, Depends(permitted_dag_filter_factory("GET", PermittedTagFilter))
 ]
 
 

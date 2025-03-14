@@ -19,29 +19,25 @@
 import type { InternalAxiosRequestConfig } from "axios";
 
 export const TOKEN_STORAGE_KEY = "token";
-const getTokenFromCookies = (): string | undefined => {
-  const cookies = document.cookie.split(";");
-
-  for (const cookie of cookies) {
-    if (cookie.startsWith("_token=")) {
-      const [, token] = cookie.split("=");
-
-      if (token !== undefined) {
-        localStorage.setItem(TOKEN_STORAGE_KEY, token);
-        document.cookie = "_token=; expires=Thu, 01 Jan 2000 00:00:00 UTC; path=/;";
-
-        return token;
-      }
-    }
-  }
-
-  return undefined;
-};
+export const TOKEN_QUERY_PARAM_NAME = "token";
 
 export const tokenHandler = (config: InternalAxiosRequestConfig) => {
-  const token = localStorage.getItem(TOKEN_STORAGE_KEY) ?? getTokenFromCookies();
+  const searchParams = new URLSearchParams(globalThis.location.search);
 
-  if (token !== undefined) {
+  const tokenUrl = searchParams.get(TOKEN_QUERY_PARAM_NAME);
+
+  let token: string | null;
+
+  if (tokenUrl === null) {
+    token = localStorage.getItem(TOKEN_STORAGE_KEY);
+  } else {
+    localStorage.setItem(TOKEN_QUERY_PARAM_NAME, tokenUrl);
+    searchParams.delete(TOKEN_QUERY_PARAM_NAME);
+    globalThis.location.search = searchParams.toString();
+    token = tokenUrl;
+  }
+
+  if (token !== null) {
     config.headers.Authorization = `Bearer ${token}`;
   }
 

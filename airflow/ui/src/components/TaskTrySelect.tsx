@@ -135,7 +135,6 @@ export const TaskTrySelect = ({ onSelectTryNumber, selectedTryNumber, taskInstan
                     onSelectTryNumber(ti.try_number);
                   }
                 }}
-                size="sm"
                 variant={selectedTryNumber === ti.try_number ? "surface" : "outline"}
               >
                 {ti.try_number}

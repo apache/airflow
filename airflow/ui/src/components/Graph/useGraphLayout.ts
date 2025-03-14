@@ -28,8 +28,6 @@ import type {
 
 import { flattenGraph, formatFlowEdges } from "./reactflowUtils";
 
-type Direction = "BOTTOM" | "LEFT" | "RIGHT" | "TOP";
-
 type EdgeLabel = {
   height: number;
   id: string;
@@ -73,6 +71,19 @@ const getTextWidth = (text: string, font: string) => {
   return length > 200 ? length : 200;
 };
 
+const getDirection = (arrange: string) => {
+  switch (arrange) {
+    case "BT":
+      return "UP";
+    case "RL":
+      return "LEFT";
+    case "TB":
+      return "DOWN";
+    default:
+      return "RIGHT";
+  }
+};
+
 const formatElkEdge = (edge: EdgeResponse, font: string, node?: NodeResponse): FormattedEdge => ({
   id: `${edge.source_id}-${edge.target_id}`,
   isSetupTeardown: edge.is_setup_teardown === null ? undefined : edge.is_setup_teardown,
@@ -109,7 +120,7 @@ const getNestedChildIds = (children: Array<NodeResponse>) => {
 };
 
 type GenerateElkProps = {
-  direction: Direction;
+  arrange: string;
   edges: Array<EdgeResponse>;
   font: string;
   nodes: Array<NodeResponse>;
@@ -117,7 +128,7 @@ type GenerateElkProps = {
 };
 
 const generateElkGraph = ({
-  direction,
+  arrange,
   edges: unformattedEdges,
   font,
   nodes,
@@ -212,7 +223,7 @@ const generateElkGraph = ({
     id: "root",
     layoutOptions: {
       "elk.core.options.EdgeLabelPlacement": "CENTER",
-      "elk.direction": direction,
+      "elk.direction": getDirection(arrange),
       hierarchyHandling: "INCLUDE_CHILDREN",
       "spacing.edgeLabel": "10.0",
     },
@@ -221,14 +232,13 @@ const generateElkGraph = ({
 
 type LayoutProps = {
   dagId: DAGResponse["dag_id"];
-  direction: Direction;
   openGroupIds: Array<string>;
   versionNumber?: number;
 } & StructureDataResponse;
 
 export const useGraphLayout = ({
+  arrange = "LR",
   dagId,
-  direction = "RIGHT",
   edges,
   nodes,
   openGroupIds = [],
@@ -241,7 +251,7 @@ export const useGraphLayout = ({
 
       // 1. Format graph data to pass for elk to process
       const graph = generateElkGraph({
-        direction,
+        arrange,
         edges,
         font,
         nodes,
@@ -265,5 +275,5 @@ export const useGraphLayout = ({
 
       return { edges: formattedEdges, nodes: flattenedData.nodes };
     },
-    queryKey: ["graphLayout", nodes, openGroupIds, dagId, versionNumber, edges],
+    queryKey: ["graphLayout", nodes, openGroupIds, arrange, dagId, versionNumber, edges],
   });

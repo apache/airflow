@@ -23,7 +23,6 @@ import { useParams } from "react-router-dom";
 import { useLocalStorage } from "usehooks-ts";
 
 import {
-  useDagRunServiceGetDagRun,
   useDependenciesServiceGetDependencies,
   useGridServiceGridData,
   useStructureServiceStructureData,
@@ -97,7 +96,7 @@ export const Graph = () => {
 
   const selectedColor = colorMode === "dark" ? selectedDarkColor : selectedLightColor;
 
-  const { data: graphData = { edges: [], nodes: [] } } = useStructureServiceStructureData({
+  const { data: graphData = { arrange: "LR", edges: [], nodes: [] } } = useStructureServiceStructureData({
     dagId,
     externalDependencies: dependencies === "immediate",
     versionNumber: selectedVersion,
@@ -109,21 +108,12 @@ export const Graph = () => {
     { enabled: dependencies === "all" },
   );
 
-  const { data: dagRun } = useDagRunServiceGetDagRun(
-    {
-      dagId,
-      dagRunId: runId ?? "",
-    },
-    undefined,
-    { enabled: runId !== "" },
-  );
-
   const dagDepEdges = dependencies === "all" ? dagDependencies.edges : [];
   const dagDepNodes = dependencies === "all" ? dagDependencies.nodes : [];
 
   const { data } = useGraphLayout({
+    arrange: "LR",
     dagId,
-    direction: "RIGHT",
     edges: [...graphData.edges, ...dagDepEdges],
     nodes: dagDepNodes.length
       ? dagDepNodes.map((node) =>
@@ -134,38 +124,39 @@ export const Graph = () => {
     versionNumber: selectedVersion,
   });
 
-  // Filter grid data to get only a single dag run
   const { data: gridData } = useGridServiceGridData(
     {
       dagId,
-      limit: 1,
+      limit: 25,
       offset: 0,
-      runAfterGte: dagRun?.run_after,
-      runAfterLte: dagRun?.run_after,
+      orderBy: "-run_after",
     },
     undefined,
     {
-      enabled: dagRun !== undefined,
+      enabled: Boolean(runId),
       refetchInterval: (query) =>
         query.state.data?.dag_runs.some((dr) => isStatePending(dr.state)) && refetchInterval,
     },
   );
 
-  const gridRun = gridData?.dag_runs.find((dr) => dr.dag_run_id === runId);
+  const dagRun = gridData?.dag_runs.find((dr) => dr.dag_run_id === runId);
 
   // Add task instances to the node data but without having to recalculate how the graph is laid out
-  const nodes = data?.nodes.map((node) => {
-    const taskInstance = gridRun?.task_instances.find((ti) => ti.task_id === node.id);
+  const nodes =
+    dagRun?.task_instances === undefined
+      ? data?.nodes
+      : data?.nodes.map((node) => {
+          const taskInstance = dagRun.task_instances.find((ti) => ti.task_id === node.id);
 
-    return {
-      ...node,
-      data: {
-        ...node.data,
-        isSelected: node.id === taskId,
-        taskInstance,
-      },
-    };
-  });
+          return {
+            ...node,
+            data: {
+              ...node.data,
+              isSelected: node.id === taskId,
+              taskInstance,
+            },
+          };
+        });
 
   const edges = (data?.edges ?? []).map((edge) => ({
     ...edge,

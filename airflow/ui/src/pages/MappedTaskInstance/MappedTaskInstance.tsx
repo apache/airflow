@@ -20,11 +20,7 @@ import { ReactFlowProvider } from "@xyflow/react";
 import { MdOutlineTask } from "react-icons/md";
 import { useParams } from "react-router-dom";
 
-import {
-  useDagRunServiceGetDagRun,
-  useDagServiceGetDagDetails,
-  useGridServiceGridData,
-} from "openapi/queries";
+import { useDagServiceGetDagDetails, useGridServiceGridData } from "openapi/queries";
 import { DetailsLayout } from "src/layouts/Details/DetailsLayout";
 import { isStatePending, useAutoRefresh } from "src/utils";
 
@@ -44,29 +40,14 @@ export const MappedTaskInstance = () => {
     dagId,
   });
 
-  const { data: dagRun } = useDagRunServiceGetDagRun(
-    {
-      dagId,
-      dagRunId: runId,
-    },
-    undefined,
-    { enabled: runId !== "" },
-  );
-
-  // Filter grid data to get only a single dag run
   const { data, error, isLoading } = useGridServiceGridData(
     {
       dagId,
-      limit: 1,
-      offset: 0,
-      runAfterGte: dagRun?.run_after,
-      runAfterLte: dagRun?.run_after,
     },
     undefined,
     {
-      enabled: dagRun !== undefined,
       refetchInterval: (query) =>
-        query.state.data?.dag_runs.some((dr) => isStatePending(dr.state)) && refetchInterval,
+        query.state.data?.dag_runs.some((dr) => isStatePending(dr.state)) ? refetchInterval : false,
     },
   );
 

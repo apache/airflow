@@ -20,7 +20,6 @@ from __future__ import annotations
 import os
 import re
 from unittest import mock
-from unittest.mock import patch
 
 import pytest
 from git import Repo
@@ -565,20 +564,16 @@ class TestGitDagBundle:
 
                 assert "Repository path: %s not found" in str(exc_info.value)
 
-    @patch.dict(os.environ, {"AIRFLOW_CONN_MY_TEST_GIT": '{"host": "something"}'})
-    @pytest.mark.parametrize("conn_id, should_find", [("my_test_git", True), ("something-else", False)])
-    def test_repo_url_access_missing_connection_doesnt_error(self, conn_id, should_find):
+    @mock.patch("airflow.dag_processing.bundles.git.GitDagBundle.log")
+    def test_repo_url_access_missing_connection_doesnt_error(self, mock_log):
         bundle = GitDagBundle(
             name="testa",
             tracking_ref="main",
-            git_conn_id=conn_id,
+            git_conn_id="unknown",
             repo_url="some_repo_url",
         )
         assert bundle.repo_url == "some_repo_url"
-        if should_find:
-            assert isinstance(bundle.hook, GitHook)
-        else:
-            assert not hasattr(bundle, "hook")
+        assert "Could not create GitHook for connection" in mock_log.warning.call_args[0][0]
 
     @mock.patch("airflow.dag_processing.bundles.git.GitHook")
     def test_lock_used(self, mock_githook, git_repo):

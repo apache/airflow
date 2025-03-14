@@ -116,11 +116,7 @@ def get_backfill(
             status.HTTP_409_CONFLICT,
         ]
     ),
-    dependencies=[
-        Depends(action_logging()),
-        Depends(requires_access_backfill(method="PUT")),
-        Depends(requires_access_dag(method="PUT", access_entity=DagAccessEntity.RUN)),
-    ],
+    dependencies=[Depends(requires_access_backfill(method="PUT"))],
 )
 def pause_backfill(backfill_id, session: SessionDep) -> BackfillResponse:
     b = session.get(Backfill, backfill_id)
@@ -142,11 +138,7 @@ def pause_backfill(backfill_id, session: SessionDep) -> BackfillResponse:
             status.HTTP_409_CONFLICT,
         ]
     ),
-    dependencies=[
-        Depends(action_logging()),
-        Depends(requires_access_backfill(method="PUT")),
-        Depends(requires_access_dag(method="PUT", access_entity=DagAccessEntity.RUN)),
-    ],
+    dependencies=[Depends(requires_access_backfill(method="PUT"))],
 )
 def unpause_backfill(backfill_id, session: SessionDep) -> BackfillResponse:
     b = session.get(Backfill, backfill_id)
