@@ -31,7 +31,7 @@ class SimpleAuthManagerLogin:
 
     @classmethod
     def create_token(
-        cls, body: LoginBody, expiration_time_in_sec: int = conf.getint("api", "auth_jwt_expiration_time")
+        cls, body: LoginBody, expiration_time_in_sec: int = conf.getint("api_auth", "jwt_expiration_time")
     ) -> LoginResponse:
         """
         Authenticate user with given configuration.
@@ -67,7 +67,7 @@ class SimpleAuthManagerLogin:
         )
 
         return LoginResponse(
-            jwt_token=get_auth_manager().get_jwt_token(
+            jwt_token=get_auth_manager().generate_jwt(
                 user=user, expiration_time_in_seconds=expiration_time_in_sec
             )
         )

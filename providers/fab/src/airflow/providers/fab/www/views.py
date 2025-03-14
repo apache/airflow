@@ -69,7 +69,7 @@ class FabIndexView(IndexView):
     @expose("/")
     def index(self):
         if g.user is not None and g.user.is_authenticated:
-            token = get_auth_manager().get_jwt_token(g.user)
+            token = get_auth_manager().generate_jwt(g.user)
             return redirect(urljoin(conf.get("api", "base_url"), f"?token={token}"), code=302)
         else:
             return redirect(conf.get("api", "base_url"), code=302)

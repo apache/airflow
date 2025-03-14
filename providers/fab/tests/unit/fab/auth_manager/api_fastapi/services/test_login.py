@@ -50,7 +50,7 @@ class TestLogin:
         get_auth_manager.return_value = self.dummy_auth_manager
         self.dummy_auth_manager.security_manager = self.dummy_security_manager
         self.dummy_security_manager.find_user.return_value = self.dummy_user
-        self.dummy_auth_manager.get_jwt_token.return_value = self.dummy_token
+        self.dummy_auth_manager.generate_jwt.return_value = self.dummy_token
         self.dummy_security_manager.check_password.return_value = True
 
         login_response: LoginResponse = FABAuthManagerLogin.create_token(
