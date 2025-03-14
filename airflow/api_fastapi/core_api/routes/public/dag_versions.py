@@ -21,6 +21,7 @@ from typing import Annotated
 from fastapi import Depends, HTTPException, Request, status
 from sqlalchemy import select
 
+from airflow.api_fastapi.auth.managers.models.resource_details import DagAccessEntity
 from airflow.api_fastapi.common.db.common import SessionDep, paginated_select
 from airflow.api_fastapi.common.parameters import (
     FilterParam,
@@ -35,6 +36,7 @@ from airflow.api_fastapi.core_api.datamodels.dag_versions import (
     DagVersionResponse,
 )
 from airflow.api_fastapi.core_api.openapi.exceptions import create_openapi_http_exception_doc
+from airflow.api_fastapi.core_api.security import requires_access_dag
 from airflow.models.dag import DAG
 from airflow.models.dag_version import DagVersion
 
@@ -48,6 +50,7 @@ dag_versions_router = AirflowRouter(tags=["DagVersion"], prefix="/dags/{dag_id}/
             status.HTTP_404_NOT_FOUND,
         ]
     ),
+    dependencies=[Depends(requires_access_dag(method="GET", access_entity=DagAccessEntity.VERSION))],
 )
 def get_dag_version(
     dag_id: str,
@@ -71,8 +74,9 @@ def get_dag_version(
     responses=create_openapi_http_exception_doc(
         [
             status.HTTP_404_NOT_FOUND,
-        ]
+        ],
     ),
+    dependencies=[Depends(requires_access_dag(method="GET", access_entity=DagAccessEntity.VERSION))],
 )
 def get_dag_versions(
     dag_id: str,
