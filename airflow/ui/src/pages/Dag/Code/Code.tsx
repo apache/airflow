@@ -31,6 +31,7 @@ import {
 import DagVersionSelect from "src/components/DagVersionSelect";
 import { ErrorAlert } from "src/components/ErrorAlert";
 import Time from "src/components/Time";
+import { ClipboardRoot, ClipboardButton } from "src/components/ui";
 import { ProgressBar } from "src/components/ui";
 import { useColorMode } from "src/context/colorMode";
 import useSelectedVersion from "src/hooks/useSelectedVersion";
@@ -72,24 +73,11 @@ export const Code = () => {
   const defaultWrap = Boolean(useConfig("default_wrap"));
 
   const [wrap, setWrap] = useState(defaultWrap);
-  const [copyStatus, setCopyStatus] = useState("Copy Code");
 
   const toggleWrap = () => setWrap(!wrap);
   const { colorMode } = useColorMode();
 
   const style = colorMode === "dark" ? oneDark : oneLight;
-
-  const copyCode = async () => {
-    try {
-      await navigator.clipboard.writeText(code?.content ?? "");
-      setCopyStatus("Code Copied");
-    } catch {
-      setCopyStatus("Failed to Copy Code");
-    }
-    setTimeout(() => {
-      setCopyStatus("Copy Code");
-    }, 2000);
-  };
 
   // wrapLongLines wasn't working with the prsim styles so we have to manually apply the style
   if (style['code[class*="language-"]'] !== undefined) {
@@ -130,16 +118,9 @@ export const Code = () => {
         </HStack>
         <HStack>
           <DagVersionSelect />
-          <Button
-            aria-label="Copy"
-            bg="bg.panel"
-            onClick={() => {
-              void copyCode();
-            }}
-            variant="outline"
-          >
-            {copyStatus}
-          </Button>
+          <ClipboardRoot value={code?.content ?? ""}>
+            <ClipboardButton />
+          </ClipboardRoot>
           <Button aria-label={wrap ? "Unwrap" : "Wrap"} bg="bg.panel" onClick={toggleWrap} variant="outline">
             {wrap ? "Unwrap" : "Wrap"}
           </Button>
