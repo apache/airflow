@@ -157,7 +157,9 @@ class BaseXCom(TaskInstanceDependencies, LoggingMixin):
         if not run_id:
             raise ValueError(f"run_id must be passed. Passed run_id={run_id}")
 
-        dag_run_id = session.query(DagRun.id).filter_by(dag_id=dag_id, run_id=run_id).scalar()
+        dag_run_id = session.execute(
+            select(DagRun.id).where(DagRun.dag_id == dag_id, DagRun.run_id == run_id)
+        ).scalar()
         if dag_run_id is None:
             raise ValueError(f"DAG run not found on DAG {dag_id!r} with ID {run_id!r}")
 
@@ -342,35 +344,35 @@ class BaseXCom(TaskInstanceDependencies, LoggingMixin):
         if not run_id:
             raise ValueError(f"run_id must be passed. Passed run_id={run_id}")
 
-        query = session.query(BaseXCom).join(BaseXCom.dag_run)
+        query = select(BaseXCom).join(BaseXCom.dag_run)
 
         if key:
-            query = query.filter(BaseXCom.key == key)
+            query = query.where(BaseXCom.key == key)
 
         if is_container(task_ids):
-            query = query.filter(BaseXCom.task_id.in_(task_ids))
+            query = query.where(BaseXCom.task_id.in_(task_ids))
         elif task_ids is not None:
-            query = query.filter(BaseXCom.task_id == task_ids)
+            query = query.where(BaseXCom.task_id == task_ids)
 
         if is_container(dag_ids):
-            query = query.filter(BaseXCom.dag_id.in_(dag_ids))
+            query = query.where(BaseXCom.dag_id.in_(dag_ids))
         elif dag_ids is not None:
-            query = query.filter(BaseXCom.dag_id == dag_ids)
+            query = query.where(BaseXCom.dag_id == dag_ids)
 
         if isinstance(map_indexes, range) and map_indexes.step == 1:
-            query = query.filter(
+            query = query.where(
                 BaseXCom.map_index >= map_indexes.start, BaseXCom.map_index < map_indexes.stop
             )
         elif is_container(map_indexes):
-            query = query.filter(BaseXCom.map_index.in_(map_indexes))
+            query = query.where(BaseXCom.map_index.in_(map_indexes))
         elif map_indexes is not None:
-            query = query.filter(BaseXCom.map_index == map_indexes)
+            query = query.where(BaseXCom.map_index == map_indexes)
 
         if include_prior_dates:
-            dr = session.query(DagRun.logical_date).filter(DagRun.run_id == run_id).subquery()
-            query = query.filter(BaseXCom.logical_date <= dr.c.logical_date)
+            dr = select(DagRun.logical_date).where(DagRun.run_id == run_id).subquery()
+            query = query.where(BaseXCom.logical_date <= dr.c.logical_date)
         else:
-            query = query.filter(BaseXCom.run_id == run_id)
+            query = query.where(BaseXCom.run_id == run_id)
 
         query = query.order_by(DagRun.logical_date.desc(), BaseXCom.timestamp.desc())
         if limit:
@@ -426,11 +428,13 @@ class BaseXCom(TaskInstanceDependencies, LoggingMixin):
         if not run_id:
             raise ValueError(f"run_id must be passed. Passed run_id={run_id}")
 
-        query = session.query(BaseXCom).filter_by(dag_id=dag_id, task_id=task_id, run_id=run_id)
+        query = select(BaseXCom).where(
+            BaseXCom.dag_id == dag_id, BaseXCom.task_id == task_id, BaseXCom.run_id == run_id
+        )
         if map_index is not None:
-            query = query.filter_by(map_index=map_index)
+            query = query.where(BaseXCom.map_index == map_index)
 
-        for xcom in query:
+        for xcom in session.execute(query).all():
             # print(f"Clearing XCOM {xcom} with value {xcom.value}")
             XCom.purge(xcom, session)
             session.delete(xcom)

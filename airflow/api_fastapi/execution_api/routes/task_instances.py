@@ -200,17 +200,15 @@ def ti_run(
             )
 
         task_reschedule_count = (
-            session.query(
-                func.count(TaskReschedule.id)  # or any other primary key column
-            )
-            .filter(
-                TaskReschedule.dag_id == ti.dag_id,
-                TaskReschedule.task_id == ti_id_str,
-                TaskReschedule.run_id == ti.run_id,
-                #    TaskReschedule.map_index == ti.map_index,  # TODO: Handle mapped tasks
-                TaskReschedule.try_number == ti.try_number,
-            )
-            .scalar()
+            session.execute(
+                select(func.count(TaskReschedule.id)).where(  # or any other primary key column
+                    TaskReschedule.dag_id == ti.dag_id,
+                    TaskReschedule.task_id == ti_id_str,
+                    TaskReschedule.run_id == ti.run_id,
+                    #    TaskReschedule.map_index == ti.map_index,  # TODO: Handle mapped tasks
+                    TaskReschedule.try_number == ti.try_number,
+                )
+            ).scalar()
             or 0
         )
 
