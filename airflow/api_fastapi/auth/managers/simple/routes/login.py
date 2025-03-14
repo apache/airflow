@@ -17,12 +17,11 @@
 
 from __future__ import annotations
 
-from urllib.parse import urljoin
-
 from fastapi import HTTPException, status
 from starlette.responses import RedirectResponse
 
 from airflow.api_fastapi.app import get_auth_manager
+from airflow.api_fastapi.auth.managers.base_auth_manager import COOKIE_NAME_JWT_TOKEN
 from airflow.api_fastapi.auth.managers.simple.datamodels.login import LoginBody, LoginResponse
 from airflow.api_fastapi.auth.managers.simple.services.login import SimpleAuthManagerLogin
 from airflow.api_fastapi.auth.managers.simple.user import SimpleAuthManagerUser
@@ -62,8 +61,14 @@ def create_token_all_admins() -> RedirectResponse:
         username="Anonymous",
         role="ADMIN",
     )
-    url = urljoin(conf.get("api", "base_url"), f"?token={get_auth_manager().generate_jwt(user)}")
-    return RedirectResponse(url=url)
+
+    response = RedirectResponse(url=conf.get("api", "base_url"))
+    response.set_cookie(
+        COOKIE_NAME_JWT_TOKEN,
+        get_auth_manager().generate_jwt(user),
+        secure=True,
+    )
+    return response
 
 
 @login_router.post(

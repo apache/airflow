@@ -21,6 +21,7 @@ from urllib.parse import unquote, urljoin, urlsplit
 
 from flask import (
     g,
+    make_response,
     redirect,
     render_template,
     request,
@@ -29,6 +30,7 @@ from flask import (
 from flask_appbuilder import IndexView, expose
 
 from airflow.api_fastapi.app import get_auth_manager
+from airflow.api_fastapi.auth.managers.base_auth_manager import COOKIE_NAME_JWT_TOKEN
 from airflow.configuration import conf
 
 # Following the release of https://github.com/python/cpython/issues/102153 in Python 3.9.17 on
@@ -66,7 +68,10 @@ class FabIndexView(IndexView):
     def index(self):
         if g.user is not None and g.user.is_authenticated:
             token = get_auth_manager().generate_jwt(g.user)
-            return redirect(urljoin(conf.get("api", "base_url"), f"?token={token}"), code=302)
+            response = make_response(redirect(f"{conf.get('api', 'base_url')}", code=302))
+            response.set_cookie(COOKIE_NAME_JWT_TOKEN, token, secure=True)
+
+            return response
         else:
             return redirect(conf.get("api", "base_url"), code=302)
 

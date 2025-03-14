@@ -72,6 +72,9 @@ log = logging.getLogger(__name__)
 T = TypeVar("T", bound=BaseUser)
 
 
+COOKIE_NAME_JWT_TOKEN = "_token"
+
+
 class BaseAuthManager(Generic[T], LoggingMixin, metaclass=ABCMeta):
     """
     Class to derive in order to implement concrete auth managers.
