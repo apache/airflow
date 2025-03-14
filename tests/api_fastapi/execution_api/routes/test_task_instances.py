@@ -17,6 +17,7 @@
 
 from __future__ import annotations
 
+import operator
 from datetime import datetime
 from unittest import mock
 
@@ -30,6 +31,7 @@ from airflow.models import RenderedTaskInstanceFields, TaskReschedule, Trigger
 from airflow.models.asset import AssetActive, AssetAliasModel, AssetEvent, AssetModel
 from airflow.models.taskinstance import TaskInstance
 from airflow.models.taskinstancehistory import TaskInstanceHistory
+from airflow.providers.standard.operators.empty import EmptyOperator
 from airflow.sdk.definitions.asset import AssetUniqueKey
 from airflow.utils import timezone
 from airflow.utils.state import State, TaskInstanceState, TerminalTIState
@@ -866,6 +868,38 @@ class TestTIUpdateState:
             assert response.status_code == 400
 
         session.expire_all()
+
+
+class TestTISkipDownstream:
+    def setup_method(self):
+        clear_db_runs()
+
+    def teardown_method(self):
+        clear_db_runs()
+
+    @pytest.mark.parametrize("_json", (({"tasks": ["t1"]}), ({"tasks": [("t1", -1)]})))
+    def test_ti_skip_downstream(self, client, session, create_task_instance, dag_maker, _json):
+        with dag_maker("skip_downstream_dag", session=session):
+            t0 = EmptyOperator(task_id="t0")
+            t1 = EmptyOperator(task_id="t1")
+            t0 >> t1
+        dr = dag_maker.create_dagrun(run_id="run")
+        decision = dr.task_instance_scheduling_decisions(session=session)
+        for ti in sorted(decision.schedulable_tis, key=operator.attrgetter("task_id")):
+            # TODO: TaskSDK #45549
+            ti.task = dag_maker.dag.get_task(ti.task_id)
+            ti.run(session=session)
+
+        t0 = dr.get_task_instance("t0")
+        response = client.patch(
+            f"/execution/task-instances/{t0.id}/skip-downstream",
+            json=_json,
+        )
+        t1 = dr.get_task_instance("t1")
+
+        assert response.status_code == 204
+        assert decision.schedulable_tis[0].state == State.SUCCESS
+        assert t1.state == State.SKIPPED
 
 
 class TestTIHealthEndpoint:
