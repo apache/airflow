@@ -60,7 +60,7 @@ def upgrade():
     if not context.is_offline_mode():
         session = get_session()
         try:
-            for trigger in session.query(Trigger).options(lazyload(Trigger.task_instance)):
+            for trigger in session.scalars(select(Trigger).options(lazyload(Trigger.task_instance))):
                 trigger.kwargs = trigger.kwargs
             session.commit()
         finally:
@@ -81,7 +81,7 @@ def downgrade():
     else:
         session = get_session()
         try:
-            for trigger in session.query(Trigger).options(lazyload(Trigger.task_instance)):
+            for trigger in session.scalars(select(Trigger).options(lazyload(Trigger.task_instance))):
                 trigger.encrypted_kwargs = json.dumps(BaseSerialization.serialize(trigger.kwargs))
             session.commit()
         finally:
