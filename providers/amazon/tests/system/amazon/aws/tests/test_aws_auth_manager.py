@@ -31,6 +31,7 @@ from fastapi.testclient import TestClient
 from onelogin.saml2.idp_metadata_parser import OneLogin_Saml2_IdPMetadataParser
 
 from airflow.api_fastapi.app import AUTH_MANAGER_FASTAPI_APP_PREFIX, create_app
+from airflow.api_fastapi.auth.managers.base_auth_manager import COOKIE_NAME_JWT_TOKEN
 from system.amazon.aws.utils import set_env_id
 
 from tests_common.test_utils.config import conf_vars
@@ -200,6 +201,8 @@ class TestAwsAuthManager:
         response = client_admin_permissions.post(
             AUTH_MANAGER_FASTAPI_APP_PREFIX + "/login_callback", follow_redirects=False
         )
+        token = response.cookies.get(COOKIE_NAME_JWT_TOKEN)
         assert response.status_code == 303
         assert "location" in response.headers
-        assert "/?token=" in response.headers["location"]
+        assert response.headers["location"] == "http://localhost:28080"
+        assert token is not None
