@@ -85,7 +85,6 @@ from airflow.models.baseoperator import BaseOperator
 from airflow.models.dag_version import DagVersion
 from airflow.models.dagrun import RUN_ID_REGEX, DagRun
 from airflow.models.taskinstance import (
-    Context,
     TaskInstance,
     TaskInstanceKey,
     clear_task_instances,
@@ -105,6 +104,7 @@ from airflow.timetables.simple import (
     OnceTimetable,
 )
 from airflow.utils import timezone
+from airflow.utils.context import Context
 from airflow.utils.dag_cycle_tester import check_cycle
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.session import NEW_SESSION, provide_session

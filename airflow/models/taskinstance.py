@@ -104,11 +104,6 @@ from airflow.models.taskmap import TaskMap
 from airflow.models.taskreschedule import TaskReschedule
 from airflow.models.xcom import LazyXComSelectSequence, XCom
 from airflow.plugins_manager import integrate_macros_plugins
-from airflow.sdk.definitions._internal.templater import SandboxedEnvironment
-from airflow.sdk.definitions.asset import Asset, AssetAlias, AssetNameRef, AssetUniqueKey, AssetUriRef
-from airflow.sdk.definitions.param import process_params
-from airflow.sdk.definitions.taskgroup import MappedTaskGroup
-from airflow.sdk.execution_time.context import InletEventsAccessors
 from airflow.sentry import Sentry
 from airflow.settings import task_instance_mutation_hook
 from airflow.stats import Stats
@@ -116,14 +111,6 @@ from airflow.ti_deps.dep_context import DepContext
 from airflow.ti_deps.dependencies_deps import REQUEUEABLE_DEPS, RUNNING_DEPS
 from airflow.traces.tracer import Trace
 from airflow.utils import timezone
-from airflow.utils.context import (
-    ConnectionAccessor,
-    Context,
-    OutletEventAccessors,
-    VariableAccessor,
-    context_get_outlet_events,
-    context_merge,
-)
 from airflow.utils.email import send_email
 from airflow.utils.helpers import prune_dict, render_template_to_string
 from airflow.utils.log.logging_mixin import LoggingMixin
@@ -160,9 +147,12 @@ if TYPE_CHECKING:
     from airflow.models.dagrun import DagRun
     from airflow.sdk.api.datamodels._generated import AssetProfile
     from airflow.sdk.definitions._internal.abstractoperator import Operator
+    from airflow.sdk.definitions.asset import AssetNameRef, AssetUniqueKey, AssetUriRef
     from airflow.sdk.definitions.dag import DAG
+    from airflow.sdk.definitions.taskgroup import MappedTaskGroup
     from airflow.sdk.types import RuntimeTaskInstanceProtocol
     from airflow.typing_compat import Literal
+    from airflow.utils.context import Context
     from airflow.utils.task_group import TaskGroup
 
 
@@ -261,6 +251,8 @@ def _run_raw_task(
 
         try:
             if ti.task:
+                from airflow.sdk.definitions.asset import Asset
+
                 inlets = [asset.asprofile() for asset in ti.task.inlets if isinstance(asset, Asset)]
                 outlets = [asset.asprofile() for asset in ti.task.outlets if isinstance(asset, Asset)]
                 TaskInstance.validate_inlet_outlet_assets_activeness(inlets, outlets, session=session)
@@ -678,6 +670,8 @@ def _execute_task(task_instance: TaskInstance, context: Context, task_orig: Oper
             )
 
     def _execute_callable(context: Context, **execute_callable_kwargs):
+        from airflow.utils.context import context_get_outlet_events
+
         try:
             # Print a marker for log grouping of details before task execution
             log.info("::endgroup::")
@@ -902,6 +896,13 @@ def _get_template_context(
         DagRun as DagRunSDK,
         PrevSuccessfulDagRunResponse,
         TIRunContext,
+    )
+    from airflow.sdk.definitions.param import process_params
+    from airflow.sdk.execution_time.context import InletEventsAccessors
+    from airflow.utils.context import (
+        ConnectionAccessor,
+        OutletEventAccessors,
+        VariableAccessor,
     )
 
     integrate_macros_plugins()
@@ -1347,6 +1348,9 @@ def _get_email_subject_content(
         html_content_err = jinja_env.from_string(default_html_content_err).render(**default_context)
 
     else:
+        from airflow.sdk.definitions._internal.templater import SandboxedEnvironment
+        from airflow.utils.context import context_merge
+
         if TYPE_CHECKING:
             assert task_instance.task
 
@@ -2736,6 +2740,8 @@ class TaskInstance(Base, LoggingMixin):
         outlet_events: list[dict[str, Any]],
         session: Session = NEW_SESSION,
     ) -> None:
+        from airflow.sdk.definitions.asset import Asset, AssetAlias, AssetNameRef, AssetUniqueKey, AssetUriRef
+
         asset_keys = {
             AssetUniqueKey(o.name, o.uri)
             for o in task_outlets
@@ -3682,6 +3688,8 @@ class TaskInstance(Base, LoggingMixin):
     def validate_inlet_outlet_assets_activeness(
         inlets: list[AssetProfile], outlets: list[AssetProfile], session: Session
     ) -> None:
+        from airflow.sdk.definitions.asset import AssetUniqueKey
+
         if not (inlets or outlets):
             return
 
@@ -3699,6 +3707,8 @@ class TaskInstance(Base, LoggingMixin):
     def _get_inactive_asset_unique_keys(
         asset_unique_keys: set[AssetUniqueKey], session: Session
     ) -> set[AssetUniqueKey]:
+        from airflow.sdk.definitions.asset import AssetUniqueKey
+
         active_asset_unique_keys = {
             AssetUniqueKey(name, uri)
             for name, uri in session.execute(
@@ -3724,6 +3734,7 @@ def _find_common_ancestor_mapped_group(node1: Operator, node2: Operator) -> Mapp
 def _is_further_mapped_inside(operator: Operator, container: TaskGroup) -> bool:
     """Whether given operator is *further* mapped inside a task group."""
     from airflow.sdk.definitions.mappedoperator import MappedOperator
+    from airflow.sdk.definitions.taskgroup import MappedTaskGroup
 
     if isinstance(operator, MappedOperator):
         return True

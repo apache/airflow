@@ -27,13 +27,13 @@ from datetime import timedelta
 from http import HTTPStatus
 from typing import TYPE_CHECKING, Any, NamedTuple
 
-from airflow.sdk.definitions.asset import AssetNameRef, AssetUniqueKey, AssetUriRef
 from airflow.utils.trigger_rule import TriggerRule
 
 if TYPE_CHECKING:
     from collections.abc import Sized
 
     from airflow.models import DagRun
+    from airflow.sdk.definitions.asset import AssetNameRef, AssetUniqueKey, AssetUriRef
 
 
 class AirflowException(Exception):
@@ -121,6 +121,8 @@ class _AirflowExecuteWithInactiveAssetExecption(AirflowFailException):
 
     @staticmethod
     def _render_asset_key(key: AssetUniqueKey | AssetNameRef | AssetUriRef) -> str:
+        from airflow.sdk.definitions.asset import AssetNameRef, AssetUniqueKey, AssetUriRef
+
         if isinstance(key, AssetUniqueKey):
             return f"Asset(name={key.name!r}, uri={key.uri!r})"
         elif isinstance(key, AssetNameRef):
