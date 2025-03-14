@@ -62,7 +62,7 @@ def create_token_all_admins() -> RedirectResponse:
         username="Anonymous",
         role="ADMIN",
     )
-    url = urljoin(conf.get("api", "base_url"), f"?token={get_auth_manager().get_jwt_token(user)}")
+    url = urljoin(conf.get("api", "base_url"), f"?token={get_auth_manager().generate_jwt(user)}")
     return RedirectResponse(url=url)
 
 
@@ -76,5 +76,5 @@ def create_token_cli(
 ) -> LoginResponse:
     """Authenticate the user for the CLI."""
     return SimpleAuthManagerLogin.create_token(
-        body=body, expiration_time_in_sec=conf.getint("api", "auth_jwt_cli_expiration_time")
+        body=body, expiration_time_in_sec=conf.getint("api_auth", "jwt_cli_expiration_time")
     )
