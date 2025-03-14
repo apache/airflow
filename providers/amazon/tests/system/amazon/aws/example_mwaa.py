@@ -85,6 +85,10 @@ with DAG(
     )
     # [END howto_sensor_mwaa_dag_run]
 
+    # This task in the system test verifies that the MwaaHook's IAM fallback mechanism continues to work with
+    # the live MWAA API. This fallback depends on parsing a specific error message from the MWAA API, so we
+    # want to ensure we find out if the API response format ever changes. Unit tests cover this with mocked
+    # responses, but this system test validates against the real API.
     @task
     def test_iam_fallback(role_to_assume_arn, mwaa_env_name):
         sts_client = StsHook().conn
