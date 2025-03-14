@@ -24,8 +24,8 @@ from urllib.parse import unquote, urljoin, urlsplit
 from flask import (
     g,
     make_response,
-    render_template,
     redirect,
+    render_template,
     request,
     url_for,
 )
