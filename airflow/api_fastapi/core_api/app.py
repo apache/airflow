@@ -35,6 +35,7 @@ from airflow.api_fastapi.core_api.middleware import FlaskExceptionsMiddleware
 from airflow.configuration import conf
 from airflow.exceptions import AirflowException
 from airflow.settings import AIRFLOW_PATH
+from airflow.utils.jwt_signer import get_signing_key
 
 log = logging.getLogger(__name__)
 
@@ -162,7 +163,7 @@ def init_config(app: FastAPI) -> None:
     # and 9 (slowest, most compression)
     app.add_middleware(GZipMiddleware, minimum_size=1024, compresslevel=5)
 
-    app.state.secret_key = conf.get("webserver", "secret_key")
+    app.state.secret_key = get_signing_key("webserver", "secret_key")
 
 
 def init_error_handlers(app: FastAPI) -> None:

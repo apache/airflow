@@ -44,7 +44,7 @@ from airflow.api_fastapi.auth.managers.models.resource_details import (
     PoolDetails,
     VariableDetails,
 )
-from airflow.api_fastapi.common.types import MenuItem
+from airflow.api_fastapi.common.types import ExtraMenuItem, MenuItem
 from airflow.cli.cli_config import (
     DefaultHelpParser,
     GroupCommand,
@@ -62,7 +62,10 @@ from airflow.providers.fab.auth_manager.models import Permission, Role, User
 from airflow.providers.fab.auth_manager.models.anonymous_user import AnonymousUser
 from airflow.providers.fab.www.app import create_app
 from airflow.providers.fab.www.constants import SWAGGER_BUNDLE, SWAGGER_ENABLED
-from airflow.providers.fab.www.extensions.init_views import _CustomErrorRequestBodyValidator, _LazyResolver
+from airflow.providers.fab.www.extensions.init_views import (
+    _CustomErrorRequestBodyValidator,
+    _LazyResolver,
+)
 from airflow.providers.fab.www.security import permissions
 from airflow.providers.fab.www.security.permissions import (
     RESOURCE_AUDIT_LOG,
@@ -73,6 +76,7 @@ from airflow.providers.fab.www.security.permissions import (
     RESOURCE_DAG_CODE,
     RESOURCE_DAG_DEPENDENCIES,
     RESOURCE_DAG_RUN,
+    RESOURCE_DAG_VERSION,
     RESOURCE_DAG_WARNING,
     RESOURCE_DOCS,
     RESOURCE_IMPORT_ERROR,
@@ -89,7 +93,10 @@ from airflow.providers.fab.www.security.permissions import (
     RESOURCE_WEBSITE,
     RESOURCE_XCOM,
 )
-from airflow.providers.fab.www.utils import get_fab_action_from_method_map, get_method_from_fab_action_map
+from airflow.providers.fab.www.utils import (
+    get_fab_action_from_method_map,
+    get_method_from_fab_action_map,
+)
 from airflow.security.permissions import RESOURCE_BACKFILL
 from airflow.utils.session import NEW_SESSION, create_session, provide_session
 from airflow.utils.yaml import safe_load
@@ -100,7 +107,9 @@ if TYPE_CHECKING:
         CLICommand,
     )
     from airflow.providers.common.compat.assets import AssetAliasDetails, AssetDetails
-    from airflow.providers.fab.auth_manager.security_manager.override import FabAirflowSecurityManagerOverride
+    from airflow.providers.fab.auth_manager.security_manager.override import (
+        FabAirflowSecurityManagerOverride,
+    )
     from airflow.providers.fab.www.extensions.init_appbuilder import AirflowAppBuilder
     from airflow.providers.fab.www.security.permissions import (
         RESOURCE_ASSET,
@@ -128,6 +137,7 @@ _MAP_DAG_ACCESS_ENTITY_TO_FAB_RESOURCE_TYPE: dict[DagAccessEntity, tuple[str, ..
     DagAccessEntity.TASK_INSTANCE: (RESOURCE_DAG_RUN, RESOURCE_TASK_INSTANCE),
     DagAccessEntity.TASK_LOGS: (RESOURCE_TASK_LOG,),
     DagAccessEntity.TASK_RESCHEDULE: (RESOURCE_TASK_RESCHEDULE,),
+    DagAccessEntity.VERSION: (RESOURCE_DAG_VERSION,),
     DagAccessEntity.WARNING: (RESOURCE_DAG_WARNING,),
     DagAccessEntity.XCOM: (RESOURCE_XCOM,),
 }
@@ -141,6 +151,19 @@ _MAP_ACCESS_VIEW_TO_FAB_RESOURCE_TYPE = {
     AccessView.PROVIDERS: RESOURCE_PROVIDER,
     AccessView.TRIGGERS: RESOURCE_TRIGGER,
     AccessView.WEBSITE: RESOURCE_WEBSITE,
+}
+
+_MAP_MENU_ITEM_TO_FAB_RESOURCE_TYPE = {
+    MenuItem.ASSETS: RESOURCE_ASSET,
+    MenuItem.ASSET_EVENTS: RESOURCE_ASSET,
+    MenuItem.CONNECTIONS: RESOURCE_CONNECTION,
+    MenuItem.DAGS: RESOURCE_DAG,
+    MenuItem.DOCS: RESOURCE_DOCS,
+    MenuItem.PLUGINS: RESOURCE_PLUGIN,
+    MenuItem.POOLS: RESOURCE_POOL,
+    MenuItem.PROVIDERS: RESOURCE_PROVIDER,
+    MenuItem.VARIABLES: RESOURCE_VARIABLE,
+    MenuItem.XCOMS: RESOURCE_XCOM,
 }
 
 
@@ -187,7 +210,9 @@ class FabAuthManager(BaseAuthManager[User]):
 
     def get_fastapi_app(self) -> FastAPI | None:
         """Get the FastAPI app."""
-        from airflow.providers.fab.auth_manager.api_fastapi.routes.login import login_router
+        from airflow.providers.fab.auth_manager.api_fastapi.routes.login import (
+            login_router,
+        )
 
         flask_app = create_app(enable_plugins=False)
 
@@ -216,7 +241,10 @@ class FabAuthManager(BaseAuthManager[User]):
             specification=specification,
             resolver=_LazyResolver(),
             base_path="/fab/v1",
-            options={"swagger_ui": SWAGGER_ENABLED, "swagger_path": SWAGGER_BUNDLE.__fspath__()},
+            options={
+                "swagger_ui": SWAGGER_ENABLED,
+                "swagger_path": SWAGGER_BUNDLE.__fspath__(),
+            },
             strict_validation=True,
             validate_responses=True,
             validator_map={"body": _CustomErrorRequestBodyValidator},
@@ -323,7 +351,11 @@ class FabAuthManager(BaseAuthManager[User]):
             )
 
     def is_authorized_backfill(
-        self, *, method: ResourceMethod, user: User, details: BackfillDetails | None = None
+        self,
+        *,
+        method: ResourceMethod,
+        user: User,
+        details: BackfillDetails | None = None,
     ) -> bool:
         return self._is_authorized(method=method, resource_type=RESOURCE_BACKFILL, user=user)
 
@@ -333,7 +365,11 @@ class FabAuthManager(BaseAuthManager[User]):
         return self._is_authorized(method=method, resource_type=RESOURCE_ASSET, user=user)
 
     def is_authorized_asset_alias(
-        self, *, method: ResourceMethod, user: User, details: AssetAliasDetails | None = None
+        self,
+        *,
+        method: ResourceMethod,
+        user: User,
+        details: AssetAliasDetails | None = None,
     ) -> bool:
         return self._is_authorized(method=method, resource_type=RESOURCE_ASSET_ALIAS, user=user)
 
@@ -343,7 +379,11 @@ class FabAuthManager(BaseAuthManager[User]):
         return self._is_authorized(method=method, resource_type=RESOURCE_POOL, user=user)
 
     def is_authorized_variable(
-        self, *, method: ResourceMethod, user: User, details: VariableDetails | None = None
+        self,
+        *,
+        method: ResourceMethod,
+        user: User,
+        details: VariableDetails | None = None,
     ) -> bool:
         return self._is_authorized(method=method, resource_type=RESOURCE_VARIABLE, user=user)
 
@@ -351,7 +391,9 @@ class FabAuthManager(BaseAuthManager[User]):
         # "Docs" are only links in the menu, there is no page associated
         method: ResourceMethod = "MENU" if access_view == AccessView.DOCS else "GET"
         return self._is_authorized(
-            method=method, resource_type=_MAP_ACCESS_VIEW_TO_FAB_RESOURCE_TYPE[access_view], user=user
+            method=method,
+            resource_type=_MAP_ACCESS_VIEW_TO_FAB_RESOURCE_TYPE[access_view],
+            user=user,
         )
 
     def is_authorized_custom_view(
@@ -359,6 +401,17 @@ class FabAuthManager(BaseAuthManager[User]):
     ) -> bool:
         fab_action_name = get_fab_action_from_method_map().get(method, method)
         return (fab_action_name, resource_name) in self._get_user_permissions(user)
+
+    def filter_authorized_menu_items(self, menu_items: list[MenuItem], user: User) -> list[MenuItem]:
+        return [
+            menu_item
+            for menu_item in menu_items
+            if self._is_authorized(
+                method="MENU",
+                resource_type=_MAP_MENU_ITEM_TO_FAB_RESOURCE_TYPE.get(menu_item, menu_item.value),
+                user=user,
+            )
+        ]
 
     @provide_session
     def get_permitted_dag_ids(
@@ -433,7 +486,7 @@ class FabAuthManager(BaseAuthManager[User]):
     def register_views(self) -> None:
         self.security_manager.register_views()
 
-    def get_menu_items(self, *, user: User) -> list[MenuItem]:
+    def get_extra_menu_items(self, *, user: User) -> list[ExtraMenuItem]:
         # Contains the list of menu items. ``resource_type`` is the name of the resource in FAB
         # permission model to check whether the user is allowed to see this menu item
         items = [
@@ -465,7 +518,7 @@ class FabAuthManager(BaseAuthManager[User]):
         ]
 
         return [
-            MenuItem(text=item["text"], href=item["href"])
+            ExtraMenuItem(text=item["text"], href=item["href"])
             for item in items
             if self._is_authorized(method="MENU", resource_type=item["resource_type"], user=user)
         ]

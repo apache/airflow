@@ -2930,3 +2930,29 @@ export const useLoginServiceLoginSuspense = <
     queryFn: () => LoginService.login({ next }) as TData,
     ...options,
   });
+/**
+ * Logout
+ * Logout the user.
+ * @param data The data for the request.
+ * @param data.next
+ * @returns unknown Successful Response
+ * @throws ApiError
+ */
+export const useLoginServiceLogoutSuspense = <
+  TData = Common.LoginServiceLogoutDefaultResponse,
+  TError = unknown,
+  TQueryKey extends Array<unknown> = unknown[],
+>(
+  {
+    next,
+  }: {
+    next?: string;
+  } = {},
+  queryKey?: TQueryKey,
+  options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">,
+) =>
+  useSuspenseQuery<TData, TError>({
+    queryKey: Common.UseLoginServiceLogoutKeyFn({ next }, queryKey),
+    queryFn: () => LoginService.logout({ next }) as TData,
+    ...options,
+  });

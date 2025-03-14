@@ -76,11 +76,6 @@ As part of this change the following breaking changes have occurred:
 
       from airflow.sdk import Label
 
-- We have removed DAG level settings that control the UI behaviour.
-  These are now as per-user settings controlled by the UI
-
-  - ``default_view``
-
 * Types of change
 
   * [x] Dag changes
@@ -104,4 +99,3 @@ As part of this change the following breaking changes have occurred:
     * AIR302
 
       * [ ] ``airflow.models.baseoperatorlink`` → ``airflow.sdk``
-      * [ ] ``default_view`` argument to DAG removed

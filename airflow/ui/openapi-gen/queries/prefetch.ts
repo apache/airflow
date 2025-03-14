@@ -2486,3 +2486,23 @@ export const prefetchUseLoginServiceLogin = (
     queryKey: Common.UseLoginServiceLoginKeyFn({ next }),
     queryFn: () => LoginService.login({ next }),
   });
+/**
+ * Logout
+ * Logout the user.
+ * @param data The data for the request.
+ * @param data.next
+ * @returns unknown Successful Response
+ * @throws ApiError
+ */
+export const prefetchUseLoginServiceLogout = (
+  queryClient: QueryClient,
+  {
+    next,
+  }: {
+    next?: string;
+  } = {},
+) =>
+  queryClient.prefetchQuery({
+    queryKey: Common.UseLoginServiceLogoutKeyFn({ next }),
+    queryFn: () => LoginService.logout({ next }),
+  });

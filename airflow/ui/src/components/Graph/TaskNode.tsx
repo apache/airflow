@@ -66,7 +66,9 @@ export const TaskNode = ({
           <Flex
             // Alternate background color for nested open groups
             bg={isOpen && depth !== undefined && depth % 2 === 0 ? "bg.muted" : "bg"}
-            borderColor={taskInstance?.state ? `${taskInstance.state}.solid` : "border"}
+            borderColor={
+              taskInstance?.state ? `${taskInstance.state}.solid` : isSelected ? "border.inverted" : "border"
+            }
             borderRadius={5}
             borderWidth={isSelected ? 6 : 2}
             height={`${height}px`}

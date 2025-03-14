@@ -768,6 +768,7 @@ class TestPauseBackfill(TestBackfillEndpoint):
         backfill = Backfill(dag_id=dag.dag_id, from_date=from_date, to_date=to_date)
         session.add(backfill)
         session.commit()
+
         response = test_client.put(f"/public/backfills/{backfill.id}/pause")
         assert response.status_code == 200
         assert response.json() == {
@@ -783,6 +784,7 @@ class TestPauseBackfill(TestBackfillEndpoint):
             "to_date": to_iso(to_date),
             "updated_at": mock.ANY,
         }
+        check_last_log(session, dag_id=None, event="pause_backfill", logical_date=None)
 
     def test_pause_backfill_401(self, session, unauthenticated_test_client):
         (dag,) = self._create_dag_models()
@@ -791,6 +793,7 @@ class TestPauseBackfill(TestBackfillEndpoint):
         backfill = Backfill(dag_id=dag.dag_id, from_date=from_date, to_date=to_date)
         session.add(backfill)
         session.commit()
+
         response = unauthenticated_test_client.put(f"/public/backfills/{backfill.id}/pause")
         assert response.status_code == 401
 
@@ -801,5 +804,34 @@ class TestPauseBackfill(TestBackfillEndpoint):
         backfill = Backfill(dag_id=dag.dag_id, from_date=from_date, to_date=to_date)
         session.add(backfill)
         session.commit()
+
         response = unauthorized_test_client.put(f"/public/backfills/{backfill.id}/pause")
         assert response.status_code == 403
+
+
+class TestUnpauseBackfill(TestBackfillEndpoint):
+    def test_unpause_backfill(self, session, test_client):
+        (dag,) = self._create_dag_models()
+        from_date = timezone.utcnow()
+        to_date = timezone.utcnow()
+        backfill = Backfill(dag_id=dag.dag_id, from_date=from_date, to_date=to_date)
+        session.add(backfill)
+        session.commit()
+
+        test_client.put(f"/public/backfills/{backfill.id}/pause")
+        response = test_client.put(f"/public/backfills/{backfill.id}/unpause")
+        assert response.status_code == 200
+        assert response.json() == {
+            "completed_at": mock.ANY,
+            "created_at": mock.ANY,
+            "dag_id": "TEST_DAG_1",
+            "dag_run_conf": {},
+            "from_date": to_iso(from_date),
+            "id": backfill.id,
+            "is_paused": False,
+            "reprocess_behavior": "none",
+            "max_active_runs": 10,
+            "to_date": to_iso(to_date),
+            "updated_at": mock.ANY,
+        }
+        check_last_log(session, dag_id=None, event="unpause_backfill", logical_date=None)
