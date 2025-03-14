@@ -22,6 +22,7 @@ import { MdOutlineAccountTree } from "react-icons/md";
 import { Link } from "react-router-dom";
 
 import type { AssetEventResponse } from "openapi/requests/types.gen";
+import RenderedJsonField from "src/components/RenderedJsonField";
 import Time from "src/components/Time";
 import { Tooltip } from "src/components/ui";
 
@@ -86,6 +87,11 @@ export const AssetEvent = ({
           "~"
         )}
       </HStack>
+      {event.extra && Object.keys(event.extra).length > 0 ? (
+        <HStack>
+          <Text> Extra: </Text> <RenderedJsonField content={event.extra} jsonProps={{ collapsed: true }} />
+        </HStack>
+      ) : undefined}
     </Box>
   );
 };
