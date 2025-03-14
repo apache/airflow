@@ -389,7 +389,7 @@ class BaseAuthManager(Generic[T], LoggingMixin, metaclass=ABCMeta):
         )
 
     @provide_session
-    def get_permitted_dag_ids(
+    def get_authorized_dag_ids(
         self,
         *,
         user: T,
@@ -397,7 +397,7 @@ class BaseAuthManager(Generic[T], LoggingMixin, metaclass=ABCMeta):
         session: Session = NEW_SESSION,
     ) -> set[str]:
         """
-        Get readable or writable DAGs for user.
+        Get DAGs the user has access to.
 
         By default, reads all the DAGs and check individually if the user has permissions to access the DAG.
         Can lead to some poor performance. It is recommended to override this method in the auth manager
@@ -408,9 +408,9 @@ class BaseAuthManager(Generic[T], LoggingMixin, metaclass=ABCMeta):
         :param session: the session
         """
         dag_ids = {dag.dag_id for dag in session.execute(select(DagModel.dag_id))}
-        return self.filter_permitted_dag_ids(dag_ids=dag_ids, method=method, user=user)
+        return self.filter_authorized_dag_ids(dag_ids=dag_ids, method=method, user=user)
 
-    def filter_permitted_dag_ids(
+    def filter_authorized_dag_ids(
         self,
         *,
         dag_ids: set[str],
@@ -418,17 +418,17 @@ class BaseAuthManager(Generic[T], LoggingMixin, metaclass=ABCMeta):
         method: ResourceMethod = "GET",
     ) -> set[str]:
         """
-        Filter readable or writable DAGs for user.
+        Filter DAGs the user has access to.
 
         :param dag_ids: the list of DAG ids
         :param user: the user
         :param method: the method to filter on
         """
 
-        def _is_permitted_dag_id(method: ResourceMethod, dag_id: str):
+        def _is_authorized_dag_id(method: ResourceMethod, dag_id: str):
             return self.is_authorized_dag(method=method, details=DagDetails(id=dag_id), user=user)
 
-        return {dag_id for dag_id in dag_ids if _is_permitted_dag_id(method, dag_id)}
+        return {dag_id for dag_id in dag_ids if _is_authorized_dag_id(method, dag_id)}
 
     @staticmethod
     def get_cli_commands() -> list[CLICommand]:

@@ -321,7 +321,7 @@ class AwsAuthManager(BaseAuthManager[AwsAuthManagerUser]):
         ]
         return self.avp_facade.batch_is_authorized(requests=facade_requests, user=user)
 
-    def filter_permitted_dag_ids(
+    def filter_authorized_dag_ids(
         self,
         *,
         dag_ids: set[str],
