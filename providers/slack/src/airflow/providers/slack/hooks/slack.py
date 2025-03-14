@@ -18,6 +18,7 @@
 from __future__ import annotations
 
 import json
+import time
 import warnings
 from collections.abc import Sequence
 from functools import cached_property
@@ -49,7 +50,6 @@ class FileUploadTypeDef(TypedDict):
     :ivar alt_txt: Optional. Description of image for screen-reader.
     :ivar snippet_type: Optional. Syntax type of the snippet being uploaded.
     """
-
     file: NotRequired[str | None]
     content: NotRequired[str | None]
     filename: NotRequired[str | None]
@@ -62,7 +62,7 @@ class SlackHook(BaseHook):
     """
     Creates a Slack API Connection to be used for calls.
 
-    This class provide a thin wrapper around the ``slack_sdk.WebClient``.
+    This class provides a thin wrapper around the ``slack_sdk.WebClient``.
 
     .. seealso::
         - :ref:`Slack API connection <howto/connection:slack>`
@@ -70,8 +70,8 @@ class SlackHook(BaseHook):
         - https://slack.dev/python-slack-sdk/web/index.html
 
     .. warning::
-        This hook intend to use `Slack API` connection
-        and might not work correctly with `Slack Incoming Webhook` and `HTTP` connections.
+        This hook intends to use a `Slack API` connection and might not work correctly
+        with `Slack Incoming Webhook` and `HTTP` connections.
 
     Examples:
      .. code-block:: python
@@ -80,22 +80,16 @@ class SlackHook(BaseHook):
         slack_hook = SlackHook(slack_conn_id="slack_api_default")
 
         # Call generic API with parameters (errors are handled by hook)
-        #  For more details check https://api.slack.com/methods/chat.postMessage
+        # For more details check https://api.slack.com/methods/chat.postMessage
         slack_hook.call("chat.postMessage", json={"channel": "#random", "text": "Hello world!"})
 
         # Call method from Slack SDK (you have to handle errors yourself)
-        #  For more details check https://slack.dev/python-slack-sdk/web/index.html#messaging
+        # For more details check https://slack.dev/python-slack-sdk/web/index.html#messaging
         slack_hook.client.chat_postMessage(channel="#random", text="Hello world!")
 
-    Additional arguments which are not listed into parameters exposed
-    into the rest of ``slack.WebClient`` constructor args.
-
-    :param slack_conn_id: :ref:`Slack connection id <howto/connection:slack>`
-        that has Slack API token in the password field.
-    :param timeout: The maximum number of seconds the client will wait to connect
-        and receive a response from Slack. If not set than default WebClient value will use.
+    :param slack_conn_id: Slack connection id that has Slack API token in the password field.
+    :param timeout: The maximum number of seconds the client will wait to connect and receive a response from Slack.
     :param base_url: A string representing the Slack API base URL.
-        If not set than default WebClient BASE_URL will use (``https://www.slack.com/api/``).
     :param proxy: Proxy to make the Slack API call.
     :param retry_handlers: List of handlers to customize retry logic in ``slack_sdk.WebClient``.
     """
@@ -123,7 +117,7 @@ class SlackHook(BaseHook):
         self.retry_handlers = retry_handlers
         if "token" in extra_client_args:
             warnings.warn(
-                f"Provide `token` as part of {type(self).__name__!r} parameters is disallowed, "
+                f"Providing `token` as part of {type(self).__name__!r} parameters is disallowed, "
                 f"please use Airflow Connection.",
                 UserWarning,
                 stacklevel=2,
@@ -133,7 +127,7 @@ class SlackHook(BaseHook):
             extra_client_args["logger"] = self.log
         self.extra_client_args = extra_client_args
 
-        # Use for caching channels result
+        # Used for caching channel results
         self._channels_mapping: dict[str, str] = {}
 
     @cached_property
@@ -146,17 +140,17 @@ class SlackHook(BaseHook):
         return self.client
 
     def _get_conn_params(self) -> dict[str, Any]:
-        """Fetch connection params as a dict and merge it with hook parameters."""
+        """Fetch connection parameters as a dict and merge them with hook parameters."""
         conn = self.get_connection(self.slack_conn_id)
         if not conn.password:
             raise AirflowNotFoundException(
-                f"Connection ID {self.slack_conn_id!r} does not contain password (Slack API Token)."
+                f"Connection ID {self.slack_conn_id!r} does not contain a password (Slack API Token)."
             )
         conn_params: dict[str, Any] = {"token": conn.password, "retry_handlers": self.retry_handlers}
         extra_config = ConnectionExtraConfig(
             conn_type=self.conn_type, conn_id=conn.conn_id, extra=conn.extra_dejson
         )
-        # Merge Hook parameters with Connection config
+        # Merge hook parameters with connection config
         conn_params.update(
             {
                 "timeout": self.timeout or extra_config.getint("timeout", default=None),
@@ -164,24 +158,16 @@ class SlackHook(BaseHook):
                 "proxy": self.proxy or extra_config.get("proxy", default=None),
             }
         )
-        # Add additional client args
+        # Add additional client arguments
         conn_params.update(self.extra_client_args)
         return {k: v for k, v in conn_params.items() if v is not None}
 
     def call(self, api_method: str, **kwargs) -> SlackResponse:
         """
-        Call Slack WebClient `WebClient.api_call` with given arguments.
+        Call Slack WebClient's `api_call` method with the provided arguments.
 
-        :param api_method: The target Slack API method. e.g. 'chat.postMessage'. Required.
-        :param http_verb: HTTP Verb. Optional (defaults to 'POST')
-        :param files: Files to multipart upload. e.g. {imageORfile: file_objectORfile_path}
-        :param data: The body to attach to the request. If a dictionary is provided,
-            form-encoding will take place. Optional.
-        :param params: The URL parameters to append to the URL. Optional.
-        :param json: JSON for the body to attach to the request. Optional.
-        :return: The server's response to an HTTP request. Data from the response can be
-            accessed like a dict.  If the response included 'next_cursor' it can be
-            iterated on to execute subsequent requests.
+        :param api_method: The target Slack API method (e.g. 'chat.postMessage').
+        :return: The response from Slack.
         """
         return self.client.api_call(api_method, **kwargs)
 
@@ -191,37 +177,40 @@ class SlackHook(BaseHook):
         channel_id: str | None = None,
         file_uploads: FileUploadTypeDef | list[FileUploadTypeDef],
         initial_comment: str | None = None,
+        sleep_interval: float = 0.0,
     ) -> SlackResponse:
         """
-        Send one or more files to a Slack channel using the Slack SDK Client method `files_upload_v2`.
+        Send one or more files to a Slack channel using Slack SDK's `files_upload_v2`.
 
         :param channel_id: The ID of the channel to send the file to.
-            If omitting this parameter, then file will send to workspace.
-        :param file_uploads: The file(s) specification to upload.
-        :param initial_comment: The message text introducing the file in specified ``channel``.
+            If not provided, the file will be sent to the workspace.
+        :param file_uploads: The file specification(s) to upload.
+        :param initial_comment: The message text introducing the file.
+        :param sleep_interval: (Optional) Sleep interval (in seconds) to wait after converting a channel name
+            to a channel ID. This helps mitigate Slack API rate limits. Default is 0.0 (no sleep).
+        :return: The response from Slack.
         """
         if channel_id and channel_id.startswith("#"):
             retried_channel_id = self.get_channel_id(channel_id[1:])
             warnings.warn(
-                "The method `files_upload_v2` in the Slack SDK Client expects a Slack Channel ID, "
-                f"but received a Slack Channel Name. To resolve this, consider replacing {channel_id!r} "
-                f"with the corresponding Channel ID {retried_channel_id!r}.",
+                "The method `files_upload_v2` expects a Slack Channel ID, "
+                f"but received a Slack Channel Name {channel_id!r}. Consider replacing it with {retried_channel_id!r}.",
                 UserWarning,
                 stacklevel=2,
             )
             channel_id = retried_channel_id
+            if sleep_interval > 0:
+                time.sleep(sleep_interval)
 
         if not isinstance(file_uploads, list):
             file_uploads = [file_uploads]
         for file_upload in file_uploads:
             if not file_upload.get("filename"):
-                # Some of early version of Slack SDK (such as 3.19.0) raise an error if ``filename`` not set.
+                # Early versions of the Slack SDK may raise an error if ``filename`` is not set.
                 file_upload["filename"] = "Uploaded file"
 
         return self.client.files_upload_v2(
             channel=channel_id,
-            # mypy doesn't happy even if TypedDict used instead of dict[str, Any]
-            # see: https://github.com/python/mypy/issues/4976
             file_uploads=file_uploads,  # type: ignore[arg-type]
             initial_comment=initial_comment,
         )
@@ -239,17 +228,16 @@ class SlackHook(BaseHook):
         **kwargs,
     ) -> list[SlackResponse]:
         """
-        Smooth transition between ``send_file`` and ``send_file_v2`` methods.
+        Smooth transition between `send_file` and `send_file_v2` methods.
 
-        :param channels: Comma-separated list of channel names or IDs where the file will be shared.
-            If omitting this parameter, then file will send to workspace.
-            File would be uploaded for each channel individually.
-        :param file: Path to file which need to be sent.
-        :param content: File contents. If omitting this parameter, you must provide a file.
+        :param channels: Comma-separated list of channel names or IDs to share the file.
+        :param file: Path to the file to be sent.
+        :param content: File contents. If omitted, a file path must be provided.
         :param filename: Displayed filename.
-        :param initial_comment: The message text introducing the file in specified ``channels``.
+        :param initial_comment: Message text introducing the file.
         :param title: Title of the file.
-        :param snippet_type: Syntax type for the content being uploaded.
+        :param snippet_type: Syntax type for the uploaded content.
+        :return: List of Slack responses.
         """
         if not exactly_one(file, content):
             raise ValueError("Either `file` or `content` must be provided, not both.")
@@ -279,21 +267,18 @@ class SlackHook(BaseHook):
 
     def get_channel_id(self, channel_name: str) -> str:
         """
-        Retrieve a Slack channel id by a channel name.
+        Retrieve a Slack channel ID by channel name.
 
-        It continuously iterates over all Slack channels (public and private)
-        until it finds the desired channel name in addition cache results for further usage.
+        Iterates over all Slack channels (public and private) and caches results.
 
-        .. seealso::
-            https://api.slack.com/methods/conversations.list
-
-        :param channel_name: The name of the Slack channel for which ID has to be found.
+        :param channel_name: The name of the Slack channel.
+        :return: The channel ID.
+        :raises LookupError: If the channel cannot be found.
         """
         next_cursor = None
         while not (channel_id := self._channels_mapping.get(channel_name)):
             res = self.client.conversations_list(cursor=next_cursor, types="public_channel,private_channel")
             if TYPE_CHECKING:
-                # Slack SDK response type too broad, this should make mypy happy
                 assert isinstance(res.data, dict)
 
             for channel_data in res.data.get("channels", []):
@@ -304,16 +289,14 @@ class SlackHook(BaseHook):
                 break
 
         if not channel_id:
-            msg = f"Unable to find slack channel with name: {channel_name!r}"
-            raise LookupError(msg)
+            raise LookupError(f"Unable to find Slack channel with name: {channel_name!r}")
         return channel_id
 
     def test_connection(self):
         """
         Tests the Slack API connection.
 
-        .. seealso::
-            https://api.slack.com/methods/auth.test
+        :return: Tuple of success status and message.
         """
         try:
             response = self.call("auth.test")
@@ -324,7 +307,6 @@ class SlackHook(BaseHook):
             return False, f"Unknown error occurred while testing connection: {e}"
 
         if isinstance(response.data, bytes):
-            # If response data binary then return simple message
             return True, f"Connection successfully tested (url: {response.api_url})."
 
         try:
@@ -365,9 +347,7 @@ class SlackHook(BaseHook):
         """Return custom field behaviour."""
         return {
             "hidden_fields": ["login", "port", "host", "schema", "extra"],
-            "relabeling": {
-                "password": "Slack API Token",
-            },
+            "relabeling": {"password": "Slack API Token"},
             "placeholders": {
                 "password": "xoxb-1234567890123-09876543210987-AbCdEfGhIjKlMnOpQrStUvWx",
                 "timeout": "30",
