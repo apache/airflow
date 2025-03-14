@@ -32,6 +32,7 @@ from airflow.providers.standard.sensors.time_delta import (
     TimeDeltaSensorAsync,
     WaitSensor,
 )
+from airflow.providers.standard.version_compat import AIRFLOW_V_3_0_PLUS
 from airflow.utils import timezone
 from airflow.utils.timezone import datetime
 from airflow.utils.types import DagRunType
@@ -71,7 +72,6 @@ class TestTimedeltaSensor:
 )
 def test_timedelta_sensor_run_after_vs_interval(run_after, interval_end, dag_maker, session):
     """Interval end should be used as base time when present else run_after"""
-    from airflow.utils.types import DagRunTriggeredByType
 
     context = {}
     if interval_end:
@@ -80,13 +80,18 @@ def test_timedelta_sensor_run_after_vs_interval(run_after, interval_end, dag_mak
     with dag_maker() as dag:
         op = TimeDeltaSensor(task_id="wait_sensor_check", delta=delta, dag=dag, mode="reschedule")
 
+        kwargs = {}
+        if AIRFLOW_V_3_0_PLUS:
+            from airflow.utils.types import DagRunTriggeredByType
+
+            kwargs.update(triggered_by=DagRunTriggeredByType.TEST)
         dr = dag.create_dagrun(
             run_id="abcrhroceuh",
             run_after=run_after,
             run_type=DagRunType.MANUAL,
-            triggered_by=DagRunTriggeredByType.TEST,
             state=None,
             session=session,
+            **kwargs,
         )
     ti = dr.task_instances[0]
     context.update(dag_run=dr, ti=ti)
@@ -147,18 +152,23 @@ class TestTimeDeltaSensorAsync:
     )
     def test_timedelta_sensor_async_run_after_vs_interval(self, run_after, interval_end, dag_maker):
         """Interval end should be used as base time when present else run_after"""
-        from airflow.utils.types import DagRunTriggeredByType
 
         context = {}
         if interval_end:
             context["data_interval_end"] = interval_end
         with dag_maker() as dag:
+            kwargs = {}
+            if AIRFLOW_V_3_0_PLUS:
+                from airflow.utils.types import DagRunTriggeredByType
+
+                kwargs.update(triggered_by=DagRunTriggeredByType.TEST)
+
             dr = dag.create_dagrun(
                 run_id="abcrhroceuh",
                 run_after=run_after,
                 run_type=DagRunType.MANUAL,
-                triggered_by=DagRunTriggeredByType.TEST,
                 state=None,
+                **kwargs,
             )
             context.update(dag_run=dr)
             delta = timedelta(seconds=1)
