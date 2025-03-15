@@ -32,6 +32,8 @@ from airflow.providers.fab.www.extensions.init_appbuilder import init_appbuilder
 from airflow.providers.standard.operators.empty import EmptyOperator
 from unit.fab.auth_manager.api_endpoints.api_connexion_utils import create_user, delete_user
 
+from tests_common.test_utils.config import conf_vars
+
 try:
     from airflow.api_fastapi.auth.managers.models.resource_details import (
         AccessView,
@@ -100,7 +102,15 @@ def auth_manager():
 
 @pytest.fixture
 def flask_app():
-    return Flask(__name__)
+    with conf_vars(
+        {
+            (
+                "core",
+                "auth_manager",
+            ): "airflow.providers.fab.auth_manager.fab_auth_manager.FabAuthManager",
+        }
+    ):
+        yield Flask(__name__)
 
 
 @pytest.fixture

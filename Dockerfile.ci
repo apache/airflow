@@ -1030,7 +1030,7 @@ function start_api_server_with_examples(){
     airflow dags reserialize
     echo "Example dags parsing finished"
     echo "Create admin user"
-    airflow users create -u admin -p admin -f Thor -l Administrator -r Admin -e admin@email.domain
+    airflow users create -u admin -p admin -f Thor -l Administrator -r Admin -e admin@email.domain > /dev/null 2>&1 || true
     echo "Admin user created"
     echo
     echo "${COLOR_BLUE}Starting airflow api server${COLOR_RESET}"
