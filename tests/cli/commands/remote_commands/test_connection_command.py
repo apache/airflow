@@ -30,8 +30,8 @@ import yaml
 
 from airflow.cli import cli_parser
 from airflow.cli.api.datamodels._generated import (
+    BulkActionResponse,
     ConnectionBody,
-    ConnectionBulkActionResponse,
     ConnectionCollectionResponse,
     ConnectionResponse,
     ConnectionTestResponse,
@@ -80,7 +80,7 @@ class TestCliConnection:
         ],
         total_entries=len(_expected_cons),
     )
-    connection_bulk_action_response = ConnectionBulkActionResponse(
+    connection_bulk_action_response = BulkActionResponse(
         success=[connection["connection_id"] for connection in _expected_cons],
         errors=[],
     )
@@ -510,7 +510,6 @@ class TestCliAddConnections(TestCliConnection):
                     "is_extra_encrypted": False,
                     "login": "airflow",
                     "port": 5432,
-                    "schema": "airflow",
                     "extra": None,
                 },
                 id="json-connection",
@@ -532,7 +531,6 @@ class TestCliAddConnections(TestCliConnection):
                     "is_extra_encrypted": False,
                     "login": "airflow",
                     "port": 5432,
-                    "schema": "airflow",
                     "extra": None,
                 },
                 id="uri-connection-with-description",
@@ -554,7 +552,6 @@ class TestCliAddConnections(TestCliConnection):
                     "is_extra_encrypted": False,
                     "login": "airflow",
                     "port": 5432,
-                    "schema": "airflow",
                     "extra": None,
                 },
                 id="uri-connection-with-description-2",
@@ -577,7 +574,6 @@ class TestCliAddConnections(TestCliConnection):
                     "is_extra_encrypted": True,
                     "login": "airflow",
                     "port": 5432,
-                    "schema": "airflow",
                     "extra": '{"extra": "yes"}',
                 },
                 id="uri-connection-with-extra",
@@ -602,7 +598,6 @@ class TestCliAddConnections(TestCliConnection):
                     "is_extra_encrypted": True,
                     "login": "airflow",
                     "port": 5432,
-                    "schema": "airflow",
                     "extra": '{"extra": "yes"}',
                 },
                 id="uri-connection-with-extra-and-description",
@@ -629,7 +624,6 @@ class TestCliAddConnections(TestCliConnection):
                     "is_extra_encrypted": False,
                     "login": "airflow",
                     "port": 9083,
-                    "schema": "airflow",
                     "extra": None,
                 },
                 id="individual-parts",
@@ -655,7 +649,6 @@ class TestCliAddConnections(TestCliConnection):
                     "is_extra_encrypted": True,
                     "login": None,
                     "port": None,
-                    "schema": None,
                     "extra": '{"extra": "yes"}',
                 },
                 id="empty-uri-with-conn-type-and-extra",
@@ -671,7 +664,6 @@ class TestCliAddConnections(TestCliConnection):
                     "is_extra_encrypted": True,
                     "login": None,
                     "port": None,
-                    "schema": "",
                     "extra": '{"region_name": "foo-bar-1"}',
                 },
                 id="uri-without-authority-and-host-blocks",
@@ -687,7 +679,6 @@ class TestCliAddConnections(TestCliConnection):
                     "is_extra_encrypted": True,
                     "login": "",
                     "port": None,
-                    "schema": "",
                     "extra": '{"region_name": "foo-bar-1"}',
                 },
                 id="uri-with-@-instead-authority-and-host-blocks",
@@ -704,7 +695,6 @@ class TestCliAddConnections(TestCliConnection):
                 description=expected_conn["description"],
                 host=expected_conn["host"],
                 login=expected_conn["login"],
-                schema_=expected_conn["schema"],
                 port=expected_conn["port"],
                 extra=expected_conn["extra"],
             ).model_dump(),

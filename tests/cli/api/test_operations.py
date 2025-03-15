@@ -26,7 +26,6 @@ from io import StringIO
 import httpx
 import pytest
 
-from airflow.api_fastapi.core_api.datamodels.config import ConfigSection
 from airflow.cli.api.client import Client
 from airflow.cli.api.datamodels._generated import (
     AssetAliasCollectionResponse,
@@ -46,6 +45,7 @@ from airflow.cli.api.datamodels._generated import (
     BulkCreateActionVariableBody,
     Config,
     ConfigOption,
+    ConfigSection,
     ConnectionBody,
     ConnectionCollectionResponse,
     ConnectionResponse,
@@ -237,7 +237,6 @@ class TestConnectionsOperations:
         connection_id=connection_id,
         conn_type=conn_type,
         host=host,
-        schema_=schema_,
         login=login,
         password=password,
         port=port,
