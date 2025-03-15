@@ -22,7 +22,6 @@ from typing import Any
 from confluent_kafka.admin import AdminClient
 
 from airflow.hooks.base import BaseHook
-from airflow.providers.google.cloud.hooks.managed_kafka import ManagedKafkaHook
 
 
 class KafkaBaseHook(BaseHook):
@@ -70,6 +69,15 @@ class KafkaBaseHook(BaseHook):
             and bootstrap_servers.find("cloud.goog") != -1
             and bootstrap_servers.find("managedkafka") != -1
         ):
+            try:
+                from airflow.providers.google.cloud.hooks.managed_kafka import ManagedKafkaHook
+            except ImportError:
+                from airflow.exceptions import AirflowOptionalProviderFeatureException
+
+                raise AirflowOptionalProviderFeatureException(
+                    "Failed to import ManagedKafkaHook. For using this functionality google provider version "
+                    ">= 14.1.0 should be pre-installed."
+                )
             self.log.info("Adding token generation for Google Auth to the confluent configuration.")
             hook = ManagedKafkaHook()
             token = hook.get_confluent_token
