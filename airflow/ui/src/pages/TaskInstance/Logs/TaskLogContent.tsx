@@ -22,7 +22,6 @@ import { useLayoutEffect } from "react";
 
 import { ErrorAlert } from "src/components/ErrorAlert";
 import { ProgressBar } from "src/components/ui";
-import { useColorMode } from "src/context/colorMode";
 
 type Props = {
   readonly error: unknown;
@@ -33,8 +32,7 @@ type Props = {
 };
 
 export const TaskLogContent = ({ error, isLoading, logError, parsedLogs, wrap }: Props) => {
-  const { colorMode } = useColorMode();
-  const [bgLight, bgDark] = useToken("colors", ["blue.400", "blue.700"]);
+  const [bgLine] = useToken("colors", ["blue.emphasized"]);
 
   useLayoutEffect(() => {
     if (location.hash) {
@@ -44,7 +42,7 @@ export const TaskLogContent = ({ error, isLoading, logError, parsedLogs, wrap }:
         const element = document.querySelector<HTMLElement>(`[id='${hash}']`);
 
         if (element !== null) {
-          element.style.background = (colorMode === "light" ? bgLight : bgDark) as string;
+          element.style.background = bgLine as string;
         }
         element?.scrollIntoView({
           behavior: "smooth",
@@ -52,7 +50,7 @@ export const TaskLogContent = ({ error, isLoading, logError, parsedLogs, wrap }:
         });
       }, 100);
     }
-  }, [isLoading, bgDark, bgLight, colorMode]);
+  }, [isLoading, bgLine]);
 
   return (
     <Box>
