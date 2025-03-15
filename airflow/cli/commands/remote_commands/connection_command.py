@@ -144,7 +144,6 @@ def _connection_to_request(conn: Connection) -> ConnectionBody:
         host=conn.host,
         login=conn.login,
         password=conn.password,
-        schema_=conn.schema,
         port=conn.port,
         extra=conn.extra,
     )
@@ -375,7 +374,6 @@ def _import_helper(file_path: str, overwrite: bool, cli_api_client: Client) -> N
                 host=connection.host,
                 login=connection.login,
                 password=connection.password,
-                schema_=connection.schema,
                 port=connection.port,
                 extra=connection.extra,
             )
