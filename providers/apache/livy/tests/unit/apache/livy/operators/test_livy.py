@@ -16,6 +16,7 @@
 # under the License.
 from __future__ import annotations
 
+import logging
 from unittest.mock import MagicMock, patch
 
 import pytest
@@ -361,6 +362,198 @@ class TestLivyOperator:
             )
         mock_delete.assert_called_once_with(BATCH_ID)
         self.mock_context["ti"].xcom_push.assert_not_called()
+
+    @patch.object(LivyOperator, "hook", new_callable=MagicMock)
+    @patch("airflow.providers.openlineage.utils.spark.get_openlineage_listener")
+    def test_inject_simple_openlineage_config_to_spark(self, mock_get_openlineage_listener, mock_hook):
+        # Given / When
+        from openlineage.client.transport.http import (
+            ApiKeyTokenProvider,
+            HttpCompression,
+            HttpConfig,
+            HttpTransport,
+        )
+
+        mock_get_openlineage_listener.return_value.adapter.get_or_create_openlineage_client.return_value.transport = HttpTransport(
+            config=HttpConfig(
+                url="http://localhost:5000",
+                endpoint="api/v2/lineage",
+                timeout=5050,
+                auth=ApiKeyTokenProvider({"api_key": "12345"}),
+                compression=HttpCompression.GZIP,
+                custom_headers={"X-OpenLineage-Custom-Header": "airflow"},
+            )
+        )
+
+        operator = LivyOperator(
+            file="sparkapp",
+            livy_conn_id="livy_default",
+            polling_interval=1,
+            dag=self.dag,
+            task_id="livy_example",
+            conf={},
+            deferrable=False,
+            openlineage_inject_parent_job_info=False,
+            openlineage_inject_transport_info=True,
+        )
+        operator.hook.get_batch_state.return_value = BatchState.SUCCESS
+        operator.hook.TERMINAL_STATES = [BatchState.SUCCESS]
+        operator.execute(MagicMock())
+
+        assert operator.spark_params["conf"] == {
+            "spark.openlineage.transport.type": "http",
+            "spark.openlineage.transport.url": "http://localhost:5000",
+            "spark.openlineage.transport.endpoint": "api/v2/lineage",
+            "spark.openlineage.transport.timeoutInMillis": "5050000",
+            "spark.openlineage.transport.compression": "gzip",
+            "spark.openlineage.transport.auth.type": "api_key",
+            "spark.openlineage.transport.auth.apiKey": "Bearer 12345",
+            "spark.openlineage.transport.headers.X-OpenLineage-Custom-Header": "airflow",
+        }
+
+    @patch.object(LivyOperator, "hook", new_callable=MagicMock)
+    @patch("airflow.providers.apache.livy.hooks.livy.LivyAsyncHook.get_batch_state")
+    @patch("airflow.providers.openlineage.utils.spark.get_openlineage_listener")
+    def test_inject_composite_openlineage_config_to_spark(
+        self, mock_get_openlineage_listener, mock_get_batch_state, mock_hook
+    ):
+        # Given / When
+        from openlineage.client.transport.composite import CompositeConfig, CompositeTransport
+
+        mock_get_openlineage_listener.return_value.adapter.get_or_create_openlineage_client.return_value.transport = CompositeTransport(
+            CompositeConfig.from_dict(
+                {
+                    "transports": {
+                        "test1": {
+                            "type": "http",
+                            "url": "http://localhost:5000",
+                            "endpoint": "api/v2/lineage",
+                            "timeout": 5050,
+                            "auth": {
+                                "type": "api_key",
+                                "api_key": "12345",
+                            },
+                            "compression": "gzip",
+                            "custom_headers": {"X-OpenLineage-Custom-Header": "airflow"},
+                        },
+                        "test2": {"type": "http", "url": "https://example.com:1234"},
+                        "test3": {"type": "console"},
+                    }
+                }
+            )
+        )
+
+        mock_ti = MagicMock()
+        mock_ti.dag_id = "test_dag_id"
+        mock_ti.task_id = "spark_submit_job"
+        mock_ti.try_number = 1
+        mock_ti.dag_run.logical_date = DEFAULT_DATE
+        mock_ti.dag_run.run_after = DEFAULT_DATE
+        mock_ti.logical_date = DEFAULT_DATE
+        mock_ti.map_index = -1
+        mock_get_batch_state.return_value = BatchState.SUCCESS
+
+        operator = LivyOperator(
+            file="sparkapp",
+            livy_conn_id="spark_default",
+            polling_interval=1,
+            dag=self.dag,
+            task_id="livy_example",
+            deferrable=False,
+            openlineage_inject_parent_job_info=True,
+            openlineage_inject_transport_info=True,
+        )
+        operator.hook.get_batch_state.return_value = BatchState.SUCCESS
+        operator.hook.TERMINAL_STATES = [BatchState.SUCCESS]
+
+        operator.execute({"ti": mock_ti})
+
+        assert operator.spark_params["conf"] == {
+            "spark.openlineage.parentJobName": "test_dag_id.spark_submit_job",
+            "spark.openlineage.parentJobNamespace": "default",
+            "spark.openlineage.parentRunId": "01595753-6400-710b-8a12-9e978335a56d",
+            "spark.openlineage.transport.type": "composite",
+            "spark.openlineage.transport.continueOnFailure": "True",
+            "spark.openlineage.transport.transports.test1.type": "http",
+            "spark.openlineage.transport.transports.test1.url": "http://localhost:5000",
+            "spark.openlineage.transport.transports.test1.endpoint": "api/v2/lineage",
+            "spark.openlineage.transport.transports.test1.timeoutInMillis": "5050000",
+            "spark.openlineage.transport.transports.test1.auth.type": "api_key",
+            "spark.openlineage.transport.transports.test1.auth.apiKey": "Bearer 12345",
+            "spark.openlineage.transport.transports.test1.compression": "gzip",
+            "spark.openlineage.transport.transports.test1.headers.X-OpenLineage-Custom-Header": "airflow",
+            "spark.openlineage.transport.transports.test2.type": "http",
+            "spark.openlineage.transport.transports.test2.url": "https://example.com:1234",
+            "spark.openlineage.transport.transports.test2.endpoint": "api/v1/lineage",
+            "spark.openlineage.transport.transports.test2.timeoutInMillis": "5000",
+        }
+
+    @patch.object(LivyOperator, "hook", new_callable=MagicMock)
+    @patch("airflow.providers.apache.livy.hooks.livy.LivyAsyncHook.get_batch_state")
+    @patch("airflow.providers.openlineage.utils.spark.get_openlineage_listener")
+    def test_inject_openlineage_composite_config_wrong_transport_to_spark(
+        self, mock_get_openlineage_listener, mock_get_batch_state, mock_hook, caplog
+    ):
+        # Given / When
+        from openlineage.client.transport.composite import CompositeConfig, CompositeTransport
+
+        mock_get_openlineage_listener.return_value.adapter.get_or_create_openlineage_client.return_value.transport = CompositeTransport(
+            CompositeConfig.from_dict({"transports": {"test1": {"type": "console"}}})
+        )
+        mock_get_batch_state.return_value = BatchState.SUCCESS
+
+        with caplog.at_level(logging.INFO):
+            operator = LivyOperator(
+                file="sparkapp",
+                livy_conn_id="livy_default",
+                polling_interval=1,
+                dag=self.dag,
+                task_id="livy_example",
+                deferrable=False,
+                openlineage_inject_parent_job_info=False,
+                openlineage_inject_transport_info=True,
+            )
+            operator.hook.get_batch_state.return_value = BatchState.SUCCESS
+            operator.hook.TERMINAL_STATES = [BatchState.SUCCESS]
+            operator.execute(MagicMock())
+
+            assert (
+                "OpenLineage transport type `composite` does not contain http transport. Skipping injection of OpenLineage transport information into Spark properties."
+                in caplog.text
+            )
+        assert operator.spark_params["conf"] == {}
+
+    @patch.object(LivyOperator, "hook", new_callable=MagicMock)
+    @patch("airflow.providers.apache.livy.hooks.livy.LivyAsyncHook.get_batch_state")
+    @patch("airflow.providers.openlineage.utils.spark.get_openlineage_listener")
+    def test_inject_openlineage_simple_config_wrong_transport_to_spark(
+        self, mock_get_openlineage_listener, mock_get_batch_state, mock_hook, caplog
+    ):
+        # Given / When
+        from openlineage.client.transport.console import ConsoleConfig, ConsoleTransport
+
+        mock_get_openlineage_listener.return_value.adapter.get_or_create_openlineage_client.return_value.transport = ConsoleTransport(
+            config=ConsoleConfig()
+        )
+        mock_hook.get_batch_state.return_value = BatchState.SUCCESS
+
+        with caplog.at_level(logging.INFO):
+            operator = LivyOperator(
+                file="sparkapp",
+                livy_conn_id="livy_default",
+                polling_interval=1,
+                dag=self.dag,
+                task_id="livy_example",
+                deferrable=False,
+                openlineage_inject_parent_job_info=False,
+                openlineage_inject_transport_info=True,
+            )
+            operator.hook.get_batch_state.return_value = BatchState.SUCCESS
+            operator.hook.TERMINAL_STATES = [BatchState.SUCCESS]
+            operator.execute(MagicMock())
+
+            assert "OpenLineage transport type `console` does not support automatic injection of OpenLineage transport information into Spark properties."
+        assert operator.spark_params["conf"] == {}
 
 
 @pytest.mark.db_test
