@@ -293,7 +293,9 @@ def test_extractor_manager_uses_hook_level_lineage(hook_lineage_collector):
     hook_lineage_collector.add_input_asset(None, uri="s3://bucket/input_key")
     hook_lineage_collector.add_output_asset(None, uri="s3://bucket/output_key")
     extractor_manager = ExtractorManager()
-    metadata = extractor_manager.extract_metadata(dagrun=dagrun, task=task, complete=True, task_instance=ti)
+    metadata = extractor_manager.extract_metadata(
+        dagrun=dagrun, task=task, task_instance_state=None, task_instance=ti
+    )
 
     assert metadata.inputs == [OpenLineageDataset(namespace="s3://bucket", name="input_key")]
     assert metadata.outputs == [OpenLineageDataset(namespace="s3://bucket", name="output_key")]
@@ -318,7 +320,9 @@ def test_extractor_manager_does_not_use_hook_level_lineage_when_operator(
     hook_lineage_collector.add_input_asset(None, uri="s3://bucket/input_key")
 
     extractor_manager = ExtractorManager()
-    metadata = extractor_manager.extract_metadata(dagrun=dagrun, task=task, complete=True, task_instance=ti)
+    metadata = extractor_manager.extract_metadata(
+        dagrun=dagrun, task=task, task_instance_state=None, task_instance=ti
+    )
 
     # s3://bucket/input_key not here - use data from operator
     assert metadata.inputs == [OpenLineageDataset(namespace="s3://bucket", name="proper_input_key")]
