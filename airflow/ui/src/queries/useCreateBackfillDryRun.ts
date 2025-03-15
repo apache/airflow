@@ -28,12 +28,30 @@ type Props<TData, TError> = {
 
 const useCreateBackfillDryRunKey = "useCreateBackfillDryRunKey";
 
+const validateHeaderName = (requestBody: CreateBackfillDryRunData) => {
+  const dataIntervalStart = new Date(requestBody.requestBody.from_date);
+  const dataIntervalEnd = new Date(requestBody.requestBody.to_date);
+
+  if (isNaN(dataIntervalStart.getTime()) || isNaN(dataIntervalEnd.getTime())) {
+    return false;
+  }
+  if (dataIntervalStart > dataIntervalEnd) {
+    return false;
+  }
+  if (Number(requestBody.requestBody.max_active_runs ?? 0) < 1) {
+    return false;
+  }
+
+  return true;
+};
+
 export const useCreateBackfillDryRun = <TData = DryRunBackfillCollectionResponse, TError = unknown>({
   options,
   requestBody,
 }: Props<TData, TError>) =>
   useQuery<TData, TError>({
     ...options,
+    enabled: validateHeaderName(requestBody),
     queryFn: () =>
       BackfillService.createBackfillDryRun({
         ...requestBody,
