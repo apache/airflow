@@ -171,43 +171,62 @@ class SortParam(BaseParam[str]):
         self.to_replace = to_replace
 
     def to_orm(self, select: Select) -> Select:
+        MAX_SORT_PARAMS = 5
         if self.skip_none is False:
             raise ValueError(f"Cannot set 'skip_none' to False on a {type(self)}")
 
         if self.value is None:
             self.value = self.get_primary_key_string()
-
-        lstriped_orderby = self.value.lstrip("-")
-        column: Column | None = None
-        if self.to_replace:
-            replacement = self.to_replace.get(lstriped_orderby, lstriped_orderby)
-            if isinstance(replacement, str):
-                lstriped_orderby = replacement
-            else:
-                column = replacement
-
-        if (self.allowed_attrs and lstriped_orderby not in self.allowed_attrs) and column is None:
+        
+        order_by_list = self.value
+        if len(order_by_list) > MAX_SORT_PARAMS:
             raise HTTPException(
-                400,
-                f"Ordering with '{lstriped_orderby}' is disallowed or "
-                f"the attribute does not exist on the model",
+                400, 
+                f"Ordering with more than {MAX_SORT_PARAMS} parameters is not allowed. Provided: {order_by_list}"
             )
-        if column is None:
-            column = getattr(self.model, lstriped_orderby)
+        order_by_columns = []
+        
+        for order_by in order_by_list:
+            lstriped_orderby = order_by.lstrip("-")
+            column: Column | None = None
+            if self.to_replace:
+                replacement = self.to_replace.get(lstriped_orderby, lstriped_orderby)
+                if isinstance(replacement, str):
+                    lstriped_orderby = replacement
+                else:
+                    column = replacement
 
-        # MySQL does not support `nullslast`, and True/False ordering depends on the
-        # database implementation.
-        nullscheck = case((column.isnot(None), 0), else_=1)
+            if (self.allowed_attrs and lstriped_orderby not in self.allowed_attrs) and column is None:
+                raise HTTPException(
+                    400,
+                    f"Ordering with '{lstriped_orderby}' is disallowed or "
+                    f"the attribute does not exist on the model",
+                )
+            if column is None:
+                column = getattr(self.model, lstriped_orderby)
+
+            # MySQL does not support nullslast, and True/False ordering depends on the
+            # database implementation.
+            nullscheck = case((column.isnot(None), 0), else_=1)
+
+            if order_by[0] == "-":
+                order_by_columns.append((nullscheck, column.desc()))
+            else:
+                order_by_columns.append((nullscheck, column.asc()))
 
         # Reset default sorting
         select = select.order_by(None)
 
-        primary_key_column = self.get_primary_key_column()
-
-        if self.value[0] == "-":
-            return select.order_by(nullscheck, column.desc(), primary_key_column.desc())
+        if order_by_columns:
+            primary_key_column = self.get_primary_key_column()
+            primary_key_sort = primary_key_column.asc()
+            order_by_columns.append((case((primary_key_column.isnot(None), 0), else_=1), primary_key_sort))
+            select = select.order_by(*[col for pair in order_by_columns for col in pair])
         else:
-            return select.order_by(nullscheck, column.asc(), primary_key_column.asc())
+            primary_key_column = self.get_primary_key_column()
+            select = select.order_by(primary_key_column.asc())
+
+        return select
 
     def get_primary_key_column(self) -> Column:
         """Get the primary key column of the model of SortParam object."""
@@ -221,9 +240,13 @@ class SortParam(BaseParam[str]):
     def depends(cls, *args: Any, **kwargs: Any) -> Self:
         raise NotImplementedError("Use dynamic_depends, depends not implemented.")
 
-    def dynamic_depends(self, default: str | None = None) -> Callable:
-        def inner(order_by: str = default or self.get_primary_key_string()) -> SortParam:
-            return self.set_value(self.get_primary_key_string() if order_by == "" else order_by)
+    def dynamic_depends(self, default: list[str] | None = None) -> Callable:
+        def inner(order_by: list[str] | str | None = Query(default)) -> SortParam:
+            if order_by is None:
+                order_by = [self.get_primary_key_string()]
+            elif isinstance(order_by, str):
+                order_by = [order_by]
+            return self.set_value(order_by)
 
         return inner
 
