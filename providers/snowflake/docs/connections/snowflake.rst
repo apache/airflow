@@ -59,7 +59,7 @@ Extra (optional)
     * ``authenticator``: To connect using OAuth set this parameter ``oauth``.
     * ``refresh_token``: Specify refresh_token for OAuth connection.
     * ``private_key_file``: Specify the path to the private key file.
-    * ``private_key_content``: Specify the content of the private key file.
+    * ``private_key_content``: Specify the content of the private key file. To input a PEM-formatted private key, replace all actual newlines with the literal `\n` in the key. Ensure the entire key, including the headers and footers, is on a single line with `\n` used to represent line breaks.
     * ``session_parameters``: Specify `session level parameters <https://docs.snowflake.com/en/user-guide/python-connector-example.html#setting-session-parameters>`_.
     * ``insecure_mode``: Turn off OCSP certificate checks. For details, see: `How To: Turn Off OCSP Checking in Snowflake Client Drivers - Snowflake Community <https://community.snowflake.com/s/article/How-to-turn-off-OCSP-checking-in-Snowflake-client-drivers>`_.
     * ``host``: Target Snowflake hostname to connect to (e.g., for local testing with LocalStack).
