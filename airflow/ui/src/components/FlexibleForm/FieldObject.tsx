@@ -21,7 +21,7 @@ import { useState } from "react";
 
 import type { FlexibleFormElementProps } from ".";
 import { JsonEditor } from "../JsonEditor";
-import { paramPlaceholder, useParamStore } from "../TriggerDag/useParamStore";
+import { paramPlaceholder, useParamStore } from "../../queries/useParamStore";
 
 export const FieldObject = ({ name }: FlexibleFormElementProps) => {
   const { paramsDict, setParamsDict } = useParamStore();

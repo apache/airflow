@@ -17,7 +17,7 @@
  * under the License.
  */
 import type { FlexibleFormElementProps } from ".";
-import { paramPlaceholder, useParamStore } from "../TriggerDag/useParamStore";
+import { paramPlaceholder, useParamStore } from "../../queries/useParamStore";
 import { NumberInputField, NumberInputRoot } from "../ui/NumberInput";
 
 export const FieldNumber = ({ name }: FlexibleFormElementProps) => {

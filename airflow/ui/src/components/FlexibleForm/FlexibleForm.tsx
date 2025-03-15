@@ -22,7 +22,7 @@ import { useEffect } from "react";
 import type { DagParamsSpec } from "src/queries/useDagParams";
 
 import { flexibleFormDefaultSection } from ".";
-import { useParamStore } from "../TriggerDag/useParamStore";
+import { useParamStore } from "../../queries/useParamStore";
 import { Accordion } from "../ui";
 import { Row } from "./Row";
 

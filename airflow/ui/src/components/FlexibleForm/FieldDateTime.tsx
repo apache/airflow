@@ -19,7 +19,7 @@
 import { Input, type InputProps } from "@chakra-ui/react";
 
 import type { FlexibleFormElementProps } from ".";
-import { paramPlaceholder, useParamStore } from "../TriggerDag/useParamStore";
+import { paramPlaceholder, useParamStore } from "../../queries/useParamStore";
 
 export const FieldDateTime = ({ name, ...rest }: FlexibleFormElementProps & InputProps) => {
   const { paramsDict, setParamsDict } = useParamStore();

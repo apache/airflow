@@ -19,7 +19,7 @@
 import type { ParamSchema, ParamSpec } from "src/queries/useDagParams";
 
 import type { FlexibleFormElementProps } from ".";
-import { paramPlaceholder, useParamStore } from "../TriggerDag/useParamStore";
+import { paramPlaceholder, useParamStore } from "../../queries/useParamStore";
 import { FieldAdvancedArray } from "./FieldAdvancedArray";
 import { FieldBool } from "./FieldBool";
 import { FieldDateTime } from "./FieldDateTime";

@@ -20,7 +20,7 @@ import { type MultiValue, Select as ReactSelect } from "chakra-react-select";
 import { useState } from "react";
 
 import type { FlexibleFormElementProps } from ".";
-import { paramPlaceholder, useParamStore } from "../TriggerDag/useParamStore";
+import { paramPlaceholder, useParamStore } from "../../queries/useParamStore";
 
 const labelLookup = (key: string, valuesDisplay: Record<string, string> | undefined): string => {
   if (valuesDisplay && typeof valuesDisplay === "object") {

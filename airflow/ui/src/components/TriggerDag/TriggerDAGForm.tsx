@@ -31,7 +31,7 @@ import { JsonEditor } from "../JsonEditor";
 import { Accordion } from "../ui";
 import { Checkbox } from "../ui/Checkbox";
 import EditableMarkdown from "./EditableMarkdown";
-import { useParamStore } from "./useParamStore";
+import { useParamStore } from "../../queries/useParamStore";
 
 type TriggerDAGFormProps = {
   readonly dagId: string;

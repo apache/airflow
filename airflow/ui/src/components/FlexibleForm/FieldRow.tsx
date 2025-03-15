@@ -23,7 +23,7 @@ import remarkGfm from "remark-gfm";
 import type { ParamSpec } from "src/queries/useDagParams";
 
 import type { FlexibleFormElementProps } from ".";
-import { paramPlaceholder, useParamStore } from "../TriggerDag/useParamStore";
+import { paramPlaceholder, useParamStore } from "../../queries/useParamStore";
 import { FieldSelector } from "./FieldSelector";
 
 const isRequired = (param: ParamSpec) =>

@@ -19,7 +19,7 @@
 import type { ParamSchema } from "src/queries/useDagParams";
 
 import type { FlexibleFormElementProps } from ".";
-import { paramPlaceholder, useParamStore } from "../TriggerDag/useParamStore";
+import { paramPlaceholder, useParamStore } from "../../queries/useParamStore";
 import { FieldRow } from "./FieldRow";
 import { HiddenInput } from "./HiddenInput";
 

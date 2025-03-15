@@ -22,7 +22,7 @@ import { useRef } from "react";
 import { Select } from "src/components/ui";
 
 import type { FlexibleFormElementProps } from ".";
-import { paramPlaceholder, useParamStore } from "../TriggerDag/useParamStore";
+import { paramPlaceholder, useParamStore } from "../../queries/useParamStore";
 
 const labelLookup = (key: string, valuesDisplay: Record<string, string> | undefined): string => {
   if (valuesDisplay && typeof valuesDisplay === "object") {

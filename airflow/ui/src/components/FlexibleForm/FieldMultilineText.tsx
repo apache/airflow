@@ -19,7 +19,7 @@
 import { Textarea } from "@chakra-ui/react";
 
 import type { FlexibleFormElementProps } from ".";
-import { paramPlaceholder, useParamStore } from "../TriggerDag/useParamStore";
+import { paramPlaceholder, useParamStore } from "../../queries/useParamStore";
 
 export const FieldMultilineText = ({ name }: FlexibleFormElementProps) => {
   const { paramsDict, setParamsDict } = useParamStore();
