@@ -1,3 +1,4 @@
+#
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
 # distributed with this work for additional information
@@ -14,30 +15,31 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+
 from __future__ import annotations
 
-from datetime import datetime
+import os
+import sys
 
-from airflow.api_fastapi.core_api.base import BaseModel
+import rich
 
-
-class JobResponse(BaseModel):
-    """Job serializer for responses."""
-
-    id: int
-    dag_id: str | None
-    state: str | None
-    job_type: str | None
-    start_date: datetime | None
-    end_date: datetime | None
-    latest_heartbeat: datetime | None
-    executor_class: str | None
-    hostname: str | None
-    unixname: str | None
+from airflow.cli.api.client import Credentials
+from airflow.utils import cli as cli_utils
 
 
-class JobCollectionResponse(BaseModel):
-    """Job Collection Response."""
-
-    jobs: list[JobResponse]
-    total_entries: int
+@cli_utils.action_cli
+def login(args) -> None:
+    """Login to a provider."""
+    if not (token := args.api_token or os.environ.get("AIRFLOW_CLI_TOKEN")):
+        # Exit
+        rich.print("[red]No token found.")
+        rich.print(
+            "[green]Please pass:[/green] [blue]--api-token[/blue] or set "
+            "[blue]AIRFLOW_CLI_TOKEN[/blue] environment variable to login."
+        )
+        sys.exit(1)
+    Credentials(
+        api_url=args.api_url,
+        api_token=token,
+        api_environment=args.env,
+    ).save()
