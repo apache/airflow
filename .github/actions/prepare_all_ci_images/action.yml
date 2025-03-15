@@ -22,15 +22,15 @@ inputs:
   python-versions-list-as-string:
     description: 'Stringified array of all Python versions to test - separated by spaces.'
     required: true
+  docker-volume-location:
+    description: File system location where to move docker space to
+    default: /mnt/var-lib-docker
   platform:
     description: 'Platform for the build - linux/amd64 or linux/arm64'
     required: true
 runs:
   using: "composite"
   steps:
-    - name: "Cleanup docker"
-      run: ./scripts/ci/cleanup_docker.sh
-      shell: bash
     # TODO: Currently we cannot loop through the list of python versions and have dynamic list of
     #       tasks. Instead we hardcode all possible python versions and they - but
     #       this should be implemented in stash action as list of keys to download.
