@@ -29,7 +29,7 @@ from rich.markup import escape
 
 from airflow_breeze.utils.confirm import Answer, user_confirm
 from airflow_breeze.utils.console import get_console
-from airflow_breeze.utils.path_utils import AIRFLOW_SOURCES_ROOT
+from airflow_breeze.utils.path_utils import AIRFLOW_ROOT_PATH
 from airflow_breeze.utils.shared_options import get_dry_run
 
 
@@ -98,7 +98,7 @@ def get_active_airflow_versions(confirm: bool = True) -> tuple[list[str], dict[s
         "\n[warning]Make sure you have `apache` remote added pointing to apache/airflow repository\n"
     )
     get_console().print("[info]Fetching all released Airflow 2 versions from GitHub[/]\n")
-    repo = Repo(AIRFLOW_SOURCES_ROOT)
+    repo = Repo(AIRFLOW_ROOT_PATH)
     all_active_tags: list[str] = []
     try:
         ref_tags = repo.git.ls_remote("--tags", "apache").splitlines()
@@ -170,7 +170,7 @@ def get_tag_date(tag: str) -> str | None:
     """
     from git import Repo
 
-    repo = Repo(AIRFLOW_SOURCES_ROOT)
+    repo = Repo(AIRFLOW_ROOT_PATH)
     try:
         tag_object = repo.tags[tag].object
     except IndexError:

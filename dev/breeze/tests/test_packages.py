@@ -43,7 +43,7 @@ from airflow_breeze.utils.packages import (
     get_suspended_provider_ids,
     validate_provider_info_with_runtime_schema,
 )
-from airflow_breeze.utils.path_utils import AIRFLOW_SOURCES_ROOT, DOCS_ROOT
+from airflow_breeze.utils.path_utils import AIRFLOW_ROOT_PATH, DOCS_ROOT
 
 
 def test_get_available_packages():
@@ -52,7 +52,7 @@ def test_get_available_packages():
 
 
 def test_get_source_package_path():
-    assert get_previous_source_providers_package_path("apache.hdfs") == AIRFLOW_SOURCES_ROOT.joinpath(
+    assert get_previous_source_providers_package_path("apache.hdfs") == AIRFLOW_ROOT_PATH.joinpath(
         "providers", "src", "airflow", "providers", "apache", "hdfs"
     )
 

@@ -29,13 +29,12 @@ from collections.abc import Iterable
 from pathlib import Path
 from typing import TYPE_CHECKING
 
-from alembic.script import ScriptDirectory
-from rich.console import Console
-from tabulate import tabulate
-
 from airflow import __version__ as airflow_version
 from airflow.providers.fab import __version__ as fab_version
 from airflow.utils.db import _get_alembic_config
+from alembic.script import ScriptDirectory
+from rich.console import Console
+from tabulate import tabulate
 
 if TYPE_CHECKING:
     from alembic.script import Script
@@ -156,7 +155,7 @@ def update_docs(revisions: Iterable[Script], app="airflow"):
     if app == "fab":
         filepath = project_root / "providers" / "fab" / "docs" / "migrations-ref.rst"
     else:
-        filepath = project_root / "docs" / "apache-airflow" / "migrations-ref.rst"
+        filepath = project_root / "airflow-core" / "docs" / "migrations-ref.rst"
 
     update_doc(
         file=filepath,

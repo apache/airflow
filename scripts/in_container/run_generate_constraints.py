@@ -32,6 +32,8 @@ from click import Choice
 from in_container_utils import click, console, run_command
 from rich.syntax import Syntax
 
+from dev.breeze.src.airflow_breeze.utils.path_utils import AIRFLOW_DIST_PATH
+
 AIRFLOW_SOURCE_DIR = Path(__file__).resolve().parents[2]
 
 DEFAULT_BRANCH = os.environ.get("DEFAULT_BRANCH", "main")
@@ -373,7 +375,6 @@ def generate_constraints_pypi_providers(config_params: ConfigParams) -> None:
     providers are used by our users to install Airflow in reproducible way.
     :return:
     """
-    dist_dir = Path("/dist")
     all_provider_packages = get_all_active_provider_packages(python_version=config_params.python)
     chicken_egg_prefixes = []
     packages_to_install = []
@@ -392,7 +393,7 @@ def generate_constraints_pypi_providers(config_params: ConfigParams) -> None:
                 f"[bright_blue]Checking if {provider_package} is available in local dist folder "
                 f"with {glob_pattern} pattern"
             )
-            files = dist_dir.glob(glob_pattern)
+            files = AIRFLOW_DIST_PATH.glob(glob_pattern)
             for file in files:
                 console.print(
                     f"[yellow]Installing {file.name} from local dist folder as it is "

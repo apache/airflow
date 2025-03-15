@@ -50,7 +50,7 @@ from airflow_breeze.utils.click_utils import BreezeGroup
 from airflow_breeze.utils.confirm import Answer, user_confirm
 from airflow_breeze.utils.console import get_console
 from airflow_breeze.utils.docker_command_utils import remove_docker_networks, remove_docker_volumes
-from airflow_breeze.utils.path_utils import AIRFLOW_HOME_DIR, BUILD_CACHE_DIR
+from airflow_breeze.utils.path_utils import AIRFLOW_HOME_PATH, BUILD_CACHE_PATH
 from airflow_breeze.utils.run_utils import run_command
 from airflow_breeze.utils.shared_options import get_dry_run
 
@@ -289,17 +289,17 @@ def cleanup(all: bool):
         )
     elif given_answer == Answer.QUIT:
         sys.exit(0)
-    get_console().print(f"Removing build cache dir {BUILD_CACHE_DIR}")
+    get_console().print(f"Removing build cache dir {BUILD_CACHE_PATH}")
     given_answer = user_confirm("Are you sure with the removal?")
     if given_answer == Answer.YES:
         if not get_dry_run():
-            shutil.rmtree(BUILD_CACHE_DIR, ignore_errors=True)
+            shutil.rmtree(BUILD_CACHE_PATH, ignore_errors=True)
     get_console().print("Uninstalling airflow and removing configuration")
     given_answer = user_confirm("Are you sure with the uninstall / remove?")
     if given_answer == Answer.YES:
         if not get_dry_run():
-            shutil.rmtree(AIRFLOW_HOME_DIR, ignore_errors=True)
-            AIRFLOW_HOME_DIR.mkdir(exist_ok=True, parents=True)
+            shutil.rmtree(AIRFLOW_HOME_PATH, ignore_errors=True)
+            AIRFLOW_HOME_PATH.mkdir(exist_ok=True, parents=True)
             run_command(["pip", "uninstall", "apache-airflow", "--yes"], check=False)
     elif given_answer == Answer.QUIT:
         sys.exit(0)

@@ -21,16 +21,16 @@ import os
 from pathlib import Path
 
 from airflow_breeze.utils.path_utils import (
-    AIRFLOW_SOURCES_ROOT,
+    AIRFLOW_ROOT_PATH,
 )
 
 CONSOLE_WIDTH = 180
 
-PROVIDER_DATA_SCHEMA_PATH = AIRFLOW_SOURCES_ROOT / "airflow" / "provider.yaml.schema.json"
+PROVIDER_DATA_SCHEMA_PATH = AIRFLOW_ROOT_PATH / "airflow" / "provider.yaml.schema.json"
 
 
 def _filepath_to_module(filepath: str):
-    return str(Path(filepath).relative_to(AIRFLOW_SOURCES_ROOT)).replace("/", ".")
+    return str(Path(filepath).relative_to(AIRFLOW_ROOT_PATH)).replace("/", ".")
 
 
 def pretty_format_path(path: str, start: str) -> str:

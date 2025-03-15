@@ -48,7 +48,7 @@ from airflow_breeze.utils.packages import (
     regenerate_pyproject_toml,
     render_template,
 )
-from airflow_breeze.utils.path_utils import AIRFLOW_SOURCES_ROOT, BREEZE_SOURCES_DIR
+from airflow_breeze.utils.path_utils import AIRFLOW_ROOT_PATH, BREEZE_SOURCES_PATH
 from airflow_breeze.utils.run_utils import run_command
 from airflow_breeze.utils.shared_options import get_verbose
 from airflow_breeze.utils.versions import get_version_tag
@@ -314,7 +314,7 @@ def _get_all_changes_for_package(
         get_console().print(f"[info]Checking if tag '{current_tag_no_suffix}' exist.")
     result = run_command(
         ["git", "rev-parse", current_tag_no_suffix],
-        cwd=AIRFLOW_SOURCES_ROOT,
+        cwd=AIRFLOW_ROOT_PATH,
         stdout=subprocess.DEVNULL,
         stderr=subprocess.DEVNULL,
         check=False,
@@ -335,7 +335,7 @@ def _get_all_changes_for_package(
                 f"{HTTPS_REMOTE}/{base_branch}",
                 current_tag_no_suffix,
             ),
-            cwd=AIRFLOW_SOURCES_ROOT,
+            cwd=AIRFLOW_ROOT_PATH,
             capture_output=True,
             text=True,
             check=True,
@@ -355,7 +355,7 @@ def _get_all_changes_for_package(
                             f"{HTTPS_REMOTE}/{base_branch}",
                             last_doc_only_hash,
                         ),
-                        cwd=AIRFLOW_SOURCES_ROOT,
+                        cwd=AIRFLOW_ROOT_PATH,
                         capture_output=True,
                         text=True,
                         check=True,
@@ -411,7 +411,7 @@ def _get_all_changes_for_package(
             _get_git_log_command(
                 providers_folder_paths_for_git_commit_retrieval, next_version_tag, version_tag
             ),
-            cwd=AIRFLOW_SOURCES_ROOT,
+            cwd=AIRFLOW_ROOT_PATH,
             capture_output=True,
             text=True,
             check=True,
@@ -1142,7 +1142,7 @@ def _generate_build_files_for_provider(
     regenerate_pyproject_toml(context, provider_details, version_suffix=None)
     _generate_get_provider_info_py(context, provider_details)
     shutil.copy(
-        BREEZE_SOURCES_DIR / "airflow_breeze" / "templates" / "PROVIDER_LICENSE.txt",
+        BREEZE_SOURCES_PATH / "airflow_breeze" / "templates" / "PROVIDER_LICENSE.txt",
         provider_details.base_provider_package_path / "LICENSE",
     )
 

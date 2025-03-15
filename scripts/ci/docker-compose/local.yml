@@ -59,8 +59,8 @@ services:
         source: ../../../RELEASE_NOTES.rst
         target: /opt/airflow/RELEASE_NOTES.rst
       - type: bind
-        source: ../../../airflow
-        target: /opt/airflow/airflow
+        source: ../../../airflow-core
+        target: /opt/airflow/airflow-core
       - type: bind
         source: ../../../constraints
         target: /opt/airflow/constraints

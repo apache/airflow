@@ -38,13 +38,13 @@ from airflow_breeze.utils.ci_group import ci_group
 from airflow_breeze.utils.console import Output, get_console
 from airflow_breeze.utils.functools_cache import clearable_cache
 from airflow_breeze.utils.path_utils import (
-    AIRFLOW_SOURCES_ROOT,
+    AIRFLOW_ROOT_PATH,
     UI_ASSET_COMPILE_LOCK,
-    UI_ASSET_HASH_FILE,
+    UI_ASSET_HASH_PATH,
     UI_ASSET_OUT_DEV_MODE_FILE,
     UI_ASSET_OUT_FILE,
-    UI_DIST_DIR,
-    UI_NODE_MODULES_DIR,
+    UI_DIST_PATH,
+    UI_NODE_MODULES_PATH,
 )
 from airflow_breeze.utils.shared_options import get_dry_run, get_verbose
 
@@ -207,7 +207,7 @@ def assert_pre_commit_installed():
     import yaml
     from packaging.version import Version
 
-    pre_commit_config = yaml.safe_load((AIRFLOW_SOURCES_ROOT / ".pre-commit-config.yaml").read_text())
+    pre_commit_config = yaml.safe_load((AIRFLOW_ROOT_PATH / ".pre-commit-config.yaml").read_text())
     min_pre_commit_version = pre_commit_config["minimum_pre_commit_version"]
 
     python_executable = sys.executable
@@ -327,7 +327,7 @@ def change_directory_permission(directory_to_fix: Path):
         os.chmod(directory_to_fix, new)
 
 
-@working_directory(AIRFLOW_SOURCES_ROOT)
+@working_directory(AIRFLOW_ROOT_PATH)
 def fix_group_permissions():
     """Fixes permissions of all the files and directories that have group-write access."""
     if get_verbose():
@@ -456,9 +456,9 @@ def kill_process_group(gid: int):
 
 def clean_ui_assets():
     get_console().print("[info]Cleaning ui assets[/]")
-    UI_ASSET_HASH_FILE.unlink(missing_ok=True)
-    shutil.rmtree(UI_NODE_MODULES_DIR, ignore_errors=True)
-    shutil.rmtree(UI_DIST_DIR, ignore_errors=True)
+    UI_ASSET_HASH_PATH.unlink(missing_ok=True)
+    shutil.rmtree(UI_NODE_MODULES_PATH, ignore_errors=True)
+    shutil.rmtree(UI_DIST_PATH, ignore_errors=True)
     get_console().print("[success]Cleaned ui assets[/]")
 
 

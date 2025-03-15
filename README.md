@@ -230,27 +230,27 @@ following the ASF Policy.
 
 - **DAGs**: Overview of all DAGs in your environment.
 
-  ![DAGs](https://raw.githubusercontent.com/apache/airflow/main/docs/apache-airflow/img/dags.png)
+  ![DAGs](https://raw.githubusercontent.com/apache/airflow/main/airflow-core/docs/img/dags.png)
 
 - **Grid**: Grid representation of a DAG that spans across time.
 
-  ![Grid](https://raw.githubusercontent.com/apache/airflow/main/docs/apache-airflow/img/grid.png)
+  ![Grid](https://raw.githubusercontent.com/apache/airflow/main/airflow-core/docs/img/grid.png)
 
 - **Graph**: Visualization of a DAG's dependencies and their current status for a specific run.
 
-  ![Graph](https://raw.githubusercontent.com/apache/airflow/main/docs/apache-airflow/img/graph.png)
+  ![Graph](https://raw.githubusercontent.com/apache/airflow/main/airflow-core/docs/img/graph.png)
 
 - **Task Duration**: Total time spent on different tasks over time.
 
-  ![Task Duration](https://raw.githubusercontent.com/apache/airflow/main/docs/apache-airflow/img/duration.png)
+  ![Task Duration](https://raw.githubusercontent.com/apache/airflow/main/airflow-core/docs/img/duration.png)
 
 - **Gantt**: Duration and overlap of a DAG.
 
-  ![Gantt](https://raw.githubusercontent.com/apache/airflow/main/docs/apache-airflow/img/gantt.png)
+  ![Gantt](https://raw.githubusercontent.com/apache/airflow/main/airflow-core/docs/img/gantt.png)
 
 - **Code**: Quick way to view source code of a DAG.
 
-  ![Code](https://raw.githubusercontent.com/apache/airflow/main/docs/apache-airflow/img/code.png)
+  ![Code](https://raw.githubusercontent.com/apache/airflow/main/airflow-core/docs/img/code.png)
 
 ## Semantic versioning
 
@@ -519,7 +519,7 @@ repository.
 
 ## Can I use the Apache Airflow logo in my presentation?
 
-Yes! Be sure to abide by the Apache Foundation [trademark policies](https://www.apache.org/foundation/marks/#books) and the Apache Airflow [Brandbook](https://cwiki.apache.org/confluence/display/AIRFLOW/Brandbook). The most up-to-date logos are found in [this repo](https://github.com/apache/airflow/tree/main/docs/apache-airflow/img/logos/) and on the Apache Software Foundation [website](https://www.apache.org/logos/about.html).
+Yes! Be sure to abide by the Apache Foundation [trademark policies](https://www.apache.org/foundation/marks/#books) and the Apache Airflow [Brandbook](https://cwiki.apache.org/confluence/display/AIRFLOW/Brandbook). The most up-to-date logos are found in [this repo](https://github.com/apache/airflow/tree/main/airflow-core/docs/img/logos/) and on the Apache Software Foundation [website](https://www.apache.org/logos/about.html).
 
 ## Links
 

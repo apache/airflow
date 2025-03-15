@@ -92,7 +92,7 @@ from airflow_breeze.utils.parallel import (
     check_async_run_results,
     run_with_pool,
 )
-from airflow_breeze.utils.path_utils import FILES_DIR, cleanup_python_generated_files
+from airflow_breeze.utils.path_utils import FILES_PATH, cleanup_python_generated_files
 from airflow_breeze.utils.run_tests import (
     file_name_from_test_type,
     generate_args_for_pytest,
@@ -282,7 +282,7 @@ def _dump_container_logs(output: Output | None, shell_params: ShellParams):
     for container_id in container_ids:
         if compose_project_name not in container_id:
             continue
-        dump_path = FILES_DIR / f"container_logs_{container_id}_{date_str}.log"
+        dump_path = FILES_PATH / f"container_logs_{container_id}_{date_str}.log"
         get_console(output=output).print(f"[info]Dumping container {container_id} to {dump_path}\n")
         with open(dump_path, "w") as outfile:
             run_command(

@@ -56,7 +56,7 @@ from airflow_breeze.utils.docker_command_utils import (
     fix_ownership_using_docker,
     perform_environment_checks,
 )
-from airflow_breeze.utils.path_utils import AIRFLOW_HOME_DIR, AIRFLOW_SOURCES_ROOT
+from airflow_breeze.utils.path_utils import AIRFLOW_HOME_PATH, AIRFLOW_ROOT_PATH
 from airflow_breeze.utils.run_utils import run_command
 
 
@@ -84,8 +84,8 @@ def free_space():
         run_command(["docker", "system", "prune", "--all", "--force", "--volumes"])
         run_command(["df", "-h"])
         run_command(["docker", "logout", "ghcr.io"], check=False)
-        shutil.rmtree(AIRFLOW_HOME_DIR, ignore_errors=True)
-        AIRFLOW_HOME_DIR.mkdir(exist_ok=True, parents=True)
+        shutil.rmtree(AIRFLOW_HOME_PATH, ignore_errors=True)
+        AIRFLOW_HOME_PATH.mkdir(exist_ok=True, parents=True)
         run_command(["pip", "uninstall", "apache-airflow", "--yes"], check=False)
 
 
@@ -101,7 +101,7 @@ def resource_check():
 HOME_DIR = Path(os.path.expanduser("~")).resolve()
 
 DIRECTORIES_TO_FIX = [
-    AIRFLOW_SOURCES_ROOT,
+    AIRFLOW_ROOT_PATH,
     HOME_DIR / ".aws",
     HOME_DIR / ".azure",
     HOME_DIR / ".config/gcloud",

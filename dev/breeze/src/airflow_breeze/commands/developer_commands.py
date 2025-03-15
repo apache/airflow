@@ -114,7 +114,7 @@ from airflow_breeze.utils.docker_command_utils import (
 )
 from airflow_breeze.utils.packages import expand_all_provider_packages
 from airflow_breeze.utils.path_utils import (
-    AIRFLOW_SOURCES_ROOT,
+    AIRFLOW_ROOT_PATH,
     cleanup_python_generated_files,
 )
 from airflow_breeze.utils.platforms import get_normalized_platform
@@ -397,7 +397,7 @@ def shell(
     """Enter breeze environment. this is the default command use when no other is selected."""
     if get_verbose() or get_dry_run() and not quiet:
         get_console().print("\n[success]Welcome to breeze.py[/]\n")
-        get_console().print(f"\n[success]Root of Airflow Sources = {AIRFLOW_SOURCES_ROOT}[/]\n")
+        get_console().print(f"\n[success]Root of Airflow Sources = {AIRFLOW_ROOT_PATH}[/]\n")
     if max_time:
         TimerThread(max_time=max_time).start()
         set_forced_answer("yes")
@@ -727,7 +727,7 @@ def build_docs(
         directories_to_clean = ["_build", "_doctrees", "_inventory_cache", "_api"]
     else:
         directories_to_clean = ["_api"]
-    docs_dir = AIRFLOW_SOURCES_ROOT / "docs"
+    docs_dir = AIRFLOW_ROOT_PATH / "docs"
     for dir_name in directories_to_clean:
         for directory in docs_dir.rglob(dir_name):
             get_console().print(f"[info]Removing {directory}")

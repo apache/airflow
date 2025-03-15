@@ -41,7 +41,7 @@ from airflow_breeze.utils.github import (
     download_constraints_file,
     download_file_from_github,
 )
-from airflow_breeze.utils.path_utils import AIRFLOW_SOURCES_ROOT, FILES_SBOM_DIR
+from airflow_breeze.utils.path_utils import AIRFLOW_ROOT_PATH, FILES_SBOM_PATH
 from airflow_breeze.utils.projects_google_spreadsheet import MetadataFromSpreadsheet, get_project_metadata
 from airflow_breeze.utils.run_utils import run_command
 from airflow_breeze.utils.shared_options import get_dry_run
@@ -162,7 +162,7 @@ def list_providers_from_providers_requirements(
 
 TARGET_DIR_NAME = "provider_requirements"
 
-PROVIDER_REQUIREMENTS_DIR_PATH = FILES_SBOM_DIR / TARGET_DIR_NAME
+PROVIDER_REQUIREMENTS_DIR_PATH = FILES_SBOM_PATH / TARGET_DIR_NAME
 DOCKER_FILE_PREFIX = f"/files/sbom/{TARGET_DIR_NAME}/"
 
 
@@ -176,7 +176,7 @@ def get_requirements_for_provider(
 ) -> tuple[int, str]:
     provider_path_array = provider_id.split(".")
     if not provider_version:
-        provider_file = (AIRFLOW_SOURCES_ROOT / "airflow" / "providers").joinpath(
+        provider_file = (AIRFLOW_ROOT_PATH / "airflow" / "providers").joinpath(
             *provider_path_array
         ) / "provider.yaml"
         provider_version = yaml.safe_load(provider_file.read_text())["versions"][0]
@@ -235,7 +235,7 @@ chown --recursive {os.getuid()}:{os.getgid()} {DOCKER_FILE_PREFIX}{provider_fold
             "-e",
             f"HOST_GROUP_ID={os.getgid()}",
             "-v",
-            f"{AIRFLOW_SOURCES_ROOT}/files:/files",
+            f"{AIRFLOW_ROOT_PATH}/files:/files",
             get_all_airflow_versions_image_name(python_version=python_version),
             "-c",
             ";".join(command.splitlines()[1:-1]),

@@ -40,9 +40,8 @@ from airflow.secrets import BaseSecretsBackend
 
 console = Console(width=400, color_system="standard")
 
-AIRFLOW_SOURCES_ROOT = Path(__file__).parents[2].resolve()
-PROVIDERS_PATH = AIRFLOW_SOURCES_ROOT / "airflow" / "providers"
-GENERATED_PROVIDERS_DEPENDENCIES_FILE = AIRFLOW_SOURCES_ROOT / "generated" / "provider_dependencies.json"
+AIRFLOW_ROOT_PATH = Path(__file__).parents[2].resolve()
+GENERATED_PROVIDERS_DEPENDENCIES_FILE = AIRFLOW_ROOT_PATH / "generated" / "provider_dependencies.json"
 ALL_DEPENDENCIES = json.loads(GENERATED_PROVIDERS_DEPENDENCIES_FILE.read_text())
 
 USE_AIRFLOW_VERSION = os.environ.get("USE_AIRFLOW_VERSION") or ""
@@ -662,8 +661,7 @@ def summarise_total_vs_bad(total: int, bad: int) -> bool:
 def get_providers_paths() -> list[str]:
     import airflow.providers
 
-    # handle providers in sources
-    paths = [str(PROVIDERS_PATH)]
+    paths = []
     # as well as those installed via packages
     paths.extend(airflow.providers.__path__)  # type: ignore[attr-defined]
     return paths
@@ -753,7 +751,7 @@ AIRFLOW_LOCAL_SETTINGS_PATH = Path("/opt/airflow") / "airflow_local_settings.py"
 
 
 if __name__ == "__main__":
-    sys.path.insert(0, str(AIRFLOW_SOURCES_ROOT))
+    sys.path.insert(0, str(AIRFLOW_ROOT_PATH))
     all_imported_classes, all_classes_with_potential_for_circular_import = verify_provider_classes()
     try:
         AIRFLOW_LOCAL_SETTINGS_PATH.write_text(

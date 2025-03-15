@@ -30,7 +30,7 @@ from tabulate import tabulate
 
 AIRFLOW_ROOT_PATH = Path(__file__).parents[3].resolve()
 COMMON_PRECOMMIT_PATH = Path(__file__).parent.resolve()
-EXTRA_PACKAGES_REF_FILE = AIRFLOW_ROOT_PATH / "docs" / "apache-airflow" / "extra-packages-ref.rst"
+EXTRA_PACKAGES_REF_FILE = AIRFLOW_ROOT_PATH / "airflow-core" / "docs" / "extra-packages-ref.rst"
 PYPROJECT_TOML_FILE_PATH = AIRFLOW_ROOT_PATH / "pyproject.toml"
 
 sys.path.insert(0, COMMON_PRECOMMIT_PATH.as_posix())  # make sure common_precommit_utils is imported

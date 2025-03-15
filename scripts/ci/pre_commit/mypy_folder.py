@@ -34,7 +34,7 @@ initialize_breeze_precommit(__name__, __file__)
 
 
 ALLOWED_FOLDERS = [
-    "airflow",
+    "airflow-core/src/airflow",
     *[f"providers/{provider_id.replace('.', '/')}/src" for provider_id in get_all_provider_ids()],
     "dev",
     "docs",
@@ -72,7 +72,7 @@ for mypy_folder in mypy_folders:
     if mypy_folder == "task-sdk/src/airflow/sdk":
         arguments.append("task-sdk/tests")
         namespace_packages = True
-    if mypy_folder == "airflow":
+    if mypy_folder == "airflow-core/src/airflow":
         arguments.append("tests")
 
 if namespace_packages:

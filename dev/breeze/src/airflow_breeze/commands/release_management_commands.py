@@ -137,13 +137,18 @@ from airflow_breeze.utils.parallel import (
     run_with_pool,
 )
 from airflow_breeze.utils.path_utils import (
-    AIRFLOW_PROVIDERS_DIR,
-    AIRFLOW_SOURCES_ROOT,
-    CONSTRAINTS_CACHE_DIR,
-    DIST_DIR,
-    GENERATED_PROVIDER_PACKAGES_DIR,
-    OUT_DIR,
-    PROVIDER_METADATA_JSON_FILE_PATH,
+    AIRFLOW_CORE_ROOT_PATH,
+    AIRFLOW_CORE_SOURCES_PATH,
+    AIRFLOW_DIST_PATH,
+    AIRFLOW_PROVIDERS_ROOT_PATH,
+    AIRFLOW_ROOT_PATH,
+    CONSTRAINTS_CACHE_PATH,
+    GENERATED_PROVIDER_PACKAGES_PATH,
+    OUT_PATH,
+    PROVIDER_METADATA_JSON_PATH,
+    TASK_SDK_DIST_PATH,
+    TASK_SDK_ROOT_PATH,
+    TASK_SDK_SOURCES_PATH,
     cleanup_python_generated_files,
 )
 from airflow_breeze.utils.provider_dependencies import (
@@ -314,8 +319,8 @@ docs/_doctrees/
 AIRFLOW_BUILD_IMAGE_TAG = "apache/airflow:local-build-image"
 NODE_BUILD_IMAGE_TAG = f"node:{NODE_VERSION}-bookworm-slim"
 
-AIRFLOW_BUILD_DOCKERFILE_PATH = AIRFLOW_SOURCES_ROOT / "airflow-build-dockerfile"
-AIRFLOW_BUILD_DOCKERFILE_IGNORE_PATH = AIRFLOW_SOURCES_ROOT / "airflow-build-dockerfile.dockerignore"
+AIRFLOW_BUILD_DOCKERFILE_PATH = AIRFLOW_ROOT_PATH / "airflow-build-dockerfile"
+AIRFLOW_BUILD_DOCKERFILE_IGNORE_PATH = AIRFLOW_ROOT_PATH / "airflow-build-dockerfile.dockerignore"
 ISSUE_MATCH_IN_BODY = re.compile(r" #([0-9]+)[^0-9]")
 
 
@@ -397,7 +402,7 @@ def _build_local_build_image():
         ],
         text=True,
         check=True,
-        cwd=AIRFLOW_SOURCES_ROOT,
+        cwd=AIRFLOW_ROOT_PATH,
         env={"DOCKER_CLI_HINTS": "false"},
     )
 
@@ -463,8 +468,8 @@ def _build_airflow_packages_with_docker(
     container_id = f"airflow-build-{random.getrandbits(64):08x}"
     with package_version(
         version_suffix=version_suffix_for_pypi,
-        package_path=AIRFLOW_SOURCES_ROOT,
-        init_file_path=AIRFLOW_SOURCES_ROOT / "airflow" / "__init__.py",
+        package_path=AIRFLOW_CORE_SOURCES_PATH / "..",
+        init_file_path=AIRFLOW_CORE_SOURCES_PATH / "airflow" / "__init__.py",
     ):
         result = run_command(
             cmd=[
@@ -493,7 +498,7 @@ def _build_airflow_packages_with_docker(
         get_console().print("[error]Error preparing Airflow package[/]")
         fix_ownership_using_docker()
         sys.exit(result.returncode)
-    DIST_DIR.mkdir(parents=True, exist_ok=True)
+    AIRFLOW_DIST_PATH.mkdir(parents=True, exist_ok=True)
     # Copy all files in the dist directory in container to the host dist directory (note '/.' in SRC)
     run_command(["docker", "cp", f"{container_id}:/opt/airflow/dist/.", "./dist"], check=True)
     run_command(["docker", "rm", "--force", container_id], check=False, stderr=DEVNULL, stdout=DEVNULL)
@@ -511,8 +516,8 @@ def _build_airflow_packages_with_hatch(
     env_copy["SOURCE_DATE_EPOCH"] = str(source_date_epoch)
     with package_version(
         version_suffix=version_suffix_for_pypi,
-        package_path=AIRFLOW_SOURCES_ROOT,
-        init_file_path=AIRFLOW_SOURCES_ROOT / "airflow" / "__init__.py",
+        package_path=AIRFLOW_CORE_ROOT_PATH,
+        init_file_path=AIRFLOW_CORE_SOURCES_PATH / "airflow" / "__init__.py",
     ):
         run_command(
             hatch_build_command,
@@ -601,7 +606,7 @@ def prepare_airflow_packages(
     perform_environment_checks()
     fix_ownership_using_docker()
     cleanup_python_generated_files()
-    source_date_epoch = get_source_date_epoch(AIRFLOW_SOURCES_ROOT / "airflow")
+    source_date_epoch = get_source_date_epoch(AIRFLOW_ROOT_PATH)
     if use_local_hatch:
         _build_airflow_packages_with_hatch(
             package_format=package_format,
@@ -610,7 +615,7 @@ def prepare_airflow_packages(
         )
         get_console().print("[info]Checking if sdist packages can be built into wheels[/]")
         packages = DistributionPackageInfo.dist_packages(
-            package_format=package_format, dist_directory=DIST_DIR, build_type="airflow"
+            package_format=package_format, dist_directory=AIRFLOW_DIST_PATH, build_type="airflow"
         )
         get_console().print()
         _check_sdist_to_wheel_dists(packages)
@@ -625,10 +630,6 @@ def prepare_airflow_packages(
             version_suffix_for_pypi=version_suffix_for_pypi,
         )
     get_console().print("[success]Successfully prepared Airflow packages")
-
-
-TASK_SDK_DIR_PATH = AIRFLOW_SOURCES_ROOT / "task-sdk"
-TASK_SDK_DIST_DIR_PATH = TASK_SDK_DIR_PATH / "dist"
 
 
 @release_management.command(
@@ -648,7 +649,7 @@ def prepare_airflow_task_sdk_packages(
     perform_environment_checks()
     fix_ownership_using_docker()
     cleanup_python_generated_files()
-    source_date_epoch = get_source_date_epoch(AIRFLOW_SOURCES_ROOT / "airflow")
+    source_date_epoch = get_source_date_epoch(AIRFLOW_ROOT_PATH)
 
     def _build_package_with_hatch(package_format: str):
         command = [
@@ -664,11 +665,11 @@ def prepare_airflow_task_sdk_packages(
         env_copy["SOURCE_DATE_EPOCH"] = str(source_date_epoch)
         run_command(
             cmd=command,
-            cwd=TASK_SDK_DIR_PATH,
+            cwd=TASK_SDK_ROOT_PATH,
             env=env_copy,
             check=True,
         )
-        shutil.copytree(TASK_SDK_DIST_DIR_PATH, DIST_DIR, dirs_exist_ok=True)
+        shutil.copytree(TASK_SDK_DIST_PATH, AIRFLOW_DIST_PATH, dirs_exist_ok=True)
 
     def _build_package_with_docker(package_format: str):
         _build_local_build_image()
@@ -704,7 +705,7 @@ def prepare_airflow_task_sdk_packages(
             get_console().print("[error]Error preparing Airflow Task SDK[/]")
             fix_ownership_using_docker()
             sys.exit(result.returncode)
-        DIST_DIR.mkdir(parents=True, exist_ok=True)
+        AIRFLOW_DIST_PATH.mkdir(parents=True, exist_ok=True)
         get_console().print()
         # Copy all files in the dist directory in container to the host dist directory (note '/.' in SRC)
         run_command(["docker", "cp", f"{container_id}:/opt/airflow/task-sdk/dist/.", "./dist"], check=True)
@@ -713,15 +714,15 @@ def prepare_airflow_task_sdk_packages(
     if use_local_hatch:
         with package_version(
             version_suffix=version_suffix_for_pypi,
-            package_path=TASK_SDK_DIR_PATH,
-            init_file_path=TASK_SDK_DIR_PATH / "src" / "airflow" / "sdk" / "__init__.py",
+            package_path=TASK_SDK_ROOT_PATH,
+            init_file_path=TASK_SDK_SOURCES_PATH / "airflow" / "sdk" / "__init__.py",
         ):
             _build_package_with_hatch(
                 package_format=package_format,
             )
         get_console().print("[info]Checking if sdist packages can be built into wheels[/]")
         packages = DistributionPackageInfo.dist_packages(
-            package_format=package_format, dist_directory=DIST_DIR, build_type="task-sdk"
+            package_format=package_format, dist_directory=AIRFLOW_DIST_PATH, build_type="task-sdk"
         )
         get_console().print()
         _check_sdist_to_wheel_dists(packages)
@@ -732,8 +733,8 @@ def prepare_airflow_task_sdk_packages(
     else:
         with package_version(
             version_suffix=version_suffix_for_pypi,
-            package_path=TASK_SDK_DIR_PATH,
-            init_file_path=TASK_SDK_DIR_PATH / "src" / "airflow" / "sdk" / "__init__.py",
+            package_path=TASK_SDK_ROOT_PATH,
+            init_file_path=TASK_SDK_SOURCES_PATH / "airflow" / "sdk" / "__init__.py",
         ):
             _build_package_with_docker(
                 package_format=package_format,
@@ -952,7 +953,7 @@ def _build_provider_package(
     get_console().print()
     with ci_group(f"Preparing provider package [special]{provider_id}"):
         get_console().print()
-        provider_root_dir = AIRFLOW_PROVIDERS_DIR.joinpath(*provider_id.split("."))
+        provider_root_dir = AIRFLOW_PROVIDERS_ROOT_PATH.joinpath(*provider_id.split("."))
         get_console().print(
             f"[info]Provider {provider_id} building in-place with suffix: '{package_version_suffix}'."
         )
@@ -970,7 +971,7 @@ def _build_provider_package(
             restore_pyproject_toml(provider_root_dir, old_content)
         move_built_packages_and_cleanup(
             provider_root_dir,
-            DIST_DIR,
+            AIRFLOW_DIST_PATH,
             skip_cleanup=skip_deleting_generated_files,
             delete_only_build_and_dist_folders=True,
         )
@@ -1076,8 +1077,8 @@ def prepare_provider_packages(
     error_packages = []
     if clean_dist:
         get_console().print("\n[warning]Cleaning dist directory before building packages[/]\n")
-        shutil.rmtree(DIST_DIR, ignore_errors=True)
-        DIST_DIR.mkdir(parents=True, exist_ok=True)
+        shutil.rmtree(AIRFLOW_DIST_PATH, ignore_errors=True)
+        AIRFLOW_DIST_PATH.mkdir(parents=True, exist_ok=True)
     for provider_id in packages_list:
         try:
             basic_provider_checks(provider_id)
@@ -1100,7 +1101,7 @@ def prepare_provider_packages(
             get_console().print(f"\n[success]Generated package [special]{provider_id}")
             success_packages.append(provider_id)
     if not skip_deleting_generated_files:
-        shutil.rmtree(GENERATED_PROVIDER_PACKAGES_DIR, ignore_errors=True)
+        shutil.rmtree(GENERATED_PROVIDER_PACKAGES_PATH, ignore_errors=True)
     get_console().print()
     get_console().print("\n[info]Summary of prepared packages:\n")
     provider_action_summary("Success", MessageType.SUCCESS, success_packages)
@@ -1118,7 +1119,7 @@ def prepare_provider_packages(
         sys.exit(0)
     get_console().print("\n[success]Successfully built packages!\n\n")
     packages = DistributionPackageInfo.dist_packages(
-        package_format=package_format, dist_directory=DIST_DIR, build_type="providers"
+        package_format=package_format, dist_directory=AIRFLOW_DIST_PATH, build_type="providers"
     )
     get_console().print()
     _check_sdist_to_wheel_dists(packages)
@@ -1387,7 +1388,7 @@ WHEEL_FILENAME_PATTERN = re.compile(rf"{WHEEL_FILENAME_PREFIX}(.*)-[0-9].*\.whl"
 def _get_all_providers_in_dist(
     filename_prefix: str, filename_pattern: re.Pattern[str]
 ) -> Generator[str, None, None]:
-    for file in DIST_DIR.glob(f"{filename_prefix}*.tar.gz"):
+    for file in AIRFLOW_DIST_PATH.glob(f"{filename_prefix}*.tar.gz"):
         matched = filename_pattern.match(file.name)
         if not matched:
             raise SystemExit(f"Cannot parse provider package name from {file.name}")
@@ -2281,7 +2282,7 @@ def generate_issue_content_providers(
         all_prs: set[int] = set()
         provider_prs: dict[str, list[int]] = {}
         if only_available_in_dist:
-            files_in_dist = os.listdir(str(AIRFLOW_SOURCES_ROOT / "dist"))
+            files_in_dist = os.listdir(str(AIRFLOW_DIST_PATH))
         prepared_package_ids = []
         for provider_id in provider_packages:
             if not only_available_in_dist or is_package_in_dist(files_in_dist, provider_id):
@@ -2647,17 +2648,17 @@ def get_all_constraint_files(
     refresh_constraints: bool, python_version: str
 ) -> tuple[list[str], dict[str, str]]:
     if refresh_constraints:
-        shutil.rmtree(CONSTRAINTS_CACHE_DIR, ignore_errors=True)
+        shutil.rmtree(CONSTRAINTS_CACHE_PATH, ignore_errors=True)
     all_airflow_versions, airflow_release_dates = get_active_airflow_versions(confirm=False)
-    if not CONSTRAINTS_CACHE_DIR.exists():
+    if not CONSTRAINTS_CACHE_PATH.exists():
         with ci_group(f"Downloading constraints for all Airflow versions for Python {python_version}"):
-            CONSTRAINTS_CACHE_DIR.mkdir(parents=True, exist_ok=True)
+            CONSTRAINTS_CACHE_PATH.mkdir(parents=True, exist_ok=True)
             for airflow_version in all_airflow_versions:
                 if not download_constraints_file(
                     airflow_version=airflow_version,
                     python_version=python_version,
                     include_provider_dependencies=True,
-                    output_file=CONSTRAINTS_CACHE_DIR
+                    output_file=CONSTRAINTS_CACHE_PATH
                     / f"constraints-{airflow_version}-python-{python_version}.txt",
                 ):
                     get_console().print(
@@ -2672,7 +2673,7 @@ MATCH_CONSTRAINTS_FILE_REGEX = re.compile(r"constraints-(.*)-python-(.*).txt")
 
 def load_constraints(python_version: str) -> dict[str, dict[str, str]]:
     constraints: dict[str, dict[str, str]] = {}
-    for filename in sorted(CONSTRAINTS_CACHE_DIR.glob(f"constraints-*-python-{python_version}.txt")):
+    for filename in sorted(CONSTRAINTS_CACHE_PATH.glob(f"constraints-*-python-{python_version}.txt")):
         filename_match = MATCH_CONSTRAINTS_FILE_REGEX.match(filename.name)
         if filename_match:
             airflow_version = filename_match.group(1)
@@ -2717,7 +2718,7 @@ def generate_providers_metadata(refresh_constraints: bool, python: str | None):
             metadata_dict[package_id] = result
     import json
 
-    PROVIDER_METADATA_JSON_FILE_PATH.write_text(json.dumps(metadata_dict, indent=4) + "\n")
+    PROVIDER_METADATA_JSON_PATH.write_text(json.dumps(metadata_dict, indent=4) + "\n")
 
 
 def fetch_remote(constraints_repo: Path, remote_name: str) -> None:
@@ -2947,14 +2948,14 @@ def split_version_and_suffix(file_name: str, suffix: str) -> VersionedFile:
     )
 
 
-PYTHON_CLIENT_DIR_PATH = AIRFLOW_SOURCES_ROOT / "clients" / "python"
+PYTHON_CLIENT_DIR_PATH = AIRFLOW_ROOT_PATH / "clients" / "python"
 PYTHON_CLIENT_DIST_DIR_PATH = PYTHON_CLIENT_DIR_PATH / "dist"
 PYTHON_CLIENT_TMP_DIR = PYTHON_CLIENT_DIR_PATH / "tmp"
 
-REPRODUCIBLE_BUILD_YAML = AIRFLOW_SOURCES_ROOT / "airflow" / "reproducible_build.yaml"
+REPRODUCIBLE_BUILD_YAML = AIRFLOW_ROOT_PATH / "reproducible_build.yaml"
 
 VERSION_FILE = PYTHON_CLIENT_DIR_PATH / "version.txt"
-SOURCE_API_YAML_PATH = AIRFLOW_SOURCES_ROOT / "clients" / "python" / "openapi_v1.yaml"
+SOURCE_API_YAML_PATH = AIRFLOW_ROOT_PATH / "clients" / "python" / "openapi_v1.yaml"
 TARGET_API_YAML_PATH = PYTHON_CLIENT_DIR_PATH / "v1.yaml"
 OPENAPI_GENERATOR_CLI_VER = "5.4.0"
 
@@ -3079,7 +3080,7 @@ def _build_client_packages_with_hatch(source_date_epoch: int, package_format: st
         env=env_copy,
         check=True,
     )
-    shutil.copytree(PYTHON_CLIENT_DIST_DIR_PATH, DIST_DIR, dirs_exist_ok=True)
+    shutil.copytree(PYTHON_CLIENT_DIST_DIR_PATH, AIRFLOW_DIST_PATH, dirs_exist_ok=True)
 
 
 def _build_client_packages_with_docker(source_date_epoch: int, package_format: str):
@@ -3116,7 +3117,7 @@ def _build_client_packages_with_docker(source_date_epoch: int, package_format: s
         get_console().print("[error]Error preparing Python client packages[/]")
         fix_ownership_using_docker()
         sys.exit(result.returncode)
-    DIST_DIR.mkdir(parents=True, exist_ok=True)
+    AIRFLOW_DIST_PATH.mkdir(parents=True, exist_ok=True)
     get_console().print()
     # Copy all files in the dist directory in container to the host dist directory (note '/.' in SRC)
     run_command(["docker", "cp", f"{container_id}:/opt/airflow/clients/python/dist/.", "./dist"], check=True)
@@ -3234,13 +3235,13 @@ def prepare_python_client(
             _build_client_packages_with_docker(
                 source_date_epoch=source_date_epoch, package_format=package_format
             )
-        get_console().print(f"\n[success]Built packages in {DIST_DIR}[/]\n")
+        get_console().print(f"\n[success]Built packages in {AIRFLOW_DIST_PATH}[/]\n")
     finally:
         if version_suffix_for_pypi:
             VERSION_FILE.write_text(original_version)
 
 
-CHART_DIR = AIRFLOW_SOURCES_ROOT / "chart"
+CHART_DIR = AIRFLOW_ROOT_PATH / "chart"
 CHART_YAML_FILE = CHART_DIR / "Chart.yaml"
 VALUES_YAML_FILE = CHART_DIR / "values.yaml"
 
@@ -3384,8 +3385,8 @@ def prepare_helm_chart_tarball(
         get_console().print(f"[warning]Skipping tagging the chart with {tag_with_suffix}[/]")
     get_console().print(f"[info]Creating tarball for Helm Chart {tag_with_suffix}[/]")
     archive_name = f"airflow-chart-{version}-source.tar.gz"
-    OUT_DIR.mkdir(parents=True, exist_ok=True)
-    source_archive = OUT_DIR / archive_name
+    OUT_PATH.mkdir(parents=True, exist_ok=True)
+    source_archive = OUT_PATH / archive_name
     source_archive.unlink(missing_ok=True)
     result = run_command(
         [
@@ -3406,8 +3407,8 @@ def prepare_helm_chart_tarball(
     if result.returncode != 0:
         get_console().print(f"[error]Error running git archive for Helm Chart {tag_with_suffix}[/]")
         sys.exit(result.returncode)
-    DIST_DIR.mkdir(parents=True, exist_ok=True)
-    final_archive = DIST_DIR / archive_name
+    AIRFLOW_DIST_PATH.mkdir(parents=True, exist_ok=True)
+    final_archive = AIRFLOW_DIST_PATH / archive_name
     final_archive.unlink(missing_ok=True)
     result = repack_deterministically(
         source_archive=source_archive,
@@ -3455,19 +3456,19 @@ def prepare_helm_chart_package(sign_email: str):
     # See https://github.com/technosophos/helm-gpg/issues/1
     k8s_env["TAR_OPTIONS"] = "--wildcards"
     archive_name = f"airflow-{version}.tgz"
-    OUT_DIR.mkdir(parents=True, exist_ok=True)
+    OUT_PATH.mkdir(parents=True, exist_ok=True)
     result = run_command(
-        cmd=["helm", "package", "chart", "--dependency-update", "--destination", OUT_DIR.as_posix()],
+        cmd=["helm", "package", "chart", "--dependency-update", "--destination", OUT_PATH.as_posix()],
         env=k8s_env,
         check=False,
     )
     if result.returncode != 0:
         get_console().print("[error]Error packaging the chart[/]")
         sys.exit(result.returncode)
-    DIST_DIR.mkdir(parents=True, exist_ok=True)
-    final_archive = DIST_DIR / archive_name
+    AIRFLOW_DIST_PATH.mkdir(parents=True, exist_ok=True)
+    final_archive = AIRFLOW_DIST_PATH / archive_name
     final_archive.unlink(missing_ok=True)
-    source_archive = OUT_DIR / archive_name
+    source_archive = OUT_PATH / archive_name
     result = repack_deterministically(
         source_archive=source_archive,
         dest_archive=final_archive,
@@ -3489,7 +3490,7 @@ def prepare_helm_chart_package(sign_email: str):
             prov_file.unlink()
         result = run_command(
             cmd=["helm", "gpg", "sign", "-u", sign_email, archive_name],
-            cwd=DIST_DIR.as_posix(),
+            cwd=AIRFLOW_DIST_PATH.as_posix(),
             env=k8s_env,
             check=False,
         )
@@ -3498,7 +3499,7 @@ def prepare_helm_chart_package(sign_email: str):
             sys.exit(result.returncode)
         result = run_command(
             cmd=["helm", "gpg", "verify", archive_name],
-            cwd=DIST_DIR.as_posix(),
+            cwd=AIRFLOW_DIST_PATH.as_posix(),
             env=k8s_env,
             check=False,
         )

@@ -106,7 +106,7 @@ from airflow_breeze.utils.parallel import (
     check_async_run_results,
     run_with_pool,
 )
-from airflow_breeze.utils.path_utils import AIRFLOW_SOURCES_ROOT, BUILD_CACHE_DIR
+from airflow_breeze.utils.path_utils import AIRFLOW_ROOT_PATH, BUILD_CACHE_PATH
 from airflow_breeze.utils.python_versions import get_python_version_list
 from airflow_breeze.utils.recording import generating_command_images
 from airflow_breeze.utils.run_tests import verify_an_image
@@ -898,7 +898,7 @@ def run_build_ci_image(
         return 1, "Error: building multi-platform image without --push."
     if get_verbose() or get_dry_run():
         get_console(output=output).print(
-            f"\n[info]Building CI image of airflow from {AIRFLOW_SOURCES_ROOT}: {param_description}[/]\n"
+            f"\n[info]Building CI image of airflow from {AIRFLOW_ROOT_PATH}: {param_description}[/]\n"
         )
     if ci_image_params.prepare_buildx_cache:
         build_command_result = build_cache(
@@ -911,11 +911,7 @@ def run_build_ci_image(
             [
                 sys.executable,
                 os.fspath(
-                    AIRFLOW_SOURCES_ROOT
-                    / "scripts"
-                    / "ci"
-                    / "pre_commit"
-                    / "update_providers_dependencies.py"
+                    AIRFLOW_ROOT_PATH / "scripts" / "ci" / "pre_commit" / "update_providers_dependencies.py"
                 ),
             ],
             check=False,
@@ -927,7 +923,7 @@ def run_build_ci_image(
             prepare_docker_build_command(
                 image_params=ci_image_params,
             ),
-            cwd=AIRFLOW_SOURCES_ROOT,
+            cwd=AIRFLOW_ROOT_PATH,
             text=True,
             check=False,
             env=env,
@@ -943,7 +939,7 @@ def run_build_ci_image(
                     prepare_docker_build_command(
                         image_params=ci_image_params,
                     ),
-                    cwd=AIRFLOW_SOURCES_ROOT,
+                    cwd=AIRFLOW_ROOT_PATH,
                     env=env,
                     text=True,
                     check=False,
@@ -968,7 +964,7 @@ def rebuild_or_pull_ci_image_if_needed(command_params: ShellParams | BuildCiPara
     :param command_params: parameters of the command to execute
     """
     build_ci_image_check_cache = Path(
-        BUILD_CACHE_DIR, command_params.airflow_branch, f".built_{command_params.python}"
+        BUILD_CACHE_PATH, command_params.airflow_branch, f".built_{command_params.python}"
     )
     ci_image_params = BuildCiParams(
         builder=command_params.builder,
@@ -1034,7 +1030,7 @@ def export_mount_cache(
     tar -C /root/.cache/ -czf /root/.cache.tar.gz .
     """
 
-    dockerfile_ci_content = (AIRFLOW_SOURCES_ROOT / "Dockerfile.ci").read_text()
+    dockerfile_ci_content = (AIRFLOW_ROOT_PATH / "Dockerfile.ci").read_text()
     dependency_cache_epoch = dockerfile_ci_content.split("DEPENDENCY_CACHE_EPOCH=")[1].split("\n")[0]
     get_console().print(f"[info]Dependency cache epoch from Dockerfile.ci = {dependency_cache_epoch}[/]")
     dockerfile = dockerfile.replace("<REPLACE_FROM_DOCKER_CI>", dependency_cache_epoch)
@@ -1105,7 +1101,7 @@ def import_mount_cache(
     get_console().print(f"[info]Copying cache file to context: {context_cache_file}[/]")
     cache_file.rename(context_cache_file)
     get_console().print(f"[info]Copied cache file to context: {context_cache_file}[/]")
-    dockerfile_ci_content = (AIRFLOW_SOURCES_ROOT / "Dockerfile.ci").read_text()
+    dockerfile_ci_content = (AIRFLOW_ROOT_PATH / "Dockerfile.ci").read_text()
     dependency_cache_epoch = dockerfile_ci_content.split("DEPENDENCY_CACHE_EPOCH=")[1].split("\n")[0]
     get_console().print(f"[info]Dependency cache epoch from Dockerfile.ci = {dependency_cache_epoch}[/]")
     dockerfile = dockerfile.replace("<REPLACE_FROM_DOCKER_CI>", dependency_cache_epoch)
