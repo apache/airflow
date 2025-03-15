@@ -26,7 +26,7 @@ messages to a slack channel using the various ``on_*_callbacks`` at both the DAG
 You can also use a notifier with ``sla_miss_callback``.
 
 .. note::
-    When notifiers are used with `sla_miss_callback` the context will contain only values passed to the callback, refer :ref:`sla_miss_callback<concepts:sla_miss_callback>`.
+    When notifiers are used with `sla_miss_callback` the context will contain only values passed to the callback, refer (Reference removed to make docs build working for Airflow 2.10 branch).
 
 Example Code:
 -------------

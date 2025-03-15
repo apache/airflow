@@ -1072,7 +1072,7 @@ class SelectiveChecks:
         if not self.docs_build:
             return None
         if self._default_branch != "main":
-            return "apache-airflow docker-stack"
+            return _ALL_DOCS_LIST  # Bugfix on v2-10 branches as dependencies of main have moved breaking docs
         if self.full_tests_needed:
             return _ALL_DOCS_LIST
         providers_affected = self._find_all_providers_affected(
