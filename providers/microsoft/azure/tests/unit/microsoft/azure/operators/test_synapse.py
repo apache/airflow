@@ -33,6 +33,7 @@ from airflow.providers.microsoft.azure.operators.synapse import (
     AzureSynapseRunPipelineOperator,
     AzureSynapseRunSparkBatchOperator,
 )
+from airflow.providers.microsoft.azure.version_compat import AIRFLOW_V_3_0_PLUS
 from airflow.sdk.execution_time.comms import XComResult
 from airflow.utils import timezone
 
@@ -288,10 +289,11 @@ class TestAzureSynapseRunPipelineOperator:
         )
 
         ti.xcom_push(key="run_id", value=PIPELINE_RUN_RESPONSE["run_id"])
-        mock_supervisor_comms.get_message.return_value = XComResult(
-            key="run_id",
-            value=PIPELINE_RUN_RESPONSE["run_id"],
-        )
+        if AIRFLOW_V_3_0_PLUS:
+            mock_supervisor_comms.get_message.return_value = XComResult(
+                key="run_id",
+                value=PIPELINE_RUN_RESPONSE["run_id"],
+            )
 
         url = ti.task.operator_extra_links[0].get_link(operator=ti.task, ti_key=ti.key)
 

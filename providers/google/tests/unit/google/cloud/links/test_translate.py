@@ -19,6 +19,7 @@ from __future__ import annotations
 
 import pytest
 
+from airflow.providers.google.version_compat import AIRFLOW_V_3_0_PLUS
 from airflow.sdk.execution_time.comms import XComResult
 
 # For no Pydantic environment, we need to skip the tests
@@ -58,10 +59,11 @@ class TestTranslationLegacyDatasetLink:
         session.add(ti)
         session.commit()
         link.persist(context={"ti": ti}, task_instance=ti.task, dataset_id=DATASET, project_id=GCP_PROJECT_ID)
-        mock_supervisor_comms.get_message.return_value = XComResult(
-            key="key",
-            value={"location": ti.task.location, "dataset_id": DATASET, "project_id": GCP_PROJECT_ID},
-        )
+        if AIRFLOW_V_3_0_PLUS:
+            mock_supervisor_comms.get_message.return_value = XComResult(
+                key="key",
+                value={"location": ti.task.location, "dataset_id": DATASET, "project_id": GCP_PROJECT_ID},
+            )
         actual_url = link.get_link(operator=ti.task, ti_key=ti.key)
         assert actual_url == expected_url
 
@@ -80,12 +82,13 @@ class TestTranslationDatasetListLink:
         session.add(ti)
         session.commit()
         link.persist(context={"ti": ti}, task_instance=ti.task, project_id=GCP_PROJECT_ID)
-        mock_supervisor_comms.get_message.return_value = XComResult(
-            key="key",
-            value={
-                "project_id": GCP_PROJECT_ID,
-            },
-        )
+        if AIRFLOW_V_3_0_PLUS:
+            mock_supervisor_comms.get_message.return_value = XComResult(
+                key="key",
+                value={
+                    "project_id": GCP_PROJECT_ID,
+                },
+            )
         actual_url = link.get_link(operator=ti.task, ti_key=ti.key)
         assert actual_url == expected_url
 
@@ -115,15 +118,16 @@ class TestTranslationLegacyModelLink:
             model_id=MODEL,
             project_id=GCP_PROJECT_ID,
         )
-        mock_supervisor_comms.get_message.return_value = XComResult(
-            key="key",
-            value={
-                "location": ti.task.location,
-                "dataset_id": DATASET,
-                "model_id": MODEL,
-                "project_id": GCP_PROJECT_ID,
-            },
-        )
+        if AIRFLOW_V_3_0_PLUS:
+            mock_supervisor_comms.get_message.return_value = XComResult(
+                key="key",
+                value={
+                    "location": ti.task.location,
+                    "dataset_id": DATASET,
+                    "model_id": MODEL,
+                    "project_id": GCP_PROJECT_ID,
+                },
+            )
         actual_url = link.get_link(operator=ti.task, ti_key=ti.key)
         assert actual_url == expected_url
 
@@ -151,13 +155,14 @@ class TestTranslationLegacyModelTrainLink:
             task_instance=ti.task,
             project_id=GCP_PROJECT_ID,
         )
-        mock_supervisor_comms.get_message.return_value = XComResult(
-            key="key",
-            value={
-                "location": ti.task.location,
-                "dataset_id": ti.task.model["dataset_id"],
-                "project_id": GCP_PROJECT_ID,
-            },
-        )
+        if AIRFLOW_V_3_0_PLUS:
+            mock_supervisor_comms.get_message.return_value = XComResult(
+                key="key",
+                value={
+                    "location": ti.task.location,
+                    "dataset_id": ti.task.model["dataset_id"],
+                    "project_id": GCP_PROJECT_ID,
+                },
+            )
         actual_url = link.get_link(operator=ti.task, ti_key=ti.key)
         assert actual_url == expected_url

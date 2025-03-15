@@ -1131,19 +1131,21 @@ def test_create_cluster_operator_extra_links(
     operator_extra_link = deserialized_dag.tasks[0].operator_extra_links[0]
     assert operator_extra_link.name == "Dataproc Cluster"
 
-    mock_supervisor_comms.get_message.return_value = XComResult(
-        key="key",
-        value="",
-    )
+    if AIRFLOW_V_3_0_PLUS:
+        mock_supervisor_comms.get_message.return_value = XComResult(
+            key="key",
+            value="",
+        )
     # Assert operator link is empty when no XCom push occurred
     assert ti.task.operator_extra_links[0].get_link(operator=ti.task, ti_key=ti.key) == ""
 
     ti.xcom_push(key="dataproc_cluster", value=DATAPROC_CLUSTER_EXPECTED)
 
-    mock_supervisor_comms.get_message.return_value = XComResult(
-        key="key",
-        value={"cluster_id": "cluster_name", "project_id": "test-project", "region": "test-location"},
-    )
+    if AIRFLOW_V_3_0_PLUS:
+        mock_supervisor_comms.get_message.return_value = XComResult(
+            key="key",
+            value={"cluster_id": "cluster_name", "project_id": "test-project", "region": "test-location"},
+        )
     # Assert operator links after execution
     assert (
         ti.task.operator_extra_links[0].get_link(operator=ti.task, ti_key=ti.key)
@@ -1245,10 +1247,11 @@ def test_scale_cluster_operator_extra_links(
     operator_extra_link = deserialized_dag.tasks[0].operator_extra_links[0]
     assert operator_extra_link.name == "Dataproc resource"
 
-    mock_supervisor_comms.get_message.return_value = XComResult(
-        key="key",
-        value="",
-    )
+    if AIRFLOW_V_3_0_PLUS:
+        mock_supervisor_comms.get_message.return_value = XComResult(
+            key="key",
+            value="",
+        )
     # Assert operator link is empty when no XCom push occurred
     assert ti.task.operator_extra_links[0].get_link(operator=ti.task, ti_key=ti.key) == ""
 
@@ -1257,10 +1260,11 @@ def test_scale_cluster_operator_extra_links(
         value=DATAPROC_CLUSTER_CONF_EXPECTED,
     )
 
-    mock_supervisor_comms.get_message.return_value = XComResult(
-        key="key",
-        value=DATAPROC_CLUSTER_CONF_EXPECTED,
-    )
+    if AIRFLOW_V_3_0_PLUS:
+        mock_supervisor_comms.get_message.return_value = XComResult(
+            key="key",
+            value=DATAPROC_CLUSTER_CONF_EXPECTED,
+        )
 
     # Assert operator links after execution
     assert (
@@ -2119,20 +2123,22 @@ def test_submit_job_operator_extra_links(
     operator_extra_link = deserialized_dag.tasks[0].operator_extra_links[0]
     assert operator_extra_link.name == "Dataproc Job"
 
-    mock_supervisor_comms.get_message.return_value = XComResult(
-        key="dataproc_job",
-        value="",
-    )
+    if AIRFLOW_V_3_0_PLUS:
+        mock_supervisor_comms.get_message.return_value = XComResult(
+            key="dataproc_job",
+            value="",
+        )
 
     # Assert operator link is empty when no XCom push occurred
     assert ti.task.operator_extra_links[0].get_link(operator=ti.task, ti_key=ti.key) == ""
 
     ti.xcom_push(key="dataproc_job", value=DATAPROC_JOB_EXPECTED)
 
-    mock_supervisor_comms.get_message.return_value = XComResult(
-        key="dataproc_job",
-        value=DATAPROC_JOB_EXPECTED,
-    )
+    if AIRFLOW_V_3_0_PLUS:
+        mock_supervisor_comms.get_message.return_value = XComResult(
+            key="dataproc_job",
+            value=DATAPROC_JOB_EXPECTED,
+        )
 
     # Assert operator links after execution
     assert (
@@ -2333,19 +2339,21 @@ def test_update_cluster_operator_extra_links(
     operator_extra_link = deserialized_dag.tasks[0].operator_extra_links[0]
     assert operator_extra_link.name == "Dataproc Cluster"
 
-    mock_supervisor_comms.get_message.return_value = XComResult(
-        key="dataproc_cluster",
-        value="",
-    )
+    if AIRFLOW_V_3_0_PLUS:
+        mock_supervisor_comms.get_message.return_value = XComResult(
+            key="dataproc_cluster",
+            value="",
+        )
     # Assert operator link is empty when no XCom push occurred
     assert ti.task.operator_extra_links[0].get_link(operator=ti.task, ti_key=ti.key) == ""
 
     ti.xcom_push(key="dataproc_cluster", value=DATAPROC_CLUSTER_EXPECTED)
 
-    mock_supervisor_comms.get_message.return_value = XComResult(
-        key="dataproc_cluster",
-        value=DATAPROC_CLUSTER_EXPECTED,
-    )
+    if AIRFLOW_V_3_0_PLUS:
+        mock_supervisor_comms.get_message.return_value = XComResult(
+            key="dataproc_cluster",
+            value=DATAPROC_CLUSTER_EXPECTED,
+        )
 
     # Assert operator links after execution
     assert (
@@ -2557,18 +2565,20 @@ def test_instantiate_workflow_operator_extra_links(
     operator_extra_link = deserialized_dag.tasks[0].operator_extra_links[0]
     assert operator_extra_link.name == "Dataproc Workflow"
 
-    mock_supervisor_comms.get_message.return_value = XComResult(
-        key="dataproc_workflow",
-        value="",
-    )
+    if AIRFLOW_V_3_0_PLUS:
+        mock_supervisor_comms.get_message.return_value = XComResult(
+            key="dataproc_workflow",
+            value="",
+        )
     # Assert operator link is empty when no XCom push occurred
     assert ti.task.operator_extra_links[0].get_link(operator=ti.task, ti_key=ti.key) == ""
 
     ti.xcom_push(key="dataproc_workflow", value=DATAPROC_WORKFLOW_EXPECTED)
-    mock_supervisor_comms.get_message.return_value = XComResult(
-        key="dataproc_workflow",
-        value=DATAPROC_WORKFLOW_EXPECTED,
-    )
+    if AIRFLOW_V_3_0_PLUS:
+        mock_supervisor_comms.get_message.return_value = XComResult(
+            key="dataproc_workflow",
+            value=DATAPROC_WORKFLOW_EXPECTED,
+        )
     # Assert operator links after execution
     assert (
         ti.task.operator_extra_links[0].get_link(operator=ti.task, ti_key=ti.key)
@@ -3227,17 +3237,19 @@ def test_instantiate_inline_workflow_operator_extra_links(
     deserialized_dag = SerializedDAG.deserialize_dag(serialized_dag["dag"])
     operator_extra_link = deserialized_dag.tasks[0].operator_extra_links[0]
     assert operator_extra_link.name == "Dataproc Workflow"
-    mock_supervisor_comms.get_message.return_value = XComResult(
-        key="dataproc_workflow",
-        value="",
-    )
+    if AIRFLOW_V_3_0_PLUS:
+        mock_supervisor_comms.get_message.return_value = XComResult(
+            key="dataproc_workflow",
+            value="",
+        )
     # Assert operator link is empty when no XCom push occurred
     assert ti.task.operator_extra_links[0].get_link(operator=ti.task, ti_key=ti.key) == ""
 
     ti.xcom_push(key="dataproc_workflow", value=DATAPROC_WORKFLOW_EXPECTED)
-    mock_supervisor_comms.get_message.return_value = XComResult(
-        key="dataproc_workflow", value=DATAPROC_WORKFLOW_EXPECTED
-    )
+    if AIRFLOW_V_3_0_PLUS:
+        mock_supervisor_comms.get_message.return_value = XComResult(
+            key="dataproc_workflow", value=DATAPROC_WORKFLOW_EXPECTED
+        )
 
     # Assert operator links after execution
     assert (
