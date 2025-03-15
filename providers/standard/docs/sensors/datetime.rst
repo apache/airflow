@@ -56,6 +56,8 @@ TimeSensor
 
 Use the :class:`~airflow.providers.standard.sensors.time_sensor.TimeSensor` to end sensing after time specified.
 
+Time will be evaluated against ``data_interval_end`` if present for the dag run, otherwise ``run_after`` will be used.
+
 .. exampleinclude:: /../../airflow/example_dags/example_sensors.py
     :language: python
     :dedent: 4
@@ -70,6 +72,8 @@ TimeSensorAsync
 
 Use the :class:`~airflow.providers.standard.sensors.time_sensor.TimeSensorAsync` to end sensing after time specified.
 It is an async version of the operator and requires Triggerer to run.
+
+Time will be evaluated against ``data_interval_end`` if present for the dag run, otherwise ``run_after`` will be used.
 
 .. exampleinclude:: /../../airflow/example_dags/example_sensors.py
     :language: python

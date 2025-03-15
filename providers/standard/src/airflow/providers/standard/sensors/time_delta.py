@@ -46,14 +46,16 @@ def _get_airflow_version():
 
 class TimeDeltaSensor(BaseSensorOperator):
     """
-    Waits for a timedelta after the run's data interval.
+    Waits for a timedelta.
 
-    :param delta: time length to wait after the data interval before succeeding.
+    The delta will be evaluated against data_interval_end if present for the dag run,
+    otherwise run_after will be used.
+
+    :param delta: time to wait before succeeding.
 
     .. seealso::
         For more information on how to use this sensor, take a look at the guide:
         :ref:`howto/operator:TimeDeltaSensor`
-
 
     """
 
@@ -61,14 +63,31 @@ class TimeDeltaSensor(BaseSensorOperator):
         super().__init__(**kwargs)
         self.delta = delta
 
-    def poke(self, context: Context):
-        data_interval_end = context["data_interval_end"]
+    def _derive_base_time(self, context: Context) -> datetime:
+        """
+        Get the "base time" against which the delta should be calculated.
 
-        if not isinstance(data_interval_end, datetime):
-            raise ValueError("`data_interval_end` returned non-datetime object")
+        If data_interval_end is populated, use it; else use run_after.
+        """
+        data_interval_end = context.get("data_interval_end")
+        if data_interval_end:
+            if not isinstance(data_interval_end, datetime):
+                raise ValueError("`data_interval_end` returned non-datetime object")
 
-        target_dttm: datetime = data_interval_end + self.delta
-        self.log.info("Checking if the time (%s) has come", target_dttm)
+            return data_interval_end
+
+        if not data_interval_end and not AIRFLOW_V_3_0_PLUS:
+            raise ValueError("`data_interval_end` not found in task context.")
+
+        dag_run = context.get("dag_run")
+        if not dag_run:
+            raise ValueError("`dag_run` not found in task context")
+        return dag_run.run_after
+
+    def poke(self, context: Context) -> bool:
+        base_time = self._derive_base_time(context=context)
+        target_dttm = base_time + self.delta
+        self.log.info("Checking if the delta has elapsed base_time=%s, delta=%s", base_time, self.delta)
         return timezone.utcnow() > target_dttm
 
 
@@ -92,12 +111,8 @@ class TimeDeltaSensorAsync(TimeDeltaSensor):
         self.end_from_trigger = end_from_trigger
 
     def execute(self, context: Context) -> bool | NoReturn:
-        data_interval_end = context["data_interval_end"]
-
-        if not isinstance(data_interval_end, datetime):
-            raise ValueError("`data_interval_end` returned non-datetime object")
-
-        target_dttm: datetime = data_interval_end + self.delta
+        base_time = self._derive_base_time(context=context)
+        target_dttm: datetime = base_time + self.delta
 
         if timezone.utcnow() > target_dttm:
             # If the target datetime is in the past, return immediately
