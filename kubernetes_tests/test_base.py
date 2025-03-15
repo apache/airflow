@@ -154,7 +154,10 @@ class BaseK8STest:
         :return: The JWT token
         """
         # get csrf token from login page
-        retry = Retry(total=5, backoff_factor=10)
+        Retry.DEFAULT_BACKOFF_MAX = 32
+        retry = Retry(total=10, backoff_factor=1)
+        # Backoff Retry Formula: min(1 × (2^(retry - 1)), 32) seconds
+        # 1 + 2 + 4 + 8 + 16 + 32 + 32 + 32 + 32 + 32 = 191 sec (~3.2 min)
         session = requests.Session()
         session.mount("http://", HTTPAdapter(max_retries=retry))
         session.mount("https://", HTTPAdapter(max_retries=retry))
