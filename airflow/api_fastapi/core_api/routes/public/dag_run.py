@@ -61,6 +61,7 @@ from airflow.api_fastapi.core_api.datamodels.task_instances import (
 )
 from airflow.api_fastapi.core_api.openapi.exceptions import create_openapi_http_exception_doc
 from airflow.api_fastapi.core_api.security import (
+    GetUserDep,
     ReadableDagRunsFilterDep,
     requires_access_asset,
     requires_access_dag,
@@ -141,6 +142,7 @@ def patch_dag_run(
     patch_body: DAGRunPatchBody,
     session: SessionDep,
     request: Request,
+    user: GetUserDep,
     update_mask: list[str] | None = Query(None),
 ) -> DAGRunResponse:
     """Modify a DAG Run."""
@@ -186,9 +188,10 @@ def patch_dag_run(
             # Refer to https://github.com/apache/airflow/issues/43534
             dag_run = session.get(DagRun, dag_run.id)
             if dag_run.dag_run_note is None:
-                dag_run.note = (attr_value, None)
+                dag_run.note = (attr_value, user.get_id())
             else:
                 dag_run.dag_run_note.content = attr_value
+                dag_run.dag_run_note.user_id = user.get_id()
 
     dag_run = session.get(DagRun, dag_run.id)
 

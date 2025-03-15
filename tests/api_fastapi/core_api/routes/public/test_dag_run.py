@@ -29,6 +29,7 @@ from airflow.api_fastapi.core_api.datamodels.dag_versions import DagVersionRespo
 from airflow.listeners.listener import get_listener_manager
 from airflow.models import DagModel, DagRun
 from airflow.models.asset import AssetEvent, AssetModel
+from airflow.models.dagrun import DagRunNote
 from airflow.providers.standard.operators.empty import EmptyOperator
 from airflow.sdk.definitions.asset import Asset
 from airflow.sdk.definitions.param import Param
@@ -931,6 +932,13 @@ class TestPatchDagRun:
         assert body["dag_run_id"] == run_id
         assert body.get("state") == response_body.get("state")
         assert body.get("note") == response_body.get("note")
+        user_id = (
+            session.query(DagRunNote)
+            .join(DagRun, DagRunNote.dag_run_id == DagRun.id)
+            .filter(DagRun.run_id == run_id)
+            .all()
+        )
+        assert user_id == "test"
         _check_last_log(session, dag_id=dag_id, event="patch_dag_run", logical_date=None)
 
     def test_should_respond_401(self, unauthenticated_test_client):
