@@ -16,12 +16,13 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Box, Code, VStack } from "@chakra-ui/react";
+import { Box, Code, VStack, useToken } from "@chakra-ui/react";
 import type { ReactNode } from "react";
 import { useLayoutEffect } from "react";
 
 import { ErrorAlert } from "src/components/ErrorAlert";
 import { ProgressBar } from "src/components/ui";
+import { useColorMode } from "src/context/colorMode";
 
 type Props = {
   readonly error: unknown;
@@ -32,19 +33,26 @@ type Props = {
 };
 
 export const TaskLogContent = ({ error, isLoading, logError, parsedLogs, wrap }: Props) => {
+  const { colorMode } = useColorMode();
+  const [bgLight, bgDark] = useToken("colors", ["blue.400", "blue.700"]);
+
   useLayoutEffect(() => {
     if (location.hash) {
       const hash = location.hash.replace("#", "");
 
       setTimeout(() => {
-        const element = document.querySelector(`[id='${hash}']`);
+        const element = document.querySelector<HTMLElement>(`[id='${hash}']`);
 
+        if (element !== null) {
+          element.style.background = (colorMode === "light" ? bgLight : bgDark) as string;
+        }
         element?.scrollIntoView({
           behavior: "smooth",
+          block: "center",
         });
       }, 100);
     }
-  });
+  }, [isLoading, bgDark, bgLight, colorMode]);
 
   return (
     <Box>

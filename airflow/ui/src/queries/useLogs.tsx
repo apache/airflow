@@ -30,6 +30,7 @@ import type {
 } from "openapi/requests/types.gen";
 import Time from "src/components/Time";
 import { isStatePending, useAutoRefresh } from "src/utils";
+import { getTaskInstanceLink } from "src/utils/links";
 import { LogLevel, logLevelColorMapping } from "src/utils/logs";
 
 type Props = {
@@ -50,17 +51,17 @@ type ParseLogsProps = {
 type RenderStructuredLogProps = {
   index: number;
   logLevelFilters?: Array<string>;
+  logLink: string;
   logMessage: string | StructuredLogMessage;
   sourceFilters?: Array<string>;
-  taskInstance?: TaskInstanceResponse;
 };
 
 const renderStructuredLog = ({
   index,
   logLevelFilters,
+  logLink,
   logMessage,
   sourceFilters,
-  taskInstance,
 }: RenderStructuredLogProps) => {
   if (typeof logMessage === "string") {
     return (
@@ -93,12 +94,21 @@ const renderStructuredLog = ({
 
   elements.push(
     <Link
+      id={index.toString()}
       key={`line_${index}`}
-      to={`/dags/${taskInstance?.dag_id}/runs/${taskInstance?.dag_run_id}/tasks/${taskInstance?.task_id}#${index}`}
+      style={{
+        display: "inline-block",
+        marginRight: "10px",
+        paddingRight: "5px",
+        textAlign: "right",
+        userSelect: "none",
+        WebkitUserSelect: "none",
+        width: "3em",
+      }}
+      to={`${logLink}#${index}`}
     >
       {index}
     </Link>,
-    " ",
   );
 
   if (Boolean(timestamp)) {
@@ -138,7 +148,7 @@ const renderStructuredLog = ({
   }
 
   return (
-    <chakra.p id={index.toString()} key={index} lineHeight={1.5}>
+    <chakra.p key={index} lineHeight={1.5}>
       {elements}
     </chakra.p>
   );
@@ -154,6 +164,7 @@ const parseLogs = ({ data, logLevelFilters, sourceFilters, taskInstance }: Parse
 
   // open the summary when hash is present since the link might have a hash linking to a line
   const open = Boolean(location.hash);
+  const logLink = taskInstance ? getTaskInstanceLink(taskInstance) : "";
 
   try {
     parsedLines = data.map((datum, index) => {
@@ -165,7 +176,7 @@ const parseLogs = ({ data, logLevelFilters, sourceFilters, taskInstance }: Parse
         }
       }
 
-      return renderStructuredLog({ index, logLevelFilters, logMessage: datum, sourceFilters, taskInstance });
+      return renderStructuredLog({ index, logLevelFilters, logLink, logMessage: datum, sourceFilters });
     });
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : "An error occurred.";
