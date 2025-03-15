@@ -32,7 +32,7 @@ on:  # yamllint disable-line rule:truthy
       destination-location:
         description: "The destination location in S3"
         required: false
-        default: "s3://airflow-docs"
+        default: "s3://staging-docs-airflow-apache-org/docs"
         type: string
       docs-list-as-string:
         description: "Comma separated list of docs to build"
