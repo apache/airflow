@@ -24,7 +24,7 @@ from uuid import UUID
 
 from fastapi import Body, HTTPException, status
 from pydantic import JsonValue
-from sqlalchemy import func, update
+from sqlalchemy import func, tuple_, update
 from sqlalchemy.exc import NoResultFound, SQLAlchemyError
 from sqlalchemy.sql import select
 
@@ -38,6 +38,7 @@ from airflow.api_fastapi.execution_api.datamodels.taskinstance import (
     TIRescheduleStatePayload,
     TIRunContext,
     TIRuntimeCheckPayload,
+    TISkippedDownstreamTasksStatePayload,
     TIStateUpdate,
     TISuccessStatePayload,
     TITerminalStatePayload,
@@ -239,9 +240,6 @@ def ti_run(
 @router.patch(
     "/{task_instance_id}/state",
     status_code=status.HTTP_204_NO_CONTENT,
-    # TODO: Add description to the operation
-    # TODO: Add Operation ID to control the function name in the OpenAPI spec
-    # TODO: Do we need to use create_openapi_http_exception_doc here?
     responses={
         status.HTTP_404_NOT_FOUND: {"description": "Task Instance not found"},
         status.HTTP_409_CONFLICT: {"description": "The TI is already in the requested state"},
@@ -389,6 +387,38 @@ def ti_update_state(
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Database error occurred"
         )
+
+
+@router.patch(
+    "/{task_instance_id}/skip-downstream",
+    status_code=status.HTTP_204_NO_CONTENT,
+    responses={
+        status.HTTP_404_NOT_FOUND: {"description": "Task Instance not found"},
+        status.HTTP_422_UNPROCESSABLE_ENTITY: {"description": "Invalid payload for the state transition"},
+    },
+)
+def ti_skip_downstream(
+    task_instance_id: UUID,
+    ti_patch_payload: TISkippedDownstreamTasksStatePayload,
+    session: SessionDep,
+):
+    ti_id_str = str(task_instance_id)
+    now = timezone.utcnow()
+    tasks = ti_patch_payload.tasks
+
+    dag_id, run_id = session.execute(select(TI.dag_id, TI.run_id).where(TI.id == ti_id_str)).fetchone()
+
+    task_ids = [task if isinstance(task, tuple) else (task, -1) for task in tasks]
+
+    query = (
+        update(TI)
+        .where(TI.dag_id == dag_id, TI.run_id == run_id, tuple_(TI.task_id, TI.map_index).in_(task_ids))
+        .values(state=TaskInstanceState.SKIPPED, start_date=now, end_date=now)
+        .execution_options(synchronize_session=False)
+    )
+
+    result = session.execute(query)
+    log.info("TI %s updated the state of %s task(s) to skipped", ti_id_str, result.rowcount)
 
 
 @router.put(

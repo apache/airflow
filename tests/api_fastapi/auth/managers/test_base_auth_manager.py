@@ -314,7 +314,7 @@ class TestBaseAuthManager:
             ),
         ],
     )
-    def test_get_permitted_dag_ids(self, auth_manager, access_per_dag: dict, dag_ids: list, expected: set):
+    def test_get_authorized_dag_ids(self, auth_manager, access_per_dag: dict, dag_ids: list, expected: set):
         def side_effect_func(
             *,
             method: ResourceMethod,
@@ -336,5 +336,5 @@ class TestBaseAuthManager:
             mock.dag_id = dag_id
             dags.append(mock)
         session.execute.return_value = dags
-        result = auth_manager.get_permitted_dag_ids(user=user, session=session)
+        result = auth_manager.get_authorized_dag_ids(user=user, session=session)
         assert result == expected

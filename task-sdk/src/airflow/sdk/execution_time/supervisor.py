@@ -80,6 +80,7 @@ from airflow.sdk.execution_time.comms import (
     RuntimeCheckOnTask,
     SetRenderedFields,
     SetXCom,
+    SkipDownstreamTasks,
     StartupDetails,
     SucceedTask,
     TaskState,
@@ -893,6 +894,8 @@ class ActivitySubprocess(WatchedSubprocess):
         elif isinstance(msg, RescheduleTask):
             self._terminal_state = IntermediateTIState.UP_FOR_RESCHEDULE
             self.client.task_instances.reschedule(self.id, msg)
+        elif isinstance(msg, SkipDownstreamTasks):
+            self.client.task_instances.skip_downstream_tasks(self.id, msg)
         elif isinstance(msg, SetXCom):
             self.client.xcoms.set(
                 msg.dag_id, msg.run_id, msg.task_id, msg.key, msg.value, msg.map_index, msg.mapped_length

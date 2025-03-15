@@ -22,18 +22,18 @@
 from __future__ import annotations
 
 import warnings
-from collections.abc import Collection
+from collections.abc import Collection, Sequence
 from datetime import timedelta
 from http import HTTPStatus
 from typing import TYPE_CHECKING, Any, NamedTuple
 
-from airflow.sdk.definitions.asset import AssetNameRef, AssetUniqueKey, AssetUriRef
 from airflow.utils.trigger_rule import TriggerRule
 
 if TYPE_CHECKING:
     from collections.abc import Sized
 
     from airflow.models import DagRun
+    from airflow.sdk.definitions.asset import AssetNameRef, AssetUniqueKey, AssetUriRef
 
 
 class AirflowException(Exception):
@@ -121,6 +121,8 @@ class _AirflowExecuteWithInactiveAssetExecption(AirflowFailException):
 
     @staticmethod
     def _render_asset_key(key: AssetUniqueKey | AssetNameRef | AssetUriRef) -> str:
+        from airflow.sdk.definitions.asset import AssetNameRef, AssetUniqueKey, AssetUriRef
+
         if isinstance(key, AssetUniqueKey):
             return f"Asset(name={key.name!r}, uri={key.uri!r})"
         elif isinstance(key, AssetNameRef):
@@ -399,6 +401,21 @@ class AirflowFileParseException(AirflowException):
 
 class ConnectionNotUnique(AirflowException):
     """Raise when multiple values are found for the same connection ID."""
+
+
+class DownstreamTasksSkipped(AirflowException):
+    """
+    Signal by an operator to skip its downstream tasks.
+
+    Special exception raised to signal that the operator it was raised from wishes to skip
+    downstream tasks. This is used in the ShortCircuitOperator.
+
+    :param tasks: List of task_ids to skip or a list of tuples with task_id and map_index to skip.
+    """
+
+    def __init__(self, *, tasks: Sequence[str | tuple[str, int]]):
+        super().__init__()
+        self.tasks = tasks
 
 
 class TaskDeferred(BaseException):

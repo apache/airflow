@@ -20,6 +20,7 @@ import { chakra, Code } from "@chakra-ui/react";
 import type { UseQueryOptions } from "@tanstack/react-query";
 import dayjs from "dayjs";
 import innerText from "react-innertext";
+import { Link } from "react-router-dom";
 
 import { useTaskInstanceServiceGetLog } from "openapi/queries";
 import type {
@@ -29,6 +30,7 @@ import type {
 } from "openapi/requests/types.gen";
 import Time from "src/components/Time";
 import { isStatePending, useAutoRefresh } from "src/utils";
+import { getTaskInstanceLink } from "src/utils/links";
 import { LogLevel, logLevelColorMapping } from "src/utils/logs";
 
 type Props = {
@@ -43,11 +45,13 @@ type ParseLogsProps = {
   data: TaskInstancesLogResponse["content"];
   logLevelFilters?: Array<string>;
   sourceFilters?: Array<string>;
+  taskInstance?: TaskInstanceResponse;
 };
 
 type RenderStructuredLogProps = {
   index: number;
   logLevelFilters?: Array<string>;
+  logLink: string;
   logMessage: string | StructuredLogMessage;
   sourceFilters?: Array<string>;
 };
@@ -55,6 +59,7 @@ type RenderStructuredLogProps = {
 const renderStructuredLog = ({
   index,
   logLevelFilters,
+  logLink,
   logMessage,
   sourceFilters,
 }: RenderStructuredLogProps) => {
@@ -86,6 +91,25 @@ const renderStructuredLog = ({
   ) {
     return "";
   }
+
+  elements.push(
+    <Link
+      id={index.toString()}
+      key={`line_${index}`}
+      style={{
+        display: "inline-block",
+        marginRight: "10px",
+        paddingRight: "5px",
+        textAlign: "right",
+        userSelect: "none",
+        WebkitUserSelect: "none",
+        width: "3em",
+      }}
+      to={`${logLink}#${index}`}
+    >
+      {index}
+    </Link>,
+  );
 
   if (Boolean(timestamp)) {
     elements.push("[", <Time datetime={timestamp} key={0} />, "] ");
@@ -130,13 +154,17 @@ const renderStructuredLog = ({
   );
 };
 
-const parseLogs = ({ data, logLevelFilters, sourceFilters }: ParseLogsProps) => {
+const parseLogs = ({ data, logLevelFilters, sourceFilters, taskInstance }: ParseLogsProps) => {
   let warning;
   let parsedLines;
   let startGroup = false;
   let groupLines: Array<JSX.Element | ""> = [];
   let groupName = "";
   const sources: Array<string> = [];
+
+  // open the summary when hash is present since the link might have a hash linking to a line
+  const open = Boolean(location.hash);
+  const logLink = taskInstance ? getTaskInstanceLink(taskInstance) : "";
 
   try {
     parsedLines = data.map((datum, index) => {
@@ -148,7 +176,7 @@ const parseLogs = ({ data, logLevelFilters, sourceFilters }: ParseLogsProps) => 
         }
       }
 
-      return renderStructuredLog({ index, logLevelFilters, logMessage: datum, sourceFilters });
+      return renderStructuredLog({ index, logLevelFilters, logLink, logMessage: datum, sourceFilters });
     });
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : "An error occurred.";
@@ -171,7 +199,7 @@ const parseLogs = ({ data, logLevelFilters, sourceFilters }: ParseLogsProps) => 
     } else if (text.includes("::endgroup::")) {
       startGroup = false;
       const group = (
-        <details key={groupName} style={{ width: "100%" }}>
+        <details key={groupName} open={open} style={{ width: "100%" }}>
           <summary data-testid={`summary-${groupName}`}>
             <chakra.span color="fg.info" cursor="pointer">
               {groupName}
@@ -232,6 +260,7 @@ export const useLogs = (
     data: data?.content ?? [],
     logLevelFilters,
     sourceFilters,
+    taskInstance,
   });
 
   return { data: parsedData, ...rest };

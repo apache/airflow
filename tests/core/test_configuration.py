@@ -996,7 +996,7 @@ sql_alchemy_conn=sqlite://test
         # Guarantee we have deprecated settings, so we test the deprecation
         # lookup even if we remove this explicit fallback
         test_conf.deprecated_values = {
-            "core": {"hostname_callable": (re.compile(r":"), r".", "2.1")},
+            "core": {"hostname_callable": (re.compile(r":"), r".")},
         }
         test_conf.read_dict({"core": {"hostname_callable": "airflow.utils.net:getfqdn"}})
 
@@ -1061,7 +1061,7 @@ sql_alchemy_conn=sqlite://test
             # Guarantee we have a deprecated setting, so we test the deprecation
             # lookup even if we remove this explicit fallback
             test_conf.deprecated_values = {
-                "core": {"hostname_callable": (re.compile(r":"), r".", "2.1")},
+                "core": {"hostname_callable": (re.compile(r":"), r".")},
             }
             test_conf.read_dict(conf_dict)
             test_conf.validate()
