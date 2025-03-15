@@ -28,6 +28,7 @@ from __future__ import annotations
 
 import sqlalchemy as sa
 from alembic import op
+from sqlalchemy.sql import text
 
 from airflow.migrations.db_types import StringID
 from airflow.utils.sqlalchemy import UtcDateTime
@@ -48,12 +49,16 @@ def upgrade():
         sa.Column("last_refreshed", UtcDateTime(timezone=True), nullable=True),
         sa.PrimaryKeyConstraint("name", name=op.f("dag_bundle_pkey")),
     )
+
     with op.batch_alter_table("dag", schema=None) as batch_op:
-        batch_op.add_column(sa.Column("bundle_name", sa.String(length=250), nullable=True))
+        batch_op.add_column(sa.Column("bundle_name", sa.String(length=250), nullable=False))
         batch_op.add_column(sa.Column("bundle_version", sa.String(length=200), nullable=True))
+
+
         batch_op.create_foreign_key(
             batch_op.f("dag_bundle_name_fkey"), "dag_bundle", ["bundle_name"], ["name"]
         )
+
     with op.batch_alter_table("dag_run", schema=None) as batch_op:
         batch_op.add_column(sa.Column("bundle_version", sa.String(length=250), nullable=True))
 
