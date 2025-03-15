@@ -85,8 +85,6 @@ def test_timedelta_sensor_run_after_vs_interval(run_after, interval_end, dag_mak
             from airflow.utils.types import DagRunTriggeredByType
 
             kwargs.update(triggered_by=DagRunTriggeredByType.TEST, run_after=run_after)
-        else:
-            kwargs.update(logical_date=run_after)
         dr = dag.create_dagrun(
             run_id="abcrhroceuh",
             run_type=DagRunType.MANUAL,
@@ -163,8 +161,6 @@ class TestTimeDeltaSensorAsync:
                 from airflow.utils.types import DagRunTriggeredByType
 
                 kwargs.update(triggered_by=DagRunTriggeredByType.TEST, run_after=run_after)
-            else:
-                kwargs.update(logical_date=run_after)
 
             dr = dag.create_dagrun(
                 run_id="abcrhroceuh",
