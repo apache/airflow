@@ -20,8 +20,7 @@ from __future__ import annotations
 import json
 import logging
 from collections.abc import Iterable
-from typing import TYPE_CHECKING, Any, cast, Annotated
-from pydantic import StringConstraints
+from typing import TYPE_CHECKING, Any, cast
 
 from sqlalchemy import (
     JSON,
