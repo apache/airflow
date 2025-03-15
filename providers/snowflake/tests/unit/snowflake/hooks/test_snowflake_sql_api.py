@@ -423,6 +423,25 @@ class TestSnowflakeSqlApiHook:
             hook.get_private_key()
             assert hook.private_key is not None
 
+        # \\n should be replaced with \n when invoking load_pem_private_key
+        connection_kwargs["extra"]["private_key_content"] = connection_kwargs["extra"][
+            "private_key_content"
+        ].replace("\n", "\\n")
+        with (
+            mock.patch.dict("os.environ", AIRFLOW_CONN_TEST_CONN=Connection(**connection_kwargs).get_uri()),
+            mock.patch(
+                "cryptography.hazmat.primitives.serialization.load_pem_private_key"
+            ) as mock_load_pem_private_key,
+        ):
+            from cryptography.hazmat.backends import default_backend
+
+            SnowflakeSqlApiHook(snowflake_conn_id="test_conn")._get_conn_params
+            mock_load_pem_private_key.assert_called_once_with(
+                str(encrypted_temporary_private_key.read_text()).encode(),
+                password=_PASSWORD.encode(),
+                backend=default_backend(),
+            )
+
     def test_get_private_key_raise_exception(self, encrypted_temporary_private_key: Path):
         """
         Test get_private_key function with private_key_content and private_key_file in connection

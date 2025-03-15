@@ -358,6 +358,25 @@ class TestPytestSnowflakeHook:
         with mock.patch.dict("os.environ", AIRFLOW_CONN_TEST_CONN=Connection(**connection_kwargs).get_uri()):
             assert "private_key" in SnowflakeHook(snowflake_conn_id="test_conn")._get_conn_params
 
+        # \\n should be replaced with \n when invoking load_pem_private_key
+        connection_kwargs["extra"]["private_key_content"] = connection_kwargs["extra"][
+            "private_key_content"
+        ].replace("\n", "\\n")
+        with (
+            mock.patch.dict("os.environ", AIRFLOW_CONN_TEST_CONN=Connection(**connection_kwargs).get_uri()),
+            mock.patch(
+                "cryptography.hazmat.primitives.serialization.load_pem_private_key"
+            ) as mock_load_pem_private_key,
+        ):
+            from cryptography.hazmat.backends import default_backend
+
+            SnowflakeHook(snowflake_conn_id="test_conn")._get_conn_params
+            mock_load_pem_private_key.assert_called_once_with(
+                str(encrypted_temporary_private_key.read_text()).encode(),
+                password=_PASSWORD.encode(),
+                backend=default_backend(),
+            )
+
     @pytest.mark.parametrize("include_params", [True, False])
     def test_hook_param_beats_extra(self, include_params):
         """When both hook params and extras are supplied, hook params should
