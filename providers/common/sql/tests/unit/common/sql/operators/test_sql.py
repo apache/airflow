@@ -121,8 +121,11 @@ class TestSQLExecuteQueryOperator:
 
     @mock.patch.object(SQLExecuteQueryOperator, "_process_output")
     @mock.patch.object(SQLExecuteQueryOperator, "get_db_hook")
-    def test_do_xcom_push(self, mock_get_db_hook, mock_process_output):
-        operator = self._construct_operator("SELECT 1;", do_xcom_push=True)
+    @pytest.mark.parametrize("requires_result_fetch", [True, False])
+    def test_do_xcom_push(self, mock_get_db_hook, mock_process_output, requires_result_fetch):
+        operator = self._construct_operator(
+            "SELECT 1;", do_xcom_push=True, requires_result_fetch=requires_result_fetch
+        )
         operator.execute(context=MagicMock())
 
         mock_get_db_hook.return_value.run.assert_called_once_with(
@@ -145,6 +148,21 @@ class TestSQLExecuteQueryOperator:
             autocommit=False,
             parameters=None,
             handler=None,
+            return_last=True,
+        )
+        mock_process_output.assert_not_called()
+
+    @mock.patch.object(SQLExecuteQueryOperator, "_process_output")
+    @mock.patch.object(SQLExecuteQueryOperator, "get_db_hook")
+    def test_requires_result_fetch_dont_xcom_push(self, mock_get_db_hook, mock_process_output):
+        operator = self._construct_operator("SELECT 1;", requires_result_fetch=True, do_xcom_push=False)
+        operator.execute(context=MagicMock())
+
+        mock_get_db_hook.return_value.run.assert_called_once_with(
+            sql="SELECT 1;",
+            autocommit=False,
+            handler=fetch_all_handler,
+            parameters=None,
             return_last=True,
         )
         mock_process_output.assert_not_called()
