@@ -51,13 +51,29 @@ def upgrade():
     )
 
     with op.batch_alter_table("dag", schema=None) as batch_op:
-        batch_op.add_column(sa.Column("bundle_name", sa.String(length=250), nullable=False))
+        batch_op.add_column(sa.Column("bundle_name", sa.String(length=250), nullable=True))
         batch_op.add_column(sa.Column("bundle_version", sa.String(length=200), nullable=True))
-
 
         batch_op.create_foreign_key(
             batch_op.f("dag_bundle_name_fkey"), "dag_bundle", ["bundle_name"], ["name"]
         )
+
+        conn = op.get_bind()
+        conn.execute(
+            text(
+                """
+                UPDATE dag
+                SET bundle_name =
+                    CASE
+                        WHEN fileloc LIKE '%/airflow/airflow/example_dags/%' THEN 'example_dags'
+                        ELSE 'dags-folder'
+                    END
+                WHERE bundle_name IS NULL
+                """
+            )
+        )
+
+        batch_op.alter_column("bundle_name", nullable=False)
 
     with op.batch_alter_table("dag_run", schema=None) as batch_op:
         batch_op.add_column(sa.Column("bundle_version", sa.String(length=250), nullable=True))
