@@ -30,9 +30,9 @@ from airflow.cli.api.client import NEW_CLI_API_CLIENT, provide_api_client
 from airflow.cli.api.datamodels._generated import (
     BulkAction,
     BulkActionOnExistence,
+    BulkBodyConnectionBody,
+    BulkCreateActionConnectionBody,
     ConnectionBody,
-    ConnectionBulkBody,
-    ConnectionBulkCreateAction,
     ConnectionResponse,
     ConnectionTestResponse,
 )
@@ -383,11 +383,11 @@ def _import_helper(file_path: str, overwrite: bool, cli_api_client: Client) -> N
 
     try:
         cli_api_client.connections.bulk(
-            connections=ConnectionBulkBody(
+            connections=BulkBodyConnectionBody(
                 actions=[
-                    ConnectionBulkCreateAction(
+                    BulkCreateActionConnectionBody(
                         action=BulkAction.CREATE,
-                        connections=connections_to_create,
+                        entities=connections_to_create,
                         action_on_existence=BulkActionOnExistence.FAIL
                         if not overwrite
                         else BulkActionOnExistence.OVERWRITE,

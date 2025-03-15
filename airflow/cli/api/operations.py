@@ -30,10 +30,12 @@ from airflow.cli.api.datamodels._generated import (
     AssetResponse,
     BackfillPostBody,
     BackfillResponse,
+    BulkActionResponse,
+    BulkBodyConnectionBody,
+    BulkBodyPoolBody,
+    BulkBodyVariableBody,
     Config,
     ConnectionBody,
-    ConnectionBulkActionResponse,
-    ConnectionBulkBody,
     ConnectionCollectionResponse,
     ConnectionResponse,
     ConnectionTestResponse,
@@ -42,17 +44,13 @@ from airflow.cli.api.datamodels._generated import (
     DAGRunCollectionResponse,
     DAGRunResponse,
     JobCollectionResponse,
-    PoolBulkActionResponse,
-    PoolBulkBody,
+    PoolBody,
     PoolCollectionResponse,
     PoolPatchBody,
-    PoolPostBody,
     PoolResponse,
     ProviderCollectionResponse,
     TriggerDAGRunPostBody,
     VariableBody,
-    VariableBulkActionResponse,
-    VariableBulkBody,
     VariableCollectionResponse,
     VariableResponse,
     VersionInfo,
@@ -226,11 +224,11 @@ class ConnectionsOperations(BaseOperations):
         except ServerResponseError as e:
             raise e
 
-    def bulk(self, connections: ConnectionBulkBody) -> ConnectionBulkActionResponse | ServerResponseError:
+    def bulk(self, connections: BulkBodyConnectionBody) -> BulkActionResponse | ServerResponseError:
         """CRUD multiple connections."""
         try:
             self.response = self.client.patch("connections", json=connections.model_dump())
-            return ConnectionBulkActionResponse.model_validate_json(self.response.content)
+            return BulkActionResponse.model_validate_json(self.response.content)
         except ServerResponseError as e:
             raise e
 
@@ -373,7 +371,7 @@ class PoolsOperations(BaseOperations):
         except ServerResponseError as e:
             raise e
 
-    def create(self, pool: PoolPostBody) -> PoolResponse | ServerResponseError:
+    def create(self, pool: PoolBody) -> PoolResponse | ServerResponseError:
         """Create a pool."""
         try:
             self.response = self.client.post("pools", json=pool.model_dump())
@@ -381,11 +379,11 @@ class PoolsOperations(BaseOperations):
         except ServerResponseError as e:
             raise e
 
-    def bulk(self, pools: PoolBulkBody) -> PoolBulkActionResponse | ServerResponseError:
+    def bulk(self, pools: BulkBodyPoolBody) -> BulkActionResponse | ServerResponseError:
         """CRUD multiple pools."""
         try:
             self.response = self.client.patch("pools", json=pools.model_dump())
-            return PoolBulkActionResponse.model_validate_json(self.response.content)
+            return BulkActionResponse.model_validate_json(self.response.content)
         except ServerResponseError as e:
             raise e
 
@@ -445,11 +443,11 @@ class VariablesOperations(BaseOperations):
         except ServerResponseError as e:
             raise e
 
-    def bulk(self, variables: VariableBulkBody) -> VariableBulkActionResponse | ServerResponseError:
+    def bulk(self, variables: BulkBodyVariableBody) -> BulkActionResponse | ServerResponseError:
         """CRUD multiple variables."""
         try:
             self.response = self.client.patch("variables", json=variables.model_dump())
-            return VariableBulkActionResponse.model_validate_json(self.response.content)
+            return BulkActionResponse.model_validate_json(self.response.content)
         except ServerResponseError as e:
             raise e
 
