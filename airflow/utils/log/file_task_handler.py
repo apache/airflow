@@ -32,6 +32,7 @@ from urllib.parse import urljoin
 
 import pendulum
 from pydantic import BaseModel, ConfigDict, ValidationError
+from sqlalchemy import select
 
 from airflow.configuration import conf
 from airflow.exceptions import AirflowException
@@ -164,16 +165,14 @@ def _ensure_ti(ti: TaskInstanceKey | TaskInstance, session) -> TaskInstance:
 
     if isinstance(ti, TaskInstance):
         return ti
-    val = (
-        session.query(TaskInstance)
-        .filter(
+    val = session.execute(
+        select(TaskInstance).where(
             TaskInstance.task_id == ti.task_id,
             TaskInstance.dag_id == ti.dag_id,
             TaskInstance.run_id == ti.run_id,
             TaskInstance.map_index == ti.map_index,
         )
-        .one_or_none()
-    )
+    ).one_or_none
     if not val:
         raise AirflowException(f"Could not find TaskInstance for {ti}")
     val.try_number = ti.try_number
