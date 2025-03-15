@@ -33,7 +33,8 @@ if TYPE_CHECKING:
 
 
 def create_asset(*, path: str, extra=None) -> Asset:
-    # We assume that we get absolute path starting with /
+    if path.startswith("file://"):
+        path = path[len("file://") :]
     return Asset(uri=f"file://{path}", extra=extra)
 
 
@@ -52,6 +53,13 @@ def convert_asset_to_openlineage(asset: Asset, lineage_context) -> OpenLineageDa
     from airflow.providers.common.compat.openlineage.facet import Dataset as OpenLineageDataset
 
     parsed = urllib.parse.urlsplit(asset.uri)
+
+    # Non-remote path
+    if parsed.path == "/":
+        netloc = parsed.netloc
+        if not netloc.startswith("/"):
+            netloc = "/" + netloc
+        return OpenLineageDataset(namespace="file", name=netloc)
     return OpenLineageDataset(
         namespace=f"file://{parsed.netloc}" if parsed.netloc else "file", name=parsed.path
     )
