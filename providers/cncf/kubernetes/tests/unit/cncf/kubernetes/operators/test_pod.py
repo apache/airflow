@@ -1537,7 +1537,9 @@ class TestKubernetesPodOperator:
         # check that the base container is not included in the logs
         mock_fetch_log.assert_called_once_with(pod=pod, containers=["some_init_container"], follow_logs=True)
         # check that KPO waits for the base container to complete before proceeding to extract XCom
-        mock_await_container_completion.assert_called_once_with(pod=pod, container_name="base")
+        mock_await_container_completion.assert_called_once_with(
+            pod=pod, container_name="base", polling_time=1
+        )
         # check that we wait for the xcom sidecar to start before extracting XCom
         mock_await_xcom_sidecar.assert_called_once_with(pod=pod)
 
@@ -1798,7 +1800,7 @@ class TestKubernetesPodOperator:
             )
         else:
             mock_await_container_completion.assert_has_calls(
-                [mock.call(pod=pod, container_name=k.base_container_name)] * 3
+                [mock.call(pod=pod, container_name=k.base_container_name, polling_time=1)] * 3
             )
         mock_read_pod.assert_called()
         assert client != k.client
@@ -1853,7 +1855,7 @@ class TestKubernetesPodOperator:
                 k.await_pod_completion(pod)
         expected_call_count = len(side_effect)
         mock_await_container_completion.assert_has_calls(
-            [mock.call(pod=pod, container_name=k.base_container_name)] * expected_call_count
+            [mock.call(pod=pod, container_name=k.base_container_name, polling_time=1)] * expected_call_count
         )
 
     @pytest.mark.parametrize(
