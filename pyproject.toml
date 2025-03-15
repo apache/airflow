@@ -948,5 +948,5 @@ use-standard-collections=true # list[] not List[]
 use-subclass-enum=true # enum, not union of Literals
 use-union-operator=false # 3.9+annotations
 
-url = "http://0.0.0.0:9091/openapi.json"
+url = "http://0.0.0.0:8080/openapi.json"
 output = "cli/api/datamodels/_generated.py"

@@ -931,7 +931,7 @@ ASSETS_COMMANDS = (
 AUTH_COMMANDS = (
     ActionCommand(
         name="login",
-        help="Login to the metadata database for personal usage",
+        help="Login to the metadata database for personal usage. JWT Token must be provided via parameter.",
         description="Login to the metadata database",
         func=lazy_load_command("airflow.cli.commands.remote_commands.auth_command.login"),
         args=(ARG_AUTH_URL, ARG_AUTH_TOKEN, ARG_AUTH_ENVIRONMENT),
@@ -1734,7 +1734,8 @@ core_commands: list[CLICommand] = [
     ),
     GroupCommand(
         name="auth",
-        help="Manage authentication for CLI",
+        help="Manage authentication for CLI. Please acquire a token from the api-server first. "
+        "You need to pass the token to subcommand to use `login`.",
         subcommands=AUTH_COMMANDS,
     ),
     ActionCommand(

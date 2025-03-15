@@ -69,11 +69,6 @@ log = structlog.get_logger(logger_name=__name__)
 class ServerResponseError(httpx.HTTPStatusError):
     """Server response error (Generic)."""
 
-    def __init__(self, message: str, *, request: httpx.Request, response: httpx.Response):
-        super().__init__(message, request=request, response=response)
-
-    # def_
-
     @classmethod
     def from_response(cls, response: httpx.Response) -> ServerResponseError | None:
         if response.status_code < 400:
