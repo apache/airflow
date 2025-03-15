@@ -145,7 +145,7 @@ class Client(httpx.Client):
 
     def __init__(self, *, base_url: str, token: str, **kwargs: Any):
         auth = BearerAuth(token)
-
+        print(f"token: {token}")
         kwargs["base_url"] = f"{base_url}/public"
         pyver = f"{'.'.join(map(str, sys.version_info[:3]))}"
         super().__init__(

@@ -19,12 +19,14 @@ from __future__ import annotations
 
 import datetime
 import json
+import uuid
 from contextlib import redirect_stdout
 from io import StringIO
 
 import httpx
 import pytest
 
+from airflow.api_fastapi.core_api.datamodels.config import ConfigSection
 from airflow.cli.api.client import Client
 from airflow.cli.api.datamodels._generated import (
     AssetAliasCollectionResponse,
@@ -35,13 +37,16 @@ from airflow.cli.api.datamodels._generated import (
     BackfillResponse,
     BulkAction,
     BulkActionOnExistence,
+    BulkActionResponse,
+    BulkBodyConnectionBody,
+    BulkBodyPoolBody,
+    BulkBodyVariableBody,
+    BulkCreateActionConnectionBody,
+    BulkCreateActionPoolBody,
+    BulkCreateActionVariableBody,
     Config,
     ConfigOption,
-    ConfigSection,
     ConnectionBody,
-    ConnectionBulkActionResponse,
-    ConnectionBulkBody,
-    ConnectionBulkCreateAction,
     ConnectionCollectionResponse,
     ConnectionResponse,
     ConnectionTestResponse,
@@ -52,22 +57,17 @@ from airflow.cli.api.datamodels._generated import (
     DagRunState,
     DagRunTriggeredByType,
     DagRunType,
+    DagVersionResponse,
     JobCollectionResponse,
     JobResponse,
-    PoolBulkActionResponse,
-    PoolBulkBody,
-    PoolBulkCreateAction,
+    PoolBody,
     PoolCollectionResponse,
-    PoolPostBody,
     PoolResponse,
     ProviderCollectionResponse,
     ProviderResponse,
     ReprocessBehavior,
     TriggerDAGRunPostBody,
     VariableBody,
-    VariableBulkActionResponse,
-    VariableBulkBody,
-    VariableBulkCreateAction,
     VariableCollectionResponse,
     VariableResponse,
     VersionInfo,
@@ -260,17 +260,17 @@ class TestConnectionsOperations:
         total_entries=1,
     )
 
-    connection_bulk_body = ConnectionBulkBody(
+    connection_bulk_body = BulkBodyConnectionBody(
         actions=[
-            ConnectionBulkCreateAction(
+            BulkCreateActionConnectionBody(
                 action=BulkAction.CREATE,
-                connections=[connection],
+                entities=[connection],
                 action_on_existence=BulkActionOnExistence.FAIL,
             )
         ]
     )
 
-    connection_bulk_action_response = ConnectionBulkActionResponse(
+    connection_bulk_action_response = BulkActionResponse(
         success=[connection_id],
         errors=[],
     )
@@ -354,7 +354,6 @@ class TestDagOperations:
         is_active=True,
         last_parsed_time=datetime.datetime(2024, 12, 31, 23, 59, 59),
         last_expired=datetime.datetime(2025, 1, 1, 0, 0, 0),
-        default_view="grid",
         fileloc="fileloc",
         description="description",
         timetable_summary="timetable_summary",
@@ -365,10 +364,10 @@ class TestDagOperations:
         max_consecutive_failed_dag_runs=1,
         has_task_concurrency_limits=True,
         has_import_errors=True,
-        next_dagrun=datetime.datetime(2025, 1, 1, 0, 0, 0),
+        next_dagrun_logical_date=datetime.datetime(2025, 1, 1, 0, 0, 0),
         next_dagrun_data_interval_start=datetime.datetime(2025, 1, 1, 0, 0, 0),
         next_dagrun_data_interval_end=datetime.datetime(2025, 1, 1, 0, 0, 0),
-        next_dagrun_create_after=datetime.datetime(2025, 1, 1, 0, 0, 0),
+        next_dagrun_run_after=datetime.datetime(2025, 1, 1, 0, 0, 0),
         owners=["apache-airflow"],
         file_token="file_token",
     )
@@ -380,7 +379,6 @@ class TestDagOperations:
         is_active=True,
         last_parsed_time=datetime.datetime(2024, 12, 31, 23, 59, 59),
         last_expired=datetime.datetime(2025, 1, 1, 0, 0, 0),
-        default_view="grid",
         fileloc="fileloc",
         description="description",
         timetable_summary="timetable_summary",
@@ -391,10 +389,10 @@ class TestDagOperations:
         max_consecutive_failed_dag_runs=1,
         has_task_concurrency_limits=True,
         has_import_errors=True,
-        next_dagrun=datetime.datetime(2025, 1, 1, 0, 0, 0),
+        next_dagrun_logical_date=datetime.datetime(2025, 1, 1, 0, 0, 0),
         next_dagrun_data_interval_start=datetime.datetime(2025, 1, 1, 0, 0, 0),
         next_dagrun_data_interval_end=datetime.datetime(2025, 1, 1, 0, 0, 0),
-        next_dagrun_create_after=datetime.datetime(2025, 1, 1, 0, 0, 0),
+        next_dagrun_run_after=datetime.datetime(2025, 1, 1, 0, 0, 0),
         owners=["apache-airflow"],
         catchup=False,
         dag_run_timeout=datetime.timedelta(days=1),
@@ -445,11 +443,21 @@ class TestDagRunOperations:
         data_interval_end=datetime.datetime(2025, 1, 1, 0, 0, 0),
         last_scheduling_decision=datetime.datetime(2025, 1, 1, 0, 0, 0),
         run_type=DagRunType.MANUAL,
+        run_after=datetime.datetime(2025, 1, 1, 0, 0, 0),
         state=DagRunState.RUNNING,
-        external_trigger=True,
         triggered_by=DagRunTriggeredByType.UI,
         conf={},
         note=None,
+        dag_versions=[
+            DagVersionResponse(
+                id=uuid.uuid4(),
+                version_number=1,
+                dag_id=dag_id,
+                bundle_name="bundle_name",
+                bundle_version="1",
+                created_at=datetime.datetime(2025, 1, 1, 0, 0, 0),
+            )
+        ],
     )
 
     dag_run_collection_response = DAGRunCollectionResponse(
@@ -535,17 +543,17 @@ class TestJobsOperations:
 
 class TestPoolsOperations:
     pool_name = "pool_name"
-    pool = PoolPostBody(
+    pool = PoolBody(
         name=pool_name,
         slots=1,
         description="description",
         include_deferred=True,
     )
-    pools_bulk_body = PoolBulkBody(
+    pools_bulk_body = BulkBodyPoolBody(
         actions=[
-            PoolBulkCreateAction(
+            BulkCreateActionPoolBody(
                 action=BulkAction.CREATE,
-                pools=[pool],
+                entities=[pool],
                 action_on_existence=BulkActionOnExistence.FAIL,
             )
         ]
@@ -566,7 +574,7 @@ class TestPoolsOperations:
         pools=[pool_response],
         total_entries=1,
     )
-    pool_bulk_action_response = PoolBulkActionResponse(
+    pool_bulk_action_response = BulkActionResponse(
         success=[pool_name],
         errors=[],
     )
@@ -657,16 +665,16 @@ class TestVariablesOperations:
         variables=[variable_response],
         total_entries=1,
     )
-    variable_bulk = VariableBulkBody(
+    variable_bulk = BulkBodyVariableBody(
         actions=[
-            VariableBulkCreateAction(
+            BulkCreateActionVariableBody(
                 action=BulkAction.CREATE,
-                variables=[variable],
+                entities=[variable],
                 action_on_existence=BulkActionOnExistence.FAIL,
             )
         ]
     )
-    variable_bulk_response = VariableBulkActionResponse(
+    variable_bulk_response = BulkActionResponse(
         success=[key],
         errors=[],
     )

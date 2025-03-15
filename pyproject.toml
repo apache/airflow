@@ -615,6 +615,9 @@ module="airflow.cli.api.datamodels.*"
 ignore_errors = true
 
 [dependency-groups]
+codegen = [
+    "datamodel-code-generator[http]==0.28.2",
+]
 dev = [
     "apache-airflow[aiobotocore,async,apache-atlas,apache-webhdfs,cgroups,cloudpickle,github-enterprise,google-auth,graphviz,kerberos,ldap,leveldb,otel,pandas,password,rabbitmq,s3fs,sentry,statsd,uv]",
     "apache-airflow-task-sdk",
@@ -713,9 +716,6 @@ dev = [
     "apache-airflow-providers-yandex",
     "apache-airflow-providers-ydb",
     "apache-airflow-providers-zendesk",
-]
-codegen = [
-    "datamodel-code-generator[http]>=0.26.4",
 ]
 
 [tool.uv]
@@ -927,9 +927,9 @@ members = [
 
 # To use:
 #
-# TODO: Automate this in CI to validate the unit tests with newly generated API endpoint datamodels for compatibility
-# The FastAPI should be running in the background to serve the OpenAPI schema
-# uv run --group codegen --project apache-airflow --directory airflow/  datamodel-codegen
+# TODO: Automate this in CI via pre-commit hook and generate the file each time
+# The API should be running in the background to serve the OpenAPI schema
+# uv run --group codegen --project apache-airflow --directory airflow/ datamodel-codegen
 [tool.datamodel-codegen]
 capitalise-enum-members=true # `State.RUNNING` not `State.running`
 disable-timestamp=true
@@ -939,14 +939,13 @@ input-file-type='openapi'
 output-model-type='pydantic_v2.BaseModel'
 output-datetime-class='datetime'
 target-python-version='3.9'
-no-alias=false
 use-annotated=true
 use-default=true
 use-double-quotes=true
 use-schema-description=true  # Desc becomes class doc comment
 use-standard-collections=true # list[] not List[]
 use-subclass-enum=true # enum, not union of Literals
-use-union-operator=false # 3.9+annotations
+use-union-operator=true # 3.9+annotations, not `Union[]`
 
 url = "http://0.0.0.0:8080/openapi.json"
 output = "cli/api/datamodels/_generated.py"
