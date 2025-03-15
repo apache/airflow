@@ -66,6 +66,14 @@ class AirflowConfigException(AirflowException):
     """Raise when there is configuration problem."""
 
 
+class AirflowLoadCliDefinitionsException(AirflowException):
+    """Raise when there is a error when loading CLI commands from CliDefinitionLoader."""
+
+
+class AirflowLoadProviderCliDefinitionException(AirflowException):
+    """Raise when there is a error when loading CLI commands from provider module level CLI definitions."""
+
+
 class AirflowSensorTimeout(AirflowException):
     """Raise when there is a timeout on sensor polling."""
 
