@@ -21,7 +21,9 @@ from collections.abc import Sequence
 from typing import TYPE_CHECKING
 
 from airflow.exceptions import AirflowException
-from airflow.models import BaseOperator
+from airflow.providers.amazon.aws.operators.base_aws import AwsBaseOperator
+from airflow.providers.amazon.aws.utils.mixins import aws_template_fields
+
 from airflow.providers.amazon.aws.hooks.ec2 import EC2Hook
 from airflow.providers.amazon.aws.links.ec2 import (
     EC2InstanceDashboardLink,
@@ -32,7 +34,7 @@ if TYPE_CHECKING:
     from airflow.utils.context import Context
 
 
-class EC2StartInstanceOperator(BaseOperator):
+class EC2StartInstanceOperator(AwsBaseOperator[EC2Hook]):
     """
     Start AWS EC2 instance using boto3.
 
@@ -51,8 +53,9 @@ class EC2StartInstanceOperator(BaseOperator):
         between each instance state checks until operation is completed
     """
 
+    aws_hook_class = EC2Hook
     operator_extra_links = (EC2InstanceLink(),)
-    template_fields: Sequence[str] = ("instance_id", "region_name")
+    template_fields: Sequence[str] = aws_template_fields("instance_id", "region_name")
     ui_color = "#eeaa11"
     ui_fgcolor = "#ffffff"
 
@@ -60,15 +63,11 @@ class EC2StartInstanceOperator(BaseOperator):
         self,
         *,
         instance_id: str,
-        aws_conn_id: str | None = "aws_default",
-        region_name: str | None = None,
         check_interval: float = 15,
         **kwargs,
     ):
         super().__init__(**kwargs)
         self.instance_id = instance_id
-        self.aws_conn_id = aws_conn_id
-        self.region_name = region_name
         self.check_interval = check_interval
 
     def execute(self, context: Context):
@@ -90,7 +89,7 @@ class EC2StartInstanceOperator(BaseOperator):
         )
 
 
-class EC2StopInstanceOperator(BaseOperator):
+class EC2StopInstanceOperator(AwsBaseOperator[EC2Hook]):
     """
     Stop AWS EC2 instance using boto3.
 
@@ -108,9 +107,9 @@ class EC2StopInstanceOperator(BaseOperator):
     :param check_interval: time in seconds that the job should wait in
         between each instance state checks until operation is completed
     """
-
+    aws_hook_class = EC2Hook
     operator_extra_links = (EC2InstanceLink(),)
-    template_fields: Sequence[str] = ("instance_id", "region_name")
+    template_fields: Sequence[str] = aws_template_fields("instance_id", "region_name")
     ui_color = "#eeaa11"
     ui_fgcolor = "#ffffff"
 
@@ -118,15 +117,11 @@ class EC2StopInstanceOperator(BaseOperator):
         self,
         *,
         instance_id: str,
-        aws_conn_id: str | None = "aws_default",
-        region_name: str | None = None,
         check_interval: float = 15,
         **kwargs,
     ):
         super().__init__(**kwargs)
         self.instance_id = instance_id
-        self.aws_conn_id = aws_conn_id
-        self.region_name = region_name
         self.check_interval = check_interval
 
     def execute(self, context: Context):
@@ -149,7 +144,7 @@ class EC2StopInstanceOperator(BaseOperator):
         )
 
 
-class EC2CreateInstanceOperator(BaseOperator):
+class EC2CreateInstanceOperator(AwsBaseOperator[EC2Hook]):
     """
     Create and start a specified number of EC2 Instances using boto3.
 
@@ -175,8 +170,10 @@ class EC2CreateInstanceOperator(BaseOperator):
         in the `running` state before returning.
     """
 
+    aws_hook_class = EC2Hook
+
     operator_extra_links = (EC2InstanceDashboardLink(),)
-    template_fields: Sequence[str] = (
+    template_fields: Sequence[str] = aws_template_fields(
         "image_id",
         "max_count",
         "min_count",
@@ -191,8 +188,6 @@ class EC2CreateInstanceOperator(BaseOperator):
         image_id: str,
         max_count: int = 1,
         min_count: int = 1,
-        aws_conn_id: str | None = "aws_default",
-        region_name: str | None = None,
         poll_interval: int = 20,
         max_attempts: int = 20,
         config: dict | None = None,
@@ -203,8 +198,6 @@ class EC2CreateInstanceOperator(BaseOperator):
         self.image_id = image_id
         self.max_count = max_count
         self.min_count = min_count
-        self.aws_conn_id = aws_conn_id
-        self.region_name = region_name
         self.poll_interval = poll_interval
         self.max_attempts = max_attempts
         self.config = config or {}
@@ -258,7 +251,7 @@ class EC2CreateInstanceOperator(BaseOperator):
         super().on_kill()
 
 
-class EC2TerminateInstanceOperator(BaseOperator):
+class EC2TerminateInstanceOperator(AwsBaseOperator[EC2Hook]):
     """
     Terminate EC2 Instances using boto3.
 
@@ -281,13 +274,12 @@ class EC2TerminateInstanceOperator(BaseOperator):
         in the `terminated` state before returning.
     """
 
-    template_fields: Sequence[str] = ("instance_ids", "region_name", "aws_conn_id", "wait_for_completion")
+    aws_hook_class = EC2Hook
+    template_fields: Sequence[str] = aws_template_fields("instance_ids", "region_name", "aws_conn_id", "wait_for_completion")
 
     def __init__(
         self,
         instance_ids: str | list[str],
-        aws_conn_id: str | None = "aws_default",
-        region_name: str | None = None,
         poll_interval: int = 20,
         max_attempts: int = 20,
         wait_for_completion: bool = False,
@@ -295,8 +287,6 @@ class EC2TerminateInstanceOperator(BaseOperator):
     ):
         super().__init__(**kwargs)
         self.instance_ids = instance_ids
-        self.aws_conn_id = aws_conn_id
-        self.region_name = region_name
         self.poll_interval = poll_interval
         self.max_attempts = max_attempts
         self.wait_for_completion = wait_for_completion
@@ -319,7 +309,7 @@ class EC2TerminateInstanceOperator(BaseOperator):
                 )
 
 
-class EC2RebootInstanceOperator(BaseOperator):
+class EC2RebootInstanceOperator(AwsBaseOperator[EC2Hook]):
     """
     Reboot Amazon EC2 instances.
 
@@ -342,8 +332,9 @@ class EC2RebootInstanceOperator(BaseOperator):
         in the `running` state before returning.
     """
 
+    aws_hook_class = EC2Hook
     operator_extra_links = (EC2InstanceDashboardLink(),)
-    template_fields: Sequence[str] = ("instance_ids", "region_name")
+    template_fields: Sequence[str] = aws_template_fields("instance_ids", "region_name")
     ui_color = "#eeaa11"
     ui_fgcolor = "#ffffff"
 
@@ -351,8 +342,6 @@ class EC2RebootInstanceOperator(BaseOperator):
         self,
         *,
         instance_ids: str | list[str],
-        aws_conn_id: str | None = "aws_default",
-        region_name: str | None = None,
         poll_interval: int = 20,
         max_attempts: int = 20,
         wait_for_completion: bool = False,
@@ -360,8 +349,6 @@ class EC2RebootInstanceOperator(BaseOperator):
     ):
         super().__init__(**kwargs)
         self.instance_ids = instance_ids
-        self.aws_conn_id = aws_conn_id
-        self.region_name = region_name
         self.poll_interval = poll_interval
         self.max_attempts = max_attempts
         self.wait_for_completion = wait_for_completion
@@ -391,7 +378,7 @@ class EC2RebootInstanceOperator(BaseOperator):
             )
 
 
-class EC2HibernateInstanceOperator(BaseOperator):
+class EC2HibernateInstanceOperator(AwsBaseOperator[EC2Hook]):
     """
     Hibernate Amazon EC2 instances.
 
@@ -413,9 +400,9 @@ class EC2HibernateInstanceOperator(BaseOperator):
     :param wait_for_completion: If True, the operator will wait for the instance to be
         in the `stopped` state before returning.
     """
-
+    aws_hook_class = EC2Hook
     operator_extra_links = (EC2InstanceDashboardLink(),)
-    template_fields: Sequence[str] = ("instance_ids", "region_name")
+    template_fields: Sequence[str] = aws_template_fields("instance_ids", "region_name")
     ui_color = "#eeaa11"
     ui_fgcolor = "#ffffff"
 
@@ -423,8 +410,6 @@ class EC2HibernateInstanceOperator(BaseOperator):
         self,
         *,
         instance_ids: str | list[str],
-        aws_conn_id: str | None = "aws_default",
-        region_name: str | None = None,
         poll_interval: int = 20,
         max_attempts: int = 20,
         wait_for_completion: bool = False,
@@ -432,8 +417,6 @@ class EC2HibernateInstanceOperator(BaseOperator):
     ):
         super().__init__(**kwargs)
         self.instance_ids = instance_ids
-        self.aws_conn_id = aws_conn_id
-        self.region_name = region_name
         self.poll_interval = poll_interval
         self.max_attempts = max_attempts
         self.wait_for_completion = wait_for_completion
