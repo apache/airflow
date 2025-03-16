@@ -20,7 +20,7 @@ from collections.abc import Sequence
 from typing import TYPE_CHECKING, Annotated
 
 from fastapi import Depends, HTTPException, status
-from sqlalchemy import select
+from sqlalchemy import func, select
 
 from airflow.api_fastapi.app import get_auth_manager
 from airflow.api_fastapi.auth.managers.models.batch_apis import IsAuthorizedDagRequest
@@ -45,7 +45,6 @@ from airflow.api_fastapi.core_api.openapi.exceptions import create_openapi_http_
 from airflow.api_fastapi.core_api.security import (
     AccessView,
     GetUserDep,
-    requires_access_dag,
     requires_access_view,
 )
 from airflow.models import DagModel
@@ -59,7 +58,7 @@ import_error_router = AirflowRouter(tags=["Import Error"], prefix="/importErrors
 
 
 def get_file_dag_ids(session: Session, filename: str) -> set[str]:
-    return {dag_id for dag_id in session.scalars(select(DagModel.dag_id).where(DagModel.fileloc == filename))}
+    return set(session.scalars(select(DagModel.dag_id).where(DagModel.fileloc == filename)).all())
 
 
 @import_error_router.get(
@@ -67,7 +66,6 @@ def get_file_dag_ids(session: Session, filename: str) -> set[str]:
     responses=create_openapi_http_exception_doc([status.HTTP_403_FORBIDDEN, status.HTTP_404_NOT_FOUND]),
     dependencies=[
         Depends(requires_access_view(AccessView.IMPORT_ERRORS)),
-        Depends(requires_access_dag("GET")),
     ],
 )
 def get_import_error(
@@ -87,7 +85,7 @@ def get_import_error(
     auth_manager = get_auth_manager()
     can_read_all_dags = auth_manager.is_authorized_dag(method="GET", user=user)
     if not can_read_all_dags:
-        readable_dag_ids = auth_manager.get_permitted_dag_ids(user=user)
+        readable_dag_ids = auth_manager.get_authorized_dag_ids(user=user)
         file_dag_ids = get_file_dag_ids(session, error.filename)
 
         # Can the user read any DAGs in the file?
@@ -108,7 +106,6 @@ def get_import_error(
     "",
     dependencies=[
         Depends(requires_access_view(AccessView.IMPORT_ERRORS)),
-        Depends(requires_access_dag("GET")),
     ],
 )
 def get_import_errors(
@@ -134,9 +131,8 @@ def get_import_errors(
     user: GetUserDep,
 ) -> ImportErrorCollectionResponse:
     """Get all import errors."""
-    statement = select(ParseImportError)
     import_errors_select, total_entries = paginated_select(
-        statement=statement,
+        statement=select(ParseImportError),
         order_by=order_by,
         offset=offset,
         limit=limit,
@@ -145,34 +141,62 @@ def get_import_errors(
 
     auth_manager = get_auth_manager()
     can_read_all_dags = auth_manager.is_authorized_dag(method="GET", user=user)
-    if not can_read_all_dags:
-        # if the user doesn't have access to all DAGs, only display errors from visible DAGs
-        readable_dag_ids = auth_manager.get_permitted_dag_ids(method="GET", user=user)
-        dagfiles_stmt = select(DagModel.fileloc).distinct().where(DagModel.dag_id.in_(readable_dag_ids))
-        statement = statement.where(ParseImportError.filename.in_(dagfiles_stmt))
-        import_errors_select, total_entries = paginated_select(
-            statement=statement,
-            order_by=order_by,
-            offset=offset,
-            limit=limit,
-            session=session,
+    if can_read_all_dags:
+        # Early return if the user has access to all DAGs
+        import_errors = session.scalars(import_errors_select).all()
+        return ImportErrorCollectionResponse(
+            import_errors=import_errors,
+            total_entries=total_entries,
         )
 
-    import_errors = session.scalars(import_errors_select).all()
-    if not can_read_all_dags:
-        for import_error in import_errors:
-            # Check if user has read access to all the DAGs defined in the file
-            file_dag_ids = get_file_dag_ids(session, import_error.filename)
-            requests: Sequence[IsAuthorizedDagRequest] = [
-                {
-                    "method": "GET",
-                    "details": DagDetails(id=dag_id),
-                }
-                for dag_id in file_dag_ids
-            ]
-            if not auth_manager.batch_is_authorized_dag(requests, user=user):
-                session.expunge(import_error)
-                import_error.stacktrace = REDACTED_STACKTRACE
+    # if the user doesn't have access to all DAGs, only display errors from visible DAGs
+    readable_dag_ids = auth_manager.get_authorized_dag_ids(method="GET", user=user)
+    # Build a subquery that aggregates dag_ids for each file location
+    visible_files_subq = (
+        select(
+            DagModel.fileloc,
+            func.array_agg(DagModel.dag_id).label("file_dag_ids"),
+        )
+        .where(DagModel.dag_id.in_(readable_dag_ids))
+        .group_by(DagModel.fileloc)
+        .subquery()
+    )
+
+    # Restrict to files that have at least one permitted dag
+    dag_files_stmt = select(visible_files_subq.c.fileloc)
+
+    # Prepare the import errors query by joining with the subquery.
+    # Each returned row will be a tuple: (ParseImportError, file_dag_ids)
+    import_errors_stmt = (
+        select(ParseImportError, visible_files_subq.c.file_dag_ids)
+        .join(visible_files_subq, ParseImportError.filename == visible_files_subq.c.fileloc)
+        .where(ParseImportError.filename.in_(dag_files_stmt))
+    )
+
+    # Paginate the import errors query
+    import_errors_select, total_entries = paginated_select(
+        statement=import_errors_stmt,
+        order_by=order_by,
+        offset=offset,
+        limit=limit,
+        session=session,
+    )
+    import_errors_result = session.execute(import_errors_select).all()
+    import_errors = []
+
+    for import_error, file_dag_ids in import_errors_result:
+        # Check if user has read access to all the DAGs defined in the file
+        requests: Sequence[IsAuthorizedDagRequest] = [
+            {
+                "method": "GET",
+                "details": DagDetails(id=dag_id),
+            }
+            for dag_id in file_dag_ids
+        ]
+        if not auth_manager.batch_is_authorized_dag(requests, user=user):
+            session.expunge(import_error)
+            import_error.stacktrace = REDACTED_STACKTRACE
+        import_errors.append(import_error)
 
     return ImportErrorCollectionResponse(
         import_errors=import_errors,
