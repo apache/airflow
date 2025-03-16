@@ -16,7 +16,7 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Box, HStack, Flex } from "@chakra-ui/react";
+import { Box, HStack, Flex, VStack } from "@chakra-ui/react";
 import { useReactFlow } from "@xyflow/react";
 import type { PropsWithChildren, ReactNode } from "react";
 import { Panel, PanelGroup, PanelResizeHandle } from "react-resizable-panels";
@@ -29,6 +29,7 @@ import BackfillBanner from "src/components/Banner/BackfillBanner";
 import { ErrorAlert } from "src/components/ErrorAlert";
 import { SearchDagsButton } from "src/components/SearchDags";
 import TriggerDAGButton from "src/components/TriggerDag/TriggerDAGButton";
+import { WarningAlert } from "src/components/WarningAlert";
 import { ProgressBar } from "src/components/ui";
 import { Toaster } from "src/components/ui";
 import { OpenGroupsProvider } from "src/context/openGroups";
@@ -39,14 +40,25 @@ import { Grid } from "./Grid";
 import { NavTabs } from "./NavTabs";
 import { PanelButtons } from "./PanelButtons";
 
+type DagWarningItem = {
+  dag_id: string;
+  message: string;
+};
+
+type DagWarningsResponse = {
+  dag_warnings: Array<DagWarningItem>;
+  total_entries: number;
+};
+
 type Props = {
   readonly dag?: DAGResponse;
   readonly error?: unknown;
   readonly isLoading?: boolean;
   readonly tabs: Array<{ icon: ReactNode; label: string; value: string }>;
+  readonly warning?: DagWarningsResponse;
 } & PropsWithChildren;
 
-export const DetailsLayout = ({ children, error, isLoading, tabs }: Props) => {
+export const DetailsLayout = ({ children, error, isLoading, tabs, warning }: Props) => {
   const { dagId = "" } = useParams();
 
   const { data: dag } = useDagServiceGetDag({ dagId });
@@ -89,7 +101,12 @@ export const DetailsLayout = ({ children, error, isLoading, tabs }: Props) => {
           <Panel defaultSize={dagView === "graph" ? 30 : 80} minSize={20}>
             <Box display="flex" flexDirection="column" h="100%">
               {children}
-              <ErrorAlert error={error} />
+              <VStack ml={2} my={2}>
+                <ErrorAlert error={error} />
+                {warning?.dag_warnings.map((warningItem) => (
+                  <WarningAlert key={warningItem.dag_id} warning={warningItem} />
+                ))}
+              </VStack>
               <ProgressBar size="xs" visibility={isLoading ? "visible" : "hidden"} />
               <NavTabs tabs={tabs} />
               <Box h="100%" overflow="auto" px={2}>
