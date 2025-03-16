@@ -57,8 +57,6 @@ export const DetailsLayout = ({ children, error, isLoading, tabs, warning }: Pro
 
   const { fitView, getZoom } = useReactFlow();
 
-  console.log("warning", warning);
-
   return (
     <OpenGroupsProvider dagId={dagId}>
       <HStack justifyContent="space-between" mb={2}>
