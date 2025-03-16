@@ -256,9 +256,6 @@ class Connection(Base, LoggingMixin):
 
         if self.conn_type:
             uri = f"{self.conn_type.lower().replace('_', '-')}://"
-            if self.conn_type == "postgres":
-                driver = self.extra_dejson.get("postgres_driver", "postgres")
-                uri = uri.replace("postgres://", f"{driver}://", 1)
         else:
             uri = "//"
 
