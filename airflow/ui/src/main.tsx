@@ -23,19 +23,24 @@ import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
 import { RouterProvider } from "react-router-dom";
 
+import type { HTTPExceptionResponse } from "openapi/requests/types.gen";
 import { ColorModeProvider } from "src/context/colorMode";
 import { TimezoneProvider } from "src/context/timezone";
 import { router } from "src/router";
 
 import { queryClient } from "./queryClient";
 import { system } from "./theme";
-import { tokenHandler } from "./utils/tokenHandler";
+import { clearToken, tokenHandler } from "./utils/tokenHandler";
 
 // redirect to login page if the API responds with unauthorized or forbidden errors
 axios.interceptors.response.use(
   (response) => response,
-  (error: AxiosError) => {
-    if (error.response?.status === 401) {
+  (error: AxiosError<HTTPExceptionResponse>) => {
+    if (
+      error.response?.status === 401 ||
+      (error.response?.status === 403 && error.response.data.detail === "Invalid JWT token")
+    ) {
+      clearToken();
       const params = new URLSearchParams();
 
       params.set("next", globalThis.location.href);
