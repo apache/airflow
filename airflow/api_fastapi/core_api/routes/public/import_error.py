@@ -56,7 +56,7 @@ import_error_router = AirflowRouter(tags=["Import Error"], prefix="/importErrors
 
 @import_error_router.get(
     "/{import_error_id}",
-    responses=create_openapi_http_exception_doc([status.HTTP_403_FORBIDDEN, status.HTTP_404_NOT_FOUND]),
+    responses=create_openapi_http_exception_doc([status.HTTP_404_NOT_FOUND]),
     dependencies=[
         Depends(requires_access_view(AccessView.IMPORT_ERRORS)),
     ],
@@ -77,24 +77,25 @@ def get_import_error(
 
     auth_manager = get_auth_manager()
     can_read_all_dags = auth_manager.is_authorized_dag(method="GET", user=user)
-    if not can_read_all_dags:
-        readable_dag_ids = auth_manager.get_authorized_dag_ids(user=user)
-        # We need file_dag_ids as a set for intersection, issubset operations
-        file_dag_ids = set(
-            session.scalars(select(DagModel.dag_id).where(DagModel.fileloc == error.filename)).all()
+    if can_read_all_dags:
+        # Early return if the user has access to all DAGs
+        return error
+
+    readable_dag_ids = auth_manager.get_authorized_dag_ids(user=user)
+    # We need file_dag_ids as a set for intersection, issubset operations
+    file_dag_ids = set(
+        session.scalars(select(DagModel.dag_id).where(DagModel.fileloc == error.filename)).all()
+    )
+    # Can the user read any DAGs in the file?
+    if not readable_dag_ids.intersection(file_dag_ids):
+        raise HTTPException(
+            status.HTTP_403_FORBIDDEN,
+            "You do not have read permission on any of the DAGs in the file",
         )
 
-        # Can the user read any DAGs in the file?
-        if not readable_dag_ids.intersection(file_dag_ids):
-            raise HTTPException(
-                status.HTTP_403_FORBIDDEN,
-                "You do not have read permission on any of the DAGs in the file",
-            )
-
-        # Check if user has read access to all the DAGs defined in the file
-        if not file_dag_ids.issubset(readable_dag_ids):
-            error.stacktrace = REDACTED_STACKTRACE
-
+    # Check if user has read access to all the DAGs defined in the file
+    if not file_dag_ids.issubset(readable_dag_ids):
+        error.stacktrace = REDACTED_STACKTRACE
     return error
 
 
