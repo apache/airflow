@@ -14,7 +14,13 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-"""This module contains helper functions for MLEngine operators."""
+"""
+This module contains helper functions for MLEngine operators.
+
+.. spelling:word-list::
+
+    BeamRunPythonPipelineOperator
+"""
 
 from __future__ import annotations
 
