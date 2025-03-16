@@ -45,7 +45,7 @@ class _AssetMainOperator(PythonOperator):
     @classmethod
     def from_definition(cls, definition: AssetDefinition | MultiAssetDefinition) -> Self:
         return cls(
-            task_id="__main__",
+            task_id=definition._function.__name__,
             inlets=[
                 Asset.ref(name=inlet_asset_name)
                 for inlet_asset_name, param in inspect.signature(definition._function).parameters.items()
