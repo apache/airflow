@@ -122,7 +122,7 @@ class TestDataplexTaskLink:
         session.commit()
         link.persist(context={"ti": ti}, task_instance=ti.task)
 
-        if AIRFLOW_V_3_0_PLUS:
+        if AIRFLOW_V_3_0_PLUS and mock_supervisor_comms:
             mock_supervisor_comms.get_message.return_value = XComResult(
                 key="key",
                 value={
@@ -152,7 +152,7 @@ class TestDataplexTasksLink:
         session.add(ti)
         session.commit()
         link.persist(context={"ti": ti}, task_instance=ti.task)
-        if AIRFLOW_V_3_0_PLUS:
+        if AIRFLOW_V_3_0_PLUS and mock_supervisor_comms:
             mock_supervisor_comms.get_message.return_value = XComResult(
                 key="key",
                 value={
@@ -182,7 +182,7 @@ class TestDataplexLakeLink:
         session.add(ti)
         session.commit()
         link.persist(context={"ti": ti}, task_instance=ti.task)
-        if AIRFLOW_V_3_0_PLUS:
+        if AIRFLOW_V_3_0_PLUS and mock_supervisor_comms:
             mock_supervisor_comms.get_message.return_value = XComResult(
                 key="key",
                 value={
@@ -211,7 +211,7 @@ class TestDataplexCatalogEntryGroupLink:
         session.add(ti)
         session.commit()
         link.persist(context={"ti": ti}, task_instance=ti.task)
-        if AIRFLOW_V_3_0_PLUS:
+        if AIRFLOW_V_3_0_PLUS and mock_supervisor_comms:
             mock_supervisor_comms.get_message.return_value = XComResult(
                 key="key",
                 value={
@@ -241,7 +241,7 @@ class TestDataplexCatalogEntryGroupsLink:
         session.add(ti)
         session.commit()
         link.persist(context={"ti": ti}, task_instance=ti.task)
-        if AIRFLOW_V_3_0_PLUS:
+        if AIRFLOW_V_3_0_PLUS and mock_supervisor_comms:
             mock_supervisor_comms.get_message.return_value = XComResult(
                 key="key",
                 value={
@@ -269,7 +269,7 @@ class TestDataplexCatalogEntryTypeLink:
         session.add(ti)
         session.commit()
         link.persist(context={"ti": ti}, task_instance=ti.task)
-        if AIRFLOW_V_3_0_PLUS:
+        if AIRFLOW_V_3_0_PLUS and mock_supervisor_comms:
             mock_supervisor_comms.get_message.return_value = XComResult(
                 key="key",
                 value={
@@ -299,7 +299,7 @@ class TestDataplexCatalogEntryTypesLink:
         session.add(ti)
         session.commit()
         link.persist(context={"ti": ti}, task_instance=ti.task)
-        if AIRFLOW_V_3_0_PLUS:
+        if AIRFLOW_V_3_0_PLUS and mock_supervisor_comms:
             mock_supervisor_comms.get_message.return_value = XComResult(
                 key="key",
                 value={
@@ -327,7 +327,7 @@ class TestDataplexCatalogAspectTypeLink:
         session.add(ti)
         session.commit()
         link.persist(context={"ti": ti}, task_instance=ti.task)
-        if AIRFLOW_V_3_0_PLUS:
+        if AIRFLOW_V_3_0_PLUS and mock_supervisor_comms:
             mock_supervisor_comms.get_message.return_value = XComResult(
                 key="key",
                 value={
@@ -357,7 +357,7 @@ class TestDataplexCatalogAspectTypesLink:
         session.add(ti)
         session.commit()
         link.persist(context={"ti": ti}, task_instance=ti.task)
-        if AIRFLOW_V_3_0_PLUS:
+        if AIRFLOW_V_3_0_PLUS and mock_supervisor_comms:
             mock_supervisor_comms.get_message.return_value = XComResult(
                 key="key",
                 value={
@@ -386,7 +386,7 @@ class TestDataplexCatalogEntryLink:
         session.add(ti)
         session.commit()
         link.persist(context={"ti": ti}, task_instance=ti.task)
-        if AIRFLOW_V_3_0_PLUS:
+        if AIRFLOW_V_3_0_PLUS and mock_supervisor_comms:
             mock_supervisor_comms.get_message.return_value = XComResult(
                 key="key",
                 value={

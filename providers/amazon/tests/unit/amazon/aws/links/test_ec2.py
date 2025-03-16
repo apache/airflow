@@ -30,7 +30,7 @@ class TestEC2InstanceLink(BaseAwsLinksTestCase):
     INSTANCE_ID = "i-xxxxxxxxxxxx"
 
     def test_extra_link(self, mock_supervisor_comms):
-        if AIRFLOW_V_3_0_PLUS:
+        if AIRFLOW_V_3_0_PLUS and mock_supervisor_comms:
             mock_supervisor_comms.get_message.return_value = XComResult(
                 key=self.link_class.key,
                 value={
@@ -63,7 +63,7 @@ class TestEC2InstanceDashboardLink(BaseAwsLinksTestCase):
 
     def test_extra_link(self, mock_supervisor_comms):
         instance_list = ",:".join(self.INSTANCE_IDS)
-        if AIRFLOW_V_3_0_PLUS:
+        if AIRFLOW_V_3_0_PLUS and mock_supervisor_comms:
             mock_supervisor_comms.get_message.return_value = XComResult(
                 key=self.link_class.key,
                 value={

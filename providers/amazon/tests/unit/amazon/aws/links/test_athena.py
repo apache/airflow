@@ -28,7 +28,7 @@ class TestAthenaQueryResultsLink(BaseAwsLinksTestCase):
     link_class = AthenaQueryResultsLink
 
     def test_extra_link(self, mock_supervisor_comms):
-        if AIRFLOW_V_3_0_PLUS:
+        if AIRFLOW_V_3_0_PLUS and mock_supervisor_comms:
             mock_supervisor_comms.get_message.return_value = XComResult(
                 key=AthenaQueryResultsLink.key,
                 value={

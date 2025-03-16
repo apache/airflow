@@ -32,7 +32,7 @@ class TestComprehendPiiEntitiesDetectionLink(BaseAwsLinksTestCase):
 
     def test_extra_link(self, mock_supervisor_comms):
         test_job_id = "123-345-678"
-        if AIRFLOW_V_3_0_PLUS:
+        if AIRFLOW_V_3_0_PLUS and mock_supervisor_comms:
             mock_supervisor_comms.get_message.return_value = XComResult(
                 key=self.link_class.key,
                 value={
@@ -59,7 +59,7 @@ class TestComprehendDocumentClassifierLink(BaseAwsLinksTestCase):
         test_job_id = (
             "arn:aws:comprehend:us-east-1:0123456789:document-classifier/test-custom-document-classifier"
         )
-        if AIRFLOW_V_3_0_PLUS:
+        if AIRFLOW_V_3_0_PLUS and mock_supervisor_comms:
             mock_supervisor_comms.get_message.return_value = XComResult(
                 key=self.link_class.key,
                 value={

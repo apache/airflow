@@ -32,7 +32,7 @@ class TestDataSyncTaskLink(BaseAwsLinksTestCase):
 
     def test_extra_link(self, mock_supervisor_comms):
         task_id = TASK_ID
-        if AIRFLOW_V_3_0_PLUS:
+        if AIRFLOW_V_3_0_PLUS and mock_supervisor_comms:
             mock_supervisor_comms.get_message.return_value = XComResult(
                 key=self.link_class.key,
                 value={
@@ -54,7 +54,7 @@ class TestDataSyncTaskExecutionLink(BaseAwsLinksTestCase):
     link_class = DataSyncTaskExecutionLink
 
     def test_extra_link(self, mock_supervisor_comms):
-        if AIRFLOW_V_3_0_PLUS:
+        if AIRFLOW_V_3_0_PLUS and mock_supervisor_comms:
             mock_supervisor_comms.get_message.return_value = XComResult(
                 key=self.link_class.key,
                 value={
