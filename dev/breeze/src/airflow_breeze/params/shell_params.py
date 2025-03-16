@@ -18,6 +18,7 @@ from __future__ import annotations
 
 import os
 import sys
+from base64 import b64encode
 from copy import deepcopy
 from dataclasses import dataclass, field
 from functools import cached_property
@@ -507,6 +508,7 @@ class ShellParams:
         _set_var(_env, "AIRFLOW__CELERY__BROKER_URL", self.airflow_celery_broker_url)
         _set_var(_env, "AIRFLOW__CORE__EXECUTOR", self.executor)
         _set_var(_env, "AIRFLOW__API__BASE_URL", f"http://localhost:{WEB_HOST_PORT}")
+        _set_var(_env, "AIRFLOW__WEBSERVER__SECRET_KEY", b64encode(os.urandom(16)).decode("utf-8"))
         _set_var(
             _env,
             "AIRFLOW__CORE__SIMPLE_AUTH_MANAGER_PASSWORDS_FILE",
@@ -517,6 +519,9 @@ class ShellParams:
                 _env, "AIRFLOW__CORE__EXECUTOR", "airflow.providers.edge.executors.edge_executor.EdgeExecutor"
             )
             _set_var(_env, "AIRFLOW__EDGE__API_ENABLED", "true")
+            _set_var(
+                _env, "AIRFLOW__CORE__INTERNAL_API_SECRET_KEY", b64encode(os.urandom(16)).decode("utf-8")
+            )
 
             # For testing Edge Worker on Windows... Default Run ID is having a colon (":") from the time which is
             # made into the log path template, which then fails to be used in Windows. So we replace it with a dash

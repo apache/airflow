@@ -53,7 +53,7 @@ def test_client():
         # to make the JWT token always valid for all test cases with time_machine
         time_very_before = datetime.datetime(2014, 1, 1, 0, 0, 0)
         time_very_after = datetime.datetime.now() + datetime.timedelta(days=1)
-        token = auth_manager._get_token_signer().generate_signed_token(
+        token = auth_manager._get_token_signer().generate(
             {
                 "iat": time_very_before,
                 "nbf": time_very_before,
@@ -81,7 +81,7 @@ def unauthorized_test_client():
     ):
         app = create_app()
         auth_manager: SimpleAuthManager = app.state.auth_manager
-        token = auth_manager._get_token_signer().generate_signed_token(
+        token = auth_manager._get_token_signer().generate(
             auth_manager.serialize_user(SimpleAuthManagerUser(username="dummy", role=None))
         )
         yield TestClient(app, headers={"Authorization": f"Bearer {token}"})

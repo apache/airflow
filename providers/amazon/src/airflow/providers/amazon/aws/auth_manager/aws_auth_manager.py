@@ -92,11 +92,11 @@ class AwsAuthManager(BaseAuthManager[AwsAuthManagerUser]):
         return conf.get("api", "base_url")
 
     def deserialize_user(self, token: dict[str, Any]) -> AwsAuthManagerUser:
-        return AwsAuthManagerUser(**token)
+        return AwsAuthManagerUser(user_id=token.pop("sub"), **token)
 
     def serialize_user(self, user: AwsAuthManagerUser) -> dict[str, Any]:
         return {
-            "user_id": user.get_id(),
+            "sub": user.get_id(),
             "groups": user.get_groups(),
             "username": user.username,
             "email": user.email,
@@ -321,7 +321,7 @@ class AwsAuthManager(BaseAuthManager[AwsAuthManagerUser]):
         ]
         return self.avp_facade.batch_is_authorized(requests=facade_requests, user=user)
 
-    def filter_permitted_dag_ids(
+    def filter_authorized_dag_ids(
         self,
         *,
         dag_ids: set[str],

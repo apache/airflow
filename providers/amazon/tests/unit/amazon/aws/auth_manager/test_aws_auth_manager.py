@@ -604,7 +604,7 @@ class TestAwsAuthManager:
             ("PUT", AwsAuthManagerUser(user_id="test_user_id2", groups=[]), {"dag_2"}),
         ],
     )
-    def test_filter_permitted_dag_ids(self, method, user, auth_manager, test_user, expected_result):
+    def test_filter_authorized_dag_ids(self, method, user, auth_manager, test_user, expected_result):
         dag_ids = {"dag_1", "dag_2"}
         # test_user_id1 has GET permissions on dag_1
         # test_user_id2 has PUT permissions on dag_2
@@ -678,7 +678,7 @@ class TestAwsAuthManager:
             return_value=batch_is_authorized_output
         )
 
-        result = auth_manager.filter_permitted_dag_ids(
+        result = auth_manager.filter_authorized_dag_ids(
             dag_ids=dag_ids,
             method=method,
             user=user,

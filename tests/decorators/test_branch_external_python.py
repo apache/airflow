@@ -22,18 +22,20 @@ import sys
 import pytest
 
 from airflow.decorators import task
-from airflow.utils.state import State
+from airflow.exceptions import DownstreamTasksSkipped
 
 pytestmark = pytest.mark.db_test
 
 
-class Test_BranchExternalPythonDecoratedOperator:
+class TestBranchExternalPythonDecoratedOperator:
     # when run in "Parallel" test run environment, sometimes this test runs for a long time
     # because creating virtualenv and starting new Python interpreter creates a lot of IO/contention
     # possibilities. So we are increasing the timeout for this test to 3x of the default timeout
     @pytest.mark.execution_timeout(180)
-    @pytest.mark.parametrize("branch_task_name", ["task_1", "task_2"])
-    def test_branch_one(self, dag_maker, branch_task_name):
+    @pytest.mark.parametrize(
+        ["branch_task_name", "skipped_task_name"], [("task_1", "task_2"), ("task_2", "task_1")]
+    )
+    def test_branch_one(self, dag_maker, branch_task_name, skipped_task_name):
         @task
         def dummy_f():
             pass
@@ -72,25 +74,8 @@ class Test_BranchExternalPythonDecoratedOperator:
 
         dr = dag_maker.create_dagrun()
         df.operator.run(start_date=dr.logical_date, end_date=dr.logical_date, ignore_ti_state=True)
-        branchoperator.operator.run(
-            start_date=dr.logical_date, end_date=dr.logical_date, ignore_ti_state=True
-        )
-        task_1.operator.run(start_date=dr.logical_date, end_date=dr.logical_date, ignore_ti_state=True)
-        task_2.operator.run(start_date=dr.logical_date, end_date=dr.logical_date, ignore_ti_state=True)
-        tis = dr.get_task_instances()
-
-        for ti in tis:
-            if ti.task_id == "dummy_f":
-                assert ti.state == State.SUCCESS
-            if ti.task_id == "branching":
-                assert ti.state == State.SUCCESS
-
-            if ti.task_id == "task_1" and branch_task_name == "task_1":
-                assert ti.state == State.SUCCESS
-            elif ti.task_id == "task_1":
-                assert ti.state == State.SKIPPED
-
-            if ti.task_id == "task_2" and branch_task_name == "task_2":
-                assert ti.state == State.SUCCESS
-            elif ti.task_id == "task_2":
-                assert ti.state == State.SKIPPED
+        with pytest.raises(DownstreamTasksSkipped) as exc_info:
+            branchoperator.operator.run(
+                start_date=dr.logical_date, end_date=dr.logical_date, ignore_ti_state=True
+            )
+        assert exc_info.value.tasks == [(skipped_task_name, -1)]

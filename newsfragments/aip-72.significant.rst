@@ -76,6 +76,13 @@ As part of this change the following breaking changes have occurred:
 
       from airflow.sdk import Label
 
+- We have removed DAG level settings that control the UI behaviour.
+  These are now as per-user settings controlled by the UI
+
+  - ``default_view``
+
+- The ``SkipMixin` class has been removed as a parent class from ``BaseSensorOperator``.
+
 * Types of change
 
   * [x] Dag changes
@@ -85,7 +92,7 @@ As part of this change the following breaking changes have occurred:
   * [x] Behaviour changes
   * [x] Plugin changes
   * [ ] Dependency changes
-  * [ ] Code interface changes
+  * [x] Code interface changes
 
 * Migration rules needed
 

@@ -53,9 +53,9 @@ def api_server(args):
     proxy_headers = args.proxy_headers
 
     # Ensure we set this now, so that each subprocess gets the same value
-    from airflow.utils.jwt_signer import get_signing_key
+    from airflow.api_fastapi.auth.tokens import get_signing_args
 
-    get_signing_key("api", "auth_jwt_secret")
+    get_signing_args()
 
     if args.dev:
         print(f"Starting the API server on port {args.port} and host {args.host} in development mode.")

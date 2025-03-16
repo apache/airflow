@@ -23,11 +23,16 @@ from collections.abc import Iterable
 from typing import TYPE_CHECKING
 
 from airflow.models.baseoperator import BaseOperator
-from airflow.models.skipmixin import SkipMixin
-from airflow.models.taskinstance import TaskInstance
+from airflow.providers.standard.version_compat import AIRFLOW_V_3_0_PLUS
+
+if AIRFLOW_V_3_0_PLUS:
+    from airflow.providers.standard.utils.skipmixin import SkipMixin
+else:
+    from airflow.models.skipmixin import SkipMixin
 
 if TYPE_CHECKING:
     from airflow.sdk.definitions.context import Context
+    from airflow.sdk.types import RuntimeTaskInstanceProtocol
 
 
 class BranchMixIn(SkipMixin):
@@ -36,13 +41,12 @@ class BranchMixIn(SkipMixin):
     def do_branch(self, context: Context, branches_to_execute: str | Iterable[str]) -> str | Iterable[str]:
         """Implement the handling of branching including logging."""
         self.log.info("Branch into %s", branches_to_execute)
-        ti = TaskInstance.from_runtime_ti(context["ti"])
-        branch_task_ids = self._expand_task_group_roots(ti, branches_to_execute)
-        self.skip_all_except(ti, branch_task_ids)
+        branch_task_ids = self._expand_task_group_roots(context["ti"], branches_to_execute)
+        self.skip_all_except(context["ti"], branch_task_ids)
         return branches_to_execute
 
     def _expand_task_group_roots(
-        self, ti: TaskInstance, branches_to_execute: str | Iterable[str]
+        self, ti: RuntimeTaskInstanceProtocol, branches_to_execute: str | Iterable[str]
     ) -> Iterable[str]:
         """Expand any task group into its root task ids."""
         if TYPE_CHECKING:
@@ -82,6 +86,8 @@ class BaseBranchOperator(BaseOperator, BranchMixIn):
     The operator will continue with the returned task_id(s) and/or task_group_id(s), and all other
     tasks directly downstream of this operator will be skipped.
     """
+
+    inherits_from_skipmixin = True
 
     def choose_branch(self, context: Context) -> str | Iterable[str]:
         """

@@ -17,7 +17,7 @@
 from __future__ import annotations
 
 from typing import TYPE_CHECKING, Any
-from unittest.mock import MagicMock, Mock, patch
+from unittest.mock import AsyncMock, MagicMock, Mock, patch
 
 import pytest
 
@@ -30,6 +30,7 @@ from airflow.api_fastapi.auth.managers.models.resource_details import (
     PoolDetails,
     VariableDetails,
 )
+from airflow.api_fastapi.auth.tokens import JWTGenerator, JWTValidator
 from airflow.api_fastapi.common.types import MenuItem
 
 if TYPE_CHECKING:
@@ -177,38 +178,39 @@ class TestBaseAuthManager:
         mock_filter_authorized_menu_items.assert_called_once_with(list(MenuItem), user=user)
         assert results == []
 
-    @patch("airflow.api_fastapi.auth.managers.base_auth_manager.JWTSigner")
+    @patch("airflow.api_fastapi.auth.managers.base_auth_manager.JWTValidator", autospec=True)
     @patch.object(EmptyAuthManager, "deserialize_user")
-    def test_get_user_from_token(self, mock_deserialize_user, mock_jwt_signer, auth_manager):
+    @pytest.mark.asyncio
+    async def test_get_user_from_token(self, mock_deserialize_user, mock_jwt_validator, auth_manager):
         token = "token"
         payload = {}
         user = BaseAuthManagerUserTest(name="test")
-        signer = Mock()
-        signer.verify_token.return_value = payload
-        mock_jwt_signer.return_value = signer
+        signer = AsyncMock(spec=JWTValidator)
+        signer.avalidated_claims.return_value = payload
+        mock_jwt_validator.return_value = signer
         mock_deserialize_user.return_value = user
 
-        result = auth_manager.get_user_from_token(token)
+        result = await auth_manager.get_user_from_token(token)
 
         mock_deserialize_user.assert_called_once_with(payload)
-        signer.verify_token.assert_called_once_with(token)
+        signer.avalidated_claims.assert_called_once_with(token)
         assert result == user
 
-    @patch("airflow.api_fastapi.auth.managers.base_auth_manager.JWTSigner")
+    @patch("airflow.api_fastapi.auth.managers.base_auth_manager.JWTGenerator", autospec=True)
     @patch.object(EmptyAuthManager, "serialize_user")
-    def test_get_jwt_token(self, mock_serialize_user, mock_jwt_signer, auth_manager):
+    def test_generate_jwt_token(self, mock_serialize_user, mock_jwt_generator, auth_manager):
         token = "token"
         serialized_user = "serialized_user"
-        signer = Mock()
-        signer.generate_signed_token.return_value = token
-        mock_jwt_signer.return_value = signer
-        mock_serialize_user.return_value = serialized_user
+        signer = Mock(spec=JWTGenerator)
+        signer.generate.return_value = token
+        mock_jwt_generator.return_value = signer
+        mock_serialize_user.return_value = {"sub": serialized_user}
         user = BaseAuthManagerUserTest(name="test")
 
-        result = auth_manager.get_jwt_token(user)
+        result = auth_manager.generate_jwt(user)
 
         mock_serialize_user.assert_called_once_with(user)
-        signer.generate_signed_token.assert_called_once_with(serialized_user)
+        signer.generate.assert_called_once_with({"sub": serialized_user})
         assert result == token
 
     @pytest.mark.parametrize(
@@ -312,7 +314,7 @@ class TestBaseAuthManager:
             ),
         ],
     )
-    def test_get_permitted_dag_ids(self, auth_manager, access_per_dag: dict, dag_ids: list, expected: set):
+    def test_get_authorized_dag_ids(self, auth_manager, access_per_dag: dict, dag_ids: list, expected: set):
         def side_effect_func(
             *,
             method: ResourceMethod,
@@ -334,5 +336,5 @@ class TestBaseAuthManager:
             mock.dag_id = dag_id
             dags.append(mock)
         session.execute.return_value = dags
-        result = auth_manager.get_permitted_dag_ids(user=user, session=session)
+        result = auth_manager.get_authorized_dag_ids(user=user, session=session)
         assert result == expected
