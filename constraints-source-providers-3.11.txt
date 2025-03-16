@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2025-03-14T20:09:08.740853
+# This constraints file was automatically generated on 2025-03-16T14:11:06.148611
 # via "eager-upgrade" mechanism of PIP. For the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version of both
 # 'apache-airflow' package and all available community provider packages.
@@ -18,7 +18,7 @@ Flask-Babel==2.0.0
 Flask-Bcrypt==1.0.1
 Flask-Caching==2.3.1
 Flask-JWT-Extended==4.7.1
-Flask-Limiter==3.11.0
+Flask-Limiter==3.12
 Flask-Login==0.6.3
 Flask-SQLAlchemy==2.5.1
 Flask-Session==0.5.0
@@ -167,7 +167,7 @@ datadog==0.51.0
 db-dtypes==1.4.2
 debugpy==1.8.13
 decorator==5.2.1
-deepdiff==8.3.0
+deepdiff==8.4.0
 defusedxml==0.7.1
 deltalake==0.25.4
 diagrams==0.24.4
@@ -339,7 +339,7 @@ kubernetes_asyncio==30.3.1
 kylinpy==2.8.4
 lazy-object-proxy==1.10.0
 libcst==1.7.0
-limits==4.2
+limits==4.4.1
 linkify-it-py==2.0.3
 lockfile==0.12.2
 looker-sdk==25.4.0
@@ -364,7 +364,7 @@ mongomock==4.3.0
 more-itertools==10.6.0
 moto==5.1.1
 mpmath==1.3.0
-msal-extensions==1.3.0
+msal-extensions==1.3.1
 msal==1.32.0
 msgraph-core==1.2.1
 msgspec==0.19.0
@@ -390,7 +390,7 @@ nodeenv==1.9.1
 numpy==1.26.4
 oauthlib==3.2.2
 objsize==0.7.1
-openai==1.65.5
+openai==1.66.3
 openapi-schema-validator==0.6.3
 openapi-spec-validator==0.7.1
 openlineage-integration-common==1.29.0
@@ -427,7 +427,7 @@ pdbr==0.9.0
 pdpyras==5.4.0
 pendulum==3.0.0
 pexpect==4.9.0
-pgvector==0.3.6
+pgvector==0.4.0
 pinecone-plugin-interface==0.0.7
 pinecone==6.0.2
 pinotdb==5.6.0
@@ -460,7 +460,7 @@ pyasn1==0.6.1
 pyasn1_modules==0.4.0
 pycountry==24.6.1
 pycparser==2.22
-pycryptodome==3.21.0
+pycryptodome==3.22.0
 pydantic==2.10.6
 pydantic_core==2.27.2
 pydata-google-auth==1.9.1
@@ -500,7 +500,7 @@ python-ldap==3.4.4
 python-multipart==0.0.20
 python-nvd3==0.16.0
 python-slugify==8.0.4
-python-telegram-bot==21.11.1
+python-telegram-bot==22.0
 python3-saml==1.16.0
 pytz==2025.1
 pywinrm==0.5.0
@@ -619,7 +619,7 @@ types-cffi==1.16.0.20250307
 types-croniter==5.0.1.20241205
 types-docutils==0.21.0.20241128
 types-paramiko==3.5.0.20240928
-types-protobuf==5.29.1.20250208
+types-protobuf==5.29.1.20250315
 types-pyOpenSSL==24.1.0.20240722
 types-python-dateutil==2.9.0.20241206
 types-python-slugify==8.0.2.20240310
@@ -655,7 +655,7 @@ wirerope==1.0.0
 wrapt==1.17.2
 xmlsec==1.3.14
 xmltodict==0.14.2
-yamllint==1.36.0
+yamllint==1.36.1
 yandex-query-client==0.1.4
 yandexcloud==0.328.0
 yarl==1.18.3
