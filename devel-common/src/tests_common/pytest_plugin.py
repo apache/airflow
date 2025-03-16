@@ -1843,10 +1843,10 @@ def mock_supervisor_comms():
     # for back-compat
     from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS
 
-    print("The value of flag is" * 100, AIRFLOW_V_3_0_PLUS)
-
     if not AIRFLOW_V_3_0_PLUS:
         yield None
+        return
+    print("I shouldn't come here!" * 100)
     with mock.patch(
         "airflow.sdk.execution_time.task_runner.SUPERVISOR_COMMS", create=True
     ) as supervisor_comms:
