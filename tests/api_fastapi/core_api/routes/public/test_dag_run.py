@@ -1276,21 +1276,22 @@ class TestTriggerDagRun:
 
     @time_machine.travel(timezone.utcnow(), tick=False)
     @pytest.mark.parametrize(
-        "dag_run_id, note, data_interval_start, data_interval_end",
+        "dag_run_id, note, data_interval_start, data_interval_end, note_data",
         [
-            ("dag_run_5", "test-note", None, None),
-            ("dag_run_6", "test-note", "2024-01-03T00:00:00+00:00", "2024-01-04T05:00:00+00:00"),
+            ("dag_run_5", "test-note", None, None, {"user_id": "test", "content": "test-note"}),
             (
-                None,
-                None,
-                None,
-                None,
+                "dag_run_6",
+                "test-note",
+                "2024-01-03T00:00:00+00:00",
+                "2024-01-04T05:00:00+00:00",
+                {"user_id": "test", "content": "test-note"},
             ),
+            (None, None, None, None, None),
         ],
     )
     @pytest.mark.usefixtures("configure_git_connection_for_dag_bundle")
     def test_should_respond_200(
-        self, test_client, dag_run_id, note, data_interval_start, data_interval_end, session
+        self, test_client, dag_run_id, note, data_interval_start, data_interval_end, note_data, session
     ):
         fixed_now = timezone.utcnow().isoformat()
 
@@ -1343,6 +1344,18 @@ class TestTriggerDagRun:
         }
 
         assert response.json() == expected_response_json
+
+        dr_note = (
+            session.query(DagRunNote)
+            .join(DagRun, DagRunNote.dag_run_id == DagRun.id)
+            .filter(DagRun.run_id == expected_dag_run_id)
+            .one_or_none()
+        )
+        if note_data is None:
+            assert dr_note is None
+        else:
+            assert dr_note.user_id == note_data.get("user_id")
+            assert dr_note.content == note_data.get("content")
         _check_last_log(session, dag_id=DAG1_ID, event="trigger_dag_run", logical_date=None)
 
     def test_should_respond_401(self, unauthenticated_test_client):

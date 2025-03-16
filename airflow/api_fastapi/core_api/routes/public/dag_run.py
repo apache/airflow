@@ -380,6 +380,7 @@ def trigger_dag_run(
     dag_id,
     body: TriggerDAGRunPostBody,
     request: Request,
+    user: GetUserDep,
     session: SessionDep,
 ) -> DAGRunResponse:
     """Trigger a DAG."""
@@ -411,7 +412,7 @@ def trigger_dag_run(
         )
         dag_run_note = body.note
         if dag_run_note:
-            current_user_id = None  # refer to https://github.com/apache/airflow/issues/43534
+            current_user_id = user.get_id()
             dag_run.note = (dag_run_note, current_user_id)
         return dag_run
     except ValueError as e:
