@@ -19,6 +19,8 @@ from __future__ import annotations
 from collections.abc import Sequence
 from typing import TYPE_CHECKING
 
+from tableauserverclient.models import TaskItem
+
 from airflow.exceptions import AirflowException
 from airflow.models import BaseOperator
 from airflow.providers.tableau.hooks.tableau import (
@@ -120,7 +122,8 @@ class TableauOperator(BaseOperator):
 
             resource_id = self._get_resource_id(tableau_hook)
 
-            response = method(resource_id)
+            task_item = TaskItem(id_=resource_id, task_type=TaskItem.Type.ExtractRefresh, priority=0)
+            response = method(task_item)
 
             job_id = response.id
 

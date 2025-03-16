@@ -195,3 +195,12 @@ class TestTableauOperator:
         resource_id = "res_id"
         operator = TableauOperator(resource="task", find=resource_id, method="run", task_id="t", dag=None)
         assert operator._get_resource_id(resource_id) == resource_id
+
+    def test_execute_resource_tasks(self):
+        """
+        Test execute of resource tasks
+        """
+        operator = TableauOperator(resource="tasks", method="run", **self.kwargs)
+
+        with pytest.raises(AirflowException):
+            operator.execute({})
