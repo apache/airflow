@@ -24,7 +24,7 @@ import { Outlet, useParams } from "react-router-dom";
 import { useLocalStorage } from "usehooks-ts";
 
 import { useDagServiceGetDag } from "openapi/queries";
-import type { DAGResponse } from "openapi/requests/types.gen";
+import type { DAGResponse, DAGWarningCollectionResponse } from "openapi/requests/types.gen";
 import BackfillBanner from "src/components/Banner/BackfillBanner";
 import { ErrorAlert } from "src/components/ErrorAlert";
 import { SearchDagsButton } from "src/components/SearchDags";
@@ -40,22 +40,12 @@ import { Grid } from "./Grid";
 import { NavTabs } from "./NavTabs";
 import { PanelButtons } from "./PanelButtons";
 
-type DagWarningItem = {
-  dag_id: string;
-  message: string;
-};
-
-type DagWarningsResponse = {
-  dag_warnings: Array<DagWarningItem>;
-  total_entries: number;
-};
-
 type Props = {
   readonly dag?: DAGResponse;
   readonly error?: unknown;
   readonly isLoading?: boolean;
   readonly tabs: Array<{ icon: ReactNode; label: string; value: string }>;
-  readonly warning?: DagWarningsResponse;
+  readonly warning?: DAGWarningCollectionResponse;
 } & PropsWithChildren;
 
 export const DetailsLayout = ({ children, error, isLoading, tabs, warning }: Props) => {
