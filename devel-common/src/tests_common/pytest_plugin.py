@@ -1846,7 +1846,6 @@ def mock_supervisor_comms():
     if not AIRFLOW_V_3_0_PLUS:
         yield None
         return
-    print("I shouldn't come here!" * 100)
     with mock.patch(
         "airflow.sdk.execution_time.task_runner.SUPERVISOR_COMMS", create=True
     ) as supervisor_comms:
