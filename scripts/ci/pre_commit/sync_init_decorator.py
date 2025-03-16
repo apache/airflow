@@ -90,7 +90,8 @@ def _find_dag_deco(mod: ast.Module) -> ast.FunctionDef:
     return next(
         n
         for n in itertools.chain.from_iterable(map(ast.iter_child_nodes, type_checking_blocks))
-        if isinstance(n, ast.FunctionDef) and n.name == "dag"
+        if isinstance(n, ast.FunctionDef) and n.name == "dag" and n.args.args[0].arg != "func"
+        # Ignore overload from `dag` decorator with `func` as first arg
     )
 
 
