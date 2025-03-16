@@ -665,14 +665,14 @@ class TestTIUpdateState:
 
         trs = session.query(TaskReschedule).all()
         assert len(trs) == 1
-        assert trs[0].dag_id == "dag"
-        assert trs[0].task_id == "test_ti_update_state_to_reschedule"
-        assert trs[0].run_id == "test"
+        assert trs[0].task_instance.dag_id == "dag"
+        assert trs[0].task_instance.task_id == "test_ti_update_state_to_reschedule"
+        assert trs[0].task_instance.run_id == "test"
         assert trs[0].try_number == 0
         assert trs[0].start_date == instant
         assert trs[0].end_date == DEFAULT_END_DATE
         assert trs[0].reschedule_date == timezone.parse("2024-10-31T11:03:00+00:00")
-        assert trs[0].map_index == -1
+        assert trs[0].task_instance.map_index == -1
         assert trs[0].duration == 129600
 
     @pytest.mark.parametrize(
