@@ -57,6 +57,8 @@ export const DetailsLayout = ({ children, error, isLoading, tabs, warning }: Pro
 
   const { fitView, getZoom } = useReactFlow();
 
+  console.log("warning", warning);
+
   return (
     <OpenGroupsProvider dagId={dagId}>
       <HStack justifyContent="space-between" mb={2}>
@@ -94,7 +96,10 @@ export const DetailsLayout = ({ children, error, isLoading, tabs, warning }: Pro
               <VStack ml={2} my={2}>
                 <ErrorAlert error={error} />
                 {warning?.dag_warnings.map((warningItem) => (
-                  <WarningAlert key={warningItem.dag_id} warning={warningItem} />
+                  <WarningAlert
+                    key={`${warningItem.dag_id}-${warningItem.timestamp}`}
+                    warning={warningItem}
+                  />
                 ))}
               </VStack>
               <ProgressBar size="xs" visibility={isLoading ? "visible" : "hidden"} />
