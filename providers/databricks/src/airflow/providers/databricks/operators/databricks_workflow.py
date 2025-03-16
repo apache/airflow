@@ -183,7 +183,16 @@ class _CreateDatabricksWorkflowOperator(BaseOperator):
                 self.job_name,
                 json.dumps(job_spec, indent=2),
             )
+            access_control_list = job_spec.get("access_control_list", None)
+            if access_control_list:
+                self.log.info(
+                    "Updating job permission for Databricks workflow job %s with access_control_list %s",
+                    self.job_name,
+                    access_control_list,
+                )
+                self._hook.update_job_permission(job_id, {"access_control_list": access_control_list})
             self._hook.reset_job(job_id, job_spec)
+
         else:
             self.log.info(
                 "Creating new Databricks workflow job %s with spec %s",
