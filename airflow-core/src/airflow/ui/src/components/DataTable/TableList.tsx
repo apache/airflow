@@ -21,20 +21,25 @@ import { flexRender, type Row, type Table as TanStackTable } from "@tanstack/rea
 import React, { Fragment } from "react";
 import { TiArrowSortedDown, TiArrowSortedUp, TiArrowUnsorted } from "react-icons/ti";
 
+import FilterMenuButton from "src/components/DataTable/FilterMenuButton";
+
 type DataTableProps<TData> = {
+  readonly allowFiltering: boolean;
   readonly renderSubComponent?: (props: { row: Row<TData> }) => React.ReactElement;
   readonly table: TanStackTable<TData>;
 };
 
-export const TableList = <TData,>({ renderSubComponent, table }: DataTableProps<TData>) => (
+export const TableList = <TData,>({ allowFiltering, renderSubComponent, table }: DataTableProps<TData>) => (
   <Table.Root data-testid="table-list" striped>
     <Table.Header bg="chakra-body-bg" position="sticky" top={0} zIndex={1}>
       {table.getHeaderGroups().map((headerGroup) => (
         <Table.Row key={headerGroup.id}>
-          {headerGroup.headers.map(({ colSpan, column, getContext, id, isPlaceholder }) => {
+          {headerGroup.headers.map(({ colSpan, column, getContext, id, isPlaceholder }, index) => {
             const sort = column.getIsSorted();
             const canSort = column.getCanSort();
             const text = flexRender(column.columnDef.header, getContext());
+            const filterButton =
+              allowFiltering && index === 0 ? <FilterMenuButton table={table} /> : undefined;
 
             let rightIcon;
 
@@ -50,15 +55,18 @@ export const TableList = <TData,>({ renderSubComponent, table }: DataTableProps<
               return (
                 <Table.ColumnHeader colSpan={colSpan} key={id} whiteSpace="nowrap">
                   {isPlaceholder ? undefined : (
-                    <Button
-                      aria-label="sort"
-                      disabled={!canSort}
-                      onClick={column.getToggleSortingHandler()}
-                      variant="plain"
-                    >
-                      {text}
-                      {rightIcon}
-                    </Button>
+                    <>
+                      <Button
+                        aria-label="sort"
+                        disabled={!canSort}
+                        onClick={column.getToggleSortingHandler()}
+                        variant="plain"
+                      >
+                        {text}
+                        {rightIcon}
+                      </Button>
+                      {filterButton}
+                    </>
                   )}
                 </Table.ColumnHeader>
               );
@@ -67,6 +75,7 @@ export const TableList = <TData,>({ renderSubComponent, table }: DataTableProps<
             return (
               <Table.ColumnHeader colSpan={colSpan} key={id} whiteSpace="nowrap">
                 {isPlaceholder ? undefined : text}
+                {filterButton}
               </Table.ColumnHeader>
             );
           })}
