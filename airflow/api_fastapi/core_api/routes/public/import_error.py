@@ -17,7 +17,7 @@
 from __future__ import annotations
 
 from collections.abc import Sequence
-from typing import TYPE_CHECKING, Annotated
+from typing import Annotated
 
 from fastapi import Depends, HTTPException, status
 from sqlalchemy import func, select
@@ -50,15 +50,8 @@ from airflow.api_fastapi.core_api.security import (
 from airflow.models import DagModel
 from airflow.models.errors import ParseImportError
 
-if TYPE_CHECKING:
-    from sqlalchemy.orm import Session
-
 REDACTED_STACKTRACE = "REDACTED - you do not have read permission on all DAGs in the file"
 import_error_router = AirflowRouter(tags=["Import Error"], prefix="/importErrors")
-
-
-def get_file_dag_ids(session: Session, filename: str) -> set[str]:
-    return set(session.scalars(select(DagModel.dag_id).where(DagModel.fileloc == filename)).all())
 
 
 @import_error_router.get(
@@ -86,7 +79,10 @@ def get_import_error(
     can_read_all_dags = auth_manager.is_authorized_dag(method="GET", user=user)
     if not can_read_all_dags:
         readable_dag_ids = auth_manager.get_authorized_dag_ids(user=user)
-        file_dag_ids = get_file_dag_ids(session, error.filename)
+        # We need file_dag_ids as a set for intersection, issubset operations
+        file_dag_ids = set(
+            session.scalars(select(DagModel.dag_id).where(DagModel.fileloc == error.filename)).all()
+        )
 
         # Can the user read any DAGs in the file?
         if not readable_dag_ids.intersection(file_dag_ids):
