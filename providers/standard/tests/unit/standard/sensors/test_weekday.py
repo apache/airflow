@@ -25,6 +25,7 @@ from airflow.exceptions import AirflowSensorTimeout
 from airflow.models import DagBag
 from airflow.models.dag import DAG
 from airflow.providers.standard.sensors.weekday import DayOfWeekSensor
+from airflow.providers.standard.version_compat import AIRFLOW_V_3_0_PLUS
 from airflow.utils import timezone
 from airflow.utils.timezone import datetime
 from airflow.utils.weekday import WeekDay
@@ -130,6 +131,7 @@ class TestDayOfWeekSensor:
         with pytest.raises(AirflowSensorTimeout):
             op.run(start_date=WEEKDAY_DATE, end_date=WEEKDAY_DATE, ignore_ti_state=True)
 
+    @pytest.mark.skipif(not AIRFLOW_V_3_0_PLUS, reason="Skip on Airflow < 3.0")
     def test_weekday_sensor_should_use_run_after_when_logical_date_is_not_provided(self, dag_maker):
         with dag_maker(
             "test_weekday_sensor",
