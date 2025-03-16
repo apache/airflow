@@ -107,7 +107,7 @@ def setup(request, dag_maker, session=None):
         logical_date=LOGICAL_DATE1,
     )
 
-    dag_run1.note = (DAG1_RUN1_NOTE, 1)
+    dag_run1.note = (DAG1_RUN1_NOTE, "not_test")
 
     for task in [task1, task2]:
         ti = dag_run1.get_task_instance(task_id=task.task_id)
@@ -883,48 +883,54 @@ class TestListDagRunsBatch:
 
 class TestPatchDagRun:
     @pytest.mark.parametrize(
-        "dag_id, run_id, patch_body, response_body",
+        "dag_id, run_id, patch_body, response_body, note_data",
         [
             (
                 DAG1_ID,
                 DAG1_RUN1_ID,
                 {"state": DagRunState.FAILED, "note": "new_note2"},
                 {"state": DagRunState.FAILED, "note": "new_note2"},
+                {"user_id": "test", "content": "new_note2"},
             ),
             (
                 DAG1_ID,
                 DAG1_RUN2_ID,
                 {"state": DagRunState.SUCCESS},
                 {"state": DagRunState.SUCCESS, "note": None},
+                None,
             ),
             (
                 DAG2_ID,
                 DAG2_RUN1_ID,
                 {"state": DagRunState.QUEUED},
                 {"state": DagRunState.QUEUED, "note": None},
+                None,
             ),
             (
                 DAG1_ID,
                 DAG1_RUN1_ID,
                 {"note": "updated note"},
                 {"state": DagRunState.SUCCESS, "note": "updated note"},
+                {"user_id": "test", "content": "updated note"},
             ),
             (
                 DAG1_ID,
                 DAG1_RUN2_ID,
                 {"note": "new note", "state": DagRunState.FAILED},
                 {"state": DagRunState.FAILED, "note": "new note"},
+                {"user_id": "test", "content": "new note"},
             ),
             (
                 DAG1_ID,
                 DAG1_RUN2_ID,
                 {"note": None},
                 {"state": DagRunState.FAILED, "note": None},
+                {"user_id": "test", "content": None},
             ),
         ],
     )
     @pytest.mark.usefixtures("configure_git_connection_for_dag_bundle")
-    def test_patch_dag_run(self, test_client, dag_id, run_id, patch_body, response_body, session):
+    def test_patch_dag_run(self, test_client, dag_id, run_id, patch_body, response_body, note_data, session):
         response = test_client.patch(f"/public/dags/{dag_id}/dagRuns/{run_id}", json=patch_body)
         assert response.status_code == 200
         body = response.json()
@@ -932,13 +938,17 @@ class TestPatchDagRun:
         assert body["dag_run_id"] == run_id
         assert body.get("state") == response_body.get("state")
         assert body.get("note") == response_body.get("note")
-        user_id = (
+        dr_note = (
             session.query(DagRunNote)
             .join(DagRun, DagRunNote.dag_run_id == DagRun.id)
             .filter(DagRun.run_id == run_id)
-            .all()
+            .one_or_none()
         )
-        assert user_id == "test"
+        if note_data is None:
+            assert dr_note is None
+        else:
+            assert dr_note.user_id == note_data.get("user_id")
+            assert dr_note.content == note_data.get("content")
         _check_last_log(session, dag_id=dag_id, event="patch_dag_run", logical_date=None)
 
     def test_should_respond_401(self, unauthenticated_test_client):
@@ -950,39 +960,55 @@ class TestPatchDagRun:
         assert response.status_code == 403
 
     @pytest.mark.parametrize(
-        "query_params, patch_body, response_body, expected_status_code",
+        "query_params, patch_body, response_body, expected_status_code, note_data",
         [
             (
                 {"update_mask": ["state"]},
                 {"state": DagRunState.SUCCESS},
                 {"state": "success"},
                 200,
+                {"user_id": "not_test", "content": "test_note"},
             ),
             (
                 {"update_mask": ["note"]},
                 {"state": DagRunState.FAILED, "note": "new_note1"},
                 {"note": "new_note1", "state": "success"},
                 200,
+                {"user_id": "test", "content": "new_note1"},
             ),
             (
                 {},
                 {"state": DagRunState.FAILED, "note": "new_note2"},
                 {"note": "new_note2", "state": "failed"},
                 200,
+                {"user_id": "test", "content": "new_note2"},
             ),
-            ({"update_mask": ["note"]}, {}, {"state": "success", "note": "test_note"}, 200),
-            ({"update_mask": ["note"]}, {"note": None}, {"state": "success", "note": None}, 200),
+            (
+                {"update_mask": ["note"]},
+                {},
+                {"state": "success", "note": "test_note"},
+                200,
+                {"user_id": "not_test", "content": "test_note"},
+            ),
+            (
+                {"update_mask": ["note"]},
+                {"note": None},
+                {"state": "success", "note": None},
+                200,
+                {"user_id": "test", "content": None},
+            ),
             (
                 {"update_mask": ["random"]},
                 {"state": DagRunState.FAILED},
                 {"state": "success", "note": "test_note"},
                 200,
+                {"user_id": "not_test", "content": "test_note"},
             ),
         ],
     )
     @pytest.mark.usefixtures("configure_git_connection_for_dag_bundle")
     def test_patch_dag_run_with_update_mask(
-        self, test_client, query_params, patch_body, response_body, expected_status_code
+        self, test_client, query_params, patch_body, response_body, expected_status_code, note_data, session
     ):
         response = test_client.patch(
             f"/public/dags/{DAG1_ID}/dagRuns/{DAG1_RUN1_ID}",
@@ -993,6 +1019,17 @@ class TestPatchDagRun:
         assert response.status_code == expected_status_code
         for key, value in response_body.items():
             assert response_json.get(key) == value
+        dr_note = (
+            session.query(DagRunNote)
+            .join(DagRun, DagRunNote.dag_run_id == DagRun.id)
+            .filter(DagRun.run_id == DAG1_RUN1_ID)
+            .one_or_none()
+        )
+        if note_data is None:
+            assert dr_note is None
+        else:
+            assert dr_note.user_id == note_data.get("user_id")
+            assert dr_note.content == note_data.get("content")
 
     def test_patch_dag_run_not_found(self, test_client):
         response = test_client.patch(
