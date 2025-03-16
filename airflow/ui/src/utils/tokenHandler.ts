@@ -47,3 +47,7 @@ export const tokenHandler = (config: InternalAxiosRequestConfig) => {
 
   return config;
 };
+
+export const clearToken = () => {
+  localStorage.removeItem(TOKEN_STORAGE_KEY);
+};
