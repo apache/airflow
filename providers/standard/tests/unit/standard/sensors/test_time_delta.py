@@ -72,6 +72,8 @@ class TestTimedeltaSensor:
 )
 def test_timedelta_sensor_run_after_vs_interval(run_after, interval_end, dag_maker, session):
     """Interval end should be used as base time when present else run_after"""
+    if not AIRFLOW_V_3_0_PLUS and not interval_end:
+        pytest.skip("not applicable")
 
     context = {}
     if interval_end:
@@ -151,6 +153,8 @@ class TestTimeDeltaSensorAsync:
     )
     def test_timedelta_sensor_async_run_after_vs_interval(self, run_after, interval_end, dag_maker):
         """Interval end should be used as base time when present else run_after"""
+        if not AIRFLOW_V_3_0_PLUS and not interval_end:
+            pytest.skip("not applicable")
 
         context = {}
         if interval_end:
