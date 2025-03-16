@@ -20,7 +20,6 @@ from __future__ import annotations
 import pytest
 
 from airflow.providers.google.version_compat import AIRFLOW_V_3_0_PLUS
-from airflow.sdk.execution_time.comms import XComResult
 
 # For no Pydantic environment, we need to skip the tests
 pytest.importorskip("google.cloud.aiplatform_v1")
@@ -37,6 +36,9 @@ from airflow.providers.google.cloud.operators.automl import (
     AutoMLListDatasetOperator,
     AutoMLTrainModelOperator,
 )
+
+if AIRFLOW_V_3_0_PLUS:
+    from airflow.sdk.execution_time.comms import XComResult
 
 GCP_LOCATION = "test-location"
 GCP_PROJECT_ID = "test-project"

@@ -26,7 +26,7 @@ import pytest
 
 from airflow import DAG
 from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning
-from airflow.models import Connection, DagRun, TaskInstance as TI, XComModel
+from airflow.models import Connection, DagRun, TaskInstance as TI
 from airflow.providers.common.sql.hooks.handlers import fetch_all_handler
 from airflow.providers.common.sql.operators.sql import (
     BaseSQLOperator,
@@ -50,7 +50,10 @@ from tests_common.test_utils.providers import get_provider_min_airflow_version
 from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS
 
 if AIRFLOW_V_3_0_PLUS:
+    from airflow.models.xcom import XComModel as XCom
     from airflow.utils.types import DagRunTriggeredByType
+else:
+    from airflow.models.xcom import XCom  # type: ignore[no-redef]
 
 pytestmark = pytest.mark.db_test
 
@@ -1043,7 +1046,7 @@ class TestSqlBranch:
         with create_session() as session:
             session.query(DagRun).delete()
             session.query(TI).delete()
-            session.query(XComModel).delete()
+            session.query(XCom).delete()
 
     def setup_method(self):
         self.dag = DAG(
@@ -1059,7 +1062,7 @@ class TestSqlBranch:
         with create_session() as session:
             session.query(DagRun).delete()
             session.query(TI).delete()
-            session.query(XComModel).delete()
+            session.query(XCom).delete()
 
     @pytest.fixture
     def branch_op(self):

@@ -34,8 +34,10 @@ from airflow.providers.microsoft.azure.operators.synapse import (
     AzureSynapseRunSparkBatchOperator,
 )
 from airflow.providers.microsoft.azure.version_compat import AIRFLOW_V_3_0_PLUS
-from airflow.sdk.execution_time.comms import XComResult
 from airflow.utils import timezone
+
+if AIRFLOW_V_3_0_PLUS:
+    from airflow.sdk.execution_time.comms import XComResult
 
 DEFAULT_DATE = timezone.datetime(2021, 1, 1)
 SUBSCRIPTION_ID = "subscription_id"

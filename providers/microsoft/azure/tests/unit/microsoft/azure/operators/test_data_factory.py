@@ -35,7 +35,6 @@ from airflow.providers.microsoft.azure.hooks.data_factory import (
 )
 from airflow.providers.microsoft.azure.operators.data_factory import AzureDataFactoryRunPipelineOperator
 from airflow.providers.microsoft.azure.triggers.data_factory import AzureDataFactoryTrigger
-from airflow.sdk.execution_time.comms import XComResult
 from airflow.utils import timezone
 from airflow.utils.types import DagRunType
 
@@ -43,6 +42,9 @@ from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS
 
 if TYPE_CHECKING:
     from airflow.models.baseoperator import BaseOperator
+
+if AIRFLOW_V_3_0_PLUS:
+    from airflow.sdk.execution_time.comms import XComResult
 
 DEFAULT_DATE = timezone.datetime(2021, 1, 1)
 SUBSCRIPTION_ID = "my-subscription-id"

@@ -29,14 +29,15 @@ class TestSageMakerTransformDetailsLink(BaseAwsLinksTestCase):
     link_class = SageMakerTransformJobLink
 
     def test_extra_link(self, mock_supervisor_comms):
-        mock_supervisor_comms.get_message.return_value = XComResult(
-            key="sagemaker_transform_job_details",
-            value={
-                "region_name": "us-east-1",
-                "aws_domain": BaseAwsLink.get_aws_domain("aws"),
-                **{"job_name": "test_job_name"},
-            },
-        )
+        if AIRFLOW_V_3_0_PLUS and mock_supervisor_comms:
+            mock_supervisor_comms.get_message.return_value = XComResult(
+                key="sagemaker_transform_job_details",
+                value={
+                    "region_name": "us-east-1",
+                    "aws_domain": BaseAwsLink.get_aws_domain("aws"),
+                    **{"job_name": "test_job_name"},
+                },
+            )
 
         self.assert_extra_link_url(
             expected_url=(
