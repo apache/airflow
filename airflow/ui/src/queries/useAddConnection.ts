@@ -19,10 +19,7 @@
 import { useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 
-import {
-    useConnectionServiceGetConnectionsKey,
-    useConnectionServicePostConnection,
-} from "openapi/queries";
+import { useConnectionServiceGetConnectionsKey, useConnectionServicePostConnection } from "openapi/queries";
 import { toaster } from "src/components/ui";
 import type { AddConnectionParams } from "src/pages/Connections/ConnectionForm";
 
@@ -31,16 +28,14 @@ export const useAddConnection = ({ onSuccessConfirm }: { onSuccessConfirm: () =>
   const [error, setError] = useState<unknown>(undefined);
 
   const onSuccess = async () => {
-    const queryKeys = [
-      [useConnectionServiceGetConnectionsKey],
-    ];
+    const queryKeys = [[useConnectionServiceGetConnectionsKey]];
 
     await Promise.all(queryKeys.map((key) => queryClient.invalidateQueries({ queryKey: key })));
 
     toaster.create({
-        description: "Connection has been added successfully",
-        title: "Connection Add Request Submitted",
-        type: "success",
+      description: "Connection has been added successfully",
+      title: "Connection Add Request Submitted",
+      type: "success",
     });
     onSuccessConfirm();
   };
@@ -61,7 +56,7 @@ export const useAddConnection = ({ onSuccessConfirm }: { onSuccessConfirm: () =>
     const password = requestBody.password === "" ? undefined : requestBody.password;
     const port = requestBody.port === "" ? undefined : Number(requestBody.port);
     const schema = requestBody.schema === "" ? undefined : requestBody.schema;
-    const extra = requestBody.extra === "" ? undefined : requestBody.extra;
+    const extra = requestBody.conf === "" ? undefined : requestBody.conf;
 
     mutate({
       requestBody: {

@@ -25,13 +25,13 @@ import { useDagParams } from "src/queries/useDagParams";
 import { useTogglePause } from "src/queries/useTogglePause";
 import { useTrigger } from "src/queries/useTrigger";
 
+import { useParamStore } from "../../queries/useParamStore";
 import { ErrorAlert } from "../ErrorAlert";
 import { FlexibleForm, flexibleFormDefaultSection } from "../FlexibleForm";
 import { JsonEditor } from "../JsonEditor";
 import { Accordion } from "../ui";
 import { Checkbox } from "../ui/Checkbox";
 import EditableMarkdown from "./EditableMarkdown";
-import { useParamStore } from "../../queries/useParamStore";
 
 type TriggerDAGFormProps = {
   readonly dagId: string;
@@ -123,7 +123,10 @@ const TriggerDAGForm = ({ dagId, isPaused, onClose, open }: TriggerDAGFormProps)
         size="lg"
         variant="enclosed"
       >
-        <FlexibleForm initialParamsDict={initialParamsDict} />
+        <FlexibleForm
+          flexibleFormDefaultSection={flexibleFormDefaultSection}
+          initialParamsDict={initialParamsDict}
+        />
         <Accordion.Item key="advancedOptions" value="advancedOptions">
           <Accordion.ItemTrigger cursor="button">Advanced Options</Accordion.ItemTrigger>
           <Accordion.ItemContent>

@@ -22,5 +22,6 @@ export type FlexibleFormElementProps = {
 };
 
 export const flexibleFormDefaultSection = "Run Parameters";
+export const flexibleFormExtraFieldSection = "Extra Field";
 
 export { FlexibleForm } from "./FlexibleForm";

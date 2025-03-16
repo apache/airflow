@@ -43,30 +43,29 @@ export type ParamSchema = {
   values_display: Record<string, string> | undefined;
 };
 
-type ExtraFieldSpec = Record<string, ParamSpec>;
+type ParamsSpec = Record<string, ParamSpec>;
 
 type StandardFieldSpec = Record<string, StandardFieldSchema>;
 
 type StandardFieldSchema = {
-    hidden: boolean,
-    placeholder: string | undefined
-    title: string | undefined,
-}
+  hidden?: boolean | undefined;
+  placeholder?: string | undefined;
+  title?: string | undefined;
+};
 
 type ConnectionMetaEntry = {
-    connection_type: string,
-    default_conn_name: string | undefined,
-    extra_fields: ExtraFieldSpec | undefined,
-    hook_class_name: string,
-    hook_name: string,
-    standard_fields : StandardFieldSpec | undefined,
-}
+  connection_type: string;
+  default_conn_name: string | undefined;
+  extra_fields: ParamsSpec;
+  hook_class_name: string;
+  hook_name: string;
+  standard_fields: StandardFieldSpec | undefined;
+};
 
 type ConnectionMeta = Array<ConnectionMetaEntry>;
 
 export const useConnectionTypeMeta = () => {
-  const { data, error }: { data?: ConnectionMeta; error?: unknown } =
-    useConnectionServiceHookMetaData();
+  const { data, error }: { data?: ConnectionMeta; error?: unknown } = useConnectionServiceHookMetaData();
 
   if (Boolean(error)) {
     const errorDescription =
@@ -81,41 +80,60 @@ export const useConnectionTypeMeta = () => {
     });
   }
 
-    const formattedData: Record<string, Record<string, unknown>> = {};
-    const keysList: Array<string> = [];
+  const formattedData: Record<string, ConnectionMetaEntry> = {};
+  const keysList: Array<string> = [];
 
-    data?.forEach(item => {
+  data?.forEach((item) => {
     const key = item.connection_type;
 
     keysList.push(key);
 
     // Ensure standard_fields has required properties
-    const defaultStandardFields: StandardFieldSpec = {
-        description: { hidden: false, placeholder: undefined, title: "description" },
-        host: { hidden: false, placeholder: undefined, title: "host" },
-        login: { hidden: false, placeholder: undefined, title: "login" },
-        password: { hidden: false, placeholder: undefined, title: "password" },
-        port: { hidden: false, placeholder: undefined, title: "port" },
-        schema: { hidden: false, placeholder: undefined, title: "schema" }, // Ensure schema is included
+    const defaultStandardFields: StandardFieldSpec | undefined = {
+      description: { hidden: false, placeholder: undefined, title: "Description" },
+      host: { hidden: false, placeholder: undefined, title: "Host" },
+      login: { hidden: false, placeholder: undefined, title: "Login" },
+      password: { hidden: false, placeholder: undefined, title: "Password" },
+      port: { hidden: false, placeholder: undefined, title: "Port" },
+      url_schema: { hidden: false, placeholder: undefined, title: "Schema" },
     };
 
-    // Merge existing standard_fields with default values
-    const populatedStandardFields: StandardFieldSpec = { 
-        ...defaultStandardFields, 
-        ...item.standard_fields // Use empty object if undefined
-      };
-  
-      // Rename url_schema to schema if present
-      if (populatedStandardFields.url_schema) {
+    const mergeWithDefaults = (
+      defaultFields: StandardFieldSpec,
+      customFields?: StandardFieldSpec,
+    ): StandardFieldSpec =>
+      Object.keys(defaultFields).reduce<StandardFieldSpec>((acc, newKey) => {
+        const defaultValue = defaultFields[newKey];
+        const customValue = customFields?.[newKey];
+
+        acc[newKey] =
+          customValue && typeof customValue === "object"
+            ? {
+                ...defaultValue,
+                ...customValue,
+              }
+            : { ...defaultValue };
+
+        return acc;
+      }, {});
+
+    const populatedStandardFields: StandardFieldSpec = mergeWithDefaults(
+      defaultStandardFields,
+      item.standard_fields,
+    );
+
+    if (populatedStandardFields.url_schema) {
+      if (!populatedStandardFields.schema) {
         populatedStandardFields.schema = populatedStandardFields.url_schema;
-        delete populatedStandardFields.url_schema;
       }
+      delete populatedStandardFields.url_schema;
+    }
 
     formattedData[key] = {
-        ...item,
-        standard_fields: populatedStandardFields,
+      ...item,
+      standard_fields: populatedStandardFields,
     };
-    });
+  });
 
   return { formattedData, keysList };
 };

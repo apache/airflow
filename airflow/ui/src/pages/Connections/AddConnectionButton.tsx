@@ -19,8 +19,10 @@
 import { Box, Heading, VStack } from "@chakra-ui/react";
 import { useDisclosure } from "@chakra-ui/react";
 import { FiPlusCircle } from "react-icons/fi";
-import ActionButton from "src/components/ui/ActionButton";
+
 import { Dialog } from "src/components/ui";
+import ActionButton from "src/components/ui/ActionButton";
+
 import ConnectionForm from "./ConnectionForm";
 
 const AddConnectionButton = () => {
@@ -28,30 +30,30 @@ const AddConnectionButton = () => {
 
   return (
     <Box>
-        <ActionButton
-            actionName="Add Connection"
-            colorPalette="blue"
-            icon={<FiPlusCircle />}
-            onClick={onOpen}
-            text="Add Connection"
-            variant="solid"
-        />
+      <ActionButton
+        actionName="Add Connection"
+        colorPalette="blue"
+        icon={<FiPlusCircle />}
+        onClick={onOpen}
+        text="Add Connection"
+        variant="solid"
+      />
 
-        <Dialog.Root lazyMount onOpenChange={onClose} open={open} size="xl" unmountOnExit>
-            <Dialog.Content backdrop>
-            <Dialog.Header paddingBottom={0}>
-                <VStack align="start" gap={4}>
-                <Heading size="xl">Add Connection</Heading>
-                </VStack>
-            </Dialog.Header>
+      <Dialog.Root lazyMount onOpenChange={onClose} open={open} size="xl" unmountOnExit>
+        <Dialog.Content backdrop>
+          <Dialog.Header paddingBottom={0}>
+            <VStack align="start" gap={4}>
+              <Heading size="xl">Add Connection</Heading>
+            </VStack>
+          </Dialog.Header>
 
-            <Dialog.CloseTrigger />
+          <Dialog.CloseTrigger />
 
-            <Dialog.Body>
-                <ConnectionForm onClose={onClose} open={open} />
-            </Dialog.Body>
-            </Dialog.Content>
-        </Dialog.Root>
+          <Dialog.Body>
+            <ConnectionForm onClose={onClose} />
+          </Dialog.Body>
+        </Dialog.Content>
+      </Dialog.Root>
     </Box>
   );
 };
