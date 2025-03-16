@@ -230,3 +230,6 @@ class SkipMixin(LoggingMixin):
             ti.xcom_push(
                 key=XCOM_SKIPMIXIN_KEY, value={XCOM_SKIPMIXIN_FOLLOWED: follow_task_ids}, session=session
             )
+
+
+__all__ = ["SkipMixin"]

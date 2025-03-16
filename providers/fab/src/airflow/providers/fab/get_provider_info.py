@@ -26,7 +26,7 @@ def get_provider_info():
         "package-name": "apache-airflow-providers-fab",
         "name": "Fab",
         "description": "`Flask App Builder <https://flask-appbuilder.readthedocs.io/>`__\n",
-        "state": "ready",
+        "state": "not-ready",
         "source-date-epoch": 1741121873,
         "versions": [
             "2.0.0",

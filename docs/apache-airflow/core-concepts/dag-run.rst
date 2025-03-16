@@ -87,12 +87,12 @@ Catchup
 -------
 
 An Airflow DAG defined with a ``start_date``, possibly an ``end_date``, and a non-asset schedule, defines a series of intervals which the scheduler turns into individual DAG runs and executes.
-The scheduler, by default, will
-kick off a DAG Run for any data interval that has not been run since the last data interval (or has been cleared). This concept is called Catchup.
+By default, DAG runs that have not been run since the last data interval are not created by the scheduler upon activation of a DAG ( Airflow config ``scheduler.catchup_by_default=False``). The scheduler creates a DAG run only for the latest interval.
+
+If you set ``catchup=True`` in the DAG, the scheduler will kick off a DAG Run for any data interval that has not been run since the last data interval (or has been cleared). This concept is called Catchup.
 
 If your DAG is not written to handle its catchup (i.e., not limited to the interval, but instead to ``Now`` for instance.),
-then you will want to turn catchup off. This can be done by setting ``catchup=False`` in DAG  or ``catchup_by_default=False``
-in the configuration file. When turned off, the scheduler creates a DAG run only for the latest interval.
+then you will want to turn catchup off, which is the default setting or can be done explicitly by setting ``catchup=False`` in the DAG definition, if the default config has been changed for your Airflow environment.
 
 .. code-block:: python
 
@@ -117,7 +117,6 @@ in the configuration file. When turned off, the scheduler creates a DAG run only
         start_date=pendulum.datetime(2015, 12, 1, tz="UTC"),
         description="A simple tutorial DAG",
         schedule="@daily",
-        catchup=False,
     )
 
 In the example above, if the DAG is picked up by the scheduler daemon on
@@ -138,7 +137,7 @@ as that interval hasn't completed) and the scheduler will execute them sequentia
 
 Catchup is also triggered when you turn off a DAG for a specified period and then re-enable it.
 
-This behavior is great for atomic assets that can easily be split into periods. Turning catchup off is great
+This behavior is great for atomic assets that can easily be split into periods. Leaving catchup off is great
 if your DAG performs catchup internally.
 
 

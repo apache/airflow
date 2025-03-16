@@ -119,7 +119,8 @@ class TestLoginRouter:
                 )
                 assert response.status_code == 303
                 assert "location" in response.headers
-                assert response.headers["location"].startswith("http://localhost:8080/?token=")
+                assert "_token" in response.cookies
+                assert response.headers["location"].startswith("http://localhost:8080/")
 
     def test_login_callback_unsuccessful(self):
         with conf_vars(

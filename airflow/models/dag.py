@@ -85,7 +85,6 @@ from airflow.models.baseoperator import BaseOperator
 from airflow.models.dag_version import DagVersion
 from airflow.models.dagrun import RUN_ID_REGEX, DagRun
 from airflow.models.taskinstance import (
-    Context,
     TaskInstance,
     TaskInstanceKey,
     clear_task_instances,
@@ -105,6 +104,7 @@ from airflow.timetables.simple import (
     OnceTimetable,
 )
 from airflow.utils import timezone
+from airflow.utils.context import Context
 from airflow.utils.dag_cycle_tester import check_cycle
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.session import NEW_SESSION, provide_session
@@ -123,8 +123,6 @@ if TYPE_CHECKING:
     from airflow.typing_compat import Literal
 
 log = logging.getLogger(__name__)
-
-ORIENTATION_PRESETS = ["LR", "TB", "RL", "BT"]
 
 AssetT = TypeVar("AssetT", bound=BaseAsset)
 
@@ -384,8 +382,7 @@ class DAG(TaskSDKDag, LoggingMixin):
     :param dagrun_timeout: Specify the duration a DagRun should be allowed to run before it times out or
         fails. Task instances that are running when a DagRun is timed out will be marked as skipped.
     :param sla_miss_callback: DEPRECATED - The SLA feature is removed in Airflow 3.0, to be replaced with a new implementation in 3.1
-    :param orientation: Specify DAG orientation in graph view (LR, TB, RL, BT), default LR
-    :param catchup: Perform scheduler catchup (or only run latest)? Defaults to True
+    :param catchup: Perform scheduler catchup (or only run latest)? Defaults to False
     :param on_failure_callback: A function or list of functions to be called when a DagRun of this dag fails.
         A context dictionary is passed as a single parameter to this function.
     :param on_success_callback: Much like the ``on_failure_callback`` except
@@ -429,8 +426,6 @@ class DAG(TaskSDKDag, LoggingMixin):
 
     partial: bool = False
     last_loaded: datetime | None = attrs.field(factory=timezone.utcnow)
-
-    orientation: str = airflow_conf.get_mandatory_value("webserver", "dag_orientation")
 
     # this will only be set at serialization time
     # it's only use is for determining the relative fileloc based only on the serialize dag

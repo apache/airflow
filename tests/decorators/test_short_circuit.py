@@ -21,6 +21,7 @@ import pytest
 from pendulum import datetime
 
 from airflow.decorators import task
+from airflow.exceptions import DownstreamTasksSkipped
 from airflow.utils.state import State
 from airflow.utils.trigger_rule import TriggerRule
 
@@ -30,49 +31,91 @@ pytestmark = pytest.mark.db_test
 DEFAULT_DATE = datetime(2022, 8, 17)
 
 
-def test_short_circuit_decorator(dag_maker):
-    with dag_maker(serialized=True):
-
-        @task
-        def empty(): ...
+@pytest.mark.parametrize(["condition", "expected"], [(True, State.SUCCESS), (False, State.SKIPPED)])
+def test_short_circuit_decorator(dag_maker, session, condition, expected):
+    with dag_maker(serialized=True, session=session):
 
         @task.short_circuit()
         def short_circuit(condition):
             return condition
 
-        short_circuit_false = short_circuit.override(task_id="short_circuit_false")(condition=False)
-        task_1 = empty.override(task_id="task_1")()
-        short_circuit_false >> task_1
+        @task
+        def empty(): ...
 
-        short_circuit_true = short_circuit.override(task_id="short_circuit_true")(condition=True)
-        task_2 = empty.override(task_id="task_2")()
-        short_circuit_true >> task_2
+        short_circuit = short_circuit.override(task_id="short_circuit")(condition=condition)
+        task_1 = empty.override(task_id="task_1")()
+        short_circuit >> task_1
+
+    dr = dag_maker.create_dagrun()
+    tis = dr.get_task_instances()
+
+    for ti in tis:
+        try:
+            ti.run()
+        except DownstreamTasksSkipped:
+            ti.set_state(State.SUCCESS)
+
+    task_state_mapping = {
+        "short_circuit": State.SUCCESS,
+        "task_1": expected,
+    }
+
+    for ti in tis:
+        assert ti.state == task_state_mapping[ti.task_id]
+
+
+@pytest.mark.parametrize(
+    ["ignore_downstream_trigger_rules", "expected"], [(True, State.SKIPPED), (False, State.SUCCESS)]
+)
+def test_short_circuit_decorator__ignore_downstream_trigger_rules(
+    dag_maker, session, ignore_downstream_trigger_rules, expected
+):
+    with dag_maker(
+        dag_id="test_short_circuit_decorator__ignore_downstream_trigger_rules",
+        serialized=True,
+        session=session,
+    ):
+
+        @task.short_circuit()
+        def short_circuit():
+            return False
+
+        @task
+        def empty(): ...
 
         short_circuit_respect_trigger_rules = short_circuit.override(
-            task_id="short_circuit_respect_trigger_rules", ignore_downstream_trigger_rules=False
-        )(condition=False)
+            task_id="short_circuit_respect_trigger_rules",
+            ignore_downstream_trigger_rules=ignore_downstream_trigger_rules,
+        )()
         task_3 = empty.override(task_id="task_3")()
         task_4 = empty.override(task_id="task_4")()
         task_5 = empty.override(task_id="task_5", trigger_rule=TriggerRule.ALL_DONE)()
         short_circuit_respect_trigger_rules >> [task_3, task_4] >> task_5
 
-    dr = dag_maker.create_dagrun()
+    dr = dag_maker.create_dagrun(session=session)
+    tis = dr.get_task_instances(session=session)
 
-    for t in dag_maker.dag.tasks:
-        t.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, ignore_ti_state=True)
+    for ti in tis:
+        try:
+            ti.run(session=session)
+        except DownstreamTasksSkipped as dts:
+            # `DownstreamTasksSkipped` is raised when the task completes successfully
+            # and the downstream tasks are skipped
+            ti.set_state(State.SUCCESS)
+
+            # Tasks in dts.tasks are going to be skipped in the Task Execution API
+            #   so simulate that here by setting the state to SKIPPED
+            for x in dts.tasks:
+                y = dr.get_task_instance(x, session=session)
+                y.set_state(State.SKIPPED)
 
     task_state_mapping = {
-        "short_circuit_false": State.SUCCESS,
-        "task_1": State.SKIPPED,
-        "short_circuit_true": State.SUCCESS,
-        "task_2": State.SUCCESS,
         "short_circuit_respect_trigger_rules": State.SUCCESS,
         "task_3": State.SKIPPED,
         "task_4": State.SKIPPED,
-        "task_5": State.SUCCESS,
+        "task_5": expected,
     }
 
-    tis = dr.get_task_instances()
     for ti in tis:
         assert ti.state == task_state_mapping[ti.task_id]
 

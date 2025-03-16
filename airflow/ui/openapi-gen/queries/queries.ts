@@ -2954,6 +2954,32 @@ export const useLoginServiceLogin = <
     ...options,
   });
 /**
+ * Logout
+ * Logout the user.
+ * @param data The data for the request.
+ * @param data.next
+ * @returns unknown Successful Response
+ * @throws ApiError
+ */
+export const useLoginServiceLogout = <
+  TData = Common.LoginServiceLogoutDefaultResponse,
+  TError = unknown,
+  TQueryKey extends Array<unknown> = unknown[],
+>(
+  {
+    next,
+  }: {
+    next?: string;
+  } = {},
+  queryKey?: TQueryKey,
+  options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">,
+) =>
+  useQuery<TData, TError>({
+    queryKey: Common.UseLoginServiceLogoutKeyFn({ next }, queryKey),
+    queryFn: () => LoginService.logout({ next }) as TData,
+    ...options,
+  });
+/**
  * Create Asset Event
  * Create asset events.
  * @param data The data for the request.

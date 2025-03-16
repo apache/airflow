@@ -1289,6 +1289,9 @@ class SerializedBaseOperator(BaseOperator, BaseSerialization):
         # Used to determine if an Operator is inherited from EmptyOperator
         serialize_op["_is_empty"] = op.inherits_from_empty_operator
 
+        # Used to determine if an Operator is inherited from SkipMixin or BranchMixin
+        serialize_op["_can_skip_downstream"] = op.inherits_from_skipmixin
+
         serialize_op["start_trigger_args"] = (
             encode_start_trigger_args(op.start_trigger_args) if op.start_trigger_args else None
         )
@@ -1461,6 +1464,9 @@ class SerializedBaseOperator(BaseOperator, BaseSerialization):
         # Used to determine if an Operator is inherited from EmptyOperator
         setattr(op, "_is_empty", bool(encoded_op.get("_is_empty", False)))
 
+        # Used to determine if an Operator is inherited from SkipMixin
+        setattr(op, "_can_skip_downstream", bool(encoded_op.get("_can_skip_downstream", False)))
+
         start_trigger_args = None
         encoded_start_trigger_args = encoded_op.get("start_trigger_args", None)
         if encoded_start_trigger_args:
@@ -1524,6 +1530,7 @@ class SerializedBaseOperator(BaseOperator, BaseSerialization):
                 ui_fgcolor=BaseOperator.ui_fgcolor,
                 is_empty=False,
                 is_sensor=encoded_op.get("_is_sensor", False),
+                can_skip_downstream=encoded_op.get("_can_skip_downstream", False),
                 task_module=encoded_op["_task_module"],
                 task_type=encoded_op["task_type"],
                 operator_name=operator_name,

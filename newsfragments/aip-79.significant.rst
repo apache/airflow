@@ -10,7 +10,15 @@ As part of this change the following breaking changes have occurred:
 
   - A new abstract method ``serialize_user`` needs to be implemented
 
+  - A new abstract method ``filter_authorized_menu_items`` needs to be implemented
+
   - The property ``security_manager`` has been removed from the interface
+
+  - The method ``get_url_logout`` is now optional
+
+  - The method ``get_permitted_dag_ids`` has been renamed ``get_authorized_dag_ids``
+
+  - The method ``filter_permitted_dag_ids`` has been renamed ``filter_authorized_dag_ids``
 
   - All these methods have been removed from the interface:
 
@@ -20,11 +28,8 @@ As part of this change the following breaking changes have occurred:
     - ``get_user``
     - ``get_user_id``
     - ``is_logged_in``
-    - ``get_url_logout``
     - ``get_api_endpoints``
     - ``register_views``
-
-  - A new optional method ``logout`` has been added to the interface
 
   - All the following method signatures changed to make the parameter ``user`` required (it was optional)
 
@@ -36,8 +41,8 @@ As part of this change the following breaking changes have occurred:
     - ``is_authorized_variable``
     - ``is_authorized_view``
     - ``is_authorized_custom_view``
-    - ``get_permitted_dag_ids``
-    - ``filter_permitted_dag_ids``
+    - ``get_authorized_dag_ids`` (previously ``get_permitted_dag_ids``)
+    - ``filter_authorized_dag_ids`` (previously ``filter_permitted_dag_ids``)
 
   - All the following method signatures changed to add the parameter ``user``
 

@@ -534,12 +534,45 @@ def test_multi_run_first(start_date, expected):
         (pendulum.datetime(2025, 1, 1, minute=30), pendulum.datetime(2025, 1, 1, hour=1)),
     ],
 )
-def test_multi_run_next(last, expected):
+def test_multi_run_next_catchup(last, expected):
     timetable = MultipleCronTriggerTimetable("@hourly", "30 * * * *", timezone=utc)
     next_info = timetable.next_dagrun_info(
         last_automated_data_interval=DataInterval.exact(last),
         restriction=TimeRestriction(earliest=None, latest=None, catchup=True),
     )
+    assert next_info == DagRunInfo.exact(expected)
+
+
+@pytest.mark.parametrize(
+    "last, current_time, expected",
+    [
+        pytest.param(
+            pendulum.datetime(2025, 2, 1),
+            pendulum.datetime(2025, 2, 1, minute=30),
+            pendulum.datetime(2025, 2, 1, minute=30),
+            id="exact",
+        ),
+        pytest.param(
+            pendulum.datetime(2025, 2, 1),
+            pendulum.datetime(2025, 2, 1, hour=1, minute=59),
+            pendulum.datetime(2025, 2, 1, hour=1, minute=30),
+            id="choose-closest-past",
+        ),
+        pytest.param(
+            pendulum.datetime(2025, 2, 1),
+            pendulum.datetime(2025, 2, 1, minute=29),
+            pendulum.datetime(2025, 2, 1, minute=30),
+            id="no-past-choose-closest-future",
+        ),
+    ],
+)
+def test_multi_run_next_no_catchup(last, current_time, expected):
+    timetable = MultipleCronTriggerTimetable("@hourly", "30 * * * *", timezone=utc)
+    with time_machine.travel(current_time):
+        next_info = timetable.next_dagrun_info(
+            last_automated_data_interval=DataInterval.exact(last),
+            restriction=TimeRestriction(earliest=None, latest=None, catchup=False),
+        )
     assert next_info == DagRunInfo.exact(expected)
 
 

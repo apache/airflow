@@ -23,11 +23,11 @@ from airflow.api_fastapi.common.router import AirflowRouter
 from airflow.api_fastapi.core_api.openapi.exceptions import create_openapi_http_exception_doc
 from airflow.api_fastapi.core_api.security import is_safe_url
 
-login_router = AirflowRouter(tags=["Login"], prefix="/login")
+auth_router = AirflowRouter(tags=["Login"], prefix="/auth")
 
 
-@login_router.get(
-    "",
+@auth_router.get(
+    "/login",
     responses=create_openapi_http_exception_doc([status.HTTP_307_TEMPORARY_REDIRECT]),
 )
 def login(request: Request, next: None | str = None) -> RedirectResponse:
@@ -40,3 +40,17 @@ def login(request: Request, next: None | str = None) -> RedirectResponse:
     if next:
         login_url += f"?next={next}"
     return RedirectResponse(login_url)
+
+
+@auth_router.get(
+    "/logout",
+    responses=create_openapi_http_exception_doc([status.HTTP_307_TEMPORARY_REDIRECT]),
+)
+def logout(request: Request, next: None | str = None) -> RedirectResponse:
+    """Logout the user."""
+    logout_url = request.app.state.auth_manager.get_url_logout()
+
+    if not logout_url:
+        logout_url = request.app.state.auth_manager.get_url_login()
+
+    return RedirectResponse(logout_url)

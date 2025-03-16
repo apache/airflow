@@ -16,8 +16,9 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Box, HStack, Spacer, Text } from "@chakra-ui/react";
+import { Box, HStack, Spacer, Text, type ButtonProps } from "@chakra-ui/react";
 import { MdPause, MdPlayArrow, MdStop } from "react-icons/md";
+import { RiArrowGoBackFill } from "react-icons/ri";
 
 import {
   useBackfillServiceCancelBackfill,
@@ -34,6 +35,15 @@ import { Button, ProgressBar } from "../ui";
 type Props = {
   readonly dagId: string;
 };
+
+const buttonProps = {
+  _hover: { bg: "blue.contrast", color: "blue.muted" },
+  borderColor: "blue.contrast",
+  color: "blue.contrast",
+  rounded: "full",
+  size: "xs",
+  variant: "outline",
+} satisfies ButtonProps;
 
 const onSuccess = async () => {
   await queryClient.invalidateQueries({
@@ -71,12 +81,15 @@ const BackfillBanner = ({ dagId }: Props) => {
   }
 
   return (
-    <Box bg="blue.solid" color="white" fontSize="m" mr="0.5" my="1" px="2" py="1" rounded="lg">
-      <HStack>
+    <Box bg="blue.solid" borderRadius="full" color="blue.contrast" my="1" px="2" py="1">
+      <HStack alignItems="center" ml={3}>
+        <RiArrowGoBackFill />
         <Text key="backfill">Backfill in progress:</Text>
-        <>
+        <Text fontSize="sm">
+          {" "}
           <Time datetime={data?.backfills[0]?.from_date} /> - <Time datetime={data?.backfills[0]?.to_date} />
-        </>
+        </Text>
+
         <Spacer flex="max-content" />
         <ProgressBar size="xs" visibility="visible" />
         <Button
@@ -85,11 +98,9 @@ const BackfillBanner = ({ dagId }: Props) => {
           onClick={() => {
             togglePause();
           }}
-          rounded="full"
-          size="xs"
-          variant="outline"
+          {...buttonProps}
         >
-          {backfill.is_paused ? <MdPlayArrow color="white" size="1" /> : <MdPause color="white" size="1" />}
+          {backfill.is_paused ? <MdPlayArrow /> : <MdPause />}
         </Button>
         <Button
           aria-label="Cancel backfill"
@@ -97,11 +108,9 @@ const BackfillBanner = ({ dagId }: Props) => {
           onClick={() => {
             cancel();
           }}
-          rounded="full"
-          size="xs"
-          variant="outline"
+          {...buttonProps}
         >
-          <MdStop color="white" size="1" />
+          <MdStop />
         </Button>
       </HStack>
     </Box>

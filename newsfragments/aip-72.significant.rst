@@ -81,6 +81,8 @@ As part of this change the following breaking changes have occurred:
 
   - ``default_view``
 
+- The ``SkipMixin` class has been removed as a parent class from ``BaseSensorOperator``.
+
 * Types of change
 
   * [x] Dag changes
@@ -90,7 +92,7 @@ As part of this change the following breaking changes have occurred:
   * [x] Behaviour changes
   * [x] Plugin changes
   * [ ] Dependency changes
-  * [ ] Code interface changes
+  * [x] Code interface changes
 
 * Migration rules needed
 
@@ -104,4 +106,3 @@ As part of this change the following breaking changes have occurred:
     * AIR302
 
       * [ ] ``airflow.models.baseoperatorlink`` → ``airflow.sdk``
-      * [ ] ``default_view`` argument to DAG removed
