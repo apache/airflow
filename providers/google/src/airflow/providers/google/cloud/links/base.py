@@ -29,8 +29,8 @@ if AIRFLOW_V_3_0_PLUS:
     from airflow.sdk import BaseOperatorLink
     from airflow.sdk.execution_time.xcom import XCom
 else:
-    from airflow.models import XCom  # type: ignore[no-redef]
     from airflow.models.baseoperatorlink import BaseOperatorLink  # type: ignore[no-redef]
+    from airflow.models.xcom import XCom  # type: ignore[no-redef]
 
 BASE_LINK = "https://console.cloud.google.com"
 
