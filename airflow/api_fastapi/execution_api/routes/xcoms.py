@@ -18,7 +18,7 @@
 from __future__ import annotations
 
 import logging
-from typing import Annotated, Any, cast
+from typing import Annotated
 
 from fastapi import Body, Depends, HTTPException, Query, Response, status
 from pydantic import JsonValue
@@ -247,7 +247,7 @@ def set_xcom(
 
     try:
         # We expect serialised value from the caller - sdk, do not serialise in here
-        new = cast(Any, XComModel)(  # Work around Mypy complaining model not defining '__init__'.
+        new = XComModel(
             dag_run_id=dag_run_id,
             key=key,
             value=value,
