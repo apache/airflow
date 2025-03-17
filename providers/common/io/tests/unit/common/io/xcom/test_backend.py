@@ -32,7 +32,7 @@ from tests_common.test_utils.config import conf_vars
 pytestmark = [pytest.mark.db_test]
 
 if AIRFLOW_V_3_0_PLUS:
-    from airflow.models import XComModel
+    from airflow.models.xcom import XComModel
     from airflow.sdk.execution_time.comms import XComResult
     from airflow.sdk.execution_time.xcom import resolve_xcom_backend
 else:

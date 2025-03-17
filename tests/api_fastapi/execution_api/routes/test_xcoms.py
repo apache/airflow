@@ -24,9 +24,9 @@ import httpx
 import pytest
 
 from airflow.api_fastapi.execution_api.datamodels.xcom import XComResponse
-from airflow.models import XComModel
 from airflow.models.dagrun import DagRun
 from airflow.models.taskmap import TaskMap
+from airflow.models.xcom import XComModel
 from airflow.serialization.serde import serialize
 from airflow.utils.session import create_session
 

@@ -22,7 +22,7 @@ import pytest
 
 from airflow.decorators import task
 from airflow.exceptions import AirflowSensorTimeout
-from airflow.models import XComModel
+from airflow.models.xcom import XComModel
 from airflow.sensors.base import PokeReturnValue
 from airflow.utils.state import State
 
