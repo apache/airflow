@@ -1168,6 +1168,7 @@ class SerializedBaseOperator(BaseOperator, BaseSerialization):
         self.template_ext = BaseOperator.template_ext
         self.template_fields = BaseOperator.template_fields
         self.operator_extra_links = BaseOperator.operator_extra_links
+        self._operator_name = None
 
     @cached_property
     def operator_extra_link_dict(self) -> dict[str, BaseOperatorLink]:
@@ -1283,7 +1284,8 @@ class SerializedBaseOperator(BaseOperator, BaseSerialization):
 
         serialize_op["task_type"] = getattr(op, "task_type", type(op).__name__)
         serialize_op["_task_module"] = getattr(op, "_task_module", type(op).__module__)
-        if op.operator_name != serialize_op["task_type"]:
+        if op.operator_name and op.operator_name != serialize_op["task_type"]:
+            # op.operator_name can be None. See self._operator_name
             serialize_op["_operator_name"] = op.operator_name
 
         # Used to determine if an Operator is inherited from EmptyOperator
@@ -1338,15 +1340,8 @@ class SerializedBaseOperator(BaseOperator, BaseSerialization):
         done in ``set_task_dag_references`` instead, which is called after the
         DAG is hydrated.
         """
-        if "label" not in encoded_op:
-            # Handle deserialization of old data before the introduction of TaskGroup
-            encoded_op["label"] = encoded_op["task_id"]
-
         # Extra Operator Links defined in Plugins
         op_extra_links_from_plugin = {}
-
-        if "_operator_name" not in encoded_op:
-            encoded_op["_operator_name"] = encoded_op["task_type"]
 
         # We don't want to load Extra Operator links in Scheduler
         if cls._load_operator_extra_links:
@@ -1546,6 +1541,7 @@ class SerializedBaseOperator(BaseOperator, BaseSerialization):
         else:
             op = SerializedBaseOperator(task_id=encoded_op["task_id"])
         cls.populate_operator(op, encoded_op)
+
         return op
 
     @classmethod
