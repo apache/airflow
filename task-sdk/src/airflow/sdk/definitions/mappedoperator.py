@@ -204,6 +204,7 @@ class OperatorPartial:
 
     def _expand(self, expand_input: ExpandInput, *, strict: bool) -> MappedOperator:
         from airflow.providers.standard.operators.empty import EmptyOperator
+        from airflow.providers.standard.utils.skipmixin import SkipMixin
         from airflow.sensors.base import BaseSensorOperator
 
         self._expand_called = True
@@ -235,6 +236,7 @@ class OperatorPartial:
             ui_fgcolor=self.operator_class.ui_fgcolor,
             is_empty=issubclass(self.operator_class, EmptyOperator),
             is_sensor=issubclass(self.operator_class, BaseSensorOperator),
+            can_skip_downstream=issubclass(self.operator_class, SkipMixin),
             task_module=self.operator_class.__module__,
             task_type=self.operator_class.__name__,
             operator_name=operator_name,
@@ -290,6 +292,7 @@ class MappedOperator(AbstractOperator):
     ui_color: str
     ui_fgcolor: str
     _is_empty: bool = attrs.field(alias="is_empty")
+    _can_skip_downstream: bool = attrs.field(alias="can_skip_downstream")
     _is_sensor: bool = attrs.field(alias="is_sensor", default=False)
     _task_module: str
     _task_type: str
@@ -379,7 +382,7 @@ class MappedOperator(AbstractOperator):
 
     @property
     def inherits_from_empty_operator(self) -> bool:
-        """Implementing Operator."""
+        """Implementing an empty Operator."""
         return self._is_empty
 
     @property
@@ -749,6 +752,8 @@ class MappedOperator(AbstractOperator):
             op.is_setup = is_setup
             op.is_teardown = is_teardown
             op.on_failure_fail_dagrun = on_failure_fail_dagrun
+            op.downstream_task_ids = self.downstream_task_ids
+            op.upstream_task_ids = self.upstream_task_ids
             return op
 
         # TODO: TaskSDK: This probably doesn't need to live in definition time as the next section of code is

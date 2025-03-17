@@ -19,7 +19,6 @@ from __future__ import annotations
 
 import logging
 from typing import Any
-from urllib.parse import urljoin
 
 import anyio
 from fastapi import HTTPException, Request
@@ -27,6 +26,7 @@ from starlette import status
 from starlette.responses import RedirectResponse
 
 from airflow.api_fastapi.app import AUTH_MANAGER_FASTAPI_APP_PREFIX, get_auth_manager
+from airflow.api_fastapi.auth.managers.base_auth_manager import COOKIE_NAME_JWT_TOKEN
 from airflow.api_fastapi.common.router import AirflowRouter
 from airflow.configuration import conf
 from airflow.providers.amazon.aws.auth_manager.constants import CONF_SAML_METADATA_URL_KEY, CONF_SECTION_NAME
@@ -80,8 +80,11 @@ def login_callback(request: Request):
         username=saml_auth.get_nameid(),
         email=attributes["email"][0] if "email" in attributes else None,
     )
-    url = urljoin(conf.get("api", "base_url"), f"?token={get_auth_manager().get_jwt_token(user)}")
-    return RedirectResponse(url=url, status_code=303)
+    url = conf.get("api", "base_url")
+    token = get_auth_manager().generate_jwt(user)
+    response = RedirectResponse(url=url, status_code=303)
+    response.set_cookie(COOKIE_NAME_JWT_TOKEN, token, secure=True)
+    return response
 
 
 def _init_saml_auth(request: Request) -> OneLogin_Saml2_Auth:

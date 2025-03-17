@@ -64,6 +64,6 @@ def get_provider_info():
                 "connection-type": "openai",
             }
         ],
-        "dependencies": ["apache-airflow>=2.9.0", "openai[datalib]>=1.32.0,<1.66.0"],
+        "dependencies": ["apache-airflow>=2.9.0", "openai[datalib]>=1.66.0"],
         "devel-dependencies": [],
     }

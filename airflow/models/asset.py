@@ -36,7 +36,6 @@ from sqlalchemy import (
 from sqlalchemy.orm import relationship
 
 from airflow.models.base import Base, StringID
-from airflow.sdk.definitions.asset import Asset, AssetAlias
 from airflow.settings import json
 from airflow.utils import timezone
 from airflow.utils.sqlalchemy import UtcDateTime
@@ -46,6 +45,8 @@ if TYPE_CHECKING:
     from typing import Any
 
     from sqlalchemy.orm import Session
+
+    from airflow.sdk.definitions.asset import Asset, AssetAlias
 
 
 def fetch_active_assets_by_name(names: Iterable[str], session: Session) -> dict[str, Asset]:
@@ -187,12 +188,16 @@ class AssetAliasModel(Base):
         return hash(self.name)
 
     def __eq__(self, other):
+        from airflow.sdk.definitions.asset import AssetAlias
+
         if isinstance(other, (self.__class__, AssetAlias)):
             return self.name == other.name
         else:
             return NotImplemented
 
     def to_public(self) -> AssetAlias:
+        from airflow.sdk.definitions.asset import AssetAlias
+
         return AssetAlias(name=self.name)
 
 
@@ -280,6 +285,8 @@ class AssetModel(Base):
         super().__init__(name=name, uri=uri, **kwargs)
 
     def __eq__(self, other):
+        from airflow.sdk.definitions.asset import Asset
+
         if isinstance(other, (self.__class__, Asset)):
             return self.name == other.name and self.uri == other.uri
         return NotImplemented
@@ -291,6 +298,8 @@ class AssetModel(Base):
         return f"{self.__class__.__name__}(name={self.name!r}, uri={self.uri!r}, extra={self.extra!r})"
 
     def to_public(self) -> Asset:
+        from airflow.sdk.definitions.asset import Asset
+
         return Asset(name=self.name, uri=self.uri, group=self.group, extra=self.extra)
 
 

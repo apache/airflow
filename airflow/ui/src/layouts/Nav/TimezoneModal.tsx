@@ -28,7 +28,7 @@ type TimezoneModalProps = {
 };
 
 const TimezoneModal: React.FC<TimezoneModalProps> = ({ isOpen, onClose }) => (
-  <Dialog.Root onOpenChange={onClose} open={isOpen} size="xl">
+  <Dialog.Root lazyMount onOpenChange={onClose} open={isOpen} size="xl">
     <Dialog.Content backdrop>
       <Dialog.Header>Select Timezone</Dialog.Header>
       <Dialog.CloseTrigger />

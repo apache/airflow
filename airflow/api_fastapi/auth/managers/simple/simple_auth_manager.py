@@ -36,6 +36,7 @@ from airflow.api_fastapi.app import AUTH_MANAGER_FASTAPI_APP_PREFIX
 from airflow.api_fastapi.auth.managers.base_auth_manager import BaseAuthManager
 from airflow.api_fastapi.auth.managers.models.resource_details import BackfillDetails
 from airflow.api_fastapi.auth.managers.simple.user import SimpleAuthManagerUser
+from airflow.api_fastapi.common.types import MenuItem
 from airflow.configuration import AIRFLOW_HOME, conf
 
 if TYPE_CHECKING:
@@ -138,10 +139,10 @@ class SimpleAuthManager(BaseAuthManager[SimpleAuthManagerUser]):
         return AUTH_MANAGER_FASTAPI_APP_PREFIX + "/login"
 
     def deserialize_user(self, token: dict[str, Any]) -> SimpleAuthManagerUser:
-        return SimpleAuthManagerUser(username=token["username"], role=token["role"])
+        return SimpleAuthManagerUser(username=token["sub"], role=token["role"])
 
     def serialize_user(self, user: SimpleAuthManagerUser) -> dict[str, Any]:
-        return {"username": user.username, "role": user.role}
+        return {"sub": user.username, "role": user.role}
 
     def is_authorized_configuration(
         self,
@@ -248,6 +249,11 @@ class SimpleAuthManager(BaseAuthManager[SimpleAuthManagerUser]):
         self, *, method: ResourceMethod | str, resource_name: str, user: SimpleAuthManagerUser
     ):
         return self._is_authorized(method="GET", allow_role=SimpleAuthManagerRole.VIEWER, user=user)
+
+    def filter_authorized_menu_items(
+        self, menu_items: list[MenuItem], *, user: SimpleAuthManagerUser
+    ) -> list[MenuItem]:
+        return menu_items
 
     def get_fastapi_app(self) -> FastAPI | None:
         """

@@ -20,7 +20,7 @@ from unittest import mock
 
 import pytest
 
-from airflow.api_fastapi.common.types import MenuItem
+from airflow.api_fastapi.common.types import ExtraMenuItem
 
 pytestmark = pytest.mark.db_test
 
@@ -28,9 +28,9 @@ pytestmark = pytest.mark.db_test
 class TestGetAuthLinks:
     @mock.patch("airflow.api_fastapi.core_api.routes.ui.auth.get_auth_manager")
     def test_should_response_200(self, mock_get_auth_manager, test_client):
-        mock_get_auth_manager.return_value.get_menu_items.return_value = [
-            MenuItem(text="name1", href="path1"),
-            MenuItem(text="name2", href="path2"),
+        mock_get_auth_manager.return_value.get_extra_menu_items.return_value = [
+            ExtraMenuItem(text="name1", href="path1"),
+            ExtraMenuItem(text="name2", href="path2"),
         ]
         response = test_client.get("/ui/auth/links")
 

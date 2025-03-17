@@ -37,6 +37,7 @@ from airflow.api_fastapi.auth.managers.models.resource_details import (
     PoolDetails,
     VariableDetails,
 )
+from airflow.api_fastapi.common.types import MenuItem
 from airflow.providers.amazon.aws.auth_manager.avp.entities import AvpEntities
 from airflow.providers.amazon.aws.auth_manager.aws_auth_manager import AwsAuthManager
 from airflow.providers.amazon.aws.auth_manager.user import AwsAuthManagerUser
@@ -399,6 +400,77 @@ class TestAwsAuthManager:
         )
         assert result
 
+    def test_filter_authorized_menu_items(self, auth_manager):
+        batch_is_authorized_output = [
+            {
+                "request": {
+                    "principal": {"entityType": "Airflow::User", "entityId": "test_user_id"},
+                    "action": {"actionType": "Airflow::Action", "actionId": "Menu.MENU"},
+                    "resource": {"entityType": "Airflow::Menu", "entityId": MenuItem.CONNECTIONS.value},
+                },
+                "decision": "DENY",
+            },
+            {
+                "request": {
+                    "principal": {"entityType": "Airflow::User", "entityId": "test_user_id"},
+                    "action": {"actionType": "Airflow::Action", "actionId": "Menu.MENU"},
+                    "resource": {"entityType": "Airflow::Menu", "entityId": MenuItem.VARIABLES.value},
+                },
+                "decision": "ALLOW",
+            },
+            {
+                "request": {
+                    "principal": {"entityType": "Airflow::User", "entityId": "test_user_id"},
+                    "action": {"actionType": "Airflow::Action", "actionId": "Menu.MENU"},
+                    "resource": {"entityType": "Airflow::Menu", "entityId": MenuItem.ASSETS.value},
+                },
+                "decision": "DENY",
+            },
+            {
+                "request": {
+                    "principal": {"entityType": "Airflow::User", "entityId": "test_user_id"},
+                    "action": {"actionType": "Airflow::Action", "actionId": "Menu.MENU"},
+                    "resource": {"entityType": "Airflow::Menu", "entityId": MenuItem.DAGS.value},
+                },
+                "decision": "ALLOW",
+            },
+        ]
+        auth_manager.avp_facade.get_batch_is_authorized_results = Mock(
+            return_value=batch_is_authorized_output
+        )
+
+        result = auth_manager.filter_authorized_menu_items(
+            [MenuItem.CONNECTIONS, MenuItem.VARIABLES, MenuItem.ASSETS, MenuItem.DAGS],
+            user=AwsAuthManagerUser(user_id="test_user_id", groups=[]),
+        )
+
+        auth_manager.avp_facade.get_batch_is_authorized_results.assert_called_once_with(
+            requests=[
+                {
+                    "method": "MENU",
+                    "entity_type": AvpEntities.MENU,
+                    "entity_id": MenuItem.CONNECTIONS.value,
+                },
+                {
+                    "method": "MENU",
+                    "entity_type": AvpEntities.MENU,
+                    "entity_id": MenuItem.VARIABLES.value,
+                },
+                {
+                    "method": "MENU",
+                    "entity_type": AvpEntities.MENU,
+                    "entity_id": MenuItem.ASSETS.value,
+                },
+                {
+                    "method": "MENU",
+                    "entity_type": AvpEntities.MENU,
+                    "entity_id": MenuItem.DAGS.value,
+                },
+            ],
+            user=ANY,
+        )
+        assert result == [MenuItem.VARIABLES, MenuItem.DAGS]
+
     @patch.object(AwsAuthManager, "avp_facade")
     def test_batch_is_authorized_dag(
         self,
@@ -412,7 +484,10 @@ class TestAwsAuthManager:
             requests=[
                 {"method": "GET"},
                 {"method": "GET", "details": DagDetails(id="dag_1")},
-                {"method": "GET", "details": DagDetails(id="dag_1"), "access_entity": DagAccessEntity.CODE},
+            ]
+            + [
+                {"method": "GET", "details": DagDetails(id="dag_1"), "access_entity": dag_access_entity}
+                for dag_access_entity in DagAccessEntity
             ],
             user=mock,
         )
@@ -431,16 +506,28 @@ class TestAwsAuthManager:
                     "entity_id": "dag_1",
                     "context": None,
                 },
+            ]
+            + [
                 {
                     "method": "GET",
                     "entity_type": AvpEntities.DAG,
                     "entity_id": "dag_1",
-                    "context": {
-                        "dag_entity": {
-                            "string": DagAccessEntity.CODE.value,
-                        },
-                    },
-                },
+                    "context": {"dag_entity": {"string": dag_entity}},
+                }
+                for dag_entity in (
+                    DagAccessEntity.AUDIT_LOG.value,
+                    DagAccessEntity.CODE.value,
+                    DagAccessEntity.DEPENDENCIES.value,
+                    DagAccessEntity.RUN.value,
+                    DagAccessEntity.SLA_MISS.value,
+                    DagAccessEntity.TASK.value,
+                    DagAccessEntity.TASK_INSTANCE.value,
+                    DagAccessEntity.TASK_LOGS.value,
+                    DagAccessEntity.TASK_RESCHEDULE.value,
+                    DagAccessEntity.VERSION.value,
+                    DagAccessEntity.WARNING.value,
+                    DagAccessEntity.XCOM.value,
+                )
             ],
             user=ANY,
         )
@@ -517,7 +604,7 @@ class TestAwsAuthManager:
             ("PUT", AwsAuthManagerUser(user_id="test_user_id2", groups=[]), {"dag_2"}),
         ],
     )
-    def test_filter_permitted_dag_ids(self, method, user, auth_manager, test_user, expected_result):
+    def test_filter_authorized_dag_ids(self, method, user, auth_manager, test_user, expected_result):
         dag_ids = {"dag_1", "dag_2"}
         # test_user_id1 has GET permissions on dag_1
         # test_user_id2 has PUT permissions on dag_2
@@ -591,7 +678,7 @@ class TestAwsAuthManager:
             return_value=batch_is_authorized_output
         )
 
-        result = auth_manager.filter_permitted_dag_ids(
+        result = auth_manager.filter_authorized_dag_ids(
             dag_ids=dag_ids,
             method=method,
             user=user,

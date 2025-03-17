@@ -24,6 +24,7 @@ import pytest
 from airflow.api_fastapi.app import AUTH_MANAGER_FASTAPI_APP_PREFIX
 from airflow.api_fastapi.auth.managers.models.resource_details import AccessView
 from airflow.api_fastapi.auth.managers.simple.user import SimpleAuthManagerUser
+from airflow.api_fastapi.common.types import MenuItem
 
 from tests_common.test_utils.config import conf_vars
 
@@ -74,14 +75,14 @@ class TestSimpleAuthManager:
             assert result == AUTH_MANAGER_FASTAPI_APP_PREFIX + "/token"
 
     def test_deserialize_user(self, auth_manager):
-        result = auth_manager.deserialize_user({"username": "test", "role": "admin"})
+        result = auth_manager.deserialize_user({"sub": "test", "role": "admin"})
         assert result.username == "test"
         assert result.role == "admin"
 
     def test_serialize_user(self, auth_manager):
         user = SimpleAuthManagerUser(username="test", role="admin")
         result = auth_manager.serialize_user(user)
-        assert result == {"username": "test", "role": "admin"}
+        assert result == {"sub": "test", "role": "admin"}
 
     @pytest.mark.parametrize(
         "api",
@@ -214,3 +215,10 @@ class TestSimpleAuthManager:
             getattr(auth_manager, api)(method=method, user=SimpleAuthManagerUser(username="test", role=role))
             is result
         )
+
+    def test_filter_authorized_menu_items(self, auth_manager):
+        items = [MenuItem.ASSETS]
+        results = auth_manager.filter_authorized_menu_items(
+            items, user=SimpleAuthManagerUser(username="test", role=None)
+        )
+        assert results == items
