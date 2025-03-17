@@ -48,8 +48,8 @@ class _AssetMainOperator(PythonOperator):
             task_id="__main__",
             inlets=[
                 Asset.ref(name=inlet_asset_name)
-                for inlet_asset_name in inspect.signature(definition._function).parameters
-                if inlet_asset_name not in ("self", "context")
+                for inlet_asset_name, param in inspect.signature(definition._function).parameters.items()
+                if inlet_asset_name not in ("self", "context") and param.default is inspect.Parameter.empty
             ],
             outlets=[v for _, v in definition.iter_assets()],
             python_callable=definition._function,
@@ -60,8 +60,10 @@ class _AssetMainOperator(PythonOperator):
         self, context: Mapping[str, Any], active_assets: dict[str, Asset]
     ) -> Iterator[tuple[str, Any]]:
         value: Any
-        for key in inspect.signature(self.python_callable).parameters:
-            if key == "self":
+        for key, param in inspect.signature(self.python_callable).parameters.items():
+            if param.default is not inspect.Parameter.empty:
+                value = param.default
+            elif key == "self":
                 value = active_assets.get(self._definition_name)
             elif key == "context":
                 value = context

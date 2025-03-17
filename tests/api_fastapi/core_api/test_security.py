@@ -66,7 +66,7 @@ class TestFastApiSecurity:
         auth_manager.get_user_from_token.side_effect = InvalidTokenError()
         mock_get_auth_manager.return_value = auth_manager
 
-        with pytest.raises(HTTPException, match="Forbidden"):
+        with pytest.raises(HTTPException, match="Invalid JWT token"):
             await get_user(token_str)
 
         auth_manager.get_user_from_token.assert_called_once_with(token_str)

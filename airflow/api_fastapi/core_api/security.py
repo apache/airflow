@@ -59,7 +59,7 @@ async def get_user(token_str: Annotated[str, Depends(oauth2_scheme)]) -> BaseUse
     except ExpiredSignatureError:
         raise HTTPException(status.HTTP_401_UNAUTHORIZED, "Token Expired")
     except InvalidTokenError:
-        raise HTTPException(status.HTTP_403_FORBIDDEN, "Forbidden")
+        raise HTTPException(status.HTTP_403_FORBIDDEN, "Invalid JWT token")
 
 
 GetUserDep = Annotated[BaseUser, Depends(get_user)]

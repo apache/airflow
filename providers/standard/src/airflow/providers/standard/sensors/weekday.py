@@ -103,7 +103,21 @@ class DayOfWeekSensor(BaseSensorOperator):
             self.week_day,
             WeekDay(timezone.utcnow().isoweekday()).name,
         )
+
         if self.use_task_logical_date:
-            return context["logical_date"].isoweekday() in self._week_day_num
+            logical_date = context.get("logical_date")
+            dag_run = context.get("dag_run")
+
+            if not (logical_date or (dag_run and dag_run.run_after)):
+                raise ValueError(
+                    "Either `logical_date` or `run_after` should be provided in the task context when "
+                    "`use_task_logical_date` is True"
+                )
+
+            determined_weekday_num = (
+                logical_date.isoweekday() if logical_date else dag_run.run_after.isoweekday()  # type: ignore[union-attr]
+            )
+
+            return determined_weekday_num in self._week_day_num
         else:
             return timezone.utcnow().isoweekday() in self._week_day_num

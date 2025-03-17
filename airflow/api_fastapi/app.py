@@ -17,6 +17,7 @@
 from __future__ import annotations
 
 import logging
+import os
 from contextlib import AsyncExitStack, asynccontextmanager
 from typing import TYPE_CHECKING
 from urllib.parse import urlsplit
@@ -40,8 +41,14 @@ from airflow.exceptions import AirflowConfigException
 if TYPE_CHECKING:
     from airflow.api_fastapi.auth.managers.base_auth_manager import BaseAuthManager
 
-# Define the path in which the potential auth manager fastapi is mounted
-AUTH_MANAGER_FASTAPI_APP_PREFIX = "/auth"
+API_BASE_URL = conf.get("api", "base_url")
+if API_BASE_URL and not API_BASE_URL.endswith("/"):
+    API_BASE_URL += "/"
+    os.environ["AIRFLOW__API__BASE_URL"] = API_BASE_URL
+API_ROOT_PATH = urlsplit(API_BASE_URL).path
+
+# Define the full path on which the potential auth manager fastapi is mounted
+AUTH_MANAGER_FASTAPI_APP_PREFIX = f"{API_ROOT_PATH}auth"
 
 log = logging.getLogger(__name__)
 
@@ -64,20 +71,13 @@ async def lifespan(app: FastAPI):
 def create_app(apps: str = "all") -> FastAPI:
     apps_list = apps.split(",") if apps else ["all"]
 
-    fastapi_base_url = conf.get("api", "base_url", fallback="")
-    if fastapi_base_url and not fastapi_base_url.endswith("/"):
-        fastapi_base_url += "/"
-        conf.set("api", "base_url", fastapi_base_url)
-
-    root_path = urlsplit(fastapi_base_url).path.removesuffix("/")
-
     app = FastAPI(
         title="Airflow API",
         description="Airflow API. All endpoints located under ``/public`` can be used safely, are stable and backward compatible. "
         "Endpoints located under ``/ui`` are dedicated to the UI and are subject to breaking change "
         "depending on the need of the frontend. Users should not rely on those but use the public ones instead.",
         lifespan=lifespan,
-        root_path=root_path,
+        root_path=API_ROOT_PATH.removesuffix("/"),
     )
 
     if "execution" in apps_list or "all" in apps_list:
@@ -144,7 +144,7 @@ def init_auth_manager(app: FastAPI | None = None) -> BaseAuthManager:
     am.init()
 
     if app and (auth_manager_fastapi_app := am.get_fastapi_app()):
-        app.mount(AUTH_MANAGER_FASTAPI_APP_PREFIX, auth_manager_fastapi_app)
+        app.mount("/auth", auth_manager_fastapi_app)
         app.state.auth_manager = am
 
     return am
