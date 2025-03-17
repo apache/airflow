@@ -17,6 +17,7 @@
 from __future__ import annotations
 
 import logging
+import os
 from contextlib import AsyncExitStack, asynccontextmanager
 from typing import TYPE_CHECKING
 from urllib.parse import urlsplit
@@ -67,7 +68,7 @@ def create_app(apps: str = "all") -> FastAPI:
     fastapi_base_url = conf.get("api", "base_url", fallback="")
     if fastapi_base_url and not fastapi_base_url.endswith("/"):
         fastapi_base_url += "/"
-        conf.set("api", "base_url", fastapi_base_url)
+        os.environ["AIRFLOW__API__BASE_URL"] = fastapi_base_url
 
     root_path = urlsplit(fastapi_base_url).path.removesuffix("/")
 
