@@ -421,7 +421,7 @@ convenience method :py:meth:`~airflow.models.connection.Connection.get_uri`.  It
 
 .. note::
 
-   The `get_uri()` method return the connection URI in Airflow format, **not** a SQLAlchemy-compatible URI. if you need a SQLAlchemy-compatible URI for database connections, use :attr:`~airflow.providers.common.sql.hooks.sql.DbApiHook.sqlalchemy_url` property instead.
+   The ``get_uri()`` method return the connection URI in Airflow format, **not** a SQLAlchemy-compatible URI. if you need a SQLAlchemy-compatible URI for database connections, use :attr:`~airflow.providers.common.sql.hooks.sql.DbApiHook.sqlalchemy_url` property instead.
 
 Additionally, if you have created a connection, you can use ``airflow connections get`` command.
 
