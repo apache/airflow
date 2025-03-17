@@ -28,9 +28,9 @@ export const useAddConnection = ({ onSuccessConfirm }: { onSuccessConfirm: () =>
   const [error, setError] = useState<unknown>(undefined);
 
   const onSuccess = async () => {
-    const queryKeys = [[useConnectionServiceGetConnectionsKey]];
-
-    await Promise.all(queryKeys.map((key) => queryClient.invalidateQueries({ queryKey: key })));
+    await queryClient.invalidateQueries({
+      queryKey: [useConnectionServiceGetConnectionsKey],
+    });
 
     toaster.create({
       description: "Connection has been added successfully",

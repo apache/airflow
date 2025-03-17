@@ -20,7 +20,7 @@ import { Input, Button, Box, Spacer, HStack, Field, Stack, VStack, Textarea } fr
 import { Select } from "chakra-react-select";
 import { useEffect, useState } from "react";
 import { useForm, Controller } from "react-hook-form";
-import { FiSave } from "react-icons/fi";
+import { FiEye, FiEyeOff, FiSave } from "react-icons/fi";
 
 import { ErrorAlert } from "src/components/ErrorAlert";
 import { FlexibleForm, flexibleFormExtraFieldSection } from "src/components/FlexibleForm";
@@ -52,6 +52,7 @@ const ConnectionForm = ({ onClose }: AddConnectionFormProps) => {
   const { formattedData: connectionTypeMeta, keysList: connectionTypes } = useConnectionTypeMeta();
   const { addConnection, error, isPending } = useAddConnection({ onSuccessConfirm: onClose });
   const { conf, setConf } = useParamStore();
+  const [showPassword, setShowPassword] = useState(false);
 
   const {
     control,
@@ -62,7 +63,7 @@ const ConnectionForm = ({ onClose }: AddConnectionFormProps) => {
   } = useForm<AddConnectionParams>({
     defaultValues: {
       conf,
-      conn_type: connectionTypes[0],
+      conn_type: "",
       connection_id: "",
       description: "",
       host: "",
@@ -77,20 +78,26 @@ const ConnectionForm = ({ onClose }: AddConnectionFormProps) => {
   const standardFields = connectionTypeMeta[selectedConnType]?.standard_fields ?? {};
   const paramsDic = { paramsDict: connectionTypeMeta[selectedConnType]?.extra_fields ?? ({} as ParamsSpec) };
 
-  // Automatically reset form when conf is fetched
   useEffect(() => {
-    reset({
-      conf,
+    reset((prevValues) => ({
+      ...prevValues,
       conn_type: selectedConnType,
-      connection_id: "",
       description: "",
       host: "",
       login: "",
       password: "",
       port: "",
       schema: "",
-    });
-  }, [selectedConnType, conf, reset, setConf]);
+    }));
+  }, [selectedConnType, reset]);
+
+  // Automatically reset form when conf is fetched
+  useEffect(() => {
+    reset((prevValues) => ({
+      ...prevValues, // Retain existing form values
+      conf,
+    }));
+  }, [conf, reset, setConf]);
 
   const onSubmit = (data: AddConnectionParams) => {
     addConnection(data);
@@ -128,7 +135,7 @@ const ConnectionForm = ({ onClose }: AddConnectionFormProps) => {
 
   return (
     <>
-      <VStack gap={5} p={5}>
+      <VStack gap={5} p={3}>
         <Controller
           control={control}
           name="connection_id"
@@ -168,77 +175,106 @@ const ConnectionForm = ({ onClose }: AddConnectionFormProps) => {
                   placeholder="Select Connection Type"
                   value={connTypesOptions.find((type) => type.value === value)}
                 />
+                <Field.HelperText>
+                  Connection type missing? Make sure you have installed the corresponding Airflow Providers
+                  Package.
+                </Field.HelperText>
               </Stack>
             </Field.Root>
           )}
         />
 
-        <Accordion.Root collapsible mb={4} mt={4} size="lg" variant="enclosed">
-          <Accordion.Item key="standardField" value="standardField">
-            <Accordion.ItemTrigger cursor="button">Standard Field</Accordion.ItemTrigger>
-            <Accordion.ItemContent>
-              <Stack pb={3} pl={3} pr={3}>
-                {Object.entries(standardFields).map(([key, fields]) => {
-                  if (Boolean(fields.hidden)) {
-                    return undefined;
-                  } // Skip hidden fields
+        {selectedConnType ? (
+          <>
+            <Accordion.Root collapsible mb={4} mt={4} size="lg" variant="enclosed">
+              <Accordion.Item key="standardField" value="standardField">
+                <Accordion.ItemTrigger cursor="button">Standard Fields</Accordion.ItemTrigger>
+                <Accordion.ItemContent>
+                  <Stack pb={3} pl={3} pr={3}>
+                    {Object.entries(standardFields).map(([key, fields]) => {
+                      if (Boolean(fields.hidden)) {
+                        return undefined;
+                      } // Skip hidden fields
 
-                  return (
-                    <Controller
-                      control={control}
-                      key={key}
-                      name={key as keyof AddConnectionParams}
-                      render={({ field }) => (
-                        <Field.Root mt={3} orientation="horizontal">
-                          <Stack>
-                            <Field.Label fontSize="md" style={{ flexBasis: "30%" }}>
-                              {fields.title ?? key}
-                            </Field.Label>
-                          </Stack>
-                          <Stack css={{ flexBasis: "70%" }}>
-                            {key === "description" ? (
-                              <Textarea {...field} placeholder={fields.placeholder ?? ""} />
-                            ) : (
-                              <Input {...field} placeholder={fields.placeholder ?? ""} />
-                            )}
-                          </Stack>
-                        </Field.Root>
-                      )}
-                    />
-                  );
-                })}
-              </Stack>
-            </Accordion.ItemContent>
-          </Accordion.Item>
-          <FlexibleForm
-            flexibleFormDefaultSection={flexibleFormExtraFieldSection}
-            initialParamsDict={paramsDic}
-            key={selectedConnType}
-          />
-        </Accordion.Root>
-
-        <Controller
-          control={control}
-          name="conf"
-          render={({ field }) => (
-            <Field.Root invalid={Boolean(errors.conf)}>
-              <Field.Label fontSize="md" mb={3}>
-                Extra Field JSON
-              </Field.Label>
-              <JsonEditor
-                {...field}
-                onBlur={() => {
-                  field.onChange(validateAndPrettifyJson(field.value));
-                }}
+                      return (
+                        <Controller
+                          control={control}
+                          key={key}
+                          name={key as keyof AddConnectionParams}
+                          render={({ field }) => (
+                            <Field.Root mt={3} orientation="horizontal">
+                              <Stack>
+                                <Field.Label fontSize="md" style={{ flexBasis: "30%" }}>
+                                  {fields.title ?? key}
+                                </Field.Label>
+                              </Stack>
+                              <Stack css={{ flexBasis: "70%", position: "relative" }}>
+                                {key === "description" ? (
+                                  <Textarea {...field} placeholder={fields.placeholder ?? ""} />
+                                ) : (
+                                  <div style={{ position: "relative", width: "100%" }}>
+                                    <Input
+                                      {...field}
+                                      placeholder={fields.placeholder ?? ""}
+                                      type={key === "password" && !showPassword ? "password" : "text"}
+                                    />
+                                    {key === "password" && (
+                                      <button
+                                        onClick={() => setShowPassword(!showPassword)}
+                                        style={{
+                                          cursor: "pointer",
+                                          position: "absolute",
+                                          right: "10px",
+                                          top: "50%",
+                                          transform: "translateY(-50%)",
+                                        }}
+                                        type="button"
+                                      >
+                                        {showPassword ? <FiEye size={15} /> : <FiEyeOff size={15} />}
+                                      </button>
+                                    )}
+                                  </div>
+                                )}
+                              </Stack>
+                            </Field.Root>
+                          )}
+                        />
+                      );
+                    })}
+                  </Stack>
+                </Accordion.ItemContent>
+              </Accordion.Item>
+              <FlexibleForm
+                flexibleFormDefaultSection={flexibleFormExtraFieldSection}
+                initialParamsDict={paramsDic}
+                key={selectedConnType}
               />
-              {Boolean(errors.conf) ? <Field.ErrorText>{errors.conf}</Field.ErrorText> : undefined}
-            </Field.Root>
-          )}
-        />
+            </Accordion.Root>
+
+            <Controller
+              control={control}
+              name="conf"
+              render={({ field }) => (
+                <Field.Root invalid={Boolean(errors.conf)}>
+                  <Field.Label fontSize="md" mb={3}>
+                    Extra Fields JSON
+                  </Field.Label>
+                  <JsonEditor
+                    {...field}
+                    onBlur={() => {
+                      field.onChange(validateAndPrettifyJson(field.value));
+                    }}
+                  />
+                  {Boolean(errors.conf) ? <Field.ErrorText>{errors.conf}</Field.ErrorText> : undefined}
+                </Field.Root>
+              )}
+            />
+          </>
+        ) : undefined}
       </VStack>
 
       <ErrorAlert error={error} />
-      <Box as="footer" display="flex" justifyContent="flex-end" mt={4}>
+      <Box as="footer" display="flex" justifyContent="flex-end" mr={3} mt={4}>
         <HStack w="full">
           <Spacer />
           <Button

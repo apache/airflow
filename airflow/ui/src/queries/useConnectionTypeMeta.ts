@@ -19,31 +19,7 @@
 import { useConnectionServiceHookMetaData } from "openapi/queries";
 import { toaster } from "src/components/ui";
 
-export type ParamSpec = {
-  description: string | null;
-  schema: ParamSchema;
-  value: unknown;
-};
-
-export type ParamSchema = {
-  // TODO define the structure on API as generated code
-  const: string | undefined;
-  description_md: string | undefined;
-  enum: Array<string> | undefined;
-  examples: Array<string> | undefined;
-  format: string | undefined;
-  items: Record<string, unknown> | undefined;
-  maximum: number | undefined;
-  maxLength: number | undefined;
-  minimum: number | undefined;
-  minLength: number | undefined;
-  section: string | undefined;
-  title: string | undefined;
-  type: Array<string> | string | undefined;
-  values_display: Record<string, string> | undefined;
-};
-
-type ParamsSpec = Record<string, ParamSpec>;
+import type { ParamsSpec } from "./useDagParams";
 
 type StandardFieldSpec = Record<string, StandardFieldSchema>;
 
@@ -83,39 +59,38 @@ export const useConnectionTypeMeta = () => {
   const formattedData: Record<string, ConnectionMetaEntry> = {};
   const keysList: Array<string> = [];
 
+  const defaultStandardFields: StandardFieldSpec | undefined = {
+    description: { hidden: false, placeholder: undefined, title: "Description" },
+    host: { hidden: false, placeholder: undefined, title: "Host" },
+    login: { hidden: false, placeholder: undefined, title: "Login" },
+    password: { hidden: false, placeholder: undefined, title: "Password" },
+    port: { hidden: false, placeholder: undefined, title: "Port" },
+    url_schema: { hidden: false, placeholder: undefined, title: "Schema" },
+  };
+
+  const mergeWithDefaults = (
+    defaultFields: StandardFieldSpec,
+    customFields?: StandardFieldSpec,
+  ): StandardFieldSpec =>
+    Object.keys(defaultFields).reduce<StandardFieldSpec>((acc, newKey) => {
+      const defaultValue = defaultFields[newKey];
+      const customValue = customFields?.[newKey];
+
+      acc[newKey] =
+        customValue && typeof customValue === "object"
+          ? {
+              ...defaultValue,
+              ...customValue,
+            }
+          : { ...defaultValue };
+
+      return acc;
+    }, {});
+
   data?.forEach((item) => {
     const key = item.connection_type;
 
     keysList.push(key);
-
-    // Ensure standard_fields has required properties
-    const defaultStandardFields: StandardFieldSpec | undefined = {
-      description: { hidden: false, placeholder: undefined, title: "Description" },
-      host: { hidden: false, placeholder: undefined, title: "Host" },
-      login: { hidden: false, placeholder: undefined, title: "Login" },
-      password: { hidden: false, placeholder: undefined, title: "Password" },
-      port: { hidden: false, placeholder: undefined, title: "Port" },
-      url_schema: { hidden: false, placeholder: undefined, title: "Schema" },
-    };
-
-    const mergeWithDefaults = (
-      defaultFields: StandardFieldSpec,
-      customFields?: StandardFieldSpec,
-    ): StandardFieldSpec =>
-      Object.keys(defaultFields).reduce<StandardFieldSpec>((acc, newKey) => {
-        const defaultValue = defaultFields[newKey];
-        const customValue = customFields?.[newKey];
-
-        acc[newKey] =
-          customValue && typeof customValue === "object"
-            ? {
-                ...defaultValue,
-                ...customValue,
-              }
-            : { ...defaultValue };
-
-        return acc;
-      }, {});
 
     const populatedStandardFields: StandardFieldSpec = mergeWithDefaults(
       defaultStandardFields,
