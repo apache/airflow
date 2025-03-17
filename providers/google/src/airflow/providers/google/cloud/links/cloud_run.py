@@ -16,13 +16,29 @@
 # under the License.
 from __future__ import annotations
 
+from typing import TYPE_CHECKING
+
 from airflow.providers.google.cloud.links.base import BaseGoogleLink
+
+if TYPE_CHECKING:
+    from airflow.models import BaseOperator
+    from airflow.utils.context import Context
 
 
 class CloudRunJobLoggingLink(BaseGoogleLink):
-    """t.b.d."""
+    """Helper class for constructing Cloud Run Job Logging link."""
 
-    # TODO(ramon) write cloud run job logging link implementation
-    # see https://github.com/apache/airflow/pull/46911
-    # and https://airflow.apache.org/docs/apache-airflow/stable/howto/define-extra-link.html
-    pass
+    name = "Cloud Run Job Logging"
+    key = "log_uri"
+
+    @staticmethod
+    def persist(
+        context: Context,
+        task_instance: BaseOperator,
+        log_uri: str,
+    ):
+        task_instance.xcom_push(
+            context,
+            key=CloudRunJobLoggingLink.key,
+            value=log_uri,
+        )

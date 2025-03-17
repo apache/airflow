@@ -27,6 +27,7 @@ from google.cloud.run_v2 import Job, Service
 from airflow.configuration import conf
 from airflow.exceptions import AirflowException
 from airflow.providers.google.cloud.hooks.cloud_run import CloudRunHook, CloudRunServiceHook
+from airflow.providers.google.cloud.links.cloud_run import CloudRunJobLoggingLink
 from airflow.providers.google.cloud.operators.cloud_base import GoogleCloudBaseOperator
 from airflow.providers.google.cloud.triggers.cloud_run import CloudRunJobFinishedTrigger, RunJobStatus
 
@@ -262,15 +263,11 @@ class CloudRunExecuteJobOperator(GoogleCloudBaseOperator):
         If set as a sequence, the identities from the list must grant
         Service Account Token Creator IAM role to the directly preceding identity, with first
         account from the list granting this role to the originating account (templated).
-    :param expose_logging_url: Optional. If set to True, the GCP logging URL with the Cloud Run Job execution
-        logs will be included in the Airflow logs. This URL is a clickable direct link to the GCP
-        Console, allowing users to easily access detailed execution logs. This can be particularly useful
-        for troubleshooting and monitoring job executions. The default value is False, meaning the logging
-        URL will not be included unless explicitly enabled.
     :param deferrable: Run the operator in deferrable mode.
     """
 
     template_fields = ("project_id", "region", "gcp_conn_id", "impersonation_chain", "job_name", "overrides")
+    operator_extra_links = (CloudRunJobLoggingLink(),)
 
     def __init__(
         self,
@@ -282,7 +279,6 @@ class CloudRunExecuteJobOperator(GoogleCloudBaseOperator):
         timeout_seconds: float | None = None,
         gcp_conn_id: str = "google_cloud_default",
         impersonation_chain: str | Sequence[str] | None = None,
-        expose_logging_url: bool | None = False,
         deferrable: bool = conf.getboolean("operators", "default_deferrable", fallback=False),
         **kwargs,
     ):
@@ -296,7 +292,6 @@ class CloudRunExecuteJobOperator(GoogleCloudBaseOperator):
         self.polling_period_seconds = polling_period_seconds
         self.timeout_seconds = timeout_seconds
         self.deferrable = deferrable
-        self.expose_logging_url = expose_logging_url if expose_logging_url else False
         self.operation: operation.Operation | None = None
 
     def execute(self, context: Context):
@@ -310,8 +305,8 @@ class CloudRunExecuteJobOperator(GoogleCloudBaseOperator):
         if self.operation is None:
             raise AirflowException("Operation is None")
 
-        if self.expose_logging_url:
-            self.log.info("GCP Console Logging URL: %s ", self.operation.metadata.log_uri)
+        if self.operation.metadata.log_uri:
+            CloudRunJobLoggingLink.persist(log_uri=self.operation.metadata.log_uri)
 
         if not self.deferrable:
             result: Execution = self._wait_for_operation(self.operation)
