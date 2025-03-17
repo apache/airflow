@@ -20,6 +20,8 @@ import { createContext, useCallback, useMemo, type PropsWithChildren } from "rea
 import { useLocalStorage } from "usehooks-ts";
 
 export type OpenGroupsContextType = {
+  collapseAllGroups: () => void;
+  expandAllGroups: (allGroupIds: Array<string>) => void;
   openGroupIds: Array<string>;
   setOpenGroupIds: (groupIds: Array<string>) => void;
   toggleGroupId: (groupId: string) => void;
@@ -46,9 +48,22 @@ export const OpenGroupsProvider = ({ children, dagId }: Props) => {
     [openGroupIds, setOpenGroupIds],
   );
 
+  const expandAllGroups = useCallback(
+    (allGroupIds: Array<string>) => {
+      const uniqueGroupIds = [...new Set([...openGroupIds, ...allGroupIds])];
+
+      setOpenGroupIds(uniqueGroupIds);
+    },
+    [openGroupIds, setOpenGroupIds],
+  );
+
+  const collapseAllGroups = useCallback(() => {
+    setOpenGroupIds([]);
+  }, [setOpenGroupIds]);
+
   const value = useMemo<OpenGroupsContextType>(
-    () => ({ openGroupIds, setOpenGroupIds, toggleGroupId }),
-    [openGroupIds, setOpenGroupIds, toggleGroupId],
+    () => ({ collapseAllGroups, expandAllGroups, openGroupIds, setOpenGroupIds, toggleGroupId }),
+    [collapseAllGroups, expandAllGroups, openGroupIds, setOpenGroupIds, toggleGroupId],
   );
 
   return <OpenGroupsContext.Provider value={value}>{children}</OpenGroupsContext.Provider>;
