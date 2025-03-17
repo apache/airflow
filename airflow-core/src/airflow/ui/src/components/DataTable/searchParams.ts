@@ -40,12 +40,9 @@ export const stateToSearchParams = (state: TableState, defaultTableState?: Table
   }
 
   if (state.sorting.length) {
+    queryParams.delete(SORT_PARAM);
     state.sorting.forEach(({ desc, id }) => {
-      if (defaultTableState?.sorting.find((sort) => sort.id === id && sort.desc === desc)) {
-        queryParams.delete(SORT_PARAM, `${desc ? "-" : ""}${id}`);
-      } else {
-        queryParams.set(SORT_PARAM, `${desc ? "-" : ""}${id}`);
-      }
+      queryParams.append(SORT_PARAM, `${desc ? "-" : ""}${id}`);
     });
   } else {
     queryParams.delete(SORT_PARAM);
