@@ -377,6 +377,7 @@ class TIRunContext(BaseModel):
     upstream_map_indexes: Annotated[dict[str, int] | None, Field(title="Upstream Map Indexes")] = None
     next_method: Annotated[str | None, Field(title="Next Method")] = None
     next_kwargs: Annotated[dict[str, Any] | str | None, Field(title="Next Kwargs")] = None
+    xcom_keys_to_clear: Annotated[list[str] | None, Field(title="Xcom Keys To Clear")] = None
 
 
 class TITerminalStatePayload(BaseModel):
