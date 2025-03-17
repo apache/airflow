@@ -1418,7 +1418,7 @@ api:
       default: "False"
     disable_regexp_middleware:
       description: |
-        Disables the middleware that checks for regular expressions in the URL.
+        Disables the middleware that checks for regular expressions in the payload or in the query params.
         This middleware is enabled by default to prevent regular expression denial of service attacks.
       type: boolean
       version_added: 3.0.0
