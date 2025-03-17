@@ -17,6 +17,7 @@
 
 from __future__ import annotations
 
+import ast
 import os
 from typing import cast
 
@@ -55,17 +56,18 @@ def get_dag_reports(
     fullpath = os.path.normpath(subdir)
     if not fullpath.startswith(settings.DAGS_FOLDER):
         raise HTTPException(status.HTTP_400_BAD_REQUEST, "subdir should be subpath of DAGS_FOLDER settings")
+
     dagbag = DagBag(fullpath)
-    filtered_dagbag_stats = []
-    if readable_dags_filter.value:
-        for each_file_load_stat in dagbag.dagbag_stats:
-            allowed = True
-            for each in eval(each_file_load_stat.dags):
-                if each not in readable_dags_filter.value:
-                    allowed = False
-                    break
-            if allowed:
-                filtered_dagbag_stats.append(each_file_load_stat)
+
+    readable_dag_ids: set[str] | None = readable_dags_filter.value
+    if readable_dag_ids:
+        filtered_dagbag_stats = [
+            file_load_stat
+            for file_load_stat in dagbag.dagbag_stats
+            if len(set(ast.literal_eval(file_load_stat.dags)) - readable_dag_ids) == 0
+        ]
+    else:
+        filtered_dagbag_stats = []
 
     return DagReportCollectionResponse(
         dag_reports=cast(list[DagReportResponse], filtered_dagbag_stats),
