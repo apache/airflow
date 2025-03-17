@@ -288,6 +288,7 @@ def clear_dag_run(
 )
 def get_dag_runs(
     dag_id: str,
+    dag_run_id_pattern: str,
     limit: QueryLimit,
     offset: QueryOffset,
     run_after: Annotated[RangeFilter, Depends(datetime_range_filter_factory("run_after", DagRun))],
@@ -327,7 +328,9 @@ def get_dag_runs(
     This endpoint allows specifying `~` as the dag_id to retrieve Dag Runs for all DAGs.
     """
     query = select(DagRun)
-
+    if dag_run_id_pattern:
+        query = query.filter(DagRun.run_id.like(dag_run_id_pattern))
+        
     if dag_id != "~":
         dag: DAG = request.app.state.dag_bag.get_dag(dag_id)
         if not dag:
