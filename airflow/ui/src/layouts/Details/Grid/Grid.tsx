@@ -25,6 +25,7 @@ import { FiChevronsRight } from "react-icons/fi";
 import { Link, useParams } from "react-router-dom";
 
 import { useStructureServiceStructureData } from "openapi/queries";
+import type { NodeResponse } from "openapi/requests/types.gen";
 import { useOpenGroups } from "src/context/openGroups";
 import { useGrid } from "src/queries/useGrid";
 
@@ -71,15 +72,9 @@ export const Grid = () => {
     [structure?.nodes, openGroupIds],
   );
 
-  // define structure node type
-  type StructureNode = {
-    children?: Array<StructureNode> | null | undefined;
-    id: string;
-  };
-
   // return all groupIds with children in the tree for expanding/collapsing functionality
   const allGroupIds = useMemo(() => {
-    const traverse = (nodes: Array<StructureNode>): Array<string> =>
+    const traverse = (nodes: Array<NodeResponse>): Array<string> =>
       nodes.flatMap((node) => (node.children ? [node.id, ...traverse(node.children)] : []));
 
     return traverse(structure?.nodes ?? []);
@@ -93,7 +88,7 @@ export const Grid = () => {
             <IconButton
               aria-label="Expand Task Group"
               colorPalette="blue"
-              disabled={allGroupIds.every((id) => openGroupIds.includes(id))}
+              disabled={allGroupIds.length === openGroupIds.length}
               onClick={() => expandAllGroups(allGroupIds)}
               title="Expand"
               variant="outline"
@@ -103,7 +98,7 @@ export const Grid = () => {
             <IconButton
               aria-label="Collapse Task Group"
               colorPalette="blue"
-              disabled={allGroupIds.every((id) => !openGroupIds.includes(id))}
+              disabled={openGroupIds.length === 0}
               onClick={() => collapseAllGroups()}
               title="Collapse"
               variant="outline"
