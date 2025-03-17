@@ -26,6 +26,7 @@ from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.responses import Response
 
 from airflow.api_fastapi.core_api.datamodels.common import RegexpMiddlewareResponse
+from airflow.configuration import conf
 
 
 # Custom Middleware Class
@@ -53,6 +54,7 @@ class RegexpExceptionMiddleware(BaseHTTPMiddleware):
     @classmethod
     def _detect_regexp(cls, key: str | None = None, value: Any = None) -> str | None:
         """Return the key value if the value contains a regexp pattern."""
+        # Common evil regex patterns
         common_evil_regex = [
             # Three common regex structures
             # Please be proactive if there are important regex structures that are not included here
@@ -136,6 +138,17 @@ class RegexpExceptionMiddleware(BaseHTTPMiddleware):
 
     async def dispatch(self, request: Request, call_next):
         """Check if the request contains a regexp pattern in any of the fields."""
+        # Bypass the middleware if the disable_regexp_middleware is set to True
+        if conf.get("api", "disable_regexp_middleware") == "True":
+            return await call_next(request)
+
+        # Bypass the middleware if the request path is in the bypass list
+        bypass_list = conf.get("api", "regexp_middleware_by_pass").split(",")
+        for bypass in bypass_list:
+            if bypass in request.url.path:
+                return await call_next(request)
+
+        # Get the request payload and query parameters
         try:
             payload = await request.json()
         except JSONDecodeError:
@@ -143,7 +156,10 @@ class RegexpExceptionMiddleware(BaseHTTPMiddleware):
 
         params = request.query_params
 
+        # Check if the payload or query parameters contain a regexp pattern
         found_key = self._detect_regexp(value=params) or self._detect_regexp(value=payload)
+
+        # Return a response if a regexp pattern is found
         if found_key:
             return Response(
                 status_code=400,
@@ -155,5 +171,5 @@ class RegexpExceptionMiddleware(BaseHTTPMiddleware):
                 ).model_dump_json(),
             )
 
-        response = await call_next(request)
-        return response
+        # Continue with the request if no regexp pattern is found
+        return await call_next(request)

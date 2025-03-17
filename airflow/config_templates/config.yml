@@ -1416,6 +1416,22 @@ api:
       version_added: 2.7.0
       example: ~
       default: "False"
+    disable_regexp_middleware:
+      description: |
+        Disables the middleware that checks for regular expressions in the URL.
+        This middleware is enabled by default to prevent regular expression denial of service attacks.
+      type: boolean
+      version_added: 3.0.0
+      example: ~
+      default: "False"
+    disable_regexp_middleware_paths:
+      description: |
+          A comma-separated list of paths that should be excluded from the regular expression middleware.
+          This is useful when you have a path that contains a regular expression that is not a security risk.
+      type: string
+      version_added: 3.0.0
+      example: "/public/connections/defaults"
+      default: ""
 api_auth:
   description: Settings relating to authentication on the Airflow APIs
   options:
