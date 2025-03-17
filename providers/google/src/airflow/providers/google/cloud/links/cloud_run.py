@@ -19,10 +19,17 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 
 from airflow.providers.google.cloud.links.base import BaseGoogleLink
+from airflow.providers.google.version_compat import AIRFLOW_V_3_0_PLUS
 
 if TYPE_CHECKING:
     from airflow.models import BaseOperator
+    from airflow.models.taskinstancekey import TaskInstanceKey
     from airflow.utils.context import Context
+
+if AIRFLOW_V_3_0_PLUS:
+    from airflow.sdk.execution_time.xcom import XCom
+else:
+    from airflow.models.xcom import XCom  # type: ignore[no-redef]
 
 
 class CloudRunJobLoggingLink(BaseGoogleLink):
@@ -42,3 +49,11 @@ class CloudRunJobLoggingLink(BaseGoogleLink):
             key=CloudRunJobLoggingLink.key,
             value=log_uri,
         )
+
+    def get_link(
+        self,
+        operator: BaseOperator,
+        *,
+        ti_key: TaskInstanceKey,
+    ) -> str:
+        return XCom.get_value(key=self.key, ti_key=ti_key)
