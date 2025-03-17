@@ -16,7 +16,9 @@
 # under the License.
 from __future__ import annotations
 
-from collections.abc import Sequence
+from collections.abc import Iterable, Sequence
+from itertools import groupby
+from operator import itemgetter
 from typing import Annotated
 
 from fastapi import Depends, HTTPException, status
@@ -148,26 +150,17 @@ def get_import_errors(
 
     # if the user doesn't have access to all DAGs, only display errors from visible DAGs
     readable_dag_ids = auth_manager.get_authorized_dag_ids(method="GET", user=user)
-    # Build a subquery that aggregates dag_ids for each file location
-    visible_files_subq = (
-        select(
-            DagModel.fileloc,
-            func.array_agg(DagModel.dag_id).label("file_dag_ids"),
-        )
-        .where(DagModel.dag_id.in_(readable_dag_ids))
-        .group_by(DagModel.fileloc)
-        .subquery()
+    # Build a cte that fetches dag_ids for each file location
+    visiable_files_cte = (
+        select(DagModel.fileloc, DagModel.dag_id).where(DagModel.dag_id.in_(readable_dag_ids)).cte()
     )
 
-    # Restrict to files that have at least one permitted dag
-    dag_files_stmt = select(visible_files_subq.c.fileloc)
-
-    # Prepare the import errors query by joining with the subquery.
-    # Each returned row will be a tuple: (ParseImportError, file_dag_ids)
+    # Prepare the import errors query by joining with the cte.
+    # Each returned row will be a tuple: (ParseImportError, dag_id)
     import_errors_stmt = (
-        select(ParseImportError, visible_files_subq.c.file_dag_ids)
-        .join(visible_files_subq, ParseImportError.filename == visible_files_subq.c.fileloc)
-        .where(ParseImportError.filename.in_(dag_files_stmt))
+        select(ParseImportError, visiable_files_cte.c.dag_id)
+        .join(visiable_files_cte, ParseImportError.filename == visiable_files_cte.c.fileloc)
+        .order_by(ParseImportError.id)
     )
 
     # Paginate the import errors query
@@ -178,9 +171,11 @@ def get_import_errors(
         limit=limit,
         session=session,
     )
-    import_errors_result = session.execute(import_errors_select).all()
-    import_errors = []
+    import_errors_result: Iterable[ParseImportError, Iterable[str]] = groupby(
+        session.execute(import_errors_select), itemgetter(0)
+    )
 
+    import_errors: list[ParseImportError] = []
     for import_error, file_dag_ids in import_errors_result:
         # Check if user has read access to all the DAGs defined in the file
         requests: Sequence[IsAuthorizedDagRequest] = [
