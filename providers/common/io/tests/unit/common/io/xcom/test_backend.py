@@ -126,7 +126,7 @@ class TestXComObjectStorageBackend:
             run_id=task_instance.run_id,
         )
 
-        if AIRFLOW_V_3_0_PLUS:
+        if not AIRFLOW_V_3_0_PLUS:
             XComModel.set(
                 key=XCOM_RETURN_KEY,
                 value=self.path,

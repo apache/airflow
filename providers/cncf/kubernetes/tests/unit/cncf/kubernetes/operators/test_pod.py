@@ -17,7 +17,6 @@
 from __future__ import annotations
 
 import datetime
-import json
 import re
 from contextlib import contextmanager, nullcontext
 from io import BytesIO
@@ -1310,13 +1309,17 @@ class TestKubernetesPodOperator:
         )
 
         pod, _ = self.run_pod(k)
-        pod_name = XCom.get_many(run_id=self.dag_run.run_id, task_ids="task", key="pod_name").first()
-        pod_namespace = XCom.get_many(
-            run_id=self.dag_run.run_id, task_ids="task", key="pod_namespace"
-        ).first()
+        if AIRFLOW_V_3_0_PLUS:
+            pod_name = XCom.get_many(run_id=self.dag_run.run_id, task_ids="task", key="pod_name").first()
+            pod_namespace = XCom.get_many(
+                run_id=self.dag_run.run_id, task_ids="task", key="pod_namespace"
+            ).first()
 
-        pod_name = json.loads(pod_name.value)
-        pod_namespace = json.loads(pod_namespace.value)
+            pod_name = XCom.deserialize_value(pod_name)
+            pod_namespace = XCom.deserialize_value(pod_namespace)
+        else:
+            pod_name = XCom.get_one(run_id=self.dag_run.run_id, task_id="task", key="pod_name")
+            pod_namespace = XCom.get_one(run_id=self.dag_run.run_id, task_id="task", key="pod_namespace")
 
         assert pod_name == pod.metadata.name
         assert pod_namespace == pod.metadata.namespace

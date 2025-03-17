@@ -238,7 +238,7 @@ class BaseXCom:
         return deserialize(result.value)
 
     @classmethod
-    def purge(cls, xcom: XComResult) -> None:
+    def purge(cls, xcom: XComResult, *args) -> None:
         """Purge an XCom entry from underlying storage implementations."""
         pass
 
