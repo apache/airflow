@@ -29,11 +29,13 @@ from airflow.sdk.api.client import RemoteValidationError, ServerResponseError
 from airflow.sdk.api.datamodels._generated import (
     AssetResponse,
     ConnectionResponse,
+    DagRunState,
+    DagRunStateResponse,
     VariableResponse,
     XComResponse,
 )
 from airflow.sdk.exceptions import ErrorType
-from airflow.sdk.execution_time.comms import DeferTask, ErrorResponse, RescheduleTask
+from airflow.sdk.execution_time.comms import DeferTask, ErrorResponse, OKResponse, RescheduleTask
 from airflow.utils import timezone
 from airflow.utils.state import TerminalTIState
 
@@ -711,3 +713,102 @@ class TestAssetOperations:
 
         assert isinstance(result, ErrorResponse)
         assert result.error == ErrorType.ASSET_NOT_FOUND
+
+
+class TestDagRunOperations:
+    def test_trigger(self):
+        # Simulate a successful response from the server when triggering a dag run
+        def handle_request(request: httpx.Request) -> httpx.Response:
+            if request.url.path == "/dag-runs/test_trigger/test_run_id":
+                actual_body = json.loads(request.read())
+                assert actual_body["logical_date"] == "2025-01-01T00:00:00Z"
+                assert actual_body["conf"] == {}
+
+                # Since the value for `reset_dag_run` is default, it should not be present in the request body
+                assert "reset_dag_run" not in actual_body
+                return httpx.Response(status_code=204)
+            return httpx.Response(status_code=400, json={"detail": "Bad Request"})
+
+        client = make_client(transport=httpx.MockTransport(handle_request))
+        result = client.dag_runs.trigger(
+            dag_id="test_trigger", run_id="test_run_id", logical_date=timezone.datetime(2025, 1, 1)
+        )
+
+        assert result == OKResponse(ok=True)
+
+    def test_trigger_conflict(self):
+        """Test that if the dag run already exists, the client returns an error when default reset_dag_run=False"""
+
+        def handle_request(request: httpx.Request) -> httpx.Response:
+            if request.url.path == "/dag-runs/test_trigger_conflict/test_run_id":
+                return httpx.Response(
+                    status_code=409,
+                    json={
+                        "detail": {
+                            "reason": "already_exists",
+                            "message": "A DAG Run already exists for DAG test_trigger_conflict with run id test_run_id",
+                        }
+                    },
+                )
+            return httpx.Response(status_code=422)
+
+        client = make_client(transport=httpx.MockTransport(handle_request))
+        result = client.dag_runs.trigger(dag_id="test_trigger_conflict", run_id="test_run_id")
+
+        assert result == ErrorResponse(error=ErrorType.DAGRUN_ALREADY_EXISTS)
+
+    def test_trigger_conflict_reset_dag_run(self):
+        """Test that if dag run already exists and reset_dag_run=True, the client clears the dag run"""
+
+        def handle_request(request: httpx.Request) -> httpx.Response:
+            if request.url.path == "/dag-runs/test_trigger_conflict_reset/test_run_id":
+                return httpx.Response(
+                    status_code=409,
+                    json={
+                        "detail": {
+                            "reason": "already_exists",
+                            "message": "A DAG Run already exists for DAG test_trigger_conflict with run id test_run_id",
+                        }
+                    },
+                )
+            elif request.url.path == "/dag-runs/test_trigger_conflict_reset/test_run_id/clear":
+                return httpx.Response(status_code=204)
+            return httpx.Response(status_code=422)
+
+        client = make_client(transport=httpx.MockTransport(handle_request))
+        result = client.dag_runs.trigger(
+            dag_id="test_trigger_conflict_reset",
+            run_id="test_run_id",
+            reset_dag_run=True,
+        )
+
+        assert result == OKResponse(ok=True)
+
+    def test_clear(self):
+        """Test that the client can clear a dag run"""
+
+        def handle_request(request: httpx.Request) -> httpx.Response:
+            if request.url.path == "/dag-runs/test_clear/test_run_id/clear":
+                return httpx.Response(status_code=204)
+            return httpx.Response(status_code=422)
+
+        client = make_client(transport=httpx.MockTransport(handle_request))
+        result = client.dag_runs.clear(dag_id="test_clear", run_id="test_run_id")
+
+        assert result == OKResponse(ok=True)
+
+    def test_get_state(self):
+        """Test that the client can get the state of a dag run"""
+
+        def handle_request(request: httpx.Request) -> httpx.Response:
+            if request.url.path == "/dag-runs/test_state/test_run_id/state":
+                return httpx.Response(
+                    status_code=200,
+                    json={"state": "running"},
+                )
+            return httpx.Response(status_code=422)
+
+        client = make_client(transport=httpx.MockTransport(handle_request))
+        result = client.dag_runs.get_state(dag_id="test_state", run_id="test_run_id")
+
+        assert result == DagRunStateResponse(state=DagRunState.RUNNING)
