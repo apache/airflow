@@ -43,6 +43,9 @@ from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS
 if TYPE_CHECKING:
     from airflow.models.baseoperator import BaseOperator
 
+if AIRFLOW_V_3_0_PLUS:
+    from airflow.sdk.execution_time.comms import XComResult
+
 DEFAULT_DATE = timezone.datetime(2021, 1, 1)
 SUBSCRIPTION_ID = "my-subscription-id"
 TASK_ID = "run_pipeline_op"
@@ -235,7 +238,9 @@ class TestAzureDataFactoryRunPipelineOperator:
             (None, None),
         ],
     )
-    def test_run_pipeline_operator_link(self, resource_group, factory, create_task_instance_of_operator):
+    def test_run_pipeline_operator_link(
+        self, resource_group, factory, create_task_instance_of_operator, mock_supervisor_comms
+    ):
         ti = create_task_instance_of_operator(
             AzureDataFactoryRunPipelineOperator,
             dag_id="test_adf_run_pipeline_op_link",
@@ -246,6 +251,13 @@ class TestAzureDataFactoryRunPipelineOperator:
             factory_name=factory,
         )
         ti.xcom_push(key="run_id", value=PIPELINE_RUN_RESPONSE["run_id"])
+
+        if AIRFLOW_V_3_0_PLUS and mock_supervisor_comms:
+            mock_supervisor_comms.get_message.return_value = XComResult(
+                key="run_id",
+                value=PIPELINE_RUN_RESPONSE["run_id"],
+            )
+
         url = ti.task.operator_extra_links[0].get_link(operator=ti.task, ti_key=ti.key)
         EXPECTED_PIPELINE_RUN_OP_EXTRA_LINK = (
             "https://adf.azure.com/en-us/monitoring/pipelineruns/{run_id}"

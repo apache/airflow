@@ -32,7 +32,6 @@ from google.cloud.metastore_v1.types.metastore import DatabaseDumpSpec, Restore
 
 from airflow.exceptions import AirflowException
 from airflow.models import BaseOperator, BaseOperatorLink
-from airflow.models.xcom import XCom
 from airflow.providers.google.cloud.hooks.dataproc_metastore import DataprocMetastoreHook
 from airflow.providers.google.cloud.operators.cloud_base import GoogleCloudBaseOperator
 from airflow.providers.google.common.links.storage import StorageLink
@@ -48,7 +47,9 @@ from airflow.providers.google.version_compat import AIRFLOW_V_3_0_PLUS
 
 if AIRFLOW_V_3_0_PLUS:
     from airflow.sdk import BaseOperatorLink
+    from airflow.sdk.execution_time.xcom import XCom
 else:
+    from airflow.models import XCom  # type: ignore[no-redef]
     from airflow.models.baseoperatorlink import BaseOperatorLink  # type: ignore[no-redef]
 
 

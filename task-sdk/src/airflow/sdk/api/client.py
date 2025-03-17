@@ -333,6 +333,20 @@ class XComOperations:
         # decouple from the server response string
         return {"ok": True}
 
+    def delete(
+        self,
+        dag_id: str,
+        run_id: str,
+        task_id: str,
+        key: str,
+    ) -> dict[str, bool]:
+        """Delete a XCom with given key via the API server."""
+        self.client.delete(f"xcoms/{dag_id}/{run_id}/{task_id}/{key}")
+        # Any error from the server will anyway be propagated down to the supervisor,
+        # so we choose to send a generic response to the supervisor over the server response to
+        # decouple from the server response string
+        return {"ok": True}
+
 
 class AssetOperations:
     __slots__ = ("client",)

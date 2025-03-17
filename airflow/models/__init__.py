@@ -44,7 +44,7 @@ __all__ = [
     "TaskReschedule",
     "Trigger",
     "Variable",
-    "XCom",
+    "XComModel",
     "clear_task_instances",
 ]
 
@@ -107,7 +107,7 @@ __lazy_imports = {
     "TaskReschedule": "airflow.models.taskreschedule",
     "Trigger": "airflow.models.trigger",
     "Variable": "airflow.models.variable",
-    "XCom": "airflow.models.xcom",
+    "XCom": "airflow.sdk.execution_time.xcom",
     "clear_task_instances": "airflow.models.taskinstance",
 }
 
@@ -135,6 +135,6 @@ if TYPE_CHECKING:
     from airflow.models.taskreschedule import TaskReschedule
     from airflow.models.trigger import Trigger
     from airflow.models.variable import Variable
-    from airflow.models.xcom import XCom
     from airflow.sdk import BaseOperatorLink
     from airflow.sdk.definitions.param import Param
+    from airflow.sdk.execution_time.xcom import XCom

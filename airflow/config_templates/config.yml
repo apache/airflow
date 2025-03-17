@@ -401,7 +401,7 @@ core:
       version_added: 1.10.12
       type: string
       example: "path.to.CustomXCom"
-      default: "airflow.models.xcom.BaseXCom"
+      default: "airflow.sdk.execution_time.xcom.BaseXCom"
     lazy_load_plugins:
       description: |
         By default Airflow plugins are lazily-loaded (only loaded when required). Set it to ``False``,
