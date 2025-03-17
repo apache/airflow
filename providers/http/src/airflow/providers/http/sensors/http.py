@@ -23,8 +23,6 @@ from collections.abc import Sequence
 from datetime import timedelta
 from typing import TYPE_CHECKING, Any, Callable
 
-from requests import Response
-
 from airflow.configuration import conf
 from airflow.exceptions import AirflowException
 from airflow.providers.http.hooks.http import HttpHook, _default_response_maker
@@ -32,6 +30,8 @@ from airflow.providers.http.triggers.http import HttpSensorTrigger
 from airflow.sensors.base import BaseSensorOperator
 
 if TYPE_CHECKING:
+    from requests import Response
+
     try:
         from airflow.sdk.definitions.context import Context
         from airflow.sensors.base import PokeReturnValue
