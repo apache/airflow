@@ -75,4 +75,5 @@ class TestComprehendDocumentClassifierLink(BaseAwsLinksTestCase):
             ),
             region_name="us-east-1",
             aws_partition="aws",
+            arn=test_job_id,
         )

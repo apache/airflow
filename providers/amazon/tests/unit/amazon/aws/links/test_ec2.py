@@ -47,6 +47,7 @@ class TestEC2InstanceLink(BaseAwsLinksTestCase):
             ),
             region_name="eu-west-1",
             aws_partition="aws",
+            instance_id=self.INSTANCE_ID,
         )
 
 
