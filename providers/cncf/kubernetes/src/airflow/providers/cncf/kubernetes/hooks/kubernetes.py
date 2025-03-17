@@ -708,6 +708,15 @@ class KubernetesHook(BaseHook, PodOperatorHookProtocol):
 
         return list(yaml.safe_load_all(response.text))
 
+    def test_connection(self):
+        try:
+            conn = self.get_conn()
+            version: client.VersionInfo = client.VersionApi(conn).get_code()
+            return True, f"Connection successful. Version Info: {version.to_dict()}"
+        except Exception as e:
+            return False, str(e)
+
+
 
 def _get_bool(val) -> bool | None:
     """Convert val to bool if can be done with certainty; if we cannot infer intention we return None."""
