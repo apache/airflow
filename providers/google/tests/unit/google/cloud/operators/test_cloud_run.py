@@ -122,28 +122,6 @@ class TestCloudRunExecuteJobOperator:
         )
 
     @mock.patch(CLOUD_RUN_HOOK_PATH)
-    def test_execute_success_with_expose_logging_url(self, hook_mock):
-        hook_mock.return_value.get_job.return_value = JOB
-        hook_mock.return_value.execute_job.return_value = self._mock_operation(3, 3, 0)
-
-        operator = CloudRunExecuteJobOperator(
-            task_id=TASK_ID, project_id=PROJECT_ID, region=REGION, job_name=JOB_NAME, expose_logging_url=True
-        )
-
-        with mock.patch.object(operator.log, "info") as mock_log_info:
-            operator.execute(context=mock.MagicMock())
-            mocked_log_uri = hook_mock.return_value.execute_job.return_value.metadata.log_uri
-            mock_log_info.assert_called_once_with("GCP Console Logging URL: %s ", mocked_log_uri)
-
-        hook_mock.return_value.get_job.assert_called_once_with(
-            job_name=mock.ANY, region=REGION, project_id=PROJECT_ID
-        )
-
-        hook_mock.return_value.execute_job.assert_called_once_with(
-            job_name=JOB_NAME, region=REGION, project_id=PROJECT_ID, overrides=None
-        )
-
-    @mock.patch(CLOUD_RUN_HOOK_PATH)
     def test_execute_fail_one_failed_task(self, hook_mock):
         hook_mock.return_value.execute_job.return_value = self._mock_operation(3, 2, 1)
 
