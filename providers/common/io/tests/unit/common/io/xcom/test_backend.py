@@ -36,7 +36,7 @@ if AIRFLOW_V_3_0_PLUS:
     from airflow.sdk.execution_time.comms import XComResult
     from airflow.sdk.execution_time.xcom import resolve_xcom_backend
 else:
-    from airflow.models.xcom import resolve_xcom_backend  # type: ignore[no-redef]
+    from airflow.models.xcom import BaseXCom, resolve_xcom_backend  # type: ignore[no-redef]
 
 
 @pytest.fixture(autouse=True)
@@ -126,7 +126,7 @@ class TestXComObjectStorageBackend:
             run_id=task_instance.run_id,
         )
 
-        if not AIRFLOW_V_3_0_PLUS:
+        if AIRFLOW_V_3_0_PLUS:
             XComModel.set(
                 key=XCOM_RETURN_KEY,
                 value=self.path,
@@ -156,10 +156,10 @@ class TestXComObjectStorageBackend:
                     run_id=task_instance.run_id,
                     session=session,
                 )
-                .with_entities(XCom.value)
+                .with_entities(BaseXCom.value)
                 .first()
             )
-            data = XCom.deserialize_value(res)
+            data = BaseXCom.deserialize_value(res)
 
         p = XComObjectStorageBackend._get_full_path(data)
         assert p.exists() is True
@@ -239,10 +239,10 @@ class TestXComObjectStorageBackend:
                     run_id=task_instance.run_id,
                     session=session,
                 )
-                .with_entities(XCom.value)
+                .with_entities(BaseXCom.value)
                 .first()
             )
-            data = XCom.deserialize_value(res)
+            data = BaseXCom.deserialize_value(res)
         p = XComObjectStorageBackend._get_full_path(data)
         assert p.exists() is True
 
@@ -288,6 +288,7 @@ class TestXComObjectStorageBackend:
                 dag_id=task_instance.dag_id,
                 task_id=task_instance.task_id,
                 run_id=task_instance.run_id,
+                session=session,
             )
             value = XCom.get_value(
                 key=XCOM_RETURN_KEY,
@@ -352,10 +353,10 @@ class TestXComObjectStorageBackend:
                     run_id=task_instance.run_id,
                     session=session,
                 )
-                .with_entities(XCom.value)
+                .with_entities(BaseXCom.value)
                 .first()
             )
-            data = XCom.deserialize_value(res)
+            data = BaseXCom.deserialize_value(res)
 
         assert data.endswith(".gz")
 
