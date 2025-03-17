@@ -306,7 +306,11 @@ class CloudRunExecuteJobOperator(GoogleCloudBaseOperator):
             raise AirflowException("Operation is None")
 
         if self.operation.metadata.log_uri:
-            CloudRunJobLoggingLink.persist(log_uri=self.operation.metadata.log_uri)
+            CloudRunJobLoggingLink.persist(
+                context=context,
+                task_instance=self,
+                log_uri=self.operation.metadata.log_uri,
+            )
 
         if not self.deferrable:
             result: Execution = self._wait_for_operation(self.operation)
