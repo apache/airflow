@@ -106,6 +106,7 @@ export const DataTable = <TData,>({
     columns,
     data,
     enableHiding: true,
+    enableMultiSort: true,
     getCoreRowModel: getCoreRowModel(),
     getExpandedRowModel: getExpandedRowModel(),
     getPaginationRowModel: getPaginationRowModel(),
