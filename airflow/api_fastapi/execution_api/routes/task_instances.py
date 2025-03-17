@@ -196,14 +196,15 @@ def ti_run(
         xcom_keys = []
         if not ti.next_method:
             map_index = None if ti.map_index < 0 else ti.map_index
-            query = session.query(XComModel.key).filter_by(
-                dag_id=ti.dag_id, task_id=ti.task_id, run_id=ti.run_id
+            query = select(XComModel.key).where(
+                XComModel.dag_id == ti.dag_id,
+                XComModel.task_id == ti.task_id,
+                XComModel.run_id == ti.run_id,
             )
             if map_index is not None:
-                query = query.filter_by(map_index=map_index)
+                query = query.where(XComModel.map_index == map_index)
 
-            xcom_keys = [row.key for row in session.execute(query).all()]
-
+            xcom_keys = list(session.scalars(query))
         task_reschedule_count = (
             session.query(
                 func.count(TaskReschedule.id)  # or any other primary key column
