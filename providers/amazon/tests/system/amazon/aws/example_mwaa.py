@@ -72,6 +72,7 @@ with DAG(
         task_id="trigger_dag_run",
         env_name=env_name,
         trigger_dag_id=trigger_dag_id,
+        wait_for_completion=True,
     )
     # [END howto_operator_mwaa_trigger_dag_run]
 
