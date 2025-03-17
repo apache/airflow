@@ -57,18 +57,15 @@ def get_dag_reports(
         raise HTTPException(status.HTTP_400_BAD_REQUEST, "subdir should be subpath of DAGS_FOLDER settings")
     dagbag = DagBag(fullpath)
     filtered_dagbag_stats = []
-    allowed = True
     if readable_dags_filter.value:
         for each_file_load_stat in dagbag.dagbag_stats:
-            dags_in_file = eval(each_file_load_stat.dags)
-            for each in dags_in_file:
-                if each in readable_dags_filter.value:
-                    continue
-                else:
+            allowed = True
+            for each in eval(each_file_load_stat.dags):
+                if each not in readable_dags_filter.value:
                     allowed = False
+                    break
             if allowed:
                 filtered_dagbag_stats.append(each_file_load_stat)
-            allowed = True
 
     return DagReportCollectionResponse(
         dag_reports=cast(list[DagReportResponse], filtered_dagbag_stats),
