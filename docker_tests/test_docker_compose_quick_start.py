@@ -34,18 +34,52 @@ from docker_tests.constants import SOURCE_ROOT
 
 # isort:on (needed to workaround isort bug)
 
+DOCKER_COMPOSE_HOST_PORT = os.environ.get("HOST_PORT", "localhost:8080")
 AIRFLOW_WWW_USER_USERNAME = os.environ.get("_AIRFLOW_WWW_USER_USERNAME", "airflow")
 AIRFLOW_WWW_USER_PASSWORD = os.environ.get("_AIRFLOW_WWW_USER_PASSWORD", "airflow")
 DAG_ID = "example_bash_operator"
 DAG_RUN_ID = "test_dag_run_id"
 
 
-def api_request(method: str, path: str, base_url: str = "http://localhost:8080/public", **kwargs) -> dict:
+def get_jwt_token() -> str:
+    """Get the JWT token.
+
+    Note: API server is still using FAB Auth Manager.
+
+    Steps:
+    1. Get the login page to get the csrf token
+        - The csrf token is in the hidden input field with id "csrf_token"
+    2. Login with the username and password
+        - Must use the same session to keep the csrf token session
+    3. Extract the JWT token from the redirect url
+        - Expected to have a connection error
+        - The redirect url should have the JWT token as a query parameter
+
+    :return: The JWT token
+    """
+    # get csrf token from login page
+    session = requests.Session()
+    url = f"http://{DOCKER_COMPOSE_HOST_PORT}/auth/token"
+    login_response = session.post(
+        url,
+        json={
+            "username": AIRFLOW_WWW_USER_USERNAME,
+            "password": AIRFLOW_WWW_USER_PASSWORD,
+        },
+    )
+    jwt_token = login_response.json().get("jwt_token")
+
+    assert jwt_token, f"Failed to get JWT token from redirect url {url} with status code {login_response}"
+    return jwt_token
+
+
+def api_request(
+    method: str, path: str, base_url: str = f"http://{DOCKER_COMPOSE_HOST_PORT}/public", **kwargs
+) -> dict:
     response = requests.request(
         method=method,
         url=f"{base_url}/{path}",
-        auth=(AIRFLOW_WWW_USER_USERNAME, AIRFLOW_WWW_USER_PASSWORD),
-        headers={"Content-Type": "application/json"},
+        headers={"Authorization": f"Bearer {get_jwt_token()}", "Content-Type": "application/json"},
         **kwargs,
     )
     response.raise_for_status()

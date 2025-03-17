@@ -191,19 +191,12 @@ DEPENDENCIES = [
     "alembic>=1.13.1, <2.0",
     "argcomplete>=1.10",
     "asgiref>=2.3.0",
-    "attrs>=22.1.0",
+    "attrs>=22.1.0, !=25.2.0",
     # Blinker use for signals in Flask, this is an optional dependency in Flask 2.2 and lower.
     # In Flask 2.3 it becomes a mandatory dependency, and flask signals are always available.
     "blinker>=1.6.2",
     "colorlog>=6.8.2",
     "configupdater>=3.1.1",
-    # `airflow/www/extensions/init_views` imports `connexion.decorators.validation.RequestBodyValidator`
-    # connexion v3 has refactored the entire module to middleware, see: /spec-first/connexion/issues/1525
-    # Specifically, RequestBodyValidator was removed in: /spec-first/connexion/pull/1595
-    # The usage was added in #30596, seemingly only to override and improve the default error message.
-    # Either revert that change or find another way, preferably without using connexion internals.
-    # This limit can be removed after https://github.com/apache/airflow/issues/35234 is fixed
-    "connexion[flask]>=2.14.2,<3.0",
     "cron-descriptor>=1.2.24",
     "croniter>=2.0.2",
     "cryptography>=41.0.0",
@@ -226,8 +219,6 @@ DEPENDENCIES = [
     "flask>=2.2.1,<2.3",
     "fsspec>=2023.10.0",
     "gitpython>=3.1.40",
-    'google-re2>=1.0;python_version<"3.12"',
-    'google-re2>=1.1;python_version>="3.12"',
     "gunicorn>=20.1.0",
     "httpx>=0.25.0",
     'importlib_metadata>=6.5;python_version<"3.12"',
@@ -255,7 +246,7 @@ DEPENDENCIES = [
     # Pygments 2.19.0 improperly renders .ini files with dictionaries as values
     # See https://github.com/pygments/pygments/issues/2834
     "pygments>=2.0.1,!=2.19.0",
-    "pyjwt>=2.0.0",
+    "pyjwt>=2.10.0",
     "python-daemon>=3.0.0",
     "python-dateutil>=2.7.0",
     "python-nvd3>=0.15.0",
@@ -281,8 +272,8 @@ DEPENDENCIES = [
     # Does not work with it Tracked in https://github.com/fsspec/universal_pathlib/issues/276
     "universal-pathlib>=0.2.2,!=0.2.4",
     "uuid6>=2024.7.10",
-    # Werkzug 3 breaks Flask-Login 0.6.2, also connexion needs to be updated to >= 3.0
-    # we should remove this limitation when FAB supports Flask 2.3 and we migrate connexion to 3+
+    # Werkzug 3 breaks Flask-Login 0.6.2
+    # we should remove this limitation when FAB supports Flask 2.3
     "werkzeug>=2.0,<3",
 ]
 
@@ -507,6 +498,26 @@ def update_optional_dependencies_with_standard_provider_deps(optional_dependenci
         ]
 
 
+def get_all_core_deps() -> list[str]:
+    all_core_deps: list[str] = []
+    for deps in CORE_EXTRAS.values():
+        all_core_deps.extend(deps)
+    return all_core_deps
+
+
+def update_editable_optional_dependencies(optional_dependencies: dict[str, list[str]]):
+    optional_dependencies.update(CORE_EXTRAS)
+    optional_dependencies.update(DOC_EXTRAS)
+    update_optional_dependencies_with_editable_provider_deps(optional_dependencies)
+    all_deps: list[str] = []
+    for extra, deps in optional_dependencies.items():
+        if extra == "all":
+            raise RuntimeError("The 'all' extra should not be in the original optional_dependencies")
+        all_deps.extend(deps)
+    optional_dependencies["all"] = all_deps
+    optional_dependencies["all-core"] = get_all_core_deps()
+
+
 class CustomMetadataHook(MetadataHookInterface):
     """
     Custom metadata hook that updates optional dependencies and dependencies of airflow.
@@ -544,20 +555,12 @@ class CustomMetadataHook(MetadataHookInterface):
 
     def update(self, metadata: dict) -> None:
         optional_dependencies: dict[str, list[str]] = {}
+        update_editable_optional_dependencies(optional_dependencies)
         metadata["optional-dependencies"] = optional_dependencies
-        optional_dependencies.update(CORE_EXTRAS)
-        optional_dependencies.update(DOC_EXTRAS)
-        update_optional_dependencies_with_editable_provider_deps(optional_dependencies)
         dependencies: list[str] = []
-        metadata["dependencies"] = dependencies
         dependencies.extend(DEPENDENCIES)
         dependencies.extend(PREINSTALLED_PROVIDER_REQUIREMENTS)
-        all_deps: list[str] = []
-        for extra, deps in optional_dependencies.items():
-            if extra == "all":
-                raise RuntimeError("The 'all' extra should not be in the original optional_dependencies")
-            all_deps.extend(deps)
-        optional_dependencies["all"] = all_deps
+        metadata["dependencies"] = dependencies
 
 
 class CustomBuildHook(BuildHookInterface[BuilderConfig]):
@@ -602,17 +605,7 @@ class CustomBuildHook(BuildHookInterface[BuilderConfig]):
             # Add preinstalled providers into the dependencies for standard packages
             self._dependencies.extend(PREINSTALLED_PROVIDER_REQUIREMENTS)
         else:
-            self._dependencies.extend(ALL_PREINSTALLED_PROVIDER_DEPS)
-            self.optional_dependencies.update(CORE_EXTRAS)
-            # only add doc extras for editable build
-            self.optional_dependencies.update(DOC_EXTRAS)
-            update_optional_dependencies_with_editable_provider_deps(self.optional_dependencies)
-            all_deps: list[str] = []
-            for extra, deps in self.optional_dependencies.items():
-                if extra == "all":
-                    raise RuntimeError("The 'all' extra should not be in the original optional_dependencies")
-                all_deps.extend(deps)
-            self.optional_dependencies["all"] = all_deps
+            update_editable_optional_dependencies(self.optional_dependencies)
 
         # with hatchling, we can modify dependencies dynamically by modifying the build_data
         build_data["dependencies"] = self._dependencies
@@ -636,6 +629,8 @@ class CustomBuild(BuilderInterface[BuilderConfig, PluginManager]):
         commands = [
             ["rm -rf airflow/ui/dist"],
             ["rm -rf airflow/ui/node_modules"],
+            ["rm -rf airflow/api_fastapi/auth/managers/simple/ui/dist"],
+            ["rm -rf airflow/api_fastapi/auth/managers/simple/ui/node_modules"],
         ]
         for cmd in commands:
             run(cmd, cwd=work_dir.as_posix(), check=True, shell=True)

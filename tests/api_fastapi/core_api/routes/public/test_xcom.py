@@ -33,6 +33,7 @@ from airflow.utils.types import DagRunType
 
 from tests_common.test_utils.config import conf_vars
 from tests_common.test_utils.db import clear_db_dags, clear_db_runs, clear_db_xcom
+from tests_common.test_utils.logs import check_last_log
 
 pytestmark = pytest.mark.db_test
 
@@ -148,6 +149,18 @@ class TestGetXComEntry(TestXComEndpoint):
             "timestamp": current_data["timestamp"],
             "value": TEST_XCOM_VALUE,
         }
+
+    def test_should_respond_401(self, unauthenticated_test_client):
+        response = unauthenticated_test_client.get(
+            f"/public/dags/{TEST_DAG_ID}/dagRuns/{run_id}/taskInstances/{TEST_TASK_ID}/xcomEntries/{TEST_XCOM_KEY}"
+        )
+        assert response.status_code == 401
+
+    def test_should_respond_403(self, unauthorized_test_client):
+        response = unauthorized_test_client.get(
+            f"/public/dags/{TEST_DAG_ID}/dagRuns/{run_id}/taskInstances/{TEST_TASK_ID}/xcomEntries/{TEST_XCOM_KEY}"
+        )
+        assert response.status_code == 403
 
     def test_should_raise_404_for_non_existent_xcom(self, test_client):
         response = test_client.get(
@@ -437,6 +450,20 @@ class TestGetXComEntries(TestXComEndpoint):
                 map_index=map_index,
             )
 
+    def test_should_respond_401(self, unauthenticated_test_client):
+        response = unauthenticated_test_client.get(
+            "/public/dags/~/dagRuns/~/taskInstances/~/xcomEntries",
+            params={},
+        )
+        assert response.status_code == 401
+
+    def test_should_respond_403(self, unauthorized_test_client):
+        response = unauthorized_test_client.get(
+            "/public/dags/~/dagRuns/~/taskInstances/~/xcomEntries",
+            params={},
+        )
+        assert response.status_code == 403
+
 
 class TestPaginationGetXComEntries(TestXComEndpoint):
     @pytest.mark.parametrize(
@@ -559,7 +586,15 @@ class TestCreateXComEntry(TestXComEndpoint):
         ],
     )
     def test_create_xcom_entry(
-        self, dag_id, task_id, dag_run_id, request_body, expected_status, expected_detail, test_client
+        self,
+        dag_id,
+        task_id,
+        dag_run_id,
+        request_body,
+        expected_status,
+        expected_detail,
+        test_client,
+        session,
     ):
         # Pre-create an XCom entry to test conflict case
         if expected_status == 409:
@@ -582,6 +617,21 @@ class TestCreateXComEntry(TestXComEndpoint):
             assert current_data["task_id"] == task_id
             assert current_data["run_id"] == dag_run_id
             assert current_data["map_index"] == request_body.map_index
+        check_last_log(session, dag_id=TEST_DAG_ID, event="create_xcom_entry", logical_date=None)
+
+    def test_should_respond_401(self, unauthenticated_test_client):
+        response = unauthenticated_test_client.post(
+            "/public/dags/dag_id/dagRuns/dag_run_id/taskInstances/task_id/xcomEntries",
+            json={},
+        )
+        assert response.status_code == 401
+
+    def test_should_respond_403(self, unauthorized_test_client):
+        response = unauthorized_test_client.post(
+            "/public/dags/dag_id/dagRuns/dag_run_id/taskInstances/task_id/xcomEntries",
+            json={},
+        )
+        assert response.status_code == 403
 
 
 class TestPatchXComEntry(TestXComEndpoint):
@@ -606,7 +656,7 @@ class TestPatchXComEntry(TestXComEndpoint):
             ),
         ],
     )
-    def test_patch_xcom_entry(self, key, patch_body, expected_status, expected_detail, test_client):
+    def test_patch_xcom_entry(self, key, patch_body, expected_status, expected_detail, test_client, session):
         # Ensure the XCom entry exists before updating
         if expected_status != 404:
             self._create_xcom(TEST_XCOM_KEY, TEST_XCOM_VALUE)
@@ -623,3 +673,18 @@ class TestPatchXComEntry(TestXComEndpoint):
             assert response.json()["value"] == XCom.serialize_value(new_value)
         else:
             assert response.json()["detail"] == expected_detail
+        check_last_log(session, dag_id=TEST_DAG_ID, event="update_xcom_entry", logical_date=None)
+
+    def test_should_respond_401(self, unauthenticated_test_client):
+        response = unauthenticated_test_client.patch(
+            f"/public/dags/{TEST_DAG_ID}/dagRuns/run_id/taskInstances/TEST_TASK_ID/xcomEntries/key",
+            json={},
+        )
+        assert response.status_code == 401
+
+    def test_should_respond_403(self, unauthorized_test_client):
+        response = unauthorized_test_client.patch(
+            f"/public/dags/{TEST_DAG_ID}/dagRuns/run_id/taskInstances/TEST_TASK_ID/xcomEntries/key",
+            json={},
+        )
+        assert response.status_code == 403

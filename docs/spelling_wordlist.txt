@@ -171,6 +171,8 @@ BaseHook
 BaseObject
 BaseOperator
 baseOperator
+BaseOperatorLink
+baseoperatorlink
 basestring
 basetaskrunner
 BaseView
@@ -938,6 +940,7 @@ juli
 Jupyter
 jupyter
 jupytercmd
+jwks
 JWT
 jwt
 Kafka
@@ -1863,6 +1866,7 @@ urls
 useHCatalog
 useLegacySQL
 useQueryCache
+userguide
 userId
 userpass
 usr

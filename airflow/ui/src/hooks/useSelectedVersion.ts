@@ -26,7 +26,7 @@ import {
 } from "openapi/queries";
 import { SearchParamsKeys } from "src/constants/searchParams";
 
-const useSelectedVersion = (): string | undefined => {
+const useSelectedVersion = (): number | undefined => {
   const [searchParams] = useSearchParams();
 
   const selectedVersionUrl = searchParams.get(SearchParamsKeys.VERSION_NUMBER);
@@ -72,12 +72,12 @@ const useSelectedVersion = (): string | undefined => {
   );
 
   const selectedVersionNumber =
-    selectedVersionUrl ??
+    (selectedVersionUrl === null ? undefined : parseInt(selectedVersionUrl, 10)) ??
     mappedTaskInstanceData?.dag_version?.version_number ??
-    runData?.dag_versions.at(-1)?.version_number ??
+    (runData?.dag_versions ?? []).at(-1)?.version_number ??
     dagData?.latest_dag_version?.version_number;
 
-  return selectedVersionNumber?.toString();
+  return selectedVersionNumber;
 };
 
 export default useSelectedVersion;

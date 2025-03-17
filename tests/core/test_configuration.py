@@ -614,31 +614,6 @@ key3 = value3
         section_dict = conf.getsection("example_section")
         assert isinstance(section_dict[key], type)
 
-    def test_auth_backends_adds_session(self):
-        with patch("os.environ", {"AIRFLOW__API__AUTH_BACKEND": None}):
-            test_conf = AirflowConfigParser(default_config="")
-            # Guarantee we have deprecated settings, so we test the deprecation
-            # lookup even if we remove this explicit fallback
-            test_conf.deprecated_values = {
-                "api": {
-                    "auth_backends": (
-                        re.compile(r"^airflow\.api\.auth\.backend\.deny_all$|^$"),
-                        "airflow.providers.fab.auth_manager.api.auth.backend.session",
-                        "3.0",
-                    ),
-                },
-            }
-            test_conf.read_dict(
-                {"api": {"auth_backends": "airflow.providers.fab.auth_manager.api.auth.backend.basic_auth"}}
-            )
-
-            with pytest.warns(FutureWarning):
-                test_conf.validate()
-                assert (
-                    test_conf.get("api", "auth_backends")
-                    == "airflow.providers.fab.auth_manager.api.auth.backend.basic_auth,airflow.providers.fab.auth_manager.api.auth.backend.session"
-                )
-
     def test_command_from_env(self):
         test_cmdenv_config = textwrap.dedent("""\
             [testcmdenv]
@@ -1021,7 +996,7 @@ sql_alchemy_conn=sqlite://test
         # Guarantee we have deprecated settings, so we test the deprecation
         # lookup even if we remove this explicit fallback
         test_conf.deprecated_values = {
-            "core": {"hostname_callable": (re.compile(r":"), r".", "2.1")},
+            "core": {"hostname_callable": (re.compile(r":"), r".")},
         }
         test_conf.read_dict({"core": {"hostname_callable": "airflow.utils.net:getfqdn"}})
 
@@ -1086,7 +1061,7 @@ sql_alchemy_conn=sqlite://test
             # Guarantee we have a deprecated setting, so we test the deprecation
             # lookup even if we remove this explicit fallback
             test_conf.deprecated_values = {
-                "core": {"hostname_callable": (re.compile(r":"), r".", "2.1")},
+                "core": {"hostname_callable": (re.compile(r":"), r".")},
             }
             test_conf.read_dict(conf_dict)
             test_conf.validate()
@@ -1605,7 +1580,7 @@ def test_sensitive_values():
         ("database", "sql_alchemy_conn"),
         ("core", "fernet_key"),
         ("core", "internal_api_secret_key"),
-        ("api", "auth_jwt_secret"),
+        ("api_auth", "jwt_secret"),
         ("webserver", "secret_key"),
         ("secrets", "backend_kwargs"),
         ("sentry", "sentry_dsn"),
@@ -1817,7 +1792,7 @@ def test_write_default_config_contains_generated_secrets(tmp_path, monkeypatch):
     assert airflow.configuration.JWT_SECRET_KEY
 
     fernet_line = next(line for line in lines if line.startswith("fernet_key = "))
-    jwt_secret_line = next(line for line in lines if line.startswith("auth_jwt_secret = "))
+    jwt_secret_line = next(line for line in lines if line.startswith("jwt_secret = "))
 
     assert fernet_line == f"fernet_key = {airflow.configuration.FERNET_KEY}"
-    assert jwt_secret_line == f"auth_jwt_secret = {airflow.configuration.JWT_SECRET_KEY}"
+    assert jwt_secret_line == f"jwt_secret = {airflow.configuration.JWT_SECRET_KEY}"

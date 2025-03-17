@@ -137,7 +137,8 @@ const taskInstanceColumns = (
     header: "Operator",
   },
   {
-    cell: ({ row: { original } }) => `${getDuration(original.start_date, original.end_date)}s`,
+    cell: ({ row: { original } }) =>
+      Boolean(original.start_date) ? `${getDuration(original.start_date, original.end_date)}s` : "",
     header: "Duration",
   },
   {

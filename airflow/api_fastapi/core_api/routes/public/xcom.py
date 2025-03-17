@@ -19,9 +19,10 @@ from __future__ import annotations
 import copy
 from typing import Annotated
 
-from fastapi import HTTPException, Query, Request, status
+from fastapi import Depends, HTTPException, Query, Request, status
 from sqlalchemy import and_, select
 
+from airflow.api_fastapi.auth.managers.models.resource_details import DagAccessEntity
 from airflow.api_fastapi.common.db.common import SessionDep, paginated_select
 from airflow.api_fastapi.common.parameters import QueryLimit, QueryOffset
 from airflow.api_fastapi.common.router import AirflowRouter
@@ -33,6 +34,8 @@ from airflow.api_fastapi.core_api.datamodels.xcom import (
     XComUpdateBody,
 )
 from airflow.api_fastapi.core_api.openapi.exceptions import create_openapi_http_exception_doc
+from airflow.api_fastapi.core_api.security import ReadableXComFilterDep, requires_access_dag
+from airflow.api_fastapi.logging.decorators import action_logging
 from airflow.exceptions import TaskNotFound
 from airflow.models import DAG, DagRun as DR, XCom
 from airflow.settings import conf
@@ -50,6 +53,7 @@ xcom_router = AirflowRouter(
             status.HTTP_404_NOT_FOUND,
         ]
     ),
+    dependencies=[Depends(requires_access_dag(method="GET", access_entity=DagAccessEntity.XCOM))],
 )
 def get_xcom_entry(
     dag_id: str,
@@ -105,6 +109,7 @@ def get_xcom_entry(
             status.HTTP_404_NOT_FOUND,
         ]
     ),
+    dependencies=[Depends(requires_access_dag(method="GET", access_entity=DagAccessEntity.XCOM))],
 )
 def get_xcom_entries(
     dag_id: str,
@@ -112,6 +117,7 @@ def get_xcom_entries(
     task_id: str,
     limit: QueryLimit,
     offset: QueryOffset,
+    readable_xcom_filter: ReadableXComFilterDep,
     session: SessionDep,
     xcom_key: Annotated[str | None, Query()] = None,
     map_index: Annotated[int | None, Query(ge=-1)] = None,
@@ -137,6 +143,7 @@ def get_xcom_entries(
 
     query, total_entries = paginated_select(
         statement=query,
+        filters=[readable_xcom_filter],
         offset=offset,
         limit=limit,
         session=session,
@@ -155,6 +162,10 @@ def get_xcom_entries(
             status.HTTP_404_NOT_FOUND,
         ]
     ),
+    dependencies=[
+        Depends(action_logging()),
+        Depends(requires_access_dag(method="POST", access_entity=DagAccessEntity.XCOM)),
+    ],
 )
 def create_xcom_entry(
     dag_id: str,
@@ -234,6 +245,10 @@ def create_xcom_entry(
             status.HTTP_404_NOT_FOUND,
         ]
     ),
+    dependencies=[
+        Depends(action_logging()),
+        Depends(requires_access_dag(method="PUT", access_entity=DagAccessEntity.XCOM)),
+    ],
 )
 def update_xcom_entry(
     dag_id: str,

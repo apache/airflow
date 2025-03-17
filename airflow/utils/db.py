@@ -57,9 +57,7 @@ from airflow.exceptions import AirflowException
 from airflow.models import import_all_models
 from airflow.utils import helpers
 from airflow.utils.db_manager import RunDBManager
-
-# TODO: remove create_session once we decide to break backward compatibility
-from airflow.utils.session import NEW_SESSION, create_session, provide_session  # noqa: F401
+from airflow.utils.session import NEW_SESSION, provide_session
 from airflow.utils.task_instance_session import get_current_task_instance_session
 
 if TYPE_CHECKING:
@@ -94,7 +92,7 @@ _REVISION_HEADS_MAP: dict[str, str] = {
     "2.9.2": "686269002441",
     "2.10.0": "22ed7efa9da2",
     "2.10.3": "5f2621c13b39",
-    "3.0.0": "7645189f3479",
+    "3.0.0": "d469d27e2a64",
 }
 
 
@@ -766,7 +764,7 @@ def _create_db_from_orm(session):
 
 
 @provide_session
-def initdb(session: Session = NEW_SESSION, load_connections: bool = True):
+def initdb(session: Session = NEW_SESSION):
     """Initialize Airflow database."""
     # First validate external DB managers before running migration
     external_db_manager = RunDBManager()
@@ -781,8 +779,6 @@ def initdb(session: Session = NEW_SESSION, load_connections: bool = True):
         _create_db_from_orm(session=session)
 
     external_db_manager.initdb(session)
-    if conf.getboolean("database", "LOAD_DEFAULT_CONNECTIONS") and load_connections:
-        create_default_connections(session=session)
     # Add default pool & sync log_template
     add_default_pool_if_not_exists(session=session)
     synchronize_log_template(session=session)
@@ -1154,7 +1150,7 @@ def upgradedb(
     if not _get_current_revision(session=session):
         # Don't load default connections
         # New DB; initialize and exit
-        initdb(session=session, load_connections=False)
+        initdb(session=session)
         return
     with create_global_lock(session=session, lock=DBLocks.MIGRATIONS):
         import sqlalchemy.pool

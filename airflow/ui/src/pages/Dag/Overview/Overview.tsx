@@ -16,12 +16,17 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Box, HStack, Skeleton, SimpleGrid } from "@chakra-ui/react";
+import { Box, HStack, Skeleton } from "@chakra-ui/react";
 import dayjs from "dayjs";
 import { lazy, useState, Suspense } from "react";
 import { useParams } from "react-router-dom";
 
-import { useDagRunServiceGetDagRuns, useTaskInstanceServiceGetTaskInstances } from "openapi/queries";
+import {
+  useAssetServiceGetAssetEvents,
+  useDagRunServiceGetDagRuns,
+  useTaskInstanceServiceGetTaskInstances,
+} from "openapi/queries";
+import { AssetEvents } from "src/components/Assets/AssetEvents";
 import { DurationChart } from "src/components/DurationChart";
 import TimeRangeSelector from "src/components/TimeRangeSelector";
 import { TrendCountButton } from "src/components/TrendCountButton";
@@ -37,6 +42,7 @@ export const Overview = () => {
   const now = dayjs();
   const [startDate, setStartDate] = useState(now.subtract(Number(defaultHour), "hour").toISOString());
   const [endDate, setEndDate] = useState(now.toISOString());
+  const [assetSortBy, setAssetSortBy] = useState("-timestamp");
 
   const refetchInterval = useAutoRefresh({});
 
@@ -67,6 +73,14 @@ export const Overview = () => {
         query.state.data?.dag_runs.some((run) => isStatePending(run.state)) ? refetchInterval : false,
     },
   );
+
+  const { data: assetEventsData, isLoading: isLoadingAssetEvents } = useAssetServiceGetAssetEvents({
+    limit: 6,
+    orderBy: assetSortBy,
+    sourceDagId: dagId,
+    timestampGte: startDate,
+    timestampLte: endDate,
+  });
 
   return (
     <Box m={4}>
@@ -111,7 +125,7 @@ export const Overview = () => {
           startDate={startDate}
         />
       </HStack>
-      <SimpleGrid columns={3} gap={5} my={5}>
+      <HStack alignItems="flex-start" flexWrap="wrap">
         <Box borderRadius={4} borderStyle="solid" borderWidth={1} p={2} width="350px">
           {isLoadingRuns ? (
             <Skeleton height="200px" w="full" />
@@ -119,7 +133,15 @@ export const Overview = () => {
             <DurationChart entries={runs?.dag_runs.slice().reverse()} kind="Dag Run" />
           )}
         </Box>
-      </SimpleGrid>
+        {assetEventsData && assetEventsData.total_entries > 0 ? (
+          <AssetEvents
+            data={assetEventsData}
+            isLoading={isLoadingAssetEvents}
+            setOrderBy={setAssetSortBy}
+            title="Created Asset Event"
+          />
+        ) : undefined}
+      </HStack>
       <Suspense fallback={<Skeleton height="100px" width="full" />}>
         <FailedLogs failedTasks={failedTasks} />
       </Suspense>

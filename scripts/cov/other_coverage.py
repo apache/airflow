@@ -33,7 +33,6 @@ You can also compare the stats against those on
 https://app.codecov.io/github/apache/airflow
 (as it combines the coverage from all tests and so may be a bit higher).
 
-    "airflow/auth",
     "airflow/callbacks",
     "airflow/config_templates",
     "airflow/dag_processing",

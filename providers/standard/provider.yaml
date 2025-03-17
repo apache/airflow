@@ -21,9 +21,10 @@ name: Standard
 description: |
     Airflow Standard Provider
 state: ready
-source-date-epoch: 1741121952
+source-date-epoch: 1741509906
 # note that those versions are maintained by release manager - do not update them manually
 versions:
+  - 0.1.1
   - 0.1.0
   - 0.0.3
   - 0.0.2
@@ -48,7 +49,8 @@ operators:
       - airflow.providers.standard.operators.empty
       - airflow.providers.standard.operators.trigger_dagrun
       - airflow.providers.standard.operators.latest_only
-
+      - airflow.providers.standard.operators.smooth
+      - airflow.providers.standard.operators.branch
 sensors:
   - integration-name: Standard
     python-modules:

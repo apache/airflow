@@ -27,8 +27,9 @@ def get_provider_info():
         "name": "OpenAI",
         "description": "`OpenAI <https://platform.openai.com/docs/introduction>`__\n",
         "state": "ready",
-        "source-date-epoch": 1741121910,
+        "source-date-epoch": 1741509287,
         "versions": [
+            "1.5.2",
             "1.5.1",
             "1.5.0",
             "1.4.0",
@@ -63,6 +64,6 @@ def get_provider_info():
                 "connection-type": "openai",
             }
         ],
-        "dependencies": ["apache-airflow>=2.9.0", "openai[datalib]>=1.32.0"],
+        "dependencies": ["apache-airflow>=2.9.0", "openai[datalib]>=1.66.0"],
         "devel-dependencies": [],
     }

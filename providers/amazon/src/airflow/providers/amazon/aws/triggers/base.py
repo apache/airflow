@@ -55,6 +55,8 @@ class AwsBaseWaiterTrigger(BaseTrigger):
 
     :param waiter_delay: The amount of time in seconds to wait between attempts.
     :param waiter_max_attempts: The maximum number of attempts to be made.
+    :param waiter_config_overrides: A dict to update waiter's default configuration. Only specified keys will
+        be updated.
     :param aws_conn_id: The Airflow connection used for AWS credentials. To be used to build the hook.
     :param region_name: The AWS region where the resources to watch are. To be used to build the hook.
     :param verify: Whether or not to verify SSL certificates. To be used to build the hook.
@@ -77,6 +79,7 @@ class AwsBaseWaiterTrigger(BaseTrigger):
         return_value: Any,
         waiter_delay: int,
         waiter_max_attempts: int,
+        waiter_config_overrides: dict[str, Any] | None = None,
         aws_conn_id: str | None,
         region_name: str | None = None,
         verify: bool | str | None = None,
@@ -91,6 +94,7 @@ class AwsBaseWaiterTrigger(BaseTrigger):
         self.failure_message = failure_message
         self.status_message = status_message
         self.status_queries = status_queries
+        self.waiter_config_overrides = waiter_config_overrides
 
         self.return_key = return_key
         self.return_value = return_value
@@ -139,8 +143,13 @@ class AwsBaseWaiterTrigger(BaseTrigger):
 
     async def run(self) -> AsyncIterator[TriggerEvent]:
         hook = self.hook()
-        async with hook.async_conn as client:
-            waiter = hook.get_waiter(self.waiter_name, deferrable=True, client=client)
+        async with await hook.get_async_conn() as client:
+            waiter = hook.get_waiter(
+                self.waiter_name,
+                deferrable=True,
+                client=client,
+                config_overrides=self.waiter_config_overrides,
+            )
             await async_wait(
                 waiter,
                 self.waiter_delay,

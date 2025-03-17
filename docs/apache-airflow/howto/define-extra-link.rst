@@ -31,7 +31,7 @@ The following code shows how to add extra links to an operator via Plugins:
 .. code-block:: python
 
     from airflow.models.baseoperator import BaseOperator
-    from airflow.models.baseoperatorlink import BaseOperatorLink
+    from airflow.sdk import BaseOperatorLink
     from airflow.models.taskinstancekey import TaskInstanceKey
     from airflow.plugins_manager import AirflowPlugin
 
@@ -85,7 +85,7 @@ tasks using :class:`~airflow.providers.amazon.aws.transfers.gcs_to_s3.GCSToS3Ope
 .. code-block:: python
 
   from airflow.models.baseoperator import BaseOperator
-  from airflow.models.baseoperatorlink import BaseOperatorLink
+  from airflow.sdk import BaseOperatorLink
   from airflow.models.taskinstancekey import TaskInstanceKey
   from airflow.plugins_manager import AirflowPlugin
   from airflow.providers.amazon.aws.transfers.gcs_to_s3 import GCSToS3Operator
@@ -128,7 +128,7 @@ Console, but if we wanted to change that link we could:
 .. code-block:: python
 
     from airflow.models.baseoperator import BaseOperator
-    from airflow.models.baseoperatorlink import BaseOperatorLink
+    from airflow.sdk import BaseOperatorLink
     from airflow.models.taskinstancekey import TaskInstanceKey
     from airflow.models.xcom import XCom
     from airflow.plugins_manager import AirflowPlugin

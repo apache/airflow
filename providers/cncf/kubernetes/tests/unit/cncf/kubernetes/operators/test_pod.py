@@ -1537,7 +1537,9 @@ class TestKubernetesPodOperator:
         # check that the base container is not included in the logs
         mock_fetch_log.assert_called_once_with(pod=pod, containers=["some_init_container"], follow_logs=True)
         # check that KPO waits for the base container to complete before proceeding to extract XCom
-        mock_await_container_completion.assert_called_once_with(pod=pod, container_name="base")
+        mock_await_container_completion.assert_called_once_with(
+            pod=pod, container_name="base", polling_time=1
+        )
         # check that we wait for the xcom sidecar to start before extracting XCom
         mock_await_xcom_sidecar.assert_called_once_with(pod=pod)
 
@@ -1798,7 +1800,7 @@ class TestKubernetesPodOperator:
             )
         else:
             mock_await_container_completion.assert_has_calls(
-                [mock.call(pod=pod, container_name=k.base_container_name)] * 3
+                [mock.call(pod=pod, container_name=k.base_container_name, polling_time=1)] * 3
             )
         mock_read_pod.assert_called()
         assert client != k.client
@@ -1853,7 +1855,7 @@ class TestKubernetesPodOperator:
                 k.await_pod_completion(pod)
         expected_call_count = len(side_effect)
         mock_await_container_completion.assert_has_calls(
-            [mock.call(pod=pod, container_name=k.base_container_name)] * expected_call_count
+            [mock.call(pod=pod, container_name=k.base_container_name, polling_time=1)] * expected_call_count
         )
 
     @pytest.mark.parametrize(
@@ -2091,10 +2093,12 @@ class TestKubernetesPodOperatorAsync:
         ti_mock.xcom_push.assert_any_call(key="pod_namespace", value=TEST_NAMESPACE)
         assert isinstance(exc.value.trigger, KubernetesPodTrigger)
 
+    @pytest.mark.parametrize("status", ["error", "failed", "timeout"])
+    @patch(KUB_OP_PATH.format("log"))
     @patch(KUB_OP_PATH.format("cleanup"))
     @patch(HOOK_CLASS)
-    def test_async_create_pod_should_throw_exception(self, mocked_hook, mocked_cleanup):
-        """Tests that an AirflowException is raised in case of error event"""
+    def test_async_create_pod_should_throw_exception(self, mocked_hook, mocked_cleanup, mocked_log, status):
+        """Tests that an AirflowException is raised in case of error event and event is logged"""
 
         mocked_hook.return_value.get_pod.return_value = MagicMock()
         k = KubernetesPodOperator(
@@ -2111,16 +2115,20 @@ class TestKubernetesPodOperatorAsync:
             deferrable=True,
         )
 
+        message = "Some message"
         with pytest.raises(AirflowException):
             k.trigger_reentry(
                 context=None,
                 event={
-                    "status": "error",
-                    "message": "Some error",
+                    "status": status,
+                    "message": message,
                     "name": TEST_NAME,
                     "namespace": TEST_NAMESPACE,
                 },
             )
+
+        log_message = "Trigger emitted an %s event, failing the task: %s"
+        mocked_log.error.assert_called_once_with(log_message, status, message)
 
     @pytest.mark.parametrize(
         "kwargs, actual_exit_code, expected_exc, pod_status, event_status",

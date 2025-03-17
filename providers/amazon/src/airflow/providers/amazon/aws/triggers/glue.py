@@ -157,7 +157,7 @@ class GlueCatalogPartitionTrigger(BaseTrigger):
         return bool(partitions)
 
     async def run(self) -> AsyncIterator[TriggerEvent]:
-        async with self.hook.async_conn as client:
+        async with await self.hook.get_async_conn() as client:
             while True:
                 result = await self.poke(client=client)
                 if result:

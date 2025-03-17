@@ -17,25 +17,25 @@
  * under the License.
  */
 import { Input, Button, Box, Spacer, HStack, Field, Stack } from "@chakra-ui/react";
-import { json } from "@codemirror/lang-json";
-import { githubLight, githubDark } from "@uiw/codemirror-themes-all";
-import CodeMirror from "@uiw/react-codemirror";
 import { useEffect, useState } from "react";
 import { useForm, Controller } from "react-hook-form";
 import { FiPlay } from "react-icons/fi";
 
-import { useColorMode } from "src/context/colorMode";
 import { useDagParams } from "src/queries/useDagParams";
+import { useTogglePause } from "src/queries/useTogglePause";
 import { useTrigger } from "src/queries/useTrigger";
 
 import { ErrorAlert } from "../ErrorAlert";
 import { FlexibleForm, flexibleFormDefaultSection } from "../FlexibleForm";
+import { JsonEditor } from "../JsonEditor";
 import { Accordion } from "../ui";
+import { Checkbox } from "../ui/Checkbox";
 import EditableMarkdown from "./EditableMarkdown";
 import { useParamStore } from "./useParamStore";
 
 type TriggerDAGFormProps = {
   readonly dagId: string;
+  readonly isPaused: boolean;
   readonly onClose: () => void;
   readonly open: boolean;
 };
@@ -47,11 +47,14 @@ export type DagRunTriggerParams = {
   note: string;
 };
 
-const TriggerDAGForm = ({ dagId, onClose, open }: TriggerDAGFormProps) => {
+const TriggerDAGForm = ({ dagId, isPaused, onClose, open }: TriggerDAGFormProps) => {
   const [errors, setErrors] = useState<{ conf?: string; date?: unknown }>({});
   const initialParamsDict = useDagParams(dagId, open);
   const { error: errorTrigger, isPending, triggerDagRun } = useTrigger({ dagId, onSuccessConfirm: onClose });
   const { conf, setConf } = useParamStore();
+  const [unpause, setUnpause] = useState(true);
+
+  const { mutate: togglePause } = useTogglePause({ dagId });
 
   const { control, handleSubmit, reset } = useForm<DagRunTriggerParams>({
     defaultValues: {
@@ -70,6 +73,14 @@ const TriggerDAGForm = ({ dagId, onClose, open }: TriggerDAGFormProps) => {
   }, [conf, reset]);
 
   const onSubmit = (data: DagRunTriggerParams) => {
+    if (unpause && isPaused) {
+      togglePause({
+        dagId,
+        requestBody: {
+          is_paused: false,
+        },
+      });
+    }
     triggerDagRun(data);
   };
 
@@ -101,8 +112,6 @@ const TriggerDAGForm = ({ dagId, onClose, open }: TriggerDAGFormProps) => {
   const resetDateError = () => {
     setErrors((prev) => ({ ...prev, date: undefined }));
   };
-
-  const { colorMode } = useColorMode();
 
   return (
     <>
@@ -166,27 +175,11 @@ const TriggerDAGForm = ({ dagId, onClose, open }: TriggerDAGFormProps) => {
                 render={({ field }) => (
                   <Field.Root invalid={Boolean(errors.conf)} mt={6}>
                     <Field.Label fontSize="md">Configuration JSON</Field.Label>
-                    <CodeMirror
+                    <JsonEditor
                       {...field}
-                      basicSetup={{
-                        autocompletion: true,
-                        bracketMatching: true,
-                        foldGutter: true,
-                        lineNumbers: true,
-                      }}
-                      extensions={[json()]}
-                      height="200px"
                       onBlur={() => {
                         field.onChange(validateAndPrettifyJson(field.value));
                       }}
-                      style={{
-                        border: "1px solid var(--chakra-colors-border)",
-                        borderRadius: "8px",
-                        outline: "none",
-                        padding: "2px",
-                        width: "100%",
-                      }}
-                      theme={colorMode === "dark" ? githubDark : githubLight}
                     />
                     {Boolean(errors.conf) ? <Field.ErrorText>{errors.conf}</Field.ErrorText> : undefined}
                   </Field.Root>
@@ -207,6 +200,11 @@ const TriggerDAGForm = ({ dagId, onClose, open }: TriggerDAGFormProps) => {
           </Accordion.ItemContent>
         </Accordion.Item>
       </Accordion.Root>
+      {isPaused ? (
+        <Checkbox checked={unpause} colorPalette="blue" onChange={() => setUnpause(!unpause)}>
+          Unpause {dagId} on trigger
+        </Checkbox>
+      ) : undefined}
       <ErrorAlert error={errors.date ?? errorTrigger} />
       <Box as="footer" display="flex" justifyContent="flex-end" mt={4}>
         <HStack w="full">

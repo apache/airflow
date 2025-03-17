@@ -29,7 +29,7 @@ from typing import TYPE_CHECKING, Any, Callable
 
 import pluggy
 from packaging.version import Version
-from sqlalchemy import create_engine, exc, text
+from sqlalchemy import create_engine
 from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession as SAAsyncSession, create_async_engine
 from sqlalchemy.orm import scoped_session, sessionmaker
 from sqlalchemy.pool import NullPool
@@ -37,7 +37,6 @@ from sqlalchemy.pool import NullPool
 from airflow import __version__ as airflow_version, policies
 from airflow.configuration import AIRFLOW_HOME, WEBSERVER_CONFIG, conf  # noqa: F401
 from airflow.exceptions import AirflowInternalRuntimeError
-from airflow.executors import executor_constants
 from airflow.logging_config import configure_logging
 from airflow.utils.orm_event_handlers import setup_event_handlers
 from airflow.utils.sqlalchemy import is_sqlalchemy_v1
@@ -46,7 +45,6 @@ from airflow.utils.timezone import local_timezone, parse_timezone, utc
 
 if TYPE_CHECKING:
     from sqlalchemy.engine import Engine
-    from sqlalchemy.orm import Session as SASession
 
 log = logging.getLogger(__name__)
 
@@ -101,12 +99,12 @@ Mapping of sync scheme to async scheme.
 """
 
 engine: Engine
-Session: Callable[..., SASession]
+Session: scoped_session
 # NonScopedSession creates global sessions and is not safe to use in multi-threaded environment without
 # additional precautions. The only use case is when the session lifecycle needs
 # custom handling. Most of the time we only want one unique thread local session object,
 # this is achieved by the Session factory above.
-NonScopedSession: Callable[..., SASession]
+NonScopedSession: sessionmaker
 async_engine: AsyncEngine
 AsyncSession: Callable[..., SAAsyncSession]
 
@@ -142,12 +140,13 @@ def _get_rich_console(file):
 def custom_show_warning(message, category, filename, lineno, file=None, line=None):
     """Print rich and visible warnings."""
     # Delay imports until we need it
-    import re2
+    import re
+
     from rich.markup import escape
 
-    re2_escape_regex = re2.compile(r"(\\*)(\[[a-z#/@][^[]*?])").sub
+    re_escape_regex = re.compile(r"(\\*)(\[[a-z#/@][^[]*?])").sub
     msg = f"[bold]{line}" if line else f"[bold][yellow]{filename}:{lineno}"
-    msg += f" {category.__name__}[/bold]: {escape(str(message), _escape=re2_escape_regex)}[/yellow]"
+    msg += f" {category.__name__}[/bold]: {escape(str(message), _escape=re_escape_regex)}[/yellow]"
     write_console = _get_rich_console(file or sys.stderr)
     write_console.print(msg, soft_wrap=True)
 
@@ -389,6 +388,15 @@ def configure_orm(disable_connection_pool=False, pool_class=None):
     NonScopedSession = _session_maker(engine)
     Session = scoped_session(NonScopedSession)
 
+    # https://docs.sqlalchemy.org/en/20/core/pooling.html#using-connection-pools-with-multiprocessing-or-os-fork
+    def clean_in_fork():
+        if engine:
+            engine.dispose(close=False)
+        if async_engine:
+            async_engine.sync_engine.dispose(close=False)
+
+    os.register_at_fork(after_in_child=clean_in_fork)
+
 
 DEFAULT_ENGINE_ARGS = {
     "postgresql": {
@@ -477,16 +485,26 @@ def prepare_engine_args(disable_connection_pool=False, pool_class=None):
     return engine_args
 
 
-def dispose_orm():
+def dispose_orm(do_log: bool = True):
     """Properly close pooled database connections."""
-    log.debug("Disposing DB connection pool (PID %s)", os.getpid())
-    global engine
-    global Session
+    global Session, engine, NonScopedSession
 
-    if Session is not None:  # type: ignore[truthy-function]
+    _globals = globals()
+    if _globals.get("engine") is None and _globals.get("Session") is None:
+        return
+
+    if do_log:
+        log.debug("Disposing DB connection pool (PID %s)", os.getpid())
+
+    if "Session" in _globals and Session is not None:
+        from sqlalchemy.orm.session import close_all_sessions
+
         Session.remove()
         Session = None
-    if engine:
+        NonScopedSession = None
+        close_all_sessions()
+
+    if "engine" in _globals and engine is not None:
         engine.dispose()
         engine = None
 
@@ -527,26 +545,6 @@ def configure_adapters():
             pymysql.converters.conversions[Pendulum] = pymysql.converters.escape_datetime
         except ImportError:
             pass
-
-
-def validate_session():
-    """Validate ORM Session."""
-    global engine
-
-    worker_precheck = conf.getboolean("celery", "worker_precheck")
-    if not worker_precheck:
-        return True
-    else:
-        check_session = sessionmaker(bind=engine)
-        session = check_session()
-        try:
-            session.execute(text("select 1"))
-            conn_status = True
-        except exc.DBAPIError as err:
-            log.error(err)
-            conn_status = False
-        session.close()
-        return conn_status
 
 
 def configure_action_logging() -> None:
@@ -685,9 +683,6 @@ LAZY_LOAD_PLUGINS: bool = conf.getboolean("core", "lazy_load_plugins", fallback=
 # Set it to False, if you want to discover providers whenever 'airflow' is invoked via cli or
 # loaded from module.
 LAZY_LOAD_PROVIDERS: bool = conf.getboolean("core", "lazy_discover_providers", fallback=True)
-
-# Determines if the executor utilizes Kubernetes
-IS_K8S_OR_K8SCELERY_EXECUTOR = conf.get("core", "EXECUTOR") == executor_constants.KUBERNETES_EXECUTOR
 
 # Executors can set this to true to configure logging correctly for
 # containerized executors.

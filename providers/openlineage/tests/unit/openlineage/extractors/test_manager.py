@@ -20,7 +20,7 @@ from __future__ import annotations
 import logging
 import tempfile
 from datetime import datetime
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, Protocol
 from unittest import mock
 from unittest.mock import MagicMock
 
@@ -46,12 +46,16 @@ from tests_common.test_utils.version_compat import AIRFLOW_V_2_10_PLUS, AIRFLOW_
 
 if TYPE_CHECKING:
     try:
+        from airflow.sdk.api.datamodels._generated import TIRunContext
         from airflow.sdk.definitions.context import Context
+
     except ImportError:
         # TODO: Remove once provider drops support for Airflow 2
+        # TIRunContext is only used in Airflow 3 tests
         from airflow.utils.context import Context
 
-    from task_sdk.tests.conftest import MakeTIContextCallable
+        TIRunContext = Any  # type: ignore[misc, assignment]
+
 
 if AIRFLOW_V_2_10_PLUS:
 
@@ -414,6 +418,24 @@ def mocked_parse(spy_agency):
     return set_dag
 
 
+class MakeTIContextCallable(Protocol):
+    def __call__(
+        self,
+        dag_id: str = ...,
+        run_id: str = ...,
+        logical_date: str | datetime = ...,
+        data_interval_start: str | datetime = ...,
+        data_interval_end: str | datetime = ...,
+        clear_number: int = ...,
+        start_date: str | datetime = ...,
+        run_after: str | datetime = ...,
+        run_type: str = ...,
+        task_reschedule_count: int = ...,
+        conf: dict[str, Any] | None = ...,
+    ) -> TIRunContext: ...
+
+
+# Only needed in Airflow 3
 @pytest.fixture
 def make_ti_context() -> MakeTIContextCallable:
     """Factory for creating TIRunContext objects."""

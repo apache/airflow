@@ -213,13 +213,7 @@ def is_ti_rescheduled_already(ti: TaskInstance, session=NEW_SESSION):
 
     return (
         session.query(
-            exists().where(
-                TaskReschedule.dag_id == ti.dag_id,
-                TaskReschedule.task_id == ti.task_id,
-                TaskReschedule.run_id == ti.run_id,
-                TaskReschedule.map_index == ti.map_index,
-                TaskReschedule.try_number == ti.try_number,
-            )
+            exists().where(TaskReschedule.ti_id == ti.id, TaskReschedule.try_number == ti.try_number)
         ).scalar()
         is True
     )
@@ -365,6 +359,7 @@ class DagRunInfo(InfoJsonEncodable):
         "dag_id",
         "data_interval_start",
         "data_interval_end",
+        "external_trigger",  # Removed in Airflow 3, use run_type instead
         "run_id",
         "run_type",
         "start_date",

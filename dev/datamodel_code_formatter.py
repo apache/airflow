@@ -53,8 +53,56 @@ class CodeFormatter(CustomCodeFormatter):
                     return cst.RemoveFromParent()
                 return super().leave_ClassDef(original_node, updated_node)
 
+        # Remove Task class that represent a tuple of (task_id, map_index)
+        # for `TISkippedDownstreamTasksStatePayload`
+        class ModifyTasksAnnotation(cst.CSTTransformer):
+            def leave_ClassDef(
+                self, original_node: cst.ClassDef, updated_node: cst.ClassDef
+            ) -> cst.BaseStatement | cst.FlattenSentinel[cst.BaseStatement] | cst.RemovalSentinel:
+                if original_node.name.value == "Tasks":
+                    return cst.RemoveFromParent()
+                return super().leave_ClassDef(original_node, updated_node)
+
+            def leave_AnnAssign(
+                self, original_node: cst.AnnAssign, updated_node: cst.AnnAssign
+            ) -> cst.AnnAssign | cst.RemovalSentinel:
+                """
+                Replaces `tasks: Annotated[list[str | Tasks], Field(title="Tasks")]`
+                with `tasks: Annotated[list[str | tuple[str, int]], Field(title="Tasks")]`
+                only if inside `TISkippedDownstreamTasksStatePayload`.
+                """
+                # Check if the target is 'tasks'
+                if not isinstance(updated_node.target, cst.Name) or updated_node.target.value != "tasks":
+                    return updated_node
+
+                if not isinstance(updated_node.annotation, cst.Annotation):
+                    return updated_node
+
+                # Create a replacement for 'Tasks' -> 'tuple[str, int]'
+                tuple_type = cst.Subscript(
+                    value=cst.Name("tuple"),
+                    slice=[
+                        cst.SubscriptElement(cst.Index(cst.Name("str"))),
+                        cst.SubscriptElement(cst.Index(cst.Name("int"))),
+                    ],
+                )
+
+                # Transformer to replace all instances of 'Tasks' with 'tuple[str, int]'
+                class TasksReplacer(cst.CSTTransformer):
+                    def leave_Name(
+                        self, original_node: cst.Name, updated_node: cst.Name
+                    ) -> cst.BaseExpression:
+                        if original_node.value == "Tasks":
+                            return tuple_type
+                        return updated_node
+
+                # Apply the transformation to the annotation part only
+                new_annotation = updated_node.annotation.visit(TasksReplacer())
+                return updated_node.with_changes(annotation=new_annotation)
+
         source_tree = cst.parse_module(code)
         modified_tree = source_tree.visit(JsonValueNodeRemover())
+        modified_tree = modified_tree.visit(ModifyTasksAnnotation())
         code = modified_tree.code
 
         result = subprocess.check_output(

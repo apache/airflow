@@ -194,12 +194,16 @@ Google provider, tests, and all Hadoop providers with this command:
 This is not needed with `uv` and in the near future, when `pip` will support https://peps.python.org/pep-0735/
 this installation will be simplified.
 
-You can also install ALL possible dependencies of airflow with:
+You can also install ALL possible dependencies of airflow (in editable mode only) with:
 
     pip install -e ".[all]"
 
 This is not really recommended usually (it takes a lot of time to resolve and install all dependencies) but
 if you want to replicate the CI environment where "all" extras are installed, you can do it this way.
+
+You can also install ALL possible core dependencies of airflow (in editable mode only) with:
+
+    pip install -e ".[all-core]"
 
 
 Building airflow packages with Hatch

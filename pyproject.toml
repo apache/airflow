@@ -24,13 +24,13 @@
 requires = [
     "GitPython==3.1.44",
     "gitdb==4.0.12",
-    "hatchling==1.25.0",
+    "hatchling==1.27.0",
     "packaging==24.2",
     "pathspec==0.12.1",
     "pluggy==1.5.0",
     "smmap==5.0.2",
     "tomli==2.2.1; python_version < '3.11'",
-    "trove-classifiers==2025.3.3.18",
+    "trove-classifiers==2025.3.13.13",
 ]
 build-backend = "hatchling.build"
 
@@ -127,7 +127,6 @@ Homepage = "https://airflow.apache.org/"
 "Release Notes" = "https://airflow.apache.org/docs/apache-airflow/stable/release_notes.html"
 "Slack Chat" = "https://s.apache.org/airflow-slack"
 "Source Code" = "https://github.com/apache/airflow"
-X = "https://x.com/ApacheAirflow"
 LinkedIn = "https://www.linkedin.com/company/apache-airflow/"
 Mastodon = "https://fosstodon.org/@airflow"
 Bluesky = "https://bsky.app/profile/apache-airflow.bsky.social"
@@ -158,6 +157,7 @@ exclude = [
 ]
 artifacts = [
     "/airflow/ui/dist/",
+    "/airflow/api_fastapi/auth/managers/simple/ui/dist/",
     "/airflow/git_version",
     "/generated/",
 ]
@@ -168,6 +168,7 @@ include = [
 ]
 artifacts = [
     "/airflow/ui/dist/",
+    "/airflow/api_fastapi/auth/managers/simple/ui/dist/",
     "/airflow/git_version"
 ]
 
@@ -294,7 +295,7 @@ section-order = [
 
 # Make sure we put the "dev" imports at the end, not as a third-party module
 [tool.ruff.lint.isort.sections]
-testing = ["dev", "providers.tests", "task_sdk.tests", "tests_common", "tests"]
+testing = ["dev", "providers.tests", "tests_common", "tests"]
 
 [tool.ruff.lint.extend-per-file-ignores]
 "airflow/__init__.py" = ["F401", "TC004", "I002"]
@@ -337,7 +338,6 @@ testing = ["dev", "providers.tests", "task_sdk.tests", "tests_common", "tests"]
 # Annotated is central for FastAPI dependency injection, skipping rules for FastAPI folders.
 "airflow/api_fastapi/*" = ["TC001", "TC002"]
 "tests/api_fastapi/*" = ["T001", "TC002"]
-"airflow/auth/managers/simple/*" = ["TC001", "TC002"]
 
 # Ignore pydoc style from these
 "*.pyi" = ["D"]
@@ -506,12 +506,6 @@ filterwarnings = [
     "ignore::DeprecationWarning:flask_sqlalchemy",
     # https://github.com/dpgaspar/Flask-AppBuilder/pull/1903
     "ignore::DeprecationWarning:apispec.utils",
-    # Connexion 2 use different deprecated objects, this should be resolved into Connexion 3
-    # https://github.com/spec-first/connexion/pull/1536
-    'ignore::DeprecationWarning:connexion.spec',
-    'ignore:jsonschema\.RefResolver:DeprecationWarning:connexion.json_schema',
-    'ignore:jsonschema\.exceptions\.RefResolutionError:DeprecationWarning:connexion.json_schema',
-    'ignore:Accessing jsonschema\.draft4_format_checker:DeprecationWarning:connexion.decorators.validation',
 ]
 # We cannot add warnings from the airflow package into `filterwarnings`,
 # because it invokes import airflow before we set up test environment which breaks the tests.
@@ -916,6 +910,6 @@ members = [
     "providers/ydb",
     "providers/zendesk",
     ".",
-    "task_sdk",
+    "task-sdk",
     "devel-common",
 ]

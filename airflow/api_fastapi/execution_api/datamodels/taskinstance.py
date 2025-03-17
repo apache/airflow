@@ -97,7 +97,7 @@ class TISuccessStatePayload(StrictBaseModel):
     """When the task completed executing"""
 
     task_outlets: Annotated[list[AssetProfile], Field(default_factory=list)]
-    outlet_events: Annotated[list[Any], Field(default_factory=list)]
+    outlet_events: Annotated[list[dict[str, Any]], Field(default_factory=list)]
 
 
 class TITargetStatePayload(StrictBaseModel):
@@ -155,6 +155,12 @@ class TIRescheduleStatePayload(StrictBaseModel):
     ]
     reschedule_date: UtcDateTime
     end_date: UtcDateTime
+
+
+class TISkippedDownstreamTasksStatePayload(StrictBaseModel):
+    """Schema for updating downstream tasks to a skipped state."""
+
+    tasks: list[str | tuple[str, int]]
 
 
 def ti_state_discriminator(v: dict[str, str] | StrictBaseModel) -> str:

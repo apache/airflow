@@ -53,6 +53,12 @@ from airflow.api_fastapi.core_api.datamodels.assets import (
 )
 from airflow.api_fastapi.core_api.datamodels.dag_run import DAGRunResponse
 from airflow.api_fastapi.core_api.openapi.exceptions import create_openapi_http_exception_doc
+from airflow.api_fastapi.core_api.security import (
+    ReadableDagsFilterDep,
+    requires_access_asset,
+    requires_access_asset_alias,
+    requires_access_dag,
+)
 from airflow.api_fastapi.logging.decorators import action_logging
 from airflow.assets.manager import asset_manager
 from airflow.models.asset import (
@@ -76,6 +82,7 @@ def _generate_queued_event_where_clause(
     asset_id: int | None = None,
     dag_id: str | None = None,
     before: datetime | str | None = None,
+    permitted_dag_ids: set[str] | None = None,
 ) -> list:
     """Get AssetDagRunQueue where clause."""
     where_clause = []
@@ -85,12 +92,18 @@ def _generate_queued_event_where_clause(
         where_clause.append(AssetDagRunQueue.asset_id == asset_id)
     if before is not None:
         where_clause.append(AssetDagRunQueue.created_at < before)
+    if permitted_dag_ids is not None:
+        where_clause.append(AssetDagRunQueue.target_dag_id.in_(permitted_dag_ids))
     return where_clause
 
 
 @assets_router.get(
     "/assets",
     responses=create_openapi_http_exception_doc([status.HTTP_404_NOT_FOUND]),
+    dependencies=[
+        Depends(requires_access_asset(method="GET")),
+        Depends(requires_access_asset_alias(method="GET")),
+    ],
 )
 def get_assets(
     limit: QueryLimit,
@@ -128,6 +141,7 @@ def get_assets(
 @assets_router.get(
     "/assets/aliases",
     responses=create_openapi_http_exception_doc([status.HTTP_404_NOT_FOUND]),
+    dependencies=[Depends(requires_access_asset_alias(method="GET"))],
 )
 def get_asset_aliases(
     limit: QueryLimit,
@@ -158,6 +172,7 @@ def get_asset_aliases(
 @assets_router.get(
     "/assets/aliases/{asset_alias_id}",
     responses=create_openapi_http_exception_doc([status.HTTP_404_NOT_FOUND]),
+    dependencies=[Depends(requires_access_asset_alias(method="GET"))],
 )
 def get_asset_alias(asset_alias_id: int, session: SessionDep):
     """Get an asset alias."""
@@ -173,6 +188,7 @@ def get_asset_alias(asset_alias_id: int, session: SessionDep):
 @assets_router.get(
     "/assets/events",
     responses=create_openapi_http_exception_doc([status.HTTP_404_NOT_FOUND]),
+    dependencies=[Depends(requires_access_asset(method="GET"))],
 )
 def get_asset_events(
     limit: QueryLimit,
@@ -232,7 +248,7 @@ def get_asset_events(
 @assets_router.post(
     "/assets/events",
     responses=create_openapi_http_exception_doc([status.HTTP_404_NOT_FOUND]),
-    dependencies=[Depends(action_logging())],
+    dependencies=[Depends(requires_access_asset(method="POST")), Depends(action_logging())],
 )
 def create_asset_event(
     body: CreateAssetEventsBody,
@@ -259,7 +275,7 @@ def create_asset_event(
 @assets_router.post(
     "/assets/{asset_id}/materialize",
     responses=create_openapi_http_exception_doc([status.HTTP_404_NOT_FOUND, status.HTTP_409_CONFLICT]),
-    dependencies=[Depends(action_logging())],
+    dependencies=[Depends(requires_access_asset(method="POST")), Depends(action_logging())],
 )
 def materialize_asset(
     asset_id: int,
@@ -306,14 +322,18 @@ def materialize_asset(
 @assets_router.get(
     "/assets/{asset_id}/queuedEvents",
     responses=create_openapi_http_exception_doc([status.HTTP_404_NOT_FOUND]),
+    dependencies=[Depends(requires_access_asset(method="GET"))],
 )
 def get_asset_queued_events(
     asset_id: int,
+    readable_dags_filter: ReadableDagsFilterDep,
     session: SessionDep,
     before: OptionalDateTimeQuery = None,
 ) -> QueuedEventCollectionResponse:
     """Get queued asset events for an asset."""
-    where_clause = _generate_queued_event_where_clause(asset_id=asset_id, before=before)
+    where_clause = _generate_queued_event_where_clause(
+        asset_id=asset_id, before=before, permitted_dag_ids=readable_dags_filter.value
+    )
     query = select(AssetDagRunQueue).where(*where_clause)
 
     dag_asset_queued_events_select, total_entries = paginated_select(statement=query)
@@ -339,6 +359,10 @@ def get_asset_queued_events(
 @assets_router.get(
     "/assets/{asset_id}",
     responses=create_openapi_http_exception_doc([status.HTTP_404_NOT_FOUND]),
+    dependencies=[
+        Depends(requires_access_asset(method="GET")),
+        Depends(requires_access_asset_alias(method="GET")),
+    ],
 )
 def get_asset(
     asset_id: int,
@@ -360,14 +384,18 @@ def get_asset(
 @assets_router.get(
     "/dags/{dag_id}/assets/queuedEvents",
     responses=create_openapi_http_exception_doc([status.HTTP_404_NOT_FOUND]),
+    dependencies=[Depends(requires_access_asset(method="GET")), Depends(requires_access_dag(method="GET"))],
 )
 def get_dag_asset_queued_events(
     dag_id: str,
+    readable_dags_filter: ReadableDagsFilterDep,
     session: SessionDep,
     before: OptionalDateTimeQuery = None,
 ) -> QueuedEventCollectionResponse:
     """Get queued asset events for a DAG."""
-    where_clause = _generate_queued_event_where_clause(dag_id=dag_id, before=before)
+    where_clause = _generate_queued_event_where_clause(
+        dag_id=dag_id, before=before, permitted_dag_ids=readable_dags_filter.value
+    )
     query = select(AssetDagRunQueue).where(*where_clause)
 
     dag_asset_queued_events_select, total_entries = paginated_select(statement=query)
@@ -389,15 +417,19 @@ def get_dag_asset_queued_events(
 @assets_router.get(
     "/dags/{dag_id}/assets/{asset_id}/queuedEvents",
     responses=create_openapi_http_exception_doc([status.HTTP_404_NOT_FOUND]),
+    dependencies=[Depends(requires_access_asset(method="GET")), Depends(requires_access_dag(method="GET"))],
 )
 def get_dag_asset_queued_event(
     dag_id: str,
     asset_id: int,
+    readable_dags_filter: ReadableDagsFilterDep,
     session: SessionDep,
     before: OptionalDateTimeQuery = None,
 ) -> QueuedEventResponse:
     """Get a queued asset event for a DAG."""
-    where_clause = _generate_queued_event_where_clause(dag_id=dag_id, asset_id=asset_id, before=before)
+    where_clause = _generate_queued_event_where_clause(
+        dag_id=dag_id, asset_id=asset_id, before=before, permitted_dag_ids=readable_dags_filter.value
+    )
     query = select(AssetDagRunQueue).where(*where_clause)
     adrq = session.scalar(query)
     if not adrq:
@@ -413,15 +445,22 @@ def get_dag_asset_queued_event(
     "/assets/{asset_id}/queuedEvents",
     status_code=status.HTTP_204_NO_CONTENT,
     responses=create_openapi_http_exception_doc([status.HTTP_404_NOT_FOUND]),
-    dependencies=[Depends(action_logging())],
+    dependencies=[
+        Depends(requires_access_asset(method="DELETE")),
+        Depends(requires_access_dag(method="GET")),
+        Depends(action_logging()),
+    ],
 )
 def delete_asset_queued_events(
     asset_id: int,
+    readable_dags_filter: ReadableDagsFilterDep,
     session: SessionDep,
     before: OptionalDateTimeQuery = None,
 ):
     """Delete queued asset events for an asset."""
-    where_clause = _generate_queued_event_where_clause(asset_id=asset_id, before=before)
+    where_clause = _generate_queued_event_where_clause(
+        asset_id=asset_id, before=before, permitted_dag_ids=readable_dags_filter.value
+    )
     delete_stmt = delete(AssetDagRunQueue).where(*where_clause).execution_options(synchronize_session="fetch")
     result = session.execute(delete_stmt)
     if result.rowcount == 0:
@@ -440,14 +479,21 @@ def delete_asset_queued_events(
             status.HTTP_404_NOT_FOUND,
         ]
     ),
-    dependencies=[Depends(action_logging())],
+    dependencies=[
+        Depends(requires_access_asset(method="DELETE")),
+        Depends(requires_access_dag(method="GET")),
+        Depends(action_logging()),
+    ],
 )
 def delete_dag_asset_queued_events(
     dag_id: str,
+    readable_dags_filter: ReadableDagsFilterDep,
     session: SessionDep,
     before: OptionalDateTimeQuery = None,
 ):
-    where_clause = _generate_queued_event_where_clause(dag_id=dag_id, before=before)
+    where_clause = _generate_queued_event_where_clause(
+        dag_id=dag_id, before=before, permitted_dag_ids=readable_dags_filter.value
+    )
 
     delete_statement = delete(AssetDagRunQueue).where(*where_clause)
     result = session.execute(delete_statement)
@@ -465,16 +511,23 @@ def delete_dag_asset_queued_events(
             status.HTTP_404_NOT_FOUND,
         ]
     ),
-    dependencies=[Depends(action_logging())],
+    dependencies=[
+        Depends(requires_access_asset(method="DELETE")),
+        Depends(requires_access_dag(method="GET")),
+        Depends(action_logging()),
+    ],
 )
 def delete_dag_asset_queued_event(
     dag_id: str,
     asset_id: int,
+    readable_dags_filter: ReadableDagsFilterDep,
     session: SessionDep,
     before: OptionalDateTimeQuery = None,
 ):
     """Delete a queued asset event for a DAG."""
-    where_clause = _generate_queued_event_where_clause(dag_id=dag_id, before=before, asset_id=asset_id)
+    where_clause = _generate_queued_event_where_clause(
+        dag_id=dag_id, before=before, asset_id=asset_id, permitted_dag_ids=readable_dags_filter.value
+    )
     delete_statement = (
         delete(AssetDagRunQueue).where(*where_clause).execution_options(synchronize_session="fetch")
     )

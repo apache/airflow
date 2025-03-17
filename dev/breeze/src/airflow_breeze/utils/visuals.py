@@ -89,12 +89,12 @@ CHEATSHEET = f"""
 
         Direct links to those services that you can use from the host:
 
-          * ssh connection for remote debugging: ssh -p {SSH_PORT} airflow@127.0.0.1 (password: airflow)
-          * API server or webserver:    http://127.0.0.1:{WEB_HOST_PORT}
-          * Flower:    http://127.0.0.1:{FLOWER_HOST_PORT}
-          * Postgres:  jdbc:postgresql://127.0.0.1:{POSTGRES_HOST_PORT}/airflow?user=postgres&password=airflow
-          * Mysql:     jdbc:mysql://127.0.0.1:{MYSQL_HOST_PORT}/airflow?user=root
-          * Redis:     redis://127.0.0.1:{REDIS_HOST_PORT}/0
+          * ssh connection for remote debugging: ssh -p {SSH_PORT} airflow@localhost (password: airflow)
+          * API server or webserver:    http://localhost:{WEB_HOST_PORT}
+          * Flower:    http://localhost:{FLOWER_HOST_PORT}
+          * Postgres:  jdbc:postgresql://localhost:{POSTGRES_HOST_PORT}/airflow?user=postgres&password=airflow
+          * Mysql:     jdbc:mysql://localhost:{MYSQL_HOST_PORT}/airflow?user=root
+          * Redis:     redis://localhost:{REDIS_HOST_PORT}/0
 
     [info]* How can I add my stuff in Breeze:[/]
 

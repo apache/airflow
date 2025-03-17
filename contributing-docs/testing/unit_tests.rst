@@ -95,7 +95,7 @@ test types you want to use in various ``breeze testing`` sub-commands in three w
 Those test types are defined:
 
 * ``Always`` - those are tests that should be always executed (always sub-folder)
-* ``API`` - Tests for the Airflow API (api, api_connexion, api_internal, api_fastapi sub-folders)
+* ``API`` - Tests for the Airflow API (api, api_internal, api_fastapi sub-folders)
 * ``CLI`` - Tests for the Airflow CLI (cli folder)
 * ``Core`` - for the core Airflow functionality (core, executors, jobs, models, ti_deps, utils sub-folders)
 * ``Operators`` - tests for the operators (operators folder)
@@ -117,7 +117,7 @@ via ``--integration`` flag in ``breeze`` environment - via ``breeze testing inte
 
 * ``Integration`` - tests that require external integration images running in docker-compose
 
-This is done for three reasons:
+This is done for two reasons:
 
 1. in order to selectively run only subset of the test types for some PRs
 2. in order to allow efficient parallel test execution of the tests on Self-Hosted runners

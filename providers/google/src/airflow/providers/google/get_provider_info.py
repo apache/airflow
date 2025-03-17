@@ -1053,7 +1053,10 @@ def get_provider_info():
             },
             {
                 "integration-name": "Google",
-                "python-modules": ["airflow.providers.google.common.hooks.base_google"],
+                "python-modules": [
+                    "airflow.providers.google.common.hooks.base_google",
+                    "airflow.providers.google.common.hooks.operation_helpers",
+                ],
             },
             {
                 "integration-name": "Google Discovery API",
@@ -1590,7 +1593,7 @@ def get_provider_info():
             "gcloud-aio-bigquery>=6.1.2",
             "gcloud-aio-storage>=9.0.0",
             "gcsfs>=2023.10.0",
-            "google-ads>=25.1.0",
+            "google-ads>=26.0.0",
             "google-analytics-admin>=0.9.0",
             "google-api-core>=2.11.0,!=2.16.0,!=2.18.0",
             "google-api-python-client>=2.0.2",
