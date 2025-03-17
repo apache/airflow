@@ -32,6 +32,8 @@ from airflow.providers.common.io.version_compat import AIRFLOW_V_3_0_PLUS
 from airflow.utils.json import XComDecoder, XComEncoder
 
 if TYPE_CHECKING:
+    from sqlalchemy.orm import Session
+
     from airflow.sdk.execution_time.comms import XComResult
 
 if AIRFLOW_V_3_0_PLUS:
@@ -169,7 +171,7 @@ class XComObjectStorageBackend(BaseXCom):
             return data
 
     @staticmethod
-    def purge(xcom: XComResult) -> None:
+    def purge(xcom: XComResult, session: Session) -> None:  # type: ignore[override]
         if not isinstance(xcom.value, str):
             return
         with contextlib.suppress(TypeError, ValueError):

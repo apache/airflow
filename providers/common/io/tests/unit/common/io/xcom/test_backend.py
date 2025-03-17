@@ -282,7 +282,6 @@ class TestXComObjectStorageBackend:
                 .with_entities(XComModel.value)
                 .first()
             )
-
         else:
             XCom.clear(
                 dag_id=task_instance.dag_id,
@@ -337,14 +336,6 @@ class TestXComObjectStorageBackend:
             )
             data = XComModel.deserialize_value(res)
         else:
-            XCom.set(
-                key=XCOM_RETURN_KEY,
-                value=self.path + ".gz",
-                dag_id=task_instance.dag_id,
-                task_id=task_instance.task_id,
-                run_id=task_instance.run_id,
-            )
-
             res = (
                 XCom.get_many(
                     key=XCOM_RETURN_KEY,
