@@ -17,6 +17,7 @@
 from __future__ import annotations
 
 from datetime import datetime, timezone
+from typing import TYPE_CHECKING
 from unittest import mock
 
 import pytest
@@ -27,6 +28,9 @@ from airflow.utils.session import provide_session
 
 from tests_common.test_utils.db import clear_db_dags, clear_db_import_errors
 from tests_common.test_utils.format_datetime import from_datetime_to_zulu_without_ms
+
+if TYPE_CHECKING:
+    from sqlalchemy.orm import Session
 
 pytestmark = pytest.mark.db_test
 
@@ -44,103 +48,101 @@ IMPORT_ERROR_NON_EXISTED_KEY = "non_existed_key"
 BUNDLE_NAME = "dag_maker"
 
 
-class TestImportErrorEndpoint:
-    """Common class for /public/importErrors related unit tests."""
+@pytest.fixture(scope="class")
+@provide_session
+def permitted_dag_model(session: Session | None = None) -> DagModel:
+    dag_model = DagModel(fileloc=FILENAME1, dag_id="dag_id1", is_paused=False)
+    session.add(dag_model)
+    session.commit()
+    return dag_model
 
-    @staticmethod
-    def _clear_db():
-        clear_db_import_errors()
-        clear_db_dags()
 
-    @staticmethod
-    def set_mock_auth_manager__is_authorized_dag(
-        mock_auth_manager: mock.Mock, is_authorized_dag_return_value: bool = False
-    ) -> mock.Mock:
-        mock_is_authorized_dag = mock_auth_manager.return_value.is_authorized_dag
-        mock_is_authorized_dag.return_value = is_authorized_dag_return_value
-        return mock_is_authorized_dag
+@pytest.fixture(scope="class")
+@provide_session
+def not_permitted_dag_model(session: Session | None = None) -> DagModel:
+    dag_model = DagModel(fileloc=FILENAME1, dag_id="dag_id4", is_paused=False)
+    session.add(dag_model)
+    session.commit()
+    return dag_model
 
-    @staticmethod
-    def set_mock_auth_manager__get_authorized_dag_ids(
-        mock_auth_manager: mock.Mock, get_authorized_dag_ids_return_value: set[str] | None = None
-    ) -> mock.Mock:
-        if get_authorized_dag_ids_return_value is None:
-            get_authorized_dag_ids_return_value = set()
-        mock_get_authorized_dag_ids = mock_auth_manager.return_value.get_authorized_dag_ids
-        mock_get_authorized_dag_ids.return_value = get_authorized_dag_ids_return_value
-        return mock_get_authorized_dag_ids
 
-    @staticmethod
-    def set_mock_auth_manager__batch_is_authorized_dag(
-        mock_auth_manager: mock.Mock, batch_is_authorized_dag_return_value: bool = False
-    ) -> mock.Mock:
-        mock_batch_is_authorized_dag = mock_auth_manager.return_value.batch_is_authorized_dag
-        mock_batch_is_authorized_dag.return_value = batch_is_authorized_dag_return_value
-        return mock_batch_is_authorized_dag
+@pytest.fixture(scope="class", autouse=True)
+def clear_db():
+    clear_db_import_errors()
+    clear_db_dags()
 
-    @provide_session
-    def prepare_dag_model(self, session=None):
-        """
-        Prepare DAG model for tests.
-        """
-        dag_model = DagModel(fileloc=FILENAME1, dag_id="dag_id1", is_paused=False)
-        not_permitted_dag_model = DagModel(fileloc=FILENAME1, dag_id="dag_id4", is_paused=False)
-        session.add_all([dag_model, not_permitted_dag_model])
-        self.dag_id = str(dag_model.dag_id)
-        self.not_permitted_dag_id = str(not_permitted_dag_model.dag_id)
+    yield
 
-    @pytest.fixture(autouse=True)
-    @provide_session
-    def setup(self, session=None):
-        """
-        Setup method which is run before every test.
-        """
-        self._clear_db()
-        self.import_error1 = ParseImportError(
+    clear_db_import_errors()
+    clear_db_dags()
+
+
+@pytest.fixture(autouse=True, scope="class")
+@provide_session
+def import_errors(session: Session | None = None) -> list[ParseImportError]:
+    _import_errors = [
+        ParseImportError(
             bundle_name=BUNDLE_NAME,
-            filename=FILENAME1,
-            stacktrace=STACKTRACE1,
-            timestamp=TIMESTAMP1,
+            filename=filename,
+            stacktrace=stacktrace,
+            timestamp=timestamp,
         )
-        self.import_error2 = ParseImportError(
-            bundle_name=BUNDLE_NAME,
-            filename=FILENAME2,
-            stacktrace=STACKTRACE2,
-            timestamp=TIMESTAMP2,
+        for filename, stacktrace, timestamp in zip(
+            (FILENAME1, FILENAME2, FILENAME3),
+            (STACKTRACE1, STACKTRACE2, STACKTRACE3),
+            (TIMESTAMP1, TIMESTAMP2, TIMESTAMP3),
         )
-        self.import_error3 = ParseImportError(
-            bundle_name=BUNDLE_NAME,
-            filename=FILENAME3,
-            stacktrace=STACKTRACE3,
-            timestamp=TIMESTAMP3,
-        )
-        session.add_all([self.import_error1, self.import_error2, self.import_error3])
+    ]
 
-    def teardown_method(self) -> None:
-        self._clear_db()
+    session.add_all(_import_errors)
+    return _import_errors
 
 
-class TestGetImportError(TestImportErrorEndpoint):
+def set_mock_auth_manager__is_authorized_dag(
+    mock_auth_manager: mock.Mock, is_authorized_dag_return_value: bool = False
+) -> mock.Mock:
+    mock_is_authorized_dag = mock_auth_manager.return_value.is_authorized_dag
+    mock_is_authorized_dag.return_value = is_authorized_dag_return_value
+    return mock_is_authorized_dag
+
+
+def set_mock_auth_manager__get_authorized_dag_ids(
+    mock_auth_manager: mock.Mock, get_authorized_dag_ids_return_value: set[str] | None = None
+) -> mock.Mock:
+    if get_authorized_dag_ids_return_value is None:
+        get_authorized_dag_ids_return_value = set()
+    mock_get_authorized_dag_ids = mock_auth_manager.return_value.get_authorized_dag_ids
+    mock_get_authorized_dag_ids.return_value = get_authorized_dag_ids_return_value
+    return mock_get_authorized_dag_ids
+
+
+def set_mock_auth_manager__batch_is_authorized_dag(
+    mock_auth_manager: mock.Mock, batch_is_authorized_dag_return_value: bool = False
+) -> mock.Mock:
+    mock_batch_is_authorized_dag = mock_auth_manager.return_value.batch_is_authorized_dag
+    mock_batch_is_authorized_dag.return_value = batch_is_authorized_dag_return_value
+    return mock_batch_is_authorized_dag
+
+
+class TestGetImportError:
     @pytest.mark.parametrize(
-        "prepared_import_error, expected_status_code, expected_body",
+        "prepared_import_error_idx, expected_status_code, expected_body",
         [
             (
-                "import_error1",
+                0,
                 200,
                 {
-                    "import_error_id": 1,
-                    "timestamp": TIMESTAMP1,
+                    "timestamp": from_datetime_to_zulu_without_ms(TIMESTAMP1),
                     "filename": FILENAME1,
                     "stack_trace": STACKTRACE1,
                     "bundle_name": BUNDLE_NAME,
                 },
             ),
             (
-                "import_error2",
+                1,
                 200,
                 {
-                    "import_error_id": 2,
-                    "timestamp": TIMESTAMP2,
+                    "timestamp": from_datetime_to_zulu_without_ms(TIMESTAMP2),
                     "filename": FILENAME2,
                     "stack_trace": STACKTRACE2,
                     "bundle_name": BUNDLE_NAME,
@@ -149,43 +151,39 @@ class TestGetImportError(TestImportErrorEndpoint):
             (None, 404, {}),
         ],
     )
-    def test_get_import_error(self, test_client, prepared_import_error, expected_status_code, expected_body):
+    def test_get_import_error(
+        self, prepared_import_error_idx, expected_status_code, expected_body, test_client, import_errors
+    ):
         import_error: ParseImportError | None = (
-            self.__getattribute__(prepared_import_error) if prepared_import_error else None
+            import_errors[prepared_import_error_idx] if prepared_import_error_idx is not None else None
         )
         import_error_id = import_error.id if import_error else IMPORT_ERROR_NON_EXISTED_ID
         response = test_client.get(f"/public/importErrors/{import_error_id}")
         assert response.status_code == expected_status_code
         if expected_status_code != 200:
             return
-        assert response.json() == {
-            "import_error_id": import_error_id,
-            "timestamp": from_datetime_to_zulu_without_ms(expected_body["timestamp"]),
-            "filename": expected_body["filename"],
-            "stack_trace": expected_body["stack_trace"],
-            "bundle_name": BUNDLE_NAME,
-        }
 
-    def test_should_raises_401_unauthenticated(self, unauthenticated_test_client):
-        import_error_id = self.import_error1.id
+        expected_body.update({"import_error_id": import_error_id})
+        assert response.json() == expected_body
+
+    def test_should_raises_401_unauthenticated(self, unauthenticated_test_client, import_errors):
+        import_error_id = import_errors[0].id
         response = unauthenticated_test_client.get(f"/public/importErrors/{import_error_id}")
         assert response.status_code == 401
 
-    def test_should_raises_403_unauthorized(self, unauthorized_test_client):
-        import_error_id = self.import_error1.id
+    def test_should_raises_403_unauthorized(self, unauthorized_test_client, import_errors):
+        import_error_id = import_errors[0].id
         response = unauthorized_test_client.get(f"/public/importErrors/{import_error_id}")
         assert response.status_code == 403
 
     @mock.patch("airflow.api_fastapi.core_api.routes.public.import_error.get_auth_manager")
     def test_should_raises_403_unauthorized__user_can_not_read_any_dags_in_file(
-        self, mock_get_auth_manager, test_client
+        self, mock_get_auth_manager, test_client, import_errors
     ):
-        import_error_id = self.import_error1.id
+        import_error_id = import_errors[0].id
         # Mock auth_manager
-        mock_is_authorized_dag = self.set_mock_auth_manager__is_authorized_dag(mock_get_auth_manager)
-        mock_get_authorized_dag_ids = self.set_mock_auth_manager__get_authorized_dag_ids(
-            mock_get_auth_manager
-        )
+        mock_is_authorized_dag = set_mock_auth_manager__is_authorized_dag(mock_get_auth_manager)
+        mock_get_authorized_dag_ids = set_mock_auth_manager__get_authorized_dag_ids(mock_get_auth_manager)
         # Act
         response = test_client.get(f"/public/importErrors/{import_error_id}")
         # Assert
@@ -196,12 +194,11 @@ class TestGetImportError(TestImportErrorEndpoint):
 
     @mock.patch("airflow.api_fastapi.core_api.routes.public.import_error.get_auth_manager")
     def test_get_import_error__user_dont_have_read_permission_to_read_all_dags_in_file(
-        self, mock_get_auth_manager, test_client
+        self, mock_get_auth_manager, test_client, permitted_dag_model, not_permitted_dag_model, import_errors
     ):
-        self.prepare_dag_model()
-        import_error_id = self.import_error1.id
-        self.set_mock_auth_manager__is_authorized_dag(mock_get_auth_manager)
-        self.set_mock_auth_manager__get_authorized_dag_ids(mock_get_auth_manager, {self.dag_id})
+        import_error_id = import_errors[0].id
+        set_mock_auth_manager__is_authorized_dag(mock_get_auth_manager)
+        set_mock_auth_manager__get_authorized_dag_ids(mock_get_auth_manager, {permitted_dag_model.dag_id})
         # Act
         response = test_client.get(f"/public/importErrors/{import_error_id}")
         # Assert
@@ -215,7 +212,7 @@ class TestGetImportError(TestImportErrorEndpoint):
         }
 
 
-class TestGetImportErrors(TestImportErrorEndpoint):
+class TestGetImportErrors:
     @pytest.mark.parametrize(
         "query_params, expected_status_code, expected_total_entries, expected_filenames",
         [
@@ -330,6 +327,7 @@ class TestGetImportErrors(TestImportErrorEndpoint):
             ),
         ],
     )
+    @pytest.mark.usefixtures("permitted_dag_model")
     @mock.patch("airflow.api_fastapi.core_api.routes.public.import_error.get_auth_manager")
     def test_user_can_not_read_all_dags_in_file(
         self,
@@ -337,13 +335,14 @@ class TestGetImportErrors(TestImportErrorEndpoint):
         test_client,
         batch_is_authorized_dag_return_value,
         expected_stack_trace,
+        permitted_dag_model,
+        import_errors,
     ):
-        self.prepare_dag_model()
-        self.set_mock_auth_manager__is_authorized_dag(mock_get_auth_manager)
-        mock_get_authorized_dag_ids = self.set_mock_auth_manager__get_authorized_dag_ids(
-            mock_get_auth_manager, {self.dag_id}
+        set_mock_auth_manager__is_authorized_dag(mock_get_auth_manager)
+        mock_get_authorized_dag_ids = set_mock_auth_manager__get_authorized_dag_ids(
+            mock_get_auth_manager, {permitted_dag_model.dag_id}
         )
-        self.set_mock_auth_manager__batch_is_authorized_dag(
+        set_mock_auth_manager__batch_is_authorized_dag(
             mock_get_auth_manager, batch_is_authorized_dag_return_value
         )
         # Act
@@ -356,7 +355,7 @@ class TestGetImportErrors(TestImportErrorEndpoint):
             "total_entries": 1,
             "import_errors": [
                 {
-                    "import_error_id": self.import_error1.id,
+                    "import_error_id": import_errors[0].id,
                     "timestamp": from_datetime_to_zulu_without_ms(TIMESTAMP1),
                     "filename": FILENAME1,
                     "stack_trace": expected_stack_trace,
