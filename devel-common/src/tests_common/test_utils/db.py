@@ -33,7 +33,6 @@ from airflow.models import (
     TaskReschedule,
     Trigger,
     Variable,
-    XCom,
 )
 from airflow.models.dag import DagOwnerAttributes
 from airflow.models.dagcode import DagCode
@@ -55,6 +54,11 @@ from tests_common.test_utils.version_compat import AIRFLOW_V_2_10_PLUS, AIRFLOW_
 
 if TYPE_CHECKING:
     from pathlib import Path
+
+if AIRFLOW_V_3_0_PLUS:
+    from airflow.models.xcom import XComModel as XCom
+else:
+    from airflow.models.xcom import XCom
 
 
 def _bootstrap_dagbag():

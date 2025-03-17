@@ -29,6 +29,7 @@ from contextlib import ExitStack, suppress
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, Callable, Protocol, TypeVar
+from unittest import mock
 
 import pytest
 import time_machine
@@ -1058,12 +1059,17 @@ def dag_maker(request) -> Generator[DagMaker, None, None]:
             return self
 
         def cleanup(self):
-            from airflow.models import DagModel, DagRun, TaskInstance, XCom
+            from airflow.models import DagModel, DagRun, TaskInstance
             from airflow.models.serialized_dag import SerializedDagModel
             from airflow.models.taskmap import TaskMap
             from airflow.utils.retries import run_with_db_retries
 
             from tests_common.test_utils.compat import AssetEvent
+
+            if AIRFLOW_V_3_0_PLUS:
+                from airflow.models.xcom import XComModel as XCom
+            else:
+                from airflow.models.xcom import XCom
 
             for attempt in run_with_db_retries(logger=self.log):
                 with attempt:
@@ -1830,3 +1836,17 @@ def override_caplog(request):
         import airflow.logging_config
 
         airflow.logging_config.configure_logging()
+
+
+@pytest.fixture
+def mock_supervisor_comms():
+    # for back-compat
+    from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS
+
+    if not AIRFLOW_V_3_0_PLUS:
+        yield None
+        return
+    with mock.patch(
+        "airflow.sdk.execution_time.task_runner.SUPERVISOR_COMMS", create=True
+    ) as supervisor_comms:
+        yield supervisor_comms

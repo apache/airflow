@@ -52,19 +52,16 @@ from airflow.sdk.definitions.mappedoperator import MappedOperator
 from airflow.sdk.definitions.param import process_params
 from airflow.sdk.execution_time.comms import (
     DeferTask,
-    GetXCom,
     OKResponse,
     RescheduleTask,
     RuntimeCheckOnTask,
     SetRenderedFields,
-    SetXCom,
     SkipDownstreamTasks,
     StartupDetails,
     SucceedTask,
     TaskState,
     ToSupervisor,
     ToTask,
-    XComResult,
 )
 from airflow.sdk.execution_time.context import (
     ConnectionAccessor,
@@ -75,6 +72,7 @@ from airflow.sdk.execution_time.context import (
     get_previous_dagrun_success,
     set_current_context,
 )
+from airflow.sdk.execution_time.xcom import XCom
 from airflow.utils.net import get_hostname
 from airflow.utils.state import TaskInstanceState
 
@@ -256,7 +254,9 @@ class RuntimeTaskInstance(TaskInstance):
         run_id: str | None = None,
     ) -> Any:
         """
-        Pull XComs that optionally meet certain criteria.
+        Pull XComs either from the API server (BaseXCom) or from the custom XCOM backend if configured.
+
+        The pull can be filtered optionally by certain criterion.
 
         :param key: A key for the XCom. If provided, only XComs with matching
             keys will be returned. The default key is ``'return_value'``, also
@@ -303,37 +303,16 @@ class RuntimeTaskInstance(TaskInstance):
         elif isinstance(map_indexes, Iterable):
             # TODO: Handle multiple map_indexes or remove support
             raise NotImplementedError("Multiple map_indexes are not supported yet")
-
-        log = structlog.get_logger(logger_name="task")
-
         xcoms = []
         for t in task_ids:
-            SUPERVISOR_COMMS.send_request(
-                log=log,
-                msg=GetXCom(
-                    key=key,
-                    dag_id=dag_id,
-                    task_id=t,
-                    run_id=run_id,
-                    map_index=map_indexes,
-                ),
+            value = XCom.get_one(
+                run_id=run_id,
+                key=key,
+                task_id=t,
+                dag_id=dag_id,
+                map_index=map_indexes,
             )
-
-            msg = SUPERVISOR_COMMS.get_message()
-            if not isinstance(msg, XComResult):
-                raise TypeError(f"Expected XComResult, received: {type(msg)} {msg}")
-
-            if msg.value is not None:
-                from airflow.serialization.serde import deserialize
-
-                # TODO: Move XCom serialization & deserialization to Task SDK
-                #   https://github.com/apache/airflow/issues/45231
-
-                # The execution API server deals in json compliant types now.
-                # serde's deserialize can handle deserializing primitive, collections, and complex objects too
-                xcoms.append(deserialize(msg.value))  # type: ignore[type-var]
-            else:
-                xcoms.append(default)
+            xcoms.append(value if value else default)
 
         if len(xcoms) == 1:
             return xcoms[0]
@@ -358,28 +337,12 @@ class RuntimeTaskInstance(TaskInstance):
 def _xcom_push(ti: RuntimeTaskInstance, key: str, value: Any, mapped_length: int | None = None) -> None:
     # Private function, as we don't want to expose the ability to manually set `mapped_length` to SDK
     # consumers
-    from airflow.serialization.serde import serialize
-
-    # TODO: Move XCom serialization & deserialization to Task SDK
-    #   https://github.com/apache/airflow/issues/45231
-
-    # The execution API server now deals in json compliant objects.
-    # It is responsibility of the client to handle any non native object serialization.
-    # serialize does just that.
-    value = serialize(value)
-
-    log = structlog.get_logger(logger_name="task")
-    SUPERVISOR_COMMS.send_request(
-        log=log,
-        msg=SetXCom(
-            key=key,
-            value=value,
-            dag_id=ti.dag_id,
-            task_id=ti.task_id,
-            run_id=ti.run_id,
-            map_index=ti.map_index,
-            mapped_length=mapped_length,
-        ),
+    XCom.set(
+        key=key,
+        value=value,
+        dag_id=ti.dag_id,
+        task_id=ti.task_id,
+        run_id=ti.run_id,
     )
 
 
@@ -596,6 +559,17 @@ def run(
     state: IntermediateTIState | TerminalTIState
     error: BaseException | None = None
     try:
+        # First, clear the xcom data sent from server
+        if ti._ti_context_from_server and (keys_to_delete := ti._ti_context_from_server.xcom_keys_to_clear):
+            for x in keys_to_delete:
+                log.debug("Clearing XCom with key", key=x)
+                XCom.delete(
+                    key=x,
+                    dag_id=ti.dag_id,
+                    task_id=ti.task_id,
+                    run_id=ti.run_id,
+                )
+
         context = ti.get_template_context()
         with set_current_context(context):
             # This is the earliest that we can render templates -- as if it excepts for any reason we need to

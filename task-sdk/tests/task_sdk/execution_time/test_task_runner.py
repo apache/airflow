@@ -1446,6 +1446,82 @@ class TestXComAfterTaskExecution:
             f"Returned dictionary keys must be strings when using multiple_outputs, found 2 ({int}) instead"
         )
 
+    def test_xcom_push_to_custom_xcom_backend(
+        self, create_runtime_ti, mock_supervisor_comms, mock_xcom_backend
+    ):
+        """Test that a task pushes a xcom to the custom xcom backend."""
+
+        class CustomOperator(BaseOperator):
+            def execute(self, context):
+                return "pushing to xcom backend!"
+
+        task = CustomOperator(task_id="pull_task")
+        runtime_ti = create_runtime_ti(task=task)
+
+        run(runtime_ti, log=mock.MagicMock())
+
+        mock_xcom_backend.set.assert_called_once_with(
+            key="return_value",
+            value="pushing to xcom backend!",
+            dag_id="test_dag",
+            task_id="pull_task",
+            run_id="test_run",
+        )
+
+        # assert that we didn't call the API when XCom backend is configured
+        assert not any(
+            x
+            == mock.call(
+                log=mock.ANY,
+                msg=SetXCom(
+                    key="key",
+                    value="pushing to xcom backend!",
+                    dag_id="test_dag",
+                    run_id="test_run",
+                    task_id="pull_task",
+                    map_index=-1,
+                ),
+            )
+            for x in mock_supervisor_comms.send_request.call_args_list
+        )
+
+    def test_xcom_pull_from_custom_xcom_backend(
+        self, create_runtime_ti, mock_supervisor_comms, mock_xcom_backend
+    ):
+        """Test that a task pulls the expected XCom value if it exists, but from custom xcom backend."""
+
+        class CustomOperator(BaseOperator):
+            def execute(self, context):
+                value = context["ti"].xcom_pull(task_ids="pull_task", key="key")
+                print(f"Pulled XCom Value: {value}")
+
+        task = CustomOperator(task_id="pull_task")
+        runtime_ti = create_runtime_ti(task=task)
+        run(runtime_ti, log=mock.MagicMock())
+
+        mock_xcom_backend.get_one.assert_called_once_with(
+            key="key",
+            dag_id="test_dag",
+            task_id="pull_task",
+            run_id="test_run",
+            map_index=-1,
+        )
+
+        assert not any(
+            x
+            == mock.call(
+                log=mock.ANY,
+                msg=GetXCom(
+                    key="key",
+                    dag_id="test_dag",
+                    run_id="test_run",
+                    task_id="pull_task",
+                    map_index=-1,
+                ),
+            )
+            for x in mock_supervisor_comms.send_request.call_args_list
+        )
+
 
 class TestDagParamRuntime:
     DEFAULT_ARGS = {

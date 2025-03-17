@@ -102,6 +102,9 @@ labelPRBasedOnFilePath:
   provider:common-io:
     - providers/common/io/**
 
+  provider:common-messaging:
+    - providers/common/messaging/**
+
   provider:common-sql:
     - providers/common/sql/**
 

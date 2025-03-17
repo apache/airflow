@@ -38,7 +38,6 @@ from airflow.models import BaseOperator
 from airflow.models.dag import DagModel
 from airflow.models.dagbag import DagBag
 from airflow.models.dagrun import DagRun
-from airflow.models.xcom import XCom
 from airflow.providers.standard.triggers.external_task import DagStateTrigger
 from airflow.providers.standard.version_compat import AIRFLOW_V_3_0_PLUS
 from airflow.utils import timezone
@@ -63,7 +62,9 @@ if TYPE_CHECKING:
 
 if AIRFLOW_V_3_0_PLUS:
     from airflow.sdk import BaseOperatorLink
+    from airflow.sdk.execution_time.xcom import XCom
 else:
+    from airflow.models import XCom  # type: ignore[no-redef]
     from airflow.models.baseoperatorlink import BaseOperatorLink  # type: ignore[no-redef]
 
 

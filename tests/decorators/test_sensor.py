@@ -22,7 +22,7 @@ import pytest
 
 from airflow.decorators import task
 from airflow.exceptions import AirflowSensorTimeout
-from airflow.models import XCom
+from airflow.models.xcom import XComModel
 from airflow.sensors.base import PokeReturnValue
 from airflow.utils.state import State
 
@@ -60,10 +60,10 @@ class TestSensorDecorator:
                 assert ti.state == State.SUCCESS
             if ti.task_id == "dummy_f":
                 assert ti.state == State.NONE
-        actual_xcom_value = XCom.get_one(
-            key="return_value", task_id="sensor_f", dag_id=dr.dag_id, run_id=dr.run_id
-        )
-        assert actual_xcom_value == sensor_xcom_value
+        actual_xcom_value = XComModel.get_many(
+            key="return_value", task_ids="sensor_f", dag_ids=dr.dag_id, run_id=dr.run_id
+        ).first()
+        assert XComModel.deserialize_value(actual_xcom_value) == sensor_xcom_value
 
     def test_basic_sensor_success_returns_bool(self, dag_maker):
         @task.sensor
@@ -216,7 +216,7 @@ class TestSensorDecorator:
                 assert ti.state == State.SUCCESS
             if ti.task_id == "dummy_f":
                 assert ti.state == State.SUCCESS
-        actual_xcom_value = XCom.get_one(
-            key="return_value", task_id="sensor_f", dag_id=dr.dag_id, run_id=dr.run_id
-        )
-        assert actual_xcom_value == sensor_xcom_value
+        actual_xcom_value = XComModel.get_many(
+            key="return_value", task_ids="sensor_f", dag_ids=dr.dag_id, run_id=dr.run_id
+        ).first()
+        assert XComModel.deserialize_value(actual_xcom_value) == sensor_xcom_value
