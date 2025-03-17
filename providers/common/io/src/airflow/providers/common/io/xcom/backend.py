@@ -35,6 +35,10 @@ from airflow.utils.json import XComDecoder, XComEncoder
 if TYPE_CHECKING:
     from airflow.sdk.execution_time.comms import XComResult
 
+if AIRFLOW_V_3_0_PLUS:
+    from airflow.sdk.execution_time.xcom import BaseXCom
+else:
+    from airflow.models.xcom import BaseXCom  # type: ignore[no-redef]
 
 T = TypeVar("T")
 
