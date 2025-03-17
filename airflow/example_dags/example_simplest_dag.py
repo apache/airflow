@@ -14,24 +14,20 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+"""Example DAG demonstrating the simplest use of the `@dag` decorator."""
 
 from __future__ import annotations
 
-import datetime
-
-from airflow.providers.standard.sensors.date_time import DateTimeSensorAsync
-from airflow.sdk.definitions.dag import dag
-from airflow.utils import timezone
+from airflow.decorators import dag, task
 
 
 @dag
-def super_basic_deferred_run():
-    DateTimeSensorAsync(
-        task_id="async",
-        target_time=timezone.utcnow() + datetime.timedelta(seconds=3),
-        poke_interval=60,
-        timeout=600,
-    )
+def example_simplest_dag():
+    @task
+    def my_task():
+        pass
+
+    my_task()
 
 
-super_basic_deferred_run()
+example_simplest_dag()
