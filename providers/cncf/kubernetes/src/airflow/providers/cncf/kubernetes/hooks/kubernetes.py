@@ -140,7 +140,8 @@ class KubernetesHook(BaseHook, PodOperatorHookProtocol):
 
     def __init__(
         self,
-        conn_id: str | None = default_conn_name,
+        conn_id: str | None = None,
+        kubernetes_conn_id: str | None = default_conn_name,
         client_configuration: client.Configuration | None = None,
         cluster_context: str | None = None,
         config_file: str | None = None,
@@ -149,7 +150,7 @@ class KubernetesHook(BaseHook, PodOperatorHookProtocol):
         disable_tcp_keepalive: bool | None = None,
     ) -> None:
         super().__init__()
-        self.conn_id = conn_id
+        self.conn_id = conn_id or kubernetes_conn_id
         self.client_configuration = client_configuration
         self.cluster_context = cluster_context
         self.config_file = config_file
