@@ -25,15 +25,20 @@ if TYPE_CHECKING:
 
 
 class AirflowRuntimeError(Exception):
+    """Generic Airflow arror raised by runtime functions."""
+
     def __init__(self, error: ErrorResponse):
         self.error = error
         super().__init__(f"{error.error.value}: {error.detail}")
 
 
 class ErrorType(enum.Enum):
+    """Error types used in the API client."""
+
     CONNECTION_NOT_FOUND = "CONNECTION_NOT_FOUND"
     VARIABLE_NOT_FOUND = "VARIABLE_NOT_FOUND"
     XCOM_NOT_FOUND = "XCOM_NOT_FOUND"
+    ASSET_NOT_FOUIND = "ASSET_NOT_FOUND"
     GENERIC_ERROR = "GENERIC_ERROR"
 
 
