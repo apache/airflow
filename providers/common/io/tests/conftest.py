@@ -16,16 +16,4 @@
 # under the License.
 from __future__ import annotations
 
-from unittest import mock
-
-import pytest
-
 pytest_plugins = "tests_common.pytest_plugin"
-
-
-@pytest.fixture
-def mock_supervisor_comms():
-    with mock.patch(
-        "airflow.sdk.execution_time.task_runner.SUPERVISOR_COMMS", create=True
-    ) as supervisor_comms:
-        yield supervisor_comms
