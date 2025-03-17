@@ -19,6 +19,7 @@ from __future__ import annotations
 
 import contextlib
 import datetime
+import json
 import operator
 import os
 import pathlib
@@ -71,7 +72,7 @@ from airflow.models.taskinstancehistory import TaskInstanceHistory
 from airflow.models.taskmap import TaskMap
 from airflow.models.taskreschedule import TaskReschedule
 from airflow.models.variable import Variable
-from airflow.models.xcom import XCom
+from airflow.models.xcom import XComModel
 from airflow.notifications.basenotifier import BaseNotifier
 from airflow.providers.standard.operators.bash import BashOperator
 from airflow.providers.standard.operators.empty import EmptyOperator
@@ -2408,9 +2409,11 @@ class TestTaskInstance:
             ti.run(session=session)
 
         xcom = session.scalars(
-            select(XCom).filter_by(dag_id=dr.dag_id, run_id=dr.run_id, task_id="write1", key="return_value")
+            select(XComModel).filter_by(
+                dag_id=dr.dag_id, run_id=dr.run_id, task_id="write1", key="return_value"
+            )
         ).one()
-        assert xcom.value == "write_1 result"
+        assert xcom.value == json.dumps("write_1 result")
 
         events = dict(iter(session.execute(select(AssetEvent.source_task_id, AssetEvent))))
         assert set(events) == {"write1", "write2"}
@@ -4004,7 +4007,7 @@ class TestTaskInstance:
         assert ser_ti.task.operator_name == "EmptyOperator"
 
     def test_clear_db_references(self, session, create_task_instance):
-        tables = [RenderedTaskInstanceFields, XCom]
+        tables = [RenderedTaskInstanceFields, XComModel]
         ti = create_task_instance()
         ti.note = "sample note"
 
@@ -4012,7 +4015,7 @@ class TestTaskInstance:
         session.commit()
         for table in [RenderedTaskInstanceFields]:
             session.add(table(ti))
-        XCom.set(key="key", value="value", task_id=ti.task_id, dag_id=ti.dag_id, run_id=ti.run_id)
+        XComModel.set(key="key", value="value", task_id=ti.task_id, dag_id=ti.dag_id, run_id=ti.run_id)
         session.commit()
         for table in tables:
             assert session.query(table).count() == 1

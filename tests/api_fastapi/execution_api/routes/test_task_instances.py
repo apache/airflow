@@ -112,6 +112,7 @@ class TestTIRunState:
             "max_tries": 0,
             "variables": [],
             "connections": [],
+            "xcom_keys_to_clear": [],
         }
 
         # Refresh the Task Instance from the database so that we can check the updated values
@@ -188,6 +189,7 @@ class TestTIRunState:
             "max_tries": 0,
             "variables": [],
             "connections": [],
+            "xcom_keys_to_clear": [],
             "next_method": "execute_complete",
             "next_kwargs": {
                 "__type": "dict",
@@ -230,40 +232,6 @@ class TestTIRunState:
         }
 
         assert session.scalar(select(TaskInstance.state).where(TaskInstance.id == ti.id)) == initial_ti_state
-
-    def test_xcom_cleared_when_ti_runs(self, client, session, create_task_instance, time_machine):
-        """
-        Test that the xcoms are cleared when the Task Instance state is updated to running.
-        """
-        instant_str = "2024-09-30T12:00:00Z"
-        instant = timezone.parse(instant_str)
-        time_machine.move_to(instant, tick=False)
-
-        ti = create_task_instance(
-            task_id="test_xcom_cleared_when_ti_runs",
-            state=State.QUEUED,
-            session=session,
-            start_date=instant,
-        )
-        session.commit()
-
-        # Lets stage a xcom push
-        ti.xcom_push(key="key", value="value")
-
-        response = client.patch(
-            f"/execution/task-instances/{ti.id}/run",
-            json={
-                "state": "running",
-                "hostname": "random-hostname",
-                "unixname": "random-unixname",
-                "pid": 100,
-                "start_date": instant_str,
-            },
-        )
-
-        assert response.status_code == 200
-        # Once the task is running, we can check if xcom is cleared
-        assert ti.xcom_pull(task_ids="test_xcom_cleared_when_ti_runs", key="key") is None
 
     def test_xcom_not_cleared_for_deferral(self, client, session, create_task_instance, time_machine):
         """

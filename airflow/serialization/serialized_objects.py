@@ -48,7 +48,7 @@ from airflow.models.expandinput import (
 )
 from airflow.models.taskinstance import SimpleTaskInstance, TaskInstance
 from airflow.models.taskinstancekey import TaskInstanceKey
-from airflow.models.xcom import BaseXCom
+from airflow.models.xcom import XComModel
 from airflow.models.xcom_arg import SchedulerXComArg, deserialize_xcom_arg
 from airflow.providers_manager import ProvidersManager
 from airflow.sdk.definitions.asset import (
@@ -2019,13 +2019,13 @@ class XComOperatorLink(LoggingMixin):
         self.log.info(
             "Attempting to retrieve link from XComs with key: %s for task id: %s", self.xcom_key, ti_key
         )
-        value = BaseXCom.get_one(
+        value = XComModel.get_many(
             key=self.xcom_key,
             run_id=ti_key.run_id,
-            dag_id=ti_key.dag_id,
-            task_id=ti_key.task_id,
-            map_index=ti_key.map_index,
-        )
+            dag_ids=ti_key.dag_id,
+            task_ids=ti_key.task_id,
+            map_indexes=ti_key.map_index,
+        ).first()
         if not value:
             self.log.debug(
                 "No link with name: %s present in XCom as key: %s, returning empty link",
@@ -2033,4 +2033,4 @@ class XComOperatorLink(LoggingMixin):
                 self.xcom_key,
             )
             return ""
-        return value
+        return XComModel.deserialize_value(value)

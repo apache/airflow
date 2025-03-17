@@ -36,7 +36,6 @@ from airflow.exceptions import (
     TaskDeferred,
 )
 from airflow.models import DAG, DagModel, DagRun, TaskInstance
-from airflow.models.xcom import XCom
 from airflow.providers.cncf.kubernetes import pod_generator
 from airflow.providers.cncf.kubernetes.operators.pod import (
     KubernetesPodOperator,
@@ -56,6 +55,11 @@ from airflow.utils.types import DagRunType
 
 from tests_common.test_utils import db
 from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS
+
+if AIRFLOW_V_3_0_PLUS:
+    from airflow.models.xcom import XComModel as XCom
+else:
+    from airflow.models.xcom import XCom  # type: ignore[no-redef]
 
 pytestmark = pytest.mark.db_test
 
@@ -1305,8 +1309,18 @@ class TestKubernetesPodOperator:
         )
 
         pod, _ = self.run_pod(k)
-        pod_name = XCom.get_one(run_id=self.dag_run.run_id, task_id="task", key="pod_name")
-        pod_namespace = XCom.get_one(run_id=self.dag_run.run_id, task_id="task", key="pod_namespace")
+        if AIRFLOW_V_3_0_PLUS:
+            pod_name = XCom.get_many(run_id=self.dag_run.run_id, task_ids="task", key="pod_name").first()
+            pod_namespace = XCom.get_many(
+                run_id=self.dag_run.run_id, task_ids="task", key="pod_namespace"
+            ).first()
+
+            pod_name = XCom.deserialize_value(pod_name)
+            pod_namespace = XCom.deserialize_value(pod_namespace)
+        else:
+            pod_name = XCom.get_one(run_id=self.dag_run.run_id, task_id="task", key="pod_name")
+            pod_namespace = XCom.get_one(run_id=self.dag_run.run_id, task_id="task", key="pod_namespace")
+
         assert pod_name == pod.metadata.name
         assert pod_namespace == pod.metadata.namespace
 
