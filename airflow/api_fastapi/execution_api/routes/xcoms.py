@@ -22,6 +22,7 @@ from typing import Annotated
 
 from fastapi import Body, Depends, HTTPException, Query, Response, status
 from pydantic import JsonValue
+from sqlalchemy import delete
 from sqlalchemy.sql.selectable import Select
 
 from airflow.api_fastapi.common.db.common import SessionDep
@@ -30,7 +31,7 @@ from airflow.api_fastapi.execution_api import deps
 from airflow.api_fastapi.execution_api.datamodels.token import TIToken
 from airflow.api_fastapi.execution_api.datamodels.xcom import XComResponse
 from airflow.models.taskmap import TaskMap
-from airflow.models.xcom import BaseXCom
+from airflow.models.xcom import XComModel
 from airflow.utils.db import get_query_count
 
 # TODO: Add dependency on JWT token
@@ -62,7 +63,7 @@ async def xcom_query(
             },
         )
 
-    query = BaseXCom.get_many(
+    query = XComModel.get_many(
         run_id=run_id,
         key=key,
         task_ids=task_id,
@@ -126,7 +127,7 @@ def get_xcom(
     """Get an Airflow XCom from database - not other XCom Backends."""
     # The xcom_query allows no map_index to be passed. This endpoint should always return just a single item,
     # so we override that query value
-    xcom_query = xcom_query.filter(BaseXCom.map_index == map_index)
+    xcom_query = xcom_query.filter(XComModel.map_index == map_index)
     # We use `BaseXCom.get_many` to fetch XComs directly from the database, bypassing the XCom Backend.
     # This avoids deserialization via the backend (e.g., from a remote storage like S3) and instead
     # retrieves the raw serialized value from the database. By not relying on `XCom.get_many` or `XCom.get_one`
@@ -222,18 +223,39 @@ def set_xcom(
     # TODO: Can/should we check if a client _hasn't_ provided this for an upstream of a mapped task? That
     # means loading the serialized dag and that seems like a relatively costly operation for minimal benefit
     # (the mapped task would fail in a moment as it can't be expanded anyway.)
+    from airflow.models.dagrun import DagRun
 
-    # We use `BaseXCom.set` to set XComs directly to the database, bypassing the XCom Backend.
+    if not run_id:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, f"Run with ID: `{run_id}` was not found")
+
+    dag_run_id = session.query(DagRun.id).filter_by(dag_id=dag_id, run_id=run_id).scalar()
+    if dag_run_id is None:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, f"DAG run not found on DAG {dag_id} with ID {run_id}")
+
+    # Remove duplicate XComs and insert a new one.
+    session.execute(
+        delete(XComModel).where(
+            XComModel.key == key,
+            XComModel.run_id == run_id,
+            XComModel.task_id == task_id,
+            XComModel.dag_id == dag_id,
+            XComModel.map_index == map_index,
+        )
+    )
+
     try:
-        BaseXCom.set(
+        # We expect serialised value from the caller - sdk, do not serialise in here
+        new = XComModel(
+            dag_run_id=dag_run_id,
             key=key,
             value=value,
-            dag_id=dag_id,
-            task_id=task_id,
             run_id=run_id,
-            session=session,
+            task_id=task_id,
+            dag_id=dag_id,
             map_index=map_index,
         )
+        session.add(new)
+        session.flush()
     except TypeError as e:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
@@ -244,6 +266,34 @@ def set_xcom(
         )
 
     return {"message": "XCom successfully set"}
+
+
+@router.delete(
+    "/{dag_id}/{run_id}/{task_id}/{key}",
+    responses={status.HTTP_404_NOT_FOUND: {"description": "XCom not found"}},
+    description="Delete a single XCom Value",
+)
+def delete_xcom(
+    session: SessionDep,
+    token: deps.TokenDep,
+    dag_id: str,
+    run_id: str,
+    task_id: str,
+    key: str,
+):
+    if not has_xcom_access(dag_id, run_id, task_id, key, token, write=True):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail={
+                "reason": "access_denied",
+                "message": f"Task does not have access to delete XCom with key '{key}'",
+            },
+        )
+
+    query = session.query(XComModel).where(XComModel.key == key).first()
+    session.delete(query)
+    session.commit()
+    return {"message": f"XCom with key: {key} successfully deleted."}
 
 
 def has_xcom_access(

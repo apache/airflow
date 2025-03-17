@@ -24,7 +24,7 @@ import pytest
 from airflow.utils.file import list_py_file_paths
 
 from tests_common.test_utils.config import conf_vars
-from tests_common.test_utils.db import clear_db_dags
+from tests_common.test_utils.db import clear_db_dags, parse_and_sync_to_db
 
 pytestmark = pytest.mark.db_test
 
@@ -84,6 +84,7 @@ class TestDagReportEndpoint:
     )
     def test_should_response_200(self, test_client, subdir, include_example, expected_total_entries):
         with conf_vars({("core", "load_examples"): str(include_example)}):
+            parse_and_sync_to_db(subdir, include_examples=include_example)
             response = test_client.get("/public/dagReports", params={"subdir": subdir})
             assert response.status_code == 200
             response_json = response.json()
@@ -124,3 +125,11 @@ class TestDagReportEndpoint:
                 }
             ]
         }
+
+    def test_should_respond_401(self, unauthenticated_test_client):
+        response = unauthenticated_test_client.get("/public/dagReports")
+        assert response.status_code == 401
+
+    def test_should_respond_403(self, unauthorized_test_client):
+        response = unauthorized_test_client.get("/public/dagReports")
+        assert response.status_code == 403

@@ -1,4 +1,3 @@
-#
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
 # distributed with this work for additional information
@@ -15,8 +14,20 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+"""Example DAG demonstrating the simplest use of the `@dag` decorator."""
+
 from __future__ import annotations
 
-from airflow.providers.standard.operators.branch import BaseBranchOperator, BranchMixIn
+from airflow.decorators import dag, task
 
-__all__ = ["BranchMixIn", "BaseBranchOperator"]
+
+@dag
+def example_simplest_dag():
+    @task
+    def my_task():
+        pass
+
+    my_task()
+
+
+example_simplest_dag()
