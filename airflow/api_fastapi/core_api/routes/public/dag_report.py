@@ -68,7 +68,7 @@ def get_dag_reports(
                     allowed = False
             if allowed:
                 filtered_dagbag_stats.append(each_file_load_stat)
-            allowed = False
+            allowed = True
 
     return DagReportCollectionResponse(
         dag_reports=cast(list[DagReportResponse], filtered_dagbag_stats),
