@@ -657,7 +657,7 @@
             }
         },
         "airflowLocalSettings": {
-            "description": "`airflow_local_settings` file as a string (templated).",
+            "description": "`airflow_local_settings` file as a string (templated). You can bake an `airflow_local_settings.py` into your image instead. In that case, set the value of airflowLocalSettings to an empty string `airflowLocalSettings: ''`.",
             "type": [
                 "string",
                 "null"
