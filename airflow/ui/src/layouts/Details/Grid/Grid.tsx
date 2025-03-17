@@ -88,28 +88,30 @@ export const Grid = () => {
   return (
     <Flex justifyContent="flex-end" mr={3} position="relative" pt={50} width="100%">
       <Box position="absolute" top="150px" width="100%">
-        <ButtonGroup attached mb={1} size="xs" variant="solid">
-          <IconButton
-            aria-label="Expand Task Group"
-            colorPalette="blue"
-            disabled={allGroupIds.every((id) => openGroupIds.includes(id))}
-            onClick={() => expandAllGroups(allGroupIds)}
-            title="Expand"
-            variant="outline"
-          >
-            <BsArrowsExpand />
-          </IconButton>
-          <IconButton
-            aria-label="Collapse Task Group"
-            colorPalette="blue"
-            disabled={allGroupIds.every((id) => !openGroupIds.includes(id))}
-            onClick={() => collapseAllGroups()}
-            title="Collapse"
-            variant="outline"
-          >
-            <BsArrowsCollapse />
-          </IconButton>
-        </ButtonGroup>
+        {allGroupIds.length > 0 && (
+          <ButtonGroup attached mb={1} size="xs" variant="solid">
+            <IconButton
+              aria-label="Expand Task Group"
+              colorPalette="blue"
+              disabled={allGroupIds.every((id) => openGroupIds.includes(id))}
+              onClick={() => expandAllGroups(allGroupIds)}
+              title="Expand"
+              variant="outline"
+            >
+              <BsArrowsExpand />
+            </IconButton>
+            <IconButton
+              aria-label="Collapse Task Group"
+              colorPalette="blue"
+              disabled={allGroupIds.every((id) => !openGroupIds.includes(id))}
+              onClick={() => collapseAllGroups()}
+              title="Collapse"
+              variant="outline"
+            >
+              <BsArrowsCollapse />
+            </IconButton>
+          </ButtonGroup>
+        )}
         <TaskNames nodes={flatNodes} />
       </Box>
       <Box>
