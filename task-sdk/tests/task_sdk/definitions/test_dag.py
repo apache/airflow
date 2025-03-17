@@ -367,6 +367,15 @@ class TestDagDecorator:
     }
     VALUE = 42
 
+    def test_dag_decorator_without_args(self):
+        """Test that @dag can be used without any arguments."""
+
+        @dag_decorator
+        def noop_pipeline(): ...
+
+        dag = noop_pipeline()
+        assert dag.dag_id == "noop_pipeline"
+
     def test_fileloc(self):
         @dag_decorator(schedule=None, default_args=self.DEFAULT_ARGS)
         def noop_pipeline(): ...
