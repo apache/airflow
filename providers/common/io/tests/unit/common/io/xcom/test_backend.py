@@ -23,8 +23,6 @@ import airflow.models.xcom
 from airflow.providers.common.io.version_compat import AIRFLOW_V_3_0_PLUS
 from airflow.providers.common.io.xcom.backend import XComObjectStorageBackend
 from airflow.providers.standard.operators.empty import EmptyOperator
-from airflow.sdk.execution_time.comms import XComResult
-from airflow.sdk.execution_time.xcom import resolve_xcom_backend
 from airflow.utils import timezone
 from airflow.utils.xcom import XCOM_RETURN_KEY
 
@@ -35,8 +33,10 @@ pytestmark = [pytest.mark.db_test]
 
 if AIRFLOW_V_3_0_PLUS:
     from airflow.models import XComModel
+    from airflow.sdk.execution_time.comms import XComResult
+    from airflow.sdk.execution_time.xcom import resolve_xcom_backend
 else:
-    pass
+    from airflow.models.xcom import resolve_xcom_backend  # type: ignore[no-redef]
 
 
 @pytest.fixture(autouse=True)
