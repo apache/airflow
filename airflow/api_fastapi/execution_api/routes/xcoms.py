@@ -223,8 +223,6 @@ def set_xcom(
     # TODO: Can/should we check if a client _hasn't_ provided this for an upstream of a mapped task? That
     # means loading the serialized dag and that seems like a relatively costly operation for minimal benefit
     # (the mapped task would fail in a moment as it can't be expanded anyway.)
-
-    # We use `BaseXCom.set` to set XComs directly to the database, bypassing the XCom Backend.
     from airflow.models.dagrun import DagRun
 
     if not run_id:

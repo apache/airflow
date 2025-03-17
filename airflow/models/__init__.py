@@ -108,6 +108,7 @@ __lazy_imports = {
     "Trigger": "airflow.models.trigger",
     "Variable": "airflow.models.variable",
     "XComModel": "airflow.models.xcom",
+    "XCom": "airflow.sdk.execution_time.xcom",
     "clear_task_instances": "airflow.models.taskinstance",
 }
 
@@ -138,3 +139,4 @@ if TYPE_CHECKING:
     from airflow.models.xcom import XComModel
     from airflow.sdk import BaseOperatorLink
     from airflow.sdk.definitions.param import Param
+    from airflow.sdk.execution_time.xcom import XCom

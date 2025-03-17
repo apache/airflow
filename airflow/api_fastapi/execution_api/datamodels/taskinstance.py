@@ -274,7 +274,7 @@ class TIRunContext(BaseModel):
     """
 
     xcom_keys_to_clear: Annotated[list[str], Field(default_factory=list)]
-    """List of Xcom keys that need to be cleared."""
+    """List of Xcom keys that need to be cleared and purged on by the worker."""
 
 
 class PrevSuccessfulDagRunResponse(BaseModel):
