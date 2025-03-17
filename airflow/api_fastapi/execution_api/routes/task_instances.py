@@ -48,7 +48,7 @@ from airflow.models.dagrun import DagRun as DR
 from airflow.models.taskinstance import TaskInstance as TI, _update_rtif
 from airflow.models.taskreschedule import TaskReschedule
 from airflow.models.trigger import Trigger
-from airflow.models.xcom import XCom
+from airflow.models.xcom import XComModel
 from airflow.utils import timezone
 from airflow.utils.state import DagRunState, TaskInstanceState, TerminalTIState
 
@@ -187,18 +187,22 @@ def ti_run(
         if not dr:
             raise ValueError(f"DagRun with dag_id={ti.dag_id} and run_id={ti.run_id} not found.")
 
-        # Clear XCom data for the task instance since we are certain it is executing
+        # Send the keys to the SDK so that the client requests to clear those XComs from the server.
+        # The reason we cannot do this here in the server is because we need to issue a purge on custom XCom backends
+        # too. With the current assumption, the workers ONLY have access to the custom XCom backends directly and they
+        # can issue the purge.
+
         # However, do not clear it for deferral
+        xcom_keys = []
         if not ti.next_method:
             map_index = None if ti.map_index < 0 else ti.map_index
-            log.info("Clearing xcom data for task id: %s", ti_id_str)
-            XCom.clear(
-                dag_id=ti.dag_id,
-                task_id=ti.task_id,
-                run_id=ti.run_id,
-                map_index=map_index,
-                session=session,
+            query = session.query(XComModel.key).filter_by(
+                dag_id=ti.dag_id, task_id=ti.task_id, run_id=ti.run_id
             )
+            if map_index is not None:
+                query = query.filter_by(map_index=map_index)
+
+            xcom_keys = [row.key for row in session.execute(query).all()]
 
         task_reschedule_count = (
             session.query(
@@ -216,6 +220,7 @@ def ti_run(
             # TODO: Add variables and connections that are needed (and has perms) for the task
             variables=[],
             connections=[],
+            xcom_keys_to_clear=xcom_keys,
         )
 
         # Only set if they are non-null

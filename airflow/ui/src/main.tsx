@@ -44,7 +44,10 @@ axios.interceptors.response.use(
       const params = new URLSearchParams();
 
       params.set("next", globalThis.location.href);
-      globalThis.location.replace(`/public/auth/login?${params.toString()}`);
+      const baseUrl = document.querySelector("head>base")?.getAttribute("href") ?? "";
+      const loginPath = new URL("public/auth/login", baseUrl).pathname;
+
+      globalThis.location.replace(`${loginPath}?${params.toString()}`);
     }
 
     return Promise.reject(error);
