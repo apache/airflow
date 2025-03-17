@@ -3580,7 +3580,7 @@
                         "query": {
                             "description": "Query to use for KEDA autoscaling. Must return a single integer.",
                             "type": "string",
-                            "default": "SELECT ceil(COUNT(*)::decimal / {{ .Values.config.triggerer.default_capacity }}) FROM trigger"
+                            "default": "SELECT ceil(COUNT(*)::decimal / {{ .Values.config.triggerer.capacity }}) FROM trigger"
                         },
                         "usePgbouncer": {
                             "description": "Whether to use PGBouncer to connect to the database or not when it is enabled. This configuration will be ignored if PGBouncer is not enabled.",
@@ -9680,150 +9680,6 @@
             "type": "object",
             "additionalProperties": false
         },
-        "io.k8s.api.core.v1.Container": {
-            "description": "A single application container that you want to run within a pod.",
-            "properties": {
-                "args": {
-                    "description": "Arguments to the entrypoint. The container image's CMD is used if this is not provided. Variable references $(VAR_NAME) are expanded using the container's environment. If a variable cannot be resolved, the reference in the input string will be unchanged. Double $$ are reduced to a single $, which allows for escaping the $(VAR_NAME) syntax: i.e. \"$$(VAR_NAME)\" will produce the string literal \"$(VAR_NAME)\". Escaped references will never be expanded, regardless of whether the variable exists or not. Cannot be updated. More info: https://kubernetes.io/docs/tasks/inject-data-application/define-command-argument-container/#running-a-command-in-a-shell",
-                    "items": {
-                        "type": "string"
-                    },
-                    "type": "array"
-                },
-                "command": {
-                    "description": "Entrypoint array. Not executed within a shell. The container image's ENTRYPOINT is used if this is not provided. Variable references $(VAR_NAME) are expanded using the container's environment. If a variable cannot be resolved, the reference in the input string will be unchanged. Double $$ are reduced to a single $, which allows for escaping the $(VAR_NAME) syntax: i.e. \"$$(VAR_NAME)\" will produce the string literal \"$(VAR_NAME)\". Escaped references will never be expanded, regardless of whether the variable exists or not. Cannot be updated. More info: https://kubernetes.io/docs/tasks/inject-data-application/define-command-argument-container/#running-a-command-in-a-shell",
-                    "items": {
-                        "type": "string"
-                    },
-                    "type": "array"
-                },
-                "env": {
-                    "description": "List of environment variables to set in the container. Cannot be updated.",
-                    "items": {
-                        "$ref": "#/definitions/io.k8s.api.core.v1.EnvVar"
-                    },
-                    "type": "array",
-                    "x-kubernetes-patch-merge-key": "name",
-                    "x-kubernetes-patch-strategy": "merge"
-                },
-                "envFrom": {
-                    "description": "List of sources to populate environment variables in the container. The keys defined within a source must be a C_IDENTIFIER. All invalid keys will be reported as an event when the container is starting. When a key exists in multiple sources, the value associated with the last source will take precedence. Values defined by an Env with a duplicate key will take precedence. Cannot be updated.",
-                    "items": {
-                        "$ref": "#/definitions/io.k8s.api.core.v1.EnvFromSource"
-                    },
-                    "type": "array"
-                },
-                "image": {
-                    "description": "Container image name. More info: https://kubernetes.io/docs/concepts/containers/images This field is optional to allow higher level config management to default or override container images in workload controllers like Deployments and StatefulSets.",
-                    "type": "string"
-                },
-                "imagePullPolicy": {
-                    "description": "Image pull policy. One of Always, Never, IfNotPresent. Defaults to Always if :latest tag is specified, or IfNotPresent otherwise. Cannot be updated. More info: https://kubernetes.io/docs/concepts/containers/images#updating-images",
-                    "type": "string"
-                },
-                "lifecycle": {
-                    "$ref": "#/definitions/io.k8s.api.core.v1.Lifecycle",
-                    "description": "Actions that the management system should take in response to container lifecycle events. Cannot be updated."
-                },
-                "livenessProbe": {
-                    "$ref": "#/definitions/io.k8s.api.core.v1.Probe",
-                    "description": "Periodic probe of container liveness. Container will be restarted if the probe fails. Cannot be updated. More info: https://kubernetes.io/docs/concepts/workloads/pods/pod-lifecycle#container-probes"
-                },
-                "name": {
-                    "description": "Name of the container specified as a DNS_LABEL. Each container in a pod must have a unique name (DNS_LABEL). Cannot be updated.",
-                    "type": "string"
-                },
-                "ports": {
-                    "description": "List of ports to expose from the container. Not specifying a port here DOES NOT prevent that port from being exposed. Any port which is listening on the default \"0.0.0.0\" address inside a container will be accessible from the network. Modifying this array with strategic merge patch may corrupt the data. For more information See https://github.com/kubernetes/kubernetes/issues/108255. Cannot be updated.",
-                    "items": {
-                        "$ref": "#/definitions/io.k8s.api.core.v1.ContainerPort"
-                    },
-                    "type": "array",
-                    "x-kubernetes-list-map-keys": [
-                        "containerPort",
-                        "protocol"
-                    ],
-                    "x-kubernetes-list-type": "map",
-                    "x-kubernetes-patch-merge-key": "containerPort",
-                    "x-kubernetes-patch-strategy": "merge"
-                },
-                "readinessProbe": {
-                    "$ref": "#/definitions/io.k8s.api.core.v1.Probe",
-                    "description": "Periodic probe of container service readiness. Container will be removed from service endpoints if the probe fails. Cannot be updated. More info: https://kubernetes.io/docs/concepts/workloads/pods/pod-lifecycle#container-probes"
-                },
-                "resizePolicy": {
-                    "description": "Resources resize policy for the container.",
-                    "items": {
-                        "$ref": "#/definitions/io.k8s.api.core.v1.ContainerResizePolicy"
-                    },
-                    "type": "array",
-                    "x-kubernetes-list-type": "atomic"
-                },
-                "resources": {
-                    "$ref": "#/definitions/io.k8s.api.core.v1.ResourceRequirements",
-                    "description": "Compute Resources required by this container. Cannot be updated. More info: https://kubernetes.io/docs/concepts/configuration/manage-resources-containers/"
-                },
-                "restartPolicy": {
-                    "description": "RestartPolicy defines the restart behavior of individual containers in a pod. This field may only be set for init containers, and the only allowed value is \"Always\". For non-init containers or when this field is not specified, the restart behavior is defined by the Pod's restart policy and the container type. Setting the RestartPolicy as \"Always\" for the init container will have the following effect: this init container will be continually restarted on exit until all regular containers have terminated. Once all regular containers have completed, all init containers with restartPolicy \"Always\" will be shut down. This lifecycle differs from normal init containers and is often referred to as a \"sidecar\" container. Although this init container still starts in the init container sequence, it does not wait for the container to complete before proceeding to the next init container. Instead, the next init container starts immediately after this init container is started, or after any startupProbe has successfully completed.",
-                    "type": "string"
-                },
-                "securityContext": {
-                    "$ref": "#/definitions/io.k8s.api.core.v1.SecurityContext",
-                    "description": "SecurityContext defines the security options the container should be run with. If set, the fields of SecurityContext override the equivalent fields of PodSecurityContext. More info: https://kubernetes.io/docs/tasks/configure-pod-container/security-context/"
-                },
-                "startupProbe": {
-                    "$ref": "#/definitions/io.k8s.api.core.v1.Probe",
-                    "description": "StartupProbe indicates that the Pod has successfully initialized. If specified, no other probes are executed until this completes successfully. If this probe fails, the Pod will be restarted, just as if the livenessProbe failed. This can be used to provide different probe parameters at the beginning of a Pod's lifecycle, when it might take a long time to load data or warm a cache, than during steady-state operation. This cannot be updated. More info: https://kubernetes.io/docs/concepts/workloads/pods/pod-lifecycle#container-probes"
-                },
-                "stdin": {
-                    "description": "Whether this container should allocate a buffer for stdin in the container runtime. If this is not set, reads from stdin in the container will always result in EOF. Default is false.",
-                    "type": "boolean"
-                },
-                "stdinOnce": {
-                    "description": "Whether the container runtime should close the stdin channel after it has been opened by a single attach. When stdin is true the stdin stream will remain open across multiple attach sessions. If stdinOnce is set to true, stdin is opened on container start, is empty until the first client attaches to stdin, and then remains open and accepts data until the client disconnects, at which time stdin is closed and remains closed until the container is restarted. If this flag is false, a container processes that reads from stdin will never receive an EOF. Default is false",
-                    "type": "boolean"
-                },
-                "terminationMessagePath": {
-                    "description": "Optional: Path at which the file to which the container's termination message will be written is mounted into the container's filesystem. Message written is intended to be brief final status, such as an assertion failure message. Will be truncated by the node if greater than 4096 bytes. The total message length across all containers will be limited to 12kb. Defaults to /dev/termination-log. Cannot be updated.",
-                    "type": "string"
-                },
-                "terminationMessagePolicy": {
-                    "description": "Indicate how the termination message should be populated. File will use the contents of terminationMessagePath to populate the container status message on both success and failure. FallbackToLogsOnError will use the last chunk of container log output if the termination message file is empty and the container exited with an error. The log output is limited to 2048 bytes or 80 lines, whichever is smaller. Defaults to File. Cannot be updated.",
-                    "type": "string"
-                },
-                "tty": {
-                    "description": "Whether this container should allocate a TTY for itself, also requires 'stdin' to be true. Default is false.",
-                    "type": "boolean"
-                },
-                "volumeDevices": {
-                    "description": "volumeDevices is the list of block devices to be used by the container.",
-                    "items": {
-                        "$ref": "#/definitions/io.k8s.api.core.v1.VolumeDevice"
-                    },
-                    "type": "array",
-                    "x-kubernetes-patch-merge-key": "devicePath",
-                    "x-kubernetes-patch-strategy": "merge"
-                },
-                "volumeMounts": {
-                    "description": "Pod volumes to mount into the container's filesystem. Cannot be updated.",
-                    "items": {
-                        "$ref": "#/definitions/io.k8s.api.core.v1.VolumeMount"
-                    },
-                    "type": "array",
-                    "x-kubernetes-patch-merge-key": "mountPath",
-                    "x-kubernetes-patch-strategy": "merge"
-                },
-                "workingDir": {
-                    "description": "Container's working directory. If not specified, the container runtime's default will be used, which might be configured in the container image. Cannot be updated.",
-                    "type": "string"
-                }
-            },
-            "required": [
-                "name"
-            ],
-            "type": "object",
-            "additionalProperties": false
-        },
         "io.k8s.api.core.v1.ContainerPort": {
             "description": "ContainerPort represents a network port in a single container.",
             "properties": {
@@ -10295,66 +10151,6 @@
             },
             "required": [
                 "path"
-            ],
-            "type": "object",
-            "additionalProperties": false
-        },
-        "io.k8s.api.core.v1.ISCSIVolumeSource": {
-            "description": "Represents an ISCSI disk. ISCSI volumes can only be mounted as read/write once. ISCSI volumes support ownership management and SELinux relabeling.",
-            "properties": {
-                "chapAuthDiscovery": {
-                    "description": "chapAuthDiscovery defines whether support iSCSI Discovery CHAP authentication",
-                    "type": "boolean"
-                },
-                "chapAuthSession": {
-                    "description": "chapAuthSession defines whether support iSCSI Session CHAP authentication",
-                    "type": "boolean"
-                },
-                "fsType": {
-                    "description": "fsType is the filesystem type of the volume that you want to mount. Tip: Ensure that the filesystem type is supported by the host operating system. Examples: \"ext4\", \"xfs\", \"ntfs\". Implicitly inferred to be \"ext4\" if unspecified. More info: https://kubernetes.io/docs/concepts/storage/volumes#iscsi",
-                    "type": "string"
-                },
-                "initiatorName": {
-                    "description": "initiatorName is the custom iSCSI Initiator Name. If initiatorName is specified with iscsiInterface simultaneously, new iSCSI interface <target portal>:<volume name> will be created for the connection.",
-                    "type": "string"
-                },
-                "iqn": {
-                    "description": "iqn is the target iSCSI Qualified Name.",
-                    "type": "string"
-                },
-                "iscsiInterface": {
-                    "description": "iscsiInterface is the interface Name that uses an iSCSI transport. Defaults to 'default' (tcp).",
-                    "type": "string"
-                },
-                "lun": {
-                    "description": "lun represents iSCSI Target Lun number.",
-                    "format": "int32",
-                    "type": "integer"
-                },
-                "portals": {
-                    "description": "portals is the iSCSI Target Portal List. The portal is either an IP or ip_addr:port if the port is other than default (typically TCP ports 860 and 3260).",
-                    "items": {
-                        "type": "string"
-                    },
-                    "type": "array"
-                },
-                "readOnly": {
-                    "description": "readOnly here will force the ReadOnly setting in VolumeMounts. Defaults to false.",
-                    "type": "boolean"
-                },
-                "secretRef": {
-                    "$ref": "#/definitions/io.k8s.api.core.v1.LocalObjectReference",
-                    "description": "secretRef is the CHAP Secret for iSCSI target and initiator authentication"
-                },
-                "targetPortal": {
-                    "description": "targetPortal is iSCSI Target Portal. The Portal is either an IP or ip_addr:port if the port is other than default (typically TCP ports 860 and 3260).",
-                    "type": "string"
-                }
-            },
-            "required": [
-                "targetPortal",
-                "iqn",
-                "lun"
             ],
             "type": "object",
             "additionalProperties": false
@@ -10947,25 +10743,6 @@
             "type": "object",
             "additionalProperties": false
         },
-        "io.k8s.api.core.v1.ProjectedVolumeSource": {
-            "description": "Represents a projected volume source",
-            "properties": {
-                "defaultMode": {
-                    "description": "defaultMode are the mode bits used to set permissions on created files by default. Must be an octal value between 0000 and 0777 or a decimal value between 0 and 511. YAML accepts both octal and decimal values, JSON requires decimal values for mode bits. Directories within the path are not affected by this setting. This might be in conflict with other options that affect the file mode, like fsGroup, and the result can be other mode bits set.",
-                    "format": "int32",
-                    "type": "integer"
-                },
-                "sources": {
-                    "description": "sources is the list of volume projections",
-                    "items": {
-                        "$ref": "#/definitions/io.k8s.api.core.v1.VolumeProjection"
-                    },
-                    "type": "array"
-                }
-            },
-            "type": "object",
-            "additionalProperties": false
-        },
         "io.k8s.api.core.v1.QuobyteVolumeSource": {
             "description": "Represents a Quobyte mount that lasts the lifetime of a pod. Quobyte volumes do not support ownership management or SELinux relabeling.",
             "properties": {
@@ -11270,7 +11047,7 @@
                     "type": "string"
                 },
                 "optional": {
-                    "description": "optional field specify whether the Secret or its key must be defined",
+                    "description": "optional field specify whether the Secret or its keys must be defined",
                     "type": "boolean"
                 }
             },
@@ -11582,136 +11359,6 @@
             },
             "required": [
                 "kind",
-                "name"
-            ],
-            "type": "object",
-            "additionalProperties": false
-        },
-        "io.k8s.api.core.v1.Volume": {
-            "description": "Volume represents a named volume in a pod that may be accessed by any container in the pod.",
-            "properties": {
-                "awsElasticBlockStore": {
-                    "$ref": "#/definitions/io.k8s.api.core.v1.AWSElasticBlockStoreVolumeSource",
-                    "description": "awsElasticBlockStore represents an AWS Disk resource that is attached to a kubelet's host machine and then exposed to the pod. More info: https://kubernetes.io/docs/concepts/storage/volumes#awselasticblockstore"
-                },
-                "azureDisk": {
-                    "$ref": "#/definitions/io.k8s.api.core.v1.AzureDiskVolumeSource",
-                    "description": "azureDisk represents an Azure Data Disk mount on the host and bind mount to the pod."
-                },
-                "azureFile": {
-                    "$ref": "#/definitions/io.k8s.api.core.v1.AzureFileVolumeSource",
-                    "description": "azureFile represents an Azure File Service mount on the host and bind mount to the pod."
-                },
-                "cephfs": {
-                    "$ref": "#/definitions/io.k8s.api.core.v1.CephFSVolumeSource",
-                    "description": "cephFS represents a Ceph FS mount on the host that shares a pod's lifetime"
-                },
-                "cinder": {
-                    "$ref": "#/definitions/io.k8s.api.core.v1.CinderVolumeSource",
-                    "description": "cinder represents a cinder volume attached and mounted on kubelets host machine. More info: https://examples.k8s.io/mysql-cinder-pd/README.md"
-                },
-                "configMap": {
-                    "$ref": "#/definitions/io.k8s.api.core.v1.ConfigMapVolumeSource",
-                    "description": "configMap represents a configMap that should populate this volume"
-                },
-                "csi": {
-                    "$ref": "#/definitions/io.k8s.api.core.v1.CSIVolumeSource",
-                    "description": "csi (Container Storage Interface) represents ephemeral storage that is handled by certain external CSI drivers (Beta feature)."
-                },
-                "downwardAPI": {
-                    "$ref": "#/definitions/io.k8s.api.core.v1.DownwardAPIVolumeSource",
-                    "description": "downwardAPI represents downward API about the pod that should populate this volume"
-                },
-                "emptyDir": {
-                    "$ref": "#/definitions/io.k8s.api.core.v1.EmptyDirVolumeSource",
-                    "description": "emptyDir represents a temporary directory that shares a pod's lifetime. More info: https://kubernetes.io/docs/concepts/storage/volumes#emptydir"
-                },
-                "ephemeral": {
-                    "$ref": "#/definitions/io.k8s.api.core.v1.EphemeralVolumeSource",
-                    "description": "ephemeral represents a volume that is handled by a cluster storage driver. The volume's lifecycle is tied to the pod that defines it - it will be created before the pod starts, and deleted when the pod is removed.\n\nUse this if: a) the volume is only needed while the pod runs, b) features of normal volumes like restoring from snapshot or capacity\n   tracking are needed,\nc) the storage driver is specified through a storage class, and d) the storage driver supports dynamic volume provisioning through\n   a PersistentVolumeClaim (see EphemeralVolumeSource for more\n   information on the connection between this volume type\n   and PersistentVolumeClaim).\n\nUse PersistentVolumeClaim or one of the vendor-specific APIs for volumes that persist for longer than the lifecycle of an individual pod.\n\nUse CSI for light-weight local ephemeral volumes if the CSI driver is meant to be used that way - see the documentation of the driver for more information.\n\nA pod can use both types of ephemeral volumes and persistent volumes at the same time."
-                },
-                "fc": {
-                    "$ref": "#/definitions/io.k8s.api.core.v1.FCVolumeSource",
-                    "description": "fc represents a Fibre Channel resource that is attached to a kubelet's host machine and then exposed to the pod."
-                },
-                "flexVolume": {
-                    "$ref": "#/definitions/io.k8s.api.core.v1.FlexVolumeSource",
-                    "description": "flexVolume represents a generic volume resource that is provisioned/attached using an exec based plugin."
-                },
-                "flocker": {
-                    "$ref": "#/definitions/io.k8s.api.core.v1.FlockerVolumeSource",
-                    "description": "flocker represents a Flocker volume attached to a kubelet's host machine. This depends on the Flocker control service being running"
-                },
-                "gcePersistentDisk": {
-                    "$ref": "#/definitions/io.k8s.api.core.v1.GCEPersistentDiskVolumeSource",
-                    "description": "gcePersistentDisk represents a GCE Disk resource that is attached to a kubelet's host machine and then exposed to the pod. More info: https://kubernetes.io/docs/concepts/storage/volumes#gcepersistentdisk"
-                },
-                "gitRepo": {
-                    "$ref": "#/definitions/io.k8s.api.core.v1.GitRepoVolumeSource",
-                    "description": "gitRepo represents a git repository at a particular revision. DEPRECATED: GitRepo is deprecated. To provision a container with a git repo, mount an EmptyDir into an InitContainer that clones the repo using git, then mount the EmptyDir into the Pod's container."
-                },
-                "glusterfs": {
-                    "$ref": "#/definitions/io.k8s.api.core.v1.GlusterfsVolumeSource",
-                    "description": "glusterfs represents a Glusterfs mount on the host that shares a pod's lifetime. More info: https://examples.k8s.io/volumes/glusterfs/README.md"
-                },
-                "hostPath": {
-                    "$ref": "#/definitions/io.k8s.api.core.v1.HostPathVolumeSource",
-                    "description": "hostPath represents a pre-existing file or directory on the host machine that is directly exposed to the container. This is generally used for system agents or other privileged things that are allowed to see the host machine. Most containers will NOT need this. More info: https://kubernetes.io/docs/concepts/storage/volumes#hostpath"
-                },
-                "iscsi": {
-                    "$ref": "#/definitions/io.k8s.api.core.v1.ISCSIVolumeSource",
-                    "description": "iscsi represents an ISCSI Disk resource that is attached to a kubelet's host machine and then exposed to the pod. More info: https://examples.k8s.io/volumes/iscsi/README.md"
-                },
-                "name": {
-                    "description": "name of the volume. Must be a DNS_LABEL and unique within the pod. More info: https://kubernetes.io/docs/concepts/overview/working-with-objects/names/#names",
-                    "type": "string"
-                },
-                "nfs": {
-                    "$ref": "#/definitions/io.k8s.api.core.v1.NFSVolumeSource",
-                    "description": "nfs represents an NFS mount on the host that shares a pod's lifetime More info: https://kubernetes.io/docs/concepts/storage/volumes#nfs"
-                },
-                "persistentVolumeClaim": {
-                    "$ref": "#/definitions/io.k8s.api.core.v1.PersistentVolumeClaimVolumeSource",
-                    "description": "persistentVolumeClaimVolumeSource represents a reference to a PersistentVolumeClaim in the same namespace. More info: https://kubernetes.io/docs/concepts/storage/persistent-volumes#persistentvolumeclaims"
-                },
-                "photonPersistentDisk": {
-                    "$ref": "#/definitions/io.k8s.api.core.v1.PhotonPersistentDiskVolumeSource",
-                    "description": "photonPersistentDisk represents a PhotonController persistent disk attached and mounted on kubelets host machine"
-                },
-                "portworxVolume": {
-                    "$ref": "#/definitions/io.k8s.api.core.v1.PortworxVolumeSource",
-                    "description": "portworxVolume represents a portworx volume attached and mounted on kubelets host machine"
-                },
-                "projected": {
-                    "$ref": "#/definitions/io.k8s.api.core.v1.ProjectedVolumeSource",
-                    "description": "projected items for all in one resources secrets, configmaps, and downward API"
-                },
-                "quobyte": {
-                    "$ref": "#/definitions/io.k8s.api.core.v1.QuobyteVolumeSource",
-                    "description": "quobyte represents a Quobyte mount on the host that shares a pod's lifetime"
-                },
-                "rbd": {
-                    "$ref": "#/definitions/io.k8s.api.core.v1.RBDVolumeSource",
-                    "description": "rbd represents a Rados Block Device mount on the host that shares a pod's lifetime. More info: https://examples.k8s.io/volumes/rbd/README.md"
-                },
-                "scaleIO": {
-                    "$ref": "#/definitions/io.k8s.api.core.v1.ScaleIOVolumeSource",
-                    "description": "scaleIO represents a ScaleIO persistent volume attached and mounted on Kubernetes nodes."
-                },
-                "secret": {
-                    "$ref": "#/definitions/io.k8s.api.core.v1.SecretVolumeSource",
-                    "description": "secret represents a secret that should populate this volume. More info: https://kubernetes.io/docs/concepts/storage/volumes#secret"
-                },
-                "storageos": {
-                    "$ref": "#/definitions/io.k8s.api.core.v1.StorageOSVolumeSource",
-                    "description": "storageOS represents a StorageOS volume attached and mounted on Kubernetes nodes."
-                },
-                "vsphereVolume": {
-                    "$ref": "#/definitions/io.k8s.api.core.v1.VsphereVirtualDiskVolumeSource",
-                    "description": "vsphereVolume represents a vSphere volume attached and mounted on kubelets host machine"
-                }
-            },
-            "required": [
                 "name"
             ],
             "type": "object",
