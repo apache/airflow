@@ -29,9 +29,10 @@ from contextlib import redirect_stdout
 from typing import TYPE_CHECKING, Protocol, cast
 
 from airflow import settings
+from airflow.cli.commands.remote_commands.dag_command import _parse_and_get_dag
 from airflow.cli.simple_table import AirflowConsole
 from airflow.cli.utils import fetch_dag_run_from_run_id_or_logical_date_string
-from airflow.exceptions import DagRunNotFound, TaskDeferred, TaskInstanceNotFound
+from airflow.exceptions import AirflowException, DagRunNotFound, TaskDeferred, TaskInstanceNotFound
 from airflow.models import TaskInstance
 from airflow.models.dag import DAG, _run_inline_trigger
 from airflow.models.dagrun import DagRun
@@ -41,7 +42,6 @@ from airflow.ti_deps.dep_context import DepContext
 from airflow.ti_deps.dependencies_deps import SCHEDULER_QUEUED_DEPS
 from airflow.utils import cli as cli_utils, timezone
 from airflow.utils.cli import (
-    get_dag,
     get_dag_by_file_location,
     get_dags,
     suppress_logs_and_warning,
@@ -231,7 +231,13 @@ def task_failed_deps(args) -> None:
     Trigger Rule: Task's trigger rule 'all_success' requires all upstream tasks
     to have succeeded, but found 1 non-success(es).
     """
-    dag = get_dag(args.subdir, args.dag_id)
+    dag = _parse_and_get_dag(args.dag_id)
+
+    if not dag:
+        raise AirflowException(
+            f"Dag {args.dag_id!r} could not be found; either it does not exist or it failed to parse."
+        )
+
     task = dag.get_task(task_id=args.task_id)
     ti, _ = _get_ti(task, args.map_index, logical_date_or_run_id=args.logical_date_or_run_id)
     dep_context = DepContext(deps=SCHEDULER_QUEUED_DEPS)
@@ -255,7 +261,13 @@ def task_state(args) -> None:
     >>> airflow tasks state tutorial sleep 2015-01-01
     success
     """
-    dag = get_dag(args.subdir, args.dag_id, from_db=True)
+    dag = _parse_and_get_dag(args.dag_id)
+
+    if not dag:
+        raise AirflowException(
+            f"Dag {args.dag_id!r} could not be found; either it does not exist or it failed to parse."
+        )
+
     task = dag.get_task(task_id=args.task_id)
     ti, _ = _get_ti(task, args.map_index, logical_date_or_run_id=args.logical_date_or_run_id)
     print(ti.current_state())
@@ -266,7 +278,13 @@ def task_state(args) -> None:
 @providers_configuration_loaded
 def task_list(args, dag: DAG | None = None) -> None:
     """List the tasks within a DAG at the command line."""
-    dag = dag or get_dag(args.subdir, args.dag_id)
+    dag = dag or _parse_and_get_dag(args.dag_id)
+
+    if not dag:
+        raise AirflowException(
+            f"Dag {args.dag_id!r} could not be found; either it does not exist or it failed to parse."
+        )
+
     tasks = sorted(t.task_id for t in dag.tasks)
     print("\n".join(tasks))
 
@@ -365,7 +383,12 @@ def task_test(args, dag: DAG | None = None, session: Session = NEW_SESSION) -> N
         env_vars.update(args.env_vars)
         os.environ.update(env_vars)
 
-    dag = dag or get_dag(args.subdir, args.dag_id)
+    dag = dag or _parse_and_get_dag(args.dag_id)
+
+    if not dag:
+        raise AirflowException(
+            f"Dag {args.dag_id!r} could not be found; either it does not exist or it failed to parse."
+        )
 
     dag = DAG.from_sdk_dag(dag)
 
@@ -423,8 +446,13 @@ def task_test(args, dag: DAG | None = None, session: Session = NEW_SESSION) -> N
 @providers_configuration_loaded
 def task_render(args, dag: DAG | None = None) -> None:
     """Render and displays templated fields for a given task."""
+    dag = dag or _parse_and_get_dag(args.dag_id)
+
     if not dag:
-        dag = get_dag(args.subdir, args.dag_id)
+        raise AirflowException(
+            f"Dag {args.dag_id!r} could not be found; either it does not exist or it failed to parse."
+        )
+
     task = dag.get_task(task_id=args.task_id)
     ti, _ = _get_ti(
         task, args.map_index, logical_date_or_run_id=args.logical_date_or_run_id, create_if_necessary="memory"

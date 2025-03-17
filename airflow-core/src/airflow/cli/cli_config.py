@@ -1164,7 +1164,7 @@ TASKS_COMMANDS = (
         name="list",
         help="List the tasks within a DAG",
         func=lazy_load_command("airflow.cli.commands.task_command.task_list"),
-        args=(ARG_DAG_ID, ARG_SUBDIR, ARG_VERBOSE),
+        args=(ARG_DAG_ID, ARG_VERBOSE),
     ),
     ActionCommand(
         name="clear",
@@ -1193,7 +1193,6 @@ TASKS_COMMANDS = (
             ARG_DAG_ID,
             ARG_TASK_ID,
             ARG_LOGICAL_DATE_OR_RUN_ID,
-            ARG_SUBDIR,
             ARG_VERBOSE,
             ARG_MAP_INDEX,
         ),
@@ -1207,7 +1206,7 @@ TASKS_COMMANDS = (
             "and then run by an executor."
         ),
         func=lazy_load_command("airflow.cli.commands.task_command.task_failed_deps"),
-        args=(ARG_DAG_ID, ARG_TASK_ID, ARG_LOGICAL_DATE_OR_RUN_ID, ARG_SUBDIR, ARG_MAP_INDEX, ARG_VERBOSE),
+        args=(ARG_DAG_ID, ARG_TASK_ID, ARG_LOGICAL_DATE_OR_RUN_ID, ARG_MAP_INDEX, ARG_VERBOSE),
     ),
     ActionCommand(
         name="render",
@@ -1217,7 +1216,6 @@ TASKS_COMMANDS = (
             ARG_DAG_ID,
             ARG_TASK_ID,
             ARG_LOGICAL_DATE_OR_RUN_ID,
-            ARG_SUBDIR,
             ARG_VERBOSE,
             ARG_MAP_INDEX,
         ),
@@ -1234,7 +1232,6 @@ TASKS_COMMANDS = (
             ARG_DAG_ID,
             ARG_TASK_ID,
             ARG_LOGICAL_DATE_OR_RUN_ID_OPTIONAL,
-            ARG_SUBDIR,
             ARG_DRY_RUN,
             ARG_TASK_PARAMS,
             ARG_POST_MORTEM,
