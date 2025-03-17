@@ -17,6 +17,7 @@
 from __future__ import annotations
 
 import datetime
+import json
 import re
 from contextlib import contextmanager, nullcontext
 from io import BytesIO
@@ -1314,8 +1315,8 @@ class TestKubernetesPodOperator:
             run_id=self.dag_run.run_id, task_ids="task", key="pod_namespace"
         ).first()
 
-        pod_name = XCom.deserialize_value(pod_name)
-        pod_namespace = XCom.deserialize_value(pod_namespace)
+        pod_name = json.loads(pod_name.value)
+        pod_namespace = json.loads(pod_namespace.value)
 
         assert pod_name == pod.metadata.name
         assert pod_namespace == pod.metadata.namespace

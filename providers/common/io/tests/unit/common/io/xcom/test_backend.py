@@ -147,9 +147,6 @@ class TestXComObjectStorageBackend:
                 .first()
             )
             data = XComModel.deserialize_value(res)
-            mock_supervisor_comms.get_message.return_value = XComResult(
-                key=XCOM_RETURN_KEY, value={"key": "bigvaluebigvaluebigvalue" * 100}
-            )
         else:
             res = (
                 XCom.get_many(
@@ -166,6 +163,11 @@ class TestXComObjectStorageBackend:
 
         p = XComObjectStorageBackend._get_full_path(data)
         assert p.exists() is True
+
+        if AIRFLOW_V_3_0_PLUS:
+            mock_supervisor_comms.get_message.return_value = XComResult(
+                key=XCOM_RETURN_KEY, value={"key": "bigvaluebigvaluebigvalue" * 100}
+            )
 
         value = XCom.get_value(
             key=XCOM_RETURN_KEY,
@@ -228,9 +230,6 @@ class TestXComObjectStorageBackend:
                 .first()
             )
             data = XComModel.deserialize_value(res)
-            mock_supervisor_comms.get_message.return_value = XComResult(
-                key=XCOM_RETURN_KEY, value={"key": "superlargevalue" * 100}
-            )
         else:
             res = (
                 XCom.get_many(
@@ -247,6 +246,10 @@ class TestXComObjectStorageBackend:
         p = XComObjectStorageBackend._get_full_path(data)
         assert p.exists() is True
 
+        if AIRFLOW_V_3_0_PLUS:
+            mock_supervisor_comms.get_message.return_value = XComResult(
+                key=XCOM_RETURN_KEY, value={"key": "superlargevalue" * 100}
+            )
         value = XCom.get_value(
             key=XCOM_RETURN_KEY,
             ti_key=task_instance.key,
@@ -332,9 +335,6 @@ class TestXComObjectStorageBackend:
                 .first()
             )
             data = XComModel.deserialize_value(res)
-            mock_supervisor_comms.get_message.return_value = XComResult(
-                key=XCOM_RETURN_KEY, value={"key": "superlargevalue" * 100}
-            )
         else:
             XCom.set(
                 key=XCOM_RETURN_KEY,
@@ -358,6 +358,12 @@ class TestXComObjectStorageBackend:
             data = XCom.deserialize_value(res)
 
         assert data.endswith(".gz")
+
+        if AIRFLOW_V_3_0_PLUS:
+            mock_supervisor_comms.get_message.return_value = XComResult(
+                key=XCOM_RETURN_KEY, value={"key": "superlargevalue" * 100}
+            )
+
         value = XCom.get_value(
             key=XCOM_RETURN_KEY,
             ti_key=task_instance.key,
