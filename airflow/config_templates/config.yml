@@ -1430,7 +1430,7 @@ api:
           This is useful when you have a path that contains a regular expression that is not a security risk.
       type: string
       version_added: 3.0.0
-      example: "/public/connections/defaults"
+      example: "/connections,/pools"
       default: ""
 api_auth:
   description: Settings relating to authentication on the Airflow APIs

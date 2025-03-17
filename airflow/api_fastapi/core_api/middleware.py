@@ -143,7 +143,7 @@ class RegexpExceptionMiddleware(BaseHTTPMiddleware):
             return await call_next(request)
 
         # Bypass the middleware if the request path is in the bypass list
-        bypass_list = conf.get("api", "regexp_middleware_by_pass").split(",")
+        bypass_list = conf.get("api", "disable_regexp_middleware_paths").split(",")
         for bypass in bypass_list:
             if bypass in request.url.path:
                 return await call_next(request)
