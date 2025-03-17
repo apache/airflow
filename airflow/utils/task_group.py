@@ -48,7 +48,7 @@ def task_group_to_dict(task_item_or_group):
         if isinstance(task, MappedOperator):
             is_mapped["is_mapped"] = True
         if isinstance(task, BaseOperator) or isinstance(task, MappedOperator):
-            node_operator["operator"] = task.operator_name or task.task_type
+            node_operator["operator"] = task.operator_name
 
         return {
             "id": task.task_id,

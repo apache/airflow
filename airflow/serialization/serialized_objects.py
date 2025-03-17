@@ -1235,7 +1235,7 @@ class SerializedBaseOperator(BaseOperator, BaseSerialization):
     def operator_name(self) -> str:
         # Overwrites operator_name of BaseOperator to use _operator_name instead of
         # __class__.operator_name.
-        return self._operator_name
+        return self._operator_name or self.task_type
 
     @operator_name.setter
     def operator_name(self, operator_name: str):
