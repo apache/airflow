@@ -422,7 +422,7 @@ def test_roundtrip_exceptions():
     assert deser.timeout == timedelta(seconds=30)
 
 
-def test_serialized_dag_to_dict_and_from_dict_gives_same_result_in_tasks(dag_maker, session):
+def test_serialized_dag_to_dict_and_from_dict_gives_same_result_in_tasks(dag_maker):
     with dag_maker() as dag:
         BashOperator(task_id="task1", bash_command="echo 1")
 

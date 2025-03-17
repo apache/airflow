@@ -1284,8 +1284,7 @@ class SerializedBaseOperator(BaseOperator, BaseSerialization):
 
         serialize_op["task_type"] = getattr(op, "task_type", type(op).__name__)
         serialize_op["_task_module"] = getattr(op, "_task_module", type(op).__module__)
-        if op.operator_name and op.operator_name != serialize_op["task_type"]:
-            # op.operator_name can be None. See self._operator_name
+        if op.operator_name != serialize_op["task_type"]:
             serialize_op["_operator_name"] = op.operator_name
 
         # Used to determine if an Operator is inherited from EmptyOperator
