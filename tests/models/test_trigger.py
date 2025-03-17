@@ -29,8 +29,9 @@ from cryptography.fernet import Fernet
 
 from airflow.jobs.job import Job
 from airflow.jobs.triggerer_job_runner import TriggererJobRunner
-from airflow.models import TaskInstance, Trigger, XComModel
+from airflow.models import TaskInstance, Trigger
 from airflow.models.asset import AssetEvent, AssetModel, asset_trigger_association_table
+from airflow.models.xcom import XComModel
 from airflow.providers.standard.operators.empty import EmptyOperator
 from airflow.serialization.serialized_objects import BaseSerialization
 from airflow.triggers.base import (
