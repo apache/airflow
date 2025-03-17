@@ -24,7 +24,7 @@ import pytest
 
 from airflow.models import DagModel
 from airflow.models.errors import ParseImportError
-from airflow.utils.session import provide_session
+from airflow.utils.session import NEW_SESSION, provide_session
 
 from tests_common.test_utils.db import clear_db_dags, clear_db_import_errors
 from tests_common.test_utils.format_datetime import from_datetime_to_zulu_without_ms
@@ -50,7 +50,7 @@ BUNDLE_NAME = "dag_maker"
 
 @pytest.fixture(scope="class")
 @provide_session
-def permitted_dag_model(session: Session | None = None) -> DagModel:
+def permitted_dag_model(session: Session = NEW_SESSION) -> DagModel:
     dag_model = DagModel(fileloc=FILENAME1, dag_id="dag_id1", is_paused=False)
     session.add(dag_model)
     session.commit()
@@ -59,7 +59,7 @@ def permitted_dag_model(session: Session | None = None) -> DagModel:
 
 @pytest.fixture(scope="class")
 @provide_session
-def not_permitted_dag_model(session: Session | None = None) -> DagModel:
+def not_permitted_dag_model(session: Session = NEW_SESSION) -> DagModel:
     dag_model = DagModel(fileloc=FILENAME1, dag_id="dag_id4", is_paused=False)
     session.add(dag_model)
     session.commit()
@@ -79,7 +79,7 @@ def clear_db():
 
 @pytest.fixture(autouse=True, scope="class")
 @provide_session
-def import_errors(session: Session | None = None) -> list[ParseImportError]:
+def import_errors(session: Session = NEW_SESSION) -> list[ParseImportError]:
     _import_errors = [
         ParseImportError(
             bundle_name=BUNDLE_NAME,

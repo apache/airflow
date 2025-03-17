@@ -171,11 +171,11 @@ def get_import_errors(
         limit=limit,
         session=session,
     )
-    import_errors_result: Iterable[ParseImportError, Iterable[str]] = groupby(
+    import_errors_result: Iterable[tuple[ParseImportError, Iterable[str]]] = groupby(
         session.execute(import_errors_select), itemgetter(0)
     )
 
-    import_errors: list[ParseImportError] = []
+    import_errors = []
     for import_error, file_dag_ids in import_errors_result:
         # Check if user has read access to all the DAGs defined in the file
         requests: Sequence[IsAuthorizedDagRequest] = [
