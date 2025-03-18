@@ -363,7 +363,18 @@ class DagRunInfo(InfoJsonEncodable):
         "run_id",
         "run_type",
         "start_date",
+        "end_date",
     ]
+
+    casts = {"duration": lambda dagrun: DagRunInfo.duration(dagrun)}
+
+    @classmethod
+    def duration(cls, dagrun: DagRun) -> float | None:
+        if not getattr(dagrun, "end_date", None) or not isinstance(dagrun.end_date, datetime.datetime):
+            return None
+        if not getattr(dagrun, "start_date", None) or not isinstance(dagrun.start_date, datetime.datetime):
+            return None
+        return (dagrun.end_date - dagrun.start_date).total_seconds()
 
 
 class TaskInstanceInfo(InfoJsonEncodable):
