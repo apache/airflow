@@ -3675,37 +3675,6 @@ class TestSchedulerJob:
         assert "Marked 1 SchedulerJob instances as failed" in caplog.messages
 
     @pytest.mark.parametrize(
-        "run_type,expected",
-        [
-            (DagRunType.BACKFILL_JOB, False),
-            (DagRunType.SCHEDULED, True),
-        ],
-    )
-    def test_should_update_dag_next_dagruns_no_backfill(self, run_type, expected, session, dag_maker):
-        """Test if really required to update next dagrun or possible to save run time"""
-        with dag_maker(schedule="@daily") as dag:
-            EmptyOperator(task_id="dummy")
-
-        dr = dag_maker.create_dagrun(
-            run_id="some-run",
-            logical_date=DEFAULT_DATE,
-            start_date=timezone.utcnow(),
-            state=State.SUCCESS,
-            run_type=run_type,
-            session=session,
-        )
-        scheduler_job = Job(executor=self.null_exec)
-        runner = SchedulerJobRunner(job=scheduler_job)
-        actual = runner._should_update_dag_next_dagruns(
-            dag=dag,
-            dag_model=dag_maker.dag_model,
-            active_non_backfill_runs=0,
-            last_dag_run=dr,
-            session=session,
-        )
-        assert actual == expected
-
-    @pytest.mark.parametrize(
         "kwargs",
         [
             param(
@@ -3810,7 +3779,7 @@ class TestSchedulerJob:
         [
             (DagRunType.MANUAL, False),
             (DagRunType.SCHEDULED, True),
-            (DagRunType.BACKFILL_JOB, True),
+            (DagRunType.BACKFILL_JOB, False),
             (DagRunType.ASSET_TRIGGERED, False),
         ],
         ids=[
