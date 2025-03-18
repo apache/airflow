@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2025-03-17T14:33:18.795285
+# This constraints file was automatically generated on 2025-03-18T02:59:45.424961
 # via "eager-upgrade" mechanism of PIP. For the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version for 'apache-airflow' but installs
 # the providers from PIP-released packages at the moment of the constraint generation.
@@ -279,7 +279,7 @@ datadog==0.51.0
 db-dtypes==1.4.2
 debugpy==1.8.13
 decorator==5.2.1
-deepdiff==8.4.1
+deepdiff==8.4.2
 defusedxml==0.7.1
 deltalake==0.25.4
 diagrams==0.24.4
@@ -370,7 +370,7 @@ google-cloud-translate==3.20.2
 google-cloud-videointelligence==2.16.1
 google-cloud-vision==3.10.1
 google-cloud-workflows==1.17.1
-google-crc32c==1.6.0
+google-crc32c==1.7.0
 google-resumable-media==2.7.2
 googleapis-common-protos==1.69.2
 graphql-core==3.2.6
@@ -483,7 +483,7 @@ msgspec==0.19.0
 msrest==0.7.1
 msrestazure==0.6.4.post1
 multi_key_dict==2.0.3
-multidict==6.1.0
+multidict==6.2.0
 mypy-boto3-appflow==1.37.0
 mypy-boto3-rds==1.37.6
 mypy-boto3-redshift-data==1.37.8
@@ -660,7 +660,7 @@ shapely==2.0.7
 shellingham==1.5.4
 simple-salesforce==1.12.6
 six==1.17.0
-slack_sdk==3.34.0
+slack_sdk==3.35.0
 smbprotocol==1.15.0
 smmap==5.0.2
 sniffio==1.3.1
@@ -704,7 +704,7 @@ sympy==1.13.3
 tableauserverclient==0.36
 tabulate==0.9.0
 tenacity==9.0.0
-teradatasql==20.0.0.25
+teradatasql==20.0.0.26
 teradatasqlalchemy==20.0.0.3
 termcolor==2.5.0
 text-unidecode==1.3
@@ -735,7 +735,7 @@ types-protobuf==5.29.1.20250315
 types-pyOpenSSL==24.1.0.20240722
 types-python-dateutil==2.9.0.20241206
 types-python-slugify==8.0.2.20240310
-types-pytz==2025.1.0.20250204
+types-pytz==2025.1.0.20250318
 types-redis==4.6.0.20241004
 types-requests==2.32.0.20250306
 types-setuptools==76.0.0.20250313
@@ -750,7 +750,7 @@ universal_pathlib==0.2.6
 uritemplate==4.1.1
 urllib3==2.3.0
 uuid6==2024.7.10
-uv==0.6.6
+uv==0.6.7
 uvicorn==0.34.0
 uvloop==0.21.0
 validators==0.34.0
