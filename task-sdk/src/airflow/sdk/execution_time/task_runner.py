@@ -69,12 +69,12 @@ from airflow.sdk.execution_time.context import (
     MacrosAccessor,
     OutletEventAccessors,
     VariableAccessor,
+    context_to_airflow_vars,
     get_previous_dagrun_success,
     set_current_context,
 )
 from airflow.sdk.execution_time.xcom import XCom
 from airflow.utils.net import get_hostname
-from airflow.utils.operator_helpers import context_to_airflow_vars
 from airflow.utils.state import TaskInstanceState
 
 if TYPE_CHECKING:
@@ -572,9 +572,6 @@ def run(
                 )
 
         context = ti.get_template_context()
-        # Export context to make it available for operators to use.
-        airflow_context_vars = context_to_airflow_vars(context, in_env_var_format=True)
-        os.environ.update(airflow_context_vars)
 
         with set_current_context(context):
             # This is the earliest that we can render templates -- as if it excepts for any reason we need to
@@ -702,6 +699,10 @@ def _execute_task(context: Context, ti: RuntimeTaskInstance):
     ctx = contextvars.copy_context()
     # Populate the context var so ExecutorSafeguard doesn't complain
     ctx.run(ExecutorSafeguard.tracker.set, task)
+
+    # Export context in os.environ to make it available for operators to use.
+    airflow_context_vars = context_to_airflow_vars(context, in_env_var_format=True)
+    os.environ.update(airflow_context_vars)
 
     if task.execution_timeout:
         # TODO: handle timeout in case of deferral

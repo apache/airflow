@@ -104,6 +104,11 @@ from airflow.models.taskmap import TaskMap
 from airflow.models.taskreschedule import TaskReschedule
 from airflow.models.xcom import LazyXComSelectSequence, XComModel
 from airflow.plugins_manager import integrate_macros_plugins
+from airflow.sdk.api.datamodels._generated import AssetProfile
+from airflow.sdk.definitions.asset import Asset, AssetAlias, AssetNameRef, AssetUniqueKey, AssetUriRef
+from airflow.sdk.definitions.param import process_params
+from airflow.sdk.definitions.taskgroup import MappedTaskGroup
+from airflow.sdk.execution_time.context import InletEventsAccessors, context_to_airflow_vars
 from airflow.sentry import Sentry
 from airflow.settings import task_instance_mutation_hook
 from airflow.stats import Stats
@@ -115,7 +120,7 @@ from airflow.utils.email import send_email
 from airflow.utils.helpers import prune_dict, render_template_to_string
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.net import get_hostname
-from airflow.utils.operator_helpers import ExecutionCallableRunner, context_to_airflow_vars
+from airflow.utils.operator_helpers import ExecutionCallableRunner
 from airflow.utils.platform import getuser
 from airflow.utils.retries import run_with_db_retries
 from airflow.utils.session import NEW_SESSION, create_session, provide_session
@@ -866,8 +871,6 @@ def _get_template_context(
         PrevSuccessfulDagRunResponse,
         TIRunContext,
     )
-    from airflow.sdk.definitions.param import process_params
-    from airflow.sdk.execution_time.context import InletEventsAccessors
     from airflow.utils.context import (
         ConnectionAccessor,
         OutletEventAccessors,
@@ -2706,7 +2709,7 @@ class TaskInstance(Base, LoggingMixin):
         outlet_events: list[dict[str, Any]],
         session: Session = NEW_SESSION,
     ) -> None:
-        from airflow.sdk.definitions.asset import Asset, AssetAlias, AssetNameRef, AssetUniqueKey, AssetUriRef
+        from airflow.sdk.definitions.asset import AssetNameRef, AssetUniqueKey, AssetUriRef
 
         asset_keys = {
             AssetUniqueKey(o.name, o.uri)

@@ -26,7 +26,7 @@ from typing import TYPE_CHECKING
 from airflow.models import BaseOperator
 from airflow.providers.apache.hive.hooks.hive import HiveServer2Hook
 from airflow.providers.mysql.hooks.mysql import MySqlHook
-from airflow.utils.operator_helpers import context_to_airflow_vars
+from airflow.sdk.execution_time.context import context_to_airflow_vars
 
 if TYPE_CHECKING:
     from airflow.utils.context import Context
