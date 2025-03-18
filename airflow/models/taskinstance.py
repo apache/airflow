@@ -104,11 +104,6 @@ from airflow.models.taskmap import TaskMap
 from airflow.models.taskreschedule import TaskReschedule
 from airflow.models.xcom import LazyXComSelectSequence, XComModel
 from airflow.plugins_manager import integrate_macros_plugins
-from airflow.sdk.api.datamodels._generated import AssetProfile
-from airflow.sdk.definitions.asset import Asset, AssetAlias, AssetNameRef, AssetUniqueKey, AssetUriRef
-from airflow.sdk.definitions.param import process_params
-from airflow.sdk.definitions.taskgroup import MappedTaskGroup
-from airflow.sdk.execution_time.context import InletEventsAccessors, context_to_airflow_vars
 from airflow.sentry import Sentry
 from airflow.settings import task_instance_mutation_hook
 from airflow.stats import Stats
@@ -155,6 +150,7 @@ if TYPE_CHECKING:
     from airflow.sdk.definitions.asset import AssetNameRef, AssetUniqueKey, AssetUriRef
     from airflow.sdk.definitions.dag import DAG
     from airflow.sdk.definitions.taskgroup import MappedTaskGroup
+    from airflow.sdk.execution_time.context import context_to_airflow_vars
     from airflow.sdk.types import RuntimeTaskInstanceProtocol
     from airflow.typing_compat import Literal
     from airflow.utils.context import Context
@@ -2709,7 +2705,7 @@ class TaskInstance(Base, LoggingMixin):
         outlet_events: list[dict[str, Any]],
         session: Session = NEW_SESSION,
     ) -> None:
-        from airflow.sdk.definitions.asset import AssetNameRef, AssetUniqueKey, AssetUriRef
+        from airflow.sdk.definitions.asset import Asset, AssetAlias, AssetNameRef, AssetUniqueKey, AssetUriRef
 
         asset_keys = {
             AssetUniqueKey(o.name, o.uri)
