@@ -43,7 +43,6 @@ from airflow.api_fastapi.execution_api.datamodels.taskinstance import (
     TISuccessStatePayload,
     TITerminalStatePayload,
 )
-from airflow.exceptions import AirflowInactiveAssetInInletOrOutletException
 from airflow.models.dagrun import DagRun as DR
 from airflow.models.taskinstance import TaskInstance as TI, _update_rtif
 from airflow.models.taskreschedule import TaskReschedule
@@ -571,19 +570,6 @@ def ti_runtime_checks(
     task_instance = session.scalar(select(TI).where(TI.id == ti_id_str))
     if task_instance.state != TaskInstanceState.RUNNING:
         raise HTTPException(status_code=status.HTTP_409_CONFLICT)
-
-    try:
-        TI.validate_inlet_outlet_assets_activeness(payload.inlets, payload.outlets, session)  # type: ignore
-    except AirflowInactiveAssetInInletOrOutletException as e:
-        log.error("Task Instance %s fails the runtime checks.", ti_id_str)
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail={
-                "reason": "validation_failed",
-                "message": "Task Instance fails the runtime checks",
-                "error": str(e),
-            },
-        )
 
 
 def _is_eligible_to_retry(state: str, try_number: int, max_tries: int) -> bool:
