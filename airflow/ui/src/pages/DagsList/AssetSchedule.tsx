@@ -61,7 +61,7 @@ export const AssetSchedule = ({ dag }: Props) => {
           )}
         </Button>
       </Popover.Trigger>
-      <Popover.Content width="fit-content">
+      <Popover.Content css={{ "--popover-bg": "colors.bg.emphasized" }} width="fit-content">
         <Popover.Arrow />
         <Popover.Body>
           <AssetExpression events={pendingEvents} expression={dag.asset_expression as ExpressionType} />
