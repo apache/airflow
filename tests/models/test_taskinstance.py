@@ -1689,7 +1689,7 @@ class TestTaskInstance:
         ti = dag_maker.create_dagrun(logical_date=timezone.utcnow()).task_instances[0]
         ti.task = task
         ti.run()
-        assert ti.xcom_pull(task_ids=task_id, key=XCOM_RETURN_KEY) == value
+        assert ti.xcom_pull(task_ids=task_id, key=XCOM_RETURN_KEY) == json.dumps(value)
 
     def test_xcom_with_multiple_outputs(self, dag_maker):
         """
@@ -1708,9 +1708,9 @@ class TestTaskInstance:
         ti = dag_maker.create_dagrun(logical_date=timezone.utcnow()).task_instances[0]
         ti.task = task
         ti.run()
-        assert ti.xcom_pull(task_ids=task_id, key=XCOM_RETURN_KEY) == value
-        assert ti.xcom_pull(task_ids=task_id, key="key1") == "value1"
-        assert ti.xcom_pull(task_ids=task_id, key="key2") == "value2"
+        assert ti.xcom_pull(task_ids=task_id, key=XCOM_RETURN_KEY) == json.dumps(value)
+        assert ti.xcom_pull(task_ids=task_id, key="key1") == json.dumps("value1")
+        assert ti.xcom_pull(task_ids=task_id, key="key2") == json.dumps("value2")
 
     def test_xcom_with_multiple_outputs_and_no_mapping_result(self, dag_maker):
         """

@@ -351,7 +351,7 @@ class LazyXComSelectSequence(LazySelectSequence[Any]):
 
     @staticmethod
     def _process_row(row: Row) -> Any:
-        return XComModel.deserialize_value(row)
+        return row.value
 
 
 def __getattr__(name: str):

@@ -550,7 +550,7 @@ def _xcom_pull(
         if first is None:  # No matching XCom at all.
             return default
         if map_indexes is not None or first.map_index < 0:
-            return XComModel.deserialize_value(first)
+            return first.value
 
         # raise RuntimeError("Nothing should hit this anymore")
 

@@ -333,6 +333,8 @@ class PlainXComArg(XComArg):
         return super().concat(*others)
 
     def resolve(self, context: Mapping[str, Any]) -> Any:
+        from airflow.serialization.serde import deserialize
+
         ti = context["ti"]
         task_id = self.operator.task_id
 
@@ -355,6 +357,7 @@ class PlainXComArg(XComArg):
                 key=self.key,
                 default=NOTSET,
             )
+        result = deserialize(result)
         if not isinstance(result, ArgNotSet):
             return result
         if self.key == XCOM_RETURN_KEY:
