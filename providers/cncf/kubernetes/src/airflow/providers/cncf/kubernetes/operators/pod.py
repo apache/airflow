@@ -214,6 +214,8 @@ class KubernetesPodOperator(BaseOperator):
         will appear as part of this task's logs if get_logs is True. Defaults to None. If None,
         will consult the class variable BASE_CONTAINER_NAME (which defaults to "base") for the base
         container name to use.
+    :param base_container_status_polling_interval: Polling period in seconds to check for the pod base
+        container status. Default to 1s.
     :param deferrable: Run operator in the deferrable mode.
     :param poll_interval: Polling period in seconds to check for the status. Used only in deferrable mode.
     :param log_pod_spec_on_failure: Log the pod's specification if a failure occurs
@@ -288,6 +290,7 @@ class KubernetesPodOperator(BaseOperator):
         startup_check_interval_seconds: int = 5,
         get_logs: bool = True,
         base_container_name: str | None = None,
+        base_container_status_polling_interval: float = 1,
         init_container_logs: Iterable[str] | str | Literal[True] | None = None,
         container_logs: Iterable[str] | str | Literal[True] | None = None,
         image_pull_policy: str | None = None,
@@ -365,6 +368,7 @@ class KubernetesPodOperator(BaseOperator):
         # Fallback to the class variable BASE_CONTAINER_NAME here instead of via default argument value
         # in the init method signature, to be compatible with subclasses overloading the class variable value.
         self.base_container_name = base_container_name or self.BASE_CONTAINER_NAME
+        self.base_container_status_polling_interval = base_container_status_polling_interval
         self.init_container_logs = init_container_logs
         self.container_logs = container_logs or self.base_container_name
         self.image_pull_policy = image_pull_policy
@@ -720,7 +724,11 @@ class KubernetesPodOperator(BaseOperator):
             if not self.get_logs or (
                 self.container_logs is not True and self.base_container_name not in self.container_logs
             ):
-                self.pod_manager.await_container_completion(pod=pod, container_name=self.base_container_name)
+                self.pod_manager.await_container_completion(
+                    pod=pod,
+                    container_name=self.base_container_name,
+                    polling_time=self.base_container_status_polling_interval,
+                )
         except kubernetes.client.exceptions.ApiException as exc:
             self._handle_api_exception(exc, pod)
 

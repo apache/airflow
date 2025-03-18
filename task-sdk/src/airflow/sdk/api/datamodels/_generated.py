@@ -198,6 +198,17 @@ class TIRuntimeCheckPayload(BaseModel):
     outlets: Annotated[list[AssetProfile] | None, Field(title="Outlets")] = None
 
 
+class TISkippedDownstreamTasksStatePayload(BaseModel):
+    """
+    Schema for updating downstream tasks to a skipped state.
+    """
+
+    model_config = ConfigDict(
+        extra="forbid",
+    )
+    tasks: Annotated[list[str | tuple[str, int]], Field(title="Tasks")]
+
+
 class TISuccessStatePayload(BaseModel):
     """
     Schema for updating TaskInstance to success state.
@@ -366,6 +377,7 @@ class TIRunContext(BaseModel):
     upstream_map_indexes: Annotated[dict[str, int] | None, Field(title="Upstream Map Indexes")] = None
     next_method: Annotated[str | None, Field(title="Next Method")] = None
     next_kwargs: Annotated[dict[str, Any] | str | None, Field(title="Next Kwargs")] = None
+    xcom_keys_to_clear: Annotated[list[str] | None, Field(title="Xcom Keys To Clear")] = None
 
 
 class TITerminalStatePayload(BaseModel):

@@ -32,6 +32,7 @@ from airflow.models.log import Log
 from airflow.models.taskinstance import TaskInstance
 from airflow.providers.standard.operators.trigger_dagrun import TriggerDagRunOperator
 from airflow.providers.standard.triggers.external_task import DagStateTrigger
+from airflow.sdk.execution_time.comms import XComResult
 from airflow.utils import timezone
 from airflow.utils.session import create_session
 from airflow.utils.state import DagRunState, State, TaskInstanceState
@@ -99,7 +100,7 @@ class TestDagRunOperator:
 
         if AIRFLOW_V_3_0_PLUS:
             base_url = conf.get_mandatory_value("api", "base_url").lower()
-            expected_url = f"{base_url}/dags/{triggered_dag_run.dag_id}/runs/{triggered_dag_run.run_id}"
+            expected_url = f"{base_url}dags/{triggered_dag_run.dag_id}/runs/{triggered_dag_run.run_id}"
 
             link = triggering_task.operator_extra_links[0].get_link(
                 operator=triggering_task, ti_key=triggering_ti.key
@@ -122,7 +123,7 @@ class TestDagRunOperator:
             }
             assert expected_args in args
 
-    def test_trigger_dagrun(self, dag_maker):
+    def test_trigger_dagrun(self, dag_maker, mock_supervisor_comms):
         """Test TriggerDagRunOperator."""
         with time_machine.travel("2025-02-18T08:04:46Z", tick=False):
             with dag_maker(
@@ -143,6 +144,8 @@ class TestDagRunOperator:
             ).rsplit("_", 1)[0]
 
             assert actual_run_id == expected_run_id
+
+            mock_supervisor_comms.get_message.return_value = XComResult(key="xcom_key", value=dagrun.run_id)
 
             self.assert_extra_link(dagrun, task, dag_maker.session)
 
@@ -165,7 +168,7 @@ class TestDagRunOperator:
             assert len(dagruns) == 1
             assert dagruns[0].run_id == "custom_run_id"
 
-    def test_trigger_dagrun_with_logical_date(self, dag_maker):
+    def test_trigger_dagrun_with_logical_date(self, dag_maker, mock_supervisor_comms):
         """Test TriggerDagRunOperator with custom logical_date."""
         custom_logical_date = timezone.datetime(2021, 1, 2, 3, 4, 5)
         with dag_maker(
@@ -188,9 +191,10 @@ class TestDagRunOperator:
             assert dagrun.run_id == DagRun.generate_run_id(
                 run_type=DagRunType.MANUAL, logical_date=custom_logical_date, run_after=custom_logical_date
             )
+            mock_supervisor_comms.get_message.return_value = XComResult(key="xcom_key", value=dagrun.run_id)
             self.assert_extra_link(dagrun, task, session)
 
-    def test_trigger_dagrun_twice(self, dag_maker):
+    def test_trigger_dagrun_twice(self, dag_maker, mock_supervisor_comms):
         """Test TriggerDagRunOperator with custom logical_date."""
         utc_now = timezone.utcnow()
         run_id = f"manual__{utc_now.isoformat()}"
@@ -227,9 +231,12 @@ class TestDagRunOperator:
         triggered_dag_run = dagruns[0]
         assert triggered_dag_run.run_type == DagRunType.MANUAL
         assert triggered_dag_run.logical_date == utc_now
+        mock_supervisor_comms.get_message.return_value = XComResult(
+            key="xcom_key", value=triggered_dag_run.run_id
+        )
         self.assert_extra_link(triggered_dag_run, task, dag_maker.session)
 
-    def test_trigger_dagrun_with_scheduled_dag_run(self, dag_maker):
+    def test_trigger_dagrun_with_scheduled_dag_run(self, dag_maker, mock_supervisor_comms):
         """Test TriggerDagRunOperator with custom logical_date and scheduled dag_run."""
         utc_now = timezone.utcnow()
         run_id = f"scheduled__{utc_now.isoformat()}"
@@ -266,9 +273,12 @@ class TestDagRunOperator:
         assert len(dagruns) == 1
         triggered_dag_run = dagruns[0]
         assert triggered_dag_run.logical_date == utc_now
+        mock_supervisor_comms.get_message.return_value = XComResult(
+            key="xcom_key", value=triggered_dag_run.run_id
+        )
         self.assert_extra_link(triggered_dag_run, task, dag_maker.session)
 
-    def test_trigger_dagrun_with_templated_logical_date(self, dag_maker):
+    def test_trigger_dagrun_with_templated_logical_date(self, dag_maker, mock_supervisor_comms):
         """Test TriggerDagRunOperator with templated logical_date."""
         with dag_maker(
             TEST_DAG_ID, default_args={"owner": "airflow", "start_date": DEFAULT_DATE}, serialized=True
@@ -289,9 +299,12 @@ class TestDagRunOperator:
             triggered_dag_run = dagruns[0]
             assert triggered_dag_run.run_type == DagRunType.MANUAL
             assert triggered_dag_run.logical_date == DEFAULT_DATE
+            mock_supervisor_comms.get_message.return_value = XComResult(
+                key="xcom_key", value=triggered_dag_run.run_id
+            )
             self.assert_extra_link(triggered_dag_run, task, session)
 
-    def test_trigger_dagrun_with_templated_trigger_dag_id(self, dag_maker):
+    def test_trigger_dagrun_with_templated_trigger_dag_id(self, dag_maker, mock_supervisor_comms):
         """Test TriggerDagRunOperator with templated trigger dag id."""
         with dag_maker(
             TEST_DAG_ID, default_args={"owner": "airflow", "start_date": DEFAULT_DATE}, serialized=True
@@ -311,6 +324,9 @@ class TestDagRunOperator:
             triggered_dag_run = dagruns[0]
             assert triggered_dag_run.run_type == DagRunType.MANUAL
             assert triggered_dag_run.dag_id == TRIGGERED_DAG_ID
+            mock_supervisor_comms.get_message.return_value = XComResult(
+                key="xcom_key", value=triggered_dag_run.run_id
+            )
             self.assert_extra_link(triggered_dag_run, task, session)
 
     def test_trigger_dagrun_operator_conf(self, dag_maker):

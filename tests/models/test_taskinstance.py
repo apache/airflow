@@ -19,6 +19,7 @@ from __future__ import annotations
 
 import contextlib
 import datetime
+import json
 import operator
 import os
 import pathlib
@@ -71,7 +72,7 @@ from airflow.models.taskinstancehistory import TaskInstanceHistory
 from airflow.models.taskmap import TaskMap
 from airflow.models.taskreschedule import TaskReschedule
 from airflow.models.variable import Variable
-from airflow.models.xcom import XCom
+from airflow.models.xcom import XComModel
 from airflow.notifications.basenotifier import BaseNotifier
 from airflow.providers.standard.operators.bash import BashOperator
 from airflow.providers.standard.operators.empty import EmptyOperator
@@ -1152,8 +1153,8 @@ class TestTaskInstance:
         # Check that reschedules for ti have also been cleared.
         assert not task_reschedules_for_ti(ti)
 
-    def test_depends_on_past(self, dag_maker):
-        with dag_maker(dag_id="test_depends_on_past", serialized=True):
+    def test_depends_on_past_catchup_true(self, dag_maker):
+        with dag_maker(dag_id="test_depends_on_past", serialized=True, catchup=True):
             task = EmptyOperator(
                 task_id="test_dop_task",
                 depends_on_past=True,
@@ -1179,6 +1180,43 @@ class TestTaskInstance:
         assert ti.state is None
 
         # ignore first depends_on_past to allow the run
+        task.run(start_date=run_date, end_date=run_date, ignore_first_depends_on_past=True)
+        ti.refresh_from_db()
+        assert ti.state == State.SUCCESS
+
+    def test_depends_on_past_catchup_false(self, dag_maker):
+        with dag_maker(dag_id="test_depends_on_past_catchup_false", serialized=True, catchup=False):
+            task = EmptyOperator(
+                task_id="test_dop_task",
+                depends_on_past=True,
+            )
+
+        dag_maker.create_dagrun(
+            state=State.FAILED,
+            run_type=DagRunType.SCHEDULED,
+        )
+
+        run_date = task.start_date + datetime.timedelta(days=5)
+
+        dr = dag_maker.create_dagrun(
+            logical_date=run_date,
+            run_type=DagRunType.SCHEDULED,
+        )
+
+        ti = dr.task_instances[0]
+        ti.task = task
+
+        # With catchup=False, depends_on_past behavior is different:
+        # The task ignores historical dependencies since catchup=False means
+        # "only consider runs from now forward"
+        task.run(start_date=run_date, end_date=run_date, ignore_first_depends_on_past=False)
+        ti.refresh_from_db()
+
+        # The task runs successfully even with depends_on_past=True because
+        # catchup=False changes how historical dependencies are considered
+        assert ti.state == State.SUCCESS
+
+        # ignore_first_depends_on_past should still allow the run with catchup=False
         task.run(start_date=run_date, end_date=run_date, ignore_first_depends_on_past=True)
         ti.refresh_from_db()
         assert ti.state == State.SUCCESS
@@ -2371,9 +2409,11 @@ class TestTaskInstance:
             ti.run(session=session)
 
         xcom = session.scalars(
-            select(XCom).filter_by(dag_id=dr.dag_id, run_id=dr.run_id, task_id="write1", key="return_value")
+            select(XComModel).filter_by(
+                dag_id=dr.dag_id, run_id=dr.run_id, task_id="write1", key="return_value"
+            )
         ).one()
-        assert xcom.value == "write_1 result"
+        assert xcom.value == json.dumps("write_1 result")
 
         events = dict(iter(session.execute(select(AssetEvent.source_task_id, AssetEvent))))
         assert set(events) == {"write1", "write2"}
@@ -3967,7 +4007,7 @@ class TestTaskInstance:
         assert ser_ti.task.operator_name == "EmptyOperator"
 
     def test_clear_db_references(self, session, create_task_instance):
-        tables = [RenderedTaskInstanceFields, XCom]
+        tables = [RenderedTaskInstanceFields, XComModel]
         ti = create_task_instance()
         ti.note = "sample note"
 
@@ -3975,7 +4015,7 @@ class TestTaskInstance:
         session.commit()
         for table in [RenderedTaskInstanceFields]:
             session.add(table(ti))
-        XCom.set(key="key", value="value", task_id=ti.task_id, dag_id=ti.dag_id, run_id=ti.run_id)
+        XComModel.set(key="key", value="value", task_id=ti.task_id, dag_id=ti.dag_id, run_id=ti.run_id)
         session.commit()
         for table in tables:
             assert session.query(table).count() == 1

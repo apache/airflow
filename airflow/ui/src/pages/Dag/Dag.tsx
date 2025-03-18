@@ -72,7 +72,12 @@ export const Dag = () => {
 
   return (
     <ReactFlowProvider>
-      <DetailsLayout dag={dag} error={error ?? runsError} isLoading={isLoading || isLoadingRuns} tabs={tabs}>
+      <DetailsLayout
+        dag={dag}
+        error={error ?? runsError}
+        isLoading={isLoading || isLoadingRuns}
+        tabs={tabs.filter((tab) => !(dag?.timetable_summary === null && tab.value === "backfills"))}
+      >
         <Header
           dag={dag}
           dagWithRuns={dagWithRuns}

@@ -47,6 +47,7 @@ from airflow.sdk.api.datamodels._generated import (
     TIHeartbeatInfo,
     TIRescheduleStatePayload,
     TIRunContext,
+    TISkippedDownstreamTasksStatePayload,
     TISuccessStatePayload,
     TITerminalStatePayload,
     ValidationError as RemoteValidationError,
@@ -55,7 +56,12 @@ from airflow.sdk.api.datamodels._generated import (
     XComResponse,
 )
 from airflow.sdk.exceptions import ErrorType
-from airflow.sdk.execution_time.comms import ErrorResponse, OKResponse, RuntimeCheckOnTask
+from airflow.sdk.execution_time.comms import (
+    ErrorResponse,
+    OKResponse,
+    RuntimeCheckOnTask,
+    SkipDownstreamTasks,
+)
 from airflow.utils.net import get_hostname
 from airflow.utils.platform import getuser
 
@@ -164,6 +170,11 @@ class TaskInstanceOperations:
 
         # Create a reschedule state payload from msg
         self.client.patch(f"task-instances/{id}/state", content=body.model_dump_json())
+
+    def skip_downstream_tasks(self, id: uuid.UUID, msg: SkipDownstreamTasks):
+        """Tell the API server to skip the downstream tasks of this TI."""
+        body = TISkippedDownstreamTasksStatePayload(tasks=msg.tasks)
+        self.client.patch(f"task-instances/{id}/skip-downstream", content=body.model_dump_json())
 
     def set_rtif(self, id: uuid.UUID, body: dict[str, str]) -> dict[str, bool]:
         """Set Rendered Task Instance Fields via the API server."""
@@ -322,6 +333,24 @@ class XComOperations:
         # decouple from the server response string
         return {"ok": True}
 
+    def delete(
+        self,
+        dag_id: str,
+        run_id: str,
+        task_id: str,
+        key: str,
+        map_index: int | None = None,
+    ) -> dict[str, bool]:
+        """Delete a XCom with given key via the API server."""
+        params = {}
+        if map_index is not None and map_index >= 0:
+            params = {"map_index": map_index}
+        self.client.delete(f"xcoms/{dag_id}/{run_id}/{task_id}/{key}", params=params)
+        # Any error from the server will anyway be propagated down to the supervisor,
+        # so we choose to send a generic response to the supervisor over the server response to
+        # decouple from the server response string
+        return {"ok": True}
+
 
 class AssetOperations:
     __slots__ = ("client",)
@@ -329,14 +358,29 @@ class AssetOperations:
     def __init__(self, client: Client):
         self.client = client
 
-    def get(self, name: str | None = None, uri: str | None = None) -> AssetResponse:
+    def get(self, name: str | None = None, uri: str | None = None) -> AssetResponse | ErrorResponse:
         """Get Asset value from the API server."""
         if name:
-            resp = self.client.get("assets/by-name", params={"name": name})
+            endpoint = "assets/by-name"
+            params = {"name": name}
         elif uri:
-            resp = self.client.get("assets/by-uri", params={"uri": uri})
+            endpoint = "assets/by-uri"
+            params = {"uri": uri}
         else:
             raise ValueError("Either `name` or `uri` must be provided")
+
+        try:
+            resp = self.client.get(endpoint, params=params)
+        except ServerResponseError as e:
+            if e.response.status_code == HTTPStatus.NOT_FOUND:
+                log.error(
+                    "Asset not found",
+                    params=params,
+                    detail=e.detail,
+                    status_code=e.response.status_code,
+                )
+                return ErrorResponse(error=ErrorType.ASSET_NOT_FOUIND, detail=params)
+            raise
 
         return AssetResponse.model_validate_json(resp.read())
 

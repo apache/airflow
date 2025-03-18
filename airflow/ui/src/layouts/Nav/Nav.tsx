@@ -27,6 +27,7 @@ import { AdminButton } from "./AdminButton";
 import { BrowseButton } from "./BrowseButton";
 import { DocsButton } from "./DocsButton";
 import { NavButton } from "./NavButton";
+import { PluginMenus } from "./PluginMenus";
 import { SecurityButton } from "./SecurityButton";
 import { UserSettingsButton } from "./UserSettingsButton";
 
@@ -56,6 +57,7 @@ export const Nav = () => {
         <BrowseButton />
         <AdminButton />
         <SecurityButton />
+        <PluginMenus />
       </Flex>
       <Flex flexDir="column">
         <DocsButton />

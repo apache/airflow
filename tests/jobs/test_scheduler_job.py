@@ -2296,7 +2296,8 @@ class TestSchedulerJob:
         scheduler_job = Job(executor=self.null_exec)
         self.job_runner = SchedulerJobRunner(job=scheduler_job)
 
-        with dag_maker(max_active_runs=1, session=session) as dag:
+        # Use catchup=True to ensure proper run creation behavior after max_active_runs is no longer reached
+        with dag_maker(max_active_runs=1, session=session, catchup=True) as dag:
             # Need to use something that doesn't immediately get marked as success by the scheduler
             BashOperator(task_id="task", bash_command="true")
 
@@ -2435,10 +2436,12 @@ class TestSchedulerJob:
         Test that dagrun timeout fails run and update the next dagrun
         """
         session = settings.Session()
+        # Explicitly set catchup=True as test specifically expects runs to be created in date order
         with dag_maker(
             max_active_runs=1,
             dag_id="test_scheduler_fail_dagrun_timeout",
             dagrun_timeout=datetime.timedelta(seconds=60),
+            catchup=True,
         ):
             EmptyOperator(task_id="dummy")
 
@@ -2780,7 +2783,10 @@ class TestSchedulerJob:
         self.job_runner = SchedulerJobRunner(job=scheduler_job)
 
         self.job_runner._do_scheduling(session)
-        assert session.query(DagRun).one().state == run_state
+        assert (
+            session.query(DagRun).filter(DagRun.dag_id == dr.dag_id, DagRun.run_id == dr.run_id).one().state
+            == run_state
+        )
 
     def test_dagrun_root_after_dagrun_unfinished(self, mock_executor, testing_dag_bundle):
         """
@@ -2858,9 +2864,9 @@ class TestSchedulerJob:
             session.commit()
             assert self.null_exec.sorted_tasks == []
 
-    def test_scheduler_task_start_date(self, testing_dag_bundle):
+    def test_scheduler_task_start_date_catchup_true(self, testing_dag_bundle):
         """
-        Test that the scheduler respects task start dates that are different from DAG start dates
+        Test that with catchup=True, the scheduler respects task start dates that are different from DAG start dates
         """
         dagbag = DagBag(
             dag_folder=os.path.join(settings.DAGS_FOLDER, "test_scheduler_dags.py"),
@@ -2868,10 +2874,12 @@ class TestSchedulerJob:
         )
         dag_id = "test_task_start_date_scheduling"
         dag = dagbag.get_dag(dag_id)
+        # Explicitly set catchup=True
+        dag.catchup = True
         dag.is_paused_upon_creation = False
         dagbag.bag_dag(dag=dag)
 
-        # Deactivate other dags in this file so the scheduler doesn't waste time processing them
+        # Deactivate other dags in this file
         other_dag = dagbag.get_dag("test_start_date_scheduling")
         other_dag.is_paused_upon_creation = True
         dagbag.bag_dag(dag=other_dag)
@@ -2886,10 +2894,54 @@ class TestSchedulerJob:
         tiq = session.query(TaskInstance).filter(TaskInstance.dag_id == dag_id)
         ti1s = tiq.filter(TaskInstance.task_id == "dummy1").all()
         ti2s = tiq.filter(TaskInstance.task_id == "dummy2").all()
-        assert len(ti1s) == 0
-        assert len(ti2s) >= 2
+
+        # With catchup=True, future task start dates are respected
+        assert len(ti1s) == 0, "Expected no instances for dummy1 (start date in future with catchup=True)"
+        assert len(ti2s) >= 2, "Expected multiple instances for dummy2"
         for ti in ti2s:
             assert ti.state == State.SUCCESS
+
+    def test_scheduler_task_start_date_catchup_false(self, testing_dag_bundle):
+        """
+        Test that with catchup=False, the scheduler ignores task start dates and schedules for the most recent interval
+        """
+        dagbag = DagBag(
+            dag_folder=os.path.join(settings.DAGS_FOLDER, "test_scheduler_dags.py"),
+            include_examples=False,
+        )
+        dag_id = "test_task_start_date_scheduling"
+        dag = dagbag.get_dag(dag_id)
+        dag.catchup = False
+        dag.is_paused_upon_creation = False
+        dagbag.bag_dag(dag=dag)
+
+        # Deactivate other dags in this file
+        other_dag = dagbag.get_dag("test_start_date_scheduling")
+        other_dag.is_paused_upon_creation = True
+        dagbag.bag_dag(dag=other_dag)
+
+        dagbag.sync_to_db("testing", None)
+
+        scheduler_job = Job(executor=self.null_exec)
+        self.job_runner = SchedulerJobRunner(job=scheduler_job, num_runs=3)
+        run_job(scheduler_job, execute_callable=self.job_runner._execute)
+
+        session = settings.Session()
+        tiq = session.query(TaskInstance).filter(TaskInstance.dag_id == dag_id)
+        ti1s = tiq.filter(TaskInstance.task_id == "dummy1").all()
+        ti2s = tiq.filter(TaskInstance.task_id == "dummy2").all()
+
+        # With catchup=False, future task start dates are ignored
+        assert len(ti1s) >= 1, "Expected instances for dummy1 (ignoring future start date with catchup=False)"
+        assert len(ti2s) >= 1, "Expected instances for dummy2"
+
+        # Check that both tasks are scheduled for the same recent interval
+        if ti1s and ti2s:
+            recent_ti1 = ti1s[0]
+            recent_ti2 = ti2s[0]
+            assert (
+                recent_ti1.logical_date == recent_ti2.logical_date
+            ), "Both tasks should be scheduled for the same interval"
 
     def test_scheduler_multiprocessing(self):
         """
@@ -2953,10 +3005,12 @@ class TestSchedulerJob:
 
         Variation with non-default pool_slots
         """
+        # Explicitly set catchup=True as tests expect runs to be created in date order
         with dag_maker(
             dag_id="test_scheduler_verify_pool_full_2_slots_per_task",
             start_date=DEFAULT_DATE,
             session=session,
+            catchup=True,
         ):
             BashOperator(
                 task_id="dummy",
@@ -4105,9 +4159,12 @@ class TestSchedulerJob:
         And if a Dag Run does not exist it creates next Dag Run. In both cases the Scheduler
         sets next logical date as DagModel.next_dagrun
         """
+        # By setting catchup=True explicitly, we ensure the test behaves as originally intended
+        # using the historical date as the next_dagrun date.
         with dag_maker(
             dag_id="test_scheduler_create_dag_runs_check_existing_run",
             schedule=timedelta(days=1),
+            catchup=True,
         ) as dag:
             EmptyOperator(
                 task_id="dummy",
@@ -4254,7 +4311,8 @@ class TestSchedulerJob:
         This tests that when max_active_runs is reached, _create_dag_runs doesn't create
         more dagruns
         """
-        with dag_maker(max_active_runs=1):
+        # Explicitly set catchup=True as test specifically expects historical dates to be respected
+        with dag_maker(max_active_runs=1, catchup=True):
             EmptyOperator(task_id="task")
         scheduler_job = Job(executor=MockExecutor(do_update=False))
         self.job_runner = SchedulerJobRunner(job=scheduler_job)
@@ -4317,7 +4375,8 @@ class TestSchedulerJob:
 
         self.clean_db()
 
-        with dag_maker(max_active_runs=3, session=session) as dag:
+        # Explicitly set catchup=True as test specifically expects runs to be created in date order
+        with dag_maker(max_active_runs=3, session=session, catchup=True) as dag:
             # Need to use something that doesn't immediately get marked as success by the scheduler
             BashOperator(task_id="task", bash_command="true")
 
@@ -4361,11 +4420,12 @@ class TestSchedulerJob:
         Make sure that when a DAG is already at max_active_runs, that manually triggered
         dagruns don't start running.
         """
-
+        # Explicitly set catchup=True as test specifically expects runs to be created in date order
         with dag_maker(
             dag_id="test_max_active_run_plus_manual_trigger",
             schedule="@once",
             max_active_runs=1,
+            catchup=True,
         ) as dag:
             # Can't use EmptyOperator as that goes straight to success
             task1 = BashOperator(task_id="dummy1", bash_command="true")
@@ -4412,11 +4472,13 @@ class TestSchedulerJob:
 
     def test_max_active_runs_in_a_dag_doesnt_stop_running_dag_runs_in_other_dags(self, dag_maker):
         session = settings.Session()
+        # Explicitly set catchup=True as test specifically expects historical dates to be respected
         with dag_maker(
             "test_dag1",
             start_date=DEFAULT_DATE,
             schedule=timedelta(hours=1),
             max_active_runs=1,
+            catchup=True,
         ) as dag:
             EmptyOperator(task_id="mytask")
         dag_version = DagVersion.get_latest_version(dag.dag_id)
@@ -4428,10 +4490,12 @@ class TestSchedulerJob:
                 dr, run_type=DagRunType.SCHEDULED, state=State.QUEUED, dag_version=dag_version
             )
 
+        # Explicitly set catchup=True as test specifically expects historical dates to be respected
         with dag_maker(
             "test_dag2",
             start_date=timezone.datetime(2020, 1, 1),
             schedule=timedelta(hours=1),
+            catchup=True,
         ) as dag2:
             EmptyOperator(task_id="mytask")
         dag_version = DagVersion.get_latest_version(dag2.dag_id)
@@ -4460,13 +4524,14 @@ class TestSchedulerJob:
         assert dag1_running_count == 1
         assert running_count == 11
 
-    def test_max_active_runs_in_a_dag_doesnt_prevent_backfill_from_running(self, dag_maker):
+    def test_max_active_runs_in_a_dag_doesnt_prevent_backfill_from_running_catchup_true(self, dag_maker):
         session = settings.Session()
         with dag_maker(
             "test_dag1",
             start_date=DEFAULT_DATE,
             schedule=timedelta(days=1),
             max_active_runs=1,
+            catchup=True,
         ) as dag:
             EmptyOperator(task_id="mytask")
         dag1_dag_id = dag.dag_id
@@ -4483,6 +4548,7 @@ class TestSchedulerJob:
             "test_dag2",
             start_date=timezone.datetime(2020, 1, 1),
             schedule=timedelta(days=1),
+            catchup=True,
         ) as dag:
             EmptyOperator(task_id="mytask")
         dag_version = DagVersion.get_latest_version(dag.dag_id)
@@ -4566,7 +4632,97 @@ class TestSchedulerJob:
         )
         assert total_running_count == 14
 
-    def test_backfill_runs_are_started_with_lower_priority(self, dag_maker, session):
+    def test_max_active_runs_in_a_dag_doesnt_prevent_backfill_from_running_catchup_false(self, dag_maker):
+        """Test that with catchup=False, backfills can still run even when max_active_runs is reached for normal DAG runs"""
+        session = settings.Session()
+        with dag_maker(
+            "test_dag1",
+            start_date=DEFAULT_DATE,
+            schedule=timedelta(days=1),
+            max_active_runs=1,
+            catchup=False,
+        ) as dag:
+            EmptyOperator(task_id="mytask")
+        dag1_dag_id = dag.dag_id
+        dag_version = DagVersion.get_latest_version(dag1_dag_id)
+        dr = dag_maker.create_dagrun(
+            run_type=DagRunType.SCHEDULED, state=State.QUEUED, dag_version=dag_version
+        )
+        # Fewer DAG runs since we're only testing recent dates with catchup=False
+        for _ in range(2):
+            dr = dag_maker.create_dagrun_after(
+                dr, run_type=DagRunType.SCHEDULED, state=State.QUEUED, dag_version=dag_version
+            )
+
+        with dag_maker(
+            "test_dag2",
+            start_date=timezone.datetime(2020, 1, 1),
+            schedule=timedelta(days=1),
+            catchup=False,
+        ) as dag:
+            EmptyOperator(task_id="mytask")
+        dag_version = DagVersion.get_latest_version(dag.dag_id)
+        dr = dag_maker.create_dagrun(
+            run_type=DagRunType.SCHEDULED, state=State.QUEUED, dag_version=dag_version
+        )
+        for _ in range(2):
+            dr = dag_maker.create_dagrun_after(
+                dr, run_type=DagRunType.SCHEDULED, state=State.QUEUED, dag_version=dag_version
+            )
+
+        scheduler_job = Job(executor=MockExecutor(do_update=False))
+        self.job_runner = SchedulerJobRunner(job=scheduler_job)
+
+        self.job_runner._start_queued_dagruns(session)
+        session.flush()
+        self.job_runner._start_queued_dagruns(session)
+        session.flush()
+
+        dag1_running_count = (
+            session.query(func.count(DagRun.id))
+            .filter(DagRun.dag_id == "test_dag1", DagRun.state == State.RUNNING)
+            .scalar()
+        )
+        running_count = session.query(func.count(DagRun.id)).filter(DagRun.state == State.RUNNING).scalar()
+        assert dag1_running_count == 1
+        # With catchup=False, only the most recent interval is scheduled for each DAG
+        assert (
+            running_count == 2
+        )  # 1 from test_dag1 (limited by max_active_runs) + 1 from test_dag2 (only most recent with catchup=False)
+
+        # Test that backfills can still run despite max_active_runs being reached for normal runs
+        from_date = pendulum.parse("2021-01-01")
+        to_date = pendulum.parse("2021-01-06")
+        _backfill = _create_backfill(
+            dag_id=dag1_dag_id,
+            from_date=from_date,
+            to_date=to_date,
+            max_active_runs=3,
+            reverse=False,
+            dag_run_conf={},
+        )
+
+        # scheduler will now mark backfill runs as running
+        self.job_runner._start_queued_dagruns(session)
+        session.flush()
+        dag1_running_count = (
+            session.query(func.count(DagRun.id))
+            .filter(
+                DagRun.dag_id == dag1_dag_id,
+                DagRun.state == State.RUNNING,
+            )
+            .scalar()
+        )
+        # Even with catchup=False, backfill runs should start
+        assert dag1_running_count == 4
+        total_running_count = (
+            session.query(func.count(DagRun.id)).filter(DagRun.state == State.RUNNING).scalar()
+        )
+        assert (
+            total_running_count == 5
+        )  # 4 from test_dag1 + 1 from test_dag2 (only most recent with catchup=False)
+
+    def test_backfill_runs_are_started_with_lower_priority_catchup_true(self, dag_maker, session):
         """
         Here we are going to create all the runs at the same time and see which
         ones are scheduled first.
@@ -4579,6 +4735,7 @@ class TestSchedulerJob:
             start_date=DEFAULT_DATE,
             schedule=timedelta(days=1),
             max_active_runs=1,
+            catchup=True,
         ):
             EmptyOperator(task_id="mytask")
 
@@ -4634,6 +4791,7 @@ class TestSchedulerJob:
             "test_dag2",
             start_date=timezone.datetime(2020, 1, 1),
             schedule=timedelta(days=1),
+            catchup=True,
         ) as dag2:
             EmptyOperator(task_id="mytask")
 
@@ -4691,6 +4849,125 @@ class TestSchedulerJob:
         assert session.scalar(select(func.count()).select_from(DagRun)) == 46
         assert session.scalar(select(func.count()).where(DagRun.dag_id == dag1_dag_id)) == 36
 
+    def test_backfill_runs_are_started_with_lower_priority_catchup_false(self, dag_maker, session):
+        """
+        Test that with catchup=False, backfill runs are still started with lower priority than regular DAG runs,
+        but the scheduler processes fewer runs overall due to catchup=False behavior.
+        """
+        dag1_dag_id = "test_dag1"
+        with dag_maker(
+            dag_id=dag1_dag_id,
+            start_date=DEFAULT_DATE,
+            schedule=timedelta(days=1),
+            max_active_runs=1,
+            catchup=False,
+        ):
+            EmptyOperator(task_id="mytask")
+
+        def _running_counts():
+            dag1_non_b_running = (
+                session.query(func.count(DagRun.id))
+                .filter(
+                    DagRun.dag_id == dag1_dag_id,
+                    DagRun.state == State.RUNNING,
+                    DagRun.run_type != DagRunType.BACKFILL_JOB,
+                )
+                .scalar()
+            )
+            dag1_b_running = (
+                session.query(func.count(DagRun.id))
+                .filter(
+                    DagRun.dag_id == dag1_dag_id,
+                    DagRun.state == State.RUNNING,
+                    DagRun.run_type == DagRunType.BACKFILL_JOB,
+                )
+                .scalar()
+            )
+            total_running_count = (
+                session.query(func.count(DagRun.id)).filter(DagRun.state == State.RUNNING).scalar()
+            )
+            return dag1_non_b_running, dag1_b_running, total_running_count
+
+        scheduler_job = Job(executor=MockExecutor(do_update=False))
+        self.job_runner = SchedulerJobRunner(job=scheduler_job)
+
+        from_date = pendulum.parse("2021-01-01")
+        to_date = pendulum.parse("2021-01-06")
+        _create_backfill(
+            dag_id=dag1_dag_id,
+            from_date=from_date,
+            to_date=to_date,
+            max_active_runs=3,
+            reverse=False,
+            dag_run_conf={},
+        )
+        dag1_non_b_running, dag1_b_running, total_running = _running_counts()
+
+        dag_version = DagVersion.get_latest_version(dag1_dag_id)
+        # Create fewer DAG runs since we're only testing recent dates with catchup=False
+        dr = dag_maker.create_dagrun(
+            run_type=DagRunType.SCHEDULED, state=State.QUEUED, dag_version=dag_version
+        )
+        # With catchup=False, we only create a few runs instead of 29
+        for _ in range(4):
+            dr = dag_maker.create_dagrun_after(
+                dr, run_type=DagRunType.SCHEDULED, state=State.QUEUED, dag_version=dag_version
+            )
+
+        with dag_maker(
+            "test_dag2",
+            start_date=timezone.datetime(2020, 1, 1),
+            schedule=timedelta(days=1),
+            catchup=False,
+        ) as dag2:
+            EmptyOperator(task_id="mytask")
+
+        dag_version = DagVersion.get_latest_version(dag2.dag_id)
+        dr = dag_maker.create_dagrun(
+            run_type=DagRunType.SCHEDULED, state=State.QUEUED, dag_version=dag_version
+        )
+        # With catchup=False, we only create a few runs instead of 9
+        for _ in range(2):
+            dr = dag_maker.create_dagrun_after(
+                dr, run_type=DagRunType.SCHEDULED, state=State.QUEUED, dag_version=dag_version
+            )
+
+        # initial state -- nothing is running
+        assert dag1_non_b_running == 0
+        assert dag1_b_running == 0
+        assert total_running == 0
+        # Total 14 runs: 5 for dag1 + 3 for dag2 + 6 backfill runs (Jan 1-6 inclusive)
+        assert session.query(func.count(DagRun.id)).scalar() == 14
+
+        # now let's run it once
+        self.job_runner._start_queued_dagruns(session)
+        session.flush()
+
+        # With catchup=False, the scheduler behaves differently than with catchup=True
+        dag1_non_b_running, dag1_b_running, total_running = _running_counts()
+        # One normal run starts due to max_active_runs=1
+        assert dag1_non_b_running == 1
+        # With catchup=False, backfill runs are started immediately alongside regular runs
+        assert dag1_b_running == 3
+        # Total running = 1 normal dag1 + 3 backfills + 1 from dag2
+        assert total_running == 5
+
+        # Running the scheduler again doesn't change anything since we've already reached
+        # the limits for both normal runs (max_active_runs=1) and backfill runs (default max_active_runs_per_dag=16)
+        self.job_runner._start_queued_dagruns(session)
+        session.flush()
+
+        dag1_non_b_running, dag1_b_running, total_running = _running_counts()
+        # Still only one normal run due to max_active_runs=1
+        assert dag1_non_b_running == 1
+        # Backfill runs remain at 3 (the maximum allowed by our test configuration)
+        assert dag1_b_running == 3
+        # Total running count remains the same
+        assert total_running == 5
+
+        # Total runs remain the same
+        assert session.query(func.count(DagRun.id)).scalar() == 14
+
     def test_backfill_maxed_out_no_prevent_non_backfill_max_out(self, dag_maker):
         session = settings.Session()
         dag1_dag_id = "test_dag1"
@@ -4699,6 +4976,7 @@ class TestSchedulerJob:
             start_date=DEFAULT_DATE,
             schedule=timedelta(days=1),
             max_active_runs=1,
+            catchup=True,
         ):
             EmptyOperator(task_id="mytask")
 
@@ -4782,6 +5060,7 @@ class TestSchedulerJob:
             "test_dag2",
             start_date=timezone.datetime(2020, 1, 1),
             schedule=timedelta(days=1),
+            catchup=True,
         ) as dag2:
             EmptyOperator(task_id="mytask")
 
@@ -4849,11 +5128,13 @@ class TestSchedulerJob:
         When backfill is paused, will not start.
         """
         dag1_dag_id = "test_dag1"
+        # Explicitly needs catchup True for backfill test
         with dag_maker(
             dag_id=dag1_dag_id,
             start_date=DEFAULT_DATE,
             schedule=timedelta(days=1),
             max_active_runs=1,
+            catchup=True,
         ):
             EmptyOperator(task_id="mytask")
 

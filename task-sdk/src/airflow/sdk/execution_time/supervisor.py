@@ -54,6 +54,7 @@ from pydantic import TypeAdapter
 
 from airflow.sdk.api.client import Client, ServerResponseError
 from airflow.sdk.api.datamodels._generated import (
+    AssetResponse,
     ConnectionResponse,
     IntermediateTIState,
     TaskInstance,
@@ -65,6 +66,7 @@ from airflow.sdk.execution_time.comms import (
     AssetResult,
     ConnectionResult,
     DeferTask,
+    DeleteXCom,
     GetAssetByName,
     GetAssetByUri,
     GetAssetEventByAsset,
@@ -80,6 +82,7 @@ from airflow.sdk.execution_time.comms import (
     RuntimeCheckOnTask,
     SetRenderedFields,
     SetXCom,
+    SkipDownstreamTasks,
     StartupDetails,
     SucceedTask,
     TaskState,
@@ -893,22 +896,32 @@ class ActivitySubprocess(WatchedSubprocess):
         elif isinstance(msg, RescheduleTask):
             self._terminal_state = IntermediateTIState.UP_FOR_RESCHEDULE
             self.client.task_instances.reschedule(self.id, msg)
+        elif isinstance(msg, SkipDownstreamTasks):
+            self.client.task_instances.skip_downstream_tasks(self.id, msg)
         elif isinstance(msg, SetXCom):
             self.client.xcoms.set(
                 msg.dag_id, msg.run_id, msg.task_id, msg.key, msg.value, msg.map_index, msg.mapped_length
             )
+        elif isinstance(msg, DeleteXCom):
+            self.client.xcoms.delete(msg.dag_id, msg.run_id, msg.task_id, msg.key, msg.map_index)
         elif isinstance(msg, PutVariable):
             self.client.variables.set(msg.key, msg.value, msg.description)
         elif isinstance(msg, SetRenderedFields):
             self.client.task_instances.set_rtif(self.id, msg.rendered_fields)
         elif isinstance(msg, GetAssetByName):
             asset_resp = self.client.assets.get(name=msg.name)
-            asset_result = AssetResult.from_asset_response(asset_resp)
-            resp = asset_result.model_dump_json(exclude_unset=True).encode()
+            if isinstance(asset_resp, AssetResponse):
+                asset_result = AssetResult.from_asset_response(asset_resp)
+                resp = asset_result.model_dump_json(exclude_unset=True).encode()
+            else:
+                resp = asset_resp.model_dump_json().encode()
         elif isinstance(msg, GetAssetByUri):
             asset_resp = self.client.assets.get(uri=msg.uri)
-            asset_result = AssetResult.from_asset_response(asset_resp)
-            resp = asset_result.model_dump_json(exclude_unset=True).encode()
+            if isinstance(asset_resp, AssetResponse):
+                asset_result = AssetResult.from_asset_response(asset_resp)
+                resp = asset_result.model_dump_json(exclude_unset=True).encode()
+            else:
+                resp = asset_resp.model_dump_json().encode()
         elif isinstance(msg, GetAssetEventByAsset):
             asset_event_resp = self.client.asset_events.get(uri=msg.uri, name=msg.name)
             asset_event_result = AssetEventsResult.from_asset_events_response(asset_event_resp)

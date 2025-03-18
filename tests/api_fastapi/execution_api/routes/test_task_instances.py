@@ -17,6 +17,7 @@
 
 from __future__ import annotations
 
+import operator
 from datetime import datetime
 from unittest import mock
 
@@ -25,12 +26,11 @@ import uuid6
 from sqlalchemy import select, update
 from sqlalchemy.exc import SQLAlchemyError
 
-from airflow.exceptions import AirflowInactiveAssetInInletOrOutletException
 from airflow.models import RenderedTaskInstanceFields, TaskReschedule, Trigger
 from airflow.models.asset import AssetActive, AssetAliasModel, AssetEvent, AssetModel
 from airflow.models.taskinstance import TaskInstance
 from airflow.models.taskinstancehistory import TaskInstanceHistory
-from airflow.sdk.definitions.asset import AssetUniqueKey
+from airflow.providers.standard.operators.empty import EmptyOperator
 from airflow.utils import timezone
 from airflow.utils.state import State, TaskInstanceState, TerminalTIState
 
@@ -110,6 +110,7 @@ class TestTIRunState:
             "max_tries": 0,
             "variables": [],
             "connections": [],
+            "xcom_keys_to_clear": [],
         }
 
         # Refresh the Task Instance from the database so that we can check the updated values
@@ -186,6 +187,7 @@ class TestTIRunState:
             "max_tries": 0,
             "variables": [],
             "connections": [],
+            "xcom_keys_to_clear": [],
             "next_method": "execute_complete",
             "next_kwargs": {
                 "__type": "dict",
@@ -228,40 +230,6 @@ class TestTIRunState:
         }
 
         assert session.scalar(select(TaskInstance.state).where(TaskInstance.id == ti.id)) == initial_ti_state
-
-    def test_xcom_cleared_when_ti_runs(self, client, session, create_task_instance, time_machine):
-        """
-        Test that the xcoms are cleared when the Task Instance state is updated to running.
-        """
-        instant_str = "2024-09-30T12:00:00Z"
-        instant = timezone.parse(instant_str)
-        time_machine.move_to(instant, tick=False)
-
-        ti = create_task_instance(
-            task_id="test_xcom_cleared_when_ti_runs",
-            state=State.QUEUED,
-            session=session,
-            start_date=instant,
-        )
-        session.commit()
-
-        # Lets stage a xcom push
-        ti.xcom_push(key="key", value="value")
-
-        response = client.patch(
-            f"/execution/task-instances/{ti.id}/run",
-            json={
-                "state": "running",
-                "hostname": "random-hostname",
-                "unixname": "random-unixname",
-                "pid": 100,
-                "start_date": instant_str,
-            },
-        )
-
-        assert response.status_code == 200
-        # Once the task is running, we can check if xcom is cleared
-        assert ti.xcom_pull(task_ids="test_xcom_cleared_when_ti_runs", key="key") is None
 
     def test_xcom_not_cleared_for_deferral(self, client, session, create_task_instance, time_machine):
         """
@@ -663,14 +631,14 @@ class TestTIUpdateState:
 
         trs = session.query(TaskReschedule).all()
         assert len(trs) == 1
-        assert trs[0].dag_id == "dag"
-        assert trs[0].task_id == "test_ti_update_state_to_reschedule"
-        assert trs[0].run_id == "test"
+        assert trs[0].task_instance.dag_id == "dag"
+        assert trs[0].task_instance.task_id == "test_ti_update_state_to_reschedule"
+        assert trs[0].task_instance.run_id == "test"
         assert trs[0].try_number == 0
         assert trs[0].start_date == instant
         assert trs[0].end_date == DEFAULT_END_DATE
         assert trs[0].reschedule_date == timezone.parse("2024-10-31T11:03:00+00:00")
-        assert trs[0].map_index == -1
+        assert trs[0].task_instance.map_index == -1
         assert trs[0].duration == 129600
 
     @pytest.mark.parametrize(
@@ -826,46 +794,48 @@ class TestTIUpdateState:
         )
         session.commit()
 
-        with mock.patch(
-            "airflow.models.taskinstance.TaskInstance.validate_inlet_outlet_assets_activeness"
-        ) as mock_validate_inlet_outlet_assets_activeness:
-            mock_validate_inlet_outlet_assets_activeness.return_value = None
-            response = client.post(
-                f"/execution/task-instances/{ti.id}/runtime-checks",
-                json={
-                    "inlets": [],
-                    "outlets": [],
-                },
-            )
-
-            assert response.status_code == expected_status_code
-
-        session.expire_all()
-
-    def test_ti_runtime_checks_failure(self, client, session, create_task_instance):
-        ti = create_task_instance(
-            task_id="test_ti_runtime_checks_failure",
-            state=State.RUNNING,
+        response = client.post(
+            f"/execution/task-instances/{ti.id}/runtime-checks",
+            json={
+                "inlets": [],
+                "outlets": [],
+            },
         )
-        session.commit()
-
-        with mock.patch(
-            "airflow.models.taskinstance.TaskInstance.validate_inlet_outlet_assets_activeness"
-        ) as mock_validate_inlet_outlet_assets_activeness:
-            mock_validate_inlet_outlet_assets_activeness.side_effect = (
-                AirflowInactiveAssetInInletOrOutletException([AssetUniqueKey(name="abc", uri="something")])
-            )
-            response = client.post(
-                f"/execution/task-instances/{ti.id}/runtime-checks",
-                json={
-                    "inlets": [],
-                    "outlets": [],
-                },
-            )
-
-            assert response.status_code == 400
+        assert response.status_code == expected_status_code
 
         session.expire_all()
+
+
+class TestTISkipDownstream:
+    def setup_method(self):
+        clear_db_runs()
+
+    def teardown_method(self):
+        clear_db_runs()
+
+    @pytest.mark.parametrize("_json", (({"tasks": ["t1"]}), ({"tasks": [("t1", -1)]})))
+    def test_ti_skip_downstream(self, client, session, create_task_instance, dag_maker, _json):
+        with dag_maker("skip_downstream_dag", session=session):
+            t0 = EmptyOperator(task_id="t0")
+            t1 = EmptyOperator(task_id="t1")
+            t0 >> t1
+        dr = dag_maker.create_dagrun(run_id="run")
+        decision = dr.task_instance_scheduling_decisions(session=session)
+        for ti in sorted(decision.schedulable_tis, key=operator.attrgetter("task_id")):
+            # TODO: TaskSDK #45549
+            ti.task = dag_maker.dag.get_task(ti.task_id)
+            ti.run(session=session)
+
+        t0 = dr.get_task_instance("t0")
+        response = client.patch(
+            f"/execution/task-instances/{t0.id}/skip-downstream",
+            json=_json,
+        )
+        t1 = dr.get_task_instance("t1")
+
+        assert response.status_code == 204
+        assert decision.schedulable_tis[0].state == State.SUCCESS
+        assert t1.state == State.SKIPPED
 
 
 class TestTIHealthEndpoint:
