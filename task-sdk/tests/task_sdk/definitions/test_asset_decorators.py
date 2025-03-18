@@ -222,7 +222,7 @@ class Test_AssetMainOperator:
             example_asset_func_with_valid_arg_as_inlet_asset_and_default
         )
         op = _AssetMainOperator.from_definition(definition)
-        assert op.task_id == "__main__"
+        assert op.task_id == "example_asset_func"
         assert op.inlets == [Asset.ref(name="inlet_asset_1")]
         assert op.outlets == [definition]
         assert op.python_callable == example_asset_func_with_valid_arg_as_inlet_asset_and_default
