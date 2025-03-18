@@ -67,12 +67,12 @@ export const UserSettingsButton = () => {
         >
           {dagView === "grid" ? (
             <>
-              <MdOutlineAccountTree />
+              <MdOutlineAccountTree size="1.25rem" style={{ marginRight: "8px" }} />
               Default to graph view
             </>
           ) : (
             <>
-              <FiGrid />
+              <FiGrid size="1.25rem" style={{ marginRight: "8px" }} />
               Default to grid view
             </>
           )}
