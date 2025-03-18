@@ -231,6 +231,12 @@ For more information regarding setup of the PostgreSQL connection, see `PostgreS
    PGBouncer instance with flipping a boolean flag. You can take a look at the approach we have taken there and use it as
    an inspiration, when you prepare your own Deployment, even if you do not use the Official Helm Chart.
 
+   Note that PGBouncer is currently **not** handling a ``search_path`` set in the sqlalchemy connection string : therefore, the previous
+   configuration set in :ref:`Other configuration options` should not work. To keep a distinct schema, you will need :
+   1. to create a specific user;
+   2. register the ``search_path`` for this user (see just above);
+   3. set the sqlalchemy connection string with this user.
+
    See also :ref:`Helm Chart production guide <production-guide:pgbouncer>`
 
 
@@ -357,6 +363,10 @@ For instance, you can specify a database schema where Airflow will create its re
     export AIRFLOW__DATABASE__SQL_ALCHEMY_SCHEMA="airflow"
 
 Note the ``search_path`` at the end of the ``SQL_ALCHEMY_CONN`` database URL.
+
+.. note::
+
+   If you are using a PostgreSQL Database in production with PGBouncer in between, setting the ``search_path`` in the sqlalchemy connection string might not be supported. Please have a look at :ref:`Setting up a PostgreSQL Database`.
 
 
 Initialize the database
