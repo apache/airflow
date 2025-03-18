@@ -21,7 +21,7 @@ import { useState } from "react";
 
 import { useConnectionServiceGetConnectionsKey, useConnectionServicePostConnection } from "openapi/queries";
 import { toaster } from "src/components/ui";
-import type { AddConnectionParams } from "src/pages/Connections/ConnectionForm";
+import type { AddConnectionParams } from "src/pages/Connections/AddConnectionButton";
 
 export const useAddConnection = ({ onSuccessConfirm }: { onSuccessConfirm: () => void }) => {
   const queryClient = useQueryClient();

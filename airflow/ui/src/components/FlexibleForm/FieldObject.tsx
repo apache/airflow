@@ -19,8 +19,9 @@
 import { Text } from "@chakra-ui/react";
 import { useState } from "react";
 
+import { paramPlaceholder, useParamStore } from "src/queries/useParamStore";
+
 import type { FlexibleFormElementProps } from ".";
-import { paramPlaceholder, useParamStore } from "../../queries/useParamStore";
 import { JsonEditor } from "../JsonEditor";
 
 export const FieldObject = ({ name }: FlexibleFormElementProps) => {

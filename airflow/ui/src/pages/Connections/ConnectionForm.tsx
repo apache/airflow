@@ -27,33 +27,23 @@ import { FlexibleForm, flexibleFormExtraFieldSection } from "src/components/Flex
 import { JsonEditor } from "src/components/JsonEditor";
 import { Accordion } from "src/components/ui";
 import { useAddConnection } from "src/queries/useAddConnection";
-import { useConnectionTypeMeta } from "src/queries/useConnectionTypeMeta";
+import type { ConnectionMetaEntry } from "src/queries/useConnectionTypeMeta";
 import type { ParamsSpec } from "src/queries/useDagParams";
 import { useParamStore } from "src/queries/useParamStore";
 
+import type { AddConnectionParams } from "./AddConnectionButton";
+
 type AddConnectionFormProps = {
+  readonly connectionTypeMeta: Record<string, ConnectionMetaEntry>;
+  readonly connectionTypes: Array<string>;
   readonly onClose: () => void;
 };
 
-export type AddConnectionParams = {
-  conf: string;
-  conn_type: string;
-  connection_id: string;
-  description: string;
-  host: string;
-  login: string;
-  password: string;
-  port: string;
-  schema: string;
-};
-
-const ConnectionForm = ({ onClose }: AddConnectionFormProps) => {
+const ConnectionForm = ({ connectionTypeMeta, connectionTypes, onClose }: AddConnectionFormProps) => {
   const [errors, setErrors] = useState<{ conf?: string }>({});
-  const { formattedData: connectionTypeMeta, keysList: connectionTypes } = useConnectionTypeMeta();
   const { addConnection, error, isPending } = useAddConnection({ onSuccessConfirm: onClose });
   const { conf, setConf } = useParamStore();
   const [showPassword, setShowPassword] = useState(false);
-
   const {
     control,
     formState: { isValid },
@@ -72,6 +62,7 @@ const ConnectionForm = ({ onClose }: AddConnectionFormProps) => {
       port: "",
       schema: "",
     },
+    mode: "onBlur",
   });
 
   const selectedConnType = watch("conn_type"); // Get the selected connection type
@@ -108,7 +99,6 @@ const ConnectionForm = ({ onClose }: AddConnectionFormProps) => {
       const parsedJson = JSON.parse(value) as JSON;
 
       setErrors((prev) => ({ ...prev, conf: undefined }));
-
       const formattedJson = JSON.stringify(parsedJson, undefined, 2);
 
       if (formattedJson !== conf) {
@@ -154,14 +144,15 @@ const ConnectionForm = ({ onClose }: AddConnectionFormProps) => {
           )}
           rules={{
             required: "Connection ID is required",
+            validate: (value) => (value.trim() === "" ? "Connection ID cannot contain only spaces" : true),
           }}
         />
 
         <Controller
           control={control}
           name="conn_type"
-          render={({ field: { onChange, value } }) => (
-            <Field.Root orientation="horizontal" required>
+          render={({ field: { onChange, value }, fieldState }) => (
+            <Field.Root invalid={Boolean(fieldState.error)} orientation="horizontal" required>
               <Stack>
                 <Field.Label fontSize="md" style={{ flexBasis: "30%" }}>
                   Connection Type <Field.RequiredIndicator />
@@ -182,6 +173,9 @@ const ConnectionForm = ({ onClose }: AddConnectionFormProps) => {
               </Stack>
             </Field.Root>
           )}
+          rules={{
+            required: "Connection Type is required",
+          }}
         />
 
         {selectedConnType ? (
@@ -272,7 +266,6 @@ const ConnectionForm = ({ onClose }: AddConnectionFormProps) => {
           </>
         ) : undefined}
       </VStack>
-
       <ErrorAlert error={error} />
       <Box as="footer" display="flex" justifyContent="flex-end" mr={3} mt={4}>
         <HStack w="full">

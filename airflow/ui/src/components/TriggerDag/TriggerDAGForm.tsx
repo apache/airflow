@@ -22,10 +22,10 @@ import { useForm, Controller } from "react-hook-form";
 import { FiPlay } from "react-icons/fi";
 
 import { useDagParams } from "src/queries/useDagParams";
+import { useParamStore } from "src/queries/useParamStore";
 import { useTogglePause } from "src/queries/useTogglePause";
 import { useTrigger } from "src/queries/useTrigger";
 
-import { useParamStore } from "../../queries/useParamStore";
 import { ErrorAlert } from "../ErrorAlert";
 import { FlexibleForm, flexibleFormDefaultSection } from "../FlexibleForm";
 import { JsonEditor } from "../JsonEditor";

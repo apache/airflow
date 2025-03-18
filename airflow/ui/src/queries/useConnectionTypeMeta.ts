@@ -29,7 +29,7 @@ type StandardFieldSchema = {
   title?: string | undefined;
 };
 
-type ConnectionMetaEntry = {
+export type ConnectionMetaEntry = {
   connection_type: string;
   default_conn_name: string | undefined;
   extra_fields: ParamsSpec;
@@ -41,7 +41,8 @@ type ConnectionMetaEntry = {
 type ConnectionMeta = Array<ConnectionMetaEntry>;
 
 export const useConnectionTypeMeta = () => {
-  const { data, error }: { data?: ConnectionMeta; error?: unknown } = useConnectionServiceHookMetaData();
+  const { data, error, isPending }: { data?: ConnectionMeta; error?: unknown; isPending: boolean } =
+    useConnectionServiceHookMetaData();
 
   if (Boolean(error)) {
     const errorDescription =
@@ -110,5 +111,7 @@ export const useConnectionTypeMeta = () => {
     };
   });
 
-  return { formattedData, keysList };
+  keysList.sort((first, second) => first.localeCompare(second));
+
+  return { formattedData, isPending, keysList };
 };

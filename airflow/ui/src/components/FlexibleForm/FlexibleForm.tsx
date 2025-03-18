@@ -20,8 +20,8 @@ import { Box, Stack, StackSeparator } from "@chakra-ui/react";
 import { useEffect } from "react";
 
 import type { ParamsSpec } from "src/queries/useDagParams";
+import { useParamStore } from "src/queries/useParamStore";
 
-import { useParamStore } from "../../queries/useParamStore";
 import { Accordion } from "../ui";
 import { Row } from "./Row";
 
