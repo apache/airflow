@@ -23,15 +23,13 @@ const getTokenFromCookies = (): string | undefined => {
   const cookies = document.cookie.split(";");
 
   for (const cookie of cookies) {
-    if (cookie.startsWith("_token=")) {
-      const [, token] = cookie.split("=");
+    const [name, token] = cookie.split("=");
 
-      if (token !== undefined) {
-        localStorage.setItem(TOKEN_STORAGE_KEY, token);
-        document.cookie = "_token=; expires=Thu, 01 Jan 2000 00:00:00 UTC; path=/;";
+    if (name?.trim() === "_token" && token !== undefined) {
+      localStorage.setItem(TOKEN_STORAGE_KEY, token);
+      document.cookie = "_token=; expires=Thu, 01 Jan 2000 00:00:00 UTC; path=/;";
 
-        return token;
-      }
+      return token;
     }
   }
 

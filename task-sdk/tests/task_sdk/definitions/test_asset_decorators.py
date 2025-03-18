@@ -211,7 +211,7 @@ class Test_AssetMainOperator:
             example_asset_func_with_valid_arg_as_inlet_asset
         )
         op = _AssetMainOperator.from_definition(definition)
-        assert op.task_id == "__main__"
+        assert op.task_id == "example_asset_func"
         assert op.inlets == [Asset.ref(name="inlet_asset_1"), Asset.ref(name="inlet_asset_2")]
         assert op.outlets == [definition]
         assert op.python_callable == example_asset_func_with_valid_arg_as_inlet_asset
@@ -222,7 +222,7 @@ class Test_AssetMainOperator:
             example_asset_func_with_valid_arg_as_inlet_asset_and_default
         )
         op = _AssetMainOperator.from_definition(definition)
-        assert op.task_id == "__main__"
+        assert op.task_id == "example_asset_func"
         assert op.inlets == [Asset.ref(name="inlet_asset_1")]
         assert op.outlets == [definition]
         assert op.python_callable == example_asset_func_with_valid_arg_as_inlet_asset_and_default
@@ -234,7 +234,7 @@ class Test_AssetMainOperator:
             outlets=[Asset(name="a"), Asset(name="b")],
         )(example_asset_func_with_valid_arg_as_inlet_asset)
         op = _AssetMainOperator.from_definition(definition)
-        assert op.task_id == "__main__"
+        assert op.task_id == "example_asset_func"
         assert op.inlets == [Asset.ref(name="inlet_asset_1"), Asset.ref(name="inlet_asset_2")]
         assert op.outlets == [Asset(name="a"), Asset(name="b")]
         assert op.python_callable == example_asset_func_with_valid_arg_as_inlet_asset
@@ -266,7 +266,7 @@ class Test_AssetMainOperator:
         }
 
         op = _AssetMainOperator(
-            task_id="__main__",
+            task_id="example_asset_func",
             inlets=[Asset.ref(name="inlet_asset_1"), Asset.ref(name="inlet_asset_2")],
             outlets=[asset_definition],
             python_callable=example_asset_func_with_valid_arg_as_inlet_asset,
