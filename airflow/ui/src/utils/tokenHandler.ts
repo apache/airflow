@@ -23,7 +23,7 @@ const getTokenFromCookies = (): string | undefined => {
   const cookies = document.cookie.split(";");
 
   for (const cookie of cookies) {
-    if (cookie.startsWith("_token=")) {
+    if (cookie.includes("_token=")) {
       const [, token] = cookie.split("=");
 
       if (token !== undefined) {
