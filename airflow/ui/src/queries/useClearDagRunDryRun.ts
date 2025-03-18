@@ -47,5 +47,5 @@ export const useClearDagRunDryRun = <TData = TaskInstanceCollectionResponse, TEr
           ...requestBody,
         },
       }) as TData,
-    queryKey: [useClearDagRunDryRunKey, dagId, { only_failed: requestBody.only_failed }],
+    queryKey: [useClearDagRunDryRunKey, dagId, dagRunId, { only_failed: requestBody.only_failed }],
   });
