@@ -27,7 +27,7 @@ const getTokenFromCookies = (): string | undefined => {
 
     if (name?.trim() === "_token" && token !== undefined) {
       localStorage.setItem(TOKEN_STORAGE_KEY, token);
-      document.cookie = "_token=; expires=Thu, 01 Jan 2000 00:00:00 UTC; path=/;";
+      document.cookie = "_token=; expires=Sat, 01 Jan 2000 00:00:00 UTC; path=/;";
 
       return token;
     }
