@@ -38,6 +38,7 @@ from airflow.providers.cncf.kubernetes.utils.pod_manager import (
     container_is_running,
     container_is_succeeded,
     container_is_terminated,
+    get_container_status,
 )
 from airflow.utils.timezone import utc
 
@@ -886,6 +887,12 @@ def params_for_test_container_is_succeeded():
     p = RemotePodMock()
     p.status = None
     pod_mock_list.append(pytest.param(p, False, id="None remote_pod.status"))
+    p = RemotePodMock()
+    p.status = RemotePodMock()
+    p.status.container_statuses = None
+    p.status.init_container_statuses = []
+
+    pod_mock_list.append(pytest.param(p, False, id="None remote_pod.status.container_statuses"))
     p = RemotePodMock()
     p.status = RemotePodMock()
     p.status.container_statuses = []
