@@ -29,12 +29,12 @@ type Props<TData, TError> = {
 const useCreateBackfillDryRunKey = "useCreateBackfillDryRunKey";
 
 const validateHeaderName = (requestBody: CreateBackfillDryRunData) => {
+  if (requestBody.requestBody.from_date === "" || requestBody.requestBody.to_date === "") {
+    return false;
+  }
   const dataIntervalStart = new Date(requestBody.requestBody.from_date);
   const dataIntervalEnd = new Date(requestBody.requestBody.to_date);
 
-  if (isNaN(dataIntervalStart.getTime()) || isNaN(dataIntervalEnd.getTime())) {
-    return false;
-  }
   if (dataIntervalStart > dataIntervalEnd) {
     return false;
   }
