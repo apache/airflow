@@ -32,12 +32,11 @@ from airflow.dag_processing.bundles.base import (
 from airflow.exceptions import AirflowException
 from airflow.hooks.base import BaseHook
 from airflow.providers.git.hooks.git import GitHook
-from airflow.utils.log.logging_mixin import LoggingMixin
 
 log = structlog.get_logger()
 
 
-class GitDagBundle(BaseDagBundle, LoggingMixin):
+class GitDagBundle(BaseDagBundle):
     """
     git DAG bundle - exposes a git repository as a DAG bundle.
 
