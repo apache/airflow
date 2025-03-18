@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2025-03-18T03:02:53.027898
+# This constraints file was automatically generated on 2025-03-18T08:33:10.732549
 # via "eager-upgrade" mechanism of PIP. For the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version for 'apache-airflow' but installs
 # the providers from PIP-released packages at the moment of the constraint generation.
@@ -724,7 +724,7 @@ types-PyMySQL==1.1.0.20241103
 types-PyYAML==6.0.12.20241230
 types-aiofiles==24.1.0.20241221
 types-certifi==2021.10.8.3
-types-cffi==1.16.0.20250307
+types-cffi==1.16.0.20250318
 types-croniter==5.0.1.20241205
 types-docutils==0.21.0.20241128
 types-paramiko==3.5.0.20240928
