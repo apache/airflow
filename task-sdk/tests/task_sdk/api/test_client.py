@@ -26,7 +26,12 @@ import uuid6
 from task_sdk import make_client, make_client_w_dry_run, make_client_w_responses
 
 from airflow.sdk.api.client import RemoteValidationError, ServerResponseError
-from airflow.sdk.api.datamodels._generated import ConnectionResponse, VariableResponse, XComResponse
+from airflow.sdk.api.datamodels._generated import (
+    AssetResponse,
+    ConnectionResponse,
+    VariableResponse,
+    XComResponse,
+)
 from airflow.sdk.exceptions import ErrorType
 from airflow.sdk.execution_time.comms import DeferTask, ErrorResponse, RescheduleTask
 from airflow.utils import timezone
@@ -649,3 +654,60 @@ class TestConnectionOperations:
 
         assert isinstance(result, ErrorResponse)
         assert result.error == ErrorType.CONNECTION_NOT_FOUND
+
+
+class TestAssetOperations:
+    @pytest.mark.parametrize(
+        "request_params",
+        [
+            ({"name": "this_asset"}),
+            ({"uri": "s3://bucket/key"}),
+        ],
+    )
+    def test_by_name_get_success(self, request_params):
+        def handle_request(request: httpx.Request) -> httpx.Response:
+            if request.url.path in ("/assets/by-name", "/assets/by-uri"):
+                return httpx.Response(
+                    status_code=200,
+                    json={
+                        "name": "this_asset",
+                        "uri": "s3://bucket/key",
+                        "group": "asset",
+                        "extra": {"foo": "bar"},
+                    },
+                )
+            return httpx.Response(status_code=400, json={"detail": "Bad Request"})
+
+        client = make_client(transport=httpx.MockTransport(handle_request))
+        result = client.assets.get(**request_params)
+
+        assert isinstance(result, AssetResponse)
+        assert result.name == "this_asset"
+        assert result.uri == "s3://bucket/key"
+
+    @pytest.mark.parametrize(
+        "request_params",
+        [
+            ({"name": "this_asset"}),
+            ({"uri": "s3://bucket/key"}),
+        ],
+    )
+    def test_by_name_get_404_not_found(self, request_params):
+        def handle_request(request: httpx.Request) -> httpx.Response:
+            if request.url.path in ("/assets/by-name", "/assets/by-uri"):
+                return httpx.Response(
+                    status_code=404,
+                    json={
+                        "detail": {
+                            "message": "Asset with name non_existent not found",
+                            "reason": "not_found",
+                        }
+                    },
+                )
+            return httpx.Response(status_code=400, json={"detail": "Bad Request"})
+
+        client = make_client(transport=httpx.MockTransport(handle_request))
+        result = client.assets.get(**request_params)
+
+        assert isinstance(result, ErrorResponse)
+        assert result.error == ErrorType.ASSET_NOT_FOUIND
