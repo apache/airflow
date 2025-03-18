@@ -98,31 +98,31 @@ export const PanelButtons = ({ dagView, setDagView, ...rest }: Props) => {
         </IconButton>
       </ButtonGroup>
       <Stack alignItems="flex-end" gap={1} mr={2}>
-        <DagVersionSelect disabled={dagView !== "graph"} />
+        <HStack>
+          <DagVersionSelect disabled={dagView !== "graph"} />
+          <DagRunSelect />
+        </HStack>
         {dagView === "graph" ? (
-          <>
-            <Select.Root
-              bg="bg"
-              collection={options}
-              data-testid="filter-duration"
-              onValueChange={handleDepsChange}
-              size="sm"
-              value={[dependencies]}
-              width="210px"
-            >
-              <Select.Trigger>
-                <Select.ValueText placeholder="Dependencies" />
-              </Select.Trigger>
-              <Select.Content>
-                {options.items.map((option) => (
-                  <Select.Item item={option} key={option.value}>
-                    {option.label}
-                  </Select.Item>
-                ))}
-              </Select.Content>
-            </Select.Root>
-            <DagRunSelect />
-          </>
+          <Select.Root
+            bg="bg"
+            collection={options}
+            data-testid="filter-duration"
+            onValueChange={handleDepsChange}
+            size="sm"
+            value={[dependencies]}
+            width="210px"
+          >
+            <Select.Trigger>
+              <Select.ValueText placeholder="Dependencies" />
+            </Select.Trigger>
+            <Select.Content>
+              {options.items.map((option) => (
+                <Select.Item item={option} key={option.value}>
+                  {option.label}
+                </Select.Item>
+              ))}
+            </Select.Content>
+          </Select.Root>
         ) : undefined}
       </Stack>
     </HStack>
