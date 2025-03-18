@@ -33,7 +33,7 @@ import zipfile
 from collections import defaultdict, deque
 from collections.abc import Callable, Iterable, Iterator
 from dataclasses import dataclass, field
-from datetime import datetime, timedelta
+from datetime import datetime
 from importlib import import_module
 from operator import attrgetter, itemgetter
 from pathlib import Path
@@ -41,7 +41,7 @@ from typing import TYPE_CHECKING, Any, NamedTuple, cast
 
 import attrs
 import structlog
-from sqlalchemy import select, update
+from sqlalchemy import select
 from sqlalchemy.orm import load_only
 from tabulate import tabulate
 from uuid6 import uuid7
@@ -158,17 +158,9 @@ class DagFileProcessorManager(LoggingMixin):
 
     _parallelism: int = attrs.field(factory=_config_int_factory("dag_processor", "parsing_processes"))
 
-    parsing_cleanup_interval: float = attrs.field(
-        factory=_config_int_factory("scheduler", "parsing_cleanup_interval")
-    )
     _file_process_interval: float = attrs.field(
         factory=_config_int_factory("dag_processor", "min_file_process_interval")
     )
-    stale_dag_threshold: float = attrs.field(
-        factory=_config_int_factory("dag_processor", "stale_dag_threshold")
-    )
-
-    _last_deactivate_stale_dags_time: float = attrs.field(default=0, init=False)
     print_stats_interval: float = attrs.field(
         factory=_config_int_factory("dag_processor", "print_stats_interval")
     )
@@ -251,59 +243,6 @@ class DagFileProcessorManager(LoggingMixin):
 
         return self._run_parsing_loop()
 
-    def _scan_stale_dags(self):
-        """Scan and deactivate DAGs which are no longer present in files."""
-        now = time.monotonic()
-        elapsed_time_since_refresh = now - self._last_deactivate_stale_dags_time
-        if elapsed_time_since_refresh > self.parsing_cleanup_interval:
-            last_parsed = {
-                file_info: stat.last_finish_time
-                for file_info, stat in self._file_stats.items()
-                if stat.last_finish_time
-            }
-            self.deactivate_stale_dags(last_parsed=last_parsed)
-            self._last_deactivate_stale_dags_time = time.monotonic()
-
-    @provide_session
-    def deactivate_stale_dags(
-        self,
-        last_parsed: dict[DagFileInfo, datetime | None],
-        session: Session = NEW_SESSION,
-    ):
-        """Detect and deactivate DAGs which are no longer present in files."""
-        to_deactivate = set()
-        bundle_names = {b.name for b in self._dag_bundles}
-        query = select(
-            DagModel.dag_id,
-            DagModel.bundle_name,
-            DagModel.fileloc,
-            DagModel.last_parsed_time,
-            DagModel.relative_fileloc,
-        ).where(DagModel.is_active, DagModel.bundle_name.in_(bundle_names))
-        dags_parsed = session.execute(query)
-
-        for dag in dags_parsed:
-            # The largest valid difference between a DagFileStat's last_finished_time and a DAG's
-            # last_parsed_time is the processor_timeout. Longer than that indicates that the DAG is
-            # no longer present in the file. We have a stale_dag_threshold configured to prevent a
-            # significant delay in deactivation of stale dags when a large timeout is configured
-            file_info = DagFileInfo(rel_path=Path(dag.relative_fileloc), bundle_name=dag.bundle_name)
-            if last_finish_time := last_parsed.get(file_info, None):
-                if dag.last_parsed_time + timedelta(seconds=self.stale_dag_threshold) < last_finish_time:
-                    self.log.info("DAG %s is missing and will be deactivated.", dag.dag_id)
-                    to_deactivate.add(dag.dag_id)
-
-        if to_deactivate:
-            deactivated_dagmodel = session.execute(
-                update(DagModel)
-                .where(DagModel.dag_id.in_(to_deactivate))
-                .values(is_active=False)
-                .execution_options(synchronize_session="fetch")
-            )
-            deactivated = deactivated_dagmodel.rowcount
-            if deactivated:
-                self.log.info("Deactivated %i DAGs which are no longer present in file.", deactivated)
-
     def _run_parsing_loop(self):
         # initialize cache to mutualize calls to Variable.get in DAGs
         # needs to be done before this process is forked to create the DAG parsing processes.
@@ -342,7 +281,6 @@ class DagFileProcessorManager(LoggingMixin):
 
             for callback in self._fetch_callbacks():
                 self._add_callback_to_queue(callback)
-            self._scan_stale_dags()
             DagWarning.purge_inactive_dag_warnings()
 
             # Update number of loop iteration.

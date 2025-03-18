@@ -36,7 +36,7 @@ from unittest.mock import MagicMock
 
 import pytest
 import time_machine
-from sqlalchemy import func, select
+from sqlalchemy import select
 from uuid6 import uuid7
 
 from airflow.callbacks.callback_requests import DagCallbackRequest
@@ -412,83 +412,6 @@ class TestDagFileProcessorManager:
         with create_session() as session2:
             parsing_request_after = session2.query(DagPriorityParsingRequest).get(parsing_request.id)
         assert parsing_request_after is None
-
-    def test_scan_stale_dags(self, testing_dag_bundle):
-        """
-        Ensure that DAGs are marked inactive when the file is parsed but the
-        DagModel.last_parsed_time is not updated.
-        """
-        manager = DagFileProcessorManager(
-            max_runs=1,
-            processor_timeout=10 * 60,
-        )
-        bundle = MagicMock()
-        bundle.name = "testing"
-        manager._dag_bundles = [bundle]
-
-        test_dag_path = DagFileInfo(
-            bundle_name="testing",
-            rel_path=Path("test_example_bash_operator.py"),
-            bundle_path=TEST_DAGS_FOLDER,
-        )
-        dagbag = DagBag(
-            test_dag_path.absolute_path,
-            read_dags_from_db=False,
-            include_examples=False,
-            bundle_path=test_dag_path.bundle_path,
-        )
-
-        with create_session() as session:
-            # Add stale DAG to the DB
-            dag = dagbag.get_dag("test_example_bash_operator")
-            dag.last_parsed_time = timezone.utcnow()
-            DAG.bulk_write_to_db("testing", None, [dag])
-            SerializedDagModel.write_dag(dag, bundle_name="testing")
-
-            # Add DAG to the file_parsing_stats
-            stat = DagFileStat(
-                num_dags=1,
-                import_errors=0,
-                last_finish_time=timezone.utcnow() + timedelta(hours=1),
-                last_duration=1,
-                run_count=1,
-                last_num_of_db_queries=1,
-            )
-            manager._files = [test_dag_path]
-            manager._file_stats[test_dag_path] = stat
-
-            active_dag_count = (
-                session.query(func.count(DagModel.dag_id))
-                .filter(
-                    DagModel.is_active,
-                    DagModel.relative_fileloc == str(test_dag_path.rel_path),
-                    DagModel.bundle_name == test_dag_path.bundle_name,
-                )
-                .scalar()
-            )
-            assert active_dag_count == 1
-
-            manager._scan_stale_dags()
-
-            active_dag_count = (
-                session.query(func.count(DagModel.dag_id))
-                .filter(
-                    DagModel.is_active,
-                    DagModel.relative_fileloc == str(test_dag_path.rel_path),
-                    DagModel.bundle_name == test_dag_path.bundle_name,
-                )
-                .scalar()
-            )
-            assert active_dag_count == 0
-
-            serialized_dag_count = (
-                session.query(func.count(SerializedDagModel.dag_id))
-                .filter(SerializedDagModel.dag_id == dag.dag_id)
-                .scalar()
-            )
-            # Deactivating the DagModel should not delete the SerializedDagModel
-            # SerializedDagModel gives history about Dags
-            assert serialized_dag_count == 1
 
     def test_kill_timed_out_processors_kill(self):
         manager = DagFileProcessorManager(max_runs=1, processor_timeout=5)

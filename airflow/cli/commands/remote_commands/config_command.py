@@ -382,6 +382,10 @@ CONFIGS_CHANGES = [
         renamed_to=ConfigParameter("scheduler", "parsing_cleanup_interval"),
     ),
     ConfigChange(
+        config=ConfigParameter("scheduler", "dag_stale_not_seen_duration"),
+        was_removed=True,
+    ),
+    ConfigChange(
         config=ConfigParameter("scheduler", "statsd_on"), renamed_to=ConfigParameter("metrics", "statsd_on")
     ),
     ConfigChange(
@@ -442,7 +446,7 @@ CONFIGS_CHANGES = [
     ),
     ConfigChange(
         config=ConfigParameter("scheduler", "stale_dag_threshold"),
-        renamed_to=ConfigParameter("dag_processor", "stale_dag_threshold"),
+        was_removed=True,
     ),
     ConfigChange(
         config=ConfigParameter("scheduler", "print_stats_interval"),

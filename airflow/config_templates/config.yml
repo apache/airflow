@@ -2448,13 +2448,6 @@ scheduler:
       type: boolean
       example: ~
       default: "True"
-    dag_stale_not_seen_duration:
-      description: |
-        Time in seconds after which dags, which were not updated by Dag Processor are deactivated.
-      version_added: 2.4.0
-      type: integer
-      example: ~
-      default: "600"
     use_job_schedule:
       description: |
         Turn off scheduler use of cron intervals by setting this to ``False``.
@@ -2726,18 +2719,6 @@ dag_processor:
       type: integer
       example: ~
       default: "30"
-    stale_dag_threshold:
-      description: |
-        How long (in seconds) to wait after we have re-parsed a DAG file before deactivating stale
-        DAGs (DAGs which are no longer present in the expected files). The reason why we need
-        this threshold is to account for the time between when the file is parsed and when the
-        DAG is loaded. The absolute maximum that this could take is
-        ``[dag_processor] dag_file_processor_timeout``, but when you have a long timeout configured,
-        it results in a significant delay in the deactivation of stale dags.
-      version_added: ~
-      type: integer
-      example: ~
-      default: "50"
     dag_file_processor_timeout:
       description: |
         How long before timing out a DagFileProcessor, which processes a dag file
