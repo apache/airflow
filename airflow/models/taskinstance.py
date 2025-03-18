@@ -124,6 +124,12 @@ from airflow.utils.state import DagRunState, State, TaskInstanceState
 from airflow.utils.task_instance_session import set_current_task_instance_session
 from airflow.utils.timeout import timeout
 from airflow.utils.xcom import XCOM_RETURN_KEY
+from airflow.version_compat import AIRFLOW_V_3_0_PLUS
+
+if AIRFLOW_V_3_0_PLUS:
+    from airflow.sdk.execution_time.context import context_to_airflow_vars
+else:
+    from airflow.utils.operator_helpers import context_to_airflow_vars  # type: ignore[no-redef]
 
 TR = TaskReschedule
 
@@ -150,7 +156,6 @@ if TYPE_CHECKING:
     from airflow.sdk.definitions.asset import AssetNameRef, AssetUniqueKey, AssetUriRef
     from airflow.sdk.definitions.dag import DAG
     from airflow.sdk.definitions.taskgroup import MappedTaskGroup
-    from airflow.sdk.execution_time.context import context_to_airflow_vars
     from airflow.sdk.types import RuntimeTaskInstanceProtocol
     from airflow.typing_compat import Literal
     from airflow.utils.context import Context
@@ -867,6 +872,8 @@ def _get_template_context(
         PrevSuccessfulDagRunResponse,
         TIRunContext,
     )
+    from airflow.sdk.definitions.param import process_params
+    from airflow.sdk.execution_time.context import InletEventsAccessors
     from airflow.utils.context import (
         ConnectionAccessor,
         OutletEventAccessors,

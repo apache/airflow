@@ -156,7 +156,7 @@ def ExecutionCallableRunner(
         @staticmethod
         def run(*args: P.args, **kwargs: P.kwargs) -> R:
             from airflow.sdk.definitions.asset.metadata import Metadata
-            
+
             if not inspect.isgeneratorfunction(func):
                 return func(*args, **kwargs)
 

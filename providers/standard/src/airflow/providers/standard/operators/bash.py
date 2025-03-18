@@ -26,8 +26,8 @@ from typing import TYPE_CHECKING, Any, Callable, cast
 
 from airflow.exceptions import AirflowException, AirflowSkipException
 from airflow.models.baseoperator import BaseOperator
-from airflow.providers.bash.version_compat import AIRFLOW_V_3_0_PLUS
 from airflow.providers.standard.hooks.subprocess import SubprocessHook, SubprocessResult, working_directory
+from airflow.providers.standard.version_compat import AIRFLOW_V_3_0_PLUS
 from airflow.utils.session import NEW_SESSION, provide_session
 from airflow.utils.types import ArgNotSet
 

@@ -35,8 +35,8 @@ import csv
 from airflow.configuration import conf
 from airflow.exceptions import AirflowException
 from airflow.hooks.base import BaseHook
+from airflow.providers.apache.hive.version_compat import AIRFLOW_V_3_0_PLUS
 from airflow.providers.common.sql.hooks.sql import DbApiHook
-from airflow.providers.hive.version_compat import AIRFLOW_V_3_0_PLUS
 from airflow.security import utils
 from airflow.utils.helpers import as_flattened_list
 

@@ -450,7 +450,7 @@ def context_update_for_unmapped(context: Context, task: BaseOperator) -> None:
     )
 
 
-def context_to_airflow_vars(context: Context, in_env_var_format: bool = False) -> dict[str, str]:
+def context_to_airflow_vars(context: Mapping[str, Any], in_env_var_format: bool = False) -> dict[str, str]:
     """
     Return values used to externally reconstruct relations between dags, dag_runs, tasks and task_instances.
 
