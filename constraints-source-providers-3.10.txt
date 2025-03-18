@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2025-03-18T14:17:24.667529
+# This constraints file was automatically generated on 2025-03-18T20:14:38.409948
 # via "eager-upgrade" mechanism of PIP. For the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version of both
 # 'apache-airflow' package and all available community provider packages.
@@ -138,7 +138,7 @@ celery==5.4.0
 certifi==2025.1.31
 cffi==1.17.1
 cfgv==3.4.0
-cfn-lint==1.30.0
+cfn-lint==1.31.0
 cgroupspy==0.2.3
 chardet==5.2.0
 charset-normalizer==3.4.1
@@ -661,7 +661,7 @@ yandex-query-client==0.1.4
 yandexcloud==0.328.0
 yarl==1.18.3
 ydb-dbapi==0.1.11
-ydb==3.19.2
+ydb==3.19.3
 zeep==4.3.1
 zenpy==2.0.56
 zipp==3.21.0
