@@ -342,6 +342,7 @@ class XComOperations:
         map_index: int | None = None,
     ) -> dict[str, bool]:
         """Delete a XCom with given key via the API server."""
+        params = {}
         if map_index is not None and map_index >= 0:
             params = {"map_index": map_index}
         self.client.delete(f"xcoms/{dag_id}/{run_id}/{task_id}/{key}", params=params)
