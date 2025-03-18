@@ -47,6 +47,7 @@ Committers
 - Bas Harenslak (@basph)
 - Bolke de Bruin (@bolkedebruin)
 - Brent Bovenzi (@bbovenzi)
+- Buğra Öztürk (@bugraoz93)
 - Chao-Han Tsai (@milton0825)
 - Chris Riccomini (@criccomini)
 - Dan Davydov (@aoen)
@@ -69,6 +70,7 @@ Committers
 - Josh Fell (@josh-fell)
 - Joshua Carp (@jmcarp)
 - Joy Gao (@joygao)
+- Kalyan Reddy (@rawwar)
 - Kamil Breguła (@mik-laj)
 - Karthikeyan Singaravelan (@tirkarthi)
 - Kaxil Naik (@kaxil)
@@ -93,6 +95,7 @@ Committers
 - Ryan Hamilton (@ryanahamilton)
 - Ryan Hatter (@RNHTTR)
 - Shahar Epstein (@shahar1)
+- Shubham Raj (@shubhamraj-git)
 - Siddharth "Sid" Anand (@r39132)
 - Sumit Maheshwari (@msumit)
 - Tao Feng (@feng-tao)
@@ -104,6 +107,7 @@ Committers
 - Wei Lee (@Lee-W)
 - Xiaodong Deng (@XD-DENG)
 - Xinbin Huang (@xinbinhuang)
+- Zhe You Liu (@jason810496)
 
 For the full list of contributors, take a look at `Airflow's GitHub
 Contributor page:
