@@ -20,26 +20,48 @@ from __future__ import annotations
 import logging
 from typing import Annotated
 
-from fastapi import Body, Depends, HTTPException, Query, Response, status
+from fastapi import Body, Depends, HTTPException, Path, Query, Request, Response, status
 from pydantic import JsonValue
 from sqlalchemy import delete
 from sqlalchemy.sql.selectable import Select
 
 from airflow.api_fastapi.common.db.common import SessionDep
 from airflow.api_fastapi.common.router import AirflowRouter
-from airflow.api_fastapi.execution_api import deps
-from airflow.api_fastapi.execution_api.datamodels.token import TIToken
 from airflow.api_fastapi.execution_api.datamodels.xcom import XComResponse
+from airflow.api_fastapi.execution_api.deps import JWTBearerDep
 from airflow.models.taskmap import TaskMap
 from airflow.models.xcom import XComModel
 from airflow.utils.db import get_query_count
 
-# TODO: Add dependency on JWT token
+
+async def has_xcom_access(
+    dag_id: str,
+    run_id: str,
+    task_id: str,
+    xcom_key: Annotated[str, Path(alias="key")],
+    request: Request,
+    token=JWTBearerDep,
+) -> bool:
+    """Check if the task has access to the XCom."""
+    # TODO: Placeholder for actual implementation
+
+    write = request.method not in {"GET", "HEAD", "OPTIONS"}
+
+    log.debug(
+        "Checking %s XCom access for xcom from TaskInstance with key '%s' to XCom '%s'",
+        "write" if write else "read",
+        token.id,
+        xcom_key,
+    )
+    return True
+
+
 router = AirflowRouter(
     responses={
         status.HTTP_401_UNAUTHORIZED: {"description": "Unauthorized"},
         status.HTTP_403_FORBIDDEN: {"description": "Task does not have access to the XCom"},
     },
+    dependencies=[Depends(has_xcom_access)],
 )
 
 log = logging.getLogger(__name__)
@@ -51,18 +73,8 @@ async def xcom_query(
     task_id: str,
     key: str,
     session: SessionDep,
-    token: deps.TokenDep,
     map_index: Annotated[int | None, Query()] = None,
 ) -> Select:
-    if not has_xcom_access(dag_id, run_id, task_id, key, token):
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail={
-                "reason": "access_denied",
-                "message": f"Task does not have access to XCom key '{key}'",
-            },
-        )
-
     query = XComModel.get_many(
         run_id=run_id,
         key=key,
@@ -92,7 +104,6 @@ async def xcom_query(
 )
 def head_xcom(
     response: Response,
-    token: deps.TokenDep,
     session: SessionDep,
     xcom_query: Annotated[Select, Depends(xcom_query)],
     map_index: Annotated[int | None, Query()] = None,
@@ -116,7 +127,6 @@ def head_xcom(
     description="Get a single XCom Value",
 )
 def get_xcom(
-    session: SessionDep,
     dag_id: str,
     run_id: str,
     task_id: str,
@@ -180,7 +190,6 @@ def set_xcom(
             },
         ),
     ],
-    token: deps.TokenDep,
     session: SessionDep,
     map_index: Annotated[int, Query()] = -1,
     mapped_length: Annotated[
@@ -189,15 +198,6 @@ def set_xcom(
 ):
     """Set an Airflow XCom."""
     from airflow.configuration import conf
-
-    if not has_xcom_access(dag_id, run_id, task_id, key, token, write=True):
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail={
-                "reason": "access_denied",
-                "message": f"Task does not have access to set XCom key '{key}'",
-            },
-        )
 
     if mapped_length is not None:
         task_map = TaskMap(
@@ -275,23 +275,13 @@ def set_xcom(
 )
 def delete_xcom(
     session: SessionDep,
-    token: deps.TokenDep,
-    key: str,
     dag_id: str,
     run_id: str,
     task_id: str,
+    key: str,
     map_index: Annotated[int, Query()] = -1,
 ):
     """Delete a single XCom Value."""
-    if not has_xcom_access(dag_id, run_id, task_id, key, token, write=True):
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail={
-                "reason": "access_denied",
-                "message": f"Task does not have access to delete XCom with key '{key}'",
-            },
-        )
-
     query = delete(XComModel).where(
         XComModel.key == key,
         XComModel.run_id == run_id,
@@ -302,19 +292,3 @@ def delete_xcom(
     session.execute(query)
     session.commit()
     return {"message": f"XCom with key: {key} successfully deleted."}
-
-
-def has_xcom_access(
-    dag_id: str, run_id: str, task_id: str, xcom_key: str, token: TIToken, write: bool = False
-) -> bool:
-    """Check if the task has access to the XCom."""
-    # TODO: Placeholder for actual implementation
-
-    ti_key = token.ti_key
-    log.debug(
-        "Checking %s XCom access for xcom from TaskInstance with key '%s' to XCom '%s'",
-        "write" if write else "read",
-        ti_key,
-        xcom_key,
-    )
-    return True
