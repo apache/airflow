@@ -33,6 +33,6 @@ def client(request: pytest.FixtureRequest):
         auth = AsyncMock(spec=JWTValidator)
         auth.avalidated_claims.return_value = {"sub": "edb09971-4e0e-4221-ad3f-800852d38085"}
 
-        # Inject our fake JWTValidaotr object. Can be over-ridden by tests if they want
+        # Inject our fake JWTValidator object. Can be over-ridden by tests if they want
         lifespan.registry.register_value(JWTValidator, auth)
         yield client
