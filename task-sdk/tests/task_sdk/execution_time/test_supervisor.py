@@ -57,6 +57,7 @@ from airflow.sdk.execution_time.comms import (
     AssetResult,
     ConnectionResult,
     DeferTask,
+    DeleteXCom,
     GetAssetByName,
     GetAssetByUri,
     GetAssetEventByAsset,
@@ -1112,6 +1113,27 @@ class TestHandleRequest:
                 {},
                 {"ok": True},
                 id="set_xcom_with_map_index_and_mapped_length",
+            ),
+            pytest.param(
+                DeleteXCom(
+                    dag_id="test_dag",
+                    run_id="test_run",
+                    task_id="test_task",
+                    key="test_key",
+                    map_index=2,
+                ),
+                b"",
+                "xcoms.delete",
+                (
+                    "test_dag",
+                    "test_run",
+                    "test_task",
+                    "test_key",
+                    2,
+                ),
+                {},
+                {"ok": True},
+                id="delete_xcom",
             ),
             # we aren't adding all states under TerminalTIState here, because this test's scope is only to check
             # if it can handle TaskState message

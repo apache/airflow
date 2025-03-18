@@ -339,9 +339,12 @@ class XComOperations:
         run_id: str,
         task_id: str,
         key: str,
+        map_index: int | None = None,
     ) -> dict[str, bool]:
         """Delete a XCom with given key via the API server."""
-        self.client.delete(f"xcoms/{dag_id}/{run_id}/{task_id}/{key}")
+        if map_index is not None and map_index >= 0:
+            params = {"map_index": map_index}
+        self.client.delete(f"xcoms/{dag_id}/{run_id}/{task_id}/{key}", params=params)
         # Any error from the server will anyway be propagated down to the supervisor,
         # so we choose to send a generic response to the supervisor over the server response to
         # decouple from the server response string
