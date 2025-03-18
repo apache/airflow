@@ -1,4 +1,5 @@
 # Licensed to the Apache Software Foundation (ASF) under one
+# Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
 # distributed with this work for additional information
 # regarding copyright ownership.  The ASF licenses this file
@@ -252,15 +253,26 @@ class TestXComsDeleteEndpoint:
         """Test that XCom value is deleted when Delete API is called."""
         ti = create_task_instance()
         ti.xcom_push(key="xcom_1", value='"value1"', session=session)
+
+        ti1 = create_task_instance(dag_id="my_dag_1", task_id="task_1")
+        ti1.xcom_push(key="xcom_1", value='"value2"', session=session)
         session.commit()
 
-        xcom = session.query(XComModel).filter_by(task_id=ti.task_id, dag_id=ti.dag_id, key="xcom_1").first()
-        assert xcom is not None
+        xcoms = session.query(XComModel).filter_by(key="xcom_1").all()
+        assert xcoms is not None
+        assert len(xcoms) == 2
 
         response = client.delete(f"/execution/xcoms/{ti.dag_id}/{ti.run_id}/{ti.task_id}/xcom_1")
 
         assert response.status_code == 200
         assert response.json() == {"message": "XCom with key: xcom_1 successfully deleted."}
 
-        xcom = session.query(XComModel).filter_by(task_id=ti.task_id, dag_id=ti.dag_id, key="xcom_1").first()
-        assert xcom is None
+        xcom_ti = (
+            session.query(XComModel).filter_by(task_id=ti.task_id, dag_id=ti.dag_id, key="xcom_1").first()
+        )
+        assert xcom_ti is None
+
+        xcom_ti = (
+            session.query(XComModel).filter_by(task_id=ti1.task_id, dag_id=ti1.dag_id, key="xcom_1").first()
+        )
+        assert xcom_ti is not None

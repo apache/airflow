@@ -276,11 +276,13 @@ def set_xcom(
 def delete_xcom(
     session: SessionDep,
     token: deps.TokenDep,
+    key: str,
     dag_id: str,
     run_id: str,
     task_id: str,
-    key: str,
+    map_index: Annotated[int, Query()] = -1,
 ):
+    """Delete a single XCom Value."""
     if not has_xcom_access(dag_id, run_id, task_id, key, token, write=True):
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
@@ -290,8 +292,14 @@ def delete_xcom(
             },
         )
 
-    query = session.query(XComModel).where(XComModel.key == key).first()
-    session.delete(query)
+    query = delete(XComModel).where(
+        XComModel.key == key,
+        XComModel.run_id == run_id,
+        XComModel.task_id == task_id,
+        XComModel.dag_id == dag_id,
+        XComModel.map_index == map_index,
+    )
+    session.execute(query)
     session.commit()
     return {"message": f"XCom with key: {key} successfully deleted."}
 
