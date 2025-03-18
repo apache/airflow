@@ -354,14 +354,29 @@ class AssetOperations:
     def __init__(self, client: Client):
         self.client = client
 
-    def get(self, name: str | None = None, uri: str | None = None) -> AssetResponse:
+    def get(self, name: str | None = None, uri: str | None = None) -> AssetResponse | ErrorResponse:
         """Get Asset value from the API server."""
         if name:
-            resp = self.client.get("assets/by-name", params={"name": name})
+            endpoint = "assets/by-name"
+            params = {"name": name}
         elif uri:
-            resp = self.client.get("assets/by-uri", params={"uri": uri})
+            endpoint = "assets/by-uri"
+            params = {"uri": uri}
         else:
             raise ValueError("Either `name` or `uri` must be provided")
+
+        try:
+            resp = self.client.get(endpoint, params=params)
+        except ServerResponseError as e:
+            if e.response.status_code == HTTPStatus.NOT_FOUND:
+                log.error(
+                    "Asset not found",
+                    params=params,
+                    detail=e.detail,
+                    status_code=e.response.status_code,
+                )
+                return ErrorResponse(error=ErrorType.ASSET_NOT_FOUIND, detail=params)
+            raise
 
         return AssetResponse.model_validate_json(resp.read())
 

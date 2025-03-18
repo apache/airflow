@@ -54,6 +54,7 @@ from pydantic import TypeAdapter
 
 from airflow.sdk.api.client import Client, ServerResponseError
 from airflow.sdk.api.datamodels._generated import (
+    AssetResponse,
     ConnectionResponse,
     IntermediateTIState,
     TaskInstance,
@@ -909,12 +910,18 @@ class ActivitySubprocess(WatchedSubprocess):
             self.client.task_instances.set_rtif(self.id, msg.rendered_fields)
         elif isinstance(msg, GetAssetByName):
             asset_resp = self.client.assets.get(name=msg.name)
-            asset_result = AssetResult.from_asset_response(asset_resp)
-            resp = asset_result.model_dump_json(exclude_unset=True).encode()
+            if isinstance(asset_resp, AssetResponse):
+                asset_result = AssetResult.from_asset_response(asset_resp)
+                resp = asset_result.model_dump_json(exclude_unset=True).encode()
+            else:
+                resp = asset_resp.model_dump_json().encode()
         elif isinstance(msg, GetAssetByUri):
             asset_resp = self.client.assets.get(uri=msg.uri)
-            asset_result = AssetResult.from_asset_response(asset_resp)
-            resp = asset_result.model_dump_json(exclude_unset=True).encode()
+            if isinstance(asset_resp, AssetResponse):
+                asset_result = AssetResult.from_asset_response(asset_resp)
+                resp = asset_result.model_dump_json(exclude_unset=True).encode()
+            else:
+                resp = asset_resp.model_dump_json().encode()
         elif isinstance(msg, GetAssetEventByAsset):
             asset_event_resp = self.client.asset_events.get(uri=msg.uri, name=msg.name)
             asset_event_result = AssetEventsResult.from_asset_events_response(asset_event_resp)
