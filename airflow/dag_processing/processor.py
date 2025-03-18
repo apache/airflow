@@ -33,7 +33,13 @@ from airflow.callbacks.callback_requests import (
 )
 from airflow.configuration import conf
 from airflow.models.dagbag import DagBag
-from airflow.sdk.execution_time.comms import ConnectionResult, GetConnection, GetVariable, VariableResult
+from airflow.sdk.execution_time.comms import (
+    ConnectionResult,
+    ErrorResponse,
+    GetConnection,
+    GetVariable,
+    VariableResult,
+)
 from airflow.sdk.execution_time.supervisor import WatchedSubprocess
 from airflow.serialization.serialized_objects import LazyDeserializedDAG, SerializedDAG
 from airflow.stats import Stats
@@ -52,7 +58,7 @@ ToManager = Annotated[
 ]
 
 ToDagProcessor = Annotated[
-    Union["DagFileParseRequest", ConnectionResult, VariableResult],
+    Union["DagFileParseRequest", ConnectionResult, VariableResult, ErrorResponse],
     Field(discriminator="type"),
 ]
 
