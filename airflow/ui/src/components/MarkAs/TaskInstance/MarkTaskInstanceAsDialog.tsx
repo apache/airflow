@@ -18,7 +18,6 @@
  */
 import { Flex, Heading, VStack } from "@chakra-ui/react";
 import { useState } from "react";
-import { FiRefreshCw } from "react-icons/fi";
 
 import type { TaskInstanceResponse, TaskInstanceState } from "openapi/requests/types.gen";
 import { ActionAccordion } from "src/components/ActionAccordion";
@@ -101,8 +100,8 @@ const MarkTaskInstanceAsDialog = ({ onClose, open, state, taskInstance }: Props)
               multiple
               onChange={setSelectedOptions}
               options={[
-                { label: "Past", value: "past" },
-                { label: "Future", value: "future" },
+                { disabled: taskInstance.logical_date === null, label: "Past", value: "past" },
+                { disabled: taskInstance.logical_date === null, label: "Future", value: "future" },
                 { label: "Upstream", value: "upstream" },
                 { label: "Downstream", value: "downstream" },
               ]}
@@ -130,7 +129,7 @@ const MarkTaskInstanceAsDialog = ({ onClose, open, state, taskInstance }: Props)
                 });
               }}
             >
-              <FiRefreshCw /> Confirm
+              Confirm
             </Button>
           </Flex>
         </Dialog.Body>

@@ -45,7 +45,7 @@ class TestKinesisAnalyticsV2ApplicationOperationCompleteTrigger:
 
     @pytest.mark.asyncio
     @mock.patch.object(KinesisAnalyticsV2Hook, "get_waiter")
-    @mock.patch.object(KinesisAnalyticsV2Hook, "async_conn")
+    @mock.patch.object(KinesisAnalyticsV2Hook, "get_async_conn")
     async def test_run_success_with_application_start_complete_waiter(self, mock_async_conn, mock_get_waiter):
         mock_async_conn.__aenter__.return_value = mock.MagicMock()
         mock_get_waiter().wait = AsyncMock()
@@ -62,7 +62,7 @@ class TestKinesisAnalyticsV2ApplicationOperationCompleteTrigger:
 
     @pytest.mark.asyncio
     @mock.patch.object(KinesisAnalyticsV2Hook, "get_waiter")
-    @mock.patch.object(KinesisAnalyticsV2Hook, "async_conn")
+    @mock.patch.object(KinesisAnalyticsV2Hook, "get_async_conn")
     async def test_run_success_with_application_stop_complete_waiter(self, mock_async_conn, mock_get_waiter):
         mock_async_conn.__aenter__.return_value = mock.MagicMock()
         mock_get_waiter().wait = AsyncMock()

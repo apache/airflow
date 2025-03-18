@@ -383,7 +383,22 @@ For examples, please take a look at the two example DAGs provided: :ref:`Params 
     :start-after: [START section_3]
     :end-before: [END section_3]
 
-.. image:: ../img/trigger-dag-tutorial-form.png
+The Params UI Tutorial is rendered in 4 sections with the most common examples. The first section shows the basic usage without
+``Param`` class.
+
+.. image:: ../img/trigger-dag-tutorial-form-1.png
+
+The second section shows how to use the ``Param`` class to define more attributes.
+
+.. image:: ../img/trigger-dag-tutorial-form-2.png
+
+The third section shows how to model selection lists and drop-downs.
+
+.. image:: ../img/trigger-dag-tutorial-form-3.png
+
+Finally the fourth section shows advanced form elements.
+
+.. image:: ../img/trigger-dag-tutorial-form-4.png
 
 .. versionadded:: 2.7.0
     The trigger form can also be forced to be displayed also if no params are defined using the configuration switch

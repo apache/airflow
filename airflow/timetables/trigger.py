@@ -17,8 +17,10 @@
 from __future__ import annotations
 
 import datetime
+import functools
 import math
 import operator
+import time
 from typing import TYPE_CHECKING, Any
 
 from airflow.timetables._cron import CronMixin
@@ -326,12 +328,16 @@ class MultipleCronTriggerTimetable(Timetable):
             )
             for timetable in self._timetables
         )
-        return min(infos, key=self._dagrun_info_sort_key)
+        if restriction.catchup:
+            select_key = self._dagrun_info_sort_key_catchup
+        else:
+            select_key = functools.partial(self._dagrun_info_sort_key_no_catchup, now=time.time())
+        return min(infos, key=select_key)
 
     @staticmethod
-    def _dagrun_info_sort_key(info: DagRunInfo | None) -> float:
+    def _dagrun_info_sort_key_catchup(info: DagRunInfo | None) -> float:
         """
-        Sort key for DagRunInfo values.
+        Sort key for DagRunInfo values when catchup=True.
 
         This is passed as the sort key to ``min`` in ``next_dagrun_info`` to
         find the next closest run, ordered by logical date.
@@ -343,3 +349,22 @@ class MultipleCronTriggerTimetable(Timetable):
         if info is None:
             return math.inf
         return info.logical_date.timestamp()
+
+    @staticmethod
+    def _dagrun_info_sort_key_no_catchup(info: DagRunInfo | None, *, now: float) -> float:
+        """
+        Sort key for DagRunInfo values when catchup=False.
+
+        When catchup is disabled, we want to ignore as many runs as possible
+        without going over the current time, but if no runs should happen right
+        now, we want to choose the earliest opportunity.
+
+        Combining with the ``min`` sorter in ``next_dagrun_info``, we should
+        order values by ``-logical_date`` if they are earlier than or at current
+        time, but ``+logical_date`` if later.
+        """
+        if info is None:
+            return math.inf
+        if (ts := info.logical_date.timestamp()) <= now:
+            return -ts
+        return ts

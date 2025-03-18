@@ -21,7 +21,7 @@ import pytest
 pytestmark = pytest.mark.db_test
 
 
-class TestGetConnections:
+class TestGetPlugins:
     @pytest.mark.parametrize(
         "query_params, expected_total_entries, expected_names",
         [
@@ -62,3 +62,11 @@ class TestGetConnections:
         body = response.json()
         assert body["total_entries"] == expected_total_entries
         assert [plugin["name"] for plugin in body["plugins"]] == expected_names
+
+    def test_should_response_401(self, unauthenticated_test_client):
+        response = unauthenticated_test_client.get("/public/plugins")
+        assert response.status_code == 401
+
+    def test_should_response_403(self, unauthorized_test_client):
+        response = unauthorized_test_client.get("/public/plugins")
+        assert response.status_code == 403

@@ -32,7 +32,7 @@ To set up the IDE:
       dag.test()
 
 
-3. Run and debug the DAG file.
+2. Run and debug the DAG file.
 
 
 You can also run the dag in the same manner with the Airflow CLI command ``airflow dags test``:

@@ -23,6 +23,7 @@ import shutil
 import sys
 import threading
 from collections.abc import Iterable
+from pathlib import Path
 from signal import SIGTERM
 from time import sleep
 
@@ -79,7 +80,7 @@ from airflow_breeze.commands.common_package_installation_options import (
     option_providers_skip_constraints,
     option_use_packages_from_dist,
 )
-from airflow_breeze.commands.main_command import main
+from airflow_breeze.commands.main_command import cleanup, main
 from airflow_breeze.commands.testing_commands import (
     option_force_lowest_dependencies,
 )
@@ -100,6 +101,7 @@ from airflow_breeze.params.doc_build_params import DocBuildParams
 from airflow_breeze.params.shell_params import ShellParams
 from airflow_breeze.pre_commit_ids import PRE_COMMIT_LIST
 from airflow_breeze.utils.coertions import one_or_none_set
+from airflow_breeze.utils.confirm import Answer, user_confirm
 from airflow_breeze.utils.console import get_console
 from airflow_breeze.utils.custom_param_types import BetterChoice
 from airflow_breeze.utils.docker_command_utils import (
@@ -596,6 +598,8 @@ def start_airflow(
             # Otherwise default to LocalExecutor
             executor = START_AIRFLOW_DEFAULT_ALLOWED_EXECUTOR
 
+    get_console().print(f"[info]Airflow will be using: {executor} to execute the tasks.")
+
     platform = get_normalized_platform(platform)
     shell_params = ShellParams(
         airflow_constraints_location=airflow_constraints_location,
@@ -998,14 +1002,11 @@ def compile_ui_assets(dev: bool, force_clean: bool):
     help="Additionally cleanup MyPy cache.",
     is_flag=True,
 )
-@option_project_name
 @option_verbose
 @option_dry_run
-def down(preserve_volumes: bool, cleanup_mypy_cache: bool, project_name: str):
+def down(preserve_volumes: bool, cleanup_mypy_cache: bool):
     perform_environment_checks()
-    shell_params = ShellParams(
-        backend="all", include_mypy_volume=cleanup_mypy_cache, project_name=project_name
-    )
+    shell_params = ShellParams(backend="all", include_mypy_volume=cleanup_mypy_cache)
     bring_compose_project_down(preserve_volumes=preserve_volumes, shell_params=shell_params)
     if cleanup_mypy_cache:
         command_to_execute = ["docker", "volume", "rm", "--force", "mypy-cache-volume"]
@@ -1116,3 +1117,44 @@ def autogenerate(
     cmd = f"/opt/airflow/scripts/in_container/run_generate_migration.sh '{message}'"
     execute_command_in_shell(shell_params, project_name="db", command=cmd)
     fix_ownership_using_docker()
+
+
+@main.command(name="doctor", help="Auto-healing of breeze")
+@option_answer
+@option_verbose
+@option_dry_run
+@click.pass_context
+def doctor(ctx):
+    shell_params = ShellParams()
+    check_docker_resources(shell_params.airflow_image_name)
+    shell_params.print_badge_info()
+
+    perform_environment_checks()
+    fix_ownership_using_docker()
+
+    given_answer = user_confirm("Are you sure with the removal of temporary Python files and Python cache?")
+    if not get_dry_run() and given_answer == Answer.YES:
+        cleanup_python_generated_files()
+
+    shell_params = ShellParams(backend="all", include_mypy_volume=True)
+    bring_compose_project_down(preserve_volumes=False, shell_params=shell_params)
+
+    given_answer = user_confirm("Are you sure with the removal of mypy cache and build cache dir?")
+    if given_answer == Answer.YES:
+        get_console().print("\n[info]Cleaning mypy cache...\n")
+        command_to_execute = ["docker", "volume", "rm", "--force", "mypy-cache-volume"]
+        run_command(command_to_execute)
+
+        get_console().print("\n[info]Deleting .build cache dir...\n")
+        dirpath = Path(".build")
+        if not get_dry_run() and dirpath.exists() and dirpath.is_dir():
+            shutil.rmtree(dirpath)
+
+    given_answer = user_confirm(
+        "Proceed with breeze cleanup to remove all docker volumes, images and networks?"
+    )
+    if given_answer == Answer.YES:
+        get_console().print("\n[info]Executing breeze cleanup...\n")
+        ctx.forward(cleanup)
+    elif given_answer == Answer.QUIT:
+        sys.exit(0)

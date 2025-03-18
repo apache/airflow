@@ -33,10 +33,10 @@ from airflow.hooks.base import BaseHook
 from airflow.providers.google.common.hooks.base_google import get_field
 
 if TYPE_CHECKING:
-    from google.ads.googleads.v18.services.services.customer_service import CustomerServiceClient
-    from google.ads.googleads.v18.services.services.google_ads_service import GoogleAdsServiceClient
-    from google.ads.googleads.v18.services.types.google_ads_service import GoogleAdsRow
-    from google.api_core.page_iterator import GRPCIterator
+    from google.ads.googleads.v19.services.services.customer_service import CustomerServiceClient
+    from google.ads.googleads.v19.services.services.google_ads_service import GoogleAdsServiceClient
+    from google.ads.googleads.v19.services.services.google_ads_service.pagers import SearchPager
+    from google.ads.googleads.v19.services.types.google_ads_service import GoogleAdsRow
 
 
 class GoogleAdsHook(BaseHook):
@@ -178,7 +178,7 @@ class GoogleAdsHook(BaseHook):
         """
         try:
             accessible_customers = self._get_customer_service.list_accessible_customers()
-            return accessible_customers.resource_names
+            return list(accessible_customers.resource_names)
         except GoogleAdsException as ex:
             for error in ex.failure.errors:
                 self.log.error('\tError with message "%s".', error.message)
@@ -306,11 +306,11 @@ class GoogleAdsHook(BaseHook):
 
         return self._extract_rows(iterators)
 
-    def _extract_rows(self, iterators: list[GRPCIterator]) -> list[GoogleAdsRow]:
+    def _extract_rows(self, iterators: list[SearchPager]) -> list[GoogleAdsRow]:
         """
-        Convert Google Page Iterator (GRPCIterator) objects to Google Ads Rows.
+        Convert Google Page Iterator (SearchPager) objects to Google Ads Rows.
 
-        :param iterators: List of Google Page Iterator (GRPCIterator) objects
+        :param iterators: List of Google Page Iterator (SearchPager) objects
         :return: API response for all clients in the form of Google Ads Row object(s)
         """
         try:

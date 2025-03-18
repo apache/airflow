@@ -40,6 +40,7 @@ from pydantic import AfterValidator, BaseModel, NonNegativeInt
 from sqlalchemy import Column, and_, case, or_
 from sqlalchemy.inspection import inspect
 
+from airflow.api_fastapi.core_api.base import OrmClause
 from airflow.models import Base
 from airflow.models.asset import (
     AssetAliasModel,
@@ -47,6 +48,7 @@ from airflow.models.asset import (
     DagScheduleAssetReference,
     TaskOutletAssetReference,
 )
+from airflow.models.connection import Connection
 from airflow.models.dag import DagModel, DagTag
 from airflow.models.dag_version import DagVersion
 from airflow.models.dagrun import DagRun
@@ -64,17 +66,13 @@ if TYPE_CHECKING:
 T = TypeVar("T")
 
 
-class BaseParam(Generic[T], ABC):
-    """Base class for filters."""
+class BaseParam(OrmClause[T], ABC):
+    """Base class for path or query parameters with ORM transformation."""
 
     def __init__(self, value: T | None = None, skip_none: bool = True) -> None:
-        self.value = value
+        super().__init__(value)
         self.attribute: ColumnElement | None = None
         self.skip_none = skip_none
-
-    @abstractmethod
-    def to_orm(self, select: Select) -> Select:
-        pass
 
     def set_value(self, value: T | None) -> Self:
         self.value = value
@@ -704,4 +702,9 @@ state_priority: list[None | TaskInstanceState] = [
     TaskInstanceState.SUCCESS,
     TaskInstanceState.SKIPPED,
     TaskInstanceState.REMOVED,
+]
+
+# Connections
+QueryConnectionIdPatternSearch = Annotated[
+    _SearchParam, Depends(search_param_factory(Connection.conn_id, "connection_id_pattern"))
 ]

@@ -27,8 +27,9 @@ def get_provider_info():
         "name": "Apache Spark",
         "description": "`Apache Spark <https://spark.apache.org/>`__\n",
         "state": "ready",
-        "source-date-epoch": 1734528589,
+        "source-date-epoch": 1741508415,
         "versions": [
+            "5.0.1",
             "5.0.0",
             "4.11.3",
             "4.11.2",
@@ -129,4 +130,5 @@ def get_provider_info():
             "cncf.kubernetes": ["apache-airflow-providers-cncf-kubernetes>=7.4.0"],
             "common.compat": ["apache-airflow-providers-common-compat"],
         },
+        "devel-dependencies": [],
     }

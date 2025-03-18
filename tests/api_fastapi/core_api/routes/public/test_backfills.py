@@ -513,6 +513,48 @@ class TestCreateBackfill(TestBackfillEndpoint):
         actual = list(session.scalars(select(DagRun.run_type).where(DagRun.backfill_id == backfill_id)))
         assert actual == ["backfill"] * len(expected_dates)
 
+    def test_should_respond_401(self, unauthenticated_test_client, dag_maker, session):
+        with dag_maker(session=session, dag_id="TEST_DAG_1", schedule="0 * * * *") as dag:
+            EmptyOperator(task_id="mytask")
+        session.query(DagModel).all()
+        session.commit()
+        from_date = pendulum.parse("2024-01-01")
+        from_date_iso = to_iso(from_date)
+        to_date = pendulum.parse("2024-02-01")
+        to_date_iso = to_iso(to_date)
+        max_active_runs = 5
+        data = {
+            "dag_id": dag.dag_id,
+            "from_date": f"{from_date_iso}",
+            "to_date": f"{to_date_iso}",
+            "max_active_runs": max_active_runs,
+            "run_backwards": False,
+            "dag_run_conf": {"param1": "val1", "param2": True},
+        }
+        response = unauthenticated_test_client.post("/public/backfills", json=data)
+        assert response.status_code == 401
+
+    def test_should_respond_403(self, unauthorized_test_client, dag_maker, session):
+        with dag_maker(session=session, dag_id="TEST_DAG_1", schedule="0 * * * *") as dag:
+            EmptyOperator(task_id="mytask")
+        session.query(DagModel).all()
+        session.commit()
+        from_date = pendulum.parse("2024-01-01")
+        from_date_iso = to_iso(from_date)
+        to_date = pendulum.parse("2024-02-01")
+        to_date_iso = to_iso(to_date)
+        max_active_runs = 5
+        data = {
+            "dag_id": dag.dag_id,
+            "from_date": f"{from_date_iso}",
+            "to_date": f"{to_date_iso}",
+            "max_active_runs": max_active_runs,
+            "run_backwards": False,
+            "dag_run_conf": {"param1": "val1", "param2": True},
+        }
+        response = unauthorized_test_client.post("/public/backfills", json=data)
+        assert response.status_code == 403
+
 
 class TestCreateBackfillDryRun(TestBackfillEndpoint):
     @pytest.mark.parametrize(
@@ -726,6 +768,7 @@ class TestPauseBackfill(TestBackfillEndpoint):
         backfill = Backfill(dag_id=dag.dag_id, from_date=from_date, to_date=to_date)
         session.add(backfill)
         session.commit()
+
         response = test_client.put(f"/public/backfills/{backfill.id}/pause")
         assert response.status_code == 200
         assert response.json() == {
@@ -741,3 +784,54 @@ class TestPauseBackfill(TestBackfillEndpoint):
             "to_date": to_iso(to_date),
             "updated_at": mock.ANY,
         }
+        check_last_log(session, dag_id=None, event="pause_backfill", logical_date=None)
+
+    def test_pause_backfill_401(self, session, unauthenticated_test_client):
+        (dag,) = self._create_dag_models()
+        from_date = timezone.utcnow()
+        to_date = timezone.utcnow()
+        backfill = Backfill(dag_id=dag.dag_id, from_date=from_date, to_date=to_date)
+        session.add(backfill)
+        session.commit()
+
+        response = unauthenticated_test_client.put(f"/public/backfills/{backfill.id}/pause")
+        assert response.status_code == 401
+
+    def test_pause_backfill_403(self, session, unauthorized_test_client):
+        (dag,) = self._create_dag_models()
+        from_date = timezone.utcnow()
+        to_date = timezone.utcnow()
+        backfill = Backfill(dag_id=dag.dag_id, from_date=from_date, to_date=to_date)
+        session.add(backfill)
+        session.commit()
+
+        response = unauthorized_test_client.put(f"/public/backfills/{backfill.id}/pause")
+        assert response.status_code == 403
+
+
+class TestUnpauseBackfill(TestBackfillEndpoint):
+    def test_unpause_backfill(self, session, test_client):
+        (dag,) = self._create_dag_models()
+        from_date = timezone.utcnow()
+        to_date = timezone.utcnow()
+        backfill = Backfill(dag_id=dag.dag_id, from_date=from_date, to_date=to_date)
+        session.add(backfill)
+        session.commit()
+
+        test_client.put(f"/public/backfills/{backfill.id}/pause")
+        response = test_client.put(f"/public/backfills/{backfill.id}/unpause")
+        assert response.status_code == 200
+        assert response.json() == {
+            "completed_at": mock.ANY,
+            "created_at": mock.ANY,
+            "dag_id": "TEST_DAG_1",
+            "dag_run_conf": {},
+            "from_date": to_iso(from_date),
+            "id": backfill.id,
+            "is_paused": False,
+            "reprocess_behavior": "none",
+            "max_active_runs": 10,
+            "to_date": to_iso(to_date),
+            "updated_at": mock.ANY,
+        }
+        check_last_log(session, dag_id=None, event="unpause_backfill", logical_date=None)

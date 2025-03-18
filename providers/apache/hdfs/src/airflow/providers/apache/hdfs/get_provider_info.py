@@ -27,8 +27,9 @@ def get_provider_info():
         "name": "Apache HDFS",
         "description": "`Hadoop Distributed File System (HDFS) <https://hadoop.apache.org/docs/r1.2.1/hdfs_design.html>`__\nand `WebHDFS <https://hadoop.apache.org/docs/current/hadoop-project-dist/hadoop-hdfs/WebHDFS.html>`__.\n",
         "state": "ready",
-        "source-date-epoch": 1734527971,
+        "source-date-epoch": 1741507878,
         "versions": [
+            "4.7.1",
             "4.7.0",
             "4.6.0",
             "4.5.1",
@@ -94,4 +95,5 @@ def get_provider_info():
             'hdfs[avro,dataframe,kerberos]>=2.7.3;python_version>="3.12"',
             "pandas>=2.1.2,<2.2",
         ],
+        "devel-dependencies": [],
     }

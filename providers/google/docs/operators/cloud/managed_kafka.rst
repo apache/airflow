@@ -117,6 +117,66 @@ To update topic you can use
     :start-after: [START how_to_cloud_managed_kafka_update_topic_operator]
     :end-before: [END how_to_cloud_managed_kafka_update_topic_operator]
 
+Interacting with Apache Kafka Consumer Groups
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+To delete consumer group you can use
+:class:`~airflow.providers.google.cloud.operators.managed_kafka.ManagedKafkaDeleteConsumerGroupOperator`.
+
+.. exampleinclude:: /../../providers/google/tests/system/google/cloud/managed_kafka/example_managed_kafka_consumer_group.py
+    :language: python
+    :dedent: 4
+    :start-after: [START how_to_cloud_managed_kafka_delete_consumer_group_operator]
+    :end-before: [END how_to_cloud_managed_kafka_delete_consumer_group_operator]
+
+To get consumer group you can use
+:class:`~airflow.providers.google.cloud.operators.managed_kafka.ManagedKafkaGetConsumerGroupOperator`.
+
+.. exampleinclude:: /../../providers/google/tests/system/google/cloud/managed_kafka/example_managed_kafka_consumer_group.py
+    :language: python
+    :dedent: 4
+    :start-after: [START how_to_cloud_managed_kafka_get_consumer_group_operator]
+    :end-before: [END how_to_cloud_managed_kafka_get_consumer_group_operator]
+
+To get a list of consumer groups you can use
+:class:`~airflow.providers.google.cloud.operators.managed_kafka.ManagedKafkaListConsumerGroupsOperator`.
+
+.. exampleinclude:: /../../providers/google/tests/system/google/cloud/managed_kafka/example_managed_kafka_consumer_group.py
+    :language: python
+    :dedent: 4
+    :start-after: [START how_to_cloud_managed_kafka_list_consumer_group_operator]
+    :end-before: [END how_to_cloud_managed_kafka_list_consumer_group_operator]
+
+To update consumer group you can use
+:class:`~airflow.providers.google.cloud.operators.managed_kafka.ManagedKafkaUpdateConsumerGroupOperator`.
+
+.. exampleinclude:: /../../providers/google/tests/system/google/cloud/managed_kafka/example_managed_kafka_consumer_group.py
+    :language: python
+    :dedent: 4
+    :start-after: [START how_to_cloud_managed_kafka_update_consumer_group_operator]
+    :end-before: [END how_to_cloud_managed_kafka_update_consumer_group_operator]
+
+Using Apache Kafka provider with Google Cloud Managed Service for Apache Kafka
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+To produce data to topic you can use
+:class:`~airflow.providers.apache.kafka.operators.produce.ProduceToTopicOperator`.
+
+.. exampleinclude:: /../../providers/google/tests/system/google/cloud/managed_kafka/example_managed_kafka_consumer_group.py
+    :language: python
+    :dedent: 4
+    :start-after: [START how_to_cloud_managed_kafka_produce_to_topic_operator]
+    :end-before: [END how_to_cloud_managed_kafka_produce_to_topic_operator]
+
+To consume data from topic you can use
+:class:`~airflow.providers.apache.kafka.operators.produce.ConsumeFromTopicOperator`.
+
+.. exampleinclude:: /../../providers/google/tests/system/google/cloud/managed_kafka/example_managed_kafka_consumer_group.py
+    :language: python
+    :dedent: 4
+    :start-after: [START how_to_cloud_managed_kafka_consume_from_topic_operator]
+    :end-before: [END how_to_cloud_managed_kafka_consume_from_topic_operator]
+
 Reference
 ^^^^^^^^^
 

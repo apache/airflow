@@ -44,7 +44,6 @@ with DAG(
     catchup=False,
     schedule="@daily",
     tags=["example", "example2"],
-    orientation="TB",
 ) as dag:
     run_this_first = EmptyOperator(task_id="run_this_first")
 
@@ -109,7 +108,7 @@ with DAG(
 
     # [START howto_operator_branch_virtualenv]
     # Note: Passing a caching dir allows to keep the virtual environment over multiple runs
-    #       Run the example a second time and see that it re-uses it and is faster.
+    #       Run the example a second time and see that it reuses it and is faster.
     VENV_CACHE_PATH = tempfile.gettempdir()
 
     @task.branch_virtualenv(requirements=["numpy~=1.26.0"], venv_cache_path=VENV_CACHE_PATH)

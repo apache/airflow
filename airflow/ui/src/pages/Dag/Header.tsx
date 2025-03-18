@@ -16,21 +16,20 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Text } from "@chakra-ui/react";
-import { FiBookOpen, FiCalendar } from "react-icons/fi";
+import { FiBookOpen } from "react-icons/fi";
 import { useParams } from "react-router-dom";
 
 import type { DAGDetailsResponse, DAGWithLatestDagRunsResponse } from "openapi/requests/types.gen";
 import { DagIcon } from "src/assets/DagIcon";
+import ParseDag from "src/components/DagActions/ParseDag";
+import RunBackfillButton from "src/components/DagActions/RunBackfillButton";
 import DagRunInfo from "src/components/DagRunInfo";
 import DisplayMarkdownButton from "src/components/DisplayMarkdownButton";
 import { HeaderCard } from "src/components/HeaderCard";
-import MenuButton from "src/components/Menu/MenuButton";
-import ParseDag from "src/components/ParseDag";
 import { TogglePause } from "src/components/TogglePause";
-import { Tooltip } from "src/components/ui";
 
 import { DagTags } from "../DagsList/DagTags";
+import { Schedule } from "../DagsList/Schedule";
 
 export const Header = ({
   dag,
@@ -48,13 +47,7 @@ export const Header = ({
   const stats = [
     {
       label: "Schedule",
-      value: Boolean(dag?.timetable_summary) ? (
-        <Tooltip content={dag?.timetable_description}>
-          <Text fontSize="sm">
-            <FiCalendar style={{ display: "inline" }} /> {dag?.timetable_summary}
-          </Text>
-        </Tooltip>
-      ) : undefined,
+      value: dag === undefined ? undefined : <Schedule dag={dag} />,
     },
     {
       label: "Latest Run",
@@ -108,8 +101,8 @@ export const Header = ({
                 text="Dag Docs"
               />
             )}
+            {dag.timetable_summary === null ? undefined : <RunBackfillButton dag={dag} />}
             <ParseDag dagId={dag.dag_id} fileToken={dag.file_token} />
-            <MenuButton dag={dag} />
           </>
         )
       }

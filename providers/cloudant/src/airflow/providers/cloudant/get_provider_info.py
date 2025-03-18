@@ -27,8 +27,9 @@ def get_provider_info():
         "name": "IBM Cloudant",
         "description": "`IBM Cloudant <https://www.ibm.com/cloud/cloudant>`__\n",
         "state": "ready",
-        "source-date-epoch": 1734529058,
+        "source-date-epoch": 1741508536,
         "versions": [
+            "4.1.1",
             "4.1.0",
             "4.0.3",
             "4.0.2",
@@ -75,4 +76,5 @@ def get_provider_info():
             }
         ],
         "dependencies": ["apache-airflow>=2.9.0", 'ibmcloudant==0.9.1;python_version>="3.10"'],
+        "devel-dependencies": [],
     }

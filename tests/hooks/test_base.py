@@ -17,7 +17,22 @@
 # under the License.
 from __future__ import annotations
 
+from unittest import mock
+
+import pytest
+
 from airflow.hooks.base import BaseHook
+from airflow.sdk.execution_time.comms import ConnectionResult, GetConnection
+
+from tests_common.test_utils.config import conf_vars
+
+
+@pytest.fixture
+def mock_supervisor_comms():
+    with mock.patch(
+        "airflow.sdk.execution_time.task_runner.SUPERVISOR_COMMS", create=True
+    ) as supervisor_comms:
+        yield supervisor_comms
 
 
 class TestBaseHook:
@@ -32,3 +47,42 @@ class TestBaseHook:
     def test_empty_string_as_logger_name(self):
         hook = BaseHook(logger_name="")
         assert hook.log.name == "airflow.task.hooks"
+
+    def test_get_connection(self, mock_supervisor_comms):
+        conn = ConnectionResult(
+            conn_id="test_conn",
+            conn_type="mysql",
+            host="mysql",
+            schema="airflow",
+            login="root",
+            password="password",
+            port=1234,
+            extra='{"extra_key": "extra_value"}',
+        )
+
+        mock_supervisor_comms.get_message.return_value = conn
+
+        hook = BaseHook(logger_name="")
+        hook.get_connection(conn_id="test_conn")
+
+        mock_supervisor_comms.send_request.assert_called_once_with(
+            msg=GetConnection(conn_id="test_conn"), log=mock.ANY
+        )
+
+    def test_get_connection_secrets_backend_configured(self, mock_supervisor_comms, tmp_path):
+        path = tmp_path / "conn.env"
+        path.write_text("CONN_A=mysql://host_a")
+
+        with conf_vars(
+            {
+                ("secrets", "backend"): "airflow.secrets.local_filesystem.LocalFilesystemBackend",
+                ("secrets", "backend_kwargs"): f'{{"connections_file_path": "{path}"}}',
+            }
+        ):
+            hook = BaseHook(logger_name="")
+            retrieved_conn = hook.get_connection(conn_id="CONN_A")
+
+            assert retrieved_conn.conn_id == "CONN_A"
+
+            mock_supervisor_comms.send_request.assert_not_called()
+            mock_supervisor_comms.get_message.assert_not_called()

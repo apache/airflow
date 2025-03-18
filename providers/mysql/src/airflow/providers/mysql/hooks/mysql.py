@@ -240,10 +240,16 @@ class MySqlHook(DbApiHook):
 
     def bulk_load(self, table: str, tmp_file: str) -> None:
         """Load a tab-delimited file into a database table."""
+        import re
+
         conn = self.get_conn()
         cur = conn.cursor()
+
+        if not re.fullmatch(r"^[a-zA-Z0-9_.]+$", table):
+            raise ValueError(f"Invalid table name: {table}")
+
         cur.execute(
-            f"LOAD DATA LOCAL INFILE %s INTO TABLE {table}",
+            f"LOAD DATA LOCAL INFILE %s INTO TABLE `{table}`",
             (tmp_file,),
         )
         conn.commit()
@@ -251,10 +257,16 @@ class MySqlHook(DbApiHook):
 
     def bulk_dump(self, table: str, tmp_file: str) -> None:
         """Dump a database table into a tab-delimited file."""
+        import re
+
         conn = self.get_conn()
         cur = conn.cursor()
+
+        if not re.fullmatch(r"^[a-zA-Z0-9_.]+$", table):
+            raise ValueError(f"Invalid table name: {table}")
+
         cur.execute(
-            f"SELECT * INTO OUTFILE %s FROM {table}",
+            f"SELECT * INTO OUTFILE %s FROM `{table}`",
             (tmp_file,),
         )
         conn.commit()
@@ -319,7 +331,7 @@ class MySqlHook(DbApiHook):
         cursor = conn.cursor()
 
         cursor.execute(
-            f"LOAD DATA LOCAL INFILE %s %s INTO TABLE {table} %s",
+            f"LOAD DATA LOCAL INFILE %s %s INTO TABLE `{table}` %s",
             (tmp_file, duplicate_key_handling, extra_options),
         )
 

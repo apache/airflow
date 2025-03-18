@@ -71,7 +71,6 @@ LATEST_VERSION_DAG_RESPONSE: dict = {
             "asset_condition_type": None,
         },
     ],
-    "arrange": "LR",
 }
 SECOND_VERSION_DAG_RESPONSE: dict = copy.deepcopy(LATEST_VERSION_DAG_RESPONSE)
 SECOND_VERSION_DAG_RESPONSE["nodes"] = [
@@ -187,7 +186,6 @@ class TestStructureDataEndpoint:
                             "operator": "EmptyOperator",
                         },
                     ],
-                    "arrange": "LR",
                 },
             ),
             (
@@ -195,7 +193,7 @@ class TestStructureDataEndpoint:
                     "dag_id": DAG_ID,
                     "root": "unknown_task",
                 },
-                {"arrange": "LR", "edges": [], "nodes": []},
+                {"edges": [], "nodes": []},
             ),
             (
                 {
@@ -205,7 +203,6 @@ class TestStructureDataEndpoint:
                     "filter_downstream": False,
                 },
                 {
-                    "arrange": "LR",
                     "edges": [],
                     "nodes": [
                         {
@@ -405,7 +402,6 @@ class TestStructureDataEndpoint:
                             "asset_condition_type": None,
                         },
                     ],
-                    "arrange": "LR",
                 },
             ),
             (
@@ -444,7 +440,6 @@ class TestStructureDataEndpoint:
                             "operator": None,
                         },
                     ],
-                    "arrange": "LR",
                 },
             ),
         ],
@@ -485,6 +480,14 @@ class TestStructureDataEndpoint:
         response = test_client.get("/ui/structure/structure_data", params=params)
         assert response.status_code == 200
         assert response.json() == expected
+
+    def test_delete_dag_should_response_401(self, unauthenticated_test_client):
+        response = unauthenticated_test_client.get("/ui/structure/structure_data", params={"dag_id": DAG_ID})
+        assert response.status_code == 401
+
+    def test_delete_dag_should_response_403(self, unauthorized_test_client):
+        response = unauthorized_test_client.get("/ui/structure/structure_data", params={"dag_id": DAG_ID})
+        assert response.status_code == 403
 
     def test_should_return_404(self, test_client):
         response = test_client.get("/ui/structure/structure_data", params={"dag_id": "not_existing"})

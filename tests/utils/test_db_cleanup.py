@@ -27,7 +27,7 @@ from uuid import uuid4
 import pendulum
 import pytest
 from sqlalchemy import text
-from sqlalchemy.exc import OperationalError
+from sqlalchemy.exc import OperationalError, SQLAlchemyError
 from sqlalchemy.ext.declarative import DeclarativeMeta
 
 from airflow.exceptions import AirflowException
@@ -36,6 +36,7 @@ from airflow.providers.standard.operators.python import PythonOperator
 from airflow.utils import timezone
 from airflow.utils.db_cleanup import (
     ARCHIVE_TABLE_PREFIX,
+    ARCHIVED_TABLES_FROM_DB_MIGRATIONS,
     CreateTableAs,
     _build_query,
     _cleanup_table,
@@ -317,6 +318,37 @@ class TestDBCleanup:
             model = config_dict["dag_run"].orm_model
             assert len(session.query(model).all()) == 5
             assert len(_get_archived_table_names(["dag_run"], session)) == expected_archives
+
+    @patch("airflow.utils.db.reflect_tables")
+    def test_skip_archive_failure_will_remove_table(self, reflect_tables_mock):
+        """
+        Verify that running cleanup_table with skip_archive = True, and failure happens.
+
+        The archive table should be removed from db if any exception.
+        """
+        reflect_tables_mock.side_effect = SQLAlchemyError("Deletion failed")
+        base_date = pendulum.DateTime(2022, 1, 1, tzinfo=pendulum.timezone("UTC"))
+        num_tis = 10
+        create_tis(
+            base_date=base_date,
+            num_tis=num_tis,
+        )
+        try:
+            with create_session() as session:
+                clean_before_date = base_date.add(days=5)
+                _cleanup_table(
+                    **config_dict["dag_run"].__dict__,
+                    clean_before_timestamp=clean_before_date,
+                    dry_run=False,
+                    session=session,
+                    table_names=["dag_run"],
+                    skip_archive=True,
+                )
+        except SQLAlchemyError:
+            pass
+        archived_table_names = _get_archived_table_names(["dag_run"], session)
+        assert len(archived_table_names) == 1
+        assert archived_table_names[0] in ARCHIVED_TABLES_FROM_DB_MIGRATIONS
 
     def test_no_models_missing(self):
         """

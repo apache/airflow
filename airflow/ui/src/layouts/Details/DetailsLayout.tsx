@@ -25,6 +25,7 @@ import { useLocalStorage } from "usehooks-ts";
 
 import { useDagServiceGetDag } from "openapi/queries";
 import type { DAGResponse } from "openapi/requests/types.gen";
+import BackfillBanner from "src/components/Banner/BackfillBanner";
 import { ErrorAlert } from "src/components/ErrorAlert";
 import { SearchDagsButton } from "src/components/SearchDags";
 import TriggerDAGButton from "src/components/TriggerDag/TriggerDAGButton";
@@ -50,10 +51,7 @@ export const DetailsLayout = ({ children, error, isLoading, tabs }: Props) => {
 
   const { data: dag } = useDagServiceGetDag({ dagId });
 
-  const [dagView, setDagView] = useLocalStorage<"graph" | "grid">(
-    `dag_view-${dagId}`,
-    dag && (dag.default_view === "graph" || dag.default_view === "grid") ? dag.default_view : "grid",
-  );
+  const [dagView, setDagView] = useLocalStorage<"graph" | "grid">(`dag_view-${dagId}`, "grid");
 
   const { fitView, getZoom } = useReactFlow();
 
@@ -67,11 +65,12 @@ export const DetailsLayout = ({ children, error, isLoading, tabs }: Props) => {
         </Flex>
       </HStack>
       <Toaster />
+      <BackfillBanner dagId={dagId} />
       <Box flex={1} minH={0}>
         <PanelGroup autoSaveId={dagId} direction="horizontal">
-          <Panel defaultSize={20} minSize={6}>
+          <Panel defaultSize={dagView === "graph" ? 70 : 20} minSize={6}>
             <Box height="100%" position="relative" pr={2}>
-              <PanelButtons dagId={dagId} dagView={dagView} setDagView={setDagView} />
+              <PanelButtons dagView={dagView} setDagView={setDagView} />
               {dagView === "graph" ? <Graph /> : <Grid />}
             </Box>
           </Panel>
@@ -87,7 +86,7 @@ export const DetailsLayout = ({ children, error, isLoading, tabs }: Props) => {
           >
             <Box bg="fg.subtle" cursor="col-resize" h="100%" transition="background 0.2s" w={0.5} />
           </PanelResizeHandle>
-          <Panel defaultSize={50} minSize={20}>
+          <Panel defaultSize={dagView === "graph" ? 30 : 80} minSize={20}>
             <Box display="flex" flexDirection="column" h="100%">
               {children}
               <ErrorAlert error={error} />

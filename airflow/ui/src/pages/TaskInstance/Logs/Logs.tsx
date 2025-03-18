@@ -22,6 +22,7 @@ import { useParams, useSearchParams } from "react-router-dom";
 
 import { useTaskInstanceServiceGetMappedTaskInstance } from "openapi/queries";
 import { Dialog } from "src/components/ui";
+import { SearchParamsKeys } from "src/constants/searchParams";
 import { useConfig } from "src/queries/useConfig";
 import { useLogs } from "src/queries/useLogs";
 
@@ -32,7 +33,9 @@ export const Logs = () => {
   const { dagId = "", mapIndex = "-1", runId = "", taskId = "" } = useParams();
   const [searchParams, setSearchParams] = useSearchParams();
 
-  const tryNumberParam = searchParams.get("try_number");
+  const tryNumberParam = searchParams.get(SearchParamsKeys.TRY_NUMBER);
+  const logLevelFilters = searchParams.getAll(SearchParamsKeys.LOG_LEVEL);
+  const sourceFilters = searchParams.getAll(SearchParamsKeys.SOURCE);
 
   const {
     data: taskInstance,
@@ -47,9 +50,9 @@ export const Logs = () => {
 
   const onSelectTryNumber = (newTryNumber: number) => {
     if (newTryNumber === taskInstance?.try_number) {
-      searchParams.delete("try_number");
+      searchParams.delete(SearchParamsKeys.TRY_NUMBER);
     } else {
-      searchParams.set("try_number", newTryNumber.toString());
+      searchParams.set(SearchParamsKeys.TRY_NUMBER, newTryNumber.toString());
     }
     setSearchParams(searchParams);
   };
@@ -74,6 +77,8 @@ export const Logs = () => {
     isLoading: isLoadingLogs,
   } = useLogs({
     dagId,
+    logLevelFilters,
+    sourceFilters,
     taskInstance,
     tryNumber: tryNumber === 0 ? 1 : tryNumber,
   });
@@ -82,6 +87,7 @@ export const Logs = () => {
     <Box p={2}>
       <TaskLogHeader
         onSelectTryNumber={onSelectTryNumber}
+        sourceOptions={data.sources}
         taskInstance={taskInstance}
         toggleFullscreen={toggleFullscreen}
         toggleWrap={toggleWrap}

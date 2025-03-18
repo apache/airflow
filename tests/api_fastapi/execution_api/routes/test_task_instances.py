@@ -17,6 +17,7 @@
 
 from __future__ import annotations
 
+import operator
 from datetime import datetime
 from unittest import mock
 
@@ -25,11 +26,11 @@ import uuid6
 from sqlalchemy import select, update
 from sqlalchemy.exc import SQLAlchemyError
 
-from airflow.exceptions import AirflowInactiveAssetInInletOrOutletException
 from airflow.models import RenderedTaskInstanceFields, TaskReschedule, Trigger
 from airflow.models.asset import AssetActive, AssetAliasModel, AssetEvent, AssetModel
 from airflow.models.taskinstance import TaskInstance
-from airflow.sdk.definitions.asset import AssetUniqueKey
+from airflow.models.taskinstancehistory import TaskInstanceHistory
+from airflow.providers.standard.operators.empty import EmptyOperator
 from airflow.utils import timezone
 from airflow.utils.state import State, TaskInstanceState, TerminalTIState
 
@@ -109,6 +110,7 @@ class TestTIRunState:
             "max_tries": 0,
             "variables": [],
             "connections": [],
+            "xcom_keys_to_clear": [],
         }
 
         # Refresh the Task Instance from the database so that we can check the updated values
@@ -185,6 +187,7 @@ class TestTIRunState:
             "max_tries": 0,
             "variables": [],
             "connections": [],
+            "xcom_keys_to_clear": [],
             "next_method": "execute_complete",
             "next_kwargs": {
                 "__type": "dict",
@@ -227,40 +230,6 @@ class TestTIRunState:
         }
 
         assert session.scalar(select(TaskInstance.state).where(TaskInstance.id == ti.id)) == initial_ti_state
-
-    def test_xcom_cleared_when_ti_runs(self, client, session, create_task_instance, time_machine):
-        """
-        Test that the xcoms are cleared when the Task Instance state is updated to running.
-        """
-        instant_str = "2024-09-30T12:00:00Z"
-        instant = timezone.parse(instant_str)
-        time_machine.move_to(instant, tick=False)
-
-        ti = create_task_instance(
-            task_id="test_xcom_cleared_when_ti_runs",
-            state=State.QUEUED,
-            session=session,
-            start_date=instant,
-        )
-        session.commit()
-
-        # Lets stage a xcom push
-        ti.xcom_push(key="key", value="value")
-
-        response = client.patch(
-            f"/execution/task-instances/{ti.id}/run",
-            json={
-                "state": "running",
-                "hostname": "random-hostname",
-                "unixname": "random-unixname",
-                "pid": 100,
-                "start_date": instant_str,
-            },
-        )
-
-        assert response.status_code == 200
-        # Once the task is running, we can check if xcom is cleared
-        assert ti.xcom_pull(task_ids="test_xcom_cleared_when_ti_runs", key="key") is None
 
     def test_xcom_not_cleared_for_deferral(self, client, session, create_task_instance, time_machine):
         """
@@ -317,9 +286,11 @@ class TestTIRunState:
 
 class TestTIUpdateState:
     def setup_method(self):
+        clear_db_assets()
         clear_db_runs()
 
     def teardown_method(self):
+        clear_db_assets()
         clear_db_runs()
 
     @pytest.mark.parametrize(
@@ -358,51 +329,45 @@ class TestTIUpdateState:
         assert ti.end_date == end_date
 
     @pytest.mark.parametrize(
-        ("task_outlets", "outlet_events"),
+        "task_outlets",
         [
-            (
-                [{"name": "s3://bucket/my-task", "uri": "s3://bucket/my-task", "asset_type": "Asset"}],
+            pytest.param([{"name": "my-task", "uri": "s3://bucket/my-task", "type": "Asset"}], id="asset"),
+            pytest.param([{"name": "my-task", "type": "AssetNameRef"}], id="name-ref"),
+            pytest.param([{"uri": "s3://bucket/my-task", "type": "AssetUriRef"}], id="uri-ref"),
+        ],
+    )
+    @pytest.mark.parametrize(
+        "outlet_events, expected_extra",
+        [
+            pytest.param([], {}, id="default"),
+            pytest.param(
                 [
                     {
-                        "key": {"name": "s3://bucket/my-task", "uri": "s3://bucket/my-task"},
-                        "extra": {},
-                        "asset_alias_events": [],
-                    }
-                ],
-            ),
-            (
-                [{"asset_type": "AssetAlias"}],
-                [
+                        "dest_asset_key": {"name": "my-task", "uri": "s3://bucket/my-task"},
+                        "extra": {"foo": 1},
+                    },
                     {
-                        "source_alias_name": "example-alias",
-                        "dest_asset_key": {"name": "s3://bucket/my-task", "uri": "s3://bucket/my-task"},
-                        "extra": {},
-                    }
+                        "dest_asset_key": {"name": "my-task-2", "uri": "s3://bucket/my-task-2"},
+                        "extra": {"foo": 2},
+                    },
                 ],
+                {"foo": 1},
+                id="extra",
             ),
         ],
     )
     def test_ti_update_state_to_success_with_asset_events(
-        self, client, session, create_task_instance, task_outlets, outlet_events
+        self, client, session, create_task_instance, task_outlets, outlet_events, expected_extra
     ):
-        clear_db_assets()
-        clear_db_runs()
-
         asset = AssetModel(
             id=1,
-            name="s3://bucket/my-task",
+            name="my-task",
             uri="s3://bucket/my-task",
             group="asset",
             extra={},
         )
         asset_active = AssetActive.for_asset(asset)
         session.add_all([asset, asset_active])
-        asset_type = task_outlets[0]["asset_type"]
-        if asset_type == "AssetAlias":
-            _create_asset_aliases(session, num=1)
-            asset_alias = session.query(AssetAliasModel).all()
-            assert len(asset_alias) == 1
-            assert asset_alias == [AssetAliasModel(name="simple1")]
 
         ti = create_task_instance(
             task_id="test_ti_update_state_to_success_with_asset_events",
@@ -425,18 +390,80 @@ class TestTIUpdateState:
         assert response.text == ""
         session.expire_all()
 
-        # check if asset was created properly
-        asset = session.query(AssetModel).all()
-        assert len(asset) == 1
-        assert asset == [AssetModel(name="s3://bucket/my-task", uri="s3://bucket/my-task", extra={})]
-
-        event = session.query(AssetEvent).all()
+        event = session.scalars(select(AssetEvent)).all()
         assert len(event) == 1
-        assert event[0].asset_id == 1
-        assert event[0].asset == AssetModel(name="s3://bucket/my-task", uri="s3://bucket/my-task", extra={})
-        assert event[0].extra == {}
-        if asset_type == "AssetAlias":
-            assert event[0].source_aliases == [AssetAliasModel(name="example-alias")]
+        assert event[0].asset == AssetModel(name="my-task", uri="s3://bucket/my-task", extra={})
+        assert event[0].extra == expected_extra
+
+    @pytest.mark.parametrize(
+        "outlet_events, expected_extra",
+        [
+            pytest.param([], None, id="default"),
+            pytest.param(
+                [
+                    {
+                        "dest_asset_key": {"name": "my-task", "uri": "s3://bucket/my-task"},
+                        "source_alias_name": "simple1",
+                        "extra": {"foo": 1},
+                    },
+                    {
+                        "dest_asset_key": {"name": "my-task-2", "uri": "s3://bucket/my-task-2"},
+                        "extra": {"foo": 2},
+                    },
+                    {
+                        "dest_asset_key": {"name": "my-task-2", "uri": "s3://bucket/my-task-2"},
+                        "source_alias_name": "simple2",
+                        "extra": {"foo": 3},
+                    },
+                ],
+                {"foo": 1},
+                id="extra",
+            ),
+        ],
+    )
+    def test_ti_update_state_to_success_with_asset_alias_events(
+        self, client, session, create_task_instance, outlet_events, expected_extra
+    ):
+        asset = AssetModel(
+            id=1,
+            name="my-task",
+            uri="s3://bucket/my-task",
+            group="asset",
+            extra={},
+        )
+        asset_active = AssetActive.for_asset(asset)
+        session.add_all([asset, asset_active])
+
+        _create_asset_aliases(session, num=2)
+
+        ti = create_task_instance(
+            task_id="test_ti_update_state_to_success_with_asset_events",
+            start_date=DEFAULT_START_DATE,
+            state=State.RUNNING,
+        )
+        session.commit()
+
+        response = client.patch(
+            f"/execution/task-instances/{ti.id}/state",
+            json={
+                "state": "success",
+                "end_date": DEFAULT_END_DATE.isoformat(),
+                "task_outlets": [{"name": "simple1", "type": "AssetAlias"}],
+                "outlet_events": outlet_events,
+            },
+        )
+
+        assert response.status_code == 204
+        assert response.text == ""
+        session.expire_all()
+
+        events = session.scalars(select(AssetEvent)).all()
+        if expected_extra is None:
+            assert events == []
+        else:
+            assert len(events) == 1
+            assert events[0].asset == AssetModel(name="my-task", uri="s3://bucket/my-task", extra={})
+            assert events[0].extra == expected_extra
 
     def test_ti_update_state_not_found(self, client, session):
         """
@@ -604,14 +631,14 @@ class TestTIUpdateState:
 
         trs = session.query(TaskReschedule).all()
         assert len(trs) == 1
-        assert trs[0].dag_id == "dag"
-        assert trs[0].task_id == "test_ti_update_state_to_reschedule"
-        assert trs[0].run_id == "test"
+        assert trs[0].task_instance.dag_id == "dag"
+        assert trs[0].task_instance.task_id == "test_ti_update_state_to_reschedule"
+        assert trs[0].task_instance.run_id == "test"
         assert trs[0].try_number == 0
         assert trs[0].start_date == instant
         assert trs[0].end_date == DEFAULT_END_DATE
         assert trs[0].reschedule_date == timezone.parse("2024-10-31T11:03:00+00:00")
-        assert trs[0].map_index == -1
+        assert trs[0].task_instance.map_index == -1
         assert trs[0].duration == 129600
 
     @pytest.mark.parametrize(
@@ -651,6 +678,16 @@ class TestTIUpdateState:
         assert ti.state == expected_state
         assert ti.next_method is None
         assert ti.next_kwargs is None
+
+        tih = session.query(TaskInstanceHistory).where(
+            TaskInstanceHistory.task_id == ti.task_id, TaskInstanceHistory.task_instance_id == ti.id
+        )
+        tih_count = tih.count()
+        assert tih_count == (1 if retries else 0)
+        if retries:
+            tih = tih.one()
+            assert tih.try_id
+            assert tih.try_id != ti.try_id
 
     def test_ti_update_state_when_ti_is_restarting(self, client, session, create_task_instance):
         ti = create_task_instance(
@@ -757,46 +794,48 @@ class TestTIUpdateState:
         )
         session.commit()
 
-        with mock.patch(
-            "airflow.models.taskinstance.TaskInstance.validate_inlet_outlet_assets_activeness"
-        ) as mock_validate_inlet_outlet_assets_activeness:
-            mock_validate_inlet_outlet_assets_activeness.return_value = None
-            response = client.post(
-                f"/execution/task-instances/{ti.id}/runtime-checks",
-                json={
-                    "inlets": [],
-                    "outlets": [],
-                },
-            )
-
-            assert response.status_code == expected_status_code
-
-        session.expire_all()
-
-    def test_ti_runtime_checks_failure(self, client, session, create_task_instance):
-        ti = create_task_instance(
-            task_id="test_ti_runtime_checks_failure",
-            state=State.RUNNING,
+        response = client.post(
+            f"/execution/task-instances/{ti.id}/runtime-checks",
+            json={
+                "inlets": [],
+                "outlets": [],
+            },
         )
-        session.commit()
-
-        with mock.patch(
-            "airflow.models.taskinstance.TaskInstance.validate_inlet_outlet_assets_activeness"
-        ) as mock_validate_inlet_outlet_assets_activeness:
-            mock_validate_inlet_outlet_assets_activeness.side_effect = (
-                AirflowInactiveAssetInInletOrOutletException([AssetUniqueKey(name="abc", uri="something")])
-            )
-            response = client.post(
-                f"/execution/task-instances/{ti.id}/runtime-checks",
-                json={
-                    "inlets": [],
-                    "outlets": [],
-                },
-            )
-
-            assert response.status_code == 400
+        assert response.status_code == expected_status_code
 
         session.expire_all()
+
+
+class TestTISkipDownstream:
+    def setup_method(self):
+        clear_db_runs()
+
+    def teardown_method(self):
+        clear_db_runs()
+
+    @pytest.mark.parametrize("_json", (({"tasks": ["t1"]}), ({"tasks": [("t1", -1)]})))
+    def test_ti_skip_downstream(self, client, session, create_task_instance, dag_maker, _json):
+        with dag_maker("skip_downstream_dag", session=session):
+            t0 = EmptyOperator(task_id="t0")
+            t1 = EmptyOperator(task_id="t1")
+            t0 >> t1
+        dr = dag_maker.create_dagrun(run_id="run")
+        decision = dr.task_instance_scheduling_decisions(session=session)
+        for ti in sorted(decision.schedulable_tis, key=operator.attrgetter("task_id")):
+            # TODO: TaskSDK #45549
+            ti.task = dag_maker.dag.get_task(ti.task_id)
+            ti.run(session=session)
+
+        t0 = dr.get_task_instance("t0")
+        response = client.patch(
+            f"/execution/task-instances/{t0.id}/skip-downstream",
+            json=_json,
+        )
+        t1 = dr.get_task_instance("t1")
+
+        assert response.status_code == 204
+        assert decision.schedulable_tis[0].state == State.SUCCESS
+        assert t1.state == State.SKIPPED
 
 
 class TestTIHealthEndpoint:

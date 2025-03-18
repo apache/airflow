@@ -217,7 +217,7 @@ def _sync_dag_perms(dag: MaybeSerializedDAG, session: Session):
     dag_id = dag.dag_id
 
     log.debug("Syncing DAG permissions: %s to the DB", dag_id)
-    from airflow.www.security_appless import ApplessAirflowSecurityManager
+    from airflow.providers.fab.www.security_appless import ApplessAirflowSecurityManager
 
     security_manager = ApplessAirflowSecurityManager(session=session)
     security_manager.sync_perm_for_dag(dag_id, dag.access_control)
@@ -426,7 +426,6 @@ class DagModelOperation(NamedTuple):
             dm.is_active = True
             dm.has_import_errors = False
             dm.last_parsed_time = utcnow()
-            dm.default_view = dag.default_view or conf.get("webserver", "dag_default_view").lower()
             if hasattr(dag, "_dag_display_property_value"):
                 dm._dag_display_property_value = dag._dag_display_property_value
             elif dag.dag_display_name != dag.dag_id:

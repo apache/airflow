@@ -19,21 +19,28 @@
 import { useToken } from "@chakra-ui/react";
 import { ReactFlow, Controls, Background, MiniMap, type Node as ReactFlowNode } from "@xyflow/react";
 import "@xyflow/react/dist/style.css";
-import { useParams, useSearchParams } from "react-router-dom";
+import { useParams } from "react-router-dom";
+import { useLocalStorage } from "usehooks-ts";
 
-import { useGridServiceGridData, useStructureServiceStructureData } from "openapi/queries";
-import { SearchParamsKeys } from "src/constants/searchParams";
+import {
+  useDagRunServiceGetDagRun,
+  useDependenciesServiceGetDependencies,
+  useGridServiceGridData,
+  useStructureServiceStructureData,
+} from "openapi/queries";
+import { AliasNode } from "src/components/Graph/AliasNode";
+import { AssetConditionNode } from "src/components/Graph/AssetConditionNode";
+import { AssetNode } from "src/components/Graph/AssetNode";
+import { DagNode } from "src/components/Graph/DagNode";
+import Edge from "src/components/Graph/Edge";
+import { JoinNode } from "src/components/Graph/JoinNode";
+import { TaskNode } from "src/components/Graph/TaskNode";
+import type { CustomNodeProps } from "src/components/Graph/reactflowUtils";
+import { useGraphLayout } from "src/components/Graph/useGraphLayout";
 import { useColorMode } from "src/context/colorMode";
 import { useOpenGroups } from "src/context/openGroups";
+import useSelectedVersion from "src/hooks/useSelectedVersion";
 import { isStatePending, useAutoRefresh } from "src/utils";
-
-import Edge from "./Edge";
-import { JoinNode } from "./JoinNode";
-import { TaskNode } from "./TaskNode";
-import type { CustomNodeProps } from "./reactflowUtils";
-import { useGraphLayout } from "./useGraphLayout";
-
-const VERSION_NUMBER_PARAM = SearchParamsKeys.VERSION_NUMBER;
 
 const nodeColor = (
   { data: { depth, height, isOpen, taskInstance, width }, type }: ReactFlowNode<CustomNodeProps>,
@@ -58,6 +65,10 @@ const nodeColor = (
 };
 
 const nodeTypes = {
+  asset: AssetNode,
+  "asset-alias": AliasNode,
+  "asset-condition": AssetConditionNode,
+  dag: DagNode,
   join: JoinNode,
   task: TaskNode,
 };
@@ -67,8 +78,7 @@ export const Graph = () => {
   const { colorMode = "light" } = useColorMode();
   const { dagId = "", runId, taskId } = useParams();
 
-  const [searchParams] = useSearchParams();
-  const selectedVersion = searchParams.get(VERSION_NUMBER_PARAM);
+  const selectedVersion = useSelectedVersion();
 
   // corresponds to the "bg", "bg.emphasized", "border.inverted" semantic tokens
   const [oddLight, oddDark, evenLight, evenDark, selectedDarkColor, selectedLightColor] = useToken("colors", [
@@ -81,61 +91,102 @@ export const Graph = () => {
   ]);
 
   const { openGroupIds } = useOpenGroups();
+  const refetchInterval = useAutoRefresh({ dagId });
+
+  const [dependencies] = useLocalStorage<"all" | "immediate" | "tasks">(`dependencies-${dagId}`, "immediate");
 
   const selectedColor = colorMode === "dark" ? selectedDarkColor : selectedLightColor;
 
-  const { data: graphData = { arrange: "LR", edges: [], nodes: [] } } = useStructureServiceStructureData({
+  const { data: graphData = { edges: [], nodes: [] } } = useStructureServiceStructureData({
     dagId,
-    versionNumber: selectedVersion === null ? undefined : parseInt(selectedVersion, 10),
+    externalDependencies: dependencies === "immediate",
+    versionNumber: selectedVersion,
   });
+
+  const { data: dagDependencies = { edges: [], nodes: [] } } = useDependenciesServiceGetDependencies(
+    { nodeId: `dag:${dagId}` },
+    undefined,
+    { enabled: dependencies === "all" },
+  );
+
+  const { data: dagRun } = useDagRunServiceGetDagRun(
+    {
+      dagId,
+      dagRunId: runId ?? "",
+    },
+    undefined,
+    { enabled: runId !== "" },
+  );
+
+  const dagDepEdges = dependencies === "all" ? dagDependencies.edges : [];
+  const dagDepNodes = dependencies === "all" ? dagDependencies.nodes : [];
 
   const { data } = useGraphLayout({
-    ...graphData,
     dagId,
-    openGroupIds,
+    direction: "RIGHT",
+    edges: [...graphData.edges, ...dagDepEdges],
+    nodes: dagDepNodes.length
+      ? dagDepNodes.map((node) =>
+          node.id === `dag:${dagId}` ? { ...node, children: graphData.nodes } : node,
+        )
+      : graphData.nodes,
+    openGroupIds: [...openGroupIds, ...(dependencies === "all" ? [`dag:${dagId}`] : [])],
+    versionNumber: selectedVersion,
   });
 
-  const refetchInterval = useAutoRefresh({ dagId });
-
+  // Filter grid data to get only a single dag run
   const { data: gridData } = useGridServiceGridData(
     {
       dagId,
-      limit: 25,
+      limit: 1,
       offset: 0,
-      orderBy: "-run_after",
+      runAfterGte: dagRun?.run_after,
+      runAfterLte: dagRun?.run_after,
     },
     undefined,
     {
-      enabled: Boolean(runId),
+      enabled: dagRun !== undefined,
       refetchInterval: (query) =>
         query.state.data?.dag_runs.some((dr) => isStatePending(dr.state)) && refetchInterval,
     },
   );
 
-  const dagRun = gridData?.dag_runs.find((dr) => dr.dag_run_id === runId);
+  const gridRun = gridData?.dag_runs.find((dr) => dr.dag_run_id === runId);
 
   // Add task instances to the node data but without having to recalculate how the graph is laid out
-  const nodes =
-    dagRun?.task_instances === undefined
-      ? data?.nodes
-      : data?.nodes.map((node) => {
-          const taskInstance = dagRun.task_instances.find((ti) => ti.task_id === node.id);
+  const nodes = data?.nodes.map((node) => {
+    const taskInstance = gridRun?.task_instances.find((ti) => ti.task_id === node.id);
 
-          return {
-            ...node,
-            data: {
-              ...node.data,
-              isSelected: node.id === taskId,
-              taskInstance,
-            },
-          };
-        });
+    return {
+      ...node,
+      data: {
+        ...node.data,
+        isSelected: node.id === taskId,
+        taskInstance,
+      },
+    };
+  });
+
+  const edges = (data?.edges ?? []).map((edge) => ({
+    ...edge,
+    data: {
+      ...edge.data,
+      rest: {
+        ...edge.data?.rest,
+        isSelected:
+          taskId === edge.source ||
+          taskId === edge.target ||
+          edge.source === `dag:${dagId}` ||
+          edge.target === `dag:${dagId}`,
+      },
+    },
+  }));
 
   return (
     <ReactFlow
       colorMode={colorMode}
       defaultEdgeOptions={{ zIndex: 1 }}
-      edges={data?.edges ?? []}
+      edges={edges}
       edgeTypes={edgeTypes}
       // Fit view to selected task or the whole graph on render
       fitView

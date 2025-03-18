@@ -71,8 +71,7 @@ core:
       description: |
         The executor class that airflow should use. Choices include
         ``SequentialExecutor``, ``LocalExecutor``, ``CeleryExecutor``,
-        ``KubernetesExecutor``, ``CeleryKubernetesExecutor``, ``LocalKubernetesExecutor`` or the
-        full import path to the class when using a custom executor.
+        ``KubernetesExecutor`` or the full import path to the class when using a custom executor.
       version_added: ~
       type: string
       example: ~
@@ -102,6 +101,14 @@ core:
       type: string
       example: ~
       default: "False"
+    simple_auth_manager_passwords_file:
+      description: |
+        The json file where the simple auth manager stores passwords for the configured users.
+        By default this is ``AIRFLOW_HOME/simple_auth_manager_passwords.json.generated``.
+      version_added: 3.0.0
+      type: string
+      example: "/path/to/passwords.json"
+      default: ~
     parallelism:
       description: |
         This defines the maximum number of task instances that can run concurrently per scheduler in
@@ -394,7 +401,7 @@ core:
       version_added: 1.10.12
       type: string
       example: "path.to.CustomXCom"
-      default: "airflow.models.xcom.BaseXCom"
+      default: "airflow.sdk.execution_time.xcom.BaseXCom"
     lazy_load_plugins:
       description: |
         By default Airflow plugins are lazily-loaded (only loaded when required). Set it to ``False``,
@@ -534,7 +541,7 @@ core:
       version_added: 3.0.0
       type: string
       example: ~
-      default: "http://localhost:9091/execution/"
+      default: "http://localhost:8080/execution/"
 database:
   description: ~
   options:
@@ -670,22 +677,6 @@ database:
       type: string
       example: 'airflow_local_settings._sessionmaker'
       default: ~
-    load_default_connections:
-      description: |
-        Whether to load the default connections that ship with Airflow when ``airflow db init`` is called.
-        It's good to get started, but you probably want to set this to ``False`` in a production environment.
-      version_added: 2.3.0
-      version_deprecated: 2.7.0
-      deprecation_reason: |
-        This option is only used by the deprecated "airflow db init" command.
-        This option has been used in previous versions of Airflow to determine if loading of the default
-        connections is done with the ``airflow db init`` command. This command has been deprecated and
-        replaced by two separate commands ``airflow db migrate`` and
-        ``airflow connections create-default-connections`` and ``load_default_connections`` is not
-        used anymore by those commands.
-      type: string
-      example: ~
-      default: "True"
     max_db_retries:
       description: |
         Number of times the code should be retried in case of DB Operational Errors.
@@ -933,7 +924,7 @@ logging:
         consoles\.
       version_added: 2.0.0
       type: string
-      example: "connexion,sqlalchemy"
+      example: "fastapi,sqlalchemy"
       default: ""
     worker_log_server_port:
       description: |
@@ -1321,7 +1312,7 @@ api:
       version_added: ~
       type: string
       example: ~
-      default: "http://localhost:9091"
+      default: "http://localhost:8080"
     host:
       description: |
         The ip specified when starting the api server
@@ -1335,7 +1326,7 @@ api:
       version_added: ~
       type: string
       example: ~
-      default: "9091"
+      default: "8080"
     workers:
       description: |
         Number of workers to run on the API server
@@ -1373,15 +1364,6 @@ api:
       type: string
       example: ~
       default: ""
-    auth_backends:
-      description: |
-        Comma separated list of auth backends to authenticate users of the API. See
-        `Security: API
-        <https://airflow.apache.org/docs/apache-airflow/stable/security/api.html>`__ for possible values
-      version_added: 2.3.0
-      type: string
-      example: ~
-      default: "airflow.providers.fab.auth_manager.api.auth.backend.session"
     maximum_page_limit:
       description: |
         Used to set the maximum page limit for API requests. If limit passed as param
@@ -1400,24 +1382,6 @@ api:
       example: ~
       version_added: 2.0.0
       default: "100"
-    google_oauth2_audience:
-      description: The intended audience for JWT token credentials used for authorization.
-        This value must match on the client and server sides.
-        If empty, audience will not be tested.
-      type: string
-      version_added: 2.0.0
-      example: project-id-random-value.apps.googleusercontent.com
-      default: ""
-    google_key_path:
-      description: |
-        Path to Google Cloud Service Account key file (JSON). If omitted, authorization based on
-        `the Application Default Credentials
-        <https://cloud.google.com/docs/authentication/production#finding_credentials_automatically>`__ will
-        be used.
-      type: string
-      version_added: 2.0.0
-      example: /files/service-account-json
-      default: ""
     access_control_allow_headers:
       description: |
         Used in response to a preflight request to indicate which HTTP
@@ -1452,36 +1416,118 @@ api:
       version_added: 2.7.0
       example: ~
       default: "False"
-    auth_jwt_secret:
-      description: |
-        Secret key used to encode and decode JWT tokens to authenticate to public and private APIs.
-        It should be as random as possible. However, when running more than 1 instances of API services,
-        make sure all of them use the same ``jwt_secret`` otherwise calls will fail on authentication.
+api_auth:
+  description: Settings relating to authentication on the Airflow APIs
+  options:
+    jwt_audience:
       version_added: 3.0.0
+      description: |
+        The audience claim to use when generating and validating JWTs for the API.
+
+        This variable can be a single value, or a comma-separated string, in which case the first value is the
+        one that will be used when generating, and the others are accepted at validation time.
+
+        Not required, but strongly encouraged
+      example: "my-unique-airflow-id"
+      default: ~
       type: string
-      sensitive: true
-      example: ~
-      default: "{JWT_SECRET_KEY}"
-    auth_jwt_expiration_time:
+    jwt_expiration_time:
       description: |
         Number in seconds until the JWT token used for authentication expires. When the token expires,
         all API calls using this token will fail on authentication.
+
         Make sure that time on ALL the machines that you run airflow components on is synchronized
         (for example using ntpd) otherwise you might get "forbidden" errors.
       version_added: 3.0.0
       type: integer
       example: ~
       default: "86400"
-    auth_jwt_cli_expiration_time:
+    jwt_cli_expiration_time:
       description: |
         Number in seconds until the JWT token used for authentication expires for CLI commands.
         When the token expires, all CLI calls using this token will fail on authentication.
+
         Make sure that time on ALL the machines that you run airflow components on is synchronized
         (for example using ntpd) otherwise you might get "forbidden" errors.
       version_added: 3.0.0
       type: integer
       example: ~
       default: "3600"
+    jwt_secret:
+      description: |
+        Secret key used to encode and decode JWT tokens to authenticate to public and private APIs.
+
+        It should be as random as possible. However, when running more than 1 instances of API services,
+        make sure all of them use the same ``jwt_secret`` otherwise calls will fail on authentication.
+
+        Mutually exclusive with ``jwt_private_key_path``.
+      version_added: 3.0.0
+      type: string
+      sensitive: true
+      example: ~
+      default: "{JWT_SECRET_KEY}"
+    jwt_private_key_path:
+      version_added: 3.0.0
+      description: |
+        The path to a file containing a PEM-encoded private key use when generating Task Identity tokens in
+        the executor.
+
+        Mutually exclusive with ``jwt_secret``.
+      default: ~
+      example: /path/to/private_key.pem
+      type: string
+    jwt_algorithm:
+      version_added: 3.0.0
+      description: |
+        The algorithm name use when generating and validating JWT Task Identities.
+
+        This value must be appropriate for the given private key type.
+
+        Default is "HS512" if ``jwt_secret`` is set, or "EdDSA" otherwise
+      example: '"EdDSA" or "HS512"'
+      type: string
+      default: ~
+    trusted_jwks_url:
+      version_added: 3.0.0
+      description: |
+        The public signing keys of Task Execution token issuers to trust. It must contain the public key
+        related to ``jwt_private_key_path`` else tasks will be unlikely to execute successfully.
+
+        Can be a local file path (without the ``file://`` prefix) or an http or https URL.
+
+        If a remote URL is given it will be polled periodically for changes.
+
+        Mutually exclusive with ``jwt_secret``.
+
+        If a ``jwt_private_key_path`` is given but this settings is not set then the private key will be
+        trusted. If this is provided it is your responsibility to ensure that the private key used for
+        generation is in this list.
+      default: ~
+      example: '"/path/to/public-jwks.json" or "https://my-issuer/.well-known/jwks.json"'
+      type: string
+    jwt_issuer:
+      version_added: 3.0.0
+      description: |
+        Issuer of the JWT. This becomes the ``iss`` claim of generated tokens, and is validated on incoming
+        requests.
+
+        Ideally this should be unique per individual airflow deployment
+
+        Not required, but strongly recommended to be set.
+
+        See also :ref:`config:api_auth__jwt_audience`
+      default: ~
+      example: "http://my-airflow.mycompany.com"
+      type: string
+    jwt_leeway:
+      version_added: 3.0.0
+      description: |
+        Number of seconds leeway in validating expiry time of JWT tokens to account for clock skew between
+        client and server
+      default: "10"
+      example: ~
+      type: integer
+
 lineage:
   description: ~
   options:
@@ -1696,21 +1742,6 @@ webserver:
       type: string
       example: ~
       default: "False"
-    dag_default_view:
-      description: |
-        Default DAG view. Valid values are: ``grid``, ``graph``, ``duration``, ``gantt``, ``landing_times``
-      version_added: ~
-      type: string
-      example: ~
-      default: "grid"
-    dag_orientation:
-      description: |
-        Default DAG orientation. Valid values are:
-        ``LR`` (Left->Right), ``TB`` (Top->Bottom), ``RL`` (Right->Left), ``BT`` (Bottom->Top)
-      version_added: ~
-      type: string
-      example: ~
-      default: "LR"
     grid_view_sorting_order:
       description: |
         Sorting order in grid view. Valid values are: ``topological``, ``hierarchical_alphabetical``
@@ -2209,11 +2240,11 @@ scheduler:
       type: integer
       example: ~
       default: "5"
-    local_task_job_heartbeat_sec:
+    task_instance_heartbeat_sec:
       description: |
         The frequency (in seconds) at which the LocalTaskJob should send heartbeat signals to the
         scheduler to notify it's still alive. If this value is set to 0, the heartbeat interval will default
-        to the value of ``[scheduler] scheduler_zombie_task_threshold``.
+        to the value of ``[scheduler] task_instance_heartbeat_timeout``.
       version_added: 2.7.0
       type: integer
       example: ~
@@ -2299,7 +2330,7 @@ scheduler:
       type: string
       example: ~
       default: "{AIRFLOW_HOME}/logs/scheduler"
-    scheduler_zombie_task_threshold:
+    task_instance_heartbeat_timeout:
       description: |
         Local task jobs periodically heartbeat to the DB. If the job has
         not heartbeat in this many seconds, the scheduler will mark the
@@ -2308,16 +2339,16 @@ scheduler:
       type: integer
       example: ~
       default: "300"
-    zombie_detection_interval:
+    task_instance_heartbeat_timeout_detection_interval:
       description: |
-        How often (in seconds) should the scheduler check for zombie tasks.
+        How often (in seconds) should the scheduler check for task instances whose heartbeats have timed out.
       version_added: 2.3.0
       type: float
       example: ~
       default: "10.0"
     catchup_by_default:
       description: |
-        Turn off scheduler catchup by setting this to ``False``.
+        Turn on scheduler catchup by setting this to ``True``.
         Default behavior is unchanged and
         Command Line Backfills still work, but the scheduler
         will not do scheduler catchup if this is ``False``,
@@ -2326,7 +2357,7 @@ scheduler:
       version_added: ~
       type: boolean
       example: ~
-      default: "True"
+      default: "False"
     ignore_first_depends_on_past_by_default:
       description: |
         Setting this to ``True`` will make first task instance of a task
@@ -2687,6 +2718,14 @@ dag_processor:
       type: integer
       example: ~
       default: "30"
+    disable_bundle_versioning:
+      description: |
+        Always run tasks with the latest code.  If set to True, the bundle version will not
+        be stored on the dag run and therefore, the latest code will always be used.
+      version_added: ~
+      type: boolean
+      example: ~
+      default: "False"
     bundle_refresh_check_interval:
       description: |
         How often the DAG processor should check if any DAG bundles are ready for a refresh, either by hitting
@@ -2697,3 +2736,34 @@ dag_processor:
       type: integer
       example: ~
       default: "5"
+    stale_bundle_cleanup_interval:
+      description: |
+        On shared workers, bundle copies accumulate in local storage as tasks run
+        and version of the bundle changes.
+        This setting represents the delta in seconds between checks for these stale bundles.
+        Bundles which are older than `stale_bundle_cleanup_age_threshold` may be removed. But
+        we always keep `stale_bundle_cleanup_min_versions` versions locally.
+        Set to 0 or negative to disable.
+      version_added: ~
+      type: integer
+      example: ~
+      default: "1800"
+    stale_bundle_cleanup_age_threshold:
+      description: |
+        Bundle versions used more recently than this threshold will not be removed.
+        Recency of use is determined by when the task began running on the worker,
+        that age is compared with this setting, given as time delta in seconds.
+      version_added: ~
+      type: integer
+      example: ~
+      default: "21600"
+    stale_bundle_cleanup_min_versions:
+      description: |
+        Minimum number of local bundle versions to retain on disk.
+        Local bundle versions older than `stale_bundle_cleanup_age_threshold` will
+        only be deleted we have more than `stale_bundle_cleanup_min_versions` versions
+        accumulated on the worker.
+      version_added: ~
+      type: integer
+      example: ~
+      default: "10"

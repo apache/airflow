@@ -21,7 +21,7 @@ from unittest import mock
 from unittest.mock import MagicMock, Mock
 
 from airflow.exceptions import AirflowException
-from airflow.providers.common.sql.hooks.sql import fetch_all_handler
+from airflow.providers.common.sql.hooks.handlers import fetch_all_handler
 from airflow.providers.teradata.hooks.teradata import TeradataHook
 from airflow.providers.teradata.operators.teradata import TeradataOperator, TeradataStoredProcedureOperator
 

@@ -144,7 +144,7 @@ class WasbTaskHandler(FileTaskHandler, LoggingMixin):
                 messages.extend(["Found remote logs:", *[f"  * {x}" for x in sorted(uris)]])
         else:
             if not AIRFLOW_V_3_0_PLUS:
-                messages.append(f"No logs found in WASB; ti=%s {ti}")
+                messages.append(f"No logs found in WASB; ti={ti}")
 
         for name in sorted(blob_names):
             remote_log = ""

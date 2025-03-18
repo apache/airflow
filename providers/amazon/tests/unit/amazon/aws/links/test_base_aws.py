@@ -22,7 +22,6 @@ from unittest import mock
 
 import pytest
 
-from airflow.models.xcom import XCom
 from airflow.providers.amazon.aws.links.base_aws import BaseAwsLink
 from airflow.serialization.serialized_objects import SerializedDAG
 
@@ -31,6 +30,11 @@ from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS
 
 if TYPE_CHECKING:
     from airflow.models.taskinstance import TaskInstance
+
+if AIRFLOW_V_3_0_PLUS:
+    from airflow.sdk.execution_time.xcom import XCom
+else:
+    from airflow.models import XCom  # type: ignore[no-redef]
 
 XCOM_KEY = "test_xcom_key"
 CUSTOM_KEYS = {

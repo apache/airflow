@@ -17,7 +17,6 @@
 # under the License.
 from __future__ import annotations
 
-import inspect
 import json
 import logging
 from collections.abc import Iterable
@@ -37,15 +36,13 @@ from sqlalchemy import (
 )
 from sqlalchemy.dialects import postgresql
 from sqlalchemy.ext.associationproxy import association_proxy
-from sqlalchemy.orm import Query, reconstructor, relationship
+from sqlalchemy.orm import Query, relationship
 
-from airflow.configuration import conf
 from airflow.models.base import COLLATION_ARGS, ID_LEN, TaskInstanceDependencies
 from airflow.utils import timezone
 from airflow.utils.db import LazySelectSequence
 from airflow.utils.helpers import is_container
 from airflow.utils.json import XComDecoder, XComEncoder
-from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.session import NEW_SESSION, provide_session
 from airflow.utils.sqlalchemy import UtcDateTime
 
@@ -63,11 +60,9 @@ if TYPE_CHECKING:
     from sqlalchemy.orm import Session
     from sqlalchemy.sql.expression import Select, TextClause
 
-    from airflow.models.taskinstancekey import TaskInstanceKey
 
-
-class BaseXCom(TaskInstanceDependencies, LoggingMixin):
-    """Base class for XCom objects."""
+class XComModel(TaskInstanceDependencies):
+    """XCom model class. Contains table and some utilities."""
 
     __tablename__ = "xcom"
 
@@ -105,26 +100,56 @@ class BaseXCom(TaskInstanceDependencies, LoggingMixin):
 
     dag_run = relationship(
         "DagRun",
-        primaryjoin="BaseXCom.dag_run_id == foreign(DagRun.id)",
+        primaryjoin="XComModel.dag_run_id == foreign(DagRun.id)",
         uselist=False,
         lazy="joined",
         passive_deletes="all",
     )
     logical_date = association_proxy("dag_run", "logical_date")
 
-    @reconstructor
-    def init_on_load(self):
+    @classmethod
+    @provide_session
+    def clear(
+        cls,
+        *,
+        dag_id: str,
+        task_id: str,
+        run_id: str,
+        map_index: int | None = None,
+        session: Session = NEW_SESSION,
+    ) -> None:
         """
-        Execute after the instance has been loaded from the DB or otherwise reconstituted; called by the ORM.
+        Clear all XCom data from the database for the given task instance.
 
-        i.e automatically deserialize Xcom value when loading from DB.
+        .. note:: This **will not** purge any data from a custom XCom backend.
+
+        :param dag_id: ID of DAG to clear the XCom for.
+        :param task_id: ID of task to clear the XCom for.
+        :param run_id: ID of DAG run to clear the XCom for.
+        :param map_index: If given, only clear XCom from this particular mapped
+            task. The default ``None`` clears *all* XComs from the task.
+        :param session: Database session. If not given, a new session will be
+            created for this function.
         """
-        self.value = self.orm_deserialize_value()
+        # Given the historic order of this function (logical_date was first argument) to add a new optional
+        # param we need to add default values for everything :(
+        if dag_id is None:
+            raise TypeError("clear() missing required argument: dag_id")
+        if task_id is None:
+            raise TypeError("clear() missing required argument: task_id")
 
-    def __repr__(self):
-        if self.map_index < 0:
-            return f'<XCom "{self.key}" ({self.task_id} @ {self.run_id})>'
-        return f'<XCom "{self.key}" ({self.task_id}[{self.map_index}] @ {self.run_id})>'
+        if not run_id:
+            raise ValueError(f"run_id must be passed. Passed run_id={run_id}")
+
+        query = session.query(cls).filter_by(dag_id=dag_id, task_id=task_id, run_id=run_id)
+        if map_index is not None:
+            query = query.filter_by(map_index=map_index)
+
+        for xcom in query:
+            # print(f"Clearing XCOM {xcom} with value {xcom.value}")
+            session.delete(xcom)
+
+        session.commit()
 
     @classmethod
     @provide_session
@@ -201,6 +226,7 @@ class BaseXCom(TaskInstanceDependencies, LoggingMixin):
                 cls.map_index == map_index,
             )
         )
+
         new = cast(Any, cls)(  # Work around Mypy complaining model not defining '__init__'.
             dag_run_id=dag_run_id,
             key=key,
@@ -213,98 +239,10 @@ class BaseXCom(TaskInstanceDependencies, LoggingMixin):
         session.add(new)
         session.flush()
 
-    @staticmethod
-    @provide_session
-    def get_value(
-        *,
-        ti_key: TaskInstanceKey,
-        key: str | None = None,
-        session: Session = NEW_SESSION,
-    ) -> Any:
-        """
-        Retrieve an XCom value for a task instance.
-
-        This method returns "full" XCom values (i.e. uses ``deserialize_value``
-        from the XCom backend). Use :meth:`get_many` if you want the "shortened"
-        value via ``orm_deserialize_value``.
-
-        If there are no results, *None* is returned. If multiple XCom entries
-        match the criteria, an arbitrary one is returned.
-
-        :param ti_key: The TaskInstanceKey to look up the XCom for.
-        :param key: A key for the XCom. If provided, only XCom with matching
-            keys will be returned. Pass *None* (default) to remove the filter.
-        :param session: Database session. If not given, a new session will be
-            created for this function.
-        """
-        return BaseXCom.get_one(
-            key=key,
-            task_id=ti_key.task_id,
-            dag_id=ti_key.dag_id,
-            run_id=ti_key.run_id,
-            map_index=ti_key.map_index,
-            session=session,
-        )
-
-    @staticmethod
-    @provide_session
-    def get_one(
-        *,
-        key: str | None = None,
-        dag_id: str | None = None,
-        task_id: str | None = None,
-        run_id: str,
-        map_index: int | None = None,
-        session: Session = NEW_SESSION,
-        include_prior_dates: bool = False,
-    ) -> Any | None:
-        """
-        Retrieve an XCom value, optionally meeting certain criteria.
-
-        This method returns "full" XCom values (i.e. uses ``deserialize_value``
-        from the XCom backend). Use :meth:`get_many` if you want the "shortened"
-        value via ``orm_deserialize_value``.
-
-        If there are no results, *None* is returned. If multiple XCom entries
-        match the criteria, an arbitrary one is returned.
-
-        .. seealso:: ``get_value()`` is a convenience function if you already
-            have a structured TaskInstance or TaskInstanceKey object available.
-
-        :param run_id: DAG run ID for the task.
-        :param dag_id: Only pull XCom from this DAG. Pass *None* (default) to
-            remove the filter.
-        :param task_id: Only XCom from task with matching ID will be pulled.
-            Pass *None* (default) to remove the filter.
-        :param map_index: Only XCom from task with matching ID will be pulled.
-            Pass *None* (default) to remove the filter.
-        :param key: A key for the XCom. If provided, only XCom with matching
-            keys will be returned. Pass *None* (default) to remove the filter.
-        :param include_prior_dates: If *False* (default), only XCom from the
-            specified DAG run is returned. If *True*, the latest matching XCom is
-            returned regardless of the run it belongs to.
-        :param session: Database session. If not given, a new session will be
-            created for this function.
-        """
-        query = BaseXCom.get_many(
-            run_id=run_id,
-            key=key,
-            task_ids=task_id,
-            dag_ids=dag_id,
-            map_indexes=map_index,
-            include_prior_dates=include_prior_dates,
-            limit=1,
-            session=session,
-        )
-
-        result = query.with_entities(BaseXCom.value).first()
-        if result:
-            return XCom.deserialize_value(result)
-        return None
-
-    @staticmethod
+    @classmethod
     @provide_session
     def get_many(
+        cls,
         *,
         run_id: str,
         key: str | None = None,
@@ -342,100 +280,38 @@ class BaseXCom(TaskInstanceDependencies, LoggingMixin):
         if not run_id:
             raise ValueError(f"run_id must be passed. Passed run_id={run_id}")
 
-        query = session.query(BaseXCom).join(BaseXCom.dag_run)
+        query = session.query(cls).join(XComModel.dag_run)
 
         if key:
-            query = query.filter(BaseXCom.key == key)
+            query = query.filter(XComModel.key == key)
 
         if is_container(task_ids):
-            query = query.filter(BaseXCom.task_id.in_(task_ids))
+            query = query.filter(cls.task_id.in_(task_ids))
         elif task_ids is not None:
-            query = query.filter(BaseXCom.task_id == task_ids)
+            query = query.filter(cls.task_id == task_ids)
 
         if is_container(dag_ids):
-            query = query.filter(BaseXCom.dag_id.in_(dag_ids))
+            query = query.filter(cls.dag_id.in_(dag_ids))
         elif dag_ids is not None:
-            query = query.filter(BaseXCom.dag_id == dag_ids)
+            query = query.filter(cls.dag_id == dag_ids)
 
         if isinstance(map_indexes, range) and map_indexes.step == 1:
-            query = query.filter(
-                BaseXCom.map_index >= map_indexes.start, BaseXCom.map_index < map_indexes.stop
-            )
+            query = query.filter(cls.map_index >= map_indexes.start, cls.map_index < map_indexes.stop)
         elif is_container(map_indexes):
-            query = query.filter(BaseXCom.map_index.in_(map_indexes))
+            query = query.filter(cls.map_index.in_(map_indexes))
         elif map_indexes is not None:
-            query = query.filter(BaseXCom.map_index == map_indexes)
+            query = query.filter(cls.map_index == map_indexes)
 
         if include_prior_dates:
             dr = session.query(DagRun.logical_date).filter(DagRun.run_id == run_id).subquery()
-            query = query.filter(BaseXCom.logical_date <= dr.c.logical_date)
+            query = query.filter(cls.logical_date <= dr.c.logical_date)
         else:
-            query = query.filter(BaseXCom.run_id == run_id)
+            query = query.filter(cls.run_id == run_id)
 
-        query = query.order_by(DagRun.logical_date.desc(), BaseXCom.timestamp.desc())
+        query = query.order_by(DagRun.logical_date.desc(), cls.timestamp.desc())
         if limit:
             return query.limit(limit)
         return query
-
-    @classmethod
-    @provide_session
-    def delete(cls, xcoms: XCom | Iterable[XCom], session: Session) -> None:
-        """Delete one or multiple XCom entries."""
-        if isinstance(xcoms, XCom):
-            xcoms = [xcoms]
-        for xcom in xcoms:
-            if not isinstance(xcom, XCom):
-                raise TypeError(f"Expected XCom; received {xcom.__class__.__name__}")
-            XCom.purge(xcom, session)
-            session.delete(xcom)
-        session.commit()
-
-    @staticmethod
-    def purge(xcom: XCom, session: Session) -> None:
-        """Purge an XCom entry from underlying storage implementations."""
-        pass
-
-    @staticmethod
-    @provide_session
-    def clear(
-        *,
-        dag_id: str,
-        task_id: str,
-        run_id: str,
-        map_index: int | None = None,
-        session: Session = NEW_SESSION,
-    ) -> None:
-        """
-        Clear all XCom data from the database for the given task instance.
-
-        :param dag_id: ID of DAG to clear the XCom for.
-        :param task_id: ID of task to clear the XCom for.
-        :param run_id: ID of DAG run to clear the XCom for.
-        :param map_index: If given, only clear XCom from this particular mapped
-            task. The default ``None`` clears *all* XComs from the task.
-        :param session: Database session. If not given, a new session will be
-            created for this function.
-        """
-        # Given the historic order of this function (logical_date was first argument) to add a new optional
-        # param we need to add default values for everything :(
-        if dag_id is None:
-            raise TypeError("clear() missing required argument: dag_id")
-        if task_id is None:
-            raise TypeError("clear() missing required argument: task_id")
-
-        if not run_id:
-            raise ValueError(f"run_id must be passed. Passed run_id={run_id}")
-
-        query = session.query(BaseXCom).filter_by(dag_id=dag_id, task_id=task_id, run_id=run_id)
-        if map_index is not None:
-            query = query.filter_by(map_index=map_index)
-
-        for xcom in query:
-            # print(f"Clearing XCOM {xcom} with value {xcom.value}")
-            XCom.purge(xcom, session)
-            session.delete(xcom)
-
-        session.commit()
 
     @staticmethod
     def serialize_value(
@@ -454,31 +330,12 @@ class BaseXCom(TaskInstanceDependencies, LoggingMixin):
             raise ValueError("XCom value must be JSON serializable")
 
     @staticmethod
-    def _deserialize_value(result: XCom, orm: bool) -> Any:
-        object_hook = None
-        if orm:
-            object_hook = XComDecoder.orm_object_hook
-
+    def deserialize_value(result) -> Any:
+        """Deserialize XCom value from str objects."""
         if result.value is None:
             return None
 
-        return json.loads(result.value, cls=XComDecoder, object_hook=object_hook)
-
-    @staticmethod
-    def deserialize_value(result: XCom) -> Any:
-        """Deserialize XCom value from str or pickle object."""
-        return BaseXCom._deserialize_value(result, False)
-
-    def orm_deserialize_value(self) -> Any:
-        """
-        Deserialize method which is used to reconstruct ORM XCom object.
-
-        This method should be overridden in custom XCom backends to avoid
-        unnecessary request or other resource consuming operations when
-        creating XCom orm model. This is used when viewing XCom listing
-        in the webserver, for example.
-        """
-        return BaseXCom._deserialize_value(self, True)
+        return json.loads(result.value, cls=XComDecoder)
 
 
 class LazyXComSelectSequence(LazySelectSequence[Any]):
@@ -490,44 +347,20 @@ class LazyXComSelectSequence(LazySelectSequence[Any]):
 
     @staticmethod
     def _rebuild_select(stmt: TextClause) -> Select:
-        return select(XCom.value).from_statement(stmt)
+        return select(XComModel.value).from_statement(stmt)
 
     @staticmethod
     def _process_row(row: Row) -> Any:
-        return XCom.deserialize_value(row)
+        return XComModel.deserialize_value(row)
 
 
-def _get_function_params(function) -> list[str]:
-    """
-    Return the list of variables names of a function.
+def __getattr__(name: str):
+    if name == "BaseXCom" or name == "XCom":
+        from airflow.sdk.execution_time import xcom
 
-    :param function: The function to inspect
-    """
-    parameters = inspect.signature(function).parameters
-    bound_arguments = [
-        name for name, p in parameters.items() if p.kind not in (p.VAR_POSITIONAL, p.VAR_KEYWORD)
-    ]
-    return bound_arguments
+        val = getattr(xcom, name)
 
+        globals()[name] = val
+        return val
 
-def resolve_xcom_backend() -> type[BaseXCom]:
-    """
-    Resolve custom XCom class.
-
-    Confirm that custom XCom class extends the BaseXCom.
-    Compare the function signature of the custom XCom serialize_value to the base XCom serialize_value.
-    """
-    clazz = conf.getimport("core", "xcom_backend", fallback=f"airflow.models.xcom.{BaseXCom.__name__}")
-    if not clazz:
-        return BaseXCom
-    if not issubclass(clazz, BaseXCom):
-        raise TypeError(
-            f"Your custom XCom class `{clazz.__name__}` is not a subclass of `{BaseXCom.__name__}`."
-        )
-    return clazz
-
-
-if TYPE_CHECKING:
-    XCom = BaseXCom  # Hack to avoid Mypy "Variable 'XCom' is not valid as a type".
-else:
-    XCom = resolve_xcom_backend()
+    raise AttributeError(f"module {__name__!r} has no attribute {name!r}")

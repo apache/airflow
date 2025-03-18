@@ -35,22 +35,18 @@ from airflow.exceptions import (
 from airflow.executors.debug_executor import DebugExecutor
 from airflow.executors.executor_constants import (
     CELERY_EXECUTOR,
-    CELERY_KUBERNETES_EXECUTOR,
     DEBUG_EXECUTOR,
     KUBERNETES_EXECUTOR,
     LOCAL_EXECUTOR,
-    LOCAL_KUBERNETES_EXECUTOR,
     SEQUENTIAL_EXECUTOR,
 )
 from airflow.executors.local_executor import LocalExecutor
 from airflow.executors.sequential_executor import SequentialExecutor
 from airflow.models import TaskInstance, TaskReschedule
 from airflow.models.trigger import TriggerFailureReason
-from airflow.models.xcom import XCom
+from airflow.models.xcom import XComModel
 from airflow.providers.celery.executors.celery_executor import CeleryExecutor
-from airflow.providers.celery.executors.celery_kubernetes_executor import CeleryKubernetesExecutor
 from airflow.providers.cncf.kubernetes.executors.kubernetes_executor import KubernetesExecutor
-from airflow.providers.cncf.kubernetes.executors.local_kubernetes_executor import LocalKubernetesExecutor
 from airflow.providers.standard.operators.empty import EmptyOperator
 from airflow.sensors.base import BaseSensorOperator, PokeReturnValue, poke_mode_only
 from airflow.ti_deps.deps.ready_to_reschedule import ReadyToRescheduleDep
@@ -1279,9 +1275,10 @@ class TestBaseSensor:
                 assert ti.state == State.SUCCESS
             if ti.task_id == DUMMY_OP:
                 assert ti.state == State.NONE
-        actual_xcom_value = XCom.get_one(
-            key="return_value", task_id=SENSOR_OP, dag_id=dr.dag_id, run_id=dr.run_id
-        )
+        actual_xcom_value = XComModel.get_many(
+            key="return_value", task_ids=SENSOR_OP, dag_ids=dr.dag_id, run_id=dr.run_id
+        ).first()
+        actual_xcom_value = XComModel.deserialize_value(actual_xcom_value)
         assert actual_xcom_value == xcom_value
 
     def test_sensor_with_xcom_fails(self, make_sensor):
@@ -1297,29 +1294,27 @@ class TestBaseSensor:
                 assert ti.state == State.FAILED
             if ti.task_id == DUMMY_OP:
                 assert ti.state == State.NONE
-        actual_xcom_value = XCom.get_one(
-            key="return_value", task_id=SENSOR_OP, dag_id=dr.dag_id, run_id=dr.run_id
-        )
+        actual_xcom_value = XComModel.get_many(
+            key="return_value", task_ids=SENSOR_OP, dag_ids=dr.dag_id, run_id=dr.run_id
+        ).first()
+        if actual_xcom_value:
+            actual_xcom_value = XComModel.deserialize_value(actual_xcom_value)
         assert actual_xcom_value is None
 
     @pytest.mark.parametrize(
         "executor_cls_mode",
         [
             (CeleryExecutor, "poke"),
-            (CeleryKubernetesExecutor, "poke"),
             (DebugExecutor, "reschedule"),
             (KubernetesExecutor, "poke"),
             (LocalExecutor, "poke"),
-            (LocalKubernetesExecutor, "poke"),
             (SequentialExecutor, "poke"),
         ],
         ids=[
             CELERY_EXECUTOR,
-            CELERY_KUBERNETES_EXECUTOR,
             DEBUG_EXECUTOR,
             KUBERNETES_EXECUTOR,
             LOCAL_EXECUTOR,
-            LOCAL_KUBERNETES_EXECUTOR,
             SEQUENTIAL_EXECUTOR,
         ],
     )

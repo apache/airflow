@@ -569,6 +569,7 @@ DEVELOPER_COMMANDS = [
     "compile-ui-assets",
     "cleanup",
     "generate-migration-file",
+    "doctor",
 ]
 
 

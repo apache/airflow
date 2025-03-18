@@ -213,6 +213,8 @@ if PACKAGE_NAME == "apache-airflow":
         # Included in the cluster-policies doc
         "_api/airflow/policies/index.rst",
         "README.rst",
+        "_api/client",
+        "_api/common",
     ]
 elif PACKAGE_NAME.startswith("apache-airflow-providers-"):
     extensions.extend(
@@ -229,6 +231,8 @@ elif PACKAGE_NAME.startswith("apache-airflow-providers-"):
         "_api/airflow/providers/atlassian/index.rst",
         "_api/airflow/providers/cncf/index.rst",
         "_api/airflow/providers/common/index.rst",
+        "_api/airflow/providers/common/messaging/providers/base_provider/index.rst",
+        "_api/airflow/providers/common/messaging/providers/sqs/index.rst",
         "_api/airflow/providers/dbt/index.rst",
         "_api/airflow/providers/microsoft/index.rst",
         *[f"_api/tests/system/{subpackage}/index.rst" for subpackage in empty_subpackages],
@@ -275,7 +279,6 @@ if PACKAGE_NAME == "apache-airflow":
 
     models_included: set[str] = {
         "baseoperator.py",
-        "baseoperatorlink.py",
         "connection.py",
         "dag.py",
         "dagrun.py",
@@ -885,7 +888,7 @@ graphviz_output_format = "svg"
 # See: https://sphinxcontrib-redoc.readthedocs.io/en/stable/
 if PACKAGE_NAME == "apache-airflow":
     OPENAPI_FILE = os.path.join(
-        os.path.dirname(__file__), "..", "airflow", "api_connexion", "openapi", "v1.yaml"
+        os.path.dirname(__file__), "..", "airflow", "api_fastapi", "core_api", "openapi", "v1-generated.yaml"
     )
     redoc = [
         {

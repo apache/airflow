@@ -53,18 +53,16 @@ from airflow.decorators.base import DecoratedOperator
 from airflow.exceptions import (
     AirflowException,
     ParamValidationError,
-    RemovedInAirflow3Warning,
     SerializationError,
 )
 from airflow.hooks.base import BaseHook
 from airflow.models.baseoperator import BaseOperator
-from airflow.models.baseoperatorlink import XComOperatorLink
 from airflow.models.connection import Connection
 from airflow.models.dag import DAG
 from airflow.models.dagbag import DagBag
 from airflow.models.expandinput import EXPAND_INPUT_EMPTY
 from airflow.models.mappedoperator import MappedOperator
-from airflow.models.xcom import XCom
+from airflow.models.xcom import XComModel
 from airflow.providers.cncf.kubernetes.pod_generator import PodGenerator
 from airflow.providers.standard.operators.bash import BashOperator
 from airflow.providers.standard.sensors.bash import BashSensor
@@ -77,6 +75,7 @@ from airflow.serialization.serialized_objects import (
     BaseSerialization,
     SerializedBaseOperator,
     SerializedDAG,
+    XComOperatorLink,
 )
 from airflow.task.priority_strategy import _DownstreamPriorityWeightStrategy
 from airflow.timetables.simple import NullTimetable, OnceTimetable
@@ -87,6 +86,7 @@ from airflow.utils.operator_resources import Resources
 from airflow.utils.task_group import TaskGroup
 from airflow.utils.xcom import XCOM_RETURN_KEY
 
+from tests_common.test_utils.config import conf_vars
 from tests_common.test_utils.mock_operators import (
     AirflowLink2,
     CustomOperator,
@@ -155,6 +155,8 @@ serialized_simple_dag_ground_truth = {
         },
         "is_paused_upon_creation": False,
         "dag_id": "simple_dag",
+        "catchup": False,
+        "disable_bundle_versioning": False,
         "doc_md": "### DAG Tutorial Documentation",
         "fileloc": None,
         "_processor_dags_folder": f"{repo_root}/tests/dags",
@@ -168,6 +170,7 @@ serialized_simple_dag_ground_truth = {
                     "max_retry_delay": 600.0,
                     "downstream_task_ids": [],
                     "_is_empty": False,
+                    "_can_skip_downstream": False,
                     "ui_color": "#f0ede4",
                     "ui_fgcolor": "#000",
                     "template_ext": [".sh", ".bash"],
@@ -208,6 +211,7 @@ serialized_simple_dag_ground_truth = {
                     "max_retry_delay": 600.0,
                     "downstream_task_ids": [],
                     "_is_empty": False,
+                    "_can_skip_downstream": False,
                     "_operator_extra_links": {"Google Custom": "_link_CustomOpLink"},
                     "ui_color": "#fff",
                     "ui_fgcolor": "#000",
@@ -980,15 +984,7 @@ class TestStringifiedDAGs:
 
         assert "params" in serialized_dag["dag"]
 
-        if val and any([True for k, v in val.items() if isinstance(v, set)]):
-            with pytest.warns(
-                RemovedInAirflow3Warning,
-                match="The use of non-json-serializable params is deprecated and will be removed in a future release",
-            ):
-                deserialized_dag = SerializedDAG.from_dict(serialized_dag)
-
-        else:
-            deserialized_dag = SerializedDAG.from_dict(serialized_dag)
+        deserialized_dag = SerializedDAG.from_dict(serialized_dag)
         deserialized_simple_task = deserialized_dag.task_dict["simple_task"]
         assert expected_val == deserialized_dag.params.dump()
         assert expected_val == deserialized_simple_task.params.dump()
@@ -1150,7 +1146,7 @@ class TestStringifiedDAGs:
 
         dr = dag_maker.create_dagrun(logical_date=test_date)
         (ti,) = dr.task_instances
-        XCom.set(
+        XComModel.set(
             key="search_query",
             value=bash_command,
             task_id=simple_task.task_id,
@@ -1162,7 +1158,7 @@ class TestStringifiedDAGs:
         # Test Deserialized inbuilt link
         for name, expected in links.items():
             # staging the part where a task at runtime pushes xcom for extra links
-            XCom.set(
+            XComModel.set(
                 key=simple_task.operator_extra_links[c].xcom_key,
                 value=expected,
                 task_id=simple_task.task_id,
@@ -2078,6 +2074,38 @@ class TestStringifiedDAGs:
         assert deserialized_dag.has_on_failure_callback is expected_value
 
     @pytest.mark.parametrize(
+        "dag_arg, conf_arg, expected",
+        [
+            (True, "True", True),
+            (True, "False", True),
+            (False, "True", False),
+            (False, "False", False),
+            (None, "True", True),
+            (None, "False", False),
+        ],
+    )
+    def test_dag_disable_bundle_versioning_roundtrip(self, dag_arg, conf_arg, expected):
+        """
+        Test that when disable_bundle_versioning is passed to the DAG, has_disable_bundle_versioning is stored
+        in Serialized JSON blob. And when it is de-serialized dag.has_disable_bundle_versioning is set to True.
+
+        When the callback is not set, has_disable_bundle_versioning should not be stored in Serialized blob
+        and so default to False on de-serialization
+        """
+        with conf_vars({("dag_processor", "disable_bundle_versioning"): conf_arg}):
+            kwargs = {}
+            kwargs["disable_bundle_versioning"] = dag_arg
+            dag = DAG(
+                dag_id="test_dag_disable_bundle_versioning_roundtrip",
+                schedule=None,
+                **kwargs,
+            )
+            BaseOperator(task_id="simple_task", dag=dag, start_date=datetime(2019, 8, 1))
+            serialized_dag = SerializedDAG.to_dict(dag)
+            deserialized_dag = SerializedDAG.from_dict(serialized_dag)
+            assert deserialized_dag.disable_bundle_versioning is expected
+
+    @pytest.mark.parametrize(
         "object_to_serialized, expected_output",
         [
             (
@@ -2228,8 +2256,8 @@ class TestStringifiedDAGs:
 
         class TestOperator(BaseOperator):
             template_fields = (
-                "email",  # templateable
                 "execution_timeout",  # not templateable
+                "run_as_user",  # templateable
             )
 
             def execute(self, context: Context):
@@ -2240,18 +2268,18 @@ class TestStringifiedDAGs:
         with dag:
             task = TestOperator(
                 task_id="test_task",
-                email="{{ ','.join(test_email_list) }}",
+                run_as_user="{{ test_run_as_user }}",
                 execution_timeout=timedelta(seconds=10),
             )
-            task.render_template_fields(context={"test_email_list": ["foo@test.com", "bar@test.com"]})
-            assert task.email == "foo@test.com,bar@test.com"
+            task.render_template_fields(context={"test_run_as_user": "foo"})
+            assert task.run_as_user == "foo"
 
         with pytest.raises(
             AirflowException,
             match=re.escape(
                 dedent(
                     """Failed to serialize DAG 'test_dag': Cannot template BaseOperator field:
-                        'execution_timeout' op.__class__.__name__='TestOperator' op.template_fields=('email', 'execution_timeout')"""
+                        'execution_timeout' op.__class__.__name__='TestOperator' op.template_fields=('execution_timeout', 'run_as_user')"""
                 )
             ),
         ):
@@ -2377,6 +2405,7 @@ def test_operator_expand_serde():
     assert serialized["__var"] == {
         "_is_empty": False,
         "_is_mapped": True,
+        "_can_skip_downstream": False,
         "_task_module": "airflow.providers.standard.operators.bash",
         "task_type": "BashOperator",
         "start_trigger_args": None,
@@ -2438,6 +2467,7 @@ def test_operator_expand_xcomarg_serde():
     assert serialized["__var"] == {
         "_is_empty": False,
         "_is_mapped": True,
+        "_can_skip_downstream": False,
         "_task_module": "tests_common.test_utils.mock_operators",
         "task_type": "MockOperator",
         "downstream_task_ids": [],
@@ -2496,6 +2526,7 @@ def test_operator_expand_kwargs_literal_serde(strict):
     assert serialized["__var"] == {
         "_is_empty": False,
         "_is_mapped": True,
+        "_can_skip_downstream": False,
         "_task_module": "tests_common.test_utils.mock_operators",
         "task_type": "MockOperator",
         "downstream_task_ids": [],
@@ -2562,6 +2593,7 @@ def test_operator_expand_kwargs_xcomarg_serde(strict):
     assert serialized["__var"] == {
         "_is_empty": False,
         "_is_mapped": True,
+        "_can_skip_downstream": False,
         "_task_module": "tests_common.test_utils.mock_operators",
         "task_type": "MockOperator",
         "downstream_task_ids": [],
@@ -2711,6 +2743,7 @@ def test_taskflow_expand_serde():
     assert serialized["__var"] == {
         "_is_empty": False,
         "_is_mapped": True,
+        "_can_skip_downstream": False,
         "_task_module": "airflow.decorators.python",
         "task_type": "_PythonDecoratedOperator",
         "_operator_name": "@task",
@@ -2825,6 +2858,7 @@ def test_taskflow_expand_kwargs_serde(strict):
     assert serialized["__var"] == {
         "_is_empty": False,
         "_is_mapped": True,
+        "_can_skip_downstream": False,
         "_task_module": "airflow.decorators.python",
         "task_type": "_PythonDecoratedOperator",
         "_operator_name": "@task",
@@ -2989,6 +3023,7 @@ def test_mapped_task_with_operator_extra_links_property():
         "_task_module": "tests.serialization.test_dag_serialization",
         "_is_empty": False,
         "_is_mapped": True,
+        "_can_skip_downstream": False,
         "start_trigger_args": None,
         "start_from_trigger": False,
     }

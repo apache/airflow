@@ -443,7 +443,7 @@ can be used for CI images:
 | `ADDITIONAL_DEV_APT_DEPS`       |                            | Additional apt dev dependencies installed in the first part of the image                                          |
 | `ADDITIONAL_DEV_APT_ENV`        |                            | Additional env variables defined when installing dev deps                                                         |
 | `AIRFLOW_PIP_VERSION`           | `25.0.1`                   | `pip` version used.                                                                                               |
-| `AIRFLOW_UV_VERSION`            | `0.6.0`                    | `uv` version used.                                                                                                |
+| `AIRFLOW_UV_VERSION`            | `0.6.5`                    | `uv` version used.                                                                                                |
 | `AIRFLOW_PRE_COMMIT_VERSION`    | `4.1.0`                    | `pre-commit` version used.                                                                                        |
 | `AIRFLOW_PRE_COMMIT_UV_VERSION` | `4.1.4`                    | `pre-commit-uv` version used.                                                                                     |
 | `AIRFLOW_USE_UV`                | `true`                     | Whether to use UV for installation.                                                                               |
@@ -572,4 +572,4 @@ percent-encoded when you access them via UI (/ = %2F)
 
 ----
 
-Read next about [Github Variables](03_github_variables.md)
+Read next about [GitHub Variables](03_github_variables.md)

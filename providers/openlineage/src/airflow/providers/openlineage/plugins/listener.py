@@ -76,7 +76,8 @@ def _executor_initializer():
     Reconfigures the ORM engine to prevent issues that arise when multiple processes interact with
     the Airflow database.
     """
-    settings.configure_orm()
+    if not AIRFLOW_V_3_0_PLUS:
+        settings.configure_orm()
 
 
 class OpenLineageListener:
@@ -199,7 +200,9 @@ class OpenLineageListener:
             operator_name = task.task_type.lower()
 
             with Stats.timer(f"ol.extract.{event_type}.{operator_name}"):
-                task_metadata = self.extractor_manager.extract_metadata(dagrun, task)
+                task_metadata = self.extractor_manager.extract_metadata(
+                    dagrun=dagrun, task=task, task_instance_state=TaskInstanceState.RUNNING
+                )
 
             redacted_event = self.adapter.start_task(
                 run_id=task_uuid,
@@ -302,7 +305,10 @@ class OpenLineageListener:
 
             with Stats.timer(f"ol.extract.{event_type}.{operator_name}"):
                 task_metadata = self.extractor_manager.extract_metadata(
-                    dagrun, task, complete=True, task_instance=task_instance
+                    dagrun=dagrun,
+                    task=task,
+                    task_instance_state=TaskInstanceState.SUCCESS,
+                    task_instance=task_instance,
                 )
 
             redacted_event = self.adapter.complete_task(
@@ -423,7 +429,10 @@ class OpenLineageListener:
 
             with Stats.timer(f"ol.extract.{event_type}.{operator_name}"):
                 task_metadata = self.extractor_manager.extract_metadata(
-                    dagrun, task, complete=True, task_instance=task_instance
+                    dagrun=dagrun,
+                    task=task,
+                    task_instance_state=TaskInstanceState.FAILED,
+                    task_instance=task_instance,
                 )
 
             redacted_event = self.adapter.fail_task(
@@ -481,7 +490,8 @@ class OpenLineageListener:
             self.log.debug("Process with pid %s finished - parent", pid)
         else:
             setproctitle(getproctitle() + " - OpenLineage - " + callable_name)
-            configure_orm(disable_connection_pool=True)
+            if not AIRFLOW_V_3_0_PLUS:
+                configure_orm(disable_connection_pool=True)
             self.log.debug("Executing OpenLineage process - %s - pid %s", callable_name, os.getpid())
             callable()
             self.log.debug("Process with current pid finishes after %s", callable_name)

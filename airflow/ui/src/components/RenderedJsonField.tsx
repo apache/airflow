@@ -16,11 +16,11 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Flex, Spacer, type FlexProps } from "@chakra-ui/react";
+import { Flex, type FlexProps } from "@chakra-ui/react";
 import { useTheme } from "next-themes";
 import ReactJson, { type ReactJsonViewProps } from "react-json-view";
 
-import { ClipboardRoot, ClipboardButton } from "src/components/ui";
+import { ClipboardRoot, ClipboardIconButton } from "src/components/ui";
 
 type Props = {
   readonly content: object;
@@ -32,7 +32,7 @@ const RenderedJsonField = ({ content, jsonProps, ...rest }: Props) => {
   const { theme } = useTheme();
 
   return (
-    <Flex {...rest} p={2}>
+    <Flex {...rest}>
       <ReactJson
         displayDataTypes={false}
         enableClipboard={false}
@@ -46,9 +46,8 @@ const RenderedJsonField = ({ content, jsonProps, ...rest }: Props) => {
         theme={theme === "dark" ? "monokai" : "rjv-default"}
         {...jsonProps}
       />
-      <Spacer />
       <ClipboardRoot value={contentFormatted}>
-        <ClipboardButton />
+        <ClipboardIconButton />
       </ClipboardRoot>
     </Flex>
   );

@@ -24,6 +24,7 @@ import zipfile
 from contextlib import contextmanager
 from pathlib import Path
 from typing import TYPE_CHECKING
+from unittest import mock
 
 import pytest
 
@@ -135,6 +136,14 @@ def test_zip_path(tmp_path: Path):
                 zf.write(os.path.join(root, file), os.path.relpath(os.path.join(root, file), test_zip_folder))
 
     return os.fspath(zipped)
+
+
+@pytest.fixture
+def mock_supervisor_comms():
+    with mock.patch(
+        "airflow.sdk.execution_time.task_runner.SUPERVISOR_COMMS", create=True
+    ) as supervisor_comms:
+        yield supervisor_comms
 
 
 if TYPE_CHECKING:

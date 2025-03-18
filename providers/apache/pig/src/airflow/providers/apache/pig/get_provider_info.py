@@ -27,8 +27,9 @@ def get_provider_info():
         "name": "Apache Pig",
         "description": "`Apache Pig <https://pig.apache.org/>`__\n",
         "state": "ready",
-        "source-date-epoch": 1734528476,
+        "source-date-epoch": 1741508337,
         "versions": [
+            "4.6.1",
             "4.6.0",
             "4.5.0",
             "4.4.1",
@@ -73,4 +74,5 @@ def get_provider_info():
             }
         ],
         "dependencies": ["apache-airflow>=2.9.0"],
+        "devel-dependencies": [],
     }

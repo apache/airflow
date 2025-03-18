@@ -149,7 +149,7 @@ def supervisor_builder(mocker, session):
 
         process = mocker.Mock(spec=psutil.Process, pid=10 * job.id + 1)
         proc = TriggerRunnerSupervisor(
-            log=mocker.Mock(),
+            process_log=mocker.Mock(),
             id=job.id,
             job=job,
             pid=process.pid,
@@ -179,11 +179,13 @@ def test_trigger_lifecycle(spy_agency: SpyAgency, session):
     trigger = TimeDeltaTrigger(datetime.timedelta(days=7))
     dag_model, run, trigger_orm, task_instance = create_trigger_in_db(session, trigger)
     # Make a TriggererJobRunner and have it retrieve DB tasks
-    trigger_runner_supervisor = TriggerRunnerSupervisor.start(job=Job(), capacity=10)
+    trigger_runner_supervisor = TriggerRunnerSupervisor.start(job=Job(id=12345), capacity=10)
 
     try:
         # Spy on it so we can see what gets send, but also call the original.
         send_spy = spy_agency.spy_on(TriggerRunnerSupervisor._send, owner=TriggerRunnerSupervisor)
+
+        trigger_runner_supervisor._service_subprocess(0.1)
         trigger_runner_supervisor.load_triggers()
         # Make sure it turned up in TriggerRunner's queue
         assert trigger_runner_supervisor.running_triggers == {1}
@@ -431,7 +433,7 @@ def test_trigger_create_race_condition_18392(session, supervisor_builder, spy_ag
 
 
 @pytest.mark.execution_timeout(5)
-def test_trigger_runner_exception_stops_triggerer(session):
+def test_trigger_runner_exception_stops_triggerer():
     """
     Checks that if an exception occurs when creating triggers, that the triggerer
     process stops

@@ -143,7 +143,7 @@ class TestCliApiServer(_CommonCLIGunicornTestClass):
             mock_run.assert_called_with(
                 "airflow.api_fastapi.main:app",
                 host="0.0.0.0",
-                port=9091,
+                port=8080,
                 workers=4,
                 timeout_keep_alive=120,
                 timeout_graceful_shutdown=120,

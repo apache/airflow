@@ -21,6 +21,7 @@ import asyncio
 import copy
 import functools
 import logging
+import re
 import sys
 import time
 from collections import defaultdict
@@ -42,7 +43,6 @@ from typing import (
 import attrs
 import methodtools
 import pendulum
-import re2
 import sqlalchemy_jsonfield
 from dateutil.relativedelta import relativedelta
 from packaging import version as packaging_version
@@ -68,6 +68,7 @@ from sqlalchemy.orm import backref, load_only, relationship
 from sqlalchemy.sql import Select, expression
 
 from airflow import settings, utils
+from airflow.assets.evaluation import AssetEvaluator
 from airflow.configuration import conf as airflow_conf, secrets_backend_list
 from airflow.exceptions import (
     AirflowException,
@@ -84,7 +85,6 @@ from airflow.models.baseoperator import BaseOperator
 from airflow.models.dag_version import DagVersion
 from airflow.models.dagrun import RUN_ID_REGEX, DagRun
 from airflow.models.taskinstance import (
-    Context,
     TaskInstance,
     TaskInstanceKey,
     clear_task_instances,
@@ -104,6 +104,7 @@ from airflow.timetables.simple import (
     OnceTimetable,
 )
 from airflow.utils import timezone
+from airflow.utils.context import Context
 from airflow.utils.dag_cycle_tester import check_cycle
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.session import NEW_SESSION, provide_session
@@ -122,9 +123,6 @@ if TYPE_CHECKING:
     from airflow.typing_compat import Literal
 
 log = logging.getLogger(__name__)
-
-DEFAULT_VIEW_PRESETS = ["grid", "graph", "duration", "gantt", "landing_times"]
-ORIENTATION_PRESETS = ["LR", "TB", "RL", "BT"]
 
 AssetT = TypeVar("AssetT", bound=BaseAsset)
 
@@ -261,6 +259,11 @@ def _create_orm_dagrun(
     triggered_by: DagRunTriggeredByType,
     session: Session = NEW_SESSION,
 ) -> DagRun:
+    bundle_version = None
+    if not dag.disable_bundle_versioning:
+        bundle_version = session.scalar(
+            select(DagModel.bundle_version).where(DagModel.dag_id == dag.dag_id),
+        )
     run = DagRun(
         dag_id=dag.dag_id,
         run_id=run_id,
@@ -274,7 +277,7 @@ def _create_orm_dagrun(
         data_interval=data_interval,
         triggered_by=triggered_by,
         backfill_id=backfill_id,
-        bundle_version=session.scalar(select(DagModel.bundle_version).where(DagModel.dag_id == dag.dag_id)),
+        bundle_version=bundle_version,
     )
     # Load defaults into the following two fields to ensure result can be serialized detached
     run.log_template_id = int(session.scalar(select(func.max(LogTemplate.__table__.c.id))))
@@ -379,10 +382,7 @@ class DAG(TaskSDKDag, LoggingMixin):
     :param dagrun_timeout: Specify the duration a DagRun should be allowed to run before it times out or
         fails. Task instances that are running when a DagRun is timed out will be marked as skipped.
     :param sla_miss_callback: DEPRECATED - The SLA feature is removed in Airflow 3.0, to be replaced with a new implementation in 3.1
-    :param default_view: Specify DAG default view (grid, graph, duration,
-                                                   gantt, landing_times), default grid
-    :param orientation: Specify DAG orientation in graph view (LR, TB, RL, BT), default LR
-    :param catchup: Perform scheduler catchup (or only run latest)? Defaults to True
+    :param catchup: Perform scheduler catchup (or only run latest)? Defaults to False
     :param on_failure_callback: A function or list of functions to be called when a DagRun of this dag fails.
         A context dictionary is passed as a single parameter to this function.
     :param on_success_callback: Much like the ``on_failure_callback`` except
@@ -426,9 +426,6 @@ class DAG(TaskSDKDag, LoggingMixin):
 
     partial: bool = False
     last_loaded: datetime | None = attrs.field(factory=timezone.utcnow)
-
-    default_view: str = airflow_conf.get_mandatory_value("webserver", "dag_default_view").lower()
-    orientation: str = airflow_conf.get_mandatory_value("webserver", "dag_orientation")
 
     # this will only be set at serialization time
     # it's only use is for determining the relative fileloc based only on the serialize dag
@@ -1134,7 +1131,7 @@ class DAG(TaskSDKDag, LoggingMixin):
                     if not external_dag:
                         raise AirflowException(f"Could not find dag {tii.dag_id}")
                     downstream = external_dag.partial_subset(
-                        task_ids_or_regex=[tii.task_id],
+                        task_ids=[tii.task_id],
                         include_upstream=False,
                         include_downstream=True,
                     )
@@ -1248,7 +1245,7 @@ class DAG(TaskSDKDag, LoggingMixin):
         # Flush the session so that the tasks marked success are reflected in the db.
         session.flush()
         subdag = self.partial_subset(
-            task_ids_or_regex={task_id},
+            task_ids={task_id},
             include_downstream=True,
             include_upstream=False,
         )
@@ -1360,7 +1357,7 @@ class DAG(TaskSDKDag, LoggingMixin):
             # Flush the session so that the tasks marked success are reflected in the db.
             session.flush()
             task_subset = self.partial_subset(
-                task_ids_or_regex=task_ids,
+                task_ids=task_ids,
                 include_downstream=True,
                 include_upstream=False,
             )
@@ -1721,7 +1718,7 @@ class DAG(TaskSDKDag, LoggingMixin):
                     ti.task = tasks[ti.task_id]
 
                     mark_success = (
-                        re2.compile(mark_success_pattern).fullmatch(ti.task_id) is not None
+                        re.compile(mark_success_pattern).fullmatch(ti.task_id) is not None
                         if mark_success_pattern is not None
                         else False
                     )
@@ -1803,9 +1800,9 @@ class DAG(TaskSDKDag, LoggingMixin):
 
         # This is also done on the DagRun model class, but SQLAlchemy column
         # validator does not work well for some reason.
-        if not re2.match(RUN_ID_REGEX, run_id):
+        if not re.match(RUN_ID_REGEX, run_id):
             regex = airflow_conf.get("scheduler", "allowed_run_id_pattern").strip()
-            if not regex or not re2.match(regex, run_id):
+            if not regex or not re.match(regex, run_id):
                 raise ValueError(
                     f"The run_id provided '{run_id}' does not match regex pattern "
                     f"'{regex}' or '{RUN_ID_REGEX}'"
@@ -1899,13 +1896,6 @@ class DAG(TaskSDKDag, LoggingMixin):
         bundle_name = self.get_bundle_name(session=session)
         bundle_version = self.get_bundle_version(session=session)
         self.bulk_write_to_db(bundle_name, bundle_version, [self], session=session)
-
-    def get_default_view(self):
-        """Allow backward compatible jinja2 templates."""
-        if self.default_view is None:
-            return airflow_conf.get("webserver", "dag_default_view").lower()
-        else:
-            return self.default_view
 
     @staticmethod
     @provide_session
@@ -2083,8 +2073,6 @@ class DagModel(Base):
     _dag_display_property_value = Column("dag_display_name", String(2000), nullable=True)
     # Description of the dag
     description = Column(Text)
-    # Default view of the DAG inside the webserver
-    default_view = Column(String(25))
     # Timetable summary
     timetable_summary = Column(Text, nullable=True)
     # Timetable description
@@ -2234,11 +2222,6 @@ class DagModel(Base):
         paused_dag_ids = {paused_dag_id for (paused_dag_id,) in paused_dag_ids}
         return paused_dag_ids
 
-    def get_default_view(self) -> str:
-        """Get the Default DAG View, returns the default config value if DagModel does not have a value."""
-        # This is for backwards-compatibility with old dags that don't have None as default_view
-        return self.default_view or airflow_conf.get_mandatory_value("webserver", "dag_default_view").lower()
-
     @property
     def safe_dag_id(self):
         return self.dag_id.replace(".", "__dot__")
@@ -2323,12 +2306,14 @@ class DagModel(Base):
         """
         from airflow.models.serialized_dag import SerializedDagModel
 
+        evaluator = AssetEvaluator(session)
+
         def dag_ready(dag_id: str, cond: BaseAsset, statuses: dict[AssetUniqueKey, bool]) -> bool | None:
             # if dag was serialized before 2.9 and we *just* upgraded,
             # we may be dealing with old version.  In that case,
             # just wait for the dag to be reserialized.
             try:
-                return cond.evaluate(statuses, session=session)
+                return evaluator.run(cond, statuses)
             except AttributeError:
                 log.warning("dag '%s' has old serialization; skipping DAG run creation.", dag_id)
                 return None

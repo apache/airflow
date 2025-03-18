@@ -48,7 +48,7 @@ def serialize(o: object) -> tuple[U, str, int, bool]:
         properties[k] = fernet.encrypt(v.encode("utf-8")).decode("utf-8")
 
     data = {
-        "identifier": o.identifier,
+        "identifier": o._identifier,
         "catalog_properties": properties,
     }
 

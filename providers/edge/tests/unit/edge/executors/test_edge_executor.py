@@ -83,11 +83,17 @@ class TestEdgeExecutor:
         assert jobs[0].task_id == "test_task"
         assert jobs[0].concurrency_slots == expected_concurrency
 
-    def test_sync_orphaned_tasks(self):
+    @patch("airflow.stats.Stats.incr")
+    def test_sync_orphaned_tasks(self, mock_stats_incr):
         executor = EdgeExecutor()
 
         delta_to_purge = timedelta(minutes=conf.getint("edge", "job_fail_purge") + 1)
-        delta_to_orphaned = timedelta(seconds=conf.getint("scheduler", "scheduler_zombie_task_threshold") + 1)
+        if AIRFLOW_V_3_0_PLUS:
+            delta_to_orphaned_config_name = "task_instance_heartbeat_timeout"
+        else:
+            delta_to_orphaned_config_name = "scheduler_zombie_task_threshold"
+
+        delta_to_orphaned = timedelta(seconds=conf.getint("scheduler", delta_to_orphaned_config_name) + 1)
 
         with create_session() as session:
             for task_id, state, last_update in [
@@ -115,6 +121,17 @@ class TestEdgeExecutor:
                 session.commit()
 
         executor.sync()
+
+        mock_stats_incr.assert_called_with(
+            "edge_worker.ti.finish",
+            tags={
+                "dag_id": "test_dag",
+                "queue": "default",
+                "state": "failed",
+                "task_id": "started_running_orphaned",
+            },
+        )
+        mock_stats_incr.call_count == 2
 
         with create_session() as session:
             jobs = session.query(EdgeJobModel).all()

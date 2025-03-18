@@ -27,8 +27,9 @@ def get_provider_info():
         "name": "Common SQL",
         "description": "`Common SQL Provider <https://en.wikipedia.org/wiki/SQL>`__\n",
         "state": "ready",
-        "source-date-epoch": 1739959337,
+        "source-date-epoch": 1741508670,
         "versions": [
+            "1.24.0",
             "1.23.0",
             "1.21.0",
             "1.20.0",
@@ -121,4 +122,5 @@ def get_provider_info():
             "pandas": ["pandas>=2.1.2,<2.2"],
             "openlineage": ["apache-airflow-providers-openlineage"],
         },
+        "devel-dependencies": [],
     }
