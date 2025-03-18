@@ -38,7 +38,6 @@ from airflow.providers.cncf.kubernetes.utils.pod_manager import (
     container_is_running,
     container_is_succeeded,
     container_is_terminated,
-    get_container_status,
 )
 from airflow.utils.timezone import utc
 
