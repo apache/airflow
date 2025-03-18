@@ -30,6 +30,7 @@ from airflow.dag_processing.bundles.base import get_bundle_storage_root_path
 from airflow.exceptions import AirflowException
 from airflow.models import Connection
 from airflow.providers.git.bundles.git import GitDagBundle
+from airflow.providers.git.hooks.git import GitHook
 from airflow.utils import db
 
 from tests_common.test_utils.config import conf_vars
