@@ -596,7 +596,7 @@ class DagBag(LoggingMixin):
                 file_parse_end_dttm = timezone.utcnow()
                 stats.append(
                     FileLoadStat(
-                        file=filepath.replace(settings.DAGS_FOLDER, ""),
+                        file=filepath.replace(str(dag_folder), ""),
                         duration=file_parse_end_dttm - file_parse_start_dttm,
                         dag_num=len(found_dags),
                         task_num=sum(len(dag.tasks) for dag in found_dags),
