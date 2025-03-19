@@ -1580,6 +1580,25 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
         execute_callable = getattr(self, next_method)
         return execute_callable(context, **next_kwargs)
 
+    @classmethod
+    def next_callable(cls, operator, next_method, next_kwargs) -> Callable[..., Any]:
+        from airflow.exceptions import TaskDeferralError
+
+        """Get the next callable from given operator."""
+        # __fail__ is a special signal value for next_method that indicates
+        # this task was scheduled specifically to fail.
+        if next_method == "__fail__":
+            next_kwargs = next_kwargs or {}
+            traceback = next_kwargs.get("traceback")
+            if traceback is not None:
+                cls.logger().error("Trigger failed:\n%s", "\n".join(traceback))
+            raise TaskDeferralError(next_kwargs.get("error", "Unknown"))
+        # Grab the callable off the Operator/Task and add in any kwargs
+        execute_callable = getattr(operator, next_method)
+        if next_kwargs:
+            execute_callable = partial(execute_callable, **next_kwargs)
+        return execute_callable
+
 
 def chain(*tasks: DependencyMixin | Sequence[DependencyMixin]) -> None:
     r"""
@@ -1816,9 +1835,9 @@ def chain_linear(*elements: DependencyMixin | Sequence[DependencyMixin]):
 
     E.g.: suppose you want precedence like so::
 
-            â•­â”€op2â”€â•® â•­â”€op4â”€â•®
-        op1â”€â”¤     â”œâ”€â”œâ”€op5â”€â”¤â”€op7
-            â•°-op3â”€â•¯ â•°-op6â”€â•¯
+            â•­â"€op2â"€â•® â•­â"€op4â"€â•®
+        op1â"€â"¤     â"œâ"€â"œâ"€op5â"€â"¤â"€op7
+            â•°-op3â"€â•¯ â•°-op6â"€â•¯
 
     Then you can accomplish like so::
 
