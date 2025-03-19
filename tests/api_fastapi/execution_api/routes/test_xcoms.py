@@ -19,10 +19,11 @@
 from __future__ import annotations
 
 import contextlib
-from unittest import mock
+import logging
 
 import httpx
 import pytest
+from fastapi import FastAPI, HTTPException, Path, Request, status
 
 from airflow.api_fastapi.execution_api.datamodels.xcom import XComResponse
 from airflow.models.dagrun import DagRun
@@ -40,6 +41,38 @@ def reset_db():
     with create_session() as session:
         session.query(DagRun).delete()
         session.query(XComModel).delete()
+
+
+@pytest.fixture
+def access_denied(client):
+    from airflow.api_fastapi.execution_api.deps import JWTBearerDep
+    from airflow.api_fastapi.execution_api.routes.xcoms import has_xcom_access
+
+    last_route = client.app.routes[-1]
+    assert isinstance(last_route.app, FastAPI)
+    exec_app = last_route.app
+
+    async def _(
+        request: Request,
+        dag_id: str = Path(),
+        run_id: str = Path(),
+        task_id: str = Path(),
+        xcom_key: str = Path(alias="key"),
+        token=JWTBearerDep,
+    ):
+        await has_xcom_access(dag_id, run_id, task_id, xcom_key, request, token)
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail={
+                "reason": "access_denied",
+            },
+        )
+
+    exec_app.dependency_overrides[has_xcom_access] = _
+
+    yield
+
+    exec_app.dependency_overrides = {}
 
 
 class TestXComsGetEndpoint:
@@ -84,17 +117,18 @@ class TestXComsGetEndpoint:
             }
         }
 
-    def test_xcom_access_denied(self, client):
-        with mock.patch("airflow.api_fastapi.execution_api.routes.xcoms.has_xcom_access", return_value=False):
+    @pytest.mark.usefixtures("access_denied")
+    def test_xcom_access_denied(self, client, caplog):
+        with caplog.at_level(logging.DEBUG):
             response = client.get("/execution/xcoms/dag/runid/task/xcom_perms")
 
-        assert response.status_code == 403
+        assert response.status_code == 403, response.json()
         assert response.json() == {
             "detail": {
                 "reason": "access_denied",
-                "message": "Task does not have access to XCom key 'xcom_perms'",
             }
         }
+        assert any(msg.startswith("Checking read XCom access") for msg in caplog.messages)
 
 
 class TestXComsSetEndpoint:
@@ -193,8 +227,9 @@ class TestXComsSetEndpoint:
             task_map = session.query(TaskMap).filter_by(task_id=ti.task_id, dag_id=ti.dag_id).one_or_none()
             assert task_map.length == length
 
-    def test_xcom_access_denied(self, client):
-        with mock.patch("airflow.api_fastapi.execution_api.routes.xcoms.has_xcom_access", return_value=False):
+    @pytest.mark.usefixtures("access_denied")
+    def test_xcom_access_denied(self, client, caplog):
+        with caplog.at_level(logging.DEBUG):
             response = client.post(
                 "/execution/xcoms/dag/runid/task/xcom_perms",
                 json='"value1"',
@@ -204,9 +239,9 @@ class TestXComsSetEndpoint:
         assert response.json() == {
             "detail": {
                 "reason": "access_denied",
-                "message": "Task does not have access to set XCom key 'xcom_perms'",
             }
         }
+        assert any(msg.startswith("Checking write XCom access") for msg in caplog.messages)
 
     @pytest.mark.parametrize(
         ("value", "expected_value"),
