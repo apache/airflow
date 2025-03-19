@@ -17,9 +17,12 @@
 
 from __future__ import annotations
 
+import logging
 from unittest import mock
 
 import pytest
+from fastapi import FastAPI, HTTPException, Request, status
+from fastapi.routing import Mount
 
 from airflow.models.variable import Variable
 
@@ -33,6 +36,32 @@ def setup_method():
     clear_db_variables()
     yield
     clear_db_variables()
+
+
+@pytest.fixture
+def access_denied(client):
+    from airflow.api_fastapi.execution_api.deps import JWTBearerDep
+    from airflow.api_fastapi.execution_api.routes.variables import has_variable_access
+
+    last_route = client.app.routes[-1]
+    assert isinstance(last_route, Mount)
+    assert isinstance(last_route.app, FastAPI)
+    exec_app = last_route.app
+
+    async def _(request: Request, variable_key: str, token=JWTBearerDep):
+        await has_variable_access(request, variable_key, token)
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail={
+                "reason": "access_denied",
+            },
+        )
+
+    exec_app.dependency_overrides[has_variable_access] = _
+
+    yield
+
+    exec_app.dependency_overrides = {}
 
 
 class TestGetVariable:
@@ -70,10 +99,9 @@ class TestGetVariable:
             }
         }
 
-    def test_variable_get_access_denied(self, client):
-        with mock.patch(
-            "airflow.api_fastapi.execution_api.routes.variables.has_variable_access", return_value=False
-        ):
+    @pytest.mark.usefixtures("access_denied")
+    def test_variable_get_access_denied(self, client, caplog):
+        with caplog.at_level(logging.DEBUG):
             response = client.get("/execution/variables/key1")
 
         # Assert response status code and detail for access denied
@@ -81,9 +109,10 @@ class TestGetVariable:
         assert response.json() == {
             "detail": {
                 "reason": "access_denied",
-                "message": "Task does not have access to variable key1",
             }
         }
+
+        assert any(msg.startswith("Checking read access for task instance") for msg in caplog.messages)
 
 
 class TestPutVariable:
@@ -168,10 +197,9 @@ class TestPutVariable:
         assert var_from_db.key == key
         assert var_from_db.val == payload["value"]
 
-    def test_post_variable_access_denied(self, client):
-        with mock.patch(
-            "airflow.api_fastapi.execution_api.routes.variables.has_variable_access", return_value=False
-        ):
+    @pytest.mark.usefixtures("access_denied")
+    def test_post_variable_access_denied(self, client, caplog):
+        with caplog.at_level(logging.DEBUG):
             key = "var_create"
             payload = {"value": "{}"}
             response = client.put(
@@ -184,6 +212,6 @@ class TestPutVariable:
         assert response.json() == {
             "detail": {
                 "reason": "access_denied",
-                "message": "Task does not have access to write variable var_create",
             }
         }
+        assert any(msg.startswith("Checking write access for task instance") for msg in caplog.messages)

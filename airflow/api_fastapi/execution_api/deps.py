@@ -15,18 +15,80 @@
 # specific language governing permissions and limitations
 # under the License.
 
-from __future__ import annotations
+# Disable future annotations in this file to work around https://github.com/fastapi/fastapi/issues/13056
+# ruff: noqa: I002
 
-from typing import Annotated
+from typing import Any, Optional
 
-from fastapi import Depends
+import structlog
+import svcs
+from fastapi import Depends, HTTPException, Request, status
+from fastapi.security import HTTPBearer
 
+from airflow.api_fastapi.auth.tokens import JWTValidator
 from airflow.api_fastapi.execution_api.datamodels.token import TIToken
 
-
-def get_task_token() -> TIToken:
-    """TODO: Placeholder for task identity authentication. This should be replaced with actual JWT decoding and validation."""
-    return TIToken(ti_key="test_key")
+log = structlog.get_logger(logger_name=__name__)
 
 
-TokenDep = Annotated[TIToken, Depends(get_task_token)]
+# See https://github.com/fastapi/fastapi/issues/13056
+async def _container(request: Request):
+    async with svcs.Container(request.app.state.svcs_registry) as cont:
+        yield cont
+
+
+DepContainer: svcs.Container = Depends(_container)
+
+
+class JWTBearer(HTTPBearer):
+    """
+    A FastAPI security dependency that validates JWT tokens using for the Execution API.
+
+    This will validate the tokens are signed and that the ``sub`` is a UUID, but nothing deeper than that.
+
+    The dependency result will be an `TIToken` object containing the ``id`` UUID (from the ``sub``) and other
+    validated claims.
+    """
+
+    def __init__(
+        self,
+        path_param_name: Optional[str] = None,
+        required_claims: Optional[dict[str, Any]] = None,
+    ):
+        super().__init__(auto_error=False)
+        self.path_param_name = path_param_name
+        self.required_claims = required_claims or {}
+
+    async def __call__(  # type: ignore[override]
+        self,
+        request: Request,
+        services=DepContainer,
+    ) -> Optional[TIToken]:
+        creds = await super().__call__(request)
+        if not creds:
+            raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Missing auth token")
+
+        validator: JWTValidator = await services.aget(JWTValidator)
+
+        try:
+            # Example: Validate "task_instance_id" component of the path matches the one in the token
+            if self.path_param_name:
+                id = request.path_params[self.path_param_name]
+                validators: dict[str, Any] = {
+                    **self.required_claims,
+                    "sub": {"essential": True, "value": id},
+                }
+            else:
+                validators = self.required_claims
+            claims = await validator.avalidated_claims(creds.credentials, validators)
+            return TIToken(id=claims["sub"], claims=claims)
+        except Exception as err:
+            log.warning(
+                "Failed to validate JWT",
+                exc_info=True,
+                token=creds.credentials,
+            )
+            raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail=f"Invalid auth token: {err}")
+
+
+JWTBearerDep: TIToken = Depends(JWTBearer())

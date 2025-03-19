@@ -46,6 +46,7 @@ type ParseLogsProps = {
   logLevelFilters?: Array<string>;
   sourceFilters?: Array<string>;
   taskInstance?: TaskInstanceResponse;
+  tryNumber: number;
 };
 
 type RenderStructuredLogProps = {
@@ -154,7 +155,7 @@ const renderStructuredLog = ({
   );
 };
 
-const parseLogs = ({ data, logLevelFilters, sourceFilters, taskInstance }: ParseLogsProps) => {
+const parseLogs = ({ data, logLevelFilters, sourceFilters, taskInstance, tryNumber }: ParseLogsProps) => {
   let warning;
   let parsedLines;
   let startGroup = false;
@@ -164,7 +165,7 @@ const parseLogs = ({ data, logLevelFilters, sourceFilters, taskInstance }: Parse
 
   // open the summary when hash is present since the link might have a hash linking to a line
   const open = Boolean(location.hash);
-  const logLink = taskInstance ? getTaskInstanceLink(taskInstance) : "";
+  const logLink = taskInstance ? `${getTaskInstanceLink(taskInstance)}?try_number=${tryNumber}` : "";
 
   try {
     parsedLines = data.map((datum, index) => {
@@ -261,6 +262,7 @@ export const useLogs = (
     logLevelFilters,
     sourceFilters,
     taskInstance,
+    tryNumber,
   });
 
   return { data: parsedData, ...rest };

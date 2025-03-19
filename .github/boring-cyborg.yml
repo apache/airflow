@@ -401,7 +401,6 @@ labelPRBasedOnFilePath:
     - airflow/operators/**/*
     - airflow/hooks/**/*
     - airflow/sensors/**/*
-    - tests/operators/**/*
     - tests/hooks/**/*
     - tests/sensors/**/*
     - docs/apache-airflow/operators-and-hooks-ref.rst

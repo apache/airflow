@@ -22,7 +22,7 @@ import { TbLogicAnd } from "react-icons/tb";
 
 export const AndGateNode = ({ children }: PropsWithChildren) => (
   <Box
-    bg="bg.emphasized"
+    bg="bg.subtle"
     border="2px dashed"
     borderRadius="lg"
     display="inline-block"

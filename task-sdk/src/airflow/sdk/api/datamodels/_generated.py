@@ -94,6 +94,29 @@ class DagRunAssetReference(BaseModel):
     data_interval_end: Annotated[datetime | None, Field(title="Data Interval End")] = None
 
 
+class DagRunState(str, Enum):
+    """
+    All possible states that a DagRun can be in.
+
+    These are "shared" with TaskInstanceState in some parts of the code,
+    so please ensure that their values always match the ones with the
+    same name in TaskInstanceState.
+    """
+
+    QUEUED = "queued"
+    RUNNING = "running"
+    SUCCESS = "success"
+    FAILED = "failed"
+
+
+class DagRunStateResponse(BaseModel):
+    """
+    Schema for DAG Run State response.
+    """
+
+    state: DagRunState
+
+
 class DagRunType(str, Enum):
     """
     Class with DagRun types.
@@ -243,6 +266,19 @@ class TerminalStateNonSuccess(str, Enum):
     SKIPPED = "skipped"
     REMOVED = "removed"
     FAIL_WITHOUT_RETRY = "fail_without_retry"
+
+
+class TriggerDAGRunPayload(BaseModel):
+    """
+    Schema for Trigger DAG Run API request.
+    """
+
+    model_config = ConfigDict(
+        extra="forbid",
+    )
+    logical_date: Annotated[datetime | None, Field(title="Logical Date")] = None
+    conf: Annotated[dict[str, Any] | None, Field(title="Conf")] = None
+    reset_dag_run: Annotated[bool | None, Field(title="Reset Dag Run")] = False
 
 
 class ValidationError(BaseModel):

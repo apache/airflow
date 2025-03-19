@@ -20,18 +20,16 @@ import { Box, Badge } from "@chakra-ui/react";
 import { Fragment } from "react";
 import { TbLogicOr } from "react-icons/tb";
 
-import type { QueuedEventResponse } from "openapi/requests/types.gen";
-
 import { AndGateNode } from "./AndGateNode";
 import { AssetNode } from "./AssetNode";
 import { OrGateNode } from "./OrGateNode";
-import type { ExpressionType } from "./types";
+import type { ExpressionType, NextRunEvent } from "./types";
 
 export const AssetExpression = ({
   events,
   expression,
 }: {
-  readonly events?: Array<QueuedEventResponse>;
+  readonly events?: Array<NextRunEvent>;
   readonly expression: ExpressionType | null;
 }) => {
   if (expression === null) {
@@ -45,8 +43,11 @@ export const AssetExpression = ({
           {expression.any.map((item, index) => (
             // eslint-disable-next-line react/no-array-index-key
             <Fragment key={`any-${index}`}>
-              {"asset" in item ? (
-                <AssetNode asset={item.asset} />
+              {"asset" in item || "alias" in item ? (
+                <AssetNode
+                  asset={item}
+                  event={events?.find((ev) => "asset" in item && ev.id === item.asset.id)}
+                />
               ) : (
                 <AssetExpression events={events} expression={item} />
               )}
@@ -65,8 +66,11 @@ export const AssetExpression = ({
           {expression.all.map((item, index) => (
             // eslint-disable-next-line react/no-array-index-key
             <Box display="inline-block" key={`all-${index}`}>
-              {"asset" in item ? (
-                <AssetNode asset={item.asset} />
+              {"asset" in item || "alias" in item ? (
+                <AssetNode
+                  asset={item}
+                  event={events?.find((ev) => "asset" in item && ev.id === item.asset.id)}
+                />
               ) : (
                 <AssetExpression events={events} expression={item} />
               )}

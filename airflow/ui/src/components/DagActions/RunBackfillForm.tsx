@@ -45,11 +45,11 @@ const RunBackfillForm = ({ dag, onClose }: RunBackfillFormProps) => {
     defaultValues: {
       dag_id: dag.dag_id,
       dag_run_conf: {},
-      from_date: undefined,
-      max_active_runs: undefined,
-      reprocess_behavior: undefined,
-      run_backwards: undefined,
-      to_date: undefined,
+      from_date: "",
+      max_active_runs: 1,
+      reprocess_behavior: "failed",
+      run_backwards: false,
+      to_date: "",
     },
     mode: "onBlur",
   });
@@ -62,11 +62,11 @@ const RunBackfillForm = ({ dag, onClose }: RunBackfillFormProps) => {
       requestBody: {
         dag_id: dag.dag_id,
         dag_run_conf: undefined,
-        from_date: values.from_date ?? today,
-        max_active_runs: values.max_active_runs ?? 0,
+        from_date: values.from_date ?? "",
+        max_active_runs: values.max_active_runs ?? 1,
         reprocess_behavior: values.reprocess_behavior,
         run_backwards: values.run_backwards ?? false,
-        to_date: values.to_date ?? today,
+        to_date: values.to_date ?? "",
       },
     },
   });
@@ -197,7 +197,14 @@ const RunBackfillForm = ({ dag, onClose }: RunBackfillFormProps) => {
           name="max_active_runs"
           render={({ field }) => (
             <HStack>
-              <Input {...field} placeholder="" type="number" width={24} />
+              <Input
+                {...field}
+                max={dag.max_active_runs ?? undefined}
+                min={1}
+                placeholder=""
+                type="number"
+                width={24}
+              />
               <Flex>Max Active Runs</Flex>
             </HStack>
           )}

@@ -17,14 +17,17 @@
 
 from __future__ import annotations
 
-from contextlib import asynccontextmanager
+from contextlib import AsyncExitStack
 from functools import cached_property
 from typing import TYPE_CHECKING
 
 import attrs
+import svcs
 from fastapi import FastAPI, Request
 from fastapi.openapi.utils import get_openapi
 from fastapi.responses import JSONResponse
+
+from airflow.api_fastapi.auth.tokens import JWTValidator, get_sig_validation_args
 
 if TYPE_CHECKING:
     import httpx
@@ -34,10 +37,33 @@ import structlog
 logger = structlog.get_logger(logger_name=__name__)
 
 
-@asynccontextmanager
-async def lifespan(app: FastAPI):
-    """Context manager for the lifespan of the FastAPI app. For now does nothing."""
+def _jwt_validator():
+    from airflow.configuration import conf
+
+    required_claims = frozenset(["aud", "exp", "iat"])
+
+    if issuer := conf.get("api_auth", "jwt_issuer", fallback=None):
+        required_claims = required_claims | {"iss"}
+    validator = JWTValidator(
+        required_claims=required_claims,
+        issuer=issuer,
+        leeway=conf.getint("api_auth", "jwt_leeway"),
+        audience=conf.get_mandatory_list_value("execution_api", "jwt_audience"),
+        **get_sig_validation_args(make_secret_key_if_needed=False),
+    )
+    return validator
+
+
+@svcs.fastapi.lifespan
+async def lifespan(app: FastAPI, registry: svcs.Registry):
     app.state.lifespan_called = True
+
+    # According to svcs's docs this shouldn't be needed, but something about SubApps is odd, and we need to
+    # record this here
+    app.state.svcs_registry = registry
+
+    # Create an app scoped validator, so that we don't have to fetch it every time
+    registry.register_value(JWTValidator, _jwt_validator(), ping=JWTValidator.status)
     yield
 
 
@@ -129,22 +155,45 @@ class InProcessExecuctionAPI:
     """
 
     _app: FastAPI | None = None
+    _cm: AsyncExitStack | None = None
 
     @cached_property
     def app(self):
         if not self._app:
             from airflow.api_fastapi.execution_api.app import create_task_execution_api_app
+            from airflow.api_fastapi.execution_api.deps import JWTBearerDep
+            from airflow.api_fastapi.execution_api.routes.connections import has_connection_access
+            from airflow.api_fastapi.execution_api.routes.variables import has_variable_access
+            from airflow.api_fastapi.execution_api.routes.xcoms import has_xcom_access
 
             self._app = create_task_execution_api_app()
+
+            async def always_allow(): ...
+
+            self._app.dependency_overrides[JWTBearerDep.dependency] = always_allow
+            self._app.dependency_overrides[has_connection_access] = always_allow
+            self._app.dependency_overrides[has_variable_access] = always_allow
+            self._app.dependency_overrides[has_xcom_access] = always_allow
 
         return self._app
 
     @cached_property
     def transport(self) -> httpx.WSGITransport:
+        import asyncio
+
         import httpx
         from a2wsgi import ASGIMiddleware
 
-        return httpx.WSGITransport(app=ASGIMiddleware(self.app))  # type: ignore[arg-type]
+        middleware = ASGIMiddleware(self.app)
+
+        # https://github.com/abersheeran/a2wsgi/discussions/64
+        async def start_lifespan(cm: AsyncExitStack, app: FastAPI):
+            await cm.enter_async_context(app.router.lifespan_context(app))
+
+        self._cm = AsyncExitStack()
+
+        asyncio.run_coroutine_threadsafe(start_lifespan(self._cm, self.app), middleware.loop)
+        return httpx.WSGITransport(app=middleware)  # type: ignore[arg-type]
 
     @cached_property
     def atransport(self) -> httpx.ASGITransport:

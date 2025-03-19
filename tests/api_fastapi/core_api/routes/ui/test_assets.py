@@ -57,6 +57,7 @@ class TestNextRunAssets:
                             "uri": "s3://bucket/next-run-asset/1",
                             "name": "asset1",
                             "group": "asset",
+                            "id": mock.ANY,
                         }
                     }
                 ]

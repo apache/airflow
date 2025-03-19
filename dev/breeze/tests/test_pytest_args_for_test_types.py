@@ -89,11 +89,6 @@ def _find_all_integration_folders() -> list[str]:
             ["tests/serialization"],
         ),
         (
-            GroupOfTests.CORE,
-            "Operators",
-            ["tests/operators"],
-        ),
-        (
             GroupOfTests.PROVIDERS,
             "Providers",
             [

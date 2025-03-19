@@ -17,11 +17,31 @@
 
 from __future__ import annotations
 
+from fastapi.responses import JSONResponse
+
 from airflow.api_fastapi.common.router import AirflowRouter
+from airflow.api_fastapi.execution_api.deps import DepContainer
 
 router = AirflowRouter()
 
 
-@router.get("/health")
+@router.get("")
 def health() -> dict:
     return {"status": "healthy"}
+
+
+@router.get("/ping")
+async def ping(services=DepContainer):
+    ok: list[str] = []
+    failing: dict[str, str] = {}
+    code = 200
+
+    for svc in services.get_pings():
+        try:
+            await svc.aping()
+            ok.append(svc.name)
+        except Exception as e:
+            failing[svc.name] = repr(e)
+            code = 500
+
+    return JSONResponse(content={"ok": ok, "failing": failing}, status_code=code)

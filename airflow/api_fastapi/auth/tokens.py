@@ -119,10 +119,9 @@ class JWKS:
     @classmethod
     def from_private_key(cls, *keys: AllowedPrivateKeys | tuple[AllowedPrivateKeys, str]):
         obj = cls(url=os.devnull)
-
         keyset = [
             # Each `key` is either the key directly or `(key, "my-kid")`
-            key_to_jwk_dict(*key if isinstance(key, tuple) else key)
+            key_to_jwk_dict(*key) if isinstance(key, tuple) else key_to_jwk_dict(key)
             for key in keys
         ]
         obj._jwks = jwt.PyJWKSet(keyset)
@@ -209,6 +208,19 @@ class JWKS:
         # It didn't load!
         raise KeyError(f"Key ID {kid} not found in keyset")
 
+    def status(self):
+        # https://svcs.hynek.me/en/stable/core-concepts.html#health-checks
+        if not self._should_fetch_jwks():
+            # Up-to-date, we are healthy
+            return
+
+        if self.fetched_at == 0:
+            raise RuntimeError("JWKS never fetched")
+
+        last_successful_fetch = time.monotonic() - self.fetched_at
+        if last_successful_fetch > 3 * self.refresh_interval_secs:
+            raise RuntimeError(f"JWKS last fetched {last_successful_fetch}s ago")
+
 
 def _conf_factory(section, key, **kwargs):
     def factory() -> str:
@@ -273,7 +285,7 @@ class JWTValidator:
     def _get_kid_from_header(self, unvalidated: str) -> str:
         header = jwt.get_unverified_header(unvalidated)
         if "kid" not in header:
-            raise ValueError("Missing 'kid' in token header")
+            raise jwt.InvalidTokenError("Missing 'kid' in token header")
         return header["kid"]
 
     async def _get_validation_key(self, unvalidated: str) -> str | jwt.PyJWK:
@@ -315,6 +327,10 @@ class JWTValidator:
                     raise InvalidClaimError(claim)
 
         return claims
+
+    def status(self):
+        if self.jwks:
+            self.jwks.status()
 
 
 def _pem_to_key(pem_data: str | bytes | AllowedPrivateKeys) -> AllowedPrivateKeys:
@@ -472,7 +488,7 @@ def base64url_encode(payload):
     return encode.decode("utf-8").rstrip("=")
 
 
-def get_signing_key(section: str, key: str) -> str:
+def get_signing_key(section: str, key: str, make_secret_key_if_needed: bool = True) -> str:
     """
     Get a signing shared key from the config.
 
@@ -484,18 +500,23 @@ def get_signing_key(section: str, key: str) -> str:
     secret_key = conf.get(section, key, fallback=sentinel)
 
     if not secret_key or secret_key is sentinel:
-        log.warning(
-            "`%s/%s` was empty, using a generated one for now. Please set this in your config", section, key
-        )
-        secret_key = base64url_encode(os.urandom(16))
-        # Set it back so any other callers get the same value for the duration of this process
-        conf.set(section, key, secret_key)
+        if make_secret_key_if_needed:
+            log.warning(
+                "`%s/%s` was empty, using a generated one for now. Please set this in your config",
+                section,
+                key,
+            )
+            secret_key = base64url_encode(os.urandom(16))
+            # Set it back so any other callers get the same value for the duration of this process
+            conf.set(section, key, secret_key)
+        else:
+            raise ValueError(f"The value {section}/{key} must be set!")
 
     # Mypy can't grock the `if not secret_key`
     return secret_key  # type: ignore[return-value]
 
 
-def get_signing_args() -> dict[str, Any]:
+def get_signing_args(make_secret_key_if_needed: bool = True) -> dict[str, Any]:
     """
     Return the args to splat into JWTGenerator for private or secret key.
 
@@ -508,10 +529,10 @@ def get_signing_args() -> dict[str, Any]:
         return {"private_key": priv}
 
     # Don't call this unless we have to as it might issue a warning
-    return {"secret_key": get_signing_key("api_auth", "jwt_secret")}
+    return {"secret_key": get_signing_key("api_auth", "jwt_secret", make_secret_key_if_needed)}
 
 
-def get_sig_validation_args() -> dict[str, Any]:
+def get_sig_validation_args(make_secret_key_if_needed: bool = True) -> dict[str, Any]:
     from airflow.configuration import conf
 
     sentinel = object()
@@ -527,6 +548,9 @@ def get_sig_validation_args() -> dict[str, Any]:
 
     if key is not None:
         jwks = JWKS.from_private_key(key)
-        return {"jwks": jwks}
+        return {
+            "jwks": jwks,
+            "algorithm": conf.get("api_auth", "jwt_algorithm", fallback=None) or _guess_best_algorithm(key),
+        }
 
-    return {"secret_key": get_signing_key("api_auth", "jwt_secret")}
+    return {"secret_key": get_signing_key("api_auth", "jwt_secret", make_secret_key_if_needed)}

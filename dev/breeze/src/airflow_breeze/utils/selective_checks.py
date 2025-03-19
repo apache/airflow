@@ -86,7 +86,7 @@ UPGRADE_TO_NEWER_DEPENDENCIES_LABEL = "upgrade to newer dependencies"
 USE_PUBLIC_RUNNERS_LABEL = "use public runners"
 USE_SELF_HOSTED_RUNNERS_LABEL = "use self-hosted runners"
 
-ALL_CI_SELECTIVE_TEST_TYPES = "API Always CLI Core Operators Other Serialization"
+ALL_CI_SELECTIVE_TEST_TYPES = "API Always CLI Core Other Serialization"
 
 ALL_PROVIDERS_SELECTIVE_TEST_TYPES = (
     "Providers[-amazon,google,standard] Providers[amazon] Providers[google] Providers[standard]"
@@ -289,10 +289,6 @@ TEST_TYPE_MATCHES = HashableDict(
         SelectiveCoreTestType.CLI: [
             r"^airflow/cli/",
             r"^tests/cli/",
-        ],
-        SelectiveCoreTestType.OPERATORS: [
-            r"^airflow/operators/",
-            r"^tests/operators/",
         ],
         SelectiveProvidersTestType.PROVIDERS: [
             r"^providers/.*/src/airflow/providers/",

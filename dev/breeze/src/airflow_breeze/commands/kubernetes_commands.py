@@ -1030,6 +1030,8 @@ def _deploy_helm_chart(
             f"executor={executor}",
             "--set",
             f"airflowVersion={params.airflow_semver_version}",
+            "--set",
+            "config.api_auth.jwt_secret=foo",
         ]
         if multi_namespace_mode:
             helm_command.extend(["--set", "multiNamespaceMode=true"])

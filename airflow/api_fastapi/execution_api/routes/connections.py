@@ -19,18 +19,32 @@ from __future__ import annotations
 
 import logging
 
-from fastapi import HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Path, status
 
-from airflow.api_fastapi.common.router import AirflowRouter
-from airflow.api_fastapi.execution_api import deps
 from airflow.api_fastapi.execution_api.datamodels.connection import ConnectionResponse
-from airflow.api_fastapi.execution_api.datamodels.token import TIToken
+from airflow.api_fastapi.execution_api.deps import JWTBearerDep
 from airflow.exceptions import AirflowNotFoundException
 from airflow.models.connection import Connection
 
-# TODO: Add dependency on JWT token
-router = AirflowRouter(
+
+async def has_connection_access(
+    connection_id: str = Path(),
+    token=JWTBearerDep,
+) -> bool:
+    """Check if the task has access to the connection."""
+    # TODO: Placeholder for actual implementation
+
+    log.debug(
+        "Checking access for task instance with key '%s' to connection '%s'",
+        token.id,
+        connection_id,
+    )
+    return True
+
+
+router = APIRouter(
     responses={status.HTTP_404_NOT_FOUND: {"description": "Connection not found"}},
+    dependencies=[Depends(has_connection_access)],
 )
 
 log = logging.getLogger(__name__)
@@ -43,19 +57,8 @@ log = logging.getLogger(__name__)
         status.HTTP_403_FORBIDDEN: {"description": "Task does not have access to the connection"},
     },
 )
-def get_connection(
-    connection_id: str,
-    token: deps.TokenDep,
-) -> ConnectionResponse:
+def get_connection(connection_id: str) -> ConnectionResponse:
     """Get an Airflow connection."""
-    if not has_connection_access(connection_id, token):
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail={
-                "reason": "access_denied",
-                "message": f"Task does not have access to connection {connection_id}",
-            },
-        )
     try:
         connection = Connection.get_connection_from_secrets(connection_id)
     except AirflowNotFoundException:
@@ -67,16 +70,3 @@ def get_connection(
             },
         )
     return ConnectionResponse.model_validate(connection)
-
-
-def has_connection_access(connection_id: str, token: TIToken) -> bool:
-    """Check if the task has access to the connection."""
-    # TODO: Placeholder for actual implementation
-
-    ti_key = token.ti_key
-    log.debug(
-        "Checking access for task instance with key '%s' to connection '%s'",
-        ti_key,
-        connection_id,
-    )
-    return True
