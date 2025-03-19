@@ -34,31 +34,41 @@ def cleanup():
     clear_db_serialized_dags()
 
 
-def test_next_run_assets(test_client, dag_maker):
-    with dag_maker(
-        dag_id="upstream",
-        schedule=[Asset(uri="s3://bucket/next-run-asset/1", name="asset1")],
-        serialized=True,
-    ):
-        EmptyOperator(task_id="task1")
+class TestNextRunAssets:
+    def test_should_response_200(self, test_client, dag_maker):
+        with dag_maker(
+            dag_id="upstream",
+            schedule=[Asset(uri="s3://bucket/next-run-asset/1", name="asset1")],
+            serialized=True,
+        ):
+            EmptyOperator(task_id="task1")
 
-    dag_maker.create_dagrun()
-    dag_maker.sync_dagbag_to_db()
+        dag_maker.create_dagrun()
+        dag_maker.sync_dagbag_to_db()
 
-    response = test_client.get("/ui/next_run_assets/upstream")
+        response = test_client.get("/ui/next_run_assets/upstream")
 
-    assert response.status_code == 200
-    assert response.json() == {
-        "asset_expression": {
-            "all": [
-                {
-                    "asset": {
-                        "uri": "s3://bucket/next-run-asset/1",
-                        "name": "asset1",
-                        "group": "asset",
+        assert response.status_code == 200
+        assert response.json() == {
+            "asset_expression": {
+                "all": [
+                    {
+                        "asset": {
+                            "uri": "s3://bucket/next-run-asset/1",
+                            "name": "asset1",
+                            "group": "asset",
+                            "id": mock.ANY,
+                        }
                     }
-                }
-            ]
-        },
-        "events": [{"id": mock.ANY, "uri": "s3://bucket/next-run-asset/1", "lastUpdate": None}],
-    }
+                ]
+            },
+            "events": [{"id": mock.ANY, "uri": "s3://bucket/next-run-asset/1", "lastUpdate": None}],
+        }
+
+    def test_should_respond_401(self, unauthenticated_test_client):
+        response = unauthenticated_test_client.get("/ui/next_run_assets/upstream")
+        assert response.status_code == 401
+
+    def test_should_respond_403(self, unauthorized_test_client):
+        response = unauthorized_test_client.get("/ui/next_run_assets/upstream")
+        assert response.status_code == 403

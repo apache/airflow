@@ -23,14 +23,13 @@ import sys
 from collections import defaultdict, deque
 from collections.abc import Sequence
 from dataclasses import dataclass, field
+from functools import cached_property
 from typing import TYPE_CHECKING, Any, Optional
 
 import pendulum
-from deprecated import deprecated
 
 from airflow.cli.cli_config import DefaultHelpParser
 from airflow.configuration import conf
-from airflow.exceptions import RemovedInAirflow3Warning
 from airflow.executors.executor_loader import ExecutorLoader
 from airflow.models import Log
 from airflow.stats import Stats
@@ -48,6 +47,7 @@ if TYPE_CHECKING:
 
     from sqlalchemy.orm import Session
 
+    from airflow.api_fastapi.auth.tokens import JWTGenerator
     from airflow.callbacks.base_callback_sink import BaseCallbackSink
     from airflow.callbacks.callback_requests import CallbackRequest
     from airflow.cli.cli_config import GroupCommand
@@ -130,8 +130,32 @@ class BaseExecutor(LoggingMixin):
     name: None | ExecutorName = None
     callback_sink: BaseCallbackSink | None = None
 
+    @cached_property
+    def jwt_generator(self) -> JWTGenerator:
+        from airflow.api_fastapi.auth.tokens import (
+            JWTGenerator,
+            get_signing_args,
+        )
+        from airflow.configuration import conf
+
+        generator = JWTGenerator(
+            valid_for=conf.getint("execution_api", "jwt_expiration_time"),
+            audience=conf.get_mandatory_list_value("execution_api", "jwt_audience")[0],
+            issuer=conf.get("api_auth", "jwt_issuer", fallback=None),
+            # Since this one is used across components/server, there is no point trying to generate one, error
+            # instead
+            **get_signing_args(make_secret_key_if_needed=False),
+        )
+
+        return generator
+
     def __init__(self, parallelism: int = PARALLELISM, team_id: str | None = None):
         super().__init__()
+        # Ensure we set this now, so that each subprocess gets the same value
+        from airflow.api_fastapi.auth.tokens import get_signing_args
+
+        get_signing_args()
+
         self.parallelism: int = parallelism
         self.team_id: str | None = team_id
         self.queued_tasks: dict[TaskInstanceKey, QueuedTaskInstanceType] = {}
@@ -585,24 +609,6 @@ class BaseExecutor(LoggingMixin):
 
     def terminate(self):
         """Get called when the daemon receives a SIGTERM."""
-        raise NotImplementedError
-
-    @deprecated(
-        reason="Replaced by function `revoke_task`.",
-        category=RemovedInAirflow3Warning,
-        action="ignore",
-    )
-    def cleanup_stuck_queued_tasks(self, tis: list[TaskInstance]) -> list[str]:
-        """
-        Handle remnants of tasks that were failed because they were stuck in queued.
-
-        Tasks can get stuck in queued. If such a task is detected, it will be marked
-        as `UP_FOR_RETRY` if the task instance has remaining retries or marked as `FAILED`
-        if it doesn't.
-
-        :param tis: List of Task Instances to clean up
-        :return: List of readable task instances for a warning message
-        """
         raise NotImplementedError
 
     def revoke_task(self, *, ti: TaskInstance):

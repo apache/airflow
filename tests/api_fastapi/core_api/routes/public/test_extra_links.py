@@ -22,7 +22,7 @@ import pytest
 
 from airflow.dag_processing.bundles.manager import DagBundlesManager
 from airflow.models.dagbag import DagBag
-from airflow.models.xcom import XCom
+from airflow.models.xcom import XComModel as XCom
 from airflow.plugins_manager import AirflowPlugin
 from airflow.utils import timezone
 from airflow.utils.state import DagRunState
@@ -258,6 +258,20 @@ class TestGetExtraLinks:
         assert response.json() == {
             "Google Custom": "http://google.com/custom_base_link?search=TEST_LINK_VALUE_1"
         }
+
+    def test_should_respond_401_unauthenticated(self, unauthenticated_test_client):
+        response = unauthenticated_test_client.get(
+            f"/public/dags/{self.dag_id}/dagRuns/{self.dag_run_id}/taskInstances/{self.task_single_link}/links",
+        )
+
+        assert response.status_code == 401
+
+    def test_should_respond_403_unauthorized(self, unauthorized_test_client):
+        response = unauthorized_test_client.get(
+            f"/public/dags/{self.dag_id}/dagRuns/{self.dag_run_id}/taskInstances/{self.task_single_link}/links",
+        )
+
+        assert response.status_code == 403
 
     def test_should_respond_404_invalid_map_index(self, test_client):
         response = test_client.get(

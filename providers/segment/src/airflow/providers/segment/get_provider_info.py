@@ -27,8 +27,9 @@ def get_provider_info():
         "name": "Segment",
         "description": "`Segment <https://segment.com/>`__\n",
         "state": "ready",
-        "source-date-epoch": 1740734186,
+        "source-date-epoch": 1741509518,
         "versions": [
+            "3.7.2",
             "3.7.1",
             "3.7.0",
             "3.6.0",
@@ -72,4 +73,5 @@ def get_provider_info():
             }
         ],
         "dependencies": ["apache-airflow>=2.9.0", "analytics-python>=1.2.9"],
+        "devel-dependencies": [],
     }

@@ -20,6 +20,16 @@ from __future__ import annotations
 from airflow.models.taskinstance import PAST_DEPENDS_MET
 from airflow.ti_deps.deps.base_ti_dep import BaseTIDep
 
+## The following constants are taken from the SkipMixin class in the standard provider
+# The key used by SkipMixin to store XCom data.
+XCOM_SKIPMIXIN_KEY = "skipmixin_key"
+
+# The dictionary key used to denote task IDs that are skipped
+XCOM_SKIPMIXIN_SKIPPED = "skipped"
+
+# The dictionary key used to denote task IDs that are followed
+XCOM_SKIPMIXIN_FOLLOWED = "followed"
+
 
 class NotPreviouslySkippedDep(BaseTIDep):
     """
@@ -34,12 +44,6 @@ class NotPreviouslySkippedDep(BaseTIDep):
     IS_TASK_DEP = True
 
     def _get_dep_statuses(self, ti, session, dep_context):
-        from airflow.models.skipmixin import (
-            XCOM_SKIPMIXIN_FOLLOWED,
-            XCOM_SKIPMIXIN_KEY,
-            XCOM_SKIPMIXIN_SKIPPED,
-            SkipMixin,
-        )
         from airflow.utils.state import TaskInstanceState
 
         upstream = ti.task.get_direct_relatives(upstream=True)
@@ -49,12 +53,14 @@ class NotPreviouslySkippedDep(BaseTIDep):
         finished_task_ids = {t.task_id for t in finished_tis}
 
         for parent in upstream:
-            if isinstance(parent, SkipMixin):
+            if parent.inherits_from_skipmixin:
                 if parent.task_id not in finished_task_ids:
                     # This can happen if the parent task has not yet run.
                     continue
 
-                prev_result = ti.xcom_pull(task_ids=parent.task_id, key=XCOM_SKIPMIXIN_KEY, session=session)
+                prev_result = ti.xcom_pull(
+                    task_ids=parent.task_id, key=XCOM_SKIPMIXIN_KEY, session=session, map_indexes=ti.map_index
+                )
 
                 if prev_result is None:
                     # This can happen if the parent task has not yet run.
@@ -84,7 +90,7 @@ class NotPreviouslySkippedDep(BaseTIDep):
                         )
                         if not past_depends_met:
                             yield self._failing_status(
-                                reason=("Task should be skipped but the past depends are not met")
+                                reason="Task should be skipped but the past depends are not met"
                             )
                             return
                     ti.set_state(TaskInstanceState.SKIPPED, session)

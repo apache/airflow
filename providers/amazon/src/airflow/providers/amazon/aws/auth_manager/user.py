@@ -19,11 +19,14 @@ from __future__ import annotations
 from airflow.exceptions import AirflowOptionalProviderFeatureException
 
 try:
-    from airflow.auth.managers.models.base_user import BaseUser
+    from airflow.api_fastapi.auth.managers.models.base_user import BaseUser
 except ImportError:
-    raise AirflowOptionalProviderFeatureException(
-        "Failed to import BaseUser. This feature is only available in Airflow versions >= 2.8.0"
-    )
+    try:
+        from airflow.auth.managers.models.base_user import BaseUser  # type: ignore[no-redef]
+    except ImportError:
+        raise AirflowOptionalProviderFeatureException(
+            "Failed to import BaseUser. This feature is only available in Airflow versions >= 2.8.0"
+        ) from None
 
 
 class AwsAuthManagerUser(BaseUser):

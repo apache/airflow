@@ -95,20 +95,15 @@ from airflow.exceptions import (
 )
 from airflow.listeners.listener import get_listener_manager
 from airflow.models.asset import AssetActive, AssetEvent, AssetModel
-from airflow.models.base import Base, StringID, TaskInstanceDependencies, _sentinel
+from airflow.models.base import Base, StringID, TaskInstanceDependencies
 from airflow.models.dagbag import DagBag
 from airflow.models.log import Log
 from airflow.models.renderedtifields import get_serialized_template_fields
 from airflow.models.taskinstancekey import TaskInstanceKey
 from airflow.models.taskmap import TaskMap
 from airflow.models.taskreschedule import TaskReschedule
-from airflow.models.xcom import LazyXComSelectSequence, XCom
+from airflow.models.xcom import LazyXComSelectSequence, XComModel
 from airflow.plugins_manager import integrate_macros_plugins
-from airflow.sdk.api.datamodels._generated import AssetProfile
-from airflow.sdk.definitions._internal.templater import SandboxedEnvironment
-from airflow.sdk.definitions.asset import Asset, AssetAlias, AssetNameRef, AssetUniqueKey, AssetUriRef
-from airflow.sdk.definitions.param import process_params
-from airflow.sdk.definitions.taskgroup import MappedTaskGroup
 from airflow.sentry import Sentry
 from airflow.settings import task_instance_mutation_hook
 from airflow.stats import Stats
@@ -116,15 +111,6 @@ from airflow.ti_deps.dep_context import DepContext
 from airflow.ti_deps.dependencies_deps import REQUEUEABLE_DEPS, RUNNING_DEPS
 from airflow.traces.tracer import Trace
 from airflow.utils import timezone
-from airflow.utils.context import (
-    ConnectionAccessor,
-    Context,
-    InletEventsAccessors,
-    OutletEventAccessors,
-    VariableAccessor,
-    context_get_outlet_events,
-    context_merge,
-)
 from airflow.utils.email import send_email
 from airflow.utils.helpers import prune_dict, render_template_to_string
 from airflow.utils.log.logging_mixin import LoggingMixin
@@ -159,10 +145,14 @@ if TYPE_CHECKING:
     from airflow.models.baseoperator import BaseOperator
     from airflow.models.dag import DAG as SchedulerDAG, DagModel
     from airflow.models.dagrun import DagRun
+    from airflow.sdk.api.datamodels._generated import AssetProfile
     from airflow.sdk.definitions._internal.abstractoperator import Operator
+    from airflow.sdk.definitions.asset import AssetNameRef, AssetUniqueKey, AssetUriRef
     from airflow.sdk.definitions.dag import DAG
+    from airflow.sdk.definitions.taskgroup import MappedTaskGroup
     from airflow.sdk.types import RuntimeTaskInstanceProtocol
     from airflow.typing_compat import Literal
+    from airflow.utils.context import Context
     from airflow.utils.task_group import TaskGroup
 
 
@@ -261,6 +251,8 @@ def _run_raw_task(
 
         try:
             if ti.task:
+                from airflow.sdk.definitions.asset import Asset
+
                 inlets = [asset.asprofile() for asset in ti.task.inlets if isinstance(asset, Asset)]
                 outlets = [asset.asprofile() for asset in ti.task.outlets if isinstance(asset, Asset)]
                 TaskInstance.validate_inlet_outlet_assets_activeness(inlets, outlets, session=session)
@@ -356,29 +348,17 @@ def _run_raw_task(
         if not test_mode:
             _add_log(event=ti.state, task_instance=ti, session=session)
             if ti.state == TaskInstanceState.SUCCESS:
-                added_alias_to_task_outlet = False
-                task_outlets = []
-                outlet_events = []
-                events = context["outlet_events"]
-                for obj in ti.task.outlets or []:
-                    # Lineage can have other types of objects besides assets
-                    asset_type = type(obj).__name__
-                    if isinstance(obj, Asset):
-                        task_outlets.append(AssetProfile(name=obj.name, uri=obj.uri, asset_type=asset_type))
-                        outlet_events.append(attrs.asdict(events[obj]))  # type: ignore
-                    elif isinstance(obj, AssetNameRef):
-                        task_outlets.append(AssetProfile(name=obj.name, asset_type=asset_type))
-                        outlet_events.append(attrs.asdict(events))  # type: ignore
-                    elif isinstance(obj, AssetUriRef):
-                        task_outlets.append(AssetProfile(uri=obj.uri, asset_type=asset_type))
-                        outlet_events.append(attrs.asdict(events))  # type: ignore
-                    elif isinstance(obj, AssetAlias):
-                        if not added_alias_to_task_outlet:
-                            task_outlets.append(AssetProfile(asset_type=asset_type))
-                            added_alias_to_task_outlet = True
-                        for asset_alias_event in events[obj].asset_alias_events:
-                            outlet_events.append(attrs.asdict(asset_alias_event))
-                TaskInstance.register_asset_changes_in_db(ti, task_outlets, outlet_events, session=session)
+                from airflow.sdk.execution_time.task_runner import (
+                    _build_asset_profiles,
+                    _serialize_outlet_events,
+                )
+
+                TaskInstance.register_asset_changes_in_db(
+                    ti,
+                    list(_build_asset_profiles(ti.task.outlets)),
+                    list(_serialize_outlet_events(context["outlet_events"])),
+                    session=session,
+                )
 
             TaskInstance.save_to_db(ti=ti, session=session)
             if ti.state == TaskInstanceState.SUCCESS:
@@ -463,15 +443,15 @@ def clear_task_instances(
         If set to False, DagRuns state will not be changed.
     :param dag: DAG object
     """
-    # Keys: dag_id -> run_id -> map_indexes -> try_numbers -> task_id
-    task_id_by_key: dict[str, dict[str, dict[int, dict[int, set[str]]]]] = defaultdict(
-        lambda: defaultdict(lambda: defaultdict(lambda: defaultdict(set)))
-    )
+    # taskinstance uuids:
+    task_instance_ids: list[str] = []
     dag_bag = DagBag(read_dags_from_db=True)
     from airflow.models.taskinstancehistory import TaskInstanceHistory
 
     for ti in tis:
+        task_instance_ids.append(ti.id)
         TaskInstanceHistory.record_ti(ti, session)
+        ti.try_id = uuid7()
         if ti.state == TaskInstanceState.RUNNING:
             # If a task is cleared when running, set its state to RESTARTING so that
             # the task is terminated and becomes eligible for retry.
@@ -495,40 +475,10 @@ def clear_task_instances(
             ti.external_executor_id = None
             ti.clear_next_method_args()
             session.merge(ti)
-        task_id_by_key[ti.dag_id][ti.run_id][ti.map_index][ti.try_number].add(ti.task_id)
 
-    if task_id_by_key:
+    if task_instance_ids:
         # Clear all reschedules related to the ti to clear
-
-        # This is an optimization for the common case where all tis are for a small number
-        # of dag_id, run_id, try_number, and map_index. Use a nested dict of dag_id,
-        # run_id, try_number, map_index, and task_id to construct the where clause in a
-        # hierarchical manner. This speeds up the delete statement by more than 40x for
-        # large number of tis (50k+).
-        conditions = or_(
-            and_(
-                TR.dag_id == dag_id,
-                or_(
-                    and_(
-                        TR.run_id == run_id,
-                        or_(
-                            and_(
-                                TR.map_index == map_index,
-                                or_(
-                                    and_(TR.try_number == try_number, TR.task_id.in_(task_ids))
-                                    for try_number, task_ids in task_tries.items()
-                                ),
-                            )
-                            for map_index, task_tries in map_indexes.items()
-                        ),
-                    )
-                    for run_id, map_indexes in run_ids.items()
-                ),
-            )
-            for dag_id, run_ids in task_id_by_key.items()
-        )
-
-        delete_qry = TR.__table__.delete().where(conditions)
+        delete_qry = TR.__table__.delete().where(TR.ti_id.in_(task_instance_ids))
         session.execute(delete_qry)
 
     if dag_run_state is not False and tis:
@@ -578,7 +528,7 @@ def _xcom_pull(
     if run_id is None:
         run_id = ti.run_id
 
-    query = XCom.get_many(
+    query = XComModel.get_many(
         key=key,
         run_id=run_id,
         dag_ids=dag_id,
@@ -595,12 +545,12 @@ def _xcom_pull(
     # We are only pulling one single task.
     if (task_ids is None or isinstance(task_ids, str)) and not isinstance(map_indexes, Iterable):
         first = query.with_entities(
-            XCom.run_id, XCom.task_id, XCom.dag_id, XCom.map_index, XCom.value
+            XComModel.run_id, XComModel.task_id, XComModel.dag_id, XComModel.map_index, XComModel.value
         ).first()
         if first is None:  # No matching XCom at all.
             return default
         if map_indexes is not None or first.map_index < 0:
-            return XCom.deserialize_value(first)
+            return XComModel.deserialize_value(first)
 
         # raise RuntimeError("Nothing should hit this anymore")
 
@@ -610,24 +560,24 @@ def _xcom_pull(
     # Order return values to match task_ids and map_indexes ordering.
     ordering = []
     if task_ids is None or isinstance(task_ids, str):
-        ordering.append(XCom.task_id)
+        ordering.append(XComModel.task_id)
     elif task_id_whens := {tid: i for i, tid in enumerate(task_ids)}:
-        ordering.append(case(task_id_whens, value=XCom.task_id))
+        ordering.append(case(task_id_whens, value=XComModel.task_id))
     else:
-        ordering.append(XCom.task_id)
+        ordering.append(XComModel.task_id)
     if map_indexes is None or isinstance(map_indexes, int):
-        ordering.append(XCom.map_index)
+        ordering.append(XComModel.map_index)
     elif isinstance(map_indexes, range):
-        order = XCom.map_index
+        order = XComModel.map_index
         if map_indexes.step < 0:
             order = order.desc()
         ordering.append(order)
     elif map_index_whens := {map_index: i for i, map_index in enumerate(map_indexes)}:
-        ordering.append(case(map_index_whens, value=XCom.map_index))
+        ordering.append(case(map_index_whens, value=XComModel.map_index))
     else:
-        ordering.append(XCom.map_index)
+        ordering.append(XComModel.map_index)
     return LazyXComSelectSequence.from_select(
-        query.with_entities(XCom.value).order_by(None).statement,
+        query.with_entities(XComModel.value).order_by(None).statement,
         order_by=ordering,
         session=session,
     )
@@ -653,6 +603,7 @@ def _execute_task(task_instance: TaskInstance, context: Context, task_orig: Oper
 
     :meta private:
     """
+    from airflow.sdk.definitions.baseoperator import ExecutorSafeguard
     from airflow.sdk.definitions.mappedoperator import MappedOperator
 
     task_to_execute = task_instance.task
@@ -674,16 +625,22 @@ def _execute_task(task_instance: TaskInstance, context: Context, task_orig: Oper
         if task_instance.next_method == "execute":
             if not task_instance.next_kwargs:
                 task_instance.next_kwargs = {}
-            task_instance.next_kwargs[f"{task_to_execute.__class__.__name__}__sentinel"] = _sentinel
+            task_instance.next_kwargs[f"{task_to_execute.__class__.__name__}__sentinel"] = (
+                ExecutorSafeguard.sentinel_value
+            )
         execute_callable = task_to_execute.resume_execution
         execute_callable_kwargs["next_method"] = task_instance.next_method
         execute_callable_kwargs["next_kwargs"] = task_instance.next_kwargs
     else:
         execute_callable = task_to_execute.execute
         if execute_callable.__name__ == "execute":
-            execute_callable_kwargs[f"{task_to_execute.__class__.__name__}__sentinel"] = _sentinel
+            execute_callable_kwargs[f"{task_to_execute.__class__.__name__}__sentinel"] = (
+                ExecutorSafeguard.sentinel_value
+            )
 
     def _execute_callable(context: Context, **execute_callable_kwargs):
+        from airflow.utils.context import context_get_outlet_events
+
         try:
             # Print a marker for log grouping of details before task execution
             log.info("::endgroup::")
@@ -764,6 +721,7 @@ def _set_ti_attrs(target, source, include_dag_run=False):
     target.end_date = source.end_date
     target.duration = source.duration
     target.state = source.state
+    target.try_id = source.try_id
     target.try_number = source.try_number
     target.max_tries = source.max_tries
     target.hostname = source.hostname
@@ -908,6 +866,13 @@ def _get_template_context(
         PrevSuccessfulDagRunResponse,
         TIRunContext,
     )
+    from airflow.sdk.definitions.param import process_params
+    from airflow.sdk.execution_time.context import InletEventsAccessors
+    from airflow.utils.context import (
+        ConnectionAccessor,
+        OutletEventAccessors,
+        VariableAccessor,
+    )
 
     integrate_macros_plugins()
 
@@ -966,14 +931,14 @@ def _get_template_context(
         return triggering_events
 
     # NOTE: If you add to this dict, make sure to also update the following:
-    # * Context in task_sdk/src/airflow/sdk/definitions/context.py
+    # * Context in task-sdk/src/airflow/sdk/definitions/context.py
     # * KNOWN_CONTEXT_KEYS in airflow/utils/context.py
     # * Table in docs/apache-airflow/templates-ref.rst
 
     context.update(
         {
             "outlet_events": OutletEventAccessors(),
-            "inlet_events": InletEventsAccessors(task.inlets, session=session),
+            "inlet_events": InletEventsAccessors(task.inlets),
             "macros": macros,
             "params": validated_params,
             "prev_data_interval_start_success": get_prev_data_interval_start_success(),
@@ -1352,6 +1317,9 @@ def _get_email_subject_content(
         html_content_err = jinja_env.from_string(default_html_content_err).render(**default_context)
 
     else:
+        from airflow.sdk.definitions._internal.templater import SandboxedEnvironment
+        from airflow.utils.context import context_merge
+
         if TYPE_CHECKING:
             assert task_instance.task
 
@@ -1601,14 +1569,11 @@ def _handle_reschedule(
     # see https://github.com/apache/airflow/pull/21362 for more info
     session.add(
         TaskReschedule(
-            ti.task_id,
-            ti.dag_id,
-            ti.run_id,
+            ti.id,
             ti.try_number,
             actual_start_date,
             ti.end_date,
             reschedule_exception.reschedule_date,
-            ti.map_index,
         )
     )
     session.commit()
@@ -1655,6 +1620,7 @@ class TaskInstance(Base, LoggingMixin):
     end_date = Column(UtcDateTime)
     duration = Column(Float)
     state = Column(String(20))
+    try_id = Column(UUIDType(binary=False), default=uuid7, unique=True, nullable=False)
     try_number = Column(Integer, default=0)
     max_tries = Column(Integer, server_default=text("-1"))
     hostname = Column(String(1000))
@@ -2173,7 +2139,7 @@ class TaskInstance(Base, LoggingMixin):
             map_index: int | None = None
         else:
             map_index = ti.map_index
-        XCom.clear(
+        XComModel.clear(
             dag_id=ti.dag_id,
             task_id=ti.task_id,
             run_id=ti.run_id,
@@ -2737,104 +2703,128 @@ class TaskInstance(Base, LoggingMixin):
     def register_asset_changes_in_db(
         ti: TaskInstance,
         task_outlets: list[AssetProfile],
-        outlet_events: list[Any],
+        outlet_events: list[dict[str, Any]],
         session: Session = NEW_SESSION,
     ) -> None:
-        # One task only triggers one asset event for each asset with the same extra.
-        # This tuple[asset uri, extra] to sets alias names mapping is used to find whether
-        # there're assets with same uri but different extra that we need to emit more than one asset events.
-        asset_alias_names: dict[tuple[AssetUniqueKey, frozenset], set[str]] = defaultdict(set)
-        asset_name_refs: set[str] = set()
-        asset_uri_refs: set[str] = set()
+        from airflow.sdk.definitions.asset import Asset, AssetAlias, AssetNameRef, AssetUniqueKey, AssetUriRef
 
-        for obj in task_outlets:
-            ti.log.debug("outlet obj %s", obj)
-            # Lineage can have other types of objects besides assets
-            if obj.asset_type == Asset.__name__:
-                asset_manager.register_asset_change(
-                    task_instance=ti,
-                    asset=Asset(name=obj.name, uri=obj.uri),  # type: ignore
-                    extra=outlet_events[0]["extra"],
-                    session=session,
-                )
-            elif obj.asset_type == AssetNameRef.__name__:
-                asset_name_refs.add(obj.name)  # type: ignore
-            elif obj.asset_type == AssetUriRef.__name__:
-                asset_uri_refs.add(obj.uri)  # type: ignore
-            elif obj.asset_type == AssetAlias.__name__:
-                outlet_events = list(
-                    map(
-                        lambda event: {**event, "dest_asset_key": AssetUniqueKey(**event["dest_asset_key"])},
-                        outlet_events,
-                    )
-                )
-                for asset_alias_event in outlet_events:
-                    asset_alias_name = asset_alias_event["source_alias_name"]
-                    asset_unique_key = asset_alias_event["dest_asset_key"]
-                    frozen_extra = frozenset(asset_alias_event["extra"].items())
-                    asset_alias_names[(asset_unique_key, frozen_extra)].add(asset_alias_name)
+        asset_keys = {
+            AssetUniqueKey(o.name, o.uri)
+            for o in task_outlets
+            if o.type == Asset.__name__ and o.name and o.uri
+        }
+        asset_name_refs = {
+            Asset.ref(name=o.name) for o in task_outlets if o.type == AssetNameRef.__name__ and o.name
+        }
+        asset_uri_refs = {
+            Asset.ref(uri=o.uri) for o in task_outlets if o.type == AssetUriRef.__name__ and o.uri
+        }
 
-        asset_unique_keys = {key for key, _ in asset_alias_names}
-        existing_aliased_assets: set[AssetUniqueKey] = {
-            AssetUniqueKey.from_asset(asset_obj)
-            for asset_obj in session.scalars(
+        asset_models: dict[AssetUniqueKey, AssetModel] = {
+            AssetUniqueKey.from_asset(am): am
+            for am in session.scalars(
                 select(AssetModel).where(
-                    tuple_(AssetModel.name, AssetModel.uri).in_(
-                        attrs.astuple(key) for key in asset_unique_keys
-                    )
+                    AssetModel.active.has(),
+                    or_(
+                        tuple_(AssetModel.name, AssetModel.uri).in_(attrs.astuple(k) for k in asset_keys),
+                        AssetModel.name.in_(r.name for r in asset_name_refs),
+                        AssetModel.uri.in_(r.uri for r in asset_uri_refs),
+                    ),
                 )
             )
         }
-        inactive_asset_unique_keys = TaskInstance._get_inactive_asset_unique_keys(
-            asset_unique_keys={key for key in asset_unique_keys if key in existing_aliased_assets},
-            session=session,
-        )
-        if inactive_asset_unique_keys:
-            raise AirflowInactiveAssetAddedToAssetAliasException(inactive_asset_unique_keys)
 
-        if missing_assets := [
-            asset_unique_key.to_asset()
-            for asset_unique_key, _ in asset_alias_names
-            if asset_unique_key not in existing_aliased_assets
-        ]:
-            asset_manager.create_assets(missing_assets, session=session)
-            ti.log.warning("Created new assets for alias reference: %s", missing_assets)
-            session.flush()  # Needed because we need the id for fk.
+        asset_event_extras: dict[AssetUniqueKey, dict] = {
+            AssetUniqueKey(**event["dest_asset_key"]): event["extra"]
+            for event in outlet_events
+            if "source_alias_name" not in event
+        }
 
-        for (unique_key, extra_items), alias_names in asset_alias_names.items():
-            ti.log.info(
-                'Creating event for %r through aliases "%s"',
-                unique_key,
-                ", ".join(alias_names),
-            )
+        bad_asset_keys: set[AssetUniqueKey | AssetNameRef | AssetUriRef] = set()
+
+        for key in asset_keys:
+            try:
+                am = asset_models[key]
+            except KeyError:
+                bad_asset_keys.add(key)
+                continue
+            ti.log.debug("register event for asset %s", am)
             asset_manager.register_asset_change(
                 task_instance=ti,
-                asset=unique_key,
-                aliases=[AssetAlias(name=name) for name in alias_names],
-                extra=dict(extra_items),
+                asset=am,
+                extra=asset_event_extras.get(key),
                 session=session,
-                source_alias_names=alias_names,
             )
 
-        # Handle events derived from references.
-        asset_stmt = select(AssetModel).where(AssetModel.name.in_(asset_name_refs), AssetModel.active.has())
-        for asset_model in session.scalars(asset_stmt):
-            ti.log.info("Creating event through asset name reference %r", asset_model.name)
-            asset_manager.register_asset_change(
-                task_instance=ti,
-                asset=asset_model,
-                extra=outlet_events[asset_model].extra,
+        if asset_name_refs:
+            asset_models_by_name = {key.name: am for key, am in asset_models.items()}
+            asset_event_extras_by_name = {key.name: extra for key, extra in asset_event_extras.items()}
+            for nref in asset_name_refs:
+                try:
+                    am = asset_models_by_name[nref.name]
+                except KeyError:
+                    bad_asset_keys.add(nref)
+                    continue
+                ti.log.debug("register event for asset name ref %s", am)
+                asset_manager.register_asset_change(
+                    task_instance=ti,
+                    asset=am,
+                    extra=asset_event_extras_by_name.get(nref.name),
+                    session=session,
+                )
+        if asset_uri_refs:
+            asset_models_by_uri = {key.uri: am for key, am in asset_models.items()}
+            asset_event_extras_by_uri = {key.uri: extra for key, extra in asset_event_extras.items()}
+            for uref in asset_uri_refs:
+                try:
+                    am = asset_models_by_uri[uref.uri]
+                except KeyError:
+                    bad_asset_keys.add(uref)
+                    continue
+                ti.log.debug("register event for asset uri ref %s", am)
+                asset_manager.register_asset_change(
+                    task_instance=ti,
+                    asset=am,
+                    extra=asset_event_extras_by_uri.get(uref.uri),
+                    session=session,
+                )
+
+        def _asset_event_extras_from_aliases() -> dict[tuple[AssetUniqueKey, frozenset], set[str]]:
+            d = defaultdict(set)
+            for event in outlet_events:
+                try:
+                    alias_name = event["source_alias_name"]
+                except KeyError:
+                    continue
+                if alias_name not in outlet_alias_names:
+                    continue
+                asset_key = AssetUniqueKey(**event["dest_asset_key"])
+                extra_key = frozenset(event["extra"].items())
+                d[asset_key, extra_key].add(alias_name)
+            return d
+
+        outlet_alias_names = {o.name for o in task_outlets if o.type == AssetAlias.__name__ and o.name}
+        if outlet_alias_names and (event_extras_from_aliases := _asset_event_extras_from_aliases()):
+            bad_alias_asset_keys = TaskInstance._get_inactive_asset_unique_keys(
+                {key for key, _ in event_extras_from_aliases},
                 session=session,
             )
-        asset_stmt = select(AssetModel).where(AssetModel.uri.in_(asset_uri_refs), AssetModel.active.has())
-        for asset_model in session.scalars(asset_stmt):
-            ti.log.info("Creating event for through asset URI reference %r", asset_model.uri)
-            asset_manager.register_asset_change(
-                task_instance=ti,
-                asset=asset_model,
-                extra=outlet_events[asset_model].extra,
-                session=session,
-            )
+            for (asset_key, extra_key), event_aliase_names in event_extras_from_aliases.items():
+                if asset_key in bad_alias_asset_keys:
+                    continue
+                ti.log.debug("register event for asset %s with aliases %s", asset_key, event_aliase_names)
+                asset_manager.register_asset_change(
+                    task_instance=ti,
+                    asset=asset_key,
+                    source_alias_names=event_aliase_names,
+                    extra=dict(extra_key),
+                    session=session,
+                )
+            if bad_alias_asset_keys:
+                raise AirflowInactiveAssetAddedToAssetAliasException(bad_alias_asset_keys)
+
+        if bad_asset_keys:
+            raise AirflowInactiveAssetInInletOrOutletException(bad_asset_keys)
 
     def _execute_task_with_callbacks(self, context: Context, test_mode: bool = False, *, session: Session):
         """Prepare Task for Execution."""
@@ -3102,7 +3092,7 @@ class TaskInstance(Base, LoggingMixin):
 
         ti.clear_next_method_args()
 
-        # In extreme cases (zombie in case of dag with parse error) we might _not_ have a Task.
+        # In extreme cases (task instance heartbeat timeout in case of dag with parse error) we might _not_ have a Task.
         if context is None and getattr(ti, "task", None):
             context = ti.get_template_context(session)
 
@@ -3145,6 +3135,7 @@ class TaskInstance(Base, LoggingMixin):
                 from airflow.models.taskinstancehistory import TaskInstanceHistory
 
                 TaskInstanceHistory.record_ti(ti, session=session)
+                ti.try_id = uuid7()
 
             ti.state = State.UP_FOR_RETRY
             email_for_state = operator.attrgetter("email_on_retry")
@@ -3341,7 +3332,7 @@ class TaskInstance(Base, LoggingMixin):
         :param key: Key to store the value under.
         :param value: Value to store. Only be JSON-serializable may be used otherwise.
         """
-        XCom.set(
+        XComModel.set(
             key=key,
             value=value,
             task_id=self.task_id,
@@ -3392,11 +3383,6 @@ class TaskInstance(Base, LoggingMixin):
                 TaskInstance.run_id == self.run_id
             )
         return num_running_task_instances_query.scalar()
-
-    def init_run_context(self, raw: bool = False) -> None:
-        """Set the log context."""
-        self.raw = raw
-        self._set_context(self)
 
     @staticmethod
     def filter_for_tis(tis: Iterable[TaskInstance | TaskInstanceKey]) -> BooleanClauseList | None:
@@ -3610,12 +3596,11 @@ class TaskInstance(Base, LoggingMixin):
         from airflow.models.renderedtifields import RenderedTaskInstanceFields
 
         tables: list[type[TaskInstanceDependencies]] = [
-            TaskInstanceNote,
-            TaskReschedule,
-            XCom,
+            XComModel,
             RenderedTaskInstanceFields,
             TaskMap,
         ]
+        tables_by_id: list[type[Base]] = [TaskInstanceNote, TaskReschedule]
         for table in tables:
             session.execute(
                 delete(table).where(
@@ -3625,6 +3610,8 @@ class TaskInstance(Base, LoggingMixin):
                     table.map_index == self.map_index,
                 )
             )
+        for table in tables_by_id:
+            session.execute(delete(table).where(table.ti_id == self.id))
 
     @classmethod
     def duration_expression_update(
@@ -3666,6 +3653,8 @@ class TaskInstance(Base, LoggingMixin):
     def validate_inlet_outlet_assets_activeness(
         inlets: list[AssetProfile], outlets: list[AssetProfile], session: Session
     ) -> None:
+        from airflow.sdk.definitions.asset import AssetUniqueKey
+
         if not (inlets or outlets):
             return
 
@@ -3683,6 +3672,8 @@ class TaskInstance(Base, LoggingMixin):
     def _get_inactive_asset_unique_keys(
         asset_unique_keys: set[AssetUniqueKey], session: Session
     ) -> set[AssetUniqueKey]:
+        from airflow.sdk.definitions.asset import AssetUniqueKey
+
         active_asset_unique_keys = {
             AssetUniqueKey(name, uri)
             for name, uri in session.execute(
@@ -3708,6 +3699,7 @@ def _find_common_ancestor_mapped_group(node1: Operator, node2: Operator) -> Mapp
 def _is_further_mapped_inside(operator: Operator, container: TaskGroup) -> bool:
     """Whether given operator is *further* mapped inside a task group."""
     from airflow.sdk.definitions.mappedoperator import MappedOperator
+    from airflow.sdk.definitions.taskgroup import MappedTaskGroup
 
     if isinstance(operator, MappedOperator):
         return True
@@ -3795,31 +3787,27 @@ class SimpleTaskInstance:
         )
 
 
-class TaskInstanceNote(TaskInstanceDependencies):
+class TaskInstanceNote(Base):
     """For storage of arbitrary notes concerning the task instance."""
 
     __tablename__ = "task_instance_note"
-
+    ti_id = Column(
+        String(36).with_variant(postgresql.UUID(as_uuid=False), "postgresql"),
+        primary_key=True,
+        nullable=False,
+    )
     user_id = Column(String(128), nullable=True)
-    task_id = Column(StringID(), primary_key=True, nullable=False)
-    dag_id = Column(StringID(), primary_key=True, nullable=False)
-    run_id = Column(StringID(), primary_key=True, nullable=False)
-    map_index = Column(Integer, primary_key=True, nullable=False)
     content = Column(String(1000).with_variant(Text(1000), "mysql"))
     created_at = Column(UtcDateTime, default=timezone.utcnow, nullable=False)
     updated_at = Column(UtcDateTime, default=timezone.utcnow, onupdate=timezone.utcnow, nullable=False)
 
-    task_instance = relationship("TaskInstance", back_populates="task_instance_note")
+    task_instance = relationship("TaskInstance", back_populates="task_instance_note", uselist=False)
 
     __table_args__ = (
-        PrimaryKeyConstraint("task_id", "dag_id", "run_id", "map_index", name="task_instance_note_pkey"),
         ForeignKeyConstraint(
-            (dag_id, task_id, run_id, map_index),
+            (ti_id,),
             [
-                "task_instance.dag_id",
-                "task_instance.task_id",
-                "task_instance.run_id",
-                "task_instance.map_index",
+                "task_instance.id",
             ],
             name="task_instance_note_ti_fkey",
             ondelete="CASCADE",
@@ -3831,10 +3819,10 @@ class TaskInstanceNote(TaskInstanceDependencies):
         self.user_id = user_id
 
     def __repr__(self):
-        prefix = f"<{self.__class__.__name__}: {self.dag_id}.{self.task_id} {self.run_id}"
-        if self.map_index != -1:
-            prefix += f" map_index={self.map_index}"
-        return prefix + ">"
+        prefix = f"<{self.__class__.__name__}: {self.task_instance.dag_id}.{self.task_instance.task_id} {self.task_instance.run_id}"
+        if self.task_instance.map_index != -1:
+            prefix += f" map_index={self.task_instance.map_index}"
+        return prefix + f" TI ID: {self.ti_id}>"
 
 
 STATICA_HACK = True

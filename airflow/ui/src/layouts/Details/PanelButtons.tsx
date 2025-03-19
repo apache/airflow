@@ -16,42 +16,115 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { HStack, IconButton, ButtonGroup, type StackProps, Box } from "@chakra-ui/react";
+import {
+  HStack,
+  IconButton,
+  ButtonGroup,
+  type StackProps,
+  Stack,
+  createListCollection,
+  type SelectValueChangeDetails,
+} from "@chakra-ui/react";
 import { FiGrid } from "react-icons/fi";
 import { MdOutlineAccountTree } from "react-icons/md";
+import { useParams } from "react-router-dom";
+import { useLocalStorage } from "usehooks-ts";
 
 import DagVersionSelect from "src/components/DagVersionSelect";
+import { Select } from "src/components/ui";
+
+import { DagRunSelect } from "./DagRunSelect";
 
 type Props = {
-  readonly dagId: string;
   readonly dagView: string;
   readonly setDagView: (x: "graph" | "grid") => void;
 } & StackProps;
 
-export const PanelButtons = ({ dagId, dagView, setDagView, ...rest }: Props) => (
-  <HStack justifyContent="space-between" position="absolute" top={0} width="100%" zIndex={1} {...rest}>
-    <ButtonGroup attached size="sm" variant="outline">
-      <IconButton
-        aria-label="Show Grid"
-        colorPalette="blue"
-        onClick={() => setDagView("grid")}
-        title="Show Grid"
-        variant={dagView === "grid" ? "solid" : "outline"}
-      >
-        <FiGrid />
-      </IconButton>
-      <IconButton
-        aria-label="Show Graph"
-        colorPalette="blue"
-        onClick={() => setDagView("graph")}
-        title="Show Graph"
-        variant={dagView === "graph" ? "solid" : "outline"}
-      >
-        <MdOutlineAccountTree />
-      </IconButton>
-    </ButtonGroup>
-    <Box bg="bg" mr={2}>
-      <DagVersionSelect dagId={dagId} disabled={dagView !== "graph"} />
-    </Box>
-  </HStack>
-);
+const options = createListCollection({
+  items: [
+    { label: "Only tasks", value: "tasks" },
+    { label: "External conditions", value: "immediate" },
+    { label: "All Dag Dependencies", value: "all" },
+  ],
+});
+
+const deps = ["all", "immediate", "tasks"];
+
+type Dependency = (typeof deps)[number];
+
+export const PanelButtons = ({ dagView, setDagView, ...rest }: Props) => {
+  const { dagId = "" } = useParams();
+  const [dependencies, setDependencies, removeDependencies] = useLocalStorage<Dependency>(
+    `dependencies-${dagId}`,
+    "immediate",
+  );
+
+  const handleDepsChange = (event: SelectValueChangeDetails<{ label: string; value: Array<string> }>) => {
+    if (event.value[0] === undefined || event.value[0] === "immediate" || !deps.includes(event.value[0])) {
+      removeDependencies();
+    } else {
+      setDependencies(event.value[0]);
+    }
+  };
+
+  return (
+    <HStack
+      alignItems="flex-start"
+      justifyContent="space-between"
+      position="absolute"
+      top={0}
+      width="100%"
+      zIndex={1}
+      {...rest}
+    >
+      <ButtonGroup attached size="sm" variant="outline">
+        <IconButton
+          aria-label="Show Grid"
+          colorPalette="blue"
+          onClick={() => setDagView("grid")}
+          title="Show Grid"
+          variant={dagView === "grid" ? "solid" : "outline"}
+        >
+          <FiGrid />
+        </IconButton>
+        <IconButton
+          aria-label="Show Graph"
+          colorPalette="blue"
+          onClick={() => setDagView("graph")}
+          title="Show Graph"
+          variant={dagView === "graph" ? "solid" : "outline"}
+        >
+          <MdOutlineAccountTree />
+        </IconButton>
+      </ButtonGroup>
+      <Stack alignItems="flex-end" gap={1} mr={2}>
+        <DagVersionSelect disabled={dagView !== "graph"} />
+        {dagView === "graph" ? (
+          <>
+            <Select.Root
+              bg="bg"
+              collection={options}
+              data-testid="filter-duration"
+              onValueChange={handleDepsChange}
+              size="sm"
+              value={[dependencies]}
+              width="210px"
+            >
+              <Select.Trigger>
+                <Select.ValueText placeholder="Dependencies" />
+              </Select.Trigger>
+              <Select.Content>
+                {options.items.map((option) => (
+                  <Select.Item item={option} key={option.value}>
+                    {option.label}
+                  </Select.Item>
+                ))}
+              </Select.Content>
+            </Select.Root>
+            <DagRunSelect />
+          </>
+        ) : undefined}
+      </Stack>
+    </HStack>
+  );
+};

@@ -24,26 +24,31 @@ import errno
 import json
 import logging
 import operator
+import os
+import re
 import subprocess
 import sys
+from pathlib import Path
 from typing import TYPE_CHECKING
 
-import re2
+from itsdangerous import URLSafeSerializer
+from marshmallow import fields
+from marshmallow_sqlalchemy import SQLAlchemySchema, auto_field
 from sqlalchemy import func, select
 
 from airflow.api.client import get_current_api_client
-from airflow.api_connexion.schemas.dag_schema import dag_schema
 from airflow.cli.simple_table import AirflowConsole
 from airflow.cli.utils import fetch_dag_run_from_run_id_or_logical_date_string
+from airflow.configuration import conf
 from airflow.dag_processing.bundles.manager import DagBundlesManager
 from airflow.exceptions import AirflowException
 from airflow.jobs.job import Job
-from airflow.models import DagBag, DagModel, DagRun, TaskInstance
+from airflow.models import DagBag, DagModel, DagRun, DagTag, TaskInstance
 from airflow.models.errors import ParseImportError
 from airflow.models.serialized_dag import SerializedDagModel
 from airflow.sdk.definitions._internal.dag_parsing_context import _airflow_parsing_context_manager
 from airflow.utils import cli as cli_utils, timezone
-from airflow.utils.cli import get_dag, process_subdir, suppress_logs_and_warning, validate_dag_bundle_arg
+from airflow.utils.cli import get_dag, suppress_logs_and_warning, validate_dag_bundle_arg
 from airflow.utils.dot_renderer import render_dag, render_dag_dependencies
 from airflow.utils.helpers import ask_yesno
 from airflow.utils.providers_configuration_loader import providers_configuration_loaded
@@ -57,6 +62,65 @@ if TYPE_CHECKING:
     from airflow.models.dag import DAG
     from airflow.timetables.base import DataInterval
 log = logging.getLogger(__name__)
+
+
+# TODO: To clean up api_connexion, we need to move the below 2 classes to this file until migrated to FastAPI
+class DagTagSchema(SQLAlchemySchema):
+    """Dag Tag schema."""
+
+    class Meta:
+        """Meta."""
+
+        model = DagTag
+
+    name = auto_field()
+
+
+class DAGSchema(SQLAlchemySchema):
+    """DAG schema."""
+
+    class Meta:
+        """Meta."""
+
+        model = DagModel
+
+    dag_id = auto_field(dump_only=True)
+    dag_display_name = fields.String(attribute="dag_display_name", dump_only=True)
+    bundle_name = auto_field(dump_only=True)
+    bundle_version = auto_field(dump_only=True)
+    is_paused = auto_field()
+    is_active = auto_field(dump_only=True)
+    last_parsed_time = auto_field(dump_only=True)
+    last_expired = auto_field(dump_only=True)
+    fileloc = auto_field(dump_only=True)
+    file_token = fields.Method("get_token", dump_only=True)
+    owners = fields.Method("get_owners", dump_only=True)
+    description = auto_field(dump_only=True)
+    timetable_summary = auto_field(dump_only=True)
+    timetable_description = auto_field(dump_only=True)
+    tags = fields.List(fields.Nested(DagTagSchema), dump_only=True)
+    max_active_tasks = auto_field(dump_only=True)
+    max_active_runs = auto_field(dump_only=True)
+    max_consecutive_failed_dag_runs = auto_field(dump_only=True)
+    has_task_concurrency_limits = auto_field(dump_only=True)
+    has_import_errors = auto_field(dump_only=True)
+    next_dagrun = auto_field(dump_only=True)
+    next_dagrun_data_interval_start = auto_field(dump_only=True)
+    next_dagrun_data_interval_end = auto_field(dump_only=True)
+    next_dagrun_create_after = auto_field(dump_only=True)
+
+    @staticmethod
+    def get_owners(obj: DagModel):
+        """Convert owners attribute to DAG representation."""
+        if not getattr(obj, "owners", None):
+            return []
+        return obj.owners.split(",")
+
+    @staticmethod
+    def get_token(obj: DagModel):
+        """Return file token."""
+        serializer = URLSafeSerializer(conf.get_mandatory_value("webserver", "secret_key"))
+        return serializer.dumps(obj.fileloc)
 
 
 @cli_utils.action_cli
@@ -181,7 +245,7 @@ def dag_dependencies_show(args) -> None:
 @providers_configuration_loaded
 def dag_show(args) -> None:
     """Display DAG or saves its graphic representation to the file."""
-    dag = get_dag(args.subdir, args.dag_id)
+    dag = get_dag(subdir=None, dag_id=args.dag_id, from_db=True)
     dot = render_dag(dag)
     filename = args.save
     imgcat = args.imgcat
@@ -232,7 +296,6 @@ def _get_dagbag_dag_details(dag: DAG) -> dict:
         "is_active": dag.get_is_active(),
         "last_parsed_time": None,
         "last_expired": None,
-        "default_view": dag.default_view,
         "fileloc": dag.fileloc,
         "file_token": None,
         "owners": dag.owner,
@@ -292,7 +355,7 @@ def dag_next_execution(args) -> None:
     >>> airflow dags next-execution tutorial
     2018-08-31 10:38:00
     """
-    dag = get_dag(args.subdir, args.dag_id)
+    dag = get_dag(subdir=None, dag_id=args.dag_id, from_db=True)
 
     with create_session() as session:
         last_parsed_dag: DagModel = session.scalars(
@@ -329,15 +392,16 @@ def dag_next_execution(args) -> None:
 def dag_list_dags(args, session: Session = NEW_SESSION) -> None:
     """Display dags with or without stats at the command line."""
     cols = args.columns if args.columns else []
-    invalid_cols = [c for c in cols if c not in dag_schema.fields]
-    valid_cols = [c for c in cols if c in dag_schema.fields]
+    dag_schema_fields = DAGSchema().fields
+    invalid_cols = [c for c in cols if c not in dag_schema_fields]
+    valid_cols = [c for c in cols if c in dag_schema_fields]
 
     if invalid_cols:
         from rich import print as rich_print
 
         rich_print(
             f"[red][bold]Error:[/bold] Ignoring the following invalid columns: {invalid_cols}.  "
-            f"List of valid columns: {list(dag_schema.fields.keys())}",
+            f"List of valid columns: {list(dag_schema_fields.keys())}",
             file=sys.stderr,
         )
 
@@ -363,7 +427,7 @@ def dag_list_dags(args, session: Session = NEW_SESSION) -> None:
     def get_dag_detail(dag: DAG) -> dict:
         dag_model = DagModel.get_dagmodel(dag.dag_id, session=session)
         if dag_model:
-            dag_detail = dag_schema.dump(dag_model)
+            dag_detail = DAGSchema().dump(dag_model)
         else:
             dag_detail = _get_dagbag_dag_details(dag)
         return {col: dag_detail[col] for col in valid_cols}
@@ -395,7 +459,7 @@ def dag_details(args, session: Session = NEW_SESSION):
     dag = DagModel.get_dagmodel(args.dag_id, session=session)
     if not dag:
         raise SystemExit(f"DAG: {args.dag_id} does not exist in 'dag' table")
-    dag_detail = dag_schema.dump(dag)
+    dag_detail = DAGSchema().dump(dag)
 
     if args.output in ["table", "plain"]:
         data = [{"property_name": key, "property_value": value} for key, value in dag_detail.items()]
@@ -411,12 +475,27 @@ def dag_details(args, session: Session = NEW_SESSION):
 @cli_utils.action_cli
 @suppress_logs_and_warning
 @providers_configuration_loaded
-def dag_list_import_errors(args) -> None:
+@provide_session
+def dag_list_import_errors(args, session: Session = NEW_SESSION) -> None:
     """Display dags with import errors on the command line."""
-    dagbag = DagBag(process_subdir(args.subdir))
     data = []
-    for filename, errors in dagbag.import_errors.items():
-        data.append({"filepath": filename, "error": errors})
+
+    # Get import errors from the DB
+    query = select(ParseImportError)
+    if args.bundle_name:
+        validate_dag_bundle_arg(args.bundle_name)
+        query = query.where(ParseImportError.bundle_name.in_(args.bundle_name))
+
+    dagbag_import_errors = session.scalars(query).all()
+
+    for import_error in dagbag_import_errors:
+        data.append(
+            {
+                "bundle_name": import_error.bundle_name,
+                "filepath": import_error.filename,
+                "error": import_error.stacktrace,
+            }
+        )
     AirflowConsole().print_as(
         data=data,
         output=args.output,
@@ -430,9 +509,25 @@ def dag_list_import_errors(args) -> None:
 @providers_configuration_loaded
 def dag_report(args) -> None:
     """Display dagbag stats at the command line."""
-    dagbag = DagBag(process_subdir(args.subdir))
+    manager = DagBundlesManager()
+
+    all_bundles = list(manager.get_all_dag_bundles())
+    if args.bundle_name:
+        validate_dag_bundle_arg(args.bundle_name)
+        bundles_to_reserialize = set(args.bundle_name)
+    else:
+        bundles_to_reserialize = {b.name for b in all_bundles}
+
+    all_dagbag_stats = []
+    for bundle in all_bundles:
+        if bundle.name not in bundles_to_reserialize:
+            continue
+        bundle.initialize()
+        dagbag = DagBag(bundle.path, include_examples=False)
+        all_dagbag_stats.extend(dagbag.dagbag_stats)
+
     AirflowConsole().print_as(
-        data=dagbag.dagbag_stats,
+        data=all_dagbag_stats,
         output=args.output,
         mapper=lambda x: {
             "file": x.file,
@@ -514,6 +609,29 @@ def dag_list_dag_runs(args, dag: DAG | None = None, session: Session = NEW_SESSI
     AirflowConsole().print_as(data=dag_runs, output=args.output, mapper=_render_dagrun)
 
 
+def _parse_and_get_dag(dag_id: str) -> DAG | None:
+    """Given a dag_id, determine the bundle and relative fileloc from the db, then parse and return the DAG."""
+    db_dag = get_dag(subdir=None, dag_id=dag_id, from_db=True)
+    bundle_name = db_dag.get_bundle_name()
+    if bundle_name is None:
+        raise AirflowException(
+            f"Bundle name for DAG {dag_id!r} is not found in the database. This should not happen."
+        )
+    if db_dag.relative_fileloc is None:
+        raise AirflowException(
+            f"Relative fileloc for DAG {dag_id!r} is not found in the database. This should not happen."
+        )
+    bundle = DagBundlesManager().get_bundle(bundle_name)
+    bundle.initialize()
+    dag_absolute_path = os.fspath(Path(bundle.path, db_dag.relative_fileloc))
+
+    with _airflow_parsing_context_manager(dag_id=dag_id):
+        bag = DagBag(
+            dag_folder=dag_absolute_path, include_examples=False, safe_mode=False, load_op_links=False
+        )
+        return bag.dags.get(dag_id)
+
+
 @cli_utils.action_cli
 @providers_configuration_loaded
 @provide_session
@@ -529,11 +647,15 @@ def dag_test(args, dag: DAG | None = None, session: Session = NEW_SESSION) -> No
     use_executor = args.use_executor
 
     mark_success_pattern = (
-        re2.compile(args.mark_success_pattern) if args.mark_success_pattern is not None else None
+        re.compile(args.mark_success_pattern) if args.mark_success_pattern is not None else None
     )
 
-    with _airflow_parsing_context_manager(dag_id=args.dag_id):
-        dag = dag or get_dag(subdir=args.subdir, dag_id=args.dag_id)
+    dag = dag or _parse_and_get_dag(args.dag_id)
+    if not dag:
+        raise AirflowException(
+            f"Dag {args.dag_id!r} could not be found; either it does not exist or it failed to parse."
+        )
+
     dr: DagRun = dag.test(
         logical_date=logical_date,
         run_conf=run_conf,
@@ -585,5 +707,5 @@ def dag_reserialize(args, session: Session = NEW_SESSION) -> None:
         if bundle.name not in bundles_to_reserialize:
             continue
         bundle.initialize()
-        dag_bag = DagBag(bundle.path, include_examples=False)
+        dag_bag = DagBag(bundle.path, bundle_path=bundle.path, include_examples=False)
         dag_bag.sync_to_db(bundle.name, bundle_version=bundle.get_current_version(), session=session)

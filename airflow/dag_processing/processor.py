@@ -21,7 +21,7 @@ import os
 import sys
 import traceback
 from pathlib import Path
-from typing import TYPE_CHECKING, Annotated, Callable, ClassVar, Literal, Union
+from typing import TYPE_CHECKING, Annotated, BinaryIO, Callable, ClassVar, Literal, Union
 
 import attrs
 from pydantic import BaseModel, Field, TypeAdapter
@@ -33,7 +33,13 @@ from airflow.callbacks.callback_requests import (
 )
 from airflow.configuration import conf
 from airflow.models.dagbag import DagBag
-from airflow.sdk.execution_time.comms import ConnectionResult, GetConnection, GetVariable, VariableResult
+from airflow.sdk.execution_time.comms import (
+    ConnectionResult,
+    ErrorResponse,
+    GetConnection,
+    GetVariable,
+    VariableResult,
+)
 from airflow.sdk.execution_time.supervisor import WatchedSubprocess
 from airflow.serialization.serialized_objects import LazyDeserializedDAG, SerializedDAG
 from airflow.stats import Stats
@@ -41,7 +47,7 @@ from airflow.stats import Stats
 if TYPE_CHECKING:
     from structlog.typing import FilteringBoundLogger
 
-    from airflow.api_fastapi.execution_api.app import InProcessExecuctionAPI
+    from airflow.api_fastapi.execution_api.app import InProcessExecutionAPI
     from airflow.sdk.api.client import Client
     from airflow.sdk.definitions.context import Context
     from airflow.typing_compat import Self
@@ -52,7 +58,7 @@ ToManager = Annotated[
 ]
 
 ToDagProcessor = Annotated[
-    Union["DagFileParseRequest", ConnectionResult, VariableResult],
+    Union["DagFileParseRequest", ConnectionResult, VariableResult, ErrorResponse],
     Field(discriminator="type"),
 ]
 
@@ -63,14 +69,8 @@ def _parse_file_entrypoint():
     import structlog
 
     from airflow.sdk.execution_time import task_runner
-    from airflow.settings import configure_orm
 
     # Parse DAG file, send JSON back up!
-
-    # We need to reconfigure the orm here, as DagFileProcessorManager does db queries for bundles, and
-    # the session across forks blows things up.
-    configure_orm()
-
     comms_decoder = task_runner.CommsDecoder[ToDagProcessor, ToManager](
         input=sys.stdin,
         decoder=TypeAdapter[ToDagProcessor](ToDagProcessor),
@@ -207,10 +207,10 @@ class DagFileParsingResult(BaseModel):
 
 
 @functools.cache
-def in_process_api_server() -> InProcessExecuctionAPI:
-    from airflow.api_fastapi.execution_api.app import InProcessExecuctionAPI
+def in_process_api_server() -> InProcessExecutionAPI:
+    from airflow.api_fastapi.execution_api.app import InProcessExecutionAPI
 
-    api = InProcessExecuctionAPI()
+    api = InProcessExecutionAPI()
     return api
 
 
@@ -226,6 +226,7 @@ class DagFileProcessorProcess(WatchedSubprocess):
     in core Airflow.
     """
 
+    logger_filehandle: BinaryIO
     parsing_result: DagFileParsingResult | None = None
     decoder: ClassVar[TypeAdapter[ToManager]] = TypeAdapter[ToManager](ToManager)
 

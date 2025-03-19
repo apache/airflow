@@ -31,7 +31,6 @@ from sqlalchemy import func, select
 from sqlalchemy.exc import OperationalError, SAWarning
 
 import airflow.dag_processing.collection
-from airflow.configuration import conf
 from airflow.dag_processing.collection import (
     AssetModelOperation,
     _get_latest_runs_stmt,
@@ -42,6 +41,8 @@ from airflow.listeners.listener import get_listener_manager
 from airflow.models import DagModel, DagRun, Trigger
 from airflow.models.asset import (
     AssetActive,
+    DagScheduleAssetNameReference,
+    DagScheduleAssetUriReference,
     asset_trigger_association_table,
 )
 from airflow.models.dag import DAG
@@ -95,8 +96,7 @@ def test_statement_latest_runs_many_dag():
         expected = [
             "SELECT dag_run.id, dag_run.dag_id, dag_run.logical_date, "
             "dag_run.data_interval_start, dag_run.data_interval_end",
-            "FROM dag_run, (SELECT dag_run.dag_id AS dag_id, "
-            "max(dag_run.logical_date) AS max_logical_date",
+            "FROM dag_run, (SELECT dag_run.dag_id AS dag_id, max(dag_run.logical_date) AS max_logical_date",
             "FROM dag_run",
             "WHERE dag_run.dag_id IN (__[POSTCOMPILE_dag_id_1]) "
             "AND dag_run.run_type IN (__[POSTCOMPILE_run_type_1]) GROUP BY dag_run.dag_id) AS anon_1",
@@ -160,6 +160,33 @@ class TestAssetModelOperation:
 
             assert session.query(Trigger).count() == expected_num_triggers
             assert session.query(asset_trigger_association_table).count() == expected_num_triggers
+
+    @pytest.mark.parametrize(
+        "schedule, model, columns, expected",
+        [
+            pytest.param(
+                Asset.ref(name="name1"),
+                DagScheduleAssetNameReference,
+                (DagScheduleAssetNameReference.name, DagScheduleAssetNameReference.dag_id),
+                [("name1", "test")],
+                id="name-ref",
+            ),
+            pytest.param(
+                Asset.ref(uri="foo://1"),
+                DagScheduleAssetUriReference,
+                (DagScheduleAssetUriReference.uri, DagScheduleAssetUriReference.dag_id),
+                [("foo://1", "test")],
+                id="uri-ref",
+            ),
+        ],
+    )
+    def test_add_dag_asset_name_uri_references(self, dag_maker, session, schedule, model, columns, expected):
+        with dag_maker(dag_id="test", schedule=schedule, session=session) as dag:
+            pass
+
+        op = AssetModelOperation.collect({dag.dag_id: dag})
+        op.add_dag_asset_name_uri_references(session=session)
+        assert session.execute(select(*columns)).all() == expected
 
     def test_change_asset_property_sync_group(self, dag_maker, session):
         asset = Asset("myasset", group="old_group")
@@ -477,10 +504,7 @@ class TestUpdateDagParsingResults:
                         EmptyOperator(task_id="task4", owner="owner2"),
                     ]
                 },
-                {
-                    "default_view": conf.get("webserver", "dag_default_view").lower(),
-                    "owners": ["owner1", "owner2"],
-                },
+                {"owners": ["owner1", "owner2"]},
                 id="tasks-multiple-owners",
             ),
             pytest.param(
@@ -505,7 +529,6 @@ class TestUpdateDagParsingResults:
                     "catchup": False,
                 },
                 {
-                    "default_view": conf.get("webserver", "dag_default_view").lower(),
                     "owners": ["owner1", "owner2"],
                     "next_dagrun": tz.datetime(2020, 1, 5, 0, 0, 0),
                     "next_dagrun_data_interval_start": tz.datetime(2020, 1, 5, 0, 0, 0),

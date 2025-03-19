@@ -153,7 +153,7 @@ jobs:
         run: >
           breeze release-management prepare-provider-packages
           --package-list-file ./prod_image_installed_providers.txt
-          --package-format wheel
+          --package-format wheel --include-not-ready-providers
         if: >
           inputs.upload-package-artifact == 'true' &&
           inputs.build-provider-packages == 'true'

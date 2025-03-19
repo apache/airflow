@@ -42,7 +42,6 @@ Handling warnings
 By default, in the new tests selected warnings are prohibited:
 
 * ``airflow.exceptions.AirflowProviderDeprecationWarning``
-* ``airflow.exceptions.RemovedInAirflow3Warning``
 
 That mean if one of this warning appear during test run and do not captured the test will failed.
 
@@ -96,7 +95,7 @@ test types you want to use in various ``breeze testing`` sub-commands in three w
 Those test types are defined:
 
 * ``Always`` - those are tests that should be always executed (always sub-folder)
-* ``API`` - Tests for the Airflow API (api, api_connexion, api_internal, api_fastapi sub-folders)
+* ``API`` - Tests for the Airflow API (api, api_internal, api_fastapi sub-folders)
 * ``CLI`` - Tests for the Airflow CLI (cli folder)
 * ``Core`` - for the core Airflow functionality (core, executors, jobs, models, ti_deps, utils sub-folders)
 * ``Operators`` - tests for the operators (operators folder)
@@ -118,7 +117,7 @@ via ``--integration`` flag in ``breeze`` environment - via ``breeze testing inte
 
 * ``Integration`` - tests that require external integration images running in docker-compose
 
-This is done for three reasons:
+This is done for two reasons:
 
 1. in order to selectively run only subset of the test types for some PRs
 2. in order to allow efficient parallel test execution of the tests on Self-Hosted runners
@@ -901,7 +900,7 @@ In case of Providers tests, you can run tests for all providers
 
 .. code-block:: bash
 
-    breeze testing ptoviders-tests --test-type Providers
+    breeze testing providers-tests --test-type Providers
 
 You can limit the set of providers you would like to run tests of
 
@@ -1095,12 +1094,12 @@ are not part of the public API. We deal with it in one of the following ways:
 1) If the whole provider is supposed to only work for later airflow version, we remove the whole provider
    by excluding it from compatibility test configuration (see below)
 
-2) Some compatibility shims are defined in ``tests_common.test_utils/compat.py`` - and they can be used to make the
-   tests compatible - for example importing ``ParseImportError`` after the exception has been renamed from
-   ``ImportError`` and it would fail in Airflow 2.9, but we have a fallback import in ``compat.py`` that
-   falls back to old import automatically, so all tests testing / expecting ``ParseImportError`` should import
-   it from the ``tests.tests_utils.compat`` module. There are few other compatibility shims defined there and
-   you can add more if needed in a similar way.
+2) Some compatibility shims are defined in ``devel-common/src/tests_common/test_utils/compat.py`` - and
+   they can be used to make the tests compatible - for example importing ``ParseImportError`` after the
+   exception has been renamed from ``ImportError`` and it would fail in Airflow 2.9, but we have a fallback
+   import in ``compat.py`` that falls back to old import automatically, so all tests testing / expecting
+   ``ParseImportError`` should import it from the ``tests_common.tests_utils.compat`` module. There are few
+   other compatibility shims defined there and you can add more if needed in a similar way.
 
 3) If only some tests are not compatible and use features that are available only in newer airflow version,
    we can mark those tests with appropriate ``AIRFLOW_V_2_X_PLUS`` boolean constant defined in ``version_compat.py``

@@ -21,13 +21,12 @@ Visuals displayed to the user when entering Breeze shell.
 from __future__ import annotations
 
 from airflow_breeze.global_constants import (
-    API_SERVER_HOST_PORT,
     FLOWER_HOST_PORT,
     MYSQL_HOST_PORT,
     POSTGRES_HOST_PORT,
     REDIS_HOST_PORT,
     SSH_PORT,
-    WEBSERVER_HOST_PORT,
+    WEB_HOST_PORT,
 )
 from airflow_breeze.utils.path_utils import AIRFLOW_SOURCES_ROOT
 
@@ -82,22 +81,20 @@ CHEATSHEET = f"""
 
         Ports are forwarded to the running docker containers for webserver and database
           * {SSH_PORT} -> forwarded to Airflow ssh server -> airflow:22
-          * {API_SERVER_HOST_PORT} -> forwarded to Airflow api server API -> airflow:9091
+          * {WEB_HOST_PORT} -> forwarded to Airflow api server (Airflow 3) or webserver (Airflow 2) -> airflow:8080
           * {FLOWER_HOST_PORT} -> forwarded to Flower dashboard -> airflow:5555
           * {POSTGRES_HOST_PORT} -> forwarded to Postgres database -> postgres:5432
           * {MYSQL_HOST_PORT} -> forwarded to MySQL database  -> mysql:3306
           * {REDIS_HOST_PORT} -> forwarded to Redis broker -> redis:6379
-          * {WEBSERVER_HOST_PORT} -> forwarded to Airflow 2 (only Airflow 2) web server API -> airflow:8080
 
         Direct links to those services that you can use from the host:
 
-          * ssh connection for remote debugging: ssh -p {SSH_PORT} airflow@127.0.0.1 (password: airflow)
-          * API server:    http://127.0.0.1:{API_SERVER_HOST_PORT}
-          * Flower:    http://127.0.0.1:{FLOWER_HOST_PORT}
-          * Postgres:  jdbc:postgresql://127.0.0.1:{POSTGRES_HOST_PORT}/airflow?user=postgres&password=airflow
-          * Mysql:     jdbc:mysql://127.0.0.1:{MYSQL_HOST_PORT}/airflow?user=root
-          * Redis:     redis://127.0.0.1:{REDIS_HOST_PORT}/0
-          * Airflow 2 web server:    http://127.0.0.1:{WEBSERVER_HOST_PORT}
+          * ssh connection for remote debugging: ssh -p {SSH_PORT} airflow@localhost (password: airflow)
+          * API server or webserver:    http://localhost:{WEB_HOST_PORT}
+          * Flower:    http://localhost:{FLOWER_HOST_PORT}
+          * Postgres:  jdbc:postgresql://localhost:{POSTGRES_HOST_PORT}/airflow?user=postgres&password=airflow
+          * Mysql:     jdbc:mysql://localhost:{MYSQL_HOST_PORT}/airflow?user=root
+          * Redis:     redis://localhost:{REDIS_HOST_PORT}/0
 
     [info]* How can I add my stuff in Breeze:[/]
 

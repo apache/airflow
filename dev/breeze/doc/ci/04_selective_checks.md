@@ -107,7 +107,7 @@ together using `pytest-xdist` (pytest-xdist distributes the tests among parallel
   * if there are any changes to "common" provider code not belonging to any provider (usually system tests
     or tests), then tests for all Providers are run
 * The specific unit test type is enabled only if changed files match the expected patterns for each type
-  (`API`, `CLI`, `WWW`, `Providers`, `Operators` etc.). The `Always` test type is added always if any unit
+  (`API`, `CLI`, `WWW`, `Providers` etc.). The `Always` test type is added always if any unit
   tests are run. `Providers` tests are removed if current branch is different than `main`
 * If there are no files left in sources after matching the test types and Kubernetes files,
   then apparently some Core/Other files have been changed. This automatically adds all test
@@ -163,7 +163,7 @@ providers.
 The selective check outputs available are described below. In case of `list-as-string` values,
 empty string means `everything`, where lack of the output means `nothing` and list elements are
 separated by spaces. This is to accommodate for the wau how outputs of this kind can be easily used by
-Github Actions to pass the list of parameters to a command to execute
+GitHub Actions to pass the list of parameters to a command to execute
 
 
 | Output                                         | Meaning of the output                                                                                  | Example value                           | List |

@@ -657,7 +657,7 @@
             }
         },
         "airflowLocalSettings": {
-            "description": "`airflow_local_settings` file as a string (templated).",
+            "description": "`airflow_local_settings` file as a string (templated). You can bake an `airflow_local_settings.py` into your image instead. In that case, set this value to null.",
             "type": [
                 "string",
                 "null"
@@ -887,7 +887,7 @@
                         "tag": {
                             "description": "The PgBouncer image tag.",
                             "type": "string",
-                            "default": "airflow-pgbouncer-2025.01.10-1.24.0"
+                            "default": "airflow-pgbouncer-2025.03.05-1.23.1"
                         },
                         "pullPolicy": {
                             "description": "The PgBouncer image pull policy.",
@@ -914,7 +914,7 @@
                         "tag": {
                             "description": "The PgBouncer exporter image tag.",
                             "type": "string",
-                            "default": "airflow-pgbouncer-exporter-2024.06.18-0.17.0"
+                            "default": "airflow-pgbouncer-exporter-2025.03.05-0.18.0"
                         },
                         "pullPolicy": {
                             "description": "The PgBouncer exporter image pull policy.",
@@ -2547,6 +2547,11 @@
                     "type": "object",
                     "additionalProperties": false,
                     "properties": {
+                        "initialDelaySeconds": {
+                            "description": "Number of seconds after the container has started before startup probes are initiated.",
+                            "type": "integer",
+                            "default": 0
+                        },
                         "timeoutSeconds": {
                             "description": "Number of seconds after which the probe times out. Minimum value is 1 seconds.",
                             "type": "integer",
@@ -4878,6 +4883,11 @@
                     "type": "object",
                     "additionalProperties": false,
                     "properties": {
+                        "initialDelaySeconds": {
+                            "description": "API server Startup probe initial delay seconds.",
+                            "type": "integer",
+                            "default": 0
+                        },
                         "timeoutSeconds": {
                             "description": "API server Startup probe timeout seconds.",
                             "type": "integer",
@@ -5046,7 +5056,7 @@
                                     ],
                                     "examples": [
                                         {
-                                            "port": 9091
+                                            "port": 8080
                                         }
                                     ]
                                 }
@@ -5274,7 +5284,7 @@
                             "examples": [
                                 {
                                     "name": "api-server",
-                                    "port": 9091,
+                                    "port": 8080,
                                     "targetPort": "api-server"
                                 },
                                 {
@@ -5565,6 +5575,11 @@
                     "type": "object",
                     "additionalProperties": false,
                     "properties": {
+                        "initialDelaySeconds": {
+                            "description": "Webserver Startup probe initial delay seconds.",
+                            "type": "integer",
+                            "default": 0
+                        },
                         "timeoutSeconds": {
                             "description": "Webserver Startup probe timeout seconds.",
                             "type": "integer",
@@ -6383,6 +6398,11 @@
                     "type": "object",
                     "additionalProperties": false,
                     "properties": {
+                        "initialDelaySeconds": {
+                            "description": "Flower Startup probe initial delay seconds.",
+                            "type": "integer",
+                            "default": 0
+                        },
                         "timeoutSeconds": {
                             "description": "Flower Startup probe timeout seconds.",
                             "type": "integer",
@@ -8312,7 +8332,7 @@
                 "apiServer": {
                     "description": "API server port.",
                     "type": "integer",
-                    "default": 9091
+                    "default": 8080
                 },
                 "workerLogs": {
                     "description": "Worker logs port.",

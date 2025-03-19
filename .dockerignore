@@ -35,14 +35,14 @@
 !docs
 !licenses
 !providers/
-!task_sdk/
+!task-sdk/
 
 # Add those folders to the context so that they are available in the CI container
 !scripts
 
 # Add tests and kubernetes_tests to context.
 !tests
-!tests_common
+!devel-common
 !kubernetes_tests
 !helm_tests
 !docker_tests
@@ -80,9 +80,10 @@
 
 # Git version is dynamically generated
 airflow/git_version
-airflow/ui/node_modules
-airflow/auth/managers/simple/ui/node_modules
 
+# Exclude node/pmpme caches..
+**/.pnpm-store
+**/node_modules
 # Exclude link to docs
 airflow/ui/static/docs
 
@@ -90,6 +91,14 @@ airflow/ui/static/docs
 airflow/www/static/docs
 airflow/www/static/dist
 airflow/www/node_modules
+
+# Exclude any .venv and .ruff_cache
+**/.venv
+**/.ruff_cache/
+
+# Exclude docs artifacts
+**/_inventory_cache/
+docs/**/_api/**
 
 # Exclude python generated files
 **/__pycache__/
@@ -99,7 +108,7 @@ airflow/www/node_modules
 **/env/
 **/build/
 **/develop-eggs/
-/dist/
+**/dist/
 **/downloads/
 **/eggs/
 **/.eggs/
@@ -112,6 +121,10 @@ airflow/www/node_modules
 **/*.egg-info/
 **/.installed.cfg
 **/*.egg
+
+# But ensure UI dist files are included
+!airflow/ui/dist
+!providers/fab/src/airflow/providers/fab/www/dist
 
 # Exclude temporary vi files
 **/*~

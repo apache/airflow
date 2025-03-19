@@ -28,7 +28,7 @@ from typing import TYPE_CHECKING
 
 ROOT = pathlib.Path(__file__).resolve().parents[3]
 PACKAGE_ROOT = ROOT.joinpath("airflow")
-SDK_DEFINITIONS_PKG = ROOT.joinpath("task_sdk", "src", "airflow", "sdk", "definitions")
+SDK_DEFINITIONS_PKG = ROOT.joinpath("task-sdk", "src", "airflow", "sdk", "definitions")
 DAG_PY = SDK_DEFINITIONS_PKG.joinpath("dag.py")
 TG_PY = SDK_DEFINITIONS_PKG.joinpath("taskgroup.py")
 DECOS_TG_PY = PACKAGE_ROOT.joinpath("decorators", "task_group.py")
@@ -90,7 +90,8 @@ def _find_dag_deco(mod: ast.Module) -> ast.FunctionDef:
     return next(
         n
         for n in itertools.chain.from_iterable(map(ast.iter_child_nodes, type_checking_blocks))
-        if isinstance(n, ast.FunctionDef) and n.name == "dag"
+        if isinstance(n, ast.FunctionDef) and n.name == "dag" and n.args.args[0].arg != "func"
+        # Ignore overload from `dag` decorator with `func` as first arg
     )
 
 

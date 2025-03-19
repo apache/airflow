@@ -27,7 +27,7 @@ def get_provider_info():
         "name": "Google",
         "description": "Google services including:\n\n  - `Google Ads <https://ads.google.com/>`__\n  - `Google Cloud (GCP) <https://cloud.google.com/>`__\n  - `Google Firebase <https://firebase.google.com/>`__\n  - `Google LevelDB <https://github.com/google/leveldb/>`__\n  - `Google Marketing Platform <https://marketingplatform.google.com/>`__\n  - `Google Workspace <https://workspace.google.com/>`__ (formerly Google Suite)\n",
         "state": "ready",
-        "source-date-epoch": 1740734133,
+        "source-date-epoch": 1741121879,
         "versions": [
             "14.0.0",
             "12.0.0",
@@ -1053,7 +1053,10 @@ def get_provider_info():
             },
             {
                 "integration-name": "Google",
-                "python-modules": ["airflow.providers.google.common.hooks.base_google"],
+                "python-modules": [
+                    "airflow.providers.google.common.hooks.base_google",
+                    "airflow.providers.google.common.hooks.operation_helpers",
+                ],
             },
             {
                 "integration-name": "Google Discovery API",
@@ -1570,6 +1573,7 @@ def get_provider_info():
             "airflow.providers.google.cloud.links.managed_kafka.ApacheKafkaClusterLink",
             "airflow.providers.google.cloud.links.managed_kafka.ApacheKafkaClusterListLink",
             "airflow.providers.google.cloud.links.managed_kafka.ApacheKafkaTopicLink",
+            "airflow.providers.google.cloud.links.managed_kafka.ApacheKafkaConsumerGroupLink",
         ],
         "secrets-backends": [
             "airflow.providers.google.cloud.secrets.secret_manager.CloudSecretManagerBackend"
@@ -1589,7 +1593,7 @@ def get_provider_info():
             "gcloud-aio-bigquery>=6.1.2",
             "gcloud-aio-storage>=9.0.0",
             "gcsfs>=2023.10.0",
-            "google-ads>=25.1.0",
+            "google-ads>=26.0.0",
             "google-analytics-admin>=0.9.0",
             "google-api-core>=2.11.0,!=2.16.0,!=2.18.0",
             "google-api-python-client>=2.0.2",
@@ -1671,4 +1675,5 @@ def get_provider_info():
             "ssh": ["apache-airflow-providers-ssh"],
             "trino": ["apache-airflow-providers-trino"],
         },
+        "devel-dependencies": [],
     }

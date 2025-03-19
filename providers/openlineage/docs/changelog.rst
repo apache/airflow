@@ -26,6 +26,34 @@
 Changelog
 ---------
 
+2.1.1
+.....
+
+Bug Fixes
+~~~~~~~~~
+
+* ``fix: OpenLineage serialization of dataset timetables for Airflow 2.9 (#47150)``
+
+Misc
+~~~~
+
+* ``chore: Update description of 'execution_timeout' in OpenLineage provider.yaml (#47448)``
+* ``Remove the old 'task run' commands and LocalTaskJob (#47453)``
+* ``Move task_sdk to a standalone task-sdk distribution (#47451)``
+* ``Move uuid6 to be devel dependency of openlineage (#47464)``
+* ``revert removing 'external_trigger' from OpenLineage provider (#47383)``
+* ``Implement stale dag bundle cleanup (#46503)``
+* ``Replace 'external_trigger' check with DagRunType (#45961)``
+* ``Runtime context shouldn't have start_date as a key (#46961)``
+* ``Upgrade flit to 3.11.0 (#46938)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Move tests_common package to devel-common project (#47281)``
+   * ``Improve documentation for updating provider dependencies (#47203)``
+   * ``Add legacy namespace packages to airflow.providers (#47064)``
+   * ``Remove extra whitespace in provider readme template (#46975)``
+
 2.1.0
 .....
 

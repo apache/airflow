@@ -26,6 +26,7 @@ from airflow.models.variable import Variable
 from airflow.utils.session import provide_session
 
 from tests_common.test_utils.db import clear_db_variables
+from tests_common.test_utils.logs import check_last_log
 
 pytestmark = pytest.mark.db_test
 
@@ -106,6 +107,15 @@ class TestDeleteVariable(TestVariableEndpoint):
         assert response.status_code == 204
         variables = session.query(Variable).all()
         assert len(variables) == 3
+        check_last_log(session, dag_id=None, event="delete_variable", logical_date=None)
+
+    def test_delete_should_respond_401(self, unauthenticated_test_client):
+        response = unauthenticated_test_client.delete(f"/public/variables/{TEST_VARIABLE_KEY}")
+        assert response.status_code == 401
+
+    def test_delete_should_respond_403(self, unauthorized_test_client):
+        response = unauthorized_test_client.delete(f"/public/variables/{TEST_VARIABLE_KEY}")
+        assert response.status_code == 403
 
     def test_delete_should_respond_404(self, test_client):
         response = test_client.delete(f"/public/variables/{TEST_VARIABLE_KEY}")
@@ -163,6 +173,14 @@ class TestGetVariable(TestVariableEndpoint):
         assert response.status_code == 200
         assert response.json() == expected_response
 
+    def test_get_should_respond_401(self, unauthenticated_test_client):
+        response = unauthenticated_test_client.get(f"/public/variables/{TEST_VARIABLE_KEY}")
+        assert response.status_code == 401
+
+    def test_get_should_respond_403(self, unauthorized_test_client):
+        response = unauthorized_test_client.get(f"/public/variables/{TEST_VARIABLE_KEY}")
+        assert response.status_code == 403
+
     def test_get_should_respond_404(self, test_client):
         response = test_client.get(f"/public/variables/{TEST_VARIABLE_KEY}")
         assert response.status_code == 404
@@ -219,6 +237,14 @@ class TestGetVariables(TestVariableEndpoint):
         body = response.json()
         assert body["total_entries"] == expected_total_entries
         assert [variable["key"] for variable in body["variables"]] == expected_keys
+
+    def test_get_should_respond_401(self, unauthenticated_test_client):
+        response = unauthenticated_test_client.get("/public/variables")
+        assert response.status_code == 401
+
+    def test_get_should_respond_403(self, unauthorized_test_client):
+        response = unauthorized_test_client.get("/public/variables")
+        assert response.status_code == 403
 
 
 class TestPatchVariable(TestVariableEndpoint):
@@ -293,6 +319,7 @@ class TestPatchVariable(TestVariableEndpoint):
         response = test_client.patch(f"/public/variables/{key}", json=body, params=params)
         assert response.status_code == 200
         assert response.json() == expected_response
+        check_last_log(session, dag_id=None, event="patch_variable", logical_date=None)
 
     def test_patch_should_respond_400(self, test_client):
         response = test_client.patch(
@@ -302,6 +329,20 @@ class TestPatchVariable(TestVariableEndpoint):
         assert response.status_code == 400
         body = response.json()
         assert body["detail"] == "Invalid body, key from request body doesn't match uri parameter"
+
+    def test_patch_should_respond_401(self, unauthenticated_test_client):
+        response = unauthenticated_test_client.patch(
+            f"/public/variables/{TEST_VARIABLE_KEY}",
+            json={"key": TEST_VARIABLE_KEY, "value": "some_value", "description": None},
+        )
+        assert response.status_code == 401
+
+    def test_patch_should_respond_403(self, unauthorized_test_client):
+        response = unauthorized_test_client.patch(
+            f"/public/variables/{TEST_VARIABLE_KEY}",
+            json={"key": TEST_VARIABLE_KEY, "value": "some_value", "description": None},
+        )
+        assert response.status_code == 403
 
     def test_patch_should_respond_404(self, test_client):
         response = test_client.patch(
@@ -377,6 +418,29 @@ class TestPostVariable(TestVariableEndpoint):
         response = test_client.post("/public/variables", json=body)
         assert response.status_code == 201
         assert response.json() == expected_response
+        check_last_log(session, dag_id=None, event="post_variable", logical_date=None)
+
+    def test_post_should_respond_401(self, unauthenticated_test_client):
+        response = unauthenticated_test_client.post(
+            "/public/variables",
+            json={
+                "key": "new variable key",
+                "value": "new variable value",
+                "description": "new variable description",
+            },
+        )
+        assert response.status_code == 401
+
+    def test_post_should_respond_403(self, unauthorized_test_client):
+        response = unauthorized_test_client.post(
+            "/public/variables",
+            json={
+                "key": "new variable key",
+                "value": "new variable value",
+                "description": "new variable description",
+            },
+        )
+        assert response.status_code == 403
 
     def test_post_should_respond_409_when_key_exists(self, test_client, session):
         self.create_variables()
@@ -921,9 +985,18 @@ class TestBulkVariables(TestVariableEndpoint):
             ),
         ],
     )
-    def test_bulk_variables(self, test_client, actions, expected_results):
+    def test_bulk_variables(self, test_client, actions, expected_results, session):
         self.create_variables()
         response = test_client.patch("/public/variables", json=actions)
         response_data = response.json()
         for key, value in expected_results.items():
             assert response_data[key] == value
+        check_last_log(session, dag_id=None, event="bulk_variables", logical_date=None)
+
+    def test_bulk_variables_should_respond_401(self, unauthenticated_test_client):
+        response = unauthenticated_test_client.patch("/public/variables", json={})
+        assert response.status_code == 401
+
+    def test_bulk_variables_should_respond_403(self, unauthorized_test_client):
+        response = unauthorized_test_client.patch("/public/variables", json={})
+        assert response.status_code == 403

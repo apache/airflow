@@ -27,7 +27,7 @@ from datetime import timedelta
 from pathlib import Path
 from typing import TYPE_CHECKING
 from unittest import mock
-from unittest.mock import patch
+from unittest.mock import ANY, patch
 
 import jinja2
 import pendulum
@@ -98,6 +98,7 @@ from tests.plugins.priority_weight_strategy import (
 from tests_common.test_utils.asserts import assert_queries_count
 from tests_common.test_utils.db import (
     clear_db_assets,
+    clear_db_dag_bundles,
     clear_db_dags,
     clear_db_runs,
     clear_db_serialized_dags,
@@ -120,9 +121,11 @@ repo_root = Path(__file__).parents[2]
 def clear_dags():
     clear_db_dags()
     clear_db_serialized_dags()
+    clear_db_dag_bundles()
     yield
     clear_db_dags()
     clear_db_serialized_dags()
+    clear_db_dag_bundles()
 
 
 @pytest.fixture
@@ -806,16 +809,27 @@ class TestDag:
             else:
                 mock_active_runs_of_dags.assert_not_called()
 
-    @pytest.mark.parametrize("state", [DagRunState.RUNNING, DagRunState.QUEUED])
-    def test_bulk_write_to_db_max_active_runs(self, testing_dag_bundle, state):
+    @pytest.mark.parametrize(
+        "state,catchup,expected_next_dagrun",
+        [
+            # With catchup=True, next_dagrun is the start date
+            (DagRunState.RUNNING, True, DEFAULT_DATE),
+            (DagRunState.QUEUED, True, DEFAULT_DATE),
+            # With catchup=False, next_dagrun is based on the current date
+            (DagRunState.RUNNING, False, None),  # None means we'll use current date
+            (DagRunState.QUEUED, False, None),
+        ],
+    )
+    def test_bulk_write_to_db_max_active_runs(self, testing_dag_bundle, state, catchup, expected_next_dagrun):
         """
         Test that DagModel.next_dagrun_create_after is set to NULL when the dag cannot be created due to max
-        active runs being hit.
+        active runs being hit. Tests both catchup=True and catchup=False scenarios.
         """
         dag = DAG(
             dag_id="test_scheduler_verify_max_active_runs",
             schedule=timedelta(days=1),
             start_date=DEFAULT_DATE,
+            catchup=catchup,
         )
         dag.max_active_runs = 1
 
@@ -827,8 +841,28 @@ class TestDag:
 
         model = session.get(DagModel, dag.dag_id)
 
-        assert model.next_dagrun == DEFAULT_DATE
-        assert model.next_dagrun_create_after == DEFAULT_DATE + timedelta(days=1)
+        if expected_next_dagrun is None:
+            # For catchup=False, next_dagrun will be around the current date (not DEFAULT_DATE)
+            # Instead of comparing exact dates, verify it's relatively recent and not the old start date
+            current_time = timezone.utcnow()
+
+            # Verify it's not using the old DEFAULT_DATE from 2016
+            assert model.next_dagrun.year == current_time.year
+            assert model.next_dagrun.month == current_time.month
+
+            # Verify the date is within a reasonable range of the current date
+            # (allowing for timezone differences and scheduling details)
+            assert abs((model.next_dagrun - current_time).days) <= 31  # Within the current month
+
+            # Most importantly, verify it's not the default date
+            assert model.next_dagrun != DEFAULT_DATE
+
+            # Verify next_dagrun_create_after is scheduled after next_dagrun
+            assert model.next_dagrun_create_after > model.next_dagrun
+        else:
+            # For catchup=True, next_dagrun is the start date
+            assert model.next_dagrun == expected_next_dagrun
+            assert model.next_dagrun_create_after == expected_next_dagrun + timedelta(days=1)
 
         dr = dag.create_dagrun(
             run_id="test",
@@ -1220,14 +1254,16 @@ class TestDag:
         dag.clear()
         self._clean_up(dag_id)
 
-    def test_next_dagrun_after_fake_scheduled_previous(self):
+    @pytest.mark.parametrize("catchup,expected_next_dagrun", [(True, DEFAULT_DATE), (False, None)])
+    def test_next_dagrun_after_fake_scheduled_previous(self, catchup, expected_next_dagrun):
         """
         Test scheduling a dag where there is a prior DagRun
-        which has the same run_id as the next run should have
+        which has the same run_id as the next run should have.
+        Tests with both catchup=True and catchup=False to verify different behaviors.
         """
         delta = datetime.timedelta(hours=1)
-        dag_id = "test_schedule_dag_fake_scheduled_previous"
-        dag = DAG(dag_id=dag_id, schedule=delta, start_date=DEFAULT_DATE)
+        dag_id = f"test_schedule_dag_fake_scheduled_previous_{catchup}"
+        dag = DAG(dag_id=dag_id, schedule=delta, start_date=DEFAULT_DATE, catchup=catchup)
         dag.add_task(BaseOperator(task_id="faketastic", owner="Also fake", start_date=DEFAULT_DATE))
 
         _create_dagrun(
@@ -1241,10 +1277,19 @@ class TestDag:
         with create_session() as session:
             model = session.get(DagModel, dag.dag_id)
 
-        # Even though there is a run for this date already, it is marked as manual/external, so we should
-        # create a scheduled one anyway!
-        assert model.next_dagrun == DEFAULT_DATE
-        assert model.next_dagrun_create_after == DEFAULT_DATE + delta
+        if expected_next_dagrun is None:
+            # For catchup=False, next_dagrun should be based on the current date
+            current_time = timezone.utcnow()
+            # Verify it's not using the old default date
+            assert model.next_dagrun.year == current_time.year
+            assert model.next_dagrun.month == current_time.month
+            # Verify next_dagrun_create_after is scheduled after next_dagrun
+            assert model.next_dagrun_create_after > model.next_dagrun
+        else:
+            # For catchup=True, even though there is a run for this date already,
+            # it is marked as manual/external, so we should create a scheduled one anyway!
+            assert model.next_dagrun == expected_next_dagrun
+            assert model.next_dagrun_create_after == expected_next_dagrun + delta
 
         self._clean_up(dag_id)
 
@@ -1912,11 +1957,17 @@ my_postgres_conn:
         such that if the start_date coincides with the schedule the first
         logical_date will be start_date, otherwise it will be start_date +
         interval.
+
+        This test verifies both catchup=True and catchup=False scenarios:
+        - With catchup=True: The scheduler aligns with the historical start date
+        - With catchup=False: The scheduler aligns with the current date, ignoring historical dates
         """
+        # Test catchup=True scenario (using historical dates)
         dag = DAG(
             dag_id="test_scheduler_auto_align_1",
             start_date=timezone.datetime(2016, 1, 1, 10, 10, 0),
             schedule="4 5 * * *",
+            catchup=True,
         )
         EmptyOperator(task_id="dummy", dag=dag, owner="airflow")
 
@@ -1928,12 +1979,51 @@ my_postgres_conn:
             dag_id="test_scheduler_auto_align_2",
             start_date=timezone.datetime(2016, 1, 1, 10, 10, 0),
             schedule="10 10 * * *",
+            catchup=True,
         )
         EmptyOperator(task_id="dummy", dag=dag, owner="airflow")
 
         next_info = dag.next_dagrun_info(None)
         assert next_info
         assert next_info.logical_date == timezone.datetime(2016, 1, 1, 10, 10)
+
+        # Test catchup=False scenario (using current dates)
+        current_time = timezone.utcnow()
+        dag = DAG(
+            dag_id="test_scheduler_auto_align_3",
+            start_date=timezone.datetime(2016, 1, 1, 10, 10, 0),
+            schedule="4 5 * * *",
+            catchup=False,
+        )
+        EmptyOperator(task_id="dummy", dag=dag, owner="airflow")
+
+        next_info = dag.next_dagrun_info(None)
+        assert next_info
+        # With catchup=False, next_dagrun should be based on the current date
+        # Verify it's not using the old start_date
+        assert next_info.logical_date.year == current_time.year
+        assert next_info.logical_date.month == current_time.month
+        # Verify it's following the cron schedule pattern (4 5 * * *)
+        assert next_info.logical_date.hour == 5
+        assert next_info.logical_date.minute == 4
+
+        dag = DAG(
+            dag_id="test_scheduler_auto_align_4",
+            start_date=timezone.datetime(2016, 1, 1, 10, 10, 0),
+            schedule="10 10 * * *",
+            catchup=False,
+        )
+        EmptyOperator(task_id="dummy", dag=dag, owner="airflow")
+
+        next_info = dag.next_dagrun_info(None)
+        assert next_info
+        # With catchup=False, next_dagrun should be based on the current date
+        # Verify it's not using the old start_date
+        assert next_info.logical_date.year == current_time.year
+        assert next_info.logical_date.month == current_time.month
+        # Verify it's following the cron schedule pattern (10 10 * * *)
+        assert next_info.logical_date.hour == 10
+        assert next_info.logical_date.minute == 10
 
     def test_next_dagrun_info_on_29_feb(self):
         dag = DAG(
@@ -2423,7 +2513,8 @@ class TestDagModel:
         last_queued_time = triggered_date_by_dag[dag.dag_id]
         assert last_queued_time == DEFAULT_DATE + timedelta(hours=1)
 
-    def test_asset_expression(self, testing_dag_bundle, session: Session) -> None:
+    @pytest.mark.usefixtures("testing_dag_bundle")
+    def test_asset_expression(self, session: Session) -> None:
         dag = DAG(
             dag_id="test_dag_asset_expression",
             schedule=AssetAny(
@@ -2436,6 +2527,13 @@ class TestDagModel:
                         group="test-group",
                     ),
                     Asset("s3://dag3/output_3.txt", extra={"hi": "bye"}, group="test-group"),
+                    AssetAll(
+                        AssetAll(
+                            Asset("s3://dag3/output_4.txt", extra={"hi": "bye"}, group="test-group"),
+                            Asset("s3://dag3/output_5.txt", extra={"hi": "bye"}, group="test-group"),
+                        ),
+                        Asset("s3://dag3/output_6.txt", extra={"hi": "bye"}, group="test-group"),
+                    ),
                 ),
                 AssetAlias(name="test_name", group="test-group"),
             ),
@@ -2451,6 +2549,7 @@ class TestDagModel:
                         "uri": "s3://dag1/output_1.txt",
                         "name": "s3://dag1/output_1.txt",
                         "group": "test-group",
+                        "id": ANY,
                     }
                 },
                 {
@@ -2460,6 +2559,7 @@ class TestDagModel:
                                 "uri": "s3://dag2/output_1.txt",
                                 "name": "test_asset_2",
                                 "group": "test-group",
+                                "id": ANY,
                             }
                         },
                         {
@@ -2467,7 +2567,40 @@ class TestDagModel:
                                 "uri": "s3://dag3/output_3.txt",
                                 "name": "s3://dag3/output_3.txt",
                                 "group": "test-group",
+                                "id": ANY,
                             }
+                        },
+                        {
+                            "all": [
+                                {
+                                    "all": [
+                                        {
+                                            "asset": {
+                                                "uri": "s3://dag3/output_4.txt",
+                                                "name": "s3://dag3/output_4.txt",
+                                                "group": "test-group",
+                                                "id": ANY,
+                                            }
+                                        },
+                                        {
+                                            "asset": {
+                                                "uri": "s3://dag3/output_5.txt",
+                                                "name": "s3://dag3/output_5.txt",
+                                                "group": "test-group",
+                                                "id": ANY,
+                                            }
+                                        },
+                                    ],
+                                },
+                                {
+                                    "asset": {
+                                        "uri": "s3://dag3/output_6.txt",
+                                        "name": "s3://dag3/output_6.txt",
+                                        "group": "test-group",
+                                        "id": ANY,
+                                    },
+                                },
+                            ]
                         },
                     ]
                 },
@@ -2573,7 +2706,8 @@ def test_set_task_instance_state_mapped(dag_maker, session):
     """Test that when setting an individual mapped TI that the other TIs are not affected"""
     task_id = "t1"
 
-    with dag_maker(session=session) as dag:
+    # The catchup behavior isn't central to what's being tested. Setting catchup explicitly to True.
+    with dag_maker(session=session, catchup=True) as dag:
 
         @task_decorator
         def make_arg_lists():
@@ -2871,27 +3005,53 @@ def test_get_next_data_interval(
 
 
 @pytest.mark.parametrize(
-    ("dag_date", "tasks_date", "restrict"),
+    ("dag_date", "tasks_date", "catchup", "restrict"),
     [
+        # catchup=True cases - respects task start dates
         [
             (DEFAULT_DATE, None),
             [
                 (DEFAULT_DATE + timedelta(days=1), DEFAULT_DATE + timedelta(days=2)),
                 (DEFAULT_DATE + timedelta(days=3), DEFAULT_DATE + timedelta(days=4)),
             ],
+            True,
             TimeRestriction(DEFAULT_DATE, DEFAULT_DATE + timedelta(days=4), True),
         ],
         [
             (DEFAULT_DATE, None),
             [(DEFAULT_DATE, DEFAULT_DATE + timedelta(days=1)), (DEFAULT_DATE, None)],
+            True,
             TimeRestriction(DEFAULT_DATE, None, True),
+        ],
+        # catchup=False cases - same time boundaries but different catchup flag
+        [
+            (DEFAULT_DATE, None),
+            [
+                (DEFAULT_DATE + timedelta(days=1), DEFAULT_DATE + timedelta(days=2)),
+                (DEFAULT_DATE + timedelta(days=3), DEFAULT_DATE + timedelta(days=4)),
+            ],
+            False,
+            TimeRestriction(DEFAULT_DATE, DEFAULT_DATE + timedelta(days=4), False),
+        ],
+        [
+            (DEFAULT_DATE, None),
+            [(DEFAULT_DATE, DEFAULT_DATE + timedelta(days=1)), (DEFAULT_DATE, None)],
+            False,
+            TimeRestriction(DEFAULT_DATE, None, False),
         ],
     ],
 )
-def test__time_restriction(dag_maker, dag_date, tasks_date, restrict):
+def test__time_restriction(dag_maker, dag_date, tasks_date, catchup, restrict):
+    """
+    Test that _time_restriction correctly reflects the DAG's time constraints with different catchup settings.
+
+    With catchup=True, future task start dates are respected.
+    With catchup=False, the scheduler may schedule tasks regardless of their future start dates.
+    """
     with dag_maker(
         "test__time_restriction",
         schedule=None,
+        catchup=catchup,  # Use the parametrized catchup value
         start_date=dag_date[0],
         end_date=dag_date[1],
     ) as dag:
@@ -3046,7 +3206,7 @@ class TestTaskClearingSetupTeardownBehavior:
         upstream = False
         return set(
             task.dag.partial_subset(
-                task_ids_or_regex=[task.task_id],
+                task_ids=[task.task_id],
                 include_downstream=not upstream,
                 include_upstream=upstream,
             ).tasks
@@ -3058,7 +3218,7 @@ class TestTaskClearingSetupTeardownBehavior:
         upstream = True
         return set(
             task.dag.partial_subset(
-                task_ids_or_regex=task.task_id,
+                task_ids=task.task_id,
                 include_downstream=not upstream,
                 include_upstream=upstream,
             ).tasks
@@ -3069,7 +3229,7 @@ class TestTaskClearingSetupTeardownBehavior:
         """Helper to return tasks that would be cleared if **upstream** selected."""
         return set(
             task.dag.partial_subset(
-                task_ids_or_regex=[task.task_id],
+                task_ids=[task.task_id],
                 include_downstream=False,
                 include_upstream=False,
             ).tasks
@@ -3493,3 +3653,38 @@ class TestTaskClearingSetupTeardownBehavior:
                 Exception, match="Setup tasks must be followed with trigger rule ALL_SUCCESS."
             ):
                 dag.validate_setup_teardown()
+
+
+@pytest.mark.parametrize(
+    "disable, bundle_version, expected",
+    [
+        (True, "some-version", None),
+        (False, "some-version", "some-version"),
+    ],
+)
+def test_disable_bundle_versioning(disable, bundle_version, expected, dag_maker, session, clear_dags):
+    """When bundle versioning is disabled for a dag, the dag run should not have a bundle version."""
+
+    def hello():
+        print("hello")
+
+    with dag_maker(disable_bundle_versioning=disable, session=session, serialized=True) as dag:
+        PythonOperator(task_id="hi", python_callable=hello)
+
+    assert dag.disable_bundle_versioning is disable
+
+    # the dag *always* has bundle version
+    dag_model = session.scalar(select(DagModel).where(DagModel.dag_id == dag.dag_id))
+    dag_model.bundle_version = bundle_version
+    session.commit()
+
+    dr = dag.create_dagrun(
+        run_id="abcoercuhcrh",
+        run_after=pendulum.now(),
+        run_type="manual",
+        triggered_by=DagRunTriggeredByType.TEST,
+        state=None,
+    )
+
+    # but it only gets stamped on the dag run when bundle versioning not disabled
+    assert dr.bundle_version == expected

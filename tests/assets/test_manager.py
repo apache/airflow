@@ -34,7 +34,7 @@ from airflow.models.asset import (
     DagScheduleAssetReference,
 )
 from airflow.models.dag import DagModel
-from airflow.sdk.definitions.asset import Asset, AssetAlias
+from airflow.sdk.definitions.asset import Asset
 
 from tests.listeners import asset_listener
 
@@ -124,12 +124,10 @@ class TestAssetManager:
         session.flush()
 
         asset = Asset(uri="test://asset1", name="test_asset_uri")
-        asset_alias = AssetAlias(name="test_alias_name", group="test")
         asset_manager = AssetManager()
         asset_manager.register_asset_change(
             task_instance=mock_task_instance,
             asset=asset,
-            aliases=[asset_alias],
             source_alias_names=["test_alias_name"],
             session=session,
         )

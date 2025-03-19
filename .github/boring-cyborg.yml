@@ -102,6 +102,9 @@ labelPRBasedOnFilePath:
   provider:common-io:
     - providers/common/io/**
 
+  provider:common-messaging:
+    - providers/common/messaging/**
+
   provider:common-sql:
     - providers/common/sql/**
 
@@ -357,7 +360,6 @@ labelPRBasedOnFilePath:
 
   area:Scheduler:
     - airflow/jobs/scheduler_job_runner.py
-    - airflow/task/standard_task_runner.py
     - docs/apache-airflow/administration-and-deployment/scheduler.rst
     - tests/jobs/test_scheduler_job.py
 
@@ -399,7 +401,6 @@ labelPRBasedOnFilePath:
     - airflow/operators/**/*
     - airflow/hooks/**/*
     - airflow/sensors/**/*
-    - tests/operators/**/*
     - tests/hooks/**/*
     - tests/sensors/**/*
     - docs/apache-airflow/operators-and-hooks-ref.rst
@@ -414,7 +415,7 @@ labelPRBasedOnFilePath:
     - tests/system/**/*
 
   area:task-sdk:
-    - task_sdk/**/*
+    - task-sdk/**/*
 
   area:db-migrations:
     - airflow/migrations/versions/*

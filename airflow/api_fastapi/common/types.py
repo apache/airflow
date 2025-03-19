@@ -16,6 +16,7 @@
 # under the License.
 from __future__ import annotations
 
+from dataclasses import dataclass
 from datetime import timedelta
 from enum import Enum
 from typing import Annotated
@@ -72,3 +73,26 @@ class Mimetype(str, Enum):
     TEXT = "text/plain"
     JSON = "application/json"
     ANY = "*/*"
+
+
+@dataclass
+class ExtraMenuItem:
+    """Define a menu item that can be added to the menu by auth managers or plugins."""
+
+    text: str
+    href: str
+
+
+class MenuItem(Enum):
+    """Define all menu items defined in the menu."""
+
+    ASSETS = "Assets"
+    ASSET_EVENTS = "Asset Events"
+    CONNECTIONS = "Connections"
+    DAGS = "Dags"
+    DOCS = "Docs"
+    PLUGINS = "Plugins"
+    POOLS = "Pools"
+    PROVIDERS = "Providers"
+    VARIABLES = "Variables"
+    XCOMS = "XComs"

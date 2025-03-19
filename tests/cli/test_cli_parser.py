@@ -51,7 +51,7 @@ pytestmark = pytest.mark.db_test
 # Can not be `--snake_case` or contain uppercase letter
 ILLEGAL_LONG_OPTION_PATTERN = re.compile("^--[a-z]+_[a-z]+|^--.*[A-Z].*")
 # Only can be `-[a-z]` or `-[A-Z]`
-LEGAL_SHORT_OPTION_PATTERN = re.compile("^-[a-zA-z]$")
+LEGAL_SHORT_OPTION_PATTERN = re.compile("^-[a-zA-Z]$")
 
 cli_args = {k: v for k, v in cli_parser.__dict__.items() if k.startswith("ARG_")}
 
@@ -365,16 +365,12 @@ class TestCli:
         "executor,expected_args",
         [
             ("CeleryExecutor", ["celery"]),
-            ("CeleryKubernetesExecutor", ["celery", "kubernetes"]),
             ("KubernetesExecutor", ["kubernetes"]),
             ("LocalExecutor", []),
-            ("LocalKubernetesExecutor", ["kubernetes"]),
             ("SequentialExecutor", []),
             # custom executors are mapped to the regular ones in `conftest.py`
             ("custom_executor.CustomLocalExecutor", []),
-            ("custom_executor.CustomLocalKubernetesExecutor", ["kubernetes"]),
             ("custom_executor.CustomCeleryExecutor", ["celery"]),
-            ("custom_executor.CustomCeleryKubernetesExecutor", ["celery", "kubernetes"]),
             ("custom_executor.CustomKubernetesExecutor", ["kubernetes"]),
         ],
     )

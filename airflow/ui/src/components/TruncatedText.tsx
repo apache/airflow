@@ -22,12 +22,19 @@ type Props = {
   readonly text: string;
 } & TextProps;
 
-export const TruncatedText = ({ text, ...rest }: Props) => {
-  const truncatedText = text.length <= 25 ? text : `…${text.slice(-22)}`;
-
-  return (
-    <Text title={text} {...rest}>
-      {truncatedText}
-    </Text>
-  );
-};
+export const TruncatedText = ({ text, ...rest }: Props) => (
+  <Text
+    display="-webkit-box"
+    overflow="hidden"
+    style={{
+      WebkitBoxOrient: "vertical",
+      WebkitLineClamp: 2,
+    }}
+    title={text}
+    width="200px"
+    wordBreak="break-word"
+    {...rest}
+  >
+    {text}
+  </Text>
+);

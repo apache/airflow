@@ -29,8 +29,8 @@ from airflow.providers.standard.sensors.python import PythonSensor
 from airflow.providers.standard.sensors.time import TimeSensor, TimeSensorAsync
 from airflow.providers.standard.sensors.time_delta import TimeDeltaSensor, TimeDeltaSensorAsync
 from airflow.providers.standard.sensors.weekday import DayOfWeekSensor
+from airflow.providers.standard.utils.weekday import WeekDay
 from airflow.utils.trigger_rule import TriggerRule
-from airflow.utils.weekday import WeekDay
 
 
 # [START example_callables]
