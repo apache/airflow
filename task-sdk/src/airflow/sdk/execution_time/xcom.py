@@ -40,6 +40,7 @@ class BaseXCom:
         task_id: str,
         run_id: str,
         map_index: int = -1,
+        mapped_length: int | None = None,
     ) -> None:
         """
         Store an XCom value.
@@ -51,6 +52,7 @@ class BaseXCom:
         :param run_id: DAG run ID for the task.
         :param map_index: Optional map index to assign XCom for a mapped task.
             The default is ``-1`` (set for a non-mapped task).
+        :param mapped_length: Optional map length to assign XCom for a mapped task.
         """
         from airflow.sdk.execution_time.task_runner import SUPERVISOR_COMMS
 
@@ -72,6 +74,7 @@ class BaseXCom:
                 task_id=task_id,
                 run_id=run_id,
                 map_index=map_index,
+                mapped_length=mapped_length,
             ),
         )
 
