@@ -54,7 +54,9 @@ from airflow.api_fastapi.core_api.datamodels.dags import (
     DAGCollectionResponse,
     DAGDetailsResponse,
     DAGPatchBody,
+    DagReserializePostBody,
     DAGResponse,
+    ReserializeResponse,
 )
 from airflow.api_fastapi.core_api.openapi.exceptions import create_openapi_http_exception_doc
 from airflow.api_fastapi.core_api.security import (
@@ -63,8 +65,9 @@ from airflow.api_fastapi.core_api.security import (
     requires_access_dag,
 )
 from airflow.api_fastapi.logging.decorators import action_logging
+from airflow.dag_processing.bundles.manager import DagBundlesManager
 from airflow.exceptions import AirflowException, DagNotFound
-from airflow.models import DAG, DagModel
+from airflow.models import DAG, DagBag, DagModel
 from airflow.models.dagrun import DagRun
 
 dags_router = AirflowRouter(tags=["DAG"], prefix="/dags")
@@ -339,3 +342,68 @@ def delete_dag(
             status.HTTP_409_CONFLICT, f"Task instances of dag with id: '{dag_id}' are still running"
         )
     return Response(status_code=status.HTTP_204_NO_CONTENT)
+
+
+@dags_router.post(
+    "/manage/reserialize",
+    responses=create_openapi_http_exception_doc(
+        [
+            status.HTTP_400_BAD_REQUEST,
+            status.HTTP_404_NOT_FOUND,
+            status.HTTP_422_UNPROCESSABLE_ENTITY,
+        ]
+    ),
+    dependencies=[Depends(action_logging())],
+)
+async def reserialize_dags(
+    request: DagReserializePostBody,
+    session: SessionDep,  # Add your session dependency
+):
+    """
+    Reserialize DAG bundles in Airflow.
+
+    - **bundle_names**: List of specific bundles to reserialize (all if empty)
+    """
+    try:
+        manager = DagBundlesManager()
+        manager.sync_bundles_to_db(session=session)
+        session.commit()
+
+        # Get all available bundles
+        all_bundles = list(manager.get_all_dag_bundles())
+        all_bundle_names = {b.name for b in all_bundles}
+
+        # Validate bundle names if specified
+        if request.bundle_names:
+            bundles_to_process = set(request.bundle_names)
+        else:
+            bundles_to_process = all_bundle_names
+
+        # Process each bundle
+        processed = []
+        for bundle in all_bundles:
+            if bundle.name not in bundles_to_process:
+                continue
+
+            try:
+                bundle.initialize()
+                dag_bag = DagBag(bundle.path, bundle_path=bundle.path, include_examples=False)
+                dag_bag.sync_to_db(bundle.name, bundle_version=bundle.get_current_version(), session=session)
+                processed.append(bundle.name)
+            except Exception as e:
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail=f"Error processing bundle {bundle.name}: {str(e)}",
+                )
+
+        session.commit()
+        return ReserializeResponse(
+            message="DAG bundles reserialized successfully", processed_bundles=processed
+        )
+
+    except Exception as e:
+        session.rollback()
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to reserialize DAG bundles: {str(e)}",
+        )

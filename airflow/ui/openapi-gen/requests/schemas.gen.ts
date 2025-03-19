@@ -3081,6 +3081,29 @@ export const $DagProcessorInfoResponse = {
   description: "DagProcessor info serializer for responses.",
 } as const;
 
+export const $DagReserializePostBody = {
+  properties: {
+    bundle_names: {
+      anyOf: [
+        {
+          items: {
+            type: "string",
+          },
+          type: "array",
+        },
+        {
+          type: "null",
+        },
+      ],
+      title: "Bundle Names",
+    },
+  },
+  type: "object",
+  required: ["bundle_names"],
+  title: "DagReserializePostBody",
+  description: "Dag Serializer for reserialzed bodies.",
+} as const;
+
 export const $DagRunAssetReference = {
   properties: {
     run_id: {
