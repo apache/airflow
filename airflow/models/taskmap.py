@@ -27,6 +27,7 @@ from typing import TYPE_CHECKING, Any
 from sqlalchemy import CheckConstraint, Column, ForeignKeyConstraint, Integer, String, func, or_, select
 
 from airflow.models.base import COLLATION_ARGS, ID_LEN, TaskInstanceDependencies
+from airflow.models.dag_version import DagVersion
 from airflow.utils.db import exists_query
 from airflow.utils.sqlalchemy import ExtendedJSON, with_row_locks
 from airflow.utils.state import State, TaskInstanceState
@@ -207,6 +208,7 @@ class TaskMap(TaskInstanceDependencies):
                     task.log.debug("Deleting the original task instance: %s", unmapped_ti)
                     session.delete(unmapped_ti)
                 state = unmapped_ti.state
+            dag_version_id = unmapped_ti.dag_version_id
 
         if total_length is None or total_length < 1:
             # Nothing to fixup.
@@ -222,9 +224,22 @@ class TaskMap(TaskInstanceDependencies):
             )
             indexes_to_map = range(current_max_mapping + 1, total_length)
 
+        if unmapped_ti:
+            dag_version_id = unmapped_ti.dag_version_id
+        elif dag_version := DagVersion.get_latest_version(task.dag_id, session=session):
+            dag_version_id = dag_version.id
+        else:
+            dag_version_id = None
+
         for index in indexes_to_map:
             # TODO: Make more efficient with bulk_insert_mappings/bulk_save_mappings.
-            ti = TaskInstance(task, run_id=run_id, map_index=index, state=state)
+            ti = TaskInstance(
+                task,
+                run_id=run_id,
+                map_index=index,
+                state=state,
+                dag_version_id=dag_version_id,
+            )
             task.log.debug("Expanding TIs upserted %s", ti)
             task_instance_mutation_hook(ti)
             ti = session.merge(ti)
