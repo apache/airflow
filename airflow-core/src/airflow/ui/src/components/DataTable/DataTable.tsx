@@ -16,7 +16,7 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { HStack, Text } from "@chakra-ui/react";
+import { HStack, Spacer, Text } from "@chakra-ui/react";
 import {
   getCoreRowModel,
   getExpandedRowModel,
@@ -31,11 +31,12 @@ import {
 } from "@tanstack/react-table";
 import React, { type ReactNode, useCallback, useRef, useState } from "react";
 
-import { ProgressBar, Pagination, Toaster } from "../ui";
-import { CardList } from "./CardList";
-import { TableList } from "./TableList";
-import { createSkeletonMock } from "./skeleton";
-import type { CardDef, MetaColumn, TableState } from "./types";
+import { CardList } from "src/components/DataTable/CardList";
+import FilterMenuButton from "src/components/DataTable/FilterMenuButton";
+import { TableList } from "src/components/DataTable/TableList";
+import { createSkeletonMock } from "src/components/DataTable/skeleton";
+import type { CardDef, MetaColumn, TableState } from "src/components/DataTable/types";
+import { ProgressBar, Pagination, Toaster } from "src/components/ui";
 
 type DataTableProps<TData> = {
   readonly allowFiltering?: boolean;
@@ -132,10 +133,12 @@ export const DataTable = <TData,>({
     <>
       <ProgressBar size="xs" visibility={Boolean(isFetching) && !Boolean(isLoading) ? "visible" : "hidden"} />
       <Toaster />
+      <HStack>
+        <Spacer display="flow" />
+        {allowFiltering ? <FilterMenuButton table={table} /> : undefined}
+      </HStack>
       {errorMessage}
-      {hasRows && display === "table" ? (
-        <TableList allowFiltering={allowFiltering} table={table} />
-      ) : undefined}
+      {hasRows && display === "table" ? <TableList table={table} /> : undefined}
       {hasRows && display === "card" && cardDef !== undefined ? (
         <CardList cardDef={cardDef} isLoading={isLoading} table={table} />
       ) : undefined}
