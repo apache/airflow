@@ -47,7 +47,7 @@ export const Header = ({
   const stats = [
     {
       label: "Schedule",
-      value: dag === undefined ? undefined : <Schedule dag={dag} />,
+      value: dagWithRuns === undefined ? undefined : <Schedule dag={dagWithRuns} />,
     },
     {
       label: "Latest Run",

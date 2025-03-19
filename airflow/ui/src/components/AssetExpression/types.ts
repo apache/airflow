@@ -17,14 +17,25 @@
  * under the License.
  */
 
-export type AssetSummary = {
+type Asset = {
   asset: {
     group: string;
+    id: number;
     name: string;
-    timestamp?: string;
     uri: string;
   };
 };
+
+type Alias = {
+  alias: {
+    group: string;
+    name: string;
+  };
+};
+
+export type NextRunEvent = { id: number; lastUpdate: string | null; uri: string };
+
+export type AssetSummary = Alias | Asset;
 
 export type ExpressionType = {
   all?: Array<AssetSummary | ExpressionType>;
