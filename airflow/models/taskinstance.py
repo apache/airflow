@@ -129,7 +129,7 @@ from airflow.version_compat import AIRFLOW_V_3_0_PLUS
 if AIRFLOW_V_3_0_PLUS:
     from airflow.sdk.execution_time.context import context_to_airflow_vars
 else:
-    from airflow.utils.operator_helpers import context_to_airflow_vars  # type: ignore[no-redef]
+    from airflow.utils.operator_helpers import context_to_airflow_vars  # type: ignore[no-redef, attr-defined]
 
 TR = TaskReschedule
 

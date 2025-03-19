@@ -43,7 +43,9 @@ from airflow.utils.helpers import as_flattened_list
 if AIRFLOW_V_3_0_PLUS:
     from airflow.sdk.execution_time.context import AIRFLOW_VAR_NAME_FORMAT_MAPPING
 else:
-    from airflow.utils.operator_helpers import AIRFLOW_VAR_NAME_FORMAT_MAPPING  # type: ignore[no-redef]
+    from airflow.utils.operator_helpers import (
+        AIRFLOW_VAR_NAME_FORMAT_MAPPING,  # type: ignore[no-redef, attr-defined]
+    )
 
 HIVE_QUEUE_PRIORITIES = ["VERY_HIGH", "HIGH", "NORMAL", "LOW", "VERY_LOW"]
 

@@ -36,7 +36,7 @@ from airflow.utils.helpers import exactly_one
 if AIRFLOW_V_3_0_PLUS:
     from airflow.sdk.execution_time.context import AIRFLOW_VAR_NAME_FORMAT_MAPPING, DEFAULT_FORMAT_PREFIX
 else:
-    from airflow.utils.operator_helpers import (  # type: ignore[no-redef]
+    from airflow.utils.operator_helpers import (  # type: ignore[no-redef, attr-defined]
         AIRFLOW_VAR_NAME_FORMAT_MAPPING,
         DEFAULT_FORMAT_PREFIX,
     )

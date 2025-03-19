@@ -31,7 +31,7 @@ from airflow.providers.apache.hive.version_compat import AIRFLOW_V_3_0_PLUS
 if AIRFLOW_V_3_0_PLUS:
     from airflow.sdk.execution_time.context import AIRFLOW_VAR_NAME_FORMAT_MAPPING, context_to_airflow_vars
 else:
-    from airflow.utils.operator_helpers import (  # type: ignore[no-redef]
+    from airflow.utils.operator_helpers import (  # type: ignore[no-redef, attr-defined]
         AIRFLOW_VAR_NAME_FORMAT_MAPPING,
         context_to_airflow_vars,
     )
