@@ -18,17 +18,15 @@
 from __future__ import annotations
 
 from collections.abc import Sequence
-from functools import cached_property
 from typing import TYPE_CHECKING, Any
 
 from airflow.configuration import conf
 from airflow.exceptions import AirflowException
-from airflow.providers.amazon.aws.sensors.base_aws import AwsBaseSensor
 from airflow.providers.amazon.aws.hooks.ec2 import EC2Hook
+from airflow.providers.amazon.aws.sensors.base_aws import AwsBaseSensor
 from airflow.providers.amazon.aws.triggers.ec2 import EC2StateSensorTrigger
 from airflow.providers.amazon.aws.utils import validate_execute_complete_event
 from airflow.providers.amazon.aws.utils.mixins import aws_template_fields
-from airflow.sensors.base import BaseSensorOperator
 
 if TYPE_CHECKING:
     from airflow.utils.context import Context
@@ -47,6 +45,7 @@ class EC2InstanceStateSensor(AwsBaseSensor[EC2Hook]):
     :param region_name: (optional) aws region name associated with the client
     :param deferrable: if True, the sensor will run in deferrable mode
     """
+
     aws_hook_class = EC2Hook
     template_fields: Sequence[str] = aws_template_fields("target_state", "instance_id", "region_name")
     ui_color = "#cc8811"
@@ -82,7 +81,6 @@ class EC2InstanceStateSensor(AwsBaseSensor[EC2Hook]):
             )
         else:
             super().execute(context=context)
-
 
     def poke(self, context: Context):
         instance_state = self.hook.get_instance_state(instance_id=self.instance_id)

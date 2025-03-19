@@ -18,17 +18,16 @@
 from __future__ import annotations
 
 from collections.abc import Sequence
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 from airflow.exceptions import AirflowException
-from airflow.providers.amazon.aws.operators.base_aws import AwsBaseOperator
-from airflow.providers.amazon.aws.utils.mixins import aws_template_fields
-
 from airflow.providers.amazon.aws.hooks.ec2 import EC2Hook
 from airflow.providers.amazon.aws.links.ec2 import (
     EC2InstanceDashboardLink,
     EC2InstanceLink,
 )
+from airflow.providers.amazon.aws.operators.base_aws import AwsBaseOperator
+from airflow.providers.amazon.aws.utils.mixins import aws_template_fields
 
 if TYPE_CHECKING:
     from airflow.utils.context import Context
@@ -106,6 +105,7 @@ class EC2StopInstanceOperator(AwsBaseOperator[EC2Hook]):
     :param check_interval: time in seconds that the job should wait in
         between each instance state checks until operation is completed
     """
+
     aws_hook_class = EC2Hook
     operator_extra_links = (EC2InstanceLink(),)
     template_fields: Sequence[str] = aws_template_fields("instance_id", "region_name")
@@ -202,10 +202,11 @@ class EC2CreateInstanceOperator(AwsBaseOperator[EC2Hook]):
         self.wait_for_completion = wait_for_completion
 
     @property
-    def _hook_parameters(self)->dict[str:any]:
+    def _hook_parameters(self) -> dict[str, Any]:
         return {**super()._hook_parameters, "api_type": "client_type"}
+
     def execute(self, context: Context):
-        instances = self.hook.conn.run_instances(        
+        instances = self.hook.conn.run_instances(
             ImageId=self.image_id,
             MinCount=self.min_count,
             MaxCount=self.max_count,
@@ -275,7 +276,9 @@ class EC2TerminateInstanceOperator(AwsBaseOperator[EC2Hook]):
     """
 
     aws_hook_class = EC2Hook
-    template_fields: Sequence[str] = aws_template_fields("instance_ids", "region_name", "aws_conn_id", "wait_for_completion")
+    template_fields: Sequence[str] = aws_template_fields(
+        "instance_ids", "region_name", "aws_conn_id", "wait_for_completion"
+    )
 
     def __init__(
         self,
@@ -292,9 +295,9 @@ class EC2TerminateInstanceOperator(AwsBaseOperator[EC2Hook]):
         self.wait_for_completion = wait_for_completion
 
     @property
-    def _hook_parameters(self)->dict[str:any]:
+    def _hook_parameters(self) -> dict[str, Any]:
         return {**super()._hook_parameters, "api_type": "client_type"}
-    
+
     def execute(self, context: Context):
         if isinstance(self.instance_ids, str):
             self.instance_ids = [self.instance_ids]
@@ -357,7 +360,7 @@ class EC2RebootInstanceOperator(AwsBaseOperator[EC2Hook]):
         self.wait_for_completion = wait_for_completion
 
     @property
-    def _hook_parameters(self)->dict[str:any]:
+    def _hook_parameters(self) -> dict[str, Any]:
         return {**super()._hook_parameters, "api_type": "client_type"}
 
     def execute(self, context: Context):
@@ -406,6 +409,7 @@ class EC2HibernateInstanceOperator(AwsBaseOperator[EC2Hook]):
     :param wait_for_completion: If True, the operator will wait for the instance to be
         in the `stopped` state before returning.
     """
+
     aws_hook_class = EC2Hook
     operator_extra_links = (EC2InstanceDashboardLink(),)
     template_fields: Sequence[str] = aws_template_fields("instance_ids", "region_name")
@@ -428,9 +432,9 @@ class EC2HibernateInstanceOperator(AwsBaseOperator[EC2Hook]):
         self.wait_for_completion = wait_for_completion
 
     @property
-    def _hook_parameters(self)->dict[str:any]:
+    def _hook_parameters(self) -> dict[str, Any]:
         return {**super()._hook_parameters, "api_type": "client_type"}
-    
+
     def execute(self, context: Context):
         if isinstance(self.instance_ids, str):
             self.instance_ids = [self.instance_ids]
