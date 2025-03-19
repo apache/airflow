@@ -22,7 +22,7 @@ import logging
 from typing import Annotated
 from uuid import UUID
 
-from fastapi import Body, HTTPException, status
+from fastapi import Body, Depends, HTTPException, status
 from pydantic import JsonValue
 from sqlalchemy import func, tuple_, update
 from sqlalchemy.exc import NoResultFound, SQLAlchemyError
@@ -43,17 +43,21 @@ from airflow.api_fastapi.execution_api.datamodels.taskinstance import (
     TISuccessStatePayload,
     TITerminalStatePayload,
 )
-from airflow.exceptions import AirflowInactiveAssetInInletOrOutletException
+from airflow.api_fastapi.execution_api.deps import JWTBearer
 from airflow.models.dagrun import DagRun as DR
 from airflow.models.taskinstance import TaskInstance as TI, _update_rtif
 from airflow.models.taskreschedule import TaskReschedule
 from airflow.models.trigger import Trigger
-from airflow.models.xcom import XCom
+from airflow.models.xcom import XComModel
 from airflow.utils import timezone
 from airflow.utils.state import DagRunState, TaskInstanceState, TerminalTIState
 
-# TODO: Add dependency on JWT token
-router = AirflowRouter()
+router = AirflowRouter(
+    dependencies=[
+        # This checks that the UUID in the url matches the one in the token for us.
+        Depends(JWTBearer(path_param_name="task_instance_id")),
+    ]
+)
 
 
 log = logging.getLogger(__name__)
@@ -187,19 +191,24 @@ def ti_run(
         if not dr:
             raise ValueError(f"DagRun with dag_id={ti.dag_id} and run_id={ti.run_id} not found.")
 
-        # Clear XCom data for the task instance since we are certain it is executing
+        # Send the keys to the SDK so that the client requests to clear those XComs from the server.
+        # The reason we cannot do this here in the server is because we need to issue a purge on custom XCom backends
+        # too. With the current assumption, the workers ONLY have access to the custom XCom backends directly and they
+        # can issue the purge.
+
         # However, do not clear it for deferral
+        xcom_keys = []
         if not ti.next_method:
             map_index = None if ti.map_index < 0 else ti.map_index
-            log.info("Clearing xcom data for task id: %s", ti_id_str)
-            XCom.clear(
-                dag_id=ti.dag_id,
-                task_id=ti.task_id,
-                run_id=ti.run_id,
-                map_index=map_index,
-                session=session,
+            query = select(XComModel.key).where(
+                XComModel.dag_id == ti.dag_id,
+                XComModel.task_id == ti.task_id,
+                XComModel.run_id == ti.run_id,
             )
+            if map_index is not None:
+                query = query.where(XComModel.map_index == map_index)
 
+            xcom_keys = list(session.scalars(query))
         task_reschedule_count = (
             session.query(
                 func.count(TaskReschedule.id)  # or any other primary key column
@@ -216,6 +225,7 @@ def ti_run(
             # TODO: Add variables and connections that are needed (and has perms) for the task
             variables=[],
             connections=[],
+            xcom_keys_to_clear=xcom_keys,
         )
 
         # Only set if they are non-null
@@ -565,19 +575,6 @@ def ti_runtime_checks(
     task_instance = session.scalar(select(TI).where(TI.id == ti_id_str))
     if task_instance.state != TaskInstanceState.RUNNING:
         raise HTTPException(status_code=status.HTTP_409_CONFLICT)
-
-    try:
-        TI.validate_inlet_outlet_assets_activeness(payload.inlets, payload.outlets, session)  # type: ignore
-    except AirflowInactiveAssetInInletOrOutletException as e:
-        log.error("Task Instance %s fails the runtime checks.", ti_id_str)
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail={
-                "reason": "validation_failed",
-                "message": "Task Instance fails the runtime checks",
-                "error": str(e),
-            },
-        )
 
 
 def _is_eligible_to_retry(state: str, try_number: int, max_tries: int) -> bool:

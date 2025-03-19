@@ -85,7 +85,7 @@ class OpenLineageAdapter(LoggingMixin):
             if config:
                 self.log.debug(
                     "OpenLineage configuration found. Transport type: `%s`",
-                    config.get("type", "no type provided"),
+                    config.get("transport", {}).get("type", "no type provided"),
                 )
                 self._client = OpenLineageClient(config=config)  # type: ignore[call-arg]
             else:

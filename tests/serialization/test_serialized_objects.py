@@ -39,6 +39,7 @@ from airflow.models.dag import DAG
 from airflow.models.dagrun import DagRun
 from airflow.models.taskinstance import SimpleTaskInstance, TaskInstance
 from airflow.models.xcom_arg import XComArg
+from airflow.providers.standard.operators.bash import BashOperator
 from airflow.providers.standard.operators.empty import EmptyOperator
 from airflow.providers.standard.operators.python import PythonOperator
 from airflow.providers.standard.triggers.file import FileDeleteTrigger
@@ -46,7 +47,7 @@ from airflow.sdk.definitions.asset import Asset, AssetAlias, AssetAliasEvent, As
 from airflow.sdk.definitions.param import Param
 from airflow.sdk.execution_time.context import OutletEventAccessor, OutletEventAccessors
 from airflow.serialization.enums import DagAttributeTypes as DAT, Encoding
-from airflow.serialization.serialized_objects import BaseSerialization
+from airflow.serialization.serialized_objects import BaseSerialization, SerializedDAG
 from airflow.triggers.base import BaseTrigger
 from airflow.utils import timezone
 from airflow.utils.db import LazySelectSequence
@@ -419,3 +420,15 @@ def test_roundtrip_exceptions():
     assert deser.method_name == "meth_name"
     assert deser.kwargs == {"have": "pie"}
     assert deser.timeout == timedelta(seconds=30)
+
+
+@pytest.mark.db_test
+def test_serialized_dag_to_dict_and_from_dict_gives_same_result_in_tasks(dag_maker):
+    with dag_maker() as dag:
+        BashOperator(task_id="task1", bash_command="echo 1")
+
+    dag1 = SerializedDAG.to_dict(dag)
+    from_dict = SerializedDAG.from_dict(dag1)
+    dag2 = SerializedDAG.to_dict(from_dict)
+
+    assert dag2["dag"]["tasks"][0]["__var"].keys() == dag1["dag"]["tasks"][0]["__var"].keys()

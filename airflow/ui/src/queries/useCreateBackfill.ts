@@ -46,11 +46,7 @@ export const useCreateBackfill = ({ onSuccessConfirm }: { onSuccessConfirm: () =
   const { isPending, mutate } = useBackfillServiceCreateBackfill({ onError, onSuccess });
 
   const createBackfill = (data: CreateBackfillData) => {
-    const dataIntervalStart = new Date(data.requestBody.from_date);
-    const dataIntervalEnd = new Date(data.requestBody.to_date);
-    const dagId = data.requestBody.dag_id;
-
-    if (!Boolean(dataIntervalStart) || !Boolean(dataIntervalEnd)) {
+    if (data.requestBody.from_date === "" || data.requestBody.to_date === "") {
       setDateValidationError({
         body: {
           detail: "Both Data Interval Start Date and End Date must be provided.",
@@ -59,6 +55,10 @@ export const useCreateBackfill = ({ onSuccessConfirm }: { onSuccessConfirm: () =
 
       return;
     }
+
+    const dataIntervalStart = new Date(data.requestBody.from_date);
+    const dataIntervalEnd = new Date(data.requestBody.to_date);
+    const dagId = data.requestBody.dag_id;
 
     if (dataIntervalStart > dataIntervalEnd) {
       setDateValidationError({

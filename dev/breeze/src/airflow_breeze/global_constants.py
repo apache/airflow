@@ -193,7 +193,7 @@ if MYSQL_INNOVATION_RELEASE:
 ALLOWED_INSTALL_MYSQL_CLIENT_TYPES = ["mariadb", "mysql"]
 
 PIP_VERSION = "25.0.1"
-UV_VERSION = "0.6.5"
+UV_VERSION = "0.6.8"
 
 DEFAULT_UV_HTTP_TIMEOUT = 300
 DEFAULT_WSL2_HTTP_TIMEOUT = 900
@@ -228,7 +228,6 @@ class SelectiveCoreTestType(SelectiveTestType):
     CORE = "Core"
     SERIALIZATION = "Serialization"
     OTHER = "Other"
-    OPERATORS = "Operators"
 
 
 class SelectiveProvidersTestType(SelectiveTestType):
@@ -435,6 +434,7 @@ COMMITTERS = [
     "ashb",
     "bbovenzi",
     "bolkedebruin",
+    "bugraoz93",
     "criccomini",
     "dimberman",
     "dirrao",
@@ -447,6 +447,7 @@ COMMITTERS = [
     "gopidesupavan",
     "houqp",
     "hussein-awala",
+    "jason810496",
     "jedcunningham",
     "jgao54",
     "jghoman",
@@ -470,12 +471,14 @@ COMMITTERS = [
     "pingzh",
     "potiuk",
     "r39132",
+    "rawwar",
     "romsharon98",
     "ryanahamilton",
     "ryw",
     "saguziel",
     "sekikn",
     "shahar1",
+    "shubhamraj-git",
     "tirkarthi",
     "turbaszek",
     "uranusjr",
