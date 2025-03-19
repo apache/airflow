@@ -164,7 +164,6 @@ TEST_TYPE_CORE_MAP_TO_PYTEST_ARGS: dict[str, list[str]] = {
         "tests/utils",
     ],
     "Integration": ["tests/integration"],
-    "Operators": ["tests/operators"],
     "Serialization": [
         "tests/serialization",
     ],

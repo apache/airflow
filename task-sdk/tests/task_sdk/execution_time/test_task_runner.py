@@ -50,18 +50,23 @@ from airflow.sdk.api.datamodels._generated import (
     AssetEventResponse,
     AssetProfile,
     AssetResponse,
+    DagRunState,
     TaskInstance,
     TerminalTIState,
 )
 from airflow.sdk.definitions.asset import Asset, AssetAlias, Dataset, Model
 from airflow.sdk.definitions.param import DagParam
 from airflow.sdk.definitions.variable import Variable
+from airflow.sdk.exceptions import ErrorType
 from airflow.sdk.execution_time.comms import (
     AssetEventsResult,
     BundleInfo,
     ConnectionResult,
+    DagRunStateResult,
     DeferTask,
+    ErrorResponse,
     GetConnection,
+    GetDagRunState,
     GetVariable,
     GetXCom,
     OKResponse,
@@ -73,6 +78,7 @@ from airflow.sdk.execution_time.comms import (
     StartupDetails,
     SucceedTask,
     TaskState,
+    TriggerDagRun,
     VariableResult,
     XComResult,
 )
@@ -1184,30 +1190,52 @@ class TestRuntimeTaskInstance:
         assert var_from_context == Variable(key="test_key", value=expected_value)
 
     @pytest.mark.parametrize(
-        "task_ids",
+        "map_indexes",
         [
-            "push_task",
-            ["push_task1", "push_task2"],
-            {"push_task1", "push_task2"},
-            None,
-            NOTSET,
+            pytest.param(-1, id="not_mapped_index"),
+            pytest.param(1, id="single_map_index"),
+            pytest.param([0, 1], id="multiple_map_indexes"),
+            pytest.param((0, 1), id="any_iterable_multi_indexes"),
+            pytest.param(None, id="index_none"),
+            pytest.param(NOTSET, id="index_not_set"),
         ],
     )
-    def test_xcom_pull(self, create_runtime_ti, mock_supervisor_comms, spy_agency, task_ids):
-        """Test that a task pulls the expected XCom value if it exists."""
+    @pytest.mark.parametrize(
+        "task_ids",
+        [
+            pytest.param("push_task", id="single_task"),
+            pytest.param(["push_task1", "push_task2"], id="tid_multiple_tasks"),
+            pytest.param({"push_task1", "push_task2"}, id="tid_any_iterable"),
+            pytest.param(None, id="tid_none"),
+            pytest.param(NOTSET, id="tid_not_set"),
+        ],
+    )
+    def test_xcom_pull(
+        self,
+        create_runtime_ti,
+        mock_supervisor_comms,
+        spy_agency,
+        task_ids,
+        map_indexes,
+    ):
+        """
+        Test that a task makes an expected call to the Supervisor to pull XCom values
+        based on various task_ids and map_indexes configurations.
+        """
+        map_indexes_kwarg = {} if map_indexes is NOTSET else {"map_indexes": map_indexes}
+        task_ids_kwarg = {} if task_ids is NOTSET else {"task_ids": task_ids}
 
         class CustomOperator(BaseOperator):
             def execute(self, context):
-                if isinstance(task_ids, ArgNotSet):
-                    value = context["ti"].xcom_pull(key="key")
-                else:
-                    value = context["ti"].xcom_pull(task_ids=task_ids, key="key")
+                value = context["ti"].xcom_pull(key="key", **task_ids_kwarg, **map_indexes_kwarg)
                 print(f"Pulled XCom Value: {value}")
 
         test_task_id = "pull_task"
         task = CustomOperator(task_id=test_task_id)
 
-        runtime_ti = create_runtime_ti(task=task)
+        # In case of the specific map_index or None we should check it is passed to TI
+        extra_for_ti = {"map_index": map_indexes} if map_indexes in (1, None) else {}
+        runtime_ti = create_runtime_ti(task=task, **extra_for_ti)
 
         mock_supervisor_comms.get_message.return_value = XComResult(key="key", value='"value"')
 
@@ -1216,20 +1244,26 @@ class TestRuntimeTaskInstance:
         if not isinstance(task_ids, Iterable) or isinstance(task_ids, str):
             task_ids = [task_ids]
 
+        if not isinstance(map_indexes, Iterable):
+            map_indexes = [map_indexes]
+
         for task_id in task_ids:
             # Without task_ids (or None) expected behavior is to pull with calling task_id
             if task_id is None or isinstance(task_id, ArgNotSet):
                 task_id = test_task_id
-            mock_supervisor_comms.send_request.assert_any_call(
-                log=mock.ANY,
-                msg=GetXCom(
-                    key="key",
-                    dag_id="test_dag",
-                    run_id="test_run",
-                    task_id=task_id,
-                    map_index=-1,
-                ),
-            )
+            for map_index in map_indexes:
+                if map_index == NOTSET:
+                    map_index = -1
+                mock_supervisor_comms.send_request.assert_any_call(
+                    log=mock.ANY,
+                    msg=GetXCom(
+                        key="key",
+                        dag_id="test_dag",
+                        run_id="test_run",
+                        task_id=task_id,
+                        map_index=map_index,
+                    ),
+                )
 
     def test_get_param_from_context(
         self, mocked_parse, make_ti_context, mock_supervisor_comms, create_runtime_ti
@@ -1862,3 +1896,182 @@ class TestTaskRunnerCallsListeners:
 
         assert listener.state == [TaskInstanceState.RUNNING, TaskInstanceState.FAILED]
         assert listener.error == error
+
+
+class TestTriggerDagRunOperator:
+    """Tests to verify various aspects of TriggerDagRunOperator"""
+
+    def test_handle_trigger_dag_run(self, create_runtime_ti, mock_supervisor_comms):
+        """Test that TriggerDagRunOperator (with default args) sends the correct message to the Supervisor"""
+        from airflow.providers.standard.operators.trigger_dagrun import TriggerDagRunOperator
+
+        task = TriggerDagRunOperator(
+            task_id="test_task",
+            trigger_dag_id="test_dag",
+            trigger_run_id="test_run_id",
+        )
+        ti = create_runtime_ti(dag_id="test_handle_trigger_dag_run", run_id="test_run", task=task)
+
+        log = mock.MagicMock()
+        mock_supervisor_comms.get_message.return_value = OKResponse(ok=True)
+        state, msg, _ = run(ti, log=log)
+
+        assert state == TaskInstanceState.SUCCESS
+        assert msg.state == TaskInstanceState.SUCCESS
+
+        expected_calls = [
+            mock.call.send_request(
+                msg=TriggerDagRun(
+                    dag_id="test_dag",
+                    run_id="test_run_id",
+                    reset_dag_run=False,
+                ),
+                log=mock.ANY,
+            ),
+            mock.call.get_message(),
+            mock.call.send_request(
+                msg=SetXCom(
+                    key="trigger_run_id",
+                    value="test_run_id",
+                    dag_id="test_handle_trigger_dag_run",
+                    task_id="test_task",
+                    run_id="test_run",
+                    map_index=-1,
+                ),
+                log=mock.ANY,
+            ),
+        ]
+        mock_supervisor_comms.assert_has_calls(expected_calls)
+
+    @pytest.mark.parametrize(
+        ["skip_when_already_exists", "expected_state"],
+        [
+            (True, TaskInstanceState.SKIPPED),
+            (False, TaskInstanceState.FAILED),
+        ],
+    )
+    def test_handle_trigger_dag_run_conflict(
+        self, skip_when_already_exists, expected_state, create_runtime_ti, mock_supervisor_comms
+    ):
+        """Test that TriggerDagRunOperator (when dagrun already exists) sends the correct message to the Supervisor"""
+        from airflow.providers.standard.operators.trigger_dagrun import TriggerDagRunOperator
+
+        task = TriggerDagRunOperator(
+            task_id="test_task",
+            trigger_dag_id="test_dag",
+            trigger_run_id="test_run_id",
+            skip_when_already_exists=skip_when_already_exists,
+        )
+        ti = create_runtime_ti(dag_id="test_handle_trigger_dag_run_conflict", run_id="test_run", task=task)
+
+        log = mock.MagicMock()
+        mock_supervisor_comms.get_message.return_value = ErrorResponse(error=ErrorType.DAGRUN_ALREADY_EXISTS)
+        state, msg, _ = run(ti, log=log)
+
+        assert state == expected_state
+        assert msg.state == expected_state
+
+        expected_calls = [
+            mock.call.send_request(
+                msg=TriggerDagRun(
+                    dag_id="test_dag",
+                    run_id="test_run_id",
+                    reset_dag_run=False,
+                ),
+                log=mock.ANY,
+            ),
+            mock.call.get_message(),
+        ]
+        mock_supervisor_comms.assert_has_calls(expected_calls)
+
+    @pytest.mark.parametrize(
+        ["allowed_states", "failed_states", "target_dr_state", "expected_task_state"],
+        [
+            (None, None, DagRunState.FAILED, TaskInstanceState.FAILED),
+            (None, None, DagRunState.SUCCESS, TaskInstanceState.SUCCESS),
+            ([DagRunState.FAILED], [], DagRunState.FAILED, DagRunState.SUCCESS),
+            ([DagRunState.FAILED], None, DagRunState.FAILED, DagRunState.FAILED),
+            ([DagRunState.SUCCESS], None, DagRunState.FAILED, DagRunState.FAILED),
+        ],
+    )
+    def test_handle_trigger_dag_run_wait_for_completion(
+        self,
+        allowed_states,
+        failed_states,
+        target_dr_state,
+        expected_task_state,
+        create_runtime_ti,
+        mock_supervisor_comms,
+    ):
+        """
+        Test that TriggerDagRunOperator (with wait_for_completion) sends the correct message to the Supervisor
+
+        It also polls the Supervisor for the DagRun state until it completes execution.
+        """
+        from airflow.providers.standard.operators.trigger_dagrun import TriggerDagRunOperator
+
+        task = TriggerDagRunOperator(
+            task_id="test_task",
+            trigger_dag_id="test_dag",
+            trigger_run_id="test_run_id",
+            poke_interval=5,
+            wait_for_completion=True,
+            allowed_states=allowed_states,
+            failed_states=failed_states,
+        )
+        ti = create_runtime_ti(
+            dag_id="test_handle_trigger_dag_run_wait_for_completion", run_id="test_run", task=task
+        )
+
+        log = mock.MagicMock()
+        mock_supervisor_comms.get_message.side_effect = [
+            # Successful Dag Run trigger
+            OKResponse(ok=True),
+            # Dag Run is still running
+            DagRunStateResult(state=DagRunState.RUNNING),
+            # Dag Run completes execution on the next poll
+            DagRunStateResult(state=target_dr_state),
+        ]
+        with mock.patch("time.sleep", return_value=None):
+            state, msg, _ = run(ti, log=log)
+
+        assert state == expected_task_state
+        assert msg.state == expected_task_state
+
+        expected_calls = [
+            mock.call.send_request(
+                msg=TriggerDagRun(
+                    dag_id="test_dag",
+                    run_id="test_run_id",
+                ),
+                log=mock.ANY,
+            ),
+            mock.call.get_message(),
+            mock.call.send_request(
+                msg=SetXCom(
+                    key="trigger_run_id",
+                    value="test_run_id",
+                    dag_id="test_handle_trigger_dag_run_wait_for_completion",
+                    task_id="test_task",
+                    run_id="test_run",
+                    map_index=-1,
+                ),
+                log=mock.ANY,
+            ),
+            mock.call.send_request(
+                msg=GetDagRunState(
+                    dag_id="test_dag",
+                    run_id="test_run_id",
+                ),
+                log=mock.ANY,
+            ),
+            mock.call.get_message(),
+            mock.call.send_request(
+                msg=GetDagRunState(
+                    dag_id="test_dag",
+                    run_id="test_run_id",
+                ),
+                log=mock.ANY,
+            ),
+        ]
+        mock_supervisor_comms.assert_has_calls(expected_calls)
