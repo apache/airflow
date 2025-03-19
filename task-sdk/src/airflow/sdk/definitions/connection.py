@@ -24,7 +24,7 @@ from typing import Any
 
 import attrs
 
-from airflow.exceptions import AirflowException, AirflowNotFoundException
+from airflow.exceptions import AirflowException
 
 log = logging.getLogger(__name__)
 
@@ -86,34 +86,6 @@ class Connection:
         from airflow.sdk.execution_time.context import _get_connection
 
         return _get_connection(conn_id)
-
-    @classmethod
-    def get_connection_from_secrets(cls, conn_id: str) -> Connection:
-        """
-        Get connection by conn_id by iterating over all Secret Backends.
-
-        :param conn_id: connection id
-        :return: connection
-        """
-        # TODO: check cache first
-        # enabled only if SecretCache.init() has been called first
-
-        # iterate over configured backends if not in cache (or expired)
-        from airflow.sdk.execution_time.supervisor import SECRETS_BACKEND
-
-        for secrets_backend in SECRETS_BACKEND:
-            try:
-                conn = secrets_backend.get_connection(conn_id=conn_id)
-                if conn:
-                    return conn
-            except Exception:
-                log.exception(
-                    "Unable to retrieve connection from secrets backend (%s). "
-                    "Checking subsequent secrets backend.",
-                    type(secrets_backend).__name__,
-                )
-
-        raise AirflowNotFoundException(f"The conn_id `{conn_id}` isn't defined")
 
     @property
     def extra_dejson(self) -> dict:

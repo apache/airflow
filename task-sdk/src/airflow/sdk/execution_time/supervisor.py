@@ -52,8 +52,6 @@ import psutil
 import structlog
 from pydantic import TypeAdapter
 
-from airflow.exceptions import AirflowNotFoundException
-from airflow.sdk import Connection, Variable
 from airflow.sdk.api.client import Client, ServerResponseError
 from airflow.sdk.api.datamodels._generated import (
     AssetResponse,
@@ -198,20 +196,6 @@ def _reopen_std_io_handles(child_stdin, child_stdout, child_stderr):
         binary = os.fdopen(fd, mode + "b")
         handle = io.TextIOWrapper(binary, line_buffering=True)
         setattr(sys, handle_name, handle)
-
-
-def _convert_connection_to_response(conn: Connection) -> ConnectionResponse:
-    """Convert a sdk Connection object to ConnectionResponse."""
-    return ConnectionResponse(
-        conn_id=conn.conn_id,
-        conn_type=conn.conn_type,
-        host=conn.host,
-        schema_=conn.schema,
-        login=conn.login,
-        password=conn.password,
-        port=conn.port,
-        extra=conn.extra,
-    )
 
 
 def _get_last_chance_stderr() -> TextIO:
@@ -892,24 +876,14 @@ class ActivitySubprocess(WatchedSubprocess):
                 outlet_events=msg.outlet_events,
             )
         elif isinstance(msg, GetConnection):
-            try:
-                connection = Connection.get(msg.conn_id)
-                conn = _convert_connection_to_response(connection)
-            except AirflowNotFoundException:
-                # if none of the backend has the connection defined, use the API to check instead
-                conn = self.client.connections.get(msg.conn_id)
+            conn = self.client.connections.get(msg.conn_id)
             if isinstance(conn, ConnectionResponse):
                 conn_result = ConnectionResult.from_conn_response(conn)
                 resp = conn_result.model_dump_json(exclude_unset=True, by_alias=True).encode()
             else:
                 resp = conn.model_dump_json().encode()
         elif isinstance(msg, GetVariable):
-            try:
-                variable_value = Variable.get_variable_from_secrets(msg.key)
-                var = VariableResponse(key=msg.key, value=variable_value)
-            except AirflowNotFoundException:
-                # if none of the backend has the variable defined, use the API to check instead
-                var = self.client.variables.get(msg.key)
+            var = self.client.variables.get(msg.key)
             if isinstance(var, VariableResponse):
                 var_result = VariableResult.from_variable_response(var)
                 resp = var_result.model_dump_json(exclude_unset=True).encode()
