@@ -263,6 +263,7 @@ export class AssetService {
    * @param data.namePattern
    * @param data.uriPattern
    * @param data.dagIds
+   * @param data.onlyActive
    * @param data.orderBy
    * @returns AssetCollectionResponse Successful Response
    * @throws ApiError
@@ -277,6 +278,7 @@ export class AssetService {
         name_pattern: data.namePattern,
         uri_pattern: data.uriPattern,
         dag_ids: data.dagIds,
+        only_active: data.onlyActive,
         order_by: data.orderBy,
       },
       errors: {
