@@ -46,7 +46,6 @@ from airflow.providers.databricks.hooks.databricks import (
 )
 from airflow.providers.databricks.hooks.databricks_base import (
     AZURE_MANAGEMENT_ENDPOINT,
-    AZURE_METADATA_SERVICE_INSTANCE_URL,
     DEFAULT_DATABRICKS_SCOPE,
     OIDC_TOKEN_SERVICE_URL,
     TOKEN_REFRESH_LEAD_TIME,
@@ -1569,9 +1568,6 @@ class TestDatabricksHookAadTokenManagedIdentity:
     @mock.patch.object(azure.identity, "ManagedIdentityCredential")
     def test_submit_run(self, mock_azure_identity, mock_requests):
         mock_requests.codes.ok = 200
-        mock_requests.get.side_effect = [
-            create_successful_response_mock({"compute": {"azEnvironment": "AZUREPUBLICCLOUD"}}),
-        ]
         mock_requests.post.side_effect = [
             create_successful_response_mock({"run_id": "1"}),
         ]
@@ -1580,11 +1576,6 @@ class TestDatabricksHookAadTokenManagedIdentity:
         type(mock_requests.post.return_value).status_code = status_code_mock
         data = {"notebook_task": NOTEBOOK_TASK, "new_cluster": NEW_CLUSTER}
         run_id = self.hook.submit_run(data)
-
-        ad_call_args = mock_requests.method_calls[0]
-        assert ad_call_args[1][0] == AZURE_METADATA_SERVICE_INSTANCE_URL
-        assert ad_call_args[2]["params"]["api-version"] > "2018-02-01"
-        assert ad_call_args[2]["headers"]["Metadata"] == "true"
 
         assert run_id == "1"
         args = mock_requests.post.call_args
@@ -1962,23 +1953,12 @@ class TestDatabricksHookAsyncAadTokenManagedIdentity:
     @mock.patch("airflow.providers.databricks.hooks.databricks_base.aiohttp.ClientSession.get")
     @mock.patch("azure.identity.aio.ManagedIdentityCredential.get_token")
     async def test_get_run_state(self, mock_azure_identity, mock_get):
-        mock_get.return_value.__aenter__.return_value.json.side_effect = AsyncMock(
-            side_effect=[
-                {"compute": {"azEnvironment": "AZUREPUBLICCLOUD"}},
-                GET_RUN_RESPONSE,
-            ]
-        )
         mock_azure_identity.return_value = create_aad_token_for_resource()
 
         async with self.hook:
             run_state = await self.hook.a_get_run_state(RUN_ID)
 
         assert run_state == RunState(LIFE_CYCLE_STATE, RESULT_STATE, STATE_MESSAGE)
-
-        ad_call_args = mock_get.call_args_list[0]
-        assert ad_call_args[1]["url"] == AZURE_METADATA_SERVICE_INSTANCE_URL
-        assert ad_call_args[1]["params"]["api-version"] > "2018-02-01"
-        assert ad_call_args[1]["headers"]["Metadata"] == "true"
 
 
 def create_sp_token_for_resource() -> dict:

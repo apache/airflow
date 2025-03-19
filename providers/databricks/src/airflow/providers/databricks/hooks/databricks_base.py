@@ -56,10 +56,6 @@ from airflow.providers_manager import ProvidersManager
 if TYPE_CHECKING:
     from airflow.models import Connection
 
-# https://docs.microsoft.com/en-us/azure/active-directory/managed-identities-azure-resources/how-to-use-vm-token
-AZURE_METADATA_SERVICE_TOKEN_URL = "http://169.254.169.254/metadata/identity/oauth2/token"
-AZURE_METADATA_SERVICE_INSTANCE_URL = "http://169.254.169.254/metadata/instance"
-
 TOKEN_REFRESH_LEAD_TIME = 120
 AZURE_MANAGEMENT_ENDPOINT = "https://management.core.windows.net/"
 DEFAULT_DATABRICKS_SCOPE = "2ff814a6-3304-4ab8-85cb-cd0e6f879c1d"
@@ -511,44 +507,6 @@ class BaseDatabricksHook(BaseHook):
 
         return int(token[time_key]) > (int(time.time()) + TOKEN_REFRESH_LEAD_TIME)
 
-    @staticmethod
-    def _check_azure_metadata_service() -> None:
-        """
-        Check for Azure Metadata Service.
-
-        https://docs.microsoft.com/en-us/azure/virtual-machines/linux/instance-metadata-service
-        """
-        try:
-            jsn = requests.get(
-                AZURE_METADATA_SERVICE_INSTANCE_URL,
-                params={"api-version": "2021-02-01"},
-                headers={"Metadata": "true"},
-                timeout=2,
-            ).json()
-            if "compute" not in jsn or "azEnvironment" not in jsn["compute"]:
-                raise AirflowException(
-                    f"Was able to fetch some metadata, but it doesn't look like Azure Metadata: {jsn}"
-                )
-        except (requests_exceptions.RequestException, ValueError) as e:
-            raise AirflowException(f"Can't reach Azure Metadata Service: {e}")
-
-    async def _a_check_azure_metadata_service(self):
-        """Async version of `_check_azure_metadata_service()`."""
-        try:
-            async with self._session.get(
-                url=AZURE_METADATA_SERVICE_INSTANCE_URL,
-                params={"api-version": "2021-02-01"},
-                headers={"Metadata": "true"},
-                timeout=2,
-            ) as resp:
-                jsn = await resp.json()
-            if "compute" not in jsn or "azEnvironment" not in jsn["compute"]:
-                raise AirflowException(
-                    f"Was able to fetch some metadata, but it doesn't look like Azure Metadata: {jsn}"
-                )
-        except (requests_exceptions.RequestException, ValueError) as e:
-            raise AirflowException(f"Can't reach Azure Metadata Service: {e}")
-
     def _get_token(self, raise_error: bool = False) -> str | None:
         if "token" in self.databricks_conn.extra_dejson:
             self.log.info(
@@ -565,7 +523,6 @@ class BaseDatabricksHook(BaseHook):
             return self._get_aad_token(DEFAULT_DATABRICKS_SCOPE)
         elif self.databricks_conn.extra_dejson.get("use_azure_managed_identity", False):
             self.log.debug("Using AAD Token for managed identity.")
-            self._check_azure_metadata_service()
             return self._get_aad_token(DEFAULT_DATABRICKS_SCOPE)
         elif self.databricks_conn.extra_dejson.get(DEFAULT_AZURE_CREDENTIAL_SETTING_KEY, False):
             self.log.debug("Using default Azure Credential authentication.")
@@ -596,7 +553,6 @@ class BaseDatabricksHook(BaseHook):
             return await self._a_get_aad_token(DEFAULT_DATABRICKS_SCOPE)
         elif self.databricks_conn.extra_dejson.get("use_azure_managed_identity", False):
             self.log.debug("Using AAD Token for managed identity.")
-            await self._a_check_azure_metadata_service()
             return await self._a_get_aad_token(DEFAULT_DATABRICKS_SCOPE)
         elif self.databricks_conn.extra_dejson.get(DEFAULT_AZURE_CREDENTIAL_SETTING_KEY, False):
             self.log.debug("Using AzureDefaultCredential for authentication.")
