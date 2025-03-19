@@ -115,6 +115,8 @@ import type {
   DeleteDagResponse,
   GetDagDetailsData,
   GetDagDetailsResponse,
+  ReserializeDagsData,
+  ReserializeDagsResponse,
   GetDagTagsData,
   GetDagTagsResponse,
   GetEventLogData,
@@ -1894,6 +1896,32 @@ export class DagService {
         403: "Forbidden",
         404: "Not Found",
         422: "Validation Error",
+      },
+    });
+  }
+
+  /**
+   * Reserialize Dags
+   * Reserialize DAG bundles in Airflow.
+   *
+   * - **bundle_names**: List of specific bundles to reserialize (all if empty)
+   * @param data The data for the request.
+   * @param data.requestBody
+   * @returns unknown Successful Response
+   * @throws ApiError
+   */
+  public static reserializeDags(data: ReserializeDagsData): CancelablePromise<ReserializeDagsResponse> {
+    return __request(OpenAPI, {
+      method: "POST",
+      url: "/public/dags/manage/reserialize",
+      body: data.requestBody,
+      mediaType: "application/json",
+      errors: {
+        400: "Bad Request",
+        401: "Unauthorized",
+        403: "Forbidden",
+        404: "Not Found",
+        422: "Unprocessable Entity",
       },
     });
   }

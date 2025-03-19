@@ -35,6 +35,7 @@ from airflow.api_fastapi.core_api.base import BaseModel, StrictBaseModel
 from airflow.api_fastapi.core_api.datamodels.dag_tags import DagTagResponse
 from airflow.api_fastapi.core_api.datamodels.dag_versions import DagVersionResponse
 from airflow.configuration import conf
+from airflow.dag_processing.bundles.manager import DagBundlesManager
 from airflow.models.dag_version import DagVersion
 
 DAG_ALIAS_MAPPING: dict[str, str] = {
@@ -111,6 +112,32 @@ class DAGPatchBody(StrictBaseModel):
     """Dag Serializer for updatable bodies."""
 
     is_paused: bool
+
+
+class DagReserializePostBody(BaseModel):
+    """Dag Serializer for reserialzed bodies."""
+
+    bundle_names: list[str] | None
+
+    @field_validator("bundle_names", mode="before")
+    def validate_bundle_names(cls, value):
+        """Validate bundle names format and check for duplicates."""
+        manager = DagBundlesManager()
+        all_bundles = list(manager.get_all_dag_bundles())
+        all_bundle_names = {b.name for b in all_bundles}
+
+        if value is not None:
+            for name in value:
+                if name not in all_bundle_names:
+                    raise ValueError(f"Invalid bundle name: {name}")
+        return value
+
+
+class ReserializeResponse(BaseModel):
+    """DAG Reserialize serializer for responses."""
+
+    message: str
+    processed_bundles: list[str]
 
 
 class DAGCollectionResponse(BaseModel):

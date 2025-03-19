@@ -21,14 +21,19 @@ from unittest import mock
 
 import pendulum
 import pytest
+from fastapi import status
+from sqlalchemy import select  # from airflow.models import DagModel,
 
 from airflow.models.dag import DagModel, DagTag
 from airflow.models.dagrun import DagRun
+from airflow.models.serialized_dag import SerializedDagModel
 from airflow.providers.standard.operators.empty import EmptyOperator
 from airflow.utils.session import provide_session
 from airflow.utils.state import DagRunState, TaskInstanceState
 from airflow.utils.types import DagRunTriggeredByType, DagRunType
 
+from tests.models import TEST_DAGS_FOLDER
+from tests_common.test_utils.config import conf_vars
 from tests_common.test_utils.db import clear_db_dags, clear_db_runs, clear_db_serialized_dags
 from tests_common.test_utils.logs import check_last_log
 
@@ -592,3 +597,54 @@ class TestDeleteDAG(TestDagEndpoint):
     def test_delete_dag_should_response_403(self, unauthorized_test_client):
         response = unauthorized_test_client.delete(f"{API_PREFIX}/{DAG1_ID}")
         assert response.status_code == 403
+
+
+class TestDagsReserializeAPI:
+    test_bundles_config = {
+        "bundle1": TEST_DAGS_FOLDER / "test_example_bash_operator.py",
+        "bundle2": TEST_DAGS_FOLDER / "test_sensor.py",
+        "bundle3": TEST_DAGS_FOLDER / "test_dag_with_no_tags.py",
+    }
+    BASE_URL = f"{API_PREFIX}/manage/reserialize"
+
+    @pytest.fixture(autouse=True)
+    def setup_and_teardown(self, session, configure_dag_bundles):
+        """Setup and teardown for each test"""
+        with configure_dag_bundles(self.test_bundles_config):
+            yield
+        clear_db_dags()
+
+    # @pytest.mark.parametrize("load_examples", [False])
+    @conf_vars({("core", "load_examples"): "False"})
+    def test_reserialize_all_bundles(self, test_client, session):
+        """Test reserializing all bundles"""
+        # with configure_dag_bundles(self.test_bundles_config):
+        response = test_client.post(self.BASE_URL, json={})
+        assert response.status_code == status.HTTP_200_OK
+
+        result = session.execute(select(SerializedDagModel.dag_id))
+        serialized_dag_ids = set(result.scalars())
+        assert serialized_dag_ids == {"test_example_bash_operator", "test_dag_with_no_tags", "test_sensor"}
+
+        result = session.execute(select(DagModel).filter(DagModel.dag_id == "test_example_bash_operator"))
+        example_bash_op = result.scalar()
+        assert example_bash_op.relative_fileloc == "."
+        assert example_bash_op.fileloc == str(TEST_DAGS_FOLDER / "test_example_bash_operator.py")
+
+    @conf_vars({("core", "load_examples"): "False"})
+    @pytest.mark.parametrize(
+        "bundles, expected_dags",
+        [
+            (["bundle1"], {"test_example_bash_operator"}),
+            (["bundle1", "bundle2"], {"test_example_bash_operator", "test_sensor"}),
+            (["invalid_bundle"], set()),  # Expect failure
+        ],
+    )
+    def test_reserialize_bundles(self, test_client, session, bundles, expected_dags):
+        response = test_client.post(self.BASE_URL, json={"bundle_names": bundles})
+        expected_status = status.HTTP_200_OK if expected_dags else status.HTTP_422_UNPROCESSABLE_ENTITY
+        assert response.status_code == expected_status
+
+        if expected_dags:
+            result = session.execute(select(SerializedDagModel.dag_id))
+            assert set(result.scalars()) == expected_dags

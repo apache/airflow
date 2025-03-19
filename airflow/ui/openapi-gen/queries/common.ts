@@ -1820,6 +1820,7 @@ export type DagRunServiceTriggerDagRunMutationResult = Awaited<
 export type DagRunServiceGetListDagRunsBatchMutationResult = Awaited<
   ReturnType<typeof DagRunService.getListDagRunsBatch>
 >;
+export type DagServiceReserializeDagsMutationResult = Awaited<ReturnType<typeof DagService.reserializeDags>>;
 export type TaskInstanceServiceGetTaskInstancesBatchMutationResult = Awaited<
   ReturnType<typeof TaskInstanceService.getTaskInstancesBatch>
 >;

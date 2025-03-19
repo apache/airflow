@@ -804,6 +804,13 @@ export type DagProcessorInfoResponse = {
 };
 
 /**
+ * Dag Serializer for reserialzed bodies.
+ */
+export type DagReserializePostBody = {
+  bundle_names: Array<string> | null;
+};
+
+/**
  * DAGRun serializer for asset responses.
  */
 export type DagRunAssetReference = {
@@ -2125,6 +2132,12 @@ export type GetDagDetailsData = {
 };
 
 export type GetDagDetailsResponse = DAGDetailsResponse;
+
+export type ReserializeDagsData = {
+  requestBody: DagReserializePostBody;
+};
+
+export type ReserializeDagsResponse = unknown;
 
 export type GetDagTagsData = {
   limit?: number;
@@ -4088,6 +4101,37 @@ export type $OpenApiTs = {
          * Validation Error
          */
         422: HTTPValidationError;
+      };
+    };
+  };
+  "/public/dags/manage/reserialize": {
+    post: {
+      req: ReserializeDagsData;
+      res: {
+        /**
+         * Successful Response
+         */
+        200: unknown;
+        /**
+         * Bad Request
+         */
+        400: HTTPExceptionResponse;
+        /**
+         * Unauthorized
+         */
+        401: HTTPExceptionResponse;
+        /**
+         * Forbidden
+         */
+        403: HTTPExceptionResponse;
+        /**
+         * Not Found
+         */
+        404: HTTPExceptionResponse;
+        /**
+         * Unprocessable Entity
+         */
+        422: HTTPExceptionResponse;
       };
     };
   };
