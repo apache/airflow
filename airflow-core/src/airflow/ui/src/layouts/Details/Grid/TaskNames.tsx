@@ -49,14 +49,21 @@ export const TaskNames = ({ nodes }: Props) => {
       {node.isGroup ? (
         <Flex>
           <TaskName
-            display="inline"
+            display="-webkit-box"
             fontSize="sm"
             fontWeight="normal"
             isGroup={true}
             isMapped={Boolean(node.is_mapped)}
             label={node.label}
+            overflow="hidden"
             paddingLeft={node.depth * 3 + 2}
             setupTeardownType={node.setup_teardown_type}
+            style={{
+              WebkitBoxOrient: "vertical",
+              WebkitLineClamp: 1,
+            }}
+            title={node.label}
+            wordBreak="break-word"
           />
           <chakra.button
             aria-label="Toggle group"
@@ -86,12 +93,20 @@ export const TaskNames = ({ nodes }: Props) => {
             }}
           >
             <TaskName
+              display="-webkit-box"
               fontSize="sm"
               fontWeight="normal"
               isMapped={Boolean(node.is_mapped)}
               label={node.label}
+              overflow="hidden"
               paddingLeft={node.depth * 3 + 2}
               setupTeardownType={node.setup_teardown_type}
+              style={{
+                WebkitBoxOrient: "vertical",
+                WebkitLineClamp: 1,
+              }}
+              title={node.label}
+              wordBreak="break-word"
             />
           </RouterLink>
         </Link>

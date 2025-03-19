@@ -73,13 +73,21 @@ export const Grid = ({ limit }: Props) => {
     [structure?.nodes, openGroupIds],
   );
 
+  const maxTaskNameLength = Math.max.apply(
+    undefined,
+    flatNodes.map((node) => node.label.length),
+  );
+
+  const extraPadding = maxTaskNameLength < 20 ? 30 : 0;
+  const taskNameWidth = maxTaskNameLength > 30 ? "150px" : `${maxTaskNameLength * 8 + extraPadding}px`;
+
   return (
-    <Flex justifyContent="flex-end" mr={3} position="relative" pt={50} width="100%">
-      <Box position="absolute" top="150px" width="100%">
+    <Flex justifyContent="flex-start" mr={3} position="relative" pt={50} width="100%">
+      <Box position="absolute" top="150px" width={taskNameWidth}>
         <TaskNames nodes={flatNodes} />
       </Box>
       <Box>
-        <Flex position="relative">
+        <Flex ml={taskNameWidth} position="absolute">
           <DurationAxis top="100px" />
           <DurationAxis top="50px" />
           <DurationAxis top="4px" />
