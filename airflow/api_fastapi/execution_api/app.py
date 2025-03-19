@@ -146,7 +146,7 @@ def get_extra_schemas() -> dict[str, dict]:
 
 
 @attrs.define()
-class InProcessExecuctionAPI:
+class InProcessExecutionAPI:
     """
     A helper class to make it possible to run the ExecutionAPI "in-process".
 
