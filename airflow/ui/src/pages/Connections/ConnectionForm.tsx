@@ -180,8 +180,15 @@ const ConnectionForm = ({ connectionTypeMeta, connectionTypes, onClose }: AddCon
 
         {selectedConnType ? (
           <>
-            <Accordion.Root collapsible mb={4} mt={4} size="lg" variant="enclosed">
-              <Accordion.Item key="standardField" value="standardField">
+            <Accordion.Root
+              collapsible
+              defaultValue={["standardFields"]}
+              mb={4}
+              mt={4}
+              size="lg"
+              variant="enclosed"
+            >
+              <Accordion.Item key="standardFields" value="standardFields">
                 <Accordion.ItemTrigger cursor="button">Standard Fields</Accordion.ItemTrigger>
                 <Accordion.ItemContent>
                   <Stack pb={3} pl={3} pr={3}>
@@ -280,6 +287,7 @@ const ConnectionForm = ({ connectionTypeMeta, connectionTypes, onClose }: AddCon
         </HStack>
       </Box>
     </>
+    // eslint-disable-next-line max-lines
   );
 };
 
