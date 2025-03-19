@@ -1681,6 +1681,7 @@ export type GetAssetsData = {
   limit?: number;
   namePattern?: string | null;
   offset?: number;
+  onlyActive?: boolean;
   orderBy?: string;
   uriPattern?: string | null;
 };
