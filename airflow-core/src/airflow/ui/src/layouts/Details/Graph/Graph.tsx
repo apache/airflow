@@ -26,7 +26,7 @@ import {
   ControlButton,
 } from "@xyflow/react";
 import "@xyflow/react/dist/style.css";
-import { FiRotateCw } from "react-icons/fi";
+import { MdRotateRight } from "react-icons/md";
 import { useParams } from "react-router-dom";
 import { useLocalStorage } from "usehooks-ts";
 
@@ -103,7 +103,7 @@ export const Graph = () => {
   const refetchInterval = useAutoRefresh({ dagId });
 
   const [dependencies] = useLocalStorage<"all" | "immediate" | "tasks">(`dependencies-${dagId}`, "immediate");
-  const [direction, setDirection] = useLocalStorage<Direction>("direction", "RIGHT");
+  const [direction, setDirection] = useLocalStorage<Direction>(`direction-${dagId}`, "RIGHT");
 
   const selectedColor = colorMode === "dark" ? selectedDarkColor : selectedLightColor;
 
@@ -130,7 +130,6 @@ export const Graph = () => {
   const dagDepNodes = dependencies === "all" ? dagDependencies.nodes : [];
 
   const { data } = useGraphLayout({
-    dagId,
     direction,
     edges: [...graphData.edges, ...dagDepEdges],
     nodes: dagDepNodes.length
@@ -208,11 +207,13 @@ export const Graph = () => {
       <Background />
       <Controls showInteractive={false}>
         <ControlButton
+          aria-label="Rotate clockwise"
           onClick={() =>
             setDirection(Directions[(1 + Directions.indexOf(direction)) % Directions.length] ?? direction)
           }
+          title="Rotate clockwise"
         >
-          <FiRotateCw />
+          <MdRotateRight />
         </ControlButton>
       </Controls>
       <MiniMap
