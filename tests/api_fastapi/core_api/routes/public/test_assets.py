@@ -229,7 +229,7 @@ class TestGetAssets(TestAssets):
         assets = session.query(AssetModel).all()
         assert len(assets) == 2
 
-        response = test_client.get("/v2/assets")
+        response = test_client.get("/api/v2/assets")
         assert response.status_code == 200
         response_data = response.json()
         tz_datetime_format = from_datetime_to_zulu_without_ms(DEFAULT_DATE)
@@ -264,15 +264,15 @@ class TestGetAssets(TestAssets):
         }
 
     def test_should_respond_401(self, unauthenticated_test_client):
-        response = unauthenticated_test_client.get("/v2/assets")
+        response = unauthenticated_test_client.get("/api/v2/assets")
         assert response.status_code == 401
 
     def test_should_respond_403(self, unauthorized_test_client):
-        response = unauthorized_test_client.get("/v2/assets")
+        response = unauthorized_test_client.get("/api/v2/assets")
         assert response.status_code == 403
 
     def test_order_by_raises_400_for_invalid_attr(self, test_client, session):
-        response = test_client.get("/v2/assets?order_by=fake")
+        response = test_client.get("/api/v2/assets?order_by=fake")
 
         assert response.status_code == 400
         msg = "Ordering with 'fake' is disallowed or the attribute does not exist on the model"
@@ -309,7 +309,7 @@ class TestGetAssets(TestAssets):
         for a in assets:
             self.create_provided_asset(asset=a)
 
-        response = test_client.get("/v2/assets", params=params)
+        response = test_client.get("/api/v2/assets", params=params)
         assert response.status_code == 200
         asset_urls = {asset["uri"] for asset in response.json()["assets"]}
         assert expected_assets == asset_urls
@@ -345,7 +345,7 @@ class TestGetAssets(TestAssets):
         for a in assets:
             self.create_provided_asset(asset=a)
 
-        response = test_client.get("/v2/assets", params=params)
+        response = test_client.get("/api/v2/assets", params=params)
         assert response.status_code == 200
         asset_urls = {asset["uri"] for asset in response.json()["assets"]}
         assert expected_assets == asset_urls
@@ -367,7 +367,7 @@ class TestGetAssets(TestAssets):
         session.add_all([asset1, asset2, asset3, dag1, dag2, dag3, dag_ref1, dag_ref2, task_ref1])
         session.commit()
         response = test_client.get(
-            f"/v2/assets?dag_ids={dag_ids}",
+            f"/api/v2/assets?dag_ids={dag_ids}",
         )
         assert response.status_code == 200
         response_data = response.json()
@@ -395,7 +395,7 @@ class TestGetAssets(TestAssets):
         session.add_all([asset1, asset2, asset3, dag1, dag2, dag3, dag_ref1, dag_ref2, task_ref1])
         session.commit()
         response = test_client.get(
-            f"/v2/assets?dag_ids={dag_ids}&uri_pattern={uri_pattern}",
+            f"/api/v2/assets?dag_ids={dag_ids}&uri_pattern={uri_pattern}",
         )
         assert response.status_code == 200
         response_data = response.json()
@@ -407,13 +407,13 @@ class TestGetAssetsEndpointPagination(TestAssets):
         "url, expected_asset_uris",
         [
             # Limit test data
-            ("/v2/assets?limit=1", ["s3://bucket/key/1"]),
-            ("/v2/assets?limit=100", [f"s3://bucket/key/{i}" for i in range(1, 101)]),
+            ("/api/v2/assets?limit=1", ["s3://bucket/key/1"]),
+            ("/api/v2/assets?limit=100", [f"s3://bucket/key/{i}" for i in range(1, 101)]),
             # Offset test data
-            ("/v2/assets?offset=1", [f"s3://bucket/key/{i}" for i in range(2, 102)]),
-            ("/v2/assets?offset=3", [f"s3://bucket/key/{i}" for i in range(4, 104)]),
+            ("/api/v2/assets?offset=1", [f"s3://bucket/key/{i}" for i in range(2, 102)]),
+            ("/api/v2/assets?offset=3", [f"s3://bucket/key/{i}" for i in range(4, 104)]),
             # Limit and offset test data
-            ("/v2/assets?offset=3&limit=3", [f"s3://bucket/key/{i}" for i in [4, 5, 6]]),
+            ("/api/v2/assets?offset=3&limit=3", [f"s3://bucket/key/{i}" for i in [4, 5, 6]]),
         ],
     )
     def test_limit_and_offset(self, test_client, url, expected_asset_uris):
@@ -428,7 +428,7 @@ class TestGetAssetsEndpointPagination(TestAssets):
     def test_should_respect_page_size_limit_default(self, test_client):
         self.create_assets(num=110)
 
-        response = test_client.get("/v2/assets")
+        response = test_client.get("/api/v2/assets")
 
         assert response.status_code == 200
         assert len(response.json()["assets"]) == 100
@@ -459,7 +459,7 @@ class TestGetAssetAliases(TestAssetAliases):
         asset_aliases = session.query(AssetAliasModel).all()
         assert len(asset_aliases) == 2
 
-        response = test_client.get("/v2/assets/aliases")
+        response = test_client.get("/api/v2/assets/aliases")
         assert response.status_code == 200
         response_data = response.json()
         assert response_data == {
@@ -471,7 +471,7 @@ class TestGetAssetAliases(TestAssetAliases):
         }
 
     def test_order_by_raises_400_for_invalid_attr(self, test_client, session):
-        response = test_client.get("/v2/assets/aliases?order_by=fake")
+        response = test_client.get("/api/v2/assets/aliases?order_by=fake")
 
         assert response.status_code == 400
         msg = "Ordering with 'fake' is disallowed or the attribute does not exist on the model"
@@ -497,7 +497,7 @@ class TestGetAssetAliases(TestAssetAliases):
         for a in asset_aliases:
             self.create_provided_asset_alias(a)
 
-        response = test_client.get("/v2/assets/aliases", params=params)
+        response = test_client.get("/api/v2/assets/aliases", params=params)
         assert response.status_code == 200
         alias_names = {asset_alias["name"] for asset_alias in response.json()["asset_aliases"]}
         assert expected_asset_aliases == alias_names
@@ -508,13 +508,13 @@ class TestGetAssetAliasesEndpointPagination(TestAssetAliases):
         "url, expected_asset_aliases",
         [
             # Limit test data
-            ("/v2/assets/aliases?limit=1", ["simple1"]),
-            ("/v2/assets/aliases?limit=100", [f"simple{i}" for i in range(1, 101)]),
+            ("/api/v2/assets/aliases?limit=1", ["simple1"]),
+            ("/api/v2/assets/aliases?limit=100", [f"simple{i}" for i in range(1, 101)]),
             # Offset test data
-            ("/v2/assets/aliases?offset=1", [f"simple{i}" for i in range(2, 102)]),
-            ("/v2/assets/aliases?offset=3", [f"simple{i}" for i in range(4, 104)]),
+            ("/api/v2/assets/aliases?offset=1", [f"simple{i}" for i in range(2, 102)]),
+            ("/api/v2/assets/aliases?offset=3", [f"simple{i}" for i in range(4, 104)]),
             # Limit and offset test data
-            ("/v2/assets/aliases?offset=3&limit=3", ["simple4", "simple5", "simple6"]),
+            ("/api/v2/assets/aliases?offset=3&limit=3", ["simple4", "simple5", "simple6"]),
         ],
     )
     def test_limit_and_offset(self, test_client, url, expected_asset_aliases):
@@ -528,7 +528,7 @@ class TestGetAssetAliasesEndpointPagination(TestAssetAliases):
 
     def test_should_respect_page_size_limit_default(self, test_client):
         self.create_asset_aliases(num=110)
-        response = test_client.get("/v2/assets/aliases")
+        response = test_client.get("/api/v2/assets/aliases")
         assert response.status_code == 200
         assert len(response.json()["asset_aliases"]) == 100
 
@@ -541,7 +541,7 @@ class TestGetAssetEvents(TestAssets):
         self.create_asset_dag_run()
         assets = session.query(AssetEvent).all()
         assert len(assets) == 2
-        response = test_client.get("/v2/assets/events")
+        response = test_client.get("/api/v2/assets/events")
         assert response.status_code == 200
         response_data = response.json()
         assert response_data == {
@@ -603,11 +603,11 @@ class TestGetAssetEvents(TestAssets):
         }
 
     def test_should_respond_401(self, unauthenticated_test_client):
-        response = unauthenticated_test_client.get("/v2/assets/events")
+        response = unauthenticated_test_client.get("/api/v2/assets/events")
         assert response.status_code == 401
 
     def test_should_respond_403(self, unauthorized_test_client):
-        response = unauthorized_test_client.get("/v2/assets/events")
+        response = unauthorized_test_client.get("/api/v2/assets/events")
         assert response.status_code == 403
 
     @pytest.mark.parametrize(
@@ -626,7 +626,7 @@ class TestGetAssetEvents(TestAssets):
         self.create_assets_events()
         self.create_dag_run()
         self.create_asset_dag_run()
-        response = test_client.get("/v2/assets/events", params=params)
+        response = test_client.get("/api/v2/assets/events", params=params)
         assert response.status_code == 200
         assert response.json()["total_entries"] == total_entries
 
@@ -675,7 +675,7 @@ class TestGetAssetEvents(TestAssets):
         self.create_asset_dag_run()
 
         # Test with both timestamp_gte and timestamp_lte filters
-        response = test_client.get("/v2/assets/events", params=params)
+        response = test_client.get("/api/v2/assets/events", params=params)
 
         assert response.status_code == 200
         asset_event_ids = [asset_event["id"] for asset_event in response.json()["asset_events"]]
@@ -683,7 +683,7 @@ class TestGetAssetEvents(TestAssets):
         assert asset_event_ids == expected_ids
 
     def test_order_by_raises_400_for_invalid_attr(self, test_client, session):
-        response = test_client.get("/v2/assets/events?order_by=fake")
+        response = test_client.get("/api/v2/assets/events?order_by=fake")
 
         assert response.status_code == 400
         msg = "Ordering with 'fake' is disallowed or the attribute does not exist on the model"
@@ -706,7 +706,7 @@ class TestGetAssetEvents(TestAssets):
         self.create_dag_run(num=110)
         self.create_asset_dag_run(num=110)
 
-        response = test_client.get("/v2/assets/events", params=params)
+        response = test_client.get("/api/v2/assets/events", params=params)
 
         assert response.status_code == 200
         asset_ids = [asset["id"] for asset in response.json()["asset_events"]]
@@ -719,7 +719,7 @@ class TestGetAssetEvents(TestAssets):
         self.create_assets_events_with_sensitive_extra()
         self.create_dag_run()
         self.create_asset_dag_run()
-        response = test_client.get("/v2/assets/events")
+        response = test_client.get("/api/v2/assets/events")
         assert response.status_code == 200
         response_data = response.json()
         assert response_data == {
@@ -788,7 +788,7 @@ class TestGetAssetEndpoint(TestAssets):
         assert session.query(AssetModel).count() == 1
         tz_datetime_format = from_datetime_to_zulu_without_ms(DEFAULT_DATE)
         with assert_queries_count(6):
-            response = test_client.get("/v2/assets/1")
+            response = test_client.get("/api/v2/assets/1")
         assert response.status_code == 200
         assert response.json() == {
             "id": 1,
@@ -804,15 +804,15 @@ class TestGetAssetEndpoint(TestAssets):
         }
 
     def test_should_respond_401(self, unauthenticated_test_client):
-        response = unauthenticated_test_client.get("/v2/assets/1")
+        response = unauthenticated_test_client.get("/api/v2/assets/1")
         assert response.status_code == 401
 
     def test_should_respond_403(self, unauthorized_test_client):
-        response = unauthorized_test_client.get("/v2/assets/1")
+        response = unauthorized_test_client.get("/api/v2/assets/1")
         assert response.status_code == 403
 
     def test_should_respond_404(self, test_client):
-        response = test_client.get("/v2/assets/1")
+        response = test_client.get("/api/v2/assets/1")
         assert response.status_code == 404
         assert response.json()["detail"] == "The Asset with ID: `1` was not found"
 
@@ -821,7 +821,7 @@ class TestGetAssetEndpoint(TestAssets):
     def test_should_mask_sensitive_extra(self, test_client, session):
         self.create_assets_with_sensitive_extra()
         tz_datetime_format = from_datetime_to_zulu_without_ms(DEFAULT_DATE)
-        response = test_client.get("/v2/assets/1")
+        response = test_client.get("/api/v2/assets/1")
         assert response.status_code == 200
         assert response.json() == {
             "id": 1,
@@ -843,12 +843,12 @@ class TestGetAssetAliasEndpoint(TestAssetAliases):
         self.create_asset_aliases(num=1)
         assert session.query(AssetAliasModel).count() == 1
         with assert_queries_count(6):
-            response = test_client.get("/v2/assets/aliases/1")
+            response = test_client.get("/api/v2/assets/aliases/1")
         assert response.status_code == 200
         assert response.json() == {"id": 1, "name": "simple1", "group": "alias"}
 
     def test_should_respond_404(self, test_client):
-        response = test_client.get("/v2/assets/aliases/1")
+        response = test_client.get("/api/v2/assets/aliases/1")
         assert response.status_code == 404
         assert response.json()["detail"] == "The Asset Alias with ID: `1` was not found"
 
@@ -871,7 +871,7 @@ class TestGetDagAssetQueuedEvents(TestQueuedEventEndpoint):
         self._create_asset_dag_run_queues(dag_id, asset_id, session)
 
         response = test_client.get(
-            f"/v2/dags/{dag_id}/assets/queuedEvents",
+            f"/api/v2/dags/{dag_id}/assets/queuedEvents",
         )
 
         assert response.status_code == 200
@@ -887,18 +887,18 @@ class TestGetDagAssetQueuedEvents(TestQueuedEventEndpoint):
         }
 
     def test_should_respond_401(self, unauthenticated_test_client):
-        response = unauthenticated_test_client.get("/v2/dags/random/assets/queuedEvents")
+        response = unauthenticated_test_client.get("/api/v2/dags/random/assets/queuedEvents")
         assert response.status_code == 401
 
     def test_should_respond_403(self, unauthorized_test_client):
-        response = unauthorized_test_client.get("/v2/dags/random/assets/queuedEvents")
+        response = unauthorized_test_client.get("/api/v2/dags/random/assets/queuedEvents")
         assert response.status_code == 403
 
     def test_should_respond_404(self, test_client):
         dag_id = "not_exists"
 
         response = test_client.get(
-            f"/v2/dags/{dag_id}/assets/queuedEvents",
+            f"/api/v2/dags/{dag_id}/assets/queuedEvents",
         )
 
         assert response.status_code == 404
@@ -917,7 +917,7 @@ class TestDeleteDagDatasetQueuedEvents(TestQueuedEventEndpoint):
         assert len(adrqs) == 1
 
         response = test_client.delete(
-            f"/v2/dags/{dag_id}/assets/queuedEvents",
+            f"/api/v2/dags/{dag_id}/assets/queuedEvents",
         )
 
         assert response.status_code == 204
@@ -926,18 +926,18 @@ class TestDeleteDagDatasetQueuedEvents(TestQueuedEventEndpoint):
         check_last_log(session, dag_id=dag_id, event="delete_dag_asset_queued_events", logical_date=None)
 
     def test_should_respond_401(self, unauthenticated_test_client):
-        response = unauthenticated_test_client.delete("/v2/dags/random/assets/queuedEvents")
+        response = unauthenticated_test_client.delete("/api/v2/dags/random/assets/queuedEvents")
         assert response.status_code == 401
 
     def test_should_respond_403(self, unauthorized_test_client):
-        response = unauthorized_test_client.get("/v2/dags/random/assets/queuedEvents")
+        response = unauthorized_test_client.get("/api/v2/dags/random/assets/queuedEvents")
         assert response.status_code == 403
 
     def test_should_respond_404_invalid_dag(self, test_client):
         dag_id = "not_exists"
 
         response = test_client.delete(
-            f"/v2/dags/{dag_id}/assets/queuedEvents",
+            f"/api/v2/dags/{dag_id}/assets/queuedEvents",
         )
 
         assert response.status_code == 404
@@ -951,7 +951,7 @@ class TestDeleteDagDatasetQueuedEvents(TestQueuedEventEndpoint):
         assert len(adrqs) == 0
 
         response = test_client.delete(
-            f"/v2/dags/{dag_id}/assets/queuedEvents",
+            f"/api/v2/dags/{dag_id}/assets/queuedEvents",
         )
 
         assert response.status_code == 404
@@ -963,7 +963,7 @@ class TestPostAssetEvents(TestAssets):
     def test_should_respond_200(self, test_client, session):
         self.create_assets(session)
         event_payload = {"asset_id": 1, "extra": {"foo": "bar"}}
-        response = test_client.post("/v2/assets/events", json=event_payload)
+        response = test_client.post("/api/v2/assets/events", json=event_payload)
         assert response.status_code == 200
         assert response.json() == {
             "id": mock.ANY,
@@ -983,18 +983,20 @@ class TestPostAssetEvents(TestAssets):
 
     def test_should_respond_401(self, unauthenticated_test_client):
         response = unauthenticated_test_client.post(
-            "/v2/assets/events", json={"asset_uri": "s3://bucket/key/1"}
+            "/api/v2/assets/events", json={"asset_uri": "s3://bucket/key/1"}
         )
         assert response.status_code == 401
 
     def test_should_respond_403(self, unauthorized_test_client):
-        response = unauthorized_test_client.post("/v2/assets/events", json={"asset_uri": "s3://bucket/key/1"})
+        response = unauthorized_test_client.post(
+            "/api/v2/assets/events", json={"asset_uri": "s3://bucket/key/1"}
+        )
         assert response.status_code == 403
 
     def test_invalid_attr_not_allowed(self, test_client, session):
         self.create_assets(session)
         event_invalid_payload = {"asset_uri": "s3://bucket/key/1", "extra": {"foo": "bar"}, "fake": {}}
-        response = test_client.post("/v2/assets/events", json=event_invalid_payload)
+        response = test_client.post("/api/v2/assets/events", json=event_invalid_payload)
 
         assert response.status_code == 422
 
@@ -1003,7 +1005,7 @@ class TestPostAssetEvents(TestAssets):
     def test_should_mask_sensitive_extra(self, test_client, session):
         self.create_assets(session)
         event_payload = {"asset_id": 1, "extra": {"password": "bar"}}
-        response = test_client.post("/v2/assets/events", json=event_payload)
+        response = test_client.post("/api/v2/assets/events", json=event_payload)
         assert response.status_code == 200
         assert response.json() == {
             "id": mock.ANY,
@@ -1044,7 +1046,7 @@ class TestPostAssetMaterialize(TestAssets):
 
     @pytest.mark.usefixtures("configure_git_connection_for_dag_bundle")
     def test_should_respond_200(self, test_client):
-        response = test_client.post("/v2/assets/1/materialize")
+        response = test_client.post("/api/v2/assets/1/materialize")
         assert response.status_code == 200
         assert response.json() == {
             "dag_run_id": mock.ANY,
@@ -1066,20 +1068,20 @@ class TestPostAssetMaterialize(TestAssets):
         }
 
     def test_should_respond_401(self, unauthenticated_test_client):
-        response = unauthenticated_test_client.post("/v2/assets/2/materialize")
+        response = unauthenticated_test_client.post("/api/v2/assets/2/materialize")
         assert response.status_code == 401
 
     def test_should_respond_403(self, unauthorized_test_client):
-        response = unauthorized_test_client.post("/v2/assets/2/materialize")
+        response = unauthorized_test_client.post("/api/v2/assets/2/materialize")
         assert response.status_code == 403
 
     def test_should_respond_409_on_multiple_dags(self, test_client):
-        response = test_client.post("/v2/assets/2/materialize")
+        response = test_client.post("/api/v2/assets/2/materialize")
         assert response.status_code == 409
         assert response.json()["detail"] == "More than one DAG materializes asset with ID: 2"
 
     def test_should_respond_404_on_multiple_dags(self, test_client):
-        response = test_client.post("/v2/assets/3/materialize")
+        response = test_client.post("/api/v2/assets/3/materialize")
         assert response.status_code == 404
         assert response.json()["detail"] == "No DAG materializes asset with ID: 3"
 
@@ -1093,7 +1095,7 @@ class TestGetAssetQueuedEvents(TestQueuedEventEndpoint):
         asset_id = 1
         self._create_asset_dag_run_queues(dag_id, asset_id, session)
 
-        response = test_client.get(f"/v2/assets/{asset_id}/queuedEvents")
+        response = test_client.get(f"/api/v2/assets/{asset_id}/queuedEvents")
         assert response.status_code == 200
         assert response.json() == {
             "queued_events": [
@@ -1107,15 +1109,15 @@ class TestGetAssetQueuedEvents(TestQueuedEventEndpoint):
         }
 
     def test_should_respond_401(self, unauthenticated_test_client):
-        response = unauthenticated_test_client.get("/v2/assets/1/queuedEvents")
+        response = unauthenticated_test_client.get("/api/v2/assets/1/queuedEvents")
         assert response.status_code == 401
 
     def test_should_respond_403(self, unauthorized_test_client):
-        response = unauthorized_test_client.get("/v2/assets/1/queuedEvents")
+        response = unauthorized_test_client.get("/api/v2/assets/1/queuedEvents")
         assert response.status_code == 403
 
     def test_should_respond_404(self, test_client):
-        response = test_client.get("/v2/assets/1/queuedEvents")
+        response = test_client.get("/api/v2/assets/1/queuedEvents")
         assert response.status_code == 404
         assert response.json()["detail"] == "Queue event with asset_id: `1` was not found"
 
@@ -1130,21 +1132,21 @@ class TestDeleteAssetQueuedEvents(TestQueuedEventEndpoint):
         self._create_asset_dag_run_queues(dag_id, asset_id, session)
 
         assert session.get(AssetDagRunQueue, (asset_id, dag_id)) is not None
-        response = test_client.delete(f"/v2/assets/{asset_id}/queuedEvents")
+        response = test_client.delete(f"/api/v2/assets/{asset_id}/queuedEvents")
         assert response.status_code == 204
         assert session.get(AssetDagRunQueue, (asset_id, dag_id)) is None
         check_last_log(session, dag_id=None, event="delete_asset_queued_events", logical_date=None)
 
     def test_should_respond_401(self, unauthenticated_test_client):
-        response = unauthenticated_test_client.delete("/v2/assets/1/queuedEvents")
+        response = unauthenticated_test_client.delete("/api/v2/assets/1/queuedEvents")
         assert response.status_code == 401
 
     def test_should_respond_403(self, unauthorized_test_client):
-        response = unauthorized_test_client.delete("/v2/assets/1/queuedEvents")
+        response = unauthorized_test_client.delete("/api/v2/assets/1/queuedEvents")
         assert response.status_code == 403
 
     def test_should_respond_404(self, test_client):
-        response = test_client.delete("/v2/assets/1/queuedEvents")
+        response = test_client.delete("/api/v2/assets/1/queuedEvents")
         assert response.status_code == 404
         assert response.json()["detail"] == "Queue event with asset_id: `1` was not found"
 
@@ -1161,7 +1163,7 @@ class TestDeleteDagAssetQueuedEvent(TestQueuedEventEndpoint):
         assert len(adrq) == 1
 
         response = test_client.delete(
-            f"/v2/dags/{dag_id}/assets/{asset_id}/queuedEvents",
+            f"/api/v2/dags/{dag_id}/assets/{asset_id}/queuedEvents",
         )
 
         assert response.status_code == 204
@@ -1170,11 +1172,11 @@ class TestDeleteDagAssetQueuedEvent(TestQueuedEventEndpoint):
         check_last_log(session, dag_id=dag_id, event="delete_dag_asset_queued_event", logical_date=None)
 
     def test_should_respond_401(self, unauthenticated_test_client):
-        response = unauthenticated_test_client.delete("/v2/dags/random/assets/random/queuedEvents")
+        response = unauthenticated_test_client.delete("/api/v2/dags/random/assets/random/queuedEvents")
         assert response.status_code == 401
 
     def test_should_respond_403(self, unauthorized_test_client):
-        response = unauthorized_test_client.delete("/v2/dags/random/assets/random/queuedEvents")
+        response = unauthorized_test_client.delete("/api/v2/dags/random/assets/random/queuedEvents")
         assert response.status_code == 403
 
     def test_should_respond_404(self, test_client):
@@ -1182,7 +1184,7 @@ class TestDeleteDagAssetQueuedEvent(TestQueuedEventEndpoint):
         asset_id = 1
 
         response = test_client.delete(
-            f"/v2/dags/{dag_id}/assets/{asset_id}/queuedEvents",
+            f"/api/v2/dags/{dag_id}/assets/{asset_id}/queuedEvents",
         )
 
         assert response.status_code == 404
