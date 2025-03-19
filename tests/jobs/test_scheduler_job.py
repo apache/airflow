@@ -2370,7 +2370,6 @@ class TestSchedulerJob:
         session.merge(dr)
         session.commit()
 
-        # Given
         assert dr.scheduled_by_job_id != self.job_runner.job.id
         assert dr.scheduled_by_job_id == old_job.id
         assert dr.run_id is not None
@@ -2382,10 +2381,8 @@ class TestSchedulerJob:
         assert ti.state == ti_state
         assert ti.span_status == SpanStatus.ACTIVE
 
-        # When
         self.job_runner._recreate_unhealthy_scheduler_spans_if_needed(dr, session)
 
-        # Then
         assert self.job_runner.active_spans.get(dr.run_id) is not None
 
         if final_ti_span_status == SpanStatus.ACTIVE:
@@ -2435,17 +2432,14 @@ class TestSchedulerJob:
         self.job_runner.active_spans.set(dr.run_id, dr_span)
         self.job_runner.active_spans.set(ti.key, ti_span)
 
-        # Given
         assert dr.span_status == SpanStatus.SHOULD_END
         assert ti.span_status == SpanStatus.SHOULD_END
 
         assert self.job_runner.active_spans.get(dr.run_id) is not None
         assert self.job_runner.active_spans.get(ti.key) is not None
 
-        # When
         self.job_runner._end_spans_of_externally_ended_ops(session)
 
-        # Then
         assert dr.span_status == SpanStatus.ENDED
         assert ti.span_status == SpanStatus.ENDED
 
@@ -2493,7 +2487,6 @@ class TestSchedulerJob:
         self.job_runner.active_spans.set(dr.run_id, dr_span)
         self.job_runner.active_spans.set(ti.key, ti_span)
 
-        # Given
         assert dr.span_status == SpanStatus.ACTIVE
         assert ti.span_status == SpanStatus.ACTIVE
 
@@ -2501,10 +2494,8 @@ class TestSchedulerJob:
         assert self.job_runner.active_spans.get(ti.key) is not None
         assert len(self.job_runner.active_spans.get_all()) == 2
 
-        # When
         self.job_runner._end_active_spans(session)
 
-        # Then
         assert dr.span_status == final_span_status
         assert ti.span_status == final_span_status
 
