@@ -67,7 +67,7 @@ from airflow.models.xcom import XComModel
 from airflow.providers.cncf.kubernetes.pod_generator import PodGenerator
 from airflow.providers.standard.operators.bash import BashOperator
 from airflow.providers.standard.sensors.bash import BashSensor
-from airflow.sdk.definitions.asset import Asset
+from airflow.sdk.definitions.asset import Asset, AssetUniqueKey
 from airflow.sdk.definitions.param import Param, ParamsDict
 from airflow.security import permissions
 from airflow.serialization.enums import Encoding
@@ -1713,6 +1713,8 @@ class TestStringifiedDAGs:
 
             other_asset_writer.expand(x=[1, 2])
 
+        testing_asset_key_strs = [AssetUniqueKey.from_asset(asset).to_str() for asset in testing_assets]
+
         dag = SerializedDAG.to_dict(dag)
         actual = sorted(dag["dag"]["dag_dependencies"], key=lambda x: tuple(x.values()))
         expected = sorted(
@@ -1722,7 +1724,7 @@ class TestStringifiedDAGs:
                     "target": "asset",
                     "label": "asset4",
                     "dependency_type": "asset",
-                    "dependency_id": "4",
+                    "dependency_id": testing_asset_key_strs[3],
                 },
                 {
                     "source": "external_dag_id",
@@ -1736,49 +1738,49 @@ class TestStringifiedDAGs:
                     "target": "asset",
                     "label": "asset3",
                     "dependency_type": "asset",
-                    "dependency_id": "3",
+                    "dependency_id": testing_asset_key_strs[2],
                 },
                 {
                     "source": "test",
                     "target": "asset",
                     "label": "asset2",
                     "dependency_type": "asset",
-                    "dependency_id": "2",
+                    "dependency_id": testing_asset_key_strs[1],
                 },
                 {
                     "source": "asset",
                     "target": "test",
                     "label": "asset1",
                     "dependency_type": "asset",
-                    "dependency_id": "1",
+                    "dependency_id": testing_asset_key_strs[0],
                 },
                 {
                     "source": "asset",
                     "target": "test",
                     "label": "asset1",
                     "dependency_type": "asset",
-                    "dependency_id": "1",
+                    "dependency_id": testing_asset_key_strs[0],
                 },
                 {
                     "source": "asset",
                     "target": "test",
                     "label": "asset1",
                     "dependency_type": "asset",
-                    "dependency_id": "1",
+                    "dependency_id": testing_asset_key_strs[0],
                 },
                 {
                     "source": "asset",
                     "target": "test",
                     "label": "asset1",
                     "dependency_type": "asset",
-                    "dependency_id": "1",
+                    "dependency_id": testing_asset_key_strs[0],
                 },
                 {
                     "source": "asset",
                     "target": "test",
                     "label": "asset1",
                     "dependency_type": "asset",
-                    "dependency_id": "1",
+                    "dependency_id": testing_asset_key_strs[0],
                 },
             ],
             key=lambda x: tuple(x.values()),
@@ -1789,6 +1791,9 @@ class TestStringifiedDAGs:
     def test_dag_deps_assets(self, testing_assets):
         """
         Check that dag_dependencies node is populated correctly for a DAG with assets.
+
+        Note that asset id will not be stored at this stage and will be later evaluated when
+        calling SerializedDagModel.get_dag_dependencies.
         """
         from airflow.providers.standard.sensors.external_task import ExternalTaskSensor
 
@@ -1807,6 +1812,8 @@ class TestStringifiedDAGs:
 
             other_asset_writer.expand(x=[1, 2])
 
+        testing_asset_key_strs = [AssetUniqueKey.from_asset(asset).to_str() for asset in testing_assets]
+
         dag = SerializedDAG.to_dict(dag)
         actual = sorted(dag["dag"]["dag_dependencies"], key=lambda x: tuple(x.values()))
         expected = sorted(
@@ -1816,7 +1823,7 @@ class TestStringifiedDAGs:
                     "target": "asset",
                     "label": "asset4",
                     "dependency_type": "asset",
-                    "dependency_id": "4",
+                    "dependency_id": testing_asset_key_strs[3],
                 },
                 {
                     "source": "external_dag_id",
@@ -1830,21 +1837,21 @@ class TestStringifiedDAGs:
                     "target": "asset",
                     "label": "asset3",
                     "dependency_type": "asset",
-                    "dependency_id": "3",
+                    "dependency_id": testing_asset_key_strs[2],
                 },
                 {
                     "source": "test",
                     "target": "asset",
                     "label": "asset2",
                     "dependency_type": "asset",
-                    "dependency_id": "2",
+                    "dependency_id": testing_asset_key_strs[1],
                 },
                 {
                     "source": "asset",
                     "target": "test",
                     "label": "asset1",
                     "dependency_type": "asset",
-                    "dependency_id": "1",
+                    "dependency_id": testing_asset_key_strs[0],
                 },
             ],
             key=lambda x: tuple(x.values()),
