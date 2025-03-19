@@ -288,7 +288,7 @@ class TestGetAssets(TestAssets):
         assert len(session.query(AssetModel).all()) == 3
         assert len(session.query(AssetActive).all()) == 2
 
-        response = test_client.get("/public/assets?only_active=0")
+        response = test_client.get("/api/v2/assets?only_active=0")
         assert response.status_code == 200
         response_data = response.json()
         tz_datetime_format = from_datetime_to_zulu_without_ms(DEFAULT_DATE)
