@@ -20,6 +20,7 @@ from __future__ import annotations
 import argparse
 import contextlib
 import json
+import logging
 import os
 from datetime import datetime, timedelta
 from io import StringIO
@@ -32,7 +33,6 @@ import time_machine
 from sqlalchemy import select
 
 from airflow import settings
-from airflow.api_connexion.schemas.dag_schema import DAGSchema, dag_schema
 from airflow.cli import cli_parser
 from airflow.cli.commands.remote_commands import dag_command
 from airflow.decorators import task
@@ -50,7 +50,12 @@ from airflow.utils.types import DagRunType
 
 from tests.models import TEST_DAGS_FOLDER
 from tests_common.test_utils.config import conf_vars
-from tests_common.test_utils.db import clear_db_dags, clear_db_runs, parse_and_sync_to_db
+from tests_common.test_utils.db import (
+    clear_db_dags,
+    clear_db_import_errors,
+    clear_db_runs,
+    parse_and_sync_to_db,
+)
 
 DEFAULT_DATE = timezone.make_aware(datetime(2015, 1, 1), timezone=timezone.utc)
 if pendulum.__version__.startswith("3"):
@@ -77,7 +82,11 @@ class TestCliDags:
         clear_db_dags()
 
     def setup_method(self):
-        clear_db_runs()  # clean-up all dag run before start each test
+        clear_db_runs()
+        clear_db_import_errors()
+
+    def teardown_method(self):
+        clear_db_import_errors()
 
     def test_show_dag_dependencies_print(self):
         with contextlib.redirect_stdout(StringIO()) as temp_stdout:
@@ -192,16 +201,14 @@ class TestCliDags:
 
         for dag_id in expected_output:
             # Test num-executions = 1 (default)
-            args = self.parser.parse_args(["dags", "next-execution", dag_id, "-S", str(tmp_path)])
+            args = self.parser.parse_args(["dags", "next-execution", dag_id])
             with contextlib.redirect_stdout(StringIO()) as temp_stdout:
                 dag_command.dag_next_execution(args)
                 out = temp_stdout.getvalue()
             assert expected_output[dag_id][0] in out
 
             # Test num-executions = 2
-            args = self.parser.parse_args(
-                ["dags", "next-execution", dag_id, "--num-executions", "2", "-S", str(tmp_path)]
-            )
+            args = self.parser.parse_args(["dags", "next-execution", dag_id, "--num-executions", "2"])
             with contextlib.redirect_stdout(StringIO()) as temp_stdout:
                 dag_command.dag_next_execution(args)
                 out = temp_stdout.getvalue()
@@ -228,7 +235,7 @@ class TestCliDags:
             dag_command.dag_details(args)
             out = temp_stdout.getvalue()
 
-        dag_detail_fields = DAGSchema().fields.keys()
+        dag_detail_fields = dag_command.DAGSchema().fields.keys()
 
         # Check if DAG Details field are present
         for field in dag_detail_fields:
@@ -274,12 +281,17 @@ class TestCliDags:
         assert "Ignoring the following invalid columns: ['invalid_col']" in out
 
     @conf_vars({("core", "load_examples"): "false"})
-    def test_cli_list_dags_prints_import_errors(self):
-        dag_path = os.path.join(TEST_DAGS_FOLDER, "test_invalid_cron.py")
-        args = self.parser.parse_args(["dags", "list", "--output", "yaml", "--subdir", dag_path])
-        with contextlib.redirect_stderr(StringIO()) as temp_stderr:
-            dag_command.dag_list_dags(args)
-            out = temp_stderr.getvalue()
+    def test_cli_list_dags_prints_import_errors(self, configure_testing_dag_bundle, get_test_dag):
+        path_to_parse = TEST_DAGS_FOLDER / "test_invalid_cron.py"
+        get_test_dag("test_invalid_cron")
+
+        args = self.parser.parse_args(["dags", "list", "--output", "yaml", "--bundle-name", "testing"])
+
+        with configure_testing_dag_bundle(path_to_parse):
+            with contextlib.redirect_stderr(StringIO()) as temp_stderr:
+                dag_command.dag_list_dags(args)
+                out = temp_stderr.getvalue()
+
         assert "Failed to load all files." in out
 
     @conf_vars({("core", "load_examples"): "true"})
@@ -297,22 +309,30 @@ class TestCliDags:
 
     @conf_vars({("core", "load_examples"): "true"})
     def test_dagbag_dag_col(self):
-        valid_cols = [c for c in dag_schema.fields]
+        valid_cols = [c for c in dag_command.DAGSchema().fields]
         dagbag = DagBag(include_examples=True)
         dag_details = dag_command._get_dagbag_dag_details(dagbag.get_dag("tutorial_dag"))
         assert list(dag_details.keys()) == valid_cols
 
     @conf_vars({("core", "load_examples"): "false"})
-    def test_cli_list_import_errors(self):
-        dag_path = os.path.join(TEST_DAGS_FOLDER, "test_invalid_cron.py")
-        args = self.parser.parse_args(["dags", "list", "--output", "yaml", "--subdir", dag_path])
-        with contextlib.redirect_stdout(StringIO()) as temp_stdout:
+    def test_cli_list_import_errors(self, get_test_dag, configure_testing_dag_bundle, caplog):
+        path_to_parse = TEST_DAGS_FOLDER / "test_invalid_cron.py"
+        get_test_dag("test_invalid_cron")
+
+        args = self.parser.parse_args(
+            ["dags", "list-import-errors", "--output", "yaml", "--bundle-name", "testing"]
+        )
+
+        with configure_testing_dag_bundle(path_to_parse):
             with pytest.raises(SystemExit) as err_ctx:
-                dag_command.dag_list_import_errors(args)
-            out = temp_stdout.getvalue()
-        assert "[0 100 * * *] is not acceptable, out of range" in out
-        assert dag_path in out
+                with caplog.at_level(logging.ERROR):
+                    dag_command.dag_list_import_errors(args)
+
+        log_output = caplog.text
+
         assert err_ctx.value.code == 1
+        assert str(path_to_parse) in log_output
+        assert "[0 100 * * *] is not acceptable, out of range" in log_output
 
     def test_cli_list_dag_runs(self):
         dag_command.dag_trigger(
@@ -545,37 +565,38 @@ class TestCliDags:
             is None
         )
 
-    @mock.patch("airflow.cli.commands.remote_commands.dag_command.get_dag")
-    def test_dag_test(self, mock_get_dag):
+    @mock.patch("airflow.cli.commands.remote_commands.dag_command._parse_and_get_dag")
+    def test_dag_test(self, mock_parse_and_get_dag):
         cli_args = self.parser.parse_args(["dags", "test", "example_bash_operator", DEFAULT_DATE.isoformat()])
         dag_command.dag_test(cli_args)
 
-        mock_get_dag.assert_has_calls(
+        mock_parse_and_get_dag.assert_has_calls(
             [
-                mock.call(subdir=cli_args.subdir, dag_id="example_bash_operator"),
+                mock.call("example_bash_operator"),
+                mock.call().__bool__(),
                 mock.call().test(
                     logical_date=timezone.parse(DEFAULT_DATE.isoformat()),
                     run_conf=None,
                     use_executor=False,
-                    session=mock.ANY,
                     mark_success_pattern=None,
+                    session=mock.ANY,
                 ),
             ]
         )
 
-    @mock.patch("airflow.cli.commands.remote_commands.dag_command.get_dag")
-    def test_dag_test_fail_raise_error(self, mock_get_dag):
+    @mock.patch("airflow.cli.commands.remote_commands.dag_command._parse_and_get_dag")
+    def test_dag_test_fail_raise_error(self, mock_parse_and_get_dag):
         logical_date_str = DEFAULT_DATE.isoformat()
-        mock_get_dag.return_value.test.return_value = DagRun(
+        mock_parse_and_get_dag.return_value.test.return_value = DagRun(
             dag_id="example_bash_operator", logical_date=DEFAULT_DATE, state=DagRunState.FAILED
         )
         cli_args = self.parser.parse_args(["dags", "test", "example_bash_operator", logical_date_str])
         with pytest.raises(SystemExit, match=r"DagRun failed"):
             dag_command.dag_test(cli_args)
 
-    @mock.patch("airflow.cli.commands.remote_commands.dag_command.get_dag")
+    @mock.patch("airflow.cli.commands.remote_commands.dag_command._parse_and_get_dag")
     @mock.patch("airflow.utils.timezone.utcnow")
-    def test_dag_test_no_logical_date(self, mock_utcnow, mock_get_dag):
+    def test_dag_test_no_logical_date(self, mock_utcnow, mock_parse_and_get_dag):
         now = pendulum.now()
         mock_utcnow.return_value = now
         cli_args = self.parser.parse_args(["dags", "test", "example_bash_operator"])
@@ -584,9 +605,10 @@ class TestCliDags:
 
         dag_command.dag_test(cli_args)
 
-        mock_get_dag.assert_has_calls(
+        mock_parse_and_get_dag.assert_has_calls(
             [
-                mock.call(subdir=cli_args.subdir, dag_id="example_bash_operator"),
+                mock.call("example_bash_operator"),
+                mock.call().__bool__(),
                 mock.call().test(
                     logical_date=mock.ANY,
                     run_conf=None,
@@ -597,8 +619,8 @@ class TestCliDags:
             ]
         )
 
-    @mock.patch("airflow.cli.commands.remote_commands.dag_command.get_dag")
-    def test_dag_test_conf(self, mock_get_dag):
+    @mock.patch("airflow.cli.commands.remote_commands.dag_command._parse_and_get_dag")
+    def test_dag_test_conf(self, mock_parse_and_get_dag):
         cli_args = self.parser.parse_args(
             [
                 "dags",
@@ -611,9 +633,10 @@ class TestCliDags:
         )
         dag_command.dag_test(cli_args)
 
-        mock_get_dag.assert_has_calls(
+        mock_parse_and_get_dag.assert_has_calls(
             [
-                mock.call(subdir=cli_args.subdir, dag_id="example_bash_operator"),
+                mock.call("example_bash_operator"),
+                mock.call().__bool__(),
                 mock.call().test(
                     logical_date=timezone.parse(DEFAULT_DATE.isoformat()),
                     run_conf={"dag_run_conf_param": "param_value"},
@@ -627,9 +650,11 @@ class TestCliDags:
     @mock.patch(
         "airflow.cli.commands.remote_commands.dag_command.render_dag", return_value=MagicMock(source="SOURCE")
     )
-    @mock.patch("airflow.cli.commands.remote_commands.dag_command.get_dag")
-    def test_dag_test_show_dag(self, mock_get_dag, mock_render_dag):
-        mock_get_dag.return_value.test.return_value.run_id = "__test_dag_test_show_dag_fake_dag_run_run_id__"
+    @mock.patch("airflow.cli.commands.remote_commands.dag_command._parse_and_get_dag")
+    def test_dag_test_show_dag(self, mock_parse_and_get_dag, mock_render_dag):
+        mock_parse_and_get_dag.return_value.test.return_value.run_id = (
+            "__test_dag_test_show_dag_fake_dag_run_run_id__"
+        )
 
         cli_args = self.parser.parse_args(
             ["dags", "test", "example_bash_operator", DEFAULT_DATE.isoformat(), "--show-dagrun"]
@@ -639,9 +664,10 @@ class TestCliDags:
 
         output = stdout.getvalue()
 
-        mock_get_dag.assert_has_calls(
+        mock_parse_and_get_dag.assert_has_calls(
             [
-                mock.call(subdir=cli_args.subdir, dag_id="example_bash_operator"),
+                mock.call("example_bash_operator"),
+                mock.call().__bool__(),
                 mock.call().test(
                     logical_date=timezone.parse(DEFAULT_DATE.isoformat()),
                     run_conf=None,
@@ -651,7 +677,7 @@ class TestCliDags:
                 ),
             ]
         )
-        mock_render_dag.assert_has_calls([mock.call(mock_get_dag.return_value, tis=[])])
+        mock_render_dag.assert_has_calls([mock.call(mock_parse_and_get_dag.return_value, tis=[])])
         assert "SOURCE" in output
 
     @mock.patch("airflow.models.dag._get_or_create_dagrun")
@@ -670,14 +696,21 @@ class TestCliDags:
         assert "data_interval" in mock__get_or_create_dagrun.call_args.kwargs
 
     @mock.patch("airflow.models.dag._get_or_create_dagrun")
-    def test_dag_with_parsing_context(self, mock__get_or_create_dagrun):
+    def test_dag_with_parsing_context(
+        self, mock__get_or_create_dagrun, testing_dag_bundle, configure_testing_dag_bundle
+    ):
         """
         airflow parsing context should be set when calling `dags test`.
         """
-        cli_args = self.parser.parse_args(
-            ["dags", "test", "test_dag_parsing_context", DEFAULT_DATE.isoformat()]
-        )
-        dag_command.dag_test(cli_args)
+        path_to_parse = TEST_DAGS_FOLDER / "test_dag_parsing_context.py"
+
+        with configure_testing_dag_bundle(path_to_parse):
+            bag = DagBag(dag_folder=path_to_parse, include_examples=False)
+            bag.sync_to_db("testing", None)
+            cli_args = self.parser.parse_args(
+                ["dags", "test", "test_dag_parsing_context", DEFAULT_DATE.isoformat()]
+            )
+            dag_command.dag_test(cli_args)
 
         # if dag_parsing_context is not set, this DAG will only have 1 task
         assert len(mock__get_or_create_dagrun.call_args[1]["dag"].task_ids) == 2
@@ -772,6 +805,12 @@ class TestCliDagsReserialize:
 
         serialized_dag_ids = set(session.execute(select(SerializedDagModel.dag_id)).scalars())
         assert serialized_dag_ids == {"test_example_bash_operator", "test_dag_with_no_tags", "test_sensor"}
+
+        example_bash_op = session.execute(
+            select(DagModel).filter(DagModel.dag_id == "test_example_bash_operator")
+        ).scalar()
+        assert example_bash_op.relative_fileloc == "."  # the file _is_ the bundle path
+        assert example_bash_op.fileloc == str(TEST_DAGS_FOLDER / "test_example_bash_operator.py")
 
     @conf_vars({("core", "load_examples"): "false"})
     def test_reserialize_should_support_bundle_name_argument(self, configure_dag_bundles, session):

@@ -58,6 +58,7 @@ class TestProjectStructure:
         # We should make sure that one goes to 0
         # TODO(potiuk) - check if that test actually tests something
         OVERLOOKED_TESTS = [
+            "providers/amazon/tests/unit/amazon/aws/auth_manager/security_manager/test_aws_security_manager_override.py",
             "providers/amazon/tests/unit/amazon/aws/executors/batch/test_batch_executor_config.py",
             "providers/amazon/tests/unit/amazon/aws/executors/batch/test_boto_schema.py",
             "providers/amazon/tests/unit/amazon/aws/executors/batch/test_utils.py",
@@ -70,6 +71,7 @@ class TestProjectStructure:
             "providers/amazon/tests/unit/amazon/aws/sensors/test_emr.py",
             "providers/amazon/tests/unit/amazon/aws/sensors/test_sagemaker.py",
             "providers/amazon/tests/unit/amazon/aws/test_exceptions.py",
+            "providers/amazon/tests/unit/amazon/aws/triggers/test_sagemaker_unified_studio.py",
             "providers/amazon/tests/unit/amazon/aws/triggers/test_step_function.py",
             "providers/amazon/tests/unit/amazon/aws/utils/test_rds.py",
             "providers/amazon/tests/unit/amazon/aws/utils/test_sagemaker.py",
@@ -103,6 +105,10 @@ class TestProjectStructure:
             "providers/common/compat/tests/unit/common/compat/standard/test_utils.py",
             "providers/common/compat/tests/unit/common/compat/test_version_compat.py",
             "providers/common/io/tests/unit/common/io/test_version_compat.py",
+            "providers/common/messaging/tests/unit/common/messaging/providers/test_base_provider.py",
+            "providers/common/messaging/tests/unit/common/messaging/providers/test_sqs.py",
+            "providers/databricks/tests/unit/databricks/test_version_compat.py",
+            "providers/dbt/cloud/tests/unit/dbt/cloud/test_version_compat.py",
             "providers/edge/tests/unit/edge/models/test_edge_job.py",
             "providers/edge/tests/unit/edge/models/test_edge_logs.py",
             "providers/edge/tests/unit/edge/models/test_edge_worker.py",
@@ -114,6 +120,7 @@ class TestProjectStructure:
             "providers/edge/tests/unit/edge/worker_api/test_auth.py",
             "providers/edge/tests/unit/edge/worker_api/test_datamodels.py",
             "providers/elasticsearch/tests/unit/elasticsearch/test_version_compat.py",
+            "providers/fab/tests/unit/fab/auth_manager/api_fastapi/datamodels/test_login.py",
             "providers/fab/tests/unit/fab/migrations/test_env.py",
             "providers/fab/tests/unit/fab/www/api_connexion/test_exceptions.py",
             "providers/fab/tests/unit/fab/www/api_connexion/test_parameters.py",
@@ -126,8 +133,10 @@ class TestProjectStructure:
             "providers/fab/tests/unit/fab/www/extensions/test_init_session.py",
             "providers/fab/tests/unit/fab/www/extensions/test_init_views.py",
             "providers/fab/tests/unit/fab/www/security/test_permissions.py",
+            "providers/fab/tests/unit/fab/www/test_airflow_flask_app.py",
             "providers/fab/tests/unit/fab/www/test_app.py",
             "providers/fab/tests/unit/fab/www/test_constants.py",
+            "providers/fab/tests/unit/fab/www/test_security_appless.py",
             "providers/fab/tests/unit/fab/www/test_security_manager.py",
             "providers/fab/tests/unit/fab/www/test_session.py",
             "providers/fab/tests/unit/fab/www/test_utils.py",
@@ -177,14 +186,18 @@ class TestProjectStructure:
             "providers/google/tests/unit/google/cloud/utils/test_dataform.py",
             "providers/google/tests/unit/google/common/links/test_storage.py",
             "providers/google/tests/unit/google/common/test_consts.py",
+            "providers/google/tests/unit/google/common/hooks/test_operation_helpers.py",
             "providers/google/tests/unit/google/test_go_module_utils.py",
             "providers/google/tests/unit/google/test_version_compat.py",
             "providers/http/tests/unit/http/test_exceptions.py",
             "providers/microsoft/azure/tests/unit/microsoft/azure/operators/test_adls.py",
+            "providers/microsoft/azure/tests/unit/microsoft/azure/test_version_compat.py",
             "providers/openlineage/tests/unit/openlineage/test_version_compat.py",
             "providers/opensearch/tests/unit/opensearch/test_version_compat.py",
             "providers/presto/tests/unit/presto/test_version_compat.py",
+            "providers/redis/tests/unit/redis/test_version_compat.py",
             "providers/snowflake/tests/unit/snowflake/triggers/test_snowflake_trigger.py",
+            "providers/standard/tests/unit/standard/operators/test_branch.py",
             "providers/standard/tests/unit/standard/operators/test_empty.py",
             "providers/standard/tests/unit/standard/operators/test_latest_only.py",
             "providers/standard/tests/unit/standard/operators/test_trigger_dagrun.py",
@@ -203,6 +216,8 @@ class TestProjectStructure:
         modules_files = (f for f in modules_files if ".git" not in f.parts)
         # Exclude .venv files
         modules_files = (f for f in modules_files if ".venv" not in f.parts)
+        # Exclude node_modules
+        modules_files = (f for f in modules_files if "node_modules" not in f.parts)
         # Exclude __init__.py
         modules_files = filter(lambda f: f.name != "__init__.py", modules_files)
         # Exclude example_dags
@@ -220,6 +235,8 @@ class TestProjectStructure:
         current_test_files = list(f.relative_to(AIRFLOW_SOURCES_ROOT) for f in current_test_files)
         # Exclude __init__.py
         current_test_files = set(f for f in current_test_files if not f.name == "__init__.py")
+        # Exclude node_modules
+        current_test_files = set(f for f in current_test_files if "node_modules" not in f.parts)
 
         modules_files_set = set(modules_files)
         expected_test_files = set(
@@ -556,8 +573,7 @@ class TestGoogleProviderProjectStructure(ExampleCoverageTest, AssetsCoverageTest
         "GoogleCampaignManagerReportSensor",
         "airflow.providers.google.marketing_platform.sensors.display_video."
         "GoogleDisplayVideo360GetSDFDownloadOperationSensor",
-        "airflow.providers.google.marketing_platform.sensors.display_video."
-        "GoogleDisplayVideo360ReportSensor",
+        "airflow.providers.google.marketing_platform.sensors.display_video.GoogleDisplayVideo360ReportSensor",
     }
 
     @pytest.mark.xfail(reason="We did not reach full coverage yet")
@@ -595,6 +611,8 @@ class TestAmazonProviderProjectStructure(ExampleCoverageTest):
         # These operations take a lot of time, there are commented out in the system tests for this reason
         "airflow.providers.amazon.aws.operators.dms.DmsStartReplicationOperator",
         "airflow.providers.amazon.aws.operators.dms.DmsStopReplicationOperator",
+        # These modules are used in the SageMakerNotebookOperator and therefore don't have their own examples
+        "airflow.providers.amazon.aws.sensors.sagemaker_unified_studio.SageMakerNotebookSensor",
     }
 
     DEPRECATED_CLASSES = {

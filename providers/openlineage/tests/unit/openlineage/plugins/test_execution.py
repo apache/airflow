@@ -27,7 +27,6 @@ from pathlib import Path
 import pytest
 
 from airflow.jobs.job import Job
-from airflow.jobs.local_task_job_runner import LocalTaskJobRunner
 from airflow.listeners.listener import get_listener_manager
 from airflow.models import DagBag, TaskInstance
 from airflow.providers.google.cloud.openlineage.utils import get_from_nullable_chain
@@ -84,6 +83,8 @@ with tempfile.TemporaryDirectory(prefix="venv") as tmp_dir:
             get_listener_manager().clear()
 
         def setup_job(self, task_name, run_id):
+            from airflow.jobs.local_task_job_runner import LocalTaskJobRunner
+
             dirpath = Path(tmp_dir)
             if dirpath.exists():
                 shutil.rmtree(dirpath)
@@ -192,6 +193,8 @@ with tempfile.TemporaryDirectory(prefix="venv") as tmp_dir:
         def test_success_overtime_kills_tasks(self):
             # This test checks whether LocalTaskJobRunner kills OL listener which take
             # longer time than permitted by core.task_success_overtime setting
+            from airflow.jobs.local_task_job_runner import LocalTaskJobRunner
+
             dirpath = Path(tmp_dir)
             if dirpath.exists():
                 shutil.rmtree(dirpath)

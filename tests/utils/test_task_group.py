@@ -455,7 +455,7 @@ def test_sub_dag_task_group():
         group234 >> group6
         group234 >> task7
 
-    subdag = dag.partial_subset(task_ids_or_regex="task5", include_upstream=True, include_downstream=False)
+    subdag = dag.partial_subset(task_ids="task5", include_upstream=True, include_downstream=False)
 
     expected_node_id = {
         "id": None,
@@ -1458,7 +1458,7 @@ def test_add_to_another_group():
 
 
 def test_task_group_edge_modifier_chain():
-    from airflow.models.baseoperator import chain
+    from airflow.sdk import chain
     from airflow.utils.edgemodifier import Label
 
     with DAG(dag_id="test", schedule=None, start_date=pendulum.DateTime(2022, 5, 20)) as dag:

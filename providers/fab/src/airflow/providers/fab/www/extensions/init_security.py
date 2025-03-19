@@ -46,7 +46,9 @@ def init_xframe_protection(app):
 
 def init_api_auth(app):
     """Load authentication backends."""
-    auth_backends = conf.get("api", "auth_backends")
+    auth_backends = conf.get(
+        "fab", "auth_backends", fallback="airflow.providers.fab.auth_manager.api.auth.backend.session"
+    )
 
     app.api_auth = []
     try:

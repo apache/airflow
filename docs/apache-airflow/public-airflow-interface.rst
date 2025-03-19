@@ -31,7 +31,7 @@ Using Airflow Public Interfaces
 The following are some examples of the public interface of Airflow:
 
 * When you are writing your own operators or hooks. This is commonly done when no hook or operator exists for your use case, or when perhaps when one exists but you need to customize the behavior.
-* When writing new :doc:`Plugins <authoring-and-scheduling/plugins>` that extend Airflow's functionality beyond
+* When writing new :doc:`Plugins <administration-and-deployment/plugins>` that extend Airflow's functionality beyond
   DAG building blocks. Secrets, Timetables, Triggers, Listeners are all examples of such functionality. This
   is usually done by users who manage Airflow instances.
 * Bundling custom Operators, Hooks, Plugins and releasing them together via
@@ -208,7 +208,7 @@ Airflow uses Plugin mechanism to extend Airflow platform capabilities. They allo
 Airflow UI but also they are the way to expose the below customizations (Triggers, Timetables, Listeners, etc.).
 Providers can also implement plugin endpoints and customize Airflow UI and the customizations.
 
-You can read more about plugins in :doc:`authoring-and-scheduling/plugins`. You can read how to extend
+You can read more about plugins in :doc:`administration-and-deployment/plugins`. You can read how to extend
 Airflow UI in :doc:`howto/custom-view-plugin`. Note that there are some simple customizations of the UI
 that do not require plugins - you can read more about them in :doc:`howto/customize-ui`.
 
@@ -264,18 +264,14 @@ can be implemented to respond to DAG/Task lifecycle events.
 
 You can read more about Listeners in :doc:`administration-and-deployment/listeners`.
 
+..
+  TODO AIP-72: This class has been moved to task sdk but we cannot add a doc reference for it yet because task sdk doesn't have rendered docs yet.
+
 Extra Links
 -----------
 
 Extra links are dynamic links that could be added to Airflow independently from custom Operators. Normally
 they can be defined by the Operators, but plugins allow you to override the links on a global level.
-
-.. toctree::
-  :includehidden:
-  :glob:
-  :maxdepth: 1
-
-  _api/airflow/models/baseoperatorlink/index
 
 You can read more about the Extra Links in :doc:`/howto/define-extra-link`.
 
@@ -332,20 +328,12 @@ Auth managers
 -------------
 
 Auth managers are responsible of user authentication and user authorization in Airflow. All auth managers are
-derived from :class:`~airflow.auth.managers.base_auth_manager.BaseAuthManager`.
+derived from :class:`~airflow.api_fastapi.auth.managers.base_auth_manager.BaseAuthManager`.
 
-The auth manager interface itself (the :class:`~airflow.auth.managers.base_auth_manager.BaseAuthManager` class) is
+The auth manager interface itself (the :class:`~airflow.api_fastapi.auth.managers.base_auth_manager.BaseAuthManager` class) is
 public, but the different implementations of auth managers are not (i.e. FabAuthManager).
 
 You can read more about auth managers and how to write your own in :doc:`core-concepts/auth-manager/index`.
-
-Authentication Backends
------------------------
-
-Authentication backends can extend the way how Airflow authentication mechanism works. You can find out more
-about authentication in :doc:`apache-airflow-providers:core-extensions/auth-backends` that also shows available
-Authentication backends implemented in the community providers. In case of authentication backend implemented in a
-provider, it is then part of the provider's public interface and not Airflow's.
 
 Connections
 -----------

@@ -22,8 +22,8 @@
 from __future__ import annotations
 
 import warnings
-from collections.abc import Collection
-from datetime import timedelta
+from collections.abc import Collection, Sequence
+from datetime import datetime, timedelta
 from http import HTTPStatus
 from typing import TYPE_CHECKING, Any, NamedTuple
 
@@ -33,7 +33,8 @@ if TYPE_CHECKING:
     from collections.abc import Sized
 
     from airflow.models import DagRun, TaskInstance
-    from airflow.sdk.definitions.asset import AssetUniqueKey
+    from airflow.sdk.definitions.asset import AssetNameRef, AssetUniqueKey, AssetUriRef
+    from airflow.utils.state import DagRunState
 
 
 class AirflowException(Exception):
@@ -125,33 +126,42 @@ class AirflowFailException(AirflowException):
     """Raise when the task should be failed without retrying."""
 
 
-class AirflowExecuteWithInactiveAssetExecption(AirflowFailException):
-    """Raise when the task is executed with inactive assets."""
+class _AirflowExecuteWithInactiveAssetExecption(AirflowFailException):
+    main_message: str
 
-    def __init__(self, inactive_asset_unikeys: Collection[AssetUniqueKey]) -> None:
-        self.inactive_asset_unique_keys = inactive_asset_unikeys
+    def __init__(self, inactive_asset_keys: Collection[AssetUniqueKey | AssetNameRef | AssetUriRef]) -> None:
+        self.inactive_asset_keys = inactive_asset_keys
+
+    @staticmethod
+    def _render_asset_key(key: AssetUniqueKey | AssetNameRef | AssetUriRef) -> str:
+        from airflow.sdk.definitions.asset import AssetNameRef, AssetUniqueKey, AssetUriRef
+
+        if isinstance(key, AssetUniqueKey):
+            return f"Asset(name={key.name!r}, uri={key.uri!r})"
+        elif isinstance(key, AssetNameRef):
+            return f"Asset.ref(name={key.name!r})"
+        elif isinstance(key, AssetUriRef):
+            return f"Asset.ref(uri={key.uri!r})"
+        return repr(key)  # Should not happen, but let's fails more gracefully in an exception.
+
+    def __str__(self) -> str:
+        return f"{self.main_message}: {self.inactive_assets_message}"
 
     @property
-    def inactive_assets_error_msg(self):
-        return ", ".join(
-            f'Asset(name="{key.name}", uri="{key.uri}")' for key in self.inactive_asset_unique_keys
-        )
+    def inactive_assets_message(self) -> str:
+        return ", ".join(self._render_asset_key(key) for key in self.inactive_asset_keys)
 
 
-class AirflowInactiveAssetInInletOrOutletException(AirflowExecuteWithInactiveAssetExecption):
+class AirflowInactiveAssetInInletOrOutletException(_AirflowExecuteWithInactiveAssetExecption):
     """Raise when the task is executed with inactive assets in its inlet or outlet."""
 
-    def __str__(self) -> str:
-        return f"Task has the following inactive assets in its inlets or outlets: {self.inactive_assets_error_msg}"
+    main_message = "Task has the following inactive assets in its inlets or outlets"
 
 
-class AirflowInactiveAssetAddedToAssetAliasException(AirflowExecuteWithInactiveAssetExecption):
+class AirflowInactiveAssetAddedToAssetAliasException(_AirflowExecuteWithInactiveAssetExecption):
     """Raise when inactive assets are added to an asset alias."""
 
-    def __str__(self) -> str:
-        return (
-            f"The following assets accessed by an AssetAlias are inactive: {self.inactive_assets_error_msg}"
-        )
+    main_message = "The following assets accessed by an AssetAlias are inactive"
 
 
 class AirflowOptionalProviderFeatureException(AirflowException):
@@ -406,6 +416,56 @@ class ConnectionNotUnique(AirflowException):
     """Raise when multiple values are found for the same connection ID."""
 
 
+class DownstreamTasksSkipped(AirflowException):
+    """
+    Signal by an operator to skip its downstream tasks.
+
+    Special exception raised to signal that the operator it was raised from wishes to skip
+    downstream tasks. This is used in the ShortCircuitOperator.
+
+    :param tasks: List of task_ids to skip or a list of tuples with task_id and map_index to skip.
+    """
+
+    def __init__(self, *, tasks: Sequence[str | tuple[str, int]]):
+        super().__init__()
+        self.tasks = tasks
+
+
+class DagRunTriggerException(AirflowException):
+    """
+    Signal by an operator to trigger a specific Dag Run of a dag.
+
+    Special exception raised to signal that the operator it was raised from wishes to trigger
+    a specific Dag Run of a dag. This is used in the ``TriggerDagRunOperator``.
+    """
+
+    def __init__(
+        self,
+        *,
+        trigger_dag_id: str,
+        dag_run_id: str,
+        conf: dict | None,
+        logical_date: datetime | None,
+        reset_dag_run: bool,
+        skip_when_already_exists: bool,
+        wait_for_completion: bool,
+        allowed_states: list[str | DagRunState],
+        failed_states: list[str | DagRunState],
+        poke_interval: int,
+    ):
+        super().__init__()
+        self.trigger_dag_id = trigger_dag_id
+        self.dag_run_id = dag_run_id
+        self.conf = conf
+        self.logical_date = logical_date
+        self.reset_dag_run = reset_dag_run
+        self.skip_when_already_exists = skip_when_already_exists
+        self.wait_for_completion = wait_for_completion
+        self.allowed_states = allowed_states
+        self.failed_states = failed_states
+        self.poke_interval = poke_interval
+
+
 class TaskDeferred(BaseException):
     """
     Signal an operator moving to deferred state.
@@ -485,13 +545,6 @@ except ImportError:
 
     class PodReconciliationError(AirflowException):  # type: ignore[no-redef]
         """Raised when an error is encountered while trying to merge pod configs."""
-
-
-class RemovedInAirflow3Warning(DeprecationWarning):
-    """Issued for usage of deprecated features that will be removed in Airflow3."""
-
-    deprecated_since: str | None = None
-    "Indicates the airflow version that started raising this deprecation warning"
 
 
 class RemovedInAirflow4Warning(DeprecationWarning):

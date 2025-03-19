@@ -18,9 +18,8 @@
 
 from __future__ import annotations
 
+import re
 import sys
-
-import re2
 
 from airflow.cli.simple_table import AirflowConsole
 from airflow.providers_manager import ProvidersManager
@@ -31,7 +30,7 @@ ERROR_IMPORTING_HOOK = "Error when importing hook!"
 
 
 def _remove_rst_syntax(value: str) -> str:
-    return re2.sub("[`_<>]", "", value.strip(" \n."))
+    return re.sub("[`_<>]", "", value.strip(" \n."))
 
 
 @suppress_logs_and_warning
@@ -191,19 +190,6 @@ def secrets_backends_list(args):
         output=args.output,
         mapper=lambda x: {
             "secrets_backend_class_name": x,
-        },
-    )
-
-
-@suppress_logs_and_warning
-@providers_configuration_loaded
-def auth_backend_list(args):
-    """List all API auth backend modules at the command line."""
-    AirflowConsole().print_as(
-        data=list(ProvidersManager().auth_backend_module_names),
-        output=args.output,
-        mapper=lambda x: {
-            "api_auth_backend_module": x,
         },
     )
 

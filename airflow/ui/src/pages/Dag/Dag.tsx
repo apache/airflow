@@ -19,7 +19,8 @@
 import { ReactFlowProvider } from "@xyflow/react";
 import { FiBarChart, FiCode } from "react-icons/fi";
 import { LuChartColumn } from "react-icons/lu";
-import { MdOutlineEventNote } from "react-icons/md";
+import { MdDetails, MdOutlineEventNote } from "react-icons/md";
+import { RiArrowGoBackFill } from "react-icons/ri";
 import { useParams } from "react-router-dom";
 
 import { useDagServiceGetDagDetails, useDagsServiceRecentDagRuns } from "openapi/queries";
@@ -33,8 +34,10 @@ const tabs = [
   { icon: <LuChartColumn />, label: "Overview", value: "" },
   { icon: <FiBarChart />, label: "Runs", value: "runs" },
   { icon: <TaskIcon />, label: "Tasks", value: "tasks" },
+  { icon: <RiArrowGoBackFill />, label: "Backfills", value: "backfills" },
   { icon: <MdOutlineEventNote />, label: "Events", value: "events" },
   { icon: <FiCode />, label: "Code", value: "code" },
+  { icon: <MdDetails />, label: "Details", value: "details" },
 ];
 
 export const Dag = () => {
@@ -69,7 +72,12 @@ export const Dag = () => {
 
   return (
     <ReactFlowProvider>
-      <DetailsLayout dag={dag} error={error ?? runsError} isLoading={isLoading || isLoadingRuns} tabs={tabs}>
+      <DetailsLayout
+        dag={dag}
+        error={error ?? runsError}
+        isLoading={isLoading || isLoadingRuns}
+        tabs={tabs.filter((tab) => !(dag?.timetable_summary === null && tab.value === "backfills"))}
+      >
         <Header
           dag={dag}
           dagWithRuns={dagWithRuns}

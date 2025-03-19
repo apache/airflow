@@ -120,7 +120,7 @@ class BigQueryHook(GoogleBaseHook, DbApiHook):
         from wtforms import validators
         from wtforms.fields.simple import BooleanField, StringField
 
-        from airflow.www.validators import ValidJson
+        from airflow.providers.google.cloud.utils.validators import ValidJson
 
         connection_form_widgets = super().get_connection_form_widgets()
         connection_form_widgets["use_legacy_sql"] = BooleanField(lazy_gettext("Use Legacy SQL"), default=True)

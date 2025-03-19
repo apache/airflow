@@ -39,6 +39,5 @@ class ConfigResponse(BaseModel):
     warn_deployment_exposure: bool
     audit_view_excluded_events: str
     audit_view_included_events: str
-    is_k8s: bool
     test_connection: str
     state_color_mapping: dict

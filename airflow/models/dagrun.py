@@ -19,11 +19,11 @@ from __future__ import annotations
 
 import itertools
 import os
+import re
 from collections import defaultdict
 from collections.abc import Iterable, Iterator, Sequence
 from typing import TYPE_CHECKING, Any, Callable, NamedTuple, TypeVar, overload
 
-import re2
 from sqlalchemy import (
     JSON,
     Column,
@@ -298,10 +298,10 @@ class DagRun(Base, LoggingMixin):
     def validate_run_id(self, key: str, run_id: str) -> str | None:
         if not run_id:
             return None
-        if re2.match(RUN_ID_REGEX, run_id):
+        if re.match(RUN_ID_REGEX, run_id):
             return run_id
         regex = airflow_conf.get("scheduler", "allowed_run_id_pattern").strip()
-        if regex and re2.match(regex, run_id):
+        if regex and re.match(regex, run_id):
             return run_id
         raise ValueError(
             f"The run_id provided '{run_id}' does not match regex pattern '{regex}' or '{RUN_ID_REGEX}'"
@@ -859,6 +859,8 @@ class DagRun(Base, LoggingMixin):
         :param session: SQLAlchemy ORM Session
         """
         dag_run = session.get(DagRun, dag_run_id)
+        if not dag_run.logical_date:
+            return None
         return session.scalar(
             select(DagRun)
             .where(

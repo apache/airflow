@@ -154,7 +154,7 @@ def docker_compose_tests(
     sys.exit(return_code)
 
 
-TEST_PROGRESS_REGEXP = r"tests/.*|providers/.*/tests/.*|task_sdk/tests/.*|.*=====.*"
+TEST_PROGRESS_REGEXP = r"tests/.*|providers/.*/tests/.*|task-sdk/tests/.*|.*=====.*"
 PERCENT_TEST_PROGRESS_REGEXP = r"^tests/.*\[[ \d%]*\].*|^\..*\[[ \d%]*\].*"
 
 
@@ -1096,7 +1096,7 @@ def python_api_client_tests(
         db_reset=db_reset,
         no_db_cleanup=no_db_cleanup,
         install_airflow_python_client=True,
-        start_webserver_with_examples=True,
+        start_api_server_with_examples=True,
     )
     rebuild_or_pull_ci_image_if_needed(command_params=shell_params)
     fix_ownership_using_docker()

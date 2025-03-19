@@ -81,17 +81,12 @@ def _find_all_integration_folders() -> list[str]:
         (
             GroupOfTests.CORE,
             "API",
-            ["tests/api", "tests/api_connexion", "tests/api_fastapi"],
+            ["tests/api", "tests/api_fastapi"],
         ),
         (
             GroupOfTests.CORE,
             "Serialization",
             ["tests/serialization"],
-        ),
-        (
-            GroupOfTests.CORE,
-            "Operators",
-            ["tests/operators"],
         ),
         (
             GroupOfTests.PROVIDERS,
@@ -157,7 +152,6 @@ def _find_all_integration_folders() -> list[str]:
             "Other",
             [
                 "tests/assets",
-                "tests/auth",
                 "tests/callbacks",
                 "tests/charts",
                 "tests/cluster_policies",
@@ -220,7 +214,7 @@ def test_pytest_args_for_missing_provider():
         (
             GroupOfTests.CORE,
             "API",
-            ["tests/api", "tests/api_connexion", "tests/api_fastapi"],
+            ["tests/api", "tests/api_fastapi"],
         ),
         (
             GroupOfTests.CORE,
@@ -234,7 +228,6 @@ def test_pytest_args_for_missing_provider():
             "API CLI",
             [
                 "tests/api",
-                "tests/api_connexion",
                 "tests/api_fastapi",
                 "tests/cli",
             ],
@@ -305,7 +298,7 @@ def test_pytest_args_for_missing_provider():
             GroupOfTests.TASK_SDK,
             "All",
             [
-                "task_sdk/tests",
+                "task-sdk/tests",
             ],
         ),
         (

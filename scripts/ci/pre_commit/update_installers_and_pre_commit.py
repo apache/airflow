@@ -49,6 +49,7 @@ FILES_TO_UPDATE: list[tuple[Path, bool]] = [
     ),
     (AIRFLOW_SOURCES_ROOT_PATH / ".github" / "actions" / "install-pre-commit" / "action.yml", False),
     (AIRFLOW_SOURCES_ROOT_PATH / "dev/" / "breeze" / "doc" / "ci" / "02_images.md", True),
+    (AIRFLOW_SOURCES_ROOT_PATH / ".pre-commit-config.yaml", False),
 ]
 
 
@@ -58,6 +59,17 @@ def get_latest_pypi_version(package_name: str) -> str:
     data = response.json()
     latest_version = data["info"]["version"]  # The version info is under the 'info' key
     return latest_version
+
+
+def get_latest_lts_node_version() -> str:
+    response = requests.get("https://nodejs.org/dist/index.json")
+    response.raise_for_status()  # Ensure we got a successful response
+    versions = response.json()
+    lts_prefix = "v22"
+    lts_versions = [version["version"] for version in versions if version["version"].startswith(lts_prefix)]
+    # The json array is sorted from newest to oldest, so the first element is the latest LTS version
+    # Skip leading v in version
+    return lts_versions[0][1:]
 
 
 class Quoting(Enum):
@@ -130,6 +142,10 @@ PRE_COMMIT_UV_PATTERNS: list[tuple[re.Pattern, Quoting]] = [
     ),
 ]
 
+NODE_LTS_PATTERNS: list[tuple[re.Pattern, Quoting]] = [
+    (re.compile(r"( *node: )([0-9.]+)"), Quoting.UNQUOTED),
+]
+
 
 def get_replacement(value: str, quoting: Quoting) -> str:
     if quoting == Quoting.DOUBLE_QUOTED:
@@ -144,6 +160,7 @@ def get_replacement(value: str, quoting: Quoting) -> str:
 UPGRADE_UV: bool = os.environ.get("UPGRADE_UV", "true").lower() == "true"
 UPGRADE_PIP: bool = os.environ.get("UPGRADE_PIP", "true").lower() == "true"
 UPGRADE_PRE_COMMIT: bool = os.environ.get("UPGRADE_PRE_COMMIT", "true").lower() == "true"
+UPGRADE_NODE_LTS: bool = os.environ.get("UPGRADE_NODE_LTS", "true").lower() == "true"
 
 
 def replace_version(pattern: re.Pattern[str], version: str, text: str, keep_total_length: bool = True) -> str:
@@ -175,33 +192,34 @@ def replace_version(pattern: re.Pattern[str], version: str, text: str, keep_tota
 
 if __name__ == "__main__":
     changed = False
+    pip_version = get_latest_pypi_version("pip")
+    uv_version = get_latest_pypi_version("uv")
+    pre_commit_version = get_latest_pypi_version("pre-commit")
+    pre_commit_uv_version = get_latest_pypi_version("pre-commit-uv")
+    node_lts_version = get_latest_lts_node_version()
     for file, keep_length in FILES_TO_UPDATE:
         console.print(f"[bright_blue]Updating {file}")
         file_content = file.read_text()
         new_content = file_content
         if UPGRADE_PIP:
-            pip_version = get_latest_pypi_version("pip")
             console.print(f"[bright_blue]Latest pip version: {pip_version}")
             for line_pattern, quoting in PIP_PATTERNS:
                 new_content = replace_version(
                     line_pattern, get_replacement(pip_version, quoting), new_content, keep_length
                 )
         if UPGRADE_UV:
-            uv_version = get_latest_pypi_version("uv")
             console.print(f"[bright_blue]Latest uv version: {uv_version}")
             for line_pattern, quoting in UV_PATTERNS:
                 new_content = replace_version(
                     line_pattern, get_replacement(uv_version, quoting), new_content, keep_length
                 )
         if UPGRADE_PRE_COMMIT:
-            pre_commit_version = get_latest_pypi_version("pre-commit")
             console.print(f"[bright_blue]Latest pre-commit version: {pre_commit_version}")
             for line_pattern, quoting in PRE_COMMIT_PATTERNS:
                 new_content = replace_version(
                     line_pattern, get_replacement(pre_commit_version, quoting), new_content, keep_length
                 )
             if UPGRADE_UV:
-                pre_commit_uv_version = get_latest_pypi_version("pre-commit-uv")
                 console.print(f"[bright_blue]Latest pre-commit-uv version: {pre_commit_uv_version}")
                 for line_pattern, quoting in PRE_COMMIT_UV_PATTERNS:
                     new_content = replace_version(
@@ -210,6 +228,15 @@ if __name__ == "__main__":
                         new_content,
                         keep_length,
                     )
+        if UPGRADE_NODE_LTS:
+            console.print(f"[bright_blue]Latest Node LTS version: {node_lts_version}")
+            for line_pattern, quoting in NODE_LTS_PATTERNS:
+                new_content = replace_version(
+                    line_pattern,
+                    get_replacement(node_lts_version, quoting),
+                    new_content,
+                    keep_length,
+                )
         if new_content != file_content:
             file.write_text(new_content)
             console.print(f"[bright_blue]Updated {file}")

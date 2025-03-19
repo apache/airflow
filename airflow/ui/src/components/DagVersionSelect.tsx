@@ -21,29 +21,23 @@ import { useQueryClient } from "@tanstack/react-query";
 import type { OptionsOrGroups, GroupBase, SingleValue } from "chakra-react-select";
 import { AsyncSelect } from "chakra-react-select";
 import { useCallback } from "react";
-import { useSearchParams } from "react-router-dom";
+import { useParams, useSearchParams } from "react-router-dom";
 
 import { UseDagVersionServiceGetDagVersionsKeyFn } from "openapi/queries";
 import { DagVersionService } from "openapi/requests/services.gen";
 import type { DAGVersionCollectionResponse, DagVersionResponse } from "openapi/requests/types.gen";
 import { SearchParamsKeys } from "src/constants/searchParams";
+import useSelectedVersion from "src/hooks/useSelectedVersion";
+import type { Option } from "src/utils/option";
 
-type Option = {
-  label: string;
-  value: string;
-};
-
-const DagVersionSelect = ({
-  dagId,
-  disabled = false,
-}: {
-  readonly dagId: string | undefined;
-  readonly disabled?: boolean;
-}) => {
+const DagVersionSelect = ({ disabled = false }: { readonly disabled?: boolean }) => {
   const queryClient = useQueryClient();
 
   const [searchParams, setSearchParams] = useSearchParams();
-  const selectedVersion = searchParams.get(SearchParamsKeys.VERSION_NUMBER);
+
+  const selectedVersion = useSelectedVersion();
+
+  const { dagId = "" } = useParams();
 
   const loadVersions = (
     _: string,
@@ -52,9 +46,9 @@ const DagVersionSelect = ({
     queryClient.fetchQuery({
       queryFn: () =>
         DagVersionService.getDagVersions({
-          dagId: dagId ?? "",
+          dagId,
         }).then((data: DAGVersionCollectionResponse) => {
-          const options = data.dag_versions.map((version: DagVersionResponse) => {
+          const options = [...data.dag_versions].reverse().map((version: DagVersionResponse) => {
             const versionNumber = version.version_number.toString();
 
             return {
@@ -67,7 +61,7 @@ const DagVersionSelect = ({
 
           return options;
         }),
-      queryKey: UseDagVersionServiceGetDagVersionsKeyFn({ dagId: dagId ?? "" }),
+      queryKey: UseDagVersionServiceGetDagVersionsKeyFn({ dagId }),
       staleTime: 0,
     });
 
@@ -82,7 +76,7 @@ const DagVersionSelect = ({
   );
 
   return (
-    <Field.Root disabled={disabled} width="fit-content">
+    <Field.Root bg="bg" disabled={disabled} width="fit-content">
       <AsyncSelect
         defaultOptions
         filterOption={undefined}
@@ -90,9 +84,12 @@ const DagVersionSelect = ({
         loadOptions={loadVersions}
         onChange={handleStateChange}
         placeholder="Dag Version"
-        // null is required https://github.com/JedWatson/react-select/issues/3066
-        // eslint-disable-next-line unicorn/no-null
-        value={selectedVersion === null ? null : { label: `v${selectedVersion}`, value: selectedVersion }}
+        size="sm"
+        value={
+          selectedVersion === undefined
+            ? undefined
+            : { label: `v${selectedVersion}`, value: selectedVersion.toString() }
+        }
       />
     </Field.Root>
   );

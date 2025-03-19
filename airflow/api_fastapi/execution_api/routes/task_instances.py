@@ -22,9 +22,9 @@ import logging
 from typing import Annotated
 from uuid import UUID
 
-from fastapi import Body, HTTPException, status
+from fastapi import Body, Depends, HTTPException, status
 from pydantic import JsonValue
-from sqlalchemy import func, update
+from sqlalchemy import func, tuple_, update
 from sqlalchemy.exc import NoResultFound, SQLAlchemyError
 from sqlalchemy.sql import select
 
@@ -38,21 +38,26 @@ from airflow.api_fastapi.execution_api.datamodels.taskinstance import (
     TIRescheduleStatePayload,
     TIRunContext,
     TIRuntimeCheckPayload,
+    TISkippedDownstreamTasksStatePayload,
     TIStateUpdate,
     TISuccessStatePayload,
     TITerminalStatePayload,
 )
-from airflow.exceptions import AirflowInactiveAssetInInletOrOutletException
+from airflow.api_fastapi.execution_api.deps import JWTBearer
 from airflow.models.dagrun import DagRun as DR
 from airflow.models.taskinstance import TaskInstance as TI, _update_rtif
 from airflow.models.taskreschedule import TaskReschedule
 from airflow.models.trigger import Trigger
-from airflow.models.xcom import XCom
+from airflow.models.xcom import XComModel
 from airflow.utils import timezone
-from airflow.utils.state import DagRunState, State, TerminalTIState
+from airflow.utils.state import DagRunState, TaskInstanceState, TerminalTIState
 
-# TODO: Add dependency on JWT token
-router = AirflowRouter()
+router = AirflowRouter(
+    dependencies=[
+        # This checks that the UUID in the url matches the one in the token for us.
+        Depends(JWTBearer(path_param_name="task_instance_id")),
+    ]
+)
 
 
 log = logging.getLogger(__name__)
@@ -93,6 +98,9 @@ def ti_run(
             TI.try_number,
             TI.max_tries,
             TI.next_method,
+            TI.hostname,
+            TI.unixname,
+            TI.pid,
             # This selects the raw JSON value, by-passing the deserialization -- we want that to happen on the
             # client
             column("next_kwargs", JSON),
@@ -102,18 +110,7 @@ def ti_run(
         .with_for_update()
     )
     try:
-        (
-            previous_state,
-            dag_id,
-            run_id,
-            task_id,
-            map_index,
-            next_method,
-            try_number,
-            max_tries,
-            next_method,
-            next_kwargs,
-        ) = session.execute(old).one()
+        ti = session.execute(old).one()
     except NoResultFound:
         log.error("Task Instance %s not found", ti_id_str)
         raise HTTPException(
@@ -129,9 +126,17 @@ def ti_run(
 
     query = update(TI).where(TI.id == ti_id_str).values(data)
 
-    # TODO: We will need to change this for other states like:
-    #   reschedule, retry, defer etc.
-    if previous_state != State.QUEUED:
+    previous_state = ti.state
+
+    # If we are already running, but this is a duplicate request from the same client return the same OK
+    # -- it's possible there was a network glitch and they never got the response
+    if previous_state == TaskInstanceState.RUNNING and (ti["hostname"], ti["unixname"], ti["pid"]) == (
+        ti_run_payload.hostname,
+        ti_run_payload.unixname,
+        ti_run_payload.pid,
+    ):
+        log.info("Duplicate start request received from %s ", ti_run_payload.hostname)
+    elif previous_state != TaskInstanceState.QUEUED:
         log.warning(
             "Can not start Task Instance ('%s') in invalid state: %s",
             ti_id_str,
@@ -151,14 +156,16 @@ def ti_run(
                 "previous_state": previous_state,
             },
         )
-    log.info("Task with %s state started on %s ", previous_state, ti_run_payload.hostname)
+    else:
+        log.info("Task with %s state started on %s ", previous_state, ti_run_payload.hostname)
     # Ensure there is no end date set.
     query = query.values(
         end_date=None,
         hostname=ti_run_payload.hostname,
         unixname=ti_run_payload.unixname,
         pid=ti_run_payload.pid,
-        state=State.RUNNING,
+        state=TaskInstanceState.RUNNING,
+        last_heartbeat_at=timezone.utcnow(),
     )
 
     try:
@@ -178,37 +185,35 @@ def ti_run(
                 DR.run_type,
                 DR.conf,
                 DR.logical_date,
-            ).filter_by(dag_id=dag_id, run_id=run_id)
+            ).filter_by(dag_id=ti.dag_id, run_id=ti.run_id)
         ).one_or_none()
 
         if not dr:
-            raise ValueError(f"DagRun with dag_id={dag_id} and run_id={run_id} not found.")
+            raise ValueError(f"DagRun with dag_id={ti.dag_id} and run_id={ti.run_id} not found.")
 
-        # Clear XCom data for the task instance since we are certain it is executing
+        # Send the keys to the SDK so that the client requests to clear those XComs from the server.
+        # The reason we cannot do this here in the server is because we need to issue a purge on custom XCom backends
+        # too. With the current assumption, the workers ONLY have access to the custom XCom backends directly and they
+        # can issue the purge.
+
         # However, do not clear it for deferral
-        if not next_method:
-            if map_index < 0:
-                map_index = None
-            log.info("Clearing xcom data for task id: %s", ti_id_str)
-            XCom.clear(
-                dag_id=dag_id,
-                task_id=task_id,
-                run_id=run_id,
-                map_index=map_index,
-                session=session,
+        xcom_keys = []
+        if not ti.next_method:
+            map_index = None if ti.map_index < 0 else ti.map_index
+            query = select(XComModel.key).where(
+                XComModel.dag_id == ti.dag_id,
+                XComModel.task_id == ti.task_id,
+                XComModel.run_id == ti.run_id,
             )
+            if map_index is not None:
+                query = query.where(XComModel.map_index == map_index)
 
+            xcom_keys = list(session.scalars(query))
         task_reschedule_count = (
             session.query(
                 func.count(TaskReschedule.id)  # or any other primary key column
             )
-            .filter(
-                TaskReschedule.dag_id == dag_id,
-                TaskReschedule.task_id == ti_id_str,
-                TaskReschedule.run_id == run_id,
-                #    TaskReschedule.map_index == ti.map_index,  # TODO: Handle mapped tasks
-                TaskReschedule.try_number == try_number,
-            )
+            .filter(TaskReschedule.ti_id == ti_id_str, TaskReschedule.try_number == ti.try_number)
             .scalar()
             or 0
         )
@@ -216,16 +221,17 @@ def ti_run(
         context = TIRunContext(
             dag_run=dr,
             task_reschedule_count=task_reschedule_count,
-            max_tries=max_tries,
+            max_tries=ti.max_tries,
             # TODO: Add variables and connections that are needed (and has perms) for the task
             variables=[],
             connections=[],
+            xcom_keys_to_clear=xcom_keys,
         )
 
         # Only set if they are non-null
-        if next_method:
-            context.next_method = next_method
-            context.next_kwargs = next_kwargs
+        if ti.next_method:
+            context.next_method = ti.next_method
+            context.next_kwargs = ti.next_kwargs
 
         return context
     except SQLAlchemyError as e:
@@ -238,9 +244,6 @@ def ti_run(
 @router.patch(
     "/{task_instance_id}/state",
     status_code=status.HTTP_204_NO_CONTENT,
-    # TODO: Add description to the operation
-    # TODO: Add Operation ID to control the function name in the OpenAPI spec
-    # TODO: Do we need to use create_openapi_http_exception_doc here?
     responses={
         status.HTTP_404_NOT_FOUND: {"description": "Task Instance not found"},
         status.HTTP_409_CONFLICT: {"description": "The TI is already in the requested state"},
@@ -291,12 +294,18 @@ def ti_update_state(
         # if we get failed, we should attempt to retry, as it is a more
         # normal state. Tasks with retries are more frequent than without retries.
         if ti_patch_payload.state == TerminalTIState.FAIL_WITHOUT_RETRY:
-            updated_state = State.FAILED
-        elif ti_patch_payload.state == State.FAILED:
+            updated_state = TaskInstanceState.FAILED
+        elif ti_patch_payload.state == TaskInstanceState.FAILED:
             if _is_eligible_to_retry(previous_state, try_number, max_tries):
-                updated_state = State.UP_FOR_RETRY
+                from airflow.models.taskinstance import uuid7
+                from airflow.models.taskinstancehistory import TaskInstanceHistory
+
+                ti = session.get(TI, ti_id_str)
+                TaskInstanceHistory.record_ti(ti, session=session)
+                ti.try_id = uuid7()
+                updated_state = TaskInstanceState.UP_FOR_RETRY
             else:
-                updated_state = State.FAILED
+                updated_state = TaskInstanceState.FAILED
         query = query.values(state=updated_state)
     elif isinstance(ti_patch_payload, TISuccessStatePayload):
         query = TI.duration_expression_update(ti_patch_payload.end_date, query, session.bind)
@@ -343,26 +352,23 @@ def ti_update_state(
             next_kwargs = BaseSerialization.deserialize(ti_patch_payload.next_kwargs)
 
         query = query.values(
-            state=State.DEFERRED,
+            state=TaskInstanceState.DEFERRED,
             trigger_id=trigger_row.id,
             next_method=ti_patch_payload.next_method,
             next_kwargs=next_kwargs,
             trigger_timeout=timeout,
         )
-        updated_state = State.DEFERRED
+        updated_state = TaskInstanceState.DEFERRED
     elif isinstance(ti_patch_payload, TIRescheduleStatePayload):
         task_instance = session.get(TI, ti_id_str)
         actual_start_date = timezone.utcnow()
         session.add(
             TaskReschedule(
-                task_instance.task_id,
-                task_instance.dag_id,
-                task_instance.run_id,
+                task_instance.id,
                 task_instance.try_number,
                 actual_start_date,
                 ti_patch_payload.end_date,
                 ti_patch_payload.reschedule_date,
-                task_instance.map_index,
             )
         )
 
@@ -370,8 +376,8 @@ def ti_update_state(
         # calculate the duration for TI table too
         query = TI.duration_expression_update(ti_patch_payload.end_date, query, session.bind)
         # clear the next_method and next_kwargs so that none of the retries pick them up
-        query = query.values(state=State.UP_FOR_RESCHEDULE, next_method=None, next_kwargs=None)
-        updated_state = State.UP_FOR_RESCHEDULE
+        query = query.values(state=TaskInstanceState.UP_FOR_RESCHEDULE, next_method=None, next_kwargs=None)
+        updated_state = TaskInstanceState.UP_FOR_RESCHEDULE
     # TODO: Replace this with FastAPI's Custom Exception handling:
     # https://fastapi.tiangolo.com/tutorial/handling-errors/#install-custom-exception-handlers
     try:
@@ -382,6 +388,38 @@ def ti_update_state(
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Database error occurred"
         )
+
+
+@router.patch(
+    "/{task_instance_id}/skip-downstream",
+    status_code=status.HTTP_204_NO_CONTENT,
+    responses={
+        status.HTTP_404_NOT_FOUND: {"description": "Task Instance not found"},
+        status.HTTP_422_UNPROCESSABLE_ENTITY: {"description": "Invalid payload for the state transition"},
+    },
+)
+def ti_skip_downstream(
+    task_instance_id: UUID,
+    ti_patch_payload: TISkippedDownstreamTasksStatePayload,
+    session: SessionDep,
+):
+    ti_id_str = str(task_instance_id)
+    now = timezone.utcnow()
+    tasks = ti_patch_payload.tasks
+
+    dag_id, run_id = session.execute(select(TI.dag_id, TI.run_id).where(TI.id == ti_id_str)).fetchone()
+
+    task_ids = [task if isinstance(task, tuple) else (task, -1) for task in tasks]
+
+    query = (
+        update(TI)
+        .where(TI.dag_id == dag_id, TI.run_id == run_id, tuple_(TI.task_id, TI.map_index).in_(task_ids))
+        .values(state=TaskInstanceState.SKIPPED, start_date=now, end_date=now)
+        .execution_options(synchronize_session=False)
+    )
+
+    result = session.execute(query)
+    log.info("TI %s updated the state of %s task(s) to skipped", ti_id_str, result.rowcount)
 
 
 @router.put(
@@ -431,7 +469,7 @@ def ti_heartbeat(
             },
         )
 
-    if previous_state != State.RUNNING:
+    if previous_state != TaskInstanceState.RUNNING:
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT,
             detail={
@@ -535,26 +573,13 @@ def ti_runtime_checks(
 ):
     ti_id_str = str(task_instance_id)
     task_instance = session.scalar(select(TI).where(TI.id == ti_id_str))
-    if task_instance.state != State.RUNNING:
+    if task_instance.state != TaskInstanceState.RUNNING:
         raise HTTPException(status_code=status.HTTP_409_CONFLICT)
-
-    try:
-        TI.validate_inlet_outlet_assets_activeness(payload.inlets, payload.outlets, session)  # type: ignore
-    except AirflowInactiveAssetInInletOrOutletException as e:
-        log.error("Task Instance %s fails the runtime checks.", ti_id_str)
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail={
-                "reason": "validation_failed",
-                "message": "Task Instance fails the runtime checks",
-                "error": str(e),
-            },
-        )
 
 
 def _is_eligible_to_retry(state: str, try_number: int, max_tries: int) -> bool:
     """Is task instance is eligible for retry."""
-    if state == State.RESTARTING:
+    if state == TaskInstanceState.RESTARTING:
         # If a task is cleared when running, it goes into RESTARTING state and is always
         # eligible for retry
         return True

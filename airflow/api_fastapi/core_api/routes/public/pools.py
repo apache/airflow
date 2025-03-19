@@ -40,7 +40,9 @@ from airflow.api_fastapi.core_api.datamodels.pools import (
     PoolResponse,
 )
 from airflow.api_fastapi.core_api.openapi.exceptions import create_openapi_http_exception_doc
+from airflow.api_fastapi.core_api.security import requires_access_pool
 from airflow.api_fastapi.core_api.services.public.pools import BulkPoolService
+from airflow.api_fastapi.logging.decorators import action_logging
 from airflow.models.pool import Pool
 
 pools_router = AirflowRouter(tags=["Pool"], prefix="/pools")
@@ -55,6 +57,7 @@ pools_router = AirflowRouter(tags=["Pool"], prefix="/pools")
             status.HTTP_404_NOT_FOUND,
         ]
     ),
+    dependencies=[Depends(requires_access_pool(method="DELETE")), Depends(action_logging())],
 )
 def delete_pool(
     pool_name: str,
@@ -73,6 +76,7 @@ def delete_pool(
 @pools_router.get(
     "/{pool_name}",
     responses=create_openapi_http_exception_doc([status.HTTP_404_NOT_FOUND]),
+    dependencies=[Depends(requires_access_pool(method="GET"))],
 )
 def get_pool(
     pool_name: str,
@@ -89,6 +93,7 @@ def get_pool(
 @pools_router.get(
     "",
     responses=create_openapi_http_exception_doc([status.HTTP_404_NOT_FOUND]),
+    dependencies=[Depends(requires_access_pool(method="GET"))],
 )
 def get_pools(
     limit: QueryLimit,
@@ -126,6 +131,7 @@ def get_pools(
             status.HTTP_404_NOT_FOUND,
         ]
     ),
+    dependencies=[Depends(requires_access_pool(method="PUT")), Depends(action_logging())],
 )
 def patch_pool(
     pool_name: str,
@@ -177,6 +183,7 @@ def patch_pool(
     responses=create_openapi_http_exception_doc(
         [status.HTTP_409_CONFLICT]
     ),  # handled by global exception handler
+    dependencies=[Depends(requires_access_pool(method="POST")), Depends(action_logging())],
 )
 def post_pool(
     body: PoolBody,
@@ -188,7 +195,10 @@ def post_pool(
     return pool
 
 
-@pools_router.patch("")
+@pools_router.patch(
+    "",
+    dependencies=[Depends(requires_access_pool(method="PUT")), Depends(action_logging())],
+)
 def bulk_pools(
     request: BulkBody[PoolBody],
     session: SessionDep,

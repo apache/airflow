@@ -36,6 +36,7 @@ from celery.backends.base import BaseBackend, BaseKeyValueStoreBackend
 from celery.backends.database import DatabaseBackend
 from celery.contrib.testing.worker import start_worker
 from kombu.asynchronous import set_event_loop
+from kubernetes.client import models as k8s
 
 from airflow.configuration import conf
 from airflow.exceptions import AirflowException, AirflowTaskTimeout
@@ -137,7 +138,37 @@ class TestCeleryExecutor:
 
     @pytest.mark.flaky(reruns=3)
     @pytest.mark.parametrize("broker_url", _prepare_test_bodies())
-    def test_celery_integration(self, broker_url):
+    @pytest.mark.parametrize(
+        "executor_config",
+        [
+            pytest.param({}, id="no_executor_config"),
+            pytest.param(
+                {
+                    "pod_override": k8s.V1Pod(
+                        spec=k8s.V1PodSpec(
+                            containers=[
+                                k8s.V1Container(
+                                    name="base",
+                                    resources=k8s.V1ResourceRequirements(
+                                        requests={
+                                            "cpu": "100m",
+                                            "memory": "384Mi",
+                                        },
+                                        limits={
+                                            "cpu": 1,
+                                            "memory": "500Mi",
+                                        },
+                                    ),
+                                )
+                            ]
+                        )
+                    )
+                },
+                id="pod_override_executor_config",
+            ),
+        ],
+    )
+    def test_celery_integration(self, broker_url, executor_config):
         from airflow.providers.celery.executors import celery_executor, celery_executor_utils
 
         def fake_execute_workload(command):
@@ -157,6 +188,7 @@ class TestCeleryExecutor:
                     try_number=0,
                     priority_weight=1,
                     queue=celery_executor_utils.celery_configuration["task_default_queue"],
+                    executor_config=executor_config,
                 )
                 keys = [
                     TaskInstanceKey("id", "success", "abc", 0, -1),

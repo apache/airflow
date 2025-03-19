@@ -20,11 +20,13 @@ from __future__ import annotations
 import os
 import re
 from unittest import mock
+from unittest.mock import patch
 
 import pytest
 from git import Repo
 from git.exc import GitCommandError, NoSuchPathError
 
+from airflow.dag_processing.bundles.base import get_bundle_storage_root_path
 from airflow.dag_processing.bundles.git import GitDagBundle, GitHook
 from airflow.exceptions import AirflowException
 from airflow.models import Connection
@@ -230,10 +232,10 @@ class TestGitDagBundle:
     def test_supports_versioning(self):
         assert GitDagBundle.supports_versioning is True
 
-    def test_uses_dag_bundle_root_storage_path(self, git_repo):
-        repo_path, repo = git_repo
+    def test_uses_dag_bundle_root_storage_path(self):
         bundle = GitDagBundle(name="test", tracking_ref=GIT_DEFAULT_BRANCH)
-        assert str(bundle._dag_bundle_root_storage_path) in str(bundle.path)
+        base = get_bundle_storage_root_path()
+        assert bundle.path.is_relative_to(base)
 
     def test_repo_url_overrides_connection_host_when_provided(self):
         bundle = GitDagBundle(name="test", tracking_ref=GIT_DEFAULT_BRANCH, repo_url="/some/other/repo")
@@ -563,16 +565,20 @@ class TestGitDagBundle:
 
                 assert "Repository path: %s not found" in str(exc_info.value)
 
-    @mock.patch("airflow.dag_processing.bundles.git.GitDagBundle.log")
-    def test_repo_url_access_missing_connection_doesnt_error(self, mock_log):
+    @patch.dict(os.environ, {"AIRFLOW_CONN_MY_TEST_GIT": '{"host": "something"}'})
+    @pytest.mark.parametrize("conn_id, should_find", [("my_test_git", True), ("something-else", False)])
+    def test_repo_url_access_missing_connection_doesnt_error(self, conn_id, should_find):
         bundle = GitDagBundle(
             name="testa",
             tracking_ref="main",
-            git_conn_id="unknown",
+            git_conn_id=conn_id,
             repo_url="some_repo_url",
         )
         assert bundle.repo_url == "some_repo_url"
-        assert "Could not create GitHook for connection" in mock_log.warning.call_args[0][0]
+        if should_find:
+            assert isinstance(bundle.hook, GitHook)
+        else:
+            assert not hasattr(bundle, "hook")
 
     @mock.patch("airflow.dag_processing.bundles.git.GitHook")
     def test_lock_used(self, mock_githook, git_repo):

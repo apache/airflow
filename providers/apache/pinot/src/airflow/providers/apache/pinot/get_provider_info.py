@@ -27,8 +27,9 @@ def get_provider_info():
         "name": "Apache Pinot",
         "description": "`Apache Pinot <https://pinot.apache.org/>`__\n",
         "state": "ready",
-        "source-date-epoch": 1734528530,
+        "source-date-epoch": 1741508351,
         "versions": [
+            "4.7.0",
             "4.6.0",
             "4.5.1",
             "4.5.0",
@@ -87,4 +88,5 @@ def get_provider_info():
             "apache-airflow-providers-common-sql>=1.20.0",
             "pinotdb>=5.1.0",
         ],
+        "devel-dependencies": [],
     }

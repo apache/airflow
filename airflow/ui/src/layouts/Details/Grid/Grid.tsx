@@ -17,17 +17,15 @@
  * under the License.
  */
 import { Box, Flex, IconButton } from "@chakra-ui/react";
-import { keepPreviousData } from "@tanstack/react-query";
 import dayjs from "dayjs";
 import dayjsDuration from "dayjs/plugin/duration";
 import { useMemo } from "react";
-import { FiChevronLeft, FiChevronRight } from "react-icons/fi";
-import { useParams, useSearchParams } from "react-router-dom";
+import { FiChevronsRight } from "react-icons/fi";
+import { Link, useParams } from "react-router-dom";
 
-import { useGridServiceGridData, useStructureServiceStructureData } from "openapi/queries";
-import type { GridResponse } from "openapi/requests/types.gen";
+import { useStructureServiceStructureData } from "openapi/queries";
 import { useOpenGroups } from "src/context/openGroups";
-import { isStatePending, useAutoRefresh } from "src/utils";
+import { useGrid } from "src/queries/useGrid";
 
 import { Bar } from "./Bar";
 import { DurationAxis } from "./DurationAxis";
@@ -37,9 +35,6 @@ import { flattenNodes, type RunWithDuration } from "./utils";
 
 dayjs.extend(dayjsDuration);
 
-const OFFSET_CHANGE = 10;
-const limit = 14;
-
 export const Grid = () => {
   const { openGroupIds } = useOpenGroups();
   const { dagId = "" } = useParams();
@@ -47,27 +42,7 @@ export const Grid = () => {
     dagId,
   });
 
-  const [searchParams, setSearchParams] = useSearchParams();
-  const refetchInterval = useAutoRefresh({ dagId });
-
-  const offset = parseInt(searchParams.get("offset") ?? "0", 10);
-
-  // This is necessary for keepPreviousData
-  // eslint-disable-next-line @typescript-eslint/no-unnecessary-type-arguments
-  const { data: gridData } = useGridServiceGridData<GridResponse>(
-    {
-      dagId,
-      limit,
-      offset,
-      orderBy: "-run_after",
-    },
-    undefined,
-    {
-      placeholderData: keepPreviousData,
-      refetchInterval: (query) =>
-        query.state.data?.dag_runs.some((dr) => isStatePending(dr.state)) && refetchInterval,
-    },
-  );
+  const { data: gridData, isLoading, runAfter } = useGrid();
 
   const runs: Array<RunWithDuration> = useMemo(
     () =>
@@ -90,49 +65,18 @@ export const Grid = () => {
     runs.map((dr) => dr.duration),
   );
 
-  const onIncrement = () => {
-    if (offset - OFFSET_CHANGE > 0) {
-      const newOffset = offset - OFFSET_CHANGE;
-
-      searchParams.set("offset", newOffset.toString());
-    } else {
-      searchParams.delete("offset");
-    }
-    setSearchParams(searchParams);
-  };
-
-  const onDecrement = () => {
-    const newOffset = offset + OFFSET_CHANGE;
-
-    searchParams.set("offset", newOffset.toString());
-    setSearchParams(searchParams);
-  };
-
   const { flatNodes } = useMemo(
     () => flattenNodes(structure?.nodes ?? [], openGroupIds),
     [structure?.nodes, openGroupIds],
   );
 
   return (
-    <Flex justifyContent="flex-end" mr={3} position="relative" pt="75px" width="100%">
-      <Box position="absolute" top="175px" width="100%">
+    <Flex justifyContent="flex-end" mr={3} position="relative" pt={50} width="100%">
+      <Box position="absolute" top="150px" width="100%">
         <TaskNames nodes={flatNodes} />
       </Box>
       <Box>
         <Flex position="relative">
-          <IconButton
-            aria-label={`-${OFFSET_CHANGE} older dag runs`}
-            disabled={runs.length < limit}
-            height="98px"
-            minW={0}
-            mr={10}
-            onClick={onDecrement}
-            title={`-${OFFSET_CHANGE} older dag runs`}
-            variant="surface"
-            zIndex={1}
-          >
-            <FiChevronLeft />
-          </IconButton>
           <DurationAxis top="100px" />
           <DurationAxis top="50px" />
           <DurationAxis top="4px" />
@@ -146,23 +90,26 @@ export const Grid = () => {
             )}
           </Flex>
           <Flex flexDirection="row-reverse">
-            {runs.map((dr, index) => (
-              <Bar index={index} key={dr.dag_run_id} limit={limit} max={max} nodes={flatNodes} run={dr} />
+            {runs.map((dr) => (
+              <Bar key={dr.dag_run_id} max={max} nodes={flatNodes} run={dr} />
             ))}
           </Flex>
-          <IconButton
-            aria-label={`+${OFFSET_CHANGE} newer dag runs`}
-            disabled={offset === 0}
-            height="98px"
-            minW={0}
-            ml={1}
-            onClick={onIncrement}
-            title={`+${OFFSET_CHANGE} newer dag runs`}
-            variant="surface"
-            zIndex={1}
-          >
-            <FiChevronRight />
-          </IconButton>
+          {runAfter === undefined ? undefined : (
+            <Link to={`/dags/${dagId}`}>
+              <IconButton
+                aria-label="Reset to latest"
+                height="98px"
+                loading={isLoading}
+                minW={0}
+                ml={1}
+                title="Reset to latest"
+                variant="surface"
+                zIndex={1}
+              >
+                <FiChevronsRight />
+              </IconButton>
+            </Link>
+          )}
         </Flex>
       </Box>
     </Flex>

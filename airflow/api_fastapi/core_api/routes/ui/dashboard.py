@@ -16,14 +16,16 @@
 # under the License.
 from __future__ import annotations
 
-from fastapi import status
+from fastapi import Depends, status
 from sqlalchemy import func, select
 
+from airflow.api_fastapi.auth.managers.models.resource_details import DagAccessEntity
 from airflow.api_fastapi.common.db.common import SessionDep
 from airflow.api_fastapi.common.parameters import DateTimeQuery, OptionalDateTimeQuery
 from airflow.api_fastapi.common.router import AirflowRouter
 from airflow.api_fastapi.core_api.datamodels.ui.dashboard import HistoricalMetricDataResponse
 from airflow.api_fastapi.core_api.openapi.exceptions import create_openapi_http_exception_doc
+from airflow.api_fastapi.core_api.security import requires_access_dag
 from airflow.models.dagrun import DagRun, DagRunType
 from airflow.models.taskinstance import TaskInstance
 from airflow.utils import timezone
@@ -35,6 +37,10 @@ dashboard_router = AirflowRouter(tags=["Dashboard"], prefix="/dashboard")
 @dashboard_router.get(
     "/historical_metrics_data",
     responses=create_openapi_http_exception_doc([status.HTTP_400_BAD_REQUEST]),
+    dependencies=[
+        Depends(requires_access_dag(method="GET", access_entity=DagAccessEntity.TASK_INSTANCE)),
+        Depends(requires_access_dag(method="GET", access_entity=DagAccessEntity.RUN)),
+    ],
 )
 def historical_metrics(
     session: SessionDep,

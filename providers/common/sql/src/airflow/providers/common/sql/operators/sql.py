@@ -26,7 +26,8 @@ from typing import TYPE_CHECKING, Any, Callable, ClassVar, NoReturn, SupportsAbs
 from airflow.exceptions import AirflowException, AirflowFailException
 from airflow.hooks.base import BaseHook
 from airflow.models import BaseOperator, SkipMixin
-from airflow.providers.common.sql.hooks.sql import DbApiHook, fetch_all_handler, return_single_query_results
+from airflow.providers.common.sql.hooks.handlers import fetch_all_handler, return_single_query_results
+from airflow.providers.common.sql.hooks.sql import DbApiHook
 from airflow.utils.helpers import merge_dicts
 
 if TYPE_CHECKING:
@@ -1199,7 +1200,7 @@ class BranchSQLOperator(BaseSQLOperator, SkipMixin):
             self.conn_id,
         )
         record = self.get_db_hook().get_first(self.sql, self.parameters)
-        if not record:
+        if record is None:
             raise AirflowException(
                 "No rows returned from sql query. Operator expected True or False return value."
             )

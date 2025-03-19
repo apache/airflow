@@ -21,10 +21,9 @@ Example DAG for demonstrating the usage of event driven scheduling using assets 
 from __future__ import annotations
 
 from airflow.decorators import task
-from airflow.models.baseoperator import chain
 from airflow.models.dag import DAG
 from airflow.providers.standard.triggers.file import FileDeleteTrigger
-from airflow.sdk import Asset, AssetWatcher
+from airflow.sdk import Asset, AssetWatcher, chain
 
 file_path = "/tmp/test"
 

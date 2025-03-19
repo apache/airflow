@@ -21,6 +21,7 @@ import dataclasses
 import enum
 import functools
 import logging
+import re
 import sys
 from fnmatch import fnmatch
 from importlib import import_module
@@ -28,7 +29,6 @@ from re import Pattern
 from typing import TYPE_CHECKING, Any, TypeVar, Union, cast
 
 import attr
-import re2
 
 import airflow.serialization.serializers
 from airflow.configuration import conf
@@ -380,12 +380,12 @@ def _register():
 
 @functools.cache
 def _get_patterns() -> list[Pattern]:
-    return [re2.compile(p) for p in conf.get("core", "allowed_deserialization_classes").split()]
+    return [re.compile(p) for p in conf.get("core", "allowed_deserialization_classes").split()]
 
 
 @functools.cache
 def _get_regexp_patterns() -> list[Pattern]:
-    return [re2.compile(p) for p in conf.get("core", "allowed_deserialization_classes_regexp").split()]
+    return [re.compile(p) for p in conf.get("core", "allowed_deserialization_classes_regexp").split()]
 
 
 _register()

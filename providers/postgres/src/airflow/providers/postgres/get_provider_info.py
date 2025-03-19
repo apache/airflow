@@ -27,8 +27,9 @@ def get_provider_info():
         "name": "PostgreSQL",
         "description": "`PostgreSQL <https://www.postgresql.org/>`__\n",
         "state": "ready",
-        "source-date-epoch": 1739964148,
+        "source-date-epoch": 1741509454,
         "versions": [
+            "6.1.1",
             "6.1.0",
             "6.0.0",
             "5.14.0",
@@ -121,4 +122,5 @@ def get_provider_info():
             "amazon": ["apache-airflow-providers-amazon>=2.6.0"],
             "openlineage": ["apache-airflow-providers-openlineage"],
         },
+        "devel-dependencies": [],
     }

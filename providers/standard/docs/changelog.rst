@@ -35,6 +35,28 @@
 Changelog
 ---------
 
+0.1.1
+.....
+
+Misc
+~~~~
+
+* ``Relocate SmoothOperator to standard provider and add tests (#47530)``
+* ``AIP-72: Moving BaseOperatorLink to task sdk (#47008)``
+* ``Move tests_common package to devel-common project (#47281)``
+* ``Remove old UI and webserver (#46942)``
+* ``Add deferred pagination mode to GenericTransfer (#44809)``
+* ``Replace 'external_trigger' check with DagRunType (#45961)``
+* ``Runtime context shouldn't have start_date as a key (#46961)``
+* ``Upgrade flit to 3.11.0 (#46938)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Fix codespell issues detected by new codespell (#47259)``
+   * ``Improve documentation for updating provider dependencies (#47203)``
+   * ``Add legacy namespace packages to airflow.providers (#47064)``
+   * ``Remove extra whitespace in provider readme template (#46975)``
+
 0.1.0
 .....
 

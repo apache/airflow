@@ -18,6 +18,7 @@ from __future__ import annotations
 
 import inspect
 import itertools
+import re
 import textwrap
 import warnings
 from collections.abc import Collection, Iterator, Mapping, Sequence
@@ -25,7 +26,6 @@ from functools import cached_property, update_wrapper
 from typing import TYPE_CHECKING, Any, Callable, ClassVar, Generic, Protocol, TypeVar, cast, overload
 
 import attr
-import re2
 import typing_extensions
 
 from airflow.models.baseoperator import (
@@ -138,14 +138,14 @@ def get_unique_task_id(
         return task_id
 
     def _find_id_suffixes(dag: DAG) -> Iterator[int]:
-        prefix = re2.split(r"__\d+$", tg_task_id)[0]
+        prefix = re.split(r"__\d+$", tg_task_id)[0]
         for task_id in dag.task_ids:
-            match = re2.match(rf"^{prefix}__(\d+)$", task_id)
+            match = re.match(rf"^{prefix}__(\d+)$", task_id)
             if match:
                 yield int(match.group(1))
         yield 0  # Default if there's no matching task ID.
 
-    core = re2.split(r"__\d+$", task_id)[0]
+    core = re.split(r"__\d+$", task_id)[0]
     return f"{core}__{max(_find_id_suffixes(dag)) + 1}"
 
 
@@ -513,6 +513,7 @@ class _TaskDecorator(ExpandableFactory, Generic[FParams, FReturn, OperatorSubcla
             ui_fgcolor=self.operator_class.ui_fgcolor,
             is_empty=False,
             is_sensor=self.operator_class._is_sensor,
+            can_skip_downstream=self.operator_class._can_skip_downstream,
             task_module=self.operator_class.__module__,
             task_type=self.operator_class.__name__,
             operator_name=operator_name,

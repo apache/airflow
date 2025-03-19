@@ -34,7 +34,7 @@ As part of this change the following breaking changes have occurred:
 
   .. code-block:: bash
 
-      airflow db drop-archived -t "_xcAm_archive"
+      airflow db drop-archived -t "_xcom_archive"
 
 - The ability to specify scheduling conditions for an operator via the ``deps`` class attribute has been removed.
 
@@ -42,6 +42,46 @@ As part of this change the following breaking changes have occurred:
 
   It is recommended that you replace such a custom operator with a deferrable sensor, a condition or another triggering mechanism.
 
+- ``BaseOperatorLink`` has now been moved into the task SDK to be consumed by DAG authors to write custom operator links.
+
+  Any occurrences of imports from ``airflow.models.baseoperatorlink`` will need to be updated to ``airflow.sdk.definitions.baseoperatorlink``
+
+- ``chain``, ``chain_linear`` and ``cross_downstream`` have been moved to the task SDK.
+
+  Any occurrences of imports from ``airflow.models.baseoperator`` will need to be updated to ``airflow.sdk``
+
+  Old imports:
+
+  .. code-block:: python
+
+      from airflow.models.baseoperator import chain, chain_linear, cross_downstream
+
+  New imports:
+
+  .. code-block:: python
+
+      from airflow.sdk import chain, chain_linear, cross_downstream
+
+- The ``Label`` class has been moved to the task SDK.
+
+  Old imports:
+
+  .. code-block:: python
+
+      from airflow.utils.edgemodifier import Label
+
+  New imports:
+
+  .. code-block:: python
+
+      from airflow.sdk import Label
+
+- We have removed DAG level settings that control the UI behaviour.
+  These are now as per-user settings controlled by the UI
+
+  - ``default_view``
+
+- The ``SkipMixin` class has been removed as a parent class from ``BaseSensorOperator``.
 
 * Types of change
 
@@ -50,9 +90,9 @@ As part of this change the following breaking changes have occurred:
   * [ ] API changes
   * [ ] CLI changes
   * [x] Behaviour changes
-  * [ ] Plugin changes
+  * [x] Plugin changes
   * [ ] Dependency changes
-  * [ ] Code interface changes
+  * [x] Code interface changes
 
 * Migration rules needed
 
@@ -60,3 +100,9 @@ As part of this change the following breaking changes have occurred:
 
     * [x] ``core.task_runner``
     * [x] ``core.enable_xcom_pickling``
+
+  * ruff
+
+    * AIR302
+
+      * [ ] ``airflow.models.baseoperatorlink`` → ``airflow.sdk``

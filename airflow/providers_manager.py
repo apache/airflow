@@ -422,7 +422,6 @@ class ProvidersManager(LoggingMixin, metaclass=Singleton):
         self._secrets_backend_class_name_set: set[str] = set()
         self._executor_class_name_set: set[str] = set()
         self._provider_configs: dict[str, dict[str, Any]] = {}
-        self._api_auth_backend_module_names: set[str] = set()
         self._trigger_info_set: set[TriggerInfo] = set()
         self._notification_info_set: set[NotificationInfo] = set()
         self._provider_schema_validator = _create_provider_info_schema_validator()
@@ -573,12 +572,6 @@ class ProvidersManager(LoggingMixin, metaclass=Singleton):
         from airflow.configuration import conf
 
         conf.load_providers_configuration()
-
-    @provider_info_cache("auth_backends")
-    def initialize_providers_auth_backends(self):
-        """Lazy initialization of providers API auth_backends information."""
-        self.initialize_providers_list()
-        self._discover_auth_backends()
 
     @provider_info_cache("plugins")
     def initialize_providers_plugins(self):
@@ -1096,14 +1089,6 @@ class ProvidersManager(LoggingMixin, metaclass=Singleton):
                     if _correctness_check(provider_package, secrets_backends_class_name, provider):
                         self._secrets_backend_class_name_set.add(secrets_backends_class_name)
 
-    def _discover_auth_backends(self) -> None:
-        """Retrieve all API auth backends defined in the providers."""
-        for provider_package, provider in self._provider_dict.items():
-            if provider.data.get("auth-backends"):
-                for auth_backend_module_name in provider.data["auth-backends"]:
-                    if _correctness_check(provider_package, auth_backend_module_name + ".init_app", provider):
-                        self._api_auth_backend_module_names.add(auth_backend_module_name)
-
     def _discover_executors(self) -> None:
         """Retrieve all executors defined in the providers."""
         for provider_package, provider in self._provider_dict.items():
@@ -1238,12 +1223,6 @@ class ProvidersManager(LoggingMixin, metaclass=Singleton):
         return sorted(self._secrets_backend_class_name_set)
 
     @property
-    def auth_backend_module_names(self) -> list[str]:
-        """Returns set of API auth backend class names."""
-        self.initialize_providers_auth_backends()
-        return sorted(self._api_auth_backend_module_names)
-
-    @property
     def executor_class_names(self) -> list[str]:
         self.initialize_providers_executors()
         return sorted(self._executor_class_name_set)
@@ -1296,7 +1275,6 @@ class ProvidersManager(LoggingMixin, metaclass=Singleton):
         self._secrets_backend_class_name_set.clear()
         self._executor_class_name_set.clear()
         self._provider_configs.clear()
-        self._api_auth_backend_module_names.clear()
         self._trigger_info_set.clear()
         self._notification_info_set.clear()
         self._plugins_set.clear()

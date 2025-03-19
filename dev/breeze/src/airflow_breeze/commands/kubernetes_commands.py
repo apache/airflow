@@ -189,14 +189,14 @@ option_use_standard_naming = click.option(
 )
 option_wait_time_in_seconds = click.option(
     "--wait-time-in-seconds",
-    help="Wait for Airflow webserver for specified number of seconds.",
+    help="Wait for Airflow api-server for specified number of seconds.",
     type=click.IntRange(0),
     default=120,
     envvar="WAIT_TIME_IN_SECONDS",
 )
 option_wait_time_in_seconds_0_default = click.option(
     "--wait-time-in-seconds",
-    help="Wait for Airflow webserver for specified number of seconds.",
+    help="Wait for Airflow api-server for specified number of seconds.",
     type=click.IntRange(0),
     default=0,
     envvar="WAIT_TIME_IN_SECONDS",
@@ -1025,13 +1025,13 @@ def _deploy_helm_chart(
             "-v",
             "1",
             "--set",
-            "config.api.auth_backends=airflow.providers.fab.auth_manager.api.auth.backend.basic_auth",
-            "--set",
             "config.logging.logging_level=DEBUG",
             "--set",
             f"executor={executor}",
             "--set",
             f"airflowVersion={params.airflow_semver_version}",
+            "--set",
+            "config.api_auth.jwt_secret=foo",
         ]
         if multi_namespace_mode:
             helm_command.extend(["--set", "multiNamespaceMode=true"])
@@ -1468,7 +1468,7 @@ def _run_tests(
             f"[info]You can deploy airflow with {executor} by running:[/]\nbreeze k8s configure-cluster\nbreeze k8s deploy-airflow --multi-namespace-mode --executor {executor}"
         )
         return 1, f"Tests {kubectl_cluster_name}"
-    the_tests: list[str] = ["kubernetes_tests/test_kubernetes_executor.py::TestKubernetesExecutor"]
+    the_tests: list[str] = ["kubernetes_tests/"]
     command_to_run = " ".join([quote(arg) for arg in ["python3", "-m", "pytest", *the_tests, *test_args]])
     get_console(output).print(f"[info] Command to run:[/] {command_to_run}")
     result = run_command(

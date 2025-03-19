@@ -54,7 +54,10 @@ class TestKafkaAdminClientHook:
         )
         self.hook = KafkaAdminClientHook(kafka_config_id="kafka_d")
 
-    def test_get_conn(self):
+    @patch("airflow.providers.apache.kafka.hooks.base.AdminClient")
+    def test_get_conn(self, mock_client):
+        mock_client_spec = MagicMock(spec=AdminClient)
+        mock_client.return_value = mock_client_spec
         assert isinstance(self.hook.get_conn, AdminClient)
 
     @patch(

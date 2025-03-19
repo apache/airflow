@@ -27,8 +27,9 @@ def get_provider_info():
         "name": "Docker",
         "description": "`Docker <https://www.docker.com/>`__\n",
         "state": "ready",
-        "source-date-epoch": 1739959510,
+        "source-date-epoch": 1741508766,
         "versions": [
+            "4.2.1",
             "4.2.0",
             "4.0.0",
             "3.14.1",
@@ -113,4 +114,5 @@ def get_provider_info():
         ],
         "dependencies": ["apache-airflow>=2.9.0", "docker>=7.1.0", "python-dotenv>=0.21.0"],
         "optional-dependencies": {"common.compat": ["apache-airflow-providers-common-compat"]},
+        "devel-dependencies": [],
     }
