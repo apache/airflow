@@ -20,9 +20,9 @@ from unittest import mock
 
 import pytest
 
-from airflow.models.asset import AssetModel
 from airflow.sdk.definitions.asset import Asset
 from airflow.sdk.definitions.asset.decorators import _AssetMainOperator, asset
+from airflow.sdk.execution_time.comms import AssetResult, GetAssetByName
 
 
 @pytest.fixture
@@ -176,6 +176,9 @@ class TestAssetDefinition:
             on_failure_callback=None,
             on_success_callback=None,
             params=None,
+            access_control=None,
+            owner_links={},
+            tags=set(),
             auto_register=True,
         )
         from_definition.assert_called_once_with(asset_definition)
@@ -200,6 +203,9 @@ class TestMultiAssetDefinition:
             on_failure_callback=None,
             on_success_callback=None,
             params=None,
+            access_control=None,
+            owner_links={},
+            tags=set(),
             auto_register=True,
         )
         from_definition.assert_called_once_with(definition)
@@ -240,30 +246,26 @@ class Test_AssetMainOperator:
         assert op.python_callable == example_asset_func_with_valid_arg_as_inlet_asset
         assert op._definition_name == "example_asset_func"
 
-    @mock.patch("airflow.models.asset.fetch_active_assets_by_name")
-    @mock.patch("airflow.utils.session.create_session")
+    @mock.patch("airflow.sdk.execution_time.task_runner.SUPERVISOR_COMMS", create=True)
     def test_determine_kwargs(
         self,
-        mock_create_session,
-        mock_fetch_active_assets_by_name,
+        mock_supervisor_comms,
         example_asset_func_with_valid_arg_as_inlet_asset,
     ):
         asset_definition = asset(schedule=None, uri="s3://bucket/object", group="MLModel", extra={"k": "v"})(
             example_asset_func_with_valid_arg_as_inlet_asset
         )
 
-        class FakeSession:
-            def __enter__(self):
-                return self
-
-            def __exit__(self, *args, **kwargs):
-                pass
-
-        mock_create_session.return_value = fake_session = FakeSession()
-        mock_fetch_active_assets_by_name.return_value = {
-            "example_asset_func": AssetModel.from_public(asset_definition),
-            "inlet_asset_1": AssetModel(uri="s3://bucket/object1", name="inlet_asset_1"),
-        }
+        mock_supervisor_comms.get_message.side_effect = [
+            AssetResult(
+                name="example_asset_func",
+                uri="s3://bucket/object",
+                group="MLModel",
+                extra={"k": "v"},
+            ),
+            AssetResult(name="inlet_asset_1", uri="s3://bucket/object1", group="asset", extra=None),
+            AssetResult(name="inlet_asset_2", uri="inlet_asset_2", group="asset", extra=None),
+        ]
 
         op = _AssetMainOperator(
             task_id="example_asset_func",
@@ -284,31 +286,26 @@ class Test_AssetMainOperator:
             "inlet_asset_2": Asset(name="inlet_asset_2"),
         }
 
-        assert mock_fetch_active_assets_by_name.mock_calls == [
-            mock.call({"example_asset_func", "inlet_asset_1", "inlet_asset_2"}, fake_session),
+        assert mock_supervisor_comms.mock_calls == [
+            mock.call.send_request(mock.ANY, GetAssetByName(name="example_asset_func")),
+            mock.call.get_message(),
+            mock.call.send_request(mock.ANY, GetAssetByName(name="inlet_asset_1")),
+            mock.call.get_message(),
+            mock.call.send_request(mock.ANY, GetAssetByName(name="inlet_asset_2")),
+            mock.call.get_message(),
         ]
 
-    @mock.patch("airflow.models.asset.fetch_active_assets_by_name")
-    @mock.patch("airflow.utils.session.create_session")
+    @mock.patch("airflow.sdk.execution_time.task_runner.SUPERVISOR_COMMS", create=True)
     def test_determine_kwargs_defaults(
         self,
-        mock_create_session,
-        mock_fetch_active_assets_by_name,
+        mock_supervisor_comms,
         example_asset_func_with_valid_arg_as_inlet_asset_and_default,
     ):
         asset_definition = asset(schedule=None)(example_asset_func_with_valid_arg_as_inlet_asset_and_default)
 
-        class FakeSession:
-            def __enter__(self):
-                return self
-
-            def __exit__(self, *args, **kwargs):
-                pass
-
-        mock_create_session.return_value = fake_session = FakeSession()
-        mock_fetch_active_assets_by_name.return_value = {
-            "inlet_asset_1": AssetModel(uri="s3://bucket/object1", name="inlet_asset_1"),
-        }
+        mock_supervisor_comms.get_message.side_effect = [
+            AssetResult(name="inlet_asset_1", uri="s3://bucket/object1", group="asset", extra=None),
+        ]
 
         op = _AssetMainOperator(
             task_id="__main__",
@@ -323,6 +320,7 @@ class Test_AssetMainOperator:
             "unknown_name": "default supplied for non-asset argument",
         }
 
-        assert mock_fetch_active_assets_by_name.mock_calls == [
-            mock.call({"inlet_asset_1"}, fake_session),
+        assert mock_supervisor_comms.mock_calls == [
+            mock.call.send_request(mock.ANY, GetAssetByName(name="inlet_asset_1")),
+            mock.call.get_message(),
         ]

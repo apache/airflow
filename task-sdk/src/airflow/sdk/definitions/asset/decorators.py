@@ -23,7 +23,8 @@ from typing import TYPE_CHECKING, Any
 import attrs
 
 from airflow.providers.standard.operators.python import PythonOperator
-from airflow.sdk.definitions.asset import Asset, AssetNameRef, AssetRef, BaseAsset
+from airflow.sdk.definitions.asset import Asset, AssetRef, BaseAsset
+from airflow.sdk.exceptions import AirflowRuntimeError
 
 if TYPE_CHECKING:
     from collections.abc import Callable, Collection, Iterator, Mapping
@@ -56,35 +57,34 @@ class _AssetMainOperator(PythonOperator):
             definition_name=definition._function.__name__,
         )
 
-    def _iter_kwargs(
-        self, context: Mapping[str, Any], active_assets: dict[str, Asset]
-    ) -> Iterator[tuple[str, Any]]:
+    def _iter_kwargs(self, context: Mapping[str, Any]) -> Iterator[tuple[str, Any]]:
+        import structlog
+
+        from airflow.sdk.execution_time.comms import ErrorResponse, GetAssetByName
+        from airflow.sdk.execution_time.task_runner import SUPERVISOR_COMMS
+
+        log = structlog.get_logger(logger_name=self.__class__.__qualname__)
+
+        def _fetch_asset(name: str) -> Asset:
+            SUPERVISOR_COMMS.send_request(log, GetAssetByName(name=name))
+            if isinstance(msg := SUPERVISOR_COMMS.get_message(), ErrorResponse):
+                raise AirflowRuntimeError(msg)
+            return Asset(**msg.model_dump(exclude={"type"}))
+
         value: Any
         for key, param in inspect.signature(self.python_callable).parameters.items():
             if param.default is not inspect.Parameter.empty:
                 value = param.default
             elif key == "self":
-                value = active_assets.get(self._definition_name)
+                value = _fetch_asset(self._definition_name)
             elif key == "context":
                 value = context
             else:
-                value = active_assets.get(key, Asset(name=key))
+                value = _fetch_asset(key)
             yield key, value
 
     def determine_kwargs(self, context: Mapping[str, Any]) -> Mapping[str, Any]:
-        from airflow.models.asset import fetch_active_assets_by_name
-        from airflow.utils.session import create_session
-
-        asset_names = {asset_ref.name for asset_ref in self.inlets if isinstance(asset_ref, AssetNameRef)}
-        if "self" in inspect.signature(self.python_callable).parameters:
-            asset_names.add(self._definition_name)
-
-        if asset_names:
-            with create_session() as session:
-                active_assets = fetch_active_assets_by_name(asset_names, session)
-        else:
-            active_assets = {}
-        return dict(self._iter_kwargs(context, active_assets))
+        return dict(self._iter_kwargs(context))
 
 
 @attrs.define(kw_only=True)
@@ -164,7 +164,8 @@ class _DAGFactory:
     on_failure_callback: None | DagStateChangeCallback | list[DagStateChangeCallback] = None
 
     access_control: dict[str, dict[str, Collection[str]]] | None = None
-    owner_links: dict[str, str] | None = None
+    owner_links: dict[str, str] = attrs.field(factory=dict)
+    tags: Collection[str] = attrs.field(factory=set)
 
     def create_dag(self, *, default_dag_id: str) -> DAG:
         from airflow.models.dag import DAG  # TODO: Use the SDK DAG when it works.
@@ -180,6 +181,9 @@ class _DAGFactory:
             params=self.params,
             on_success_callback=self.on_success_callback,
             on_failure_callback=self.on_failure_callback,
+            access_control=self.access_control,
+            owner_links=self.owner_links,
+            tags=self.tags,
             auto_register=True,
         )
 
