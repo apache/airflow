@@ -2034,16 +2034,24 @@ def ensure_secrets_loaded(
 
     If the secrets_backend_list contains only 2 default backends, reload it.
     """
-    # Check if the secrets_backend_list contains only 2 default backends
+    # Check if the secrets_backend_list contains only 2 default backends.
+
+    # Check if we are loading the backends for worker too by checking if the default_backends is equal
+    # to DEFAULT_SECRETS_SEARCH_PATH.
     if len(secrets_backend_list) == 2 or default_backends != DEFAULT_SECRETS_SEARCH_PATH:
         return initialize_secrets_backends(default_backends=default_backends)
     return secrets_backend_list
 
 
 def get_custom_secret_backend(worker_mode: bool = False) -> BaseSecretsBackend | None:
-    """Get Secret Backend if defined in airflow.cfg."""
+    """
+    Get Secret Backend if defined in airflow.cfg.
+
+    Conditionally selects the section, key and kwargs key based on whether it is called from worker or not.
+    """
     section = "workers" if worker_mode else "secrets"
-    key = "backend"
+    key = "secrets_backend" if worker_mode else "backend"
+    kwargs_key = "secrets_backend_kwargs" if worker_mode else "backend_kwargs"
 
     secrets_backend_cls = conf.getimport(section=section, key=key)
 
@@ -2051,16 +2059,16 @@ def get_custom_secret_backend(worker_mode: bool = False) -> BaseSecretsBackend |
         return None
 
     try:
-        backend_kwargs = conf.getjson(section=section, key="backend_kwargs")
+        backend_kwargs = conf.getjson(section=section, key=kwargs_key)
         if not backend_kwargs:
             backend_kwargs = {}
         elif not isinstance(backend_kwargs, dict):
             raise ValueError("not a dict")
     except AirflowConfigException:
-        log.warning("Failed to parse [secrets] backend_kwargs as JSON, defaulting to no kwargs.")
+        log.warning("Failed to parse [%s] %s as JSON, defaulting to no kwargs.", section, kwargs_key)
         backend_kwargs = {}
     except ValueError:
-        log.warning("Failed to parse [secrets] backend_kwargs into a dict, defaulting to no kwargs.")
+        log.warning("Failed to parse [%s] %s into a dict, defaulting to no kwargs.", section, kwargs_key)
         backend_kwargs = {}
 
     return secrets_backend_cls(**backend_kwargs)
