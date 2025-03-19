@@ -34,6 +34,7 @@ from http import HTTPStatus
 from socket import SocketIO, socket, socketpair
 from typing import (
     TYPE_CHECKING,
+    Any,
     BinaryIO,
     Callable,
     ClassVar,
@@ -52,6 +53,8 @@ import psutil
 import structlog
 from pydantic import TypeAdapter
 
+from airflow.exceptions import AirflowNotFoundException
+from airflow.sdk import Connection
 from airflow.sdk.api.client import Client, ServerResponseError
 from airflow.sdk.api.datamodels._generated import (
     ConnectionResponse,
@@ -97,7 +100,7 @@ if TYPE_CHECKING:
     from airflow.typing_compat import Self
 
 
-__all__ = ["ActivitySubprocess", "WatchedSubprocess", "supervise"]
+__all__ = ["ActivitySubprocess", "WatchedSubprocess", "supervise", "SECRETS_BACKEND"]
 
 log: FilteringBoundLogger = structlog.get_logger(logger_name="supervisor")
 
@@ -117,6 +120,8 @@ STATES_SENT_DIRECTLY = [
     IntermediateTIState.UP_FOR_RESCHEDULE,
     TerminalTIState.SUCCESS,
 ]
+
+SECRETS_BACKEND: Any
 
 
 @overload
@@ -868,7 +873,12 @@ class ActivitySubprocess(WatchedSubprocess):
                 outlet_events=msg.outlet_events,
             )
         elif isinstance(msg, GetConnection):
-            conn = self.client.connections.get(msg.conn_id)
+            try:
+                connection = Connection.get_connection_from_secrets(msg.conn_id)
+                conn = connection.convert_connection_to_response()
+            except AirflowNotFoundException:
+                # if none of the backend has the connection defined, use the API to check instead
+                conn = self.client.connections.get(msg.conn_id)
             if isinstance(conn, ConnectionResponse):
                 conn_result = ConnectionResult.from_conn_response(conn)
                 resp = conn_result.model_dump_json(exclude_unset=True, by_alias=True).encode()
@@ -1026,6 +1036,15 @@ def forward_to_log(
             log.log(level, msg, chan=chan)
 
 
+def initialize_secrets_backend_on_workers():
+    """Initialize the secrets backend on workers."""
+    from airflow.configuration import DEFAULT_SECRETS_SEARCH_PATH_WORKERS, ensure_secrets_loaded
+
+    global SECRETS_BACKEND
+    SECRETS_BACKEND = ensure_secrets_loaded(default_backends=DEFAULT_SECRETS_SEARCH_PATH_WORKERS)
+    log.info("The secrets backend is", secrets_backend=SECRETS_BACKEND)
+
+
 def supervise(
     *,
     ti: TaskInstance,
@@ -1082,6 +1101,8 @@ def supervise(
             underlying_logger = structlog.BytesLogger(log_file.open("ab"))
         processors = logging_processors(enable_pretty_log=pretty_logs)[0]
         logger = structlog.wrap_logger(underlying_logger, processors=processors, logger_name="task").bind()
+
+    initialize_secrets_backend_on_workers()
 
     process = ActivitySubprocess.start(
         dag_rel_path=dag_rel_path,

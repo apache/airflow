@@ -24,7 +24,8 @@ from typing import Any
 
 import attrs
 
-from airflow.exceptions import AirflowException
+from airflow.exceptions import AirflowException, AirflowNotFoundException
+from airflow.sdk.api.datamodels._generated import ConnectionResponse
 
 log = logging.getLogger(__name__)
 
@@ -87,6 +88,35 @@ class Connection:
 
         return _get_connection(conn_id)
 
+    @classmethod
+    def get_connection_from_secrets(cls, conn_id: str) -> Connection:
+        """
+        Get connection by conn_id.
+
+        :param conn_id: connection id
+        :return: connection
+        """
+        # TODO: check cache first
+        # enabled only if SecretCache.init() has been called first
+
+        # iterate over configured backends if not in cache (or expired)
+        from airflow.sdk.execution_time.supervisor import SECRETS_BACKEND
+
+        for secrets_backend in SECRETS_BACKEND:
+            print("The backend in the sdk is", secrets_backend)
+            try:
+                conn = secrets_backend.get_connection(conn_id=conn_id)
+                if conn:
+                    return conn
+            except Exception:
+                log.exception(
+                    "Unable to retrieve connection from secrets backend (%s). "
+                    "Checking subsequent secrets backend.",
+                    type(secrets_backend).__name__,
+                )
+
+        raise AirflowNotFoundException(f"The conn_id `{conn_id}` isn't defined")
+
     @property
     def extra_dejson(self) -> dict:
         """Deserialize `extra` property to JSON."""
@@ -98,3 +128,15 @@ class Connection:
                 log.exception("Failed to deserialize extra property `extra`, returning empty dictionary")
         # TODO: Mask sensitive keys from this list or revisit if it will be done in server
         return extra
+
+    def convert_connection_to_response(self) -> ConnectionResponse:
+        return ConnectionResponse(
+            conn_id=self.conn_id,
+            conn_type=self.conn_type,
+            host=self.host,
+            schema_=self.schema,
+            login=self.login,
+            password=self.password,
+            port=self.port,
+            extra=self.extra,
+        )
