@@ -23,6 +23,7 @@ import contextvars
 import functools
 import os
 import sys
+import time
 from collections.abc import Iterable, Iterator, Mapping
 from datetime import datetime, timezone
 from io import FileIO
@@ -50,8 +51,12 @@ from airflow.sdk.definitions.asset import Asset, AssetAlias, AssetNameRef, Asset
 from airflow.sdk.definitions.baseoperator import BaseOperator, ExecutorSafeguard
 from airflow.sdk.definitions.mappedoperator import MappedOperator
 from airflow.sdk.definitions.param import process_params
+from airflow.sdk.exceptions import ErrorType
 from airflow.sdk.execution_time.comms import (
+    DagRunStateResult,
     DeferTask,
+    ErrorResponse,
+    GetDagRunState,
     OKResponse,
     RescheduleTask,
     RuntimeCheckOnTask,
@@ -62,6 +67,7 @@ from airflow.sdk.execution_time.comms import (
     TaskState,
     ToSupervisor,
     ToTask,
+    TriggerDagRun,
 )
 from airflow.sdk.execution_time.context import (
     ConnectionAccessor,
@@ -80,6 +86,7 @@ if TYPE_CHECKING:
     import jinja2
     from structlog.typing import FilteringBoundLogger as Logger
 
+    from airflow.exceptions import DagRunTriggerException
     from airflow.sdk.definitions._internal.abstractoperator import AbstractOperator
     from airflow.sdk.definitions.context import Context
     from airflow.sdk.types import OutletEventAccessorsProtocol
@@ -547,6 +554,7 @@ def run(
         AirflowSkipException,
         AirflowTaskTerminated,
         AirflowTaskTimeout,
+        DagRunTriggerException,
         DownstreamTasksSkipped,
         TaskDeferred,
     )
@@ -558,6 +566,8 @@ def run(
     msg: ToSupervisor | None = None
     state: IntermediateTIState | TerminalTIState
     error: BaseException | None = None
+
+    context = ti.get_template_context()
     try:
         # First, clear the xcom data sent from server
         if ti._ti_context_from_server and (keys_to_delete := ti._ti_context_from_server.xcom_keys_to_clear):
@@ -570,7 +580,6 @@ def run(
                     run_id=ti.run_id,
                 )
 
-        context = ti.get_template_context()
         with set_current_context(context):
             # This is the earliest that we can render templates -- as if it excepts for any reason we need to
             # catch it and handle it like a normal task failure
@@ -585,11 +594,12 @@ def run(
 
         msg, state = _handle_current_task_success(context, ti)
     except DownstreamTasksSkipped as skip:
-        context = ti.get_template_context()
         log.info("Skipping downstream tasks.")
         tasks_to_skip = skip.tasks if isinstance(skip.tasks, list) else [skip.tasks]
         SUPERVISOR_COMMS.send_request(log=log, msg=SkipDownstreamTasks(tasks=tasks_to_skip))
         msg, state = _handle_current_task_success(context, ti)
+    except DagRunTriggerException as drte:
+        msg, state = _handle_trigger_dag_run(drte, context, ti, log)
     except TaskDeferred as defer:
         # TODO: Should we use structlog.bind_contextvars here for dag_id, task_id & run_id?
         log.info("Pausing task as DEFERRED. ", dag_id=ti.dag_id, task_id=ti.task_id, run_id=ti.run_id)
@@ -670,7 +680,7 @@ def run(
     return state, msg, error
 
 
-def _handle_current_task_success(context, ti) -> tuple[SucceedTask, TerminalTIState]:
+def _handle_current_task_success(context: Context, ti: RuntimeTaskInstance):
     task_outlets = list(_build_asset_profiles(ti.task.outlets))
     outlet_events = list(_serialize_outlet_events(context["outlet_events"]))
     msg = SucceedTask(
@@ -679,6 +689,83 @@ def _handle_current_task_success(context, ti) -> tuple[SucceedTask, TerminalTISt
         outlet_events=outlet_events,
     )
     return msg, TerminalTIState.SUCCESS
+
+
+def _handle_trigger_dag_run(
+    drte: DagRunTriggerException, context: Context, ti: RuntimeTaskInstance, log: Logger
+):
+    """Handle exception from TriggerDagRunOperator."""
+    log.info("Triggering Dag Run.", trigger_dag_id=drte.trigger_dag_id)
+    SUPERVISOR_COMMS.send_request(
+        log=log,
+        msg=TriggerDagRun(
+            dag_id=drte.trigger_dag_id,
+            run_id=drte.dag_run_id,
+            logical_date=drte.logical_date,
+            conf=drte.conf,
+            reset_dag_run=drte.reset_dag_run,
+        ),
+    )
+
+    comms_msg = SUPERVISOR_COMMS.get_message()
+    if isinstance(comms_msg, ErrorResponse) and comms_msg.error == ErrorType.DAGRUN_ALREADY_EXISTS:
+        if drte.skip_when_already_exists:
+            log.info(
+                "Dag Run already exists, skipping task as skip_when_already_exists is set to True.",
+                dag_id=drte.trigger_dag_id,
+            )
+            msg = TaskState(state=TerminalTIState.SKIPPED, end_date=datetime.now(tz=timezone.utc))
+            state = TerminalTIState.SKIPPED
+        else:
+            log.error("Dag Run already exists, marking task as failed.", dag_id=drte.trigger_dag_id)
+            msg = TaskState(state=TerminalTIState.FAILED, end_date=datetime.now(tz=timezone.utc))
+            state = TerminalTIState.FAILED
+
+        return msg, state
+
+    log.info("Dag Run triggered successfully.", trigger_dag_id=drte.trigger_dag_id)
+
+    # Store the run id from the dag run (either created or found above) to
+    # be used when creating the extra link on the webserver.
+    ti.xcom_push(key="trigger_run_id", value=drte.dag_run_id)
+
+    if drte.wait_for_completion:
+        while True:
+            log.info(
+                "Waiting for dag run to complete execution in allowed state.",
+                dag_id=drte.trigger_dag_id,
+                run_id=drte.dag_run_id,
+                allowed_state=drte.allowed_states,
+            )
+            time.sleep(drte.poke_interval)
+
+            SUPERVISOR_COMMS.send_request(
+                log=log, msg=GetDagRunState(dag_id=drte.trigger_dag_id, run_id=drte.dag_run_id)
+            )
+            comms_msg = SUPERVISOR_COMMS.get_message()
+            if TYPE_CHECKING:
+                assert isinstance(comms_msg, DagRunStateResult)
+            if comms_msg.state in drte.failed_states:
+                log.error(
+                    "DagRun finished with failed state.", dag_id=drte.trigger_dag_id, state=comms_msg.state
+                )
+                msg = TaskState(state=TerminalTIState.FAILED, end_date=datetime.now(tz=timezone.utc))
+                state = TerminalTIState.FAILED
+                return msg, state
+            if comms_msg.state in drte.allowed_states:
+                log.info(
+                    "DagRun finished with allowed state.", dag_id=drte.trigger_dag_id, state=comms_msg.state
+                )
+                break
+            log.debug(
+                "DagRun not yet in allowed or failed state.",
+                dag_id=drte.trigger_dag_id,
+                state=comms_msg.state,
+            )
+
+    msg, state = _handle_current_task_success(context, ti)
+
+    return msg, state
 
 
 def _execute_task(context: Context, ti: RuntimeTaskInstance):

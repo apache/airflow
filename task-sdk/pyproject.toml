@@ -102,6 +102,7 @@ codegen = [
     "apache-airflow",
     "rich",
     "ruff",
+    "svcs>=25.1.0",
 ]
 dev = [
     "apache-airflow",
