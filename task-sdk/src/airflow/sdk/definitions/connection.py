@@ -25,7 +25,6 @@ from typing import Any
 import attrs
 
 from airflow.exceptions import AirflowException, AirflowNotFoundException
-from airflow.sdk.api.datamodels._generated import ConnectionResponse
 
 log = logging.getLogger(__name__)
 
@@ -127,15 +126,3 @@ class Connection:
                 log.exception("Failed to deserialize extra property `extra`, returning empty dictionary")
         # TODO: Mask sensitive keys from this list or revisit if it will be done in server
         return extra
-
-    def _convert_connection_to_response(self) -> ConnectionResponse:
-        return ConnectionResponse(
-            conn_id=self.conn_id,
-            conn_type=self.conn_type,
-            host=self.host,
-            schema_=self.schema,
-            login=self.login,
-            password=self.password,
-            port=self.port,
-            extra=self.extra,
-        )

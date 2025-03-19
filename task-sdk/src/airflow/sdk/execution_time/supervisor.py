@@ -34,7 +34,6 @@ from http import HTTPStatus
 from socket import SocketIO, socket, socketpair
 from typing import (
     TYPE_CHECKING,
-    Any,
     BinaryIO,
     Callable,
     ClassVar,
@@ -102,6 +101,7 @@ if TYPE_CHECKING:
     from structlog.typing import FilteringBoundLogger, WrappedLogger
 
     from airflow.executors.workloads import BundleInfo
+    from airflow.secrets import BaseSecretsBackend
     from airflow.typing_compat import Self
 
 
@@ -126,7 +126,7 @@ STATES_SENT_DIRECTLY = [
     TerminalTIState.SUCCESS,
 ]
 
-SECRETS_BACKEND: Any
+SECRETS_BACKEND: list[BaseSecretsBackend] = []
 
 
 @overload
@@ -198,6 +198,20 @@ def _reopen_std_io_handles(child_stdin, child_stdout, child_stderr):
         binary = os.fdopen(fd, mode + "b")
         handle = io.TextIOWrapper(binary, line_buffering=True)
         setattr(sys, handle_name, handle)
+
+
+def _convert_connection_to_response(conn: Connection) -> ConnectionResponse:
+    """Convert a sdk Connection object to ConnectionResponse."""
+    return ConnectionResponse(
+        conn_id=conn.conn_id,
+        conn_type=conn.conn_type,
+        host=conn.host,
+        schema_=conn.schema,
+        login=conn.login,
+        password=conn.password,
+        port=conn.port,
+        extra=conn.extra,
+    )
 
 
 def _get_last_chance_stderr() -> TextIO:
@@ -879,8 +893,8 @@ class ActivitySubprocess(WatchedSubprocess):
             )
         elif isinstance(msg, GetConnection):
             try:
-                connection = Connection.get_connection_from_secrets(msg.conn_id)
-                conn = connection._convert_connection_to_response()
+                connection = Connection.get(msg.conn_id)
+                conn = _convert_connection_to_response(connection)
             except AirflowNotFoundException:
                 # if none of the backend has the connection defined, use the API to check instead
                 conn = self.client.connections.get(msg.conn_id)
@@ -892,7 +906,7 @@ class ActivitySubprocess(WatchedSubprocess):
         elif isinstance(msg, GetVariable):
             try:
                 variable_value = Variable.get_variable_from_secrets(msg.key)
-                var = Variable._convert_variable_to_response(msg.key, variable_value)
+                var = VariableResponse(key=msg.key, value=variable_value)
             except AirflowNotFoundException:
                 # if none of the backend has the variable defined, use the API to check instead
                 var = self.client.variables.get(msg.key)
@@ -1068,11 +1082,12 @@ def forward_to_log(
 
 def initialize_secrets_backend_on_workers():
     """Initialize the secrets backend on workers."""
-    from airflow.configuration import DEFAULT_SECRETS_SEARCH_PATH_WORKERS, ensure_secrets_loaded
+    from airflow.configuration import ensure_secrets_loaded
+    from airflow.secrets import DEFAULT_SECRETS_SEARCH_PATH_WORKERS
 
     global SECRETS_BACKEND
     SECRETS_BACKEND = ensure_secrets_loaded(default_backends=DEFAULT_SECRETS_SEARCH_PATH_WORKERS)
-    log.info("The secrets backend is", secrets_backend=SECRETS_BACKEND)
+    log.debug("Initialized secrets backend on workers", secrets_backend=SECRETS_BACKEND)
 
 
 def supervise(

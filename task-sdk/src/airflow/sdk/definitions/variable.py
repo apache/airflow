@@ -23,7 +23,6 @@ from typing import Any
 import attrs
 
 from airflow.exceptions import AirflowNotFoundException
-from airflow.sdk.api.datamodels._generated import VariableResponse
 from airflow.sdk.definitions._internal.types import NOTSET
 
 log = logging.getLogger(__name__)
@@ -74,7 +73,7 @@ class Variable:
         # iterate over backends if not in cache (or expired)
         for secrets_backend in SECRETS_BACKEND:
             try:
-                var_val = secrets_backend.get_variable(key=key)
+                var_val = secrets_backend.get_variable(key=key)  # type: ignore[assignment]
                 if var_val is not NOTSET:
                     return var_val
             except Exception:
@@ -88,7 +87,3 @@ class Variable:
             raise AirflowNotFoundException(f"The variable with key `{key}` isn't defined")
 
         return var_val
-
-    @staticmethod
-    def _convert_variable_to_response(key: str, value: str | None) -> VariableResponse:
-        return VariableResponse(key=key, value=value)
