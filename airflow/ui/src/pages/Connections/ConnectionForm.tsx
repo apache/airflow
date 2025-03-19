@@ -179,98 +179,97 @@ const ConnectionForm = ({ connectionTypeMeta, connectionTypes, onClose }: AddCon
         />
 
         {selectedConnType ? (
-          <>
-            <Accordion.Root
-              collapsible
-              defaultValue={["standardFields"]}
-              mb={4}
-              mt={4}
-              size="lg"
-              variant="enclosed"
-            >
-              <Accordion.Item key="standardFields" value="standardFields">
-                <Accordion.ItemTrigger cursor="button">Standard Fields</Accordion.ItemTrigger>
-                <Accordion.ItemContent>
-                  <Stack pb={3} pl={3} pr={3}>
-                    {Object.entries(standardFields).map(([key, fields]) => {
-                      if (Boolean(fields.hidden)) {
-                        return undefined;
-                      } // Skip hidden fields
+          <Accordion.Root
+            collapsible
+            defaultValue={["standardFields"]}
+            mb={4}
+            mt={4}
+            size="lg"
+            variant="enclosed"
+          >
+            <Accordion.Item key="standardFields" value="standardFields">
+              <Accordion.ItemTrigger cursor="button">Standard Fields</Accordion.ItemTrigger>
+              <Accordion.ItemContent>
+                <Stack pb={3} pl={3} pr={3}>
+                  {Object.entries(standardFields).map(([key, fields]) => {
+                    if (Boolean(fields.hidden)) {
+                      return undefined;
+                    } // Skip hidden fields
 
-                      return (
-                        <Controller
-                          control={control}
-                          key={key}
-                          name={key as keyof AddConnectionParams}
-                          render={({ field }) => (
-                            <Field.Root mt={3} orientation="horizontal">
-                              <Stack>
-                                <Field.Label fontSize="md" style={{ flexBasis: "30%" }}>
-                                  {fields.title ?? key}
-                                </Field.Label>
-                              </Stack>
-                              <Stack css={{ flexBasis: "70%", position: "relative" }}>
-                                {key === "description" ? (
-                                  <Textarea {...field} placeholder={fields.placeholder ?? ""} />
-                                ) : (
-                                  <div style={{ position: "relative", width: "100%" }}>
-                                    <Input
-                                      {...field}
-                                      placeholder={fields.placeholder ?? ""}
-                                      type={key === "password" && !showPassword ? "password" : "text"}
-                                    />
-                                    {key === "password" && (
-                                      <button
-                                        onClick={() => setShowPassword(!showPassword)}
-                                        style={{
-                                          cursor: "pointer",
-                                          position: "absolute",
-                                          right: "10px",
-                                          top: "50%",
-                                          transform: "translateY(-50%)",
-                                        }}
-                                        type="button"
-                                      >
-                                        {showPassword ? <FiEye size={15} /> : <FiEyeOff size={15} />}
-                                      </button>
-                                    )}
-                                  </div>
-                                )}
-                              </Stack>
-                            </Field.Root>
-                          )}
-                        />
-                      );
-                    })}
-                  </Stack>
-                </Accordion.ItemContent>
-              </Accordion.Item>
-              <FlexibleForm
-                flexibleFormDefaultSection={flexibleFormExtraFieldSection}
-                initialParamsDict={paramsDic}
-                key={selectedConnType}
-              />
-            </Accordion.Root>
-
-            <Controller
-              control={control}
-              name="conf"
-              render={({ field }) => (
-                <Field.Root invalid={Boolean(errors.conf)}>
-                  <Field.Label fontSize="md" mb={3}>
-                    Extra Fields JSON
-                  </Field.Label>
-                  <JsonEditor
-                    {...field}
-                    onBlur={() => {
-                      field.onChange(validateAndPrettifyJson(field.value));
-                    }}
-                  />
-                  {Boolean(errors.conf) ? <Field.ErrorText>{errors.conf}</Field.ErrorText> : undefined}
-                </Field.Root>
-              )}
+                    return (
+                      <Controller
+                        control={control}
+                        key={key}
+                        name={key as keyof AddConnectionParams}
+                        render={({ field }) => (
+                          <Field.Root mt={3} orientation="horizontal">
+                            <Stack>
+                              <Field.Label fontSize="md" style={{ flexBasis: "30%" }}>
+                                {fields.title ?? key}
+                              </Field.Label>
+                            </Stack>
+                            <Stack css={{ flexBasis: "70%", position: "relative" }}>
+                              {key === "description" ? (
+                                <Textarea {...field} placeholder={fields.placeholder ?? ""} />
+                              ) : (
+                                <div style={{ position: "relative", width: "100%" }}>
+                                  <Input
+                                    {...field}
+                                    placeholder={fields.placeholder ?? ""}
+                                    type={key === "password" && !showPassword ? "password" : "text"}
+                                  />
+                                  {key === "password" && (
+                                    <button
+                                      onClick={() => setShowPassword(!showPassword)}
+                                      style={{
+                                        cursor: "pointer",
+                                        position: "absolute",
+                                        right: "10px",
+                                        top: "50%",
+                                        transform: "translateY(-50%)",
+                                      }}
+                                      type="button"
+                                    >
+                                      {showPassword ? <FiEye size={15} /> : <FiEyeOff size={15} />}
+                                    </button>
+                                  )}
+                                </div>
+                              )}
+                            </Stack>
+                          </Field.Root>
+                        )}
+                      />
+                    );
+                  })}
+                </Stack>
+              </Accordion.ItemContent>
+            </Accordion.Item>
+            <FlexibleForm
+              flexibleFormDefaultSection={flexibleFormExtraFieldSection}
+              initialParamsDict={paramsDic}
+              key={selectedConnType}
             />
-          </>
+            <Accordion.Item key="extraJson" value="extraJson">
+              <Accordion.ItemTrigger cursor="button">Extra Fields JSON</Accordion.ItemTrigger>
+              <Accordion.ItemContent>
+                <Controller
+                  control={control}
+                  name="conf"
+                  render={({ field }) => (
+                    <Field.Root invalid={Boolean(errors.conf)}>
+                      <JsonEditor
+                        {...field}
+                        onBlur={() => {
+                          field.onChange(validateAndPrettifyJson(field.value));
+                        }}
+                      />
+                      {Boolean(errors.conf) ? <Field.ErrorText>{errors.conf}</Field.ErrorText> : undefined}
+                    </Field.Root>
+                  )}
+                />
+              </Accordion.ItemContent>
+            </Accordion.Item>
+          </Accordion.Root>
         ) : undefined}
       </VStack>
       <ErrorAlert error={error} />
