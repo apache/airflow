@@ -23,32 +23,25 @@ import os
 import warnings
 from functools import cache
 from pathlib import Path
-from typing import TYPE_CHECKING, Any
+from typing import Any
 from urllib.parse import urlsplit, urlunsplit
 
-from airflow.cli.api.client import NEW_CLI_API_CLIENT, provide_api_client
-from airflow.cli.api.datamodels._generated import (
-    BulkAction,
-    BulkActionOnExistence,
-    BulkBodyConnectionBody,
-    BulkCreateActionConnectionBody,
-    ConnectionBody,
-    ConnectionResponse,
-    ConnectionTestResponse,
-)
-from airflow.cli.api.operations import ServerResponseError
+from sqlalchemy import select
+from sqlalchemy.orm import exc
+
 from airflow.cli.simple_table import AirflowConsole
 from airflow.cli.utils import is_stdout, print_export_output
 from airflow.configuration import conf
+from airflow.exceptions import AirflowNotFoundException
+from airflow.hooks.base import BaseHook
 from airflow.models import Connection
 from airflow.providers_manager import ProvidersManager
 from airflow.secrets.local_filesystem import load_connections_dict
 from airflow.utils import cli as cli_utils, helpers, yaml
 from airflow.utils.cli import suppress_logs_and_warning
+from airflow.utils.db import create_default_connections as db_create_default_connections
 from airflow.utils.providers_configuration_loader import providers_configuration_loaded
-
-if TYPE_CHECKING:
-    from airflow.cli.api.client import Client
+from airflow.utils.session import create_session
 
 
 def _connection_mapper(conn: Connection) -> dict[str, Any]:
@@ -71,15 +64,14 @@ def _connection_mapper(conn: Connection) -> dict[str, Any]:
 
 @suppress_logs_and_warning
 @providers_configuration_loaded
-@provide_api_client
-def connections_get(args, cli_api_client=NEW_CLI_API_CLIENT):
+def connections_get(args):
     """Get a connection."""
     try:
-        connection = cli_api_client.connections.get(conn_id=args.conn_id)
-    except ServerResponseError:
+        conn = BaseHook.get_connection(args.conn_id)
+    except AirflowNotFoundException:
         raise SystemExit("Connection not found.")
     AirflowConsole().print_as(
-        data=[_response_to_connection(connection)],
+        data=[conn],
         output=args.output,
         mapper=_connection_mapper,
     )
@@ -87,18 +79,20 @@ def connections_get(args, cli_api_client=NEW_CLI_API_CLIENT):
 
 @suppress_logs_and_warning
 @providers_configuration_loaded
-@provide_api_client
-def connections_list(args, cli_api_client=NEW_CLI_API_CLIENT):
+def connections_list(args):
     """List all connections at the command line."""
-    cli_api_client.connections.exit_in_error = True
-    AirflowConsole().print_as(
-        data=[
-            _response_to_connection(connection)
-            for connection in cli_api_client.connections.list().connections
-        ],
-        output=args.output,
-        mapper=_connection_mapper,
-    )
+    with create_session() as session:
+        query = select(Connection)
+        if args.conn_id:
+            query = query.where(Connection.conn_id == args.conn_id)
+        query = session.scalars(query)
+        conns = query.all()
+
+        AirflowConsole().print_as(
+            data=conns,
+            output=args.output,
+            mapper=_connection_mapper,
+        )
 
 
 def _connection_to_dict(conn: Connection) -> dict:
@@ -114,53 +108,18 @@ def _connection_to_dict(conn: Connection) -> dict:
     }
 
 
-@provide_api_client
-def create_default_connections(args, cli_api_client=NEW_CLI_API_CLIENT):
-    """Create default connections."""
-    cli_api_client.connections.create_defaults()
-    print("Default connections have been created.")
+def create_default_connections(args):
+    db_create_default_connections()
 
 
-def _response_to_connection(response: ConnectionResponse) -> Connection:
-    # TODO: Return `Connection.is_encrypted` column from API, include into response
-    return Connection(
-        conn_id=response.connection_id,
-        conn_type=response.conn_type,
-        description=response.description,
-        host=response.host,
-        login=response.login,
-        password=response.password,
-        schema=response.schema_,
-        port=response.port,
-        extra=response.extra,
-    )
-
-
-def _connection_to_request(conn: Connection) -> ConnectionBody:
-    return ConnectionBody(
-        connection_id=conn.conn_id,
-        conn_type=conn.conn_type,
-        description=conn.description,
-        host=conn.host,
-        login=conn.login,
-        password=conn.password,
-        port=conn.port,
-        extra=conn.extra,
-    )
-
-
-def _format_connections(
-    connection_responses: list[ConnectionResponse], file_format: str, serialization_format: str
-) -> str:
-    conns: list[Connection] = [_response_to_connection(conn) for conn in connection_responses]
-
+def _format_connections(conns: list[Connection], file_format: str, serialization_format: str) -> str:
     if serialization_format == "json":
 
-        def serializer_func(x: Connection) -> str:
+        def serializer_func(x):
             return json.dumps(_connection_to_dict(x))
 
     elif serialization_format == "uri":
-        serializer_func = Connection.get_uri  # type: ignore
+        serializer_func = Connection.get_uri
     else:
         raise SystemExit(f"Received unexpected value for `--serialization-format`: {serialization_format!r}")
     if file_format == ".env":
@@ -199,8 +158,7 @@ def _get_connection_types() -> list[str]:
 
 
 @providers_configuration_loaded
-@provide_api_client
-def connections_export(args, cli_api_client=NEW_CLI_API_CLIENT):
+def connections_export(args):
     """Export all connections to a file."""
     file_formats = [".yaml", ".json", ".env"]
     if args.format:
@@ -229,16 +187,18 @@ def connections_export(args, cli_api_client=NEW_CLI_API_CLIENT):
         if args.serialization_format and filetype != ".env":
             raise SystemExit("Option `--serialization-format` may only be used with file type `env`.")
 
-        connection_response = cli_api_client.connections.list()
+        with create_session() as session:
+            connections = session.scalars(select(Connection).order_by(Connection.conn_id)).all()
+
         msg = _format_connections(
-            connection_responses=connection_response.connections,
+            conns=connections,
             file_format=filetype,
             serialization_format=args.serialization_format or "uri",
         )
 
         f.write(msg)
 
-    print_export_output("Connections", connection_response.connections, f)
+    print_export_output("Connections", connections, f)
 
 
 alternative_conn_specs = ["conn_type", "conn_host", "conn_login", "conn_password", "conn_schema", "conn_port"]
@@ -246,8 +206,7 @@ alternative_conn_specs = ["conn_type", "conn_host", "conn_login", "conn_password
 
 @cli_utils.action_cli
 @providers_configuration_loaded
-@provide_api_client
-def connections_add(args, cli_api_client=NEW_CLI_API_CLIENT):
+def connections_add(args):
     """Add new connection."""
     has_uri = bool(args.conn_uri)
     has_json = bool(args.conn_json)
@@ -317,94 +276,88 @@ def connections_add(args, cli_api_client=NEW_CLI_API_CLIENT):
         if args.conn_extra is not None:
             new_conn.set_extra(args.conn_extra)
 
-    cli_api_client.connections.create(connection=_connection_to_request(new_conn))
-    msg = "Successfully added `conn_id`={conn_id} : {uri}"
-    msg = msg.format(
-        conn_id=new_conn.conn_id,
-        uri=args.conn_uri
-        or urlunsplit(
-            (
-                new_conn.conn_type,
-                f"{new_conn.login or ''}:{'******' if new_conn.password else ''}"
-                f"@{new_conn.host or ''}:{new_conn.port or ''}",
-                new_conn.schema or "",
-                "",
-                "",
+    with create_session() as session:
+        if not session.scalar(select(Connection).where(Connection.conn_id == new_conn.conn_id).limit(1)):
+            session.add(new_conn)
+            msg = "Successfully added `conn_id`={conn_id} : {uri}"
+            msg = msg.format(
+                conn_id=new_conn.conn_id,
+                uri=args.conn_uri
+                or urlunsplit(
+                    (
+                        new_conn.conn_type,
+                        f"{new_conn.login or ''}:{'******' if new_conn.password else ''}"
+                        f"@{new_conn.host or ''}:{new_conn.port or ''}",
+                        new_conn.schema or "",
+                        "",
+                        "",
+                    )
+                ),
             )
-        ),
-    )
-    print(msg)
+            print(msg)
+        else:
+            msg = f"A connection with `conn_id`={new_conn.conn_id} already exists."
+            raise SystemExit(msg)
 
 
 @cli_utils.action_cli
 @providers_configuration_loaded
-@provide_api_client
-def connections_delete(args, cli_api_client=NEW_CLI_API_CLIENT):
+def connections_delete(args):
     """Delete connection from DB."""
-    cli_api_client.connections.delete(conn_id=args.conn_id)
-    print(f"Successfully deleted connection with `conn_id`={args.conn_id}")
+    with create_session() as session:
+        try:
+            to_delete = session.scalars(select(Connection).where(Connection.conn_id == args.conn_id)).one()
+        except exc.NoResultFound:
+            raise SystemExit(f"Did not find a connection with `conn_id`={args.conn_id}")
+        except exc.MultipleResultsFound:
+            raise SystemExit(f"Found more than one connection with `conn_id`={args.conn_id}")
+        else:
+            session.delete(to_delete)
+            print(f"Successfully deleted connection with `conn_id`={to_delete.conn_id}")
 
 
 @cli_utils.action_cli(check_db=False)
 @providers_configuration_loaded
-@provide_api_client
-def connections_import(args, cli_api_client=NEW_CLI_API_CLIENT):
+def connections_import(args):
     """Import connections from a file."""
     if os.path.exists(args.file):
-        _import_helper(file_path=args.file, overwrite=args.overwrite, cli_api_client=cli_api_client)
+        _import_helper(args.file, args.overwrite)
     else:
         raise SystemExit("Missing connections file.")
 
 
-def _import_helper(file_path: str, overwrite: bool, cli_api_client: Client) -> None:
+def _import_helper(file_path: str, overwrite: bool) -> None:
     """
     Load connections from a file and save them to the DB.
 
     :param overwrite: Whether to skip or overwrite on collision.
     """
-    # TODO: Update Bulk Import endpoint to conform overwrite option and include into operation
-    connections = load_connections_dict(file_path)
-    connections_to_create = []
-    for connection_id, connection in connections.items():
-        connections_to_create.append(
-            ConnectionBody(
-                connection_id=connection_id,
-                conn_type=connection.conn_type,
-                description=connection.description,
-                host=connection.host,
-                login=connection.login,
-                password=connection.password,
-                port=connection.port,
-                extra=connection.extra,
-            )
-        )
+    connections_dict = load_connections_dict(file_path)
+    with create_session() as session:
+        for conn_id, conn in connections_dict.items():
+            try:
+                helpers.validate_key(conn_id, max_length=200)
+            except Exception as e:
+                print(f"Could not import connection. {e}")
+                continue
 
-    try:
-        cli_api_client.connections.bulk(
-            connections=BulkBodyConnectionBody(
-                actions=[
-                    BulkCreateActionConnectionBody(
-                        action=BulkAction.CREATE,
-                        entities=connections_to_create,
-                        action_on_existence=BulkActionOnExistence.FAIL
-                        if not overwrite
-                        else BulkActionOnExistence.OVERWRITE,
-                    )
-                ]
-            )
-        )
-    except Exception as e:
-        print(f"Could not import connection. {e}")
-        raise SystemExit(1)
+            existing_conn_id = session.scalar(select(Connection.id).where(Connection.conn_id == conn_id))
+            if existing_conn_id is not None:
+                if not overwrite:
+                    print(f"Could not import connection {conn_id}: connection already exists.")
+                    continue
 
-    for conn_id in connections:
-        print(f"Imported connection {conn_id}")
+                # The conn_ids match, but the PK of the new entry must also be the same as the old
+                conn.id = existing_conn_id
+
+            session.merge(conn)
+            session.commit()
+            print(f"Imported connection {conn_id}")
 
 
 @suppress_logs_and_warning
 @providers_configuration_loaded
-@provide_api_client
-def connections_test(args, cli_api_client=NEW_CLI_API_CLIENT) -> None:
+def connections_test(args) -> None:
     """Test an Airflow connection."""
     console = AirflowConsole()
     if conf.get("core", "test_connection", fallback="Disabled").lower().strip() != "enabled":
@@ -414,23 +367,16 @@ def connections_test(args, cli_api_client=NEW_CLI_API_CLIENT) -> None:
         )
         raise SystemExit(1)
 
-    print("\nTesting...")
+    print(f"Retrieving connection: {args.conn_id!r}")
     try:
-        connection_test_response: ConnectionTestResponse = cli_api_client.connections.test(
-            ConnectionBody(
-                connection_id=args.conn_id,
-                # TODO update me when ConnectionTestBody is created allowing to pass conn_type None
-                conn_type="",
-            )
-        )
-    except ServerResponseError as e:
-        raise SystemExit(f"Could not test connection. {e}")
+        conn = BaseHook.get_connection(args.conn_id)
+    except AirflowNotFoundException:
+        console.print("[bold yellow]\nConnection not found.\n")
+        raise SystemExit(1)
 
-    status, message = (
-        connection_test_response.model_dump().get("status"),
-        connection_test_response.model_dump().get("message"),
-    )
+    print("\nTesting...")
+    status, message = conn.test_connection()
     if status is True:
-        console.print(f"[bold green]\nConnection success! {connection_test_response}\n")
+        console.print("[bold green]\nConnection success!\n")
     else:
         console.print(f"[bold][red]\nConnection failed![/bold]\n{message}\n")

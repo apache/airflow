@@ -63,6 +63,7 @@ def parser():
     return cli_parser.get_parser()
 
 
+# TODO this is not used at the moment but it is part of airflow/cli/api/client.py test suite
 @pytest.fixture(scope="session")
 def cli_api_client_maker(client_credentials):
     """
