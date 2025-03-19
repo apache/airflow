@@ -21,6 +21,7 @@ from unittest import mock
 
 import pendulum
 import pytest
+from sqlalchemy import select
 
 from airflow.models.dag import DagModel, DagTag
 from airflow.models.dagrun import DagRun
@@ -265,19 +266,74 @@ class TestPatchDag(TestDagEndpoint):
     """Unit tests for Patch DAG."""
 
     @pytest.mark.parametrize(
-        "query_params, dag_id, body, expected_status_code, expected_is_paused",
+        "query_params, dag_id, body, expected_status_code, expected_is_paused, initial_dag_run_states, expected_dag_run_states",
         [
-            ({}, "fake_dag_id", {"is_paused": True}, 404, None),
-            ({"update_mask": ["field_1", "is_paused"]}, DAG1_ID, {"is_paused": True}, 400, None),
-            ({}, DAG1_ID, {"is_paused": True}, 200, True),
-            ({}, DAG1_ID, {"is_paused": False}, 200, False),
-            ({"update_mask": ["is_paused"]}, DAG1_ID, {"is_paused": True}, 200, True),
-            ({"update_mask": ["is_paused"]}, DAG1_ID, {"is_paused": False}, 200, False),
+            ({}, "fake_dag_id", {"is_paused": True}, 404, None, [], []),
+            ({"update_mask": ["field_1", "is_paused"]}, DAG1_ID, {"is_paused": True}, 400, None, [], []),
+            (
+                {},
+                DAG1_ID,
+                {"is_paused": True},
+                200,
+                True,
+                [DagRunState.RUNNING, DagRunState.QUEUED],
+                [DagRunState.QUEUED, DagRunState.QUEUED],
+            ),
+            (
+                {},
+                DAG1_ID,
+                {"is_paused": False},
+                200,
+                False,
+                [DagRunState.QUEUED, DagRunState.RUNNING],
+                [DagRunState.RUNNING, DagRunState.RUNNING],
+            ),
+            (
+                {"update_mask": ["is_paused"]},
+                DAG1_ID,
+                {"is_paused": True},
+                200,
+                True,
+                [DagRunState.RUNNING],
+                [DagRunState.QUEUED],
+            ),
+            (
+                {"update_mask": ["is_paused"]},
+                DAG1_ID,
+                {"is_paused": False},
+                200,
+                False,
+                [DagRunState.QUEUED],
+                [DagRunState.RUNNING],
+            ),
         ],
     )
     def test_patch_dag(
-        self, test_client, query_params, dag_id, body, expected_status_code, expected_is_paused, session
+        self,
+        test_client,
+        query_params,
+        dag_id,
+        body,
+        expected_status_code,
+        expected_is_paused,
+        initial_dag_run_states,
+        expected_dag_run_states,
+        session,
     ):
+        clear_db_runs()
+
+        # Mock DAG Runs in the database
+        dag_runs = []
+        for state in initial_dag_run_states:
+            dag_run = DagRun(
+                dag_id=dag_id, run_id=f"test_run_{state}", state=state, run_type=DagRunType.MANUAL
+            )
+            session.add(dag_run)
+            dag_runs.append(dag_run)
+
+        # Commit changes, so patch_dag can access the mock dag runs created
+        session.commit()
+
         response = test_client.patch(f"/public/dags/{dag_id}", json=body, params=query_params)
 
         assert response.status_code == expected_status_code
@@ -285,6 +341,15 @@ class TestPatchDag(TestDagEndpoint):
             body = response.json()
             assert body["is_paused"] == expected_is_paused
             check_last_log(session, dag_id=dag_id, event="patch_dag", logical_date=None)
+
+            # Reload objects from the database, because they were changed outside of this session (in patch_dag function)
+            session.expire_all()
+
+            updated_dag_runs = session.scalars(select(DagRun).filter(DagRun.dag_id == dag_id)).all()
+            updated_states = [dag_run.state for dag_run in updated_dag_runs]
+
+            assert updated_states == expected_dag_run_states
+        clear_db_runs()
 
     def test_patch_dag_should_response_401(self, unauthenticated_test_client):
         response = unauthenticated_test_client.patch(f"/public/dags/{DAG1_ID}", json={"is_paused": True})
