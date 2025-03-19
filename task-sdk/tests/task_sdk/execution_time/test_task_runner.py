@@ -1495,7 +1495,7 @@ class TestXComAfterTaskExecution:
             task_id="pull_task",
             run_id="test_run",
             map_index=-1,
-            mapped_length=None,
+            _mapped_length=None,
         )
 
         # assert that we didn't call the API when XCom backend is configured
