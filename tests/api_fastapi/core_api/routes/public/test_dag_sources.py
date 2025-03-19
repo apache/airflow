@@ -35,7 +35,7 @@ from tests_common.test_utils.db import clear_db_dags, clear_db_runs, parse_and_s
 
 pytestmark = pytest.mark.db_test
 
-API_PREFIX = "/public/dagSources"
+API_PREFIX = "/api/v2/dagSources"
 
 # Example bash operator located here: airflow/example_dags/example_bash_operator.py
 EXAMPLE_DAG_FILE = os.path.join("airflow", "example_dags", "example_bash_operator.py")

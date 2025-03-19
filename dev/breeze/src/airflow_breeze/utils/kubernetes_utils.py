@@ -556,10 +556,10 @@ def _attempt_to_connect(port_number: int, output: Output | None, wait_seconds: i
     for attempt in itertools.count(1):
         get_console(output=output).print(f"[info]Connecting to localhost:{port_number}. Num try: {attempt}")
         try:
-            response = requests.get(f"http://localhost:{port_number}/public/monitor/health")
+            response = requests.get(f"http://localhost:{port_number}/api/v2/monitor/health")
         except ConnectionError:
             get_console(output=output).print(
-                f"The api server is not yet ready at http://localhost:{port_number}/public/monitor/health "
+                f"The api server is not yet ready at http://localhost:{port_number}/api/v2/monitor/health "
             )
         except Exception as e:
             get_console(output=output).print(f"[info]Error when connecting to localhost:{port_number} : {e}")
@@ -567,7 +567,7 @@ def _attempt_to_connect(port_number: int, output: Output | None, wait_seconds: i
             if response.status_code == 200:
                 get_console(output=output).print(
                     "[success]Established connection to api server at "
-                    f"http://localhost:{port_number}/public/monitor/health and it is healthy."
+                    f"http://localhost:{port_number}/api/v2/monitor/health and it is healthy."
                 )
                 return True
             else:

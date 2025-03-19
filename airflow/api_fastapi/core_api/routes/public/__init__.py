@@ -50,7 +50,7 @@ from airflow.api_fastapi.core_api.routes.public.variables import variables_route
 from airflow.api_fastapi.core_api.routes.public.version import version_router
 from airflow.api_fastapi.core_api.routes.public.xcom import xcom_router
 
-public_router = AirflowRouter(prefix="/public")
+public_router = AirflowRouter(prefix="/api/v2")
 
 # Router with common attributes for all routes
 authenticated_router = AirflowRouter(
