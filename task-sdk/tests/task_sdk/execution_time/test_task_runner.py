@@ -50,18 +50,23 @@ from airflow.sdk.api.datamodels._generated import (
     AssetEventResponse,
     AssetProfile,
     AssetResponse,
+    DagRunState,
     TaskInstance,
     TerminalTIState,
 )
 from airflow.sdk.definitions.asset import Asset, AssetAlias, Dataset, Model
 from airflow.sdk.definitions.param import DagParam
 from airflow.sdk.definitions.variable import Variable
+from airflow.sdk.exceptions import ErrorType
 from airflow.sdk.execution_time.comms import (
     AssetEventsResult,
     BundleInfo,
     ConnectionResult,
+    DagRunStateResult,
     DeferTask,
+    ErrorResponse,
     GetConnection,
+    GetDagRunState,
     GetVariable,
     GetXCom,
     OKResponse,
@@ -73,6 +78,7 @@ from airflow.sdk.execution_time.comms import (
     StartupDetails,
     SucceedTask,
     TaskState,
+    TriggerDagRun,
     VariableResult,
     XComResult,
 )
@@ -1862,3 +1868,182 @@ class TestTaskRunnerCallsListeners:
 
         assert listener.state == [TaskInstanceState.RUNNING, TaskInstanceState.FAILED]
         assert listener.error == error
+
+
+class TestTriggerDagRunOperator:
+    """Tests to verify various aspects of TriggerDagRunOperator"""
+
+    def test_handle_trigger_dag_run(self, create_runtime_ti, mock_supervisor_comms):
+        """Test that TriggerDagRunOperator (with default args) sends the correct message to the Supervisor"""
+        from airflow.providers.standard.operators.trigger_dagrun import TriggerDagRunOperator
+
+        task = TriggerDagRunOperator(
+            task_id="test_task",
+            trigger_dag_id="test_dag",
+            trigger_run_id="test_run_id",
+        )
+        ti = create_runtime_ti(dag_id="test_handle_trigger_dag_run", run_id="test_run", task=task)
+
+        log = mock.MagicMock()
+        mock_supervisor_comms.get_message.return_value = OKResponse(ok=True)
+        state, msg, _ = run(ti, log=log)
+
+        assert state == TaskInstanceState.SUCCESS
+        assert msg.state == TaskInstanceState.SUCCESS
+
+        expected_calls = [
+            mock.call.send_request(
+                msg=TriggerDagRun(
+                    dag_id="test_dag",
+                    run_id="test_run_id",
+                    reset_dag_run=False,
+                ),
+                log=mock.ANY,
+            ),
+            mock.call.get_message(),
+            mock.call.send_request(
+                msg=SetXCom(
+                    key="trigger_run_id",
+                    value="test_run_id",
+                    dag_id="test_handle_trigger_dag_run",
+                    task_id="test_task",
+                    run_id="test_run",
+                    map_index=-1,
+                ),
+                log=mock.ANY,
+            ),
+        ]
+        mock_supervisor_comms.assert_has_calls(expected_calls)
+
+    @pytest.mark.parametrize(
+        ["skip_when_already_exists", "expected_state"],
+        [
+            (True, TaskInstanceState.SKIPPED),
+            (False, TaskInstanceState.FAILED),
+        ],
+    )
+    def test_handle_trigger_dag_run_conflict(
+        self, skip_when_already_exists, expected_state, create_runtime_ti, mock_supervisor_comms
+    ):
+        """Test that TriggerDagRunOperator (when dagrun already exists) sends the correct message to the Supervisor"""
+        from airflow.providers.standard.operators.trigger_dagrun import TriggerDagRunOperator
+
+        task = TriggerDagRunOperator(
+            task_id="test_task",
+            trigger_dag_id="test_dag",
+            trigger_run_id="test_run_id",
+            skip_when_already_exists=skip_when_already_exists,
+        )
+        ti = create_runtime_ti(dag_id="test_handle_trigger_dag_run_conflict", run_id="test_run", task=task)
+
+        log = mock.MagicMock()
+        mock_supervisor_comms.get_message.return_value = ErrorResponse(error=ErrorType.DAGRUN_ALREADY_EXISTS)
+        state, msg, _ = run(ti, log=log)
+
+        assert state == expected_state
+        assert msg.state == expected_state
+
+        expected_calls = [
+            mock.call.send_request(
+                msg=TriggerDagRun(
+                    dag_id="test_dag",
+                    run_id="test_run_id",
+                    reset_dag_run=False,
+                ),
+                log=mock.ANY,
+            ),
+            mock.call.get_message(),
+        ]
+        mock_supervisor_comms.assert_has_calls(expected_calls)
+
+    @pytest.mark.parametrize(
+        ["allowed_states", "failed_states", "target_dr_state", "expected_task_state"],
+        [
+            (None, None, DagRunState.FAILED, TaskInstanceState.FAILED),
+            (None, None, DagRunState.SUCCESS, TaskInstanceState.SUCCESS),
+            ([DagRunState.FAILED], [], DagRunState.FAILED, DagRunState.SUCCESS),
+            ([DagRunState.FAILED], None, DagRunState.FAILED, DagRunState.FAILED),
+            ([DagRunState.SUCCESS], None, DagRunState.FAILED, DagRunState.FAILED),
+        ],
+    )
+    def test_handle_trigger_dag_run_wait_for_completion(
+        self,
+        allowed_states,
+        failed_states,
+        target_dr_state,
+        expected_task_state,
+        create_runtime_ti,
+        mock_supervisor_comms,
+    ):
+        """
+        Test that TriggerDagRunOperator (with wait_for_completion) sends the correct message to the Supervisor
+
+        It also polls the Supervisor for the DagRun state until it completes execution.
+        """
+        from airflow.providers.standard.operators.trigger_dagrun import TriggerDagRunOperator
+
+        task = TriggerDagRunOperator(
+            task_id="test_task",
+            trigger_dag_id="test_dag",
+            trigger_run_id="test_run_id",
+            poke_interval=5,
+            wait_for_completion=True,
+            allowed_states=allowed_states,
+            failed_states=failed_states,
+        )
+        ti = create_runtime_ti(
+            dag_id="test_handle_trigger_dag_run_wait_for_completion", run_id="test_run", task=task
+        )
+
+        log = mock.MagicMock()
+        mock_supervisor_comms.get_message.side_effect = [
+            # Successful Dag Run trigger
+            OKResponse(ok=True),
+            # Dag Run is still running
+            DagRunStateResult(state=DagRunState.RUNNING),
+            # Dag Run completes execution on the next poll
+            DagRunStateResult(state=target_dr_state),
+        ]
+        with mock.patch("time.sleep", return_value=None):
+            state, msg, _ = run(ti, log=log)
+
+        assert state == expected_task_state
+        assert msg.state == expected_task_state
+
+        expected_calls = [
+            mock.call.send_request(
+                msg=TriggerDagRun(
+                    dag_id="test_dag",
+                    run_id="test_run_id",
+                ),
+                log=mock.ANY,
+            ),
+            mock.call.get_message(),
+            mock.call.send_request(
+                msg=SetXCom(
+                    key="trigger_run_id",
+                    value="test_run_id",
+                    dag_id="test_handle_trigger_dag_run_wait_for_completion",
+                    task_id="test_task",
+                    run_id="test_run",
+                    map_index=-1,
+                ),
+                log=mock.ANY,
+            ),
+            mock.call.send_request(
+                msg=GetDagRunState(
+                    dag_id="test_dag",
+                    run_id="test_run_id",
+                ),
+                log=mock.ANY,
+            ),
+            mock.call.get_message(),
+            mock.call.send_request(
+                msg=GetDagRunState(
+                    dag_id="test_dag",
+                    run_id="test_run_id",
+                ),
+                log=mock.ANY,
+            ),
+        ]
+        mock_supervisor_comms.assert_has_calls(expected_calls)
