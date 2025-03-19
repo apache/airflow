@@ -20,7 +20,7 @@ import { Box, HStack } from "@chakra-ui/react";
 import type { PropsWithChildren } from "react";
 
 export const OrGateNode = ({ children }: PropsWithChildren) => (
-  <Box bg="bg.emphasized" border="2px dashed" borderRadius="lg" minW="fit-content" p={4} position="relative">
+  <Box bg="bg.muted" border="2px dashed" borderRadius="lg" minW="fit-content" p={4} position="relative">
     <HStack align="center" gap={4} mt={3}>
       {children}
     </HStack>

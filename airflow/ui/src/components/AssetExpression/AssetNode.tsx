@@ -16,44 +16,46 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Box, Text, VStack, HStack } from "@chakra-ui/react";
+import { Box, Text, HStack, Link } from "@chakra-ui/react";
 import { FiDatabase } from "react-icons/fi";
-
-import type { QueuedEventResponse } from "openapi/requests/types.gen";
+import { PiRectangleDashed } from "react-icons/pi";
+import { Link as RouterLink } from "react-router-dom";
 
 import Time from "../Time";
-import type { AssetSummary } from "./types";
+import type { AssetSummary, NextRunEvent } from "./types";
 
 export const AssetNode = ({
   asset,
   event,
 }: {
-  readonly asset: AssetSummary["asset"];
-  readonly event?: QueuedEventResponse;
+  readonly asset: AssetSummary;
+  readonly event?: NextRunEvent;
 }) => (
   <Box
     bg="bg.muted"
     border="1px solid"
+    borderColor={Boolean(event?.lastUpdate) ? "green" : undefined}
     borderRadius="md"
-    borderWidth={Boolean(event?.created_at) ? 3 : 1}
+    borderWidth={Boolean(event?.lastUpdate) ? 3 : 1}
     display="inline-block"
     minW="fit-content"
-    p={3}
+    p={2}
     position="relative"
   >
-    <VStack align="start" gap={2}>
-      <HStack gap={2}>
-        <FiDatabase />
-        {/* TODO add events back in when asset_expression contains asset_id */}
-        {/* {event?.id === undefined ? ( */}
-        <Text fontSize="sm">{asset.uri}</Text>
-        {/* ) : (
-          <Link asChild color="fg.info" display="block" py={2}>
-            <RouterLink to={`/assets/${event.id}`}>{asset.uri}</RouterLink>
-          </Link>
-        )} */}
-      </HStack>
-      <Time datetime={event?.created_at} />
-    </VStack>
+    <HStack gap={2}>
+      {"asset" in asset ? <FiDatabase /> : <PiRectangleDashed />}
+      {"alias" in asset ? (
+        <Text fontSize="sm">{asset.alias.name}</Text>
+      ) : (
+        <Link asChild color="fg.info" display="block" py={2}>
+          <RouterLink to={`/assets/${asset.asset.id}`}>{asset.asset.name}</RouterLink>
+        </Link>
+      )}
+    </HStack>
+    {event?.lastUpdate === undefined ? undefined : (
+      <Text color="fg.muted" fontSize="sm">
+        <Time datetime={event.lastUpdate} />
+      </Text>
+    )}
   </Box>
 );
