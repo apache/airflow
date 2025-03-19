@@ -65,12 +65,13 @@ class BaseK8STest:
         # speed up the test and make the airflow-api-server deployment more stable
         if self.set_api_server_base_url_config():
             self.rollout_restart_deployment("airflow-api-server")
-            self.ensure_deployment_health("airflow-api-server")
 
         # Replacement for unittests.TestCase.id()
         self.test_id = f"{request.node.cls.__name__}_{request.node.name}"
-        self.session = self._get_session_with_retries()
+        # Ensure the api-server deployment is healthy at kubernetes level before calling the any API
+        self.ensure_deployment_health("airflow-api-server")
         try:
+            self.session = self._get_session_with_retries()
             self._ensure_airflow_api_server_is_healthy()
             yield
         finally:

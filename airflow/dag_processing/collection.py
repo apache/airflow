@@ -721,7 +721,7 @@ class AssetModelOperation(NamedTuple):
         if not references:
             return
         orm_refs = set(
-            session.scalars(
+            session.execute(
                 select(model.dag_id, getattr(model, attr)).where(
                     model.dag_id.in_(dag_id for dag_id, _ in references)
                 )
