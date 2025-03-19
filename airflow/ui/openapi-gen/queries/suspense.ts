@@ -89,6 +89,7 @@ export const useAssetServiceNextRunAssetsSuspense = <
  * @param data.namePattern
  * @param data.uriPattern
  * @param data.dagIds
+ * @param data.onlyActive
  * @param data.orderBy
  * @returns AssetCollectionResponse Successful Response
  * @throws ApiError
@@ -103,6 +104,7 @@ export const useAssetServiceGetAssetsSuspense = <
     limit,
     namePattern,
     offset,
+    onlyActive,
     orderBy,
     uriPattern,
   }: {
@@ -110,6 +112,7 @@ export const useAssetServiceGetAssetsSuspense = <
     limit?: number;
     namePattern?: string;
     offset?: number;
+    onlyActive?: boolean;
     orderBy?: string;
     uriPattern?: string;
   } = {},
@@ -118,11 +121,19 @@ export const useAssetServiceGetAssetsSuspense = <
 ) =>
   useSuspenseQuery<TData, TError>({
     queryKey: Common.UseAssetServiceGetAssetsKeyFn(
-      { dagIds, limit, namePattern, offset, orderBy, uriPattern },
+      { dagIds, limit, namePattern, offset, onlyActive, orderBy, uriPattern },
       queryKey,
     ),
     queryFn: () =>
-      AssetService.getAssets({ dagIds, limit, namePattern, offset, orderBy, uriPattern }) as TData,
+      AssetService.getAssets({
+        dagIds,
+        limit,
+        namePattern,
+        offset,
+        onlyActive,
+        orderBy,
+        uriPattern,
+      }) as TData,
     ...options,
   });
 /**

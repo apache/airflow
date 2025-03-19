@@ -622,6 +622,13 @@ paths:
           items:
             type: string
           title: Dag Ids
+      - name: only_active
+        in: query
+        required: false
+        schema:
+          type: boolean
+          default: true
+          title: Only Active
       - name: order_by
         in: query
         required: false
