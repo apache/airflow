@@ -126,7 +126,7 @@ class DagReserializePostBody(BaseModel):
         all_bundles = list(manager.get_all_dag_bundles())
         all_bundle_names = {b.name for b in all_bundles}
 
-        if value is not None:
+        if value:
             for name in value:
                 if name not in all_bundle_names:
                     raise ValueError(f"Invalid bundle name: {name}")
