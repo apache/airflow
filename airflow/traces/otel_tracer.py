@@ -69,10 +69,10 @@ class OtelTrace:
             # A task can run fast and finish before spans have enough time to get exported to the collector.
             # When creating spans from inside a task, a SimpleSpanProcessor needs to be used because
             # it exports the spans immediately after they are created.
-            log.info("(__init__) - [SimpleSpanProcessor] is being used")
+            log.info("(otel_tracer.__init__) - [SimpleSpanProcessor] is being used")
             self.span_processor: SpanProcessor = SimpleSpanProcessor(self.span_exporter)
         else:
-            log.info("(__init__) - [BatchSpanProcessor] is being used")
+            log.info("(otel_tracer.__init__) - [BatchSpanProcessor] is being used")
             self.span_processor = BatchSpanProcessor(self.span_exporter)
         self.tag_string = tag_string
         self.otel_service = conf.get("traces", "otel_service")
