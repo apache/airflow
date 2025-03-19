@@ -729,34 +729,15 @@ def create_default_connections(session: Session = NEW_SESSION):
     )
 
 
-def _get_flask_db(sql_database_uri):
-    from flask import Flask
-    from flask_sqlalchemy import SQLAlchemy
-
-    from airflow.providers.fab.www.session import AirflowDatabaseSessionInterface
-
-    flask_app = Flask(__name__)
-    flask_app.config["SQLALCHEMY_DATABASE_URI"] = sql_database_uri
-    flask_app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
-    db = SQLAlchemy(flask_app)
-    AirflowDatabaseSessionInterface(app=flask_app, db=db, table="session", key_prefix="")
-    return db
-
-
 def _create_db_from_orm(session):
     log.info("Creating Airflow database tables from the ORM")
     from alembic import command
 
     from airflow.models.base import Base
 
-    def _create_flask_session_tbl(sql_database_uri):
-        db = _get_flask_db(sql_database_uri)
-        db.create_all()
-
     with create_global_lock(session=session, lock=DBLocks.MIGRATIONS):
         engine = session.get_bind().engine
         Base.metadata.create_all(engine)
-        _create_flask_session_tbl(engine.url)
         # stamp the migration head
         config = _get_alembic_config()
         command.stamp(config, "head")
@@ -1254,8 +1235,6 @@ def drop_airflow_models(connection):
     from airflow.models.base import Base
 
     Base.metadata.drop_all(connection)
-    db = _get_flask_db(connection.engine.url)
-    db.drop_all()
     # alembic adds significant import time, so we import it lazily
     from alembic.migration import MigrationContext
 
