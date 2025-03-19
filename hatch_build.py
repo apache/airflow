@@ -255,6 +255,7 @@ DEPENDENCIES = [
     # Does not work with it Tracked in https://github.com/fsspec/universal_pathlib/issues/276
     "universal-pathlib>=0.2.2,!=0.2.4",
     "uuid6>=2024.7.10",
+    "wtforms",
 ]
 
 
