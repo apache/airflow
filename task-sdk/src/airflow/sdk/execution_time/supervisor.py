@@ -54,7 +54,7 @@ import structlog
 from pydantic import TypeAdapter
 
 from airflow.exceptions import AirflowNotFoundException
-from airflow.sdk import Connection
+from airflow.sdk import Connection, Variable
 from airflow.sdk.api.client import Client, ServerResponseError
 from airflow.sdk.api.datamodels._generated import (
     AssetResponse,
@@ -880,7 +880,7 @@ class ActivitySubprocess(WatchedSubprocess):
         elif isinstance(msg, GetConnection):
             try:
                 connection = Connection.get_connection_from_secrets(msg.conn_id)
-                conn = connection.convert_connection_to_response()
+                conn = connection._convert_connection_to_response()
             except AirflowNotFoundException:
                 # if none of the backend has the connection defined, use the API to check instead
                 conn = self.client.connections.get(msg.conn_id)
@@ -890,7 +890,12 @@ class ActivitySubprocess(WatchedSubprocess):
             else:
                 resp = conn.model_dump_json().encode()
         elif isinstance(msg, GetVariable):
-            var = self.client.variables.get(msg.key)
+            try:
+                variable_value = Variable.get_variable_from_secrets(msg.key)
+                var = Variable._convert_variable_to_response(msg.key, variable_value)
+            except AirflowNotFoundException:
+                # if none of the backend has the variable defined, use the API to check instead
+                var = self.client.variables.get(msg.key)
             if isinstance(var, VariableResponse):
                 var_result = VariableResult.from_variable_response(var)
                 resp = var_result.model_dump_json(exclude_unset=True).encode()

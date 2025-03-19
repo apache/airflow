@@ -91,7 +91,7 @@ class Connection:
     @classmethod
     def get_connection_from_secrets(cls, conn_id: str) -> Connection:
         """
-        Get connection by conn_id.
+        Get connection by conn_id by iterating over all Secret Backends.
 
         :param conn_id: connection id
         :return: connection
@@ -129,7 +129,7 @@ class Connection:
         # TODO: Mask sensitive keys from this list or revisit if it will be done in server
         return extra
 
-    def convert_connection_to_response(self) -> ConnectionResponse:
+    def _convert_connection_to_response(self) -> ConnectionResponse:
         return ConnectionResponse(
             conn_id=self.conn_id,
             conn_type=self.conn_type,
