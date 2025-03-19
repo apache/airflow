@@ -23,11 +23,11 @@ from unittest import mock
 
 import pendulum
 import pytest
-from sqlalchemy import func, select
+from sqlalchemy import func, select, update
 
 import airflow.example_dags as example_dags_module
 from airflow.decorators import task as task_decorator
-from airflow.models.dag import DAG
+from airflow.models.dag import DAG, DagModel
 from airflow.models.dag_version import DagVersion
 from airflow.models.dagbag import DagBag
 from airflow.models.serialized_dag import SerializedDagModel as SDM
@@ -371,3 +371,15 @@ class TestSerializedDagModel:
                 dag.tags = sorted(dag.tags, reverse=True)
             sorted_dag = SDM._sort_serialized_dag_dict(dag)
             assert sorted_dag == dag
+
+    def test_get_dependencies(self, session):
+        self._write_example_dags()
+        dag_id = "consumes_asset_decorator"
+
+        dependencies = SDM.get_dag_dependencies(session=session)
+        assert dag_id in dependencies
+
+        # Simulate deleting the DAG from file.
+        session.execute(update(DagModel).where(DagModel.dag_id == dag_id).values(is_active=False))
+        dependencies = SDM.get_dag_dependencies(session=session)
+        assert dag_id not in dependencies
