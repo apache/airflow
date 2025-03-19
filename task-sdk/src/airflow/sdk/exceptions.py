@@ -25,7 +25,7 @@ if TYPE_CHECKING:
 
 
 class AirflowRuntimeError(Exception):
-    """Generic Airflow arror raised by runtime functions."""
+    """Generic Airflow error raised by runtime functions."""
 
     def __init__(self, error: ErrorResponse):
         self.error = error
