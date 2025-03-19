@@ -271,7 +271,7 @@ export class AssetService {
   public static getAssets(data: GetAssetsData = {}): CancelablePromise<GetAssetsResponse> {
     return __request(OpenAPI, {
       method: "GET",
-      url: "/public/assets",
+      url: "/api/v2/assets",
       query: {
         limit: data.limit,
         offset: data.offset,
@@ -304,7 +304,7 @@ export class AssetService {
   public static getAssetAliases(data: GetAssetAliasesData = {}): CancelablePromise<GetAssetAliasesResponse> {
     return __request(OpenAPI, {
       method: "GET",
-      url: "/public/assets/aliases",
+      url: "/api/v2/assets/aliases",
       query: {
         limit: data.limit,
         offset: data.offset,
@@ -331,7 +331,7 @@ export class AssetService {
   public static getAssetAlias(data: GetAssetAliasData): CancelablePromise<GetAssetAliasResponse> {
     return __request(OpenAPI, {
       method: "GET",
-      url: "/public/assets/aliases/{asset_alias_id}",
+      url: "/api/v2/assets/aliases/{asset_alias_id}",
       path: {
         asset_alias_id: data.assetAliasId,
       },
@@ -364,7 +364,7 @@ export class AssetService {
   public static getAssetEvents(data: GetAssetEventsData = {}): CancelablePromise<GetAssetEventsResponse> {
     return __request(OpenAPI, {
       method: "GET",
-      url: "/public/assets/events",
+      url: "/api/v2/assets/events",
       query: {
         limit: data.limit,
         offset: data.offset,
@@ -397,7 +397,7 @@ export class AssetService {
   public static createAssetEvent(data: CreateAssetEventData): CancelablePromise<CreateAssetEventResponse> {
     return __request(OpenAPI, {
       method: "POST",
-      url: "/public/assets/events",
+      url: "/api/v2/assets/events",
       body: data.requestBody,
       mediaType: "application/json",
       errors: {
@@ -420,7 +420,7 @@ export class AssetService {
   public static materializeAsset(data: MaterializeAssetData): CancelablePromise<MaterializeAssetResponse> {
     return __request(OpenAPI, {
       method: "POST",
-      url: "/public/assets/{asset_id}/materialize",
+      url: "/api/v2/assets/{asset_id}/materialize",
       path: {
         asset_id: data.assetId,
       },
@@ -448,7 +448,7 @@ export class AssetService {
   ): CancelablePromise<GetAssetQueuedEventsResponse> {
     return __request(OpenAPI, {
       method: "GET",
-      url: "/public/assets/{asset_id}/queuedEvents",
+      url: "/api/v2/assets/{asset_id}/queuedEvents",
       path: {
         asset_id: data.assetId,
       },
@@ -478,7 +478,7 @@ export class AssetService {
   ): CancelablePromise<DeleteAssetQueuedEventsResponse> {
     return __request(OpenAPI, {
       method: "DELETE",
-      url: "/public/assets/{asset_id}/queuedEvents",
+      url: "/api/v2/assets/{asset_id}/queuedEvents",
       path: {
         asset_id: data.assetId,
       },
@@ -505,7 +505,7 @@ export class AssetService {
   public static getAsset(data: GetAssetData): CancelablePromise<GetAssetResponse> {
     return __request(OpenAPI, {
       method: "GET",
-      url: "/public/assets/{asset_id}",
+      url: "/api/v2/assets/{asset_id}",
       path: {
         asset_id: data.assetId,
       },
@@ -532,7 +532,7 @@ export class AssetService {
   ): CancelablePromise<GetDagAssetQueuedEventsResponse> {
     return __request(OpenAPI, {
       method: "GET",
-      url: "/public/dags/{dag_id}/assets/queuedEvents",
+      url: "/api/v2/dags/{dag_id}/assets/queuedEvents",
       path: {
         dag_id: data.dagId,
       },
@@ -561,7 +561,7 @@ export class AssetService {
   ): CancelablePromise<DeleteDagAssetQueuedEventsResponse> {
     return __request(OpenAPI, {
       method: "DELETE",
-      url: "/public/dags/{dag_id}/assets/queuedEvents",
+      url: "/api/v2/dags/{dag_id}/assets/queuedEvents",
       path: {
         dag_id: data.dagId,
       },
@@ -593,7 +593,7 @@ export class AssetService {
   ): CancelablePromise<GetDagAssetQueuedEventResponse> {
     return __request(OpenAPI, {
       method: "GET",
-      url: "/public/dags/{dag_id}/assets/{asset_id}/queuedEvents",
+      url: "/api/v2/dags/{dag_id}/assets/{asset_id}/queuedEvents",
       path: {
         dag_id: data.dagId,
         asset_id: data.assetId,
@@ -625,7 +625,7 @@ export class AssetService {
   ): CancelablePromise<DeleteDagAssetQueuedEventResponse> {
     return __request(OpenAPI, {
       method: "DELETE",
-      url: "/public/dags/{dag_id}/assets/{asset_id}/queuedEvents",
+      url: "/api/v2/dags/{dag_id}/assets/{asset_id}/queuedEvents",
       path: {
         dag_id: data.dagId,
         asset_id: data.assetId,
@@ -672,7 +672,7 @@ export class ConfigService {
   public static getConfig(data: GetConfigData = {}): CancelablePromise<GetConfigResponse> {
     return __request(OpenAPI, {
       method: "GET",
-      url: "/public/config",
+      url: "/api/v2/config",
       headers: {
         accept: data.accept,
       },
@@ -701,7 +701,7 @@ export class ConfigService {
   public static getConfigValue(data: GetConfigValueData): CancelablePromise<GetConfigValueResponse> {
     return __request(OpenAPI, {
       method: "GET",
-      url: "/public/config/section/{section}/option/{option}",
+      url: "/api/v2/config/section/{section}/option/{option}",
       path: {
         section: data.section,
         option: data.option,
@@ -745,7 +745,7 @@ export class ConnectionService {
   public static deleteConnection(data: DeleteConnectionData): CancelablePromise<DeleteConnectionResponse> {
     return __request(OpenAPI, {
       method: "DELETE",
-      url: "/public/connections/{connection_id}",
+      url: "/api/v2/connections/{connection_id}",
       path: {
         connection_id: data.connectionId,
       },
@@ -769,7 +769,7 @@ export class ConnectionService {
   public static getConnection(data: GetConnectionData): CancelablePromise<GetConnectionResponse> {
     return __request(OpenAPI, {
       method: "GET",
-      url: "/public/connections/{connection_id}",
+      url: "/api/v2/connections/{connection_id}",
       path: {
         connection_id: data.connectionId,
       },
@@ -795,7 +795,7 @@ export class ConnectionService {
   public static patchConnection(data: PatchConnectionData): CancelablePromise<PatchConnectionResponse> {
     return __request(OpenAPI, {
       method: "PATCH",
-      url: "/public/connections/{connection_id}",
+      url: "/api/v2/connections/{connection_id}",
       path: {
         connection_id: data.connectionId,
       },
@@ -828,7 +828,7 @@ export class ConnectionService {
   public static getConnections(data: GetConnectionsData = {}): CancelablePromise<GetConnectionsResponse> {
     return __request(OpenAPI, {
       method: "GET",
-      url: "/public/connections",
+      url: "/api/v2/connections",
       query: {
         limit: data.limit,
         offset: data.offset,
@@ -855,7 +855,7 @@ export class ConnectionService {
   public static postConnection(data: PostConnectionData): CancelablePromise<PostConnectionResponse> {
     return __request(OpenAPI, {
       method: "POST",
-      url: "/public/connections",
+      url: "/api/v2/connections",
       body: data.requestBody,
       mediaType: "application/json",
       errors: {
@@ -878,7 +878,7 @@ export class ConnectionService {
   public static bulkConnections(data: BulkConnectionsData): CancelablePromise<BulkConnectionsResponse> {
     return __request(OpenAPI, {
       method: "PATCH",
-      url: "/public/connections",
+      url: "/api/v2/connections",
       body: data.requestBody,
       mediaType: "application/json",
       errors: {
@@ -904,7 +904,7 @@ export class ConnectionService {
   public static testConnection(data: TestConnectionData): CancelablePromise<TestConnectionResponse> {
     return __request(OpenAPI, {
       method: "POST",
-      url: "/public/connections/test",
+      url: "/api/v2/connections/test",
       body: data.requestBody,
       mediaType: "application/json",
       errors: {
@@ -924,7 +924,7 @@ export class ConnectionService {
   public static createDefaultConnections(): CancelablePromise<CreateDefaultConnectionsResponse> {
     return __request(OpenAPI, {
       method: "POST",
-      url: "/public/connections/defaults",
+      url: "/api/v2/connections/defaults",
       errors: {
         401: "Unauthorized",
         403: "Forbidden",
@@ -1105,7 +1105,7 @@ export class BackfillService {
   public static listBackfills1(data: ListBackfills1Data): CancelablePromise<ListBackfills1Response> {
     return __request(OpenAPI, {
       method: "GET",
-      url: "/public/backfills",
+      url: "/api/v2/backfills",
       query: {
         dag_id: data.dagId,
         limit: data.limit,
@@ -1130,7 +1130,7 @@ export class BackfillService {
   public static createBackfill(data: CreateBackfillData): CancelablePromise<CreateBackfillResponse> {
     return __request(OpenAPI, {
       method: "POST",
-      url: "/public/backfills",
+      url: "/api/v2/backfills",
       body: data.requestBody,
       mediaType: "application/json",
       errors: {
@@ -1153,7 +1153,7 @@ export class BackfillService {
   public static getBackfill(data: GetBackfillData): CancelablePromise<GetBackfillResponse> {
     return __request(OpenAPI, {
       method: "GET",
-      url: "/public/backfills/{backfill_id}",
+      url: "/api/v2/backfills/{backfill_id}",
       path: {
         backfill_id: data.backfillId,
       },
@@ -1176,7 +1176,7 @@ export class BackfillService {
   public static pauseBackfill(data: PauseBackfillData): CancelablePromise<PauseBackfillResponse> {
     return __request(OpenAPI, {
       method: "PUT",
-      url: "/public/backfills/{backfill_id}/pause",
+      url: "/api/v2/backfills/{backfill_id}/pause",
       path: {
         backfill_id: data.backfillId,
       },
@@ -1200,7 +1200,7 @@ export class BackfillService {
   public static unpauseBackfill(data: UnpauseBackfillData): CancelablePromise<UnpauseBackfillResponse> {
     return __request(OpenAPI, {
       method: "PUT",
-      url: "/public/backfills/{backfill_id}/unpause",
+      url: "/api/v2/backfills/{backfill_id}/unpause",
       path: {
         backfill_id: data.backfillId,
       },
@@ -1224,7 +1224,7 @@ export class BackfillService {
   public static cancelBackfill(data: CancelBackfillData): CancelablePromise<CancelBackfillResponse> {
     return __request(OpenAPI, {
       method: "PUT",
-      url: "/public/backfills/{backfill_id}/cancel",
+      url: "/api/v2/backfills/{backfill_id}/cancel",
       path: {
         backfill_id: data.backfillId,
       },
@@ -1250,7 +1250,7 @@ export class BackfillService {
   ): CancelablePromise<CreateBackfillDryRunResponse> {
     return __request(OpenAPI, {
       method: "POST",
-      url: "/public/backfills/dry_run",
+      url: "/api/v2/backfills/dry_run",
       body: data.requestBody,
       mediaType: "application/json",
       errors: {
@@ -1327,7 +1327,7 @@ export class DagRunService {
   public static getDagRun(data: GetDagRunData): CancelablePromise<GetDagRunResponse> {
     return __request(OpenAPI, {
       method: "GET",
-      url: "/public/dags/{dag_id}/dagRuns/{dag_run_id}",
+      url: "/api/v2/dags/{dag_id}/dagRuns/{dag_run_id}",
       path: {
         dag_id: data.dagId,
         dag_run_id: data.dagRunId,
@@ -1353,7 +1353,7 @@ export class DagRunService {
   public static deleteDagRun(data: DeleteDagRunData): CancelablePromise<DeleteDagRunResponse> {
     return __request(OpenAPI, {
       method: "DELETE",
-      url: "/public/dags/{dag_id}/dagRuns/{dag_run_id}",
+      url: "/api/v2/dags/{dag_id}/dagRuns/{dag_run_id}",
       path: {
         dag_id: data.dagId,
         dag_run_id: data.dagRunId,
@@ -1382,7 +1382,7 @@ export class DagRunService {
   public static patchDagRun(data: PatchDagRunData): CancelablePromise<PatchDagRunResponse> {
     return __request(OpenAPI, {
       method: "PATCH",
-      url: "/public/dags/{dag_id}/dagRuns/{dag_run_id}",
+      url: "/api/v2/dags/{dag_id}/dagRuns/{dag_run_id}",
       path: {
         dag_id: data.dagId,
         dag_run_id: data.dagRunId,
@@ -1416,7 +1416,7 @@ export class DagRunService {
   ): CancelablePromise<GetUpstreamAssetEventsResponse> {
     return __request(OpenAPI, {
       method: "GET",
-      url: "/public/dags/{dag_id}/dagRuns/{dag_run_id}/upstreamAssetEvents",
+      url: "/api/v2/dags/{dag_id}/dagRuns/{dag_run_id}/upstreamAssetEvents",
       path: {
         dag_id: data.dagId,
         dag_run_id: data.dagRunId,
@@ -1442,7 +1442,7 @@ export class DagRunService {
   public static clearDagRun(data: ClearDagRunData): CancelablePromise<ClearDagRunResponse> {
     return __request(OpenAPI, {
       method: "POST",
-      url: "/public/dags/{dag_id}/dagRuns/{dag_run_id}/clear",
+      url: "/api/v2/dags/{dag_id}/dagRuns/{dag_run_id}/clear",
       path: {
         dag_id: data.dagId,
         dag_run_id: data.dagRunId,
@@ -1485,7 +1485,7 @@ export class DagRunService {
   public static getDagRuns(data: GetDagRunsData): CancelablePromise<GetDagRunsResponse> {
     return __request(OpenAPI, {
       method: "GET",
-      url: "/public/dags/{dag_id}/dagRuns",
+      url: "/api/v2/dags/{dag_id}/dagRuns",
       path: {
         dag_id: data.dagId,
       },
@@ -1526,7 +1526,7 @@ export class DagRunService {
   public static triggerDagRun(data: TriggerDagRunData): CancelablePromise<TriggerDagRunResponse> {
     return __request(OpenAPI, {
       method: "POST",
-      url: "/public/dags/{dag_id}/dagRuns",
+      url: "/api/v2/dags/{dag_id}/dagRuns",
       path: {
         dag_id: data.dagId,
       },
@@ -1557,7 +1557,7 @@ export class DagRunService {
   ): CancelablePromise<GetListDagRunsBatchResponse> {
     return __request(OpenAPI, {
       method: "POST",
-      url: "/public/dags/{dag_id}/dagRuns/list",
+      url: "/api/v2/dags/{dag_id}/dagRuns/list",
       path: {
         dag_id: data.dagId,
       },
@@ -1587,7 +1587,7 @@ export class DagSourceService {
   public static getDagSource(data: GetDagSourceData): CancelablePromise<GetDagSourceResponse> {
     return __request(OpenAPI, {
       method: "GET",
-      url: "/public/dagSources/{dag_id}",
+      url: "/api/v2/dagSources/{dag_id}",
       path: {
         dag_id: data.dagId,
       },
@@ -1621,7 +1621,7 @@ export class DagStatsService {
   public static getDagStats(data: GetDagStatsData = {}): CancelablePromise<GetDagStatsResponse> {
     return __request(OpenAPI, {
       method: "GET",
-      url: "/public/dagStats",
+      url: "/api/v2/dagStats",
       query: {
         dag_ids: data.dagIds,
       },
@@ -1648,7 +1648,7 @@ export class DagReportService {
   public static getDagReports(data: GetDagReportsData): CancelablePromise<GetDagReportsResponse> {
     return __request(OpenAPI, {
       method: "GET",
-      url: "/public/dagReports",
+      url: "/api/v2/dagReports",
       query: {
         subdir: data.subdir,
       },
@@ -1678,7 +1678,7 @@ export class DagWarningService {
   public static listDagWarnings(data: ListDagWarningsData = {}): CancelablePromise<ListDagWarningsResponse> {
     return __request(OpenAPI, {
       method: "GET",
-      url: "/public/dagWarnings",
+      url: "/api/v2/dagWarnings",
       query: {
         dag_id: data.dagId,
         warning_type: data.warningType,
@@ -1722,7 +1722,7 @@ export class DagService {
   public static getDags(data: GetDagsData = {}): CancelablePromise<GetDagsResponse> {
     return __request(OpenAPI, {
       method: "GET",
-      url: "/public/dags",
+      url: "/api/v2/dags",
       query: {
         limit: data.limit,
         offset: data.offset,
@@ -1770,7 +1770,7 @@ export class DagService {
   public static patchDags(data: PatchDagsData): CancelablePromise<PatchDagsResponse> {
     return __request(OpenAPI, {
       method: "PATCH",
-      url: "/public/dags",
+      url: "/api/v2/dags",
       query: {
         update_mask: data.updateMask,
         limit: data.limit,
@@ -1806,7 +1806,7 @@ export class DagService {
   public static getDag(data: GetDagData): CancelablePromise<GetDagResponse> {
     return __request(OpenAPI, {
       method: "GET",
-      url: "/public/dags/{dag_id}",
+      url: "/api/v2/dags/{dag_id}",
       path: {
         dag_id: data.dagId,
       },
@@ -1833,7 +1833,7 @@ export class DagService {
   public static patchDag(data: PatchDagData): CancelablePromise<PatchDagResponse> {
     return __request(OpenAPI, {
       method: "PATCH",
-      url: "/public/dags/{dag_id}",
+      url: "/api/v2/dags/{dag_id}",
       path: {
         dag_id: data.dagId,
       },
@@ -1863,7 +1863,7 @@ export class DagService {
   public static deleteDag(data: DeleteDagData): CancelablePromise<DeleteDagResponse> {
     return __request(OpenAPI, {
       method: "DELETE",
-      url: "/public/dags/{dag_id}",
+      url: "/api/v2/dags/{dag_id}",
       path: {
         dag_id: data.dagId,
       },
@@ -1888,7 +1888,7 @@ export class DagService {
   public static getDagDetails(data: GetDagDetailsData): CancelablePromise<GetDagDetailsResponse> {
     return __request(OpenAPI, {
       method: "GET",
-      url: "/public/dags/{dag_id}/details",
+      url: "/api/v2/dags/{dag_id}/details",
       path: {
         dag_id: data.dagId,
       },
@@ -1942,7 +1942,7 @@ export class DagService {
   public static getDagTags(data: GetDagTagsData = {}): CancelablePromise<GetDagTagsResponse> {
     return __request(OpenAPI, {
       method: "GET",
-      url: "/public/dagTags",
+      url: "/api/v2/dagTags",
       query: {
         limit: data.limit,
         offset: data.offset,
@@ -1969,7 +1969,7 @@ export class EventLogService {
   public static getEventLog(data: GetEventLogData): CancelablePromise<GetEventLogResponse> {
     return __request(OpenAPI, {
       method: "GET",
-      url: "/public/eventLogs/{event_log_id}",
+      url: "/api/v2/eventLogs/{event_log_id}",
       path: {
         event_log_id: data.eventLogId,
       },
@@ -2006,7 +2006,7 @@ export class EventLogService {
   public static getEventLogs(data: GetEventLogsData = {}): CancelablePromise<GetEventLogsResponse> {
     return __request(OpenAPI, {
       method: "GET",
-      url: "/public/eventLogs",
+      url: "/api/v2/eventLogs",
       query: {
         limit: data.limit,
         offset: data.offset,
@@ -2047,7 +2047,7 @@ export class ExtraLinksService {
   public static getExtraLinks(data: GetExtraLinksData): CancelablePromise<GetExtraLinksResponse> {
     return __request(OpenAPI, {
       method: "GET",
-      url: "/public/dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances/{task_id}/links",
+      url: "/api/v2/dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances/{task_id}/links",
       path: {
         dag_id: data.dagId,
         dag_run_id: data.dagRunId,
@@ -2081,7 +2081,7 @@ export class TaskInstanceService {
   public static getExtraLinks(data: GetExtraLinksData): CancelablePromise<GetExtraLinksResponse> {
     return __request(OpenAPI, {
       method: "GET",
-      url: "/public/dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances/{task_id}/links",
+      url: "/api/v2/dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances/{task_id}/links",
       path: {
         dag_id: data.dagId,
         dag_run_id: data.dagRunId,
@@ -2112,7 +2112,7 @@ export class TaskInstanceService {
   public static getTaskInstance(data: GetTaskInstanceData): CancelablePromise<GetTaskInstanceResponse> {
     return __request(OpenAPI, {
       method: "GET",
-      url: "/public/dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances/{task_id}",
+      url: "/api/v2/dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances/{task_id}",
       path: {
         dag_id: data.dagId,
         dag_run_id: data.dagRunId,
@@ -2143,7 +2143,7 @@ export class TaskInstanceService {
   public static patchTaskInstance(data: PatchTaskInstanceData): CancelablePromise<PatchTaskInstanceResponse> {
     return __request(OpenAPI, {
       method: "PATCH",
-      url: "/public/dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances/{task_id}",
+      url: "/api/v2/dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances/{task_id}",
       path: {
         dag_id: data.dagId,
         dag_run_id: data.dagRunId,
@@ -2201,7 +2201,7 @@ export class TaskInstanceService {
   ): CancelablePromise<GetMappedTaskInstancesResponse> {
     return __request(OpenAPI, {
       method: "GET",
-      url: "/public/dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances/{task_id}/listMapped",
+      url: "/api/v2/dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances/{task_id}/listMapped",
       path: {
         dag_id: data.dagId,
         dag_run_id: data.dagRunId,
@@ -2254,7 +2254,7 @@ export class TaskInstanceService {
   ): CancelablePromise<GetTaskInstanceDependenciesResponse> {
     return __request(OpenAPI, {
       method: "GET",
-      url: "/public/dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances/{task_id}/{map_index}/dependencies",
+      url: "/api/v2/dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances/{task_id}/{map_index}/dependencies",
       path: {
         dag_id: data.dagId,
         dag_run_id: data.dagRunId,
@@ -2286,7 +2286,7 @@ export class TaskInstanceService {
   ): CancelablePromise<GetTaskInstanceDependencies1Response> {
     return __request(OpenAPI, {
       method: "GET",
-      url: "/public/dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances/{task_id}/dependencies",
+      url: "/api/v2/dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances/{task_id}/dependencies",
       path: {
         dag_id: data.dagId,
         dag_run_id: data.dagRunId,
@@ -2320,7 +2320,7 @@ export class TaskInstanceService {
   ): CancelablePromise<GetTaskInstanceTriesResponse> {
     return __request(OpenAPI, {
       method: "GET",
-      url: "/public/dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances/{task_id}/tries",
+      url: "/api/v2/dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances/{task_id}/tries",
       path: {
         dag_id: data.dagId,
         dag_run_id: data.dagRunId,
@@ -2353,7 +2353,7 @@ export class TaskInstanceService {
   ): CancelablePromise<GetMappedTaskInstanceTriesResponse> {
     return __request(OpenAPI, {
       method: "GET",
-      url: "/public/dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances/{task_id}/{map_index}/tries",
+      url: "/api/v2/dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances/{task_id}/{map_index}/tries",
       path: {
         dag_id: data.dagId,
         dag_run_id: data.dagRunId,
@@ -2385,7 +2385,7 @@ export class TaskInstanceService {
   ): CancelablePromise<GetMappedTaskInstanceResponse> {
     return __request(OpenAPI, {
       method: "GET",
-      url: "/public/dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances/{task_id}/{map_index}",
+      url: "/api/v2/dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances/{task_id}/{map_index}",
       path: {
         dag_id: data.dagId,
         dag_run_id: data.dagRunId,
@@ -2419,7 +2419,7 @@ export class TaskInstanceService {
   ): CancelablePromise<PatchTaskInstance1Response> {
     return __request(OpenAPI, {
       method: "PATCH",
-      url: "/public/dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances/{task_id}/{map_index}",
+      url: "/api/v2/dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances/{task_id}/{map_index}",
       path: {
         dag_id: data.dagId,
         dag_run_id: data.dagRunId,
@@ -2479,7 +2479,7 @@ export class TaskInstanceService {
   public static getTaskInstances(data: GetTaskInstancesData): CancelablePromise<GetTaskInstancesResponse> {
     return __request(OpenAPI, {
       method: "GET",
-      url: "/public/dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances",
+      url: "/api/v2/dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances",
       path: {
         dag_id: data.dagId,
         dag_run_id: data.dagRunId,
@@ -2532,7 +2532,7 @@ export class TaskInstanceService {
   ): CancelablePromise<GetTaskInstancesBatchResponse> {
     return __request(OpenAPI, {
       method: "POST",
-      url: "/public/dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances/list",
+      url: "/api/v2/dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances/list",
       path: {
         dag_id: data.dagId,
         dag_run_id: data.dagRunId,
@@ -2565,7 +2565,7 @@ export class TaskInstanceService {
   ): CancelablePromise<GetTaskInstanceTryDetailsResponse> {
     return __request(OpenAPI, {
       method: "GET",
-      url: "/public/dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances/{task_id}/tries/{task_try_number}",
+      url: "/api/v2/dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances/{task_id}/tries/{task_try_number}",
       path: {
         dag_id: data.dagId,
         dag_run_id: data.dagRunId,
@@ -2600,7 +2600,7 @@ export class TaskInstanceService {
   ): CancelablePromise<GetMappedTaskInstanceTryDetailsResponse> {
     return __request(OpenAPI, {
       method: "GET",
-      url: "/public/dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances/{task_id}/{map_index}/tries/{task_try_number}",
+      url: "/api/v2/dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances/{task_id}/{map_index}/tries/{task_try_number}",
       path: {
         dag_id: data.dagId,
         dag_run_id: data.dagRunId,
@@ -2631,7 +2631,7 @@ export class TaskInstanceService {
   ): CancelablePromise<PostClearTaskInstancesResponse> {
     return __request(OpenAPI, {
       method: "POST",
-      url: "/public/dags/{dag_id}/clearTaskInstances",
+      url: "/api/v2/dags/{dag_id}/clearTaskInstances",
       path: {
         dag_id: data.dagId,
       },
@@ -2664,7 +2664,7 @@ export class TaskInstanceService {
   ): CancelablePromise<PatchTaskInstanceDryRunResponse> {
     return __request(OpenAPI, {
       method: "PATCH",
-      url: "/public/dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances/{task_id}/{map_index}/dry_run",
+      url: "/api/v2/dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances/{task_id}/{map_index}/dry_run",
       path: {
         dag_id: data.dagId,
         dag_run_id: data.dagRunId,
@@ -2704,7 +2704,7 @@ export class TaskInstanceService {
   ): CancelablePromise<PatchTaskInstanceDryRun1Response> {
     return __request(OpenAPI, {
       method: "PATCH",
-      url: "/public/dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances/{task_id}/dry_run",
+      url: "/api/v2/dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances/{task_id}/dry_run",
       path: {
         dag_id: data.dagId,
         dag_run_id: data.dagRunId,
@@ -2744,7 +2744,7 @@ export class TaskInstanceService {
   public static getLog(data: GetLogData): CancelablePromise<GetLogResponse> {
     return __request(OpenAPI, {
       method: "GET",
-      url: "/public/dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances/{task_id}/logs/{try_number}",
+      url: "/api/v2/dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances/{task_id}/logs/{try_number}",
       path: {
         dag_id: data.dagId,
         dag_run_id: data.dagRunId,
@@ -2781,7 +2781,7 @@ export class ImportErrorService {
   public static getImportError(data: GetImportErrorData): CancelablePromise<GetImportErrorResponse> {
     return __request(OpenAPI, {
       method: "GET",
-      url: "/public/importErrors/{import_error_id}",
+      url: "/api/v2/importErrors/{import_error_id}",
       path: {
         import_error_id: data.importErrorId,
       },
@@ -2807,7 +2807,7 @@ export class ImportErrorService {
   public static getImportErrors(data: GetImportErrorsData = {}): CancelablePromise<GetImportErrorsResponse> {
     return __request(OpenAPI, {
       method: "GET",
-      url: "/public/importErrors",
+      url: "/api/v2/importErrors",
       query: {
         limit: data.limit,
         offset: data.offset,
@@ -2845,7 +2845,7 @@ export class JobService {
   public static getJobs(data: GetJobsData = {}): CancelablePromise<GetJobsResponse> {
     return __request(OpenAPI, {
       method: "GET",
-      url: "/public/jobs",
+      url: "/api/v2/jobs",
       query: {
         is_alive: data.isAlive,
         start_date_gte: data.startDateGte,
@@ -2882,7 +2882,7 @@ export class PluginService {
   public static getPlugins(data: GetPluginsData = {}): CancelablePromise<GetPluginsResponse> {
     return __request(OpenAPI, {
       method: "GET",
-      url: "/public/plugins",
+      url: "/api/v2/plugins",
       query: {
         limit: data.limit,
         offset: data.offset,
@@ -2908,7 +2908,7 @@ export class PoolService {
   public static deletePool(data: DeletePoolData): CancelablePromise<DeletePoolResponse> {
     return __request(OpenAPI, {
       method: "DELETE",
-      url: "/public/pools/{pool_name}",
+      url: "/api/v2/pools/{pool_name}",
       path: {
         pool_name: data.poolName,
       },
@@ -2933,7 +2933,7 @@ export class PoolService {
   public static getPool(data: GetPoolData): CancelablePromise<GetPoolResponse> {
     return __request(OpenAPI, {
       method: "GET",
-      url: "/public/pools/{pool_name}",
+      url: "/api/v2/pools/{pool_name}",
       path: {
         pool_name: data.poolName,
       },
@@ -2959,7 +2959,7 @@ export class PoolService {
   public static patchPool(data: PatchPoolData): CancelablePromise<PatchPoolResponse> {
     return __request(OpenAPI, {
       method: "PATCH",
-      url: "/public/pools/{pool_name}",
+      url: "/api/v2/pools/{pool_name}",
       path: {
         pool_name: data.poolName,
       },
@@ -2992,7 +2992,7 @@ export class PoolService {
   public static getPools(data: GetPoolsData = {}): CancelablePromise<GetPoolsResponse> {
     return __request(OpenAPI, {
       method: "GET",
-      url: "/public/pools",
+      url: "/api/v2/pools",
       query: {
         limit: data.limit,
         offset: data.offset,
@@ -3019,7 +3019,7 @@ export class PoolService {
   public static postPool(data: PostPoolData): CancelablePromise<PostPoolResponse> {
     return __request(OpenAPI, {
       method: "POST",
-      url: "/public/pools",
+      url: "/api/v2/pools",
       body: data.requestBody,
       mediaType: "application/json",
       errors: {
@@ -3042,7 +3042,7 @@ export class PoolService {
   public static bulkPools(data: BulkPoolsData): CancelablePromise<BulkPoolsResponse> {
     return __request(OpenAPI, {
       method: "PATCH",
-      url: "/public/pools",
+      url: "/api/v2/pools",
       body: data.requestBody,
       mediaType: "application/json",
       errors: {
@@ -3067,7 +3067,7 @@ export class ProviderService {
   public static getProviders(data: GetProvidersData = {}): CancelablePromise<GetProvidersResponse> {
     return __request(OpenAPI, {
       method: "GET",
-      url: "/public/providers",
+      url: "/api/v2/providers",
       query: {
         limit: data.limit,
         offset: data.offset,
@@ -3099,7 +3099,7 @@ export class XcomService {
   public static getXcomEntry(data: GetXcomEntryData): CancelablePromise<GetXcomEntryResponse> {
     return __request(OpenAPI, {
       method: "GET",
-      url: "/public/dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances/{task_id}/xcomEntries/{xcom_key}",
+      url: "/api/v2/dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances/{task_id}/xcomEntries/{xcom_key}",
       path: {
         dag_id: data.dagId,
         task_id: data.taskId,
@@ -3136,7 +3136,7 @@ export class XcomService {
   public static updateXcomEntry(data: UpdateXcomEntryData): CancelablePromise<UpdateXcomEntryResponse> {
     return __request(OpenAPI, {
       method: "PATCH",
-      url: "/public/dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances/{task_id}/xcomEntries/{xcom_key}",
+      url: "/api/v2/dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances/{task_id}/xcomEntries/{xcom_key}",
       path: {
         dag_id: data.dagId,
         task_id: data.taskId,
@@ -3174,7 +3174,7 @@ export class XcomService {
   public static getXcomEntries(data: GetXcomEntriesData): CancelablePromise<GetXcomEntriesResponse> {
     return __request(OpenAPI, {
       method: "GET",
-      url: "/public/dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances/{task_id}/xcomEntries",
+      url: "/api/v2/dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances/{task_id}/xcomEntries",
       path: {
         dag_id: data.dagId,
         dag_run_id: data.dagRunId,
@@ -3210,7 +3210,7 @@ export class XcomService {
   public static createXcomEntry(data: CreateXcomEntryData): CancelablePromise<CreateXcomEntryResponse> {
     return __request(OpenAPI, {
       method: "POST",
-      url: "/public/dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances/{task_id}/xcomEntries",
+      url: "/api/v2/dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances/{task_id}/xcomEntries",
       path: {
         dag_id: data.dagId,
         task_id: data.taskId,
@@ -3242,7 +3242,7 @@ export class TaskService {
   public static getTasks(data: GetTasksData): CancelablePromise<GetTasksResponse> {
     return __request(OpenAPI, {
       method: "GET",
-      url: "/public/dags/{dag_id}/tasks",
+      url: "/api/v2/dags/{dag_id}/tasks",
       path: {
         dag_id: data.dagId,
       },
@@ -3271,7 +3271,7 @@ export class TaskService {
   public static getTask(data: GetTaskData): CancelablePromise<GetTaskResponse> {
     return __request(OpenAPI, {
       method: "GET",
-      url: "/public/dags/{dag_id}/tasks/{task_id}",
+      url: "/api/v2/dags/{dag_id}/tasks/{task_id}",
       path: {
         dag_id: data.dagId,
         task_id: data.taskId,
@@ -3299,7 +3299,7 @@ export class VariableService {
   public static deleteVariable(data: DeleteVariableData): CancelablePromise<DeleteVariableResponse> {
     return __request(OpenAPI, {
       method: "DELETE",
-      url: "/public/variables/{variable_key}",
+      url: "/api/v2/variables/{variable_key}",
       path: {
         variable_key: data.variableKey,
       },
@@ -3323,7 +3323,7 @@ export class VariableService {
   public static getVariable(data: GetVariableData): CancelablePromise<GetVariableResponse> {
     return __request(OpenAPI, {
       method: "GET",
-      url: "/public/variables/{variable_key}",
+      url: "/api/v2/variables/{variable_key}",
       path: {
         variable_key: data.variableKey,
       },
@@ -3349,7 +3349,7 @@ export class VariableService {
   public static patchVariable(data: PatchVariableData): CancelablePromise<PatchVariableResponse> {
     return __request(OpenAPI, {
       method: "PATCH",
-      url: "/public/variables/{variable_key}",
+      url: "/api/v2/variables/{variable_key}",
       path: {
         variable_key: data.variableKey,
       },
@@ -3382,7 +3382,7 @@ export class VariableService {
   public static getVariables(data: GetVariablesData = {}): CancelablePromise<GetVariablesResponse> {
     return __request(OpenAPI, {
       method: "GET",
-      url: "/public/variables",
+      url: "/api/v2/variables",
       query: {
         limit: data.limit,
         offset: data.offset,
@@ -3408,7 +3408,7 @@ export class VariableService {
   public static postVariable(data: PostVariableData): CancelablePromise<PostVariableResponse> {
     return __request(OpenAPI, {
       method: "POST",
-      url: "/public/variables",
+      url: "/api/v2/variables",
       body: data.requestBody,
       mediaType: "application/json",
       errors: {
@@ -3431,7 +3431,7 @@ export class VariableService {
   public static bulkVariables(data: BulkVariablesData): CancelablePromise<BulkVariablesResponse> {
     return __request(OpenAPI, {
       method: "PATCH",
-      url: "/public/variables",
+      url: "/api/v2/variables",
       body: data.requestBody,
       mediaType: "application/json",
       errors: {
@@ -3455,7 +3455,7 @@ export class DagParsingService {
   public static reparseDagFile(data: ReparseDagFileData): CancelablePromise<ReparseDagFileResponse> {
     return __request(OpenAPI, {
       method: "PUT",
-      url: "/public/parseDagFile/{file_token}",
+      url: "/api/v2/parseDagFile/{file_token}",
       path: {
         file_token: data.fileToken,
       },
@@ -3482,7 +3482,7 @@ export class DagVersionService {
   public static getDagVersion(data: GetDagVersionData): CancelablePromise<GetDagVersionResponse> {
     return __request(OpenAPI, {
       method: "GET",
-      url: "/public/dags/{dag_id}/dagVersions/{version_number}",
+      url: "/api/v2/dags/{dag_id}/dagVersions/{version_number}",
       path: {
         dag_id: data.dagId,
         version_number: data.versionNumber,
@@ -3515,7 +3515,7 @@ export class DagVersionService {
   public static getDagVersions(data: GetDagVersionsData): CancelablePromise<GetDagVersionsResponse> {
     return __request(OpenAPI, {
       method: "GET",
-      url: "/public/dags/{dag_id}/dagVersions",
+      url: "/api/v2/dags/{dag_id}/dagVersions",
       path: {
         dag_id: data.dagId,
       },
@@ -3546,7 +3546,7 @@ export class MonitorService {
   public static getHealth(): CancelablePromise<GetHealthResponse> {
     return __request(OpenAPI, {
       method: "GET",
-      url: "/public/monitor/health",
+      url: "/api/v2/monitor/health",
     });
   }
 }
@@ -3561,7 +3561,7 @@ export class VersionService {
   public static getVersion(): CancelablePromise<GetVersionResponse> {
     return __request(OpenAPI, {
       method: "GET",
-      url: "/public/version",
+      url: "/api/v2/version",
     });
   }
 }
@@ -3578,7 +3578,7 @@ export class LoginService {
   public static login(data: LoginData = {}): CancelablePromise<LoginResponse> {
     return __request(OpenAPI, {
       method: "GET",
-      url: "/public/auth/login",
+      url: "/api/v2/auth/login",
       query: {
         next: data.next,
       },
@@ -3600,7 +3600,7 @@ export class LoginService {
   public static logout(data: LogoutData = {}): CancelablePromise<LogoutResponse> {
     return __request(OpenAPI, {
       method: "GET",
-      url: "/public/auth/logout",
+      url: "/api/v2/auth/logout",
       query: {
         next: data.next,
       },

@@ -74,7 +74,7 @@ def get_jwt_token() -> str:
 
 
 def api_request(
-    method: str, path: str, base_url: str = f"http://{DOCKER_COMPOSE_HOST_PORT}/public", **kwargs
+    method: str, path: str, base_url: str = f"http://{DOCKER_COMPOSE_HOST_PORT}/api/v2", **kwargs
 ) -> dict:
     response = requests.request(
         method=method,
