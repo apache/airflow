@@ -460,7 +460,7 @@ class DagModelOperation(NamedTuple):
                 )
             dm.timetable_summary = dag.timetable.summary
             dm.timetable_description = dag.timetable.description
-            dm.asset_expression = dag.timetable.asset_condition.as_expression()
+
             dm.bundle_name = self.bundle_name
             dm.bundle_version = self.bundle_version
 
@@ -487,6 +487,59 @@ class DagModelOperation(NamedTuple):
                 _update_dag_owner_links(dag.owner_links, dm, session=session)
             else:  # Optimization: no references at all, just clear everything.
                 dm.dag_owner_links = []
+
+    def update_dag_asset_expression(
+        self,
+        *,
+        orm_dags: dict[str, DagModel],
+        orm_assets: dict[tuple[str, str], AssetModel],
+    ) -> None:
+        def expand_asset_obj_expr(asset_expr: dict) -> dict[str, dict[str, str]]:
+            asset_name = asset_expr["name"]
+            asset_uri = asset_expr["uri"]
+
+            asset_expr["id"] = orm_assets[(asset_name, asset_uri)].id
+            return asset_expr
+
+        def expand_composite_asset_expr(asset_exprs: list) -> list:
+            for expr_index, expr in enumerate(asset_exprs):
+                key = expr.keys()
+                expaned_expr: dict
+                if key == {"all"}:
+                    # e.g., {"all": [{"asset": {"name": ..., "uri": ...}}]}
+                    expaned_expr = {"all": expand_composite_asset_expr(expr["all"])}
+                elif key == {"any"}:
+                    # e.g., {"any": [{"asset": {"name": ..., "uri": ...}}]}
+                    expaned_expr = {"any": expand_composite_asset_expr(expr["any"])}
+                elif key == {"asset"}:
+                    # e.g., {"asset": {"name": ..., "uri": ...}}
+                    expaned_expr = {"asset": expand_asset_obj_expr(expr["asset"])}
+                else:
+                    # we don't need to handle asset aliases, asset refs
+                    continue
+
+                asset_exprs[expr_index] = expaned_expr
+
+            return asset_exprs
+
+        def expand_asset_expr(asset_expr: dict[str, list | dict]) -> dict[str, list | dict]:
+            for key, value in asset_expr.items():
+                # these isisntance checks are only used to make Mypy happy
+                if key == "asset" and isinstance(value, dict):
+                    # e.g., {"asset": {"name": ..., "uri": ...}}
+                    asset_expr[key] = expand_asset_obj_expr(value)
+                elif key in {"all", "any"} and isinstance(value, list):
+                    # e.g., {"all": [{"asset": {"name": ..., "uri": ...}}]}
+                    asset_expr[key] = expand_composite_asset_expr(value)
+
+                # we don't need to handle asset aliases and asset refs
+            return asset_expr
+
+        for dag_id, dm in sorted(orm_dags.items()):
+            asset_expression = self.dags[dag_id].timetable.asset_condition.as_expression()
+            if asset_expression is not None:
+                asset_expression = expand_asset_expr(asset_expression)
+            dm.asset_expression = asset_expression
 
 
 def _find_all_assets(dags: Iterable[MaybeSerializedDAG]) -> Iterator[Asset]:
