@@ -33,7 +33,6 @@ import pytest
 from task_sdk import FAKE_BUNDLE
 from uuid6 import uuid7
 
-import airflow.sdk.execution_time.xcom
 from airflow.decorators import task as task_decorator
 from airflow.exceptions import (
     AirflowException,
@@ -95,6 +94,7 @@ from airflow.sdk.execution_time.task_runner import (
     run,
     startup,
 )
+from airflow.sdk.execution_time.xcom import XCom
 from airflow.utils import timezone
 from airflow.utils.state import TaskInstanceState
 from airflow.utils.types import NOTSET, ArgNotSet
@@ -1418,7 +1418,7 @@ class TestXComAfterTaskExecution:
 
         runtime_ti = create_runtime_ti(task=task)
 
-        with mock.patch.object(airflow.sdk.execution_time.xcom.XCom, "set") as mock_xcom_set:
+        with mock.patch.object(XCom, "set") as mock_xcom_set:
             _xcom_push(runtime_ti, "return_value", result, 7)
             mock_xcom_set.assert_called_once_with(
                 key="return_value",
@@ -1494,6 +1494,8 @@ class TestXComAfterTaskExecution:
             dag_id="test_dag",
             task_id="pull_task",
             run_id="test_run",
+            map_index=-1,
+            mapped_length=None,
         )
 
         # assert that we didn't call the API when XCom backend is configured
