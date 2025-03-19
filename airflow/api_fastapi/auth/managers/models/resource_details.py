@@ -43,8 +43,22 @@ class DagDetails:
 
 
 @dataclass
+class BackfillDetails:
+    """Represents the details of a backfill."""
+
+    id: str | None = None
+
+
+@dataclass
 class AssetDetails:
     """Represents the details of an asset."""
+
+    id: str | None = None
+
+
+@dataclass
+class AssetAliasDetails:
+    """Represents the details of an asset alias."""
 
     id: str | None = None
 
@@ -86,7 +100,8 @@ class DagAccessEntity(Enum):
     SLA_MISS = "SLA_MISS"
     TASK = "TASK"
     TASK_INSTANCE = "TASK_INSTANCE"
-    TASK_RESCHEDULE = "TASK_RESCHEDULE"
     TASK_LOGS = "TASK_LOGS"
+    TASK_RESCHEDULE = "TASK_RESCHEDULE"
+    VERSION = "VERSION"
     WARNING = "WARNING"
     XCOM = "XCOM"

@@ -34,6 +34,7 @@ from system.google import DEFAULT_GCP_SYSTEM_TEST_PROJECT_ID
 # [START howto_google_ads_env_variables]
 ENV_ID = os.environ.get("SYSTEM_TESTS_ENV_ID", "default")
 PROJECT_ID = os.environ.get("SYSTEM_TESTS_GCP_PROJECT") or DEFAULT_GCP_SYSTEM_TEST_PROJECT_ID
+API_VERSION = "v19"
 
 DAG_ID = "example_google_ads"
 
@@ -93,6 +94,7 @@ with DAG(
         obj=GCS_OBJ_PATH,
         bucket=BUCKET_NAME,
         task_id="run_operator",
+        api_version=API_VERSION,
     )
     # [END howto_google_ads_to_gcs_operator]
 

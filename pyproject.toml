@@ -30,7 +30,7 @@ requires = [
     "pluggy==1.5.0",
     "smmap==5.0.2",
     "tomli==2.2.1; python_version < '3.11'",
-    "trove-classifiers==2025.3.3.18",
+    "trove-classifiers==2025.3.13.13",
 ]
 build-backend = "hatchling.build"
 
@@ -127,7 +127,6 @@ Homepage = "https://airflow.apache.org/"
 "Release Notes" = "https://airflow.apache.org/docs/apache-airflow/stable/release_notes.html"
 "Slack Chat" = "https://s.apache.org/airflow-slack"
 "Source Code" = "https://github.com/apache/airflow"
-X = "https://x.com/ApacheAirflow"
 LinkedIn = "https://www.linkedin.com/company/apache-airflow/"
 Mastodon = "https://fosstodon.org/@airflow"
 Bluesky = "https://bsky.app/profile/apache-airflow.bsky.social"
@@ -158,6 +157,7 @@ exclude = [
 ]
 artifacts = [
     "/airflow/ui/dist/",
+    "/airflow/api_fastapi/auth/managers/simple/ui/dist/",
     "/airflow/git_version",
     "/generated/",
 ]
@@ -168,6 +168,7 @@ include = [
 ]
 artifacts = [
     "/airflow/ui/dist/",
+    "/airflow/api_fastapi/auth/managers/simple/ui/dist/",
     "/airflow/git_version"
 ]
 

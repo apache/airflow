@@ -39,13 +39,14 @@
       "python3-saml>=1.16.0",
       "redshift_connector>=2.0.918",
       "sagemaker-studio>=1.0.9",
-      "watchtower>=3.0.0,!=3.3.0,<4"
+      "watchtower>=3.0.0,!=3.3.0,<4",
+      "xmlsec!=1.3.15,>=1.3.14"
     ],
     "devel-deps": [
       "aiobotocore>=2.13.0",
       "aws_xray_sdk>=2.12.0",
       "moto[cloudformation,glue]>=5.0.0",
-      "mypy-boto3-appflow>=1.35.39",
+      "mypy-boto3-appflow>=1.37.0",
       "mypy-boto3-rds>=1.34.90",
       "mypy-boto3-redshift-data>=1.34.0",
       "mypy-boto3-s3>=1.34.90",
@@ -427,7 +428,7 @@
       "amazon"
     ],
     "excluded-python-versions": [],
-    "state": "ready"
+    "state": "not-ready"
   },
   "common.sql": {
     "deps": [
@@ -605,7 +606,7 @@
       "common.compat"
     ],
     "excluded-python-versions": [],
-    "state": "ready"
+    "state": "not-ready"
   },
   "facebook": {
     "deps": [
@@ -969,7 +970,7 @@
   "openai": {
     "deps": [
       "apache-airflow>=2.9.0",
-      "openai[datalib]>=1.32.0"
+      "openai[datalib]>=1.66.0"
     ],
     "devel-deps": [],
     "plugins": [],

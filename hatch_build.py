@@ -46,9 +46,6 @@ PRE_INSTALLED_PROVIDERS = [
     "common.io",
     "common.sql",
     "fab>=1.0.2",
-    "ftp",
-    "http",
-    "imap",
     "smtp",
     "sqlite",
     "standard",
@@ -191,7 +188,7 @@ DEPENDENCIES = [
     "alembic>=1.13.1, <2.0",
     "argcomplete>=1.10",
     "asgiref>=2.3.0",
-    "attrs>=22.1.0",
+    "attrs>=22.1.0, !=25.2.0",
     # Blinker use for signals in Flask, this is an optional dependency in Flask 2.2 and lower.
     # In Flask 2.3 it becomes a mandatory dependency, and flask signals are always available.
     "blinker>=1.6.2",
@@ -246,7 +243,7 @@ DEPENDENCIES = [
     # Pygments 2.19.0 improperly renders .ini files with dictionaries as values
     # See https://github.com/pygments/pygments/issues/2834
     "pygments>=2.0.1,!=2.19.0",
-    "pyjwt>=2.0.0",
+    "pyjwt>=2.10.0",
     "python-daemon>=3.0.0",
     "python-dateutil>=2.7.0",
     "python-nvd3>=0.15.0",
@@ -265,6 +262,7 @@ DEPENDENCIES = [
     "sqlalchemy>=1.4.49,<2.0",
     "sqlalchemy-jsonfield>=1.0",
     "sqlalchemy-utils>=0.41.2",
+    "svcs>=25.1.0",
     "tabulate>=0.7.5",
     "tenacity>=8.0.0,!=8.2.0",
     "termcolor>=2.5.0",
@@ -629,6 +627,8 @@ class CustomBuild(BuilderInterface[BuilderConfig, PluginManager]):
         commands = [
             ["rm -rf airflow/ui/dist"],
             ["rm -rf airflow/ui/node_modules"],
+            ["rm -rf airflow/api_fastapi/auth/managers/simple/ui/dist"],
+            ["rm -rf airflow/api_fastapi/auth/managers/simple/ui/node_modules"],
         ]
         for cmd in commands:
             run(cmd, cwd=work_dir.as_posix(), check=True, shell=True)

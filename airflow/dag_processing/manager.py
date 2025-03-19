@@ -52,6 +52,7 @@ from airflow.dag_processing.bundles.manager import DagBundlesManager
 from airflow.dag_processing.collection import update_dag_parsing_results_in_db
 from airflow.dag_processing.processor import DagFileParsingResult, DagFileProcessorProcess
 from airflow.exceptions import AirflowException
+from airflow.models.asset import remove_references_to_deleted_dags
 from airflow.models.dag import DagModel
 from airflow.models.dagbag import DagPriorityParsingRequest
 from airflow.models.dagbundle import DagBundleModel
@@ -272,14 +273,14 @@ class DagFileProcessorManager(LoggingMixin):
     ):
         """Detect and deactivate DAGs which are no longer present in files."""
         to_deactivate = set()
+        bundle_names = {b.name for b in self._dag_bundles}
         query = select(
             DagModel.dag_id,
             DagModel.bundle_name,
             DagModel.fileloc,
             DagModel.last_parsed_time,
             DagModel.relative_fileloc,
-        ).where(DagModel.is_active)
-        # TODO: AIP-66 by bundle!
+        ).where(DagModel.is_active, DagModel.bundle_name.in_(bundle_names))
         dags_parsed = session.execute(query)
 
         for dag in dags_parsed:
@@ -458,8 +459,7 @@ class DagFileProcessorManager(LoggingMixin):
         now_seconds = time.monotonic()
         if now_seconds < next_check:
             self.log.debug(
-                "Not time to check if DAG Bundles need refreshed yet - skipping. "
-                "Next check in %.2f seconds",
+                "Not time to check if DAG Bundles need refreshed yet - skipping. Next check in %.2f seconds",
                 next_check - now_seconds,
             )
             return
@@ -588,7 +588,13 @@ class DagFileProcessorManager(LoggingMixin):
                     rel_sub_path = Path(abs_sub_path).relative_to(info.bundle_path)
                     rel_filelocs.append(str(rel_sub_path))
 
-        DagModel.deactivate_deleted_dags(bundle_name=bundle_name, rel_filelocs=rel_filelocs)
+        with create_session() as session:
+            DagModel.deactivate_deleted_dags(
+                bundle_name=bundle_name,
+                rel_filelocs=rel_filelocs,
+                session=session,
+            )
+            remove_references_to_deleted_dags(session=session)
 
     def print_stats(self, known_files: dict[str, set[DagFileInfo]]):
         """Occasionally print out stats about how fast the files are getting processed."""
@@ -762,6 +768,7 @@ class DagFileProcessorManager(LoggingMixin):
                 self.log.warning("Stopping processor for %s", file)
                 Stats.decr("dag_processing.processes", tags={"file_path": file, "action": "stop"})
                 processor.kill(signal.SIGKILL)
+                processor.logger_filehandle.close()
                 self._file_stats.pop(file, None)
 
     @provide_session
@@ -786,7 +793,8 @@ class DagFileProcessorManager(LoggingMixin):
             )
 
         for file in finished:
-            self._processors.pop(file)
+            processor = self._processors.pop(file)
+            processor.logger_filehandle.close()
 
     def _get_log_dir(self) -> str:
         return os.path.join(self.base_log_dir, timezone.utcnow().strftime("%Y-%m-%d"))
@@ -829,14 +837,18 @@ class DagFileProcessorManager(LoggingMixin):
     def _get_logger_for_dag_file(self, dag_file: DagFileInfo):
         log_filename = self._render_log_filename(dag_file)
         log_file = init_log_file(log_filename)
-        underlying_logger = structlog.BytesLogger(log_file.open("ab"))
+        logger_filehandle = log_file.open("ab")
+        underlying_logger = structlog.BytesLogger(logger_filehandle)
         processors = logging_processors(enable_pretty_log=False)[0]
-        return structlog.wrap_logger(underlying_logger, processors=processors, logger_name="processor").bind()
+        return structlog.wrap_logger(
+            underlying_logger, processors=processors, logger_name="processor"
+        ).bind(), logger_filehandle
 
     def _create_process(self, dag_file: DagFileInfo) -> DagFileProcessorProcess:
         id = uuid7()
 
         callback_to_execute_for_file = self._callback_to_execute.pop(dag_file, [])
+        logger, logger_filehandle = self._get_logger_for_dag_file(dag_file)
 
         return DagFileProcessorProcess.start(
             id=id,
@@ -844,7 +856,8 @@ class DagFileProcessorManager(LoggingMixin):
             bundle_path=cast(Path, dag_file.bundle_path),
             callbacks=callback_to_execute_for_file,
             selector=self.selector,
-            logger=self._get_logger_for_dag_file(dag_file),
+            logger=logger,
+            logger_filehandle=logger_filehandle,
         )
 
     def _start_new_processes(self):
@@ -985,7 +998,8 @@ class DagFileProcessorManager(LoggingMixin):
 
         # Clean up `self._processors` after iterating over it
         for proc in processors_to_remove:
-            self._processors.pop(proc)
+            processor = self._processors.pop(proc)
+            processor.logger_filehandle.close()
 
     def _add_files_to_queue(self, files: list[DagFileInfo], add_at_front: bool):
         """Add stuff to the back or front of the file queue, unless it's already present."""

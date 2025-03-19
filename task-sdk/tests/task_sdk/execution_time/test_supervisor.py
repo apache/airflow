@@ -49,19 +49,25 @@ from airflow.sdk.api.datamodels._generated import (
     AssetEventResponse,
     AssetProfile,
     AssetResponse,
+    DagRunState,
     TaskInstance,
     TerminalTIState,
 )
+from airflow.sdk.exceptions import ErrorType
 from airflow.sdk.execution_time.comms import (
     AssetEventsResult,
     AssetResult,
     ConnectionResult,
+    DagRunStateResult,
     DeferTask,
+    DeleteXCom,
+    ErrorResponse,
     GetAssetByName,
     GetAssetByUri,
     GetAssetEventByAsset,
     GetAssetEventByAssetAlias,
     GetConnection,
+    GetDagRunState,
     GetPrevSuccessfulDagRun,
     GetVariable,
     GetXCom,
@@ -74,6 +80,7 @@ from airflow.sdk.execution_time.comms import (
     SetXCom,
     SucceedTask,
     TaskState,
+    TriggerDagRun,
     VariableResult,
     XComResult,
 )
@@ -516,7 +523,7 @@ class TestWatchedSubprocess:
         mock_kill = mocker.patch("airflow.sdk.execution_time.supervisor.WatchedSubprocess.kill")
 
         proc = ActivitySubprocess(
-            log=mocker.MagicMock(),
+            process_log=mocker.MagicMock(),
             id=TI_ID,
             pid=mock_process.pid,
             stdin=mocker.MagicMock(),
@@ -606,7 +613,7 @@ class TestWatchedSubprocess:
         monkeypatch.setattr(ActivitySubprocess, "TASK_OVERTIME_THRESHOLD", overtime_threshold)
 
         mock_watched_subprocess = ActivitySubprocess(
-            log=mocker.MagicMock(),
+            process_log=mocker.MagicMock(),
             id=TI_ID,
             pid=12345,
             stdin=mocker.Mock(),
@@ -751,7 +758,7 @@ class TestWatchedSubprocessKill:
     @pytest.fixture
     def watched_subprocess(self, mocker, mock_process):
         proc = ActivitySubprocess(
-            log=mocker.MagicMock(),
+            process_log=mocker.MagicMock(),
             id=TI_ID,
             pid=12345,
             stdin=mocker.Mock(),
@@ -937,7 +944,7 @@ class TestHandleRequest:
     def watched_subprocess(self, mocker):
         """Fixture to provide a WatchedSubprocess instance."""
         return ActivitySubprocess(
-            log=mocker.MagicMock(),
+            process_log=mocker.MagicMock(),
             id=TI_ID,
             pid=12345,
             stdin=BytesIO(),
@@ -1113,6 +1120,27 @@ class TestHandleRequest:
                 {"ok": True},
                 id="set_xcom_with_map_index_and_mapped_length",
             ),
+            pytest.param(
+                DeleteXCom(
+                    dag_id="test_dag",
+                    run_id="test_run",
+                    task_id="test_task",
+                    key="test_key",
+                    map_index=2,
+                ),
+                b"",
+                "xcoms.delete",
+                (
+                    "test_dag",
+                    "test_run",
+                    "test_task",
+                    "test_key",
+                    2,
+                ),
+                {},
+                {"ok": True},
+                id="delete_xcom",
+            ),
             # we aren't adding all states under TerminalTIState here, because this test's scope is only to check
             # if it can handle TaskState message
             pytest.param(
@@ -1273,8 +1301,8 @@ class TestHandleRequest:
             ),
             pytest.param(
                 RuntimeCheckOnTask(
-                    inlets=[AssetProfile(name="alias", uri="alias", asset_type="asset")],
-                    outlets=[AssetProfile(name="alias", uri="alias", asset_type="asset")],
+                    inlets=[AssetProfile(name="alias", uri="alias", type="asset")],
+                    outlets=[AssetProfile(name="alias", uri="alias", type="asset")],
                 ),
                 b'{"ok":true,"type":"OKResponse"}\n',
                 "task_instances.runtime_checks",
@@ -1282,13 +1310,46 @@ class TestHandleRequest:
                 {
                     "id": TI_ID,
                     "msg": RuntimeCheckOnTask(
-                        inlets=[AssetProfile(name="alias", uri="alias", asset_type="asset")],  # type: ignore
-                        outlets=[AssetProfile(name="alias", uri="alias", asset_type="asset")],  # type: ignore
+                        inlets=[AssetProfile(name="alias", uri="alias", type="asset")],
+                        outlets=[AssetProfile(name="alias", uri="alias", type="asset")],
                         type="RuntimeCheckOnTask",
                     ),
                 },
                 OKResponse(ok=True),
                 id="runtime_check_on_task",
+            ),
+            pytest.param(
+                TriggerDagRun(
+                    dag_id="test_dag",
+                    run_id="test_run",
+                    conf={"key": "value"},
+                    logical_date=timezone.datetime(2025, 1, 1),
+                    reset_dag_run=True,
+                ),
+                b'{"ok":true,"type":"OKResponse"}\n',
+                "dag_runs.trigger",
+                ("test_dag", "test_run", {"key": "value"}, timezone.datetime(2025, 1, 1), True),
+                {},
+                OKResponse(ok=True),
+                id="dag_run_trigger",
+            ),
+            pytest.param(
+                TriggerDagRun(dag_id="test_dag", run_id="test_run"),
+                b'{"error":"DAGRUN_ALREADY_EXISTS","detail":null,"type":"ErrorResponse"}\n',
+                "dag_runs.trigger",
+                ("test_dag", "test_run", None, None, False),
+                {},
+                ErrorResponse(error=ErrorType.DAGRUN_ALREADY_EXISTS),
+                id="dag_run_trigger_already_exists",
+            ),
+            pytest.param(
+                GetDagRunState(dag_id="test_dag", run_id="test_run"),
+                b'{"state":"running","type":"DagRunStateResult"}\n',
+                "dag_runs.get_state",
+                ("test_dag", "test_run"),
+                {},
+                DagRunStateResult(state=DagRunState.RUNNING),
+                id="get_dag_run_state",
             ),
         ],
     )

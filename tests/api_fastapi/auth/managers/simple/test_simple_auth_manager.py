@@ -17,11 +17,14 @@
 from __future__ import annotations
 
 import json
+import os
 
 import pytest
 
+from airflow.api_fastapi.app import AUTH_MANAGER_FASTAPI_APP_PREFIX
 from airflow.api_fastapi.auth.managers.models.resource_details import AccessView
 from airflow.api_fastapi.auth.managers.simple.user import SimpleAuthManagerUser
+from airflow.api_fastapi.common.types import MenuItem
 
 from tests_common.test_utils.config import conf_vars
 
@@ -57,19 +60,29 @@ class TestSimpleAuthManager:
 
                 assert len(user_passwords_from_file) == 2
 
+    def test_init_with_all_admins(self, auth_manager):
+        with conf_vars({("core", "simple_auth_manager_all_admins"): "true"}):
+            auth_manager.init()
+            assert not os.path.exists(auth_manager.get_generated_password_file())
+
     def test_get_url_login(self, auth_manager):
         result = auth_manager.get_url_login()
-        assert result == "/auth/webapp/login"
+        assert result == AUTH_MANAGER_FASTAPI_APP_PREFIX + "/login"
+
+    def test_get_url_login_with_all_admins(self, auth_manager):
+        with conf_vars({("core", "simple_auth_manager_all_admins"): "true"}):
+            result = auth_manager.get_url_login()
+            assert result == AUTH_MANAGER_FASTAPI_APP_PREFIX + "/token"
 
     def test_deserialize_user(self, auth_manager):
-        result = auth_manager.deserialize_user({"username": "test", "role": "admin"})
+        result = auth_manager.deserialize_user({"sub": "test", "role": "admin"})
         assert result.username == "test"
         assert result.role == "admin"
 
     def test_serialize_user(self, auth_manager):
         user = SimpleAuthManagerUser(username="test", role="admin")
         result = auth_manager.serialize_user(user)
-        assert result == {"username": "test", "role": "admin"}
+        assert result == {"sub": "test", "role": "admin"}
 
     @pytest.mark.parametrize(
         "api",
@@ -78,6 +91,8 @@ class TestSimpleAuthManager:
             "is_authorized_connection",
             "is_authorized_dag",
             "is_authorized_asset",
+            "is_authorized_asset_alias",
+            "is_authorized_backfill",
             "is_authorized_pool",
             "is_authorized_variable",
         ],
@@ -132,6 +147,8 @@ class TestSimpleAuthManager:
             "is_authorized_configuration",
             "is_authorized_connection",
             "is_authorized_asset",
+            "is_authorized_asset_alias",
+            "is_authorized_backfill",
             "is_authorized_pool",
             "is_authorized_variable",
         ],
@@ -173,7 +190,13 @@ class TestSimpleAuthManager:
 
     @pytest.mark.parametrize(
         "api",
-        ["is_authorized_dag", "is_authorized_asset", "is_authorized_pool"],
+        [
+            "is_authorized_dag",
+            "is_authorized_asset",
+            "is_authorized_asset_alias",
+            "is_authorized_backfill",
+            "is_authorized_pool",
+        ],
     )
     @pytest.mark.parametrize(
         "role, method, result",
@@ -192,3 +215,10 @@ class TestSimpleAuthManager:
             getattr(auth_manager, api)(method=method, user=SimpleAuthManagerUser(username="test", role=role))
             is result
         )
+
+    def test_filter_authorized_menu_items(self, auth_manager):
+        items = [MenuItem.ASSETS]
+        results = auth_manager.filter_authorized_menu_items(
+            items, user=SimpleAuthManagerUser(username="test", role=None)
+        )
+        assert results == items

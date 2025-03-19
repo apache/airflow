@@ -35,8 +35,8 @@ from airflow.utils.xcom import XCOM_RETURN_KEY
 
 if TYPE_CHECKING:
     from airflow.sdk.definitions.baseoperator import BaseOperator
+    from airflow.sdk.definitions.edges import EdgeModifier
     from airflow.sdk.types import Operator
-    from airflow.utils.edgemodifier import EdgeModifier
 
 # Callable objects contained by MapXComArg. We only accept callables from
 # the user, but deserialize them into strings in a serialized XComArg for
@@ -338,7 +338,7 @@ class PlainXComArg(XComArg):
 
         if self.operator.is_mapped:
             return LazyXComSequence[Any](xcom_arg=self, ti=ti)
-        tg = ti.task.get_closest_mapped_task_group()
+        tg = self.operator.get_closest_mapped_task_group()
         result = None
         if tg is None:
             # regular task

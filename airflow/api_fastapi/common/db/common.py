@@ -35,7 +35,7 @@ from airflow.utils.session import NEW_SESSION, create_session, create_session_as
 if TYPE_CHECKING:
     from sqlalchemy.sql import Select
 
-    from airflow.api_fastapi.common.parameters import BaseParam
+    from airflow.api_fastapi.core_api.base import OrmClause
 
 
 def _get_session() -> Session:
@@ -47,7 +47,7 @@ SessionDep = Annotated[Session, Depends(_get_session)]
 
 
 def apply_filters_to_select(
-    *, statement: Select, filters: Sequence[BaseParam | None] | None = None
+    *, statement: Select, filters: Sequence[OrmClause | None] | None = None
 ) -> Select:
     if filters is None:
         return statement
@@ -71,10 +71,10 @@ AsyncSessionDep = Annotated[AsyncSession, Depends(_get_async_session)]
 async def paginated_select_async(
     *,
     statement: Select,
-    filters: Sequence[BaseParam] | None = None,
-    order_by: BaseParam | None = None,
-    offset: BaseParam | None = None,
-    limit: BaseParam | None = None,
+    filters: Sequence[OrmClause] | None = None,
+    order_by: OrmClause | None = None,
+    offset: OrmClause | None = None,
+    limit: OrmClause | None = None,
     session: AsyncSession,
     return_total_entries: Literal[True] = True,
 ) -> tuple[Select, int]: ...
@@ -84,10 +84,10 @@ async def paginated_select_async(
 async def paginated_select_async(
     *,
     statement: Select,
-    filters: Sequence[BaseParam] | None = None,
-    order_by: BaseParam | None = None,
-    offset: BaseParam | None = None,
-    limit: BaseParam | None = None,
+    filters: Sequence[OrmClause] | None = None,
+    order_by: OrmClause | None = None,
+    offset: OrmClause | None = None,
+    limit: OrmClause | None = None,
     session: AsyncSession,
     return_total_entries: Literal[False],
 ) -> tuple[Select, None]: ...
@@ -96,10 +96,10 @@ async def paginated_select_async(
 async def paginated_select_async(
     *,
     statement: Select,
-    filters: Sequence[BaseParam | None] | None = None,
-    order_by: BaseParam | None = None,
-    offset: BaseParam | None = None,
-    limit: BaseParam | None = None,
+    filters: Sequence[OrmClause | None] | None = None,
+    order_by: OrmClause | None = None,
+    offset: OrmClause | None = None,
+    limit: OrmClause | None = None,
     session: AsyncSession,
     return_total_entries: bool = True,
 ) -> tuple[Select, int | None]:
@@ -114,7 +114,7 @@ async def paginated_select_async(
 
     # TODO: Re-enable when permissions are handled. Readable / writable entities,
     # for instance:
-    # readable_dags = get_auth_manager().get_permitted_dag_ids(user=g.user)
+    # readable_dags = get_auth_manager().get_authorized_dag_ids(user=g.user)
     # dags_select = dags_select.where(DagModel.dag_id.in_(readable_dags))
 
     statement = apply_filters_to_select(
@@ -129,10 +129,10 @@ async def paginated_select_async(
 def paginated_select(
     *,
     statement: Select,
-    filters: Sequence[BaseParam] | None = None,
-    order_by: BaseParam | None = None,
-    offset: BaseParam | None = None,
-    limit: BaseParam | None = None,
+    filters: Sequence[OrmClause] | None = None,
+    order_by: OrmClause | None = None,
+    offset: OrmClause | None = None,
+    limit: OrmClause | None = None,
     session: Session = NEW_SESSION,
     return_total_entries: Literal[True] = True,
 ) -> tuple[Select, int]: ...
@@ -142,10 +142,10 @@ def paginated_select(
 def paginated_select(
     *,
     statement: Select,
-    filters: Sequence[BaseParam] | None = None,
-    order_by: BaseParam | None = None,
-    offset: BaseParam | None = None,
-    limit: BaseParam | None = None,
+    filters: Sequence[OrmClause] | None = None,
+    order_by: OrmClause | None = None,
+    offset: OrmClause | None = None,
+    limit: OrmClause | None = None,
     session: Session = NEW_SESSION,
     return_total_entries: Literal[False],
 ) -> tuple[Select, None]: ...
@@ -155,10 +155,10 @@ def paginated_select(
 def paginated_select(
     *,
     statement: Select,
-    filters: Sequence[BaseParam] | None = None,
-    order_by: BaseParam | None = None,
-    offset: BaseParam | None = None,
-    limit: BaseParam | None = None,
+    filters: Sequence[OrmClause] | None = None,
+    order_by: OrmClause | None = None,
+    offset: OrmClause | None = None,
+    limit: OrmClause | None = None,
     session: Session = NEW_SESSION,
     return_total_entries: bool = True,
 ) -> tuple[Select, int | None]:
@@ -173,7 +173,7 @@ def paginated_select(
 
     # TODO: Re-enable when permissions are handled. Readable / writable entities,
     # for instance:
-    # readable_dags = get_auth_manager().get_permitted_dag_ids(user=g.user)
+    # readable_dags = get_auth_manager().get_authorized_dag_ids(user=g.user)
     # dags_select = dags_select.where(DagModel.dag_id.in_(readable_dags))
 
     statement = apply_filters_to_select(statement=statement, filters=[order_by, offset, limit])

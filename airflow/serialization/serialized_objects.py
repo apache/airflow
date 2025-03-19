@@ -48,6 +48,7 @@ from airflow.models.expandinput import (
 )
 from airflow.models.taskinstance import SimpleTaskInstance, TaskInstance
 from airflow.models.taskinstancekey import TaskInstanceKey
+from airflow.models.xcom import XComModel
 from airflow.models.xcom_arg import SchedulerXComArg, deserialize_xcom_arg
 from airflow.providers_manager import ProvidersManager
 from airflow.sdk.definitions.asset import (
@@ -63,7 +64,6 @@ from airflow.sdk.definitions.asset import (
     BaseAsset,
 )
 from airflow.sdk.definitions.baseoperator import BaseOperator as TaskSDKBaseOperator
-from airflow.sdk.definitions.baseoperatorlink import XComOperatorLink
 from airflow.sdk.definitions.mappedoperator import MappedOperator
 from airflow.sdk.definitions.param import Param, ParamsDict
 from airflow.sdk.definitions.taskgroup import MappedTaskGroup, TaskGroup
@@ -88,6 +88,7 @@ from airflow.utils.context import (
 )
 from airflow.utils.db import LazySelectSequence
 from airflow.utils.docs import get_docs_url
+from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.module_loading import import_string, qualname
 from airflow.utils.operator_resources import Resources
 from airflow.utils.timezone import from_timestamp, parse_timezone
@@ -1167,6 +1168,7 @@ class SerializedBaseOperator(BaseOperator, BaseSerialization):
         self.template_ext = BaseOperator.template_ext
         self.template_fields = BaseOperator.template_fields
         self.operator_extra_links = BaseOperator.operator_extra_links
+        self._operator_name = None
 
     @cached_property
     def operator_extra_link_dict(self) -> dict[str, BaseOperatorLink]:
@@ -1233,7 +1235,7 @@ class SerializedBaseOperator(BaseOperator, BaseSerialization):
     def operator_name(self) -> str:
         # Overwrites operator_name of BaseOperator to use _operator_name instead of
         # __class__.operator_name.
-        return self._operator_name
+        return self._operator_name or self.task_type
 
     @operator_name.setter
     def operator_name(self, operator_name: str):
@@ -1288,6 +1290,9 @@ class SerializedBaseOperator(BaseOperator, BaseSerialization):
         # Used to determine if an Operator is inherited from EmptyOperator
         serialize_op["_is_empty"] = op.inherits_from_empty_operator
 
+        # Used to determine if an Operator is inherited from SkipMixin or BranchMixin
+        serialize_op["_can_skip_downstream"] = op.inherits_from_skipmixin
+
         serialize_op["start_trigger_args"] = (
             encode_start_trigger_args(op.start_trigger_args) if op.start_trigger_args else None
         )
@@ -1334,15 +1339,8 @@ class SerializedBaseOperator(BaseOperator, BaseSerialization):
         done in ``set_task_dag_references`` instead, which is called after the
         DAG is hydrated.
         """
-        if "label" not in encoded_op:
-            # Handle deserialization of old data before the introduction of TaskGroup
-            encoded_op["label"] = encoded_op["task_id"]
-
         # Extra Operator Links defined in Plugins
         op_extra_links_from_plugin = {}
-
-        if "_operator_name" not in encoded_op:
-            encoded_op["_operator_name"] = encoded_op["task_type"]
 
         # We don't want to load Extra Operator links in Scheduler
         if cls._load_operator_extra_links:
@@ -1460,6 +1458,9 @@ class SerializedBaseOperator(BaseOperator, BaseSerialization):
         # Used to determine if an Operator is inherited from EmptyOperator
         setattr(op, "_is_empty", bool(encoded_op.get("_is_empty", False)))
 
+        # Used to determine if an Operator is inherited from SkipMixin
+        setattr(op, "_can_skip_downstream", bool(encoded_op.get("_can_skip_downstream", False)))
+
         start_trigger_args = None
         encoded_start_trigger_args = encoded_op.get("start_trigger_args", None)
         if encoded_start_trigger_args:
@@ -1523,6 +1524,7 @@ class SerializedBaseOperator(BaseOperator, BaseSerialization):
                 ui_fgcolor=BaseOperator.ui_fgcolor,
                 is_empty=False,
                 is_sensor=encoded_op.get("_is_sensor", False),
+                can_skip_downstream=encoded_op.get("_can_skip_downstream", False),
                 task_module=encoded_op["_task_module"],
                 task_type=encoded_op["task_type"],
                 operator_name=operator_name,
@@ -1538,6 +1540,7 @@ class SerializedBaseOperator(BaseOperator, BaseSerialization):
         else:
             op = SerializedBaseOperator(task_id=encoded_op["task_id"])
         cls.populate_operator(op, encoded_op)
+
         return op
 
     @classmethod
@@ -1637,7 +1640,6 @@ class SerializedDAG(DAG, BaseSerialization):
     def __get_constructor_defaults():
         param_to_attr = {
             "description": "_description",
-            "default_view": "_default_view",
         }
         return {
             param_to_attr.get(k, k): v.default
@@ -1917,7 +1919,6 @@ class LazyDeserializedDAG(pydantic.BaseModel):
         "max_consecutive_failed_dag_runs",
         "owner_links",
         "access_control",
-        "default_view",
     }
 
     @property
@@ -1993,3 +1994,38 @@ class LazyDeserializedDAG(pydantic.BaseModel):
         access_control: Mapping[str, Mapping[str, Collection[str]] | Collection[str]] | None = pydantic.Field(
             init=False, default=None
         )
+
+
+@attrs.define()
+class XComOperatorLink(LoggingMixin):
+    """A generic operator link class that can retrieve link only using XCOMs. Used while deserializing operators."""
+
+    name: str
+    xcom_key: str
+
+    def get_link(self, operator: BaseOperator, *, ti_key: TaskInstanceKey) -> str:
+        """
+        Retrieve the link from the XComs.
+
+        :param operator: The Airflow operator object this link is associated to.
+        :param ti_key: TaskInstance ID to return link for.
+        :return: link to external system, but by pulling it from XComs
+        """
+        self.log.info(
+            "Attempting to retrieve link from XComs with key: %s for task id: %s", self.xcom_key, ti_key
+        )
+        value = XComModel.get_many(
+            key=self.xcom_key,
+            run_id=ti_key.run_id,
+            dag_ids=ti_key.dag_id,
+            task_ids=ti_key.task_id,
+            map_indexes=ti_key.map_index,
+        ).first()
+        if not value:
+            self.log.debug(
+                "No link with name: %s present in XCom as key: %s, returning empty link",
+                self.name,
+                self.xcom_key,
+            )
+            return ""
+        return XComModel.deserialize_value(value)

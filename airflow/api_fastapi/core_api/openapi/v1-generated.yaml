@@ -7,12 +7,29 @@ info:
     Users should not rely on those but use the public ones instead.
   version: 0.1.0
 paths:
+  /ui/auth/links:
+    get:
+      tags:
+      - Auth Links
+      summary: Get Auth Links
+      operationId: get_auth_links
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MenuItemCollectionResponse'
+      security:
+      - OAuth2PasswordBearer: []
   /ui/next_run_assets/{dag_id}:
     get:
       tags:
       - Asset
       summary: Next Run Assets
       operationId: next_run_assets
+      security:
+      - OAuth2PasswordBearer: []
       parameters:
       - name: dag_id
         in: path
@@ -54,6 +71,28 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/HTTPExceptionResponse'
+      security:
+      - OAuth2PasswordBearer: []
+  /ui/connections/hook_meta:
+    get:
+      tags:
+      - Connection
+      summary: Hook Meta Data
+      description: Retrieve information about available connection types (hook classes)
+        and their parameters.
+      operationId: hook_meta_data
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                items:
+                  $ref: '#/components/schemas/ConnectionHookMetaData'
+                type: array
+                title: Response Hook Meta Data
+      security:
+      - OAuth2PasswordBearer: []
   /ui/dags/recent_dag_runs:
     get:
       tags:
@@ -61,6 +100,8 @@ paths:
       summary: Recent Dag Runs
       description: Get recent DAG runs.
       operationId: recent_dag_runs
+      security:
+      - OAuth2PasswordBearer: []
       parameters:
       - name: dag_runs_limit
         in: query
@@ -181,6 +222,8 @@ paths:
       summary: Get Dependencies
       description: Dependencies graph.
       operationId: get_dependencies
+      security:
+      - OAuth2PasswordBearer: []
       parameters:
       - name: node_id
         in: query
@@ -216,6 +259,8 @@ paths:
       summary: Historical Metrics
       description: Return cluster activity historical metrics.
       operationId: historical_metrics
+      security:
+      - OAuth2PasswordBearer: []
       parameters:
       - name: start_date
         in: query
@@ -257,6 +302,8 @@ paths:
       summary: Structure Data
       description: Get Structure Data.
       operationId: structure_data
+      security:
+      - OAuth2PasswordBearer: []
       parameters:
       - name: dag_id
         in: query
@@ -326,6 +373,8 @@ paths:
       - Backfill
       summary: List Backfills
       operationId: list_backfills
+      security:
+      - OAuth2PasswordBearer: []
       parameters:
       - name: limit
         in: query
@@ -392,6 +441,8 @@ paths:
       summary: Grid Data
       description: Return grid data.
       operationId: grid_data
+      security:
+      - OAuth2PasswordBearer: []
       parameters:
       - name: dag_id
         in: path
@@ -571,6 +622,13 @@ paths:
           items:
             type: string
           title: Dag Ids
+      - name: only_active
+        in: query
+        required: false
+        schema:
+          type: boolean
+          default: true
+          title: Only Active
       - name: order_by
         in: query
         required: false
@@ -616,6 +674,8 @@ paths:
       summary: Get Asset Aliases
       description: Get asset aliases.
       operationId: get_asset_aliases
+      security:
+      - OAuth2PasswordBearer: []
       parameters:
       - name: limit
         in: query
@@ -686,6 +746,8 @@ paths:
       summary: Get Asset Alias
       description: Get an asset alias.
       operationId: get_asset_alias
+      security:
+      - OAuth2PasswordBearer: []
       parameters:
       - name: asset_alias_id
         in: path
@@ -1021,14 +1083,6 @@ paths:
           - type: string
           - type: 'null'
           title: Before
-      - name: dag_id
-        in: query
-        required: false
-        schema:
-          anyOf:
-          - type: string
-          - type: 'null'
-          title: Dag Id
       responses:
         '204':
           description: Successful Response
@@ -1117,9 +1171,7 @@ paths:
         in: path
         required: true
         schema:
-          anyOf:
-          - type: string
-          - type: 'null'
+          type: string
           title: Dag Id
       - name: before
         in: query
@@ -1172,9 +1224,7 @@ paths:
         in: path
         required: true
         schema:
-          anyOf:
-          - type: string
-          - type: 'null'
+          type: string
           title: Dag Id
       - name: before
         in: query
@@ -1231,9 +1281,7 @@ paths:
         in: path
         required: true
         schema:
-          anyOf:
-          - type: string
-          - type: 'null'
+          type: string
           title: Dag Id
       - name: asset_id
         in: path
@@ -1293,9 +1341,7 @@ paths:
         in: path
         required: true
         schema:
-          anyOf:
-          - type: string
-          - type: 'null'
+          type: string
           title: Dag Id
       - name: asset_id
         in: path
@@ -1350,6 +1396,8 @@ paths:
       - Backfill
       summary: List Backfills
       operationId: list_backfills
+      security:
+      - OAuth2PasswordBearer: []
       parameters:
       - name: dag_id
         in: query
@@ -1410,6 +1458,8 @@ paths:
       - Backfill
       summary: Create Backfill
       operationId: create_backfill
+      security:
+      - OAuth2PasswordBearer: []
       requestBody:
         required: true
         content:
@@ -1459,6 +1509,8 @@ paths:
       - Backfill
       summary: Get Backfill
       operationId: get_backfill
+      security:
+      - OAuth2PasswordBearer: []
       parameters:
       - name: backfill_id
         in: path
@@ -1503,6 +1555,8 @@ paths:
       - Backfill
       summary: Pause Backfill
       operationId: pause_backfill
+      security:
+      - OAuth2PasswordBearer: []
       parameters:
       - name: backfill_id
         in: path
@@ -1552,6 +1606,8 @@ paths:
       - Backfill
       summary: Unpause Backfill
       operationId: unpause_backfill
+      security:
+      - OAuth2PasswordBearer: []
       parameters:
       - name: backfill_id
         in: path
@@ -1601,6 +1657,8 @@ paths:
       - Backfill
       summary: Cancel Backfill
       operationId: cancel_backfill
+      security:
+      - OAuth2PasswordBearer: []
       parameters:
       - name: backfill_id
         in: path
@@ -1693,6 +1751,8 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/HTTPValidationError'
+      security:
+      - OAuth2PasswordBearer: []
   /public/connections/{connection_id}:
     delete:
       tags:
@@ -2085,6 +2145,8 @@ paths:
       - DagRun
       summary: Get Dag Run
       operationId: get_dag_run
+      security:
+      - OAuth2PasswordBearer: []
       parameters:
       - name: dag_id
         in: path
@@ -2135,6 +2197,8 @@ paths:
       summary: Delete Dag Run
       description: Delete a DAG Run entry.
       operationId: delete_dag_run
+      security:
+      - OAuth2PasswordBearer: []
       parameters:
       - name: dag_id
         in: path
@@ -2187,6 +2251,8 @@ paths:
       summary: Patch Dag Run
       description: Modify a DAG Run.
       operationId: patch_dag_run
+      security:
+      - OAuth2PasswordBearer: []
       parameters:
       - name: dag_id
         in: path
@@ -2313,6 +2379,8 @@ paths:
       - DagRun
       summary: Clear Dag Run
       operationId: clear_dag_run
+      security:
+      - OAuth2PasswordBearer: []
       parameters:
       - name: dag_id
         in: path
@@ -2377,6 +2445,8 @@ paths:
         This endpoint allows specifying `~` as the dag_id to retrieve Dag Runs for
         all DAGs.'
       operationId: get_dag_runs
+      security:
+      - OAuth2PasswordBearer: []
       parameters:
       - name: dag_id
         in: path
@@ -2542,6 +2612,8 @@ paths:
       summary: Trigger Dag Run
       description: Trigger a DAG.
       operationId: trigger_dag_run
+      security:
+      - OAuth2PasswordBearer: []
       parameters:
       - name: dag_id
         in: path
@@ -2604,6 +2676,8 @@ paths:
       summary: Get List Dag Runs Batch
       description: Get a list of DAG Runs.
       operationId: get_list_dag_runs_batch
+      security:
+      - OAuth2PasswordBearer: []
       parameters:
       - name: dag_id
         in: path
@@ -2656,6 +2730,8 @@ paths:
       summary: Get Dag Source
       description: Get source code using file token.
       operationId: get_dag_source
+      security:
+      - OAuth2PasswordBearer: []
       parameters:
       - name: dag_id
         in: path
@@ -2736,6 +2812,8 @@ paths:
       summary: Get Dag Stats
       description: Get Dag statistics.
       operationId: get_dag_stats
+      security:
+      - OAuth2PasswordBearer: []
       parameters:
       - name: dag_ids
         in: query
@@ -2789,6 +2867,8 @@ paths:
       summary: Get Dag Reports
       description: Get DAG report.
       operationId: get_dag_reports
+      security:
+      - OAuth2PasswordBearer: []
       parameters:
       - name: subdir
         in: query
@@ -2994,6 +3074,8 @@ paths:
       summary: List Dag Warnings
       description: Get a list of DAG warnings.
       operationId: list_dag_warnings
+      security:
+      - OAuth2PasswordBearer: []
       parameters:
       - name: dag_id
         in: query
@@ -3066,6 +3148,8 @@ paths:
       summary: Get Dags
       description: Get all DAGs.
       operationId: get_dags
+      security:
+      - OAuth2PasswordBearer: []
       parameters:
       - name: limit
         in: query
@@ -3231,6 +3315,8 @@ paths:
       summary: Patch Dags
       description: Patch multiple DAGs.
       operationId: patch_dags
+      security:
+      - OAuth2PasswordBearer: []
       parameters:
       - name: update_mask
         in: query
@@ -3366,6 +3452,8 @@ paths:
       summary: Get Dag
       description: Get basic information about a DAG.
       operationId: get_dag
+      security:
+      - OAuth2PasswordBearer: []
       parameters:
       - name: dag_id
         in: path
@@ -3416,6 +3504,8 @@ paths:
       summary: Patch Dag
       description: Patch the specific DAG.
       operationId: patch_dag
+      security:
+      - OAuth2PasswordBearer: []
       parameters:
       - name: dag_id
         in: path
@@ -3482,6 +3572,8 @@ paths:
       summary: Delete Dag
       description: Delete the specific DAG.
       operationId: delete_dag
+      security:
+      - OAuth2PasswordBearer: []
       parameters:
       - name: dag_id
         in: path
@@ -3532,6 +3624,8 @@ paths:
       summary: Get Dag Details
       description: Get details of DAG.
       operationId: get_dag_details
+      security:
+      - OAuth2PasswordBearer: []
       parameters:
       - name: dag_id
         in: path
@@ -3591,14 +3685,6 @@ paths:
         schema:
           type: integer
           title: Event Log Id
-      - name: dag_id
-        in: query
-        required: false
-        schema:
-          anyOf:
-          - type: string
-          - type: 'null'
-          title: Dag Id
       responses:
         '200':
           description: Successful Response
@@ -3640,14 +3726,6 @@ paths:
       security:
       - OAuth2PasswordBearer: []
       parameters:
-      - name: dag_id
-        in: query
-        required: false
-        schema:
-          anyOf:
-          - type: string
-          - type: 'null'
-          title: Dag Id
       - name: limit
         in: query
         required: false
@@ -3671,6 +3749,14 @@ paths:
           type: string
           default: id
           title: Order By
+      - name: dag_id
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Dag Id
       - name: task_id
         in: query
         required: false
@@ -3797,9 +3883,7 @@ paths:
         in: path
         required: true
         schema:
-          anyOf:
-          - type: string
-          - type: 'null'
+          type: string
           title: Dag Id
       - name: dag_run_id
         in: path
@@ -3858,6 +3942,8 @@ paths:
       summary: Get Import Error
       description: Get an import error.
       operationId: get_import_error
+      security:
+      - OAuth2PasswordBearer: []
       parameters:
       - name: import_error_id
         in: path
@@ -3903,6 +3989,8 @@ paths:
       summary: Get Import Errors
       description: Get all import errors.
       operationId: get_import_errors
+      security:
+      - OAuth2PasswordBearer: []
       parameters:
       - name: limit
         in: query
@@ -3959,6 +4047,8 @@ paths:
       summary: Get Jobs
       description: Get all jobs.
       operationId: get_jobs
+      security:
+      - OAuth2PasswordBearer: []
       parameters:
       - name: is_alive
         in: query
@@ -4096,6 +4186,8 @@ paths:
       - Plugin
       summary: Get Plugins
       operationId: get_plugins
+      security:
+      - OAuth2PasswordBearer: []
       parameters:
       - name: limit
         in: query
@@ -4464,6 +4556,8 @@ paths:
       summary: Get Providers
       description: Get providers.
       operationId: get_providers
+      security:
+      - OAuth2PasswordBearer: []
       parameters:
       - name: limit
         in: query
@@ -4513,6 +4607,8 @@ paths:
       summary: Get Xcom Entry
       description: Get an XCom entry.
       operationId: get_xcom_entry
+      security:
+      - OAuth2PasswordBearer: []
       parameters:
       - name: dag_id
         in: path
@@ -4558,7 +4654,7 @@ paths:
         required: false
         schema:
           type: boolean
-          default: true
+          default: false
           title: Stringify
       responses:
         '200':
@@ -4606,6 +4702,8 @@ paths:
       summary: Update Xcom Entry
       description: Update an existing XCom entry.
       operationId: update_xcom_entry
+      security:
+      - OAuth2PasswordBearer: []
       parameters:
       - name: dag_id
         in: path
@@ -4685,6 +4783,8 @@ paths:
         This endpoint allows specifying `~` as the dag_id, dag_run_id, task_id to
         retrieve XCom entries for all DAGs.'
       operationId: get_xcom_entries
+      security:
+      - OAuth2PasswordBearer: []
       parameters:
       - name: dag_id
         in: path
@@ -4780,6 +4880,8 @@ paths:
       summary: Create Xcom Entry
       description: Create an XCom entry.
       operationId: create_xcom_entry
+      security:
+      - OAuth2PasswordBearer: []
       parameters:
       - name: dag_id
         in: path
@@ -4849,6 +4951,8 @@ paths:
       summary: Get Task Instance
       description: Get task instance.
       operationId: get_task_instance
+      security:
+      - OAuth2PasswordBearer: []
       parameters:
       - name: dag_id
         in: path
@@ -4905,6 +5009,8 @@ paths:
       summary: Patch Task Instance
       description: Update a task instance.
       operationId: patch_task_instance
+      security:
+      - OAuth2PasswordBearer: []
       parameters:
       - name: dag_id
         in: path
@@ -4997,6 +5103,8 @@ paths:
       summary: Get Mapped Task Instances
       description: Get list of mapped task instances.
       operationId: get_mapped_task_instances
+      security:
+      - OAuth2PasswordBearer: []
       parameters:
       - name: dag_id
         in: path
@@ -5223,6 +5331,8 @@ paths:
       summary: Get Task Instance Dependencies
       description: Get dependencies blocking task from getting scheduled.
       operationId: get_task_instance_dependencies
+      security:
+      - OAuth2PasswordBearer: []
       parameters:
       - name: dag_id
         in: path
@@ -5286,6 +5396,8 @@ paths:
       summary: Get Task Instance Dependencies
       description: Get dependencies blocking task from getting scheduled.
       operationId: get_task_instance_dependencies
+      security:
+      - OAuth2PasswordBearer: []
       parameters:
       - name: dag_id
         in: path
@@ -5350,6 +5462,8 @@ paths:
       summary: Get Task Instance Tries
       description: Get list of task instances history.
       operationId: get_task_instance_tries
+      security:
+      - OAuth2PasswordBearer: []
       parameters:
       - name: dag_id
         in: path
@@ -5413,6 +5527,8 @@ paths:
       - Task Instance
       summary: Get Mapped Task Instance Tries
       operationId: get_mapped_task_instance_tries
+      security:
+      - OAuth2PasswordBearer: []
       parameters:
       - name: dag_id
         in: path
@@ -5476,6 +5592,8 @@ paths:
       summary: Get Mapped Task Instance
       description: Get task instance.
       operationId: get_mapped_task_instance
+      security:
+      - OAuth2PasswordBearer: []
       parameters:
       - name: dag_id
         in: path
@@ -5538,6 +5656,8 @@ paths:
       summary: Patch Task Instance
       description: Update a task instance.
       operationId: patch_task_instance
+      security:
+      - OAuth2PasswordBearer: []
       parameters:
       - name: dag_id
         in: path
@@ -5635,6 +5755,8 @@ paths:
 
         and DAG runs.'
       operationId: get_task_instances
+      security:
+      - OAuth2PasswordBearer: []
       parameters:
       - name: dag_id
         in: path
@@ -5871,6 +5993,8 @@ paths:
       summary: Get Task Instances Batch
       description: Get list of task instances.
       operationId: get_task_instances_batch
+      security:
+      - OAuth2PasswordBearer: []
       parameters:
       - name: dag_id
         in: path
@@ -5930,6 +6054,8 @@ paths:
       summary: Get Task Instance Try Details
       description: Get task instance details by try number.
       operationId: get_task_instance_try_details
+      security:
+      - OAuth2PasswordBearer: []
       parameters:
       - name: dag_id
         in: path
@@ -5999,6 +6125,8 @@ paths:
       - Task Instance
       summary: Get Mapped Task Instance Try Details
       operationId: get_mapped_task_instance_try_details
+      security:
+      - OAuth2PasswordBearer: []
       parameters:
       - name: dag_id
         in: path
@@ -6068,6 +6196,8 @@ paths:
       summary: Post Clear Task Instances
       description: Clear task instances.
       operationId: post_clear_task_instances
+      security:
+      - OAuth2PasswordBearer: []
       parameters:
       - name: dag_id
         in: path
@@ -6119,6 +6249,8 @@ paths:
       summary: Patch Task Instance Dry Run
       description: Update a task instance dry_run mode.
       operationId: patch_task_instance_dry_run
+      security:
+      - OAuth2PasswordBearer: []
       parameters:
       - name: dag_id
         in: path
@@ -6204,6 +6336,8 @@ paths:
       summary: Patch Task Instance Dry Run
       description: Update a task instance dry_run mode.
       operationId: patch_task_instance_dry_run
+      security:
+      - OAuth2PasswordBearer: []
       parameters:
       - name: dag_id
         in: path
@@ -6290,6 +6424,8 @@ paths:
       summary: Get Tasks
       description: Get tasks for DAG.
       operationId: get_tasks
+      security:
+      - OAuth2PasswordBearer: []
       parameters:
       - name: dag_id
         in: path
@@ -6348,6 +6484,8 @@ paths:
       summary: Get Task
       description: Get simplified representation of a task.
       operationId: get_task
+      security:
+      - OAuth2PasswordBearer: []
       parameters:
       - name: dag_id
         in: path
@@ -6711,6 +6849,8 @@ paths:
       summary: Get Log
       description: Get logs for a specific task instance.
       operationId: get_log
+      security:
+      - OAuth2PasswordBearer: []
       parameters:
       - name: dag_id
         in: path
@@ -6814,6 +6954,8 @@ paths:
       summary: Reparse Dag File
       description: Request re-parsing a DAG file.
       operationId: reparse_dag_file
+      security:
+      - OAuth2PasswordBearer: []
       parameters:
       - name: file_token
         in: path
@@ -6860,6 +7002,8 @@ paths:
       summary: Get Dag Tags
       description: Get all DAG tags.
       operationId: get_dag_tags
+      security:
+      - OAuth2PasswordBearer: []
       parameters:
       - name: limit
         in: query
@@ -6924,6 +7068,8 @@ paths:
       summary: Get Dag Version
       description: Get one Dag Version.
       operationId: get_dag_version
+      security:
+      - OAuth2PasswordBearer: []
       parameters:
       - name: dag_id
         in: path
@@ -6979,6 +7125,8 @@ paths:
         This endpoint allows specifying `~` as the dag_id to retrieve DAG Versions
         for all DAGs.'
       operationId: get_dag_versions
+      security:
+      - OAuth2PasswordBearer: []
       parameters:
       - name: dag_id
         in: path
@@ -7087,13 +7235,47 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/VersionInfo'
-  /public/login:
+  /public/auth/login:
     get:
       tags:
       - Login
       summary: Login
       description: Redirect to the login URL depending on the AuthManager configured.
       operationId: login
+      parameters:
+      - name: next
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Next
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema: {}
+        '307':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Temporary Redirect
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /public/auth/logout:
+    get:
+      tags:
+      - Login
+      summary: Logout
+      description: Logout the user.
+      operationId: logout
       parameters:
       - name: next
         in: query
@@ -8115,6 +8297,74 @@ components:
       - total_entries
       title: ConnectionCollectionResponse
       description: Connection Collection serializer for responses.
+    ConnectionHookFieldBehavior:
+      properties:
+        hidden:
+          type: boolean
+          title: Hidden
+          description: Flag if the form field should be hidden.
+          default: false
+        title:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Title
+          description: Label / title for the field that should be displayed, if re-labelling
+            is needed. Use `None` to display standard title.
+        placeholder:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Placeholder
+          description: Placeholder text that should be populated to the form.
+      type: object
+      title: ConnectionHookFieldBehavior
+      description: A class to store the behavior of each standard field of a Hook.
+    ConnectionHookMetaData:
+      properties:
+        connection_type:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Connection Type
+        hook_class_name:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Hook Class Name
+        default_conn_name:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Default Conn Name
+        hook_name:
+          type: string
+          title: Hook Name
+        standard_fields:
+          anyOf:
+          - $ref: '#/components/schemas/StandardHookFields'
+          - type: 'null'
+        extra_fields:
+          anyOf:
+          - type: object
+          - type: 'null'
+          title: Extra Fields
+      type: object
+      required:
+      - connection_type
+      - hook_class_name
+      - default_conn_name
+      - hook_name
+      - standard_fields
+      - extra_fields
+      title: ConnectionHookMetaData
+      description: 'Response model for Hook information == Connection type meta data.
+
+
+        It is used to transfer providers information loaded by providers_manager such
+        that
+
+        the API server/Web UI can use this data to render connection form UI.'
     ConnectionResponse:
       properties:
         connection_id:
@@ -8241,11 +8491,6 @@ components:
             format: date-time
           - type: 'null'
           title: Last Expired
-        default_view:
-          anyOf:
-          - type: string
-          - type: 'null'
-          title: Default View
         fileloc:
           type: string
           title: Fileloc
@@ -8401,7 +8646,6 @@ components:
       - is_active
       - last_parsed_time
       - last_expired
-      - default_view
       - fileloc
       - description
       - timetable_summary
@@ -8471,11 +8715,6 @@ components:
             format: date-time
           - type: 'null'
           title: Last Expired
-        default_view:
-          anyOf:
-          - type: string
-          - type: 'null'
-          title: Default View
         fileloc:
           type: string
           title: Fileloc
@@ -8558,7 +8797,6 @@ components:
       - is_active
       - last_parsed_time
       - last_expired
-      - default_view
       - fileloc
       - description
       - timetable_summary
@@ -8987,11 +9225,6 @@ components:
             format: date-time
           - type: 'null'
           title: Last Expired
-        default_view:
-          anyOf:
-          - type: string
-          - type: 'null'
-          title: Default View
         fileloc:
           type: string
           title: Fileloc
@@ -9061,6 +9294,11 @@ components:
             type: string
           type: array
           title: Owners
+        asset_expression:
+          anyOf:
+          - type: object
+          - type: 'null'
+          title: Asset Expression
         latest_dag_runs:
           items:
             $ref: '#/components/schemas/DAGRunResponse'
@@ -9079,7 +9317,6 @@ components:
       - is_active
       - last_parsed_time
       - last_expired
-      - default_view
       - fileloc
       - description
       - timetable_summary
@@ -9095,6 +9332,7 @@ components:
       - next_dagrun_data_interval_end
       - next_dagrun_run_after
       - owners
+      - asset_expression
       - latest_dag_runs
       - file_token
       title: DAGWithLatestDagRunsResponse
@@ -9840,6 +10078,36 @@ components:
       - unixname
       title: JobResponse
       description: Job serializer for responses.
+    MenuItem:
+      properties:
+        text:
+          type: string
+          title: Text
+        href:
+          type: string
+          title: Href
+      type: object
+      required:
+      - text
+      - href
+      title: MenuItem
+      description: Menu Item for responses.
+    MenuItemCollectionResponse:
+      properties:
+        menu_items:
+          items:
+            $ref: '#/components/schemas/MenuItem'
+          type: array
+          title: Menu Items
+        total_entries:
+          type: integer
+          title: Total Entries
+      type: object
+      required:
+      - menu_items
+      - total_entries
+      title: MenuItemCollectionResponse
+      description: Menu Item Collection serializer for responses.
     NodeResponse:
       properties:
         id:
@@ -10234,6 +10502,42 @@ components:
       - latest_scheduler_heartbeat
       title: SchedulerInfoResponse
       description: Scheduler info serializer for responses.
+    StandardHookFields:
+      properties:
+        description:
+          anyOf:
+          - $ref: '#/components/schemas/ConnectionHookFieldBehavior'
+          - type: 'null'
+        url_schema:
+          anyOf:
+          - $ref: '#/components/schemas/ConnectionHookFieldBehavior'
+          - type: 'null'
+        host:
+          anyOf:
+          - $ref: '#/components/schemas/ConnectionHookFieldBehavior'
+          - type: 'null'
+        port:
+          anyOf:
+          - $ref: '#/components/schemas/ConnectionHookFieldBehavior'
+          - type: 'null'
+        login:
+          anyOf:
+          - $ref: '#/components/schemas/ConnectionHookFieldBehavior'
+          - type: 'null'
+        password:
+          anyOf:
+          - $ref: '#/components/schemas/ConnectionHookFieldBehavior'
+          - type: 'null'
+      type: object
+      required:
+      - description
+      - url_schema
+      - host
+      - port
+      - login
+      - password
+      title: StandardHookFields
+      description: Standard fields of a Hook that a form will render.
     StructureDataResponse:
       properties:
         edges:
@@ -10246,19 +10550,10 @@ components:
             $ref: '#/components/schemas/NodeResponse'
           type: array
           title: Nodes
-        arrange:
-          type: string
-          enum:
-          - BT
-          - LR
-          - RL
-          - TB
-          title: Arrange
       type: object
       required:
       - edges
       - nodes
-      - arrange
       title: StructureDataResponse
       description: Structure Data serializer for responses.
     StructuredLogMessage:

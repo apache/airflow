@@ -24,6 +24,8 @@ import pytest
 
 from airflow.api_fastapi.auth.managers.simple.datamodels.login import LoginResponse
 
+from tests_common.test_utils.config import conf_vars
+
 TEST_USER_1 = "test1"
 TEST_USER_2 = "test2"
 
@@ -41,7 +43,7 @@ class TestLogin:
         mock_simple_auth_manager_login.create_token.return_value = LoginResponse(jwt_token="DUMMY_TOKEN")
 
         response = test_client.post(
-            "/token",
+            "/auth/token",
             json={"username": test_user, "password": "DUMMY_PASS"},
         )
         assert response.status_code == 201
@@ -49,11 +51,22 @@ class TestLogin:
 
     def test_create_token_invalid_user_password(self, test_client):
         response = test_client.post(
-            "/token",
+            "/auth/token",
             json={"username": "INVALID_USER", "password": "INVALID_PASS"},
         )
         assert response.status_code == 401
         assert response.json()["detail"] == "Invalid credentials"
+
+    def test_create_token_all_admins(self, test_client):
+        with conf_vars({("core", "simple_auth_manager_all_admins"): "true"}):
+            response = test_client.get("/auth/token", follow_redirects=False)
+            assert response.status_code == 307
+            assert "location" in response.headers
+            assert response.cookies.get("_token") is not None
+
+    def test_create_token_all_admins_config_disabled(self, test_client):
+        response = test_client.get("/auth/token")
+        assert response.status_code == 403
 
     @pytest.mark.parametrize(
         "test_user",
@@ -67,7 +80,7 @@ class TestLogin:
         mock_simple_auth_manager_login.create_token.return_value = LoginResponse(jwt_token="DUMMY_TOKEN")
 
         response = test_client.post(
-            "/token/cli",
+            "/auth/token/cli",
             json={"username": test_user, "password": "DUMMY_PASS"},
         )
         assert response.status_code == 201
@@ -75,7 +88,7 @@ class TestLogin:
 
     def test_create_token_invalid_user_password_cli(self, test_client):
         response = test_client.post(
-            "/token/cli",
+            "/auth/token/cli",
             json={"username": "INVALID_USER", "password": "INVALID_PASS"},
         )
         assert response.status_code == 401

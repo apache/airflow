@@ -2396,7 +2396,7 @@ def test_clearing_task_and_moving_from_non_mapped_to_mapped(dag_maker, session):
     was not used in the test since it would require that the task is expanded first.
     """
 
-    from airflow.models.xcom import XCom
+    from airflow.models.xcom import XComModel
 
     @task
     def printx(x):
@@ -2411,9 +2411,7 @@ def test_clearing_task_and_moving_from_non_mapped_to_mapped(dag_maker, session):
     ti = session.query(TaskInstance).filter_by(**filter_kwargs).one()
 
     tr = TaskReschedule(
-        task_id=ti.task_id,
-        dag_id=ti.dag_id,
-        run_id=ti.run_id,
+        task_instance_id=ti.id,
         try_number=ti.try_number,
         start_date=timezone.datetime(2017, 1, 1),
         end_date=timezone.datetime(2017, 1, 2),
@@ -2429,12 +2427,12 @@ def test_clearing_task_and_moving_from_non_mapped_to_mapped(dag_maker, session):
     # Purposely omitted RenderedTaskInstanceFields because the ti need
     # to be expanded but here we are mimicking and made it map_index -1
     session.add(tr)
-    XCom.set(key="test", value="value", task_id=ti.task_id, dag_id=dag.dag_id, run_id=ti.run_id)
+    XComModel.set(key="test", value="value", task_id=ti.task_id, dag_id=dag.dag_id, run_id=ti.run_id)
     session.commit()
-    for table in [TaskInstanceNote, TaskReschedule, XCom]:
+    for table in [TaskInstanceNote, TaskReschedule, XComModel]:
         assert session.query(table).count() == 1
     dr1.task_instance_scheduling_decisions(session)
-    for table in [TaskInstanceNote, TaskReschedule, XCom]:
+    for table in [TaskInstanceNote, TaskReschedule, XComModel]:
         assert session.query(table).count() == 0
 
 

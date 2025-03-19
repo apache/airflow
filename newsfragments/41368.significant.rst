@@ -30,8 +30,8 @@ For example, instead of ``from airflow.sensors import TimeDeltaSensor``, use ``f
 
       * [x] ``airflow.operators.bash_operator.BashOperator`` → ``airflow.operators.bash.BashOperator``
       * [x] ``airflow.operators.branch_operator.BaseBranchOperator`` → ``airflow.operators.branch.BaseBranchOperator``
-      * [ ] ``airflow.operators....EmptyOperator`` → ``airflow.providers.standard.operators.empty.EmptyOperator``
-      * [ ] ``airflow.operators....DummyOperator`` → ``airflow.providers.standard.operators.empty.EmptyOperator``
+      * [ ] ``airflow.operators.EmptyOperator`` → ``airflow.providers.standard.operators.empty.EmptyOperator``
+      * [ ] ``airflow.operators.DummyOperator`` → ``airflow.providers.standard.operators.empty.EmptyOperator``
       * [ ] ``airflow.operators.dummy_operator.EmptyOperator`` → ``airflow.providers.standard.operators.empty.EmptyOperator``
       * [ ] ``airflow.operators.dummy_operator.DummyOperator`` → ``airflow.providers.standard.operators.empty.EmptyOperator``
       * [x] ``airflow.operators.email_operator.EmailOperator`` → ``airflow.operators.email.EmailOperator``

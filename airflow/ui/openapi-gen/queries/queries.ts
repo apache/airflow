@@ -3,6 +3,7 @@ import { UseMutationOptions, UseQueryOptions, useMutation, useQuery } from "@tan
 
 import {
   AssetService,
+  AuthLinksService,
   BackfillService,
   ConfigService,
   ConnectionService,
@@ -60,6 +61,24 @@ import {
 import * as Common from "./common";
 
 /**
+ * Get Auth Links
+ * @returns MenuItemCollectionResponse Successful Response
+ * @throws ApiError
+ */
+export const useAuthLinksServiceGetAuthLinks = <
+  TData = Common.AuthLinksServiceGetAuthLinksDefaultResponse,
+  TError = unknown,
+  TQueryKey extends Array<unknown> = unknown[],
+>(
+  queryKey?: TQueryKey,
+  options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">,
+) =>
+  useQuery<TData, TError>({
+    queryKey: Common.UseAuthLinksServiceGetAuthLinksKeyFn(queryKey),
+    queryFn: () => AuthLinksService.getAuthLinks() as TData,
+    ...options,
+  });
+/**
  * Next Run Assets
  * @param data The data for the request.
  * @param data.dagId
@@ -93,6 +112,7 @@ export const useAssetServiceNextRunAssets = <
  * @param data.namePattern
  * @param data.uriPattern
  * @param data.dagIds
+ * @param data.onlyActive
  * @param data.orderBy
  * @returns AssetCollectionResponse Successful Response
  * @throws ApiError
@@ -107,6 +127,7 @@ export const useAssetServiceGetAssets = <
     limit,
     namePattern,
     offset,
+    onlyActive,
     orderBy,
     uriPattern,
   }: {
@@ -114,6 +135,7 @@ export const useAssetServiceGetAssets = <
     limit?: number;
     namePattern?: string;
     offset?: number;
+    onlyActive?: boolean;
     orderBy?: string;
     uriPattern?: string;
   } = {},
@@ -122,11 +144,19 @@ export const useAssetServiceGetAssets = <
 ) =>
   useQuery<TData, TError>({
     queryKey: Common.UseAssetServiceGetAssetsKeyFn(
-      { dagIds, limit, namePattern, offset, orderBy, uriPattern },
+      { dagIds, limit, namePattern, offset, onlyActive, orderBy, uriPattern },
       queryKey,
     ),
     queryFn: () =>
-      AssetService.getAssets({ dagIds, limit, namePattern, offset, orderBy, uriPattern }) as TData,
+      AssetService.getAssets({
+        dagIds,
+        limit,
+        namePattern,
+        offset,
+        onlyActive,
+        orderBy,
+        uriPattern,
+      }) as TData,
     ...options,
   });
 /**
@@ -461,6 +491,89 @@ export const useConfigServiceGetConfigValue = <
   useQuery<TData, TError>({
     queryKey: Common.UseConfigServiceGetConfigValueKeyFn({ accept, option, section }, queryKey),
     queryFn: () => ConfigService.getConfigValue({ accept, option, section }) as TData,
+    ...options,
+  });
+/**
+ * Hook Meta Data
+ * Retrieve information about available connection types (hook classes) and their parameters.
+ * @returns ConnectionHookMetaData Successful Response
+ * @throws ApiError
+ */
+export const useConnectionServiceHookMetaData = <
+  TData = Common.ConnectionServiceHookMetaDataDefaultResponse,
+  TError = unknown,
+  TQueryKey extends Array<unknown> = unknown[],
+>(
+  queryKey?: TQueryKey,
+  options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">,
+) =>
+  useQuery<TData, TError>({
+    queryKey: Common.UseConnectionServiceHookMetaDataKeyFn(queryKey),
+    queryFn: () => ConnectionService.hookMetaData() as TData,
+    ...options,
+  });
+/**
+ * Get Connection
+ * Get a connection entry.
+ * @param data The data for the request.
+ * @param data.connectionId
+ * @returns ConnectionResponse Successful Response
+ * @throws ApiError
+ */
+export const useConnectionServiceGetConnection = <
+  TData = Common.ConnectionServiceGetConnectionDefaultResponse,
+  TError = unknown,
+  TQueryKey extends Array<unknown> = unknown[],
+>(
+  {
+    connectionId,
+  }: {
+    connectionId: string;
+  },
+  queryKey?: TQueryKey,
+  options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">,
+) =>
+  useQuery<TData, TError>({
+    queryKey: Common.UseConnectionServiceGetConnectionKeyFn({ connectionId }, queryKey),
+    queryFn: () => ConnectionService.getConnection({ connectionId }) as TData,
+    ...options,
+  });
+/**
+ * Get Connections
+ * Get all connection entries.
+ * @param data The data for the request.
+ * @param data.limit
+ * @param data.offset
+ * @param data.orderBy
+ * @param data.connectionIdPattern
+ * @returns ConnectionCollectionResponse Successful Response
+ * @throws ApiError
+ */
+export const useConnectionServiceGetConnections = <
+  TData = Common.ConnectionServiceGetConnectionsDefaultResponse,
+  TError = unknown,
+  TQueryKey extends Array<unknown> = unknown[],
+>(
+  {
+    connectionIdPattern,
+    limit,
+    offset,
+    orderBy,
+  }: {
+    connectionIdPattern?: string;
+    limit?: number;
+    offset?: number;
+    orderBy?: string;
+  } = {},
+  queryKey?: TQueryKey,
+  options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">,
+) =>
+  useQuery<TData, TError>({
+    queryKey: Common.UseConnectionServiceGetConnectionsKeyFn(
+      { connectionIdPattern, limit, offset, orderBy },
+      queryKey,
+    ),
+    queryFn: () => ConnectionService.getConnections({ connectionIdPattern, limit, offset, orderBy }) as TData,
     ...options,
   });
 /**
@@ -850,70 +963,6 @@ export const useGridServiceGridData = <
         runType,
         state,
       }) as TData,
-    ...options,
-  });
-/**
- * Get Connection
- * Get a connection entry.
- * @param data The data for the request.
- * @param data.connectionId
- * @returns ConnectionResponse Successful Response
- * @throws ApiError
- */
-export const useConnectionServiceGetConnection = <
-  TData = Common.ConnectionServiceGetConnectionDefaultResponse,
-  TError = unknown,
-  TQueryKey extends Array<unknown> = unknown[],
->(
-  {
-    connectionId,
-  }: {
-    connectionId: string;
-  },
-  queryKey?: TQueryKey,
-  options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">,
-) =>
-  useQuery<TData, TError>({
-    queryKey: Common.UseConnectionServiceGetConnectionKeyFn({ connectionId }, queryKey),
-    queryFn: () => ConnectionService.getConnection({ connectionId }) as TData,
-    ...options,
-  });
-/**
- * Get Connections
- * Get all connection entries.
- * @param data The data for the request.
- * @param data.limit
- * @param data.offset
- * @param data.orderBy
- * @param data.connectionIdPattern
- * @returns ConnectionCollectionResponse Successful Response
- * @throws ApiError
- */
-export const useConnectionServiceGetConnections = <
-  TData = Common.ConnectionServiceGetConnectionsDefaultResponse,
-  TError = unknown,
-  TQueryKey extends Array<unknown> = unknown[],
->(
-  {
-    connectionIdPattern,
-    limit,
-    offset,
-    orderBy,
-  }: {
-    connectionIdPattern?: string;
-    limit?: number;
-    offset?: number;
-    orderBy?: string;
-  } = {},
-  queryKey?: TQueryKey,
-  options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">,
-) =>
-  useQuery<TData, TError>({
-    queryKey: Common.UseConnectionServiceGetConnectionsKeyFn(
-      { connectionIdPattern, limit, offset, orderBy },
-      queryKey,
-    ),
-    queryFn: () => ConnectionService.getConnections({ connectionIdPattern, limit, offset, orderBy }) as TData,
     ...options,
   });
 /**
@@ -1404,7 +1453,6 @@ export const useDagServiceGetDagTags = <
  * Get Event Log
  * @param data The data for the request.
  * @param data.eventLogId
- * @param data.dagId
  * @returns EventLogResponse Successful Response
  * @throws ApiError
  */
@@ -1414,28 +1462,26 @@ export const useEventLogServiceGetEventLog = <
   TQueryKey extends Array<unknown> = unknown[],
 >(
   {
-    dagId,
     eventLogId,
   }: {
-    dagId?: string;
     eventLogId: number;
   },
   queryKey?: TQueryKey,
   options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">,
 ) =>
   useQuery<TData, TError>({
-    queryKey: Common.UseEventLogServiceGetEventLogKeyFn({ dagId, eventLogId }, queryKey),
-    queryFn: () => EventLogService.getEventLog({ dagId, eventLogId }) as TData,
+    queryKey: Common.UseEventLogServiceGetEventLogKeyFn({ eventLogId }, queryKey),
+    queryFn: () => EventLogService.getEventLog({ eventLogId }) as TData,
     ...options,
   });
 /**
  * Get Event Logs
  * Get all Event Logs.
  * @param data The data for the request.
- * @param data.dagId
  * @param data.limit
  * @param data.offset
  * @param data.orderBy
+ * @param data.dagId
  * @param data.taskId
  * @param data.runId
  * @param data.mapIndex
@@ -2919,6 +2965,32 @@ export const useLoginServiceLogin = <
     ...options,
   });
 /**
+ * Logout
+ * Logout the user.
+ * @param data The data for the request.
+ * @param data.next
+ * @returns unknown Successful Response
+ * @throws ApiError
+ */
+export const useLoginServiceLogout = <
+  TData = Common.LoginServiceLogoutDefaultResponse,
+  TError = unknown,
+  TQueryKey extends Array<unknown> = unknown[],
+>(
+  {
+    next,
+  }: {
+    next?: string;
+  } = {},
+  queryKey?: TQueryKey,
+  options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">,
+) =>
+  useQuery<TData, TError>({
+    queryKey: Common.UseLoginServiceLogoutKeyFn({ next }, queryKey),
+    queryFn: () => LoginService.logout({ next }) as TData,
+    ...options,
+  });
+/**
  * Create Asset Event
  * Create asset events.
  * @param data The data for the request.
@@ -2989,78 +3061,6 @@ export const useAssetServiceMaterializeAsset = <
     TContext
   >({
     mutationFn: ({ assetId }) => AssetService.materializeAsset({ assetId }) as unknown as Promise<TData>,
-    ...options,
-  });
-/**
- * Create Backfill
- * @param data The data for the request.
- * @param data.requestBody
- * @returns BackfillResponse Successful Response
- * @throws ApiError
- */
-export const useBackfillServiceCreateBackfill = <
-  TData = Common.BackfillServiceCreateBackfillMutationResult,
-  TError = unknown,
-  TContext = unknown,
->(
-  options?: Omit<
-    UseMutationOptions<
-      TData,
-      TError,
-      {
-        requestBody: BackfillPostBody;
-      },
-      TContext
-    >,
-    "mutationFn"
-  >,
-) =>
-  useMutation<
-    TData,
-    TError,
-    {
-      requestBody: BackfillPostBody;
-    },
-    TContext
-  >({
-    mutationFn: ({ requestBody }) =>
-      BackfillService.createBackfill({ requestBody }) as unknown as Promise<TData>,
-    ...options,
-  });
-/**
- * Create Backfill Dry Run
- * @param data The data for the request.
- * @param data.requestBody
- * @returns DryRunBackfillCollectionResponse Successful Response
- * @throws ApiError
- */
-export const useBackfillServiceCreateBackfillDryRun = <
-  TData = Common.BackfillServiceCreateBackfillDryRunMutationResult,
-  TError = unknown,
-  TContext = unknown,
->(
-  options?: Omit<
-    UseMutationOptions<
-      TData,
-      TError,
-      {
-        requestBody: BackfillPostBody;
-      },
-      TContext
-    >,
-    "mutationFn"
-  >,
-) =>
-  useMutation<
-    TData,
-    TError,
-    {
-      requestBody: BackfillPostBody;
-    },
-    TContext
-  >({
-    mutationFn: ({ requestBody }) =>
-      BackfillService.createBackfillDryRun({ requestBody }) as unknown as Promise<TData>,
     ...options,
   });
 /**
@@ -3156,6 +3156,78 @@ export const useConnectionServiceCreateDefaultConnections = <
 ) =>
   useMutation<TData, TError, void, TContext>({
     mutationFn: () => ConnectionService.createDefaultConnections() as unknown as Promise<TData>,
+    ...options,
+  });
+/**
+ * Create Backfill
+ * @param data The data for the request.
+ * @param data.requestBody
+ * @returns BackfillResponse Successful Response
+ * @throws ApiError
+ */
+export const useBackfillServiceCreateBackfill = <
+  TData = Common.BackfillServiceCreateBackfillMutationResult,
+  TError = unknown,
+  TContext = unknown,
+>(
+  options?: Omit<
+    UseMutationOptions<
+      TData,
+      TError,
+      {
+        requestBody: BackfillPostBody;
+      },
+      TContext
+    >,
+    "mutationFn"
+  >,
+) =>
+  useMutation<
+    TData,
+    TError,
+    {
+      requestBody: BackfillPostBody;
+    },
+    TContext
+  >({
+    mutationFn: ({ requestBody }) =>
+      BackfillService.createBackfill({ requestBody }) as unknown as Promise<TData>,
+    ...options,
+  });
+/**
+ * Create Backfill Dry Run
+ * @param data The data for the request.
+ * @param data.requestBody
+ * @returns DryRunBackfillCollectionResponse Successful Response
+ * @throws ApiError
+ */
+export const useBackfillServiceCreateBackfillDryRun = <
+  TData = Common.BackfillServiceCreateBackfillDryRunMutationResult,
+  TError = unknown,
+  TContext = unknown,
+>(
+  options?: Omit<
+    UseMutationOptions<
+      TData,
+      TError,
+      {
+        requestBody: BackfillPostBody;
+      },
+      TContext
+    >,
+    "mutationFn"
+  >,
+) =>
+  useMutation<
+    TData,
+    TError,
+    {
+      requestBody: BackfillPostBody;
+    },
+    TContext
+  >({
+    mutationFn: ({ requestBody }) =>
+      BackfillService.createBackfillDryRun({ requestBody }) as unknown as Promise<TData>,
     ...options,
   });
 /**
@@ -4351,7 +4423,6 @@ export const useVariableServiceBulkVariables = <
  * @param data The data for the request.
  * @param data.assetId
  * @param data.before
- * @param data.dagId
  * @returns void Successful Response
  * @throws ApiError
  */
@@ -4367,7 +4438,6 @@ export const useAssetServiceDeleteAssetQueuedEvents = <
       {
         assetId: number;
         before?: string;
-        dagId?: string;
       },
       TContext
     >,
@@ -4380,12 +4450,11 @@ export const useAssetServiceDeleteAssetQueuedEvents = <
     {
       assetId: number;
       before?: string;
-      dagId?: string;
     },
     TContext
   >({
-    mutationFn: ({ assetId, before, dagId }) =>
-      AssetService.deleteAssetQueuedEvents({ assetId, before, dagId }) as unknown as Promise<TData>,
+    mutationFn: ({ assetId, before }) =>
+      AssetService.deleteAssetQueuedEvents({ assetId, before }) as unknown as Promise<TData>,
     ...options,
   });
 /**

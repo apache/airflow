@@ -30,13 +30,13 @@ from sqlalchemy import (
     PrimaryKeyConstraint,
     String,
     Table,
+    delete,
     select,
     text,
 )
 from sqlalchemy.orm import relationship
 
 from airflow.models.base import Base, StringID
-from airflow.sdk.definitions.asset import Asset, AssetAlias
 from airflow.settings import json
 from airflow.utils import timezone
 from airflow.utils.sqlalchemy import UtcDateTime
@@ -46,6 +46,8 @@ if TYPE_CHECKING:
     from typing import Any
 
     from sqlalchemy.orm import Session
+
+    from airflow.sdk.definitions.asset import Asset, AssetAlias
 
 
 def fetch_active_assets_by_name(names: Iterable[str], session: Session) -> dict[str, Asset]:
@@ -94,6 +96,24 @@ def resolve_ref_to_asset(
     if uri is not None:
         stmt = stmt.where(AssetModel.uri == uri)
     return session.scalar(stmt)
+
+
+def remove_references_to_deleted_dags(session: Session):
+    from airflow.models.dag import DagModel
+
+    models_to_check: list[Any] = [
+        DagScheduleAssetReference,
+        DagScheduleAssetNameReference,
+        DagScheduleAssetUriReference,
+        DagScheduleAssetAliasReference,
+        TaskOutletAssetReference,
+    ]
+    for model in models_to_check:
+        session.execute(
+            delete(model)
+            .where(model.dag_id.in_(select(DagModel.dag_id).where(~DagModel.is_active)))
+            .execution_options(synchronize_session="fetch")
+        )
 
 
 alias_association_table = Table(
@@ -187,12 +207,16 @@ class AssetAliasModel(Base):
         return hash(self.name)
 
     def __eq__(self, other):
+        from airflow.sdk.definitions.asset import AssetAlias
+
         if isinstance(other, (self.__class__, AssetAlias)):
             return self.name == other.name
         else:
             return NotImplemented
 
     def to_public(self) -> AssetAlias:
+        from airflow.sdk.definitions.asset import AssetAlias
+
         return AssetAlias(name=self.name)
 
 
@@ -280,6 +304,8 @@ class AssetModel(Base):
         super().__init__(name=name, uri=uri, **kwargs)
 
     def __eq__(self, other):
+        from airflow.sdk.definitions.asset import Asset
+
         if isinstance(other, (self.__class__, Asset)):
             return self.name == other.name and self.uri == other.uri
         return NotImplemented
@@ -291,6 +317,8 @@ class AssetModel(Base):
         return f"{self.__class__.__name__}(name={self.name!r}, uri={self.uri!r}, extra={self.extra!r})"
 
     def to_public(self) -> Asset:
+        from airflow.sdk.definitions.asset import Asset
+
         return Asset(name=self.name, uri=self.uri, group=self.group, extra=self.extra)
 
 

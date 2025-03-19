@@ -449,6 +449,41 @@ export type ConnectionCollectionResponse = {
 };
 
 /**
+ * A class to store the behavior of each standard field of a Hook.
+ */
+export type ConnectionHookFieldBehavior = {
+  /**
+   * Flag if the form field should be hidden.
+   */
+  hidden?: boolean;
+  /**
+   * Label / title for the field that should be displayed, if re-labelling is needed. Use `None` to display standard title.
+   */
+  title?: string | null;
+  /**
+   * Placeholder text that should be populated to the form.
+   */
+  placeholder?: string | null;
+};
+
+/**
+ * Response model for Hook information == Connection type meta data.
+ *
+ * It is used to transfer providers information loaded by providers_manager such that
+ * the API server/Web UI can use this data to render connection form UI.
+ */
+export type ConnectionHookMetaData = {
+  connection_type: string | null;
+  hook_class_name: string | null;
+  default_conn_name: string | null;
+  hook_name: string;
+  standard_fields: StandardHookFields | null;
+  extra_fields: {
+    [key: string]: unknown;
+  } | null;
+};
+
+/**
  * Connection serializer for responses.
  */
 export type ConnectionResponse = {
@@ -499,7 +534,6 @@ export type DAGDetailsResponse = {
   is_active: boolean;
   last_parsed_time: string | null;
   last_expired: string | null;
-  default_view: string | null;
   fileloc: string;
   description: string | null;
   timetable_summary: string | null;
@@ -562,7 +596,6 @@ export type DAGResponse = {
   is_active: boolean;
   last_parsed_time: string | null;
   last_expired: string | null;
-  default_view: string | null;
   fileloc: string;
   description: string | null;
   timetable_summary: string | null;
@@ -737,7 +770,6 @@ export type DAGWithLatestDagRunsResponse = {
   is_active: boolean;
   last_parsed_time: string | null;
   last_expired: string | null;
-  default_view: string | null;
   fileloc: string;
   description: string | null;
   timetable_summary: string | null;
@@ -753,6 +785,9 @@ export type DAGWithLatestDagRunsResponse = {
   next_dagrun_data_interval_end: string | null;
   next_dagrun_run_after: string | null;
   owners: Array<string>;
+  asset_expression: {
+    [key: string]: unknown;
+  } | null;
   latest_dag_runs: Array<DAGRunResponse>;
   /**
    * Return file token.
@@ -1060,6 +1095,22 @@ export type JobResponse = {
 };
 
 /**
+ * Menu Item for responses.
+ */
+export type MenuItem = {
+  text: string;
+  href: string;
+};
+
+/**
+ * Menu Item Collection serializer for responses.
+ */
+export type MenuItemCollectionResponse = {
+  menu_items: Array<MenuItem>;
+  total_entries: number;
+};
+
+/**
  * Node serializer for responses.
  */
 export type NodeResponse = {
@@ -1205,15 +1256,24 @@ export type SchedulerInfoResponse = {
 };
 
 /**
+ * Standard fields of a Hook that a form will render.
+ */
+export type StandardHookFields = {
+  description: ConnectionHookFieldBehavior | null;
+  url_schema: ConnectionHookFieldBehavior | null;
+  host: ConnectionHookFieldBehavior | null;
+  port: ConnectionHookFieldBehavior | null;
+  login: ConnectionHookFieldBehavior | null;
+  password: ConnectionHookFieldBehavior | null;
+};
+
+/**
  * Structure Data serializer for responses.
  */
 export type StructureDataResponse = {
   edges: Array<EdgeResponse>;
   nodes: Array<NodeResponse>;
-  arrange: "BT" | "LR" | "RL" | "TB";
 };
-
-export type arrange = "BT" | "LR" | "RL" | "TB";
 
 /**
  * An individual log message.
@@ -1606,6 +1666,8 @@ export type XComUpdateBody = {
   map_index?: number;
 };
 
+export type GetAuthLinksResponse = MenuItemCollectionResponse;
+
 export type NextRunAssetsData = {
   dagId: string;
 };
@@ -1619,6 +1681,7 @@ export type GetAssetsData = {
   limit?: number;
   namePattern?: string | null;
   offset?: number;
+  onlyActive?: boolean;
   orderBy?: string;
   uriPattern?: string | null;
 };
@@ -1677,7 +1740,6 @@ export type GetAssetQueuedEventsResponse = QueuedEventCollectionResponse;
 export type DeleteAssetQueuedEventsData = {
   assetId: number;
   before?: string | null;
-  dagId?: string | null;
 };
 
 export type DeleteAssetQueuedEventsResponse = void;
@@ -1690,14 +1752,14 @@ export type GetAssetResponse = AssetResponse;
 
 export type GetDagAssetQueuedEventsData = {
   before?: string | null;
-  dagId: string | null;
+  dagId: string;
 };
 
 export type GetDagAssetQueuedEventsResponse = QueuedEventCollectionResponse;
 
 export type DeleteDagAssetQueuedEventsData = {
   before?: string | null;
-  dagId: string | null;
+  dagId: string;
 };
 
 export type DeleteDagAssetQueuedEventsResponse = void;
@@ -1705,7 +1767,7 @@ export type DeleteDagAssetQueuedEventsResponse = void;
 export type GetDagAssetQueuedEventData = {
   assetId: number;
   before?: string | null;
-  dagId: string | null;
+  dagId: string;
 };
 
 export type GetDagAssetQueuedEventResponse = QueuedEventResponse;
@@ -1713,7 +1775,7 @@ export type GetDagAssetQueuedEventResponse = QueuedEventResponse;
 export type DeleteDagAssetQueuedEventData = {
   assetId: number;
   before?: string | null;
-  dagId: string | null;
+  dagId: string;
 };
 
 export type DeleteDagAssetQueuedEventResponse = void;
@@ -1734,6 +1796,57 @@ export type GetConfigValueData = {
 };
 
 export type GetConfigValueResponse = Config;
+
+export type HookMetaDataResponse = Array<ConnectionHookMetaData>;
+
+export type DeleteConnectionData = {
+  connectionId: string;
+};
+
+export type DeleteConnectionResponse = void;
+
+export type GetConnectionData = {
+  connectionId: string;
+};
+
+export type GetConnectionResponse = ConnectionResponse;
+
+export type PatchConnectionData = {
+  connectionId: string;
+  requestBody: ConnectionBody;
+  updateMask?: Array<string> | null;
+};
+
+export type PatchConnectionResponse = ConnectionResponse;
+
+export type GetConnectionsData = {
+  connectionIdPattern?: string | null;
+  limit?: number;
+  offset?: number;
+  orderBy?: string;
+};
+
+export type GetConnectionsResponse = ConnectionCollectionResponse;
+
+export type PostConnectionData = {
+  requestBody: ConnectionBody;
+};
+
+export type PostConnectionResponse = ConnectionResponse;
+
+export type BulkConnectionsData = {
+  requestBody: BulkBody_ConnectionBody_;
+};
+
+export type BulkConnectionsResponse = BulkResponse;
+
+export type TestConnectionData = {
+  requestBody: ConnectionBody;
+};
+
+export type TestConnectionResponse = ConnectionTestResponse;
+
+export type CreateDefaultConnectionsResponse = void;
 
 export type RecentDagRunsData = {
   dagDisplayNamePattern?: string | null;
@@ -1848,55 +1961,6 @@ export type GridDataData = {
 };
 
 export type GridDataResponse = GridResponse;
-
-export type DeleteConnectionData = {
-  connectionId: string;
-};
-
-export type DeleteConnectionResponse = void;
-
-export type GetConnectionData = {
-  connectionId: string;
-};
-
-export type GetConnectionResponse = ConnectionResponse;
-
-export type PatchConnectionData = {
-  connectionId: string;
-  requestBody: ConnectionBody;
-  updateMask?: Array<string> | null;
-};
-
-export type PatchConnectionResponse = ConnectionResponse;
-
-export type GetConnectionsData = {
-  connectionIdPattern?: string | null;
-  limit?: number;
-  offset?: number;
-  orderBy?: string;
-};
-
-export type GetConnectionsResponse = ConnectionCollectionResponse;
-
-export type PostConnectionData = {
-  requestBody: ConnectionBody;
-};
-
-export type PostConnectionResponse = ConnectionResponse;
-
-export type BulkConnectionsData = {
-  requestBody: BulkBody_ConnectionBody_;
-};
-
-export type BulkConnectionsResponse = BulkResponse;
-
-export type TestConnectionData = {
-  requestBody: ConnectionBody;
-};
-
-export type TestConnectionResponse = ConnectionTestResponse;
-
-export type CreateDefaultConnectionsResponse = void;
 
 export type GetDagRunData = {
   dagId: string;
@@ -2073,7 +2137,6 @@ export type GetDagTagsData = {
 export type GetDagTagsResponse = DAGTagCollectionResponse;
 
 export type GetEventLogData = {
-  dagId?: string | null;
   eventLogId: number;
 };
 
@@ -2099,7 +2162,7 @@ export type GetEventLogsData = {
 export type GetEventLogsResponse = EventLogCollectionResponse;
 
 export type GetExtraLinksData = {
-  dagId: string | null;
+  dagId: string;
   dagRunId: string;
   mapIndex?: number;
   taskId: string;
@@ -2528,7 +2591,23 @@ export type LoginData = {
 
 export type LoginResponse = unknown;
 
+export type LogoutData = {
+  next?: string | null;
+};
+
+export type LogoutResponse = unknown;
+
 export type $OpenApiTs = {
+  "/ui/auth/links": {
+    get: {
+      res: {
+        /**
+         * Successful Response
+         */
+        200: MenuItemCollectionResponse;
+      };
+    };
+  };
   "/ui/next_run_assets/{dag_id}": {
     get: {
       req: NextRunAssetsData;
@@ -2977,6 +3056,211 @@ export type $OpenApiTs = {
       };
     };
   };
+  "/ui/connections/hook_meta": {
+    get: {
+      res: {
+        /**
+         * Successful Response
+         */
+        200: Array<ConnectionHookMetaData>;
+      };
+    };
+  };
+  "/public/connections/{connection_id}": {
+    delete: {
+      req: DeleteConnectionData;
+      res: {
+        /**
+         * Successful Response
+         */
+        204: void;
+        /**
+         * Unauthorized
+         */
+        401: HTTPExceptionResponse;
+        /**
+         * Forbidden
+         */
+        403: HTTPExceptionResponse;
+        /**
+         * Not Found
+         */
+        404: HTTPExceptionResponse;
+        /**
+         * Validation Error
+         */
+        422: HTTPValidationError;
+      };
+    };
+    get: {
+      req: GetConnectionData;
+      res: {
+        /**
+         * Successful Response
+         */
+        200: ConnectionResponse;
+        /**
+         * Unauthorized
+         */
+        401: HTTPExceptionResponse;
+        /**
+         * Forbidden
+         */
+        403: HTTPExceptionResponse;
+        /**
+         * Not Found
+         */
+        404: HTTPExceptionResponse;
+        /**
+         * Validation Error
+         */
+        422: HTTPValidationError;
+      };
+    };
+    patch: {
+      req: PatchConnectionData;
+      res: {
+        /**
+         * Successful Response
+         */
+        200: ConnectionResponse;
+        /**
+         * Bad Request
+         */
+        400: HTTPExceptionResponse;
+        /**
+         * Unauthorized
+         */
+        401: HTTPExceptionResponse;
+        /**
+         * Forbidden
+         */
+        403: HTTPExceptionResponse;
+        /**
+         * Not Found
+         */
+        404: HTTPExceptionResponse;
+        /**
+         * Validation Error
+         */
+        422: HTTPValidationError;
+      };
+    };
+  };
+  "/public/connections": {
+    get: {
+      req: GetConnectionsData;
+      res: {
+        /**
+         * Successful Response
+         */
+        200: ConnectionCollectionResponse;
+        /**
+         * Unauthorized
+         */
+        401: HTTPExceptionResponse;
+        /**
+         * Forbidden
+         */
+        403: HTTPExceptionResponse;
+        /**
+         * Not Found
+         */
+        404: HTTPExceptionResponse;
+        /**
+         * Validation Error
+         */
+        422: HTTPValidationError;
+      };
+    };
+    post: {
+      req: PostConnectionData;
+      res: {
+        /**
+         * Successful Response
+         */
+        201: ConnectionResponse;
+        /**
+         * Unauthorized
+         */
+        401: HTTPExceptionResponse;
+        /**
+         * Forbidden
+         */
+        403: HTTPExceptionResponse;
+        /**
+         * Conflict
+         */
+        409: HTTPExceptionResponse;
+        /**
+         * Validation Error
+         */
+        422: HTTPValidationError;
+      };
+    };
+    patch: {
+      req: BulkConnectionsData;
+      res: {
+        /**
+         * Successful Response
+         */
+        200: BulkResponse;
+        /**
+         * Unauthorized
+         */
+        401: HTTPExceptionResponse;
+        /**
+         * Forbidden
+         */
+        403: HTTPExceptionResponse;
+        /**
+         * Validation Error
+         */
+        422: HTTPValidationError;
+      };
+    };
+  };
+  "/public/connections/test": {
+    post: {
+      req: TestConnectionData;
+      res: {
+        /**
+         * Successful Response
+         */
+        200: ConnectionTestResponse;
+        /**
+         * Unauthorized
+         */
+        401: HTTPExceptionResponse;
+        /**
+         * Forbidden
+         */
+        403: HTTPExceptionResponse;
+        /**
+         * Validation Error
+         */
+        422: HTTPValidationError;
+      };
+    };
+  };
+  "/public/connections/defaults": {
+    post: {
+      res: {
+        /**
+         * Successful Response
+         */
+        204: void;
+        /**
+         * Unauthorized
+         */
+        401: HTTPExceptionResponse;
+        /**
+         * Forbidden
+         */
+        403: HTTPExceptionResponse;
+      };
+    };
+  };
   "/ui/dags/recent_dag_runs": {
     get: {
       req: RecentDagRunsData;
@@ -3291,201 +3575,6 @@ export type $OpenApiTs = {
          * Validation Error
          */
         422: HTTPValidationError;
-      };
-    };
-  };
-  "/public/connections/{connection_id}": {
-    delete: {
-      req: DeleteConnectionData;
-      res: {
-        /**
-         * Successful Response
-         */
-        204: void;
-        /**
-         * Unauthorized
-         */
-        401: HTTPExceptionResponse;
-        /**
-         * Forbidden
-         */
-        403: HTTPExceptionResponse;
-        /**
-         * Not Found
-         */
-        404: HTTPExceptionResponse;
-        /**
-         * Validation Error
-         */
-        422: HTTPValidationError;
-      };
-    };
-    get: {
-      req: GetConnectionData;
-      res: {
-        /**
-         * Successful Response
-         */
-        200: ConnectionResponse;
-        /**
-         * Unauthorized
-         */
-        401: HTTPExceptionResponse;
-        /**
-         * Forbidden
-         */
-        403: HTTPExceptionResponse;
-        /**
-         * Not Found
-         */
-        404: HTTPExceptionResponse;
-        /**
-         * Validation Error
-         */
-        422: HTTPValidationError;
-      };
-    };
-    patch: {
-      req: PatchConnectionData;
-      res: {
-        /**
-         * Successful Response
-         */
-        200: ConnectionResponse;
-        /**
-         * Bad Request
-         */
-        400: HTTPExceptionResponse;
-        /**
-         * Unauthorized
-         */
-        401: HTTPExceptionResponse;
-        /**
-         * Forbidden
-         */
-        403: HTTPExceptionResponse;
-        /**
-         * Not Found
-         */
-        404: HTTPExceptionResponse;
-        /**
-         * Validation Error
-         */
-        422: HTTPValidationError;
-      };
-    };
-  };
-  "/public/connections": {
-    get: {
-      req: GetConnectionsData;
-      res: {
-        /**
-         * Successful Response
-         */
-        200: ConnectionCollectionResponse;
-        /**
-         * Unauthorized
-         */
-        401: HTTPExceptionResponse;
-        /**
-         * Forbidden
-         */
-        403: HTTPExceptionResponse;
-        /**
-         * Not Found
-         */
-        404: HTTPExceptionResponse;
-        /**
-         * Validation Error
-         */
-        422: HTTPValidationError;
-      };
-    };
-    post: {
-      req: PostConnectionData;
-      res: {
-        /**
-         * Successful Response
-         */
-        201: ConnectionResponse;
-        /**
-         * Unauthorized
-         */
-        401: HTTPExceptionResponse;
-        /**
-         * Forbidden
-         */
-        403: HTTPExceptionResponse;
-        /**
-         * Conflict
-         */
-        409: HTTPExceptionResponse;
-        /**
-         * Validation Error
-         */
-        422: HTTPValidationError;
-      };
-    };
-    patch: {
-      req: BulkConnectionsData;
-      res: {
-        /**
-         * Successful Response
-         */
-        200: BulkResponse;
-        /**
-         * Unauthorized
-         */
-        401: HTTPExceptionResponse;
-        /**
-         * Forbidden
-         */
-        403: HTTPExceptionResponse;
-        /**
-         * Validation Error
-         */
-        422: HTTPValidationError;
-      };
-    };
-  };
-  "/public/connections/test": {
-    post: {
-      req: TestConnectionData;
-      res: {
-        /**
-         * Successful Response
-         */
-        200: ConnectionTestResponse;
-        /**
-         * Unauthorized
-         */
-        401: HTTPExceptionResponse;
-        /**
-         * Forbidden
-         */
-        403: HTTPExceptionResponse;
-        /**
-         * Validation Error
-         */
-        422: HTTPValidationError;
-      };
-    };
-  };
-  "/public/connections/defaults": {
-    post: {
-      res: {
-        /**
-         * Successful Response
-         */
-        204: void;
-        /**
-         * Unauthorized
-         */
-        401: HTTPExceptionResponse;
-        /**
-         * Forbidden
-         */
-        403: HTTPExceptionResponse;
       };
     };
   };
@@ -5296,9 +5385,28 @@ export type $OpenApiTs = {
       };
     };
   };
-  "/public/login": {
+  "/public/auth/login": {
     get: {
       req: LoginData;
+      res: {
+        /**
+         * Successful Response
+         */
+        200: unknown;
+        /**
+         * Temporary Redirect
+         */
+        307: HTTPExceptionResponse;
+        /**
+         * Validation Error
+         */
+        422: HTTPValidationError;
+      };
+    };
+  };
+  "/public/auth/logout": {
+    get: {
+      req: LogoutData;
       res: {
         /**
          * Successful Response

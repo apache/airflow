@@ -23,40 +23,38 @@ import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
 import { RouterProvider } from "react-router-dom";
 
+import type { HTTPExceptionResponse } from "openapi/requests/types.gen";
 import { ColorModeProvider } from "src/context/colorMode";
 import { TimezoneProvider } from "src/context/timezone";
 import { router } from "src/router";
 
-import { TOKEN_STORAGE_KEY } from "./layouts/BaseLayout";
 import { queryClient } from "./queryClient";
 import { system } from "./theme";
+import { clearToken, tokenHandler } from "./utils/tokenHandler";
 
 // redirect to login page if the API responds with unauthorized or forbidden errors
 axios.interceptors.response.use(
   (response) => response,
-  (error: AxiosError) => {
-    if (error.response?.status === 401) {
+  (error: AxiosError<HTTPExceptionResponse>) => {
+    if (
+      error.response?.status === 401 ||
+      (error.response?.status === 403 && error.response.data.detail === "Invalid JWT token")
+    ) {
+      clearToken();
       const params = new URLSearchParams();
 
       params.set("next", globalThis.location.href);
-      globalThis.location.replace(`/public/login?${params.toString()}`);
+      const baseUrl = document.querySelector("head>base")?.getAttribute("href") ?? "";
+      const loginPath = new URL("public/auth/login", baseUrl).pathname;
+
+      globalThis.location.replace(`${loginPath}?${params.toString()}`);
     }
 
     return Promise.reject(error);
   },
 );
 
-axios.interceptors.request.use((config) => {
-  const token: string | null = localStorage.getItem(TOKEN_STORAGE_KEY);
-
-  if (token !== null) {
-    // usehooks-ts stores a JSON.stringified version of values, we cannot use usehooks-ts here because we are outside of
-    // a react component. Therefore using bare localStorage.getItem and manually parsing the value.
-    config.headers.Authorization = `Bearer ${JSON.parse(token)}`;
-  }
-
-  return config;
-});
+axios.interceptors.request.use(tokenHandler);
 
 createRoot(document.querySelector("#root") as HTMLDivElement).render(
   <StrictMode>

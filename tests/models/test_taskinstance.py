@@ -19,6 +19,7 @@ from __future__ import annotations
 
 import contextlib
 import datetime
+import json
 import operator
 import os
 import pathlib
@@ -71,7 +72,7 @@ from airflow.models.taskinstancehistory import TaskInstanceHistory
 from airflow.models.taskmap import TaskMap
 from airflow.models.taskreschedule import TaskReschedule
 from airflow.models.variable import Variable
-from airflow.models.xcom import XCom
+from airflow.models.xcom import XComModel
 from airflow.notifications.basenotifier import BaseNotifier
 from airflow.providers.standard.operators.bash import BashOperator
 from airflow.providers.standard.operators.empty import EmptyOperator
@@ -1153,8 +1154,8 @@ class TestTaskInstance:
         # Check that reschedules for ti have also been cleared.
         assert not task_reschedules_for_ti(ti)
 
-    def test_depends_on_past(self, dag_maker):
-        with dag_maker(dag_id="test_depends_on_past", serialized=True):
+    def test_depends_on_past_catchup_true(self, dag_maker):
+        with dag_maker(dag_id="test_depends_on_past", serialized=True, catchup=True):
             task = EmptyOperator(
                 task_id="test_dop_task",
                 depends_on_past=True,
@@ -1180,6 +1181,43 @@ class TestTaskInstance:
         assert ti.state is None
 
         # ignore first depends_on_past to allow the run
+        task.run(start_date=run_date, end_date=run_date, ignore_first_depends_on_past=True)
+        ti.refresh_from_db()
+        assert ti.state == State.SUCCESS
+
+    def test_depends_on_past_catchup_false(self, dag_maker):
+        with dag_maker(dag_id="test_depends_on_past_catchup_false", serialized=True, catchup=False):
+            task = EmptyOperator(
+                task_id="test_dop_task",
+                depends_on_past=True,
+            )
+
+        dag_maker.create_dagrun(
+            state=State.FAILED,
+            run_type=DagRunType.SCHEDULED,
+        )
+
+        run_date = task.start_date + datetime.timedelta(days=5)
+
+        dr = dag_maker.create_dagrun(
+            logical_date=run_date,
+            run_type=DagRunType.SCHEDULED,
+        )
+
+        ti = dr.task_instances[0]
+        ti.task = task
+
+        # With catchup=False, depends_on_past behavior is different:
+        # The task ignores historical dependencies since catchup=False means
+        # "only consider runs from now forward"
+        task.run(start_date=run_date, end_date=run_date, ignore_first_depends_on_past=False)
+        ti.refresh_from_db()
+
+        # The task runs successfully even with depends_on_past=True because
+        # catchup=False changes how historical dependencies are considered
+        assert ti.state == State.SUCCESS
+
+        # ignore_first_depends_on_past should still allow the run with catchup=False
         task.run(start_date=run_date, end_date=run_date, ignore_first_depends_on_past=True)
         ti.refresh_from_db()
         assert ti.state == State.SUCCESS
@@ -2372,9 +2410,11 @@ class TestTaskInstance:
             ti.run(session=session)
 
         xcom = session.scalars(
-            select(XCom).filter_by(dag_id=dr.dag_id, run_id=dr.run_id, task_id="write1", key="return_value")
+            select(XComModel).filter_by(
+                dag_id=dr.dag_id, run_id=dr.run_id, task_id="write1", key="return_value"
+            )
         ).one()
-        assert xcom.value == "write_1 result"
+        assert xcom.value == json.dumps("write_1 result")
 
         events = dict(iter(session.execute(select(AssetEvent.source_task_id, AssetEvent))))
         assert set(events) == {"write1", "write2"}
@@ -2563,7 +2603,7 @@ class TestTaskInstance:
         from airflow.sdk.definitions.asset import Asset, AssetAlias
 
         asset_alias_name = "test_outlet_asset_alias_asset_not_exists_asset_alias"
-        asset_uri = "did_not_exists"
+        asset_uri = "does_not_exist"
 
         with dag_maker(dag_id="producer_dag", schedule=None, serialized=True, session=session):
 
@@ -2573,34 +2613,21 @@ class TestTaskInstance:
 
             producer()
 
-        dr: DagRun = dag_maker.create_dagrun()
+        (ti,) = dag_maker.create_dagrun().get_task_instances(session=session)
 
-        for ti in dr.get_task_instances(session=session):
+        with pytest.raises(AirflowInactiveAssetAddedToAssetAliasException) as ctx:
             ti.run(session=session)
+        assert str(ctx.value) == (
+            "The following assets accessed by an AssetAlias are inactive: "
+            "Asset(name='does_not_exist', uri='does_not_exist')"
+        )
 
-        producer_event = session.scalar(select(AssetEvent).where(AssetEvent.source_task_id == "producer"))
-
-        assert producer_event.source_task_id == "producer"
-        assert producer_event.source_dag_id == "producer_dag"
-        assert producer_event.source_run_id == "test"
-        assert producer_event.source_map_index == -1
-        assert producer_event.asset.uri == asset_uri
-        assert producer_event.extra == {"key": "value"}
-        assert len(producer_event.source_aliases) == 1
-        assert producer_event.source_aliases[0].name == asset_alias_name
-
-        asset_obj = session.scalar(select(AssetModel).where(AssetModel.uri == asset_uri))
-        assert len(asset_obj.aliases) == 1
-        assert asset_obj.aliases[0].name == asset_alias_name
-
-        asset_alias_obj = session.scalar(select(AssetAliasModel))
-        assert len(asset_alias_obj.assets) == 1
-        assert asset_alias_obj.assets[0].uri == asset_uri
+        assert session.scalar(select(AssetEvent)) is None
 
     def test_outlet_asset_alias_asset_inactive(self, dag_maker, session):
         from airflow.sdk.definitions.asset import Asset, AssetAlias
 
-        asset_name = "did_not_exists"
+        asset_name = "did_not_exist"
         asset = Asset(asset_name)
         asset2 = Asset(asset_name, uri="test://asset")
         asm = AssetModel.from_public(asset)
@@ -2626,7 +2653,7 @@ class TestTaskInstance:
         with pytest.raises(AirflowInactiveAssetAddedToAssetAliasException) as exc:
             tis["producer_with_inactive"].run(session=session)
 
-        assert 'Asset(name="did_not_exists", uri="test://asset/")' in str(exc.value)
+        assert "Asset(name='did_not_exist', uri='test://asset/')" in str(exc.value)
 
         producer_event = session.scalar(
             select(AssetEvent).where(AssetEvent.source_task_id == "producer_without_inactive")
@@ -3519,8 +3546,8 @@ class TestTaskInstance:
     @patch.object(Stats, "incr")
     def test_handle_failure_no_task(self, Stats_incr, dag_maker):
         """
-        When a zombie is detected for a DAG with a parse error, we need to be able to run handle_failure
-        _without_ ti.task being set
+        When a task instance heartbeat timeout is detected for a DAG with a parse error,
+        we need to be able to run handle_failure _without_ ti.task being set
         """
         session = settings.Session()
         with dag_maker():
@@ -3983,7 +4010,7 @@ class TestTaskInstance:
         assert ser_ti.task.operator_name == "EmptyOperator"
 
     def test_clear_db_references(self, session, create_task_instance):
-        tables = [RenderedTaskInstanceFields, XCom]
+        tables = [RenderedTaskInstanceFields, XComModel]
         ti = create_task_instance()
         ti.note = "sample note"
 
@@ -3991,20 +4018,19 @@ class TestTaskInstance:
         session.commit()
         for table in [RenderedTaskInstanceFields]:
             session.add(table(ti))
-        XCom.set(key="key", value="value", task_id=ti.task_id, dag_id=ti.dag_id, run_id=ti.run_id)
+        XComModel.set(key="key", value="value", task_id=ti.task_id, dag_id=ti.dag_id, run_id=ti.run_id)
         session.commit()
         for table in tables:
             assert session.query(table).count() == 1
 
-        filter_kwargs = dict(dag_id=ti.dag_id, task_id=ti.task_id, run_id=ti.run_id, map_index=ti.map_index)
-        ti_note = session.query(TaskInstanceNote).filter_by(**filter_kwargs).one()
+        ti_note = session.query(TaskInstanceNote).filter_by(ti_id=ti.id).one()
         assert ti_note.content == "sample note"
 
         ti.clear_db_references(session)
         for table in tables:
             assert session.query(table).count() == 0
 
-        assert session.query(TaskInstanceNote).filter_by(**filter_kwargs).one_or_none() is None
+        assert session.query(TaskInstanceNote).filter_by(ti_id=ti.id).one_or_none() is None
 
     def test_skipped_task_call_on_skipped_callback(self, dag_maker):
         def raise_skip_exception():
@@ -4087,8 +4113,8 @@ class TestTaskInstance:
         with pytest.raises(AirflowInactiveAssetInInletOrOutletException) as exc:
             tis["duplicate_asset_task_in_outlet"].run(session=session)
 
-        assert 'Asset(name="asset_second", uri="asset_second")' in str(exc.value)
-        assert 'Asset(name="asset_first", uri="test://asset/")' in str(exc.value)
+        assert "Asset(name='asset_second', uri='asset_second')" in str(exc.value)
+        assert "Asset(name='asset_first', uri='test://asset/')" in str(exc.value)
 
     @pytest.mark.want_activate_assets(True)
     def test_run_with_inactive_assets_in_outlets_within_the_same_dag(self, dag_maker, session):
@@ -4113,7 +4139,7 @@ class TestTaskInstance:
 
         assert str(exc.value) == (
             "Task has the following inactive assets in its inlets or outlets: "
-            'Asset(name="asset_first", uri="test://asset/")'
+            "Asset(name='asset_first', uri='test://asset/')"
         )
 
     @pytest.mark.want_activate_assets(True)
@@ -4142,7 +4168,7 @@ class TestTaskInstance:
 
         assert str(exc.value) == (
             "Task has the following inactive assets in its inlets or outlets: "
-            'Asset(name="asset_first", uri="test://asset/")'
+            "Asset(name='asset_first', uri='test://asset/')"
         )
 
     @pytest.mark.want_activate_assets(True)
@@ -4167,7 +4193,7 @@ class TestTaskInstance:
 
         assert str(exc.value) == (
             "Task has the following inactive assets in its inlets or outlets: "
-            'Asset(name="asset_first", uri="asset_first")'
+            "Asset(name='asset_first', uri='asset_first')"
         )
 
     @pytest.mark.want_activate_assets(True)
@@ -4196,7 +4222,7 @@ class TestTaskInstance:
 
         assert str(exc.value) == (
             "Task has the following inactive assets in its inlets or outlets: "
-            'Asset(name="asset_first", uri="test://asset/")'
+            "Asset(name='asset_first', uri='test://asset/')"
         )
 
 
@@ -4805,6 +4831,29 @@ class TestMappedTaskInstanceReceiveValue:
             ti.run()
         assert outputs == expected_outputs
 
+    def test_map_has_dag_version(self, dag_maker, session):
+        from airflow.models.dag_version import DagVersion
+
+        known_versions = {}
+
+        with dag_maker(dag_id="test", session=session) as dag:
+
+            @dag.task
+            def show(value, *, ti):
+                known_versions[ti.map_index] = ti.dag_version_id
+
+            show.expand(value=[1, 2, 3])
+
+        dag_version = session.merge(DagVersion(dag_id="test", bundle_name="test"))
+
+        dag_maker.create_dagrun(dag_version=dag_version)
+        task = dag.get_task("show")
+        for ti in session.scalars(select(TI)):
+            ti.refresh_from_task(task)
+            ti.run()
+
+        assert known_versions == {0: dag_version.id, 1: dag_version.id, 2: dag_version.id}
+
     @pytest.mark.parametrize(
         "upstream_return, expected_outputs",
         [
@@ -4972,16 +5021,14 @@ def test_taskinstance_with_note(create_task_instance, session):
     session.add(ti)
     session.commit()
 
-    filter_kwargs = dict(dag_id=ti.dag_id, task_id=ti.task_id, run_id=ti.run_id, map_index=ti.map_index)
-
-    ti_note: TaskInstanceNote = session.query(TaskInstanceNote).filter_by(**filter_kwargs).one()
+    ti_note: TaskInstanceNote = session.query(TaskInstanceNote).filter_by(ti_id=ti.id).one()
     assert ti_note.content == "ti with note"
 
     session.delete(ti)
     session.commit()
 
-    assert session.query(TaskInstance).filter_by(**filter_kwargs).one_or_none() is None
-    assert session.query(TaskInstanceNote).filter_by(**filter_kwargs).one_or_none() is None
+    assert session.query(TaskInstance).filter_by(id=ti.id).one_or_none() is None
+    assert session.query(TaskInstanceNote).filter_by(ti_id=ti.id).one_or_none() is None
 
 
 def test__refresh_from_db_should_not_increment_try_number(dag_maker, session):

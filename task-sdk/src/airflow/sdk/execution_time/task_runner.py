@@ -19,12 +19,15 @@
 
 from __future__ import annotations
 
+import contextvars
 import functools
 import os
 import sys
-from collections.abc import Iterable, Mapping
+import time
+from collections.abc import Iterable, Iterator, Mapping
 from datetime import datetime, timezone
 from io import FileIO
+from itertools import product
 from pathlib import Path
 from typing import TYPE_CHECKING, Annotated, Any, Generic, TextIO, TypeVar
 
@@ -45,24 +48,27 @@ from airflow.sdk.api.datamodels._generated import (
 )
 from airflow.sdk.definitions._internal.dag_parsing_context import _airflow_parsing_context_manager
 from airflow.sdk.definitions._internal.types import NOTSET, ArgNotSet
-from airflow.sdk.definitions.asset import Asset, AssetAlias, AssetNameRef, AssetUriRef
-from airflow.sdk.definitions.baseoperator import BaseOperator
+from airflow.sdk.definitions.asset import Asset, AssetAlias, AssetNameRef, AssetUniqueKey, AssetUriRef
+from airflow.sdk.definitions.baseoperator import BaseOperator, ExecutorSafeguard
 from airflow.sdk.definitions.mappedoperator import MappedOperator
 from airflow.sdk.definitions.param import process_params
+from airflow.sdk.exceptions import ErrorType
 from airflow.sdk.execution_time.comms import (
+    DagRunStateResult,
     DeferTask,
-    GetXCom,
+    ErrorResponse,
+    GetDagRunState,
     OKResponse,
     RescheduleTask,
     RuntimeCheckOnTask,
     SetRenderedFields,
-    SetXCom,
+    SkipDownstreamTasks,
     StartupDetails,
     SucceedTask,
     TaskState,
     ToSupervisor,
     ToTask,
-    XComResult,
+    TriggerDagRun,
 )
 from airflow.sdk.execution_time.context import (
     ConnectionAccessor,
@@ -73,6 +79,7 @@ from airflow.sdk.execution_time.context import (
     get_previous_dagrun_success,
     set_current_context,
 )
+from airflow.sdk.execution_time.xcom import XCom
 from airflow.utils.net import get_hostname
 from airflow.utils.state import TaskInstanceState
 
@@ -80,8 +87,10 @@ if TYPE_CHECKING:
     import jinja2
     from structlog.typing import FilteringBoundLogger as Logger
 
+    from airflow.exceptions import DagRunTriggerException
     from airflow.sdk.definitions._internal.abstractoperator import AbstractOperator
     from airflow.sdk.definitions.context import Context
+    from airflow.sdk.types import OutletEventAccessorsProtocol
 
 
 class TaskRunnerMarker:
@@ -253,7 +262,9 @@ class RuntimeTaskInstance(TaskInstance):
         run_id: str | None = None,
     ) -> Any:
         """
-        Pull XComs that optionally meet certain criteria.
+        Pull XComs either from the API server (BaseXCom) or from the custom XCOM backend if configured.
+
+        The pull can be filtered optionally by certain criterion.
 
         :param key: A key for the XCom. If provided, only XComs with matching
             keys will be returned. The default key is ``'return_value'``, also
@@ -274,12 +285,17 @@ class RuntimeTaskInstance(TaskInstance):
             If *None* (default), the run_id of the calling task is used.
 
         When pulling one single task (``task_id`` is *None* or a str) without
-        specifying ``map_indexes``, the return value is inferred from whether
-        the specified task is mapped. If not, value from the one single task
-        instance is returned. If the task to pull is mapped, an iterator (not a
-        list) yielding XComs from mapped task instances is returned. In either
-        case, ``default`` (*None* if not specified) is returned if no matching
-        XComs are found.
+        specifying ``map_indexes``, the return value is a single XCom entry
+        (map_indexes is set to map_index of the calling task instance).
+
+        When pulling task is mapped the specified ``map_index`` is used, so by default
+        pulling on mapped task will result in no matching XComs if the task instance
+        of the method call is not mapped. Otherwise, the map_index of the calling task
+        instance is used. Setting ``map_indexes`` to *None* will pull XCom as it would
+        from a non mapped task.
+
+        In either case, ``default`` (*None* if not specified) is returned if no
+        matching XComs are found.
 
         When pulling multiple tasks (i.e. either ``task_id`` or ``map_index`` is
         a non-str iterable), a list of matching XComs is returned. Elements in
@@ -295,42 +311,34 @@ class RuntimeTaskInstance(TaskInstance):
             task_ids = [self.task_id]
         elif isinstance(task_ids, str):
             task_ids = [task_ids]
+
+        map_indexes_iterable: Iterable[int | None] = []
+        # If map_indexes is not provided, default to use the map_index of the calling task
         if isinstance(map_indexes, ArgNotSet):
-            map_indexes = self.map_index
+            map_indexes_iterable = [self.map_index]
+        elif isinstance(map_indexes, int) or map_indexes is None:
+            map_indexes_iterable = [map_indexes]
         elif isinstance(map_indexes, Iterable):
-            # TODO: Handle multiple map_indexes or remove support
-            raise NotImplementedError("Multiple map_indexes are not supported yet")
-
-        log = structlog.get_logger(logger_name="task")
-
-        xcoms = []
-        for t in task_ids:
-            SUPERVISOR_COMMS.send_request(
-                log=log,
-                msg=GetXCom(
-                    key=key,
-                    dag_id=dag_id,
-                    task_id=t,
-                    run_id=run_id,
-                    map_index=map_indexes,
-                ),
+            map_indexes_iterable = map_indexes
+        else:
+            raise TypeError(
+                f"Invalid type for map_indexes: expected int, iterable of ints, or None, got {type(map_indexes)}"
             )
 
-            msg = SUPERVISOR_COMMS.get_message()
-            if not isinstance(msg, XComResult):
-                raise TypeError(f"Expected XComResult, received: {type(msg)} {msg}")
-
-            if msg.value is not None:
-                from airflow.serialization.serde import deserialize
-
-                # TODO: Move XCom serialization & deserialization to Task SDK
-                #   https://github.com/apache/airflow/issues/45231
-
-                # The execution API server deals in json compliant types now.
-                # serde's deserialize can handle deserializing primitive, collections, and complex objects too
-                xcoms.append(deserialize(msg.value))  # type: ignore[type-var]
-            else:
-                xcoms.append(default)
+        xcoms = []
+        # TODO: AIP 72 Execution API only allows working with a single map_index at a time
+        # this is inefficient and leads to task_id * map_index requests to the API.
+        # And we can't achieve the original behavior of XCom pull with multiple tasks
+        # directly now.
+        for t_id, m_idx in product(task_ids, map_indexes_iterable):
+            value = XCom.get_one(
+                run_id=run_id,
+                key=key,
+                task_id=t_id,
+                dag_id=dag_id,
+                map_index=m_idx,
+            )
+            xcoms.append(value if value else default)
 
         if len(xcoms) == 1:
             return xcoms[0]
@@ -355,28 +363,14 @@ class RuntimeTaskInstance(TaskInstance):
 def _xcom_push(ti: RuntimeTaskInstance, key: str, value: Any, mapped_length: int | None = None) -> None:
     # Private function, as we don't want to expose the ability to manually set `mapped_length` to SDK
     # consumers
-    from airflow.serialization.serde import serialize
-
-    # TODO: Move XCom serialization & deserialization to Task SDK
-    #   https://github.com/apache/airflow/issues/45231
-
-    # The execution API server now deals in json compliant objects.
-    # It is responsibility of the client to handle any non native object serialization.
-    # serialize does just that.
-    value = serialize(value)
-
-    log = structlog.get_logger(logger_name="task")
-    SUPERVISOR_COMMS.send_request(
-        log=log,
-        msg=SetXCom(
-            key=key,
-            value=value,
-            dag_id=ti.dag_id,
-            task_id=ti.task_id,
-            run_id=ti.run_id,
-            map_index=ti.map_index,
-            mapped_length=mapped_length,
-        ),
+    XCom.set(
+        key=key,
+        value=value,
+        dag_id=ti.dag_id,
+        task_id=ti.task_id,
+        run_id=ti.run_id,
+        map_index=ti.map_index,
+        _mapped_length=mapped_length,
     )
 
 
@@ -514,34 +508,29 @@ def _serialize_rendered_fields(task: AbstractOperator) -> dict[str, JsonValue]:
     return {field: serialize_template_field(getattr(task, field), field) for field in task.template_fields}
 
 
-def _process_outlets(context: Context, outlets: list[AssetProfile]):
-    added_alias_to_task_outlet = False
-    task_outlets: list[AssetProfile] = []
-    outlet_events: list[Any] = []
-    events = context["outlet_events"]
-
-    for obj in outlets or []:
-        # Lineage can have other types of objects besides assets
-        asset_type = type(obj).__name__
+def _build_asset_profiles(lineage_objects: list) -> Iterator[AssetProfile]:
+    # Lineage can have other types of objects besides assets, so we need to process them a bit.
+    for obj in lineage_objects or ():
         if isinstance(obj, Asset):
-            task_outlets.append(AssetProfile(name=obj.name, uri=obj.uri, asset_type=asset_type))
-            outlet_events.append(attrs.asdict(events[obj]))  # type: ignore
+            yield AssetProfile(name=obj.name, uri=obj.uri, type=Asset.__name__)
         elif isinstance(obj, AssetNameRef):
-            task_outlets.append(AssetProfile(name=obj.name, asset_type=asset_type))
-            # Send all events, filtering can be done in API server.
-            outlet_events.append(attrs.asdict(events))  # type: ignore
+            yield AssetProfile(name=obj.name, type=AssetNameRef.__name__)
         elif isinstance(obj, AssetUriRef):
-            task_outlets.append(AssetProfile(uri=obj.uri, asset_type=asset_type))
-            # Send all events, filtering can be done in API server.
-            outlet_events.append(attrs.asdict(events))  # type: ignore
+            yield AssetProfile(uri=obj.uri, type=AssetUriRef.__name__)
         elif isinstance(obj, AssetAlias):
-            if not added_alias_to_task_outlet:
-                task_outlets.append(AssetProfile(asset_type=asset_type))
-                added_alias_to_task_outlet = True
-            for asset_alias_event in events[obj].asset_alias_events:
-                outlet_events.append(attrs.asdict(asset_alias_event))
+            yield AssetProfile(name=obj.name, type=AssetAlias.__name__)
 
-    return task_outlets, outlet_events
+
+def _serialize_outlet_events(events: OutletEventAccessorsProtocol) -> Iterator[dict[str, Any]]:
+    if TYPE_CHECKING:
+        assert isinstance(events, OutletEventAccessors)
+    # We just collect everything the user recorded in the accessors.
+    # Further filtering will be done in the API server.
+    for key, accessor in events._dict.items():
+        if isinstance(key, AssetUniqueKey):
+            yield {"dest_asset_key": attrs.asdict(key), "extra": accessor.extra}
+        for alias_event in accessor.asset_alias_events:
+            yield attrs.asdict(alias_event)
 
 
 def _prepare(ti: RuntimeTaskInstance, log: Logger, context: Context) -> ToSupervisor | None:
@@ -586,6 +575,8 @@ def run(
         AirflowSkipException,
         AirflowTaskTerminated,
         AirflowTaskTimeout,
+        DagRunTriggerException,
+        DownstreamTasksSkipped,
         TaskDeferred,
     )
 
@@ -596,8 +587,20 @@ def run(
     msg: ToSupervisor | None = None
     state: IntermediateTIState | TerminalTIState
     error: BaseException | None = None
+
+    context = ti.get_template_context()
     try:
-        context = ti.get_template_context()
+        # First, clear the xcom data sent from server
+        if ti._ti_context_from_server and (keys_to_delete := ti._ti_context_from_server.xcom_keys_to_clear):
+            for x in keys_to_delete:
+                log.debug("Clearing XCom with key", key=x)
+                XCom.delete(
+                    key=x,
+                    dag_id=ti.dag_id,
+                    task_id=ti.task_id,
+                    run_id=ti.run_id,
+                )
+
         with set_current_context(context):
             # This is the earliest that we can render templates -- as if it excepts for any reason we need to
             # catch it and handle it like a normal task failure
@@ -610,13 +613,14 @@ def run(
 
         _push_xcom_if_needed(result, ti, log)
 
-        task_outlets, outlet_events = _process_outlets(context, ti.task.outlets)
-        msg = SucceedTask(
-            end_date=datetime.now(tz=timezone.utc),
-            task_outlets=task_outlets,
-            outlet_events=outlet_events,
-        )
-        state = TerminalTIState.SUCCESS
+        msg, state = _handle_current_task_success(context, ti)
+    except DownstreamTasksSkipped as skip:
+        log.info("Skipping downstream tasks.")
+        tasks_to_skip = skip.tasks if isinstance(skip.tasks, list) else [skip.tasks]
+        SUPERVISOR_COMMS.send_request(log=log, msg=SkipDownstreamTasks(tasks=tasks_to_skip))
+        msg, state = _handle_current_task_success(context, ti)
+    except DagRunTriggerException as drte:
+        msg, state = _handle_trigger_dag_run(drte, context, ti, log)
     except TaskDeferred as defer:
         # TODO: Should we use structlog.bind_contextvars here for dag_id, task_id & run_id?
         log.info("Pausing task as DEFERRED. ", dag_id=ti.dag_id, task_id=ti.task_id, run_id=ti.run_id)
@@ -697,6 +701,94 @@ def run(
     return state, msg, error
 
 
+def _handle_current_task_success(context: Context, ti: RuntimeTaskInstance):
+    task_outlets = list(_build_asset_profiles(ti.task.outlets))
+    outlet_events = list(_serialize_outlet_events(context["outlet_events"]))
+    msg = SucceedTask(
+        end_date=datetime.now(tz=timezone.utc),
+        task_outlets=task_outlets,
+        outlet_events=outlet_events,
+    )
+    return msg, TerminalTIState.SUCCESS
+
+
+def _handle_trigger_dag_run(
+    drte: DagRunTriggerException, context: Context, ti: RuntimeTaskInstance, log: Logger
+):
+    """Handle exception from TriggerDagRunOperator."""
+    log.info("Triggering Dag Run.", trigger_dag_id=drte.trigger_dag_id)
+    SUPERVISOR_COMMS.send_request(
+        log=log,
+        msg=TriggerDagRun(
+            dag_id=drte.trigger_dag_id,
+            run_id=drte.dag_run_id,
+            logical_date=drte.logical_date,
+            conf=drte.conf,
+            reset_dag_run=drte.reset_dag_run,
+        ),
+    )
+
+    comms_msg = SUPERVISOR_COMMS.get_message()
+    if isinstance(comms_msg, ErrorResponse) and comms_msg.error == ErrorType.DAGRUN_ALREADY_EXISTS:
+        if drte.skip_when_already_exists:
+            log.info(
+                "Dag Run already exists, skipping task as skip_when_already_exists is set to True.",
+                dag_id=drte.trigger_dag_id,
+            )
+            msg = TaskState(state=TerminalTIState.SKIPPED, end_date=datetime.now(tz=timezone.utc))
+            state = TerminalTIState.SKIPPED
+        else:
+            log.error("Dag Run already exists, marking task as failed.", dag_id=drte.trigger_dag_id)
+            msg = TaskState(state=TerminalTIState.FAILED, end_date=datetime.now(tz=timezone.utc))
+            state = TerminalTIState.FAILED
+
+        return msg, state
+
+    log.info("Dag Run triggered successfully.", trigger_dag_id=drte.trigger_dag_id)
+
+    # Store the run id from the dag run (either created or found above) to
+    # be used when creating the extra link on the webserver.
+    ti.xcom_push(key="trigger_run_id", value=drte.dag_run_id)
+
+    if drte.wait_for_completion:
+        while True:
+            log.info(
+                "Waiting for dag run to complete execution in allowed state.",
+                dag_id=drte.trigger_dag_id,
+                run_id=drte.dag_run_id,
+                allowed_state=drte.allowed_states,
+            )
+            time.sleep(drte.poke_interval)
+
+            SUPERVISOR_COMMS.send_request(
+                log=log, msg=GetDagRunState(dag_id=drte.trigger_dag_id, run_id=drte.dag_run_id)
+            )
+            comms_msg = SUPERVISOR_COMMS.get_message()
+            if TYPE_CHECKING:
+                assert isinstance(comms_msg, DagRunStateResult)
+            if comms_msg.state in drte.failed_states:
+                log.error(
+                    "DagRun finished with failed state.", dag_id=drte.trigger_dag_id, state=comms_msg.state
+                )
+                msg = TaskState(state=TerminalTIState.FAILED, end_date=datetime.now(tz=timezone.utc))
+                state = TerminalTIState.FAILED
+                return msg, state
+            if comms_msg.state in drte.allowed_states:
+                log.info(
+                    "DagRun finished with allowed state.", dag_id=drte.trigger_dag_id, state=comms_msg.state
+                )
+                break
+            log.debug(
+                "DagRun not yet in allowed or failed state.",
+                dag_id=drte.trigger_dag_id,
+                state=comms_msg.state,
+            )
+
+    msg, state = _handle_current_task_success(context, ti)
+
+    return msg, state
+
+
 def _execute_task(context: Context, ti: RuntimeTaskInstance):
     """Execute Task (optionally with a Timeout) and push Xcom results."""
     from airflow.exceptions import AirflowTaskTimeout
@@ -711,6 +803,10 @@ def _execute_task(context: Context, ti: RuntimeTaskInstance):
 
         execute = functools.partial(task.resume_execution, next_method=next_method, next_kwargs=kwargs)
 
+    ctx = contextvars.copy_context()
+    # Populate the context var so ExecutorSafeguard doesn't complain
+    ctx.run(ExecutorSafeguard.tracker.set, task)
+
     if task.execution_timeout:
         # TODO: handle timeout in case of deferral
         from airflow.utils.timeout import timeout
@@ -722,12 +818,12 @@ def _execute_task(context: Context, ti: RuntimeTaskInstance):
                 raise AirflowTaskTimeout()
             # Run task in timeout wrapper
             with timeout(timeout_seconds):
-                result = execute(context=context)
+                result = ctx.run(execute, context=context)
         except AirflowTaskTimeout:
             # TODO: handle on kill callback here
             raise
     else:
-        result = execute(context=context)
+        result = ctx.run(execute, context=context)
     return result
 
 

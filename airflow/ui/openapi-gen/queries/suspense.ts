@@ -3,6 +3,7 @@ import { UseQueryOptions, useSuspenseQuery } from "@tanstack/react-query";
 
 import {
   AssetService,
+  AuthLinksService,
   BackfillService,
   ConfigService,
   ConnectionService,
@@ -37,6 +38,24 @@ import { DagRunState, DagWarningType } from "../requests/types.gen";
 import * as Common from "./common";
 
 /**
+ * Get Auth Links
+ * @returns MenuItemCollectionResponse Successful Response
+ * @throws ApiError
+ */
+export const useAuthLinksServiceGetAuthLinksSuspense = <
+  TData = Common.AuthLinksServiceGetAuthLinksDefaultResponse,
+  TError = unknown,
+  TQueryKey extends Array<unknown> = unknown[],
+>(
+  queryKey?: TQueryKey,
+  options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">,
+) =>
+  useSuspenseQuery<TData, TError>({
+    queryKey: Common.UseAuthLinksServiceGetAuthLinksKeyFn(queryKey),
+    queryFn: () => AuthLinksService.getAuthLinks() as TData,
+    ...options,
+  });
+/**
  * Next Run Assets
  * @param data The data for the request.
  * @param data.dagId
@@ -70,6 +89,7 @@ export const useAssetServiceNextRunAssetsSuspense = <
  * @param data.namePattern
  * @param data.uriPattern
  * @param data.dagIds
+ * @param data.onlyActive
  * @param data.orderBy
  * @returns AssetCollectionResponse Successful Response
  * @throws ApiError
@@ -84,6 +104,7 @@ export const useAssetServiceGetAssetsSuspense = <
     limit,
     namePattern,
     offset,
+    onlyActive,
     orderBy,
     uriPattern,
   }: {
@@ -91,6 +112,7 @@ export const useAssetServiceGetAssetsSuspense = <
     limit?: number;
     namePattern?: string;
     offset?: number;
+    onlyActive?: boolean;
     orderBy?: string;
     uriPattern?: string;
   } = {},
@@ -99,11 +121,19 @@ export const useAssetServiceGetAssetsSuspense = <
 ) =>
   useSuspenseQuery<TData, TError>({
     queryKey: Common.UseAssetServiceGetAssetsKeyFn(
-      { dagIds, limit, namePattern, offset, orderBy, uriPattern },
+      { dagIds, limit, namePattern, offset, onlyActive, orderBy, uriPattern },
       queryKey,
     ),
     queryFn: () =>
-      AssetService.getAssets({ dagIds, limit, namePattern, offset, orderBy, uriPattern }) as TData,
+      AssetService.getAssets({
+        dagIds,
+        limit,
+        namePattern,
+        offset,
+        onlyActive,
+        orderBy,
+        uriPattern,
+      }) as TData,
     ...options,
   });
 /**
@@ -438,6 +468,89 @@ export const useConfigServiceGetConfigValueSuspense = <
   useSuspenseQuery<TData, TError>({
     queryKey: Common.UseConfigServiceGetConfigValueKeyFn({ accept, option, section }, queryKey),
     queryFn: () => ConfigService.getConfigValue({ accept, option, section }) as TData,
+    ...options,
+  });
+/**
+ * Hook Meta Data
+ * Retrieve information about available connection types (hook classes) and their parameters.
+ * @returns ConnectionHookMetaData Successful Response
+ * @throws ApiError
+ */
+export const useConnectionServiceHookMetaDataSuspense = <
+  TData = Common.ConnectionServiceHookMetaDataDefaultResponse,
+  TError = unknown,
+  TQueryKey extends Array<unknown> = unknown[],
+>(
+  queryKey?: TQueryKey,
+  options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">,
+) =>
+  useSuspenseQuery<TData, TError>({
+    queryKey: Common.UseConnectionServiceHookMetaDataKeyFn(queryKey),
+    queryFn: () => ConnectionService.hookMetaData() as TData,
+    ...options,
+  });
+/**
+ * Get Connection
+ * Get a connection entry.
+ * @param data The data for the request.
+ * @param data.connectionId
+ * @returns ConnectionResponse Successful Response
+ * @throws ApiError
+ */
+export const useConnectionServiceGetConnectionSuspense = <
+  TData = Common.ConnectionServiceGetConnectionDefaultResponse,
+  TError = unknown,
+  TQueryKey extends Array<unknown> = unknown[],
+>(
+  {
+    connectionId,
+  }: {
+    connectionId: string;
+  },
+  queryKey?: TQueryKey,
+  options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">,
+) =>
+  useSuspenseQuery<TData, TError>({
+    queryKey: Common.UseConnectionServiceGetConnectionKeyFn({ connectionId }, queryKey),
+    queryFn: () => ConnectionService.getConnection({ connectionId }) as TData,
+    ...options,
+  });
+/**
+ * Get Connections
+ * Get all connection entries.
+ * @param data The data for the request.
+ * @param data.limit
+ * @param data.offset
+ * @param data.orderBy
+ * @param data.connectionIdPattern
+ * @returns ConnectionCollectionResponse Successful Response
+ * @throws ApiError
+ */
+export const useConnectionServiceGetConnectionsSuspense = <
+  TData = Common.ConnectionServiceGetConnectionsDefaultResponse,
+  TError = unknown,
+  TQueryKey extends Array<unknown> = unknown[],
+>(
+  {
+    connectionIdPattern,
+    limit,
+    offset,
+    orderBy,
+  }: {
+    connectionIdPattern?: string;
+    limit?: number;
+    offset?: number;
+    orderBy?: string;
+  } = {},
+  queryKey?: TQueryKey,
+  options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">,
+) =>
+  useSuspenseQuery<TData, TError>({
+    queryKey: Common.UseConnectionServiceGetConnectionsKeyFn(
+      { connectionIdPattern, limit, offset, orderBy },
+      queryKey,
+    ),
+    queryFn: () => ConnectionService.getConnections({ connectionIdPattern, limit, offset, orderBy }) as TData,
     ...options,
   });
 /**
@@ -827,70 +940,6 @@ export const useGridServiceGridDataSuspense = <
         runType,
         state,
       }) as TData,
-    ...options,
-  });
-/**
- * Get Connection
- * Get a connection entry.
- * @param data The data for the request.
- * @param data.connectionId
- * @returns ConnectionResponse Successful Response
- * @throws ApiError
- */
-export const useConnectionServiceGetConnectionSuspense = <
-  TData = Common.ConnectionServiceGetConnectionDefaultResponse,
-  TError = unknown,
-  TQueryKey extends Array<unknown> = unknown[],
->(
-  {
-    connectionId,
-  }: {
-    connectionId: string;
-  },
-  queryKey?: TQueryKey,
-  options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">,
-) =>
-  useSuspenseQuery<TData, TError>({
-    queryKey: Common.UseConnectionServiceGetConnectionKeyFn({ connectionId }, queryKey),
-    queryFn: () => ConnectionService.getConnection({ connectionId }) as TData,
-    ...options,
-  });
-/**
- * Get Connections
- * Get all connection entries.
- * @param data The data for the request.
- * @param data.limit
- * @param data.offset
- * @param data.orderBy
- * @param data.connectionIdPattern
- * @returns ConnectionCollectionResponse Successful Response
- * @throws ApiError
- */
-export const useConnectionServiceGetConnectionsSuspense = <
-  TData = Common.ConnectionServiceGetConnectionsDefaultResponse,
-  TError = unknown,
-  TQueryKey extends Array<unknown> = unknown[],
->(
-  {
-    connectionIdPattern,
-    limit,
-    offset,
-    orderBy,
-  }: {
-    connectionIdPattern?: string;
-    limit?: number;
-    offset?: number;
-    orderBy?: string;
-  } = {},
-  queryKey?: TQueryKey,
-  options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">,
-) =>
-  useSuspenseQuery<TData, TError>({
-    queryKey: Common.UseConnectionServiceGetConnectionsKeyFn(
-      { connectionIdPattern, limit, offset, orderBy },
-      queryKey,
-    ),
-    queryFn: () => ConnectionService.getConnections({ connectionIdPattern, limit, offset, orderBy }) as TData,
     ...options,
   });
 /**
@@ -1381,7 +1430,6 @@ export const useDagServiceGetDagTagsSuspense = <
  * Get Event Log
  * @param data The data for the request.
  * @param data.eventLogId
- * @param data.dagId
  * @returns EventLogResponse Successful Response
  * @throws ApiError
  */
@@ -1391,28 +1439,26 @@ export const useEventLogServiceGetEventLogSuspense = <
   TQueryKey extends Array<unknown> = unknown[],
 >(
   {
-    dagId,
     eventLogId,
   }: {
-    dagId?: string;
     eventLogId: number;
   },
   queryKey?: TQueryKey,
   options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">,
 ) =>
   useSuspenseQuery<TData, TError>({
-    queryKey: Common.UseEventLogServiceGetEventLogKeyFn({ dagId, eventLogId }, queryKey),
-    queryFn: () => EventLogService.getEventLog({ dagId, eventLogId }) as TData,
+    queryKey: Common.UseEventLogServiceGetEventLogKeyFn({ eventLogId }, queryKey),
+    queryFn: () => EventLogService.getEventLog({ eventLogId }) as TData,
     ...options,
   });
 /**
  * Get Event Logs
  * Get all Event Logs.
  * @param data The data for the request.
- * @param data.dagId
  * @param data.limit
  * @param data.offset
  * @param data.orderBy
+ * @param data.dagId
  * @param data.taskId
  * @param data.runId
  * @param data.mapIndex
@@ -2893,5 +2939,31 @@ export const useLoginServiceLoginSuspense = <
   useSuspenseQuery<TData, TError>({
     queryKey: Common.UseLoginServiceLoginKeyFn({ next }, queryKey),
     queryFn: () => LoginService.login({ next }) as TData,
+    ...options,
+  });
+/**
+ * Logout
+ * Logout the user.
+ * @param data The data for the request.
+ * @param data.next
+ * @returns unknown Successful Response
+ * @throws ApiError
+ */
+export const useLoginServiceLogoutSuspense = <
+  TData = Common.LoginServiceLogoutDefaultResponse,
+  TError = unknown,
+  TQueryKey extends Array<unknown> = unknown[],
+>(
+  {
+    next,
+  }: {
+    next?: string;
+  } = {},
+  queryKey?: TQueryKey,
+  options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">,
+) =>
+  useSuspenseQuery<TData, TError>({
+    queryKey: Common.UseLoginServiceLogoutKeyFn({ next }, queryKey),
+    queryFn: () => LoginService.logout({ next }) as TData,
     ...options,
   });

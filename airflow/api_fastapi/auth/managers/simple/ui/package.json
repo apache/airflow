@@ -18,7 +18,8 @@
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
     "react-hook-form": "^7.20.0",
-    "react-router-dom": "^6.26.2"
+    "react-router-dom": "^6.26.2",
+    "react-cookie": "^7.0.0"
   },
   "devDependencies": {
     "@7nohe/openapi-react-query-codegen": "^1.6.0",
@@ -27,8 +28,8 @@
     "@vitejs/plugin-react-swc": "^3.7.0",
     "eslint": "^9.10.0",
     "happy-dom": "^15.10.2",
-    "vite": "^5.4.14",
+    "vite": "^6.2.1",
     "vite-plugin-css-injected-by-js": "^3.5.2",
-    "vitest": "^2.1.9"
+    "vitest": "^3.0.8"
   }
 }

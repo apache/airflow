@@ -52,6 +52,11 @@ def api_server(args):
     worker_timeout = args.worker_timeout
     proxy_headers = args.proxy_headers
 
+    # Ensure we set this now, so that each subprocess gets the same value
+    from airflow.api_fastapi.auth.tokens import get_signing_args
+
+    get_signing_args()
+
     if args.dev:
         print(f"Starting the API server on port {args.port} and host {args.host} in development mode.")
         log.warning("Running in dev mode, ignoring uvicorn args")

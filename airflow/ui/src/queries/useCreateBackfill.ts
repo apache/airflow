@@ -18,15 +18,19 @@
  */
 import { useState } from "react";
 
-import { useBackfillServiceCreateBackfill } from "openapi/queries";
+import { useBackfillServiceCreateBackfill, useBackfillServiceListBackfillsKey } from "openapi/queries";
 import type { CreateBackfillData } from "openapi/requests/types.gen";
 import { toaster } from "src/components/ui";
+import { queryClient } from "src/queryClient";
 
 export const useCreateBackfill = ({ onSuccessConfirm }: { onSuccessConfirm: () => void }) => {
   const [dateValidationError, setDateValidationError] = useState<unknown>(undefined);
   const [error, setError] = useState<unknown>(undefined);
 
-  const onSuccess = () => {
+  const onSuccess = async () => {
+    await queryClient.invalidateQueries({
+      queryKey: [useBackfillServiceListBackfillsKey],
+    });
     toaster.create({
       description: "Backfill jobs have been successfully triggered.",
       title: "Backfill generated",
@@ -42,11 +46,7 @@ export const useCreateBackfill = ({ onSuccessConfirm }: { onSuccessConfirm: () =
   const { isPending, mutate } = useBackfillServiceCreateBackfill({ onError, onSuccess });
 
   const createBackfill = (data: CreateBackfillData) => {
-    const dataIntervalStart = new Date(data.requestBody.from_date);
-    const dataIntervalEnd = new Date(data.requestBody.to_date);
-    const dagId = data.requestBody.dag_id;
-
-    if (!Boolean(dataIntervalStart) || !Boolean(dataIntervalEnd)) {
+    if (data.requestBody.from_date === "" || data.requestBody.to_date === "") {
       setDateValidationError({
         body: {
           detail: "Both Data Interval Start Date and End Date must be provided.",
@@ -55,6 +55,10 @@ export const useCreateBackfill = ({ onSuccessConfirm }: { onSuccessConfirm: () =
 
       return;
     }
+
+    const dataIntervalStart = new Date(data.requestBody.from_date);
+    const dataIntervalEnd = new Date(data.requestBody.to_date);
+    const dagId = data.requestBody.dag_id;
 
     if (dataIntervalStart > dataIntervalEnd) {
       setDateValidationError({

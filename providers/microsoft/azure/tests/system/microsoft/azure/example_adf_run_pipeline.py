@@ -45,7 +45,6 @@ with DAG(
         "factory_name": "my-data-factory",  # This can also be specified in the ADF connection.
         "resource_group_name": "my-resource-group",  # This can also be specified in the ADF connection.
     },
-    default_view="graph",
 ) as dag:
     begin = EmptyOperator(task_id="begin")
     end = EmptyOperator(task_id="end")

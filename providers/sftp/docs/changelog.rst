@@ -27,6 +27,28 @@
 Changelog
 ---------
 
+5.1.1
+.....
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Re-added close_conn connection on SFTPHook and get_conn should return SFTPClient instead of context managed connection (#47217)``
+
+Misc
+~~~~
+
+* ``Change get_conn to get_managed_conn in direcotry transfer (#47248)``
+* ``Improve SFTP hook's directory transfer to use a single connection for multiple files (#46582)``
+* ``Upgrade flit to 3.11.0 (#46938)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Move tests_common package to devel-common project (#47281)``
+   * ``Improve documentation for updating provider dependencies (#47203)``
+   * ``Add legacy namespace packages to airflow.providers (#47064)``
+   * ``Remove extra whitespace in provider readme template (#46975)``
+
 5.1.0
 .....
 

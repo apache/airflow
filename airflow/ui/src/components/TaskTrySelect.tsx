@@ -89,7 +89,7 @@ export const TaskTrySelect = ({ onSelectTryNumber, selectedTryNumber, taskInstan
         <Select.Root
           collection={tryOptions}
           data-testid="select-task-try"
-          defaultValue={[finalTryNumber.toString()]}
+          defaultValue={[selectedTryNumber?.toString() ?? finalTryNumber.toString()]}
           onValueChange={(details) => {
             if (onSelectTryNumber) {
               onSelectTryNumber(
@@ -135,6 +135,7 @@ export const TaskTrySelect = ({ onSelectTryNumber, selectedTryNumber, taskInstan
                     onSelectTryNumber(ti.try_number);
                   }
                 }}
+                size="sm"
                 variant={selectedTryNumber === ti.try_number ? "surface" : "outline"}
               >
                 {ti.try_number}

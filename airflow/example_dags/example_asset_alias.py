@@ -22,9 +22,6 @@ Notes on usage:
 
 Turn on all the DAGs.
 
-Before running any DAG, the schedule of the "asset_alias_example_alias_consumer" DAG will show as "Unresolved AssetAlias".
-This is expected because the asset alias has not been resolved into any asset yet.
-
 Once the "asset_s3_bucket_producer" DAG is triggered, the "asset_s3_bucket_consumer" DAG should be triggered upon completion.
 This is because the asset alias "example-alias" is used to add an asset event to the asset "s3://bucket/my-task"
 during the "produce_asset_events_through_asset_alias" task.

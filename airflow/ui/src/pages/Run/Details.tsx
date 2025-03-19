@@ -16,28 +16,44 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Box, Flex, HStack, Table, Text } from "@chakra-ui/react";
+import { Box, Flex, HStack, StackSeparator, Table, Text, VStack } from "@chakra-ui/react";
 import { useParams } from "react-router-dom";
 
-import { useDagRunServiceGetDagRun } from "openapi/queries";
+import { useDagRunServiceGetDagRun, useDagRunServiceGetUpstreamAssetEvents } from "openapi/queries";
+import { AssetEvents } from "src/components/Assets/AssetEvents";
+import { DagVersionDetails } from "src/components/DagVersionDetails";
 import RenderedJsonField from "src/components/RenderedJsonField";
 import { RunTypeIcon } from "src/components/RunTypeIcon";
 import { StateBadge } from "src/components/StateBadge";
 import Time from "src/components/Time";
 import { ClipboardRoot, ClipboardIconButton } from "src/components/ui";
-import { getDuration } from "src/utils";
+import { getDuration, isStatePending, useAutoRefresh } from "src/utils";
 
 export const Details = () => {
   const { dagId = "", runId = "" } = useParams();
 
-  const { data: dagRun } = useDagRunServiceGetDagRun({
-    dagId,
-    dagRunId: runId,
+  const refetchInterval = useAutoRefresh({ dagId });
+
+  const { data: dagRun } = useDagRunServiceGetDagRun(
+    {
+      dagId,
+      dagRunId: runId,
+    },
+    undefined,
+    { refetchInterval: (query) => (isStatePending(query.state.data?.state) ? refetchInterval : false) },
+  );
+
+  const { data, isLoading } = useDagRunServiceGetUpstreamAssetEvents({ dagId, dagRunId: runId }, undefined, {
+    enabled: dagRun?.run_type === "asset_triggered",
+    refetchInterval: () => (isStatePending(dagRun?.state) ? refetchInterval : false),
   });
 
   // TODO : Render DagRun configuration object
   return (
     <Box p={2}>
+      {data === undefined || dagRun?.run_type !== "asset_triggered" ? undefined : (
+        <AssetEvents data={data} isLoading={isLoading} title="Source Asset Event" />
+      )}
       {dagRun === undefined ? (
         <div />
       ) : (
@@ -115,6 +131,16 @@ export const Details = () => {
             <Table.Row>
               <Table.Cell>Trigger Source</Table.Cell>
               <Table.Cell>{dagRun.triggered_by}</Table.Cell>
+            </Table.Row>
+            <Table.Row>
+              <Table.Cell>Dag Version(s)</Table.Cell>
+              <Table.Cell>
+                <VStack separator={<StackSeparator />}>
+                  {dagRun.dag_versions.map((dagVersion) => (
+                    <DagVersionDetails dagVersion={dagVersion} key={dagVersion.id} />
+                  ))}
+                </VStack>
+              </Table.Cell>
             </Table.Row>
             <Table.Row>
               <Table.Cell>Run Config</Table.Cell>
