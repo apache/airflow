@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2025-03-19T02:44:53.914653
+# This constraints file was automatically generated on 2025-03-19T08:19:50.488533
 # via "eager-upgrade" mechanism of PIP. For the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version of both
 # 'apache-airflow' package and all available community provider packages.
@@ -135,7 +135,7 @@ celery==5.4.0
 certifi==2025.1.31
 cffi==1.17.1
 cfgv==3.4.0
-cfn-lint==1.31.1
+cfn-lint==1.31.2
 cgroupspy==0.2.3
 chardet==5.2.0
 charset-normalizer==3.4.1
@@ -159,7 +159,7 @@ cron-descriptor==1.4.5
 croniter==6.0.0
 cryptography==42.0.8
 curlify==2.2.1
-databricks-sql-connector==4.0.0
+databricks-sql-connector==4.0.1
 dataclasses-json==0.6.7
 datadog==0.51.0
 db-dtypes==1.4.2
@@ -613,7 +613,7 @@ types-PyMySQL==1.1.0.20241103
 types-PyYAML==6.0.12.20241230
 types-aiofiles==24.1.0.20241221
 types-certifi==2021.10.8.3
-types-cffi==1.16.0.20250318
+types-cffi==1.17.0.20250319
 types-croniter==5.0.1.20241205
 types-docutils==0.21.0.20241128
 types-paramiko==3.5.0.20240928
@@ -636,7 +636,7 @@ universal_pathlib==0.2.6
 uritemplate==4.1.1
 urllib3==2.3.0
 uuid6==2024.7.10
-uv==0.6.5
+uv==0.6.8
 uvicorn==0.34.0
 uvloop==0.21.0
 validators==0.34.0
