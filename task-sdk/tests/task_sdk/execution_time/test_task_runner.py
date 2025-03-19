@@ -1427,7 +1427,7 @@ class TestXComAfterTaskExecution:
                 task_id=runtime_ti.task_id,
                 run_id=runtime_ti.run_id,
                 map_index=runtime_ti.map_index,
-                mapped_length=7,
+                _mapped_length=7,
             )
 
     def test_xcom_with_multiple_outputs_and_no_mapping_result(self, create_runtime_ti, spy_agency):

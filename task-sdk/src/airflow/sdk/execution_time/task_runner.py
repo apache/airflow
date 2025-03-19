@@ -344,7 +344,7 @@ def _xcom_push(ti: RuntimeTaskInstance, key: str, value: Any, mapped_length: int
         task_id=ti.task_id,
         run_id=ti.run_id,
         map_index=ti.map_index,
-        mapped_length=mapped_length,
+        _mapped_length=mapped_length,
     )
 
 
