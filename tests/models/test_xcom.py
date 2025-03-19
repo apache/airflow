@@ -370,3 +370,54 @@ class TestXComClear:
             session=session,
         )
         assert session.query(XComModel).count() == 1
+
+
+class TestXComRoundTrip:
+    @pytest.mark.parametrize(
+        "value, expected_value",
+        [
+            pytest.param(1, 1, id="int"),
+            pytest.param(1.0, 1.0, id="float"),
+            pytest.param("string", "string", id="str"),
+            pytest.param(True, True, id="bool"),
+            pytest.param({"key": "value"}, {"key": "value"}, id="dict"),
+            pytest.param([1, 2, 3], [1, 2, 3], id="list"),
+            pytest.param((1, 2, 3), (1, 2, 3), id="tuple"),  # tuple is preserved
+            pytest.param(None, None, id="none"),
+        ],
+    )
+    def test_xcom_round_trip(self, value, expected_value, push_simple_json_xcom, task_instance, session):
+        """Test that XComModel serialization and deserialization work as expected."""
+        push_simple_json_xcom(ti=task_instance, key="xcom_1", value=value)
+
+        stored_value = XComModel.get_many(
+            key="xcom_1",
+            dag_ids=task_instance.dag_id,
+            task_ids=task_instance.task_id,
+            run_id=task_instance.run_id,
+            session=session,
+        ).first()
+        deserialized_value = XComModel.deserialize_value(stored_value)
+
+        assert deserialized_value == expected_value
+
+    @pytest.mark.parametrize(
+        "value, expected_value",
+        [
+            pytest.param(1, 1, id="int"),
+            pytest.param(1.0, 1.0, id="float"),
+            pytest.param("string", "string", id="str"),
+            pytest.param(True, True, id="bool"),
+            pytest.param({"key": "value"}, {"key": "value"}, id="dict"),
+            pytest.param([1, 2, 3], [1, 2, 3], id="list"),
+            pytest.param((1, 2, 3), (1, 2, 3), id="tuple"),  # tuple is preserved
+            pytest.param(None, None, id="none"),
+        ],
+    )
+    def test_xcom_deser_fallback(self, value, expected_value):
+        """Test fallback in deserialization."""
+
+        mock_xcom = MagicMock(value=value)
+        deserialized_value = XComModel.deserialize_value(mock_xcom)
+
+        assert deserialized_value == expected_value
