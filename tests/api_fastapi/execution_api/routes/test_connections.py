@@ -20,10 +20,35 @@ from __future__ import annotations
 from unittest import mock
 
 import pytest
+from fastapi import FastAPI, HTTPException, status
 
 from airflow.models.connection import Connection
 
 pytestmark = pytest.mark.db_test
+
+
+@pytest.fixture
+def access_denied(client):
+    from airflow.api_fastapi.execution_api.routes.connections import has_connection_access
+
+    last_route = client.app.routes[-1]
+    assert isinstance(last_route.app, FastAPI)
+    exec_app = last_route.app
+
+    async def _(connection_id: str):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail={
+                "reason": "access_denied",
+                "message": f"Task does not have access to connection {connection_id}",
+            },
+        )
+
+    exec_app.dependency_overrides[has_connection_access] = _
+
+    yield
+
+    exec_app.dependency_overrides = {}
 
 
 class TestGetConnection:
@@ -91,11 +116,9 @@ class TestGetConnection:
             }
         }
 
+    @pytest.mark.usefixtures("access_denied")
     def test_connection_get_access_denied(self, client):
-        with mock.patch(
-            "airflow.api_fastapi.execution_api.routes.connections.has_connection_access", return_value=False
-        ):
-            response = client.get("/execution/connections/test_conn")
+        response = client.get("/execution/connections/test_conn")
 
         # Assert response status code and detail for access denied
         assert response.status_code == 403

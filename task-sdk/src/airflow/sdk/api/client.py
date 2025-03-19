@@ -379,7 +379,7 @@ class AssetOperations:
                     detail=e.detail,
                     status_code=e.response.status_code,
                 )
-                return ErrorResponse(error=ErrorType.ASSET_NOT_FOUIND, detail=params)
+                return ErrorResponse(error=ErrorType.ASSET_NOT_FOUND, detail=params)
             raise
 
         return AssetResponse.model_validate_json(resp.read())

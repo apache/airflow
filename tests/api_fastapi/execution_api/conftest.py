@@ -16,12 +16,23 @@
 # under the License.
 from __future__ import annotations
 
+from unittest.mock import AsyncMock
+
 import pytest
 from fastapi.testclient import TestClient
 
 from airflow.api_fastapi.app import cached_app
+from airflow.api_fastapi.auth.tokens import JWTValidator
+from airflow.api_fastapi.execution_api.app import lifespan
 
 
 @pytest.fixture
-def client():
-    return TestClient(cached_app(apps="execution"))
+def client(request: pytest.FixtureRequest):
+    app = cached_app(apps="execution")
+    with TestClient(app, headers={"Authorization": "Bearer fake"}) as client:
+        auth = AsyncMock(spec=JWTValidator)
+        auth.avalidated_claims.return_value = {"sub": "edb09971-4e0e-4221-ad3f-800852d38085"}
+
+        # Inject our fake JWTValidator object. Can be over-ridden by tests if they want
+        lifespan.registry.register_value(JWTValidator, auth)
+        yield client
