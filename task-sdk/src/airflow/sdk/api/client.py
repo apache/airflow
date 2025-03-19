@@ -113,7 +113,7 @@ def raise_on_4xx_5xx_with_note(response: httpx.Response):
         if TYPE_CHECKING:
             assert hasattr(e, "add_note")
         e.add_note(
-            f"Correlation-id={response.headers.get('correlation-id', None) or response.request.headers.get('correlation-id', 'no-correlction-id')}"
+            f"Correlation-id={response.headers.get('correlation-id', None) or response.request.headers.get('correlation-id', 'no-correlation-id')}"
         )
         raise
 
