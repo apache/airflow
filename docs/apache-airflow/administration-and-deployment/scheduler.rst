@@ -20,10 +20,10 @@
 Scheduler
 ==========
 
-The Airflow scheduler monitors all tasks and DAGs, then triggers the
+The Airflow scheduler monitors all tasks and dags, then triggers the
 task instances once their dependencies are complete. Behind the scenes,
 the scheduler spins up a subprocess, which monitors and stays in sync with all
-DAGs in the specified DAG directory. Once per minute, by default, the scheduler
+dags in the specified DAG directory. Once per minute, by default, the scheduler
 collects DAG parsing results and checks whether any active tasks can be triggered.
 
 The Airflow scheduler is designed to run as a persistent service in an
@@ -39,7 +39,7 @@ To start a scheduler, simply run the command:
 
     airflow scheduler
 
-Your DAGs will start executing once the scheduler is running successfully.
+Your dags will start executing once the scheduler is running successfully.
 
 .. note::
 
@@ -47,7 +47,7 @@ Your DAGs will start executing once the scheduler is running successfully.
     Subsequent DAG Runs are created according to your DAG's :doc:`timetable <../authoring-and-scheduling/timetable>`.
 
 
-For DAGs with a cron or timedelta schedule, scheduler won't trigger your tasks until the period it covers has ended e.g., A job with ``schedule`` set as ``@daily`` runs after the day
+For dags with a cron or timedelta schedule, scheduler won't trigger your tasks until the period it covers has ended e.g., A job with ``schedule`` set as ``@daily`` runs after the day
 has ended. This technique makes sure that whatever data is required for that period is fully available before the DAG is executed.
 In the UI, it appears as if Airflow is running your tasks a day **late**
 
@@ -88,7 +88,7 @@ minimum.
 The scheduler now uses the serialized DAG representation to make its scheduling decisions and the rough
 outline of the scheduling loop is:
 
-- Check for any DAGs needing a new DagRun, and create them
+- Check for any dags needing a new DagRun, and create them
 - Examine a batch of DagRuns for schedulable TaskInstances or complete DagRuns
 - Select schedulable TaskInstances, and whilst respecting Pool limits and other concurrency limits, enqueue
   them for execution
@@ -147,7 +147,7 @@ In order to fine-tune your scheduler, you need to include a number of factors:
     * how much networking throughput you have available
 
 * The logic and definition of your DAG structure:
-    * how many DAGs you have
+    * how many dags you have
     * how complex they are (i.e. how many tasks and dependencies they have)
 
 * The scheduler configuration
@@ -190,7 +190,7 @@ What resources might limit Scheduler's performance
 There are several areas of resource usage that you should pay attention to:
 
 * Database connections and Database usage might become a problem as you want to increase performance and
-  process more things in parallel. Airflow is known for being "database-connection hungry" - the more DAGs
+  process more things in parallel. Airflow is known for being "database-connection hungry" - the more dags
   you have and the more you want to process in parallel, the more database connections will be opened.
   This is generally not a problem for MySQL as its model of handling connections is thread-based, but this
   might be a problem for Postgres, where connection handling is process-based. It is a general consensus
@@ -233,17 +233,17 @@ However, you can also look at other non-performance-related scheduler configurat
 
 - :ref:`config:scheduler__max_dagruns_to_create_per_loop`
 
-  This changes the number of DAGs that are locked by each scheduler when
+  This changes the number of dags that are locked by each scheduler when
   creating DAG runs. One possible reason for setting this lower is if you
-  have huge DAGs (in the order of 10k+ tasks per DAG) and are running multiple schedulers, you won't want one
+  have huge dags (in the order of 10k+ tasks per DAG) and are running multiple schedulers, you won't want one
   scheduler to do all the work.
 
 - :ref:`config:scheduler__max_dagruns_per_loop_to_schedule`
 
   How many DagRuns should a scheduler examine (and lock) when scheduling
   and queuing tasks. Increasing this limit will allow more throughput for
-  smaller DAGs but will likely slow down throughput for larger (>500
-  tasks for example) DAGs. Setting this too high when using multiple
+  smaller dags but will likely slow down throughput for larger (>500
+  tasks for example) dags. Setting this too high when using multiple
   schedulers could also lead to one scheduler taking all the DAG runs
   leaving no work for the others.
 
