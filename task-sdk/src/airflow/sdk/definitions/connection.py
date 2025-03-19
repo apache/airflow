@@ -103,7 +103,6 @@ class Connection:
         from airflow.sdk.execution_time.supervisor import SECRETS_BACKEND
 
         for secrets_backend in SECRETS_BACKEND:
-            print("The backend in the sdk is", secrets_backend)
             try:
                 conn = secrets_backend.get_connection(conn_id=conn_id)
                 if conn:
