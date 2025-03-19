@@ -40,6 +40,7 @@ class BaseXCom:
         task_id: str,
         run_id: str,
         map_index: int = -1,
+        _mapped_length: int | None = None,
     ) -> None:
         """
         Store an XCom value.
@@ -72,6 +73,7 @@ class BaseXCom:
                 task_id=task_id,
                 run_id=run_id,
                 map_index=map_index,
+                mapped_length=_mapped_length,
             ),
         )
 
