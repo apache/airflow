@@ -52,6 +52,7 @@ from airflow.dag_processing.bundles.manager import DagBundlesManager
 from airflow.dag_processing.collection import update_dag_parsing_results_in_db
 from airflow.dag_processing.processor import DagFileParsingResult, DagFileProcessorProcess
 from airflow.exceptions import AirflowException
+from airflow.models.asset import remove_references_to_deleted_dags
 from airflow.models.dag import DagModel
 from airflow.models.dagbag import DagPriorityParsingRequest
 from airflow.models.dagbundle import DagBundleModel
@@ -587,7 +588,13 @@ class DagFileProcessorManager(LoggingMixin):
                     rel_sub_path = Path(abs_sub_path).relative_to(info.bundle_path)
                     rel_filelocs.append(str(rel_sub_path))
 
-        DagModel.deactivate_deleted_dags(bundle_name=bundle_name, rel_filelocs=rel_filelocs)
+        with create_session() as session:
+            DagModel.deactivate_deleted_dags(
+                bundle_name=bundle_name,
+                rel_filelocs=rel_filelocs,
+                session=session,
+            )
+            remove_references_to_deleted_dags(session=session)
 
     def print_stats(self, known_files: dict[str, set[DagFileInfo]]):
         """Occasionally print out stats about how fast the files are getting processed."""
