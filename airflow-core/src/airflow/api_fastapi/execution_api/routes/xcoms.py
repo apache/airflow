@@ -22,7 +22,7 @@ import sys
 from typing import Annotated, Any
 
 from fastapi import Body, Depends, HTTPException, Path, Query, Request, Response, status
-from pydantic import JsonValue
+from pydantic import JsonValue, StringConstraints
 from sqlalchemy import delete
 from sqlalchemy.sql.selectable import Select
 
