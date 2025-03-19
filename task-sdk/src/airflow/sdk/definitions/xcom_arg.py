@@ -382,20 +382,32 @@ def _get_callable_name(f: Callable | str) -> str:
     return "<function>"
 
 
-class _MapResult(Sequence):
-    def __init__(self, value: Sequence | dict, callables: MapCallables) -> None:
+class _MapResult(Sequence, Iterable):
+    def __init__(self, value: Sequence | Iterable, callables: list) -> None:
         self.value = value
         self.callables = callables
 
-    def __getitem__(self, index: Any) -> Any:
-        value = self.value[index]
+    def __getitem__(self, index: int) -> Any:
+        if not (0 <= index < len(self)):
+            raise IndexError
 
-        for f in self.callables:
-            value = f(value)
-        return value
+        value = self.value[index]
+        return self._apply_callables(value)
 
     def __len__(self) -> int:
+        if isinstance(self.value, Iterable):
+            raise TypeError
+
         return len(self.value)
+
+    def __iter__(self) -> Iterator:
+        for item in iter(self.value):
+            yield self._apply_callables(item)
+
+    def _apply_callables(self, value):
+        for func in self.callables:
+            value = func(value)
+        return value
 
 
 class MapXComArg(XComArg):
@@ -434,8 +446,10 @@ class MapXComArg(XComArg):
 
     def resolve(self, context: Mapping[str, Any]) -> Any:
         value = self.arg.resolve(context)
-        if not isinstance(value, (Sequence, dict)):
+        if not isinstance(value, (Sequence, Iterable, dict)):
             raise ValueError(f"XCom map expects sequence or dict, not {type(value).__name__}")
+        if isinstance(value, Iterable) and hasattr(value, "resolve"):  # TODO: should check if it's DeferredIterable
+            value = value.resolve(context)
         return _MapResult(value, self.callables)
 
 
