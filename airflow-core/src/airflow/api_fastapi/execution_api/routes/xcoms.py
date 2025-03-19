@@ -202,15 +202,6 @@ def set_xcom(
     """Set an Airflow XCom."""
     from airflow.configuration import conf
 
-    if not has_xcom_access(dag_id, run_id, task_id, key, token, write=True):
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail={
-                "reason": "access_denied",
-                "message": f"Task does not have access to set XCom key '{key}'",
-            },
-        )
-
     if mapped_length is not None:
         task_map = TaskMap(
             dag_id=dag_id,
