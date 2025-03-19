@@ -157,6 +157,12 @@ class TIRescheduleStatePayload(StrictBaseModel):
     end_date: UtcDateTime
 
 
+class TISkippedDownstreamTasksStatePayload(StrictBaseModel):
+    """Schema for updating downstream tasks to a skipped state."""
+
+    tasks: list[str | tuple[str, int]]
+
+
 def ti_state_discriminator(v: dict[str, str] | StrictBaseModel) -> str:
     """
     Determine the discriminator key for TaskInstance state transitions.
@@ -266,6 +272,9 @@ class TIRunContext(BaseModel):
 
     Can either be a "decorated" dict, or a string encrypted with the shared Fernet key.
     """
+
+    xcom_keys_to_clear: Annotated[list[str], Field(default_factory=list)]
+    """List of Xcom keys that need to be cleared and purged on by the worker."""
 
 
 class PrevSuccessfulDagRunResponse(BaseModel):

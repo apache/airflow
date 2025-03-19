@@ -137,7 +137,7 @@ how the DAG and its tasks specify the schedule, and contains three attributes:
   found at all.
 * ``latest``: Similar to ``earliest``, this is the latest time the DAG may be
   scheduled, calculated from ``end_date`` arguments.
-* ``catchup``: A boolean reflecting the DAG's ``catchup`` argument.
+* ``catchup``: A boolean reflecting the DAG's ``catchup`` argument. Defaults to ``False``.
 
 .. note::
 

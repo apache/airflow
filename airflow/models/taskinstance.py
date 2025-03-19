@@ -102,7 +102,7 @@ from airflow.models.renderedtifields import get_serialized_template_fields
 from airflow.models.taskinstancekey import TaskInstanceKey
 from airflow.models.taskmap import TaskMap
 from airflow.models.taskreschedule import TaskReschedule
-from airflow.models.xcom import LazyXComSelectSequence, XCom
+from airflow.models.xcom import LazyXComSelectSequence, XComModel
 from airflow.plugins_manager import integrate_macros_plugins
 from airflow.sentry import Sentry
 from airflow.settings import task_instance_mutation_hook
@@ -443,14 +443,13 @@ def clear_task_instances(
         If set to False, DagRuns state will not be changed.
     :param dag: DAG object
     """
-    # Keys: dag_id -> run_id -> map_indexes -> try_numbers -> task_id
-    task_id_by_key: dict[str, dict[str, dict[int, dict[int, set[str]]]]] = defaultdict(
-        lambda: defaultdict(lambda: defaultdict(lambda: defaultdict(set)))
-    )
+    # taskinstance uuids:
+    task_instance_ids: list[str] = []
     dag_bag = DagBag(read_dags_from_db=True)
     from airflow.models.taskinstancehistory import TaskInstanceHistory
 
     for ti in tis:
+        task_instance_ids.append(ti.id)
         TaskInstanceHistory.record_ti(ti, session)
         ti.try_id = uuid7()
         if ti.state == TaskInstanceState.RUNNING:
@@ -476,40 +475,10 @@ def clear_task_instances(
             ti.external_executor_id = None
             ti.clear_next_method_args()
             session.merge(ti)
-        task_id_by_key[ti.dag_id][ti.run_id][ti.map_index][ti.try_number].add(ti.task_id)
 
-    if task_id_by_key:
+    if task_instance_ids:
         # Clear all reschedules related to the ti to clear
-
-        # This is an optimization for the common case where all tis are for a small number
-        # of dag_id, run_id, try_number, and map_index. Use a nested dict of dag_id,
-        # run_id, try_number, map_index, and task_id to construct the where clause in a
-        # hierarchical manner. This speeds up the delete statement by more than 40x for
-        # large number of tis (50k+).
-        conditions = or_(
-            and_(
-                TR.dag_id == dag_id,
-                or_(
-                    and_(
-                        TR.run_id == run_id,
-                        or_(
-                            and_(
-                                TR.map_index == map_index,
-                                or_(
-                                    and_(TR.try_number == try_number, TR.task_id.in_(task_ids))
-                                    for try_number, task_ids in task_tries.items()
-                                ),
-                            )
-                            for map_index, task_tries in map_indexes.items()
-                        ),
-                    )
-                    for run_id, map_indexes in run_ids.items()
-                ),
-            )
-            for dag_id, run_ids in task_id_by_key.items()
-        )
-
-        delete_qry = TR.__table__.delete().where(conditions)
+        delete_qry = TR.__table__.delete().where(TR.ti_id.in_(task_instance_ids))
         session.execute(delete_qry)
 
     if dag_run_state is not False and tis:
@@ -559,7 +528,7 @@ def _xcom_pull(
     if run_id is None:
         run_id = ti.run_id
 
-    query = XCom.get_many(
+    query = XComModel.get_many(
         key=key,
         run_id=run_id,
         dag_ids=dag_id,
@@ -576,12 +545,12 @@ def _xcom_pull(
     # We are only pulling one single task.
     if (task_ids is None or isinstance(task_ids, str)) and not isinstance(map_indexes, Iterable):
         first = query.with_entities(
-            XCom.run_id, XCom.task_id, XCom.dag_id, XCom.map_index, XCom.value
+            XComModel.run_id, XComModel.task_id, XComModel.dag_id, XComModel.map_index, XComModel.value
         ).first()
         if first is None:  # No matching XCom at all.
             return default
         if map_indexes is not None or first.map_index < 0:
-            return XCom.deserialize_value(first)
+            return XComModel.deserialize_value(first)
 
         # raise RuntimeError("Nothing should hit this anymore")
 
@@ -591,24 +560,24 @@ def _xcom_pull(
     # Order return values to match task_ids and map_indexes ordering.
     ordering = []
     if task_ids is None or isinstance(task_ids, str):
-        ordering.append(XCom.task_id)
+        ordering.append(XComModel.task_id)
     elif task_id_whens := {tid: i for i, tid in enumerate(task_ids)}:
-        ordering.append(case(task_id_whens, value=XCom.task_id))
+        ordering.append(case(task_id_whens, value=XComModel.task_id))
     else:
-        ordering.append(XCom.task_id)
+        ordering.append(XComModel.task_id)
     if map_indexes is None or isinstance(map_indexes, int):
-        ordering.append(XCom.map_index)
+        ordering.append(XComModel.map_index)
     elif isinstance(map_indexes, range):
-        order = XCom.map_index
+        order = XComModel.map_index
         if map_indexes.step < 0:
             order = order.desc()
         ordering.append(order)
     elif map_index_whens := {map_index: i for i, map_index in enumerate(map_indexes)}:
-        ordering.append(case(map_index_whens, value=XCom.map_index))
+        ordering.append(case(map_index_whens, value=XComModel.map_index))
     else:
-        ordering.append(XCom.map_index)
+        ordering.append(XComModel.map_index)
     return LazyXComSelectSequence.from_select(
-        query.with_entities(XCom.value).order_by(None).statement,
+        query.with_entities(XComModel.value).order_by(None).statement,
         order_by=ordering,
         session=session,
     )
@@ -1600,14 +1569,11 @@ def _handle_reschedule(
     # see https://github.com/apache/airflow/pull/21362 for more info
     session.add(
         TaskReschedule(
-            ti.task_id,
-            ti.dag_id,
-            ti.run_id,
+            ti.id,
             ti.try_number,
             actual_start_date,
             ti.end_date,
             reschedule_exception.reschedule_date,
-            ti.map_index,
         )
     )
     session.commit()
@@ -2173,7 +2139,7 @@ class TaskInstance(Base, LoggingMixin):
             map_index: int | None = None
         else:
             map_index = ti.map_index
-        XCom.clear(
+        XComModel.clear(
             dag_id=ti.dag_id,
             task_id=ti.task_id,
             run_id=ti.run_id,
@@ -3366,7 +3332,7 @@ class TaskInstance(Base, LoggingMixin):
         :param key: Key to store the value under.
         :param value: Value to store. Only be JSON-serializable may be used otherwise.
         """
-        XCom.set(
+        XComModel.set(
             key=key,
             value=value,
             task_id=self.task_id,
@@ -3630,12 +3596,11 @@ class TaskInstance(Base, LoggingMixin):
         from airflow.models.renderedtifields import RenderedTaskInstanceFields
 
         tables: list[type[TaskInstanceDependencies]] = [
-            TaskReschedule,
-            XCom,
+            XComModel,
             RenderedTaskInstanceFields,
             TaskMap,
         ]
-        tables_by_id: list[type[Base]] = [TaskInstanceNote]
+        tables_by_id: list[type[Base]] = [TaskInstanceNote, TaskReschedule]
         for table in tables:
             session.execute(
                 delete(table).where(

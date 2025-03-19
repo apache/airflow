@@ -269,6 +269,12 @@ def mock_supervisor_comms():
 
 
 @pytest.fixture
+def mock_xcom_backend():
+    with mock.patch("airflow.sdk.execution_time.task_runner.XCom", create=True) as xcom_backend:
+        yield xcom_backend
+
+
+@pytest.fixture
 def mocked_parse(spy_agency):
     """
     Fixture to set up an inline DAG and use it in a stubbed `parse` function. Use this fixture if you

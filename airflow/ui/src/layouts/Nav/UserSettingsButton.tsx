@@ -20,7 +20,9 @@ import { useDisclosure } from "@chakra-ui/react";
 import dayjs from "dayjs";
 import timezone from "dayjs/plugin/timezone";
 import utc from "dayjs/plugin/utc";
-import { FiClock, FiLogOut, FiMoon, FiSun, FiUser } from "react-icons/fi";
+import { FiClock, FiGrid, FiLogOut, FiMoon, FiSun, FiUser } from "react-icons/fi";
+import { MdOutlineAccountTree } from "react-icons/md";
+import { useLocalStorage } from "usehooks-ts";
 
 import { Menu } from "src/components/ui";
 import { useColorMode } from "src/context/colorMode/useColorMode";
@@ -38,6 +40,7 @@ export const UserSettingsButton = () => {
   const { onClose: onCloseTimezone, onOpen: onOpenTimezone, open: isOpenTimezone } = useDisclosure();
   const { onClose: onCloseLogout, onOpen: onOpenLogout, open: isOpenLogout } = useDisclosure();
   const { selectedTimezone } = useTimezone();
+  const [dagView, setDagView] = useLocalStorage<"graph" | "grid">("default_dag_view", "grid");
 
   return (
     <Menu.Root positioning={{ placement: "right" }}>
@@ -55,6 +58,22 @@ export const UserSettingsButton = () => {
             <>
               <FiSun size="1.25rem" style={{ marginRight: "8px" }} />
               Switch to Light Mode
+            </>
+          )}
+        </Menu.Item>
+        <Menu.Item
+          onClick={() => (dagView === "grid" ? setDagView("graph") : setDagView("grid"))}
+          value={dagView}
+        >
+          {dagView === "grid" ? (
+            <>
+              <MdOutlineAccountTree size="1.25rem" style={{ marginRight: "8px" }} />
+              Default to graph view
+            </>
+          ) : (
+            <>
+              <FiGrid size="1.25rem" style={{ marginRight: "8px" }} />
+              Default to grid view
             </>
           )}
         </Menu.Item>

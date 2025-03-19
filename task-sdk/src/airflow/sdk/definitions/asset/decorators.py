@@ -45,11 +45,11 @@ class _AssetMainOperator(PythonOperator):
     @classmethod
     def from_definition(cls, definition: AssetDefinition | MultiAssetDefinition) -> Self:
         return cls(
-            task_id="__main__",
+            task_id=definition._function.__name__,
             inlets=[
                 Asset.ref(name=inlet_asset_name)
-                for inlet_asset_name in inspect.signature(definition._function).parameters
-                if inlet_asset_name not in ("self", "context")
+                for inlet_asset_name, param in inspect.signature(definition._function).parameters.items()
+                if inlet_asset_name not in ("self", "context") and param.default is inspect.Parameter.empty
             ],
             outlets=[v for _, v in definition.iter_assets()],
             python_callable=definition._function,
@@ -60,8 +60,10 @@ class _AssetMainOperator(PythonOperator):
         self, context: Mapping[str, Any], active_assets: dict[str, Asset]
     ) -> Iterator[tuple[str, Any]]:
         value: Any
-        for key in inspect.signature(self.python_callable).parameters:
-            if key == "self":
+        for key, param in inspect.signature(self.python_callable).parameters.items():
+            if param.default is not inspect.Parameter.empty:
+                value = param.default
+            elif key == "self":
                 value = active_assets.get(self._definition_name)
             elif key == "context":
                 value = context
@@ -162,7 +164,8 @@ class _DAGFactory:
     on_failure_callback: None | DagStateChangeCallback | list[DagStateChangeCallback] = None
 
     access_control: dict[str, dict[str, Collection[str]]] | None = None
-    owner_links: dict[str, str] | None = None
+    owner_links: dict[str, str] = attrs.field(factory=dict)
+    tags: Collection[str] = attrs.field(factory=set)
 
     def create_dag(self, *, default_dag_id: str) -> DAG:
         from airflow.models.dag import DAG  # TODO: Use the SDK DAG when it works.
@@ -178,6 +181,9 @@ class _DAGFactory:
             params=self.params,
             on_success_callback=self.on_success_callback,
             on_failure_callback=self.on_failure_callback,
+            access_control=self.access_control,
+            owner_links=self.owner_links,
+            tags=self.tags,
             auto_register=True,
         )
 

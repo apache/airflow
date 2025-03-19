@@ -22,7 +22,7 @@
 from __future__ import annotations
 
 import warnings
-from collections.abc import Collection
+from collections.abc import Collection, Sequence
 from datetime import timedelta
 from http import HTTPStatus
 from typing import TYPE_CHECKING, Any, NamedTuple
@@ -401,6 +401,21 @@ class AirflowFileParseException(AirflowException):
 
 class ConnectionNotUnique(AirflowException):
     """Raise when multiple values are found for the same connection ID."""
+
+
+class DownstreamTasksSkipped(AirflowException):
+    """
+    Signal by an operator to skip its downstream tasks.
+
+    Special exception raised to signal that the operator it was raised from wishes to skip
+    downstream tasks. This is used in the ShortCircuitOperator.
+
+    :param tasks: List of task_ids to skip or a list of tuples with task_id and map_index to skip.
+    """
+
+    def __init__(self, *, tasks: Sequence[str | tuple[str, int]]):
+        super().__init__()
+        self.tasks = tasks
 
 
 class TaskDeferred(BaseException):

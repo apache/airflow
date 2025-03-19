@@ -382,7 +382,7 @@ class DAG(TaskSDKDag, LoggingMixin):
     :param dagrun_timeout: Specify the duration a DagRun should be allowed to run before it times out or
         fails. Task instances that are running when a DagRun is timed out will be marked as skipped.
     :param sla_miss_callback: DEPRECATED - The SLA feature is removed in Airflow 3.0, to be replaced with a new implementation in 3.1
-    :param catchup: Perform scheduler catchup (or only run latest)? Defaults to True
+    :param catchup: Perform scheduler catchup (or only run latest)? Defaults to False
     :param on_failure_callback: A function or list of functions to be called when a DagRun of this dag fails.
         A context dictionary is passed as a single parameter to this function.
     :param on_success_callback: Much like the ``on_failure_callback`` except
@@ -1883,6 +1883,9 @@ class DAG(TaskSDKDag, LoggingMixin):
         asset_op.add_dag_asset_name_uri_references(session=session)
         asset_op.add_task_asset_references(orm_dags, orm_assets, session=session)
         asset_op.add_asset_trigger_references(orm_assets, session=session)
+
+        dag_op.update_dag_asset_expression(orm_dags=orm_dags, orm_assets=orm_assets)
+
         session.flush()
 
     @provide_session

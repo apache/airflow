@@ -1494,7 +1494,9 @@ class S3Hook(AwsBaseHook):
             get_hook_lineage_collector().add_output_asset(
                 context=self,
                 scheme="file",
-                asset_kwargs={"path": file_path if file_path.is_absolute() else file_path.absolute()},
+                asset_kwargs={
+                    "path": str(file_path) if file_path.is_absolute() else str(file_path.absolute())
+                },
             )
             file = open(file_path, "wb")
         else:
