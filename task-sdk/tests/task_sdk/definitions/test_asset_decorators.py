@@ -176,6 +176,9 @@ class TestAssetDefinition:
             on_failure_callback=None,
             on_success_callback=None,
             params=None,
+            access_control=None,
+            owner_links={},
+            tags=set(),
             auto_register=True,
         )
         from_definition.assert_called_once_with(asset_definition)
@@ -200,6 +203,9 @@ class TestMultiAssetDefinition:
             on_failure_callback=None,
             on_success_callback=None,
             params=None,
+            access_control=None,
+            owner_links={},
+            tags=set(),
             auto_register=True,
         )
         from_definition.assert_called_once_with(definition)
