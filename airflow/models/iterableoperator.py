@@ -156,7 +156,7 @@ class DeferredIterable(Iterator):
             trigger=self.trigger,
             operator=self.operator,
             next_method=self.next_method,
-            context={**context},
+            context=context,
         )
 
     @property
