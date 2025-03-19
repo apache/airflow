@@ -10051,7 +10051,6 @@ components:
         executor_class:
           anyOf:
           - type: string
-            format: date-time
           - type: 'null'
           title: Executor Class
         hostname:

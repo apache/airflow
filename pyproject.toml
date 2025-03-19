@@ -317,6 +317,7 @@ testing = ["dev", "providers.tests", "tests_common", "tests"]
 "providers/cncf/*/src/airflow/providers/cncf/__init__.py" = ["I002"]
 "providers/dbt/*/src/airflow/providers/dbt/__init__.py" = ["I002"]
 "providers/microsoft/*/src/airflow/providers/microsoft/__init__.py" = ["I002"]
+"airflow/cli/api/datamodels/_generated.py" = ["UP007", "D101", "D200"]
 
 # The test_python.py is needed because adding __future__.annotations breaks runtime checks that are
 # needed for the test to work
@@ -607,7 +608,14 @@ module=[
 ]
 ignore_errors = true
 
+[[tool.mypy.overrides]]
+module="airflow.cli.api.datamodels.*"
+ignore_errors = true
+
 [dependency-groups]
+codegen = [
+    "datamodel-code-generator[http]==0.28.2",
+]
 dev = [
     "apache-airflow[aiobotocore,async,apache-atlas,apache-webhdfs,cgroups,cloudpickle,github-enterprise,google-auth,graphviz,kerberos,ldap,leveldb,otel,pandas,password,rabbitmq,s3fs,sentry,statsd,uv]",
     "apache-airflow-task-sdk",
@@ -913,3 +921,29 @@ members = [
     "task-sdk",
     "devel-common",
 ]
+
+
+# To use:
+#
+# TODO: Automate this in CI via pre-commit hook and generate the file each time
+# The API should be running in the background to serve the OpenAPI schema
+# uv run --group codegen --project apache-airflow --directory airflow/ datamodel-codegen
+[tool.datamodel-codegen]
+capitalise-enum-members=true # `State.RUNNING` not `State.running`
+disable-timestamp=true
+enable-version-header=true
+enum-field-as-literal='one' # When a single enum member, make it output a `Literal["..."]`
+input-file-type='openapi'
+output-model-type='pydantic_v2.BaseModel'
+output-datetime-class='datetime'
+target-python-version='3.9'
+use-annotated=true
+use-default=true
+use-double-quotes=true
+use-schema-description=true  # Desc becomes class doc comment
+use-standard-collections=true # list[] not List[]
+use-subclass-enum=true # enum, not union of Literals
+use-union-operator=true # 3.9+annotations, not `Union[]`
+
+url = "http://0.0.0.0:8080/openapi.json"
+output = "cli/api/datamodels/_generated.py"
