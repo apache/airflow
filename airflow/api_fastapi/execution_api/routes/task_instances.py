@@ -22,7 +22,7 @@ import logging
 from typing import Annotated
 from uuid import UUID
 
-from fastapi import Body, HTTPException, status
+from fastapi import Body, Depends, HTTPException, status
 from pydantic import JsonValue
 from sqlalchemy import func, tuple_, update
 from sqlalchemy.exc import NoResultFound, SQLAlchemyError
@@ -43,6 +43,7 @@ from airflow.api_fastapi.execution_api.datamodels.taskinstance import (
     TISuccessStatePayload,
     TITerminalStatePayload,
 )
+from airflow.api_fastapi.execution_api.deps import JWTBearer
 from airflow.models.dagrun import DagRun as DR
 from airflow.models.taskinstance import TaskInstance as TI, _update_rtif
 from airflow.models.taskreschedule import TaskReschedule
@@ -51,8 +52,12 @@ from airflow.models.xcom import XComModel
 from airflow.utils import timezone
 from airflow.utils.state import DagRunState, TaskInstanceState, TerminalTIState
 
-# TODO: Add dependency on JWT token
-router = AirflowRouter()
+router = AirflowRouter(
+    dependencies=[
+        # This checks that the UUID in the url matches the one in the token for us.
+        Depends(JWTBearer(path_param_name="task_instance_id")),
+    ]
+)
 
 
 log = logging.getLogger(__name__)

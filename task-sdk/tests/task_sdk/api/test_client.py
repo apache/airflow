@@ -710,4 +710,4 @@ class TestAssetOperations:
         result = client.assets.get(**request_params)
 
         assert isinstance(result, ErrorResponse)
-        assert result.error == ErrorType.ASSET_NOT_FOUIND
+        assert result.error == ErrorType.ASSET_NOT_FOUND

@@ -646,7 +646,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
             # TODO: Task-SDK: This check is transitionary. Remove once all executors are ported over.
             # Has a real queue_activity implemented
             if executor.queue_workload.__func__ is not BaseExecutor.queue_workload:  # type: ignore[attr-defined]
-                workload = workloads.ExecuteTask.make(ti)
+                workload = workloads.ExecuteTask.make(ti, generator=executor.jwt_generator)
                 executor.queue_workload(workload, session=session)
                 continue
 
