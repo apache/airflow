@@ -23,6 +23,10 @@ import pytest
 
 from airflow.exceptions import AirflowException
 from airflow.sdk import Connection
+from airflow.sdk.execution_time.comms import ConnectionResult
+from airflow.sdk.execution_time.supervisor import initialize_secrets_backend_on_workers
+
+from tests_common.test_utils.config import conf_vars
 
 
 class TestConnections:
@@ -70,3 +74,42 @@ class TestConnections:
 
         with pytest.raises(AirflowException, match='Unknown hook type "unknown_type"'):
             conn.get_hook()
+
+    def test_conn_get(self, mock_supervisor_comms):
+        conn_result = ConnectionResult(conn_id="mysql_conn", conn_type="mysql", host="mysql", port=3306)
+        mock_supervisor_comms.get_message.return_value = conn_result
+
+        conn = Connection.get(conn_id="mysql_conn")
+        assert conn is not None
+        assert isinstance(conn, Connection)
+        assert conn == Connection(
+            conn_id="mysql_conn",
+            conn_type="mysql",
+            description=None,
+            host="mysql",
+            schema=None,
+            login=None,
+            password=None,
+            port=3306,
+            extra=None,
+        )
+
+    def test_conn_get_from_secrets_found(self, mock_supervisor_comms, tmp_path):
+        path = tmp_path / "conn.env"
+        path.write_text("CONN_A=mysql://host_a")
+
+        with conf_vars(
+            {
+                (
+                    "workers",
+                    "secrets_backend",
+                ): "airflow.secrets.local_filesystem.LocalFilesystemBackend",
+                ("workers", "secrets_backend_kwargs"): f'{{"connections_file_path": "{path}"}}',
+            }
+        ):
+            initialize_secrets_backend_on_workers()
+            retrieved_conn = Connection.get_connection_from_secrets(conn_id="CONN_A")
+            assert retrieved_conn is not None
+            # TODO: check if this is right
+            # assert isinstance(retrieved_conn, Connection)
+            assert retrieved_conn.conn_id == "CONN_A"
