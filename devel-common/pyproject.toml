@@ -101,6 +101,8 @@ dependencies = [
     # Devel debuggers
     "ipdb>=0.13.13",
     "pdbr>=0.8.9",
+    # Devel CLI
+    "keyrings.alt>=5.0.2",
 ]
 
 
