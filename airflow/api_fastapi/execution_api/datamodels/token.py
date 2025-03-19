@@ -17,6 +17,9 @@
 
 from __future__ import annotations
 
+from typing import Any
+from uuid import UUID
+
 from airflow.api_fastapi.core_api.base import BaseModel
 
 
@@ -24,4 +27,6 @@ from airflow.api_fastapi.core_api.base import BaseModel
 class TIToken(BaseModel):
     """Task Identity Token."""
 
-    ti_key: str
+    id: UUID
+
+    claims: dict[str, Any]

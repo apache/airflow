@@ -29,8 +29,9 @@ from cryptography.fernet import Fernet
 
 from airflow.jobs.job import Job
 from airflow.jobs.triggerer_job_runner import TriggererJobRunner
-from airflow.models import TaskInstance, Trigger, XCom
+from airflow.models import TaskInstance, Trigger
 from airflow.models.asset import AssetEvent, AssetModel, asset_trigger_association_table
+from airflow.models.xcom import XComModel
 from airflow.providers.standard.operators.empty import EmptyOperator
 from airflow.serialization.serialized_objects import BaseSerialization
 from airflow.triggers.base import (
@@ -241,7 +242,7 @@ def test_submit_event_task_end(mock_utcnow, session, create_task_instance, event
     session.commit()
 
     def get_xcoms(ti):
-        return XCom.get_many(dag_ids=[ti.dag_id], task_ids=[ti.task_id], run_id=ti.run_id).all()
+        return XComModel.get_many(dag_ids=[ti.dag_id], task_ids=[ti.task_id], run_id=ti.run_id).all()
 
     # now for the real test
     # first check initial state
@@ -264,7 +265,10 @@ def test_submit_event_task_end(mock_utcnow, session, create_task_instance, event
     assert ti.end_date == now
     assert ti.duration is not None
     actual_xcoms = {x.key: x.value for x in get_xcoms(ti)}
-    assert actual_xcoms == {"return_value": "xcomret", "a": "b", "c": "d"}
+    expected_xcoms = {}
+    for k, v in {"return_value": "xcomret", "a": "b", "c": "d"}.items():
+        expected_xcoms[k] = json.dumps(v)
+    assert actual_xcoms == expected_xcoms
 
 
 def test_assign_unassigned(session, create_task_instance):

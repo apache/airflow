@@ -200,7 +200,9 @@ class OpenLineageListener:
             operator_name = task.task_type.lower()
 
             with Stats.timer(f"ol.extract.{event_type}.{operator_name}"):
-                task_metadata = self.extractor_manager.extract_metadata(dagrun, task)
+                task_metadata = self.extractor_manager.extract_metadata(
+                    dagrun=dagrun, task=task, task_instance_state=TaskInstanceState.RUNNING
+                )
 
             redacted_event = self.adapter.start_task(
                 run_id=task_uuid,
@@ -303,7 +305,10 @@ class OpenLineageListener:
 
             with Stats.timer(f"ol.extract.{event_type}.{operator_name}"):
                 task_metadata = self.extractor_manager.extract_metadata(
-                    dagrun, task, complete=True, task_instance=task_instance
+                    dagrun=dagrun,
+                    task=task,
+                    task_instance_state=TaskInstanceState.SUCCESS,
+                    task_instance=task_instance,
                 )
 
             redacted_event = self.adapter.complete_task(
@@ -424,7 +429,10 @@ class OpenLineageListener:
 
             with Stats.timer(f"ol.extract.{event_type}.{operator_name}"):
                 task_metadata = self.extractor_manager.extract_metadata(
-                    dagrun, task, complete=True, task_instance=task_instance
+                    dagrun=dagrun,
+                    task=task,
+                    task_instance_state=TaskInstanceState.FAILED,
+                    task_instance=task_instance,
                 )
 
             redacted_event = self.adapter.fail_task(

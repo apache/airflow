@@ -23,7 +23,7 @@ from __future__ import annotations
 
 import warnings
 from collections.abc import Collection, Sequence
-from datetime import timedelta
+from datetime import datetime, timedelta
 from http import HTTPStatus
 from typing import TYPE_CHECKING, Any, NamedTuple
 
@@ -34,6 +34,7 @@ if TYPE_CHECKING:
 
     from airflow.models import DagRun
     from airflow.sdk.definitions.asset import AssetNameRef, AssetUniqueKey, AssetUriRef
+    from airflow.utils.state import DagRunState
 
 
 class AirflowException(Exception):
@@ -416,6 +417,41 @@ class DownstreamTasksSkipped(AirflowException):
     def __init__(self, *, tasks: Sequence[str | tuple[str, int]]):
         super().__init__()
         self.tasks = tasks
+
+
+class DagRunTriggerException(AirflowException):
+    """
+    Signal by an operator to trigger a specific Dag Run of a dag.
+
+    Special exception raised to signal that the operator it was raised from wishes to trigger
+    a specific Dag Run of a dag. This is used in the ``TriggerDagRunOperator``.
+    """
+
+    def __init__(
+        self,
+        *,
+        trigger_dag_id: str,
+        dag_run_id: str,
+        conf: dict | None,
+        logical_date: datetime | None,
+        reset_dag_run: bool,
+        skip_when_already_exists: bool,
+        wait_for_completion: bool,
+        allowed_states: list[str | DagRunState],
+        failed_states: list[str | DagRunState],
+        poke_interval: int,
+    ):
+        super().__init__()
+        self.trigger_dag_id = trigger_dag_id
+        self.dag_run_id = dag_run_id
+        self.conf = conf
+        self.logical_date = logical_date
+        self.reset_dag_run = reset_dag_run
+        self.skip_when_already_exists = skip_when_already_exists
+        self.wait_for_completion = wait_for_completion
+        self.allowed_states = allowed_states
+        self.failed_states = failed_states
+        self.poke_interval = poke_interval
 
 
 class TaskDeferred(BaseException):

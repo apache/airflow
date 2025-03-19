@@ -2860,6 +2860,8 @@ paths:
       summary: Get Dag Reports
       description: Get DAG report.
       operationId: get_dag_reports
+      security:
+      - OAuth2PasswordBearer: []
       parameters:
       - name: subdir
         in: query
@@ -3933,6 +3935,8 @@ paths:
       summary: Get Import Error
       description: Get an import error.
       operationId: get_import_error
+      security:
+      - OAuth2PasswordBearer: []
       parameters:
       - name: import_error_id
         in: path
@@ -3978,6 +3982,8 @@ paths:
       summary: Get Import Errors
       description: Get all import errors.
       operationId: get_import_errors
+      security:
+      - OAuth2PasswordBearer: []
       parameters:
       - name: limit
         in: query
@@ -4641,7 +4647,7 @@ paths:
         required: false
         schema:
           type: boolean
-          default: true
+          default: false
           title: Stringify
       responses:
         '200':

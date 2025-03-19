@@ -464,26 +464,30 @@ class SerializedDagModel(Base):
         :param session: ORM Session
         """
         latest_sdag_subquery = (
-            session.query(cls.dag_id, func.max(cls.created_at).label("max_created"))
-            .group_by(cls.dag_id)
-            .subquery()
+            select(cls.dag_id, func.max(cls.created_at).label("max_created")).group_by(cls.dag_id).subquery()
         )
         if session.bind.dialect.name in ["sqlite", "mysql"]:
             query = session.execute(
-                select(cls.dag_id, func.json_extract(cls._data, "$.dag.dag_dependencies")).join(
+                select(cls.dag_id, func.json_extract(cls._data, "$.dag.dag_dependencies"))
+                .join(
                     latest_sdag_subquery,
                     (cls.dag_id == latest_sdag_subquery.c.dag_id)
-                    and (cls.created_at == latest_sdag_subquery.c.max_created),
+                    & (cls.created_at == latest_sdag_subquery.c.max_created),
                 )
+                .join(cls.dag_model)
+                .where(DagModel.is_active)
             )
             iterator = ((dag_id, json.loads(deps_data) if deps_data else []) for dag_id, deps_data in query)
         else:
             iterator = session.execute(
-                select(cls.dag_id, func.json_extract_path(cls._data, "dag", "dag_dependencies")).join(
+                select(cls.dag_id, func.json_extract_path(cls._data, "dag", "dag_dependencies"))
+                .join(
                     latest_sdag_subquery,
                     (cls.dag_id == latest_sdag_subquery.c.dag_id)
-                    and (cls.created_at == latest_sdag_subquery.c.max_created),
+                    & (cls.created_at == latest_sdag_subquery.c.max_created),
                 )
+                .join(cls.dag_model)
+                .where(DagModel.is_active)
             )
         return {dag_id: [DagDependency(**d) for d in (deps_data or [])] for dag_id, deps_data in iterator}
 

@@ -22,9 +22,11 @@ from datetime import datetime
 from pathlib import Path
 from typing import TYPE_CHECKING, Annotated, Literal, Union
 
+import structlog
 from pydantic import BaseModel, Field
 
 if TYPE_CHECKING:
+    from airflow.api_fastapi.auth.tokens import JWTGenerator
     from airflow.models.taskinstance import TaskInstance as TIModel
     from airflow.models.taskinstancekey import TaskInstanceKey
 
@@ -33,6 +35,8 @@ __all__ = [
     "All",
     "ExecuteTask",
 ]
+
+log = structlog.get_logger()
 
 
 class BaseWorkload(BaseModel):
@@ -93,7 +97,9 @@ class ExecuteTask(BaseWorkload):
     kind: Literal["ExecuteTask"] = Field(init=False, default="ExecuteTask")
 
     @classmethod
-    def make(cls, ti: TIModel, dag_rel_path: Path | None = None) -> ExecuteTask:
+    def make(
+        cls, ti: TIModel, dag_rel_path: Path | None = None, generator: JWTGenerator | None = None
+    ) -> ExecuteTask:
         from pathlib import Path
 
         from airflow.utils.helpers import log_filename_template_renderer
@@ -104,10 +110,14 @@ class ExecuteTask(BaseWorkload):
             version=ti.dag_run.bundle_version,
         )
         fname = log_filename_template_renderer()(ti=ti)
+        token = ""
+
+        if generator:
+            token = generator.generate({"sub": str(ti.id)})
         return cls(
             ti=ser_ti,
             dag_rel_path=dag_rel_path or Path(ti.dag_model.relative_fileloc),
-            token="",
+            token=token,
             log_path=fname,
             bundle_info=bundle_info,
         )

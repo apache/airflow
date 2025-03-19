@@ -39,9 +39,6 @@ KUBERNETES_HOST_PORT = (os.environ.get("CLUSTER_HOST") or "localhost") + ":" + C
 EXECUTOR = os.environ.get("EXECUTOR")
 CONFIG_MAP_NAME = "airflow-config"
 CONFIG_MAP_KEY = "airflow.cfg"
-AIRFLOW_API_SERVER_JWT_SECRET = os.environ.get(
-    "AIRFLOW_API_SERVER_JWT_SECRET", "airflow_api_server_jwt_secret"
-)
 
 print()
 print(f"Cluster host/port used: ${KUBERNETES_HOST_PORT}")
@@ -68,15 +65,13 @@ class BaseK8STest:
         # speed up the test and make the airflow-api-server deployment more stable
         if self.set_api_server_base_url_config():
             self.rollout_restart_deployment("airflow-api-server")
-            self.ensure_deployment_health("airflow-api-server")
-        if self.set_api_auth_jwt_secret_config():
-            self.rollout_restart_deployment("airflow-api-server")
-            self.ensure_deployment_health("airflow-api-server")
 
         # Replacement for unittests.TestCase.id()
         self.test_id = f"{request.node.cls.__name__}_{request.node.name}"
-        self.session = self._get_session_with_retries()
+        # Ensure the api-server deployment is healthy at kubernetes level before calling the any API
+        self.ensure_deployment_health("airflow-api-server")
         try:
+            self.session = self._get_session_with_retries()
             self._ensure_airflow_api_server_is_healthy()
             yield
         finally:
@@ -349,15 +344,6 @@ class BaseK8STest:
         """
         return self.set_airflow_cfg_in_kubernetes_configmap(
             "api", "base_url", f"http://{KUBERNETES_HOST_PORT}"
-        )
-
-    def set_api_auth_jwt_secret_config(self) -> bool:
-        """Set [api_auth/jwt_secret] with AIRFLOW_API_SERVER_JWT_SECRET as env in k8s configmap."
-
-        :return: True if the configmap was updated successfully, False otherwise"
-        """
-        return self.set_airflow_cfg_in_kubernetes_configmap(
-            "api_auth", "jwt_secret", AIRFLOW_API_SERVER_JWT_SECRET
         )
 
     def ensure_dag_expected_state(self, host, logical_date, dag_id, expected_final_state, timeout):
