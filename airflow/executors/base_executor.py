@@ -469,9 +469,7 @@ class BaseExecutor(LoggingMixin):
                     # The carrier needs to be set on the ti, but it can't happen here because db calls are expensive.
                     # So set the carrier as an argument to the command.
                     # The command execution will set it on the ti, and it will be propagated to the task itself.
-                    command = list(command)
-                    command.append("--carrier")
-                    command.append(json.dumps(carrier))
+                    command = list(command) + ["--carrier", json.dumps(carrier)]
                     task_tuples.append((key, command, queue, getattr(ti, "executor_config", None)))
 
         if task_tuples:

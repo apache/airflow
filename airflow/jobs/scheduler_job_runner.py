@@ -1045,7 +1045,6 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                         s.set_attribute("trace_status", "needs continuance")
 
         self.active_spans.clear()
-        self.active_spans.clear()
 
     def _end_spans_of_externally_ended_ops(self, session: Session):
         # The scheduler that starts a dag_run or a task is also the one that starts the spans.
