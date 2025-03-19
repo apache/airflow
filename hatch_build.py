@@ -118,10 +118,6 @@ CORE_EXTRAS: dict[str, list[str]] = {
         # In addition FAB also limit sqlalchemy to < 2.0
         "pandas>=1.2.5,<2.2",
     ],
-    "password": [
-        "bcrypt>=2.0.0",
-        "flask-bcrypt>=0.7.1",
-    ],
     "rabbitmq": [
         "amqp>=5.2.0",
     ],
@@ -189,9 +185,6 @@ DEPENDENCIES = [
     "argcomplete>=1.10",
     "asgiref>=2.3.0",
     "attrs>=22.1.0, !=25.2.0",
-    # Blinker use for signals in Flask, this is an optional dependency in Flask 2.2 and lower.
-    # In Flask 2.3 it becomes a mandatory dependency, and flask signals are always available.
-    "blinker>=1.6.2",
     "colorlog>=6.8.2",
     "configupdater>=3.1.1",
     "cron-descriptor>=1.2.24",
@@ -205,15 +198,7 @@ DEPENDENCIES = [
     # 0.115.10 fastapi was a bad release that broke our API's and static checks.
     # Related fastapi issue here: https://github.com/fastapi/fastapi/discussions/13431
     "fastapi[standard]>=0.112.2,!=0.115.10",
-    "flask-caching>=2.0.0",
-    # Flask-Session 0.6 add new arguments into the SqlAlchemySessionInterface constructor as well as
-    # all parameters now are mandatory which make AirflowDatabaseSessionInterface incompatible with this version.
-    "flask-session>=0.4.0,<0.6",
-    "flask-wtf>=1.1.0",
-    # Flask 2.3 is scheduled to introduce a number of deprecation removals - some of them might be breaking
-    # for our dependencies - notably `_app_ctx_stack` and `_request_ctx_stack` removals.
-    # We should remove the limitation after 2.3 is released and our dependencies are updated to handle it
-    "flask>=2.2.1,<2.3",
+    "flask",
     "fsspec>=2023.10.0",
     "gitpython>=3.1.40",
     "gunicorn>=20.1.0",
@@ -270,9 +255,6 @@ DEPENDENCIES = [
     # Does not work with it Tracked in https://github.com/fsspec/universal_pathlib/issues/276
     "universal-pathlib>=0.2.2,!=0.2.4",
     "uuid6>=2024.7.10",
-    # Werkzug 3 breaks Flask-Login 0.6.2
-    # we should remove this limitation when FAB supports Flask 2.3
-    "werkzeug>=2.0,<3",
 ]
 
 
