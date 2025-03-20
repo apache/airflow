@@ -21,6 +21,7 @@ import logging
 import re
 from typing import TYPE_CHECKING
 
+from airflow.providers.common.compat.openlineage.check import require_openlineage_version
 from airflow.providers.dbt.cloud.version_compat import AIRFLOW_V_2_10_PLUS, AIRFLOW_V_3_0_PLUS
 
 if TYPE_CHECKING:
@@ -54,6 +55,7 @@ def _get_try_number(val):
     return val.try_number - 1
 
 
+@require_openlineage_version(provider_min_version="2.0.0")
 def generate_openlineage_events_from_dbt_cloud_run(
     operator: DbtCloudRunJobOperator | DbtCloudJobRunSensor, task_instance: TaskInstance
 ) -> OperatorLineage:
@@ -73,14 +75,7 @@ def generate_openlineage_events_from_dbt_cloud_run(
     """
     from openlineage.common.provider.dbt import DbtCloudArtifactProcessor, ParentRunMetadata
 
-    try:
-        from airflow.providers.openlineage.conf import namespace
-    except ModuleNotFoundError as e:
-        from airflow.exceptions import AirflowOptionalProviderFeatureException
-
-        msg = "Please install `apache-airflow-providers-openlineage>=1.7.0`"
-        raise AirflowOptionalProviderFeatureException(e, msg)
-
+    from airflow.providers.openlineage.conf import namespace
     from airflow.providers.openlineage.extractors import OperatorLineage
     from airflow.providers.openlineage.plugins.adapter import (
         _PRODUCER,
