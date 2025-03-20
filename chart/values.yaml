@@ -1806,7 +1806,7 @@ triggerer:
 
     # Query to use for KEDA autoscaling. Must return a single integer.
     query: >-
-      SELECT ceil(COUNT(*)::decimal / {{ .Values.config.triggerer.default_capacity }})
+      SELECT ceil(COUNT(*)::decimal / {{ .Values.config.triggerer.capacity }})
       FROM trigger
 
     # Whether to use PGBouncer to connect to the database or not when it is enabled
@@ -2711,7 +2711,7 @@ config:
     worker_container_tag: '{{ .Values.images.airflow.tag | default .Values.defaultAirflowTag }}'
     multi_namespace_mode: '{{ ternary "True" "False" .Values.multiNamespaceMode }}'
   triggerer:
-    default_capacity: 1000
+    capacity: 1000
 # yamllint enable rule:line-length
 
 # Whether Airflow can launch workers and/or pods in multiple namespaces
