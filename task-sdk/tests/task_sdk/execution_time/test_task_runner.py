@@ -1928,6 +1928,51 @@ class TestTaskRunnerCallsListeners:
         assert listener.error == error
 
 
+@pytest.mark.usefixtures("mock_supervisor_comms")
+class TestTaskRunnerCallsCallbacks:
+    def test_task_runner_calls_execute_callback(self, create_runtime_ti):
+        results = []
+
+        def custom_callback(context):
+            results.append("callback")
+
+        class CustomOperator(BaseOperator):
+            def execute(self, context):
+                results.append("execute")
+
+        task = CustomOperator(task_id="task", on_execute_callback=custom_callback)
+        runtime_ti = create_runtime_ti(dag_id="dag", task=task)
+        log = mock.MagicMock()
+        state, _, _ = run(runtime_ti, log)
+
+        assert state == TerminalTIState.SUCCESS
+        assert results == ["callback", "execute"]
+
+    def test_task_runner_not_fail_on_failed_execute_callback(self, create_runtime_ti):
+        results = []
+
+        def custom_callback_1(context):
+            results.append("callback 1")
+
+        def custom_callback_2(context):
+            raise Exception("sorry!")
+
+        class CustomOperator(BaseOperator):
+            def execute(self, context):
+                results.append("execute")
+
+        task = CustomOperator(task_id="task", on_execute_callback=[custom_callback_1, custom_callback_2])
+        runtime_ti = create_runtime_ti(dag_id="dag", task=task)
+        log = mock.MagicMock()
+        state, _, _ = run(runtime_ti, log)
+
+        assert state == TerminalTIState.SUCCESS
+        assert results == ["callback 1", "execute"]
+        assert log.exception.mock_calls == [
+            mock.call("Failed to run on-execute callback", index=1, callback=custom_callback_2),
+        ]
+
+
 class TestTriggerDagRunOperator:
     """Tests to verify various aspects of TriggerDagRunOperator"""
 
