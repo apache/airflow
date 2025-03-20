@@ -18,7 +18,7 @@
 [project]
 name = "apache-airflow-ctl"
 dynamic = ["version"]
-description = "Apache Airflow control interface for API."
+description = "Apache Airflow command line tool for communicating with an Apache Airflow, using the API."
 readme = { file = "README.md", content-type = "text/markdown" }
 requires-python = ">=3.9, <3.13"
 dependencies = [
@@ -38,17 +38,15 @@ requires = ["hatchling"]
 build-backend = "hatchling.build"
 
 [tool.hatch.version]
-path = "src/airflow/airflowctl/__init__.py"
+path = "src/airflowctl/__init__.py"
 
 [tool.hatch.build.targets.wheel]
-packages = ["src/airflow"]
-# This file only exists to make pyright/VSCode happy, don't ship it
-exclude = ["src/airflow/__init__.py"]
+packages = ["src/airflowctl"]
 
 [tool.ruff]
 extend = "../pyproject.toml"
 src = ["src"]
-namespace-packages = ["src/airflow"]
+namespace-packages = ["src/airflowctl"]
 
 [tool.ruff.lint.per-file-ignores]
 
@@ -59,15 +57,15 @@ namespace-packages = ["src/airflow"]
 "!tests/*" = ["PT"]
 
 # Pycharm barfs if this "stub" file has future imports
-"src/airflow/__init__.py" = ["I002"]
+"src/airflowctl/__init__.py" = ["I002"]
 
 # Generated file, be less strict
-"airflow/api/datamodels/generated.py" = ["UP007", "D101", "D200"]
+"src/airflowctl/api/datamodels/generated.py" = ["UP007", "D101", "D200"]
 
 [tool.coverage.run]
 branch = true
 relative_files = true
-source = ["src/airflow"]
+source = ["src/airflowctl"]
 include_namespace_packages = true
 
 [tool.coverage.report]
@@ -85,10 +83,6 @@ exclude_also = [
 [dependency-groups]
 codegen = [
     "datamodel-code-generator[http]==0.28.2",
-]
-dev = [
-    "apache-airflow",
-    "apache-airflow-devel-common",
 ]
 [tool.uv.sources]
 
@@ -115,4 +109,4 @@ use-subclass-enum=true # enum, not union of Literals
 use-union-operator=true # 3.9+annotations, not `Union[]`
 
 url = "http://0.0.0.0:8080/openapi.json"
-output = "cli/api/datamodels/generated.py"
+output = "src/airflowctl/api/datamodels/generated.py"

@@ -25,9 +25,8 @@ if TYPE_CHECKING:
     from collections.abc import Collection
     from io import IOBase, TextIOWrapper
 
-    from sqlalchemy.orm import Session
-
     from airflow.models.dagrun import DagRun
+    from sqlalchemy.orm import Session
 
 
 class CliConflictError(Exception):
@@ -76,12 +75,11 @@ def fetch_dag_run_from_run_id_or_logical_date_string(
     second value can be used to create a new run by the calling function when
     one cannot be found here.
     """
-    from pendulum.parsing.exceptions import ParserError
-    from sqlalchemy import select
-
     from airflow.models.dag import DAG
     from airflow.models.dagrun import DagRun
     from airflow.utils import timezone
+    from pendulum.parsing.exceptions import ParserError
+    from sqlalchemy import select
 
     if dag_run := DAG.fetch_dagrun(dag_id=dag_id, run_id=value, session=session):
         return dag_run, dag_run.logical_date

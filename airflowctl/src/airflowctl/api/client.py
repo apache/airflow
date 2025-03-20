@@ -27,10 +27,13 @@ from typing import TYPE_CHECKING, Any, Callable, TypeVar, cast
 import httpx
 import keyring
 import structlog
+from airflow.exceptions import AirflowNotFoundException
+from airflow.typing_compat import ParamSpec
 from platformdirs import user_config_path
 from uuid6 import uuid7
 
-from airflow.api.operations import (
+from airflowctl import __version__ as version
+from airflowctl.api.operations import (
     AssetsOperations,
     BackfillsOperations,
     ConfigOperations,
@@ -44,9 +47,6 @@ from airflow.api.operations import (
     VariablesOperations,
     VersionOperations,
 )
-from airflow.exceptions import AirflowNotFoundException
-from airflow.typing_compat import ParamSpec
-from airflow.version import version
 
 if TYPE_CHECKING:
     # # methodtools doesn't have typestubs, so give a stub

@@ -179,7 +179,7 @@ AUTH_COMMANDS = (
         name="login",
         help="Login to the metadata database for personal usage. JWT Token must be provided via parameter.",
         description="Login to the metadata database",
-        func=lazy_load_command("airflow.cli.commands.remote_commands.auth_command.login"),
+        func=lazy_load_command("airflowctl.ctl.commands.auth_command.login"),
         args=(ARG_AUTH_URL, ARG_AUTH_TOKEN, ARG_AUTH_ENVIRONMENT),
     ),
 )

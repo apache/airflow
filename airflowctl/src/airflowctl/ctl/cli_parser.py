@@ -19,7 +19,7 @@
 """
 Produce a CLI parser object from Airflow CLI command configuration.
 
-.. seealso:: :mod:`airflow.cli.cli_config`
+.. seealso:: :mod:`airflowctl.ctl.cli_config`
 """
 
 from __future__ import annotations
@@ -33,20 +33,20 @@ from functools import cache
 from typing import TYPE_CHECKING
 
 import lazy_object_proxy
+from airflow.exceptions import AirflowException
+from airflow.utils.helpers import partition
 from rich_argparse import RawTextRichHelpFormatter, RichHelpFormatter
 
-from airflow.ctl.cli_config import (
+from airflowctl.ctl.cli_config import (
     ActionCommand,
     DefaultHelpParser,
     GroupCommand,
     core_commands,
 )
-from airflow.ctl.utils import CliConflictError
-from airflow.exceptions import AirflowException
-from airflow.utils.helpers import partition
+from airflowctl.ctl.utils import CliConflictError
 
 if TYPE_CHECKING:
-    from airflow.ctl.cli_config import (
+    from airflowctl.ctl.cli_config import (
         Arg,
         CLICommand,
     )

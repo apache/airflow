@@ -23,8 +23,8 @@ import sys
 
 import rich
 
-from airflow.api.client import Credentials
-from airflow.utils import cli as cli_utils
+from airflowctl.api.client import Credentials
+from airflowctl.utils import cli as cli_utils
 
 
 @cli_utils.action_cli
