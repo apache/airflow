@@ -857,7 +857,8 @@
       "msgraph-core>=1.0.0,!=1.1.8"
     ],
     "devel-deps": [
-      "pywinrm>=0.4"
+      "pywinrm>=0.4",
+      "setuptools>=76.0.0,!=77.0.1"
     ],
     "plugins": [],
     "cross-providers-deps": [
@@ -901,7 +902,9 @@
       "apache-airflow>=2.9.0",
       "pywinrm>=0.4"
     ],
-    "devel-deps": [],
+    "devel-deps": [
+      "setuptools>=76.0.0,!=77.0.1"
+    ],
     "plugins": [],
     "cross-providers-deps": [],
     "excluded-python-versions": [],

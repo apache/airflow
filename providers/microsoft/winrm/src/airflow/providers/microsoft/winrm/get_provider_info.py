@@ -77,5 +77,5 @@ def get_provider_info():
             }
         ],
         "dependencies": ["apache-airflow>=2.9.0", "pywinrm>=0.4"],
-        "devel-dependencies": [],
+        "devel-dependencies": ["setuptools>=76.0.0,!=77.0.1"],
     }

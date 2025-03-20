@@ -493,5 +493,5 @@ def get_provider_info():
             "oracle": ["apache-airflow-providers-oracle"],
             "sftp": ["apache-airflow-providers-sftp"],
         },
-        "devel-dependencies": ["pywinrm>=0.4"],
+        "devel-dependencies": ["pywinrm>=0.4", "setuptools>=76.0.0,!=77.0.1"],
     }
