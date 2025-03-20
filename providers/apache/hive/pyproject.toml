@@ -91,6 +91,9 @@ dependencies = [
 "vertica" = [
     "apache-airflow-providers-vertica"
 ]
+"common.compat" = [
+    "apache-airflow-providers-common-compat"
+]
 
 [dependency-groups]
 dev = [
