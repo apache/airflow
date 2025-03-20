@@ -656,7 +656,7 @@ class DagFileProcessorManager(LoggingMixin):
 
         rows = []
         utcnow = timezone.utcnow()
-        now = time.monotonic()
+        now = time.time()
 
         for files in known_files.values():
             for file in files:
