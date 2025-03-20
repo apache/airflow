@@ -25,6 +25,24 @@
 Changelog
 ---------
 
+1.24.1b1
+........
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fix get_hook() got an unexpected keyword argument 'hook_params' in SQLExecuteQueryTrigger (#47728)``
+
+Misc
+~~~~
+
+* ``AIP-72: Handle Custom XCom Backend on Task SDK (#47339)``
+* ``AIP-72: Implement short circuit and branch operators (#46584)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Remove links to x/twitter.com (#47801)``
+
 1.24.0
 ......
 
