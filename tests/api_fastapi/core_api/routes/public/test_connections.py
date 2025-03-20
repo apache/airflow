@@ -251,8 +251,8 @@ class TestPostConnection(TestConnectionEndpoint):
         "body",
         [
             {"connection_id": "****", "conn_type": TEST_CONN_TYPE},
-            {"connection_id": "test()", "conn_type": TEST_CONN_TYPE},
-            {"connection_id": "this_^$#is_invalid", "conn_type": TEST_CONN_TYPE},
+            {"connection_id": "test(__)))", "conn_type": TEST_CONN_TYPE},
+            {"connection_id": "this_#is_invalid", "conn_type": TEST_CONN_TYPE},
             {"connection_id": "iam_not@#$_connection_id", "conn_type": TEST_CONN_TYPE},
         ],
     )
