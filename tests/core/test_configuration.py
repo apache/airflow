@@ -37,10 +37,12 @@ from airflow.configuration import (
     get_airflow_config,
     get_airflow_home,
     get_all_expansion_variables,
+    initialize_secrets_backends,
     run_command,
     write_default_airflow_configuration_if_needed,
 )
 from airflow.providers_manager import ProvidersManager
+from airflow.secrets import DEFAULT_SECRETS_SEARCH_PATH_WORKERS
 
 from tests.utils.test_config import (
     remove_all_configurations,
@@ -882,6 +884,43 @@ key7 =
         assert isinstance(test_conf.gettimedelta("default", "key7"), type(None))
         assert test_conf.gettimedelta("default", "key7") is None
 
+    @conf_vars(
+        {
+            (
+                "workers",
+                "secrets_backend",
+            ): "airflow.providers.amazon.aws.secrets.systems_manager.SystemsManagerParameterStoreBackend",
+            ("workers", "secrets_backend_kwargs"): '{"connections_prefix": "/airflow", "profile_name": null}',
+        }
+    )
+    def test_initialize_secrets_backends_on_workers(self):
+        """Tests if secrets backend and default backends are loaded correctly for workers."""
+        backends = initialize_secrets_backends(DEFAULT_SECRETS_SEARCH_PATH_WORKERS)
+        backend_classes = [backend.__class__.__name__ for backend in backends]
+
+        assert len(backends) == 2
+        assert "SystemsManagerParameterStoreBackend" in backend_classes
+
+    @conf_vars(
+        {
+            (
+                "workers",
+                "secrets_backend",
+            ): "airflow.providers.amazon.aws.secrets.systems_manager.SystemsManagerParameterStoreBackend",
+            ("workers", "secrets_backend_kwargs"): '{"use_ssl": false}',
+        }
+    )
+    def test_secrets_backends_kwargs_on_workers(self):
+        """Tests if secrets backend kwargs are loaded correctly for workers."""
+        backends = initialize_secrets_backends(DEFAULT_SECRETS_SEARCH_PATH_WORKERS)
+        systems_manager = next(
+            backend
+            for backend in backends
+            if backend.__class__.__name__ == "SystemsManagerParameterStoreBackend"
+        )
+        assert systems_manager.kwargs == {}
+        assert systems_manager.use_ssl is False
+
 
 @mock.patch.dict(
     "os.environ",
@@ -1586,12 +1625,6 @@ def test_sensitive_values():
         ("sentry", "sentry_dsn"),
         ("database", "sql_alchemy_engine_args"),
         ("core", "sql_alchemy_conn"),
-        ("celery_broker_transport_options", "sentinel_kwargs"),
-        ("celery", "broker_url"),
-        ("celery", "flower_basic_auth"),
-        ("celery", "result_backend"),
-        ("opensearch", "username"),
-        ("opensearch", "password"),
     }
     all_keys = {(s, k) for s, v in conf.configuration_description.items() for k in v.get("options")}
     suspected_sensitive = {(s, k) for (s, k) in all_keys if k.endswith(("password", "kwargs"))}
