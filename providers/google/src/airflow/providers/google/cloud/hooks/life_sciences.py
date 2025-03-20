@@ -34,7 +34,7 @@ TIME_TO_SLEEP_IN_SECONDS = 5
 
 
 @deprecated(
-    planned_removal_date="March 01, 2025",
+    planned_removal_date="July 08, 2025",
     use_instead="Google Cloud Batch Operators' hook",
     reason="The Life Sciences API (beta) will be discontinued on July 8, 2025 "
     "in favor of Google Cloud Batch.",
