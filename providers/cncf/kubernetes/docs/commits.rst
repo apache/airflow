@@ -34,14 +34,31 @@ For high-level changelog, see :doc:`package information including changelog <ind
 
 
 
+10.4.0b1
+........
+
+Latest change: 2025-03-17
+
+==================================================================================================  ===========  ================================================================================================
+Commit                                                                                              Committed    Subject
+==================================================================================================  ===========  ================================================================================================
+`91b0f610ab <https://github.com/apache/airflow/commit/91b0f610ab109f39e27a5a00d9f6d5bf590b47ff>`__  2025-03-17   ``AIP-72: Handle Custom XCom Backend on Task SDK (#47339)``
+`007be76f73 <https://github.com/apache/airflow/commit/007be76f7341d3671de95f6b0607c1dfb72fb778>`__  2025-03-16   ``Remove extra method for async hook getting (#47313)``
+`966ea18112 <https://github.com/apache/airflow/commit/966ea18112987d72fa449abd814c37cf07ed1444>`__  2025-03-16   ``cncf.kubernetes: make the base container status check polling interval configurable (#47774)``
+`935d2831fe <https://github.com/apache/airflow/commit/935d2831fe8fd509b618a738bf00e0c34e186e11>`__  2025-03-15   ``Remove links to x/twitter.com (#47801)``
+`6994f1f76b <https://github.com/apache/airflow/commit/6994f1f76b6db6f7d50c5990fe02081226a7f2a0>`__  2025-03-12   ``Switch to non-interactive mode where stdin is disabled (#47568)``
+`1b643a4f65 <https://github.com/apache/airflow/commit/1b643a4f653b2eefcd27444ad7dd4159cdda04a9>`__  2025-03-11   `` Retry k8s API requests in 'KubernetesPodTrigger' (#47187)``
+==================================================================================================  ===========  ================================================================================================
+
 10.3.1
 ......
 
-Latest change: 2025-03-07
+Latest change: 2025-03-09
 
 ==================================================================================================  ===========  ==================================================================================
 Commit                                                                                              Committed    Subject
 ==================================================================================================  ===========  ==================================================================================
+`492ecfe5c0 <https://github.com/apache/airflow/commit/492ecfe5c03102bfb710108038ebd5fc50cb55b5>`__  2025-03-09   ``Prepare docs for Mar 1st wave of providers (#47545)``
 `092cc57f02 <https://github.com/apache/airflow/commit/092cc57f0257c55bfa4e7db9aa91d9c2525bca41>`__  2025-03-07   ``Get rid of google-re2 as dependency (#47493)``
 `e4002c3305 <https://github.com/apache/airflow/commit/e4002c3305a757f5926f96c996e701e8f998a042>`__  2025-03-05   ``Move tests_common package to devel-common project (#47281)``
 `1447705482 <https://github.com/apache/airflow/commit/144770548242295dc69d5ea7b7e11a748c246262>`__  2025-03-01   ``Fix codespell issues detected by new codespell (#47259)``

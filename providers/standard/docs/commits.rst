@@ -34,14 +34,36 @@ For high-level changelog, see :doc:`package information including changelog <ind
 
 
 
+0.2.0b1
+.......
+
+Latest change: 2025-03-19
+
+==================================================================================================  ===========  ======================================================================
+Commit                                                                                              Committed    Subject
+==================================================================================================  ===========  ======================================================================
+`4b83391b75 <https://github.com/apache/airflow/commit/4b83391b75fb24209904bad5721cf16a391cf065>`__  2025-03-19   ``AIP-72: Get 'TriggerDagRunOperator' working with Task SDK (#47882)``
+`566bea2db3 <https://github.com/apache/airflow/commit/566bea2db3e1544e63a467432837957e77be4439>`__  2025-03-18   ``Relocate utils/weekday.py to standard provider (#47892)``
+`91b0f610ab <https://github.com/apache/airflow/commit/91b0f610ab109f39e27a5a00d9f6d5bf590b47ff>`__  2025-03-17   ``AIP-72: Handle Custom XCom Backend on Task SDK (#47339)``
+`779b76b891 <https://github.com/apache/airflow/commit/779b76b8914fbbc4e10667874798e1fe227cf968>`__  2025-03-17   ``Handle null logical date in TimeDeltaSensorAsync (#47652)``
+`d0bcc028af <https://github.com/apache/airflow/commit/d0bcc028af5180e35779ecea8696ac1cec11282e>`__  2025-03-17   ``Fix deprecation warning for 'BranchMixIn' (#47856)``
+`60f6a9f1a1 <https://github.com/apache/airflow/commit/60f6a9f1a1ab555f932503954a536b5878a96843>`__  2025-03-16   ``Fix DayOfWeekSensor use_task_logical_date condition (#47825)``
+`9201b36af3 <https://github.com/apache/airflow/commit/9201b36af3afefce80a75c38d2e9c41de6f290c9>`__  2025-03-16   ``Remove fixed comments (#47823)``
+`935d2831fe <https://github.com/apache/airflow/commit/935d2831fe8fd509b618a738bf00e0c34e186e11>`__  2025-03-15   ``Remove links to x/twitter.com (#47801)``
+`a6f6733b35 <https://github.com/apache/airflow/commit/a6f6733b3586e025715d6e8d6033f8ce2a0fa1cf>`__  2025-03-15   ``AIP-72: Implement short circuit and branch operators (#46584)``
+`2fa9230d2a <https://github.com/apache/airflow/commit/2fa9230d2a5dcb09123a2dbb9297894ac40471ad>`__  2025-03-13   ``Rewrite asset event registration (#47677)``
+`7f7c7a7b45 <https://github.com/apache/airflow/commit/7f7c7a7b4594fe753dcfa106e2c14228e8d09793>`__  2025-03-10   ``Fix comment typo in PythonOperator (#47558)``
+==================================================================================================  ===========  ======================================================================
+
 0.1.1
 .....
 
-Latest change: 2025-03-08
+Latest change: 2025-03-09
 
 ==================================================================================================  ===========  =======================================================================
 Commit                                                                                              Committed    Subject
 ==================================================================================================  ===========  =======================================================================
+`492ecfe5c0 <https://github.com/apache/airflow/commit/492ecfe5c03102bfb710108038ebd5fc50cb55b5>`__  2025-03-09   ``Prepare docs for Mar 1st wave of providers (#47545)``
 `6b69eb7b9a <https://github.com/apache/airflow/commit/6b69eb7b9aa1c90cd3e7a6b5e9bfa6d8f6b03fe8>`__  2025-03-08   ``Relocate SmoothOperator to standard provider and add tests (#47530)``
 `aa07160892 <https://github.com/apache/airflow/commit/aa0716089235407f555fee06ac6363419b390bcc>`__  2025-03-07   ``AIP-72: Moving BaseOperatorLink to task sdk (#47008)``
 `e4002c3305 <https://github.com/apache/airflow/commit/e4002c3305a757f5926f96c996e701e8f998a042>`__  2025-03-05   ``Move tests_common package to devel-common project (#47281)``

@@ -20,7 +20,7 @@
 Changelog
 ---------
 
-2.0.0
+2.0.0b1
 .....
 
 Breaking changes
