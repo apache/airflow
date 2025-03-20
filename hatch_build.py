@@ -46,9 +46,6 @@ PRE_INSTALLED_PROVIDERS = [
     "common.io",
     "common.sql",
     "fab>=1.0.2",
-    "ftp",
-    "http",
-    "imap",
     "smtp",
     "sqlite",
     "standard",
@@ -195,6 +192,7 @@ DEPENDENCIES = [
     # Blinker use for signals in Flask, this is an optional dependency in Flask 2.2 and lower.
     # In Flask 2.3 it becomes a mandatory dependency, and flask signals are always available.
     "blinker>=1.6.2",
+    "cadwyn>=5.1.2",
     "colorlog>=6.8.2",
     "configupdater>=3.1.1",
     "cron-descriptor>=1.2.24",
@@ -207,7 +205,7 @@ DEPENDENCIES = [
     'eval-type-backport>=0.2.0;python_version<"3.10"',
     # 0.115.10 fastapi was a bad release that broke our API's and static checks.
     # Related fastapi issue here: https://github.com/fastapi/fastapi/discussions/13431
-    "fastapi[standard]>=0.112.2,!=0.115.10",
+    "fastapi[standard]>=0.112.4,!=0.115.10",
     "flask-caching>=2.0.0",
     # Flask-Session 0.6 add new arguments into the SqlAlchemySessionInterface constructor as well as
     # all parameters now are mandatory which make AirflowDatabaseSessionInterface incompatible with this version.
@@ -265,6 +263,7 @@ DEPENDENCIES = [
     "sqlalchemy>=1.4.49,<2.0",
     "sqlalchemy-jsonfield>=1.0",
     "sqlalchemy-utils>=0.41.2",
+    "svcs>=25.1.0",
     "tabulate>=0.7.5",
     "tenacity>=8.0.0,!=8.2.0",
     "termcolor>=2.5.0",

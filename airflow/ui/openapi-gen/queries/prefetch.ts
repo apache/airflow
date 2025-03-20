@@ -75,6 +75,7 @@ export const prefetchUseAssetServiceNextRunAssets = (
  * @param data.namePattern
  * @param data.uriPattern
  * @param data.dagIds
+ * @param data.onlyActive
  * @param data.orderBy
  * @returns AssetCollectionResponse Successful Response
  * @throws ApiError
@@ -86,6 +87,7 @@ export const prefetchUseAssetServiceGetAssets = (
     limit,
     namePattern,
     offset,
+    onlyActive,
     orderBy,
     uriPattern,
   }: {
@@ -93,6 +95,7 @@ export const prefetchUseAssetServiceGetAssets = (
     limit?: number;
     namePattern?: string;
     offset?: number;
+    onlyActive?: boolean;
     orderBy?: string;
     uriPattern?: string;
   } = {},
@@ -103,10 +106,12 @@ export const prefetchUseAssetServiceGetAssets = (
       limit,
       namePattern,
       offset,
+      onlyActive,
       orderBy,
       uriPattern,
     }),
-    queryFn: () => AssetService.getAssets({ dagIds, limit, namePattern, offset, orderBy, uriPattern }),
+    queryFn: () =>
+      AssetService.getAssets({ dagIds, limit, namePattern, offset, onlyActive, orderBy, uriPattern }),
   });
 /**
  * Get Asset Aliases

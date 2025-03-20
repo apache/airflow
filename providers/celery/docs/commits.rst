@@ -34,14 +34,27 @@ For high-level changelog, see :doc:`package information including changelog <ind
 
 
 
+3.10.4b1
+........
+
+Latest change: 2025-03-15
+
+==================================================================================================  ===========  ====================================================================================================
+Commit                                                                                              Committed    Subject
+==================================================================================================  ===========  ====================================================================================================
+`935d2831fe <https://github.com/apache/airflow/commit/935d2831fe8fd509b618a738bf00e0c34e186e11>`__  2025-03-15   ``Remove links to x/twitter.com (#47801)``
+`e35cf2febb <https://github.com/apache/airflow/commit/e35cf2febb3b2814544cd44d7f331c80c3ed7e99>`__  2025-03-09   ``Scheduler shouldn't crash when 'executor_config' is passed for executors using task SDK (#47548)``
+==================================================================================================  ===========  ====================================================================================================
+
 3.10.3
 ......
 
-Latest change: 2025-03-07
+Latest change: 2025-03-09
 
 ==================================================================================================  ===========  ===================================================================================
 Commit                                                                                              Committed    Subject
 ==================================================================================================  ===========  ===================================================================================
+`492ecfe5c0 <https://github.com/apache/airflow/commit/492ecfe5c03102bfb710108038ebd5fc50cb55b5>`__  2025-03-09   ``Prepare docs for Mar 1st wave of providers (#47545)``
 `092cc57f02 <https://github.com/apache/airflow/commit/092cc57f0257c55bfa4e7db9aa91d9c2525bca41>`__  2025-03-07   ``Get rid of google-re2 as dependency (#47493)``
 `58c6a49565 <https://github.com/apache/airflow/commit/58c6a4956512fb35bebc645fbeed2ff79cdbe6ee>`__  2025-03-07   ``Remove the old 'task run' commands and LocalTaskJob (#47453)``
 `c440959723 <https://github.com/apache/airflow/commit/c4409597235c3d9858964718a3f6d93ae23f1d80>`__  2025-03-06   ``Disable ORM access from Tasks, DAG processing and Triggers (#47320)``

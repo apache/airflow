@@ -19,13 +19,22 @@
 
 from __future__ import annotations
 
+import uuid
 from typing import TYPE_CHECKING
 
-from sqlalchemy import Column, ForeignKeyConstraint, Index, Integer, String, asc, desc, select, text
-from sqlalchemy.ext.associationproxy import association_proxy
+from sqlalchemy import (
+    Column,
+    ForeignKey,
+    Integer,
+    String,
+    asc,
+    desc,
+    select,
+)
+from sqlalchemy.dialects import postgresql
 from sqlalchemy.orm import relationship
 
-from airflow.models.base import COLLATION_ARGS, ID_LEN, TaskInstanceDependencies
+from airflow.models.base import Base
 from airflow.utils.sqlalchemy import UtcDateTime
 
 if TYPE_CHECKING:
@@ -36,61 +45,35 @@ if TYPE_CHECKING:
     from airflow.models.taskinstance import TaskInstance
 
 
-class TaskReschedule(TaskInstanceDependencies):
+class TaskReschedule(Base):
     """TaskReschedule tracks rescheduled task instances."""
 
     __tablename__ = "task_reschedule"
-
     id = Column(Integer, primary_key=True)
-    task_id = Column(String(ID_LEN, **COLLATION_ARGS), nullable=False)
-    dag_id = Column(String(ID_LEN, **COLLATION_ARGS), nullable=False)
-    run_id = Column(String(ID_LEN, **COLLATION_ARGS), nullable=False)
-    map_index = Column(Integer, nullable=False, server_default=text("-1"))
+    ti_id = Column(
+        String(36).with_variant(postgresql.UUID(as_uuid=False), "postgresql"),
+        ForeignKey("task_instance.id", ondelete="CASCADE", name="task_reschedule_ti_fkey"),
+        nullable=False,
+    )
     try_number = Column(Integer, nullable=False)
     start_date = Column(UtcDateTime, nullable=False)
     end_date = Column(UtcDateTime, nullable=False)
     duration = Column(Integer, nullable=False)
     reschedule_date = Column(UtcDateTime, nullable=False)
 
-    __table_args__ = (
-        Index("idx_task_reschedule_dag_task_run", dag_id, task_id, run_id, map_index, unique=False),
-        ForeignKeyConstraint(
-            [dag_id, task_id, run_id, map_index],
-            [
-                "task_instance.dag_id",
-                "task_instance.task_id",
-                "task_instance.run_id",
-                "task_instance.map_index",
-            ],
-            name="task_reschedule_ti_fkey",
-            ondelete="CASCADE",
-        ),
-        Index("idx_task_reschedule_dag_run", dag_id, run_id),
-        ForeignKeyConstraint(
-            [dag_id, run_id],
-            ["dag_run.dag_id", "dag_run.run_id"],
-            name="task_reschedule_dr_fkey",
-            ondelete="CASCADE",
-        ),
+    task_instance = relationship(
+        "TaskInstance", primaryjoin="TaskReschedule.ti_id == foreign(TaskInstance.id)", uselist=False
     )
-    dag_run = relationship("DagRun")
-    logical_date = association_proxy("dag_run", "logical_date")
 
     def __init__(
         self,
-        task_id: str,
-        dag_id: str,
-        run_id: str,
+        task_instance_id: uuid.UUID,
         try_number: int,
         start_date: datetime.datetime,
         end_date: datetime.datetime,
         reschedule_date: datetime.datetime,
-        map_index: int = -1,
     ) -> None:
-        self.dag_id = dag_id
-        self.task_id = task_id
-        self.run_id = run_id
-        self.map_index = map_index
+        self.ti_id = task_instance_id
         self.try_number = try_number
         self.start_date = start_date
         self.end_date = end_date
@@ -106,7 +89,7 @@ class TaskReschedule(TaskInstanceDependencies):
         descending: bool = False,
     ) -> Select:
         """
-        Statement for task reschedules for a given the task instance.
+        Statement for task reschedules for a given task instance.
 
         :param ti: the task instance to find task reschedules for
         :param descending: If True then records are returned in descending order
@@ -116,15 +99,8 @@ class TaskReschedule(TaskInstanceDependencies):
         """
         if try_number is None:
             try_number = ti.try_number
-
         return (
             select(cls)
-            .where(
-                cls.dag_id == ti.dag_id,
-                cls.task_id == ti.task_id,
-                cls.run_id == ti.run_id,
-                cls.map_index == ti.map_index,
-                cls.try_number == try_number,
-            )
+            .where(cls.ti_id == ti.id, cls.try_number == try_number)
             .order_by(desc(cls.id) if descending else asc(cls.id))
         )

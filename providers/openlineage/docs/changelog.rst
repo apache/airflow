@@ -26,6 +26,25 @@
 Changelog
 ---------
 
+2.1.2b1
+.......
+
+Bug Fixes
+~~~~~~~~~
+
+* ``fix: Adjust OpenLineage DefaultExtractor for RuntimeTaskInstance in Airflow 3 (#47673)``
+* ``Stop trying to reconfigure the ORM in the OpenLineage workers (#47580)``
+
+Misc
+~~~~
+
+* ``feat: Add dagrun's end_date and duration to OL facet (#47901)``
+* ``Use TaskInstance ID as FK in TaskReschedule instead of the multiple fields (#47459)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Remove links to x/twitter.com (#47801)``
+
 2.1.1
 .....
 

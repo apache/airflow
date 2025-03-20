@@ -18,6 +18,7 @@ from __future__ import annotations
 
 import json
 import os
+from unittest import mock
 
 import pytest
 
@@ -39,6 +40,28 @@ class TestSimpleAuthManager:
             users = auth_manager.get_users()
             assert users == [{"role": "viewer", "username": "test1"}, {"role": "viewer", "username": "test2"}]
 
+    @pytest.mark.parametrize(
+        "file_content,expected",
+        [
+            ("{}", {}),
+            ("", {}),
+            ('{"test1": "test1"}', {"test1": "test1"}),
+            ('{"test1": "test1", "test2": "test2"}', {"test1": "test1", "test2": "test2"}),
+            ('{"test1": "test1", "test2": "test2", "test3": "test3"}', {"test1": "test1", "test2": "test2"}),
+        ],
+    )
+    def test_get_passwords(self, auth_manager, file_content, expected):
+        with conf_vars(
+            {
+                ("core", "simple_auth_manager_users"): "test1:viewer,test2:viewer",
+            }
+        ):
+            with open(auth_manager.get_generated_password_file(), "w") as file:
+                file.write(file_content)
+            users = auth_manager.get_users()
+            passwords = auth_manager.get_passwords(users)
+            assert passwords == expected
+
     def test_init_with_default_user(self, auth_manager):
         auth_manager.init()
         with open(auth_manager.get_generated_password_file()) as file:
@@ -59,6 +82,29 @@ class TestSimpleAuthManager:
                 user_passwords_from_file = json.loads(passwords_str)
 
                 assert len(user_passwords_from_file) == 2
+
+    @pytest.mark.parametrize(
+        "file_content,expected",
+        [
+            ({"test1": "test1"}, {"test1": "test1"}),
+            ({"test1": "test1", "test2": "test2"}, {"test1": "test1"}),
+            ({"test2": "test2", "test3": "test3"}, {"test1": mock.ANY}),
+        ],
+    )
+    def test_init_with_users_with_password(self, auth_manager, file_content, expected):
+        with conf_vars(
+            {
+                ("core", "simple_auth_manager_users"): "test1:viewer",
+            }
+        ):
+            with open(auth_manager.get_generated_password_file(), "w") as file:
+                file.write(json.dumps(file_content) + "\n")
+            auth_manager.init()
+            with open(auth_manager.get_generated_password_file()) as file:
+                passwords_str = file.read().strip()
+                user_passwords_from_file = json.loads(passwords_str)
+
+                assert user_passwords_from_file == expected
 
     def test_init_with_all_admins(self, auth_manager):
         with conf_vars({("core", "simple_auth_manager_all_admins"): "true"}):

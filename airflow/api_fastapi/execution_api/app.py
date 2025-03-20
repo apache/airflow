@@ -17,14 +17,23 @@
 
 from __future__ import annotations
 
-from contextlib import asynccontextmanager
+import json
+from contextlib import AsyncExitStack
 from functools import cached_property
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 import attrs
+import svcs
+from cadwyn import (
+    Cadwyn,
+    HeadVersion,
+    Version,
+    VersionBundle,
+)
 from fastapi import FastAPI, Request
-from fastapi.openapi.utils import get_openapi
 from fastapi.responses import JSONResponse
+
+from airflow.api_fastapi.auth.tokens import JWTValidator, get_sig_validation_args
 
 if TYPE_CHECKING:
     import httpx
@@ -33,26 +42,54 @@ import structlog
 
 logger = structlog.get_logger(logger_name=__name__)
 
+__all__ = [
+    "create_task_execution_api_app",
+    "lifespan",
+]
 
-@asynccontextmanager
-async def lifespan(app: FastAPI):
-    """Context manager for the lifespan of the FastAPI app. For now does nothing."""
+
+def _jwt_validator():
+    from airflow.configuration import conf
+
+    required_claims = frozenset(["aud", "exp", "iat"])
+
+    if issuer := conf.get("api_auth", "jwt_issuer", fallback=None):
+        required_claims = required_claims | {"iss"}
+    validator = JWTValidator(
+        required_claims=required_claims,
+        issuer=issuer,
+        leeway=conf.getint("api_auth", "jwt_leeway"),
+        audience=conf.get_mandatory_list_value("execution_api", "jwt_audience"),
+        **get_sig_validation_args(make_secret_key_if_needed=False),
+    )
+    return validator
+
+
+@svcs.fastapi.lifespan
+async def lifespan(app: FastAPI, registry: svcs.Registry):
     app.state.lifespan_called = True
+
+    # According to svcs's docs this shouldn't be needed, but something about SubApps is odd, and we need to
+    # record this here
+    app.state.svcs_registry = registry
+
+    # Create an app scoped validator, so that we don't have to fetch it every time
+    registry.register_value(JWTValidator, _jwt_validator(), ping=JWTValidator.status)
     yield
 
 
-def create_task_execution_api_app() -> FastAPI:
-    """Create FastAPI app for task execution API."""
-    from airflow.api_fastapi.execution_api.routes import execution_api_router
+class CadwynWithOpenAPICustomization(Cadwyn):
+    # Workaround lack of customzation https://github.com/zmievsa/cadwyn/issues/255
+    async def openapi_jsons(self, req: Request) -> JSONResponse:
+        resp = await super().openapi_jsons(req)
+        open_apischema = json.loads(resp.body)  # type: ignore[arg-type]
+        open_apischema = self.customize_openapi(open_apischema)
 
-    # TODO: Add versioning to the API
-    app = FastAPI(
-        title="Airflow Task Execution API",
-        description="The private Airflow Task Execution API.",
-        lifespan=lifespan,
-    )
+        resp.body = resp.render(open_apischema)
 
-    def custom_openapi() -> dict:
+        return resp
+
+    def customize_openapi(self, openapi_schema: dict[str, Any]) -> dict[str, Any]:
         """
         Customize the OpenAPI schema to include additional schemas not tied to specific endpoints.
 
@@ -62,16 +99,6 @@ def create_task_execution_api_app() -> FastAPI:
         References:
             - https://fastapi.tiangolo.com/how-to/extending-openapi/#modify-the-openapi-schema
         """
-        if app.openapi_schema:
-            return app.openapi_schema
-        openapi_schema = get_openapi(
-            title=app.title,
-            description=app.description,
-            version=app.version,
-            routes=app.routes,
-            servers=app.servers,
-        )
-
         extra_schemas = get_extra_schemas()
         for schema_name, schema in extra_schemas.items():
             if schema_name not in openapi_schema["components"]["schemas"]:
@@ -85,12 +112,33 @@ def create_task_execution_api_app() -> FastAPI:
             ],
         }
 
-        app.openapi_schema = openapi_schema
-        return app.openapi_schema
+        for comp in openapi_schema["components"]["schemas"].values():
+            for prop in comp.get("properties", {}).values():
+                # {"type": "string", "const": "deferred"}
+                # to
+                # {"type": "string", "enum": ["deferred"]}
+                #
+                # this produces better results in the code generator
+                if prop.get("type") == "string" and (const := prop.pop("const", None)):
+                    prop["enum"] = [const]
 
-    app.openapi = custom_openapi  # type: ignore[method-assign]
+        return openapi_schema
 
-    app.include_router(execution_api_router)
+
+def create_task_execution_api_app() -> FastAPI:
+    """Create FastAPI app for task execution API."""
+    from airflow.api_fastapi.execution_api.routes import execution_api_router
+
+    # See https://docs.cadwyn.dev/concepts/version_changes/ for info about API versions
+    app = CadwynWithOpenAPICustomization(
+        title="Airflow Task Execution API",
+        description="The private Airflow Task Execution API.",
+        lifespan=lifespan,
+        api_version_parameter_name="Airflow-API-Version",
+        versions=VersionBundle(HeadVersion(), Version("2025-03-19")),
+    )
+
+    app.generate_and_include_versioned_routers(execution_api_router)
 
     # As we are mounted as a sub app, we don't get any logs for unhandled exceptions without this!
     @app.exception_handler(Exception)
@@ -120,7 +168,7 @@ def get_extra_schemas() -> dict[str, dict]:
 
 
 @attrs.define()
-class InProcessExecuctionAPI:
+class InProcessExecutionAPI:
     """
     A helper class to make it possible to run the ExecutionAPI "in-process".
 
@@ -129,22 +177,45 @@ class InProcessExecuctionAPI:
     """
 
     _app: FastAPI | None = None
+    _cm: AsyncExitStack | None = None
 
     @cached_property
     def app(self):
         if not self._app:
             from airflow.api_fastapi.execution_api.app import create_task_execution_api_app
+            from airflow.api_fastapi.execution_api.deps import JWTBearerDep
+            from airflow.api_fastapi.execution_api.routes.connections import has_connection_access
+            from airflow.api_fastapi.execution_api.routes.variables import has_variable_access
+            from airflow.api_fastapi.execution_api.routes.xcoms import has_xcom_access
 
             self._app = create_task_execution_api_app()
+
+            async def always_allow(): ...
+
+            self._app.dependency_overrides[JWTBearerDep.dependency] = always_allow
+            self._app.dependency_overrides[has_connection_access] = always_allow
+            self._app.dependency_overrides[has_variable_access] = always_allow
+            self._app.dependency_overrides[has_xcom_access] = always_allow
 
         return self._app
 
     @cached_property
     def transport(self) -> httpx.WSGITransport:
+        import asyncio
+
         import httpx
         from a2wsgi import ASGIMiddleware
 
-        return httpx.WSGITransport(app=ASGIMiddleware(self.app))  # type: ignore[arg-type]
+        middleware = ASGIMiddleware(self.app)
+
+        # https://github.com/abersheeran/a2wsgi/discussions/64
+        async def start_lifespan(cm: AsyncExitStack, app: FastAPI):
+            await cm.enter_async_context(app.router.lifespan_context(app))
+
+        self._cm = AsyncExitStack()
+
+        asyncio.run_coroutine_threadsafe(start_lifespan(self._cm, self.app), middleware.loop)
+        return httpx.WSGITransport(app=middleware)  # type: ignore[arg-type]
 
     @cached_property
     def atransport(self) -> httpx.ASGITransport:

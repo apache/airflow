@@ -84,7 +84,6 @@ class TestLatestOnlyOperator:
         dag_maker.create_dagrun()
         task.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE)
 
-    # FIXME: See inlined comment in the test
     def test_skipping_non_latest(self, dag_maker):
         with dag_maker(
             default_args={"owner": "airflow", "start_date": DEFAULT_DATE}, schedule=INTERVAL, serialized=True
@@ -100,7 +99,6 @@ class TestLatestOnlyOperator:
 
         triggered_by_kwargs = {"triggered_by": DagRunTriggeredByType.TEST} if AIRFLOW_V_3_0_PLUS else {}
 
-        # dr0 =
         dr0 = dag_maker.create_dagrun(
             run_type=DagRunType.SCHEDULED,
             start_date=timezone.utcnow(),
@@ -110,7 +108,6 @@ class TestLatestOnlyOperator:
             **triggered_by_kwargs,
         )
 
-        # dr1 =
         dr1 = dag_maker.create_dagrun(
             run_type=DagRunType.SCHEDULED,
             start_date=timezone.utcnow(),
@@ -122,7 +119,6 @@ class TestLatestOnlyOperator:
             **triggered_by_kwargs,
         )
 
-        # dr2 =
         dr2 = dag_maker.create_dagrun(
             run_type=DagRunType.SCHEDULED,
             start_date=timezone.utcnow(),

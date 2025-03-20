@@ -21,7 +21,7 @@ from enum import Enum
 
 import pytest
 
-from airflow.utils.weekday import WeekDay
+from airflow.providers.standard.utils.weekday import WeekDay
 
 
 class TestWeekDay:

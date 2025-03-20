@@ -32,6 +32,7 @@ import Time from "src/components/Time";
 import { ClipboardRoot, ClipboardIconButton } from "src/components/ui";
 import { getDuration, useAutoRefresh, isStatePending } from "src/utils";
 
+import { BlockingDeps } from "./BlockingDeps";
 import { ExtraLinks } from "./ExtraLinks";
 import { TriggererInfo } from "./TriggererInfo";
 
@@ -90,7 +91,9 @@ export const Details = () => {
 
   return (
     <Box p={2}>
-      <AssetEvents data={assetEventsData} isLoading={isLoadingAssetEvents} title="Created Asset Event" />
+      {assetEventsData !== undefined && assetEventsData.asset_events.length > 0 ? (
+        <AssetEvents data={assetEventsData} isLoading={isLoadingAssetEvents} title="Created Asset Event" />
+      ) : undefined}
       {taskInstance === undefined || tryNumber === undefined || taskInstance.try_number <= 1 ? (
         <div />
       ) : (
@@ -101,6 +104,11 @@ export const Details = () => {
         />
       )}
       <ExtraLinks />
+      {taskInstance === undefined ||
+      // eslint-disable-next-line unicorn/no-null
+      [null, "queued", "scheduled"].includes(taskInstance.state) ? undefined : (
+        <BlockingDeps taskInstance={taskInstance} />
+      )}
       {taskInstance !== undefined && (taskInstance.trigger ?? taskInstance.triggerer_job) ? (
         <TriggererInfo taskInstance={taskInstance} />
       ) : undefined}

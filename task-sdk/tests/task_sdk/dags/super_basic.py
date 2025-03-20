@@ -21,7 +21,7 @@ from airflow.sdk.definitions.baseoperator import BaseOperator
 from airflow.sdk.definitions.dag import dag
 
 
-@dag()
+@dag
 def super_basic():
     BaseOperator(task_id="a")
 

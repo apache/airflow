@@ -41,6 +41,8 @@ from airflow.listeners.listener import get_listener_manager
 from airflow.models import DagModel, DagRun, Trigger
 from airflow.models.asset import (
     AssetActive,
+    DagScheduleAssetNameReference,
+    DagScheduleAssetUriReference,
     asset_trigger_association_table,
 )
 from airflow.models.dag import DAG
@@ -158,6 +160,33 @@ class TestAssetModelOperation:
 
             assert session.query(Trigger).count() == expected_num_triggers
             assert session.query(asset_trigger_association_table).count() == expected_num_triggers
+
+    @pytest.mark.parametrize(
+        "schedule, model, columns, expected",
+        [
+            pytest.param(
+                Asset.ref(name="name1"),
+                DagScheduleAssetNameReference,
+                (DagScheduleAssetNameReference.name, DagScheduleAssetNameReference.dag_id),
+                [("name1", "test")],
+                id="name-ref",
+            ),
+            pytest.param(
+                Asset.ref(uri="foo://1"),
+                DagScheduleAssetUriReference,
+                (DagScheduleAssetUriReference.uri, DagScheduleAssetUriReference.dag_id),
+                [("foo://1", "test")],
+                id="uri-ref",
+            ),
+        ],
+    )
+    def test_add_dag_asset_name_uri_references(self, dag_maker, session, schedule, model, columns, expected):
+        with dag_maker(dag_id="test", schedule=schedule, session=session) as dag:
+            pass
+
+        op = AssetModelOperation.collect({dag.dag_id: dag})
+        op.add_dag_asset_name_uri_references(session=session)
+        assert session.execute(select(*columns)).all() == expected
 
     def test_change_asset_property_sync_group(self, dag_maker, session):
         asset = Asset("myasset", group="old_group")

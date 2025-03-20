@@ -53,6 +53,16 @@ __deprecated_classes = {
     },
     "latest_only": {
         "LatestOnlyOperator": "airflow.providers.standard.operators.latest_only.LatestOnlyOperator",
+    },
+    "empty": {
+        "EmptyOperator": "airflow.providers.standard.operators.empty.EmptyOperator",
+    },
+    "smooth": {
+        "SmoothOperator": "airflow.providers.standard.operators.smooth.SmoothOperator",
+    },
+    "branch":{
+        "BranchMixIn": "airflow.providers.standard.operators.branch.BranchMixIn",
+        "BaseBranchOperator": "airflow.providers.standard.operators.branch.BaseBranchOperator",
     }
 
 }

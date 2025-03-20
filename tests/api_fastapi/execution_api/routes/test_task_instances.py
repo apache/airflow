@@ -26,13 +26,13 @@ import uuid6
 from sqlalchemy import select, update
 from sqlalchemy.exc import SQLAlchemyError
 
-from airflow.exceptions import AirflowInactiveAssetInInletOrOutletException
+from airflow.api_fastapi.auth.tokens import JWTValidator
+from airflow.api_fastapi.execution_api.app import lifespan
 from airflow.models import RenderedTaskInstanceFields, TaskReschedule, Trigger
 from airflow.models.asset import AssetActive, AssetAliasModel, AssetEvent, AssetModel
 from airflow.models.taskinstance import TaskInstance
 from airflow.models.taskinstancehistory import TaskInstanceHistory
 from airflow.providers.standard.operators.empty import EmptyOperator
-from airflow.sdk.definitions.asset import AssetUniqueKey
 from airflow.utils import timezone
 from airflow.utils.state import State, TaskInstanceState, TerminalTIState
 
@@ -56,6 +56,57 @@ def _create_asset_aliases(session, num: int = 2) -> None:
     ]
     session.add_all(asset_aliases)
     session.commit()
+
+
+@pytest.fixture
+def client_with_extra_route(): ...
+
+
+def test_id_matches_sub_claim(client, session, create_task_instance):
+    # Test that this is validated at the router level, so we don't have to test it in each component
+    # We validate it is set correctly, and test it once
+
+    ti = create_task_instance(
+        task_id="test_ti_run_state_conflict_if_not_queued",
+        state="queued",
+    )
+    session.commit()
+
+    validator = mock.AsyncMock(spec=JWTValidator)
+    claims = {"sub": ti.id}
+
+    def side_effect(cred, validators):
+        if not validators:
+            return claims
+        if validators["sub"]["value"] != ti.id:
+            raise RuntimeError("Fake auth denied")
+        return claims
+
+    # validator.avalidated_claims.side_effect = [{}, RuntimeError("fail for tests"), claims, claims]
+    validator.avalidated_claims.side_effect = side_effect
+
+    lifespan.registry.register_value(JWTValidator, validator)
+
+    payload = {
+        "state": "running",
+        "hostname": "random-hostname",
+        "unixname": "random-unixname",
+        "pid": 100,
+        "start_date": "2024-10-31T12:00:00Z",
+    }
+
+    resp = client.patch("/execution/task-instances/9c230b40-da03-451d-8bd7-be30471be383/run", json=payload)
+    assert resp.status_code == 403
+    validator.avalidated_claims.assert_called_with(
+        mock.ANY, {"sub": {"essential": True, "value": "9c230b40-da03-451d-8bd7-be30471be383"}}
+    )
+    validator.avalidated_claims.reset_mock()
+
+    resp = client.patch(f"/execution/task-instances/{ti.id}/run", json=payload)
+
+    assert resp.status_code == 200, resp.json()
+
+    validator.avalidated_claims.assert_awaited()
 
 
 class TestTIRunState:
@@ -112,6 +163,7 @@ class TestTIRunState:
             "max_tries": 0,
             "variables": [],
             "connections": [],
+            "xcom_keys_to_clear": [],
         }
 
         # Refresh the Task Instance from the database so that we can check the updated values
@@ -188,6 +240,7 @@ class TestTIRunState:
             "max_tries": 0,
             "variables": [],
             "connections": [],
+            "xcom_keys_to_clear": [],
             "next_method": "execute_complete",
             "next_kwargs": {
                 "__type": "dict",
@@ -230,40 +283,6 @@ class TestTIRunState:
         }
 
         assert session.scalar(select(TaskInstance.state).where(TaskInstance.id == ti.id)) == initial_ti_state
-
-    def test_xcom_cleared_when_ti_runs(self, client, session, create_task_instance, time_machine):
-        """
-        Test that the xcoms are cleared when the Task Instance state is updated to running.
-        """
-        instant_str = "2024-09-30T12:00:00Z"
-        instant = timezone.parse(instant_str)
-        time_machine.move_to(instant, tick=False)
-
-        ti = create_task_instance(
-            task_id="test_xcom_cleared_when_ti_runs",
-            state=State.QUEUED,
-            session=session,
-            start_date=instant,
-        )
-        session.commit()
-
-        # Lets stage a xcom push
-        ti.xcom_push(key="key", value="value")
-
-        response = client.patch(
-            f"/execution/task-instances/{ti.id}/run",
-            json={
-                "state": "running",
-                "hostname": "random-hostname",
-                "unixname": "random-unixname",
-                "pid": 100,
-                "start_date": instant_str,
-            },
-        )
-
-        assert response.status_code == 200
-        # Once the task is running, we can check if xcom is cleared
-        assert ti.xcom_pull(task_ids="test_xcom_cleared_when_ti_runs", key="key") is None
 
     def test_xcom_not_cleared_for_deferral(self, client, session, create_task_instance, time_machine):
         """
@@ -665,14 +684,14 @@ class TestTIUpdateState:
 
         trs = session.query(TaskReschedule).all()
         assert len(trs) == 1
-        assert trs[0].dag_id == "dag"
-        assert trs[0].task_id == "test_ti_update_state_to_reschedule"
-        assert trs[0].run_id == "test"
+        assert trs[0].task_instance.dag_id == "dag"
+        assert trs[0].task_instance.task_id == "test_ti_update_state_to_reschedule"
+        assert trs[0].task_instance.run_id == "test"
         assert trs[0].try_number == 0
         assert trs[0].start_date == instant
         assert trs[0].end_date == DEFAULT_END_DATE
         assert trs[0].reschedule_date == timezone.parse("2024-10-31T11:03:00+00:00")
-        assert trs[0].map_index == -1
+        assert trs[0].task_instance.map_index == -1
         assert trs[0].duration == 129600
 
     @pytest.mark.parametrize(
@@ -828,44 +847,14 @@ class TestTIUpdateState:
         )
         session.commit()
 
-        with mock.patch(
-            "airflow.models.taskinstance.TaskInstance.validate_inlet_outlet_assets_activeness"
-        ) as mock_validate_inlet_outlet_assets_activeness:
-            mock_validate_inlet_outlet_assets_activeness.return_value = None
-            response = client.post(
-                f"/execution/task-instances/{ti.id}/runtime-checks",
-                json={
-                    "inlets": [],
-                    "outlets": [],
-                },
-            )
-
-            assert response.status_code == expected_status_code
-
-        session.expire_all()
-
-    def test_ti_runtime_checks_failure(self, client, session, create_task_instance):
-        ti = create_task_instance(
-            task_id="test_ti_runtime_checks_failure",
-            state=State.RUNNING,
+        response = client.post(
+            f"/execution/task-instances/{ti.id}/runtime-checks",
+            json={
+                "inlets": [],
+                "outlets": [],
+            },
         )
-        session.commit()
-
-        with mock.patch(
-            "airflow.models.taskinstance.TaskInstance.validate_inlet_outlet_assets_activeness"
-        ) as mock_validate_inlet_outlet_assets_activeness:
-            mock_validate_inlet_outlet_assets_activeness.side_effect = (
-                AirflowInactiveAssetInInletOrOutletException([AssetUniqueKey(name="abc", uri="something")])
-            )
-            response = client.post(
-                f"/execution/task-instances/{ti.id}/runtime-checks",
-                json={
-                    "inlets": [],
-                    "outlets": [],
-                },
-            )
-
-            assert response.status_code == 400
+        assert response.status_code == expected_status_code
 
         session.expire_all()
 

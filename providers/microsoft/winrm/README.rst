@@ -54,7 +54,7 @@ Requirements
 PIP package         Version required
 ==================  ==================
 ``apache-airflow``  ``>=2.9.0``
-``pywinrm``         ``>=0.4``
+``pywinrm``         ``>=0.5.0``
 ==================  ==================
 
 The changelog for the provider package can be found in the

@@ -252,13 +252,10 @@ def clear_dag_run(
         )
 
     dag: DAG = request.app.state.dag_bag.get_dag(dag_id)
-    start_date = dag_run.logical_date
-    end_date = dag_run.logical_date
 
     if body.dry_run:
         task_instances = dag.clear(
-            start_date=start_date,
-            end_date=end_date,
+            run_id=dag_run_id,
             task_ids=None,
             only_failed=body.only_failed,
             dry_run=True,
@@ -271,8 +268,7 @@ def clear_dag_run(
         )
     else:
         dag.clear(
-            start_date=start_date,
-            end_date=end_date,
+            run_id=dag_run_id,
             task_ids=None,
             only_failed=body.only_failed,
             session=session,

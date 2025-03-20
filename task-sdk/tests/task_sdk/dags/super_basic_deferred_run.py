@@ -24,7 +24,7 @@ from airflow.sdk.definitions.dag import dag
 from airflow.utils import timezone
 
 
-@dag()
+@dag
 def super_basic_deferred_run():
     DateTimeSensorAsync(
         task_id="async",

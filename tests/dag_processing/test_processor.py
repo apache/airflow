@@ -156,6 +156,31 @@ class TestDagFileProcessor:
         assert result.import_errors == {}
         assert result.serialized_dags[0].dag_id == "test_abc"
 
+    def test_top_level_variable_access_not_found(
+        self, spy_agency: SpyAgency, tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch
+    ):
+        logger_filehandle = MagicMock()
+
+        def dag_in_a_fn():
+            from airflow.sdk import DAG, Variable
+
+            with DAG(f"test_{Variable.get('myvar')}"):
+                ...
+
+        path = write_dag_in_a_fn_to_file(dag_in_a_fn, tmp_path)
+        proc = DagFileProcessorProcess.start(
+            id=1, path=path, bundle_path=tmp_path, callbacks=[], logger_filehandle=logger_filehandle
+        )
+
+        while not proc.is_ready:
+            proc._service_subprocess(0.1)
+
+        result = proc.parsing_result
+        assert result is not None
+        assert result.import_errors != {}
+        if result.import_errors:
+            assert "VARIABLE_NOT_FOUND" in next(iter(result.import_errors.values()))
+
     def test_top_level_connection_access(self, tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch):
         logger_filehandle = MagicMock()
 
@@ -180,6 +205,32 @@ class TestDagFileProcessor:
         assert result is not None
         assert result.import_errors == {}
         assert result.serialized_dags[0].dag_id == "test_my_conn"
+
+    def test_top_level_connection_access_not_found(
+        self, tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch
+    ):
+        logger_filehandle = MagicMock()
+
+        def dag_in_a_fn():
+            from airflow.hooks.base import BaseHook
+            from airflow.sdk import DAG
+
+            with DAG(f"test_{BaseHook.get_connection(conn_id='my_conn').conn_id}"):
+                ...
+
+        path = write_dag_in_a_fn_to_file(dag_in_a_fn, tmp_path)
+        proc = DagFileProcessorProcess.start(
+            id=1, path=path, bundle_path=tmp_path, callbacks=[], logger_filehandle=logger_filehandle
+        )
+
+        while not proc.is_ready:
+            proc._service_subprocess(0.1)
+
+        result = proc.parsing_result
+        assert result is not None
+        assert result.import_errors != {}
+        if result.import_errors:
+            assert "CONNECTION_NOT_FOUND" in next(iter(result.import_errors.values()))
 
 
 def write_dag_in_a_fn_to_file(fn: Callable[[], None], folder: pathlib.Path) -> pathlib.Path:

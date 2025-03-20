@@ -339,7 +339,6 @@ class BaseOperator(TaskSDKBaseOperator, AbstractOperator):
     start_trigger_args: StartTriggerArgs | None = None
     start_from_trigger: bool = False
 
-    on_execute_callback: None | TaskStateChangeCallback | list[TaskStateChangeCallback] = None
     on_failure_callback: None | TaskStateChangeCallback | list[TaskStateChangeCallback] = None
     on_success_callback: None | TaskStateChangeCallback | list[TaskStateChangeCallback] = None
     on_retry_callback: None | TaskStateChangeCallback | list[TaskStateChangeCallback] = None
@@ -349,7 +348,6 @@ class BaseOperator(TaskSDKBaseOperator, AbstractOperator):
         self,
         pre_execute=None,
         post_execute=None,
-        on_execute_callback: None | TaskStateChangeCallback | list[TaskStateChangeCallback] = None,
         on_failure_callback: None | TaskStateChangeCallback | list[TaskStateChangeCallback] = None,
         on_success_callback: None | TaskStateChangeCallback | list[TaskStateChangeCallback] = None,
         on_retry_callback: None | TaskStateChangeCallback | list[TaskStateChangeCallback] = None,
@@ -364,7 +362,6 @@ class BaseOperator(TaskSDKBaseOperator, AbstractOperator):
         super().__init__(**kwargs)
         self._pre_execute_hook = pre_execute
         self._post_execute_hook = post_execute
-        self.on_execute_callback = on_execute_callback
         self.on_failure_callback = on_failure_callback
         self.on_success_callback = on_success_callback
         self.on_skipped_callback = on_skipped_callback
@@ -393,7 +390,6 @@ class BaseOperator(TaskSDKBaseOperator, AbstractOperator):
         return TaskSDKBaseOperator.get_serialized_fields() | {
             "start_trigger_args",
             "start_from_trigger",
-            "on_execute_callback",
             "on_failure_callback",
             "on_success_callback",
             "on_retry_callback",

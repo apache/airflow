@@ -27,7 +27,7 @@ from datetime import timedelta
 from pathlib import Path
 from typing import TYPE_CHECKING
 from unittest import mock
-from unittest.mock import patch
+from unittest.mock import ANY, patch
 
 import jinja2
 import pendulum
@@ -2513,7 +2513,8 @@ class TestDagModel:
         last_queued_time = triggered_date_by_dag[dag.dag_id]
         assert last_queued_time == DEFAULT_DATE + timedelta(hours=1)
 
-    def test_asset_expression(self, testing_dag_bundle, session: Session) -> None:
+    @pytest.mark.usefixtures("testing_dag_bundle")
+    def test_asset_expression(self, session: Session) -> None:
         dag = DAG(
             dag_id="test_dag_asset_expression",
             schedule=AssetAny(
@@ -2526,6 +2527,13 @@ class TestDagModel:
                         group="test-group",
                     ),
                     Asset("s3://dag3/output_3.txt", extra={"hi": "bye"}, group="test-group"),
+                    AssetAll(
+                        AssetAll(
+                            Asset("s3://dag3/output_4.txt", extra={"hi": "bye"}, group="test-group"),
+                            Asset("s3://dag3/output_5.txt", extra={"hi": "bye"}, group="test-group"),
+                        ),
+                        Asset("s3://dag3/output_6.txt", extra={"hi": "bye"}, group="test-group"),
+                    ),
                 ),
                 AssetAlias(name="test_name", group="test-group"),
             ),
@@ -2541,6 +2549,7 @@ class TestDagModel:
                         "uri": "s3://dag1/output_1.txt",
                         "name": "s3://dag1/output_1.txt",
                         "group": "test-group",
+                        "id": ANY,
                     }
                 },
                 {
@@ -2550,6 +2559,7 @@ class TestDagModel:
                                 "uri": "s3://dag2/output_1.txt",
                                 "name": "test_asset_2",
                                 "group": "test-group",
+                                "id": ANY,
                             }
                         },
                         {
@@ -2557,7 +2567,40 @@ class TestDagModel:
                                 "uri": "s3://dag3/output_3.txt",
                                 "name": "s3://dag3/output_3.txt",
                                 "group": "test-group",
+                                "id": ANY,
                             }
+                        },
+                        {
+                            "all": [
+                                {
+                                    "all": [
+                                        {
+                                            "asset": {
+                                                "uri": "s3://dag3/output_4.txt",
+                                                "name": "s3://dag3/output_4.txt",
+                                                "group": "test-group",
+                                                "id": ANY,
+                                            }
+                                        },
+                                        {
+                                            "asset": {
+                                                "uri": "s3://dag3/output_5.txt",
+                                                "name": "s3://dag3/output_5.txt",
+                                                "group": "test-group",
+                                                "id": ANY,
+                                            }
+                                        },
+                                    ],
+                                },
+                                {
+                                    "asset": {
+                                        "uri": "s3://dag3/output_6.txt",
+                                        "name": "s3://dag3/output_6.txt",
+                                        "group": "test-group",
+                                        "id": ANY,
+                                    },
+                                },
+                            ]
                         },
                     ]
                 },

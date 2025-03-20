@@ -143,7 +143,11 @@ ALLOWED_EXECUTORS = [
     SEQUENTIAL_EXECUTOR,
 ]
 
+SIMPLE_AUTH_MANAGER = "SimpleAuthManager"
+FAB_AUTH_MANAGER = "FabAuthManager"
+
 DEFAULT_ALLOWED_EXECUTOR = ALLOWED_EXECUTORS[0]
+ALLOWED_AUTH_MANAGERS = [SIMPLE_AUTH_MANAGER, FAB_AUTH_MANAGER]
 START_AIRFLOW_ALLOWED_EXECUTORS = [LOCAL_EXECUTOR, CELERY_EXECUTOR, EDGE_EXECUTOR, SEQUENTIAL_EXECUTOR]
 START_AIRFLOW_DEFAULT_ALLOWED_EXECUTOR = START_AIRFLOW_ALLOWED_EXECUTORS[0]
 ALLOWED_CELERY_EXECUTORS = [CELERY_EXECUTOR, CELERY_K8S_EXECUTOR]
@@ -193,7 +197,7 @@ if MYSQL_INNOVATION_RELEASE:
 ALLOWED_INSTALL_MYSQL_CLIENT_TYPES = ["mariadb", "mysql"]
 
 PIP_VERSION = "25.0.1"
-UV_VERSION = "0.6.5"
+UV_VERSION = "0.6.8"
 
 DEFAULT_UV_HTTP_TIMEOUT = 300
 DEFAULT_WSL2_HTTP_TIMEOUT = 900
@@ -228,7 +232,6 @@ class SelectiveCoreTestType(SelectiveTestType):
     CORE = "Core"
     SERIALIZATION = "Serialization"
     OTHER = "Other"
-    OPERATORS = "Operators"
 
 
 class SelectiveProvidersTestType(SelectiveTestType):
@@ -435,6 +438,7 @@ COMMITTERS = [
     "ashb",
     "bbovenzi",
     "bolkedebruin",
+    "bugraoz93",
     "criccomini",
     "dimberman",
     "dirrao",
@@ -447,6 +451,7 @@ COMMITTERS = [
     "gopidesupavan",
     "houqp",
     "hussein-awala",
+    "jason810496",
     "jedcunningham",
     "jgao54",
     "jghoman",
@@ -470,12 +475,14 @@ COMMITTERS = [
     "pingzh",
     "potiuk",
     "r39132",
+    "rawwar",
     "romsharon98",
     "ryanahamilton",
     "ryw",
     "saguziel",
     "sekikn",
     "shahar1",
+    "shubhamraj-git",
     "tirkarthi",
     "turbaszek",
     "uranusjr",

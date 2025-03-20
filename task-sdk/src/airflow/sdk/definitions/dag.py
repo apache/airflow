@@ -35,6 +35,7 @@ from typing import (
     ClassVar,
     Union,
     cast,
+    overload,
 )
 from urllib.parse import urlsplit
 
@@ -1045,6 +1046,7 @@ DAG._DAG__serialized_fields = frozenset(a.name for a in attrs.fields(DAG)) - {  
 if TYPE_CHECKING:
     # NOTE: Please keep the list of arguments in sync with DAG.__init__.
     # Only exception: dag_id here should have a default value, but not in DAG.
+    @overload
     def dag(
         dag_id: str = "",
         *,
@@ -1085,48 +1087,57 @@ if TYPE_CHECKING:
         :param dag_args: Arguments for DAG object
         :param dag_kwargs: Kwargs for DAG object.
         """
-else:
 
-    def dag(dag_id="", __DAG_class=DAG, __warnings_stacklevel_delta=2, **decorator_kwargs):
-        # TODO: Task-SDK: remove __DAG_class
-        # __DAG_class is a temporary hack to allow the dag decorator in airflow.models.dag to continue to
-        # return SchedulerDag objects
-        DAG = __DAG_class
+    @overload
+    def dag(func: Callable[..., DAG]) -> Callable[..., DAG]:
+        """Python dag decorator to use without any arguments."""
 
-        def wrapper(f: Callable) -> Callable[..., DAG]:
-            @functools.wraps(f)
-            def factory(*args, **kwargs):
-                # Generate signature for decorated function and bind the arguments when called
-                # we do this to extract parameters, so we can annotate them on the DAG object.
-                # In addition, this fails if we are missing any args/kwargs with TypeError as expected.
-                f_sig = signature(f).bind(*args, **kwargs)
-                # Apply defaults to capture default values if set.
-                f_sig.apply_defaults()
 
-                # Initialize DAG with bound arguments
-                with DAG(dag_id or f.__name__, **decorator_kwargs) as dag_obj:
-                    # Set DAG documentation from function documentation if it exists and doc_md is not set.
-                    if f.__doc__ and not dag_obj.doc_md:
-                        dag_obj.doc_md = f.__doc__
+def dag(dag_id_or_func=None, __DAG_class=DAG, __warnings_stacklevel_delta=2, **decorator_kwargs):
+    # TODO: Task-SDK: remove __DAG_class
+    # __DAG_class is a temporary hack to allow the dag decorator in airflow.models.dag to continue to
+    # return SchedulerDag objects
+    DAG = __DAG_class
 
-                    # Generate DAGParam for each function arg/kwarg and replace it for calling the function.
-                    # All args/kwargs for function will be DAGParam object and replaced on execution time.
-                    f_kwargs = {}
-                    for name, value in f_sig.arguments.items():
-                        f_kwargs[name] = dag_obj.param(name, value)
+    def wrapper(f: Callable) -> Callable[..., DAG]:
+        dag_id = dag_id_or_func if isinstance(dag_id_or_func, str) and dag_id_or_func.strip() else f.__name__
 
-                    # set file location to caller source path
-                    back = sys._getframe().f_back
-                    dag_obj.fileloc = back.f_code.co_filename if back else ""
+        @functools.wraps(f)
+        def factory(*args, **kwargs):
+            # Generate signature for decorated function and bind the arguments when called
+            # we do this to extract parameters, so we can annotate them on the DAG object.
+            # In addition, this fails if we are missing any args/kwargs with TypeError as expected.
+            f_sig = signature(f).bind(*args, **kwargs)
+            # Apply defaults to capture default values if set.
+            f_sig.apply_defaults()
 
-                    # Invoke function to create operators in the DAG scope.
-                    f(**f_kwargs)
+            # Initialize DAG with bound arguments
+            with DAG(dag_id, **decorator_kwargs) as dag_obj:
+                # Set DAG documentation from function documentation if it exists and doc_md is not set.
+                if f.__doc__ and not dag_obj.doc_md:
+                    dag_obj.doc_md = f.__doc__
 
-                # Return dag object such that it's accessible in Globals.
-                return dag_obj
+                # Generate DAGParam for each function arg/kwarg and replace it for calling the function.
+                # All args/kwargs for function will be DAGParam object and replaced on execution time.
+                f_kwargs = {}
+                for name, value in f_sig.arguments.items():
+                    f_kwargs[name] = dag_obj.param(name, value)
 
-            # Ensure that warnings from inside DAG() are emitted from the caller, not here
-            fixup_decorator_warning_stack(factory)
-            return factory
+                # set file location to caller source path
+                back = sys._getframe().f_back
+                dag_obj.fileloc = back.f_code.co_filename if back else ""
 
-        return wrapper
+                # Invoke function to create operators in the DAG scope.
+                f(**f_kwargs)
+
+            # Return dag object such that it's accessible in Globals.
+            return dag_obj
+
+        # Ensure that warnings from inside DAG() are emitted from the caller, not here
+        fixup_decorator_warning_stack(factory)
+        return factory
+
+    if callable(dag_id_or_func) and not isinstance(dag_id_or_func, str):
+        return wrapper(dag_id_or_func)
+
+    return wrapper

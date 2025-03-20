@@ -526,20 +526,15 @@ class TestClearTasks:
 
         with create_session() as session:
 
-            def count_task_reschedule(task_id):
+            def count_task_reschedule(ti):
                 return (
                     session.query(TaskReschedule)
-                    .filter(
-                        TaskReschedule.dag_id == dag.dag_id,
-                        TaskReschedule.task_id == task_id,
-                        TaskReschedule.run_id == dr.run_id,
-                        TaskReschedule.try_number == 1,
-                    )
+                    .filter(TaskReschedule.ti_id == ti.id, TaskReschedule.try_number == 1)
                     .count()
                 )
 
-            assert count_task_reschedule(ti0.task_id) == 1
-            assert count_task_reschedule(ti1.task_id) == 1
+            assert count_task_reschedule(ti0) == 1
+            assert count_task_reschedule(ti1) == 1
             # we use order_by(task_id) here because for the test DAG structure of ours
             # this is equivalent to topological sort. It would not work in general case
             # but it works for our case because we specifically constructed test DAGS
@@ -551,8 +546,8 @@ class TestClearTasks:
                 .all()
             )
             clear_task_instances(qry, session, dag=dag)
-            assert count_task_reschedule(ti0.task_id) == 0
-            assert count_task_reschedule(ti1.task_id) == 1
+            assert count_task_reschedule(ti0) == 0
+            assert count_task_reschedule(ti1) == 1
 
     @pytest.mark.parametrize(
         ["state", "state_recorded"],

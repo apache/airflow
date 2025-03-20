@@ -240,8 +240,8 @@ def check_exampleinclude_for_example_dags() -> list[DocBuildError]:
             file_path=doc_file,
             pattern=r"literalinclude::.+(?:example_dags|tests/system/)",
             message=(
-                "literalinclude directive is prohibited for example DAGs. \n"
-                "You should use the exampleinclude directive to include example DAGs."
+                "literalinclude directive is prohibited for example dags. \n"
+                "You should use the exampleinclude directive to include example dags."
             ),
         )
         if build_error:

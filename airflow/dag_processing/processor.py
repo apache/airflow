@@ -33,7 +33,13 @@ from airflow.callbacks.callback_requests import (
 )
 from airflow.configuration import conf
 from airflow.models.dagbag import DagBag
-from airflow.sdk.execution_time.comms import ConnectionResult, GetConnection, GetVariable, VariableResult
+from airflow.sdk.execution_time.comms import (
+    ConnectionResult,
+    ErrorResponse,
+    GetConnection,
+    GetVariable,
+    VariableResult,
+)
 from airflow.sdk.execution_time.supervisor import WatchedSubprocess
 from airflow.serialization.serialized_objects import LazyDeserializedDAG, SerializedDAG
 from airflow.stats import Stats
@@ -41,7 +47,7 @@ from airflow.stats import Stats
 if TYPE_CHECKING:
     from structlog.typing import FilteringBoundLogger
 
-    from airflow.api_fastapi.execution_api.app import InProcessExecuctionAPI
+    from airflow.api_fastapi.execution_api.app import InProcessExecutionAPI
     from airflow.sdk.api.client import Client
     from airflow.sdk.definitions.context import Context
     from airflow.typing_compat import Self
@@ -52,7 +58,7 @@ ToManager = Annotated[
 ]
 
 ToDagProcessor = Annotated[
-    Union["DagFileParseRequest", ConnectionResult, VariableResult],
+    Union["DagFileParseRequest", ConnectionResult, VariableResult, ErrorResponse],
     Field(discriminator="type"),
 ]
 
@@ -201,10 +207,10 @@ class DagFileParsingResult(BaseModel):
 
 
 @functools.cache
-def in_process_api_server() -> InProcessExecuctionAPI:
-    from airflow.api_fastapi.execution_api.app import InProcessExecuctionAPI
+def in_process_api_server() -> InProcessExecutionAPI:
+    from airflow.api_fastapi.execution_api.app import InProcessExecutionAPI
 
-    api = InProcessExecuctionAPI()
+    api = InProcessExecutionAPI()
     return api
 
 

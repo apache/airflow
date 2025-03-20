@@ -127,7 +127,6 @@ Homepage = "https://airflow.apache.org/"
 "Release Notes" = "https://airflow.apache.org/docs/apache-airflow/stable/release_notes.html"
 "Slack Chat" = "https://s.apache.org/airflow-slack"
 "Source Code" = "https://github.com/apache/airflow"
-X = "https://x.com/ApacheAirflow"
 LinkedIn = "https://www.linkedin.com/company/apache-airflow/"
 Mastodon = "https://fosstodon.org/@airflow"
 Bluesky = "https://bsky.app/profile/apache-airflow.bsky.social"
@@ -318,6 +317,9 @@ testing = ["dev", "providers.tests", "tests_common", "tests"]
 "providers/cncf/*/src/airflow/providers/cncf/__init__.py" = ["I002"]
 "providers/dbt/*/src/airflow/providers/dbt/__init__.py" = ["I002"]
 "providers/microsoft/*/src/airflow/providers/microsoft/__init__.py" = ["I002"]
+
+# TODO (47918) let's be a bit more forgiving for our generated datamodels for now
+"airflow-ctl/src/airflowctl/api/datamodels/generated.py" = ["UP007", "D101", "D200"]
 
 # The test_python.py is needed because adding __future__.annotations breaks runtime checks that are
 # needed for the test to work
@@ -575,6 +577,7 @@ explicit_package_bases = true
 mypy_path = [
   "$MYPY_CONFIG_FILE_DIR",
   "$MYPY_CONFIG_FILE_DIR/task_sdk/src",
+  "$MYPY_CONFIG_FILE_DIR/airflow-ctl/src",
 ]
 
 [[tool.mypy.overrides]]

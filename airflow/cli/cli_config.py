@@ -1495,7 +1495,6 @@ CONNECTIONS_COMMANDS = (
         func=lazy_load_command(
             "airflow.cli.commands.remote_commands.connection_command.create_default_connections"
         ),
-        # func=lazy_load_command("airflow.utils.db.create_default_connections"),
         args=(ARG_VERBOSE,),
     ),
 )

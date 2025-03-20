@@ -44,7 +44,7 @@ from airflow.executors.local_executor import LocalExecutor
 from airflow.executors.sequential_executor import SequentialExecutor
 from airflow.models import TaskInstance, TaskReschedule
 from airflow.models.trigger import TriggerFailureReason
-from airflow.models.xcom import XCom
+from airflow.models.xcom import XComModel
 from airflow.providers.celery.executors.celery_executor import CeleryExecutor
 from airflow.providers.cncf.kubernetes.executors.kubernetes_executor import KubernetesExecutor
 from airflow.providers.standard.operators.empty import EmptyOperator
@@ -1275,9 +1275,10 @@ class TestBaseSensor:
                 assert ti.state == State.SUCCESS
             if ti.task_id == DUMMY_OP:
                 assert ti.state == State.NONE
-        actual_xcom_value = XCom.get_one(
-            key="return_value", task_id=SENSOR_OP, dag_id=dr.dag_id, run_id=dr.run_id
-        )
+        actual_xcom_value = XComModel.get_many(
+            key="return_value", task_ids=SENSOR_OP, dag_ids=dr.dag_id, run_id=dr.run_id
+        ).first()
+        actual_xcom_value = XComModel.deserialize_value(actual_xcom_value)
         assert actual_xcom_value == xcom_value
 
     def test_sensor_with_xcom_fails(self, make_sensor):
@@ -1293,9 +1294,11 @@ class TestBaseSensor:
                 assert ti.state == State.FAILED
             if ti.task_id == DUMMY_OP:
                 assert ti.state == State.NONE
-        actual_xcom_value = XCom.get_one(
-            key="return_value", task_id=SENSOR_OP, dag_id=dr.dag_id, run_id=dr.run_id
-        )
+        actual_xcom_value = XComModel.get_many(
+            key="return_value", task_ids=SENSOR_OP, dag_ids=dr.dag_id, run_id=dr.run_id
+        ).first()
+        if actual_xcom_value:
+            actual_xcom_value = XComModel.deserialize_value(actual_xcom_value)
         assert actual_xcom_value is None
 
     @pytest.mark.parametrize(

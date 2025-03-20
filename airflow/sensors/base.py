@@ -232,10 +232,7 @@ class BaseSensorOperator(BaseOperator):
                 start_date = session.scalar(
                     select(TaskReschedule)
                     .where(
-                        TaskReschedule.dag_id == ti.dag_id,
-                        TaskReschedule.task_id == ti.task_id,
-                        TaskReschedule.run_id == ti.run_id,
-                        TaskReschedule.map_index == ti.map_index,
+                        TaskReschedule.ti_id == str(ti.id),
                         TaskReschedule.try_number >= first_try_number,
                     )
                     .order_by(TaskReschedule.id.asc())

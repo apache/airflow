@@ -247,7 +247,13 @@ class Connection(Base, LoggingMixin):
         return host
 
     def get_uri(self) -> str:
-        """Return connection in URI format."""
+        """
+        Return the connection URI in Airflow format.
+
+        The Airflow URI format examples: https://airflow.apache.org/docs/apache-airflow/stable/howto/connection.html#uri-format-example
+
+        Note that the URI returned by this method is **not** SQLAlchemy-compatible, if you need a SQLAlchemy-compatible URI, use the :attr:`~airflow.providers.common.sql.hooks.sql.DbApiHook.sqlalchemy_url`
+        """
         if self.conn_type and "_" in self.conn_type:
             self.log.warning(
                 "Connection schemes (type: %s) shall not contain '_' according to RFC3986.",
