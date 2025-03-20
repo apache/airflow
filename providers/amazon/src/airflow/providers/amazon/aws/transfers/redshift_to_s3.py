@@ -132,10 +132,10 @@ class RedshiftToS3Operator(BaseOperator):
         # that case (since we're silently injecting a connection on their behalf).
         self._aws_conn_id: str | None
         if isinstance(aws_conn_id, ArgNotSet):
-            self.conn_not_set = True
+            self.conn_set = False
             self._aws_conn_id = "aws_default"
         else:
-            self.conn_not_set = False
+            self.conn_set = True
             self._aws_conn_id = aws_conn_id
 
     def _build_unload_query(
@@ -189,7 +189,7 @@ class RedshiftToS3Operator(BaseOperator):
         conn = (
             S3Hook.get_connection(conn_id=self._aws_conn_id)
             # Only fetch the connection if it was set by the user and it is not None
-            if not self.conn_not_set and self._aws_conn_id
+            if self.conn_set and self._aws_conn_id
             else None
         )
         if conn and conn.extra_dejson.get("role_arn", False):
