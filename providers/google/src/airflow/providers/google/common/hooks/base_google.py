@@ -49,20 +49,17 @@ from googleapiclient.http import MediaIoBaseDownload, build_http, set_user_agent
 from requests import Session
 
 from airflow import version
-from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning
+from airflow.exceptions import AirflowException
 from airflow.hooks.base import BaseHook
 from airflow.providers.google.cloud.utils.credentials_provider import (
     _get_scopes,
     _get_target_principal_and_delegates,
     get_credentials_and_project_id,
 )
-from airflow.providers.google.common.consts import CLIENT_INFO
-from airflow.providers.google.common.deprecated import deprecated
 from airflow.utils.process_utils import patch_environ
 
 if TYPE_CHECKING:
     from aiohttp import ClientSession
-    from google.api_core.gapic_v1.client_info import ClientInfo
     from google.auth.credentials import Credentials
 
 log = logging.getLogger(__name__)
@@ -441,24 +438,6 @@ class GoogleBaseHook(BaseHook):
                 f'Current value: "{field_value}" (type: {type(field_value)}). '
                 f"Please check the connection configuration."
             )
-
-    @property
-    @deprecated(
-        planned_removal_date="March 01, 2025",
-        use_instead="airflow.providers.google.common.consts.CLIENT_INFO",
-        category=AirflowProviderDeprecationWarning,
-    )
-    def client_info(self) -> ClientInfo:
-        """
-        Return client information used to generate a user-agent for API calls.
-
-        It allows for better errors tracking.
-
-        This object is only used by the google-cloud-* libraries that are built specifically for
-        the Google Cloud. It is not supported by The Google APIs Python Client that use Discovery
-        based APIs.
-        """
-        return CLIENT_INFO
 
     @property
     def scopes(self) -> Sequence[str]:

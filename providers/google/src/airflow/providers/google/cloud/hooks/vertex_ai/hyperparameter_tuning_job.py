@@ -69,7 +69,7 @@ class HyperparameterTuningJobHook(GoogleBaseHook, OperationHelper):
             client_options = ClientOptions()
 
         return JobServiceClient(
-            credentials=self.get_credentials(), client_info=self.client_info, client_options=client_options
+            credentials=self.get_credentials(), client_info=CLIENT_INFO, client_options=client_options
         )
 
     def get_hyperparameter_tuning_job_object(
