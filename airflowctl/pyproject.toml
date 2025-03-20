@@ -23,15 +23,24 @@ readme = { file = "README.md", content-type = "text/markdown" }
 requires-python = ">=3.9, <3.13"
 dependencies = [
     # TODO there could be still missing deps such as airflow-core
-    "platformdirs>=4.3.6",
-    "keyring>=25.6.0",
+    "argcomplete>=1.10",
     "httpx>=0.25.0",
+    "keyring>=25.6.0",
+    "lazy-object-proxy>=1.2.0",
+    "methodtools>=0.4.7",
+    "platformdirs>=4.3.6",
+    "pydantic>=2.10.2",
+    "rich-argparse>=1.0.0",
+    "structlog>=25.2.0",
     "uuid6>=2024.7.10",
 ]
 
 classifiers = [
   "Framework :: Apache Airflow",
 ]
+
+[project.scripts]
+airflowctl = "airflowctl.__main__:main"
 
 [build-system]
 requires = ["hatchling"]
