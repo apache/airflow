@@ -81,5 +81,6 @@ def get_provider_info():
         ],
         "notifications": ["airflow.providers.atlassian.jira.notifications.jira.JiraNotifier"],
         "dependencies": ["apache-airflow>=2.9.0", "atlassian-python-api>3.41.10"],
+        "optional-dependencies": {"common.compat": ["apache-airflow-providers-common-compat"]},
         "devel-dependencies": [],
     }

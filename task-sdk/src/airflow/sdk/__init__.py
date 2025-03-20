@@ -25,6 +25,7 @@ __all__ = [
     "AssetAll",
     "AssetAny",
     "AssetWatcher",
+    "BaseNotifier",
     "BaseOperator",
     "BaseOperatorLink",
     "Connection",
@@ -59,6 +60,7 @@ if TYPE_CHECKING:
     from airflow.sdk.definitions.context import Context, get_current_context, get_parsing_context
     from airflow.sdk.definitions.dag import DAG, dag
     from airflow.sdk.definitions.edges import EdgeModifier, Label
+    from airflow.sdk.definitions.notifier import BaseNotifier
     from airflow.sdk.definitions.param import Param
     from airflow.sdk.definitions.taskgroup import TaskGroup
     from airflow.sdk.definitions.template import literal
@@ -71,6 +73,7 @@ __lazy_imports: dict[str, str] = {
     "AssetAll": ".definitions.asset",
     "AssetAny": ".definitions.asset",
     "AssetWatcher": ".definitions.asset",
+    "BaseNotifier": ".definitions.notifier",
     "BaseOperator": ".definitions.baseoperator",
     "BaseOperatorLink": ".definitions.baseoperatorlink",
     "Connection": ".definitions.connection",

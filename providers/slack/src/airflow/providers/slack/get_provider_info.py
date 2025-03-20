@@ -138,5 +138,6 @@ def get_provider_info():
             "apache-airflow-providers-common-sql>=1.20.0",
             "slack_sdk>=3.19.0",
         ],
+        "optional-dependencies": {"common.compat": ["apache-airflow-providers-common-compat"]},
         "devel-dependencies": [],
     }

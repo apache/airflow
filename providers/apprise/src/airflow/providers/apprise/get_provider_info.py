@@ -62,5 +62,6 @@ def get_provider_info():
         ],
         "notifications": ["airflow.providers.apprise.notifications.apprise.AppriseNotifier"],
         "dependencies": ["apache-airflow>=2.9.0", "apprise>=1.8.0"],
+        "optional-dependencies": {"common.compat": ["apache-airflow-providers-common-compat"]},
         "devel-dependencies": [],
     }

@@ -73,7 +73,7 @@ from airflow.models.taskmap import TaskMap
 from airflow.models.taskreschedule import TaskReschedule
 from airflow.models.variable import Variable
 from airflow.models.xcom import XComModel
-from airflow.notifications.basenotifier import BaseNotifier
+from airflow.providers.common.compat.notifier import BaseNotifier
 from airflow.providers.standard.operators.bash import BashOperator
 from airflow.providers.standard.operators.empty import EmptyOperator
 from airflow.providers.standard.operators.python import PythonOperator

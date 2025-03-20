@@ -86,5 +86,6 @@ def get_provider_info():
         ],
         "notifications": ["airflow.providers.pagerduty.notifications.pagerduty.PagerdutyNotifier"],
         "dependencies": ["apache-airflow>=2.9.0", "pdpyras>=4.2.0"],
+        "optional-dependencies": {"common.compat": ["apache-airflow-providers-common-compat"]},
         "devel-dependencies": [],
     }

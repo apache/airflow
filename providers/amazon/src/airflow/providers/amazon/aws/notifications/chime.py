@@ -25,7 +25,7 @@ from airflow.providers.amazon.aws.hooks.chime import ChimeWebhookHook
 if TYPE_CHECKING:
     from airflow.utils.context import Context
 
-from airflow.notifications.basenotifier import BaseNotifier
+from airflow.providers.common.compat.notifier import BaseNotifier
 
 
 class ChimeNotifier(BaseNotifier):
