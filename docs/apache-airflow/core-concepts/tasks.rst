@@ -22,7 +22,7 @@ A Task is the basic unit of execution in Airflow. Tasks are arranged into :doc:`
 
 There are three basic kinds of Task:
 
-* :doc:`operators`, predefined task templates that you can string together quickly to build most parts of your DAGs.
+* :doc:`operators`, predefined task templates that you can string together quickly to build most parts of your dags.
 
 * :doc:`sensors`, a special subclass of Operators which are entirely about waiting for an external event to happen.
 

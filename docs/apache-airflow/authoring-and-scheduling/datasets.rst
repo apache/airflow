@@ -23,7 +23,7 @@ Data-aware scheduling
 Quickstart
 ----------
 
-In addition to scheduling DAGs based on time, you can also schedule DAGs to run based on when a task updates an asset.
+In addition to scheduling dags based on time, you can also schedule dags to run based on when a task updates an asset.
 
 .. code-block:: python
 
@@ -51,7 +51,7 @@ In addition to scheduling DAGs based on time, you can also schedule DAGs to run 
 What is an "Asset"?
 --------------------
 
-An Airflow asset is a logical grouping of data. Upstream producer tasks can update assets, and asset updates contribute to scheduling downstream consumer DAGs.
+An Airflow asset is a logical grouping of data. Upstream producer tasks can update assets, and asset updates contribute to scheduling downstream consumer dags.
 
 `Uniform Resource Identifier (URI) <https://en.wikipedia.org/wiki/Uniform_Resource_Identifier>`_ define assets:
 
@@ -143,10 +143,10 @@ This can be used to supply custom description to the asset, such as who has owne
 
 .. note:: **Security Note:** Asset URI and extra fields are not encrypted, they are stored in cleartext in Airflow's metadata database. Do NOT store any sensitive values, especially credentials, in either asset URIs or extra key values!
 
-How to use assets in your DAGs
+How to use assets in your dags
 --------------------------------
 
-You can use assets to specify data dependencies in your DAGs. The following example shows how after the ``producer`` task in the ``producer`` DAG successfully completes, Airflow schedules the ``consumer`` DAG. Airflow marks an asset as ``updated`` only if the task completes successfully. If the task fails or if it is skipped, no update occurs, and Airflow doesn't schedule the ``consumer`` DAG.
+You can use assets to specify data dependencies in your dags. The following example shows how after the ``producer`` task in the ``producer`` DAG successfully completes, Airflow schedules the ``consumer`` DAG. Airflow marks an asset as ``updated`` only if the task completes successfully. If the task fails or if it is skipped, no update occurs, and Airflow doesn't schedule the ``consumer`` DAG.
 
 .. code-block:: python
 
@@ -159,13 +159,13 @@ You can use assets to specify data dependencies in your DAGs. The following exam
         ...
 
 
-You can find a listing of the relationships between assets and DAGs in the
+You can find a listing of the relationships between assets and dags in the
 :ref:`Assets View<ui:assets-view>`
 
 Multiple assets
 -----------------
 
-Because the ``schedule`` parameter is a list, DAGs can require multiple assets. Airflow schedules a DAG after **all** assets the DAG consumes have been updated at least once since the last time the DAG ran:
+Because the ``schedule`` parameter is a list, dags can require multiple assets. Airflow schedules a DAG after **all** assets the DAG consumes have been updated at least once since the last time the DAG ran:
 
 .. code-block:: python
 
@@ -510,7 +510,7 @@ The asset alias is resolved to the assets during DAG parsing. Thus, if the "min_
         ...
 
 
-In the example provided, once the DAG ``asset-alias-producer`` is executed, the asset alias ``AssetAlias("example-alias")`` will be resolved to ``Asset("s3://bucket/my-task")``. However, the DAG ``asset-alias-consumer`` will have to wait for the next DAG re-parsing to update its schedule. To address this, Airflow will re-parse the DAGs relying on the asset alias ``AssetAlias("example-alias")`` when it's resolved into assets that these DAGs did not previously depend on. As a result, both the "asset-consumer" and "asset-alias-consumer" DAGs will be triggered after the execution of DAG ``asset-alias-producer``.
+In the example provided, once the DAG ``asset-alias-producer`` is executed, the asset alias ``AssetAlias("example-alias")`` will be resolved to ``Asset("s3://bucket/my-task")``. However, the DAG ``asset-alias-consumer`` will have to wait for the next DAG re-parsing to update its schedule. To address this, Airflow will re-parse the dags relying on the asset alias ``AssetAlias("example-alias")`` when it's resolved into assets that these dags did not previously depend on. As a result, both the "asset-consumer" and "asset-alias-consumer" dags will be triggered after the execution of DAG ``asset-alias-producer``.
 
 
 Fetching information from previously emitted asset events through resolved asset aliases
@@ -540,6 +540,6 @@ Combining asset and time-based schedules
 
 AssetTimetable Integration
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-You can schedule DAGs based on both asset events and time-based schedules using ``AssetOrTimeSchedule``. This allows you to create workflows when a DAG needs both to be triggered by data updates and run periodically according to a fixed timetable.
+You can schedule dags based on both asset events and time-based schedules using ``AssetOrTimeSchedule``. This allows you to create workflows when a DAG needs both to be triggered by data updates and run periodically according to a fixed timetable.
 
 For more detailed information on ``AssetOrTimeSchedule``, refer to the corresponding section in :ref:`AssetOrTimeSchedule <asset-timetable-section>`.
