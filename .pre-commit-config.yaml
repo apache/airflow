@@ -1353,7 +1353,7 @@ repos:
       - id: generate-tasksdk-datamodels
         name: Generate Datamodels for TaskSDK client
         language: python
-        entry: uv run --active --group codegen --project apache-airflow-task-sdk --directory task-sdk -s dev/generate_models.py
+        entry: uv run -p 3.12 --no-progress --active --group codegen --project apache-airflow-task-sdk --directory task-sdk -s dev/generate_models.py
         pass_filenames: false
         files: ^airflow/api_fastapi/execution_api/.*\.py$
         require_serial: true

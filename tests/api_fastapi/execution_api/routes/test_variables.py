@@ -129,7 +129,7 @@ class TestPutVariable:
             f"/execution/variables/{key}",
             json=payload,
         )
-        assert response.status_code == 201
+        assert response.status_code == 201, response.json()
         assert response.json()["message"] == "Variable successfully set"
 
         var_from_db = session.query(Variable).where(Variable.key == "var_create").first()
