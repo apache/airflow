@@ -58,6 +58,7 @@ requires-python = "~=3.9"
 # After you modify the dependencies, and rebuild your Breeze CI image with ``breeze ci-image build``
 dependencies = [
     "apache-airflow>=2.9.0",
+    "apache-airflow-providers-common-compat>=1.6.0",
     "apache-airflow-providers-http",
     "asgiref>=2.3.0",
     "aiohttp>=3.9.2",
@@ -68,10 +69,7 @@ dependencies = [
 [project.optional-dependencies]
 # pip install apache-airflow-providers-dbt-cloud[openlineage]
 "openlineage" = [
-    "apache-airflow-providers-openlineage>=1.7.0",
-]
-"common.compat" = [
-    "apache-airflow-providers-common-compat"
+    "apache-airflow-providers-openlineage>=2.0.0",
 ]
 
 [dependency-groups]
