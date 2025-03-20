@@ -19,6 +19,7 @@ from __future__ import annotations
 
 import json
 from contextlib import redirect_stdout
+from importlib import reload
 from io import StringIO
 from typing import TYPE_CHECKING
 
@@ -48,13 +49,25 @@ TEST_USER2_EMAIL = "test-user2@example.com"
 class TestCliRoles:
     @pytest.fixture(autouse=True)
     def _set_attrs(self):
-        self.parser = cli_parser.get_parser()
-        with conf_vars({("fab", "UPDATE_FAB_PERMS"): "False"}):
-            with get_application_builder() as appbuilder:
-                self.appbuilder = appbuilder
-                self.clear_users_and_roles()
-                yield
-                self.clear_users_and_roles()
+        with conf_vars(
+            {
+                (
+                    "core",
+                    "auth_manager",
+                ): "airflow.providers.fab.auth_manager.fab_auth_manager.FabAuthManager",
+            }
+        ):
+            # Reload the module to use FAB auth manager
+            reload(cli_parser)
+            # Clearing the cache before calling it
+            cli_parser.get_parser.cache_clear()
+            self.parser = cli_parser.get_parser()
+            with conf_vars({("fab", "UPDATE_FAB_PERMS"): "False"}):
+                with get_application_builder() as appbuilder:
+                    self.appbuilder = appbuilder
+                    self.clear_users_and_roles()
+                    yield
+                    self.clear_users_and_roles()
 
     def clear_users_and_roles(self):
         session = self.appbuilder.get_session
