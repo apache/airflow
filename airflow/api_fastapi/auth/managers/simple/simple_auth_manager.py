@@ -124,7 +124,7 @@ class SimpleAuthManager(BaseAuthManager[SimpleAuthManagerUser]):
                     passwords, changed = self._get_passwords(users=users, stream=file)
                     for user in users:
                         if user["username"] not in passwords:
-                            # User dot not exist in the file, adding it
+                            # User does not exist in the file, adding it
                             passwords[user["username"]] = self._generate_password()
                             self._print_output(
                                 f"Password for user '{user['username']}': {passwords[user['username']]}"
