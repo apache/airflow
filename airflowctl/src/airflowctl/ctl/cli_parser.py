@@ -27,7 +27,6 @@ from __future__ import annotations
 import argparse
 import logging
 from argparse import Action
-from collections import Counter
 from collections.abc import Iterable
 from functools import cache
 from typing import TYPE_CHECKING
@@ -42,7 +41,6 @@ from airflowctl.ctl.cli_config import (
     GroupCommand,
     core_commands,
 )
-from airflowctl.ctl.utils import CliConflictError
 from airflowctl.exceptions import AirflowCtlException
 
 if TYPE_CHECKING:
@@ -57,15 +55,6 @@ log = logging.getLogger(__name__)
 
 
 ALL_COMMANDS_DICT: dict[str, CLICommand] = {sp.name: sp for sp in airflow_commands}
-
-
-# Check if sub-commands are defined twice, which could be an issue.
-if len(ALL_COMMANDS_DICT) < len(airflow_commands):
-    dup = {k for k, v in Counter([c.name for c in airflow_commands]).items() if v > 1}
-    raise CliConflictError(
-        f"The following CLI {len(dup)} command(s) are defined more than once: {sorted(dup)}\n"
-        f"This can be due to an Executor or Auth Manager redefining core airflow CLI commands."
-    )
 
 
 class AirflowHelpFormatter(RichHelpFormatter):
