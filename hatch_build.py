@@ -236,7 +236,9 @@ DEPENDENCIES = [
     "opentelemetry-exporter-otlp>=1.24.0",
     "packaging>=23.2",
     "pathspec>=0.9.0",
-    "platformdirs>=4.3.6",
+    # platformdirs installs setuptools 77.0.1 which seems to break distutils
+    # excluding that version for now, remove this comment and limitation if new version is installed and fixes it
+    "platformdirs>=4.3.6,!=4.3.7",
     'pendulum>=2.1.2,<4.0;python_version<"3.12"',
     'pendulum>=3.0.0,<4.0;python_version>="3.12"',
     "pluggy>=1.5.0",
