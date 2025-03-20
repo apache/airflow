@@ -448,7 +448,9 @@ class MapXComArg(XComArg):
         value = self.arg.resolve(context)
         if not isinstance(value, (Sequence, Iterable, dict)):
             raise ValueError(f"XCom map expects sequence or dict, not {type(value).__name__}")
-        if isinstance(value, Iterable) and hasattr(value, "resolve"):  # TODO: should check if it's DeferredIterable
+        if isinstance(value, Iterable) and hasattr(
+            value, "resolve"
+        ):  # TODO: should check if it's DeferredIterable
             value = value.resolve(context)
         return _MapResult(value, self.callables)
 

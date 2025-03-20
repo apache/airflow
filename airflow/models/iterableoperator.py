@@ -395,18 +395,20 @@ class IterableOperator(BaseOperator):
         self.log.debug("resolve_expand_input: %s", self.expand_input)
 
         if isinstance(self.expand_input.value, XComArg):
-            resolved_input = self.expand_input.value.resolve(
-                context=context, session=session
-            )
+            resolved_input = self.expand_input.value.resolve(context=context, session=session)
         else:
             resolved_input = self.expand_input.value
 
         self.log.debug("resolved_input: %s", resolved_input)
 
         if isinstance(resolved_input, _MapResult):
-            self._mapped_kwargs = map(lambda value: self._resolve(value=value, context=context, session=session), resolved_input)
+            self._mapped_kwargs = map(
+                lambda value: self._resolve(value=value, context=context, session=session), resolved_input
+            )
         else:
-            self._mapped_kwargs = iter(self._lazy_mapped_kwargs(input=resolved_input, context=context, session=session))
+            self._mapped_kwargs = iter(
+                self._lazy_mapped_kwargs(input=resolved_input, context=context, session=session)
+            )
 
         self.log.info("mapped_kwargs: %s", self._mapped_kwargs)
 
@@ -568,7 +570,9 @@ class IterableOperator(BaseOperator):
         return self._run_tasks(
             context=context,
             tasks=map(
-                lambda mapped_kwargs: self._create_task(context["ti"].run_id, mapped_kwargs[0], mapped_kwargs[1]),
+                lambda mapped_kwargs: self._create_task(
+                    context["ti"].run_id, mapped_kwargs[0], mapped_kwargs[1]
+                ),
                 enumerate(self._mapped_kwargs),
             ),
         )

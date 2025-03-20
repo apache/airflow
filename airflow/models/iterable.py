@@ -22,23 +22,31 @@ import inspect
 from collections.abc import Iterator
 from typing import TYPE_CHECKING, Any
 
+from airflow.exceptions import AirflowException
 from airflow.serialization.serialized_objects import SerializedBaseOperator
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.module_loading import import_string
-from airflow.utils.session import provide_session, NEW_SESSION
+from airflow.utils.session import NEW_SESSION, provide_session
 
 if TYPE_CHECKING:
+    from sqlalchemy.orm import Session
+
     from airflow.models import BaseOperator
     from airflow.triggers.base import BaseTrigger, run_trigger
     from airflow.utils.context import Context
-
-    from sqlalchemy.orm import Session
 
 
 class DeferredIterable(Iterator, LoggingMixin):
     """An iterable that lazily fetches XCom values one by one instead of loading all at once."""
 
-    def __init__(self, results: list[Any] | Any, trigger: BaseTrigger, operator: BaseOperator, next_method: str, context: Context | None = None):
+    def __init__(
+        self,
+        results: list[Any] | Any,
+        trigger: BaseTrigger,
+        operator: BaseOperator,
+        next_method: str,
+        context: Context | None = None,
+    ):
         super().__init__()
         self.results = results.copy() if isinstance(results, list) else [results]
         self.trigger = trigger
@@ -49,7 +57,9 @@ class DeferredIterable(Iterator, LoggingMixin):
         self._loop = None
 
     @provide_session
-    def resolve(self, context: Context, session: Session = NEW_SESSION, *, include_xcom: bool = True) -> DeferredIterable:
+    def resolve(
+        self, context: Context, session: Session = NEW_SESSION, *, include_xcom: bool = True
+    ) -> DeferredIterable:
         return DeferredIterable(
             results=self.results,
             trigger=self.trigger,
@@ -76,8 +86,12 @@ class DeferredIterable(Iterator, LoggingMixin):
         # No more results; attempt to load the next page using the trigger
         self.log.info("No more results. Running trigger: %s", self.trigger)
 
-        event = self.loop.run_until_complete(run_trigger(self.trigger))
-        iterator = getattr(self.operator, self.next_method)(self.context, event.payload)
+        try:
+            event = self.loop.run_until_complete(run_trigger(self.trigger))
+            iterator = getattr(self.operator, self.next_method)(self.context, event.payload)
+        except Exception as e:
+            raise AirflowException from e
+
         if not iterator:
             raise StopIteration
 
@@ -114,14 +128,15 @@ class DeferredIterable(Iterator, LoggingMixin):
         trigger_class = import_string(data["trigger"][0])
         trigger = trigger_class(**data["trigger"][1])
         operator_class = import_string(f"{data['operator']['_task_module']}.{data['operator']['_task_type']}")
+        operator_parameters = (
+            set(inspect.signature(operator_class.__init__).parameters)
+            .union(set(operator_class._comps))
+            .union(operator_class.template_fields)
+        )
         operator_kwargs = {
-            key: value for key, value in data["operator"].items()
-            if key in inspect.signature(operator_class.__init__).parameters or key in operator_class._comps
+            key: value for key, value in data["operator"].items() if key in operator_parameters
         }
         operator = operator_class(**operator_kwargs)
         return DeferredIterable(
-            results=data["results"],
-            trigger=trigger,
-            operator=operator,
-            next_method=data["next_method"]
+            results=data["results"], trigger=trigger, operator=operator, next_method=data["next_method"]
         )
