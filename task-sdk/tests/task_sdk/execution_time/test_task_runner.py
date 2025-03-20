@@ -100,6 +100,7 @@ from airflow.sdk.execution_time.task_runner import (
     run,
     startup,
 )
+from airflow.sdk.execution_time.xcom import XCom
 from airflow.utils import timezone
 from airflow.utils.state import TaskInstanceState
 from airflow.utils.types import NOTSET, ArgNotSet
@@ -1436,6 +1437,33 @@ class TestXComAfterTaskExecution:
         for key, value in expected_calls:
             spy_agency.assert_spy_called_with(_xcom_push, runtime_ti, key, value, mapped_length=None)
 
+    def test_xcom_with_mapped_length(self, create_runtime_ti):
+        """Test that the task pushes to XCom with mapped length."""
+        result = {"key1": "value1", "key2": "value2"}
+
+        class CustomOperator(BaseOperator):
+            def execute(self, context):
+                return result
+
+        task = CustomOperator(
+            task_id="test_xcom_push_with_mapped_length",
+            do_xcom_push=True,
+        )
+
+        runtime_ti = create_runtime_ti(task=task)
+
+        with mock.patch.object(XCom, "set") as mock_xcom_set:
+            _xcom_push(runtime_ti, "return_value", result, 7)
+            mock_xcom_set.assert_called_once_with(
+                key="return_value",
+                value=result,
+                dag_id=runtime_ti.dag_id,
+                task_id=runtime_ti.task_id,
+                run_id=runtime_ti.run_id,
+                map_index=runtime_ti.map_index,
+                _mapped_length=7,
+            )
+
     def test_xcom_with_multiple_outputs_and_no_mapping_result(self, create_runtime_ti, spy_agency):
         """Test that error is raised when multiple outputs are returned without mapping."""
         result = "value1"
@@ -1500,6 +1528,8 @@ class TestXComAfterTaskExecution:
             dag_id="test_dag",
             task_id="pull_task",
             run_id="test_run",
+            map_index=-1,
+            _mapped_length=None,
         )
 
         # assert that we didn't call the API when XCom backend is configured
@@ -1896,6 +1926,51 @@ class TestTaskRunnerCallsListeners:
 
         assert listener.state == [TaskInstanceState.RUNNING, TaskInstanceState.FAILED]
         assert listener.error == error
+
+
+@pytest.mark.usefixtures("mock_supervisor_comms")
+class TestTaskRunnerCallsCallbacks:
+    def test_task_runner_calls_execute_callback(self, create_runtime_ti):
+        results = []
+
+        def custom_callback(context):
+            results.append("callback")
+
+        class CustomOperator(BaseOperator):
+            def execute(self, context):
+                results.append("execute")
+
+        task = CustomOperator(task_id="task", on_execute_callback=custom_callback)
+        runtime_ti = create_runtime_ti(dag_id="dag", task=task)
+        log = mock.MagicMock()
+        state, _, _ = run(runtime_ti, log)
+
+        assert state == TerminalTIState.SUCCESS
+        assert results == ["callback", "execute"]
+
+    def test_task_runner_not_fail_on_failed_execute_callback(self, create_runtime_ti):
+        results = []
+
+        def custom_callback_1(context):
+            results.append("callback 1")
+
+        def custom_callback_2(context):
+            raise Exception("sorry!")
+
+        class CustomOperator(BaseOperator):
+            def execute(self, context):
+                results.append("execute")
+
+        task = CustomOperator(task_id="task", on_execute_callback=[custom_callback_1, custom_callback_2])
+        runtime_ti = create_runtime_ti(dag_id="dag", task=task)
+        log = mock.MagicMock()
+        state, _, _ = run(runtime_ti, log)
+
+        assert state == TerminalTIState.SUCCESS
+        assert results == ["callback 1", "execute"]
+        assert log.exception.mock_calls == [
+            mock.call("Failed to run on-execute callback", index=1, callback=custom_callback_2),
+        ]
 
 
 class TestTriggerDagRunOperator:

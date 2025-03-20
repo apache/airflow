@@ -30,6 +30,7 @@ from sqlalchemy import (
     PrimaryKeyConstraint,
     String,
     Table,
+    delete,
     select,
     text,
 )
@@ -95,6 +96,24 @@ def resolve_ref_to_asset(
     if uri is not None:
         stmt = stmt.where(AssetModel.uri == uri)
     return session.scalar(stmt)
+
+
+def remove_references_to_deleted_dags(session: Session):
+    from airflow.models.dag import DagModel
+
+    models_to_check: list[Any] = [
+        DagScheduleAssetReference,
+        DagScheduleAssetNameReference,
+        DagScheduleAssetUriReference,
+        DagScheduleAssetAliasReference,
+        TaskOutletAssetReference,
+    ]
+    for model in models_to_check:
+        session.execute(
+            delete(model)
+            .where(model.dag_id.in_(select(DagModel.dag_id).where(~DagModel.is_active)))
+            .execution_options(synchronize_session="fetch")
+        )
 
 
 alias_association_table = Table(

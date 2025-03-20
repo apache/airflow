@@ -1080,8 +1080,8 @@ def supervise(
     Run a single task execution to completion.
 
     :param ti: The task instance to run.
-    :param dr: Current DagRun of the task instance.
-    :param dag_path: The file path to the DAG.
+    :param bundle_info: Current DagRun of the task instance.
+    :param dag_rel_path: The file path to the DAG.
     :param token: Authentication token for the API client.
     :param server: Base URL of the API server.
     :param dry_run: If True, execute without actual task execution (simulate run).

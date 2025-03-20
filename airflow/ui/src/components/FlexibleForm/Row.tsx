@@ -17,9 +17,9 @@
  * under the License.
  */
 import type { ParamSchema } from "src/queries/useDagParams";
+import { paramPlaceholder, useParamStore } from "src/queries/useParamStore";
 
 import type { FlexibleFormElementProps } from ".";
-import { paramPlaceholder, useParamStore } from "../TriggerDag/useParamStore";
 import { FieldRow } from "./FieldRow";
 import { HiddenInput } from "./HiddenInput";
 

@@ -29,7 +29,7 @@ from airflow.api_fastapi.execution_api.datamodels.xcom import XComResponse
 from airflow.models.dagrun import DagRun
 from airflow.models.taskmap import TaskMap
 from airflow.models.xcom import XComModel
-from airflow.serialization.serde import serialize
+from airflow.serialization.serde import deserialize, serialize
 from airflow.utils.session import create_session
 
 pytestmark = pytest.mark.db_test
@@ -162,6 +162,69 @@ class TestXComsSetEndpoint:
         assert xcom.value == expected_value
         task_map = session.query(TaskMap).filter_by(task_id=ti.task_id, dag_id=ti.dag_id).one_or_none()
         assert task_map is None, "Should not be mapped"
+
+    @pytest.mark.parametrize(
+        "orig_value, ser_value, deser_value",
+        [
+            pytest.param(1, 1, 1, id="int"),
+            pytest.param(1.0, 1.0, 1.0, id="float"),
+            pytest.param("string", "string", "string", id="str"),
+            pytest.param(True, True, True, id="bool"),
+            pytest.param({"key": "value"}, {"key": "value"}, {"key": "value"}, id="dict"),
+            pytest.param([1, 2], [1, 2], [1, 2], id="list"),
+            pytest.param(
+                (1, 2),
+                # Client serializes tuple as encoded list, send the encoded list to the API
+                {"__classname__": "builtins.tuple", "__data__": [1, 2], "__version__": 1},
+                # The API will send the encoded list to the DB and sends the same encoded list back
+                # during the response to the client as it is the clients responsibility to
+                # serialize it into a JSON object & deserialize value into a native object.
+                {"__classname__": "builtins.tuple", "__data__": [1, 2], "__version__": 1},
+                id="tuple",
+            ),
+        ],
+    )
+    def test_xcom_round_trip(self, client, create_task_instance, session, orig_value, ser_value, deser_value):
+        """
+        Test that deserialization works when XCom values are stored directly in the DB with API Server.
+
+        This tests the case where the XCom value is stored from the Task API where the value is serialized
+        via Client SDK into JSON object and passed via the API Server to the DB. It by-passes
+        the XComModel.serialize_value and stores valid Python JSON compatible objects to DB.
+
+        This test is to ensure that the deserialization works correctly in this case as well as
+        checks that the value is stored correctly before it hits the API.
+        """
+
+        ti = create_task_instance()
+        session.commit()
+
+        # Serialize the value to simulate the client SDK
+        value = serialize(orig_value)
+
+        # Test that the value is serialized correctly
+        assert value == ser_value
+
+        response = client.post(
+            f"/execution/xcoms/{ti.dag_id}/{ti.run_id}/{ti.task_id}/xcom_1",
+            json=value,
+        )
+
+        assert response.status_code == 201
+
+        stored_value = XComModel.get_many(
+            key="xcom_1",
+            dag_ids=ti.dag_id,
+            task_ids=ti.task_id,
+            run_id=ti.run_id,
+            session=session,
+        ).first()
+        deserialized_value = XComModel.deserialize_value(stored_value)
+
+        assert deserialized_value == deser_value
+
+        # Ensure that the deserialized value on the client side is the same as the original value
+        assert deserialize(deserialized_value) == orig_value
 
     def test_xcom_set_mapped(self, client, create_task_instance, session):
         ti = create_task_instance()

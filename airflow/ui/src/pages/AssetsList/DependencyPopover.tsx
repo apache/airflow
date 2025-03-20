@@ -36,7 +36,7 @@ export const DependencyPopover = ({ dependencies, type }: Props) => (
         {pluralize(type, dependencies.length)}
       </Button>
     </Popover.Trigger>
-    <Popover.Content width="fit-content">
+    <Popover.Content css={{ "--popover-bg": "colors.bg.emphasized" }} width="fit-content">
       <Popover.Arrow />
       <Popover.Body>
         {dependencies.map((dependency) => {
