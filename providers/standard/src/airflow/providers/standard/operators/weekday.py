@@ -21,8 +21,8 @@ from collections.abc import Iterable
 from typing import TYPE_CHECKING
 
 from airflow.providers.standard.operators.branch import BaseBranchOperator
+from airflow.providers.standard.utils.weekday import WeekDay
 from airflow.utils import timezone
-from airflow.utils.weekday import WeekDay
 
 if TYPE_CHECKING:
     try:
@@ -63,7 +63,7 @@ class BranchDayOfWeekOperator(BaseBranchOperator):
     .. code-block:: python
 
         # import WeekDay Enum
-        from airflow.utils.weekday import WeekDay
+        from airflow.providers.standard.utils.weekday import WeekDay
         from airflow.providers.standard.operators.empty import EmptyOperator
         from airflow.operators.weekday import BranchDayOfWeekOperator
 

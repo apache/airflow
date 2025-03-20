@@ -98,22 +98,22 @@ class TestDeleteConnection(TestConnectionEndpoint):
         self.create_connection()
         conns = session.query(Connection).all()
         assert len(conns) == 1
-        response = test_client.delete(f"/public/connections/{TEST_CONN_ID}")
+        response = test_client.delete(f"/api/v2/connections/{TEST_CONN_ID}")
         assert response.status_code == 204
         connection = session.query(Connection).all()
         assert len(connection) == 0
         _check_last_log(session, dag_id=None, event="delete_connection", logical_date=None)
 
     def test_should_respond_401(self, unauthenticated_test_client):
-        response = unauthenticated_test_client.delete(f"/public/connections/{TEST_CONN_ID}")
+        response = unauthenticated_test_client.delete(f"/api/v2/connections/{TEST_CONN_ID}")
         assert response.status_code == 401
 
     def test_should_respond_403(self, unauthorized_test_client):
-        response = unauthorized_test_client.delete(f"/public/connections/{TEST_CONN_ID}")
+        response = unauthorized_test_client.delete(f"/api/v2/connections/{TEST_CONN_ID}")
         assert response.status_code == 403
 
     def test_delete_should_respond_404(self, test_client):
-        response = test_client.delete(f"/public/connections/{TEST_CONN_ID}")
+        response = test_client.delete(f"/api/v2/connections/{TEST_CONN_ID}")
         assert response.status_code == 404
         body = response.json()
         assert f"The Connection with connection_id: `{TEST_CONN_ID}` was not found" == body["detail"]
@@ -122,22 +122,22 @@ class TestDeleteConnection(TestConnectionEndpoint):
 class TestGetConnection(TestConnectionEndpoint):
     def test_get_should_respond_200(self, test_client, session):
         self.create_connection()
-        response = test_client.get(f"/public/connections/{TEST_CONN_ID}")
+        response = test_client.get(f"/api/v2/connections/{TEST_CONN_ID}")
         assert response.status_code == 200
         body = response.json()
         assert body["connection_id"] == TEST_CONN_ID
         assert body["conn_type"] == TEST_CONN_TYPE
 
     def test_should_respond_401(self, unauthenticated_test_client):
-        response = unauthenticated_test_client.get(f"/public/connections/{TEST_CONN_ID}")
+        response = unauthenticated_test_client.get(f"/api/v2/connections/{TEST_CONN_ID}")
         assert response.status_code == 401
 
     def test_should_respond_403(self, unauthorized_test_client):
-        response = unauthorized_test_client.get(f"/public/connections/{TEST_CONN_ID}")
+        response = unauthorized_test_client.get(f"/api/v2/connections/{TEST_CONN_ID}")
         assert response.status_code == 403
 
     def test_get_should_respond_404(self, test_client):
-        response = test_client.get(f"/public/connections/{TEST_CONN_ID}")
+        response = test_client.get(f"/api/v2/connections/{TEST_CONN_ID}")
         assert response.status_code == 404
         body = response.json()
         assert f"The Connection with connection_id: `{TEST_CONN_ID}` was not found" == body["detail"]
@@ -147,7 +147,7 @@ class TestGetConnection(TestConnectionEndpoint):
         connection = session.query(Connection).first()
         connection.extra = '{"extra_key": "extra_value"}'
         session.commit()
-        response = test_client.get(f"/public/connections/{TEST_CONN_ID}")
+        response = test_client.get(f"/api/v2/connections/{TEST_CONN_ID}")
         assert response.status_code == 200
         body = response.json()
         assert body["connection_id"] == TEST_CONN_ID
@@ -160,7 +160,7 @@ class TestGetConnection(TestConnectionEndpoint):
         connection = session.query(Connection).first()
         connection.extra = '{"password": "test-password"}'
         session.commit()
-        response = test_client.get(f"/public/connections/{TEST_CONN_ID}")
+        response = test_client.get(f"/api/v2/connections/{TEST_CONN_ID}")
         assert response.status_code == 200
         body = response.json()
         assert body["connection_id"] == TEST_CONN_ID
@@ -196,7 +196,7 @@ class TestGetConnections(TestConnectionEndpoint):
         self, test_client, session, query_params, expected_total_entries, expected_ids
     ):
         self.create_connections()
-        response = test_client.get("/public/connections", params=query_params)
+        response = test_client.get("/api/v2/connections", params=query_params)
         assert response.status_code == 200
 
         body = response.json()
@@ -204,11 +204,11 @@ class TestGetConnections(TestConnectionEndpoint):
         assert [connection["connection_id"] for connection in body["connections"]] == expected_ids
 
     def test_should_respond_401(self, unauthenticated_test_client):
-        response = unauthenticated_test_client.get("/public/connections", params={})
+        response = unauthenticated_test_client.get("/api/v2/connections", params={})
         assert response.status_code == 401
 
     def test_should_respond_403(self, unauthorized_test_client):
-        response = unauthorized_test_client.get("/public/connections", params={})
+        response = unauthorized_test_client.get("/api/v2/connections", params={})
         assert response.status_code == 403
 
 
@@ -233,18 +233,18 @@ class TestPostConnection(TestConnectionEndpoint):
         ],
     )
     def test_post_should_respond_201(self, test_client, session, body):
-        response = test_client.post("/public/connections", json=body)
+        response = test_client.post("/api/v2/connections", json=body)
         assert response.status_code == 201
         connection = session.query(Connection).all()
         assert len(connection) == 1
         _check_last_log(session, dag_id=None, event="post_connection", logical_date=None)
 
     def test_should_respond_401(self, unauthenticated_test_client):
-        response = unauthenticated_test_client.post("/public/connections", json={})
+        response = unauthenticated_test_client.post("/api/v2/connections", json={})
         assert response.status_code == 401
 
     def test_should_respond_403(self, unauthorized_test_client):
-        response = unauthorized_test_client.post("/public/connections", json={})
+        response = unauthorized_test_client.post("/api/v2/connections", json={})
         assert response.status_code == 403
 
     @pytest.mark.parametrize(
@@ -257,7 +257,7 @@ class TestPostConnection(TestConnectionEndpoint):
         ],
     )
     def test_post_should_respond_422_for_invalid_conn_id(self, test_client, body):
-        response = test_client.post("/public/connections", json=body)
+        response = test_client.post("/api/v2/connections", json=body)
         assert response.status_code == 422
         # This regex is used for validation in ConnectionBody
         assert response.json() == {
@@ -279,10 +279,10 @@ class TestPostConnection(TestConnectionEndpoint):
         ],
     )
     def test_post_should_respond_already_exist(self, test_client, body):
-        response = test_client.post("/public/connections", json=body)
+        response = test_client.post("/api/v2/connections", json=body)
         assert response.status_code == 201
         # Another request
-        response = test_client.post("/public/connections", json=body)
+        response = test_client.post("/api/v2/connections", json=body)
         assert response.status_code == 409
         response_json = response.json()
         assert "detail" in response_json
@@ -342,7 +342,7 @@ class TestPostConnection(TestConnectionEndpoint):
         ],
     )
     def test_post_should_response_201_redacted_password(self, test_client, body, expected_response, session):
-        response = test_client.post("/public/connections", json=body)
+        response = test_client.post("/api/v2/connections", json=body)
         assert response.status_code == 201
         assert response.json() == expected_response
         _check_last_log(session, dag_id=None, event="post_connection", logical_date=None, check_masked=True)
@@ -374,16 +374,16 @@ class TestPatchConnection(TestConnectionEndpoint):
     def test_patch_should_respond_200(self, test_client, body, session):
         self.create_connection()
 
-        response = test_client.patch(f"/public/connections/{TEST_CONN_ID}", json=body)
+        response = test_client.patch(f"/api/v2/connections/{TEST_CONN_ID}", json=body)
         assert response.status_code == 200
         _check_last_log(session, dag_id=None, event="patch_connection", logical_date=None)
 
     def test_should_respond_401(self, unauthenticated_test_client):
-        response = unauthenticated_test_client.patch(f"/public/connections/{TEST_CONN_ID}", json={})
+        response = unauthenticated_test_client.patch(f"/api/v2/connections/{TEST_CONN_ID}", json={})
         assert response.status_code == 401
 
     def test_should_respond_403(self, unauthorized_test_client):
-        response = unauthorized_test_client.patch(f"/public/connections/{TEST_CONN_ID}", json={})
+        response = unauthorized_test_client.patch(f"/api/v2/connections/{TEST_CONN_ID}", json={})
         assert response.status_code == 403
 
     @pytest.mark.parametrize(
@@ -480,7 +480,7 @@ class TestPatchConnection(TestConnectionEndpoint):
         self, test_client, session, body, updated_connection, update_mask
     ):
         self.create_connection()
-        response = test_client.patch(f"/public/connections/{TEST_CONN_ID}", json=body, params=update_mask)
+        response = test_client.patch(f"/api/v2/connections/{TEST_CONN_ID}", json=body, params=update_mask)
         assert response.status_code == 200
         connection = session.query(Connection).filter_by(conn_id=TEST_CONN_ID).first()
         assert connection.password is None
@@ -521,7 +521,7 @@ class TestPatchConnection(TestConnectionEndpoint):
     )
     def test_patch_should_respond_400(self, test_client, body):
         self.create_connection()
-        response = test_client.patch(f"/public/connections/{TEST_CONN_ID}", json=body)
+        response = test_client.patch(f"/api/v2/connections/{TEST_CONN_ID}", json=body)
         assert response.status_code == 400
         assert response.json() == {
             "detail": "The connection_id in the request body does not match the URL parameter",
@@ -561,7 +561,7 @@ class TestPatchConnection(TestConnectionEndpoint):
         ],
     )
     def test_patch_should_respond_404(self, test_client, body):
-        response = test_client.patch(f"/public/connections/{body['connection_id']}", json=body)
+        response = test_client.patch(f"/api/v2/connections/{body['connection_id']}", json=body)
         assert response.status_code == 404
         assert response.json() == {
             "detail": f"The Connection with connection_id: `{body['connection_id']}` was not found",
@@ -622,7 +622,7 @@ class TestPatchConnection(TestConnectionEndpoint):
     )
     def test_patch_should_response_200_redacted_password(self, test_client, session, body, expected_response):
         self.create_connections()
-        response = test_client.patch(f"/public/connections/{TEST_CONN_ID}", json=body)
+        response = test_client.patch(f"/api/v2/connections/{TEST_CONN_ID}", json=body)
         assert response.status_code == 200
         assert response.json() == expected_response
         _check_last_log(session, dag_id=None, event="patch_connection", logical_date=None, check_masked=True)
@@ -638,7 +638,7 @@ class TestConnection(TestConnectionEndpoint):
         ],
     )
     def test_should_respond_200(self, test_client, body):
-        response = test_client.post("/public/connections/test", json=body)
+        response = test_client.post("/api/v2/connections/test", json=body)
         assert response.status_code == 200
         assert response.json() == {
             "status": True,
@@ -647,13 +647,13 @@ class TestConnection(TestConnectionEndpoint):
 
     def test_should_respond_401(self, unauthenticated_test_client):
         response = unauthenticated_test_client.post(
-            "/public/connections/test", json={"connection_id": TEST_CONN_ID, "conn_type": "sqlite"}
+            "/api/v2/connections/test", json={"connection_id": TEST_CONN_ID, "conn_type": "sqlite"}
         )
         assert response.status_code == 401
 
     def test_should_respond_403(self, unauthorized_test_client):
         response = unauthorized_test_client.post(
-            "/public/connections/test", json={"connection_id": TEST_CONN_ID, "conn_type": "sqlite"}
+            "/api/v2/connections/test", json={"connection_id": TEST_CONN_ID, "conn_type": "sqlite"}
         )
         assert response.status_code == 403
 
@@ -666,7 +666,7 @@ class TestConnection(TestConnectionEndpoint):
         ],
     )
     def test_connection_env_is_cleaned_after_run(self, test_client, body):
-        test_client.post("/public/connections/test", json=body)
+        test_client.post("/api/v2/connections/test", json=body)
         assert not any([key.startswith(CONN_ENV_PREFIX) for key in os.environ.keys()])
 
     @pytest.mark.parametrize(
@@ -677,7 +677,7 @@ class TestConnection(TestConnectionEndpoint):
         ],
     )
     def test_should_respond_403_by_default(self, test_client, body):
-        response = test_client.post("/public/connections/test", json=body)
+        response = test_client.post("/api/v2/connections/test", json=body)
         assert response.status_code == 403
         assert response.json() == {
             "detail": "Testing connections is disabled in Airflow configuration. "
@@ -687,22 +687,22 @@ class TestConnection(TestConnectionEndpoint):
 
 class TestCreateDefaultConnections(TestConnectionEndpoint):
     def test_should_respond_204(self, test_client, session):
-        response = test_client.post("/public/connections/defaults")
+        response = test_client.post("/api/v2/connections/defaults")
         assert response.status_code == 204
         assert response.content == b""
         _check_last_log(session, dag_id=None, event="create_default_connections", logical_date=None)
 
     def test_should_respond_401(self, unauthenticated_test_client):
-        response = unauthenticated_test_client.post("/public/connections/defaults")
+        response = unauthenticated_test_client.post("/api/v2/connections/defaults")
         assert response.status_code == 401
 
     def test_should_respond_403(self, unauthorized_test_client):
-        response = unauthorized_test_client.post("/public/connections/defaults")
+        response = unauthorized_test_client.post("/api/v2/connections/defaults")
         assert response.status_code == 403
 
     @mock.patch("airflow.api_fastapi.core_api.routes.public.connections.db_create_default_connections")
     def test_should_call_db_create_default_connections(self, mock_db_create_default_connections, test_client):
-        response = test_client.post("/public/connections/defaults")
+        response = test_client.post("/api/v2/connections/defaults")
         assert response.status_code == 204
         mock_db_create_default_connections.assert_called_once()
 
@@ -1001,16 +1001,16 @@ class TestBulkConnections(TestConnectionEndpoint):
     )
     def test_bulk_connections(self, test_client, actions, expected_results, session):
         self.create_connections()
-        response = test_client.patch("/public/connections", json=actions)
+        response = test_client.patch("/api/v2/connections", json=actions)
         response_data = response.json()
         for connection_id, value in expected_results.items():
             assert response_data[connection_id] == value
         _check_last_log(session, dag_id=None, event="bulk_connections", logical_date=None)
 
     def test_should_respond_401(self, unauthenticated_test_client):
-        response = unauthenticated_test_client.patch("/public/connections", json={})
+        response = unauthenticated_test_client.patch("/api/v2/connections", json={})
         assert response.status_code == 401
 
     def test_should_respond_403(self, unauthorized_test_client):
-        response = unauthorized_test_client.patch("/public/connections", json={})
+        response = unauthorized_test_client.patch("/api/v2/connections", json={})
         assert response.status_code == 403

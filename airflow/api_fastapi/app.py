@@ -73,7 +73,7 @@ def create_app(apps: str = "all") -> FastAPI:
 
     app = FastAPI(
         title="Airflow API",
-        description="Airflow API. All endpoints located under ``/public`` can be used safely, are stable and backward compatible. "
+        description="Airflow API. All endpoints located under ``/api/v2`` can be used safely, are stable and backward compatible. "
         "Endpoints located under ``/ui`` are dedicated to the UI and are subject to breaking change "
         "depending on the need of the frontend. Users should not rely on those but use the public ones instead.",
         lifespan=lifespan,
@@ -142,10 +142,11 @@ def init_auth_manager(app: FastAPI | None = None) -> BaseAuthManager:
     """Initialize the auth manager."""
     am = create_auth_manager()
     am.init()
+    if app:
+        app.state.auth_manager = am
 
     if app and (auth_manager_fastapi_app := am.get_fastapi_app()):
         app.mount("/auth", auth_manager_fastapi_app)
-        app.state.auth_manager = am
 
     return am
 

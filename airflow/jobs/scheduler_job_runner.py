@@ -646,7 +646,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
             # TODO: Task-SDK: This check is transitionary. Remove once all executors are ported over.
             # Has a real queue_activity implemented
             if executor.queue_workload.__func__ is not BaseExecutor.queue_workload:  # type: ignore[attr-defined]
-                workload = workloads.ExecuteTask.make(ti)
+                workload = workloads.ExecuteTask.make(ti, generator=executor.jwt_generator)
                 executor.queue_workload(workload, session=session)
                 continue
 
@@ -1419,8 +1419,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
         # If last_dag_run is defined, the update was triggered by a scheduling decision in this DAG run.
         # In such case, schedule next only if last_dag_run is finished and was an automated run.
         if last_dag_run and not (
-            last_dag_run.state in State.finished_dr_states
-            and last_dag_run.run_type in [DagRunType.SCHEDULED, DagRunType.BACKFILL_JOB]
+            last_dag_run.state in State.finished_dr_states and last_dag_run.run_type == DagRunType.SCHEDULED
         ):
             return False
         # If the DAG never schedules skip save runtime
