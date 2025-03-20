@@ -42,12 +42,14 @@ class EC2StartInstanceOperator(AwsBaseOperator[EC2Hook]):
         :ref:`howto/operator:EC2StartInstanceOperator`
 
     :param instance_id: id of the AWS EC2 instance
-    :param aws_conn_id: The Airflow connection used for AWS credentials.
-        If this is None or empty then the default boto3 behaviour is used. If
+        :param aws_conn_id: The Airflow connection used for AWS credentials.
+        If this is ``None`` or empty then the default boto3 behaviour is used. If
         running Airflow in a distributed manner and aws_conn_id is None or
         empty, then default boto3 configuration would be used (and must be
         maintained on each worker node).
-    :param region_name: (optional) aws region name associated with the client
+    :param region_name: AWS region_name. If not specified then the default boto3 behaviour is used.
+    :param verify: Whether or not to verify SSL certificates. See:
+        https://boto3.amazonaws.com/v1/documentation/api/latest/reference/core/session.html
     :param check_interval: time in seconds that the job should wait in
         between each instance state checks until operation is completed
     """
@@ -97,11 +99,13 @@ class EC2StopInstanceOperator(AwsBaseOperator[EC2Hook]):
 
     :param instance_id: id of the AWS EC2 instance
     :param aws_conn_id: The Airflow connection used for AWS credentials.
-        If this is None or empty then the default boto3 behaviour is used. If
+        If this is ``None`` or empty then the default boto3 behaviour is used. If
         running Airflow in a distributed manner and aws_conn_id is None or
         empty, then default boto3 configuration would be used (and must be
         maintained on each worker node).
-    :param region_name: (optional) aws region name associated with the client
+    :param region_name: AWS region_name. If not specified then the default boto3 behaviour is used.
+    :param verify: Whether or not to verify SSL certificates. See:
+        https://boto3.amazonaws.com/v1/documentation/api/latest/reference/core/session.html
     :param check_interval: time in seconds that the job should wait in
         between each instance state checks until operation is completed
     """
@@ -154,11 +158,13 @@ class EC2CreateInstanceOperator(AwsBaseOperator[EC2Hook]):
     :param max_count: Maximum number of instances to launch. Defaults to 1.
     :param min_count: Minimum number of instances to launch. Defaults to 1.
     :param aws_conn_id: The Airflow connection used for AWS credentials.
-        If this is None or empty then the default boto3 behaviour is used. If
+        If this is ``None`` or empty then the default boto3 behaviour is used. If
         running Airflow in a distributed manner and aws_conn_id is None or
         empty, then default boto3 configuration would be used (and must be
         maintained on each worker node).
-    :param region_name: AWS region name associated with the client.
+    :param region_name: AWS region_name. If not specified then the default boto3 behaviour is used.
+    :param verify: Whether or not to verify SSL certificates. See:
+        https://boto3.amazonaws.com/v1/documentation/api/latest/reference/core/session.html
     :param poll_interval: Number of seconds to wait before attempting to
         check state of instance. Only used if wait_for_completion is True. Default is 20.
     :param max_attempts: Maximum number of attempts when checking state of instance.
@@ -262,11 +268,13 @@ class EC2TerminateInstanceOperator(AwsBaseOperator[EC2Hook]):
 
     :param instance_id: ID of the instance to be terminated.
     :param aws_conn_id: The Airflow connection used for AWS credentials.
-        If this is None or empty then the default boto3 behaviour is used. If
+        If this is ``None`` or empty then the default boto3 behaviour is used. If
         running Airflow in a distributed manner and aws_conn_id is None or
         empty, then default boto3 configuration would be used (and must be
         maintained on each worker node).
-    :param region_name: AWS region name associated with the client.
+    :param region_name: AWS region_name. If not specified then the default boto3 behaviour is used.
+    :param verify: Whether or not to verify SSL certificates. See:
+        https://boto3.amazonaws.com/v1/documentation/api/latest/reference/core/session.html
     :param poll_interval: Number of seconds to wait before attempting to
         check state of instance. Only used if wait_for_completion is True. Default is 20.
     :param max_attempts: Maximum number of attempts when checking state of instance.
@@ -325,11 +333,13 @@ class EC2RebootInstanceOperator(AwsBaseOperator[EC2Hook]):
 
     :param instance_ids: ID of the instance(s) to be rebooted.
     :param aws_conn_id: The Airflow connection used for AWS credentials.
-        If this is None or empty then the default boto3 behaviour is used. If
+        If this is ``None`` or empty then the default boto3 behaviour is used. If
         running Airflow in a distributed manner and aws_conn_id is None or
         empty, then default boto3 configuration would be used (and must be
         maintained on each worker node).
-    :param region_name: AWS region name associated with the client.
+    :param region_name: AWS region_name. If not specified then the default boto3 behaviour is used.
+    :param verify: Whether or not to verify SSL certificates. See:
+        https://boto3.amazonaws.com/v1/documentation/api/latest/reference/core/session.html
     :param poll_interval: Number of seconds to wait before attempting to
         check state of instance. Only used if wait_for_completion is True. Default is 20.
     :param max_attempts: Maximum number of attempts when checking state of instance.
@@ -397,11 +407,13 @@ class EC2HibernateInstanceOperator(AwsBaseOperator[EC2Hook]):
 
     :param instance_ids: ID of the instance(s) to be hibernated.
     :param aws_conn_id: The Airflow connection used for AWS credentials.
-        If this is None or empty then the default boto3 behaviour is used. If
+        If this is ``None`` or empty then the default boto3 behaviour is used. If
         running Airflow in a distributed manner and aws_conn_id is None or
         empty, then default boto3 configuration would be used (and must be
         maintained on each worker node).
-    :param region_name: AWS region name associated with the client.
+    :param region_name: AWS region_name. If not specified then the default boto3 behaviour is used.
+    :param verify: Whether or not to verify SSL certificates. See:
+        https://boto3.amazonaws.com/v1/documentation/api/latest/reference/core/session.html
     :param poll_interval: Number of seconds to wait before attempting to
         check state of instance. Only used if wait_for_completion is True. Default is 20.
     :param max_attempts: Maximum number of attempts when checking state of instance.

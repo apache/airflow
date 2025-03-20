@@ -31,7 +31,7 @@ Generic Parameters
 ------------------
 
 .. include:: ../_partials/generic_parameters.rst
-    
+
 Operators
 ---------
 
