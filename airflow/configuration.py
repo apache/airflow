@@ -2056,7 +2056,12 @@ def get_custom_secret_backend(worker_mode: bool = False) -> BaseSecretsBackend |
     secrets_backend_cls = conf.getimport(section=section, key=key)
 
     if not secrets_backend_cls:
-        return None
+        if worker_mode:
+            # if we find no secrets backend for worker, return that of secrets backend
+            secrets_backend_cls = conf.getimport(section="secrets", key="backend")
+            kwargs_key = "backend_kwargs"
+        if not secrets_backend_cls:
+            return None
 
     try:
         backend_kwargs = conf.getjson(section=section, key=kwargs_key)
