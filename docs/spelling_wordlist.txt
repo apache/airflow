@@ -842,6 +842,8 @@ incompliancies
 inexhaustive
 inferral
 infile
+Infisical
+infisical
 Influxdb
 influxdb
 infoType

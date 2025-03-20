@@ -789,6 +789,17 @@
     "excluded-python-versions": [],
     "state": "ready"
   },
+  "infisical": {
+    "deps": [
+      "apache-airflow>=2.9.0",
+      "infisicalsdk>=1.0.6"
+    ],
+    "devel-deps": [],
+    "plugins": [],
+    "cross-providers-deps": [],
+    "excluded-python-versions": [],
+    "state": "ready"
+  },
   "influxdb": {
     "deps": [
       "apache-airflow>=2.9.0",

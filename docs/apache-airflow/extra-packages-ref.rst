@@ -242,6 +242,8 @@ These are extras that add dependencies needed for integration with external serv
 +---------------------+-----------------------------------------------------+-----------------------------------------------------+
 | zendesk             | ``pip install 'apache-airflow[zendesk]'``           | Zendesk hooks                                       |
 +---------------------+-----------------------------------------------------+-----------------------------------------------------+
+| infisical           | ``pip install 'apache-airflow[infisical]'``         | Infisical hooks and operators                       |
++---------------------+-----------------------------------------------------+-----------------------------------------------------+
 
 Locally installed software extras
 =================================

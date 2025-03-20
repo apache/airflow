@@ -71,6 +71,7 @@ body:
         - hashicorp
         - http
         - imap
+        - infisical
         - influxdb
         - jdbc
         - jenkins

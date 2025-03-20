@@ -87,6 +87,7 @@ services:
       - ../../../providers/hashicorp/tests:/opt/airflow/providers/hashicorp/tests
       - ../../../providers/http/tests:/opt/airflow/providers/http/tests
       - ../../../providers/imap/tests:/opt/airflow/providers/imap/tests
+      - ../../../providers/infisical/tests:/opt/airflow/providers/infisical/tests
       - ../../../providers/influxdb/tests:/opt/airflow/providers/influxdb/tests
       - ../../../providers/jdbc/tests:/opt/airflow/providers/jdbc/tests
       - ../../../providers/jenkins/tests:/opt/airflow/providers/jenkins/tests

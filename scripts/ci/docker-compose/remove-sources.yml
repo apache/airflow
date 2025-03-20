@@ -74,6 +74,7 @@ services:
       - ../../../empty:/opt/airflow/providers/hashicorp/src
       - ../../../empty:/opt/airflow/providers/http/src
       - ../../../empty:/opt/airflow/providers/imap/src
+      - ../../../empty:/opt/airflow/providers/infisical/src
       - ../../../empty:/opt/airflow/providers/influxdb/src
       - ../../../empty:/opt/airflow/providers/jdbc/src
       - ../../../empty:/opt/airflow/providers/jenkins/src
