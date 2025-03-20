@@ -222,10 +222,6 @@ dependencies = [
     # In addition FAB also limit sqlalchemy to < 2.0
     "pandas>=1.2.5,<2.2",
 ]
-"password" = [
-    "bcrypt>=2.0.0",
-    "flask-bcrypt>=0.7.1",
-]
 "rabbitmq" = [
     "amqp>=5.2.0",
 ]
