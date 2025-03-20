@@ -26,7 +26,7 @@ import pendulum
 from airflow.models.dag import DAG
 from airflow.providers.standard.operators.empty import EmptyOperator
 from airflow.providers.standard.operators.weekday import BranchDayOfWeekOperator
-from airflow.utils.weekday import WeekDay
+from airflow.providers.standard.utils.weekday import WeekDay
 
 with DAG(
     dag_id="example_weekday_branch_operator",

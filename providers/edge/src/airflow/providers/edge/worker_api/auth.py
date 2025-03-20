@@ -57,8 +57,6 @@ if AIRFLOW_V_3_0_PLUS:
     def jwt_validate(authorization: str) -> dict:
         return jwt_validator().validated_claims(authorization)
 
-    JWT_METHOD_FIELD = "sub"
-
 else:
     # Airflow 2.10 compatibility
     from airflow.utils.jwt_signer import JWTSigner  # type: ignore
@@ -76,8 +74,6 @@ else:
     def jwt_validate(authorization: str) -> dict:
         return jwt_signer().verify_token(authorization)
 
-    JWT_METHOD_FIELD = "method"
-
 
 def _forbidden_response(message: str):
     """Log the error and return the response anonymized."""
@@ -93,7 +89,7 @@ def jwt_token_authorization(method: str, authorization: str):
     """Check if the JWT token is correct."""
     try:
         payload = jwt_validate(authorization)
-        signed_method = payload.get(JWT_METHOD_FIELD)
+        signed_method = payload.get("method")
         if not signed_method or signed_method != method:
             _forbidden_response(
                 "Invalid method in token authorization. "

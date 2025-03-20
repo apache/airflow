@@ -102,7 +102,7 @@ from airflow.models.renderedtifields import get_serialized_template_fields
 from airflow.models.taskinstancekey import TaskInstanceKey
 from airflow.models.taskmap import TaskMap
 from airflow.models.taskreschedule import TaskReschedule
-from airflow.models.xcom import LazyXComSelectSequence, XCom
+from airflow.models.xcom import LazyXComSelectSequence, XComModel
 from airflow.plugins_manager import integrate_macros_plugins
 from airflow.sentry import Sentry
 from airflow.settings import task_instance_mutation_hook
@@ -528,7 +528,7 @@ def _xcom_pull(
     if run_id is None:
         run_id = ti.run_id
 
-    query = XCom.get_many(
+    query = XComModel.get_many(
         key=key,
         run_id=run_id,
         dag_ids=dag_id,
@@ -545,12 +545,12 @@ def _xcom_pull(
     # We are only pulling one single task.
     if (task_ids is None or isinstance(task_ids, str)) and not isinstance(map_indexes, Iterable):
         first = query.with_entities(
-            XCom.run_id, XCom.task_id, XCom.dag_id, XCom.map_index, XCom.value
+            XComModel.run_id, XComModel.task_id, XComModel.dag_id, XComModel.map_index, XComModel.value
         ).first()
         if first is None:  # No matching XCom at all.
             return default
         if map_indexes is not None or first.map_index < 0:
-            return XCom.deserialize_value(first)
+            return XComModel.deserialize_value(first)
 
         # raise RuntimeError("Nothing should hit this anymore")
 
@@ -560,24 +560,24 @@ def _xcom_pull(
     # Order return values to match task_ids and map_indexes ordering.
     ordering = []
     if task_ids is None or isinstance(task_ids, str):
-        ordering.append(XCom.task_id)
+        ordering.append(XComModel.task_id)
     elif task_id_whens := {tid: i for i, tid in enumerate(task_ids)}:
-        ordering.append(case(task_id_whens, value=XCom.task_id))
+        ordering.append(case(task_id_whens, value=XComModel.task_id))
     else:
-        ordering.append(XCom.task_id)
+        ordering.append(XComModel.task_id)
     if map_indexes is None or isinstance(map_indexes, int):
-        ordering.append(XCom.map_index)
+        ordering.append(XComModel.map_index)
     elif isinstance(map_indexes, range):
-        order = XCom.map_index
+        order = XComModel.map_index
         if map_indexes.step < 0:
             order = order.desc()
         ordering.append(order)
     elif map_index_whens := {map_index: i for i, map_index in enumerate(map_indexes)}:
-        ordering.append(case(map_index_whens, value=XCom.map_index))
+        ordering.append(case(map_index_whens, value=XComModel.map_index))
     else:
-        ordering.append(XCom.map_index)
+        ordering.append(XComModel.map_index)
     return LazyXComSelectSequence.from_select(
-        query.with_entities(XCom.value).order_by(None).statement,
+        query.with_entities(XComModel.value).order_by(None).statement,
         order_by=ordering,
         session=session,
     )
@@ -2139,7 +2139,7 @@ class TaskInstance(Base, LoggingMixin):
             map_index: int | None = None
         else:
             map_index = ti.map_index
-        XCom.clear(
+        XComModel.clear(
             dag_id=ti.dag_id,
             task_id=ti.task_id,
             run_id=ti.run_id,
@@ -3332,7 +3332,7 @@ class TaskInstance(Base, LoggingMixin):
         :param key: Key to store the value under.
         :param value: Value to store. Only be JSON-serializable may be used otherwise.
         """
-        XCom.set(
+        XComModel.set(
             key=key,
             value=value,
             task_id=self.task_id,
@@ -3596,7 +3596,7 @@ class TaskInstance(Base, LoggingMixin):
         from airflow.models.renderedtifields import RenderedTaskInstanceFields
 
         tables: list[type[TaskInstanceDependencies]] = [
-            XCom,
+            XComModel,
             RenderedTaskInstanceFields,
             TaskMap,
         ]

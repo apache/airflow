@@ -43,7 +43,7 @@ from airflow.configuration import conf
 from airflow.models.dag import DagModel, DagRun, DagTag
 from airflow.models.dagwarning import DagWarning
 from airflow.models.taskinstance import TaskInstance as TI
-from airflow.models.xcom import XCom
+from airflow.models.xcom import XComModel
 
 if TYPE_CHECKING:
     from sqlalchemy.sql import Select
@@ -132,7 +132,7 @@ class PermittedXComFilter(PermittedDagFilter):
     """A parameter that filters the permitted XComs for the user."""
 
     def to_orm(self, select: Select) -> Select:
-        return select.where(XCom.dag_id.in_(self.value))
+        return select.where(XComModel.dag_id.in_(self.value))
 
 
 class PermittedTagFilter(PermittedDagFilter):

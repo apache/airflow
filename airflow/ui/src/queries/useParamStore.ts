@@ -18,7 +18,7 @@
  */
 import { create } from "zustand";
 
-import type { DagParamsSpec, ParamSpec } from "src/queries/useDagParams";
+import type { ParamsSpec, ParamSpec } from "src/queries/useDagParams";
 
 export const paramPlaceholder: ParamSpec = {
   // eslint-disable-next-line unicorn/no-null
@@ -44,11 +44,11 @@ export const paramPlaceholder: ParamSpec = {
 
 type FormStore = {
   conf: string;
-  initialParamDict: DagParamsSpec;
-  paramsDict: DagParamsSpec;
+  initialParamDict: ParamsSpec;
+  paramsDict: ParamsSpec;
   setConf: (confString: string) => void;
-  setinitialParamDict: (newParamsDict: DagParamsSpec) => void;
-  setParamsDict: (newParamsDict: DagParamsSpec) => void;
+  setinitialParamDict: (newParamsDict: ParamsSpec) => void;
+  setParamsDict: (newParamsDict: ParamsSpec) => void;
 };
 
 export const useParamStore = create<FormStore>((set) => ({
@@ -64,7 +64,7 @@ export const useParamStore = create<FormStore>((set) => ({
 
       const parsedConf = JSON.parse(confString) as JSON;
 
-      const updatedParamsDict: DagParamsSpec = Object.fromEntries(
+      const updatedParamsDict: ParamsSpec = Object.fromEntries(
         Object.entries(parsedConf).map(([key, value]) => {
           const existingParam = state.paramsDict[key];
 
@@ -83,9 +83,9 @@ export const useParamStore = create<FormStore>((set) => ({
       return { conf: confString, paramsDict: updatedParamsDict };
     }),
 
-  setinitialParamDict: (newParamsDict: DagParamsSpec) => set(() => ({ initialParamDict: newParamsDict })),
+  setinitialParamDict: (newParamsDict: ParamsSpec) => set(() => ({ initialParamDict: newParamsDict })),
 
-  setParamsDict: (newParamsDict: DagParamsSpec) =>
+  setParamsDict: (newParamsDict: ParamsSpec) =>
     set((state) => {
       const newConf = JSON.stringify(
         Object.fromEntries(Object.entries(newParamsDict).map(([key, { value }]) => [key, value])),

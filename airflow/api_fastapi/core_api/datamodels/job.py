@@ -31,7 +31,7 @@ class JobResponse(BaseModel):
     start_date: datetime | None
     end_date: datetime | None
     latest_heartbeat: datetime | None
-    executor_class: datetime | None
+    executor_class: str | None
     hostname: str | None
     unixname: str | None
 
