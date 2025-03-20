@@ -30,7 +30,19 @@ Customizing Breeze startup
 --------------------------
 
 When you enter the Breeze environment, automatically an environment file is sourced from
-``files/airflow-breeze-config/variables.env``.
+``files/airflow-breeze-config/environment_variables.env``.
+
+An example of the file is:
+
+.. code-block:: bash
+
+  # Logging settings
+  AIRFLOW__LOGGING__REMOTE_LOGGING=true
+  AIRFLOW__LOGGING__REMOTE_BASE_LOG_FOLDER="logs"
+
+  # Remote logging Conn ID
+  AIRFLOW__LOGGING__REMOTE_LOG_CONN_ID="logs_default"
+
 
 You can also add ``files/airflow-breeze-config/init.sh`` and the script will be sourced always
 when you enter Breeze. For example you can add ``pip install`` commands if you want to install
