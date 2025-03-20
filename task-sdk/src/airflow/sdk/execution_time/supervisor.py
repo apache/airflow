@@ -243,7 +243,8 @@ def block_orm_access():
         from airflow import settings
         from airflow.configuration import conf
 
-        for attr in ("engine", "async_engine", "Session", "AsyncSession", "NonScopedSession"):
+        to_block = frozenset(("engine", "async_engine", "Session", "AsyncSession", "NonScopedSession"))
+        for attr in to_block:
             if hasattr(settings, attr):
                 delattr(settings, attr)
 
@@ -256,6 +257,15 @@ def block_orm_access():
             conf.set("database", "sql_alchemy_conn", conn)
             conf.set("database", "sql_alchemy_conn_cmd", "/bin/false")
             conf.set("database", "sql_alchemy_conn_secret", "db-access-blocked")
+
+        # This only gets called when the module does not already have an attribute, and for these values
+        # lets give a custom error message
+        def __getattr__(name: str):
+            if name in to_block:
+                raise AttributeError("Access to the Airflow Metadatabase from dags is not allowed!")
+            raise AttributeError(f"module {settings.__name__!r} has no attribute {name!r}")
+
+        settings.__getattr__ = __getattr__
 
         settings.SQL_ALCHEMY_CONN = conn
         settings.SQL_ALCHEMY_CONN_ASYNC = conn
