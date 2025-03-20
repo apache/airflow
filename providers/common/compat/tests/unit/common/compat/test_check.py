@@ -67,16 +67,18 @@ def test_provider_version_lower_than_required(mock_version):
         dummy_function()
 
 
-@patch("importlib.metadata.version", side_effect=metadata.PackageNotFoundError)
-@patch("importlib.import_module", side_effect=ModuleNotFoundError)
-def test_provider_not_installed(mock_import, mock_version):
+def test_provider_not_installed():
     @require_provider_version("apache-airflow-providers-mockprovider", "1.0.0")
     def dummy_function():
         return "Function Executed"
 
-    with pytest.raises(
-        AirflowOptionalProviderFeatureException,
-        match=r"Provider `apache-airflow-providers-mockprovider` not found or has no version",
+    with (
+        patch("importlib.metadata.version", side_effect=metadata.PackageNotFoundError),
+        patch("importlib.import_module", side_effect=ModuleNotFoundError),
+        pytest.raises(
+            AirflowOptionalProviderFeatureException,
+            match=r"Provider `apache-airflow-providers-mockprovider` not found or has no version",
+        ),
     ):
         dummy_function()
 
