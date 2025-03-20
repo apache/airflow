@@ -28,7 +28,7 @@ from platformdirs import user_config_path
 
 from airflowctl.api.client import Client, Credentials
 from airflowctl.api.operations import ServerResponseError
-from airflow.exceptions import AirflowNotFoundException
+from airflowctl.exceptions import AirflowCtlNotFoundException
 
 
 class TestClient:
@@ -118,7 +118,7 @@ class TestCredentials:
     def test_load_no_credentials(self, mock_keyring):
         if os.path.exists(self.default_config_dir):
             shutil.rmtree(self.default_config_dir)
-        with pytest.raises(AirflowNotFoundException):
+        with pytest.raises(AirflowCtlNotFoundException):
             Credentials().load()
 
         assert not os.path.exists(self.default_config_dir)

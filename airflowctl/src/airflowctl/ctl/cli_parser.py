@@ -33,7 +33,6 @@ from functools import cache
 from typing import TYPE_CHECKING
 
 import lazy_object_proxy
-from airflow.exceptions import AirflowException
 from airflow.utils.helpers import partition
 from rich_argparse import RawTextRichHelpFormatter, RichHelpFormatter
 
@@ -44,6 +43,7 @@ from airflowctl.ctl.cli_config import (
     core_commands,
 )
 from airflowctl.ctl.utils import CliConflictError
+from airflowctl.exceptions import AirflowCtlException
 
 if TYPE_CHECKING:
     from airflowctl.ctl.cli_config import (
@@ -147,7 +147,7 @@ def _add_command(subparsers: argparse._SubParsersAction, sub: CLICommand) -> Non
     elif isinstance(sub, ActionCommand):
         _add_action_command(sub, sub_proc)
     else:
-        raise AirflowException("Invalid command definition.")
+        raise AirflowCtlException("Invalid command definition.")
 
 
 def _add_action_command(sub: ActionCommand, sub_proc: argparse.ArgumentParser) -> None:
