@@ -186,7 +186,12 @@ class RedshiftToS3Operator(BaseOperator):
                     raise AirflowException(f"Cannot include param '{arg}' in Redshift Data API kwargs")
         else:
             redshift_sql_hook = RedshiftSQLHook(redshift_conn_id=self.redshift_conn_id)
-        conn = S3Hook.get_connection(conn_id=self._aws_conn_id) if not self.conn_not_set else None
+        conn = (
+            S3Hook.get_connection(conn_id=self._aws_conn_id)
+            # Only fetch the connection if it was set by the user and it is not None
+            if not self.conn_not_set and self._aws_conn_id
+            else None
+        )
         if conn and conn.extra_dejson.get("role_arn", False):
             credentials_block = f"aws_iam_role={conn.extra_dejson['role_arn']}"
         else:
