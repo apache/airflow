@@ -195,6 +195,18 @@ class TIRescheduleStatePayload(BaseModel):
     end_date: Annotated[datetime, Field(title="End Date")]
 
 
+class TIRetryStatePayload(BaseModel):
+    """
+    Schema for updating TaskInstance to up_for_retry.
+    """
+
+    model_config = ConfigDict(
+        extra="forbid",
+    )
+    state: Annotated[Literal["up_for_retry"] | None, Field(title="State")] = "up_for_retry"
+    end_date: Annotated[datetime, Field(title="End Date")]
+
+
 class TIRuntimeCheckPayload(BaseModel):
     """
     Payload for performing Runtime checks on the TaskInstance model as requested by the SDK.
@@ -247,7 +259,6 @@ class TerminalStateNonSuccess(str, Enum):
     FAILED = "failed"
     SKIPPED = "skipped"
     REMOVED = "removed"
-    FAIL_WITHOUT_RETRY = "fail_without_retry"
 
 
 class TriggerDAGRunPayload(BaseModel):
@@ -333,7 +344,6 @@ class TerminalTIState(str, Enum):
     FAILED = "failed"
     SKIPPED = "skipped"
     REMOVED = "removed"
-    FAIL_WITHOUT_RETRY = "fail_without_retry"
 
 
 class AssetEventResponse(BaseModel):
@@ -399,6 +409,7 @@ class TIRunContext(BaseModel):
     next_method: Annotated[str | None, Field(title="Next Method")] = None
     next_kwargs: Annotated[dict[str, Any] | str | None, Field(title="Next Kwargs")] = None
     xcom_keys_to_clear: Annotated[list[str] | None, Field(title="Xcom Keys To Clear")] = None
+    should_retry: Annotated[bool, Field(title="Should Retry")]
 
 
 class TITerminalStatePayload(BaseModel):

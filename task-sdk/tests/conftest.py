@@ -220,6 +220,7 @@ def make_ti_context() -> MakeTIContextCallable:
             ),
             task_reschedule_count=task_reschedule_count,
             max_tries=0,
+            should_retry=False,
         )
 
     return _make_context
