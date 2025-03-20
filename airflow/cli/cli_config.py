@@ -862,27 +862,6 @@ ALTERNATIVE_CONN_SPECS_ARGS = [
     ARG_CONN_PORT,
 ]
 
-# Authentication arguments
-ARG_AUTH_URL = Arg(
-    flags=("--api-url",),
-    type=str,
-    default="http://localhost:8080",
-    dest="api_url",
-    help="The URL of the metadata database API",
-)
-ARG_AUTH_TOKEN = Arg(
-    flags=("--api-token",),
-    type=str,
-    dest="api_token",
-    help="The token to use for authentication",
-)
-ARG_AUTH_ENVIRONMENT = Arg(
-    flags=("-e", "--env"),
-    type=str,
-    default="production",
-    help="The environment to run the command in",
-)
-
 
 class ActionCommand(NamedTuple):
     """Single CLI command."""
@@ -926,15 +905,6 @@ ASSETS_COMMANDS = (
         help="Materialize an asset",
         func=lazy_load_command("airflow.cli.commands.asset_command.asset_materialize"),
         args=(ARG_ASSET_NAME, ARG_ASSET_URI, ARG_OUTPUT, ARG_VERBOSE),
-    ),
-)
-AUTH_COMMANDS = (
-    ActionCommand(
-        name="login",
-        help="Login to the metadata database for personal usage. JWT Token must be provided via parameter.",
-        description="Login to the metadata database",
-        func=lazy_load_command("airflow.cli.commands.remote_commands.auth_command.login"),
-        args=(ARG_AUTH_URL, ARG_AUTH_TOKEN, ARG_AUTH_ENVIRONMENT),
     ),
 )
 BACKFILL_COMMANDS = (
@@ -1731,12 +1701,6 @@ core_commands: list[CLICommand] = [
         name="db",
         help="Database operations",
         subcommands=DB_COMMANDS,
-    ),
-    GroupCommand(
-        name="auth",
-        help="Manage authentication for CLI. Please acquire a token from the api-server first. "
-        "You need to pass the token to subcommand to use `login`.",
-        subcommands=AUTH_COMMANDS,
     ),
     ActionCommand(
         name="kerberos",

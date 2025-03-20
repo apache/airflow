@@ -23,7 +23,7 @@ from typing import TYPE_CHECKING, Any
 import httpx
 import structlog
 
-from airflow.cli.api.datamodels._generated import (
+from airflowctl.api.datamodels.generated import (
     AssetAliasCollectionResponse,
     AssetAliasResponse,
     AssetCollectionResponse,
@@ -57,8 +57,7 @@ from airflow.cli.api.datamodels._generated import (
 )
 
 if TYPE_CHECKING:
-    from airflow.cli.api.client import Client
-    from airflow.utils.state import DagRunState
+    from airflowctl.api.client import Client
 
 log = structlog.get_logger(logger_name=__name__)
 
@@ -309,7 +308,7 @@ class DagRunOperations(BaseOperations):
         dag_id: str,
         start_date: datetime.datetime,
         end_date: datetime.datetime,
-        state: DagRunState,
+        state: str,
         limit: int,
     ) -> DAGRunCollectionResponse | ServerResponseError:
         """List all dag runs."""

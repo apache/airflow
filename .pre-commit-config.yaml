@@ -1236,6 +1236,7 @@ repos:
         files: \.py$
         exclude: |
           (?x)^(
+            airflow-ctl|
             airflow/migrations|
             clients/python/test_.*\.py|
             dev|
@@ -1303,6 +1304,22 @@ repos:
         name: Run mypy for Task SDK (manual)
         language: python
         entry: ./scripts/ci/pre_commit/mypy_folder.py task-sdk/src/airflow/sdk
+        pass_filenames: false
+        files: ^.*\.py$
+        require_serial: true
+        additional_dependencies: ['rich>=12.4.4']
+      - id: mypy-airflowctl
+        name: Run mypy for airflowctl
+        language: python
+        entry: ./scripts/ci/pre_commit/mypy.py
+        files: ^airflow-ctl/src/airflowctl/.*\.py$|^airflow-ctl/tests//.*\.py$
+        require_serial: true
+        additional_dependencies: ['rich>=12.4.4']
+      - id: mypy-airflowctl
+        stages: ['manual']
+        name: Run mypy for airflowctl (manual)
+        language: python
+        entry: ./scripts/ci/pre_commit/mypy_folder.py airflow-ctl/src/airflowctl
         pass_filenames: false
         files: ^.*\.py$
         require_serial: true
