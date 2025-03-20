@@ -176,10 +176,8 @@ class FabAuthManager(BaseAuthManager[User]):
 
     appbuilder: AirflowAppBuilder | None = None
 
-    def init(self) -> None:
-        """Run operations when Airflow is initializing."""
-        if self.appbuilder:
-            self._sync_appbuilder_roles()
+    def init_flask_resources(self) -> None:
+        self._sync_appbuilder_roles()
 
     @cached_property
     def apiserver_endpoint(self) -> str:
