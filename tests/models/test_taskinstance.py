@@ -2404,6 +2404,14 @@ class TestTaskInstance:
                 post_execute=_write2_post_execute,
             )
 
+            @task(outlets=Asset("test_outlet_asset_extra_3"))
+            def write3():
+                result = "write_3 result"
+                yield Metadata(Asset(name="test_outlet_asset_extra_3"))
+                return result
+
+            write3()
+
         dr: DagRun = dag_maker.create_dagrun()
         for ti in dr.get_task_instances(session=session):
             ti.run(session=session)
@@ -2416,7 +2424,7 @@ class TestTaskInstance:
         assert xcom.value == json.dumps("write_1 result")
 
         events = dict(iter(session.execute(select(AssetEvent.source_task_id, AssetEvent))))
-        assert set(events) == {"write1", "write2"}
+        assert set(events) == {"write1", "write2", "write3"}
 
         assert events["write1"].source_dag_id == dr.dag_id
         assert events["write1"].source_run_id == dr.run_id
@@ -2431,6 +2439,13 @@ class TestTaskInstance:
         assert events["write2"].asset.uri == "test://asset-2/"
         assert events["write2"].asset.name == "test_outlet_asset_extra_2"
         assert events["write2"].extra == {"x": 1}
+
+        assert events["write3"].source_dag_id == dr.dag_id
+        assert events["write3"].source_run_id == dr.run_id
+        assert events["write3"].source_task_id == "write3"
+        assert events["write3"].asset.uri == "test_outlet_asset_extra_3"
+        assert events["write3"].asset.name == "test_outlet_asset_extra_3"
+        assert events["write3"].extra == {}
 
     @pytest.mark.want_activate_assets(True)
     def test_outlet_asset_alias(self, dag_maker, session):

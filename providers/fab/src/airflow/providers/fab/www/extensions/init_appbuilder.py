@@ -198,7 +198,8 @@ class AirflowAppBuilder:
         self.session = session
         auth_manager = create_auth_manager()
         auth_manager.appbuilder = self
-        auth_manager.init()
+        if hasattr(auth_manager, "init_flask_resources"):
+            auth_manager.init_flask_resources()
         if hasattr(auth_manager, "security_manager"):
             self.sm = auth_manager.security_manager
         else:

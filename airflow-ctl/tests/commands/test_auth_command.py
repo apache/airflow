@@ -24,8 +24,8 @@ from unittest.mock import patch
 import pytest
 from platformdirs import user_config_path
 
-from airflow.cli import cli_parser
-from airflow.cli.commands.remote_commands import auth_command
+from airflowctl.ctl import cli_parser
+from airflowctl.ctl.commands import auth_command
 
 
 # TODO: Remove this flag when all CLI integrated with API.
@@ -35,7 +35,7 @@ class TestCliAuthCommands:
 
     @patch.dict(os.environ, {"AIRFLOW_CLI_TOKEN": "TEST_TOKEN"})
     @patch.dict(os.environ, {"AIRFLOW_CLI_ENVIRONMENT": "TEST_AUTH_LOGIN"})
-    @patch("airflow.cli.api.client.keyring")
+    @patch("airflowctl.api.client.keyring")
     def test_login(self, mock_keyring):
         mock_keyring.set_password = mock.MagicMock()
         mock_keyring.get_password.return_value = None

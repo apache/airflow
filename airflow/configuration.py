@@ -2026,42 +2026,62 @@ def make_group_other_inaccessible(file_path: str):
         )
 
 
-def ensure_secrets_loaded() -> list[BaseSecretsBackend]:
+def ensure_secrets_loaded(
+    default_backends: list[str] = DEFAULT_SECRETS_SEARCH_PATH,
+) -> list[BaseSecretsBackend]:
     """
     Ensure that all secrets backends are loaded.
 
     If the secrets_backend_list contains only 2 default backends, reload it.
     """
-    # Check if the secrets_backend_list contains only 2 default backends
-    if len(secrets_backend_list) == 2:
-        return initialize_secrets_backends()
+    # Check if the secrets_backend_list contains only 2 default backends.
+
+    # Check if we are loading the backends for worker too by checking if the default_backends is equal
+    # to DEFAULT_SECRETS_SEARCH_PATH.
+    if len(secrets_backend_list) == 2 or default_backends != DEFAULT_SECRETS_SEARCH_PATH:
+        return initialize_secrets_backends(default_backends=default_backends)
     return secrets_backend_list
 
 
-def get_custom_secret_backend() -> BaseSecretsBackend | None:
-    """Get Secret Backend if defined in airflow.cfg."""
-    secrets_backend_cls = conf.getimport(section="secrets", key="backend")
+def get_custom_secret_backend(worker_mode: bool = False) -> BaseSecretsBackend | None:
+    """
+    Get Secret Backend if defined in airflow.cfg.
+
+    Conditionally selects the section, key and kwargs key based on whether it is called from worker or not.
+    """
+    section = "workers" if worker_mode else "secrets"
+    key = "secrets_backend" if worker_mode else "backend"
+    kwargs_key = "secrets_backend_kwargs" if worker_mode else "backend_kwargs"
+
+    secrets_backend_cls = conf.getimport(section=section, key=key)
 
     if not secrets_backend_cls:
-        return None
+        if worker_mode:
+            # if we find no secrets backend for worker, return that of secrets backend
+            secrets_backend_cls = conf.getimport(section="secrets", key="backend")
+            kwargs_key = "backend_kwargs"
+        if not secrets_backend_cls:
+            return None
 
     try:
-        backend_kwargs = conf.getjson(section="secrets", key="backend_kwargs")
+        backend_kwargs = conf.getjson(section=section, key=kwargs_key)
         if not backend_kwargs:
             backend_kwargs = {}
         elif not isinstance(backend_kwargs, dict):
             raise ValueError("not a dict")
     except AirflowConfigException:
-        log.warning("Failed to parse [secrets] backend_kwargs as JSON, defaulting to no kwargs.")
+        log.warning("Failed to parse [%s] %s as JSON, defaulting to no kwargs.", section, kwargs_key)
         backend_kwargs = {}
     except ValueError:
-        log.warning("Failed to parse [secrets] backend_kwargs into a dict, defaulting to no kwargs.")
+        log.warning("Failed to parse [%s] %s into a dict, defaulting to no kwargs.", section, kwargs_key)
         backend_kwargs = {}
 
     return secrets_backend_cls(**backend_kwargs)
 
 
-def initialize_secrets_backends() -> list[BaseSecretsBackend]:
+def initialize_secrets_backends(
+    default_backends: list[str] = DEFAULT_SECRETS_SEARCH_PATH,
+) -> list[BaseSecretsBackend]:
     """
     Initialize secrets backend.
 
@@ -2069,13 +2089,16 @@ def initialize_secrets_backends() -> list[BaseSecretsBackend]:
     * instantiate them and return them in a list
     """
     backend_list = []
+    worker_mode = False
+    if default_backends != DEFAULT_SECRETS_SEARCH_PATH:
+        worker_mode = True
 
-    custom_secret_backend = get_custom_secret_backend()
+    custom_secret_backend = get_custom_secret_backend(worker_mode)
 
     if custom_secret_backend is not None:
         backend_list.append(custom_secret_backend)
 
-    for class_name in DEFAULT_SECRETS_SEARCH_PATH:
+    for class_name in default_backends:
         secrets_backend_cls = import_string(class_name)
         backend_list.append(secrets_backend_cls())
 

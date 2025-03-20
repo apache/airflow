@@ -20,7 +20,7 @@ Public Interface of Airflow
 
 The Public Interface of Apache Airflow is the collection of interfaces and behaviors in Apache Airflow
 whose changes are governed by semantic versioning. A user interacts with Airflow's public interface
-by creating and managing DAGs, managing tasks and dependencies,
+by creating and managing dags, managing tasks and dependencies,
 and extending Airflow capabilities by writing new executors, plugins, operators and providers. The
 Public Interface can be useful for building custom tools and integrations with other systems,
 and for automating certain aspects of the Airflow workflow.
@@ -56,15 +56,15 @@ way, the Stable REST API is recommended.
 Using the Public Interface for DAG Authors
 ==========================================
 
-DAGs
+Dags
 ----
 
 The DAG is Airflow's core entity that represents a recurring workflow. You can create a DAG by
 instantiating the :class:`~airflow.models.dag.DAG` class in your DAG file. You can also instantiate
-them via :class:`~airflow.models.dagbag.DagBag` class that reads DAGs from a file or a folder. DAGs
+them via :class:`~airflow.models.dagbag.DagBag` class that reads dags from a file or a folder. Dags
 can also have parameters specified via :class:`~airflow.sdk.definitions.param.Param` class.
 
-Airflow has a set of example DAGs that you can use to learn how to write DAGs
+Airflow has a set of example dags that you can use to learn how to write dags
 
 .. toctree::
   :includehidden:
@@ -73,9 +73,9 @@ Airflow has a set of example DAGs that you can use to learn how to write DAGs
 
   _api/airflow/example_dags/index
 
-You can read more about DAGs in :doc:`DAGs <core-concepts/dags>`.
+You can read more about dags in :doc:`Dags <core-concepts/dags>`.
 
-References for the modules used in DAGs are here:
+References for the modules used in dags are here:
 
 .. toctree::
   :includehidden:
@@ -360,7 +360,7 @@ implemented in the community providers.
 
 Decorators
 ----------
-DAG authors can use decorators to author DAGs using the :doc:`TaskFlow <core-concepts/taskflow>` concept.
+DAG authors can use decorators to author dags using the :doc:`TaskFlow <core-concepts/taskflow>` concept.
 All Decorators derive from :class:`~airflow.decorators.base.TaskDecorator`.
 
 Airflow has a set of Decorators that are considered public. You are free to extend their functionality
@@ -388,7 +388,7 @@ about notifications in :doc:`howto/notifications`.
 Cluster Policies
 ----------------
 
-Cluster Policies are the way to dynamically apply cluster-wide policies to the DAGs being parsed or tasks
+Cluster Policies are the way to dynamically apply cluster-wide policies to the dags being parsed or tasks
 being executed. You can read more about Cluster Policies in :doc:`administration-and-deployment/cluster-policies`.
 
 Lineage

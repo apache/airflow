@@ -29,7 +29,11 @@ from airflow.api_fastapi.execution_api.app import lifespan
 @pytest.fixture
 def client(request: pytest.FixtureRequest):
     app = cached_app(apps="execution")
-    with TestClient(app, headers={"Authorization": "Bearer fake"}) as client:
+
+    # By specifying a "far-future" date, this will make the tests always run against the latest version
+    with TestClient(
+        app, headers={"Authorization": "Bearer fake", "Airflow-API-Version": "9999-12-31"}
+    ) as client:
         auth = AsyncMock(spec=JWTValidator)
         auth.avalidated_claims.return_value = {"sub": "edb09971-4e0e-4221-ad3f-800852d38085"}
 

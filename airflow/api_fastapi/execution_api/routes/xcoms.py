@@ -18,7 +18,8 @@
 from __future__ import annotations
 
 import logging
-from typing import Annotated
+import sys
+from typing import Annotated, Any
 
 from fastapi import Body, Depends, HTTPException, Path, Query, Request, Response, status
 from pydantic import JsonValue
@@ -60,6 +61,7 @@ router = AirflowRouter(
     responses={
         status.HTTP_401_UNAUTHORIZED: {"description": "Unauthorized"},
         status.HTTP_403_FORBIDDEN: {"description": "Task does not have access to the XCom"},
+        status.HTTP_404_NOT_FOUND: {"description": "XCom not found"},
     },
     dependencies=[Depends(has_xcom_access)],
 )
@@ -89,7 +91,6 @@ async def xcom_query(
 @router.head(
     "/{dag_id}/{run_id}/{task_id}/{key}",
     responses={
-        status.HTTP_404_NOT_FOUND: {"description": "XCom not found"},
         status.HTTP_200_OK: {
             "description": "Metadata about the number of matching XCom values",
             "headers": {
@@ -100,7 +101,7 @@ async def xcom_query(
             },
         },
     },
-    description="Return the count of the number of XCom values found via the Content-Range response header",
+    description="Returns the count of mapped XCom values found in the `Content-Range` response header",
 )
 def head_xcom(
     response: Response,
@@ -123,7 +124,6 @@ def head_xcom(
 
 @router.get(
     "/{dag_id}/{run_id}/{task_id}/{key}",
-    responses={status.HTTP_404_NOT_FOUND: {"description": "XCom not found"}},
     description="Get a single XCom Value",
 )
 def get_xcom(
@@ -156,14 +156,17 @@ def get_xcom(
     return XComResponse(key=key, value=result.value)
 
 
+if sys.version_info < (3, 12):
+    # zmievsa/cadwyn#262
+    # Setting this to "Any" doesn't have any impact on the API as it has to be parsed as valid JSON regardless
+    JsonValue = Any  # type: ignore [misc]
+
+
 # TODO: once we have JWT tokens, then remove dag_id/run_id/task_id from the URL and just use the info in
 # the token
 @router.post(
     "/{dag_id}/{run_id}/{task_id}/{key}",
     status_code=status.HTTP_201_CREATED,
-    responses={
-        status.HTTP_400_BAD_REQUEST: {"description": "Invalid request body"},
-    },
 )
 def set_xcom(
     dag_id: str,
