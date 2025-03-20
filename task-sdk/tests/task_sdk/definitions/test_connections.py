@@ -21,8 +21,14 @@ from unittest import mock
 
 import pytest
 
+from airflow.configuration import initialize_secrets_backends
 from airflow.exceptions import AirflowException
 from airflow.sdk import Connection
+from airflow.sdk.execution_time.comms import ConnectionResult
+from airflow.sdk.execution_time.supervisor import initialize_secrets_backend_on_workers
+from airflow.secrets import DEFAULT_SECRETS_SEARCH_PATH_WORKERS
+
+from tests_common.test_utils.config import conf_vars
 
 
 class TestConnections:
@@ -70,3 +76,75 @@ class TestConnections:
 
         with pytest.raises(AirflowException, match='Unknown hook type "unknown_type"'):
             conn.get_hook()
+
+    def test_conn_get(self, mock_supervisor_comms):
+        conn_result = ConnectionResult(conn_id="mysql_conn", conn_type="mysql", host="mysql", port=3306)
+        mock_supervisor_comms.get_message.return_value = conn_result
+
+        conn = Connection.get(conn_id="mysql_conn")
+        assert conn is not None
+        assert isinstance(conn, Connection)
+        assert conn == Connection(
+            conn_id="mysql_conn",
+            conn_type="mysql",
+            description=None,
+            host="mysql",
+            schema=None,
+            login=None,
+            password=None,
+            port=3306,
+            extra=None,
+        )
+
+
+class TestConnectionsFromSecrets:
+    def test_get_connection_secrets_backend(self, mock_supervisor_comms, tmp_path):
+        """Tests getting a connection from secrets backend."""
+        path = tmp_path / "conn.env"
+        path.write_text("CONN_A=mysql://host_a")
+
+        with conf_vars(
+            {
+                (
+                    "workers",
+                    "secrets_backend",
+                ): "airflow.secrets.local_filesystem.LocalFilesystemBackend",
+                ("workers", "secrets_backend_kwargs"): f'{{"connections_file_path": "{path}"}}',
+            }
+        ):
+            initialize_secrets_backend_on_workers()
+            retrieved_conn = Connection.get(conn_id="CONN_A")
+            assert retrieved_conn is not None
+            assert retrieved_conn.conn_id == "CONN_A"
+
+    @mock.patch("airflow.secrets.environment_variables.EnvironmentVariablesBackend.get_connection")
+    def test_get_connection_env_var(self, mock_env_get, mock_supervisor_comms):
+        """Tests getting a connection from environment variable."""
+        initialize_secrets_backend_on_workers()
+        mock_env_get.return_value = Connection(conn_id="something", conn_type="some-type")  # return None
+        Connection.get("something")
+        mock_env_get.assert_called_once_with(conn_id="something")
+
+    @conf_vars(
+        {
+            ("workers", "secrets_backend"): "airflow.secrets.local_filesystem.LocalFilesystemBackend",
+            ("workers", "secrets_backend_kwargs"): '{"connections_file_path": "/files/conn.json"}',
+        }
+    )
+    @mock.patch("airflow.secrets.local_filesystem.LocalFilesystemBackend.get_connection")
+    @mock.patch("airflow.secrets.environment_variables.EnvironmentVariablesBackend.get_connection")
+    def test_backend_fallback_to_env_var(self, mock_get_connection, mock_env_get, mock_supervisor_comms):
+        """Tests if connection retrieval falls back to environment variable backend if not found in secrets backend."""
+        initialize_secrets_backend_on_workers()
+        mock_get_connection.return_value = None
+        mock_env_get.return_value = Connection(conn_id="something", conn_type="some-type")
+
+        backends = initialize_secrets_backends(DEFAULT_SECRETS_SEARCH_PATH_WORKERS)
+        assert len(backends) == 2
+        backend_classes = [backend.__class__.__name__ for backend in backends]
+        assert "LocalFilesystemBackend" in backend_classes
+
+        conn = Connection.get(conn_id="something")
+        # mock_env is only called when LocalFilesystemBackend doesn't have it
+        mock_env_get.assert_called()
+        assert conn == Connection(conn_id="something", conn_type="some-type")
