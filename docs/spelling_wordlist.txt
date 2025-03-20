@@ -564,6 +564,7 @@ ec
 ecb
 ECR
 ecs
+EdDSA
 EdgeModifier
 EdgeModifiers
 EDITMSG
