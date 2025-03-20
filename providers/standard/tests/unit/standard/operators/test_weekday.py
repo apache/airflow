@@ -28,12 +28,12 @@ from airflow.models.taskinstance import TaskInstance as TI
 from airflow.providers.standard.operators.empty import EmptyOperator
 from airflow.providers.standard.operators.weekday import BranchDayOfWeekOperator
 from airflow.providers.standard.utils.skipmixin import XCOM_SKIPMIXIN_FOLLOWED, XCOM_SKIPMIXIN_KEY
+from airflow.providers.standard.utils.weekday import WeekDay
 from airflow.providers.standard.version_compat import AIRFLOW_V_3_0_PLUS
 from airflow.timetables.base import DataInterval
 from airflow.utils import timezone
 from airflow.utils.session import create_session
 from airflow.utils.state import State
-from airflow.utils.weekday import WeekDay
 
 if AIRFLOW_V_3_0_PLUS:
     from airflow.models.xcom import XComModel as XCom

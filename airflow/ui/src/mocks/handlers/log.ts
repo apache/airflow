@@ -21,7 +21,7 @@
 import { http, HttpResponse, type HttpHandler } from "msw";
 
 export const handlers: Array<HttpHandler> = [
-  http.get("/public/dags/log_grouping/dagRuns/manual__2025-02-18T12:19/taskInstances/generate/-1", () =>
+  http.get("/api/v2/dags/log_grouping/dagRuns/manual__2025-02-18T12:19/taskInstances/generate/-1", () =>
     HttpResponse.json({
       dag_id: "log_grouping",
       dag_run_id: "manual__2025-02-18T12:19",
@@ -65,7 +65,7 @@ export const handlers: Array<HttpHandler> = [
       unixname: "testname",
     }),
   ),
-  http.get("/public/dags/log_grouping/dagRuns/manual__2025-02-18T12:19/taskInstances/generate/logs/1", () =>
+  http.get("/api/v2/dags/log_grouping/dagRuns/manual__2025-02-18T12:19/taskInstances/generate/logs/1", () =>
     HttpResponse.json({
       content: [
         {

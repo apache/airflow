@@ -22,6 +22,7 @@ import { useForm, Controller } from "react-hook-form";
 import { FiPlay } from "react-icons/fi";
 
 import { useDagParams } from "src/queries/useDagParams";
+import { useParamStore } from "src/queries/useParamStore";
 import { useTogglePause } from "src/queries/useTogglePause";
 import { useTrigger } from "src/queries/useTrigger";
 
@@ -31,7 +32,6 @@ import { JsonEditor } from "../JsonEditor";
 import { Accordion } from "../ui";
 import { Checkbox } from "../ui/Checkbox";
 import EditableMarkdown from "./EditableMarkdown";
-import { useParamStore } from "./useParamStore";
 
 type TriggerDAGFormProps = {
   readonly dagId: string;
@@ -123,7 +123,10 @@ const TriggerDAGForm = ({ dagId, isPaused, onClose, open }: TriggerDAGFormProps)
         size="lg"
         variant="enclosed"
       >
-        <FlexibleForm initialParamsDict={initialParamsDict} />
+        <FlexibleForm
+          flexibleFormDefaultSection={flexibleFormDefaultSection}
+          initialParamsDict={initialParamsDict}
+        />
         <Accordion.Item key="advancedOptions" value="advancedOptions">
           <Accordion.ItemTrigger cursor="button">Advanced Options</Accordion.ItemTrigger>
           <Accordion.ItemContent>

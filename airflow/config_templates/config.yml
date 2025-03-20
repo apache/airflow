@@ -1427,24 +1427,28 @@ api_auth:
         This variable can be a single value, or a comma-separated string, in which case the first value is the
         one that will be used when generating, and the others are accepted at validation time.
 
-        Not required, but strongly encouraged
+        Not required, but strongly encouraged.
+
+        See also :ref:`config:execution_api__jwt_audience`
       example: "my-unique-airflow-id"
       default: ~
       type: string
     jwt_expiration_time:
       description: |
-        Number in seconds until the JWT token used for authentication expires. When the token expires,
+        Number in seconds until the JWTs used for authentication expires. When the token expires,
         all API calls using this token will fail on authentication.
 
         Make sure that time on ALL the machines that you run airflow components on is synchronized
         (for example using ntpd) otherwise you might get "forbidden" errors.
+
+        See also :ref:`config:execution_api__jwt_expiration_time`
       version_added: 3.0.0
       type: integer
       example: ~
       default: "86400"
     jwt_cli_expiration_time:
       description: |
-        Number in seconds until the JWT token used for authentication expires for CLI commands.
+        Number in seconds until the JWTs used for authentication expires for CLI commands.
         When the token expires, all CLI calls using this token will fail on authentication.
 
         Make sure that time on ALL the machines that you run airflow components on is synchronized
@@ -1455,7 +1459,7 @@ api_auth:
       default: "3600"
     jwt_secret:
       description: |
-        Secret key used to encode and decode JWT tokens to authenticate to public and private APIs.
+        Secret key used to encode and decode JWTs to authenticate to public and private APIs.
 
         It should be as random as possible. However, when running more than 1 instances of API services,
         make sure all of them use the same ``jwt_secret`` otherwise calls will fail on authentication.
@@ -1522,12 +1526,42 @@ api_auth:
     jwt_leeway:
       version_added: 3.0.0
       description: |
-        Number of seconds leeway in validating expiry time of JWT tokens to account for clock skew between
+        Number of seconds leeway in validating expiry time of JWTs to account for clock skew between
         client and server
       default: "10"
       example: ~
       type: integer
+execution_api:
+  description: |
+    Settings related to the Execution API server.
 
+    The ExecutionAPI also uses a lot of settings from the :ref:`config:api_auth` section.
+  options:
+    jwt_expiration_time:
+      description: |
+        Number in seconds until the JWT used for authentication expires. When the token expires,
+        all API calls using this token will fail on authentication.
+
+        Make sure that time on ALL the machines that you run airflow components on is synchronized
+        (for example using ntpd) otherwise you might get "forbidden" errors.
+      version_added: 3.0.0
+      type: integer
+      example: ~
+      default: "600"
+    jwt_audience:
+      version_added: 3.0.0
+      description: |
+        The audience claim to use when generating and validating JWTs for the Execution API.
+
+        This variable can be a single value, or a comma-separated string, in which case the first value is the
+        one that will be used when generating, and the others are accepted at validation time.
+
+        Not required, but strongly encouraged
+
+        See also :ref:`config:api_auth__jwt_audience`
+      default: "urn:airflow.apache.org:task"
+      example: ~
+      type: string
 lineage:
   description: ~
   options:

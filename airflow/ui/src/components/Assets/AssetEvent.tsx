@@ -16,9 +16,8 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Box, Text, HStack } from "@chakra-ui/react";
+import { Box, Text, HStack, Code } from "@chakra-ui/react";
 import { FiDatabase } from "react-icons/fi";
-import { MdOutlineAccountTree } from "react-icons/md";
 import { Link } from "react-router-dom";
 
 import type { AssetEventResponse } from "openapi/requests/types.gen";
@@ -28,16 +27,21 @@ import { Tooltip } from "src/components/ui";
 export const AssetEvent = ({
   assetId,
   event,
+  showExtra,
 }: {
   readonly assetId?: number;
   readonly event: AssetEventResponse;
+  readonly showExtra?: boolean;
 }) => {
   const hasDagRuns = event.created_dagruns.length > 0;
   let source = "";
 
-  if (event.extra?.from_rest_api === true) {
+  // eslint-disable-next-line @typescript-eslint/naming-convention
+  const { from_rest_api, from_trigger, ...extra } = event.extra ?? {};
+
+  if (from_rest_api === true) {
     source = "API";
-  } else if (event.extra?.from_trigger === true) {
+  } else if (from_trigger === true) {
     source = "Trigger";
   }
 
@@ -65,7 +69,7 @@ export const AssetEvent = ({
         </HStack>
       )}
       <HStack>
-        <MdOutlineAccountTree /> <Text> Source: </Text>
+        <Text>Source: </Text>
         {source === "" ? (
           <Link
             to={`/dags/${event.source_dag_id}/runs/${event.source_run_id}/tasks/${event.source_task_id}${event.source_map_index > -1 ? `/mapped/${event.source_map_index}` : ""}`}
@@ -77,7 +81,7 @@ export const AssetEvent = ({
         )}
       </HStack>
       <HStack>
-        <Text> Triggered Dag Runs: </Text>
+        <Text>Triggered Dag Runs: </Text>
         {hasDagRuns ? (
           <Link to={`/dags/${event.created_dagruns[0]?.dag_id}/runs/${event.created_dagruns[0]?.run_id}`}>
             <Text color="fg.info"> {event.created_dagruns[0]?.dag_id} </Text>
@@ -86,6 +90,7 @@ export const AssetEvent = ({
           "~"
         )}
       </HStack>
+      {showExtra ? <Code>{JSON.stringify(extra)}</Code> : undefined}
     </Box>
   );
 };
