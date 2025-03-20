@@ -16,7 +16,7 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Box, Flex } from "@chakra-ui/react";
+import { Box, Flex, HStack, Spacer, VStack } from "@chakra-ui/react";
 import type { ColumnDef } from "@tanstack/react-table";
 import { useState } from "react";
 import { useSearchParams } from "react-router-dom";
@@ -29,6 +29,7 @@ import { ErrorAlert } from "src/components/ErrorAlert";
 import { SearchBar } from "src/components/SearchBar";
 import { SearchParamsKeys, type SearchParamsKeysType } from "src/constants/searchParams";
 
+import AddConnectionButton from "./AddConnectionButton";
 import DeleteConnectionButton from "./DeleteConnectionButton";
 
 const columns: Array<ColumnDef<ConnectionResponse>> = [
@@ -101,12 +102,19 @@ export const Connections = () => {
 
   return (
     <>
-      <SearchBar
-        buttonProps={{ disabled: true }}
-        defaultValue={connectionIdPattern ?? ""}
-        onChange={handleSearchChange}
-        placeHolder="Search Connections"
-      />
+      <VStack alignItems="none">
+        <SearchBar
+          buttonProps={{ disabled: true }}
+          defaultValue={connectionIdPattern ?? ""}
+          onChange={handleSearchChange}
+          placeHolder="Search Connections"
+        />
+        <HStack gap={4} mt={2}>
+          <Spacer />
+          <AddConnectionButton />
+        </HStack>
+      </VStack>
+
       <Box>
         <DataTable
           columns={columns}
