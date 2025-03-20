@@ -26,8 +26,8 @@ import textwrap
 import pendulum
 
 from airflow.decorators import task
-from airflow.models.dag import DAG
 from airflow.providers.standard.operators.bash import BashOperator
+from airflow.sdk import DAG
 
 
 @task(task_id="run_this")
