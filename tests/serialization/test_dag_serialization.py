@@ -1357,7 +1357,7 @@ class TestStringifiedDAGs:
             "max_active_tis_per_dag": None,
             "max_active_tis_per_dagrun": None,
             "max_retry_delay": None,
-            "on_execute_callback": None,
+            "on_execute_callback": [],
             "on_failure_fail_dagrun": False,
             "on_failure_callback": None,
             "on_retry_callback": None,
