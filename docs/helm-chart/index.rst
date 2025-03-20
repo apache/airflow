@@ -29,7 +29,7 @@ Helm Chart for Apache Airflow
     quick-start
     airflow-configuration
     adding-connections-and-variables
-    manage-dags-files
+    manage-dag-files
     manage-logs
     setting-resources-for-containers
     keda

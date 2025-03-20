@@ -33,7 +33,7 @@ code" serves several purposes:
 - **Extensible**: The Airflow® framework contains operators to connect with numerous technologies. All Airflow components are extensible to easily adjust to your environment.
 - **Flexible**: Workflow parameterization is built-in leveraging the `Jinja <https://jinja.palletsprojects.com>`_ templating engine.
 
-DAGs
+Dags
 -----------------------------------------
 
 .. include:: ../exts/includes/dag-definition.rst
