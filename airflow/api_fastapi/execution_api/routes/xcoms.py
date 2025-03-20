@@ -22,7 +22,7 @@ from typing import Annotated
 
 from fastapi import Body, Depends, HTTPException, Path, Query, Request, Response, status
 from pydantic import JsonValue
-from sqlalchemy import delete
+from sqlalchemy import delete, select
 from sqlalchemy.sql.selectable import Select
 
 from airflow.api_fastapi.common.db.common import SessionDep
@@ -228,7 +228,9 @@ def set_xcom(
     if not run_id:
         raise HTTPException(status.HTTP_404_NOT_FOUND, f"Run with ID: `{run_id}` was not found")
 
-    dag_run_id = session.query(DagRun.id).filter_by(dag_id=dag_id, run_id=run_id).scalar()
+    dag_run_id = session.execute(
+        select(DagRun.id).where(DagRun.dag_id == dag_id, DagRun.run_id == run_id)
+    ).scalar()
     if dag_run_id is None:
         raise HTTPException(status.HTTP_404_NOT_FOUND, f"DAG run not found on DAG {dag_id} with ID {run_id}")
 

@@ -31,7 +31,7 @@ import logging
 import traceback
 from typing import TYPE_CHECKING, NamedTuple, cast
 
-from sqlalchemy import delete, func, insert, select, tuple_
+from sqlalchemy import delete, func, insert, select, tuple_, update
 from sqlalchemy.exc import OperationalError
 from sqlalchemy.orm import joinedload, load_only
 
@@ -265,15 +265,17 @@ def _update_import_errors(
     # Add the errors of the processed files
     for filename, stacktrace in import_errors.items():
         if (filename, bundle_name) in existing_import_error_files:
-            session.query(ParseImportError).where(
-                ParseImportError.filename == filename, ParseImportError.bundle_name == bundle_name
-            ).update(
-                {
-                    "filename": filename,
-                    "bundle_name": bundle_name,
-                    "timestamp": utcnow(),
-                    "stacktrace": stacktrace,
-                },
+            session.execute(
+                update(ParseImportError)
+                .where(ParseImportError.filename == filename, ParseImportError.bundle_name == bundle_name)
+                .values(
+                    {
+                        "filename": filename,
+                        "bundle_name": bundle_name,
+                        "timestamp": utcnow(),
+                        "stacktrace": stacktrace,
+                    },
+                )
             )
             # sending notification when an existing dag import error occurs
             get_listener_manager().hook.on_existing_dag_import_error(filename=filename, stacktrace=stacktrace)
@@ -288,9 +290,11 @@ def _update_import_errors(
             )
             # sending notification when a new dag import error occurs
             get_listener_manager().hook.on_new_dag_import_error(filename=filename, stacktrace=stacktrace)
-        session.query(DagModel).filter(
-            DagModel.fileloc == filename, DagModel.bundle_name == bundle_name
-        ).update({"has_import_errors": True})
+        session.execute(
+            update(DagModel)
+            .where(DagModel.fileloc == filename, DagModel.bundle_name == bundle_name)
+            .values({"has_import_errors": True})
+        )
 
 
 def update_dag_parsing_results_in_db(
