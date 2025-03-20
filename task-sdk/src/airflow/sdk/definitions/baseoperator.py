@@ -89,6 +89,9 @@ if TYPE_CHECKING:
 
 __all__ = [
     "BaseOperator",
+    "chain",
+    "chain_linear",
+    "cross_downstream",
 ]
 
 # TODO: Task-SDK
