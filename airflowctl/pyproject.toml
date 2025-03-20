@@ -84,7 +84,6 @@ exclude_also = [
 codegen = [
     "datamodel-code-generator[http]==0.28.2",
 ]
-[tool.uv.sources]
 
 # To use:
 #

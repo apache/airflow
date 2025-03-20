@@ -611,16 +611,10 @@ module=[
 ]
 ignore_errors = true
 
-# TODO check this and create mypy check for airflowctl
-[[tool.mypy.overrides]]
-module="airflowctl.*"
-ignore_errors = true
-
 [dependency-groups]
 dev = [
     "apache-airflow[aiobotocore,async,apache-atlas,apache-webhdfs,cgroups,cloudpickle,github-enterprise,google-auth,graphviz,kerberos,ldap,leveldb,otel,pandas,password,rabbitmq,s3fs,sentry,statsd,uv]",
     "apache-airflow-task-sdk",
-    "apache-airflow-ctl",
     "apache-airflow-devel-common",
     "apache-airflow-providers-airbyte",
     "apache-airflow-providers-alibaba",
@@ -726,7 +720,6 @@ no-build-isolation-package = ["sphinx-redoc"]
 # These names must match the names as defined in the pyproject.toml of the workspace items,
 # *not* the workspace folder paths
 apache-airflow = {workspace = true}
-apache-airflow-ctl = {workspace = true}
 apache-airflow-providers-airbyte = {workspace = true}
 apache-airflow-providers-alibaba = { workspace = true }
 apache-airflow-providers-amazon = { workspace = true }
@@ -921,7 +914,6 @@ members = [
     "providers/ydb",
     "providers/zendesk",
     ".",
-    "airflowctl",
     "task-sdk",
     "devel-common",
 ]
