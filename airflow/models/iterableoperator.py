@@ -18,6 +18,7 @@
 from __future__ import annotations
 
 import asyncio
+import inspect
 import logging
 import os
 from abc import abstractmethod
@@ -50,11 +51,14 @@ from airflow.sdk.definitions._internal.abstractoperator import Operator
 from airflow.sdk.definitions.context import Context
 from airflow.sdk.definitions.xcom_arg import XComArg, _MapResult
 from airflow.serialization import serde
-from airflow.triggers.base import run_trigger
+from airflow.serialization.serialized_objects import SerializedBaseOperator
+from airflow.triggers.base import run_trigger, BaseTrigger
 from airflow.utils import timezone
 from airflow.utils.context import context_get_outlet_events
 from airflow.utils.log.logging_mixin import LoggingMixin
+from airflow.utils.module_loading import import_string
 from airflow.utils.operator_helpers import ExecutionCallableRunner
+from airflow.utils.session import provide_session, NEW_SESSION
 from airflow.utils.state import TaskInstanceState
 from airflow.utils.task_instance_session import get_current_task_instance_session
 from airflow.utils.xcom import XCOM_RETURN_KEY
@@ -137,10 +141,11 @@ class XComIterable(Iterator, Sequence):
 
 
 # TODO: should be moved to correct location as this will be used by streamable operators
-class DeferredIterable(Iterator):
+class DeferredIterable(Iterator, LoggingMixin):
     """An iterable that lazily fetches XCom values one by one instead of loading all at once."""
 
     def __init__(self, results: list[Any] | Any, trigger: BaseTrigger, operator: BaseOperator, next_method: str, context: Context | None = None):
+        super().__init__()
         self.results = results.copy() if isinstance(results, list) else [results]
         self.trigger = trigger
         self.operator = operator
@@ -175,7 +180,7 @@ class DeferredIterable(Iterator):
             return result
 
         # No more results; attempt to load the next page using the trigger
-        logging.info("No more results. Running trigger: %s", self.trigger)
+        self.log.info("No more results. Running trigger: %s", self.trigger)
 
         event = self.loop.run_until_complete(run_trigger(self.trigger))
         iterator = getattr(self.operator, self.next_method)(self.context, event.payload)
