@@ -62,8 +62,8 @@ services:
         source: ../../../airflow
         target: /opt/airflow/airflow
       - type: bind
-        source: ../../../airflowctl
-        target: /opt/airflow/airflowctl
+        source: ../../../airflow-ctl
+        target: /opt/airflow/airflow-ctl
       - type: bind
         source: ../../../constraints
         target: /opt/airflow/constraints
