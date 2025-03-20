@@ -18,6 +18,7 @@
 from __future__ import annotations
 
 import datetime
+import pendulum
 import pathlib
 from unittest.mock import MagicMock, patch
 
@@ -30,6 +31,7 @@ from airflow.models.dagrun import DagRun
 from airflow.models.taskinstance import TaskInstance, TaskInstanceState
 from airflow.providers.openlineage.plugins.facets import AirflowDagRunFacet, AirflowJobFacet
 from airflow.providers.openlineage.utils.utils import (
+    DagInfo,
     DagRunInfo,
     _get_task_groups_details,
     _get_tasks_details,
@@ -44,8 +46,11 @@ from airflow.providers.standard.operators.empty import EmptyOperator
 from airflow.serialization.serialized_objects import SerializedBaseOperator
 from airflow.utils.task_group import TaskGroup
 from airflow.utils.types import DagRunType
+from airflow.timetables.trigger import CronTriggerTimetable
+from airflow.timetables.events import EventsTimetable
 
 from tests_common.test_utils.compat import BashOperator, PythonOperator
+from tests_common.test_utils.version_compat import AIRFLOW_V_2_10_PLUS, AIRFLOW_V_3_0_PLUS
 from tests_common.test_utils.mock_operators import MockOperator
 
 BASH_OPERATOR_PATH = "airflow.providers.standard.operators.bash"
@@ -734,3 +739,654 @@ def test_get_user_provided_run_facets_with_exception(mock_custom_facet_funcs):
     )
     result = get_user_provided_run_facets(sample_ti, TaskInstanceState.RUNNING)
     assert result == {}
+
+
+
+# from airflow.timetables.assets import AssetOrTimeSchedule
+#
+# try:
+#     from airflow.providers.common.compat.assets import Asset
+# except ImportError:
+#     if AIRFLOW_V_3_0_PLUS:
+#         from airflow.sdk import Asset
+#     else:
+#         # dataset is renamed to asset since Airflow 3.0
+#         from airflow.datasets import Dataset as Asset
+
+def test_dag_info():
+    dag = DAG(
+        dag_id="dag_id",
+        schedule="@once",
+        start_date=datetime.datetime(2024, 6, 1),
+        tags={"test"},
+        description="test desc",
+    )
+
+    result = DagInfo(dag)
+    assert dict(result) == {
+        "dag_id": "dag_id",
+        "description": "test desc",
+        "fileloc": pathlib.Path(__file__).resolve().as_posix(),
+        "owner": "",
+        "start_date": "2024-06-01T00:00:00+00:00",
+        "tags": "['test']",
+        "timetable": {},
+        "timetable_summary": "@once",
+    }
+
+def test_dag_info_schedule_cron():
+    dag = DAG(
+        dag_id="dag_id",
+        schedule="*/4 3 * * *",
+        start_date=datetime.datetime(2024, 6, 1),
+    )
+
+    result = DagInfo(dag)
+    assert dict(result) == {
+        "dag_id": "dag_id",
+        "description": None,
+        "fileloc": pathlib.Path(__file__).resolve().as_posix(),
+        "owner": "",
+        "start_date": "2024-06-01T00:00:00+00:00",
+        "tags": "[]",
+        "timetable": {
+            "expression": "*/4 3 * * *",
+            "timezone": "UTC"
+        },
+        "timetable_summary": "*/4 3 * * *",
+    }
+
+def test_dag_info_schedule_events_timetable():
+    dag = DAG(
+        dag_id="dag_id",
+        start_date=datetime.datetime(2024, 6, 1),
+        schedule=EventsTimetable(
+            event_dates=[
+                pendulum.datetime(2025, 3, 3, 8, 27, tz="America/Chicago"),
+                pendulum.datetime(2025, 3, 17, 8, 27, tz="America/Chicago"),
+                pendulum.datetime(2025, 3, 22, 20, 50, tz="America/Chicago"),
+            ],
+            description="My Team's Baseball Games"
+        )
+    )
+
+    result = DagInfo(dag)
+    assert dict(result) == {
+        "dag_id": "dag_id",
+        "description": None,
+        "fileloc": pathlib.Path(__file__).resolve().as_posix(),
+        "owner": "",
+        "start_date": "2024-06-01T00:00:00+00:00",
+        "tags": "[]",
+        "timetable": {
+            "event_dates": [
+                '2025-03-03 08:27:00-06:00',
+                '2025-03-17 08:27:00-05:00',
+                '2025-03-22 20:50:00-05:00',
+            ],
+            "restrict_to_events": False
+        },
+        "timetable_summary": "My Team's Baseball Games",
+    }
+
+
+def test_dag_info_schedule_single_asset_directly():
+    dag = DAG(
+        dag_id="dag_id",
+        start_date=datetime.datetime(2024, 6, 1),
+        schedule=Asset(uri="uri1", extra={"a": 1})
+    )
+
+    result = DagInfo(dag)
+    assert dict(result) == {
+        "dag_id": "dag_id",
+        "description": None,
+        "fileloc": pathlib.Path(__file__).resolve().as_posix(),
+        "owner": "",
+        "start_date": "2024-06-01T00:00:00+00:00",
+        "tags": "[]",
+        "timetable": {
+            "asset_condition": {
+                "__type": "asset",
+                "uri": "uri1",
+                "name": "uri1",
+                "group": "asset",
+                "extra": {"a": 1}
+            }
+        },
+        "timetable_summary": "Asset",
+    }
+
+
+def test_dag_info_schedule_list_single_assets():
+    dag = DAG(
+        dag_id="dag_id",
+        start_date=datetime.datetime(2024, 6, 1),
+        schedule=[Asset(uri="uri1", extra={"a": 1})]
+    )
+
+    result = DagInfo(dag)
+    assert dict(result) == {
+        "dag_id": "dag_id",
+        "description": None,
+        "fileloc": pathlib.Path(__file__).resolve().as_posix(),
+        "owner": "",
+        "start_date": "2024-06-01T00:00:00+00:00",
+        "tags": "[]",
+        "timetable": {
+            "asset_condition": {
+                "__type": "asset_all",
+                "objects": [
+                    {
+                        "__type": "asset",
+                        "uri": "uri1",
+                        "name": "uri1",
+                        "group": "asset",
+                        "extra": {"a": 1}
+                    }
+                ]
+            }
+        },
+        "timetable_summary": "Asset",
+    }
+
+
+def test_dag_info_schedule_list_two_assets():
+    dag = DAG(
+        dag_id="dag_id",
+        start_date=datetime.datetime(2024, 6, 1),
+        schedule=[Asset(uri="uri1", extra={"a": 1}), Asset(uri="uri2")]
+    )
+
+    result = DagInfo(dag)
+    assert dict(result) == {
+        "dag_id": "dag_id",
+        "description": None,
+        "fileloc": pathlib.Path(__file__).resolve().as_posix(),
+        "owner": "",
+        "start_date": "2024-06-01T00:00:00+00:00",
+        "tags": "[]",
+        "timetable": {
+            "asset_condition": {
+                "__type": "asset_all",
+                "objects": [
+                    {
+                        "__type": "asset",
+                        "uri": "uri1",
+                        "name": "uri1",
+                        "group": "asset",
+                        "extra": {"a": 1}
+                    },
+                    {
+                        "__type": "asset",
+                        "uri": "uri2",
+                        "name": "uri2",
+                        "group": "asset",
+                        "extra": {}
+                    }
+                ]
+            }
+        },
+        "timetable_summary": "Asset",
+    }
+
+
+def test_dag_info_schedule_assets_logical_condition():
+    dag = DAG(
+        dag_id="dag_id",
+        start_date=datetime.datetime(2024, 6, 1),
+        schedule=(
+            (Asset("uri1", extra={"a": 1}) | Asset("uri2"))
+            & (Asset("uri3") | Asset("uri4"))
+        ),
+    )
+
+    result = DagInfo(dag)
+    assert dict(result) == {
+        "dag_id": "dag_id",
+        "description": None,
+        "fileloc": pathlib.Path(__file__).resolve().as_posix(),
+        "owner": "",
+        "start_date": "2024-06-01T00:00:00+00:00",
+        "tags": "[]",
+        "timetable": {
+            "asset_condition": {
+                "__type": "asset_all",
+                "objects": [
+                    {
+                        "__type": "asset_any",
+                        "objects": [
+                            {
+                                "__type": "asset",
+                                "uri": "uri1",
+                                "name": "uri1",
+                                "group": "asset",
+                                "extra": {"a": 1}
+                            },
+                            {
+                                "__type": "asset",
+                                "uri": "uri2",
+                                "name": "uri2",
+                                "group": "asset",
+                                "extra": {}
+                            }
+                        ]
+                    },
+                    {
+                        "__type": "asset_any",
+                        "objects": [
+                            {
+                                "__type": "asset",
+                                "uri": "uri3",
+                                "name": "uri3",
+                                "group": "asset",
+                                "extra": {}
+                            },
+                            {
+                                "__type": "asset",
+                                "uri": "uri4",
+                                "name": "uri4",
+                                "group": "asset",
+                                "extra": {}
+                            }
+                        ]
+                    }
+                ]
+            }
+        },
+        "timetable_summary": "Asset",
+    }
+
+
+def test_dag_info_schedule_asset_or_time_schedule():
+    dag = DAG(
+        dag_id="dag_id",
+        start_date=datetime.datetime(2024, 6, 1),
+        schedule=AssetOrTimeSchedule(
+            timetable=CronTriggerTimetable("*/4 3 * * *", timezone="UTC"),
+            assets=(
+                (Asset("uri1", extra={"a": 1}) | Asset("uri2"))
+                & (Asset("uri3") | Asset("uri4"))
+            )
+        ),
+    )
+
+    result = DagInfo(dag)
+    assert dict(result) == {
+        "dag_id": "dag_id",
+        "description": None,
+        "fileloc": pathlib.Path(__file__).resolve().as_posix(),
+        "owner": "",
+        "start_date": "2024-06-01T00:00:00+00:00",
+        "tags": "[]",
+        "timetable": {
+            "asset_condition": {
+                "__type": "asset_all",
+                "objects": [
+                    {
+                        "__type": "asset_any",
+                        "objects": [
+                            {
+                                "__type": "asset",
+                                "uri": "uri1",
+                                "name": "uri1",
+                                "group": "asset",
+                                "extra": {"a": 1}
+                            },
+                            {
+                                "__type": "asset",
+                                "uri": "uri2",
+                                "name": "uri2",
+                                "group": "asset",
+                                "extra": {}
+                            }
+                        ]
+                    },
+                    {
+                        "__type": "asset_any",
+                        "objects": [
+                            {
+                                "__type": "asset",
+                                "uri": "uri3",
+                                "name": "uri3",
+                                "group": "asset",
+                                "extra": {}
+                            },
+                            {
+                                "__type": "asset",
+                                "uri": "uri4",
+                                "name": "uri4",
+                                "group": "asset",
+                                "extra": {}
+                            }
+                        ]
+                    }
+                ]
+            },
+            "timetable": {
+                "__type": "airflow.timetables.trigger.CronTriggerTimetable",
+                "__var": {
+                    "expression": "*/4 3 * * *",
+                    "timezone": "UTC",
+                    'interval': 0.0,
+                    'run_immediately': False
+                }
+            }
+        },
+        "timetable_summary": "Asset or */4 3 * * *",
+    }
+
+
+
+@pytest.mark.skipif(AIRFLOW_V_2_10_PLUS, reason="Airflow 2.9 tests")
+class TestOpenLineageAirflowRunFacetAirflow2:
+
+    def test_dag_info(self):
+        dag = DAG(
+            dag_id="dag_id",
+            schedule="@once",
+            start_date=datetime.datetime(2024, 6, 1),
+            tags={"test"},
+            description="test desc",
+        )
+
+        result = DagInfo(dag)
+        assert dict(result) == {
+            "dag_id": "dag_id",
+            "description": "test desc",
+            "fileloc": pathlib.Path(__file__).resolve().as_posix(),
+            "owner": "",
+            "start_date": "2024-06-01T00:00:00+00:00",
+            "tags": "['test']",
+            "timetable": {},
+            "timetable_summary": "@once",
+        }
+
+    def test_dag_info_schedule_cron(self):
+        dag = DAG(
+            dag_id="dag_id",
+            schedule="*/4 3 * * *",
+            start_date=datetime.datetime(2024, 6, 1),
+        )
+
+        result = DagInfo(dag)
+        assert dict(result) == {
+            "dag_id": "dag_id",
+            "description": None,
+            "fileloc": pathlib.Path(__file__).resolve().as_posix(),
+            "owner": "",
+            "start_date": "2024-06-01T00:00:00+00:00",
+            "tags": "[]",
+            "timetable": {
+                "expression": "*/4 3 * * *",
+                "timezone": "UTC"
+            },
+            "timetable_summary": "*/4 3 * * *",
+        }
+
+    def test_dag_info_schedule_events_timetable(self):
+        dag = DAG(
+            dag_id="dag_id",
+            start_date=datetime.datetime(2024, 6, 1),
+            schedule=EventsTimetable(
+                event_dates=[
+                    pendulum.datetime(2025, 3, 3, 8, 27, tz="America/Chicago"),
+                    pendulum.datetime(2025, 3, 17, 8, 27, tz="America/Chicago"),
+                    pendulum.datetime(2025, 3, 22, 20, 50, tz="America/Chicago"),
+                ],
+                description="My Team's Baseball Games"
+            )
+        )
+
+        result = DagInfo(dag)
+        assert dict(result) == {
+            "dag_id": "dag_id",
+            "description": None,
+            "fileloc": pathlib.Path(__file__).resolve().as_posix(),
+            "owner": "",
+            "start_date": "2024-06-01T00:00:00+00:00",
+            "tags": "[]",
+            "timetable": {
+                "event_dates": [
+                    '2025-03-03 08:27:00-06:00',
+                    '2025-03-17 08:27:00-05:00',
+                    '2025-03-22 20:50:00-05:00',
+                ],
+                "restrict_to_events": False
+            },
+            "timetable_summary": "My Team's Baseball Games",
+        }
+
+    def test_dag_info_schedule_list_single_assets(self):
+        from airflow.datasets import Dataset
+
+        dag = DAG(
+            dag_id="dag_id",
+            start_date=datetime.datetime(2024, 6, 1),
+            schedule=[Dataset(uri="uri1", extra={"a": 1})]
+        )
+
+        result = DagInfo(dag)
+        assert dict(result) == {
+            "dag_id": "dag_id",
+            "description": None,
+            "fileloc": pathlib.Path(__file__).resolve().as_posix(),
+            "owner": "",
+            "start_date": "2024-06-01T00:00:00+00:00",
+            "tags": "[]",
+            "timetable": {
+                "dataset_condition": {
+                    "__type": "dataset_all",
+                    "objects": [
+                        {
+                            "__type": "dataset",
+                            "uri": "uri1",
+                            "name": "uri1",
+                            "group": "asset",
+                            "extra": {"a": 1}
+                        }
+                    ]
+                }
+            },
+            "timetable_summary": "Asset",
+        }
+
+    def test_dag_info_schedule_list_two_assets(self):
+        from airflow.datasets import Dataset
+
+        dag = DAG(
+            dag_id="dag_id",
+            start_date=datetime.datetime(2024, 6, 1),
+            schedule=[Dataset(uri="uri1", extra={"a": 1}), Dataset(uri="uri2")]
+        )
+
+        result = DagInfo(dag)
+        assert dict(result) == {
+            "dag_id": "dag_id",
+            "description": None,
+            "fileloc": pathlib.Path(__file__).resolve().as_posix(),
+            "owner": "",
+            "start_date": "2024-06-01T00:00:00+00:00",
+            "tags": "[]",
+            "timetable": {
+                "asset_condition": {
+                    "__type": "asset_all",
+                    "objects": [
+                        {
+                            "__type": "asset",
+                            "uri": "uri1",
+                            "name": "uri1",
+                            "group": "asset",
+                            "extra": {"a": 1}
+                        },
+                        {
+                            "__type": "asset",
+                            "uri": "uri2",
+                            "name": "uri2",
+                            "group": "asset",
+                            "extra": {}
+                        }
+                    ]
+                }
+            },
+            "timetable_summary": "Asset",
+        }
+
+    def test_dag_info_schedule_assets_logical_condition(self):
+        from airflow.datasets import Dataset
+
+        dag = DAG(
+            dag_id="dag_id",
+            start_date=datetime.datetime(2024, 6, 1),
+            schedule=(
+                (Dataset("uri1", extra={"a": 1}) | Dataset("uri2"))
+                & (Dataset("uri3") | Dataset("uri4"))
+            ),
+        )
+
+        result = DagInfo(dag)
+        assert dict(result) == {
+            "dag_id": "dag_id",
+            "description": None,
+            "fileloc": pathlib.Path(__file__).resolve().as_posix(),
+            "owner": "",
+            "start_date": "2024-06-01T00:00:00+00:00",
+            "tags": "[]",
+            "timetable": {
+                "asset_condition": {
+                    "__type": "asset_all",
+                    "objects": [
+                        {
+                            "__type": "asset_any",
+                            "objects": [
+                                {
+                                    "__type": "asset",
+                                    "uri": "uri1",
+                                    "name": "uri1",
+                                    "group": "asset",
+                                    "extra": {"a": 1}
+                                },
+                                {
+                                    "__type": "asset",
+                                    "uri": "uri2",
+                                    "name": "uri2",
+                                    "group": "asset",
+                                    "extra": {}
+                                }
+                            ]
+                        },
+                        {
+                            "__type": "asset_any",
+                            "objects": [
+                                {
+                                    "__type": "asset",
+                                    "uri": "uri3",
+                                    "name": "uri3",
+                                    "group": "asset",
+                                    "extra": {}
+                                },
+                                {
+                                    "__type": "asset",
+                                    "uri": "uri4",
+                                    "name": "uri4",
+                                    "group": "asset",
+                                    "extra": {}
+                                }
+                            ]
+                        }
+                    ]
+                }
+            },
+            "timetable_summary": "Asset",
+        }
+
+    def test_dag_info_schedule_asset_or_time_schedule(self):
+        from airflow.datasets import Dataset
+        from airflow.timetables.datasets import DatasetOrTimeSchedule
+
+        dag = DAG(
+            dag_id="dag_id",
+            start_date=datetime.datetime(2024, 6, 1),
+            schedule=DatasetOrTimeSchedule(
+                timetable=CronTriggerTimetable("*/4 3 * * *", timezone="UTC"),
+                assets=(
+                    (Dataset("uri1", extra={"a": 1}) | Dataset("uri2"))
+                    & (Dataset("uri3") | Dataset("uri4"))
+                )
+            ),
+        )
+
+        result = DagInfo(dag)
+        assert dict(result) == {
+            "dag_id": "dag_id",
+            "description": None,
+            "fileloc": pathlib.Path(__file__).resolve().as_posix(),
+            "owner": "",
+            "start_date": "2024-06-01T00:00:00+00:00",
+            "tags": "[]",
+            "timetable": {
+                "asset_condition": {
+                    "__type": "asset_all",
+                    "objects": [
+                        {
+                            "__type": "asset_any",
+                            "objects": [
+                                {
+                                    "__type": "asset",
+                                    "uri": "uri1",
+                                    "name": "uri1",
+                                    "group": "asset",
+                                    "extra": {"a": 1}
+                                },
+                                {
+                                    "__type": "asset",
+                                    "uri": "uri2",
+                                    "name": "uri2",
+                                    "group": "asset",
+                                    "extra": {}
+                                }
+                            ]
+                        },
+                        {
+                            "__type": "asset_any",
+                            "objects": [
+                                {
+                                    "__type": "asset",
+                                    "uri": "uri3",
+                                    "name": "uri3",
+                                    "group": "asset",
+                                    "extra": {}
+                                },
+                                {
+                                    "__type": "asset",
+                                    "uri": "uri4",
+                                    "name": "uri4",
+                                    "group": "asset",
+                                    "extra": {}
+                                }
+                            ]
+                        }
+                    ]
+                },
+                "timetable": {
+                    "__type": "airflow.timetables.trigger.CronTriggerTimetable",
+                    "__var": {
+                        "expression": "*/4 3 * * *",
+                        "timezone": "UTC",
+                        'interval': 0.0,
+                        'run_immediately': False
+                    }
+                }
+            },
+            "timetable_summary": "Asset or */4 3 * * *",
+        }
+
+
+@pytest.mark.skipif(AIRFLOW_V_3_0_PLUS, reason="Airflow 2.10 tests")
+class TestOpenLineageAirflowRunFacetAirflow2:
+    pass
+
+
+@pytest.mark.skipif(not AIRFLOW_V_3_0_PLUS, reason="Airflow 3 tests")
+class TestOpenLineageListenerAirflow3:
+    pass
