@@ -19,7 +19,7 @@
 import { useDagServiceGetDagDetails } from "openapi/queries";
 import { toaster } from "src/components/ui";
 
-export type DagParamsSpec = Record<string, ParamSpec>;
+export type ParamsSpec = Record<string, ParamSpec>;
 
 export type ParamSpec = {
   description: string | null;
@@ -46,10 +46,13 @@ export type ParamSchema = {
 };
 
 export const useDagParams = (dagId: string, open: boolean) => {
-  const { data, error }: { data?: Record<string, DagParamsSpec>; error?: unknown } =
-    useDagServiceGetDagDetails({ dagId }, undefined, {
+  const { data, error }: { data?: Record<string, ParamsSpec>; error?: unknown } = useDagServiceGetDagDetails(
+    { dagId },
+    undefined,
+    {
       enabled: open,
-    });
+    },
+  );
 
   if (Boolean(error)) {
     const errorDescription =
@@ -64,7 +67,7 @@ export const useDagParams = (dagId: string, open: boolean) => {
     });
   }
 
-  const paramsDict: DagParamsSpec = data?.params ?? ({} as DagParamsSpec);
+  const paramsDict: ParamsSpec = data?.params ?? ({} as ParamsSpec);
 
   return { paramsDict };
 };

@@ -18,8 +18,9 @@
  */
 import { Input } from "@chakra-ui/react";
 
+import { paramPlaceholder, useParamStore } from "src/queries/useParamStore";
+
 import type { FlexibleFormElementProps } from ".";
-import { paramPlaceholder, useParamStore } from "../TriggerDag/useParamStore";
 
 export const FieldString = ({ name }: FlexibleFormElementProps) => {
   const { paramsDict, setParamsDict } = useParamStore();

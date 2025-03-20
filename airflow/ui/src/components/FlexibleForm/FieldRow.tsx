@@ -21,9 +21,9 @@ import Markdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 
 import type { ParamSpec } from "src/queries/useDagParams";
+import { paramPlaceholder, useParamStore } from "src/queries/useParamStore";
 
 import type { FlexibleFormElementProps } from ".";
-import { paramPlaceholder, useParamStore } from "../TriggerDag/useParamStore";
 import { FieldSelector } from "./FieldSelector";
 
 const isRequired = (param: ParamSpec) =>
