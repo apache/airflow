@@ -77,7 +77,7 @@ keep_env_variables = "--keep-env-variables" in sys.argv
 
 if not keep_env_variables:
     # Clear all Environment Variables that might have side effect,
-    # For example, defined in /files/airflow-breeze-config/variables.env
+    # For example, defined in /files/airflow-breeze-config/environment_variables.env
     _AIRFLOW_CONFIG_PATTERN = re.compile(r"^AIRFLOW__(.+)__(.+)$")
     _KEEP_CONFIGS_SETTINGS: dict[str, dict[str, set[str]]] = {
         # Keep always these configurations
