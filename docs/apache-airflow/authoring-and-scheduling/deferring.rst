@@ -222,16 +222,14 @@ Below is an outline of how you can achieve this.
     from airflow.models.baseoperator import BaseOperator
     from airflow.triggers.base import BaseTrigger, TriggerEvent
 
+
     class MyItemTrigger(BaseTrigger):
         def __init__(self, item):
             super().__init__()
             self.item = item
 
         def serialize(self):
-            return (
-                self.__class__.__module__ + "." + self.__class__.__name__,
-                {"item": self.item}
-            )
+            return (self.__class__.__module__ + "." + self.__class__.__name__, {"item": self.item})
 
         async def run(self):
             result = None
@@ -242,30 +240,31 @@ Below is an outline of how you can achieve this.
             except Exception as e:
                 yield TriggerEvent({"error": str(e)})
 
+
     class MyItemsOperator(BaseOperator):
         def __init__(self, items, **kwargs):
             super().__init__(**kwargs)
             self.items = items
 
-    def execute(self, context, current_item_index=0, event=None):
-        last_result = None
-        if event is not None:
-            # execute method was deferred
-            if "error" in event:
-                raise Exception(event["error"])
-            last_result = event["result"]
-            current_item_index += 1
+        def execute(self, context, current_item_index=0, event=None):
+            last_result = None
+            if event is not None:
+                # execute method was deferred
+                if "error" in event:
+                    raise Exception(event["error"])
+                last_result = event["result"]
+                current_item_index += 1
 
-        try:
-            current_item = self.items[current_item_index]
-        except IndexError:
-            return last_result
+            try:
+                current_item = self.items[current_item_index]
+            except IndexError:
+                return last_result
 
-        self.defer(
-            trigger=MyItemTrigger(item),
-            method_name="execute", # The trigger will call this same method again
-            kwargs={"current_item_index": current_item_index}
-        )
+            self.defer(
+                trigger=MyItemTrigger(item),
+                method_name="execute",  # The trigger will call this same method again
+                kwargs={"current_item_index": current_item_index},
+            )
 
 
 Triggering Deferral from Task Start
