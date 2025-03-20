@@ -640,7 +640,7 @@ class WatchedSubprocess:
         if self._exit_code is None:
             try:
                 self._exit_code = self._process.wait(timeout=0)
-                log.debug("Workload process exited", exit_code=self._exit_code)
+                log.debug("%s process exited", type(self).__name__, exit_code=self._exit_code)
                 self._close_unused_sockets(self.stdin)
             except psutil.TimeoutExpired:
                 if raise_on_timeout:
@@ -976,7 +976,7 @@ class ActivitySubprocess(WatchedSubprocess):
 # This returns a callback suitable for attaching to a `selector` that reads in to a buffer, and yields lines
 # to a (sync) generator
 def make_buffered_socket_reader(
-    gen: Generator[None, bytes, None],
+    gen: Generator[None, bytes | bytearray, None],
     on_close: Callable,
     buffer_size: int = 4096,
 ) -> Callable[[socket], bool]:
@@ -994,7 +994,8 @@ def make_buffered_socket_reader(
         if not n_received:
             # If no data is returned, the connection is closed. Return whatever is left in the buffer
             if len(buffer):
-                gen.send(buffer)
+                with suppress(StopIteration):
+                    gen.send(buffer)
             # Tell loop to close this selector
             on_close()
             return False
@@ -1004,7 +1005,11 @@ def make_buffered_socket_reader(
         # We could have read multiple lines in one go, yield them all
         while (newline_pos := buffer.find(b"\n")) != -1:
             line = buffer[: newline_pos + 1]
-            gen.send(line)
+            try:
+                gen.send(line)
+            except StopIteration:
+                on_close()
+                return False
             buffer = buffer[newline_pos + 1 :]  # Update the buffer with remaining data
 
         return True
