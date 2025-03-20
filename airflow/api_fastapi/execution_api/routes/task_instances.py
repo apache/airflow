@@ -22,6 +22,7 @@ import logging
 from typing import Annotated
 from uuid import UUID
 
+from cadwyn import VersionedAPIRouter
 from fastapi import Body, Depends, HTTPException, status
 from pydantic import JsonValue
 from sqlalchemy import func, tuple_, update
@@ -29,7 +30,6 @@ from sqlalchemy.exc import NoResultFound, SQLAlchemyError
 from sqlalchemy.sql import select
 
 from airflow.api_fastapi.common.db.common import SessionDep
-from airflow.api_fastapi.common.router import AirflowRouter
 from airflow.api_fastapi.execution_api.datamodels.taskinstance import (
     PrevSuccessfulDagRunResponse,
     TIDeferredStatePayload,
@@ -52,7 +52,7 @@ from airflow.models.xcom import XComModel
 from airflow.utils import timezone
 from airflow.utils.state import DagRunState, TaskInstanceState, TerminalTIState
 
-router = AirflowRouter(
+router = VersionedAPIRouter(
     dependencies=[
         # This checks that the UUID in the url matches the one in the token for us.
         Depends(JWTBearer(path_param_name="task_instance_id")),

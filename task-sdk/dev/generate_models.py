@@ -16,12 +16,11 @@
 # under the License.
 from __future__ import annotations
 
-import json
 import os
 import sys
 from pathlib import Path
-from typing import TYPE_CHECKING
 
+import httpx
 from datamodel_code_generator import (
     DataModelType,
     DatetimeClassType,
@@ -43,12 +42,9 @@ from common_precommit_utils import (
 
 sys.path.insert(0, str(AIRFLOW_SOURCES_ROOT_PATH))  # make sure setup is imported from Airflow
 
-from airflow.api_fastapi.execution_api.app import create_task_execution_api_app
+from airflow.api_fastapi.execution_api.app import InProcessExecutionAPI
 
 task_sdk_root = Path(__file__).parents[1]
-
-if TYPE_CHECKING:
-    from fastapi import FastAPI
 
 
 def load_config():
@@ -80,20 +76,21 @@ def load_config():
     return cfg
 
 
-def generate_file(app: FastAPI):
-    # The persisted openapi spec will list all endpoints (public and ui), this
-    # is used for code generation.
-    for route in app.routes:
-        if getattr(route, "name") == "webapp":
-            continue
-        route.__setattr__("include_in_schema", True)
+def generate_file():
+    app = InProcessExecutionAPI()
+
+    latest_version = app.app.versions.version_values[-1]
+    client = httpx.Client(transport=app.transport)
+    openapi_schema = (
+        client.get(f"http://localhost/openapi.json?version={latest_version}").raise_for_status().text
+    )
 
     os.chdir(task_sdk_root)
 
-    openapi_schema = json.dumps(app.openapi())
     args = load_config()
     args["input_filename"] = args.pop("url")
+    args["custom_formatters_kwargs"] = {"api_version": latest_version}
     generate_models(openapi_schema, **args)
 
 
-generate_file(create_task_execution_api_app())
+generate_file()

@@ -17,11 +17,14 @@
 
 from __future__ import annotations
 
+import logging
 from typing import Any
 
 import attrs
 
 from airflow.sdk.definitions._internal.types import NOTSET
+
+log = logging.getLogger(__name__)
 
 
 @attrs.define

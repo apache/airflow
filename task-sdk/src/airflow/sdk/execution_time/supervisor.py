@@ -99,10 +99,11 @@ if TYPE_CHECKING:
     from structlog.typing import FilteringBoundLogger, WrappedLogger
 
     from airflow.executors.workloads import BundleInfo
+    from airflow.secrets import BaseSecretsBackend
     from airflow.typing_compat import Self
 
 
-__all__ = ["ActivitySubprocess", "WatchedSubprocess", "supervise"]
+__all__ = ["ActivitySubprocess", "WatchedSubprocess", "supervise", "SECRETS_BACKEND"]
 
 log: FilteringBoundLogger = structlog.get_logger(logger_name="supervisor")
 
@@ -122,6 +123,8 @@ STATES_SENT_DIRECTLY = [
     IntermediateTIState.UP_FOR_RESCHEDULE,
     TerminalTIState.SUCCESS,
 ]
+
+SECRETS_BACKEND: list[BaseSecretsBackend] = []
 
 
 @overload
@@ -1051,6 +1054,16 @@ def forward_to_log(
             log.log(level, msg, chan=chan)
 
 
+def initialize_secrets_backend_on_workers():
+    """Initialize the secrets backend on workers."""
+    from airflow.configuration import ensure_secrets_loaded
+    from airflow.secrets import DEFAULT_SECRETS_SEARCH_PATH_WORKERS
+
+    global SECRETS_BACKEND
+    SECRETS_BACKEND = ensure_secrets_loaded(default_backends=DEFAULT_SECRETS_SEARCH_PATH_WORKERS)
+    log.debug("Initialized secrets backend on workers", secrets_backend=SECRETS_BACKEND)
+
+
 def supervise(
     *,
     ti: TaskInstance,
@@ -1107,6 +1120,8 @@ def supervise(
             underlying_logger = structlog.BytesLogger(log_file.open("ab"))
         processors = logging_processors(enable_pretty_log=pretty_logs)[0]
         logger = structlog.wrap_logger(underlying_logger, processors=processors, logger_name="task").bind()
+
+    initialize_secrets_backend_on_workers()
 
     process = ActivitySubprocess.start(
         dag_rel_path=dag_rel_path,
