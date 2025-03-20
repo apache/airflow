@@ -39,7 +39,7 @@ This is why Airflow has the following user types:
 
 * Deployment Managers - overall responsible for the Airflow installation, security and configuration
 * Authenticated UI users - users that can access Airflow UI and API and interact with it
-* DAG Authors - responsible for creating DAGs and submitting them to Airflow
+* DAG Authors - responsible for creating dags and submitting them to Airflow
 
 You can see more on how the user types influence Airflow's architecture in :doc:`/core-concepts/overview`,
 including, seeing the diagrams of less and more complex deployments.
@@ -120,7 +120,7 @@ to sensitive credentials stored in connections and can modify them.
 Access to sensitive information through connection configuration
 should be trusted not to be abused. They also have the ability to configure connections wrongly
 that might create a Webserver Denial of Service situations and specify insecure connection options
-which might create situations where executing DAGs will lead to arbitrary Remote Code Execution
+which might create situations where executing dags will lead to arbitrary Remote Code Execution
 for some providers - either community released or custom ones.
 
 Those users should be highly trusted not to misuse this capability.
@@ -133,14 +133,14 @@ They can view audit events for the whole Airflow installation.
 Regular users
 .............
 
-They can view and interact with the UI and API. They are able to view and edit DAGs,
+They can view and interact with the UI and API. They are able to view and edit dags,
 task instances, and DAG runs, and view task logs.
 
 Viewer users
 ............
 
-They can view information related to DAGs, in a read only fashion, task logs, and other relevant details.
-This role is suitable for users who require read-only access without the ability to trigger or modify DAGs.
+They can view information related to dags, in a read only fashion, task logs, and other relevant details.
+This role is suitable for users who require read-only access without the ability to trigger or modify dags.
 
 Viewers also do not have permission to access audit logs.
 
@@ -221,11 +221,11 @@ The Deployment Manager might decide to introduce additional control mechanisms t
 executing arbitrary code. This is all fully in hands of the Deployment Manager and it is discussed in the
 following chapter.
 
-Access to All DAGs
+Access to all dags
 ........................................................................
 
-All DAG authors have access to all DAGs in the airflow deployment. This means that they can view, modify,
-and update any DAG without restrictions at any time.
+All dag authors have access to all dags in the airflow deployment. This means that they can view, modify,
+and update any dag without restrictions at any time.
 
 Responsibilities of Deployment Managers
 ---------------------------------------
@@ -277,7 +277,7 @@ Examples of fine-grained access control include (but are not limited to):
 *  Limiting login permissions: Restricting the accounts that users can log in with, allowing only specific
    accounts or roles belonging to access the Airflow system.
 
-*  Access restrictions to views or DAGs: Controlling user access to certain views or specific DAGs,
+*  Access restrictions to views or dags: Controlling user access to certain views or specific dags,
    ensuring that users can only view or interact with authorized components.
 
 Future: multi-tenancy isolation
