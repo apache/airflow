@@ -30,7 +30,7 @@ import structlog
 from platformdirs import user_config_path
 from uuid6 import uuid7
 
-from airflow.cli.api.operations import (
+from airflow.api.operations import (
     AssetsOperations,
     BackfillsOperations,
     ConfigOperations,

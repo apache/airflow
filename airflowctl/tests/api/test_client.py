@@ -26,8 +26,8 @@ import httpx
 import pytest
 from platformdirs import user_config_path
 
-from airflow.cli.api.client import Client, Credentials
-from airflow.cli.api.operations import ServerResponseError
+from airflow.api.client import Client, Credentials
+from airflow.api.operations import ServerResponseError
 from airflow.exceptions import AirflowNotFoundException
 
 
