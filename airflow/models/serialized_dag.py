@@ -674,7 +674,7 @@ class SerializedDagModel(Base):
                 )
                 .join(cls.dag_model)
                 .where(DagModel.is_active)
-            )
+            ).all()
 
         resolver = _DagDependenciesResolver(dag_id_dependencies=iterator, session=session)
         dag_depdendencies_by_dag = resolver.resolve()
