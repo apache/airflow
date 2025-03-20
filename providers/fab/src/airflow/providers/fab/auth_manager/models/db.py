@@ -54,7 +54,7 @@ class FABDBManager(BaseDBManager):
     alembic_file = (PACKAGE_DIR / "alembic.ini").as_posix()
     supports_table_dropping = True
 
-    def _create_db_from_orm(self):
+    def create_db_from_orm(self):
         super().create_db_from_orm()
         _get_flask_db(settings.SQL_ALCHEMY_CONN).create_all()
 
