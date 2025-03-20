@@ -4047,11 +4047,15 @@ class TestTaskInstance:
         def raise_skip_exception():
             raise AirflowSkipException
 
-        on_skipped_callback_function = mock.MagicMock()
-        on_skipped_callback_function.__name__ = "on_skipped_callback_function"
+        on_skipped_callback_function = mock.Mock(
+            __call__=mock.MagicMock(),
+            __name__="on_skipped_callback_function",
+        )
 
-        on_success_callback_function = mock.MagicMock()
-        on_success_callback_function.__name__ = "on_success_callback_function"
+        on_success_callback_function = mock.Mock(
+            __call__=mock.MagicMock(),
+            __name__="on_success_callback_function",
+        )
 
         with dag_maker(dag_id="test_skipped_task", serialized=True):
             task = PythonOperator(

@@ -27,7 +27,7 @@ import os
 import signal
 import traceback
 from collections import defaultdict
-from collections.abc import Collection, Generator, Iterable, Mapping
+from collections.abc import Collection, Generator, Iterable, Mapping, Sequence
 from datetime import timedelta
 from enum import Enum
 from functools import cache
@@ -1357,7 +1357,7 @@ def _get_email_subject_content(
 
 def _run_finished_callback(
     *,
-    callbacks: None | TaskStateChangeCallback | list[TaskStateChangeCallback],
+    callbacks: None | TaskStateChangeCallback | Sequence[TaskStateChangeCallback],
     context: Context,
 ) -> None:
     """
@@ -1369,7 +1369,7 @@ def _run_finished_callback(
     :meta private:
     """
     if callbacks:
-        callbacks = callbacks if isinstance(callbacks, list) else [callbacks]
+        callbacks = callbacks if isinstance(callbacks, Sequence) else [callbacks]
 
         def get_callback_representation(callback: TaskStateChangeCallback) -> Any:
             with contextlib.suppress(AttributeError):
