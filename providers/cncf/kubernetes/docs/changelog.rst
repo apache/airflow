@@ -40,7 +40,7 @@ Bug Fixes
 ~~~~~~~~~
 
 * ``Switch to non-interactive mode where stdin is disabled (#47568)``
-* `` Retry k8s API requests in 'KubernetesPodTrigger' (#47187)``
+* ``Retry k8s API requests in 'KubernetesPodTrigger' (#47187)``
 
 Misc
 ~~~~
