@@ -32,7 +32,6 @@ from functools import cache
 from typing import TYPE_CHECKING
 
 import lazy_object_proxy
-from airflow.utils.helpers import partition
 from rich_argparse import RawTextRichHelpFormatter, RichHelpFormatter
 
 from airflowctl.ctl.cli_config import (
@@ -42,6 +41,7 @@ from airflowctl.ctl.cli_config import (
     core_commands,
 )
 from airflowctl.exceptions import AirflowCtlException
+from airflowctl.utils.helpers import partition
 
 if TYPE_CHECKING:
     from airflowctl.ctl.cli_config import (
