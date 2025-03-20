@@ -1625,6 +1625,12 @@ def test_sensitive_values():
         ("sentry", "sentry_dsn"),
         ("database", "sql_alchemy_engine_args"),
         ("core", "sql_alchemy_conn"),
+        ("celery_broker_transport_options", "sentinel_kwargs"),
+        ("celery", "broker_url"),
+        ("celery", "flower_basic_auth"),
+        ("celery", "result_backend"),
+        ("opensearch", "username"),
+        ("opensearch", "password"),
     }
     all_keys = {(s, k) for s, v in conf.configuration_description.items() for k in v.get("options")}
     suspected_sensitive = {(s, k) for (s, k) in all_keys if k.endswith(("password", "kwargs"))}
