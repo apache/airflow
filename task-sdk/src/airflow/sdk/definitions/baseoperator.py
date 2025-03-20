@@ -69,6 +69,7 @@ from airflow.utils.setup_teardown import SetupTeardownContext
 from airflow.utils.trigger_rule import TriggerRule
 from airflow.utils.weight_rule import db_safe_priority
 
+C = TypeVar("C", bound=Callable)
 T = TypeVar("T", bound=FunctionType)
 
 if TYPE_CHECKING:
@@ -380,6 +381,12 @@ if "airflow.configuration" in sys.modules:
     from airflow.configuration import conf
 
     ExecutorSafeguard.test_mode = conf.getboolean("core", "unit_test_mode")
+
+
+def _collect_callbacks(callbacks: C | Collection[C]) -> list[C]:
+    if isinstance(callbacks, Collection):
+        return list(callbacks)
+    return [callbacks]
 
 
 class BaseOperatorMeta(abc.ABCMeta):
@@ -805,7 +812,7 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
     pool: str = DEFAULT_POOL_NAME
     pool_slots: int = DEFAULT_POOL_SLOTS
     execution_timeout: timedelta | None = DEFAULT_TASK_EXECUTION_TIMEOUT
-    # on_execute_callback: None | TaskStateChangeCallback | list[TaskStateChangeCallback] = None
+    on_execute_callback: Sequence[TaskStateChangeCallback] = ()
     # on_failure_callback: None | TaskStateChangeCallback | list[TaskStateChangeCallback] = None
     # on_success_callback: None | TaskStateChangeCallback | list[TaskStateChangeCallback] = None
     # on_retry_callback: None | TaskStateChangeCallback | list[TaskStateChangeCallback] = None
@@ -959,7 +966,7 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
         pool_slots: int = DEFAULT_POOL_SLOTS,
         sla: timedelta | None = None,
         execution_timeout: timedelta | None = DEFAULT_TASK_EXECUTION_TIMEOUT,
-        # on_execute_callback: None | TaskStateChangeCallback | list[TaskStateChangeCallback] = None,
+        on_execute_callback: TaskStateChangeCallback | Collection[TaskStateChangeCallback] = (),
         # on_failure_callback: None | TaskStateChangeCallback | list[TaskStateChangeCallback] = None,
         # on_success_callback: None | TaskStateChangeCallback | list[TaskStateChangeCallback] = None,
         # on_retry_callback: None | TaskStateChangeCallback | list[TaskStateChangeCallback] = None,
@@ -1037,7 +1044,7 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
         self.execution_timeout = execution_timeout
 
         # TODO:
-        # self.on_execute_callback = on_execute_callback
+        self.on_execute_callback = _collect_callbacks(on_execute_callback)
         # self.on_failure_callback = on_failure_callback
         # self.on_success_callback = on_success_callback
         # self.on_retry_callback = on_retry_callback

@@ -1419,8 +1419,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
         # If last_dag_run is defined, the update was triggered by a scheduling decision in this DAG run.
         # In such case, schedule next only if last_dag_run is finished and was an automated run.
         if last_dag_run and not (
-            last_dag_run.state in State.finished_dr_states
-            and last_dag_run.run_type in [DagRunType.SCHEDULED, DagRunType.BACKFILL_JOB]
+            last_dag_run.state in State.finished_dr_states and last_dag_run.run_type == DagRunType.SCHEDULED
         ):
             return False
         # If the DAG never schedules skip save runtime

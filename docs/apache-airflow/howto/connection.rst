@@ -419,6 +419,10 @@ convenience method :py:meth:`~airflow.models.connection.Connection.get_uri`.  It
     >>> print(f"AIRFLOW_CONN_{c.conn_id.upper()}='{c.get_uri()}'")
     AIRFLOW_CONN_SOME_CONN='mysql://myname:mypassword@myhost.com?this_param=some+val&that_param=other+val%2A'
 
+.. note::
+
+   The ``get_uri()`` method return the connection URI in Airflow format, **not** a SQLAlchemy-compatible URI. if you need a SQLAlchemy-compatible URI for database connections, use :attr:`~airflow.providers.common.sql.hooks.sql.DbApiHook.sqlalchemy_url` property instead.
+
 Additionally, if you have created a connection, you can use ``airflow connections get`` command.
 
 .. code-block:: console

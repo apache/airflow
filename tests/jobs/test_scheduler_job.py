@@ -3779,7 +3779,7 @@ class TestSchedulerJob:
         [
             (DagRunType.MANUAL, False),
             (DagRunType.SCHEDULED, True),
-            (DagRunType.BACKFILL_JOB, True),
+            (DagRunType.BACKFILL_JOB, False),
             (DagRunType.ASSET_TRIGGERED, False),
         ],
         ids=[

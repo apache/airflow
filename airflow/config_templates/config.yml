@@ -82,13 +82,13 @@ core:
       version_added: 2.7.0
       type: string
       example: ~
-      default: "airflow.providers.fab.auth_manager.fab_auth_manager.FabAuthManager"
+      default: "airflow.api_fastapi.auth.managers.simple.simple_auth_manager.SimpleAuthManager"
     simple_auth_manager_users:
       description: |
         The list of users and their associated role in simple auth manager. If the simple auth manager is
         used in your environment, this list controls who can access the environment.
 
-        List of user-role delimited with a space. Each user-role is a comma delimited couple of username and
+        List of user-role delimited with a comma. Each user-role is a colon delimited couple of username and
         role. Roles are predefined in simple auth managers: viewer, user, op, admin.
       version_added: 3.0.0
       type: string
@@ -1416,6 +1416,29 @@ api:
       version_added: 2.7.0
       example: ~
       default: "False"
+workers:
+  description: Configuration related to workers that run Airflow tasks.
+  options:
+    secrets_backend:
+      description: |
+        Full class name of secrets backend to enable for workers (will precede env vars backend)
+      version_added: 3.0.0
+      type: string
+      example: "airflow.providers.amazon.aws.secrets.systems_manager.SystemsManagerParameterStoreBackend"
+      default: ""
+    secrets_backend_kwargs:
+      description: |
+        The secrets_backend_kwargs param is loaded into a dictionary and passed to ``__init__``
+        of secrets backend class. See documentation for the secrets backend you are using.
+        JSON is expected.
+
+        Example for AWS Systems Manager ParameterStore:
+        ``{"connections_prefix": "/airflow/connections", "profile_name": "default"}``
+      version_added: 3.0.0
+      type: string
+      sensitive: true
+      example: ~
+      default: ""
 api_auth:
   description: Settings relating to authentication on the Airflow APIs
   options:

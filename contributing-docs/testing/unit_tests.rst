@@ -900,7 +900,7 @@ In case of Providers tests, you can run tests for all providers
 
 .. code-block:: bash
 
-    breeze testing ptoviders-tests --test-type Providers
+    breeze testing providers-tests --test-type Providers
 
 You can limit the set of providers you would like to run tests of
 

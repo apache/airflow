@@ -22,10 +22,12 @@ from __future__ import annotations
 
 from datetime import datetime, timedelta
 from enum import Enum
-from typing import Annotated, Any, Literal
+from typing import Annotated, Any, Final, Literal
 from uuid import UUID
 
 from pydantic import BaseModel, ConfigDict, Field, JsonValue
+
+API_VERSION: Final[str] = "2025-03-19"
 
 
 class AssetProfile(BaseModel):
@@ -95,14 +97,6 @@ class DagRunAssetReference(BaseModel):
 
 
 class DagRunState(str, Enum):
-    """
-    All possible states that a DagRun can be in.
-
-    These are "shared" with TaskInstanceState in some parts of the code,
-    so please ensure that their values always match the ones with the
-    same name in TaskInstanceState.
-    """
-
     QUEUED = "queued"
     RUNNING = "running"
     SUCCESS = "success"
@@ -118,10 +112,6 @@ class DagRunStateResponse(BaseModel):
 
 
 class DagRunType(str, Enum):
-    """
-    Class with DagRun types.
-    """
-
     BACKFILL = "backfill"
     SCHEDULED = "scheduled"
     MANUAL = "manual"
@@ -129,10 +119,6 @@ class DagRunType(str, Enum):
 
 
 class IntermediateTIState(str, Enum):
-    """
-    States that a Task Instance can be in that indicate it is not yet in a terminal or running state.
-    """
-
     SCHEDULED = "scheduled"
     QUEUED = "queued"
     RESTARTING = "restarting"
@@ -258,10 +244,6 @@ class TITargetStatePayload(BaseModel):
 
 
 class TerminalStateNonSuccess(str, Enum):
-    """
-    TaskInstance states that can be reported without extra information.
-    """
-
     FAILED = "failed"
     SKIPPED = "skipped"
     REMOVED = "removed"
@@ -295,7 +277,7 @@ class VariablePostBody(BaseModel):
     model_config = ConfigDict(
         extra="forbid",
     )
-    value: Annotated[str | None, Field(title="Value")] = None
+    val: Annotated[str | None, Field(title="Val")] = None
     description: Annotated[str | None, Field(title="Description")] = None
 
 
@@ -304,6 +286,9 @@ class VariableResponse(BaseModel):
     Variable schema for responses with fields that are needed for Runtime.
     """
 
+    model_config = ConfigDict(
+        extra="forbid",
+    )
     key: Annotated[str, Field(title="Key")]
     value: Annotated[str | None, Field(title="Value")] = None
 

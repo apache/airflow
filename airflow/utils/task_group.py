@@ -30,7 +30,7 @@ TaskGroup: TypeAlias = airflow.sdk.definitions.taskgroup.TaskGroup
 MappedTaskGroup: TypeAlias = airflow.sdk.definitions.taskgroup.MappedTaskGroup
 
 
-def task_group_to_dict(task_item_or_group):
+def task_group_to_dict(task_item_or_group, parent_group_is_mapped=False):
     """Create a nested dict representation of this TaskGroup and its children used to construct the Graph."""
     from airflow.sdk.definitions._internal.abstractoperator import AbstractOperator
     from airflow.sdk.definitions.baseoperator import BaseOperator
@@ -45,7 +45,7 @@ def task_group_to_dict(task_item_or_group):
             setup_teardown_type["setup_teardown_type"] = "setup"
         elif task.is_teardown is True:
             setup_teardown_type["setup_teardown_type"] = "teardown"
-        if isinstance(task, MappedOperator):
+        if isinstance(task, MappedOperator) or parent_group_is_mapped:
             is_mapped["is_mapped"] = True
         if isinstance(task, BaseOperator) or isinstance(task, MappedOperator):
             node_operator["operator"] = task.operator_name
@@ -62,7 +62,8 @@ def task_group_to_dict(task_item_or_group):
     task_group = task_item_or_group
     is_mapped = isinstance(task_group, MappedTaskGroup)
     children = [
-        task_group_to_dict(child) for child in sorted(task_group.children.values(), key=lambda t: t.label)
+        task_group_to_dict(child, parent_group_is_mapped=parent_group_is_mapped or is_mapped)
+        for child in sorted(task_group.children.values(), key=lambda t: t.label)
     ]
 
     if task_group.upstream_group_ids or task_group.upstream_task_ids:

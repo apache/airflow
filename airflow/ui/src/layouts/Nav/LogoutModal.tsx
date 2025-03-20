@@ -32,7 +32,7 @@ const LogoutModal: React.FC<LogoutModalProps> = ({ isOpen, onClose }) => (
     header="Logout"
     onConfirm={() => {
       localStorage.removeItem(TOKEN_STORAGE_KEY);
-      globalThis.location.replace(`/public/auth/logout`);
+      globalThis.location.replace(`/api/v2/auth/logout`);
     }}
     onOpenChange={onClose}
     open={isOpen}

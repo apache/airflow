@@ -19,10 +19,10 @@ from __future__ import annotations
 
 from pydantic import Field
 
-from airflow.api_fastapi.core_api.base import BaseModel, ConfigDict, StrictBaseModel
+from airflow.api_fastapi.core_api.base import StrictBaseModel
 
 
-class VariableResponse(BaseModel):
+class VariableResponse(StrictBaseModel):
     """Variable schema for responses with fields that are needed for Runtime."""
 
     key: str
@@ -32,7 +32,5 @@ class VariableResponse(BaseModel):
 class VariablePostBody(StrictBaseModel):
     """Request body schema for creating variables."""
 
-    model_config = ConfigDict(extra="forbid")
-
-    value: str | None = Field(serialization_alias="val")
+    value: str | None = Field(alias="val")
     description: str | None = Field(default=None)
