@@ -50,9 +50,13 @@ In the example above, two users are defined:
 * **peter** whose role is **viewer**
 
 The password is auto-generated for each user and printed out in the webserver logs.
-When generated, these passwords are also saved in your environment, therefore they will not change if you stop or restart your environment.
+When generated, these passwords are saved in a file configured in ``core.simple_auth_manager_passwords_file``.
+By default, this file is ``$AIRFLOW_HOME/simple_auth_manager_passwords.json.generated``, you can read and update them
+directly in the file as well if desired.
 
-The passwords are saved in the file ``generated/simple_auth_manager_passwords.json.generated``, you can read and update them directly in the file as well if desired.
+.. note::
+    With Breeze, two users are predefined: ``admin`` and ``viewer`` (password is the same as the username).
+    ``admin`` has all permissions. ``viewer`` has read-only permissions.
 
 .. _roles-permissions:
 
