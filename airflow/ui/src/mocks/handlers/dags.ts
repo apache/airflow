@@ -114,7 +114,7 @@ export const handlers: Array<HttpHandler> = [
       });
     }
   }),
-  http.get("/public/dags", ({ request }) => {
+  http.get("/api/v2/dags", ({ request }) => {
     const url = new URL(request.url);
     const lastDagRunState = url.searchParams.get("last_dag_run_state");
     const failedDag = {
