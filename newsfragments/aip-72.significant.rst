@@ -105,4 +105,4 @@ As part of this change the following breaking changes have occurred:
 
     * AIR302
 
-      * [ ] ``airflow.models.baseoperatorlink`` → ``airflow.sdk``
+      * [ ] ``airflow.models.baseoperatorlink.BaseOperatorLink`` → ``airflow.sdk.definitions.baseoperatorlink.BaseOperatorLink``
