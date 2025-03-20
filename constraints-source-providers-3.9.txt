@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2025-03-20T02:45:36.918172
+# This constraints file was automatically generated on 2025-03-20T20:14:20.328962
 # via "eager-upgrade" mechanism of PIP. For the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version of both
 # 'apache-airflow' package and all available community provider packages.
@@ -121,6 +121,7 @@ azure-synapse-artifacts==0.20.0
 azure-synapse-spark==0.7.0
 babel==2.17.0
 backoff==2.2.1
+backports.strenum==1.3.1
 backports.tarfile==1.2.0
 bcrypt==4.3.0
 beautifulsoup4==4.13.3
@@ -132,13 +133,14 @@ boto3==1.37.1
 botocore==1.37.1
 cachelib==0.13.0
 cachetools==5.5.2
+cadwyn==5.1.2
 cassandra-driver==3.29.2
 cattrs==24.1.2
 celery==5.4.0
 certifi==2025.1.31
 cffi==1.17.1
 cfgv==3.4.0
-cfn-lint==1.31.3
+cfn-lint==1.32.0
 cgroupspy==0.2.3
 chardet==5.2.0
 charset-normalizer==3.4.1
@@ -246,7 +248,7 @@ google-cloud-memcache==1.12.1
 google-cloud-monitoring==2.27.1
 google-cloud-orchestration-airflow==1.17.2
 google-cloud-os-login==2.17.1
-google-cloud-pubsub==2.28.0
+google-cloud-pubsub==2.29.0
 google-cloud-redis==2.18.1
 google-cloud-resource-manager==1.14.2
 google-cloud-run==0.10.17
@@ -308,6 +310,7 @@ ipdb==0.13.13
 ipykernel==6.29.5
 ipython==8.18.1
 isodate==0.7.2
+issubclass==0.1.2
 itsdangerous==2.2.0
 jaraco.classes==3.4.0
 jaraco.context==6.0.1
@@ -332,7 +335,6 @@ jupyter_client==8.6.3
 jupyter_core==5.7.2
 kerberos==1.3.1
 keyring==25.6.0
-keyrings.alt==5.0.2
 kgb==7.2
 kombu==5.5.0
 krb5==0.7.1

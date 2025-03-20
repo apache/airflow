@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2025-03-20T02:45:46.729868
+# This constraints file was automatically generated on 2025-03-20T20:14:29.997461
 # via "eager-upgrade" mechanism of PIP. For the "main" branch of Airflow.
 # This variant of constraints install just the 'bare' 'apache-airflow' package build from the HEAD of
 # the branch, without installing any of the providers.
@@ -32,7 +32,6 @@ Pygments==2.19.1
 SQLAlchemy-JSONField==1.0.2
 SQLAlchemy-Utils==0.41.2
 SQLAlchemy==1.4.54
-SecretStorage==3.3.3
 WTForms==3.2.1
 Werkzeug==2.2.3
 a2wsgi==1.10.8
@@ -53,11 +52,12 @@ async-timeout==5.0.1
 atlasclient==1.0.0
 attrs==25.3.0
 babel==2.17.0
-backports.tarfile==1.2.0
+backports.strenum==1.3.1
 bcrypt==4.3.0
 blinker==1.9.0
 botocore==1.37.1
 cachelib==0.13.0
+cadwyn==5.1.2
 certifi==2025.1.31
 cffi==1.17.1
 cgroupspy==0.2.3
@@ -100,16 +100,12 @@ httpx==0.28.1
 idna==3.10
 importlib_metadata==8.6.1
 inflection==0.5.1
+issubclass==0.1.2
 itsdangerous==2.2.0
-jaraco.classes==3.4.0
-jaraco.context==6.0.1
-jaraco.functools==4.1.0
-jeepney==0.9.0
 jmespath==1.0.1
 jsonschema-specifications==2024.10.1
 jsonschema==4.23.0
 kerberos==1.3.1
-keyring==25.6.0
 krb5==0.7.1
 lazy-object-proxy==1.10.0
 libcst==1.7.0
@@ -126,21 +122,20 @@ methodtools==0.4.7
 more-itertools==10.6.0
 multidict==6.2.0
 numpy==1.26.4
-opentelemetry-api==1.31.0
-opentelemetry-exporter-otlp-proto-common==1.31.0
-opentelemetry-exporter-otlp-proto-grpc==1.31.0
-opentelemetry-exporter-otlp-proto-http==1.31.0
-opentelemetry-exporter-otlp==1.31.0
-opentelemetry-exporter-prometheus==0.52b0
-opentelemetry-proto==1.31.0
-opentelemetry-sdk==1.31.0
-opentelemetry-semantic-conventions==0.52b0
+opentelemetry-api==1.31.1
+opentelemetry-exporter-otlp-proto-common==1.31.1
+opentelemetry-exporter-otlp-proto-grpc==1.31.1
+opentelemetry-exporter-otlp-proto-http==1.31.1
+opentelemetry-exporter-otlp==1.31.1
+opentelemetry-exporter-prometheus==0.52b1
+opentelemetry-proto==1.31.1
+opentelemetry-sdk==1.31.1
+opentelemetry-semantic-conventions==0.52b1
 ordered-set==4.1.0
 packaging==24.2
 pandas==2.1.4
 pathspec==0.12.1
 pendulum==3.0.0
-platformdirs==4.3.7
 pluggy==1.5.0
 plyvel==1.5.1
 prison==0.2.1
