@@ -19,6 +19,9 @@
 #   filename:  http://0.0.0.0:8080/openapi.json
 #   version:   0.28.2
 
+# TODO (47918) let's be a bit more forgiving for our generated datamodels for now
+# mypy: disable-error-code="assignment"
+
 from __future__ import annotations
 
 from datetime import datetime, timedelta
