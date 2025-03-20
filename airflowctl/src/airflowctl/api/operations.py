@@ -57,8 +57,6 @@ from airflowctl.api.datamodels.generated import (
 )
 
 if TYPE_CHECKING:
-    from airflow.utils.state import DagRunState
-
     from airflowctl.api.client import Client
 
 log = structlog.get_logger(logger_name=__name__)
@@ -310,7 +308,7 @@ class DagRunOperations(BaseOperations):
         dag_id: str,
         start_date: datetime.datetime,
         end_date: datetime.datetime,
-        state: DagRunState,
+        state: str,
         limit: int,
     ) -> DAGRunCollectionResponse | ServerResponseError:
         """List all dag runs."""
