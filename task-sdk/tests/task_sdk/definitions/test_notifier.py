@@ -23,11 +23,9 @@ from unittest.mock import MagicMock
 import jinja2
 import pytest
 
-from airflow.notifications.basenotifier import BaseNotifier
 from airflow.providers.standard.operators.empty import EmptyOperator
-
-pytestmark = pytest.mark.db_test
-
+from airflow.sdk.definitions.dag import DAG
+from airflow.sdk.definitions.notifier import BaseNotifier
 
 if TYPE_CHECKING:
     from airflow.sdk.definitions.context import Context
@@ -48,8 +46,8 @@ class MockNotifier(BaseNotifier):
 
 
 class TestBaseNotifier:
-    def test_render_message_with_message(self, dag_maker):
-        with dag_maker("test_render_message_with_message") as dag:
+    def test_render_message_with_message(self):
+        with DAG("test_render_message_with_message") as dag:
             EmptyOperator(task_id="test_id")
 
         notifier = MockNotifier(message="Hello {{ dag.dag_id }}")
@@ -57,24 +55,24 @@ class TestBaseNotifier:
         notifier.render_template_fields(context)
         assert notifier.message == "Hello test_render_message_with_message"
 
-    def test_render_message_with_template(self, dag_maker, caplog):
-        with dag_maker("test_render_message_with_template") as dag:
+    def test_render_message_with_template(self, caplog):
+        with DAG("test_render_message_with_template") as dag:
             EmptyOperator(task_id="test_id")
         notifier = MockNotifier(message="test.txt")
         context: Context = {"dag": dag}
         with pytest.raises(jinja2.exceptions.TemplateNotFound):
             notifier.render_template_fields(context)
 
-    def test_render_message_with_template_works(self, dag_maker, caplog):
-        with dag_maker("test_render_message_with_template_works") as dag:
+    def test_render_message_with_template_works(self, caplog):
+        with DAG("test_render_message_with_template_works") as dag:
             EmptyOperator(task_id="test_id")
-        notifier = MockNotifier(message="test_notifier.txt")
+        notifier = MockNotifier(message="notifier/test_notifier.txt")
         context: Context = {"dag": dag}
         notifier.render_template_fields(context)
         assert notifier.message == "Hello test_render_message_with_template_works"
 
-    def test_notifier_call_with_passed_context(self, dag_maker, caplog):
-        with dag_maker("test_render_message_with_template_works") as dag:
+    def test_notifier_call_with_passed_context(self, caplog):
+        with DAG("test_render_message_with_template_works") as dag:
             EmptyOperator(task_id="test_id")
         notifier = MockNotifier(message="Hello {{ dag.dag_id }}")
         notifier.notify = MagicMock()
@@ -83,8 +81,8 @@ class TestBaseNotifier:
         notifier.notify.assert_called_once_with({"dag": dag, "message": "Hello {{ dag.dag_id }}"})
         assert notifier.message == "Hello test_render_message_with_template_works"
 
-    def test_notifier_call_with_prepared_context(self, dag_maker, caplog):
-        with dag_maker("test_render_message_with_template_works"):
+    def test_notifier_call_with_prepared_context(self, caplog):
+        with DAG("test_render_message_with_template_works"):
             EmptyOperator(task_id="test_id")
         notifier = MockNotifier(message="task: {{ task_list[0] }}")
         notifier.notify = MagicMock()

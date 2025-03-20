@@ -135,6 +135,7 @@ def get_provider_info():
         ],
         "dependencies": [
             "apache-airflow>=2.9.0",
+            "apache-airflow-providers-common-compat>=1.6.0",
             "apache-airflow-providers-common-sql>=1.20.0",
             "slack_sdk>=3.19.0",
         ],

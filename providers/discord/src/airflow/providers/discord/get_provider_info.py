@@ -80,6 +80,10 @@ def get_provider_info():
             }
         ],
         "notifications": ["airflow.providers.discord.notifications.discord.DiscordNotifier"],
-        "dependencies": ["apache-airflow>=2.9.0", "apache-airflow-providers-http"],
+        "dependencies": [
+            "apache-airflow>=2.9.0",
+            "apache-airflow-providers-common-compat>=1.6.0",
+            "apache-airflow-providers-http",
+        ],
         "devel-dependencies": [],
     }
