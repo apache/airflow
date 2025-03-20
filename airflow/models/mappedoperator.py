@@ -60,11 +60,12 @@ class MappedOperator(TaskSDKMappedOperator, AbstractOperator):  # type: ignore[m
 
         :meta private:
         """
-        log.warning(
-            "Starting a mapped task from triggerer is currently unsupported",
-            task_id=self.task_id,
-            dag_id=self.dag_id,
-        )
+        if self.partial_kwargs.get("start_from_trigger", self.start_from_trigger):
+            log.warning(
+                "Starting a mapped task from triggerer is currently unsupported",
+                task_id=self.task_id,
+                dag_id=self.dag_id,
+            )
         return False
         # start_from_trigger only makes sense when start_trigger_args exists.
         if not self.start_trigger_args:
