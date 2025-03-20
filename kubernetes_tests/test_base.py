@@ -211,7 +211,7 @@ class BaseK8STest:
         for i in range(max_tries):
             try:
                 response = self.session.get(
-                    f"http://{KUBERNETES_HOST_PORT}/public/monitor/health",
+                    f"http://{KUBERNETES_HOST_PORT}/api/v2/monitor/health",
                     timeout=1,
                 )
                 if response.status_code == 200:
@@ -237,7 +237,7 @@ class BaseK8STest:
             # Check task state
             try:
                 get_string = (
-                    f"http://{host}/public/dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances/{task_id}"
+                    f"http://{host}/api/v2/dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances/{task_id}"
                 )
                 print(f"Calling [monitor_task]#1 {get_string}")
                 result = self.session.get(get_string)
@@ -353,7 +353,7 @@ class BaseK8STest:
         # Wait some time for the operator to complete
         while tries < max_tries:
             time.sleep(5)
-            get_string = f"http://{host}/public/dags/{dag_id}/dagRuns"
+            get_string = f"http://{host}/api/v2/dags/{dag_id}/dagRuns"
             print(f"Calling {get_string}")
             # Get all dagruns
             result = self.session.get(get_string)
@@ -380,7 +380,7 @@ class BaseK8STest:
         # Maybe check if we can retrieve the logs, but then we need to extend the API
 
     def start_dag(self, dag_id, host):
-        patch_string = f"http://{host}/public/dags/{dag_id}"
+        patch_string = f"http://{host}/api/v2/dags/{dag_id}"
         print(f"Calling [start_dag]#1 {patch_string}")
         max_attempts = 10
         result = {}
@@ -404,7 +404,7 @@ class BaseK8STest:
             result_json = str(result)
         print(f"Received [start_dag]#1 {result_json}")
         assert result.status_code == 200, f"Could not enable DAG: {result_json}"
-        post_string = f"http://{host}/public/dags/{dag_id}/dagRuns"
+        post_string = f"http://{host}/api/v2/dags/{dag_id}/dagRuns"
         print(f"Calling [start_dag]#2 {post_string}")
 
         logical_date = datetime.now(timezone.utc).isoformat()
@@ -419,7 +419,7 @@ class BaseK8STest:
 
         time.sleep(1)
 
-        get_string = f"http://{host}/public/dags/{dag_id}/dagRuns"
+        get_string = f"http://{host}/api/v2/dags/{dag_id}/dagRuns"
         print(f"Calling [start_dag]#3 {get_string}")
         result = self.session.get(get_string)
         assert result.status_code == 200, f"Could not get DAGRuns: {result.json()}"

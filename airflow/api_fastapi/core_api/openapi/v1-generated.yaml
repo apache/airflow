@@ -1,7 +1,7 @@
 openapi: 3.1.0
 info:
   title: Airflow API
-  description: Airflow API. All endpoints located under ``/public`` can be used safely,
+  description: Airflow API. All endpoints located under ``/api/v2`` can be used safely,
     are stable and backward compatible. Endpoints located under ``/ui`` are dedicated
     to the UI and are subject to breaking change depending on the need of the frontend.
     Users should not rely on those but use the public ones instead.
@@ -572,7 +572,7 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/HTTPValidationError'
-  /public/assets:
+  /api/v2/assets:
     get:
       tags:
       - Asset
@@ -667,7 +667,7 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/HTTPValidationError'
-  /public/assets/aliases:
+  /api/v2/assets/aliases:
     get:
       tags:
       - Asset
@@ -739,7 +739,7 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/HTTPValidationError'
-  /public/assets/aliases/{asset_alias_id}:
+  /api/v2/assets/aliases/{asset_alias_id}:
     get:
       tags:
       - Asset
@@ -785,7 +785,7 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/HTTPValidationError'
-  /public/assets/events:
+  /api/v2/assets/events:
     get:
       tags:
       - Asset
@@ -952,7 +952,7 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/HTTPValidationError'
-  /public/assets/{asset_id}/materialize:
+  /api/v2/assets/{asset_id}/materialize:
     post:
       tags:
       - Asset
@@ -1005,7 +1005,7 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/HTTPValidationError'
-  /public/assets/{asset_id}/queuedEvents:
+  /api/v2/assets/{asset_id}/queuedEvents:
     get:
       tags:
       - Asset
@@ -1110,7 +1110,7 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/HTTPValidationError'
-  /public/assets/{asset_id}:
+  /api/v2/assets/{asset_id}:
     get:
       tags:
       - Asset
@@ -1157,7 +1157,7 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/HTTPValidationError'
-  /public/dags/{dag_id}/assets/queuedEvents:
+  /api/v2/dags/{dag_id}/assets/queuedEvents:
     get:
       tags:
       - Asset
@@ -1267,7 +1267,7 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/HTTPValidationError'
-  /public/dags/{dag_id}/assets/{asset_id}/queuedEvents:
+  /api/v2/dags/{dag_id}/assets/{asset_id}/queuedEvents:
     get:
       tags:
       - Asset
@@ -1390,7 +1390,7 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/HTTPValidationError'
-  /public/backfills:
+  /api/v2/backfills:
     get:
       tags:
       - Backfill
@@ -1503,7 +1503,7 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/HTTPValidationError'
-  /public/backfills/{backfill_id}:
+  /api/v2/backfills/{backfill_id}:
     get:
       tags:
       - Backfill
@@ -1549,7 +1549,7 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/HTTPValidationError'
-  /public/backfills/{backfill_id}/pause:
+  /api/v2/backfills/{backfill_id}/pause:
     put:
       tags:
       - Backfill
@@ -1600,7 +1600,7 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/HTTPValidationError'
-  /public/backfills/{backfill_id}/unpause:
+  /api/v2/backfills/{backfill_id}/unpause:
     put:
       tags:
       - Backfill
@@ -1651,7 +1651,7 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/HTTPValidationError'
-  /public/backfills/{backfill_id}/cancel:
+  /api/v2/backfills/{backfill_id}/cancel:
     put:
       tags:
       - Backfill
@@ -1702,7 +1702,7 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/HTTPValidationError'
-  /public/backfills/dry_run:
+  /api/v2/backfills/dry_run:
     post:
       tags:
       - Backfill
@@ -1753,7 +1753,7 @@ paths:
                 $ref: '#/components/schemas/HTTPValidationError'
       security:
       - OAuth2PasswordBearer: []
-  /public/connections/{connection_id}:
+  /api/v2/connections/{connection_id}:
     delete:
       tags:
       - Connection
@@ -1910,7 +1910,7 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/HTTPValidationError'
-  /public/connections:
+  /api/v2/connections:
     get:
       tags:
       - Connection
@@ -2066,7 +2066,7 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/HTTPValidationError'
-  /public/connections/test:
+  /api/v2/connections/test:
     post:
       tags:
       - Connection
@@ -2115,7 +2115,7 @@ paths:
                 $ref: '#/components/schemas/HTTPValidationError'
       security:
       - OAuth2PasswordBearer: []
-  /public/connections/defaults:
+  /api/v2/connections/defaults:
     post:
       tags:
       - Connection
@@ -2139,7 +2139,7 @@ paths:
                 $ref: '#/components/schemas/HTTPExceptionResponse'
       security:
       - OAuth2PasswordBearer: []
-  /public/dags/{dag_id}/dagRuns/{dag_run_id}:
+  /api/v2/dags/{dag_id}/dagRuns/{dag_run_id}:
     get:
       tags:
       - DagRun
@@ -2319,7 +2319,7 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/HTTPValidationError'
-  /public/dags/{dag_id}/dagRuns/{dag_run_id}/upstreamAssetEvents:
+  /api/v2/dags/{dag_id}/dagRuns/{dag_run_id}/upstreamAssetEvents:
     get:
       tags:
       - DagRun
@@ -2373,7 +2373,7 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/HTTPValidationError'
-  /public/dags/{dag_id}/dagRuns/{dag_run_id}/clear:
+  /api/v2/dags/{dag_id}/dagRuns/{dag_run_id}/clear:
     post:
       tags:
       - DagRun
@@ -2434,7 +2434,7 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/HTTPValidationError'
-  /public/dags/{dag_id}/dagRuns:
+  /api/v2/dags/{dag_id}/dagRuns:
     get:
       tags:
       - DagRun
@@ -2669,7 +2669,7 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/HTTPValidationError'
-  /public/dags/{dag_id}/dagRuns/list:
+  /api/v2/dags/{dag_id}/dagRuns/list:
     post:
       tags:
       - DagRun
@@ -2723,7 +2723,7 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/HTTPValidationError'
-  /public/dagSources/{dag_id}:
+  /api/v2/dagSources/{dag_id}:
     get:
       tags:
       - DagSource
@@ -2805,7 +2805,7 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/HTTPValidationError'
-  /public/dagStats:
+  /api/v2/dagStats:
     get:
       tags:
       - DagStats
@@ -2860,7 +2860,7 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/HTTPValidationError'
-  /public/dagReports:
+  /api/v2/dagReports:
     get:
       tags:
       - DagReport
@@ -2906,7 +2906,7 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/HTTPValidationError'
-  /public/config:
+  /api/v2/config:
     get:
       tags:
       - Config
@@ -2988,7 +2988,7 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/HTTPValidationError'
-  /public/config/section/{section}/option/{option}:
+  /api/v2/config/section/{section}/option/{option}:
     get:
       tags:
       - Config
@@ -3067,7 +3067,7 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/HTTPValidationError'
-  /public/dagWarnings:
+  /api/v2/dagWarnings:
     get:
       tags:
       - DagWarning
@@ -3141,7 +3141,7 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/HTTPValidationError'
-  /public/dags:
+  /api/v2/dags:
     get:
       tags:
       - DAG
@@ -3445,7 +3445,7 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/HTTPValidationError'
-  /public/dags/{dag_id}:
+  /api/v2/dags/{dag_id}:
     get:
       tags:
       - DAG
@@ -3617,7 +3617,7 @@ paths:
               schema:
                 $ref: '#/components/schemas/HTTPExceptionResponse'
           description: Unprocessable Entity
-  /public/dags/{dag_id}/details:
+  /api/v2/dags/{dag_id}/details:
     get:
       tags:
       - DAG
@@ -3670,7 +3670,7 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/HTTPValidationError'
-  /public/eventLogs/{event_log_id}:
+  /api/v2/eventLogs/{event_log_id}:
     get:
       tags:
       - Event Log
@@ -3716,7 +3716,7 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/HTTPValidationError'
-  /public/eventLogs:
+  /api/v2/eventLogs:
     get:
       tags:
       - Event Log
@@ -3868,7 +3868,7 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/HTTPValidationError'
-  /public/dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances/{task_id}/links:
+  /api/v2/dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances/{task_id}/links:
     get:
       tags:
       - Extra Links
@@ -3935,7 +3935,7 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/HTTPValidationError'
-  /public/importErrors/{import_error_id}:
+  /api/v2/importErrors/{import_error_id}:
     get:
       tags:
       - Import Error
@@ -3982,7 +3982,7 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/HTTPValidationError'
-  /public/importErrors:
+  /api/v2/importErrors:
     get:
       tags:
       - Import Error
@@ -4040,7 +4040,7 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/HTTPValidationError'
-  /public/jobs:
+  /api/v2/jobs:
     get:
       tags:
       - Job
@@ -4180,7 +4180,7 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/HTTPValidationError'
-  /public/plugins:
+  /api/v2/plugins:
     get:
       tags:
       - Plugin
@@ -4230,7 +4230,7 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/HTTPValidationError'
-  /public/pools/{pool_name}:
+  /api/v2/pools/{pool_name}:
     delete:
       tags:
       - Pool
@@ -4393,7 +4393,7 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/HTTPValidationError'
-  /public/pools:
+  /api/v2/pools:
     get:
       tags:
       - Pool
@@ -4549,7 +4549,7 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/HTTPValidationError'
-  /public/providers:
+  /api/v2/providers:
     get:
       tags:
       - Provider
@@ -4600,7 +4600,7 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/HTTPValidationError'
-  /public/dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances/{task_id}/xcomEntries/{xcom_key}:
+  /api/v2/dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances/{task_id}/xcomEntries/{xcom_key}:
     get:
       tags:
       - XCom
@@ -4772,7 +4772,7 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/HTTPValidationError'
-  /public/dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances/{task_id}/xcomEntries:
+  /api/v2/dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances/{task_id}/xcomEntries:
     get:
       tags:
       - XCom
@@ -4944,7 +4944,7 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/HTTPValidationError'
-  /public/dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances/{task_id}:
+  /api/v2/dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances/{task_id}:
     get:
       tags:
       - Task Instance
@@ -5096,7 +5096,7 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/HTTPValidationError'
-  /public/dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances/{task_id}/listMapped:
+  /api/v2/dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances/{task_id}/listMapped:
     get:
       tags:
       - Task Instance
@@ -5324,7 +5324,7 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/HTTPValidationError'
-  /public/dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances/{task_id}/{map_index}/dependencies:
+  /api/v2/dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances/{task_id}/{map_index}/dependencies:
     get:
       tags:
       - Task Instance
@@ -5389,7 +5389,7 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/HTTPValidationError'
-  /public/dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances/{task_id}/dependencies:
+  /api/v2/dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances/{task_id}/dependencies:
     get:
       tags:
       - Task Instance
@@ -5455,7 +5455,7 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/HTTPValidationError'
-  /public/dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances/{task_id}/tries:
+  /api/v2/dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances/{task_id}/tries:
     get:
       tags:
       - Task Instance
@@ -5521,7 +5521,7 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/HTTPValidationError'
-  /public/dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances/{task_id}/{map_index}/tries:
+  /api/v2/dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances/{task_id}/{map_index}/tries:
     get:
       tags:
       - Task Instance
@@ -5585,7 +5585,7 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/HTTPValidationError'
-  /public/dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances/{task_id}/{map_index}:
+  /api/v2/dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances/{task_id}/{map_index}:
     get:
       tags:
       - Task Instance
@@ -5742,7 +5742,7 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/HTTPValidationError'
-  /public/dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances:
+  /api/v2/dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances:
     get:
       tags:
       - Task Instance
@@ -5986,7 +5986,7 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/HTTPValidationError'
-  /public/dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances/list:
+  /api/v2/dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances/list:
     post:
       tags:
       - Task Instance
@@ -6047,7 +6047,7 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/HTTPValidationError'
-  /public/dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances/{task_id}/tries/{task_try_number}:
+  /api/v2/dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances/{task_id}/tries/{task_try_number}:
     get:
       tags:
       - Task Instance
@@ -6119,7 +6119,7 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/HTTPValidationError'
-  /public/dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances/{task_id}/{map_index}/tries/{task_try_number}:
+  /api/v2/dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances/{task_id}/{map_index}/tries/{task_try_number}:
     get:
       tags:
       - Task Instance
@@ -6189,7 +6189,7 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/HTTPValidationError'
-  /public/dags/{dag_id}/clearTaskInstances:
+  /api/v2/dags/{dag_id}/clearTaskInstances:
     post:
       tags:
       - Task Instance
@@ -6242,7 +6242,7 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/HTTPValidationError'
-  /public/dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances/{task_id}/{map_index}/dry_run:
+  /api/v2/dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances/{task_id}/{map_index}/dry_run:
     patch:
       tags:
       - Task Instance
@@ -6329,7 +6329,7 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/HTTPValidationError'
-  /public/dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances/{task_id}/dry_run:
+  /api/v2/dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances/{task_id}/dry_run:
     patch:
       tags:
       - Task Instance
@@ -6417,7 +6417,7 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/HTTPValidationError'
-  /public/dags/{dag_id}/tasks:
+  /api/v2/dags/{dag_id}/tasks:
     get:
       tags:
       - Task
@@ -6477,7 +6477,7 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/HTTPValidationError'
-  /public/dags/{dag_id}/tasks/{task_id}:
+  /api/v2/dags/{dag_id}/tasks/{task_id}:
     get:
       tags:
       - Task
@@ -6535,7 +6535,7 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/HTTPValidationError'
-  /public/variables/{variable_key}:
+  /api/v2/variables/{variable_key}:
     delete:
       tags:
       - Variable
@@ -6692,7 +6692,7 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/HTTPValidationError'
-  /public/variables:
+  /api/v2/variables:
     get:
       tags:
       - Variable
@@ -6842,7 +6842,7 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/HTTPValidationError'
-  /public/dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances/{task_id}/logs/{try_number}:
+  /api/v2/dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances/{task_id}/logs/{try_number}:
     get:
       tags:
       - Task Instance
@@ -6947,7 +6947,7 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/HTTPValidationError'
-  /public/parseDagFile/{file_token}:
+  /api/v2/parseDagFile/{file_token}:
     put:
       tags:
       - DAG Parsing
@@ -6995,7 +6995,7 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/HTTPValidationError'
-  /public/dagTags:
+  /api/v2/dagTags:
     get:
       tags:
       - DAG
@@ -7061,7 +7061,7 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/HTTPValidationError'
-  /public/dags/{dag_id}/dagVersions/{version_number}:
+  /api/v2/dags/{dag_id}/dagVersions/{version_number}:
     get:
       tags:
       - DagVersion
@@ -7114,7 +7114,7 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/HTTPValidationError'
-  /public/dags/{dag_id}/dagVersions:
+  /api/v2/dags/{dag_id}/dagVersions:
     get:
       tags:
       - DagVersion
@@ -7208,7 +7208,7 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/HTTPValidationError'
-  /public/monitor/health:
+  /api/v2/monitor/health:
     get:
       tags:
       - Monitor
@@ -7221,7 +7221,7 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/HealthInfoResponse'
-  /public/version:
+  /api/v2/version:
     get:
       tags:
       - Version
@@ -7235,7 +7235,7 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/VersionInfo'
-  /public/auth/login:
+  /api/v2/auth/login:
     get:
       tags:
       - Login
@@ -7269,7 +7269,7 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/HTTPValidationError'
-  /public/auth/logout:
+  /api/v2/auth/logout:
     get:
       tags:
       - Login
@@ -10051,7 +10051,6 @@ components:
         executor_class:
           anyOf:
           - type: string
-            format: date-time
           - type: 'null'
           title: Executor Class
         hostname:
