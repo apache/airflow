@@ -982,6 +982,10 @@ def configure_cluster(
         sys.exit(return_code)
 
 
+CLUSTER_FORWARDED_PORT = os.environ.get("CLUSTER_FORWARDED_PORT") or "8080"
+KUBERNETES_HOST_PORT = (os.environ.get("CLUSTER_HOST") or "localhost") + ":" + CLUSTER_FORWARDED_PORT
+
+
 def _deploy_helm_chart(
     python: str,
     upgrade: bool,
@@ -1034,6 +1038,8 @@ def _deploy_helm_chart(
             "config.api_auth.jwt_secret=foo",
             "--set",
             "config.core.auth_manager=airflow.providers.fab.auth_manager.fab_auth_manager.FabAuthManager",
+            "--set",
+            f"config.api.base_url=http://{KUBERNETES_HOST_PORT}",
         ]
         if multi_namespace_mode:
             helm_command.extend(["--set", "multiNamespaceMode=true"])
