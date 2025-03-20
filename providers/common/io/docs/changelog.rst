@@ -25,6 +25,24 @@
 Changelog
 ---------
 
+1.5.2b1
+.......
+
+Bug Fixes
+~~~~~~~~~
+
+* ``fix PosixPath not working with file create_asset (#47880)``
+* ``convert non-absolute file path to prevent namespace explosion (#47818)``
+
+Misc
+~~~~
+
+* ``AIP-72: Handle Custom XCom Backend on Task SDK (#47339)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Remove links to x/twitter.com (#47801)``
+
 1.5.1
 .....
 

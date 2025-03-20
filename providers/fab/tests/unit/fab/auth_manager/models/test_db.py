@@ -110,10 +110,12 @@ try:
 
         @mock.patch("airflow.utils.db_manager.inspect")
         @mock.patch.object(FABDBManager, "metadata")
-        def test_drop_tables(self, mock_metadata, mock_inspect, session):
+        @mock.patch("airflow.providers.fab.auth_manager.models.db._get_flask_db")
+        def test_drop_tables(self, mock__get_flask_db, mock_metadata, mock_inspect, session):
             manager = FABDBManager(session)
             connection = mock.MagicMock()
             manager.drop_tables(connection)
+            mock__get_flask_db.return_value.drop_all.assert_called_once_with()
             mock_metadata.drop_all.assert_called_once_with(connection)
 
         @pytest.mark.parametrize("skip_init", [True, False])

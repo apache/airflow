@@ -17,13 +17,16 @@
 # under the License.
 from __future__ import annotations
 
+import fcntl
 import json
+import logging
 import os
 import random
 from collections import namedtuple
 from enum import Enum
+from json import JSONDecodeError
 from pathlib import Path
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, TextIO
 
 from fastapi import FastAPI
 from starlette.requests import Request
@@ -52,6 +55,8 @@ if TYPE_CHECKING:
         PoolDetails,
         VariableDetails,
     )
+
+log = logging.getLogger(__name__)
 
 
 class SimpleAuthManagerRole(namedtuple("SimpleAuthManagerRole", "name order"), Enum):
@@ -98,37 +103,44 @@ class SimpleAuthManager(BaseAuthManager[SimpleAuthManagerUser]):
 
     @staticmethod
     def get_passwords(users: list[dict[str, str]]) -> dict[str, str]:
-        user_passwords_from_file = {}
-
-        # Read passwords from file
         password_file = SimpleAuthManager.get_generated_password_file()
-        if os.path.isfile(password_file):
-            with open(password_file) as file:
-                passwords_str = file.read().strip()
-                user_passwords_from_file = json.loads(passwords_str)
-
-        usernames = {user["username"] for user in users}
-        return {
-            username: password
-            for username, password in user_passwords_from_file.items()
-            if username in usernames
-        }
+        with open(password_file, "r+") as file:
+            return SimpleAuthManager._get_passwords(users=users, stream=file)[0]
 
     def init(self) -> None:
         is_simple_auth_manager_all_admins = conf.getboolean("core", "simple_auth_manager_all_admins")
         if is_simple_auth_manager_all_admins:
             return
         users = self.get_users()
-        passwords = self.get_passwords(users)
-        for user in users:
-            if user["username"] not in passwords:
-                # User dot not exist in the file, adding it
-                passwords[user["username"]] = self._generate_password()
+        password_file = self.get_generated_password_file()
 
-            self._print_output(f"Password for user '{user['username']}': {passwords[user['username']]}")
+        try:
+            with open(password_file, "a+") as file:
+                try:
+                    # Non-blocking exclusive lock on this file
+                    # Fastapi spins up N workers, so this method is called N times in N different processes
+                    # This needs to be called only once so we use the file ``password_file`` as locking mechanism
+                    fcntl.flock(file, fcntl.LOCK_EX | fcntl.LOCK_NB)
+                    passwords, changed = self._get_passwords(users=users, stream=file)
+                    for user in users:
+                        if user["username"] not in passwords:
+                            # User does not exist in the file, adding it
+                            passwords[user["username"]] = self._generate_password()
+                            self._print_output(
+                                f"Password for user '{user['username']}': {passwords[user['username']]}"
+                            )
+                            changed = True
 
-        with open(self.get_generated_password_file(), "w") as file:
-            file.write(json.dumps(passwords))
+                    if changed:
+                        file.seek(0)
+                        file.truncate()
+                        file.write(json.dumps(passwords) + "\n")
+                finally:
+                    # Release lock
+                    fcntl.flock(file, fcntl.LOCK_UN)
+        except BlockingIOError:
+            # The file is locked, another process called this method already, skipping
+            pass
 
     def get_url_login(self, **kwargs) -> str:
         """Return the login page url."""
@@ -151,7 +163,12 @@ class SimpleAuthManager(BaseAuthManager[SimpleAuthManagerUser]):
         user: SimpleAuthManagerUser,
         details: ConfigurationDetails | None = None,
     ) -> bool:
-        return self._is_authorized(method=method, allow_role=SimpleAuthManagerRole.OP, user=user)
+        return self._is_authorized(
+            method=method,
+            allow_get_role=SimpleAuthManagerRole.VIEWER,
+            allow_role=SimpleAuthManagerRole.OP,
+            user=user,
+        )
 
     def is_authorized_connection(
         self,
@@ -326,6 +343,27 @@ class SimpleAuthManager(BaseAuthManager[SimpleAuthManagerUser]):
         if method == "GET":
             return role.order >= allow_get_role.order
         return role.order >= allow_role.order
+
+    @staticmethod
+    def _get_passwords(users: list[dict[str, str]], stream: TextIO) -> tuple[dict[str, str], bool]:
+        try:
+            # Read passwords from file
+            stream.seek(0)
+            content = stream.read().strip() or "{}"
+            user_passwords_from_file = json.loads(content)
+        except JSONDecodeError:
+            log.error("Error decoding JSON from file %s", stream.name)
+            raise
+
+        usernames = {user["username"] for user in users}
+        changed = bool(user_passwords_from_file.keys() - usernames)
+        user_passwords_from_file = {
+            username: password
+            for username, password in user_passwords_from_file.items()
+            if username in usernames
+        }
+
+        return user_passwords_from_file, changed
 
     @staticmethod
     def _generate_password() -> str:

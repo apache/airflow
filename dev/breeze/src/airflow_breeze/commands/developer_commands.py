@@ -85,6 +85,7 @@ from airflow_breeze.commands.testing_commands import (
     option_force_lowest_dependencies,
 )
 from airflow_breeze.global_constants import (
+    ALLOWED_AUTH_MANAGERS,
     ALLOWED_CELERY_BROKERS,
     ALLOWED_CELERY_EXECUTORS,
     ALLOWED_EXECUTORS,
@@ -477,6 +478,14 @@ option_executor_start_airflow = click.option(
     "or CeleryExecutor depending on the integration used).",
 )
 
+option_auth_manager_start_airflow = click.option(
+    "--auth-manager",
+    type=click.Choice(ALLOWED_AUTH_MANAGERS, case_sensitive=False),
+    help="Specify the auth manager to use with start-airflow",
+    default=ALLOWED_AUTH_MANAGERS[0],
+    show_default=True,
+)
+
 
 @main.command(name="start-airflow")
 @click.option(
@@ -497,6 +506,7 @@ option_executor_start_airflow = click.option(
 @option_airflow_constraints_reference
 @option_airflow_extras
 @option_airflow_skip_constraints
+@option_auth_manager_start_airflow
 @option_answer
 @option_backend
 @option_builder
@@ -538,6 +548,7 @@ def start_airflow(
     airflow_constraints_reference: str,
     airflow_extras: str,
     airflow_skip_constraints: bool,
+    auth_manager: str,
     backend: str,
     builder: str,
     celery_broker: str,
@@ -607,6 +618,7 @@ def start_airflow(
         airflow_constraints_reference=airflow_constraints_reference,
         airflow_extras=airflow_extras,
         airflow_skip_constraints=airflow_skip_constraints,
+        auth_manager=auth_manager,
         backend=backend,
         builder=builder,
         celery_broker=celery_broker,

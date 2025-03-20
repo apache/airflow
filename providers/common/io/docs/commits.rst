@@ -34,14 +34,29 @@ For high-level changelog, see :doc:`package information including changelog <ind
 
 
 
+1.5.2b1
+.......
+
+Latest change: 2025-03-17
+
+==================================================================================================  ===========  ==========================================================================
+Commit                                                                                              Committed    Subject
+==================================================================================================  ===========  ==========================================================================
+`083c3c8bcc <https://github.com/apache/airflow/commit/083c3c8bccc4e05faf590df05e0c09ce625e8d4f>`__  2025-03-17   ``fix PosixPath not working with file create_asset (#47880)``
+`91b0f610ab <https://github.com/apache/airflow/commit/91b0f610ab109f39e27a5a00d9f6d5bf590b47ff>`__  2025-03-17   ``AIP-72: Handle Custom XCom Backend on Task SDK (#47339)``
+`79e3700e70 <https://github.com/apache/airflow/commit/79e3700e702c049f4c83a55abf215f81a26f9a21>`__  2025-03-17   ``convert non-absolute file path to prevent namespace explosion (#47818)``
+`935d2831fe <https://github.com/apache/airflow/commit/935d2831fe8fd509b618a738bf00e0c34e186e11>`__  2025-03-15   ``Remove links to x/twitter.com (#47801)``
+==================================================================================================  ===========  ==========================================================================
+
 1.5.1
 .....
 
-Latest change: 2025-03-05
+Latest change: 2025-03-09
 
 ==================================================================================================  ===========  ====================================================================================
 Commit                                                                                              Committed    Subject
 ==================================================================================================  ===========  ====================================================================================
+`492ecfe5c0 <https://github.com/apache/airflow/commit/492ecfe5c03102bfb710108038ebd5fc50cb55b5>`__  2025-03-09   ``Prepare docs for Mar 1st wave of providers (#47545)``
 `e4002c3305 <https://github.com/apache/airflow/commit/e4002c3305a757f5926f96c996e701e8f998a042>`__  2025-03-05   ``Move tests_common package to devel-common project (#47281)``
 `b38e09397e <https://github.com/apache/airflow/commit/b38e09397e562b8a35dc09c8f3da4761445933ec>`__  2025-02-28   ``Add local scheme as alternative to file for using the ObjectStoragePath (#46670)``
 `1addb55154 <https://github.com/apache/airflow/commit/1addb55154fbef31bfa021537cfbd4395696381c>`__  2025-02-28   ``Improve documentation for updating provider dependencies (#47203)``

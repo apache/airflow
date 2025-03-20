@@ -23,9 +23,11 @@ import contextvars
 import functools
 import os
 import sys
+import time
 from collections.abc import Iterable, Iterator, Mapping
 from datetime import datetime, timezone
 from io import FileIO
+from itertools import product
 from pathlib import Path
 from typing import TYPE_CHECKING, Annotated, Any, Generic, TextIO, TypeVar
 
@@ -50,8 +52,12 @@ from airflow.sdk.definitions.asset import Asset, AssetAlias, AssetNameRef, Asset
 from airflow.sdk.definitions.baseoperator import BaseOperator, ExecutorSafeguard
 from airflow.sdk.definitions.mappedoperator import MappedOperator
 from airflow.sdk.definitions.param import process_params
+from airflow.sdk.exceptions import ErrorType
 from airflow.sdk.execution_time.comms import (
+    DagRunStateResult,
     DeferTask,
+    ErrorResponse,
+    GetDagRunState,
     OKResponse,
     RescheduleTask,
     RuntimeCheckOnTask,
@@ -62,6 +68,7 @@ from airflow.sdk.execution_time.comms import (
     TaskState,
     ToSupervisor,
     ToTask,
+    TriggerDagRun,
 )
 from airflow.sdk.execution_time.context import (
     ConnectionAccessor,
@@ -81,6 +88,7 @@ if TYPE_CHECKING:
     import jinja2
     from structlog.typing import FilteringBoundLogger as Logger
 
+    from airflow.exceptions import DagRunTriggerException
     from airflow.sdk.definitions._internal.abstractoperator import AbstractOperator
     from airflow.sdk.definitions.context import Context
     from airflow.sdk.types import OutletEventAccessorsProtocol
@@ -278,12 +286,17 @@ class RuntimeTaskInstance(TaskInstance):
             If *None* (default), the run_id of the calling task is used.
 
         When pulling one single task (``task_id`` is *None* or a str) without
-        specifying ``map_indexes``, the return value is inferred from whether
-        the specified task is mapped. If not, value from the one single task
-        instance is returned. If the task to pull is mapped, an iterator (not a
-        list) yielding XComs from mapped task instances is returned. In either
-        case, ``default`` (*None* if not specified) is returned if no matching
-        XComs are found.
+        specifying ``map_indexes``, the return value is a single XCom entry
+        (map_indexes is set to map_index of the calling task instance).
+
+        When pulling task is mapped the specified ``map_index`` is used, so by default
+        pulling on mapped task will result in no matching XComs if the task instance
+        of the method call is not mapped. Otherwise, the map_index of the calling task
+        instance is used. Setting ``map_indexes`` to *None* will pull XCom as it would
+        from a non mapped task.
+
+        In either case, ``default`` (*None* if not specified) is returned if no
+        matching XComs are found.
 
         When pulling multiple tasks (i.e. either ``task_id`` or ``map_index`` is
         a non-str iterable), a list of matching XComs is returned. Elements in
@@ -299,19 +312,32 @@ class RuntimeTaskInstance(TaskInstance):
             task_ids = [self.task_id]
         elif isinstance(task_ids, str):
             task_ids = [task_ids]
+
+        map_indexes_iterable: Iterable[int | None] = []
+        # If map_indexes is not provided, default to use the map_index of the calling task
         if isinstance(map_indexes, ArgNotSet):
-            map_indexes = self.map_index
+            map_indexes_iterable = [self.map_index]
+        elif isinstance(map_indexes, int) or map_indexes is None:
+            map_indexes_iterable = [map_indexes]
         elif isinstance(map_indexes, Iterable):
-            # TODO: Handle multiple map_indexes or remove support
-            raise NotImplementedError("Multiple map_indexes are not supported yet")
+            map_indexes_iterable = map_indexes
+        else:
+            raise TypeError(
+                f"Invalid type for map_indexes: expected int, iterable of ints, or None, got {type(map_indexes)}"
+            )
+
         xcoms = []
-        for t in task_ids:
+        # TODO: AIP 72 Execution API only allows working with a single map_index at a time
+        # this is inefficient and leads to task_id * map_index requests to the API.
+        # And we can't achieve the original behavior of XCom pull with multiple tasks
+        # directly now.
+        for t_id, m_idx in product(task_ids, map_indexes_iterable):
             value = XCom.get_one(
                 run_id=run_id,
                 key=key,
-                task_id=t,
+                task_id=t_id,
                 dag_id=dag_id,
-                map_index=map_indexes,
+                map_index=m_idx,
             )
             xcoms.append(value if value else default)
 
@@ -344,6 +370,8 @@ def _xcom_push(ti: RuntimeTaskInstance, key: str, value: Any, mapped_length: int
         dag_id=ti.dag_id,
         task_id=ti.task_id,
         run_id=ti.run_id,
+        map_index=ti.map_index,
+        _mapped_length=mapped_length,
     )
 
 
@@ -548,6 +576,7 @@ def run(
         AirflowSkipException,
         AirflowTaskTerminated,
         AirflowTaskTimeout,
+        DagRunTriggerException,
         DownstreamTasksSkipped,
         TaskDeferred,
     )
@@ -559,6 +588,8 @@ def run(
     msg: ToSupervisor | None = None
     state: IntermediateTIState | TerminalTIState
     error: BaseException | None = None
+
+    context = ti.get_template_context()
     try:
         # First, clear the xcom data sent from server
         if ti._ti_context_from_server and (keys_to_delete := ti._ti_context_from_server.xcom_keys_to_clear):
@@ -571,8 +602,6 @@ def run(
                     run_id=ti.run_id,
                 )
 
-        context = ti.get_template_context()
-
         with set_current_context(context):
             # This is the earliest that we can render templates -- as if it excepts for any reason we need to
             # catch it and handle it like a normal task failure
@@ -581,16 +610,18 @@ def run(
                 state = TerminalTIState.FAILED
                 return state, msg, error
 
-            result = _execute_task(context, ti)
+            result = _execute_task(context, ti, log)
+
         _push_xcom_if_needed(result, ti, log)
 
         msg, state = _handle_current_task_success(context, ti)
     except DownstreamTasksSkipped as skip:
-        context = ti.get_template_context()
         log.info("Skipping downstream tasks.")
         tasks_to_skip = skip.tasks if isinstance(skip.tasks, list) else [skip.tasks]
         SUPERVISOR_COMMS.send_request(log=log, msg=SkipDownstreamTasks(tasks=tasks_to_skip))
         msg, state = _handle_current_task_success(context, ti)
+    except DagRunTriggerException as drte:
+        msg, state = _handle_trigger_dag_run(drte, context, ti, log)
     except TaskDeferred as defer:
         # TODO: Should we use structlog.bind_contextvars here for dag_id, task_id & run_id?
         log.info("Pausing task as DEFERRED. ", dag_id=ti.dag_id, task_id=ti.task_id, run_id=ti.run_id)
@@ -671,7 +702,7 @@ def run(
     return state, msg, error
 
 
-def _handle_current_task_success(context, ti) -> tuple[SucceedTask, TerminalTIState]:
+def _handle_current_task_success(context: Context, ti: RuntimeTaskInstance):
     task_outlets = list(_build_asset_profiles(ti.task.outlets))
     outlet_events = list(_serialize_outlet_events(context["outlet_events"]))
     msg = SucceedTask(
@@ -682,7 +713,84 @@ def _handle_current_task_success(context, ti) -> tuple[SucceedTask, TerminalTISt
     return msg, TerminalTIState.SUCCESS
 
 
-def _execute_task(context: Context, ti: RuntimeTaskInstance):
+def _handle_trigger_dag_run(
+    drte: DagRunTriggerException, context: Context, ti: RuntimeTaskInstance, log: Logger
+):
+    """Handle exception from TriggerDagRunOperator."""
+    log.info("Triggering Dag Run.", trigger_dag_id=drte.trigger_dag_id)
+    SUPERVISOR_COMMS.send_request(
+        log=log,
+        msg=TriggerDagRun(
+            dag_id=drte.trigger_dag_id,
+            run_id=drte.dag_run_id,
+            logical_date=drte.logical_date,
+            conf=drte.conf,
+            reset_dag_run=drte.reset_dag_run,
+        ),
+    )
+
+    comms_msg = SUPERVISOR_COMMS.get_message()
+    if isinstance(comms_msg, ErrorResponse) and comms_msg.error == ErrorType.DAGRUN_ALREADY_EXISTS:
+        if drte.skip_when_already_exists:
+            log.info(
+                "Dag Run already exists, skipping task as skip_when_already_exists is set to True.",
+                dag_id=drte.trigger_dag_id,
+            )
+            msg = TaskState(state=TerminalTIState.SKIPPED, end_date=datetime.now(tz=timezone.utc))
+            state = TerminalTIState.SKIPPED
+        else:
+            log.error("Dag Run already exists, marking task as failed.", dag_id=drte.trigger_dag_id)
+            msg = TaskState(state=TerminalTIState.FAILED, end_date=datetime.now(tz=timezone.utc))
+            state = TerminalTIState.FAILED
+
+        return msg, state
+
+    log.info("Dag Run triggered successfully.", trigger_dag_id=drte.trigger_dag_id)
+
+    # Store the run id from the dag run (either created or found above) to
+    # be used when creating the extra link on the webserver.
+    ti.xcom_push(key="trigger_run_id", value=drte.dag_run_id)
+
+    if drte.wait_for_completion:
+        while True:
+            log.info(
+                "Waiting for dag run to complete execution in allowed state.",
+                dag_id=drte.trigger_dag_id,
+                run_id=drte.dag_run_id,
+                allowed_state=drte.allowed_states,
+            )
+            time.sleep(drte.poke_interval)
+
+            SUPERVISOR_COMMS.send_request(
+                log=log, msg=GetDagRunState(dag_id=drte.trigger_dag_id, run_id=drte.dag_run_id)
+            )
+            comms_msg = SUPERVISOR_COMMS.get_message()
+            if TYPE_CHECKING:
+                assert isinstance(comms_msg, DagRunStateResult)
+            if comms_msg.state in drte.failed_states:
+                log.error(
+                    "DagRun finished with failed state.", dag_id=drte.trigger_dag_id, state=comms_msg.state
+                )
+                msg = TaskState(state=TerminalTIState.FAILED, end_date=datetime.now(tz=timezone.utc))
+                state = TerminalTIState.FAILED
+                return msg, state
+            if comms_msg.state in drte.allowed_states:
+                log.info(
+                    "DagRun finished with allowed state.", dag_id=drte.trigger_dag_id, state=comms_msg.state
+                )
+                break
+            log.debug(
+                "DagRun not yet in allowed or failed state.",
+                dag_id=drte.trigger_dag_id,
+                state=comms_msg.state,
+            )
+
+    msg, state = _handle_current_task_success(context, ti)
+
+    return msg, state
+
+
+def _execute_task(context: Context, ti: RuntimeTaskInstance, log: Logger):
     """Execute Task (optionally with a Timeout) and push Xcom results."""
     from airflow.exceptions import AirflowTaskTimeout
 
@@ -703,6 +811,12 @@ def _execute_task(context: Context, ti: RuntimeTaskInstance):
     # Export context in os.environ to make it available for operators to use.
     airflow_context_vars = context_to_airflow_vars(context, in_env_var_format=True)
     os.environ.update(airflow_context_vars)
+
+    for i, callback in enumerate(task.on_execute_callback):
+        try:
+            callback(context)
+        except Exception:
+            log.exception("Failed to run on-execute callback", index=i, callback=callback)
 
     if task.execution_timeout:
         # TODO: handle timeout in case of deferral

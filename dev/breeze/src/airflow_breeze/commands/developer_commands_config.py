@@ -236,6 +236,12 @@ DEVELOPER_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] = {
             ],
         },
         {
+            "name": "Auth manager",
+            "options": [
+                "--auth-manager",
+            ],
+        },
+        {
             "name": "Asset compilation options",
             "options": [
                 "--skip-assets-compilation",

@@ -331,11 +331,44 @@ class XComModel(TaskInstanceDependencies):
 
     @staticmethod
     def deserialize_value(result) -> Any:
-        """Deserialize XCom value from str objects."""
+        """
+        Deserialize XCom value from a database result.
+
+        If deserialization fails, the raw value is returned, which must still be a valid Python JSON-compatible
+        type (e.g., ``dict``, ``list``, ``str``, ``int``, ``float``, or ``bool``).
+
+        XCom values are stored as JSON in the database, and SQLAlchemy automatically handles
+        serialization (``json.dumps``) and deserialization (``json.loads``). However, we
+        use a custom encoder for serialization (``serialize_value``) and deserialization to handle special
+        cases, such as encoding tuples via the Airflow Serialization module. These must be decoded
+        using ``XComDecoder`` to restore original types.
+
+        Some XCom values, such as those set via the Task Execution API, bypass ``serialize_value``
+        and are stored directly in JSON format. Since these values are already deserialized
+        by SQLAlchemy, they are returned as-is.
+
+        **Example: Handling a tuple**:
+
+        .. code-block:: python
+
+            original_value = (1, 2, 3)
+            serialized_value = XComModel.serialize_value(original_value)
+            print(serialized_value)
+            # '{"__classname__": "builtins.tuple", "__version__": 1, "__data__": [1, 2, 3]}'
+
+        This serialized value is stored in the database. When deserialized, the value is restored to the original tuple.
+
+        :param result: The XCom database row or object containing a ``value`` attribute.
+        :return: The deserialized Python object.
+        """
         if result.value is None:
             return None
 
-        return json.loads(result.value, cls=XComDecoder)
+        try:
+            return json.loads(result.value, cls=XComDecoder)
+        except (ValueError, TypeError):
+            # Already deserialized (e.g., set via Task Execution API)
+            return result.value
 
 
 class LazyXComSelectSequence(LazySelectSequence[Any]):

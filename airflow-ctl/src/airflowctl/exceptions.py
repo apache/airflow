@@ -15,3 +15,20 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+# Note: Any AirflowException raised is expected to cause the TaskInstance
+#       to be marked in an ERROR state
+"""Exceptions used by AirflowCtl."""
+
+from __future__ import annotations
+
+
+class AirflowCtlException(Exception):
+    """
+    Base class for all AirflowCTL's errors.
+
+    Each custom exception should be derived from this class.
+    """
+
+
+class AirflowCtlNotFoundException(AirflowCtlException):
+    """Raise when the requested object/resource is not available in the system."""

@@ -25,6 +25,9 @@ If you have these configuration options in your ``airflow.cfg`` file, you need t
   * [ ] Code interface changes
 
 * Migration rules needed
+
+  * ``airflow config lint``
+
     * [ ] Remove ``[core] hostname`` configuration option from config if value is ``:``
     * [ ] Remove ``[email] email_backend`` configuration option from config if value is ``airflow.contrib.utils.sendgrid.send_email``
     * [ ] Remove ``[logging] log_filename_template`` configuration option from config if value is ``{{ ti.dag_id }}/{{ ti.task_id }}/{{ ts }}/{{ try_number }}.log``

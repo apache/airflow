@@ -532,7 +532,7 @@ The entrypoint performs those operations:
 - Sets up ssh keys for ssh tests and restarts the SSH server
 - Sets all variables and configurations needed for unit tests to run
 - Reads additional variables set in
-  `files/airflow-breeze-config/variables.env` by sourcing that file
+  `files/airflow-breeze-config/environment_variables.env` by sourcing that file
 - In case of CI run sets parallelism to 2 to avoid excessive number of
   processes to run
 - In case of CI run sets default parameters for pytest
