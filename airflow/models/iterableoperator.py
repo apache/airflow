@@ -29,7 +29,7 @@ from math import ceil
 from multiprocessing import TimeoutError
 from multiprocessing.pool import ApplyResult, ThreadPool
 from queue import Queue
-from threading import Lock, Thread
+from threading import Lock
 from time import sleep
 from typing import TYPE_CHECKING, Any
 
@@ -431,7 +431,7 @@ class IterableOperator(BaseOperator):
         # Task Producer
         def task_producer():
             self.log.info("Started producing tasks: %s", tasks)
-            for task in iter(tasks):
+            for task in tasks:
                 self.log.info("Created task: %s", task)
                 task_queue.put(task)
             self._completed.set(True)
@@ -494,7 +494,6 @@ class IterableOperator(BaseOperator):
                             gather(*deferred_tasks, return_exceptions=True)
                         ):
                             self.log.debug("result: %s", result)
-
                             if isinstance(result, Exception):
                                 if isinstance(result, AirflowRescheduleTaskInstanceException):
                                     reschedule_date = result.reschedule_date
@@ -502,13 +501,9 @@ class IterableOperator(BaseOperator):
                                 else:
                                     exception = result
 
-        producer_thread = Thread(target=task_producer)
-        consumer_thread = Thread(target=task_consumer)
-
-        producer_thread.start()
-        consumer_thread.start()
-        producer_thread.join()
-        consumer_thread.join()
+        with ThreadPool(processes=2) as executor:
+            executor.apply_async(task_producer)
+            executor.apply(task_consumer)
 
         if not failed_tasks:
             if exception:
