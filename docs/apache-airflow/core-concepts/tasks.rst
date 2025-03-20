@@ -85,7 +85,7 @@ The possible states for a Task Instance are:
 * ``deferred``: The task has been :doc:`deferred to a trigger <../authoring-and-scheduling/deferring>`
 * ``removed``: The task has vanished from the DAG since the run started
 
-.. image:: /img/task_lifecycle_diagram.png
+.. image:: /img/diagram_task_lifecycle.png
 
 Ideally, a task should flow from ``none``, to ``scheduled``, to ``queued``, to ``running``, and finally to ``success``.
 
