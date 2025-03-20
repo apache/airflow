@@ -21,6 +21,10 @@ from base64 import b64encode
 import pytest
 from flask_login import current_user
 
+from unit.fab.auth_manager.api_endpoints.api_connexion_utils import (
+    delete_user,
+)
+
 from tests_common.test_utils.config import conf_vars
 from tests_common.test_utils.db import clear_db_pools
 from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS
@@ -37,17 +41,16 @@ class BaseTestAuth:
         self.app = minimal_app_for_auth_api
 
         sm = self.app.appbuilder.sm
-        tester = sm.find_user(username="test")
-        if not tester:
-            role_admin = sm.find_role("Admin")
-            sm.add_user(
-                username="test",
-                first_name="test",
-                last_name="test",
-                email="test@fab.org",
-                role=role_admin,
-                password="test",
-            )
+        delete_user(self.app, "test")
+        role_admin = sm.find_role("Admin")
+        sm.add_user(
+            username="test",
+            first_name="test",
+            last_name="test",
+            email="test@fab.org",
+            role=role_admin,
+            password="test",
+        )
 
 
 class TestBasicAuth(BaseTestAuth):

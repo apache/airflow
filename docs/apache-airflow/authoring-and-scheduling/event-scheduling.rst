@@ -20,12 +20,12 @@ Event-driven scheduling
 
 .. versionadded:: 3.0
 
-Apache Airflow allows for event-driven scheduling, enabling DAGs to be triggered based on external events rather than
+Apache Airflow allows for event-driven scheduling, enabling dags to be triggered based on external events rather than
 predefined time-based schedules.
 This is particularly useful in modern data architectures where workflows need to react to real-time data changes,
 messages, or system signals.
 
-By using assets, as described in :doc:`datasets`, you can configure DAGs to start execution when specific external events
+By using assets, as described in :doc:`datasets`, you can configure dags to start execution when specific external events
 occur. Assets provide a mechanism to establish dependencies between external events and DAG execution, ensuring that
 workflows react dynamically to changes in the external environment.
 
@@ -74,7 +74,7 @@ Supported triggers for event-driven scheduling
 Not all :doc:`triggers <deferring>` in Airflow can be used for event-driven scheduling. As opposed to all triggers that
 inherit from ``BaseTrigger``, only a subset that inherit from ``BaseEventTrigger`` are compatible.
 The reason for this restriction is that some triggers are not designed for event-driven scheduling, and using them to
-schedule DAGs could lead to unintended results.
+schedule dags could lead to unintended results.
 
 ``BaseEventTrigger`` ensures that triggers used for scheduling adhere to an event-driven paradigm, reacting appropriately
 to external event changes without causing unexpected DAG behavior.
@@ -97,7 +97,7 @@ event-driven scheduling, then a new trigger must be created.
 This new trigger must inherit ``BaseEventTrigger`` and ensure it properly works with event-driven scheduling.
 It might inherit from the existing trigger as well if both triggers share some common code.
 
-Use cases for event-driven DAGs
+Use cases for event-driven dags
 -------------------------------
 
 * **Data ingestion pipelines**: Trigger ETL workflows when new data arrives in a storage system.

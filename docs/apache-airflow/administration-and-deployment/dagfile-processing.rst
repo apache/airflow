@@ -19,7 +19,7 @@
 DAG File Processing
 -------------------
 
-DAG File Processing refers to the process of turning Python files contained in the DAGs folder into DAG objects that contain tasks to be scheduled.
+DAG File Processing refers to the process of reading the python files that define your dags and storing them such that the scheduler can schedule them.
 
 There are two primary components involved in DAG file processing.  The ``DagFileProcessorManager`` is a process executing an infinite loop that determines which files need
 to be processed, and the ``DagFileProcessorProcess`` is a separate process that is started to convert an individual file into one or more DAG objects.
@@ -55,7 +55,7 @@ The DAG processor is responsible for continuously parsing DAG files and synchron
 In order to fine-tune your DAG processor, you need to include a number of factors:
 
 * The kind of deployment you have
-    * what kind of filesystem you have to share the DAGs (impacts performance of continuously reading DAGs)
+    * what kind of filesystem you have to share the dags (impacts performance of continuously reading dags)
     * how fast the filesystem is (in many cases of distributed cloud filesystem you can pay extra to get
       more throughput/faster filesystem)
     * how much memory you have for your processing
@@ -64,7 +64,7 @@ In order to fine-tune your DAG processor, you need to include a number of factor
 
 * The logic and definition of your DAG structure:
     * how many DAG files you have
-    * how many DAGs you have in your files
+    * how many dags you have in your files
     * how large the DAG files are (remember DAG parser needs to read and parse the file every n seconds)
     * how complex they are (i.e. how fast they can be parsed, how many tasks and dependencies they have)
     * whether parsing your DAG file involves importing a lot of libraries or heavy processing at the top level
@@ -84,7 +84,7 @@ depending on your particular deployment, your DAG structure, hardware availabili
 to decide which knobs to turn to get best effect for you. Part of the job when managing the
 deployment is to decide what you are going to optimize for. Some users are ok with
 30 seconds delays of new DAG parsing, at the expense of lower CPU usage, whereas some other users
-expect the DAGs to be parsed almost instantly when they appear in the DAGs folder at the
+expect the dags to be parsed almost instantly when they appear in the dags folder at the
 expense of higher CPU usage for example.
 
 Airflow gives you the flexibility to decide, but you should find out what aspect of performance is
@@ -116,9 +116,9 @@ There are several areas of resource usage that you should pay attention to:
   filesystems and fine-tune their performance, but this is beyond the scope of this document. You should
   observe statistics and usage of your filesystem to determine if problems come from the filesystem
   performance. For example there are anecdotal evidences that increasing IOPS (and paying more) for the
-  EFS performance, dramatically improves stability and speed of parsing Airflow DAGs when EFS is used.
+  EFS performance, dramatically improves stability and speed of parsing Airflow dags when EFS is used.
 * Another solution to FileSystem performance, if it becomes your bottleneck, is to turn to alternative
-  mechanisms of distributing your DAGs. Embedding DAGs in your image and GitSync distribution have both
+  mechanisms of distributing your dags. Embedding dags in your image and GitSync distribution have both
   the property that the files are available locally for the DAG processor and it does not have to use a
   distributed filesystem to read the files, the files are available locally for the the DAG processor and it is
   usually as fast as it can be, especially if your machines use fast SSD disks for local storage. Those
@@ -126,7 +126,7 @@ There are several areas of resource usage that you should pay attention to:
   but if your problems with performance come from distributed filesystem performance, they might be the
   best approach to follow.
 * Database connections and Database usage might become a problem as you want to increase performance and
-  process more things in parallel. Airflow is known for being "database-connection hungry" - the more DAGs
+  process more things in parallel. Airflow is known for being "database-connection hungry" - the more dags
   you have and the more you want to process in parallel, the more database connections will be opened.
   This is generally not a problem for MySQL as its model of handling connections is thread-based, but this
   might be a problem for Postgres, where connection handling is process-based. It is a general consensus
@@ -134,12 +134,12 @@ There are several areas of resource usage that you should pay attention to:
   `PGBouncer <https://www.pgbouncer.org/>`_ as a proxy to your database. The :doc:`helm-chart:index`
   supports PGBouncer out-of-the-box.
 * CPU usage is most important for FileProcessors - those are the processes that parse and execute
-  Python DAG files. Since DAG processors typically triggers such parsing continuously, when you have a lot of DAGs,
+  Python DAG files. Since DAG processors typically triggers such parsing continuously, when you have a lot of dags,
   the processing might take a lot of CPU. You can mitigate it by increasing the
   :ref:`config:dag_processor__min_file_process_interval`, but this is one of the mentioned trade-offs,
   result of this is that changes to such files will be picked up slower and you will see delays between
   submitting the files and getting them available in Airflow UI and executed by Scheduler. Optimizing
-  the way how your DAGs are built, avoiding external data sources is your best approach to improve CPU
+  the way how your dags are built, avoiding external data sources is your best approach to improve CPU
   usage. If you have more CPUs available, you can increase number of processing threads
   :ref:`config:dag_processor__parsing_processes`.
 * Airflow might use quite a significant amount of memory when you try to get more performance out of it.
@@ -159,7 +159,7 @@ When you know what your resource usage is, the improvements that you can conside
 
 * improve the logic, efficiency of parsing and reduce complexity of your top-level DAG Python code. It is
   parsed continuously so optimizing that code might bring tremendous improvements, especially if you try
-  to reach out to some external databases etc. while parsing DAGs (this should be avoided at all cost).
+  to reach out to some external databases etc. while parsing dags (this should be avoided at all cost).
   The :ref:`best_practices/top_level_code` explains what are the best practices for writing your top-level
   Python code. The :ref:`best_practices/reducing_dag_complexity` document provides some areas that you might
   look at when you want to reduce complexity of your code.
@@ -173,7 +173,7 @@ When you know what your resource usage is, the improvements that you can conside
   or filesystem is a bottleneck.
 * experiment with different values for the "DAG processor tunables". Often you might get better effects by
   simply exchanging one performance aspect for another. For example if you want to decrease the
-  CPU usage, you might increase file processing interval (but the result will be that new DAGs will
+  CPU usage, you might increase file processing interval (but the result will be that new dags will
   appear with bigger delay). Usually performance tuning is the art of balancing different aspects.
 * sometimes you change DAG processor behavior slightly (for example change parsing sort order)
   in order to get better fine-tuned results for your particular deployment.
@@ -190,7 +190,7 @@ However, you can also look at other non-performance-related scheduler configurat
 
 - :ref:`config:dag_processor__min_file_process_interval`
   Number of seconds after which a DAG file is re-parsed. The DAG file is parsed every
-  min_file_process_interval number of seconds. Updates to DAGs are reflected after
+  min_file_process_interval number of seconds. Updates to dags are reflected after
   this interval. Keeping this number low will increase CPU usage.
 
 - :ref:`config:dag_processor__parsing_processes`

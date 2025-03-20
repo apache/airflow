@@ -51,6 +51,7 @@ export const TaskName = ({
     return (
       <Text fontSize="md" fontWeight="bold" {...rest}>
         {label}
+        {isMapped ? " [ ]" : undefined}
       </Text>
     );
   }

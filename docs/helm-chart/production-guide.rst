@@ -265,7 +265,7 @@ details on how you can extend and customize the Airflow image.
 Managing DAG Files
 ------------------
 
-See :doc:`manage-dags-files`.
+See :doc:`manage-dag-files`.
 
 .. _production-guide:knownhosts:
 
