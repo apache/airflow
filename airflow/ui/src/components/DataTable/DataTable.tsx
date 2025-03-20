@@ -135,7 +135,9 @@ export const DataTable = <TData,>({
       <Toaster />
       <HStack>
         <Spacer display="flow" />
-        {allowFiltering ? <FilterMenuButton table={table} /> : undefined}
+        {allowFiltering && table.getRowCount() && display === "table" ? (
+          <FilterMenuButton table={table} />
+        ) : undefined}
       </HStack>
       {errorMessage}
       {hasRows && display === "table" ? <TableList table={table} /> : undefined}
