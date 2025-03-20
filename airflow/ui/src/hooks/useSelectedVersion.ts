@@ -21,15 +21,16 @@ import { useParams, useSearchParams } from "react-router-dom";
 import {
   useDagRunServiceGetDagRun,
   useDagServiceGetDagDetails,
+  useStructureServiceStructureData,
   useTaskInstanceServiceGetMappedTaskInstance,
-  useTaskServiceGetTask,
 } from "openapi/queries";
 import { SearchParamsKeys } from "src/constants/searchParams";
 
 const useSelectedVersion = (): number | undefined => {
   const [searchParams] = useSearchParams();
 
-  const selectedVersionUrl = searchParams.get(SearchParamsKeys.VERSION_NUMBER);
+  const selectedVersionUrlStr = searchParams.get(SearchParamsKeys.VERSION_NUMBER);
+  const selectedVersionUrl = selectedVersionUrlStr === null ? undefined : parseInt(selectedVersionUrlStr, 10);
 
   const { dagId = "", mapIndex = "-1", runId = "", taskId = "" } = useParams();
 
@@ -50,14 +51,20 @@ const useSelectedVersion = (): number | undefined => {
     { enabled: Boolean(dagId) && Boolean(runId) },
   );
 
-  const { data: taskData } = useTaskServiceGetTask(
+  // Use the structure data to know if a task is mapped or not.
+  // Also handling the case for tasks inside mapped task group. Only the structure endpoint
+  // propagate down and mark as "mapped" child tasks of a mapped task group.
+  const { data: structureData } = useStructureServiceStructureData(
     {
       dagId,
-      taskId,
+      versionNumber: selectedVersionUrl,
     },
     undefined,
-    { enabled: Boolean(dagId) && Boolean(runId) && Boolean(taskId) },
+    { enabled: runData !== undefined },
   );
+
+  const taskNode = structureData?.nodes.find((node) => node.id === taskId);
+  const isMapped = taskNode?.is_mapped;
 
   const { data: mappedTaskInstanceData } = useTaskInstanceServiceGetMappedTaskInstance(
     {
@@ -67,12 +74,14 @@ const useSelectedVersion = (): number | undefined => {
       taskId,
     },
     undefined,
-    // Do not enable on a task instance summary. Mapped task but no mapIndex defined.
-    { enabled: taskData !== undefined && !Boolean(mapIndex === "-1" && taskData.is_mapped) },
+    // Do not enable on a task instance summary. (mapped task but no mapIndex defined)
+    {
+      enabled: taskNode !== undefined && !Boolean(mapIndex === "-1" && isMapped),
+    },
   );
 
   const selectedVersionNumber =
-    (selectedVersionUrl === null ? undefined : parseInt(selectedVersionUrl, 10)) ??
+    selectedVersionUrl ??
     mappedTaskInstanceData?.dag_version?.version_number ??
     (runData?.dag_versions ?? []).at(-1)?.version_number ??
     dagData?.latest_dag_version?.version_number;
