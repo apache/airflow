@@ -25,7 +25,7 @@ import os
 from collections.abc import Iterable
 from typing import Callable, NamedTuple, Union
 
-from airflow.ctl.utils.module_loading import import_string
+from airflowctl.utils.module_loading import import_string
 
 BUILD_DOCS = "BUILDING_AIRFLOW_DOCS" in os.environ
 
