@@ -23,37 +23,43 @@ Private service for dag structure.
 
 from __future__ import annotations
 
-from airflow.sdk.definitions.asset import Asset, AssetAlias, AssetAll, AssetAny, BaseAsset
-
 
 def get_upstream_assets(
-    asset_condition: BaseAsset, entry_node_ref: str, level=0
+    asset_expression: dict, entry_node_ref: str, level: int = 0
 ) -> tuple[list[dict], list[dict]]:
     edges: list[dict] = []
     nodes: list[dict] = []
-    asset_condition_type: str | None = None
+    asset_expression_type: str | None = None
 
-    assets: list[Asset | AssetAlias] = []
+    # include assets, asset-alias, asset-name-refs, asset-uri-refs
+    assets_info: list[dict] = []
 
-    nested_expression: AssetAll | AssetAny | None = None
+    nested_expression: dict = {}
 
-    if isinstance(asset_condition, AssetAny):
-        asset_condition_type = "or-gate"
+    expr_key = ""
+    if asset_expression.keys() == {"any"}:
+        asset_expression_type = "or-gate"
+        expr_key = "any"
+    elif asset_expression.keys() == {"all"}:
+        asset_expression_type = "and-gate"
+        expr_key = "all"
 
-    elif isinstance(asset_condition, AssetAll):
-        asset_condition_type = "and-gate"
+    if expr_key in asset_expression:
+        asset_exprs: list[dict] = asset_expression[expr_key]
+        for expr in asset_exprs:
+            nested_expr_key = next(iter(expr.keys()))
+            if nested_expr_key in ("any", "all"):
+                nested_expression = expr
+            elif nested_expr_key in ("asset", "alias", "asset-name-ref", "asset-uri-ref"):
+                asset_info = expr[nested_expr_key]
+                asset_info["type"] = nested_expr_key if nested_expr_key != "alias" else "asset-alias"
 
-    if hasattr(asset_condition, "objects"):
-        for obj in asset_condition.objects:
-            if isinstance(obj, (AssetAll, AssetAny)):
-                nested_expression = obj
-            elif isinstance(obj, (Asset, AssetAlias)):
-                assets.append(obj)
+                assets_info.append(asset_info)
             else:
-                raise TypeError(f"Unsupported type: {type(obj)}")
+                raise TypeError(f"Unsupported type: {expr.keys()}")
 
-    if asset_condition_type and assets:
-        asset_condition_id = f"{asset_condition_type}-{level}"
+    if asset_expression_type and assets_info:
+        asset_condition_id = f"{asset_expression_type}-{level}"
         edges.append(
             {
                 "source_id": asset_condition_id,
@@ -66,22 +72,36 @@ def get_upstream_assets(
                 "id": asset_condition_id,
                 "label": asset_condition_id,
                 "type": "asset-condition",
-                "asset_condition_type": asset_condition_type,
+                "asset_condition_type": asset_expression_type,
             }
         )
 
-        for asset in assets:
+        for asset in assets_info:
+            asset_type = asset["type"]
+
+            if asset_type == "asset":
+                source_id = str(asset["id"])
+                label = asset["name"]
+            elif asset_type == "asset-alias" or asset_type == "asset-name-ref":
+                source_id = asset["name"]
+                label = asset["name"]
+            elif asset_type == "asset-uri-ref":
+                source_id = asset["uri"]
+                label = asset["uri"]
+            else:
+                raise TypeError(f"Unsupported type: {asset_type}")
+
             edges.append(
                 {
-                    "source_id": asset.name,
+                    "source_id": source_id,
                     "target_id": asset_condition_id,
                 }
             )
             nodes.append(
                 {
-                    "id": asset.name,
-                    "label": asset.name,
-                    "type": "asset-alias" if isinstance(asset, AssetAlias) else "asset",
+                    "id": source_id,
+                    "label": label,
+                    "type": asset_type,
                 }
             )
 

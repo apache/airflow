@@ -86,7 +86,7 @@ FIRST_VERSION_DAG_RESPONSE["nodes"] = [
 
 
 @pytest.fixture(autouse=True, scope="module")
-def examples_dag_bag():
+def examples_dag_bag() -> DagBag:
     # Speed up: We don't want example dags for this module
 
     return DagBag(include_examples=False, read_dags_from_db=True)
@@ -100,22 +100,22 @@ def clean():
 
 
 @pytest.fixture
-def asset1():
+def asset1() -> Asset:
     return Asset(uri="s3://bucket/next-run-asset/1", name="asset1")
 
 
 @pytest.fixture
-def asset2():
+def asset2() -> Asset:
     return Asset(uri="s3://bucket/next-run-asset/2", name="asset2")
 
 
 @pytest.fixture
-def asset3():
+def asset3() -> Dataset:
     return Dataset(uri="s3://dataset-bucket/example.csv")
 
 
 @pytest.fixture
-def make_dag(dag_maker, session, time_machine, asset1, asset2, asset3):
+def make_dag(dag_maker, session, time_machine, asset1: Asset, asset2: Asset, asset3: Dataset) -> None:
     with dag_maker(
         dag_id=DAG_ID_EXTERNAL_TRIGGER,
         serialized=True,
@@ -142,24 +142,26 @@ def make_dag(dag_maker, session, time_machine, asset1, asset2, asset3):
     dag_maker.sync_dagbag_to_db()
 
 
-def _fetch_asset_id(asset: Asset, session: Session) -> int:
-    return session.scalar(
-        select(AssetModel.id).where(AssetModel.name == asset.name, AssetModel.uri == asset.uri)
+def _fetch_asset_id(asset: Asset, session: Session) -> str:
+    return str(
+        session.scalar(
+            select(AssetModel.id).where(AssetModel.name == asset.name, AssetModel.uri == asset.uri)
+        )
     )
 
 
 @pytest.fixture
-def asset1_id(make_dag, asset1, session: Session) -> int:
+def asset1_id(make_dag, asset1, session: Session) -> str:
     return _fetch_asset_id(asset1, session)
 
 
 @pytest.fixture
-def asset2_id(make_dag, asset2, session) -> int:
+def asset2_id(make_dag, asset2, session) -> str:
     return _fetch_asset_id(asset2, session)
 
 
 @pytest.fixture
-def asset3_id(make_dag, asset3, session) -> int:
+def asset3_id(make_dag, asset3, session) -> str:
     return _fetch_asset_id(asset3, session)
 
 
