@@ -213,9 +213,10 @@ export const Graph = () => {
         }
         nodeStrokeWidth={15}
         pannable
+        style={{ height: 150, width: 200 }}
         zoomable
       />
-      <DownloadButton />
+      <DownloadButton dagId={dagId} />
     </ReactFlow>
   );
 };

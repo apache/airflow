@@ -16,41 +16,26 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Button } from "@chakra-ui/react";
+import { IconButton } from "@chakra-ui/react";
 import { Panel, useReactFlow, getNodesBounds, getViewportForBounds } from "@xyflow/react";
 import { toPng } from "html-to-image";
-import { useEffect, useState } from "react";
 import { FiDownload } from "react-icons/fi";
 
-export const DownloadButton = () => {
+import { toaster } from "../../components/ui";
+
+export const DownloadButton = ({ dagId }: { readonly dagId: string }) => {
   const { getNodes } = useReactFlow();
-  const [dimensions, setDimensions] = useState({ height: 768, width: 1024 });
-
-  useEffect(() => {
-    const updateDimensions = () => {
-      const container = document.querySelector(".react-flow__viewport");
-
-      if (container) {
-        setDimensions({
-          height: container.clientHeight,
-          width: container.clientWidth,
-        });
-      }
-    };
-
-    updateDimensions();
-    globalThis.addEventListener("resize", updateDimensions);
-
-    return () => globalThis.removeEventListener("resize", updateDimensions);
-  }, []);
 
   const onClick = () => {
     const nodesBounds = getNodesBounds(getNodes());
-    const viewport = getViewportForBounds(nodesBounds, dimensions.width, dimensions.height, 0.5, 2, 0.25);
+
     // Method obtained from https://reactflow.dev/examples/misc/download-image
     const container = document.querySelector(".react-flow__viewport");
 
     if (container instanceof HTMLElement) {
+      const dimensions = { height: container.clientHeight, width: container.clientWidth };
+      const viewport = getViewportForBounds(nodesBounds, dimensions.width, dimensions.height, 0.5, 2, 0.25);
+
       toPng(container, {
         height: dimensions.height,
         style: {
@@ -63,21 +48,25 @@ export const DownloadButton = () => {
         .then((dataUrl) => {
           const downloadLink = document.createElement("a");
 
-          downloadLink.setAttribute("download", "reactflow.png");
+          downloadLink.setAttribute("download", `${dagId}-graph.png`);
           downloadLink.setAttribute("href", dataUrl);
           downloadLink.click();
         })
         .catch(() => {
-          // void catch
+          toaster.create({
+            description: "Failed to download graph image.",
+            title: "Download Failed",
+            type: "error",
+          });
         });
     }
   };
 
   return (
-    <Panel position="bottom-right">
-      <Button colorPalette="blue" onClick={onClick} size="xs">
+    <Panel position="bottom-right" style={{ transform: "translateY(-150px)" }}>
+      <IconButton aria-label="Download graph image" onClick={onClick} size="xs" variant="ghost">
         <FiDownload />
-      </Button>
+      </IconButton>
     </Panel>
   );
 };
