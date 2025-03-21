@@ -30,7 +30,8 @@ import structlog
 from platformdirs import user_config_path
 from uuid6 import uuid7
 
-from airflow.cli.api.operations import (
+from airflowctl import __version__ as version
+from airflowctl.api.operations import (
     AssetsOperations,
     BackfillsOperations,
     ConfigOperations,
@@ -44,9 +45,8 @@ from airflow.cli.api.operations import (
     VariablesOperations,
     VersionOperations,
 )
-from airflow.exceptions import AirflowNotFoundException
-from airflow.typing_compat import ParamSpec
-from airflow.version import version
+from airflowctl.exceptions import AirflowCtlNotFoundException
+from airflowctl.typing_compat import ParamSpec
 
 if TYPE_CHECKING:
     # # methodtools doesn't have typestubs, so give a stub
@@ -127,7 +127,7 @@ class Credentials:
                 self.api_token = keyring.get_password("airflow-cli", f"api_token-{self.api_environment}")
             return self
         else:
-            raise AirflowNotFoundException(f"No credentials found in {default_config_dir}")
+            raise AirflowCtlNotFoundException(f"No credentials found in {default_config_dir}")
 
 
 class BearerAuth(httpx.Auth):
@@ -232,7 +232,7 @@ def get_client():
         limits = httpx.Limits(max_keepalive_connections=1, max_connections=1)
         cli_api_client = Client(base_url=credentials.api_url, limits=limits, token=credentials.api_token)
         yield cli_api_client
-    except AirflowNotFoundException as e:
+    except AirflowCtlNotFoundException as e:
         raise e
     finally:
         if cli_api_client:

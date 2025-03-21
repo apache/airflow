@@ -50,9 +50,13 @@ In the example above, two users are defined:
 * **peter** whose role is **viewer**
 
 The password is auto-generated for each user and printed out in the webserver logs.
-When generated, these passwords are also saved in your environment, therefore they will not change if you stop or restart your environment.
+When generated, these passwords are saved in a file configured in ``core.simple_auth_manager_passwords_file``.
+By default, this file is ``$AIRFLOW_HOME/simple_auth_manager_passwords.json.generated``, you can read and update them
+directly in the file as well if desired.
 
-The passwords are saved in the file ``generated/simple_auth_manager_passwords.json.generated``, you can read and update them directly in the file as well if desired.
+.. note::
+    With Breeze, two users are predefined: ``admin`` and ``viewer`` (password is the same as the username).
+    ``admin`` has all permissions. ``viewer`` has read-only permissions.
 
 .. _roles-permissions:
 
@@ -62,8 +66,8 @@ Manage roles and permissions
 There is no option to manage roles and permissions in simple auth manager. They are defined as part of the simple auth manager implementation and cannot be modified.
 Here is the list of roles defined in simple auth manager. These roles can be associated to users.
 
-* **viewer**. Read-only permissions on DAGs, assets and pools
-* **user**. **viewer** permissions plus all permissions (edit, create, delete) on DAGs
+* **viewer**. Read-only permissions on dags, assets and pools
+* **user**. **viewer** permissions plus all permissions (edit, create, delete) on dags
 * **op**. **user** permissions plus all permissions on pools, assets, config, connections and variables
 * **admin**. All permissions
 

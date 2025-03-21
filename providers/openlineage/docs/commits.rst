@@ -34,14 +34,30 @@ For high-level changelog, see :doc:`package information including changelog <ind
 
 
 
-2.1.1
-.....
+2.1.2b1
+.......
 
-Latest change: 2025-03-07
+Latest change: 2025-03-18
 
 ==================================================================================================  ===========  ==========================================================================================
 Commit                                                                                              Committed    Subject
 ==================================================================================================  ===========  ==========================================================================================
+`7b20f331a8 <https://github.com/apache/airflow/commit/7b20f331a86dfbc5930ca22c755c7998d867bed1>`__  2025-03-18   ``feat: Add dagrun's end_date and duration to OL facet (#47901)``
+`807bdca29c <https://github.com/apache/airflow/commit/807bdca29c634a04be85637902db680f567f8e73>`__  2025-03-17   ``fix: Adjust OpenLineage DefaultExtractor for RuntimeTaskInstance in Airflow 3 (#47673)``
+`5e1f39c488 <https://github.com/apache/airflow/commit/5e1f39c488164a2bb77661ad9c7afb3f2241a0bf>`__  2025-03-16   ``Use TaskInstance ID as FK in TaskReschedule instead of the multiple fields (#47459)``
+`935d2831fe <https://github.com/apache/airflow/commit/935d2831fe8fd509b618a738bf00e0c34e186e11>`__  2025-03-15   ``Remove links to x/twitter.com (#47801)``
+`eb18f87f09 <https://github.com/apache/airflow/commit/eb18f87f091116a9b7db5ae30fdb40f6e0a6377f>`__  2025-03-10   ``Stop trying to reconfigure the ORM in the OpenLineage workers (#47580)``
+==================================================================================================  ===========  ==========================================================================================
+
+2.1.1
+.....
+
+Latest change: 2025-03-09
+
+==================================================================================================  ===========  ==========================================================================================
+Commit                                                                                              Committed    Subject
+==================================================================================================  ===========  ==========================================================================================
+`492ecfe5c0 <https://github.com/apache/airflow/commit/492ecfe5c03102bfb710108038ebd5fc50cb55b5>`__  2025-03-09   ``Prepare docs for Mar 1st wave of providers (#47545)``
 `afcfb86106 <https://github.com/apache/airflow/commit/afcfb86106bdc92753edfe4fc45111cf9d836893>`__  2025-03-07   ``chore: Update description of 'execution_timeout' in OpenLineage provider.yaml (#47448)``
 `58c6a49565 <https://github.com/apache/airflow/commit/58c6a4956512fb35bebc645fbeed2ff79cdbe6ee>`__  2025-03-07   ``Remove the old 'task run' commands and LocalTaskJob (#47453)``
 `fbe3fc927e <https://github.com/apache/airflow/commit/fbe3fc927ea38d88132db231c71494fef71dfff2>`__  2025-03-06   ``Move task_sdk to a standalone task-sdk distribution (#47451)``

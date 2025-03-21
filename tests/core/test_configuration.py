@@ -33,14 +33,17 @@ from airflow.configuration import (
     AirflowConfigException,
     AirflowConfigParser,
     conf,
+    ensure_secrets_loaded,
     expand_env_var,
     get_airflow_config,
     get_airflow_home,
     get_all_expansion_variables,
+    initialize_secrets_backends,
     run_command,
     write_default_airflow_configuration_if_needed,
 )
 from airflow.providers_manager import ProvidersManager
+from airflow.secrets import DEFAULT_SECRETS_SEARCH_PATH_WORKERS
 
 from tests.utils.test_config import (
     remove_all_configurations,
@@ -881,6 +884,118 @@ key7 =
         assert test_conf.gettimedelta("valid", "key6") == datetime.timedelta(seconds=300)
         assert isinstance(test_conf.gettimedelta("default", "key7"), type(None))
         assert test_conf.gettimedelta("default", "key7") is None
+
+    @conf_vars(
+        {
+            (
+                "workers",
+                "secrets_backend",
+            ): "airflow.providers.amazon.aws.secrets.systems_manager.SystemsManagerParameterStoreBackend",
+            ("workers", "secrets_backend_kwargs"): '{"connections_prefix": "/airflow", "profile_name": null}',
+        }
+    )
+    def test_initialize_secrets_backends_on_workers(self):
+        """Tests if secrets backend and default backends are loaded correctly for workers."""
+        backends = initialize_secrets_backends(DEFAULT_SECRETS_SEARCH_PATH_WORKERS)
+        backend_classes = [backend.__class__.__name__ for backend in backends]
+
+        assert len(backends) == 2
+        assert "SystemsManagerParameterStoreBackend" in backend_classes
+
+    @conf_vars(
+        {
+            (
+                "workers",
+                "secrets_backend",
+            ): "airflow.providers.amazon.aws.secrets.systems_manager.SystemsManagerParameterStoreBackend",
+            ("workers", "secrets_backend_kwargs"): '{"use_ssl": false}',
+        }
+    )
+    def test_secrets_backends_kwargs_on_workers(self):
+        """Tests if secrets backend kwargs are loaded correctly for workers."""
+        backends = initialize_secrets_backends(DEFAULT_SECRETS_SEARCH_PATH_WORKERS)
+        systems_manager = next(
+            backend
+            for backend in backends
+            if backend.__class__.__name__ == "SystemsManagerParameterStoreBackend"
+        )
+        assert systems_manager.kwargs == {}
+        assert systems_manager.use_ssl is False
+
+    @pytest.mark.parametrize(
+        (
+            "secrets_backend",
+            "secrets_backend_kwargs",
+            "backend",
+            "backend_kwargs",
+            "expected_backend",
+            "expected_backend_kwargs",
+        ),
+        [
+            # pick right backend and kwargs
+            pytest.param(
+                "airflow.providers.amazon.aws.secrets.systems_manager.SystemsManagerParameterStoreBackend",
+                '{"connections_prefix": "/airflow", "profile_name": null}',
+                "airflow.secrets.local_filesystem.LocalFilesystemBackend",
+                '{"connections_file_path": "/files/conn.json", "variables_file_path": "/files/var.json"}',
+                "airflow.providers.amazon.aws.secrets.systems_manager.SystemsManagerParameterStoreBackend",
+                {"connections_prefix": "/airflow", "profile_name": None},
+                id="both-defined",
+            ),
+            # do not pick kwargs of secrets backend when not defined for worker
+            pytest.param(
+                "airflow.providers.amazon.aws.secrets.systems_manager.SystemsManagerParameterStoreBackend",
+                "",
+                "airflow.secrets.local_filesystem.LocalFilesystemBackend",
+                '{"connections_file_path": "/files/conn.json", "variables_file_path": "/files/var.json"}',
+                "airflow.providers.amazon.aws.secrets.systems_manager.SystemsManagerParameterStoreBackend",
+                {},
+                id="worker-backend-defined-not-kwargs",
+            ),
+            # pick config of secrets backend
+            pytest.param(
+                "",
+                "",
+                "airflow.secrets.local_filesystem.LocalFilesystemBackend",
+                '{"connections_file_path": "/files/conn.json", "variables_file_path": "/files/var.json"}',
+                "airflow.secrets.local_filesystem.LocalFilesystemBackend",
+                {"connections_file_path": "/files/conn.json", "variables_file_path": "/files/var.json"},
+                id="worker-backend-and-kwargs-not-defined",
+            ),
+        ],
+    )
+    def test_order_of_secrets_backends_and_kwargs_on_workers(
+        self,
+        secrets_backend,
+        secrets_backend_kwargs,
+        backend,
+        backend_kwargs,
+        expected_backend,
+        expected_backend_kwargs,
+    ):
+        """
+        Tests if secrets backend and default backends are loaded correctly for workers in order of priority.
+
+        If not defined for worker, it should rightly fall back to that defined for secrets backend.
+        """
+        with conf_vars(
+            {
+                (
+                    "workers",
+                    "secrets_backend",
+                ): secrets_backend,
+                ("workers", "secrets_backend_kwargs"): secrets_backend_kwargs,
+                (
+                    "secrets",
+                    "backend",
+                ): backend,
+                ("secrets", "backend_kwargs"): backend_kwargs,
+            }
+        ):
+            backends = ensure_secrets_loaded(DEFAULT_SECRETS_SEARCH_PATH_WORKERS)
+            secrets_backend = backends[0]
+            assert secrets_backend.__class__.__name__ in expected_backend
+            all(secrets_backend.__dict__.get(k) == v for k, v in expected_backend_kwargs.items())
 
 
 @mock.patch.dict(
