@@ -939,9 +939,6 @@ def test_execute_task_exports_env_vars(
     )
 
     ti = create_runtime_ti(task=task, dag_id="dag_with_env_vars")
-    mock_supervisor_comms.get_message.return_value = OKResponse(
-        ok=True,
-    )
 
     mock_env_vars = {"AIRFLOW_CTX_DAG_ID": "test_dag_env_vars", "AIRFLOW_CTX_TASK_ID": "test_env_task"}
     mock_context_to_airflow_vars.return_value = mock_env_vars

@@ -25,7 +25,7 @@ from typing import TYPE_CHECKING
 
 from airflow.models import BaseOperator
 from airflow.providers.apache.hive.hooks.hive import HiveServer2Hook
-from airflow.providers.apache.hive.version_compat import AIRFLOW_V_3_0_PLUS
+from airflow.providers.common.compat.version_compat import AIRFLOW_V_3_0_PLUS
 from airflow.providers.mysql.hooks.mysql import MySqlHook
 
 if AIRFLOW_V_3_0_PLUS:

@@ -26,7 +26,7 @@ from typing import TYPE_CHECKING, Any
 from airflow.configuration import conf
 from airflow.models import BaseOperator
 from airflow.providers.apache.hive.hooks.hive import HiveCliHook
-from airflow.providers.apache.hive.version_compat import AIRFLOW_V_3_0_PLUS
+from airflow.providers.common.compat.version_compat import AIRFLOW_V_3_0_PLUS
 
 if AIRFLOW_V_3_0_PLUS:
     from airflow.sdk.execution_time.context import AIRFLOW_VAR_NAME_FORMAT_MAPPING, context_to_airflow_vars
