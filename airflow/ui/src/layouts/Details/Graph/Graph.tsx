@@ -17,8 +17,16 @@
  * under the License.
  */
 import { useToken } from "@chakra-ui/react";
-import { ReactFlow, Controls, Background, MiniMap, type Node as ReactFlowNode } from "@xyflow/react";
+import {
+  ReactFlow,
+  Controls,
+  Background,
+  MiniMap,
+  type Node as ReactFlowNode,
+  ControlButton,
+} from "@xyflow/react";
 import "@xyflow/react/dist/style.css";
+import { MdRotateRight } from "react-icons/md";
 import { useParams } from "react-router-dom";
 import { useLocalStorage } from "usehooks-ts";
 
@@ -36,7 +44,7 @@ import Edge from "src/components/Graph/Edge";
 import { JoinNode } from "src/components/Graph/JoinNode";
 import { TaskNode } from "src/components/Graph/TaskNode";
 import type { CustomNodeProps } from "src/components/Graph/reactflowUtils";
-import { useGraphLayout } from "src/components/Graph/useGraphLayout";
+import { type Direction, Directions, useGraphLayout } from "src/components/Graph/useGraphLayout";
 import { useColorMode } from "src/context/colorMode";
 import { useOpenGroups } from "src/context/openGroups";
 import useSelectedVersion from "src/hooks/useSelectedVersion";
@@ -94,6 +102,7 @@ export const Graph = () => {
   const refetchInterval = useAutoRefresh({ dagId });
 
   const [dependencies] = useLocalStorage<"all" | "immediate" | "tasks">(`dependencies-${dagId}`, "immediate");
+  const [direction, setDirection] = useLocalStorage<Direction>(`direction-${dagId}`, "RIGHT");
 
   const selectedColor = colorMode === "dark" ? selectedDarkColor : selectedLightColor;
 
@@ -123,7 +132,7 @@ export const Graph = () => {
 
   const { data } = useGraphLayout({
     dagId,
-    direction: "RIGHT",
+    direction,
     edges: [...graphData.edges, ...dagDepEdges],
     nodes: dagDepNodes.length
       ? dagDepNodes.map((node) =>
@@ -198,7 +207,17 @@ export const Graph = () => {
       onlyRenderVisibleElements
     >
       <Background />
-      <Controls showInteractive={false} />
+      <Controls showInteractive={false}>
+        <ControlButton
+          aria-label="Rotate clockwise"
+          onClick={() =>
+            setDirection(Directions[(1 + Directions.indexOf(direction)) % Directions.length] ?? direction)
+          }
+          title="Rotate clockwise"
+        >
+          <MdRotateRight />
+        </ControlButton>
+      </Controls>
       <MiniMap
         nodeColor={(node: ReactFlowNode<CustomNodeProps>) =>
           nodeColor(

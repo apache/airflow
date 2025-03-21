@@ -28,8 +28,8 @@ import type {
 
 import { flattenGraph, formatFlowEdges } from "./reactflowUtils";
 
-type Direction = "BOTTOM" | "LEFT" | "RIGHT" | "TOP";
-
+export type Direction = "DOWN" | "LEFT" | "RIGHT" | "UP";
+export const Directions: Array<Direction> = ["DOWN", "LEFT", "UP", "RIGHT"];
 type EdgeLabel = {
   height: number;
   id: string;
@@ -265,5 +265,5 @@ export const useGraphLayout = ({
 
       return { edges: formattedEdges, nodes: flattenedData.nodes };
     },
-    queryKey: ["graphLayout", nodes, openGroupIds, dagId, versionNumber, edges],
+    queryKey: ["graphLayout", nodes, openGroupIds, dagId, versionNumber, edges, direction],
   });
