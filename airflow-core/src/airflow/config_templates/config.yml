@@ -1510,9 +1510,22 @@ api_auth:
 
         This value must be appropriate for the given private key type.
 
-        Default is "HS512" if ``jwt_secret`` is set, or "EdDSA" otherwise
+        If this is not specified Airflow makes some guesses as what algorithm is best based on the key type.
+
+        ("HS512" if ``jwt_secret`` is set, otherwise a key-type specific guess)
       example: '"EdDSA" or "HS512"'
       type: string
+      default: ~
+    jwt_kid:
+      version_added: 3.0.0
+      description: |
+        The Key ID to place in header when generating JWTs. Not used in the validation path.
+
+        If this is not specified the RFC7638 thumbprint of the private key will be used.
+
+        Ignored when ``jwt_secret`` is used.
+      type: string
+      example: "my-key-id"
       default: ~
     trusted_jwks_url:
       version_added: 3.0.0
