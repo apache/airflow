@@ -137,13 +137,10 @@ export const renderStructuredLog = ({
       ));
 
       return (
-        <details key={error.exc_type} open={true} style={{ width: "100%" }}>
+        <details key={error.exc_type} open={true} style={{ marginLeft: "20em" }}>
           <summary data-testid={`summary-${error.exc_type}`}>
             <chakra.span color="fg.info" cursor="pointer">
-              <>
-                {" "}
-                {error.exc_type}: {error.exc_value}
-              </>
+              {error.exc_type}: {error.exc_value}
             </chakra.span>
           </summary>
           {errorLines}
@@ -154,7 +151,7 @@ export const renderStructuredLog = ({
 
   elements.push(
     <chakra.span className="event" key={2} style={{ whiteSpace: "pre-wrap" }}>
-      {event}:{details}
+      {event}:
     </chakra.span>,
   );
 
@@ -168,6 +165,12 @@ export const renderStructuredLog = ({
       );
     }
   }
+
+  elements.push(
+    <chakra.span className="event" key={2} style={{ whiteSpace: "pre-wrap" }}>
+      {details}
+    </chakra.span>,
+  );
 
   return (
     <chakra.p key={index} lineHeight={1.5}>
