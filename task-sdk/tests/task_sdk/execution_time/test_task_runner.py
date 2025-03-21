@@ -1396,6 +1396,27 @@ class TestRuntimeTaskInstance:
             log=mock.ANY,
         )
 
+    def test_overwrite_rtif_after_execution_sets_rtif(self, create_runtime_ti, mock_supervisor_comms):
+        """Test that the RTIF is overwritten after execution for certain operators."""
+
+        class CustomOperator(BaseOperator):
+            overwrite_rtif_after_execution = True
+            template_fields = ["bash_command"]
+
+            def __init__(self, bash_command, *args, **kwargs):
+                self.bash_command = bash_command
+                super().__init__(*args, **kwargs)
+
+        task = CustomOperator(task_id="hello", bash_command="echo 'hi'")
+        runtime_ti = create_runtime_ti(task=task)
+
+        finalize(runtime_ti, log=mock.MagicMock(), state=TerminalTIState.SUCCESS)
+
+        mock_supervisor_comms.send_request.assert_called_with(
+            msg=SetRenderedFields(rendered_fields={"bash_command": "echo 'hi'"}),
+            log=mock.ANY,
+        )
+
 
 class TestXComAfterTaskExecution:
     @pytest.mark.parametrize(

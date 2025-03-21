@@ -23,9 +23,9 @@ from typing import TYPE_CHECKING, Any, Callable, ClassVar
 
 from airflow.decorators.base import DecoratedOperator, TaskDecorator, task_decorator_factory
 from airflow.providers.standard.operators.bash import BashOperator
+from airflow.sdk.definitions._internal.types import SET_DURING_EXECUTION
 from airflow.utils.context import context_merge
 from airflow.utils.operator_helpers import determine_kwargs
-from airflow.utils.types import NOTSET
 
 if TYPE_CHECKING:
     from airflow.sdk.definitions.context import Context
@@ -49,6 +49,7 @@ class _BashDecoratedOperator(DecoratedOperator, BashOperator):
     }
 
     custom_operator_name: str = "@task.bash"
+    overwrite_rtif_after_execution: bool = True
 
     def __init__(
         self,
@@ -69,7 +70,7 @@ class _BashDecoratedOperator(DecoratedOperator, BashOperator):
             python_callable=python_callable,
             op_args=op_args,
             op_kwargs=op_kwargs,
-            bash_command=NOTSET,
+            bash_command=SET_DURING_EXECUTION,
             multiple_outputs=False,
             **kwargs,
         )
@@ -82,6 +83,9 @@ class _BashDecoratedOperator(DecoratedOperator, BashOperator):
 
         if not isinstance(self.bash_command, str) or self.bash_command.strip() == "":
             raise TypeError("The returned value from the TaskFlow callable must be a non-empty string.")
+
+        self._is_inline_cmd = self._is_inline_command(bash_command=self.bash_command)
+        context["ti"].render_templates()  # type: ignore[attr-defined]
 
         return super().execute(context)
 

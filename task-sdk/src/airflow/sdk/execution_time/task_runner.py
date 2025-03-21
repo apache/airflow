@@ -894,6 +894,16 @@ def finalize(
         log.debug("Setting xcom for operator extra link", link=link, xcom_key=xcom_key)
         _xcom_push(ti, key=xcom_key, value=link)
 
+    if getattr(ti.task, "overwrite_rtif_after_execution", False):
+        log.debug("Overwriting Rendered template fields.")
+        if ti.task.template_fields:
+            SUPERVISOR_COMMS.send_request(
+                log=log,
+                msg=SetRenderedFields(
+                    rendered_fields={field: getattr(ti.task, field) for field in ti.task.template_fields}
+                ),
+            )
+
     log.debug("Running finalizers", ti=ti)
     if state in [TerminalTIState.SUCCESS]:
         get_listener_manager().hook.on_task_instance_success(
