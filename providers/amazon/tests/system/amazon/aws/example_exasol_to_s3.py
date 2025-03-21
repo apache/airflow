@@ -22,9 +22,11 @@ This DAG uses the ExasolToS3Operator to execute a simple SQL query on Exasol and
 upload the result file to S3. It verifies that both the Exasol connection (`exasol_default`)
 and S3 credential settings (`aws_default`) are working correctly.
 """
+from __future__ import annotations
 
 from datetime import datetime
 
+from airflow.models.baseoperator import chain
 from airflow import DAG
 from airflow.providers.amazon.aws.operators.s3 import S3CreateBucketOperator, S3DeleteBucketOperator
 from airflow.providers.amazon.aws.transfers.exasol_to_s3 import ExasolToS3Operator
@@ -45,7 +47,6 @@ with DAG(
 
     test_context = sys_test_context_task()
     env_id = test_context["ENV_ID"]
-
     s3_bucket_name = f"{env_id}-bucket"
     s3_key = f"{env_id}/files/exasol-output.csv"
 
@@ -59,19 +60,10 @@ with DAG(
         task_id="exasol_to_s3",
         query_or_table="SELECT 1 AS val",
         key=s3_key,
-        bucket_name=s3_bucket_name,
-        exasol_conn_id="exasol_default",
-        aws_conn_id="aws_default",
-        export_params={},
-        query_params={},
-        use_s3=True,
-        replace=True,
-        encrypt=False,
-        gzip=False,
-        acl_policy="private",
+        bucket_name=s3_bucket_name
     )
     # [END howto_transfer_exasol_to_s3]
-
+    
     delete_s3_bucket = S3DeleteBucketOperator(
         task_id="delete_s3_bucket",
         bucket_name=s3_bucket_name,
@@ -79,10 +71,20 @@ with DAG(
         trigger_rule=TriggerRule.ALL_DONE,
     )
 
-    create_s3_bucket >> exasol_to_s3 >> delete_s3_bucket
+    chain(
+        # TEST SETUP
+        test_context,
+        create_s3_bucket,
+        # TEST BODY
+        exasol_to_s3,
+        # TEST TEARDOWN
+        delete_s3_bucket
+        )
 
+
+    # This test needs watcher in order to properly mark success/failure
+    # when "tearDown" task with trigger rule is part of the DAG
     from tests_common.test_utils.watcher import watcher
-
     list(dag.tasks) >> watcher()
 
 from tests_common.test_utils.system_tests import get_test_run
