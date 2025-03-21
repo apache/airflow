@@ -369,6 +369,8 @@ def _xcom_push(ti: RuntimeTaskInstance, key: str, value: Any, mapped_length: int
         dag_id=ti.dag_id,
         task_id=ti.task_id,
         run_id=ti.run_id,
+        map_index=ti.map_index,
+        _mapped_length=mapped_length,
     )
 
 
@@ -607,7 +609,7 @@ def run(
                 state = TerminalTIState.FAILED
                 return state, msg, error
 
-            result = _execute_task(context, ti)
+            result = _execute_task(context, ti, log)
 
         _push_xcom_if_needed(result, ti, log)
 
@@ -787,7 +789,7 @@ def _handle_trigger_dag_run(
     return msg, state
 
 
-def _execute_task(context: Context, ti: RuntimeTaskInstance):
+def _execute_task(context: Context, ti: RuntimeTaskInstance, log: Logger):
     """Execute Task (optionally with a Timeout) and push Xcom results."""
     from airflow.exceptions import AirflowTaskTimeout
 
@@ -804,6 +806,12 @@ def _execute_task(context: Context, ti: RuntimeTaskInstance):
     ctx = contextvars.copy_context()
     # Populate the context var so ExecutorSafeguard doesn't complain
     ctx.run(ExecutorSafeguard.tracker.set, task)
+
+    for i, callback in enumerate(task.on_execute_callback):
+        try:
+            callback(context)
+        except Exception:
+            log.exception("Failed to run on-execute callback", index=i, callback=callback)
 
     if task.execution_timeout:
         # TODO: handle timeout in case of deferral

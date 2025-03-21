@@ -1240,6 +1240,7 @@ repos:
         files: \.py$
         exclude: |
           (?x)^(
+            airflow-ctl|
             airflow/migrations|
             clients/python/test_.*\.py|
             dev|
@@ -1311,6 +1312,22 @@ repos:
         files: ^.*\.py$
         require_serial: true
         additional_dependencies: ['rich>=12.4.4']
+      - id: mypy-airflowctl
+        name: Run mypy for airflowctl
+        language: python
+        entry: ./scripts/ci/pre_commit/mypy.py
+        files: ^airflow-ctl/src/airflowctl/.*\.py$|^airflow-ctl/tests//.*\.py$
+        require_serial: true
+        additional_dependencies: ['rich>=12.4.4']
+      - id: mypy-airflowctl
+        stages: ['manual']
+        name: Run mypy for airflowctl (manual)
+        language: python
+        entry: ./scripts/ci/pre_commit/mypy_folder.py airflow-ctl/src/airflowctl
+        pass_filenames: false
+        files: ^.*\.py$
+        require_serial: true
+        additional_dependencies: ['rich>=12.4.4']
       - id: generate-openapi-spec
         name: Generate the FastAPI API spec
         language: python
@@ -1357,7 +1374,7 @@ repos:
       - id: generate-tasksdk-datamodels
         name: Generate Datamodels for TaskSDK client
         language: python
-        entry: uv run --active --group codegen --project apache-airflow-task-sdk --directory task-sdk -s dev/generate_models.py
+        entry: uv run -p 3.12 --no-progress --active --group codegen --project apache-airflow-task-sdk --directory task-sdk -s dev/generate_models.py
         pass_filenames: false
         files: ^airflow/api_fastapi/execution_api/.*\.py$
         require_serial: true

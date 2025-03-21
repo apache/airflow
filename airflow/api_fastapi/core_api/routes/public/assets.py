@@ -18,7 +18,7 @@
 from __future__ import annotations
 
 from datetime import datetime
-from typing import Annotated
+from typing import TYPE_CHECKING, Annotated
 
 from fastapi import Depends, HTTPException, Request, status
 from sqlalchemy import delete, select
@@ -26,6 +26,7 @@ from sqlalchemy.orm import joinedload, subqueryload
 
 from airflow.api_fastapi.common.db.common import SessionDep, paginated_select
 from airflow.api_fastapi.common.parameters import (
+    BaseParam,
     FilterParam,
     OptionalDateTimeQuery,
     QueryAssetAliasNamePatternSearch,
@@ -74,6 +75,9 @@ from airflow.utils import timezone
 from airflow.utils.state import DagRunState
 from airflow.utils.types import DagRunTriggeredByType, DagRunType
 
+if TYPE_CHECKING:
+    from sqlalchemy.sql import Select
+
 assets_router = AirflowRouter(tags=["Asset"])
 
 
@@ -97,6 +101,20 @@ def _generate_queued_event_where_clause(
     return where_clause
 
 
+class OnlyActiveFilter(BaseParam[bool]):
+    """Filter on asset activeness."""
+
+    def to_orm(self, select: Select) -> Select:
+        if self.value and self.skip_none:
+            return select.where(AssetModel.active.has())
+        return select
+
+    @classmethod
+    def depends(cls, only_active: bool = True) -> OnlyActiveFilter:
+        print("SET", only_active)
+        return cls().set_value(only_active)
+
+
 @assets_router.get(
     "/assets",
     responses=create_openapi_http_exception_doc([status.HTTP_404_NOT_FOUND]),
@@ -111,6 +129,7 @@ def get_assets(
     name_pattern: QueryAssetNamePatternSearch,
     uri_pattern: QueryUriPatternSearch,
     dag_ids: QueryAssetDagIdPatternSearch,
+    only_active: Annotated[OnlyActiveFilter, Depends(OnlyActiveFilter.depends)],
     order_by: Annotated[
         SortParam,
         Depends(SortParam(["id", "name", "uri", "created_at", "updated_at"], AssetModel).dynamic_depends()),
@@ -120,7 +139,7 @@ def get_assets(
     """Get assets."""
     assets_select, total_entries = paginated_select(
         statement=select(AssetModel),
-        filters=[name_pattern, uri_pattern, dag_ids],
+        filters=[only_active, name_pattern, uri_pattern, dag_ids],
         order_by=order_by,
         offset=offset,
         limit=limit,

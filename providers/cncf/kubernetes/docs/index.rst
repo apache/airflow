@@ -87,7 +87,7 @@ apache-airflow-providers-cncf-kubernetes package
 `Kubernetes <https://kubernetes.io/>`__
 
 
-Release: 10.3.1
+Release: 10.4.0b1
 
 Provider package
 ----------------

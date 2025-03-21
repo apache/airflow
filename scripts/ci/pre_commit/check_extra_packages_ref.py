@@ -59,7 +59,7 @@ for dependency in ALL_DYNAMIC_EXTRAS:
             suggestions_devel.append(
                 (
                     dependency,
-                    f"pip install -e '.[{dependency}]'",
+                    f"``pip install -e '.[{dependency}]'``",
                     f"Adds all test libraries needed to test {short_dep}",
                 )
             )
@@ -67,7 +67,7 @@ for dependency in ALL_DYNAMIC_EXTRAS:
             suggestions.append(
                 (
                     dependency,
-                    f"pip install apache-airflow[{dependency}]",
+                    f"``pip install apache-airflow[{dependency}]``",
                     f"{dependency.capitalize()} hooks and operators",
                 )
             )

@@ -22,6 +22,7 @@ from pathlib import Path
 
 import libcst as cst
 from datamodel_code_generator.format import CustomCodeFormatter
+from libcst.helpers import parse_template_statement
 
 
 def license_text() -> str:
@@ -52,6 +53,34 @@ class CodeFormatter(CustomCodeFormatter):
                 if original_node.name.value == "JsonValue":
                     return cst.RemoveFromParent()
                 return super().leave_ClassDef(original_node, updated_node)
+
+        class VersionConstInjtector(cst.CSTTransformer):
+            handled = False
+
+            def __init__(self, api_version: str) -> None:
+                self.api_version = api_version
+                super().__init__()
+
+            def leave_ImportFrom(
+                self, original_node: cst.ImportFrom, updated_node: cst.ImportFrom
+            ) -> cst.BaseSmallStatement | cst.FlattenSentinel[cst.BaseSmallStatement] | cst.RemovalSentinel:
+                # Ensure we have `from typing import Final`
+                if original_node.module and original_node.module.value == "typing":
+                    new_names = updated_node.names + (cst.ImportAlias(name=cst.Name("Final")),)  # type: ignore[operator]
+                    return updated_node.with_changes(names=new_names)
+                return super().leave_ImportFrom(original_node, updated_node)
+
+            def leave_ClassDef(self, original_node: cst.ClassDef, updated_node: cst.ClassDef):
+                if self.handled:
+                    return super().leave_ClassDef(original_node, updated_node)
+
+                self.handled = True
+
+                const = parse_template_statement(
+                    "API_VERSION: Final[str] = {api_version}",
+                    api_version=cst.SimpleString(f'"{self.api_version}"'),
+                )
+                return cst.FlattenSentinel([const, updated_node])
 
         # Remove Task class that represent a tuple of (task_id, map_index)
         # for `TISkippedDownstreamTasksStatePayload`
@@ -102,6 +131,8 @@ class CodeFormatter(CustomCodeFormatter):
 
         source_tree = cst.parse_module(code)
         modified_tree = source_tree.visit(JsonValueNodeRemover())
+        if api_version := self.formatter_kwargs.get("api_version"):
+            modified_tree = modified_tree.visit(VersionConstInjtector(api_version))
         modified_tree = modified_tree.visit(ModifyTasksAnnotation())
         code = modified_tree.code
 

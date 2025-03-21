@@ -91,6 +91,7 @@ dependencies = [
     # microsoft-kiota-abstractions 1.4.0 breaks MyPy static checks on main
     # see https://github.com/apache/airflow/issues/43036
     "microsoft-kiota-abstractions<1.4.0",
+    "msal-extensions>=1.1.0",
 ]
 
 # The optional dependencies should be modified in place in the generated file
@@ -119,7 +120,7 @@ dev = [
     "apache-airflow-providers-oracle",
     "apache-airflow-providers-sftp",
     # Additional devel dependencies (do not remove this line and add extra development dependencies)
-    "pywinrm>=0.4",
+    "pywinrm>=0.5.0",
 ]
 
 [tool.uv.sources]
