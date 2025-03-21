@@ -16,14 +16,16 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Box, Flex, IconButton } from "@chakra-ui/react";
+import { Box, ButtonGroup, Flex, IconButton } from "@chakra-ui/react";
 import dayjs from "dayjs";
 import dayjsDuration from "dayjs/plugin/duration";
 import { useMemo } from "react";
+import { BsArrowsCollapse, BsArrowsExpand } from "react-icons/bs";
 import { FiChevronsRight } from "react-icons/fi";
 import { Link, useParams } from "react-router-dom";
 
 import { useStructureServiceStructureData } from "openapi/queries";
+import type { NodeResponse } from "openapi/requests/types.gen";
 import { useOpenGroups } from "src/context/openGroups";
 import { useGrid } from "src/queries/useGrid";
 
@@ -36,7 +38,7 @@ import { flattenNodes, type RunWithDuration } from "./utils";
 dayjs.extend(dayjsDuration);
 
 export const Grid = () => {
-  const { openGroupIds } = useOpenGroups();
+  const { collapseAllGroups, expandAllGroups, openGroupIds } = useOpenGroups();
   const { dagId = "" } = useParams();
   const { data: structure } = useStructureServiceStructureData({
     dagId,
@@ -70,9 +72,41 @@ export const Grid = () => {
     [structure?.nodes, openGroupIds],
   );
 
+  // return all groupIds with children in the tree for expanding/collapsing functionality
+  const allGroupIds = useMemo(() => {
+    const traverse = (nodes: Array<NodeResponse>): Array<string> =>
+      nodes.flatMap((node) => (node.children ? [node.id, ...traverse(node.children)] : []));
+
+    return traverse(structure?.nodes ?? []);
+  }, [structure?.nodes]);
+
   return (
     <Flex justifyContent="flex-end" mr={3} position="relative" pt={50} width="100%">
       <Box position="absolute" top="150px" width="100%">
+        {allGroupIds.length > 0 && (
+          <ButtonGroup attached mb={1} size="xs" variant="solid">
+            <IconButton
+              aria-label="Expand Task Group"
+              colorPalette="blue"
+              disabled={allGroupIds.length === openGroupIds.length}
+              onClick={() => expandAllGroups(allGroupIds)}
+              title="Expand"
+              variant="outline"
+            >
+              <BsArrowsExpand />
+            </IconButton>
+            <IconButton
+              aria-label="Collapse Task Group"
+              colorPalette="blue"
+              disabled={openGroupIds.length === 0}
+              onClick={() => collapseAllGroups()}
+              title="Collapse"
+              variant="outline"
+            >
+              <BsArrowsCollapse />
+            </IconButton>
+          </ButtonGroup>
+        )}
         <TaskNames nodes={flatNodes} />
       </Box>
       <Box>
