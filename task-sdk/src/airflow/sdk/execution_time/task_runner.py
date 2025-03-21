@@ -76,6 +76,7 @@ from airflow.sdk.execution_time.context import (
     MacrosAccessor,
     OutletEventAccessors,
     VariableAccessor,
+    context_to_airflow_vars,
     get_previous_dagrun_success,
     set_current_context,
 )
@@ -806,6 +807,10 @@ def _execute_task(context: Context, ti: RuntimeTaskInstance, log: Logger):
     ctx = contextvars.copy_context()
     # Populate the context var so ExecutorSafeguard doesn't complain
     ctx.run(ExecutorSafeguard.tracker.set, task)
+
+    # Export context in os.environ to make it available for operators to use.
+    airflow_context_vars = context_to_airflow_vars(context, in_env_var_format=True)
+    os.environ.update(airflow_context_vars)
 
     for i, callback in enumerate(task.on_execute_callback):
         try:
