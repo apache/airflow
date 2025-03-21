@@ -22,11 +22,14 @@ Use the :class:`~airflow.providers.git.bundles.git.GitDagBundle` to configure a 
 ``[dag_processor] dag_bundle_config_list``.
 
 Example of using the GitDagBundle:
-  :code-block: bash
 
-  export AIRFLOW__DAG_PROCESSOR__DAG_BUNDLE_CONFIG_LIST='[
+**JSON format example**:
+
+.. code-block:: bash
+
+    export AIRFLOW__DAG_PROCESSOR__DAG_BUNDLE_CONFIG_LIST='[
      {
-          "name": "my-git-repo",
+         "name": "my-git-repo",
          "classpath": "airflow.providers.git.bundles.git.GitDagBundle",
          "kwargs": {
              "subdir": "dags",
@@ -34,4 +37,4 @@ Example of using the GitDagBundle:
              "refresh_interval": 3600
          }
      }
-  ]'
+    ]'

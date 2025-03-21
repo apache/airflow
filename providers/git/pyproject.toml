@@ -25,7 +25,7 @@ build-backend = "flit_core.buildapi"
 
 [project]
 name = "apache-airflow-providers-git"
-version = "1.0.0"
+version = "0.0.1"
 description = "Provider package apache-airflow-providers-git for Apache Airflow"
 readme = "README.rst"
 authors = [
@@ -80,12 +80,12 @@ apache-airflow-providers-fab = {workspace = true}
 apache-airflow-providers-standard = {workspace = true}
 
 [project.urls]
-"Documentation" = "https://airflow.apache.org/docs/apache-airflow-providers-git/1.0.0"
-"Changelog" = "https://airflow.apache.org/docs/apache-airflow-providers-git/1.0.0/changelog.html"
+"Documentation" = "https://airflow.apache.org/docs/apache-airflow-providers-git/0.0.1"
+"Changelog" = "https://airflow.apache.org/docs/apache-airflow-providers-git/0.0.1/changelog.html"
 "Bug Tracker" = "https://github.com/apache/airflow/issues"
 "Source Code" = "https://github.com/apache/airflow"
 "Slack Chat" = "https://s.apache.org/airflow-slack"
-"Twitter" = "https://x.com/ApacheAirflow"
+"Mastodon" = "https://fosstodon.org/@airflow"
 "YouTube" = "https://www.youtube.com/channel/UCSXwxpWZQ7XZ1WL3wqevChA/"
 
 [project.entry-points."apache_airflow_provider"]
