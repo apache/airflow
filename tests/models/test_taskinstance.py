@@ -84,6 +84,7 @@ from airflow.operators.empty import EmptyOperator
 from airflow.operators.python import BranchPythonOperator, PythonOperator
 from airflow.sensors.base import BaseSensorOperator
 from airflow.sensors.python import PythonSensor
+from airflow.serialization.pydantic.taskinstance import TaskInstancePydantic
 from airflow.serialization.serialized_objects import SerializedBaseOperator, SerializedDAG
 from airflow.settings import TIMEZONE, TracebackSessionForTests, reconfigure_orm
 from airflow.stats import Stats
@@ -5419,6 +5420,70 @@ def test_taskinstance_with_note(create_task_instance, session):
 
     assert session.query(TaskInstance).filter_by(**filter_kwargs).one_or_none() is None
     assert session.query(TaskInstanceNote).filter_by(**filter_kwargs).one_or_none() is None
+
+
+def test_taskinstance_with_note_pydantic(create_task_instance, session):
+    ti = create_task_instance(
+        dag_id="dag_for_testing_with_note_pydantic",
+        task_id="task_for_testing_with_note_pydantic",
+        run_type=DagRunType.SCHEDULED,
+        execution_date=DEFAULT_DATE,
+    )
+
+    ti_pydantic = TaskInstancePydantic(
+        task_id=ti.task_id,
+        dag_id=ti.dag_id,
+        run_id=ti.run_id,
+        map_index=ti.map_index,
+        start_date=ti.start_date,
+        end_date=ti.end_date,
+        execution_date=ti.execution_date,
+        duration=0.1,
+        state="success",
+        try_number=ti.try_number,
+        max_tries=ti.max_tries,
+        hostname="host",
+        unixname="unix",
+        job_id=ti.job_id,
+        pool=ti.pool,
+        pool_slots=ti.pool_slots,
+        queue=ti.queue,
+        priority_weight=ti.priority_weight,
+        operator=ti.operator,
+        custom_operator_name=ti.custom_operator_name,
+        queued_dttm=timezone.utcnow(),
+        queued_by_job_id=3,
+        pid=12345,
+        executor=ti.executor,
+        executor_config=None,
+        updated_at=timezone.utcnow(),
+        rendered_map_index=ti.rendered_map_index,
+        external_executor_id="x",
+        trigger_id=ti.trigger_id,
+        trigger_timeout=timezone.utcnow(),
+        next_method="bla",
+        next_kwargs=None,
+        run_as_user=None,
+        task=ti.task,
+        test_mode=False,
+        dag_run=ti.dag_run,
+        dag_model=ti.dag_model,
+        raw=False,
+        is_trigger_log_context=False,
+        note="ti with note",
+    )
+
+    TaskInstance.save_to_db(ti_pydantic, session)
+
+    filter_kwargs = dict(
+        dag_id=ti_pydantic.dag_id,
+        task_id=ti_pydantic.task_id,
+        run_id=ti_pydantic.run_id,
+        map_index=ti_pydantic.map_index,
+    )
+
+    ti_note: TaskInstanceNote = session.query(TaskInstanceNote).filter_by(**filter_kwargs).one()
+    assert ti_note.content == "ti with note"
 
 
 def test__refresh_from_db_should_not_increment_try_number(dag_maker, session):
