@@ -664,6 +664,17 @@ server_tls_key_file = /etc/pgbouncer/server.key
   {{- include "_serviceAccountName" (merge (dict "key" "triggerer") .) -}}
 {{- end }}
 
+{{/* Set the triggerer capacity to use */}}
+{{- define "triggerer.capacity" -}}
+  {{- $capacity := .Values.config.triggerer.capacity | default 0 | int -}}
+  {{- $defaultCapacity := .Values.config.triggerer.default_capacity | default 1000 -}}
+  {{- if gt $capacity 0 -}}
+    {{- $capacity -}}
+  {{- else -}}
+    {{- $defaultCapacity -}}
+  {{- end -}}
+{{- end -}}
+
 {{/* Create the name of the dag processor service account to use */}}
 {{- define "dagProcessor.serviceAccountName" -}}
   {{- include "_serviceAccountName" (merge (dict "key" "dagProcessor" "nameSuffix" "dag-processor") .) -}}

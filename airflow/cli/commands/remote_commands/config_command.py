@@ -499,6 +499,11 @@ CONFIGS_CHANGES = [
     ConfigChange(
         config=ConfigParameter("database", "load_default_connections"),
     ),
+    # triggerer
+    ConfigChange(
+        config=ConfigParameter("triggerer", "default_capacity"),
+        renamed_to=ConfigParameter("triggerer", "capacity"),
+    ),
 ]
 
 
