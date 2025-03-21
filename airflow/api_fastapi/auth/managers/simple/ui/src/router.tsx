@@ -19,19 +19,19 @@
 import { createBrowserRouter } from "react-router-dom";
 import { Login } from "src/login/Login";
 
-export const router = createBrowserRouter(
-  [
-    {
-      children: [
-        {
-          element: <Login />,
-          path: "login",
-        },
-      ],
-      path: "/",
-    },
-  ],
+export const routerConfig = [
   {
-    basename: "/auth",
+    children: [
+      {
+        element: <Login />,
+        path: "login",
+      },
+    ],
+    path: "/",
   },
-);
+];
+const baseUrl =
+  document.querySelector("base")?.href ?? "http://localhost:8080/";
+const basename = new URL(`${baseUrl}auth`).pathname;
+
+export const router = createBrowserRouter(routerConfig, { basename });
