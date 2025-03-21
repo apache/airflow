@@ -345,7 +345,7 @@ def prepare_airflow_tarball(version: str):
     airflow_version = Version(version)
     if not airflow_version.is_prerelease:
         exit("--version value must be a pre-release")
-    source_date_epoch = get_source_date_epoch(AIRFLOW_ROOT_PATH / "airflow")
+    source_date_epoch = get_source_date_epoch(AIRFLOW_ROOT_PATH)
     version_without_rc = airflow_version.base_version
     # Create the tarball
     tarball_release(
@@ -405,7 +405,7 @@ def publish_release_candidate(version, previous_version, github_token):
     # # Tag & clean the repo
     git_tag(version)
     git_clean()
-    source_date_epoch = get_source_date_epoch(AIRFLOW_ROOT_PATH / "airflow")
+    source_date_epoch = get_source_date_epoch(AIRFLOW_ROOT_PATH)
     shutil.rmtree(AIRFLOW_DIST_PATH, ignore_errors=True)
     # Create the artifacts
     if confirm_action("Use docker to create artifacts?"):
