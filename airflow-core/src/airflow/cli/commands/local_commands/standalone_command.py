@@ -193,13 +193,14 @@ class StandaloneCommand:
         return env
 
     def find_user_info(self):
+        if conf.get("core", "simple_auth_manager_all_admins").lower() == "true":
+            # If we have no auth anyways, no need to print or do anything
+            return
         if conf.get("core", "simple_auth_manager_users") != "admin:admin":
             self.print_output(
                 "standalone",
                 "Not outputting user passwords - `[core] simple_auth_manager_users` is already set.",
             )
-            return
-        if conf.get("core", "simple_auth_manager_all_admins").lower() == "true":
             return
 
         am = create_auth_manager()
