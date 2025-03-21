@@ -24,7 +24,7 @@ import { createDagSortOptions } from "src/constants/sortParams";
 
 type Props = {
   readonly handleSortChange: ({ value }: SelectValueChangeDetails<Array<string>>) => void;
-  readonly orderBy?: string;
+  readonly orderBy?: string[];
 };
 
 export const SortSelect = ({ handleSortChange, orderBy }: Props) => {

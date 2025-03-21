@@ -2931,8 +2931,6 @@ paths:
           type: array
           items:
             type: string
-          default:
-          - dag_id
           title: Order By
       - name: is_favorite
         in: query
