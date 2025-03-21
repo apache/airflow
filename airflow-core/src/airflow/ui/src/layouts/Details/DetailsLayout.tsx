@@ -32,7 +32,7 @@ import { SearchDagsButton } from "src/components/SearchDags";
 import { StateBadge } from "src/components/StateBadge";
 import TriggerDAGButton from "src/components/TriggerDag/TriggerDAGButton";
 import { WarningAlert } from "src/components/WarningAlert";
-import { Accordion, Button, ProgressBar } from "src/components/ui";
+import { Accordion, ProgressBar } from "src/components/ui";
 import { Toaster } from "src/components/ui";
 import { OpenGroupsProvider } from "src/context/openGroups";
 
@@ -97,12 +97,21 @@ export const DetailsLayout = ({ children, error, isLoading, tabs }: Props) => {
             <Box display="flex" flexDirection="column" h="100%">
               {children}
               {(Boolean(error) || (warningData?.dag_warnings.length ?? 0) > 0) && (
-                <Accordion.Root collapsible mb={4} mt={4} size="lg" variant="outline">
+                <Accordion.Root
+                  collapsible
+                  height="full"
+                  maxH="fit-content"
+                  mb={4}
+                  mt={4}
+                  overflow="auto"
+                  size="lg"
+                  variant="outline"
+                >
                   <Accordion.Item key="dagIssues" mx={2} value="dagIssues">
                     <Accordion.ItemTrigger cursor="button">
                       <Flex gap="0.5rem">
-                        <StateBadge as={Button} colorPalette="failed" height={7} title="Dag Issues">
-                          <LuFileWarning size="0.5rem" />
+                        <StateBadge colorPalette="failed" height={7} title="Dag Issues">
+                          <LuFileWarning size="1.25rem" />
                         </StateBadge>
                         <p>Issues</p>
                       </Flex>
