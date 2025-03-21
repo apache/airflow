@@ -899,6 +899,11 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
     # Defines if the operator supports lineage without manual definitions
     supports_lineage: bool = False
 
+    # If True, the Rendered Template fields will be overwritten in DB after execution
+    # This is useful for Taskflow decorators that modify the template fields during execution like
+    # @task.bash decorator.
+    overwrite_rtif_after_execution: bool = False
+
     # If True then the class constructor was called
     __instantiated: bool = False
     # List of args as passed to `init()`, after apply_defaults() has been updated. Used to "recreate" the task
