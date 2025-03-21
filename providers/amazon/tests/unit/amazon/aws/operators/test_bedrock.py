@@ -36,6 +36,7 @@ from airflow.providers.amazon.aws.operators.bedrock import (
     BedrockInvokeModelOperator,
     BedrockRaGOperator,
 )
+
 from unit.amazon.aws.utils.test_template_fields import validate_template_fields
 
 if TYPE_CHECKING:

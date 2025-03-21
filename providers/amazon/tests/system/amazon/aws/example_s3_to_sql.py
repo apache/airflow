@@ -39,8 +39,8 @@ from airflow.providers.amazon.aws.sensors.redshift_cluster import RedshiftCluste
 from airflow.providers.amazon.aws.transfers.s3_to_sql import S3ToSqlOperator
 from airflow.providers.common.sql.operators.sql import SQLTableCheckOperator
 from airflow.utils.trigger_rule import TriggerRule
-from system.amazon.aws.utils import ENV_ID_KEY, SystemTestContextBuilder
 
+from system.amazon.aws.utils import ENV_ID_KEY, SystemTestContextBuilder
 from tests_common.test_utils.watcher import watcher
 
 # Externally fetched variables:

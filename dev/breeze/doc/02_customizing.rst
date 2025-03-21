@@ -57,7 +57,7 @@ will be evaluated at entering the environment.
 The ``files`` folder from your local sources is automatically mounted to the container under
 ``/files`` path and you can put there any files you want to make available for the Breeze container.
 
-You can also copy any .whl or ``sdist`` packages to dist and when you pass ``--use-packages-from-dist`` flag
+You can also copy any .whl or ``sdist`` packages to dist and when you pass ``--use-distributions-from-dist`` flag
 as ``wheel`` or ``sdist`` line parameter, breeze will automatically install the packages found there
 when you enter Breeze.
 

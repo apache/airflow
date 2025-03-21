@@ -53,6 +53,7 @@ from airflow.providers.amazon.aws.sensors.sagemaker import (
 )
 from airflow.providers.standard.operators.python import get_current_context
 from airflow.utils.trigger_rule import TriggerRule
+
 from system.amazon.aws.utils import ENV_ID_KEY, SystemTestContextBuilder, prune_logs
 
 logger = logging.getLogger(__name__)

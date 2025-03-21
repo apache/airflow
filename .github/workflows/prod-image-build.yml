@@ -92,8 +92,8 @@ on:  # yamllint disable-line rule:truthy
         description: "Branch used to construct constraints URL from."
         required: true
         type: string
-      build-provider-packages:
-        description: "Whether to build provider packages (true/false). If false providers are from PyPI"
+      build-provider-distributions:
+        description: "Whether to build provider distributions (true/false). If false providers are from PyPI"
         required: true
         type: string
       upgrade-to-newer-dependencies:
@@ -120,7 +120,7 @@ permissions:
   contents: read
 jobs:
   build-prod-packages:
-    name: "Build Airflow and provider packages"
+    name: "Build Airflow and provider distributions"
     timeout-minutes: 10
     runs-on: ${{ fromJSON(inputs.runs-on-as-json-public) }}
     if: inputs.prod-image-build == 'true'
@@ -151,31 +151,31 @@ jobs:
       - name: "Prepare providers packages"
         shell: bash
         run: >
-          breeze release-management prepare-provider-packages
-          --package-list-file ./prod_image_installed_providers.txt
-          --package-format wheel --include-not-ready-providers
+          breeze release-management prepare-provider-distributions
+          --distributions-list-file ./prod_image_installed_providers.txt
+          --distribution-format wheel --include-not-ready-providers
         if: >
           inputs.upload-package-artifact == 'true' &&
-          inputs.build-provider-packages == 'true'
-      - name: "Prepare chicken-eggs provider packages"
+          inputs.build-provider-distributions == 'true'
+      - name: "Prepare chicken-eggs provider distributions"
         shell: bash
         env:
           CHICKEN_EGG_PROVIDERS: ${{ inputs.chicken-egg-providers }}
         run: >
-          breeze release-management prepare-provider-packages
-          --package-format wheel ${CHICKEN_EGG_PROVIDERS}
+          breeze release-management prepare-provider-distributions
+          --distribution-format wheel ${CHICKEN_EGG_PROVIDERS}
         if: >
           inputs.upload-package-artifact == 'true' &&
           inputs.chicken-egg-providers != ''
       - name: "Prepare airflow package"
         shell: bash
         run: >
-          breeze release-management prepare-airflow-package --package-format wheel
+          breeze release-management prepare-airflow-distributions --distribution-format wheel
         if: inputs.upload-package-artifact == 'true'
       - name: "Prepare task-sdk package"
         shell: bash
         run: >
-          breeze release-management prepare-task-sdk-package --package-format wheel
+          breeze release-management prepare-task-sdk-distributions --distribution-format wheel
         if: inputs.upload-package-artifact == 'true'
       - name: "Upload prepared packages as artifacts"
         uses: actions/upload-artifact@v4
@@ -251,9 +251,9 @@ jobs:
           breeze prod-image build
           --builder airflow_cache
           --commit-sha "${{ github.sha }}"
-          --install-packages-from-context
+          --install-distributions-from-context
           --airflow-constraints-mode constraints-source-providers
-          --use-constraints-for-context-packages
+          --use-constraints-for-context-distributions
         env:
           PUSH: ${{ inputs.push-image }}
           DOCKER_CACHE: ${{ inputs.docker-cache }}
@@ -262,16 +262,16 @@ jobs:
           INSTALL_MYSQL_CLIENT_TYPE: ${{ inputs.install-mysql-client-type }}
           UPGRADE_TO_NEWER_DEPENDENCIES: ${{ inputs.upgrade-to-newer-dependencies }}
           INCLUDE_NOT_READY_PROVIDERS: "true"
-        if: inputs.build-provider-packages == 'true'
+        if: inputs.build-provider-distributions == 'true'
       - name: "Build PROD images with PyPi providers ${{ env.PYTHON_MAJOR_MINOR_VERSION }}"
         shell: bash
         run: >
           breeze prod-image build
           --builder airflow_cache
           --commit-sha "${{ github.sha }}"
-          --install-packages-from-context
+          --install-distributions-from-context
           --airflow-constraints-mode constraints
-          --use-constraints-for-context-packages
+          --use-constraints-for-context-distributions
         env:
           PUSH: ${{ inputs.push-image }}
           DOCKER_CACHE: ${{ inputs.docker-cache }}
@@ -280,7 +280,7 @@ jobs:
           INSTALL_MYSQL_CLIENT_TYPE: ${{ inputs.install-mysql-client-type }}
           UPGRADE_TO_NEWER_DEPENDENCIES: ${{ inputs.upgrade-to-newer-dependencies }}
           INCLUDE_NOT_READY_PROVIDERS: "true"
-        if: inputs.build-provider-packages != 'true'
+        if: inputs.build-provider-distributions != 'true'
       - name: "Verify PROD image ${{ env.PYTHON_MAJOR_MINOR_VERSION }}"
         run: breeze prod-image verify
       - name: "Export PROD docker image ${{ env.PYTHON_MAJOR_MINOR_VERSION }}"

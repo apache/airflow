@@ -203,11 +203,11 @@ pip install "https://github.com/apache/airflow/archive/<tag>.tar.gz#egg=apache-a
 ```
 
 You can also skip installing airflow and install it from locally
-provided files by using `--install-packages-from-context` parameter to
+provided files by using `--install-distributions-from-context` parameter to
 Breeze:
 
 ``` bash
-breeze prod-image build --python 3.9 --additional-airflow-extras=trino --install-packages-from-context
+breeze prod-image build --python 3.9 --additional-airflow-extras=trino --install-distributions-from-context
 ```
 
 In this case you airflow and all packages (.whl files) should be placed

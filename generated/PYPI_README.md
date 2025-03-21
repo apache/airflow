@@ -91,7 +91,7 @@ through a more complete [tutorial](https://airflow.apache.org/docs/apache-airflo
 For more information on Airflow Improvement Proposals (AIPs), visit
 the [Airflow Wiki](https://cwiki.apache.org/confluence/display/AIRFLOW/Airflow+Improvement+Proposals).
 
-Documentation for dependent projects like provider packages, Docker image, Helm Chart, you'll find it in [the documentation index](https://airflow.apache.org/docs/).
+Documentation for dependent projects like provider distributions, Docker image, Helm Chart, you'll find it in [the documentation index](https://airflow.apache.org/docs/).
 
 ## Installing from PyPI
 
@@ -139,7 +139,7 @@ pip install 'apache-airflow[postgres,google]==2.10.5' \
  --constraint "https://raw.githubusercontent.com/apache/airflow/constraints-2.10.5/constraints-3.9.txt"
 ```
 
-For information on installing provider packages, check
+For information on installing provider distributions, check
 [providers](http://airflow.apache.org/docs/apache-airflow-providers/index.html).
 
 ## Official source code

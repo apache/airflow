@@ -138,7 +138,7 @@ To utilize this functionality, create a Kubernetes V1pod object and fill in your
 To overwrite the base container of the pod launched by the KubernetesExecutor,
 create a V1pod with a single container, and overwrite the fields as follows:
 
-.. exampleinclude:: /../../airflow/example_dags/example_kubernetes_executor.py
+.. exampleinclude:: /../../airflow-core/src/airflow/example_dags/example_kubernetes_executor.py
     :language: python
     :start-after: [START task_with_volume]
     :end-before: [END task_with_volume]
@@ -148,7 +148,7 @@ Note that the following fields **will all be extended** instead of overwritten. 
 To add a sidecar container to the launched pod, create a V1pod with an empty first container with the
 name ``base`` and a second container containing your desired sidecar.
 
-.. exampleinclude:: /../../airflow/example_dags/example_kubernetes_executor.py
+.. exampleinclude:: /../../airflow-core/src/airflow/example_dags/example_kubernetes_executor.py
     :language: python
     :start-after: [START task_with_sidecar]
     :end-before: [END task_with_sidecar]

@@ -103,8 +103,6 @@ dependencies = [
     "pdbr>=0.8.9",
 ]
 
-
-
 [tool.ruff]
 extend = "../pyproject.toml"
 src = ["src"]

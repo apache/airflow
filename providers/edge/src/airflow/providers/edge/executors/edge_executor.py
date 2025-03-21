@@ -66,7 +66,7 @@ class EdgeExecutor(BaseExecutor):
         """
         Check if already existing table matches the newest table schema.
 
-        workaround till Airflow 3.0.0, then it is possible to use alembic also for provider packages.
+        workaround till Airflow 3.0.0, then it is possible to use alembic also for provider distributions.
         """
         inspector = inspect(engine)
         edge_job_columns = None
