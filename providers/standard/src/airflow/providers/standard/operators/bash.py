@@ -27,9 +27,14 @@ from typing import TYPE_CHECKING, Any, Callable, cast
 from airflow.exceptions import AirflowException, AirflowSkipException
 from airflow.models.baseoperator import BaseOperator
 from airflow.providers.standard.hooks.subprocess import SubprocessHook, SubprocessResult, working_directory
-from airflow.utils.operator_helpers import context_to_airflow_vars
+from airflow.providers.standard.version_compat import AIRFLOW_V_3_0_PLUS
 from airflow.utils.session import NEW_SESSION, provide_session
 from airflow.utils.types import ArgNotSet
+
+if AIRFLOW_V_3_0_PLUS:
+    from airflow.sdk.execution_time.context import context_to_airflow_vars
+else:
+    from airflow.utils.operator_helpers import context_to_airflow_vars  # type: ignore[no-redef, attr-defined]
 
 if TYPE_CHECKING:
     from sqlalchemy.orm import Session as SASession
