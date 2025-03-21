@@ -29,10 +29,11 @@ import pytest
 from airflow.decorators import task
 from airflow.exceptions import AirflowException, AirflowSkipException
 from airflow.models.renderedtifields import RenderedTaskInstanceFields
+from airflow.sdk.definitions._internal.types import SET_DURING_EXECUTION
 from airflow.utils import timezone
-from airflow.utils.types import NOTSET
 
 from tests_common.test_utils.db import clear_db_dags, clear_db_runs, clear_rendered_ti_fields
+from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS
 
 if TYPE_CHECKING:
     from airflow.models import TaskInstance
@@ -69,7 +70,10 @@ class TestBashDecorator:
 
     @staticmethod
     def validate_bash_command_rtif(ti, expected_command):
-        assert RenderedTaskInstanceFields.get_templated_fields(ti)["bash_command"] == expected_command
+        if AIRFLOW_V_3_0_PLUS:
+            assert ti.task.overwrite_rtif_after_execution
+        else:
+            assert RenderedTaskInstanceFields.get_templated_fields(ti)["bash_command"] == expected_command
 
     def test_bash_decorator_init(self):
         """Test the initialization of the @task.bash decorator."""
@@ -81,13 +85,13 @@ class TestBashDecorator:
             bash_task = bash()
 
         assert bash_task.operator.task_id == "bash"
-        assert bash_task.operator.bash_command == NOTSET
+        assert bash_task.operator.bash_command == SET_DURING_EXECUTION
         assert bash_task.operator.env is None
         assert bash_task.operator.append_env is False
         assert bash_task.operator.output_encoding == "utf-8"
         assert bash_task.operator.skip_on_exit_code == [99]
         assert bash_task.operator.cwd is None
-        assert bash_task.operator._init_bash_command_not_set is True
+        assert bash_task.operator._is_inline_cmd is None
 
     @pytest.mark.parametrize(
         argnames=["command", "expected_command", "expected_return_val"],
@@ -108,13 +112,12 @@ class TestBashDecorator:
 
             bash_task = bash()
 
-        assert bash_task.operator.bash_command == NOTSET
+        assert bash_task.operator.bash_command == SET_DURING_EXECUTION
 
         ti, return_val = self.execute_task(bash_task)
 
         assert bash_task.operator.bash_command == expected_command
         assert return_val == expected_return_val
-
         self.validate_bash_command_rtif(ti, expected_command)
 
     def test_op_args_kwargs(self):
@@ -127,7 +130,7 @@ class TestBashDecorator:
 
             bash_task = bash("world", other_id="2")
 
-        assert bash_task.operator.bash_command == NOTSET
+        assert bash_task.operator.bash_command == SET_DURING_EXECUTION
 
         ti, return_val = self.execute_task(bash_task)
 
@@ -152,7 +155,7 @@ class TestBashDecorator:
 
             bash_task = bash("foo")
 
-        assert bash_task.operator.bash_command == NOTSET
+        assert bash_task.operator.bash_command == SET_DURING_EXECUTION
 
         ti, return_val = self.execute_task(bash_task)
 
@@ -178,7 +181,7 @@ class TestBashDecorator:
 
             bash_task = bash()
 
-        assert bash_task.operator.bash_command == NOTSET
+        assert bash_task.operator.bash_command == SET_DURING_EXECUTION
 
         with mock.patch.dict("os.environ", {"AIRFLOW_HOME": "path/to/airflow/home"}):
             ti, return_val = self.execute_task(bash_task)
@@ -207,7 +210,7 @@ class TestBashDecorator:
 
             bash_task = bash(exit_code)
 
-        assert bash_task.operator.bash_command == NOTSET
+        assert bash_task.operator.bash_command == SET_DURING_EXECUTION
 
         with expected:
             ti, return_val = self.execute_task(bash_task)
@@ -251,7 +254,7 @@ class TestBashDecorator:
 
             bash_task = bash(exit_code)
 
-        assert bash_task.operator.bash_command == NOTSET
+        assert bash_task.operator.bash_command == SET_DURING_EXECUTION
 
         with expected:
             ti, return_val = self.execute_task(bash_task)
@@ -297,7 +300,7 @@ class TestBashDecorator:
             with mock.patch.dict("os.environ", {"AIRFLOW_HOME": "path/to/airflow/home"}):
                 bash_task = bash(f"{cmd_file} ")
 
-                assert bash_task.operator.bash_command == NOTSET
+                assert bash_task.operator.bash_command == SET_DURING_EXECUTION
 
                 ti, return_val = self.execute_task(bash_task)
 
@@ -319,7 +322,7 @@ class TestBashDecorator:
 
             bash_task = bash()
 
-        assert bash_task.operator.bash_command == NOTSET
+        assert bash_task.operator.bash_command == SET_DURING_EXECUTION
 
         ti, return_val = self.execute_task(bash_task)
 
@@ -339,7 +342,7 @@ class TestBashDecorator:
 
             bash_task = bash()
 
-        assert bash_task.operator.bash_command == NOTSET
+        assert bash_task.operator.bash_command == SET_DURING_EXECUTION
 
         dr = self.dag_maker.create_dagrun()
         ti = dr.task_instances[0]
@@ -360,7 +363,7 @@ class TestBashDecorator:
 
             bash_task = bash()
 
-        assert bash_task.operator.bash_command == NOTSET
+        assert bash_task.operator.bash_command == SET_DURING_EXECUTION
 
         dr = self.dag_maker.create_dagrun()
         ti = dr.task_instances[0]
@@ -378,7 +381,7 @@ class TestBashDecorator:
 
             bash_task = bash()
 
-        assert bash_task.operator.bash_command == NOTSET
+        assert bash_task.operator.bash_command == SET_DURING_EXECUTION
 
         dr = self.dag_maker.create_dagrun()
         ti = dr.task_instances[0]
@@ -401,7 +404,7 @@ class TestBashDecorator:
             ):
                 bash_task = bash()
 
-                assert bash_task.operator.bash_command == NOTSET
+                assert bash_task.operator.bash_command == SET_DURING_EXECUTION
 
                 ti, _ = self.execute_task(bash_task)
 
@@ -409,12 +412,13 @@ class TestBashDecorator:
         self.validate_bash_command_rtif(ti, "echo")
 
     @pytest.mark.parametrize(
-        "multiple_outputs", [False, pytest.param(None, id="none"), pytest.param(NOTSET, id="not-set")]
+        "multiple_outputs",
+        [False, pytest.param(None, id="none"), pytest.param(SET_DURING_EXECUTION, id="not-set")],
     )
     def test_multiple_outputs(self, multiple_outputs):
         """Verify setting `multiple_outputs` for a @task.bash-decorated function is ignored."""
         decorator_kwargs = {}
-        if multiple_outputs is not NOTSET:
+        if multiple_outputs is not SET_DURING_EXECUTION:
             decorator_kwargs["multiple_outputs"] = multiple_outputs
 
         with self.dag:
@@ -428,7 +432,7 @@ class TestBashDecorator:
 
                 bash_task = bash()
 
-                assert bash_task.operator.bash_command == NOTSET
+                assert bash_task.operator.bash_command == SET_DURING_EXECUTION
 
                 ti, _ = self.execute_task(bash_task)
 
@@ -440,7 +444,9 @@ class TestBashDecorator:
         argvalues=[
             pytest.param(None, pytest.raises(TypeError), id="return_none_typeerror"),
             pytest.param(1, pytest.raises(TypeError), id="return_int_typeerror"),
-            pytest.param(NOTSET, pytest.raises(TypeError), id="return_notset_typeerror"),
+            pytest.param(
+                SET_DURING_EXECUTION, pytest.raises(TypeError), id="return_SET_DURING_EXECUTION_typeerror"
+            ),
             pytest.param(True, pytest.raises(TypeError), id="return_boolean_typeerror"),
             pytest.param("", pytest.raises(TypeError), id="return_empty_string_typerror"),
             pytest.param("  ", pytest.raises(TypeError), id="return_spaces_string_typerror"),
@@ -458,7 +464,7 @@ class TestBashDecorator:
 
             bash_task = bash()
 
-        assert bash_task.operator.bash_command == NOTSET
+        assert bash_task.operator.bash_command == SET_DURING_EXECUTION
 
         with expected:
             ti, _ = self.execute_task(bash_task)
@@ -475,7 +481,7 @@ class TestBashDecorator:
 
             bash_task = bash()
 
-        assert bash_task.operator.bash_command == NOTSET
+        assert bash_task.operator.bash_command == SET_DURING_EXECUTION
 
         dr = self.dag_maker.create_dagrun()
         ti = dr.task_instances[0]

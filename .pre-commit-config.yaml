@@ -1356,7 +1356,7 @@ repos:
         name: Check templated fields mapped in operators/sensors
         language: python
         entry: ./scripts/ci/pre_commit/check_template_fields.py
-        files: ^(providers/.*/)?airflow/.*/(sensors|operators)/.*\.py$
+        files: ^(providers/.*/)?airflow-core/.*/(sensors|operators)/.*\.py$
         additional_dependencies: [ 'rich>=12.4.4' ]
         require_serial: true
       - id: update-migration-references
