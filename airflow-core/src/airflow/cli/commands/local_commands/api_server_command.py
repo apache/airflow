@@ -64,7 +64,7 @@ def api_server(args):
         run_args = [
             "fastapi",
             "dev",
-            "airflow/api_fastapi/main.py",
+            "airflow-core/src/airflow/api_fastapi/main.py",
             "--port",
             str(args.port),
             "--host",

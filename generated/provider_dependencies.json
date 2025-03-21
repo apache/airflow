@@ -179,6 +179,7 @@
     ],
     "cross-providers-deps": [
       "amazon",
+      "common.compat",
       "common.sql",
       "microsoft.mssql",
       "mysql",

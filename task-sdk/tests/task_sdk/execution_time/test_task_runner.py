@@ -923,6 +923,31 @@ def test_run_with_inlets_and_outlets(
     mock_supervisor_comms.send_request.assert_any_call(msg=last_expected_msg, log=mock.ANY)
 
 
+@mock.patch("airflow.sdk.execution_time.task_runner.context_to_airflow_vars")
+@mock.patch.dict(os.environ, {}, clear=True)
+def test_execute_task_exports_env_vars(
+    mock_context_to_airflow_vars, create_runtime_ti, mock_supervisor_comms
+):
+    """Test that _execute_task exports airflow context to environment variables."""
+
+    def test_function():
+        return "test function"
+
+    task = PythonOperator(
+        task_id="test_task",
+        python_callable=test_function,
+    )
+
+    ti = create_runtime_ti(task=task, dag_id="dag_with_env_vars")
+
+    mock_env_vars = {"AIRFLOW_CTX_DAG_ID": "test_dag_env_vars", "AIRFLOW_CTX_TASK_ID": "test_env_task"}
+    mock_context_to_airflow_vars.return_value = mock_env_vars
+    run(ti, log=mock.MagicMock())
+
+    assert os.environ["AIRFLOW_CTX_DAG_ID"] == "test_dag_env_vars"
+    assert os.environ["AIRFLOW_CTX_TASK_ID"] == "test_env_task"
+
+
 class TestRuntimeTaskInstance:
     def test_get_context_without_ti_context_from_server(self, mocked_parse, make_ti_context):
         """Test get_template_context without ti_context_from_server."""
