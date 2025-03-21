@@ -33,6 +33,7 @@ from airflow.utils import timezone
 from airflow.utils.types import NOTSET
 
 from tests_common.test_utils.db import clear_db_dags, clear_db_runs, clear_rendered_ti_fields
+from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS
 
 if TYPE_CHECKING:
     from airflow.models import TaskInstance
@@ -99,7 +100,7 @@ class TestBashDecorator:
             ),
         ],
     )
-    def test_bash_command(self, command, expected_command, expected_return_val):
+    def test_bash_command(self, command, expected_command, expected_return_val, mock_supervisor_comms):
         """Test the runtime bash_command is the function's return string, rendered if needed."""
 
         with self.dag:
@@ -117,7 +118,23 @@ class TestBashDecorator:
         assert bash_task.operator.bash_command == expected_command
         assert return_val == expected_return_val
 
-        self.validate_bash_command_rtif(ti, expected_command)
+        if AIRFLOW_V_3_0_PLUS:
+            from airflow.sdk.execution_time.comms import SetRenderedFields
+
+            mock_supervisor_comms.send_request.assert_called_once_with(
+                log=mock.ANY,
+                msg=SetRenderedFields(
+                    rendered_fields={
+                        "op_args": [],
+                        "op_kwargs": {},
+                        "bash_command": expected_command,
+                        "env": None,
+                        "cwd": None,
+                    }
+                ),
+            )
+        else:
+            self.validate_bash_command_rtif(ti, expected_command)
 
     def test_op_args_kwargs(self):
         """Test op_args and op_kwargs are passed to the bash_command."""

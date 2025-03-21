@@ -27,6 +27,7 @@ from typing import TYPE_CHECKING, Any, Callable, cast
 from airflow.exceptions import AirflowException, AirflowSkipException
 from airflow.models.baseoperator import BaseOperator
 from airflow.providers.standard.hooks.subprocess import SubprocessHook, SubprocessResult, working_directory
+from airflow.providers.standard.version_compat import AIRFLOW_V_3_0_PLUS
 from airflow.utils.operator_helpers import context_to_airflow_vars
 from airflow.utils.session import NEW_SESSION, provide_session
 from airflow.utils.types import ArgNotSet
@@ -198,26 +199,49 @@ class BashOperator(BaseOperator):
         """Returns hook for running the bash command."""
         return SubprocessHook()
 
-    # TODO: This should be replaced with Task SDK API call
-    @staticmethod
-    @provide_session
-    def refresh_bash_command(ti, session: SASession = NEW_SESSION) -> None:
-        """
-        Rewrite the underlying rendered bash_command value for a task instance in the metadatabase.
+    if AIRFLOW_V_3_0_PLUS:
 
-        TaskInstance.get_rendered_template_fields() cannot be used because this will retrieve the
-        RenderedTaskInstanceFields from the metadatabase which doesn't have the runtime-evaluated bash_command
-        value.
+        @staticmethod
+        def refresh_bash_command(ti) -> None:
+            """
+            Rewrite the underlying rendered bash_command value for a task instance in the metadatabase using the API server.
 
-        :meta private:
-        """
-        from airflow.models.renderedtifields import RenderedTaskInstanceFields
+            :meta private:
+            """
+            import structlog
 
-        """Update rendered task instance fields for cases where runtime evaluated, not templated."""
+            from airflow.sdk.execution_time.comms import SetRenderedFields
+            from airflow.sdk.execution_time.task_runner import SUPERVISOR_COMMS
+            from airflow.serialization.helpers import serialize_template_field
 
-        rtif = RenderedTaskInstanceFields(ti)
-        RenderedTaskInstanceFields.write(rtif, session=session)
-        RenderedTaskInstanceFields.delete_old_records(ti.task_id, ti.dag_id, session=session)
+            # RenderedTaskInstanceFields init does this by default
+            ti.render_templates()
+            log = structlog.get_logger(logger_name="task")
+            rtif = {
+                field: serialize_template_field(getattr(ti.task, field), field)
+                for field in ti.task.template_fields
+            }
+            SUPERVISOR_COMMS.send_request(log=log, msg=SetRenderedFields(rendered_fields=rtif))  # type: ignore[arg-type]
+    else:
+
+        @staticmethod
+        @provide_session
+        def refresh_bash_command(ti, session: SASession = NEW_SESSION) -> None:
+            """
+            Rewrite the underlying rendered bash_command value for a task instance in the metadatabase.
+
+            TaskInstance.get_rendered_template_fields() cannot be used because this will retrieve the
+            RenderedTaskInstanceFields from the metadatabase which doesn't have the runtime-evaluated bash_command
+            value.
+
+            :meta private:
+            """
+            from airflow.models.renderedtifields import RenderedTaskInstanceFields
+
+            """Update rendered task instance fields for cases where runtime evaluated, not templated."""
+            rtif = RenderedTaskInstanceFields(ti)
+            RenderedTaskInstanceFields.write(rtif, session=session)
+            RenderedTaskInstanceFields.delete_old_records(ti.task_id, ti.dag_id, session=session)
 
     def get_env(self, context) -> dict:
         """Build the set of environment variables to be exposed for the bash command."""
