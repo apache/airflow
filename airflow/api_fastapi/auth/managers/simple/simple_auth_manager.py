@@ -306,7 +306,11 @@ class SimpleAuthManager(BaseAuthManager[SimpleAuthManagerUser]):
 
         @app.get("/{rest_of_path:path}", response_class=HTMLResponse, include_in_schema=False)
         def webapp(request: Request, rest_of_path: str):
-            return templates.TemplateResponse("/index.html", {"request": request}, media_type="text/html")
+            return templates.TemplateResponse(
+                "/index.html",
+                {"request": request, "backend_server_base_url": conf.get("api", "base_url")},
+                media_type="text/html",
+            )
 
         return app
 
