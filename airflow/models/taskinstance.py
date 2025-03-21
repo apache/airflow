@@ -801,6 +801,8 @@ def _execute_task(task_instance: TaskInstance | TaskInstancePydantic, context: C
 
 
 def _set_ti_attrs(target, source, include_dag_run=False):
+    from airflow.serialization.pydantic.taskinstance import TaskInstancePydantic
+
     # Fields ordered per model definition
     target.start_date = source.start_date
     target.end_date = source.end_date
@@ -826,6 +828,8 @@ def _set_ti_attrs(target, source, include_dag_run=False):
     target.trigger_id = source.trigger_id
     target.next_method = source.next_method
     target.next_kwargs = source.next_kwargs
+    if source.note and isinstance(source, TaskInstancePydantic):
+        target.note = source.note
 
     if include_dag_run:
         target.execution_date = source.execution_date
