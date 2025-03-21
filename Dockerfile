@@ -665,7 +665,7 @@ function install_airflow_and_providers_from_docker_context_files(){
         exit 1
     fi
 
-    # This is needed to get package names for local context packages
+    # This is needed to get distribution names for local context distributions
     ${PACKAGING_TOOL_CMD} install ${EXTRA_INSTALL_FLAGS} ${ADDITIONAL_PIP_INSTALL_FLAGS} --constraint ${HOME}/constraints.txt packaging
 
     if [[ -n ${AIRFLOW_EXTRAS=} ]]; then
@@ -674,37 +674,52 @@ function install_airflow_and_providers_from_docker_context_files(){
         AIRFLOW_EXTRAS_TO_INSTALL=""
     fi
 
-    # Find Apache Airflow package in docker-context files
-    readarray -t install_airflow_package < <(EXTRAS="${AIRFLOW_EXTRAS_TO_INSTALL}" \
-        python /scripts/docker/get_package_specs.py /docker-context-files/apache?airflow?[0-9]*.{whl,tar.gz} 2>/dev/null || true)
+    # Find apache-airflow distribution in docker-context files
+    readarray -t install_airflow_distribution < <(EXTRAS="${AIRFLOW_EXTRAS_TO_INSTALL}" \
+        python /scripts/docker/get_distribution_specs.py /docker-context-files/apache?airflow?[0-9]*.{whl,tar.gz} 2>/dev/null || true)
     echo
-    echo "${COLOR_BLUE}Found airflow packages in docker-context-files folder: ${install_airflow_package[*]}${COLOR_RESET}"
+    echo "${COLOR_BLUE}Found apache-airflow distributions in docker-context-files folder: ${install_airflow_distribution[*]}${COLOR_RESET}"
     echo
 
-    if [[ -z "${install_airflow_package[*]}" && ${AIRFLOW_VERSION=} != "" ]]; then
-        # When we install only provider packages from docker-context files, we need to still
+    if [[ -z "${install_airflow_distribution[*]}" && ${AIRFLOW_VERSION=} != "" ]]; then
+        # When we install only provider distributions from docker-context files, we need to still
         # install airflow from PyPI when AIRFLOW_VERSION is set. This handles the case where
         # pre-release dockerhub image of airflow is built, but we want to install some providers from
         # docker-context files
-        install_airflow_package=("apache-airflow[${AIRFLOW_EXTRAS}]==${AIRFLOW_VERSION}")
+        install_airflow_distribution=("apache-airflow[${AIRFLOW_EXTRAS}]==${AIRFLOW_VERSION}")
     fi
 
-    # Find Provider/TaskSDK packages in docker-context files
-    readarray -t airflow_packages< <(python /scripts/docker/get_package_specs.py /docker-context-files/apache?airflow?{providers,task?sdk}*.{whl,tar.gz} 2>/dev/null || true)
+    # Find apache-airflow-core distribution in docker-context files
+    readarray -t install_airflow_core_distribution < <(EXTRAS="" \
+        python /scripts/docker/get_distribution_specs.py /docker-context-files/apache?airflow?core?[0-9]*.{whl,tar.gz} 2>/dev/null || true)
     echo
-    echo "${COLOR_BLUE}Found provider packages in docker-context-files folder: ${airflow_packages[*]}${COLOR_RESET}"
+    echo "${COLOR_BLUE}Found apache-airflow-core distributions in docker-context-files folder: ${install_airflow_core_distribution[*]}${COLOR_RESET}"
     echo
 
-    if [[ ${USE_CONSTRAINTS_FOR_CONTEXT_PACKAGES=} == "true" ]]; then
+    if [[ -z "${install_airflow_core_distribution[*]}" && ${AIRFLOW_VERSION=} != "" ]]; then
+        # When we install only provider distributions from docker-context files, we need to still
+        # install airflow from PyPI when AIRFLOW_VERSION is set. This handles the case where
+        # pre-release dockerhub image of airflow is built, but we want to install some providers from
+        # docker-context files
+        install_airflow_core_distribution=("apache-airflow-core==${AIRFLOW_VERSION}")
+    fi
+
+    # Find Provider/TaskSDK distributions in docker-context files
+    readarray -t airflow_distributions< <(python /scripts/docker/get_distribution_specs.py /docker-context-files/apache?airflow?{providers,task?sdk}*.{whl,tar.gz} 2>/dev/null || true)
+    echo
+    echo "${COLOR_BLUE}Found provider distributions in docker-context-files folder: ${airflow_distributions[*]}${COLOR_RESET}"
+    echo
+
+    if [[ ${USE_CONSTRAINTS_FOR_CONTEXT_DISTRIBUTIONS=} == "true" ]]; then
         local python_version
         python_version=$(python -c 'import sys; print(f"{sys.version_info.major}.{sys.version_info.minor}")')
         local local_constraints_file=/docker-context-files/constraints-"${python_version}"/${AIRFLOW_CONSTRAINTS_MODE}-"${python_version}".txt
 
         if [[ -f "${local_constraints_file}" ]]; then
             echo
-            echo "${COLOR_BLUE}Installing docker-context-files packages with constraints found in ${local_constraints_file}${COLOR_RESET}"
+            echo "${COLOR_BLUE}Installing docker-context-files distributions with constraints found in ${local_constraints_file}${COLOR_RESET}"
             echo
-            # force reinstall all airflow + provider packages with constraints found in
+            # force reinstall all airflow + provider distributions with constraints found in
             flags=(--upgrade --constraint "${local_constraints_file}")
             echo
             echo "${COLOR_BLUE}Copying ${local_constraints_file} to ${HOME}/constraints.txt${COLOR_RESET}"
@@ -712,13 +727,13 @@ function install_airflow_and_providers_from_docker_context_files(){
             cp "${local_constraints_file}" "${HOME}/constraints.txt"
         else
             echo
-            echo "${COLOR_BLUE}Installing docker-context-files packages with constraints from GitHub${COLOR_RESET}"
+            echo "${COLOR_BLUE}Installing docker-context-files distributions with constraints from GitHub${COLOR_RESET}"
             echo
             flags=(--constraint "${HOME}/constraints.txt")
         fi
     else
         echo
-        echo "${COLOR_BLUE}Installing docker-context-files packages without constraints${COLOR_RESET}"
+        echo "${COLOR_BLUE}Installing docker-context-files distributions without constraints${COLOR_RESET}"
         echo
         flags=()
     fi
@@ -727,24 +742,24 @@ function install_airflow_and_providers_from_docker_context_files(){
     ${PACKAGING_TOOL_CMD} install ${EXTRA_INSTALL_FLAGS} \
         ${ADDITIONAL_PIP_INSTALL_FLAGS} \
         "${flags[@]}" \
-        "${install_airflow_package[@]}" "${airflow_packages[@]}"
+        "${install_airflow_distribution[@]}" "${install_airflow_core_distribution[@]}" "${airflow_distributions[@]}"
     set +x
     common::install_packaging_tools
     pip check
 }
 
-function install_all_other_packages_from_docker_context_files() {
+function install_all_other_distributions_from_docker_context_files() {
     echo
-    echo "${COLOR_BLUE}Force re-installing all other package from local files without dependencies${COLOR_RESET}"
+    echo "${COLOR_BLUE}Force re-installing all other distributions from local files without dependencies${COLOR_RESET}"
     echo
-    local reinstalling_other_packages
+    local reinstalling_other_distributions
     # shellcheck disable=SC2010
-    reinstalling_other_packages=$(ls /docker-context-files/*.{whl,tar.gz} 2>/dev/null | \
+    reinstalling_other_distributions=$(ls /docker-context-files/*.{whl,tar.gz} 2>/dev/null | \
         grep -v apache_airflow | grep -v apache-airflow || true)
-    if [[ -n "${reinstalling_other_packages}" ]]; then
+    if [[ -n "${reinstalling_other_distributions}" ]]; then
         set -x
         ${PACKAGING_TOOL_CMD} install ${EXTRA_INSTALL_FLAGS} ${ADDITIONAL_PIP_INSTALL_FLAGS} \
-            --force-reinstall --no-deps --no-index ${reinstalling_other_packages}
+            --force-reinstall --no-deps --no-index ${reinstalling_other_distributions}
         common::install_packaging_tools
         set +x
     fi
@@ -758,11 +773,11 @@ common::show_packaging_tool_version_and_location
 
 install_airflow_and_providers_from_docker_context_files
 
-install_all_other_packages_from_docker_context_files
+install_all_other_distributions_from_docker_context_files
 EOF
 
-# The content below is automatically copied from scripts/docker/get_package_specs.py
-COPY <<"EOF" /get_package_specs.py
+# The content below is automatically copied from scripts/docker/get_distribution_specs.py
+COPY <<"EOF" /get_distribution_specs.py
 #!/usr/bin/env python
 from __future__ import annotations
 
@@ -816,8 +831,10 @@ function install_airflow() {
     # Determine the installation_command_flags based on AIRFLOW_INSTALLATION_METHOD method
     local installation_command_flags
     if [[ ${AIRFLOW_INSTALLATION_METHOD} == "." ]]; then
-        # When installing from sources - we always use `--editable` mode
-        installation_command_flags="--editable .[${AIRFLOW_EXTRAS}]${AIRFLOW_VERSION_SPECIFICATION} --editable ./task-sdk --editable ./devel-common"
+        # We do not yet use ``uv sync`` because we are not committing and using uv.lock yet and uv sync
+        # cannot use constraints - once we switch to uv.lock (with the workflow that dependabot will update it
+        # and constraints will be generated from it, we should be able to simply use ``uv sync`` here
+        installation_command_flags=" --editable .[${AIRFLOW_EXTRAS}] --editable ./airflow-core --editable ./task-sdk --editable ./devel-common --editable ./airflow-core"
         while IFS= read -r -d '' pyproject_toml_file; do
             project_folder=$(dirname ${pyproject_toml_file})
             installation_command_flags="${installation_command_flags} --editable ${project_folder}"
@@ -836,7 +853,7 @@ function install_airflow() {
     fi
     if [[ "${UPGRADE_INVALIDATION_STRING=}" != "" ]]; then
         echo
-        echo "${COLOR_BLUE}Remove airflow and all provider packages installed before potentially${COLOR_RESET}"
+        echo "${COLOR_BLUE}Remove airflow and all provider distributions installed before potentially${COLOR_RESET}"
         echo
         set -x
         ${PACKAGING_TOOL_CMD} freeze | grep apache-airflow | xargs ${PACKAGING_TOOL_CMD} uninstall ${EXTRA_UNINSTALL_FLAGS} 2>/dev/null || true
@@ -1454,15 +1471,15 @@ COPY --from=scripts common.sh install_packaging_tools.sh create_prod_venv.sh /sc
 
 # We can set this value to true in case we want to install .whl/.tar.gz packages placed in the
 # docker-context-files folder. This can be done for both additional packages you want to install
-# as well as Airflow and Provider packages (it will be automatically detected if airflow
+# as well as Airflow and provider distributions (it will be automatically detected if airflow
 # is installed from docker-context files rather than from PyPI)
-ARG INSTALL_PACKAGES_FROM_CONTEXT="false"
+ARG INSTALL_DISTRIBUTIONS_FROM_CONTEXT="false"
 
 # Normally constraints are not used when context packages are build - because we might have packages
 # that are conflicting with Airflow constraints, however there are cases when we want to use constraints
 # for example in CI builds when we already have source-package constraints - either from github branch or
 # from eager-upgraded constraints by the CI builds
-ARG USE_CONSTRAINTS_FOR_CONTEXT_PACKAGES="false"
+ARG USE_CONSTRAINTS_FOR_CONTEXT_DISTRIBUTIONS="false"
 
 # By changing the epoch we can force reinstalling Airflow and pip all dependencies
 # It can also be overwritten manually by setting the AIRFLOW_CI_BUILD_EPOCH environment variable.
@@ -1475,7 +1492,7 @@ ENV AIRFLOW_CI_BUILD_EPOCH=${AIRFLOW_CI_BUILD_EPOCH}
 # The Airflow and providers are uninstalled, only dependencies remain
 # the cache is only used when "upgrade to newer dependencies" is not set to automatically
 # account for removed dependencies (we do not install them in the first place) and in case
-# INSTALL_PACKAGES_FROM_CONTEXT is not set (because then caching it from main makes no sense).
+# INSTALL_DISTRIBUTIONS_FROM_CONTEXT is not set (because then caching it from main makes no sense).
 
 # By default PIP installs everything to ~/.local and it's also treated as VIRTUALENV
 ENV VIRTUAL_ENV="${AIRFLOW_USER_HOME_DIR}/.local"
@@ -1491,14 +1508,14 @@ ARG ADDITIONAL_PYTHON_DEPS=""
 ARG VERSION_SUFFIX_FOR_PYPI=""
 
 ENV ADDITIONAL_PYTHON_DEPS=${ADDITIONAL_PYTHON_DEPS} \
-    INSTALL_PACKAGES_FROM_CONTEXT=${INSTALL_PACKAGES_FROM_CONTEXT} \
-    USE_CONSTRAINTS_FOR_CONTEXT_PACKAGES=${USE_CONSTRAINTS_FOR_CONTEXT_PACKAGES} \
+    INSTALL_DISTRIBUTIONS_FROM_CONTEXT=${INSTALL_DISTRIBUTIONS_FROM_CONTEXT} \
+    USE_CONSTRAINTS_FOR_CONTEXT_DISTRIBUTIONS=${USE_CONSTRAINTS_FOR_CONTEXT_DISTRIBUTIONS} \
     VERSION_SUFFIX_FOR_PYPI=${VERSION_SUFFIX_FOR_PYPI}
 
 WORKDIR ${AIRFLOW_HOME}
 
 COPY --from=scripts install_from_docker_context_files.sh install_airflow.sh \
-     install_additional_dependencies.sh create_prod_venv.sh get_package_specs.py /scripts/docker/
+     install_additional_dependencies.sh create_prod_venv.sh get_distribution_specs.py /scripts/docker/
 
 # Useful for creating a cache id based on the underlying architecture, preventing the use of cached python packages from
 # an incorrect architecture.
@@ -1508,7 +1525,7 @@ ARG DEPENDENCY_CACHE_EPOCH="9"
 
 # hadolint ignore=SC2086, SC2010, DL3042
 RUN --mount=type=cache,id=prod-$TARGETARCH-$DEPENDENCY_CACHE_EPOCH,target=/tmp/.cache/,uid=${AIRFLOW_UID} \
-    if [[ ${INSTALL_PACKAGES_FROM_CONTEXT} == "true" ]]; then \
+    if [[ ${INSTALL_DISTRIBUTIONS_FROM_CONTEXT} == "true" ]]; then \
         bash /scripts/docker/install_from_docker_context_files.sh; \
     fi; \
     if ! airflow version 2>/dev/null >/dev/null; then \

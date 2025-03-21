@@ -25,7 +25,7 @@ from airflow_breeze.global_constants import (
     ALL_HISTORICAL_PYTHON_VERSIONS,
     ALLOWED_BACKENDS,
     ALLOWED_DOCKER_COMPOSE_PROJECTS,
-    ALLOWED_INSTALLATION_PACKAGE_FORMATS,
+    ALLOWED_INSTALLATION_DISTRIBUTION_FORMATS,
     ALLOWED_MOUNT_OPTIONS,
     ALLOWED_MYSQL_VERSIONS,
     ALLOWED_POSTGRES_VERSIONS,
@@ -51,7 +51,7 @@ from airflow_breeze.utils.custom_param_types import (
     UseAirflowVersionType,
     VerboseOption,
 )
-from airflow_breeze.utils.packages import get_available_packages
+from airflow_breeze.utils.packages import get_available_distributions
 from airflow_breeze.utils.recording import generating_command_images
 
 
@@ -78,7 +78,7 @@ argument_doc_packages = click.argument(
     nargs=-1,
     required=False,
     type=NotVerifiedBetterChoice(
-        get_available_packages(
+        get_available_distributions(
             include_non_provider_doc_packages=True,
             include_all_providers=True,
             include_removed=True,
@@ -287,13 +287,13 @@ option_no_db_cleanup = click.option(
     help="Do not clear the database before each test module",
     is_flag=True,
 )
-option_installation_package_format = click.option(
-    "--package-format",
-    type=BetterChoice(ALLOWED_INSTALLATION_PACKAGE_FORMATS),
+option_installation_distribution_format = click.option(
+    "--distribution-format",
+    type=BetterChoice(ALLOWED_INSTALLATION_DISTRIBUTION_FORMATS),
     help="Format of packages that should be installed from dist.",
-    default=ALLOWED_INSTALLATION_PACKAGE_FORMATS[0],
+    default=ALLOWED_INSTALLATION_DISTRIBUTION_FORMATS[0],
     show_default=True,
-    envvar="PACKAGE_FORMAT",
+    envvar="DISTRIBUTION_FORMAT",
 )
 option_parallelism = click.option(
     "--parallelism",

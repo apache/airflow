@@ -32,7 +32,7 @@ from airflow_breeze.global_constants import (
     ALLOWED_BACKENDS,
     ALLOWED_CONSTRAINTS_MODES_CI,
     ALLOWED_DOCKER_COMPOSE_PROJECTS,
-    ALLOWED_INSTALLATION_PACKAGE_FORMATS,
+    ALLOWED_INSTALLATION_DISTRIBUTION_FORMATS,
     ALLOWED_MYSQL_VERSIONS,
     ALLOWED_POSTGRES_VERSIONS,
     ALLOWED_PYTHON_MAJOR_MINOR_VERSIONS,
@@ -72,17 +72,17 @@ from airflow_breeze.utils.console import get_console
 from airflow_breeze.utils.docker_command_utils import is_docker_rootless
 from airflow_breeze.utils.host_info_utils import get_host_group_id, get_host_os, get_host_user_id
 from airflow_breeze.utils.path_utils import (
-    AIRFLOW_SOURCES_ROOT,
-    BUILD_CACHE_DIR,
-    GENERATED_DOCKER_COMPOSE_ENV_FILE,
-    GENERATED_DOCKER_ENV_FILE,
-    GENERATED_DOCKER_LOCK_FILE,
-    SCRIPTS_CI_DIR,
+    AIRFLOW_ROOT_PATH,
+    BUILD_CACHE_PATH,
+    GENERATED_DOCKER_COMPOSE_ENV_PATH,
+    GENERATED_DOCKER_ENV_PATH,
+    GENERATED_DOCKER_LOCK_PATH,
+    SCRIPTS_CI_PATH,
 )
 from airflow_breeze.utils.run_utils import commit_sha, run_command
 from airflow_breeze.utils.shared_options import get_forced_answer, get_verbose
 
-DOCKER_COMPOSE_DIR = SCRIPTS_CI_DIR / "docker-compose"
+DOCKER_COMPOSE_DIR = SCRIPTS_CI_PATH / "docker-compose"
 
 
 def generated_socket_compose_file(local_socket_path: str) -> str:
@@ -183,7 +183,7 @@ class ShellParams:
     no_db_cleanup: bool = False
     num_runs: str = ""
     only_min_version_update: bool = False
-    package_format: str = ALLOWED_INSTALLATION_PACKAGE_FORMATS[0]
+    distribution_format: str = ALLOWED_INSTALLATION_DISTRIBUTION_FORMATS[0]
     parallel_test_types_list: list[str] = field(default_factory=list)
     parallelism: int = 0
     platform: str = DOCKER_DEFAULT_PLATFORM
@@ -213,7 +213,7 @@ class ShellParams:
     tty: str = "auto"
     upgrade_boto: bool = False
     use_airflow_version: str | None = None
-    use_packages_from_dist: bool = False
+    use_distributions_from_dist: bool = False
     use_uv: bool = False
     use_xdist: bool = False
     uv_http_timeout: int = DEFAULT_UV_HTTP_TIMEOUT
@@ -268,7 +268,7 @@ class ShellParams:
 
     @cached_property
     def airflow_sources(self):
-        return AIRFLOW_SOURCES_ROOT
+        return AIRFLOW_ROOT_PATH
 
     @cached_property
     def auth_manager_path(self):
@@ -284,7 +284,7 @@ class ShellParams:
 
     @cached_property
     def md5sum_cache_dir(self) -> Path:
-        cache_dir = Path(BUILD_CACHE_DIR, self.airflow_branch, self.python, self.image_type)
+        cache_dir = Path(BUILD_CACHE_PATH, self.airflow_branch, self.python, self.image_type)
         return cache_dir
 
     @cached_property
@@ -598,7 +598,7 @@ class ShellParams:
         _set_var(_env, "MOUNT_SOURCES", self.mount_sources)
         _set_var(_env, "NUM_RUNS", self.num_runs)
         _set_var(_env, "ONLY_MIN_VERSION_UPDATE", self.only_min_version_update)
-        _set_var(_env, "PACKAGE_FORMAT", self.package_format)
+        _set_var(_env, "DISTRIBUTION_FORMAT", self.distribution_format)
         _set_var(_env, "POSTGRES_HOST_PORT", None, POSTGRES_HOST_PORT)
         _set_var(_env, "POSTGRES_VERSION", self.postgres_version)
         _set_var(_env, "PROVIDERS_CONSTRAINTS_LOCATION", self.providers_constraints_location)
@@ -630,7 +630,7 @@ class ShellParams:
         _set_var(_env, "TEST_GROUP", str(self.test_group.value) if self.test_group else "")
         _set_var(_env, "UPGRADE_BOTO", self.upgrade_boto)
         _set_var(_env, "USE_AIRFLOW_VERSION", self.use_airflow_version, "")
-        _set_var(_env, "USE_PACKAGES_FROM_DIST", self.use_packages_from_dist)
+        _set_var(_env, "USE_DISTRIBUTIONS_FROM_DIST", self.use_distributions_from_dist)
         _set_var(_env, "USE_UV", self.use_uv)
         _set_var(_env, "USE_XDIST", self.use_xdist)
         _set_var(_env, "VERBOSE", get_verbose())
@@ -690,9 +690,9 @@ class ShellParams:
         """
         from filelock import FileLock
 
-        with FileLock(GENERATED_DOCKER_LOCK_FILE):
-            if GENERATED_DOCKER_ENV_FILE.exists():
-                generated_keys = GENERATED_DOCKER_ENV_FILE.read_text().splitlines()
+        with FileLock(GENERATED_DOCKER_LOCK_PATH):
+            if GENERATED_DOCKER_ENV_PATH.exists():
+                generated_keys = GENERATED_DOCKER_ENV_PATH.read_text().splitlines()
                 if set(env.keys()) == set(generated_keys):
                     # we check if the set of env variables had not changed since last run
                     # if so - cool, we do not need to do anything else
@@ -701,16 +701,16 @@ class ShellParams:
                     if get_verbose():
                         get_console().print(
                             f"[info]The keys has changed vs last run. Regenerating[/]: "
-                            f"{GENERATED_DOCKER_ENV_FILE} and {GENERATED_DOCKER_COMPOSE_ENV_FILE}"
+                            f"{GENERATED_DOCKER_ENV_PATH} and {GENERATED_DOCKER_COMPOSE_ENV_PATH}"
                         )
             if get_verbose():
-                get_console().print(f"[info]Generating new docker env file [/]: {GENERATED_DOCKER_ENV_FILE}")
-            GENERATED_DOCKER_ENV_FILE.write_text("\n".join(sorted(env.keys())))
+                get_console().print(f"[info]Generating new docker env file [/]: {GENERATED_DOCKER_ENV_PATH}")
+            GENERATED_DOCKER_ENV_PATH.write_text("\n".join(sorted(env.keys())))
             if get_verbose():
                 get_console().print(
-                    f"[info]Generating new docker compose env file [/]: {GENERATED_DOCKER_COMPOSE_ENV_FILE}"
+                    f"[info]Generating new docker compose env file [/]: {GENERATED_DOCKER_COMPOSE_ENV_PATH}"
                 )
-            GENERATED_DOCKER_COMPOSE_ENV_FILE.write_text(
+            GENERATED_DOCKER_COMPOSE_ENV_PATH.write_text(
                 "\n".join([f"{k}=${{{k}}}" for k in sorted(env.keys())])
             )
 

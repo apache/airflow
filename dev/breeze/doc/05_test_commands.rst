@@ -226,7 +226,7 @@ To package the client, clone the airflow-python-client repository and run the fo
 
 .. code-block:: bash
 
-   breeze release-management prepare-python-client --package-format both
+   breeze release-management prepare-python-client --distribution-format both
           --version-suffix-for-pypi dev0 --python-client-repo ./airflow-client-python
 
 .. code-block:: bash
@@ -253,7 +253,7 @@ For example this will only run example_external_task_child_deferrable tests:
 
 .. code-block:: bash
 
-   breeze testing system-tests tests/system/example_empty.py
+   breeze testing system-tests airflow-core/tests/system/example_empty.py
 
 Here is the detailed set of options for the ``breeze testing system-tests`` command.
 

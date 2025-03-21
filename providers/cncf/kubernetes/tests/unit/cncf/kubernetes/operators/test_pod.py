@@ -1561,6 +1561,7 @@ class TestKubernetesPodOperator:
     @patch(KUB_OP_PATH.format("find_pod"))
     def test_execute_sync_callbacks(self, find_pod_mock):
         from airflow.providers.cncf.kubernetes.callbacks import ExecutionMode
+
         from unit.cncf.kubernetes.test_callbacks import (
             MockKubernetesPodOperatorCallback,
             MockWrapper,
@@ -1647,6 +1648,7 @@ class TestKubernetesPodOperator:
     @patch(KUB_OP_PATH.format("find_pod"))
     def test_execute_sync_multiple_callbacks(self, find_pod_mock):
         from airflow.providers.cncf.kubernetes.callbacks import ExecutionMode
+
         from unit.cncf.kubernetes.test_callbacks import (
             MockKubernetesPodOperatorCallback,
             MockWrapper,
@@ -1732,6 +1734,7 @@ class TestKubernetesPodOperator:
     @patch(HOOK_CLASS, new=MagicMock)
     def test_execute_async_callbacks(self):
         from airflow.providers.cncf.kubernetes.callbacks import ExecutionMode
+
         from unit.cncf.kubernetes.test_callbacks import (
             MockKubernetesPodOperatorCallback,
             MockWrapper,

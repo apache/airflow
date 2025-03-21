@@ -24,14 +24,14 @@ import pytest
 
 from airflow.providers.apache.hive.transfers.hive_to_samba import HiveToSambaOperator
 from airflow.providers.samba.hooks.samba import SambaHook
+
+from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS
 from unit.apache.hive import (
     DEFAULT_DATE,
     MockConnectionCursor,
     MockHiveServer2Hook,
     TestHiveEnvironment,
 )
-
-from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS
 
 if AIRFLOW_V_3_0_PLUS:
     from airflow.sdk.execution_time.context import context_to_airflow_vars
