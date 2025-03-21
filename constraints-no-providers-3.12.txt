@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2025-03-21T02:49:42.826708
+# This constraints file was automatically generated on 2025-03-21T14:18:27.253422
 # via "eager-upgrade" mechanism of PIP. For the "main" branch of Airflow.
 # This variant of constraints install just the 'bare' 'apache-airflow' package build from the HEAD of
 # the branch, without installing any of the providers.
@@ -101,7 +101,6 @@ itsdangerous==2.2.0
 jmespath==1.0.1
 jsonschema-specifications==2024.10.1
 jsonschema==4.23.0
-kerberos==1.3.1
 krb5==0.7.1
 lazy-object-proxy==1.10.0
 libcst==1.7.0
@@ -116,6 +115,7 @@ mdit-py-plugins==0.4.2
 mdurl==0.1.2
 methodtools==0.4.7
 more-itertools==10.6.0
+msgspec==0.19.0
 multidict==6.2.0
 numpy==1.26.4
 opentelemetry-api==1.31.1
@@ -159,13 +159,14 @@ referencing==0.36.2
 requests-kerberos==0.15.0
 requests-toolbelt==1.0.0
 requests==2.32.3
+retryhttp==1.3.1
 rfc3339-validator==0.1.4
 rich-argparse==1.7.0
 rich-toolkit==0.13.2
 rich==13.9.4
 rpds-py==0.23.1
 s3fs==2025.3.0
-sentry-sdk==2.23.1
+sentry-sdk==2.24.0
 setproctitle==1.3.5
 setuptools==77.0.3
 shellingham==1.5.4
@@ -175,6 +176,7 @@ sniffio==1.3.1
 sqlparse==0.5.3
 starlette==0.46.1
 statsd==4.0.1
+structlog==25.2.0
 svcs==25.1.0
 tabulate==0.9.0
 tenacity==9.0.0
@@ -184,6 +186,7 @@ thrift-sasl==0.4.3
 thrift==0.21.0
 time-machine==2.16.0
 typer==0.15.2
+types-requests==2.32.0.20250306
 typing_extensions==4.12.2
 tzdata==2025.1
 uc-micro-py==1.0.3

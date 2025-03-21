@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2025-03-21T03:01:36.762271
+# This constraints file was automatically generated on 2025-03-21T14:30:29.456560
 # via "eager-upgrade" mechanism of PIP. For the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version for 'apache-airflow' but installs
 # the providers from PIP-released packages at the moment of the constraint generation.
@@ -65,7 +65,7 @@ SQLAlchemy==1.4.54
 SecretStorage==3.3.3
 Sphinx==8.2.3
 WTForms==3.2.1
-Werkzeug==2.2.3
+Werkzeug==2.3.8
 a2wsgi==1.10.8
 adal==1.2.7
 adlfs==2024.12.0
@@ -134,6 +134,7 @@ apache-airflow-providers-discord==3.9.3
 apache-airflow-providers-docker==4.2.1
 apache-airflow-providers-elasticsearch==6.2.1
 apache-airflow-providers-exasol==4.7.3
+apache-airflow-providers-fab==1.5.3
 apache-airflow-providers-facebook==3.7.1
 apache-airflow-providers-ftp==3.12.3
 apache-airflow-providers-github==2.8.3
@@ -370,6 +371,7 @@ google-cloud-videointelligence==2.16.1
 google-cloud-vision==3.10.1
 google-cloud-workflows==1.18.0
 google-crc32c==1.7.0
+google-re2==1.1.20240702
 google-resumable-media==2.7.2
 googleapis-common-protos==1.69.2
 graphql-core==3.2.6
@@ -653,7 +655,7 @@ scrapbook==0.5.0
 semver==3.0.4
 sendgrid==6.11.0
 sentinels==1.0.0
-sentry-sdk==2.23.1
+sentry-sdk==2.24.0
 setproctitle==1.3.5
 setuptools==77.0.3
 shapely==2.0.7
