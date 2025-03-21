@@ -269,17 +269,6 @@ class BaseK8STest:
         ).decode()
         assert "successfully rolled out" in deployment_rollout_status
 
-    def _parse_airflow_cfg_dict_as_escaped_toml(self, airflow_cfg_dict: dict) -> str:
-        """Parse the airflow.cfg dictionary as a toml string."""
-        airflow_cfg_str = ""
-        for section, section_dict in airflow_cfg_dict.items():
-            airflow_cfg_str += f"[{section}]\n"
-            for key, value in section_dict.items():
-                airflow_cfg_str += f"{key} = {value}\n"
-            airflow_cfg_str += "\n"
-        # escape newlines and double quotes
-        return airflow_cfg_str.replace("\n", "\\n").replace('"', '\\"')
-
     def ensure_dag_expected_state(self, host, logical_date, dag_id, expected_final_state, timeout):
         tries = 0
         state = ""
