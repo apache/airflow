@@ -29,7 +29,7 @@ Dags View
 
 List of the dags in your environment, and a set of shortcuts to useful pages.
 You can see exactly how many tasks succeeded, failed, or are currently
-running at a glance. To hide completed tasks set ``show_recent_stats_for_completed_runs = False``
+running at a glance.
 
 In order to filter dags (e.g. by team), you can add tags in each DAG.
 The filter is saved in a cookie and can be reset by the reset button.
