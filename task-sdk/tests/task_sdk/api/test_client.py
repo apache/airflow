@@ -56,6 +56,7 @@ class TestClient:
                         "run_after": "2021-01-01T00:00:00Z",
                     },
                     "max_tries": 0,
+                    "should_retry": False,
                 },
             ),
         ],

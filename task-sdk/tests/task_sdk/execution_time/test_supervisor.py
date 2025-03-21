@@ -728,23 +728,16 @@ class TestListenerOvertime:
 
         if expected_timeout:
             assert any(
-                [
-                    event["event"] == "Workload success overtime reached; terminating process"
-                    for event in captured_logs
-                ]
+                event["event"] == "Workload success overtime reached; terminating process"
+                for event in captured_logs
             )
             assert any(
-                [
-                    event["event"] == "Process exited" and event["signal"] == "SIGTERM"
-                    for event in captured_logs
-                ]
+                event["event"] == "Process exited" and event["signal"] == "SIGTERM" for event in captured_logs
             )
         else:
             assert all(
-                [
-                    event["event"] != "Workload success overtime reached; terminating process"
-                    for event in captured_logs
-                ]
+                event["event"] != "Workload success overtime reached; terminating process"
+                for event in captured_logs
             )
 
 
