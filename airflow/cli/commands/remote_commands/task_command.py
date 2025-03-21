@@ -29,9 +29,10 @@ from contextlib import redirect_stdout
 from typing import TYPE_CHECKING, Protocol, cast
 
 from airflow import settings
+from airflow.cli.commands.remote_commands.dag_command import _parse_and_get_dag
 from airflow.cli.simple_table import AirflowConsole
 from airflow.cli.utils import fetch_dag_run_from_run_id_or_logical_date_string
-from airflow.exceptions import DagRunNotFound, TaskDeferred, TaskInstanceNotFound
+from airflow.exceptions import AirflowException, DagRunNotFound, TaskDeferred, TaskInstanceNotFound
 from airflow.models import TaskInstance
 from airflow.models.dag import DAG, _run_inline_trigger
 from airflow.models.dagrun import DagRun
@@ -231,7 +232,8 @@ def task_failed_deps(args) -> None:
     Trigger Rule: Task's trigger rule 'all_success' requires all upstream tasks
     to have succeeded, but found 1 non-success(es).
     """
-    dag = get_dag(args.subdir, args.dag_id)
+    dag = get_dag(subdir=None, dag_id=args.dag_id, from_db=True)
+
     task = dag.get_task(task_id=args.task_id)
     ti, _ = _get_ti(task, args.map_index, logical_date_or_run_id=args.logical_date_or_run_id)
     dep_context = DepContext(deps=SCHEDULER_QUEUED_DEPS)
@@ -255,7 +257,8 @@ def task_state(args) -> None:
     >>> airflow tasks state tutorial sleep 2015-01-01
     success
     """
-    dag = get_dag(args.subdir, args.dag_id)
+    dag = get_dag(subdir=None, dag_id=args.dag_id, from_db=True)
+
     task = dag.get_task(task_id=args.task_id)
     ti, _ = _get_ti(task, args.map_index, logical_date_or_run_id=args.logical_date_or_run_id)
     print(ti.current_state())
@@ -266,7 +269,8 @@ def task_state(args) -> None:
 @providers_configuration_loaded
 def task_list(args, dag: DAG | None = None) -> None:
     """List the tasks within a DAG at the command line."""
-    dag = dag or get_dag(args.subdir, args.dag_id)
+    dag = dag or get_dag(subdir=None, dag_id=args.dag_id, from_db=True)
+
     tasks = sorted(t.task_id for t in dag.tasks)
     print("\n".join(tasks))
 
@@ -365,7 +369,12 @@ def task_test(args, dag: DAG | None = None, session: Session = NEW_SESSION) -> N
         env_vars.update(args.env_vars)
         os.environ.update(env_vars)
 
-    dag = dag or get_dag(args.subdir, args.dag_id)
+    dag = dag or _parse_and_get_dag(args.dag_id)
+
+    if not dag:
+        raise AirflowException(
+            f"Dag {args.dag_id!r} could not be found; either it does not exist or it failed to parse."
+        )
 
     task = dag.get_task(task_id=args.task_id)
     # Add CLI provided task_params to task.params
@@ -421,8 +430,8 @@ def task_test(args, dag: DAG | None = None, session: Session = NEW_SESSION) -> N
 @providers_configuration_loaded
 def task_render(args, dag: DAG | None = None) -> None:
     """Render and displays templated fields for a given task."""
-    if not dag:
-        dag = get_dag(args.subdir, args.dag_id)
+    dag = dag or get_dag(subdir=None, dag_id=args.dag_id, from_db=True)
+
     task = dag.get_task(task_id=args.task_id)
     ti, _ = _get_ti(
         task, args.map_index, logical_date_or_run_id=args.logical_date_or_run_id, create_if_necessary="memory"
@@ -447,12 +456,11 @@ def task_clear(args) -> None:
     """Clear all task instances or only those matched by regex for a DAG(s)."""
     logging.basicConfig(level=settings.LOGGING_LEVEL, format=settings.SIMPLE_LOG_FORMAT)
 
-    if args.dag_id and not args.subdir and not args.dag_regex and not args.task_regex:
+    if args.dag_id and not args.dag_regex and not args.task_regex:
         dags = [get_dag_by_file_location(args.dag_id)]
     else:
         # todo clear command only accepts a single dag_id. no reason for get_dags with 's' except regex?
-        dags = get_dags(args.subdir, args.dag_id, use_regex=args.dag_regex)
-
+        dags = get_dags(None, args.dag_id, use_regex=args.dag_regex)
         if args.task_regex:
             for idx, dag in enumerate(dags):
                 dags[idx] = dag.partial_subset(
