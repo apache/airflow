@@ -27,9 +27,10 @@ from git import Repo
 from git.exc import GitCommandError, NoSuchPathError
 
 from airflow.dag_processing.bundles.base import get_bundle_storage_root_path
-from airflow.dag_processing.bundles.git import GitDagBundle, GitHook
 from airflow.exceptions import AirflowException
 from airflow.models import Connection
+from airflow.providers.git.bundles.git import GitDagBundle
+from airflow.providers.git.hooks.git import GitHook
 from airflow.utils import db
 
 from tests_common.test_utils.config import conf_vars
@@ -46,6 +47,12 @@ def bundle_temp_dir(tmp_path):
 
 GIT_DEFAULT_BRANCH = "main"
 
+AIRFLOW_HTTPS_URL = "https://github.com/apache/airflow.git"
+ACCESS_TOKEN = "my_access_token"
+CONN_HTTPS = "my_git_conn"
+CONN_ONLY_PATH = "my_git_conn_only_path"
+CONN_NO_REPO_URL = "my_git_conn_no_repo_url"
+
 
 @pytest.fixture
 def git_repo(tmp_path_factory):
@@ -58,146 +65,6 @@ def git_repo(tmp_path_factory):
     repo.index.add([file_path])
     repo.index.commit("Initial commit")
     return (directory, repo)
-
-
-AIRFLOW_HTTPS_URL = "https://github.com/apache/airflow.git"
-AIRFLOW_GIT = "git@github.com:apache/airflow.git"
-ACCESS_TOKEN = "my_access_token"
-CONN_DEFAULT = "git_default"
-CONN_HTTPS = "my_git_conn"
-CONN_ONLY_PATH = "my_git_conn_only_path"
-CONN_ONLY_INLINE_KEY = "my_git_conn_only_inline_key"
-CONN_BOTH_PATH_INLINE = "my_git_conn_both_path_inline"
-CONN_NO_REPO_URL = "my_git_conn_no_repo_url"
-
-
-class TestGitHook:
-    @classmethod
-    def teardown_class(cls) -> None:
-        clear_db_connections()
-
-    @classmethod
-    def setup_class(cls) -> None:
-        db.merge_conn(
-            Connection(
-                conn_id=CONN_DEFAULT,
-                host=AIRFLOW_GIT,
-                conn_type="git",
-                extra='{"key_file": "/files/pkey.pem"}',
-            )
-        )
-        db.merge_conn(
-            Connection(
-                conn_id=CONN_HTTPS,
-                host=AIRFLOW_HTTPS_URL,
-                password=ACCESS_TOKEN,
-                conn_type="git",
-            )
-        )
-        db.merge_conn(
-            Connection(
-                conn_id=CONN_ONLY_PATH,
-                host="path/to/repo",
-                conn_type="git",
-            )
-        )
-        db.merge_conn(
-            Connection(
-                conn_id=CONN_ONLY_INLINE_KEY,
-                host="path/to/repo",
-                conn_type="git",
-                extra={
-                    "private_key": "inline_key",
-                },
-            )
-        )
-
-    @pytest.mark.parametrize(
-        "conn_id, hook_kwargs, expected_repo_url",
-        [
-            (CONN_DEFAULT, {}, AIRFLOW_GIT),
-            (CONN_HTTPS, {}, f"https://{ACCESS_TOKEN}@github.com/apache/airflow.git"),
-            (
-                CONN_HTTPS,
-                {"repo_url": "https://github.com/apache/zzzairflow"},
-                f"https://{ACCESS_TOKEN}@github.com/apache/zzzairflow",
-            ),
-            (CONN_ONLY_PATH, {}, "path/to/repo"),
-        ],
-    )
-    def test_correct_repo_urls(self, conn_id, hook_kwargs, expected_repo_url):
-        hook = GitHook(git_conn_id=conn_id, **hook_kwargs)
-        assert hook.repo_url == expected_repo_url
-
-    def test_env_var_with_configure_hook_env(self, session):
-        default_hook = GitHook(git_conn_id=CONN_DEFAULT)
-        with default_hook.configure_hook_env():
-            assert default_hook.env == {
-                "GIT_SSH_COMMAND": "ssh -i /files/pkey.pem -o IdentitiesOnly=yes -o StrictHostKeyChecking=no"
-            }
-        db.merge_conn(
-            Connection(
-                conn_id="my_git_conn_strict",
-                host=AIRFLOW_GIT,
-                conn_type="git",
-                extra='{"key_file": "/files/pkey.pem", "strict_host_key_checking": "yes"}',
-            )
-        )
-
-        strict_default_hook = GitHook(git_conn_id="my_git_conn_strict")
-        with strict_default_hook.configure_hook_env():
-            assert strict_default_hook.env == {
-                "GIT_SSH_COMMAND": "ssh -i /files/pkey.pem -o IdentitiesOnly=yes -o StrictHostKeyChecking=yes"
-            }
-
-    def test_given_both_private_key_and_key_file(self):
-        db.merge_conn(
-            Connection(
-                conn_id=CONN_BOTH_PATH_INLINE,
-                host="path/to/repo",
-                conn_type="git",
-                extra={
-                    "key_file": "path/to/key",
-                    "private_key": "inline_key",
-                },
-            )
-        )
-
-        with pytest.raises(
-            AirflowException, match="Both 'key_file' and 'private_key' cannot be provided at the same time"
-        ):
-            GitHook(git_conn_id=CONN_BOTH_PATH_INLINE)
-
-    def test_key_file_git_hook_has_env_with_configure_hook_env(self):
-        hook = GitHook(git_conn_id=CONN_DEFAULT)
-
-        assert hasattr(hook, "env")
-        with hook.configure_hook_env():
-            assert hook.env == {
-                "GIT_SSH_COMMAND": "ssh -i /files/pkey.pem -o IdentitiesOnly=yes -o StrictHostKeyChecking=no"
-            }
-
-    def test_private_key_lazy_env_var(self):
-        hook = GitHook(git_conn_id=CONN_ONLY_INLINE_KEY)
-        assert hook.env == {}
-
-        hook.set_git_env("dummy_inline_key")
-        assert hook.env == {
-            "GIT_SSH_COMMAND": "ssh -i dummy_inline_key -o IdentitiesOnly=yes -o StrictHostKeyChecking=no"
-        }
-
-    def test_configure_hook_env(self):
-        hook = GitHook(git_conn_id=CONN_ONLY_INLINE_KEY)
-        assert hasattr(hook, "private_key")
-
-        hook.set_git_env("dummy_inline_key")
-
-        with hook.configure_hook_env():
-            command = hook.env.get("GIT_SSH_COMMAND")
-            temp_key_path = command.split()[2]
-            assert os.path.exists(temp_key_path)
-
-        assert not os.path.exists(temp_key_path)
 
 
 class TestGitDagBundle:
@@ -254,7 +121,7 @@ class TestGitDagBundle:
         bundle = GitDagBundle(name="test", tracking_ref=GIT_DEFAULT_BRANCH)
         assert bundle.repo_url == bundle.hook.repo_url
 
-    @mock.patch("airflow.dag_processing.bundles.git.GitHook")
+    @mock.patch("airflow.providers.git.bundles.git.GitHook")
     def test_get_current_version(self, mock_githook, git_repo):
         repo_path, repo = git_repo
         mock_githook.return_value.repo_url = repo_path
@@ -264,7 +131,7 @@ class TestGitDagBundle:
 
         assert bundle.get_current_version() == repo.head.commit.hexsha
 
-    @mock.patch("airflow.dag_processing.bundles.git.GitHook")
+    @mock.patch("airflow.providers.git.bundles.git.GitHook")
     def test_get_specific_version(self, mock_githook, git_repo):
         repo_path, repo = git_repo
         mock_githook.return_value.repo_url = repo_path
@@ -289,7 +156,7 @@ class TestGitDagBundle:
         files_in_repo = {f.name for f in bundle.path.iterdir() if f.is_file()}
         assert {"test_dag.py"} == files_in_repo
 
-    @mock.patch("airflow.dag_processing.bundles.git.GitHook")
+    @mock.patch("airflow.providers.git.bundles.git.GitHook")
     def test_get_tag_version(self, mock_githook, git_repo):
         repo_path, repo = git_repo
         mock_githook.return_value.repo_url = repo_path
@@ -316,7 +183,7 @@ class TestGitDagBundle:
         files_in_repo = {f.name for f in bundle.path.iterdir() if f.is_file()}
         assert {"test_dag.py"} == files_in_repo
 
-    @mock.patch("airflow.dag_processing.bundles.git.GitHook")
+    @mock.patch("airflow.providers.git.bundles.git.GitHook")
     def test_get_latest(self, mock_githook, git_repo):
         repo_path, repo = git_repo
         mock_githook.return_value.repo_url = repo_path
@@ -343,7 +210,7 @@ class TestGitDagBundle:
             False,
         ],
     )
-    @mock.patch("airflow.dag_processing.bundles.git.GitHook")
+    @mock.patch("airflow.providers.git.bundles.git.GitHook")
     def test_refresh(self, mock_githook, git_repo, amend):
         """Ensure that the bundle refresh works when tracking a branch, with a new commit and amending the commit"""
         repo_path, repo = git_repo
@@ -375,7 +242,7 @@ class TestGitDagBundle:
         files_in_repo = {f.name for f in bundle.path.iterdir() if f.is_file()}
         assert {"test_dag.py", "new_test.py"} == files_in_repo
 
-    @mock.patch("airflow.dag_processing.bundles.git.GitHook")
+    @mock.patch("airflow.providers.git.bundles.git.GitHook")
     def test_refresh_tag(self, mock_githook, git_repo):
         """Ensure that the bundle refresh works when tracking a tag"""
         repo_path, repo = git_repo
@@ -406,7 +273,7 @@ class TestGitDagBundle:
         files_in_repo = {f.name for f in bundle.path.iterdir() if f.is_file()}
         assert {"test_dag.py", "new_test.py"} == files_in_repo
 
-    @mock.patch("airflow.dag_processing.bundles.git.GitHook")
+    @mock.patch("airflow.providers.git.bundles.git.GitHook")
     def test_head(self, mock_githook, git_repo):
         repo_path, repo = git_repo
         mock_githook.return_value.repo_url = repo_path
@@ -416,7 +283,7 @@ class TestGitDagBundle:
         bundle.initialize()
         assert bundle.repo.head.ref.name == "test"
 
-    @mock.patch("airflow.dag_processing.bundles.git.GitHook")
+    @mock.patch("airflow.providers.git.bundles.git.GitHook")
     def test_version_not_found(self, mock_githook, git_repo):
         repo_path, repo = git_repo
         mock_githook.return_value.repo_url = repo_path
@@ -429,7 +296,7 @@ class TestGitDagBundle:
         with pytest.raises(AirflowException, match="Version not_found not found in the repository"):
             bundle.initialize()
 
-    @mock.patch("airflow.dag_processing.bundles.git.GitHook")
+    @mock.patch("airflow.providers.git.bundles.git.GitHook")
     def test_subdir(self, mock_githook, git_repo):
         repo_path, repo = git_repo
         mock_githook.return_value.repo_url = repo_path
@@ -464,8 +331,8 @@ class TestGitDagBundle:
         with pytest.raises(AirflowException, match=f"Connection {CONN_NO_REPO_URL} doesn't have a host url"):
             bundle.initialize()
 
-    @mock.patch("airflow.dag_processing.bundles.git.GitHook")
-    @mock.patch("airflow.dag_processing.bundles.git.Repo")
+    @mock.patch("airflow.providers.git.bundles.git.GitHook")
+    @mock.patch("airflow.providers.git.bundles.git.Repo")
     def test_with_path_as_repo_url(self, mock_gitRepo, mock_githook):
         bundle = GitDagBundle(
             name="test",
@@ -476,7 +343,7 @@ class TestGitDagBundle:
         assert mock_gitRepo.clone_from.call_count == 2
         assert mock_gitRepo.return_value.git.checkout.call_count == 1
 
-    @mock.patch("airflow.dag_processing.bundles.git.Repo")
+    @mock.patch("airflow.providers.git.bundles.git.Repo")
     def test_refresh_with_git_connection(self, mock_gitRepo):
         bundle = GitDagBundle(
             name="test",
@@ -510,7 +377,7 @@ class TestGitDagBundle:
             ("file:///dev/null", None),
         ],
     )
-    @mock.patch("airflow.dag_processing.bundles.git.Repo")
+    @mock.patch("airflow.providers.git.bundles.git.Repo")
     def test_view_url(self, mock_gitrepo, repo_url, expected_url, session):
         session.query(Connection).delete()
         conn = Connection(
@@ -529,7 +396,7 @@ class TestGitDagBundle:
         assert view_url == expected_url
         bundle.initialize.assert_not_called()
 
-    @mock.patch("airflow.dag_processing.bundles.git.Repo")
+    @mock.patch("airflow.providers.git.bundles.git.Repo")
     def test_view_url_returns_none_when_no_version_in_view_url(self, mock_gitrepo):
         bundle = GitDagBundle(
             name="test",
@@ -538,12 +405,12 @@ class TestGitDagBundle:
         view_url = bundle.view_url(None)
         assert view_url is None
 
-    @mock.patch("airflow.dag_processing.bundles.git.GitHook")
+    @mock.patch("airflow.providers.git.bundles.git.GitHook")
     def test_clone_bare_repo_git_command_error(self, mock_githook):
         mock_githook.return_value.repo_url = "git@github.com:apache/airflow.git"
         mock_githook.return_value.env = {}
 
-        with mock.patch("airflow.dag_processing.bundles.git.Repo.clone_from") as mock_clone:
+        with mock.patch("airflow.providers.git.bundles.git.Repo.clone_from") as mock_clone:
             mock_clone.side_effect = GitCommandError("clone", "Simulated error")
             bundle = GitDagBundle(name="test", tracking_ref="main")
             with pytest.raises(
@@ -552,12 +419,12 @@ class TestGitDagBundle:
             ):
                 bundle.initialize()
 
-    @mock.patch("airflow.dag_processing.bundles.git.GitHook")
+    @mock.patch("airflow.providers.git.bundles.git.GitHook")
     def test_clone_repo_no_such_path_error(self, mock_githook):
         mock_githook.return_value.repo_url = "git@github.com:apache/airflow.git"
 
-        with mock.patch("airflow.dag_processing.bundles.git.os.path.exists", return_value=False):
-            with mock.patch("airflow.dag_processing.bundles.git.Repo.clone_from") as mock_clone:
+        with mock.patch("airflow.providers.git.bundles.git.os.path.exists", return_value=False):
+            with mock.patch("airflow.providers.git.bundles.git.Repo.clone_from") as mock_clone:
                 mock_clone.side_effect = NoSuchPathError("Path not found")
                 bundle = GitDagBundle(name="test", tracking_ref="main")
                 with pytest.raises(AirflowException) as exc_info:
@@ -580,11 +447,11 @@ class TestGitDagBundle:
         else:
             assert not hasattr(bundle, "hook")
 
-    @mock.patch("airflow.dag_processing.bundles.git.GitHook")
+    @mock.patch("airflow.providers.git.bundles.git.GitHook")
     def test_lock_used(self, mock_githook, git_repo):
         repo_path, repo = git_repo
         mock_githook.return_value.repo_url = repo_path
         bundle = GitDagBundle(name="test", tracking_ref=GIT_DEFAULT_BRANCH)
-        with mock.patch("airflow.dag_processing.bundles.git.GitDagBundle.lock") as mock_lock:
+        with mock.patch("airflow.providers.git.bundles.git.GitDagBundle.lock") as mock_lock:
             bundle.initialize()
             assert mock_lock.call_count == 2  # both initialize and refresh

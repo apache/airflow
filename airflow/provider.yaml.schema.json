@@ -313,6 +313,30 @@
                 ]
             }
         },
+        "bundles": {
+            "type": "array",
+            "items": {
+                "type": "object",
+                "properties": {
+                    "integration-name": {
+                        "type": "string",
+                        "description": "Integration name. It must have a matching item in the 'integration' section of any provider."
+                    },
+                    "python-modules": {
+                        "description": "List of python modules containing the bundles.",
+                        "type": "array",
+                        "items": {
+                            "type": "string"
+                        }
+                    }
+                },
+                "additionalProperties": false,
+                "required": [
+                    "integration-name",
+                    "python-modules"
+                ]
+            }
+        },
         "connection-types": {
             "type": "array",
             "description": "Array of connection types mapped to hook class names",
