@@ -22,7 +22,7 @@ import time
 from base64 import urlsafe_b64encode
 from collections.abc import Sequence
 from datetime import datetime
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, Callable, Literal, overload
 
 import attrs
 import httpx
@@ -231,6 +231,16 @@ def _conf_factory(section, key, **kwargs):
     return factory
 
 
+@overload
+def _conf_list_factory(section, key, first_only: Literal[True], **kwargs) -> Callable[[], str]: ...
+
+
+@overload
+def _conf_list_factory(
+    section, key, first_only: Literal[False] = False, **kwargs
+) -> Callable[[], list[str]]: ...
+
+
 def _conf_list_factory(section, key, first_only: bool = False, **kwargs):
     def factory() -> list[str] | str:
         from airflow.configuration import conf
@@ -239,7 +249,7 @@ def _conf_list_factory(section, key, first_only: bool = False, **kwargs):
 
         if first_only and val:
             return val[0]
-        return val
+        return val or []
 
     return factory
 
@@ -262,12 +272,16 @@ class JWTValidator:
     jwks: JWKS | None = None
     secret_key: str | None = attrs.field(repr=False, default=None, converter=lambda v: None if v == "" else v)
     issuer: str | list[str] | None = attrs.field(
-        factory=_conf_list_factory("api_auth", "jwt_issuer", fallback=None)
+        factory=_conf_list_factory("api_auth", "jwt_issuer", fallback=None),
+        # Ensure we have None, instead of an empty list, else pyjwt will fail to validate it
+        converter=lambda v: None if v == [] else v,
     )
     # By default, we just validate these
     required_claims: frozenset[str] = frozenset({"exp", "iat", "nbf"})
     audience: str | Sequence[str]
-    algorithm: list[str] = attrs.field(default=["GUESS"], converter=_to_list)
+    algorithm: list[str] = attrs.field(
+        factory=_conf_list_factory("api_auth", "jwt_algorithm", fallback="GUESS"), converter=_to_list
+    )
 
     leeway: float = attrs.field(factory=_conf_factory("api_auth", "jwt_leeway"), converter=int)
 
@@ -277,8 +291,12 @@ class JWTValidator:
 
         if self.algorithm == ["GUESS"]:
             if self.jwks:
-                # TODO: We could probably populate this from the jwks document?
-                raise ValueError("Cannot guess the algorithm when using JWKS")
+                # TODO: We could probably populate this from the jwks document, but we don't have that at
+                # construction time.
+                raise ValueError(
+                    "Cannot guess the algorithm when using JWKS - please specify it in the config option "
+                    "[api_auth] jwt_algorithm"
+                )
             else:
                 self.algorithm = ["HS512"]
 
@@ -380,19 +398,25 @@ class JWTGenerator:
     issuer: str | list[str] | None = attrs.field(
         factory=_conf_list_factory("api_auth", "jwt_issuer", first_only=True, fallback=None)
     )
-    algorithm: str = attrs.field(factory=_conf_factory("api_auth", "jwt_algorithm", fallback="GUESS"))
+    algorithm: str = attrs.field(
+        factory=_conf_list_factory("api_auth", "jwt_algorithm", first_only=True, fallback="GUESS")
+    )
 
     @kid.default
     def _generate_kid(self):
         if not self._private_key:
             return "not-used"
 
+        if kid := _conf_factory("api_auth", "jwt_kid", fallback=None)():
+            return kid
+
+        # Generate it from the thumbprint of the private key
         info = key_to_jwk_dict(self._private_key)
         return info["kid"]
 
     def __attrs_post_init__(self):
         if not (self._private_key is None) ^ (self._secret_key is None):
-            raise ValueError("Exactly one of privaate_key and secret_key must be specified")
+            raise ValueError("Exactly one of private_key and secret_key must be specified")
 
         if self.algorithm == "GUESS":
             if self._private_key:

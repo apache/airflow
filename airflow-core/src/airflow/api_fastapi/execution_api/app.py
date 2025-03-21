@@ -58,7 +58,6 @@ def _jwt_validator():
     validator = JWTValidator(
         required_claims=required_claims,
         issuer=issuer,
-        leeway=conf.getint("api_auth", "jwt_leeway"),
         audience=conf.get_mandatory_list_value("execution_api", "jwt_audience"),
         **get_sig_validation_args(make_secret_key_if_needed=False),
     )
