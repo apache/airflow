@@ -32,6 +32,7 @@ import { AliasNode } from "src/components/Graph/AliasNode";
 import { AssetConditionNode } from "src/components/Graph/AssetConditionNode";
 import { AssetNode } from "src/components/Graph/AssetNode";
 import { DagNode } from "src/components/Graph/DagNode";
+import { DownloadButton } from "src/components/Graph/DownloadButton";
 import Edge from "src/components/Graph/Edge";
 import { JoinNode } from "src/components/Graph/JoinNode";
 import { TaskNode } from "src/components/Graph/TaskNode";
@@ -212,8 +213,10 @@ export const Graph = () => {
         }
         nodeStrokeWidth={15}
         pannable
+        style={{ height: 150, width: 200 }}
         zoomable
       />
+      <DownloadButton dagId={dagId} />
     </ReactFlow>
   );
 };
