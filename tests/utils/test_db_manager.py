@@ -113,7 +113,7 @@ class MockDBManager(BaseDBManager):
 class TestBaseDBManager:
     @mock.patch.object(BaseDBManager, "get_alembic_config")
     @mock.patch.object(BaseDBManager, "get_current_revision")
-    @mock.patch.object(BaseDBManager, "_create_db_from_orm")
+    @mock.patch.object(BaseDBManager, "create_db_from_orm")
     def test_create_db_from_orm_called_from_init(
         self, mock_create_db_from_orm, mock_current_revision, mock_config, session
     ):
