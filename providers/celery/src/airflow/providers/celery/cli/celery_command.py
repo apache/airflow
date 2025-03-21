@@ -230,6 +230,9 @@ def worker(args):
     if not celery_log_level:
         celery_log_level = conf.get("logging", "LOGGING_LEVEL")
 
+    if args.verbose:
+        celery_log_level = "DEBUG"
+
     # Setup Celery worker
     options = [
         "worker",
