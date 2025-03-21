@@ -65,32 +65,11 @@ Here is an example configuration with more than 200GB disk space for Docker:
 
 - If docker not running in python virtual environment:
 
-    1. Create the docker group if it does not exist
-    
-    .. code-block:: bash
-
-        sudo groupadd docker
-
-    2. Add your user to the docker group
-   
-    .. code-block:: bash
-
-        sudo usermod -aG docker $USER
-
-    3. Log in to the new docker group
-
-    .. code-block:: bash
-
-        newgrp docker
-
-    4. Check if docker can be run without root
-   
-    .. code-block:: bash
-
-        docker run hello-world
-    
+    1. Create the docker group if it does not exist: ``sudo groupadd docker``
+    2. Add your user to the docker group: ``sudo usermod -aG docker $USER``
+    3. Log in to the new docker group: ``newgrp docker``
+    4. Check if docker can be run without root: ``docker run hello-world``
     5. In some cases you might make sure that "Allow the default Docker socket to be used" in "Advanced" tab of "Docker Desktop" settings is checked-out
-
 
     .. raw:: html
 
