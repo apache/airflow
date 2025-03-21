@@ -54,12 +54,6 @@ CONN_ONLY_PATH = "my_git_conn_only_path"
 CONN_NO_REPO_URL = "my_git_conn_no_repo_url"
 
 
-@pytest.fixture(autouse=True)
-def bundle_temp_dir(tmp_path):
-    with conf_vars({("dag_processor", "dag_bundle_storage_path"): str(tmp_path)}):
-        yield tmp_path
-
-
 @pytest.fixture
 def git_repo(tmp_path_factory):
     directory = tmp_path_factory.mktemp("repo")

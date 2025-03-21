@@ -16,8 +16,6 @@
 # under the License.
 from __future__ import annotations
 
-import contextlib
-import json
 import os
 from pathlib import Path
 from urllib.parse import urlparse
@@ -30,7 +28,6 @@ from airflow.dag_processing.bundles.base import (
     BaseDagBundle,
 )
 from airflow.exceptions import AirflowException
-from airflow.hooks.base import BaseHook
 from airflow.providers.git.hooks.git import GitHook
 
 log = structlog.get_logger()
