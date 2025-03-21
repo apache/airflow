@@ -23,7 +23,7 @@ import { dagSortOptions } from "src/constants/sortParams";
 
 type Props = {
   readonly handleSortChange: ({ value }: SelectValueChangeDetails<Array<string>>) => void;
-  readonly orderBy?: string;
+  readonly orderBy?: string[];
 };
 
 export const SortSelect = ({ handleSortChange, orderBy }: Props) => (
@@ -31,7 +31,7 @@ export const SortSelect = ({ handleSortChange, orderBy }: Props) => (
     collection={dagSortOptions}
     data-testid="sort-by-select"
     onValueChange={handleSortChange}
-    value={orderBy === undefined ? undefined : [orderBy]}
+    value={orderBy}
     width="310px"
   >
     <Select.Trigger>

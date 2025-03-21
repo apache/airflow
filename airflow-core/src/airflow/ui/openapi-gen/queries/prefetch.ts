@@ -809,7 +809,7 @@ export const prefetchUseDagServiceGetDags = (
     lastDagRunState?: DagRunState;
     limit?: number;
     offset?: number;
-    orderBy?: string;
+    orderBy?: string[];
     owners?: string[];
     paused?: boolean;
     tags?: string[];

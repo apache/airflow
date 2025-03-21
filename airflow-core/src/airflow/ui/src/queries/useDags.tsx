@@ -32,7 +32,7 @@ export const useDags = (
     limit?: number;
     offset?: number;
     onlyActive?: boolean;
-    orderBy?: string;
+    orderBy?: string[];
     owners?: Array<string>;
     paused?: boolean;
     tags?: Array<string>;

@@ -179,8 +179,7 @@ export const DagsList = () => {
     searchParams.get(NAME_PATTERN_PARAM) ?? undefined,
   );
 
-  const [sort] = sorting;
-  const orderBy = sort ? `${sort.desc ? "-" : ""}${sort.id}` : "-last_run_start_date";
+  const orderBy = new URLSearchParams(globalThis.location.search).getAll("sort");
 
   const handleSearchChange = (value: string) => {
     if (value) {
