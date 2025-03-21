@@ -23,11 +23,7 @@ import { MdDetails, MdOutlineEventNote } from "react-icons/md";
 import { RiArrowGoBackFill } from "react-icons/ri";
 import { useParams } from "react-router-dom";
 
-import {
-  useDagServiceGetDagDetails,
-  useDagsServiceRecentDagRuns,
-  useDagWarningServiceListDagWarnings,
-} from "openapi/queries";
+import { useDagServiceGetDagDetails, useDagsServiceRecentDagRuns } from "openapi/queries";
 import { TaskIcon } from "src/assets/TaskIcon";
 import { DetailsLayout } from "src/layouts/Details/DetailsLayout";
 import { isStatePending, useAutoRefresh } from "src/utils";
@@ -55,10 +51,6 @@ export const Dag = () => {
     dagId,
   });
 
-  const { data: warningData, isLoading: isWarningLoading } = useDagWarningServiceListDagWarnings({
-    dagId,
-  });
-
   const refetchInterval = useAutoRefresh({ dagId });
 
   // TODO: replace with with a list dag runs by dag id request
@@ -83,9 +75,8 @@ export const Dag = () => {
       <DetailsLayout
         dag={dag}
         error={error ?? runsError}
-        isLoading={isLoading || isLoadingRuns || isWarningLoading}
+        isLoading={isLoading || isLoadingRuns}
         tabs={tabs.filter((tab) => !(dag?.timetable_summary === null && tab.value === "backfills"))}
-        warning={warningData}
       >
         <Header
           dag={dag}
