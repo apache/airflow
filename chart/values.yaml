@@ -2714,10 +2714,6 @@ config:
     worker_container_tag: '{{ .Values.images.airflow.tag | default .Values.defaultAirflowTag }}'
     multi_namespace_mode: '{{ ternary "True" "False" .Values.multiNamespaceMode }}'
 
-  # PR 48032 renames triggerer.default_capacity to capacity. However, as this chart is used for both Airflow 3.0
-  # and 2.X, only the default_capacity is provided
-  triggerer:
-    default_capacity: 1000
 
 # yamllint enable rule:line-length
 

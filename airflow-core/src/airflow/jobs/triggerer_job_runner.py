@@ -97,9 +97,7 @@ class TriggererJobRunner(BaseJobRunner, LoggingMixin):
         if capacity is None:
             # PR 48032 renames the triggerer default_capacity to capacity. The precedence is capacity ->
             # default_capacity -> 1000
-            self.capacity = conf.getint("triggerer", "capacity") or conf.getint(
-                "triggerer", "default_capacity", default=1000
-            )
+            self.capacity = conf.getint("triggerer", "capacity")
         elif isinstance(capacity, int) and capacity > 0:
             self.capacity = capacity
         else:
