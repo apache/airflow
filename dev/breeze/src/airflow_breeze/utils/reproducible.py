@@ -156,7 +156,7 @@ def main():
         "--timestamp",
         help="timestamp of files",
         type=int,
-        default=get_source_date_epoch(AIRFLOW_ROOT_PATH),
+        default=get_source_date_epoch(AIRFLOW_ROOT_PATH / "airflow"),
     )
 
     args = parser.parse_args()
