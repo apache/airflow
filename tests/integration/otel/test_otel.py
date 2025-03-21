@@ -75,7 +75,9 @@ def unpause_trigger_dag_and_get_run_id(dag_id: str) -> str:
     return run_id
 
 
-def wait_for_dag_run_and_check_span_status(dag_id: str, run_id: str, max_wait_time: int, span_status: str):
+def wait_for_dag_run_and_check_span_status(
+    dag_id: str, run_id: str, max_wait_time: int, span_status: str | None
+):
     # max_wait_time, is the timeout for the DAG run to complete. The value is in seconds.
     start_time = time.time()
 
@@ -107,9 +109,10 @@ def wait_for_dag_run_and_check_span_status(dag_id: str, run_id: str, max_wait_ti
         dag_run_state == State.SUCCESS
     ), f"Dag run did not complete successfully. Final state: {dag_run_state}."
 
-    assert (
-        dag_run_span_status == span_status
-    ), f"Dag run span status isn't {span_status} as expected.Actual status: {dag_run_span_status}."
+    if span_status is not None:
+        assert (
+            dag_run_span_status == span_status
+        ), f"Dag run span status isn't {span_status} as expected.Actual status: {dag_run_span_status}."
 
 
 def check_dag_run_state_and_span_status(dag_id: str, run_id: str, state: str, span_status: str):
@@ -129,7 +132,7 @@ def check_dag_run_state_and_span_status(dag_id: str, run_id: str, state: str, sp
         ), f"Dag Run span_status isn't {span_status}. Span_status: {dag_run.span_status}"
 
 
-def check_ti_state_and_span_status(task_id: str, run_id: str, state: str, span_status: str):
+def check_ti_state_and_span_status(task_id: str, run_id: str, state: str, span_status: str | None):
     with create_session() as session:
         ti = (
             session.query(TaskInstance)
@@ -141,9 +144,11 @@ def check_ti_state_and_span_status(task_id: str, run_id: str, state: str, span_s
         )
 
         assert ti.state == state, f"Task instance state isn't {state}. State: {ti.state}"
-        assert (
-            ti.span_status == span_status
-        ), f"Task instance span_status isn't {span_status}. Span_status: {ti.span_status}"
+
+        if span_status is not None:
+            assert (
+                ti.span_status == span_status
+            ), f"Task instance span_status isn't {span_status}. Span_status: {ti.span_status}"
 
 
 def check_spans_with_continuance(output: str, dag: DAG, continuance_for_t1: bool = True):
@@ -667,6 +672,68 @@ class TestOtelIntegration:
         subprocess.run(migrate_command, check=True, env=os.environ.copy())
 
         self.dags = self.serialize_and_get_dags()
+
+    def test_dag_execution_succeeds(self, monkeypatch, celery_worker_env_vars, capfd, session):
+        """The same scheduler will start and finish the dag processing."""
+        celery_worker_process = None
+        scheduler_process = None
+        try:
+            # Start the processes here and not as fixtures or in a common setup,
+            # so that the test can capture their output.
+            celery_worker_process, scheduler_process = self.start_worker_and_scheduler1()
+
+            dag_id = "otel_test_dag"
+
+            assert len(self.dags) > 0
+            dag = self.dags[dag_id]
+
+            assert dag is not None
+
+            run_id = unpause_trigger_dag_and_get_run_id(dag_id=dag_id)
+
+            # Skip the span_status check.
+            wait_for_dag_run_and_check_span_status(
+                dag_id=dag_id, run_id=run_id, max_wait_time=90, span_status=None
+            )
+
+            # The ti span_status is updated while processing the executor events,
+            # which is after the dag_run state has been updated.
+            time.sleep(10)
+
+            with create_session() as session:
+                tis: list[TaskInstance] = dag.get_task_instances(session=session)
+
+            for ti in tis:
+                # Skip the span_status check.
+                check_ti_state_and_span_status(
+                    task_id=ti.task_id, run_id=run_id, state=State.SUCCESS, span_status=None
+                )
+                print_ti_output(ti)
+        finally:
+            if self.log_level == "debug":
+                with create_session() as session:
+                    dump_airflow_metadata_db(session)
+
+            # Terminate the processes.
+            celery_worker_process.terminate()
+            celery_worker_process.wait()
+
+            celery_status = celery_worker_process.poll()
+            assert (
+                celery_status is not None
+            ), "The celery worker process status is None, which means that it hasn't terminated as expected."
+
+            scheduler_process.terminate()
+            scheduler_process.wait()
+
+            scheduler_status = scheduler_process.poll()
+            assert (
+                scheduler_status is not None
+            ), "The scheduler_1 process status is None, which means that it hasn't terminated as expected."
+
+        out, err = capfd.readouterr()
+        log.info("out-start --\n%s\n-- out-end", out)
+        log.info("err-start --\n%s\n-- err-end", err)
 
     def test_same_scheduler_processing_the_entire_dag(
         self, monkeypatch, celery_worker_env_vars, capfd, session
