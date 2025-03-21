@@ -1702,6 +1702,9 @@ class DagRun(Base, LoggingMixin):
                 and not ti.task.outlets
             ):
                 dummy_ti_ids.append((ti.task_id, ti.map_index))
+            elif (not ti.task.backfill_eligible) and self.run_type == DagRunType.BACKFILL_JOB:
+                # If the task is not backfill eligible, treat it as EmptyOperator.
+                dummy_ti_ids.append((ti.task_id, ti.map_index))
             # check "start_trigger_args" to see whether the operator supports start execution from triggerer
             # if so, we'll then check "start_from_trigger" to see whether this feature is turned on and defer
             # this task.

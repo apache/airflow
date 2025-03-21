@@ -786,6 +786,8 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
                     dag=dag,
                 )
                 hello_world_task.execute(context)
+    :param eligible: If False, the task will be treated as EmptyOperator when the dag run type
+        is DagRunType.BACKFILL_JOB.
     """
 
     task_id: str
@@ -844,6 +846,7 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
     _task_display_name: str | None = None
     logger_name: str | None = None
     allow_nested_operators: bool = True
+    backfill_eligible: bool = True
 
     is_setup: bool = False
     is_teardown: bool = False
@@ -997,6 +1000,7 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
         task_display_name: str | None = None,
         logger_name: str | None = None,
         allow_nested_operators: bool = True,
+        backfill_eligible: bool = True,
         **kwargs: Any,
     ):
         # Note: Metaclass handles passing in the DAG/TaskGroup from active context manager, if any
@@ -1124,6 +1128,8 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
         self._task_display_name = task_display_name
 
         self.allow_nested_operators = allow_nested_operators
+
+        self.backfill_eligible = backfill_eligible
 
         self._logger_name = logger_name
 
