@@ -21,7 +21,7 @@ import { Panel, useReactFlow, getNodesBounds, getViewportForBounds } from "@xyfl
 import { toPng } from "html-to-image";
 import { FiDownload } from "react-icons/fi";
 
-import { toaster } from "../../components/ui";
+import { toaster } from "src/components/ui";
 
 export const DownloadButton = ({ dagId }: { readonly dagId: string }) => {
   const { getNodes } = useReactFlow();
