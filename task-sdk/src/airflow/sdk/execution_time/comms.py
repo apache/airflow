@@ -61,6 +61,7 @@ from airflow.sdk.api.datamodels._generated import (
     TerminalTIState,
     TIDeferredStatePayload,
     TIRescheduleStatePayload,
+    TIRetryStatePayload,
     TIRunContext,
     TIRuntimeCheckPayload,
     TISkippedDownstreamTasksStatePayload,
@@ -257,7 +258,6 @@ class TaskState(BaseModel):
         TerminalTIState.FAILED,
         TerminalTIState.SKIPPED,
         TerminalTIState.REMOVED,
-        TerminalTIState.FAIL_WITHOUT_RETRY,
     ]
     end_date: datetime | None = None
     type: Literal["TaskState"] = "TaskState"
@@ -286,6 +286,12 @@ class DeferTask(TIDeferredStatePayload):
             # Already encoded.
             return val
         return BaseSerialization.serialize(val or {})
+
+
+class RetryTask(TIRetryStatePayload):
+    """Update a task instance state to up_for_retry."""
+
+    type: Literal["RetryTask"] = "RetryTask"
 
 
 class RescheduleTask(TIRescheduleStatePayload):
@@ -445,6 +451,7 @@ ToSupervisor = Annotated[
         GetXComCount,
         PutVariable,
         RescheduleTask,
+        RetryTask,
         SkipDownstreamTasks,
         SetRenderedFields,
         SetXCom,
