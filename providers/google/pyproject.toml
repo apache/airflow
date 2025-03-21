@@ -75,7 +75,7 @@ dependencies = [
     "google-api-python-client>=2.0.2",
     "google-auth>=2.29.0",
     "google-auth-httplib2>=0.0.1",
-    "google-cloud-aiplatform[evaluation]>=1.73.0",
+    "google-cloud-aiplatform[evaluation,ray]>=1.73.0",
     "google-cloud-alloydb>=0.4.0",
     "google-cloud-automl>=2.12.0",
     # Excluded versions contain bug https://github.com/apache/airflow/issues/39541 which is resolved in 3.24.0

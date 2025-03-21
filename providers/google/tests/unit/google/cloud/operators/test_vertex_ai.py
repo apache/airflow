@@ -87,6 +87,13 @@ from airflow.providers.google.cloud.operators.vertex_ai.pipeline_job import (
     ListPipelineJobOperator,
     RunPipelineJobOperator,
 )
+from airflow.providers.google.cloud.operators.vertex_ai.ray import (
+    CreateRayClusterOperator,
+    DeleteRayClusterOperator,
+    GetRayClusterOperator,
+    ListRayClustersOperator,
+    UpdateRayClusterOperator,
+)
 from airflow.providers.google.cloud.triggers.vertex_ai import (
     CustomContainerTrainingJobTrigger,
     CustomPythonPackageTrainingJobTrigger,
@@ -211,6 +218,18 @@ TEST_TRAINING_PIPELINE_DATA = {
 TEST_TRAINING_PIPELINE_DATA_NO_MODEL = {
     "training_task_metadata": {"backingCustomJob": "prefix/test-custom-job"}
 }
+
+TEST_NODE_RESOURCES: dict = {
+    "machine_type": "n1-standard-8",
+    "node_count": 1,
+    "accelerator_type": "NVIDIA_TESLA_K80",
+    "accelerator_count": 1,
+    "custom_image": "us-docker.pkg.dev/my-project/ray-cpu-image.2.9:latest",
+}
+TEST_PYTHON_VERSION: str = "3.10"
+TEST_RAY_VERSION: str = "2.33"
+TEST_CLUSTER_NAME: str = "test-cluster-name"
+TEST_CLUSTER_ID: str = "test-cluster-id"
 
 
 class TestVertexAICreateCustomContainerTrainingJobOperator:
@@ -3079,4 +3098,128 @@ class TestVertexAIListPipelineJobOperator:
             retry=RETRY,
             timeout=TIMEOUT,
             metadata=METADATA,
+        )
+
+
+class TestVertexAICreateRayClusterOperator:
+    @mock.patch(VERTEX_AI_PATH.format("ray.RayHook"))
+    def test_execute(self, mock_hook):
+        op = CreateRayClusterOperator(
+            task_id=TASK_ID,
+            gcp_conn_id=GCP_CONN_ID,
+            impersonation_chain=IMPERSONATION_CHAIN,
+            location=GCP_LOCATION,
+            project_id=GCP_PROJECT,
+            head_node_type=TEST_NODE_RESOURCES,
+            python_version=TEST_PYTHON_VERSION,
+            ray_version=TEST_RAY_VERSION,
+            network=None,
+            service_account=None,
+            cluster_name=TEST_CLUSTER_NAME,
+            worker_node_types=[TEST_NODE_RESOURCES],
+            custom_images=None,
+            enable_metrics_collection=True,
+            enable_logging=True,
+            psc_interface_config=None,
+            reserved_ip_ranges=None,
+            labels=None,
+        )
+        op.execute(context={"ti": mock.MagicMock()})
+        mock_hook.assert_called_once_with(gcp_conn_id=GCP_CONN_ID, impersonation_chain=IMPERSONATION_CHAIN)
+        mock_hook.return_value.create_ray_cluster.assert_called_once_with(
+            location=GCP_LOCATION,
+            project_id=GCP_PROJECT,
+            head_node_type=TEST_NODE_RESOURCES,
+            python_version=TEST_PYTHON_VERSION,
+            ray_version=TEST_RAY_VERSION,
+            network=None,
+            service_account=None,
+            cluster_name=TEST_CLUSTER_NAME,
+            worker_node_types=[TEST_NODE_RESOURCES],
+            custom_images=None,
+            enable_metrics_collection=True,
+            enable_logging=True,
+            psc_interface_config=None,
+            reserved_ip_ranges=None,
+            labels=None,
+        )
+
+
+class TestVertexAIListRayClustersOperator:
+    @mock.patch(VERTEX_AI_PATH.format("ray.RayHook"))
+    def test_execute(self, mock_hook):
+        op = ListRayClustersOperator(
+            task_id=TASK_ID,
+            gcp_conn_id=GCP_CONN_ID,
+            impersonation_chain=IMPERSONATION_CHAIN,
+            location=GCP_LOCATION,
+            project_id=GCP_PROJECT,
+        )
+        op.execute(context={"ti": mock.MagicMock()})
+        mock_hook.assert_called_once_with(gcp_conn_id=GCP_CONN_ID, impersonation_chain=IMPERSONATION_CHAIN)
+        mock_hook.return_value.list_ray_clusters.assert_called_once_with(
+            location=GCP_LOCATION,
+            project_id=GCP_PROJECT,
+        )
+
+
+class TestVertexAIGetRayClusterOperator:
+    @mock.patch(VERTEX_AI_PATH.format("ray.RayHook"))
+    def test_execute(self, mock_hook):
+        op = GetRayClusterOperator(
+            task_id=TASK_ID,
+            cluster_id=TEST_CLUSTER_ID,
+            gcp_conn_id=GCP_CONN_ID,
+            impersonation_chain=IMPERSONATION_CHAIN,
+            location=GCP_LOCATION,
+            project_id=GCP_PROJECT,
+        )
+        op.execute(context={"ti": mock.MagicMock()})
+        mock_hook.assert_called_once_with(gcp_conn_id=GCP_CONN_ID, impersonation_chain=IMPERSONATION_CHAIN)
+        mock_hook.return_value.get_ray_cluster.assert_called_once_with(
+            location=GCP_LOCATION,
+            project_id=GCP_PROJECT,
+            cluster_id=TEST_CLUSTER_ID,
+        )
+
+
+class TestVertexAIUpdateRayClusterOperator:
+    @mock.patch(VERTEX_AI_PATH.format("ray.RayHook"))
+    def test_execute(self, mock_hook):
+        op = UpdateRayClusterOperator(
+            task_id=TASK_ID,
+            gcp_conn_id=GCP_CONN_ID,
+            impersonation_chain=IMPERSONATION_CHAIN,
+            project_id=GCP_PROJECT,
+            location=GCP_LOCATION,
+            cluster_id=TEST_CLUSTER_ID,
+            worker_node_types=[TEST_NODE_RESOURCES],
+        )
+        op.execute(context={"ti": mock.MagicMock()})
+        mock_hook.assert_called_once_with(gcp_conn_id=GCP_CONN_ID, impersonation_chain=IMPERSONATION_CHAIN)
+        mock_hook.return_value.update_ray_cluster.assert_called_once_with(
+            project_id=GCP_PROJECT,
+            location=GCP_LOCATION,
+            cluster_id=TEST_CLUSTER_ID,
+            worker_node_types=[TEST_NODE_RESOURCES],
+        )
+
+
+class TestVertexAIDeleteRayClusterOperator:
+    @mock.patch(VERTEX_AI_PATH.format("ray.RayHook"))
+    def test_execute(self, mock_hook):
+        op = DeleteRayClusterOperator(
+            task_id=TASK_ID,
+            gcp_conn_id=GCP_CONN_ID,
+            impersonation_chain=IMPERSONATION_CHAIN,
+            location=GCP_LOCATION,
+            project_id=GCP_PROJECT,
+            cluster_id=TEST_CLUSTER_ID,
+        )
+        op.execute(context={})
+        mock_hook.assert_called_once_with(gcp_conn_id=GCP_CONN_ID, impersonation_chain=IMPERSONATION_CHAIN)
+        mock_hook.return_value.delete_ray_cluster.assert_called_once_with(
+            location=GCP_LOCATION,
+            project_id=GCP_PROJECT,
+            cluster_id=TEST_CLUSTER_ID,
         )
