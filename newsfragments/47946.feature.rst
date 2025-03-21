@@ -1,0 +1,1 @@
+A new config "workers secrets_backend[kwargs]" has been introduced to configure secrets backend on the workers directly to allow reducing the round trip to the API server and also to allow configuring a different secrets backend. Priority defined as workers backend > workers env > secrets backend on API server > API server env > metadata DB.
