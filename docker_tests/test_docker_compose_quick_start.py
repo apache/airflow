@@ -105,7 +105,7 @@ def test_trigger_dag_and_wait_for_result(default_docker_image, tmp_path_factory,
     monkeypatch.setenv("AIRFLOW_IMAGE_NAME", default_docker_image)
 
     compose_file_path = (
-        SOURCE_ROOT / "docs" / "apache-airflow" / "howto" / "docker-compose" / "docker-compose.yaml"
+        SOURCE_ROOT / "airflow-core" / "docs" / "howto" / "docker-compose" / "docker-compose.yaml"
     )
     copyfile(compose_file_path, tmp_dir / "docker-compose.yaml")
 

@@ -22,6 +22,7 @@ from google.api_core.gapic_v1.method import DEFAULT
 from google.protobuf.field_mask_pb2 import FieldMask
 
 from airflow.providers.google.cloud.operators.dataplex import DataplexHook
+
 from unit.google.cloud.utils.base_gcp_mock import mock_base_gcp_hook_default_project_id
 
 BASE_STRING = "airflow.providers.google.common.hooks.base_google.{}"

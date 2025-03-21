@@ -202,7 +202,7 @@ Misc
    * ``Add bandit to pre-commit to detect common security issues (#34247)``
    * ``Fix and reapply templates for provider documentation (#35686)``
    * ``Prepare docs 2nd wave of Providers November 2023 (#35836)``
-   * ``Use reproducible builds for provider packages (#35693)``
+   * ``Use reproducible builds for providers (#35693)``
 
 3.6.1
 .....

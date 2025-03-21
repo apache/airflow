@@ -34,15 +34,15 @@ from airflow.providers.microsoft.azure.triggers.msgraph import (
     ResponseSerializer,
 )
 from airflow.triggers.base import TriggerEvent
+
+from tests_common.test_utils.file_loading import load_file_from_resources, load_json_from_resources
+from tests_common.test_utils.operators.run_deferrable import run_trigger
 from unit.microsoft.azure.base import Base
 from unit.microsoft.azure.test_utils import (
     get_airflow_connection,
     mock_json_response,
     mock_response,
 )
-
-from tests_common.test_utils.file_loading import load_file_from_resources, load_json_from_resources
-from tests_common.test_utils.operators.run_deferrable import run_trigger
 
 
 class TestMSGraphTrigger(Base):

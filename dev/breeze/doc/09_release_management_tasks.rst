@@ -43,21 +43,21 @@ You can prepare airflow packages using Breeze:
 
 .. code-block:: bash
 
-     breeze release-management prepare-airflow-package
+     breeze release-management prepare-airflow-distributions
 
 This prepares airflow .whl package in the dist folder.
 
-Again, you can specify optional ``--package-format`` flag to build selected formats of airflow packages,
+Again, you can specify optional ``--distribution-format`` flag to build selected formats of airflow packages,
 default is to build ``both`` type of packages ``sdist`` and ``wheel``.
 
 .. code-block:: bash
 
-     breeze release-management prepare-airflow-package --package-format=wheel
+     breeze release-management prepare-airflow-distributions --distribution-format=wheel
 
-.. image:: ./images/output_release-management_prepare-airflow-package.svg
-  :target: https://raw.githubusercontent.com/apache/airflow/main/dev/breeze/doc/images/output_release-management_prepare-airflow-package.svg
+.. image:: ./images/output_release-management_prepare-airflow-distributions.svg
+  :target: https://raw.githubusercontent.com/apache/airflow/main/dev/breeze/doc/images/output_release-management_prepare-airflow-distributions.svg
   :width: 100%
-  :alt: Breeze release-management prepare-airflow-package
+  :alt: Breeze release-management prepare-airflow-distributions
 
 
 Preparing airflow tarball
@@ -275,14 +275,14 @@ Provider release commands
 .........................
 
 Preparing provider release is part of the release procedure by the release managers
-and it is described in detail in `dev <dev/README_RELEASE_PROVIDER_PACKAGES.md>`_ .
+and it is described in detail in `dev <dev/README_RELEASE_PROVIDERS.md>`_ .
 
 Preparing provider documentation
 """"""""""""""""""""""""""""""""
 
 You can use Breeze to prepare provider documentation.
 
-The below example perform documentation preparation for provider packages.
+The below example perform documentation preparation for providers.
 
 .. code-block:: bash
 
@@ -296,86 +296,86 @@ You can also add ``--answer yes`` to perform non-interactive build.
   :width: 100%
   :alt: Breeze prepare-provider-documentation
 
-Preparing provider packages
-"""""""""""""""""""""""""""
+Preparing providers
+"""""""""""""""""""
 
-You can use Breeze to prepare provider packages.
+You can use Breeze to prepare providers.
 
 The packages are prepared in ``dist`` folder. Note, that this command cleans up the ``dist`` folder
 before running, so you should run it before generating airflow package below as it will be removed.
 
-The below example builds provider packages in the wheel format.
+The below example builds providers in the wheel format.
 
 .. code-block:: bash
 
-     breeze release-management prepare-provider-packages
+     breeze release-management prepare-provider-distributions
 
 If you run this command without packages, you will prepare all packages, you can however specify
 providers that you would like to build. By default ``both`` types of packages are prepared (
-``wheel`` and ``sdist``, but you can change it providing optional --package-format flag.
+``wheel`` and ``sdist``, but you can change it providing optional --distribution-format flag.
 
 .. code-block:: bash
 
-     breeze release-management prepare-provider-packages google amazon
+     breeze release-management prepare-provider-distributions google amazon
 
 You can see all providers available by running this command:
 
 .. code-block:: bash
 
-     breeze release-management prepare-provider-packages --help
+     breeze release-management prepare-provider-distributions --help
 
-.. image:: ./images/output_release-management_prepare-provider-packages.svg
-  :target: https://raw.githubusercontent.com/apache/airflow/main/dev/breeze/doc/images/output_release-management_prepare-provider-packages.svg
+.. image:: ./images/output_release-management_prepare-provider-distributions.svg
+  :target: https://raw.githubusercontent.com/apache/airflow/main/dev/breeze/doc/images/output_release-management_prepare-provider-distributions.svg
   :width: 100%
-  :alt: Breeze prepare-provider-packages
+  :alt: Breeze prepare-provider-distributions
 
-Installing provider packages
-""""""""""""""""""""""""""""
+Installing providers
+""""""""""""""""""""
 
-In some cases we want to just see if the provider packages generated can be installed with airflow without
+In some cases we want to just see if the providers generated can be installed with airflow without
 verifying them. This happens automatically on CI for sdist pcackages but you can also run it manually if you
-just prepared provider packages and they are present in ``dist`` folder.
+just prepared providers and they are present in ``dist`` folder.
 
 .. code-block:: bash
 
-     breeze release-management install-provider-packages
+     breeze release-management install-provider-distributions
 
 You can also run the verification with an earlier airflow version to check for compatibility.
 
 .. code-block:: bash
 
-    breeze release-management install-provider-packages --use-airflow-version 2.4.0
+    breeze release-management install-provider-distributions --use-airflow-version 2.4.0
 
 All the command parameters are here:
 
-.. image:: ./images/output_release-management_install-provider-packages.svg
-  :target: https://raw.githubusercontent.com/apache/airflow/main/dev/breeze/doc/images/output_release-management_install-provider-packages.svg
+.. image:: ./images/output_release-management_install-provider-distributions.svg
+  :target: https://raw.githubusercontent.com/apache/airflow/main/dev/breeze/doc/images/output_release-management_install-provider-distributions.svg
   :width: 100%
-  :alt: Breeze install-provider-packages
+  :alt: Breeze install-provider-distributions
 
-Verifying provider packages
-"""""""""""""""""""""""""""
+Verifying providers
+"""""""""""""""""""
 
 Breeze can also be used to verify if provider classes are importable and if they are following the
 right naming conventions. This happens automatically on CI but you can also run it manually if you
-just prepared provider packages and they are present in ``dist`` folder.
+just prepared providers and they are present in ``dist`` folder.
 
 .. code-block:: bash
 
-     breeze release-management verify-provider-packages
+     breeze release-management verify-provider-distributions
 
 You can also run the verification with an earlier airflow version to check for compatibility.
 
 .. code-block:: bash
 
-    breeze release-management verify-provider-packages --use-airflow-version 2.4.0
+    breeze release-management verify-provider-distributions --use-airflow-version 2.4.0
 
 All the command parameters are here:
 
-.. image:: ./images/output_release-management_verify-provider-packages.svg
-  :target: https://raw.githubusercontent.com/apache/airflow/main/dev/breeze/doc/images/output_release-management_verify-provider-packages.svg
+.. image:: ./images/output_release-management_verify-provider-distributions.svg
+  :target: https://raw.githubusercontent.com/apache/airflow/main/dev/breeze/doc/images/output_release-management_verify-provider-distributions.svg
   :width: 100%
-  :alt: Breeze verify-provider-packages
+  :alt: Breeze verify-provider-distributions
 
 Generating Providers Metadata
 """""""""""""""""""""""""""""
@@ -586,7 +586,7 @@ Also for helm-chart package:
 
 
 You can also manually specify (it's auto-completable) list of packages to run the command for including individual
-providers - you can mix apache-airflow, helm-chart and provider packages this way:
+providers - you can mix apache-airflow, helm-chart and providers this way:
 
 .. code-block:: bash
 
@@ -674,18 +674,18 @@ You can prepare airflow packages using Breeze:
 
 .. code-block:: bash
 
-     breeze release-management prepare-task-sdk-package
+     breeze release-management prepare-task-sdk-distributions
 
 This prepares airflow Task SDK .whl package in the dist folder.
 
-Again, you can specify optional ``--package-format`` flag to build selected formats of the Task SDK packages,
+Again, you can specify optional ``--distribution-format`` flag to build selected formats of the Task SDK packages,
 default is to build ``both`` type of packages ``sdist`` and ``wheel``.
 
 .. code-block:: bash
 
-     breeze release-management prepare-task-sdk-package --package-format=wheel
+     breeze release-management prepare-task-sdk-distributions --distribution-format=wheel
 
-.. image:: ./images/output_release-management_prepare-task-sdk-package.svg
-  :target: https://raw.githubusercontent.com/apache/airflow/main/dev/breeze/doc/images/output_release-management_prepare-airflow-package.svg
+.. image:: ./images/output_release-management_prepare-task-sdk-distributions.svg
+  :target: https://raw.githubusercontent.com/apache/airflow/main/dev/breeze/doc/images/output_release-management_prepare-task-sdk-distributions.svg
   :width: 100%
-  :alt: Breeze release-management prepare-task-sdk-package
+  :alt: Breeze release-management prepare-task-sdk-distributions

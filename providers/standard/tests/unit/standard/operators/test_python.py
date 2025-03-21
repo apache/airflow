@@ -78,11 +78,11 @@ if TYPE_CHECKING:
 
 pytestmark = [pytest.mark.db_test, pytest.mark.need_serialized_dag]
 
-AIRFLOW_MAIN_FOLDER = Path(__file__).parents[6]
+AIRFLOW_ROOT_PATH = Path(__file__).parents[6]
 
 TI = TaskInstance
 DEFAULT_DATE = timezone.datetime(2016, 1, 1)
-TEMPLATE_SEARCHPATH = (AIRFLOW_MAIN_FOLDER / "tests" / "config_templates").as_posix()
+TEMPLATE_SEARCHPATH = (AIRFLOW_ROOT_PATH / "airflow-core" / "tests" / "unit" / "config_templates").as_posix()
 LOGGER_NAME = "airflow.task.operators"
 DEFAULT_PYTHON_VERSION = f"{sys.version_info[0]}.{sys.version_info[1]}"
 DILL_INSTALLED = find_spec("dill") is not None

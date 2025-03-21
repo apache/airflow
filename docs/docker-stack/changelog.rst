@@ -42,6 +42,7 @@ Airflow 3.0
   * There is no ``pipx`` and ``mssql-cli`` installed in the image by default. We recommend to use
     ``uv tool`` instead of ``pipx`` and ``mssql-cli`` is not used in the image by default as we do not
     have mssql metadata support any more.
+  * The ``INSTALL_PACKAGES_FROM_CONTEXT`` arg changed to ``INSTALL_DISTRIBUTIONS_FROM_CONTEXT``
 
 Airflow 2.10
 ~~~~~~~~~~~~

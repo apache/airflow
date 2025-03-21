@@ -29,13 +29,12 @@
 from __future__ import annotations
 
 import json
+import sys
 from pathlib import Path
 
-from in_container_utils import click, run_command
+sys.path.insert(0, str(Path(__file__).parent.resolve()))
+from in_container_utils import AIRFLOW_ROOT_PATH, click, run_command
 from packaging.requirements import Requirement
-
-AIRFLOW_SOURCE_DIR = Path(__file__).resolve().parents[2]
-DIST_FOLDER = Path("/dist")
 
 
 @click.command()
@@ -54,7 +53,7 @@ DIST_FOLDER = Path("/dist")
     help="Running in GitHub Actions",
 )
 def install_development_dependencies(constraint: str, github_actions: bool):
-    pyproject_toml_of_devel_commons = (AIRFLOW_SOURCE_DIR / "devel-common" / "pyproject.toml").read_text()
+    pyproject_toml_of_devel_commons = (AIRFLOW_ROOT_PATH / "devel-common" / "pyproject.toml").read_text()
     development_dependencies: list[str] = []
     in_devel_common_dependencies = False
     for line in pyproject_toml_of_devel_commons.splitlines():
@@ -73,7 +72,7 @@ def install_development_dependencies(constraint: str, github_actions: bool):
                     continue
                 development_dependencies.append(dependency.split(";")[0])
     providers_dependencies = json.loads(
-        (AIRFLOW_SOURCE_DIR / "generated" / "provider_dependencies.json").read_text()
+        (AIRFLOW_ROOT_PATH / "generated" / "provider_dependencies.json").read_text()
     )
     for provider_id in providers_dependencies:
         development_dependencies.extend(providers_dependencies[provider_id]["devel-deps"])

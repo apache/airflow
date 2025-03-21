@@ -53,6 +53,7 @@
       "openapi-schema-validator>=0.6.2",
       "openapi-spec-validator>=0.7.1",
       "opensearch-py>=2.2.0",
+      "responses>=0.25.0",
       "s3fs>=2023.10.0"
     ],
     "plugins": [],
@@ -178,6 +179,7 @@
     ],
     "cross-providers-deps": [
       "amazon",
+      "common.compat",
       "common.sql",
       "microsoft.mssql",
       "mysql",
@@ -1403,7 +1405,9 @@
       "yandex-query-client>=0.1.4",
       "yandexcloud>=0.308.0"
     ],
-    "devel-deps": [],
+    "devel-deps": [
+      "responses>=0.25.0"
+    ],
     "plugins": [],
     "cross-providers-deps": [
       "common.compat"

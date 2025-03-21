@@ -440,7 +440,7 @@ Misc
 * ``Remove backcompat inheritance for DbApiHook (#35754)``
 
 .. Review and move the new changes to one of the sections above:
-   * ``Use reproducible builds for provider packages (#35693)``
+   * ``Use reproducible builds for providers (#35693)``
    * ``Fix and reapply templates for provider documentation (#35686)``
    * ``Prepare docs 1st wave of Providers November 2023 (#35537)``
    * ``Work around typing issue in examples and providers (#35494)``
