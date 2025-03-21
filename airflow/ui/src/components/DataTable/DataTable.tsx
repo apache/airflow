@@ -98,6 +98,7 @@ export const DataTable = <TData,>({
   const table = useReactTable({
     columns,
     data,
+    enableMultiSort: true,
     getCoreRowModel: getCoreRowModel(),
     getExpandedRowModel: getExpandedRowModel(),
     getPaginationRowModel: getPaginationRowModel(),
