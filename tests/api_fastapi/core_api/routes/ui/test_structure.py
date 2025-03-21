@@ -22,6 +22,7 @@ import copy
 import pendulum
 import pytest
 from sqlalchemy import select
+from sqlalchemy.orm import Session
 
 from airflow.models import DagBag
 from airflow.models.asset import AssetModel
@@ -99,12 +100,22 @@ def clean():
 
 
 @pytest.fixture
+def asset1():
+    return Asset(uri="s3://bucket/next-run-asset/1", name="asset1")
+
+
+@pytest.fixture
+def asset2():
+    return Asset(uri="s3://bucket/next-run-asset/2", name="asset2")
+
+
+@pytest.fixture
 def asset3():
     return Dataset(uri="s3://dataset-bucket/example.csv")
 
 
 @pytest.fixture
-def make_dag(dag_maker, session, time_machine, asset3):
+def make_dag(dag_maker, session, time_machine, asset1, asset2, asset3):
     with dag_maker(
         dag_id=DAG_ID_EXTERNAL_TRIGGER,
         serialized=True,
@@ -120,11 +131,7 @@ def make_dag(dag_maker, session, time_machine, asset3):
         serialized=True,
         session=session,
         start_date=pendulum.DateTime(2023, 2, 1, 0, 0, 0, tzinfo=pendulum.UTC),
-        schedule=(
-            Asset(uri="s3://bucket/next-run-asset/1", name="asset1")
-            & Asset(uri="s3://bucket/next-run-asset/2", name="asset2")
-            & AssetAlias("example-alias")
-        ),
+        schedule=(asset1 & asset2 & AssetAlias("example-alias")),
     ):
         (
             EmptyOperator(task_id="task_1", outlets=[asset3])
@@ -135,11 +142,25 @@ def make_dag(dag_maker, session, time_machine, asset3):
     dag_maker.sync_dagbag_to_db()
 
 
+def _fetch_asset_id(asset: Asset, session: Session) -> int:
+    return session.scalar(
+        select(AssetModel.id).where(AssetModel.name == asset.name, AssetModel.uri == asset.uri)
+    )
+
+
+@pytest.fixture
+def asset1_id(make_dag, asset1, session: Session) -> int:
+    return _fetch_asset_id(asset1, session)
+
+
+@pytest.fixture
+def asset2_id(make_dag, asset2, session) -> int:
+    return _fetch_asset_id(asset2, session)
+
+
 @pytest.fixture
 def asset3_id(make_dag, asset3, session) -> int:
-    return session.scalar(
-        select(AssetModel.id).where(AssetModel.name == asset3.name, AssetModel.uri == asset3.uri)
-    )
+    return _fetch_asset_id(asset3, session)
 
 
 class TestStructureDataEndpoint:
@@ -280,7 +301,7 @@ class TestStructureDataEndpoint:
         assert response.json() == expected
 
     @pytest.mark.usefixtures("make_dag")
-    def test_should_return_200_with_asset(self, test_client, asset3_id):
+    def test_should_return_200_with_asset(self, test_client, asset1_id, asset2_id, asset3_id):
         params = {
             "dag_id": DAG_ID,
             "external_dependencies": True,
@@ -297,14 +318,14 @@ class TestStructureDataEndpoint:
                 {
                     "is_setup_teardown": None,
                     "label": None,
-                    "source_id": "asset1",
+                    "source_id": asset1_id,
                     "target_id": "and-gate-0",
                     "is_source_asset": None,
                 },
                 {
                     "is_setup_teardown": None,
                     "label": None,
-                    "source_id": "asset2",
+                    "source_id": asset2_id,
                     "target_id": "and-gate-0",
                     "is_source_asset": None,
                 },
@@ -431,7 +452,7 @@ class TestStructureDataEndpoint:
                 },
                 {
                     "children": None,
-                    "id": "asset1",
+                    "id": asset1_id,
                     "is_mapped": None,
                     "label": "asset1",
                     "tooltip": None,
@@ -442,7 +463,7 @@ class TestStructureDataEndpoint:
                 },
                 {
                     "children": None,
-                    "id": "asset2",
+                    "id": asset2_id,
                     "is_mapped": None,
                     "label": "asset2",
                     "tooltip": None,
