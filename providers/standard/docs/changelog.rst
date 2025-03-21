@@ -35,6 +35,35 @@
 Changelog
 ---------
 
+0.2.0b1
+.......
+
+Features
+~~~~~~~~
+
+* ``AIP-72: Implement short circuit and branch operators (#46584)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Handle null logical date in TimeDeltaSensorAsync (#47652)``
+* ``Fix deprecation warning for 'BranchMixIn' (#47856)``
+* ``Fix DayOfWeekSensor use_task_logical_date condition (#47825)``
+
+Misc
+~~~~
+
+* ``AIP-72: Get 'TriggerDagRunOperator' working with Task SDK (#47882)``
+* ``Relocate utils/weekday.py to standard provider (#47892)``
+* ``AIP-72: Handle Custom XCom Backend on Task SDK (#47339)``
+* ``Rewrite asset event registration (#47677)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Remove fixed comments (#47823)``
+   * ``Remove links to x/twitter.com (#47801)``
+   * ``Fix comment typo in PythonOperator (#47558)``
+
 0.1.1
 .....
 

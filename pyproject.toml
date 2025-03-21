@@ -574,6 +574,7 @@ explicit_package_bases = true
 mypy_path = [
   "$MYPY_CONFIG_FILE_DIR",
   "$MYPY_CONFIG_FILE_DIR/task_sdk/src",
+  "$MYPY_CONFIG_FILE_DIR/airflow-ctl/src",
 ]
 
 [[tool.mypy.overrides]]

@@ -45,7 +45,7 @@ axios.interceptors.response.use(
 
       params.set("next", globalThis.location.href);
       const baseUrl = document.querySelector("head>base")?.getAttribute("href") ?? "";
-      const loginPath = new URL("public/auth/login", baseUrl).pathname;
+      const loginPath = new URL("api/v2/auth/login", baseUrl).pathname;
 
       globalThis.location.replace(`${loginPath}?${params.toString()}`);
     }

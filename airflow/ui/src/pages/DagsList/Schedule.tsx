@@ -30,13 +30,13 @@ type Props = {
 
 export const Schedule = ({ dag }: Props) =>
   Boolean(dag.timetable_summary) ? (
-    dag.asset_expression === null ? (
+    Boolean(dag.asset_expression) ? (
+      <AssetSchedule dag={dag} />
+    ) : (
       <Tooltip content={dag.timetable_description}>
         <Text fontSize="sm">
           <FiCalendar style={{ display: "inline" }} /> {dag.timetable_summary}
         </Text>
       </Tooltip>
-    ) : (
-      <AssetSchedule dag={dag} />
     )
   ) : undefined;

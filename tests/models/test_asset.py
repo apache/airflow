@@ -18,14 +18,27 @@
 from __future__ import annotations
 
 import pytest
+from sqlalchemy import select, update
 
-from airflow.models.asset import AssetAliasModel, AssetModel, expand_alias_to_assets
-from airflow.sdk.definitions.asset import AssetAlias
+from airflow.models.asset import (
+    AssetAliasModel,
+    AssetModel,
+    DagScheduleAssetAliasReference,
+    DagScheduleAssetNameReference,
+    DagScheduleAssetReference,
+    DagScheduleAssetUriReference,
+    TaskOutletAssetReference,
+    expand_alias_to_assets,
+    remove_references_to_deleted_dags,
+)
+from airflow.models.dag import DAG, DagModel
+from airflow.providers.standard.operators.empty import EmptyOperator
+from airflow.sdk.definitions.asset import Asset, AssetAlias
 
 pytestmark = pytest.mark.db_test
 
 
-@pytest.fixture
+@pytest.fixture(autouse=True)
 def clear_assets():
     from tests_common.test_utils.db import clear_db_assets
 
@@ -76,3 +89,77 @@ class TestAssetAliasModel:
 
     def test_expand_alias_to_assets_resolved(self, session, resolved_asset_alias_2, asset_model):
         assert list(expand_alias_to_assets(resolved_asset_alias_2.name, session=session)) == [asset_model]
+
+
+@pytest.mark.parametrize(
+    "select_stmt, expected_before_clear_1, expected_before_clear_2",
+    [
+        pytest.param(
+            select(AssetModel.name, AssetModel.uri, DagScheduleAssetReference.dag_id),
+            {("a", "b://b/", "test1"), ("a", "b://b/", "test2")},
+            {("a", "b://b/", "test2")},
+            id="asset",
+        ),
+        pytest.param(
+            select(DagScheduleAssetNameReference.name, DagScheduleAssetNameReference.dag_id),
+            {("a", "test1"), ("a", "test2")},
+            {("a", "test2")},
+            id="name",
+        ),
+        pytest.param(
+            select(DagScheduleAssetUriReference.uri, DagScheduleAssetUriReference.dag_id),
+            {("b://b/", "test1"), ("b://b/", "test2")},
+            {("b://b/", "test2")},
+            id="uri",
+        ),
+        pytest.param(
+            select(AssetAliasModel.name, DagScheduleAssetAliasReference.dag_id),
+            {("x", "test1"), ("x", "test2")},
+            {("x", "test2")},
+            id="alias",
+        ),
+        pytest.param(
+            select(AssetModel.name, TaskOutletAssetReference.dag_id, TaskOutletAssetReference.task_id),
+            {("a", "test1", "t1"), ("a", "test1", "t2"), ("a", "test2", "t1")},
+            {("a", "test2", "t1")},
+            id="outlet",
+        ),
+    ],
+)
+def test_remove_reference_for_inactive_dag(
+    dag_maker,
+    session,
+    select_stmt,
+    expected_before_clear_1,
+    expected_before_clear_2,
+):
+    schedule = [
+        Asset(name="a", uri="b://b/"),
+        Asset.ref(name="a"),
+        Asset.ref(uri="b://b/"),
+        AssetAlias("x"),
+    ]
+    with dag_maker(dag_id="test1", schedule=schedule, session=session) as dag1:
+        EmptyOperator(task_id="t1", outlets=Asset(name="a", uri="b://b/"))
+        EmptyOperator(task_id="t2", outlets=Asset(name="a", uri="b://b/"))
+    with dag_maker(dag_id="test2", schedule=schedule, session=session) as dag2:
+        EmptyOperator(task_id="t1", outlets=Asset(name="a", uri="b://b/"))
+
+    DAG.bulk_write_to_db(
+        bundle_name=None,
+        bundle_version=None,
+        dags=[dag1, dag2],
+        session=session,
+    )
+    assert set(session.execute(select_stmt)) == expected_before_clear_1
+
+    def _simulate_soft_dag_deletion(dag_id):
+        session.execute(update(DagModel).where(DagModel.dag_id == dag_id).values(is_active=False))
+
+    _simulate_soft_dag_deletion("test1")
+    remove_references_to_deleted_dags(session=session)
+    assert set(session.execute(select_stmt)) == expected_before_clear_2
+
+    _simulate_soft_dag_deletion("test2")
+    remove_references_to_deleted_dags(session=session)
+    assert set(session.execute(select_stmt)) == set()

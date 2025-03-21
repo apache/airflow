@@ -35,6 +35,7 @@ from uuid6 import uuid7
 from airflow.api_fastapi.execution_api.datamodels.taskinstance import TIRuntimeCheckPayload
 from airflow.sdk import __version__
 from airflow.sdk.api.datamodels._generated import (
+    API_VERSION,
     AssetEventsResponse,
     AssetResponse,
     ConnectionResponse,
@@ -256,7 +257,7 @@ class VariableOperations:
 
     def set(self, key: str, value: str | None, description: str | None = None):
         """Set an Airflow Variable via the API server."""
-        body = VariablePostBody(value=value, description=description)
+        body = VariablePostBody(val=value, description=description)
         self.client.put(f"variables/{key}", content=body.model_dump_json())
         # Any error from the server will anyway be propagated down to the supervisor,
         # so we choose to send a generic response to the supervisor over the server response to
@@ -513,7 +514,10 @@ class Client(httpx.Client):
         pyver = f"{'.'.join(map(str, sys.version_info[:3]))}"
         super().__init__(
             auth=auth,
-            headers={"user-agent": f"apache-airflow-task-sdk/{__version__} (Python/{pyver})"},
+            headers={
+                "user-agent": f"apache-airflow-task-sdk/{__version__} (Python/{pyver})",
+                "airflow-api-version": API_VERSION,
+            },
             event_hooks={"response": [raise_on_4xx_5xx], "request": [add_correlation_id]},
             **kwargs,
         )

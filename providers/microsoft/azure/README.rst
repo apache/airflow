@@ -80,6 +80,7 @@ PIP package                             Version required
 ``microsoft-kiota-serialization-json``  ``==1.0.0``
 ``microsoft-kiota-serialization-text``  ``==1.0.0``
 ``microsoft-kiota-abstractions``        ``<1.4.0``
+``msal-extensions``                     ``>=1.1.0``
 ======================================  ===================
 
 Cross provider package dependencies

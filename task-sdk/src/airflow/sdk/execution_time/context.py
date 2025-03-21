@@ -24,6 +24,7 @@ from typing import TYPE_CHECKING, Any, Union
 import attrs
 import structlog
 
+from airflow.sdk import Variable
 from airflow.sdk.definitions._internal.contextmanager import _CURRENT_CONTEXT
 from airflow.sdk.definitions._internal.types import NOTSET
 from airflow.sdk.definitions.asset import (
@@ -45,7 +46,6 @@ if TYPE_CHECKING:
     from airflow.sdk.definitions.baseoperator import BaseOperator
     from airflow.sdk.definitions.connection import Connection
     from airflow.sdk.definitions.context import Context
-    from airflow.sdk.definitions.variable import Variable
     from airflow.sdk.execution_time.comms import (
         AssetEventsResult,
         AssetResult,
@@ -75,6 +75,28 @@ def _convert_variable_result_to_variable(var_result: VariableResult, deserialize
 
 
 def _get_connection(conn_id: str) -> Connection:
+    from airflow.sdk.execution_time.supervisor import SECRETS_BACKEND
+    # TODO: check cache first
+    # enabled only if SecretCache.init() has been called first
+
+    # iterate over configured backends if not in cache (or expired)
+    for secrets_backend in SECRETS_BACKEND:
+        try:
+            conn = secrets_backend.get_connection(conn_id=conn_id)
+            if conn:
+                return conn
+        except Exception:
+            log.exception(
+                "Unable to retrieve connection from secrets backend (%s). "
+                "Checking subsequent secrets backend.",
+                type(secrets_backend).__name__,
+            )
+
+    log.debug(
+        "Connection not found in any of the configured Secrets Backends. Trying to retrieve from API server",
+        conn_id=conn_id,
+    )
+
     # TODO: This should probably be moved to a separate module like `airflow.sdk.execution_time.comms`
     #   or `airflow.sdk.execution_time.connection`
     #   A reason to not move it to `airflow.sdk.execution_time.comms` is that it
@@ -94,6 +116,29 @@ def _get_connection(conn_id: str) -> Connection:
 
 
 def _get_variable(key: str, deserialize_json: bool) -> Variable:
+    # TODO: check cache first
+    # enabled only if SecretCache.init() has been called first
+    from airflow.sdk.execution_time.supervisor import SECRETS_BACKEND
+
+    var_val = None
+    # iterate over backends if not in cache (or expired)
+    for secrets_backend in SECRETS_BACKEND:
+        try:
+            var_val = secrets_backend.get_variable(key=key)  # type: ignore[assignment]
+            if var_val is not None:
+                return Variable(key=key, value=var_val)
+        except Exception:
+            log.exception(
+                "Unable to retrieve variable from secrets backend (%s). "
+                "Checking subsequent secrets backend.",
+                type(secrets_backend).__name__,
+            )
+
+    log.debug(
+        "Variable not found in any of the configured Secrets Backends. Trying to retrieve from API server",
+        key=key,
+    )
+
     # TODO: This should probably be moved to a separate module like `airflow.sdk.execution_time.comms`
     #   or `airflow.sdk.execution_time.variable`
     #   A reason to not move it to `airflow.sdk.execution_time.comms` is that it

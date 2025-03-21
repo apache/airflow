@@ -16,8 +16,9 @@
  * specific language governing permissions and limitations
  * under the License.
  */
+import { paramPlaceholder, useParamStore } from "src/queries/useParamStore";
+
 import type { FlexibleFormElementProps } from ".";
-import { paramPlaceholder, useParamStore } from "../TriggerDag/useParamStore";
 import { Switch } from "../ui";
 
 export const FieldBool = ({ name }: FlexibleFormElementProps) => {

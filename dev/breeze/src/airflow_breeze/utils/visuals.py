@@ -108,7 +108,7 @@ CHEATSHEET = f"""
 
         * You can add `airflow-breeze-config` directory. Place it in
           `{AIRFLOW_SOURCES_ROOT}/files/airflow-breeze-config` and:
-            * Add `variables.env` - to make breeze source the variables automatically for you
+            * Add `environment_variables.env` - to make breeze source the variables automatically for you
             * Add `.tmux.conf` - to add extra initial configuration to `tmux`
             * Add `init.sh` - this file will be sourced when you enter container, so you can add
               any custom code there.

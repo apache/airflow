@@ -569,6 +569,7 @@ class TaskDecoratorCollection:
         configmaps: list[str] | None = None,
         skip_on_exit_code: int | Container[int] | None = None,
         base_container_name: str | None = None,
+        base_container_status_polling_interval: float = ...,
         deferrable: bool = ...,
         poll_interval: float = ...,
         log_pod_spec_on_failure: bool = ...,
@@ -669,6 +670,8 @@ class TaskDecoratorCollection:
             will appear as part of this task's logs if get_logs is True. Defaults to None. If None,
             will consult the class variable BASE_CONTAINER_NAME (which defaults to "base") for the base
             container name to use.
+        :param base_container_status_polling_interval: Polling period in seconds to check for the pod base
+            container status.
         :param deferrable: Run operator in the deferrable mode.
         :param poll_interval: Polling period in seconds to check for the status. Used only in deferrable mode.
         :param log_pod_spec_on_failure: Log the pod's specification if a failure occurs

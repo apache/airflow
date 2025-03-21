@@ -19,18 +19,19 @@
 import { Box, Stack, StackSeparator } from "@chakra-ui/react";
 import { useEffect } from "react";
 
-import type { DagParamsSpec } from "src/queries/useDagParams";
+import type { ParamsSpec } from "src/queries/useDagParams";
+import { useParamStore } from "src/queries/useParamStore";
 
-import { flexibleFormDefaultSection } from ".";
-import { useParamStore } from "../TriggerDag/useParamStore";
 import { Accordion } from "../ui";
 import { Row } from "./Row";
 
 export type FlexibleFormProps = {
-  initialParamsDict: { paramsDict: DagParamsSpec };
+  flexibleFormDefaultSection: string;
+  initialParamsDict: { paramsDict: ParamsSpec };
+  key?: string;
 };
 
-export const FlexibleForm = ({ initialParamsDict }: FlexibleFormProps) => {
+export const FlexibleForm = ({ flexibleFormDefaultSection, initialParamsDict }: FlexibleFormProps) => {
   const { paramsDict: params, setinitialParamDict, setParamsDict } = useParamStore();
   const processedSections = new Map();
 

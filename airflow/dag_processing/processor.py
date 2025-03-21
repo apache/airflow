@@ -47,7 +47,7 @@ from airflow.stats import Stats
 if TYPE_CHECKING:
     from structlog.typing import FilteringBoundLogger
 
-    from airflow.api_fastapi.execution_api.app import InProcessExecuctionAPI
+    from airflow.api_fastapi.execution_api.app import InProcessExecutionAPI
     from airflow.sdk.api.client import Client
     from airflow.sdk.definitions.context import Context
     from airflow.typing_compat import Self
@@ -207,10 +207,10 @@ class DagFileParsingResult(BaseModel):
 
 
 @functools.cache
-def in_process_api_server() -> InProcessExecuctionAPI:
-    from airflow.api_fastapi.execution_api.app import InProcessExecuctionAPI
+def in_process_api_server() -> InProcessExecutionAPI:
+    from airflow.api_fastapi.execution_api.app import InProcessExecutionAPI
 
-    api = InProcessExecuctionAPI()
+    api = InProcessExecutionAPI()
     return api
 
 

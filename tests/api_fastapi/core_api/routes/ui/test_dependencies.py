@@ -18,7 +18,9 @@ from __future__ import annotations
 
 import pendulum
 import pytest
+from sqlalchemy import select
 
+from airflow.models.asset import AssetModel
 from airflow.providers.standard.operators.empty import EmptyOperator
 from airflow.providers.standard.operators.trigger_dagrun import TriggerDagRunOperator
 from airflow.providers.standard.sensors.external_task import ExternalTaskSensor
@@ -36,7 +38,12 @@ def cleanup():
 
 
 @pytest.fixture
-def make_primary_connected_component(dag_maker):
+def asset1() -> Asset:
+    return Asset(uri="s3://bucket/next-run-asset/1", name="asset1")
+
+
+@pytest.fixture
+def make_primary_connected_component(dag_maker, asset1):
     with dag_maker(
         dag_id="external_trigger_dag_id",
         serialized=True,
@@ -47,13 +54,12 @@ def make_primary_connected_component(dag_maker):
     with dag_maker(dag_id="other_dag", serialized=True):
         EmptyOperator(task_id="task1")
 
-    asset = Asset(uri="s3://bucket/next-run-asset/1", name="asset1")
     with dag_maker(dag_id="upstream", serialized=True):
-        EmptyOperator(task_id="task2", outlets=[asset])
+        EmptyOperator(task_id="task2", outlets=[asset1])
 
     with dag_maker(
         dag_id="downstream",
-        schedule=[asset],
+        schedule=[asset1],
         serialized=True,
     ):
         EmptyOperator(task_id="task1") >> ExternalTaskSensor(
@@ -64,11 +70,18 @@ def make_primary_connected_component(dag_maker):
 
 
 @pytest.fixture
-def expected_primary_component_response():
+def asset1_id(make_primary_connected_component, asset1, session) -> int:
+    return session.scalar(
+        select(AssetModel.id).where(AssetModel.name == asset1.name, AssetModel.uri == asset1.uri)
+    )
+
+
+@pytest.fixture
+def expected_primary_component_response(asset1_id):
     return {
         "edges": [
             {
-                "source_id": "asset:asset1",
+                "source_id": f"asset:{asset1_id}",
                 "target_id": "dag:downstream",
             },
             {
@@ -81,7 +94,7 @@ def expected_primary_component_response():
             },
             {
                 "source_id": "dag:upstream",
-                "target_id": "asset:asset1",
+                "target_id": f"asset:{asset1_id}",
             },
             {
                 "source_id": "sensor:other_dag:downstream:external_task_sensor",
@@ -99,7 +112,7 @@ def expected_primary_component_response():
                 "type": "dag",
             },
             {
-                "id": "asset:asset1",
+                "id": f"asset:{asset1_id}",
                 "label": "asset1",
                 "type": "asset",
             },
@@ -128,15 +141,18 @@ def expected_primary_component_response():
 
 
 @pytest.fixture
-def make_secondary_connected_component(dag_maker):
-    asset = Asset(uri="s3://bucket/next-run-asset/2", name="asset2")
+def asset2() -> Asset:
+    return Asset(uri="s3://bucket/next-run-asset/2", name="asset2")
 
+
+@pytest.fixture
+def make_secondary_connected_component(dag_maker, asset2):
     with dag_maker(dag_id="upstream_secondary", serialized=True):
-        EmptyOperator(task_id="task2", outlets=[asset])
+        EmptyOperator(task_id="task2", outlets=[asset2])
 
     with dag_maker(
         dag_id="downstream_secondary",
-        schedule=[asset],
+        schedule=[asset2],
         serialized=True,
     ):
         EmptyOperator(task_id="task1")
@@ -145,16 +161,23 @@ def make_secondary_connected_component(dag_maker):
 
 
 @pytest.fixture
-def expected_secondary_component_response():
+def asset2_id(make_secondary_connected_component, asset2, session) -> int:
+    return session.scalar(
+        select(AssetModel.id).where(AssetModel.name == asset2.name, AssetModel.uri == asset2.uri)
+    )
+
+
+@pytest.fixture
+def expected_secondary_component_response(asset2_id):
     return {
         "edges": [
             {
-                "source_id": "asset:asset2",
+                "source_id": f"asset:{asset2_id}",
                 "target_id": "dag:downstream_secondary",
             },
             {
                 "source_id": "dag:upstream_secondary",
-                "target_id": "asset:asset2",
+                "target_id": f"asset:{asset2_id}",
             },
         ],
         "nodes": [
@@ -164,7 +187,7 @@ def expected_secondary_component_response():
                 "type": "dag",
             },
             {
-                "id": "asset:asset2",
+                "id": f"asset:{asset2_id}",
                 "label": "asset2",
                 "type": "asset",
             },
@@ -199,7 +222,6 @@ class TestGetDependencies:
         "node_id, expected_response_fixture",
         [
             # Primary Component
-            ("asset:asset1", "expected_primary_component_response"),
             ("dag:downstream", "expected_primary_component_response"),
             ("sensor:other_dag:downstream:external_task_sensor", "expected_primary_component_response"),
             ("dag:external_trigger_dag_id", "expected_primary_component_response"),
@@ -209,7 +231,6 @@ class TestGetDependencies:
             ),
             ("dag:upstream", "expected_primary_component_response"),
             # Secondary Component
-            ("asset:asset2", "expected_secondary_component_response"),
             ("dag:downstream_secondary", "expected_secondary_component_response"),
             ("dag:upstream_secondary", "expected_secondary_component_response"),
         ],
@@ -221,6 +242,23 @@ class TestGetDependencies:
         assert response.status_code == 200
 
         assert response.json() == expected_response
+
+    def test_with_node_id_filter_with_asset(
+        self,
+        test_client,
+        asset1_id,
+        asset2_id,
+        expected_primary_component_response,
+        expected_secondary_component_response,
+    ):
+        for asset_id, expected_response in (
+            (asset1_id, expected_primary_component_response),
+            (asset2_id, expected_secondary_component_response),
+        ):
+            response = test_client.get("/ui/dependencies", params={"node_id": f"asset:{asset_id}"})
+            assert response.status_code == 200
+
+            assert response.json() == expected_response
 
     @pytest.mark.usefixtures("make_primary_connected_component", "make_secondary_connected_component")
     def test_with_node_id_filter_not_found(self, test_client):

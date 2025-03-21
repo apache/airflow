@@ -22,7 +22,7 @@ A Task is the basic unit of execution in Airflow. Tasks are arranged into :doc:`
 
 There are three basic kinds of Task:
 
-* :doc:`operators`, predefined task templates that you can string together quickly to build most parts of your DAGs.
+* :doc:`operators`, predefined task templates that you can string together quickly to build most parts of your dags.
 
 * :doc:`sensors`, a special subclass of Operators which are entirely about waiting for an external event to happen.
 
@@ -85,7 +85,7 @@ The possible states for a Task Instance are:
 * ``deferred``: The task has been :doc:`deferred to a trigger <../authoring-and-scheduling/deferring>`
 * ``removed``: The task has vanished from the DAG since the run started
 
-.. image:: /img/task_lifecycle_diagram.png
+.. image:: /img/diagram_task_lifecycle.png
 
 Ideally, a task should flow from ``none``, to ``scheduled``, to ``queued``, to ``running``, and finally to ``success``.
 

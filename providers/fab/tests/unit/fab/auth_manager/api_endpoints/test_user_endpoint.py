@@ -47,7 +47,15 @@ DEFAULT_TIME = "2020-06-11T18:00:00+00:00"
 
 @pytest.fixture(scope="module")
 def configured_app(minimal_app_for_auth_api):
-    app = minimal_app_for_auth_api
+    with conf_vars(
+        {
+            (
+                "core",
+                "auth_manager",
+            ): "airflow.providers.fab.auth_manager.fab_auth_manager.FabAuthManager",
+        }
+    ):
+        app = minimal_app_for_auth_api
     create_user(
         app,
         username="test",

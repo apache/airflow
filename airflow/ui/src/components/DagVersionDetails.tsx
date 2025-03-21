@@ -31,7 +31,7 @@ export const DagVersionDetails = ({ dagVersion }: { readonly dagVersion?: DagVer
       <Table.Body>
         <Table.Row>
           <Table.Cell>Version Number</Table.Cell>
-          <Table.Cell>v{dagVersion.version_number}</Table.Cell>
+          <Table.Cell>{dagVersion.version_number ? "v{dagVersion.version_number}" : "unknown"}</Table.Cell>
         </Table.Row>
         <Table.Row>
           <Table.Cell>Bundle Name</Table.Cell>

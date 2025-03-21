@@ -86,7 +86,7 @@ class BaseDBManager(LoggingMixin):
             return True
         return False
 
-    def _create_db_from_orm(self):
+    def create_db_from_orm(self):
         """Create database from ORM."""
         self.log.info("Creating %s tables from the ORM", self.__class__.__name__)
         engine = self.session.get_bind().engine
@@ -118,7 +118,7 @@ class BaseDBManager(LoggingMixin):
         if db_exists:
             self.upgradedb()
         else:
-            self._create_db_from_orm()
+            self.create_db_from_orm()
 
     def upgradedb(self, to_revision=None, from_revision=None, show_sql_only=False):
         """Upgrade the database."""

@@ -18,8 +18,9 @@
  */
 import { VisuallyHidden } from "@chakra-ui/react";
 
+import { paramPlaceholder, useParamStore } from "src/queries/useParamStore";
+
 import type { FlexibleFormElementProps } from ".";
-import { paramPlaceholder, useParamStore } from "../TriggerDag/useParamStore";
 
 /** Render a "const" field where user can not change data as hidden */
 export const HiddenInput = ({ name }: FlexibleFormElementProps) => {

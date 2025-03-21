@@ -27,6 +27,18 @@
 Changelog
 ---------
 
+3.10.4b1
+........
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Scheduler shouldn't crash when 'executor_config' is passed for executors using task SDK (#47548)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Remove links to x/twitter.com (#47801)``
+
 3.10.3
 ......
 

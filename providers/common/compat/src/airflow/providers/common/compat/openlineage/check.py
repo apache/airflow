@@ -23,6 +23,8 @@ from importlib import metadata
 
 from packaging.version import Version
 
+from airflow.exceptions import AirflowOptionalProviderFeatureException
+
 log = logging.getLogger(__name__)
 
 
@@ -68,36 +70,32 @@ def require_openlineage_version(
                     try:
                         from airflow.providers.openlineage import __version__ as provider_version
                     except (ImportError, AttributeError, ModuleNotFoundError):
-                        log.info(
-                            "OpenLineage provider not found or has no version, skipping function `%s` execution",
-                            func.__name__,
+                        raise AirflowOptionalProviderFeatureException(
+                            "OpenLineage provider not found or has no version, "
+                            f"skipping function `{func.__name__}` execution"
                         )
-                        return None
 
                 if provider_version and Version(provider_version) < Version(provider_min_version):
-                    log.info(
-                        "OpenLineage provider version `%s` is lower than required `%s`, skipping function `%s` execution",
-                        provider_version,
-                        provider_min_version,
-                        func.__name__,
+                    raise AirflowOptionalProviderFeatureException(
+                        f"OpenLineage provider version `{provider_version}` "
+                        f"is lower than required `{provider_min_version}`, "
+                        f"skipping function `{func.__name__}` execution"
                     )
-                    return None
 
             if client_min_version:
                 try:
                     client_version: str = metadata.version("openlineage-python")
                 except metadata.PackageNotFoundError:
-                    log.info("OpenLineage client not found, skipping function `%s` execution", func.__name__)
-                    return None
+                    raise AirflowOptionalProviderFeatureException(
+                        f"OpenLineage client not found, skipping function `{func.__name__}` execution"
+                    )
 
                 if client_version and Version(client_version) < Version(client_min_version):
-                    log.info(
-                        "OpenLineage client version `%s` is lower than required `%s`, skipping function `%s` execution",
-                        client_version,
-                        client_min_version,
-                        func.__name__,
+                    raise AirflowOptionalProviderFeatureException(
+                        f"OpenLineage client version `{client_version}` "
+                        f"is lower than required `{client_min_version}`, "
+                        f"skipping function `{func.__name__}` execution"
                     )
-                    return None
 
             return func(*args, **kwargs)
 

@@ -41,7 +41,7 @@ export const AssetGraph = ({ asset }: { readonly asset?: AssetResponse }) => {
   const { colorMode = "light" } = useColorMode();
 
   const { data = { edges: [], nodes: [] } } = useDependenciesServiceGetDependencies(
-    { nodeId: `asset:${asset?.name}` },
+    { nodeId: `asset:${asset?.id}` },
     undefined,
     { enabled: Boolean(asset) && Boolean(asset?.name) },
   );

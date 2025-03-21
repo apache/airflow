@@ -106,7 +106,7 @@ For core:
 
 
 If you need to add some initialization of environment variables when entering Breeze, you can add a
-``variables.env`` file in the ``files/airflow-breeze-config/variables.env`` file.
+``environment_variables.env`` file in the ``files/airflow-breeze-config/environment_variables.env`` file.
 
 It will be automatically sourced when entering the Breeze environment. You can also add some additional
 initialization commands in the  ``files/airflow-breeze-config/init.sh`` file if you want to execute
