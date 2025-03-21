@@ -22,8 +22,8 @@
 /docs/helm-chart @dstandish @jedcunningham
 
 # API
-/airflow/api/ @ephraimbuddy @pierrejeambrun
-/airflow/api_fastapi/ @ephraimbuddy @pierrejeambrun
+/airflow/api/ @ephraimbuddy @pierrejeambrun @rawwar
+/airflow/api_fastapi/ @ephraimbuddy @pierrejeambrun @rawwar
 
 # UI
 /airflow/ui/ @bbovenzi @pierrejeambrun @ryanahamilton @jscheffl
@@ -97,3 +97,6 @@ ISSUE_TRIAGE_PROCESS.rst @eladkal
 # Migrations
 /airflow/migrations/ @ephraimbuddy
 /providers/fab/src/airflow/providers/fab/migrations/ @ephraimbuddy
+
+# AIP-72 - Task SDK
+/task-sdk/ @ashb @kaxil @amoghrajesh

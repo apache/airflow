@@ -179,8 +179,12 @@ def render_dag_dependencies(deps: dict[str, list[DagDependency]]) -> graphviz.Di
                     "label": dag,
                 },
             ) as dep_subgraph:
-                dep_subgraph.edge(dep.source, dep.dependency_id)
-                dep_subgraph.edge(dep.dependency_id, dep.target)
+                leaf_nodes = ("asset", "asset-name-ref", "asset-uri-ref", "asset-alias")
+                if dep.source not in leaf_nodes:
+                    dep_subgraph.edge(dep.source, dep.dependency_id)
+
+                if dep.target not in leaf_nodes:
+                    dep_subgraph.edge(dep.dependency_id, dep.target)
 
     return dot
 

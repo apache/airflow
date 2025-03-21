@@ -22,6 +22,7 @@ import { defineConfig } from "vitest/config";
 
 // https://vitejs.dev/config/
 export default defineConfig({
+  base: "./",
   build: { chunkSizeWarningLimit: 1600, manifest: true },
   plugins: [
     react(),
@@ -29,7 +30,9 @@ export default defineConfig({
     {
       name: "transform-url-src",
       transformIndexHtml: (html) =>
-        html.replace(`src="/assets/`, `src="/auth/static/assets/`).replace(`href="/`, `href="/auth/`),
+        html
+          .replace(`src="./assets/`, `src="./auth/static/assets/`)
+          .replace(`href="/`, `href="./auth/`),
     },
     cssInjectedByJsPlugin(),
   ],

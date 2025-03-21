@@ -69,15 +69,16 @@ def _get_try_number_success(val):
 
 def _executor_initializer():
     """
-    Initialize worker processes for the executor used for DagRun listener.
+    Initialize processes for the executor used with DAGRun listener's methods (on scheduler).
 
     This function must be picklable, so it cannot be defined as an inner method or local function.
 
     Reconfigures the ORM engine to prevent issues that arise when multiple processes interact with
     the Airflow database.
     """
-    if not AIRFLOW_V_3_0_PLUS:
-        settings.configure_orm()
+    # This initializer is used only on the scheduler
+    # We can configure_orm regardless of the Airflow version, as DB access is always allowed from scheduler.
+    settings.configure_orm()
 
 
 class OpenLineageListener:
