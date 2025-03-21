@@ -26,6 +26,9 @@
 /airflow-core/src/airflow/api_fastapi/ @ephraimbuddy @pierrejeambrun @rawwar
 /airflow-core/src/airflow/api_fastapi/execution_api/ @ashb @kaxil @amoghrajesh
 
+# Auth manager
+/airflow-core/src/airflow/api_fastapi/auth/ @vincbeck
+
 # UI
 /airflow-core/src/airflow/ui/ @bbovenzi @pierrejeambrun @ryanahamilton @jscheffl
 
@@ -58,9 +61,11 @@
 /providers/amazon/ @eladkal @o-nikolas
 /providers/celery/ @hussein-awala
 /providers/cncf/kubernetes @jedcunningham @hussein-awala
+/providers/common/messaging/ @vincbeck
 /providers/common/sql/ @eladkal
 /providers/dbt/cloud/ @josh-fell
 /providers/edge/ @jscheffl
+/providers/fab/ @vincbeck
 /providers/hashicorp/ @hussein-awala
 /providers/openlineage/ @mobuchowski
 /providers/slack/ @eladkal
