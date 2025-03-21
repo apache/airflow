@@ -2340,7 +2340,7 @@ class TaskInstance(Base, LoggingMixin):
             prefix += f"map_index={self.map_index} "
         return prefix + f"[{self.state}]>"
 
-        def next_retry_datetime(self):
+    def next_retry_datetime(self):
         """
         Get datetime of the next retry if the task instance fails.
 
