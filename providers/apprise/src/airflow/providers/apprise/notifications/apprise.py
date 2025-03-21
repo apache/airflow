@@ -22,8 +22,8 @@ from functools import cached_property
 
 from apprise import AppriseConfig, NotifyFormat, NotifyType
 
-from airflow.notifications.basenotifier import BaseNotifier
 from airflow.providers.apprise.hooks.apprise import AppriseHook
+from airflow.providers.common.compat.notifier import BaseNotifier
 
 
 class AppriseNotifier(BaseNotifier):

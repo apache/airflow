@@ -80,5 +80,6 @@ def get_provider_info():
         ],
         "notifications": ["airflow.providers.opsgenie.notifications.opsgenie.OpsgenieNotifier"],
         "dependencies": ["apache-airflow>=2.9.0", "opsgenie-sdk>=2.1.5"],
+        "optional-dependencies": {"common.compat": ["apache-airflow-providers-common-compat"]},
         "devel-dependencies": [],
     }

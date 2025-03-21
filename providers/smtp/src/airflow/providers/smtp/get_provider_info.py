@@ -74,5 +74,6 @@ def get_provider_info():
         ],
         "notifications": ["airflow.providers.smtp.notifications.smtp.SmtpNotifier"],
         "dependencies": ["apache-airflow>=2.9.0"],
+        "optional-dependencies": {"common.compat": ["apache-airflow-providers-common-compat"]},
         "devel-dependencies": [],
     }

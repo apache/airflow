@@ -302,7 +302,9 @@
     ],
     "devel-deps": [],
     "plugins": [],
-    "cross-providers-deps": [],
+    "cross-providers-deps": [
+      "common.compat"
+    ],
     "excluded-python-versions": [],
     "state": "ready"
   },
@@ -335,7 +337,9 @@
     ],
     "devel-deps": [],
     "plugins": [],
-    "cross-providers-deps": [],
+    "cross-providers-deps": [
+      "common.compat"
+    ],
     "excluded-python-versions": [],
     "state": "ready"
   },
@@ -521,6 +525,7 @@
     "devel-deps": [],
     "plugins": [],
     "cross-providers-deps": [
+      "common.compat",
       "http"
     ],
     "excluded-python-versions": [],
@@ -1032,7 +1037,9 @@
     ],
     "devel-deps": [],
     "plugins": [],
-    "cross-providers-deps": [],
+    "cross-providers-deps": [
+      "common.compat"
+    ],
     "excluded-python-versions": [],
     "state": "ready"
   },
@@ -1057,7 +1064,9 @@
     ],
     "devel-deps": [],
     "plugins": [],
-    "cross-providers-deps": [],
+    "cross-providers-deps": [
+      "common.compat"
+    ],
     "excluded-python-versions": [],
     "state": "ready"
   },
@@ -1242,6 +1251,7 @@
     "devel-deps": [],
     "plugins": [],
     "cross-providers-deps": [
+      "common.compat",
       "common.sql"
     ],
     "excluded-python-versions": [],
@@ -1253,7 +1263,9 @@
     ],
     "devel-deps": [],
     "plugins": [],
-    "cross-providers-deps": [],
+    "cross-providers-deps": [
+      "common.compat"
+    ],
     "excluded-python-versions": [],
     "state": "ready"
   },

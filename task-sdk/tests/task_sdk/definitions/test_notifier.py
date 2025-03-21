@@ -23,8 +23,8 @@ from unittest.mock import MagicMock
 import jinja2
 import pytest
 
-from airflow.notifications.basenotifier import BaseNotifier
 from airflow.providers.standard.operators.empty import EmptyOperator
+from airflow.sdk.definitions.notifier import BaseNotifier
 
 pytestmark = pytest.mark.db_test
 
@@ -68,7 +68,7 @@ class TestBaseNotifier:
     def test_render_message_with_template_works(self, dag_maker, caplog):
         with dag_maker("test_render_message_with_template_works") as dag:
             EmptyOperator(task_id="test_id")
-        notifier = MockNotifier(message="test_notifier.txt")
+        notifier = MockNotifier(message="notifier/test_notifier.txt")
         context: Context = {"dag": dag}
         notifier.render_template_fields(context)
         assert notifier.message == "Hello test_render_message_with_template_works"

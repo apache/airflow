@@ -164,7 +164,6 @@ def _find_all_integration_folders() -> list[str]:
                 "tests/lineage",
                 "tests/listeners",
                 "tests/macros",
-                "tests/notifications",
                 "tests/plugins",
                 "tests/secrets",
                 "tests/security",
