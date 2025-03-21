@@ -220,7 +220,7 @@ To be able to merge PRs, committers have to integrate their GitHub ID with Apach
 6.  After confirming that step 5 is done, open a PR to include your GitHub ID in:
 
     * ``dev/breeze/src/airflow_breeze/global_constants.py`` (COMMITTERS variable)
-    * name and GitHub ID in `project.rst <https://github.com/apache/airflow/blob/main/docs/apache-airflow/project.rst>`__.
+    * name and GitHub ID in `project.rst <https://github.com/apache/airflow/blob/main/airflow-core/docs/project.rst>`__.
     * If you had been a collaborator role before getting committer, remove your GitHub ID from ``.asf.yaml``.
 7.  Raise a PR to `airflow-site <https://github.com/apache/airflow-site>`_ repository with the following additions:
 

@@ -20,6 +20,7 @@ from __future__ import annotations
 from unittest import mock
 
 from airflow.providers.alibaba.cloud.hooks.oss import OSSHook
+
 from unit.alibaba.cloud.utils.oss_mock import mock_oss_hook_default_project_id
 
 OSS_STRING = "airflow.providers.alibaba.cloud.hooks.oss.{}"

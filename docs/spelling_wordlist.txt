@@ -381,6 +381,7 @@ dagruns
 DagRunState
 dagRunState
 DAGs
+dags
 DagsFolderDagBundle
 Dask
 dask
@@ -563,6 +564,7 @@ ec
 ecb
 ECR
 ecs
+EdDSA
 EdgeModifier
 EdgeModifiers
 EDITMSG
@@ -1930,6 +1932,7 @@ whitespace
 whl
 wildcarded
 winrm
+WIT
 workgroup
 workgroups
 wsman

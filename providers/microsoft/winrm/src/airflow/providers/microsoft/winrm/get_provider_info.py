@@ -76,6 +76,6 @@ def get_provider_info():
                 "python-modules": ["airflow.providers.microsoft.winrm.hooks.winrm"],
             }
         ],
-        "dependencies": ["apache-airflow>=2.9.0", "pywinrm>=0.4"],
+        "dependencies": ["apache-airflow>=2.9.0", "pywinrm>=0.5.0"],
         "devel-dependencies": [],
     }

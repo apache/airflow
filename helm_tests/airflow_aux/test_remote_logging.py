@@ -22,7 +22,7 @@ from subprocess import CalledProcessError
 import jmespath
 import pytest
 
-from tests.charts.helm_template_generator import render_chart
+from unit.charts.helm_template_generator import render_chart
 
 ES_SECRET_TEMPLATE = "templates/secrets/elasticsearch-secret.yaml"
 OS_SECRET_TEMPLATE = "templates/secrets/opensearch-secret.yaml"

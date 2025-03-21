@@ -27,8 +27,9 @@ def get_provider_info():
         "name": "Common IO",
         "description": "``Common IO Provider``\n",
         "state": "ready",
-        "source-date-epoch": 1741508612,
+        "source-date-epoch": 1742478916,
         "versions": [
+            "1.5.2b1",
             "1.5.1",
             "1.5.0",
             "1.4.2",

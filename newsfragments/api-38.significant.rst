@@ -18,12 +18,12 @@
 
 * Migration rules needed
 
+  * ``airflow config lint``
+
+    * [ ] ``core.dag_default_view``
+    * [ ] ``core.dag_orientation``
+
   * ruff
-
-    * ``airflow config lint``
-
-      * [ ] ``core.dag_default_view``
-      * [ ] ``core.dag_orientation``
 
     * AIR302
 

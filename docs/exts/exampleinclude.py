@@ -192,6 +192,9 @@ def create_node(env, relative_path, show_button):
     if relative_path.startswith("providers/"):
         relative_path = relative_path.replace("providers/", "", 1)
 
+    if relative_path.startswith("airflow-core/src/"):
+        relative_path = relative_path.replace("airflow-core/src/", "", 1)
+
     if relative_path.endswith(".py"):
         pagename = "_modules/" + relative_path[:-3]
     else:

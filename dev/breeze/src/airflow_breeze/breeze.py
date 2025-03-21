@@ -20,12 +20,12 @@ from __future__ import annotations
 from airflow_breeze.commands.main_command import main
 from airflow_breeze.utils.path_utils import (
     create_directories_and_files,
-    find_airflow_sources_root_to_operate_on,
+    find_airflow_root_path_to_operate_on,
 )
 
 from airflow_breeze.configure_rich_click import click  # isort: skip  # noqa: F401
 
-find_airflow_sources_root_to_operate_on()
+find_airflow_root_path_to_operate_on()
 create_directories_and_files()
 
 

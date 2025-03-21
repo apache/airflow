@@ -140,7 +140,7 @@ class TestCommsDecoder:
             b'"dag_id": "c"}, "ti_context":{"dag_run":{"dag_id":"c","run_id":"b","logical_date":"2024-12-01T01:00:00Z",'
             b'"data_interval_start":"2024-12-01T00:00:00Z","data_interval_end":"2024-12-01T01:00:00Z",'
             b'"start_date":"2024-12-01T01:00:00Z","run_after":"2024-12-01T01:00:00Z","end_date":null,"run_type":"manual","conf":null},'
-            b'"max_tries":0,"variables":null,"connections":null},"file": "/dev/null",'
+            b'"max_tries":0,"should_retry":false,"variables":null,"connections":null},"file": "/dev/null",'
             b'"start_date":"2024-12-01T01:00:00Z", "dag_rel_path": "/dev/null", "bundle_info": {"name": '
             b'"any-name", "version": "any-version"}, "requests_fd": '
             + str(w2.fileno()).encode("ascii")
@@ -670,7 +670,7 @@ def test_run_basic_failed(
     run(ti, log=mock.MagicMock())
 
     mock_supervisor_comms.send_request.assert_called_once_with(
-        msg=TaskState(state=TerminalTIState.FAIL_WITHOUT_RETRY, end_date=instant), log=mock.ANY
+        msg=TaskState(state=TerminalTIState.FAILED, end_date=instant), log=mock.ANY
     )
 
 
@@ -921,6 +921,31 @@ def test_run_with_inlets_and_outlets(
     )
     mock_supervisor_comms.send_request.assert_any_call(msg=expected, log=mock.ANY)
     mock_supervisor_comms.send_request.assert_any_call(msg=last_expected_msg, log=mock.ANY)
+
+
+@mock.patch("airflow.sdk.execution_time.task_runner.context_to_airflow_vars")
+@mock.patch.dict(os.environ, {}, clear=True)
+def test_execute_task_exports_env_vars(
+    mock_context_to_airflow_vars, create_runtime_ti, mock_supervisor_comms
+):
+    """Test that _execute_task exports airflow context to environment variables."""
+
+    def test_function():
+        return "test function"
+
+    task = PythonOperator(
+        task_id="test_task",
+        python_callable=test_function,
+    )
+
+    ti = create_runtime_ti(task=task, dag_id="dag_with_env_vars")
+
+    mock_env_vars = {"AIRFLOW_CTX_DAG_ID": "test_dag_env_vars", "AIRFLOW_CTX_TASK_ID": "test_env_task"}
+    mock_context_to_airflow_vars.return_value = mock_env_vars
+    run(ti, log=mock.MagicMock())
+
+    assert os.environ["AIRFLOW_CTX_DAG_ID"] == "test_dag_env_vars"
+    assert os.environ["AIRFLOW_CTX_TASK_ID"] == "test_env_task"
 
 
 class TestRuntimeTaskInstance:
@@ -1368,6 +1393,27 @@ class TestRuntimeTaskInstance:
                 mapped_length=None,
                 type="SetXCom",
             ),
+            log=mock.ANY,
+        )
+
+    def test_overwrite_rtif_after_execution_sets_rtif(self, create_runtime_ti, mock_supervisor_comms):
+        """Test that the RTIF is overwritten after execution for certain operators."""
+
+        class CustomOperator(BaseOperator):
+            overwrite_rtif_after_execution = True
+            template_fields = ["bash_command"]
+
+            def __init__(self, bash_command, *args, **kwargs):
+                self.bash_command = bash_command
+                super().__init__(*args, **kwargs)
+
+        task = CustomOperator(task_id="hello", bash_command="echo 'hi'")
+        runtime_ti = create_runtime_ti(task=task)
+
+        finalize(runtime_ti, log=mock.MagicMock(), state=TerminalTIState.SUCCESS)
+
+        mock_supervisor_comms.send_request.assert_called_with(
+            msg=SetRenderedFields(rendered_fields={"bash_command": "echo 'hi'"}),
             log=mock.ANY,
         )
 
@@ -1926,6 +1972,51 @@ class TestTaskRunnerCallsListeners:
 
         assert listener.state == [TaskInstanceState.RUNNING, TaskInstanceState.FAILED]
         assert listener.error == error
+
+
+@pytest.mark.usefixtures("mock_supervisor_comms")
+class TestTaskRunnerCallsCallbacks:
+    def test_task_runner_calls_execute_callback(self, create_runtime_ti):
+        results = []
+
+        def custom_callback(context):
+            results.append("callback")
+
+        class CustomOperator(BaseOperator):
+            def execute(self, context):
+                results.append("execute")
+
+        task = CustomOperator(task_id="task", on_execute_callback=custom_callback)
+        runtime_ti = create_runtime_ti(dag_id="dag", task=task)
+        log = mock.MagicMock()
+        state, _, _ = run(runtime_ti, log)
+
+        assert state == TerminalTIState.SUCCESS
+        assert results == ["callback", "execute"]
+
+    def test_task_runner_not_fail_on_failed_execute_callback(self, create_runtime_ti):
+        results = []
+
+        def custom_callback_1(context):
+            results.append("callback 1")
+
+        def custom_callback_2(context):
+            raise Exception("sorry!")
+
+        class CustomOperator(BaseOperator):
+            def execute(self, context):
+                results.append("execute")
+
+        task = CustomOperator(task_id="task", on_execute_callback=[custom_callback_1, custom_callback_2])
+        runtime_ti = create_runtime_ti(dag_id="dag", task=task)
+        log = mock.MagicMock()
+        state, _, _ = run(runtime_ti, log)
+
+        assert state == TerminalTIState.SUCCESS
+        assert results == ["callback 1", "execute"]
+        assert log.exception.mock_calls == [
+            mock.call("Failed to run on-execute callback", index=1, callback=custom_callback_2),
+        ]
 
 
 class TestTriggerDagRunOperator:

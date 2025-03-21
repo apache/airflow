@@ -599,7 +599,7 @@ USER airflow
 
 {extra_copy_command}
 
-COPY --chown=airflow:0 airflow/example_dags/ /opt/airflow/dags/
+COPY --chown=airflow:0 airflow-core/src/airflow/example_dags/ /opt/airflow/dags/
 
 COPY --chown=airflow:0 providers/cncf/kubernetes/src/airflow/providers/cncf/kubernetes/kubernetes_executor_templates/ /opt/airflow/pod_templates/
 
@@ -1032,6 +1032,8 @@ def _deploy_helm_chart(
             f"airflowVersion={params.airflow_semver_version}",
             "--set",
             "config.api_auth.jwt_secret=foo",
+            "--set",
+            "config.core.auth_manager=airflow.providers.fab.auth_manager.fab_auth_manager.FabAuthManager",
         ]
         if multi_namespace_mode:
             helm_command.extend(["--set", "multiNamespaceMode=true"])
