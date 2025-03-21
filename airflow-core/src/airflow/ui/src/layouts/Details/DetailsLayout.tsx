@@ -19,18 +19,20 @@
 import { Box, HStack, Flex, VStack } from "@chakra-ui/react";
 import { useReactFlow } from "@xyflow/react";
 import type { PropsWithChildren, ReactNode } from "react";
+import { LuFileWarning } from "react-icons/lu";
 import { Panel, PanelGroup, PanelResizeHandle } from "react-resizable-panels";
 import { Outlet, useParams } from "react-router-dom";
 import { useLocalStorage } from "usehooks-ts";
 
-import { useDagServiceGetDag } from "openapi/queries";
-import type { DAGResponse, DAGWarningCollectionResponse } from "openapi/requests/types.gen";
+import { useDagServiceGetDag, useDagWarningServiceListDagWarnings } from "openapi/queries";
+import type { DAGResponse } from "openapi/requests/types.gen";
 import BackfillBanner from "src/components/Banner/BackfillBanner";
 import { ErrorAlert } from "src/components/ErrorAlert";
 import { SearchDagsButton } from "src/components/SearchDags";
+import { StateBadge } from "src/components/StateBadge";
 import TriggerDAGButton from "src/components/TriggerDag/TriggerDAGButton";
 import { WarningAlert } from "src/components/WarningAlert";
-import { ProgressBar } from "src/components/ui";
+import { Accordion, Button, ProgressBar } from "src/components/ui";
 import { Toaster } from "src/components/ui";
 import { OpenGroupsProvider } from "src/context/openGroups";
 
@@ -45,10 +47,9 @@ type Props = {
   readonly error?: unknown;
   readonly isLoading?: boolean;
   readonly tabs: Array<{ icon: ReactNode; label: string; value: string }>;
-  readonly warning?: DAGWarningCollectionResponse;
 } & PropsWithChildren;
 
-export const DetailsLayout = ({ children, error, isLoading, tabs, warning }: Props) => {
+export const DetailsLayout = ({ children, error, isLoading, tabs }: Props) => {
   const { dagId = "" } = useParams();
 
   const { data: dag } = useDagServiceGetDag({ dagId });
@@ -56,6 +57,10 @@ export const DetailsLayout = ({ children, error, isLoading, tabs, warning }: Pro
   const [dagView, setDagView] = useLocalStorage<"graph" | "grid">(`dag_view-${dagId}`, defaultDagView);
 
   const { fitView, getZoom } = useReactFlow();
+
+  const { data: warningData } = useDagWarningServiceListDagWarnings({
+    dagId,
+  });
 
   return (
     <OpenGroupsProvider dagId={dagId}>
@@ -91,15 +96,31 @@ export const DetailsLayout = ({ children, error, isLoading, tabs, warning }: Pro
           <Panel defaultSize={dagView === "graph" ? 30 : 80} minSize={20}>
             <Box display="flex" flexDirection="column" h="100%">
               {children}
-              <VStack ml={2} my={2}>
-                <ErrorAlert error={error} />
-                {warning?.dag_warnings.map((warningItem) => (
-                  <WarningAlert
-                    key={`${warningItem.dag_id}-${warningItem.timestamp}`}
-                    warning={warningItem}
-                  />
-                ))}
-              </VStack>
+              {(Boolean(error) || (warningData?.dag_warnings.length ?? 0) > 0) && (
+                <Accordion.Root collapsible mb={4} mt={4} size="lg" variant="outline">
+                  <Accordion.Item key="dagIssues" mx={2} value="dagIssues">
+                    <Accordion.ItemTrigger cursor="button">
+                      <Flex gap="0.5rem">
+                        <StateBadge as={Button} colorPalette="failed" height={7} title="Dag Issues">
+                          <LuFileWarning size="0.5rem" />
+                        </StateBadge>
+                        <p>Issues</p>
+                      </Flex>
+                    </Accordion.ItemTrigger>
+                    <Accordion.ItemContent>
+                      <VStack>
+                        <ErrorAlert error={error} />
+                        {warningData?.dag_warnings.map((warningItem) => (
+                          <WarningAlert
+                            key={`${warningItem.dag_id}-${warningItem.timestamp}`}
+                            warning={warningItem}
+                          />
+                        ))}
+                      </VStack>
+                    </Accordion.ItemContent>
+                  </Accordion.Item>
+                </Accordion.Root>
+              )}
               <ProgressBar size="xs" visibility={isLoading ? "visible" : "hidden"} />
               <NavTabs tabs={tabs} />
               <Box h="100%" overflow="auto" px={2}>
