@@ -182,6 +182,20 @@ Also for this action you can use operator in the deferrable mode:
     :start-after: [START howto_operator_k8s_write_xcom_async]
     :end-before: [END howto_operator_k8s_write_xcom_async]
 
+
+Run command in KubernetesPodOperator from a task flow
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+With the usage of the ``@task.kubernetes_cmd`` decorator, you can run a command returned by a function
+in a ``KubernetesPodOperator`` simplifying it's connection to the task flow.
+
+See the following example on how this works:
+
+.. exampleinclude:: /../../providers/cncf/kubernetes/tests/system/cncf/kubernetes/example_kubernetes_cmd_decorator.py
+    :language: python
+    :start-after: [START howto_decorator_kubernetes_cmd]
+    :end-before: [END howto_decorator_kubernetes_cmd]
+
+
 Include error message in email alert
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
