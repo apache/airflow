@@ -32,7 +32,7 @@ from libcst.codemod.visitors import AddImportsVisitor
 ROOT_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), os.pardir, os.pardir, os.pardir))
 
 DEFERRABLE_DOC = (
-    "https://github.com/apache/airflow/blob/main/docs/apache-airflow/"
+    "https://github.com/apache/airflow/blob/main/airflow-core/docs/"
     "authoring-and-scheduling/deferring.rst#writing-deferrable-operators"
 )
 

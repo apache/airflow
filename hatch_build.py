@@ -22,127 +22,45 @@ import logging
 import os
 import re
 import sys
-from collections.abc import Iterable
 from pathlib import Path
-from subprocess import run
-from typing import Any, Callable
+from typing import Any
 
 from hatchling.builders.config import BuilderConfig
 from hatchling.builders.hooks.plugin.interface import BuildHookInterface
-from hatchling.builders.plugin.interface import BuilderInterface
 from hatchling.metadata.plugin.interface import MetadataHookInterface
-from hatchling.plugin.manager import PluginManager
+from packaging.requirements import Requirement
+from packaging.utils import NormalizedName, canonicalize_name
+from packaging.version import Version
+
+try:
+    from tomllib import loads as loads_tomllib
+except ImportError:
+    from tomli import loads as loads_tomllib
+
+AIRFLOW_CORE_TOML = loads_tomllib((Path(__file__).parent / "airflow-core/pyproject.toml").read_text())
 
 log = logging.getLogger(__name__)
 log_level = logging.getLevelName(os.getenv("CUSTOM_AIRFLOW_BUILD_LOG_LEVEL", "INFO"))
 log.setLevel(log_level)
 
 AIRFLOW_ROOT_PATH = Path(__file__).parent.resolve()
+AIRFLOW_INIT_PY_PATH = AIRFLOW_ROOT_PATH / "airflow-core" / "src" / "airflow" / "__init__.py"
 GENERATED_PROVIDERS_DEPENDENCIES_FILE = AIRFLOW_ROOT_PATH / "generated" / "provider_dependencies.json"
 PROVIDER_DEPENDENCIES = json.loads(GENERATED_PROVIDERS_DEPENDENCIES_FILE.read_text())
+
+DEPENDENCIES = AIRFLOW_CORE_TOML["project"]["dependencies"]
+OPTIONAL_DEPENDENCIES = AIRFLOW_CORE_TOML["project"]["optional-dependencies"]
 
 PRE_INSTALLED_PROVIDERS = [
     "common.compat",
     "common.io",
     "common.sql",
-    "fab>=1.0.2",
+    "fab",
     "smtp",
     "sqlite",
     "standard",
 ]
 
-# Those extras are dynamically added by hatch in the build hook to metadata optional dependencies
-# when project is installed locally (editable build) or when wheel package is built based on it.
-CORE_EXTRAS: dict[str, list[str]] = {
-    # Aiobotocore required for AWS deferrable operators.
-    # There is conflict between boto3 and aiobotocore dependency botocore.
-    # TODO: We can remove it once boto3 and aiobotocore both have compatible botocore version or
-    # boto3 have native aync support and we move away from aio aiobotocore
-    "aiobotocore": [
-        "aiobotocore>=2.9.0",
-    ],
-    "async": [
-        "eventlet>=0.33.3",
-        "gevent>=0.13",
-        "greenlet>=0.4.9",
-    ],
-    "apache-atlas": [
-        "atlasclient>=0.1.2",
-    ],
-    "apache-webhdfs": [
-        "hdfs[avro,dataframe,kerberos]>=2.0.4",
-    ],
-    "cgroups": [
-        # Cgroupspy 0.2.2 added Python 3.10 compatibility
-        "cgroupspy>=0.2.2",
-    ],
-    "cloudpickle": [
-        # Latest version of apache-beam requires cloudpickle~=2.2.1
-        "cloudpickle>=2.2.1",
-    ],
-    "github-enterprise": [
-        "apache-airflow[fab]",
-        "authlib>=1.0.0",
-    ],
-    "google-auth": [
-        "apache-airflow[fab]",
-        "authlib>=1.0.0",
-    ],
-    "graphviz": [
-        # The graphviz package creates friction when installing on MacOS as it needs graphviz system package to
-        # be installed, and it's really only used for very obscure features of Airflow, so we can skip it on MacOS
-        # Instead, if someone attempts to use it on MacOS, they will get explanatory error on how to install it
-        "graphviz>=0.12; sys_platform != 'darwin'",
-    ],
-    "kerberos": [
-        "pykerberos>=1.1.13",
-        "requests-kerberos>=0.10.0",
-        "thrift-sasl>=0.2.0",
-    ],
-    "ldap": [
-        "python-ldap>=3.4.4",
-    ],
-    "leveldb": [
-        # The plyvel package is a huge pain when installing on MacOS - especially when Apple releases new
-        # OS version. It's usually next to impossible to install it at least for a few months after the new
-        # MacOS version is released. We can skip it on MacOS as this is an optional feature anyway.
-        "plyvel>=1.5.1; sys_platform != 'darwin'",
-    ],
-    "otel": [
-        "opentelemetry-exporter-prometheus>=0.47b0",
-    ],
-    "pandas": [
-        # In pandas 2.2 minimal version of the sqlalchemy is 2.0
-        # https://pandas.pydata.org/docs/whatsnew/v2.2.0.html#increased-minimum-versions-for-dependencies
-        # However Airflow not fully supports it yet: https://github.com/apache/airflow/issues/28723
-        # In addition FAB also limit sqlalchemy to < 2.0
-        "pandas>=1.2.5,<2.2",
-    ],
-    "password": [
-        "bcrypt>=2.0.0",
-        "flask-bcrypt>=0.7.1",
-    ],
-    "rabbitmq": [
-        "amqp>=5.2.0",
-    ],
-    "s3fs": [
-        # This is required for support of S3 file system which uses aiobotocore
-        # which can have a conflict with boto3 as mentioned in aiobotocore extra
-        "s3fs>=2023.10.0",
-    ],
-    "sentry": [
-        "blinker>=1.1",
-        # Sentry SDK 1.33 is broken when greenlets are installed and fails to import
-        # See https://github.com/getsentry/sentry-python/issues/2473
-        "sentry-sdk>=1.32.0,!=1.33.0",
-    ],
-    "statsd": [
-        "statsd>=3.3.0",
-    ],
-    "uv": [
-        "uv>=0.5.14",
-    ],
-}
 
 DOC_EXTRAS: dict[str, list[str]] = {
     "doc": [
@@ -180,109 +98,13 @@ DOC_EXTRAS: dict[str, list[str]] = {
     # END OF doc extras
 }
 
-DEPENDENCIES = [
-    "a2wsgi>=1.10.8",
-    # Alembic is important to handle our migrations in predictable and performant way. It is developed
-    # together with SQLAlchemy. Our experience with Alembic is that it very stable in minor version
-    # The 1.13.0 of alembic marked some migration code as SQLAlchemy 2+ only so we limit it to 1.13.1
-    "alembic>=1.13.1, <2.0",
-    "argcomplete>=1.10",
-    "asgiref>=2.3.0",
-    "attrs>=22.1.0, !=25.2.0",
-    # Blinker use for signals in Flask, this is an optional dependency in Flask 2.2 and lower.
-    # In Flask 2.3 it becomes a mandatory dependency, and flask signals are always available.
-    "blinker>=1.6.2",
-    "cadwyn>=5.1.2",
-    "colorlog>=6.8.2",
-    "configupdater>=3.1.1",
-    "cron-descriptor>=1.2.24",
-    "croniter>=2.0.2",
-    "cryptography>=41.0.0",
-    "deprecated>=1.2.13",
-    "dill>=0.2.2",
-    # Required for python 3.9 to work with new annotations styles. Check package
-    # description on PyPI for more details: https://pypi.org/project/eval-type-backport/
-    'eval-type-backport>=0.2.0;python_version<"3.10"',
-    # 0.115.10 fastapi was a bad release that broke our API's and static checks.
-    # Related fastapi issue here: https://github.com/fastapi/fastapi/discussions/13431
-    "fastapi[standard]>=0.112.4,!=0.115.10",
-    "flask-caching>=2.0.0",
-    # Flask-Session 0.6 add new arguments into the SqlAlchemySessionInterface constructor as well as
-    # all parameters now are mandatory which make AirflowDatabaseSessionInterface incompatible with this version.
-    "flask-session>=0.4.0,<0.6",
-    "flask-wtf>=1.1.0",
-    # Flask 2.3 is scheduled to introduce a number of deprecation removals - some of them might be breaking
-    # for our dependencies - notably `_app_ctx_stack` and `_request_ctx_stack` removals.
-    # We should remove the limitation after 2.3 is released and our dependencies are updated to handle it
-    "flask>=2.2.1,<2.3",
-    "fsspec>=2023.10.0",
-    "gitpython>=3.1.40",
-    "gunicorn>=20.1.0",
-    "httpx>=0.25.0",
-    'importlib_metadata>=6.5;python_version<"3.12"',
-    "itsdangerous>=2.0",
-    "jinja2>=3.0.0",
-    "jsonschema>=4.18.0",
-    "lazy-object-proxy>=1.2.0",
-    "libcst >=1.1.0",
-    "linkify-it-py>=2.0.0",
-    "lockfile>=0.12.2",
-    "markdown-it-py>=2.1.0",
-    "markupsafe>=1.1.1",
-    "marshmallow-oneofschema>=2.0.1",
-    "mdit-py-plugins>=0.3.0",
-    "methodtools>=0.4.7",
-    "opentelemetry-api>=1.24.0",
-    "opentelemetry-exporter-otlp>=1.24.0",
-    "packaging>=23.2",
-    "pathspec>=0.9.0",
-    'pendulum>=2.1.2,<4.0;python_version<"3.12"',
-    'pendulum>=3.0.0,<4.0;python_version>="3.12"',
-    "pluggy>=1.5.0",
-    "psutil>=5.8.0",
-    "pydantic>=2.10.2",
-    # Pygments 2.19.0 improperly renders .ini files with dictionaries as values
-    # See https://github.com/pygments/pygments/issues/2834
-    "pygments>=2.0.1,!=2.19.0",
-    "pyjwt>=2.10.0",
-    "python-daemon>=3.0.0",
-    "python-dateutil>=2.7.0",
-    "python-nvd3>=0.15.0",
-    "python-slugify>=5.0",
-    # Requests 3 if it will be released, will be heavily breaking.
-    "requests>=2.27.0,<3",
-    "requests-toolbelt>=1.0.0",
-    "rfc3339-validator>=0.1.4",
-    "rich-argparse>=1.0.0",
-    "rich>=13.1.0",
-    "setproctitle>=1.3.3",
-    # We use some deprecated features of sqlalchemy 2.0 and we should replace them before we can upgrade
-    # See https://sqlalche.me/e/b8d9 for details of deprecated features
-    # you can set environment variable SQLALCHEMY_WARN_20=1 to show all deprecation warnings.
-    # The issue tracking it is https://github.com/apache/airflow/issues/28723
-    "sqlalchemy>=1.4.49,<2.0",
-    "sqlalchemy-jsonfield>=1.0",
-    "sqlalchemy-utils>=0.41.2",
-    "svcs>=25.1.0",
-    "tabulate>=0.7.5",
-    "tenacity>=8.0.0,!=8.2.0",
-    "termcolor>=2.5.0",
-    # Universal Pathlib 0.2.4 adds extra validation for Paths and our integration with local file paths
-    # Does not work with it Tracked in https://github.com/fsspec/universal_pathlib/issues/276
-    "universal-pathlib>=0.2.2,!=0.2.4",
-    "uuid6>=2024.7.10",
-    # Werkzug 3 breaks Flask-Login 0.6.2
-    # we should remove this limitation when FAB supports Flask 2.3
-    "werkzeug>=2.0,<3",
-]
-
 
 def normalize_extra(dependency_id: str) -> str:
     return dependency_id.replace(".", "-").replace("_", "-")
 
 
 ALL_DYNAMIC_EXTRA_DICTS: list[tuple[dict[str, list[str]], str]] = [
-    (CORE_EXTRAS, "Core extras"),
+    (OPTIONAL_DEPENDENCIES, "Core extras"),
     (DOC_EXTRAS, "Doc extras"),
 ]
 
@@ -318,9 +140,6 @@ def get_dependencies_including_devel(provider_id: str) -> list[str]:
 
 
 def normalize_requirement(requirement: str):
-    from packaging.requirements import Requirement
-    from packaging.utils import NormalizedName, canonicalize_name
-
     req = Requirement(requirement)
     package: NormalizedName = canonicalize_name(req.name)
     package_str = str(package)
@@ -365,18 +184,8 @@ def get_provider_requirement(provider_spec: str) -> str:
        by >=VERSION.
     :return: requirement for the provider that can be used as dependency.
     """
-    airflow_init_py_path = AIRFLOW_ROOT_PATH / "airflow" / "__init__.py"
-    if ">=" in provider_spec and airflow_init_py_path.exists():
-        # we cannot import `airflow` here directly as it would pull re2 and a number of airflow
-        # dependencies so we need to read airflow version by matching a regexp
-        airflow_init_content = airflow_init_py_path.read_text()
-        airflow_version_pattern = r'__version__ = "(\d+\.\d+\.\d+\S*)"'
-        airflow_version_match = re.search(airflow_version_pattern, airflow_init_content)
-        if not airflow_version_match:
-            raise RuntimeError(f"Cannot find Airflow version in {airflow_init_py_path}")
-        from packaging.version import Version
-
-        current_airflow_version = Version(airflow_version_match.group(1))
+    if ">=" in provider_spec and AIRFLOW_INIT_PY_PATH.exists():
+        current_airflow_version = get_current_airflow_version()
         provider_id, min_version = provider_spec.split(">=")
         provider_version = Version(min_version)
         if provider_version.is_prerelease and not current_airflow_version.is_prerelease:
@@ -386,6 +195,17 @@ def get_provider_requirement(provider_spec: str) -> str:
         return f"apache-airflow-providers-{provider_id.replace('.', '-')}>={min_version}"
     else:
         return f"apache-airflow-providers-{provider_spec.replace('.', '-')}"
+
+
+def get_current_airflow_version() -> Version:
+    # we cannot import `airflow` here directly as it would pull re2 and a number of airflow
+    # dependencies so we need to read airflow version by matching a regexp
+    airflow_init_content = AIRFLOW_INIT_PY_PATH.read_text()
+    airflow_version_pattern = r'__version__ = "(\d+\.\d+\.\d+\S*)"'
+    airflow_version_match = re.search(airflow_version_pattern, airflow_init_content)
+    if not airflow_version_match:
+        raise RuntimeError(f"Cannot find Airflow version in {AIRFLOW_INIT_PY_PATH}")
+    return Version(airflow_version_match.group(1))
 
 
 # if providers are ready, we build provider requirements for them
@@ -499,13 +319,13 @@ def update_optional_dependencies_with_standard_provider_deps(optional_dependenci
 
 def get_all_core_deps() -> list[str]:
     all_core_deps: list[str] = []
-    for deps in CORE_EXTRAS.values():
+    for deps in OPTIONAL_DEPENDENCIES.values():
         all_core_deps.extend(deps)
     return all_core_deps
 
 
 def update_editable_optional_dependencies(optional_dependencies: dict[str, list[str]]):
-    optional_dependencies.update(CORE_EXTRAS)
+    optional_dependencies.update(OPTIONAL_DEPENDENCIES)
     optional_dependencies.update(DOC_EXTRAS)
     update_optional_dependencies_with_editable_provider_deps(optional_dependencies)
     all_deps: list[str] = []
@@ -556,8 +376,10 @@ class CustomMetadataHook(MetadataHookInterface):
         optional_dependencies: dict[str, list[str]] = {}
         update_editable_optional_dependencies(optional_dependencies)
         metadata["optional-dependencies"] = optional_dependencies
-        dependencies: list[str] = []
-        dependencies.extend(DEPENDENCIES)
+        dependencies: list[str] = [
+            f"apache-airflow-core=={get_current_airflow_version()}",
+            "apache-airflow-task-sdk",
+        ]
         dependencies.extend(PREINSTALLED_PROVIDER_REQUIREMENTS)
         metadata["dependencies"] = dependencies
 
@@ -596,13 +418,14 @@ class CustomBuildHook(BuildHookInterface[BuilderConfig]):
         :param version: "standard" or "editable" build.
         :param build_data: build data dictionary.
         """
-        self._dependencies = DEPENDENCIES
+        self._dependencies = [
+            f"apache-airflow-core=={get_current_airflow_version()}",
+        ]
         if version == "standard":
             # Process all provider extras and replace provider requirements with providers
-            self.optional_dependencies.update(CORE_EXTRAS)
+            for extra in OPTIONAL_DEPENDENCIES:
+                self.optional_dependencies[extra] = [f"apache-airflow-core[{extra}]"]
             update_optional_dependencies_with_standard_provider_deps(self.optional_dependencies)
-            # Add preinstalled providers into the dependencies for standard packages
-            self._dependencies.extend(PREINSTALLED_PROVIDER_REQUIREMENTS)
         else:
             update_editable_optional_dependencies(self.optional_dependencies)
 
@@ -613,83 +436,3 @@ class CustomBuildHook(BuildHookInterface[BuilderConfig]):
         # via build_data (or so it seem) so we need to modify internal _optional_dependencies
         # field in core.metadata until this is possible
         self.metadata.core._optional_dependencies = self.optional_dependencies
-
-
-class CustomBuild(BuilderInterface[BuilderConfig, PluginManager]):
-    """Custom build class for Airflow assets and git version."""
-
-    # Note that this name of the plugin MUST be `custom` - as long as we use it from custom
-    # hatch_build.py file and not from external plugin. See note in the:
-    # https://hatch.pypa.io/latest/plugins/build-hook/custom/#example
-    PLUGIN_NAME = "custom"
-
-    def clean(self, directory: str, versions: Iterable[str]) -> None:
-        work_dir = Path(self.root)
-        commands = [
-            ["rm -rf airflow/ui/dist"],
-            ["rm -rf airflow/ui/node_modules"],
-            ["rm -rf airflow/api_fastapi/auth/managers/simple/ui/dist"],
-            ["rm -rf airflow/api_fastapi/auth/managers/simple/ui/node_modules"],
-        ]
-        for cmd in commands:
-            run(cmd, cwd=work_dir.as_posix(), check=True, shell=True)
-
-    def get_version_api(self) -> dict[str, Callable[..., str]]:
-        """Get custom build target for standard package preparation."""
-        return {"standard": self.build_standard}
-
-    def build_standard(self, directory: str, artifacts: Any, **build_data: Any) -> str:
-        self.write_git_version()
-        work_dir = Path(self.root)
-        commands = [
-            ["pre-commit run --hook-stage manual compile-ui-assets --all-files"],
-        ]
-        for cmd in commands:
-            run(cmd, cwd=work_dir.as_posix(), check=True, shell=True)
-        dist_path = work_dir / "airflow" / "ui" / "dist"
-        return dist_path.resolve().as_posix()
-
-    def get_git_version(self) -> str:
-        """
-        Return a version to identify the state of the underlying git repo.
-
-        The version will indicate whether the head of the current git-backed working directory
-        is tied to a release tag or not. It will indicate the former with a 'release:{version}'
-        prefix and the latter with a '.dev0' suffix. Following the prefix will be a sha of the
-        current branch head. Finally, a "dirty" suffix is appended to indicate that uncommitted
-        changes are present.
-
-        Example pre-release version: ".dev0+2f635dc265e78db6708f59f68e8009abb92c1e65".
-        Example release version: ".release+2f635dc265e78db6708f59f68e8009abb92c1e65".
-        Example modified release version: ".release+2f635dc265e78db6708f59f68e8009abb92c1e65".dirty
-
-        :return: Found Airflow version in Git repo.
-        """
-        try:
-            import git
-
-            try:
-                repo = git.Repo(str(Path(self.root) / ".git"))
-            except git.NoSuchPathError:
-                log.warning(".git directory not found: Cannot compute the git version")
-                return ""
-            except git.InvalidGitRepositoryError:
-                log.warning("Invalid .git directory not found: Cannot compute the git version")
-                return ""
-        except ImportError:
-            log.warning("gitpython not found: Cannot compute the git version.")
-            return ""
-        if repo:
-            sha = repo.head.commit.hexsha
-            if repo.is_dirty():
-                return f".dev0+{sha}.dirty"
-            # commit is clean
-            return f".release:{sha}"
-        return "no_git_version"
-
-    def write_git_version(self) -> None:
-        """Write git version to git_version file."""
-        version = self.get_git_version()
-        git_version_file = Path(self.root) / "airflow" / "git_version"
-        self.app.display(f"Writing version {version} to {git_version_file}")
-        git_version_file.write_text(version)

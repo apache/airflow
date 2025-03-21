@@ -31,8 +31,8 @@ from airflow_breeze.params.build_prod_params import BuildProdParams
 from airflow_breeze.utils.cache import read_from_cache_file
 from airflow_breeze.utils.host_info_utils import get_host_group_id, get_host_os, get_host_user_id
 from airflow_breeze.utils.path_utils import (
-    AIRFLOW_SOURCES_ROOT,
-    SCRIPTS_DOCKER_DIR,
+    AIRFLOW_ROOT_PATH,
+    SCRIPTS_DOCKER_PATH,
     cleanup_python_generated_files,
     create_mypy_volume_if_needed,
 )
@@ -80,9 +80,8 @@ VOLUMES_FOR_SELECTED_MOUNTS = [
     (".inputrc", "/root/.inputrc"),
     (".rat-excludes", "/opt/airflow/.rat-excludes"),
     ("LICENSE", "/opt/airflow/LICENSE"),
-    ("NOTICE", "/opt/airflow/NOTICE"),
     ("RELEASE_NOTES.rst", "/opt/airflow/RELEASE_NOTES.rst"),
-    ("airflow", "/opt/airflow/airflow"),
+    ("airflow-core", "/opt/airflow/airflow-core"),
     ("airflow-ctl", "/opt/airflow/airflow-ctl"),
     ("constraints", "/opt/airflow/constraints"),
     ("clients", "/opt/airflow/clients"),
@@ -90,7 +89,6 @@ VOLUMES_FOR_SELECTED_MOUNTS = [
     ("dev", "/opt/airflow/dev"),
     ("docs", "/opt/airflow/docs"),
     ("generated", "/opt/airflow/generated"),
-    ("hooks", "/opt/airflow/hooks"),
     ("logs", "/root/airflow/logs"),
     ("providers", "/opt/airflow/providers"),
     ("task-sdk", "/opt/airflow/task-sdk"),
@@ -98,7 +96,6 @@ VOLUMES_FOR_SELECTED_MOUNTS = [
     ("scripts", "/opt/airflow/scripts"),
     ("scripts/docker/entrypoint_ci.sh", "/entrypoint"),
     ("devel-common", "/opt/airflow/devel-common"),
-    ("tests", "/opt/airflow/tests"),
     ("helm_tests", "/opt/airflow/helm_tests"),
     ("kubernetes_tests", "/opt/airflow/kubernetes_tests"),
     ("docker_tests", "/opt/airflow/docker_tests"),
@@ -447,7 +444,7 @@ def build_cache(image_params: CommonBuildParams, output: Output | None) -> RunCo
         cmd = prepare_docker_build_cache_command(image_params=platform_image_params)
         build_command_result = run_command(
             cmd,
-            cwd=AIRFLOW_SOURCES_ROOT,
+            cwd=AIRFLOW_ROOT_PATH,
             output=output,
             check=False,
             text=True,
@@ -492,7 +489,7 @@ def check_executable_entrypoint_permissions(quiet: bool = False):
     """
     Checks if the user has executable permissions on the entrypoints in checked-out airflow repository..
     """
-    for entrypoint in SCRIPTS_DOCKER_DIR.glob("entrypoint*.sh"):
+    for entrypoint in SCRIPTS_DOCKER_PATH.glob("entrypoint*.sh"):
         if get_verbose() and not quiet:
             get_console().print(f"[info]Checking executable permissions on {entrypoint.as_posix()}[/]")
         if not os.access(entrypoint.as_posix(), os.X_OK):
@@ -516,13 +513,13 @@ def perform_environment_checks(quiet: bool = False):
 
 
 def get_docker_syntax_version() -> str:
-    from airflow_breeze.utils.path_utils import AIRFLOW_SOURCES_ROOT
+    from airflow_breeze.utils.path_utils import AIRFLOW_ROOT_PATH
 
-    return (AIRFLOW_SOURCES_ROOT / "Dockerfile").read_text().splitlines()[0]
+    return (AIRFLOW_ROOT_PATH / "Dockerfile").read_text().splitlines()[0]
 
 
 def warm_up_docker_builder(image_params_list: list[CommonBuildParams]):
-    from airflow_breeze.utils.path_utils import AIRFLOW_SOURCES_ROOT
+    from airflow_breeze.utils.path_utils import AIRFLOW_ROOT_PATH
 
     platforms: set[str] = set()
     for image_params in image_params_list:
@@ -548,7 +545,7 @@ def warm_up_docker_builder(image_params_list: list[CommonBuildParams]):
     FROM scratch
     LABEL description="test warmup image"
     """,
-            cwd=AIRFLOW_SOURCES_ROOT,
+            cwd=AIRFLOW_ROOT_PATH,
             text=True,
             check=False,
         )
@@ -572,7 +569,7 @@ def fix_ownership_using_docker(quiet: bool = False):
         "docker",
         "run",
         "-v",
-        f"{AIRFLOW_SOURCES_ROOT}:/opt/airflow/",
+        f"{AIRFLOW_ROOT_PATH}:/opt/airflow/",
         "-e",
         f"HOST_OS={get_host_os()}",
         "-e",

@@ -540,7 +540,7 @@ flag is used):
 
 * ``breeze build-docs``
 * ``breeze release-management prepare-provider-documentation``
-* ``breeze release-management prepare-provider-packages``
+* ``breeze release-management prepare-provider-distributions``
 * ``breeze release-management publish-docs``
 
 For all those commands, release manager needs to specify ``--include-removed-providers`` when all providers

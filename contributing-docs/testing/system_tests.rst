@@ -84,7 +84,7 @@ For core:
 
 .. code-block:: bash
 
-  pytest --system tests/system/example_empty.py
+  pytest --system airflow-core/tests/system/example_empty.py
 
 For providers:
 
@@ -102,7 +102,7 @@ For core:
 
 .. code-block:: bash
 
-  breeze testing system-tests tests/system/example_empty.py
+  breeze testing system-tests airflow-core/tests/system/example_empty.py
 
 
 If you need to add some initialization of environment variables when entering Breeze, you can add a
