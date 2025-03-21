@@ -501,13 +501,6 @@ def get_provider_info():
                 "tags": ["gcp"],
             },
             {
-                "integration-name": "Google Machine Learning Engine",
-                "external-doc-url": "https://cloud.google.com/vertex-ai/",
-                "how-to-guide": ["/docs/apache-airflow-providers-google/operators/cloud/mlengine.rst"],
-                "logo": "/docs/integration-logos/AI-Platform.png",
-                "tags": ["gcp"],
-            },
-            {
                 "integration-name": "Google Cloud Natural Language",
                 "external-doc-url": "https://cloud.google.com/natural-language/",
                 "how-to-guide": [
@@ -650,10 +643,6 @@ def get_provider_info():
             {
                 "integration-name": "Google Cloud Life Sciences",
                 "python-modules": ["airflow.providers.google.cloud.operators.life_sciences"],
-            },
-            {
-                "integration-name": "Google Machine Learning Engine",
-                "python-modules": ["airflow.providers.google.cloud.operators.mlengine"],
             },
             {
                 "integration-name": "Google Cloud Natural Language",
