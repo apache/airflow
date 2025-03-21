@@ -22,7 +22,7 @@ from __future__ import annotations
 import pendulum
 
 from airflow.decorators import task, task_group
-from airflow.models.dag import DAG
+from airflow.sdk import DAG
 
 
 # [START howto_task_group_decorator]
