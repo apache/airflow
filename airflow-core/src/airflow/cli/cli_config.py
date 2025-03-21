@@ -1175,7 +1175,6 @@ TASKS_COMMANDS = (
             ARG_TASK_REGEX,
             ARG_START_DATE,
             ARG_END_DATE,
-            ARG_SUBDIR,
             ARG_UPSTREAM,
             ARG_DOWNSTREAM,
             ARG_YES,

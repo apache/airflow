@@ -297,8 +297,11 @@ def get_dags(subdir: str | None, dag_id: str, use_regex: bool = False, from_db: 
     from airflow.models import DagBag
 
     if not use_regex:
-        return [get_dag(subdir=subdir, dag_id=dag_id, from_db=from_db)]
-    dagbag = DagBag(process_subdir(subdir))
+        return [get_dag(subdir=None, dag_id=dag_id, from_db=True)]
+
+    dagbag = DagBag(read_dags_from_db=True)
+    dagbag.collect_dags_from_db()
+
     matched_dags = [dag for dag in dagbag.dags.values() if re.search(dag_id, dag.dag_id)]
     if not matched_dags:
         raise AirflowException(
