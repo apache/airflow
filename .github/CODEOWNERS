@@ -24,6 +24,7 @@
 # API
 /airflow/api/ @ephraimbuddy @pierrejeambrun @rawwar
 /airflow/api_fastapi/ @ephraimbuddy @pierrejeambrun @rawwar
+/airflow/api_fastapi/execution_api/ @ashb @kaxil @amoghrajesh
 
 # UI
 /airflow/ui/ @bbovenzi @pierrejeambrun @ryanahamilton @jscheffl
