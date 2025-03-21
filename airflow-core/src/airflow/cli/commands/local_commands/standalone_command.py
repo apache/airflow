@@ -27,6 +27,7 @@ from typing import TYPE_CHECKING
 
 from termcolor import colored
 
+from airflow.api_fastapi.app import create_auth_manager
 from airflow.configuration import conf
 from airflow.executors import executor_constants
 from airflow.executors.executor_loader import ExecutorLoader
@@ -58,7 +59,6 @@ class StandaloneCommand:
     def __init__(self):
         self.subcommands = {}
         self.output_queue = deque()
-        self.user_info = {}
         self.ready_time = None
         self.ready_delay = 3
 
@@ -69,6 +69,7 @@ class StandaloneCommand:
         logging.getLogger("").setLevel(logging.WARNING)
         # Startup checks and prep
         env = self.calculate_env()
+        self.find_user_info()
         self.initialize_database()
         # Set up commands to run
         self.subcommands["scheduler"] = SubCommand(
@@ -179,7 +180,41 @@ class StandaloneCommand:
             else:
                 self.print_output("standalone", "Forcing executor to LocalExecutor")
                 env["AIRFLOW__CORE__EXECUTOR"] = executor_constants.LOCAL_EXECUTOR
+
+        # Make sure we're using SimpleAuthManager
+        simple_auth_manager_classpath = (
+            "airflow.api_fastapi.auth.managers.simple.simple_auth_manager.SimpleAuthManager"
+        )
+        if conf.get("core", "auth_manager") != simple_auth_manager_classpath:
+            self.print_output("standalone", "Forcing auth manager to SimpleAuthManager")
+            env["AIRFLOW__CORE__AUTH_MANAGER"] = simple_auth_manager_classpath
+            os.environ["AIRFLOW__CORE__AUTH_MANAGER"] = simple_auth_manager_classpath  # also in this process!
+
         return env
+
+    def find_user_info(self):
+        if conf.get("core", "simple_auth_manager_all_admins").lower() == "true":
+            # If we have no auth anyways, no need to print or do anything
+            return
+        if conf.get("core", "simple_auth_manager_users") != "admin:admin":
+            self.print_output(
+                "standalone",
+                "Not outputting user passwords - `[core] simple_auth_manager_users` is already set.",
+            )
+            return
+
+        am = create_auth_manager()
+
+        password_file = am.get_generated_password_file()
+        if os.path.exists(password_file):
+            self.print_output(
+                "standalone",
+                f"Password for the admin user has been previously generated in {password_file}. Not echoing it here.",
+            )
+            return
+
+        # this generates the password and prints it
+        am.init()
 
     def initialize_database(self):
         """Make sure all the tables are created."""
@@ -187,15 +222,6 @@ class StandaloneCommand:
         self.print_output("standalone", "Checking database is initialized")
         db.initdb()
         self.print_output("standalone", "Database ready")
-
-        # Then create a "default" admin user if necessary
-        from airflow.providers.fab.auth_manager.cli_commands.utils import get_application_builder
-
-        with get_application_builder() as appbuilder:
-            if hasattr(appbuilder.sm, "create_admin_standalone"):
-                user_name, password = appbuilder.sm.create_admin_standalone()
-        # Store what we know about the user for printing later in startup
-        self.user_info = {"username": user_name, "password": password}
 
     def is_ready(self):
         """
@@ -244,11 +270,6 @@ class StandaloneCommand:
         """
         self.print_output("standalone", "")
         self.print_output("standalone", "Airflow is ready")
-        if self.user_info["password"]:
-            self.print_output(
-                "standalone",
-                f"Login with username: {self.user_info['username']}  password: {self.user_info['password']}",
-            )
         self.print_output(
             "standalone",
             "Airflow Standalone is for development purposes only. Do not use this in production!",
