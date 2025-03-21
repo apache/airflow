@@ -23,7 +23,6 @@ import os
 import re
 import shutil
 from io import StringIO
-from pathlib import Path
 from unittest import mock
 from unittest.mock import Mock, patch
 
@@ -41,17 +40,17 @@ from airflow.providers.opensearch.log.os_task_handler import (
 from airflow.utils import timezone
 from airflow.utils.state import DagRunState, TaskInstanceState
 from airflow.utils.timezone import datetime
-from unit.opensearch.conftest import MockClient
 
 from tests_common.test_utils.config import conf_vars
 from tests_common.test_utils.db import clear_db_dags, clear_db_runs
+from tests_common.test_utils.paths import AIRFLOW_PROVIDERS_ROOT_PATH
 from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS
+from unit.opensearch.conftest import MockClient
 
 opensearchpy = pytest.importorskip("opensearchpy")
 pytestmark = pytest.mark.db_test
 
-AIRFLOW_SOURCES_ROOT_DIR = Path(__file__).parents[4].resolve()
-ES_PROVIDER_YAML_FILE = AIRFLOW_SOURCES_ROOT_DIR / "airflow" / "providers" / "opensearch" / "provider.yaml"
+ES_PROVIDER_YAML_FILE = AIRFLOW_PROVIDERS_ROOT_PATH / "elasticsearch" / "provider.yaml"
 
 
 def get_ti(dag_id, task_id, logical_date, create_task_instance):

@@ -172,7 +172,7 @@ auth, graphviz, kerberos, ldap, leveldb, otel, pandas, password, rabbitmq, s3fs,
 Provider extras
 ...............
 
-Those extras are available as regular Airflow extras, they install provider packages in standard builds
+Those extras are available as regular Airflow extras, they install providers in standard builds
 or dependencies that are necessary to enable the feature in editable build.
 
   .. START PROVIDER EXTRAS HERE
@@ -198,7 +198,7 @@ The ``doc`` extras are not available in the released packages. They are only ava
 Airflow from sources in ``editable`` installation - i.e. one that you are usually using to contribute to
 Airflow. They provide tools needed when you want to build Airflow documentation (note that you also need
 ``devel`` extras installed for airflow and providers in order to build documentation for airflow and
-provider packages respectively). The ``doc`` package is enough to build regular documentation, where
+providers respectively). The ``doc`` package is enough to build regular documentation, where
 ``doc_gen`` is needed to generate ER diagram we have describing our database.
 
   .. START DOC EXTRAS HERE

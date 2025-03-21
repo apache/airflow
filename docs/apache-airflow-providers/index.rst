@@ -16,8 +16,8 @@
     specific language governing permissions and limitations
     under the License.
 
-Provider packages
------------------
+Providers
+---------
 
 Apache Airflow 2 is built in modular way. The "Core" of Apache Airflow provides core scheduler
 functionality which allow you to write some basic tasks, but the capabilities of Apache Airflow can
@@ -26,9 +26,9 @@ be extended by installing additional packages, called ``providers``.
 Providers can contain operators, hooks, sensor, and transfer operators to communicate with a
 multitude of external systems, but they can also extend Airflow core with new capabilities.
 
-You can install those provider packages separately in order to interface with a given service. The providers
+You can install those providers separately in order to interface with a given service. The providers
 for ``Apache Airflow`` are designed in the way that you can write your own providers easily. The
-``Apache Airflow Community`` develops and maintain more than 80 provider packages, but you are free to
+``Apache Airflow Community`` develops and maintain more than 80 providers, but you are free to
 develop your own providers - the providers you build have exactly the same capability as the providers
 written by the community, so you can release and share those providers with others.
 
@@ -117,14 +117,14 @@ You can see all the notifications available via community-managed providers in
 Installing and upgrading providers
 ----------------------------------
 
-Separate provider packages give the possibilities that were not available in 1.10:
+Separate providers give the possibilities that were not available in 1.10:
 
 1. You can upgrade to latest version of particular providers without the need of Apache Airflow core upgrade.
 
 2. You can downgrade to previous version of particular provider in case the new version introduces
    some problems, without impacting the main Apache Airflow core package.
 
-3. You can release and upgrade/downgrade provider packages incrementally, independent from each other. This
+3. You can release and upgrade/downgrade providers incrementally, independent from each other. This
    means that you can incrementally validate each of the provider package update in your environment,
    following the usual tests you have in your environment.
 
@@ -143,13 +143,13 @@ Community maintained providers
 
 From the point of view of the community, Airflow is delivered in multiple, separate packages.
 The core of Airflow scheduling system is delivered as ``apache-airflow`` package and there are more than
-80 provider packages which can be installed separately as so called ``Airflow Provider packages``.
+80 providers which can be installed separately as so called ``Airflow providers``.
 Those packages are available as ``apache-airflow-providers`` packages - for example there is an
 ``apache-airflow-providers-amazon`` or ``apache-airflow-providers-google`` package).
 
 Community maintained providers are released and versioned separately from the Airflow releases. We are
 following the `Semver <https://semver.org/>`_ versioning scheme for the packages. Some versions of the
-provider packages might depend on particular versions of Airflow, but the general approach we have is that
+providers might depend on particular versions of Airflow, but the general approach we have is that
 unless there is a good reason, new version of providers should work with recent versions of Airflow 2.x.
 Details will vary per-provider and if there is a limitation for particular version of particular provider,
 constraining the Airflow version used, it will be included as limitation of dependencies in the provider
@@ -165,7 +165,7 @@ Some of the community  providers have cross-provider dependencies as well. Those
 dependencies, they might simply enable certain features (for example transfer operators often create
 dependency between different providers. Again, the general approach here is that the providers are backwards
 compatible, including cross-dependencies. Any kind of breaking changes and requirements on particular versions of other
-provider packages are automatically documented in the release notes of every provider.
+providers are automatically documented in the release notes of every provider.
 
 .. note::
     For Airflow 1.10 We also provided ``apache-airflow-backport-providers`` packages that could be installed

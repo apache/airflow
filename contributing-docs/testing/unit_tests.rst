@@ -1134,7 +1134,7 @@ are not part of the public API. We deal with it in one of the following ways:
    raise AirflowOptionalProviderFeatureException. In such case you should wrap the imports in
    ``ignore_provider_compatibility_error`` context manager adding the ``__file__``
    module name as parameter.  This will stop failing pytest collection and automatically skip the whole
-   module from tests.
+   module from unit.
 
    For example:
 
@@ -1150,7 +1150,7 @@ Running provider compatibility tests in CI
 ..........................................
 
 In CI those tests are run in a slightly more complex way because we want to run them against the build
-provider packages, rather than mounted from sources.
+providers, rather than mounted from sources.
 
 In case of canary runs we add ``--clean-airflow-installation`` flag that removes all packages before
 installing older airflow version, and then installs development dependencies
@@ -1174,8 +1174,8 @@ Herr id how to reproduce it.
 .. code-block:: bash
 
    rm dist/*
-   breeze release-management prepare-provider-packages --include-not-ready-providers \
-      --version-suffix-for-pypi dev0 --package-format wheel
+   breeze release-management prepare-provider-distributions --include-not-ready-providers \
+      --version-suffix-for-pypi dev0 --distribution-format wheel
 
 3. Prepare provider constraints
 
@@ -1187,18 +1187,18 @@ Herr id how to reproduce it.
    the incompatible providers in the ``PROVIDERS_COMPATIBILITY_TESTS_MATRIX`` constant in the
    ``./dev/breeze/src/airflow_breeze/global_constants.py`` file.
 
-5. Enter breeze environment, installing selected airflow version and the provider packages prepared from main
+5. Enter breeze environment, installing selected airflow version and the providers prepared from main
 
 .. code-block:: bash
 
-  breeze shell --use-packages-from-dist --package-format wheel --use-airflow-version 2.9.1  \
+  breeze shell --use-distributions-from-dist --distribution-format wheel --use-airflow-version 2.9.1  \
    --install-airflow-with-constraints --providers-skip-constraints --mount-sources tests
 
 In case you want to reproduce canary run, you need to add ``--clean-airflow-installation`` flag:
 
 .. code-block:: bash
 
-  breeze shell --use-packages-from-dist --package-format wheel --use-airflow-version 2.9.1  \
+  breeze shell --use-distributions-from-dist --distribution-format wheel --use-airflow-version 2.9.1  \
    --install-airflow-with-constraints --providers-skip-constraints --mount-sources tests --clean-airflow-installation
 
 
@@ -1214,7 +1214,7 @@ The tests are run using:
 
 * airflow installed from PyPI
 * tests coming from the current airflow sources (they are mounted inside the breeze image)
-* provider packages built from the current airflow sources and placed in dist
+* providers built from the current airflow sources and placed in dist
 
 This means that you can modify and run tests and re-run them because sources are mounted from the host,
 but if you want to modify provider code you need to exit breeze, rebuild the provider package and
@@ -1224,8 +1224,8 @@ Rebuilding single provider package can be done using this command:
 
 .. code-block:: bash
 
-  breeze release-management prepare-provider-packages \
-    --version-suffix-for-pypi dev0 --package-format wheel <provider>
+  breeze release-management prepare-provider-distributions \
+    --version-suffix-for-pypi dev0 --distribution-format wheel <provider>
 
 Lowest direct dependency resolution tests
 -----------------------------------------

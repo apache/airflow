@@ -21,13 +21,12 @@ from base64 import b64encode
 import pytest
 from flask_login import current_user
 
-from unit.fab.auth_manager.api_endpoints.api_connexion_utils import (
-    delete_user,
-)
-
 from tests_common.test_utils.config import conf_vars
 from tests_common.test_utils.db import clear_db_pools
 from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS
+from unit.fab.auth_manager.api_endpoints.api_connexion_utils import (
+    delete_user,
+)
 
 pytestmark = [
     pytest.mark.db_test,

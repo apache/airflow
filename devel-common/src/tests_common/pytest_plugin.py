@@ -35,6 +35,9 @@ import pytest
 import time_machine
 
 if TYPE_CHECKING:
+    from itsdangerous import URLSafeSerializer
+    from sqlalchemy.orm import Session
+
     from airflow.models.baseoperator import BaseOperator
     from airflow.models.dag import DAG, ScheduleArg
     from airflow.models.dagrun import DagRun, DagRunType
@@ -44,8 +47,6 @@ if TYPE_CHECKING:
     from airflow.typing_compat import Self
     from airflow.utils.state import DagRunState, TaskInstanceState
     from airflow.utils.trigger_rule import TriggerRule
-    from itsdangerous import URLSafeSerializer
-    from sqlalchemy.orm import Session
 
     from tests_common._internals.capture_warnings import CaptureWarningsPlugin  # noqa: F401
     from tests_common._internals.forbidden_warnings import ForbiddenWarningsPlugin  # noqa: F401
@@ -133,13 +134,13 @@ if run_db_tests_only:
     os.environ["_AIRFLOW_RUN_DB_TESTS_ONLY"] = "true"
 
 _airflow_sources = os.getenv("AIRFLOW_SOURCES", None)
-AIRFLOW_SOURCES_ROOT_DIR = (
-    Path(_airflow_sources) if _airflow_sources else Path(__file__).parents[3]
-).resolve()
-AIRFLOW_TESTS_DIR = AIRFLOW_SOURCES_ROOT_DIR / "tests"
+AIRFLOW_ROOT_PATH = (Path(_airflow_sources) if _airflow_sources else Path(__file__).parents[3]).resolve()
+AIRFLOW_CORE_SOURCES_PATH = AIRFLOW_ROOT_PATH / "airflow-core" / "src"
+AIRFLOW_CORE_TESTS_PATH = AIRFLOW_ROOT_PATH / "airflow-core" / "tests"
 
-os.environ["AIRFLOW__CORE__PLUGINS_FOLDER"] = os.fspath(AIRFLOW_TESTS_DIR / "plugins")
-os.environ["AIRFLOW__CORE__DAGS_FOLDER"] = os.fspath(AIRFLOW_TESTS_DIR / "dags")
+os.environ["AIRFLOW__CORE__ALLOWED_DESERIALIZATION_CLASSES"] = "airflow.*\nunit.*\n"
+os.environ["AIRFLOW__CORE__PLUGINS_FOLDER"] = os.fspath(AIRFLOW_CORE_TESTS_PATH / "unit" / "plugins")
+os.environ["AIRFLOW__CORE__DAGS_FOLDER"] = os.fspath(AIRFLOW_CORE_TESTS_PATH / "unit" / "dags")
 os.environ["AIRFLOW__CORE__UNIT_TEST_MODE"] = "True"
 os.environ["AWS_DEFAULT_REGION"] = os.environ.get("AWS_DEFAULT_REGION") or "us-east-1"
 os.environ["CREDENTIALS_DIR"] = os.environ.get("CREDENTIALS_DIR") or "/files/airflow-breeze-config/keys"
@@ -361,7 +362,7 @@ def initialize_airflow_tests(request):
 
 
 def _find_all_deprecation_ignore_files() -> list[str]:
-    all_deprecation_ignore_files = AIRFLOW_SOURCES_ROOT_DIR.rglob("deprecations_ignore.yml")
+    all_deprecation_ignore_files = AIRFLOW_ROOT_PATH.rglob("deprecations_ignore.yml")
     return list(path.as_posix() for path in all_deprecation_ignore_files)
 
 
@@ -370,13 +371,13 @@ def pytest_configure(config: pytest.Config) -> None:
     if os.environ.get("USE_AIRFLOW_VERSION") == "":
         # if USE_AIRFLOW_VERSION is not empty, we are running tests against the installed version of Airflow
         # and providers so there is no need to add the sources directory to the path
-        desired = AIRFLOW_SOURCES_ROOT_DIR.as_posix()
+        desired = AIRFLOW_ROOT_PATH.as_posix()
         for path in sys.path:
             if path == desired:
                 break
         else:
             # This "desired" path should be the Airflow source directory (repo root)
-            assert (AIRFLOW_SOURCES_ROOT_DIR / ".asf.yaml").exists(), f"Path {desired} is not Airflow root"
+            assert (AIRFLOW_ROOT_PATH / ".asf.yaml").exists(), f"Path {desired} is not Airflow root"
             sys.path.append(desired)
 
         if (backend := config.getoption("backend", default=None)) and backend not in SUPPORTED_DB_BACKENDS:
@@ -820,9 +821,10 @@ def dag_maker(request) -> Generator[DagMaker, None, None]:
             return self.dagbag.bag_dag(dag)
 
         def _activate_assets(self):
+            from sqlalchemy import select
+
             from airflow.jobs.scheduler_job_runner import SchedulerJobRunner
             from airflow.models.asset import AssetModel, DagScheduleAssetReference, TaskOutletAssetReference
-            from sqlalchemy import select
 
             assets = self.session.scalars(
                 select(AssetModel).where(
@@ -1433,7 +1435,7 @@ def get_test_dag():
 
         from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS
 
-        dag_file = AIRFLOW_TESTS_DIR / "dags" / f"{dag_id}.py"
+        dag_file = AIRFLOW_CORE_TESTS_PATH / "unit" / "dags" / f"{dag_id}.py"
         dagbag = DagBag(dag_folder=dag_file, include_examples=False)
 
         dag = dagbag.get_dag(dag_id)
@@ -1715,8 +1717,9 @@ def url_safe_serializer(secret_key) -> URLSafeSerializer:
 def create_db_api_hook(request):
     from unittest.mock import MagicMock
 
-    from airflow.providers.common.sql.hooks.sql import DbApiHook
     from sqlalchemy.engine import Inspector
+
+    from airflow.providers.common.sql.hooks.sql import DbApiHook
 
     columns, primary_keys, reserved_words, escape_column_names = request.param
 
@@ -1733,10 +1736,29 @@ def create_db_api_hook(request):
 
 
 @pytest.fixture(autouse=True, scope="session")
-def add_providers_test_folders_to_pythonpath():
+def add_expected_folders_to_pythonpath():
+    """
+    Add all expected folders to the python path.
+
+    Appends all provider "tests" folder to the end od the  python path and inserts
+    airflow core src folder to be always first on the path.
+
+    This way:
+
+    * all the objects defined in __init__.py of ``airflow`` package are available for pytest discovery.
+      Pytest discovery does not understand legacy namespace packages, and while generally speaking -
+      all "src" packages (including airflow-core/src) should be automatically added to python path, we need
+      to make sure that it's FIRST on the path, otherwise, pytest will not be able to discover tests that
+      import airflow.
+    * all the tests can import any other unit, system, integration tests and treat root of their provider
+      "tests" folder as the place from everything is imported.
+
+
+    :return: updated python path with expected folders added
+    """
     old_path = sys.path.copy()
-    all_provider_test_folders: list[Path] = list(AIRFLOW_SOURCES_ROOT_DIR.glob("providers/*/tests"))
-    all_provider_test_folders.extend(list(AIRFLOW_SOURCES_ROOT_DIR.glob("providers/*/*/tests")))
+    all_provider_test_folders: list[Path] = list(AIRFLOW_ROOT_PATH.glob("providers/*/tests"))
+    all_provider_test_folders.extend(list(AIRFLOW_ROOT_PATH.glob("providers/*/*/tests")))
     for provider_test_folder in all_provider_test_folders:
         sys.path.append(str(provider_test_folder))
     yield

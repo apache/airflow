@@ -294,8 +294,8 @@ jobs:
       DOCS_AWS_SECRET_ACCESS_KEY: ${{ secrets.DOCS_AWS_SECRET_ACCESS_KEY }}
 
   providers:
-    name: "Provider packages tests"
-    uses: ./.github/workflows/test-provider-packages.yml
+    name: "provider distributions tests"
+    uses: ./.github/workflows/test-providers.yml
     needs: [build-info, build-ci-images]
     permissions:
       contents: read
@@ -540,7 +540,7 @@ jobs:
       default-python-version: ${{ needs.build-info.outputs.default-python-version }}
       branch: ${{ needs.build-info.outputs.default-branch }}
       use-uv: ${{ needs.build-info.outputs.use-uv }}
-      build-provider-packages: ${{ needs.build-info.outputs.default-branch == 'main' }}
+      build-provider-distributions: ${{ needs.build-info.outputs.default-branch == 'main' }}
       upgrade-to-newer-dependencies: ${{ needs.build-info.outputs.upgrade-to-newer-dependencies }}
       chicken-egg-providers: ${{ needs.build-info.outputs.chicken-egg-providers }}
       constraints-branch: ${{ needs.build-info.outputs.default-constraints-branch }}

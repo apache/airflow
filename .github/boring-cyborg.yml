@@ -301,11 +301,11 @@ labelPRBasedOnFilePath:
     - providers/zendesk/**
 
   area:API:
-    - airflow/api/**/*
-    - airflow/api_fastapi/**/*
+    - airflow-core/src/airflow/api/**/*
+    - airflow-core/src/airflow/api_fastapi/**/*
     - clients/**/*
-    - docs/apache-airflow/stable-rest-api-ref.rst
-    - tests/api_fastapi/**/*
+    - airflow-core/docs/stable-rest-api-ref.rst
+    - airflow-core/tests/unit/api_fastapi/**/*
 
   area:dev-tools:
     - scripts/**/*
@@ -331,80 +331,79 @@ labelPRBasedOnFilePath:
     - docs/helm-chart/**
 
   area:UI:
-    - docs/apache-airflow/ui.rst
-    - airflow/ui/**/*
+    - airflow-core/docs/ui.rst
+    - airflow-core/src/airflow/ui/**/*
 
   area:CLI:
-    - airflow/cli/**/*.py
-    - tests/cli/**/*.py
-    - docs/apache-airflow/cli-and-env-variables-ref.rst
-    - docs/apache-airflow/howto/usage-cli.rst
+    - airflow-core/src/airflow/cli/**/*.py
+    - airflow-core/tests/unit/cli/**/*.py
+    - airflow-core/docs/cli-and-env-variables-ref.rst
+    - airflow-core/docs/howto/usage-cli.rst
 
   area:Lineage:
-    - airflow/lineage/**/*
-    - tests/lineage/**/*
-    - docs/apache-airflow/administration-and-deployment/lineage.rst
+    - airflow-core/src/airflow/lineage/**/*
+    - airflow-core/tests/unit/lineage/**/*
+    - airflow-core/docs/administration-and-deployment/lineage.rst
 
   area:Logging:
-    - airflow/utils/log/**/*
-    - docs/apache-airflow/administration-and-deployment/logging-monitoring/logging-*.rst
-    - tests/utils/log/**/*
+    - airflow-core/src/airflow/utils/log/**/*
+    - airflow-core/docs/administration-and-deployment/logging-monitoring/logging-*.rst
+    - airflow-core/tests/unit/utils/log/**/*
     - providers/**/log/*
 
   area:Plugins:
-    - airflow/cli/commands/local_commands/plugins_command.py
-    - airflow/plugins_manager.py
-    - tests/cli/commands/local_commands/test_plugins_command.py
-    - tests/plugins/**/*
-    - docs/apache-airflow/administration-and-deployment/plugins.rst
+    - airflow-core/src/airflow/cli/commands/local_commands/plugins_command.py
+    - airflow-core/src/airflow/plugins_manager.py
+    - airflow-core/tests/unit/cli/commands/local_commands/test_plugins_command.py
+    - airflow-core/tests/unit/plugins/**/*
+    - airflow-core/docs/administration-and-deployment/plugins.rst
 
   area:Scheduler:
-    - airflow/jobs/scheduler_job_runner.py
-    - docs/apache-airflow/administration-and-deployment/scheduler.rst
-    - tests/jobs/test_scheduler_job.py
+    - airflow-core/src/airflow/jobs/scheduler_job_runner.py
+    - airflow-core/docs/administration-and-deployment/scheduler.rst
+    - airflow-core/tests/unit/jobs/test_scheduler_job.py
 
   area:DAG-processing:
-    - airflow/dag_processing/**/*
-    - airflow/jobs/dag_processor_job_runner.py
-    - docs/apache-airflow/administration-and-deployment/dagfile-processing.rst
-    - tests/dag_processing/**/*
+    - airflow-core/src/airflow/dag_processing/**/*
+    - airflow-core/src/airflow/jobs/dag_processor_job_runner.py
+    - airflow-core/docs/administration-and-deployment/dagfile-processing.rst
+    - airflow-core/tests/unit/dag_processing/**/*
 
   area:Executors-core:
-    - airflow/executors/**/*
-    - docs/apache-airflow/core-concepts/executor/**/*
-    - tests/executors/**/*
+    - airflow-core/src/airflow/executors/**/*
+    - airflow-core/docs/core-concepts/executor/**/*
+    - airflow-core/tests/unit/executors/**/*
 
   area:Secrets:
-    - airflow/secrets/**/*
-    - tests/secrets/**/*
+    - airflow-core/src/airflow/secrets/**/*
+    - airflow-core/tests/unit/secrets/**/*
     - providers/**/secrets/*
-    - docs/apache-airflow/security/secrets/**/*
+    - airflow-core/docs/security/secrets/**/*
 
   area:Triggerer:
-    - airflow/cli/commands/local_commands/triggerer_command.py
-    - airflow/jobs/triggerer_job_runner.py
-    - airflow/models/trigger.py
+    - airflow-core/src/airflow/cli/commands/local_commands/triggerer_command.py
+    - airflow-core/src/airflow/jobs/triggerer_job_runner.py
+    - airflow-core/src/airflow/models/trigger.py
     - providers/standard/src/airflow/providers/standard/triggers/**/*
-    - tests/cli/commands/local_commands/test_triggerer_command.py
-    - tests/jobs/test_triggerer_job.py
-    - tests/models/test_trigger.py
+    - airflow-core/tests/unit/cli/commands/local_commands/test_triggerer_command.py
+    - airflow-core/tests/unit/jobs/test_triggerer_job.py
+    - airflow-core/tests/unit/models/test_trigger.py
     - providers/standard/tests/unit/standard/triggers/**/*
 
   area:Serialization:
-    - airflow/serialization/**/*
-    - airflow/models/serialized_dag.py
-    - tests/serialization/**/*
-    - tests/models/test_serialized_dag.py
-    - docs/apache-airflow/administration-and-deployment/dag-serialization.rst
+    - airflow-core/src/airflow/serialization/**/*
+    - airflow-core/src/airflow/models/serialized_dag.py
+    - airflow-core/tests/unit/serialization/**/*
+    - airflow-core/tests/unit/models/test_serialized_dag.py
+    - airflow-core/docs/administration-and-deployment/dag-serialization.rst
 
   area:core-operators:
-    - airflow/operators/**/*
-    - airflow/hooks/**/*
-    - airflow/sensors/**/*
-    - tests/hooks/**/*
-    - tests/sensors/**/*
-    - docs/apache-airflow/operators-and-hooks-ref.rst
-    - docs/apache-airflow/howto/operator/*
+    - airflow-core/src/airflow/hooks/**/*
+    - airflow-core/src/airflow/sensors/**/*
+    - airflow-core/tests/unit/hooks/**/*
+    - airflow-core/tests/unit/sensors/**/*
+    - airflow-core/docs/operators-and-hooks-ref.rst
+    - airflow-core/docs/howto/operator/*
 
   area:production-image:
     - Dockerfile
@@ -412,13 +411,13 @@ labelPRBasedOnFilePath:
     - docker_tests/**/*
 
   area:system-tests:
-    - tests/system/**/*
+    - airflow-core/tests/system/**/*
 
   area:task-sdk:
     - task-sdk/**/*
 
   area:db-migrations:
-    - airflow/migrations/versions/*
+    - airflow-core/src/airflow/migrations/versions/*
 
   area:providers:
     - providers/**/*
@@ -445,7 +444,7 @@ firstPRWelcomeComment: >
 
   - In case of a new feature add useful documentation (in docstrings or in `docs/` directory).
   Adding a new operator? Check this short
-  [guide](https://github.com/apache/airflow/blob/main/docs/apache-airflow/howto/custom-operator.rst)
+  [guide](https://github.com/apache/airflow/blob/main/airflow-core/docs/howto/custom-operator.rst)
   Consider adding an example DAG that shows how users should use it.
 
   - Consider using [Breeze environment](https://github.com/apache/airflow/blob/main/dev/breeze/doc/README.rst)
