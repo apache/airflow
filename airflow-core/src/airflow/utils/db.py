@@ -858,7 +858,7 @@ def check_and_run_migrations():
         verb = None
     if len(db_heads) < 1:
         db_command = initdb
-        command_name = "init"
+        command_name = "migrate"
         verb = "initialize"
     elif source_heads != db_heads:
         db_command = upgradedb
