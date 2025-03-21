@@ -456,12 +456,11 @@ def task_clear(args) -> None:
     """Clear all task instances or only those matched by regex for a DAG(s)."""
     logging.basicConfig(level=settings.LOGGING_LEVEL, format=settings.SIMPLE_LOG_FORMAT)
 
-    if args.dag_id and not args.subdir and not args.dag_regex and not args.task_regex:
+    if args.dag_id and not args.dag_regex and not args.task_regex:
         dags = [get_dag_by_file_location(args.dag_id)]
     else:
         # todo clear command only accepts a single dag_id. no reason for get_dags with 's' except regex?
-        dags = get_dags(args.subdir, args.dag_id, use_regex=args.dag_regex)
-
+        dags = get_dags(None, args.dag_id, use_regex=args.dag_regex)
         if args.task_regex:
             for idx, dag in enumerate(dags):
                 dags[idx] = dag.partial_subset(
