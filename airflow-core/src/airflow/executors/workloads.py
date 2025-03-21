@@ -98,17 +98,22 @@ class ExecuteTask(BaseWorkload):
 
     @classmethod
     def make(
-        cls, ti: TIModel, dag_rel_path: Path | None = None, generator: JWTGenerator | None = None
+        cls,
+        ti: TIModel,
+        dag_rel_path: Path | None = None,
+        generator: JWTGenerator | None = None,
+        bundle_info: BundleInfo | None = None,
     ) -> ExecuteTask:
         from pathlib import Path
 
         from airflow.utils.helpers import log_filename_template_renderer
 
         ser_ti = TaskInstance.model_validate(ti, from_attributes=True)
-        bundle_info = BundleInfo(
-            name=ti.dag_model.bundle_name,
-            version=ti.dag_run.bundle_version,
-        )
+        if not bundle_info:
+            bundle_info = BundleInfo(
+                name=ti.dag_model.bundle_name,
+                version=ti.dag_run.bundle_version,
+            )
         fname = log_filename_template_renderer()(ti=ti)
         token = ""
 
