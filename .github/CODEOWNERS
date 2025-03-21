@@ -24,6 +24,7 @@
 # API
 /airflow/api/ @ephraimbuddy @pierrejeambrun @rawwar
 /airflow/api_fastapi/ @ephraimbuddy @pierrejeambrun @rawwar
+/airflow/api_fastapi/execution_api/ @ashb @kaxil @amoghrajesh
 
 # UI
 /airflow/ui/ @bbovenzi @pierrejeambrun @ryanahamilton @jscheffl
@@ -97,6 +98,3 @@ ISSUE_TRIAGE_PROCESS.rst @eladkal
 # Migrations
 /airflow/migrations/ @ephraimbuddy
 /providers/fab/src/airflow/providers/fab/migrations/ @ephraimbuddy
-
-# AIP-72 - Task SDK
-/task-sdk/ @ashb @kaxil @amoghrajesh
