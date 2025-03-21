@@ -165,7 +165,7 @@ dags and tasks, but cannot author dags.
 
 The *DAG files* need to be synchronized between all the components that use them - *scheduler*,
 *triggerer* and *workers*. The *DAG files* can be synchronized by various mechanisms - typical
-ways how dags can be synchronized are described in :doc:`helm-chart:manage-dag-files` of our
+ways how dags can be synchronized are described in :doc:`manage-dag-files` of our
 Helm Chart documentation. Helm chart is one of the ways how to deploy Airflow in K8S cluster.
 
 .. image:: ../img/diagram_distributed_airflow_architecture.png
