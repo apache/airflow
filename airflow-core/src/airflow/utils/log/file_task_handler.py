@@ -101,6 +101,8 @@ def _fetch_logs_from_service(url, log_relative_path):
     timeout = conf.getint("webserver", "log_fetch_timeout_sec", fallback=None)
     generator = JWTGenerator(
         secret_key=get_signing_key("webserver", "secret_key"),
+        private_key=None,
+        issuer=None,
         valid_for=conf.getint("webserver", "log_request_clock_grace", fallback=30),
         audience="task-instance-logs",
     )
