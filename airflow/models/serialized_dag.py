@@ -21,23 +21,28 @@ from __future__ import annotations
 
 import logging
 import zlib
-from collections.abc import Iterable
+from collections.abc import Iterable, Iterator, Sequence
 from datetime import timedelta
 from typing import TYPE_CHECKING, Any
 
 import sqlalchemy_jsonfield
 import uuid6
-from sqlalchemy import Column, ForeignKey, LargeBinary, String, exc, select
+from sqlalchemy import Column, ForeignKey, LargeBinary, String, exc, select, tuple_
 from sqlalchemy.orm import backref, foreign, relationship
 from sqlalchemy.sql.expression import func, literal
 from sqlalchemy_utils import UUIDType
 
 from airflow.exceptions import TaskNotFound
+from airflow.models.asset import (
+    AssetAliasModel,
+    AssetModel,
+)
 from airflow.models.base import ID_LEN, Base
 from airflow.models.dag import DagModel
 from airflow.models.dag_version import DagVersion
 from airflow.models.dagcode import DagCode
 from airflow.models.dagrun import DagRun
+from airflow.sdk.definitions.asset import AssetUniqueKey
 from airflow.serialization.dag_dependency import DagDependency
 from airflow.serialization.serialized_objects import SerializedDAG
 from airflow.settings import COMPRESS_SERIALIZED_DAGS, MIN_SERIALIZED_DAG_UPDATE_INTERVAL, json
@@ -56,6 +61,187 @@ if TYPE_CHECKING:
     from airflow.serialization.serialized_objects import LazyDeserializedDAG
 
 log = logging.getLogger(__name__)
+
+
+class _DagDependenciesResolver:
+    """Resolver that resolves dag dependencies to include asset id and assets link to asset aliases."""
+
+    def __init__(self, dag_id_dependencies: Sequence[tuple[str, dict]], session: Session) -> None:
+        self.dag_id_dependencies = dag_id_dependencies
+        self.session = session
+
+        self.asset_key_to_id: dict[AssetUniqueKey, int] = {}
+        self.asset_ref_name_to_asset_id_name: dict[str, tuple[int, str]] = {}
+        self.asset_ref_uri_to_asset_id_name: dict[str, tuple[int, str]] = {}
+        self.alias_names_to_asset_ids_names: dict[str, list[tuple[int, str]]] = {}
+
+    def resolve(self) -> dict[str, list[DagDependency]]:
+        asset_names_uris, asset_ref_names, asset_ref_uris, asset_alias_names = self.collect_asset_info()
+
+        self.asset_key_to_id = self.collect_asset_key_to_ids(asset_names_uris)
+        self.asset_ref_name_to_asset_id_name = self.collect_asset_name_ref_to_ids_names(asset_ref_names)
+        self.asset_ref_uri_to_asset_id_name = self.collect_asset_uri_ref_to_ids_names(asset_ref_uris)
+        self.alias_names_to_asset_ids_names = self.collect_alias_to_assets(asset_alias_names)
+
+        dag_depdendencies_by_dag: dict[str, list[DagDependency]] = {}
+        for dag_id, deps_data in self.dag_id_dependencies:
+            dag_deps: list[DagDependency] = []
+            for dep_data in deps_data or {}:
+                dep_type = dep_data["dependency_type"]
+                if dep_type == "asset":
+                    dag_deps.append(self.resolve_asset_dag_dep(dep_data))
+                elif dep_type == "asset-name-ref":
+                    dag_deps.extend(self.resolve_asset_name_ref_dag_dep(dep_data))
+                elif dep_type == "asset-uri-ref":
+                    dag_deps.extend(self.resolve_asset_uri_ref_dag_dep(dep_data))
+                elif dep_type == "asset-alias":
+                    dag_deps.extend(self.resolve_asset_alias_dag_dep(dep_data))
+                else:
+                    # Replace asset_key with asset id if it's in source or target
+                    for node_key in ("source", "target"):
+                        if dep_data[node_key].startswith("asset:"):
+                            unique_key = AssetUniqueKey.from_str(dep_data[node_key].split(":")[1])
+                            asset_id = self.asset_key_to_id[unique_key]
+                            dep_data[node_key] = f"asset:{asset_id}"
+                            break
+
+                    dag_deps.append(DagDependency(**dep_data))
+
+            dag_depdendencies_by_dag[dag_id] = dag_deps
+        return dag_depdendencies_by_dag
+
+    def collect_asset_info(self) -> tuple[set, set, set, set]:
+        asset_names_uris: set[tuple[str, str]] = set()
+        asset_ref_names: set[str] = set()
+        asset_ref_uris: set[str] = set()
+        asset_alias_names: set[str] = set()
+        for _, deps_data in self.dag_id_dependencies:
+            for dep_data in deps_data or {}:
+                dep_type = dep_data["dependency_type"]
+                dep_id = dep_data["dependency_id"]
+                if dep_type == "asset":
+                    unique_key = AssetUniqueKey.from_str(dep_id)
+                    asset_names_uris.add((unique_key.name, unique_key.uri))
+                elif dep_type == "asset-name-ref":
+                    asset_ref_names.add(dep_id)
+                elif dep_type == "asset-uri-ref":
+                    asset_ref_uris.add(dep_id)
+                elif dep_type == "asset-alias":
+                    asset_alias_names.add(dep_id)
+        return asset_names_uris, asset_ref_names, asset_ref_uris, asset_alias_names
+
+    def collect_asset_key_to_ids(self, asset_name_uris: set[tuple[str, str]]) -> dict[AssetUniqueKey, int]:
+        return {
+            AssetUniqueKey(name=name, uri=uri): asset_id
+            for name, uri, asset_id in self.session.execute(
+                select(AssetModel.name, AssetModel.uri, AssetModel.id).where(
+                    tuple_(AssetModel.name, AssetModel.uri).in_(asset_name_uris)
+                )
+            )
+        }
+
+    def collect_asset_name_ref_to_ids_names(self, asset_ref_names) -> dict[str, tuple[int, str]]:
+        return {
+            name: (asset_id, name)
+            for name, asset_id in self.session.execute(
+                select(AssetModel.name, AssetModel.id).where(
+                    AssetModel.name.in_(asset_ref_names), AssetModel.active.has()
+                )
+            )
+        }
+
+    def collect_asset_uri_ref_to_ids_names(self, asset_ref_uris) -> dict[str, tuple[int, str]]:
+        return {
+            uri: (asset_id, name)
+            for uri, name, asset_id in self.session.execute(
+                select(AssetModel.uri, AssetModel.name, AssetModel.id).where(
+                    AssetModel.uri.in_(asset_ref_uris), AssetModel.active.has()
+                )
+            )
+        }
+
+    def collect_alias_to_assets(self, asset_alias_names) -> dict[str, list[tuple[int, str]]]:
+        return {
+            aam.name: [(am.id, am.name) for am in aam.assets]
+            for aam in self.session.scalars(
+                select(AssetAliasModel).where(AssetAliasModel.name.in_(asset_alias_names))
+            )
+        }
+
+    def resolve_asset_dag_dep(self, dep_data: dict) -> DagDependency:
+        dep_id = dep_data["dependency_id"]
+        unique_key = AssetUniqueKey.from_str(dep_id)
+        dep_data["dependency_id"] = str(self.asset_key_to_id[unique_key])
+        return DagDependency(**dep_data)
+
+    def resolve_asset_name_ref_dag_dep(self, dep_data) -> Sequence[DagDependency]:
+        dep_id = dep_data["dependency_id"]
+        is_source_ref = dep_data["source"] == "asest-name-ref"
+        asset_id, asset_name = self.asset_ref_name_to_asset_id_name[dep_id]
+        return [
+            # asset
+            DagDependency(
+                source="asset" if is_source_ref else f"asset-name-ref:{dep_id}",
+                target=f"asset-name-ref:{dep_id}" if is_source_ref else "asset",
+                label=asset_name,
+                dependency_type="asset",
+                dependency_id=str(asset_id),
+            ),
+            # asset ref
+            DagDependency(
+                source=f"asset:{asset_id}" if is_source_ref else dep_data["source"],
+                target=dep_data["target"] if is_source_ref else f"asset:{asset_id}",
+                label=dep_id,
+                dependency_type="asset-name-ref",
+                dependency_id=dep_id,
+            ),
+        ]
+
+    def resolve_asset_uri_ref_dag_dep(self, dep_data: dict) -> Sequence[DagDependency]:
+        dep_id = dep_data["dependency_id"]
+        is_source_ref = dep_data["source"] == "asest-uri-ref"
+        asset_id, asset_name = self.asset_ref_uri_to_asset_id_name[dep_id]
+        return [
+            # asset
+            DagDependency(
+                source="asset" if is_source_ref else f"asset-uri-ref:{dep_id}",
+                target=f"asset-uri-ref:{dep_id}" if is_source_ref else "asset",
+                label=asset_name,
+                dependency_type="asset",
+                dependency_id=str(asset_id),
+            ),
+            # asset ref
+            DagDependency(
+                source=f"asset:{asset_id}" if is_source_ref else dep_data["source"],
+                target=dep_data["target"] if is_source_ref else f"asset:{asset_id}",
+                label=dep_id,
+                dependency_type="asset-uri-ref",
+                dependency_id=dep_id,
+            ),
+        ]
+
+    def resolve_asset_alias_dag_dep(self, dep_data: dict) -> Iterator[DagDependency]:
+        dep_id = dep_data["dependency_id"]
+        for asset_id, asset_name in self.alias_names_to_asset_ids_names[dep_id]:
+            is_source_alias = dep_data["source"] == "asset-alias"
+            yield from [
+                # asset
+                DagDependency(
+                    source="asset" if is_source_alias else f"asset-alias:{dep_id}",
+                    target=f"asset-alias:{dep_id}" if is_source_alias else "asset",
+                    label=asset_name,
+                    dependency_type="asset",
+                    dependency_id=str(asset_id),
+                ),
+                # asset alias
+                DagDependency(
+                    source=f"asset:{asset_id}" if is_source_alias else dep_data["source"],
+                    target=dep_data["target"] if is_source_alias else f"asset:{asset_id}",
+                    label=dep_id,
+                    dependency_type="asset-alias",
+                    dependency_id=dep_id,
+                ),
+            ]
 
 
 class SerializedDagModel(Base):
@@ -477,7 +663,7 @@ class SerializedDagModel(Base):
                 .join(cls.dag_model)
                 .where(DagModel.is_active)
             )
-            iterator = ((dag_id, json.loads(deps_data) if deps_data else []) for dag_id, deps_data in query)
+            iterator = [(dag_id, json.loads(deps_data) if deps_data else []) for dag_id, deps_data in query]
         else:
             iterator = session.execute(
                 select(cls.dag_id, func.json_extract_path(cls._data, "dag", "dag_dependencies"))
@@ -488,8 +674,12 @@ class SerializedDagModel(Base):
                 )
                 .join(cls.dag_model)
                 .where(DagModel.is_active)
-            )
-        return {dag_id: [DagDependency(**d) for d in (deps_data or [])] for dag_id, deps_data in iterator}
+            ).all()
+
+        resolver = _DagDependenciesResolver(dag_id_dependencies=iterator, session=session)
+        dag_depdendencies_by_dag = resolver.resolve()
+
+        return dag_depdendencies_by_dag
 
     @staticmethod
     @provide_session

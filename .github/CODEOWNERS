@@ -22,8 +22,8 @@
 /docs/helm-chart @dstandish @jedcunningham
 
 # API
-/airflow/api/ @ephraimbuddy @pierrejeambrun
-/airflow/api_fastapi/ @ephraimbuddy @pierrejeambrun
+/airflow/api/ @ephraimbuddy @pierrejeambrun @rawwar
+/airflow/api_fastapi/ @ephraimbuddy @pierrejeambrun @rawwar
 
 # UI
 /airflow/ui/ @bbovenzi @pierrejeambrun @ryanahamilton @jscheffl
