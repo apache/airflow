@@ -55,9 +55,12 @@ PIP package                                 Version required
 ==========================================  ==================
 ``apache-airflow``                          ``>=3.0.0.dev0``
 ``apache-airflow-providers-common-compat``  ``>=1.2.1``
-``flask``                                   ``>=2.2,<2.3``
+``blinker``                                 ``>=1.6.2``
+``flask``                                   ``>=2.2.1,<2.3``
 ``flask-appbuilder``                        ``==4.5.3``
 ``flask-login``                             ``>=0.6.2``
+``flask-session``                           ``>=0.4.0,<0.6``
+``flask-wtf``                               ``>=1.1.0``
 ``connexion[flask]``                        ``>=2.14.2,<3.0``
 ``jmespath``                                ``>=0.7.0``
 ==========================================  ==================

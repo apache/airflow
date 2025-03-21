@@ -189,12 +189,8 @@ DEPENDENCIES = [
     "argcomplete>=1.10",
     "asgiref>=2.3.0",
     "attrs>=22.1.0, !=25.2.0",
-    # Blinker use for signals in Flask, this is an optional dependency in Flask 2.2 and lower.
-    # In Flask 2.3 it becomes a mandatory dependency, and flask signals are always available.
-    "blinker>=1.6.2",
     "cadwyn>=5.1.2",
     "colorlog>=6.8.2",
-    "configupdater>=3.1.1",
     "cron-descriptor>=1.2.24",
     "croniter>=2.0.2",
     "cryptography>=41.0.0",
@@ -206,15 +202,6 @@ DEPENDENCIES = [
     # 0.115.10 fastapi was a bad release that broke our API's and static checks.
     # Related fastapi issue here: https://github.com/fastapi/fastapi/discussions/13431
     "fastapi[standard]>=0.112.4,!=0.115.10",
-    "flask-caching>=2.0.0",
-    # Flask-Session 0.6 add new arguments into the SqlAlchemySessionInterface constructor as well as
-    # all parameters now are mandatory which make AirflowDatabaseSessionInterface incompatible with this version.
-    "flask-session>=0.4.0,<0.6",
-    "flask-wtf>=1.1.0",
-    # Flask 2.3 is scheduled to introduce a number of deprecation removals - some of them might be breaking
-    # for our dependencies - notably `_app_ctx_stack` and `_request_ctx_stack` removals.
-    # We should remove the limitation after 2.3 is released and our dependencies are updated to handle it
-    "flask>=2.2.1,<2.3",
     "fsspec>=2023.10.0",
     "gitpython>=3.1.40",
     "gunicorn>=20.1.0",
@@ -227,10 +214,7 @@ DEPENDENCIES = [
     "libcst >=1.1.0",
     "linkify-it-py>=2.0.0",
     "lockfile>=0.12.2",
-    "markdown-it-py>=2.1.0",
-    "markupsafe>=1.1.1",
     "marshmallow-oneofschema>=2.0.1",
-    "mdit-py-plugins>=0.3.0",
     "methodtools>=0.4.7",
     "opentelemetry-api>=1.24.0",
     "opentelemetry-exporter-otlp>=1.24.0",
@@ -247,12 +231,9 @@ DEPENDENCIES = [
     "pyjwt>=2.10.0",
     "python-daemon>=3.0.0",
     "python-dateutil>=2.7.0",
-    "python-nvd3>=0.15.0",
     "python-slugify>=5.0",
     # Requests 3 if it will be released, will be heavily breaking.
     "requests>=2.27.0,<3",
-    "requests-toolbelt>=1.0.0",
-    "rfc3339-validator>=0.1.4",
     "rich-argparse>=1.0.0",
     "rich>=13.1.0",
     "setproctitle>=1.3.3",
