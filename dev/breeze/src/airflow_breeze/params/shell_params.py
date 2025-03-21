@@ -522,7 +522,14 @@ class ShellParams:
         _set_var(_env, "AIRFLOW__API__BASE_URL", f"http://localhost:{WEB_HOST_PORT}")
         _set_var(_env, "AIRFLOW__WEBSERVER__SECRET_KEY", b64encode(os.urandom(16)).decode("utf-8"))
         _set_var(_env, "AIRFLOW__CORE__AUTH_MANAGER", self.auth_manager_path)
-        _set_var(_env, "AIRFLOW__CORE__SIMPLE_AUTH_MANAGER_USERS", "admin:admin,viewer:viewer")
+        if self.auth_manager == FAB_AUTH_MANAGER:
+            _set_var(
+                _env,
+                "AIRFLOW__DATABASE__EXTERNAL_DB_MANAGERS",
+                "airflow.providers.fab.auth_manager.models.db.FABDBManager",
+            )
+        if self.auth_manager == SIMPLE_AUTH_MANAGER:
+            _set_var(_env, "AIRFLOW__CORE__SIMPLE_AUTH_MANAGER_USERS", "admin:admin,viewer:viewer")
         _set_var(
             _env,
             "AIRFLOW__CORE__SIMPLE_AUTH_MANAGER_PASSWORDS_FILE",

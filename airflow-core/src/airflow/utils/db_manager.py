@@ -143,7 +143,10 @@ class RunDBManager(LoggingMixin):
     def __init__(self):
         super().__init__()
         self._managers: list[BaseDBManager] = []
-        managers = conf.get("database", "external_db_managers").split(",")
+        managers_config = conf.get("database", "external_db_managers", fallback=None)
+        if not managers_config:
+            return
+        managers = managers_config.split(",")
         for module in managers:
             manager = import_string(module)
             self._managers.append(manager)
