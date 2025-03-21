@@ -125,16 +125,18 @@ def structure_data(
                 nodes.append(
                     {
                         "id": dependency.node_id,
-                        "label": dependency.dependency_id,
+                        "label": dependency.label,
                         "type": dependency.dependency_type,
                     }
                 )
 
-        upstream_asset_nodes, upstream_asset_edges = get_upstream_assets(
-            dag.timetable.asset_condition, entry_node_ref["id"]
-        )
+        if asset_expression := serialized_dag.dag_model.asset_expression:
+            upstream_asset_nodes, upstream_asset_edges = get_upstream_assets(
+                asset_expression, entry_node_ref["id"]
+            )
+            data["nodes"] += upstream_asset_nodes
+            data["edges"] = upstream_asset_edges
 
-        data["nodes"] += upstream_asset_nodes
-        data["edges"] = upstream_asset_edges + start_edges + edges + end_edges
+        data["edges"] += start_edges + edges + end_edges
 
     return StructureDataResponse(**data)
