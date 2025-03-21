@@ -35,6 +35,7 @@
     "dayjs": "^1.11.13",
     "debounce-promise": "^3.1.2",
     "elkjs": "^0.9.3",
+    "html-to-image": "^1.11.13",
     "next-themes": "^0.3.0",
     "react": "^18.3.1",
     "react-chartjs-2": "^5.2.0",

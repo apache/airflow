@@ -33,10 +33,13 @@ from airflow.api_fastapi.auth.tokens import (
     JWTGenerator,
     JWTValidator,
     generate_private_key,
+    get_sig_validation_args,
     key_to_jwk_dict,
     key_to_pem,
 )
 from airflow.utils import timezone
+
+from tests_common.test_utils.config import conf_vars
 
 if TYPE_CHECKING:
     from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PrivateKey
@@ -50,16 +53,6 @@ pytestmark = [pytest.mark.asyncio]
 @pytest.fixture
 def private_key(request):
     return request.getfixturevalue(request.param or "ed25519_private_key")
-
-
-@pytest.fixture
-def mock_kid():
-    return "test-kid"
-
-
-@pytest.fixture
-def mock_subject():
-    return "test-subject"
 
 
 class TestJWKS:
@@ -198,6 +191,41 @@ async def test_jwt_wrong_subject(jwt_generator, jwt_validator):
         await jwt_validator.avalidated_claims(
             wrong_subject, required_claims={"sub": {"essential": True, "value": "test_subject"}}
         )
+
+
+@pytest.mark.parametrize(
+    ["private_key", "algorithm"],
+    [("rsa_private_key", "RS256"), ("ed25519_private_key", "EdDSA")],
+    indirect=["private_key"],
+)
+async def test_jwt_generate_validate_roundtrip_with_jwks(private_key, algorithm, tmp_path: pathlib.Path):
+    jwk_content = json.dumps({"keys": [key_to_jwk_dict(private_key, "custom-kid")]})
+
+    jwks = tmp_path.joinpath("jwks.json")
+    jwks.write_text(jwk_content)
+
+    priv_key = tmp_path.joinpath("key.pem")
+    priv_key.write_bytes(key_to_pem(private_key))
+
+    with conf_vars(
+        {
+            ("api_auth", "trusted_jwks_url"): str(jwks),
+            ("api_auth", "jwt_kid"): "custom-kid",
+            ("api_auth", "jwt_issuer"): "http://my-issuer.localdomain",
+            ("api_auth", "jwt_private_key_path"): str(priv_key),
+            ("api_auth", "jwt_algorithm"): algorithm,
+            ("api_auth", "jwt_secret"): "",
+        }
+    ):
+        gen = JWTGenerator(audience="airflow1", valid_for=300)
+        token = gen.generate({"sub": "test"})
+
+        validator = JWTValidator(
+            audience="airflow1",
+            leeway=0,
+            **get_sig_validation_args(make_secret_key_if_needed=False),
+        )
+        assert await validator.avalidated_claims(token)
 
 
 @pytest.fixture(scope="session")

@@ -889,6 +889,7 @@ def _get_template_context(
     ti_context_from_server = TIRunContext(
         dag_run=DagRunSDK.model_validate(dag_run, from_attributes=True),
         max_tries=task_instance.max_tries,
+        should_retry=task_instance.is_eligible_to_retry(),
     )
     runtime_ti = task_instance.to_runtime_ti(context_from_server=ti_context_from_server)
 
@@ -3197,7 +3198,7 @@ class TaskInstance(Base, LoggingMixin):
             fail_fast=fail_fast,
         )
 
-    def is_eligible_to_retry(self):
+    def is_eligible_to_retry(self) -> bool:
         """Is task instance is eligible for retry."""
         return _is_eligible_to_retry(task_instance=self)
 

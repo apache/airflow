@@ -41,8 +41,8 @@ export const BlockingDeps = ({ taskInstance }: { readonly taskInstance: TaskInst
       <Table.Root striped>
         <Table.Body>
           <Table.Row>
-            <Table.Header>Dependency</Table.Header>
-            <Table.Header>Reason</Table.Header>
+            <Table.ColumnHeader>Dependency</Table.ColumnHeader>
+            <Table.ColumnHeader>Reason</Table.ColumnHeader>
           </Table.Row>
           {data.dependencies.map((dep) => (
             <Table.Row key={dep.name}>
