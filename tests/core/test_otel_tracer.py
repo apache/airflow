@@ -172,8 +172,6 @@ class TestOtelTrace:
             # Manually end the span.
             root_span.end()
 
-            log.info(json_span1)
-            log.info(json_span2)
             # Verify that span1 is a root span.
             assert json_span1["parent_id"] is None
             # Check span2 parent_id to verify that it's a child of span1.
