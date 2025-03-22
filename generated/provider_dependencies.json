@@ -284,6 +284,7 @@
   },
   "apache.spark": {
     "deps": [
+      "apache-airflow-providers-common-compat>=1.5.0",
       "apache-airflow>=2.9.0",
       "grpcio-status>=1.59.0",
       "pyspark>=3.1.3"

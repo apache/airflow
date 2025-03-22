@@ -50,13 +50,14 @@ The package supports the following python versions: 3.9,3.10,3.11,3.12
 Requirements
 ------------
 
-==================  ==================
-PIP package         Version required
-==================  ==================
-``apache-airflow``  ``>=2.9.0``
-``pyspark``         ``>=3.1.3``
-``grpcio-status``   ``>=1.59.0``
-==================  ==================
+==========================================  ==================
+PIP package                                 Version required
+==========================================  ==================
+``apache-airflow``                          ``>=2.9.0``
+``apache-airflow-providers-common-compat``  ``>=1.5.0``
+``pyspark``                                 ``>=3.1.3``
+``grpcio-status``                           ``>=1.59.0``
+==========================================  ==================
 
 Cross provider package dependencies
 -----------------------------------
