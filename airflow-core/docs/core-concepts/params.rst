@@ -400,10 +400,6 @@ Finally the fourth section shows advanced form elements.
 
 .. image:: ../img/trigger-dag-tutorial-form-4.png
 
-.. versionadded:: 2.7.0
-    The trigger form can also be forced to be displayed also if no params are defined using the configuration switch
-    ``webserver.show_trigger_form_if_no_params``.
-
 .. versionchanged:: 3.0.0
     By default custom HTML is not allowed to prevent injection of scripts or other malicious HTML code. The previous field named
     ``description_html`` is now super-seeded with the attribute ``description_md``. ``description_html`` is not supported anymore.

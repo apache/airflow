@@ -1720,38 +1720,6 @@ webserver:
       type: string
       example: securecookie
       default: database
-    web_server_master_timeout:
-      description: |
-        Number of seconds the webserver waits before killing gunicorn master that doesn't respond
-      version_added: ~
-      type: string
-      example: ~
-      default: "120"
-    worker_refresh_batch_size:
-      description: |
-        Number of workers to refresh at a time through Gunicorn's built-in worker management.
-        When set to 0, worker refresh is disabled. When nonzero, airflow periodically refreshes
-        webserver workers by bringing up new ones and killing old ones.
-      version_added: ~
-      type: string
-      example: ~
-      default: "1"
-    worker_refresh_interval:
-      description: |
-        Number of seconds to wait before refreshing a batch of workers.
-      version_added: ~
-      type: string
-      example: ~
-      default: "6000"
-    reload_on_plugin_change:
-      description: |
-        If set to ``True``, Airflow will track files in plugins_folder directory. When it detects changes,
-        then reload the gunicorn. If set to ``True``, gunicorn starts without preloading, which is slower,
-        uses more memory, and may cause race conditions. Avoid setting this to ``True`` in production.
-      version_added: 1.10.11
-      type: boolean
-      example: ~
-      default: "False"
     secret_key:
       description: |
         Secret key used to run your flask app. It should be as random as possible. However, when running
@@ -1766,29 +1734,6 @@ webserver:
       sensitive: true
       example: ~
       default: "{SECRET_KEY}"
-    worker_class:
-      description: |
-        The worker class gunicorn should use. Choices include
-        ``sync`` (default), ``eventlet``, ``gevent``.
-
-        .. warning::
-
-            When using ``gevent`` you might also want to set the ``_AIRFLOW_PATCH_GEVENT``
-            environment variable to ``"1"`` to make sure gevent patching is done as early as possible.
-
-            Be careful to set ``_AIRFLOW_PATCH_GEVENT`` only on the web server as gevent patching may
-            affect the scheduler behavior via the ``multiprocessing`` sockets module and cause crash.
-
-            See related Issues / PRs for more details:
-
-            * https://github.com/benoitc/gunicorn/issues/2796
-            * https://github.com/apache/airflow/issues/8212
-            * https://github.com/apache/airflow/pull/28283
-
-      version_added: ~
-      type: string
-      example: ~
-      default: "sync"
     expose_config:
       description: |
         Expose the configuration file in the web server. Set to ``non-sensitive-only`` to show all values
@@ -1801,13 +1746,6 @@ webserver:
     expose_hostname:
       description: |
         Expose hostname in the web server
-      version_added: 1.10.8
-      type: string
-      example: ~
-      default: "False"
-    expose_stacktrace:
-      description: |
-        Expose stacktrace in the web server
       version_added: 1.10.8
       type: string
       example: ~
@@ -1827,27 +1765,6 @@ webserver:
       type: string
       example: ~
       default: "5"
-    log_fetch_delay_sec:
-      description: |
-        Time interval (in secs) to wait before next log fetching.
-      version_added: 1.10.8
-      type: integer
-      example: ~
-      default: "2"
-    log_auto_tailing_offset:
-      description: |
-        Distance away from page bottom to enable auto tailing.
-      version_added: 1.10.8
-      type: integer
-      example: ~
-      default: "30"
-    log_animation_speed:
-      description: |
-        Animation speed for auto tailing log display.
-      version_added: 1.10.8
-      type: integer
-      example: ~
-      default: "1000"
     hide_paused_dags_by_default:
       description: |
         By default, the webserver shows paused DAGs. Flip this to hide paused
@@ -1898,72 +1815,6 @@ webserver:
       type: string
       example: ~
       default: "#51504f"
-    default_dag_run_display_number:
-      description: |
-        Default dagrun to show in UI
-      version_added: ~
-      type: string
-      example: ~
-      default: "25"
-    enable_proxy_fix:
-      description: |
-        Enable werkzeug ``ProxyFix`` middleware for reverse proxy
-      version_added: 1.10.1
-      type: boolean
-      example: ~
-      default: "False"
-    proxy_fix_x_for:
-      description: |
-        Number of values to trust for ``X-Forwarded-For``.
-        See `Werkzeug: X-Forwarded-For Proxy Fix
-        <https://werkzeug.palletsprojects.com/en/2.3.x/middleware/proxy_fix/>`__ for more details.
-      version_added: 1.10.7
-      type: integer
-      example: ~
-      default: "1"
-    proxy_fix_x_proto:
-      description: |
-        Number of values to trust for ``X-Forwarded-Proto``.
-        See `Werkzeug: X-Forwarded-For Proxy Fix
-        <https://werkzeug.palletsprojects.com/en/2.3.x/middleware/proxy_fix/>`__ for more details.
-      version_added: 1.10.7
-      type: integer
-      example: ~
-      default: "1"
-    proxy_fix_x_host:
-      description: |
-        Number of values to trust for ``X-Forwarded-Host``.
-        See `Werkzeug: X-Forwarded-For Proxy Fix
-        <https://werkzeug.palletsprojects.com/en/2.3.x/middleware/proxy_fix/>`__ for more details.
-      version_added: 1.10.7
-      type: integer
-      example: ~
-      default: "1"
-    proxy_fix_x_port:
-      description: |
-        Number of values to trust for ``X-Forwarded-Port``.
-        See `Werkzeug: X-Forwarded-For Proxy Fix
-        <https://werkzeug.palletsprojects.com/en/2.3.x/middleware/proxy_fix/>`__ for more details.
-      version_added: 1.10.7
-      type: integer
-      example: ~
-      default: "1"
-    proxy_fix_x_prefix:
-      description: |
-        Number of values to trust for ``X-Forwarded-Prefix``.
-        See `Werkzeug: X-Forwarded-For Proxy Fix
-        <https://werkzeug.palletsprojects.com/en/2.3.x/middleware/proxy_fix/>`__ for more details.
-      version_added: 1.10.7
-      type: integer
-      example: ~
-      default: "1"
-    cookie_secure:
-      description: |
-        Set secure flag on session cookie
-      version_added: 1.10.3
-      type: string
-      example: ~
-      default: "False"
     default_wrap:
       description: |
         Default setting for wrap toggle on DAG code and TI log views.
@@ -1975,35 +1826,6 @@ webserver:
       description: |
         Allow the UI to be rendered in a frame
       version_added: 1.10.8
-      type: boolean
-      example: ~
-      default: "True"
-    analytics_tool:
-      description: |
-        Send anonymous user activity to your analytics tool
-        choose from ``google_analytics``, ``segment``, ``metarouter``, or ``matomo``
-      version_added: ~
-      type: string
-      example: ~
-      default: ~
-    analytics_id:
-      description: |
-        Unique ID of your account in the analytics tool
-      version_added: 1.10.5
-      type: string
-      example: ~
-      default: ~
-    analytics_url:
-      description: |
-        Your instances url, only applicable to Matomo.
-      version_added: 2.9.0
-      type: string
-      example: https://your.matomo.instance.com/
-      default: ~
-    show_recent_stats_for_completed_runs:
-      description: |
-        'Recent Tasks' stats will show for old DagRuns if set
-      version_added: 2.0.0
       type: boolean
       example: ~
       default: "True"
@@ -2069,43 +1891,6 @@ webserver:
       type: boolean
       example: ~
       default: "True"
-    run_internal_api:
-      description: |
-        Boolean for running Internal API in the webserver.
-      version_added: 2.6.0
-      type: boolean
-      example: ~
-      default: "False"
-    caching_hash_method:
-      description: |
-        The caching algorithm used by the webserver. Must be a valid hashlib function name.
-      version_added: 2.6.0
-      type: string
-      example: "sha256"
-      default: "md5"
-    show_trigger_form_if_no_params:
-      description: |
-        Behavior of the trigger DAG run button for DAGs without params. ``False`` to skip and trigger
-        without displaying a form to add a **dag_run.conf**, ``True`` to always display the form.
-        The form is displayed always if parameters are defined.
-      version_added: 2.7.0
-      type: boolean
-      example: ~
-      default: "False"
-    num_recent_configurations_for_trigger:
-      description: |
-        Number of recent DAG run configurations in the selector on the trigger web form.
-      version_added: 2.9.0
-      type: integer
-      example: "10"
-      default: "5"
-    allowed_payload_size:
-      description: |
-        The maximum size of the request payload (in MB) that can be sent.
-      version_added: 2.8.1
-      type: float
-      example: ~
-      default: "1.0"
     require_confirmation_dag_change:
       description: |
         Require confirmation when changing a DAG in the web UI. This is to prevent accidental changes
@@ -2116,22 +1901,6 @@ webserver:
       type: boolean
       example: ~
       default: "False"
-    max_form_memory_size:
-      description: |
-        The maximum size in bytes any non-file form field may be in a multipart/form-data body.
-        If this limit is exceeded, a 413 RequestEntityTooLarge error is raised by webserver.
-      version_added: 2.10.5
-      type: integer
-      example: ~
-      default: "500000"
-    max_form_parts:
-      description: |
-        The maximum number of fields that may be present in a multipart/form-data body.
-        If this limit is exceeded, a 413 RequestEntityTooLarge error is raised by webserver.
-      version_added: 2.10.5
-      type: integer
-      example: ~
-      default: "1000"
 email:
   description: |
     Configuration email backend and whether to

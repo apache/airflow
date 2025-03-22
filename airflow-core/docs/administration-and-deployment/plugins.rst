@@ -317,18 +317,6 @@ Then inside pyproject.toml:
     [project.entry-points."airflow.plugins"]
     my_plugin = "my_package.my_plugin:MyAirflowPlugin"
 
-Automatic reloading webserver
------------------------------
-
-To enable automatic reloading of the webserver, when changes in a directory with plugins has been detected,
-you should set ``reload_on_plugin_change`` option in ``[webserver]`` section to ``True``.
-
-.. note::
-    For more information on setting the configuration, see :doc:`/howto/set-config`
-
-.. note::
-    See :doc:`../administration-and-deployment/modules_management` for details on how Python and Airflow manage modules.
-
 Troubleshooting
 ---------------
 
