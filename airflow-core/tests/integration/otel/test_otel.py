@@ -35,7 +35,7 @@ from airflow.utils.session import create_session
 from airflow.utils.span_status import SpanStatus
 from airflow.utils.state import State
 
-from tests.integration.otel.test_utils import (
+from tests_common.test_utils.otel_utils import (
     assert_parent_children_spans,
     assert_parent_children_spans_for_non_root,
     assert_span_name_belongs_to_root_span,
