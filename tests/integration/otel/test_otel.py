@@ -164,20 +164,20 @@ def check_spans_with_continuance(output: str, dag: DAG, continuance_for_t1: bool
 
     # The span hierarchy for dag 'otel_test_dag_with_pause_in_task' is
     # dag span
-    #   |_ task_1 span
+    #   |_ task1 span
     #   |_ scheduler_exited span
     #   |_ new_scheduler span
     #   |_ dag span (continued)
-    #       |_ task_1 span (continued)
+    #       |_ task1 span (continued)
     #           |_ sub_span_1
     #               |_ sub_span_2
     #                   |_ sub_span_3
     #           |_ sub_span_4
-    #       |_ task_2 span
+    #       |_ task2 span
     #
-    # If there is no continuance for task_1, then the span hierarchy is
+    # If there is no continuance for task1, then the span hierarchy is
     # dag span
-    #   |_ task_1 span
+    #   |_ task1 span
     #       |_ sub_span_1
     #           |_ sub_span_2
     #               |_ sub_span_3
@@ -185,7 +185,7 @@ def check_spans_with_continuance(output: str, dag: DAG, continuance_for_t1: bool
     #   |_ scheduler_exited span
     #   |_ new_scheduler span
     #   |_ dag span (continued)
-    #       |_ task_2 span
+    #       |_ task2 span
 
     dag_id = dag.dag_id
 
@@ -308,18 +308,18 @@ def check_spans_without_continuance(
     # Any spans generated under a task, are children of the task span.
     # The span hierarchy for dag 'otel_test_dag' is
     # dag span
-    #   |_ task_1 span
+    #   |_ task1 span
     #       |_ sub_span_1
     #           |_ sub_span_2
     #               |_ sub_span_3
     #       |_ sub_span_4
-    #   |_ task_2 span
+    #   |_ task2 span
     #
-    # In case task_1 has finished running and the span is recreated,
+    # In case task1 has finished running and the span is recreated,
     # the sub spans are lost and can't be recreated. The span hierarchy will be
     # dag span
-    #   |_ task_1 span
-    #   |_ task_2 span
+    #   |_ task1 span
+    #   |_ task2 span
 
     dag_id = dag.dag_id
 
@@ -419,20 +419,20 @@ def check_spans_for_paused_dag(
     # Any spans generated under a task, are children of the task span.
     # The span hierarchy for dag 'otel_test_dag_with_pause' is
     # dag span
-    #   |_ task_1 span
+    #   |_ task1 span
     #       |_ sub_span_1
     #           |_ sub_span_2
     #               |_ sub_span_3
     #       |_ sub_span_4
     #   |_ paused_task span
-    #   |_ task_2 span
+    #   |_ task2 span
     #
-    # In case task_1 has finished running and the span is recreated,
+    # In case task1 has finished running and the span is recreated,
     # the sub spans are lost and can't be recreated. The span hierarchy will be
     # dag span
-    #   |_ task_1 span
+    #   |_ task1 span
     #   |_ paused_task span
-    #   |_ task_2 span
+    #   |_ task2 span
 
     dag_id = dag.dag_id
 
@@ -825,15 +825,15 @@ class TestOtelIntegration:
             with create_session() as session:
                 tis: list[TaskInstance] = dag.get_task_instances(session=session)
 
-            task_1 = tis[0]
+            task1 = tis[0]
 
             while True:
                 with create_session() as session:
                     ti = (
                         session.query(TaskInstance)
                         .filter(
-                            TaskInstance.task_id == task_1.task_id,
-                            TaskInstance.run_id == task_1.run_id,
+                            TaskInstance.task_id == task1.task_id,
+                            TaskInstance.run_id == task1.run_id,
                         )
                         .first()
                     )
