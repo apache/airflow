@@ -19,8 +19,8 @@
 import { useToken } from "@chakra-ui/react";
 import { ReactFlow, Controls, Background, MiniMap, type Node as ReactFlowNode } from "@xyflow/react";
 import "@xyflow/react/dist/style.css";
+import { useParams } from "react-router-dom";
 
-import { useDependenciesServiceGetDependencies } from "openapi/queries";
 import type { AssetResponse } from "openapi/requests/types.gen";
 import { AliasNode } from "src/components/Graph/AliasNode";
 import { AssetNode } from "src/components/Graph/AssetNode";
@@ -29,6 +29,7 @@ import Edge from "src/components/Graph/Edge";
 import type { CustomNodeProps } from "src/components/Graph/reactflowUtils";
 import { useGraphLayout } from "src/components/Graph/useGraphLayout";
 import { useColorMode } from "src/context/colorMode";
+import { useDependencyGraph } from "src/queries/useDependencyGraph";
 
 const nodeTypes = {
   asset: AssetNode,
@@ -38,17 +39,13 @@ const nodeTypes = {
 const edgeTypes = { custom: Edge };
 
 export const AssetGraph = ({ asset }: { readonly asset?: AssetResponse }) => {
+  const { assetId } = useParams();
   const { colorMode = "light" } = useColorMode();
 
-  const { data = { edges: [], nodes: [] } } = useDependenciesServiceGetDependencies(
-    { nodeId: `asset:${asset?.id}` },
-    undefined,
-    { enabled: Boolean(asset) && Boolean(asset?.name) },
-  );
+  const { data = { edges: [], nodes: [] } } = useDependencyGraph(`asset:${assetId}`);
 
   const { data: graphData } = useGraphLayout({
     ...data,
-    dagId: asset?.name ?? "",
     direction: "RIGHT",
     openGroupIds: [],
   });
