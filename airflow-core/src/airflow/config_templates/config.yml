@@ -2352,6 +2352,13 @@ scheduler:
       type: float
       example: ~
       default: "5.0"
+    running_metrics_interval:
+      description: |
+        How often (in seconds) should running task instance stats be sent to StatsD (if statsd_on is enabled)
+      version_added: 3.0.0
+      type: float
+      example: ~
+      default: "30.0"
     scheduler_health_check_threshold:
       description: |
         If the last scheduler heartbeat happened more than ``[scheduler] scheduler_health_check_threshold``

@@ -16,10 +16,10 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Flex, Heading, HStack, Text } from "@chakra-ui/react";
+import { Flex, Heading, HStack, Link, Text } from "@chakra-ui/react";
 import type { NodeProps, Node as NodeType } from "@xyflow/react";
 import { FiDatabase } from "react-icons/fi";
-import { useParams } from "react-router-dom";
+import { useParams, Link as RouterLink } from "react-router-dom";
 
 import { useAssetServiceGetAssetEvents, useDagRunServiceGetUpstreamAssetEvents } from "openapi/queries";
 import { pluralize } from "src/utils";
@@ -29,7 +29,7 @@ import { NodeWrapper } from "./NodeWrapper";
 import type { CustomNodeProps } from "./reactflowUtils";
 
 export const AssetNode = ({
-  data: { height, isSelected, label, width },
+  data: { height, id, isSelected, label, width },
 }: NodeProps<NodeType<CustomNodeProps, "asset">>) => {
   const { dagId = "", runId = "" } = useParams();
   const { data: upstreamEventsData } = useDagRunServiceGetUpstreamAssetEvents(
@@ -49,6 +49,8 @@ export const AssetNode = ({
     ...(downstreamEventsData?.asset_events ?? []),
   ].find((event) => event.name === label);
 
+  const assetId = id.replace("asset:", "");
+
   return (
     <NodeWrapper>
       <Flex
@@ -67,7 +69,9 @@ export const AssetNode = ({
           <Heading ml={-2} size="sm">
             <FiDatabase />
           </Heading>
-          {label}
+          <Link asChild color="fg.info" mb={2}>
+            <RouterLink to={`/assets/${assetId}`}>{label}</RouterLink>
+          </Link>
         </HStack>
         {datasetEvent === undefined ? undefined : (
           <>

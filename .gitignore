@@ -177,6 +177,8 @@ pnpm-debug.log*
 airflow-core/src/airflow/ui/.vite/
 # And the legacy old files just in case
 airflow/ui/.vite/
+# Add the auth manager vite folder just in case
+airflow-core/src/airflow/api_fastapi/auth/managers/simple/ui/.vite/
 .pnpm-store
 *.tsbuildinfo
 
