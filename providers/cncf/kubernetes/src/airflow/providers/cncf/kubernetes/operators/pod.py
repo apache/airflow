@@ -213,7 +213,7 @@ class KubernetesPodOperator(BaseOperator):
     :param base_container_name: The name of the base container in the pod. This container's logs
         will appear as part of this task's logs if get_logs is True. Defaults to None. If None,
         will consult the class variable BASE_CONTAINER_NAME (which defaults to "base") for the base
-        container name to use.
+        container name to use. (templated)
     :param base_container_status_polling_interval: Polling period in seconds to check for the pod base
         container status. Default to 1s.
     :param deferrable: Run operator in the deferrable mode.
@@ -263,6 +263,7 @@ class KubernetesPodOperator(BaseOperator):
         "env_from",
         "node_selector",
         "kubernetes_conn_id",
+        "base_container_name",
     )
     template_fields_renderers = {"env_vars": "py"}
 
