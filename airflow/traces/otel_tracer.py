@@ -21,7 +21,6 @@ import logging
 import random
 from typing import TYPE_CHECKING
 
-import pendulum
 from opentelemetry import trace
 from opentelemetry.context import attach, create_key
 from opentelemetry.exporter.otlp.proto.http.trace_exporter import OTLPSpanExporter
@@ -38,6 +37,7 @@ from airflow.traces.utils import (
     parse_traceparent,
     parse_tracestate,
 )
+from airflow.utils import timezone
 from airflow.utils.dates import datetime_to_nano
 from airflow.utils.net import get_hostname
 
@@ -254,7 +254,7 @@ class OtelTrace:
         tracer = self.get_tracer(component=component)
 
         if start_time is None:
-            start_time = pendulum.now("UTC")
+            start_time = timezone.utcnow()
 
         if links is None:
             links = []
