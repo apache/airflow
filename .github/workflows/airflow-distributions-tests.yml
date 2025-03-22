@@ -97,7 +97,6 @@ jobs:
         env:
           PYTHON_VERSION: "${{ matrix.python-version }}"
         run: >
-          # Add non-core distribution tests here
           breeze testing task-sdk-tests --python "${PYTHON_VERSION}"
         if: ${{ inputs.distribution_name == 'task-sdk' }}
       - name: >
@@ -105,6 +104,5 @@ jobs:
         env:
           PYTHON_VERSION: "${{ matrix.python-version }}"
         run: >
-          # Add non-core distribution tests here
           breeze testing airflow-ctl-tests --python "${PYTHON_VERSION}"
         if: ${{ inputs.distribution_name == 'airflow-ctl' }}
