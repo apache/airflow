@@ -302,12 +302,14 @@ class DistributionPackageInfo(NamedTuple):
         *,
         distribution_format: str,
         dist_directory: Path,
-        build_type: Literal["airflow", "providers", "task-sdk"],
+        build_type: Literal["airflow", "providers", "task-sdk", "airflow-ctl"],
     ) -> tuple[DistributionPackageInfo, ...]:
         if build_type == "airflow":
             default_glob_pattern = "apache[_-]airflow-[0-9]"
         elif build_type == "task-sdk":
             default_glob_pattern = "apache[_-]airflow[_-]task[_-]sdk"
+        elif build_type == "airflow-ctl":
+            default_glob_pattern = "apache[_-]airflow[_-]ctl"
         else:
             default_glob_pattern = "apache[_-]airflow[_-]providers"
         dists_info = []
@@ -611,6 +613,7 @@ def prepare_airflow_distributions(
     get_console().print("[success]Successfully prepared Airflow packages")
 
 
+# TODO BUGRA CHECK
 @release_management.command(
     name="prepare-task-sdk-distributions",
     help="Prepare sdist/whl distributions of Airflow Task SDK.",
