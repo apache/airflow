@@ -2326,7 +2326,10 @@ class TestSchedulerJob:
 
     @pytest.mark.parametrize(
         "ti_state, final_ti_span_status",
-        [(State.SUCCESS, SpanStatus.ENDED), (State.RUNNING, SpanStatus.ACTIVE)],
+        [
+            pytest.param(State.SUCCESS, SpanStatus.ENDED, id="dr_ended_successfully"),
+            pytest.param(State.RUNNING, SpanStatus.ACTIVE, id="dr_still_running"),
+        ],
     )
     def test_recreate_unhealthy_scheduler_spans_if_needed(self, ti_state, final_ti_span_status, dag_maker):
         with dag_maker(
@@ -2448,7 +2451,10 @@ class TestSchedulerJob:
 
     @pytest.mark.parametrize(
         "state, final_span_status",
-        [(State.SUCCESS, SpanStatus.ENDED), (State.RUNNING, SpanStatus.NEEDS_CONTINUANCE)],
+        [
+            pytest.param(State.SUCCESS, SpanStatus.ENDED, id="dr_ended_successfully"),
+            pytest.param(State.RUNNING, SpanStatus.NEEDS_CONTINUANCE, id="dr_still_running"),
+        ],
     )
     def test_end_active_spans(self, state, final_span_status, dag_maker):
         with dag_maker(
