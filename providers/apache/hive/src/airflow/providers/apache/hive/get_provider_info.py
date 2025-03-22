@@ -199,6 +199,7 @@ def get_provider_info():
             "presto": ["apache-airflow-providers-presto"],
             "samba": ["apache-airflow-providers-samba"],
             "vertica": ["apache-airflow-providers-vertica"],
+            "common.compat": ["apache-airflow-providers-common-compat"],
         },
         "devel-dependencies": [],
     }

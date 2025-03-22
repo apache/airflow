@@ -53,7 +53,7 @@ If you do not work in a remote development environment, you will need these prer
 1. UV is recommended for managing Python versions and virtual environments
 2. Docker Community Edition (you can also use Colima or others, see instructions below)
 3. Docker buildx
-3. Docker Compose
+4. Docker Compose
 
 The below setup describes `Ubuntu installation <https://docs.docker.com/engine/install/ubuntu/>`_.
 It might be slightly different on different machines.

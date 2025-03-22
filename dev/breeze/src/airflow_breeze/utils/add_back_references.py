@@ -26,7 +26,7 @@ from urllib.request import urlopen
 from airflow_breeze.utils.console import get_console
 
 airflow_redirects_link = (
-    "https://raw.githubusercontent.com/apache/airflow/main/docs/apache-airflow/redirects.txt"
+    "https://raw.githubusercontent.com/apache/airflow/main/airflow-core/docs/redirects.txt"
 )
 helm_redirects_link = "https://raw.githubusercontent.com/apache/airflow/main/docs/helm-chart/redirects.txt"
 

@@ -318,6 +318,9 @@ require Breeze Docker image to be built locally.
 | mypy-airflow                                              | * Run mypy for airflow                                 | *       |
 |                                                           | * Run mypy for airflow (manual)                        |         |
 +-----------------------------------------------------------+--------------------------------------------------------+---------+
+| mypy-airflowctl                                           | * Run mypy for airflowctl                              | *       |
+|                                                           | * Run mypy for airflowctl (manual)                     |         |
++-----------------------------------------------------------+--------------------------------------------------------+---------+
 | mypy-dev                                                  | * Run mypy for dev                                     | *       |
 |                                                           | * Run mypy for dev (manual)                            |         |
 +-----------------------------------------------------------+--------------------------------------------------------+---------+
@@ -376,7 +379,7 @@ require Breeze Docker image to be built locally.
 +-----------------------------------------------------------+--------------------------------------------------------+---------+
 | update-providers-build-files                              | Update providers build files                           |         |
 +-----------------------------------------------------------+--------------------------------------------------------+---------+
-| update-providers-dependencies                             | Update dependencies for provider packages              |         |
+| update-providers-dependencies                             | Update dependencies for providers                      |         |
 +-----------------------------------------------------------+--------------------------------------------------------+---------+
 | update-reproducible-source-date-epoch                     | Update Source Date Epoch for reproducible builds       |         |
 +-----------------------------------------------------------+--------------------------------------------------------+---------+

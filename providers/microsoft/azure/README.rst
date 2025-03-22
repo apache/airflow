@@ -80,13 +80,14 @@ PIP package                             Version required
 ``microsoft-kiota-serialization-json``  ``==1.0.0``
 ``microsoft-kiota-serialization-text``  ``==1.0.0``
 ``microsoft-kiota-abstractions``        ``<1.4.0``
+``msal-extensions``                     ``>=1.1.0``
 ======================================  ===================
 
 Cross provider package dependencies
 -----------------------------------
 
 Those are dependencies that might be needed in order to use all the features of the package.
-You need to install the specified provider packages in order to use them.
+You need to install the specified providers in order to use them.
 
 You can install such cross-provider dependencies when installing from PyPI. For example:
 

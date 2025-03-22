@@ -62,11 +62,11 @@ from airflow_breeze.utils.console import get_console
 from airflow_breeze.utils.exclude_from_matrix import excluded_combos
 from airflow_breeze.utils.functools_cache import clearable_cache
 from airflow_breeze.utils.kubernetes_utils import get_kubernetes_python_combos
-from airflow_breeze.utils.packages import get_available_packages
+from airflow_breeze.utils.packages import get_available_distributions
 from airflow_breeze.utils.path_utils import (
-    AIRFLOW_PROVIDERS_DIR,
-    AIRFLOW_SOURCES_ROOT,
-    AIRFLOW_TEST_COMMON_DIR,
+    AIRFLOW_DEVEL_COMMON_PATH,
+    AIRFLOW_PROVIDERS_ROOT_PATH,
+    AIRFLOW_ROOT_PATH,
 )
 from airflow_breeze.utils.provider_dependencies import DEPENDENCIES, get_related_providers
 from airflow_breeze.utils.run_utils import run_command
@@ -147,31 +147,31 @@ CI_FILE_GROUP_MATCHES = HashableDict(
             r"^generated/provider_dependencies.json$",
         ],
         FileGroupForCi.PYTHON_PRODUCTION_FILES: [
-            r"^airflow/.*\.py",
+            r"^airflow-core/src/airflow/.*\.py",
             r"^providers/.*\.py",
             r"^pyproject.toml",
             r"^hatch_build.py",
         ],
         FileGroupForCi.JAVASCRIPT_PRODUCTION_FILES: [
-            r"^airflow/.*\.[jt]sx?",
-            r"^airflow/.*\.lock",
-            r"^airflow/ui/.*\.yaml$",
-            r"^airflow/api_fastapi/auth/managers/simple/ui/.*\.yaml$",
+            r"^airflow-core/src/airflow/.*\.[jt]sx?",
+            r"^airflow-core/src/airflow/.*\.lock",
+            r"^airflow-core/src/airflow/ui/.*\.yaml$",
+            r"^airflow-core/src/airflow/api_fastapi/auth/managers/simple/ui/.*\.yaml$",
         ],
         FileGroupForCi.API_FILES: [
-            r"^airflow/api/",
-            r"^airflow/api_fastapi/",
-            r"^tests/api/",
-            r"^tests/api_fastapi/",
+            r"^airflow-core/src/airflow/api/",
+            r"^airflow-core/src/airflow/api_fastapi/",
+            r"^airflow-core/tests/unit/api/",
+            r"^airflow-core/tests/unit/api_fastapi/",
         ],
         FileGroupForCi.API_CODEGEN_FILES: [
-            r"^airflow/api_fastapi/core_api/openapi/v1-generated\.yaml",
+            r"^airflow-core/src/airflow/api_fastapi/core_api/openapi/v1-generated\.yaml",
             r"^clients/gen",
         ],
         FileGroupForCi.HELM_FILES: [
             r"^chart",
-            r"^airflow/kubernetes",
-            r"^tests/kubernetes",
+            r"^airflow-core/src/airflow/kubernetes",
+            r"^airflow-core/tests/unit/kubernetes",
             r"^helm_tests",
         ],
         FileGroupForCi.DEPENDENCY_FILES: [
@@ -180,19 +180,23 @@ CI_FILE_GROUP_MATCHES = HashableDict(
         FileGroupForCi.DOC_FILES: [
             r"^docs",
             r"^\.github/SECURITY\.rst$",
-            r"^airflow/.*\.py$",
+            r"^airflow-core/src/airflow/.*\.py$",
+            r"^airflow-core/docs/",
             r"^chart",
             r"^providers/.*/src/",
             r"^providers/.*/docs/",
             r"^task-sdk/src/",
-            r"^tests/system",
+            r"^airflow-core/tests/system",
             r"^CHANGELOG\.txt",
-            r"^airflow/config_templates/config\.yml",
+            r"^airflow-core/src/airflow/config_templates/config\.yml",
             r"^chart/RELEASE_NOTES\.txt",
             r"^chart/values\.schema\.json",
             r"^chart/values\.json",
         ],
-        FileGroupForCi.UI_FILES: [r"^airflow/ui/", r"^airflow/api_fastapi/auth/managers/simple/ui/"],
+        FileGroupForCi.UI_FILES: [
+            r"^airflow-core/src/airflow/ui/",
+            r"^airflow-core/src/airflow/api_fastapi/auth/managers/simple/ui/",
+        ],
         FileGroupForCi.KUBERNETES_FILES: [
             r"^chart",
             r"^kubernetes_tests",
@@ -202,8 +206,8 @@ CI_FILE_GROUP_MATCHES = HashableDict(
             r".*\.py$",
         ],
         FileGroupForCi.ALL_AIRFLOW_PYTHON_FILES: [
-            r"airflow/.*\.py$",
-            r"tests/.*\.py$",
+            r"^airflow-core/src/.*\.py$",
+            r"^airflow-core/tests/.*\.py$",
         ],
         FileGroupForCi.ALL_PROVIDERS_PYTHON_FILES: [
             r"^providers/.*\.py$",
@@ -214,7 +218,8 @@ CI_FILE_GROUP_MATCHES = HashableDict(
         ],
         FileGroupForCi.ALL_SOURCE_FILES: [
             r"^.pre-commit-config.yaml$",
-            r"^airflow",
+            r"^airflow-core/src/.*",
+            r"^airflow-core/tests/.*",
             r"^chart",
             r"^providers/src/",
             r"^providers/tests/",
@@ -222,21 +227,20 @@ CI_FILE_GROUP_MATCHES = HashableDict(
             r"^providers/.*/tests/",
             r"^task-sdk/src/",
             r"^task-sdk/tests/",
-            r"^tests",
             r"^devel-common",
             r"^kubernetes_tests",
         ],
         FileGroupForCi.SYSTEM_TEST_FILES: [
-            r"^tests/system/",
+            r"^airflow-core/tests/system/",
         ],
         FileGroupForCi.ALWAYS_TESTS_FILES: [
-            r"^tests/always/",
+            r"^airflow-core/tests/unit/always/",
         ],
         FileGroupForCi.ALL_PROVIDER_YAML_FILES: [
             r".*/provider\.yaml$",
         ],
         FileGroupForCi.TESTS_UTILS_FILES: [
-            r"^tests/utils/",
+            r"^airflow-core/tests/unit/utils/",
             r"^devel-common/.*\.py$",
         ],
         FileGroupForCi.TASK_SDK_FILES: [
@@ -244,15 +248,15 @@ CI_FILE_GROUP_MATCHES = HashableDict(
             r"^task-sdk/tests/.*\.py$",
         ],
         FileGroupForCi.ASSET_FILES: [
-            r"^airflow/assets/",
-            r"^airflow/models/assets/",
+            r"^airflow-core/src/airflow/assets/",
+            r"^airflow-core/src/airflow/models/assets/",
+            r"^airflow-core/src/airflow/datasets/",
             r"^task-sdk/src/airflow/sdk/definitions/asset/",
-            r"^airflow/datasets/",
         ],
         FileGroupForCi.UNIT_TEST_FILES: [
-            r"^tests/",
+            r"^airflow-core/tests/unit/",
             r"^task-sdk/tests/",
-            r"^providers/.*/tests/",
+            r"^providers/.*/tests/unit/",
             r"^dev/breeze/tests/",
         ],
     }
@@ -262,12 +266,12 @@ CI_FILE_GROUP_EXCLUDES = HashableDict(
     {
         FileGroupForCi.ALL_AIRFLOW_PYTHON_FILES: [
             r"^.*/.*_vendor/.*",
-            r"^airflow/migrations/.*",
+            r"^airflow-core/src/airflow/migrations/.*",
             r"^providers/.*/src/airflow/providers/.*",
             r"^dev/.*",
             r"^docs/.*",
             r"^providers/.*/tests/.*",
-            r"^tests/dags/test_imports.py",
+            r"^airflow-core/tests/unit/dags/test_imports.py",
             r"^task-sdk/src/airflow/sdk/.*\.py$",
             r"^task-sdk/tests/.*\.py$",
         ]
@@ -281,14 +285,14 @@ PYTHON_OPERATOR_FILES = [
 TEST_TYPE_MATCHES = HashableDict(
     {
         SelectiveCoreTestType.API: [
-            r"^airflow/api/",
-            r"^airflow/api_fastapi/",
-            r"^tests/api/",
-            r"^tests/api_fastapi/",
+            r"^airflow-core/src/airflow/api/",
+            r"^airflow-core/src/airflow/api_fastapi/",
+            r"^airflow-core/tests/unit/api/",
+            r"^airflow-core/tests/unit/api_fastapi/",
         ],
         SelectiveCoreTestType.CLI: [
-            r"^airflow/cli/",
-            r"^tests/cli/",
+            r"^airflow-core/src/airflow/cli/",
+            r"^airflow-core/tests/unit/cli/",
         ],
         SelectiveProvidersTestType.PROVIDERS: [
             r"^providers/.*/src/airflow/providers/",
@@ -299,8 +303,8 @@ TEST_TYPE_MATCHES = HashableDict(
             r"^task-sdk/tests/",
         ],
         SelectiveCoreTestType.SERIALIZATION: [
-            r"^airflow/serialization/",
-            r"^tests/serialization/",
+            r"^airflow-core/src/airflow/serialization/",
+            r"^airflow-core/tests/unit/serialization/",
         ],
     }
 )
@@ -309,7 +313,7 @@ TEST_TYPE_EXCLUDES = HashableDict({})
 
 
 def find_provider_affected(changed_file: str, include_docs: bool) -> str | None:
-    file_path = AIRFLOW_SOURCES_ROOT / changed_file
+    file_path = AIRFLOW_ROOT_PATH / changed_file
     if not include_docs:
         for parent_dir_path in file_path.parents:
             if parent_dir_path.name == "docs" and (parent_dir_path.parent / "provider.yaml").exists():
@@ -318,16 +322,16 @@ def find_provider_affected(changed_file: str, include_docs: bool) -> str | None:
     # Find if the path under src/system tests/tests belongs to provider or is a common code across
     # multiple providers
     for parent_dir_path in file_path.parents:
-        if parent_dir_path == AIRFLOW_PROVIDERS_DIR:
+        if parent_dir_path == AIRFLOW_PROVIDERS_ROOT_PATH:
             # We have not found any provider specific path up to the root of the provider base folder
             break
-        if parent_dir_path.is_relative_to(AIRFLOW_PROVIDERS_DIR):
-            relative_path = parent_dir_path.relative_to(AIRFLOW_PROVIDERS_DIR)
+        if parent_dir_path.is_relative_to(AIRFLOW_PROVIDERS_ROOT_PATH):
+            relative_path = parent_dir_path.relative_to(AIRFLOW_PROVIDERS_ROOT_PATH)
             # check if this path belongs to a specific provider
             if (parent_dir_path / "provider.yaml").exists():
                 # new providers structure
                 return str(relative_path).replace(os.sep, ".")
-    if file_path.is_relative_to(AIRFLOW_TEST_COMMON_DIR):
+    if file_path.is_relative_to(AIRFLOW_DEVEL_COMMON_PATH):
         # if devel-common changes, we want to run tests for all providers, as they might start failing
         return "Providers"
     return None
@@ -875,7 +879,7 @@ class SelectiveChecks:
         candidate_test_types: set[str] = set()
         if isinstance(affected_providers, AllProvidersSentinel):
             if split_to_individual_providers:
-                for provider in get_available_packages():
+                for provider in get_available_distributions():
                     candidate_test_types.add(f"Providers[{provider}]")
             else:
                 candidate_test_types.add("Providers")
@@ -953,7 +957,7 @@ class SelectiveChecks:
         if "Providers" in current_test_types:
             current_test_types.remove("Providers")
             current_test_types.update(
-                {f"Providers[{provider}]" for provider in get_available_packages(include_not_ready=True)}
+                {f"Providers[{provider}]" for provider in get_available_distributions(include_not_ready=True)}
             )
         return " ".join(sorted(current_test_types))
 
@@ -1002,7 +1006,7 @@ class SelectiveChecks:
             ["git", "show", f"{self._commit_ref}:pyproject.toml"],
             capture_output=True,
             text=True,
-            cwd=AIRFLOW_SOURCES_ROOT,
+            cwd=AIRFLOW_ROOT_PATH,
             check=False,
         )
         if new_result.returncode != 0:
@@ -1015,7 +1019,7 @@ class SelectiveChecks:
             ["git", "show", f"{self._commit_ref}^:pyproject.toml"],
             capture_output=True,
             text=True,
-            cwd=AIRFLOW_SOURCES_ROOT,
+            cwd=AIRFLOW_ROOT_PATH,
             check=False,
         )
         if old_result.returncode != 0:
@@ -1102,7 +1106,7 @@ class SelectiveChecks:
         ):
             return _ALL_DOCS_LIST
         packages = []
-        if any(file.startswith(("airflow/", "docs/apache-airflow/")) for file in self._files):
+        if any(file.startswith(("airflow-core/src/airflow/", "airflow-core/docs/")) for file in self._files):
             packages.append("apache-airflow")
         if any(file.startswith("docs/apache-airflow-providers/") for file in self._files):
             packages.append("apache-airflow-providers")
@@ -1359,7 +1363,7 @@ class SelectiveChecks:
 
     @cached_property
     def has_migrations(self) -> bool:
-        return any([file.startswith("airflow/migrations/") for file in self._files])
+        return any([file.startswith("airflow-core/src/airflow/migrations/") for file in self._files])
 
     @cached_property
     def chicken_egg_providers(self) -> str:
@@ -1527,7 +1531,7 @@ class SelectiveChecks:
             ["git", "diff", f"{self._commit_ref}"],
             capture_output=True,
             text=True,
-            cwd=AIRFLOW_SOURCES_ROOT,
+            cwd=AIRFLOW_ROOT_PATH,
             check=False,
         )
 
