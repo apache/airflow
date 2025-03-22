@@ -1018,6 +1018,11 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
         )
 
         timers.call_regular_interval(
+            conf.getfloat("scheduler", "running_metrics_interval", fallback=30.0),
+            self._emit_running_ti_metrics,
+        )
+
+        timers.call_regular_interval(
             conf.getfloat("scheduler", "task_instance_heartbeat_timeout_detection_interval", fallback=10.0),
             self._find_and_purge_task_instances_without_heartbeats,
         )
@@ -1815,6 +1820,37 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
             )
             .count()
         )
+
+    previous_ti_running_metrics: dict[tuple[str, str, str], int] = {}
+
+    @provide_session
+    def _emit_running_ti_metrics(self, session: Session = NEW_SESSION) -> None:
+        running = (
+            session.query(
+                TaskInstance.dag_id,
+                TaskInstance.task_id,
+                TaskInstance.queue,
+                func.count(TaskInstance.task_id).label("running_count"),
+            )
+            .filter(TaskInstance.state == State.RUNNING)
+            .group_by(TaskInstance.dag_id, TaskInstance.task_id, TaskInstance.queue)
+            .all()
+        )
+
+        ti_running_metrics = {(row.dag_id, row.task_id, row.queue): row.running_count for row in running}
+
+        for (dag_id, task_id, queue), count in ti_running_metrics.items():
+            Stats.gauge(f"ti.running.{queue}.{dag_id}.{task_id}", count)
+            Stats.gauge("ti.running", count, tags={"queue": queue, "dag_id": dag_id, "task_id": task_id})
+
+        for prev_key in self.previous_ti_running_metrics:
+            # reset stats which are not running anymore
+            if prev_key not in ti_running_metrics:
+                dag_id, task_id, queue = prev_key
+                Stats.gauge(f"ti.running.{queue}.{dag_id}.{task_id}", 0)
+                Stats.gauge("ti.running", 0, tags={"queue": queue, "dag_id": dag_id, "task_id": task_id})
+
+        self.previous_ti_running_metrics = ti_running_metrics
 
     @provide_session
     def _emit_pool_metrics(self, session: Session = NEW_SESSION) -> None:

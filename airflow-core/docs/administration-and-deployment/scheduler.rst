@@ -260,6 +260,14 @@ However, you can also look at other non-performance-related scheduler configurat
   this, so this should be set to match the same period as your StatsD roll-up
   period.
 
+
+- :ref:`config:scheduler__running_metrics_interval`
+
+  How often (in seconds) should running task instance stats be sent to StatsD
+  (if statsd_on is enabled). This is a *relatively* expensive query to compute
+  this, so this should be set to match the same period as your StatsD roll-up
+  period.
+
 - :ref:`config:scheduler__orphaned_tasks_check_interval`
 
   How often (in seconds) should the scheduler check for orphaned tasks or dead

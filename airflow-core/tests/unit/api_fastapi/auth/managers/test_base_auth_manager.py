@@ -20,6 +20,7 @@ from typing import TYPE_CHECKING, Any
 from unittest.mock import AsyncMock, MagicMock, Mock, patch
 
 import pytest
+from jwt import InvalidTokenError
 
 from airflow.api_fastapi.auth.managers.base_auth_manager import BaseAuthManager, T
 from airflow.api_fastapi.auth.managers.models.base_user import BaseUser
@@ -178,16 +179,19 @@ class TestBaseAuthManager:
         mock_filter_authorized_menu_items.assert_called_once_with(list(MenuItem), user=user)
         assert results == []
 
-    @patch("airflow.api_fastapi.auth.managers.base_auth_manager.JWTValidator", autospec=True)
+    @patch(
+        "airflow.api_fastapi.auth.managers.base_auth_manager.BaseAuthManager._get_token_validator",
+        autospec=True,
+    )
     @patch.object(EmptyAuthManager, "deserialize_user")
     @pytest.mark.asyncio
-    async def test_get_user_from_token(self, mock_deserialize_user, mock_jwt_validator, auth_manager):
+    async def test_get_user_from_token(self, mock_deserialize_user, mock__get_token_validator, auth_manager):
         token = "token"
         payload = {}
         user = BaseAuthManagerUserTest(name="test")
         signer = AsyncMock(spec=JWTValidator)
         signer.avalidated_claims.return_value = payload
-        mock_jwt_validator.return_value = signer
+        mock__get_token_validator.return_value = signer
         mock_deserialize_user.return_value = user
 
         result = await auth_manager.get_user_from_token(token)
@@ -195,6 +199,27 @@ class TestBaseAuthManager:
         mock_deserialize_user.assert_called_once_with(payload)
         signer.avalidated_claims.assert_called_once_with(token)
         assert result == user
+
+    @patch(
+        "airflow.api_fastapi.auth.managers.base_auth_manager.BaseAuthManager._get_token_validator",
+        autospec=True,
+    )
+    @patch.object(EmptyAuthManager, "deserialize_user")
+    @pytest.mark.asyncio
+    async def test_get_user_from_token_invalid_token_payload(
+        self, mock_deserialize_user, mock__get_token_validator, auth_manager
+    ):
+        token = "token"
+        payload = {}
+        signer = AsyncMock(spec=JWTValidator)
+        signer.avalidated_claims.return_value = payload
+        mock__get_token_validator.return_value = signer
+        mock_deserialize_user.side_effect = ValueError("Some error deserializing the user")
+
+        with pytest.raises(InvalidTokenError, match="Some error deserializing the user"):
+            await auth_manager.get_user_from_token(token)
+        mock_deserialize_user.assert_called_once_with(payload)
+        signer.avalidated_claims.assert_called_once_with(token)
 
     @patch("airflow.api_fastapi.auth.managers.base_auth_manager.JWTGenerator", autospec=True)
     @patch.object(EmptyAuthManager, "serialize_user")

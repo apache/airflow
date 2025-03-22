@@ -130,17 +130,17 @@ Some examples of valid multiple executor configuration:
 .. code-block:: ini
 
     [core]
-    executor = 'LocalExecutor'
+    executor = LocalExecutor
 
 .. code-block:: ini
 
     [core]
-    executor = 'LocalExecutor,CeleryExecutor'
+    executor = LocalExecutor,CeleryExecutor
 
 .. code-block:: ini
 
     [core]
-    executor = 'KubernetesExecutor,my.custom.module.ExecutorClass'
+    executor = KubernetesExecutor,my.custom.module.ExecutorClass
 
 
 .. note::
@@ -151,7 +151,7 @@ To make it easier to specify executors on tasks and dags, executor configuration
 .. code-block:: ini
 
     [core]
-    executor = 'LocalExecutor,ShortName:my.custom.module.ExecutorClass'
+    executor = LocalExecutor,ShortName:my.custom.module.ExecutorClass
 
 .. note::
     If a DAG specifies a task to use an executor that is not configured, the DAG will fail to parse and a warning dialog will be shown in the Airflow UI. Please ensure that all executors you wish to use are specified in Airflow configuration on *any* host/container that is running an Airflow component (scheduler, workers, etc).

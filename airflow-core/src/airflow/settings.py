@@ -635,7 +635,9 @@ def initialize():
 
     configure_adapters()
     # The webservers import this file from models.py with the default settings.
-    configure_orm()
+
+    if not os.environ.get("PYTHON_OPERATORS_VIRTUAL_ENV_MODE", None):
+        configure_orm()
     configure_action_logging()
 
     # mask the sensitive_config_values
