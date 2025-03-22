@@ -37,14 +37,13 @@ from airflow.providers.apache.beam.hooks.beam import BeamHook, BeamRunnerType
 from airflow.providers.apache.beam.triggers.beam import BeamJavaPipelineTrigger, BeamPythonPipelineTrigger
 from airflow.providers.google.cloud.hooks.dataflow import (
     DataflowHook,
-    DataflowJobStatus,
     process_line_and_extract_dataflow_job_id_callback,
 )
 from airflow.providers.google.cloud.hooks.gcs import GCSHook, _parse_gcs_url
 from airflow.providers.google.cloud.links.dataflow import DataflowJobLink
 from airflow.providers.google.cloud.operators.dataflow import CheckJobRunning, DataflowConfiguration
 from airflow.providers.google.cloud.triggers.dataflow import (
-    DataflowJobStatusTrigger,
+    DataflowJobStateCompleteTrigger,
 )
 from airflow.utils.helpers import convert_camel_to_snake, exactly_one
 from airflow.version import version
@@ -430,13 +429,14 @@ class BeamRunPythonPipelineOperator(BeamBasePipelineOperator):
             self.dataflow_config.location,
             self.dataflow_job_id,
         )
+
         if self.deferrable:
             self.defer(
-                trigger=DataflowJobStatusTrigger(
+                trigger=DataflowJobStateCompleteTrigger(
                     job_id=self.dataflow_job_id,
-                    expected_statuses={DataflowJobStatus.JOB_STATE_DONE},
                     project_id=self.dataflow_config.project_id,
                     location=self.dataflow_config.location,
+                    wait_until_finished=self.dataflow_config.wait_until_finished,
                     gcp_conn_id=self.gcp_conn_id,
                 ),
                 method_name="execute_complete",
@@ -603,11 +603,11 @@ class BeamRunJavaPipelineOperator(BeamBasePipelineOperator):
                 )
                 if self.deferrable:
                     self.defer(
-                        trigger=DataflowJobStatusTrigger(
+                        trigger=DataflowJobStateCompleteTrigger(
                             job_id=self.dataflow_job_id,
-                            expected_statuses={DataflowJobStatus.JOB_STATE_DONE},
                             project_id=self.dataflow_config.project_id,
                             location=self.dataflow_config.location,
+                            wait_until_finished=self.dataflow_config.wait_until_finished,
                             gcp_conn_id=self.gcp_conn_id,
                         ),
                         method_name="execute_complete",
