@@ -340,18 +340,14 @@ class BaseOperator(TaskSDKBaseOperator, AbstractOperator):
     start_from_trigger: bool = False
 
     on_failure_callback: None | TaskStateChangeCallback | list[TaskStateChangeCallback] = None
-    on_success_callback: None | TaskStateChangeCallback | list[TaskStateChangeCallback] = None
     on_retry_callback: None | TaskStateChangeCallback | list[TaskStateChangeCallback] = None
-    on_skipped_callback: None | TaskStateChangeCallback | list[TaskStateChangeCallback] = None
 
     def __init__(
         self,
         pre_execute=None,
         post_execute=None,
         on_failure_callback: None | TaskStateChangeCallback | list[TaskStateChangeCallback] = None,
-        on_success_callback: None | TaskStateChangeCallback | list[TaskStateChangeCallback] = None,
         on_retry_callback: None | TaskStateChangeCallback | list[TaskStateChangeCallback] = None,
-        on_skipped_callback: None | TaskStateChangeCallback | list[TaskStateChangeCallback] = None,
         **kwargs,
     ):
         if start_date := kwargs.get("start_date", None):
@@ -363,8 +359,6 @@ class BaseOperator(TaskSDKBaseOperator, AbstractOperator):
         self._pre_execute_hook = pre_execute
         self._post_execute_hook = post_execute
         self.on_failure_callback = on_failure_callback
-        self.on_success_callback = on_success_callback
-        self.on_skipped_callback = on_skipped_callback
         self.on_retry_callback = on_retry_callback
 
     # Defines the operator level extra links
@@ -391,9 +385,7 @@ class BaseOperator(TaskSDKBaseOperator, AbstractOperator):
             "start_trigger_args",
             "start_from_trigger",
             "on_failure_callback",
-            "on_success_callback",
             "on_retry_callback",
-            "on_skipped_callback",
         }
 
     def get_inlet_defs(self):
