@@ -588,7 +588,7 @@ jobs:
 
   tests-task-sdk:
     name: "Task SDK tests"
-    uses: ./.github/workflows/task-sdk-tests.yml
+    uses: ./.github/workflows/airflow-distributions-tests.yml
     needs: [build-info, build-ci-images]
     permissions:
       contents: read
@@ -600,6 +600,7 @@ jobs:
       run-task-sdk-tests: ${{ needs.build-info.outputs.run-task-sdk-tests }}
       use-uv: ${{ needs.build-info.outputs.use-uv }}
       canary-run: ${{ needs.build-info.outputs.canary-run }}
+      distribution-name: "task-sdk"
     if: >
       ( needs.build-info.outputs.run-task-sdk-tests == 'true' ||
       needs.build-info.outputs.run-tests == 'true' &&
@@ -607,7 +608,7 @@ jobs:
 
   tests-airflow-ctl:
     name: "Airflow CTL tests"
-    uses: ./.github/workflows/airflow-ctl-tests.yml
+    uses: ./.github/workflows/airflow-distributions-tests.yml
     needs: [build-info, build-ci-images]
     permissions:
       contents: read
@@ -619,6 +620,7 @@ jobs:
       run-airflow-ctl-tests: ${{ needs.build-info.outputs.run-airflow-ctl-tests }}
       use-uv: ${{ needs.build-info.outputs.use-uv }}
       canary-run: ${{ needs.build-info.outputs.canary-run }}
+      distribution-name: "airflow-ctl"
     if: >
       ( needs.build-info.outputs.run-airflow-ctl-tests == 'true' ||
       needs.build-info.outputs.run-tests == 'true' &&
