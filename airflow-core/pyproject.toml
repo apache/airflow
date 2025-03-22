@@ -272,7 +272,8 @@ include = [
     "NOTICE"
 ]
 exclude = [
-    "src/airflow/ui/node_modules/"
+    "src/airflow/ui/node_modules/",
+    "src/airflow/api_fastapi/auth/managers/simple/ui/node_modules",
 ]
 
 [tool.hatch.build.targets.custom]
@@ -291,6 +292,10 @@ artifacts = [
     "airflow/ui/dist/",
     "airflow/api_fastapi/auth/managers/simple/ui/dist/",
     "airflow/git_version"
+]
+exclude = [
+    "src/airflow/ui/node_modules/",
+    "src/airflow/api_fastapi/auth/managers/simple/ui/node_modules",
 ]
 
 [dependency-groups]
