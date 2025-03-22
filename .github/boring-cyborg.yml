@@ -422,6 +422,9 @@ labelPRBasedOnFilePath:
   area:providers:
     - providers/**/*
 
+  area:airflow-ctl:
+    - airflow-ctl/**/*
+
 # Various Flags to control behaviour of the "Labeler"
 labelerFlags:
   # If this flag is changed to 'false', labels would only be added when the PR is first created

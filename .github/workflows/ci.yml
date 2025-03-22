@@ -115,6 +115,7 @@ jobs:
       python-versions-list-as-string: ${{ steps.selective-checks.outputs.python-versions-list-as-string }}
       python-versions: ${{ steps.selective-checks.outputs.python-versions }}
       run-amazon-tests: ${{ steps.selective-checks.outputs.run-amazon-tests }}
+      run-airflow-ctl-tests: ${{ steps.selective-checks.outputs.run-airflow-ctl-tests }}
       run-coverage: ${{ steps.source-run-info.outputs.run-coverage }}
       run-kubernetes-tests: ${{ steps.selective-checks.outputs.run-kubernetes-tests }}
       run-task-sdk-tests: ${{ steps.selective-checks.outputs.run-task-sdk-tests }}
@@ -604,6 +605,25 @@ jobs:
       needs.build-info.outputs.run-tests == 'true' &&
       needs.build-info.outputs.only-new-ui-files != 'true')
 
+  tests-airflow-ctl:
+    name: "Airflow CTL tests"
+    uses: ./.github/workflows/airflow-ctl-tests.yml
+    needs: [build-info, build-ci-images]
+    permissions:
+      contents: read
+      packages: read
+    with:
+      runs-on-as-json-default: ${{ needs.build-info.outputs.runs-on-as-json-default }}
+      default-python-version: ${{ needs.build-info.outputs.default-python-version }}
+      python-versions: ${{ needs.build-info.outputs.python-versions }}
+      run-airflow-ctl-tests: ${{ needs.build-info.outputs.run-airflow-ctl-tests }}
+      use-uv: ${{ needs.build-info.outputs.use-uv }}
+      canary-run: ${{ needs.build-info.outputs.canary-run }}
+    if: >
+      ( needs.build-info.outputs.run-airflow-ctl-tests == 'true' ||
+      needs.build-info.outputs.run-tests == 'true' &&
+      needs.build-info.outputs.only-new-ui-files != 'true')
+
   finalize-tests:
     name: Finalize tests
     permissions:
@@ -648,6 +668,7 @@ jobs:
       - additional-prod-image-tests
       - tests-kubernetes
       - tests-task-sdk
+      - tests-airflow-ctl
       - finalize-tests
     if: github.event_name == 'schedule' && failure() && github.run_attempt == 1
     runs-on: ["ubuntu-22.04"]
