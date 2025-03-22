@@ -19,6 +19,7 @@ from __future__ import annotations
 import functools
 import os
 import sys
+import time
 import traceback
 from pathlib import Path
 from typing import TYPE_CHECKING, Annotated, BinaryIO, Callable, ClassVar, Literal, Union
@@ -229,6 +230,8 @@ class DagFileProcessorProcess(WatchedSubprocess):
     logger_filehandle: BinaryIO
     parsing_result: DagFileParsingResult | None = None
     decoder: ClassVar[TypeAdapter[ToManager]] = TypeAdapter[ToManager](ToManager)
+    _start_time: float | None = None
+    """Time when the process started parsing the file."""
 
     @classmethod
     def start(  # type: ignore[override]
@@ -242,6 +245,7 @@ class DagFileProcessorProcess(WatchedSubprocess):
     ) -> Self:
         proc: Self = super().start(target=target, **kwargs)
         proc._on_child_started(callbacks, path, bundle_path)
+        proc._start_time = time.time()
         return proc
 
     def _on_child_started(
@@ -305,7 +309,18 @@ class DagFileProcessorProcess(WatchedSubprocess):
 
     @property
     def start_time(self) -> float:
-        return self._process.create_time()
+        if not self._start_time:
+            raise ValueError("start_time not set")
+        return self._start_time
+
+    @start_time.setter
+    def start_time(self, value: float | None = None) -> None:
+        if self._start_time:
+            # Ensures this is not set twice
+            return
+        if not value:
+            value = time.time()
+        self._start_time = value
 
     def wait(self) -> int:
         raise NotImplementedError(f"Don't call wait on {type(self).__name__} objects")

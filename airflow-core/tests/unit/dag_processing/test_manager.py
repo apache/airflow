@@ -26,7 +26,6 @@ import re
 import shutil
 import signal
 import textwrap
-import time
 from collections import deque
 from datetime import datetime, timedelta
 from logging.config import dictConfig
@@ -135,7 +134,6 @@ class TestDagFileProcessorManager:
     def mock_processor(self) -> DagFileProcessorProcess:
         proc = MagicMock()
         logger_filehandle = MagicMock()
-        proc.create_time.return_value = time.time()
         proc.wait.return_value = 0
         ret = DagFileProcessorProcess(
             process_log=MagicMock(),
@@ -493,7 +491,7 @@ class TestDagFileProcessorManager:
         manager = DagFileProcessorManager(max_runs=1, processor_timeout=5)
 
         processor = self.mock_processor()
-        processor._process.create_time.return_value = timezone.make_aware(datetime.min).timestamp()
+        processor._start_time = timezone.make_aware(datetime.min).timestamp()
         manager._processors = {
             DagFileInfo(
                 bundle_name="testing", rel_path=Path("abc.txt"), bundle_path=TEST_DAGS_FOLDER
@@ -512,7 +510,7 @@ class TestDagFileProcessorManager:
         )
 
         processor = self.mock_processor()
-        processor._process.create_time.return_value = timezone.make_aware(datetime.max).timestamp()
+        processor._start_time = timezone.make_aware(datetime.max).timestamp()
         manager._processors = {
             DagFileInfo(
                 bundle_name="testing", rel_path=Path("abc.txt"), bundle_path=TEST_DAGS_FOLDER
@@ -521,6 +519,21 @@ class TestDagFileProcessorManager:
         with mock.patch.object(type(processor), "kill") as mock_kill:
             manager._kill_timed_out_processors()
         mock_kill.assert_not_called()
+
+    def test_start_time_raises_when_not_set(self):
+        manager = DagFileProcessorManager(
+            max_runs=1,
+            processor_timeout=5,
+        )
+
+        processor = self.mock_processor()
+        manager._processors = {
+            DagFileInfo(
+                bundle_name="testing", rel_path=Path("abc.txt"), bundle_path=TEST_DAGS_FOLDER
+            ): processor
+        }
+        with pytest.raises(ValueError, match="start_time not set"):
+            manager._kill_timed_out_processors()
 
     @pytest.mark.usefixtures("testing_dag_bundle")
     @pytest.mark.parametrize(
