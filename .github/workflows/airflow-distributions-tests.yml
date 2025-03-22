@@ -16,10 +16,14 @@
 # under the License.
 #
 ---
-name: Task SDK tests
+name: Non-core Distribution tests
 on:  # yamllint disable-line rule:truthy
   workflow_call:
     inputs:
+      distribution-name:
+        description: "The name of the distribution to test"
+        required: true
+        type: string
       runs-on-as-json-default:
         description: "The array of labels (in json form) determining default runner used for the build."
         required: true
@@ -30,10 +34,6 @@ on:  # yamllint disable-line rule:truthy
         type: string
       python-versions:
         description: "JSON-formatted array of Python versions to build images from"
-        required: true
-        type: string
-      run-task-sdk-tests:
-        description: "Whether to run Task SDK tests or not (true/false)"
         required: true
         type: string
       use-uv:
@@ -47,9 +47,9 @@ on:  # yamllint disable-line rule:truthy
 permissions:
   contents: read
 jobs:
-  task-sdk-tests:
+  distributions-tests:
     timeout-minutes: 80
-    name: Task SDK:P${{ matrix.python-version }} tests
+    name: ${{ inputs.distribution_name }}:P${{ matrix.python-version }} tests
     runs-on: ${{ fromJSON(inputs.runs-on-as-json-default) }}
     strategy:
       fail-fast: false
@@ -78,16 +78,33 @@ jobs:
           use-uv: ${{ inputs.use-uv }}
       - name: "Cleanup dist files"
         run: rm -fv ./dist/*
-      - name: "Prepare Task SDK packages: wheel"
+      # Conditional steps based on the distribution name
+      - name: "Prepare Task SDK distributions: wheel"
         run: >
           breeze release-management prepare-task-sdk-distributions --distribution-format wheel
+        if: ${{ inputs.distribution_name == 'task-sdk' }}
+      - name: "Prepare Airflow CTL distributions: wheel"
+        run: >
+          breeze release-management prepare-airflow-ctl-distributions --distribution-format wheel
+        if: ${{ inputs.distribution_name == 'airflow-ctl' }}
       - name: "Verify wheel packages with twine"
         run: |
           uv tool uninstall twine || true
           uv tool install twine && twine check dist/*.whl
+      # Conditional steps based on the distribution name
       - name: >
           Run unit tests for Airflow Task SDK:Python ${{ matrix.python-version }}
         env:
           PYTHON_VERSION: "${{ matrix.python-version }}"
         run: >
+          # Add non-core distribution tests here
           breeze testing task-sdk-tests --python "${PYTHON_VERSION}"
+        if: ${{ inputs.distribution_name == 'task-sdk' }}
+      - name: >
+          Run unit tests for Airflow CTL:Python ${{ matrix.python-version }}
+        env:
+          PYTHON_VERSION: "${{ matrix.python-version }}"
+        run: >
+          # Add non-core distribution tests here
+          breeze testing airflow-ctl-tests --python "${PYTHON_VERSION}"
+        if: ${{ inputs.distribution_name == 'airflow-ctl' }}
