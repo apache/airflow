@@ -812,7 +812,7 @@ class TestTriggererKedaAutoScaler:
             ),
             # test custom template query
             (
-                "SELECT ceil(COUNT(*)::decimal / {{ mul .Values.config.triggerer.default_capacity 2 }})"
+                'SELECT ceil(COUNT(*)::decimal / {{ mul (include "triggerer.capacity" . | int) 2 }})'
                 " FROM trigger",
                 "SELECT ceil(COUNT(*)::decimal / 2000) FROM trigger",
             ),

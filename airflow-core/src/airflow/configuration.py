@@ -332,6 +332,7 @@ class AirflowConfigParser(ConfigParser):
         ("api", "ssl_cert"): ("webserver", "web_server_ssl_cert", "3.0"),
         ("api", "ssl_key"): ("webserver", "web_server_ssl_key", "3.0"),
         ("api", "access_logfile"): ("webserver", "access_logfile", "3.0"),
+        ("triggerer", "capacity"): ("triggerer", "default_capacity", "3.0"),
     }
 
     # A mapping of new section -> (old section, since_version).

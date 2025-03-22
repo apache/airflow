@@ -3580,7 +3580,7 @@
                         "query": {
                             "description": "Query to use for KEDA autoscaling. Must return a single integer.",
                             "type": "string",
-                            "default": "SELECT ceil(COUNT(*)::decimal / {{ .Values.config.triggerer.default_capacity }}) FROM trigger"
+                            "default": "SELECT ceil(COUNT(*)::decimal / {{ include \"triggerer.capacity\" . }}) FROM trigger"
                         },
                         "usePgbouncer": {
                             "description": "Whether to use PGBouncer to connect to the database or not when it is enabled. This configuration will be ignored if PGBouncer is not enabled.",

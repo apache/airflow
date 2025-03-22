@@ -124,7 +124,7 @@ of the options can be passed by `--flags` and some via environment variables, fo
 take a look at both if you want to be sure to reproduce the exact job configuration. See the next chapter
 for summary of the most important environment variables and options used in the CI jobs.
 
-You can read more about it in [Breeze](../README.rst) and [Testing](../../../../contributing-docs/09_testing.rst)
+You can read more about it in [Breeze](../README.rst) and [Testing](/contributing-docs/09_testing.rst)
 
 # Options and environment variables used
 

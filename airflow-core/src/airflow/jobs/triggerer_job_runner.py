@@ -95,7 +95,7 @@ class TriggererJobRunner(BaseJobRunner, LoggingMixin):
     ):
         super().__init__(job)
         if capacity is None:
-            self.capacity = conf.getint("triggerer", "default_capacity", fallback=1000)
+            self.capacity = conf.getint("triggerer", "capacity")
         elif isinstance(capacity, int) and capacity > 0:
             self.capacity = capacity
         else:

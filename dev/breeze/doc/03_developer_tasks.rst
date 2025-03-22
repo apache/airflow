@@ -616,7 +616,7 @@ Note that you can also use the local virtualenv for Airflow development without 
 This is a lightweight solution that has its own limitations.
 
 More details on using the local virtualenv are available in the
-`Local Virtualenv <../../../contributing-docs/07_local_virtualenv.rst>`_.
+`Local Virtualenv </contributing-docs/07_local_virtualenv.rst>`_.
 
 Auto-generating migration files
 -------------------------------

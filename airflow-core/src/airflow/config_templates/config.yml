@@ -2587,7 +2587,7 @@ scheduler:
 triggerer:
   description: ~
   options:
-    default_capacity:
+    capacity:
       description: |
         How many triggers a single Triggerer will run at once, by default.
       version_added: 2.2.0
