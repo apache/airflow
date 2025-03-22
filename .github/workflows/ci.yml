@@ -225,6 +225,7 @@ jobs:
     permissions:
       contents: read
       packages: write
+      id-token: write
     if: needs.build-info.outputs.canary-run == 'true'
     with:
       runs-on-as-json-default: ${{ needs.build-info.outputs.runs-on-as-json-default }}
