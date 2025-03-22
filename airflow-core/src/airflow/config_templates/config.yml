@@ -75,7 +75,7 @@ core:
       version_added: ~
       type: string
       example: ~
-      default: "SequentialExecutor"
+      default: "LocalExecutor"
     auth_manager:
       description: |
         The auth manager class that airflow should use. Full import path to the auth manager class.
