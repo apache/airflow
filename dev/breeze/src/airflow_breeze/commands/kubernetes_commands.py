@@ -603,7 +603,7 @@ COPY --chown=airflow:0 airflow-core/src/airflow/example_dags/ /opt/airflow/dags/
 
 COPY --chown=airflow:0 providers/cncf/kubernetes/src/airflow/providers/cncf/kubernetes/kubernetes_executor_templates/ /opt/airflow/pod_templates/
 
-ENV GUNICORN_CMD_ARGS='--preload' AIRFLOW__WEBSERVER__WORKER_REFRESH_INTERVAL=0
+ENV GUNICORN_CMD_ARGS='--preload'
 """
     image = f"{params.airflow_image_kubernetes}:latest"
     docker_build_result = run_command(

@@ -20,7 +20,12 @@ from __future__ import annotations
 
 import {{ pickling_library }}
 import sys
+import os
+# Setting the PYTHON_OPERATORS_VIRTUAL_ENV_MODE environment variable to 1,
+# helps to avoid the issue of re creating the orm session in the settings file, otherwise
+# it fails with airflow-db-not-allowed
 
+os.environ["PYTHON_OPERATORS_VIRTUAL_ENV_MODE"] = "1"
 {% if expect_airflow %}
  {# Check whether Airflow is available in the environment.
  # If it is, we'll want to ensure that we integrate any macros that are being provided

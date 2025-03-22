@@ -116,7 +116,22 @@ class TestTIRunState:
     def teardown_method(self):
         clear_db_runs()
 
-    def test_ti_run_state_to_running(self, client, session, create_task_instance, time_machine):
+    @pytest.mark.parametrize(
+        "max_tries, should_retry",
+        [
+            pytest.param(0, False, id="max_retries=0"),
+            pytest.param(3, True, id="should_retry"),
+        ],
+    )
+    def test_ti_run_state_to_running(
+        self,
+        client,
+        session,
+        create_task_instance,
+        time_machine,
+        max_tries,
+        should_retry,
+    ):
         """
         Test that the Task Instance state is updated to running when the Task Instance is in a state where it can be
         marked as running.
@@ -131,6 +146,7 @@ class TestTIRunState:
             session=session,
             start_date=instant,
         )
+        ti.max_tries = max_tries
         session.commit()
 
         response = client.patch(
@@ -160,7 +176,8 @@ class TestTIRunState:
                 "conf": {},
             },
             "task_reschedule_count": 0,
-            "max_tries": 0,
+            "max_tries": max_tries,
+            "should_retry": should_retry,
             "variables": [],
             "connections": [],
             "xcom_keys_to_clear": [],
@@ -210,7 +227,7 @@ class TestTIRunState:
         time_machine.move_to(instant, tick=False)
 
         ti = create_task_instance(
-            task_id="test_ti_run_state_to_running",
+            task_id="test_next_kwargs_still_encoded",
             state=State.QUEUED,
             session=session,
             start_date=instant,
@@ -238,6 +255,7 @@ class TestTIRunState:
             "dag_run": mock.ANY,
             "task_reschedule_count": 0,
             "max_tries": 0,
+            "should_retry": False,
             "variables": [],
             "connections": [],
             "xcom_keys_to_clear": [],
@@ -248,7 +266,10 @@ class TestTIRunState:
             },
         }
 
-    @pytest.mark.parametrize("initial_ti_state", [s for s in TaskInstanceState if s != State.QUEUED])
+    @pytest.mark.parametrize(
+        "initial_ti_state",
+        [s for s in TaskInstanceState if s not in (TaskInstanceState.QUEUED, TaskInstanceState.RESTARTING)],
+    )
     def test_ti_run_state_conflict_if_not_queued(
         self, client, session, create_task_instance, initial_ti_state
     ):
@@ -691,30 +712,17 @@ class TestTIUpdateState:
         assert trs[0].task_instance.map_index == -1
         assert trs[0].duration == 129600
 
-    @pytest.mark.parametrize(
-        ("retries", "expected_state"),
-        [
-            (0, State.FAILED),
-            (None, State.FAILED),
-            (3, State.UP_FOR_RETRY),
-        ],
-    )
-    def test_ti_update_state_to_failed_with_retries(
-        self, client, session, create_task_instance, retries, expected_state
-    ):
+    def test_ti_update_state_handle_retry(self, client, session, create_task_instance):
         ti = create_task_instance(
             task_id="test_ti_update_state_to_retry",
             state=State.RUNNING,
         )
-
-        if retries is not None:
-            ti.max_tries = retries
         session.commit()
 
         response = client.patch(
             f"/execution/task-instances/{ti.id}/state",
             json={
-                "state": TerminalTIState.FAILED,
+                "state": State.UP_FOR_RETRY,
                 "end_date": DEFAULT_END_DATE.isoformat(),
             },
         )
@@ -725,80 +733,19 @@ class TestTIUpdateState:
         session.expire_all()
 
         ti = session.get(TaskInstance, ti.id)
-        assert ti.state == expected_state
-        assert ti.next_method is None
-        assert ti.next_kwargs is None
-
-        tih = session.query(TaskInstanceHistory).where(
-            TaskInstanceHistory.task_id == ti.task_id, TaskInstanceHistory.task_instance_id == ti.id
-        )
-        tih_count = tih.count()
-        assert tih_count == (1 if retries else 0)
-        if retries:
-            tih = tih.one()
-            assert tih.try_id
-            assert tih.try_id != ti.try_id
-
-    def test_ti_update_state_when_ti_is_restarting(self, client, session, create_task_instance):
-        ti = create_task_instance(
-            task_id="test_ti_update_state_when_ti_is_restarting",
-            state=State.RUNNING,
-        )
-        # update state to restarting
-        ti.state = State.RESTARTING
-        session.commit()
-
-        response = client.patch(
-            f"/execution/task-instances/{ti.id}/state",
-            json={
-                "state": TerminalTIState.FAILED,
-                "end_date": DEFAULT_END_DATE.isoformat(),
-            },
-        )
-
-        assert response.status_code == 204
-        assert response.text == ""
-
-        session.expire_all()
-
-        ti = session.get(TaskInstance, ti.id)
-        # restarting is always retried
         assert ti.state == State.UP_FOR_RETRY
         assert ti.next_method is None
         assert ti.next_kwargs is None
 
-    def test_ti_update_state_when_ti_has_higher_tries_than_retries(
-        self, client, session, create_task_instance
-    ):
-        ti = create_task_instance(
-            task_id="test_ti_update_state_when_ti_has_higher_tries_than_retries",
-            state=State.RUNNING,
+        tih = (
+            session.query(TaskInstanceHistory)
+            .where(TaskInstanceHistory.task_id == ti.task_id, TaskInstanceHistory.task_instance_id == ti.id)
+            .one()
         )
-        # two maximum tries defined, but third try going on
-        ti.max_tries = 2
-        ti.try_number = 3
-        session.commit()
+        assert tih.try_id
+        assert tih.try_id != ti.try_id
 
-        response = client.patch(
-            f"/execution/task-instances/{ti.id}/state",
-            json={
-                "state": TerminalTIState.FAILED,
-                "end_date": DEFAULT_END_DATE.isoformat(),
-            },
-        )
-
-        assert response.status_code == 204
-        assert response.text == ""
-
-        session.expire_all()
-
-        ti = session.get(TaskInstance, ti.id)
-        # all retries exhausted, marking as failed
-        assert ti.state == State.FAILED
-        assert ti.next_method is None
-        assert ti.next_kwargs is None
-
-    def test_ti_update_state_to_failed_without_retry_table_check(self, client, session, create_task_instance):
+    def test_ti_update_state_to_failed_table_check(self, client, session, create_task_instance):
         # we just want to fail in this test, no need to retry
         ti = create_task_instance(
             task_id="test_ti_update_state_to_failed_table_check",
@@ -810,7 +757,7 @@ class TestTIUpdateState:
         response = client.patch(
             f"/execution/task-instances/{ti.id}/state",
             json={
-                "state": TerminalTIState.FAIL_WITHOUT_RETRY,
+                "state": TerminalTIState.FAILED,
                 "end_date": DEFAULT_END_DATE.isoformat(),
             },
         )

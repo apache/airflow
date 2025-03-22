@@ -899,8 +899,6 @@ class ProvidersManager(LoggingMixin, metaclass=Singleton):
         :param package_name: provider package - only needed in case connection_type is missing
         : return
         """
-        from wtforms import BooleanField, IntegerField, PasswordField, StringField
-
         if connection_type is None and hook_class_name is None:
             raise ValueError("Either connection_type or hook_class_name must be set")
         if connection_type is not None and hook_class_name is not None:
@@ -919,18 +917,19 @@ class ProvidersManager(LoggingMixin, metaclass=Singleton):
                 raise ValueError(
                     f"Provider package name is not set when hook_class_name ({hook_class_name}) is used"
                 )
-        allowed_field_classes = [IntegerField, PasswordField, StringField, BooleanField]
         hook_class: type[BaseHook] | None = _correctness_check(package_name, hook_class_name, provider_info)
         if hook_class is None:
             return None
         try:
+            from wtforms import BooleanField, IntegerField, PasswordField, StringField
+
+            allowed_field_classes = [IntegerField, PasswordField, StringField, BooleanField]
             module, class_name = hook_class_name.rsplit(".", maxsplit=1)
             # Do not use attr here. We want to check only direct class fields not those
             # inherited from parent hook. This way we add form fields only once for the whole
             # hierarchy and we add it only from the parent hook that provides those!
             if "get_connection_form_widgets" in hook_class.__dict__:
                 widgets = hook_class.get_connection_form_widgets()
-
                 if widgets:
                     for widget in widgets.values():
                         if widget.field_class not in allowed_field_classes:
@@ -948,8 +947,8 @@ class ProvidersManager(LoggingMixin, metaclass=Singleton):
                 if field_behaviours:
                     self._add_customized_fields(package_name, hook_class, field_behaviours)
         except ImportError as e:
-            if "No module named 'flask_appbuilder'" in e.msg:
-                log.warning(
+            if e.name in ["flask_appbuilder", "wtforms"]:
+                log.info(
                     "The hook_class '%s' is not fully initialized (UI widgets will be missing), because "
                     "the 'flask_appbuilder' package is not installed, however it is not required for "
                     "Airflow components to work",

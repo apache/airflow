@@ -405,7 +405,7 @@ def publish_release_candidate(version, previous_version, github_token):
     # # Tag & clean the repo
     git_tag(version)
     git_clean()
-    source_date_epoch = get_source_date_epoch(AIRFLOW_ROOT_PATH / "airflow")
+    source_date_epoch = get_source_date_epoch(AIRFLOW_ROOT_PATH)
     shutil.rmtree(AIRFLOW_DIST_PATH, ignore_errors=True)
     # Create the artifacts
     if confirm_action("Use docker to create artifacts?"):

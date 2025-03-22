@@ -484,6 +484,7 @@ def noop_handler(request: httpx.Request) -> httpx.Response:
                     "run_after": "2021-01-01T00:00:00Z",
                 },
                 "max_tries": 0,
+                "should_retry": False,
             },
         )
     return httpx.Response(200, json={"text": "Hello, world!"})

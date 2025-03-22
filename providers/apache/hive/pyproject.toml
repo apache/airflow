@@ -91,6 +91,9 @@ dependencies = [
 "vertica" = [
     "apache-airflow-providers-vertica"
 ]
+"common.compat" = [
+    "apache-airflow-providers-common-compat"
+]
 
 [dependency-groups]
 dev = [
@@ -98,6 +101,7 @@ dev = [
     "apache-airflow-task-sdk",
     "apache-airflow-devel-common",
     "apache-airflow-providers-amazon",
+    "apache-airflow-providers-common-compat",
     "apache-airflow-providers-common-sql",
     "apache-airflow-providers-microsoft-mssql",
     "apache-airflow-providers-mysql",

@@ -270,7 +270,7 @@ repos:
       - id: python-no-log-warn
         name: Check if there are no deprecate log warn
   - repo: https://github.com/adrienverge/yamllint
-    rev: v1.35.1
+    rev: v1.36.2
     hooks:
       - id: yamllint
         name: Check YAML files with yamllint
@@ -314,7 +314,7 @@ repos:
           - --skip=providers/.*/src/airflow/providers/*/*.rst,providers/*/docs/changelog.rst,docs/*/commits.rst,providers/*/docs/commits.rst,providers/*/*/docs/commits.rst,docs/apache-airflow/tutorial/pipeline_example.csv,*.min.js,*.lock,INTHEWILD.md
           - --exclude-file=.codespellignorelines
   - repo: https://github.com/woodruffw/zizmor-pre-commit
-    rev: v1.4.1
+    rev: v1.5.1
     hooks:
       - id: zizmor
         name: Run zizmor to check for github workflow syntax errors
@@ -1356,7 +1356,7 @@ repos:
         name: Check templated fields mapped in operators/sensors
         language: python
         entry: ./scripts/ci/pre_commit/check_template_fields.py
-        files: ^(providers/.*/)?airflow/.*/(sensors|operators)/.*\.py$
+        files: ^(providers/.*/)?airflow-core/.*/(sensors|operators)/.*\.py$
         additional_dependencies: [ 'rich>=12.4.4' ]
         require_serial: true
       - id: update-migration-references

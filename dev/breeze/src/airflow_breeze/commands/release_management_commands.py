@@ -239,7 +239,7 @@ class VersionedFile(NamedTuple):
 
 
 AIRFLOW_PIP_VERSION = "25.0.1"
-AIRFLOW_UV_VERSION = "0.6.8"
+AIRFLOW_UV_VERSION = "0.6.9"
 AIRFLOW_USE_UV = False
 # TODO(potiuk): automate upgrades of these versions (likely via requirements.txt file)
 GITPYTHON_VERSION = "3.1.44"
@@ -247,7 +247,7 @@ RICH_VERSION = "13.9.4"
 PRE_COMMIT_VERSION = "4.2.0"
 HATCH_VERSION = "1.14.0"
 PYYAML_VERSION = "6.0.2"
-UV_VERSION = "0.6.6"
+UV_VERSION = "0.6.9"
 
 # no need for pre-commit-uv. Those commands will only ever initialize the compile-www-assets
 # pre-commit environment and this is done with node, no python installation is needed.

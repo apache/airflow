@@ -66,7 +66,6 @@ class TerminalStateNonSuccess(str, Enum):
     FAILED = TerminalTIState.FAILED
     SKIPPED = TerminalTIState.SKIPPED
     REMOVED = TerminalTIState.REMOVED
-    FAIL_WITHOUT_RETRY = TerminalTIState.FAIL_WITHOUT_RETRY
 
 
 class TITerminalStatePayload(StrictBaseModel):
@@ -157,6 +156,23 @@ class TIRescheduleStatePayload(StrictBaseModel):
     end_date: UtcDateTime
 
 
+class TIRetryStatePayload(StrictBaseModel):
+    """Schema for updating TaskInstance to up_for_retry."""
+
+    state: Annotated[
+        Literal[IntermediateTIState.UP_FOR_RETRY],
+        # Specify a default in the schema, but not in code, so Pydantic marks it as required.
+        WithJsonSchema(
+            {
+                "type": "string",
+                "enum": [IntermediateTIState.UP_FOR_RETRY],
+                "default": IntermediateTIState.UP_FOR_RETRY,
+            }
+        ),
+    ]
+    end_date: UtcDateTime
+
+
 class TISkippedDownstreamTasksStatePayload(StrictBaseModel):
     """Schema for updating downstream tasks to a skipped state."""
 
@@ -185,6 +201,8 @@ def ti_state_discriminator(v: dict[str, str] | StrictBaseModel) -> str:
         return "deferred"
     elif state == TIState.UP_FOR_RESCHEDULE:
         return "up_for_reschedule"
+    elif state == TIState.UP_FOR_RETRY:
+        return "up_for_retry"
     return "_other_"
 
 
@@ -197,6 +215,7 @@ TIStateUpdate = Annotated[
         Annotated[TITargetStatePayload, Tag("_other_")],
         Annotated[TIDeferredStatePayload, Tag("deferred")],
         Annotated[TIRescheduleStatePayload, Tag("up_for_reschedule")],
+        Annotated[TIRetryStatePayload, Tag("up_for_retry")],
     ],
     Discriminator(ti_state_discriminator),
 ]
@@ -275,6 +294,9 @@ class TIRunContext(BaseModel):
 
     xcom_keys_to_clear: Annotated[list[str], Field(default_factory=list)]
     """List of Xcom keys that need to be cleared and purged on by the worker."""
+
+    should_retry: bool
+    """If the ti encounters an error, whether it should enter retry or failed state."""
 
 
 class PrevSuccessfulDagRunResponse(BaseModel):

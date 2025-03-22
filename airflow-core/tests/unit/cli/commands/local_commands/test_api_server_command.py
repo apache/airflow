@@ -41,7 +41,7 @@ class TestCliApiServer(_CommonCLIGunicornTestClass):
                 [
                     "fastapi",
                     "dev",
-                    "airflow/api_fastapi/main.py",
+                    "airflow-core/src/airflow/api_fastapi/main.py",
                     "--port",
                     "9092",
                     "--host",
@@ -53,7 +53,7 @@ class TestCliApiServer(_CommonCLIGunicornTestClass):
                 [
                     "fastapi",
                     "dev",
-                    "airflow/api_fastapi/main.py",
+                    "airflow-core/src/airflow/api_fastapi/main.py",
                     "--port",
                     "9092",
                     "--host",
@@ -107,7 +107,7 @@ class TestCliApiServer(_CommonCLIGunicornTestClass):
                 [
                     "fastapi",
                     "dev",
-                    "airflow/api_fastapi/main.py",
+                    "airflow-core/src/airflow/api_fastapi/main.py",
                     "--port",
                     port,
                     "--host",

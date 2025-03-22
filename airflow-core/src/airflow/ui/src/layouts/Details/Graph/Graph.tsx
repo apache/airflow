@@ -24,7 +24,6 @@ import { useLocalStorage } from "usehooks-ts";
 
 import {
   useDagRunServiceGetDagRun,
-  useDependenciesServiceGetDependencies,
   useGridServiceGridData,
   useStructureServiceStructureData,
 } from "openapi/queries";
@@ -32,6 +31,7 @@ import { AliasNode } from "src/components/Graph/AliasNode";
 import { AssetConditionNode } from "src/components/Graph/AssetConditionNode";
 import { AssetNode } from "src/components/Graph/AssetNode";
 import { DagNode } from "src/components/Graph/DagNode";
+import { DownloadButton } from "src/components/Graph/DownloadButton";
 import Edge from "src/components/Graph/Edge";
 import { JoinNode } from "src/components/Graph/JoinNode";
 import { TaskNode } from "src/components/Graph/TaskNode";
@@ -40,6 +40,7 @@ import { useGraphLayout } from "src/components/Graph/useGraphLayout";
 import { useColorMode } from "src/context/colorMode";
 import { useOpenGroups } from "src/context/openGroups";
 import useSelectedVersion from "src/hooks/useSelectedVersion";
+import { useDependencyGraph } from "src/queries/useDependencyGraph";
 import { isStatePending, useAutoRefresh } from "src/utils";
 
 const nodeColor = (
@@ -103,11 +104,9 @@ export const Graph = () => {
     versionNumber: selectedVersion,
   });
 
-  const { data: dagDependencies = { edges: [], nodes: [] } } = useDependenciesServiceGetDependencies(
-    { nodeId: `dag:${dagId}` },
-    undefined,
-    { enabled: dependencies === "all" },
-  );
+  const { data: dagDependencies = { edges: [], nodes: [] } } = useDependencyGraph(`dag:${dagId}`, {
+    enabled: dependencies === "all",
+  });
 
   const { data: dagRun } = useDagRunServiceGetDagRun(
     {
@@ -122,7 +121,6 @@ export const Graph = () => {
   const dagDepNodes = dependencies === "all" ? dagDependencies.nodes : [];
 
   const { data } = useGraphLayout({
-    dagId,
     direction: "RIGHT",
     edges: [...graphData.edges, ...dagDepEdges],
     nodes: dagDepNodes.length
@@ -212,8 +210,10 @@ export const Graph = () => {
         }
         nodeStrokeWidth={15}
         pannable
+        style={{ height: 150, width: 200 }}
         zoomable
       />
+      <DownloadButton dagId={dagId} />
     </ReactFlow>
   );
 };

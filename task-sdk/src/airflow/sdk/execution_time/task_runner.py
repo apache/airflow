@@ -60,6 +60,7 @@ from airflow.sdk.execution_time.comms import (
     GetDagRunState,
     OKResponse,
     RescheduleTask,
+    RetryTask,
     RuntimeCheckOnTask,
     SetRenderedFields,
     SkipDownstreamTasks,
@@ -76,6 +77,7 @@ from airflow.sdk.execution_time.context import (
     MacrosAccessor,
     OutletEventAccessors,
     VariableAccessor,
+    context_to_airflow_vars,
     get_previous_dagrun_success,
     set_current_context,
 )
@@ -655,19 +657,15 @@ def run(
         # TODO: Handle fail_stop here: https://github.com/apache/airflow/issues/44951
         # TODO: Handle addition to Log table: https://github.com/apache/airflow/issues/44952
         msg = TaskState(
-            state=TerminalTIState.FAIL_WITHOUT_RETRY,
-            end_date=datetime.now(tz=timezone.utc),
-        )
-        state = TerminalTIState.FAIL_WITHOUT_RETRY
-        error = e
-    except (AirflowTaskTimeout, AirflowException) as e:
-        # We should allow retries if the task has defined it.
-        log.exception("Task failed with exception")
-        msg = TaskState(
             state=TerminalTIState.FAILED,
             end_date=datetime.now(tz=timezone.utc),
         )
         state = TerminalTIState.FAILED
+        error = e
+    except (AirflowTaskTimeout, AirflowException) as e:
+        # We should allow retries if the task has defined it.
+        log.exception("Task failed with exception")
+        msg, state = _handle_current_task_failed(ti)
         error = e
     except AirflowTaskTerminated as e:
         # External state updates are already handled with `ti_heartbeat` and will be
@@ -675,24 +673,19 @@ def run(
         # If these are thrown, we should mark the TI state as failed.
         log.exception("Task failed with exception")
         msg = TaskState(
-            state=TerminalTIState.FAIL_WITHOUT_RETRY,
-            end_date=datetime.now(tz=timezone.utc),
-        )
-        state = TerminalTIState.FAIL_WITHOUT_RETRY
-        error = e
-    except SystemExit as e:
-        # SystemExit needs to be retried if they are eligible.
-        log.exception("Task failed with exception")
-        msg = TaskState(
             state=TerminalTIState.FAILED,
             end_date=datetime.now(tz=timezone.utc),
         )
         state = TerminalTIState.FAILED
         error = e
+    except SystemExit as e:
+        # SystemExit needs to be retried if they are eligible.
+        log.exception("Task failed with exception")
+        msg, state = _handle_current_task_failed(ti)
+        error = e
     except BaseException as e:
         log.exception("Task failed with exception")
-        msg = TaskState(state=TerminalTIState.FAILED, end_date=datetime.now(tz=timezone.utc))
-        state = TerminalTIState.FAILED
+        msg, state = _handle_current_task_failed(ti)
         error = e
     finally:
         if msg:
@@ -701,7 +694,10 @@ def run(
     return state, msg, error
 
 
-def _handle_current_task_success(context: Context, ti: RuntimeTaskInstance):
+def _handle_current_task_success(
+    context: Context,
+    ti: RuntimeTaskInstance,
+) -> tuple[SucceedTask, TerminalTIState]:
     task_outlets = list(_build_asset_profiles(ti.task.outlets))
     outlet_events = list(_serialize_outlet_events(context["outlet_events"]))
     msg = SucceedTask(
@@ -712,9 +708,18 @@ def _handle_current_task_success(context: Context, ti: RuntimeTaskInstance):
     return msg, TerminalTIState.SUCCESS
 
 
+def _handle_current_task_failed(
+    ti: RuntimeTaskInstance,
+) -> tuple[RetryTask, IntermediateTIState] | tuple[TaskState, TerminalTIState]:
+    end_date = datetime.now(tz=timezone.utc)
+    if ti._ti_context_from_server and ti._ti_context_from_server.should_retry:
+        return RetryTask(end_date=end_date), IntermediateTIState.UP_FOR_RETRY
+    return TaskState(state=TerminalTIState.FAILED, end_date=end_date), TerminalTIState.FAILED
+
+
 def _handle_trigger_dag_run(
     drte: DagRunTriggerException, context: Context, ti: RuntimeTaskInstance, log: Logger
-):
+) -> tuple[ToSupervisor, TerminalTIState]:
     """Handle exception from TriggerDagRunOperator."""
     log.info("Triggering Dag Run.", trigger_dag_id=drte.trigger_dag_id)
     SUPERVISOR_COMMS.send_request(
@@ -784,9 +789,7 @@ def _handle_trigger_dag_run(
                 state=comms_msg.state,
             )
 
-    msg, state = _handle_current_task_success(context, ti)
-
-    return msg, state
+    return _handle_current_task_success(context, ti)
 
 
 def _execute_task(context: Context, ti: RuntimeTaskInstance, log: Logger):
@@ -806,6 +809,10 @@ def _execute_task(context: Context, ti: RuntimeTaskInstance, log: Logger):
     ctx = contextvars.copy_context()
     # Populate the context var so ExecutorSafeguard doesn't complain
     ctx.run(ExecutorSafeguard.tracker.set, task)
+
+    # Export context in os.environ to make it available for operators to use.
+    airflow_context_vars = context_to_airflow_vars(context, in_env_var_format=True)
+    os.environ.update(airflow_context_vars)
 
     for i, callback in enumerate(task.on_execute_callback):
         try:
@@ -881,7 +888,10 @@ def _push_xcom_if_needed(result: Any, ti: RuntimeTaskInstance, log: Logger):
 
 
 def finalize(
-    ti: RuntimeTaskInstance, state: TerminalTIState, log: Logger, error: BaseException | None = None
+    ti: RuntimeTaskInstance,
+    state: IntermediateTIState | TerminalTIState,
+    log: Logger,
+    error: BaseException | None = None,
 ):
     # Pushing xcom for each operator extra links defined on the operator only.
     for oe in ti.task.operator_extra_links:
@@ -889,13 +899,28 @@ def finalize(
         log.debug("Setting xcom for operator extra link", link=link, xcom_key=xcom_key)
         _xcom_push(ti, key=xcom_key, value=link)
 
+    if getattr(ti.task, "overwrite_rtif_after_execution", False):
+        log.debug("Overwriting Rendered template fields.")
+        if ti.task.template_fields:
+            SUPERVISOR_COMMS.send_request(
+                log=log,
+                msg=SetRenderedFields(
+                    rendered_fields={field: getattr(ti.task, field) for field in ti.task.template_fields}
+                ),
+            )
+
     log.debug("Running finalizers", ti=ti)
-    if state in [TerminalTIState.SUCCESS]:
+    if state == TerminalTIState.SUCCESS:
         get_listener_manager().hook.on_task_instance_success(
             previous_state=TaskInstanceState.RUNNING, task_instance=ti
         )
         # TODO: Run task success callbacks here
-    if state in [TerminalTIState.FAILED, TerminalTIState.FAIL_WITHOUT_RETRY]:
+    elif state == IntermediateTIState.UP_FOR_RETRY:
+        get_listener_manager().hook.on_task_instance_failed(
+            previous_state=TaskInstanceState.RUNNING, task_instance=ti, error=error
+        )
+        # TODO: Run task retry callbacks here
+    elif state == TerminalTIState.FAILED:
         get_listener_manager().hook.on_task_instance_failed(
             previous_state=TaskInstanceState.RUNNING, task_instance=ti, error=error
         )
