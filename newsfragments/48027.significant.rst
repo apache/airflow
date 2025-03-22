@@ -10,5 +10,5 @@ Nothing is using the dependencies that are installed in the ``password`` extra (
   * [ ] CLI changes
   * [ ] Behaviour changes
   * [ ] Plugin changes
-  * [ ] Dependency changes
+  * [x] Dependency changes
   * [ ] Code interface changes
