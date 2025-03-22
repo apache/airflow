@@ -1,3 +1,5 @@
+/* eslint-disable max-lines */
+
 /*!
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
@@ -16,7 +18,18 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Input, Button, Box, Spacer, HStack, Field, Stack, VStack, Textarea } from "@chakra-ui/react";
+import {
+  Input,
+  Button,
+  Box,
+  Spacer,
+  HStack,
+  Field,
+  Stack,
+  VStack,
+  Textarea,
+  Spinner,
+} from "@chakra-ui/react";
 import { Select } from "chakra-react-select";
 import { useEffect, useState } from "react";
 import { useForm, Controller } from "react-hook-form";
@@ -26,22 +39,31 @@ import { ErrorAlert } from "src/components/ErrorAlert";
 import { FlexibleForm, flexibleFormExtraFieldSection } from "src/components/FlexibleForm";
 import { JsonEditor } from "src/components/JsonEditor";
 import { Accordion } from "src/components/ui";
-import { useAddConnection } from "src/queries/useAddConnection";
-import type { ConnectionMetaEntry } from "src/queries/useConnectionTypeMeta";
+import { useConnectionTypeMeta } from "src/queries/useConnectionTypeMeta";
 import type { ParamsSpec } from "src/queries/useDagParams";
 import { useParamStore } from "src/queries/useParamStore";
 
-import type { AddConnectionParams } from "./AddConnectionButton";
+import type { ConnectionBody } from "./AddConnectionButton";
 
 type AddConnectionFormProps = {
-  readonly connectionTypeMeta: Record<string, ConnectionMetaEntry>;
-  readonly connectionTypes: Array<string>;
-  readonly onClose: () => void;
+  readonly error: unknown;
+  readonly initialConnection: ConnectionBody;
+  readonly isPending: boolean;
+  readonly mutateConnection: (requestBody: ConnectionBody) => void;
 };
 
-const ConnectionForm = ({ connectionTypeMeta, connectionTypes, onClose }: AddConnectionFormProps) => {
+const ConnectionForm = ({
+  error,
+  initialConnection,
+  isPending,
+  mutateConnection,
+}: AddConnectionFormProps) => {
   const [errors, setErrors] = useState<{ conf?: string }>({});
-  const { addConnection, error, isPending } = useAddConnection({ onSuccessConfirm: onClose });
+  const {
+    formattedData: connectionTypeMeta,
+    isPending: isMetaPending,
+    keysList: connectionTypes,
+  } = useConnectionTypeMeta();
   const { conf, setConf } = useParamStore();
   const [showPassword, setShowPassword] = useState(false);
   const {
@@ -50,18 +72,8 @@ const ConnectionForm = ({ connectionTypeMeta, connectionTypes, onClose }: AddCon
     handleSubmit,
     reset,
     watch,
-  } = useForm<AddConnectionParams>({
-    defaultValues: {
-      conf,
-      conn_type: "",
-      connection_id: "",
-      description: "",
-      host: "",
-      login: "",
-      password: "",
-      port: "",
-      schema: "",
-    },
+  } = useForm<ConnectionBody>({
+    defaultValues: initialConnection,
     mode: "onBlur",
   });
 
@@ -71,16 +83,12 @@ const ConnectionForm = ({ connectionTypeMeta, connectionTypes, onClose }: AddCon
 
   useEffect(() => {
     reset((prevValues) => ({
-      ...prevValues,
+      ...initialConnection,
       conn_type: selectedConnType,
-      description: "",
-      host: "",
-      login: "",
-      password: "",
-      port: "",
-      schema: "",
+      connection_id: prevValues.connection_id,
     }));
-  }, [selectedConnType, reset]);
+    setConf(JSON.stringify(JSON.parse(initialConnection.conf), undefined, 2));
+  }, [selectedConnType, reset, initialConnection, setConf]);
 
   // Automatically reset form when conf is fetched
   useEffect(() => {
@@ -90,8 +98,8 @@ const ConnectionForm = ({ connectionTypeMeta, connectionTypes, onClose }: AddCon
     }));
   }, [conf, reset, setConf]);
 
-  const onSubmit = (data: AddConnectionParams) => {
-    addConnection(data);
+  const onSubmit = (data: ConnectionBody) => {
+    mutateConnection(data);
   };
 
   const validateAndPrettifyJson = (value: string) => {
@@ -159,13 +167,19 @@ const ConnectionForm = ({ connectionTypeMeta, connectionTypes, onClose }: AddCon
                 </Field.Label>
               </Stack>
               <Stack css={{ flexBasis: "70%" }}>
-                <Select
-                  {...Field}
-                  onChange={(val) => onChange(val?.value)}
-                  options={connTypesOptions}
-                  placeholder="Select Connection Type"
-                  value={connTypesOptions.find((type) => type.value === value)}
-                />
+                <Stack>
+                  {isMetaPending ? (
+                    <Spinner size="sm" style={{ left: "60%", position: "absolute", top: "20%" }} />
+                  ) : undefined}
+                  <Select
+                    {...Field}
+                    isDisabled={isMetaPending}
+                    onChange={(val) => onChange(val?.value)}
+                    options={connTypesOptions}
+                    placeholder="Select Connection Type"
+                    value={connTypesOptions.find((type) => type.value === value)}
+                  />
+                </Stack>
                 <Field.HelperText>
                   Connection type missing? Make sure you have installed the corresponding Airflow Providers
                   Package.
@@ -200,7 +214,7 @@ const ConnectionForm = ({ connectionTypeMeta, connectionTypes, onClose }: AddCon
                       <Controller
                         control={control}
                         key={key}
-                        name={key as keyof AddConnectionParams}
+                        name={key as keyof ConnectionBody}
                         render={({ field }) => (
                           <Field.Root mt={3} orientation="horizontal">
                             <Stack>
@@ -286,7 +300,6 @@ const ConnectionForm = ({ connectionTypeMeta, connectionTypes, onClose }: AddCon
         </HStack>
       </Box>
     </>
-    // eslint-disable-next-line max-lines
   );
 };
 
