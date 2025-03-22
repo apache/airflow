@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2025-03-21T14:14:03.653607
+# This constraints file was automatically generated on 2025-03-22T08:11:44.226275
 # via "eager-upgrade" mechanism of PIP. For the "main" branch of Airflow.
 # This variant of constraints install just the 'bare' 'apache-airflow' package build from the HEAD of
 # the branch, without installing any of the providers.
@@ -57,7 +57,7 @@ bcrypt==4.3.0
 blinker==1.9.0
 botocore==1.37.1
 cachelib==0.13.0
-cadwyn==5.1.2
+cadwyn==5.1.3
 certifi==2025.1.31
 cffi==1.17.1
 cgroupspy==0.2.3
@@ -197,7 +197,7 @@ uc-micro-py==1.0.3
 universal_pathlib==0.2.6
 urllib3==1.26.20
 uuid6==2024.7.10
-uv==0.6.8
+uv==0.6.9
 uvicorn==0.34.0
 uvloop==0.21.0
 vine==5.1.0
