@@ -23,7 +23,6 @@ import subprocess
 import time
 from typing import Any
 
-import pendulum
 import pytest
 
 from airflow.executors import executor_loader
@@ -31,6 +30,7 @@ from airflow.executors.executor_utils import ExecutorName
 from airflow.models import DAG, DagBag, DagRun
 from airflow.models.serialized_dag import SerializedDagModel
 from airflow.models.taskinstance import TaskInstance
+from airflow.utils import timezone
 from airflow.utils.session import create_session
 from airflow.utils.span_status import SpanStatus
 from airflow.utils.state import State
@@ -55,7 +55,7 @@ def unpause_trigger_dag_and_get_run_id(dag_id: str) -> str:
     # Unpause the dag using the cli.
     subprocess.run(unpause_command, check=True, env=os.environ.copy())
 
-    execution_date = pendulum.now("UTC")
+    execution_date = timezone.utcnow()
     run_id = f"manual__{execution_date.isoformat()}"
 
     trigger_command = [
@@ -79,9 +79,9 @@ def wait_for_dag_run_and_check_span_status(
     dag_id: str, run_id: str, max_wait_time: int, span_status: str | None
 ):
     # max_wait_time, is the timeout for the DAG run to complete. The value is in seconds.
-    start_time = time.time()
+    start_time = timezone.utcnow().timestamp()
 
-    while time.time() - start_time < max_wait_time:
+    while timezone.utcnow().timestamp() - start_time < max_wait_time:
         with create_session() as session:
             dag_run = (
                 session.query(DagRun)
