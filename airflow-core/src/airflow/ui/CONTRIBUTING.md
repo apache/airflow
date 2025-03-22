@@ -32,4 +32,4 @@ Manually:
 
 ## More
 
-See [node environment setup docs](../../contributing-docs/14_node_environment_setup.rst)
+See [node environment setup docs](/contributing-docs/14_node_environment_setup.rst)
