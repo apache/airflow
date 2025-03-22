@@ -57,6 +57,7 @@ POSSIBLE_TEST_FOLDERS = [
     "models",
     "notifications",
     "operators",
+    "otel",
     "plugins",
     "providers",
     "secrets",
