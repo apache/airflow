@@ -37,5 +37,3 @@ In addition to the standard logging and metrics capabilities, Airflow supports t
 
     check-health
     errors
-
-    tracking-user-activity
