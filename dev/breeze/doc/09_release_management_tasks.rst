@@ -689,3 +689,27 @@ default is to build ``both`` type of packages ``sdist`` and ``wheel``.
   :target: https://raw.githubusercontent.com/apache/airflow/main/dev/breeze/doc/images/output_release-management_prepare-task-sdk-distributions.svg
   :width: 100%
   :alt: Breeze release-management prepare-task-sdk-distributions
+
+
+Preparing airflow ctl packages
+"""""""""""""""""""""""""""""""""""
+
+You can prepare airflow packages using Breeze:
+
+.. code-block:: bash
+
+     breeze release-management prepare-airflow-ctl-distributions
+
+This prepares airflow Task SDK .whl package in the dist folder.
+
+Again, you can specify optional ``--distribution-format`` flag to build selected formats of the Task SDK packages,
+default is to build ``both`` type of packages ``sdist`` and ``wheel``.
+
+.. code-block:: bash
+
+     breeze release-management prepare-airflow-ctl-distributions --distribution-format=wheel
+
+.. image:: ./images/output_release-management_prepare-airflow-ctl-distributions.svg
+  :target: https://raw.githubusercontent.com/apache/airflow/main/dev/breeze/doc/images/output_release-management_prepare-airflow-ctl-distributions.svg
+  :width: 100%
+  :alt: Breeze release-management prepare-airflow-ctl-distributions

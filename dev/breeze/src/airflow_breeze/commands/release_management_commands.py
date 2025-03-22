@@ -302,12 +302,14 @@ class DistributionPackageInfo(NamedTuple):
         *,
         distribution_format: str,
         dist_directory: Path,
-        build_type: Literal["airflow", "providers", "task-sdk"],
+        build_type: Literal["airflow", "providers", "task-sdk", "airflow-ctl"],
     ) -> tuple[DistributionPackageInfo, ...]:
         if build_type == "airflow":
             default_glob_patterns = ["apache_airflow-", "apache_airflow_core-"]
         elif build_type == "task-sdk":
             default_glob_patterns = ["apache_airflow_task_sdk"]
+        elif build_type == "airflow-ctl":
+            default_glob_pattern = "apache-airflow-ctl"
         else:
             default_glob_patterns = ["apache_airflow_providers"]
         dists_info = []

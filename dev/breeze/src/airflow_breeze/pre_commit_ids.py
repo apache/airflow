@@ -121,6 +121,7 @@ PRE_COMMIT_LIST = [
     "mypy-docs",
     "mypy-providers",
     "mypy-task-sdk",
+    "mypy-airflow-ctl",
     "pretty-format-json",
     "pylint",
     "python-no-log-warn",
