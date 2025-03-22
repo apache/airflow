@@ -47,8 +47,11 @@ Installing pre-commit hooks
 
 It is the best to use pre-commit hooks when you have your local virtualenv for
 Airflow activated since then pre-commit hooks and other dependencies are
-automatically installed. You can also install the pre-commit hooks manually
-using ``pip install``.
+automatically installed. You can also install the pre-commit hooks manually using ``uv`` or ``pip``.
+
+.. code-block:: bash
+
+    uv tool install pre-commit
 
 .. code-block:: bash
 
