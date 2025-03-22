@@ -2649,45 +2649,170 @@ class TaskInstance(Base, LoggingMixin):
         """
         Get datetime of the next retry if the task instance fails.
 
+        Calculates the next retry datetime with support for exponential backoff.
+        The method handles large retry numbers and delays safely, preventing
+        float overflow and scheduler crashes.
+
         For exponential backoff, retry_delay is used as base and will be converted to seconds.
+
+        Also, if DAG started after many retries, worked, for instance, 4 hours and then falls down
+        then next try starts with retry delay, not with max_retry_delay or calculated with exponential backoff delay
         """
         from airflow.models.abstractoperator import MAX_RETRY_DELAY
+        from airflow.utils import timezone
+        import logging
+        import math
+        import hashlib
+        from datetime import timedelta
 
+        max_time_between_tries = 4 * 3600 # if there is more than 4 hours (in seconds) between tries then we use base delay
+
+        # Get base delay from DAG config
+        current_time = timezone.utcnow()
+        last_attempt_end = self.end_date  # End time of last retry
+
+        # Apply exponential backoff if exponential backoff is True
         delay = self.task.retry_delay
-        if self.task.retry_exponential_backoff:
-            # If the min_backoff calculation is below 1, it will be converted to 0 via int. Thus,
-            # we must round up prior to converting to an int, otherwise a divide by zero error
-            # will occur in the modded_hash calculation.
-            # this probably gives unexpected results if a task instance has previously been cleared,
-            # because try_number can increase without bound
-            min_backoff = math.ceil(delay.total_seconds() * (2 ** (self.try_number - 1)))
 
-            # In the case when delay.total_seconds() is 0, min_backoff will not be rounded up to 1.
-            # To address this, we impose a lower bound of 1 on min_backoff. This effectively makes
-            # the ceiling function unnecessary, but the ceiling function was retained to avoid
-            # introducing a breaking change.
-            if min_backoff < 1:
-                min_backoff = 1
-
-            # deterministic per task instance
-            ti_hash = int(
-                hashlib.sha1(
-                    f"{self.dag_id}#{self.task_id}#{self.execution_date}#{self.try_number}".encode()
-                ).hexdigest(),
-                16,
+        # Check if there is 4 hours from last retry
+        if last_attempt_end and (current_time - last_attempt_end).total_seconds() > max_time_between_tries:
+            # If 4 hours from last retry, then use base delay
+            logging.info(
+                f"More than 4 hours passed since last attempt in DAG {self.dag_id} for task {self.task_id}. "
+                f"Using base retry_delay without exponential backoff."
             )
-            # between 1 and 1.0 * delay * (2^retry_number)
-            modded_hash = min_backoff + ti_hash % min_backoff
-            # timedelta has a maximum representable value. The exponentiation
-            # here means this value can be exceeded after a certain number
-            # of tries (around 50 if the initial delay is 1s, even fewer if
-            # the delay is larger). Cap the value here before creating a
-            # timedelta object so the operation doesn't fail with "OverflowError".
-            delay_backoff_in_seconds = min(modded_hash, MAX_RETRY_DELAY)
-            delay = timedelta(seconds=delay_backoff_in_seconds)
-            if self.task.max_retry_delay:
+            # No exponential backoff in this case
+
+        # Apply exponential backoff if set and if there is no more than 4 hours from last retry
+        elif self.task.retry_exponential_backoff:
+            # Timedelta to seconds for next calculations
+            delay_seconds = delay.total_seconds()
+
+            try:
+                # Step 1: safe exponent calculation
+                # Limit the maximum value of the degree to 30
+                # 2^30 = 1,073,741,824
+                # This is enough to create huge delays, but safe for calculations
+                try_exponent = min(self.try_number - 1, 30)
+
+                # Step 2: calculation of the basic backoff
+                if try_exponent > 0:
+                    try:
+                        # Calculation of backoff factor
+                        backoff_factor = 2 ** try_exponent
+
+                        # Checking for potential overflow before multiplication:
+                        if backoff_factor > (MAX_RETRY_DELAY / max(delay_seconds, 0.001)):
+                            logging.warning(
+                                f"Potential overflow detected in DAG {self.dag_id} for task {self.task_id} with "
+                                f"try_number={self.try_number}, using MAX_RETRY_DELAY"
+                            )
+                            min_backoff = MAX_RETRY_DELAY
+                        else:
+                            # Standard calculation: delay_seconds * 2^try_exponent
+                            # Round up to avoid zero values:
+                            min_backoff = math.ceil(delay_seconds * backoff_factor)
+                    except OverflowError:
+                        # Obvious overflow processing when calculating backoff
+                        logging.warning(
+                            f"Overflow detected when calculating backoff in DAG {self.dag_id} for task {self.task_id}. "
+                            f"Using MAX_RETRY_DELAY instead."
+                        )
+                        min_backoff = MAX_RETRY_DELAY
+                else:
+                    # For first try (try_number = 1), degree = 0
+                    # Use basic delay rounded up
+                    min_backoff = math.ceil(delay_seconds)
+
+                # Step 3: application of security restrictions
+                # Protection against too small values - a minimum delay of 1 second
+                min_backoff = max(min_backoff, 1)
+
+                # Protection against too large values - no more than MAX_RETRY_DELAY
+                min_backoff = min(min_backoff, MAX_RETRY_DELAY)
+
+                # Step 4: Calculation of deterministic hash for a specific task
+                try:
+                    # Create a unique identifier for this specific task and attempt
+                    task_identifier = f"{self.dag_id}#{self.task_id}#{self.execution_date}#{self.try_number}"
+
+                    # Calculate hash and convert it into an integer number for further calculations
+                    ti_hash = int(
+                        hashlib.sha1(
+                            task_identifier.encode(),
+                            usedforsecurity=False,
+                        ).hexdigest(),
+                        16,
+                    )
+
+                    # Step 5: Add randomness to the base delay to prevent "query clustering"
+                    try:
+                        # Calculate the modifier based on the hash (from 0 to min_backoff-1)
+                        # Check the division by zero for cases when min_backoff = 1
+                        if min_backoff > 1:
+                            hash_mod = ti_hash % min_backoff
+                        else:
+                            hash_mod = 0
+
+                        # Add the modifier to the base delay
+                        # Result: value between min_backoff and 2*min_backoff-1
+                        modded_hash = min_backoff + hash_mod
+                    except ZeroDivisionError:
+                        # Process the impossible case of division by zero
+                        logging.warning(
+                            f"Division by zero detected in DAG {self.dag_id} for task {self.task_id}. Using default backoff."
+                        )
+                        modded_hash = min_backoff
+
+                except Exception as e:
+                    # Process any errors when generating a hash
+                    logging.error(f"Error generating hash in DAG {self.dag_id}: {str(e)} for task {self.task_id}: {str(e)}")
+                    # Use the basic delay without modification
+                    modded_hash = min_backoff
+
+                # Step 6: The final limitation of the value before creating timedelta
+                # This is an additional check to ensure security
+                delay_backoff_in_seconds = min(modded_hash, MAX_RETRY_DELAY)
+
+                # Step 7: Creating an object of timedelta for the final result
+                delay = timedelta(seconds=delay_backoff_in_seconds)
+
+            except Exception as e:
+                # Global handler of any unexpected errors in the calculation process
+                logging.error(
+                    f"Unexpected error in retry delay calculation in DAG {self.dag_id}: {str(e)} for task {self.task_id}: {str(e)}. "
+                    f"Using original retry delay as fallback."
+                )
+                # In case of any unexpected error, we keep the original delay
+
+        # Step 8: Applying a Custom Maximum Latency Limit
+        # max_retry_delay has priority over the calculated value if it is set
+        if self.task.max_retry_delay:
+            try:
                 delay = min(self.task.max_retry_delay, delay)
-        return self.end_date + delay
+            except Exception as e:
+                logging.warning(
+                    f"Error applying max_retry_delay in DAG {self.dag_id}: {str(e)} for task {self.task_id}: {str(e)}. "
+                    f"Using calculated delay without max constraint."
+                )
+
+        # Step 9: Calculation and return of the final time of the next attempt
+        # with protection against unexpected mistakes
+        try:
+            # Return the end time of the current attempt + calculated delay if no more than 4 hours lasted
+            # Else use end_date + base delay
+            if last_attempt_end and (current_time - last_attempt_end).total_seconds() > max_time_between_tries:
+                return current_time + delay
+            else:
+                return self.end_date + delay
+        except Exception as e:
+            # In the case of a fatal error, we use the safe value of the default
+            logging.error(
+                f"Error calculating next retry time in DAG {self.dag_id}: {str(e)} for task {self.task_id}: {str(e)}. "
+                f"Using fixed delay of 5 minutes as last resort."
+            )
+            # Guarantee that the scheduler will not fall using the standard delay
+            return current_time + timedelta(minutes=5)
 
     def ready_for_retry(self) -> bool:
         """Check on whether the task instance is in the right state and timeframe to be retried."""
