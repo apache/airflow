@@ -97,6 +97,14 @@ class DagRunAssetReference(BaseModel):
 
 
 class DagRunState(str, Enum):
+    """
+    All possible states that a DagRun can be in.
+
+    These are "shared" with TaskInstanceState in some parts of the code,
+    so please ensure that their values always match the ones with the
+    same name in TaskInstanceState.
+    """
+
     QUEUED = "queued"
     RUNNING = "running"
     SUCCESS = "success"
@@ -112,6 +120,10 @@ class DagRunStateResponse(BaseModel):
 
 
 class DagRunType(str, Enum):
+    """
+    Class with DagRun types.
+    """
+
     BACKFILL = "backfill"
     SCHEDULED = "scheduled"
     MANUAL = "manual"
@@ -119,6 +131,10 @@ class DagRunType(str, Enum):
 
 
 class IntermediateTIState(str, Enum):
+    """
+    States that a Task Instance can be in that indicate it is not yet in a terminal or running state.
+    """
+
     SCHEDULED = "scheduled"
     QUEUED = "queued"
     RESTARTING = "restarting"
@@ -256,6 +272,10 @@ class TITargetStatePayload(BaseModel):
 
 
 class TerminalStateNonSuccess(str, Enum):
+    """
+    TaskInstance states that can be reported without extra information.
+    """
+
     FAILED = "failed"
     SKIPPED = "skipped"
     REMOVED = "removed"
