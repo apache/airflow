@@ -888,6 +888,12 @@ def params_for_test_container_is_succeeded():
     pod_mock_list.append(pytest.param(p, False, id="None remote_pod.status"))
     p = RemotePodMock()
     p.status = RemotePodMock()
+    p.status.container_statuses = None
+    p.status.init_container_statuses = []
+
+    pod_mock_list.append(pytest.param(p, False, id="None remote_pod.status.container_statuses"))
+    p = RemotePodMock()
+    p.status = RemotePodMock()
     p.status.container_statuses = []
     p.status.init_container_statuses = []
     pod_mock_list.append(pytest.param(p, False, id="empty remote_pod.status.container_statuses"))
