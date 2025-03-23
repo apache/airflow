@@ -29,15 +29,665 @@ updates:
     schedule:
       interval: daily
 
+  # Provider packages are updated daily
   - package-ecosystem: pip
     directories:
-      - /providers/*/
+      - /providers/airbyte
     schedule:
       interval: daily
-    groups:
-      provider-dependencies:
-        patterns:
-          - "*"
+    commit-message:
+      prefix: "[provider-airbyte] "
+  - package-ecosystem: pip
+    directories:
+      - /providers/alibaba
+    schedule:
+      interval: daily
+    commit-message:
+      prefix: "[provider-alibaba] "
+  - package-ecosystem: pip
+    directories:
+      - /providers/amazon
+    schedule:
+      interval: daily
+    commit-message:
+      prefix: "[provider-amazon] "
+  - package-ecosystem: pip
+    directories:
+      - /providers/apprise
+    schedule:
+      interval: daily
+    commit-message:
+      prefix: "[provider-apprise] "
+  - package-ecosystem: pip
+    directories:
+      - /providers/arangodb
+    schedule:
+      interval: daily
+    commit-message:
+      prefix: "[provider-arangodb] "
+  - package-ecosystem: pip
+    directories:
+      - /providers/asana
+    schedule:
+      interval: daily
+    commit-message:
+      prefix: "[provider-asana] "
+  - package-ecosystem: pip
+    directories:
+      - /providers/microsoft/azure
+    schedule:
+      interval: daily
+    commit-message:
+      prefix: "[provider-azure] "
+  - package-ecosystem: pip
+    directories:
+      - /providers/apache/beam
+    schedule:
+      interval: daily
+    commit-message:
+      prefix: "[provider-beam] "
+  - package-ecosystem: pip
+    directories:
+      - /providers/apache/cassandra
+    schedule:
+      interval: daily
+    commit-message:
+      prefix: "[provider-cassandra] "
+  - package-ecosystem: pip
+    directories:
+      - /providers/celery
+    schedule:
+      interval: daily
+    commit-message:
+      prefix: "[provider-celery] "
+  - package-ecosystem: pip
+    directories:
+      - /providers/dbt/cloud
+    schedule:
+      interval: daily
+    commit-message:
+      prefix: "[provider-cloud] "
+  - package-ecosystem: pip
+    directories:
+      - /providers/cloudant
+    schedule:
+      interval: daily
+    commit-message:
+      prefix: "[provider-cloudant] "
+  - package-ecosystem: pip
+    directories:
+      - /providers/cohere
+    schedule:
+      interval: daily
+    commit-message:
+      prefix: "[provider-cohere] "
+  - package-ecosystem: pip
+    directories:
+      - /providers/common/compat
+    schedule:
+      interval: daily
+    commit-message:
+      prefix: "[provider-compat] "
+  - package-ecosystem: pip
+    directories:
+      - /providers/databricks
+    schedule:
+      interval: daily
+    commit-message:
+      prefix: "[provider-databricks] "
+  - package-ecosystem: pip
+    directories:
+      - /providers/datadog
+    schedule:
+      interval: daily
+    commit-message:
+      prefix: "[provider-datadog] "
+  - package-ecosystem: pip
+    directories:
+      - /providers/dingding
+    schedule:
+      interval: daily
+    commit-message:
+      prefix: "[provider-dingding] "
+  - package-ecosystem: pip
+    directories:
+      - /providers/discord
+    schedule:
+      interval: daily
+    commit-message:
+      prefix: "[provider-discord] "
+  - package-ecosystem: pip
+    directories:
+      - /providers/docker
+    schedule:
+      interval: daily
+    commit-message:
+      prefix: "[provider-docker] "
+  - package-ecosystem: pip
+    directories:
+      - /providers/apache/drill
+    schedule:
+      interval: daily
+    commit-message:
+      prefix: "[provider-drill] "
+  - package-ecosystem: pip
+    directories:
+      - /providers/apache/druid
+    schedule:
+      interval: daily
+    commit-message:
+      prefix: "[provider-druid] "
+  - package-ecosystem: pip
+    directories:
+      - /providers/edge
+    schedule:
+      interval: daily
+    commit-message:
+      prefix: "[provider-edge] "
+  - package-ecosystem: pip
+    directories:
+      - /providers/elasticsearch
+    schedule:
+      interval: daily
+    commit-message:
+      prefix: "[provider-elasticsearch] "
+  - package-ecosystem: pip
+    directories:
+      - /providers/exasol
+    schedule:
+      interval: daily
+    commit-message:
+      prefix: "[provider-exasol] "
+  - package-ecosystem: pip
+    directories:
+      - /providers/fab
+    schedule:
+      interval: daily
+    commit-message:
+      prefix: "[provider-fab] "
+  - package-ecosystem: pip
+    directories:
+      - /providers/facebook
+    schedule:
+      interval: daily
+    commit-message:
+      prefix: "[provider-facebook] "
+  - package-ecosystem: pip
+    directories:
+      - /providers/apache/flink
+    schedule:
+      interval: daily
+    commit-message:
+      prefix: "[provider-flink] "
+  - package-ecosystem: pip
+    directories:
+      - /providers/ftp
+    schedule:
+      interval: daily
+    commit-message:
+      prefix: "[provider-ftp] "
+  - package-ecosystem: pip
+    directories:
+      - /providers/github
+    schedule:
+      interval: daily
+    commit-message:
+      prefix: "[provider-github] "
+  - package-ecosystem: pip
+    directories:
+      - /providers/google
+    schedule:
+      interval: daily
+    commit-message:
+      prefix: "[provider-google] "
+  - package-ecosystem: pip
+    directories:
+      - /providers/grpc
+    schedule:
+      interval: daily
+    commit-message:
+      prefix: "[provider-grpc] "
+  - package-ecosystem: pip
+    directories:
+      - /providers/hashicorp
+    schedule:
+      interval: daily
+    commit-message:
+      prefix: "[provider-hashicorp] "
+  - package-ecosystem: pip
+    directories:
+      - /providers/apache/hdfs
+    schedule:
+      interval: daily
+    commit-message:
+      prefix: "[provider-hdfs] "
+  - package-ecosystem: pip
+    directories:
+      - /providers/apache/hive
+    schedule:
+      interval: daily
+    commit-message:
+      prefix: "[provider-hive] "
+  - package-ecosystem: pip
+    directories:
+      - /providers/http
+    schedule:
+      interval: daily
+    commit-message:
+      prefix: "[provider-http] "
+  - package-ecosystem: pip
+    directories:
+      - /providers/apache/iceberg
+    schedule:
+      interval: daily
+    commit-message:
+      prefix: "[provider-iceberg] "
+  - package-ecosystem: pip
+    directories:
+      - /providers/imap
+    schedule:
+      interval: daily
+    commit-message:
+      prefix: "[provider-imap] "
+  - package-ecosystem: pip
+    directories:
+      - /providers/apache/impala
+    schedule:
+      interval: daily
+    commit-message:
+      prefix: "[provider-impala] "
+  - package-ecosystem: pip
+    directories:
+      - /providers/influxdb
+    schedule:
+      interval: daily
+    commit-message:
+      prefix: "[provider-influxdb] "
+  - package-ecosystem: pip
+    directories:
+      - /providers/common/io
+    schedule:
+      interval: daily
+    commit-message:
+      prefix: "[provider-io] "
+  - package-ecosystem: pip
+    directories:
+      - /providers/jdbc
+    schedule:
+      interval: daily
+    commit-message:
+      prefix: "[provider-jdbc] "
+  - package-ecosystem: pip
+    directories:
+      - /providers/jenkins
+    schedule:
+      interval: daily
+    commit-message:
+      prefix: "[provider-jenkins] "
+  - package-ecosystem: pip
+    directories:
+      - /providers/atlassian/jira
+    schedule:
+      interval: daily
+    commit-message:
+      prefix: "[provider-jira] "
+  - package-ecosystem: pip
+    directories:
+      - /providers/apache/kafka
+    schedule:
+      interval: daily
+    commit-message:
+      prefix: "[provider-kafka] "
+  - package-ecosystem: pip
+    directories:
+      - /providers/cncf/kubernetes
+    schedule:
+      interval: daily
+    commit-message:
+      prefix: "[provider-kubernetes] "
+  - package-ecosystem: pip
+    directories:
+      - /providers/apache/kylin
+    schedule:
+      interval: daily
+    commit-message:
+      prefix: "[provider-kylin] "
+  - package-ecosystem: pip
+    directories:
+      - /providers/apache/livy
+    schedule:
+      interval: daily
+    commit-message:
+      prefix: "[provider-livy] "
+  - package-ecosystem: pip
+    directories:
+      - /providers/common/messaging
+    schedule:
+      interval: daily
+    commit-message:
+      prefix: "[provider-messaging] "
+  - package-ecosystem: pip
+    directories:
+      - /providers/mongo
+    schedule:
+      interval: daily
+    commit-message:
+      prefix: "[provider-mongo] "
+  - package-ecosystem: pip
+    directories:
+      - /providers/microsoft/mssql
+    schedule:
+      interval: daily
+    commit-message:
+      prefix: "[provider-mssql] "
+  - package-ecosystem: pip
+    directories:
+      - /providers/mysql
+    schedule:
+      interval: daily
+    commit-message:
+      prefix: "[provider-mysql] "
+  - package-ecosystem: pip
+    directories:
+      - /providers/neo4j
+    schedule:
+      interval: daily
+    commit-message:
+      prefix: "[provider-neo4j] "
+  - package-ecosystem: pip
+    directories:
+      - /providers/odbc
+    schedule:
+      interval: daily
+    commit-message:
+      prefix: "[provider-odbc] "
+  - package-ecosystem: pip
+    directories:
+      - /providers/openai
+    schedule:
+      interval: daily
+    commit-message:
+      prefix: "[provider-openai] "
+  - package-ecosystem: pip
+    directories:
+      - /providers/openfaas
+    schedule:
+      interval: daily
+    commit-message:
+      prefix: "[provider-openfaas] "
+  - package-ecosystem: pip
+    directories:
+      - /providers/openlineage
+    schedule:
+      interval: daily
+    commit-message:
+      prefix: "[provider-openlineage] "
+  - package-ecosystem: pip
+    directories:
+      - /providers/opensearch
+    schedule:
+      interval: daily
+    commit-message:
+      prefix: "[provider-opensearch] "
+  - package-ecosystem: pip
+    directories:
+      - /providers/opsgenie
+    schedule:
+      interval: daily
+    commit-message:
+      prefix: "[provider-opsgenie] "
+  - package-ecosystem: pip
+    directories:
+      - /providers/oracle
+    schedule:
+      interval: daily
+    commit-message:
+      prefix: "[provider-oracle] "
+  - package-ecosystem: pip
+    directories:
+      - /providers/pagerduty
+    schedule:
+      interval: daily
+    commit-message:
+      prefix: "[provider-pagerduty] "
+  - package-ecosystem: pip
+    directories:
+      - /providers/papermill
+    schedule:
+      interval: daily
+    commit-message:
+      prefix: "[provider-papermill] "
+  - package-ecosystem: pip
+    directories:
+      - /providers/pgvector
+    schedule:
+      interval: daily
+    commit-message:
+      prefix: "[provider-pgvector] "
+  - package-ecosystem: pip
+    directories:
+      - /providers/apache/pig
+    schedule:
+      interval: daily
+    commit-message:
+      prefix: "[provider-pig] "
+  - package-ecosystem: pip
+    directories:
+      - /providers/pinecone
+    schedule:
+      interval: daily
+    commit-message:
+      prefix: "[provider-pinecone] "
+  - package-ecosystem: pip
+    directories:
+      - /providers/apache/pinot
+    schedule:
+      interval: daily
+    commit-message:
+      prefix: "[provider-pinot] "
+  - package-ecosystem: pip
+    directories:
+      - /providers/postgres
+    schedule:
+      interval: daily
+    commit-message:
+      prefix: "[provider-postgres] "
+  - package-ecosystem: pip
+    directories:
+      - /providers/presto
+    schedule:
+      interval: daily
+    commit-message:
+      prefix: "[provider-presto] "
+  - package-ecosystem: pip
+    directories:
+      - /providers/microsoft/psrp
+    schedule:
+      interval: daily
+    commit-message:
+      prefix: "[provider-psrp] "
+  - package-ecosystem: pip
+    directories:
+      - /providers/qdrant
+    schedule:
+      interval: daily
+    commit-message:
+      prefix: "[provider-qdrant] "
+  - package-ecosystem: pip
+    directories:
+      - /providers/redis
+    schedule:
+      interval: daily
+    commit-message:
+      prefix: "[provider-redis] "
+  - package-ecosystem: pip
+    directories:
+      - /providers/salesforce
+    schedule:
+      interval: daily
+    commit-message:
+      prefix: "[provider-salesforce] "
+  - package-ecosystem: pip
+    directories:
+      - /providers/samba
+    schedule:
+      interval: daily
+    commit-message:
+      prefix: "[provider-samba] "
+  - package-ecosystem: pip
+    directories:
+      - /providers/segment
+    schedule:
+      interval: daily
+    commit-message:
+      prefix: "[provider-segment] "
+  - package-ecosystem: pip
+    directories:
+      - /providers/sendgrid
+    schedule:
+      interval: daily
+    commit-message:
+      prefix: "[provider-sendgrid] "
+  - package-ecosystem: pip
+    directories:
+      - /providers/sftp
+    schedule:
+      interval: daily
+    commit-message:
+      prefix: "[provider-sftp] "
+  - package-ecosystem: pip
+    directories:
+      - /providers/singularity
+    schedule:
+      interval: daily
+    commit-message:
+      prefix: "[provider-singularity] "
+  - package-ecosystem: pip
+    directories:
+      - /providers/slack
+    schedule:
+      interval: daily
+    commit-message:
+      prefix: "[provider-slack] "
+  - package-ecosystem: pip
+    directories:
+      - /providers/smtp
+    schedule:
+      interval: daily
+    commit-message:
+      prefix: "[provider-smtp] "
+  - package-ecosystem: pip
+    directories:
+      - /providers/snowflake
+    schedule:
+      interval: daily
+    commit-message:
+      prefix: "[provider-snowflake] "
+  - package-ecosystem: pip
+    directories:
+      - /providers/apache/spark
+    schedule:
+      interval: daily
+    commit-message:
+      prefix: "[provider-spark] "
+  - package-ecosystem: pip
+    directories:
+      - /providers/common/sql
+    schedule:
+      interval: daily
+    commit-message:
+      prefix: "[provider-sql] "
+  - package-ecosystem: pip
+    directories:
+      - /providers/sqlite
+    schedule:
+      interval: daily
+    commit-message:
+      prefix: "[provider-sqlite] "
+  - package-ecosystem: pip
+    directories:
+      - /providers/ssh
+    schedule:
+      interval: daily
+    commit-message:
+      prefix: "[provider-ssh] "
+  - package-ecosystem: pip
+    directories:
+      - /providers/standard
+    schedule:
+      interval: daily
+    commit-message:
+      prefix: "[provider-standard] "
+  - package-ecosystem: pip
+    directories:
+      - /providers/tableau
+    schedule:
+      interval: daily
+    commit-message:
+      prefix: "[provider-tableau] "
+  - package-ecosystem: pip
+    directories:
+      - /providers/telegram
+    schedule:
+      interval: daily
+    commit-message:
+      prefix: "[provider-telegram] "
+  - package-ecosystem: pip
+    directories:
+      - /providers/teradata
+    schedule:
+      interval: daily
+    commit-message:
+      prefix: "[provider-teradata] "
+  - package-ecosystem: pip
+    directories:
+      - /providers/trino
+    schedule:
+      interval: daily
+    commit-message:
+      prefix: "[provider-trino] "
+  - package-ecosystem: pip
+    directories:
+      - /providers/vertica
+    schedule:
+      interval: daily
+    commit-message:
+      prefix: "[provider-vertica] "
+  - package-ecosystem: pip
+    directories:
+      - /providers/weaviate
+    schedule:
+      interval: daily
+    commit-message:
+      prefix: "[provider-weaviate] "
+  - package-ecosystem: pip
+    directories:
+      - /providers/microsoft/winrm
+    schedule:
+      interval: daily
+    commit-message:
+      prefix: "[provider-winrm] "
+  - package-ecosystem: pip
+    directories:
+      - /providers/yandex
+    schedule:
+      interval: daily
+    commit-message:
+      prefix: "[provider-yandex] "
+  - package-ecosystem: pip
+    directories:
+      - /providers/ydb
+    schedule:
+      interval: daily
+    commit-message:
+      prefix: "[provider-ydb] "
+  - package-ecosystem: pip
+    directories:
+      - /providers/zendesk
+    schedule:
+      interval: daily
+    commit-message:
+      prefix: "[provider-zendesk] "
 
   - package-ecosystem: npm
     directories:
