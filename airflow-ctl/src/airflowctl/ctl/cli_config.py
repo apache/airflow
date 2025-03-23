@@ -184,18 +184,15 @@ CLICommand = Union[ActionCommand, GroupCommand]
 class AirflowCtlCommandFactory:
     """Factory class that creates 1-1 mapping with api operations."""
 
-    operations: list[dict] = []
-    args_map: dict[str, list[Arg]] = {}
-    func_map: dict[str, Callable] = {}
-    commands_map: dict[str, list[ActionCommand]] = {}
-    group_commands: list[GroupCommand] = []
+    operations: list[dict]
+    args_map: dict[str, list[Arg]]
+    func_map: dict[str, Callable]
+    commands_map: dict[str, list[ActionCommand]]
+    group_commands: list[GroupCommand]
 
-    def __init__(self):
-        self.create_commands()
-
-    @staticmethod
-    def inspect_operations() -> list:
+    def _inspect_operations(self) -> None:
         """Parse file and return matching Operation Method with details."""
+        self.operations = []
 
         def get_function_details(node: ast.FunctionDef, parent_node: ast.ClassDef) -> dict:
             """Extract function name, arguments, and return annotation."""
@@ -229,14 +226,12 @@ class AirflowCtlCommandFactory:
         with open(file_path, encoding="utf-8") as file:
             tree = ast.parse(file.read(), filename=file_path)
 
-        functions = []
         exclude_method_names = ["error", "__init__", "__init_subclass__"]
         for node in ast.walk(tree):
             if isinstance(node, ast.ClassDef) and "Operations" in node.name:
                 for child in node.body:
                     if isinstance(child, ast.FunctionDef) and child.name not in exclude_method_names:
-                        functions.append(get_function_details(node=child, parent_node=node))
-        return functions
+                        self.operations.append(get_function_details(node=child, parent_node=node))
 
     @staticmethod
     def _is_primitive_type(type_name: str) -> bool:
@@ -254,8 +249,9 @@ class AirflowCtlCommandFactory:
         }
         return type_name in primitive_types
 
-    def create_args_map_from_operation(self):
+    def _create_args_map_from_operation(self):
         """Create Arg from Operation Method checking for parameters and return types."""
+        self.args_map = {}
         for operation in self.operations:
             args = []
             for parameter in operation.get("parameters"):
@@ -277,7 +273,7 @@ class AirflowCtlCommandFactory:
                                         flags=("--" + field,),
                                         type=field_type.annotation,
                                         dest=field,
-                                        help=f"{parameter_type.__name__}:{field} for {operation.get('name')} operation in {operation.get('parent').name}",
+                                        help=f"{field} for {operation.get('name')} operation in {operation.get('parent').name}",
                                     )
                                 )
                             else:
@@ -285,14 +281,15 @@ class AirflowCtlCommandFactory:
                                     Arg(
                                         flags=("--" + field,),
                                         type=field_type.annotation,
-                                        help=f"{parameter_type.__name__}:{field} for {operation.get('name')} operation in {operation.get('parent').name}",
+                                        help=f"{field} for {operation.get('name')} operation in {operation.get('parent').name}",
                                         default=None,
                                     )
                                 )
             self.args_map[f"{operation.get('name')}-{operation.get('parent').name}"] = args
 
-    def create_func_map_from_operation(self):
+    def _create_func_map_from_operation(self):
         """Create function map from Operation Method checking for parameters and return types."""
+        self.func_map = {}
         for operation in self.operations:
 
             @provide_api_client
@@ -303,23 +300,26 @@ class AirflowCtlCommandFactory:
 
             self.func_map[f"{operation.get('name')}-{operation.get('parent').name}"] = _get_func
 
-    def create_commands(self):
+    def create_commands(self) -> AirflowCtlCommandFactory:
         """Create commands from Operation Method."""
-        self.operations = self.inspect_operations()
-        self.create_args_map_from_operation()
-        self.create_func_map_from_operation()
+        self.commands_map = {}
+        self.group_commands = []
+
+        self._inspect_operations()
+        self._create_args_map_from_operation()
+        self._create_func_map_from_operation()
 
         for operation in self.operations:
-            operation_name = operation.get("name")
-            operation_group_name = operation.get("parent").name
+            operation_name = operation["name"]
+            operation_group_name = operation["parent"].name
             if operation_group_name not in self.commands_map:
                 self.commands_map[operation_group_name] = []
             self.commands_map[operation_group_name].append(
                 ActionCommand(
-                    name=operation.get("name").replace("_", "-"),
+                    name=operation["name"].replace("_", "-"),
                     help=f"Perform {operation_name} operation",
-                    func=self.func_map.get(f"{operation_name}-{operation_group_name}"),
-                    args=self.args_map.get(f"{operation_name}-{operation_group_name}"),
+                    func=self.func_map[f"{operation_name}-{operation_group_name}"],
+                    args=self.args_map[f"{operation_name}-{operation_group_name}"],
                 )
             )
 
@@ -331,10 +331,10 @@ class AirflowCtlCommandFactory:
                     subcommands=action_commands,
                 )
             )
+        return self
 
 
 airflow_ctl_command_factory = AirflowCtlCommandFactory()
-
 
 AUTH_COMMANDS = (
     ActionCommand(
@@ -355,5 +355,5 @@ core_commands: list[CLICommand] = [
         subcommands=AUTH_COMMANDS,
     ),
 ]
-
-core_commands.extend(airflow_ctl_command_factory.group_commands)
+# Add generated group commands
+core_commands.extend(airflow_ctl_command_factory.create_commands().group_commands)
