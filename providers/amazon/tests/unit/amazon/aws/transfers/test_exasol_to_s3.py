@@ -61,7 +61,7 @@ class TestExasolToS3Operator:
 
         mock_fh.flush.assert_called_once_with()
 
-        mock_s3_hook.return_value.load_file(
+        mock_s3_hook.return_value.load_file.assert_called_once_with(
             key="key",
             bucket_name="bucket_name",
             replace=False,
