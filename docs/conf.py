@@ -43,13 +43,16 @@ from typing import Any
 
 import yaml
 from packaging.version import Version, parse as parse_version
+from sphinx_exts.docs_build.third_party_inventories import THIRD_PARTY_INDEXES
 
 import airflow
 from airflow.configuration import AirflowConfigParser, retrieve_configuration_description
 
-sys.path.append(str(Path(__file__).parent / "exts"))
+AIRFLOW_ROOT_PATH = Path(__file__).parents[1]
 
-from docs_build.third_party_inventories import THIRD_PARTY_INDEXES
+# Add sphinx_exts to the path so that sphinx can find them
+sys.path.append((AIRFLOW_ROOT_PATH / "devel-common" / "src" / "sphinx_exts").as_posix())
+
 
 CONF_DIR = pathlib.Path(__file__).parent.absolute()
 INVENTORY_CACHE_DIR = CONF_DIR / "_inventory_cache"
@@ -69,7 +72,7 @@ if PACKAGE_NAME == "apache-airflow":
         strict=True
     )
 elif PACKAGE_NAME.startswith("apache-airflow-providers-"):
-    from provider_yaml_utils import load_package_data
+    from sphinx_exts.provider_yaml_utils import load_package_data
 
     ALL_PROVIDER_YAMLS = load_package_data(include_suspended=True)
     try:
@@ -93,7 +96,7 @@ elif PACKAGE_NAME.startswith("apache-airflow-providers-"):
     target_dir = AIRFLOW_REPO_ROOT_PATH / "docs" / PACKAGE_NAME
     conf_py_path = f"/providers/{package_id.replace('.', '/')}/docs/"
 elif PACKAGE_NAME == "apache-airflow-providers":
-    from provider_yaml_utils import load_package_data
+    from sphinx_exts.provider_yaml_utils import load_package_data
 
     PACKAGE_DIR = AIRFLOW_REPO_ROOT_PATH / "providers" / "src"
     PACKAGE_VERSION = "devel"
@@ -820,7 +823,7 @@ autoapi_log.addFilter(filter_ignore)
 
 if PACKAGE_NAME.startswith("apache-airflow-providers-"):
     autoapi_python_use_implicit_namespaces = True
-    from provider_yaml_utils import load_package_data
+    from sphinx_exts.provider_yaml_utils import load_package_data
 
     autoapi_ignore.extend(
         (

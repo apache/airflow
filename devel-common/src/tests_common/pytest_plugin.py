@@ -2224,7 +2224,7 @@ def run_task(create_runtime_ti, mock_supervisor_comms, spy_agency) -> RunTaskCal
             if hasattr(XCom.get_one, "spy"):
                 spy_agency.unspy(XCom.get_one)
 
-    class RunTaskWithXCom:
+    class RunTaskWithXCom(RunTaskCallable):
         def __init__(self, create_runtime_ti):
             self.create_runtime_ti = create_runtime_ti
             self.xcom = XComHelper()
@@ -2249,7 +2249,7 @@ def run_task(create_runtime_ti, mock_supervisor_comms, spy_agency) -> RunTaskCal
 
         def __call__(
             self,
-            task: BaseOperator,
+            task: TaskSDKBaseOperator,
             dag_id: str = "test_dag",
             run_id: str = "test_run",
             logical_date: datetime | None = None,

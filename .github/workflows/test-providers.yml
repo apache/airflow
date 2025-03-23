@@ -104,14 +104,14 @@ jobs:
       - name: "Prepare provider distributions: ${{ matrix.package-format }}"
         run: >
           breeze release-management prepare-provider-distributions --include-not-ready-providers
-          --version-suffix-for-pypi dev0 --distribution-format ${{ matrix.package-format }}
+          --version-suffix-for-pypi b1.dev0 --distribution-format ${{ matrix.package-format }}
       - name: "Prepare airflow package: ${{ matrix.package-format }}"
         run: >
-          breeze release-management prepare-airflow-distributions --version-suffix-for-pypi dev0
+          breeze release-management prepare-airflow-distributions --version-suffix-for-pypi b1.dev0
           --distribution-format ${{ matrix.package-format }}
       - name: "Prepare task-sdk package: ${{ matrix.package-format }}"
         run: >
-          breeze release-management prepare-task-sdk-distributions --version-suffix-for-pypi dev0
+          breeze release-management prepare-task-sdk-distributions --version-suffix-for-pypi b1.dev0
           --distribution-format ${{ matrix.package-format }}
       - name: "Verify ${{ matrix.package-format }} packages with twine"
         run: |
@@ -173,7 +173,7 @@ jobs:
       GITHUB_USERNAME: ${{ github.actor }}
       INCLUDE_NOT_READY_PROVIDERS: "true"
       PYTHON_MAJOR_MINOR_VERSION: "${{ matrix.python-version }}"
-      VERSION_SUFFIX_FOR_PYPI: "dev0"
+      VERSION_SUFFIX_FOR_PYPI: "b1.dev0"
       VERBOSE: "true"
       CLEAN_AIRFLOW_INSTALLATION: "true"
     if: inputs.skip-providers-tests != 'true'

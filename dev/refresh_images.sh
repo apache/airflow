@@ -41,7 +41,7 @@ done
 #breeze release-management prepare-provider-distributions \
 #    --distributions-list-file ./prod_image_installed_providers.txt \
 #    --distribution-format wheel \
-#    --version-suffix-for-pypi dev0
+#    --version-suffix-for-pypi b1.dev0
 #
 ##breeze release-management prepare-airflow-distributions --distribution-format wheel --version-suffix-for-pypi dev0
 #

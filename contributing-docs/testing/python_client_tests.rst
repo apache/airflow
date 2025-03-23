@@ -44,4 +44,4 @@ To build the package, you can run the following command:
 .. code-block:: bash
 
     breeze release-management prepare-python-client --distribution-format both
-          --version-suffix-for-pypi dev0 --python-client-repo ./airflow-client-python
+          --version-suffix-for-pypi b1.dev0 --python-client-repo ./airflow-client-python

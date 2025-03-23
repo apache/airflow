@@ -143,7 +143,8 @@ class BatchWaitersHook(BatchClientHook):
         """
         return self._waiter_model
 
-    def get_waiter(
+    # TODO: This is likely not good - it has bad override
+    def get_waiter(  # type: ignore[override]
         self, waiter_name: str, _: dict[str, str] | None = None, deferrable: bool = False, client=None
     ) -> botocore.waiter.Waiter:
         """

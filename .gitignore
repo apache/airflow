@@ -86,13 +86,6 @@ instance/
 # Scrapy stuff:
 .scrapy
 
-# Sphinx documentation
-docs/_build/
-docs/rtd-deprecation/_build/
-docs/_doctrees/
-docs/_inventory_cache/
-docs/*/_api/
-
 # PyBuilder
 target/
 
@@ -226,8 +219,6 @@ log.txt*
 pip-wheel-metadata
 
 .pypirc
-
-/.docs-venv
 
 # Dev files
 /dev/packages.txt

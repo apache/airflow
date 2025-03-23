@@ -168,7 +168,7 @@ from airflow_breeze.utils.version_utils import (
     is_local_package_version,
 )
 from airflow_breeze.utils.versions import is_pre_release
-from airflow_breeze.utils.virtualenv_utils import create_pip_command, create_venv
+from airflow_breeze.utils.virtualenv_utils import create_venv
 
 if TYPE_CHECKING:
     from packaging.version import Version
@@ -523,10 +523,9 @@ def _check_sdist_to_wheel_dists(dists_info: tuple[DistributionPackageInfo, ...])
                     pip_version=AIRFLOW_PIP_VERSION,
                     uv_version=AIRFLOW_UV_VERSION,
                 )
-                pip_command = create_pip_command(python_path)
                 venv_created = True
 
-            returncode = _check_sdist_to_wheel(di, pip_command, str(tmp_dir_name))
+            returncode = _check_sdist_to_wheel(python_path, di, str(tmp_dir_name))
             if returncode != 0:
                 success_build = False
 
@@ -537,13 +536,16 @@ def _check_sdist_to_wheel_dists(dists_info: tuple[DistributionPackageInfo, ...])
         sys.exit(1)
 
 
-def _check_sdist_to_wheel(dist_info: DistributionPackageInfo, pip_command: list[str], cwd: str) -> int:
+def _check_sdist_to_wheel(python_path: Path, dist_info: DistributionPackageInfo, cwd: str) -> int:
     get_console().print(
         f"[info]Validate build wheel from sdist distribution for package {dist_info.package!r}.[/]"
     )
     result_pip_wheel = run_command(
         [
-            *pip_command,
+            python_path.as_posix(),
+            "-m",
+            "uv",
+            "pip",
             "wheel",
             "--wheel-dir",
             cwd,
@@ -3424,13 +3426,13 @@ def prepare_helm_chart_package(sign_email: str):
 
     from airflow_breeze.utils.kubernetes_utils import (
         K8S_BIN_BASE_PATH,
-        create_virtualenv,
         make_sure_helm_installed,
+        sync_virtualenv,
     )
 
     chart_yaml_dict = yaml.safe_load(CHART_YAML_FILE.read_text())
     version = chart_yaml_dict["version"]
-    result = create_virtualenv(force_venv_setup=False)
+    result = sync_virtualenv(force_venv_setup=False)
     if result.returncode != 0:
         sys.exit(result.returncode)
     make_sure_helm_installed()

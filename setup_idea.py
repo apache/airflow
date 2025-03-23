@@ -66,7 +66,16 @@ module_xml_template = """<?xml version="1.0" encoding="UTF-8"?>
 
 source_root_module_patter: str = '<sourceFolder url="file://$MODULE_DIR$/{path}" isTestSource="{status}" />'
 
-source_root_modules: list[str] = ["airflow-core", "airflow-ctl", "task-sdk", "devel-common", "dev/breeze"]
+source_root_modules: list[str] = [
+    "airflow-core",
+    "airflow-ctl",
+    "task-sdk",
+    "devel-common",
+    "dev/breeze",
+    "docker-tests",
+    "kubernetes-tests",
+    "helm-tests",
+]
 
 all_module_paths: list[str] = []
 
@@ -87,8 +96,10 @@ def setup_idea():
     source_root_modules.sort()
     for module in source_root_modules:
         print(f"[green]Adding[/] module: [blue]{module}[/]")
-        all_module_paths.append(source_root_module_patter.format(path=f"{module}/src", status="false"))
-        all_module_paths.append(source_root_module_patter.format(path=f"{module}/tests", status="true"))
+        if (ROOT_AIRFLOW_FOLDER_PATH / module / "src").exists():
+            all_module_paths.append(source_root_module_patter.format(path=f"{module}/src", status="false"))
+        if (ROOT_AIRFLOW_FOLDER_PATH / module / "tests").exists():
+            all_module_paths.append(source_root_module_patter.format(path=f"{module}/tests", status="true"))
 
     source_root_module_path = "\n\t\t".join(all_module_paths)
 

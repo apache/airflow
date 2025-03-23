@@ -28,7 +28,8 @@ from airflow.utils.log.logging_mixin import LoggingMixin
 if TYPE_CHECKING:
     import jinja2
 
-    from airflow import DAG
+    # TODO: likely we have to solve DAG detected by mypy
+    from airflow import DAG  # type: ignore[attr-defined]
     from airflow.sdk.definitions.context import Context
 
 
