@@ -30,8 +30,8 @@ import { useConnectionTypeMeta } from "src/queries/useConnectionTypeMeta";
 import type { ParamsSpec } from "src/queries/useDagParams";
 import { useParamStore } from "src/queries/useParamStore";
 
-import type { ConnectionBody } from "./AddConnectionButton";
 import StandardFields from "./ConnectionStandardFields";
+import type { ConnectionBody } from "./Connections";
 
 type AddConnectionFormProps = {
   readonly error: unknown;
@@ -52,8 +52,7 @@ const ConnectionForm = ({
     isPending: isMetaPending,
     keysList: connectionTypes,
   } = useConnectionTypeMeta();
-  const { conf, setConf } = useParamStore();
-  const [showPassword, setShowPassword] = useState(false);
+  const { conf: extra, setConf } = useParamStore();
   const {
     control,
     formState: { isValid },
@@ -75,16 +74,16 @@ const ConnectionForm = ({
       conn_type: selectedConnType,
       connection_id: prevValues.connection_id,
     }));
-    setConf(JSON.stringify(JSON.parse(initialConnection.conf), undefined, 2));
+    setConf(JSON.stringify(JSON.parse(initialConnection.extra), undefined, 2));
   }, [selectedConnType, reset, initialConnection, setConf]);
 
   // Automatically reset form when conf is fetched
   useEffect(() => {
     reset((prevValues) => ({
       ...prevValues, // Retain existing form values
-      conf,
+      extra,
     }));
-  }, [conf, reset, setConf]);
+  }, [extra, reset, setConf]);
 
   const onSubmit = (data: ConnectionBody) => {
     mutateConnection(data);
@@ -97,7 +96,7 @@ const ConnectionForm = ({
       setErrors((prev) => ({ ...prev, conf: undefined }));
       const formattedJson = JSON.stringify(parsedJson, undefined, 2);
 
-      if (formattedJson !== conf) {
+      if (formattedJson !== extra) {
         setConf(formattedJson); // Update only if the value is different
       }
 
@@ -205,7 +204,7 @@ const ConnectionForm = ({
               <Accordion.ItemContent>
                 <Controller
                   control={control}
-                  name="conf"
+                  name="extra"
                   render={({ field }) => (
                     <Field.Root invalid={Boolean(errors.conf)}>
                       <JsonEditor

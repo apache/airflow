@@ -34,6 +34,18 @@ import AddConnectionButton from "./AddConnectionButton";
 import DeleteConnectionButton from "./DeleteConnectionButton";
 import EditConnectionButton from "./EditConnectionButton";
 
+export type ConnectionBody = {
+  conn_type: string;
+  connection_id: string;
+  description: string;
+  extra: string;
+  host: string;
+  login: string;
+  password: string;
+  port: string;
+  schema: string;
+};
+
 const columns: Array<ColumnDef<ConnectionResponse>> = [
   {
     accessorKey: "connection_id",

@@ -24,8 +24,8 @@ import { Dialog } from "src/components/ui";
 import ActionButton from "src/components/ui/ActionButton";
 import { useEditConnection } from "src/queries/useEditConnection";
 
-import type { ConnectionBody } from "./AddConnectionButton";
 import ConnectionForm from "./ConnectionForm";
+import type { ConnectionBody } from "./Connections";
 
 type Props = {
   readonly connection: ConnectionResponse;
@@ -35,10 +35,10 @@ type Props = {
 const EditConnectionButton = ({ connection, disabled }: Props) => {
   const { onClose, onOpen, open } = useDisclosure();
   const initialConnectionValue: ConnectionBody = {
-    conf: connection.extra ?? "{}",
     conn_type: connection.conn_type,
     connection_id: connection.connection_id,
     description: connection.description ?? "",
+    extra: connection.extra ?? "{}",
     host: connection.host ?? "",
     login: connection.login ?? "",
     password: connection.password ?? "",

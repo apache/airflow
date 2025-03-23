@@ -23,7 +23,7 @@ import { FiEye, FiEyeOff } from "react-icons/fi";
 
 import type { StandardFieldSpec } from "src/queries/useConnectionTypeMeta";
 
-import type { ConnectionBody } from "./AddConnectionButton";
+import type { ConnectionBody } from "./Connections";
 
 type StandardFieldsProps = {
   readonly control: Control<ConnectionBody, unknown>;

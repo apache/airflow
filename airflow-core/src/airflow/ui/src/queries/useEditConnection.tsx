@@ -21,7 +21,7 @@ import { useState } from "react";
 
 import { useConnectionServiceGetConnectionsKey, useConnectionServicePatchConnection } from "openapi/queries";
 import { toaster } from "src/components/ui";
-import type { ConnectionBody } from "src/pages/Connections/AddConnectionButton";
+import type { ConnectionBody } from "src/pages/Connections/Connections";
 
 export const useEditConnection = (
   initialConnection: ConnectionBody,
@@ -60,8 +60,8 @@ export const useEditConnection = (
   const editConnection = (requestBody: ConnectionBody) => {
     const updateMask: Array<string> = [];
 
-    if (requestBody.conf !== initialConnection.conf) {
-      updateMask.push("conf");
+    if (requestBody.extra !== initialConnection.extra) {
+      updateMask.push("extra");
     }
     if (requestBody.conn_type !== initialConnection.conn_type) {
       updateMask.push("conn_type");
@@ -85,26 +85,13 @@ export const useEditConnection = (
       updateMask.push("schema");
     }
 
-    const parsedDescription = requestBody.description === "" ? undefined : requestBody.description;
-    const parsedHost = requestBody.host === "" ? undefined : requestBody.host;
-    const parsedLogin = requestBody.login === "" ? undefined : requestBody.login;
-    const parsedPassword = requestBody.password === "" ? undefined : requestBody.password;
-    const parsedPort = requestBody.port === "" ? undefined : Number(requestBody.port);
-    const parsedSchema = requestBody.schema === "" ? undefined : requestBody.schema;
-    const parsedExtra = requestBody.conf === "{}" ? undefined : requestBody.conf;
-
     mutate({
       connectionId: initialConnection.connection_id,
       requestBody: {
+        ...requestBody,
         conn_type: requestBody.conn_type,
         connection_id: initialConnection.connection_id,
-        description: parsedDescription,
-        extra: parsedExtra,
-        host: parsedHost,
-        login: parsedLogin,
-        password: parsedPassword,
-        port: parsedPort,
-        schema: parsedSchema,
+        port: Number(requestBody.port),
       },
       updateMask,
     });

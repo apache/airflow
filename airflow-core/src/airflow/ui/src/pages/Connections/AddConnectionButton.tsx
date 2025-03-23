@@ -25,27 +25,16 @@ import ActionButton from "src/components/ui/ActionButton";
 import { useAddConnection } from "src/queries/useAddConnection";
 
 import ConnectionForm from "./ConnectionForm";
-
-export type ConnectionBody = {
-  conf: string;
-  conn_type: string;
-  connection_id: string;
-  description: string;
-  host: string;
-  login: string;
-  password: string;
-  port: string;
-  schema: string;
-};
+import type { ConnectionBody } from "./Connections";
 
 const AddConnectionButton = () => {
   const { onClose, onOpen, open } = useDisclosure();
   const { addConnection, error, isPending } = useAddConnection({ onSuccessConfirm: onClose });
   const initialConnection: ConnectionBody = {
-    conf: "{}",
     conn_type: "",
     connection_id: "",
     description: "",
+    extra: "{}",
     host: "",
     login: "",
     password: "",
