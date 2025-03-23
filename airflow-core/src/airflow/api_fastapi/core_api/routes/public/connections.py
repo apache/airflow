@@ -44,7 +44,10 @@ from airflow.api_fastapi.core_api.datamodels.connections import (
 )
 from airflow.api_fastapi.core_api.openapi.exceptions import create_openapi_http_exception_doc
 from airflow.api_fastapi.core_api.security import requires_access_connection
-from airflow.api_fastapi.core_api.services.public.connections import BulkConnectionService
+from airflow.api_fastapi.core_api.services.public.connections import (
+    BulkConnectionService,
+    update_orm_from_pydantic,
+)
 from airflow.api_fastapi.logging.decorators import action_logging
 from airflow.configuration import conf
 from airflow.models import Connection
@@ -200,23 +203,7 @@ def patch_connection(
         raise RequestValidationError(errors=e.errors())
 
     # Not all fields match and some need setters, therefore copy manually
-    if not update_mask or "conn_type" in update_mask:
-        connection.conn_type = patch_body.conn_type
-    if not update_mask or "description" in update_mask:
-        connection.description = patch_body.description
-    if not update_mask or "host" in update_mask:
-        connection.host = patch_body.host
-    if not update_mask or "schema" in update_mask:
-        connection.schema = patch_body.schema_
-    if not update_mask or "login" in update_mask:
-        connection.login = patch_body.login
-    if not update_mask or "password" in update_mask:
-        connection.set_password(patch_body.password)
-    if not update_mask or "port" in update_mask:
-        connection.port = patch_body.port
-    if not update_mask or "extra" in update_mask:
-        connection.set_extra(patch_body.extra)
-
+    update_orm_from_pydantic(connection, patch_body, update_mask)
     return connection
 
 
