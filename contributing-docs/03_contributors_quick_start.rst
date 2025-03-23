@@ -156,7 +156,7 @@ Install manually:
     This option requires you to manage updates manually.
     It is recommended that you set up Docker's repository for easier maintenance.
 
-on macOS, install via
+on macOS, you can also install docker-compose via
 
 .. code-block:: bash
 
