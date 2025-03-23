@@ -34,7 +34,7 @@ initialize_breeze_precommit(__name__, __file__)
 
 
 ALLOWED_FOLDERS = [
-    "airflow",
+    "airflow-core/src/airflow",
     *[f"providers/{provider_id.replace('.', '/')}/src" for provider_id in get_all_provider_ids()],
     "dev",
     "docs",
@@ -57,7 +57,6 @@ for mypy_folder in mypy_folders:
         sys.exit(1)
 
 arguments = mypy_folders.copy()
-namespace_packages = False
 
 for mypy_folder in mypy_folders:
     if mypy_folder == "all_providers":
@@ -65,18 +64,12 @@ for mypy_folder in mypy_folders:
         for provider_id in get_all_provider_ids():
             arguments.append(f"providers/{provider_id.replace('.', '/')}/src")
             arguments.append(f"providers/{provider_id.replace('.', '/')}/tests")
-        namespace_packages = True
     elif mypy_folder.startswith("providers/"):
         arguments.append(f"{Path(mypy_folder).parent.as_posix()}/tests")
-        namespace_packages = True
     if mypy_folder == "task-sdk/src/airflow/sdk":
         arguments.append("task-sdk/tests")
-        namespace_packages = True
-    if mypy_folder == "airflow":
-        arguments.append("tests")
-
-if namespace_packages:
-    arguments.append("--namespace-packages")
+    if mypy_folder == "airflow-core/src/airflow":
+        arguments.append("airflow-core/tests")
 
 print("Running /opt/airflow/scripts/in_container/run_mypy.sh with arguments: ", arguments)
 

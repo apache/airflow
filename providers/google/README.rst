@@ -83,7 +83,7 @@ PIP package                                 Version required
 ``google-cloud-bigtable``                   ``>=2.17.0``
 ``google-cloud-build``                      ``>=3.31.0``
 ``google-cloud-compute``                    ``>=1.10.0``
-``google-cloud-container``                  ``>=2.17.4``
+``google-cloud-container``                  ``>=2.52.0``
 ``google-cloud-datacatalog``                ``>=3.23.0``
 ``google-cloud-dataflow-client``            ``>=0.8.6``
 ``google-cloud-dataform``                   ``>=0.5.0``
@@ -134,7 +134,7 @@ Cross provider package dependencies
 -----------------------------------
 
 Those are dependencies that might be needed in order to use all the features of the package.
-You need to install the specified provider packages in order to use them.
+You need to install the specified providers in order to use them.
 
 You can install such cross-provider dependencies when installing from PyPI. For example:
 

@@ -34,7 +34,7 @@ As part of this change the following breaking changes have occurred:
 
   .. code-block:: bash
 
-      airflow db drop-archived -t "_xcAm_archive"
+      airflow db drop-archived -t "_xcom_archive"
 
 - The ability to specify scheduling conditions for an operator via the ``deps`` class attribute has been removed.
 
@@ -46,6 +46,49 @@ As part of this change the following breaking changes have occurred:
 
   Any occurrences of imports from ``airflow.models.baseoperatorlink`` will need to be updated to ``airflow.sdk.definitions.baseoperatorlink``
 
+- ``chain``, ``chain_linear`` and ``cross_downstream`` have been moved to the task SDK.
+
+  Any occurrences of imports from ``airflow.models.baseoperator`` will need to be updated to ``airflow.sdk``
+
+  Old imports:
+
+  .. code-block:: python
+
+      from airflow.models.baseoperator import chain, chain_linear, cross_downstream
+
+  New imports:
+
+  .. code-block:: python
+
+      from airflow.sdk import chain, chain_linear, cross_downstream
+
+- The ``Label`` class has been moved to the task SDK.
+
+  Old imports:
+
+  .. code-block:: python
+
+      from airflow.utils.edgemodifier import Label
+
+  New imports:
+
+  .. code-block:: python
+
+      from airflow.sdk import Label
+
+- We have removed DAG level settings that control the UI behaviour.
+  These are now as per-user settings controlled by the UI
+
+  - ``default_view``
+
+- The ``SkipMixin` class has been removed as a parent class from ``BaseSensorOperator``.
+
+- A new config ``[workers] secrets_backend[kwargs]`` & ``[workers] secrets_backend_kwargs``  has been introduced to configure secrets backend on the
+  workers directly to allow reducing the round trip to the API server and also to allow configuring a
+  different secrets backend.
+  Priority defined as workers backend > workers env > secrets backend on API server > API server env > metadata DB.
+
+
 * Types of change
 
   * [x] Dag changes
@@ -55,7 +98,7 @@ As part of this change the following breaking changes have occurred:
   * [x] Behaviour changes
   * [x] Plugin changes
   * [ ] Dependency changes
-  * [ ] Code interface changes
+  * [x] Code interface changes
 
 * Migration rules needed
 
@@ -68,4 +111,4 @@ As part of this change the following breaking changes have occurred:
 
     * AIR302
 
-      * [ ] ``airflow.models.baseoperatorlink`` → ``airflow.sdk``
+      * [ ] ``airflow.models.baseoperatorlink.BaseOperatorLink`` → ``airflow.sdk.definitions.baseoperatorlink.BaseOperatorLink``

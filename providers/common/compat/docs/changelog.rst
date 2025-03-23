@@ -25,6 +25,38 @@
 Changelog
 ---------
 
+1.6.0b1
+.......
+
+Features
+~~~~~~~~
+
+* ``feat: Add helper for any provider version check (#47909)``
+* ``feat: Add helper for OpenLineage version check (#47897)``
+* ``AIP-84 Add Auth for DAG Versioning (#47553)``
+* ``AIP-84 Add Auth for backfill (#47482)``
+* ``AIP 84 - Add auth for asset alias (#47241)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Remove links to x/twitter.com (#47801)``
+
+1.5.1
+.....
+
+Misc
+~~~~
+
+* ``Relocate airflow.auth to airflow.api_fastapi.auth (#47492)``
+* ``Upgrade flit to 3.11.0 (#46938)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Move tests_common package to devel-common project (#47281)``
+   * ``Improve documentation for updating provider dependencies (#47203)``
+   * ``Add legacy namespace packages to airflow.providers (#47064)``
+   * ``Remove extra whitespace in provider readme template (#46975)``
+
 1.5.0
 .....
 

@@ -23,7 +23,8 @@ from typing import TYPE_CHECKING, Any
 import attrs
 
 from airflow.providers.standard.operators.python import PythonOperator
-from airflow.sdk.definitions.asset import Asset, AssetNameRef, AssetRef, BaseAsset
+from airflow.sdk.definitions.asset import Asset, AssetRef, BaseAsset
+from airflow.sdk.exceptions import AirflowRuntimeError
 
 if TYPE_CHECKING:
     from collections.abc import Callable, Collection, Iterator, Mapping
@@ -45,44 +46,45 @@ class _AssetMainOperator(PythonOperator):
     @classmethod
     def from_definition(cls, definition: AssetDefinition | MultiAssetDefinition) -> Self:
         return cls(
-            task_id="__main__",
+            task_id=definition._function.__name__,
             inlets=[
                 Asset.ref(name=inlet_asset_name)
-                for inlet_asset_name in inspect.signature(definition._function).parameters
-                if inlet_asset_name not in ("self", "context")
+                for inlet_asset_name, param in inspect.signature(definition._function).parameters.items()
+                if inlet_asset_name not in ("self", "context") and param.default is inspect.Parameter.empty
             ],
             outlets=[v for _, v in definition.iter_assets()],
             python_callable=definition._function,
             definition_name=definition._function.__name__,
         )
 
-    def _iter_kwargs(
-        self, context: Mapping[str, Any], active_assets: dict[str, Asset]
-    ) -> Iterator[tuple[str, Any]]:
+    def _iter_kwargs(self, context: Mapping[str, Any]) -> Iterator[tuple[str, Any]]:
+        import structlog
+
+        from airflow.sdk.execution_time.comms import ErrorResponse, GetAssetByName
+        from airflow.sdk.execution_time.task_runner import SUPERVISOR_COMMS
+
+        log = structlog.get_logger(logger_name=self.__class__.__qualname__)
+
+        def _fetch_asset(name: str) -> Asset:
+            SUPERVISOR_COMMS.send_request(log, GetAssetByName(name=name))
+            if isinstance(msg := SUPERVISOR_COMMS.get_message(), ErrorResponse):
+                raise AirflowRuntimeError(msg)
+            return Asset(**msg.model_dump(exclude={"type"}))
+
         value: Any
-        for key in inspect.signature(self.python_callable).parameters:
-            if key == "self":
-                value = active_assets.get(self._definition_name)
+        for key, param in inspect.signature(self.python_callable).parameters.items():
+            if param.default is not inspect.Parameter.empty:
+                value = param.default
+            elif key == "self":
+                value = _fetch_asset(self._definition_name)
             elif key == "context":
                 value = context
             else:
-                value = active_assets.get(key, Asset(name=key))
+                value = _fetch_asset(key)
             yield key, value
 
     def determine_kwargs(self, context: Mapping[str, Any]) -> Mapping[str, Any]:
-        from airflow.models.asset import fetch_active_assets_by_name
-        from airflow.utils.session import create_session
-
-        asset_names = {asset_ref.name for asset_ref in self.inlets if isinstance(asset_ref, AssetNameRef)}
-        if "self" in inspect.signature(self.python_callable).parameters:
-            asset_names.add(self._definition_name)
-
-        if asset_names:
-            with create_session() as session:
-                active_assets = fetch_active_assets_by_name(asset_names, session)
-        else:
-            active_assets = {}
-        return dict(self._iter_kwargs(context, active_assets))
+        return dict(self._iter_kwargs(context))
 
 
 @attrs.define(kw_only=True)
@@ -97,7 +99,7 @@ class AssetDefinition(Asset):
     _source: asset
 
     def __attrs_post_init__(self) -> None:
-        with self._source.create_dag(dag_id=self.name):
+        with self._source.create_dag(default_dag_id=self.name):
             _AssetMainOperator.from_definition(self)
 
 
@@ -117,7 +119,7 @@ class MultiAssetDefinition(BaseAsset):
     _source: asset.multi
 
     def __attrs_post_init__(self) -> None:
-        with self._source.create_dag(dag_id=self._function.__name__):
+        with self._source.create_dag(default_dag_id=self._function.__name__):
             _AssetMainOperator.from_definition(self)
 
     def iter_assets(self) -> Iterator[tuple[AssetUniqueKey, Asset]]:
@@ -153,7 +155,8 @@ class _DAGFactory:
     schedule: ScheduleArg
     is_paused_upon_creation: bool | None = None
 
-    display_name: str | None = None
+    dag_id: str | None = None
+    dag_display_name: str | None = None
     description: str | None = None
 
     params: ParamsDict | None = None
@@ -161,21 +164,26 @@ class _DAGFactory:
     on_failure_callback: None | DagStateChangeCallback | list[DagStateChangeCallback] = None
 
     access_control: dict[str, dict[str, Collection[str]]] | None = None
-    owner_links: dict[str, str] | None = None
+    owner_links: dict[str, str] = attrs.field(factory=dict)
+    tags: Collection[str] = attrs.field(factory=set)
 
-    def create_dag(self, *, dag_id: str) -> DAG:
+    def create_dag(self, *, default_dag_id: str) -> DAG:
         from airflow.models.dag import DAG  # TODO: Use the SDK DAG when it works.
 
+        dag_id = self.dag_id or default_dag_id
         return DAG(
             dag_id=dag_id,
             schedule=self.schedule,
             is_paused_upon_creation=self.is_paused_upon_creation,
             catchup=False,
-            dag_display_name=self.display_name or dag_id,
+            dag_display_name=self.dag_display_name or dag_id,
             description=self.description,
             params=self.params,
             on_success_callback=self.on_success_callback,
             on_failure_callback=self.on_failure_callback,
+            access_control=self.access_control,
+            owner_links=self.owner_links,
+            tags=self.tags,
             auto_register=True,
         )
 
@@ -184,6 +192,7 @@ class _DAGFactory:
 class asset(_DAGFactory):
     """Create an asset by decorating a materialization function."""
 
+    name: str | None = None
     uri: str | ObjectStoragePath | None = None
     group: str = Asset.asset_type
     extra: dict[str, Any] = attrs.field(factory=dict)
@@ -203,8 +212,9 @@ class asset(_DAGFactory):
             return MultiAssetDefinition(function=f, source=self)
 
     def __call__(self, f: Callable) -> AssetDefinition:
-        if (name := f.__name__) != f.__qualname__:
+        if f.__name__ != f.__qualname__:
             raise ValueError("nested function not supported")
+        name = self.name or f.__name__
         return AssetDefinition(
             name=name,
             uri=name if self.uri is None else str(self.uri),

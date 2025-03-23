@@ -39,19 +39,21 @@
       "python3-saml>=1.16.0",
       "redshift_connector>=2.0.918",
       "sagemaker-studio>=1.0.9",
-      "watchtower>=3.0.0,!=3.3.0,<4"
+      "watchtower>=3.0.0,!=3.3.0,<4",
+      "xmlsec!=1.3.15,>=1.3.14"
     ],
     "devel-deps": [
       "aiobotocore>=2.13.0",
       "aws_xray_sdk>=2.12.0",
       "moto[cloudformation,glue]>=5.0.0",
-      "mypy-boto3-appflow>=1.35.39",
+      "mypy-boto3-appflow>=1.37.0",
       "mypy-boto3-rds>=1.34.90",
       "mypy-boto3-redshift-data>=1.34.0",
       "mypy-boto3-s3>=1.34.90",
       "openapi-schema-validator>=0.6.2",
       "openapi-spec-validator>=0.7.1",
       "opensearch-py>=2.2.0",
+      "responses>=0.25.0",
       "s3fs>=2023.10.0"
     ],
     "plugins": [],
@@ -177,6 +179,7 @@
     ],
     "cross-providers-deps": [
       "amazon",
+      "common.compat",
       "common.sql",
       "microsoft.mssql",
       "mysql",
@@ -427,7 +430,7 @@
       "amazon"
     ],
     "excluded-python-versions": [],
-    "state": "ready"
+    "state": "not-ready"
   },
   "common.sql": {
     "deps": [
@@ -605,7 +608,7 @@
       "common.compat"
     ],
     "excluded-python-versions": [],
-    "state": "ready"
+    "state": "not-ready"
   },
   "facebook": {
     "deps": [
@@ -669,7 +672,7 @@
       "google-cloud-bigtable>=2.17.0",
       "google-cloud-build>=3.31.0",
       "google-cloud-compute>=1.10.0",
-      "google-cloud-container>=2.17.4",
+      "google-cloud-container>=2.52.0",
       "google-cloud-datacatalog>=3.23.0",
       "google-cloud-dataflow-client>=0.8.6",
       "google-cloud-dataform>=0.5.0",
@@ -853,10 +856,11 @@
       "microsoft-kiota-http>=1.3.0,!=1.3.4",
       "microsoft-kiota-serialization-json==1.0.0",
       "microsoft-kiota-serialization-text==1.0.0",
+      "msal-extensions>=1.1.0",
       "msgraph-core>=1.0.0,!=1.1.8"
     ],
     "devel-deps": [
-      "pywinrm>=0.4"
+      "pywinrm>=0.5.0"
     ],
     "plugins": [],
     "cross-providers-deps": [
@@ -898,7 +902,7 @@
   "microsoft.winrm": {
     "deps": [
       "apache-airflow>=2.9.0",
-      "pywinrm>=0.4"
+      "pywinrm>=0.5.0"
     ],
     "devel-deps": [],
     "plugins": [],
@@ -969,7 +973,7 @@
   "openai": {
     "deps": [
       "apache-airflow>=2.9.0",
-      "openai[datalib]>=1.32.0"
+      "openai[datalib]>=1.66.0"
     ],
     "devel-deps": [],
     "plugins": [],
@@ -1401,7 +1405,9 @@
       "yandex-query-client>=0.1.4",
       "yandexcloud>=0.308.0"
     ],
-    "devel-deps": [],
+    "devel-deps": [
+      "responses>=0.25.0"
+    ],
     "plugins": [],
     "cross-providers-deps": [
       "common.compat"

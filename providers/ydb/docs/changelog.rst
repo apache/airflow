@@ -27,6 +27,34 @@
 Changelog
 ---------
 
+2.1.1
+.....
+
+Bug Fixes
+~~~~~~~~~
+
+* ``fIx deprecation warnings in common.sql (#47169)``
+
+Misc
+~~~~
+
+* ``Replace ydb limitation with yandexcloud exclusion (#47142)``
+* ``Limit ydb to < 3.19.0 (#47105)``
+* ``Upgrade flit to 3.11.0 (#46938)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Move tests_common package to devel-common project (#47281)``
+   * ``Improve documentation for updating provider dependencies (#47203)``
+   * ``Add legacy namespace packages to airflow.providers (#47064)``
+   * ``Remove extra whitespace in provider readme template (#46975)``
+   * ``Prepare docs for Feb 1st wave of providers (#46893)``
+   * ``Adding a task that validates format of dates in YDB example dag (#46807)``
+   * ``Move provider_tests to unit folder in provider tests (#46800)``
+   * ``Removed the unused provider's distribution (#46608)``
+   * ``Fix doc issues found with recent moves (#46372)``
+   * ``init run on ydb (#46058)``
+
 2.1.0
 .....
 

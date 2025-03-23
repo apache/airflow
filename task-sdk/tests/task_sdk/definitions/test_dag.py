@@ -282,7 +282,7 @@ class TestDag:
             dag = DAG("continuous", start_date=DEFAULT_DATE, schedule="@continuous", max_active_runs=25)
 
 
-# Test some of the arg valiadtion. This is not all the validations we perform, just some of them.
+# Test some of the arg validation. This is not all the validations we perform, just some of them.
 @pytest.mark.parametrize(
     ["attr", "value"],
     [
@@ -366,6 +366,15 @@ class TestDagDecorator:
         "retry_delay": timedelta(minutes=1),
     }
     VALUE = 42
+
+    def test_dag_decorator_without_args(self):
+        """Test that @dag can be used without any arguments."""
+
+        @dag_decorator
+        def noop_pipeline(): ...
+
+        dag = noop_pipeline()
+        assert dag.dag_id == "noop_pipeline"
 
     def test_fileloc(self):
         @dag_decorator(schedule=None, default_args=self.DEFAULT_ARGS)

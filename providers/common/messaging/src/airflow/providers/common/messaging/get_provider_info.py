@@ -26,9 +26,9 @@ def get_provider_info():
         "package-name": "apache-airflow-providers-common-messaging",
         "name": "Common Messaging",
         "description": "``Common Messaging Provider``\n",
-        "state": "ready",
+        "state": "not-ready",
         "source-date-epoch": 1741121853,
-        "versions": ["1.0.0"],
+        "versions": ["1.0.0b1"],
         "triggers": [
             {
                 "integration-name": "Message queue",

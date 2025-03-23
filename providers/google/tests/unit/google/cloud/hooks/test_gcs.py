@@ -42,9 +42,9 @@ from airflow.providers.google.cloud.hooks.gcs import _fallback_object_url_to_obj
 from airflow.providers.google.common.consts import CLIENT_INFO
 from airflow.utils import timezone
 from airflow.version import version
-from unit.google.cloud.utils.base_gcp_mock import mock_base_gcp_hook_default_project_id
 
 from tests_common.test_utils.version_compat import AIRFLOW_V_2_10_PLUS
+from unit.google.cloud.utils.base_gcp_mock import mock_base_gcp_hook_default_project_id
 
 BASE_STRING = "airflow.providers.google.common.hooks.base_google.{}"
 GCS_STRING = "airflow.providers.google.cloud.hooks.gcs.{}"

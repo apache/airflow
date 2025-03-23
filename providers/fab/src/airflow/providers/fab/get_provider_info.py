@@ -26,10 +26,10 @@ def get_provider_info():
         "package-name": "apache-airflow-providers-fab",
         "name": "Fab",
         "description": "`Flask App Builder <https://flask-appbuilder.readthedocs.io/>`__\n",
-        "state": "ready",
+        "state": "not-ready",
         "source-date-epoch": 1741121873,
         "versions": [
-            "2.0.0",
+            "2.0.0b1",
             "1.5.2",
             "1.5.1",
             "1.5.0",
@@ -71,6 +71,13 @@ def get_provider_info():
                         "type": "string",
                         "example": None,
                         "default": "True",
+                    },
+                    "auth_backends": {
+                        "description": "Comma separated list of auth backends to authenticate users of the API.\n",
+                        "version_added": "2.3.0",
+                        "type": "string",
+                        "example": None,
+                        "default": "airflow.providers.fab.auth_manager.api.auth.backend.session",
                     },
                 },
             }

@@ -23,7 +23,7 @@
 
 Package ``apache-airflow-providers-discord``
 
-Release: ``3.9.2``
+Release: ``3.9.3``
 
 
 `Discord <https://discord.com/>`__
@@ -36,7 +36,7 @@ This is a provider package for ``discord`` provider. All classes for this provid
 are in ``airflow.providers.discord`` python package.
 
 You can find package information and changelog for the provider
-in the `documentation <https://airflow.apache.org/docs/apache-airflow-providers-discord/3.9.2/>`_.
+in the `documentation <https://airflow.apache.org/docs/apache-airflow-providers-discord/3.9.3/>`_.
 
 Installation
 ------------
@@ -61,7 +61,7 @@ Cross provider package dependencies
 -----------------------------------
 
 Those are dependencies that might be needed in order to use all the features of the package.
-You need to install the specified provider packages in order to use them.
+You need to install the specified providers in order to use them.
 
 You can install such cross-provider dependencies when installing from PyPI. For example:
 
@@ -77,4 +77,4 @@ Dependent package                                                               
 ================================================================================================  ========
 
 The changelog for the provider package can be found in the
-`changelog <https://airflow.apache.org/docs/apache-airflow-providers-discord/3.9.2/changelog.html>`_.
+`changelog <https://airflow.apache.org/docs/apache-airflow-providers-discord/3.9.3/changelog.html>`_.

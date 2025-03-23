@@ -220,6 +220,7 @@ def make_ti_context() -> MakeTIContextCallable:
             ),
             task_reschedule_count=task_reschedule_count,
             max_tries=0,
+            should_retry=False,
         )
 
     return _make_context
@@ -266,6 +267,12 @@ def mock_supervisor_comms():
         "airflow.sdk.execution_time.task_runner.SUPERVISOR_COMMS", create=True
     ) as supervisor_comms:
         yield supervisor_comms
+
+
+@pytest.fixture
+def mock_xcom_backend():
+    with mock.patch("airflow.sdk.execution_time.task_runner.XCom", create=True) as xcom_backend:
+        yield xcom_backend
 
 
 @pytest.fixture

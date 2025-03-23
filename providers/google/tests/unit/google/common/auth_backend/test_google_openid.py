@@ -25,12 +25,11 @@ from airflow.providers.google.version_compat import AIRFLOW_V_3_0_PLUS
 
 if not AIRFLOW_V_3_0_PLUS:
     pytest.skip(
-        "``providers/google/tests/unit/google/common/auth_backend/test_google_openid.py`` is only compatible with Airflow 2.X.",
+        "``providers/google/tests/unit/google/common/auth_backend/test_google_openid.py`` is only compatible with Airflow 3.X.",
         allow_module_level=True,
     )
 
 from tests_common.test_utils.config import conf_vars
-from tests_common.test_utils.db import clear_db_pools
 
 
 @pytest.fixture(scope="module")
@@ -38,7 +37,7 @@ def google_openid_app():
     def factory():
         with conf_vars(
             {
-                ("api", "auth_backends"): "airflow.providers.google.common.auth_backend.google_openid",
+                ("fab", "auth_backends"): "airflow.providers.google.common.auth_backend.google_openid",
                 (
                     "core",
                     "auth_manager",
@@ -54,20 +53,27 @@ def google_openid_app():
     return factory()
 
 
+def delete_user(app, username):
+    appbuilder = app.appbuilder
+    for user in appbuilder.sm.get_all_users():
+        if user.username == username:
+            appbuilder.sm.del_register_user(user)
+            break
+
+
 @pytest.fixture(scope="module")
 def admin_user(google_openid_app):
     appbuilder = google_openid_app.appbuilder
     role_admin = appbuilder.sm.find_role("Admin")
-    tester = appbuilder.sm.find_user(username="test")
-    if not tester:
-        appbuilder.sm.add_user(
-            username="test",
-            first_name="test",
-            last_name="test",
-            email="test@fab.org",
-            role=role_admin,
-            password="test",
-        )
+    delete_user(google_openid_app, "test")
+    appbuilder.sm.add_user(
+        username="test",
+        first_name="test",
+        last_name="test",
+        email="test@fab.org",
+        role=role_admin,
+        password="test",
+    )
     return role_admin
 
 
@@ -80,7 +86,6 @@ class TestGoogleOpenID:
 
     @mock.patch("google.oauth2.id_token.verify_token")
     def test_success(self, mock_verify_token):
-        clear_db_pools()
         mock_verify_token.return_value = {
             "iss": "accounts.google.com",
             "email_verified": True,
@@ -132,14 +137,14 @@ class TestGoogleOpenID:
 
         assert response.status_code == 401
 
-    @conf_vars({("api", "auth_backends"): "airflow.providers.google.common.auth_backend.google_openid"})
+    @conf_vars({("fab", "auth_backends"): "airflow.providers.google.common.auth_backend.google_openid"})
     def test_missing_id_token(self):
         with self.app.test_client() as test_client:
             response = test_client.get("/fab/v1/users")
 
         assert response.status_code == 401
 
-    @conf_vars({("api", "auth_backends"): "airflow.providers.google.common.auth_backend.google_openid"})
+    @conf_vars({("fab", "auth_backends"): "airflow.providers.google.common.auth_backend.google_openid"})
     @mock.patch("google.oauth2.id_token.verify_token")
     def test_invalid_id_token(self, mock_verify_token):
         mock_verify_token.side_effect = GoogleAuthError("Invalid token")

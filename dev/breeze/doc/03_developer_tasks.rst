@@ -123,12 +123,12 @@ You can connect to these ports/databases using:
 
 .. code-block::
 
-    * ssh connection for remote debugging: ssh -p 12322 airflow@127.0.0.1 pw: airflow
-    * API server or webserver:    http://127.0.0.1:28080
-    * Flower:    http://127.0.0.1:25555
-    * Postgres:  jdbc:postgresql://127.0.0.1:25433/airflow?user=postgres&password=airflow
-    * Mysql:     jdbc:mysql://127.0.0.1:23306/airflow?user=root
-    * Redis:     redis://127.0.0.1:26379/0
+    * ssh connection for remote debugging: ssh -p 12322 airflow@localhost pw: airflow
+    * API server or webserver:    http://localhost:28080
+    * Flower:    http://localhost:25555
+    * Postgres:  jdbc:postgresql://localhost:25433/airflow?user=postgres&password=airflow
+    * Mysql:     jdbc:mysql://localhost:23306/airflow?user=root
+    * Redis:     redis://localhost:26379/0
 
 If you do not use ``start-airflow`` command. You can use ``tmux`` to multiply terminals.
 You may need to create a user prior to running the webserver in order to log in.
@@ -616,7 +616,7 @@ Note that you can also use the local virtualenv for Airflow development without 
 This is a lightweight solution that has its own limitations.
 
 More details on using the local virtualenv are available in the
-`Local Virtualenv <../../../contributing-docs/07_local_virtualenv.rst>`_.
+`Local Virtualenv </contributing-docs/07_local_virtualenv.rst>`_.
 
 Auto-generating migration files
 -------------------------------

@@ -229,12 +229,18 @@ def logging_processors(
 @cache
 def configure_logging(
     enable_pretty_log: bool = True,
-    log_level: str = "DEBUG",
+    log_level: str = "DEFAULT",
     output: BinaryIO | TextIO | None = None,
     cache_logger_on_first_use: bool = True,
     sending_to_supervisor: bool = False,
 ):
     """Set up struct logging and stdlib logging config."""
+    if log_level == "DEFAULT":
+        log_level = "INFO"
+        if "airflow.configuration" in sys.modules:
+            from airflow.configuration import conf
+
+            log_level = conf.get("logging", "logging_level", fallback="INFO")
     lvl = structlog.stdlib.NAME_TO_LEVEL[log_level.lower()]
 
     if enable_pretty_log:
@@ -458,13 +464,25 @@ def init_log_file(local_relative_path: str) -> Path:
     return full_path
 
 
+def load_remote_log_handler() -> logging.Handler | None:
+    from airflow.logging_config import configure_logging as airflow_configure_logging
+    from airflow.utils.log.log_reader import TaskLogReader
+
+    try:
+        airflow_configure_logging()
+
+        return TaskLogReader().log_handler
+    finally:
+        # This is a _monstrosity_ but put our logging back immediately...
+        configure_logging()
+
+
 def upload_to_remote(logger: FilteringBoundLogger):
     # We haven't yet switched the Remote log handlers over, they are still wired up in providers as
     # logging.Handlers (but we should re-write most of them to just be the upload and read instead of full
     # variants.) In the mean time, lets just create the right handler directly
     from airflow.configuration import conf
     from airflow.utils.log.file_task_handler import FileTaskHandler
-    from airflow.utils.log.log_reader import TaskLogReader
 
     raw_logger = getattr(logger, "_logger")
 
@@ -481,7 +499,7 @@ def upload_to_remote(logger: FilteringBoundLogger):
     base_log_folder = conf.get("logging", "base_log_folder")
     relative_path = Path(fname).relative_to(base_log_folder)
 
-    handler = TaskLogReader().log_handler
+    handler = load_remote_log_handler()
     if not isinstance(handler, FileTaskHandler):
         logger.warning(
             "Airflow core logging is not using a FileTaskHandler, can't upload logs to remote",

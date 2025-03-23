@@ -33,7 +33,6 @@ from airflow.models import (
     TaskReschedule,
     Trigger,
     Variable,
-    XCom,
 )
 from airflow.models.dag import DagOwnerAttributes
 from airflow.models.dagcode import DagCode
@@ -55,6 +54,11 @@ from tests_common.test_utils.version_compat import AIRFLOW_V_2_10_PLUS, AIRFLOW_
 
 if TYPE_CHECKING:
     from pathlib import Path
+
+if AIRFLOW_V_3_0_PLUS:
+    from airflow.models.xcom import XComModel as XCom
+else:
+    from airflow.models.xcom import XCom
 
 
 def _bootstrap_dagbag():
@@ -81,9 +85,10 @@ def _bootstrap_dagbag():
 
 
 def initial_db_init():
+    from flask import Flask
+
     from airflow.configuration import conf
     from airflow.utils import db
-    from flask import Flask
 
     from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS
 
@@ -154,14 +159,22 @@ def clear_db_assets():
         session.query(DagScheduleAssetReference).delete()
         session.query(TaskOutletAssetReference).delete()
         if AIRFLOW_V_2_10_PLUS:
-            from tests_common.test_utils.compat import AssetAliasModel
+            from tests_common.test_utils.compat import AssetAliasModel, DagScheduleAssetAliasReference
 
             session.query(AssetAliasModel).delete()
+            session.query(DagScheduleAssetAliasReference).delete()
         if AIRFLOW_V_3_0_PLUS:
-            from airflow.models.asset import AssetActive, asset_trigger_association_table
+            from airflow.models.asset import (
+                AssetActive,
+                DagScheduleAssetNameReference,
+                DagScheduleAssetUriReference,
+                asset_trigger_association_table,
+            )
 
             session.query(asset_trigger_association_table).delete()
             session.query(AssetActive).delete()
+            session.query(DagScheduleAssetNameReference).delete()
+            session.query(DagScheduleAssetUriReference).delete()
 
 
 def clear_db_triggers():

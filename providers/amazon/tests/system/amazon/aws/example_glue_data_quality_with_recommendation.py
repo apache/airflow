@@ -37,6 +37,7 @@ from airflow.providers.amazon.aws.sensors.glue import (
     GlueDataQualityRuleSetEvaluationRunSensor,
 )
 from airflow.utils.trigger_rule import TriggerRule
+
 from system.amazon.aws.utils import SystemTestContextBuilder
 
 ROLE_ARN_KEY = "ROLE_ARN"

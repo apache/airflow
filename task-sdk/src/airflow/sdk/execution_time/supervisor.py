@@ -54,6 +54,7 @@ from pydantic import TypeAdapter
 
 from airflow.sdk.api.client import Client, ServerResponseError
 from airflow.sdk.api.datamodels._generated import (
+    AssetResponse,
     ConnectionResponse,
     IntermediateTIState,
     TaskInstance,
@@ -64,12 +65,15 @@ from airflow.sdk.execution_time.comms import (
     AssetEventsResult,
     AssetResult,
     ConnectionResult,
+    DagRunStateResult,
     DeferTask,
+    DeleteXCom,
     GetAssetByName,
     GetAssetByUri,
     GetAssetEventByAsset,
     GetAssetEventByAssetAlias,
     GetConnection,
+    GetDagRunState,
     GetPrevSuccessfulDagRun,
     GetVariable,
     GetXCom,
@@ -80,10 +84,12 @@ from airflow.sdk.execution_time.comms import (
     RuntimeCheckOnTask,
     SetRenderedFields,
     SetXCom,
+    SkipDownstreamTasks,
     StartupDetails,
     SucceedTask,
     TaskState,
     ToSupervisor,
+    TriggerDagRun,
     VariableResult,
     XComCountResponse,
     XComResult,
@@ -93,17 +99,18 @@ if TYPE_CHECKING:
     from structlog.typing import FilteringBoundLogger, WrappedLogger
 
     from airflow.executors.workloads import BundleInfo
+    from airflow.secrets import BaseSecretsBackend
     from airflow.typing_compat import Self
 
 
-__all__ = ["ActivitySubprocess", "WatchedSubprocess", "supervise"]
+__all__ = ["ActivitySubprocess", "WatchedSubprocess", "supervise", "SECRETS_BACKEND"]
 
 log: FilteringBoundLogger = structlog.get_logger(logger_name="supervisor")
 
 # TODO: Pull this from config
-#  (previously `[scheduler] local_task_job_heartbeat_sec` with the following as fallback if it is 0:
-#  `[scheduler] scheduler_zombie_task_threshold`)
-HEARTBEAT_THRESHOLD: int = 30
+#  (previously `[scheduler] task_instance_heartbeat_sec` with the following as fallback if it is 0:
+#  `[scheduler] task_instance_heartbeat_timeout`)
+HEARTBEAT_TIMEOUT: int = 30
 # Don't heartbeat more often than this
 MIN_HEARTBEAT_INTERVAL: int = 5
 MAX_FAILED_HEARTBEATS: int = 3
@@ -116,6 +123,8 @@ STATES_SENT_DIRECTLY = [
     IntermediateTIState.UP_FOR_RESCHEDULE,
     TerminalTIState.SUCCESS,
 ]
+
+SECRETS_BACKEND: list[BaseSecretsBackend] = []
 
 
 @overload
@@ -234,9 +243,8 @@ def block_orm_access():
         from airflow import settings
         from airflow.configuration import conf
 
-        settings.dispose_orm()
-
-        for attr in ("engine", "async_engine", "Session", "AsyncSession", "NonScopedSession"):
+        to_block = frozenset(("engine", "async_engine", "Session", "AsyncSession", "NonScopedSession"))
+        for attr in to_block:
             if hasattr(settings, attr):
                 delattr(settings, attr)
 
@@ -249,6 +257,15 @@ def block_orm_access():
             conf.set("database", "sql_alchemy_conn", conn)
             conf.set("database", "sql_alchemy_conn_cmd", "/bin/false")
             conf.set("database", "sql_alchemy_conn_secret", "db-access-blocked")
+
+        # This only gets called when the module does not already have an attribute, and for these values
+        # lets give a custom error message
+        def __getattr__(name: str):
+            if name in to_block:
+                raise AttributeError("Access to the Airflow Metadatabase from dags is not allowed!")
+            raise AttributeError(f"module {settings.__name__!r} has no attribute {name!r}")
+
+        settings.__getattr__ = __getattr__
 
         settings.SQL_ALCHEMY_CONN = conn
         settings.SQL_ALCHEMY_CONN_ASYNC = conn
@@ -329,7 +346,7 @@ def _fork_main(
         import traceback
 
         try:
-            last_chance_stderr.write("--- Last chance exception handler ---\n")
+            last_chance_stderr.write("--- Supervised process Last chance exception handler ---\n")
             traceback.print_exception(exc, value=v, tb=tb, file=last_chance_stderr)
             # Exit code 126 and 125 don't have any "special" meaning, they are only meant to serve as an
             # identifier that the task process died in a really odd way.
@@ -371,7 +388,10 @@ class WatchedSubprocess:
 
     selector: selectors.BaseSelector = attrs.field(factory=selectors.DefaultSelector)
 
-    log: FilteringBoundLogger
+    process_log: FilteringBoundLogger
+
+    subprocess_logs_to_stdout: bool = False
+    """Duplicate log messages to stdout, or only send them to ``self.process_log``."""
 
     @classmethod
     def start(
@@ -427,7 +447,7 @@ class WatchedSubprocess:
             stdin=feed_stdin,
             process=psutil.Process(pid),
             requests_fd=requests_fd,
-            log=logger,
+            process_log=logger,
             **constructor_kwargs,
         )
 
@@ -447,17 +467,22 @@ class WatchedSubprocess:
         # alternatives are used automatically) -- this is a way of having "event-based" code, but without
         # needing full async, to read and process output from each socket as it is received.
 
-        self.selector.register(stdout, selectors.EVENT_READ, self._create_socket_handler(self.log, "stdout"))
+        target_loggers: tuple[FilteringBoundLogger, ...] = (self.process_log,)
+        if self.subprocess_logs_to_stdout:
+            target_loggers += (log,)
+        self.selector.register(
+            stdout, selectors.EVENT_READ, self._create_socket_handler(target_loggers, channel="stdout")
+        )
         self.selector.register(
             stderr,
             selectors.EVENT_READ,
-            self._create_socket_handler(self.log, "stderr", log_level=logging.ERROR),
+            self._create_socket_handler(target_loggers, channel="stderr", log_level=logging.ERROR),
         )
         self.selector.register(
             logs,
             selectors.EVENT_READ,
             make_buffered_socket_reader(
-                process_log_messages_from_subprocess(self.log), on_close=self._on_socket_closed
+                process_log_messages_from_subprocess(target_loggers), on_close=self._on_socket_closed
             ),
         )
         self.selector.register(
@@ -466,10 +491,10 @@ class WatchedSubprocess:
             make_buffered_socket_reader(self.handle_requests(log), on_close=self._on_socket_closed),
         )
 
-    def _create_socket_handler(self, logger, channel, log_level=logging.INFO) -> Callable[[socket], bool]:
+    def _create_socket_handler(self, loggers, channel, log_level=logging.INFO) -> Callable[[socket], bool]:
         """Create a socket handler that forwards logs to a logger."""
         return make_buffered_socket_reader(
-            forward_to_log(logger.bind(chan=channel), level=log_level), on_close=self._on_socket_closed
+            forward_to_log(loggers, chan=channel, level=log_level), on_close=self._on_socket_closed
         )
 
     def _on_socket_closed(self):
@@ -615,7 +640,7 @@ class WatchedSubprocess:
         if self._exit_code is None:
             try:
                 self._exit_code = self._process.wait(timeout=0)
-                log.debug("Workload process exited", exit_code=self._exit_code)
+                log.debug("%s process exited", type(self).__name__, exit_code=self._exit_code)
                 self._close_unused_sockets(self.stdin)
             except psutil.TimeoutExpired:
                 if raise_on_timeout:
@@ -735,7 +760,7 @@ class ActivitySubprocess(WatchedSubprocess):
         """
         from airflow.sdk.log import upload_to_remote
 
-        upload_to_remote(self.log)
+        upload_to_remote(self.process_log)
 
     def _monitor_subprocess(self):
         """
@@ -754,8 +779,8 @@ class ActivitySubprocess(WatchedSubprocess):
             max_wait_time = max(
                 0,  # Make sure this value is never negative,
                 min(
-                    # Ensure we heartbeat _at most_ 75% through time the zombie threshold time
-                    HEARTBEAT_THRESHOLD - last_heartbeat_ago * 0.75,
+                    # Ensure we heartbeat _at most_ 75% through the task instance heartbeat timeout time
+                    HEARTBEAT_TIMEOUT - last_heartbeat_ago * 0.75,
                     MIN_HEARTBEAT_INTERVAL,
                 ),
             )
@@ -887,22 +912,32 @@ class ActivitySubprocess(WatchedSubprocess):
         elif isinstance(msg, RescheduleTask):
             self._terminal_state = IntermediateTIState.UP_FOR_RESCHEDULE
             self.client.task_instances.reschedule(self.id, msg)
+        elif isinstance(msg, SkipDownstreamTasks):
+            self.client.task_instances.skip_downstream_tasks(self.id, msg)
         elif isinstance(msg, SetXCom):
             self.client.xcoms.set(
                 msg.dag_id, msg.run_id, msg.task_id, msg.key, msg.value, msg.map_index, msg.mapped_length
             )
+        elif isinstance(msg, DeleteXCom):
+            self.client.xcoms.delete(msg.dag_id, msg.run_id, msg.task_id, msg.key, msg.map_index)
         elif isinstance(msg, PutVariable):
             self.client.variables.set(msg.key, msg.value, msg.description)
         elif isinstance(msg, SetRenderedFields):
             self.client.task_instances.set_rtif(self.id, msg.rendered_fields)
         elif isinstance(msg, GetAssetByName):
             asset_resp = self.client.assets.get(name=msg.name)
-            asset_result = AssetResult.from_asset_response(asset_resp)
-            resp = asset_result.model_dump_json(exclude_unset=True).encode()
+            if isinstance(asset_resp, AssetResponse):
+                asset_result = AssetResult.from_asset_response(asset_resp)
+                resp = asset_result.model_dump_json(exclude_unset=True).encode()
+            else:
+                resp = asset_resp.model_dump_json().encode()
         elif isinstance(msg, GetAssetByUri):
             asset_resp = self.client.assets.get(uri=msg.uri)
-            asset_result = AssetResult.from_asset_response(asset_resp)
-            resp = asset_result.model_dump_json(exclude_unset=True).encode()
+            if isinstance(asset_resp, AssetResponse):
+                asset_result = AssetResult.from_asset_response(asset_resp)
+                resp = asset_result.model_dump_json(exclude_unset=True).encode()
+            else:
+                resp = asset_resp.model_dump_json().encode()
         elif isinstance(msg, GetAssetEventByAsset):
             asset_event_resp = self.client.asset_events.get(uri=msg.uri, name=msg.name)
             asset_event_result = AssetEventsResult.from_asset_events_response(asset_event_resp)
@@ -915,6 +950,18 @@ class ActivitySubprocess(WatchedSubprocess):
             dagrun_resp = self.client.task_instances.get_previous_successful_dagrun(self.id)
             dagrun_result = PrevSuccessfulDagRunResult.from_dagrun_response(dagrun_resp)
             resp = dagrun_result.model_dump_json(exclude_unset=True).encode()
+        elif isinstance(msg, TriggerDagRun):
+            dr_resp = self.client.dag_runs.trigger(
+                msg.dag_id,
+                msg.run_id,
+                msg.conf,
+                msg.logical_date,
+                msg.reset_dag_run,
+            )
+            resp = dr_resp.model_dump_json().encode()
+        elif isinstance(msg, GetDagRunState):
+            dr_resp = self.client.dag_runs.get_state(msg.dag_id, msg.run_id)
+            resp = DagRunStateResult.from_api_response(dr_resp).model_dump_json().encode()
         else:
             log.error("Unhandled request", msg=msg)
             return
@@ -929,7 +976,7 @@ class ActivitySubprocess(WatchedSubprocess):
 # This returns a callback suitable for attaching to a `selector` that reads in to a buffer, and yields lines
 # to a (sync) generator
 def make_buffered_socket_reader(
-    gen: Generator[None, bytes, None],
+    gen: Generator[None, bytes | bytearray, None],
     on_close: Callable,
     buffer_size: int = 4096,
 ) -> Callable[[socket], bool]:
@@ -947,7 +994,8 @@ def make_buffered_socket_reader(
         if not n_received:
             # If no data is returned, the connection is closed. Return whatever is left in the buffer
             if len(buffer):
-                gen.send(buffer)
+                with suppress(StopIteration):
+                    gen.send(buffer)
             # Tell loop to close this selector
             on_close()
             return False
@@ -957,7 +1005,11 @@ def make_buffered_socket_reader(
         # We could have read multiple lines in one go, yield them all
         while (newline_pos := buffer.find(b"\n")) != -1:
             line = buffer[: newline_pos + 1]
-            gen.send(line)
+            try:
+                gen.send(line)
+            except StopIteration:
+                on_close()
+                return False
             buffer = buffer[newline_pos + 1 :]  # Update the buffer with remaining data
 
         return True
@@ -965,7 +1017,9 @@ def make_buffered_socket_reader(
     return cb
 
 
-def process_log_messages_from_subprocess(log: FilteringBoundLogger) -> Generator[None, bytes, None]:
+def process_log_messages_from_subprocess(
+    loggers: tuple[FilteringBoundLogger, ...],
+) -> Generator[None, bytes, None]:
     from structlog.stdlib import NAME_TO_LEVEL
 
     while True:
@@ -992,10 +1046,16 @@ def process_log_messages_from_subprocess(log: FilteringBoundLogger) -> Generator
         if exc := event.pop("exception", None):
             # TODO: convert the dict back to a pretty stack trace
             event["error_detail"] = exc
-        log.log(NAME_TO_LEVEL[event.pop("level")], event.pop("event", None), **event)
+
+        level = NAME_TO_LEVEL[event.pop("level")]
+        msg = event.pop("event", None)
+        for target in loggers:
+            target.log(level, msg, **event)
 
 
-def forward_to_log(target_log: FilteringBoundLogger, level: int) -> Generator[None, bytes, None]:
+def forward_to_log(
+    target_loggers: tuple[FilteringBoundLogger, ...], chan: str, level: int
+) -> Generator[None, bytes, None]:
     while True:
         buf = yield
         line = bytes(buf)
@@ -1003,10 +1063,20 @@ def forward_to_log(target_log: FilteringBoundLogger, level: int) -> Generator[No
         line = line.rstrip()
         try:
             msg = line.decode("utf-8", errors="replace")
-            target_log.log(level, msg)
         except UnicodeDecodeError:
             msg = line.decode("ascii", errors="replace")
-            target_log.log(level, msg)
+        for log in target_loggers:
+            log.log(level, msg, chan=chan)
+
+
+def initialize_secrets_backend_on_workers():
+    """Initialize the secrets backend on workers."""
+    from airflow.configuration import ensure_secrets_loaded
+    from airflow.secrets import DEFAULT_SECRETS_SEARCH_PATH_WORKERS
+
+    global SECRETS_BACKEND
+    SECRETS_BACKEND = ensure_secrets_loaded(default_backends=DEFAULT_SECRETS_SEARCH_PATH_WORKERS)
+    log.debug("Initialized secrets backend on workers", secrets_backend=SECRETS_BACKEND)
 
 
 def supervise(
@@ -1018,18 +1088,20 @@ def supervise(
     server: str | None = None,
     dry_run: bool = False,
     log_path: str | None = None,
+    subprocess_logs_to_stdout: bool = False,
     client: Client | None = None,
 ) -> int:
     """
     Run a single task execution to completion.
 
     :param ti: The task instance to run.
-    :param dr: Current DagRun of the task instance.
-    :param dag_path: The file path to the DAG.
+    :param bundle_info: Current DagRun of the task instance.
+    :param dag_rel_path: The file path to the DAG.
     :param token: Authentication token for the API client.
     :param server: Base URL of the API server.
     :param dry_run: If True, execute without actual task execution (simulate run).
     :param log_path: Path to write logs, if required.
+    :param subprocess_logs_to_stdout: Should task logs also be sent to stdout via the main logger.
     :param client: Optional preconfigured client for communication with the server (Mostly for tests).
     :return: Exit code of the process.
     """
@@ -1064,12 +1136,15 @@ def supervise(
         processors = logging_processors(enable_pretty_log=pretty_logs)[0]
         logger = structlog.wrap_logger(underlying_logger, processors=processors, logger_name="task").bind()
 
+    initialize_secrets_backend_on_workers()
+
     process = ActivitySubprocess.start(
         dag_rel_path=dag_rel_path,
         what=ti,
         client=client,
         logger=logger,
         bundle_info=bundle_info,
+        subprocess_logs_to_stdout=subprocess_logs_to_stdout,
     )
 
     exit_code = process.wait()
