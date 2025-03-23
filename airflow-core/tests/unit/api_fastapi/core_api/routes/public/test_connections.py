@@ -401,7 +401,13 @@ class TestPatchConnection(TestConnectionEndpoint):
         "body, updated_connection, update_mask",
         [
             (
-                {"connection_id": TEST_CONN_ID, "conn_type": TEST_CONN_TYPE, "extra": '{"key": "var"}'},
+                {
+                    "connection_id": TEST_CONN_ID,
+                    "conn_type": TEST_CONN_TYPE,
+                    "extra": '{"key": "var"}',
+                    "login": TEST_CONN_LOGIN,
+                    "port": TEST_CONN_PORT,
+                },
                 {
                     "connection_id": TEST_CONN_ID,
                     "conn_type": TEST_CONN_TYPE,
@@ -489,7 +495,9 @@ class TestPatchConnection(TestConnectionEndpoint):
                 {
                     "connection_id": TEST_CONN_ID,
                     "conn_type": TEST_CONN_TYPE,
+                    "extra": '{"new_extra_key": "new_extra_value"}',
                     "host": TEST_CONN_HOST,
+                    "schema": "new_schema",
                     "port": 80,
                 },
                 {
@@ -600,7 +608,7 @@ class TestPatchConnection(TestConnectionEndpoint):
 
     @pytest.mark.enable_redact
     @pytest.mark.parametrize(
-        "body, expected_response",
+        "body, expected_response, update_mask",
         [
             (
                 {"connection_id": TEST_CONN_ID, "conn_type": TEST_CONN_TYPE, "password": "test-password"},
@@ -615,6 +623,7 @@ class TestPatchConnection(TestConnectionEndpoint):
                     "port": 8080,
                     "schema": None,
                 },
+                {"update_mask": ["password"]},
             ),
             (
                 {"connection_id": TEST_CONN_ID, "conn_type": TEST_CONN_TYPE, "password": "?>@#+!_%()#"},
@@ -629,6 +638,7 @@ class TestPatchConnection(TestConnectionEndpoint):
                     "port": 8080,
                     "schema": None,
                 },
+                {"update_mask": ["password"]},
             ),
             (
                 {
@@ -648,12 +658,15 @@ class TestPatchConnection(TestConnectionEndpoint):
                     "port": 8080,
                     "schema": None,
                 },
+                {"update_mask": ["password", "extra"]},
             ),
         ],
     )
-    def test_patch_should_response_200_redacted_password(self, test_client, session, body, expected_response):
+    def test_patch_should_response_200_redacted_password(
+        self, test_client, session, body, expected_response, update_mask
+    ):
         self.create_connections()
-        response = test_client.patch(f"/connections/{TEST_CONN_ID}", json=body)
+        response = test_client.patch(f"/connections/{TEST_CONN_ID}", json=body, params=update_mask)
         assert response.status_code == 200
         assert response.json() == expected_response
         _check_last_log(session, dag_id=None, event="patch_connection", logical_date=None, check_masked=True)
@@ -662,18 +675,21 @@ class TestPatchConnection(TestConnectionEndpoint):
 class TestConnection(TestConnectionEndpoint):
     @mock.patch.dict(os.environ, {"AIRFLOW__CORE__TEST_CONNECTION": "Enabled"})
     @pytest.mark.parametrize(
-        "body",
+        "body, message",
         [
-            {"connection_id": TEST_CONN_ID, "conn_type": "sqlite"},
-            {"connection_id": TEST_CONN_ID, "conn_type": "ftp"},
+            ({"connection_id": TEST_CONN_ID, "conn_type": "sqlite"}, "Connection successfully tested"),
+            (
+                {"connection_id": TEST_CONN_ID, "conn_type": "fs", "extra": '{"path": "/"}'},
+                "Path / is existing.",
+            ),
         ],
     )
-    def test_should_respond_200(self, test_client, body):
+    def test_should_respond_200(self, test_client, body, message):
         response = test_client.post("/connections/test", json=body)
         assert response.status_code == 200
         assert response.json() == {
             "status": True,
-            "message": "Connection successfully tested",
+            "message": message,
         }
 
     def test_should_respond_401(self, unauthenticated_test_client):

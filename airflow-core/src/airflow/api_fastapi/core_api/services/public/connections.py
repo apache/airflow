@@ -108,12 +108,24 @@ class BulkConnectionService(BulkService[ConnectionBody]):
 
             for connection in action.entities:
                 if connection.connection_id in update_connection_ids:
-                    old_connection = self.session.scalar(
+                    old_connection: Connection = self.session.scalar(
                         select(Connection).filter(Connection.conn_id == connection.connection_id).limit(1)
                     )
+                    if old_connection is None:
+                        raise ValidationError(
+                            f"The Connection with connection_id: `{connection.connection_id}` was not found"
+                        )
                     ConnectionBody(**connection.model_dump())
-                    for key, val in connection.model_dump(by_alias=True).items():
-                        setattr(old_connection, key, val)
+
+                    # Not all fields match and some need setters, therefore copy manually
+                    old_connection.conn_type = connection.conn_type
+                    old_connection.description = connection.description
+                    old_connection.host = connection.host
+                    old_connection.schema = connection.schema_
+                    old_connection.login = connection.login
+                    old_connection.set_password(connection.password)
+                    old_connection.port = connection.port
+                    old_connection.set_extra(connection.extra)
                     results.success.append(connection.connection_id)
 
         except HTTPException as e:
