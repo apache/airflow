@@ -72,7 +72,7 @@ dependencies = [
 [project.optional-dependencies]
 # pip install apache-airflow-providers-databricks[sdk]
 "sdk" = [
-    "databricks-sdk==0.10.0",
+    "databricks-sdk==0.47.0",
 ]
 "azure-identity" = [
     "azure-identity>=1.3.1",
