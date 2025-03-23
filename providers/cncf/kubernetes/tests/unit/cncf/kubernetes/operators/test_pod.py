@@ -575,6 +575,53 @@ class TestKubernetesPodOperator:
         )
         mock_find.assert_called_once_with("default", context=context)
 
+    @patch(HOOK_CLASS, new=MagicMock)
+    @patch("airflow.providers.cncf.kubernetes.operators.pod.time.sleep")
+    @patch("airflow.providers.cncf.kubernetes.operators.pod.yaml.safe_dump")
+    def test_get_or_create_pod(self, mock_safe_dump, mock_sleep):
+        k = KubernetesPodOperator(
+            namespace="default",
+            image="ubuntu:16.04",
+            cmds=["bash", "-cx"],
+            labels={"foo": "bar"},
+            name="test",
+            task_id="task",
+            do_xcom_push=False,
+            reattach_on_restart=True,
+        )
+
+        context = create_context(k)
+        pod_request_obj = k.build_pod_request_obj(context)
+
+        """Pod is immediately found"""
+        k.find_pod = mock.MagicMock(return_value=pod_request_obj)
+        pod = k.get_or_create_pod(pod_request_obj, context)
+        assert pod == pod_request_obj
+        k.find_pod.assert_called_once_with(pod_request_obj.metadata.namespace, context=context)
+        self.create_mock.assert_not_called()
+        mock_sleep.assert_not_called()
+        k.find_pod.reset_mock()
+        self.create_mock.reset_mock()
+
+        """Pod is not found"""
+        k.find_pod = mock.MagicMock(return_value=None)
+        pod = k.get_or_create_pod(pod_request_obj, context)
+        assert pod == pod_request_obj
+        assert k.find_pod.call_count == 2
+        self.create_mock.assert_called_once_with(pod=pod_request_obj)
+        assert mock_sleep.call_count == 2
+        k.find_pod.reset_mock()
+        self.create_mock.reset_mock()
+        mock_sleep.reset_mock()
+
+        """Pod is found after 1 retry"""
+        k.find_pod = mock.MagicMock(side_effect=[None, pod_request_obj])
+        pod = k.get_or_create_pod(pod_request_obj, context)
+        assert pod == pod_request_obj
+        assert k.find_pod.call_count == 2
+        self.create_mock.assert_not_called()
+        assert mock_sleep.call_count == 1
+
     @patch("pathlib.Path")
     @patch(f"{KPO_MODULE}.KubernetesPodOperator.find_pod")
     def test_omitted_namespace_no_conn(self, mock_find, mock_path):
