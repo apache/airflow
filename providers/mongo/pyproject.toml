@@ -62,7 +62,7 @@ dependencies = [
     # mongomock does not work with pymongo 4.11.
     # See https://github.com/apache/airflow/issues/46215 and this one can be removed after
     # https://github.com/mongomock/mongomock/issues/912 is closed by mongomock.
-    "pymongo>=4.0.0,<4.11.0",
+    "pymongo>=4.0.0,<4.12.0",
 ]
 
 [dependency-groups]
