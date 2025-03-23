@@ -42,8 +42,8 @@ import * as Common from "./common";
  * @returns MenuItemCollectionResponse Successful Response
  * @throws ApiError
  */
-export const prefetchUseAuthLinksServiceGetAuthLinks = (queryClient: QueryClient) =>
-  queryClient.prefetchQuery({
+export const ensureUseAuthLinksServiceGetAuthLinksData = (queryClient: QueryClient) =>
+  queryClient.ensureQueryData({
     queryKey: Common.UseAuthLinksServiceGetAuthLinksKeyFn(),
     queryFn: () => AuthLinksService.getAuthLinks(),
   });
@@ -54,7 +54,7 @@ export const prefetchUseAuthLinksServiceGetAuthLinks = (queryClient: QueryClient
  * @returns unknown Successful Response
  * @throws ApiError
  */
-export const prefetchUseAssetServiceNextRunAssets = (
+export const ensureUseAssetServiceNextRunAssetsData = (
   queryClient: QueryClient,
   {
     dagId,
@@ -62,7 +62,7 @@ export const prefetchUseAssetServiceNextRunAssets = (
     dagId: string;
   },
 ) =>
-  queryClient.prefetchQuery({
+  queryClient.ensureQueryData({
     queryKey: Common.UseAssetServiceNextRunAssetsKeyFn({ dagId }),
     queryFn: () => AssetService.nextRunAssets({ dagId }),
   });
@@ -80,7 +80,7 @@ export const prefetchUseAssetServiceNextRunAssets = (
  * @returns AssetCollectionResponse Successful Response
  * @throws ApiError
  */
-export const prefetchUseAssetServiceGetAssets = (
+export const ensureUseAssetServiceGetAssetsData = (
   queryClient: QueryClient,
   {
     dagIds,
@@ -100,7 +100,7 @@ export const prefetchUseAssetServiceGetAssets = (
     uriPattern?: string;
   } = {},
 ) =>
-  queryClient.prefetchQuery({
+  queryClient.ensureQueryData({
     queryKey: Common.UseAssetServiceGetAssetsKeyFn({
       dagIds,
       limit,
@@ -124,7 +124,7 @@ export const prefetchUseAssetServiceGetAssets = (
  * @returns AssetAliasCollectionResponse Successful Response
  * @throws ApiError
  */
-export const prefetchUseAssetServiceGetAssetAliases = (
+export const ensureUseAssetServiceGetAssetAliasesData = (
   queryClient: QueryClient,
   {
     limit,
@@ -138,7 +138,7 @@ export const prefetchUseAssetServiceGetAssetAliases = (
     orderBy?: string;
   } = {},
 ) =>
-  queryClient.prefetchQuery({
+  queryClient.ensureQueryData({
     queryKey: Common.UseAssetServiceGetAssetAliasesKeyFn({ limit, namePattern, offset, orderBy }),
     queryFn: () => AssetService.getAssetAliases({ limit, namePattern, offset, orderBy }),
   });
@@ -150,7 +150,7 @@ export const prefetchUseAssetServiceGetAssetAliases = (
  * @returns unknown Successful Response
  * @throws ApiError
  */
-export const prefetchUseAssetServiceGetAssetAlias = (
+export const ensureUseAssetServiceGetAssetAliasData = (
   queryClient: QueryClient,
   {
     assetAliasId,
@@ -158,7 +158,7 @@ export const prefetchUseAssetServiceGetAssetAlias = (
     assetAliasId: number;
   },
 ) =>
-  queryClient.prefetchQuery({
+  queryClient.ensureQueryData({
     queryKey: Common.UseAssetServiceGetAssetAliasKeyFn({ assetAliasId }),
     queryFn: () => AssetService.getAssetAlias({ assetAliasId }),
   });
@@ -179,7 +179,7 @@ export const prefetchUseAssetServiceGetAssetAlias = (
  * @returns AssetEventCollectionResponse Successful Response
  * @throws ApiError
  */
-export const prefetchUseAssetServiceGetAssetEvents = (
+export const ensureUseAssetServiceGetAssetEventsData = (
   queryClient: QueryClient,
   {
     assetId,
@@ -205,7 +205,7 @@ export const prefetchUseAssetServiceGetAssetEvents = (
     timestampLte?: string;
   } = {},
 ) =>
-  queryClient.prefetchQuery({
+  queryClient.ensureQueryData({
     queryKey: Common.UseAssetServiceGetAssetEventsKeyFn({
       assetId,
       limit,
@@ -241,7 +241,7 @@ export const prefetchUseAssetServiceGetAssetEvents = (
  * @returns QueuedEventCollectionResponse Successful Response
  * @throws ApiError
  */
-export const prefetchUseAssetServiceGetAssetQueuedEvents = (
+export const ensureUseAssetServiceGetAssetQueuedEventsData = (
   queryClient: QueryClient,
   {
     assetId,
@@ -251,7 +251,7 @@ export const prefetchUseAssetServiceGetAssetQueuedEvents = (
     before?: string;
   },
 ) =>
-  queryClient.prefetchQuery({
+  queryClient.ensureQueryData({
     queryKey: Common.UseAssetServiceGetAssetQueuedEventsKeyFn({ assetId, before }),
     queryFn: () => AssetService.getAssetQueuedEvents({ assetId, before }),
   });
@@ -263,7 +263,7 @@ export const prefetchUseAssetServiceGetAssetQueuedEvents = (
  * @returns AssetResponse Successful Response
  * @throws ApiError
  */
-export const prefetchUseAssetServiceGetAsset = (
+export const ensureUseAssetServiceGetAssetData = (
   queryClient: QueryClient,
   {
     assetId,
@@ -271,7 +271,7 @@ export const prefetchUseAssetServiceGetAsset = (
     assetId: number;
   },
 ) =>
-  queryClient.prefetchQuery({
+  queryClient.ensureQueryData({
     queryKey: Common.UseAssetServiceGetAssetKeyFn({ assetId }),
     queryFn: () => AssetService.getAsset({ assetId }),
   });
@@ -284,7 +284,7 @@ export const prefetchUseAssetServiceGetAsset = (
  * @returns QueuedEventCollectionResponse Successful Response
  * @throws ApiError
  */
-export const prefetchUseAssetServiceGetDagAssetQueuedEvents = (
+export const ensureUseAssetServiceGetDagAssetQueuedEventsData = (
   queryClient: QueryClient,
   {
     before,
@@ -294,7 +294,7 @@ export const prefetchUseAssetServiceGetDagAssetQueuedEvents = (
     dagId: string;
   },
 ) =>
-  queryClient.prefetchQuery({
+  queryClient.ensureQueryData({
     queryKey: Common.UseAssetServiceGetDagAssetQueuedEventsKeyFn({ before, dagId }),
     queryFn: () => AssetService.getDagAssetQueuedEvents({ before, dagId }),
   });
@@ -308,7 +308,7 @@ export const prefetchUseAssetServiceGetDagAssetQueuedEvents = (
  * @returns QueuedEventResponse Successful Response
  * @throws ApiError
  */
-export const prefetchUseAssetServiceGetDagAssetQueuedEvent = (
+export const ensureUseAssetServiceGetDagAssetQueuedEventData = (
   queryClient: QueryClient,
   {
     assetId,
@@ -320,7 +320,7 @@ export const prefetchUseAssetServiceGetDagAssetQueuedEvent = (
     dagId: string;
   },
 ) =>
-  queryClient.prefetchQuery({
+  queryClient.ensureQueryData({
     queryKey: Common.UseAssetServiceGetDagAssetQueuedEventKeyFn({ assetId, before, dagId }),
     queryFn: () => AssetService.getDagAssetQueuedEvent({ assetId, before, dagId }),
   });
@@ -330,8 +330,8 @@ export const prefetchUseAssetServiceGetDagAssetQueuedEvent = (
  * @returns ConfigResponse Successful Response
  * @throws ApiError
  */
-export const prefetchUseConfigServiceGetConfigs = (queryClient: QueryClient) =>
-  queryClient.prefetchQuery({
+export const ensureUseConfigServiceGetConfigsData = (queryClient: QueryClient) =>
+  queryClient.ensureQueryData({
     queryKey: Common.UseConfigServiceGetConfigsKeyFn(),
     queryFn: () => ConfigService.getConfigs(),
   });
@@ -343,7 +343,7 @@ export const prefetchUseConfigServiceGetConfigs = (queryClient: QueryClient) =>
  * @returns Config Successful Response
  * @throws ApiError
  */
-export const prefetchUseConfigServiceGetConfig = (
+export const ensureUseConfigServiceGetConfigData = (
   queryClient: QueryClient,
   {
     accept,
@@ -353,7 +353,7 @@ export const prefetchUseConfigServiceGetConfig = (
     section?: string;
   } = {},
 ) =>
-  queryClient.prefetchQuery({
+  queryClient.ensureQueryData({
     queryKey: Common.UseConfigServiceGetConfigKeyFn({ accept, section }),
     queryFn: () => ConfigService.getConfig({ accept, section }),
   });
@@ -366,7 +366,7 @@ export const prefetchUseConfigServiceGetConfig = (
  * @returns Config Successful Response
  * @throws ApiError
  */
-export const prefetchUseConfigServiceGetConfigValue = (
+export const ensureUseConfigServiceGetConfigValueData = (
   queryClient: QueryClient,
   {
     accept,
@@ -378,7 +378,7 @@ export const prefetchUseConfigServiceGetConfigValue = (
     section: string;
   },
 ) =>
-  queryClient.prefetchQuery({
+  queryClient.ensureQueryData({
     queryKey: Common.UseConfigServiceGetConfigValueKeyFn({ accept, option, section }),
     queryFn: () => ConfigService.getConfigValue({ accept, option, section }),
   });
@@ -388,8 +388,8 @@ export const prefetchUseConfigServiceGetConfigValue = (
  * @returns ConnectionHookMetaData Successful Response
  * @throws ApiError
  */
-export const prefetchUseConnectionServiceHookMetaData = (queryClient: QueryClient) =>
-  queryClient.prefetchQuery({
+export const ensureUseConnectionServiceHookMetaDataData = (queryClient: QueryClient) =>
+  queryClient.ensureQueryData({
     queryKey: Common.UseConnectionServiceHookMetaDataKeyFn(),
     queryFn: () => ConnectionService.hookMetaData(),
   });
@@ -401,7 +401,7 @@ export const prefetchUseConnectionServiceHookMetaData = (queryClient: QueryClien
  * @returns ConnectionResponse Successful Response
  * @throws ApiError
  */
-export const prefetchUseConnectionServiceGetConnection = (
+export const ensureUseConnectionServiceGetConnectionData = (
   queryClient: QueryClient,
   {
     connectionId,
@@ -409,7 +409,7 @@ export const prefetchUseConnectionServiceGetConnection = (
     connectionId: string;
   },
 ) =>
-  queryClient.prefetchQuery({
+  queryClient.ensureQueryData({
     queryKey: Common.UseConnectionServiceGetConnectionKeyFn({ connectionId }),
     queryFn: () => ConnectionService.getConnection({ connectionId }),
   });
@@ -424,7 +424,7 @@ export const prefetchUseConnectionServiceGetConnection = (
  * @returns ConnectionCollectionResponse Successful Response
  * @throws ApiError
  */
-export const prefetchUseConnectionServiceGetConnections = (
+export const ensureUseConnectionServiceGetConnectionsData = (
   queryClient: QueryClient,
   {
     connectionIdPattern,
@@ -438,7 +438,7 @@ export const prefetchUseConnectionServiceGetConnections = (
     orderBy?: string;
   } = {},
 ) =>
-  queryClient.prefetchQuery({
+  queryClient.ensureQueryData({
     queryKey: Common.UseConnectionServiceGetConnectionsKeyFn({ connectionIdPattern, limit, offset, orderBy }),
     queryFn: () => ConnectionService.getConnections({ connectionIdPattern, limit, offset, orderBy }),
   });
@@ -461,7 +461,7 @@ export const prefetchUseConnectionServiceGetConnections = (
  * @returns DAGWithLatestDagRunsCollectionResponse Successful Response
  * @throws ApiError
  */
-export const prefetchUseDagsServiceRecentDagRuns = (
+export const ensureUseDagsServiceRecentDagRunsData = (
   queryClient: QueryClient,
   {
     dagDisplayNamePattern,
@@ -491,7 +491,7 @@ export const prefetchUseDagsServiceRecentDagRuns = (
     tagsMatchMode?: "any" | "all";
   } = {},
 ) =>
-  queryClient.prefetchQuery({
+  queryClient.ensureQueryData({
     queryKey: Common.UseDagsServiceRecentDagRunsKeyFn({
       dagDisplayNamePattern,
       dagIdPattern,
@@ -530,7 +530,7 @@ export const prefetchUseDagsServiceRecentDagRuns = (
  * @returns BaseGraphResponse Successful Response
  * @throws ApiError
  */
-export const prefetchUseDependenciesServiceGetDependencies = (
+export const ensureUseDependenciesServiceGetDependenciesData = (
   queryClient: QueryClient,
   {
     nodeId,
@@ -538,7 +538,7 @@ export const prefetchUseDependenciesServiceGetDependencies = (
     nodeId?: string;
   } = {},
 ) =>
-  queryClient.prefetchQuery({
+  queryClient.ensureQueryData({
     queryKey: Common.UseDependenciesServiceGetDependenciesKeyFn({ nodeId }),
     queryFn: () => DependenciesService.getDependencies({ nodeId }),
   });
@@ -551,7 +551,7 @@ export const prefetchUseDependenciesServiceGetDependencies = (
  * @returns HistoricalMetricDataResponse Successful Response
  * @throws ApiError
  */
-export const prefetchUseDashboardServiceHistoricalMetrics = (
+export const ensureUseDashboardServiceHistoricalMetricsData = (
   queryClient: QueryClient,
   {
     endDate,
@@ -561,7 +561,7 @@ export const prefetchUseDashboardServiceHistoricalMetrics = (
     startDate: string;
   },
 ) =>
-  queryClient.prefetchQuery({
+  queryClient.ensureQueryData({
     queryKey: Common.UseDashboardServiceHistoricalMetricsKeyFn({ endDate, startDate }),
     queryFn: () => DashboardService.historicalMetrics({ endDate, startDate }),
   });
@@ -578,7 +578,7 @@ export const prefetchUseDashboardServiceHistoricalMetrics = (
  * @returns StructureDataResponse Successful Response
  * @throws ApiError
  */
-export const prefetchUseStructureServiceStructureData = (
+export const ensureUseStructureServiceStructureDataData = (
   queryClient: QueryClient,
   {
     dagId,
@@ -596,7 +596,7 @@ export const prefetchUseStructureServiceStructureData = (
     versionNumber?: number;
   },
 ) =>
-  queryClient.prefetchQuery({
+  queryClient.ensureQueryData({
     queryKey: Common.UseStructureServiceStructureDataKeyFn({
       dagId,
       externalDependencies,
@@ -626,7 +626,7 @@ export const prefetchUseStructureServiceStructureData = (
  * @returns BackfillCollectionResponse Successful Response
  * @throws ApiError
  */
-export const prefetchUseBackfillServiceListBackfills = (
+export const ensureUseBackfillServiceListBackfillsData = (
   queryClient: QueryClient,
   {
     active,
@@ -642,7 +642,7 @@ export const prefetchUseBackfillServiceListBackfills = (
     orderBy?: string;
   } = {},
 ) =>
-  queryClient.prefetchQuery({
+  queryClient.ensureQueryData({
     queryKey: Common.UseBackfillServiceListBackfillsKeyFn({ active, dagId, limit, offset, orderBy }),
     queryFn: () => BackfillService.listBackfills({ active, dagId, limit, offset, orderBy }),
   });
@@ -656,7 +656,7 @@ export const prefetchUseBackfillServiceListBackfills = (
  * @returns BackfillCollectionResponse Successful Response
  * @throws ApiError
  */
-export const prefetchUseBackfillServiceListBackfills1 = (
+export const ensureUseBackfillServiceListBackfills1Data = (
   queryClient: QueryClient,
   {
     dagId,
@@ -670,7 +670,7 @@ export const prefetchUseBackfillServiceListBackfills1 = (
     orderBy?: string;
   },
 ) =>
-  queryClient.prefetchQuery({
+  queryClient.ensureQueryData({
     queryKey: Common.UseBackfillServiceListBackfills1KeyFn({ dagId, limit, offset, orderBy }),
     queryFn: () => BackfillService.listBackfills1({ dagId, limit, offset, orderBy }),
   });
@@ -681,7 +681,7 @@ export const prefetchUseBackfillServiceListBackfills1 = (
  * @returns BackfillResponse Successful Response
  * @throws ApiError
  */
-export const prefetchUseBackfillServiceGetBackfill = (
+export const ensureUseBackfillServiceGetBackfillData = (
   queryClient: QueryClient,
   {
     backfillId,
@@ -689,7 +689,7 @@ export const prefetchUseBackfillServiceGetBackfill = (
     backfillId: string;
   },
 ) =>
-  queryClient.prefetchQuery({
+  queryClient.ensureQueryData({
     queryKey: Common.UseBackfillServiceGetBackfillKeyFn({ backfillId }),
     queryFn: () => BackfillService.getBackfill({ backfillId }),
   });
@@ -713,7 +713,7 @@ export const prefetchUseBackfillServiceGetBackfill = (
  * @returns GridResponse Successful Response
  * @throws ApiError
  */
-export const prefetchUseGridServiceGridData = (
+export const ensureUseGridServiceGridDataData = (
   queryClient: QueryClient,
   {
     dagId,
@@ -745,7 +745,7 @@ export const prefetchUseGridServiceGridData = (
     state?: string[];
   },
 ) =>
-  queryClient.prefetchQuery({
+  queryClient.ensureQueryData({
     queryKey: Common.UseGridServiceGridDataKeyFn({
       dagId,
       includeDownstream,
@@ -786,7 +786,7 @@ export const prefetchUseGridServiceGridData = (
  * @returns DAGRunResponse Successful Response
  * @throws ApiError
  */
-export const prefetchUseDagRunServiceGetDagRun = (
+export const ensureUseDagRunServiceGetDagRunData = (
   queryClient: QueryClient,
   {
     dagId,
@@ -796,7 +796,7 @@ export const prefetchUseDagRunServiceGetDagRun = (
     dagRunId: string;
   },
 ) =>
-  queryClient.prefetchQuery({
+  queryClient.ensureQueryData({
     queryKey: Common.UseDagRunServiceGetDagRunKeyFn({ dagId, dagRunId }),
     queryFn: () => DagRunService.getDagRun({ dagId, dagRunId }),
   });
@@ -809,7 +809,7 @@ export const prefetchUseDagRunServiceGetDagRun = (
  * @returns AssetEventCollectionResponse Successful Response
  * @throws ApiError
  */
-export const prefetchUseDagRunServiceGetUpstreamAssetEvents = (
+export const ensureUseDagRunServiceGetUpstreamAssetEventsData = (
   queryClient: QueryClient,
   {
     dagId,
@@ -819,7 +819,7 @@ export const prefetchUseDagRunServiceGetUpstreamAssetEvents = (
     dagRunId: string;
   },
 ) =>
-  queryClient.prefetchQuery({
+  queryClient.ensureQueryData({
     queryKey: Common.UseDagRunServiceGetUpstreamAssetEventsKeyFn({ dagId, dagRunId }),
     queryFn: () => DagRunService.getUpstreamAssetEvents({ dagId, dagRunId }),
   });
@@ -847,7 +847,7 @@ export const prefetchUseDagRunServiceGetUpstreamAssetEvents = (
  * @returns DAGRunCollectionResponse Successful Response
  * @throws ApiError
  */
-export const prefetchUseDagRunServiceGetDagRuns = (
+export const ensureUseDagRunServiceGetDagRunsData = (
   queryClient: QueryClient,
   {
     dagId,
@@ -883,7 +883,7 @@ export const prefetchUseDagRunServiceGetDagRuns = (
     updatedAtLte?: string;
   },
 ) =>
-  queryClient.prefetchQuery({
+  queryClient.ensureQueryData({
     queryKey: Common.UseDagRunServiceGetDagRunsKeyFn({
       dagId,
       endDateGte,
@@ -930,7 +930,7 @@ export const prefetchUseDagRunServiceGetDagRuns = (
  * @returns DAGSourceResponse Successful Response
  * @throws ApiError
  */
-export const prefetchUseDagSourceServiceGetDagSource = (
+export const ensureUseDagSourceServiceGetDagSourceData = (
   queryClient: QueryClient,
   {
     accept,
@@ -942,7 +942,7 @@ export const prefetchUseDagSourceServiceGetDagSource = (
     versionNumber?: number;
   },
 ) =>
-  queryClient.prefetchQuery({
+  queryClient.ensureQueryData({
     queryKey: Common.UseDagSourceServiceGetDagSourceKeyFn({ accept, dagId, versionNumber }),
     queryFn: () => DagSourceService.getDagSource({ accept, dagId, versionNumber }),
   });
@@ -954,7 +954,7 @@ export const prefetchUseDagSourceServiceGetDagSource = (
  * @returns DagStatsCollectionResponse Successful Response
  * @throws ApiError
  */
-export const prefetchUseDagStatsServiceGetDagStats = (
+export const ensureUseDagStatsServiceGetDagStatsData = (
   queryClient: QueryClient,
   {
     dagIds,
@@ -962,7 +962,7 @@ export const prefetchUseDagStatsServiceGetDagStats = (
     dagIds?: string[];
   } = {},
 ) =>
-  queryClient.prefetchQuery({
+  queryClient.ensureQueryData({
     queryKey: Common.UseDagStatsServiceGetDagStatsKeyFn({ dagIds }),
     queryFn: () => DagStatsService.getDagStats({ dagIds }),
   });
@@ -974,7 +974,7 @@ export const prefetchUseDagStatsServiceGetDagStats = (
  * @returns unknown Successful Response
  * @throws ApiError
  */
-export const prefetchUseDagReportServiceGetDagReports = (
+export const ensureUseDagReportServiceGetDagReportsData = (
   queryClient: QueryClient,
   {
     subdir,
@@ -982,7 +982,7 @@ export const prefetchUseDagReportServiceGetDagReports = (
     subdir: string;
   },
 ) =>
-  queryClient.prefetchQuery({
+  queryClient.ensureQueryData({
     queryKey: Common.UseDagReportServiceGetDagReportsKeyFn({ subdir }),
     queryFn: () => DagReportService.getDagReports({ subdir }),
   });
@@ -998,7 +998,7 @@ export const prefetchUseDagReportServiceGetDagReports = (
  * @returns DAGWarningCollectionResponse Successful Response
  * @throws ApiError
  */
-export const prefetchUseDagWarningServiceListDagWarnings = (
+export const ensureUseDagWarningServiceListDagWarningsData = (
   queryClient: QueryClient,
   {
     dagId,
@@ -1014,7 +1014,7 @@ export const prefetchUseDagWarningServiceListDagWarnings = (
     warningType?: DagWarningType;
   } = {},
 ) =>
-  queryClient.prefetchQuery({
+  queryClient.ensureQueryData({
     queryKey: Common.UseDagWarningServiceListDagWarningsKeyFn({ dagId, limit, offset, orderBy, warningType }),
     queryFn: () => DagWarningService.listDagWarnings({ dagId, limit, offset, orderBy, warningType }),
   });
@@ -1041,7 +1041,7 @@ export const prefetchUseDagWarningServiceListDagWarnings = (
  * @returns DAGCollectionResponse Successful Response
  * @throws ApiError
  */
-export const prefetchUseDagServiceGetDags = (
+export const ensureUseDagServiceGetDagsData = (
   queryClient: QueryClient,
   {
     dagDisplayNamePattern,
@@ -1079,7 +1079,7 @@ export const prefetchUseDagServiceGetDags = (
     tagsMatchMode?: "any" | "all";
   } = {},
 ) =>
-  queryClient.prefetchQuery({
+  queryClient.ensureQueryData({
     queryKey: Common.UseDagServiceGetDagsKeyFn({
       dagDisplayNamePattern,
       dagIdPattern,
@@ -1126,7 +1126,7 @@ export const prefetchUseDagServiceGetDags = (
  * @returns DAGResponse Successful Response
  * @throws ApiError
  */
-export const prefetchUseDagServiceGetDag = (
+export const ensureUseDagServiceGetDagData = (
   queryClient: QueryClient,
   {
     dagId,
@@ -1134,7 +1134,7 @@ export const prefetchUseDagServiceGetDag = (
     dagId: string;
   },
 ) =>
-  queryClient.prefetchQuery({
+  queryClient.ensureQueryData({
     queryKey: Common.UseDagServiceGetDagKeyFn({ dagId }),
     queryFn: () => DagService.getDag({ dagId }),
   });
@@ -1146,7 +1146,7 @@ export const prefetchUseDagServiceGetDag = (
  * @returns DAGDetailsResponse Successful Response
  * @throws ApiError
  */
-export const prefetchUseDagServiceGetDagDetails = (
+export const ensureUseDagServiceGetDagDetailsData = (
   queryClient: QueryClient,
   {
     dagId,
@@ -1154,7 +1154,7 @@ export const prefetchUseDagServiceGetDagDetails = (
     dagId: string;
   },
 ) =>
-  queryClient.prefetchQuery({
+  queryClient.ensureQueryData({
     queryKey: Common.UseDagServiceGetDagDetailsKeyFn({ dagId }),
     queryFn: () => DagService.getDagDetails({ dagId }),
   });
@@ -1169,7 +1169,7 @@ export const prefetchUseDagServiceGetDagDetails = (
  * @returns DAGTagCollectionResponse Successful Response
  * @throws ApiError
  */
-export const prefetchUseDagServiceGetDagTags = (
+export const ensureUseDagServiceGetDagTagsData = (
   queryClient: QueryClient,
   {
     limit,
@@ -1183,7 +1183,7 @@ export const prefetchUseDagServiceGetDagTags = (
     tagNamePattern?: string;
   } = {},
 ) =>
-  queryClient.prefetchQuery({
+  queryClient.ensureQueryData({
     queryKey: Common.UseDagServiceGetDagTagsKeyFn({ limit, offset, orderBy, tagNamePattern }),
     queryFn: () => DagService.getDagTags({ limit, offset, orderBy, tagNamePattern }),
   });
@@ -1194,7 +1194,7 @@ export const prefetchUseDagServiceGetDagTags = (
  * @returns EventLogResponse Successful Response
  * @throws ApiError
  */
-export const prefetchUseEventLogServiceGetEventLog = (
+export const ensureUseEventLogServiceGetEventLogData = (
   queryClient: QueryClient,
   {
     eventLogId,
@@ -1202,7 +1202,7 @@ export const prefetchUseEventLogServiceGetEventLog = (
     eventLogId: number;
   },
 ) =>
-  queryClient.prefetchQuery({
+  queryClient.ensureQueryData({
     queryKey: Common.UseEventLogServiceGetEventLogKeyFn({ eventLogId }),
     queryFn: () => EventLogService.getEventLog({ eventLogId }),
   });
@@ -1227,7 +1227,7 @@ export const prefetchUseEventLogServiceGetEventLog = (
  * @returns EventLogCollectionResponse Successful Response
  * @throws ApiError
  */
-export const prefetchUseEventLogServiceGetEventLogs = (
+export const ensureUseEventLogServiceGetEventLogsData = (
   queryClient: QueryClient,
   {
     after,
@@ -1261,7 +1261,7 @@ export const prefetchUseEventLogServiceGetEventLogs = (
     tryNumber?: number;
   } = {},
 ) =>
-  queryClient.prefetchQuery({
+  queryClient.ensureQueryData({
     queryKey: Common.UseEventLogServiceGetEventLogsKeyFn({
       after,
       before,
@@ -1307,7 +1307,7 @@ export const prefetchUseEventLogServiceGetEventLogs = (
  * @returns ExtraLinksResponse Successful Response
  * @throws ApiError
  */
-export const prefetchUseExtraLinksServiceGetExtraLinks = (
+export const ensureUseExtraLinksServiceGetExtraLinksData = (
   queryClient: QueryClient,
   {
     dagId,
@@ -1321,7 +1321,7 @@ export const prefetchUseExtraLinksServiceGetExtraLinks = (
     taskId: string;
   },
 ) =>
-  queryClient.prefetchQuery({
+  queryClient.ensureQueryData({
     queryKey: Common.UseExtraLinksServiceGetExtraLinksKeyFn({ dagId, dagRunId, mapIndex, taskId }),
     queryFn: () => ExtraLinksService.getExtraLinks({ dagId, dagRunId, mapIndex, taskId }),
   });
@@ -1336,7 +1336,7 @@ export const prefetchUseExtraLinksServiceGetExtraLinks = (
  * @returns ExtraLinksResponse Successful Response
  * @throws ApiError
  */
-export const prefetchUseTaskInstanceServiceGetExtraLinks = (
+export const ensureUseTaskInstanceServiceGetExtraLinksData = (
   queryClient: QueryClient,
   {
     dagId,
@@ -1350,7 +1350,7 @@ export const prefetchUseTaskInstanceServiceGetExtraLinks = (
     taskId: string;
   },
 ) =>
-  queryClient.prefetchQuery({
+  queryClient.ensureQueryData({
     queryKey: Common.UseTaskInstanceServiceGetExtraLinksKeyFn({ dagId, dagRunId, mapIndex, taskId }),
     queryFn: () => TaskInstanceService.getExtraLinks({ dagId, dagRunId, mapIndex, taskId }),
   });
@@ -1364,7 +1364,7 @@ export const prefetchUseTaskInstanceServiceGetExtraLinks = (
  * @returns TaskInstanceResponse Successful Response
  * @throws ApiError
  */
-export const prefetchUseTaskInstanceServiceGetTaskInstance = (
+export const ensureUseTaskInstanceServiceGetTaskInstanceData = (
   queryClient: QueryClient,
   {
     dagId,
@@ -1376,7 +1376,7 @@ export const prefetchUseTaskInstanceServiceGetTaskInstance = (
     taskId: string;
   },
 ) =>
-  queryClient.prefetchQuery({
+  queryClient.ensureQueryData({
     queryKey: Common.UseTaskInstanceServiceGetTaskInstanceKeyFn({ dagId, dagRunId, taskId }),
     queryFn: () => TaskInstanceService.getTaskInstance({ dagId, dagRunId, taskId }),
   });
@@ -1410,7 +1410,7 @@ export const prefetchUseTaskInstanceServiceGetTaskInstance = (
  * @returns TaskInstanceCollectionResponse Successful Response
  * @throws ApiError
  */
-export const prefetchUseTaskInstanceServiceGetMappedTaskInstances = (
+export const ensureUseTaskInstanceServiceGetMappedTaskInstancesData = (
   queryClient: QueryClient,
   {
     dagId,
@@ -1462,7 +1462,7 @@ export const prefetchUseTaskInstanceServiceGetMappedTaskInstances = (
     versionNumber?: number[];
   },
 ) =>
-  queryClient.prefetchQuery({
+  queryClient.ensureQueryData({
     queryKey: Common.UseTaskInstanceServiceGetMappedTaskInstancesKeyFn({
       dagId,
       dagRunId,
@@ -1526,7 +1526,7 @@ export const prefetchUseTaskInstanceServiceGetMappedTaskInstances = (
  * @returns TaskDependencyCollectionResponse Successful Response
  * @throws ApiError
  */
-export const prefetchUseTaskInstanceServiceGetTaskInstanceDependencies = (
+export const ensureUseTaskInstanceServiceGetTaskInstanceDependenciesData = (
   queryClient: QueryClient,
   {
     dagId,
@@ -1540,7 +1540,7 @@ export const prefetchUseTaskInstanceServiceGetTaskInstanceDependencies = (
     taskId: string;
   },
 ) =>
-  queryClient.prefetchQuery({
+  queryClient.ensureQueryData({
     queryKey: Common.UseTaskInstanceServiceGetTaskInstanceDependenciesKeyFn({
       dagId,
       dagRunId,
@@ -1560,7 +1560,7 @@ export const prefetchUseTaskInstanceServiceGetTaskInstanceDependencies = (
  * @returns TaskDependencyCollectionResponse Successful Response
  * @throws ApiError
  */
-export const prefetchUseTaskInstanceServiceGetTaskInstanceDependencies1 = (
+export const ensureUseTaskInstanceServiceGetTaskInstanceDependencies1Data = (
   queryClient: QueryClient,
   {
     dagId,
@@ -1574,7 +1574,7 @@ export const prefetchUseTaskInstanceServiceGetTaskInstanceDependencies1 = (
     taskId: string;
   },
 ) =>
-  queryClient.prefetchQuery({
+  queryClient.ensureQueryData({
     queryKey: Common.UseTaskInstanceServiceGetTaskInstanceDependencies1KeyFn({
       dagId,
       dagRunId,
@@ -1594,7 +1594,7 @@ export const prefetchUseTaskInstanceServiceGetTaskInstanceDependencies1 = (
  * @returns TaskInstanceHistoryCollectionResponse Successful Response
  * @throws ApiError
  */
-export const prefetchUseTaskInstanceServiceGetTaskInstanceTries = (
+export const ensureUseTaskInstanceServiceGetTaskInstanceTriesData = (
   queryClient: QueryClient,
   {
     dagId,
@@ -1608,7 +1608,7 @@ export const prefetchUseTaskInstanceServiceGetTaskInstanceTries = (
     taskId: string;
   },
 ) =>
-  queryClient.prefetchQuery({
+  queryClient.ensureQueryData({
     queryKey: Common.UseTaskInstanceServiceGetTaskInstanceTriesKeyFn({ dagId, dagRunId, mapIndex, taskId }),
     queryFn: () => TaskInstanceService.getTaskInstanceTries({ dagId, dagRunId, mapIndex, taskId }),
   });
@@ -1622,7 +1622,7 @@ export const prefetchUseTaskInstanceServiceGetTaskInstanceTries = (
  * @returns TaskInstanceHistoryCollectionResponse Successful Response
  * @throws ApiError
  */
-export const prefetchUseTaskInstanceServiceGetMappedTaskInstanceTries = (
+export const ensureUseTaskInstanceServiceGetMappedTaskInstanceTriesData = (
   queryClient: QueryClient,
   {
     dagId,
@@ -1636,7 +1636,7 @@ export const prefetchUseTaskInstanceServiceGetMappedTaskInstanceTries = (
     taskId: string;
   },
 ) =>
-  queryClient.prefetchQuery({
+  queryClient.ensureQueryData({
     queryKey: Common.UseTaskInstanceServiceGetMappedTaskInstanceTriesKeyFn({
       dagId,
       dagRunId,
@@ -1656,7 +1656,7 @@ export const prefetchUseTaskInstanceServiceGetMappedTaskInstanceTries = (
  * @returns TaskInstanceResponse Successful Response
  * @throws ApiError
  */
-export const prefetchUseTaskInstanceServiceGetMappedTaskInstance = (
+export const ensureUseTaskInstanceServiceGetMappedTaskInstanceData = (
   queryClient: QueryClient,
   {
     dagId,
@@ -1670,7 +1670,7 @@ export const prefetchUseTaskInstanceServiceGetMappedTaskInstance = (
     taskId: string;
   },
 ) =>
-  queryClient.prefetchQuery({
+  queryClient.ensureQueryData({
     queryKey: Common.UseTaskInstanceServiceGetMappedTaskInstanceKeyFn({ dagId, dagRunId, mapIndex, taskId }),
     queryFn: () => TaskInstanceService.getMappedTaskInstance({ dagId, dagRunId, mapIndex, taskId }),
   });
@@ -1708,7 +1708,7 @@ export const prefetchUseTaskInstanceServiceGetMappedTaskInstance = (
  * @returns TaskInstanceCollectionResponse Successful Response
  * @throws ApiError
  */
-export const prefetchUseTaskInstanceServiceGetTaskInstances = (
+export const ensureUseTaskInstanceServiceGetTaskInstancesData = (
   queryClient: QueryClient,
   {
     dagId,
@@ -1762,7 +1762,7 @@ export const prefetchUseTaskInstanceServiceGetTaskInstances = (
     versionNumber?: number[];
   },
 ) =>
-  queryClient.prefetchQuery({
+  queryClient.ensureQueryData({
     queryKey: Common.UseTaskInstanceServiceGetTaskInstancesKeyFn({
       dagId,
       dagRunId,
@@ -1829,7 +1829,7 @@ export const prefetchUseTaskInstanceServiceGetTaskInstances = (
  * @returns TaskInstanceHistoryResponse Successful Response
  * @throws ApiError
  */
-export const prefetchUseTaskInstanceServiceGetTaskInstanceTryDetails = (
+export const ensureUseTaskInstanceServiceGetTaskInstanceTryDetailsData = (
   queryClient: QueryClient,
   {
     dagId,
@@ -1845,7 +1845,7 @@ export const prefetchUseTaskInstanceServiceGetTaskInstanceTryDetails = (
     taskTryNumber: number;
   },
 ) =>
-  queryClient.prefetchQuery({
+  queryClient.ensureQueryData({
     queryKey: Common.UseTaskInstanceServiceGetTaskInstanceTryDetailsKeyFn({
       dagId,
       dagRunId,
@@ -1867,7 +1867,7 @@ export const prefetchUseTaskInstanceServiceGetTaskInstanceTryDetails = (
  * @returns TaskInstanceHistoryResponse Successful Response
  * @throws ApiError
  */
-export const prefetchUseTaskInstanceServiceGetMappedTaskInstanceTryDetails = (
+export const ensureUseTaskInstanceServiceGetMappedTaskInstanceTryDetailsData = (
   queryClient: QueryClient,
   {
     dagId,
@@ -1883,7 +1883,7 @@ export const prefetchUseTaskInstanceServiceGetMappedTaskInstanceTryDetails = (
     taskTryNumber: number;
   },
 ) =>
-  queryClient.prefetchQuery({
+  queryClient.ensureQueryData({
     queryKey: Common.UseTaskInstanceServiceGetMappedTaskInstanceTryDetailsKeyFn({
       dagId,
       dagRunId,
@@ -1915,7 +1915,7 @@ export const prefetchUseTaskInstanceServiceGetMappedTaskInstanceTryDetails = (
  * @returns TaskInstancesLogResponse Successful Response
  * @throws ApiError
  */
-export const prefetchUseTaskInstanceServiceGetLog = (
+export const ensureUseTaskInstanceServiceGetLogData = (
   queryClient: QueryClient,
   {
     accept,
@@ -1937,7 +1937,7 @@ export const prefetchUseTaskInstanceServiceGetLog = (
     tryNumber: number;
   },
 ) =>
-  queryClient.prefetchQuery({
+  queryClient.ensureQueryData({
     queryKey: Common.UseTaskInstanceServiceGetLogKeyFn({
       accept,
       dagId,
@@ -1968,7 +1968,7 @@ export const prefetchUseTaskInstanceServiceGetLog = (
  * @returns ImportErrorResponse Successful Response
  * @throws ApiError
  */
-export const prefetchUseImportErrorServiceGetImportError = (
+export const ensureUseImportErrorServiceGetImportErrorData = (
   queryClient: QueryClient,
   {
     importErrorId,
@@ -1976,7 +1976,7 @@ export const prefetchUseImportErrorServiceGetImportError = (
     importErrorId: number;
   },
 ) =>
-  queryClient.prefetchQuery({
+  queryClient.ensureQueryData({
     queryKey: Common.UseImportErrorServiceGetImportErrorKeyFn({ importErrorId }),
     queryFn: () => ImportErrorService.getImportError({ importErrorId }),
   });
@@ -1990,7 +1990,7 @@ export const prefetchUseImportErrorServiceGetImportError = (
  * @returns ImportErrorCollectionResponse Successful Response
  * @throws ApiError
  */
-export const prefetchUseImportErrorServiceGetImportErrors = (
+export const ensureUseImportErrorServiceGetImportErrorsData = (
   queryClient: QueryClient,
   {
     limit,
@@ -2002,7 +2002,7 @@ export const prefetchUseImportErrorServiceGetImportErrors = (
     orderBy?: string;
   } = {},
 ) =>
-  queryClient.prefetchQuery({
+  queryClient.ensureQueryData({
     queryKey: Common.UseImportErrorServiceGetImportErrorsKeyFn({ limit, offset, orderBy }),
     queryFn: () => ImportErrorService.getImportErrors({ limit, offset, orderBy }),
   });
@@ -2025,7 +2025,7 @@ export const prefetchUseImportErrorServiceGetImportErrors = (
  * @returns JobCollectionResponse Successful Response
  * @throws ApiError
  */
-export const prefetchUseJobServiceGetJobs = (
+export const ensureUseJobServiceGetJobsData = (
   queryClient: QueryClient,
   {
     endDateGte,
@@ -2055,7 +2055,7 @@ export const prefetchUseJobServiceGetJobs = (
     startDateLte?: string;
   } = {},
 ) =>
-  queryClient.prefetchQuery({
+  queryClient.ensureQueryData({
     queryKey: Common.UseJobServiceGetJobsKeyFn({
       endDateGte,
       endDateLte,
@@ -2094,7 +2094,7 @@ export const prefetchUseJobServiceGetJobs = (
  * @returns PluginCollectionResponse Successful Response
  * @throws ApiError
  */
-export const prefetchUsePluginServiceGetPlugins = (
+export const ensureUsePluginServiceGetPluginsData = (
   queryClient: QueryClient,
   {
     limit,
@@ -2104,7 +2104,7 @@ export const prefetchUsePluginServiceGetPlugins = (
     offset?: number;
   } = {},
 ) =>
-  queryClient.prefetchQuery({
+  queryClient.ensureQueryData({
     queryKey: Common.UsePluginServiceGetPluginsKeyFn({ limit, offset }),
     queryFn: () => PluginService.getPlugins({ limit, offset }),
   });
@@ -2116,7 +2116,7 @@ export const prefetchUsePluginServiceGetPlugins = (
  * @returns PoolResponse Successful Response
  * @throws ApiError
  */
-export const prefetchUsePoolServiceGetPool = (
+export const ensureUsePoolServiceGetPoolData = (
   queryClient: QueryClient,
   {
     poolName,
@@ -2124,7 +2124,7 @@ export const prefetchUsePoolServiceGetPool = (
     poolName: string;
   },
 ) =>
-  queryClient.prefetchQuery({
+  queryClient.ensureQueryData({
     queryKey: Common.UsePoolServiceGetPoolKeyFn({ poolName }),
     queryFn: () => PoolService.getPool({ poolName }),
   });
@@ -2139,7 +2139,7 @@ export const prefetchUsePoolServiceGetPool = (
  * @returns PoolCollectionResponse Successful Response
  * @throws ApiError
  */
-export const prefetchUsePoolServiceGetPools = (
+export const ensureUsePoolServiceGetPoolsData = (
   queryClient: QueryClient,
   {
     limit,
@@ -2153,7 +2153,7 @@ export const prefetchUsePoolServiceGetPools = (
     poolNamePattern?: string;
   } = {},
 ) =>
-  queryClient.prefetchQuery({
+  queryClient.ensureQueryData({
     queryKey: Common.UsePoolServiceGetPoolsKeyFn({ limit, offset, orderBy, poolNamePattern }),
     queryFn: () => PoolService.getPools({ limit, offset, orderBy, poolNamePattern }),
   });
@@ -2166,7 +2166,7 @@ export const prefetchUsePoolServiceGetPools = (
  * @returns ProviderCollectionResponse Successful Response
  * @throws ApiError
  */
-export const prefetchUseProviderServiceGetProviders = (
+export const ensureUseProviderServiceGetProvidersData = (
   queryClient: QueryClient,
   {
     limit,
@@ -2176,7 +2176,7 @@ export const prefetchUseProviderServiceGetProviders = (
     offset?: number;
   } = {},
 ) =>
-  queryClient.prefetchQuery({
+  queryClient.ensureQueryData({
     queryKey: Common.UseProviderServiceGetProvidersKeyFn({ limit, offset }),
     queryFn: () => ProviderService.getProviders({ limit, offset }),
   });
@@ -2194,7 +2194,7 @@ export const prefetchUseProviderServiceGetProviders = (
  * @returns unknown Successful Response
  * @throws ApiError
  */
-export const prefetchUseXcomServiceGetXcomEntry = (
+export const ensureUseXcomServiceGetXcomEntryData = (
   queryClient: QueryClient,
   {
     dagId,
@@ -2214,7 +2214,7 @@ export const prefetchUseXcomServiceGetXcomEntry = (
     xcomKey: string;
   },
 ) =>
-  queryClient.prefetchQuery({
+  queryClient.ensureQueryData({
     queryKey: Common.UseXcomServiceGetXcomEntryKeyFn({
       dagId,
       dagRunId,
@@ -2243,7 +2243,7 @@ export const prefetchUseXcomServiceGetXcomEntry = (
  * @returns XComCollectionResponse Successful Response
  * @throws ApiError
  */
-export const prefetchUseXcomServiceGetXcomEntries = (
+export const ensureUseXcomServiceGetXcomEntriesData = (
   queryClient: QueryClient,
   {
     dagId,
@@ -2263,7 +2263,7 @@ export const prefetchUseXcomServiceGetXcomEntries = (
     xcomKey?: string;
   },
 ) =>
-  queryClient.prefetchQuery({
+  queryClient.ensureQueryData({
     queryKey: Common.UseXcomServiceGetXcomEntriesKeyFn({
       dagId,
       dagRunId,
@@ -2284,7 +2284,7 @@ export const prefetchUseXcomServiceGetXcomEntries = (
  * @returns TaskCollectionResponse Successful Response
  * @throws ApiError
  */
-export const prefetchUseTaskServiceGetTasks = (
+export const ensureUseTaskServiceGetTasksData = (
   queryClient: QueryClient,
   {
     dagId,
@@ -2294,7 +2294,7 @@ export const prefetchUseTaskServiceGetTasks = (
     orderBy?: string;
   },
 ) =>
-  queryClient.prefetchQuery({
+  queryClient.ensureQueryData({
     queryKey: Common.UseTaskServiceGetTasksKeyFn({ dagId, orderBy }),
     queryFn: () => TaskService.getTasks({ dagId, orderBy }),
   });
@@ -2307,7 +2307,7 @@ export const prefetchUseTaskServiceGetTasks = (
  * @returns TaskResponse Successful Response
  * @throws ApiError
  */
-export const prefetchUseTaskServiceGetTask = (
+export const ensureUseTaskServiceGetTaskData = (
   queryClient: QueryClient,
   {
     dagId,
@@ -2317,7 +2317,7 @@ export const prefetchUseTaskServiceGetTask = (
     taskId: unknown;
   },
 ) =>
-  queryClient.prefetchQuery({
+  queryClient.ensureQueryData({
     queryKey: Common.UseTaskServiceGetTaskKeyFn({ dagId, taskId }),
     queryFn: () => TaskService.getTask({ dagId, taskId }),
   });
@@ -2329,7 +2329,7 @@ export const prefetchUseTaskServiceGetTask = (
  * @returns VariableResponse Successful Response
  * @throws ApiError
  */
-export const prefetchUseVariableServiceGetVariable = (
+export const ensureUseVariableServiceGetVariableData = (
   queryClient: QueryClient,
   {
     variableKey,
@@ -2337,7 +2337,7 @@ export const prefetchUseVariableServiceGetVariable = (
     variableKey: string;
   },
 ) =>
-  queryClient.prefetchQuery({
+  queryClient.ensureQueryData({
     queryKey: Common.UseVariableServiceGetVariableKeyFn({ variableKey }),
     queryFn: () => VariableService.getVariable({ variableKey }),
   });
@@ -2352,7 +2352,7 @@ export const prefetchUseVariableServiceGetVariable = (
  * @returns VariableCollectionResponse Successful Response
  * @throws ApiError
  */
-export const prefetchUseVariableServiceGetVariables = (
+export const ensureUseVariableServiceGetVariablesData = (
   queryClient: QueryClient,
   {
     limit,
@@ -2366,7 +2366,7 @@ export const prefetchUseVariableServiceGetVariables = (
     variableKeyPattern?: string;
   } = {},
 ) =>
-  queryClient.prefetchQuery({
+  queryClient.ensureQueryData({
     queryKey: Common.UseVariableServiceGetVariablesKeyFn({ limit, offset, orderBy, variableKeyPattern }),
     queryFn: () => VariableService.getVariables({ limit, offset, orderBy, variableKeyPattern }),
   });
@@ -2379,7 +2379,7 @@ export const prefetchUseVariableServiceGetVariables = (
  * @returns DagVersionResponse Successful Response
  * @throws ApiError
  */
-export const prefetchUseDagVersionServiceGetDagVersion = (
+export const ensureUseDagVersionServiceGetDagVersionData = (
   queryClient: QueryClient,
   {
     dagId,
@@ -2389,7 +2389,7 @@ export const prefetchUseDagVersionServiceGetDagVersion = (
     versionNumber: number;
   },
 ) =>
-  queryClient.prefetchQuery({
+  queryClient.ensureQueryData({
     queryKey: Common.UseDagVersionServiceGetDagVersionKeyFn({ dagId, versionNumber }),
     queryFn: () => DagVersionService.getDagVersion({ dagId, versionNumber }),
   });
@@ -2409,7 +2409,7 @@ export const prefetchUseDagVersionServiceGetDagVersion = (
  * @returns DAGVersionCollectionResponse Successful Response
  * @throws ApiError
  */
-export const prefetchUseDagVersionServiceGetDagVersions = (
+export const ensureUseDagVersionServiceGetDagVersionsData = (
   queryClient: QueryClient,
   {
     bundleName,
@@ -2429,7 +2429,7 @@ export const prefetchUseDagVersionServiceGetDagVersions = (
     versionNumber?: number;
   },
 ) =>
-  queryClient.prefetchQuery({
+  queryClient.ensureQueryData({
     queryKey: Common.UseDagVersionServiceGetDagVersionsKeyFn({
       bundleName,
       bundleVersion,
@@ -2455,8 +2455,8 @@ export const prefetchUseDagVersionServiceGetDagVersions = (
  * @returns HealthInfoResponse Successful Response
  * @throws ApiError
  */
-export const prefetchUseMonitorServiceGetHealth = (queryClient: QueryClient) =>
-  queryClient.prefetchQuery({
+export const ensureUseMonitorServiceGetHealthData = (queryClient: QueryClient) =>
+  queryClient.ensureQueryData({
     queryKey: Common.UseMonitorServiceGetHealthKeyFn(),
     queryFn: () => MonitorService.getHealth(),
   });
@@ -2466,8 +2466,8 @@ export const prefetchUseMonitorServiceGetHealth = (queryClient: QueryClient) =>
  * @returns VersionInfo Successful Response
  * @throws ApiError
  */
-export const prefetchUseVersionServiceGetVersion = (queryClient: QueryClient) =>
-  queryClient.prefetchQuery({
+export const ensureUseVersionServiceGetVersionData = (queryClient: QueryClient) =>
+  queryClient.ensureQueryData({
     queryKey: Common.UseVersionServiceGetVersionKeyFn(),
     queryFn: () => VersionService.getVersion(),
   });
@@ -2479,7 +2479,7 @@ export const prefetchUseVersionServiceGetVersion = (queryClient: QueryClient) =>
  * @returns unknown Successful Response
  * @throws ApiError
  */
-export const prefetchUseLoginServiceLogin = (
+export const ensureUseLoginServiceLoginData = (
   queryClient: QueryClient,
   {
     next,
@@ -2487,7 +2487,7 @@ export const prefetchUseLoginServiceLogin = (
     next?: string;
   } = {},
 ) =>
-  queryClient.prefetchQuery({
+  queryClient.ensureQueryData({
     queryKey: Common.UseLoginServiceLoginKeyFn({ next }),
     queryFn: () => LoginService.login({ next }),
   });
@@ -2499,7 +2499,7 @@ export const prefetchUseLoginServiceLogin = (
  * @returns unknown Successful Response
  * @throws ApiError
  */
-export const prefetchUseLoginServiceLogout = (
+export const ensureUseLoginServiceLogoutData = (
   queryClient: QueryClient,
   {
     next,
@@ -2507,7 +2507,7 @@ export const prefetchUseLoginServiceLogout = (
     next?: string;
   } = {},
 ) =>
-  queryClient.prefetchQuery({
+  queryClient.ensureQueryData({
     queryKey: Common.UseLoginServiceLogoutKeyFn({ next }),
     queryFn: () => LoginService.logout({ next }),
   });

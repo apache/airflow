@@ -20,8 +20,8 @@ import { Popover as ChakraPopover, Portal } from "@chakra-ui/react";
 import * as React from "react";
 
 type PopoverContentProps = {
-  portalled?: boolean;
-  portalRef?: React.RefObject<HTMLElement>;
+  readonly portalled?: boolean;
+  readonly portalRef?: React.RefObject<HTMLElement>;
 } & ChakraPopover.ContentProps;
 
 export const Content = React.forwardRef<HTMLDivElement, PopoverContentProps>((props, ref) => {

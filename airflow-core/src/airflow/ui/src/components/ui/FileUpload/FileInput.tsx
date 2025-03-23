@@ -23,7 +23,7 @@ import { forwardRef } from "react";
 type Assign<T, U> = Omit<T, keyof U> & U;
 
 type FileInputProps = {
-  placeholder?: React.ReactNode;
+  readonly placeholder?: React.ReactNode;
 } & Assign<ButtonProps, RecipeProps<"input">>;
 
 export const FileInput = forwardRef<HTMLButtonElement, FileInputProps>((props, ref) => {

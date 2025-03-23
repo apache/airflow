@@ -48,6 +48,7 @@ export const FieldString = ({ name }: FlexibleFormElementProps) => {
         }}
         placeholder={param.schema.examples ? "Start typing to see options." : undefined}
         size="sm"
+        // eslint-disable-next-line @typescript-eslint/no-base-to-string
         value={String(param.value ?? "")}
       />
       {param.schema.examples ? (
