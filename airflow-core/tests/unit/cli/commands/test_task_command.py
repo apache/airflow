@@ -48,7 +48,6 @@ from airflow.utils.state import State, TaskInstanceState
 from airflow.utils.types import DagRunTriggeredByType, DagRunType
 
 from tests_common.test_utils.db import clear_db_runs, parse_and_sync_to_db
-from unit.models import TEST_DAGS_FOLDER
 
 pytestmark = pytest.mark.db_test
 
@@ -270,29 +269,28 @@ class TestCliTasks:
         assert 'echo "2016-01-01"' in output
         assert 'echo "2016-01-08"' in output
 
-    def test_mapped_task_render(self, configure_testing_dag_bundle, get_test_dag):
+    def test_mapped_task_render(self, get_test_dag):
         """
         tasks render should render and displays templated fields for a given mapping task
         """
 
-        path_to_parse = TEST_DAGS_FOLDER / "test_mapped_classic.py"
+        # Retrieve and serialize a test DAG for unit testing.
         get_test_dag("test_mapped_classic")
 
-        with configure_testing_dag_bundle(path_to_parse):
-            with redirect_stdout(io.StringIO()) as stdout:
-                task_command.task_render(
-                    self.parser.parse_args(
-                        [
-                            "tasks",
-                            "render",
-                            "test_mapped_classic",
-                            "consumer_literal",
-                            "2022-01-01",
-                            "--map-index",
-                            "0",
-                        ]
-                    )
+        with redirect_stdout(io.StringIO()) as stdout:
+            task_command.task_render(
+                self.parser.parse_args(
+                    [
+                        "tasks",
+                        "render",
+                        "test_mapped_classic",
+                        "consumer_literal",
+                        "2022-01-01",
+                        "--map-index",
+                        "0",
+                    ]
                 )
+            )
         # the dag test_mapped_classic has op_args=[[1], [2], [3]], so the first mapping task should have
         # op_args=[1]
         output = stdout.getvalue()
