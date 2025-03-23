@@ -755,8 +755,7 @@ repos:
         name: Check if licenses are OK for Apache
         entry: ./scripts/ci/pre_commit/check_license.py
         language: python
-        files: ^.*LICENSE.*$|^.*LICENCE.*$
-        exclude: ^providers/.*/src/.*/LICENSE$|.*/dist/.*
+        files: ^LICENSE$
         pass_filenames: false
       - id: check-aiobotocore-optional
         name: Check if aiobotocore is an optional dependency only

@@ -44,6 +44,7 @@ venv
 clients/*
 files/*
 dags/*
+generated/*
 .gitmodules
 prod_image_installed_providers.txt
 airflow_pre_installed_providers.txt
