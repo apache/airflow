@@ -615,7 +615,7 @@ class TestKubernetesPodOperator:
         assert pod == pod_request_obj
         assert k.find_pod.call_count == 2
         self.create_mock.assert_called_once_with(pod=pod_request_obj)
-        assert mock_sleep.call_count == 2
+        assert mock_sleep.call_count == 1
         k.find_pod.reset_mock()
         self.create_mock.reset_mock()
         mock_sleep.reset_mock()

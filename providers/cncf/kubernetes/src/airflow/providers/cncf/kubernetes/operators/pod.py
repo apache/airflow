@@ -565,13 +565,14 @@ class KubernetesPodOperator(BaseOperator):
     def get_or_create_pod(self, pod_request_obj: k8s.V1Pod, context: Context) -> k8s.V1Pod:
         retry_attempts = 2
         if self.reattach_on_restart:
-            for _attempt in range(retry_attempts):
+            for attempt in range(retry_attempts):
                 pod = self.find_pod(pod_request_obj.metadata.namespace, context=context)
                 if pod:
                     return pod
-                else:
-                    self.log.debug("Could not find pod, retrying in %s seconds", self.startup_timeout_seconds)
+                self.log.debug("Could not find pod, retrying in %s seconds", self.startup_timeout_seconds)
+                if attempt < retry_attempts - 1:
                     time.sleep(self.startup_timeout_seconds)
+
         self.log.debug("Starting pod:\n%s", yaml.safe_dump(pod_request_obj.to_dict()))
         self.pod_manager.create_pod(pod=pod_request_obj)
         return pod_request_obj
