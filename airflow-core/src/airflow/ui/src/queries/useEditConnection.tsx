@@ -91,7 +91,7 @@ export const useEditConnection = (
     const parsedPassword = requestBody.password === "" ? undefined : requestBody.password;
     const parsedPort = requestBody.port === "" ? undefined : Number(requestBody.port);
     const parsedSchema = requestBody.schema === "" ? undefined : requestBody.schema;
-    const parsedExtra = requestBody.conf === "" ? undefined : requestBody.conf;
+    const parsedExtra = requestBody.conf === "{}" ? undefined : requestBody.conf;
 
     mutate({
       connectionId: initialConnection.connection_id,

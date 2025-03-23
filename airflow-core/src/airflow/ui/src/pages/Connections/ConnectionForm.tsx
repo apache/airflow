@@ -1,5 +1,3 @@
-/* eslint-disable max-lines */
-
 /*!
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
@@ -18,22 +16,11 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import {
-  Input,
-  Button,
-  Box,
-  Spacer,
-  HStack,
-  Field,
-  Stack,
-  VStack,
-  Textarea,
-  Spinner,
-} from "@chakra-ui/react";
+import { Input, Button, Box, Spacer, HStack, Field, Stack, VStack, Spinner } from "@chakra-ui/react";
 import { Select } from "chakra-react-select";
 import { useEffect, useState } from "react";
 import { useForm, Controller } from "react-hook-form";
-import { FiEye, FiEyeOff, FiSave } from "react-icons/fi";
+import { FiSave } from "react-icons/fi";
 
 import { ErrorAlert } from "src/components/ErrorAlert";
 import { FlexibleForm, flexibleFormExtraFieldSection } from "src/components/FlexibleForm";
@@ -44,6 +31,7 @@ import type { ParamsSpec } from "src/queries/useDagParams";
 import { useParamStore } from "src/queries/useParamStore";
 
 import type { ConnectionBody } from "./AddConnectionButton";
+import StandardFields from "./ConnectionStandardFields";
 
 type AddConnectionFormProps = {
   readonly error: unknown;
@@ -145,7 +133,7 @@ const ConnectionForm = ({
                 </Field.Label>
               </Stack>
               <Stack css={{ flexBasis: "70%" }}>
-                <Input {...field} required size="sm" />
+                <Input {...field} disabled={Boolean(initialConnection.connection_id)} required size="sm" />
                 {fieldState.error ? <Field.ErrorText>{fieldState.error.message}</Field.ErrorText> : undefined}
               </Stack>
             </Field.Root>
@@ -202,60 +190,9 @@ const ConnectionForm = ({
             variant="enclosed"
           >
             <Accordion.Item key="standardFields" value="standardFields">
-              <Accordion.ItemTrigger cursor="button">Standard Fields</Accordion.ItemTrigger>
+              <Accordion.ItemTrigger>Standard Fields</Accordion.ItemTrigger>
               <Accordion.ItemContent>
-                <Stack pb={3} pl={3} pr={3}>
-                  {Object.entries(standardFields).map(([key, fields]) => {
-                    if (Boolean(fields.hidden)) {
-                      return undefined;
-                    } // Skip hidden fields
-
-                    return (
-                      <Controller
-                        control={control}
-                        key={key}
-                        name={key as keyof ConnectionBody}
-                        render={({ field }) => (
-                          <Field.Root mt={3} orientation="horizontal">
-                            <Stack>
-                              <Field.Label fontSize="md" style={{ flexBasis: "30%" }}>
-                                {fields.title ?? key}
-                              </Field.Label>
-                            </Stack>
-                            <Stack css={{ flexBasis: "70%", position: "relative" }}>
-                              {key === "description" ? (
-                                <Textarea {...field} placeholder={fields.placeholder ?? ""} />
-                              ) : (
-                                <div style={{ position: "relative", width: "100%" }}>
-                                  <Input
-                                    {...field}
-                                    placeholder={fields.placeholder ?? ""}
-                                    type={key === "password" && !showPassword ? "password" : "text"}
-                                  />
-                                  {key === "password" && (
-                                    <button
-                                      onClick={() => setShowPassword(!showPassword)}
-                                      style={{
-                                        cursor: "pointer",
-                                        position: "absolute",
-                                        right: "10px",
-                                        top: "50%",
-                                        transform: "translateY(-50%)",
-                                      }}
-                                      type="button"
-                                    >
-                                      {showPassword ? <FiEye size={15} /> : <FiEyeOff size={15} />}
-                                    </button>
-                                  )}
-                                </div>
-                              )}
-                            </Stack>
-                          </Field.Root>
-                        )}
-                      />
-                    );
-                  })}
-                </Stack>
+                <StandardFields control={control} standardFields={standardFields} />
               </Accordion.ItemContent>
             </Accordion.Item>
             <FlexibleForm

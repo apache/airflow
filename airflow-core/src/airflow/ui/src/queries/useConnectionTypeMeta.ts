@@ -21,13 +21,13 @@ import { toaster } from "src/components/ui";
 
 import type { ParamsSpec } from "./useDagParams";
 
-type StandardFieldSpec = Record<string, StandardFieldSchema>;
-
 type StandardFieldSchema = {
   hidden?: boolean | undefined;
   placeholder?: string | undefined;
   title?: string | undefined;
 };
+
+export type StandardFieldSpec = Record<string, StandardFieldSchema>;
 
 export type ConnectionMetaEntry = {
   connection_type: string;
@@ -48,7 +48,7 @@ export const useConnectionTypeMeta = () => {
     const errorDescription =
       typeof error === "object" && error !== null
         ? JSON.stringify(error, undefined, 2) // Safely stringify the object with pretty-printing
-        : String(error ?? ""); // Convert other types (e.g., numbers, strings) to string
+        : String(Boolean(error) ? error : ""); // Convert other types (e.g., numbers, strings) to string
 
     toaster.create({
       description: `Connection Type Meta request failed. Error: ${errorDescription}`,
