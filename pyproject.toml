@@ -140,6 +140,13 @@ path = "./hatch_build.py"
 [tool.hatch.build.targets.sdist]
 exclude = ["*"]
 
+# This force-include will be removed once we switch to `uv-only` development environment and remove
+# hatch_build.py altogether
+[tool.hatch.build.targets.sdist.force-include]
+"airflow-core/pyproject.toml" =  "airflow-core/pyproject.toml"
+"generated/provider_dependencies.json" = "generated/provider_dependencies.json"
+"airflow-core/src/airflow/__init__.py" = "airflow-core/src/airflow/__init__.py"
+
 [tool.hatch.build.targets.wheel]
 bypass-selection = true
 

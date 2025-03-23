@@ -305,22 +305,24 @@ class DistributionPackageInfo(NamedTuple):
         build_type: Literal["airflow", "providers", "task-sdk"],
     ) -> tuple[DistributionPackageInfo, ...]:
         if build_type == "airflow":
-            default_glob_pattern = "apache[_-]airflow-[0-9]"
+            default_glob_patterns = ["apache_airflow-", "apache_airflow_core-"]
         elif build_type == "task-sdk":
-            default_glob_pattern = "apache[_-]airflow[_-]task[_-]sdk"
+            default_glob_patterns = ["apache_airflow_task_sdk"]
         else:
-            default_glob_pattern = "apache[_-]airflow[_-]providers"
+            default_glob_patterns = ["apache_airflow_providers"]
         dists_info = []
         if distribution_format in ["sdist", "both"]:
-            for file in dist_directory.glob(f"{default_glob_pattern}*tar.gz"):
-                if not file.is_file() or "-source.tar.gz" in file.name:
-                    continue
-                dists_info.append(cls.from_sdist(filepath=file))
+            for default_glob_pattern in default_glob_patterns:
+                for file in dist_directory.glob(f"{default_glob_pattern}*.tar.gz"):
+                    if not file.is_file() or "-source.tar.gz" in file.name:
+                        continue
+                    dists_info.append(cls.from_sdist(filepath=file))
         if distribution_format in ["wheel", "both"]:
-            for file in dist_directory.glob(f"{default_glob_pattern}*whl"):
-                if not file.is_file():
-                    continue
-                dists_info.append(cls.from_wheel(filepath=file))
+            for default_glob_pattern in default_glob_patterns:
+                for file in dist_directory.glob(f"{default_glob_pattern}*.whl"):
+                    if not file.is_file():
+                        continue
+                    dists_info.append(cls.from_wheel(filepath=file))
         return tuple(sorted(dists_info, key=lambda di: (di.package, di.dist_type)))
 
     def __str__(self):
@@ -473,8 +475,6 @@ def apply_distribution_format_to_hatch_command(build_command: list[str], distrib
 def _build_airflow_packages_with_hatch(
     distribution_format: str, source_date_epoch: int, version_suffix_for_pypi: str
 ):
-    build_airflow_command = ["hatch", "build", "-c"]
-    apply_distribution_format_to_hatch_command(build_airflow_command, distribution_format)
     env_copy = os.environ.copy()
     env_copy["SOURCE_DATE_EPOCH"] = str(source_date_epoch)
     build_airflow_core_command = ["hatch", "build", "-c", "-t", "custom"]
@@ -492,6 +492,8 @@ def _build_airflow_packages_with_hatch(
             cwd=AIRFLOW_CORE_ROOT_PATH,
         )
     get_console().print(f"[bright_blue]Building apache-airflow distributions: {distribution_format}\n")
+    build_airflow_command = ["hatch", "build", "-c"]
+    apply_distribution_format_to_hatch_command(build_airflow_command, distribution_format)
     with package_version(
         version_suffix=version_suffix_for_pypi,
         package_path=AIRFLOW_CORE_ROOT_PATH,
@@ -503,6 +505,8 @@ def _build_airflow_packages_with_hatch(
             env=env_copy,
             cwd=AIRFLOW_ROOT_PATH,
         )
+    for distribution_path in (AIRFLOW_CORE_ROOT_PATH / "dist").glob("apache_airflow_core*"):
+        shutil.move(distribution_path, AIRFLOW_DIST_PATH)
 
 
 def _check_sdist_to_wheel_dists(dists_info: tuple[DistributionPackageInfo, ...]):
