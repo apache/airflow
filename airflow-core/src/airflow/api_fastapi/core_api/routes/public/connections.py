@@ -187,28 +187,35 @@ def patch_connection(
             "The connection_id in the request body does not match the URL parameter",
         )
 
-    non_update_fields = {"connection_id", "conn_id"}
-    connection = session.scalar(select(Connection).filter_by(conn_id=connection_id).limit(1))
+    connection: Connection = session.scalar(select(Connection).filter_by(conn_id=connection_id).limit(1))
 
     if connection is None:
         raise HTTPException(
             status.HTTP_404_NOT_FOUND, f"The Connection with connection_id: `{connection_id}` was not found"
         )
 
-    fields_to_update = patch_body.model_fields_set
+    try:
+        ConnectionBody(**patch_body.model_dump())
+    except ValidationError as e:
+        raise RequestValidationError(errors=e.errors())
 
-    if update_mask:
-        fields_to_update = fields_to_update.intersection(update_mask)
-    else:
-        try:
-            ConnectionBody(**patch_body.model_dump())
-        except ValidationError as e:
-            raise RequestValidationError(errors=e.errors())
-
-    data = patch_body.model_dump(include=fields_to_update - non_update_fields, by_alias=True)
-
-    for key, val in data.items():
-        setattr(connection, key, val)
+    # Not all fields match, therefore copy manually
+    if not update_mask or "conn_type" in update_mask:
+        connection.conn_type = patch_body.conn_type
+    if not update_mask or "description" in update_mask:
+        connection.description = patch_body.description
+    if not update_mask or "host" in update_mask:
+        connection.host = patch_body.host
+    if not update_mask or "schema" in update_mask:
+        connection.schema = patch_body.schema_
+    if not update_mask or "login" in update_mask:
+        connection.login = patch_body.login
+    if not update_mask or "password" in update_mask:
+        connection._password = patch_body.password
+    if not update_mask or "port" in update_mask:
+        connection.port = patch_body.port
+    if not update_mask or "extra" in update_mask:
+        connection._extra = patch_body.extra
 
     return connection
 
