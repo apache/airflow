@@ -51,21 +51,9 @@ updates:
       - /clients/python
       - /dev/breeze
       - /docker_tests
-      - /task-sdk
       - /
     schedule:
       interval: daily
-    target-branch: v2-10-test
-
-  - package-ecosystem: pip
-    directories:
-      - /providers/*/
-    schedule:
-      interval: daily
-    groups:
-      provider-dependencies:
-        patterns:
-          - "*"
     target-branch: v2-10-test
 
   - package-ecosystem: npm
