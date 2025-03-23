@@ -69,7 +69,7 @@
     "@types/react-syntax-highlighter": "^15.5.13",
     "@vitejs/plugin-react-swc": "^3.7.0",
     "@vitest/coverage-v8": "^2.1.1",
-    "eslint": "^9.10.0",
+    "eslint": "^9.23.0",
     "eslint-config-prettier": "^9.1.0",
     "eslint-plugin-jsx-a11y": "^6.10.0",
     "eslint-plugin-perfectionist": "^3.5.0",
