@@ -113,7 +113,7 @@ class TestAssetDecorator:
 
         assert err.value.args[0] == "nested function not supported"
 
-    @pytest.mark.parametrize("example_asset_func", ("self", "context"), indirect=True)
+    @pytest.mark.parametrize("example_asset_func", ["self", "context"], indirect=True)
     def test_with_invalid_asset_name(self, example_asset_func):
         with pytest.raises(ValueError) as err:
             asset(schedule=None)(example_asset_func)

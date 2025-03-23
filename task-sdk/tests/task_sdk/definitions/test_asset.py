@@ -384,21 +384,21 @@ class TestAssetAlias:
 
 
 class TestAssetSubclasses:
-    @pytest.mark.parametrize("subcls, group", ((Model, "model"), (Dataset, "dataset")))
+    @pytest.mark.parametrize("subcls, group", [(Model, "model"), (Dataset, "dataset")])
     def test_only_name(self, subcls, group):
         obj = subcls(name="foobar")
         assert obj.name == "foobar"
         assert obj.uri == "foobar"
         assert obj.group == group
 
-    @pytest.mark.parametrize("subcls, group", ((Model, "model"), (Dataset, "dataset")))
+    @pytest.mark.parametrize("subcls, group", [(Model, "model"), (Dataset, "dataset")])
     def test_only_uri(self, subcls, group):
         obj = subcls(uri="s3://bucket/key/path")
         assert obj.name == "s3://bucket/key/path"
         assert obj.uri == "s3://bucket/key/path"
         assert obj.group == group
 
-    @pytest.mark.parametrize("subcls, group", ((Model, "model"), (Dataset, "dataset")))
+    @pytest.mark.parametrize("subcls, group", [(Model, "model"), (Dataset, "dataset")])
     def test_both_name_and_uri(self, subcls, group):
         obj = subcls("foobar", "s3://bucket/key/path")
         assert obj.name == "foobar"
@@ -406,7 +406,7 @@ class TestAssetSubclasses:
         assert obj.group == group
 
     @pytest.mark.parametrize("arg", ["foobar", "s3://bucket/key/path"])
-    @pytest.mark.parametrize("subcls, group", ((Model, "model"), (Dataset, "dataset")))
+    @pytest.mark.parametrize("subcls, group", [(Model, "model"), (Dataset, "dataset")])
     def test_only_posarg(self, subcls, group, arg):
         obj = subcls(arg)
         assert obj.name == arg

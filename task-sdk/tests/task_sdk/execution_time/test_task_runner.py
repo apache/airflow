@@ -1323,10 +1323,10 @@ class TestRuntimeTaskInstance:
 
     @pytest.mark.parametrize(
         ("logical_date", "check"),
-        (
+        [
             pytest.param(None, pytest.raises(KeyError), id="no-logical-date"),
             pytest.param(timezone.datetime(2024, 12, 3), contextlib.nullcontext(), id="with-logical-date"),
-        ),
+        ],
     )
     def test_no_logical_date_key_error(
         self, mocked_parse, make_ti_context, mock_supervisor_comms, create_runtime_ti, logical_date, check

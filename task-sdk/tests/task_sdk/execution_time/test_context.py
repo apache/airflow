@@ -346,7 +346,7 @@ class TestCurrentContext:
 class TestOutletEventAccessor:
     @pytest.mark.parametrize(
         "key, asset_alias_events",
-        (
+        [
             (AssetUniqueKey.from_asset(Asset("test_uri")), []),
             (
                 AssetAliasUniqueKey.from_asset_alias(AssetAlias("test_alias")),
@@ -358,7 +358,7 @@ class TestOutletEventAccessor:
                     )
                 ],
             ),
-        ),
+        ],
     )
     def test_add(self, key, asset_alias_events, mock_supervisor_comms):
         asset = Asset("test_uri")
@@ -370,7 +370,7 @@ class TestOutletEventAccessor:
 
     @pytest.mark.parametrize(
         "key, asset_alias_events",
-        (
+        [
             (AssetUniqueKey.from_asset(Asset("test_uri")), []),
             (
                 AssetAliasUniqueKey.from_asset_alias(AssetAlias("test_alias")),
@@ -382,7 +382,7 @@ class TestOutletEventAccessor:
                     )
                 ],
             ),
-        ),
+        ],
     )
     def test_add_with_db(self, key, asset_alias_events, mock_supervisor_comms):
         asset = Asset(uri="test://asset-uri", name="test-asset")
@@ -396,14 +396,14 @@ class TestOutletEventAccessor:
 class TestOutletEventAccessors:
     @pytest.mark.parametrize(
         "access_key, internal_key",
-        (
+        [
             (Asset("test"), AssetUniqueKey.from_asset(Asset("test"))),
             (
                 Asset(name="test", uri="test://asset"),
                 AssetUniqueKey.from_asset(Asset(name="test", uri="test://asset")),
             ),
             (AssetAlias("test_alias"), AssetAliasUniqueKey.from_asset_alias(AssetAlias("test_alias"))),
-        ),
+        ],
     )
     def test__get_item__dict_key_not_exists(self, access_key, internal_key):
         outlet_event_accessors = OutletEventAccessors()
@@ -415,11 +415,11 @@ class TestOutletEventAccessors:
 
     @pytest.mark.parametrize(
         ["access_key", "asset"],
-        (
+        [
             (Asset.ref(name="test"), Asset(name="test")),
             (Asset.ref(name="test1"), Asset(name="test1", uri="test://asset-uri")),
             (Asset.ref(uri="test://asset-uri"), Asset(uri="test://asset-uri")),
-        ),
+        ],
     )
     def test__get_item__asset_ref(self, access_key, asset, mock_supervisor_comms):
         """Test accessing OutletEventAccessors with AssetRef resolves to correct Asset."""
