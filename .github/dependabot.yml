@@ -19,6 +19,8 @@ version: 2
 updates:
   - package-ecosystem: pip
     directories:
+      - /airflow-core
+      - /airflow-ctl
       - /clients/python
       - /dev/breeze
       - /docker_tests
@@ -36,3 +38,31 @@ updates:
       provider-dependencies:
         patterns:
           - "*"
+
+  - package-ecosystem: npm
+    directories:
+      - /airflow-core/src/airflow/api_fastapi/auth/managers/simple/ui
+      - /airflow-core/src/airflow/ui
+      - /providers/fab/src/airflow/providers/fab/www
+    schedule:
+      interval: daily
+
+  # Repeat dependency updates on 2.10 branch as well
+  - package-ecosystem: pip
+    directories:
+      - /clients/python
+      - /dev/breeze
+      - /docker_tests
+      - /
+    schedule:
+      interval: daily
+    target-branch: v2-10-test
+
+  - package-ecosystem: npm
+    directories:
+      - /airflow-core/src/airflow/api_fastapi/auth/managers/simple/ui
+      - /airflow-core/src/airflow/ui
+      - /providers/fab/src/airflow/providers/fab/www
+    schedule:
+      interval: daily
+    target-branch: v2-10-test

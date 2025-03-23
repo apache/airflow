@@ -16,52 +16,51 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Input, Button, Box, Spacer, HStack, Field, Stack, VStack, Textarea } from "@chakra-ui/react";
+import { Input, Button, Box, Spacer, HStack, Field, Stack, VStack, Spinner } from "@chakra-ui/react";
 import { Select } from "chakra-react-select";
 import { useEffect, useState } from "react";
 import { useForm, Controller } from "react-hook-form";
-import { FiEye, FiEyeOff, FiSave } from "react-icons/fi";
+import { FiSave } from "react-icons/fi";
 
 import { ErrorAlert } from "src/components/ErrorAlert";
 import { FlexibleForm, flexibleFormExtraFieldSection } from "src/components/FlexibleForm";
 import { JsonEditor } from "src/components/JsonEditor";
 import { Accordion } from "src/components/ui";
-import { useAddConnection } from "src/queries/useAddConnection";
-import type { ConnectionMetaEntry } from "src/queries/useConnectionTypeMeta";
+import { useConnectionTypeMeta } from "src/queries/useConnectionTypeMeta";
 import type { ParamsSpec } from "src/queries/useDagParams";
 import { useParamStore } from "src/queries/useParamStore";
 
-import type { AddConnectionParams } from "./AddConnectionButton";
+import StandardFields from "./ConnectionStandardFields";
+import type { ConnectionBody } from "./Connections";
 
 type AddConnectionFormProps = {
-  readonly connectionTypeMeta: Record<string, ConnectionMetaEntry>;
-  readonly connectionTypes: Array<string>;
-  readonly onClose: () => void;
+  readonly error: unknown;
+  readonly initialConnection: ConnectionBody;
+  readonly isPending: boolean;
+  readonly mutateConnection: (requestBody: ConnectionBody) => void;
 };
 
-const ConnectionForm = ({ connectionTypeMeta, connectionTypes, onClose }: AddConnectionFormProps) => {
+const ConnectionForm = ({
+  error,
+  initialConnection,
+  isPending,
+  mutateConnection,
+}: AddConnectionFormProps) => {
   const [errors, setErrors] = useState<{ conf?: string }>({});
-  const { addConnection, error, isPending } = useAddConnection({ onSuccessConfirm: onClose });
-  const { conf, setConf } = useParamStore();
-  const [showPassword, setShowPassword] = useState(false);
+  const {
+    formattedData: connectionTypeMeta,
+    isPending: isMetaPending,
+    keysList: connectionTypes,
+  } = useConnectionTypeMeta();
+  const { conf: extra, setConf } = useParamStore();
   const {
     control,
     formState: { isValid },
     handleSubmit,
     reset,
     watch,
-  } = useForm<AddConnectionParams>({
-    defaultValues: {
-      conf,
-      conn_type: "",
-      connection_id: "",
-      description: "",
-      host: "",
-      login: "",
-      password: "",
-      port: "",
-      schema: "",
-    },
+  } = useForm<ConnectionBody>({
+    defaultValues: initialConnection,
     mode: "onBlur",
   });
 
@@ -71,27 +70,23 @@ const ConnectionForm = ({ connectionTypeMeta, connectionTypes, onClose }: AddCon
 
   useEffect(() => {
     reset((prevValues) => ({
-      ...prevValues,
+      ...initialConnection,
       conn_type: selectedConnType,
-      description: "",
-      host: "",
-      login: "",
-      password: "",
-      port: "",
-      schema: "",
+      connection_id: prevValues.connection_id,
     }));
-  }, [selectedConnType, reset]);
+    setConf(JSON.stringify(JSON.parse(initialConnection.extra), undefined, 2));
+  }, [selectedConnType, reset, initialConnection, setConf]);
 
   // Automatically reset form when conf is fetched
   useEffect(() => {
     reset((prevValues) => ({
       ...prevValues, // Retain existing form values
-      conf,
+      extra,
     }));
-  }, [conf, reset, setConf]);
+  }, [extra, reset, setConf]);
 
-  const onSubmit = (data: AddConnectionParams) => {
-    addConnection(data);
+  const onSubmit = (data: ConnectionBody) => {
+    mutateConnection(data);
   };
 
   const validateAndPrettifyJson = (value: string) => {
@@ -101,7 +96,7 @@ const ConnectionForm = ({ connectionTypeMeta, connectionTypes, onClose }: AddCon
       setErrors((prev) => ({ ...prev, conf: undefined }));
       const formattedJson = JSON.stringify(parsedJson, undefined, 2);
 
-      if (formattedJson !== conf) {
+      if (formattedJson !== extra) {
         setConf(formattedJson); // Update only if the value is different
       }
 
@@ -137,7 +132,7 @@ const ConnectionForm = ({ connectionTypeMeta, connectionTypes, onClose }: AddCon
                 </Field.Label>
               </Stack>
               <Stack css={{ flexBasis: "70%" }}>
-                <Input {...field} required size="sm" />
+                <Input {...field} disabled={Boolean(initialConnection.connection_id)} required size="sm" />
                 {fieldState.error ? <Field.ErrorText>{fieldState.error.message}</Field.ErrorText> : undefined}
               </Stack>
             </Field.Root>
@@ -159,13 +154,19 @@ const ConnectionForm = ({ connectionTypeMeta, connectionTypes, onClose }: AddCon
                 </Field.Label>
               </Stack>
               <Stack css={{ flexBasis: "70%" }}>
-                <Select
-                  {...Field}
-                  onChange={(val) => onChange(val?.value)}
-                  options={connTypesOptions}
-                  placeholder="Select Connection Type"
-                  value={connTypesOptions.find((type) => type.value === value)}
-                />
+                <Stack>
+                  {isMetaPending ? (
+                    <Spinner size="sm" style={{ left: "60%", position: "absolute", top: "20%" }} />
+                  ) : undefined}
+                  <Select
+                    {...Field}
+                    isDisabled={isMetaPending}
+                    onChange={(val) => onChange(val?.value)}
+                    options={connTypesOptions}
+                    placeholder="Select Connection Type"
+                    value={connTypesOptions.find((type) => type.value === value)}
+                  />
+                </Stack>
                 <Field.HelperText>
                   Connection type missing? Make sure you have installed the corresponding Airflow Providers
                   Package.
@@ -188,60 +189,9 @@ const ConnectionForm = ({ connectionTypeMeta, connectionTypes, onClose }: AddCon
             variant="enclosed"
           >
             <Accordion.Item key="standardFields" value="standardFields">
-              <Accordion.ItemTrigger cursor="button">Standard Fields</Accordion.ItemTrigger>
+              <Accordion.ItemTrigger>Standard Fields</Accordion.ItemTrigger>
               <Accordion.ItemContent>
-                <Stack pb={3} pl={3} pr={3}>
-                  {Object.entries(standardFields).map(([key, fields]) => {
-                    if (Boolean(fields.hidden)) {
-                      return undefined;
-                    } // Skip hidden fields
-
-                    return (
-                      <Controller
-                        control={control}
-                        key={key}
-                        name={key as keyof AddConnectionParams}
-                        render={({ field }) => (
-                          <Field.Root mt={3} orientation="horizontal">
-                            <Stack>
-                              <Field.Label fontSize="md" style={{ flexBasis: "30%" }}>
-                                {fields.title ?? key}
-                              </Field.Label>
-                            </Stack>
-                            <Stack css={{ flexBasis: "70%", position: "relative" }}>
-                              {key === "description" ? (
-                                <Textarea {...field} placeholder={fields.placeholder ?? ""} />
-                              ) : (
-                                <div style={{ position: "relative", width: "100%" }}>
-                                  <Input
-                                    {...field}
-                                    placeholder={fields.placeholder ?? ""}
-                                    type={key === "password" && !showPassword ? "password" : "text"}
-                                  />
-                                  {key === "password" && (
-                                    <button
-                                      onClick={() => setShowPassword(!showPassword)}
-                                      style={{
-                                        cursor: "pointer",
-                                        position: "absolute",
-                                        right: "10px",
-                                        top: "50%",
-                                        transform: "translateY(-50%)",
-                                      }}
-                                      type="button"
-                                    >
-                                      {showPassword ? <FiEye size={15} /> : <FiEyeOff size={15} />}
-                                    </button>
-                                  )}
-                                </div>
-                              )}
-                            </Stack>
-                          </Field.Root>
-                        )}
-                      />
-                    );
-                  })}
-                </Stack>
+                <StandardFields control={control} standardFields={standardFields} />
               </Accordion.ItemContent>
             </Accordion.Item>
             <FlexibleForm
@@ -254,7 +204,7 @@ const ConnectionForm = ({ connectionTypeMeta, connectionTypes, onClose }: AddCon
               <Accordion.ItemContent>
                 <Controller
                   control={control}
-                  name="conf"
+                  name="extra"
                   render={({ field }) => (
                     <Field.Root invalid={Boolean(errors.conf)}>
                       <JsonEditor
@@ -286,7 +236,6 @@ const ConnectionForm = ({ connectionTypeMeta, connectionTypes, onClose }: AddCon
         </HStack>
       </Box>
     </>
-    // eslint-disable-next-line max-lines
   );
 };
 
