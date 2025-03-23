@@ -569,8 +569,8 @@ class KubernetesPodOperator(BaseOperator):
                 pod = self.find_pod(pod_request_obj.metadata.namespace, context=context)
                 if pod:
                     return pod
-                self.log.debug("Could not find pod, retrying in %s seconds", self.startup_timeout_seconds)
                 if attempt < retry_attempts - 1:
+                    self.log.debug("Could not find pod, retrying in %s seconds", self.startup_timeout_seconds)
                     time.sleep(self.startup_timeout_seconds)
 
         self.log.debug("Starting pod:\n%s", yaml.safe_dump(pod_request_obj.to_dict()))
