@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2025-03-23T08:10:15.915270
+# This constraints file was automatically generated on 2025-03-23T20:17:12.098841
 # via "eager-upgrade" mechanism of PIP. For the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version of both
 # 'apache-airflow' package and all available community provider distributions.
@@ -334,7 +334,7 @@ jupyter_core==5.7.2
 kerberos==1.3.1
 keyring==25.6.0
 kgb==7.2
-kombu==5.5.0
+kombu==5.4.2
 krb5==0.7.1
 kubernetes==31.0.0
 kubernetes_asyncio==30.3.1
@@ -635,7 +635,7 @@ types-toml==0.10.8.20240310
 types-urllib3==1.26.25.14
 typing-inspect==0.9.0
 typing_extensions==4.12.2
-tzdata==2025.1
+tzdata==2025.2
 tzlocal==5.3.1
 uc-micro-py==1.0.3
 universal_pathlib==0.2.6
@@ -659,7 +659,7 @@ wirerope==1.0.0
 wrapt==1.17.2
 xmlsec==1.3.14
 xmltodict==0.14.2
-yamllint==1.36.2
+yamllint==1.37.0
 yandex-query-client==0.1.4
 yandexcloud==0.328.0
 yarl==1.18.3
