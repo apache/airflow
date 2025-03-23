@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2025-03-22T20:16:15.509765
+# This constraints file was automatically generated on 2025-03-23T08:10:15.846936
 # via "eager-upgrade" mechanism of PIP. For the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version of both
 # 'apache-airflow' package and all available community provider distributions.
@@ -15,7 +15,6 @@ Deprecated==1.2.18
 Events==0.5
 Flask-AppBuilder==4.5.3
 Flask-Babel==2.0.0
-Flask-Bcrypt==1.0.1
 Flask-Caching==2.3.1
 Flask-JWT-Extended==4.7.1
 Flask-Limiter==3.12
