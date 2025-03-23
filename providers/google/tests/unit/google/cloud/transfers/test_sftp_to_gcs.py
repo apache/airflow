@@ -89,6 +89,36 @@ class TestSFTPToGCSOperator:
 
     @mock.patch("airflow.providers.google.cloud.transfers.sftp_to_gcs.GCSHook")
     @mock.patch("airflow.providers.google.cloud.transfers.sftp_to_gcs.SFTPHook")
+    def test_execute_copy_single_file_with_stream(self, sftp_hook, gcs_hook):
+        task = SFTPToGCSOperator(
+            task_id=TASK_ID,
+            source_path=SOURCE_OBJECT_NO_WILDCARD,
+            destination_bucket=TEST_BUCKET,
+            destination_path=DESTINATION_PATH_FILE,
+            move_object=False,
+            gcp_conn_id=GCP_CONN_ID,
+            sftp_conn_id=SFTP_CONN_ID,
+            impersonation_chain=IMPERSONATION_CHAIN,
+            use_stream=True,
+        )
+
+        task.execute(None)
+
+        gcs_hook.assert_called_once_with(
+            gcp_conn_id=GCP_CONN_ID,
+            impersonation_chain=IMPERSONATION_CHAIN,
+        )
+        gcs_hook.return_value.get_bucket.assert_called_once_with(TEST_BUCKET)
+        gcs_hook.return_value.get_bucket.return_value.blob.assert_called_once_with(DESTINATION_PATH_FILE)
+        sftp_hook.assert_called_once_with(SFTP_CONN_ID)
+        sftp_hook.return_value.retrieve_file.assert_called_once_with(
+            os.path.join(SOURCE_OBJECT_NO_WILDCARD), mock.ANY, prefetch=True
+        )
+        gcs_hook.return_value.upload.assert_not_called()
+        sftp_hook.return_value.delete_file.assert_not_called()
+
+    @mock.patch("airflow.providers.google.cloud.transfers.sftp_to_gcs.GCSHook")
+    @mock.patch("airflow.providers.google.cloud.transfers.sftp_to_gcs.SFTPHook")
     def test_execute_copy_single_file_with_compression(self, sftp_hook, gcs_hook):
         task = SFTPToGCSOperator(
             task_id=TASK_ID,
