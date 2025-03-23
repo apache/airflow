@@ -28,9 +28,23 @@ import { useTableURLState } from "src/components/DataTable/useTableUrlState";
 import { ErrorAlert } from "src/components/ErrorAlert";
 import { SearchBar } from "src/components/SearchBar";
 import { SearchParamsKeys, type SearchParamsKeysType } from "src/constants/searchParams";
+import { useConnectionTypeMeta } from "src/queries/useConnectionTypeMeta";
 
 import AddConnectionButton from "./AddConnectionButton";
 import DeleteConnectionButton from "./DeleteConnectionButton";
+import EditConnectionButton from "./EditConnectionButton";
+
+export type ConnectionBody = {
+  conn_type: string;
+  connection_id: string;
+  description: string;
+  extra: string;
+  host: string;
+  login: string;
+  password: string;
+  port: string;
+  schema: string;
+};
 
 const columns: Array<ColumnDef<ConnectionResponse>> = [
   {
@@ -57,6 +71,7 @@ const columns: Array<ColumnDef<ConnectionResponse>> = [
     accessorKey: "actions",
     cell: ({ row: { original } }) => (
       <Flex justifyContent="end">
+        <EditConnectionButton connection={original} disabled={false} />
         <DeleteConnectionButton connectionId={original.connection_id} disabled={false} />
         {/* For now disabled is set as false, will depend on selected rows once multi action PR merges */}
       </Flex>
@@ -76,6 +91,8 @@ export const Connections = () => {
   const [connectionIdPattern, setConnectionIdPattern] = useState(
     searchParams.get(NAME_PATTERN_PARAM) ?? undefined,
   );
+
+  useConnectionTypeMeta(); // Pre-fetch connection type metadata
   const { pagination, sorting } = tableURLState;
   const [sort] = sorting;
   const orderBy = sort ? `${sort.desc ? "-" : ""}${sort.id}` : "-connection_id";

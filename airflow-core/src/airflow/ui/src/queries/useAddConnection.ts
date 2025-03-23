@@ -21,7 +21,7 @@ import { useState } from "react";
 
 import { useConnectionServiceGetConnectionsKey, useConnectionServicePostConnection } from "openapi/queries";
 import { toaster } from "src/components/ui";
-import type { AddConnectionParams } from "src/pages/Connections/AddConnectionButton";
+import type { ConnectionBody } from "src/pages/Connections/Connections";
 
 export const useAddConnection = ({ onSuccessConfirm }: { onSuccessConfirm: () => void }) => {
   const queryClient = useQueryClient();
@@ -49,14 +49,14 @@ export const useAddConnection = ({ onSuccessConfirm }: { onSuccessConfirm: () =>
     onSuccess,
   });
 
-  const addConnection = (requestBody: AddConnectionParams) => {
+  const addConnection = (requestBody: ConnectionBody) => {
     const description = requestBody.description === "" ? undefined : requestBody.description;
     const host = requestBody.host === "" ? undefined : requestBody.host;
     const login = requestBody.login === "" ? undefined : requestBody.login;
     const password = requestBody.password === "" ? undefined : requestBody.password;
     const port = requestBody.port === "" ? undefined : Number(requestBody.port);
     const schema = requestBody.schema === "" ? undefined : requestBody.schema;
-    const extra = requestBody.conf === "" ? undefined : requestBody.conf;
+    const extra = requestBody.extra === "{}" ? undefined : requestBody.extra;
 
     mutate({
       requestBody: {
