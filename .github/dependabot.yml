@@ -19,6 +19,8 @@ version: 2
 updates:
   - package-ecosystem: pip
     directories:
+      - /airflow-core
+      - /airflow-ctl
       - /clients/python
       - /dev/breeze
       - /docker_tests
