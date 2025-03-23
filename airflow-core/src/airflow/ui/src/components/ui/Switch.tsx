@@ -20,10 +20,10 @@ import { Switch as ChakraSwitch } from "@chakra-ui/react";
 import { forwardRef } from "react";
 
 export type SwitchProps = {
-  inputProps?: React.InputHTMLAttributes<HTMLInputElement>;
-  rootRef?: React.Ref<HTMLLabelElement>;
-  thumbLabel?: { off: React.ReactNode; on: React.ReactNode };
-  trackLabel?: { off: React.ReactNode; on: React.ReactNode };
+  readonly inputProps?: React.InputHTMLAttributes<HTMLInputElement>;
+  readonly rootRef?: React.Ref<HTMLLabelElement>;
+  readonly thumbLabel?: { off: React.ReactNode; on: React.ReactNode };
+  readonly trackLabel?: { off: React.ReactNode; on: React.ReactNode };
 } & ChakraSwitch.RootProps;
 
 export const Switch = forwardRef<HTMLInputElement, SwitchProps>((props, ref) => {

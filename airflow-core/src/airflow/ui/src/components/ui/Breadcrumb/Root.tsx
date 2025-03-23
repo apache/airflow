@@ -20,8 +20,8 @@ import { Breadcrumb, type SystemStyleObject } from "@chakra-ui/react";
 import React from "react";
 
 export type BreadcrumbRootProps = {
-  separator?: React.ReactNode;
-  separatorGap?: SystemStyleObject["gap"];
+  readonly separator?: React.ReactNode;
+  readonly separatorGap?: SystemStyleObject["gap"];
 } & Breadcrumb.RootProps;
 
 export const Root = React.forwardRef<HTMLDivElement, BreadcrumbRootProps>((props, ref) => {

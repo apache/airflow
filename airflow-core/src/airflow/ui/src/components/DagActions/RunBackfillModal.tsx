@@ -25,9 +25,9 @@ import { Dialog } from "src/components/ui";
 import RunBackfillForm from "./RunBackfillForm";
 
 type RunBackfillModalProps = {
-  dag: DAGResponse | DAGWithLatestDagRunsResponse;
-  onClose: () => void;
-  open: boolean;
+  readonly dag: DAGResponse | DAGWithLatestDagRunsResponse;
+  readonly onClose: () => void;
+  readonly open: boolean;
 };
 
 const RunBackfillModal: React.FC<RunBackfillModalProps> = ({ dag, onClose, open }) => (

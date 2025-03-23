@@ -33,8 +33,8 @@ type PaginationVariant = "outline" | "solid" | "subtle";
 const [RootPropsProvider] = paginationContext;
 
 export type PaginationRootProps = {
-  size?: ButtonProps["size"];
-  variant?: PaginationVariant;
+  readonly size?: ButtonProps["size"];
+  readonly variant?: PaginationVariant;
 } & Omit<ChakraPagination.RootProps, "type">;
 
 const VARIANT_MAP: Record<PaginationVariant, ButtonVariantMap> = {

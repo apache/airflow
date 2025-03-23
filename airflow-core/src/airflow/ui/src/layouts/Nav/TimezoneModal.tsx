@@ -23,8 +23,8 @@ import { Dialog } from "src/components/ui";
 import TimezoneSelector from "./TimezoneSelector";
 
 type TimezoneModalProps = {
-  isOpen: boolean;
-  onClose: () => void;
+  readonly isOpen: boolean;
+  readonly onClose: () => void;
 };
 
 const TimezoneModal: React.FC<TimezoneModalProps> = ({ isOpen, onClose }) => (

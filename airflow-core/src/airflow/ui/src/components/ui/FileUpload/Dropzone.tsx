@@ -21,8 +21,8 @@ import { forwardRef } from "react";
 import { LuUpload } from "react-icons/lu";
 
 export type FileUploadDropzoneProps = {
-  description?: React.ReactNode;
-  label: React.ReactNode;
+  readonly description?: React.ReactNode;
+  readonly label: React.ReactNode;
 } & ChakraFileUpload.DropzoneProps;
 
 export const Dropzone = forwardRef<HTMLInputElement, FileUploadDropzoneProps>((props, ref) => {
