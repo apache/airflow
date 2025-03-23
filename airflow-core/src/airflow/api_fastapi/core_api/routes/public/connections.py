@@ -199,7 +199,7 @@ def patch_connection(
     except ValidationError as e:
         raise RequestValidationError(errors=e.errors())
 
-    # Not all fields match, therefore copy manually
+    # Not all fields match and some need setters, therefore copy manually
     if not update_mask or "conn_type" in update_mask:
         connection.conn_type = patch_body.conn_type
     if not update_mask or "description" in update_mask:
@@ -211,11 +211,11 @@ def patch_connection(
     if not update_mask or "login" in update_mask:
         connection.login = patch_body.login
     if not update_mask or "password" in update_mask:
-        connection._password = patch_body.password
+        connection.set_password(patch_body.password)
     if not update_mask or "port" in update_mask:
         connection.port = patch_body.port
     if not update_mask or "extra" in update_mask:
-        connection._extra = patch_body.extra
+        connection.set_extra(patch_body.extra)
 
     return connection
 
