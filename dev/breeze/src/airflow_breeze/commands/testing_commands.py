@@ -154,8 +154,8 @@ def docker_compose_tests(
     sys.exit(return_code)
 
 
-TEST_PROGRESS_REGEXP = r"tests/.*|providers/.*/tests/.*|task-sdk/tests/.*|.*=====.*"
-PERCENT_TEST_PROGRESS_REGEXP = r"^tests/.*\[[ \d%]*\].*|^\..*\[[ \d%]*\].*"
+TEST_PROGRESS_REGEXP = r"airflow-core/tests/.*|providers/.*/tests/.*|task-sdk/tests/.*|.*=====.*"
+PERCENT_TEST_PROGRESS_REGEXP = r"^airflow-core/tests/.*\[[ \d%]*\].*|^\..*\[[ \d%]*\].*"
 
 
 def _run_test(

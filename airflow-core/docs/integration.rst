@@ -30,7 +30,6 @@ Airflow has a mechanism that allows you to expand its functionality and integrat
 * :doc:`Plugins </administration-and-deployment/plugins>`
 * :doc:`Listeners </administration-and-deployment/listeners>`
 * :doc:`Secrets backends </security/secrets/secrets-backend/index>`
-* :doc:`Tracking systems </administration-and-deployment/logging-monitoring/tracking-user-activity>`
 * :doc:`Web UI Authentication backends </security/api>`
 * :doc:`Serialization </authoring-and-scheduling/serializers>`
 

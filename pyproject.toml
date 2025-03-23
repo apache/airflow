@@ -25,7 +25,7 @@ requires = [
     "pluggy==1.5.0",
     "smmap==5.0.2",
     "tomli==2.2.1; python_version < '3.11'",
-    "trove-classifiers==2025.3.13.13",
+    "trove-classifiers==2025.3.19.19",
 ]
 build-backend = "hatchling.build"
 
@@ -73,7 +73,7 @@ dynamic = ["version", "optional-dependencies", "dependencies"]
 # START CORE EXTRAS HERE
 #
 # aiobotocore, apache-atlas, apache-webhdfs, async, cgroups, cloudpickle, github-enterprise, google-
-# auth, graphviz, kerberos, ldap, leveldb, otel, pandas, password, rabbitmq, s3fs, sentry, statsd, uv
+# auth, graphviz, kerberos, ldap, leveldb, otel, pandas, rabbitmq, s3fs, sentry, statsd, uv
 #
 # END CORE EXTRAS HERE
 #
@@ -138,6 +138,7 @@ path = "./hatch_build.py"
 path = "./hatch_build.py"
 
 [tool.hatch.build.targets.sdist]
+exclude = ["*"]
 
 [tool.hatch.build.targets.wheel]
 bypass-selection = true
