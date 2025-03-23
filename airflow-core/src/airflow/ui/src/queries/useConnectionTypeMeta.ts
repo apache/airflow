@@ -48,7 +48,8 @@ export const useConnectionTypeMeta = () => {
     const errorDescription =
       typeof error === "object" && error !== null
         ? JSON.stringify(error, undefined, 2) // Safely stringify the object with pretty-printing
-        : String(error ?? ""); // Convert other types (e.g., numbers, strings) to string
+        : // eslint-disable-next-line @typescript-eslint/no-base-to-string
+          String(error ?? ""); // Convert other types (e.g., numbers, strings) to string
 
     toaster.create({
       description: `Connection Type Meta request failed. Error: ${errorDescription}`,
