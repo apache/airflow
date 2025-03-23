@@ -27,7 +27,7 @@ def get_provider_info():
         "name": "Samba",
         "description": "`Samba <https://www.samba.org/>`__\n",
         "state": "ready",
-        "source-date-epoch": 1741509510,
+        "source-date-epoch": 1743477881,
         "versions": [
             "4.9.2",
             "4.9.1",

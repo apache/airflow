@@ -21,7 +21,6 @@ import os
 import signal
 import sys
 from datetime import datetime
-from subprocess import CalledProcessError, CompletedProcess
 from time import sleep
 
 import click
@@ -98,7 +97,7 @@ from airflow_breeze.utils.run_tests import (
     generate_args_for_pytest,
     run_docker_compose_tests,
 )
-from airflow_breeze.utils.run_utils import run_command
+from airflow_breeze.utils.run_utils import RunCommandResult, run_command
 from airflow_breeze.utils.selective_checks import ALL_CI_SELECTIVE_TEST_TYPES
 
 GRACE_CONTAINER_STOP_TIMEOUT = 10  # Timeout in seconds to wait for containers to get killed
@@ -1218,7 +1217,7 @@ def run_with_timeout(timeout: int, shell_params: ShellParams):
             text=True,
         )
 
-    def _get_running_containers() -> CompletedProcess | CalledProcessError:
+    def _get_running_containers() -> RunCommandResult:
         return run_command(
             ["docker", "ps", "-q"],
             check=True,

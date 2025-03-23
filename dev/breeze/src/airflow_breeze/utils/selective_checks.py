@@ -112,10 +112,11 @@ class FileGroupForCi(Enum):
     ALL_PYTHON_FILES = "all_python_files"
     ALL_SOURCE_FILES = "all_sources_for_tests"
     ALL_AIRFLOW_PYTHON_FILES = "all_airflow_python_files"
+    ALL_AIRFLOW_CTL_PYTHON_FILES = "all_airflow_ctl_python_files"
     ALL_PROVIDERS_PYTHON_FILES = "all_provider_python_files"
     ALL_DEV_PYTHON_FILES = "all_dev_python_files"
+    ALL_DEVEL_COMMON_PYTHON_FILES = "all_devel_common_python_files"
     ALL_PROVIDER_YAML_FILES = "all_provider_yaml_files"
-    ALL_DOCS_PYTHON_FILES = "all_docs_python_files"
     TESTS_UTILS_FILES = "test_utils_files"
     ASSET_FILES = "asset_files"
     UNIT_TEST_FILES = "unit_test_files"
@@ -174,22 +175,27 @@ CI_FILE_GROUP_MATCHES = HashableDict(
             r"^chart",
             r"^airflow-core/src/airflow/kubernetes",
             r"^airflow-core/tests/unit/kubernetes",
-            r"^helm_tests",
+            r"^helm-tests",
         ],
         FileGroupForCi.DEPENDENCY_FILES: [
             r"^generated/provider_dependencies.json$",
         ],
         FileGroupForCi.DOC_FILES: [
             r"^docs",
+            r"^devel-common/src/docs",
             r"^\.github/SECURITY\.rst$",
-            r"^airflow-core/src/airflow/.*\.py$",
+            r"^airflow-core/src/.*\.py$",
             r"^airflow-core/docs/",
-            r"^chart",
             r"^providers/.*/src/",
             r"^providers/.*/docs/",
+            r"^providers-summary-docs",
+            r"^docker-stack-docs",
+            r"^chart",
             r"^task-sdk/src/",
             r"^airflow-ctl/src/",
             r"^airflow-core/tests/system",
+            r"^airflow-ctl/src",
+            r"^airflow-ctl/docs",
             r"^CHANGELOG\.txt",
             r"^airflow-core/src/airflow/config_templates/config\.yml",
             r"^chart/RELEASE_NOTES\.txt",
@@ -202,38 +208,38 @@ CI_FILE_GROUP_MATCHES = HashableDict(
         ],
         FileGroupForCi.KUBERNETES_FILES: [
             r"^chart",
-            r"^kubernetes_tests",
+            r"^kubernetes-tests",
             r"^providers/cncf/kubernetes/",
         ],
         FileGroupForCi.ALL_PYTHON_FILES: [
             r".*\.py$",
         ],
         FileGroupForCi.ALL_AIRFLOW_PYTHON_FILES: [
-            r"^airflow-core/src/.*\.py$",
-            r"^airflow-core/tests/.*\.py$",
+            r"^airflow-core/.*\.py$",
+        ],
+        FileGroupForCi.ALL_AIRFLOW_CTL_PYTHON_FILES: [
+            r"^airflow-ctl/.*\.py$",
         ],
         FileGroupForCi.ALL_PROVIDERS_PYTHON_FILES: [
             r"^providers/.*\.py$",
         ],
-        FileGroupForCi.ALL_DOCS_PYTHON_FILES: [r"^docs/.*\.py$", r"^providers/.*/docs/.*\.py"],
         FileGroupForCi.ALL_DEV_PYTHON_FILES: [
             r"^dev/.*\.py$",
         ],
+        FileGroupForCi.ALL_DEVEL_COMMON_PYTHON_FILES: [
+            r"^devel-common/.*\.py$",
+        ],
         FileGroupForCi.ALL_SOURCE_FILES: [
             r"^.pre-commit-config.yaml$",
-            r"^airflow-core/src/.*",
-            r"^airflow-core/tests/.*",
-            r"^chart",
-            r"^providers/src/",
-            r"^providers/tests/",
-            r"^providers/.*/src/",
-            r"^providers/.*/tests/",
-            r"^task-sdk/src/",
-            r"^task-sdk/tests/",
-            r"^devel-common",
-            r"^kubernetes_tests",
-            r"^airflow-ctl/src/",
-            r"^airflow-ctl/tests/",
+            r"^airflow-core/.*",
+            r"^airflow-ctl/.*",
+            r"^chart/.*",
+            r"^providers/.*",
+            r"^task-sdk/.*",
+            r"^devel-common/.*",
+            r"^kubernetes-tests/.*",
+            r"^docker-tests/.*",
+            r"^dev/.*",
         ],
         FileGroupForCi.SYSTEM_TEST_FILES: [
             r"^airflow-core/tests/system/",
@@ -272,24 +278,6 @@ CI_FILE_GROUP_MATCHES = HashableDict(
     }
 )
 
-CI_FILE_GROUP_EXCLUDES = HashableDict(
-    {
-        FileGroupForCi.ALL_AIRFLOW_PYTHON_FILES: [
-            r"^.*/.*_vendor/.*",
-            r"^airflow-core/src/airflow/migrations/.*",
-            r"^providers/.*/src/airflow/providers/.*",
-            r"^dev/.*",
-            r"^docs/.*",
-            r"^providers/.*/tests/.*",
-            r"^airflow-core/tests/unit/dags/test_imports.py",
-            r"^task-sdk/src/airflow/sdk/.*\.py$",
-            r"^task-sdk/tests/.*\.py$",
-            r"^airflow-ctl/src/airflowctl/.*\.py$",
-            r"^airflow-ctl/tests/.*\.py$",
-        ]
-    }
-)
-
 PYTHON_OPERATOR_FILES = [
     r"^providers/tests/standard/operators/test_python.py",
 ]
@@ -324,8 +312,6 @@ TEST_TYPE_MATCHES = HashableDict(
         ],
     }
 )
-
-TEST_TYPE_EXCLUDES = HashableDict({})
 
 
 def find_provider_affected(changed_file: str, include_docs: bool) -> str | None:
@@ -368,14 +354,11 @@ def _exclude_files_with_regexps(files: tuple[str, ...], matched_files, exclude_r
 
 @clearable_cache
 def _matching_files(
-    files: tuple[str, ...], match_group: FileGroupForCi, match_dict: HashableDict, exclude_dict: HashableDict
+    files: tuple[str, ...], match_group: FileGroupForCi, match_dict: HashableDict
 ) -> list[str]:
     matched_files: list[str] = []
     match_regexps = match_dict[match_group]
-    excluded_regexps = exclude_dict.get(match_group)
     _match_files_with_regexps(files, matched_files, match_regexps)
-    if excluded_regexps:
-        _exclude_files_with_regexps(files, matched_files, excluded_regexps)
     count = len(matched_files)
     if count > 0:
         get_console().print(f"[warning]{match_group} matched {count} files.[/]")
@@ -502,21 +485,18 @@ class SelectiveChecks:
         if self._matching_files(
             FileGroupForCi.ENVIRONMENT_FILES,
             CI_FILE_GROUP_MATCHES,
-            CI_FILE_GROUP_EXCLUDES,
         ):
             get_console().print("[warning]Running full set of tests because env files changed[/]")
             return True
         if self._matching_files(
             FileGroupForCi.API_FILES,
             CI_FILE_GROUP_MATCHES,
-            CI_FILE_GROUP_EXCLUDES,
         ):
             get_console().print("[warning]Running full set of tests because api files changed[/]")
             return True
         if self._matching_files(
             FileGroupForCi.TESTS_UTILS_FILES,
             CI_FILE_GROUP_MATCHES,
-            CI_FILE_GROUP_EXCLUDES,
         ):
             get_console().print("[warning]Running full set of tests because tests/utils changed[/]")
             return True
@@ -636,16 +616,14 @@ class SelectiveChecks:
     def kubernetes_combos_list_as_string(self) -> str:
         return " ".join(self.kubernetes_combos)
 
-    def _matching_files(
-        self, match_group: FileGroupForCi, match_dict: HashableDict, exclude_dict: HashableDict
-    ) -> list[str]:
-        return _matching_files(self._files, match_group, match_dict, exclude_dict)
+    def _matching_files(self, match_group: FileGroupForCi, match_dict: HashableDict) -> list[str]:
+        return _matching_files(self._files, match_group, match_dict)
 
     def _should_be_run(self, source_area: FileGroupForCi) -> bool:
         if self.full_tests_needed:
             get_console().print(f"[warning]{source_area} enabled because we are running everything[/]")
             return True
-        matched_files = self._matching_files(source_area, CI_FILE_GROUP_MATCHES, CI_FILE_GROUP_EXCLUDES)
+        matched_files = self._matching_files(source_area, CI_FILE_GROUP_MATCHES)
         if matched_files:
             get_console().print(
                 f"[warning]{source_area} enabled because it matched {len(matched_files)} changed files[/]"
@@ -661,42 +639,32 @@ class SelectiveChecks:
     def mypy_checks(self) -> list[str]:
         checks_to_run: list[str] = []
         if (
-            self._matching_files(
-                FileGroupForCi.ALL_AIRFLOW_PYTHON_FILES, CI_FILE_GROUP_MATCHES, CI_FILE_GROUP_EXCLUDES
-            )
+            self._matching_files(FileGroupForCi.ALL_AIRFLOW_PYTHON_FILES, CI_FILE_GROUP_MATCHES)
             or self.full_tests_needed
         ):
-            checks_to_run.append("mypy-airflow")
+            checks_to_run.append("mypy-airflow-core")
         if (
-            self._matching_files(
-                FileGroupForCi.ALL_PROVIDERS_PYTHON_FILES, CI_FILE_GROUP_MATCHES, CI_FILE_GROUP_EXCLUDES
-            )
+            self._matching_files(FileGroupForCi.ALL_PROVIDERS_PYTHON_FILES, CI_FILE_GROUP_MATCHES)
             or self._are_all_providers_affected()
         ) and self._default_branch == "main":
             checks_to_run.append("mypy-providers")
         if (
-            self._matching_files(
-                FileGroupForCi.ALL_DOCS_PYTHON_FILES, CI_FILE_GROUP_MATCHES, CI_FILE_GROUP_EXCLUDES
-            )
-            or self.full_tests_needed
-        ):
-            checks_to_run.append("mypy-docs")
-        if (
-            self._matching_files(
-                FileGroupForCi.ALL_DEV_PYTHON_FILES, CI_FILE_GROUP_MATCHES, CI_FILE_GROUP_EXCLUDES
-            )
+            self._matching_files(FileGroupForCi.ALL_DEV_PYTHON_FILES, CI_FILE_GROUP_MATCHES)
             or self.full_tests_needed
         ):
             checks_to_run.append("mypy-dev")
         if (
-            self._matching_files(FileGroupForCi.TASK_SDK_FILES, CI_FILE_GROUP_MATCHES, CI_FILE_GROUP_EXCLUDES)
+            self._matching_files(FileGroupForCi.TASK_SDK_FILES, CI_FILE_GROUP_MATCHES)
             or self.full_tests_needed
         ):
             checks_to_run.append("mypy-task-sdk")
         if (
-            self._matching_files(
-                FileGroupForCi.AIRFLOW_CTL_FILES, CI_FILE_GROUP_MATCHES, CI_FILE_GROUP_EXCLUDES
-            )
+            self._matching_files(FileGroupForCi.ALL_DEVEL_COMMON_PYTHON_FILES, CI_FILE_GROUP_MATCHES)
+            or self.full_tests_needed
+        ):
+            checks_to_run.append("mypy-devel-common")
+        if (
+            self._matching_files(FileGroupForCi.ALL_AIRFLOW_CTL_PYTHON_FILES, CI_FILE_GROUP_MATCHES)
             or self.full_tests_needed
         ):
             checks_to_run.append("mypy-airflow-ctl")
@@ -793,7 +761,7 @@ class SelectiveChecks:
     def _select_test_type_if_matching(
         self, test_types: set[str], test_type: SelectiveCoreTestType
     ) -> list[str]:
-        matched_files = self._matching_files(test_type, TEST_TYPE_MATCHES, TEST_TYPE_EXCLUDES)
+        matched_files = self._matching_files(test_type, TEST_TYPE_MATCHES)
         count = len(matched_files)
         if count > 0:
             test_types.add(test_type.value)
@@ -822,24 +790,14 @@ class SelectiveChecks:
             ]:
                 matched_files.update(self._select_test_type_if_matching(candidate_test_types, test_type))
 
-        kubernetes_files = self._matching_files(
-            FileGroupForCi.KUBERNETES_FILES, CI_FILE_GROUP_MATCHES, CI_FILE_GROUP_EXCLUDES
-        )
-        system_test_files = self._matching_files(
-            FileGroupForCi.SYSTEM_TEST_FILES, CI_FILE_GROUP_MATCHES, CI_FILE_GROUP_EXCLUDES
-        )
-        all_source_files = self._matching_files(
-            FileGroupForCi.ALL_SOURCE_FILES, CI_FILE_GROUP_MATCHES, CI_FILE_GROUP_EXCLUDES
-        )
+        kubernetes_files = self._matching_files(FileGroupForCi.KUBERNETES_FILES, CI_FILE_GROUP_MATCHES)
+        system_test_files = self._matching_files(FileGroupForCi.SYSTEM_TEST_FILES, CI_FILE_GROUP_MATCHES)
+        all_source_files = self._matching_files(FileGroupForCi.ALL_SOURCE_FILES, CI_FILE_GROUP_MATCHES)
         all_providers_source_files = self._matching_files(
-            FileGroupForCi.ALL_PROVIDERS_PYTHON_FILES, CI_FILE_GROUP_MATCHES, CI_FILE_GROUP_EXCLUDES
+            FileGroupForCi.ALL_PROVIDERS_PYTHON_FILES, CI_FILE_GROUP_MATCHES
         )
-        test_always_files = self._matching_files(
-            FileGroupForCi.ALWAYS_TESTS_FILES, CI_FILE_GROUP_MATCHES, CI_FILE_GROUP_EXCLUDES
-        )
-        test_ui_files = self._matching_files(
-            FileGroupForCi.UI_FILES, CI_FILE_GROUP_MATCHES, CI_FILE_GROUP_EXCLUDES
-        )
+        test_always_files = self._matching_files(FileGroupForCi.ALWAYS_TESTS_FILES, CI_FILE_GROUP_MATCHES)
+        test_ui_files = self._matching_files(FileGroupForCi.UI_FILES, CI_FILE_GROUP_MATCHES)
 
         remaining_files = (
             set(all_source_files)
@@ -886,11 +844,9 @@ class SelectiveChecks:
                 return ["Providers"]
         else:
             all_providers_source_files = self._matching_files(
-                FileGroupForCi.ALL_PROVIDERS_PYTHON_FILES, CI_FILE_GROUP_MATCHES, CI_FILE_GROUP_EXCLUDES
+                FileGroupForCi.ALL_PROVIDERS_PYTHON_FILES, CI_FILE_GROUP_MATCHES
             )
-            assets_source_files = self._matching_files(
-                FileGroupForCi.ASSET_FILES, CI_FILE_GROUP_MATCHES, CI_FILE_GROUP_EXCLUDES
-            )
+            assets_source_files = self._matching_files(FileGroupForCi.ASSET_FILES, CI_FILE_GROUP_MATCHES)
 
             if (
                 len(all_providers_source_files) == 0
@@ -1084,14 +1040,7 @@ class SelectiveChecks:
 
     @cached_property
     def upgrade_to_newer_dependencies(self) -> bool:
-        if (
-            len(
-                self._matching_files(
-                    FileGroupForCi.DEPENDENCY_FILES, CI_FILE_GROUP_MATCHES, CI_FILE_GROUP_EXCLUDES
-                )
-            )
-            > 0
-        ):
+        if len(self._matching_files(FileGroupForCi.DEPENDENCY_FILES, CI_FILE_GROUP_MATCHES)) > 0:
             get_console().print("[warning]Upgrade to newer dependencies: Dependency files changed[/]")
             return True
         if self.hatch_build_changed:
@@ -1135,11 +1084,11 @@ class SelectiveChecks:
         packages = []
         if any(file.startswith(("airflow-core/src/airflow/", "airflow-core/docs/")) for file in self._files):
             packages.append("apache-airflow")
-        if any(file.startswith("docs/apache-airflow-providers/") for file in self._files):
+        if any(file.startswith("providers-summary-docs/") for file in self._files):
             packages.append("apache-airflow-providers")
-        if any(file.startswith(("chart/", "docs/helm-chart")) for file in self._files):
+        if any(file.startswith("chart/") for file in self._files):
             packages.append("helm-chart")
-        if any(file.startswith("docs/docker-stack/") for file in self._files):
+        if any(file.startswith("docker-stack-docs") for file in self._files):
             packages.append("docker-stack")
         if providers_affected:
             for provider in providers_affected:
@@ -1158,7 +1107,14 @@ class SelectiveChecks:
         # and run them via `mypy-all` command instead and dedicated CI job in matrix
         # This will also speed up static-checks job usually as the jobs will be running in parallel
         pre_commits_to_skip.update(
-            {"mypy-providers", "mypy-airflow", "mypy-docs", "mypy-dev", "mypy-task-sdk"}
+            {
+                "mypy-providers",
+                "mypy-airflow-core",
+                "mypy-dev",
+                "mypy-task-sdk",
+                "mypy-airflow-ctl",
+                "mypy-devel-common",
+            }
         )
         if self._default_branch != "main":
             # Skip those tests on all "release" branches
@@ -1177,29 +1133,20 @@ class SelectiveChecks:
             # run all the pre-commits just to be sure everything is ok when some structural changes occurred
             return ",".join(sorted(pre_commits_to_skip))
         if not (
-            self._matching_files(FileGroupForCi.UI_FILES, CI_FILE_GROUP_MATCHES, CI_FILE_GROUP_EXCLUDES)
-            or self._matching_files(
-                FileGroupForCi.API_CODEGEN_FILES, CI_FILE_GROUP_MATCHES, CI_FILE_GROUP_EXCLUDES
-            )
+            self._matching_files(FileGroupForCi.UI_FILES, CI_FILE_GROUP_MATCHES)
+            or self._matching_files(FileGroupForCi.API_CODEGEN_FILES, CI_FILE_GROUP_MATCHES)
         ):
             pre_commits_to_skip.add("ts-compile-format-lint-ui")
-        if not self._matching_files(
-            FileGroupForCi.ALL_PYTHON_FILES, CI_FILE_GROUP_MATCHES, CI_FILE_GROUP_EXCLUDES
-        ):
+        if not self._matching_files(FileGroupForCi.ALL_PYTHON_FILES, CI_FILE_GROUP_MATCHES):
             pre_commits_to_skip.add("flynt")
         if not self._matching_files(
             FileGroupForCi.HELM_FILES,
             CI_FILE_GROUP_MATCHES,
-            CI_FILE_GROUP_EXCLUDES,
         ):
             pre_commits_to_skip.add("lint-helm-chart")
         if not (
-            self._matching_files(
-                FileGroupForCi.ALL_PROVIDER_YAML_FILES, CI_FILE_GROUP_MATCHES, CI_FILE_GROUP_EXCLUDES
-            )
-            or self._matching_files(
-                FileGroupForCi.ALL_PROVIDERS_PYTHON_FILES, CI_FILE_GROUP_MATCHES, CI_FILE_GROUP_EXCLUDES
-            )
+            self._matching_files(FileGroupForCi.ALL_PROVIDER_YAML_FILES, CI_FILE_GROUP_MATCHES)
+            or self._matching_files(FileGroupForCi.ALL_PROVIDERS_PYTHON_FILES, CI_FILE_GROUP_MATCHES)
         ):
             # only skip provider validation if none of the provider.yaml and provider
             # python files changed because validation also walks through all the provider python files
@@ -1422,14 +1369,8 @@ class SelectiveChecks:
 
     @cached_property
     def only_new_ui_files(self) -> bool:
-        all_source_files = set(
-            self._matching_files(
-                FileGroupForCi.ALL_SOURCE_FILES, CI_FILE_GROUP_MATCHES, CI_FILE_GROUP_EXCLUDES
-            )
-        )
-        new_ui_source_files = set(
-            self._matching_files(FileGroupForCi.UI_FILES, CI_FILE_GROUP_MATCHES, CI_FILE_GROUP_EXCLUDES)
-        )
+        all_source_files = set(self._matching_files(FileGroupForCi.ALL_SOURCE_FILES, CI_FILE_GROUP_MATCHES))
+        new_ui_source_files = set(self._matching_files(FileGroupForCi.UI_FILES, CI_FILE_GROUP_MATCHES))
         remaining_files = all_source_files - new_ui_source_files
 
         if all_source_files and new_ui_source_files and not remaining_files:
@@ -1582,9 +1523,7 @@ class SelectiveChecks:
             return False
         # Check if changed files are unit tests
         if (
-            self._matching_files(
-                FileGroupForCi.UNIT_TEST_FILES, CI_FILE_GROUP_MATCHES, CI_FILE_GROUP_EXCLUDES
-            )
+            self._matching_files(FileGroupForCi.UNIT_TEST_FILES, CI_FILE_GROUP_MATCHES)
             and LOG_WITHOUT_MOCK_IN_TESTS_EXCEPTION_LABEL not in self._pr_labels
         ):
             if self._caplog_exists_in_added_lines():

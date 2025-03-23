@@ -108,21 +108,21 @@ With these requirements in mind, here are some examples of basic ``pod_template_
 
 Storing DAGs in the image:
 
-.. literalinclude:: /../../providers/cncf/kubernetes/src/airflow/providers/cncf/kubernetes/pod_template_file_examples/dags_in_image_template.yaml
+.. literalinclude:: /../src/airflow/providers/cncf/kubernetes/pod_template_file_examples/dags_in_image_template.yaml
     :language: yaml
     :start-after: [START template_with_dags_in_image]
     :end-before: [END template_with_dags_in_image]
 
 Storing DAGs in a ``persistentVolume``:
 
-.. literalinclude:: /../../providers/cncf/kubernetes/src/airflow/providers/cncf/kubernetes/pod_template_file_examples/dags_in_volume_template.yaml
+.. literalinclude:: /../src/airflow/providers/cncf/kubernetes/pod_template_file_examples/dags_in_volume_template.yaml
     :language: yaml
     :start-after: [START template_with_dags_in_volume]
     :end-before: [END template_with_dags_in_volume]
 
 Pulling DAGs from ``git``:
 
-.. literalinclude:: /../../providers/cncf/kubernetes/src/airflow/providers/cncf/kubernetes/pod_template_file_examples/git_sync_template.yaml
+.. literalinclude:: /../src/airflow/providers/cncf/kubernetes/pod_template_file_examples/git_sync_template.yaml
     :language: yaml
     :start-after:  [START git_sync_template]
     :end-before: [END git_sync_template]
@@ -138,7 +138,7 @@ To utilize this functionality, create a Kubernetes V1pod object and fill in your
 To overwrite the base container of the pod launched by the KubernetesExecutor,
 create a V1pod with a single container, and overwrite the fields as follows:
 
-.. exampleinclude:: /../../airflow-core/src/airflow/example_dags/example_kubernetes_executor.py
+.. exampleinclude:: /../../../../airflow-core/src/airflow/example_dags/example_kubernetes_executor.py
     :language: python
     :start-after: [START task_with_volume]
     :end-before: [END task_with_volume]
@@ -148,7 +148,7 @@ Note that the following fields **will all be extended** instead of overwritten. 
 To add a sidecar container to the launched pod, create a V1pod with an empty first container with the
 name ``base`` and a second container containing your desired sidecar.
 
-.. exampleinclude:: /../../airflow-core/src/airflow/example_dags/example_kubernetes_executor.py
+.. exampleinclude:: /../../../../airflow-core/src/airflow/example_dags/example_kubernetes_executor.py
     :language: python
     :start-after: [START task_with_sidecar]
     :end-before: [END task_with_sidecar]

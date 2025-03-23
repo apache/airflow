@@ -27,7 +27,7 @@ def get_provider_info():
         "name": "Common SQL",
         "description": "`Common SQL Provider <https://en.wikipedia.org/wiki/SQL>`__\n",
         "state": "ready",
-        "source-date-epoch": 1742481439,
+        "source-date-epoch": 1743477803,
         "versions": [
             "1.24.1",
             "1.24.0",

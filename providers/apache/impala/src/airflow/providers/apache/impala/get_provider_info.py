@@ -27,7 +27,7 @@ def get_provider_info():
         "name": "Apache Impala",
         "description": "`Apache Impala <https://impala.apache.org/>`__.\n",
         "state": "ready",
-        "source-date-epoch": 1741507935,
+        "source-date-epoch": 1743477776,
         "versions": [
             "1.6.1",
             "1.6.0",

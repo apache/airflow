@@ -300,7 +300,7 @@ def cleanup(all: bool):
         if not get_dry_run():
             shutil.rmtree(AIRFLOW_HOME_PATH, ignore_errors=True)
             AIRFLOW_HOME_PATH.mkdir(exist_ok=True, parents=True)
-            run_command(["pip", "uninstall", "apache-airflow", "--yes"], check=False)
+            run_command(["uv", "pip", "uninstall", "apache-airflow"], check=False)
     elif given_answer == Answer.QUIT:
         sys.exit(0)
     get_console().print(
