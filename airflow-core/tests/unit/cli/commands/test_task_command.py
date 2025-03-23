@@ -1,4 +1,4 @@
-#
+# No code was selected, so we can't improve anything.#
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
 # distributed with this work for additional information
@@ -47,8 +47,8 @@ from airflow.utils.session import create_session
 from airflow.utils.state import State, TaskInstanceState
 from airflow.utils.types import DagRunTriggeredByType, DagRunType
 
-from tests.models import TEST_DAGS_FOLDER
 from tests_common.test_utils.db import clear_db_runs, parse_and_sync_to_db
+from unit.models import TEST_DAGS_FOLDER
 
 pytestmark = pytest.mark.db_test
 
