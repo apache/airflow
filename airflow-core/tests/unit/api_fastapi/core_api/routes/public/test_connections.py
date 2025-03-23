@@ -36,6 +36,8 @@ TEST_CONN_DESCRIPTION = "some_description_a"
 TEST_CONN_HOST = "some_host_a"
 TEST_CONN_PORT = 8080
 TEST_CONN_LOGIN = "some_login"
+TEST_CONN_SCHEMA = "https"
+TEST_CONN_EXTRA = '{"extra_key": "extra_value"}'
 
 
 TEST_CONN_ID_2 = "test_connection_id_2"
@@ -368,15 +370,24 @@ class TestPatchConnection(TestConnectionEndpoint):
                 "port": 80,
                 "login": "test_login_patch",
             },
+            {
+                "connection_id": TEST_CONN_ID,
+                "conn_type": TEST_CONN_TYPE,
+                "schema": "http_patch",
+                "extra": '{"extra_key_patch": "extra_value_patch"}',
+            },
         ],
     )
     @provide_session
-    def test_patch_should_respond_200(self, test_client, body, session):
+    def test_patch_should_respond_200(self, test_client, body: dict[str, str], session):
         self.create_connection()
 
         response = test_client.patch(f"/connections/{TEST_CONN_ID}", json=body)
         assert response.status_code == 200
         _check_last_log(session, dag_id=None, event="patch_connection", logical_date=None)
+
+        for key in body.keys():
+            assert response.json()[key] == body.get(key)
 
     def test_should_respond_401(self, unauthenticated_test_client):
         response = unauthenticated_test_client.patch(f"/connections/{TEST_CONN_ID}", json={})
@@ -473,6 +484,26 @@ class TestPatchConnection(TestConnectionEndpoint):
                     "description": TEST_CONN_DESCRIPTION,
                 },
                 {"update_mask": ["host"]},
+            ),
+            (
+                {
+                    "connection_id": TEST_CONN_ID,
+                    "conn_type": TEST_CONN_TYPE,
+                    "host": TEST_CONN_HOST,
+                    "port": 80,
+                },
+                {
+                    "connection_id": TEST_CONN_ID,
+                    "conn_type": TEST_CONN_TYPE,
+                    "extra": '{"new_extra_key": "new_extra_value"}',
+                    "host": TEST_CONN_HOST,
+                    "login": TEST_CONN_LOGIN,
+                    "port": TEST_CONN_PORT,
+                    "password": None,
+                    "schema": "new_schema",
+                    "description": TEST_CONN_DESCRIPTION,
+                },
+                {"update_mask": ["schema", "extra"]},
             ),
         ],
     )
