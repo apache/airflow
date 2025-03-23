@@ -59,7 +59,7 @@ dependencies = [
     "apache-airflow>=2.9.0",
     # Even though 3.9 is excluded below, we need to make this python_version aware so that `uv` can generate a
     # full lock file when building lock file from provider sources
-    "ibmcloudant==0.9.1;python_version>=\"3.10\"",
+    "ibmcloudant==0.10.1;python_version>=\"3.10\"",
 ]
 
 [dependency-groups]
