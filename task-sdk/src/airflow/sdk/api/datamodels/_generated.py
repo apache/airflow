@@ -223,18 +223,6 @@ class TIRetryStatePayload(BaseModel):
     end_date: Annotated[datetime, Field(title="End Date")]
 
 
-class TIRuntimeCheckPayload(BaseModel):
-    """
-    Payload for performing Runtime checks on the TaskInstance model as requested by the SDK.
-    """
-
-    model_config = ConfigDict(
-        extra="forbid",
-    )
-    inlets: Annotated[list[AssetProfile] | None, Field(title="Inlets")] = None
-    outlets: Annotated[list[AssetProfile] | None, Field(title="Outlets")] = None
-
-
 class TISkippedDownstreamTasksStatePayload(BaseModel):
     """
     Schema for updating downstream tasks to a skipped state.
