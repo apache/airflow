@@ -34,6 +34,29 @@ from airflow.api_fastapi.core_api.services.public.common import BulkService
 from airflow.models.connection import Connection
 
 
+def update_orm_from_pydantic(
+    orm_conn: Connection, pydantic_conn: ConnectionBody, update_mask: list[str] | None = None
+):
+    """Update ORM object from Pydantic object."""
+    # Not all fields match and some need setters, therefore copy manually
+    if not update_mask or "conn_type" in update_mask:
+        orm_conn.conn_type = pydantic_conn.conn_type
+    if not update_mask or "description" in update_mask:
+        orm_conn.description = pydantic_conn.description
+    if not update_mask or "host" in update_mask:
+        orm_conn.host = pydantic_conn.host
+    if not update_mask or "schema" in update_mask:
+        orm_conn.schema = pydantic_conn.schema_
+    if not update_mask or "login" in update_mask:
+        orm_conn.login = pydantic_conn.login
+    if not update_mask or "password" in update_mask:
+        orm_conn.set_password(pydantic_conn.password)
+    if not update_mask or "port" in update_mask:
+        orm_conn.port = pydantic_conn.port
+    if not update_mask or "extra" in update_mask:
+        orm_conn.set_extra(pydantic_conn.extra)
+
+
 class BulkConnectionService(BulkService[ConnectionBody]):
     """Service for handling bulk operations on connections."""
 
@@ -118,14 +141,7 @@ class BulkConnectionService(BulkService[ConnectionBody]):
                     ConnectionBody(**connection.model_dump())
 
                     # Not all fields match and some need setters, therefore copy manually
-                    old_connection.conn_type = connection.conn_type
-                    old_connection.description = connection.description
-                    old_connection.host = connection.host
-                    old_connection.schema = connection.schema_
-                    old_connection.login = connection.login
-                    old_connection.set_password(connection.password)
-                    old_connection.port = connection.port
-                    old_connection.set_extra(connection.extra)
+                    update_orm_from_pydantic(old_connection, connection)
                     results.success.append(connection.connection_id)
 
         except HTTPException as e:
