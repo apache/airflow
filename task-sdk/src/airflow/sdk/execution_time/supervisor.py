@@ -75,6 +75,7 @@ from airflow.sdk.execution_time.comms import (
     GetConnection,
     GetDagRunState,
     GetPrevSuccessfulDagRun,
+    GetTaskRescheduleStartDate,
     GetVariable,
     GetXCom,
     GetXComCount,
@@ -962,6 +963,9 @@ class ActivitySubprocess(WatchedSubprocess):
         elif isinstance(msg, GetDagRunState):
             dr_resp = self.client.dag_runs.get_state(msg.dag_id, msg.run_id)
             resp = DagRunStateResult.from_api_response(dr_resp).model_dump_json().encode()
+        elif isinstance(msg, GetTaskRescheduleStartDate):
+            tr_resp = self.client.task_instances.get_reschedule_start_date(msg.ti_id, msg.try_number)
+            resp = tr_resp.model_dump_json().encode()
         else:
             log.error("Unhandled request", msg=msg)
             return
