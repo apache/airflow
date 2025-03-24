@@ -918,6 +918,15 @@ ALTERNATIVE_CONN_SPECS_ARGS = [
     ARG_CONN_PORT,
 ]
 
+# error-guide
+ARG_ERROR_CODE = Arg(
+    ("--error-code",), default="", type=str, help="Specify the Airflow Error Code for the guide."
+)
+ARG_LIST_EXCEPTIONS = Arg(
+    ("--list-exceptions",), action="store_true", help="Lists all available exception types in the guide."
+)
+ARG_LIST_GUIDE = Arg(("--list-guide",), action="store_true", help="Lists entire guide as yaml.")
+
 
 class ActionCommand(NamedTuple):
     """Single CLI command."""
@@ -1997,6 +2006,12 @@ core_commands: list[CLICommand] = [
         name="db-manager",
         help="Manage externally connected database managers",
         subcommands=DB_MANAGERS_COMMANDS,
+    ),
+    ActionCommand(
+        name="error-guide",
+        help="Provides guidance with an Airflow error code",
+        func=lazy_load_command("airflow.cli.commands.local_commands.error_guide_command.show_error_guide"),
+        args=(ARG_ERROR_CODE, ARG_LIST_EXCEPTIONS, ARG_LIST_GUIDE),
     ),
 ]
 
