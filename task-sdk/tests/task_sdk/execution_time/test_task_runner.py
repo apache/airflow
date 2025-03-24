@@ -52,6 +52,7 @@ from airflow.sdk.api.datamodels._generated import (
     AssetProfile,
     AssetResponse,
     DagRunState,
+    IntermediateTIState,
     TaskInstance,
     TerminalTIState,
 )
@@ -2020,20 +2021,40 @@ class TestTaskRunnerCallsCallbacks:
         self.results.append("execute skipped")
         raise AirflowSkipException
 
+    def _execute_failure(self, context):
+        self.results.append("execute failure")
+        raise Exception("sorry!")
+
     @pytest.mark.parametrize(
-        "execute_impl, expected_state, expected_results",
+        "execute_impl, should_retry, expected_state, expected_results",
         [
             pytest.param(
                 _execute_success,
+                False,
                 TerminalTIState.SUCCESS,
                 ["on-execute callback", "execute success", "on-success callback"],
                 id="success",
             ),
             pytest.param(
                 _execute_skipped,
+                False,
                 TerminalTIState.SKIPPED,
                 ["on-execute callback", "execute skipped", "on-skipped callback"],
                 id="skipped",
+            ),
+            pytest.param(
+                _execute_failure,
+                False,
+                TerminalTIState.FAILED,
+                ["on-execute callback", "execute failure", "on-failure callback"],
+                id="failure",
+            ),
+            pytest.param(
+                _execute_failure,
+                True,
+                IntermediateTIState.UP_FOR_RETRY,
+                ["on-execute callback", "execute failure", "on-retry callback"],
+                id="retry",
             ),
         ],
     )
@@ -2041,6 +2062,7 @@ class TestTaskRunnerCallsCallbacks:
         self,
         create_runtime_ti,
         execute_impl,
+        should_retry,
         expected_state,
         expected_results,
     ):
@@ -2058,8 +2080,10 @@ class TestTaskRunnerCallsCallbacks:
             on_execute_callback=functools.partial(custom_callback, kind="execute"),
             on_skipped_callback=functools.partial(custom_callback, kind="skipped"),
             on_success_callback=functools.partial(custom_callback, kind="success"),
+            on_failure_callback=functools.partial(custom_callback, kind="failure"),
+            on_retry_callback=functools.partial(custom_callback, kind="retry"),
         )
-        runtime_ti = create_runtime_ti(dag_id="dag", task=task)
+        runtime_ti = create_runtime_ti(dag_id="dag", task=task, should_retry=should_retry)
         log = mock.MagicMock()
         context = runtime_ti.get_template_context()
         state, _, error = run(runtime_ti, context, log)
@@ -2069,31 +2093,55 @@ class TestTaskRunnerCallsCallbacks:
         assert collected_results == expected_results
 
     @pytest.mark.parametrize(
-        "callback_kind_to_test, execute_impl, expected_state, expected_results",
+        "callback_to_test, execute_impl, should_retry, expected_state, expected_results, extra_exceptions",
         [
             pytest.param(
                 "on_success_callback",
                 _execute_success,
+                False,
                 TerminalTIState.SUCCESS,
                 ["on-execute 1", "on-execute 3", "execute success", "on-success 1", "on-success 3"],
+                [],
                 id="success",
             ),
             pytest.param(
                 "on_skipped_callback",
                 _execute_skipped,
+                False,
                 TerminalTIState.SKIPPED,
                 ["on-execute 1", "on-execute 3", "execute skipped", "on-skipped 1", "on-skipped 3"],
+                [],
                 id="skipped",
+            ),
+            pytest.param(
+                "on_failure_callback",
+                _execute_failure,
+                False,
+                TerminalTIState.FAILED,
+                ["on-execute 1", "on-execute 3", "execute failure", "on-failure 1", "on-failure 3"],
+                [(1, mock.call("Task failed with exception"))],
+                id="failure",
+            ),
+            pytest.param(
+                "on_retry_callback",
+                _execute_failure,
+                True,
+                IntermediateTIState.UP_FOR_RETRY,
+                ["on-execute 1", "on-execute 3", "execute failure", "on-retry 1", "on-retry 3"],
+                [(1, mock.call("Task failed with exception"))],
+                id="retry",
             ),
         ],
     )
     def test_task_runner_not_fail_on_failed_callback(
         self,
         create_runtime_ti,
-        callback_kind_to_test,
+        callback_to_test,
         execute_impl,
+        should_retry,
         expected_state,
         expected_results,
+        extra_exceptions,
     ):
         collected_results = []
 
@@ -2127,8 +2175,18 @@ class TestTaskRunnerCallsCallbacks:
                 functools.partial(custom_callback_2, kind="success"),
                 functools.partial(custom_callback_3, kind="success"),
             ],
+            on_failure_callback=[
+                functools.partial(custom_callback_1, kind="failure"),
+                functools.partial(custom_callback_2, kind="failure"),
+                functools.partial(custom_callback_3, kind="failure"),
+            ],
+            on_retry_callback=[
+                functools.partial(custom_callback_1, kind="retry"),
+                functools.partial(custom_callback_2, kind="retry"),
+                functools.partial(custom_callback_3, kind="retry"),
+            ],
         )
-        runtime_ti = create_runtime_ti(dag_id="dag", task=task)
+        runtime_ti = create_runtime_ti(dag_id="dag", task=task, should_retry=should_retry)
         log = mock.MagicMock()
         context = runtime_ti.get_template_context()
         state, _, error = run(runtime_ti, context, log)
@@ -2136,10 +2194,14 @@ class TestTaskRunnerCallsCallbacks:
 
         assert state == expected_state, error
         assert collected_results == expected_results
-        assert log.exception.mock_calls == [
+
+        expected_exception_logs = [
             mock.call("Failed to run task callback", kind="on_execute_callback", index=1, callback=mock.ANY),
-            mock.call("Failed to run task callback", kind=callback_kind_to_test, index=1, callback=mock.ANY),
+            mock.call("Failed to run task callback", kind=callback_to_test, index=1, callback=mock.ANY),
         ]
+        for index, calls in extra_exceptions:
+            expected_exception_logs.insert(index, calls)
+        assert log.exception.mock_calls == expected_exception_logs
 
 
 class TestTriggerDagRunOperator:

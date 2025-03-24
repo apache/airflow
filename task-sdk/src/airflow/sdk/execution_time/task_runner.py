@@ -965,15 +965,15 @@ def finalize(
     elif state == TerminalTIState.SKIPPED:
         _run_task_state_change_callbacks(task, "on_skipped_callback", context, log)
     elif state == IntermediateTIState.UP_FOR_RETRY:
+        _run_task_state_change_callbacks(task, "on_retry_callback", context, log)
         get_listener_manager().hook.on_task_instance_failed(
             previous_state=TaskInstanceState.RUNNING, task_instance=ti, error=error
         )
-        # TODO: Run task retry callbacks here
     elif state == TerminalTIState.FAILED:
+        _run_task_state_change_callbacks(task, "on_failure_callback", context, log)
         get_listener_manager().hook.on_task_instance_failed(
             previous_state=TaskInstanceState.RUNNING, task_instance=ti, error=error
         )
-        # TODO: Run task failure callbacks here
 
     get_listener_manager().hook.before_stopping(component=TaskRunnerMarker())
 
