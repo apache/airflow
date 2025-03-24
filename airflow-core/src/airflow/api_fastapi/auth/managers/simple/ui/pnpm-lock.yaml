@@ -10,31 +10,31 @@ importers:
     dependencies:
       '@chakra-ui/react':
         specifier: ^3.13.0
-        version: 3.13.0(@emotion/react@11.14.0(@types/react@19.0.12)(react@18.3.1))(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
+        version: 3.13.0(@emotion/react@11.14.0(@types/react@19.0.12)(react@19.0.0))(react-dom@19.0.0(react@19.0.0))(react@19.0.0)
       '@tanstack/react-query':
         specifier: ^5.69.0
-        version: 5.69.0(react@18.3.1)
+        version: 5.69.0(react@19.0.0)
       axios:
         specifier: ^1.8.4
         version: 1.8.4
       next-themes:
         specifier: ^0.4.6
-        version: 0.4.6(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
+        version: 0.4.6(react-dom@19.0.0(react@19.0.0))(react@19.0.0)
       react:
-        specifier: ^18.3.1
-        version: 18.3.1
+        specifier: ^19.0.0
+        version: 19.0.0
       react-cookie:
         specifier: ^7.2.2
-        version: 7.2.2(react@18.3.1)
+        version: 7.2.2(react@19.0.0)
       react-dom:
-        specifier: ^18.3.1
-        version: 18.3.1(react@18.3.1)
+        specifier: ^19.0.0
+        version: 19.0.0(react@19.0.0)
       react-hook-form:
         specifier: ^7.54.2
-        version: 7.54.2(react@18.3.1)
+        version: 7.54.2(react@19.0.0)
       react-router-dom:
         specifier: ^7.4.0
-        version: 7.4.0(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
+        version: 7.4.0(react-dom@19.0.0(react@19.0.0))(react@19.0.0)
     devDependencies:
       '@7nohe/openapi-react-query-codegen':
         specifier: ^1.6.2
@@ -44,7 +44,7 @@ importers:
         version: 6.6.3
       '@testing-library/react':
         specifier: ^16.2.0
-        version: 16.2.0(@testing-library/dom@10.4.0)(@types/react@19.0.12)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
+        version: 16.2.0(@testing-library/dom@10.4.0)(@types/react@19.0.12)(react-dom@19.0.0(react@19.0.0))(react@19.0.0)
       '@vitejs/plugin-react-swc':
         specifier: ^3.8.1
         version: 3.8.1(@swc/helpers@0.5.15)(vite@6.2.2(jiti@1.21.7))
@@ -1473,10 +1473,6 @@ packages:
   lodash@4.17.21:
     resolution: {integrity: sha512-v2kDEe57lecTulaDIuNTPy3Ry4gLGJ6Z1O3vE1krgXZNrsQ+LFTGHVxVjcXPs17LhbZVGedAJv8XZ1tvj5FvSg==}
 
-  loose-envify@1.4.0:
-    resolution: {integrity: sha512-lyuxPGr/Wfhrlem2CL/UcnUc1zcqKAImBDzukY7Y5F/yQiNdko6+fRLevlw1HgMySw7f611UIY408EtxRSoK3Q==}
-    hasBin: true
-
   loupe@3.1.3:
     resolution: {integrity: sha512-kkIp7XSkP78ZxJEsSxW3712C6teJVoeHHwgo9zJ380de7IYyJ2ISlxojcH2pC5OFLewESmnRi/+XCDIEEVyoug==}
 
@@ -1698,10 +1694,10 @@ packages:
     peerDependencies:
       react: '>= 16.3.0'
 
-  react-dom@18.3.1:
-    resolution: {integrity: sha512-5m4nQKp+rZRb09LNH59GM4BxTh9251/ylbKIbpe7TpGxfJ+9kv6BLkLBXIjjspbgbnIBNqlI23tRnTWT0snUIw==}
+  react-dom@19.0.0:
+    resolution: {integrity: sha512-4GV5sHFG0e/0AD4X+ySy6UJd3jVl1iNsNHdpad0qhABJ11twS3TTBnseqsKurKcsNqCEFeGL3uLpVChpIO3QfQ==}
     peerDependencies:
-      react: ^18.3.1
+      react: ^19.0.0
 
   react-hook-form@7.54.2:
     resolution: {integrity: sha512-eHpAUgUjWbZocoQYUHposymRb4ZP6d0uwUnooL2uOybA9/3tPUvoAKqEWK1WaSiTxxOfTpffNZP7QwlnM3/gEg==}
@@ -1732,8 +1728,8 @@ packages:
       react-dom:
         optional: true
 
-  react@18.3.1:
-    resolution: {integrity: sha512-wS+hAgJShR0KhEvPJArfuPVN1+Hz1t0Y6n5jLrGQbkb4urgPE/0Rve+1kMB1v/oWgHgm4WIcV+i7F2pTVj+2iQ==}
+  react@19.0.0:
+    resolution: {integrity: sha512-V8AVnmPIICiWpGfm6GLzCR/W5FXLchHop40W4nXBmdlEceh16rCN8O8LNWm5bh5XUX91fh7KpA+W0TgMKmgTpQ==}
     engines: {node: '>=0.10.0'}
 
   readdirp@3.6.0:
@@ -1768,8 +1764,8 @@ packages:
   run-parallel@1.2.0:
     resolution: {integrity: sha512-5l4VyZR86LZ/lDxZTR6jqL8AFE2S0IFLMP26AbjsLVADxHdhB/c0GUsH+y39UfCi3dzz8OlQuPmnaJOMoDHQBA==}
 
-  scheduler@0.23.2:
-    resolution: {integrity: sha512-UOShsPwz7NrMUqhR6t0hWjFduvOzbtv7toDH1/hIrfRNIDBnnBWd0CwJTGvTpngVlmwGCdP9/Zl/tVrDqcuYzQ==}
+  scheduler@0.25.0:
+    resolution: {integrity: sha512-xFVuu11jh+xcO7JOAGJNOXld8/TcEHK/4CituBUeUb5hqxJLj9YuemAEuvm9gQ/+pgXYfbQuqAkiYu+u7YEsNA==}
 
   set-cookie-parser@2.7.1:
     resolution: {integrity: sha512-IOc8uWeOZgnb3ptbCURJWNjWUPcO3ZnTTdzsurqERrP6nPyv+paC55vJM0LpOlT2ne+Ix+9+CRG1MNLlyZ4GjQ==}
@@ -2045,7 +2041,7 @@ snapshots:
       '@types/json-schema': 7.0.15
       js-yaml: 4.1.0
 
-  '@ark-ui/react@4.9.2(react-dom@18.3.1(react@18.3.1))(react@18.3.1)':
+  '@ark-ui/react@4.9.2(react-dom@19.0.0(react@19.0.0))(react@19.0.0)':
     dependencies:
       '@internationalized/date': 3.7.0
       '@zag-js/accordion': 0.82.2
@@ -2082,7 +2078,7 @@ snapshots:
       '@zag-js/qr-code': 0.82.2
       '@zag-js/radio-group': 0.82.2
       '@zag-js/rating-group': 0.82.2
-      '@zag-js/react': 0.82.2(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
+      '@zag-js/react': 0.82.2(react-dom@19.0.0(react@19.0.0))(react@19.0.0)
       '@zag-js/select': 0.82.2
       '@zag-js/signature-pad': 0.82.2
       '@zag-js/slider': 0.82.2
@@ -2099,8 +2095,8 @@ snapshots:
       '@zag-js/tour': 0.82.2
       '@zag-js/tree-view': 0.82.2
       '@zag-js/types': 0.82.2
-      react: 18.3.1
-      react-dom: 18.3.1(react@18.3.1)
+      react: 19.0.0
+      react-dom: 19.0.0(react@19.0.0)
 
   '@babel/code-frame@7.26.2':
     dependencies:
@@ -2158,19 +2154,19 @@ snapshots:
       '@babel/helper-string-parser': 7.25.9
       '@babel/helper-validator-identifier': 7.25.9
 
-  '@chakra-ui/react@3.13.0(@emotion/react@11.14.0(@types/react@19.0.12)(react@18.3.1))(react-dom@18.3.1(react@18.3.1))(react@18.3.1)':
+  '@chakra-ui/react@3.13.0(@emotion/react@11.14.0(@types/react@19.0.12)(react@19.0.0))(react-dom@19.0.0(react@19.0.0))(react@19.0.0)':
     dependencies:
-      '@ark-ui/react': 4.9.2(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
+      '@ark-ui/react': 4.9.2(react-dom@19.0.0(react@19.0.0))(react@19.0.0)
       '@emotion/is-prop-valid': 1.3.1
-      '@emotion/react': 11.14.0(@types/react@19.0.12)(react@18.3.1)
+      '@emotion/react': 11.14.0(@types/react@19.0.12)(react@19.0.0)
       '@emotion/serialize': 1.3.3
-      '@emotion/use-insertion-effect-with-fallbacks': 1.2.0(react@18.3.1)
+      '@emotion/use-insertion-effect-with-fallbacks': 1.2.0(react@19.0.0)
       '@emotion/utils': 1.4.2
       '@pandacss/is-valid-prop': 0.41.0
       csstype: 3.1.3
       fast-safe-stringify: 2.1.1
-      react: 18.3.1
-      react-dom: 18.3.1(react@18.3.1)
+      react: 19.0.0
+      react-dom: 19.0.0(react@19.0.0)
 
   '@emotion/babel-plugin@11.13.5':
     dependencies:
@@ -2204,17 +2200,17 @@ snapshots:
 
   '@emotion/memoize@0.9.0': {}
 
-  '@emotion/react@11.14.0(@types/react@19.0.12)(react@18.3.1)':
+  '@emotion/react@11.14.0(@types/react@19.0.12)(react@19.0.0)':
     dependencies:
       '@babel/runtime': 7.26.10
       '@emotion/babel-plugin': 11.13.5
       '@emotion/cache': 11.14.0
       '@emotion/serialize': 1.3.3
-      '@emotion/use-insertion-effect-with-fallbacks': 1.2.0(react@18.3.1)
+      '@emotion/use-insertion-effect-with-fallbacks': 1.2.0(react@19.0.0)
       '@emotion/utils': 1.4.2
       '@emotion/weak-memoize': 0.4.0
       hoist-non-react-statics: 3.3.2
-      react: 18.3.1
+      react: 19.0.0
     optionalDependencies:
       '@types/react': 19.0.12
     transitivePeerDependencies:
@@ -2232,9 +2228,9 @@ snapshots:
 
   '@emotion/unitless@0.10.0': {}
 
-  '@emotion/use-insertion-effect-with-fallbacks@1.2.0(react@18.3.1)':
+  '@emotion/use-insertion-effect-with-fallbacks@1.2.0(react@19.0.0)':
     dependencies:
-      react: 18.3.1
+      react: 19.0.0
 
   '@emotion/utils@1.4.2': {}
 
@@ -2566,10 +2562,10 @@ snapshots:
 
   '@tanstack/query-core@5.69.0': {}
 
-  '@tanstack/react-query@5.69.0(react@18.3.1)':
+  '@tanstack/react-query@5.69.0(react@19.0.0)':
     dependencies:
       '@tanstack/query-core': 5.69.0
-      react: 18.3.1
+      react: 19.0.0
 
   '@testing-library/dom@10.4.0':
     dependencies:
@@ -2592,12 +2588,12 @@ snapshots:
       lodash: 4.17.21
       redent: 3.0.0
 
-  '@testing-library/react@16.2.0(@testing-library/dom@10.4.0)(@types/react@19.0.12)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)':
+  '@testing-library/react@16.2.0(@testing-library/dom@10.4.0)(@types/react@19.0.12)(react-dom@19.0.0(react@19.0.0))(react@19.0.0)':
     dependencies:
       '@babel/runtime': 7.26.10
       '@testing-library/dom': 10.4.0
-      react: 18.3.1
-      react-dom: 18.3.1(react@18.3.1)
+      react: 19.0.0
+      react-dom: 19.0.0(react@19.0.0)
     optionalDependencies:
       '@types/react': 19.0.12
 
@@ -2961,14 +2957,14 @@ snapshots:
       '@zag-js/types': 0.82.2
       '@zag-js/utils': 0.82.2
 
-  '@zag-js/react@0.82.2(react-dom@18.3.1(react@18.3.1))(react@18.3.1)':
+  '@zag-js/react@0.82.2(react-dom@19.0.0(react@19.0.0))(react@19.0.0)':
     dependencies:
       '@zag-js/core': 0.82.2
       '@zag-js/store': 0.82.2
       '@zag-js/types': 0.82.2
       proxy-compare: 3.0.1
-      react: 18.3.1
-      react-dom: 18.3.1(react@18.3.1)
+      react: 19.0.0
+      react-dom: 19.0.0(react@19.0.0)
 
   '@zag-js/rect-utils@0.82.2': {}
 
@@ -3699,10 +3695,6 @@ snapshots:
 
   lodash@4.17.21: {}
 
-  loose-envify@1.4.0:
-    dependencies:
-      js-tokens: 4.0.0
-
   loupe@3.1.3: {}
 
   lru-cache@10.4.3: {}
@@ -3779,10 +3771,10 @@ snapshots:
 
   neo-async@2.6.2: {}
 
-  next-themes@0.4.6(react-dom@18.3.1(react@18.3.1))(react@18.3.1):
+  next-themes@0.4.6(react-dom@19.0.0(react@19.0.0))(react@19.0.0):
     dependencies:
-      react: 18.3.1
-      react-dom: 18.3.1(react@18.3.1)
+      react: 19.0.0
+      react-dom: 19.0.0(react@19.0.0)
 
   node-fetch-native@1.6.6: {}
 
@@ -3895,46 +3887,43 @@ snapshots:
       defu: 6.1.4
       destr: 2.0.3
 
-  react-cookie@7.2.2(react@18.3.1):
+  react-cookie@7.2.2(react@19.0.0):
     dependencies:
       '@types/hoist-non-react-statics': 3.3.6
       hoist-non-react-statics: 3.3.2
-      react: 18.3.1
+      react: 19.0.0
       universal-cookie: 7.2.2
 
-  react-dom@18.3.1(react@18.3.1):
+  react-dom@19.0.0(react@19.0.0):
     dependencies:
-      loose-envify: 1.4.0
-      react: 18.3.1
-      scheduler: 0.23.2
+      react: 19.0.0
+      scheduler: 0.25.0
 
-  react-hook-form@7.54.2(react@18.3.1):
+  react-hook-form@7.54.2(react@19.0.0):
     dependencies:
-      react: 18.3.1
+      react: 19.0.0
 
   react-is@16.13.1: {}
 
   react-is@17.0.2: {}
 
-  react-router-dom@7.4.0(react-dom@18.3.1(react@18.3.1))(react@18.3.1):
+  react-router-dom@7.4.0(react-dom@19.0.0(react@19.0.0))(react@19.0.0):
     dependencies:
-      react: 18.3.1
-      react-dom: 18.3.1(react@18.3.1)
-      react-router: 7.4.0(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
+      react: 19.0.0
+      react-dom: 19.0.0(react@19.0.0)
+      react-router: 7.4.0(react-dom@19.0.0(react@19.0.0))(react@19.0.0)
 
-  react-router@7.4.0(react-dom@18.3.1(react@18.3.1))(react@18.3.1):
+  react-router@7.4.0(react-dom@19.0.0(react@19.0.0))(react@19.0.0):
     dependencies:
       '@types/cookie': 0.6.0
       cookie: 1.0.2
-      react: 18.3.1
+      react: 19.0.0
       set-cookie-parser: 2.7.1
       turbo-stream: 2.4.0
     optionalDependencies:
-      react-dom: 18.3.1(react@18.3.1)
+      react-dom: 19.0.0(react@19.0.0)
 
-  react@18.3.1:
-    dependencies:
-      loose-envify: 1.4.0
+  react@19.0.0: {}
 
   readdirp@3.6.0:
     dependencies:
@@ -3987,9 +3976,7 @@ snapshots:
     dependencies:
       queue-microtask: 1.2.3
 
-  scheduler@0.23.2:
-    dependencies:
-      loose-envify: 1.4.0
+  scheduler@0.25.0: {}
 
   set-cookie-parser@2.7.1: {}
 
