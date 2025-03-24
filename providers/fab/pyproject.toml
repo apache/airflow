@@ -75,7 +75,7 @@ dependencies = [
     "flask-login>=0.6.2",
     # Flask-Session 0.6 add new arguments into the SqlAlchemySessionInterface constructor as well as
     # all parameters now are mandatory which make AirflowDatabaseSessionInterface incompatible with this version.
-    "flask-session>=0.4.0,<0.6",
+    "flask-session>=0.4.0,<0.9",
     "flask-wtf>=1.1.0",
     "connexion[flask]>=2.14.2,<3.0",
     "jmespath>=0.7.0",
