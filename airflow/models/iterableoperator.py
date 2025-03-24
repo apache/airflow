@@ -31,7 +31,7 @@ from multiprocessing.pool import ApplyResult, ThreadPool
 from queue import Queue
 from threading import Thread
 from time import sleep
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, Coroutine
 
 from airflow.exceptions import (
     AirflowException,
@@ -300,8 +300,9 @@ class IterableOperator(BaseOperator):
         "expand_input",
         "partial_kwargs",
         "_log",
+        "_task_queue",
+        "_producer_thread",
         "_semaphore",
-        "_completed",
     )
 
     def __init__(
@@ -321,6 +322,8 @@ class IterableOperator(BaseOperator):
         self._mapped_kwargs: Iterable[dict] = []
         if not self.max_active_tis_per_dag:
             self.max_active_tis_per_dag = os.cpu_count() or 1
+        self._task_queue = Queue()
+        self._producer_thread: Thread | None = None
         self._semaphore = Semaphore(self.max_active_tis_per_dag)
         self._number_of_tasks: int = 0
         XComArg.apply_upstream_relationship(self, self.expand_input.value)
@@ -404,44 +407,26 @@ class IterableOperator(BaseOperator):
     def _run_tasks(
         self,
         context: Context,
-        tasks: Iterable[TaskInstance],
     ) -> Iterable[Any] | None:
         exception: Exception | None = None
         reschedule_date = timezone.utcnow()
         failed_tasks: list[TaskInstance] = []
-        task_queue = Queue()
 
-        # Task Producer
-        def task_producer():
-            try:
-                self.log.info("Started producing tasks")
-                for task in tasks:
-                    self.log.info("Created task: %s", task)
-                    task_queue.put(task)
-                self.log.info("Finished producing tasks")
-            except Exception as e:
-                self.log.error("Exception in task_producer: %s", e)
-                task_queue.put(e)
-
-        producer_thread = Thread(target=task_producer)
-        producer_thread.start()
-
-        self.log.debug("task_queue : %s", task_queue.qsize())
+        self.log.info("task_queue : %s", self._task_queue.qsize())
 
         # Task Consumer
-        while not task_queue.empty() or producer_thread.is_alive():
-            deferred_tasks: list[Future] = []
+        while not self._task_queue.empty() or self._producer_thread.is_alive():
+            futures = {}
+            deferred_tasks: list[Coroutine[Any, Any, Any]] = []
 
             with ThreadPool(processes=self.max_active_tis_per_dag) as pool:
-                futures = {}
-
-                while not task_queue.empty():
-                    task = task_queue.get(timeout=1)
-                    self.log.info("received task : %s", task)
+                while not self._task_queue.empty():
+                    task = self._task_queue.get(timeout=1)
+                    self.log.debug("received task : %s", task)
 
                     # Check if the task is an exception and stop immediately
                     if isinstance(task, Exception):
-                        producer_thread.join()
+                        self._producer_thread.join()
                         raise AirflowException("An exception occurred in the producer thread") from task
 
                     futures[pool.apply_async(self._run_operator, (context, task))] = task
@@ -452,15 +437,16 @@ class IterableOperator(BaseOperator):
                 task = futures.pop(future)
                 try:
                     result = future.get(timeout=self.timeout)
+
+                    self.log.debug("result: %s", result)
+
                     if isinstance(result, TaskDeferred):
                         deferred_tasks.append(
-                            ensure_future(
-                                self._run_deferrable(
-                                    context=context,
-                                    task_instance=task,
-                                    task_deferred=result,
-                                ),
-                            )
+                            self._run_deferrable(
+                                context=context,
+                                task_instance=task,
+                                task_deferred=result,
+                            ),
                         )
                 except TimeoutError as e:
                     self.log.warning("A timeout occurred for task_id %s", task.task_id)
@@ -492,7 +478,7 @@ class IterableOperator(BaseOperator):
                             else:
                                 exception = result
 
-        producer_thread.join()
+        self._producer_thread.join()
 
         if not failed_tasks:
             if exception:
@@ -509,6 +495,9 @@ class IterableOperator(BaseOperator):
                 )
             return None
 
+        for failed_task in failed_tasks:
+            self._task_queue.put(failed_task)
+
         # Calculate delay before the next retry
         delay = reschedule_date - timezone.utcnow()
         delay_seconds = ceil(delay.total_seconds())
@@ -523,7 +512,7 @@ class IterableOperator(BaseOperator):
             )
             sleep(delay_seconds)
 
-        return self._run_tasks(context, failed_tasks)
+        return self._run_tasks(context)
 
     def _run_operator(self, context: Context, task_instance: TaskInstance):
         try:
@@ -553,10 +542,22 @@ class IterableOperator(BaseOperator):
         )
 
     def execute(self, context: Context):
-        return self._run_tasks(
-            context=context,
-            tasks=map(
+        def task_producer():
+            tasks = map(
                 lambda mapped_kwargs: self._create_task(context["ti"].run_id, mapped_kwargs[0], mapped_kwargs[1]),
                 enumerate(self._mapped_kwargs),
-            ),
-        )
+            )
+
+            try:
+                self.log.info("Started producing tasks")
+                for task in tasks:
+                    self._task_queue.put(task)
+                self.log.info("Finished producing tasks")
+            except Exception as e:
+                self.log.error("Exception in task_producer: %s", e)
+                self._task_queue.put(e)
+
+        self._producer_thread = Thread(target=task_producer)
+        self._producer_thread.start()
+
+        return self._run_tasks(context=context)

@@ -81,20 +81,26 @@ class DeferredIterable(Iterator, LoggingMixin):
             self.index += 1
             return result
 
-        # No more results; attempt to load the next page using the trigger
+        if not self.trigger:
+            raise StopIteration
+
         self.log.info("No more results. Running trigger: %s", self.trigger)
 
         try:
             event = self.loop.run_until_complete(run_trigger(self.trigger))
-            iterator = getattr(self.operator, self.next_method)(self.context, event.payload)
+            next_method = getattr(self.operator, self.next_method)
+            self.log.debug("Triggering next method: %s", self.next_method)
+            results = next_method(self.context, event.payload)
         except Exception as e:
             raise AirflowException from e
 
-        if not iterator:
-            raise StopIteration
+        if isinstance(results, DeferredIterable):
+            self.trigger = results.trigger
+            self.results.extend(results.results)
+        else:
+            self.trigger = None
+            self.results.extend(results)
 
-        self.trigger = iterator.trigger
-        self.results.extend(iterator.results)
         self.index += 1
         return self.results[-1]
 
@@ -115,21 +121,19 @@ class DeferredIterable(Iterator, LoggingMixin):
         """Ensure the object is JSON serializable."""
         return {
             "results": self.results,
-            "trigger": self.trigger.serialize(),
-            "dag_fileloc": self.operator.dag.fileloc,
+            "trigger": self.trigger.serialize() if self.trigger else None,
             "dag_id": self.operator.dag_id,
             "task_id": self.operator.task_id,
             "next_method": self.next_method,
         }
 
     @classmethod
-    def get_operator_from_dag(cls, dag_fileloc: str, dag_id: str, task_id: str) -> BaseOperator:
+    def get_operator_from_dag(cls, dag_id: str, task_id: str) -> BaseOperator:
         """Loads a DAG using DagBag and gets the operator by task_id."""
 
         from airflow.models import DagBag
 
-        dag_bag = DagBag(dag_folder=None)  # Avoid loading all DAGs
-        dag_bag.process_file(dag_fileloc)
+        dag_bag = DagBag(dag_folder=None)
         return dag_bag.dags[dag_id].get_task(task_id)
 
     @classmethod
@@ -138,7 +142,7 @@ class DeferredIterable(Iterator, LoggingMixin):
 
         trigger_class = import_string(data["trigger"][0])
         trigger = trigger_class(**data["trigger"][1])
-        operator = cls.get_operator_from_dag(data["dag_fileloc"], data["dag_id"], data["task_id"])
+        operator = cls.get_operator_from_dag(data["dag_id"], data["task_id"])
         return DeferredIterable(
             results=data["results"], trigger=trigger, operator=operator, next_method=data["next_method"]
         )
