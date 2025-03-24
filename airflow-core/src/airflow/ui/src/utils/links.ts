@@ -20,3 +20,15 @@ import type { TaskInstanceResponse } from "openapi/requests/types.gen";
 
 export const getTaskInstanceLink = (ti: TaskInstanceResponse) =>
   `/dags/${ti.dag_id}/runs/${ti.dag_run_id}/tasks/${ti.task_id}${ti.map_index >= 0 ? `/mapped/${ti.map_index}` : ""}`;
+
+export const getTaskInstanceLinkFromObj = ({
+  dagId,
+  dagRunId,
+  mapIndex = -1,
+  taskId,
+}: {
+  dagId: string;
+  dagRunId: string;
+  mapIndex: number;
+  taskId: string;
+}) => `/dags/${dagId}/runs/${dagRunId}/tasks/${taskId}${mapIndex >= 0 ? `/mapped/${mapIndex}` : ""}`;
