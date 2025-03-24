@@ -1213,14 +1213,12 @@ migrateDatabaseJob:
   command: ~
   # Args to use when running the migrate database job (templated).
   args:
-  - "bash"
-  - "-c"
-  - >-
-    exec \
-
+    - "bash"
+    - "-c"
+    - >-
+      exec \
       airflow {{ semverCompare ">=2.7.0" .Values.airflowVersion
       | ternary "db migrate" (semverCompare ">=2.0.0" .Values.airflowVersion
-      | ternary "db upgrade" "upgradedb") }}
 
   # Annotations on the database migration pod
   annotations: {}
