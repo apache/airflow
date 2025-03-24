@@ -255,8 +255,7 @@ class SecretsMasker(logging.Filter):
                     # We can't replace specific values, but the key-based redacting
                     # can still happen, so we can't short-circuit, we need to walk
                     # the structure.
-                    result = re.sub(r'\b(' + '|'.join(self.patterns) + r')\b', "***", str(item))
-                    return result
+                    return self.replacer.sub("***", str(item))
                 return item
             elif isinstance(item, (tuple, set)):
                 # Turn set in to tuple!
@@ -346,7 +345,10 @@ class SecretsMasker(logging.Filter):
                         new_mask = True
 
             if new_mask:
-                self.replacer = re.compile("|".join(self.patterns))
+                # Match pattern followed by either end of string or non-alphanumeric character
+                # This prevents matching substrings within words while handling special characters
+                pattern = r"\b(" + "|".join(self.patterns) + r")(?=$|[^a-zA-Z0-9])"
+                self.replacer = re.compile(pattern)
 
         elif isinstance(secret, collections.abc.Iterable):
             for v in secret:
