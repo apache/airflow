@@ -253,8 +253,9 @@ class TestDagRunOperatorAF2:
             f.flush()
         self.f_name = f.name
 
+        self.dag_model = DagModel(dag_id=TRIGGERED_DAG_ID, fileloc=self._tmpfile)
         with create_session() as session:
-            session.add(DagModel(dag_id=TRIGGERED_DAG_ID, fileloc=self._tmpfile))
+            session.add(self.dag_model)
             session.commit()
 
     def teardown_method(self):
@@ -734,3 +735,21 @@ class TestDagRunOperatorAF2:
 
         # The second DagStateTrigger call should still use the original `logical_date` value.
         assert mock_task_defer.call_args_list[1].kwargs["trigger"].run_ids == [run_id]
+
+    def test_trigger_dagrun_with_fail_when_dag_is_paused(self, dag_maker):
+        """Test TriggerDagRunOperator with skip_when_already_exists."""
+        self.dag_model.set_is_paused(True)
+
+        with dag_maker(
+            TEST_DAG_ID, default_args={"owner": "airflow", "start_date": DEFAULT_DATE}, serialized=True
+        ):
+            task = TriggerDagRunOperator(
+                task_id="test_task",
+                trigger_dag_id=TRIGGERED_DAG_ID,
+                trigger_run_id="dummy_run_id",
+                reset_dag_run=False,
+                fail_when_dag_is_paused=True,
+            )
+        dag_maker.create_dagrun()
+        with pytest.raises(AirflowException, match=f"^Dag id {TRIGGERED_DAG_ID} is paused$"):
+            task.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE)
