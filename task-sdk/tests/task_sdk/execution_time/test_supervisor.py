@@ -1349,7 +1349,7 @@ class TestHandleRequest:
             pytest.param(
                 GetTaskRescheduleStartDate(ti_id=TI_ID),
                 b'{"start_date":"2024-10-31T12:00:00Z","type":"TaskRescheduleStartDate"}\n',
-                "task_reschedules.get_start_date",
+                "task_instances.get_reschedule_start_date",
                 (TI_ID, 1),
                 {},
                 TaskRescheduleStartDate(start_date=timezone.parse("2024-10-31T12:00:00Z")),
