@@ -53,6 +53,7 @@
       "openapi-schema-validator>=0.6.2",
       "openapi-spec-validator>=0.7.1",
       "opensearch-py>=2.2.0",
+      "responses>=0.25.0",
       "s3fs>=2023.10.0"
     ],
     "plugins": [],
@@ -178,6 +179,7 @@
     ],
     "cross-providers-deps": [
       "amazon",
+      "common.compat",
       "common.sql",
       "microsoft.mssql",
       "mysql",
@@ -682,7 +684,7 @@
       "google-cloud-bigtable>=2.17.0",
       "google-cloud-build>=3.31.0",
       "google-cloud-compute>=1.10.0",
-      "google-cloud-container>=2.17.4",
+      "google-cloud-container>=2.52.0",
       "google-cloud-datacatalog>=3.23.0",
       "google-cloud-dataflow-client>=0.8.6",
       "google-cloud-dataform>=0.5.0",
@@ -1415,7 +1417,9 @@
       "yandex-query-client>=0.1.4",
       "yandexcloud>=0.308.0"
     ],
-    "devel-deps": [],
+    "devel-deps": [
+      "responses>=0.25.0"
+    ],
     "plugins": [],
     "cross-providers-deps": [
       "common.compat"

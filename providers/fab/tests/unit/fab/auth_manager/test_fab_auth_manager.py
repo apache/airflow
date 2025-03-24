@@ -30,9 +30,9 @@ from airflow.api_fastapi.common.types import MenuItem
 from airflow.exceptions import AirflowConfigException
 from airflow.providers.fab.www.extensions.init_appbuilder import init_appbuilder
 from airflow.providers.standard.operators.empty import EmptyOperator
-from unit.fab.auth_manager.api_endpoints.api_connexion_utils import create_user, delete_user
 
 from tests_common.test_utils.config import conf_vars
+from unit.fab.auth_manager.api_endpoints.api_connexion_utils import create_user, delete_user
 
 try:
     from airflow.api_fastapi.auth.managers.models.resource_details import (

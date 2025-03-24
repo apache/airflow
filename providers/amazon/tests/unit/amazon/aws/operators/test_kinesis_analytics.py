@@ -31,6 +31,7 @@ from airflow.providers.amazon.aws.operators.kinesis_analytics import (
     KinesisAnalyticsV2StartApplicationOperator,
     KinesisAnalyticsV2StopApplicationOperator,
 )
+
 from unit.amazon.aws.utils.test_template_fields import validate_template_fields
 
 if TYPE_CHECKING:

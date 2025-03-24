@@ -21,7 +21,7 @@ from subprocess import CalledProcessError
 import jmespath
 import pytest
 
-from tests.charts.helm_template_generator import render_chart as _render_chart
+from unit.charts.helm_template_generator import render_chart as _render_chart
 
 
 # Everything in here needcs to set airflowVersion to get the API server to render

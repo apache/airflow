@@ -1935,6 +1935,7 @@ whitespace
 whl
 wildcarded
 winrm
+WIT
 workgroup
 workgroups
 wsman

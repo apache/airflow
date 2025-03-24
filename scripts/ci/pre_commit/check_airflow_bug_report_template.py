@@ -24,13 +24,11 @@ from pathlib import Path
 import yaml
 
 sys.path.insert(0, str(Path(__file__).parent.resolve()))  # make sure common_precommit_utils is imported
-from common_precommit_utils import AIRFLOW_SOURCES_ROOT_PATH, check_list_sorted, console
+from common_precommit_utils import AIRFLOW_ROOT_PATH, check_list_sorted, console
 
-BUG_REPORT_TEMPLATE = (
-    AIRFLOW_SOURCES_ROOT_PATH / ".github" / "ISSUE_TEMPLATE" / "airflow_providers_bug_report.yml"
-)
+BUG_REPORT_TEMPLATE = AIRFLOW_ROOT_PATH / ".github" / "ISSUE_TEMPLATE" / "airflow_providers_bug_report.yml"
 
-DEPENDENCIES_JSON_FILE_PATH = AIRFLOW_SOURCES_ROOT_PATH / "generated" / "provider_dependencies.json"
+DEPENDENCIES_JSON_FILE_PATH = AIRFLOW_ROOT_PATH / "generated" / "provider_dependencies.json"
 
 
 if __name__ == "__main__":

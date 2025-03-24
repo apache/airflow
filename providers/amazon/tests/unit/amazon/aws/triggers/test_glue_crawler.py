@@ -24,6 +24,7 @@ import pytest
 from airflow.providers.amazon.aws.hooks.glue_crawler import GlueCrawlerHook
 from airflow.providers.amazon.aws.triggers.glue_crawler import GlueCrawlerCompleteTrigger
 from airflow.triggers.base import TriggerEvent
+
 from unit.amazon.aws.utils.test_waiter import assert_expected_waiter_type
 
 

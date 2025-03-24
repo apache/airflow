@@ -54,7 +54,7 @@ if __name__ == "__main__":
         + "\n\n",
     )
     replace_text_between(
-        file=AIRFLOW_SOURCES / "docs" / "apache-airflow" / "installation" / "supported-versions.rst",
+        file=AIRFLOW_SOURCES / "airflow-core" / "docs" / "installation" / "supported-versions.rst",
         start=" .. Beginning of auto-generated table\n",
         end=" .. End of auto-generated table\n",
         replacement_text="\n"

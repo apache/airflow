@@ -37,7 +37,7 @@ Example test here:
 
 .. code-block:: python
 
-    from tests.charts.common.helm_template_generator import render_chart, render_k8s_object
+    from unit.charts.common.helm_template_generator import render_chart, render_k8s_object
 
     git_sync_basic = """
     dags:

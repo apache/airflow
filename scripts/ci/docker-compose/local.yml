@@ -53,14 +53,11 @@ services:
         source: ../../../LICENSE
         target: /opt/airflow/LICENSE
       - type: bind
-        source: ../../../NOTICE
-        target: /opt/airflow/NOTICE
-      - type: bind
         source: ../../../RELEASE_NOTES.rst
         target: /opt/airflow/RELEASE_NOTES.rst
       - type: bind
-        source: ../../../airflow
-        target: /opt/airflow/airflow
+        source: ../../../airflow-core
+        target: /opt/airflow/airflow-core
       - type: bind
         source: ../../../airflow-ctl
         target: /opt/airflow/airflow-ctl
@@ -83,9 +80,6 @@ services:
         source: ../../../generated
         target: /opt/airflow/generated
       - type: bind
-        source: ../../../hooks
-        target: /opt/airflow/hooks
-      - type: bind
         source: ../../../logs
         target: /root/airflow/logs
       - type: bind
@@ -106,9 +100,6 @@ services:
       - type: bind
         source: ../../../devel-common
         target: /opt/airflow/devel-common
-      - type: bind
-        source: ../../../tests
-        target: /opt/airflow/tests
       - type: bind
         source: ../../../helm_tests
         target: /opt/airflow/helm_tests

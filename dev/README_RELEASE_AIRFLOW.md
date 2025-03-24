@@ -387,8 +387,10 @@ Airflow ${VERSION} is available at:
 https://dist.apache.org/repos/dist/dev/airflow/$VERSION/
 
 *apache-airflow-${VERSION_WITHOUT_RC}-source.tar.gz* is a source release that comes with INSTALL instructions.
-*apache-airflow-${VERSION_WITHOUT_RC}.tar.gz* is the binary Python "sdist" release.
-*apache_airflow-${VERSION_WITHOUT_RC}-py3-none-any.whl* is the binary Python wheel "binary" release.
+*apache-airflow-${VERSION_WITHOUT_RC}.tar.gz* is the binary Python "sdist" release fore airflow meta distribution.
+*apache_airflow-${VERSION_WITHOUT_RC}-py3-none-any.whl* is the binary Python wheel "binary" release for airflow meta distribution.
+*apache-airflow_core-${VERSION_WITHOUT_RC}.tar.gz* is the binary Python "sdist" release for airflow core distribution.
+*apache_airflow_core-${VERSION_WITHOUT_RC}-py3-none-any.whl* is the binary Python wheel "binary" release for airflow core distribution.
 
 Public keys are available at:
 https://dist.apache.org/repos/dist/release/airflow/KEYS
@@ -477,16 +479,16 @@ VERSION=X.Y.Zrc1
 git checkout ${VERSION}
 export AIRFLOW_REPO_ROOT=$(pwd)
 rm -rf dist/*
-breeze release-management prepare-airflow-package --package-format both
+breeze release-management prepare-airflow-distributions --distribution-format both
 breeze release-management prepare-airflow-tarball --version ${VERSION}
 ```
 
-The `prepare-airflow-package` by default will use Dockerized approach and building of the packages
+The `prepare-airflow-distributions` by default will use Dockerized approach and building of the packages
 will be done in a docker container.  However, if you have  `hatch` installed locally you can use
 `--use-local-hatch` flag and it will build and use  docker image that has `hatch` installed.
 
 ```bash
-breeze release-management prepare-airflow-package --package-format both --use-local-hatch
+breeze release-management prepare-airflow-distributions --distribution-format both --use-local-hatch
 breeze release-management prepare-airflow-tarball --version ${VERSION}
 ```
 
@@ -494,7 +496,7 @@ This is generally faster and requires less resources/network bandwidth. Note tha
 do it before preparing the tarball as preparing packages cleans up dist folder from
 apache-airflow artifacts as it uses hatch's `-c` build flag.
 
-The `prepare-airflow-package` command (no matter if docker or local hatch is used) should produce the
+The `prepare-airflow-distributions` command (no matter if docker or local hatch is used) should produce the
 reproducible `.whl`, `.tar.gz` packages in the dist folder.
 
 The tarball command should produce reproducible `-source.tar.gz` tarball of sources.

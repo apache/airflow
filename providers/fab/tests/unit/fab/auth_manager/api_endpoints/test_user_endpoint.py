@@ -25,15 +25,15 @@ from airflow.providers.fab.www.api_connexion.exceptions import EXCEPTIONS_LINK_M
 from airflow.providers.fab.www.security import permissions
 from airflow.utils import timezone
 from airflow.utils.session import create_session
+
+from tests_common.test_utils.compat import ignore_provider_compatibility_error
+from tests_common.test_utils.config import conf_vars
 from unit.fab.auth_manager.api_endpoints.api_connexion_utils import (
     assert_401,
     create_user,
     delete_role,
     delete_user,
 )
-
-from tests_common.test_utils.compat import ignore_provider_compatibility_error
-from tests_common.test_utils.config import conf_vars
 
 with ignore_provider_compatibility_error("2.9.0+", __file__):
     from airflow.providers.fab.auth_manager.models import User
