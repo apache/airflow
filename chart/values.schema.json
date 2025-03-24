@@ -1857,7 +1857,7 @@
                         },
                         "extraContainers": {
                             "description": "Resource policies for additional containers.",
-                            "type": "object",
+                            "type": "array",
                             "additionalProperties": false,
                             "properties": {
                                 "containerPolicies": {
@@ -3039,7 +3039,7 @@
                         },
                         "extraContainers": {
                             "description": "Resource policies for additional containers.",
-                            "type": "object",
+                            "type": "array",
                             "additionalProperties": false,
                             "properties": {
                                 "containerPolicies": {
@@ -6035,7 +6035,7 @@
                         },
                         "extraContainers": {
                             "description": "Resource policies for additional containers.",
-                            "type": "object",
+                            "type": "array",
                             "additionalProperties": false,
                             "properties": {
                                 "containerPolicies": {

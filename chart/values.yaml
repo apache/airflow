@@ -703,7 +703,7 @@ workers:
     #   memory: "600Mi"
 
     # Specify resource limits for additional containers
-    extraContainers: {}
+    extraContainers: []
     #- containerName: test
     #  minAllowed:
     #    cpu: "250m"
@@ -1059,7 +1059,7 @@ scheduler:
     #   memory: "600Mi"
 
     # Specify resource limits for additional containers
-    extraContainers: {}
+    extraContainers: []
     #- containerName: test
     #  minAllowed:
     #    cpu: "250m"
@@ -1488,7 +1488,7 @@ webserver:
     #   memory: "600Mi"
 
     # Specify resource limits for additional containers
-    extraContainers: {}
+    extraContainers: []
     #- containerName: test
     #  minAllowed:
     #    cpu: "250m"
