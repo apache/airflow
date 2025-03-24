@@ -361,6 +361,7 @@ def generate_args_for_pytest(
             "--maxfail=50",
             "--color=yes",
             f"--junitxml={result_log_file}",
+            "-o", "junit_family=legacy",
             # timeouts in seconds for individual tests
             "--timeouts-order=moi",
             f"--setup-timeout={test_timeout}",

@@ -45,6 +45,7 @@ runs:
         mv ./files/coverage*.xml ./files/coverage-reports/ || true
     - name: "Upload test results to Codecov"
       uses: codecov/test-results-action@v1
+      if: env.ENABLE_COVERAGE == 'true' && env.TEST_TYPES != 'Helm' && inputs.python-version != '3.12'
       with:
         token: ${{ inputs.codecov-token }}
         file: ./files/test_result-*.xml
