@@ -24,7 +24,7 @@ import type { JSX } from "react/jsx-runtime";
 
 import { useTaskInstanceServiceGetLog } from "openapi/queries";
 import type { TaskInstanceResponse, TaskInstancesLogResponse } from "openapi/requests/types.gen";
-import { renderStructuredLog } from "src/components/RenderStructuredLog";
+import { renderStructuredLog } from "src/components/renderStructuredLog";
 import { isStatePending, useAutoRefresh } from "src/utils";
 import { getTaskInstanceLink } from "src/utils/links";
 

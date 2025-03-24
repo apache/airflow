@@ -120,7 +120,7 @@ export const renderStructuredLog = ({
     );
   }
 
-  const errorDetail = "error_detail" in structured ? structured.error_detail : undefined;
+  const { error_detail: errorDetail, ...reStructured } = structured;
   let details;
 
   if (errorDetail !== undefined) {
@@ -130,7 +130,7 @@ export const renderStructuredLog = ({
         <chakra.p key="test">
           File{" "}
           <chakra.span color="fg.info" key="test">
-            &quot;{frame.filename}&quot;
+            {JSON.stringify(frame.filename)}
           </chakra.span>
           , line {frame.lineno} in {frame.name}
         </chakra.p>
@@ -151,23 +151,23 @@ export const renderStructuredLog = ({
 
   elements.push(
     <chakra.span className="event" key={2} style={{ whiteSpace: "pre-wrap" }}>
-      {event}:
+      {event}
     </chakra.span>,
   );
 
-  for (const key in structured) {
-    if (Object.hasOwn(structured, key)) {
+  for (const key in reStructured) {
+    if (Object.hasOwn(reStructured, key)) {
       elements.push(
-        " ",
+        ": ",
         <chakra.span color={key === "logger" ? "fg.info" : undefined} key={`prop_${key}`}>
-          {key === "logger" ? "source" : key}={JSON.stringify(structured[key])}
+          {key === "logger" ? "source" : key}={JSON.stringify(reStructured[key])}
         </chakra.span>,
       );
     }
   }
 
   elements.push(
-    <chakra.span className="event" key={2} style={{ whiteSpace: "pre-wrap" }}>
+    <chakra.span className="event" key={3} style={{ whiteSpace: "pre-wrap" }}>
       {details}
     </chakra.span>,
   );
