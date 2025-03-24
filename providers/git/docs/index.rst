@@ -57,9 +57,44 @@
 
 .. THE REMAINDER OF THE FILE IS AUTOMATICALLY GENERATED. IT WILL BE OVERWRITTEN AT RELEASE TIME!
 
+
 .. toctree::
     :hidden:
     :maxdepth: 1
     :caption: Commits
 
     Detailed list of commits <commits>
+
+
+apache-airflow-providers-git package
+------------------------------------------------------
+
+`Distributed version control system (GIT) <https://git-scm.com/>`__
+
+
+Release: 0.0.1
+
+Provider package
+----------------
+
+This package is for the ``git`` provider.
+All classes for this package are included in the ``airflow.providers.git`` python package.
+
+Installation
+------------
+
+You can install this package on top of an existing Airflow 2 installation via
+``pip install apache-airflow-providers-git``.
+For the minimum Airflow version supported, see ``Requirements`` below.
+
+Requirements
+------------
+
+The minimum Apache Airflow version supported by this provider distribution is ``3.0.0.dev0``.
+
+==================  ==================
+PIP package         Version required
+==================  ==================
+``apache-airflow``  ``>=3.0.0.dev0``
+``GitPython``       ``>=3.1.44``
+==================  ==================
