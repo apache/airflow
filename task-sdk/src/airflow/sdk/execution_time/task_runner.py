@@ -58,6 +58,7 @@ from airflow.sdk.execution_time.comms import (
     DeferTask,
     ErrorResponse,
     GetDagRunState,
+    GetTaskRescheduleStartDate,
     OKResponse,
     RescheduleTask,
     RetryTask,
@@ -66,6 +67,7 @@ from airflow.sdk.execution_time.comms import (
     SkipDownstreamTasks,
     StartupDetails,
     SucceedTask,
+    TaskRescheduleStartDate,
     TaskState,
     ToSupervisor,
     ToTask,
@@ -360,6 +362,29 @@ class RuntimeTaskInstance(TaskInstance):
     ) -> int | range | None:
         # TODO: Implement this method
         return None
+
+    def get_first_reschedule_date(self, try_number: int) -> datetime | None:
+        """Get the first reschedule date for the task instance."""
+        if self._ti_context_from_server.task_reschedule_count == 0:
+            # If the task has not been rescheduled, there is no need to ask the supervisor
+            return None
+
+        log = structlog.get_logger(logger_name="task")
+
+        log.debug("Requesting first reschedule date from supervisor")
+
+        SUPERVISOR_COMMS.send_request(
+            log=log, msg=GetTaskRescheduleStartDate(ti_id=self.id, try_number=try_number)
+        )
+        response = SUPERVISOR_COMMS.get_message()
+
+        if TYPE_CHECKING:
+            assert isinstance(response, TaskRescheduleStartDate)
+
+        start_date = response.start_date
+        log.debug("First reschedule date from supervisor: %s", start_date)
+
+        return start_date
 
 
 def _xcom_push(ti: RuntimeTaskInstance, key: str, value: Any, mapped_length: int | None = None) -> None:

@@ -364,6 +364,7 @@ def create_runtime_ti(mocked_parse, make_ti_context):
         try_number: int = 1,
         map_index: int | None = -1,
         upstream_map_indexes: dict[str, int] | None = None,
+        task_reschedule_count: int = 0,
         ti_id=None,
         conf=None,
     ) -> RuntimeTaskInstance:
@@ -382,6 +383,7 @@ def create_runtime_ti(mocked_parse, make_ti_context):
             start_date=start_date,
             run_type=run_type,
             conf=conf,
+            task_reschedule_count=task_reschedule_count,
         )
 
         if upstream_map_indexes is not None:

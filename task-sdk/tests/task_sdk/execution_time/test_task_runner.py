@@ -77,6 +77,7 @@ from airflow.sdk.execution_time.comms import (
     SkipDownstreamTasks,
     StartupDetails,
     SucceedTask,
+    TaskRescheduleStartDate,
     TaskState,
     TriggerDagRun,
     VariableResult,
@@ -1416,6 +1417,32 @@ class TestRuntimeTaskInstance:
             msg=SetRenderedFields(rendered_fields={"bash_command": "echo 'hi'"}),
             log=mock.ANY,
         )
+
+    @pytest.mark.parametrize(
+        ["task_reschedule_count", "expected_date"],
+        [
+            (
+                0,
+                None,
+            ),
+            (
+                1,
+                timezone.datetime(2025, 1, 1),
+            ),
+        ],
+    )
+    def test_get_first_reschedule_date(
+        self, create_runtime_ti, mock_supervisor_comms, task_reschedule_count, expected_date
+    ):
+        """Test that the first reschedule date is fetched from the Supervisor."""
+        task = BaseOperator(task_id="hello")
+        runtime_ti = create_runtime_ti(task=task, task_reschedule_count=task_reschedule_count)
+
+        mock_supervisor_comms.get_message.return_value = TaskRescheduleStartDate(
+            start_date=timezone.datetime(2025, 1, 1)
+        )
+
+        assert runtime_ti.get_first_reschedule_date(try_number=2) == expected_date
 
 
 class TestXComAfterTaskExecution:

@@ -712,6 +712,37 @@ class TestTIUpdateState:
         assert trs[0].task_instance.map_index == -1
         assert trs[0].duration == 129600
 
+    @pytest.mark.backend("mysql")
+    def test_ti_update_state_reschedule_mysql_limit(
+        self, client, session, create_task_instance, time_machine
+    ):
+        """Test that the reschedule date is validated against MySQL's TIMESTAMP limit."""
+        instant = timezone.datetime(2024, 10, 30)
+        time_machine.move_to(instant, tick=False)
+
+        ti = create_task_instance(
+            task_id="test_ti_update_state_reschedule_mysql_limit",
+            state=State.RUNNING,
+            session=session,
+        )
+        ti.start_date = instant
+        session.commit()
+
+        # Date beyond MySQL's TIMESTAMP limit (2038-01-19 03:14:07)
+        future_date = timezone.datetime(2038, 1, 19, 3, 14, 8)
+
+        response = client.patch(
+            f"/execution/task-instances/{ti.id}/state",
+            json={
+                "state": TaskInstanceState.UP_FOR_RESCHEDULE,
+                "reschedule_date": future_date.isoformat(),
+                "end_date": DEFAULT_END_DATE.isoformat(),
+            },
+        )
+
+        assert response.status_code == 422
+        assert response.json()["detail"]["reason"] == "invalid_reschedule_date"
+
     def test_ti_update_state_handle_retry(self, client, session, create_task_instance):
         ti = create_task_instance(
             task_id="test_ti_update_state_to_retry",

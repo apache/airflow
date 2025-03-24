@@ -64,6 +64,7 @@ from airflow.sdk.execution_time.comms import (
     OKResponse,
     RuntimeCheckOnTask,
     SkipDownstreamTasks,
+    TaskRescheduleStartDate,
 )
 from airflow.utils.net import get_hostname
 from airflow.utils.platform import getuser
@@ -454,6 +455,18 @@ class DagRunOperations:
         return DagRunStateResponse.model_validate_json(resp.read())
 
 
+class TaskRescheduleOperations:
+    __slots__ = ("client",)
+
+    def __init__(self, client: Client):
+        self.client = client
+
+    def get_start_date(self, id: uuid.UUID, try_number: int = 1) -> TaskRescheduleStartDate:
+        """Get the start date of a task reschedule via the API server."""
+        resp = self.client.get(f"task-reschedules/{id}/start_date", params={"try_number": try_number})
+        return TaskRescheduleStartDate.model_construct(start_date=resp.json())
+
+
 class BearerAuth(httpx.Auth):
     def __init__(self, token: str):
         self.token: str = token
@@ -547,6 +560,12 @@ class Client(httpx.Client):
     def task_instances(self) -> TaskInstanceOperations:
         """Operations related to TaskInstances."""
         return TaskInstanceOperations(self)
+
+    @lru_cache()  # type: ignore[misc]
+    @property
+    def task_reschedules(self) -> TaskRescheduleOperations:
+        """Operations related to Task Reschedules."""
+        return TaskRescheduleOperations(self)
 
     @lru_cache()  # type: ignore[misc]
     @property
