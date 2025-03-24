@@ -78,14 +78,15 @@ Setup your project
 5. An alternative way to add source roots is to configure the ``airflow.iml`` file under ``.idea`` directory and update the
    ``module.xml`` file:
 
-   Create a file ``.idea/airflow.iml`` from the following file content: `pycharm-airflow.iml.txt
-   <../quick-start-ide/idea-xml-references/pycharm-airflow.iml.txt>`_.
-   make sure to replace ``{replace with your virtual environment name}`` with your virtual environment name.
+   To setup the source roots for all the modules that exist in the project, you can run the following command:
+   This needs to done on the airflow repository root directory. It overwrites the existing ``.idea/airflow.iml`` and
+   ``.idea/modules.xml`` files.
 
-   Then update the ``.idea/modules.xml`` file with the following content: `pycharm-modules.xml.txt
-   <../quick-start-ide/idea-xml-references/pycharm-modules.xml.txt>`_.
+    .. code-block:: bash
 
-   Then Repair the IDE by clicking on the "Repair IDE" button and restart the IDE.
+      $ python setup_idea.py
+
+   Then Restart the PyCharm/IntelliJ IDEA.
 
    .. raw:: html
 
