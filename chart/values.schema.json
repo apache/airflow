@@ -1770,139 +1770,139 @@
                         }
                     }
                 },
-              "vpa": {
-                  "description": "VPA configuration.",
-                  "type": "object",
-                  "additionalProperties": false,
-                  "properties": {
-                    "enabled": {
-                      "description": "Allow VPA autoscaling",
-                      "type": "boolean",
-                      "default": false
-                    },
-                    "updateMode": {
-                      "description": "Controls when the autoscaler applies changes to the pod resources.",
-                      "type": "string",
-                      "default": "Initial",
-                      "enum": [
-                        "Off",
-                        "Initial",
-                        "Recreate",
-                        "Auto"
-                      ]
-                    },
-                    "resourcePolicy": {
-                      "description": "Controls how the autoscaler computes recommended resources.",
-                      "type": "object",
-                      "properties": {
-                        "containerPolicies": {
-                          "description": "Per-container resource policies.",
-                          "type": "array",
-                          "items": {
+                "vpa": {
+                    "description": "VPA configuration.",
+                    "type": "object",
+                    "additionalProperties": false,
+                    "properties": {
+                        "enabled": {
+                            "description": "Allow VPA autoscaling",
+                            "type": "boolean",
+                            "default": false
+                        },
+                        "updateMode": {
+                            "description": "Controls when the autoscaler applies changes to the pod resources.",
+                            "type": "string",
+                            "default": "Initial",
+                            "enum": [
+                                "Off",
+                                "Initial",
+                                "Recreate",
+                                "Auto"
+                            ]
+                        },
+                        "resourcePolicy": {
+                            "description": "Controls how the autoscaler computes recommended resources.",
+                            "type": "object",
+                            "properties": {
+                                "containerPolicies": {
+                                    "description": "Per-container resource policies.",
+                                    "type": "array",
+                                    "items": {
+                                        "type": "object",
+                                        "additionalProperties": false,
+                                        "properties": {
+                                            "containerName": {
+                                                "description": "Name of the container.",
+                                                "type": "string"
+                                            },
+                                            "minAllowed": {
+                                                "description": "Minimum allowed resources for the container.",
+                                                "type": "object",
+                                                "properties": {
+                                                    "cpu": {
+                                                        "type": "string"
+                                                    },
+                                                    "memory": {
+                                                        "type": "string"
+                                                    }
+                                                }
+                                            },
+                                            "maxAllowed": {
+                                                "description": "Maximum allowed resources for the container.",
+                                                "type": "object",
+                                                "properties": {
+                                                    "cpu": {
+                                                        "type": "string"
+                                                    },
+                                                    "memory": {
+                                                        "type": "string"
+                                                    }
+                                                }
+                                            },
+                                            "mode": {
+                                                "description": "Mode for the container's resource policy.",
+                                                "type": "string",
+                                                "enum": [
+                                                    "Auto",
+                                                    "Off",
+                                                    "Initial",
+                                                    "Recreate"
+                                                ]
+                                            }
+                                        },
+                                        "required": [
+                                            "containerName"
+                                        ]
+                                    }
+                                }
+                            },
+                            "default": {}
+                        },
+                        "extraContainers": {
+                            "description": "Resource policies for additional containers.",
                             "type": "object",
                             "additionalProperties": false,
-                            "properties": {
-                              "containerName": {
-                                "description": "Name of the container.",
-                                "type": "string"
-                              },
-                              "minAllowed": {
-                                "description": "Minimum allowed resources for the container.",
-                                "type": "object",
-                                "properties": {
-                                  "cpu": {
-                                    "type": "string"
-                                  },
-                                  "memory": {
-                                    "type": "string"
-                                  }
+                            "patternProperties": {
+                                "^[a-zA-Z0-9._-]+$": {
+                                    "type": "object",
+                                    "properties": {
+                                        "maxAllowed": {
+                                            "additionalProperties": {
+                                                "anyOf": [
+                                                    {
+                                                        "type": "integer"
+                                                    },
+                                                    {
+                                                        "type": "string"
+                                                    }
+                                                ],
+                                                "pattern": "^(\\+|-)?(([0-9]+(\\.[0-9]*)?)|(\\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\\+|-)?(([0-9]+(\\.[0-9]*)?)|(\\.[0-9]+))))?$",
+                                                "x-kubernetes-int-or-string": true
+                                            },
+                                            "description": "Specifies the maximum amount of resources that will be recommended for the container. The default is no maximum.",
+                                            "type": "object"
+                                        },
+                                        "minAllowed": {
+                                            "additionalProperties": {
+                                                "anyOf": [
+                                                    {
+                                                        "type": "integer"
+                                                    },
+                                                    {
+                                                        "type": "string"
+                                                    }
+                                                ],
+                                                "pattern": "^(\\+|-)?(([0-9]+(\\.[0-9]*)?)|(\\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\\+|-)?(([0-9]+(\\.[0-9]*)?)|(\\.[0-9]+))))?$",
+                                                "x-kubernetes-int-or-string": true
+                                            },
+                                            "description": "Specifies the minimal amount of resources that will be recommended for the container. The default is no minimum.",
+                                            "type": "object"
+                                        },
+                                        "mode": {
+                                            "description": "Whether autoscaler is enabled for the container. The default is \"Auto\".",
+                                            "enum": [
+                                                "Auto",
+                                                "Off"
+                                            ],
+                                            "type": "string"
+                                        }
+                                    }
                                 }
-                              },
-                              "maxAllowed": {
-                                "description": "Maximum allowed resources for the container.",
-                                "type": "object",
-                                "properties": {
-                                  "cpu": {
-                                    "type": "string"
-                                  },
-                                  "memory": {
-                                    "type": "string"
-                                  }
-                                }
-                              },
-                              "mode": {
-                                "description": "Mode for the container's resource policy.",
-                                "type": "string",
-                                "enum": [
-                                  "Auto",
-                                  "Off",
-                                  "Initial",
-                                  "Recreate"
-                                ]
-                              }
                             },
-                            "required": [
-                              "containerName"
-                            ]
-                          }
+                            "default": {}
                         }
-                      },
-                      "default": {}
-                    },
-                    "extraContainers": {
-                      "description": "Resource policies for additional containers.",
-                      "type": "object",
-                      "additionalProperties": false,
-                      "patternProperties": {
-                        "^[a-zA-Z0-9._-]+$": {
-                          "type": "object",
-                          "properties": {
-                            "maxAllowed": {
-                              "additionalProperties": {
-                                "anyOf": [
-                                  {
-                                    "type": "integer"
-                                  },
-                                  {
-                                    "type": "string"
-                                  }
-                                ],
-                                "pattern": "^(\\+|-)?(([0-9]+(\\.[0-9]*)?)|(\\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\\+|-)?(([0-9]+(\\.[0-9]*)?)|(\\.[0-9]+))))?$",
-                                "x-kubernetes-int-or-string": true
-                              },
-                              "description": "Specifies the maximum amount of resources that will be recommended for the container. The default is no maximum.",
-                              "type": "object"
-                            },
-                            "minAllowed": {
-                              "additionalProperties": {
-                                "anyOf": [
-                                  {
-                                    "type": "integer"
-                                  },
-                                  {
-                                    "type": "string"
-                                  }
-                                ],
-                                "pattern": "^(\\+|-)?(([0-9]+(\\.[0-9]*)?)|(\\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\\+|-)?(([0-9]+(\\.[0-9]*)?)|(\\.[0-9]+))))?$",
-                                "x-kubernetes-int-or-string": true
-                              },
-                              "description": "Specifies the minimal amount of resources that will be recommended for the container. The default is no minimum.",
-                              "type": "object"
-                            },
-                            "mode": {
-                              "description": "Whether autoscaler is enabled for the container. The default is \"Auto\".",
-                              "enum": [
-                                "Auto",
-                                "Off"
-                              ],
-                              "type": "string"
-                            }
-                          }
-                        }
-                      },
-                      "default": {}
                     }
-                  }
                 },
                 "persistence": {
                     "description": "Persistence configuration.",
@@ -2922,91 +2922,91 @@
                     }
                 },
                 "vpa": {
-                  "description": "VPA configuration.",
-                  "type": "object",
-                  "additionalProperties": false,
-                  "properties": {
-                    "enabled": {
-                      "description": "Allow VPA autoscaling",
-                      "type": "boolean",
-                      "default": false
-                    },
-                    "updateMode": {
-                      "description": "Controls when the autoscaler applies changes to the pod resources.",
-                      "type": "string",
-                      "default": "Initial",
-                      "enum": [
-                        "Off",
-                        "Initial",
-                        "Recreate",
-                        "Auto"
-                      ]
-                    },
-                    "resourcePolicy": {
-                      "description": "Controls how the autoscaler computes recommended resources.",
-                      "type": "object",
-                      "additionalProperties": false,
-                      "properties": {
-                        "containerPolicies": {
-                          "description": "Per-container resource policies.",
-                          "type": "array",
-                          "items": {
-                            "type": "object",
-                            "properties": {
-                              "containerName": {
-                                "description": "Name of the container.",
-                                "type": "string"
-                              },
-                              "minAllowed": {
-                                "description": "Minimum allowed resources for the container.",
-                                "type": "object",
-                                "properties": {
-                                  "cpu": {
-                                    "type": "string"
-                                  },
-                                  "memory": {
-                                    "type": "string"
-                                  }
-                                }
-                              },
-                              "maxAllowed": {
-                                "description": "Maximum allowed resources for the container.",
-                                "type": "object",
-                                "properties": {
-                                  "cpu": {
-                                    "type": "string"
-                                  },
-                                  "memory": {
-                                    "type": "string"
-                                  }
-                                }
-                              },
-                              "mode": {
-                                "description": "Mode for the container's resource policy.",
-                                "type": "string",
-                                "enum": [
-                                  "Auto",
-                                  "Off",
-                                  "Initial",
-                                  "Recreate"
-                                ]
-                              }
-                            },
-                            "required": [
-                              "containerName"
+                    "description": "VPA configuration.",
+                    "type": "object",
+                    "additionalProperties": false,
+                    "properties": {
+                        "enabled": {
+                            "description": "Allow VPA autoscaling",
+                            "type": "boolean",
+                            "default": false
+                        },
+                        "updateMode": {
+                            "description": "Controls when the autoscaler applies changes to the pod resources.",
+                            "type": "string",
+                            "default": "Initial",
+                            "enum": [
+                                "Off",
+                                "Initial",
+                                "Recreate",
+                                "Auto"
                             ]
-                          }
+                        },
+                        "resourcePolicy": {
+                            "description": "Controls how the autoscaler computes recommended resources.",
+                            "type": "object",
+                            "additionalProperties": false,
+                            "properties": {
+                                "containerPolicies": {
+                                    "description": "Per-container resource policies.",
+                                    "type": "array",
+                                    "items": {
+                                        "type": "object",
+                                        "properties": {
+                                            "containerName": {
+                                                "description": "Name of the container.",
+                                                "type": "string"
+                                            },
+                                            "minAllowed": {
+                                                "description": "Minimum allowed resources for the container.",
+                                                "type": "object",
+                                                "properties": {
+                                                    "cpu": {
+                                                        "type": "string"
+                                                    },
+                                                    "memory": {
+                                                        "type": "string"
+                                                    }
+                                                }
+                                            },
+                                            "maxAllowed": {
+                                                "description": "Maximum allowed resources for the container.",
+                                                "type": "object",
+                                                "properties": {
+                                                    "cpu": {
+                                                        "type": "string"
+                                                    },
+                                                    "memory": {
+                                                        "type": "string"
+                                                    }
+                                                }
+                                            },
+                                            "mode": {
+                                                "description": "Mode for the container's resource policy.",
+                                                "type": "string",
+                                                "enum": [
+                                                    "Auto",
+                                                    "Off",
+                                                    "Initial",
+                                                    "Recreate"
+                                                ]
+                                            }
+                                        },
+                                        "required": [
+                                            "containerName"
+                                        ]
+                                    }
+                                }
+                            },
+                            "default": {}
+                        },
+                        "extraContainers": {
+                            "description": "Resource policies for additional containers.",
+                            "type": "object",
+                            "additionalProperties": true,
+                            "default": {}
                         }
-                      },
-                      "default": {}
-                    },
-                    "extraContainers": {
-                      "description": "Resource policies for additional containers.",
-                      "type": "object",
-                      "additionalProperties": true,
-                      "default": {}
                     }
-                  }
                 },
                 "logGroomerSidecar": {
                     "$ref": "#/definitions/logGroomerConfigType",
@@ -5839,140 +5839,140 @@
                         }
                     }
                 },
-                            "vpa": {
-                              "description": "VPA configuration.",
-                              "type": "object",
-                              "additionalProperties": false,
-                              "properties": {
-                                "enabled": {
-                                  "description": "Allow VPA autoscaling",
-                                  "type": "boolean",
-                                  "default": false
-                                },
-                                "updateMode": {
-                                  "description": "Controls when the autoscaler applies changes to the pod resources.",
-                                  "type": "string",
-                                  "default": "Initial",
-                                  "enum": [
-                                    "Off",
-                                    "Initial",
-                                    "Recreate",
-                                    "Auto"
-                                  ]
-                                },
-                                "resourcePolicy": {
-                                  "description": "Controls how the autoscaler computes recommended resources.",
-                                  "type": "object",
-                                  "properties": {
-                                    "containerPolicies": {
-                                      "description": "Per-container resource policies.",
-                                      "type": "array",
-                                      "items": {
+                "vpa": {
+                    "description": "VPA configuration.",
+                    "type": "object",
+                    "additionalProperties": false,
+                    "properties": {
+                        "enabled": {
+                            "description": "Allow VPA autoscaling",
+                            "type": "boolean",
+                            "default": false
+                        },
+                        "updateMode": {
+                            "description": "Controls when the autoscaler applies changes to the pod resources.",
+                            "type": "string",
+                            "default": "Initial",
+                            "enum": [
+                                "Off",
+                                "Initial",
+                                "Recreate",
+                                "Auto"
+                            ]
+                        },
+                        "resourcePolicy": {
+                            "description": "Controls how the autoscaler computes recommended resources.",
+                            "type": "object",
+                            "properties": {
+                                "containerPolicies": {
+                                    "description": "Per-container resource policies.",
+                                    "type": "array",
+                                    "items": {
                                         "type": "object",
                                         "properties": {
-                                          "containerName": {
-                                            "description": "Name of the container.",
-                                            "type": "string"
-                                          },
-                                          "minAllowed": {
-                                            "description": "Minimum allowed resources for the container.",
-                                            "type": "object",
-                                            "properties": {
-                                              "cpu": {
+                                            "containerName": {
+                                                "description": "Name of the container.",
                                                 "type": "string"
-                                              },
-                                              "memory": {
-                                                "type": "string"
-                                              }
+                                            },
+                                            "minAllowed": {
+                                                "description": "Minimum allowed resources for the container.",
+                                                "type": "object",
+                                                "properties": {
+                                                    "cpu": {
+                                                        "type": "string"
+                                                    },
+                                                    "memory": {
+                                                        "type": "string"
+                                                    }
+                                                }
+                                            },
+                                            "maxAllowed": {
+                                                "description": "Maximum allowed resources for the container.",
+                                                "type": "object",
+                                                "properties": {
+                                                    "cpu": {
+                                                        "type": "string"
+                                                    },
+                                                    "memory": {
+                                                        "type": "string"
+                                                    }
+                                                }
+                                            },
+                                            "mode": {
+                                                "description": "Mode for the container's resource policy.",
+                                                "type": "string",
+                                                "enum": [
+                                                    "Auto",
+                                                    "Off",
+                                                    "Initial",
+                                                    "Recreate"
+                                                ]
                                             }
-                                          },
-                                          "maxAllowed": {
-                                            "description": "Maximum allowed resources for the container.",
-                                            "type": "object",
-                                            "properties": {
-                                              "cpu": {
-                                                "type": "string"
-                                              },
-                                              "memory": {
-                                                "type": "string"
-                                              }
-                                            }
-                                          },
-                                          "mode": {
-                                            "description": "Mode for the container's resource policy.",
-                                            "type": "string",
-                                            "enum": [
-                                              "Auto",
-                                              "Off",
-                                              "Initial",
-                                              "Recreate"
-                                            ]
-                                          }
                                         },
                                         "required": [
-                                          "containerName"
+                                            "containerName"
                                         ]
-                                      }
                                     }
-                                  },
-                                  "default": {}
-                                },
-                                "extraContainers": {
-                                  "description": "Resource policies for additional containers.",
-                                  "type": "object",
-                                  "additionalProperties": false,
-                                  "patternProperties": {
-                                    "^[a-zA-Z0-9._-]+$": {
-                                      "type": "object",
-                                      "additionalProperties": false,
-                                      "properties": {
+                                }
+                            },
+                            "default": {}
+                        },
+                        "extraContainers": {
+                            "description": "Resource policies for additional containers.",
+                            "type": "object",
+                            "additionalProperties": false,
+                            "patternProperties": {
+                                "^[a-zA-Z0-9._-]+$": {
+                                    "type": "object",
+                                    "additionalProperties": false,
+                                    "properties": {
                                         "maxAllowed": {
-                                          "additionalProperties": {
-                                            "anyOf": [
-                                              {
-                                                "type": "integer"
-                                              },
-                                              {
-                                                "type": "string"
-                                              }
-                                            ],
-                                            "pattern": "^(\\+|-)?(([0-9]+(\\.[0-9]*)?)|(\\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\\+|-)?(([0-9]+(\\.[0-9]*)?)|(\\.[0-9]+))))?$",
-                                            "x-kubernetes-int-or-string": true
-                                          },
-                                          "description": "Specifies the maximum amount of resources that will be recommended for the container. The default is no maximum.",
-                                          "type": "object"
+                                            "additionalProperties": {
+                                                "anyOf": [
+                                                    {
+                                                        "type": "integer"
+                                                    },
+                                                    {
+                                                        "type": "string"
+                                                    }
+                                                ],
+                                                "pattern": "^(\\+|-)?(([0-9]+(\\.[0-9]*)?)|(\\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\\+|-)?(([0-9]+(\\.[0-9]*)?)|(\\.[0-9]+))))?$",
+                                                "x-kubernetes-int-or-string": true
+                                            },
+                                            "description": "Specifies the maximum amount of resources that will be recommended for the container. The default is no maximum.",
+                                            "type": "object"
                                         },
                                         "minAllowed": {
-                                          "additionalProperties": {
-                                            "anyOf": [
-                                              {
-                                                "type": "integer"
-                                              },
-                                              {
-                                                "type": "string"
-                                              }
-                                            ],
-                                            "pattern": "^(\\+|-)?(([0-9]+(\\.[0-9]*)?)|(\\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\\+|-)?(([0-9]+(\\.[0-9]*)?)|(\\.[0-9]+))))?$",
-                                            "x-kubernetes-int-or-string": true
-                                          },
-                                          "description": "Specifies the minimal amount of resources that will be recommended for the container. The default is no minimum.",
-                                          "type": "object"
+                                            "additionalProperties": {
+                                                "anyOf": [
+                                                    {
+                                                        "type": "integer"
+                                                    },
+                                                    {
+                                                        "type": "string"
+                                                    }
+                                                ],
+                                                "pattern": "^(\\+|-)?(([0-9]+(\\.[0-9]*)?)|(\\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\\+|-)?(([0-9]+(\\.[0-9]*)?)|(\\.[0-9]+))))?$",
+                                                "x-kubernetes-int-or-string": true
+                                            },
+                                            "description": "Specifies the minimal amount of resources that will be recommended for the container. The default is no minimum.",
+                                            "type": "object"
                                         },
                                         "mode": {
-                                          "description": "Whether autoscaler is enabled for the container. The default is \"Auto\".",
-                                          "enum": [
-                                            "Auto",
-                                            "Off"
-                                          ],
-                                          "type": "string"
+                                            "description": "Whether autoscaler is enabled for the container. The default is \"Auto\".",
+                                            "enum": [
+                                                "Auto",
+                                                "Off"
+                                            ],
+                                            "type": "string"
                                         }
-                                      }
                                     }
-                                  },
-                                  "default": {}
                                 }
-                              }
                             },
+                            "default": {}
+                        }
+                    }
+                },
                 "serviceAccount": {
                     "description": "Create ServiceAccount.",
                     "type": "object",
