@@ -1442,7 +1442,8 @@ class TestRuntimeTaskInstance:
             start_date=timezone.datetime(2025, 1, 1)
         )
 
-        assert runtime_ti.get_first_reschedule_date(try_number=2) == expected_date
+        context = runtime_ti.get_template_context()
+        assert runtime_ti.get_first_reschedule_date(context=context) == expected_date
 
 
 class TestXComAfterTaskExecution:

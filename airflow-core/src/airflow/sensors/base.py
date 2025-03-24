@@ -204,16 +204,7 @@ class BaseSensorOperator(BaseOperator):
 
         if self.reschedule:
             ti = context["ti"]
-            max_tries: int = ti.max_tries or 0
-            retries: int = self.retries or 0
-
-            # If reschedule, use the start date of the first try (first try can be either the very
-            # first execution of the task, or the first execution after the task was cleared).
-            # If the first try's record was not saved due to the Exception occurred and the following
-            # transaction rollback, the next available attempt should be taken
-            # to prevent falling in the endless rescheduling
-            first_try_number = max_tries - retries + 1
-            first_reschedule_date = ti.get_first_reschedule_date(first_try_number)
+            first_reschedule_date = ti.get_first_reschedule_date(context)
             started_at = start_date = first_reschedule_date or timezone.utcnow()
 
             def run_duration() -> float:

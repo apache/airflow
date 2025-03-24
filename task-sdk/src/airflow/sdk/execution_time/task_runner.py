@@ -363,18 +363,22 @@ class RuntimeTaskInstance(TaskInstance):
         # TODO: Implement this method
         return None
 
-    def get_first_reschedule_date(self, try_number: int) -> datetime | None:
+    def get_first_reschedule_date(self, context: Context) -> datetime | None:
         """Get the first reschedule date for the task instance."""
-        if self._ti_context_from_server.task_reschedule_count == 0:
+        if context.get("task_reschedule_count", 0) == 0:
             # If the task has not been rescheduled, there is no need to ask the supervisor
             return None
+
+        max_tries: int = self.max_tries
+        retries: int = self.task.retries or 0
+        first_try_number = max_tries - retries + 1
 
         log = structlog.get_logger(logger_name="task")
 
         log.debug("Requesting first reschedule date from supervisor")
 
         SUPERVISOR_COMMS.send_request(
-            log=log, msg=GetTaskRescheduleStartDate(ti_id=self.id, try_number=try_number)
+            log=log, msg=GetTaskRescheduleStartDate(ti_id=self.id, try_number=first_try_number)
         )
         response = SUPERVISOR_COMMS.get_message()
 
