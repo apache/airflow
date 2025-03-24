@@ -14,9 +14,18 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+# /// script
+# requires-python = ">=3.9"
+# dependencies = [
+#   "rich>=13.6.0",
+# ]
+# ///
 from __future__ import annotations
 
-import os
+from pathlib import Path
+
+from rich import print
+from rich.prompt import Confirm
 
 iml_xml_template = """<?xml version="1.0" encoding="UTF-8"?>
 <module type="PYTHON_MODULE" version="4">
@@ -57,43 +66,52 @@ module_xml_template = """<?xml version="1.0" encoding="UTF-8"?>
 
 source_root_module_patter: str = '<sourceFolder url="file://$MODULE_DIR$/{path}" isTestSource="{status}" />'
 
-source_root_modules: list[str] = ["airflow-core", "airflow-ctl", "dev/breeze", "task-sdk"]
+source_root_modules: list[str] = ["airflow-core", "airflow-ctl", "task-sdk", "devel-common", "dev/breeze"]
 
 all_module_paths: list[str] = []
 
-ROOT_DIR: str = "./providers"
+ROOT_AIRFLOW_FOLDER_PATH = Path(__file__).parent
+IDEA_FOLDER_PATH = ROOT_AIRFLOW_FOLDER_PATH / ".idea"
+AIRFLOW_IML_FILE = IDEA_FOLDER_PATH / "airflow.iml"
+MODULES_XML_FILE = IDEA_FOLDER_PATH / "modules.xml"
+
+ROOT_PROVIDERS_FOLDER_PATH = ROOT_AIRFLOW_FOLDER_PATH / "providers"
 
 
 def setup_idea():
     # Providers discovery
-    for dirpath, _, filenames in os.walk(ROOT_DIR):
-        if "pyproject.toml" in filenames:
-            relative_path = os.path.relpath(dirpath, ROOT_DIR)
-            source_root_modules.append(f"providers/{relative_path}")
+    for pyproject_toml_file in ROOT_PROVIDERS_FOLDER_PATH.rglob("pyproject.toml"):
+        relative_path = pyproject_toml_file.relative_to(ROOT_AIRFLOW_FOLDER_PATH).parent.as_posix()
+        source_root_modules.append(f"{relative_path}")
 
     source_root_modules.sort()
     for module in source_root_modules:
+        print(f"[green]Adding[/] module: [blue]{module}[/]")
         all_module_paths.append(source_root_module_patter.format(path=f"{module}/src", status="false"))
-        all_module_paths.append(source_root_module_patter.format(path=f"{module}/test", status="true"))
+        all_module_paths.append(source_root_module_patter.format(path=f"{module}/tests", status="true"))
 
-    source_root_module_path: str = "\n\t\t".join(all_module_paths)
+    source_root_module_path = "\n\t\t".join(all_module_paths)
 
-    base_source_root_xml: str = iml_xml_template.format(SOURCE_ROOT_MODULE_PATH=source_root_module_path)
+    base_source_root_xml = iml_xml_template.format(SOURCE_ROOT_MODULE_PATH=source_root_module_path)
 
-    with open(".idea/airflow.iml", "w") as file:
-        file.write(base_source_root_xml)
-
-    with open(".idea/modules.xml", "w") as file:
-        file.write(module_xml_template)
+    IDEA_FOLDER_PATH.mkdir(exist_ok=True)
+    AIRFLOW_IML_FILE.write_text(base_source_root_xml)
+    MODULES_XML_FILE.write_text(module_xml_template)
 
 
 if __name__ == "__main__":
-    user_input = input(
-        "This script will overwrites the .idea/airflow.iml and .idea/modules.xml files. Press Enter Y/N to continue: "
-    )
-    if user_input.lower() == "y":
+    print("\n[yellow]Warning!!![/] This script will update the PyCharm/IntelliJ IDEA configuration files:\n")
+    print(f"* {AIRFLOW_IML_FILE}")
+    print(f"* {MODULES_XML_FILE}\n")
+    should_continue = Confirm.ask("Overwrite the files?")
+    if should_continue:
+        print()
         setup_idea()
-        print("Updated airflow.iml and modules.xml files, Now restart the PyCharm/IntelliJ IDEA")
+        print("\n[green]Success\n")
+        print(
+            f"Updated {AIRFLOW_IML_FILE} and {MODULES_XML_FILE} files. "
+            f"Now restart the PyCharm/IntelliJ IDEA\n"
+        )
     else:
-        print("Not updating airflow.iml and modules.xml files")
-        exit(0)
+        print("[yellow]Skipped\n")
+        print(f"Not updated {AIRFLOW_IML_FILE} and {MODULES_XML_FILE} files\n")
