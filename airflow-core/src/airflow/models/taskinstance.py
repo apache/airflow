@@ -116,7 +116,6 @@ from airflow.utils.email import send_email
 from airflow.utils.helpers import prune_dict, render_template_to_string
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.net import get_hostname
-from airflow.utils.operator_helpers import ExecutionCallableRunner
 from airflow.utils.platform import getuser
 from airflow.utils.retries import run_with_db_retries
 from airflow.utils.session import NEW_SESSION, create_session, provide_session
@@ -640,13 +639,14 @@ def _execute_task(task_instance: TaskInstance, context: Context, task_orig: Oper
             )
 
     def _execute_callable(context: Context, **execute_callable_kwargs):
-        from airflow.utils.context import context_get_outlet_events
+        from airflow.sdk.execution_time.callback_runner import create_executable_runner
+        from airflow.sdk.execution_time.context import context_get_outlet_events
 
         try:
             # Print a marker for log grouping of details before task execution
             log.info("::endgroup::")
 
-            return ExecutionCallableRunner(
+            return create_executable_runner(
                 execute_callable,
                 context_get_outlet_events(context),
                 logger=log,
