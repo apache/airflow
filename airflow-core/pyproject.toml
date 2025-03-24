@@ -89,7 +89,7 @@ dependencies = [
     "flask-caching>=2.0.0",
     # Flask-Session 0.6 add new arguments into the SqlAlchemySessionInterface constructor as well as
     # all parameters now are mandatory which make AirflowDatabaseSessionInterface incompatible with this version.
-    "flask-session>=0.4.0,<0.6",
+    "flask-session>=0.4.0,<0.9",
     "flask-wtf>=1.1.0",
     # Flask 2.3 is scheduled to introduce a number of deprecation removals - some of them might be breaking
     # for our dependencies - notably `_app_ctx_stack` and `_request_ctx_stack` removals.
@@ -140,7 +140,7 @@ dependencies = [
     # See https://sqlalche.me/e/b8d9 for details of deprecated features
     # you can set environment variable SQLALCHEMY_WARN_20=1 to show all deprecation warnings.
     # The issue tracking it is https://github.com/apache/airflow/issues/28723
-    "sqlalchemy>=1.4.49,<2.0",
+    "sqlalchemy>=1.4.49,<3.0",
     "sqlalchemy-jsonfield>=1.0",
     "sqlalchemy-utils>=0.41.2",
     "svcs>=25.1.0",
@@ -153,7 +153,7 @@ dependencies = [
     "uuid6>=2024.7.10",
     # Werkzug 3 breaks Flask-Login 0.6.2
     # we should remove this limitation when FAB supports Flask 2.3
-    "werkzeug>=2.0,<3",
+    "werkzeug>=2.0,<4",
 ]
 
 

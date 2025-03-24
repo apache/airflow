@@ -23,8 +23,8 @@ import { ConfirmationModal } from "src/components/ConfirmationModal";
 import { TOKEN_STORAGE_KEY } from "src/utils/tokenHandler";
 
 type LogoutModalProps = {
-  isOpen: boolean;
-  onClose: () => void;
+  readonly isOpen: boolean;
+  readonly onClose: () => void;
 };
 
 const LogoutModal: React.FC<LogoutModalProps> = ({ isOpen, onClose }) => (

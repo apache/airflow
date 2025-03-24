@@ -129,10 +129,10 @@ a ``Asset``, which is ``@attr.define`` decorated, together with TaskFlow.
             return data["data"]
 
         @task()
-        def to_fahrenheit(temps: dict[int, float]) -> dict[int, float]:
+        def to_fahrenheit(temps: dict[int, dict[str, float]]) -> dict[int, float]:
             ret: dict[int, float] = {}
-            for year, celsius in temps.items():
-                ret[year] = float(celsius) * 1.8 + 32
+            for year, info in temps.items():
+                ret[year] = float(info["anomaly"]) * 1.8 + 32
 
             return ret
 

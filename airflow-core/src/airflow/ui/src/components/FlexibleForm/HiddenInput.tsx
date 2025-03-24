@@ -33,6 +33,7 @@ export const HiddenInput = ({ name }: FlexibleFormElementProps) => {
         id={`element_${name}`}
         name={`element_${name}`}
         type="hidden"
+        // eslint-disable-next-line @typescript-eslint/no-base-to-string
         value={String(param.value ?? "")}
       />
     </VisuallyHidden>

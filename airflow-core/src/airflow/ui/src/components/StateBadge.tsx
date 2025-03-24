@@ -24,7 +24,7 @@ import type { TaskInstanceState } from "openapi/requests/types.gen";
 import { StateIcon } from "./StateIcon";
 
 export type Props = {
-  state?: TaskInstanceState | null;
+  readonly state?: TaskInstanceState | null;
 } & BadgeProps;
 
 export const StateBadge = React.forwardRef<HTMLDivElement, Props>(({ children, state, ...rest }, ref) => (
