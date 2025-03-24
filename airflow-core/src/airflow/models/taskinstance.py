@@ -3692,6 +3692,10 @@ class TaskInstance(Base, LoggingMixin):
         """Get the first reschedule date for the task instance."""
         # TODO: AIP-72: Remove this after `ti.run` is migrated to use Task SDK
         max_tries: int = self.max_tries or 0
+
+        if TYPE_CHECKING:
+            assert isinstance(self.task, BaseOperator)
+
         retries: int = self.task.retries or 0
         first_try_number = max_tries - retries + 1
 
