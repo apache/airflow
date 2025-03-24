@@ -20,6 +20,7 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 
 import attrs
+import structlog
 
 from airflow.models.abstractoperator import AbstractOperator
 from airflow.sdk.definitions.mappedoperator import MappedOperator as TaskSDKMappedOperator
@@ -30,6 +31,8 @@ if TYPE_CHECKING:
     from sqlalchemy.orm.session import Session
 
     from airflow.sdk.definitions.context import Context
+
+log = structlog.get_logger()
 
 
 @attrs.define(
@@ -57,6 +60,13 @@ class MappedOperator(TaskSDKMappedOperator, AbstractOperator):  # type: ignore[m
 
         :meta private:
         """
+        if self.partial_kwargs.get("start_from_trigger", self.start_from_trigger):
+            log.warning(
+                "Starting a mapped task from triggerer is currently unsupported",
+                task_id=self.task_id,
+                dag_id=self.dag_id,
+            )
+        return False
         # start_from_trigger only makes sense when start_trigger_args exists.
         if not self.start_trigger_args:
             return False
