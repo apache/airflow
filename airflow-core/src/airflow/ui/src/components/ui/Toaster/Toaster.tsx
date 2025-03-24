@@ -16,12 +16,9 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Toaster as ChakraToaster, Portal, Spinner, Stack, Toast, createToaster } from "@chakra-ui/react";
+import { Toaster as ChakraToaster, Portal, Spinner, Stack, Toast } from "@chakra-ui/react";
 
-export const toaster = createToaster({
-  pauseOnPageIdle: true,
-  placement: "bottom-end",
-});
+import { toaster } from "./createToaster";
 
 export const Toaster = () => (
   <Portal>
