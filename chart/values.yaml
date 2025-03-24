@@ -704,13 +704,13 @@ workers:
 
     # Specify resource limits for additional containers
     extraContainers: []
-    #- containerName: test
-    #  minAllowed:
-    #    cpu: "250m"
-    #    memory: "100Mi"
-    #  maxAllowed:
-    #    cpu: "500m"
-    #    memory: "600Mi"
+    # - containerName: test
+    #   minAllowed:
+    #     cpu: "250m"
+    #     memory: "100Mi"
+    #   maxAllowed:
+    #     cpu: "500m"
+    #     memory: "600Mi"
 
   persistence:
     # Enable persistent volumes
@@ -1060,13 +1060,13 @@ scheduler:
 
     # Specify resource limits for additional containers
     extraContainers: []
-    #- containerName: test
-    #  minAllowed:
-    #    cpu: "250m"
-    #    memory: "100Mi"
-    #  maxAllowed:
-    #    cpu: "500m"
-    #    memory: "600Mi"
+    # - containerName: test
+    #   minAllowed:
+    #     cpu: "250m"
+    #     memory: "100Mi"
+    #   maxAllowed:
+    #     cpu: "500m"
+    #     memory: "600Mi"
 
   logGroomerSidecar:
     # Whether to deploy the Airflow scheduler log groomer sidecar.
@@ -1489,13 +1489,13 @@ webserver:
 
     # Specify resource limits for additional containers
     extraContainers: []
-    #- containerName: test
-    #  minAllowed:
-    #    cpu: "250m"
-    #    memory: "100Mi"
-    #  maxAllowed:
-    #    cpu: "500m"
-    #    memory: "600Mi"
+    # - containerName: test
+    #   minAllowed:
+    #     cpu: "250m"
+    #     memory: "100Mi"
+    #   maxAllowed:
+    #     cpu: "500m"
+    #     memory: "600Mi"
 
   # Create ServiceAccount
   serviceAccount:

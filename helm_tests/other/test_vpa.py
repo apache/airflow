@@ -49,7 +49,7 @@ class TestVPA:
         root_component = component if component != "worker" else "workers"
         docs = render_chart(
             values={
-                component: {
+                root_component: {
                     "vpa": {"enabled": True},
                     "labels": {"test_label": "test_label_value"},
                 },
@@ -76,7 +76,7 @@ class TestVPA:
         root_component = component if component != "worker" else "workers"
         docs = render_chart(
             values={
-                component: {
+                root_component: {
                     "vpa": {
                         "enabled": True,
                         "updateMode": update_mode,
