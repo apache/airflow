@@ -215,12 +215,13 @@ class Variable(Base, LoggingMixin):
             # check if the secret exists in the custom secrets' backend.
             # passing the secrets backend initialized on the worker side
             Variable.check_for_write_conflict(key=key, secrets_backends=SECRETS_BACKEND)
-            return TaskSDKVariable.set(
+            TaskSDKVariable.set(
                 key=key,
                 value=value,
                 description=description,
                 serialize_json=serialize_json,
             )
+            return
         # check if the secret exists in the custom secrets' backend.
         Variable.check_for_write_conflict(key=key)
         if serialize_json:
@@ -283,9 +284,7 @@ class Variable(Base, LoggingMixin):
             self._val = fernet.rotate(self._val.encode("utf-8")).decode()
 
     @staticmethod
-    def check_for_write_conflict(
-        key: str, secrets_backends: list[BaseSecretsBackend] = ensure_secrets_loaded()
-    ) -> None:
+    def check_for_write_conflict(key: str, secrets_backends: list[BaseSecretsBackend] | None = None) -> None:
         """
         Log a warning if a variable exists outside the metastore.
 
@@ -295,6 +294,8 @@ class Variable(Base, LoggingMixin):
 
         :param key: Variable Key
         """
+        if secrets_backends is None:
+            secrets_backends = ensure_secrets_loaded()
         for secrets_backend in secrets_backends:
             if not isinstance(secrets_backend, MetastoreBackend):
                 try:
