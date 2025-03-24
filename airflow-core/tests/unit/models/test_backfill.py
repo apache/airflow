@@ -173,6 +173,27 @@ def test_reprocess_behavior(reprocess_behavior, num_in_b, exc_reasons, dag_maker
     We have two modes whereby when there's an existing run(s) in the range
     of the backfill, we will clear an existing run.
     """
+
+    # introduce runs for a dag different from the test dag
+    # so that we can verify that queries won't pick up runs from
+    # other dags with same date
+    with dag_maker(schedule="@daily", dag_id="noise dag"):
+        PythonOperator(task_id="hi", python_callable=print)
+    date = "2021-01-06"
+    dr = dag_maker.create_dagrun(
+        run_id=f"scheduled_{date}",
+        logical_date=timezone.parse(date),
+        session=session,
+        state="success",
+    )
+    # should appear more recent than next runs we'll create
+    dr.start_date = timezone.parse(date) + timedelta(minutes=2)
+    session.commit()
+
+    # now the main part of the test
+    # we insert some historical runs with various states and see
+    # what the backfill behavior is depending on requested
+    # reprocessing behavior
     dag_id = "backfill-test-reprocess-behavior"
     with dag_maker(schedule="@daily", dag_id=dag_id) as dag:
         PythonOperator(task_id="hi", python_callable=print)
@@ -188,6 +209,7 @@ def test_reprocess_behavior(reprocess_behavior, num_in_b, exc_reasons, dag_maker
             session=session,
             state=state,
         )
+        # should sort just older than the noise dag with same logical date
         dr.start_date = timezone.parse(date)
         for ti in dr.get_task_instances(session=session):
             ti.state = state

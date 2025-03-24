@@ -377,16 +377,13 @@ jobs:
           rm /tmp/awscliv2.zip
           sudo /tmp/aws/install --update
           rm -rf /tmp/aws/
-        if: inputs.branch == 'main'
       - name: Configure AWS credentials
         uses: aws-actions/configure-aws-credentials@010d0da01d0b5a38af31e9c3470dbfdabdecca3a  # v4.0.1
-        if: inputs.branch == 'main'
         with:
           aws-access-key-id: ${{ secrets.DOCS_AWS_ACCESS_KEY_ID }}
           aws-secret-access-key: ${{ secrets.DOCS_AWS_SECRET_ACCESS_KEY }}
           aws-region: eu-central-1
       - name: "Upload documentation to AWS S3"
-        if: inputs.branch == 'main'
         run: aws s3 sync --delete ./docs/_build s3://apache-airflow-docs
 
   test-python-api-client:
