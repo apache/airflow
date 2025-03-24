@@ -216,6 +216,11 @@ class PrevSuccessfulDagRunResult(PrevSuccessfulDagRunResponse):
         return cls(**prev_dag_run.model_dump(exclude_defaults=True), type="PrevSuccessfulDagRunResult")
 
 
+class TaskRescheduleStartDate(BaseModel):
+    start_date: datetime
+    type: Literal["TaskRescheduleStartDate"] = "TaskRescheduleStartDate"
+
+
 class ErrorResponse(BaseModel):
     error: ErrorType = ErrorType.GENERIC_ERROR
     detail: dict | None = None
@@ -236,6 +241,7 @@ ToTask = Annotated[
         ErrorResponse,
         PrevSuccessfulDagRunResult,
         StartupDetails,
+        TaskRescheduleStartDate,
         VariableResult,
         XComResult,
         XComCountResponse,
@@ -435,6 +441,12 @@ class GetPrevSuccessfulDagRun(BaseModel):
     type: Literal["GetPrevSuccessfulDagRun"] = "GetPrevSuccessfulDagRun"
 
 
+class GetTaskRescheduleStartDate(BaseModel):
+    ti_id: UUID
+    try_number: int = 1
+    type: Literal["GetTaskRescheduleStartDate"] = "GetTaskRescheduleStartDate"
+
+
 ToSupervisor = Annotated[
     Union[
         SucceedTask,
@@ -446,6 +458,7 @@ ToSupervisor = Annotated[
         GetConnection,
         GetDagRunState,
         GetPrevSuccessfulDagRun,
+        GetTaskRescheduleStartDate,
         GetVariable,
         GetXCom,
         GetXComCount,
