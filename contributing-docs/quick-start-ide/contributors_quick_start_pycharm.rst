@@ -75,6 +75,33 @@ Setup your project
              alt="Invalidate caches and restart Pycharm">
       </div>
 
+5. An alternative way to add source roots is to configure the ``airflow.iml`` file under ``.idea`` directory and update the
+   ``module.xml`` file:
+
+   To setup the source roots for all the modules that exist in the project, you can run the following command:
+   This needs to done on the airflow repository root directory. It overwrites the existing ``.idea/airflow.iml`` and
+   ``.idea/modules.xml`` files.
+
+    .. code-block:: bash
+
+      $ python setup_idea.py
+
+   Then Restart the PyCharm/IntelliJ IDEA.
+
+   .. raw:: html
+
+      <div align="center" style="padding-bottom:10px">
+        <img src="images/pycharm-airflow.iml.png"
+             alt="airflow.iml">
+      </div>
+
+   .. raw:: html
+
+        <div align="center" style="padding-bottom:10px">
+          <img src="images/pycharm-modules.xml.png"
+              alt="modules.xml">
+        </div>
+
 Setting up debugging
 ####################
 
