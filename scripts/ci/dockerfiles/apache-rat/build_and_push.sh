@@ -19,10 +19,10 @@ set -euo pipefail
 GITHUB_REPOSITORY=${GITHUB_REPOSITORY:="apache/airflow"}
 readonly GITHUB_REPOSITORY
 
-APACHERAT_VERSION="0.13"
+APACHERAT_VERSION="0.16.1"
 readonly APACHERAT_VERSION
 
-AIRFLOW_APACHERAT_VERSION="2021.07.04"
+AIRFLOW_APACHERAT_VERSION="2024.03.23"
 readonly AIRFLOW_APACHERAT_VERSION
 
 COMMIT_SHA=$(git rev-parse HEAD)
@@ -33,12 +33,13 @@ cd "$( dirname "${BASH_SOURCE[0]}" )" || exit 1
 TAG="ghcr.io/${GITHUB_REPOSITORY}-apache-rat:${APACHERAT_VERSION}-${AIRFLOW_APACHERAT_VERSION}"
 readonly TAG
 
-docker build . \
+docker buildx build . \
     --pull \
+    --builder "airflow_cache" \
     --build-arg "APACHERAT_VERSION=${APACHERAT_VERSION}" \
     --build-arg "AIRFLOW_APACHERAT_VERSION=${AIRFLOW_APACHERAT_VERSION}" \
     --build-arg "COMMIT_SHA=${COMMIT_SHA}" \
     --label "org.opencontainers.image.source=https://github.com/${GITHUB_REPOSITORY}" \
-    --tag "${TAG}"
-
-docker push "${TAG}"
+    --platform "linux/amd64,linux/arm64" \
+    --tag "${TAG}" \
+    --push

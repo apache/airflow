@@ -21,7 +21,7 @@ import { Select as ChakraSelect } from "@chakra-ui/react";
 import { forwardRef } from "react";
 
 type ValueTextProps = {
-  children?: (items: Array<CollectionItem>) => React.ReactNode;
+  readonly children?: (items: Array<CollectionItem>) => React.ReactNode;
 } & Omit<ChakraSelect.ValueTextProps, "children">;
 
 export const ValueText = forwardRef<HTMLSpanElement, ValueTextProps>((props, ref) => {

@@ -22,7 +22,7 @@ import { forwardRef } from "react";
 import { CloseButton, type CloseButtonProps } from "../CloseButton";
 
 type Props = {
-  closeButtonProps?: CloseButtonProps;
+  readonly closeButtonProps?: CloseButtonProps;
 } & ChakraDialog.CloseTriggerProps;
 
 export const CloseTrigger = forwardRef<HTMLButtonElement, Props>(

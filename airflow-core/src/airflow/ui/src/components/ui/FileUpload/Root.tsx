@@ -20,7 +20,7 @@ import { FileUpload as ChakraFileUpload } from "@chakra-ui/react";
 import { forwardRef } from "react";
 
 export type FileUploadRootProps = {
-  inputProps?: React.InputHTMLAttributes<HTMLInputElement>;
+  readonly inputProps?: React.InputHTMLAttributes<HTMLInputElement>;
 } & ChakraFileUpload.RootProps;
 
 export const Root = forwardRef<HTMLInputElement, FileUploadRootProps>((props, ref) => {

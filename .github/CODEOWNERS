@@ -77,12 +77,12 @@
 /providers/apache/iceberg/ @Fokko
 
 # Dev tools
-/.github/workflows/ @potiuk @ashb
-/dev/ @potiuk @ashb @jedcunningham
-/docker_tests/ @potiuk @ashb
-/scripts/ @potiuk @ashb
-Dockerfile @potiuk @ashb
-Dockerfile.ci @potiuk @ashb
+/.github/workflows/ @potiuk @ashb @gopidesupavan
+/dev/ @potiuk @ashb @jedcunningham @gopidesupavan
+/docker_tests/ @potiuk @ashb @gopidesupavan
+/scripts/ @potiuk @ashb @gopidesupavan
+Dockerfile @potiuk @ashb @gopidesupavan
+Dockerfile.ci @potiuk @ashb @gopidesupavan
 
 # Releasing Guides & Project Guidelines
 /dev/PROJECT_GUIDELINES.md @kaxil

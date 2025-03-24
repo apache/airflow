@@ -28,6 +28,8 @@ type Props = {
 } & IconBaseProps;
 
 export const StateIcon = ({ state, ...rest }: Props) => {
+  // false positive eslint - we have a default.
+  // eslint-disable-next-line @typescript-eslint/switch-exhaustiveness-check
   switch (state) {
     case "deferred":
       return <FiWatch {...rest} />;

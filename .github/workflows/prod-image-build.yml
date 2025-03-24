@@ -292,7 +292,7 @@ jobs:
       - name: "Stash PROD docker image ${{ env.PYTHON_MAJOR_MINOR_VERSION }}"
         uses: apache/infrastructure-actions/stash/save@1c35b5ccf8fba5d4c3fdf25a045ca91aa0cbc468
         with:
-          key: prod-image-save-${{ inputs.platform }}-${{ env.PYTHON_MAJOR_MINOR_VERSION }}
+          key: prod-image-save-v3-${{ inputs.platform }}-${{ env.PYTHON_MAJOR_MINOR_VERSION }}
           path: "/mnt/prod-image-save-*-${{ env.PYTHON_MAJOR_MINOR_VERSION }}.tar"
           if-no-files-found: 'error'
           retention-days: '2'

@@ -75,7 +75,8 @@ class BaseK8STest:
             self._ensure_airflow_api_server_is_healthy()
             yield
         finally:
-            self.session.close()
+            if hasattr(self, "session") and self.session is not None:
+                self.session.close()
 
     def _describe_resources(self, namespace: str):
         kubeconfig_basename = os.path.basename(os.environ.get("KUBECONFIG", "default"))
