@@ -22,43 +22,38 @@
 #################################
 {{- if semverCompare "<3.0.0" .Values.airflowVersion }}
 {{- if and (and (not .Values.workers.keda.enabled) .Values.workers.vpa.enabled) (or (contains "CeleryExecutor" .Values.executor) (contains "CeleryKubernetesExecutor" .Values.executor)) }}
-apiVersion: autoscaling.k8s.io/v1beta2
+apiVersion: autoscaling.k8s.io/v1
 kind: VerticalPodAutoscaler
 metadata:
   name: {{ include "airflow.fullname" . }}-worker
   labels:
     tier: airflow
-    component: worker-horizontalpodautoscaler
+    component: worker-verticalpodautoscaler
     release: {{ .Release.Name }}
     chart: "{{ .Chart.Name }}-{{ .Chart.Version }}"
     heritage: {{ .Release.Service }}
     deploymentName: {{ .Release.Name }}-worker
-    {{- if or (.Values.labels) (.Values.worker.labels) }}
-      {{- mustMerge .Values.worker.labels .Values.labels | toYaml | nindent 4 }}
+    {{- if or (.Values.labels) (.Values.workers.labels) }}
+      {{- mustMerge .Values.workers.labels .Values.labels | toYaml | nindent 4 }}
     {{- end }}
 spec:
-  scaleTargetRef:
+  targetRef:
     apiVersion: apps/v1
     kind: {{ ternary "StatefulSet" "Deployment" .Values.workers.persistence.enabled }}
     name: {{ include "airflow.fullname" . }}-worker
   updatePolicy:
-    updateMode: {{ .Values.worker.vpa.updateMode }}
+    updateMode: {{ .Values.workers.vpa.updateMode }}
+  {{- if or  .Values.workers.vpa.resourcePolicy  .Values.workers.vpa.extraContainers}}
   resourcePolicy:
     containerPolicies:
     - containerName: "worker"
-      {{- with .Values.worker.vpa.resourcePolicy }}
+      {{- with .Values.workers.vpa.resourcePolicy }}
       {{- toYaml . | nindent 6 }}
       {{- end }}
-    {{- range $containerName, $value := .Values.worker.vpa.extra_containers }}
+    {{- range $containerName, $value := .Values.workers.vpa.extraContainers }}
     - containerName: {{ $containerName}}
         {{- toYaml $value | nindent 6 }}
     {{- end }}
-      # minAllowed:
-      #   cpu: "250m"
-      #   memory: "100Mi"
-      # maxAllowed:
-      #   cpu: "500m"
-      #   memory: "600Mi"
-
+  {{- end }}
 {{- end }}
 {{- end }}

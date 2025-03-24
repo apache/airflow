@@ -567,13 +567,12 @@ workers:
   command: ~
   # Args to use when running Airflow workers (templated).
   args:
-    - "bash"
-    - "-c"
-    # The format below is necessary to get `helm lint` happy
-    - |-
-      exec \
-      airflow {{ semverCompare ">=2.0.0" .Values.airflowVersion | ternary "celery worker" "worker" }}
-
+  - "bash"
+  - "-c"
+  # The format below is necessary to get `helm lint` happy
+  - |-
+    exec \
+    airflow {{ semverCompare ">=2.0.0" .Values.airflowVersion | ternary "celery worker" "worker" }}
   # If the worker stops responding for 5 minutes (5*60s) kill the
   # worker and let Kubernetes restart it
   livenessProbe:
@@ -654,13 +653,7 @@ workers:
 
     # Query to use for KEDA autoscaling. Must return a single integer.
     query: >-
-      SELECT ceil(COUNT(*)::decimal / {{ .Values.config.celery.worker_concurrency }})
-      FROM task_instance
-      WHERE (state='running' OR state='queued')
-      {{- if or (contains "CeleryKubernetesExecutor" .Values.executor)
-      (contains "KubernetesExecutor" .Values.executor) }}
-      AND queue != '{{ .Values.config.celery_kubernetes_executor.kubernetes_queue }}'
-      {{- end }}
+      SELECT ceil(COUNT(*)::decimal / {{ .Values.config.celery.worker_concurrency }}) FROM task_instance WHERE (state='running' OR state='queued') {{- if or (contains "CeleryKubernetesExecutor" .Values.executor) (contains "KubernetesExecutor" .Values.executor) }} AND queue != '{{ .Values.config.celery_kubernetes_executor.kubernetes_queue }}' {{- end }}
 
     # Weather to use PGBouncer to connect to the database or not when it is enabled
     # This configuration will be ignored if PGBouncer is not enabled
@@ -678,13 +671,12 @@ workers:
 
     # Specifications for which to use to calculate the desired replica count
     metrics:
-      - type: Resource
-        resource:
-          name: cpu
-          target:
-            type: Utilization
-            averageUtilization: 80
-
+    - type: Resource
+      resource:
+        name: cpu
+        target:
+          type: Utilization
+          averageUtilization: 80
     # Scaling behavior of the target in both Up and Down directions
     behavior: {}
   vpa:
@@ -692,22 +684,23 @@ workers:
     # Update mode
     updateMode: "Initial"
 
-    resourcePolicy:
-      minAllowed:
-        cpu: "250m"
-        memory: "100Mi"
-      maxAllowed:
-        cpu: "500m"
-        memory: "2Gi"
-    # Specifications for which to use to calculate the desired replica count
+    # Define minimum and maximum resource allocations for the Scheduler VPA
+    resourcePolicy: {}
+#        minAllowed:
+#          cpu: "250m"
+#          memory: "100Mi"
+#        maxAllowed:
+#          cpu: "500m"
+#          memory: "600Mi"
+    # Specify resource limits for additional containers
     extraContainers: {}
-      # container_name:
-      #   minAllowed:
-      #     cpu: "250m"
-      #     memory: "100Mi"
-      #   maxAllowed:
-      #     cpu: "500m"
-      #     memory: "600Mi"
+#      container_name:
+#        minAllowed:
+#          cpu: "250m"
+#          memory: "100Mi"
+#        maxAllowed:
+#          cpu: "500m"
+#          memory: "600Mi"
 
   persistence:
     # Enable persistent volumes
@@ -720,8 +713,8 @@ workers:
     # Volume size for worker StatefulSet
     size: 100Gi
     # If using a custom storageClass, pass name ref to all statefulSets here
-    storageClassName:
-    # Execute init container to chown log directory.
+    storageClassName: # Execute init container to chown log directory.
+
     # This is currently only needed in kind, due to usage
     # of local-path provisioner.
     fixPermissions: false
@@ -842,7 +835,7 @@ workers:
     # Command to use when running the Airflow worker log groomer sidecar (templated).
     command: ~
     # Args to use when running the Airflow worker log groomer sidecar (templated).
-    args: ["bash", "/clean-logs"]
+    args: [ "bash", "/clean-logs" ]
     # Number of days to retain logs
     retentionDays: 15
     # frequency to attempt to groom logs, in minutes
@@ -894,7 +887,7 @@ workers:
   #         requests:
   #           storage: "20Gi"
 
-# Airflow scheduler settings
+  # Airflow scheduler settings
 scheduler:
   enabled: true
   #  hostAliases for the scheduler pod
@@ -933,7 +926,7 @@ scheduler:
   # Command to use when running the Airflow scheduler (templated).
   command: ~
   # Args to use when running the Airflow scheduler (templated).
-  args: ["bash", "-c", "exec airflow scheduler"]
+  args: [ "bash", "-c", "exec airflow scheduler" ]
 
   # Update Strategy when scheduler is deployed as a StatefulSet
   # (when using LocalExecutor and workers.persistence)
@@ -1046,17 +1039,23 @@ scheduler:
     # Update mode
     updateMode: "Initial"
 
+    # Define minimum and maximum resource allocations for the Scheduler VPA
     resourcePolicy: {}
-    # Specifications for which to use to calculate the desired replica count
-    extraContainers:
-      container_name:
-        minAllowed:
-          cpu: "250m"
-          memory: "100Mi"
-        maxAllowed:
-          cpu: "500m"
-          memory: "600Mi"
-
+#        minAllowed:
+#          cpu: "250m"
+#          memory: "100Mi"
+#        maxAllowed:
+#          cpu: "500m"
+#          memory: "600Mi"
+    # Specify resource limits for additional containers
+    extraContainers: {}
+#      container_name:
+#        minAllowed:
+#          cpu: "250m"
+#          memory: "100Mi"
+#        maxAllowed:
+#          cpu: "500m"
+#          memory: "600Mi"
 
   logGroomerSidecar:
     # Whether to deploy the Airflow scheduler log groomer sidecar.
@@ -1064,7 +1063,7 @@ scheduler:
     # Command to use when running the Airflow scheduler log groomer sidecar (templated).
     command: ~
     # Args to use when running the Airflow scheduler log groomer sidecar (templated).
-    args: ["bash", "/clean-logs"]
+    args: [ "bash", "/clean-logs" ]
     # Number of days to retain logs
     retentionDays: 15
     # frequency to attempt to groom logs, in minutes
@@ -1093,9 +1092,6 @@ scheduler:
 
   env: []
 
-
-
-
 # Airflow create user job settings
 createUserJob:
   # Limit the lifetime of the job object after it finished execution.
@@ -1104,26 +1100,25 @@ createUserJob:
   command: ~
   # Args to use when running the create user job (templated).
   args:
-    - "bash"
-    - "-c"
-    # The format below is necessary to get `helm lint` happy
-    - |-
-      exec \
-      airflow {{ semverCompare ">=2.0.0" .Values.airflowVersion | ternary "users create" "create_user" }} "$@"
-    - --
-    - "-r"
-    - "{{ .Values.webserver.defaultUser.role }}"
-    - "-u"
-    - "{{ .Values.webserver.defaultUser.username }}"
-    - "-e"
-    - "{{ .Values.webserver.defaultUser.email }}"
-    - "-f"
-    - "{{ .Values.webserver.defaultUser.firstName }}"
-    - "-l"
-    - "{{ .Values.webserver.defaultUser.lastName }}"
-    - "-p"
-    - "{{ .Values.webserver.defaultUser.password }}"
-
+  - "bash"
+  - "-c"
+  # The format below is necessary to get `helm lint` happy
+  - |-
+    exec \
+    airflow {{ semverCompare ">=2.0.0" .Values.airflowVersion | ternary "users create" "create_user" }} "$@"
+  - --
+  - "-r"
+  - "{{ .Values.webserver.defaultUser.role }}"
+  - "-u"
+  - "{{ .Values.webserver.defaultUser.username }}"
+  - "-e"
+  - "{{ .Values.webserver.defaultUser.email }}"
+  - "-f"
+  - "{{ .Values.webserver.defaultUser.firstName }}"
+  - "-l"
+  - "{{ .Values.webserver.defaultUser.lastName }}"
+  - "-p"
+  - "{{ .Values.webserver.defaultUser.password }}"
   # Annotations on the create user job pod
   annotations: {}
   # jobAnnotations are annotations on the create user job
@@ -1201,7 +1196,7 @@ createUserJob:
   #   cpu: 100m
   #   memory: 128Mi
 
-# Airflow database migration job settings
+  # Airflow database migration job settings
 migrateDatabaseJob:
   enabled: true
   # Limit the lifetime of the job object after it finished execution.
@@ -1210,15 +1205,12 @@ migrateDatabaseJob:
   command: ~
   # Args to use when running the migrate database job (templated).
   args:
-    - "bash"
-    - "-c"
-    - >-
-      exec \
+  - "bash"
+  - "-c"
+  - >-
+    exec \
 
-      airflow {{ semverCompare ">=2.7.0" .Values.airflowVersion
-      | ternary "db migrate" (semverCompare ">=2.0.0" .Values.airflowVersion
-      | ternary "db upgrade" "upgradedb") }}
-
+    airflow {{ semverCompare ">=2.7.0" .Values.airflowVersion | ternary "db migrate" (semverCompare ">=2.0.0" .Values.airflowVersion | ternary "db upgrade" "upgradedb") }}
   # Annotations on the database migration pod
   annotations: {}
   # jobAnnotations are annotations on the database migration job
@@ -1303,7 +1295,7 @@ apiServer:
   # Command to use when running the Airflow API server (templated).
   command: ~
   # Args to use when running the Airflow API server (templated).
-  args: ["bash", "-c", "exec airflow api-server"]
+  args: [ "bash", "-c", "exec airflow api-server" ]
   allowPodLogReading: true
   env: []
   serviceAccount:
@@ -1323,8 +1315,8 @@ apiServer:
     ## service annotations
     annotations: {}
     ports:
-      - name: api-server
-        port: "{{ .Values.ports.apiServer }}"
+    - name: api-server
+      port: "{{ .Values.ports.apiServer }}"
 
     loadBalancerIP: ~
     ## Limit load balancer source ips to list of CIDRs
@@ -1341,7 +1333,7 @@ apiServer:
       maxUnavailable: 1
       # minAvailable: 1
 
-  # Detailed default security contexts for webserver deployments for container and pod level
+      # Detailed default security contexts for webserver deployments for container and pod level
   securityContexts:
     pod: {}
     container: {}
@@ -1363,7 +1355,7 @@ apiServer:
       from: []
       # Ports for webserver NetworkPolicy ingress (if `from` is set)
       ports:
-        - port: "{{ .Values.ports.apiServer }}"
+      - port: "{{ .Values.ports.apiServer }}"
 
   resources: {}
   #   limits:
@@ -1439,7 +1431,7 @@ webserver:
   # Command to use when running the Airflow webserver (templated).
   command: ~
   # Args to use when running the Airflow webserver (templated).
-  args: ["bash", "-c", "exec airflow webserver"]
+  args: [ "bash", "-c", "exec airflow webserver" ]
 
   # Grace period for webserver to finish after SIGTERM is sent from kubernetes
   terminationGracePeriodSeconds: 30
@@ -1456,34 +1448,37 @@ webserver:
 
     # Specifications for which to use to calculate the desired replica count
     metrics:
-      - type: Resource
-        resource:
-          name: cpu
-          target:
-            type: Utilization
-            averageUtilization: 80
-
+    - type: Resource
+      resource:
+        name: cpu
+        target:
+          type: Utilization
+          averageUtilization: 80
     # Scaling behavior of the target in both Up and Down directions
     behavior: {}
   # Allow VPA
   vpa:
-    enabled: true
+    enabled: false
     # Update mode
     updateMode: "Initial"
 
+    # Define minimum and maximum resource allocations for the Scheduler VPA
     resourcePolicy: {}
-
-    # Specifications for which to use to calculate the desired replica count
+#        minAllowed:
+#          cpu: "250m"
+#          memory: "100Mi"
+#        maxAllowed:
+#          cpu: "500m"
+#          memory: "600Mi"
+    # Specify resource limits for additional containers
     extraContainers: {}
-      # container_name:
-      #   minAllowed:
-      #     cpu: "250m"
-      #     memory: "100Mi"
-      #   maxAllowed:
-      #     cpu: "500m"
-      #     memory: "600Mi"
-
-
+#      container_name:
+#        minAllowed:
+#          cpu: "250m"
+#          memory: "100Mi"
+#        maxAllowed:
+#          cpu: "500m"
+#          memory: "600Mi"
 
   # Create ServiceAccount
   serviceAccount:
@@ -1509,7 +1504,7 @@ webserver:
       maxUnavailable: 1
       # minAvailable: 1
 
-  # Allow overriding Update Strategy for Webserver
+      # Allow overriding Update Strategy for Webserver
   strategy: ~
 
   # When not set, the values defined in the global securityContext will be used
@@ -1535,7 +1530,7 @@ webserver:
       from: []
       # Ports for webserver NetworkPolicy ingress (if `from` is set)
       ports:
-        - port: "{{ .Values.ports.airflowUI }}"
+      - port: "{{ .Values.ports.airflowUI }}"
 
   resources: {}
   #   limits:
@@ -1595,8 +1590,8 @@ webserver:
     ## service annotations
     annotations: {}
     ports:
-      - name: airflow-ui
-        port: "{{ .Values.ports.airflowUI }}"
+    - name: airflow-ui
+      port: "{{ .Values.ports.airflowUI }}"
     # To change the port used to access the webserver:
     # ports:
     #   - name: airflow-ui
@@ -1665,7 +1660,7 @@ triggerer:
   # Command to use when running Airflow triggerers (templated).
   command: ~
   # Args to use when running Airflow triggerer (templated).
-  args: ["bash", "-c", "exec airflow triggerer"]
+  args: [ "bash", "-c", "exec airflow triggerer" ]
 
   # Update Strategy when triggerer is deployed as a StatefulSet
   updateStrategy: ~
@@ -1720,8 +1715,8 @@ triggerer:
     # Volume size for triggerer StatefulSet
     size: 100Gi
     # If using a custom storageClass, pass name ref to all statefulSets here
-    storageClassName:
-    # Execute init container to chown log directory.
+    storageClassName: # Execute init container to chown log directory.
+
     # This is currently only needed in kind, due to usage
     # of local-path provisioner.
     fixPermissions: false
@@ -1803,7 +1798,7 @@ triggerer:
     # Command to use when running the Airflow triggerer log groomer sidecar (templated).
     command: ~
     # Args to use when running the Airflow triggerer log groomer sidecar (templated).
-    args: ["bash", "/clean-logs"]
+    args: [ "bash", "/clean-logs" ]
     # Number of days to retain logs
     retentionDays: 15
     # frequency to attempt to groom logs, in minutes
@@ -1865,8 +1860,7 @@ triggerer:
 
     # Query to use for KEDA autoscaling. Must return a single integer.
     query: >-
-      SELECT ceil(COUNT(*)::decimal / {{ .Values.config.triggerer.default_capacity }})
-      FROM trigger
+      SELECT ceil(COUNT(*)::decimal / {{ .Values.config.triggerer.default_capacity }}) FROM trigger
 
     # Whether to use PGBouncer to connect to the database or not when it is enabled
     # This configuration will be ignored if PGBouncer is not enabled
@@ -1883,7 +1877,7 @@ dagProcessor:
   # Command to use when running Airflow dag processors (templated).
   command: ~
   # Args to use when running Airflow dag processor (templated).
-  args: ["bash", "-c", "exec airflow dag-processor"]
+  args: [ "bash", "-c", "exec airflow dag-processor" ]
 
   # Update Strategy for dag processors
   strategy:
@@ -1991,7 +1985,7 @@ dagProcessor:
     # Command to use when running the Airflow dag processor log groomer sidecar (templated).
     command: ~
     # Args to use when running the Airflow dag processor log groomer sidecar (templated).
-    args: ["bash", "/clean-logs"]
+    args: [ "bash", "/clean-logs" ]
     # Number of days to retain logs
     retentionDays: 15
     # frequency to attempt to groom logs, in minutes
@@ -2051,13 +2045,12 @@ flower:
   command: ~
   # Args to use when running flower (templated).
   args:
-    - "bash"
-    - "-c"
-    # The format below is necessary to get `helm lint` happy
-    - |-
-      exec \
-      airflow {{ semverCompare ">=2.0.0" .Values.airflowVersion | ternary "celery flower" "flower" }}
-
+  - "bash"
+  - "-c"
+  # The format below is necessary to get `helm lint` happy
+  - |-
+    exec \
+    airflow {{ semverCompare ">=2.0.0" .Values.airflowVersion | ternary "celery flower" "flower" }}
   # Additional network policies as needed (Deprecated - renamed to `flower.networkPolicy.ingress.from`)
   extraNetworkPolicies: []
   networkPolicy:
@@ -2066,7 +2059,7 @@ flower:
       from: []
       # Ports for flower NetworkPolicy ingress (if ingressPeers is set)
       ports:
-        - port: "{{ .Values.ports.flowerUI }}"
+      - port: "{{ .Values.ports.flowerUI }}"
 
   resources: {}
   #   limits:
@@ -2116,8 +2109,8 @@ flower:
     ## service annotations
     annotations: {}
     ports:
-      - name: flower-ui
-        port: "{{ .Values.ports.flowerUI }}"
+    - name: flower-ui
+      port: "{{ .Values.ports.flowerUI }}"
     # To change the port used to access flower:
     # ports:
     #   - name: flower-ui
@@ -2173,7 +2166,7 @@ statsd:
   revisionHistoryLimit: ~
 
   # Arguments for StatsD exporter command.
-  args: ["--statsd.mapping-config=/etc/statsd-exporter/mappings.yml"]
+  args: [ "--statsd.mapping-config=/etc/statsd-exporter/mappings.yml" ]
 
   # Annotations to add to the StatsD Deployment.
   annotations: {}
@@ -2255,7 +2248,7 @@ pgbouncer:
   # Max number of old replicasets to retain
   revisionHistoryLimit: ~
   # Command to use for PgBouncer(templated).
-  command: ["pgbouncer", "-u", "nobody", "/etc/pgbouncer/pgbouncer.ini"]
+  command: [ "pgbouncer", "-u", "nobody", "/etc/pgbouncer/pgbouncer.ini" ]
   # Args to use for PgBouncer(templated).
   args: ~
   auth_type: scram-sha-256
@@ -2319,20 +2312,20 @@ pgbouncer:
       maxUnavailable: 1
       # minAvailable: 1
 
-  # Limit the resources to PgBouncer.
-  # When you specify the resource request the k8s scheduler uses this information to decide which node to
-  # place the Pod on. When you specify a resource limit for a Container, the kubelet enforces those limits so
-  # that the running container is not allowed to use more of that resource than the limit you set.
-  # See: https://kubernetes.io/docs/concepts/configuration/manage-resources-containers/
-  # Example:
-  #
-  # resource:
-  #   limits:
-  #     cpu: 100m
-  #     memory: 128Mi
-  #   requests:
-  #     cpu: 100m
-  #     memory: 128Mi
+      # Limit the resources to PgBouncer.
+      # When you specify the resource request the k8s scheduler uses this information to decide which node to
+      # place the Pod on. When you specify a resource limit for a Container, the kubelet enforces those limits so
+      # that the running container is not allowed to use more of that resource than the limit you set.
+      # See: https://kubernetes.io/docs/concepts/configuration/manage-resources-containers/
+      # Example:
+      #
+      # resource:
+      #   limits:
+      #     cpu: 100m
+      #     memory: 128Mi
+      #   requests:
+      #     cpu: 100m
+      #     memory: 128Mi
   resources: {}
 
   service:
@@ -2399,7 +2392,7 @@ pgbouncer:
     preStop:
       exec:
         # Allow existing queries clients to complete within 120 seconds
-        command: ["/bin/sh", "-c", "killall -INT pgbouncer && sleep 120"]
+        command: [ "/bin/sh", "-c", "killall -INT pgbouncer && sleep 120" ]
 
   metricsExporterSidecar:
     resources: {}
@@ -2484,9 +2477,10 @@ redis:
     # service type, default: ClusterIP
     type: "ClusterIP"
     # If using ClusterIP service type, custom IP address can be specified
-    clusterIP:
-    # If using NodePort service type, custom node port can be specified
+    clusterIP: # If using NodePort service type, custom node port can be specified
+
     nodePort:
+
 
   persistence:
     # Enable persistent volumes
@@ -2494,16 +2488,16 @@ redis:
     # Volume size for worker StatefulSet
     size: 1Gi
     # If using a custom storageClass, pass name ref to all statefulSets here
-    storageClassName:
-    # Annotations to add to redis volumes
+    storageClassName: # Annotations to add to redis volumes
+
     annotations: {}
     # the name of an existing PVC to use
     existingClaim:
 
-  # Configuration for empty dir volume (if redis.persistence.enabled == false)
-  # emptyDirConfig:
-  #   sizeLimit: 1Gi
-  #   medium: Memory
+      # Configuration for empty dir volume (if redis.persistence.enabled == false)
+      # emptyDirConfig:
+      #   sizeLimit: 1Gi
+      #   medium: Memory
 
   resources: {}
   #  limits:
@@ -2625,7 +2619,7 @@ cleanup:
   # Command to use when running the cleanup cronjob (templated).
   command: ~
   # Args to use when running the cleanup cronjob (templated).
-  args: ["bash", "-c", "exec airflow kubernetes cleanup-pods --namespace={{ .Release.Namespace }}"]
+  args: [ "bash", "-c", "exec airflow kubernetes cleanup-pods --namespace={{ .Release.Namespace }}" ]
 
   # jobAnnotations are annotations on the cleanup CronJob
   jobAnnotations: {}
@@ -2814,12 +2808,12 @@ dags:
     # Volume size for dags
     size: 1Gi
     # If using a custom storageClass, pass name here
-    storageClassName:
-    # access mode of the persistent volume
+    storageClassName: # access mode of the persistent volume
+
     accessMode: ReadWriteOnce
     ## the name of an existing PVC to use
-    existingClaim:
-    ## optional subpath for dag volume mount
+    existingClaim: ## optional subpath for dag volume mount
+
     subPath: ~
   gitSync:
     enabled: false
@@ -2948,6 +2942,6 @@ logs:
     # Annotations for the logs PVC
     annotations: {}
     # If using a custom storageClass, pass name here
-    storageClassName:
-    ## the name of an existing PVC to use
+    storageClassName: ## the name of an existing PVC to use
+
     existingClaim:

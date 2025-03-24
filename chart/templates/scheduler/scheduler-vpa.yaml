@@ -22,13 +22,13 @@
 #################################
 {{- if semverCompare "<3.0.0" .Values.airflowVersion }}
 {{- if and .Values.scheduler.enabled .Values.scheduler.vpa.enabled }}
-apiVersion: autoscaling.k8s.io/v1beta2
+apiVersion: autoscaling.k8s.io/v1
 kind: VerticalPodAutoscaler
 metadata:
   name: {{ include "airflow.fullname" . }}-scheduler
   labels:
     tier: airflow
-    component: scheduler-horizontalpodautoscaler
+    component: scheduler-verticalpodautoscaler
     release: {{ .Release.Name }}
     chart: "{{ .Chart.Name }}-{{ .Chart.Version }}"
     heritage: {{ .Release.Service }}
@@ -37,28 +37,26 @@ metadata:
       {{- mustMerge .Values.scheduler.labels .Values.labels | toYaml | nindent 4 }}
     {{- end }}
 spec:
-  scaleTargetRef:
+  targetRef:
     apiVersion: apps/v1
     kind: Deployment
     name: {{ include "airflow.fullname" . }}-scheduler
   updatePolicy:
     updateMode: {{ .Values.scheduler.vpa.updateMode }}
+  {{ if or .Values.scheduler.vpa.resourcePolicy .Values.scheduler.vpa.extraContainers}}
   resourcePolicy:
     containerPolicies:
     - containerName: "scheduler"
+      {{ if .Values.scheduler.vpa.resourcePolicy}}
       {{- with .Values.scheduler.vpa.resourcePolicy }}
       {{- toYaml . | nindent 6 }}
       {{- end }}
-    {{- range $containerName, $value := .Values.scheduler.vpa.extra_containers }}
+      {{- end }}
+    {{- range $containerName, $value := .Values.scheduler.vpa.extraContainers }}
     - containerName: {{ $containerName}}
         {{- toYaml $value | nindent 6 }}
     {{- end }}
-      # minAllowed:
-      #   cpu: "250m"
-      #   memory: "100Mi"
-      # maxAllowed:
-      #   cpu: "500m"
-      #   memory: "600Mi"
+  {{- end }}
 
 {{- end }}
 {{- end }}

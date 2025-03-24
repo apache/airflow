@@ -20,15 +20,14 @@
 ################################
 ## Airflow Webserver VPA
 #################################
-{{- if semverCompare "<3.0.0" .Values.airflowVersion }}
 {{- if and .Values.webserver.enabled .Values.webserver.vpa.enabled }}
-apiVersion: autoscaling.k8s.io/v1beta2
+apiVersion: autoscaling.k8s.io/v1
 kind: VerticalPodAutoscaler
 metadata:
   name: {{ include "airflow.fullname" . }}-webserver
   labels:
     tier: airflow
-    component: webserver-horizontalpodautoscaler
+    component: webserver-verticalpodautoscaler
     release: {{ .Release.Name }}
     chart: "{{ .Chart.Name }}-{{ .Chart.Version }}"
     heritage: {{ .Release.Service }}
@@ -37,28 +36,24 @@ metadata:
       {{- mustMerge .Values.webserver.labels .Values.labels | toYaml | nindent 4 }}
     {{- end }}
 spec:
-  scaleTargetRef:
+  targetRef:
     apiVersion: apps/v1
     kind: Deployment
     name: {{ include "airflow.fullname" . }}-webserver
   updatePolicy:
-    updateMode: {{ .Values.webserver.vpa.updateMode }}
+    updateMode: {{ .Values.webserver.vpa.updateMode | toString }}
+  {{ if or .Values.webserver.vpa.resourcePolicy .Values.webserver.vpa.extraContainers }}
   resourcePolicy:
     containerPolicies:
     - containerName: "webserver"
+      {{ if .Values.webserver.vpa.resourcePolicy}}
       {{- with .Values.webserver.vpa.resourcePolicy }}
-        {{- toYaml . | nindent 6 }}
+      {{- toYaml . | nindent 6 }}
       {{- end }}
-    {{- range $containerName, $value := .Values.webserver.vpa.extra_containers }}
+      {{- end }}
+    {{- range $containerName, $value := .Values.webserver.vpa.extraContainers }}
     - containerName: {{ $containerName}}
         {{- toYaml $value | nindent 6 }}
     {{- end }}
-      # minAllowed:
-      #   cpu: "250m"
-      #   memory: "100Mi"
-      # maxAllowed:
-      #   cpu: "500m"
-      #   memory: "600Mi"
-
-{{- end }}
+  {{- end }}
 {{- end }}
