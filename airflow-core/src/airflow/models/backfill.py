@@ -192,12 +192,15 @@ class BackfillDagRun(Base):
         return val
 
 
-def _get_latest_dag_run_row_query(info, session):
+def _get_latest_dag_run_row_query(*, dag_id, info, session):
     from airflow.models import DagRun
 
     return (
         select(DagRun)
-        .where(DagRun.logical_date == info.logical_date)
+        .where(
+            DagRun.logical_date == info.logical_date,
+            DagRun.dag_id == dag_id,
+        )
         .order_by(nulls_first(desc(DagRun.start_date), session=session))
         .limit(1)
     )
@@ -257,7 +260,7 @@ def _do_dry_run(*, dag_id, from_date, to_date, reverse, reprocess_behavior, sess
     logical_dates = []
     for info in dagrun_info_list:
         dr = session.scalar(
-            statement=_get_latest_dag_run_row_query(info, session),
+            statement=_get_latest_dag_run_row_query(dag_id=dag_id, info=info, session=session),
         )
         if dr:
             non_create_reason = _get_dag_run_no_create_reason(dr, reprocess_behavior)
@@ -281,7 +284,7 @@ def _create_backfill_dag_run(
     from airflow.models.dagrun import DagRun
 
     with session.begin_nested() as nested:
-        dr = session.scalar(_get_latest_dag_run_row_query(info, session))
+        dr = session.scalar(_get_latest_dag_run_row_query(dag_id=dag.dag_id, info=info, session=session))
         if dr:
             non_create_reason = _get_dag_run_no_create_reason(dr, reprocess_behavior)
             if non_create_reason:
