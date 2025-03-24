@@ -209,6 +209,24 @@ def _get_variable(key: str, deserialize_json: bool) -> Any:
     return variable.value
 
 
+def _set_variable(key: str, value: Any, description: str | None = None, serialize_json: bool = False) -> None:
+    from airflow.sdk.execution_time.comms import ErrorResponse, PutVariable
+    from airflow.sdk.execution_time.task_runner import SUPERVISOR_COMMS
+
+    if serialize_json:
+        import json
+
+        value = json.dumps(value, indent=2)
+    else:
+        value = str(value)
+
+    SUPERVISOR_COMMS.send_request(log=log, msg=PutVariable(key=key, value=value, description=description))
+    msg = SUPERVISOR_COMMS.get_message()
+    if isinstance(msg, ErrorResponse):
+        raise AirflowRuntimeError(msg)
+    return
+
+
 class ConnectionAccessor:
     """Wrapper to access Connection entries in template."""
 

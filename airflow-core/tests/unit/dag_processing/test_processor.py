@@ -181,6 +181,33 @@ class TestDagFileProcessor:
         if result.import_errors:
             assert "VARIABLE_NOT_FOUND" in next(iter(result.import_errors.values()))
 
+    def test_top_level_variable_set(
+        self, spy_agency: SpyAgency, tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch
+    ):
+        logger_filehandle = MagicMock()
+
+        def dag_in_a_fn():
+            from airflow.sdk import DAG, Variable
+
+            Variable.set("myvar", "123")
+            with DAG(f"test_{Variable.get('myvar')}"):
+                ...
+
+        path = write_dag_in_a_fn_to_file(dag_in_a_fn, tmp_path)
+
+        monkeypatch.setenv("AIRFLOW_VAR_MYVAR", "abc")
+        proc = DagFileProcessorProcess.start(
+            id=1, path=path, bundle_path=tmp_path, callbacks=[], logger_filehandle=logger_filehandle
+        )
+
+        while not proc.is_ready:
+            proc._service_subprocess(0.1)
+
+        result = proc.parsing_result
+        assert result is not None
+        assert result.import_errors == {}
+        assert result.serialized_dags[0].dag_id == "test_123"
+
     def test_top_level_connection_access(self, tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch):
         logger_filehandle = MagicMock()
 

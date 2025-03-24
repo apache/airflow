@@ -55,3 +55,9 @@ class Variable:
             if e.error.error == ErrorType.VARIABLE_NOT_FOUND and default is not NOTSET:
                 return default
             raise
+
+    @classmethod
+    def set(cls, key: str, value: Any, description: str | None = None, serialize_json: bool = False):
+        from airflow.sdk.execution_time.context import _set_variable
+
+        _set_variable(key, value, description=description, serialize_json=serialize_json)

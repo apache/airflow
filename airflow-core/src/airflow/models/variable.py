@@ -37,6 +37,9 @@ from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.session import provide_session
 
 if TYPE_CHECKING:
+    from airflow.secrets import BaseSecretsBackend
+
+if TYPE_CHECKING:
     from sqlalchemy.orm import Session
 
 log = logging.getLogger(__name__)
@@ -199,6 +202,25 @@ class Variable(Base, LoggingMixin):
         :param serialize_json: Serialize the value to a JSON string
         :param session: Session
         """
+        if hasattr(sys.modules.get("airflow.sdk.execution_time.task_runner"), "SUPERVISOR_COMMS"):
+            warnings.warn(
+                "Using Variable.get from `airflow.models` is deprecated. Please use `from airflow.sdk import"
+                "Variable` instead",
+                DeprecationWarning,
+                stacklevel=1,
+            )
+            from airflow.sdk import Variable as TaskSDKVariable
+            from airflow.sdk.execution_time.supervisor import SECRETS_BACKEND
+
+            # check if the secret exists in the custom secrets' backend.
+            # passing the secrets backend initialized on the worker side
+            Variable.check_for_write_conflict(key=key, secrets_backends=SECRETS_BACKEND)
+            return TaskSDKVariable.set(
+                key=key,
+                value=value,
+                description=description,
+                serialize_json=serialize_json,
+            )
         # check if the secret exists in the custom secrets' backend.
         Variable.check_for_write_conflict(key=key)
         if serialize_json:
@@ -261,7 +283,9 @@ class Variable(Base, LoggingMixin):
             self._val = fernet.rotate(self._val.encode("utf-8")).decode()
 
     @staticmethod
-    def check_for_write_conflict(key: str) -> None:
+    def check_for_write_conflict(
+        key: str, secrets_backends: list[BaseSecretsBackend] = ensure_secrets_loaded()
+    ) -> None:
         """
         Log a warning if a variable exists outside the metastore.
 
@@ -271,7 +295,7 @@ class Variable(Base, LoggingMixin):
 
         :param key: Variable Key
         """
-        for secrets_backend in ensure_secrets_loaded():
+        for secrets_backend in secrets_backends:
             if not isinstance(secrets_backend, MetastoreBackend):
                 try:
                     var_val = secrets_backend.get_variable(key=key)
