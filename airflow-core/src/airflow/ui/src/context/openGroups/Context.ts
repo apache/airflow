@@ -16,7 +16,12 @@
  * specific language governing permissions and limitations
  * under the License.
  */
+import { createContext } from "react";
 
-export * from "./TimezoneProvider";
-export * from "./useTimezone";
-export * from "./Context";
+export type OpenGroupsContextType = {
+  openGroupIds: Array<string>;
+  setOpenGroupIds: (groupIds: Array<string>) => void;
+  toggleGroupId: (groupId: string) => void;
+};
+
+export const OpenGroupsContext = createContext<OpenGroupsContextType | undefined>(undefined);

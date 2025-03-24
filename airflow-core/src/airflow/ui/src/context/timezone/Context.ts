@@ -16,27 +16,11 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Menu as ChakraMenu, Portal } from "@chakra-ui/react";
-import { forwardRef } from "react";
+import { createContext } from "react";
 
-type MenuContentProps = {
-  readonly portalled?: boolean;
-  readonly portalRef?: React.RefObject<HTMLElement>;
-} & ChakraMenu.ContentProps;
-
-const Content = forwardRef<HTMLDivElement, MenuContentProps>((props, ref) => {
-  const { portalled = true, portalRef, ...rest } = props;
-
-  return (
-    <Portal container={portalRef} disabled={!portalled}>
-      <ChakraMenu.Positioner>
-        <ChakraMenu.Content ref={ref} {...rest} />
-      </ChakraMenu.Positioner>
-    </Portal>
-  );
-});
-
-export const Menu = {
-  ...ChakraMenu,
-  Content,
+export type TimezoneContextType = {
+  selectedTimezone: string;
+  setSelectedTimezone: (timezone: string) => void;
 };
+
+export const TimezoneContext = createContext<TimezoneContextType | undefined>(undefined);
