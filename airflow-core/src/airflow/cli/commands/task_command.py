@@ -29,10 +29,9 @@ from contextlib import redirect_stdout
 from typing import TYPE_CHECKING, Protocol, cast
 
 from airflow import settings
-from airflow.cli.commands.remote_commands.dag_command import _parse_and_get_dag
 from airflow.cli.simple_table import AirflowConsole
 from airflow.cli.utils import fetch_dag_run_from_run_id_or_logical_date_string
-from airflow.exceptions import AirflowException, DagRunNotFound, TaskDeferred, TaskInstanceNotFound
+from airflow.exceptions import DagRunNotFound, TaskDeferred, TaskInstanceNotFound
 from airflow.models import TaskInstance
 from airflow.models.dag import DAG, _run_inline_trigger
 from airflow.models.dagrun import DagRun
@@ -369,12 +368,7 @@ def task_test(args, dag: DAG | None = None, session: Session = NEW_SESSION) -> N
         env_vars.update(args.env_vars)
         os.environ.update(env_vars)
 
-    dag = dag or _parse_and_get_dag(args.dag_id)
-
-    if not dag:
-        raise AirflowException(
-            f"Dag {args.dag_id!r} could not be found; either it does not exist or it failed to parse."
-        )
+    dag = dag or get_dag(subdir=None, dag_id=args.dag_id, from_db=True)
 
     dag = DAG.from_sdk_dag(dag)
 
