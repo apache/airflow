@@ -184,17 +184,19 @@ class TestVPA:
         [
             # custom resource policy
             (
-                {
-                   "containerName": "sync",
-                    "minAllowed": {
-                        "cpu": "250m",
-                        "memory": "128Mi",
-                    },
-                    "maxAllowed": {
-                        "cpu": "500m",
-                        "memory": "600Mi",
-                    },
-                },
+                [
+                    {
+                        "containerName": "sync",
+                        "minAllowed": {
+                            "cpu": "250m",
+                            "memory": "128Mi",
+                        },
+                        "maxAllowed": {
+                            "cpu": "500m",
+                            "memory": "600Mi",
+                        },
+                    }
+                ],
                 {
                     "containerName": "sync",
                     "minAllowed": {
@@ -209,17 +211,19 @@ class TestVPA:
                 "webserver",
             ),
             (
-                {
-                   "containerName": "sync",
-                    "minAllowed": {
-                        "cpu": "250m",
-                        "memory": "128Mi",
+                [
+                    {
+                        "containerName": "sync",
+                        "minAllowed": {
+                            "cpu": "250m",
+                            "memory": "128Mi",
+                        },
+                        "maxAllowed": {
+                            "cpu": "500m",
+                            "memory": "600Mi",
+                        },
                     },
-                    "maxAllowed": {
-                        "cpu": "500m",
-                        "memory": "600Mi",
-                    },
-                },
+                ],
                 {
                     "containerName": "sync",
                     "minAllowed": {
@@ -234,17 +238,19 @@ class TestVPA:
                 "worker",
             ),
             (
-                {
-                   "containerName": "sync",
-                    "minAllowed": {
-                        "cpu": "250m",
-                        "memory": "128Mi",
+                [
+                    {
+                        "containerName": "sync",
+                        "minAllowed": {
+                            "cpu": "250m",
+                            "memory": "128Mi",
+                        },
+                        "maxAllowed": {
+                            "cpu": "500m",
+                            "memory": "600Mi",
+                        },
                     },
-                    "maxAllowed": {
-                        "cpu": "500m",
-                        "memory": "600Mi",
-                    },
-                },
+                ],
                 {
                     "containerName": "sync",
                     "minAllowed": {
