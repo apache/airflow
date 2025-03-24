@@ -6995,6 +6995,70 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/HTTPValidationError'
+  /api/v2/parseDagFile/manage/reserialize:
+    post:
+      tags:
+      - DAG Parsing
+      summary: Reserialize Dags
+      description: 'Reserialize DAG bundles in Airflow.
+
+
+        - **bundle_names**: List of specific bundles to reserialize (all if empty)'
+      operationId: reserialize_dags
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/DagReserializePostBody'
+        required: true
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema: {}
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+        '403':
+          description: Forbidden
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+        '400':
+          description: Bad Request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+        '404':
+          description: Not Found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+        '409':
+          description: Conflict
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+        '500':
+          description: Internal Server Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
   /api/v2/dagTags:
     get:
       tags:
@@ -9355,6 +9419,20 @@ components:
       - latest_dag_processor_heartbeat
       title: DagProcessorInfoResponse
       description: DagProcessor info serializer for responses.
+    DagReserializePostBody:
+      properties:
+        bundle_names:
+          anyOf:
+          - items:
+              type: string
+            type: array
+          - type: 'null'
+          title: Bundle Names
+      type: object
+      required:
+      - bundle_names
+      title: DagReserializePostBody
+      description: Dag Serializer for reserialzed bodies.
     DagRunAssetReference:
       properties:
         run_id:

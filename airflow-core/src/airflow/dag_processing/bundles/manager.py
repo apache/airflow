@@ -158,6 +158,14 @@ class DagBundlesManager(LoggingMixin):
         for name, (class_, kwargs) in self._bundle_config.items():
             yield class_(name=name, version=None, **kwargs)
 
+    def get_all_bundle_names(self) -> list[str]:
+        """
+        Get all bundle names.
+
+        :return: list of bundle names.
+        """
+        return self._bundle_config.keys()
+
     def view_url(self, name: str, version: str | None = None) -> str | None:
         bundle = self.get_bundle(name, version)
         return bundle.view_url(version=version)

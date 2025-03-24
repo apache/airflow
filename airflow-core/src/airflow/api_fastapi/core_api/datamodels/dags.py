@@ -180,3 +180,16 @@ class DAGDetailsResponse(DAGResponse):
         if latest_dag_version is None:
             return latest_dag_version
         return DagVersionResponse.model_validate(latest_dag_version)
+
+
+class ReserializeResponse(BaseModel):
+    """DAG Reserialize serializer for responses."""
+
+    message: str
+    processed_bundles: list[str]
+
+
+class DagReserializePostBody(BaseModel):
+    """Dag Serializer for reserialzed bodies."""
+
+    bundle_names: list[str] | None
