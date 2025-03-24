@@ -215,8 +215,6 @@ class EksCreateClusterOperator(AwsBaseOperator[EksHook]):
         "fargate_selectors",
         "create_fargate_profile_kwargs",
         "wait_for_completion",
-        "aws_conn_id",
-        "region_name",
     )
 
     def __init__(
@@ -457,8 +455,6 @@ class EksCreateNodegroupOperator(AwsBaseOperator[EksHook]):
         "nodegroup_name",
         "create_nodegroup_kwargs",
         "wait_for_completion",
-        "aws_conn_id",
-        "region_name",
     )
 
     def __init__(
@@ -579,8 +575,6 @@ class EksCreateFargateProfileOperator(AwsBaseOperator[EksHook]):
         "fargate_profile_name",
         "create_fargate_profile_kwargs",
         "wait_for_completion",
-        "aws_conn_id",
-        "region_name",
     )
 
     def __init__(
@@ -682,7 +676,7 @@ class EksDeleteClusterOperator(AwsBaseOperator[EksHook]):
 
     aws_hook_class = EksHook
     template_fields: Sequence[str] = aws_template_fields(
-        "cluster_name", "force_delete_compute", "wait_for_completion", "aws_conn_id", "region_name"
+        "cluster_name", "force_delete_compute", "wait_for_completion"
     )
 
     def __init__(
@@ -804,7 +798,7 @@ class EksDeleteNodegroupOperator(AwsBaseOperator[EksHook]):
 
     aws_hook_class = EksHook
     template_fields: Sequence[str] = aws_template_fields(
-        "cluster_name", "nodegroup_name", "wait_for_completion", "aws_conn_id", "region_name"
+        "cluster_name", "nodegroup_name", "wait_for_completion"
     )
 
     def __init__(
@@ -884,7 +878,7 @@ class EksDeleteFargateProfileOperator(AwsBaseOperator[EksHook]):
 
     aws_hook_class = EksHook
     template_fields: Sequence[str] = aws_template_fields(
-        "cluster_name", "fargate_profile_name", "wait_for_completion", "aws_conn_id", "region_name"
+        "cluster_name", "fargate_profile_name", "wait_for_completion"
     )
 
     def __init__(
