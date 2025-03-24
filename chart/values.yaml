@@ -567,12 +567,13 @@ workers:
   command: ~
   # Args to use when running Airflow workers (templated).
   args:
-  - "bash"
-  - "-c"
-  # The format below is necessary to get `helm lint` happy
-  - |-
-    exec \
-    airflow {{ semverCompare ">=2.0.0" .Values.airflowVersion | ternary "celery worker" "worker" }}
+    - "bash"
+    - "-c"
+    # The format below is necessary to get `helm lint` happy
+    - |-
+      exec \
+      airflow {{ semverCompare ">=2.0.0" .Values.airflowVersion | ternary "celery worker" "worker" }}
+
   # If the worker stops responding for 5 minutes (5*60s) kill the
   # worker and let Kubernetes restart it
   livenessProbe:
@@ -653,7 +654,13 @@ workers:
 
     # Query to use for KEDA autoscaling. Must return a single integer.
     query: >-
-      SELECT ceil(COUNT(*)::decimal / {{ .Values.config.celery.worker_concurrency }}) FROM task_instance WHERE (state='running' OR state='queued') {{- if or (contains "CeleryKubernetesExecutor" .Values.executor) (contains "KubernetesExecutor" .Values.executor) }} AND queue != '{{ .Values.config.celery_kubernetes_executor.kubernetes_queue }}' {{- end }}
+      SELECT ceil(COUNT(*)::decimal / {{ .Values.config.celery.worker_concurrency }})
+      FROM task_instance
+      WHERE (state='running' OR state='queued')
+      {{- if or (contains "CeleryKubernetesExecutor" .Values.executor)
+      (contains "KubernetesExecutor" .Values.executor) }}
+      AND queue != '{{ .Values.config.celery_kubernetes_executor.kubernetes_queue }}'
+      {{- end }}
 
     # Weather to use PGBouncer to connect to the database or not when it is enabled
     # This configuration will be ignored if PGBouncer is not enabled
@@ -671,12 +678,13 @@ workers:
 
     # Specifications for which to use to calculate the desired replica count
     metrics:
-    - type: Resource
-      resource:
-        name: cpu
-        target:
-          type: Utilization
-          averageUtilization: 80
+      - type: Resource
+        resource:
+          name: cpu
+          target:
+            type: Utilization
+            averageUtilization: 80
+
     # Scaling behavior of the target in both Up and Down directions
     behavior: {}
   vpa:
@@ -713,8 +721,8 @@ workers:
     # Volume size for worker StatefulSet
     size: 100Gi
     # If using a custom storageClass, pass name ref to all statefulSets here
-    storageClassName: # Execute init container to chown log directory.
-
+    storageClassName:
+    # Execute init container to chown log directory.
     # This is currently only needed in kind, due to usage
     # of local-path provisioner.
     fixPermissions: false
@@ -1196,7 +1204,7 @@ createUserJob:
   #   cpu: 100m
   #   memory: 128Mi
 
-  # Airflow database migration job settings
+# Airflow database migration job settings
 migrateDatabaseJob:
   enabled: true
   # Limit the lifetime of the job object after it finished execution.
@@ -1210,7 +1218,10 @@ migrateDatabaseJob:
   - >-
     exec \
 
-    airflow {{ semverCompare ">=2.7.0" .Values.airflowVersion | ternary "db migrate" (semverCompare ">=2.0.0" .Values.airflowVersion | ternary "db upgrade" "upgradedb") }}
+      airflow {{ semverCompare ">=2.7.0" .Values.airflowVersion
+      | ternary "db migrate" (semverCompare ">=2.0.0" .Values.airflowVersion
+      | ternary "db upgrade" "upgradedb") }}
+
   # Annotations on the database migration pod
   annotations: {}
   # jobAnnotations are annotations on the database migration job
@@ -1333,7 +1344,7 @@ apiServer:
       maxUnavailable: 1
       # minAvailable: 1
 
-      # Detailed default security contexts for webserver deployments for container and pod level
+  # Detailed default security contexts for webserver deployments for container and pod level
   securityContexts:
     pod: {}
     container: {}
@@ -1355,7 +1366,7 @@ apiServer:
       from: []
       # Ports for webserver NetworkPolicy ingress (if `from` is set)
       ports:
-      - port: "{{ .Values.ports.apiServer }}"
+        - port: "{{ .Values.ports.apiServer }}"
 
   resources: {}
   #   limits:
@@ -1431,7 +1442,7 @@ webserver:
   # Command to use when running the Airflow webserver (templated).
   command: ~
   # Args to use when running the Airflow webserver (templated).
-  args: [ "bash", "-c", "exec airflow webserver" ]
+  args: ["bash", "-c", "exec airflow webserver"]
 
   # Grace period for webserver to finish after SIGTERM is sent from kubernetes
   terminationGracePeriodSeconds: 30
@@ -1448,12 +1459,13 @@ webserver:
 
     # Specifications for which to use to calculate the desired replica count
     metrics:
-    - type: Resource
-      resource:
-        name: cpu
-        target:
-          type: Utilization
-          averageUtilization: 80
+      - type: Resource
+        resource:
+          name: cpu
+          target:
+            type: Utilization
+            averageUtilization: 80
+
     # Scaling behavior of the target in both Up and Down directions
     behavior: {}
   # Allow VPA
@@ -1504,7 +1516,7 @@ webserver:
       maxUnavailable: 1
       # minAvailable: 1
 
-      # Allow overriding Update Strategy for Webserver
+  # Allow overriding Update Strategy for Webserver
   strategy: ~
 
   # When not set, the values defined in the global securityContext will be used
@@ -1715,8 +1727,8 @@ triggerer:
     # Volume size for triggerer StatefulSet
     size: 100Gi
     # If using a custom storageClass, pass name ref to all statefulSets here
-    storageClassName: # Execute init container to chown log directory.
-
+    storageClassName:
+    # Execute init container to chown log directory.
     # This is currently only needed in kind, due to usage
     # of local-path provisioner.
     fixPermissions: false
@@ -1860,7 +1872,8 @@ triggerer:
 
     # Query to use for KEDA autoscaling. Must return a single integer.
     query: >-
-      SELECT ceil(COUNT(*)::decimal / {{ .Values.config.triggerer.default_capacity }}) FROM trigger
+      SELECT ceil(COUNT(*)::decimal / {{ include "triggerer.capacity" . }})
+      FROM trigger
 
     # Whether to use PGBouncer to connect to the database or not when it is enabled
     # This configuration will be ignored if PGBouncer is not enabled
@@ -2706,6 +2719,7 @@ config:
     # For Airflow 1.10, backward compatibility; moved to [logging] in 2.0
     colored_console_log: 'False'
     remote_logging: '{{- ternary "True" "False" (or .Values.elasticsearch.enabled .Values.opensearch.enabled) }}'
+    auth_manager: "airflow.providers.fab.auth_manager.fab_auth_manager.FabAuthManager"
   logging:
     remote_logging: '{{- ternary "True" "False" (or .Values.elasticsearch.enabled .Values.opensearch.enabled) }}'
     colored_console_log: 'False'
@@ -2762,8 +2776,7 @@ config:
     worker_container_repository: '{{ .Values.images.airflow.repository | default .Values.defaultAirflowRepository }}'
     worker_container_tag: '{{ .Values.images.airflow.tag | default .Values.defaultAirflowTag }}'
     multi_namespace_mode: '{{ ternary "True" "False" .Values.multiNamespaceMode }}'
-  triggerer:
-    default_capacity: 1000
+
 # yamllint enable rule:line-length
 
 # Whether Airflow can launch workers and/or pods in multiple namespaces

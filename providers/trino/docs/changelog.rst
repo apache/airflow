@@ -259,7 +259,7 @@ Misc
    appropriate section above if needed. Do not delete the lines(!):
    * ``Fix and reapply templates for provider documentation (#35686)``
    * ``Prepare docs 3rd wave of Providers October 2023 - FIX (#35233)``
-   * ``Use reproducible builds for provider packages (#35693)``
+   * ``Use reproducible builds for providers (#35693)``
    * ``Prepare docs 1st wave of Providers November 2023 (#35537)``
    * ``Work around typing issue in examples and providers (#35494)``
    * ``Switch from Black to Ruff formatter (#35287)``

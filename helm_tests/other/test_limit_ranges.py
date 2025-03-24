@@ -18,7 +18,7 @@ from __future__ import annotations
 
 import jmespath
 
-from tests.charts.helm_template_generator import render_chart
+from unit.charts.helm_template_generator import render_chart
 
 
 class TestLimitRanges:

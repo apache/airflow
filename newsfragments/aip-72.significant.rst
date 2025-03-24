@@ -83,6 +83,12 @@ As part of this change the following breaking changes have occurred:
 
 - The ``SkipMixin` class has been removed as a parent class from ``BaseSensorOperator``.
 
+- A new config ``[workers] secrets_backend[kwargs]`` & ``[workers] secrets_backend_kwargs``  has been introduced to configure secrets backend on the
+  workers directly to allow reducing the round trip to the API server and also to allow configuring a
+  different secrets backend.
+  Priority defined as workers backend > workers env > secrets backend on API server > API server env > metadata DB.
+
+
 * Types of change
 
   * [x] Dag changes
@@ -105,4 +111,4 @@ As part of this change the following breaking changes have occurred:
 
     * AIR302
 
-      * [ ] ``airflow.models.baseoperatorlink`` → ``airflow.sdk``
+      * [ ] ``airflow.models.baseoperatorlink.BaseOperatorLink`` → ``airflow.sdk.definitions.baseoperatorlink.BaseOperatorLink``

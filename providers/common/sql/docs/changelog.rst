@@ -25,6 +25,24 @@
 Changelog
 ---------
 
+1.24.1b1
+........
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fix get_hook() got an unexpected keyword argument 'hook_params' in SQLExecuteQueryTrigger (#47728)``
+
+Misc
+~~~~
+
+* ``AIP-72: Handle Custom XCom Backend on Task SDK (#47339)``
+* ``AIP-72: Implement short circuit and branch operators (#46584)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Remove links to x/twitter.com (#47801)``
+
 1.24.0
 ......
 
@@ -422,7 +440,7 @@ Misc
 * ``Remove backcompat inheritance for DbApiHook (#35754)``
 
 .. Review and move the new changes to one of the sections above:
-   * ``Use reproducible builds for provider packages (#35693)``
+   * ``Use reproducible builds for providers (#35693)``
    * ``Fix and reapply templates for provider documentation (#35686)``
    * ``Prepare docs 1st wave of Providers November 2023 (#35537)``
    * ``Work around typing issue in examples and providers (#35494)``

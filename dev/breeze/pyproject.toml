@@ -48,7 +48,7 @@ dependencies = [
     "click>=8.1.8",
     "filelock>=3.13.0",
     #
-    # We pin flit in order to make sure reproducibility of provider packages is maintained
+    # We pin flit in order to make sure reproducibility of provider distributions is maintained
     # It turns out that when packages are prepared metadata version in the produced packages
     # is taken from the front-end not from the backend, so in order to make sure that the
     # packages are reproducible, we should pin both backend in "build-system" and frontend in

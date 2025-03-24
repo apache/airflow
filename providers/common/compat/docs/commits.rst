@@ -34,14 +34,31 @@ For high-level changelog, see :doc:`package information including changelog <ind
 
 
 
+1.6.0b1
+.......
+
+Latest change: 2025-03-20
+
+==================================================================================================  ===========  ============================================================
+Commit                                                                                              Committed    Subject
+==================================================================================================  ===========  ============================================================
+`4174bc7d39 <https://github.com/apache/airflow/commit/4174bc7d39fb336c329d887878ac327d4e283f6d>`__  2025-03-20   ``feat: Add helper for any provider version check (#47909)``
+`a993db24f7 <https://github.com/apache/airflow/commit/a993db24f790784a0b43b8a33c28565ed0412d82>`__  2025-03-18   ``feat: Add helper for OpenLineage version check (#47897)``
+`935d2831fe <https://github.com/apache/airflow/commit/935d2831fe8fd509b618a738bf00e0c34e186e11>`__  2025-03-15   ``Remove links to x/twitter.com (#47801)``
+`d5ea56ae4b <https://github.com/apache/airflow/commit/d5ea56ae4be04ebccb12d13fa2cb2be994cf51ac>`__  2025-03-14   ``AIP-84 Add Auth for DAG Versioning (#47553)``
+`46759a355d <https://github.com/apache/airflow/commit/46759a355d603167535591745c70037d691c866a>`__  2025-03-13   ``AIP-84 Add Auth for backfill (#47482)``
+`1e2660b3fc <https://github.com/apache/airflow/commit/1e2660b3fcab69ae52577e59d1c1bebe95a3f548>`__  2025-03-10   ``AIP 84 - Add auth for asset alias (#47241)``
+==================================================================================================  ===========  ============================================================
+
 1.5.1
 .....
 
-Latest change: 2025-03-07
+Latest change: 2025-03-09
 
 ==================================================================================================  ===========  =====================================================================
 Commit                                                                                              Committed    Subject
 ==================================================================================================  ===========  =====================================================================
+`492ecfe5c0 <https://github.com/apache/airflow/commit/492ecfe5c03102bfb710108038ebd5fc50cb55b5>`__  2025-03-09   ``Prepare docs for Mar 1st wave of providers (#47545)``
 `8cc9f1fca9 <https://github.com/apache/airflow/commit/8cc9f1fca9343768e9aa7bb4c802e7d2fc109719>`__  2025-03-07   ``Relocate airflow.auth to airflow.api_fastapi.auth (#47492)``
 `e4002c3305 <https://github.com/apache/airflow/commit/e4002c3305a757f5926f96c996e701e8f998a042>`__  2025-03-05   ``Move tests_common package to devel-common project (#47281)``
 `1addb55154 <https://github.com/apache/airflow/commit/1addb55154fbef31bfa021537cfbd4395696381c>`__  2025-02-28   ``Improve documentation for updating provider dependencies (#47203)``

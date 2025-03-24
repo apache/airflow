@@ -28,6 +28,30 @@ Changelog
 ---------
 
 
+10.4.0b1
+........
+
+Features
+~~~~~~~~
+
+* ``cncf.kubernetes: make the base container status check polling interval configurable (#47774)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Switch to non-interactive mode where stdin is disabled (#47568)``
+* ``Retry k8s API requests in 'KubernetesPodTrigger' (#47187)``
+
+Misc
+~~~~
+
+* ``AIP-72: Handle Custom XCom Backend on Task SDK (#47339)``
+* ``Remove extra method for async hook getting (#47313)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Remove links to x/twitter.com (#47801)``
+
 10.3.1
 ......
 
@@ -660,7 +684,7 @@ Misc
 .. Below changes are excluded from the changelog. Move them to
    appropriate section above if needed. Do not delete the lines(!):
    * ``Add bandit to pre-commit to detect common security issues (#34247)``
-   * ``Use reproducible builds for provider packages (#35693)``
+   * ``Use reproducible builds for providers (#35693)``
 
 7.9.0
 .....

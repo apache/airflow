@@ -21,7 +21,7 @@ services:
       - AIRFLOW__CORE__PLUGINS_FOLDER=/files/plugins
     volumes:
       # Removes airflow sources from container
-      - ../../../empty:/opt/airflow/airflow
+      - ../../../empty:/opt/airflow/airflow-core/src
       # Removes task-sdk sources from container
       - ../../../empty:/opt/airflow/task-sdk/src
       # Remove all provider sources from container

@@ -25,6 +25,22 @@
 Changelog
 ---------
 
+1.6.0b1
+.......
+
+Features
+~~~~~~~~
+
+* ``feat: Add helper for any provider version check (#47909)``
+* ``feat: Add helper for OpenLineage version check (#47897)``
+* ``AIP-84 Add Auth for DAG Versioning (#47553)``
+* ``AIP-84 Add Auth for backfill (#47482)``
+* ``AIP 84 - Add auth for asset alias (#47241)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Remove links to x/twitter.com (#47801)``
+
 1.5.1
 .....
 
