@@ -85,9 +85,20 @@ def logger(caplog):
 
 class TestSecretsMasker:
     def test_message(self, logger, caplog):
+        """Test that masking only applies to complete words."""
+        # Test substring within a word - should not mask
         logger.info("XpasswordY")
+        assert caplog.text == "INFO XpasswordY\n"
+        caplog.clear()
 
-        assert caplog.text == "INFO X***Y\n"
+        # Test complete word - should mask
+        logger.info("password")
+        assert caplog.text == "INFO ***\n"
+        caplog.clear()
+
+        # Test word with punctuation - should mask
+        logger.info("password;next")
+        assert caplog.text == "INFO ***;next\n"
 
     def test_args(self, logger, caplog):
         logger.info("Cannot connect to %s", "user:password")

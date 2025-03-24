@@ -255,7 +255,8 @@ class SecretsMasker(logging.Filter):
                     # We can't replace specific values, but the key-based redacting
                     # can still happen, so we can't short-circuit, we need to walk
                     # the structure.
-                    return self.replacer.sub("***", str(item))
+                    result = re.sub(r'\b(' + '|'.join(self.patterns) + r')\b', "***", str(item))
+                    return result
                 return item
             elif isinstance(item, (tuple, set)):
                 # Turn set in to tuple!
