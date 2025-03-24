@@ -43,6 +43,11 @@ runs:
       run: |
         mkdir ./files/coverage-reports
         mv ./files/coverage*.xml ./files/coverage-reports/ || true
+    - name: "Upload test results to Codecov"
+      uses: codecov/test-results-action@v1
+      with:
+        token: ${{ inputs.codecov-token }}
+        file: ./files/test_result-*.xml
     - name: "Upload all coverage reports to codecov"
       uses: codecov/codecov-action@v4
       env:
