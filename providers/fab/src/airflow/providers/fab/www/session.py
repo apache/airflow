@@ -18,7 +18,7 @@ from __future__ import annotations
 
 from flask import request
 from flask.sessions import SecureCookieSessionInterface
-from flask_session.sessions import SqlAlchemySessionInterface
+from flask_session.sqlalchemy import SqlAlchemySessionInterface
 
 
 class SessionExemptMixin:
