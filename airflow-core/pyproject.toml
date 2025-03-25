@@ -141,7 +141,7 @@ dependencies = [
 # TODO: We can remove it once boto3 and aiobotocore both have compatible botocore version or
 # boto3 have native aync support and we move away from aio aiobotocore
 "aiobotocore" =  [
-    "aiobotocore>=2.9.0",
+    "aiobotocore>=2.13.0",
 ]
 "async" = [
     "eventlet>=0.33.3",
