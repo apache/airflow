@@ -18,11 +18,12 @@
 
 from __future__ import annotations
 
+import warnings
 from abc import abstractmethod
 from collections.abc import Sequence
 from typing import TYPE_CHECKING
 
-from airflow.exceptions import AirflowException
+from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning
 from airflow.providers.amazon.aws.hooks.eks import (
     ClusterStates,
     EksHook,
@@ -132,7 +133,7 @@ class EksClusterStateSensor(EksBaseSensor):
         https://boto3.amazonaws.com/v1/documentation/api/latest/reference/core/session.html
     """
 
-    template_fields: Sequence[str] = aws_template_fields("cluster_name", "target_state")
+    template_fields: Sequence[str] = aws_template_fields("cluster_name", "target_state", "region")
     ui_color = "#ff9900"
     ui_fgcolor = "#232F3E"
 
@@ -140,9 +141,16 @@ class EksClusterStateSensor(EksBaseSensor):
         self,
         *,
         target_state: ClusterStates = ClusterStates.ACTIVE,
+        region: str | None = None,
         **kwargs,
     ):
         super().__init__(target_state=target_state, target_state_type=ClusterStates, **kwargs)
+        if region is not None:
+            warnings.warn(
+                message="Parameter `region` will be deprecated. Use the parameter `region_name` instead",
+                category=AirflowProviderDeprecationWarning,
+                stacklevel=2,
+            )
 
     def get_state(self) -> ClusterStates:
         return self.hook.get_cluster_state(clusterName=self.cluster_name)
@@ -173,9 +181,7 @@ class EksFargateProfileStateSensor(EksBaseSensor):
     """
 
     template_fields: Sequence[str] = aws_template_fields(
-        "cluster_name",
-        "fargate_profile_name",
-        "target_state",
+        "cluster_name", "fargate_profile_name", "target_state", "region"
     )
     ui_color = "#ff9900"
     ui_fgcolor = "#232F3E"
@@ -184,11 +190,19 @@ class EksFargateProfileStateSensor(EksBaseSensor):
         self,
         *,
         fargate_profile_name: str,
+        region: str | None = None,
         target_state: FargateProfileStates = FargateProfileStates.ACTIVE,
         **kwargs,
     ):
         super().__init__(target_state=target_state, target_state_type=FargateProfileStates, **kwargs)
         self.fargate_profile_name = fargate_profile_name
+        self.region = region
+        if region is not None:
+            warnings.warn(
+                message="Parameter `region` will be deprecated. Use the parameter `region_name` instead",
+                category=AirflowProviderDeprecationWarning,
+                stacklevel=2,
+            )
 
     def get_state(self) -> FargateProfileStates:
         return self.hook.get_fargate_profile_state(
@@ -221,9 +235,7 @@ class EksNodegroupStateSensor(EksBaseSensor):
     """
 
     template_fields: Sequence[str] = aws_template_fields(
-        "cluster_name",
-        "nodegroup_name",
-        "target_state",
+        "cluster_name", "nodegroup_name", "target_state", "region"
     )
     ui_color = "#ff9900"
     ui_fgcolor = "#232F3E"
@@ -233,10 +245,18 @@ class EksNodegroupStateSensor(EksBaseSensor):
         *,
         nodegroup_name: str,
         target_state: NodegroupStates = NodegroupStates.ACTIVE,
+        region: str | None = None,
         **kwargs,
     ):
         super().__init__(target_state=target_state, target_state_type=NodegroupStates, **kwargs)
+        self.region = region
         self.nodegroup_name = nodegroup_name
+        if region is not None:
+            warnings.warn(
+                message="Parameter `region` will be deprecated. Use the parameter `region_name` instead",
+                category=AirflowProviderDeprecationWarning,
+                stacklevel=2,
+            )
 
     def get_state(self) -> NodegroupStates:
         return self.hook.get_nodegroup_state(clusterName=self.cluster_name, nodegroupName=self.nodegroup_name)

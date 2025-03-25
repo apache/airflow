@@ -368,7 +368,7 @@ class TestEksCreateClusterOperator:
 
     def test_template_fields(self):
         op = EksCreateClusterOperator(
-            task_id=TASK_ID, **self.create_cluster_params, compute="fargate", region="us-east-1"
+            task_id=TASK_ID, **self.create_cluster_params, compute="fargate", region_name="us-east-1"
         )
 
         validate_template_fields(op)

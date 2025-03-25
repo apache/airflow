@@ -19,6 +19,7 @@
 from __future__ import annotations
 
 import logging
+import warnings
 from ast import literal_eval
 from collections.abc import Sequence
 from datetime import timedelta
@@ -27,7 +28,7 @@ from typing import TYPE_CHECKING, Any, cast
 from botocore.exceptions import ClientError, WaiterError
 
 from airflow.configuration import conf
-from airflow.exceptions import AirflowException
+from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning
 from airflow.providers.amazon.aws.hooks.eks import EksHook
 from airflow.providers.amazon.aws.operators.base_aws import AwsBaseOperator
 from airflow.providers.amazon.aws.triggers.eks import (
@@ -215,6 +216,7 @@ class EksCreateClusterOperator(AwsBaseOperator[EksHook]):
         "fargate_selectors",
         "create_fargate_profile_kwargs",
         "wait_for_completion",
+        "region",
     )
 
     def __init__(
@@ -232,6 +234,7 @@ class EksCreateClusterOperator(AwsBaseOperator[EksHook]):
         fargate_selectors: list | None = None,
         create_fargate_profile_kwargs: dict | None = None,
         wait_for_completion: bool = False,
+        region: str | None = None,
         deferrable: bool = conf.getboolean("operators", "default_deferrable", fallback=False),
         waiter_delay: int = 30,
         waiter_max_attempts: int = 40,
@@ -255,9 +258,17 @@ class EksCreateClusterOperator(AwsBaseOperator[EksHook]):
         self.fargate_selectors = fargate_selectors or [{"namespace": DEFAULT_NAMESPACE_NAME}]
         self.fargate_profile_name = fargate_profile_name
         self.deferrable = deferrable
+        self.region = region
         super().__init__(
             **kwargs,
         )
+
+        if region is not None:
+            warnings.warn(
+                message="Parameter `region` will be deprecated. Use the parameter `region_name` instead",
+                category=AirflowProviderDeprecationWarning,
+                stacklevel=2,
+            )
 
     def execute(self, context: Context):
         if self.compute:
@@ -455,6 +466,7 @@ class EksCreateNodegroupOperator(AwsBaseOperator[EksHook]):
         "nodegroup_name",
         "create_nodegroup_kwargs",
         "wait_for_completion",
+        "region",
     )
 
     def __init__(
@@ -465,6 +477,7 @@ class EksCreateNodegroupOperator(AwsBaseOperator[EksHook]):
         nodegroup_name: str = DEFAULT_NODEGROUP_NAME,
         create_nodegroup_kwargs: dict | None = None,
         wait_for_completion: bool = False,
+        region: str | None = None,
         waiter_delay: int = 30,
         waiter_max_attempts: int = 80,
         deferrable: bool = conf.getboolean("operators", "default_deferrable", fallback=False),
@@ -482,7 +495,15 @@ class EksCreateNodegroupOperator(AwsBaseOperator[EksHook]):
         self.waiter_delay = waiter_delay
         self.waiter_max_attempts = waiter_max_attempts
         self.deferrable = deferrable
+        self.region = region
         super().__init__(**kwargs)
+
+        if region is not None:
+            warnings.warn(
+                message="Parameter `region` will be deprecated. Use the parameter `region_name` instead",
+                category=AirflowProviderDeprecationWarning,
+                stacklevel=2,
+            )
 
     def execute(self, context: Context):
         self.log.info(self.task_id)
@@ -575,6 +596,7 @@ class EksCreateFargateProfileOperator(AwsBaseOperator[EksHook]):
         "fargate_profile_name",
         "create_fargate_profile_kwargs",
         "wait_for_completion",
+        "region",
     )
 
     def __init__(
@@ -584,6 +606,7 @@ class EksCreateFargateProfileOperator(AwsBaseOperator[EksHook]):
         selectors: list,
         fargate_profile_name: str = DEFAULT_FARGATE_PROFILE_NAME,
         create_fargate_profile_kwargs: dict | None = None,
+        region: str | None = None,
         wait_for_completion: bool = False,
         waiter_delay: int = 10,
         waiter_max_attempts: int = 60,
@@ -602,9 +625,16 @@ class EksCreateFargateProfileOperator(AwsBaseOperator[EksHook]):
         self.waiter_max_attempts = waiter_max_attempts
         self.deferrable = deferrable
         self.compute = "fargate"
+        self.region = region
         super().__init__(
             **kwargs,
         )
+        if region is not None:
+            warnings.warn(
+                message="Parameter `region` will be deprecated. Use the parameter `region_name` instead",
+                category=AirflowProviderDeprecationWarning,
+                stacklevel=2,
+            )
 
     def execute(self, context: Context):
         _create_compute(
@@ -676,13 +706,14 @@ class EksDeleteClusterOperator(AwsBaseOperator[EksHook]):
 
     aws_hook_class = EksHook
     template_fields: Sequence[str] = aws_template_fields(
-        "cluster_name", "force_delete_compute", "wait_for_completion"
+        "cluster_name", "force_delete_compute", "wait_for_completion", "region"
     )
 
     def __init__(
         self,
         cluster_name: str,
         force_delete_compute: bool = False,
+        region: str | None = None,
         wait_for_completion: bool = False,
         deferrable: bool = conf.getboolean("operators", "default_deferrable", fallback=False),
         waiter_delay: int = 30,
@@ -697,7 +728,15 @@ class EksDeleteClusterOperator(AwsBaseOperator[EksHook]):
         self.deferrable = deferrable
         self.waiter_delay = waiter_delay
         self.waiter_max_attempts = waiter_max_attempts
+        self.region = region
         super().__init__(**kwargs)
+
+        if region is not None:
+            warnings.warn(
+                message="Parameter `region` will be deprecated. Use the parameter `region_name` instead",
+                category=AirflowProviderDeprecationWarning,
+                stacklevel=2,
+            )
 
     def execute(self, context: Context):
         if self.deferrable:
@@ -798,13 +837,14 @@ class EksDeleteNodegroupOperator(AwsBaseOperator[EksHook]):
 
     aws_hook_class = EksHook
     template_fields: Sequence[str] = aws_template_fields(
-        "cluster_name", "nodegroup_name", "wait_for_completion"
+        "cluster_name", "nodegroup_name", "wait_for_completion", "region"
     )
 
     def __init__(
         self,
         cluster_name: str,
         nodegroup_name: str,
+        region: str | None = None,
         wait_for_completion: bool = False,
         waiter_delay: int = 30,
         waiter_max_attempts: int = 40,
@@ -817,7 +857,15 @@ class EksDeleteNodegroupOperator(AwsBaseOperator[EksHook]):
         self.waiter_delay = waiter_delay
         self.waiter_max_attempts = waiter_max_attempts
         self.deferrable = deferrable
+        self.region = region
         super().__init__(**kwargs)
+
+        if region is not None:
+            warnings.warn(
+                message="Parameter `region` will be deprecated. Use the parameter `region_name` instead",
+                category=AirflowProviderDeprecationWarning,
+                stacklevel=2,
+            )
 
     def execute(self, context: Context):
         self.hook.delete_nodegroup(clusterName=self.cluster_name, nodegroupName=self.nodegroup_name)
@@ -878,13 +926,14 @@ class EksDeleteFargateProfileOperator(AwsBaseOperator[EksHook]):
 
     aws_hook_class = EksHook
     template_fields: Sequence[str] = aws_template_fields(
-        "cluster_name", "fargate_profile_name", "wait_for_completion"
+        "cluster_name", "fargate_profile_name", "wait_for_completion", "region"
     )
 
     def __init__(
         self,
         cluster_name: str,
         fargate_profile_name: str,
+        region: str | None = None,
         wait_for_completion: bool = False,
         waiter_delay: int = 30,
         waiter_max_attempts: int = 60,
@@ -898,6 +947,13 @@ class EksDeleteFargateProfileOperator(AwsBaseOperator[EksHook]):
         self.waiter_delay = waiter_delay
         self.waiter_max_attempts = waiter_max_attempts
         self.deferrable = deferrable
+        self.region = region
+        if region is not None:
+            warnings.warn(
+                message="Parameter `region` will be deprecated. Use the parameter `region_name` instead",
+                category=AirflowProviderDeprecationWarning,
+                stacklevel=2,
+            )
 
     def execute(self, context: Context):
         self.hook.delete_fargate_profile(
