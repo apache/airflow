@@ -54,7 +54,7 @@ const deps = ["all", "immediate", "tasks"];
 
 type Dependency = (typeof deps)[number];
 
-export const PanelButtons = ({ dagView, setDagView, setLimit, ...rest }: Props) => {
+export const PanelButtons = ({ dagView, limit, setDagView, setLimit, ...rest }: Props) => {
   const { dagId = "" } = useParams();
   const [dependencies, setDependencies, removeDependencies] = useLocalStorage<Dependency>(
     `dependencies-${dagId}`,
@@ -62,12 +62,12 @@ export const PanelButtons = ({ dagView, setDagView, setLimit, ...rest }: Props) 
   );
   const displayRunOptions = createListCollection({
     items: [
-      { label: "5", value: 5 },
-      { label: "10", value: 10 },
-      { label: "25", value: 25 },
-      { label: "50", value: 50 },
-      { label: "100", value: 100 },
-      { label: "365", value: 365 },
+      { label: "5", value: "5" },
+      { label: "10", value: "10" },
+      { label: "25", value: "25" },
+      { label: "50", value: "50" },
+      { label: "100", value: "100" },
+      { label: "365", value: "365" },
     ],
   });
   const handleLimitChange = (event: SelectValueChangeDetails<{ label: string; value: Array<string> }>) => {
@@ -117,30 +117,26 @@ export const PanelButtons = ({ dagView, setDagView, setLimit, ...rest }: Props) 
       <Stack alignItems="flex-end" gap={1} mr={2}>
         <HStack>
           <DagVersionSelect disabled={dagView !== "graph"} />
-          {dagView === "grid" ? (
-            <Select.Root
-              bg="bg"
-              collection={displayRunOptions}
-              data-testid="display-dag-run-options"
-              onValueChange={handleLimitChange}
-              size="sm"
-              width="200px"
-            >
-              <Select.Trigger>
-                <Select.ValueText placeholder="Display Dag Run Limit" />
-              </Select.Trigger>
-              <Select.IndicatorGroup>
-                <Select.ClearTrigger />
-              </Select.IndicatorGroup>
-              <Select.Content>
-                {displayRunOptions.items.map((option) => (
-                  <Select.Item item={option} key={option.value}>
-                    {option.label}
-                  </Select.Item>
-                ))}
-              </Select.Content>
-            </Select.Root>
-          ) : undefined}
+          <Select.Root
+            bg="bg"
+            collection={displayRunOptions}
+            data-testid="display-dag-run-options"
+            onValueChange={handleLimitChange}
+            size="sm"
+            value={[limit.toString()]}
+            width="70px"
+          >
+            <Select.Trigger>
+              <Select.ValueText />
+            </Select.Trigger>
+            <Select.Content>
+              {displayRunOptions.items.map((option) => (
+                <Select.Item item={option} key={option.value}>
+                  {option.label}
+                </Select.Item>
+              ))}
+            </Select.Content>
+          </Select.Root>
         </HStack>
         {dagView === "graph" ? (
           <>
@@ -164,7 +160,7 @@ export const PanelButtons = ({ dagView, setDagView, setLimit, ...rest }: Props) 
                 ))}
               </Select.Content>
             </Select.Root>
-            <DagRunSelect />
+            <DagRunSelect limit={limit} />
           </>
         ) : undefined}
       </Stack>
