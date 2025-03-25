@@ -29,7 +29,7 @@
     "@vitejs/plugin-react-swc": "^3.8.1",
     "eslint": "^9.23.0",
     "happy-dom": "^17.4.4",
-    "vite": "^6.2.2",
+    "vite": "^6.2.3",
     "vite-plugin-css-injected-by-js": "^3.5.2",
     "vitest": "^3.0.9"
   }
