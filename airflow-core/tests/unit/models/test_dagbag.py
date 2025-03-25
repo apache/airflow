@@ -35,6 +35,7 @@ import time_machine
 
 import airflow.example_dags
 from airflow import settings
+from airflow.configuration import conf
 from airflow.models.dag import DAG, DagModel
 from airflow.models.dagbag import DagBag
 from airflow.models.dagwarning import DagWarning, DagWarningType
@@ -65,7 +66,8 @@ def db_clean_up():
     db.clear_db_dags()
     db.clear_db_runs()
     db.clear_db_serialized_dags()
-    db.clear_dag_specific_permissions()
+    if "FabAuthManager" in conf.get("core", "auth_manager"):
+        db.clear_dag_specific_permissions()
 
 
 class TestDagBag:
