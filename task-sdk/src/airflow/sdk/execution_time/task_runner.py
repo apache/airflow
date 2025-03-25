@@ -23,6 +23,7 @@ import contextvars
 import functools
 import os
 import sys
+import threading
 import time
 from collections.abc import Callable, Iterable, Iterator, Mapping
 from datetime import datetime, timezone
@@ -480,6 +481,8 @@ class CommsDecoder(Generic[ReceiveMsgType, SendMsgType]):
     # `__class_getitem__`, but that's a lot of code the one subclass we've got currently. So we'll just use a
     # "sort of wrong default"
     decoder: TypeAdapter[ReceiveMsgType] = attrs.field(factory=lambda: TypeAdapter(ToTask), repr=False)
+
+    lock: threading.Lock = attrs.field(factory=threading.Lock, repr=False)
 
     def get_message(self) -> ReceiveMsgType:
         """

@@ -143,8 +143,10 @@ def _get_connection(conn_id: str) -> Connection:
     from airflow.sdk.execution_time.comms import ErrorResponse, GetConnection
     from airflow.sdk.execution_time.task_runner import SUPERVISOR_COMMS
 
-    SUPERVISOR_COMMS.send_request(log=log, msg=GetConnection(conn_id=conn_id))
-    msg = SUPERVISOR_COMMS.get_message()
+    with SUPERVISOR_COMMS.lock:
+        SUPERVISOR_COMMS.send_request(log=log, msg=GetConnection(conn_id=conn_id))
+        msg = SUPERVISOR_COMMS.get_message()
+
     if isinstance(msg, ErrorResponse):
         raise AirflowRuntimeError(msg)
 
@@ -184,8 +186,10 @@ def _get_variable(key: str, deserialize_json: bool) -> Any:
     from airflow.sdk.execution_time.comms import ErrorResponse, GetVariable
     from airflow.sdk.execution_time.task_runner import SUPERVISOR_COMMS
 
-    SUPERVISOR_COMMS.send_request(log=log, msg=GetVariable(key=key))
-    msg = SUPERVISOR_COMMS.get_message()
+    with SUPERVISOR_COMMS.lock:
+        SUPERVISOR_COMMS.send_request(log=log, msg=GetVariable(key=key))
+        msg = SUPERVISOR_COMMS.get_message()
+
     if isinstance(msg, ErrorResponse):
         raise AirflowRuntimeError(msg)
 
