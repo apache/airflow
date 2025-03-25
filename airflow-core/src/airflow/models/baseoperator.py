@@ -31,7 +31,6 @@ from datetime import datetime, timedelta
 from functools import singledispatchmethod
 from typing import TYPE_CHECKING, Any
 
-import methodtools
 import pendulum
 from sqlalchemy import select
 from sqlalchemy.orm.exc import NoResultFound
@@ -321,9 +320,6 @@ class BaseOperator(TaskSDKBaseOperator, AbstractOperator):
                 hello_world_task.execute(context)
     """
 
-    start_trigger_args: StartTriggerArgs | None = None
-    start_from_trigger: bool = False
-
     def __init__(self, **kwargs):
         if start_date := kwargs.get("start_date", None):
             kwargs["start_date"] = timezone.convert_to_utc(start_date)
@@ -344,14 +340,6 @@ class BaseOperator(TaskSDKBaseOperator, AbstractOperator):
         def dag(self, val: SchedulerDAG):
             # For type checking only
             ...
-
-    @classmethod
-    @methodtools.lru_cache(maxsize=None)
-    def get_serialized_fields(cls):
-        """Stringified DAGs and operators contain exactly these fields."""
-        # TODO: this ends up caching it once per-subclass, which isn't what we want, but this class is only
-        # kept around during the development of AIP-72/TaskSDK code.
-        return TaskSDKBaseOperator.get_serialized_fields() | {"start_trigger_args", "start_from_trigger"}
 
     def get_inlet_defs(self):
         """
