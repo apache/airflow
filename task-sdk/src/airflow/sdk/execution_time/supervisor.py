@@ -1084,6 +1084,14 @@ def initialize_secrets_backend_on_workers():
     log.debug("Initialized secrets backend on workers", secrets_backend=SECRETS_BACKEND)
 
 
+def register_secrets_masker():
+    """Register the secrets masker to mask task logs."""
+    from airflow.sdk.execution_time.secrets_masker import get_sensitive_variables_fields, mask_secret
+
+    for field in get_sensitive_variables_fields():
+        mask_secret(field)
+
+
 def supervise(
     *,
     ti: TaskInstance,
@@ -1142,6 +1150,8 @@ def supervise(
         logger = structlog.wrap_logger(underlying_logger, processors=processors, logger_name="task").bind()
 
     initialize_secrets_backend_on_workers()
+
+    register_secrets_masker()
 
     process = ActivitySubprocess.start(
         dag_rel_path=dag_rel_path,
