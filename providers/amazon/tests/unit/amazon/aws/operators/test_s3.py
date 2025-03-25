@@ -58,6 +58,7 @@ from airflow.providers.openlineage.extractors import OperatorLineage
 from airflow.utils.state import DagRunState
 from airflow.utils.timezone import datetime, utcnow
 from airflow.utils.types import DagRunType
+
 from unit.amazon.aws.utils.test_template_fields import validate_template_fields
 
 BUCKET_NAME = os.environ.get("BUCKET_NAME", "test-airflow-bucket")
@@ -415,20 +416,19 @@ class TestS3FileTransformOperator:
 
 
 class TestS3ListOperator:
-    @mock.patch("airflow.providers.amazon.aws.operators.s3.S3Hook")
-    def test_execute(self, mock_hook):
-        mock_hook.return_value.list_keys.return_value = ["TEST1.csv", "TEST2.csv", "TEST3.csv"]
-
+    def test_execute(self):
         operator = S3ListOperator(
             task_id="test-s3-list-operator",
             bucket=BUCKET_NAME,
             prefix="TEST",
             delimiter=".csv",
         )
+        operator.hook = mock.MagicMock()
+        operator.hook.list_keys.return_value = ["TEST1.csv", "TEST2.csv", "TEST3.csv"]
 
         files = operator.execute(None)
 
-        mock_hook.return_value.list_keys.assert_called_once_with(
+        operator.hook.list_keys.assert_called_once_with(
             bucket_name=BUCKET_NAME,
             prefix="TEST",
             delimiter=".csv",
@@ -447,17 +447,16 @@ class TestS3ListOperator:
 
 
 class TestS3ListPrefixesOperator:
-    @mock.patch("airflow.providers.amazon.aws.operators.s3.S3Hook")
-    def test_execute(self, mock_hook):
-        mock_hook.return_value.list_prefixes.return_value = ["test/"]
-
+    def test_execute(self):
         operator = S3ListPrefixesOperator(
             task_id="test-s3-list-prefixes-operator", bucket=BUCKET_NAME, prefix="test/", delimiter="/"
         )
+        operator.hook = mock.MagicMock()
+        operator.hook.list_prefixes.return_value = ["test/"]
 
         subfolders = operator.execute(None)
 
-        mock_hook.return_value.list_prefixes.assert_called_once_with(
+        operator.hook.list_prefixes.assert_called_once_with(
             bucket_name=BUCKET_NAME, prefix="test/", delimiter="/"
         )
         assert subfolders == ["test/"]
@@ -870,8 +869,7 @@ class TestS3DeleteObjectsOperator:
         assert objects_in_dest_bucket["Contents"][0]["Key"] == key_of_test
 
     @pytest.mark.parametrize("keys", ("path/data.txt", ["path/data.txt"]))
-    @mock.patch("airflow.providers.amazon.aws.operators.s3.S3Hook")
-    def test_get_openlineage_facets_on_complete_single_object(self, mock_hook, keys):
+    def test_get_openlineage_facets_on_complete_single_object(self, keys):
         bucket = "testbucket"
         expected_input = Dataset(
             namespace=f"s3://{bucket}",
@@ -888,14 +886,14 @@ class TestS3DeleteObjectsOperator:
         )
 
         op = S3DeleteObjectsOperator(task_id="test_task_s3_delete_single_object", bucket=bucket, keys=keys)
+        op.hook = mock.MagicMock()
         op.execute(None)
 
         lineage = op.get_openlineage_facets_on_complete(None)
         assert len(lineage.inputs) == 1
         assert lineage.inputs[0] == expected_input
 
-    @mock.patch("airflow.providers.amazon.aws.operators.s3.S3Hook")
-    def test_get_openlineage_facets_on_complete_multiple_objects(self, mock_hook):
+    def test_get_openlineage_facets_on_complete_multiple_objects(self):
         bucket = "testbucket"
         keys = ["path/data1.txt", "path/data2.txt"]
         expected_inputs = [
@@ -928,6 +926,7 @@ class TestS3DeleteObjectsOperator:
         ]
 
         op = S3DeleteObjectsOperator(task_id="test_task_s3_delete_single_object", bucket=bucket, keys=keys)
+        op.hook = mock.MagicMock()
         op.execute(None)
 
         lineage = op.get_openlineage_facets_on_complete(None)

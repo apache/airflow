@@ -44,15 +44,15 @@ from airflow.providers.microsoft.azure.hooks.msgraph import (
     DefaultResponseHandler,
     KiotaRequestAdapterHook,
 )
+
+from tests_common.test_utils.file_loading import load_file_from_resources, load_json_from_resources
+from tests_common.test_utils.providers import get_provider_min_airflow_version
 from unit.microsoft.azure.test_utils import (
     get_airflow_connection,
     mock_connection,
     mock_json_response,
     mock_response,
 )
-
-from tests_common.test_utils.file_loading import load_file_from_resources, load_json_from_resources
-from tests_common.test_utils.providers import get_provider_min_airflow_version
 
 if TYPE_CHECKING:
     from kiota_abstractions.request_adapter import RequestAdapter

@@ -17,7 +17,6 @@
 from __future__ import annotations
 
 import contextlib
-import os
 import runpy
 from io import StringIO
 from unittest import mock
@@ -67,13 +66,12 @@ class TestGetEksToken:
             ],
         ],
     )
-    def test_run(self, mock_eks_hook, args, expected_aws_conn_id, expected_region_name, providers_src_folder):
+    def test_run(self, mock_eks_hook, args, expected_aws_conn_id, expected_region_name):
         (
             mock_eks_hook.return_value.fetch_access_token_for_cluster.return_value
         ) = "k8s-aws-v1.aHR0cDovL2V4YW1wbGUuY29t"
 
         with mock.patch("sys.argv", args), contextlib.redirect_stdout(StringIO()) as temp_stdout:
-            os.chdir(providers_src_folder)
             from airflow.providers.amazon.aws.utils import eks_get_token
 
             eks_get_token_path = eks_get_token.__file__

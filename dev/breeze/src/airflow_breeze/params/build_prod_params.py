@@ -49,11 +49,11 @@ class BuildProdParams(CommonBuildParams):
     disable_postgres_client_installation: bool = False
     install_airflow_reference: str | None = None
     install_airflow_version: str | None = None
-    install_packages_from_context: bool = False
+    install_distributions_from_context: bool = False
     installation_method: str = "."
     runtime_apt_command: str | None = None
     runtime_apt_deps: str | None = None
-    use_constraints_for_context_packages: bool = False
+    use_constraints_for_context_distributions: bool = False
     use_uv: bool = True
 
     @property
@@ -154,7 +154,7 @@ class BuildProdParams(CommonBuildParams):
             )
             self.airflow_constraints_location = constraints_location
             extra_build_flags.extend(self.args_for_remote_install)
-        elif self.install_packages_from_context:
+        elif self.install_distributions_from_context:
             extra_build_flags.extend(
                 [
                     "--build-arg",
@@ -181,7 +181,7 @@ class BuildProdParams(CommonBuildParams):
                 ]
             )
         maintainers = json.dumps([{"name": "Apache Airflow PMC", "email": "dev@airflow.apache.org"}])
-        logo_url = "https://github.com/apache/airflow/raw/main/docs/apache-airflow/img/logos/wordmark_1.png"
+        logo_url = "https://github.com/apache/airflow/raw/main/airflow-core/docs/img/logos/wordmark_1.png"
         readme_url = "https://raw.githubusercontent.com/apache/airflow/main/docs/docker-stack/README.md"
         extra_build_flags.extend(
             [
@@ -235,7 +235,7 @@ class BuildProdParams(CommonBuildParams):
         self._req_arg("BUILD_ID", self.build_id)
         self._req_arg("CONSTRAINTS_GITHUB_REPOSITORY", self.constraints_github_repository)
         self._req_arg("DOCKER_CONTEXT_FILES", self.docker_context_files)
-        self._req_arg("INSTALL_PACKAGES_FROM_CONTEXT", self.install_packages_from_context)
+        self._req_arg("INSTALL_DISTRIBUTIONS_FROM_CONTEXT", self.install_distributions_from_context)
         self._req_arg("INSTALL_POSTGRES_CLIENT", self.install_postgres_client)
         self._req_arg("PYTHON_BASE_IMAGE", self.python_base_image)
         # optional build args
@@ -259,7 +259,9 @@ class BuildProdParams(CommonBuildParams):
         self._req_arg("INSTALL_MYSQL_CLIENT_TYPE", self.install_mysql_client_type)
         self._opt_arg("RUNTIME_APT_COMMAND", self.runtime_apt_command)
         self._opt_arg("RUNTIME_APT_DEPS", self.runtime_apt_deps)
-        self._opt_arg("USE_CONSTRAINTS_FOR_CONTEXT_PACKAGES", self.use_constraints_for_context_packages)
+        self._opt_arg(
+            "USE_CONSTRAINTS_FOR_CONTEXT_DISTRIBUTIONS", self.use_constraints_for_context_distributions
+        )
         self._opt_arg("VERSION_SUFFIX_FOR_PYPI", self.version_suffix_for_pypi)
         build_args = self._to_build_args()
         build_args.extend(self._extra_prod_docker_build_flags())

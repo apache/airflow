@@ -30,6 +30,7 @@ from airflow.providers.amazon.aws.operators.neptune import (
     NeptuneStartDbClusterOperator,
     NeptuneStopDbClusterOperator,
 )
+
 from unit.amazon.aws.utils.test_template_fields import validate_template_fields
 
 CLUSTER_ID = "test_cluster"

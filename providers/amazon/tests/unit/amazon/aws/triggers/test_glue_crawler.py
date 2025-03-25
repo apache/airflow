@@ -24,6 +24,7 @@ import pytest
 from airflow.providers.amazon.aws.hooks.glue_crawler import GlueCrawlerHook
 from airflow.providers.amazon.aws.triggers.glue_crawler import GlueCrawlerCompleteTrigger
 from airflow.triggers.base import TriggerEvent
+
 from unit.amazon.aws.utils.test_waiter import assert_expected_waiter_type
 
 
@@ -50,7 +51,7 @@ class TestGlueCrawlerCompleteTrigger:
 
     @pytest.mark.asyncio
     @mock.patch.object(GlueCrawlerHook, "get_waiter")
-    @mock.patch.object(GlueCrawlerHook, "async_conn")
+    @mock.patch.object(GlueCrawlerHook, "get_async_conn")
     async def test_run_success(self, mock_async_conn, mock_get_waiter):
         mock_async_conn.__aenter__.return_value = mock.MagicMock()
         mock_get_waiter().wait = AsyncMock()

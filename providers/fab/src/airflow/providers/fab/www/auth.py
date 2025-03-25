@@ -31,7 +31,7 @@ from flask_appbuilder.const import (
 )
 
 from airflow.api_fastapi.app import get_auth_manager
-from airflow.auth.managers.models.resource_details import (
+from airflow.api_fastapi.auth.managers.models.resource_details import (
     AccessView,
     ConnectionDetails,
     DagAccessEntity,
@@ -40,11 +40,12 @@ from airflow.auth.managers.models.resource_details import (
     VariableDetails,
 )
 from airflow.configuration import conf
+from airflow.providers.fab.www.utils import get_fab_auth_manager
 from airflow.utils.net import get_hostname
 
 if TYPE_CHECKING:
-    from airflow.auth.managers.base_auth_manager import ResourceMethod
-    from airflow.auth.managers.models.batch_apis import (
+    from airflow.api_fastapi.auth.managers.base_auth_manager import ResourceMethod
+    from airflow.api_fastapi.auth.managers.models.batch_apis import (
         IsAuthorizedConnectionRequest,
         IsAuthorizedDagRequest,
         IsAuthorizedPoolRequest,
@@ -52,7 +53,7 @@ if TYPE_CHECKING:
     )
     from airflow.models import DagRun, Pool, TaskInstance, Variable
     from airflow.models.connection import Connection
-    from airflow.models.xcom import BaseXCom
+    from airflow.models.xcom import XComModel
 
 T = TypeVar("T", bound=Callable)
 
@@ -138,19 +139,19 @@ def _has_access(*, is_authorized: bool, func: Callable, args, kwargs):
     """
     if is_authorized:
         return func(*args, **kwargs)
-    elif get_auth_manager().is_logged_in() and not get_auth_manager().is_authorized_view(
+    elif get_fab_auth_manager().is_logged_in() and not get_auth_manager().is_authorized_view(
         access_view=AccessView.WEBSITE,
-        user=get_auth_manager().get_user(),
+        user=get_fab_auth_manager().get_user(),
     ):
         return (
             render_template(
                 "airflow/no_roles_permissions.html",
                 hostname=get_hostname() if conf.getboolean("webserver", "EXPOSE_HOSTNAME") else "",
-                logout_url=get_auth_manager().get_url_logout(),
+                logout_url=get_fab_auth_manager().get_url_logout(),
             ),
             403,
         )
-    elif not get_auth_manager().is_logged_in():
+    elif not get_fab_auth_manager().is_logged_in():
         return redirect(get_auth_manager().get_url_login(next_url=request.url))
     else:
         access_denied = get_access_denied_message()
@@ -161,7 +162,7 @@ def _has_access(*, is_authorized: bool, func: Callable, args, kwargs):
 def has_access_configuration(method: ResourceMethod) -> Callable[[T], T]:
     return _has_access_no_details(
         lambda: get_auth_manager().is_authorized_configuration(
-            method=method, user=get_auth_manager().get_user()
+            method=method, user=get_fab_auth_manager().get_user()
         )
     )
 
@@ -248,7 +249,7 @@ def has_access_dag_entities(method: ResourceMethod, access_entity: DagAccessEnti
     def has_access_decorator(func: T):
         @wraps(func)
         def decorated(*args, **kwargs):
-            items: set[BaseXCom | DagRun | TaskInstance] = set(args[1])
+            items: set[XComModel | DagRun | TaskInstance] = set(args[1])
             requests: Sequence[IsAuthorizedDagRequest] = [
                 {
                     "method": method,
@@ -276,7 +277,7 @@ def has_access_dag_entities(method: ResourceMethod, access_entity: DagAccessEnti
 def has_access_asset(method: ResourceMethod) -> Callable[[T], T]:
     """Check current user's permissions against required permissions for assets."""
     return _has_access_no_details(
-        lambda: get_auth_manager().is_authorized_asset(method=method, user=get_auth_manager().get_user())
+        lambda: get_auth_manager().is_authorized_asset(method=method, user=get_fab_auth_manager().get_user())
     )
 
 
@@ -344,6 +345,6 @@ def has_access_view(access_view: AccessView = AccessView.WEBSITE) -> Callable[[T
     """Check current user's permissions to access the website."""
     return _has_access_no_details(
         lambda: get_auth_manager().is_authorized_view(
-            access_view=access_view, user=get_auth_manager().get_user()
+            access_view=access_view, user=get_fab_auth_manager().get_user()
         )
     )

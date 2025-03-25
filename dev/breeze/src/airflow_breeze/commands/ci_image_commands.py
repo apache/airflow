@@ -82,6 +82,7 @@ from airflow_breeze.commands.common_package_installation_options import (
     option_airflow_constraints_location,
     option_airflow_constraints_mode_ci,
 )
+from airflow_breeze.global_constants import UV_VERSION
 from airflow_breeze.params.build_ci_params import BuildCiParams
 from airflow_breeze.utils.ci_group import ci_group
 from airflow_breeze.utils.click_utils import BreezeGroup
@@ -106,7 +107,7 @@ from airflow_breeze.utils.parallel import (
     check_async_run_results,
     run_with_pool,
 )
-from airflow_breeze.utils.path_utils import AIRFLOW_SOURCES_ROOT, BUILD_CACHE_DIR
+from airflow_breeze.utils.path_utils import AIRFLOW_ROOT_PATH, BUILD_CACHE_PATH
 from airflow_breeze.utils.python_versions import get_python_version_list
 from airflow_breeze.utils.recording import generating_command_images
 from airflow_breeze.utils.run_tests import verify_an_image
@@ -294,7 +295,7 @@ option_ci_image_file_to_load = click.option(
     type=click.Path(dir_okay=False, readable=True, path_type=Path, resolve_path=True),
     envvar="IMAGE_FILE",
     help="Optional file name to load the image from - name must follow the convention:"
-    "`ci-image-save-{escaped_platform}-*-{python_version}.tar`. where escaped_platform is one of "
+    "`ci-image-save-v3-{escaped_platform}-*-{python_version}.tar`. where escaped_platform is one of "
     "linux_amd64 or linux_arm64. If it does not exist in current working dir and if you do not specify "
     "absolute file, it will be searched for in the --image-file-dir.",
 )
@@ -627,7 +628,7 @@ def save(
         run_command(["docker", "buildx", "du", "--verbose"], check=False)
     escaped_platform = platform.replace("/", "_")
     if not image_file:
-        image_file_to_store = image_file_dir / f"ci-image-save-{escaped_platform}-{python}.tar"
+        image_file_to_store = image_file_dir / f"ci-image-save-v3-{escaped_platform}-{python}.tar"
     elif image_file.is_absolute():
         image_file_to_store = image_file
     else:
@@ -673,7 +674,7 @@ def load(
     escaped_platform = platform.replace("/", "_")
 
     if not image_file:
-        image_file_to_load = image_file_dir / f"ci-image-save-{escaped_platform}-{python}.tar"
+        image_file_to_load = image_file_dir / f"ci-image-save-v3-{escaped_platform}-{python}.tar"
     elif image_file.is_absolute() or image_file.exists():
         image_file_to_load = image_file
     else:
@@ -684,10 +685,10 @@ def load(
             f"[error]The image file {image_file_to_load} does not end with '-{python}.tar'. Exiting.[/]"
         )
         sys.exit(1)
-    if not image_file_to_load.name.startswith(f"ci-image-save-{escaped_platform}"):
+    if not image_file_to_load.name.startswith(f"ci-image-save-v3-{escaped_platform}"):
         get_console().print(
             f"[error]The image file {image_file_to_load} does not start with "
-            f"'ci-image-save-{escaped_platform}'. Exiting.[/]"
+            f"'ci-image-save-v3-{escaped_platform}'. Exiting.[/]"
         )
         sys.exit(1)
 
@@ -898,7 +899,7 @@ def run_build_ci_image(
         return 1, "Error: building multi-platform image without --push."
     if get_verbose() or get_dry_run():
         get_console(output=output).print(
-            f"\n[info]Building CI image of airflow from {AIRFLOW_SOURCES_ROOT}: {param_description}[/]\n"
+            f"\n[info]Building CI image of airflow from {AIRFLOW_ROOT_PATH}: {param_description}[/]\n"
         )
     if ci_image_params.prepare_buildx_cache:
         build_command_result = build_cache(
@@ -911,11 +912,7 @@ def run_build_ci_image(
             [
                 sys.executable,
                 os.fspath(
-                    AIRFLOW_SOURCES_ROOT
-                    / "scripts"
-                    / "ci"
-                    / "pre_commit"
-                    / "update_providers_dependencies.py"
+                    AIRFLOW_ROOT_PATH / "scripts" / "ci" / "pre_commit" / "update_providers_dependencies.py"
                 ),
             ],
             check=False,
@@ -927,7 +924,7 @@ def run_build_ci_image(
             prepare_docker_build_command(
                 image_params=ci_image_params,
             ),
-            cwd=AIRFLOW_SOURCES_ROOT,
+            cwd=AIRFLOW_ROOT_PATH,
             text=True,
             check=False,
             env=env,
@@ -943,7 +940,7 @@ def run_build_ci_image(
                     prepare_docker_build_command(
                         image_params=ci_image_params,
                     ),
-                    cwd=AIRFLOW_SOURCES_ROOT,
+                    cwd=AIRFLOW_ROOT_PATH,
                     env=env,
                     text=True,
                     check=False,
@@ -968,7 +965,7 @@ def rebuild_or_pull_ci_image_if_needed(command_params: ShellParams | BuildCiPara
     :param command_params: parameters of the command to execute
     """
     build_ci_image_check_cache = Path(
-        BUILD_CACHE_DIR, command_params.airflow_branch, f".built_{command_params.python}"
+        BUILD_CACHE_PATH, command_params.airflow_branch, f".built_{command_params.python}"
     )
     ci_image_params = BuildCiParams(
         builder=command_params.builder,
@@ -1025,16 +1022,18 @@ def export_mount_cache(
     """
     perform_environment_checks()
     make_sure_builder_configured(params=BuildCiParams(builder=builder))
-    dockerfile = """
+    dockerfile = f"""
     # syntax=docker/dockerfile:1.4
-    FROM python:3.9-slim-bookworm
+    FROM ghcr.io/astral-sh/uv:{UV_VERSION}-bookworm-slim
     ARG TARGETARCH
     ARG DEPENDENCY_CACHE_EPOCH=<REPLACE_FROM_DOCKER_CI>
+    RUN --mount=type=cache,id=ci-$TARGETARCH-$DEPENDENCY_CACHE_EPOCH,target=/root/.cache/ \\
+    uv cache prune --ci
     RUN --mount=type=cache,id=ci-$TARGETARCH-$DEPENDENCY_CACHE_EPOCH,target=/root/.cache/ \\
     tar -C /root/.cache/ -czf /root/.cache.tar.gz .
     """
 
-    dockerfile_ci_content = (AIRFLOW_SOURCES_ROOT / "Dockerfile.ci").read_text()
+    dockerfile_ci_content = (AIRFLOW_ROOT_PATH / "Dockerfile.ci").read_text()
     dependency_cache_epoch = dockerfile_ci_content.split("DEPENDENCY_CACHE_EPOCH=")[1].split("\n")[0]
     get_console().print(f"[info]Dependency cache epoch from Dockerfile.ci = {dependency_cache_epoch}[/]")
     dockerfile = dockerfile.replace("<REPLACE_FROM_DOCKER_CI>", dependency_cache_epoch)
@@ -1105,7 +1104,7 @@ def import_mount_cache(
     get_console().print(f"[info]Copying cache file to context: {context_cache_file}[/]")
     cache_file.rename(context_cache_file)
     get_console().print(f"[info]Copied cache file to context: {context_cache_file}[/]")
-    dockerfile_ci_content = (AIRFLOW_SOURCES_ROOT / "Dockerfile.ci").read_text()
+    dockerfile_ci_content = (AIRFLOW_ROOT_PATH / "Dockerfile.ci").read_text()
     dependency_cache_epoch = dockerfile_ci_content.split("DEPENDENCY_CACHE_EPOCH=")[1].split("\n")[0]
     get_console().print(f"[info]Dependency cache epoch from Dockerfile.ci = {dependency_cache_epoch}[/]")
     dockerfile = dockerfile.replace("<REPLACE_FROM_DOCKER_CI>", dependency_cache_epoch)

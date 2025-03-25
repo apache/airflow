@@ -49,7 +49,7 @@ To trigger a DAG run in an Amazon MWAA environment you can use the
 :class:`~airflow.providers.amazon.aws.operators.mwaa.MwaaTriggerDagRunOperator`
 
 In the following example, the task ``trigger_dag_run`` triggers a DAG run for the DAG ``hello_world`` in the environment
-``MyAirflowEnvironment``.
+``MyAirflowEnvironment`` and waits for the run to complete.
 
 .. exampleinclude:: /../../providers/amazon/tests/system/amazon/aws/example_mwaa.py
     :language: python

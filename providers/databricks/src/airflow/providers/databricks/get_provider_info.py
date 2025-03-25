@@ -27,8 +27,9 @@ def get_provider_info():
         "name": "Databricks",
         "description": "`Databricks <https://databricks.com/>`__\n",
         "state": "ready",
-        "source-date-epoch": 1740734113,
+        "source-date-epoch": 1741508706,
         "versions": [
+            "7.2.1",
             "7.2.0",
             "7.0.0",
             "6.13.0",
@@ -190,6 +191,7 @@ def get_provider_info():
             "sdk": ["databricks-sdk==0.10.0"],
             "azure-identity": ["azure-identity>=1.3.1"],
             "fab": ["apache-airflow-providers-fab"],
+            "standard": ["apache-airflow-providers-standard"],
         },
         "devel-dependencies": ["deltalake>=0.12.0"],
     }

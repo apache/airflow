@@ -19,6 +19,7 @@ from __future__ import annotations
 from unittest import mock
 
 from airflow.providers.google.ads.transfers.ads_to_gcs import GoogleAdsToGcsOperator
+
 from unit.google.ads.operators.test_ads import (
     BUCKET,
     CLIENT_IDS,

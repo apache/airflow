@@ -24,8 +24,8 @@ from cov_runner import run_tests
 sys.path.insert(0, str(Path(__file__).parent.resolve()))
 
 source_files = [
-    "airflow/dag_processing",
-    "airflow/triggers",
+    "airflow-core/src/airflow/dag_processing",
+    "airflow-core/src/airflow/triggers",
 ]
 """
 Other potential source file packages to scan for coverage.
@@ -33,66 +33,65 @@ You can also compare the stats against those on
 https://app.codecov.io/github/apache/airflow
 (as it combines the coverage from all tests and so may be a bit higher).
 
-    "airflow/auth",
-    "airflow/callbacks",
-    "airflow/config_templates",
-    "airflow/dag_processing",
-    "airflow/assets",
-    "airflow/decorators",
-    "airflow/hooks",
-    "airflow/io",
-    "airflow/lineage",
-    "airflow/listeners",
-    "airflow/macros",
-    "airflow/notifications",
-    "airflow/secrets",
-    "airflow/security",
-    "airflow/sensors",
-    "airflow/task",
-    "airflow/template",
-    "airflow/timetables",
-    "airflow/triggers",
+    "airflow-core/src/airflow/callbacks",
+    "airflow-core/src/airflow/config_templates",
+    "airflow-core/src/airflow/dag_processing",
+    "airflow-core/src/airflow/assets",
+    "airflow-core/src/airflow/decorators",
+    "airflow-core/src/airflow/hooks",
+    "airflow-core/src/airflow/io",
+    "airflow-core/src/airflow/lineage",
+    "airflow-core/src/airflow/listeners",
+    "airflow-core/src/airflow/macros",
+    "airflow-core/src/airflow/notifications",
+    "airflow-core/src/airflow/secrets",
+    "airflow-core/src/airflow/security",
+    "airflow-core/src/airflow/sensors",
+    "airflow-core/src/airflow/task",
+    "airflow-core/src/airflow/template",
+    "airflow-core/src/airflow/timetables",
+    "airflow-core/src/airflow/triggers",
 """
 
 files_not_fully_covered = [
-    "airflow/dag_processing/manager.py",
-    "airflow/dag_processing/processor.py",
-    "airflow/triggers/base.py",
-    "airflow/triggers/external_task.py",
-    "airflow/triggers/file.py",
-    "airflow/triggers/testing.py",
+    "airflow-core/src/airflow/dag_processing/manager.py",
+    "airflow-core/src/airflow/dag_processing/processor.py",
+    "airflow-core/src/airflow/triggers/base.py",
+    "airflow-core/src/airflow/triggers/external_task.py",
+    "airflow-core/src/airflow/triggers/file.py",
+    "airflow-core/src/airflow/triggers/testing.py",
 ]
 
 other_tests = [
-    "tests/dag_processing",
-    "tests/jobs",
+    "airflow-core/tests/dag_processing",
+    "airflow-core/tests/jobs",
 ]
 
 """
 Other tests to potentially run against the source_file packages:
 
-    "tests/auth",
-    "tests/callbacks",
-    "tests/charts",
-    "tests/cluster_policies",
-    "tests/config_templates",
-    "tests/dag_processing",
-    "tests/assets",
-    "tests/decorators",
-    "tests/hooks",
-    "tests/io",
-    "tests/jobs",
-    "tests/lineage",
-    "tests/listeners",
-    "tests/macros",
-    "tests/notifications",
-    "tests/plugins",
-    "tests/secrets",
-    "tests/security",
-    "tests/sensors",
-    "tests/task",
-    "tests/testconfig",
-    "tests/timetables",
+    "airflow-core/tests/auth",
+    "airflow-core/tests/callbacks",
+    "airflow-core/tests/charts",
+    "airflow-core/tests/cluster_policies",
+    "airflow-core/tests/config_templates",
+    "airflow-core/tests/dag_processing",
+    "airflow-core/tests/assets",
+    "airflow-core/tests/decorators",
+    "airflow-core/tests/hooks",
+    "airflow-core/tests/io",
+    "airflow-core/tests/jobs",
+    "airflow-core/tests/lineage",
+    "airflow-core/tests/listeners",
+    "airflow-core/tests/macros",
+    "airflow-core/tests/notifications",
+    "airflow-core/tests/plugins",
+    "airflow-core/tests/secrets",
+    "airflow-core/tests/security",
+    "airflow-core/tests/sensors",
+    "airflow-core/tests/task",
+    "airflow-core/tests/testconfig",
+    "airflow-core/tests/timetables",
 """
 
 

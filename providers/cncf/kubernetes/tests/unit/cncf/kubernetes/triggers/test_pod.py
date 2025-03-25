@@ -18,6 +18,7 @@
 from __future__ import annotations
 
 import asyncio
+import contextlib
 import datetime
 import logging
 from asyncio import Future
@@ -386,3 +387,48 @@ class TestKubernetesPodTrigger:
             )
             == actual
         )
+
+    @pytest.mark.asyncio
+    @mock.patch(f"{TRIGGER_PATH}.hook")
+    async def test__get_pod(self, mock_hook, trigger):
+        """
+        Test that KubernetesPodTrigger _get_pod is called with the correct arguments.
+        """
+
+        mock_hook.get_pod.return_value = self._mock_pod_result(mock.MagicMock())
+
+        await trigger._get_pod()
+        mock_hook.get_pod.assert_called_with(name=POD_NAME, namespace=NAMESPACE)
+
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize(
+        "exc_count, call_count",
+        [
+            pytest.param(0, 1, id="no exception"),
+            pytest.param(2, 3, id="2 exc, 1 success"),
+            pytest.param(3, 3, id="max retries"),
+        ],
+    )
+    @mock.patch(f"{TRIGGER_PATH}.hook")
+    async def test__get_pod_retries(
+        self,
+        mock_hook,
+        trigger,
+        exc_count,
+        call_count,
+    ):
+        """
+        Test that KubernetesPodTrigger _get_pod retries in case of an exception during
+        the hook.get_pod call.
+        """
+
+        side_effects = [Exception("Test exception") for _ in range(exc_count)] + [MagicMock()]
+
+        mock_hook.get_pod.side_effect = mock.AsyncMock(side_effect=side_effects)
+        # We expect the exception to be raised only if the number of retries is exceeded
+        context = (
+            pytest.raises(Exception, match="Test exception") if exc_count > 2 else contextlib.nullcontext()
+        )
+        with context:
+            await trigger._get_pod()
+        assert mock_hook.get_pod.call_count == call_count

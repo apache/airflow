@@ -53,6 +53,7 @@
 {% endblock %}
 
 {% block messages %}
+  {% include 'appbuilder/flash.html' %}
   {% if show_plugin_message %}
     {% call show_message(category='warning', dismissible=false) %}
       <p>

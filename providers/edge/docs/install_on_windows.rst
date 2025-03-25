@@ -38,7 +38,7 @@ Install Edge Worker on Windows
     cannot be downloaded.
 
     While it is in a not-ready state, a wheel release package must be manually built from source tree
-    via ``breeze release-management prepare-provider-packages --include-not-ready-providers edge``.
+    via ``breeze release-management prepare-provider-distributions --include-not-ready-providers edge``.
 
 
 The setup was tested on Windows 10 with Python 3.12.8, 64-bit.

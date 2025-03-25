@@ -30,6 +30,7 @@ import inspect
 import json
 import logging
 import os
+import warnings
 from copy import deepcopy
 from functools import cached_property, wraps
 from pathlib import Path
@@ -41,6 +42,7 @@ import botocore.session
 import jinja2
 import requests
 import tenacity
+from asgiref.sync import sync_to_async
 from botocore.config import Config
 from botocore.waiter import Waiter, WaiterModel
 from dateutil.tz import tzlocal
@@ -50,6 +52,7 @@ from airflow.configuration import conf
 from airflow.exceptions import (
     AirflowException,
     AirflowNotFoundException,
+    AirflowProviderDeprecationWarning,
 )
 from airflow.hooks.base import BaseHook
 from airflow.providers.amazon.aws.utils.connection_wrapper import AwsConnectionWrapper
@@ -747,7 +750,29 @@ class AwsGenericHook(BaseHook, Generic[BaseAwsConnection]):
 
     @property
     def async_conn(self):
+        """
+        [DEPRECATED] Get an aiobotocore client to use for async operations.
+
+        This property is deprecated. Accessing it in an async context will cause the event loop to block.
+        Use the async method `get_async_conn` instead.
+        """
+        warnings.warn(
+            "The property `async_conn` is deprecated. Accessing it in an async context will cause the event loop to block. "
+            "Use the async method `get_async_conn` instead.",
+            AirflowProviderDeprecationWarning,
+            stacklevel=2,
+        )
+
+        return self._get_async_conn()
+
+    async def get_async_conn(self):
         """Get an aiobotocore client to use for async operations."""
+        # We have to wrap the call `self.get_client_type` in another call `_get_async_conn`,
+        # because one of it's arguments `self.region_name` is a `@property` decorated function
+        # calling the cached property `self.conn_config` at the end.
+        return await sync_to_async(self._get_async_conn)()
+
+    def _get_async_conn(self):
         if not self.client_type:
             raise ValueError("client_type must be specified.")
 
@@ -918,6 +943,7 @@ class AwsGenericHook(BaseHook, Generic[BaseAwsConnection]):
         self,
         waiter_name: str,
         parameters: dict[str, str] | None = None,
+        config_overrides: dict[str, Any] | None = None,
         deferrable: bool = False,
         client=None,
     ) -> Waiter:
@@ -937,6 +963,9 @@ class AwsGenericHook(BaseHook, Generic[BaseAwsConnection]):
         :param parameters: will scan the waiter config for the keys of that dict,
             and replace them with the corresponding value. If a custom waiter has
             such keys to be expanded, they need to be provided here.
+            Note: cannot be used if parameters are included in config_overrides
+        :param config_overrides: will update values of provided keys in the waiter's
+            config. Only specified keys will be updated.
         :param deferrable: If True, the waiter is going to be an async custom waiter.
             An async client must be provided in that case.
         :param client: The client to use for the waiter's operations
@@ -945,14 +974,18 @@ class AwsGenericHook(BaseHook, Generic[BaseAwsConnection]):
 
         if deferrable and not client:
             raise ValueError("client must be provided for a deferrable waiter.")
+        if parameters is not None and config_overrides is not None and "acceptors" in config_overrides:
+            raise ValueError('parameters must be None when "acceptors" is included in config_overrides')
         # Currently, the custom waiter doesn't work with resource_type, only client_type is supported.
         client = client or self._client
         if self.waiter_path and (waiter_name in self._list_custom_waiters()):
             # Technically if waiter_name is in custom_waiters then self.waiter_path must
             # exist but MyPy doesn't like the fact that self.waiter_path could be None.
             with open(self.waiter_path) as config_file:
-                config = json.loads(config_file.read())
+                config: dict = json.loads(config_file.read())
 
+            if config_overrides is not None:
+                config["waiters"][waiter_name].update(config_overrides)
             config = self._apply_parameters_value(config, waiter_name, parameters)
             return BaseBotoWaiter(client=client, model_config=config, deferrable=deferrable).waiter(
                 waiter_name

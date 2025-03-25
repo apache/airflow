@@ -2897,7 +2897,7 @@ class BigQueryInsertJobOperator(GoogleCloudBaseOperator, _BigQueryInsertJobOpera
 
     def _add_job_labels(self) -> None:
         dag_label = self.dag_id.lower()
-        task_label = self.task_id.lower()
+        task_label = self.task_id.lower().replace(".", "-")
 
         if LABEL_REGEX.match(dag_label) and LABEL_REGEX.match(task_label):
             automatic_labels = {"airflow-dag": dag_label, "airflow-task": task_label}

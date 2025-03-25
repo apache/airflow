@@ -24,15 +24,14 @@ from pathlib import Path
 
 from rich.console import Console
 
-AIRFLOW_SOURCES_ROOT = Path(__file__).parents[2].resolve()
-AIRFLOW_PROVIDERS_ROOT = AIRFLOW_SOURCES_ROOT / "airflow" / "providers"
+AIRFLOW_ROOT_PATH = Path(__file__).parents[2].resolve()
 console = Console(width=400, color_system="standard")
 
 
 def remove_packages_missing_on_arm():
     console.print("[bright_blue]Removing packages missing on ARM.")
     provider_dependencies = json.loads(
-        (AIRFLOW_SOURCES_ROOT / "generated" / "provider_dependencies.json").read_text()
+        (AIRFLOW_ROOT_PATH / "generated" / "provider_dependencies.json").read_text()
     )
     all_dependencies_to_remove = []
     for provider in provider_dependencies:

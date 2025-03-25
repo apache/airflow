@@ -16,7 +16,7 @@
 # under the License.
 from __future__ import annotations
 
-from tests.charts.helm_template_generator import render_chart
+from unit.charts.helm_template_generator import render_chart
 
 
 class TestPgbouncerPdb:

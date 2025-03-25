@@ -406,19 +406,6 @@ class LoggingDirective(BaseJinjaReferenceDirective):
         )
 
 
-class AuthBackendDirective(BaseJinjaReferenceDirective):
-    """Generate list of auth backend handlers"""
-
-    def render_content(
-        self, *, tags: set[str] | None, header_separator: str = DEFAULT_HEADER_SEPARATOR
-    ) -> str:
-        return _common_render_list_content(
-            header_separator=header_separator,
-            resource_type="auth-backends",
-            template="auth_backend.rst.jinja2",
-        )
-
-
 class AuthConfigurations(BaseJinjaReferenceDirective):
     """Generate list of configurations"""
 
@@ -530,7 +517,6 @@ def setup(app):
     app.add_directive("operators-hooks-ref", OperatorsHooksReferenceDirective)
     app.add_directive("transfers-ref", TransfersReferenceDirective)
     app.add_directive("airflow-logging", LoggingDirective)
-    app.add_directive("airflow-auth-backends", AuthBackendDirective)
     app.add_directive("airflow-configurations", AuthConfigurations)
     app.add_directive("airflow-secrets-backends", SecretsBackendDirective)
     app.add_directive("airflow-connections", ConnectionsDirective)
@@ -583,19 +569,6 @@ def logging(header_separator: str):
     print(
         _common_render_list_content(
             header_separator=header_separator, resource_type="logging", template="logging.rst.jinja2"
-        )
-    )
-
-
-@cli.command()
-@option_header_separator
-def auth_backends(header_separator: str):
-    """Renders Logger content"""
-    print(
-        _common_render_list_content(
-            header_separator=header_separator,
-            resource_type="auth-backends",
-            template="auth_backend.rst.jinja2",
         )
     )
 

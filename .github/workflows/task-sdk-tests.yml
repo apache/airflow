@@ -80,7 +80,7 @@ jobs:
         run: rm -fv ./dist/*
       - name: "Prepare Task SDK packages: wheel"
         run: >
-          breeze release-management prepare-task-sdk-package --package-format wheel
+          breeze release-management prepare-task-sdk-distributions --distribution-format wheel
       - name: "Verify wheel packages with twine"
         run: |
           uv tool uninstall twine || true

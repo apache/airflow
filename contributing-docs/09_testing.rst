@@ -46,8 +46,8 @@ includes:
 
 You can also run other kinds of tests when you are developing airflow packages:
 
-* `Testing packages <testing/testing_packages.rst>`__ is a document that describes how to
-  manually build and test pre-release candidate packages of airflow and providers.
+* `Testing distributions <testing/testing_distributions.rst>`__ is a document that describes how to
+  manually build and test pre-release candidate distributions of airflow and providers.
 
 * `Python client tests <testing/python_client_tests.rst>`__ are tests we run to check if the Python API
   client works correctly.

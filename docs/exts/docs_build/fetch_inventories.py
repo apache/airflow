@@ -32,7 +32,7 @@ import urllib3.exceptions
 from requests.adapters import DEFAULT_POOLSIZE
 
 from airflow.utils.helpers import partition
-from docs.exts.docs_build.docs_builder import get_available_providers_packages
+from docs.exts.docs_build.docs_builder import get_available_providers_distributions
 from docs.exts.docs_build.third_party_inventories import THIRD_PARTY_INDEXES
 
 CURRENT_DIR = os.path.dirname(__file__)
@@ -98,7 +98,7 @@ def fetch_inventories():
     os.makedirs(os.path.dirname(CACHE_DIR), exist_ok=True)
     to_download: list[tuple[str, str, str]] = []
 
-    for pkg_name in get_available_providers_packages():
+    for pkg_name in get_available_providers_distributions():
         to_download.append(
             (
                 pkg_name,

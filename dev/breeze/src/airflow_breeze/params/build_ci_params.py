@@ -22,7 +22,7 @@ from pathlib import Path
 
 from airflow_breeze.branch_defaults import DEFAULT_AIRFLOW_CONSTRAINTS_BRANCH
 from airflow_breeze.params.common_build_params import CommonBuildParams
-from airflow_breeze.utils.path_utils import BUILD_CACHE_DIR
+from airflow_breeze.utils.path_utils import BUILD_CACHE_PATH
 
 
 @dataclass
@@ -33,7 +33,7 @@ class BuildCiParams(CommonBuildParams):
 
     airflow_constraints_mode: str = "constraints-source-providers"
     airflow_constraints_reference: str = DEFAULT_AIRFLOW_CONSTRAINTS_BRANCH
-    airflow_extras: str = "devel-ci"
+    airflow_extras: str = "all"
     force_build: bool = False
     upgrade_to_newer_dependencies: bool = False
     upgrade_on_failure: bool = False
@@ -53,7 +53,7 @@ class BuildCiParams(CommonBuildParams):
 
     @property
     def md5sum_cache_dir(self) -> Path:
-        return Path(BUILD_CACHE_DIR, self.airflow_branch, self.python, "CI")
+        return Path(BUILD_CACHE_PATH, self.airflow_branch, self.python, "CI")
 
     def prepare_arguments_for_docker_build_command(self) -> list[str]:
         self.build_arg_values: list[str] = []

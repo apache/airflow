@@ -306,6 +306,7 @@ class TestVaultHook:
             "auth_type": "aws_iam",
             "role_id": "role",
             "session": None,
+            "region": "us-east-2",
         }
 
         test_hook = VaultHook(**kwargs)
@@ -313,9 +314,7 @@ class TestVaultHook:
         test_client = test_hook.get_conn()
         mock_hvac.Client.assert_called_with(url="http://localhost:8180", session=None)
         test_client.auth.aws.iam_login.assert_called_with(
-            access_key="user",
-            secret_key="pass",
-            role="role",
+            access_key="user", secret_key="pass", role="role", region="us-east-2"
         )
         test_client.is_authenticated.assert_called_with()
         assert test_hook.vault_client.kv_engine_version == 2
@@ -328,7 +327,7 @@ class TestVaultHook:
         mock_connection = self.get_mock_connection()
         mock_get_connection.return_value = mock_connection
 
-        connection_dict = {"auth_type": "aws_iam", "role_id": "role"}
+        connection_dict = {"auth_type": "aws_iam", "role_id": "role", "region": "us-east-2"}
 
         mock_connection.extra_dejson.get.side_effect = connection_dict.get
         kwargs = {
@@ -344,21 +343,21 @@ class TestVaultHook:
             access_key="user",
             secret_key="pass",
             role="role",
+            region="us-east-2",
         )
 
     @mock.patch("airflow.providers.hashicorp._internal_client.vault_client.hvac")
     @mock.patch.dict(
         "os.environ",
-        AIRFLOW_CONN_VAULT_CONN_ID="https://login:pass@vault.example.com?auth_type=aws_iam&role_id=role",
+        AIRFLOW_CONN_VAULT_CONN_ID="https://login:pass@vault.example.com?auth_type=aws_iam&role_id=role"
+        "&region=us-east-2",
     )
     def test_aws_uri(self, mock_hvac):
         test_hook = VaultHook(vault_conn_id="vault_conn_id", session=None)
         test_client = test_hook.get_conn()
         mock_hvac.Client.assert_called_with(url="https://vault.example.com", session=None)
         test_client.auth.aws.iam_login.assert_called_with(
-            access_key="login",
-            secret_key="pass",
-            role="role",
+            access_key="login", secret_key="pass", role="role", region="us-east-2"
         )
         test_client.is_authenticated.assert_called_with()
         assert test_hook.vault_client.kv_engine_version == 2

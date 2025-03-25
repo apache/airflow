@@ -27,6 +27,28 @@
 Changelog
 ---------
 
+6.1.1
+.....
+
+Bug Fixes
+~~~~~~~~~
+
+* ``fix mark task as completed before Snowflake job completes in SnowflakeSqlApiOperator when deferrable is False (#46672)``
+* ``[OpenLineage] fixed inputs in OL implementation of CopyFromExternalStageToSnowflakeOperator (#47168)``
+* ``fix deprecation warnings in common.sql (#47169)``
+
+Misc
+~~~~
+
+* ``Upgrade flit to 3.11.0 (#46938)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Move tests_common package to devel-common project (#47281)``
+   * ``Improve documentation for updating provider dependencies (#47203)``
+   * ``Add legacy namespace packages to airflow.providers (#47064)``
+   * ``Remove extra whitespace in provider readme template (#46975)``
+
 6.1.0
 .....
 
@@ -328,7 +350,7 @@ Bug Fixes
 .. Below changes are excluded from the changelog. Move them to
    appropriate section above if needed. Do not delete the lines(!):
    * ``Fix and reapply templates for provider documentation (#35686)``
-   * ``Use reproducible builds for provider packages (#35693)``
+   * ``Use reproducible builds for providers (#35693)``
 
 5.1.1
 .....

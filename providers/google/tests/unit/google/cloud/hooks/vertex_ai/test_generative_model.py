@@ -35,6 +35,7 @@ from vertexai.preview.evaluation import MetricPromptTemplateExamples
 from airflow.providers.google.cloud.hooks.vertex_ai.generative_model import (
     GenerativeModelHook,
 )
+
 from unit.google.cloud.utils.base_gcp_mock import (
     mock_base_gcp_hook_default_project_id,
 )

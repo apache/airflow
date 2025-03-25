@@ -23,9 +23,9 @@ from tempfile import TemporaryDirectory
 import pytest
 
 from airflow.providers.google.cloud.hooks.kms import CloudKMSHook
-from unit.google.cloud.utils.gcp_authenticator import GCP_KMS_KEY
 
 from tests_common.test_utils.gcp_system_helpers import GoogleSystemTest, provide_gcp_context
+from unit.google.cloud.utils.gcp_authenticator import GCP_KMS_KEY
 
 # To prevent resource name collisions, key ring and key resources CANNOT be deleted, so
 # to avoid cluttering the project, we only create the key once during project initialization.

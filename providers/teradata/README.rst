@@ -23,7 +23,7 @@
 
 Package ``apache-airflow-providers-teradata``
 
-Release: ``3.0.1``
+Release: ``3.0.2``
 
 
 `Teradata <https://www.teradata.com/>`__
@@ -36,7 +36,7 @@ This is a provider package for ``teradata`` provider. All classes for this provi
 are in ``airflow.providers.teradata`` python package.
 
 You can find package information and changelog for the provider
-in the `documentation <https://airflow.apache.org/docs/apache-airflow-providers-teradata/3.0.1/>`_.
+in the `documentation <https://airflow.apache.org/docs/apache-airflow-providers-teradata/3.0.2/>`_.
 
 Installation
 ------------
@@ -63,7 +63,7 @@ Cross provider package dependencies
 -----------------------------------
 
 Those are dependencies that might be needed in order to use all the features of the package.
-You need to install the specified provider packages in order to use them.
+You need to install the specified providers in order to use them.
 
 You can install such cross-provider dependencies when installing from PyPI. For example:
 
@@ -81,4 +81,4 @@ Dependent package                                                               
 ======================================================================================================================  ===================
 
 The changelog for the provider package can be found in the
-`changelog <https://airflow.apache.org/docs/apache-airflow-providers-teradata/3.0.1/changelog.html>`_.
+`changelog <https://airflow.apache.org/docs/apache-airflow-providers-teradata/3.0.2/changelog.html>`_.

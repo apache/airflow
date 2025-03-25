@@ -17,6 +17,7 @@
 from __future__ import annotations
 
 import os
+import re
 import subprocess
 import tempfile
 import time
@@ -25,7 +26,6 @@ from pathlib import Path
 from subprocess import check_call, check_output
 
 import pytest
-import re2
 import requests
 import requests.exceptions
 from requests.adapters import HTTPAdapter
@@ -33,9 +33,11 @@ from requests.exceptions import RetryError
 from urllib3.exceptions import MaxRetryError
 from urllib3.util.retry import Retry
 
-CLUSTER_FORWARDED_PORT = os.environ.get("CLUSTER_FORWARDED_PORT") or "9091"
+CLUSTER_FORWARDED_PORT = os.environ.get("CLUSTER_FORWARDED_PORT") or "8080"
 KUBERNETES_HOST_PORT = (os.environ.get("CLUSTER_HOST") or "localhost") + ":" + CLUSTER_FORWARDED_PORT
 EXECUTOR = os.environ.get("EXECUTOR")
+CONFIG_MAP_NAME = "airflow-config"
+CONFIG_MAP_KEY = "airflow.cfg"
 
 print()
 print(f"Cluster host/port used: ${KUBERNETES_HOST_PORT}")
@@ -60,12 +62,15 @@ class BaseK8STest:
     def base_tests_setup(self, request):
         # Replacement for unittests.TestCase.id()
         self.test_id = f"{request.node.cls.__name__}_{request.node.name}"
-        self.session = self._get_session_with_retries()
+        # Ensure the api-server deployment is healthy at kubernetes level before calling the any API
+        self.ensure_deployment_health("airflow-api-server")
         try:
+            self.session = self._get_session_with_retries()
             self._ensure_airflow_api_server_is_healthy()
             yield
         finally:
-            self.session.close()
+            if hasattr(self, "session") and self.session is not None:
+                self.session.close()
 
     def _describe_resources(self, namespace: str):
         kubeconfig_basename = os.path.basename(os.environ.get("KUBECONFIG", "default"))
@@ -110,7 +115,7 @@ class BaseK8STest:
     def _num_pods_in_namespace(namespace):
         air_pod = check_output(["kubectl", "get", "pods", "-n", namespace]).decode()
         air_pod = air_pod.splitlines()
-        names = [re2.compile(r"\s+").split(x)[0] for x in air_pod if "airflow" in x]
+        names = [re.compile(r"\s+").split(x)[0] for x in air_pod if "airflow" in x]
         return len(names)
 
     @staticmethod
@@ -118,21 +123,81 @@ class BaseK8STest:
         suffix = f"-{name}" if name else ""
         air_pod = check_output(["kubectl", "get", "pods"]).decode()
         air_pod = air_pod.splitlines()
-        names = [re2.compile(r"\s+").split(x)[0] for x in air_pod if "airflow" + suffix in x]
+        names = [re.compile(r"\s+").split(x)[0] for x in air_pod if "airflow" + suffix in x]
         if names:
             check_call(["kubectl", "delete", "pod", names[0]])
 
-    def _get_session_with_retries(self):
+    @staticmethod
+    def _get_jwt_token(username: str, password: str) -> str:
+        """Get the JWT token for the given username and password.
+
+        Note: API server is still using FAB Auth Manager.
+
+        Steps:
+        1. Login with the username and password
+            - Must use the same session to keep the csrf token session
+        2. Extract the JWT token from the auth/token url
+
+        :param session: The session to use for the request
+        :param username: The username to use for the login
+        :param password: The password to use for the login
+        :return: The JWT token
+        """
+        # get csrf token from login page
+        Retry.DEFAULT_BACKOFF_MAX = 32
+        retry = Retry(total=10, backoff_factor=1)
+        # Backoff Retry Formula: min(1 × (2^(retry - 1)), 32) seconds
+        # 1 + 2 + 4 + 8 + 16 + 32 + 32 + 32 + 32 + 32 = 191 sec (~3.2 min)
         session = requests.Session()
-        session.auth = ("admin", "admin")
+        session.mount("http://", HTTPAdapter(max_retries=retry))
+        session.mount("https://", HTTPAdapter(max_retries=retry))
+        url = f"http://{KUBERNETES_HOST_PORT}/auth/token"
+        login_response = session.post(
+            url,
+            json={"username": username, "password": password},
+        )
+        jwt_token = login_response.json().get("jwt_token")
+
+        assert jwt_token, f"Failed to get JWT token from redirect url {url} with status code {login_response}"
+        return jwt_token
+
+    def _get_session_with_retries(self):
+        class JWTRefreshAdapter(HTTPAdapter):
+            def __init__(self, base_instance, **kwargs):
+                self.base_instance = base_instance
+                super().__init__(**kwargs)
+
+            def send(self, request, **kwargs):
+                response = super().send(request, **kwargs)
+                if response.status_code in (401, 403):
+                    # Refresh token and update the Authorization header with retry logic.
+                    attempts = 0
+                    jwt_token = None
+                    while attempts < 5:
+                        try:
+                            jwt_token = self.base_instance._get_jwt_token("admin", "admin")
+                            break
+                        except Exception:
+                            attempts += 1
+                            time.sleep(1)
+                    if jwt_token is None:
+                        raise Exception("Failed to refresh JWT token after 5 attempts")
+                    request.headers["Authorization"] = f"Bearer {jwt_token}"
+                    response = super().send(request, **kwargs)
+                return response
+
+        jwt_token = self._get_jwt_token("admin", "admin")
+        session = requests.Session()
+        session.headers.update({"Authorization": f"Bearer {jwt_token}"})
         retries = Retry(
-            total=3,
+            total=5,
             backoff_factor=10,
             status_forcelist=[404],
             allowed_methods=Retry.DEFAULT_ALLOWED_METHODS | frozenset(["PATCH", "POST"]),
         )
-        session.mount("http://", HTTPAdapter(max_retries=retries))
-        session.mount("https://", HTTPAdapter(max_retries=retries))
+        adapter = JWTRefreshAdapter(self, max_retries=retries)
+        session.mount("http://", adapter)
+        session.mount("https://", adapter)
         return session
 
     def _ensure_airflow_api_server_is_healthy(self):
@@ -141,7 +206,7 @@ class BaseK8STest:
         for i in range(max_tries):
             try:
                 response = self.session.get(
-                    f"http://{KUBERNETES_HOST_PORT}/public/monitor/health",
+                    f"http://{KUBERNETES_HOST_PORT}/api/v2/monitor/health",
                     timeout=1,
                 )
                 if response.status_code == 200:
@@ -167,7 +232,7 @@ class BaseK8STest:
             # Check task state
             try:
                 get_string = (
-                    f"http://{host}/public/dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances/{task_id}"
+                    f"http://{host}/api/v2/dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances/{task_id}"
                 )
                 print(f"Calling [monitor_task]#1 {get_string}")
                 result = self.session.get(get_string)
@@ -211,7 +276,7 @@ class BaseK8STest:
         # Wait some time for the operator to complete
         while tries < max_tries:
             time.sleep(5)
-            get_string = f"http://{host}/public/dags/{dag_id}/dagRuns"
+            get_string = f"http://{host}/api/v2/dags/{dag_id}/dagRuns"
             print(f"Calling {get_string}")
             # Get all dagruns
             result = self.session.get(get_string)
@@ -238,7 +303,7 @@ class BaseK8STest:
         # Maybe check if we can retrieve the logs, but then we need to extend the API
 
     def start_dag(self, dag_id, host):
-        patch_string = f"http://{host}/public/dags/{dag_id}"
+        patch_string = f"http://{host}/api/v2/dags/{dag_id}"
         print(f"Calling [start_dag]#1 {patch_string}")
         max_attempts = 10
         result = {}
@@ -262,7 +327,7 @@ class BaseK8STest:
             result_json = str(result)
         print(f"Received [start_dag]#1 {result_json}")
         assert result.status_code == 200, f"Could not enable DAG: {result_json}"
-        post_string = f"http://{host}/public/dags/{dag_id}/dagRuns"
+        post_string = f"http://{host}/api/v2/dags/{dag_id}/dagRuns"
         print(f"Calling [start_dag]#2 {post_string}")
 
         logical_date = datetime.now(timezone.utc).isoformat()
@@ -277,7 +342,7 @@ class BaseK8STest:
 
         time.sleep(1)
 
-        get_string = f"http://{host}/public/dags/{dag_id}/dagRuns"
+        get_string = f"http://{host}/api/v2/dags/{dag_id}/dagRuns"
         print(f"Calling [start_dag]#3 {get_string}")
         result = self.session.get(get_string)
         assert result.status_code == 200, f"Could not get DAGRuns: {result.json()}"

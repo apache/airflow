@@ -27,8 +27,9 @@ def get_provider_info():
         "name": "Redis",
         "description": "`Redis <https://redis.io/>`__\n",
         "state": "ready",
-        "source-date-epoch": 1740734181,
+        "source-date-epoch": 1741509489,
         "versions": [
+            "4.0.2",
             "4.0.1",
             "4.0.0",
             "3.8.0",
@@ -83,4 +84,5 @@ def get_provider_info():
         ],
         "logging": ["airflow.providers.redis.redis_task_handler.RedisTaskHandler"],
         "dependencies": ["apache-airflow>=2.9.0", "redis>=4.5.2,!=4.5.5,!=5.0.2"],
+        "devel-dependencies": [],
     }

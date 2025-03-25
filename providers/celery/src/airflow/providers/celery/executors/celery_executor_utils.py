@@ -120,8 +120,9 @@ def on_celery_import_modules(*args, **kwargs):
     """
     import jinja2.ext  # noqa: F401
 
-    import airflow.jobs.local_task_job_runner
-    import airflow.macros
+    if not AIRFLOW_V_3_0_PLUS:
+        import airflow.jobs.local_task_job_runner
+        import airflow.macros
 
     try:
         import airflow.providers.standard.operators.bash

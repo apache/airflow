@@ -25,12 +25,12 @@ from airflow.providers.common.compat.version_compat import (
 )
 
 if TYPE_CHECKING:
-    from airflow.auth.managers.models.resource_details import AssetDetails
+    from airflow.api_fastapi.auth.managers.models.resource_details import AssetAliasDetails, AssetDetails
     from airflow.models.asset import expand_alias_to_assets
     from airflow.sdk.definitions.asset import Asset, AssetAlias, AssetAll, AssetAny
 else:
     if AIRFLOW_V_3_0_PLUS:
-        from airflow.auth.managers.models.resource_details import AssetDetails
+        from airflow.api_fastapi.auth.managers.models.resource_details import AssetAliasDetails, AssetDetails
         from airflow.models.asset import expand_alias_to_assets
         from airflow.sdk.definitions.asset import Asset, AssetAlias, AssetAll, AssetAny
     else:
@@ -52,6 +52,7 @@ else:
 __all__ = [
     "Asset",
     "AssetAlias",
+    "AssetAliasDetails",
     "AssetAll",
     "AssetAny",
     "AssetDetails",

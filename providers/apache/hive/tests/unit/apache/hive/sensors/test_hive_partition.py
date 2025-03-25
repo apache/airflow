@@ -23,6 +23,7 @@ from unittest.mock import patch
 import pytest
 
 from airflow.providers.apache.hive.sensors.hive_partition import HivePartitionSensor
+
 from unit.apache.hive import DEFAULT_DATE, MockHiveMetastoreHook, TestHiveEnvironment
 
 

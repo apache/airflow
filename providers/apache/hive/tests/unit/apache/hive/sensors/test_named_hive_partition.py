@@ -27,6 +27,7 @@ from airflow.exceptions import AirflowSensorTimeout
 from airflow.models.dag import DAG
 from airflow.providers.apache.hive.sensors.named_hive_partition import NamedHivePartitionSensor
 from airflow.utils.timezone import datetime
+
 from unit.apache.hive import MockHiveMetastoreHook, TestHiveEnvironment
 
 DEFAULT_DATE = datetime(2015, 1, 1)

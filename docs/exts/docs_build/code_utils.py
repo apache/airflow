@@ -18,15 +18,12 @@ from __future__ import annotations
 
 import os
 from contextlib import suppress
+from pathlib import Path
 
 from docs.exts.provider_yaml_utils import load_package_data
 
-ROOT_PROJECT_DIR = os.path.abspath(
-    os.path.join(os.path.dirname(os.path.realpath(__file__)), os.pardir, os.pardir, os.pardir)
-)
-DOCS_DIR = os.path.join(ROOT_PROJECT_DIR, "docs")
-AIRFLOW_DIR = os.path.join(ROOT_PROJECT_DIR, "airflow")
-
+AIRFLOW_ROOT_PATH = Path(__file__).parents[3].resolve()
+AIRFLOW_DOCS_PATH = AIRFLOW_ROOT_PATH / "docs"
 ALL_PROVIDER_YAMLS = load_package_data()
 ALL_PROVIDER_YAMLS_WITH_SUSPENDED = load_package_data(include_suspended=True)
 AIRFLOW_SITE_DIR: str = os.environ.get("AIRFLOW_SITE_DIRECTORY") or ""

@@ -21,18 +21,19 @@ from unittest.mock import mock_open, patch
 
 import pytest
 from openai.pagination import SyncCursorPage
-from openai.types import Batch, CreateEmbeddingResponse, Embedding, FileDeleted, FileObject
-from openai.types.beta import (
-    Assistant,
-    AssistantDeleted,
-    Thread,
-    ThreadDeleted,
+from openai.types import (
+    Batch,
+    CreateEmbeddingResponse,
+    Embedding,
+    FileDeleted,
+    FileObject,
     VectorStore,
     VectorStoreDeleted,
 )
+from openai.types.beta import Assistant, AssistantDeleted, Thread, ThreadDeleted
 from openai.types.beta.threads import Message, Run
-from openai.types.beta.vector_stores import VectorStoreFile, VectorStoreFileBatch, VectorStoreFileDeleted
 from openai.types.chat import ChatCompletion
+from openai.types.vector_stores import VectorStoreFile, VectorStoreFileBatch, VectorStoreFileDeleted
 
 from airflow.models import Connection
 from airflow.providers.openai.exceptions import OpenAIBatchJobException, OpenAIBatchTimeout
@@ -458,21 +459,21 @@ def test_delete_file(mock_openai_hook):
 
 
 def test_create_vector_store(mock_openai_hook, mock_vector_store):
-    mock_openai_hook.conn.beta.vector_stores.create.return_value = mock_vector_store
+    mock_openai_hook.conn.vector_stores.create.return_value = mock_vector_store
     vector_store = mock_openai_hook.create_vector_store(name=VECTOR_STORE_NAME)
     assert vector_store.id == VECTOR_STORE_ID
     assert vector_store.name == VECTOR_STORE_NAME
 
 
 def test_get_vector_store(mock_openai_hook, mock_vector_store):
-    mock_openai_hook.conn.beta.vector_stores.retrieve.return_value = mock_vector_store
+    mock_openai_hook.conn.vector_stores.retrieve.return_value = mock_vector_store
     vector_store = mock_openai_hook.get_vector_store(vector_store_id=VECTOR_STORE_ID)
     assert vector_store.id == VECTOR_STORE_ID
     assert vector_store.name == VECTOR_STORE_NAME
 
 
 def test_get_vector_stores(mock_openai_hook, mock_vector_store_list):
-    mock_openai_hook.conn.beta.vector_stores.list.return_value = mock_vector_store_list
+    mock_openai_hook.conn.vector_stores.list.return_value = mock_vector_store_list
     vector_stores = mock_openai_hook.get_vector_stores()
     assert isinstance(vector_stores, list)
 
@@ -480,7 +481,7 @@ def test_get_vector_stores(mock_openai_hook, mock_vector_store_list):
 def test_modify_vector_store(mock_openai_hook, mock_vector_store):
     new_vector_store_name = "New Vector Store"
     mock_vector_store.name = new_vector_store_name
-    mock_openai_hook.conn.beta.vector_stores.update.return_value = mock_vector_store
+    mock_openai_hook.conn.vector_stores.update.return_value = mock_vector_store
     vector_store = mock_openai_hook.modify_vector_store(
         vector_store_id=VECTOR_STORE_ID, name=new_vector_store_name
     )
@@ -489,14 +490,14 @@ def test_modify_vector_store(mock_openai_hook, mock_vector_store):
 
 def test_delete_vector_store(mock_openai_hook):
     delete_response = VectorStoreDeleted(id=VECTOR_STORE_ID, object="vector_store.deleted", deleted=True)
-    mock_openai_hook.conn.beta.vector_stores.delete.return_value = delete_response
+    mock_openai_hook.conn.vector_stores.delete.return_value = delete_response
     vector_store_deleted = mock_openai_hook.delete_vector_store(vector_store_id=VECTOR_STORE_ID)
     assert vector_store_deleted.deleted
 
 
 def test_upload_files_to_vector_store(mock_openai_hook, mock_vector_file_store_batch):
     files = ["file1.txt", "file2.txt", "file3.txt"]
-    mock_openai_hook.conn.beta.vector_stores.file_batches.upload_and_poll.return_value = (
+    mock_openai_hook.conn.vector_stores.file_batches.upload_and_poll.return_value = (
         mock_vector_file_store_batch
     )
     vector_file_store_batch = mock_openai_hook.upload_files_to_vector_store(
@@ -507,7 +508,7 @@ def test_upload_files_to_vector_store(mock_openai_hook, mock_vector_file_store_b
 
 
 def test_get_vector_store_files(mock_openai_hook, mock_vector_file_store_list):
-    mock_openai_hook.conn.beta.vector_stores.files.list.return_value = mock_vector_file_store_list
+    mock_openai_hook.conn.vector_stores.files.list.return_value = mock_vector_file_store_list
     vector_file_store_list = mock_openai_hook.get_vector_store_files(vector_store_id=VECTOR_STORE_ID)
     assert isinstance(vector_file_store_list, list)
 
@@ -516,7 +517,7 @@ def test_delete_vector_store_file(mock_openai_hook):
     delete_response = VectorStoreFileDeleted(
         id="test_file_abc123", object="vector_store.file.deleted", deleted=True
     )
-    mock_openai_hook.conn.beta.vector_stores.files.delete.return_value = delete_response
+    mock_openai_hook.conn.vector_stores.files.delete.return_value = delete_response
     vector_store_file_deleted = mock_openai_hook.delete_vector_store_file(
         vector_store_id=VECTOR_STORE_ID, file_id=FILE_ID
     )

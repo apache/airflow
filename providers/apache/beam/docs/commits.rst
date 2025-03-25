@@ -34,6 +34,22 @@ For high-level changelog, see :doc:`package information including changelog <ind
 
 
 
+6.0.3
+.....
+
+Latest change: 2025-03-06
+
+==================================================================================================  ===========  =====================================================================
+Commit                                                                                              Committed    Subject
+==================================================================================================  ===========  =====================================================================
+`e165be7cad <https://github.com/apache/airflow/commit/e165be7cad4adc37527ab9bbb451649c09c256bc>`__  2025-03-06   ``Fix beam pipeline options False value parsing (#47419)``
+`e4002c3305 <https://github.com/apache/airflow/commit/e4002c3305a757f5926f96c996e701e8f998a042>`__  2025-03-05   ``Move tests_common package to devel-common project (#47281)``
+`1addb55154 <https://github.com/apache/airflow/commit/1addb55154fbef31bfa021537cfbd4395696381c>`__  2025-02-28   ``Improve documentation for updating provider dependencies (#47203)``
+`c6c4f95ed9 <https://github.com/apache/airflow/commit/c6c4f95ed9e3220133815b9126c135e805637022>`__  2025-02-25   ``Add legacy namespace packages to airflow.providers (#47064)``
+`dbf8bb4092 <https://github.com/apache/airflow/commit/dbf8bb409223687c7d2ad10649a92d02c24bb3b4>`__  2025-02-24   ``Remove extra whitespace in provider readme template (#46975)``
+`b28c336e8b <https://github.com/apache/airflow/commit/b28c336e8b7aa1d69c0f9520b182b1b661377337>`__  2025-02-21   ``Upgrade flit to 3.11.0 (#46938)``
+==================================================================================================  ===========  =====================================================================
+
 6.0.2
 .....
 
@@ -42,6 +58,7 @@ Latest change: 2025-02-21
 ==================================================================================================  ===========  =======================================================================================================
 Commit                                                                                              Committed    Subject
 ==================================================================================================  ===========  =======================================================================================================
+`0653ffe78e <https://github.com/apache/airflow/commit/0653ffe78e4a0acaf70801a5ceef8dbabdac8b15>`__  2025-02-21   ``Prepare docs for Feb 1st wave of providers (fixed) (#46962)``
 `5d87bddf0a <https://github.com/apache/airflow/commit/5d87bddf0aa5f485f3684c909fb95f461e5a2ab6>`__  2025-02-21   ``Prepare docs for Feb 1st wave of providers (#46893)``
 `ee68ddf605 <https://github.com/apache/airflow/commit/ee68ddf605cdcc457af2cb56f8443571757fe32f>`__  2025-02-20   ``Refactor deferrable mode for BeamRunPythonPipelineOperator and BeamRunJavaPipelineOperator (#46678)``
 `4d5846f58f <https://github.com/apache/airflow/commit/4d5846f58fe0de9b43358c0be75dd72e968dacc4>`__  2025-02-16   ``Move provider_tests to unit folder in provider tests (#46800)``

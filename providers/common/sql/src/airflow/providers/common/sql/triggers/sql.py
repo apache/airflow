@@ -61,25 +61,35 @@ class SQLExecuteQueryTrigger(BaseTrigger):
             },
         )
 
+    def get_hook(self) -> DbApiHook:
+        """
+        Return DbApiHook.
+
+        :return: DbApiHook for this connection
+        """
+        connection = BaseHook.get_connection(self.conn_id)
+        hook = connection.get_hook(hook_params=self.hook_params)
+        if not isinstance(hook, DbApiHook):
+            raise AirflowException(
+                f"You are trying to use `common-sql` with {hook.__class__.__name__},"
+                " but its provider does not support it. Please upgrade the provider to a version that"
+                " supports `common-sql`. The hook class should be a subclass of"
+                f" `{hook.__class__.__module__}.{hook.__class__.__name__}`."
+                f" Got {hook.__class__.__name__} hook with class hierarchy: {hook.__class__.mro()}"
+            )
+        return hook
+
     async def run(self) -> AsyncIterator[TriggerEvent]:
         try:
-            hook = BaseHook.get_hook(self.conn_id, hook_params=self.hook_params)
-
-            if not isinstance(hook, DbApiHook):
-                raise AirflowException(
-                    f"You are trying to use `common-sql` with {hook.__class__.__name__},"
-                    " but its provider does not support it. Please upgrade the provider to a version that"
-                    " supports `common-sql`. The hook class should be a subclass of"
-                    f" `{hook.__class__.__module__}.{hook.__class__.__name__}`."
-                    f" Got {hook.__class__.__name__} hook with class hierarchy: {hook.__class__.mro()}"
-                )
+            hook = self.get_hook()
 
             self.log.info("Extracting data from %s", self.conn_id)
             self.log.info("Executing: \n %s", self.sql)
             self.log.info("Reading records from %s", self.conn_id)
-            results = hook.get_records(self.sql)
-            self.log.info("Reading records from %s done!", self.conn_id)
 
+            results = hook.get_records(self.sql)
+
+            self.log.info("Reading records from %s done!", self.conn_id)
             self.log.debug("results: %s", results)
             yield TriggerEvent({"status": "success", "results": results})
         except Exception as e:

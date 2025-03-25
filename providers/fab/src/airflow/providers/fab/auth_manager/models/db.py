@@ -31,6 +31,20 @@ _REVISION_HEADS_MAP: dict[str, str] = {
 }
 
 
+def _get_flask_db(sql_database_uri):
+    from flask import Flask
+    from flask_sqlalchemy import SQLAlchemy
+
+    from airflow.providers.fab.www.session import AirflowDatabaseSessionInterface
+
+    flask_app = Flask(__name__)
+    flask_app.config["SQLALCHEMY_DATABASE_URI"] = sql_database_uri
+    flask_app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
+    db = SQLAlchemy(flask_app)
+    AirflowDatabaseSessionInterface(app=flask_app, db=db, table="session", key_prefix="")
+    return db
+
+
 class FABDBManager(BaseDBManager):
     """Manages FAB database."""
 
@@ -39,6 +53,10 @@ class FABDBManager(BaseDBManager):
     migration_dir = (PACKAGE_DIR / "migrations").as_posix()
     alembic_file = (PACKAGE_DIR / "alembic.ini").as_posix()
     supports_table_dropping = True
+
+    def create_db_from_orm(self):
+        super().create_db_from_orm()
+        _get_flask_db(settings.SQL_ALCHEMY_CONN).create_all()
 
     def upgradedb(self, to_revision=None, from_revision=None, show_sql_only=False):
         """Upgrade the database."""
@@ -67,11 +85,6 @@ class FABDBManager(BaseDBManager):
                 return
             _offline_migration(command.upgrade, config, f"{from_revision}:{to_revision}")
             return  # only running sql; our job is done
-
-        if not self.get_current_revision():
-            # New DB; initialize and exit
-            self.initdb()
-            return
 
         command.upgrade(config, revision=to_revision or "heads")
 
@@ -104,3 +117,7 @@ class FABDBManager(BaseDBManager):
         else:
             self.log.info("Applying FAB downgrade migrations.")
             command.downgrade(config, revision=to_revision, sql=show_sql_only)
+
+    def drop_tables(self, connection):
+        super().drop_tables(connection)
+        _get_flask_db(settings.SQL_ALCHEMY_CONN).drop_all()

@@ -1,0 +1,16 @@
+Removed leftover deprecations prior to 3.0.0.
+
+* Removed the ``RemovedInAirflow3Warning`` warning class.
+* Removed the deprecated module ``airflow.api.auth.backend.session``. Please use ``airflow.providers.fab.auth_manager.api.auth.backend.session`` instead.
+* Removed the deprecated ``cleanup_stuck_queued_tasks`` method from the ``BaseExecutor`` interface. It is replaced by function ``revoke_task``.
+
+* Types of change
+
+  * [ ] Dag changes
+  * [ ] Config changes
+  * [ ] API changes
+  * [ ] CLI changes
+  * [ ] Behaviour changes
+  * [ ] Plugin changes
+  * [ ] Dependency changes
+  * [x] Code interface changes

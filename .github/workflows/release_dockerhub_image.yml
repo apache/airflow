@@ -144,16 +144,16 @@ jobs:
         run: docker run --privileged --rm tonistiigi/binfmt --install all
       - name: "Create airflow_cache builder"
         run: docker buildx create --name airflow_cache
-      - name: "Prepare chicken-eggs provider packages"
-        # In case of provider packages which use latest dev0 version of providers, we should prepare them
+      - name: "Prepare chicken-eggs provider distributions"
+        # In case of provider distributions which use latest dev0 version of providers, we should prepare them
         # from the source code, not from the PyPI because they have apache-airflow>=X.Y.Z dependency
         # And when we prepare them from sources they will have apache-airflow>=X.Y.Z.dev0
         shell: bash
         env:
           CHICKEN_EGG_PROVIDERS: ${{ needs.build-info.outputs.chicken-egg-providers }}
         run: >
-          breeze release-management prepare-provider-packages
-          --package-format wheel
+          breeze release-management prepare-provider-distributions
+          --distribution-format wheel
           --version-suffix-for-pypi dev0 ${CHICKEN_EGG_PROVIDERS}
         if: needs.build-info.outputs.chicken-egg-providers != ''
       - name: "Copy dist packages to docker-context files"

@@ -63,28 +63,22 @@ Here is an example configuration with more than 200GB disk space for Docker:
 
 **Docker errors that may come while running breeze**
 
-- If docker not running in python virtual environment
-- **Solution**
-- 1. Create the docker group if it does not exist
-- ``sudo groupadd docker``
-- 2. Add your user to the docker group.
-- ``sudo usermod -aG docker $USER``
-- 3. Log in to the new docker group
-- ``newgrp docker``
-- 4. Check if docker can be run without root
-- ``docker run hello-world``
-- 5. In some cases you might make sure that "Allow the default Docker socket to
-  be used" in "Advanced" tab of "Docker Desktop" settings is checked
+- If docker not running in python virtual environment:
 
+    1. Create the docker group if it does not exist: ``sudo groupadd docker``
+    2. Add your user to the docker group: ``sudo usermod -aG docker $USER``
+    3. Log in to the new docker group: ``newgrp docker``
+    4. Check if docker can be run without root: ``docker run hello-world``
+    5. In some cases you might make sure that "Allow the default Docker socket to be used" in "Advanced" tab of "Docker Desktop" settings is checked-out
 
-.. raw:: html
+    .. raw:: html
 
-   <div align="center">
-        <img src="images/docker_socket.png" width="640" alt="Docker socket used">
-    </div>
+        <div align="center">
+            <img src="images/docker_socket.png" width="640" alt="Docker socket used">
+        </div>
 
 Note: If you use Colima, please follow instructions at:
-`Contributors Quick Start Guide <../../../contributing-docs/03_contributors_quick_start.rst>`__
+`Contributors Quick Start Guide </contributing-docs/03_contributors_quick_start.rst>`__
 
 Docker Compose
 --------------

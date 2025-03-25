@@ -98,16 +98,16 @@ jobs:
         # The no providers constraints are only needed when we want to update constraints (in canary builds)
         # They slow down the start of PROD image builds so we want to only run them when needed.
         if: inputs.generate-no-providers-constraints == 'true'
-      - name: "Prepare chicken-eggs provider packages"
-        # In case of provider packages which use latest dev0 version of providers, we should prepare them
+      - name: "Prepare chicken-eggs provider distributions"
+        # In case of provider distributions which use latest dev0 version of providers, we should prepare them
         # from the source code, not from the PyPI because they have apache-airflow>=X.Y.Z dependency
         # And when we prepare them from sources they will have apache-airflow>=X.Y.Z.dev0
         shell: bash
         env:
           CHICKEN_EGG_PROVIDERS: ${{ inputs.chicken-egg-providers }}
         run: >
-          breeze release-management prepare-provider-packages --include-not-ready-providers
-          --package-format wheel --version-suffix-for-pypi dev0
+          breeze release-management prepare-provider-distributions --include-not-ready-providers
+          --distribution-format wheel --version-suffix-for-pypi dev0
           ${CHICKEN_EGG_PROVIDERS}
         if: inputs.chicken-egg-providers != ''
       - name: "PyPI constraints"

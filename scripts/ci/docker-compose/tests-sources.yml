@@ -27,8 +27,7 @@ services:
       - ../../../.bash_history:/root/.bash_history:cached
       - ../../../.inputrc:/root/.inputrc:cached
       # Remove airflow sources from container
-      - ../../../empty:/opt/airflow/airflow
-      # Remove all provider sources from container
+      - ../../../empty:/opt/airflow/airflow-core/src
       - ../../../empty:/opt/airflow/providers/airbyte/src
       - ../../../empty:/opt/airflow/providers/alibaba/src
       - ../../../empty:/opt/airflow/providers/apache/iceberg/src
@@ -36,8 +35,8 @@ services:
       - ../../../empty:/opt/airflow/providers/common/sql/src
       - ../../../empty:/opt/airflow/providers/edge/src
       - ../../../empty:/opt/airflow/providers/standard/src
-      # but keep providers tests
-      - ../../../tests/:/opt/airflow/tests:cached
+      # but keep tests and provider tests tests
+      - ../../../core-airflow/tests/:/opt/airflow/core-airflow/tests:cached
       # START automatically generated volumes by generate-volumes-for-sources pre-commit
       - ../../../providers/airbyte/tests:/opt/airflow/providers/airbyte/tests
       - ../../../providers/alibaba/tests:/opt/airflow/providers/alibaba/tests

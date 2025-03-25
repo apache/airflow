@@ -21,7 +21,7 @@ from collections.abc import Iterable
 from typing import TYPE_CHECKING
 
 from airflow.exceptions import AirflowException
-from airflow.operators.branch import BaseBranchOperator
+from airflow.providers.standard.operators.branch import BaseBranchOperator
 from airflow.utils import timezone
 
 if TYPE_CHECKING:

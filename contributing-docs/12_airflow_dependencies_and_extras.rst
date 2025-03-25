@@ -165,14 +165,14 @@ Those extras are available as regular core airflow extras - they install optiona
   .. START CORE EXTRAS HERE
 
 aiobotocore, apache-atlas, apache-webhdfs, async, cgroups, cloudpickle, github-enterprise, google-
-auth, graphviz, kerberos, ldap, leveldb, otel, pandas, password, rabbitmq, s3fs, sentry, statsd, uv
+auth, graphviz, kerberos, ldap, leveldb, otel, pandas, rabbitmq, s3fs, sentry, statsd, uv
 
   .. END CORE EXTRAS HERE
 
 Provider extras
 ...............
 
-Those extras are available as regular Airflow extras, they install provider packages in standard builds
+Those extras are available as regular Airflow extras, they install providers in standard builds
 or dependencies that are necessary to enable the feature in editable build.
 
   .. START PROVIDER EXTRAS HERE
@@ -191,33 +191,6 @@ ydb, zendesk
 
   .. END PROVIDER EXTRAS HERE
 
-
-Devel extras
-.............
-
-The ``devel`` extras are not available in the released packages. They are only available when you install
-Airflow from sources in ``editable`` installation - i.e. one that you are usually using to contribute to
-Airflow. They provide tools such as ``pytest`` and ``mypy`` for general purpose development and testing.
-
-  .. START DEVEL EXTRAS HERE
-
-devel, devel-all-dbs, devel-ci, devel-debuggers, devel-devscripts, devel-duckdb, devel-hadoop,
-devel-mypy, devel-sentry, devel-static-checks, devel-tests
-
-  .. END DEVEL EXTRAS HERE
-
-Bundle extras
-.............
-
-Those extras are bundles dynamically generated from other extras.
-
-  .. START BUNDLE EXTRAS HERE
-
-all, all-core, all-dbs, devel-all, devel-ci
-
-  .. END BUNDLE EXTRAS HERE
-
-
 Doc extras
 ...........
 
@@ -225,7 +198,7 @@ The ``doc`` extras are not available in the released packages. They are only ava
 Airflow from sources in ``editable`` installation - i.e. one that you are usually using to contribute to
 Airflow. They provide tools needed when you want to build Airflow documentation (note that you also need
 ``devel`` extras installed for airflow and providers in order to build documentation for airflow and
-provider packages respectively). The ``doc`` package is enough to build regular documentation, where
+providers respectively). The ``doc`` package is enough to build regular documentation, where
 ``doc_gen`` is needed to generate ER diagram we have describing our database.
 
   .. START DOC EXTRAS HERE
@@ -233,18 +206,6 @@ provider packages respectively). The ``doc`` package is enough to build regular 
 doc, doc-gen
 
   .. END DOC EXTRAS HERE
-
-Deprecated extras
-.................
-
-The ``deprecated`` extras are deprecated extras from Airflow 1 that will be removed in future versions.
-
-  .. START DEPRECATED EXTRAS HERE
-
-atlas, aws, azure, cassandra, crypto, druid, gcp, gcp-api, hdfs, hive, kubernetes, mssql, pinot, s3,
-spark, webhdfs, winrm
-
-  .. END DEPRECATED EXTRAS HERE
 
 -----
 

@@ -65,6 +65,7 @@ from airflow_breeze.utils.kubernetes_utils import (
     get_kind_cluster_name,
     get_kubeconfig_file,
     get_kubectl_cluster_name,
+    get_kubernetes_port_numbers,
     get_kubernetes_python_combos,
     make_sure_kubernetes_tools_are_installed,
     print_cluster_urls,
@@ -599,11 +600,11 @@ USER airflow
 
 {extra_copy_command}
 
-COPY --chown=airflow:0 airflow/example_dags/ /opt/airflow/dags/
+COPY --chown=airflow:0 airflow-core/src/airflow/example_dags/ /opt/airflow/dags/
 
 COPY --chown=airflow:0 providers/cncf/kubernetes/src/airflow/providers/cncf/kubernetes/kubernetes_executor_templates/ /opt/airflow/pod_templates/
 
-ENV GUNICORN_CMD_ARGS='--preload' AIRFLOW__WEBSERVER__WORKER_REFRESH_INTERVAL=0
+ENV GUNICORN_CMD_ARGS='--preload'
 """
     image = f"{params.airflow_image_kubernetes}:latest"
     docker_build_result = run_command(
@@ -993,6 +994,7 @@ def _deploy_helm_chart(
     multi_namespace_mode: bool = False,
 ) -> RunCommandResult:
     cluster_name = get_kubectl_cluster_name(python=python, kubernetes_version=kubernetes_version)
+    _, api_server_port = get_kubernetes_port_numbers(python=python, kubernetes_version=kubernetes_version)
     action = "Deploying" if not upgrade else "Upgrading"
     get_console(output=output).print(f"[info]{action} {cluster_name} with airflow Helm Chart.")
     with tempfile.TemporaryDirectory(prefix="chart_") as tmp_dir:
@@ -1025,13 +1027,17 @@ def _deploy_helm_chart(
             "-v",
             "1",
             "--set",
-            "config.api.auth_backends=airflow.providers.fab.auth_manager.api.auth.backend.basic_auth",
-            "--set",
             "config.logging.logging_level=DEBUG",
             "--set",
             f"executor={executor}",
             "--set",
             f"airflowVersion={params.airflow_semver_version}",
+            "--set",
+            "config.api_auth.jwt_secret=foo",
+            "--set",
+            "config.core.auth_manager=airflow.providers.fab.auth_manager.fab_auth_manager.FabAuthManager",
+            "--set",
+            f"config.api.base_url=http://localhost:{api_server_port}",
         ]
         if multi_namespace_mode:
             helm_command.extend(["--set", "multiNamespaceMode=true"])
@@ -1468,7 +1474,7 @@ def _run_tests(
             f"[info]You can deploy airflow with {executor} by running:[/]\nbreeze k8s configure-cluster\nbreeze k8s deploy-airflow --multi-namespace-mode --executor {executor}"
         )
         return 1, f"Tests {kubectl_cluster_name}"
-    the_tests: list[str] = ["kubernetes_tests/test_kubernetes_executor.py::TestKubernetesExecutor"]
+    the_tests: list[str] = ["kubernetes_tests/"]
     command_to_run = " ".join([quote(arg) for arg in ["python3", "-m", "pytest", *the_tests, *test_args]])
     get_console(output).print(f"[info] Command to run:[/] {command_to_run}")
     result = run_command(

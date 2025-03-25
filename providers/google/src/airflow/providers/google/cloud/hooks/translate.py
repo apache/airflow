@@ -35,6 +35,7 @@ from google.cloud.translate_v3.types.translation_service import GlossaryInputCon
 from airflow.exceptions import AirflowException
 from airflow.providers.google.common.consts import CLIENT_INFO
 from airflow.providers.google.common.hooks.base_google import PROVIDE_PROJECT_ID, GoogleBaseHook
+from airflow.providers.google.common.hooks.operation_helpers import OperationHelper
 
 if TYPE_CHECKING:
     from google.api_core.operation import Operation
@@ -53,7 +54,6 @@ if TYPE_CHECKING:
         automl_translation,
     )
     from google.cloud.translate_v3.types.translation_service import Glossary
-    from proto import Message
 
 
 class WaitOperationNotDoneYetError(Exception):
@@ -155,7 +155,7 @@ class CloudTranslateHook(GoogleBaseHook):
         )
 
 
-class TranslateHook(GoogleBaseHook):
+class TranslateHook(GoogleBaseHook, OperationHelper):
     """
     Hook for Google Cloud translation (Advanced) using client version V3.
 
@@ -218,15 +218,6 @@ class TranslateHook(GoogleBaseHook):
         except GoogleAPICallError:
             if timeout:
                 timeout = int(timeout)
-            error = operation.exception(timeout=timeout)
-            raise AirflowException(error)
-
-    @staticmethod
-    def wait_for_operation_result(operation: Operation, timeout: int | None = None) -> Message:
-        """Wait for long-lasting operation to complete."""
-        try:
-            return operation.result(timeout=timeout)
-        except GoogleAPICallError:
             error = operation.exception(timeout=timeout)
             raise AirflowException(error)
 

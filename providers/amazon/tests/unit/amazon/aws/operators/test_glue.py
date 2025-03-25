@@ -35,6 +35,7 @@ from airflow.providers.amazon.aws.operators.glue import (
     GlueDataQualityRuleSetEvaluationRunOperator,
     GlueJobOperator,
 )
+
 from unit.amazon.aws.utils.test_template_fields import validate_template_fields
 
 if TYPE_CHECKING:

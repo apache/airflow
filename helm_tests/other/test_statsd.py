@@ -20,7 +20,7 @@ import jmespath
 import pytest
 import yaml
 
-from tests.charts.helm_template_generator import render_chart
+from unit.charts.helm_template_generator import render_chart
 
 
 class TestStatsd:

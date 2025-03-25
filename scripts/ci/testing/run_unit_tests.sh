@@ -59,7 +59,7 @@ function core_tests() {
         set +x
     elif [[  "${TEST_SCOPE}" == "System" ]]; then
         set -x
-        breeze testing system-tests tests/system/example_empty.py
+        breeze testing system-tests airflow-core/tests/system/example_empty.py
         RESULT=$?
         set +x
     else
@@ -135,7 +135,7 @@ function run_tests() {
         core_tests
     elif [[ "${TEST_GROUP}" == "providers" ]]; then
         providers_tests
-    elif [[ "${TEST_GROUP}" == "task_sdk" ]]; then
+    elif [[ "${TEST_GROUP}" == "task-sdk" ]]; then
         task_sdk_tests
     else
         echo "Unknown test group: ${TEST_GROUP}"
