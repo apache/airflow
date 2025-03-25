@@ -58,7 +58,6 @@ from airflow.sdk.api.datamodels._generated import (
 )
 from airflow.sdk.definitions.asset import Asset, AssetAlias, Dataset, Model
 from airflow.sdk.definitions.param import DagParam
-from airflow.sdk.definitions.variable import Variable
 from airflow.sdk.exceptions import ErrorType
 from airflow.sdk.execution_time.comms import (
     AssetEventsResult,
@@ -1217,7 +1216,7 @@ class TestRuntimeTaskInstance:
         )
         mock_supervisor_comms.get_message.assert_called_once_with()
 
-        assert var_from_context == Variable(key="test_key", value=expected_value)
+        assert var_from_context == expected_value
 
     @pytest.mark.parametrize(
         "map_indexes",
