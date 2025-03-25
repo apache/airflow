@@ -24,8 +24,7 @@ runs:
     - name: "Test downgrade migration file ${{env.BACKEND}}"
       shell: bash
       run: >
-        breeze shell "
-        DB_MANAGERS='airflow.providers.fab.auth_manager.models.db.FABDBManager' &&
+        breeze shell "DB_MANAGERS='airflow.providers.fab.auth_manager.models.db.FABDBManager' &&
             export AIRFLOW__DATABASE__EXTERNAL_DB_MANAGERS=$DB_MANAGERS &&
         airflow db reset --skip-init -y &&
         airflow db migrate --to-revision heads &&
@@ -41,8 +40,7 @@ runs:
     - name: "Test downgrade ORM ${{env.BACKEND}}"
       shell: bash
       run: >
-        breeze shell "
-        DB_MANAGERS='airflow.providers.fab.auth_manager.models.db.FABDBManager' &&
+        breeze shell "DB_MANAGERS='airflow.providers.fab.auth_manager.models.db.FABDBManager' &&
             export AIRFLOW__DATABASE__EXTERNAL_DB_MANAGERS=$DB_MANAGERS &&
         airflow db reset -y &&
         airflow db migrate &&
@@ -59,8 +57,7 @@ runs:
     - name: "Test offline migration ${{env.BACKEND}}"
       shell: bash
       run: >
-        breeze shell "
-        DB_MANAGERS='airflow.providers.fab.auth_manager.models.db.FABDBManager' &&
+        breeze shell "DB_MANAGERS='airflow.providers.fab.auth_manager.models.db.FABDBManager' &&
             export AIRFLOW__DATABASE__EXTERNAL_DB_MANAGERS=$DB_MANAGERS &&
         airflow db reset -y &&
         airflow db downgrade -n 2.7.0 -y &&
