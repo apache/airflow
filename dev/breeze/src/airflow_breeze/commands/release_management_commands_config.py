@@ -67,6 +67,7 @@ RELEASE_OTHER_COMMANDS: dict[str, str | list[str]] = {
         "publish-docs",
         "generate-constraints",
         "update-constraints",
+        "publish-docs-to-s3",
     ],
 }
 
@@ -403,5 +404,20 @@ RELEASE_MANAGEMENT_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] = {
                 "--comment-file",
             ],
         },
+    ],
+    "breeze release-management publish-docs-to-s3": [
+        {
+            "name": "Publish docs to S3",
+            "options": [
+                "--source-dir-path",
+                "--destination-location",
+                "--exclude-docs",
+                "--dry-run",
+                "--overwrite",
+                "--parallelism",
+                "--stable-versions",
+                "--publish-all-docs",
+            ],
+        }
     ],
 }
