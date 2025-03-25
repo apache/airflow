@@ -54,7 +54,7 @@ Requirements
 PIP package         Version required
 ==================  ==================
 ``apache-airflow``  ``>=2.9.0``
-``kylinpy``         ``>=2.7.0``
+``kylinpy``         ``>2.7.0``
 ==================  ==================
 
 The changelog for the provider package can be found in the

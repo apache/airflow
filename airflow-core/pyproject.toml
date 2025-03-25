@@ -25,7 +25,7 @@ requires = [
     "pluggy==1.5.0",
     "smmap==5.0.2",
     "tomli==2.2.1; python_version < '3.11'",
-    "trove-classifiers==2025.3.13.13",
+    "trove-classifiers==2025.3.19.19",
 ]
 build-backend = "hatchling.build"
 
@@ -141,7 +141,7 @@ dependencies = [
 # TODO: We can remove it once boto3 and aiobotocore both have compatible botocore version or
 # boto3 have native aync support and we move away from aio aiobotocore
 "aiobotocore" =  [
-    "aiobotocore>=2.9.0",
+    "aiobotocore>=2.13.0",
 ]
 "async" = [
     "eventlet>=0.33.3",

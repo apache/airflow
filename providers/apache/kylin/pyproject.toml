@@ -58,7 +58,7 @@ requires-python = "~=3.9"
 # After you modify the dependencies, and rebuild your Breeze CI image with ``breeze ci-image build``
 dependencies = [
     "apache-airflow>=2.9.0",
-    "kylinpy>=2.7.0",
+    "kylinpy>2.7.0",
 ]
 
 [dependency-groups]

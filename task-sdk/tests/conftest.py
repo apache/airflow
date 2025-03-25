@@ -32,6 +32,7 @@ os.environ["_AIRFLOW__AS_LIBRARY"] = "true"
 
 if TYPE_CHECKING:
     from datetime import datetime
+    from uuid import UUID
 
     from structlog.typing import EventDict, WrappedLogger
 
@@ -203,7 +204,8 @@ def make_ti_context() -> MakeTIContextCallable:
         run_after: str | datetime = "2024-12-01T01:00:00Z",
         run_type: str = "manual",
         task_reschedule_count: int = 0,
-        conf=None,
+        conf: dict[str, Any] | None = None,
+        should_retry: bool = False,
     ) -> TIRunContext:
         return TIRunContext(
             dag_run=DagRun(
@@ -220,7 +222,7 @@ def make_ti_context() -> MakeTIContextCallable:
             ),
             task_reschedule_count=task_reschedule_count,
             max_tries=0,
-            should_retry=False,
+            should_retry=should_retry,
         )
 
     return _make_context
@@ -365,8 +367,9 @@ def create_runtime_ti(mocked_parse, make_ti_context):
         map_index: int | None = -1,
         upstream_map_indexes: dict[str, int] | None = None,
         task_reschedule_count: int = 0,
-        ti_id=None,
-        conf=None,
+        ti_id: UUID | None = None,
+        conf: dict[str, Any] | None = None,
+        should_retry: bool = False,
     ) -> RuntimeTaskInstance:
         if not ti_id:
             ti_id = uuid7()
@@ -384,6 +387,7 @@ def create_runtime_ti(mocked_parse, make_ti_context):
             run_type=run_type,
             conf=conf,
             task_reschedule_count=task_reschedule_count,
+            should_retry=should_retry,
         )
 
         if upstream_map_indexes is not None:

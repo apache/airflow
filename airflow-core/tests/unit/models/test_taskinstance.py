@@ -3452,10 +3452,14 @@ class TestTaskInstance:
         listener_callback_on_error = mock.MagicMock()
         get_listener_manager().pm.hook.on_task_instance_failed = listener_callback_on_error
 
-        mock_on_failure_1 = mock.MagicMock()
-        mock_on_failure_1.__name__ = "mock_on_failure_1"
-        mock_on_retry_1 = mock.MagicMock()
-        mock_on_retry_1.__name__ = "mock_on_retry_1"
+        mock_on_failure_1 = mock.Mock(
+            __name__="mock_on_failure_1",
+            __call__=mock.MagicMock(),
+        )
+        mock_on_retry_1 = mock.Mock(
+            __name__="mock_on_retry_1",
+            __call__=mock.MagicMock(),
+        )
         dag, task1 = create_dummy_dag(
             dag_id="test_handle_failure",
             schedule=None,
@@ -3497,10 +3501,14 @@ class TestTaskInstance:
         assert "task_instance" in context_arg_1
         mock_on_retry_1.assert_not_called()
 
-        mock_on_failure_2 = mock.MagicMock()
-        mock_on_failure_2.__name__ = "mock_on_failure_2"
-        mock_on_retry_2 = mock.MagicMock()
-        mock_on_retry_2.__name__ = "mock_on_retry_2"
+        mock_on_failure_2 = mock.Mock(
+            __name__="mock_on_failure_2",
+            __call__=mock.MagicMock(),
+        )
+        mock_on_retry_2 = mock.Mock(
+            __name__="mock_on_retry_2",
+            __call__=mock.MagicMock(),
+        )
         task2 = EmptyOperator(
             task_id="test_handle_failure_on_retry",
             on_failure_callback=mock_on_failure_2,
@@ -3521,10 +3529,14 @@ class TestTaskInstance:
         assert "task_instance" in context_arg_2
 
         # test the scenario where normally we would retry but have been asked to fail
-        mock_on_failure_3 = mock.MagicMock()
-        mock_on_failure_3.__name__ = "mock_on_failure_3"
-        mock_on_retry_3 = mock.MagicMock()
-        mock_on_retry_3.__name__ = "mock_on_retry_3"
+        mock_on_failure_3 = mock.Mock(
+            __name__="mock_on_failure_3",
+            __call__=mock.MagicMock(),
+        )
+        mock_on_retry_3 = mock.Mock(
+            __name__="mock_on_retry_3",
+            __call__=mock.MagicMock(),
+        )
         task3 = EmptyOperator(
             task_id="test_handle_failure_on_force_fail",
             on_failure_callback=mock_on_failure_3,
@@ -4047,11 +4059,15 @@ class TestTaskInstance:
         def raise_skip_exception():
             raise AirflowSkipException
 
-        on_skipped_callback_function = mock.MagicMock()
-        on_skipped_callback_function.__name__ = "on_skipped_callback_function"
+        on_skipped_callback_function = mock.Mock(
+            __call__=mock.MagicMock(),
+            __name__="on_skipped_callback_function",
+        )
 
-        on_success_callback_function = mock.MagicMock()
-        on_success_callback_function.__name__ = "on_success_callback_function"
+        on_success_callback_function = mock.Mock(
+            __call__=mock.MagicMock(),
+            __name__="on_success_callback_function",
+        )
 
         with dag_maker(dag_id="test_skipped_task", serialized=True):
             task = PythonOperator(
@@ -4315,8 +4331,10 @@ def test_sensor_timeout(mode, retries, dag_maker):
     def timeout():
         raise AirflowSensorTimeout
 
-    mock_on_failure = mock.MagicMock()
-    mock_on_failure.__name__ = "mock_on_failure"
+    mock_on_failure = mock.Mock(
+        __name__="mock_on_failure",
+        __call__=mock.MagicMock(),
+    )
     with dag_maker(dag_id=f"test_sensor_timeout_{mode}_{retries}"):
         PythonSensor(
             task_id="test_raise_sensor_timeout",
@@ -4344,8 +4362,10 @@ def test_mapped_sensor_timeout(mode, retries, dag_maker):
     def timeout():
         raise AirflowSensorTimeout
 
-    mock_on_failure = mock.MagicMock()
-    mock_on_failure.__name__ = "mock_on_failure"
+    mock_on_failure = mock.Mock(
+        __name__="mock_on_failure",
+        __call__=mock.MagicMock(),
+    )
     with dag_maker(dag_id=f"test_sensor_timeout_{mode}_{retries}"):
         PythonSensor.partial(
             task_id="test_raise_sensor_timeout",
