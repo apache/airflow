@@ -36,6 +36,10 @@ updates:
       - /providers/fab/src/airflow/providers/fab/www
     schedule:
       interval: daily
+    groups:
+      ui-package-updates:
+        patterns:
+          - "*"
 
   # Repeat dependency updates on 2.10 branch as well
   - package-ecosystem: pip
@@ -56,3 +60,7 @@ updates:
     schedule:
       interval: daily
     target-branch: v2-10-test
+    groups:
+      ui-package-updates:
+        patterns:
+          - "*"
