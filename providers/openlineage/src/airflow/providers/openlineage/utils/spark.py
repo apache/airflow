@@ -60,7 +60,7 @@ def _get_transport_information_as_spark_properties() -> dict:
             "url": tp.url,
             "endpoint": tp.endpoint,
             "timeoutInMillis": str(
-                int(tp.timeout * 1000)  # convert to milliseconds, as required by Spark integration
+                int(tp.timeout) * 1000  # convert to milliseconds, as required by Spark integration
             ),
         }
         if hasattr(tp, "compression") and tp.compression:

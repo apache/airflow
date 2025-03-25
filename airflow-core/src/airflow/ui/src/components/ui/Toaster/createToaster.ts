@@ -16,7 +16,9 @@
  * specific language governing permissions and limitations
  * under the License.
  */
+import { createToaster } from "@chakra-ui/react";
 
-export * from "./TimezoneProvider";
-export * from "./useTimezone";
-export * from "./Context";
+export const toaster = createToaster({
+  pauseOnPageIdle: true,
+  placement: "bottom-end",
+});

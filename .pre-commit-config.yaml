@@ -1244,7 +1244,8 @@ repos:
             providers/|
             scripts|
             task-sdk/|
-            tests/dags/test_imports\.py
+            tests/dags/test_imports\.py|
+            setup_idea\.py
           )
         require_serial: true
         additional_dependencies: ['rich>=12.4.4']
