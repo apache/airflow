@@ -17,6 +17,7 @@
 from __future__ import annotations
 
 import asyncio
+import functools
 import logging
 import os
 import selectors
@@ -32,7 +33,7 @@ from typing import TYPE_CHECKING, Annotated, Any, ClassVar, Literal, TypedDict, 
 
 import attrs
 import structlog
-from pydantic import BaseModel, Field, TypeAdapter
+from pydantic import BaseModel, Discriminator, Field, Tag, TypeAdapter
 from sqlalchemy import func, select
 from structlog.contextvars import bind_contextvars as bind_log_contextvars
 
@@ -41,6 +42,13 @@ from airflow.executors import workloads
 from airflow.jobs.base_job_runner import BaseJobRunner
 from airflow.jobs.job import perform_heartbeat
 from airflow.models.trigger import Trigger
+from airflow.sdk.execution_time.comms import (
+    ConnectionResult,
+    ErrorResponse,
+    GetConnection,
+    GetVariable,
+    VariableResult,
+)
 from airflow.sdk.execution_time.supervisor import WatchedSubprocess, make_buffered_socket_reader
 from airflow.stats import Stats
 from airflow.traces.tracer import Trace, add_span
@@ -57,7 +65,9 @@ if TYPE_CHECKING:
     from sqlalchemy.orm import Session
     from structlog.typing import FilteringBoundLogger, WrappedLogger
 
+    from airflow.api_fastapi.execution_api.app import InProcessExecutionAPI
     from airflow.jobs.job import Job
+    from airflow.sdk.api.client import Client
     from airflow.triggers.base import BaseTrigger
 
 HANDLER_SUPPORTS_TRIGGERER = False
@@ -192,9 +202,22 @@ class messages:
         finished: list[int] | None = None
 
 
+def get_discriminator_value(v: Any) -> Any:
+    if isinstance(v, dict):
+        return v.get("kind", v.get("type"))
+    return getattr(v, "kind", getattr(v, "type", None))
+
+
 ToTriggerRunner = Annotated[
-    Union[workloads.RunTrigger, messages.CancelTriggers, messages.StartTriggerer],
-    Field(discriminator="kind"),
+    Union[
+        Annotated[workloads.RunTrigger, Tag("RunTrigger")],
+        Annotated[messages.CancelTriggers, Tag("CancelTriggersMessage")],
+        Annotated[messages.StartTriggerer, Tag("StartTriggerer")],
+        Annotated[ConnectionResult, Tag("ConnectionResult")],
+        Annotated[VariableResult, Tag("VariableResult")],
+        Annotated[ErrorResponse, Tag("ErrorResponse")],
+    ],
+    Field(discriminator=Discriminator(get_discriminator_value)),
 ]
 """
 The types of messages we can send in to the Trigger Runner process (the process that runs the actual async
@@ -203,8 +226,12 @@ code).
 
 
 ToTriggerSupervisor = Annotated[
-    Union[messages.TriggerStateChanges],
-    Field(discriminator="kind"),
+    Union[
+        Annotated[messages.TriggerStateChanges, Tag("TriggerStateChanges")],
+        Annotated[GetConnection, Tag("GetConnection")],
+        Annotated[GetVariable, Tag("GetVariable")],
+    ],
+    Field(discriminator=Discriminator(get_discriminator_value)),
 ]
 """
 The types of messages that the async Trigger Runner can send back up to the supervisor process.
@@ -242,6 +269,14 @@ class TriggerLoggingFactory:
             return
 
         upload_to_remote(self.bound_logger)
+
+
+@functools.cache
+def in_process_api_server() -> InProcessExecutionAPI:
+    from airflow.api_fastapi.execution_api.app import InProcessExecutionAPI
+
+    api = InProcessExecutionAPI()
+    return api
 
 
 @attrs.define(kw_only=True)
@@ -296,7 +331,20 @@ class TriggerRunnerSupervisor(WatchedSubprocess):
         proc._send(msg)
         return proc
 
+    @functools.cached_property
+    def client(self) -> Client:
+        from airflow.sdk.api.client import Client
+
+        client = Client(base_url=None, token="", dry_run=True, transport=in_process_api_server().transport)
+        # Mypy is wrong -- the setter accepts a string on the property setter! `URLType = URL | str`
+        client.base_url = "http://in-process.invalid./"  # type: ignore[assignment]
+        return client
+
     def _handle_request(self, msg: ToTriggerSupervisor, log: FilteringBoundLogger) -> None:  # type: ignore[override]
+        from airflow.sdk.api.datamodels._generated import ConnectionResponse, VariableResponse
+
+        resp = None
+
         if isinstance(msg, messages.TriggerStateChanges):
             log.debug("State change from async process", state=msg)
             if msg.events:
@@ -311,8 +359,25 @@ class TriggerRunnerSupervisor(WatchedSubprocess):
                 if factory := self.logger_cache.pop(id, None):
                     factory.upload_to_remote()
             return
+        elif isinstance(msg, GetConnection):
+            conn = self.client.connections.get(msg.conn_id)
+            if isinstance(conn, ConnectionResponse):
+                conn_result = ConnectionResult.from_conn_response(conn)
+                resp = conn_result.model_dump_json(exclude_unset=True, by_alias=True).encode()
+            else:
+                resp = conn.model_dump_json().encode()
+        elif isinstance(msg, GetVariable):
+            var = self.client.variables.get(msg.key)
+            if isinstance(var, VariableResponse):
+                var_result = VariableResult.from_variable_response(var)
+                resp = var_result.model_dump_json(exclude_unset=True).encode()
+            else:
+                resp = var.model_dump_json().encode()
+        else:
+            raise ValueError(f"Unknown message type {type(msg)}")
 
-        raise ValueError(f"Unknown message type {type(msg)}")
+        if resp:
+            self.stdin.write(resp + b"\n")
 
     def run(self) -> None:
         """Run synchronously and handle all database reads/writes."""
@@ -540,6 +605,21 @@ class TriggerRunnerSupervisor(WatchedSubprocess):
 
     @classmethod
     def run_in_process(cls):
+        from airflow.sdk.execution_time import task_runner
+
+        # Parse DAG file, send JSON back up!
+        comms_decoder = task_runner.CommsDecoder[ToTriggerRunner, ToTriggerSupervisor](
+            input=sys.stdin,
+            decoder=TypeAdapter[ToTriggerRunner](ToTriggerRunner),
+        )
+
+        msg = comms_decoder.get_message()
+        if not isinstance(msg, messages.StartTriggerer):
+            raise RuntimeError(f"Required first message to be a messages.StartTriggerer, it was {msg}")
+        comms_decoder.request_socket = os.fdopen(msg.requests_fd, "wb", buffering=0)
+
+        task_runner.SUPERVISOR_COMMS = comms_decoder
+
         TriggerRunner().run()
 
 
@@ -650,6 +730,8 @@ class TriggerRunner:
 
         This reads-and-decodes the JSON lines send by the TriggerRunnerSupervisor to us on our stdint
         """
+        from airflow.sdk.execution_time import task_runner
+
         loop = asyncio.get_event_loop()
 
         task = asyncio.current_task(loop=loop)
@@ -666,17 +748,11 @@ class TriggerRunner:
 
         stdin = await connect_stdin()
 
-        # The first message must be this type, else we can't operate
-        line = await stdin.readline()
-
         decoder = TypeAdapter[ToTriggerRunner](ToTriggerRunner)
-        msg = decoder.validate_json(line)
-        if not isinstance(msg, messages.StartTriggerer) or msg.requests_fd <= 0:
-            raise RuntimeError(f"First message to triggerer must be {messages.StartTriggerer.__name__}")
 
         writer_transport, writer_protocol = await loop.connect_write_pipe(
             lambda: asyncio.streams.FlowControlMixin(loop=loop),
-            os.fdopen(msg.requests_fd, "wb"),
+            task_runner.SUPERVISOR_COMMS.request_socket,
         )
         self.requests_sock = asyncio.streams.StreamWriter(writer_transport, writer_protocol, None, loop)
 
@@ -690,8 +766,6 @@ class TriggerRunner:
                 self.to_create.append(msg)
             elif isinstance(msg, messages.CancelTriggers):
                 self.to_cancel.extend(msg.ids)
-            else:
-                raise ValueError(f"Unknown workload type {type(msg)}")
 
     async def create_triggers(self):
         """Drain the to_create queue and create all new triggers that have been requested in the DB."""

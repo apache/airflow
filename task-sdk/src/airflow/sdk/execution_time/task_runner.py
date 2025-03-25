@@ -487,7 +487,12 @@ class CommsDecoder(Generic[ReceiveMsgType, SendMsgType]):
 
         This will block until the message has been received.
         """
-        line = self.input.readline()
+        line = None
+
+        # We need to investigate why some lines are empty ("")
+        while not line:
+            line = self.input.readline()
+
         try:
             msg = self.decoder.validate_json(line)
         except Exception:
