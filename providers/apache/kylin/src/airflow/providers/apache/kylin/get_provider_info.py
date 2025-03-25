@@ -76,6 +76,6 @@ def get_provider_info():
                 "connection-type": "kylin",
             }
         ],
-        "dependencies": ["apache-airflow>=2.9.0", "kylinpy>=2.7.0"],
+        "dependencies": ["apache-airflow>=2.9.0", "kylinpy>2.7.0"],
         "devel-dependencies": [],
     }

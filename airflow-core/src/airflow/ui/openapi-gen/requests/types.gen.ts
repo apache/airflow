@@ -534,6 +534,8 @@ export type DAGDetailsResponse = {
   is_active: boolean;
   last_parsed_time: string | null;
   last_expired: string | null;
+  bundle_name: string;
+  relative_fileloc: string;
   fileloc: string;
   description: string | null;
   timetable_summary: string | null;
@@ -596,6 +598,8 @@ export type DAGResponse = {
   is_active: boolean;
   last_parsed_time: string | null;
   last_expired: string | null;
+  bundle_name: string;
+  relative_fileloc: string;
   fileloc: string;
   description: string | null;
   timetable_summary: string | null;
@@ -770,6 +774,8 @@ export type DAGWithLatestDagRunsResponse = {
   is_active: boolean;
   last_parsed_time: string | null;
   last_expired: string | null;
+  bundle_name: string;
+  relative_fileloc: string;
   fileloc: string;
   description: string | null;
   timetable_summary: string | null;

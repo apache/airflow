@@ -29,13 +29,7 @@ import operator
 from collections.abc import Collection, Iterable, Iterator
 from datetime import datetime, timedelta
 from functools import singledispatchmethod
-from types import FunctionType
-from typing import (
-    TYPE_CHECKING,
-    Any,
-    Callable,
-    TypeVar,
-)
+from typing import TYPE_CHECKING, Any
 
 import methodtools
 import pendulum
@@ -62,7 +56,6 @@ from airflow.sdk.definitions.baseoperator import (
     cross_downstream as cross_downstream,
     get_merged_defaults as get_merged_defaults,
 )
-from airflow.sdk.definitions.context import Context
 from airflow.sdk.definitions.dag import BaseOperator as TaskSDKBaseOperator
 from airflow.sdk.definitions.mappedoperator import MappedOperator
 from airflow.sdk.definitions.taskgroup import MappedTaskGroup, TaskGroup
@@ -73,8 +66,6 @@ from airflow.ti_deps.deps.not_previously_skipped_dep import NotPreviouslySkipped
 from airflow.ti_deps.deps.prev_dagrun_dep import PrevDagrunDep
 from airflow.ti_deps.deps.trigger_rule_dep import TriggerRuleDep
 from airflow.utils import timezone
-from airflow.utils.context import context_get_outlet_events
-from airflow.utils.operator_helpers import ExecutionCallableRunner
 from airflow.utils.operator_resources import Resources
 from airflow.utils.session import NEW_SESSION, provide_session
 from airflow.utils.state import DagRunState
@@ -84,18 +75,12 @@ from airflow.utils.xcom import XCOM_RETURN_KEY
 if TYPE_CHECKING:
     from sqlalchemy.orm import Session
 
-    from airflow.models.abstractoperator import TaskStateChangeCallback
     from airflow.models.dag import DAG as SchedulerDAG
     from airflow.models.operator import Operator
-    from airflow.sdk import BaseOperatorLink
+    from airflow.sdk import BaseOperatorLink, Context
     from airflow.sdk.definitions._internal.node import DAGNode
     from airflow.ti_deps.deps.base_ti_dep import BaseTIDep
     from airflow.triggers.base import StartTriggerArgs
-
-TaskPreExecuteHook = Callable[[Context], None]
-TaskPostExecuteHook = Callable[[Context, Any], None]
-
-T = TypeVar("T", bound=FunctionType)
 
 logger = logging.getLogger("airflow.models.baseoperator.BaseOperator")
 
@@ -339,33 +324,12 @@ class BaseOperator(TaskSDKBaseOperator, AbstractOperator):
     start_trigger_args: StartTriggerArgs | None = None
     start_from_trigger: bool = False
 
-    on_failure_callback: None | TaskStateChangeCallback | list[TaskStateChangeCallback] = None
-    on_success_callback: None | TaskStateChangeCallback | list[TaskStateChangeCallback] = None
-    on_retry_callback: None | TaskStateChangeCallback | list[TaskStateChangeCallback] = None
-    on_skipped_callback: None | TaskStateChangeCallback | list[TaskStateChangeCallback] = None
-
-    def __init__(
-        self,
-        pre_execute=None,
-        post_execute=None,
-        on_failure_callback: None | TaskStateChangeCallback | list[TaskStateChangeCallback] = None,
-        on_success_callback: None | TaskStateChangeCallback | list[TaskStateChangeCallback] = None,
-        on_retry_callback: None | TaskStateChangeCallback | list[TaskStateChangeCallback] = None,
-        on_skipped_callback: None | TaskStateChangeCallback | list[TaskStateChangeCallback] = None,
-        **kwargs,
-    ):
+    def __init__(self, **kwargs):
         if start_date := kwargs.get("start_date", None):
             kwargs["start_date"] = timezone.convert_to_utc(start_date)
-
         if end_date := kwargs.get("end_date", None):
             kwargs["end_date"] = timezone.convert_to_utc(end_date)
         super().__init__(**kwargs)
-        self._pre_execute_hook = pre_execute
-        self._post_execute_hook = post_execute
-        self.on_failure_callback = on_failure_callback
-        self.on_success_callback = on_success_callback
-        self.on_skipped_callback = on_skipped_callback
-        self.on_retry_callback = on_retry_callback
 
     # Defines the operator level extra links
     operator_extra_links: Collection[BaseOperatorLink] = ()
@@ -387,14 +351,7 @@ class BaseOperator(TaskSDKBaseOperator, AbstractOperator):
         """Stringified DAGs and operators contain exactly these fields."""
         # TODO: this ends up caching it once per-subclass, which isn't what we want, but this class is only
         # kept around during the development of AIP-72/TaskSDK code.
-        return TaskSDKBaseOperator.get_serialized_fields() | {
-            "start_trigger_args",
-            "start_from_trigger",
-            "on_failure_callback",
-            "on_success_callback",
-            "on_retry_callback",
-            "on_skipped_callback",
-        }
+        return TaskSDKBaseOperator.get_serialized_fields() | {"start_trigger_args", "start_from_trigger"}
 
     def get_inlet_defs(self):
         """
@@ -432,7 +389,10 @@ class BaseOperator(TaskSDKBaseOperator, AbstractOperator):
         """Execute right before self.execute() is called."""
         if self._pre_execute_hook is None:
             return
-        ExecutionCallableRunner(
+        from airflow.sdk.execution_time.callback_runner import create_executable_runner
+        from airflow.sdk.execution_time.context import context_get_outlet_events
+
+        create_executable_runner(
             self._pre_execute_hook,
             context_get_outlet_events(context),
             logger=self.log,
@@ -457,7 +417,10 @@ class BaseOperator(TaskSDKBaseOperator, AbstractOperator):
         """
         if self._post_execute_hook is None:
             return
-        ExecutionCallableRunner(
+        from airflow.sdk.execution_time.callback_runner import create_executable_runner
+        from airflow.sdk.execution_time.context import context_get_outlet_events
+
+        create_executable_runner(
             self._post_execute_hook,
             context_get_outlet_events(context),
             logger=self.log,
