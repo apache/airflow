@@ -17,6 +17,7 @@
 from __future__ import annotations
 
 import asyncio
+import functools
 import logging
 import os
 import selectors
@@ -41,6 +42,12 @@ from airflow.executors import workloads
 from airflow.jobs.base_job_runner import BaseJobRunner
 from airflow.jobs.job import perform_heartbeat
 from airflow.models.trigger import Trigger
+from airflow.sdk.execution_time.comms import (
+    ConnectionResult,
+    GetConnection,
+    GetVariable,
+    VariableResult,
+)
 from airflow.sdk.execution_time.supervisor import WatchedSubprocess, make_buffered_socket_reader
 from airflow.stats import Stats
 from airflow.traces.tracer import Trace, add_span
@@ -57,7 +64,9 @@ if TYPE_CHECKING:
     from sqlalchemy.orm import Session
     from structlog.typing import FilteringBoundLogger, WrappedLogger
 
+    from airflow.api_fastapi.execution_api.app import InProcessExecutionAPI
     from airflow.jobs.job import Job
+    from airflow.sdk.api.client import Client
     from airflow.triggers.base import BaseTrigger
 
 HANDLER_SUPPORTS_TRIGGERER = False
@@ -75,6 +84,15 @@ __all__ = [
     "TriggerRunnerSupervisor",
     "TriggererJobRunner",
 ]
+
+
+# This was taken from triggerer_job_runner.py
+@functools.cache
+def in_process_api_server() -> InProcessExecutionAPI:
+    from airflow.api_fastapi.execution_api.app import InProcessExecutionAPI
+
+    api = InProcessExecutionAPI()
+    return api
 
 
 class TriggererJobRunner(BaseJobRunner, LoggingMixin):
@@ -296,7 +314,18 @@ class TriggerRunnerSupervisor(WatchedSubprocess):
         proc._send(msg)
         return proc
 
+    @functools.cached_property
+    def client(self) -> Client:
+        from airflow.sdk.api.client import Client
+
+        client = Client(base_url=None, token="", dry_run=True, transport=in_process_api_server().transport)
+        # Mypy is wrong -- the setter accepts a string on the property setter! `URLType = URL | str`
+        client.base_url = "http://in-process.invalid./"  # type: ignore[assignment]
+        return client
+
     def _handle_request(self, msg: ToTriggerSupervisor, log: FilteringBoundLogger) -> None:  # type: ignore[override]
+        from airflow.sdk.api.datamodels._generated import ConnectionResponse, VariableResponse
+
         if isinstance(msg, messages.TriggerStateChanges):
             log.debug("State change from async process", state=msg)
             if msg.events:
@@ -311,8 +340,27 @@ class TriggerRunnerSupervisor(WatchedSubprocess):
                 if factory := self.logger_cache.pop(id, None):
                     factory.upload_to_remote()
             return
+        # This is taken from _handle_request in triggerer_job_runner.py
+        elif isinstance(msg, GetConnection):
+            conn = self.client.connections.get(msg.conn_id)
+            if isinstance(conn, ConnectionResponse):
+                conn_result = ConnectionResult.from_conn_response(conn)
+                resp = conn_result.model_dump_json(exclude_unset=True, by_alias=True).encode()
+            else:
+                resp = conn.model_dump_json().encode()
+        elif isinstance(msg, GetVariable):
+            var = self.client.variables.get(msg.key)
 
-        raise ValueError(f"Unknown message type {type(msg)}")
+            if isinstance(var, VariableResponse):
+                var_result = VariableResult.from_variable_response(var)
+                resp = var_result.model_dump_json(exclude_unset=True).encode()
+            else:
+                resp = var.model_dump_json().encode()
+        else:
+            raise ValueError(f"Unknown message type {type(msg)}")
+
+        if resp:
+            self.stdin.write(resp + b"\n")
 
     def run(self) -> None:
         """Run synchronously and handle all database reads/writes."""
