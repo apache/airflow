@@ -1,6 +1,6 @@
 Remove option for unlimited parallelism.
 
-Before Airflow 3.0 it was possible to set unlimited parallelism by setting it to 0. This was removed in Airflow 3.0.0.
+Before Airflow 3.0 it was possible to set unlimited parallelism by setting `[core] parallelism` to 0. This was removed in Airflow 3.0.0.
 
 * Types of change
 
