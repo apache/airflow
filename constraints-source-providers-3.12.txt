@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2025-03-25T07:48:38.163998
+# This constraints file was automatically generated on 2025-03-25T19:43:35.516837
 # via "eager-upgrade" mechanism of PIP. For the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version of both
 # 'apache-airflow' package and all available community provider distributions.
@@ -85,7 +85,7 @@ asttokens==3.0.0
 asyncpg==0.30.0
 asyncssh==2.20.0
 atlasclient==1.0.0
-atlassian-python-api==3.41.21
+atlassian-python-api==4.0.0
 attrs==25.3.0
 aws-sam-translator==1.95.0
 aws-xray-sdk==2.14.0
@@ -128,12 +128,12 @@ cachelib==0.13.0
 cachetools==5.5.2
 cadwyn==5.1.3
 cassandra-driver==3.29.2
-cattrs==24.1.2
+cattrs==24.1.3
 celery==5.4.0
 certifi==2025.1.31
 cffi==1.17.1
 cfgv==3.4.0
-cfn-lint==1.32.0
+cfn-lint==1.32.1
 cgroupspy==0.2.3
 chardet==5.2.0
 charset-normalizer==3.4.1
@@ -218,7 +218,7 @@ google-cloud-audit-log==0.3.2
 google-cloud-automl==2.16.3
 google-cloud-batch==0.17.35
 google-cloud-bigquery-datatransfer==3.19.1
-google-cloud-bigquery==3.30.0
+google-cloud-bigquery==3.31.0
 google-cloud-bigtable==2.30.0
 google-cloud-build==3.31.1
 google-cloud-compute==1.28.0
@@ -315,7 +315,6 @@ jmespath==0.10.0
 joblib==1.4.2
 joserfc==1.0.4
 jpype1==1.5.2
-json-merge-patch==0.2
 jsonpatch==1.33
 jsonpath-ng==1.7.0
 jsonpath-python==1.0.6
@@ -488,7 +487,7 @@ pytest==8.3.5
 python-arango==8.1.6
 python-daemon==3.1.2
 python-dateutil==2.9.0.post0
-python-dotenv==1.0.1
+python-dotenv==1.1.0
 python-http-client==3.3.7
 python-jenkins==1.8.2
 python-ldap==3.4.4

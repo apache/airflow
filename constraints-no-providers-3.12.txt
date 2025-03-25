@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2025-03-25T07:53:07.870455
+# This constraints file was automatically generated on 2025-03-25T19:48:10.107288
 # via "eager-upgrade" mechanism of PIP. For the "main" branch of Airflow.
 # This variant of constraints install just the 'bare' 'apache-airflow' package build from the HEAD of
 # the branch, without installing any of the providers.
@@ -112,7 +112,7 @@ methodtools==0.4.7
 more-itertools==10.6.0
 msgspec==0.19.0
 multidict==6.2.0
-numpy==1.26.4
+numpy==2.2.4
 opentelemetry-api==1.31.1
 opentelemetry-exporter-otlp-proto-common==1.31.1
 opentelemetry-exporter-otlp-proto-grpc==1.31.1
@@ -124,7 +124,7 @@ opentelemetry-sdk==1.31.1
 opentelemetry-semantic-conventions==0.52b1
 ordered-set==4.1.0
 packaging==24.2
-pandas==2.1.4
+pandas==2.2.3
 pathspec==0.12.1
 pendulum==3.0.0
 pluggy==1.5.0
@@ -144,7 +144,7 @@ pykerberos==1.2.4
 pyspnego==0.11.2
 python-daemon==3.1.2
 python-dateutil==2.9.0.post0
-python-dotenv==1.0.1
+python-dotenv==1.1.0
 python-ldap==3.4.4
 python-multipart==0.0.20
 python-slugify==8.0.4
