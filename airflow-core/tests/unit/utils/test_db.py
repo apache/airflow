@@ -34,6 +34,7 @@ from alembic.runtime.environment import EnvironmentContext
 from alembic.script import ScriptDirectory
 from sqlalchemy import Column, Integer, MetaData, Table, select
 
+from airflow.configuration import conf
 from airflow.models import Base as airflow_base
 from airflow.settings import engine
 from airflow.utils.db import (
@@ -135,7 +136,10 @@ class TestDb:
     def test_upgradedb(self, mock_alembic_command):
         upgradedb()
         mock_alembic_command.upgrade.assert_called_with(mock.ANY, revision="heads")
-        assert mock_alembic_command.upgrade.call_count == 2
+        if "FabAuthManager" in conf.get("core", "auth_manager"):
+            assert mock_alembic_command.upgrade.call_count == 2
+        else:
+            assert mock_alembic_command.upgrade.call_count == 1
 
     @pytest.mark.parametrize(
         "from_revision, to_revision",
