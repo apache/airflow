@@ -513,6 +513,7 @@ class TaskDecoratorCollection:
             or a list of names of labels to set with empty values (e.g. ``["label1", "label2"]``)
         """
         # [END decorator_signature]
+    @overload
     def kubernetes(
         self,
         *,
@@ -684,6 +685,8 @@ class TaskDecoratorCollection:
             in V1PodSpec.
         :param progress_callback: Callback function for receiving k8s container logs.
         """
+    @overload
+    def kubernetes(self, python_callable: Callable[FParams, FReturn]) -> Task[FParams, FReturn]: ...
     @overload
     def sensor(  # type: ignore[misc]
         self,
