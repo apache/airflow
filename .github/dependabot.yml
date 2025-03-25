@@ -33,11 +33,19 @@ updates:
     directories:
       - /airflow-core/src/airflow/api_fastapi/auth/managers/simple/ui
       - /airflow-core/src/airflow/ui
+    schedule:
+      interval: daily
+    groups:
+      core-ui-package-updates:
+        patterns:
+          - "*"
+  - package-ecosystem: npm
+    directories:
       - /providers/fab/src/airflow/providers/fab/www
     schedule:
       interval: daily
     groups:
-      ui-package-updates:
+      fab-ui-package-updates:
         patterns:
           - "*"
 
@@ -56,11 +64,21 @@ updates:
     directories:
       - /airflow-core/src/airflow/api_fastapi/auth/managers/simple/ui
       - /airflow-core/src/airflow/ui
+    schedule:
+      interval: daily
+    target-branch: v2-10-test
+    groups:
+      core-ui-package-updates:
+        patterns:
+          - "*"
+
+  - package-ecosystem: npm
+    directories:
       - /providers/fab/src/airflow/providers/fab/www
     schedule:
       interval: daily
     target-branch: v2-10-test
     groups:
-      ui-package-updates:
+      fab-ui-package-updates:
         patterns:
           - "*"
