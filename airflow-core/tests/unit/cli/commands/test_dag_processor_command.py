@@ -23,7 +23,7 @@ from unittest import mock
 import pytest
 
 from airflow.cli import cli_parser
-from airflow.cli.commands.local_commands import dag_processor_command
+from airflow.cli.commands import dag_processor_command
 
 from tests_common.test_utils.config import conf_vars
 
@@ -40,7 +40,7 @@ class TestDagProcessorCommand:
         cls.parser = cli_parser.get_parser()
 
     @conf_vars({("core", "load_examples"): "False"})
-    @mock.patch("airflow.cli.commands.local_commands.dag_processor_command.DagProcessorJobRunner")
+    @mock.patch("airflow.cli.commands.dag_processor_command.DagProcessorJobRunner")
     def test_start_job(self, mock_runner):
         """Ensure that DagProcessorJobRunner is started"""
         mock_runner.return_value.job_type = "DagProcessorJob"
@@ -49,7 +49,7 @@ class TestDagProcessorCommand:
         mock_runner.return_value._execute.assert_called()
 
     @conf_vars({("core", "load_examples"): "False"})
-    @mock.patch("airflow.cli.commands.local_commands.dag_processor_command.DagProcessorJobRunner")
+    @mock.patch("airflow.cli.commands.dag_processor_command.DagProcessorJobRunner")
     def test_bundle_names_passed(self, mock_runner, configure_testing_dag_bundle):
         mock_runner.return_value.job_type = "DagProcessorJob"
         args = self.parser.parse_args(["dag-processor", "--bundle-name", "testing"])

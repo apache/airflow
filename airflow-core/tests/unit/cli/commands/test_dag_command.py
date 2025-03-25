@@ -34,7 +34,7 @@ from sqlalchemy import select
 
 from airflow import settings
 from airflow.cli import cli_parser
-from airflow.cli.commands.remote_commands import dag_command
+from airflow.cli.commands import dag_command
 from airflow.decorators import task
 from airflow.exceptions import AirflowException
 from airflow.models import DagBag, DagModel, DagRun
@@ -95,7 +95,7 @@ class TestCliDags:
         assert "digraph" in out
         assert "graph [rankdir=LR]" in out
 
-    @mock.patch("airflow.cli.commands.remote_commands.dag_command.render_dag_dependencies")
+    @mock.patch("airflow.cli.commands.dag_command.render_dag_dependencies")
     def test_show_dag_dependencies_save(self, mock_render_dag_dependencies):
         with contextlib.redirect_stdout(StringIO()) as temp_stdout:
             dag_command.dag_dependencies_show(
@@ -115,7 +115,7 @@ class TestCliDags:
         assert "graph [label=example_bash_operator labelloc=t rankdir=LR]" in out
         assert "runme_2 -> run_after_loop" in out
 
-    @mock.patch("airflow.cli.commands.remote_commands.dag_command.render_dag")
+    @mock.patch("airflow.cli.commands.dag_command.render_dag")
     def test_show_dag_save(self, mock_render_dag):
         with contextlib.redirect_stdout(StringIO()) as temp_stdout:
             dag_command.dag_show(
@@ -127,8 +127,8 @@ class TestCliDags:
         )
         assert "File awesome.png saved" in out
 
-    @mock.patch("airflow.cli.commands.remote_commands.dag_command.subprocess.Popen")
-    @mock.patch("airflow.cli.commands.remote_commands.dag_command.render_dag")
+    @mock.patch("airflow.cli.commands.dag_command.subprocess.Popen")
+    @mock.patch("airflow.cli.commands.dag_command.render_dag")
     def test_show_dag_imgcat(self, mock_render_dag, mock_popen):
         mock_render_dag.return_value.pipe.return_value = b"DOT_DATA"
         mock_proc = mock.MagicMock()
@@ -381,7 +381,7 @@ class TestCliDags:
         dag_command.dag_unpause(args)
         assert not DagModel.get_dagmodel("example_bash_operator").is_paused
 
-    @mock.patch("airflow.cli.commands.remote_commands.dag_command.ask_yesno")
+    @mock.patch("airflow.cli.commands.dag_command.ask_yesno")
     def test_pause_regex(self, mock_yesno):
         args = self.parser.parse_args(["dags", "pause", "^example_.*$", "--treat-dag-id-as-regex"])
         dag_command.dag_pause(args)
@@ -396,7 +396,7 @@ class TestCliDags:
         assert not DagModel.get_dagmodel("example_kubernetes_executor").is_paused
         assert not DagModel.get_dagmodel("example_xcom_args").is_paused
 
-    @mock.patch("airflow.cli.commands.remote_commands.dag_command.ask_yesno")
+    @mock.patch("airflow.cli.commands.dag_command.ask_yesno")
     def test_pause_regex_operation_cancelled(self, ask_yesno, capsys):
         args = self.parser.parse_args(["dags", "pause", "example_bash_operator", "--treat-dag-id-as-regex"])
         ask_yesno.return_value = False
@@ -404,7 +404,7 @@ class TestCliDags:
         stdout = capsys.readouterr().out
         assert "Operation cancelled by user" in stdout
 
-    @mock.patch("airflow.cli.commands.remote_commands.dag_command.ask_yesno")
+    @mock.patch("airflow.cli.commands.dag_command.ask_yesno")
     def test_pause_regex_yes(self, mock_yesno):
         args = self.parser.parse_args(["dags", "pause", ".*", "--treat-dag-id-as-regex", "--yes"])
         dag_command.dag_pause(args)
@@ -564,7 +564,7 @@ class TestCliDags:
             is None
         )
 
-    @mock.patch("airflow.cli.commands.remote_commands.dag_command._parse_and_get_dag")
+    @mock.patch("airflow.cli.commands.dag_command._parse_and_get_dag")
     def test_dag_test(self, mock_parse_and_get_dag):
         cli_args = self.parser.parse_args(["dags", "test", "example_bash_operator", DEFAULT_DATE.isoformat()])
         dag_command.dag_test(cli_args)
@@ -583,7 +583,7 @@ class TestCliDags:
             ]
         )
 
-    @mock.patch("airflow.cli.commands.remote_commands.dag_command._parse_and_get_dag")
+    @mock.patch("airflow.cli.commands.dag_command._parse_and_get_dag")
     def test_dag_test_fail_raise_error(self, mock_parse_and_get_dag):
         logical_date_str = DEFAULT_DATE.isoformat()
         mock_parse_and_get_dag.return_value.test.return_value = DagRun(
@@ -593,7 +593,7 @@ class TestCliDags:
         with pytest.raises(SystemExit, match=r"DagRun failed"):
             dag_command.dag_test(cli_args)
 
-    @mock.patch("airflow.cli.commands.remote_commands.dag_command._parse_and_get_dag")
+    @mock.patch("airflow.cli.commands.dag_command._parse_and_get_dag")
     @mock.patch("airflow.utils.timezone.utcnow")
     def test_dag_test_no_logical_date(self, mock_utcnow, mock_parse_and_get_dag):
         now = pendulum.now()
@@ -618,7 +618,7 @@ class TestCliDags:
             ]
         )
 
-    @mock.patch("airflow.cli.commands.remote_commands.dag_command._parse_and_get_dag")
+    @mock.patch("airflow.cli.commands.dag_command._parse_and_get_dag")
     def test_dag_test_conf(self, mock_parse_and_get_dag):
         cli_args = self.parser.parse_args(
             [
@@ -646,10 +646,8 @@ class TestCliDags:
             ]
         )
 
-    @mock.patch(
-        "airflow.cli.commands.remote_commands.dag_command.render_dag", return_value=MagicMock(source="SOURCE")
-    )
-    @mock.patch("airflow.cli.commands.remote_commands.dag_command._parse_and_get_dag")
+    @mock.patch("airflow.cli.commands.dag_command.render_dag", return_value=MagicMock(source="SOURCE"))
+    @mock.patch("airflow.cli.commands.dag_command._parse_and_get_dag")
     def test_dag_test_show_dag(self, mock_parse_and_get_dag, mock_render_dag):
         mock_parse_and_get_dag.return_value.test.return_value.run_id = (
             "__test_dag_test_show_dag_fake_dag_run_run_id__"

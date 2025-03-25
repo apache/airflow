@@ -25,7 +25,7 @@ from sqlalchemy.engine.url import make_url
 from sqlalchemy.exc import OperationalError
 
 from airflow.cli import cli_parser
-from airflow.cli.commands.local_commands import db_command
+from airflow.cli.commands import db_command
 from airflow.exceptions import AirflowException
 
 pytestmark = pytest.mark.db_test
@@ -36,18 +36,18 @@ class TestCliDb:
     def setup_class(cls):
         cls.parser = cli_parser.get_parser()
 
-    @mock.patch("airflow.cli.commands.local_commands.db_command.db.resetdb")
+    @mock.patch("airflow.cli.commands.db_command.db.resetdb")
     def test_cli_resetdb(self, mock_resetdb):
         db_command.resetdb(self.parser.parse_args(["db", "reset", "--yes"]))
 
         mock_resetdb.assert_called_once_with(skip_init=False)
 
-    @mock.patch("airflow.cli.commands.local_commands.db_command.db.resetdb")
+    @mock.patch("airflow.cli.commands.db_command.db.resetdb")
     def test_cli_resetdb_skip_init(self, mock_resetdb):
         db_command.resetdb(self.parser.parse_args(["db", "reset", "--yes", "--skip-init"]))
         mock_resetdb.assert_called_once_with(skip_init=True)
 
-    @mock.patch("airflow.cli.commands.local_commands.db_command.db.check_migrations")
+    @mock.patch("airflow.cli.commands.db_command.db.check_migrations")
     def test_cli_check_migrations(self, mock_wait_for_migrations):
         db_command.check_migrations(self.parser.parse_args(["db", "check-migrations"]))
 
@@ -134,7 +134,7 @@ class TestCliDb:
             ),
         ],
     )
-    @mock.patch("airflow.cli.commands.local_commands.db_command.db.upgradedb")
+    @mock.patch("airflow.cli.commands.db_command.db.upgradedb")
     def test_cli_upgrade_success(self, mock_upgradedb, args, called_with):
         # TODO(ephraimbuddy): Revisit this when we add more migration files and use other versions/revisions other than 2.10.0/22ed7efa9da2
         db_command.migratedb(self.parser.parse_args(["db", "migrate", *args]))
@@ -177,15 +177,15 @@ class TestCliDb:
             ),
         ],
     )
-    @mock.patch("airflow.cli.commands.local_commands.db_command.db.upgradedb")
+    @mock.patch("airflow.cli.commands.db_command.db.upgradedb")
     def test_cli_sync_failure(self, mock_upgradedb, args, pattern):
         with pytest.raises(SystemExit, match=pattern):
             db_command.migratedb(self.parser.parse_args(["db", "migrate", *args]))
 
-    @mock.patch("airflow.cli.commands.local_commands.db_command.execute_interactive")
-    @mock.patch("airflow.cli.commands.local_commands.db_command.NamedTemporaryFile")
+    @mock.patch("airflow.cli.commands.db_command.execute_interactive")
+    @mock.patch("airflow.cli.commands.db_command.NamedTemporaryFile")
     @mock.patch(
-        "airflow.cli.commands.local_commands.db_command.settings.engine.url",
+        "airflow.cli.commands.db_command.settings.engine.url",
         make_url("mysql://root@mysql:3306/airflow"),
     )
     def test_cli_shell_mysql(self, mock_tmp_file, mock_execute_interactive):
@@ -197,10 +197,10 @@ class TestCliDb:
             b"\ndatabase = airflow"
         )
 
-    @mock.patch("airflow.cli.commands.local_commands.db_command.execute_interactive")
-    @mock.patch("airflow.cli.commands.local_commands.db_command.NamedTemporaryFile")
+    @mock.patch("airflow.cli.commands.db_command.execute_interactive")
+    @mock.patch("airflow.cli.commands.db_command.NamedTemporaryFile")
     @mock.patch(
-        "airflow.cli.commands.local_commands.db_command.settings.engine.url",
+        "airflow.cli.commands.db_command.settings.engine.url",
         make_url("mysql://root@mysql/airflow"),
     )
     def test_cli_shell_mysql_without_port(self, mock_tmp_file, mock_execute_interactive):
@@ -212,18 +212,18 @@ class TestCliDb:
             b"\ndatabase = airflow"
         )
 
-    @mock.patch("airflow.cli.commands.local_commands.db_command.execute_interactive")
+    @mock.patch("airflow.cli.commands.db_command.execute_interactive")
     @mock.patch(
-        "airflow.cli.commands.local_commands.db_command.settings.engine.url",
+        "airflow.cli.commands.db_command.settings.engine.url",
         make_url("sqlite:////root/airflow/airflow.db"),
     )
     def test_cli_shell_sqlite(self, mock_execute_interactive):
         db_command.shell(self.parser.parse_args(["db", "shell"]))
         mock_execute_interactive.assert_called_once_with(["sqlite3", "/root/airflow/airflow.db"])
 
-    @mock.patch("airflow.cli.commands.local_commands.db_command.execute_interactive")
+    @mock.patch("airflow.cli.commands.db_command.execute_interactive")
     @mock.patch(
-        "airflow.cli.commands.local_commands.db_command.settings.engine.url",
+        "airflow.cli.commands.db_command.settings.engine.url",
         make_url("postgresql+psycopg2://postgres:airflow@postgres:5432/airflow"),
     )
     def test_cli_shell_postgres(self, mock_execute_interactive):
@@ -240,9 +240,9 @@ class TestCliDb:
             "PGUSER": "postgres",
         }
 
-    @mock.patch("airflow.cli.commands.local_commands.db_command.execute_interactive")
+    @mock.patch("airflow.cli.commands.db_command.execute_interactive")
     @mock.patch(
-        "airflow.cli.commands.local_commands.db_command.settings.engine.url",
+        "airflow.cli.commands.db_command.settings.engine.url",
         make_url("postgresql+psycopg2://postgres:airflow@postgres/airflow"),
     )
     def test_cli_shell_postgres_without_port(self, mock_execute_interactive):
@@ -260,7 +260,7 @@ class TestCliDb:
         }
 
     @mock.patch(
-        "airflow.cli.commands.local_commands.db_command.settings.engine.url",
+        "airflow.cli.commands.db_command.settings.engine.url",
         make_url("invalid+psycopg2://postgres:airflow@postgres/airflow"),
     )
     def test_cli_shell_invalid(self):
@@ -323,7 +323,7 @@ class TestCliDb:
         ],
     )
     @mock.patch("airflow.utils.db.downgrade")
-    @mock.patch("airflow.cli.commands.local_commands.db_command.input")
+    @mock.patch("airflow.cli.commands.db_command.input")
     def test_cli_downgrade_confirm(self, mock_input, mock_dg, resp, raise_):
         mock_input.return_value = resp
         if raise_:
@@ -361,7 +361,7 @@ class TestCLIDBClean:
         cls.parser = cli_parser.get_parser()
 
     @pytest.mark.parametrize("timezone", ["UTC", "Europe/Berlin", "America/Los_Angeles"])
-    @patch("airflow.cli.commands.local_commands.db_command.run_cleanup")
+    @patch("airflow.cli.commands.db_command.run_cleanup")
     def test_date_timezone_omitted(self, run_cleanup_mock, timezone):
         """
         When timezone omitted we should always expect that the timestamp is
@@ -381,7 +381,7 @@ class TestCLIDBClean:
         )
 
     @pytest.mark.parametrize("timezone", ["UTC", "Europe/Berlin", "America/Los_Angeles"])
-    @patch("airflow.cli.commands.local_commands.db_command.run_cleanup")
+    @patch("airflow.cli.commands.db_command.run_cleanup")
     def test_date_timezone_supplied(self, run_cleanup_mock, timezone):
         """
         When tz included in the string then default timezone should not be used.
@@ -401,7 +401,7 @@ class TestCLIDBClean:
         )
 
     @pytest.mark.parametrize("confirm_arg, expected", [(["-y"], False), ([], True)])
-    @patch("airflow.cli.commands.local_commands.db_command.run_cleanup")
+    @patch("airflow.cli.commands.db_command.run_cleanup")
     def test_confirm(self, run_cleanup_mock, confirm_arg, expected):
         """
         When ``-y`` provided, ``confirm`` should be false.
@@ -427,7 +427,7 @@ class TestCLIDBClean:
         )
 
     @pytest.mark.parametrize("extra_arg, expected", [(["--skip-archive"], True), ([], False)])
-    @patch("airflow.cli.commands.local_commands.db_command.run_cleanup")
+    @patch("airflow.cli.commands.db_command.run_cleanup")
     def test_skip_archive(self, run_cleanup_mock, extra_arg, expected):
         """
         When ``--skip-archive`` provided, ``skip_archive`` should be True (False otherwise).
@@ -453,7 +453,7 @@ class TestCLIDBClean:
         )
 
     @pytest.mark.parametrize("dry_run_arg, expected", [(["--dry-run"], True), ([], False)])
-    @patch("airflow.cli.commands.local_commands.db_command.run_cleanup")
+    @patch("airflow.cli.commands.db_command.run_cleanup")
     def test_dry_run(self, run_cleanup_mock, dry_run_arg, expected):
         """
         When tz included in the string then default timezone should not be used.
@@ -481,7 +481,7 @@ class TestCLIDBClean:
     @pytest.mark.parametrize(
         "extra_args, expected", [(["--tables", "hello, goodbye"], ["hello", "goodbye"]), ([], None)]
     )
-    @patch("airflow.cli.commands.local_commands.db_command.run_cleanup")
+    @patch("airflow.cli.commands.db_command.run_cleanup")
     def test_tables(self, run_cleanup_mock, extra_args, expected):
         """
         When tz included in the string then default timezone should not be used.
@@ -507,7 +507,7 @@ class TestCLIDBClean:
         )
 
     @pytest.mark.parametrize("extra_args, expected", [(["--verbose"], True), ([], False)])
-    @patch("airflow.cli.commands.local_commands.db_command.run_cleanup")
+    @patch("airflow.cli.commands.db_command.run_cleanup")
     def test_verbose(self, run_cleanup_mock, extra_args, expected):
         """
         When tz included in the string then default timezone should not be used.
@@ -532,8 +532,8 @@ class TestCLIDBClean:
             skip_archive=False,
         )
 
-    @patch("airflow.cli.commands.local_commands.db_command.export_archived_records")
-    @patch("airflow.cli.commands.local_commands.db_command.os.path.isdir", return_value=True)
+    @patch("airflow.cli.commands.db_command.export_archived_records")
+    @patch("airflow.cli.commands.db_command.os.path.isdir", return_value=True)
     def test_export_archived_records(self, os_mock, export_archived_mock):
         args = self.parser.parse_args(
             [
@@ -552,8 +552,8 @@ class TestCLIDBClean:
     @pytest.mark.parametrize(
         "extra_args, expected", [(["--tables", "hello, goodbye"], ["hello", "goodbye"]), ([], None)]
     )
-    @patch("airflow.cli.commands.local_commands.db_command.export_archived_records")
-    @patch("airflow.cli.commands.local_commands.db_command.os.path.isdir", return_value=True)
+    @patch("airflow.cli.commands.db_command.export_archived_records")
+    @patch("airflow.cli.commands.db_command.os.path.isdir", return_value=True)
     def test_tables_in_export_archived_records_command(
         self, os_mock, export_archived_mock, extra_args, expected
     ):
@@ -576,8 +576,8 @@ class TestCLIDBClean:
         )
 
     @pytest.mark.parametrize("extra_args, expected", [(["--drop-archives"], True), ([], False)])
-    @patch("airflow.cli.commands.local_commands.db_command.export_archived_records")
-    @patch("airflow.cli.commands.local_commands.db_command.os.path.isdir", return_value=True)
+    @patch("airflow.cli.commands.db_command.export_archived_records")
+    @patch("airflow.cli.commands.db_command.os.path.isdir", return_value=True)
     def test_drop_archives_in_export_archived_records_command(
         self, os_mock, export_archived_mock, extra_args, expected
     ):
@@ -602,7 +602,7 @@ class TestCLIDBClean:
     @pytest.mark.parametrize(
         "extra_args, expected", [(["--tables", "hello, goodbye"], ["hello", "goodbye"]), ([], None)]
     )
-    @patch("airflow.cli.commands.local_commands.db_command.drop_archived_tables")
+    @patch("airflow.cli.commands.db_command.drop_archived_tables")
     def test_tables_in_drop_archived_records_command(self, mock_drop_archived_records, extra_args, expected):
         args = self.parser.parse_args(
             [
@@ -615,7 +615,7 @@ class TestCLIDBClean:
         mock_drop_archived_records.assert_called_once_with(table_names=expected, needs_confirm=True)
 
     @pytest.mark.parametrize("extra_args, expected", [(["-y"], False), ([], True)])
-    @patch("airflow.cli.commands.local_commands.db_command.drop_archived_tables")
+    @patch("airflow.cli.commands.db_command.drop_archived_tables")
     def test_confirm_in_drop_archived_records_command(self, mock_drop_archived_records, extra_args, expected):
         args = self.parser.parse_args(
             [

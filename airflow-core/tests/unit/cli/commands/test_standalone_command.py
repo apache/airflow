@@ -22,7 +22,7 @@ from unittest import mock
 
 import pytest
 
-from airflow.cli.commands.local_commands.standalone_command import StandaloneCommand
+from airflow.cli.commands.standalone_command import StandaloneCommand
 from airflow.executors import executor_loader
 from airflow.executors.executor_constants import (
     CELERY_EXECUTOR,

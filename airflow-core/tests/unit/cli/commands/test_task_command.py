@@ -34,8 +34,8 @@ from unittest.mock import sentinel
 import pytest
 
 from airflow.cli import cli_parser
-from airflow.cli.commands.remote_commands import task_command
-from airflow.cli.commands.remote_commands.task_command import LoggerMutationHelper
+from airflow.cli.commands import task_command
+from airflow.cli.commands.task_command import LoggerMutationHelper
 from airflow.config_templates.airflow_local_settings import DEFAULT_LOGGING_CONFIG
 from airflow.configuration import conf
 from airflow.exceptions import DagRunNotFound
@@ -137,9 +137,7 @@ class TestCliTasks:
         assert "example_python_operator" in stdout.getvalue()
         assert "print_the_context" in stdout.getvalue()
 
-    @mock.patch(
-        "airflow.cli.commands.remote_commands.task_command.fetch_dag_run_from_run_id_or_logical_date_string"
-    )
+    @mock.patch("airflow.cli.commands.task_command.fetch_dag_run_from_run_id_or_logical_date_string")
     def test_task_render_with_custom_timetable(self, mock_fetch_dag_run_from_run_id_or_logical_date_string):
         """
         Test that the `tasks render` CLI command queries the database correctly

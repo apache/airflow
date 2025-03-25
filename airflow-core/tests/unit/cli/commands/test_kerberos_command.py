@@ -21,7 +21,7 @@ from unittest import mock
 import pytest
 
 from airflow.cli import cli_parser
-from airflow.cli.commands.local_commands import kerberos_command
+from airflow.cli.commands import kerberos_command
 from airflow.security.kerberos import KerberosMode
 
 from tests_common.test_utils.config import conf_vars
@@ -34,7 +34,7 @@ class TestKerberosCommand:
     def setup_class(cls):
         cls.parser = cli_parser.get_parser()
 
-    @mock.patch("airflow.cli.commands.local_commands.kerberos_command.krb")
+    @mock.patch("airflow.cli.commands.kerberos_command.krb")
     @conf_vars({("core", "executor"): "CeleryExecutor"})
     def test_run_command(self, mock_krb):
         args = self.parser.parse_args(["kerberos", "PRINCIPAL", "--keytab", "/tmp/airflow.keytab"])
@@ -44,10 +44,10 @@ class TestKerberosCommand:
             keytab="/tmp/airflow.keytab", principal="PRINCIPAL", mode=KerberosMode.STANDARD
         )
 
-    @mock.patch("airflow.cli.commands.local_commands.daemon_utils.TimeoutPIDLockFile")
-    @mock.patch("airflow.cli.commands.local_commands.daemon_utils.setup_locations")
-    @mock.patch("airflow.cli.commands.local_commands.daemon_utils.daemon")
-    @mock.patch("airflow.cli.commands.local_commands.kerberos_command.krb")
+    @mock.patch("airflow.cli.commands.daemon_utils.TimeoutPIDLockFile")
+    @mock.patch("airflow.cli.commands.daemon_utils.setup_locations")
+    @mock.patch("airflow.cli.commands.daemon_utils.daemon")
+    @mock.patch("airflow.cli.commands.kerberos_command.krb")
     @conf_vars({("core", "executor"): "CeleryExecutor"})
     def test_run_command_daemon(self, mock_krb, mock_daemon, mock_setup_locations, mock_pid_file):
         mock_setup_locations.return_value = (
@@ -74,7 +74,7 @@ class TestKerberosCommand:
             ]
         )
         mock_open = mock.mock_open()
-        with mock.patch("airflow.cli.commands.local_commands.daemon_utils.open", mock_open):
+        with mock.patch("airflow.cli.commands.daemon_utils.open", mock_open):
             kerberos_command.kerberos(args)
 
         mock_krb.run.assert_called_once_with(
@@ -112,7 +112,7 @@ class TestKerberosCommand:
             mock.call().__exit__(None, None, None),
         ]
 
-    @mock.patch("airflow.cli.commands.local_commands.kerberos_command.krb")
+    @mock.patch("airflow.cli.commands.kerberos_command.krb")
     @conf_vars({("core", "executor"): "CeleryExecutor"})
     def test_run_command_with_mode_standard(self, mock_krb):
         args = self.parser.parse_args(["kerberos", "PRINCIPAL", "--keytab", "/tmp/airflow.keytab"])
@@ -122,7 +122,7 @@ class TestKerberosCommand:
             keytab="/tmp/airflow.keytab", principal="PRINCIPAL", mode=KerberosMode.STANDARD
         )
 
-    @mock.patch("airflow.cli.commands.local_commands.kerberos_command.krb")
+    @mock.patch("airflow.cli.commands.kerberos_command.krb")
     @conf_vars({("core", "executor"): "CeleryExecutor"})
     def test_run_command_with_mode_one_time(self, mock_krb):
         args = self.parser.parse_args(

@@ -19,7 +19,7 @@
 from __future__ import annotations
 
 from airflow import settings
-from airflow.cli.commands.local_commands.daemon_utils import run_command_with_daemon_option
+from airflow.cli.commands.daemon_utils import run_command_with_daemon_option
 from airflow.security import kerberos as krb
 from airflow.security.kerberos import KerberosMode
 from airflow.utils import cli as cli_utils

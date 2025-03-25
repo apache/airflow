@@ -27,7 +27,7 @@ from sqlalchemy import select
 
 from airflow import models
 from airflow.cli import cli_parser
-from airflow.cli.commands.remote_commands import variable_command
+from airflow.cli.commands import variable_command
 from airflow.models import Variable
 from airflow.utils.session import create_session
 

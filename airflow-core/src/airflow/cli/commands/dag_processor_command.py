@@ -21,7 +21,7 @@ from __future__ import annotations
 import logging
 from typing import Any
 
-from airflow.cli.commands.local_commands.daemon_utils import run_command_with_daemon_option
+from airflow.cli.commands.daemon_utils import run_command_with_daemon_option
 from airflow.dag_processing.manager import DagFileProcessorManager, reload_configuration_for_dag_processing
 from airflow.jobs.dag_processor_job_runner import DagProcessorJobRunner
 from airflow.jobs.job import Job, run_job
