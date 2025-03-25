@@ -1385,7 +1385,12 @@ class TestRuntimeTaskInstance:
         )
 
         with mock.patch.object(XCom, "_set_xcom_in_db") as mock_xcom_set:
-            finalize(runtime_ti, log=mock.MagicMock(), state=TerminalTIState.SUCCESS)
+            finalize(
+                runtime_ti,
+                log=mock.MagicMock(),
+                state=TerminalTIState.SUCCESS,
+                context=runtime_ti.get_template_context(),
+            )
             mock_xcom_set.assert_called_once_with(
                 key="_link_AirflowLink",
                 value="https://airflow.apache.org",
