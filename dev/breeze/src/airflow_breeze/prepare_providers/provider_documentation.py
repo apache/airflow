@@ -32,6 +32,7 @@ from shutil import copyfile
 from time import time
 from typing import Any, NamedTuple
 
+from packaging.version import Version, parse
 from rich.syntax import Syntax
 
 from airflow_breeze.utils.black_utils import black_format
@@ -482,6 +483,24 @@ def _mark_latest_changes_as_documentation_only(
     raise PrepareReleaseDocsChangesOnlyException()
 
 
+VERSION_MAJOR_INDEX = 0
+VERSION_MINOR_INDEX = 1
+VERSION_PATCHLEVEL_INDEX = 2
+
+
+def bump_version(v: Version, index: int) -> Version:
+    versions = list(v.release)
+    versions[index] += 1
+    # Packaging version returns None for pre and dev if they are not set
+    # In PEP-440 it is perfectly fine to have 1.2.3b1.dev0 or 1.2.3.dev0
+    # Unlike dev, pre-release does not have "." to separate it from the version
+    pre = f"{v.pre[0]}{v.pre[1]}" if v.pre else ""
+    dev = f".dev{v.dev}" if v.dev is not None else ""
+    return parse(
+        f"{versions[VERSION_MAJOR_INDEX]}.{versions[VERSION_MINOR_INDEX]}.{versions[VERSION_PATCHLEVEL_INDEX]}{pre}{dev}"
+    )
+
+
 def _update_version_in_provider_yaml(
     provider_id: str,
     type_of_change: TypeOfChange,
@@ -494,23 +513,22 @@ def _update_version_in_provider_yaml(
     """
     provider_details = get_provider_details(provider_id)
     version = provider_details.versions[0]
-    import semver
 
-    v = semver.VersionInfo.parse(version)
+    v = parse(version)
     with_breaking_changes = False
     maybe_with_new_features = False
     if type_of_change == TypeOfChange.BREAKING_CHANGE:
-        v = v.bump_major()
+        v = bump_version(v, VERSION_MAJOR_INDEX)
         with_breaking_changes = True
         # we do not know, but breaking changes may also contain new features
         maybe_with_new_features = True
     elif type_of_change == TypeOfChange.FEATURE:
-        v = v.bump_minor()
+        v = bump_version(v, VERSION_MINOR_INDEX)
         maybe_with_new_features = True
     elif type_of_change == TypeOfChange.BUGFIX:
-        v = v.bump_patch()
+        v = bump_version(v, VERSION_PATCHLEVEL_INDEX)
     elif type_of_change == TypeOfChange.MISC:
-        v = v.bump_patch()
+        v = bump_version(v, VERSION_PATCHLEVEL_INDEX)
     provider_yaml_path = get_provider_yaml(provider_id)
     original_provider_yaml_content = provider_yaml_path.read_text()
     updated_provider_yaml_content = re.sub(
