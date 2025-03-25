@@ -27,6 +27,7 @@ from airflow.api_fastapi.execution_api.routes import (
     dag_runs,
     health,
     task_instances,
+    task_reschedules,
     variables,
     xcoms,
 )
@@ -42,6 +43,9 @@ authenticated_router.include_router(asset_events.router, prefix="/asset-events",
 authenticated_router.include_router(connections.router, prefix="/connections", tags=["Connections"])
 authenticated_router.include_router(dag_runs.router, prefix="/dag-runs", tags=["Dag Runs"])
 authenticated_router.include_router(task_instances.router, prefix="/task-instances", tags=["Task Instances"])
+authenticated_router.include_router(
+    task_reschedules.router, prefix="/task-reschedules", tags=["Task Reschedules"]
+)
 authenticated_router.include_router(variables.router, prefix="/variables", tags=["Variables"])
 authenticated_router.include_router(xcoms.router, prefix="/xcoms", tags=["XComs"])
 
