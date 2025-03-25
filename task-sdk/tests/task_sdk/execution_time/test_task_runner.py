@@ -1311,21 +1311,21 @@ class TestRuntimeTaskInstance:
             log=mock.ANY,
         )
 
-        finalize(runtime_ti, context=context, log=mock.MagicMock(), state=TerminalTIState.SUCCESS)
-
-        mock_supervisor_comms.send_request.assert_any_call(
-            msg=SetXCom(
+        with mock.patch.object(XCom, "_set_xcom_in_db") as mock_xcom_set:
+            finalize(
+                runtime_ti,
+                log=mock.MagicMock(),
+                state=TerminalTIState.SUCCESS,
+                context=runtime_ti.get_template_context(),
+            )
+            mock_xcom_set.assert_called_once_with(
                 key="_link_AirflowLink",
                 value="https://airflow.apache.org",
-                dag_id="test_dag",
-                run_id="test_run",
-                task_id="task_with_operator_extra_links",
-                map_index=-1,
-                mapped_length=None,
-                type="SetXCom",
-            ),
-            log=mock.ANY,
-        )
+                dag_id=runtime_ti.dag_id,
+                task_id=runtime_ti.task_id,
+                run_id=runtime_ti.run_id,
+                map_index=runtime_ti.map_index,
+            )
 
     def test_overwrite_rtif_after_execution_sets_rtif(self, create_runtime_ti, mock_supervisor_comms):
         """Test that the RTIF is overwritten after execution for certain operators."""
