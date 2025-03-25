@@ -29,7 +29,7 @@
     "@visx/shape": "^3.12.0",
     "@xyflow/react": "^12.4.4",
     "axios": "^1.8.4",
-    "chakra-react-select": "6.0.0-next.2",
+    "chakra-react-select": "6.0.1",
     "chart.js": "^4.4.8",
     "chartjs-plugin-annotation": "^3.1.0",
     "dayjs": "^1.11.13",
