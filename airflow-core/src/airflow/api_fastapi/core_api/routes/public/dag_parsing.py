@@ -53,16 +53,23 @@ def reparse_dag_file(
     secret_key = request.app.state.secret_key
     auth_s = URLSafeSerializer(secret_key)
     try:
-        path = auth_s.loads(file_token)
+        payload = auth_s.loads(file_token)
     except BadSignature:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "File not found")
 
+    bundle_name = payload["bundle_name"]
+    relative_fileloc = payload["relative_fileloc"]
+
     requests: Sequence[IsAuthorizedDagRequest] = [
         {"method": "PUT", "details": DagDetails(id=dag_id)}
-        for dag_id in session.scalars(select(DagModel.dag_id).where(DagModel.fileloc == path))
+        for dag_id in session.scalars(
+            select(DagModel.dag_id).where(
+                DagModel.bundle_name == bundle_name, DagModel.relative_fileloc == relative_fileloc
+            )
+        )
     ]
     if not requests:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "File not found")
 
-    parsing_request = DagPriorityParsingRequest(fileloc=path)
+    parsing_request = DagPriorityParsingRequest(bundle_name=bundle_name, relative_fileloc=relative_fileloc)
     session.add(parsing_request)
