@@ -110,7 +110,7 @@ def initial_db_init():
     _bootstrap_dagbag()
 
 
-def parse_and_sync_to_db(folder: Path | str, include_examples: bool = False):
+def parse_and_sync_to_db(folder: Path | str, include_examples: bool = False, bundle_name="dags-folder"):
     from airflow.models.dagbag import DagBag
 
     if AIRFLOW_V_3_0_PLUS:
@@ -123,7 +123,7 @@ def parse_and_sync_to_db(folder: Path | str, include_examples: bool = False):
 
         dagbag = DagBag(dag_folder=folder, include_examples=include_examples)
         if AIRFLOW_V_3_0_PLUS:
-            dagbag.sync_to_db("dags-folder", None, session)
+            dagbag.sync_to_db(bundle_name, None, session)
         else:
             dagbag.sync_to_db(session=session)  # type: ignore[call-arg]
         session.commit()

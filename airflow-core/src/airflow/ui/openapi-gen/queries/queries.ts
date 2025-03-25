@@ -47,6 +47,7 @@ import {
   DAGRunClearBody,
   DAGRunPatchBody,
   DAGRunsBatchBody,
+  DagReserializePostBody,
   DagRunState,
   DagWarningType,
   PatchTaskInstanceBody,
@@ -3556,6 +3557,45 @@ export const useVariableServicePostVariable = <
   >({
     mutationFn: ({ requestBody }) =>
       VariableService.postVariable({ requestBody }) as unknown as Promise<TData>,
+    ...options,
+  });
+/**
+ * Reserialize Dags
+ * Reserialize DAG bundles in Airflow.
+ *
+ * - **bundle_names**: List of specific bundles to reserialize (all if empty)
+ * @param data The data for the request.
+ * @param data.requestBody
+ * @returns unknown Successful Response
+ * @throws ApiError
+ */
+export const useDagParsingServiceReserializeDags = <
+  TData = Common.DagParsingServiceReserializeDagsMutationResult,
+  TError = unknown,
+  TContext = unknown,
+>(
+  options?: Omit<
+    UseMutationOptions<
+      TData,
+      TError,
+      {
+        requestBody: DagReserializePostBody;
+      },
+      TContext
+    >,
+    "mutationFn"
+  >,
+) =>
+  useMutation<
+    TData,
+    TError,
+    {
+      requestBody: DagReserializePostBody;
+    },
+    TContext
+  >({
+    mutationFn: ({ requestBody }) =>
+      DagParsingService.reserializeDags({ requestBody }) as unknown as Promise<TData>,
     ...options,
   });
 /**

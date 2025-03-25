@@ -26,20 +26,25 @@ from sqlalchemy import select
 from airflow.api_fastapi.auth.managers.models.resource_details import DagDetails
 from airflow.api_fastapi.common.db.common import SessionDep
 from airflow.api_fastapi.common.router import AirflowRouter
+from airflow.api_fastapi.core_api.datamodels.dags import (
+    DagReserializePostBody,
+    ReserializeResponse,
+)
 from airflow.api_fastapi.core_api.openapi.exceptions import create_openapi_http_exception_doc
 from airflow.api_fastapi.core_api.security import requires_access_dag
 from airflow.api_fastapi.logging.decorators import action_logging
+from airflow.dag_processing.bundles.manager import DagBundlesManager
 from airflow.models.dag import DagModel
 from airflow.models.dagbag import DagPriorityParsingRequest
 
 if TYPE_CHECKING:
     from airflow.api_fastapi.auth.managers.models.batch_apis import IsAuthorizedDagRequest
 
-dag_parsing_router = AirflowRouter(tags=["DAG Parsing"], prefix="/parseDagFile/{file_token}")
+dag_parsing_router = AirflowRouter(tags=["DAG Parsing"], prefix="/parseDagFile")
 
 
 @dag_parsing_router.put(
-    "",
+    "/{file_token}",
     responses=create_openapi_http_exception_doc([status.HTTP_404_NOT_FOUND]),
     status_code=status.HTTP_201_CREATED,
     dependencies=[Depends(requires_access_dag(method="PUT")), Depends(action_logging())],
@@ -66,3 +71,63 @@ def reparse_dag_file(
 
     parsing_request = DagPriorityParsingRequest(fileloc=path)
     session.add(parsing_request)
+
+
+@dag_parsing_router.post(
+    "/manage/reserialize",
+    responses=create_openapi_http_exception_doc(
+        [
+            status.HTTP_400_BAD_REQUEST,
+            status.HTTP_404_NOT_FOUND,
+            status.HTTP_409_CONFLICT,
+            status.HTTP_500_INTERNAL_SERVER_ERROR,
+        ]
+    ),
+    dependencies=[Depends(action_logging())],
+)
+def reserialize_dags(
+    request: DagReserializePostBody,
+    session: SessionDep,  # Add your session dependency
+):
+    """
+    Reserialize DAG bundles in Airflow.
+
+    - **bundle_names**: List of specific bundles to reserialize (all if empty)
+    """
+    try:
+        manager = DagBundlesManager()
+
+        # Getting all bundle names which was retrieved in validation function
+        manager.sync_bundles_to_db()
+        all_bundle_names = set(manager.get_all_bundle_names())
+
+        # Validate bundle names if specified
+        if request.bundle_names:
+            bundles_to_process = set(request.bundle_names)
+            if len(bundles_to_process - all_bundle_names) > 0:
+                raise HTTPException(
+                    status.HTTP_400_BAD_REQUEST,
+                    f"Invalid bundle name: {bundles_to_process - all_bundle_names}",
+                )
+        else:
+            bundles_to_process = all_bundle_names
+
+        file_locations = session.scalars(
+            select(DagModel.fileloc).where(DagModel.bundle_name.in_(list(bundles_to_process)))
+        )
+        # Process each bundle
+        parsing_requests = [DagPriorityParsingRequest(fileloc=fileloc) for fileloc in file_locations]
+
+        session.add_all(parsing_requests)
+        return ReserializeResponse(
+            message="DAG bundles reserialized successfully", processed_bundles=list(bundles_to_process)
+        )
+    except HTTPException as e:
+        raise e
+
+    except Exception as e:
+        session.rollback()
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to reserialize DAG bundles: {str(e)}",
+        )
