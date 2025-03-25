@@ -182,3 +182,91 @@ class BedrockIngestionJobTrigger(AwsBaseWaiterTrigger):
 
     def hook(self) -> AwsGenericHook:
         return BedrockAgentHook(aws_conn_id=self.aws_conn_id)
+
+
+class BedrockBaseBatchInferenceTrigger(AwsBaseWaiterTrigger):
+    """
+    Trigger when a batch inference job is complete.
+
+    :param job_arn: The Amazon Resource Name (ARN) of the batch inference job.
+
+    :param waiter_delay: The amount of time in seconds to wait between attempts. (default: 120)
+    :param waiter_max_attempts: The maximum number of attempts to be made. (default: 75)
+    :param aws_conn_id: The Airflow connection used for AWS credentials.
+    """
+
+    def __init__(
+        self,
+        *,
+        job_arn: str,
+        waiter_name: str,
+        waiter_delay: int = 120,
+        waiter_max_attempts: int = 75,
+        aws_conn_id: str | None = None,
+    ) -> None:
+        super().__init__(
+            serialized_fields={"job_arn": job_arn},
+            waiter_name=waiter_name,
+            waiter_args={"jobIdentifier": job_arn},
+            failure_message="Bedrock batch inference job failed.",
+            status_message="Status of Bedrock batch inference job is",
+            status_queries=["status"],
+            return_key="job_arn",
+            return_value=job_arn,
+            waiter_delay=waiter_delay,
+            waiter_max_attempts=waiter_max_attempts,
+            aws_conn_id=aws_conn_id,
+        )
+
+    def hook(self) -> AwsGenericHook:
+        return BedrockHook(aws_conn_id=self.aws_conn_id)
+
+
+class BedrockBatchInferenceCompletedTrigger(BedrockBaseBatchInferenceTrigger):
+    """
+    Trigger when a batch inference job is complete.
+
+    :param job_arn: The Amazon Resource Name (ARN) of the batch inference job.
+
+    :param waiter_delay: The amount of time in seconds to wait between attempts. (default: 120)
+    :param waiter_max_attempts: The maximum number of attempts to be made. (default: 75)
+    :param aws_conn_id: The Airflow connection used for AWS credentials.
+    """
+
+    def __init__(
+        self,
+        *,
+        job_arn: str,
+        waiter_delay: int = 120,
+        waiter_max_attempts: int = 75,
+        aws_conn_id: str | None = None,
+    ) -> None:
+        super().__init__(
+            waiter_name="batch_inference_complete",
+            job_arn="job_arn",
+        )
+
+
+class BedrockBatchInferenceScheduledTrigger(BedrockBaseBatchInferenceTrigger):
+    """
+    Trigger when a batch inference job is scheduled.
+
+    :param job_arn: The Amazon Resource Name (ARN) of the batch inference job.
+
+    :param waiter_delay: The amount of time in seconds to wait between attempts. (default: 120)
+    :param waiter_max_attempts: The maximum number of attempts to be made. (default: 75)
+    :param aws_conn_id: The Airflow connection used for AWS credentials.
+    """
+
+    def __init__(
+        self,
+        *,
+        job_arn: str,
+        waiter_delay: int = 120,
+        waiter_max_attempts: int = 75,
+        aws_conn_id: str | None = None,
+    ) -> None:
+        super().__init__(
+            waiter_name="batch_inference_scheduled",
+            job_arn="job_arn",
+        )
