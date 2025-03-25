@@ -31,7 +31,7 @@
       "apache-airflow-providers-http",
       "apache-airflow>=2.9.0",
       "asgiref>=2.3.0",
-      "boto3>=1.34.90",
+      "boto3>=1.37.0",
       "botocore>=1.34.90",
       "inflection>=0.5.1",
       "jmespath>=0.7.0",

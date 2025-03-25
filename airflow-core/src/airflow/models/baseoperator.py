@@ -29,13 +29,7 @@ import operator
 from collections.abc import Collection, Iterable, Iterator
 from datetime import datetime, timedelta
 from functools import singledispatchmethod
-from types import FunctionType
-from typing import (
-    TYPE_CHECKING,
-    Any,
-    Callable,
-    TypeVar,
-)
+from typing import TYPE_CHECKING, Any
 
 import methodtools
 import pendulum
@@ -62,7 +56,6 @@ from airflow.sdk.definitions.baseoperator import (
     cross_downstream as cross_downstream,
     get_merged_defaults as get_merged_defaults,
 )
-from airflow.sdk.definitions.context import Context
 from airflow.sdk.definitions.dag import BaseOperator as TaskSDKBaseOperator
 from airflow.sdk.definitions.mappedoperator import MappedOperator
 from airflow.sdk.definitions.taskgroup import MappedTaskGroup, TaskGroup
@@ -73,8 +66,6 @@ from airflow.ti_deps.deps.not_previously_skipped_dep import NotPreviouslySkipped
 from airflow.ti_deps.deps.prev_dagrun_dep import PrevDagrunDep
 from airflow.ti_deps.deps.trigger_rule_dep import TriggerRuleDep
 from airflow.utils import timezone
-from airflow.utils.context import context_get_outlet_events
-from airflow.utils.operator_helpers import ExecutionCallableRunner
 from airflow.utils.operator_resources import Resources
 from airflow.utils.session import NEW_SESSION, provide_session
 from airflow.utils.state import DagRunState
@@ -86,15 +77,10 @@ if TYPE_CHECKING:
 
     from airflow.models.dag import DAG as SchedulerDAG
     from airflow.models.operator import Operator
-    from airflow.sdk import BaseOperatorLink
+    from airflow.sdk import BaseOperatorLink, Context
     from airflow.sdk.definitions._internal.node import DAGNode
     from airflow.ti_deps.deps.base_ti_dep import BaseTIDep
     from airflow.triggers.base import StartTriggerArgs
-
-TaskPreExecuteHook = Callable[[Context], None]
-TaskPostExecuteHook = Callable[[Context, Any], None]
-
-T = TypeVar("T", bound=FunctionType)
 
 logger = logging.getLogger("airflow.models.baseoperator.BaseOperator")
 
@@ -338,20 +324,12 @@ class BaseOperator(TaskSDKBaseOperator, AbstractOperator):
     start_trigger_args: StartTriggerArgs | None = None
     start_from_trigger: bool = False
 
-    def __init__(
-        self,
-        pre_execute=None,
-        post_execute=None,
-        **kwargs,
-    ):
+    def __init__(self, **kwargs):
         if start_date := kwargs.get("start_date", None):
             kwargs["start_date"] = timezone.convert_to_utc(start_date)
-
         if end_date := kwargs.get("end_date", None):
             kwargs["end_date"] = timezone.convert_to_utc(end_date)
         super().__init__(**kwargs)
-        self._pre_execute_hook = pre_execute
-        self._post_execute_hook = post_execute
 
     # Defines the operator level extra links
     operator_extra_links: Collection[BaseOperatorLink] = ()
@@ -411,7 +389,10 @@ class BaseOperator(TaskSDKBaseOperator, AbstractOperator):
         """Execute right before self.execute() is called."""
         if self._pre_execute_hook is None:
             return
-        ExecutionCallableRunner(
+        from airflow.sdk.execution_time.callback_runner import create_executable_runner
+        from airflow.sdk.execution_time.context import context_get_outlet_events
+
+        create_executable_runner(
             self._pre_execute_hook,
             context_get_outlet_events(context),
             logger=self.log,
@@ -436,7 +417,10 @@ class BaseOperator(TaskSDKBaseOperator, AbstractOperator):
         """
         if self._post_execute_hook is None:
             return
-        ExecutionCallableRunner(
+        from airflow.sdk.execution_time.callback_runner import create_executable_runner
+        from airflow.sdk.execution_time.context import context_get_outlet_events
+
+        create_executable_runner(
             self._post_execute_hook,
             context_get_outlet_events(context),
             logger=self.log,
