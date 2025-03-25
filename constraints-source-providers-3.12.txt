@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2025-03-24T13:51:45.177949
+# This constraints file was automatically generated on 2025-03-25T02:17:15.046130
 # via "eager-upgrade" mechanism of PIP. For the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version of both
 # 'apache-airflow' package and all available community provider distributions.
@@ -10,12 +10,10 @@
 # Install with "HEAD" of providers. Those are the only constraints that are used by our CI builds.
 #
 Authlib==1.3.1
-ConfigUpdater==3.2
 Deprecated==1.2.18
 Events==0.5
 Flask-AppBuilder==4.5.3
 Flask-Babel==2.0.0
-Flask-Caching==2.3.1
 Flask-JWT-Extended==4.7.1
 Flask-Limiter==3.12
 Flask-Login==0.6.3
@@ -239,7 +237,7 @@ google-cloud-logging==3.11.4
 google-cloud-managedkafka==0.1.9
 google-cloud-memcache==1.12.1
 google-cloud-monitoring==2.27.1
-google-cloud-orchestration-airflow==1.17.2
+google-cloud-orchestration-airflow==1.17.3
 google-cloud-os-login==2.17.1
 google-cloud-pubsub==2.29.0
 google-cloud-redis==2.18.1
@@ -282,7 +280,7 @@ httptools==0.6.4
 httpx-sse==0.4.0
 httpx==0.27.0
 huggingface-hub==0.29.3
-humanize==4.12.1
+humanize==4.12.2
 hvac==2.3.0
 hyperframe==6.1.0
 ibm-cloud-sdk-core==3.20.3
@@ -349,7 +347,6 @@ marshmallow-oneofschema==3.1.1
 marshmallow-sqlalchemy==0.28.2
 marshmallow==3.26.1
 matplotlib-inline==0.1.7
-mdit-py-plugins==0.4.2
 mdurl==0.1.2
 mergedeep==1.3.4
 methodtools==0.4.7
@@ -410,7 +407,7 @@ opsgenie-sdk==2.1.5
 oracledb==3.0.0
 ordered-set==4.1.0
 orderly-set==5.3.0
-orjson==3.10.15
+orjson==3.10.16
 oss2==2.19.1
 packaging==24.2
 pandas-gbq==0.28.0
@@ -430,7 +427,7 @@ pgvector==0.4.0
 pinecone-plugin-interface==0.0.7
 pinecone==6.0.2
 pinotdb==5.6.0
-pipdeptree==2.25.1
+pipdeptree==2.26.0
 platformdirs==4.3.7
 pluggy==1.5.0
 ply==3.11
@@ -496,7 +493,6 @@ python-http-client==3.3.7
 python-jenkins==1.8.2
 python-ldap==3.4.4
 python-multipart==0.0.20
-python-nvd3==0.16.0
 python-slugify==8.0.4
 python-telegram-bot==22.0
 python3-saml==1.16.0
@@ -542,7 +538,7 @@ sendgrid==6.11.0
 sentinels==1.0.0
 sentry-sdk==2.24.1
 setproctitle==1.3.5
-setuptools==77.0.3
+setuptools==78.0.2
 shapely==2.0.7
 shellingham==1.5.4
 simple-salesforce==1.12.6
@@ -588,7 +584,7 @@ strictyaml==1.7.3
 structlog==25.2.0
 svcs==25.1.0
 sympy==1.13.3
-tableauserverclient==0.36
+tableauserverclient==0.37
 tabulate==0.9.0
 tenacity==9.0.0
 teradatasql==20.0.0.26
