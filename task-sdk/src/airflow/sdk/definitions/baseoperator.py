@@ -83,7 +83,7 @@ if TYPE_CHECKING:
     from airflow.sdk.definitions.taskgroup import TaskGroup
     from airflow.serialization.enums import DagAttributeTypes
     from airflow.task.priority_strategy import PriorityWeightStrategy
-    from airflow.triggers.base import BaseTrigger
+    from airflow.triggers.base import BaseTrigger, StartTriggerArgs
     from airflow.typing_compat import Self
     from airflow.utils.operator_resources import Resources
 
@@ -922,9 +922,8 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
     # Set to True for an operator instantiated by a mapped operator.
     __from_mapped: bool = False
 
-    # TODO:
-    # start_trigger_args: StartTriggerArgs | None = None
-    # start_from_trigger: bool = False
+    start_trigger_args: StartTriggerArgs | None = None
+    start_from_trigger: bool = False
 
     # base list which includes all the attrs that don't need deep copy.
     _base_operator_shallow_copy_attrs: Final[tuple[str, ...]] = (
