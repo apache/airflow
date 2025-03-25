@@ -735,7 +735,7 @@ class TaskDecoratorCollection:
         progress_callback: Callable[[str], None] | None = None,
         **kwargs,
     ) -> TaskDecorator:
-        """Create a decorator to convert a callable to a Kubernetes Pod task.
+        """Create a decorator to run a command returned by callable in a Kubernetes pod.
 
         :param args_only: If True, the decorated function should return a list arguments
             to be passed to the entrypoint of the container image. Defaults to False.
