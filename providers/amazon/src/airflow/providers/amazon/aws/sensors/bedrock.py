@@ -26,6 +26,8 @@ from airflow.exceptions import AirflowException
 from airflow.providers.amazon.aws.hooks.bedrock import BedrockAgentHook, BedrockHook
 from airflow.providers.amazon.aws.sensors.base_aws import AwsBaseSensor
 from airflow.providers.amazon.aws.triggers.bedrock import (
+    BedrockBatchInferenceCompletedTrigger,
+    BedrockBatchInferenceScheduledTrigger,
     BedrockCustomizeModelCompletedTrigger,
     BedrockIngestionJobTrigger,
     BedrockKnowledgeBaseActiveTrigger,
@@ -368,3 +370,134 @@ class BedrockIngestionJobSensor(BedrockBaseSensor[BedrockAgentHook]):
             )
         else:
             super().execute(context=context)
+
+
+class BedrockBaseBatchInferenceSensor(BedrockBaseSensor[BedrockAgentHook]):
+    """
+    Poll the batch inference job status until it reaches a terminal state; fails if creation fails.
+
+    :param job_arn: The Amazon Resource Name (ARN) of the batch inference job. (templated)
+
+    :param deferrable: If True, the sensor will operate in deferrable more. This mode requires aiobotocore
+        module to be installed.
+        (default: False, but can be overridden in config file by setting default_deferrable to True)
+    :param poke_interval: Polling period in seconds to check for the status of the job. (default: 5)
+    :param max_retries: Number of times before returning the current state (default: 24)
+    :param aws_conn_id: The Airflow connection used for AWS credentials.
+        If this is ``None`` or empty then the default boto3 behaviour is used. If
+        running Airflow in a distributed manner and aws_conn_id is None or
+        empty, then default boto3 configuration would be used (and must be
+        maintained on each worker node).
+    :param region_name: AWS region_name. If not specified then the default boto3 behaviour is used.
+    :param verify: Whether or not to verify SSL certificates. See:
+        https://boto3.amazonaws.com/v1/documentation/api/latest/reference/core/session.html
+    :param botocore_config: Configuration dictionary (key-values) for botocore client. See:
+        https://botocore.amazonaws.com/v1/documentation/api/latest/reference/config.html
+    """
+
+    FAILURE_STATES: tuple[str, ...] = ("Failed", "Stopped", "PartiallyCompleted", "Expired")
+    FAILURE_MESSAGE = "Bedrock batch inference job sensor failed."
+
+    aws_hook_class = BedrockHook
+
+    template_fields: Sequence[str] = aws_template_fields("job_arn")
+
+    def __init__(
+        self,
+        *,
+        job_arn: str,
+        poke_interval: int = 120,
+        max_retries: int = 75,
+        **kwargs,
+    ) -> None:
+        super().__init__(**kwargs)
+        self.poke_interval = poke_interval
+        self.max_retries = max_retries
+        self.job_arn = job_arn
+
+    def get_state(self) -> str:
+        return self.hook.conn.get_model_invocation_job(jobIdentifier=self.job_arn)["status"]
+
+    def execute(self, context: Context) -> Any:
+        if self.deferrable:
+            self.defer(
+                trigger=self.get_trigger(
+                    job_arn=self.job_arn,
+                    waiter_delay=int(self.poke_interval),
+                    waiter_max_attempts=self.max_retries,
+                    aws_conn_id=self.aws_conn_id,
+                ),
+                method_name="poke",
+            )
+        else:
+            super().execute(context=context)
+
+
+class BedrockBatchInferenceCompleteSensor(BedrockBaseBatchInferenceSensor):
+    """
+    Poll the batch inference job status until it reaches a terminal state; fails if creation fails.
+
+    .. seealso::
+        For more information on how to use this sensor, take a look at the guide:
+        :ref:`howto/sensor:BedrockBatchInferenceCompleteSensor`
+
+    :param job_arn: The Amazon Resource Name (ARN) of the batch inference job. (templated)
+
+    :param deferrable: If True, the sensor will operate in deferrable more. This mode requires aiobotocore
+        module to be installed.
+        (default: False, but can be overridden in config file by setting default_deferrable to True)
+    :param poke_interval: Polling period in seconds to check for the status of the job. (default: 5)
+    :param max_retries: Number of times before returning the current state (default: 24)
+    :param aws_conn_id: The Airflow connection used for AWS credentials.
+        If this is ``None`` or empty then the default boto3 behaviour is used. If
+        running Airflow in a distributed manner and aws_conn_id is None or
+        empty, then default boto3 configuration would be used (and must be
+        maintained on each worker node).
+    :param region_name: AWS region_name. If not specified then the default boto3 behaviour is used.
+    :param verify: Whether or not to verify SSL certificates. See:
+        https://boto3.amazonaws.com/v1/documentation/api/latest/reference/core/session.html
+    :param botocore_config: Configuration dictionary (key-values) for botocore client. See:
+        https://botocore.amazonaws.com/v1/documentation/api/latest/reference/config.html
+    """
+
+    INTERMEDIATE_STATES: tuple[str, ...] = ("Submitted", "InProgress", "Stopping", "Validating", "Scheduled")
+    SUCCESS_STATES: tuple[str, ...] = ("Completed",)
+
+    @staticmethod
+    def get_trigger():
+        return BedrockBatchInferenceCompletedTrigger
+
+
+class BedrockBatchInferenceScheduledSensor(BedrockBaseBatchInferenceSensor):
+    """
+    Poll the batch inference job status until it reaches the Scheduled state; fails if creation fails.
+
+    .. seealso::
+        For more information on how to use this sensor, take a look at the guide:
+        :ref:`howto/sensor:BedrockBatchInferenceScheduledSensor`
+
+    :param job_arn: The Amazon Resource Name (ARN) of the batch inference job. (templated)
+
+    :param deferrable: If True, the sensor will operate in deferrable more. This mode requires aiobotocore
+        module to be installed.
+        (default: False, but can be overridden in config file by setting default_deferrable to True)
+    :param poke_interval: Polling period in seconds to check for the status of the job. (default: 5)
+    :param max_retries: Number of times before returning the current state (default: 24)
+    :param aws_conn_id: The Airflow connection used for AWS credentials.
+        If this is ``None`` or empty then the default boto3 behaviour is used. If
+        running Airflow in a distributed manner and aws_conn_id is None or
+        empty, then default boto3 configuration would be used (and must be
+        maintained on each worker node).
+    :param region_name: AWS region_name. If not specified then the default boto3 behaviour is used.
+    :param verify: Whether or not to verify SSL certificates. See:
+        https://boto3.amazonaws.com/v1/documentation/api/latest/reference/core/session.html
+    :param botocore_config: Configuration dictionary (key-values) for botocore client. See:
+        https://botocore.amazonaws.com/v1/documentation/api/latest/reference/config.html
+    """
+
+    INTERMEDIATE_STATES: tuple[str, ...] = ("Submitted", "InProgress", "Stopping", "Validating")
+    SUCCESS_STATES: tuple[str, ...] = ("Completed", "Scheduled")
+
+    @staticmethod
+    def get_trigger():
+        return BedrockBatchInferenceScheduledTrigger
