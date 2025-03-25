@@ -84,7 +84,6 @@ from airflow.utils.xcom import XCOM_RETURN_KEY
 if TYPE_CHECKING:
     from sqlalchemy.orm import Session
 
-    from airflow.models.abstractoperator import TaskStateChangeCallback
     from airflow.models.dag import DAG as SchedulerDAG
     from airflow.models.operator import Operator
     from airflow.sdk import BaseOperatorLink
@@ -339,19 +338,10 @@ class BaseOperator(TaskSDKBaseOperator, AbstractOperator):
     start_trigger_args: StartTriggerArgs | None = None
     start_from_trigger: bool = False
 
-    on_failure_callback: None | TaskStateChangeCallback | list[TaskStateChangeCallback] = None
-    on_success_callback: None | TaskStateChangeCallback | list[TaskStateChangeCallback] = None
-    on_retry_callback: None | TaskStateChangeCallback | list[TaskStateChangeCallback] = None
-    on_skipped_callback: None | TaskStateChangeCallback | list[TaskStateChangeCallback] = None
-
     def __init__(
         self,
         pre_execute=None,
         post_execute=None,
-        on_failure_callback: None | TaskStateChangeCallback | list[TaskStateChangeCallback] = None,
-        on_success_callback: None | TaskStateChangeCallback | list[TaskStateChangeCallback] = None,
-        on_retry_callback: None | TaskStateChangeCallback | list[TaskStateChangeCallback] = None,
-        on_skipped_callback: None | TaskStateChangeCallback | list[TaskStateChangeCallback] = None,
         **kwargs,
     ):
         if start_date := kwargs.get("start_date", None):
@@ -362,10 +352,6 @@ class BaseOperator(TaskSDKBaseOperator, AbstractOperator):
         super().__init__(**kwargs)
         self._pre_execute_hook = pre_execute
         self._post_execute_hook = post_execute
-        self.on_failure_callback = on_failure_callback
-        self.on_success_callback = on_success_callback
-        self.on_skipped_callback = on_skipped_callback
-        self.on_retry_callback = on_retry_callback
 
     # Defines the operator level extra links
     operator_extra_links: Collection[BaseOperatorLink] = ()
@@ -387,14 +373,7 @@ class BaseOperator(TaskSDKBaseOperator, AbstractOperator):
         """Stringified DAGs and operators contain exactly these fields."""
         # TODO: this ends up caching it once per-subclass, which isn't what we want, but this class is only
         # kept around during the development of AIP-72/TaskSDK code.
-        return TaskSDKBaseOperator.get_serialized_fields() | {
-            "start_trigger_args",
-            "start_from_trigger",
-            "on_failure_callback",
-            "on_success_callback",
-            "on_retry_callback",
-            "on_skipped_callback",
-        }
+        return TaskSDKBaseOperator.get_serialized_fields() | {"start_trigger_args", "start_from_trigger"}
 
     def get_inlet_defs(self):
         """
