@@ -386,16 +386,6 @@ class BaseOperator(TaskSDKBaseOperator, AbstractOperator):
             logger=self.log,
         ).run(context)
 
-    def execute(self, context: Context) -> Any:
-        """
-        Derive when creating an operator.
-
-        Context is the same dictionary used as when rendering jinja templates.
-
-        Refer to get_template_context for more context.
-        """
-        raise NotImplementedError()
-
     @apply_lineage
     def post_execute(self, context: Any, result: Any = None):
         """

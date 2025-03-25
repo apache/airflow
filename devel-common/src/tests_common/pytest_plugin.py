@@ -1975,7 +1975,7 @@ class RunTaskCallable(Protocol):
 
     def __call__(
         self,
-        task: BaseOperator,
+        task: TaskSDKBaseOperator,
         dag_id: str = ...,
         run_id: str = ...,
         logical_date: datetime | None = None,

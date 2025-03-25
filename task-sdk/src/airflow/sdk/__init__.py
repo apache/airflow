@@ -28,6 +28,7 @@ __all__ = [
     "BaseNotifier",
     "BaseOperator",
     "BaseOperatorLink",
+    "BaseSensorOperator",
     "Connection",
     "Context",
     "DAG",
@@ -62,6 +63,7 @@ if TYPE_CHECKING:
     from airflow.sdk.definitions.edges import EdgeModifier, Label
     from airflow.sdk.definitions.notifier import BaseNotifier
     from airflow.sdk.definitions.param import Param
+    from airflow.sdk.definitions.sensors.base import BaseSensorOperator
     from airflow.sdk.definitions.taskgroup import TaskGroup
     from airflow.sdk.definitions.template import literal
     from airflow.sdk.definitions.variable import Variable
@@ -76,6 +78,7 @@ __lazy_imports: dict[str, str] = {
     "BaseNotifier": ".definitions.notifier",
     "BaseOperator": ".definitions.baseoperator",
     "BaseOperatorLink": ".definitions.baseoperatorlink",
+    "BaseSensorOperator": ".definitions.sensors.base",
     "Connection": ".definitions.connection",
     "Context": ".definitions.context",
     "DAG": ".definitions.dag",

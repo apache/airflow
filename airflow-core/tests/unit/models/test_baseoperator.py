@@ -20,7 +20,6 @@ from __future__ import annotations
 import copy
 from collections import defaultdict
 from datetime import datetime
-from unittest import mock
 
 import pytest
 
@@ -161,22 +160,6 @@ class TestBaseOperator:
         task4 = BaseOperator(task_id="op4", dag=dag)
         task4 > [inlet, outlet, extra]
         assert task4.get_outlet_defs() == [inlet, outlet, extra]
-
-    def test_pre_execute_hook(self):
-        hook = mock.MagicMock()
-
-        op = BaseOperator(task_id="test_task", pre_execute=hook)
-        op_copy = op.prepare_for_execution()
-        op_copy.pre_execute({})
-        assert hook.called
-
-    def test_post_execute_hook(self):
-        hook = mock.MagicMock()
-
-        op = BaseOperator(task_id="test_task", post_execute=hook)
-        op_copy = op.prepare_for_execution()
-        op_copy.post_execute({})
-        assert hook.called
 
     def test_task_naive_datetime(self):
         naive_datetime = DEFAULT_DATE.replace(tzinfo=None)
