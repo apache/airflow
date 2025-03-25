@@ -38,7 +38,7 @@ updates:
     commit-message:
       prefix: '[provider-airbyte] '
     labels:
-      - 'area:provider'
+      - 'area:providers'
       - 'provider:airbyte'
   - package-ecosystem: pip
     directories:
@@ -48,7 +48,7 @@ updates:
     commit-message:
       prefix: '[provider-alibaba] '
     labels:
-      - 'area:provider'
+      - 'area:providers'
       - 'provider:alibaba'
   - package-ecosystem: pip
     directories:
@@ -58,7 +58,7 @@ updates:
     commit-message:
       prefix: '[provider-amazon] '
     labels:
-      - 'area:provider'
+      - 'area:providers'
       - 'provider:amazon'
   - package-ecosystem: pip
     directories:
@@ -68,7 +68,7 @@ updates:
     commit-message:
       prefix: '[provider-apache-beam] '
     labels:
-      - 'area:provider'
+      - 'area:providers'
       - 'provider:apache-beam'
   - package-ecosystem: pip
     directories:
@@ -78,7 +78,7 @@ updates:
     commit-message:
       prefix: '[provider-apache-cassandra] '
     labels:
-      - 'area:provider'
+      - 'area:providers'
       - 'provider:apache-cassandra'
   - package-ecosystem: pip
     directories:
@@ -88,7 +88,7 @@ updates:
     commit-message:
       prefix: '[provider-apache-drill] '
     labels:
-      - 'area:provider'
+      - 'area:providers'
       - 'provider:apache-drill'
   - package-ecosystem: pip
     directories:
@@ -98,7 +98,7 @@ updates:
     commit-message:
       prefix: '[provider-apache-druid] '
     labels:
-      - 'area:provider'
+      - 'area:providers'
       - 'provider:apache-druid'
   - package-ecosystem: pip
     directories:
@@ -108,7 +108,7 @@ updates:
     commit-message:
       prefix: '[provider-apache-flink] '
     labels:
-      - 'area:provider'
+      - 'area:providers'
       - 'provider:apache-flink'
   - package-ecosystem: pip
     directories:
@@ -118,7 +118,7 @@ updates:
     commit-message:
       prefix: '[provider-apache-hdfs] '
     labels:
-      - 'area:provider'
+      - 'area:providers'
       - 'provider:apache-hdfs'
   - package-ecosystem: pip
     directories:
@@ -128,7 +128,7 @@ updates:
     commit-message:
       prefix: '[provider-apache-hive] '
     labels:
-      - 'area:provider'
+      - 'area:providers'
       - 'provider:apache-hive'
   - package-ecosystem: pip
     directories:
@@ -138,7 +138,7 @@ updates:
     commit-message:
       prefix: '[provider-apache-iceberg] '
     labels:
-      - 'area:provider'
+      - 'area:providers'
       - 'provider:apache-iceberg'
   - package-ecosystem: pip
     directories:
@@ -148,7 +148,7 @@ updates:
     commit-message:
       prefix: '[provider-apache-impala] '
     labels:
-      - 'area:provider'
+      - 'area:providers'
       - 'provider:apache-impala'
   - package-ecosystem: pip
     directories:
@@ -158,7 +158,7 @@ updates:
     commit-message:
       prefix: '[provider-apache-kafka] '
     labels:
-      - 'area:provider'
+      - 'area:providers'
       - 'provider:apache-kafka'
   - package-ecosystem: pip
     directories:
@@ -168,7 +168,7 @@ updates:
     commit-message:
       prefix: '[provider-apache-kylin] '
     labels:
-      - 'area:provider'
+      - 'area:providers'
       - 'provider:apache-kylin'
   - package-ecosystem: pip
     directories:
@@ -178,7 +178,7 @@ updates:
     commit-message:
       prefix: '[provider-apache-livy] '
     labels:
-      - 'area:provider'
+      - 'area:providers'
       - 'provider:apache-livy'
   - package-ecosystem: pip
     directories:
@@ -188,7 +188,7 @@ updates:
     commit-message:
       prefix: '[provider-apache-pig] '
     labels:
-      - 'area:provider'
+      - 'area:providers'
       - 'provider:apache-pig'
   - package-ecosystem: pip
     directories:
@@ -198,7 +198,7 @@ updates:
     commit-message:
       prefix: '[provider-apache-pinot] '
     labels:
-      - 'area:provider'
+      - 'area:providers'
       - 'provider:apache-pinot'
   - package-ecosystem: pip
     directories:
@@ -208,7 +208,7 @@ updates:
     commit-message:
       prefix: '[provider-apache-spark] '
     labels:
-      - 'area:provider'
+      - 'area:providers'
       - 'provider:apache-spark'
   - package-ecosystem: pip
     directories:
@@ -218,7 +218,7 @@ updates:
     commit-message:
       prefix: '[provider-apprise] '
     labels:
-      - 'area:provider'
+      - 'area:providers'
       - 'provider:apprise'
   - package-ecosystem: pip
     directories:
@@ -228,7 +228,7 @@ updates:
     commit-message:
       prefix: '[provider-arangodb] '
     labels:
-      - 'area:provider'
+      - 'area:providers'
       - 'provider:arangodb'
   - package-ecosystem: pip
     directories:
@@ -238,7 +238,7 @@ updates:
     commit-message:
       prefix: '[provider-asana] '
     labels:
-      - 'area:provider'
+      - 'area:providers'
       - 'provider:asana'
   - package-ecosystem: pip
     directories:
@@ -248,7 +248,7 @@ updates:
     commit-message:
       prefix: '[provider-azure] '
     labels:
-      - 'area:provider'
+      - 'area:providers'
       - 'provider:azure'
   - package-ecosystem: pip
     directories:
@@ -258,7 +258,7 @@ updates:
     commit-message:
       prefix: '[provider-celery] '
     labels:
-      - 'area:provider'
+      - 'area:providers'
       - 'provider:celery'
   - package-ecosystem: pip
     directories:
@@ -268,7 +268,7 @@ updates:
     commit-message:
       prefix: '[provider-cloud] '
     labels:
-      - 'area:provider'
+      - 'area:providers'
       - 'provider:cloud'
   - package-ecosystem: pip
     directories:
@@ -278,7 +278,7 @@ updates:
     commit-message:
       prefix: '[provider-cloudant] '
     labels:
-      - 'area:provider'
+      - 'area:providers'
       - 'provider:cloudant'
   - package-ecosystem: pip
     directories:
@@ -288,7 +288,7 @@ updates:
     commit-message:
       prefix: '[provider-cohere] '
     labels:
-      - 'area:provider'
+      - 'area:providers'
       - 'provider:cohere'
   - package-ecosystem: pip
     directories:
@@ -298,7 +298,7 @@ updates:
     commit-message:
       prefix: '[provider-compat] '
     labels:
-      - 'area:provider'
+      - 'area:providers'
       - 'provider:compat'
   - package-ecosystem: pip
     directories:
@@ -308,7 +308,7 @@ updates:
     commit-message:
       prefix: '[provider-databricks] '
     labels:
-      - 'area:provider'
+      - 'area:providers'
       - 'provider:databricks'
   - package-ecosystem: pip
     directories:
@@ -318,7 +318,7 @@ updates:
     commit-message:
       prefix: '[provider-datadog] '
     labels:
-      - 'area:provider'
+      - 'area:providers'
       - 'provider:datadog'
   - package-ecosystem: pip
     directories:
@@ -328,7 +328,7 @@ updates:
     commit-message:
       prefix: '[provider-dingding] '
     labels:
-      - 'area:provider'
+      - 'area:providers'
       - 'provider:dingding'
   - package-ecosystem: pip
     directories:
@@ -338,7 +338,7 @@ updates:
     commit-message:
       prefix: '[provider-discord] '
     labels:
-      - 'area:provider'
+      - 'area:providers'
       - 'provider:discord'
   - package-ecosystem: pip
     directories:
@@ -348,7 +348,7 @@ updates:
     commit-message:
       prefix: '[provider-docker] '
     labels:
-      - 'area:provider'
+      - 'area:providers'
       - 'provider:docker'
   - package-ecosystem: pip
     directories:
@@ -358,7 +358,7 @@ updates:
     commit-message:
       prefix: '[provider-edge] '
     labels:
-      - 'area:provider'
+      - 'area:providers'
       - 'provider:edge'
   - package-ecosystem: pip
     directories:
@@ -368,7 +368,7 @@ updates:
     commit-message:
       prefix: '[provider-elasticsearch] '
     labels:
-      - 'area:provider'
+      - 'area:providers'
       - 'provider:elasticsearch'
   - package-ecosystem: pip
     directories:
@@ -378,7 +378,7 @@ updates:
     commit-message:
       prefix: '[provider-exasol] '
     labels:
-      - 'area:provider'
+      - 'area:providers'
       - 'provider:exasol'
   - package-ecosystem: pip
     directories:
@@ -388,7 +388,7 @@ updates:
     commit-message:
       prefix: '[provider-fab] '
     labels:
-      - 'area:provider'
+      - 'area:providers'
       - 'provider:fab'
   - package-ecosystem: pip
     directories:
@@ -398,7 +398,7 @@ updates:
     commit-message:
       prefix: '[provider-facebook] '
     labels:
-      - 'area:provider'
+      - 'area:providers'
       - 'provider:facebook'
   - package-ecosystem: pip
     directories:
@@ -408,7 +408,7 @@ updates:
     commit-message:
       prefix: '[provider-ftp] '
     labels:
-      - 'area:provider'
+      - 'area:providers'
       - 'provider:ftp'
   - package-ecosystem: pip
     directories:
@@ -418,7 +418,7 @@ updates:
     commit-message:
       prefix: '[provider-github] '
     labels:
-      - 'area:provider'
+      - 'area:providers'
       - 'provider:github'
   - package-ecosystem: pip
     directories:
@@ -428,7 +428,7 @@ updates:
     commit-message:
       prefix: '[provider-google] '
     labels:
-      - 'area:provider'
+      - 'area:providers'
       - 'provider:google'
   - package-ecosystem: pip
     directories:
@@ -438,7 +438,7 @@ updates:
     commit-message:
       prefix: '[provider-grpc] '
     labels:
-      - 'area:provider'
+      - 'area:providers'
       - 'provider:grpc'
   - package-ecosystem: pip
     directories:
@@ -448,7 +448,7 @@ updates:
     commit-message:
       prefix: '[provider-hashicorp] '
     labels:
-      - 'area:provider'
+      - 'area:providers'
       - 'provider:hashicorp'
   - package-ecosystem: pip
     directories:
@@ -458,7 +458,7 @@ updates:
     commit-message:
       prefix: '[provider-http] '
     labels:
-      - 'area:provider'
+      - 'area:providers'
       - 'provider:http'
   - package-ecosystem: pip
     directories:
@@ -468,7 +468,7 @@ updates:
     commit-message:
       prefix: '[provider-imap] '
     labels:
-      - 'area:provider'
+      - 'area:providers'
       - 'provider:imap'
   - package-ecosystem: pip
     directories:
@@ -478,7 +478,7 @@ updates:
     commit-message:
       prefix: '[provider-influxdb] '
     labels:
-      - 'area:provider'
+      - 'area:providers'
       - 'provider:influxdb'
   - package-ecosystem: pip
     directories:
@@ -488,7 +488,7 @@ updates:
     commit-message:
       prefix: '[provider-io] '
     labels:
-      - 'area:provider'
+      - 'area:providers'
       - 'provider:io'
   - package-ecosystem: pip
     directories:
@@ -498,7 +498,7 @@ updates:
     commit-message:
       prefix: '[provider-jdbc] '
     labels:
-      - 'area:provider'
+      - 'area:providers'
       - 'provider:jdbc'
   - package-ecosystem: pip
     directories:
@@ -508,7 +508,7 @@ updates:
     commit-message:
       prefix: '[provider-jenkins] '
     labels:
-      - 'area:provider'
+      - 'area:providers'
       - 'provider:jenkins'
   - package-ecosystem: pip
     directories:
@@ -518,7 +518,7 @@ updates:
     commit-message:
       prefix: '[provider-jira] '
     labels:
-      - 'area:provider'
+      - 'area:providers'
       - 'provider:jira'
   - package-ecosystem: pip
     directories:
@@ -528,7 +528,7 @@ updates:
     commit-message:
       prefix: '[provider-kubernetes] '
     labels:
-      - 'area:provider'
+      - 'area:providers'
       - 'provider:kubernetes'
   - package-ecosystem: pip
     directories:
@@ -538,7 +538,7 @@ updates:
     commit-message:
       prefix: '[provider-messaging] '
     labels:
-      - 'area:provider'
+      - 'area:providers'
       - 'provider:messaging'
   - package-ecosystem: pip
     directories:
@@ -548,7 +548,7 @@ updates:
     commit-message:
       prefix: '[provider-mongo] '
     labels:
-      - 'area:provider'
+      - 'area:providers'
       - 'provider:mongo'
   - package-ecosystem: pip
     directories:
@@ -558,7 +558,7 @@ updates:
     commit-message:
       prefix: '[provider-mssql] '
     labels:
-      - 'area:provider'
+      - 'area:providers'
       - 'provider:mssql'
   - package-ecosystem: pip
     directories:
@@ -568,7 +568,7 @@ updates:
     commit-message:
       prefix: '[provider-mysql] '
     labels:
-      - 'area:provider'
+      - 'area:providers'
       - 'provider:mysql'
   - package-ecosystem: pip
     directories:
@@ -578,7 +578,7 @@ updates:
     commit-message:
       prefix: '[provider-neo4j] '
     labels:
-      - 'area:provider'
+      - 'area:providers'
       - 'provider:neo4j'
   - package-ecosystem: pip
     directories:
@@ -588,7 +588,7 @@ updates:
     commit-message:
       prefix: '[provider-odbc] '
     labels:
-      - 'area:provider'
+      - 'area:providers'
       - 'provider:odbc'
   - package-ecosystem: pip
     directories:
@@ -598,7 +598,7 @@ updates:
     commit-message:
       prefix: '[provider-openai] '
     labels:
-      - 'area:provider'
+      - 'area:providers'
       - 'provider:openai'
   - package-ecosystem: pip
     directories:
@@ -608,7 +608,7 @@ updates:
     commit-message:
       prefix: '[provider-openfaas] '
     labels:
-      - 'area:provider'
+      - 'area:providers'
       - 'provider:openfaas'
   - package-ecosystem: pip
     directories:
@@ -618,7 +618,7 @@ updates:
     commit-message:
       prefix: '[provider-openlineage] '
     labels:
-      - 'area:provider'
+      - 'area:providers'
       - 'provider:openlineage'
   - package-ecosystem: pip
     directories:
@@ -628,7 +628,7 @@ updates:
     commit-message:
       prefix: '[provider-opensearch] '
     labels:
-      - 'area:provider'
+      - 'area:providers'
       - 'provider:opensearch'
   - package-ecosystem: pip
     directories:
@@ -638,7 +638,7 @@ updates:
     commit-message:
       prefix: '[provider-opsgenie] '
     labels:
-      - 'area:provider'
+      - 'area:providers'
       - 'provider:opsgenie'
   - package-ecosystem: pip
     directories:
@@ -648,7 +648,7 @@ updates:
     commit-message:
       prefix: '[provider-oracle] '
     labels:
-      - 'area:provider'
+      - 'area:providers'
       - 'provider:oracle'
   - package-ecosystem: pip
     directories:
@@ -658,7 +658,7 @@ updates:
     commit-message:
       prefix: '[provider-pagerduty] '
     labels:
-      - 'area:provider'
+      - 'area:providers'
       - 'provider:pagerduty'
   - package-ecosystem: pip
     directories:
@@ -668,7 +668,7 @@ updates:
     commit-message:
       prefix: '[provider-papermill] '
     labels:
-      - 'area:provider'
+      - 'area:providers'
       - 'provider:papermill'
   - package-ecosystem: pip
     directories:
@@ -678,7 +678,7 @@ updates:
     commit-message:
       prefix: '[provider-pgvector] '
     labels:
-      - 'area:provider'
+      - 'area:providers'
       - 'provider:pgvector'
   - package-ecosystem: pip
     directories:
@@ -688,7 +688,7 @@ updates:
     commit-message:
       prefix: '[provider-pinecone] '
     labels:
-      - 'area:provider'
+      - 'area:providers'
       - 'provider:pinecone'
   - package-ecosystem: pip
     directories:
@@ -698,7 +698,7 @@ updates:
     commit-message:
       prefix: '[provider-postgres] '
     labels:
-      - 'area:provider'
+      - 'area:providers'
       - 'provider:postgres'
   - package-ecosystem: pip
     directories:
@@ -708,7 +708,7 @@ updates:
     commit-message:
       prefix: '[provider-presto] '
     labels:
-      - 'area:provider'
+      - 'area:providers'
       - 'provider:presto'
   - package-ecosystem: pip
     directories:
@@ -718,7 +718,7 @@ updates:
     commit-message:
       prefix: '[provider-psrp] '
     labels:
-      - 'area:provider'
+      - 'area:providers'
       - 'provider:psrp'
   - package-ecosystem: pip
     directories:
@@ -728,7 +728,7 @@ updates:
     commit-message:
       prefix: '[provider-qdrant] '
     labels:
-      - 'area:provider'
+      - 'area:providers'
       - 'provider:qdrant'
   - package-ecosystem: pip
     directories:
@@ -738,7 +738,7 @@ updates:
     commit-message:
       prefix: '[provider-redis] '
     labels:
-      - 'area:provider'
+      - 'area:providers'
       - 'provider:redis'
   - package-ecosystem: pip
     directories:
@@ -748,7 +748,7 @@ updates:
     commit-message:
       prefix: '[provider-salesforce] '
     labels:
-      - 'area:provider'
+      - 'area:providers'
       - 'provider:salesforce'
   - package-ecosystem: pip
     directories:
@@ -758,7 +758,7 @@ updates:
     commit-message:
       prefix: '[provider-samba] '
     labels:
-      - 'area:provider'
+      - 'area:providers'
       - 'provider:samba'
   - package-ecosystem: pip
     directories:
@@ -768,7 +768,7 @@ updates:
     commit-message:
       prefix: '[provider-segment] '
     labels:
-      - 'area:provider'
+      - 'area:providers'
       - 'provider:segment'
   - package-ecosystem: pip
     directories:
@@ -778,7 +778,7 @@ updates:
     commit-message:
       prefix: '[provider-sendgrid] '
     labels:
-      - 'area:provider'
+      - 'area:providers'
       - 'provider:sendgrid'
   - package-ecosystem: pip
     directories:
@@ -788,7 +788,7 @@ updates:
     commit-message:
       prefix: '[provider-sftp] '
     labels:
-      - 'area:provider'
+      - 'area:providers'
       - 'provider:sftp'
   - package-ecosystem: pip
     directories:
@@ -798,7 +798,7 @@ updates:
     commit-message:
       prefix: '[provider-singularity] '
     labels:
-      - 'area:provider'
+      - 'area:providers'
       - 'provider:singularity'
   - package-ecosystem: pip
     directories:
@@ -808,7 +808,7 @@ updates:
     commit-message:
       prefix: '[provider-slack] '
     labels:
-      - 'area:provider'
+      - 'area:providers'
       - 'provider:slack'
   - package-ecosystem: pip
     directories:
@@ -818,7 +818,7 @@ updates:
     commit-message:
       prefix: '[provider-smtp] '
     labels:
-      - 'area:provider'
+      - 'area:providers'
       - 'provider:smtp'
   - package-ecosystem: pip
     directories:
@@ -828,7 +828,7 @@ updates:
     commit-message:
       prefix: '[provider-snowflake] '
     labels:
-      - 'area:provider'
+      - 'area:providers'
       - 'provider:snowflake'
   - package-ecosystem: pip
     directories:
@@ -838,7 +838,7 @@ updates:
     commit-message:
       prefix: '[provider-sql] '
     labels:
-      - 'area:provider'
+      - 'area:providers'
       - 'provider:sql'
   - package-ecosystem: pip
     directories:
@@ -848,7 +848,7 @@ updates:
     commit-message:
       prefix: '[provider-sqlite] '
     labels:
-      - 'area:provider'
+      - 'area:providers'
       - 'provider:sqlite'
   - package-ecosystem: pip
     directories:
@@ -858,7 +858,7 @@ updates:
     commit-message:
       prefix: '[provider-ssh] '
     labels:
-      - 'area:provider'
+      - 'area:providers'
       - 'provider:ssh'
   - package-ecosystem: pip
     directories:
@@ -868,7 +868,7 @@ updates:
     commit-message:
       prefix: '[provider-standard] '
     labels:
-      - 'area:provider'
+      - 'area:providers'
       - 'provider:standard'
   - package-ecosystem: pip
     directories:
@@ -878,7 +878,7 @@ updates:
     commit-message:
       prefix: '[provider-tableau] '
     labels:
-      - 'area:provider'
+      - 'area:providers'
       - 'provider:tableau'
   - package-ecosystem: pip
     directories:
@@ -888,7 +888,7 @@ updates:
     commit-message:
       prefix: '[provider-telegram] '
     labels:
-      - 'area:provider'
+      - 'area:providers'
       - 'provider:telegram'
   - package-ecosystem: pip
     directories:
@@ -898,7 +898,7 @@ updates:
     commit-message:
       prefix: '[provider-teradata] '
     labels:
-      - 'area:provider'
+      - 'area:providers'
       - 'provider:teradata'
   - package-ecosystem: pip
     directories:
@@ -908,7 +908,7 @@ updates:
     commit-message:
       prefix: '[provider-trino] '
     labels:
-      - 'area:provider'
+      - 'area:providers'
       - 'provider:trino'
   - package-ecosystem: pip
     directories:
@@ -918,7 +918,7 @@ updates:
     commit-message:
       prefix: '[provider-vertica] '
     labels:
-      - 'area:provider'
+      - 'area:providers'
       - 'provider:vertica'
   - package-ecosystem: pip
     directories:
@@ -928,7 +928,7 @@ updates:
     commit-message:
       prefix: '[provider-weaviate] '
     labels:
-      - 'area:provider'
+      - 'area:providers'
       - 'provider:weaviate'
   - package-ecosystem: pip
     directories:
@@ -938,7 +938,7 @@ updates:
     commit-message:
       prefix: '[provider-winrm] '
     labels:
-      - 'area:provider'
+      - 'area:providers'
       - 'provider:winrm'
   - package-ecosystem: pip
     directories:
@@ -948,7 +948,7 @@ updates:
     commit-message:
       prefix: '[provider-yandex] '
     labels:
-      - 'area:provider'
+      - 'area:providers'
       - 'provider:yandex'
   - package-ecosystem: pip
     directories:
@@ -958,7 +958,7 @@ updates:
     commit-message:
       prefix: '[provider-ydb] '
     labels:
-      - 'area:provider'
+      - 'area:providers'
       - 'provider:ydb'
   - package-ecosystem: pip
     directories:
@@ -968,7 +968,7 @@ updates:
     commit-message:
       prefix: '[provider-zendesk] '
     labels:
-      - 'area:provider'
+      - 'area:providers'
       - 'provider:zendesk'
 
   - package-ecosystem: npm
