@@ -55,6 +55,7 @@ from airflow import settings
 from airflow.configuration import conf
 from airflow.exceptions import AirflowException
 from airflow.models import import_all_models
+from airflow.models.base import Base
 from airflow.utils import helpers
 from airflow.utils.db_manager import RunDBManager
 from airflow.utils.session import NEW_SESSION, provide_session
@@ -1212,6 +1213,22 @@ def downgrade(*, to_revision, from_revision=None, show_sql_only=False, session: 
 
     log.info("Attempting downgrade to revision %s", to_revision)
     config = _get_alembic_config()
+    # Check if downgrade is less than 3.0.0 and requires that `ab_user` fab table is present
+    if to_revision < _REVISION_HEADS_MAP["3.0.0"]:
+        if conf.getboolean("core", "unit_test_mode"):
+            try:
+                from airflow.providers.fab.auth_manager.models.db import FABDBManager
+
+                dbm = FABDBManager(session)
+                dbm.initdb()
+            except ImportError:
+                log.warning("Import error occurred while importing FABDBManager. Skipping the check.")
+                pass
+        if inspect(settings.engine).has_table("ab_user") is False:
+            raise AirflowException(
+                "Downgrade to revision less than 3.0.0 requires that `ab_user` table is present. "
+                "Please add FabDBManager to [core] external_db_manager and run fab migrations before proceeding"
+            )
 
     with create_global_lock(session=session, lock=DBLocks.MIGRATIONS):
         if show_sql_only:
@@ -1232,8 +1249,6 @@ def drop_airflow_models(connection):
     :param connection: SQLAlchemy Connection
     :return: None
     """
-    from airflow.models.base import Base
-
     Base.metadata.drop_all(connection)
     # alembic adds significant import time, so we import it lazily
     from alembic.migration import MigrationContext

@@ -286,6 +286,7 @@ repos:
           ^\.pre-commit-config\.yaml$|
           ^.*reproducible_build.yaml$|
           ^.*pnpm-lock\.yaml$
+          ^\.github/actions/migration_tests/action\.yml$
   - repo: https://github.com/ikamensh/flynt
     rev: '1.0.1'
     hooks:
