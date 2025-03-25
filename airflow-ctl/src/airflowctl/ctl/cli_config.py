@@ -25,12 +25,12 @@ import ast
 import inspect
 import os
 from collections.abc import Iterable
-from typing import Callable, NamedTuple, Union
+from functools import partial
+from typing import Any, Callable, NamedTuple, Union
 
 import airflowctl.api.datamodels.generated as generated_datamodels
-from airflow.sdk.api.client import ServerResponseError
-from airflowctl.api.client import Client, provide_api_client
-from airflowctl.api.operations import BaseOperations
+from airflowctl.api.client import NEW_CLI_API_CLIENT, Client, provide_api_client
+from airflowctl.api.operations import BaseOperations, ServerResponseError
 from airflowctl.utils.module_loading import import_string
 
 BUILD_DOCS = "BUILDING_AIRFLOW_DOCS" in os.environ
@@ -185,14 +185,20 @@ class AirflowCtlCommandFactory:
     """Factory class that creates 1-1 mapping with api operations."""
 
     operations: list[dict]
-    args_map: dict[str, list[Arg]]
-    func_map: dict[str, Callable]
+    args_map: dict[tuple, list[Arg]]
+    func_map: dict[tuple, Callable]
     commands_map: dict[str, list[ActionCommand]]
-    group_commands: list[GroupCommand]
+    group_commands_list: list[GroupCommand]
+
+    def __init__(self):
+        self.func_map = {}
+        self.operations = []
+        self.args_map = {}
+        self.commands_map = {}
+        self.group_commands_list = []
 
     def _inspect_operations(self) -> None:
         """Parse file and return matching Operation Method with details."""
-        self.operations = []
 
         def get_function_details(node: ast.FunctionDef, parent_node: ast.ClassDef) -> dict:
             """Extract function name, arguments, and return annotation."""
@@ -226,9 +232,14 @@ class AirflowCtlCommandFactory:
         with open(file_path, encoding="utf-8") as file:
             tree = ast.parse(file.read(), filename=file_path)
 
-        exclude_method_names = ["error", "__init__", "__init_subclass__"]
+        exclude_method_names = [
+            "error",
+            "__init__",
+            "__init_subclass__",
+            "_check_flag_and_exit_if_server_response_error",
+        ]
         for node in ast.walk(tree):
-            if isinstance(node, ast.ClassDef) and "Operations" in node.name:
+            if isinstance(node, ast.ClassDef) and "Operations" in node.name and node.body:
                 for child in node.body:
                     if isinstance(child, ast.FunctionDef) and child.name not in exclude_method_names:
                         self.operations.append(get_function_details(node=child, parent_node=node))
@@ -249,66 +260,86 @@ class AirflowCtlCommandFactory:
         }
         return type_name in primitive_types
 
+    @staticmethod
+    def _create_arg(
+        arg_flags: tuple,
+        arg_type: type,
+        arg_help: str,
+        arg_dest: str | None = None,
+        arg_default: Any | None = None,
+    ) -> Arg:
+        return Arg(
+            flags=arg_flags,
+            type=arg_type,
+            dest=arg_dest,
+            help=arg_help,
+            default=arg_default,
+        )
+
+    @classmethod
+    def _create_arg_for_non_primitive_type(cls, parameter_type: str, parameter_key: str) -> Arg | None:
+        """Create Arg for non-primitive type."""
+        parameter_type_map = getattr(generated_datamodels, parameter_type)
+        for field, field_type in parameter_type_map.__fields__.items():
+            if "Optional" not in str(field_type):
+                return cls._create_arg(
+                    arg_flags=("--" + field,),
+                    arg_type=field_type.annotation,
+                    arg_dest=field,
+                    arg_help=f"{field} for {parameter_key} operation",
+                )
+            else:
+                return cls._create_arg(
+                    arg_flags=("--" + field,),
+                    arg_type=field_type.annotation,
+                    arg_help=f"{field} for {parameter_key} operation",
+                    arg_default=None,
+                )
+        return None
+
     def _create_args_map_from_operation(self):
         """Create Arg from Operation Method checking for parameters and return types."""
-        self.args_map = {}
         for operation in self.operations:
             args = []
             for parameter in operation.get("parameters"):
                 for parameter_key, parameter_type in parameter.items():
                     if self._is_primitive_type(type_name=parameter_type):
                         args.append(
-                            Arg(
-                                flags=("--" + parameter_key,),
-                                type=type(parameter_type),
-                                help=f"{parameter_key} for {operation.get('name')} operation in {operation.get('parent').name}",
+                            self._create_arg(
+                                arg_flags=("--" + parameter_key,),
+                                arg_type=type(parameter_type),
+                                arg_help=f"{parameter_key} for {operation.get('name')} operation in {operation.get('parent').name}",
                             )
                         )
                     else:
-                        parameter_type = getattr(generated_datamodels, parameter_type)
-                        for field, field_type in parameter_type.__fields__.items():
-                            if "Optional" not in str(field_type):
-                                args.append(
-                                    Arg(
-                                        flags=("--" + field,),
-                                        type=field_type.annotation,
-                                        dest=field,
-                                        help=f"{field} for {operation.get('name')} operation in {operation.get('parent').name}",
-                                    )
-                                )
-                            else:
-                                args.append(
-                                    Arg(
-                                        flags=("--" + field,),
-                                        type=field_type.annotation,
-                                        help=f"{field} for {operation.get('name')} operation in {operation.get('parent').name}",
-                                        default=None,
-                                    )
-                                )
-            self.args_map[f"{operation.get('name')}-{operation.get('parent').name}"] = args
+                        args.append(
+                            self._create_arg_for_non_primitive_type(
+                                parameter_type=parameter_type, parameter_key=parameter_key
+                            )
+                        )
+            self.args_map[(operation.get("name"), operation.get("parent").name)] = args
 
     def _create_func_map_from_operation(self):
         """Create function map from Operation Method checking for parameters and return types."""
-        self.func_map = {}
+
+        @provide_api_client
+        def _get_func(*args, cli_api_client: Client = NEW_CLI_API_CLIENT, api_operation: dict, **kwargs):
+            import importlib
+
+            imported_operation = importlib.import_module("airflowctl.api.operations")
+            operation_class_object = getattr(imported_operation, api_operation["parent"].name)
+            operation_class = operation_class_object(client=cli_api_client)
+            operation_method_object = getattr(operation_class, api_operation["name"])
+
+            return operation_method_object()
+
         for operation in self.operations:
+            self.func_map[(operation.get("name"), operation.get("parent").name)] = partial(
+                _get_func, api_operation=operation
+            )
 
-            @provide_api_client
-            def _get_func(cli_api_client: Client, **kwargs):
-                operation_class = getattr(cli_api_client, operation.get("parent_node").name)
-                operation_method = getattr(operation_class, operation.get("name"))
-                return operation_method(**kwargs)
-
-            self.func_map[f"{operation.get('name')}-{operation.get('parent').name}"] = _get_func
-
-    def create_commands(self) -> AirflowCtlCommandFactory:
-        """Create commands from Operation Method."""
-        self.commands_map = {}
-        self.group_commands = []
-
-        self._inspect_operations()
-        self._create_args_map_from_operation()
-        self._create_func_map_from_operation()
-
+    def _create_group_commands_from_operation(self):
+        """Create GroupCommand from Operation Methods."""
         for operation in self.operations:
             operation_name = operation["name"]
             operation_group_name = operation["parent"].name
@@ -318,20 +349,29 @@ class AirflowCtlCommandFactory:
                 ActionCommand(
                     name=operation["name"].replace("_", "-"),
                     help=f"Perform {operation_name} operation",
-                    func=self.func_map[f"{operation_name}-{operation_group_name}"],
-                    args=self.args_map[f"{operation_name}-{operation_group_name}"],
+                    func=self.func_map[(operation_name, operation_group_name)],
+                    args=self.args_map[(operation_name, operation_group_name)],
                 )
             )
 
         for group_name, action_commands in self.commands_map.items():
-            self.group_commands.append(
+            self.group_commands_list.append(
                 GroupCommand(
                     name=group_name.replace("Operations", "").lower(),
                     help=f"Perform {group_name.replace('Operations', '')} operations",
                     subcommands=action_commands,
                 )
             )
-        return self
+
+    @property
+    def group_commands(self) -> list[GroupCommand]:
+        """List of GroupCommands generated for airflowctl."""
+        self._inspect_operations()
+        self._create_args_map_from_operation()
+        self._create_func_map_from_operation()
+        self._create_group_commands_from_operation()
+
+        return self.group_commands_list
 
 
 airflow_ctl_command_factory = AirflowCtlCommandFactory()
@@ -356,4 +396,4 @@ core_commands: list[CLICommand] = [
     ),
 ]
 # Add generated group commands
-core_commands.extend(airflow_ctl_command_factory.create_commands().group_commands)
+core_commands.extend(airflow_ctl_command_factory.group_commands)

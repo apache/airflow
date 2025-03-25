@@ -63,6 +63,8 @@ log = structlog.get_logger(logger_name=__name__)
 __all__ = [
     "Client",
     "Credentials",
+    "provide_api_client",
+    "NEW_CLI_API_CLIENT",
 ]
 
 PS = ParamSpec("PS")
