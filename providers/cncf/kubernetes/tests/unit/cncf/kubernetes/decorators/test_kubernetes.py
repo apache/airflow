@@ -20,6 +20,7 @@ import base64
 import pickle
 
 from airflow.decorators import task
+
 from unit.cncf.kubernetes.decorators.test_kubernetes_commons import TestKubernetesDecoratorsBase
 
 XCOM_IMAGE = "XCOM_IMAGE"
