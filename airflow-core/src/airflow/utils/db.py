@@ -55,7 +55,6 @@ from airflow import settings
 from airflow.configuration import conf
 from airflow.exceptions import AirflowException
 from airflow.models import import_all_models
-from airflow.models.base import Base
 from airflow.utils import helpers
 from airflow.utils.db_manager import RunDBManager
 from airflow.utils.session import NEW_SESSION, provide_session
@@ -1249,6 +1248,8 @@ def drop_airflow_models(connection):
     :param connection: SQLAlchemy Connection
     :return: None
     """
+    from airflow.models.base import Base
+
     Base.metadata.drop_all(connection)
     # alembic adds significant import time, so we import it lazily
     from alembic.migration import MigrationContext
