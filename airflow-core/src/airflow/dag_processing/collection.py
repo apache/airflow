@@ -196,7 +196,8 @@ def _serialize_dag_capturing_errors(
             min_update_interval=settings.MIN_SERIALIZED_DAG_UPDATE_INTERVAL,
             session=session,
         )
-        if dag_was_updated and "FabAuthManager" in conf.get("core", "auth_manager"):
+        if dag_was_updated:
+            if "FabAuthManager" in conf.get("core", "auth_manager"):
             _sync_dag_perms(dag, session=session)
         else:
             # Check and update DagCode
