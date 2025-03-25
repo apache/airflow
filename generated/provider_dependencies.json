@@ -235,7 +235,7 @@
   "apache.kylin": {
     "deps": [
       "apache-airflow>=2.9.0",
-      "kylinpy>=2.7.0"
+      "kylinpy>2.7.0"
     ],
     "devel-deps": [],
     "plugins": [],
