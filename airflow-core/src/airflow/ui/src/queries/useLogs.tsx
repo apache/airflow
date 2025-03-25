@@ -20,7 +20,6 @@ import { chakra } from "@chakra-ui/react";
 import type { UseQueryOptions } from "@tanstack/react-query";
 import dayjs from "dayjs";
 import innerText from "react-innertext";
-import type { JSX } from "react/jsx-runtime";
 
 import { useTaskInstanceServiceGetLog } from "openapi/queries";
 import type { TaskInstanceResponse, TaskInstancesLogResponse } from "openapi/requests/types.gen";
