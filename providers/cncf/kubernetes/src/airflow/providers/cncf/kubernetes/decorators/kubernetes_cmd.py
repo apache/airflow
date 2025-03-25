@@ -22,7 +22,6 @@ from typing import TYPE_CHECKING, Callable
 
 from airflow.decorators.base import DecoratedOperator, TaskDecorator, task_decorator_factory
 from airflow.providers.cncf.kubernetes.operators.pod import KubernetesPodOperator
-from airflow.providers.cncf.kubernetes.template_rendering import refresh_rendered_fields
 from airflow.utils.context import context_merge
 from airflow.utils.operator_helpers import determine_kwargs
 
@@ -38,6 +37,7 @@ class _KubernetesCmdDecoratedOperator(DecoratedOperator, KubernetesPodOperator):
     custom_operator_name = "@task.kubernetes_cmd"
 
     template_fields: Sequence[str] = KubernetesPodOperator.template_fields
+    overwrite_rtif_after_execution: bool = True
 
     def __init__(self, *, python_callable: Callable, args_only: bool = False, **kwargs) -> None:
         self.args_only = args_only
@@ -76,7 +76,7 @@ class _KubernetesCmdDecoratedOperator(DecoratedOperator, KubernetesPodOperator):
         else:
             self.cmds = generated
             self.arguments = []
-        refresh_rendered_fields(context["task_instance"])
+        context["ti"].render_templates()  # type: ignore[attr-defined]
         return super().execute(context)
 
     def _generate_cmds(self, context: Context) -> list[str]:
