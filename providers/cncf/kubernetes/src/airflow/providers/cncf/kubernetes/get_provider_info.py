@@ -87,7 +87,7 @@ def get_provider_info():
                 "name": "kubernetes",
             },
             {
-                "class-name": "airflow.providers.cncf.kubernetes.decorators.kubernetes_cmd.kubernetes_task_cmd",
+                "class-name": "airflow.providers.cncf.kubernetes.decorators.kubernetes_cmd.kubernetes_cmd_task",
                 "name": "kubernetes_cmd",
             },
         ],
