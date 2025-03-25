@@ -271,7 +271,6 @@ class TriggerLoggingFactory:
         upload_to_remote(self.bound_logger)
 
 
-@functools.cache
 def in_process_api_server() -> InProcessExecutionAPI:
     from airflow.api_fastapi.execution_api.app import InProcessExecutionAPI
 
