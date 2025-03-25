@@ -24,6 +24,7 @@ import argparse
 import ast
 import inspect
 import os
+from argparse import Namespace
 from collections.abc import Iterable
 from functools import partial
 from typing import Any, Callable, NamedTuple, Union
@@ -182,8 +183,9 @@ CLICommand = Union[ActionCommand, GroupCommand]
 
 
 class AirflowCtlCommandFactory:
-    """Factory class that creates 1-1 mapping with api operations."""
+    """Factory class that creates 1-1 mapping with airflowctl/api/operations."""
 
+    data_models_extended_map: dict[str, list[str]]
     operations: list[dict]
     args_map: dict[tuple, list[Arg]]
     func_map: dict[tuple, Callable]
@@ -191,6 +193,7 @@ class AirflowCtlCommandFactory:
     group_commands_list: list[GroupCommand]
 
     def __init__(self):
+        self.datamodels_extended_map = {}
         self.func_map = {}
         self.operations = []
         self.args_map = {}
@@ -245,6 +248,14 @@ class AirflowCtlCommandFactory:
                         self.operations.append(get_function_details(node=child, parent_node=node))
 
     @staticmethod
+    def _sanitize_arg_parameter_key(parameter_key: str) -> str:
+        return parameter_key.replace("_", "-")
+
+    @staticmethod
+    def _sanitize_method_param_key(parameter_key: str) -> str:
+        return parameter_key.replace("-", "_")
+
+    @staticmethod
     def _is_primitive_type(type_name: str) -> bool:
         primitive_types = {
             "int",
@@ -265,6 +276,7 @@ class AirflowCtlCommandFactory:
         arg_flags: tuple,
         arg_type: type,
         arg_help: str,
+        arg_action: argparse.BooleanOptionalAction | None,
         arg_dest: str | None = None,
         arg_default: Any | None = None,
     ) -> Arg:
@@ -274,28 +286,43 @@ class AirflowCtlCommandFactory:
             dest=arg_dest,
             help=arg_help,
             default=arg_default,
+            action=arg_action,
         )
 
-    @classmethod
-    def _create_arg_for_non_primitive_type(cls, parameter_type: str, parameter_key: str) -> Arg | None:
-        """Create Arg for non-primitive type."""
+    def _create_arg_for_non_primitive_type(
+        self,
+        parameter_type: str,
+        parameter_key: str,
+    ) -> list[Arg]:
+        """Create Arg for non-primitive type Pydantic."""
         parameter_type_map = getattr(generated_datamodels, parameter_type)
+        commands = []
+        if parameter_type_map not in self.datamodels_extended_map.keys():
+            self.datamodels_extended_map[parameter_type] = []
         for field, field_type in parameter_type_map.__fields__.items():
-            if "Optional" not in str(field_type):
-                return cls._create_arg(
-                    arg_flags=("--" + field,),
-                    arg_type=field_type.annotation,
-                    arg_dest=field,
-                    arg_help=f"{field} for {parameter_key} operation",
+            self.datamodels_extended_map[parameter_type].append(field)
+            if type(field_type.annotation) is type:
+                commands.append(
+                    self._create_arg(
+                        arg_flags=("--" + self._sanitize_arg_parameter_key(field),),
+                        arg_type=field_type.annotation,
+                        arg_action=argparse.BooleanOptionalAction if field_type.annotation is bool else None,  # type: ignore
+                        arg_help=f"Argument Type: {field_type.annotation}, {field} for {parameter_key} operation",
+                        arg_default=False if field_type.annotation is bool else None,
+                    )
                 )
             else:
-                return cls._create_arg(
-                    arg_flags=("--" + field,),
-                    arg_type=field_type.annotation,
-                    arg_help=f"{field} for {parameter_key} operation",
-                    arg_default=None,
+                annotation = field_type.annotation.__args__[0]
+                commands.append(
+                    self._create_arg(
+                        arg_flags=("--" + self._sanitize_arg_parameter_key(field),),
+                        arg_type=annotation,
+                        arg_action=argparse.BooleanOptionalAction if annotation is bool else None,  # type: ignore
+                        arg_help=f"Argument Type: {annotation}, {field} for {parameter_key} operation",
+                        arg_default=False if annotation is bool else None,
+                    )
                 )
-        return None
+        return commands
 
     def _create_args_map_from_operation(self):
         """Create Arg from Operation Method checking for parameters and return types."""
@@ -306,13 +333,17 @@ class AirflowCtlCommandFactory:
                     if self._is_primitive_type(type_name=parameter_type):
                         args.append(
                             self._create_arg(
-                                arg_flags=("--" + parameter_key,),
+                                arg_flags=("--" + self._sanitize_arg_parameter_key(parameter_key),),
                                 arg_type=type(parameter_type),
-                                arg_help=f"{parameter_key} for {operation.get('name')} operation in {operation.get('parent').name}",
+                                arg_action=argparse.BooleanOptionalAction
+                                if type(parameter_type) is bool
+                                else None,
+                                arg_help=f"Argument Type: {type(parameter_type)}, {parameter_key} for {operation.get('name')} operation in {operation.get('parent').name}",
+                                arg_default=False if type(parameter_type) is bool else None,
                             )
                         )
                     else:
-                        args.append(
+                        args.extend(
                             self._create_arg_for_non_primitive_type(
                                 parameter_type=parameter_type, parameter_key=parameter_key
                             )
@@ -323,7 +354,9 @@ class AirflowCtlCommandFactory:
         """Create function map from Operation Method checking for parameters and return types."""
 
         @provide_api_client
-        def _get_func(*args, cli_api_client: Client = NEW_CLI_API_CLIENT, api_operation: dict, **kwargs):
+        def _get_func(
+            args: Namespace, api_operation: dict, cli_api_client: Client = NEW_CLI_API_CLIENT, **kwargs
+        ):
             import importlib
 
             imported_operation = importlib.import_module("airflowctl.api.operations")
@@ -331,7 +364,29 @@ class AirflowCtlCommandFactory:
             operation_class = operation_class_object(client=cli_api_client)
             operation_method_object = getattr(operation_class, api_operation["name"])
 
-            return operation_method_object()
+            # Walk through all args and create a dictionary such as args.abc -> {"abc": "value"}
+            method_params = {}
+            datamodel = None
+            args_dict = vars(args)
+            for parameter in api_operation["parameters"]:
+                for parameter_key, parameter_type in parameter.items():
+                    if self._is_primitive_type(type_name=parameter_type):
+                        method_params[self._sanitize_method_param_key(parameter_key)] = args_dict[
+                            parameter_key
+                        ]
+                    else:
+                        datamodel = getattr(generated_datamodels, parameter_type)
+                        for expanded_parameter in self.datamodels_extended_map[parameter_type]:
+                            if expanded_parameter in args_dict.keys():
+                                method_params[self._sanitize_method_param_key(expanded_parameter)] = (
+                                    args_dict[expanded_parameter]
+                                )
+
+            if datamodel:
+                method_params = datamodel(**method_params)
+                print(operation_method_object(method_params))
+            else:
+                print(operation_method_object(**method_params))
 
         for operation in self.operations:
             self.func_map[(operation.get("name"), operation.get("parent").name)] = partial(
