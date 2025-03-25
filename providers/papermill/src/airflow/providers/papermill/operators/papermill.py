@@ -17,6 +17,7 @@
 # under the License.
 from __future__ import annotations
 
+import subprocess
 from collections.abc import Collection, Sequence
 from functools import cached_property
 from typing import TYPE_CHECKING, ClassVar
@@ -68,6 +69,8 @@ class PapermillOperator(BaseOperator):
         "kernel_name",
         "language_name",
         "kernel_conn_id",
+        "nbconvert",
+        "nbconvert_args",
     )
 
     def __init__(
@@ -79,6 +82,8 @@ class PapermillOperator(BaseOperator):
         kernel_name: str | None = None,
         language_name: str | None = None,
         kernel_conn_id: str | None = None,
+        nbconvert: bool = False,
+        nbconvert_args: list[str] | None = None,
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
@@ -95,6 +100,8 @@ class PapermillOperator(BaseOperator):
         self.kernel_name = kernel_name
         self.language_name = language_name
         self.kernel_conn_id = kernel_conn_id
+        self.nbconvert = nbconvert
+        self.nbconvert_args = nbconvert_args
 
     def execute(self, context: Context):
         if not isinstance(self.input_nb, NoteBook):
@@ -131,6 +138,29 @@ class PapermillOperator(BaseOperator):
             engine_name=engine_name,
             **remote_kernel_kwargs,
         )
+
+        # Convert the executed notebook to HTML using nbconvert
+        if self.nbconvert:
+            nbconvert_args = self.nbconvert_args or []
+            if not isinstance(nbconvert_args, list):
+                raise ValueError("nbconvert_args must be a list")
+
+            # Build the nbconvert command
+            command = [
+                "jupyter",
+                "nbconvert",
+                "--to",
+                "html",
+                "--log-level",
+                "WARN",
+                self.output_nb.url,
+            ] + nbconvert_args
+            try:
+                subprocess.run(command, check=True)
+                self.log.info("Output HTML: %s", self.output_nb.url.replace(".ipynb", ".html"))
+            except subprocess.CalledProcessError as e:
+                self.log.error("nbconvert failed with output:\n%s", e.stdout)
+                raise
 
     @cached_property
     def hook(self) -> KernelHook | None:
