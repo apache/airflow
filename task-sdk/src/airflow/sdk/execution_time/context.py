@@ -53,6 +53,7 @@ if TYPE_CHECKING:
         PrevSuccessfulDagRunResponse,
         VariableResult,
     )
+    from airflow.sdk.types import OutletEventAccessorsProtocol
 
 
 DEFAULT_FORMAT_PREFIX = "airflow.ctx."
@@ -561,3 +562,11 @@ def context_to_airflow_vars(context: Mapping[str, Any], in_env_var_format: bool 
                 params[mapping_value] = str(_attr)
 
     return params
+
+
+def context_get_outlet_events(context: Context) -> OutletEventAccessorsProtocol:
+    try:
+        outlet_events = context["outlet_events"]
+    except KeyError:
+        outlet_events = context["outlet_events"] = OutletEventAccessors()
+    return outlet_events

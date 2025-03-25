@@ -24,7 +24,7 @@ import functools
 import os
 import sys
 import time
-from collections.abc import Iterable, Iterator, Mapping
+from collections.abc import Callable, Iterable, Iterator, Mapping
 from datetime import datetime, timezone
 from io import FileIO
 from itertools import product
@@ -53,6 +53,7 @@ from airflow.sdk.definitions.baseoperator import BaseOperator, ExecutorSafeguard
 from airflow.sdk.definitions.mappedoperator import MappedOperator
 from airflow.sdk.definitions.param import process_params
 from airflow.sdk.exceptions import ErrorType
+from airflow.sdk.execution_time.callback_runner import create_executable_runner
 from airflow.sdk.execution_time.comms import (
     DagRunStateResult,
     DeferTask,
@@ -79,6 +80,7 @@ from airflow.sdk.execution_time.context import (
     MacrosAccessor,
     OutletEventAccessors,
     VariableAccessor,
+    context_get_outlet_events,
     context_to_airflow_vars,
     get_previous_dagrun_success,
     set_current_context,
@@ -847,9 +849,10 @@ def _run_task_state_change_callbacks(
     context: Context,
     log: Logger,
 ) -> None:
+    callback: Callable[[Context], None]
     for i, callback in enumerate(getattr(task, kind)):
         try:
-            callback(context)
+            create_executable_runner(callback, context_get_outlet_events(context), logger=log).run(context)
         except Exception:
             log.exception("Failed to run task callback", kind=kind, index=i, callback=callback)
 
@@ -876,6 +879,11 @@ def _execute_task(context: Context, ti: RuntimeTaskInstance, log: Logger):
     airflow_context_vars = context_to_airflow_vars(context, in_env_var_format=True)
     os.environ.update(airflow_context_vars)
 
+    outlet_events = context_get_outlet_events(context)
+
+    if (pre_execute_hook := task._pre_execute_hook) is not None:
+        create_executable_runner(pre_execute_hook, outlet_events, logger=log).run(context)
+
     _run_task_state_change_callbacks(task, "on_execute_callback", context, log)
 
     if task.execution_timeout:
@@ -895,6 +903,10 @@ def _execute_task(context: Context, ti: RuntimeTaskInstance, log: Logger):
             raise
     else:
         result = ctx.run(execute, context=context)
+
+    if (post_execute_hook := task._post_execute_hook) is not None:
+        create_executable_runner(post_execute_hook, outlet_events, logger=log).run(context, result)
+
     return result
 
 

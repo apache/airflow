@@ -87,6 +87,9 @@ if TYPE_CHECKING:
     from airflow.typing_compat import Self
     from airflow.utils.operator_resources import Resources
 
+    TaskPreExecuteHook = Callable[[Context], None]
+    TaskPostExecuteHook = Callable[[Context, Any], None]
+
 __all__ = [
     "BaseOperator",
     "chain",
@@ -822,8 +825,8 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
     on_success_callback: Sequence[TaskStateChangeCallback] = ()
     on_retry_callback: Sequence[TaskStateChangeCallback] = ()
     on_skipped_callback: Sequence[TaskStateChangeCallback] = ()
-    # pre_execute: TaskPreExecuteHook | None = None
-    # post_execute: TaskPostExecuteHook | None = None
+    _pre_execute_hook: TaskPreExecuteHook | None = None
+    _post_execute_hook: TaskPostExecuteHook | None = None
     trigger_rule: TriggerRule = DEFAULT_TRIGGER_RULE
     resources: dict[str, Any] | None = None
     run_as_user: str | None = None
@@ -981,8 +984,8 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
         on_success_callback: None | TaskStateChangeCallback | Collection[TaskStateChangeCallback] = None,
         on_retry_callback: None | TaskStateChangeCallback | list[TaskStateChangeCallback] = None,
         on_skipped_callback: None | TaskStateChangeCallback | Collection[TaskStateChangeCallback] = None,
-        # pre_execute: TaskPreExecuteHook | None = None,
-        # post_execute: TaskPostExecuteHook | None = None,
+        pre_execute: TaskPreExecuteHook | None = None,
+        post_execute: TaskPostExecuteHook | None = None,
         trigger_rule: str = DEFAULT_TRIGGER_RULE,
         resources: dict[str, Any] | None = None,
         run_as_user: str | None = None,
@@ -1053,14 +1056,13 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
             )
         self.execution_timeout = execution_timeout
 
-        # TODO:
         self.on_execute_callback = _collect_callbacks(on_execute_callback)
         self.on_failure_callback = _collect_callbacks(on_failure_callback)
         self.on_success_callback = _collect_callbacks(on_success_callback)
         self.on_retry_callback = _collect_callbacks(on_retry_callback)
         self.on_skipped_callback = _collect_callbacks(on_skipped_callback)
-        # self._pre_execute_hook = pre_execute
-        # self._post_execute_hook = post_execute
+        self._pre_execute_hook = pre_execute
+        self._post_execute_hook = post_execute
 
         if start_date:
             self.start_date = timezone.convert_to_utc(start_date)
