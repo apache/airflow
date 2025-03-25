@@ -59,7 +59,6 @@ from airflow.sdk.execution_time.comms import (
     ErrorResponse,
     GetDagRunState,
     GetTaskRescheduleStartDate,
-    OKResponse,
     RescheduleTask,
     RetryTask,
     SetRenderedFields,
