@@ -16,11 +16,11 @@
     "@tanstack/react-query": "^5.69.0",
     "axios": "^1.8.4",
     "next-themes": "^0.4.6",
-    "react": "^18.3.1",
+    "react": "^19.0.0",
     "react-cookie": "^7.2.2",
-    "react-dom": "^18.3.1",
+    "react-dom": "^19.0.0",
     "react-hook-form": "^7.54.2",
-    "react-router-dom": "^6.30.0"
+    "react-router-dom": "^7.4.0"
   },
   "devDependencies": {
     "@7nohe/openapi-react-query-codegen": "^1.6.2",
@@ -28,7 +28,7 @@
     "@testing-library/react": "^16.2.0",
     "@vitejs/plugin-react-swc": "^3.8.1",
     "eslint": "^9.23.0",
-    "happy-dom": "^15.11.7",
+    "happy-dom": "^17.4.4",
     "vite": "^6.2.2",
     "vite-plugin-css-injected-by-js": "^3.5.2",
     "vitest": "^3.0.9"

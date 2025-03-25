@@ -3688,6 +3688,30 @@ class TaskInstance(Base, LoggingMixin):
         }
         return asset_unique_keys - active_asset_unique_keys
 
+    def get_first_reschedule_date(self, context: Context) -> datetime | None:
+        """Get the first reschedule date for the task instance."""
+        # TODO: AIP-72: Remove this after `ti.run` is migrated to use Task SDK
+        max_tries: int = self.max_tries or 0
+
+        if TYPE_CHECKING:
+            assert isinstance(self.task, BaseOperator)
+
+        retries: int = self.task.retries or 0
+        first_try_number = max_tries - retries + 1
+
+        with create_session() as session:
+            start_date = session.scalar(
+                select(TaskReschedule)
+                .where(
+                    TaskReschedule.ti_id == str(self.id),
+                    TaskReschedule.try_number >= first_try_number,
+                )
+                .order_by(TaskReschedule.id.asc())
+                .with_only_columns(TaskReschedule.start_date)
+                .limit(1)
+            )
+        return start_date
+
 
 def _find_common_ancestor_mapped_group(node1: Operator, node2: Operator) -> MappedTaskGroup | None:
     """Given two operators, find their innermost common mapped task group."""

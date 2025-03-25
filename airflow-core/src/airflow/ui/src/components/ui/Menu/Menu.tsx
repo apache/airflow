@@ -16,7 +16,11 @@
  * specific language governing permissions and limitations
  * under the License.
  */
+import { Menu as ChakraMenu } from "@chakra-ui/react";
 
-export * from "./TimezoneProvider";
-export * from "./useTimezone";
-export * from "./Context";
+import { Content } from "./MenuContent";
+
+export const Menu = {
+  ...ChakraMenu,
+  Content,
+};
