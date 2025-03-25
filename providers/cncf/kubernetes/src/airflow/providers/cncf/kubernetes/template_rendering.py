@@ -29,8 +29,6 @@ from airflow.providers.cncf.kubernetes.pod_generator import PodGenerator
 from airflow.utils.session import NEW_SESSION, provide_session
 
 if TYPE_CHECKING:
-    from sqlalchemy.orm import Session as SASession
-
     from airflow.models.taskinstance import TaskInstance
 
 
@@ -66,7 +64,7 @@ def render_k8s_pod_yaml(task_instance: TaskInstance) -> dict | None:
 
 
 @provide_session
-def get_rendered_k8s_spec(task_instance: TaskInstance, session: SASession = NEW_SESSION) -> dict | None:
+def get_rendered_k8s_spec(task_instance: TaskInstance, session=NEW_SESSION) -> dict | None:
     """Fetch rendered template fields from DB."""
     from airflow.models.renderedtifields import RenderedTaskInstanceFields
 
