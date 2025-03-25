@@ -96,7 +96,7 @@ class _KubernetesCmdDecoratedOperator(DecoratedOperator, KubernetesPodOperator):
         return generated_cmds
 
 
-def kubernetes_task_cmd(
+def kubernetes_cmd_task(
     python_callable: Callable | None = None,
     **kwargs,
 ) -> TaskDecorator:
