@@ -38,21 +38,18 @@ def update_orm_from_pydantic(
     orm_conn: Connection, pydantic_conn: ConnectionBody, update_mask: list[str] | None = None
 ):
     """Update ORM object from Pydantic object."""
-    # Not all fields match and some need setters, therefore copy manually
-    if not update_mask or "conn_type" in update_mask:
-        orm_conn.conn_type = pydantic_conn.conn_type
-    if not update_mask or "description" in update_mask:
-        orm_conn.description = pydantic_conn.description
-    if not update_mask or "host" in update_mask:
-        orm_conn.host = pydantic_conn.host
-    if not update_mask or "schema" in update_mask:
-        orm_conn.schema = pydantic_conn.schema_
-    if not update_mask or "login" in update_mask:
-        orm_conn.login = pydantic_conn.login
+    # Not all fields match and some need setters, therefore copy partly manually via setters
+    non_update_fields = {"connection_id", "conn_id"}
+    setter_fields = {"password", "extra"}
+    fields_to_update = pydantic_conn.model_fields_set - non_update_fields - setter_fields
+    if update_mask:
+        fields_to_update = fields_to_update.intersection(update_mask)
+    conn_data = pydantic_conn.model_dump(include=fields_to_update, by_alias=True)
+    for key, val in conn_data.items():
+        setattr(orm_conn, key, val)
+
     if not update_mask or "password" in update_mask:
         orm_conn.set_password(pydantic_conn.password)
-    if not update_mask or "port" in update_mask:
-        orm_conn.port = pydantic_conn.port
     if not update_mask or "extra" in update_mask:
         orm_conn.set_extra(pydantic_conn.extra)
 
