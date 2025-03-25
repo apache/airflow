@@ -392,6 +392,7 @@ class RuntimeTaskInstance(TaskInstance):
 
 
 def _xcom_push(ti: RuntimeTaskInstance, key: str, value: Any, mapped_length: int | None = None) -> None:
+    """Push a XCom through XCom.set, which pushes to XCom Backend if configured."""
     # Private function, as we don't want to expose the ability to manually set `mapped_length` to SDK
     # consumers
     XCom.set(
@@ -402,6 +403,18 @@ def _xcom_push(ti: RuntimeTaskInstance, key: str, value: Any, mapped_length: int
         run_id=ti.run_id,
         map_index=ti.map_index,
         _mapped_length=mapped_length,
+    )
+
+
+def _xcom_push_to_db(ti: RuntimeTaskInstance, key: str, value: Any) -> None:
+    """Push a XCom directly to metadata DB, bypassing custom xcom_backend."""
+    XCom._set_xcom_in_db(
+        key=key,
+        value=value,
+        dag_id=ti.dag_id,
+        task_id=ti.task_id,
+        run_id=ti.run_id,
+        map_index=ti.map_index,
     )
 
 
@@ -926,7 +939,7 @@ def finalize(
     for oe in ti.task.operator_extra_links:
         link, xcom_key = oe.get_link(operator=ti.task, ti_key=ti), oe.xcom_key  # type: ignore[arg-type]
         log.debug("Setting xcom for operator extra link", link=link, xcom_key=xcom_key)
-        _xcom_push(ti, key=xcom_key, value=link)
+        _xcom_push_to_db(ti, key=xcom_key, value=link)
 
     if getattr(ti.task, "overwrite_rtif_after_execution", False):
         log.debug("Overwriting Rendered template fields.")
