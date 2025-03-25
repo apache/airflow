@@ -28,7 +28,7 @@ from unittest import mock
 import pytest
 
 from airflow.cli import cli_config, cli_parser
-from airflow.cli.commands.remote_commands import connection_command
+from airflow.cli.commands import connection_command
 from airflow.exceptions import AirflowException
 from airflow.models import Connection
 from airflow.utils.db import merge_conn
@@ -986,7 +986,7 @@ class TestCliTestConnections:
 
 
 class TestCliCreateDefaultConnection:
-    @mock.patch("airflow.cli.commands.remote_commands.connection_command.db_create_default_connections")
+    @mock.patch("airflow.cli.commands.connection_command.db_create_default_connections")
     def test_cli_create_default_connections(self, mock_db_create_default_connections):
         create_default_connection_fnc = dict(
             (db_command.name, db_command.func) for db_command in cli_config.CONNECTIONS_COMMANDS

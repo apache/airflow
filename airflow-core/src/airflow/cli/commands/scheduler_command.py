@@ -24,7 +24,7 @@ from contextlib import contextmanager
 from multiprocessing import Process
 
 from airflow import settings
-from airflow.cli.commands.local_commands.daemon_utils import run_command_with_daemon_option
+from airflow.cli.commands.daemon_utils import run_command_with_daemon_option
 from airflow.configuration import conf
 from airflow.executors.executor_loader import ExecutorLoader
 from airflow.jobs.job import Job, run_job

@@ -28,7 +28,7 @@ import pytest
 from rich.console import Console
 
 from airflow.cli import cli_parser
-from airflow.cli.commands.local_commands import info_command
+from airflow.cli.commands import info_command
 from airflow.config_templates import airflow_local_settings
 from airflow.logging_config import configure_logging
 from airflow.version import version as airflow_version
@@ -185,7 +185,7 @@ class TestInfoCommandMockHttpx:
         }
     )
     def test_show_info_anonymize_fileio(self, setup_parser, cleanup_providers_manager):
-        with mock.patch("airflow.cli.commands.local_commands.info_command.httpx.post") as post:
+        with mock.patch("airflow.cli.commands.info_command.httpx.post") as post:
             post.return_value = httpx.Response(
                 status_code=200,
                 json={

@@ -25,8 +25,8 @@ from unittest import mock
 import pytest
 
 from airflow.cli import cli_parser
-from airflow.cli.commands.remote_commands import config_command
-from airflow.cli.commands.remote_commands.config_command import ConfigChange, ConfigParameter
+from airflow.cli.commands import config_command
+from airflow.cli.commands.config_command import ConfigChange, ConfigParameter
 
 from tests_common.test_utils.config import conf_vars
 
@@ -38,8 +38,8 @@ class TestCliConfigList:
     def setup_class(cls):
         cls.parser = cli_parser.get_parser()
 
-    @mock.patch("airflow.cli.commands.remote_commands.config_command.StringIO")
-    @mock.patch("airflow.cli.commands.remote_commands.config_command.conf")
+    @mock.patch("airflow.cli.commands.config_command.StringIO")
+    @mock.patch("airflow.cli.commands.config_command.conf")
     def test_cli_show_config_should_write_data(self, mock_conf, mock_stringio):
         config_command.show_config(self.parser.parse_args(["config", "list", "--color", "off"]))
         mock_conf.write.assert_called_once_with(
@@ -54,8 +54,8 @@ class TestCliConfigList:
             only_defaults=False,
         )
 
-    @mock.patch("airflow.cli.commands.remote_commands.config_command.StringIO")
-    @mock.patch("airflow.cli.commands.remote_commands.config_command.conf")
+    @mock.patch("airflow.cli.commands.config_command.StringIO")
+    @mock.patch("airflow.cli.commands.config_command.conf")
     def test_cli_show_config_should_write_data_specific_section(self, mock_conf, mock_stringio):
         config_command.show_config(
             self.parser.parse_args(["config", "list", "--section", "core", "--color", "off"])
@@ -222,7 +222,7 @@ class TestCliConfigGetValue:
 
         assert temp_stdout.getvalue().strip() == "test_value"
 
-    @mock.patch("airflow.cli.commands.remote_commands.config_command.conf")
+    @mock.patch("airflow.cli.commands.config_command.conf")
     def test_should_not_raise_exception_when_section_for_config_with_value_defined_elsewhere_is_missing(
         self, mock_conf
     ):

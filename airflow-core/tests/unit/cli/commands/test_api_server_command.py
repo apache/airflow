@@ -21,7 +21,7 @@ from unittest import mock
 import pytest
 from rich.console import Console
 
-from airflow.cli.commands.local_commands import api_server_command
+from airflow.cli.commands import api_server_command
 from airflow.exceptions import AirflowConfigException
 
 from unit.cli.commands._common_cli_classes import _CommonCLIGunicornTestClass

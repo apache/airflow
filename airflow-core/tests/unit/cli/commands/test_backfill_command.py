@@ -25,7 +25,7 @@ from unittest import mock
 import pendulum
 import pytest
 
-import airflow.cli.commands.remote_commands.backfill_command
+import airflow.cli.commands.backfill_command
 from airflow.cli import cli_parser
 from airflow.models.backfill import ReprocessBehavior
 from airflow.utils import timezone
@@ -62,7 +62,7 @@ class TestCliBackfill:
         clear_db_dags()
         clear_db_backfills()
 
-    @mock.patch("airflow.cli.commands.remote_commands.backfill_command._create_backfill")
+    @mock.patch("airflow.cli.commands.backfill_command._create_backfill")
     @pytest.mark.parametrize(
         "repro, expected_repro",
         [
@@ -90,7 +90,7 @@ class TestCliBackfill:
                     repro,
                 ]
             )
-        airflow.cli.commands.remote_commands.backfill_command.create_backfill(self.parser.parse_args(args))
+        airflow.cli.commands.backfill_command.create_backfill(self.parser.parse_args(args))
 
         mock_create.assert_called_once_with(
             dag_id="example_bash_operator",
@@ -102,7 +102,7 @@ class TestCliBackfill:
             reprocess_behavior=expected_repro,
         )
 
-    @mock.patch("airflow.cli.commands.remote_commands.backfill_command._do_dry_run")
+    @mock.patch("airflow.cli.commands.backfill_command._do_dry_run")
     @pytest.mark.parametrize(
         "reverse",
         [False, True],
@@ -123,7 +123,7 @@ class TestCliBackfill:
         ]
         if reverse:
             args.append("--run-backwards")
-        airflow.cli.commands.remote_commands.backfill_command.create_backfill(self.parser.parse_args(args))
+        airflow.cli.commands.backfill_command.create_backfill(self.parser.parse_args(args))
 
         mock_dry_run.assert_called_once_with(
             dag_id="example_bash_operator",

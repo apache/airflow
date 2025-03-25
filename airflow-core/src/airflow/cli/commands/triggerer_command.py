@@ -24,7 +24,7 @@ from functools import partial
 from multiprocessing import Process
 
 from airflow import settings
-from airflow.cli.commands.local_commands.daemon_utils import run_command_with_daemon_option
+from airflow.cli.commands.daemon_utils import run_command_with_daemon_option
 from airflow.configuration import conf
 from airflow.jobs.job import Job, run_job
 from airflow.jobs.triggerer_job_runner import TriggererJobRunner

@@ -22,7 +22,7 @@ import pytest
 from cryptography.fernet import Fernet
 
 from airflow.cli import cli_parser
-from airflow.cli.commands.local_commands import rotate_fernet_key_command
+from airflow.cli.commands import rotate_fernet_key_command
 from airflow.hooks.base import BaseHook
 from airflow.models import Connection, Variable
 from airflow.utils.session import provide_session

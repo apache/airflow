@@ -27,7 +27,7 @@ import typing
 import pytest
 
 from airflow.cli import cli_parser
-from airflow.cli.commands.remote_commands import asset_command
+from airflow.cli.commands import asset_command
 
 from tests_common.test_utils.db import clear_db_dags, clear_db_runs, parse_and_sync_to_db
 

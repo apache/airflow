@@ -25,7 +25,7 @@ import pytest
 
 from airflow import models, settings
 from airflow.cli import cli_parser
-from airflow.cli.commands.remote_commands import pool_command
+from airflow.cli.commands import pool_command
 from airflow.models import Pool
 from airflow.settings import Session
 from airflow.utils.db import add_default_pool_if_not_exists
