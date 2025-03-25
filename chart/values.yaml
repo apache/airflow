@@ -2654,8 +2654,6 @@ config:
     colored_console_log: 'False'
     remote_logging: '{{- ternary "True" "False" (or .Values.elasticsearch.enabled .Values.opensearch.enabled) }}'
     auth_manager: "airflow.providers.fab.auth_manager.fab_auth_manager.FabAuthManager"
-  database:
-    external_db_managers: "airflow.providers.fab.auth_manager.models.db.FABDBManager"
   logging:
     remote_logging: '{{- ternary "True" "False" (or .Values.elasticsearch.enabled .Values.opensearch.enabled) }}'
     colored_console_log: 'False'

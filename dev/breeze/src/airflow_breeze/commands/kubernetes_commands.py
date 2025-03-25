@@ -1038,8 +1038,6 @@ def _deploy_helm_chart(
             "config.core.auth_manager=airflow.providers.fab.auth_manager.fab_auth_manager.FabAuthManager",
             "--set",
             f"config.api.base_url=http://localhost:{api_server_port}",
-            "--set",
-            "config.database.external_db_managers=airflow.providers.fab.auth_manager.models.db.FABDBManager",
         ]
         if multi_namespace_mode:
             helm_command.extend(["--set", "multiNamespaceMode=true"])
