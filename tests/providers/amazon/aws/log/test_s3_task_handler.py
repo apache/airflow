@@ -34,6 +34,10 @@ from airflow.providers.amazon.aws.log.s3_task_handler import S3TaskHandler
 from airflow.utils.state import State, TaskInstanceState
 from airflow.utils.timezone import datetime
 from tests.test_utils.config import conf_vars
+from tests.test_utils.file_task_handler import (
+    mark_test_for_old_read_log_method,
+    mark_test_for_stream_based_read_log_method,
+)
 
 
 @pytest.fixture(autouse=True)
@@ -121,6 +125,7 @@ class TestS3TaskHandler:
         mock_open.assert_called_once_with(os.path.join(self.local_log_location, "1.log"), "w")
         mock_open().write.assert_not_called()
 
+    @mark_test_for_old_read_log_method
     def test_read(self):
         self.conn.put_object(Bucket="bucket", Key=self.remote_log_key, Body=b"Log line\n")
         ti = copy.copy(self.ti)
@@ -131,6 +136,19 @@ class TestS3TaskHandler:
         assert actual.endswith("Log line")
         assert metadata == [{"end_of_log": True, "log_pos": 8}]
 
+    @mark_test_for_stream_based_read_log_method
+    def test_stream_based_read(self):
+        self.conn.put_object(Bucket="bucket", Key=self.remote_log_key, Body=b"Log line\n")
+        ti = copy.copy(self.ti)
+        ti.state = TaskInstanceState.SUCCESS
+        read_result = self.s3_task_handler.read(ti)
+        _, log_streams, metadata_array = read_result
+        log_str = "".join(line for line in log_streams[0])
+        assert "*** Found logs in s3:\n***   * s3://bucket/remote/log/location/1.log\n" in log_str
+        assert log_str.endswith("Log line\n")
+        assert metadata_array == [{"end_of_log": True, "log_pos": 9}]
+
+    @mark_test_for_old_read_log_method
     def test_read_when_s3_log_missing(self):
         ti = copy.copy(self.ti)
         ti.state = TaskInstanceState.SUCCESS
