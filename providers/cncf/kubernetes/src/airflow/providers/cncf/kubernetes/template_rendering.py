@@ -77,23 +77,3 @@ def get_rendered_k8s_spec(task_instance: TaskInstance, session: SASession = NEW_
         except (TemplateAssertionError, UndefinedError) as e:
             raise AirflowException(f"Unable to render a k8s spec for this taskinstance: {e}") from e
     return rendered_k8s_spec
-
-
-@provide_session
-def refresh_rendered_fields(task_instance: TaskInstance, session=NEW_SESSION) -> None:
-    """
-    Rewrite the underlying rendered values for a task instance in the metadatabase.
-
-    TaskInstance.get_rendered_template_fields() cannot be used because this will retrieve the
-    RenderedTaskInstanceFields from the metadatabase which doesn't have the runtime-evaluated
-    command value in case of `@task.kubernetes_cmd` decorator.
-    """
-    from airflow.models.renderedtifields import RenderedTaskInstanceFields
-
-    """Update rendered task instance fields for cases where runtime evaluated, not templated."""
-
-    rtif = RenderedTaskInstanceFields(task_instance)
-    RenderedTaskInstanceFields.write(rtif, session=session)
-    RenderedTaskInstanceFields.delete_old_records(
-        task_instance.task_id, task_instance.dag_id, session=session
-    )
