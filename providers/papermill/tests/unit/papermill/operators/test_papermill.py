@@ -88,10 +88,6 @@ class TestPapermillOperator:
         assert op.input_nb.url == TEST_INPUT_URL  # type: ignore
         assert op.output_nb.url == TEST_OUTPUT_URL  # type: ignore
 
-        # Test render Lineage inlets/outlets
-        assert op.inlets[0] == op.input_nb
-        assert op.outlets[0] == op.output_nb
-
     @patch("airflow.providers.papermill.operators.papermill.pm")
     def test_execute(self, mock_papermill):
         in_nb = "/tmp/does_not_exist"

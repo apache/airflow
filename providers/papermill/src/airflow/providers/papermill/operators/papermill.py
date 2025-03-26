@@ -59,8 +59,6 @@ class PapermillOperator(BaseOperator):
         (ignores kernel name in the notebook document metadata)
     """
 
-    supports_lineage = True
-
     template_fields: Sequence[str] = (
         "input_nb",
         "output_nb",
@@ -101,8 +99,6 @@ class PapermillOperator(BaseOperator):
             self.input_nb = NoteBook(url=self.input_nb, parameters=self.parameters)  # type: ignore[call-arg]
         if not isinstance(self.output_nb, NoteBook):
             self.output_nb = NoteBook(url=self.output_nb)  # type: ignore[call-arg]
-        self.inlets.append(self.input_nb)
-        self.outlets.append(self.output_nb)
         remote_kernel_kwargs = {}
         kernel_hook = self.hook
         if kernel_hook:
@@ -131,6 +127,8 @@ class PapermillOperator(BaseOperator):
             engine_name=engine_name,
             **remote_kernel_kwargs,
         )
+
+        return self.output_nb
 
     @cached_property
     def hook(self) -> KernelHook | None:
