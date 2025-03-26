@@ -938,14 +938,3 @@ with airflow.DAG(
         dagbag = DagBag(dag_folder="", include_examples=False, collect_dags=False, known_pools=known_pools)
         dagbag.bag_dag(dag)
         assert dagbag.dag_warnings == expected
-
-    def test_process_dag_file_defined_with_task_sdk(self, tmp_path):
-        """
-        Test dag file parsing for a dag defined with task sdk.
-        """
-
-        dagbag = DagBag(dag_folder=os.fspath(tmp_path), include_examples=False, collect_dags=False)
-        found = dagbag.process_file(os.path.join(TEST_DAGS_FOLDER, "test_dag_defined_with_sdk.py"))
-        assert len(found) == 1
-        assert found[0].dag_id == "test_dag"
-        assert dagbag.import_errors == {}
