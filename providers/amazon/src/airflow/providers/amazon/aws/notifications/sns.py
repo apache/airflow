@@ -20,8 +20,8 @@ from __future__ import annotations
 from collections.abc import Sequence
 from functools import cached_property
 
-from airflow.notifications.basenotifier import BaseNotifier
 from airflow.providers.amazon.aws.hooks.sns import SnsHook
+from airflow.providers.common.compat.notifier import BaseNotifier
 
 
 class SnsNotifier(BaseNotifier):

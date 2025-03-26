@@ -205,7 +205,7 @@ jobs:
         run: |
           for provider in ${REMOVE_PROVIDERS}; do
             echo "Removing incompatible provider: ${provider}"
-            rm -vf dist/apache_airflow_providers_${provider/./_}*
+            rm -vf dist/apache_airflow_providers_${provider/./_}-*
           done
         if: matrix.remove-providers != ''
       - name: "Download airflow package: wheel"
