@@ -22,12 +22,12 @@ import { forwardRef } from "react";
 import { Item } from "./Item";
 
 type VisibilityProps = {
-  clearable?: boolean;
-  showSize?: boolean;
+  readonly clearable?: boolean;
+  readonly showSize?: boolean;
 };
 
 type FileUploadListProps = {
-  files?: Array<File>;
+  readonly files?: Array<File>;
 } & ChakraFileUpload.ItemGroupProps &
   VisibilityProps;
 

@@ -18,70 +18,9 @@
 from __future__ import annotations
 
 import json
-from datetime import date, datetime
-from decimal import Decimal
 from typing import Any
 
-from flask.json.provider import JSONProvider
-
-from airflow.serialization.serde import CLASSNAME, DATA, SCHEMA_ID, deserialize, serialize
-from airflow.utils.timezone import convert_to_utc, is_naive
-
-
-class AirflowJsonProvider(JSONProvider):
-    """JSON Provider for Flask app to use WebEncoder."""
-
-    ensure_ascii: bool = True
-    sort_keys: bool = True
-
-    def dumps(self, obj, **kwargs):
-        kwargs.setdefault("ensure_ascii", self.ensure_ascii)
-        kwargs.setdefault("sort_keys", self.sort_keys)
-        return json.dumps(obj, **kwargs, cls=WebEncoder)
-
-    def loads(self, s: str | bytes, **kwargs):
-        return json.loads(s, **kwargs)
-
-
-class WebEncoder(json.JSONEncoder):
-    """
-    This encodes values into a web understandable format. There is no deserializer.
-
-    This parses datetime, dates, Decimal and bytes. In order to parse the custom
-    classes and the other types, and since it's just to show the result in the UI,
-    we return repr(object) for everything else.
-    """
-
-    def default(self, o: Any) -> Any:
-        if isinstance(o, datetime):
-            if is_naive(o):
-                o = convert_to_utc(o)
-            return o.isoformat()
-
-        if isinstance(o, date):
-            return o.strftime("%Y-%m-%d")
-
-        if isinstance(o, Decimal):
-            data = serialize(o)
-            if isinstance(data, dict) and DATA in data:
-                return data[DATA]
-        if isinstance(o, bytes):
-            try:
-                return o.decode("unicode_escape")
-            except UnicodeDecodeError:
-                return repr(o)
-        try:
-            data = serialize(o)
-            if isinstance(data, dict) and CLASSNAME in data:
-                # this is here for backwards compatibility
-                if (
-                    data[CLASSNAME].startswith("numpy")
-                    or data[CLASSNAME] == "kubernetes.client.models.v1_pod.V1Pod"
-                ):
-                    return data[DATA]
-            return data
-        except TypeError:
-            return repr(o)
+from airflow.serialization.serde import CLASSNAME, SCHEMA_ID, deserialize, serialize
 
 
 class XComEncoder(json.JSONEncoder):
@@ -121,7 +60,3 @@ class XComDecoder(json.JSONDecoder):
     def orm_object_hook(dct: dict) -> object:
         """Create a readable representation of a serialized object."""
         return deserialize(dct, False)
-
-
-# backwards compatibility
-AirflowJsonEncoder = WebEncoder

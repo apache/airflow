@@ -25,11 +25,11 @@ import { Group, InputElement } from "@chakra-ui/react";
 import { cloneElement, forwardRef } from "react";
 
 export type InputGroupProps = {
-  children: React.ReactElement;
-  endElement?: React.ReactNode;
-  endElementProps?: InputElementProps;
-  startElement?: React.ReactNode;
-  startElementProps?: InputElementProps;
+  readonly children: React.ReactElement;
+  readonly endElement?: React.ReactNode;
+  readonly endElementProps?: InputElementProps;
+  readonly startElement?: React.ReactNode;
+  readonly startElementProps?: InputElementProps;
 } & BoxProps;
 
 export const InputGroup = forwardRef<HTMLDivElement, InputGroupProps>((props, ref) => {

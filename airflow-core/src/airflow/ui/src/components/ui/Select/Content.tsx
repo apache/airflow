@@ -20,8 +20,8 @@ import { Select as ChakraSelect, Portal } from "@chakra-ui/react";
 import { forwardRef } from "react";
 
 type ContentProps = {
-  portalled?: boolean;
-  portalRef?: React.RefObject<HTMLElement>;
+  readonly portalled?: boolean;
+  readonly portalRef?: React.RefObject<HTMLElement>;
 } & ChakraSelect.ContentProps;
 
 export const Content = forwardRef<HTMLDivElement, ContentProps>((props, ref) => {

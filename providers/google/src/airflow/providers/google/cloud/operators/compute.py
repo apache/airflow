@@ -25,9 +25,9 @@ from typing import TYPE_CHECKING, Any
 
 from google.api_core import exceptions
 from google.cloud.compute_v1.types import Instance, InstanceGroupManager, InstanceTemplate
-from json_merge_patch import merge
 
 from airflow.exceptions import AirflowException
+from airflow.providers.google._vendor.json_merge_patch import merge
 from airflow.providers.google.cloud.hooks.compute import ComputeEngineHook
 from airflow.providers.google.cloud.links.compute import (
     ComputeInstanceDetailsLink,

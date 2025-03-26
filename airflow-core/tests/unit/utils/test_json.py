@@ -19,11 +19,8 @@ from __future__ import annotations
 
 import json
 from dataclasses import dataclass
-from datetime import date, datetime
 from typing import ClassVar
 
-import numpy as np
-import pendulum
 import pytest
 
 from airflow.sdk.definitions.asset import Asset
@@ -53,28 +50,6 @@ class Z:
 class U:
     __version__: ClassVar[int] = 2
     x: int
-
-
-class TestWebEncoder:
-    def test_encode_datetime(self):
-        obj = datetime.strptime("2017-05-21 00:00:00", "%Y-%m-%d %H:%M:%S")
-        assert json.dumps(obj, cls=utils_json.WebEncoder) == '"2017-05-21T00:00:00+00:00"'
-
-    def test_encode_pendulum(self):
-        obj = pendulum.datetime(2017, 5, 21, tz="Asia/Kolkata")
-        assert json.dumps(obj, cls=utils_json.WebEncoder) == '"2017-05-21T00:00:00+05:30"'
-
-    def test_encode_date(self):
-        assert json.dumps(date(2017, 5, 21), cls=utils_json.WebEncoder) == '"2017-05-21"'
-
-    def test_encode_numpy_int(self):
-        assert json.dumps(np.int32(5), cls=utils_json.WebEncoder) == "5"
-
-    def test_encode_numpy_bool(self):
-        assert json.dumps(np.bool_(True), cls=utils_json.WebEncoder) == "true"
-
-    def test_encode_numpy_float(self):
-        assert json.dumps(np.float16(3.76953125), cls=utils_json.WebEncoder) == "3.76953125"
 
 
 class TestXComEncoder:

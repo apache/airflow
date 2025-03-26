@@ -22,8 +22,8 @@ import { forwardRef } from "react";
 import { CloseButton } from "../CloseButton";
 
 type Props = {
-  clearable?: boolean;
-  isActive?: boolean;
+  readonly clearable?: boolean;
+  readonly isActive?: boolean;
 } & ChakraSelect.ControlProps;
 
 export const Trigger = forwardRef<HTMLButtonElement, Props>((props, ref) => {

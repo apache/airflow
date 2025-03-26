@@ -17,8 +17,9 @@
 
 from __future__ import annotations
 
-import operator
 from functools import cache
+from operator import methodcaller
+from typing import Callable
 
 from typing_extensions import Any
 
@@ -31,7 +32,6 @@ from airflow.api_fastapi.core_api.datamodels.ui.grid import (
     GridTaskInstanceSummary,
 )
 from airflow.configuration import conf
-from airflow.exceptions import AirflowConfigException
 from airflow.models.baseoperator import BaseOperator as DBBaseOperator
 from airflow.models.taskmap import TaskMap
 from airflow.sdk import BaseOperator
@@ -41,14 +41,12 @@ from airflow.utils.state import TaskInstanceState
 
 
 @cache
-def get_task_group_children_getter() -> operator.methodcaller:
+def get_task_group_children_getter() -> Callable:
     """Get the Task Group Children Getter for the DAG."""
-    sort_order = conf.get("webserver", "grid_view_sorting_order", fallback="topological")
+    sort_order = conf.get("webserver", "grid_view_sorting_order")
     if sort_order == "topological":
-        return operator.methodcaller("topological_sort")
-    if sort_order == "hierarchical_alphabetical":
-        return operator.methodcaller("hierarchical_alphabetical_sort")
-    raise AirflowConfigException(f"Unsupported grid_view_sorting_order: {sort_order}")
+        return methodcaller("topological_sort")
+    return methodcaller("hierarchical_alphabetical_sort")
 
 
 def get_task_group_map(dag: DAG) -> dict[str, dict[str, Any]]:
@@ -83,10 +81,11 @@ def get_task_group_map(dag: DAG) -> dict[str, dict[str, Any]]:
     def _fill_task_group_map(
         task_node: BaseOperator | MappedTaskGroup | TaskMap | None,
         parent_node: BaseOperator | MappedTaskGroup | TaskMap | None,
-    ):
+    ) -> None:
         """Recursively fill the Task Group Map."""
         if task_node is None:
             return
+
         if isinstance(task_node, MappedOperator):
             task_nodes[task_node.node_id] = {
                 "is_group": False,
@@ -96,22 +95,19 @@ def get_task_group_map(dag: DAG) -> dict[str, dict[str, Any]]:
             # Add the Task Count to the Parent Node because parent node is a Task Group
             _append_child_task_count_to_parent(child_task_count=task_node, parent_node=parent_node)
             return
-        elif isinstance(task_node, TaskGroup):
-            task_count = (
-                task_node
-                if _is_task_node_mapped_task_group(task_node)
-                else len([child for child in get_task_group_children_getter()(task_node)])
-            )
+
+        if isinstance(task_node, TaskGroup):
+            task_count = task_node if _is_task_node_mapped_task_group(task_node) else len(task_node.children)
             task_nodes[task_node.node_id] = {
                 "is_group": True,
                 "parent_id": parent_node.node_id if parent_node else None,
                 "task_count": [task_count],
             }
-            return [
+            for child in get_task_group_children_getter()(task_node):
                 _fill_task_group_map(task_node=child, parent_node=task_node)
-                for child in get_task_group_children_getter()(task_node)
-            ]
-        elif isinstance(task_node, BaseOperator):
+            return
+
+        if isinstance(task_node, BaseOperator):
             task_nodes[task_node.task_id] = {
                 "is_group": False,
                 "parent_id": parent_node.node_id if parent_node else None,

@@ -33,7 +33,7 @@ export const HiddenInput = ({ name }: FlexibleFormElementProps) => {
         id={`element_${name}`}
         name={`element_${name}`}
         type="hidden"
-        value={String(param.value ?? "")}
+        value={JSON.stringify(param.value ?? "")}
       />
     </VisuallyHidden>
   );

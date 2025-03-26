@@ -48,7 +48,7 @@ export const FieldDateTime = ({ name, ...rest }: FlexibleFormElementProps & Inpu
       onChange={(event) => handleChange(event.target.value)}
       size="sm"
       type={rest.type}
-      value={param.value !== null && param.value !== undefined ? String(param.value).slice(0, 16) : ""}
+      value={JSON.stringify(param.value ?? "").slice(0, 16)}
     />
   );
 };

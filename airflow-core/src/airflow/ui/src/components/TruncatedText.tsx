@@ -31,7 +31,6 @@ export const TruncatedText = ({ text, ...rest }: Props) => (
       WebkitLineClamp: 2,
     }}
     title={text}
-    width="200px"
     wordBreak="break-word"
     {...rest}
   >
