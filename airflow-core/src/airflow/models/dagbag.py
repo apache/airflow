@@ -470,9 +470,10 @@ class DagBag(LoggingMixin):
 
     def _process_modules(self, filepath, mods, file_last_changed_on_disk):
         from airflow.models.dag import DAG  # Avoid circular import
+        from airflow.sdk import DAG as SDKDAG
         from airflow.sdk.definitions._internal.contextmanager import DagContext
 
-        top_level_dags = {(o, m) for m in mods for o in m.__dict__.values() if isinstance(o, DAG)}
+        top_level_dags = {(o, m) for m in mods for o in m.__dict__.values() if isinstance(o, (DAG, SDKDAG))}
 
         top_level_dags.update(DagContext.autoregistered_dags)
 
