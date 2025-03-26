@@ -903,7 +903,7 @@ ASSETS_COMMANDS = (
     ActionCommand(
         name="materialize",
         help="Materialize an asset",
-        func=lazy_load_command("airflow.cli.commands.asset_command.asset_materialize"),
+        func=lazy_load_command("airflow.cli.commands.remote_commands.asset_command.asset_materialize"),
         args=(ARG_ASSET_NAME, ARG_ASSET_URI, ARG_OUTPUT, ARG_VERBOSE),
     ),
 )
