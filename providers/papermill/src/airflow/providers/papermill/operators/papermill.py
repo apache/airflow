@@ -60,8 +60,6 @@ class PapermillOperator(BaseOperator):
         (ignores kernel name in the notebook document metadata)
     """
 
-    supports_lineage = True
-
     template_fields: Sequence[str] = (
         "input_nb",
         "output_nb",
@@ -108,8 +106,6 @@ class PapermillOperator(BaseOperator):
             self.input_nb = NoteBook(url=self.input_nb, parameters=self.parameters)  # type: ignore[call-arg]
         if not isinstance(self.output_nb, NoteBook):
             self.output_nb = NoteBook(url=self.output_nb)  # type: ignore[call-arg]
-        self.inlets.append(self.input_nb)
-        self.outlets.append(self.output_nb)
         remote_kernel_kwargs = {}
         kernel_hook = self.hook
         if kernel_hook:
@@ -139,28 +135,7 @@ class PapermillOperator(BaseOperator):
             **remote_kernel_kwargs,
         )
 
-        # Convert the executed notebook to HTML using nbconvert
-        if self.nbconvert:
-            nbconvert_args = self.nbconvert_args or []
-            if not isinstance(nbconvert_args, list):
-                raise ValueError("nbconvert_args must be a list")
-
-            # Build the nbconvert command
-            command = [
-                "jupyter",
-                "nbconvert",
-                "--to",
-                "html",
-                "--log-level",
-                "WARN",
-                self.output_nb.url,
-            ] + nbconvert_args
-            try:
-                subprocess.run(command, check=True)
-                self.log.info("Output HTML: %s", self.output_nb.url.replace(".ipynb", ".html"))
-            except subprocess.CalledProcessError as e:
-                self.log.error("nbconvert failed with output:\n%s", e.stdout)
-                raise
+        return self.output_nb
 
     @cached_property
     def hook(self) -> KernelHook | None:
