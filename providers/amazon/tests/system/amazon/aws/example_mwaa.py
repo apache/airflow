@@ -27,6 +27,7 @@ from airflow.providers.amazon.aws.hooks.mwaa import MwaaHook
 from airflow.providers.amazon.aws.hooks.sts import StsHook
 from airflow.providers.amazon.aws.operators.mwaa import MwaaTriggerDagRunOperator
 from airflow.providers.amazon.aws.sensors.mwaa import MwaaDagRunSensor
+
 from system.amazon.aws.utils import SystemTestContextBuilder
 
 DAG_ID = "example_mwaa"
@@ -72,6 +73,7 @@ with DAG(
         task_id="trigger_dag_run",
         env_name=env_name,
         trigger_dag_id=trigger_dag_id,
+        wait_for_completion=True,
     )
     # [END howto_operator_mwaa_trigger_dag_run]
 

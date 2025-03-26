@@ -28,6 +28,7 @@ from airflow.providers.amazon.aws.operators.step_function import (
     StepFunctionStartExecutionOperator,
 )
 from airflow.providers.amazon.aws.sensors.step_function import StepFunctionExecutionSensor
+
 from system.amazon.aws.utils import ENV_ID_KEY, SystemTestContextBuilder
 
 DAG_ID = "example_step_functions"

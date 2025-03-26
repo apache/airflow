@@ -23,6 +23,9 @@ from pathlib import Path
 import pytest
 
 from airflow_breeze.prepare_providers.provider_documentation import (
+    VERSION_MAJOR_INDEX,
+    VERSION_MINOR_INDEX,
+    VERSION_PATCHLEVEL_INDEX,
     Change,
     TypeOfChange,
     _convert_git_changes_to_table,
@@ -299,3 +302,18 @@ def test_classify_changes_automatically(
     assert len(classified_changes.other) == other_count
     assert len(classified_changes.other) == other_count
     assert len(classified_changes.misc) == misc_count
+
+
+@pytest.mark.parametrize(
+    "initial_version, bump_index, expected_version",
+    [
+        ("4.2.1", VERSION_MAJOR_INDEX, "5.0.0"),
+        ("3.5.9", VERSION_MINOR_INDEX, "3.6.0"),
+        ("2.0.0", VERSION_PATCHLEVEL_INDEX, "2.0.1"),
+    ],
+)
+def test_version_bump_for_provider_documentation(initial_version, bump_index, expected_version):
+    from airflow_breeze.prepare_providers.provider_documentation import Version, bump_version
+
+    result = bump_version(Version(initial_version), bump_index)
+    assert str(result) == expected_version

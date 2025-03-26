@@ -96,6 +96,13 @@ def redact_jwt(logger: Any, method_name: str, event_dict: EventDict) -> EventDic
     return event_dict
 
 
+def mask_logs(logger: Any, method_name: str, event_dict: EventDict) -> EventDict:
+    from airflow.sdk.execution_time.secrets_masker import redact
+
+    event_dict = redact(event_dict)  # type: ignore[assignment]
+    return event_dict
+
+
 def drop_positional_args(logger: Any, method_name: Any, event_dict: EventDict) -> EventDict:
     event_dict.pop("positional_args", None)
     return event_dict
@@ -141,6 +148,7 @@ def logging_processors(
         structlog.stdlib.PositionalArgumentsFormatter(),
         logger_name,
         redact_jwt,
+        mask_logs,
         structlog.processors.StackInfoRenderer(),
     ]
 

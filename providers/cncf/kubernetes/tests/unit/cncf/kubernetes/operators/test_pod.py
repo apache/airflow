@@ -36,7 +36,6 @@ from airflow.exceptions import (
     TaskDeferred,
 )
 from airflow.models import DAG, DagModel, DagRun, TaskInstance
-from airflow.models.xcom import XCom
 from airflow.providers.cncf.kubernetes import pod_generator
 from airflow.providers.cncf.kubernetes.operators.pod import (
     KubernetesPodOperator,
@@ -56,6 +55,11 @@ from airflow.utils.types import DagRunType
 
 from tests_common.test_utils import db
 from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS
+
+if AIRFLOW_V_3_0_PLUS:
+    from airflow.models.xcom import XComModel as XCom
+else:
+    from airflow.models.xcom import XCom  # type: ignore[no-redef]
 
 pytestmark = pytest.mark.db_test
 
@@ -163,6 +167,7 @@ class TestKubernetesPodOperator:
             task_id="task-id",
             name="{{ dag.dag_id }}",
             hostname="{{ dag.dag_id }}",
+            base_container_name="{{ dag.dag_id }}",
             namespace="{{ dag.dag_id }}",
             container_resources=k8s.V1ResourceRequirements(
                 requests={"memory": "{{ dag.dag_id }}", "cpu": "{{ dag.dag_id }}"},
@@ -208,6 +213,7 @@ class TestKubernetesPodOperator:
         assert dag_id == ti.task.cmds
         assert dag_id == ti.task.name
         assert dag_id == ti.task.hostname
+        assert dag_id == ti.task.base_container_name
         assert dag_id == ti.task.namespace
         assert dag_id == ti.task.config_file
         assert dag_id == ti.task.labels
@@ -1305,8 +1311,18 @@ class TestKubernetesPodOperator:
         )
 
         pod, _ = self.run_pod(k)
-        pod_name = XCom.get_one(run_id=self.dag_run.run_id, task_id="task", key="pod_name")
-        pod_namespace = XCom.get_one(run_id=self.dag_run.run_id, task_id="task", key="pod_namespace")
+        if AIRFLOW_V_3_0_PLUS:
+            pod_name = XCom.get_many(run_id=self.dag_run.run_id, task_ids="task", key="pod_name").first()
+            pod_namespace = XCom.get_many(
+                run_id=self.dag_run.run_id, task_ids="task", key="pod_namespace"
+            ).first()
+
+            pod_name = XCom.deserialize_value(pod_name)
+            pod_namespace = XCom.deserialize_value(pod_namespace)
+        else:
+            pod_name = XCom.get_one(run_id=self.dag_run.run_id, task_id="task", key="pod_name")
+            pod_namespace = XCom.get_one(run_id=self.dag_run.run_id, task_id="task", key="pod_namespace")
+
         assert pod_name == pod.metadata.name
         assert pod_namespace == pod.metadata.namespace
 
@@ -1547,6 +1563,7 @@ class TestKubernetesPodOperator:
     @patch(KUB_OP_PATH.format("find_pod"))
     def test_execute_sync_callbacks(self, find_pod_mock):
         from airflow.providers.cncf.kubernetes.callbacks import ExecutionMode
+
         from unit.cncf.kubernetes.test_callbacks import (
             MockKubernetesPodOperatorCallback,
             MockWrapper,
@@ -1633,6 +1650,7 @@ class TestKubernetesPodOperator:
     @patch(KUB_OP_PATH.format("find_pod"))
     def test_execute_sync_multiple_callbacks(self, find_pod_mock):
         from airflow.providers.cncf.kubernetes.callbacks import ExecutionMode
+
         from unit.cncf.kubernetes.test_callbacks import (
             MockKubernetesPodOperatorCallback,
             MockWrapper,
@@ -1718,6 +1736,7 @@ class TestKubernetesPodOperator:
     @patch(HOOK_CLASS, new=MagicMock)
     def test_execute_async_callbacks(self):
         from airflow.providers.cncf.kubernetes.callbacks import ExecutionMode
+
         from unit.cncf.kubernetes.test_callbacks import (
             MockKubernetesPodOperatorCallback,
             MockWrapper,

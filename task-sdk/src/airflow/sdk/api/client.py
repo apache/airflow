@@ -32,12 +32,13 @@ from retryhttp import retry, wait_retry_after
 from tenacity import before_log, wait_random_exponential
 from uuid6 import uuid7
 
-from airflow.api_fastapi.execution_api.datamodels.taskinstance import TIRuntimeCheckPayload
 from airflow.sdk import __version__
 from airflow.sdk.api.datamodels._generated import (
+    API_VERSION,
     AssetEventsResponse,
     AssetResponse,
     ConnectionResponse,
+    DagRunStateResponse,
     DagRunType,
     PrevSuccessfulDagRunResponse,
     TerminalStateNonSuccess,
@@ -50,6 +51,7 @@ from airflow.sdk.api.datamodels._generated import (
     TISkippedDownstreamTasksStatePayload,
     TISuccessStatePayload,
     TITerminalStatePayload,
+    TriggerDAGRunPayload,
     ValidationError as RemoteValidationError,
     VariablePostBody,
     VariableResponse,
@@ -59,8 +61,8 @@ from airflow.sdk.exceptions import ErrorType
 from airflow.sdk.execution_time.comms import (
     ErrorResponse,
     OKResponse,
-    RuntimeCheckOnTask,
     SkipDownstreamTasks,
+    TaskRescheduleStartDate,
 )
 from airflow.utils.net import get_hostname
 from airflow.utils.platform import getuser
@@ -113,7 +115,7 @@ def raise_on_4xx_5xx_with_note(response: httpx.Response):
         if TYPE_CHECKING:
             assert hasattr(e, "add_note")
         e.add_note(
-            f"Correlation-id={response.headers.get('correlation-id', None) or response.request.headers.get('correlation-id', 'no-correlction-id')}"
+            f"Correlation-id={response.headers.get('correlation-id', None) or response.request.headers.get('correlation-id', 'no-correlation-id')}"
         )
         raise
 
@@ -193,18 +195,10 @@ class TaskInstanceOperations:
         resp = self.client.get(f"task-instances/{id}/previous-successful-dagrun")
         return PrevSuccessfulDagRunResponse.model_validate_json(resp.read())
 
-    def runtime_checks(self, id: uuid.UUID, msg: RuntimeCheckOnTask) -> OKResponse:
-        body = TIRuntimeCheckPayload(**msg.model_dump(exclude_unset=True, exclude={"type"}))
-        try:
-            self.client.post(f"task-instances/{id}/runtime-checks", content=body.model_dump_json())
-            return OKResponse(ok=True)
-        except ServerResponseError as e:
-            if e.response.status_code == 400:
-                return OKResponse(ok=False)
-            elif e.response.status_code == 409:
-                # The TI isn't in the right state to perform the check, but we shouldn't fail the task for that
-                return OKResponse(ok=True)
-            raise
+    def get_reschedule_start_date(self, id: uuid.UUID, try_number: int = 1) -> TaskRescheduleStartDate:
+        """Get the start date of a task reschedule via the API server."""
+        resp = self.client.get(f"task-reschedules/{id}/start_date", params={"try_number": try_number})
+        return TaskRescheduleStartDate.model_construct(start_date=resp.json())
 
 
 class ConnectionOperations:
@@ -254,7 +248,7 @@ class VariableOperations:
 
     def set(self, key: str, value: str | None, description: str | None = None):
         """Set an Airflow Variable via the API server."""
-        body = VariablePostBody(value=value, description=description)
+        body = VariablePostBody(val=value, description=description)
         self.client.put(f"variables/{key}", content=body.model_dump_json())
         # Any error from the server will anyway be propagated down to the supervisor,
         # so we choose to send a generic response to the supervisor over the server response to
@@ -333,6 +327,24 @@ class XComOperations:
         # decouple from the server response string
         return {"ok": True}
 
+    def delete(
+        self,
+        dag_id: str,
+        run_id: str,
+        task_id: str,
+        key: str,
+        map_index: int | None = None,
+    ) -> dict[str, bool]:
+        """Delete a XCom with given key via the API server."""
+        params = {}
+        if map_index is not None and map_index >= 0:
+            params = {"map_index": map_index}
+        self.client.delete(f"xcoms/{dag_id}/{run_id}/{task_id}/{key}", params=params)
+        # Any error from the server will anyway be propagated down to the supervisor,
+        # so we choose to send a generic response to the supervisor over the server response to
+        # decouple from the server response string
+        return {"ok": True}
+
 
 class AssetOperations:
     __slots__ = ("client",)
@@ -340,14 +352,29 @@ class AssetOperations:
     def __init__(self, client: Client):
         self.client = client
 
-    def get(self, name: str | None = None, uri: str | None = None) -> AssetResponse:
+    def get(self, name: str | None = None, uri: str | None = None) -> AssetResponse | ErrorResponse:
         """Get Asset value from the API server."""
         if name:
-            resp = self.client.get("assets/by-name", params={"name": name})
+            endpoint = "assets/by-name"
+            params = {"name": name}
         elif uri:
-            resp = self.client.get("assets/by-uri", params={"uri": uri})
+            endpoint = "assets/by-uri"
+            params = {"uri": uri}
         else:
             raise ValueError("Either `name` or `uri` must be provided")
+
+        try:
+            resp = self.client.get(endpoint, params=params)
+        except ServerResponseError as e:
+            if e.response.status_code == HTTPStatus.NOT_FOUND:
+                log.error(
+                    "Asset not found",
+                    params=params,
+                    detail=e.detail,
+                    status_code=e.response.status_code,
+                )
+                return ErrorResponse(error=ErrorType.ASSET_NOT_FOUND, detail=params)
+            raise
 
         return AssetResponse.model_validate_json(resp.read())
 
@@ -370,6 +397,52 @@ class AssetEventOperations:
             raise ValueError("Either `name`, `uri` or `alias_name` must be provided")
 
         return AssetEventsResponse.model_validate_json(resp.read())
+
+
+class DagRunOperations:
+    __slots__ = ("client",)
+
+    def __init__(self, client: Client):
+        self.client = client
+
+    def trigger(
+        self,
+        dag_id: str,
+        run_id: str,
+        conf: dict | None = None,
+        logical_date: datetime | None = None,
+        reset_dag_run: bool = False,
+    ):
+        """Trigger a DAG run via the API server."""
+        body = TriggerDAGRunPayload(logical_date=logical_date, conf=conf or {}, reset_dag_run=reset_dag_run)
+
+        try:
+            self.client.post(
+                f"dag-runs/{dag_id}/{run_id}", content=body.model_dump_json(exclude_defaults=True)
+            )
+        except ServerResponseError as e:
+            if e.response.status_code == HTTPStatus.CONFLICT:
+                if reset_dag_run:
+                    log.info("DAG Run already exists; Resetting DAG Run.", dag_id=dag_id, run_id=run_id)
+                    return self.clear(run_id=run_id, dag_id=dag_id)
+
+                log.info("DAG Run already exists!", detail=e.detail, dag_id=dag_id, run_id=run_id)
+                return ErrorResponse(error=ErrorType.DAGRUN_ALREADY_EXISTS)
+            else:
+                raise
+
+        return OKResponse(ok=True)
+
+    def clear(self, dag_id: str, run_id: str):
+        """Clear a DAG run via the API server."""
+        self.client.post(f"dag-runs/{dag_id}/{run_id}/clear")
+        # TODO: Error handling
+        return OKResponse(ok=True)
+
+    def get_state(self, dag_id: str, run_id: str) -> DagRunStateResponse:
+        """Get the state of a DAG run via the API server."""
+        resp = self.client.get(f"dag-runs/{dag_id}/{run_id}/state")
+        return DagRunStateResponse.model_validate_json(resp.read())
 
 
 class BearerAuth(httpx.Auth):
@@ -402,6 +475,7 @@ def noop_handler(request: httpx.Request) -> httpx.Response:
                     "run_after": "2021-01-01T00:00:00Z",
                 },
                 "max_tries": 0,
+                "should_retry": False,
             },
         )
     return httpx.Response(200, json={"text": "Hello, world!"})
@@ -432,7 +506,10 @@ class Client(httpx.Client):
         pyver = f"{'.'.join(map(str, sys.version_info[:3]))}"
         super().__init__(
             auth=auth,
-            headers={"user-agent": f"apache-airflow-task-sdk/{__version__} (Python/{pyver})"},
+            headers={
+                "user-agent": f"apache-airflow-task-sdk/{__version__} (Python/{pyver})",
+                "airflow-api-version": API_VERSION,
+            },
             event_hooks={"response": [raise_on_4xx_5xx], "request": [add_correlation_id]},
             **kwargs,
         )
@@ -461,6 +538,12 @@ class Client(httpx.Client):
     def task_instances(self) -> TaskInstanceOperations:
         """Operations related to TaskInstances."""
         return TaskInstanceOperations(self)
+
+    @lru_cache()  # type: ignore[misc]
+    @property
+    def dag_runs(self) -> DagRunOperations:
+        """Operations related to DagRuns."""
+        return DagRunOperations(self)
 
     @lru_cache()  # type: ignore[misc]
     @property

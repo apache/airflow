@@ -54,6 +54,7 @@ from pydantic import TypeAdapter
 
 from airflow.sdk.api.client import Client, ServerResponseError
 from airflow.sdk.api.datamodels._generated import (
+    AssetResponse,
     ConnectionResponse,
     IntermediateTIState,
     TaskInstance,
@@ -64,20 +65,23 @@ from airflow.sdk.execution_time.comms import (
     AssetEventsResult,
     AssetResult,
     ConnectionResult,
+    DagRunStateResult,
     DeferTask,
+    DeleteXCom,
     GetAssetByName,
     GetAssetByUri,
     GetAssetEventByAsset,
     GetAssetEventByAssetAlias,
     GetConnection,
+    GetDagRunState,
     GetPrevSuccessfulDagRun,
+    GetTaskRescheduleStartDate,
     GetVariable,
     GetXCom,
     GetXComCount,
     PrevSuccessfulDagRunResult,
     PutVariable,
     RescheduleTask,
-    RuntimeCheckOnTask,
     SetRenderedFields,
     SetXCom,
     SkipDownstreamTasks,
@@ -85,6 +89,7 @@ from airflow.sdk.execution_time.comms import (
     SucceedTask,
     TaskState,
     ToSupervisor,
+    TriggerDagRun,
     VariableResult,
     XComCountResponse,
     XComResult,
@@ -94,10 +99,11 @@ if TYPE_CHECKING:
     from structlog.typing import FilteringBoundLogger, WrappedLogger
 
     from airflow.executors.workloads import BundleInfo
+    from airflow.secrets import BaseSecretsBackend
     from airflow.typing_compat import Self
 
 
-__all__ = ["ActivitySubprocess", "WatchedSubprocess", "supervise"]
+__all__ = ["ActivitySubprocess", "WatchedSubprocess", "supervise", "SECRETS_BACKEND"]
 
 log: FilteringBoundLogger = structlog.get_logger(logger_name="supervisor")
 
@@ -117,6 +123,8 @@ STATES_SENT_DIRECTLY = [
     IntermediateTIState.UP_FOR_RESCHEDULE,
     TerminalTIState.SUCCESS,
 ]
+
+SECRETS_BACKEND: list[BaseSecretsBackend] = []
 
 
 @overload
@@ -235,7 +243,8 @@ def block_orm_access():
         from airflow import settings
         from airflow.configuration import conf
 
-        for attr in ("engine", "async_engine", "Session", "AsyncSession", "NonScopedSession"):
+        to_block = frozenset(("engine", "async_engine", "Session", "AsyncSession", "NonScopedSession"))
+        for attr in to_block:
             if hasattr(settings, attr):
                 delattr(settings, attr)
 
@@ -249,10 +258,20 @@ def block_orm_access():
             conf.set("database", "sql_alchemy_conn_cmd", "/bin/false")
             conf.set("database", "sql_alchemy_conn_secret", "db-access-blocked")
 
+        # This only gets called when the module does not already have an attribute, and for these values
+        # lets give a custom error message
+        def __getattr__(name: str):
+            if name in to_block:
+                raise AttributeError("Access to the Airflow Metadatabase from dags is not allowed!")
+            raise AttributeError(f"module {settings.__name__!r} has no attribute {name!r}")
+
+        settings.__getattr__ = __getattr__
+
         settings.SQL_ALCHEMY_CONN = conn
         settings.SQL_ALCHEMY_CONN_ASYNC = conn
 
     os.environ["AIRFLOW__DATABASE__SQL_ALCHEMY_CONN"] = conn
+    os.environ["AIRFLOW__CORE__SQL_ALCHEMY_CONN"] = conn
 
 
 def _fork_main(
@@ -622,7 +641,7 @@ class WatchedSubprocess:
         if self._exit_code is None:
             try:
                 self._exit_code = self._process.wait(timeout=0)
-                log.debug("Workload process exited", exit_code=self._exit_code)
+                log.debug("%s process exited", type(self).__name__, exit_code=self._exit_code)
                 self._close_unused_sockets(self.stdin)
             except psutil.TimeoutExpired:
                 if raise_on_timeout:
@@ -855,9 +874,6 @@ class ActivitySubprocess(WatchedSubprocess):
         if isinstance(msg, TaskState):
             self._terminal_state = msg.state
             self._task_end_time_monotonic = time.monotonic()
-        elif isinstance(msg, RuntimeCheckOnTask):
-            runtime_check_resp = self.client.task_instances.runtime_checks(id=self.id, msg=msg)
-            resp = runtime_check_resp.model_dump_json().encode()
         elif isinstance(msg, SucceedTask):
             self._terminal_state = msg.state
             self._task_end_time_monotonic = time.monotonic()
@@ -900,18 +916,26 @@ class ActivitySubprocess(WatchedSubprocess):
             self.client.xcoms.set(
                 msg.dag_id, msg.run_id, msg.task_id, msg.key, msg.value, msg.map_index, msg.mapped_length
             )
+        elif isinstance(msg, DeleteXCom):
+            self.client.xcoms.delete(msg.dag_id, msg.run_id, msg.task_id, msg.key, msg.map_index)
         elif isinstance(msg, PutVariable):
             self.client.variables.set(msg.key, msg.value, msg.description)
         elif isinstance(msg, SetRenderedFields):
             self.client.task_instances.set_rtif(self.id, msg.rendered_fields)
         elif isinstance(msg, GetAssetByName):
             asset_resp = self.client.assets.get(name=msg.name)
-            asset_result = AssetResult.from_asset_response(asset_resp)
-            resp = asset_result.model_dump_json(exclude_unset=True).encode()
+            if isinstance(asset_resp, AssetResponse):
+                asset_result = AssetResult.from_asset_response(asset_resp)
+                resp = asset_result.model_dump_json(exclude_unset=True).encode()
+            else:
+                resp = asset_resp.model_dump_json().encode()
         elif isinstance(msg, GetAssetByUri):
             asset_resp = self.client.assets.get(uri=msg.uri)
-            asset_result = AssetResult.from_asset_response(asset_resp)
-            resp = asset_result.model_dump_json(exclude_unset=True).encode()
+            if isinstance(asset_resp, AssetResponse):
+                asset_result = AssetResult.from_asset_response(asset_resp)
+                resp = asset_result.model_dump_json(exclude_unset=True).encode()
+            else:
+                resp = asset_resp.model_dump_json().encode()
         elif isinstance(msg, GetAssetEventByAsset):
             asset_event_resp = self.client.asset_events.get(uri=msg.uri, name=msg.name)
             asset_event_result = AssetEventsResult.from_asset_events_response(asset_event_resp)
@@ -924,6 +948,21 @@ class ActivitySubprocess(WatchedSubprocess):
             dagrun_resp = self.client.task_instances.get_previous_successful_dagrun(self.id)
             dagrun_result = PrevSuccessfulDagRunResult.from_dagrun_response(dagrun_resp)
             resp = dagrun_result.model_dump_json(exclude_unset=True).encode()
+        elif isinstance(msg, TriggerDagRun):
+            dr_resp = self.client.dag_runs.trigger(
+                msg.dag_id,
+                msg.run_id,
+                msg.conf,
+                msg.logical_date,
+                msg.reset_dag_run,
+            )
+            resp = dr_resp.model_dump_json().encode()
+        elif isinstance(msg, GetDagRunState):
+            dr_resp = self.client.dag_runs.get_state(msg.dag_id, msg.run_id)
+            resp = DagRunStateResult.from_api_response(dr_resp).model_dump_json().encode()
+        elif isinstance(msg, GetTaskRescheduleStartDate):
+            tr_resp = self.client.task_instances.get_reschedule_start_date(msg.ti_id, msg.try_number)
+            resp = tr_resp.model_dump_json().encode()
         else:
             log.error("Unhandled request", msg=msg)
             return
@@ -938,7 +977,7 @@ class ActivitySubprocess(WatchedSubprocess):
 # This returns a callback suitable for attaching to a `selector` that reads in to a buffer, and yields lines
 # to a (sync) generator
 def make_buffered_socket_reader(
-    gen: Generator[None, bytes, None],
+    gen: Generator[None, bytes | bytearray, None],
     on_close: Callable,
     buffer_size: int = 4096,
 ) -> Callable[[socket], bool]:
@@ -956,7 +995,8 @@ def make_buffered_socket_reader(
         if not n_received:
             # If no data is returned, the connection is closed. Return whatever is left in the buffer
             if len(buffer):
-                gen.send(buffer)
+                with suppress(StopIteration):
+                    gen.send(buffer)
             # Tell loop to close this selector
             on_close()
             return False
@@ -966,7 +1006,11 @@ def make_buffered_socket_reader(
         # We could have read multiple lines in one go, yield them all
         while (newline_pos := buffer.find(b"\n")) != -1:
             line = buffer[: newline_pos + 1]
-            gen.send(line)
+            try:
+                gen.send(line)
+            except StopIteration:
+                on_close()
+                return False
             buffer = buffer[newline_pos + 1 :]  # Update the buffer with remaining data
 
         return True
@@ -1026,6 +1070,24 @@ def forward_to_log(
             log.log(level, msg, chan=chan)
 
 
+def initialize_secrets_backend_on_workers():
+    """Initialize the secrets backend on workers."""
+    from airflow.configuration import ensure_secrets_loaded
+    from airflow.secrets import DEFAULT_SECRETS_SEARCH_PATH_WORKERS
+
+    global SECRETS_BACKEND
+    SECRETS_BACKEND = ensure_secrets_loaded(default_backends=DEFAULT_SECRETS_SEARCH_PATH_WORKERS)
+    log.debug("Initialized secrets backend on workers", secrets_backend=SECRETS_BACKEND)
+
+
+def register_secrets_masker():
+    """Register the secrets masker to mask task logs."""
+    from airflow.sdk.execution_time.secrets_masker import get_sensitive_variables_fields, mask_secret
+
+    for field in get_sensitive_variables_fields():
+        mask_secret(field)
+
+
 def supervise(
     *,
     ti: TaskInstance,
@@ -1042,8 +1104,8 @@ def supervise(
     Run a single task execution to completion.
 
     :param ti: The task instance to run.
-    :param dr: Current DagRun of the task instance.
-    :param dag_path: The file path to the DAG.
+    :param bundle_info: Current DagRun of the task instance.
+    :param dag_rel_path: The file path to the DAG.
     :param token: Authentication token for the API client.
     :param server: Base URL of the API server.
     :param dry_run: If True, execute without actual task execution (simulate run).
@@ -1082,6 +1144,10 @@ def supervise(
             underlying_logger = structlog.BytesLogger(log_file.open("ab"))
         processors = logging_processors(enable_pretty_log=pretty_logs)[0]
         logger = structlog.wrap_logger(underlying_logger, processors=processors, logger_name="task").bind()
+
+    initialize_secrets_backend_on_workers()
+
+    register_secrets_masker()
 
     process = ActivitySubprocess.start(
         dag_rel_path=dag_rel_path,

@@ -32,6 +32,7 @@ from airflow.providers.amazon.aws.operators.lambda_function import (
 )
 from airflow.providers.amazon.aws.sensors.lambda_function import LambdaFunctionStateSensor
 from airflow.utils.trigger_rule import TriggerRule
+
 from system.amazon.aws.utils import ENV_ID_KEY, SystemTestContextBuilder, prune_logs
 
 DAG_ID = "example_lambda"

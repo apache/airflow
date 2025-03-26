@@ -37,11 +37,44 @@ For high-level changelog, see :doc:`package information including changelog <ind
 9.5.0
 .....
 
-Latest change: 2025-03-07
+Latest change: 2025-03-26
 
-==================================================================================================  ===========  ==================================================================================
+==================================================================================================  ===========  ======================================================================================================================================
 Commit                                                                                              Committed    Subject
-==================================================================================================  ===========  ==================================================================================
+==================================================================================================  ===========  ======================================================================================================================================
+`6b32358673 <https://github.com/apache/airflow/commit/6b32358673af89f598009dfb3f280c957a5f2da4>`__  2025-03-26   ``Move BaseNotifier to Task SDK (#48008)``
+`82118a964f <https://github.com/apache/airflow/commit/82118a964f2753be591d48bb33e16e2f1b52afb4>`__  2025-03-25   ``Don't expect default conns in s3_to_redshift (#48363)``
+`6adb2dbae4 <https://github.com/apache/airflow/commit/6adb2dbae47341eb61dbc62dbc56176d9aa83fd9>`__  2025-03-25   ``Upgrade providers flit build requirements to 3.12.0 (#48362)``
+`d1f4506030 <https://github.com/apache/airflow/commit/d1f45060305acb1ec638c50f5028f1b4c96cb901>`__  2025-03-25   ``Bump minimum boto3 version to 1.37.0 (#48238)``
+`d1b80e4bd9 <https://github.com/apache/airflow/commit/d1b80e4bd9f78d9bdd0f4c300ea9d91100ccfe9c>`__  2025-03-24   ``(Re)move old dependencies from the old FAB UI (#48007)``
+`db10b89189 <https://github.com/apache/airflow/commit/db10b891891b54c7a93dc75ce8aa8add8a840e09>`__  2025-03-21   ``Updating EC2 Operators and Sensors with AWS Base classes (#47931)``
+`243fe86d4b <https://github.com/apache/airflow/commit/243fe86d4b3e59bb12977b3e36ca3f2ed27ca0f8>`__  2025-03-21   ``Move airflow sources to airflow-core package (#47798)``
+`0d986b2d69 <https://github.com/apache/airflow/commit/0d986b2d695bd36acf28b36b3e665677eb14393a>`__  2025-03-20   ``Don't expect default connections to be present (#47968)``
+`4d6b0df150 <https://github.com/apache/airflow/commit/4d6b0df1501811f2c0892679b973a9d14499f49f>`__  2025-03-19   ``Update example_s3 system test (#47974)``
+`f51b173ddb <https://github.com/apache/airflow/commit/f51b173ddb00ef8493eb5fdefcaccb16eb20b85e>`__  2025-03-19   ``Fix mypy boto3 appflow version (#47912)``
+`0924676ce5 <https://github.com/apache/airflow/commit/0924676ce5df16b61dde44f3f7f35cd2a498784a>`__  2025-03-17   ``Set 'wait_for_completion' to True in example_mwaa system test (#47877)``
+`083c3c8bcc <https://github.com/apache/airflow/commit/083c3c8bccc4e05faf590df05e0c09ce625e8d4f>`__  2025-03-17   ``fix PosixPath not working with file create_asset (#47880)``
+`7605a097b3 <https://github.com/apache/airflow/commit/7605a097b367c36165ffb38e3c4330f702380670>`__  2025-03-17   ``Fix AWS auth manager system test (#47876)``
+`91b0f610ab <https://github.com/apache/airflow/commit/91b0f610ab109f39e27a5a00d9f6d5bf590b47ff>`__  2025-03-17   ``AIP-72: Handle Custom XCom Backend on Task SDK (#47339)``
+`935d2831fe <https://github.com/apache/airflow/commit/935d2831fe8fd509b618a738bf00e0c34e186e11>`__  2025-03-15   ``Remove links to x/twitter.com (#47801)``
+`0d64cde170 <https://github.com/apache/airflow/commit/0d64cde170c16484c94694b8ebbaf071b716ba4d>`__  2025-03-14   ``Test 'MwaaHook''s IAM fallback in system test (#47759)``
+`b6a41a4293 <https://github.com/apache/airflow/commit/b6a41a42938bc403abe4c3be177703be6a309388>`__  2025-03-14   ``Update Dockerfile in aws execs docs (#47799)``
+`ffe2d3bae2 <https://github.com/apache/airflow/commit/ffe2d3bae23ecacfc9b8c3292174f49d3fd5a87e>`__  2025-03-14   ``Update AWS auth manager system test to handle new way of passing JWT token (#47794)``
+`af2461bc19 <https://github.com/apache/airflow/commit/af2461bc19ab88cd78c6d67624e5ff525c852052>`__  2025-03-14   ``Rename 'get_permitted_dag_ids' and 'filter_permitted_dag_ids' to 'get_authorized_dag_ids' and 'filter_authorized_dag_ids' (#47640)``
+`4ffb0a6fd3 <https://github.com/apache/airflow/commit/4ffb0a6fd38ae97bd02e1eb4e40d3781318ef9ef>`__  2025-03-14   ``Set JWT token to localStorage from cookies (#47432)``
+`74f4860bb1 <https://github.com/apache/airflow/commit/74f4860bb12571f42e25f77c2f992bd0c7f2a70a>`__  2025-03-14   ``Re-work JWT Validation and Generation to use public/private key and official claims (#46981)``
+`d5ea56ae4b <https://github.com/apache/airflow/commit/d5ea56ae4be04ebccb12d13fa2cb2be994cf51ac>`__  2025-03-14   ``AIP-84 Add Auth for DAG Versioning (#47553)``
+`b32257bc82 <https://github.com/apache/airflow/commit/b32257bc827f20acc2e74df1cd2d7be69aafad3b>`__  2025-03-13   ``Introduce 'filter_authorized_menu_items' to filter menu items based on permissions (#47681)``
+`46759a355d <https://github.com/apache/airflow/commit/46759a355d603167535591745c70037d691c866a>`__  2025-03-13   ``AIP-84 Add Auth for backfill (#47482)``
+`839e6fb1b1 <https://github.com/apache/airflow/commit/839e6fb1b1b1a662e7237b3a28d154ffcbed4ffa>`__  2025-03-12   ``Lower bind xmlsec dependency version (#47696)``
+`4acf93a4a6 <https://github.com/apache/airflow/commit/4acf93a4a6b9a79a4fecbeb11a9b2f3bead6febd>`__  2025-03-12   ``test(aws): Fix aws trigger tests, use get_async_conn for mock object (#47667)``
+`b85f14c4cf <https://github.com/apache/airflow/commit/b85f14c4cf20cccd56aa06ce5ba4baf637a7f11c>`__  2025-03-12   ``Adding xmlsec pin in amazon provider (#47656)``
+`8686c893b1 <https://github.com/apache/airflow/commit/8686c893b185d53e087e76f772d2523f2a70c012>`__  2025-03-11   ``Add wait/defer support - MwaaTriggerDagRunOperator (#47528)``
+`0675231060 <https://github.com/apache/airflow/commit/0675231060ce71583df08d36ca42f14e2d821451>`__  2025-03-11   ``Add 'get_additional_menu_items' in auth manager interface to extend the menu (#47468)``
+`18324dcf5f <https://github.com/apache/airflow/commit/18324dcf5fa58fe4bbc46f67b908de72fab4c950>`__  2025-03-11   ``Add deferrable support for MwaaDagRunSensor (#47527)``
+`245d26dac1 <https://github.com/apache/airflow/commit/245d26dac17b0b5a5443e26848589b6c66561eea>`__  2025-03-11   ``Use a single http tag to report the server's location to front end, not two (#47572)``
+`1e2660b3fc <https://github.com/apache/airflow/commit/1e2660b3fcab69ae52577e59d1c1bebe95a3f548>`__  2025-03-10   ``AIP 84 - Add auth for asset alias (#47241)``
+`492ecfe5c0 <https://github.com/apache/airflow/commit/492ecfe5c03102bfb710108038ebd5fc50cb55b5>`__  2025-03-09   ``Prepare docs for Mar 1st wave of providers (#47545)``
 `8cc9f1fca9 <https://github.com/apache/airflow/commit/8cc9f1fca9343768e9aa7bb4c802e7d2fc109719>`__  2025-03-07   ``Relocate airflow.auth to airflow.api_fastapi.auth (#47492)``
 `b8f2964d0f <https://github.com/apache/airflow/commit/b8f2964d0fb374549f60d5f3e4bcd7dad67b75ee>`__  2025-03-07   ``Fix aws trigger tests, use get_async_conn for mock object (#47515)``
 `b563e35a7a <https://github.com/apache/airflow/commit/b563e35a7a737bf7af49d48f4be8501580cf8964>`__  2025-03-07   ``Add skipimport check for aiobotocore module in aws trigger tests (#47512)``
@@ -75,7 +108,7 @@ Commit                                                                          
 `c6bf166b70 <https://github.com/apache/airflow/commit/c6bf166b7036b8ebc21876381394eae0eb3f1944>`__  2025-02-24   ``Restricting moto 5.1.0 to fix ci (#47005)``
 `54863bd011 <https://github.com/apache/airflow/commit/54863bd011c33341a3a4d9d9fa4f553595ec7c63>`__  2025-02-23   ``Fix new UI when running outside of breeze (#46991)``
 `b28c336e8b <https://github.com/apache/airflow/commit/b28c336e8b7aa1d69c0f9520b182b1b661377337>`__  2025-02-21   ``Upgrade flit to 3.11.0 (#46938)``
-==================================================================================================  ===========  ==================================================================================
+==================================================================================================  ===========  ======================================================================================================================================
 
 9.4.0
 .....

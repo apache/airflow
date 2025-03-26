@@ -58,6 +58,7 @@ from airflow.providers.openlineage.extractors import OperatorLineage
 from airflow.utils.state import DagRunState
 from airflow.utils.timezone import datetime, utcnow
 from airflow.utils.types import DagRunType
+
 from unit.amazon.aws.utils.test_template_fields import validate_template_fields
 
 BUCKET_NAME = os.environ.get("BUCKET_NAME", "test-airflow-bucket")
