@@ -2350,6 +2350,7 @@ class TaskInstance(Base, LoggingMixin):
         """
         from airflow.models.abstractoperator import MAX_RETRY_DELAY
 
+        max_try_number = 500
         delay = self.task.retry_delay
         if self.task.retry_exponential_backoff:
             # If the min_backoff calculation is below 1, it will be converted to 0 via int. Thus,
@@ -2357,7 +2358,10 @@ class TaskInstance(Base, LoggingMixin):
             # will occur in the modded_hash calculation.
             # this probably gives unexpected results if a task instance has previously been cleared,
             # because try_number can increase without bound
-            min_backoff = math.ceil(delay.total_seconds() * (2 ** (self.try_number - 1)))
+            if self.try_number < max_try_number:
+                min_backoff = math.ceil(delay.total_seconds() * (2 ** (self.try_number - 1)))
+            else:
+                min_backoff = math.ceil(delay.total_seconds() * (2 ** (max_try_number - 1)))
 
             # In the case when delay.total_seconds() is 0, min_backoff will not be rounded up to 1.
             # To address this, we impose a lower bound of 1 on min_backoff. This effectively makes
