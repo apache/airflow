@@ -604,21 +604,6 @@ class TriggerRunnerSupervisor(WatchedSubprocess):
 
     @classmethod
     def run_in_process(cls):
-        from airflow.sdk.execution_time import task_runner
-
-        # Parse DAG file, send JSON back up!
-        comms_decoder = task_runner.CommsDecoder[ToTriggerRunner, ToTriggerSupervisor](
-            input=sys.stdin,
-            decoder=TypeAdapter[ToTriggerRunner](ToTriggerRunner),
-        )
-
-        msg = comms_decoder.get_message()
-        if not isinstance(msg, messages.StartTriggerer):
-            raise RuntimeError(f"Required first message to be a messages.StartTriggerer, it was {msg}")
-        comms_decoder.request_socket = os.fdopen(msg.requests_fd, "wb", buffering=0)
-
-        task_runner.SUPERVISOR_COMMS = comms_decoder
-
         TriggerRunner().run()
 
 
@@ -677,8 +662,28 @@ class TriggerRunner:
         self.failed_triggers = deque()
         self.job_id = None
 
+    def init_comms(self):
+        """Init supervisor comms."""
+        from airflow.sdk.execution_time import task_runner
+
+        # Parse DAG file, send JSON back up!
+        comms_decoder = task_runner.CommsDecoder[ToTriggerRunner, ToTriggerSupervisor](
+            input=sys.stdin,
+            decoder=TypeAdapter[ToTriggerRunner](ToTriggerRunner),
+        )
+
+        msg = comms_decoder.get_message()
+        if not isinstance(msg, messages.StartTriggerer):
+            raise RuntimeError(f"Required first message to be a messages.StartTriggerer, it was {msg}")
+        comms_decoder.request_socket = os.fdopen(msg.requests_fd, "wb", buffering=0)
+
+        task_runner.SUPERVISOR_COMMS = comms_decoder
+
     def run(self):
         """Sync entrypoint - just run a run in an async loop."""
+        # Make sure comms are initialized before running
+        self.init_comms()
+
         asyncio.run(self.arun())
 
     async def arun(self):
