@@ -298,7 +298,7 @@ def get_provider_info():
                 },
             },
         },
-        "dependencies": ["apache-airflow>=2.9.0", "celery[redis]>=5.4.0,<6", "flower>=1.0.0"],
+        "dependencies": ["apache-airflow>=2.9.0", "celery[redis]>=5.5.0,<6", "flower>=1.0.0"],
         "optional-dependencies": {"cncf.kubernetes": ["apache-airflow-providers-cncf-kubernetes>=7.4.0"]},
         "devel-dependencies": [],
     }
