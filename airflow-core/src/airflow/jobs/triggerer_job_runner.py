@@ -47,7 +47,9 @@ from airflow.sdk.execution_time.comms import (
     ErrorResponse,
     GetConnection,
     GetVariable,
+    GetXCom,
     VariableResult,
+    XComResult,
 )
 from airflow.sdk.execution_time.supervisor import WatchedSubprocess, make_buffered_socket_reader
 from airflow.stats import Stats
@@ -209,6 +211,7 @@ ToTriggerRunner = Annotated[
         Annotated[messages.StartTriggerer, Tag("StartTriggerer")],
         Annotated[ConnectionResult, Tag("ConnectionResult")],
         Annotated[VariableResult, Tag("VariableResult")],
+        Annotated[XComResult, Tag("XComResult")],
         Annotated[ErrorResponse, Tag("ErrorResponse")],
     ],
     Field(discriminator="type"),
@@ -224,6 +227,7 @@ ToTriggerSupervisor = Annotated[
         Annotated[messages.TriggerStateChanges, Tag("TriggerStateChanges")],
         Annotated[GetConnection, Tag("GetConnection")],
         Annotated[GetVariable, Tag("GetVariable")],
+        Annotated[GetXCom, Tag("GetXCom")],
     ],
     Field(discriminator="type"),
 ]
