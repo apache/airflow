@@ -16,6 +16,7 @@
  * specific language governing permissions and limitations
  * under the License.
  */
+import { createListCollection } from "@chakra-ui/react";
 import { useQuery } from "@tanstack/react-query";
 import ELK, { type ElkNode, type ElkExtendedEdge, type ElkShape } from "elkjs";
 
@@ -23,7 +24,15 @@ import type { EdgeResponse, NodeResponse, StructureDataResponse } from "openapi/
 
 import { flattenGraph, formatFlowEdges } from "./reactflowUtils";
 
-type Direction = "BOTTOM" | "LEFT" | "RIGHT" | "TOP";
+export type Direction = "DOWN" | "LEFT" | "RIGHT" | "UP";
+export const directionOptions = createListCollection({
+  items: [
+    { label: "Left to Right", value: "RIGHT" as Direction },
+    { label: "Right to Left", value: "LEFT" as Direction },
+    { label: "Bottom to Top", value: "UP" as Direction },
+    { label: "Top to Bottom", value: "DOWN" as Direction },
+  ],
+});
 
 type EdgeLabel = {
   height: number;
@@ -258,5 +267,5 @@ export const useGraphLayout = ({
 
       return { edges: formattedEdges, nodes: flattenedData.nodes };
     },
-    queryKey: ["graphLayout", nodes, openGroupIds, versionNumber, edges],
+    queryKey: ["graphLayout", nodes, openGroupIds, versionNumber, edges, direction],
   });
