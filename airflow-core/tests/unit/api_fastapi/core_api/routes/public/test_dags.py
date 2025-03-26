@@ -21,10 +21,13 @@ from unittest import mock
 
 import pendulum
 import pytest
+from sqlalchemy import select
 
+from airflow import DAG
 from airflow.models.dag import DagModel, DagTag
 from airflow.models.dagrun import DagRun
-from airflow.providers.standard.operators.empty import EmptyOperator
+from airflow.models.taskinstance import TaskInstance
+from airflow.operators.empty import EmptyOperator
 from airflow.utils.session import provide_session
 from airflow.utils.state import DagRunState, TaskInstanceState
 from airflow.utils.types import DagRunTriggeredByType, DagRunType
@@ -267,19 +270,103 @@ class TestPatchDag(TestDagEndpoint):
     """Unit tests for Patch DAG."""
 
     @pytest.mark.parametrize(
-        "query_params, dag_id, body, expected_status_code, expected_is_paused",
+        "query_params, dag_id, body, expected_status_code, expected_is_paused, initial_dag_run_states, expected_dag_run_states, initial_task_states, expected_task_states",
         [
-            ({}, "fake_dag_id", {"is_paused": True}, 404, None),
-            ({"update_mask": ["field_1", "is_paused"]}, DAG1_ID, {"is_paused": True}, 400, None),
-            ({}, DAG1_ID, {"is_paused": True}, 200, True),
-            ({}, DAG1_ID, {"is_paused": False}, 200, False),
-            ({"update_mask": ["is_paused"]}, DAG1_ID, {"is_paused": True}, 200, True),
-            ({"update_mask": ["is_paused"]}, DAG1_ID, {"is_paused": False}, 200, False),
+            ({}, "fake_dag_id", {"is_paused": True}, 404, None, [], [], [], []),
+            (
+                {"update_mask": ["field_1", "is_paused"]},
+                DAG1_ID,
+                {"is_paused": True},
+                400,
+                None,
+                [],
+                [],
+                [],
+                [],
+            ),
+            (
+                {},
+                DAG1_ID,
+                {"is_paused": True},
+                200,
+                True,
+                [DagRunState.RUNNING, DagRunState.QUEUED],
+                [DagRunState.FAILED, DagRunState.FAILED],
+                [TaskInstanceState.RUNNING, TaskInstanceState.RUNNING],
+                [TaskInstanceState.FAILED, TaskInstanceState.FAILED],
+            ),
+            (
+                {},
+                DAG1_ID,
+                {"is_paused": False},
+                200,
+                False,
+                [],
+                [],
+                [],
+                [],
+            ),
+            (
+                {"update_mask": ["is_paused"]},
+                DAG1_ID,
+                {"is_paused": True},
+                200,
+                True,
+                [DagRunState.RUNNING, DagRunState.QUEUED],
+                [DagRunState.FAILED, DagRunState.FAILED],
+                [TaskInstanceState.RUNNING, TaskInstanceState.RUNNING],
+                [TaskInstanceState.FAILED, TaskInstanceState.FAILED],
+            ),
+            (
+                {"update_mask": ["is_paused"]},
+                DAG1_ID,
+                {"is_paused": False},
+                200,
+                False,
+                [],
+                [],
+                [],
+                [],
+            ),
         ],
     )
     def test_patch_dag(
-        self, test_client, query_params, dag_id, body, expected_status_code, expected_is_paused, session
+        self,
+        test_client,
+        query_params,
+        dag_id,
+        body,
+        expected_status_code,
+        expected_is_paused,
+        initial_dag_run_states,
+        expected_dag_run_states,
+        initial_task_states,
+        expected_task_states,
+        session,
     ):
+        clear_db_runs()
+
+        # Mock DAG Runs in the database
+        dag_runs = []
+        for state in initial_dag_run_states:
+            dag_run = DagRun(
+                dag_id=dag_id, run_id=f"test_run_{state}", state=state, run_type=DagRunType.MANUAL
+            )
+            session.add(dag_run)
+            dag_runs.append(dag_run)
+
+        # Mock Task Instances inside the created DAG runs
+        task_instances = []
+        for dag_run, task_state in zip(dag_runs, initial_task_states):
+            mock_dag = DAG(dag_id=dag_id)
+            task_aux = EmptyOperator(task_id=f"test_task_{dag_run.run_id}", dag=mock_dag)
+            task_instance = TaskInstance(task=task_aux, run_id=dag_run.run_id, state=task_state, map_index=-1)
+            session.add(task_instance)
+            task_instances.append(task_instance)
+
+        # Commit changes, so patch_dag can access the mock dag runs created
+        session.commit()
+
         response = test_client.patch(f"/api/v2/dags/{dag_id}", json=body, params=query_params)
 
         assert response.status_code == expected_status_code
@@ -287,6 +374,23 @@ class TestPatchDag(TestDagEndpoint):
             body = response.json()
             assert body["is_paused"] == expected_is_paused
             check_last_log(session, dag_id=dag_id, event="patch_dag", logical_date=None)
+
+            # Reload objects from the database, because they were changed outside of this session (in patch_dag function)
+            session.expire_all()
+
+            updated_dag_runs = session.scalars(select(DagRun).filter(DagRun.dag_id == dag_id)).all()
+            updated_states = [dag_run.state for dag_run in updated_dag_runs]
+
+            assert updated_states == expected_dag_run_states
+
+            updated_task_instances = session.scalars(
+                select(TaskInstance).filter(TaskInstance.dag_id == dag_id)
+            ).all()
+            updated_task_states = [task.state for task in updated_task_instances]
+
+            assert updated_task_states == expected_task_states
+
+        clear_db_runs()
 
     def test_patch_dag_should_response_401(self, unauthenticated_test_client):
         response = unauthenticated_test_client.patch(f"/api/v2/dags/{DAG1_ID}", json={"is_paused": True})

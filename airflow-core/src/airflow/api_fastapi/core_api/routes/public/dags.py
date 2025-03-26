@@ -66,6 +66,8 @@ from airflow.api_fastapi.logging.decorators import action_logging
 from airflow.exceptions import AirflowException, DagNotFound
 from airflow.models import DAG, DagModel
 from airflow.models.dagrun import DagRun
+from airflow.models.taskinstance import TaskInstance
+from airflow.utils.state import DagRunState, TaskInstanceState
 
 dags_router = AirflowRouter(tags=["DAG"], prefix="/dags")
 
@@ -245,6 +247,29 @@ def patch_dag(
             raise RequestValidationError(errors=e.errors())
 
     data = patch_body.model_dump(include=fields_to_update, by_alias=True)
+
+    is_paused = data.get("is_paused")
+
+    active_dag_runs = session.scalars(
+        select(DagRun).filter(
+            DagRun.dag_id == dag_id, DagRun.state.in_([DagRunState.RUNNING, DagRunState.QUEUED])
+        )
+    ).all()
+
+    for dag_run in active_dag_runs:
+        if is_paused:
+            dag_run.set_state(DagRunState.FAILED)
+            running_task_instances = session.scalars(
+                select(TaskInstance).filter(
+                    TaskInstance.dag_id == dag_run.dag_id,
+                    TaskInstance.run_id == dag_run.run_id,
+                    TaskInstance.state == TaskInstanceState.RUNNING,
+                )
+            ).all()
+            for task_instance in running_task_instances:
+                task_instance.set_state(TaskInstanceState.FAILED)
+
+    session.flush()
 
     for key, val in data.items():
         setattr(dag, key, val)
