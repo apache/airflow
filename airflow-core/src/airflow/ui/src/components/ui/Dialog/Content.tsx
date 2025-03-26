@@ -20,9 +20,9 @@ import { Dialog as ChakraDialog, Portal } from "@chakra-ui/react";
 import { forwardRef } from "react";
 
 type ContentProps = {
-  backdrop?: boolean;
-  portalled?: boolean;
-  portalRef?: React.RefObject<HTMLElement>;
+  readonly backdrop?: boolean;
+  readonly portalled?: boolean;
+  readonly portalRef?: React.RefObject<HTMLElement>;
 } & ChakraDialog.ContentProps;
 
 export const Content = forwardRef<HTMLDivElement, ContentProps>((props, ref) => {

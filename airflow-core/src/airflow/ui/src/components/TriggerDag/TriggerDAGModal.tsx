@@ -24,11 +24,11 @@ import { Dialog } from "src/components/ui";
 import TriggerDAGForm from "./TriggerDAGForm";
 
 type TriggerDAGModalProps = {
-  dagDisplayName: string;
-  dagId: string;
-  isPaused: boolean;
-  onClose: () => void;
-  open: boolean;
+  readonly dagDisplayName: string;
+  readonly dagId: string;
+  readonly isPaused: boolean;
+  readonly onClose: () => void;
+  readonly open: boolean;
 };
 
 const TriggerDAGModal: React.FC<TriggerDAGModalProps> = ({

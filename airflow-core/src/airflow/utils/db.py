@@ -92,7 +92,7 @@ _REVISION_HEADS_MAP: dict[str, str] = {
     "2.9.2": "686269002441",
     "2.10.0": "22ed7efa9da2",
     "2.10.3": "5f2621c13b39",
-    "3.0.0": "d469d27e2a64",
+    "3.0.0": "be2cc2f742cf",
 }
 
 
@@ -858,7 +858,7 @@ def check_and_run_migrations():
         verb = None
     if len(db_heads) < 1:
         db_command = initdb
-        command_name = "init"
+        command_name = "migrate"
         verb = "initialize"
     elif source_heads != db_heads:
         db_command = upgradedb

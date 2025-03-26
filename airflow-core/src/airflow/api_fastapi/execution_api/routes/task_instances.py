@@ -36,6 +36,7 @@ from airflow.api_fastapi.execution_api.datamodels.taskinstance import (
     TIEnterRunningPayload,
     TIHeartbeatInfo,
     TIRescheduleStatePayload,
+    TIRetryStatePayload,
     TIRunContext,
     TIRuntimeCheckPayload,
     TISkippedDownstreamTasksStatePayload,
@@ -50,7 +51,7 @@ from airflow.models.taskreschedule import TaskReschedule
 from airflow.models.trigger import Trigger
 from airflow.models.xcom import XComModel
 from airflow.utils import timezone
-from airflow.utils.state import DagRunState, TaskInstanceState, TerminalTIState
+from airflow.utils.state import DagRunState, TaskInstanceState
 
 router = VersionedAPIRouter(
     dependencies=[
@@ -136,7 +137,7 @@ def ti_run(
         ti_run_payload.pid,
     ):
         log.info("Duplicate start request received from %s ", ti_run_payload.hostname)
-    elif previous_state != TaskInstanceState.QUEUED:
+    elif previous_state not in (TaskInstanceState.QUEUED, TaskInstanceState.RESTARTING):
         log.warning(
             "Can not start Task Instance ('%s') in invalid state: %s",
             ti_id_str,
@@ -226,6 +227,7 @@ def ti_run(
             variables=[],
             connections=[],
             xcom_keys_to_clear=xcom_keys,
+            should_retry=_is_eligible_to_retry(previous_state, ti.try_number, ti.max_tries),
         )
 
         # Only set if they are non-null
@@ -289,23 +291,18 @@ def ti_update_state(
     query = update(TI).where(TI.id == ti_id_str).values(data)
 
     if isinstance(ti_patch_payload, TITerminalStatePayload):
-        query = TI.duration_expression_update(ti_patch_payload.end_date, query, session.bind)
         updated_state = ti_patch_payload.state
-        # if we get failed, we should attempt to retry, as it is a more
-        # normal state. Tasks with retries are more frequent than without retries.
-        if ti_patch_payload.state == TerminalTIState.FAIL_WITHOUT_RETRY:
-            updated_state = TaskInstanceState.FAILED
-        elif ti_patch_payload.state == TaskInstanceState.FAILED:
-            if _is_eligible_to_retry(previous_state, try_number, max_tries):
-                from airflow.models.taskinstance import uuid7
-                from airflow.models.taskinstancehistory import TaskInstanceHistory
+        query = TI.duration_expression_update(ti_patch_payload.end_date, query, session.bind)
+        query = query.values(state=updated_state)
+    elif isinstance(ti_patch_payload, TIRetryStatePayload):
+        from airflow.models.taskinstance import uuid7
+        from airflow.models.taskinstancehistory import TaskInstanceHistory
 
-                ti = session.get(TI, ti_id_str)
-                TaskInstanceHistory.record_ti(ti, session=session)
-                ti.try_id = uuid7()
-                updated_state = TaskInstanceState.UP_FOR_RETRY
-            else:
-                updated_state = TaskInstanceState.FAILED
+        ti = session.get(TI, ti_id_str)
+        TaskInstanceHistory.record_ti(ti, session=session)
+        ti.try_id = uuid7()
+        updated_state = ti_patch_payload.state
+        query = TI.duration_expression_update(ti_patch_payload.end_date, query, session.bind)
         query = query.values(state=updated_state)
     elif isinstance(ti_patch_payload, TISuccessStatePayload):
         query = TI.duration_expression_update(ti_patch_payload.end_date, query, session.bind)
@@ -360,6 +357,23 @@ def ti_update_state(
         )
         updated_state = TaskInstanceState.DEFERRED
     elif isinstance(ti_patch_payload, TIRescheduleStatePayload):
+        # Quick check for poke_interval isn't immediately over MySQL's TIMESTAMP limit.
+        # This check is only rudimentary to catch trivial user errors, e.g. mistakenly
+        # set the value to milliseconds instead of seconds. There's another check when
+        # we actually try to reschedule to ensure database coherence.
+        if session.get_bind().dialect.name == "mysql":
+            # As documented in https://dev.mysql.com/doc/refman/5.7/en/datetime.html.
+            _MYSQL_TIMESTAMP_MAX = timezone.datetime(2038, 1, 19, 3, 14, 7)
+            if ti_patch_payload.reschedule_date > _MYSQL_TIMESTAMP_MAX:
+                raise HTTPException(
+                    status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                    detail={
+                        "reason": "invalid_reschedule_date",
+                        "message": f"Cannot reschedule to {ti_patch_payload.reschedule_date.isoformat()} "
+                        f"since it is over MySQL's TIMESTAMP storage limit.",
+                    },
+                )
+
         task_instance = session.get(TI, ti_id_str)
         actual_start_date = timezone.utcnow()
         session.add(

@@ -83,9 +83,12 @@ if TYPE_CHECKING:
     from airflow.sdk.definitions.taskgroup import TaskGroup
     from airflow.serialization.enums import DagAttributeTypes
     from airflow.task.priority_strategy import PriorityWeightStrategy
-    from airflow.triggers.base import BaseTrigger
+    from airflow.triggers.base import BaseTrigger, StartTriggerArgs
     from airflow.typing_compat import Self
     from airflow.utils.operator_resources import Resources
+
+    TaskPreExecuteHook = Callable[[Context], None]
+    TaskPostExecuteHook = Callable[[Context, Any], None]
 
 __all__ = [
     "BaseOperator",
@@ -386,7 +389,9 @@ if "airflow.configuration" in sys.modules:
     ExecutorSafeguard.test_mode = conf.getboolean("core", "unit_test_mode")
 
 
-def _collect_callbacks(callbacks: C | Collection[C]) -> list[C]:
+def _collect_callbacks(callbacks: None | C | Collection[C]) -> list[C]:
+    if not callbacks:
+        return []
     if isinstance(callbacks, Collection):
         return list(callbacks)
     return [callbacks]
@@ -816,12 +821,12 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
     pool_slots: int = DEFAULT_POOL_SLOTS
     execution_timeout: timedelta | None = DEFAULT_TASK_EXECUTION_TIMEOUT
     on_execute_callback: Sequence[TaskStateChangeCallback] = ()
-    # on_failure_callback: None | TaskStateChangeCallback | list[TaskStateChangeCallback] = None
-    # on_success_callback: None | TaskStateChangeCallback | list[TaskStateChangeCallback] = None
-    # on_retry_callback: None | TaskStateChangeCallback | list[TaskStateChangeCallback] = None
-    # on_skipped_callback: None | TaskStateChangeCallback | list[TaskStateChangeCallback] = None
-    # pre_execute: TaskPreExecuteHook | None = None
-    # post_execute: TaskPostExecuteHook | None = None
+    on_failure_callback: Sequence[TaskStateChangeCallback] = ()
+    on_success_callback: Sequence[TaskStateChangeCallback] = ()
+    on_retry_callback: Sequence[TaskStateChangeCallback] = ()
+    on_skipped_callback: Sequence[TaskStateChangeCallback] = ()
+    _pre_execute_hook: TaskPreExecuteHook | None = None
+    _post_execute_hook: TaskPostExecuteHook | None = None
     trigger_rule: TriggerRule = DEFAULT_TRIGGER_RULE
     resources: dict[str, Any] | None = None
     run_as_user: str | None = None
@@ -899,6 +904,11 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
     # Defines if the operator supports lineage without manual definitions
     supports_lineage: bool = False
 
+    # If True, the Rendered Template fields will be overwritten in DB after execution
+    # This is useful for Taskflow decorators that modify the template fields during execution like
+    # @task.bash decorator.
+    overwrite_rtif_after_execution: bool = False
+
     # If True then the class constructor was called
     __instantiated: bool = False
     # List of args as passed to `init()`, after apply_defaults() has been updated. Used to "recreate" the task
@@ -912,9 +922,8 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
     # Set to True for an operator instantiated by a mapped operator.
     __from_mapped: bool = False
 
-    # TODO:
-    # start_trigger_args: StartTriggerArgs | None = None
-    # start_from_trigger: bool = False
+    start_trigger_args: StartTriggerArgs | None = None
+    start_from_trigger: bool = False
 
     # base list which includes all the attrs that don't need deep copy.
     _base_operator_shallow_copy_attrs: Final[tuple[str, ...]] = (
@@ -969,13 +978,13 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
         pool_slots: int = DEFAULT_POOL_SLOTS,
         sla: timedelta | None = None,
         execution_timeout: timedelta | None = DEFAULT_TASK_EXECUTION_TIMEOUT,
-        on_execute_callback: TaskStateChangeCallback | Collection[TaskStateChangeCallback] = (),
-        # on_failure_callback: None | TaskStateChangeCallback | list[TaskStateChangeCallback] = None,
-        # on_success_callback: None | TaskStateChangeCallback | list[TaskStateChangeCallback] = None,
-        # on_retry_callback: None | TaskStateChangeCallback | list[TaskStateChangeCallback] = None,
-        # on_skipped_callback: None | TaskStateChangeCallback | list[TaskStateChangeCallback] = None,
-        # pre_execute: TaskPreExecuteHook | None = None,
-        # post_execute: TaskPostExecuteHook | None = None,
+        on_execute_callback: None | TaskStateChangeCallback | Collection[TaskStateChangeCallback] = None,
+        on_failure_callback: None | TaskStateChangeCallback | list[TaskStateChangeCallback] = None,
+        on_success_callback: None | TaskStateChangeCallback | Collection[TaskStateChangeCallback] = None,
+        on_retry_callback: None | TaskStateChangeCallback | list[TaskStateChangeCallback] = None,
+        on_skipped_callback: None | TaskStateChangeCallback | Collection[TaskStateChangeCallback] = None,
+        pre_execute: TaskPreExecuteHook | None = None,
+        post_execute: TaskPostExecuteHook | None = None,
         trigger_rule: str = DEFAULT_TRIGGER_RULE,
         resources: dict[str, Any] | None = None,
         run_as_user: str | None = None,
@@ -1046,14 +1055,13 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
             )
         self.execution_timeout = execution_timeout
 
-        # TODO:
         self.on_execute_callback = _collect_callbacks(on_execute_callback)
-        # self.on_failure_callback = on_failure_callback
-        # self.on_success_callback = on_success_callback
-        # self.on_retry_callback = on_retry_callback
-        # self.on_skipped_callback = on_skipped_callback
-        # self._pre_execute_hook = pre_execute
-        # self._post_execute_hook = post_execute
+        self.on_failure_callback = _collect_callbacks(on_failure_callback)
+        self.on_success_callback = _collect_callbacks(on_success_callback)
+        self.on_retry_callback = _collect_callbacks(on_retry_callback)
+        self.on_skipped_callback = _collect_callbacks(on_skipped_callback)
+        self._pre_execute_hook = pre_execute
+        self._post_execute_hook = post_execute
 
         if start_date:
             self.start_date = timezone.convert_to_utc(start_date)

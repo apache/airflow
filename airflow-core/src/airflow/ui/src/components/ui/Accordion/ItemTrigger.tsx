@@ -21,7 +21,7 @@ import { forwardRef } from "react";
 import { LuChevronDown } from "react-icons/lu";
 
 type AccordionItemTriggerProps = {
-  indicatorPlacement?: "end" | "start";
+  readonly indicatorPlacement?: "end" | "start";
 } & Accordion.ItemTriggerProps;
 
 export const ItemTrigger = forwardRef<HTMLButtonElement, AccordionItemTriggerProps>((props, ref) => {

@@ -61,6 +61,8 @@ class DAGResponse(BaseModel):
     is_active: bool
     last_parsed_time: datetime | None
     last_expired: datetime | None
+    bundle_name: str
+    relative_fileloc: str
     fileloc: str
     description: str | None
     timetable_summary: str | None
@@ -104,7 +106,11 @@ class DAGResponse(BaseModel):
     def file_token(self) -> str:
         """Return file token."""
         serializer = URLSafeSerializer(conf.get_mandatory_value("webserver", "secret_key"))
-        return serializer.dumps(self.fileloc)
+        payload = {
+            "bundle_name": self.bundle_name,
+            "relative_fileloc": self.relative_fileloc,
+        }
+        return serializer.dumps(payload)
 
 
 class DAGPatchBody(StrictBaseModel):

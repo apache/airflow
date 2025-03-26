@@ -21,7 +21,7 @@ import { Text, usePaginationContext } from "@chakra-ui/react";
 import { forwardRef, useMemo } from "react";
 
 type PageTextProps = {
-  format?: "compact" | "long" | "short";
+  readonly format?: "compact" | "long" | "short";
 } & TextProps;
 
 export const PageText = forwardRef<HTMLParagraphElement, PageTextProps>((props, ref) => {

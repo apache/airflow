@@ -83,7 +83,7 @@ PIP package                                 Version required
 ``google-cloud-bigtable``                   ``>=2.17.0``
 ``google-cloud-build``                      ``>=3.31.0``
 ``google-cloud-compute``                    ``>=1.10.0``
-``google-cloud-container``                  ``>=2.17.4``
+``google-cloud-container``                  ``>=2.52.0``
 ``google-cloud-datacatalog``                ``>=3.23.0``
 ``google-cloud-dataflow-client``            ``>=0.8.6``
 ``google-cloud-dataform``                   ``>=0.5.0``
@@ -116,7 +116,6 @@ PIP package                                 Version required
 ``google-cloud-batch``                      ``>=0.13.0``
 ``grpcio-gcp``                              ``>=0.2.2``
 ``httpx``                                   ``>=0.25.0``
-``json-merge-patch``                        ``>=0.2``
 ``looker-sdk``                              ``>=22.4.0,!=24.18.0``
 ``pandas-gbq``                              ``>=0.7.0``
 ``pandas``                                  ``>=2.1.2,<2.2``

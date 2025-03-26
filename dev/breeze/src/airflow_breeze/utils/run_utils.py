@@ -230,8 +230,8 @@ def assert_pre_commit_installed():
                     )
                 else:
                     get_console().print(
-                        f"\n[error]Package name pre_commit version is wrong. It should be"
-                        f"aat least {min_pre_commit_version} and is {pre_commit_version}.[/]\n\n"
+                        f"\n[error]Package name pre_commit version is wrong. It should be "
+                        f"at least {min_pre_commit_version} and is {pre_commit_version}.[/]\n\n"
                     )
                     sys.exit(1)
                 if "pre-commit-uv" not in command_result.stdout:
@@ -332,13 +332,13 @@ def fix_group_permissions():
     """Fixes permissions of all the files and directories that have group-write access."""
     if get_verbose():
         get_console().print("[info]Fixing group permissions[/]")
-    files_to_fix_result = run_command(["git", "ls-files", "./"], capture_output=True, text=True)
+    files_to_fix_result = run_command(["git", "ls-files", "./"], capture_output=True, check=False, text=True)
     if files_to_fix_result.returncode == 0:
         files_to_fix = files_to_fix_result.stdout.strip().splitlines()
         for file_to_fix in files_to_fix:
             change_file_permission(Path(file_to_fix))
     directories_to_fix_result = run_command(
-        ["git", "ls-tree", "-r", "-d", "--name-only", "HEAD"], capture_output=True, text=True
+        ["git", "ls-tree", "-r", "-d", "--name-only", "HEAD"], capture_output=True, check=False, text=True
     )
     if directories_to_fix_result.returncode == 0:
         directories_to_fix = directories_to_fix_result.stdout.strip().splitlines()

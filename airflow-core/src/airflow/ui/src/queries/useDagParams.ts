@@ -58,7 +58,7 @@ export const useDagParams = (dagId: string, open: boolean) => {
     const errorDescription =
       typeof error === "object" && error !== null
         ? JSON.stringify(error, undefined, 2) // Safely stringify the object with pretty-printing
-        : String(error ?? ""); // Convert other types (e.g., numbers, strings) to string
+        : String(Boolean(error) ? error : ""); // Convert other types (e.g., numbers, strings) to string
 
     toaster.create({
       description: `Dag params request failed. Error: ${errorDescription}`,

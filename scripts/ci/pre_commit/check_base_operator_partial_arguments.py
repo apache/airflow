@@ -43,6 +43,7 @@ IGNORED = {
     "post_execute",
     "pre_execute",
     "multiple_outputs",
+    "overwrite_rtif_after_execution",
     # Doesn't matter, not used anywhere.
     "default_args",
     # Deprecated and is aliased to max_active_tis_per_dag.

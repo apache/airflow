@@ -69,6 +69,7 @@ from airflow.sdk.execution_time.comms import (
     GetConnection,
     GetDagRunState,
     GetPrevSuccessfulDagRun,
+    GetTaskRescheduleStartDate,
     GetVariable,
     GetXCom,
     OKResponse,
@@ -79,6 +80,7 @@ from airflow.sdk.execution_time.comms import (
     SetRenderedFields,
     SetXCom,
     SucceedTask,
+    TaskRescheduleStartDate,
     TaskState,
     TriggerDagRun,
     VariableResult,
@@ -728,23 +730,16 @@ class TestListenerOvertime:
 
         if expected_timeout:
             assert any(
-                [
-                    event["event"] == "Workload success overtime reached; terminating process"
-                    for event in captured_logs
-                ]
+                event["event"] == "Workload success overtime reached; terminating process"
+                for event in captured_logs
             )
             assert any(
-                [
-                    event["event"] == "Process exited" and event["signal"] == "SIGTERM"
-                    for event in captured_logs
-                ]
+                event["event"] == "Process exited" and event["signal"] == "SIGTERM" for event in captured_logs
             )
         else:
             assert all(
-                [
-                    event["event"] != "Workload success overtime reached; terminating process"
-                    for event in captured_logs
-                ]
+                event["event"] != "Workload success overtime reached; terminating process"
+                for event in captured_logs
             )
 
 
@@ -1350,6 +1345,15 @@ class TestHandleRequest:
                 {},
                 DagRunStateResult(state=DagRunState.RUNNING),
                 id="get_dag_run_state",
+            ),
+            pytest.param(
+                GetTaskRescheduleStartDate(ti_id=TI_ID),
+                b'{"start_date":"2024-10-31T12:00:00Z","type":"TaskRescheduleStartDate"}\n',
+                "task_instances.get_reschedule_start_date",
+                (TI_ID, 1),
+                {},
+                TaskRescheduleStartDate(start_date=timezone.parse("2024-10-31T12:00:00Z")),
+                id="get_task_reschedule_start_date",
             ),
         ],
     )

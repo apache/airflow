@@ -101,10 +101,15 @@ class BaseAuthManager(Generic[T], LoggingMixin, metaclass=ABCMeta):
         """Verify the JWT token is valid and create a user object from it if valid."""
         try:
             payload: dict[str, Any] = await self._get_token_validator().avalidated_claims(token)
-            return self.deserialize_user(payload)
         except InvalidTokenError as e:
             log.error("JWT token is not valid: %s", e)
             raise e
+
+        try:
+            return self.deserialize_user(payload)
+        except (ValueError, KeyError) as e:
+            log.error("Couldn't deserialize user from token, JWT token is not valid: %s", e)
+            raise InvalidTokenError(str(e))
 
     def generate_jwt(
         self, user: T, *, expiration_time_in_seconds: int = conf.getint("api_auth", "jwt_expiration_time")
@@ -458,6 +463,15 @@ class BaseAuthManager(Generic[T], LoggingMixin, metaclass=ABCMeta):
         :param user: the user
         """
         return []
+
+    @staticmethod
+    def get_db_manager() -> str | None:
+        """
+        Specify the DB manager path needed to run the auth manager.
+
+        This is optional and not all auth managers require a DB manager.
+        """
+        return None
 
     @classmethod
     @cache

@@ -31,11 +31,15 @@ type DagRunSelected = {
   value: string;
 };
 
-export const DagRunSelect = forwardRef<HTMLDivElement>((_, ref) => {
+type DagRunSelectProps = {
+  readonly limit: number;
+};
+
+export const DagRunSelect = forwardRef<HTMLDivElement, DagRunSelectProps>(({ limit }, ref) => {
   const { dagId = "", runId, taskId } = useParams();
   const navigate = useNavigate();
 
-  const { data, isLoading } = useGrid();
+  const { data, isLoading } = useGrid(limit);
 
   const runOptions = createListCollection<DagRunSelected>({
     items: (data?.dag_runs ?? []).map((dr: GridDAGRunwithTIs) => ({

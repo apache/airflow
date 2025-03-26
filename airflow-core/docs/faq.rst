@@ -464,14 +464,6 @@ How do I stop the sync perms happening multiple times per webserver?
 Set the value of ``[fab] update_fab_perms`` configuration in ``airflow.cfg`` to ``False``.
 
 
-How to reduce the airflow UI page load time?
-------------------------------------------------
-
-If your DAG takes long time to load, you could reduce the value of ``default_dag_run_display_number`` configuration
-in ``airflow.cfg`` to a smaller value. This configurable controls the number of DAG runs to show in UI with default
-value ``25``.
-
-
 Why did the pause DAG toggle turn red?
 --------------------------------------
 

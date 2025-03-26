@@ -20,7 +20,7 @@ import { Select as ChakraSelect } from "@chakra-ui/react";
 import { forwardRef } from "react";
 
 type ItemGroupProps = {
-  label: React.ReactNode;
+  readonly label: React.ReactNode;
 } & ChakraSelect.ItemGroupProps;
 
 export const ItemGroup = forwardRef<HTMLDivElement, ItemGroupProps>((props, ref) => {
