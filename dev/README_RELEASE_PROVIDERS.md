@@ -395,7 +395,7 @@ pushd dist
 popd
 ```
 
-if you see ``Library not loaded error`` it means that you are missing `libassuan` and `gnupg`.
+If you see ``Library not loaded error`` it means that you are missing `libassuan` and `gnupg`.
 check above steps to install them.
 
 ## Commit the source packages to Apache SVN repo
