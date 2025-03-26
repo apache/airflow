@@ -1,3 +1,5 @@
+#!/usr/bin/env python
+# PYTHON_ARGCOMPLETE_OK
 #
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
@@ -15,5 +17,21 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+"""Main executable module."""
 
-__version__ = "0.1.0"
+from __future__ import annotations
+
+import argcomplete
+
+from airflow.ctl.cli import cli_parser
+
+
+def main():
+    parser = cli_parser.get_parser()
+    argcomplete.autocomplete(parser)
+    args = parser.parse_args()
+    args.func(args)
+
+
+if __name__ == "__main__":
+    main()

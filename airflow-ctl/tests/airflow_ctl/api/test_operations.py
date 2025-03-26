@@ -26,8 +26,8 @@ from io import StringIO
 import httpx
 import pytest
 
-from airflowctl.api.client import Client
-from airflowctl.api.datamodels.generated import (
+from airflow.ctl.api.client import Client
+from airflow.ctl.api.datamodels.generated import (
     AssetAliasCollectionResponse,
     AssetAliasResponse,
     AssetCollectionResponse,

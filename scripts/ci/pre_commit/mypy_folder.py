@@ -39,6 +39,7 @@ ALLOWED_FOLDERS = [
     "dev",
     "docs",
     "task-sdk/src/airflow/sdk",
+    "airflow-ctl/src/airflow/ctl",
     "all_providers",
 ]
 

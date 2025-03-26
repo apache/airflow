@@ -274,7 +274,7 @@ AIRFLOW_BUILD_DOCKERFILE_DOCKERIGNORE_PATH = AIRFLOW_ROOT_PATH / "airflow-build-
 AIRFLOW_DOCKERIGNORE_PATH = AIRFLOW_ROOT_PATH / ".dockerignore"
 
 
-class DistributionPackageBuildType(Enum):
+class DistributionBuildType(Enum):
     """Type of the build"""
 
     AIRFLOW = "airflow"
@@ -313,13 +313,13 @@ class DistributionPackageInfo(NamedTuple):
         *,
         distribution_format: str,
         dist_directory: Path,
-        build_type: DistributionPackageBuildType,
+        build_type: DistributionBuildType,
     ) -> tuple[DistributionPackageInfo, ...]:
-        if build_type == DistributionPackageBuildType.AIRFLOW:
+        if build_type == DistributionBuildType.AIRFLOW:
             default_glob_patterns = ["apache_airflow-", "apache_airflow_core-"]
-        elif build_type == DistributionPackageBuildType.TASK_SDK:
+        elif build_type == DistributionBuildType.TASK_SDK:
             default_glob_patterns = ["apache_airflow_task_sdk"]
-        elif build_type == DistributionPackageBuildType.AIRFLOW_CTL:
+        elif build_type == DistributionBuildType.AIRFLOW_CTL:
             default_glob_patterns = ["apache_airflow_ctl"]
         else:
             default_glob_patterns = ["apache_airflow_providers"]
@@ -613,7 +613,7 @@ def prepare_airflow_distributions(
         packages = DistributionPackageInfo.dist_packages(
             distribution_format=distribution_format,
             dist_directory=AIRFLOW_DIST_PATH,
-            build_type=DistributionPackageBuildType.AIRFLOW,
+            build_type=DistributionBuildType.AIRFLOW,
         )
         get_console().print()
         _check_sdist_to_wheel_dists(packages)
@@ -644,18 +644,16 @@ def _prepare_non_core_distributions(
     fix_ownership_using_docker()
     cleanup_python_generated_files()
     source_date_epoch = get_source_date_epoch(AIRFLOW_ROOT_PATH)
-    # This is used when distribution name is airflow-xxx, and we want to show xxx in the logs
-    distribution_name_without_airflow = distribution_name.replace("airflow-", "")
 
-    def _build_package_with_hatch(distribution_format: str):
+    def _build_package_with_hatch(build_distribution_format: str):
         command = [
             "hatch",
             "build",
             "-c",
         ]
-        if distribution_format == "sdist" or distribution_format == "both":
+        if build_distribution_format == "sdist" or build_distribution_format == "both":
             command += ["-t", "sdist"]
-        if distribution_format == "wheel" or distribution_format == "both":
+        if build_distribution_format == "wheel" or build_distribution_format == "both":
             command += ["-t", "wheel"]
         env_copy = os.environ.copy()
         env_copy["SOURCE_DATE_EPOCH"] = str(source_date_epoch)
@@ -667,14 +665,14 @@ def _prepare_non_core_distributions(
         )
         shutil.copytree(distribution_path, AIRFLOW_DIST_PATH, dirs_exist_ok=True)
 
-    def _build_package_with_docker(distribution_format: str):
+    def _build_package_with_docker(build_distribution_format: str):
         _build_local_build_image()
         command = "hatch build -c "
-        if distribution_format == "sdist" or distribution_format == "both":
+        if build_distribution_format == "sdist" or build_distribution_format == "both":
             command += "-t sdist "
-        if distribution_format == "wheel" or distribution_format == "both":
+        if build_distribution_format == "wheel" or build_distribution_format == "both":
             command += "-t wheel "
-        container_id = f"airflow-{distribution_name_without_airflow}-build-{random.getrandbits(64):08x}"
+        container_id = f"airflow-{distribution_name}-build-{random.getrandbits(64):08x}"
         result = run_command(
             cmd=[
                 "docker",
@@ -716,13 +714,13 @@ def _prepare_non_core_distributions(
             init_file_path=init_file_path,
         ):
             _build_package_with_hatch(
-                distribution_format=distribution_format,
+                build_distribution_format=distribution_format,
             )
         get_console().print("[info]Checking if sdist packages can be built into wheels[/]")
         packages = DistributionPackageInfo.dist_packages(
             distribution_format=distribution_format,
             dist_directory=distribution_path,
-            build_type=DistributionPackageBuildType(distribution_name),
+            build_type=DistributionBuildType(distribution_name),
         )
         get_console().print()
         _check_sdist_to_wheel_dists(packages)
@@ -737,7 +735,7 @@ def _prepare_non_core_distributions(
             init_file_path=init_file_path,
         ):
             _build_package_with_docker(
-                distribution_format=distribution_format,
+                build_distribution_format=distribution_format,
             )
     get_console().print(f"[success]Successfully prepared Airflow {distribution_pretty_name} packages")
 
@@ -791,7 +789,7 @@ def prepare_airflow_ctl_distributions(
         use_local_hatch=use_local_hatch,
         # Distribution specific parameters
         root_path=AIRFLOW_CTL_ROOT_PATH,
-        init_file_path=AIRFLOW_CTL_SOURCES_PATH / "airflowctl" / "__init__.py",
+        init_file_path=AIRFLOW_CTL_SOURCES_PATH / "airflow" / "ctl" / "__init__.py",
         distribution_path=AIRFLOW_CTL_DIST_PATH,
         distribution_name="airflow-ctl",
         distribution_pretty_name="CTL",
@@ -1177,7 +1175,7 @@ def prepare_provider_distributions(
     packages = DistributionPackageInfo.dist_packages(
         distribution_format=distribution_format,
         dist_directory=AIRFLOW_DIST_PATH,
-        build_type=DistributionPackageBuildType.PROVIDERS,
+        build_type=DistributionBuildType.PROVIDERS,
     )
     get_console().print()
     _check_sdist_to_wheel_dists(packages)

@@ -23,7 +23,7 @@ from typing import TYPE_CHECKING, Any
 import httpx
 import structlog
 
-from airflowctl.api.datamodels.generated import (
+from airflow.ctl.api.datamodels.generated import (
     AssetAliasCollectionResponse,
     AssetAliasResponse,
     AssetCollectionResponse,
@@ -57,7 +57,7 @@ from airflowctl.api.datamodels.generated import (
 )
 
 if TYPE_CHECKING:
-    from airflowctl.api.client import Client
+    from airflow.ctl.api.client import Client
 
 log = structlog.get_logger(logger_name=__name__)
 
