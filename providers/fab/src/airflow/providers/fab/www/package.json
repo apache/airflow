@@ -50,7 +50,7 @@
     "css-loader": "5.2.7",
     "css-minimizer-webpack-plugin": "^4.0.0",
     "eslint": "^9.23.0",
-    "eslint-config-prettier": "^8.6.0",
+    "eslint-config-prettier": "^10.1.1",
     "eslint-plugin-html": "^6.0.2",
     "eslint-plugin-import": "^2.27.5",
     "eslint-plugin-node": "^11.1.0",

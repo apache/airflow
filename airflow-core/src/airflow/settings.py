@@ -390,9 +390,10 @@ def configure_orm(disable_connection_pool=False, pool_class=None):
 
     # https://docs.sqlalchemy.org/en/20/core/pooling.html#using-connection-pools-with-multiprocessing-or-os-fork
     def clean_in_fork():
-        if engine:
+        _globals = globals()
+        if engine := _globals.get("engine"):
             engine.dispose(close=False)
-        if async_engine:
+        if async_engine := _globals.get("async_engine"):
             async_engine.sync_engine.dispose(close=False)
 
     os.register_at_fork(after_in_child=clean_in_fork)

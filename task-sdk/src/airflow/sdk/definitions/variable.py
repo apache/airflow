@@ -50,7 +50,7 @@ class Variable:
         from airflow.sdk.execution_time.context import _get_variable
 
         try:
-            return _get_variable(key, deserialize_json=deserialize_json).value
+            return _get_variable(key, deserialize_json=deserialize_json)
         except AirflowRuntimeError as e:
             if e.error.error == ErrorType.VARIABLE_NOT_FOUND and default is not NOTSET:
                 return default

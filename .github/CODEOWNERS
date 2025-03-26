@@ -52,7 +52,7 @@
 /docs/apache-airflow/concepts/dynamic-task-mapping.rst @uranusjr
 
 # Async Operators & Triggerer
-/airflow-core/src/airflow/cli/commands/local_commands/triggerer_command.py @dstandish @hussein-awala
+/airflow-core/src/airflow/cli/commands/triggerer_command.py @dstandish @hussein-awala
 /airflow-core/src/airflow/jobs/triggerer_job.py @dstandish @hussein-awala
 /airflow-core/src/airflow/jobs/triggerer_job_runner.py @dstandish @hussein-awala
 /docs/apache-airflow/authoring-and-scheduling/deferring.rst @dstandish @hussein-awala

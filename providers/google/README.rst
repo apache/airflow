@@ -116,7 +116,6 @@ PIP package                                 Version required
 ``google-cloud-batch``                      ``>=0.13.0``
 ``grpcio-gcp``                              ``>=0.2.2``
 ``httpx``                                   ``>=0.25.0``
-``json-merge-patch``                        ``>=0.2``
 ``looker-sdk``                              ``>=22.4.0,!=24.18.0``
 ``pandas-gbq``                              ``>=0.7.0``
 ``pandas``                                  ``>=2.1.2,<2.2``

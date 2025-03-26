@@ -16,16 +16,10 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { createContext, useCallback, useMemo, type PropsWithChildren } from "react";
+import { useCallback, useMemo, type PropsWithChildren } from "react";
 import { useLocalStorage } from "usehooks-ts";
 
-export type OpenGroupsContextType = {
-  openGroupIds: Array<string>;
-  setOpenGroupIds: (groupIds: Array<string>) => void;
-  toggleGroupId: (groupId: string) => void;
-};
-
-export const OpenGroupsContext = createContext<OpenGroupsContextType | undefined>(undefined);
+import { OpenGroupsContext, type OpenGroupsContextType } from "./Context";
 
 type Props = {
   readonly dagId: string;

@@ -73,7 +73,7 @@ class PrStat:
         self.num_issue_reactions: int = 0
         self.num_comments: int = 0
         self.num_conv_comments: int = 0
-        self.num_protm: int = 0
+        self.tagged_protm: bool = False
         self.conv_comment_reactions: int = 0
         self.interaction_score = 1.0
 
@@ -92,7 +92,7 @@ class PrStat:
             self._users.add(comment.user.login)
             lowercase_body = comment.body.lower()
             if "protm" in lowercase_body:
-                self.num_protm += 1
+                self.tagged_protm = True
             self.num_comments += 1
             if comment.body is not None:
                 self.len_comments += len(comment.body)
@@ -106,7 +106,7 @@ class PrStat:
             self._users.add(conv_comment.user.login)
             lowercase_body = conv_comment.body.lower()
             if "protm" in lowercase_body:
-                self.num_protm += 1
+                self.tagged_protm = True
             self.num_conv_comments += 1
             for reaction in conv_comment.get_reactions():
                 self._users.add(reaction.user.login)
@@ -217,7 +217,8 @@ class PrStat:
         return round(score, 3)
 
     def adjust_interaction_score(self):
-        self.interaction_score *= min(self.num_protm + 1, 3)
+        if self.tagged_protm:
+            self.interaction_score *= 20
 
     @property
     def score(self):
@@ -239,7 +240,7 @@ class PrStat:
         # If the body contains fewer than 1000 characters, the PR should matter 20% less.
         #
         # Weight PRs with protm tags more heavily:
-        # If there is at least one protm tag, multiply the interaction score by the number of tags, up to 3.
+        # If there is at least one protm tag, multiply the interaction score by 20.
         #
         self.calc_comments()
         self.calc_conv_comments()
@@ -256,7 +257,7 @@ class PrStat:
         )
 
     def __str__(self) -> str:
-        if self.num_protm > 0:
+        if self.tagged_protm:
             return (
                 "[magenta]##Tagged PR## [/]"
                 f"Score: {self.score:.2f}: PR{self.pull_request.number}"
@@ -273,7 +274,7 @@ class PrStat:
             )
 
     def verboseStr(self) -> str:
-        if self.num_protm > 0:
+        if self.tagged_protm:
             console.print("********************* Tagged with '#protm' *********************", style="magenta")
         return (
             f"-- Created at [bright_blue]{self.pull_request.created_at}[/], "
