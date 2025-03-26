@@ -27,7 +27,7 @@ from uuid import UUID
 
 from pydantic import BaseModel, ConfigDict, Field, JsonValue
 
-API_VERSION: Final[str] = "2025-03-19"
+API_VERSION: Final[str] = "2025-03-26"
 
 
 class AssetProfile(BaseModel):
