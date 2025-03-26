@@ -28,6 +28,61 @@ Changelog
 ---------
 
 
+14.1.0
+......
+
+Features
+~~~~~~~~
+
+* ``Add DNS endpoint support for GKE Hooks and Operators (#48075)``
+* ``feat: allow to set task/dag labels for 'DataprocCreateBatchOperator' (#46781)``
+* ``Create operators for working with Consumer Groups for GCP Apache Kafka (#47056)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``FIX: BigQuery traceability labels missing in TaskGroup (#47583)``
+
+Misc
+~~~~
+
+* ``Vendor-in json-merge-patch and add '--no-dev' to direct uv tool install (#48210)``
+* ``serialize http transports contained in composite transport (#47444)``
+* ``AIP-72: Handle Custom XCom Backend on Task SDK (#47339)``
+* ``misc: update API version of Google ADS (#47772)``
+* ``Introduce operation helper class and refactor (#45354)``
+* ``Remove auth backends from core Airflow (#47399)``
+* ``Mark Google Oauth2 backend as Airflow 2 only (#47622)``
+* ``Add Dataflow Apache Beam Java streaming system test (#47209)``
+* ``Add legacy namespace packages to airflow.providers (#47064)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Upgrade providers flit build requirements to 3.12.0 (#48362)``
+   * ``Move airflow sources to airflow-core package (#47798)``
+   * ``Remove links to x/twitter.com (#47801)``
+   * ``Prepare docs for Mar 1st wave of providers (#47545)``
+   * ``AIP-72: Moving BaseOperatorLink to task sdk (#47008)``
+   * ``Bugfix typing after google-ads release 26.0.0 release (#47471)``
+   * ``Remove extra string interpolation from fstrings (#47436)``
+   * ``Base AWS classes - S3 (#47321)``
+   * ``Move tests_common package to devel-common project (#47281)``
+   * ``Remove unused methods from auth managers (#47316)``
+   * ``Remove 'airflow.www' module (#47318)``
+   * ``doc: Add GCSListObjectsOperator to operators listed in documentation in Google Provider for GCS  #39290 (#47002)``
+   * ``Deprecating email, email_on_retry, email_on_failure in BaseOperator (#47146)``
+   * ``Implement stale dag bundle cleanup (#46503)``
+   * ``Improve documentation for updating provider dependencies (#47203)``
+   * ``doc: fix the typo for glob regex  #47116 (#47134)``
+   * ``Render structured logs in the new UI rather than showing raw JSON (#46827)``
+   * ``Remove old UI and webserver (#46942)``
+   * ``Remove example_dags folder (#47052)``
+   * ``Update documentation for Dataflow operators (#46954)``
+   * ``Remove extra whitespace in provider readme template (#46975)``
+   * ``Fix 'exists' method to support using Requester Pays (#46759)``
+   * ``Bump min. 'google-cloud-pubsub' ver. to v2.21.3 (#46984)``
+   * ``Upgrade flit to 3.11.0 (#46938)``
+
 14.0.0
 ......
 

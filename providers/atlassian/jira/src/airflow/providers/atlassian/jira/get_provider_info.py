@@ -27,8 +27,9 @@ def get_provider_info():
         "name": "Atlassian Jira",
         "description": "`Atlassian Jira <https://www.atlassian.com/software/jira/>`__\n",
         "state": "ready",
-        "source-date-epoch": 1741508478,
+        "source-date-epoch": 1742979462,
         "versions": [
+            "3.0.2",
             "3.0.1",
             "3.0.0",
             "2.7.1",
