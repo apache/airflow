@@ -23,7 +23,7 @@
 
 Package ``apache-airflow-providers-common-messaging``
 
-Release: ``1.0.0b1``
+Release: ``1.0.0``
 
 
 ``Common Messaging Provider``
@@ -36,7 +36,7 @@ This is a provider package for ``common.messaging`` provider. All classes for th
 are in ``airflow.providers.common.messaging`` python package.
 
 You can find package information and changelog for the provider
-in the `documentation <https://airflow.apache.org/docs/apache-airflow-providers-common-messaging/1.0.0b1/>`_.
+in the `documentation <https://airflow.apache.org/docs/apache-airflow-providers-common-messaging/1.0.0/>`_.
 
 Installation
 ------------
@@ -76,4 +76,4 @@ Dependent package                                                               
 ====================================================================================================  ==========
 
 The changelog for the provider package can be found in the
-`changelog <https://airflow.apache.org/docs/apache-airflow-providers-common-messaging/1.0.0b1/changelog.html>`_.
+`changelog <https://airflow.apache.org/docs/apache-airflow-providers-common-messaging/1.0.0/changelog.html>`_.

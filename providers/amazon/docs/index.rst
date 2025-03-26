@@ -110,10 +110,10 @@ The minimum Apache Airflow version supported by this provider distribution is ``
 PIP package                                 Version required
 ==========================================  ======================
 ``apache-airflow``                          ``>=2.9.0``
-``apache-airflow-providers-common-compat``  ``>=1.3.0``
+``apache-airflow-providers-common-compat``  ``>=1.6.0``
 ``apache-airflow-providers-common-sql``     ``>=1.20.0``
 ``apache-airflow-providers-http``
-``boto3``                                   ``>=1.34.90``
+``boto3``                                   ``>=1.37.0``
 ``botocore``                                ``>=1.34.90``
 ``inflection``                              ``>=0.5.1``
 ``watchtower``                              ``>=3.0.0,!=3.3.0,<4``
@@ -123,6 +123,7 @@ PIP package                                 Version required
 ``PyAthena``                                ``>=3.0.10``
 ``jmespath``                                ``>=0.7.0``
 ``python3-saml``                            ``>=1.16.0``
+``xmlsec``                                  ``>=1.3.14,!=1.3.15``
 ``sagemaker-studio``                        ``>=1.0.9``
 ==========================================  ======================
 
@@ -130,7 +131,7 @@ Cross provider package dependencies
 -----------------------------------
 
 Those are dependencies that might be needed in order to use all the features of the package.
-You need to install the specified providers in order to use them.
+You need to install the specified provider distributions in order to use them.
 
 You can install such cross-provider dependencies when installing from PyPI. For example:
 

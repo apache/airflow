@@ -174,6 +174,7 @@ def _build_metrics(func_name, namespace):
         uri_index = full_command.index("--conn-uri") + 1
         conn_uri = full_command[uri_index]
         parsed_uri = urlparse(conn_uri)
+        netloc = parsed_uri.netloc
         if parsed_uri.password:
             password = "*" * 8
             netloc = f"{parsed_uri.username}:{password}@{parsed_uri.hostname}"

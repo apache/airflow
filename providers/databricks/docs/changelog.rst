@@ -26,6 +26,20 @@
 Changelog
 ---------
 
+7.2.2
+.....
+
+Misc
+~~~~
+
+* ``AIP-72: Handle Custom XCom Backend on Task SDK (#47339)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Upgrade providers flit build requirements to 3.12.0 (#48362)``
+   * ``Move airflow sources to airflow-core package (#47798)``
+   * ``Remove links to x/twitter.com (#47801)``
+
 7.2.1
 .....
 

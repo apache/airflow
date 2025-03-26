@@ -34,14 +34,18 @@ For high-level changelog, see :doc:`package information including changelog <ind
 
 
 
-3.10.4b1
-........
+3.10.4
+......
 
-Latest change: 2025-03-15
+Latest change: 2025-03-25
 
 ==================================================================================================  ===========  ====================================================================================================
 Commit                                                                                              Committed    Subject
 ==================================================================================================  ===========  ====================================================================================================
+`6adb2dbae4 <https://github.com/apache/airflow/commit/6adb2dbae47341eb61dbc62dbc56176d9aa83fd9>`__  2025-03-25   ``Upgrade providers flit build requirements to 3.12.0 (#48362)``
+`6f76326c26 <https://github.com/apache/airflow/commit/6f76326c2668ac4e748737bab9101ae86b953287>`__  2025-03-25   ``AIP-81: Flatten core CLI commands (#48224)``
+`243fe86d4b <https://github.com/apache/airflow/commit/243fe86d4b3e59bb12977b3e36ca3f2ed27ca0f8>`__  2025-03-21   ``Move airflow sources to airflow-core package (#47798)``
+`1a5eb7a29c <https://github.com/apache/airflow/commit/1a5eb7a29c777009f2196678a67af0cfe352faab>`__  2025-03-20   ``Bump various providers in preparation for Airflow 3.0.0b4 (#48013)``
 `935d2831fe <https://github.com/apache/airflow/commit/935d2831fe8fd509b618a738bf00e0c34e186e11>`__  2025-03-15   ``Remove links to x/twitter.com (#47801)``
 `e35cf2febb <https://github.com/apache/airflow/commit/e35cf2febb3b2814544cd44d7f331c80c3ed7e99>`__  2025-03-09   ``Scheduler shouldn't crash when 'executor_config' is passed for executors using task SDK (#47548)``
 ==================================================================================================  ===========  ====================================================================================================
