@@ -34,14 +34,18 @@ For high-level changelog, see :doc:`package information including changelog <ind
 
 
 
-10.4.0b1
-........
+10.4.0
+......
 
-Latest change: 2025-03-17
+Latest change: 2025-03-25
 
 ==================================================================================================  ===========  ================================================================================================
 Commit                                                                                              Committed    Subject
 ==================================================================================================  ===========  ================================================================================================
+`6adb2dbae4 <https://github.com/apache/airflow/commit/6adb2dbae47341eb61dbc62dbc56176d9aa83fd9>`__  2025-03-25   ``Upgrade providers flit build requirements to 3.12.0 (#48362)``
+`204020a329 <https://github.com/apache/airflow/commit/204020a329d954dca14ef30ea7f72c25782da85b>`__  2025-03-22   ``KubernetesPodOperator: add base_container_name to the templated fields (#47864)``
+`243fe86d4b <https://github.com/apache/airflow/commit/243fe86d4b3e59bb12977b3e36ca3f2ed27ca0f8>`__  2025-03-21   ``Move airflow sources to airflow-core package (#47798)``
+`1a5eb7a29c <https://github.com/apache/airflow/commit/1a5eb7a29c777009f2196678a67af0cfe352faab>`__  2025-03-20   ``Bump various providers in preparation for Airflow 3.0.0b4 (#48013)``
 `91b0f610ab <https://github.com/apache/airflow/commit/91b0f610ab109f39e27a5a00d9f6d5bf590b47ff>`__  2025-03-17   ``AIP-72: Handle Custom XCom Backend on Task SDK (#47339)``
 `007be76f73 <https://github.com/apache/airflow/commit/007be76f7341d3671de95f6b0607c1dfb72fb778>`__  2025-03-16   ``Remove extra method for async hook getting (#47313)``
 `966ea18112 <https://github.com/apache/airflow/commit/966ea18112987d72fa449abd814c37cf07ed1444>`__  2025-03-16   ``cncf.kubernetes: make the base container status check polling interval configurable (#47774)``

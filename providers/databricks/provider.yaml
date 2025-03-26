@@ -22,9 +22,10 @@ description: |
     `Databricks <https://databricks.com/>`__
 
 state: ready
-source-date-epoch: 1741508706
+source-date-epoch: 1742979996
 # note that those versions are maintained by release manager - do not update them manually
 versions:
+  - 7.2.2
   - 7.2.1
   - 7.2.0
   - 7.0.0
