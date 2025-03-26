@@ -338,7 +338,7 @@ class PlainXComArg(XComArg):
 
         if self.operator.is_mapped:
             return LazyXComSequence[Any](xcom_arg=self, ti=ti)
-        tg = ti.task.get_closest_mapped_task_group()
+        tg = self.operator.get_closest_mapped_task_group()
         result = None
         if tg is None:
             # regular task

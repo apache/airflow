@@ -228,7 +228,7 @@ jobs:
         run: >
           breeze prod-image build
           --builder airflow_cache
-          --install-packages-from-context
+          --install-distributions-from-context
           --platform "${PLATFORM}"
           --airflow-constraints-mode constraints-source-providers
         if: inputs.push-latest-images == 'true' && inputs.platform == 'linux/amd64'
@@ -240,7 +240,7 @@ jobs:
           breeze prod-image build
           --builder airflow_cache
           --prepare-buildx-cache
-          --install-packages-from-context
+          --install-distributions-from-context
           --platform "${PLATFORM}"
           --airflow-constraints-mode constraints-source-providers
           --push

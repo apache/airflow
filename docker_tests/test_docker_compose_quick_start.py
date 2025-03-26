@@ -18,12 +18,10 @@ from __future__ import annotations
 
 import json
 import os
-import re
 import shlex
 from pprint import pprint
 from shutil import copyfile
 from time import sleep
-from urllib.parse import parse_qs, urlparse
 
 import pytest
 import requests
@@ -61,37 +59,22 @@ def get_jwt_token() -> str:
     """
     # get csrf token from login page
     session = requests.Session()
-    get_login_form_response = session.get(f"http://{DOCKER_COMPOSE_HOST_PORT}/auth/login")
-    csrf_token = re.search(
-        r'<input id="csrf_token" name="csrf_token" type="hidden" value="(.+?)">',
-        get_login_form_response.text,
-    )
-    assert csrf_token, "Failed to get csrf token from login page"
-    csrf_token_str = csrf_token.group(1)
-    assert csrf_token_str, "Failed to get csrf token from login page"
-    # login with form data
+    url = f"http://{DOCKER_COMPOSE_HOST_PORT}/auth/token"
     login_response = session.post(
-        f"http://{DOCKER_COMPOSE_HOST_PORT}/auth/login",
-        data={
+        url,
+        json={
             "username": AIRFLOW_WWW_USER_USERNAME,
             "password": AIRFLOW_WWW_USER_PASSWORD,
-            "csrf_token": csrf_token_str,
         },
     )
-    redirect_url = login_response.url
-    # ensure redirect_url is a string
-    redirect_url_str = str(redirect_url) if redirect_url is not None else ""
-    assert "/?token" in redirect_url_str, f"Login failed with redirect url {redirect_url_str}"
-    parsed_url = urlparse(redirect_url_str)
-    query_params = parse_qs(str(parsed_url.query))
-    jwt_token_list = query_params.get("token")
-    jwt_token = jwt_token_list[0] if jwt_token_list else None
-    assert jwt_token, f"Failed to get JWT token from redirect url {redirect_url_str}"
+    jwt_token = login_response.json().get("jwt_token")
+
+    assert jwt_token, f"Failed to get JWT token from redirect url {url} with status code {login_response}"
     return jwt_token
 
 
 def api_request(
-    method: str, path: str, base_url: str = f"http://{DOCKER_COMPOSE_HOST_PORT}/public", **kwargs
+    method: str, path: str, base_url: str = f"http://{DOCKER_COMPOSE_HOST_PORT}/api/v2", **kwargs
 ) -> dict:
     response = requests.request(
         method=method,
@@ -122,7 +105,7 @@ def test_trigger_dag_and_wait_for_result(default_docker_image, tmp_path_factory,
     monkeypatch.setenv("AIRFLOW_IMAGE_NAME", default_docker_image)
 
     compose_file_path = (
-        SOURCE_ROOT / "docs" / "apache-airflow" / "howto" / "docker-compose" / "docker-compose.yaml"
+        SOURCE_ROOT / "airflow-core" / "docs" / "howto" / "docker-compose" / "docker-compose.yaml"
     )
     copyfile(compose_file_path, tmp_dir / "docker-compose.yaml")
 

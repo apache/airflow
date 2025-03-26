@@ -76,6 +76,9 @@ from airflow.utils.timezone import datetime
 from tests_common.test_utils.db import clear_db_runs, clear_db_xcom
 from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS
 
+if AIRFLOW_V_3_0_PLUS:
+    from airflow.sdk.execution_time.comms import XComResult
+
 AIRFLOW_VERSION_LABEL = "v" + str(AIRFLOW_VERSION).replace(".", "-").replace("+", "-")
 
 cluster_params = inspect.signature(ClusterGenerator.__init__).parameters
@@ -1110,7 +1113,9 @@ class TestDataprocCreateClusterOperator(DataprocClusterTestBase):
 
 @pytest.mark.db_test
 @pytest.mark.need_serialized_dag
-def test_create_cluster_operator_extra_links(dag_maker, create_task_instance_of_operator):
+def test_create_cluster_operator_extra_links(
+    dag_maker, create_task_instance_of_operator, mock_supervisor_comms
+):
     ti = create_task_instance_of_operator(
         DataprocCreateClusterOperator,
         dag_id=TEST_DAG_ID,
@@ -1128,11 +1133,21 @@ def test_create_cluster_operator_extra_links(dag_maker, create_task_instance_of_
     operator_extra_link = deserialized_dag.tasks[0].operator_extra_links[0]
     assert operator_extra_link.name == "Dataproc Cluster"
 
+    if AIRFLOW_V_3_0_PLUS:
+        mock_supervisor_comms.get_message.return_value = XComResult(
+            key="key",
+            value="",
+        )
     # Assert operator link is empty when no XCom push occurred
     assert ti.task.operator_extra_links[0].get_link(operator=ti.task, ti_key=ti.key) == ""
 
     ti.xcom_push(key="dataproc_cluster", value=DATAPROC_CLUSTER_EXPECTED)
 
+    if AIRFLOW_V_3_0_PLUS:
+        mock_supervisor_comms.get_message.return_value = XComResult(
+            key="key",
+            value={"cluster_id": "cluster_name", "project_id": "test-project", "region": "test-location"},
+        )
     # Assert operator links after execution
     assert (
         ti.task.operator_extra_links[0].get_link(operator=ti.task, ti_key=ti.key)
@@ -1211,7 +1226,9 @@ class TestDataprocClusterScaleOperator(DataprocClusterTestBase):
 
 @pytest.mark.db_test
 @pytest.mark.need_serialized_dag
-def test_scale_cluster_operator_extra_links(dag_maker, create_task_instance_of_operator):
+def test_scale_cluster_operator_extra_links(
+    dag_maker, create_task_instance_of_operator, mock_supervisor_comms
+):
     ti = create_task_instance_of_operator(
         DataprocScaleClusterOperator,
         dag_id=TEST_DAG_ID,
@@ -1232,6 +1249,11 @@ def test_scale_cluster_operator_extra_links(dag_maker, create_task_instance_of_o
     operator_extra_link = deserialized_dag.tasks[0].operator_extra_links[0]
     assert operator_extra_link.name == "Dataproc resource"
 
+    if AIRFLOW_V_3_0_PLUS:
+        mock_supervisor_comms.get_message.return_value = XComResult(
+            key="key",
+            value="",
+        )
     # Assert operator link is empty when no XCom push occurred
     assert ti.task.operator_extra_links[0].get_link(operator=ti.task, ti_key=ti.key) == ""
 
@@ -1239,6 +1261,12 @@ def test_scale_cluster_operator_extra_links(dag_maker, create_task_instance_of_o
         key="conf",
         value=DATAPROC_CLUSTER_CONF_EXPECTED,
     )
+
+    if AIRFLOW_V_3_0_PLUS:
+        mock_supervisor_comms.get_message.return_value = XComResult(
+            key="key",
+            value=DATAPROC_CLUSTER_CONF_EXPECTED,
+        )
 
     # Assert operator links after execution
     assert (
@@ -1531,9 +1559,13 @@ class TestDataprocSubmitJobOperator(DataprocJobTestBase):
         op.execute(context=self.mock_context)
         assert not mock_defer.called
 
+    @mock.patch("airflow.providers.openlineage.plugins.adapter.generate_static_uuid")
     @mock.patch("airflow.providers.google.cloud.openlineage.utils._is_openlineage_provider_accessible")
     @mock.patch(DATAPROC_PATH.format("DataprocHook"))
-    def test_execute_openlineage_parent_job_info_injection(self, mock_hook, mock_ol_accessible):
+    def test_execute_openlineage_parent_job_info_injection(
+        self, mock_hook, mock_ol_accessible, mock_static_uuid
+    ):
+        mock_static_uuid.return_value = "01931885-2800-7be7-aa8d-aaa15c337267"
         job_config = {
             "placement": {"cluster_name": CLUSTER_NAME},
             "pyspark_job": {
@@ -1592,13 +1624,15 @@ class TestDataprocSubmitJobOperator(DataprocJobTestBase):
             metadata=METADATA,
         )
 
+    @mock.patch("airflow.providers.openlineage.plugins.adapter.generate_static_uuid")
     @mock.patch("airflow.providers.openlineage.plugins.listener._openlineage_listener")
     @mock.patch("airflow.providers.google.cloud.openlineage.utils._is_openlineage_provider_accessible")
     @mock.patch(DATAPROC_PATH.format("DataprocHook"))
     def test_execute_openlineage_http_transport_info_injection(
-        self, mock_hook, mock_ol_accessible, mock_ol_listener
+        self, mock_hook, mock_ol_accessible, mock_ol_listener, mock_static_uuid
     ):
         mock_ol_accessible.return_value = True
+        mock_static_uuid.return_value = "01931885-2800-7be7-aa8d-aaa15c337267"
         mock_ol_listener.adapter.get_or_create_openlineage_client.return_value.transport = HttpTransport(
             HttpConfig.from_dict(OPENLINEAGE_HTTP_TRANSPORT_EXAMPLE_CONFIG)
         )
@@ -1645,11 +1679,15 @@ class TestDataprocSubmitJobOperator(DataprocJobTestBase):
             metadata=METADATA,
         )
 
+    @mock.patch("airflow.providers.openlineage.plugins.adapter.generate_static_uuid")
     @mock.patch("airflow.providers.openlineage.plugins.listener._openlineage_listener")
     @mock.patch("airflow.providers.google.cloud.openlineage.utils._is_openlineage_provider_accessible")
     @mock.patch(DATAPROC_PATH.format("DataprocHook"))
-    def test_execute_openlineage_all_info_injection(self, mock_hook, mock_ol_accessible, mock_ol_listener):
+    def test_execute_openlineage_all_info_injection(
+        self, mock_hook, mock_ol_accessible, mock_ol_listener, mock_static_uuid
+    ):
         mock_ol_accessible.return_value = True
+        mock_static_uuid.return_value = "01931885-2800-7be7-aa8d-aaa15c337267"
         mock_ol_listener.adapter.get_or_create_openlineage_client.return_value.transport = HttpTransport(
             HttpConfig.from_dict(OPENLINEAGE_HTTP_TRANSPORT_EXAMPLE_CONFIG)
         )
@@ -2076,7 +2114,9 @@ class TestDataprocSubmitJobOperator(DataprocJobTestBase):
 @pytest.mark.db_test
 @pytest.mark.need_serialized_dag
 @mock.patch(DATAPROC_PATH.format("DataprocHook"))
-def test_submit_job_operator_extra_links(mock_hook, dag_maker, create_task_instance_of_operator):
+def test_submit_job_operator_extra_links(
+    mock_hook, dag_maker, create_task_instance_of_operator, mock_supervisor_comms
+):
     mock_hook.return_value.project_id = GCP_PROJECT
     ti = create_task_instance_of_operator(
         DataprocSubmitJobOperator,
@@ -2095,10 +2135,22 @@ def test_submit_job_operator_extra_links(mock_hook, dag_maker, create_task_insta
     operator_extra_link = deserialized_dag.tasks[0].operator_extra_links[0]
     assert operator_extra_link.name == "Dataproc Job"
 
+    if AIRFLOW_V_3_0_PLUS:
+        mock_supervisor_comms.get_message.return_value = XComResult(
+            key="dataproc_job",
+            value="",
+        )
+
     # Assert operator link is empty when no XCom push occurred
     assert ti.task.operator_extra_links[0].get_link(operator=ti.task, ti_key=ti.key) == ""
 
     ti.xcom_push(key="dataproc_job", value=DATAPROC_JOB_EXPECTED)
+
+    if AIRFLOW_V_3_0_PLUS:
+        mock_supervisor_comms.get_message.return_value = XComResult(
+            key="dataproc_job",
+            value=DATAPROC_JOB_EXPECTED,
+        )
 
     # Assert operator links after execution
     assert (
@@ -2276,7 +2328,9 @@ class TestDataprocUpdateClusterOperator(DataprocClusterTestBase):
 
 @pytest.mark.db_test
 @pytest.mark.need_serialized_dag
-def test_update_cluster_operator_extra_links(dag_maker, create_task_instance_of_operator):
+def test_update_cluster_operator_extra_links(
+    dag_maker, create_task_instance_of_operator, mock_supervisor_comms
+):
     ti = create_task_instance_of_operator(
         DataprocUpdateClusterOperator,
         dag_id=TEST_DAG_ID,
@@ -2297,10 +2351,21 @@ def test_update_cluster_operator_extra_links(dag_maker, create_task_instance_of_
     operator_extra_link = deserialized_dag.tasks[0].operator_extra_links[0]
     assert operator_extra_link.name == "Dataproc Cluster"
 
+    if AIRFLOW_V_3_0_PLUS:
+        mock_supervisor_comms.get_message.return_value = XComResult(
+            key="dataproc_cluster",
+            value="",
+        )
     # Assert operator link is empty when no XCom push occurred
     assert ti.task.operator_extra_links[0].get_link(operator=ti.task, ti_key=ti.key) == ""
 
     ti.xcom_push(key="dataproc_cluster", value=DATAPROC_CLUSTER_EXPECTED)
+
+    if AIRFLOW_V_3_0_PLUS:
+        mock_supervisor_comms.get_message.return_value = XComResult(
+            key="dataproc_cluster",
+            value=DATAPROC_CLUSTER_EXPECTED,
+        )
 
     # Assert operator links after execution
     assert (
@@ -2492,7 +2557,9 @@ class TestDataprocInstantiateWorkflowTemplateOperator:
 @pytest.mark.db_test
 @pytest.mark.need_serialized_dag
 @mock.patch(DATAPROC_PATH.format("DataprocHook"))
-def test_instantiate_workflow_operator_extra_links(mock_hook, dag_maker, create_task_instance_of_operator):
+def test_instantiate_workflow_operator_extra_links(
+    mock_hook, dag_maker, create_task_instance_of_operator, mock_supervisor_comms
+):
     mock_hook.return_value.project_id = GCP_PROJECT
     ti = create_task_instance_of_operator(
         DataprocInstantiateWorkflowTemplateOperator,
@@ -2510,11 +2577,20 @@ def test_instantiate_workflow_operator_extra_links(mock_hook, dag_maker, create_
     operator_extra_link = deserialized_dag.tasks[0].operator_extra_links[0]
     assert operator_extra_link.name == "Dataproc Workflow"
 
+    if AIRFLOW_V_3_0_PLUS:
+        mock_supervisor_comms.get_message.return_value = XComResult(
+            key="dataproc_workflow",
+            value="",
+        )
     # Assert operator link is empty when no XCom push occurred
     assert ti.task.operator_extra_links[0].get_link(operator=ti.task, ti_key=ti.key) == ""
 
     ti.xcom_push(key="dataproc_workflow", value=DATAPROC_WORKFLOW_EXPECTED)
-
+    if AIRFLOW_V_3_0_PLUS:
+        mock_supervisor_comms.get_message.return_value = XComResult(
+            key="dataproc_workflow",
+            value=DATAPROC_WORKFLOW_EXPECTED,
+        )
     # Assert operator links after execution
     assert (
         ti.task.operator_extra_links[0].get_link(operator=ti.task, ti_key=ti.key)
@@ -2639,10 +2715,14 @@ class TestDataprocWorkflowTemplateInstantiateInlineOperator:
         )
         mock_op.return_value.result.assert_not_called()
 
+    @mock.patch("airflow.providers.openlineage.plugins.adapter.generate_static_uuid")
     @mock.patch("airflow.providers.google.cloud.openlineage.utils._is_openlineage_provider_accessible")
     @mock.patch(DATAPROC_PATH.format("DataprocHook"))
-    def test_execute_openlineage_parent_job_info_injection(self, mock_hook, mock_ol_accessible):
+    def test_execute_openlineage_parent_job_info_injection(
+        self, mock_hook, mock_ol_accessible, mock_static_uuid
+    ):
         mock_ol_accessible.return_value = True
+        mock_static_uuid.return_value = "01931885-2800-7be7-aa8d-aaa15c337267"
         template = {
             **WORKFLOW_TEMPLATE,
             "jobs": [
@@ -2825,13 +2905,15 @@ class TestDataprocWorkflowTemplateInstantiateInlineOperator:
             metadata=METADATA,
         )
 
+    @mock.patch("airflow.providers.openlineage.plugins.adapter.generate_static_uuid")
     @mock.patch("airflow.providers.openlineage.plugins.listener._openlineage_listener")
     @mock.patch("airflow.providers.google.cloud.openlineage.utils._is_openlineage_provider_accessible")
     @mock.patch(DATAPROC_PATH.format("DataprocHook"))
     def test_execute_openlineage_transport_info_injection(
-        self, mock_hook, mock_ol_accessible, mock_ol_listener
+        self, mock_hook, mock_ol_accessible, mock_ol_listener, mock_static_uuid
     ):
         mock_ol_accessible.return_value = True
+        mock_static_uuid.return_value = "01931885-2800-7be7-aa8d-aaa15c337267"
         mock_ol_listener.adapter.get_or_create_openlineage_client.return_value.transport = HttpTransport(
             HttpConfig.from_dict(OPENLINEAGE_HTTP_TRANSPORT_EXAMPLE_CONFIG)
         )
@@ -2929,11 +3011,15 @@ class TestDataprocWorkflowTemplateInstantiateInlineOperator:
             metadata=METADATA,
         )
 
+    @mock.patch("airflow.providers.openlineage.plugins.adapter.generate_static_uuid")
     @mock.patch("airflow.providers.openlineage.plugins.listener._openlineage_listener")
     @mock.patch("airflow.providers.google.cloud.openlineage.utils._is_openlineage_provider_accessible")
     @mock.patch(DATAPROC_PATH.format("DataprocHook"))
-    def test_execute_openlineage_all_info_injection(self, mock_hook, mock_ol_accessible, mock_ol_listener):
+    def test_execute_openlineage_all_info_injection(
+        self, mock_hook, mock_ol_accessible, mock_ol_listener, mock_static_uuid
+    ):
         mock_ol_accessible.return_value = True
+        mock_static_uuid.return_value = "01931885-2800-7be7-aa8d-aaa15c337267"
         mock_ol_listener.adapter.get_or_create_openlineage_client.return_value.transport = HttpTransport(
             HttpConfig.from_dict(OPENLINEAGE_HTTP_TRANSPORT_EXAMPLE_CONFIG)
         )
@@ -3155,7 +3241,7 @@ class TestDataprocWorkflowTemplateInstantiateInlineOperator:
 @pytest.mark.need_serialized_dag
 @mock.patch(DATAPROC_PATH.format("DataprocHook"))
 def test_instantiate_inline_workflow_operator_extra_links(
-    mock_hook, dag_maker, create_task_instance_of_operator
+    mock_hook, dag_maker, create_task_instance_of_operator, mock_supervisor_comms
 ):
     mock_hook.return_value.project_id = GCP_PROJECT
     ti = create_task_instance_of_operator(
@@ -3173,11 +3259,19 @@ def test_instantiate_inline_workflow_operator_extra_links(
     deserialized_dag = SerializedDAG.deserialize_dag(serialized_dag["dag"])
     operator_extra_link = deserialized_dag.tasks[0].operator_extra_links[0]
     assert operator_extra_link.name == "Dataproc Workflow"
-
+    if AIRFLOW_V_3_0_PLUS:
+        mock_supervisor_comms.get_message.return_value = XComResult(
+            key="dataproc_workflow",
+            value="",
+        )
     # Assert operator link is empty when no XCom push occurred
     assert ti.task.operator_extra_links[0].get_link(operator=ti.task, ti_key=ti.key) == ""
 
     ti.xcom_push(key="dataproc_workflow", value=DATAPROC_WORKFLOW_EXPECTED)
+    if AIRFLOW_V_3_0_PLUS:
+        mock_supervisor_comms.get_message.return_value = XComResult(
+            key="dataproc_workflow", value=DATAPROC_WORKFLOW_EXPECTED
+        )
 
     # Assert operator links after execution
     assert (
@@ -3393,11 +3487,15 @@ class TestDataprocCreateBatchOperator:
             metadata=METADATA,
         )
 
+    @mock.patch("airflow.providers.openlineage.plugins.adapter.generate_static_uuid")
     @mock.patch("airflow.providers.google.cloud.openlineage.utils._is_openlineage_provider_accessible")
     @mock.patch(DATAPROC_PATH.format("Batch.to_dict"))
     @mock.patch(DATAPROC_PATH.format("DataprocHook"))
-    def test_execute_openlineage_parent_job_info_injection(self, mock_hook, to_dict_mock, mock_ol_accessible):
+    def test_execute_openlineage_parent_job_info_injection(
+        self, mock_hook, to_dict_mock, mock_ol_accessible, mock_static_uuid
+    ):
         mock_ol_accessible.return_value = True
+        mock_static_uuid.return_value = "01931885-2800-7be7-aa8d-aaa15c337267"
         expected_batch = {
             **BATCH,
             "runtime_config": {"properties": OPENLINEAGE_PARENT_JOB_EXAMPLE_SPARK_PROPERTIES},
@@ -3430,14 +3528,16 @@ class TestDataprocCreateBatchOperator:
             metadata=METADATA,
         )
 
+    @mock.patch("airflow.providers.openlineage.plugins.adapter.generate_static_uuid")
     @mock.patch("airflow.providers.openlineage.plugins.listener._openlineage_listener")
     @mock.patch("airflow.providers.google.cloud.openlineage.utils._is_openlineage_provider_accessible")
     @mock.patch(DATAPROC_PATH.format("Batch.to_dict"))
     @mock.patch(DATAPROC_PATH.format("DataprocHook"))
     def test_execute_openlineage_transport_info_injection(
-        self, mock_hook, to_dict_mock, mock_ol_accessible, mock_ol_listener
+        self, mock_hook, to_dict_mock, mock_ol_accessible, mock_ol_listener, mock_static_uuid
     ):
         mock_ol_accessible.return_value = True
+        mock_static_uuid.return_value = "01931885-2800-7be7-aa8d-aaa15c337267"
         mock_ol_listener.adapter.get_or_create_openlineage_client.return_value.transport = HttpTransport(
             HttpConfig.from_dict(OPENLINEAGE_HTTP_TRANSPORT_EXAMPLE_CONFIG)
         )
@@ -3473,14 +3573,16 @@ class TestDataprocCreateBatchOperator:
             metadata=METADATA,
         )
 
+    @mock.patch("airflow.providers.openlineage.plugins.adapter.generate_static_uuid")
     @mock.patch("airflow.providers.openlineage.plugins.listener._openlineage_listener")
     @mock.patch("airflow.providers.google.cloud.openlineage.utils._is_openlineage_provider_accessible")
     @mock.patch(DATAPROC_PATH.format("Batch.to_dict"))
     @mock.patch(DATAPROC_PATH.format("DataprocHook"))
     def test_execute_openlineage_all_info_injection(
-        self, mock_hook, to_dict_mock, mock_ol_accessible, mock_ol_listener
+        self, mock_hook, to_dict_mock, mock_ol_accessible, mock_ol_listener, mock_static_uuid
     ):
         mock_ol_accessible.return_value = True
+        mock_static_uuid.return_value = "01931885-2800-7be7-aa8d-aaa15c337267"
         mock_ol_listener.adapter.get_or_create_openlineage_client.return_value.transport = HttpTransport(
             HttpConfig.from_dict(OPENLINEAGE_HTTP_TRANSPORT_EXAMPLE_CONFIG)
         )
@@ -3529,8 +3631,15 @@ class TestDataprocCreateBatchOperator:
         self, mock_hook, to_dict_mock, mock_ol_accessible
     ):
         mock_ol_accessible.return_value = True
+        expected_labels = {
+            "airflow-dag-id": "test_dag",
+            "airflow-dag-display-name": "test_dag",
+            "airflow-task-id": "task-id",
+        }
+
         batch = {
             **BATCH,
+            "labels": expected_labels,
             "runtime_config": {
                 "properties": {
                     "spark.openlineage.parentJobName": "dag_id.task_id",
@@ -3551,6 +3660,7 @@ class TestDataprocCreateBatchOperator:
             timeout=TIMEOUT,
             metadata=METADATA,
             openlineage_inject_parent_job_info=True,
+            dag=DAG(dag_id="test_dag"),
         )
         mock_hook.return_value.wait_for_operation.return_value = Batch(state=Batch.State.SUCCEEDED)
         op.execute(context=EXAMPLE_CONTEXT)
@@ -3576,8 +3686,16 @@ class TestDataprocCreateBatchOperator:
         mock_ol_listener.adapter.get_or_create_openlineage_client.return_value.transport = HttpTransport(
             HttpConfig.from_dict(OPENLINEAGE_HTTP_TRANSPORT_EXAMPLE_CONFIG)
         )
+
+        expected_labels = {
+            "airflow-dag-id": "test_dag",
+            "airflow-dag-display-name": "test_dag",
+            "airflow-task-id": "task-id",
+        }
+
         batch = {
             **BATCH,
+            "labels": expected_labels,
             "runtime_config": {
                 "properties": {
                     "spark.openlineage.transport.type": "console",
@@ -3598,6 +3716,7 @@ class TestDataprocCreateBatchOperator:
             timeout=TIMEOUT,
             metadata=METADATA,
             openlineage_inject_transport_info=True,
+            dag=DAG(dag_id="test_dag"),
         )
         mock_hook.return_value.wait_for_operation.return_value = Batch(state=Batch.State.SUCCEEDED)
         op.execute(context=EXAMPLE_CONTEXT)

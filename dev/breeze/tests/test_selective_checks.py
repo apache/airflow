@@ -31,7 +31,7 @@ from airflow_breeze.global_constants import (
     GithubEvents,
 )
 from airflow_breeze.utils.functools_cache import clearable_cache
-from airflow_breeze.utils.packages import get_available_packages
+from airflow_breeze.utils.packages import get_available_distributions
 from airflow_breeze.utils.selective_checks import (
     ALL_CI_SELECTIVE_TEST_TYPES,
     ALL_PROVIDERS_SELECTIVE_TEST_TYPES,
@@ -44,7 +44,7 @@ ANSI_COLORS_MATCHER = re.compile(r"(?:\x1B[@-_]|[\x80-\x9F])[0-?]*[ -/]*[@-~]")
 ALL_DOCS_SELECTED_FOR_BUILD = ""
 ALL_PROVIDERS_AFFECTED = ""
 LIST_OF_ALL_PROVIDER_TESTS = " ".join(
-    f"Providers[{provider}]" for provider in get_available_packages(include_not_ready=True)
+    f"Providers[{provider}]" for provider in get_available_distributions(include_not_ready=True)
 )
 
 
@@ -147,7 +147,7 @@ def assert_outputs_are_printed(expected_outputs: dict[str, str], stderr: str):
         ),
         (
             pytest.param(
-                ("airflow/api/file.py",),
+                ("airflow-core/src/airflow/api/file.py",),
                 {
                     "selected-providers-list-as-string": "",
                     "all-python-versions": "['3.9']",
@@ -172,7 +172,7 @@ def assert_outputs_are_printed(expected_outputs: dict[str, str], stderr: str):
         ),
         (
             pytest.param(
-                ("airflow/api_fastapi/file.py",),
+                ("airflow-core/src/airflow/api_fastapi/file.py",),
                 {
                     "all-python-versions": "['3.9']",
                     "all-python-versions-list-as-string": "3.9",
@@ -197,7 +197,7 @@ def assert_outputs_are_printed(expected_outputs: dict[str, str], stderr: str):
         ),
         (
             pytest.param(
-                ("tests/api/file.py",),
+                ("airflow-core/tests/unit/api/file.py",),
                 {
                     "all-python-versions": "['3.9']",
                     "all-python-versions-list-as-string": "3.9",
@@ -218,33 +218,6 @@ def assert_outputs_are_printed(expected_outputs: dict[str, str], stderr: str):
                     "mypy-checks": "['mypy-airflow', 'mypy-providers', 'mypy-docs', 'mypy-dev', 'mypy-task-sdk']",
                 },
                 id="All tests should run when API test files change",
-            )
-        ),
-        (
-            pytest.param(
-                ("airflow/operators/file.py",),
-                {
-                    "selected-providers-list-as-string": None,
-                    "all-python-versions": "['3.9']",
-                    "all-python-versions-list-as-string": "3.9",
-                    "python-versions": "['3.9']",
-                    "python-versions-list-as-string": "3.9",
-                    "ci-image-build": "true",
-                    "prod-image-build": "false",
-                    "needs-helm-tests": "false",
-                    "run-tests": "true",
-                    "run-amazon-tests": "false",
-                    "docs-build": "true",
-                    "skip-pre-commits": "check-provider-yaml-valid,identity,lint-helm-chart,mypy-airflow,mypy-dev,"
-                    "mypy-docs,mypy-providers,mypy-task-sdk,ts-compile-format-lint-ui",
-                    "upgrade-to-newer-dependencies": "false",
-                    "core-test-types-list-as-string": "Always Operators",
-                    "providers-test-types-list-as-string": "",
-                    "individual-providers-test-types-list-as-string": "",
-                    "needs-mypy": "true",
-                    "mypy-checks": "['mypy-airflow']",
-                },
-                id="Only Operator tests and DOCS should run",
             )
         ),
         (
@@ -276,7 +249,7 @@ def assert_outputs_are_printed(expected_outputs: dict[str, str], stderr: str):
         ),
         (
             pytest.param(
-                ("airflow/serialization/python.py",),
+                ("airflow-core/src/airflow/serialization/python.py",),
                 {
                     "selected-providers-list-as-string": None,
                     "all-python-versions": "['3.9']",
@@ -304,7 +277,7 @@ def assert_outputs_are_printed(expected_outputs: dict[str, str], stderr: str):
         (
             pytest.param(
                 (
-                    "airflow/api/file.py",
+                    "airflow-core/src/airflow/api/file.py",
                     "providers/postgres/tests/unit/postgres/file.py",
                 ),
                 {
@@ -510,7 +483,7 @@ def assert_outputs_are_printed(expected_outputs: dict[str, str], stderr: str):
                     ),
                     "skip-providers-tests": "false",
                     "upgrade-to-newer-dependencies": "false",
-                    "core-test-types-list-as-string": ("API Always CLI Core Operators Other Serialization"),
+                    "core-test-types-list-as-string": ("API Always CLI Core Other Serialization"),
                     "providers-test-types-list-as-string": "Providers[-amazon,google,standard] Providers[amazon] Providers[google] Providers[standard]",
                     "needs-mypy": "true",
                     "mypy-checks": "['mypy-providers', 'mypy-task-sdk']",
@@ -784,7 +757,7 @@ def assert_outputs_are_printed(expected_outputs: dict[str, str], stderr: str):
         ),
         pytest.param(
             (
-                "tests/always/test_project_structure.py",
+                "airflow-core/tests/unit/always/test_project_structure.py",
                 "providers/common/io/tests/operators/__init__.py",
                 "providers/common/io/tests/operators/test_file_transfer.py",
             ),
@@ -863,7 +836,7 @@ def assert_outputs_are_printed(expected_outputs: dict[str, str], stderr: str):
         ),
         (
             pytest.param(
-                ("tests/utils/test_cli_util.py",),
+                ("airflow-core/tests/unit/utils/test_cli_util.py",),
                 {
                     "selected-providers-list-as-string": ALL_PROVIDERS_AFFECTED,
                     "all-python-versions": "['3.9']",
@@ -917,7 +890,7 @@ def assert_outputs_are_printed(expected_outputs: dict[str, str], stderr: str):
         ),
         (
             pytest.param(
-                ("airflow/ui/src/index.tsx",),
+                ("airflow-core/src/airflow/ui/src/index.tsx",),
                 {
                     "selected-providers-list-as-string": None,
                     "all-python-versions": "['3.9']",
@@ -1320,7 +1293,7 @@ def test_full_test_needed_when_scripts_changes(files: tuple[str, ...], expected_
                     "full-tests-needed": "true",
                     "skip-pre-commits": "check-airflow-provider-compatibility,check-extra-packages-references,check-provider-yaml-valid,identity,lint-helm-chart,mypy-airflow,mypy-dev,mypy-docs,mypy-providers,mypy-task-sdk,validate-operators-init",
                     "upgrade-to-newer-dependencies": "false",
-                    "core-test-types-list-as-string": "API Always CLI Core Operators Other Serialization",
+                    "core-test-types-list-as-string": "API Always CLI Core Other Serialization",
                     "needs-mypy": "true",
                     "mypy-checks": "['mypy-airflow', 'mypy-docs', 'mypy-dev', 'mypy-task-sdk']",
                 },
@@ -1398,7 +1371,7 @@ def test_expected_output_full_tests_needed(
         ),
         pytest.param(
             (
-                "airflow/cli/test.py",
+                "airflow-core/src/airflow/cli/test.py",
                 "chart/aaaa.txt",
                 "providers/google/tests/unit/google/file.py",
             ),
@@ -1424,7 +1397,7 @@ def test_expected_output_full_tests_needed(
         ),
         pytest.param(
             (
-                "airflow/file.py",
+                "airflow-core/src/airflow/file.py",
                 "providers/google/tests/unit/google/file.py",
             ),
             {
@@ -1441,7 +1414,7 @@ def test_expected_output_full_tests_needed(
                 "full-tests-needed": "false",
                 "run-kubernetes-tests": "false",
                 "upgrade-to-newer-dependencies": "false",
-                "core-test-types-list-as-string": "API Always CLI Core Operators Other Serialization",
+                "core-test-types-list-as-string": "API Always CLI Core Other Serialization",
                 "needs-mypy": "true",
                 "mypy-checks": "['mypy-airflow']",
             },
@@ -1504,7 +1477,7 @@ def test_expected_output_pull_request_v2_7(
                 "skip-pre-commits": "check-airflow-provider-compatibility,check-extra-packages-references,check-provider-yaml-valid,identity,lint-helm-chart,mypy-airflow,mypy-dev,mypy-docs,mypy-providers,mypy-task-sdk,validate-operators-init",
                 "docs-list-as-string": "apache-airflow docker-stack",
                 "upgrade-to-newer-dependencies": "true",
-                "core-test-types-list-as-string": "API Always CLI Core Operators Other Serialization",
+                "core-test-types-list-as-string": "API Always CLI Core Other Serialization",
                 "needs-mypy": "true",
                 "mypy-checks": "['mypy-airflow', 'mypy-docs', 'mypy-dev', 'mypy-task-sdk']",
             },
@@ -1512,7 +1485,7 @@ def test_expected_output_pull_request_v2_7(
             " even if unimportant file changed in non-main branch",
         ),
         pytest.param(
-            ("airflow/api.py",),
+            ("airflow-core/src/airflow/api.py",),
             (),
             "main",
             {
@@ -1577,7 +1550,7 @@ def test_expected_output_push(
             id="Nothing should run if only non-important files changed",
         ),
         pytest.param(
-            ("tests/system/any_file.py",),
+            ("airflow-core/tests/system/any_file.py",),
             {
                 "selected-providers-list-as-string": None,
                 "all-python-versions": "['3.9']",
@@ -1601,7 +1574,7 @@ def test_expected_output_push(
         ),
         pytest.param(
             (
-                "airflow/cli/test.py",
+                "airflow-core/src/airflow/cli/test.py",
                 "chart/aaaa.txt",
                 "providers/google/tests/unit/google/file.py",
             ),
@@ -1637,7 +1610,7 @@ def test_expected_output_push(
             "prod image should be build too and k8s tests too",
         ),
         pytest.param(
-            ("airflow/models/test.py",),
+            ("airflow-core/src/airflow/models/test.py",),
             {
                 "all-python-versions": "['3.9']",
                 "all-python-versions-list-as-string": "3.9",
@@ -1660,7 +1633,7 @@ def test_expected_output_push(
             id="Tests for all airflow core types except providers should run if model file changed",
         ),
         pytest.param(
-            ("airflow/api_fastapi/core_api/openapi/v1-generated.yaml",),
+            ("airflow-core/src/airflow/api_fastapi/core_api/openapi/v1-generated.yaml",),
             {
                 "selected-providers-list-as-string": "",
                 "all-python-versions": "['3.9']",
@@ -1674,7 +1647,7 @@ def test_expected_output_push(
                 "docs-list-as-string": "",
                 "upgrade-to-newer-dependencies": "false",
                 "skip-pre-commits": "identity,mypy-airflow,mypy-dev,mypy-docs,mypy-providers,mypy-task-sdk",
-                "core-test-types-list-as-string": "API Always CLI Core Operators Other Serialization",
+                "core-test-types-list-as-string": "API Always CLI Core Other Serialization",
                 "needs-mypy": "true",
                 "mypy-checks": "['mypy-airflow', 'mypy-providers', 'mypy-docs', 'mypy-dev', 'mypy-task-sdk']",
             },
@@ -1682,10 +1655,10 @@ def test_expected_output_push(
         ),
         pytest.param(
             (
-                "airflow/assets/",
-                "airflow/models/assets/",
+                "airflow-core/src/airflow/assets/",
+                "airflow-core/src/airflow/models/assets/",
                 "task-sdk/src/airflow/sdk/definitions/asset/",
-                "airflow/datasets/",
+                "airflow-core/src/airflow/datasets/",
             ),
             {
                 "selected-providers-list-as-string": "amazon common.compat common.io common.sql dbt.cloud ftp google microsoft.mssql mysql openlineage postgres sftp snowflake trino",
@@ -1703,7 +1676,7 @@ def test_expected_output_push(
                 "ts-compile-format-lint-ui",
                 "run-kubernetes-tests": "false",
                 "upgrade-to-newer-dependencies": "false",
-                "core-test-types-list-as-string": "API Always CLI Core Operators Other Serialization",
+                "core-test-types-list-as-string": "API Always CLI Core Other Serialization",
                 "providers-test-types-list-as-string": "Providers[amazon] Providers[common.compat,common.io,common.sql,dbt.cloud,ftp,microsoft.mssql,mysql,openlineage,postgres,sftp,snowflake,trino] Providers[google]",
                 "needs-mypy": "false",
                 "mypy-checks": "[]",
@@ -1774,7 +1747,10 @@ def test_no_commit_provided_trigger_full_build_for_any_event_type(github_event):
 )
 def test_files_provided_trigger_full_build_for_any_event_type(github_event):
     stderr = SelectiveChecks(
-        files=("airflow/ui/src/pages/Run/Details.tsx", "airflow/ui/src/router.tsx"),
+        files=(
+            "airflow-core/src/airflow/ui/src/pages/Run/Details.tsx",
+            "airflow-core/src/airflow/ui/src/router.tsx",
+        ),
         commit_ref="",
         github_event=github_event,
         pr_labels=(),
@@ -1805,7 +1781,7 @@ def test_files_provided_trigger_full_build_for_any_event_type(github_event):
     "files, expected_outputs, pr_labels, commit_ref",
     [
         pytest.param(
-            ("airflow/models/dag.py",),
+            ("airflow-core/src/airflow/models/dag.py",),
             {
                 "upgrade-to-newer-dependencies": "false",
             },
@@ -1842,7 +1818,7 @@ def test_files_provided_trigger_full_build_for_any_event_type(github_event):
             id="Generated provider_dependencies changed",
         ),
         pytest.param(
-            ("airflow/models/dag.py",),
+            ("airflow-core/src/airflow/models/dag.py",),
             {
                 "upgrade-to-newer-dependencies": "true",
             },
@@ -1899,7 +1875,7 @@ def test_upgrade_to_newer_dependencies(
             id="Airbyte provider docs changed",
         ),
         pytest.param(
-            ("providers/airbyte/docs/some_file.rst", "docs/apache-airflow/docs.rst"),
+            ("providers/airbyte/docs/some_file.rst", "airflow-core/docs/docs.rst"),
             {
                 "docs-list-as-string": "apache-airflow airbyte",
             },
@@ -1908,7 +1884,7 @@ def test_upgrade_to_newer_dependencies(
         pytest.param(
             (
                 "providers/airbyte/docs/some_file.rst",
-                "docs/apache-airflow/docs.rst",
+                "airflow-core/docs/docs.rst",
                 "docs/apache-airflow-providers/docs.rst",
             ),
             {
@@ -1917,7 +1893,7 @@ def test_upgrade_to_newer_dependencies(
             id="Airbyte provider and airflow core and common provider docs changed",
         ),
         pytest.param(
-            ("docs/apache-airflow/docs.rst",),
+            ("airflow-core/docs/docs.rst",),
             {
                 "docs-list-as-string": "apache-airflow",
             },
@@ -1936,7 +1912,7 @@ def test_upgrade_to_newer_dependencies(
             id="Docs conf.py changed",
         ),
         pytest.param(
-            ("airflow/test.py",),
+            ("airflow-core/src/airflow/test.py",),
             {
                 "docs-list-as-string": "apache-airflow",
             },
@@ -1948,7 +1924,7 @@ def test_upgrade_to_newer_dependencies(
             id="Docker stack files changed. No provider docs to build",
         ),
         pytest.param(
-            ("airflow/test.py", "chart/airflow/values.yaml"),
+            ("airflow-core/src/airflow/test.py", "chart/airflow/values.yaml"),
             {
                 "docs-list-as-string": "apache-airflow helm-chart",
             },
@@ -2360,12 +2336,12 @@ def test_runs_on(
     "files, has_migrations",
     [
         pytest.param(
-            ("airflow/test.py",),
+            ("airflow-core/src/airflow/test.py",),
             False,
             id="No migrations",
         ),
         pytest.param(
-            ("airflow/migrations/test_sql", "airflow/test.py"),
+            ("airflow-core/src/airflow/migrations/test_sql", "airflow-core/src/airflow/test.py"),
             True,
             id="With migrations",
         ),
@@ -2431,7 +2407,7 @@ def test_provider_compatibility_checks(labels: tuple[str, ...], expected_outputs
             id="No mypy checks on non-python files",
         ),
         pytest.param(
-            ("airflow/cli/file.py",),
+            ("airflow-core/src/airflow/cli/file.py",),
             {
                 "needs-mypy": "true",
                 "mypy-checks": "['mypy-airflow']",
@@ -2441,7 +2417,7 @@ def test_provider_compatibility_checks(labels: tuple[str, ...], expected_outputs
             id="Airflow mypy checks on airflow regular files",
         ),
         pytest.param(
-            ("airflow/models/file.py",),
+            ("airflow-core/src/airflow/models/file.py",),
             {
                 "needs-mypy": "true",
                 "mypy-checks": "['mypy-airflow']",
@@ -2578,7 +2554,7 @@ def test_pr_labels(
     "files, pr_labels, github_event",
     [
         pytest.param(
-            ("tests/test.py",),
+            ("airflow-core/tests/unit/test.py",),
             (),
             GithubEvents.PULL_REQUEST,
             id="Caplog is in the the git diff Tests",
@@ -2635,7 +2611,7 @@ def test_is_log_mocked_in_the_tests_fail(
     "files, pr_labels, github_event",
     [
         pytest.param(
-            ("tests/test.py",),
+            ("airflow-core/tests/unit/test.py",),
             (),
             GithubEvents.PULL_REQUEST,
             id="Caplog is in the the git diff Tests",
@@ -2695,7 +2671,7 @@ def test_is_log_mocked_in_the_tests_fail_formatted(
     "files, pr_labels, github_event",
     [
         pytest.param(
-            ("tests/test.py",),
+            ("airflow-core/tests/unit/test.py",),
             (),
             GithubEvents.PULL_REQUEST,
             id="Caplog is in the the git diff Tests",
@@ -2743,7 +2719,7 @@ def test_is_log_mocked_in_the_tests_not_fail(
     "files, pr_labels, github_event",
     [
         pytest.param(
-            ("tests/test.py",),
+            ("airflow-core/tests/unit/test.py",),
             (LOG_WITHOUT_MOCK_IN_TESTS_EXCEPTION_LABEL,),
             GithubEvents.PULL_REQUEST,
             id="Caplog is in the the git diff Tests",

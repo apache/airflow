@@ -240,8 +240,8 @@ def check_exampleinclude_for_example_dags() -> list[DocBuildError]:
             file_path=doc_file,
             pattern=r"literalinclude::.+(?:example_dags|tests/system/)",
             message=(
-                "literalinclude directive is prohibited for example DAGs. \n"
-                "You should use the exampleinclude directive to include example DAGs."
+                "literalinclude directive is prohibited for example dags. \n"
+                "You should use the exampleinclude directive to include example dags."
             ),
         )
         if build_error:
@@ -283,7 +283,7 @@ def get_indexfile(provider: dict[str, Any]) -> Path:
 
 
 def check_pypi_repository_in_provider_tocs() -> list[DocBuildError]:
-    """Checks that each documentation for provider packages has a link to PyPI files in the TOC."""
+    """Checks that each documentation for provider distributions has a link to PyPI files in the TOC."""
     build_errors = []
     for provider in ALL_PROVIDER_YAMLS:
         doc_file_path = get_indexfile(provider)

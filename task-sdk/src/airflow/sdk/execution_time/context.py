@@ -42,10 +42,10 @@ from airflow.sdk.exceptions import AirflowRuntimeError, ErrorType
 if TYPE_CHECKING:
     from uuid import UUID
 
+    from airflow.sdk import Variable
     from airflow.sdk.definitions.baseoperator import BaseOperator
     from airflow.sdk.definitions.connection import Connection
     from airflow.sdk.definitions.context import Context
-    from airflow.sdk.definitions.variable import Variable
     from airflow.sdk.execution_time.comms import (
         AssetEventsResult,
         AssetResult,
@@ -53,6 +53,43 @@ if TYPE_CHECKING:
         PrevSuccessfulDagRunResponse,
         VariableResult,
     )
+    from airflow.sdk.types import OutletEventAccessorsProtocol
+
+
+DEFAULT_FORMAT_PREFIX = "airflow.ctx."
+ENV_VAR_FORMAT_PREFIX = "AIRFLOW_CTX_"
+
+AIRFLOW_VAR_NAME_FORMAT_MAPPING = {
+    "AIRFLOW_CONTEXT_DAG_ID": {
+        "default": f"{DEFAULT_FORMAT_PREFIX}dag_id",
+        "env_var_format": f"{ENV_VAR_FORMAT_PREFIX}DAG_ID",
+    },
+    "AIRFLOW_CONTEXT_TASK_ID": {
+        "default": f"{DEFAULT_FORMAT_PREFIX}task_id",
+        "env_var_format": f"{ENV_VAR_FORMAT_PREFIX}TASK_ID",
+    },
+    "AIRFLOW_CONTEXT_LOGICAL_DATE": {
+        "default": f"{DEFAULT_FORMAT_PREFIX}logical_date",
+        "env_var_format": f"{ENV_VAR_FORMAT_PREFIX}LOGICAL_DATE",
+    },
+    "AIRFLOW_CONTEXT_TRY_NUMBER": {
+        "default": f"{DEFAULT_FORMAT_PREFIX}try_number",
+        "env_var_format": f"{ENV_VAR_FORMAT_PREFIX}TRY_NUMBER",
+    },
+    "AIRFLOW_CONTEXT_DAG_RUN_ID": {
+        "default": f"{DEFAULT_FORMAT_PREFIX}dag_run_id",
+        "env_var_format": f"{ENV_VAR_FORMAT_PREFIX}DAG_RUN_ID",
+    },
+    "AIRFLOW_CONTEXT_DAG_OWNER": {
+        "default": f"{DEFAULT_FORMAT_PREFIX}dag_owner",
+        "env_var_format": f"{ENV_VAR_FORMAT_PREFIX}DAG_OWNER",
+    },
+    "AIRFLOW_CONTEXT_DAG_EMAIL": {
+        "default": f"{DEFAULT_FORMAT_PREFIX}dag_email",
+        "env_var_format": f"{ENV_VAR_FORMAT_PREFIX}DAG_EMAIL",
+    },
+}
+
 
 log = structlog.get_logger(logger_name="task")
 
@@ -75,6 +112,28 @@ def _convert_variable_result_to_variable(var_result: VariableResult, deserialize
 
 
 def _get_connection(conn_id: str) -> Connection:
+    from airflow.sdk.execution_time.supervisor import SECRETS_BACKEND
+    # TODO: check cache first
+    # enabled only if SecretCache.init() has been called first
+
+    # iterate over configured backends if not in cache (or expired)
+    for secrets_backend in SECRETS_BACKEND:
+        try:
+            conn = secrets_backend.get_connection(conn_id=conn_id)
+            if conn:
+                return conn
+        except Exception:
+            log.exception(
+                "Unable to retrieve connection from secrets backend (%s). "
+                "Checking subsequent secrets backend.",
+                type(secrets_backend).__name__,
+            )
+
+    log.debug(
+        "Connection not found in any of the configured Secrets Backends. Trying to retrieve from API server",
+        conn_id=conn_id,
+    )
+
     # TODO: This should probably be moved to a separate module like `airflow.sdk.execution_time.comms`
     #   or `airflow.sdk.execution_time.connection`
     #   A reason to not move it to `airflow.sdk.execution_time.comms` is that it
@@ -93,7 +152,30 @@ def _get_connection(conn_id: str) -> Connection:
     return _convert_connection_result_conn(msg)
 
 
-def _get_variable(key: str, deserialize_json: bool) -> Variable:
+def _get_variable(key: str, deserialize_json: bool) -> Any:
+    # TODO: check cache first
+    # enabled only if SecretCache.init() has been called first
+    from airflow.sdk.execution_time.supervisor import SECRETS_BACKEND
+
+    var_val = None
+    # iterate over backends if not in cache (or expired)
+    for secrets_backend in SECRETS_BACKEND:
+        try:
+            var_val = secrets_backend.get_variable(key=key)  # type: ignore[assignment]
+            if var_val is not None:
+                return var_val
+        except Exception:
+            log.exception(
+                "Unable to retrieve variable from secrets backend (%s). "
+                "Checking subsequent secrets backend.",
+                type(secrets_backend).__name__,
+            )
+
+    log.debug(
+        "Variable not found in any of the configured Secrets Backends. Trying to retrieve from API server",
+        key=key,
+    )
+
     # TODO: This should probably be moved to a separate module like `airflow.sdk.execution_time.comms`
     #   or `airflow.sdk.execution_time.variable`
     #   A reason to not move it to `airflow.sdk.execution_time.comms` is that it
@@ -109,7 +191,8 @@ def _get_variable(key: str, deserialize_json: bool) -> Variable:
 
     if TYPE_CHECKING:
         assert isinstance(msg, VariableResult)
-    return _convert_variable_result_to_variable(msg, deserialize_json)
+    variable = _convert_variable_result_to_variable(msg, deserialize_json)
+    return variable.value
 
 
 class ConnectionAccessor:
@@ -154,12 +237,12 @@ class VariableAccessor:
     def __getattr__(self, key: str) -> Any:
         return _get_variable(key, self._deserialize_json)
 
-    def get(self, key, default_var: Any = NOTSET) -> Any:
+    def get(self, key, default: Any = NOTSET) -> Any:
         try:
             return _get_variable(key, self._deserialize_json)
         except AirflowRuntimeError as e:
             if e.error.error == ErrorType.VARIABLE_NOT_FOUND:
-                return default_var
+                return default
             raise
 
 
@@ -226,7 +309,7 @@ class OutletEventAccessors(Mapping[Union[Asset, AssetAlias], OutletEventAccessor
     def __len__(self) -> int:
         return len(self._dict)
 
-    def __getitem__(self, key: Asset | AssetAlias) -> OutletEventAccessor:
+    def __getitem__(self, key: Asset | AssetAlias | AssetRef) -> OutletEventAccessor:
         hashable_key: BaseAssetUniqueKey
         if isinstance(key, Asset):
             hashable_key = AssetUniqueKey.from_asset(key)
@@ -284,6 +367,8 @@ class OutletEventAccessors(Mapping[Union[Asset, AssetAlias], OutletEventAccessor
 
 @attrs.define(init=False)
 class InletEventsAccessors(Mapping[Union[int, Asset, AssetAlias, AssetRef], Any]):
+    """Lazy mapping of inlet asset event accessors."""
+
     _inlets: list[Any]
     _assets: dict[AssetUniqueKey, Asset]
     _asset_aliases: dict[AssetAliasUniqueKey, AssetAlias]
@@ -409,3 +494,80 @@ def context_update_for_unmapped(context: Context, task: BaseOperator) -> None:
     context["params"] = process_params(
         context["dag"], task, context["dag_run"].conf, suppress_exception=False
     )
+
+
+def context_to_airflow_vars(context: Mapping[str, Any], in_env_var_format: bool = False) -> dict[str, str]:
+    """
+    Return values used to externally reconstruct relations between dags, dag_runs, tasks and task_instances.
+
+    Given a context, this function provides a dictionary of values that can be used to
+    externally reconstruct relations between dags, dag_runs, tasks and task_instances.
+    Default to abc.def.ghi format and can be made to ABC_DEF_GHI format if
+    in_env_var_format is set to True.
+
+    :param context: The context for the task_instance of interest.
+    :param in_env_var_format: If returned vars should be in ABC_DEF_GHI format.
+    :return: task_instance context as dict.
+    """
+    from datetime import datetime
+
+    from airflow import settings
+
+    params = {}
+    if in_env_var_format:
+        name_format = "env_var_format"
+    else:
+        name_format = "default"
+
+    task = context.get("task")
+    task_instance = context.get("task_instance")
+    dag_run = context.get("dag_run")
+
+    ops = [
+        (task, "email", "AIRFLOW_CONTEXT_DAG_EMAIL"),
+        (task, "owner", "AIRFLOW_CONTEXT_DAG_OWNER"),
+        (task_instance, "dag_id", "AIRFLOW_CONTEXT_DAG_ID"),
+        (task_instance, "task_id", "AIRFLOW_CONTEXT_TASK_ID"),
+        (task_instance, "logical_date", "AIRFLOW_CONTEXT_LOGICAL_DATE"),
+        (task_instance, "try_number", "AIRFLOW_CONTEXT_TRY_NUMBER"),
+        (dag_run, "run_id", "AIRFLOW_CONTEXT_DAG_RUN_ID"),
+    ]
+
+    context_params = settings.get_airflow_context_vars(context)
+    for key, value in context_params.items():
+        if not isinstance(key, str):
+            raise TypeError(f"key <{key}> must be string")
+        if not isinstance(value, str):
+            raise TypeError(f"value of key <{key}> must be string, not {type(value)}")
+
+        if in_env_var_format:
+            if not key.startswith(ENV_VAR_FORMAT_PREFIX):
+                key = ENV_VAR_FORMAT_PREFIX + key.upper()
+        else:
+            if not key.startswith(DEFAULT_FORMAT_PREFIX):
+                key = DEFAULT_FORMAT_PREFIX + key
+        params[key] = value
+
+    for subject, attr, mapping_key in ops:
+        _attr = getattr(subject, attr, None)
+        if subject and _attr:
+            mapping_value = AIRFLOW_VAR_NAME_FORMAT_MAPPING[mapping_key][name_format]
+            if isinstance(_attr, str):
+                params[mapping_value] = _attr
+            elif isinstance(_attr, datetime):
+                params[mapping_value] = _attr.isoformat()
+            elif isinstance(_attr, list):
+                # os env variable value needs to be string
+                params[mapping_value] = ",".join(_attr)
+            else:
+                params[mapping_value] = str(_attr)
+
+    return params
+
+
+def context_get_outlet_events(context: Context) -> OutletEventAccessorsProtocol:
+    try:
+        outlet_events = context["outlet_events"]
+    except KeyError:
+        outlet_events = context["outlet_events"] = OutletEventAccessors()
+    return outlet_events

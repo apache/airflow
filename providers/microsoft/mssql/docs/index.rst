@@ -57,7 +57,7 @@
     :maxdepth: 1
     :caption: Resources
 
-    Example DAGs <https://github.com/apache/airflow/tree/providers-microsoft-mssql/|version|/providers/microsoft/msssql/tests/system/microsoft/mssql>
+    Example DAGs <https://github.com/apache/airflow/tree/providers-microsoft-mssql/|version|/providers/microsoft/mssql/tests/system/microsoft/mssql>
     PyPI Repository <https://pypi.org/project/apache-airflow-providers-microsoft-mssql/>
     Installing from sources <installing-providers-from-sources>
 
@@ -96,7 +96,7 @@ For the minimum Airflow version supported, see ``Requirements`` below.
 Requirements
 ------------
 
-The minimum Apache Airflow version supported by this provider package is ``2.9.0``.
+The minimum Apache Airflow version supported by this provider distribution is ``2.9.0``.
 
 =======================================  ==================
 PIP package                              Version required
@@ -111,7 +111,7 @@ Cross provider package dependencies
 -----------------------------------
 
 Those are dependencies that might be needed in order to use all the features of the package.
-You need to install the specified provider packages in order to use them.
+You need to install the specified providers in order to use them.
 
 You can install such cross-provider dependencies when installing from PyPI. For example:
 

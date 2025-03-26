@@ -21,14 +21,11 @@ import copy
 import datetime
 import itertools
 import logging
-import os
-import random
 import uuid
 from collections.abc import Collection, Iterable, Mapping
 from typing import TYPE_CHECKING, Any
 
 import jwt
-import packaging.version
 from flask import flash, g, has_request_context, session
 from flask_appbuilder import const
 from flask_appbuilder.const import (
@@ -57,10 +54,8 @@ from flask_appbuilder.security.views import (
     AuthOAuthView,
     AuthOIDView,
     AuthRemoteUserView,
-    AuthView,
     RegisterUserModelView,
 )
-from flask_appbuilder.views import expose
 from flask_babel import lazy_gettext
 from flask_jwt_extended import JWTManager
 from flask_login import LoginManager
@@ -71,7 +66,6 @@ from sqlalchemy.exc import MultipleResultsFound
 from sqlalchemy.orm import joinedload
 from werkzeug.security import check_password_hash, generate_password_hash
 
-from airflow import __version__ as airflow_version
 from airflow.configuration import conf
 from airflow.exceptions import AirflowException
 from airflow.models import DagBag
@@ -110,18 +104,17 @@ from airflow.providers.fab.www.session import (
     AirflowDatabaseSessionInterface,
     AirflowDatabaseSessionInterface as FabAirflowDatabaseSessionInterface,
 )
+from airflow.security.permissions import RESOURCE_BACKFILL
 
 if TYPE_CHECKING:
     from airflow.providers.fab.www.security.permissions import (
         RESOURCE_ASSET,
         RESOURCE_ASSET_ALIAS,
-        RESOURCE_BACKFILL,
     )
 else:
     from airflow.providers.common.compat.security.permissions import (
         RESOURCE_ASSET,
         RESOURCE_ASSET_ALIAS,
-        RESOURCE_BACKFILL,
     )
 
 log = logging.getLogger(__name__)
@@ -133,35 +126,6 @@ log = logging.getLogger(__name__)
 # continuously creates new sessions. Such setup should be fixed by reusing sessions or by periodically
 # purging the old sessions by using `airflow db clean` command.
 MAX_NUM_DATABASE_USER_SESSIONS = 50000
-
-
-# The following logic patches the logout method within AuthView, so it supports POST method
-# to make CSRF protection effective. It is backward-compatible with Airflow versions <= 2.9.2 as it still
-# allows utilizing the GET method for them.
-# You could remove the patch and configure it when it is supported
-# natively by Flask-AppBuilder (https://github.com/dpgaspar/Flask-AppBuilder/issues/2248)
-if packaging.version.parse(packaging.version.parse(airflow_version).base_version) < packaging.version.parse(
-    "2.10.0"
-):
-    _methods = ["GET", "POST"]
-else:
-    _methods = ["POST"]
-
-
-class _ModifiedAuthView(AuthView):
-    @expose("/logout/", methods=_methods)
-    def logout(self):
-        return super().logout()
-
-
-for auth_view in [
-    AuthDBView,
-    AuthLDAPView,
-    AuthOAuthView,
-    AuthOIDView,
-    AuthRemoteUserView,
-]:
-    auth_view.__bases__ = (_ModifiedAuthView,)
 
 
 class FabAirflowSecurityManagerOverride(AirflowSecurityManagerV2):
@@ -246,13 +210,14 @@ class FabAirflowSecurityManagerOverride(AirflowSecurityManagerV2):
         (permissions.ACTION_CAN_READ, permissions.RESOURCE_DAG_DEPENDENCIES),
         (permissions.ACTION_CAN_READ, permissions.RESOURCE_DAG_CODE),
         (permissions.ACTION_CAN_READ, permissions.RESOURCE_DAG_RUN),
+        (permissions.ACTION_CAN_READ, permissions.RESOURCE_DAG_VERSION),
+        (permissions.ACTION_CAN_READ, permissions.RESOURCE_DAG_WARNING),
         (permissions.ACTION_CAN_READ, RESOURCE_ASSET),
         (permissions.ACTION_CAN_READ, RESOURCE_ASSET_ALIAS),
         (permissions.ACTION_CAN_READ, RESOURCE_BACKFILL),
         (permissions.ACTION_CAN_READ, permissions.RESOURCE_CLUSTER_ACTIVITY),
         (permissions.ACTION_CAN_READ, permissions.RESOURCE_POOL),
         (permissions.ACTION_CAN_READ, permissions.RESOURCE_IMPORT_ERROR),
-        (permissions.ACTION_CAN_READ, permissions.RESOURCE_DAG_WARNING),
         (permissions.ACTION_CAN_READ, permissions.RESOURCE_JOB),
         (permissions.ACTION_CAN_READ, permissions.RESOURCE_MY_PASSWORD),
         (permissions.ACTION_CAN_EDIT, permissions.RESOURCE_MY_PASSWORD),
@@ -772,43 +737,6 @@ class FabAirflowSecurityManagerOverride(AirflowSecurityManagerV2):
     def builtin_roles(self):
         """Get the builtin roles."""
         return self._builtin_roles
-
-    def create_admin_standalone(self) -> tuple[str | None, str | None]:
-        """Create an Admin user with a random password so that users can access airflow."""
-        from airflow.configuration import AIRFLOW_HOME, make_group_other_inaccessible
-
-        user_name = "admin"
-
-        # We want a streamlined first-run experience, but we do not want to
-        # use a preset password as people will inevitably run this on a public
-        # server. Thus, we make a random password and store it in AIRFLOW_HOME,
-        # with the reasoning that if you can read that directory, you can see
-        # the database credentials anyway.
-        password_path = os.path.join(AIRFLOW_HOME, "standalone_admin_password.txt")
-
-        user_exists = self.find_user(user_name) is not None
-        we_know_password = os.path.isfile(password_path)
-
-        # If the user does not exist, make a random password and make it
-        if not user_exists:
-            print(f"FlaskAppBuilder Authentication Manager: Creating {user_name} user")
-            if (role := self.find_role("Admin")) is None:
-                raise AirflowException("Unable to find role 'Admin'")
-            # password does not contain visually similar characters: ijlIJL1oO0
-            password = "".join(random.choices("abcdefghkmnpqrstuvwxyzABCDEFGHKMNPQRSTUVWXYZ23456789", k=16))
-            with open(password_path, "w") as file:
-                file.write(password)
-            make_group_other_inaccessible(password_path)
-            self.add_user(user_name, "Admin", "User", "admin@example.com", role, password)
-            print(f"FlaskAppBuilder Authentication Manager: Created {user_name} user")
-        # If the user does exist, and we know its password, read the password
-        elif user_exists and we_know_password:
-            with open(password_path) as file:
-                password = file.read().strip()
-        # Otherwise we don't know the password
-        else:
-            password = None
-        return user_name, password
 
     def _init_config(self):
         """

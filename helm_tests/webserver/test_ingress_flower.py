@@ -21,7 +21,7 @@ import itertools
 import jmespath
 import pytest
 
-from tests.charts.helm_template_generator import render_chart
+from unit.charts.helm_template_generator import render_chart
 
 
 class TestIngressFlower:

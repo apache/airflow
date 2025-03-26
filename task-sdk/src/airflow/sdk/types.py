@@ -17,8 +17,11 @@
 
 from __future__ import annotations
 
+import uuid
 from collections.abc import Iterable
 from typing import TYPE_CHECKING, Any, Protocol, Union
+
+import attrs
 
 from airflow.sdk.definitions._internal.types import NOTSET, ArgNotSet
 
@@ -26,7 +29,7 @@ if TYPE_CHECKING:
     from collections.abc import Iterator
     from datetime import datetime
 
-    from airflow.sdk.definitions.asset import Asset, AssetAlias, AssetAliasEvent, BaseAssetUniqueKey
+    from airflow.sdk.definitions.asset import Asset, AssetAlias, AssetAliasEvent, AssetRef, BaseAssetUniqueKey
     from airflow.sdk.definitions.baseoperator import BaseOperator
     from airflow.sdk.definitions.context import Context
     from airflow.sdk.definitions.mappedoperator import MappedOperator
@@ -52,6 +55,7 @@ class DagRunProtocol(Protocol):
 class RuntimeTaskInstanceProtocol(Protocol):
     """Minimal interface for a task instance available during the execution."""
 
+    id: uuid.UUID
     task: BaseOperator
     task_id: str
     dag_id: str
@@ -79,8 +83,10 @@ class RuntimeTaskInstanceProtocol(Protocol):
 
     def get_template_context(self) -> Context: ...
 
+    def get_first_reschedule_date(self, first_try_number) -> datetime | None: ...
 
-class OutletEventAccessorProtocol(Protocol):
+
+class OutletEventAccessorProtocol(Protocol, attrs.AttrsInstance):
     """Protocol for managing access to a specific outlet event accessor."""
 
     key: BaseAssetUniqueKey
@@ -102,4 +108,4 @@ class OutletEventAccessorsProtocol(Protocol):
 
     def __iter__(self) -> Iterator[Asset | AssetAlias]: ...
     def __len__(self) -> int: ...
-    def __getitem__(self, key: Asset | AssetAlias) -> OutletEventAccessorProtocol: ...
+    def __getitem__(self, key: Asset | AssetAlias | AssetRef) -> OutletEventAccessorProtocol: ...

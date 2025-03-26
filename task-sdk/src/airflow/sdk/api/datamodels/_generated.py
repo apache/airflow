@@ -22,10 +22,12 @@ from __future__ import annotations
 
 from datetime import datetime, timedelta
 from enum import Enum
-from typing import Annotated, Any, Literal
+from typing import Annotated, Any, Final, Literal
 from uuid import UUID
 
 from pydantic import BaseModel, ConfigDict, Field, JsonValue
+
+API_VERSION: Final[str] = "2025-03-19"
 
 
 class AssetProfile(BaseModel):
@@ -92,6 +94,29 @@ class DagRunAssetReference(BaseModel):
     state: Annotated[str, Field(title="State")]
     data_interval_start: Annotated[datetime | None, Field(title="Data Interval Start")] = None
     data_interval_end: Annotated[datetime | None, Field(title="Data Interval End")] = None
+
+
+class DagRunState(str, Enum):
+    """
+    All possible states that a DagRun can be in.
+
+    These are "shared" with TaskInstanceState in some parts of the code,
+    so please ensure that their values always match the ones with the
+    same name in TaskInstanceState.
+    """
+
+    QUEUED = "queued"
+    RUNNING = "running"
+    SUCCESS = "success"
+    FAILED = "failed"
+
+
+class DagRunStateResponse(BaseModel):
+    """
+    Schema for DAG Run State response.
+    """
+
+    state: DagRunState
 
 
 class DagRunType(str, Enum):
@@ -186,6 +211,18 @@ class TIRescheduleStatePayload(BaseModel):
     end_date: Annotated[datetime, Field(title="End Date")]
 
 
+class TIRetryStatePayload(BaseModel):
+    """
+    Schema for updating TaskInstance to up_for_retry.
+    """
+
+    model_config = ConfigDict(
+        extra="forbid",
+    )
+    state: Annotated[Literal["up_for_retry"] | None, Field(title="State")] = "up_for_retry"
+    end_date: Annotated[datetime, Field(title="End Date")]
+
+
 class TIRuntimeCheckPayload(BaseModel):
     """
     Payload for performing Runtime checks on the TaskInstance model as requested by the SDK.
@@ -196,6 +233,17 @@ class TIRuntimeCheckPayload(BaseModel):
     )
     inlets: Annotated[list[AssetProfile] | None, Field(title="Inlets")] = None
     outlets: Annotated[list[AssetProfile] | None, Field(title="Outlets")] = None
+
+
+class TISkippedDownstreamTasksStatePayload(BaseModel):
+    """
+    Schema for updating downstream tasks to a skipped state.
+    """
+
+    model_config = ConfigDict(
+        extra="forbid",
+    )
+    tasks: Annotated[list[str | tuple[str, int]], Field(title="Tasks")]
 
 
 class TISuccessStatePayload(BaseModel):
@@ -209,7 +257,7 @@ class TISuccessStatePayload(BaseModel):
     state: Annotated[Literal["success"] | None, Field(title="State")] = "success"
     end_date: Annotated[datetime, Field(title="End Date")]
     task_outlets: Annotated[list[AssetProfile] | None, Field(title="Task Outlets")] = None
-    outlet_events: Annotated[list | None, Field(title="Outlet Events")] = None
+    outlet_events: Annotated[list[dict[str, Any]] | None, Field(title="Outlet Events")] = None
 
 
 class TITargetStatePayload(BaseModel):
@@ -231,7 +279,19 @@ class TerminalStateNonSuccess(str, Enum):
     FAILED = "failed"
     SKIPPED = "skipped"
     REMOVED = "removed"
-    FAIL_WITHOUT_RETRY = "fail_without_retry"
+
+
+class TriggerDAGRunPayload(BaseModel):
+    """
+    Schema for Trigger DAG Run API request.
+    """
+
+    model_config = ConfigDict(
+        extra="forbid",
+    )
+    logical_date: Annotated[datetime | None, Field(title="Logical Date")] = None
+    conf: Annotated[dict[str, Any] | None, Field(title="Conf")] = None
+    reset_dag_run: Annotated[bool | None, Field(title="Reset Dag Run")] = False
 
 
 class ValidationError(BaseModel):
@@ -248,7 +308,7 @@ class VariablePostBody(BaseModel):
     model_config = ConfigDict(
         extra="forbid",
     )
-    value: Annotated[str | None, Field(title="Value")] = None
+    val: Annotated[str | None, Field(title="Val")] = None
     description: Annotated[str | None, Field(title="Description")] = None
 
 
@@ -257,6 +317,9 @@ class VariableResponse(BaseModel):
     Variable schema for responses with fields that are needed for Runtime.
     """
 
+    model_config = ConfigDict(
+        extra="forbid",
+    )
     key: Annotated[str, Field(title="Key")]
     value: Annotated[str | None, Field(title="Value")] = None
 
@@ -301,7 +364,6 @@ class TerminalTIState(str, Enum):
     FAILED = "failed"
     SKIPPED = "skipped"
     REMOVED = "removed"
-    FAIL_WITHOUT_RETRY = "fail_without_retry"
 
 
 class AssetEventResponse(BaseModel):
@@ -366,6 +428,8 @@ class TIRunContext(BaseModel):
     upstream_map_indexes: Annotated[dict[str, int] | None, Field(title="Upstream Map Indexes")] = None
     next_method: Annotated[str | None, Field(title="Next Method")] = None
     next_kwargs: Annotated[dict[str, Any] | str | None, Field(title="Next Kwargs")] = None
+    xcom_keys_to_clear: Annotated[list[str] | None, Field(title="Xcom Keys To Clear")] = None
+    should_retry: Annotated[bool, Field(title="Should Retry")]
 
 
 class TITerminalStatePayload(BaseModel):

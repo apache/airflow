@@ -22,7 +22,7 @@ import jmespath
 import pytest
 from packaging.version import parse as parse_version
 
-from tests.charts.helm_template_generator import render_chart
+from unit.charts.helm_template_generator import render_chart
 
 DEPLOYMENT_NO_RBAC_NO_SA_KIND_NAME_TUPLES = [
     ("Secret", "test-rbac-postgresql"),
