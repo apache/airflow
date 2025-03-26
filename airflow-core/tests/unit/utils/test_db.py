@@ -38,6 +38,7 @@ from airflow.configuration import conf
 from airflow.models import Base as airflow_base
 from airflow.settings import engine
 from airflow.utils.db import (
+    _REVISION_HEADS_MAP,
     LazySelectSequence,
     _get_alembic_config,
     check_migrations,
@@ -268,3 +269,11 @@ class TestDb:
         lss = LazySelectSequence.from_select(select(t.c.id), order_by=[], session=MockSession())
 
         assert bool(lss) is False
+
+    @conf_vars({("core", "unit_test_mode"): "False"})
+    def test_upgradedb_raises_if_lower_than_v3_0_0(self, caplog):
+        downgrade(to_revision=_REVISION_HEADS_MAP["2.7.0"])
+        assert (
+            "Downgrade to revision less than 3.0.0 requires that `ab_user` table is present. "
+            "Please add FabDBManager to [core] external_db_managers and run fab migrations before proceeding"
+        ) in caplog.text
