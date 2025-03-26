@@ -1,0 +1,19 @@
+Unused attribute ``num_times_parse_dags`` of SchedulerJobRunner has been removed.
+
+This change removes an unused attribute from the SchedulerJobRunner class to clean up the codebase.
+
+* Types of change
+
+  * [ ] Dag changes
+  * [ ] Config changes
+  * [ ] API changes
+  * [ ] CLI changes
+  * [ ] Behaviour changes
+  * [ ] Plugin changes
+  * [ ] Dependency changes
+  * [x] Code interface changes
+
+* Migration rules needed
+
+.. e.g.,
+.. * Attribute ``num_times_parse_dags`` removed from ``airflow.jobs.scheduler_job.SchedulerJobRunner``
