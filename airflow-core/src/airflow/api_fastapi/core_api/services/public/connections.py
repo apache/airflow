@@ -41,12 +41,13 @@ def update_orm_from_pydantic(
     # Not all fields match and some need setters, therefore copy partly manually via setters
     non_update_fields = {"connection_id", "conn_id"}
     setter_fields = {"password", "extra"}
-    fields_to_update = pydantic_conn.model_fields_set - non_update_fields - setter_fields
+    fields_to_update = set(pydantic_conn.model_dump(by_alias=True).keys()) - non_update_fields - setter_fields
     if update_mask:
         fields_to_update = fields_to_update.intersection(update_mask)
-    conn_data = pydantic_conn.model_dump(include=fields_to_update, by_alias=True)
+    conn_data = pydantic_conn.model_dump(by_alias=True)
     for key, val in conn_data.items():
-        setattr(orm_conn, key, val)
+        if key in fields_to_update:
+            setattr(orm_conn, key, val)
 
     if not update_mask or "password" in update_mask:
         orm_conn.set_password(pydantic_conn.password)
