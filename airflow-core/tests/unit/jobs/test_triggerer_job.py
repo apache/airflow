@@ -22,13 +22,16 @@ import datetime
 import os
 import selectors
 import time
-from typing import TYPE_CHECKING
+from collections.abc import AsyncIterator
+from typing import TYPE_CHECKING, Any
 from unittest.mock import ANY, MagicMock, patch
 
 import pendulum
 import pytest
+from asgiref.sync import sync_to_async
 
 from airflow.executors import workloads
+from airflow.hooks.base import BaseHook
 from airflow.jobs.job import Job
 from airflow.jobs.triggerer_job_runner import (
     TriggererJobRunner,
@@ -38,11 +41,13 @@ from airflow.jobs.triggerer_job_runner import (
 )
 from airflow.models import DagModel, DagRun, TaskInstance, Trigger
 from airflow.models.baseoperator import BaseOperator
+from airflow.models.connection import Connection
 from airflow.models.dag import DAG
+from airflow.models.variable import Variable
 from airflow.providers.standard.operators.empty import EmptyOperator
 from airflow.providers.standard.operators.python import PythonOperator
 from airflow.providers.standard.triggers.temporal import DateTimeTrigger, TimeDeltaTrigger
-from airflow.triggers.base import TriggerEvent
+from airflow.triggers.base import BaseTrigger, TriggerEvent
 from airflow.triggers.testing import FailureTrigger, SuccessTrigger
 from airflow.utils import timezone
 from airflow.utils.state import State, TaskInstanceState
@@ -589,3 +594,103 @@ def test_failed_trigger(session, dag_maker, supervisor_builder):
     assert task_instance.next_method == "__fail__"
     assert task_instance.next_kwargs["error"] == "Trigger failure"
     assert task_instance.next_kwargs["traceback"][-1] == "ModuleNotFoundError: No module named 'fake'\n"
+
+
+class CustomTrigger(BaseTrigger):
+    """Custom Trigger that will access one Variable and one Connection."""
+
+    async def run(self) -> AsyncIterator[TriggerEvent]:
+        import attrs
+
+        from airflow.sdk import Variable
+
+        conn = await sync_to_async(BaseHook.get_connection)("test_connection")
+
+        self.log.info("Loaded conn %s", conn.conn_id)
+
+        variable = await sync_to_async(Variable.get)("test_variable")
+
+        self.log.info("Loaded variable %s", variable)
+
+        yield TriggerEvent({"connection": attrs.asdict(conn), "variable": variable})
+
+    def serialize(self) -> tuple[str, dict[str, Any]]:
+        # return (
+        #     "airflow.providers.standard.triggers.temporal.CustomTrigger",
+        #     {},
+        # )
+        return (
+            f"{type(self).__module__}.{type(self).__qualname__}",
+            {},
+        )
+
+
+class TestTriggerRunnerSupervisor(TriggerRunnerSupervisor):
+    """
+    Make sure that the Supervisor stops after handling the events and do not keep running forever for the
+    test to continue.
+    """
+
+    def handle_events(self):
+        self.stop = bool(self.events)
+        super().handle_events()
+
+
+@pytest.mark.asyncio
+# @patch("airflow.providers.standard.triggers.temporal.CustomTrigger", return_value=CustomTrigger)
+async def test_trigger_can_access_variables_and_connections(session, dag_maker, supervisor_builder):
+    """
+    Checks that the trigger will successfully access Variables and Connections.
+
+    This is the Supervisor side of the error reported in TestTriggerRunner::test_invalid_trigger
+    """
+    # Create a Trigger
+    trigger = CustomTrigger()
+    trigger_orm = Trigger(classpath=trigger.serialize()[0], kwargs={})
+    trigger_orm.id = 1
+    session.add(trigger_orm)
+    session.commit()
+
+    # Create the appropriate Connection and Variable
+    connection = Connection(conn_id="test_connection", conn_type="http")
+    variable = Variable(key="test_variable", val="some_value")
+    session.add(connection)
+    session.add(variable)
+
+    # Create the test DAG and task
+    with dag_maker(dag_id="trigger_accessing_variable_and_connection", session=session):
+        EmptyOperator(task_id="dummy1")
+
+    dr = dag_maker.create_dagrun()
+    task_instance = dr.task_instances[0]
+    # Make a task instance based on that and tie it to the trigger
+    task_instance.state = TaskInstanceState.DEFERRED
+    task_instance.trigger_id = trigger_orm.id
+
+    job = Job()
+    session.add(job)
+    session.commit()
+
+    supervisor = TestTriggerRunnerSupervisor.start(job=job, capacity=1, logger=None)
+    supervisor.run()
+
+    task_instance.refresh_from_db()
+
+    assert task_instance.state == TaskInstanceState.SCHEDULED
+    assert task_instance.next_method != "__fail__"
+    assert task_instance.next_kwargs == {
+        "event": {
+            "connection": {
+                "conn_id": "test_connection",
+                "conn_type": "http",
+                "description": None,
+                "host": None,
+                "schema": None,
+                "login": None,
+                "password": None,
+                "port": None,
+                "extra": None,
+            },
+            "variable": "some_value",
+        }
+    }
