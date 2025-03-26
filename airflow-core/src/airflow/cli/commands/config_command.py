@@ -18,6 +18,7 @@
 
 from __future__ import annotations
 
+import os
 from dataclasses import dataclass
 from io import StringIO
 from typing import Any, NamedTuple
@@ -26,7 +27,7 @@ import pygments
 from pygments.lexers.configs import IniLexer
 
 from airflow.cli.simple_table import AirflowConsole
-from airflow.configuration import conf
+from airflow.configuration import AIRFLOW_CONFIG, ENV_VAR_PREFIX, conf
 from airflow.exceptions import AirflowConfigException
 from airflow.utils.cli import should_use_colors
 from airflow.utils.code_utils import get_terminal_formatter
@@ -719,3 +720,148 @@ def lint_config(args) -> None:
         console.print("\n[red]Please update your configuration file accordingly.[/red]")
     else:
         console.print("[green]No issues found in your airflow.cfg. It is ready for Airflow 3![/green]")
+
+
+@providers_configuration_loaded
+def update_config(args) -> None:
+    """
+    Update the airflow.cfg file to migrate configuration changes from Airflow 2.x to Airflow 3.
+
+    This command scans the current configuration file for parameters that have been renamed,
+    removed, or had their default values changed in Airflow 3.0, and automatically updates
+    both the configuration file and relevant environment variables accordingly.
+
+    CLI Arguments:
+        --section: str (optional)
+            Comma-separated list of configuration sections to update.
+            Example: --section core,database
+
+        --option: str (optional)
+            Comma-separated list of configuration options to update.
+            Example: --option sql_alchemy_conn,dag_concurrency
+
+        --ignore-section: str (optional)
+            Comma-separated list of configuration sections to ignore during update.
+            Example: --ignore-section webserver
+
+        --ignore-option: str (optional)
+            Comma-separated list of configuration options to ignore during update.
+            Example: --ignore-option check_slas
+
+        --verbose: flag (optional)
+            Enable detailed output, including a summary of changes and any ignored items.
+            Example: --verbose
+
+    Examples:
+        1. Update the entire configuration file:
+            airflow config update
+
+        2. Update only the 'core' and 'database' sections:
+            airflow config update --section core,database
+
+        3. Update only specific options:
+            airflow config update --option sql_alchemy_conn,dag_concurrency
+
+        4. Ignore updates for a specific section:
+            airflow config update --ignore-section webserver
+
+        5. Enable verbose output for more detailed information:
+            airflow config update --verbose
+
+    :param args: The CLI arguments for updating configuration.
+    """
+    console = AirflowConsole()
+    changes_applied = []
+
+    update_sections = args.section if args.section else None
+    update_options = args.option if args.option else None
+    ignore_sections = args.ignore_section if args.ignore_section else []
+    ignore_options = args.ignore_option if args.ignore_option else []
+
+    for change in CONFIGS_CHANGES:
+        conf_section = change.config.section
+        conf_option = change.config.option
+
+        if update_sections is not None and conf_section not in update_sections:
+            continue
+        if update_options is not None and conf_option not in update_options:
+            continue
+        if conf_section in ignore_sections or conf_option in ignore_options:
+            continue
+
+        if not conf.has_option(conf_section, conf_option, lookup_from_deprecated=False):
+            continue
+
+        current_value = conf.get(conf_section, conf_option)
+
+        if change.default_change and (str(current_value) != str(change.new_default)):
+            conf.set(conf_section, conf_option, str(change.new_default))
+            changes_applied.append(
+                f"Updated default value of '{conf_section}/{conf_option}' from '{current_value}' to '{change.new_default}'."
+            )
+
+        if change.renamed_to:
+            new_section = change.renamed_to.section
+            new_option = change.renamed_to.option
+            if not conf.has_section(new_section):
+                conf.add_section(new_section)
+            conf.set(new_section, new_option, current_value)
+            conf.remove_option(conf_section, conf_option)
+            changes_applied.append(f"Renamed '{conf_section}/{conf_option}' to '{new_section}/{new_option}'.")
+        elif change.was_removed:
+            conf.remove_option(conf_section, conf_option)
+            changes_applied.append(f"Removed '{conf_section}/{conf_option}' from configuration.")
+
+    for change in CONFIGS_CHANGES:
+        conf_section = change.config.section
+        conf_option = change.config.option
+
+        if update_sections is not None and conf_section not in update_sections:
+            continue
+        if update_options is not None and conf_option not in update_options:
+            continue
+        if conf_section in ignore_sections or conf_option in ignore_options:
+            continue
+
+        old_env = f"{ENV_VAR_PREFIX}{conf_section.upper()}__{conf_option.upper()}"
+        if old_env in os.environ:
+            os.environ.pop(old_env)
+            if change.renamed_to:
+                new_env = (
+                    f"{ENV_VAR_PREFIX}{change.renamed_to.section.upper()}__{change.renamed_to.option.upper()}"
+                )
+                new_value = conf.get(change.renamed_to.section, change.renamed_to.option)
+                os.environ[new_env] = new_value
+                changes_applied.append(f"Updated environment variable: renamed '{old_env}' to '{new_env}'.")
+            else:
+                changes_applied.append(f"Removed environment variable '{old_env}'.")
+
+    backup_path = AIRFLOW_CONFIG + ".bak"
+    try:
+        with open(AIRFLOW_CONFIG) as original:
+            content = original.read()
+        with open(backup_path, "w") as backup:
+            backup.write(content)
+        console.print(f"Backup saved as '{backup_path}'.")
+    except Exception as e:
+        console.print(f"Failed to create backup: {e}")
+
+    with open(AIRFLOW_CONFIG, "w") as config_file:
+        conf.write(
+            config_file,
+            include_sources=False,
+            include_env_vars=True,
+            include_providers=True,
+            comment_out_everything=False,
+            only_defaults=False,
+        )
+
+    if changes_applied:
+        console.print("[green]The following updates were applied:[/green]")
+        for change_msg in changes_applied:
+            console.print(f"  - {change_msg}")
+    else:
+        console.print("[green]No updates needed. Your configuration is already up-to-date.[/green]")
+
+    if args.verbose:
+        console.print("[blue]Configuration update completed with verbose output enabled.[/blue]")
