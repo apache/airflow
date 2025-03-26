@@ -615,10 +615,6 @@ class CustomTrigger(BaseTrigger):
         yield TriggerEvent({"connection": attrs.asdict(conn), "variable": variable})
 
     def serialize(self) -> tuple[str, dict[str, Any]]:
-        # return (
-        #     "airflow.providers.standard.triggers.temporal.CustomTrigger",
-        #     {},
-        # )
         return (
             f"{type(self).__module__}.{type(self).__qualname__}",
             {},
@@ -627,8 +623,8 @@ class CustomTrigger(BaseTrigger):
 
 class TestTriggerRunnerSupervisor(TriggerRunnerSupervisor):
     """
-    Make sure that the Supervisor stops after handling the events and do not keep running forever for the
-    test to continue.
+    Make sure that the Supervisor stops after handling the events and do not keep running forever so the
+    test can continue.
     """
 
     def handle_events(self):
@@ -660,7 +656,6 @@ async def test_trigger_can_access_variables_and_connections(session, dag_maker, 
     # Create the test DAG and task
     with dag_maker(dag_id="trigger_accessing_variable_and_connection", session=session):
         EmptyOperator(task_id="dummy1")
-
     dr = dag_maker.create_dagrun()
     task_instance = dr.task_instances[0]
     # Make a task instance based on that and tie it to the trigger
@@ -675,7 +670,6 @@ async def test_trigger_can_access_variables_and_connections(session, dag_maker, 
     supervisor.run()
 
     task_instance.refresh_from_db()
-
     assert task_instance.state == TaskInstanceState.SCHEDULED
     assert task_instance.next_method != "__fail__"
     assert task_instance.next_kwargs == {
