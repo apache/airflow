@@ -36,7 +36,7 @@ from airflow.models.connection import Connection
 
 def update_orm_from_pydantic(
     orm_conn: Connection, pydantic_conn: ConnectionBody, update_mask: list[str] | None = None
-):
+) -> None:
     """Update ORM object from Pydantic object."""
     # Not all fields match and some need setters, therefore copy partly manually via setters
     non_update_fields = {"connection_id", "conn_id"}
