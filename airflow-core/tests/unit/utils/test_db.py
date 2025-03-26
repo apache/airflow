@@ -36,6 +36,7 @@ from sqlalchemy import Column, Integer, MetaData, Table, select
 
 from airflow.configuration import conf
 from airflow.models import Base as airflow_base
+from airflow.providers.fab.auth_manager.models.db import FABDBManager
 from airflow.settings import engine
 from airflow.utils.db import (
     _REVISION_HEADS_MAP,
@@ -70,7 +71,9 @@ class TestDb:
         for dbmanager in external_db_managers._managers:
             for table_name, table in dbmanager.metadata.tables.items():
                 all_meta_data._add_table(table_name, table.schema, table)
-
+        # test FAB models
+        for table_name, table in FABDBManager.metadata.tables.items():
+            all_meta_data._add_table(table_name, table.schema, table)
         # create diff between database schema and SQLAlchemy model
         mctx = MigrationContext.configure(
             engine.connect(),
@@ -271,7 +274,9 @@ class TestDb:
         assert bool(lss) is False
 
     @conf_vars({("core", "unit_test_mode"): "False"})
-    def test_upgradedb_raises_if_lower_than_v3_0_0(self, caplog):
+    @mock.patch("airflow.utils.db.inspect")
+    def test_upgradedb_raises_if_lower_than_v3_0_0(self, mock_inspect, caplog):
+        mock_inspect.return_value.has_table.return_value = False
         downgrade(to_revision=_REVISION_HEADS_MAP["2.7.0"])
         assert (
             "Downgrade to revision less than 3.0.0 requires that `ab_user` table is present. "

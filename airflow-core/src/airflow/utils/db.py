@@ -1223,7 +1223,7 @@ def downgrade(*, to_revision, from_revision=None, show_sql_only=False, session: 
             except ImportError:
                 log.warning("Import error occurred while importing FABDBManager. Skipping the check.")
                 pass
-        if inspect(settings.engine).has_table("ab_user") is False:
+        if not inspect(settings.engine).has_table("ab_user"):
             log.error(
                 "Downgrade to revision less than 3.0.0 requires that `ab_user` table is present. "
                 "Please add FabDBManager to [core] external_db_managers and run fab migrations before proceeding"
