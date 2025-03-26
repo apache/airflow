@@ -20,12 +20,12 @@
 # IF YOU WANT TO MODIFY THIS FILE EXCEPT DEPENDENCIES, YOU SHOULD MODIFY THE TEMPLATE
 # `pyproject_TEMPLATE.toml.jinja2` IN the `dev/breeze/src/airflow_breeze/templates` DIRECTORY
 [build-system]
-requires = ["flit_core==3.11.0"]
+requires = ["flit_core==3.12.0"]
 build-backend = "flit_core.buildapi"
 
 [project]
 name = "apache-airflow-providers-google"
-version = "14.0.0"
+version = "14.1.0"
 description = "Provider package apache-airflow-providers-google for Apache Airflow"
 readme = "README.rst"
 authors = [
@@ -66,7 +66,7 @@ dependencies = [
     "gcloud-aio-bigquery>=6.1.2",
     "gcloud-aio-storage>=9.0.0",
     "gcsfs>=2023.10.0",
-    "google-ads>=25.1.0",
+    "google-ads>=26.0.0",
     "google-analytics-admin>=0.9.0",
     # Google-api-core 2.16.0 back-compat issue:
     # - https://github.com/googleapis/python-api-core/issues/576
@@ -84,7 +84,7 @@ dependencies = [
     "google-cloud-bigtable>=2.17.0",
     "google-cloud-build>=3.31.0",
     "google-cloud-compute>=1.10.0",
-    "google-cloud-container>=2.17.4",
+    "google-cloud-container>=2.52.0",
     "google-cloud-datacatalog>=3.23.0",
     "google-cloud-dataflow-client>=0.8.6",
     "google-cloud-dataform>=0.5.0",
@@ -119,7 +119,6 @@ dependencies = [
     "google-cloud-batch>=0.13.0",
     "grpcio-gcp>=0.2.2",
     "httpx>=0.25.0",
-    "json-merge-patch>=0.2",
     # looker-sdk 24.18.0 has issues in import looker_sdk.rtl,  No module named looker_sdk.rtl
     # See https://github.com/looker-open-source/sdk-codegen/issues/1518
     "looker-sdk>=22.4.0,!=24.18.0",
@@ -198,13 +197,49 @@ dependencies = [
     "apache-airflow-providers-trino"
 ]
 
+[dependency-groups]
+dev = [
+    "apache-airflow",
+    "apache-airflow-task-sdk",
+    "apache-airflow-devel-common",
+    "apache-airflow-providers-amazon",
+    "apache-airflow-providers-apache-beam",
+    "apache-airflow-providers-apache-cassandra",
+    "apache-airflow-providers-cncf-kubernetes",
+    "apache-airflow-providers-common-compat",
+    "apache-airflow-providers-common-sql",
+    "apache-airflow-providers-facebook",
+    "apache-airflow-providers-microsoft-azure",
+    "apache-airflow-providers-microsoft-mssql",
+    "apache-airflow-providers-mysql",
+    "apache-airflow-providers-openlineage",
+    "apache-airflow-providers-oracle",
+    "apache-airflow-providers-postgres",
+    "apache-airflow-providers-presto",
+    "apache-airflow-providers-salesforce",
+    "apache-airflow-providers-sftp",
+    "apache-airflow-providers-ssh",
+    "apache-airflow-providers-trino",
+    # Additional devel dependencies (do not remove this line and add extra development dependencies)
+]
+
+[tool.uv.sources]
+# These names must match the names as defined in the pyproject.toml of the workspace items,
+# *not* the workspace folder paths
+apache-airflow = {workspace = true}
+apache-airflow-devel-common = {workspace = true}
+apache-airflow-task-sdk = {workspace = true}
+apache-airflow-providers-common-sql = {workspace = true}
+apache-airflow-providers-fab = {workspace = true}
+apache-airflow-providers-standard = {workspace = true}
+
 [project.urls]
-"Documentation" = "https://airflow.apache.org/docs/apache-airflow-providers-google/14.0.0"
-"Changelog" = "https://airflow.apache.org/docs/apache-airflow-providers-google/14.0.0/changelog.html"
+"Documentation" = "https://airflow.apache.org/docs/apache-airflow-providers-google/14.1.0"
+"Changelog" = "https://airflow.apache.org/docs/apache-airflow-providers-google/14.1.0/changelog.html"
 "Bug Tracker" = "https://github.com/apache/airflow/issues"
 "Source Code" = "https://github.com/apache/airflow"
 "Slack Chat" = "https://s.apache.org/airflow-slack"
-"Twitter" = "https://x.com/ApacheAirflow"
+"Mastodon" = "https://fosstodon.org/@airflow"
 "YouTube" = "https://www.youtube.com/channel/UCSXwxpWZQ7XZ1WL3wqevChA/"
 
 [project.entry-points."apache_airflow_provider"]
@@ -212,6 +247,3 @@ provider_info = "airflow.providers.google.get_provider_info:get_provider_info"
 
 [tool.flit.module]
 name = "airflow.providers.google"
-
-[tool.pytest.ini_options]
-ignore = "tests/system/"

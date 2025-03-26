@@ -29,6 +29,21 @@
 Changelog
 ---------
 
+2.8.3
+.....
+
+Misc
+~~~~
+
+* ``Upgrade flit to 3.11.0 (#46938)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Move tests_common package to devel-common project (#47281)``
+   * ``Improve documentation for updating provider dependencies (#47203)``
+   * ``Add legacy namespace packages to airflow.providers (#47064)``
+   * ``Remove extra whitespace in provider readme template (#46975)``
+
 2.8.2
 .....
 
@@ -165,7 +180,7 @@ Misc
    * ``Fix case where pip requirement version starts with != (#35645)``
    * ``Prepare docs 3rd wave of Providers October 2023 - FIX (#35233)``
    * ``Prepare docs 2nd wave of Providers November 2023 (#35836)``
-   * ``Use reproducible builds for provider packages (#35693)``
+   * ``Use reproducible builds for providers (#35693)``
    * ``Prepare docs 1st wave of Providers November 2023 (#35537)``
    * ``Prepare docs 3rd wave of Providers October 2023 (#35187)``
    * ``Pre-upgrade 'ruff==0.0.292' changes in providers (#35053)``

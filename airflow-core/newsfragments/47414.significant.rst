@@ -1,0 +1,17 @@
+Default connections no longer created by ``airflow db reset``
+
+When default connection creation was removed from the ``airflow db migrate`` command in in 2.7,
+``airflow db reset`` was missed and still used the deprecated configuration option
+``[database] load_default_connections``. ``airflow db reset`` no longer does, so after a DB reset you must call
+``airflow connections create-default-connections`` explicitly if you'd like the default connections to be created.
+
+* Types of change
+
+  * [ ] Dag changes
+  * [ ] Config changes
+  * [ ] API changes
+  * [x] CLI changes
+  * [ ] Behaviour changes
+  * [ ] Plugin changes
+  * [ ] Dependency changes
+  * [ ] Code interface changes

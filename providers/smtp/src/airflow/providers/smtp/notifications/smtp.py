@@ -22,7 +22,7 @@ from functools import cached_property
 from pathlib import Path
 from typing import Any
 
-from airflow.notifications.basenotifier import BaseNotifier
+from airflow.providers.common.compat.notifier import BaseNotifier
 from airflow.providers.smtp.hooks.smtp import SmtpHook
 
 

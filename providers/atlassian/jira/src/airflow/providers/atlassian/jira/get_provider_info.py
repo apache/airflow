@@ -27,8 +27,10 @@ def get_provider_info():
         "name": "Atlassian Jira",
         "description": "`Atlassian Jira <https://www.atlassian.com/software/jira/>`__\n",
         "state": "ready",
-        "source-date-epoch": 1740734100,
+        "source-date-epoch": 1742979462,
         "versions": [
+            "3.0.2",
+            "3.0.1",
             "3.0.0",
             "2.7.1",
             "2.7.0",
@@ -79,5 +81,10 @@ def get_provider_info():
             }
         ],
         "notifications": ["airflow.providers.atlassian.jira.notifications.jira.JiraNotifier"],
-        "dependencies": ["apache-airflow>=2.9.0", "atlassian-python-api>3.41.10"],
+        "dependencies": [
+            "apache-airflow>=2.9.0",
+            "apache-airflow-providers-common-compat>=1.6.0",
+            "atlassian-python-api>3.41.10",
+        ],
+        "devel-dependencies": [],
     }

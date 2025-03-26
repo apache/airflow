@@ -27,8 +27,9 @@ def get_provider_info():
         "name": "Telegram",
         "description": "`Telegram <https://telegram.org/>`__\n",
         "state": "ready",
-        "source-date-epoch": 1740734204,
+        "source-date-epoch": 1741509927,
         "versions": [
+            "4.7.2",
             "4.7.1",
             "4.7.0",
             "4.6.0",
@@ -79,4 +80,5 @@ def get_provider_info():
             {"integration-name": "Telegram", "python-modules": ["airflow.providers.telegram.hooks.telegram"]}
         ],
         "dependencies": ["apache-airflow>=2.9.0", "python-telegram-bot>=20.2"],
+        "devel-dependencies": [],
     }

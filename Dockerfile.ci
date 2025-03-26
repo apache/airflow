@@ -298,13 +298,15 @@ function install_mssql_client() {
     echo
 
     echo "deb [arch=amd64,arm64] https://packages.microsoft.com/debian/$(lsb_release -rs)/prod $(lsb_release -cs) main" > \
-        /etc/apt/sources.list.d/mssql-release.list
-    apt-get update -yqq
-    apt-get upgrade -yqq
-    ACCEPT_EULA=Y apt-get -yqq install --no-install-recommends "${packages[@]}"
+        /etc/apt/sources.list.d/mssql-release.list &&
+    mkdir -p /opt/microsoft/msodbcsql18 &&
+    touch /opt/microsoft/msodbcsql18/ACCEPT_EULA &&
+    apt-get update -yqq &&
+    apt-get upgrade -yqq &&
+    apt-get -yqq install --no-install-recommends "${packages[@]}" &&
+    apt-get autoremove -yqq --purge &&
+    apt-get clean &&
     rm -rf /var/lib/apt/lists/*
-    apt-get autoremove -yqq --purge
-    apt-get clean && rm -rf /var/lib/apt/lists/*
 }
 
 install_mssql_client "${@}"
@@ -392,13 +394,8 @@ function common::get_packaging_tool() {
         echo
         export PACKAGING_TOOL="uv"
         export PACKAGING_TOOL_CMD="uv pip"
-        if [[ -z ${VIRTUAL_ENV=} ]]; then
-            export EXTRA_INSTALL_FLAGS="--system"
-            export EXTRA_UNINSTALL_FLAGS="--system"
-        else
-            export EXTRA_INSTALL_FLAGS=""
-            export EXTRA_UNINSTALL_FLAGS=""
-        fi
+        export EXTRA_INSTALL_FLAGS=""
+        export EXTRA_UNINSTALL_FLAGS=""
         export UPGRADE_EAGERLY="--upgrade --resolution highest"
         export UPGRADE_IF_NEEDED="--upgrade"
         UV_CONCURRENT_DOWNLOADS=$(nproc --all)
@@ -589,8 +586,10 @@ function install_airflow() {
     # Determine the installation_command_flags based on AIRFLOW_INSTALLATION_METHOD method
     local installation_command_flags
     if [[ ${AIRFLOW_INSTALLATION_METHOD} == "." ]]; then
-        # When installing from sources - we always use `--editable` mode
-        installation_command_flags="--editable .[${AIRFLOW_EXTRAS}]${AIRFLOW_VERSION_SPECIFICATION} --editable ./task_sdk"
+        # We do not yet use ``uv sync`` because we are not committing and using uv.lock yet and uv sync
+        # cannot use constraints - once we switch to uv.lock (with the workflow that dependabot will update it
+        # and constraints will be generated from it, we should be able to simply use ``uv sync`` here
+        installation_command_flags=" --editable .[${AIRFLOW_EXTRAS}] --editable ./airflow-core --editable ./task-sdk --editable ./devel-common --editable ./airflow-core"
         while IFS= read -r -d '' pyproject_toml_file; do
             project_folder=$(dirname ${pyproject_toml_file})
             installation_command_flags="${installation_command_flags} --editable ${project_folder}"
@@ -609,7 +608,7 @@ function install_airflow() {
     fi
     if [[ "${UPGRADE_INVALIDATION_STRING=}" != "" ]]; then
         echo
-        echo "${COLOR_BLUE}Remove airflow and all provider packages installed before potentially${COLOR_RESET}"
+        echo "${COLOR_BLUE}Remove airflow and all provider distributions installed before potentially${COLOR_RESET}"
         echo
         set -x
         ${PACKAGING_TOOL_CMD} freeze | grep apache-airflow | xargs ${PACKAGING_TOOL_CMD} uninstall ${EXTRA_UNINSTALL_FLAGS} 2>/dev/null || true
@@ -799,7 +798,7 @@ function environment_initialization() {
 
     if [[ ${STANDALONE_DAG_PROCESSOR=} == "true" ]]; then
         echo
-        echo "${COLOR_BLUE}Running forcing scheduler/standalone_dag_processor to be True${COLOR_RESET}"
+        echo "${COLOR_BLUE}Forcing scheduler/standalone_dag_processor to True${COLOR_RESET}"
         echo
         export AIRFLOW__SCHEDULER__STANDALONE_DAG_PROCESSOR=True
     fi
@@ -809,9 +808,6 @@ function environment_initialization() {
 
     # Added to have run-tests on path
     export PATH=${PATH}:${AIRFLOW_SOURCES}
-
-    # Directory where simple auth manager store generated passwords
-    export AIRFLOW_AUTH_MANAGER_CREDENTIAL_DIRECTORY="/files"
 
     mkdir -pv "${AIRFLOW_HOME}/logs/"
 
@@ -881,7 +877,7 @@ function handle_mount_sources() {
 
 function determine_airflow_to_use() {
     USE_AIRFLOW_VERSION="${USE_AIRFLOW_VERSION:=""}"
-    if [[ ${USE_AIRFLOW_VERSION} == "" && ${USE_PACKAGES_FROM_DIST=} != "true" ]]; then
+    if [[ ${USE_AIRFLOW_VERSION} == "" && ${USE_DISTRIBUTIONS_FROM_DIST=} != "true" ]]; then
         export PYTHONPATH=${AIRFLOW_SOURCES}
         echo
         echo "${COLOR_BLUE}Using airflow version from current sources${COLOR_RESET}"
@@ -901,18 +897,22 @@ function determine_airflow_to_use() {
                 xargs ${PACKAGING_TOOL_CMD} uninstall ${EXTRA_UNINSTALL_FLAGS}
             # Now install rich ad click first to use the installation script
             # shellcheck disable=SC2086
-            ${PACKAGING_TOOL_CMD} install ${EXTRA_INSTALL_FLAGS} rich rich-click click --python "/usr/local/bin/python" \
+            ${PACKAGING_TOOL_CMD} install ${EXTRA_INSTALL_FLAGS} rich rich-click click \
                 --constraint https://raw.githubusercontent.com/apache/airflow/constraints-main/constraints-${PYTHON_MAJOR_MINOR_VERSION}.txt
         fi
-        python "${IN_CONTAINER_DIR}/install_airflow_and_providers.py"
         echo
         echo "${COLOR_BLUE}Reinstalling all development dependencies${COLOR_RESET}"
         echo
-        python "${IN_CONTAINER_DIR}/install_devel_deps.py" \
+        # Use uv run to install necessary dependencies automatically
+        uv run /opt/airflow/scripts/in_container/install_development_dependencies.py \
            --constraint https://raw.githubusercontent.com/apache/airflow/constraints-main/constraints-${PYTHON_MAJOR_MINOR_VERSION}.txt
         # Some packages might leave legacy typing module which causes test issues
         # shellcheck disable=SC2086
         ${PACKAGING_TOOL_CMD} uninstall ${EXTRA_UNINSTALL_FLAGS} typing || true
+        echo
+        echo "${COLOR_BLUE}Installing airflow and providers ${COLOR_RESET}"
+        echo
+        python "${IN_CONTAINER_DIR}/install_airflow_and_providers.py"
     fi
 
     if [[ "${USE_AIRFLOW_VERSION}" =~ ^2\.2\..*|^2\.1\..*|^2\.0\..* && "${AIRFLOW__DATABASE__SQL_ALCHEMY_CONN=}" != "" ]]; then
@@ -940,7 +940,8 @@ function check_downgrade_sqlalchemy() {
     if [[ ${DOWNGRADE_SQLALCHEMY=} != "true" ]]; then
         return
     fi
-    min_sqlalchemy_version=$(grep "\"sqlalchemy>=" hatch_build.py | sed "s/.*>=\([0-9\.]*\).*/\1/" | xargs)
+    local min_sqlalchemy_version
+    min_sqlalchemy_version=$(grep "sqlalchemy>=" airflow-core/pyproject.toml | sed "s/.*>=\([0-9\.]*\).*/\1/" | xargs)
     echo
     echo "${COLOR_BLUE}Downgrading sqlalchemy to minimum supported version: ${min_sqlalchemy_version}${COLOR_RESET}"
     echo
@@ -953,12 +954,13 @@ function check_downgrade_pendulum() {
     if [[ ${DOWNGRADE_PENDULUM=} != "true" || ${PYTHON_MAJOR_MINOR_VERSION} == "3.12" ]]; then
         return
     fi
-    local MIN_PENDULUM_VERSION="2.1.2"
+    local min_pendulum_version
+    min_pendulum_version=$(grep "pendulum>=" airflow-core/pyproject.toml | head -1 | sed "s/.*>=\([0-9\.]*\).*/\1/" | xargs)
     echo
-    echo "${COLOR_BLUE}Downgrading pendulum to minimum supported version: ${MIN_PENDULUM_VERSION}${COLOR_RESET}"
+    echo "${COLOR_BLUE}Downgrading pendulum to minimum supported version: ${min_pendulum_version}${COLOR_RESET}"
     echo
     # shellcheck disable=SC2086
-    ${PACKAGING_TOOL_CMD} install ${EXTRA_INSTALL_FLAGS} "pendulum==${MIN_PENDULUM_VERSION}"
+    ${PACKAGING_TOOL_CMD} install ${EXTRA_INSTALL_FLAGS} "pendulum==${min_pendulum_version}"
     pip check
 }
 
@@ -1005,7 +1007,7 @@ function check_force_lowest_dependencies() {
         echo
     fi
     set -x
-    uv pip install --python "$(which python)" --resolution lowest-direct --upgrade --editable ".${EXTRA}" --editable "./task_sdk"
+    uv pip install --python "$(which python)" --resolution lowest-direct --upgrade --editable ".${EXTRA}" --editable "./airflow-core" --editable "./task-sdk" --editable "./devel-common"
     set +x
 }
 
@@ -1021,7 +1023,6 @@ function start_api_server_with_examples(){
         return
     fi
     export AIRFLOW__CORE__LOAD_EXAMPLES=True
-    export AIRFLOW__API__AUTH_BACKENDS=airflow.api.auth.backend.session,airflow.providers.fab.auth_manager.api.auth.backend.basic_auth
     export AIRFLOW__WEBSERVER__EXPOSE_CONFIG=True
     echo
     echo "${COLOR_BLUE}Initializing database${COLOR_RESET}"
@@ -1034,17 +1035,21 @@ function start_api_server_with_examples(){
     echo
     airflow dags reserialize
     echo "Example dags parsing finished"
-    echo "Create admin user"
-    airflow users create -u admin -p admin -f Thor -l Administrator -r Admin -e admin@email.domain
-    echo "Admin user created"
+    if airflow config get-value core auth_manager | grep -q "FabAuthManager"; then
+        echo "Create admin user"
+        airflow users create -u admin -p admin -f Thor -l Administrator -r Admin -e admin@email.domain || true
+        echo "Admin user created"
+    else
+        echo "Skipping user creation as auth manager different from Fab is used"
+    fi
     echo
     echo "${COLOR_BLUE}Starting airflow api server${COLOR_RESET}"
     echo
-    airflow api-server --port 9091 --daemon
+    airflow api-server --port 8080 --daemon
     echo
     echo "${COLOR_BLUE}Waiting for api-server to start${COLOR_RESET}"
     echo
-    check_service_connection "Airflow api-server" "run_nc localhost 9091" 100
+    check_service_connection "Airflow api-server" "run_nc localhost 8080" 100
     EXIT_CODE=$?
     if [[ ${EXIT_CODE} != 0 ]]; then
         echo
@@ -1176,7 +1181,7 @@ RUN mkdir -pv ${AIRFLOW_HOME} && \
 ARG AIRFLOW_REPO=apache/airflow
 ARG AIRFLOW_BRANCH=main
 # Airflow Extras installed
-ARG AIRFLOW_EXTRAS="devel-ci"
+ARG AIRFLOW_EXTRAS="all"
 ARG ADDITIONAL_AIRFLOW_EXTRAS=""
 # Allows to override constraints source
 ARG CONSTRAINTS_GITHUB_REPOSITORY="apache/airflow"
@@ -1220,6 +1225,7 @@ ENV AIRFLOW_REPO=${AIRFLOW_REPO}\
     AIRFLOW_UV_VERSION=${AIRFLOW_UV_VERSION} \
     AIRFLOW_USE_UV=${AIRFLOW_USE_UV} \
     UV_HTTP_TIMEOUT=${UV_HTTP_TIMEOUT} \
+    UV_SYSTEM_PYTHON="true" \
     INSTALL_MYSQL_CLIENT="true" \
     INSTALL_MYSQL_CLIENT_TYPE=${INSTALL_MYSQL_CLIENT_TYPE} \
     INSTALL_MSSQL_CLIENT="true" \
@@ -1247,9 +1253,9 @@ COPY --from=scripts common.sh install_packaging_tools.sh install_additional_depe
 # Also use `force pip` label on your PR to swap all places we use `uv` to `pip`
 ARG AIRFLOW_PIP_VERSION=25.0.1
 # ARG AIRFLOW_PIP_VERSION="git+https://github.com/pypa/pip.git@main"
-ARG AIRFLOW_UV_VERSION=0.6.0
+ARG AIRFLOW_UV_VERSION=0.6.9
 # TODO(potiuk): automate with upgrade check (possibly)
-ARG AIRFLOW_PRE_COMMIT_VERSION="4.1.0"
+ARG AIRFLOW_PRE_COMMIT_VERSION="4.2.0"
 ARG AIRFLOW_PRE_COMMIT_UV_VERSION="4.1.4"
 
 ENV AIRFLOW_PIP_VERSION=${AIRFLOW_PIP_VERSION} \
@@ -1283,11 +1289,8 @@ COPY . ${AIRFLOW_SOURCES}/
 # Those are additional constraints that are needed for some extras but we do not want to
 # force them on the main Airflow package. Currently we need no extra limits as PIP 23.1+ has much better
 # dependency resolution and we do not need to limit the versions of the dependencies
-# The `confluent-kafka==2.8.1` currently breaks installation of kafka provider from PyPI
-# So we need to add limit here to get our constraints generation for PyPI packages work
-# This can be removed when https://github.com/confluentinc/confluent-kafka-python/issues/1927 is solved
 #
-ARG EAGER_UPGRADE_ADDITIONAL_REQUIREMENTS="confluent-kafka!=2.8.1"
+ARG EAGER_UPGRADE_ADDITIONAL_REQUIREMENTS=""
 ARG UPGRADE_INVALIDATION_STRING=""
 ARG VERSION_SUFFIX_FOR_PYPI=""
 

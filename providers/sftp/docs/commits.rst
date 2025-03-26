@@ -34,14 +34,33 @@ For high-level changelog, see :doc:`package information including changelog <ind
 
 
 
+5.1.1
+.....
+
+Latest change: 2025-03-05
+
+==================================================================================================  ===========  ===================================================================================================================================
+Commit                                                                                              Committed    Subject
+==================================================================================================  ===========  ===================================================================================================================================
+`e4002c3305 <https://github.com/apache/airflow/commit/e4002c3305a757f5926f96c996e701e8f998a042>`__  2025-03-05   ``Move tests_common package to devel-common project (#47281)``
+`69eba4407b <https://github.com/apache/airflow/commit/69eba4407bfa0073562fe51fb58e3d23c25ca8cd>`__  2025-03-01   ``Change get_conn to get_managed_conn in direcotry transfer (#47248)``
+`998fcd6cfb <https://github.com/apache/airflow/commit/998fcd6cfbc35b671a07b92d6f6fc532a00bd8dd>`__  2025-03-01   ``Improve SFTP hook's directory transfer to use a single connection for multiple files (#46582)``
+`c51010f41c <https://github.com/apache/airflow/commit/c51010f41cee2bed1f62a1dada4539ac1dd0d1f2>`__  2025-02-28   ``Re-added close_conn connection on SFTPHook and get_conn should return SFTPClient instead of context managed connection (#47217)``
+`1addb55154 <https://github.com/apache/airflow/commit/1addb55154fbef31bfa021537cfbd4395696381c>`__  2025-02-28   ``Improve documentation for updating provider dependencies (#47203)``
+`c6c4f95ed9 <https://github.com/apache/airflow/commit/c6c4f95ed9e3220133815b9126c135e805637022>`__  2025-02-25   ``Add legacy namespace packages to airflow.providers (#47064)``
+`dbf8bb4092 <https://github.com/apache/airflow/commit/dbf8bb409223687c7d2ad10649a92d02c24bb3b4>`__  2025-02-24   ``Remove extra whitespace in provider readme template (#46975)``
+`b28c336e8b <https://github.com/apache/airflow/commit/b28c336e8b7aa1d69c0f9520b182b1b661377337>`__  2025-02-21   ``Upgrade flit to 3.11.0 (#46938)``
+==================================================================================================  ===========  ===================================================================================================================================
+
 5.1.0
 .....
 
-Latest change: 2025-02-16
+Latest change: 2025-02-21
 
 ==================================================================================================  ===========  ===========================================================================================================
 Commit                                                                                              Committed    Subject
 ==================================================================================================  ===========  ===========================================================================================================
+`5d87bddf0a <https://github.com/apache/airflow/commit/5d87bddf0aa5f485f3684c909fb95f461e5a2ab6>`__  2025-02-21   ``Prepare docs for Feb 1st wave of providers (#46893)``
 `4d5846f58f <https://github.com/apache/airflow/commit/4d5846f58fe0de9b43358c0be75dd72e968dacc4>`__  2025-02-16   ``Move provider_tests to unit folder in provider tests (#46800)``
 `a9f3cbb2fb <https://github.com/apache/airflow/commit/a9f3cbb2fb3446173d8c120e2df39e71ad44cb10>`__  2025-02-15   ``Make sure the SSHClient is also closed when using connection in context manager from SFTPHook (#46716)``
 `e027457a24 <https://github.com/apache/airflow/commit/e027457a24d0c6235bfed9c2a8399f75342e82f1>`__  2025-02-15   ``Removed the unused provider's distribution (#46608)``

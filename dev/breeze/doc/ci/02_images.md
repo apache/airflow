@@ -203,11 +203,11 @@ pip install "https://github.com/apache/airflow/archive/<tag>.tar.gz#egg=apache-a
 ```
 
 You can also skip installing airflow and install it from locally
-provided files by using `--install-packages-from-context` parameter to
+provided files by using `--install-distributions-from-context` parameter to
 Breeze:
 
 ``` bash
-breeze prod-image build --python 3.9 --additional-airflow-extras=trino --install-packages-from-context
+breeze prod-image build --python 3.9 --additional-airflow-extras=trino --install-distributions-from-context
 ```
 
 In this case you airflow and all packages (.whl files) should be placed
@@ -443,8 +443,8 @@ can be used for CI images:
 | `ADDITIONAL_DEV_APT_DEPS`       |                            | Additional apt dev dependencies installed in the first part of the image                                          |
 | `ADDITIONAL_DEV_APT_ENV`        |                            | Additional env variables defined when installing dev deps                                                         |
 | `AIRFLOW_PIP_VERSION`           | `25.0.1`                   | `pip` version used.                                                                                               |
-| `AIRFLOW_UV_VERSION`            | `0.6.0`                    | `uv` version used.                                                                                                |
-| `AIRFLOW_PRE_COMMIT_VERSION`    | `4.1.0`                    | `pre-commit` version used.                                                                                        |
+| `AIRFLOW_UV_VERSION`            | `0.6.9`                    | `uv` version used.                                                                                                |
+| `AIRFLOW_PRE_COMMIT_VERSION`    | `4.2.0`                    | `pre-commit` version used.                                                                                        |
 | `AIRFLOW_PRE_COMMIT_UV_VERSION` | `4.1.4`                    | `pre-commit-uv` version used.                                                                                     |
 | `AIRFLOW_USE_UV`                | `true`                     | Whether to use UV for installation.                                                                               |
 | `PIP_PROGRESS_BAR`              | `on`                       | Progress bar for PIP installation                                                                                 |
@@ -532,7 +532,7 @@ The entrypoint performs those operations:
 - Sets up ssh keys for ssh tests and restarts the SSH server
 - Sets all variables and configurations needed for unit tests to run
 - Reads additional variables set in
-  `files/airflow-breeze-config/variables.env` by sourcing that file
+  `files/airflow-breeze-config/environment_variables.env` by sourcing that file
 - In case of CI run sets parallelism to 2 to avoid excessive number of
   processes to run
 - In case of CI run sets default parameters for pytest
@@ -572,4 +572,4 @@ percent-encoded when you access them via UI (/ = %2F)
 
 ----
 
-Read next about [Github Variables](03_github_variables.md)
+Read next about [GitHub Variables](03_github_variables.md)

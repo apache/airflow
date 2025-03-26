@@ -28,7 +28,7 @@ from typing import TYPE_CHECKING
 
 from airflow_breeze.global_constants import ALL_PROVIDER_YAML_FILES, FILES_FOR_REBUILD_CHECK
 from airflow_breeze.utils.console import get_console
-from airflow_breeze.utils.path_utils import AIRFLOW_SOURCES_ROOT
+from airflow_breeze.utils.path_utils import AIRFLOW_ROOT_PATH
 from airflow_breeze.utils.run_utils import run_command
 from airflow_breeze.utils.shared_options import get_verbose
 
@@ -69,7 +69,7 @@ def generate_md5(filename, file_size: int = 65536):
 
 
 def check_md5_sum_for_file(file_to_check: str, md5sum_cache_dir: Path, update: bool):
-    file_to_get_md5 = AIRFLOW_SOURCES_ROOT / file_to_check
+    file_to_get_md5 = AIRFLOW_ROOT_PATH / file_to_check
     md5_checksum = generate_md5(file_to_get_md5)
     sub_dir_name = file_to_get_md5.parts[-2]
     actual_file_name = file_to_get_md5.parts[-1]
@@ -108,24 +108,21 @@ def calculate_md5_checksum_for_files(
             )
             if get_verbose():
                 get_console().print(
-                    [
-                        os.fspath(file.relative_to(AIRFLOW_SOURCES_ROOT))
-                        for file in modified_provider_yaml_files
-                    ]
+                    [os.fspath(file.relative_to(AIRFLOW_ROOT_PATH)) for file in modified_provider_yaml_files]
                 )
             # Regenerate provider_dependencies.json
             result = run_command(
                 [
                     sys.executable,
                     os.fspath(
-                        AIRFLOW_SOURCES_ROOT
+                        AIRFLOW_ROOT_PATH
                         / "scripts"
                         / "ci"
                         / "pre_commit"
                         / "update_providers_dependencies.py"
                     ),
                 ],
-                cwd=AIRFLOW_SOURCES_ROOT,
+                cwd=AIRFLOW_ROOT_PATH,
                 check=False,
             )
             if result.returncode != 0:
@@ -167,7 +164,7 @@ def md5sum_check_if_build_is_needed(
                 )
             return False
         get_console().print(
-            f"[warning]The following important files are modified in {AIRFLOW_SOURCES_ROOT} "
+            f"[warning]The following important files are modified in {AIRFLOW_ROOT_PATH} "
             f"since last time image was built: [/]\n\n"
         )
         for file in modified_files:

@@ -21,7 +21,8 @@ from __future__ import annotations
 
 import logging
 import sys
-from contextlib import contextmanager
+import time
+from contextlib import contextmanager, suppress
 from multiprocessing import Process
 
 import psutil
@@ -33,6 +34,7 @@ from lockfile.pidlockfile import read_pid_from_pidfile, remove_existing_pidfile
 
 from airflow import settings
 from airflow.configuration import conf
+from airflow.exceptions import AirflowConfigException
 from airflow.providers.celery.version_compat import AIRFLOW_V_3_0_PLUS
 from airflow.utils import cli as cli_utils
 from airflow.utils.cli import setup_locations
@@ -40,13 +42,13 @@ from airflow.utils.serve_logs import serve_logs
 
 WORKER_PROCESS_NAME = "worker"
 
+log = logging.getLogger(__name__)
+
 
 def _run_command_with_daemon_option(*args, **kwargs):
     try:
-        if AIRFLOW_V_3_0_PLUS:
-            from airflow.cli.commands.local_commands.daemon_utils import run_command_with_daemon_option
-        else:
-            from airflow.cli.commands.daemon_utils import run_command_with_daemon_option
+        from airflow.cli.commands.daemon_utils import run_command_with_daemon_option
+
         run_command_with_daemon_option(*args, **kwargs)
     except ImportError:
         from airflow.exceptions import AirflowOptionalProviderFeatureException
@@ -117,6 +119,41 @@ def _serve_logs(skip_serve_logs: bool = False):
             sub_proc.terminate()
 
 
+@contextmanager
+def _run_stale_bundle_cleanup():
+    """Start stale bundle cleanup sub-process."""
+    check_interval = None
+    with suppress(AirflowConfigException):  # remove when min airflow version >= 3.0
+        check_interval = conf.getint(
+            section="dag_processor",
+            key="stale_bundle_cleanup_interval",
+        )
+    if not check_interval or check_interval <= 0 or not AIRFLOW_V_3_0_PLUS:
+        # do not start bundle cleanup process
+        try:
+            yield
+        finally:
+            return
+    from airflow.dag_processing.bundles.base import BundleUsageTrackingManager
+
+    log.info("starting stale bundle cleanup process")
+    sub_proc = None
+
+    def bundle_cleanup_main():
+        mgr = BundleUsageTrackingManager()
+        while True:
+            time.sleep(check_interval)
+            mgr.remove_stale_bundle_versions()
+
+    try:
+        sub_proc = Process(target=bundle_cleanup_main)
+        sub_proc.start()
+        yield
+    finally:
+        if sub_proc:
+            sub_proc.terminate()
+
+
 @after_setup_logger.connect()
 @_providers_configuration_loaded
 def logger_setup_handler(logger, **kwargs):
@@ -158,11 +195,11 @@ def worker(args):
         from airflow.sdk.log import configure_logging
 
         configure_logging(output=sys.stdout.buffer)
-
-    # Disable connection pool so that celery worker does not hold an unnecessary db connection
-    settings.reconfigure_orm(disable_connection_pool=True)
-    if not settings.validate_session():
-        raise SystemExit("Worker exiting, database connection precheck failed.")
+    else:
+        # Disable connection pool so that celery worker does not hold an unnecessary db connection
+        settings.reconfigure_orm(disable_connection_pool=True)
+        if not settings.validate_session():
+            raise SystemExit("Worker exiting, database connection precheck failed.")
 
     autoscale = args.autoscale
     skip_serve_logs = args.skip_serve_logs
@@ -231,7 +268,7 @@ def worker(args):
     )
 
     def run_celery_worker():
-        with _serve_logs(skip_serve_logs):
+        with _serve_logs(skip_serve_logs), _run_stale_bundle_cleanup():
             celery_app.worker_main(options)
 
     if args.umask:

@@ -248,6 +248,7 @@ spec:
                   value: {{ regexReplaceAll ":\\d+$" (urlParse (tpl .Values.config.webserver.base_url .)).host  "" }}
               {{- end }}
               scheme: {{ .Values.webserver.startupProbe.scheme | default "http" }}
+            initialDelaySeconds: {{ .Values.webserver.startupProbe.initialDelaySeconds }}
             timeoutSeconds: {{ .Values.webserver.startupProbe.timeoutSeconds }}
             failureThreshold: {{ .Values.webserver.startupProbe.failureThreshold }}
             periodSeconds: {{ .Values.webserver.startupProbe.periodSeconds }}

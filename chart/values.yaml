@@ -115,11 +115,11 @@ images:
     pullPolicy: IfNotPresent
   pgbouncer:
     repository: apache/airflow
-    tag: airflow-pgbouncer-2025.01.10-1.24.0
+    tag: airflow-pgbouncer-2025.03.05-1.23.1
     pullPolicy: IfNotPresent
   pgbouncerExporter:
     repository: apache/airflow
-    tag: airflow-pgbouncer-exporter-2024.06.18-0.17.0
+    tag: airflow-pgbouncer-exporter-2025.03.05-0.18.0
     pullPolicy: IfNotPresent
   gitSync:
     repository: registry.k8s.io/git-sync/git-sync
@@ -897,6 +897,7 @@ scheduler:
   # Wait for at most 1 minute (6*10s) for the scheduler container to startup.
   # livenessProbe kicks in after the first successful startupProbe
   startupProbe:
+    initialDelaySeconds: 0
     failureThreshold: 6
     periodSeconds: 10
     timeoutSeconds: 20
@@ -1262,6 +1263,7 @@ apiServer:
   command: ~
   # Args to use when running the Airflow API server (templated).
   args: ["bash", "-c", "exec airflow api-server"]
+  allowPodLogReading: true
   env: []
   serviceAccount:
     # default value is true
@@ -1345,6 +1347,7 @@ apiServer:
     scheme: HTTP
 
   startupProbe:
+    initialDelaySeconds: 0
     timeoutSeconds: 20
     failureThreshold: 6
     periodSeconds: 10
@@ -1381,6 +1384,7 @@ webserver:
   # Wait for at most 1 minute (6*10s) for the webserver container to startup.
   # livenessProbe kicks in after the first successful startupProbe
   startupProbe:
+    initialDelaySeconds: 0
     timeoutSeconds: 20
     failureThreshold: 6
     periodSeconds: 10
@@ -1802,7 +1806,7 @@ triggerer:
 
     # Query to use for KEDA autoscaling. Must return a single integer.
     query: >-
-      SELECT ceil(COUNT(*)::decimal / {{ .Values.config.triggerer.default_capacity }})
+      SELECT ceil(COUNT(*)::decimal / {{ include "triggerer.capacity" . }})
       FROM trigger
 
     # Whether to use PGBouncer to connect to the database or not when it is enabled
@@ -1976,6 +1980,7 @@ flower:
   # Wait for at most 1 minute (6*10s) for the flower container to startup.
   # livenessProbe kicks in after the first successful startupProbe
   startupProbe:
+    initialDelaySeconds: 0
     timeoutSeconds: 20
     failureThreshold: 6
     periodSeconds: 10
@@ -2540,7 +2545,7 @@ ports:
   statsdScrape: 9102
   pgbouncer: 6543
   pgbouncerScrape: 9127
-  apiServer: 9091
+  apiServer: 8080
 
 # Define any ResourceQuotas for namespace
 quotas: {}
@@ -2648,6 +2653,7 @@ config:
     # For Airflow 1.10, backward compatibility; moved to [logging] in 2.0
     colored_console_log: 'False'
     remote_logging: '{{- ternary "True" "False" (or .Values.elasticsearch.enabled .Values.opensearch.enabled) }}'
+    auth_manager: "airflow.providers.fab.auth_manager.fab_auth_manager.FabAuthManager"
   logging:
     remote_logging: '{{- ternary "True" "False" (or .Values.elasticsearch.enabled .Values.opensearch.enabled) }}'
     colored_console_log: 'False'
@@ -2704,8 +2710,7 @@ config:
     worker_container_repository: '{{ .Values.images.airflow.repository | default .Values.defaultAirflowRepository }}'
     worker_container_tag: '{{ .Values.images.airflow.tag | default .Values.defaultAirflowTag }}'
     multi_namespace_mode: '{{ ternary "True" "False" .Values.multiNamespaceMode }}'
-  triggerer:
-    default_capacity: 1000
+
 # yamllint enable rule:line-length
 
 # Whether Airflow can launch workers and/or pods in multiple namespaces

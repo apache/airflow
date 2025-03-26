@@ -23,6 +23,7 @@ import shutil
 import sys
 import threading
 from collections.abc import Iterable
+from pathlib import Path
 from signal import SIGTERM
 from time import sleep
 
@@ -48,7 +49,7 @@ from airflow_breeze.commands.common_options import (
     option_github_repository,
     option_include_not_ready_providers,
     option_include_removed_providers,
-    option_installation_package_format,
+    option_installation_distribution_format,
     option_keep_env_variables,
     option_max_time,
     option_mount_sources,
@@ -77,13 +78,14 @@ from airflow_breeze.commands.common_package_installation_options import (
     option_providers_constraints_mode_ci,
     option_providers_constraints_reference,
     option_providers_skip_constraints,
-    option_use_packages_from_dist,
+    option_use_distributions_from_dist,
 )
-from airflow_breeze.commands.main_command import main
+from airflow_breeze.commands.main_command import cleanup, main
 from airflow_breeze.commands.testing_commands import (
     option_force_lowest_dependencies,
 )
 from airflow_breeze.global_constants import (
+    ALLOWED_AUTH_MANAGERS,
     ALLOWED_CELERY_BROKERS,
     ALLOWED_CELERY_EXECUTORS,
     ALLOWED_EXECUTORS,
@@ -100,6 +102,7 @@ from airflow_breeze.params.doc_build_params import DocBuildParams
 from airflow_breeze.params.shell_params import ShellParams
 from airflow_breeze.pre_commit_ids import PRE_COMMIT_LIST
 from airflow_breeze.utils.coertions import one_or_none_set
+from airflow_breeze.utils.confirm import Answer, user_confirm
 from airflow_breeze.utils.console import get_console
 from airflow_breeze.utils.custom_param_types import BetterChoice
 from airflow_breeze.utils.docker_command_utils import (
@@ -110,9 +113,9 @@ from airflow_breeze.utils.docker_command_utils import (
     fix_ownership_using_docker,
     perform_environment_checks,
 )
-from airflow_breeze.utils.packages import expand_all_provider_packages
+from airflow_breeze.utils.packages import expand_all_provider_distributions
 from airflow_breeze.utils.path_utils import (
-    AIRFLOW_SOURCES_ROOT,
+    AIRFLOW_ROOT_PATH,
     cleanup_python_generated_files,
 )
 from airflow_breeze.utils.platforms import get_normalized_platform
@@ -228,7 +231,7 @@ option_install_airflow_with_constraints_default_true = click.option(
 option_install_airflow_python_client = click.option(
     "--install-airflow-python-client",
     is_flag=True,
-    help="Install airflow python client packages (--package-format determines type) from 'dist' folder "
+    help="Install airflow python client packages (--distribution-format determines type) from 'dist' folder "
     "when entering breeze.",
     envvar="INSTALL_AIRFLOW_PYTHON_CLIENT",
 )
@@ -302,7 +305,7 @@ option_load_default_connections = click.option(
 @option_include_mypy_volume
 @option_install_airflow_with_constraints_default_true
 @option_install_selected_providers
-@option_installation_package_format
+@option_installation_distribution_format
 @option_load_example_dags
 @option_load_default_connections
 @option_all_integration
@@ -328,7 +331,7 @@ option_load_default_connections = click.option(
 @option_standalone_dag_processor
 @option_upgrade_boto
 @option_use_airflow_version
-@option_use_packages_from_dist
+@option_use_distributions_from_dist
 @option_use_uv
 @option_uv_http_timeout
 @option_verbose
@@ -366,7 +369,7 @@ def shell(
     mount_sources: str,
     mysql_version: str,
     no_db_cleanup: bool,
-    package_format: str,
+    distribution_format: str,
     platform: str | None,
     postgres_version: str,
     project_name: str,
@@ -386,7 +389,7 @@ def shell(
     tty: str,
     upgrade_boto: bool,
     use_airflow_version: str | None,
-    use_packages_from_dist: bool,
+    use_distributions_from_dist: bool,
     use_uv: bool,
     uv_http_timeout: int,
     verbose_commands: bool,
@@ -395,7 +398,7 @@ def shell(
     """Enter breeze environment. this is the default command use when no other is selected."""
     if get_verbose() or get_dry_run() and not quiet:
         get_console().print("\n[success]Welcome to breeze.py[/]\n")
-        get_console().print(f"\n[success]Root of Airflow Sources = {AIRFLOW_SOURCES_ROOT}[/]\n")
+        get_console().print(f"\n[success]Root of Airflow Sources = {AIRFLOW_ROOT_PATH}[/]\n")
     if max_time:
         TimerThread(max_time=max_time).start()
         set_forced_answer("yes")
@@ -436,7 +439,7 @@ def shell(
         mount_sources=mount_sources,
         mysql_version=mysql_version,
         no_db_cleanup=no_db_cleanup,
-        package_format=package_format,
+        distribution_format=distribution_format,
         platform=platform,
         postgres_version=postgres_version,
         project_name=project_name,
@@ -456,7 +459,7 @@ def shell(
         tty=tty,
         upgrade_boto=upgrade_boto,
         use_airflow_version=use_airflow_version,
-        use_packages_from_dist=use_packages_from_dist,
+        use_distributions_from_dist=use_distributions_from_dist,
         use_uv=use_uv,
         uv_http_timeout=uv_http_timeout,
         verbose_commands=verbose_commands,
@@ -473,6 +476,14 @@ option_executor_start_airflow = click.option(
     type=click.Choice(START_AIRFLOW_ALLOWED_EXECUTORS, case_sensitive=False),
     help="Specify the executor to use with start-airflow (defaults to LocalExecutor "
     "or CeleryExecutor depending on the integration used).",
+)
+
+option_auth_manager_start_airflow = click.option(
+    "--auth-manager",
+    type=click.Choice(ALLOWED_AUTH_MANAGERS, case_sensitive=False),
+    help="Specify the auth manager to use with start-airflow",
+    default=ALLOWED_AUTH_MANAGERS[0],
+    show_default=True,
 )
 
 
@@ -495,6 +506,7 @@ option_executor_start_airflow = click.option(
 @option_airflow_constraints_reference
 @option_airflow_extras
 @option_airflow_skip_constraints
+@option_auth_manager_start_airflow
 @option_answer
 @option_backend
 @option_builder
@@ -508,7 +520,7 @@ option_executor_start_airflow = click.option(
 @option_force_build
 @option_forward_credentials
 @option_github_repository
-@option_installation_package_format
+@option_installation_distribution_format
 @option_install_selected_providers
 @option_all_integration
 @option_load_default_connections
@@ -528,7 +540,7 @@ option_executor_start_airflow = click.option(
 @option_use_uv
 @option_uv_http_timeout
 @option_use_airflow_version
-@option_use_packages_from_dist
+@option_use_distributions_from_dist
 @option_verbose
 def start_airflow(
     airflow_constraints_mode: str,
@@ -536,6 +548,7 @@ def start_airflow(
     airflow_constraints_reference: str,
     airflow_extras: str,
     airflow_skip_constraints: bool,
+    auth_manager: str,
     backend: str,
     builder: str,
     celery_broker: str,
@@ -555,7 +568,7 @@ def start_airflow(
     load_example_dags: bool,
     mount_sources: str,
     mysql_version: str,
-    package_format: str,
+    distribution_format: str,
     platform: str | None,
     postgres_version: str,
     project_name: str,
@@ -568,7 +581,7 @@ def start_airflow(
     skip_assets_compilation: bool,
     standalone_dag_processor: bool,
     use_airflow_version: str | None,
-    use_packages_from_dist: bool,
+    use_distributions_from_dist: bool,
     use_uv: bool,
     uv_http_timeout: int,
 ):
@@ -596,6 +609,8 @@ def start_airflow(
             # Otherwise default to LocalExecutor
             executor = START_AIRFLOW_DEFAULT_ALLOWED_EXECUTOR
 
+    get_console().print(f"[info]Airflow will be using: {executor} to execute the tasks.")
+
     platform = get_normalized_platform(platform)
     shell_params = ShellParams(
         airflow_constraints_location=airflow_constraints_location,
@@ -603,6 +618,7 @@ def start_airflow(
         airflow_constraints_reference=airflow_constraints_reference,
         airflow_extras=airflow_extras,
         airflow_skip_constraints=airflow_skip_constraints,
+        auth_manager=auth_manager,
         backend=backend,
         builder=builder,
         celery_broker=celery_broker,
@@ -623,7 +639,7 @@ def start_airflow(
         load_example_dags=load_example_dags,
         mount_sources=mount_sources,
         mysql_version=mysql_version,
-        package_format=package_format,
+        distribution_format=distribution_format,
         platform=platform,
         postgres_version=postgres_version,
         project_name=project_name,
@@ -636,7 +652,7 @@ def start_airflow(
         standalone_dag_processor=standalone_dag_processor,
         start_airflow=True,
         use_airflow_version=use_airflow_version,
-        use_packages_from_dist=use_packages_from_dist,
+        use_distributions_from_dist=use_distributions_from_dist,
         use_uv=use_uv,
         uv_http_timeout=uv_http_timeout,
     )
@@ -672,7 +688,8 @@ def start_airflow(
 )
 @click.option(
     "--skip-deletion",
-    help="Skip deletion of generated new packages documentation in `docs/apache-airflow-providers-*`.",
+    help="Skip deletion of generated new packages documentation in `docs/apache-airflow-providers-*` and"
+    "docs/apache-airflow/.",
     is_flag=True,
 )
 @click.option(
@@ -684,8 +701,8 @@ def start_airflow(
     multiple=True,
 )
 @click.option(
-    "--package-list",
-    envvar="PACKAGE_LIST",
+    "--distributions-list",
+    envvar="DISTRIBUTIONS_LIST",
     type=str,
     help="Optional, contains comma-separated list of package ids that are processed for documentation "
     "building, and document publishing. It is an easier alternative to adding individual packages as"
@@ -705,7 +722,7 @@ def build_docs(
     one_pass_only: bool,
     skip_deletion: bool,
     package_filter: tuple[str, ...],
-    package_list: str,
+    distributions_list: str,
     spellcheck_only: bool,
     doc_packages: tuple[str, ...],
 ):
@@ -723,20 +740,22 @@ def build_docs(
         directories_to_clean = ["_build", "_doctrees", "_inventory_cache", "_api"]
     else:
         directories_to_clean = ["_api"]
-    docs_dir = AIRFLOW_SOURCES_ROOT / "docs"
+    docs_dir = AIRFLOW_ROOT_PATH / "docs"
     for dir_name in directories_to_clean:
         for directory in docs_dir.rglob(dir_name):
             get_console().print(f"[info]Removing {directory}")
             shutil.rmtree(directory, ignore_errors=True)
 
     docs_list_as_tuple: tuple[str, ...] = ()
-    if package_list and len(package_list):
-        get_console().print(f"\n[info]Populating provider list from PACKAGE_LIST env as {package_list}")
-        # Override doc_packages with values from PACKAGE_LIST
-        docs_list_as_tuple = tuple(package_list.split(","))
+    if distributions_list and len(distributions_list):
+        get_console().print(
+            f"\n[info]Populating provider list from DISTRIBUTIONS_LIST env as {distributions_list}"
+        )
+        # Override doc_packages with values from DISTRIBUTIONS_LIST
+        docs_list_as_tuple = tuple(distributions_list.split(","))
     if doc_packages and docs_list_as_tuple:
         get_console().print(
-            f"[warning]Both package arguments and --package-list / PACKAGE_LIST passed. "
+            f"[warning]Both package arguments and --distributions-list / DISTRIBUTIONS_LIST passed. "
             f"Overriding to {docs_list_as_tuple}"
         )
     doc_packages = docs_list_as_tuple or doc_packages
@@ -746,7 +765,7 @@ def build_docs(
         spellcheck_only=spellcheck_only,
         skip_deletion=skip_deletion,
         one_pass_only=one_pass_only,
-        short_doc_packages=expand_all_provider_packages(
+        short_doc_packages=expand_all_provider_distributions(
             short_doc_packages=doc_packages,
             include_removed=include_removed_providers,
             include_not_ready=include_not_ready_providers,
@@ -998,14 +1017,11 @@ def compile_ui_assets(dev: bool, force_clean: bool):
     help="Additionally cleanup MyPy cache.",
     is_flag=True,
 )
-@option_project_name
 @option_verbose
 @option_dry_run
-def down(preserve_volumes: bool, cleanup_mypy_cache: bool, project_name: str):
+def down(preserve_volumes: bool, cleanup_mypy_cache: bool):
     perform_environment_checks()
-    shell_params = ShellParams(
-        backend="all", include_mypy_volume=cleanup_mypy_cache, project_name=project_name
-    )
+    shell_params = ShellParams(backend="all", include_mypy_volume=cleanup_mypy_cache)
     bring_compose_project_down(preserve_volumes=preserve_volumes, shell_params=shell_params)
     if cleanup_mypy_cache:
         command_to_execute = ["docker", "volume", "rm", "--force", "mypy-cache-volume"]
@@ -1116,3 +1132,44 @@ def autogenerate(
     cmd = f"/opt/airflow/scripts/in_container/run_generate_migration.sh '{message}'"
     execute_command_in_shell(shell_params, project_name="db", command=cmd)
     fix_ownership_using_docker()
+
+
+@main.command(name="doctor", help="Auto-healing of breeze")
+@option_answer
+@option_verbose
+@option_dry_run
+@click.pass_context
+def doctor(ctx):
+    shell_params = ShellParams()
+    check_docker_resources(shell_params.airflow_image_name)
+    shell_params.print_badge_info()
+
+    perform_environment_checks()
+    fix_ownership_using_docker()
+
+    given_answer = user_confirm("Are you sure with the removal of temporary Python files and Python cache?")
+    if not get_dry_run() and given_answer == Answer.YES:
+        cleanup_python_generated_files()
+
+    shell_params = ShellParams(backend="all", include_mypy_volume=True)
+    bring_compose_project_down(preserve_volumes=False, shell_params=shell_params)
+
+    given_answer = user_confirm("Are you sure with the removal of mypy cache and build cache dir?")
+    if given_answer == Answer.YES:
+        get_console().print("\n[info]Cleaning mypy cache...\n")
+        command_to_execute = ["docker", "volume", "rm", "--force", "mypy-cache-volume"]
+        run_command(command_to_execute)
+
+        get_console().print("\n[info]Deleting .build cache dir...\n")
+        dirpath = Path(".build")
+        if not get_dry_run() and dirpath.exists() and dirpath.is_dir():
+            shutil.rmtree(dirpath)
+
+    given_answer = user_confirm(
+        "Proceed with breeze cleanup to remove all docker volumes, images and networks?"
+    )
+    if given_answer == Answer.YES:
+        get_console().print("\n[info]Executing breeze cleanup...\n")
+        ctx.forward(cleanup)
+    elif given_answer == Answer.QUIT:
+        sys.exit(0)

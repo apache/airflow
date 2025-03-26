@@ -29,13 +29,13 @@ from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarni
 from airflow.providers.microsoft.azure.operators.msgraph import MSGraphAsyncOperator, execute_callable
 from airflow.triggers.base import TriggerEvent
 from airflow.utils import timezone
-from unit.microsoft.azure.base import Base
-from unit.microsoft.azure.test_utils import mock_json_response, mock_response
 
 from tests_common.test_utils.file_loading import load_file_from_resources, load_json_from_resources
 from tests_common.test_utils.mock_context import mock_context
 from tests_common.test_utils.operators.run_deferrable import execute_operator
 from tests_common.test_utils.version_compat import AIRFLOW_V_2_10_PLUS
+from unit.microsoft.azure.base import Base
+from unit.microsoft.azure.test_utils import mock_json_response, mock_response
 
 try:
     from airflow.sdk.definitions.context import Context
@@ -104,6 +104,41 @@ class TestMSGraphAsyncOperator(Base):
             assert events[1].payload["status"] == "success"
             assert events[1].payload["type"] == "builtins.dict"
             assert events[1].payload["response"] == json.dumps(next_users)
+
+    @pytest.mark.db_test
+    def test_execute_with_old_paginate_function_signature(self):
+        users = load_json_from_resources(dirname(__file__), "..", "resources", "users.json")
+        next_users = load_json_from_resources(dirname(__file__), "..", "resources", "next_users.json")
+        response = mock_json_response(200, users, next_users)
+
+        with self.patch_hook_and_request_adapter(response):
+            operator = MSGraphAsyncOperator(
+                task_id="users_delta",
+                conn_id="msgraph_api",
+                url="users",
+                result_processor=lambda result, **context: result.get("value"),
+                pagination_function=lambda operator, response, context: MSGraphAsyncOperator.paginate(
+                    operator, response, **context
+                ),
+            )
+
+            with pytest.warns(
+                AirflowProviderDeprecationWarning,
+                match="pagination_function signature has changed, context parameter should be a kwargs argument!",
+            ):
+                results, events = execute_operator(operator)
+
+                assert len(results) == 30
+                assert results == users.get("value") + next_users.get("value")
+                assert len(events) == 2
+                assert isinstance(events[0], TriggerEvent)
+                assert events[0].payload["status"] == "success"
+                assert events[0].payload["type"] == "builtins.dict"
+                assert events[0].payload["response"] == json.dumps(users)
+                assert isinstance(events[1], TriggerEvent)
+                assert events[1].payload["status"] == "success"
+                assert events[1].payload["type"] == "builtins.dict"
+                assert events[1].payload["response"] == json.dumps(next_users)
 
     @pytest.mark.db_test
     def test_execute_when_do_xcom_push_is_false(self):

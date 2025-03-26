@@ -28,6 +28,7 @@ DEVELOPER_COMMANDS: dict[str, str | list[str]] = {
         "compile-ui-assets",
         "cleanup",
         "generate-migration-file",
+        "doctor",
     ],
 }
 DEVELOPER_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] = {
@@ -152,13 +153,13 @@ DEVELOPER_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] = {
                 "--force-lowest-dependencies",
                 "--install-airflow-with-constraints",
                 "--install-selected-providers",
-                "--package-format",
+                "--distribution-format",
                 "--providers-constraints-location",
                 "--providers-constraints-mode",
                 "--providers-constraints-reference",
                 "--providers-skip-constraints",
                 "--use-airflow-version",
-                "--use-packages-from-dist",
+                "--use-distributions-from-dist",
                 "--install-airflow-python-client",
             ],
         },
@@ -235,6 +236,12 @@ DEVELOPER_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] = {
             ],
         },
         {
+            "name": "Auth manager",
+            "options": [
+                "--auth-manager",
+            ],
+        },
+        {
             "name": "Asset compilation options",
             "options": [
                 "--skip-assets-compilation",
@@ -267,13 +274,13 @@ DEVELOPER_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] = {
                 "--airflow-skip-constraints",
                 "--clean-airflow-installation",
                 "--install-selected-providers",
-                "--package-format",
+                "--distribution-format",
                 "--providers-constraints-location",
                 "--providers-constraints-mode",
                 "--providers-constraints-reference",
                 "--providers-skip-constraints",
                 "--use-airflow-version",
-                "--use-packages-from-dist",
+                "--use-distributions-from-dist",
             ],
         },
         {
@@ -292,7 +299,6 @@ DEVELOPER_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] = {
             "options": [
                 "--preserve-volumes",
                 "--cleanup-mypy-cache",
-                "--project-name",
             ],
         },
     ],
@@ -310,7 +316,7 @@ DEVELOPER_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] = {
                 "--include-removed-providers",
                 "--github-repository",
                 "--builder",
-                "--package-list",
+                "--distributions-list",
             ],
         },
     ],
@@ -361,5 +367,13 @@ DEVELOPER_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] = {
                 "--builder",
             ],
         },
+    ],
+    "breeze doctor": [
+        {
+            "name": "Auto-healing of breeze",
+            "options": [
+                "--answer",
+            ],
+        }
     ],
 }

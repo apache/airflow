@@ -24,6 +24,9 @@ from flask_login import current_user
 from tests_common.test_utils.config import conf_vars
 from tests_common.test_utils.db import clear_db_pools
 from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS
+from unit.fab.auth_manager.api_endpoints.api_connexion_utils import (
+    delete_user,
+)
 
 pytestmark = [
     pytest.mark.db_test,
@@ -37,17 +40,16 @@ class BaseTestAuth:
         self.app = minimal_app_for_auth_api
 
         sm = self.app.appbuilder.sm
-        tester = sm.find_user(username="test")
-        if not tester:
-            role_admin = sm.find_role("Admin")
-            sm.add_user(
-                username="test",
-                first_name="test",
-                last_name="test",
-                email="test@fab.org",
-                role=role_admin,
-                password="test",
-            )
+        delete_user(self.app, "test")
+        role_admin = sm.find_role("Admin")
+        sm.add_user(
+            username="test",
+            first_name="test",
+            last_name="test",
+            email="test@fab.org",
+            role=role_admin,
+            password="test",
+        )
 
 
 class TestBasicAuth(BaseTestAuth):
@@ -59,7 +61,7 @@ class TestBasicAuth(BaseTestAuth):
 
         try:
             with conf_vars(
-                {("api", "auth_backends"): "airflow.providers.fab.auth_manager.api.auth.backend.basic_auth"}
+                {("fab", "auth_backends"): "airflow.providers.fab.auth_manager.api.auth.backend.basic_auth"}
             ):
                 init_api_auth(minimal_app_for_auth_api)
                 yield
@@ -71,7 +73,7 @@ class TestBasicAuth(BaseTestAuth):
         clear_db_pools()
 
         with self.app.test_client() as test_client:
-            response = test_client.get("/auth/fab/v1/users", headers={"Authorization": token})
+            response = test_client.get("/fab/v1/users", headers={"Authorization": token})
             assert current_user.email == "test@fab.org"
 
         assert response.status_code == 200

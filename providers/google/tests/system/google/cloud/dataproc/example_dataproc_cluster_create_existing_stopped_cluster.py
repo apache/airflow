@@ -34,6 +34,7 @@ from airflow.providers.google.cloud.operators.dataproc import (
     DataprocStopClusterOperator,
 )
 from airflow.utils.trigger_rule import TriggerRule
+
 from system.google import DEFAULT_GCP_SYSTEM_TEST_PROJECT_ID
 
 DAG_ID = "dataproc_create_existing_stopped_cluster"

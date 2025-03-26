@@ -20,7 +20,7 @@ from __future__ import annotations
 import logging
 import tempfile
 from datetime import datetime
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, Protocol
 from unittest import mock
 from unittest.mock import MagicMock
 
@@ -46,12 +46,16 @@ from tests_common.test_utils.version_compat import AIRFLOW_V_2_10_PLUS, AIRFLOW_
 
 if TYPE_CHECKING:
     try:
+        from airflow.sdk.api.datamodels._generated import TIRunContext
         from airflow.sdk.definitions.context import Context
+
     except ImportError:
         # TODO: Remove once provider drops support for Airflow 2
+        # TIRunContext is only used in Airflow 3 tests
         from airflow.utils.context import Context
 
-    from task_sdk.tests.conftest import MakeTIContextCallable
+        TIRunContext = Any  # type: ignore[misc, assignment]
+
 
 if AIRFLOW_V_2_10_PLUS:
 
@@ -289,7 +293,9 @@ def test_extractor_manager_uses_hook_level_lineage(hook_lineage_collector):
     hook_lineage_collector.add_input_asset(None, uri="s3://bucket/input_key")
     hook_lineage_collector.add_output_asset(None, uri="s3://bucket/output_key")
     extractor_manager = ExtractorManager()
-    metadata = extractor_manager.extract_metadata(dagrun=dagrun, task=task, complete=True, task_instance=ti)
+    metadata = extractor_manager.extract_metadata(
+        dagrun=dagrun, task=task, task_instance_state=None, task_instance=ti
+    )
 
     assert metadata.inputs == [OpenLineageDataset(namespace="s3://bucket", name="input_key")]
     assert metadata.outputs == [OpenLineageDataset(namespace="s3://bucket", name="output_key")]
@@ -314,7 +320,9 @@ def test_extractor_manager_does_not_use_hook_level_lineage_when_operator(
     hook_lineage_collector.add_input_asset(None, uri="s3://bucket/input_key")
 
     extractor_manager = ExtractorManager()
-    metadata = extractor_manager.extract_metadata(dagrun=dagrun, task=task, complete=True, task_instance=ti)
+    metadata = extractor_manager.extract_metadata(
+        dagrun=dagrun, task=task, task_instance_state=None, task_instance=ti
+    )
 
     # s3://bucket/input_key not here - use data from operator
     assert metadata.inputs == [OpenLineageDataset(namespace="s3://bucket", name="proper_input_key")]
@@ -414,6 +422,24 @@ def mocked_parse(spy_agency):
     return set_dag
 
 
+class MakeTIContextCallable(Protocol):
+    def __call__(
+        self,
+        dag_id: str = ...,
+        run_id: str = ...,
+        logical_date: str | datetime = ...,
+        data_interval_start: str | datetime = ...,
+        data_interval_end: str | datetime = ...,
+        clear_number: int = ...,
+        start_date: str | datetime = ...,
+        run_after: str | datetime = ...,
+        run_type: str = ...,
+        task_reschedule_count: int = ...,
+        conf: dict[str, Any] | None = ...,
+    ) -> TIRunContext: ...
+
+
+# Only needed in Airflow 3
 @pytest.fixture
 def make_ti_context() -> MakeTIContextCallable:
     """Factory for creating TIRunContext objects."""
@@ -447,6 +473,7 @@ def make_ti_context() -> MakeTIContextCallable:
             ),
             task_reschedule_count=task_reschedule_count,
             max_tries=0,
+            should_retry=False,
         )
 
     return _make_context
@@ -485,7 +512,7 @@ def test_extractor_manager_gets_data_from_pythonoperator_tasksdk(
     )
     ti = mocked_parse(what, "test_hookcollector_dag", task)
 
-    task_runner.run(ti, logging.getLogger(__name__))
+    task_runner.run(ti, ti.get_template_context(), logging.getLogger(__name__))
 
     datasets = hook_lineage_collector.collected_assets
 

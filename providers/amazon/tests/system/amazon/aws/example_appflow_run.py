@@ -33,6 +33,7 @@ from airflow.providers.amazon.aws.operators.s3 import (
     S3DeleteBucketOperator,
 )
 from airflow.utils.trigger_rule import TriggerRule
+
 from system.amazon.aws.utils import SystemTestContextBuilder
 
 sys_test_context_task = SystemTestContextBuilder().build()

@@ -16,8 +16,6 @@
 # under the License.
 from __future__ import annotations
 
-import time
-
 import pytest
 
 from kubernetes_tests.test_base import (
@@ -31,6 +29,10 @@ from kubernetes_tests.test_base import (
 # Also, the skipping is necessary as there's no gain in running these tests in KubernetesExecutor
 @pytest.mark.skipif(EXECUTOR == "KubernetesExecutor", reason="Does not run on KubernetesExecutor")
 class TestCeleryAndLocalExecutor(BaseK8STest):
+    @pytest.mark.xfail(
+        EXECUTOR == "LocalExecutor",
+        reason="https://github.com/apache/airflow/issues/47518 needs to be fixed",
+    )
     def test_integration_run_dag(self):
         dag_id = "example_bash_operator"
         dag_run_id, logical_date = self.start_job_in_kubernetes(dag_id, self.host)
@@ -56,7 +58,7 @@ class TestCeleryAndLocalExecutor(BaseK8STest):
 
     @pytest.mark.xfail(
         EXECUTOR == "LocalExecutor",
-        reason="https://github.com/apache/airflow/issues/44481 needs to be implemented",
+        reason="https://github.com/apache/airflow/issues/47518 needs to be fixed",
     )
     def test_integration_run_dag_with_scheduler_failure(self):
         dag_id = "example_xcom"
@@ -64,8 +66,7 @@ class TestCeleryAndLocalExecutor(BaseK8STest):
         dag_run_id, logical_date = self.start_job_in_kubernetes(dag_id, self.host)
 
         self._delete_airflow_pod("scheduler")
-
-        time.sleep(10)  # give time for pod to restart
+        self.ensure_deployment_health("airflow-scheduler")
 
         # Wait some time for the operator to complete
         self.monitor_task(

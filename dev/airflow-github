@@ -133,7 +133,6 @@ def is_core_commit(files: list[str]) -> bool:
         # Providers
         "airflow/providers/",
         "airflow/provider.yaml.schema.json",
-        "provider_packages/",
         "docs/apache-airflow-providers-",
         # chart
         "chart/",
@@ -408,7 +407,7 @@ def api_clients_policy(previous_version, target_version):
         repo,
         previous_version,
         target_version,
-        files=[f"{repo.working_dir}/airflow/api_connexion/openapi/v1.yaml"],
+        files=[f"{repo.working_dir}/clients/python/openapi_v1.yaml"],
     )
 
     clients_need_release = False

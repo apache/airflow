@@ -27,8 +27,10 @@ def get_provider_info():
         "name": "Apache Hive",
         "description": "`Apache Hive <https://hive.apache.org/>`__\n",
         "state": "ready",
-        "source-date-epoch": 1740734084,
+        "source-date-epoch": 1742979243,
         "versions": [
+            "9.0.4",
+            "9.0.3",
             "9.0.2",
             "9.0.0",
             "8.2.1",
@@ -198,5 +200,7 @@ def get_provider_info():
             "presto": ["apache-airflow-providers-presto"],
             "samba": ["apache-airflow-providers-samba"],
             "vertica": ["apache-airflow-providers-vertica"],
+            "common.compat": ["apache-airflow-providers-common-compat"],
         },
+        "devel-dependencies": [],
     }

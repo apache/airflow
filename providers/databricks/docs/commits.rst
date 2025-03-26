@@ -34,6 +34,42 @@ For high-level changelog, see :doc:`package information including changelog <ind
 
 
 
+7.2.2
+.....
+
+Latest change: 2025-03-25
+
+==================================================================================================  ===========  ================================================================
+Commit                                                                                              Committed    Subject
+==================================================================================================  ===========  ================================================================
+`6adb2dbae4 <https://github.com/apache/airflow/commit/6adb2dbae47341eb61dbc62dbc56176d9aa83fd9>`__  2025-03-25   ``Upgrade providers flit build requirements to 3.12.0 (#48362)``
+`243fe86d4b <https://github.com/apache/airflow/commit/243fe86d4b3e59bb12977b3e36ca3f2ed27ca0f8>`__  2025-03-21   ``Move airflow sources to airflow-core package (#47798)``
+`91b0f610ab <https://github.com/apache/airflow/commit/91b0f610ab109f39e27a5a00d9f6d5bf590b47ff>`__  2025-03-17   ``AIP-72: Handle Custom XCom Backend on Task SDK (#47339)``
+`935d2831fe <https://github.com/apache/airflow/commit/935d2831fe8fd509b618a738bf00e0c34e186e11>`__  2025-03-15   ``Remove links to x/twitter.com (#47801)``
+==================================================================================================  ===========  ================================================================
+
+7.2.1
+.....
+
+Latest change: 2025-03-09
+
+==================================================================================================  ===========  ========================================================================
+Commit                                                                                              Committed    Subject
+==================================================================================================  ===========  ========================================================================
+`492ecfe5c0 <https://github.com/apache/airflow/commit/492ecfe5c03102bfb710108038ebd5fc50cb55b5>`__  2025-03-09   ``Prepare docs for Mar 1st wave of providers (#47545)``
+`8cc9f1fca9 <https://github.com/apache/airflow/commit/8cc9f1fca9343768e9aa7bb4c802e7d2fc109719>`__  2025-03-07   ``Relocate airflow.auth to airflow.api_fastapi.auth (#47492)``
+`aa07160892 <https://github.com/apache/airflow/commit/aa0716089235407f555fee06ac6363419b390bcc>`__  2025-03-07   ``AIP-72: Moving BaseOperatorLink to task sdk (#47008)``
+`e4002c3305 <https://github.com/apache/airflow/commit/e4002c3305a757f5926f96c996e701e8f998a042>`__  2025-03-05   ``Move tests_common package to devel-common project (#47281)``
+`0f21f0ab42 <https://github.com/apache/airflow/commit/0f21f0ab426257d2258a886194591973d7e1e36b>`__  2025-03-03   ``Move 'airflow.www.auth' to 'airflow.providers.fab.www.auth' (#47307)``
+`65d00988ed <https://github.com/apache/airflow/commit/65d00988ed9da6de6684c8e557ed673f7d1642ab>`__  2025-03-01   ``Remove 'api_connexion' (#47171)``
+`1addb55154 <https://github.com/apache/airflow/commit/1addb55154fbef31bfa021537cfbd4395696381c>`__  2025-02-28   ``Improve documentation for updating provider dependencies (#47203)``
+`28c93d93ca <https://github.com/apache/airflow/commit/28c93d93ca27a509182e7c6acfacc60ad45e739f>`__  2025-02-27   ``fIx deprecation warnings in common.sql (#47169)``
+`51415547d6 <https://github.com/apache/airflow/commit/51415547d681942ec389f143125e8f9f163d690c>`__  2025-02-26   ``Remove old UI and webserver (#46942)``
+`c6c4f95ed9 <https://github.com/apache/airflow/commit/c6c4f95ed9e3220133815b9126c135e805637022>`__  2025-02-25   ``Add legacy namespace packages to airflow.providers (#47064)``
+`dbf8bb4092 <https://github.com/apache/airflow/commit/dbf8bb409223687c7d2ad10649a92d02c24bb3b4>`__  2025-02-24   ``Remove extra whitespace in provider readme template (#46975)``
+`b28c336e8b <https://github.com/apache/airflow/commit/b28c336e8b7aa1d69c0f9520b182b1b661377337>`__  2025-02-21   ``Upgrade flit to 3.11.0 (#46938)``
+==================================================================================================  ===========  ========================================================================
+
 7.2.0
 .....
 
@@ -42,6 +78,7 @@ Latest change: 2025-02-21
 ==================================================================================================  ===========  ============================================================================================
 Commit                                                                                              Committed    Subject
 ==================================================================================================  ===========  ============================================================================================
+`0653ffe78e <https://github.com/apache/airflow/commit/0653ffe78e4a0acaf70801a5ceef8dbabdac8b15>`__  2025-02-21   ``Prepare docs for Feb 1st wave of providers (fixed) (#46962)``
 `5d87bddf0a <https://github.com/apache/airflow/commit/5d87bddf0aa5f485f3684c909fb95f461e5a2ab6>`__  2025-02-21   ``Prepare docs for Feb 1st wave of providers (#46893)``
 `4d5846f58f <https://github.com/apache/airflow/commit/4d5846f58fe0de9b43358c0be75dd72e968dacc4>`__  2025-02-16   ``Move provider_tests to unit folder in provider tests (#46800)``
 `e027457a24 <https://github.com/apache/airflow/commit/e027457a24d0c6235bfed9c2a8399f75342e82f1>`__  2025-02-15   ``Removed the unused provider's distribution (#46608)``

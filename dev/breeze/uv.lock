@@ -1,4 +1,5 @@
 version = 1
+revision = 1
 requires-python = ">=3.9, <4"
 resolution-markers = [
     "python_full_version < '3.13'",
@@ -62,8 +63,8 @@ requires-dist = [
     { name = "black", specifier = ">=23.11.0" },
     { name = "click", specifier = ">=8.1.8" },
     { name = "filelock", specifier = ">=3.13.0" },
-    { name = "flit", specifier = "==3.10.1" },
-    { name = "flit-core", specifier = "==3.10.1" },
+    { name = "flit", specifier = "==3.11.0" },
+    { name = "flit-core", specifier = "==3.11.0" },
     { name = "gitpython", specifier = ">=3.1.40" },
     { name = "google-api-python-client", specifier = ">=2.142.0" },
     { name = "google-auth-httplib2", specifier = ">=0.2.0" },
@@ -444,7 +445,7 @@ wheels = [
 
 [[package]]
 name = "flit"
-version = "3.10.1"
+version = "3.11.0"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "docutils" },
@@ -453,18 +454,18 @@ dependencies = [
     { name = "requests" },
     { name = "tomli-w" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/03/46/f84b8815d161e7392d124d3de6e5880d1d36a74162a77a5e2839dc3c8c68/flit-3.10.1.tar.gz", hash = "sha256:9c6258ae76d218ce60f9e39a43ca42006a3abcc5c44ea6bb2a1daa13857a8f1a", size = 143162 }
+sdist = { url = "https://files.pythonhosted.org/packages/8b/c1/3482d40966e55808bae4dbd8b158c700146ed5d916cc98f0f5dcb4e23add/flit-3.11.0.tar.gz", hash = "sha256:58d0a07f684c315700c9c54a661a1130995798c3e495db0db53ce6e7d0121825", size = 153236 }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/b6/ba/d88b8f3253b4af5a88559aede6345975cc2b18ed77bf8daf977bbb9df2c5/flit-3.10.1-py3-none-any.whl", hash = "sha256:d79c19c2caae73cc486d3d827af6a11c1a84b9efdfab8d9683b714ec8d1dc1f1", size = 50683 },
+    { url = "https://files.pythonhosted.org/packages/07/05/829ef3c0e2299ab351f9e77ddcd4583c48414d62b689fa3e5f844a34b643/flit-3.11.0-py3-none-any.whl", hash = "sha256:e4316b02fe6392e65dc489f78b561e635fd1c74652a52b95a8ce5939d688717e", size = 50665 },
 ]
 
 [[package]]
 name = "flit-core"
-version = "3.10.1"
+version = "3.11.0"
 source = { registry = "https://pypi.org/simple" }
-sdist = { url = "https://files.pythonhosted.org/packages/d5/ae/09427bea9227a33ec834ed5461432752fd5d02b14f93dd68406c91684622/flit_core-3.10.1.tar.gz", hash = "sha256:66e5b87874a0d6e39691f0e22f09306736b633548670ad3c09ec9db03c5662f7", size = 42842 }
+sdist = { url = "https://files.pythonhosted.org/packages/bc/18/b9b81cab2b8f63e6e7f72e1ba2766a0454fcd563e7a77b8299cb917ba805/flit_core-3.11.0.tar.gz", hash = "sha256:6ceeee3219e9d2ea282041f3e027c441597b450b33007cb81168e887b6113a8f", size = 52038 }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/be/2d/293fe6a58e73df57cc2b5e5cf2b17c6bb4fb5b0c390bab8f1e87bdc62529/flit_core-3.10.1-py3-none-any.whl", hash = "sha256:cb31a76e8b31ad3351bb89e531f64ef2b05d1e65bd939183250bf81ddf4922a8", size = 36389 },
+    { url = "https://files.pythonhosted.org/packages/b5/0c/039f1ec352977330a372c783adcbc5c3773868fa71cb00bb7db7b428e76a/flit_core-3.11.0-py3-none-any.whl", hash = "sha256:fe464c086f630f106c0fc5001ee377980f45938f03f8f0d03da08a4841748541", size = 44926 },
 ]
 
 [[package]]
