@@ -31,6 +31,7 @@ import { useParams } from "react-router-dom";
 import { useLocalStorage } from "usehooks-ts";
 
 import DagVersionSelect from "src/components/DagVersionSelect";
+import { directionOptions, type Direction } from "src/components/Graph/useGraphLayout";
 import { Select } from "src/components/ui";
 
 import { DagRunSelect } from "./DagRunSelect";
@@ -60,6 +61,7 @@ export const PanelButtons = ({ dagView, limit, setDagView, setLimit, ...rest }: 
     `dependencies-${dagId}`,
     "immediate",
   );
+  const [direction, setDirection] = useLocalStorage<Direction>(`direction-${dagId}`, "RIGHT");
   const displayRunOptions = createListCollection({
     items: [
       { label: "5", value: "5" },
@@ -81,6 +83,14 @@ export const PanelButtons = ({ dagView, limit, setDagView, setLimit, ...rest }: 
       removeDependencies();
     } else {
       setDependencies(event.value[0]);
+    }
+  };
+
+  const handleDirectionUpdate = (
+    event: SelectValueChangeDetails<{ label: string; value: Array<string> }>,
+  ) => {
+    if (event.value[0] !== undefined) {
+      setDirection(event.value[0] as Direction);
     }
   };
 
@@ -140,6 +150,25 @@ export const PanelButtons = ({ dagView, limit, setDagView, setLimit, ...rest }: 
         </HStack>
         {dagView === "graph" ? (
           <>
+            <Select.Root
+              bg="bg"
+              collection={directionOptions}
+              onValueChange={handleDirectionUpdate}
+              size="sm"
+              value={[direction]}
+              width="150px"
+            >
+              <Select.Trigger>
+                <Select.ValueText />
+              </Select.Trigger>
+              <Select.Content>
+                {directionOptions.items.map((option) => (
+                  <Select.Item item={option} key={option.value}>
+                    {option.label}
+                  </Select.Item>
+                ))}
+              </Select.Content>
+            </Select.Root>
             <Select.Root
               bg="bg"
               collection={options}

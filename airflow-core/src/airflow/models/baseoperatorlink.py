@@ -15,8 +15,8 @@
 # specific language governing permissions and limitations
 # under the License.
 
-"""Re exporting the new param module from Task SDK for backward compatibility."""
+"""Re exporting the new baseoperatorlink module from Task SDK for backward compatibility."""
 
 from __future__ import annotations
 
-from airflow.sdk.definitions.param import Param as Param, ParamsDict as ParamsDict
+from airflow.sdk.definitions.baseoperatorlink import BaseOperatorLink as BaseOperatorLink

@@ -554,10 +554,23 @@ class TestCliAddConnections:
                 },
                 id="uri-with-@-instead-authority-and-host-blocks",
             ),
+            pytest.param(
+                ["connections", "add", "invalid-uri-test", "--conn-uri", "invalid_uri"],
+                "The URI provided to --conn-uri is invalid: invalid_uri",
+                None,  # No connection should be created
+                id="invalid-uri",
+            ),
         ],
     )
     @pytest.mark.execution_timeout(120)
     def test_cli_connection_add(self, cmd, expected_output, expected_conn, session):
+        if "invalid-uri-test" in cmd:
+            with pytest.raises(SystemExit) as exc_info:
+                connection_command.connections_add(self.parser.parse_args(cmd))
+
+            assert str(exc_info.value) == expected_output
+            return
+
         with redirect_stdout(StringIO()) as stdout:
             connection_command.connections_add(self.parser.parse_args(cmd))
 
