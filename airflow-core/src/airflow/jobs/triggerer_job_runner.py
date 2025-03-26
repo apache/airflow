@@ -33,7 +33,7 @@ from typing import TYPE_CHECKING, Annotated, Any, ClassVar, Literal, TypedDict, 
 
 import attrs
 import structlog
-from pydantic import BaseModel, Discriminator, Field, Tag, TypeAdapter
+from pydantic import BaseModel, Field, Tag, TypeAdapter
 from sqlalchemy import func, select
 from structlog.contextvars import bind_contextvars as bind_log_contextvars
 
@@ -179,18 +179,18 @@ class messages:
         """Tell the async trigger runner process to start, and where to send status update messages."""
 
         requests_fd: int
-        kind: Literal["StartTriggerer"] = "StartTriggerer"
+        type: Literal["StartTriggerer"] = "StartTriggerer"
 
     class CancelTriggers(BaseModel):
         """Request to cancel running triggers."""
 
         ids: Iterable[int]
-        kind: Literal["CancelTriggersMessage"] = "CancelTriggersMessage"
+        type: Literal["CancelTriggersMessage"] = "CancelTriggersMessage"
 
     class TriggerStateChanges(BaseModel):
         """Report state change about triggers back to the TriggerRunnerSupervisor."""
 
-        kind: Literal["TriggerStateChanges"] = "TriggerStateChanges"
+        type: Literal["TriggerStateChanges"] = "TriggerStateChanges"
         events: Annotated[
             list[tuple[int, events.DiscrimatedTriggerEvent]] | None,
             # We have to specify a default here, as otherwise Pydantic struggles to deal with the discriminated
@@ -202,12 +202,6 @@ class messages:
         finished: list[int] | None = None
 
 
-def get_discriminator_value(v: Any) -> Any:
-    if isinstance(v, dict):
-        return v.get("kind", v.get("type"))
-    return getattr(v, "kind", getattr(v, "type", None))
-
-
 ToTriggerRunner = Annotated[
     Union[
         Annotated[workloads.RunTrigger, Tag("RunTrigger")],
@@ -217,7 +211,7 @@ ToTriggerRunner = Annotated[
         Annotated[VariableResult, Tag("VariableResult")],
         Annotated[ErrorResponse, Tag("ErrorResponse")],
     ],
-    Field(discriminator=Discriminator(get_discriminator_value)),
+    Field(discriminator="type"),
 ]
 """
 The types of messages we can send in to the Trigger Runner process (the process that runs the actual async
@@ -231,7 +225,7 @@ ToTriggerSupervisor = Annotated[
         Annotated[GetConnection, Tag("GetConnection")],
         Annotated[GetVariable, Tag("GetVariable")],
     ],
-    Field(discriminator=Discriminator(get_discriminator_value)),
+    Field(discriminator="type"),
 ]
 """
 The types of messages that the async Trigger Runner can send back up to the supervisor process.
