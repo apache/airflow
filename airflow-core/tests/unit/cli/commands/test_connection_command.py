@@ -334,7 +334,6 @@ class TestCliExportConnections:
 
 
 TEST_URL = "postgresql://airflow:airflow@host:5432/airflow"
-INVALID_TEST_URL = "postgresql"
 TEST_JSON = json.dumps(
     {
         "conn_type": "postgres",
