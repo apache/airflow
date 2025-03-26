@@ -353,6 +353,12 @@ should keep the final version number without the rc suffix, even if they are rc1
 They also need to be signed and have checksum files. You can generate the checksum/signature files by running
 the "dev/sign.sh" script (assuming you have the right PGP key set-up for signing). The script
 generates corresponding .asc and .sha512 files for each file to sign.
+note: sign script uses `libassuan` and `gnupg` if you don't have them installed run:
+
+```shell script
+brew install libassuan
+brew install gnupg
+```
 
 ## Build and sign the source and convenience packages
 
@@ -388,6 +394,9 @@ pushd dist
 ../dev/sign.sh *
 popd
 ```
+
+if you see ``Library not loaded error`` it means that you are missing `libassuan` and `gnupg`.
+check above steps to install them.
 
 ## Commit the source packages to Apache SVN repo
 
@@ -472,13 +481,13 @@ increased until the tag is not found.
 * Verify the artifacts that would be uploaded:
 
 ```shell script
-twine check ${AIRFLOW_REPO_ROOT}/dist/*
+uvx twine check ${AIRFLOW_REPO_ROOT}/dist/*
 ```
 
 * Upload the package to PyPi:
 
 ```shell script
-twine upload -r pypi ${AIRFLOW_REPO_ROOT}/dist/*
+uvx twine upload -r pypi ${AIRFLOW_REPO_ROOT}/dist/*
 ```
 
 * Confirm that the packages are available under the links printed and look good.
