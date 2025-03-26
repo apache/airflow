@@ -31,7 +31,7 @@ from multiprocessing.pool import ApplyResult, ThreadPool
 from queue import Queue
 from threading import Thread
 from time import sleep
-from typing import TYPE_CHECKING, Any, Coroutine
+from typing import TYPE_CHECKING, Any
 
 from airflow.exceptions import (
     AirflowException,
@@ -75,6 +75,8 @@ def event_loop() -> Generator[AbstractEventLoop, None, None]:
     try:
         try:
             loop = asyncio.get_event_loop()
+            if loop.is_closed():
+                raise RuntimeError
         except RuntimeError:
             loop = asyncio.new_event_loop()
             asyncio.set_event_loop(loop)
@@ -302,7 +304,7 @@ class IterableOperator(BaseOperator):
         "_log",
         "_task_queue",
         "_producer_thread",
-        "_semaphore",
+        # "_semaphore",
     )
 
     def __init__(
@@ -324,7 +326,6 @@ class IterableOperator(BaseOperator):
             self.max_active_tis_per_dag = os.cpu_count() or 1
         self._task_queue = Queue()
         self._producer_thread: Thread | None = None
-        self._semaphore = Semaphore(self.max_active_tis_per_dag)
         self._number_of_tasks: int = 0
         XComArg.apply_upstream_relationship(self, self.expand_input.value)
 
@@ -390,9 +391,13 @@ class IterableOperator(BaseOperator):
         self.log.debug("resolved_input: %s", resolved_input)
 
         if isinstance(resolved_input, _MapResult):
-            self._mapped_kwargs = map(lambda value: self._resolve(value=value, context=context, session=session), resolved_input)
+            self._mapped_kwargs = map(
+                lambda value: self._resolve(value=value, context=context, session=session), resolved_input
+            )
         else:
-            self._mapped_kwargs = iter(self._lazy_mapped_kwargs(input=resolved_input, context=context, session=session))
+            self._mapped_kwargs = iter(
+                self._lazy_mapped_kwargs(input=resolved_input, context=context, session=session)
+            )
 
         self.log.debug("mapped_kwargs: %s", self._mapped_kwargs)
 
@@ -417,7 +422,7 @@ class IterableOperator(BaseOperator):
         # Task Consumer
         while not self._task_queue.empty() or self._producer_thread.is_alive():
             futures = {}
-            deferred_tasks: list[Coroutine[Any, Any, Any]] = []
+            deferred_tasks: list[Future] = []
 
             with ThreadPool(processes=self.max_active_tis_per_dag) as pool:
                 while not self._task_queue.empty():
@@ -431,44 +436,48 @@ class IterableOperator(BaseOperator):
 
                     futures[pool.apply_async(self._run_operator, (context, task))] = task
 
-                self.log.debug("futures: %s", futures)
+            self.log.debug("futures: %s", futures)
 
-            for future in filter(ApplyResult.ready, list(futures.keys())):
-                task = futures.pop(future)
-                try:
-                    result = future.get(timeout=self.timeout)
+            with event_loop() as loop:
+                semaphore = Semaphore(self.max_active_tis_per_dag, loop=loop)
 
-                    self.log.debug("result: %s", result)
+                for future in filter(ApplyResult.ready, list(futures.keys())):
+                    task = futures.pop(future)
+                    try:
+                        result = future.get(timeout=self.timeout)
 
-                    if isinstance(result, TaskDeferred):
-                        deferred_tasks.append(
-                            self._run_deferrable(
-                                context=context,
-                                task_instance=task,
-                                task_deferred=result,
-                            ),
-                        )
-                except TimeoutError as e:
-                    self.log.warning("A timeout occurred for task_id %s", task.task_id)
-                    if task.next_try_number > self.retries:
-                        exception = AirflowTaskTimeout(e)
-                    else:
-                        reschedule_date = task.next_retry_datetime()
-                        failed_tasks.append(task)
-                except AirflowRescheduleTaskInstanceException as e:
-                    reschedule_date = e.reschedule_date
-                    failed_tasks.append(e.task)
-                except AirflowException as e:
-                    self.log.error("An exception occurred for task_id %s", task.task_id)
-                    exception = e
+                        self.log.debug("result: %s", result)
 
-            if deferred_tasks:
-                self.log.info("Running %s deferred tasks", len(deferred_tasks))
+                        if isinstance(result, TaskDeferred):
+                            deferred_tasks.append(
+                                ensure_future(
+                                    self._run_deferrable(
+                                        semaphore=semaphore,
+                                        context=context,
+                                        task_instance=task,
+                                        task_deferred=result,
+                                    ),
+                                    loop=loop,
+                                ),
+                            )
+                    except TimeoutError as e:
+                        self.log.warning("A timeout occurred for task_id %s", task.task_id)
+                        if task.next_try_number > self.retries:
+                            exception = AirflowTaskTimeout(e)
+                        else:
+                            reschedule_date = task.next_retry_datetime()
+                            failed_tasks.append(task)
+                    except AirflowRescheduleTaskInstanceException as e:
+                        reschedule_date = e.reschedule_date
+                        failed_tasks.append(e.task)
+                    except AirflowException as e:
+                        self.log.error("An exception occurred for task_id %s", task.task_id)
+                        exception = e
 
-                with event_loop() as loop:
-                    for result in loop.run_until_complete(
-                        gather(*deferred_tasks, return_exceptions=True)
-                    ):
+                if deferred_tasks:
+                    self.log.info("Running %s deferred tasks", len(deferred_tasks))
+
+                    for result in loop.run_until_complete(gather(*deferred_tasks, return_exceptions=True)):
                         self.log.debug("result: %s", result)
 
                         if isinstance(result, Exception):
@@ -525,11 +534,12 @@ class IterableOperator(BaseOperator):
             return task_deferred
 
     async def _run_deferrable(
-        self, context: Context, task_instance: TaskInstance, task_deferred: TaskDeferred
+        self, semaphore: Semaphore, context: Context, task_instance: TaskInstance, task_deferred: TaskDeferred
     ):
-        async with self._semaphore:
+        async with semaphore:
             async with TriggerExecutor(context=context, task_instance=task_instance) as executor:
                 result = await executor.run(task_deferred)
+                self.log.info("_run_deferrable: %s", result)
                 if self.do_xcom_push:
                     task_instance.xcom_push(key=XCOM_RETURN_KEY, value=result)
                 return result
@@ -544,7 +554,9 @@ class IterableOperator(BaseOperator):
     def execute(self, context: Context):
         def task_producer():
             tasks = map(
-                lambda mapped_kwargs: self._create_task(context["ti"].run_id, mapped_kwargs[0], mapped_kwargs[1]),
+                lambda mapped_kwargs: self._create_task(
+                    context["ti"].run_id, mapped_kwargs[0], mapped_kwargs[1]
+                ),
                 enumerate(self._mapped_kwargs),
             )
 
