@@ -93,46 +93,78 @@ class TestCliUtil:
             cli.get_dags(None, "foobar", True)
 
     @pytest.mark.parametrize(
-        ["given_command", "expected_masked_command"],
+        ["given_command", "expected_masked_command", "is_command_list"],
         [
             (
                 "airflow users create -u test2 -l doe -f jon -e jdoe@apache.org -r admin --password test",
                 "airflow users create -u test2 -l doe -f jon -e jdoe@apache.org -r admin --password ********",
+                False,
             ),
             (
                 "airflow users create -u test2 -l doe -f jon -e jdoe@apache.org -r admin -p test",
                 "airflow users create -u test2 -l doe -f jon -e jdoe@apache.org -r admin -p ********",
+                False,
             ),
             (
                 "airflow users create -u test2 -l doe -f jon -e jdoe@apache.org -r admin --password=test",
                 "airflow users create -u test2 -l doe -f jon -e jdoe@apache.org -r admin --password=********",
+                False,
             ),
             (
                 "airflow users create -u test2 -l doe -f jon -e jdoe@apache.org -r admin -p=test",
                 "airflow users create -u test2 -l doe -f jon -e jdoe@apache.org -r admin -p=********",
+                False,
             ),
             (
                 "airflow connections add dsfs --conn-login asd --conn-password test --conn-type google",
                 "airflow connections add dsfs --conn-login asd --conn-password ******** --conn-type google",
+                False,
+            ),
+            (
+                "airflow connections add my_postgres_conn --conn-uri postgresql://user:my-password@localhost:5432/mydatabase",
+                "airflow connections add my_postgres_conn --conn-uri postgresql://user:********@localhost:5432/mydatabase",
+                False,
+            ),
+            (
+                [
+                    "airflow",
+                    "connections",
+                    "add",
+                    "my_new_conn",
+                    "--conn-json",
+                    '{"conn_type": "my-conn-type", "login": "my-login", "password": "my-password", "host": "my-host", "port": 1234, "schema": "my-schema", "extra": {"param1": "val1", "param2": "val2"}}',
+                ],
+                [
+                    "airflow",
+                    "connections",
+                    "add",
+                    "my_new_conn",
+                    "--conn-json",
+                    '{"conn_type": "my-conn-type", "login": "my-login", "password": "********", '
+                    '"host": "my-host", "port": 1234, "schema": "my-schema", "extra": {"param1": '
+                    '"val1", "param2": "val2"}}',
+                ],
+                True,
             ),
             (
                 "airflow scheduler -p",
                 "airflow scheduler -p",
+                False,
             ),
             (
                 "airflow celery flower -p 8888",
                 "airflow celery flower -p 8888",
+                False,
             ),
         ],
     )
     def test_cli_create_user_supplied_password_is_masked(
-        self, given_command, expected_masked_command, session
+        self, given_command, expected_masked_command, is_command_list, session
     ):
         # '-p' value which is not password, like 'airflow scheduler -p'
         # or 'airflow celery flower -p 8888', should not be masked
-        args = given_command.split()
-
-        expected_command = expected_masked_command.split()
+        args = given_command if is_command_list else given_command.split()
+        expected_command = expected_masked_command if is_command_list else expected_masked_command.split()
 
         exec_date = timezone.utcnow()
         namespace = Namespace(dag_id="foo", task_id="bar", subcommand="test", execution_date=exec_date)

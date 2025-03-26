@@ -162,6 +162,40 @@ def _build_metrics(func_name, namespace):
                     if command.startswith(f"{sensitive_field}="):
                         full_command[idx] = f'{sensitive_field}={"*" * 8}'
 
+    # handle conn-json and conn-uri separately as it requires different handling
+    if "--conn-json" in full_command:
+        import json
+
+        json_index = full_command.index("--conn-json") + 1
+        conn_json = json.loads(full_command[json_index])
+        for k in conn_json:
+            if k and should_hide_value_for_key(k):
+                conn_json[k] = "*" * 8
+        full_command[json_index] = json.dumps(conn_json)
+
+    if "--conn-uri" in full_command:
+        from urllib.parse import urlparse, urlunparse
+
+        uri_index = full_command.index("--conn-uri") + 1
+        conn_uri = full_command[uri_index]
+        parsed_uri = urlparse(conn_uri)
+        if parsed_uri.password:
+            password = "*" * 8
+            netloc = f"{parsed_uri.username}:{password}@{parsed_uri.hostname}"
+            if parsed_uri.port:
+                netloc += f":{parsed_uri.port}"
+
+        full_command[uri_index] = urlunparse(
+            (
+                parsed_uri.scheme,
+                netloc,
+                parsed_uri.path,
+                parsed_uri.params,
+                parsed_uri.query,
+                parsed_uri.fragment,
+            )
+        )
+
     metrics = {
         "sub_command": func_name,
         "start_datetime": timezone.utcnow(),
