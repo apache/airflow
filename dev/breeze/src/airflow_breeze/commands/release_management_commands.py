@@ -721,7 +721,7 @@ def _prepare_non_core_distributions(
         get_console().print("[info]Checking if sdist packages can be built into wheels[/]")
         packages = DistributionPackageInfo.dist_packages(
             distribution_format=distribution_format,
-            dist_directory=AIRFLOW_DIST_PATH,
+            dist_directory=distribution_path,
             build_type=DistributionPackageBuildType(distribution_name),
         )
         get_console().print()
