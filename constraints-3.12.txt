@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2025-03-26T14:06:45.963870
+# This constraints file was automatically generated on 2025-03-26T20:01:55.812518
 # via "eager-upgrade" mechanism of PIP. For the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version for 'apache-airflow' but installs
 # the providers from PIP-released packages at the moment of the constraint generation.
@@ -367,7 +367,7 @@ google-cloud-translate==3.20.2
 google-cloud-videointelligence==2.16.1
 google-cloud-vision==3.10.1
 google-cloud-workflows==1.18.0
-google-crc32c==1.7.0
+google-crc32c==1.7.1
 google-re2==1.1.20240702
 google-resumable-media==2.7.2
 googleapis-common-protos==1.69.2
@@ -637,7 +637,7 @@ rich-click==1.8.8
 rich-toolkit==0.13.2
 rich==13.9.4
 roman-numerals-py==3.1.0
-rpds-py==0.23.1
+rpds-py==0.24.0
 rsa==4.9
 ruff==0.8.1
 s3fs==2025.3.0
