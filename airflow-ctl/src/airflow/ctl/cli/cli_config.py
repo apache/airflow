@@ -25,7 +25,7 @@ import os
 from collections.abc import Iterable
 from typing import Callable, NamedTuple, Union
 
-from airflowctl.utils.module_loading import import_string
+from airflow.ctl.utils.module_loading import import_string
 
 BUILD_DOCS = "BUILDING_AIRFLOW_DOCS" in os.environ
 
@@ -179,7 +179,7 @@ AUTH_COMMANDS = (
         name="login",
         help="Login to the metadata database for personal usage. JWT Token must be provided via parameter.",
         description="Login to the metadata database",
-        func=lazy_load_command("airflowctl.ctl.commands.auth_command.login"),
+        func=lazy_load_command("airflow.ctl.cli.commands.auth_command.login"),
         args=(ARG_AUTH_URL, ARG_AUTH_TOKEN, ARG_AUTH_ENVIRONMENT),
     ),
 )

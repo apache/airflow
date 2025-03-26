@@ -1311,14 +1311,14 @@ repos:
         name: Run mypy for airflow-ctl
         language: python
         entry: ./scripts/ci/pre_commit/mypy.py
-        files: ^airflow-ctl/src/airflowctl/.*\.py$|^airflow-ctl/tests//.*\.py$
+        files: ^airflow-ctl/src/airflow/ctl/.*\.py$|^airflow-ctl/tests//.*\.py$
         require_serial: true
         additional_dependencies: ['rich>=12.4.4']
       - id: mypy-airflow-ctl
         stages: ['manual']
         name: Run mypy for airflow-ctl (manual)
         language: python
-        entry: ./scripts/ci/pre_commit/mypy_folder.py airflow-ctl/src/airflowctl
+        entry: ./scripts/ci/pre_commit/mypy_folder.py airflow-ctl/src/airflow/ctl
         pass_filenames: false
         files: ^.*\.py$
         require_serial: true

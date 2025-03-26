@@ -40,22 +40,22 @@ classifiers = [
 ]
 
 [project.scripts]
-airflowctl = "airflowctl.__main__:main"
+airflowctl = "airflow.ctl.__main__:main"
 
 [build-system]
 requires = ["hatchling"]
 build-backend = "hatchling.build"
 
 [tool.hatch.version]
-path = "src/airflowctl/__init__.py"
+path = "src/airflow/ctl/__init__.py"
 
 [tool.hatch.build.targets.wheel]
-packages = ["src/airflowctl"]
+packages = ["src/airflow"]
 
 [tool.ruff]
 extend = "../pyproject.toml"
 src = ["src"]
-namespace-packages = ["src/airflowctl"]
+namespace-packages = ["src/airflow"]
 
 [tool.ruff.lint.per-file-ignores]
 
@@ -66,15 +66,15 @@ namespace-packages = ["src/airflowctl"]
 "!tests/*" = ["PT"]
 
 # Pycharm barfs if this "stub" file has future imports
-"src/airflowctl/__init__.py" = ["I002"]
+"src/airflow/__init__.py" = ["I002"]
 
 # Generated file, be less strict
-"src/airflowctl/api/datamodels/generated.py" = ["UP007", "D101", "D200"]
+"src/airflow/ctl/api/datamodels/generated.py" = ["UP007", "D101", "D200"]
 
 [tool.coverage.run]
 branch = true
 relative_files = true
-source = ["src/airflowctl"]
+source = ["src/airflow"]
 include_namespace_packages = true
 
 [tool.coverage.report]
@@ -93,6 +93,15 @@ exclude_also = [
 codegen = [
     "datamodel-code-generator[http]==0.28.2",
 ]
+dev = [
+    "apache-airflow",
+    "apache-airflow-devel-common",
+]
+[tool.uv.sources]
+# These names must match the names as defined in the pyproject.toml of the workspace items,
+# *not* the workspace folder paths
+apache-airflow = {workspace = true}
+apache-airflow-devel-common = {workspace = true}
 
 # To use:
 #
@@ -117,4 +126,45 @@ use-subclass-enum=true # enum, not union of Literals
 use-union-operator=true # 3.9+annotations, not `Union[]`
 
 url = "http://0.0.0.0:8080/openapi.json"
-output = "src/airflowctl/api/datamodels/generated.py"
+output = "src/airflow/ctl/api/datamodels/generated.py"
+
+
+## pytest settings ##
+[tool.pytest.ini_options]
+addopts = [
+    "--tb=short",
+    "-rasl",
+    "--verbosity=2",
+    # Disable `flaky` plugin for pytest. This plugin conflicts with `rerunfailures` because provide the same marker.
+    "-p", "no:flaky",
+    # Disable `nose` builtin plugin for pytest. This feature is deprecated in 7.2 and will be removed in pytest>=8
+    "-p", "no:nose",
+    # Disable support of a legacy `LocalPath` in favor of stdlib `pathlib.Path`.
+    "-p", "no:legacypath",
+    # Disable warnings summary, because we use our warning summary.
+    "--disable-warnings",
+    "--asyncio-mode=strict",
+]
+
+
+norecursedirs = [
+    ".eggs",
+]
+log_level = "INFO"
+filterwarnings = [
+    "error::pytest.PytestCollectionWarning",
+    "error::pytest.PytestReturnNotNoneWarning",
+]
+python_files = [
+    "test_*.py",
+]
+testpaths = [
+    "tests",
+]
+asyncio_default_fixture_loop_scope = "function"
+
+pythonpath = "tests"
+
+# Keep temporary directories (created by `tmp_path`) for 2 recent runs only failed tests.
+tmp_path_retention_count = "2"
+tmp_path_retention_policy = "failed"

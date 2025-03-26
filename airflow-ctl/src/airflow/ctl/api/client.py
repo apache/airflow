@@ -30,8 +30,8 @@ import structlog
 from platformdirs import user_config_path
 from uuid6 import uuid7
 
-from airflowctl import __version__ as version
-from airflowctl.api.operations import (
+from airflow.ctl import __version__ as version
+from airflow.ctl.api.operations import (
     AssetsOperations,
     BackfillsOperations,
     ConfigOperations,
@@ -45,8 +45,8 @@ from airflowctl.api.operations import (
     VariablesOperations,
     VersionOperations,
 )
-from airflowctl.exceptions import AirflowCtlNotFoundException
-from airflowctl.typing_compat import ParamSpec
+from airflow.ctl.exceptions import AirflowCtlNotFoundException
+from airflow.ctl.typing_compat import ParamSpec
 
 if TYPE_CHECKING:
     # # methodtools doesn't have typestubs, so give a stub

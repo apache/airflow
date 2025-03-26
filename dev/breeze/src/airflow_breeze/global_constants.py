@@ -309,6 +309,26 @@ ALLOWED_TASK_SDK_TEST_PACKAGES = [
     *all_task_sdk_test_packages(),
 ]
 
+
+@clearable_cache
+def all_ctl_test_packages() -> list[str]:
+    try:
+        return sorted(
+            [
+                candidate.name
+                for candidate in (AIRFLOW_ROOT_PATH / "airflow-ctl" / "tests").iterdir()
+                if candidate.is_dir() and candidate.name != "__pycache__"
+            ]
+        )
+    except FileNotFoundError:
+        return []
+
+
+ALLOWED_CTL_TEST_PACKAGES = [
+    "all",
+    *all_ctl_test_packages(),
+]
+
 ALLOWED_DISTRIBUTION_FORMATS = ["wheel", "sdist", "both"]
 ALLOWED_INSTALLATION_DISTRIBUTION_FORMATS = ["wheel", "sdist"]
 ALLOWED_INSTALLATION_METHODS = [".", "apache-airflow"]
