@@ -26,9 +26,6 @@ import attrs
 import svcs
 from cadwyn import (
     Cadwyn,
-    HeadVersion,
-    Version,
-    VersionBundle,
 )
 from fastapi import FastAPI, Request
 from fastapi.responses import JSONResponse
@@ -127,6 +124,7 @@ class CadwynWithOpenAPICustomization(Cadwyn):
 def create_task_execution_api_app() -> FastAPI:
     """Create FastAPI app for task execution API."""
     from airflow.api_fastapi.execution_api.routes import execution_api_router
+    from airflow.api_fastapi.execution_api.versions import bundle
 
     # See https://docs.cadwyn.dev/concepts/version_changes/ for info about API versions
     app = CadwynWithOpenAPICustomization(
@@ -134,7 +132,7 @@ def create_task_execution_api_app() -> FastAPI:
         description="The private Airflow Task Execution API.",
         lifespan=lifespan,
         api_version_parameter_name="Airflow-API-Version",
-        versions=VersionBundle(HeadVersion(), Version("2025-03-19")),
+        versions=bundle,
     )
 
     app.generate_and_include_versioned_routers(execution_api_router)

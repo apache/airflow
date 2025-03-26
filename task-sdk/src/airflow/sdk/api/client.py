@@ -32,7 +32,6 @@ from retryhttp import retry, wait_retry_after
 from tenacity import before_log, wait_random_exponential
 from uuid6 import uuid7
 
-from airflow.api_fastapi.execution_api.datamodels.taskinstance import TIRuntimeCheckPayload
 from airflow.sdk import __version__
 from airflow.sdk.api.datamodels._generated import (
     API_VERSION,
@@ -62,7 +61,6 @@ from airflow.sdk.exceptions import ErrorType
 from airflow.sdk.execution_time.comms import (
     ErrorResponse,
     OKResponse,
-    RuntimeCheckOnTask,
     SkipDownstreamTasks,
     TaskRescheduleStartDate,
 )
@@ -196,19 +194,6 @@ class TaskInstanceOperations:
         """
         resp = self.client.get(f"task-instances/{id}/previous-successful-dagrun")
         return PrevSuccessfulDagRunResponse.model_validate_json(resp.read())
-
-    def runtime_checks(self, id: uuid.UUID, msg: RuntimeCheckOnTask) -> OKResponse:
-        body = TIRuntimeCheckPayload(**msg.model_dump(exclude_unset=True, exclude={"type"}))
-        try:
-            self.client.post(f"task-instances/{id}/runtime-checks", content=body.model_dump_json())
-            return OKResponse(ok=True)
-        except ServerResponseError as e:
-            if e.response.status_code == 400:
-                return OKResponse(ok=False)
-            elif e.response.status_code == 409:
-                # The TI isn't in the right state to perform the check, but we shouldn't fail the task for that
-                return OKResponse(ok=True)
-            raise
 
     def get_reschedule_start_date(self, id: uuid.UUID, try_number: int = 1) -> TaskRescheduleStartDate:
         """Get the start date of a task reschedule via the API server."""

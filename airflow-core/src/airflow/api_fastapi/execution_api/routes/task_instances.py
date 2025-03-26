@@ -564,6 +564,7 @@ def get_previous_successful_dagrun(
     return PrevSuccessfulDagRunResponse.model_validate(dag_run)
 
 
+@router.only_exists_in_older_versions
 @router.post(
     "/{task_instance_id}/runtime-checks",
     status_code=status.HTTP_204_NO_CONTENT,
