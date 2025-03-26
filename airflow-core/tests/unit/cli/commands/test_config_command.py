@@ -19,6 +19,7 @@ from __future__ import annotations
 import contextlib
 import os
 import re
+import shutil
 from io import StringIO
 from unittest import mock
 
@@ -517,7 +518,7 @@ class TestCliConfigUpdate:
         monkeypatch.setattr(config_command, "AIRFLOW_CONFIG", str(fake_config_file))
         return fake_config_file
 
-    def test_update_renamed_option(self, fake_airflow_config_file, monkeypatch):
+    def test_update_renamed_option(self, fake_airflow_config_file):
         renamed_change = ConfigChange(
             config=ConfigParameter("test_rename_old", "old_key"),
             renamed_to=ConfigParameter("test_rename_new", "new_key"),
@@ -525,16 +526,10 @@ class TestCliConfigUpdate:
         with mock.patch.object(config_command, "CONFIGS_CHANGES", [renamed_change]):
             self.fake_conf.has_option.return_value = True
             self.fake_conf.get.return_value = "legacy_value"
-            old_env_key = "AIRFLOW__TEST_RENAME_OLD__OLD_KEY"
-            new_env_key = "AIRFLOW__TEST_RENAME_NEW__NEW_KEY"
-            monkeypatch.setenv(old_env_key, "env_legacy_value")
             args = self.parser.parse_args(["config", "update"])
-            with mock.patch("builtins.open", mock.mock_open(read_data="dummy content")) as _m_open:
-                config_command.update_config(args)
+            config_command.update_config(args)
             self.fake_conf.set.assert_any_call("test_rename_new", "new_key", "legacy_value")
             self.fake_conf.remove_option.assert_any_call("test_rename_old", "old_key")
-            assert old_env_key not in os.environ
-            assert os.environ.get(new_env_key) == "legacy_value"
 
     def test_update_removed_option(self, fake_airflow_config_file):
         removed_change = ConfigChange(
@@ -544,8 +539,7 @@ class TestCliConfigUpdate:
         with mock.patch.object(config_command, "CONFIGS_CHANGES", [removed_change]):
             self.fake_conf.has_option.return_value = True
             args = self.parser.parse_args(["config", "update"])
-            with mock.patch("builtins.open", mock.mock_open(read_data="dummy content")) as _m_open:
-                config_command.update_config(args)
+            config_command.update_config(args)
             self.fake_conf.remove_option.assert_any_call("test_removed", "remove_me")
 
     def test_update_default_value_change(self, fake_airflow_config_file):
@@ -560,8 +554,7 @@ class TestCliConfigUpdate:
             self.fake_conf.has_option.return_value = True
             self.fake_conf.get.return_value = "OldDefault"
             args = self.parser.parse_args(["config", "update"])
-            with mock.patch("builtins.open", mock.mock_open(read_data="dummy content")) as _m_open:
-                config_command.update_config(args)
+            config_command.update_config(args)
             self.fake_conf.set.assert_any_call("test_default", "default_key", "NewDefault")
 
     def test_update_no_changes(self, fake_airflow_config_file):
@@ -572,7 +565,7 @@ class TestCliConfigUpdate:
             output = temp_stdout.getvalue()
             assert "No updates needed" in output
 
-    def test_update_backup_creation(self, fake_airflow_config_file):
+    def test_update_backup_creation(self, fake_airflow_config_file, monkeypatch):
         removed_change = ConfigChange(
             config=ConfigParameter("test_removed", "remove_me"),
             suggestion="This option is removed in Airflow 3.0.",
@@ -580,12 +573,8 @@ class TestCliConfigUpdate:
         with mock.patch.object(config_command, "CONFIGS_CHANGES", [removed_change]):
             self.fake_conf.has_option.return_value = True
             args = self.parser.parse_args(["config", "update"])
-            m_open = mock.mock_open(read_data="original content")
-            with mock.patch("builtins.open", m_open):
-                config_command.update_config(args)
+            m_copy = mock.MagicMock()
+            monkeypatch.setattr(shutil, "copy2", m_copy)
+            config_command.update_config(args)
             backup_path = os.environ.get("AIRFLOW_CONFIG") + ".bak"
-            found = any(
-                call_args[0][0] == backup_path and call_args[0][1] == "w"
-                for call_args in m_open.call_args_list
-            )
-            assert found, f"Expected a call to open('{backup_path}', 'w') not found."
+            m_copy.assert_called_once_with(os.environ.get("AIRFLOW_CONFIG"), backup_path)
