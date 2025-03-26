@@ -124,7 +124,6 @@ export const renderStructuredLog = ({
   let details;
 
   if (errorDetail !== undefined) {
-    delete structured.error_detail;
     details = (errorDetail as Array<ErrorDetail>).map((error) => {
       const errorLines = error.frames.map((frame) => (
         <chakra.p key="test">
