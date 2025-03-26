@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2025-03-25T19:43:35.516837
+# This constraints file was automatically generated on 2025-03-26T02:17:25.089158
 # via "eager-upgrade" mechanism of PIP. For the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version of both
 # 'apache-airflow' package and all available community provider distributions.
@@ -126,7 +126,7 @@ boto3==1.37.1
 botocore==1.37.1
 cachelib==0.13.0
 cachetools==5.5.2
-cadwyn==5.1.3
+cadwyn==5.1.4
 cassandra-driver==3.29.2
 cattrs==24.1.3
 celery==5.4.0
@@ -537,7 +537,7 @@ sendgrid==6.11.0
 sentinels==1.0.0
 sentry-sdk==2.24.1
 setproctitle==1.3.5
-setuptools==78.0.2
+setuptools==78.1.0
 shapely==2.0.7
 shellingham==1.5.4
 simple-salesforce==1.12.6
