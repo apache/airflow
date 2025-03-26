@@ -190,7 +190,7 @@ chmod 600 ~/.pypirc
 - Install [twine](https://pypi.org/project/twine/) if you do not have it already
 
 ```shell script
-uv pip install twine
+uv tool install twine
 ```
 
 

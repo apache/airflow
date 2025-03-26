@@ -481,13 +481,13 @@ increased until the tag is not found.
 * Verify the artifacts that would be uploaded:
 
 ```shell script
-uvx twine check ${AIRFLOW_REPO_ROOT}/dist/*
+twine check ${AIRFLOW_REPO_ROOT}/dist/*
 ```
 
 * Upload the package to PyPi:
 
 ```shell script
-uvx twine upload -r pypi ${AIRFLOW_REPO_ROOT}/dist/*
+twine upload -r pypi ${AIRFLOW_REPO_ROOT}/dist/*
 ```
 
 * Confirm that the packages are available under the links printed and look good.
