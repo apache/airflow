@@ -21,11 +21,10 @@ from functools import cached_property
 from typing import TYPE_CHECKING
 
 from airflow.providers.amazon.aws.hooks.chime import ChimeWebhookHook
+from airflow.providers.common.compat.notifier import BaseNotifier
 
 if TYPE_CHECKING:
     from airflow.utils.context import Context
-
-from airflow.notifications.basenotifier import BaseNotifier
 
 
 class ChimeNotifier(BaseNotifier):

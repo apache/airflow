@@ -230,11 +230,11 @@ if __name__ == "__main__":
     args = parser.parse_args()
 
     newsfragment_details: list[dict] = []
-    for filename in glob.glob("newsfragments/*.significant.rst"):
-        if filename == "newsfragments/template.significant.rst":
+    for filename in glob.glob("airflow-core/newsfragments/*.significant.rst"):
+        if filename == "airflow-core/newsfragments/template.significant.rst":
             continue
 
-        match = re.search(r"newsfragments/(.*)\.significant\.rst", filename)
+        match = re.search(r"airflow-core/newsfragments/(.*)\.significant\.rst", filename)
         if not match:
             raise ValueError()
         aip_pr_name = match.group(1)

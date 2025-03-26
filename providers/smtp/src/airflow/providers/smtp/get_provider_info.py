@@ -73,6 +73,6 @@ def get_provider_info():
             {"hook-class-name": "airflow.providers.smtp.hooks.smtp.SmtpHook", "connection-type": "smtp"}
         ],
         "notifications": ["airflow.providers.smtp.notifications.smtp.SmtpNotifier"],
-        "dependencies": ["apache-airflow>=2.9.0"],
+        "dependencies": ["apache-airflow>=2.9.0", "apache-airflow-providers-common-compat>=1.6.0"],
         "devel-dependencies": [],
     }

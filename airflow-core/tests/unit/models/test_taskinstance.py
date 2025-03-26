@@ -73,13 +73,13 @@ from airflow.models.taskmap import TaskMap
 from airflow.models.taskreschedule import TaskReschedule
 from airflow.models.variable import Variable
 from airflow.models.xcom import XComModel
-from airflow.notifications.basenotifier import BaseNotifier
 from airflow.providers.standard.operators.bash import BashOperator
 from airflow.providers.standard.operators.empty import EmptyOperator
 from airflow.providers.standard.operators.python import PythonOperator
 from airflow.providers.standard.sensors.python import PythonSensor
 from airflow.sdk.api.datamodels._generated import AssetEventResponse, AssetResponse
 from airflow.sdk.definitions.asset import Asset, AssetAlias
+from airflow.sdk.definitions.notifier import BaseNotifier
 from airflow.sdk.definitions.param import process_params
 from airflow.sdk.execution_time.comms import (
     AssetEventsResult,
