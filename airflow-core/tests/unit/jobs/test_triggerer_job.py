@@ -621,7 +621,7 @@ class CustomTrigger(BaseTrigger):
         )
 
 
-class TestTriggerRunnerSupervisor(TriggerRunnerSupervisor):
+class DummyTriggerRunnerSupervisor(TriggerRunnerSupervisor):
     """
     Make sure that the Supervisor stops after handling the events and do not keep running forever so the
     test can continue.
@@ -666,7 +666,7 @@ async def test_trigger_can_access_variables_and_connections(session, dag_maker, 
     session.add(job)
     session.commit()
 
-    supervisor = TestTriggerRunnerSupervisor.start(job=job, capacity=1, logger=None)
+    supervisor = DummyTriggerRunnerSupervisor.start(job=job, capacity=1, logger=None)
     supervisor.run()
 
     task_instance.refresh_from_db()
