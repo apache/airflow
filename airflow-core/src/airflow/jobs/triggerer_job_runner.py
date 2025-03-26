@@ -33,7 +33,7 @@ from typing import TYPE_CHECKING, Annotated, Any, ClassVar, Literal, TypedDict, 
 
 import attrs
 import structlog
-from pydantic import BaseModel, Field, Tag, TypeAdapter
+from pydantic import BaseModel, Field, TypeAdapter
 from sqlalchemy import func, select
 from structlog.contextvars import bind_contextvars as bind_log_contextvars
 
@@ -206,13 +206,13 @@ class messages:
 
 ToTriggerRunner = Annotated[
     Union[
-        Annotated[workloads.RunTrigger, Tag("RunTrigger")],
-        Annotated[messages.CancelTriggers, Tag("CancelTriggersMessage")],
-        Annotated[messages.StartTriggerer, Tag("StartTriggerer")],
-        Annotated[ConnectionResult, Tag("ConnectionResult")],
-        Annotated[VariableResult, Tag("VariableResult")],
-        Annotated[XComResult, Tag("XComResult")],
-        Annotated[ErrorResponse, Tag("ErrorResponse")],
+        workloads.RunTrigger,
+        messages.CancelTriggers,
+        messages.StartTriggerer,
+        ConnectionResult,
+        VariableResult,
+        XComResult,
+        ErrorResponse,
     ],
     Field(discriminator="type"),
 ]
@@ -223,12 +223,7 @@ code).
 
 
 ToTriggerSupervisor = Annotated[
-    Union[
-        Annotated[messages.TriggerStateChanges, Tag("TriggerStateChanges")],
-        Annotated[GetConnection, Tag("GetConnection")],
-        Annotated[GetVariable, Tag("GetVariable")],
-        Annotated[GetXCom, Tag("GetXCom")],
-    ],
+    Union[messages.TriggerStateChanges, GetConnection, GetVariable, GetXCom],
     Field(discriminator="type"),
 ]
 """
@@ -355,7 +350,6 @@ class TriggerRunnerSupervisor(WatchedSubprocess):
                 # only need to remove the last reference to it to close the open FH
                 if factory := self.logger_cache.pop(id, None):
                     factory.upload_to_remote()
-            return
         elif isinstance(msg, GetConnection):
             conn = self.client.connections.get(msg.conn_id)
             if isinstance(conn, ConnectionResponse):
@@ -664,7 +658,6 @@ class TriggerRunner:
         """Init supervisor comms."""
         from airflow.sdk.execution_time import task_runner
 
-        # Parse DAG file, send JSON back up!
         comms_decoder = task_runner.CommsDecoder[ToTriggerRunner, ToTriggerSupervisor](
             input=sys.stdin,
             decoder=TypeAdapter[ToTriggerRunner](ToTriggerRunner),
