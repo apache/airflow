@@ -30,7 +30,13 @@ type Props<TData> = {
 const FilterMenuButton = <TData,>({ table }: Props<TData>) => (
   <Menu.Root closeOnSelect={false} positioning={{ placement: "bottom" }}>
     <Menu.Trigger asChild>
-      <IconButton aria-label="Filter table columns" padding={0} title="Filter table columns" variant="plain">
+      <IconButton
+        aria-label="Filter table columns"
+        margin={1}
+        padding={0}
+        title="Filter table columns"
+        variant="plain"
+      >
         <MdFilterList size="1" />
       </IconButton>
     </Menu.Trigger>
