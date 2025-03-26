@@ -49,7 +49,7 @@ permissions:
 jobs:
   distributions-tests:
     timeout-minutes: 80
-    name: ${{ inputs.distribution_name }}:P${{ matrix.python-version }} tests
+    name: ${{ inputs.distribution-name }}:P${{ matrix.python-version }} tests
     runs-on: ${{ fromJSON(inputs.runs-on-as-json-default) }}
     strategy:
       fail-fast: false
@@ -82,11 +82,11 @@ jobs:
       - name: "Prepare Task SDK distributions: wheel"
         run: >
           breeze release-management prepare-task-sdk-distributions --distribution-format wheel
-        if: ${{ inputs.distribution_name == 'task-sdk' }}
+        if: ${{ inputs.distribution-name == 'task-sdk' }}
       - name: "Prepare Airflow CTL distributions: wheel"
         run: >
           breeze release-management prepare-airflow-ctl-distributions --distribution-format wheel
-        if: ${{ inputs.distribution_name == 'airflow-ctl' }}
+        if: ${{ inputs.distribution-name == 'airflow-ctl' }}
       - name: "Verify wheel packages with twine"
         run: |
           uv tool uninstall twine || true
@@ -98,11 +98,11 @@ jobs:
           PYTHON_VERSION: "${{ matrix.python-version }}"
         run: >
           breeze testing task-sdk-tests --python "${PYTHON_VERSION}"
-        if: ${{ inputs.distribution_name == 'task-sdk' }}
+        if: ${{ inputs.distribution-name == 'task-sdk' }}
       - name: >
           Run unit tests for Airflow CTL:Python ${{ matrix.python-version }}
         env:
           PYTHON_VERSION: "${{ matrix.python-version }}"
         run: >
           breeze testing airflow-ctl-tests --python "${PYTHON_VERSION}"
-        if: ${{ inputs.distribution_name == 'airflow-ctl' }}
+        if: ${{ inputs.distribution-name == 'airflow-ctl' }}
