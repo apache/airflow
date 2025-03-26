@@ -96,6 +96,7 @@ dependencies = [
 dev = [
     "apache-airflow",
     "apache-airflow-task-sdk",
+    "apache-airflow-airflow-ctl",
     "apache-airflow-devel-common",
     "apache-airflow-providers-common-compat",
     # Additional devel dependencies (do not remove this line and add extra development dependencies)
@@ -108,6 +109,7 @@ dev = [
 apache-airflow = {workspace = true}
 apache-airflow-devel-common = {workspace = true}
 apache-airflow-task-sdk = {workspace = true}
+apache-airflow-ctl = {workspace = true}
 apache-airflow-providers-common-sql = {workspace = true}
 apache-airflow-providers-fab = {workspace = true}
 apache-airflow-providers-standard = {workspace = true}
