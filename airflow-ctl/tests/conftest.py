@@ -18,12 +18,8 @@
 from __future__ import annotations
 
 import os
-from unittest.mock import patch
 
-import httpx
 import pytest
-
-from airflow.ctl.api.client import Client, Credentials
 
 pytest_plugins = "tests_common.pytest_plugin"
 
@@ -45,33 +41,3 @@ def pytest_addhooks(pluginmanager: pytest.PytestPluginManager):
 def pytest_runtest_setup(item):
     if next(item.iter_markers(name="db_test"), None):
         pytest.fail("Airflow CTL tests must not use database")
-
-
-@pytest.fixture(scope="session")
-def cli_api_client_maker(client_credentials):
-    """
-    Create a CLI API client with a custom transport and returns callable to create a client with a custom transport
-    """
-
-    def make_cli_api_client(transport: httpx.MockTransport) -> Client:
-        """Get a client with a custom transport"""
-        return Client(base_url="test://server", transport=transport, token="")
-
-    def _cli_api_client(path: str, response_json: dict, expected_http_status_code: int) -> Client:
-        """Get a client with a custom transport"""
-
-        def handle_request(request: httpx.Request) -> httpx.Response:
-            """Handle the request and return a response"""
-            assert request.url.path == path
-            return httpx.Response(expected_http_status_code, json=response_json)
-
-        return make_cli_api_client(transport=httpx.MockTransport(handle_request))
-
-    return _cli_api_client
-
-
-@pytest.fixture(scope="session")
-def client_credentials():
-    """Create credentials for CLI API"""
-    with patch("airflow.ctl.api.client.keyring"):
-        Credentials(api_url="http://localhost:9091", api_token="NO_TOKEN").save()
