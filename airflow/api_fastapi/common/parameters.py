@@ -217,14 +217,20 @@ class SortParam(BaseParam[str]):
         # Reset default sorting
         select = select.order_by(None)
 
+        primary_key_column = self.get_primary_key_column()
+        primary_key_name = primary_key_column.name
+
+        primary_key_included = any(order_by.lstrip("-") == primary_key_name for order_by in order_by_list)
+
         if order_by_columns:
-            primary_key_column = self.get_primary_key_column()
-            primary_key_sort = primary_key_column.asc()
-            order_by_columns.append((case((primary_key_column.isnot(None), 0), else_=1), primary_key_sort))
-            select = select.order_by(*[col for pair in order_by_columns for col in pair])
+            if not primary_key_included:
+                first_sort_desc = order_by_list[0].startswith("-") if order_by_list else False
+                primary_key_sort = primary_key_column.desc() if first_sort_desc else primary_key_column.asc()
+                select = select.order_by(*[col for pair in order_by_columns for col in pair], primary_key_sort)
+            else:
+                select = select.order_by(*[col for pair in order_by_columns for col in pair])
         else:
-            primary_key_column = self.get_primary_key_column()
-            select = select.order_by(primary_key_column.asc())
+            select = select.order_by(primary_key_sort)
 
         return select
 
