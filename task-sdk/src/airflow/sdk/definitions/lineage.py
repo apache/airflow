@@ -22,7 +22,10 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from airflow.models.baseoperator import BaseOperator
+    from collections.abc import Sequence
+
+    from airflow.sdk.definitions.baseoperator import BaseOperator
+    from airflow.sdk.definitions.context import Context
 
 
 class LineageBackend:
@@ -31,10 +34,10 @@ class LineageBackend:
     def send_lineage(
         self,
         operator: BaseOperator,
-        inlets: list | None = None,
-        outlets: list | None = None,
-        context: dict | None = None,
-    ):
+        inlets: Sequence,
+        outlets: Sequence,
+        context: Context,
+    ) -> None:
         """
         Send lineage metadata to a backend.
 

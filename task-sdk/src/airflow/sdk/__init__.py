@@ -33,6 +33,7 @@ __all__ = [
     "DAG",
     "EdgeModifier",
     "Label",
+    "LineageBackend",
     "Metadata",
     "Param",
     "TaskGroup",
@@ -60,6 +61,7 @@ if TYPE_CHECKING:
     from airflow.sdk.definitions.context import Context, get_current_context, get_parsing_context
     from airflow.sdk.definitions.dag import DAG, dag
     from airflow.sdk.definitions.edges import EdgeModifier, Label
+    from airflow.sdk.definitions.lineage import LineageBackend
     from airflow.sdk.definitions.notifier import BaseNotifier
     from airflow.sdk.definitions.param import Param
     from airflow.sdk.definitions.taskgroup import TaskGroup
@@ -81,6 +83,7 @@ __lazy_imports: dict[str, str] = {
     "DAG": ".definitions.dag",
     "EdgeModifier": ".definitions.edges",
     "Label": ".definitions.edges",
+    "LineageBackend": ".definitions.lineage",
     "Metadata": ".definitions.asset.metadata",
     "Param": ".definitions.param",
     "TaskGroup": ".definitions.taskgroup",

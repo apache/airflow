@@ -85,6 +85,7 @@ from airflow.sdk.execution_time.context import (
     get_previous_dagrun_success,
     set_current_context,
 )
+from airflow.sdk.execution_time.lineage import apply_lineage, prepare_lineage
 from airflow.sdk.execution_time.xcom import XCom
 from airflow.utils.net import get_hostname
 from airflow.utils.state import TaskInstanceState
@@ -883,6 +884,7 @@ def _execute_task(context: Context, ti: RuntimeTaskInstance, log: Logger):
 
     if (pre_execute_hook := task._pre_execute_hook) is not None:
         create_executable_runner(pre_execute_hook, outlet_events, logger=log).run(context)
+    prepare_lineage(context, log)
 
     _run_task_state_change_callbacks(task, "on_execute_callback", context, log)
 
@@ -906,6 +908,7 @@ def _execute_task(context: Context, ti: RuntimeTaskInstance, log: Logger):
 
     if (post_execute_hook := task._post_execute_hook) is not None:
         create_executable_runner(post_execute_hook, outlet_events, logger=log).run(context, result)
+    apply_lineage(context, log)
 
     return result
 

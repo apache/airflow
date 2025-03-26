@@ -71,11 +71,6 @@ for the downstream task.
 In the example DAG task ``run_this`` (``task_id=run_me_first``) is a BashOperator that takes 3 inlets: ``CAT1``, ``CAT2``, ``CAT3``, that are
 generated from a list. Note that ``data_interval_start`` is a templated field and will be rendered when the task is running.
 
-.. note:: Behind the scenes Airflow prepares the lineage metadata as part of the ``pre_execute`` method of a task. When the task
-          has finished execution ``post_execute`` is called and lineage metadata is pushed into XCOM. Thus if you are creating
-          your own operators that override this method make sure to decorate your method with ``prepare_lineage`` and ``apply_lineage``
-          respectively.
-
 Shorthand notation
 ------------------
 
@@ -143,11 +138,11 @@ It's possible to push the lineage metrics to a custom backend by providing an in
   [lineage]
   backend = my.lineage.CustomBackend
 
-The backend should inherit from ``airflow.lineage.LineageBackend``.
+The backend should inherit from ``airflow.sdk.LineageBackend``.
 
 .. code-block:: python
 
-  from airflow.lineage.backend import LineageBackend
+  from airflow.sdk import LineageBackend
 
 
   class CustomBackend(LineageBackend):

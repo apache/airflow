@@ -1,0 +1,23 @@
+LineageBackend is moved to Task SDK
+
+Instead of ``airflow.lineage`` or ``airflow.lineage.backend``, import it from ``airflow.sdk`` instead.
+
+* Types of change
+
+  * [ ] Dag changes
+  * [ ] Config changes
+  * [ ] API changes
+  * [ ] CLI changes
+  * [ ] Behaviour changes
+  * [x] Plugin changes
+  * [ ] Dependency changes
+  * [x] Code interface changes
+
+* Migration rules needed
+
+  * ruff
+
+    * AIR302
+
+      * [ ] ``airflow.lineage.LineageBackend`` → ``airflow.sdk.LineageBackend``
+      * [ ] ``airflow.lineage.backend.LineageBackend`` → ``airflow.sdk.LineageBackend``

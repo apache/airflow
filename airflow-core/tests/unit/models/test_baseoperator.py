@@ -167,7 +167,8 @@ class TestBaseOperator:
 
         op = BaseOperator(task_id="test_task", pre_execute=hook)
         op_copy = op.prepare_for_execution()
-        op_copy.pre_execute({})
+        ti = mock.Mock(task=op_copy)
+        op_copy.pre_execute({"ti": ti})
         assert hook.called
 
     def test_post_execute_hook(self):
@@ -175,7 +176,8 @@ class TestBaseOperator:
 
         op = BaseOperator(task_id="test_task", post_execute=hook)
         op_copy = op.prepare_for_execution()
-        op_copy.post_execute({})
+        ti = mock.Mock(task=op_copy)
+        op_copy.post_execute({"ti": ti})
         assert hook.called
 
     def test_task_naive_datetime(self):

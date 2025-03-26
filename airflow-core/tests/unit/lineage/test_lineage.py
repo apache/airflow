@@ -23,11 +23,11 @@ import attr
 import pytest
 
 from airflow.lineage import AUTO, apply_lineage, get_backend, prepare_lineage
-from airflow.lineage.backend import LineageBackend
 from airflow.models import TaskInstance as TI
 from airflow.providers.common.compat.lineage.entities import File
 from airflow.providers.standard.operators.empty import EmptyOperator
-from airflow.sdk.definitions.context import Context
+from airflow.sdk import Context, LineageBackend
+from airflow.sdk.execution_time.lineage import _get_backend
 from airflow.utils import timezone
 from airflow.utils.types import DagRunType
 
@@ -51,6 +51,9 @@ class CustomLineageBackend(LineageBackend):
 
 
 class TestLineage:
+    def teardown_method(self):
+        _get_backend.cache_clear()
+
     def test_lineage(self, dag_maker):
         f1s = "/tmp/does_not_exist_1-{}"
         f2s = "/tmp/does_not_exist_2-{}"

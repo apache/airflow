@@ -68,7 +68,7 @@ class RuntimeTaskInstanceProtocol(Protocol):
 
     def xcom_pull(
         self,
-        task_ids: str | list[str] | None = None,
+        task_ids: str | Iterable[str] | None = None,
         dag_id: str | None = None,
         key: str = "return_value",
         # TODO: `include_prior_dates` isn't yet supported in the SDK
