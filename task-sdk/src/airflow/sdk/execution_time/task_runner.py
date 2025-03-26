@@ -492,7 +492,9 @@ class CommsDecoder(Generic[ReceiveMsgType, SendMsgType]):
         """
         line = None
 
-        # We need to investigate why some lines are empty ("")
+        # TODO: Investigate why some empty lines are sent to the processes stdin.
+        #   That was highlighted when working on https://github.com/apache/airflow/issues/48183
+        #   and is maybe related to deferred/triggerer only context.
         while not line:
             line = self.input.readline()
 
