@@ -60,7 +60,8 @@ def execute_callable(
     message: str,
 ) -> Any:
     try:
-        return func(value, **dict(context.items()))  # type: ignore
+        with warnings.catch_warnings():
+            return func(value, **context)  # type: ignore
     except TypeError:
         warnings.warn(
             message,
@@ -218,8 +219,6 @@ class MSGraphAsyncOperator(BaseOperator):
 
                 self.log.debug("processed response: %s", result)
 
-                event["response"] = result
-
                 try:
                     self.trigger_next_link(
                         response=response, method_name=self.execute_complete.__name__, context=context
@@ -297,7 +296,13 @@ class MSGraphAsyncOperator(BaseOperator):
     def push_xcom(self, context: Any, value) -> None:
         self.log.debug("do_xcom_push: %s", self.do_xcom_push)
         if self.do_xcom_push:
-            self.log.info("Pushing XCom with key '%s': %s", self.key, value)
+            self.log.info(
+                "Pushing XCom with task_id '%s' and dag_id '%s' and key '%s': %s",
+                self.task_id,
+                self.dag_id,
+                self.key,
+                value,
+            )
             self.xcom_push(context=context, key=self.key, value=value)
 
     @staticmethod
@@ -320,7 +325,8 @@ class MSGraphAsyncOperator(BaseOperator):
     def trigger_next_link(self, response, method_name: str, context: Context) -> None:
         if isinstance(response, dict):
             try:
-                url, query_parameters = self.pagination_function(self, response, **dict(context.items()))  # type: ignore
+                with warnings.catch_warnings():
+                    url, query_parameters = self.pagination_function(self, response, **context)  # type: ignore
             except TypeError:
                 warnings.warn(
                     "pagination_function signature has changed, context parameter should be a kwargs argument!",
