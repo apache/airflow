@@ -491,3 +491,101 @@ class TestConfigLint:
         normalized_output = re.sub(r"\s+", " ", output.strip())
 
         assert "Invalid value" not in normalized_output
+
+
+class TestCliConfigUpdate:
+    @classmethod
+    def setup_class(cls):
+        cls.parser = cli_parser.get_parser()
+
+    @pytest.fixture(autouse=True)
+    def patch_airflow_conf(self, monkeypatch):
+        fake_conf = mock.MagicMock()
+        fake_conf.has_option.return_value = False
+        fake_conf.get.return_value = "old_value"
+        fake_conf.write = mock.MagicMock()
+        fake_conf.set = mock.MagicMock()
+        fake_conf.remove_option = mock.MagicMock()
+        monkeypatch.setattr(config_command, "conf", fake_conf)
+        self.fake_conf = fake_conf
+
+    @pytest.fixture
+    def fake_airflow_config_file(self, tmp_path, monkeypatch):
+        fake_config_file = tmp_path / "airflow.cfg"
+        fake_config_file.write_text("dummy content")
+        monkeypatch.setenv("AIRFLOW_CONFIG", str(fake_config_file))
+        monkeypatch.setattr(config_command, "AIRFLOW_CONFIG", str(fake_config_file))
+        return fake_config_file
+
+    def test_update_renamed_option(self, fake_airflow_config_file):
+        renamed_change = ConfigChange(
+            config=ConfigParameter("admin", "hide_sensitive_variable_fields"),
+            renamed_to=ConfigParameter("core", "hide_sensitive_var_conn_fields"),
+        )
+        with mock.patch.object(config_command, "CONFIGS_CHANGES", [renamed_change]):
+            self.fake_conf.has_option.return_value = True
+            self.fake_conf.get.return_value = "legacy_value"
+            old_env_key = "AIRFLOW__ADMIN__HIDE_SENSITIVE_VARIABLE_FIELDS"
+            os.environ[old_env_key] = "env_legacy_value"
+            args = self.parser.parse_args(["config", "update"])
+            with mock.patch("builtins.open", mock.mock_open(read_data="dummy content")) as _m_open:
+                config_command.update_config(args)
+            self.fake_conf.set.assert_any_call("core", "hide_sensitive_var_conn_fields", "legacy_value")
+            self.fake_conf.remove_option.assert_any_call("admin", "hide_sensitive_variable_fields")
+            new_env_key = "AIRFLOW__CORE__HIDE_SENSITIVE_VAR_CONN_FIELDS"
+            assert old_env_key not in os.environ
+            assert os.environ.get(new_env_key) == "legacy_value"
+
+    def test_update_removed_option(self, fake_airflow_config_file):
+        removed_change = ConfigChange(
+            config=ConfigParameter("core", "check_slas"),
+            suggestion="The SLA feature is removed in Airflow 3.0, to be replaced with Airflow Alerts in future",
+        )
+        with mock.patch.object(config_command, "CONFIGS_CHANGES", [removed_change]):
+            self.fake_conf.has_option.return_value = True
+            args = self.parser.parse_args(["config", "update"])
+            with mock.patch("builtins.open", mock.mock_open(read_data="dummy content")) as _m_open:
+                config_command.update_config(args)
+            self.fake_conf.remove_option.assert_any_call("core", "check_slas")
+
+    def test_update_default_value_change(self, fake_airflow_config_file):
+        default_change = ConfigChange(
+            config=ConfigParameter("scheduler", "catchup_by_default"),
+            default_change=True,
+            new_default="False",
+            suggestion="Default changed for Airflow 3.0",
+            was_removed=False,
+        )
+        with mock.patch.object(config_command, "CONFIGS_CHANGES", [default_change]):
+            self.fake_conf.has_option.return_value = True
+            self.fake_conf.get.return_value = "True"
+            args = self.parser.parse_args(["config", "update"])
+            with mock.patch("builtins.open", mock.mock_open(read_data="dummy content")) as _m_open:
+                config_command.update_config(args)
+            self.fake_conf.set.assert_any_call("scheduler", "catchup_by_default", "False")
+
+    def test_update_no_changes(self, fake_airflow_config_file):
+        with mock.patch.object(config_command, "CONFIGS_CHANGES", []):
+            args = self.parser.parse_args(["config", "update"])
+            with contextlib.redirect_stdout(StringIO()) as temp_stdout:
+                config_command.update_config(args)
+            output = temp_stdout.getvalue()
+            assert "No updates needed" in output
+
+    def test_update_backup_creation(self, fake_airflow_config_file):
+        removed_change = ConfigChange(
+            config=ConfigParameter("core", "check_slas"),
+            suggestion="The SLA feature is removed in Airflow 3.0, to be replaced with Airflow Alerts in future",
+        )
+        with mock.patch.object(config_command, "CONFIGS_CHANGES", [removed_change]):
+            self.fake_conf.has_option.return_value = True
+            args = self.parser.parse_args(["config", "update"])
+            m_open = mock.mock_open(read_data="original content")
+            with mock.patch("builtins.open", m_open):
+                config_command.update_config(args)
+            backup_path = os.environ.get("AIRFLOW_CONFIG") + ".bak"
+            found = any(
+                call_args[0][0] == backup_path and call_args[0][1] == "w"
+                for call_args in m_open.call_args_list
+            )
+            assert found, f"Expected a call to open('{backup_path}', 'w') not found."
