@@ -491,9 +491,14 @@ VERSION_PATCHLEVEL_INDEX = 2
 def bump_version(v: Version, index: int) -> Version:
     versions = list(v.release)
     versions[index] += 1
-    # Packaging version returns None for pre and dev if they are not set
-    # In PEP-440 it is perfectly fine to have 1.2.3b1.dev0 or 1.2.3.dev0
-    # Unlike dev, pre-release does not have "." to separate it from the version
+
+    if index == VERSION_MAJOR_INDEX:
+        versions[VERSION_MINOR_INDEX] = 0
+        versions[VERSION_PATCHLEVEL_INDEX] = 0
+    elif index == VERSION_MINOR_INDEX:
+        versions[VERSION_PATCHLEVEL_INDEX] = 0
+
+    # Handle pre-release and dev version formatting
     pre = f"{v.pre[0]}{v.pre[1]}" if v.pre else ""
     dev = f".dev{v.dev}" if v.dev is not None else ""
     return parse(
