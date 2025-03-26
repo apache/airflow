@@ -171,6 +171,9 @@ class TestBaseAuthManager:
     def test_get_extra_menu_items_return_empty_list(self, auth_manager):
         assert auth_manager.get_extra_menu_items(user=BaseAuthManagerUserTest(name="test")) == []
 
+    def test_get_db_manager_return_none(self, auth_manager):
+        assert auth_manager.get_db_manager() is None
+
     @patch.object(EmptyAuthManager, "filter_authorized_menu_items")
     def test_get_authorized_menu_items(self, mock_filter_authorized_menu_items, auth_manager):
         user = BaseAuthManagerUserTest(name="test")

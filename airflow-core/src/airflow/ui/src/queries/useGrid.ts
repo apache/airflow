@@ -24,9 +24,7 @@ import { useDagRunServiceGetDagRun, useGridServiceGridData } from "openapi/queri
 import type { GridResponse } from "openapi/requests/types.gen";
 import { isStatePending, useAutoRefresh } from "src/utils";
 
-const limit = 14;
-
-export const useGrid = () => {
+export const useGrid = (limit: number) => {
   const { dagId = "", runId = "" } = useParams();
   const [runAfter, setRunAfter] = useState<string | undefined>();
 

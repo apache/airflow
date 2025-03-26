@@ -44,7 +44,6 @@ from airflow.utils.types import NOTSET
 
 if TYPE_CHECKING:
     from airflow.sdk.definitions.asset import Asset
-    from airflow.sdk.types import OutletEventAccessorsProtocol
 
 # NOTE: Please keep this in sync with the following:
 # * Context in task-sdk/src/airflow/sdk/definitions/context.py
@@ -176,10 +175,3 @@ def context_copy_partial(source: Context, keys: Container[str]) -> Context:
     """
     new = {k: v for k, v in source.items() if k in keys}
     return cast(Context, new)
-
-
-def context_get_outlet_events(context: Context) -> OutletEventAccessorsProtocol:
-    try:
-        return context["outlet_events"]
-    except KeyError:
-        return OutletEventAccessors()

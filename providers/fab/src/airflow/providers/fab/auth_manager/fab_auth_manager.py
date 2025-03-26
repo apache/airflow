@@ -521,6 +521,10 @@ class FabAuthManager(BaseAuthManager[User]):
             if self._is_authorized(method="MENU", resource_type=item["resource_type"], user=user)
         ]
 
+    @staticmethod
+    def get_db_manager() -> str | None:
+        return "airflow.providers.fab.auth_manager.models.db.FABDBManager"
+
     def _is_authorized(
         self,
         *,

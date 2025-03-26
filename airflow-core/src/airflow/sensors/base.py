@@ -26,8 +26,6 @@ from collections.abc import Iterable
 from datetime import timedelta
 from typing import TYPE_CHECKING, Any, Callable
 
-from sqlalchemy import select
-
 from airflow import settings
 from airflow.configuration import conf
 from airflow.exceptions import (
@@ -42,10 +40,8 @@ from airflow.exceptions import (
 )
 from airflow.executors.executor_loader import ExecutorLoader
 from airflow.models.baseoperator import BaseOperator
-from airflow.models.taskreschedule import TaskReschedule
 from airflow.ti_deps.deps.ready_to_reschedule import ReadyToRescheduleDep
 from airflow.utils import timezone
-from airflow.utils.session import create_session
 
 if TYPE_CHECKING:
     from airflow.sdk.definitions.context import Context
@@ -199,17 +195,6 @@ class BaseSensorOperator(BaseOperator):
                 f".{self.task_id}'; received '{self.mode}'."
             )
 
-        # Quick check for poke_interval isn't immediately over MySQL's TIMESTAMP limit.
-        # This check is only rudimentary to catch trivial user errors, e.g. mistakenly
-        # set the value to milliseconds instead of seconds. There's another check when
-        # we actually try to reschedule to ensure database coherence.
-        if self.reschedule and _is_metadatabase_mysql():
-            if timezone.utcnow() + datetime.timedelta(seconds=self.poke_interval) > _MYSQL_TIMESTAMP_MAX:
-                raise AirflowException(
-                    f"Cannot set poke_interval to {self.poke_interval} seconds in reschedule "
-                    f"mode since it will take reschedule time over MySQL's TIMESTAMP limit."
-                )
-
     def poke(self, context: Context) -> bool | PokeReturnValue:
         """Override when deriving this class."""
         raise AirflowException("Override me.")
@@ -219,29 +204,8 @@ class BaseSensorOperator(BaseOperator):
 
         if self.reschedule:
             ti = context["ti"]
-            max_tries: int = ti.max_tries or 0
-            retries: int = self.retries or 0
-
-            # If reschedule, use the start date of the first try (first try can be either the very
-            # first execution of the task, or the first execution after the task was cleared).
-            # If the first try's record was not saved due to the Exception occurred and the following
-            # transaction rollback, the next available attempt should be taken
-            # to prevent falling in the endless rescheduling
-            first_try_number = max_tries - retries + 1
-            with create_session() as session:
-                start_date = session.scalar(
-                    select(TaskReschedule)
-                    .where(
-                        TaskReschedule.ti_id == str(ti.id),
-                        TaskReschedule.try_number >= first_try_number,
-                    )
-                    .order_by(TaskReschedule.id.asc())
-                    .with_only_columns(TaskReschedule.start_date)
-                    .limit(1)
-                )
-            if not start_date:
-                start_date = timezone.utcnow()
-            started_at = start_date
+            first_reschedule_date = ti.get_first_reschedule_date(context)
+            started_at = start_date = first_reschedule_date or timezone.utcnow()
 
             def run_duration() -> float:
                 # If we are in reschedule mode, then we have to compute diff
@@ -255,7 +219,6 @@ class BaseSensorOperator(BaseOperator):
                 return time.monotonic() - start_monotonic
 
         poke_count = 1
-        log_dag_id = self.dag.dag_id if self.has_dag() else ""
 
         xcom_value = None
         while True:
@@ -301,11 +264,6 @@ class BaseSensorOperator(BaseOperator):
             if self.reschedule:
                 next_poke_interval = self._get_next_poke_interval(started_at, run_duration, poke_count)
                 reschedule_date = timezone.utcnow() + timedelta(seconds=next_poke_interval)
-                if _is_metadatabase_mysql() and reschedule_date > _MYSQL_TIMESTAMP_MAX:
-                    raise AirflowSensorTimeout(
-                        f"Cannot reschedule DAG {log_dag_id} to {reschedule_date.isoformat()} "
-                        f"since it is over MySQL's TIMESTAMP storage limit."
-                    )
                 raise AirflowRescheduleException(reschedule_date)
             else:
                 time.sleep(self._get_next_poke_interval(started_at, run_duration, poke_count))

@@ -38,6 +38,7 @@ import { getTaskInstanceLink } from "src/utils/links";
 import { TaskInstancesFilter } from "./TaskInstancesFilter";
 
 type TaskInstanceRow = { row: { original: TaskInstanceResponse } };
+
 const {
   END_DATE: END_DATE_PARAM,
   NAME_PATTERN: NAME_PATTERN_PARAM,

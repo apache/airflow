@@ -83,6 +83,8 @@ class RuntimeTaskInstanceProtocol(Protocol):
 
     def get_template_context(self) -> Context: ...
 
+    def get_first_reschedule_date(self, first_try_number) -> datetime | None: ...
+
 
 class OutletEventAccessorProtocol(Protocol, attrs.AttrsInstance):
     """Protocol for managing access to a specific outlet event accessor."""

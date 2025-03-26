@@ -47,10 +47,8 @@ log = logging.getLogger(__name__)
 
 def _run_command_with_daemon_option(*args, **kwargs):
     try:
-        if AIRFLOW_V_3_0_PLUS:
-            from airflow.cli.commands.local_commands.daemon_utils import run_command_with_daemon_option
-        else:
-            from airflow.cli.commands.daemon_utils import run_command_with_daemon_option
+        from airflow.cli.commands.daemon_utils import run_command_with_daemon_option
+
         run_command_with_daemon_option(*args, **kwargs)
     except ImportError:
         from airflow.exceptions import AirflowOptionalProviderFeatureException

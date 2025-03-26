@@ -629,3 +629,7 @@ class TestFabAuthManager:
         result = auth_manager_with_appbuilder.get_extra_menu_items(user=Mock())
         assert len(result) == 5
         assert all(item.href.startswith(AUTH_MANAGER_FASTAPI_APP_PREFIX) for item in result)
+
+    def test_get_db_manager(self, auth_manager):
+        result = auth_manager.get_db_manager()
+        assert result == "airflow.providers.fab.auth_manager.models.db.FABDBManager"

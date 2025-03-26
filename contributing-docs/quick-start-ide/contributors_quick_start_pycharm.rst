@@ -29,7 +29,6 @@ Setup your project
              alt="Cloning github fork to Pycharm">
       </div>
 
-
 2. Paste the repository link in the URL field and submit.
 
    .. raw:: html
@@ -39,16 +38,62 @@ Setup your project
              alt="Cloning github fork to Pycharm">
       </div>
 
-3. Configure the source root directories well as for ``task-sdk`` and ``devel-common``.
-   You also have to set "source" and "tests" root directories for each provider you want to develop (!).
+3. Synchronize local ``.venv`` virtualenv using uv
 
-   This is important in Airflow 3.0 we split ``task-sdk``, ``devel-common`` and each provider to be separate
-   distribution - each with separate ``pyproject.toml`` file, so you need to separately
-   add "src" and "tests" directories for each provider you develop to be respectively
-   "source roots" and "test roots".
+    .. code-block:: bash
 
-   This might be improve and might be better automated in the future, but for now you need to do it
-   for each provider separately.
+      $ uv sync
+
+This will create ``.venv`` virtual environment in the project root directory and install all the dependencies of
+airflow core. If you plan to work on providers, at this time you can install dependencies for all providers:
+
+    .. code-block:: bash
+
+      $ uv sync --all-packages
+
+Or for specific provider and it's cross-provider dependencies:
+
+    .. code-block:: bash
+
+      $ uv sync --packages apache-airflow-provider-amazon
+
+Next: Configure your IDEA project.
+
+3. The fastest way to add source roots is to configure the ``airflow.iml`` file under ``.idea`` directory and update the
+   ``module.xml`` file using the ``setup_idea.py`` script:
+
+   To setup the source roots for all the modules that exist in the project, you can run the following command:
+   This needs to done on the airflow repository root directory. It overwrites the existing ``.idea/airflow.iml`` and
+   ``.idea/modules.xml`` files if they exist.
+
+    .. code-block:: bash
+
+      $ uv run setup_idea.py
+
+   Then Restart the PyCharm/IntelliJ IDEA.
+
+   .. raw:: html
+
+      <div align="center" style="padding-bottom:10px">
+        <img src="images/pycharm-airflow.iml.png"
+             alt="airflow.iml">
+      </div>
+
+   .. raw:: html
+
+        <div align="center" style="padding-bottom:10px">
+          <img src="images/pycharm-modules.xml.png"
+              alt="modules.xml">
+        </div>
+
+4. Alternatively, you can configure your project manually. Configure the source root directories well
+   as for ``airflow-core`` ``task-sdk``, ``airflow-ctl`` and ``devel-common``. You also have to set
+   "source" and "tests" root directories for each provider you want to develop (!).
+
+   In Airflow 3.0 we split ``airflow-core``, ``task-sdk``, ``airflow-ctl``, ``devel-common``,
+   and each provider to be separate distribution - each with separate ``pyproject.toml`` file,
+   so you need to separately add ``src`` and ``tests`` directories for each provider you develop
+   to be respectively "source roots" and "test roots".
 
    .. raw:: html
 
@@ -66,7 +111,17 @@ Setup your project
              alt="Adding Source Root directories to Pycharm">
       </div>
 
-4. Once step 3 is done it is recommended to invalidate caches and restart Pycharm.
+5. Once step 3 or 4 is done you should configure python interpreter for your PyCharm/IntelliJ to use
+   the virtualenv created by ``uv sync``.
+
+    .. raw:: html
+
+        <div align="center" style="padding-bottom:10px">
+          <img src="images/pycharm_add_interpreter.png"
+              alt="Configuring Python Interpreter">
+        </div>
+
+6. It is recommended to invalidate caches and restart PyCharm after setting up the project.
 
    .. raw:: html
 
@@ -74,6 +129,8 @@ Setup your project
         <img src="images/pycharm_invalidate_caches.png"
              alt="Invalidate caches and restart Pycharm">
       </div>
+
+
 
 Setting up debugging
 ####################

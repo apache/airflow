@@ -14277,3 +14277,9 @@ Airflow 1.7.1 (2016-05-19)
 - Use GSSAPI instead of KERBEROS and provide backwards compatibility
 - ISSUE-1123 Use impyla instead of pyhs2
 - Set celery_executor to use queue name as exchange
+
+
+.. spelling::
+
+    nvd
+    lineChart

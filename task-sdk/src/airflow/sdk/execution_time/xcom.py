@@ -78,6 +78,42 @@ class BaseXCom:
         )
 
     @classmethod
+    def _set_xcom_in_db(
+        cls,
+        key: str,
+        value: Any,
+        *,
+        dag_id: str,
+        task_id: str,
+        run_id: str,
+        map_index: int = -1,
+    ) -> None:
+        """
+        Store an XCom value directly in the metadata database.
+
+        :param key: Key to store the XCom.
+        :param value: XCom value to store.
+        :param dag_id: DAG ID.
+        :param task_id: Task ID.
+        :param run_id: DAG run ID for the task.
+        :param map_index: Optional map index to assign XCom for a mapped task.
+            The default is ``-1`` (set for a non-mapped task).
+        """
+        from airflow.sdk.execution_time.task_runner import SUPERVISOR_COMMS
+
+        SUPERVISOR_COMMS.send_request(
+            log=log,
+            msg=SetXCom(
+                key=key,
+                value=value,
+                dag_id=dag_id,
+                task_id=task_id,
+                run_id=run_id,
+                map_index=map_index,
+            ),
+        )
+
+    @classmethod
     def get_value(
         cls,
         *,

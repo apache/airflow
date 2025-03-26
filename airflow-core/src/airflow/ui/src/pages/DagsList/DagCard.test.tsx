@@ -28,6 +28,7 @@ import { DagCard } from "./DagCard";
 
 const mockDag = {
   asset_expression: null,
+  bundle_name: "dags-folder",
   dag_display_name: "nested_groups",
   dag_id: "nested_groups",
   description: null,
@@ -48,6 +49,7 @@ const mockDag = {
   next_dagrun_logical_date: "2024-08-22T00:00:00+00:00",
   next_dagrun_run_after: "2024-08-23T00:00:00+00:00",
   owners: ["airflow"],
+  relative_fileloc: "nested_task_groups.py",
   tags: [],
   timetable_description: "",
   timetable_summary: "",

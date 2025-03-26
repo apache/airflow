@@ -20,7 +20,7 @@
 # IF YOU WANT TO MODIFY THIS FILE EXCEPT DEPENDENCIES, YOU SHOULD MODIFY THE TEMPLATE
 # `pyproject_TEMPLATE.toml.jinja2` IN the `dev/breeze/src/airflow_breeze/templates` DIRECTORY
 [build-system]
-requires = ["flit_core==3.11.0"]
+requires = ["flit_core==3.12.0"]
 build-backend = "flit_core.buildapi"
 
 [project]
@@ -64,7 +64,7 @@ dependencies = [
     # We should update minimum version of boto3 and here regularly to avoid `pip` backtracking with the number
     # of candidates to consider. Make sure to configure boto3 version here as well as in all the tools below
     # in the `devel-dependencies` section to be the same minimum version.
-    "boto3>=1.34.90",
+    "boto3>=1.37.0",
     "botocore>=1.34.90",
     "inflection>=0.5.1",
     # Allow a wider range of watchtower versions for flexibility among users

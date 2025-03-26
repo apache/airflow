@@ -381,6 +381,7 @@ class AirflowConfigParser(ConfigParser):
         # celery_logging_level can be empty, which uses logging_level as fallback
         ("logging", "celery_logging_level"): [*_available_logging_levels, ""],
         ("webserver", "analytical_tool"): ["google_analytics", "metarouter", "segment", "matomo", ""],
+        ("webserver", "grid_view_sorting_order"): ["topological", "hierarchical_alphabetical"],
     }
 
     upgraded_values: dict[tuple[str, str], str]

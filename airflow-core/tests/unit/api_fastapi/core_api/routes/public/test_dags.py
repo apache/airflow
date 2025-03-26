@@ -63,6 +63,8 @@ class TestDagEndpoint:
     def _create_deactivated_paused_dag(self, session=None):
         dag_model = DagModel(
             dag_id=DAG3_ID,
+            bundle_name="dag_maker",
+            relative_fileloc="dag_del_1.py",
             fileloc="/tmp/dag_del_1.py",
             timetable_summary="2 2 * * *",
             is_active=False,
@@ -405,6 +407,7 @@ class TestDagDetails(TestDagEndpoint):
         last_parsed_time = res_json["last_parsed_time"]
         file_token = res_json["file_token"]
         expected = {
+            "bundle_name": "dag_maker",
             "asset_expression": None,
             "catchup": False,
             "concurrency": 16,
@@ -449,6 +452,7 @@ class TestDagDetails(TestDagEndpoint):
                     "value": 1,
                 }
             },
+            "relative_fileloc": "test_dags.py",
             "render_template_as_native_obj": False,
             "timetable_summary": None,
             "start_date": start_date,
@@ -511,6 +515,8 @@ class TestGetDag(TestDagEndpoint):
             "last_parsed_time": last_parsed_time,
             "timetable_description": "Never, external triggers only",
             "has_import_errors": False,
+            "bundle_name": "dag_maker",
+            "relative_fileloc": "test_dags.py",
         }
         assert res_json == expected
 

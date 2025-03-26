@@ -712,6 +712,37 @@ class TestTIUpdateState:
         assert trs[0].task_instance.map_index == -1
         assert trs[0].duration == 129600
 
+    @pytest.mark.backend("mysql")
+    def test_ti_update_state_reschedule_mysql_limit(
+        self, client, session, create_task_instance, time_machine
+    ):
+        """Test that the reschedule date is validated against MySQL's TIMESTAMP limit."""
+        instant = timezone.datetime(2024, 10, 30)
+        time_machine.move_to(instant, tick=False)
+
+        ti = create_task_instance(
+            task_id="test_ti_update_state_reschedule_mysql_limit",
+            state=State.RUNNING,
+            session=session,
+        )
+        ti.start_date = instant
+        session.commit()
+
+        # Date beyond MySQL's TIMESTAMP limit (2038-01-19 03:14:07)
+        future_date = timezone.datetime(2038, 1, 19, 3, 14, 8)
+
+        response = client.patch(
+            f"/execution/task-instances/{ti.id}/state",
+            json={
+                "state": TaskInstanceState.UP_FOR_RESCHEDULE,
+                "reschedule_date": future_date.isoformat(),
+                "end_date": DEFAULT_END_DATE.isoformat(),
+            },
+        )
+
+        assert response.status_code == 422
+        assert response.json()["detail"]["reason"] == "invalid_reschedule_date"
+
     def test_ti_update_state_handle_retry(self, client, session, create_task_instance):
         ti = create_task_instance(
             task_id="test_ti_update_state_to_retry",
@@ -1129,3 +1160,62 @@ class TestPreviousDagRun:
             "start_date": None,
             "end_date": None,
         }
+
+
+class TestGetRescheduleStartDate:
+    def test_get_start_date(self, client, session, create_task_instance):
+        ti = create_task_instance(
+            task_id="test_ti_update_state_reschedule_mysql_limit",
+            state=State.RUNNING,
+            start_date=timezone.datetime(2024, 1, 1),
+            session=session,
+        )
+        tr = TaskReschedule(
+            task_instance_id=ti.id,
+            try_number=1,
+            start_date=timezone.datetime(2024, 1, 1),
+            end_date=timezone.datetime(2024, 1, 1, 1),
+            reschedule_date=timezone.datetime(2024, 1, 1, 2),
+        )
+        session.add(tr)
+        session.commit()
+
+        response = client.get(f"/execution/task-reschedules/{ti.id}/start_date")
+        assert response.status_code == 200
+        assert response.json() == "2024-01-01T00:00:00Z"
+
+    def test_get_start_date_not_found(self, client):
+        ti_id = "0182e924-0f1e-77e6-ab50-e977118bc139"
+        response = client.get(f"/execution/task-reschedules/{ti_id}/start_date")
+        assert response.status_code == 404
+
+    def test_get_start_date_with_try_number(self, client, session, create_task_instance):
+        # Create multiple reschedules
+        dates = [
+            timezone.datetime(2024, 1, 1),
+            timezone.datetime(2024, 1, 2),
+            timezone.datetime(2024, 1, 3),
+        ]
+
+        ti = create_task_instance(
+            task_id="test_get_start_date_with_try_number",
+            state=State.RUNNING,
+            start_date=timezone.datetime(2024, 1, 1),
+            session=session,
+        )
+
+        for i, date in enumerate(dates, 1):
+            tr = TaskReschedule(
+                task_instance_id=ti.id,
+                try_number=i,
+                start_date=date,
+                end_date=date.replace(hour=1),
+                reschedule_date=date.replace(hour=2),
+            )
+            session.add(tr)
+        session.commit()
+
+        # Test getting start date for try_number 2
+        response = client.get(f"/execution/task-reschedules/{ti.id}/start_date?try_number=2")
+        assert response.status_code == 200
+        assert response.json() == "2024-01-02T00:00:00Z"

@@ -16,17 +16,12 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { createContext, useMemo, type PropsWithChildren } from "react";
+import { useMemo, type PropsWithChildren } from "react";
 import { useLocalStorage } from "usehooks-ts";
 
 import { useConfig } from "src/queries/useConfig";
 
-export type TimezoneContextType = {
-  selectedTimezone: string;
-  setSelectedTimezone: (timezone: string) => void;
-};
-
-export const TimezoneContext = createContext<TimezoneContextType | undefined>(undefined);
+import { TimezoneContext, type TimezoneContextType } from "./Context";
 
 const TIMEZONE_KEY = "timezone";
 

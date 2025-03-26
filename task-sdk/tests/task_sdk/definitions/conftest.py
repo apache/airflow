@@ -38,7 +38,7 @@ def run_ti(create_runtime_ti, mock_supervisor_comms):
 
         mock_supervisor_comms.send_request.reset_mock()
         ti = create_runtime_ti(dag.task_dict[task_id], map_index=map_index)
-        run(ti, log)
+        run(ti, ti.get_template_context(), log)
 
         for call in mock_supervisor_comms.send_request.mock_calls:
             msg = call.kwargs["msg"]

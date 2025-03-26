@@ -357,6 +357,23 @@ def ti_update_state(
         )
         updated_state = TaskInstanceState.DEFERRED
     elif isinstance(ti_patch_payload, TIRescheduleStatePayload):
+        # Quick check for poke_interval isn't immediately over MySQL's TIMESTAMP limit.
+        # This check is only rudimentary to catch trivial user errors, e.g. mistakenly
+        # set the value to milliseconds instead of seconds. There's another check when
+        # we actually try to reschedule to ensure database coherence.
+        if session.get_bind().dialect.name == "mysql":
+            # As documented in https://dev.mysql.com/doc/refman/5.7/en/datetime.html.
+            _MYSQL_TIMESTAMP_MAX = timezone.datetime(2038, 1, 19, 3, 14, 7)
+            if ti_patch_payload.reschedule_date > _MYSQL_TIMESTAMP_MAX:
+                raise HTTPException(
+                    status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                    detail={
+                        "reason": "invalid_reschedule_date",
+                        "message": f"Cannot reschedule to {ti_patch_payload.reschedule_date.isoformat()} "
+                        f"since it is over MySQL's TIMESTAMP storage limit.",
+                    },
+                )
+
         task_instance = session.get(TI, ti_id_str)
         actual_start_date = timezone.utcnow()
         session.add(

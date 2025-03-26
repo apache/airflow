@@ -47,7 +47,7 @@ from airflow.exceptions import (
     AirflowException,
 )
 from airflow.listeners.listener import get_listener_manager
-from airflow.models.base import Base
+from airflow.models.base import Base, StringID
 from airflow.stats import Stats
 from airflow.utils import timezone
 from airflow.utils.dag_cycle_tester import check_cycle
@@ -657,8 +657,9 @@ class DagBag(LoggingMixin):
 
 
 def generate_md5_hash(context):
-    fileloc = context.get_current_parameters()["fileloc"]
-    return hashlib.md5(fileloc.encode()).hexdigest()
+    bundle_name = context.get_current_parameters()["bundle_name"]
+    relative_fileloc = context.get_current_parameters()["relative_fileloc"]
+    return hashlib.md5(f"{bundle_name}:{relative_fileloc}".encode()).hexdigest()
 
 
 class DagPriorityParsingRequest(Base):
@@ -671,15 +672,17 @@ class DagPriorityParsingRequest(Base):
     # size consistent with other tables. This is a workaround to enforce the unique constraint.
     id = Column(String(32), primary_key=True, default=generate_md5_hash, onupdate=generate_md5_hash)
 
+    bundle_name = Column(StringID(), nullable=False)
     # The location of the file containing the DAG object
     # Note: Do not depend on fileloc pointing to a file; in the case of a
     # packaged DAG, it will point to the subpath of the DAG within the
     # associated zip.
-    fileloc = Column(String(2000), nullable=False)
+    relative_fileloc = Column(String(2000), nullable=False)
 
-    def __init__(self, fileloc: str) -> None:
+    def __init__(self, bundle_name: str, relative_fileloc: str) -> None:
         super().__init__()
-        self.fileloc = fileloc
+        self.bundle_name = bundle_name
+        self.relative_fileloc = relative_fileloc
 
     def __repr__(self) -> str:
-        return f"<DagPriorityParsingRequest: fileloc={self.fileloc}>"
+        return f"<DagPriorityParsingRequest: bundle_name={self.bundle_name} relative_fileloc={self.relative_fileloc}>"

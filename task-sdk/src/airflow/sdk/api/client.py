@@ -64,6 +64,7 @@ from airflow.sdk.execution_time.comms import (
     OKResponse,
     RuntimeCheckOnTask,
     SkipDownstreamTasks,
+    TaskRescheduleStartDate,
 )
 from airflow.utils.net import get_hostname
 from airflow.utils.platform import getuser
@@ -208,6 +209,11 @@ class TaskInstanceOperations:
                 # The TI isn't in the right state to perform the check, but we shouldn't fail the task for that
                 return OKResponse(ok=True)
             raise
+
+    def get_reschedule_start_date(self, id: uuid.UUID, try_number: int = 1) -> TaskRescheduleStartDate:
+        """Get the start date of a task reschedule via the API server."""
+        resp = self.client.get(f"task-reschedules/{id}/start_date", params={"try_number": try_number})
+        return TaskRescheduleStartDate.model_construct(start_date=resp.json())
 
 
 class ConnectionOperations:

@@ -464,6 +464,15 @@ class BaseAuthManager(Generic[T], LoggingMixin, metaclass=ABCMeta):
         """
         return []
 
+    @staticmethod
+    def get_db_manager() -> str | None:
+        """
+        Specify the DB manager path needed to run the auth manager.
+
+        This is optional and not all auth managers require a DB manager.
+        """
+        return None
+
     @classmethod
     @cache
     def _get_token_signer(

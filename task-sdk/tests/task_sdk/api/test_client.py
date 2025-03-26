@@ -35,7 +35,13 @@ from airflow.sdk.api.datamodels._generated import (
     XComResponse,
 )
 from airflow.sdk.exceptions import ErrorType
-from airflow.sdk.execution_time.comms import DeferTask, ErrorResponse, OKResponse, RescheduleTask
+from airflow.sdk.execution_time.comms import (
+    DeferTask,
+    ErrorResponse,
+    OKResponse,
+    RescheduleTask,
+    TaskRescheduleStartDate,
+)
 from airflow.utils import timezone
 from airflow.utils.state import TerminalTIState
 
@@ -813,3 +819,25 @@ class TestDagRunOperations:
         result = client.dag_runs.get_state(dag_id="test_state", run_id="test_run_id")
 
         assert result == DagRunStateResponse(state=DagRunState.RUNNING)
+
+
+class TestTaskRescheduleOperations:
+    def test_get_start_date(self):
+        """Test that the client can get the start date of a task reschedule"""
+        ti_id = uuid6.uuid7()
+
+        def handle_request(request: httpx.Request) -> httpx.Response:
+            if request.url.path == f"/task-reschedules/{ti_id}/start_date":
+                assert request.url.params.get("try_number") == "1"
+
+                return httpx.Response(
+                    status_code=200,
+                    json="2024-01-01T00:00:00Z",
+                )
+            return httpx.Response(status_code=422)
+
+        client = make_client(transport=httpx.MockTransport(handle_request))
+        result = client.task_instances.get_reschedule_start_date(id=ti_id, try_number=1)
+
+        assert isinstance(result, TaskRescheduleStartDate)
+        assert result.start_date == "2024-01-01T00:00:00Z"

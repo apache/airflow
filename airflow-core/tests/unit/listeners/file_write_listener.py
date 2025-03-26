@@ -19,7 +19,7 @@ from __future__ import annotations
 
 import logging
 
-from airflow.cli.commands.remote_commands.task_command import TaskCommandMarker
+from airflow.cli.commands.task_command import TaskCommandMarker
 from airflow.listeners import hookimpl
 
 log = logging.getLogger(__name__)

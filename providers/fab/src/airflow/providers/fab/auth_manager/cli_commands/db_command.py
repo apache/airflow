@@ -17,7 +17,7 @@
 from __future__ import annotations
 
 from airflow import settings
-from airflow.cli.commands.local_commands.db_command import run_db_downgrade_command, run_db_migrate_command
+from airflow.cli.commands.db_command import run_db_downgrade_command, run_db_migrate_command
 from airflow.providers.fab.auth_manager.models.db import _REVISION_HEADS_MAP, FABDBManager
 from airflow.utils import cli as cli_utils
 from airflow.utils.providers_configuration_loader import providers_configuration_loaded
