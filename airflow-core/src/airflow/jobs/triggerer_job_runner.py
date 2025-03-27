@@ -679,7 +679,7 @@ class TriggerRunner:
 
     def run(self):
         """Sync entrypoint - just run a run in an async loop."""
-        # Make sure comms are initialized before running
+        # Make sure comms are initialized before allowing any Triggers to run
         self.init_comms()
 
         asyncio.run(self.arun())
