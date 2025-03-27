@@ -1661,6 +1661,7 @@ def get_provider_info():
                 'apache-beam[gcp]>=2.57.0; python_version >= "3.12"',
             ],
             "cncf.kubernetes": ["apache-airflow-providers-cncf-kubernetes>=10.1.0"],
+            "fab": ["apache-airflow-providers-fab>=2.0.0"],
             "leveldb": ["plyvel>=1.5.1"],
             "oracle": ["apache-airflow-providers-oracle>=3.1.0"],
             "facebook": ["apache-airflow-providers-facebook>=2.2.0"],
