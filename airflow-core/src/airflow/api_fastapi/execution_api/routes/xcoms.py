@@ -22,7 +22,7 @@ import sys
 from typing import Annotated, Any
 
 from fastapi import Body, Depends, HTTPException, Path, Query, Request, Response, status
-from pydantic import JsonValue
+from pydantic import BaseModel, JsonValue
 from sqlalchemy import delete
 from sqlalchemy.sql.selectable import Select
 
@@ -122,6 +122,13 @@ def head_xcom(
     response.headers["Content-Range"] = f"map_indexes {count}"
 
 
+class GetXcomFilterParams(BaseModel):
+    """Class to house the params that can optionally be set for Get XCom."""
+
+    map_index: int = -1
+    include_prior_dates: bool = False
+
+
 @router.get(
     "/{dag_id}/{run_id}/{task_id}/{key}",
     description="Get a single XCom Value",
@@ -132,8 +139,7 @@ def get_xcom(
     task_id: str,
     key: str,
     session: SessionDep,
-    map_index: Annotated[int, Query()] = -1,
-    include_prior_dates: Annotated[bool, Query()] = False,
+    params: Annotated[GetXcomFilterParams, Query()],
 ) -> XComResponse:
     """Get an Airflow XCom from database - not other XCom Backends."""
     # The xcom_query allows no map_index to be passed. This endpoint should always return just a single item,
@@ -143,11 +149,11 @@ def get_xcom(
         key=key,
         task_ids=task_id,
         dag_ids=dag_id,
-        map_indexes=map_index,
-        include_prior_dates=include_prior_dates,
+        map_indexes=params.map_index,
+        include_prior_dates=params.include_prior_dates,
         session=session,
     )
-    xcom_query = xcom_query.filter(XComModel.map_index == map_index)
+    xcom_query = xcom_query.filter(XComModel.map_index == params.map_index)
     # We use `BaseXCom.get_many` to fetch XComs directly from the database, bypassing the XCom Backend.
     # This avoids deserialization via the backend (e.g., from a remote storage like S3) and instead
     # retrieves the raw serialized value from the database. By not relying on `XCom.get_many` or `XCom.get_one`
@@ -159,7 +165,7 @@ def get_xcom(
             status_code=status.HTTP_404_NOT_FOUND,
             detail={
                 "reason": "not_found",
-                "message": f"XCom with {key=} {map_index=} not found for task {task_id!r} in DAG run {run_id!r} of {dag_id!r}",
+                "message": f"XCom with {key=} {params.map_index=} not found for task {task_id!r} in DAG run {run_id!r} of {dag_id!r}",
             },
         )
 
