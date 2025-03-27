@@ -36,7 +36,6 @@ from airflow.migrations.db_types import TIMESTAMP, StringID
 from airflow.models.base import naming_convention
 from airflow.models.dagcode import DagCode
 from airflow.utils import timezone
-from airflow.utils.sqlalchemy import UtcDateTime
 
 # revision identifiers, used by Alembic.
 revision = "2b47dc6bc8df"
@@ -72,9 +71,9 @@ def upgrade():
         sa.Column("id", UUIDType(binary=False), nullable=False),
         sa.Column("version_number", sa.Integer(), nullable=False),
         sa.Column("dag_id", StringID(), nullable=False),
-        sa.Column("created_at", UtcDateTime(), nullable=False, default=timezone.utcnow),
+        sa.Column("created_at", TIMESTAMP(), nullable=False, default=timezone.utcnow),
         sa.Column(
-            "last_updated", UtcDateTime(), nullable=False, default=timezone.utcnow, onupdate=timezone.utcnow
+            "last_updated", TIMESTAMP(), nullable=False, default=timezone.utcnow, onupdate=timezone.utcnow
         ),
         sa.ForeignKeyConstraint(
             ("dag_id",), ["dag.dag_id"], name=op.f("dag_version_dag_id_fkey"), ondelete="CASCADE"
@@ -97,7 +96,7 @@ def upgrade():
         batch_op.add_column(sa.Column("id", UUIDType(binary=False)))
         batch_op.drop_index("idx_fileloc_hash")
         batch_op.add_column(sa.Column("dag_version_id", UUIDType(binary=False)))
-        batch_op.add_column(sa.Column("created_at", UtcDateTime()))
+        batch_op.add_column(sa.Column("created_at", TIMESTAMP()))
 
     # Data migration
     rows = _get_rows("SELECT dag_id FROM serialized_dag", conn)
@@ -235,7 +234,7 @@ def upgrade():
         batch_op.create_unique_constraint("dag_code_dag_version_id_uq", ["dag_version_id"])
         batch_op.drop_column("fileloc_hash")
         batch_op.alter_column("source_code_hash", existing_type=sa.String(length=32), nullable=False)
-        batch_op.alter_column("created_at", existing_type=UtcDateTime(), nullable=False)
+        batch_op.alter_column("created_at", existing_type=TIMESTAMP(), nullable=False)
 
     with op.batch_alter_table("serialized_dag") as batch_op:
         batch_op.drop_constraint("serialized_dag_pkey", type_="primary")
@@ -252,7 +251,7 @@ def upgrade():
             ondelete="CASCADE",
         )
         batch_op.create_unique_constraint("serialized_dag_dag_version_id_uq", ["dag_version_id"])
-        batch_op.alter_column("created_at", existing_type=UtcDateTime(), nullable=False)
+        batch_op.alter_column("created_at", existing_type=TIMESTAMP(), nullable=False)
 
     with op.batch_alter_table("task_instance", schema=None) as batch_op:
         batch_op.add_column(sa.Column("dag_version_id", UUIDType(binary=False)))
