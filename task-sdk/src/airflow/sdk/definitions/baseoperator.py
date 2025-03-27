@@ -1032,19 +1032,19 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
 
         if email is not None:
             warnings.warn(
-                "email is deprecated please migrate to SmtpNotifier`.",
+                "Setting email on a task is deprecated; please migrate to SmtpNotifier.",
                 RemovedInAirflow4Warning,
                 stacklevel=2,
             )
         if email and email_on_retry is not None:
             warnings.warn(
-                "email_on_retry is deprecated please migrate to SmtpNotifier`.",
+                "Setting email_on_retry on a task is deprecated; please migrate to SmtpNotifier.",
                 RemovedInAirflow4Warning,
                 stacklevel=2,
             )
         if email and email_on_failure is not None:
             warnings.warn(
-                "email_on_failure is deprecated please migrate to SmtpNotifier`.",
+                "Setting email_on_failure on a task is deprecated; please migrate to SmtpNotifier.",
                 RemovedInAirflow4Warning,
                 stacklevel=2,
             )

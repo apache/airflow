@@ -1263,7 +1263,7 @@ def _email_alert(*, task_instance: TaskInstance, exception, task: BaseOperator) 
 
 def _get_email_subject_content(
     *,
-    task_instance: TaskInstance,
+    task_instance: TaskInstance | RuntimeTaskInstanceProtocol,
     exception: BaseException,
     task: BaseOperator | None = None,
 ) -> tuple[str, str, str]:

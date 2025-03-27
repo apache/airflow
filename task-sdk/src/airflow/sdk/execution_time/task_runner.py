@@ -844,6 +844,17 @@ def _run_task_state_change_callbacks(
             log.exception("Failed to run task callback", kind=kind, index=i, callback=callback)
 
 
+def _send_task_error_email(to: Iterable[str], ti: RuntimeTaskInstance, exception: BaseException) -> None:
+    from airflow.models.taskinstance import _get_email_subject_content
+    from airflow.utils.email import send_email
+
+    subject, content, err = _get_email_subject_content(task_instance=ti, exception=exception)
+    try:
+        send_email(to, subject, content)
+    except Exception:
+        send_email(to, subject, err)
+
+
 def _execute_task(context: Context, ti: RuntimeTaskInstance, log: Logger):
     """Execute Task (optionally with a Timeout) and push Xcom results."""
     from airflow.exceptions import AirflowTaskTimeout
@@ -981,11 +992,15 @@ def finalize(
         get_listener_manager().hook.on_task_instance_failed(
             previous_state=TaskInstanceState.RUNNING, task_instance=ti, error=error
         )
+        if error and task.email_on_retry and task.email:
+            _send_task_error_email(task.email, ti, error)
     elif state == TerminalTIState.FAILED:
         _run_task_state_change_callbacks(task, "on_failure_callback", context, log)
         get_listener_manager().hook.on_task_instance_failed(
             previous_state=TaskInstanceState.RUNNING, task_instance=ti, error=error
         )
+        if error and task.email_on_failure and task.email:
+            _send_task_error_email(task.email, ti, error)
 
     get_listener_manager().hook.before_stopping(component=TaskRunnerMarker())
 
