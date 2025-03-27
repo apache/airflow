@@ -23,7 +23,7 @@
 
 Package ``apache-airflow-providers-atlassian-jira``
 
-Release: ``3.0.1``
+Release: ``3.0.2``
 
 
 `Atlassian Jira <https://www.atlassian.com/software/jira/>`__
@@ -36,7 +36,7 @@ This is a provider package for ``atlassian.jira`` provider. All classes for this
 are in ``airflow.providers.atlassian.jira`` python package.
 
 You can find package information and changelog for the provider
-in the `documentation <https://airflow.apache.org/docs/apache-airflow-providers-atlassian-jira/3.0.1/>`_.
+in the `documentation <https://airflow.apache.org/docs/apache-airflow-providers-atlassian-jira/3.0.2/>`_.
 
 Installation
 ------------
@@ -50,12 +50,32 @@ The package supports the following python versions: 3.9,3.10,3.11,3.12
 Requirements
 ------------
 
-========================  ==================
-PIP package               Version required
-========================  ==================
-``apache-airflow``        ``>=2.9.0``
-``atlassian-python-api``  ``>3.41.10``
-========================  ==================
+==========================================  ==================
+PIP package                                 Version required
+==========================================  ==================
+``apache-airflow``                          ``>=2.9.0``
+``apache-airflow-providers-common-compat``  ``>=1.6.0``
+``atlassian-python-api``                    ``>3.41.10``
+==========================================  ==================
+
+Cross provider package dependencies
+-----------------------------------
+
+Those are dependencies that might be needed in order to use all the features of the package.
+You need to install the specified providers in order to use them.
+
+You can install such cross-provider dependencies when installing from PyPI. For example:
+
+.. code-block:: bash
+
+    pip install apache-airflow-providers-atlassian-jira[common.compat]
+
+
+==================================================================================================================  =================
+Dependent package                                                                                                   Extra
+==================================================================================================================  =================
+`apache-airflow-providers-common-compat <https://airflow.apache.org/docs/apache-airflow-providers-common-compat>`_  ``common.compat``
+==================================================================================================================  =================
 
 The changelog for the provider package can be found in the
-`changelog <https://airflow.apache.org/docs/apache-airflow-providers-atlassian-jira/3.0.1/changelog.html>`_.
+`changelog <https://airflow.apache.org/docs/apache-airflow-providers-atlassian-jira/3.0.2/changelog.html>`_.

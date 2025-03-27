@@ -60,10 +60,8 @@ from airflow.sdk.execution_time.comms import (
     ErrorResponse,
     GetDagRunState,
     GetTaskRescheduleStartDate,
-    OKResponse,
     RescheduleTask,
     RetryTask,
-    RuntimeCheckOnTask,
     SetRenderedFields,
     SkipDownstreamTasks,
     StartupDetails,
@@ -582,17 +580,6 @@ def _serialize_outlet_events(events: OutletEventAccessorsProtocol) -> Iterator[d
 def _prepare(ti: RuntimeTaskInstance, log: Logger, context: Context) -> ToSupervisor | None:
     ti.hostname = get_hostname()
     ti.task = ti.task.prepare_for_execution()
-    if ti.task.inlets or ti.task.outlets:
-        inlets = [asset.asprofile() for asset in ti.task.inlets if isinstance(asset, Asset)]
-        outlets = [asset.asprofile() for asset in ti.task.outlets if isinstance(asset, Asset)]
-        SUPERVISOR_COMMS.send_request(msg=RuntimeCheckOnTask(inlets=inlets, outlets=outlets), log=log)  # type: ignore
-        ok_response = SUPERVISOR_COMMS.get_message()  # type: ignore
-        if not isinstance(ok_response, OKResponse) or not ok_response.ok:
-            log.info("Runtime checks failed for task, marking task as failed..")
-            return TaskState(
-                state=TerminalTIState.FAILED,
-                end_date=datetime.now(tz=timezone.utc),
-            )
 
     jinja_env = ti.task.dag.get_template_env()
     ti.render_templates(context=context, jinja_env=jinja_env)
@@ -857,6 +844,17 @@ def _run_task_state_change_callbacks(
             log.exception("Failed to run task callback", kind=kind, index=i, callback=callback)
 
 
+def _send_task_error_email(to: Iterable[str], ti: RuntimeTaskInstance, exception: BaseException) -> None:
+    from airflow.models.taskinstance import _get_email_subject_content
+    from airflow.utils.email import send_email
+
+    subject, content, err = _get_email_subject_content(task_instance=ti, exception=exception)
+    try:
+        send_email(to, subject, content)
+    except Exception:
+        send_email(to, subject, err)
+
+
 def _execute_task(context: Context, ti: RuntimeTaskInstance, log: Logger):
     """Execute Task (optionally with a Timeout) and push Xcom results."""
     from airflow.exceptions import AirflowTaskTimeout
@@ -994,11 +992,15 @@ def finalize(
         get_listener_manager().hook.on_task_instance_failed(
             previous_state=TaskInstanceState.RUNNING, task_instance=ti, error=error
         )
+        if error and task.email_on_retry and task.email:
+            _send_task_error_email(task.email, ti, error)
     elif state == TerminalTIState.FAILED:
         _run_task_state_change_callbacks(task, "on_failure_callback", context, log)
         get_listener_manager().hook.on_task_instance_failed(
             previous_state=TaskInstanceState.RUNNING, task_instance=ti, error=error
         )
+        if error and task.email_on_failure and task.email:
+            _send_task_error_email(task.email, ti, error)
 
     get_listener_manager().hook.before_stopping(component=TaskRunnerMarker())
 
