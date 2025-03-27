@@ -779,6 +779,12 @@ def update_config(args) -> None:
     ignore_sections = args.ignore_section if args.ignore_section else []
     ignore_options = args.ignore_option if args.ignore_option else []
 
+    config_dict = conf.as_dict(
+        display_source=True,
+        include_env=True,
+        include_cmds=True,
+        include_secret=True,
+    )
     for change in CONFIGS_CHANGES:
         conf_section = change.config.section.lower()
         conf_option = change.config.option.lower()
@@ -793,10 +799,14 @@ def update_config(args) -> None:
         ]:
             continue
 
-        if not conf.has_option(conf_section, conf_option, lookup_from_deprecated=False):
+        if conf_section not in config_dict or conf_option not in config_dict[conf_section]:
+            continue
+        value_data = config_dict[conf_section][conf_option]
+        if not (isinstance(value_data, tuple) and value_data[1] == "airflow.cfg"):
             continue
 
-        current_value = conf.get(conf_section, conf_option)
+        current_value = value_data[0]
+
         if change.default_change:
             if str(current_value) != str(change.new_default):
                 modifications.add_default_update(conf_section, conf_option, str(change.new_default))
