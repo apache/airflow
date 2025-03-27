@@ -28,6 +28,7 @@ import pytest
 from airflow.cli import cli_parser
 from airflow.cli.commands import config_command
 from airflow.cli.commands.config_command import ConfigChange, ConfigParameter
+from airflow.configuration import conf
 
 from tests_common.test_utils.config import conf_vars
 
@@ -500,81 +501,66 @@ class TestCliConfigUpdate:
         cls.parser = cli_parser.get_parser()
 
     @pytest.fixture(autouse=True)
-    def patch_airflow_conf(self, monkeypatch):
-        fake_conf = mock.MagicMock()
-        fake_conf.has_option.return_value = False
-        fake_conf.get.return_value = "old_value"
-        fake_conf.write = mock.MagicMock()
-        fake_conf.set = mock.MagicMock()
-        fake_conf.remove_option = mock.MagicMock()
-        monkeypatch.setattr(config_command, "conf", fake_conf)
-        self.fake_conf = fake_conf
+    def setup_fake_airflow_cfg(self, tmp_path, monkeypatch):
+        fake_config = tmp_path / "airflow.cfg"
+        fake_config.write_text(
+            "[test_admin]\n"
+            "rename_key = legacy_value\n"
+            "remove_key = to_be_removed\n\n"
+            "[test_core]\n"
+            "dags_folder = /some/path/to/dags\n"
+            "default_key = OldDefault\n"
+        )
+        monkeypatch.setenv("AIRFLOW_CONFIG", str(fake_config))
+        monkeypatch.setattr(config_command, "AIRFLOW_CONFIG", str(fake_config))
+        conf.read(str(fake_config))
+        self.fake_config = fake_config
 
-    @pytest.fixture
-    def fake_airflow_config_file(self, tmp_path, monkeypatch):
-        fake_config_file = tmp_path / "airflow.cfg"
-        fake_config_file.write_text("dummy content")
-        monkeypatch.setenv("AIRFLOW_CONFIG", str(fake_config_file))
-        monkeypatch.setattr(config_command, "AIRFLOW_CONFIG", str(fake_config_file))
-        return fake_config_file
-
-    def test_update_renamed_option(self, fake_airflow_config_file):
+    def test_update_renamed_option(self, monkeypatch):
         renamed_change = ConfigChange(
-            config=ConfigParameter("test_rename_old", "old_key"),
-            renamed_to=ConfigParameter("test_rename_new", "new_key"),
+            config=ConfigParameter("test_admin", "rename_key"),
+            renamed_to=ConfigParameter("test_core", "renamed_key"),
         )
-        with mock.patch.object(config_command, "CONFIGS_CHANGES", [renamed_change]):
-            self.fake_conf.has_option.return_value = True
-            self.fake_conf.get.return_value = "legacy_value"
-            args = self.parser.parse_args(["config", "update"])
-            config_command.update_config(args)
-            self.fake_conf.set.assert_any_call("test_rename_new", "new_key", "legacy_value")
-            self.fake_conf.remove_option.assert_any_call("test_rename_old", "old_key")
+        monkeypatch.setattr(config_command, "CONFIGS_CHANGES", [renamed_change])
+        assert conf.has_option("test_admin", "rename_key")
+        args = self.parser.parse_args(["config", "update"])
+        config_command.update_config(args)
+        content = self.fake_config.read_text()
+        admin_section = content.split("[test_admin]")[-1]
+        assert "rename_key" not in admin_section
+        core_section = content.split("[test_core]")[-1]
+        assert "renamed_key" in core_section
+        assert "# Renamed from test_admin.rename_key" in content
 
-    def test_update_removed_option(self, fake_airflow_config_file):
+    def test_update_removed_option(self, monkeypatch):
         removed_change = ConfigChange(
-            config=ConfigParameter("test_removed", "remove_me"),
-            suggestion="This option is removed in Airflow 3.0.",
+            config=ConfigParameter("test_admin", "remove_key"),
+            suggestion="Option removed in Airflow 3.0.",
         )
-        with mock.patch.object(config_command, "CONFIGS_CHANGES", [removed_change]):
-            self.fake_conf.has_option.return_value = True
-            args = self.parser.parse_args(["config", "update"])
-            config_command.update_config(args)
-            self.fake_conf.remove_option.assert_any_call("test_removed", "remove_me")
+        monkeypatch.setattr(config_command, "CONFIGS_CHANGES", [removed_change])
+        assert conf.has_option("test_admin", "remove_key")
+        args = self.parser.parse_args(["config", "update"])
+        config_command.update_config(args)
+        content = self.fake_config.read_text()
+        assert "remove_key" not in content
 
-    def test_update_default_value_change(self, fake_airflow_config_file):
-        default_change = ConfigChange(
-            config=ConfigParameter("test_default", "default_key"),
-            default_change=True,
-            new_default="NewDefault",
-            suggestion="Default changed for Airflow 3.0.",
-            was_removed=False,
-        )
-        with mock.patch.object(config_command, "CONFIGS_CHANGES", [default_change]):
-            self.fake_conf.has_option.return_value = True
-            self.fake_conf.get.return_value = "OldDefault"
-            args = self.parser.parse_args(["config", "update"])
-            config_command.update_config(args)
-            self.fake_conf.set.assert_any_call("test_default", "default_key", "NewDefault")
+    def test_update_no_changes(self, monkeypatch, capsys):
+        monkeypatch.setattr(config_command, "CONFIGS_CHANGES", [])
+        args = self.parser.parse_args(["config", "update"])
+        config_command.update_config(args)
+        captured = capsys.readouterr().out
+        assert "No updates needed" in captured
 
-    def test_update_no_changes(self, fake_airflow_config_file):
-        with mock.patch.object(config_command, "CONFIGS_CHANGES", []):
-            args = self.parser.parse_args(["config", "update"])
-            with contextlib.redirect_stdout(StringIO()) as temp_stdout:
-                config_command.update_config(args)
-            output = temp_stdout.getvalue()
-            assert "No updates needed" in output
-
-    def test_update_backup_creation(self, fake_airflow_config_file, monkeypatch):
+    def test_update_backup_creation(self, monkeypatch):
         removed_change = ConfigChange(
-            config=ConfigParameter("test_removed", "remove_me"),
-            suggestion="This option is removed in Airflow 3.0.",
+            config=ConfigParameter("test_admin", "remove_key"),
+            suggestion="Option removed.",
         )
-        with mock.patch.object(config_command, "CONFIGS_CHANGES", [removed_change]):
-            self.fake_conf.has_option.return_value = True
-            args = self.parser.parse_args(["config", "update"])
-            m_copy = mock.MagicMock()
-            monkeypatch.setattr(shutil, "copy2", m_copy)
-            config_command.update_config(args)
-            backup_path = os.environ.get("AIRFLOW_CONFIG") + ".bak"
-            m_copy.assert_called_once_with(os.environ.get("AIRFLOW_CONFIG"), backup_path)
+        monkeypatch.setattr(config_command, "CONFIGS_CHANGES", [removed_change])
+        assert conf.has_option("test_admin", "remove_key")
+        args = self.parser.parse_args(["config", "update"])
+        mock_copy = mock.MagicMock()
+        monkeypatch.setattr(shutil, "copy2", mock_copy)
+        config_command.update_config(args)
+        backup_path = os.environ.get("AIRFLOW_CONFIG") + ".bak"
+        mock_copy.assert_called_once_with(os.environ.get("AIRFLOW_CONFIG"), backup_path)
