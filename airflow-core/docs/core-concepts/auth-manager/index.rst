@@ -146,7 +146,7 @@ delete the cookie.
 
     response = RedirectResponse(url="/")
 
-    secure = conf.getboolean("api", "ssl_cert")
+    secure = conf.has_option("api", "ssl_cert")
     response.set_cookie(COOKIE_NAME_JWT_TOKEN, token, secure=secure)
     return response
 
