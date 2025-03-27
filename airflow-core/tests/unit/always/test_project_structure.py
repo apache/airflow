@@ -581,6 +581,7 @@ class TestAmazonProviderProjectStructure(ExampleCoverageTest):
         "airflow.providers.amazon.aws.operators.sagemaker.SageMakerBaseOperator",
         "airflow.providers.amazon.aws.sensors.base_aws.AwsBaseSensor",
         "airflow.providers.amazon.aws.sensors.bedrock.BedrockBaseSensor",
+        "airflow.providers.amazon.aws.sensors.bedrock.BedrockBaseBatchInferenceSensor",
         "airflow.providers.amazon.aws.sensors.dms.DmsTaskBaseSensor",
         "airflow.providers.amazon.aws.sensors.emr.EmrBaseSensor",
         "airflow.providers.amazon.aws.sensors.rds.RdsBaseSensor",
@@ -601,6 +602,7 @@ class TestAmazonProviderProjectStructure(ExampleCoverageTest):
         # These operations take a lot of time, there are commented out in the system tests for this reason
         "airflow.providers.amazon.aws.operators.dms.DmsStartReplicationOperator",
         "airflow.providers.amazon.aws.operators.dms.DmsStopReplicationOperator",
+        "airflow.providers.amazon.aws.sensors.bedrock.BedrockBatchInferenceCompleteSensor"
         # These modules are used in the SageMakerNotebookOperator and therefore don't have their own examples
         "airflow.providers.amazon.aws.sensors.sagemaker_unified_studio.SageMakerNotebookSensor",
     }
