@@ -55,7 +55,6 @@ PRE_INSTALLED_PROVIDERS = [
     "common.compat",
     "common.io",
     "common.sql",
-    "fab",
     "smtp",
     "sqlite",
     "standard",
