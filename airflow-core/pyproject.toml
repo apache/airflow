@@ -254,18 +254,18 @@ exclude = [
 path = "./hatch_build_airflow_core.py"
 
 artifacts = [
-    "airflow/ui/dist/",
-    "airflow/api_fastapi/auth/managers/simple/ui/dist/",
-    "airflow/git_version",
+    "src/airflow/ui/dist/",
+    "src/airflow/api_fastapi/auth/managers/simple/ui/dist/",
+    "src/airflow/git_version",
     "generated/",
 ]
 
 [tool.hatch.build.targets.wheel]
 packages = ['src/airflow']
 artifacts = [
-    "airflow/ui/dist/",
-    "airflow/api_fastapi/auth/managers/simple/ui/dist/",
-    "airflow/git_version"
+    "src/airflow/ui/dist/",
+    "src/airflow/api_fastapi/auth/managers/simple/ui/dist/",
+    "src/airflow/git_version"
 ]
 exclude = [
     "src/airflow/ui/node_modules/",
