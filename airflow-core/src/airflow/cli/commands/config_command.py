@@ -27,7 +27,7 @@ import pygments
 from pygments.lexers.configs import IniLexer
 
 from airflow.cli.simple_table import AirflowConsole
-from airflow.configuration import AIRFLOW_CONFIG, conf
+from airflow.configuration import AIRFLOW_CONFIG, ConfigModifications, conf
 from airflow.exceptions import AirflowConfigException
 from airflow.utils.cli import should_use_colors
 from airflow.utils.code_utils import get_terminal_formatter
@@ -772,6 +772,7 @@ def update_config(args) -> None:
     """
     console = AirflowConsole()
     changes_applied = []
+    modifications = ConfigModifications()
 
     update_sections = args.section if args.section else None
     update_options = args.option if args.option else None
@@ -779,37 +780,38 @@ def update_config(args) -> None:
     ignore_options = args.ignore_option if args.ignore_option else []
 
     for change in CONFIGS_CHANGES:
-        conf_section = change.config.section
-        conf_option = change.config.option
+        conf_section = change.config.section.lower()
+        conf_option = change.config.option.lower()
+        full_key = f"{conf_section}.{conf_option}"
 
-        if update_sections is not None and conf_section not in update_sections:
+        if update_sections is not None and conf_section not in [s.lower() for s in update_sections]:
             continue
-        if update_options is not None and conf_option not in update_options:
+        if update_options is not None and full_key not in [opt.lower() for opt in update_options]:
             continue
-        if conf_section in ignore_sections or conf_option in ignore_options:
+        if conf_section in [s.lower() for s in ignore_sections] or full_key in [
+            opt.lower() for opt in ignore_options
+        ]:
             continue
 
         if not conf.has_option(conf_section, conf_option, lookup_from_deprecated=False):
             continue
 
         current_value = conf.get(conf_section, conf_option)
-
-        if change.default_change and (str(current_value) != str(change.new_default)):
-            conf.set(conf_section, conf_option, str(change.new_default))
-            changes_applied.append(
-                f"Updated default value of '{conf_section}/{conf_option}' from '{current_value}' to '{change.new_default}'."
-            )
-
+        if change.default_change:
+            if str(current_value) != str(change.new_default):
+                modifications.add_default_update(conf_section, conf_option, str(change.new_default))
+                changes_applied.append(
+                    f"Updated default value of '{conf_section}/{conf_option}' from '{current_value}' to '{change.new_default}'."
+                )
         if change.renamed_to:
-            new_section = change.renamed_to.section
-            new_option = change.renamed_to.option
-            if not conf.has_section(new_section):
-                conf.add_section(new_section)
-            conf.set(new_section, new_option, current_value)
-            conf.remove_option(conf_section, conf_option)
-            changes_applied.append(f"Renamed '{conf_section}/{conf_option}' to '{new_section}/{new_option}'.")
+            modifications.add_rename(
+                conf_section, conf_option, change.renamed_to.section, change.renamed_to.option
+            )
+            changes_applied.append(
+                f"Renamed '{conf_section}/{conf_option}' to '{change.renamed_to.section.lower()}/{change.renamed_to.option.lower()}'."
+            )
         elif change.was_removed:
-            conf.remove_option(conf_section, conf_option)
+            modifications.add_remove(conf_section, conf_option)
             changes_applied.append(f"Removed '{conf_section}/{conf_option}' from configuration.")
 
     backup_path = AIRFLOW_CONFIG + ".bak"
@@ -821,13 +823,11 @@ def update_config(args) -> None:
         raise AirflowConfigException("Backup creation failed. Aborting update_config operation.")
 
     with open(AIRFLOW_CONFIG, "w") as config_file:
-        conf.write(
+        conf.write_custom_config(
             file=config_file,
-            include_sources=False,
-            include_env_vars=True,
-            include_providers=True,
-            comment_out_everything=False,
-            only_defaults=True,
+            comment_out_defaults=True,
+            include_descriptions=True,
+            modifications=modifications,
         )
 
     if changes_applied:
