@@ -41,17 +41,26 @@ def update_orm_from_pydantic(
     # Not all fields match and some need setters, therefore copy partly manually via setters
     non_update_fields = {"connection_id", "conn_id"}
     setter_fields = {"password", "extra"}
-    fields_to_update = set(pydantic_conn.model_dump(by_alias=True).keys()) - non_update_fields - setter_fields
+    fields_set = pydantic_conn.model_fields_set
+    if "schema_" in fields_set:  # Alias is not resolved correctly, need to patch
+        fields_set.remove("schema_")
+        fields_set.add("schema")
+    fields_to_update = fields_set - non_update_fields - setter_fields
     if update_mask:
         fields_to_update = fields_to_update.intersection(update_mask)
+        print(fields_to_update)
     conn_data = pydantic_conn.model_dump(by_alias=True)
     for key, val in conn_data.items():
         if key in fields_to_update:
             setattr(orm_conn, key, val)
 
-    if not update_mask or "password" in update_mask:
+    if (not update_mask and "password" in pydantic_conn.model_fields_set) or (
+        update_mask and "password" in update_mask
+    ):
         orm_conn.set_password(pydantic_conn.password)
-    if not update_mask or "extra" in update_mask:
+    if (not update_mask and "extra" in pydantic_conn.model_fields_set) or (
+        update_mask and "extra" in update_mask
+    ):
         orm_conn.set_extra(pydantic_conn.extra)
 
 
@@ -138,7 +147,6 @@ class BulkConnectionService(BulkService[ConnectionBody]):
                         )
                     ConnectionBody(**connection.model_dump())
 
-                    # Not all fields match and some need setters, therefore copy manually
                     update_orm_from_pydantic(old_connection, connection)
                     results.success.append(connection.connection_id)
 
