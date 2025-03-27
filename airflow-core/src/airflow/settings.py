@@ -46,6 +46,8 @@ from airflow.utils.timezone import local_timezone, parse_timezone, utc
 if TYPE_CHECKING:
     from sqlalchemy.engine import Engine
 
+    from airflow.api_fastapi.common.types import UIAlert
+
 log = logging.getLogger(__name__)
 
 try:
@@ -127,6 +129,19 @@ STATE_COLORS = {
     "up_for_retry": "gold",
     "upstream_failed": "orange",
 }
+
+# Display alerts on the dashboard
+# Useful for warning about setup issues or announcing changes to end users
+# List of UIAlerts, which allows for specifying the message, category, and roles the
+# message should be shown to. For example:
+#   from airflow.www.utils import UIAlert
+#
+#   DASHBOARD_UIALERTS = [
+#       UIAlert("Welcome to Airflow"),  # All users
+#       UIAlert("Airflow update happening next week", roles=["User"]),  # Only users with the User role
+#   ]
+#
+DASHBOARD_UIALERTS: list[UIAlert | None] = []
 
 
 @functools.cache

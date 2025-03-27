@@ -415,6 +415,7 @@ export type ConfigResponse = {
   state_color_mapping: {
     [key: string]: unknown;
   };
+  dashboard_alert: Array<UIAlert>;
 };
 
 /**
@@ -1563,6 +1564,15 @@ export type TriggerResponse = {
 export type TriggererInfoResponse = {
   status: string | null;
   latest_triggerer_heartbeat: string | null;
+};
+
+/**
+ * Optional alert to be shown at the top of the page.
+ */
+export type UIAlert = {
+  text: string;
+  category?: "info" | "warning" | "error" | null;
+  role?: string | null;
 };
 
 export type ValidationError = {

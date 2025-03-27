@@ -8189,6 +8189,11 @@ components:
         state_color_mapping:
           type: object
           title: State Color Mapping
+        dashboard_alert:
+          items:
+            $ref: '#/components/schemas/UIAlert'
+          type: array
+          title: Dashboard Alert
       type: object
       required:
       - navbar_color
@@ -8210,6 +8215,7 @@ components:
       - audit_view_included_events
       - test_connection
       - state_color_mapping
+      - dashboard_alert
       title: ConfigResponse
       description: configuration serializer.
     ConfigSection:
@@ -11510,6 +11516,30 @@ components:
       - latest_triggerer_heartbeat
       title: TriggererInfoResponse
       description: Triggerer info serializer for responses.
+    UIAlert:
+      properties:
+        text:
+          type: string
+          title: Text
+        category:
+          anyOf:
+          - type: string
+            enum:
+            - info
+            - warning
+            - error
+          - type: 'null'
+          title: Category
+        role:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Role
+      type: object
+      required:
+      - text
+      title: UIAlert
+      description: Optional alert to be shown at the top of the page.
     ValidationError:
       properties:
         loc:
