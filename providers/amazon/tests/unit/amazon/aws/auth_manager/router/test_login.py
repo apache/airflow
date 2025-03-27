@@ -90,6 +90,7 @@ class TestLoginRouter:
                     "auth_manager",
                 ): "airflow.providers.amazon.aws.auth_manager.aws_auth_manager.AwsAuthManager",
                 ("aws_auth_manager", "saml_metadata_url"): SAML_METADATA_URL,
+                ("api", "ssl_cert"): "false",
             }
         ):
             with (
